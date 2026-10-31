@@ -4,8 +4,11 @@ The results, each run in a chapter of its own with its figures:
 [the baseline of 2026-10-17](results/baseline-2026-10-17.md), linlog's
 engines on the generated families and the LLTP library;
 [beside the other provers, 2026-10-15](results/provers-2026-10-15.md),
-the comparison with the other provers of linear logic; and
-[first order against LinearOne, 2026-10-30](results/first-order-2026-10-30.md).
+the comparison with the other provers of linear logic;
+[first order against LinearOne, 2026-10-30](results/first-order-2026-10-30.md);
+and [families that grow, 2026-10-31](results/growing-2026-10-31.md), the
+time against size of the families chosen to show each engine's and each
+other prover's strengths and weaknesses.
 Every figure is drawn by `bench/plots.py` from the rows of the run's CSV
 files when the manual is built (`docs/figures.sh`), so none is drawn by
 hand and a figure always shows the rows it names. This chapter says how

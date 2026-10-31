@@ -16,6 +16,7 @@ root=$(cd "$(dirname "$0")/.." && pwd)
 plots=$root/bench/plots.py
 comparison=$root/bench/comparison
 results=$root/bench/results
+growing=$root/bench/growing
 
 for theme in light dark; do
   python3 -I "$plots" families --theme "$theme" \
@@ -29,4 +30,8 @@ for theme in light dark; do
   python3 -I "$plots" growth --theme "$theme" \
     "$comparison/first-order/times-1.csv" "$comparison/first-order/times-2.csv" \
     "$out/$theme/first-order-2026-10-30"
+  python3 -I "$plots" growth --theme "$theme" "$growing"/2026-10-31/*.csv \
+    "$out/$theme/growing-2026-10-31/engines"
+  python3 -I "$plots" growth --theme "$theme" "$growing/2026-10-31/provers/runs.csv" \
+    "$out/$theme/growing-2026-10-31/provers"
 done

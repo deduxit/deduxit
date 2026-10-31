@@ -25,6 +25,7 @@
   - [The baseline of 2026-10-17](results/baseline-2026-10-17.md)
   - [Beside the other provers, 2026-10-15](results/provers-2026-10-15.md)
   - [First order against LinearOne, 2026-10-30](results/first-order-2026-10-30.md)
+  - [Families that grow, 2026-10-31](results/growing-2026-10-31.md)
 
 # The project
 

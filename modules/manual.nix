@@ -27,6 +27,7 @@
             ../bench/plots.py
             ../bench/results
             ../bench/comparison
+            ../bench/growing
           ];
         };
         nativeBuildInputs = [
