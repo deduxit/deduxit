@@ -1961,6 +1961,21 @@ beside each journey's count; read a toolchain's or allocator's move as
 a question for pinned time, never as a regression by itself; and leave
 the baselines' wall time, on an idle machine, the arbiter of speed.
 
+*Found by the growing families (step 45b, 2026-10-31; unassigned).* The
+inverse method forced beats the default where no row of the dispatch
+gives it a turn: `wide-m1` (32 768 pairs in 47 s, where the default
+hands over to the net engine and decides 16 384 in 35 s), classical
+`chain` (2 048 clauses in 4 ms, where the focused engine meets the
+recursion limit from 1 024), and `pigeonhole` in intuitionistic affine
+MALL without exponentials (6 holes in 0.27 s against the two-sided
+engine's past a minute). Its turns today come only on classical Mix and
+intuitionistic sequents with exponentials. `pigeonhole` #1, false
+classically, is refuted by its classical reading only after the backward
+search has ended (5 s at 8 holes, at the memory bound). The resumption
+of a clause's answers at first order has no switch, so no measurement
+shows its gain beside the memo's. Measured in
+`bench/growing/2026-10-31/`, before any change is weighed.
+
 ## Follow-ups: certified refutations
 
 *From step 31d (`plan/reports/31-rocq-library.md`, "Session 31d:
