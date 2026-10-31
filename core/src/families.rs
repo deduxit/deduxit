@@ -229,12 +229,14 @@ pub static FAMILIES: &[Family] = &[
             instance(formula, Mode::CLASSICAL, valid)
         },
     },
+    // Size 0 is the empty sequent, unprovable without Mix: the wide
+    // families start at one pair.
     Family {
         name: "wide-m1",
         summary: "(a1 ⅋ b1) ⊗ … ⊗ (ak ⅋ bk), ~a1 ⊗ ~b1, …, ~ak ⊗ ~bk over distinct atoms (MLL), provable; the size is k",
         sizes: &[8, 16, 24, 32, 256, 2048],
         instances: 1,
-        least: 0,
+        least: 1,
         powers_of_two: false,
         claim: "the net engine past the focused engine's limits: with every atom once with each sign the linking is forced, so where the focused engine stops at its memory bound (4 096 pairs) the default hands the sequent over to the net engine, which decides it in about quadratic time; the inverse method forced is faster still on this shape, though no row of the dispatch gives it a turn",
         growth: &[256, 512, 1024, 2048, 4096, 8192, 16384, 32768],
@@ -245,7 +247,7 @@ pub static FAMILIES: &[Family] = &[
         summary: "the wide sequent with every atom shared by two pairs: every literal twice",
         sizes: &[8, 16, 24, 32, 256, 2048],
         instances: 1,
-        least: 0,
+        least: 1,
         powers_of_two: false,
         claim: "",
         growth: &[],
@@ -256,7 +258,7 @@ pub static FAMILIES: &[Family] = &[
         summary: "the wide sequent with every atom shared by three pairs: every literal three times",
         sizes: &[12, 24, 30, 36, 256, 1024, 2048],
         instances: 1,
-        least: 0,
+        least: 1,
         powers_of_two: false,
         claim: "",
         growth: &[],
@@ -267,7 +269,7 @@ pub static FAMILIES: &[Family] = &[
         summary: "the wide sequent with every atom shared by four pairs: every literal four times",
         sizes: &[12, 24, 28, 32, 36, 256, 1024, 2048],
         instances: 1,
-        least: 0,
+        least: 1,
         powers_of_two: false,
         claim: "",
         growth: &[],
@@ -281,7 +283,7 @@ pub static FAMILIES: &[Family] = &[
         least: 0,
         powers_of_two: false,
         claim: "the inverse method on Mix: it saturates in a few sequents at every size, where the focused engine alone grows about eightfold per pair as it meets the partitions of the context; the default gives the inverse method its turn after 2²⁴ units of the focused engine's work",
-        growth: &[4, 6, 8, 10, 12, 16, 32, 64, 128, 256, 512, 1024],
+        growth: &[4, 6, 8, 10, 12, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096],
         generate: |k, _| instance(mix(k), Mode::CLASSICAL.with_mix(), false),
     },
     Family {
@@ -291,7 +293,7 @@ pub static FAMILIES: &[Family] = &[
         instances: 1,
         least: 0,
         powers_of_two: true,
-        claim: "the Horn engine's strength: a counter decided as Petri-net reachability in about linear time, where the focused engine forced grows steeply, about as the cube of the tokens, and the inverse method forced fills its memory",
+        claim: "the Horn engine's strength: a counter decided as Petri-net reachability in about linear time, where the focused engine forced grows steeply, about as the cube of the tokens, and the inverse method forced does not finish from 16 tokens on",
         growth: &[
             2, 4, 8, 16, 32, 64, 128, 256, 1024, 4096, 16384, 65_536, 262_144,
         ],
@@ -342,8 +344,8 @@ pub static FAMILIES: &[Family] = &[
         // `p0 ⊢ p1` at size 0 is unprovable, against the claim.
         least: 1,
         powers_of_two: false,
-        claim: "the focused engine's memo on repeated subgoals: the `&` of each clause offers two ways on, so Fibonacci-many paths lead to the goal and meet the same subgoals, which the memo answers once (about half the stable sequents are hits), so the time grows polynomially; under the default deepening (`--copies none`) the search repeats at each of the k + 2 copy levels; the inverse method forced is faster still, though no row of the dispatch gives it a turn on a classical sequent without Mix",
-        growth: &[16, 32, 64, 128, 256, 512, 1024, 2048],
+        claim: "the focused engine's memo on repeated subgoals: the `&` of each clause offers two ways on, so Fibonacci-many paths lead to the goal and meet the same subgoals, which the memo answers once (about half the stable sequents are hits), so the time grows polynomially where without the memo it passes a minute at 64; the default deepening (`--copies none`, about k/2 + 1 levels) costs nothing more, the memo answering each level's repeated subgoals; the inverse method forced is faster still, though no row of the dispatch gives it a turn on a classical sequent without Mix",
+        growth: &[16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192],
         generate: |k, _| {
             let clauses: Vec<String> = (0..k)
                 .map(|i| format!("!(p{i} -o p{} & p{})", i + 1, i + 2))
@@ -381,8 +383,8 @@ pub static FAMILIES: &[Family] = &[
         // The reversed product of one formula is the product itself.
         least: 2,
         powers_of_two: false,
-        claim: "LinearOne's home ground: the Lambek calculus in first-order MILL, the fragment LinearOne's proof-net search is written for; the two-sided first-order search is faster at small sizes and meets its recursion limit of 2 048 at 512 formulas on #0 and #2",
-        growth: &[8, 16, 32, 64, 128, 256, 512, 1024],
+        claim: "LinearOne's home ground: the Lambek calculus in first-order MILL, the fragment LinearOne's proof-net search is written for; the two-sided first-order search is faster at small sizes and meets its recursion limit of 2 048 at 512 formulas on #0 and #2 and at 1 024 on #3 and #4",
+        growth: &[8, 16, 32, 64, 128, 256, 512, 1024, 2048],
         generate: |k, index| {
             let (hypotheses, goal, provable) = lambek_shape(k, index);
             instance(
@@ -466,8 +468,8 @@ pub static FAMILIES: &[Family] = &[
         instances: 2,
         least: 1,
         powers_of_two: false,
-        claim: "the inverse method's strength on a clause used n + 1 times on one branch: the backward search finds the proof in exponentially many stable sequents and the inverse method in about n²/2 sequents, the default giving it its turn after 2²⁴ units of work; on the non-theorem #1 the backward search ends at its copy bound and the inverse method saturates, up to about eight atoms",
-        growth: &[2, 4, 8, 16, 32, 64, 128, 256],
+        claim: "the inverse method's strength on a clause used n + 1 times on one branch: the backward search finds the proof in exponentially many stable sequents and the inverse method in about n²/2 sequents, the default giving it its turn after 2²⁴ units of work; on the non-theorem #1 the backward search ends at its copy bound and the inverse method saturates, up to 16 atoms within a minute",
+        growth: &[2, 4, 8, 16, 32, 64, 128, 256, 512],
         generate: |n, index| {
             let atoms: Vec<String> = (1..=n).map(|i| format!("p{i}")).collect();
             let mut alternatives = vec![format!("({})", atoms.join(" * "))];
@@ -551,23 +553,29 @@ pub static FAMILIES: &[Family] = &[
         },
     },
     // m − 1 uses of the clause turn the one `a` into m, all on the branch
-    // before the goal's tensor splits them.
+    // before the goal's tensor splits them; a proof of ILL is one of
+    // classical linear logic, so #1 is provable too.
     Family {
         name: "duplicate",
-        summary: "!(a ⊸ a ⊗ a), a ⊢ a ⊗ … ⊗ a with m factors (IMELL), provable within m − 1 copies on one branch; the size is m",
+        summary: "!(a ⊸ a ⊗ a), a ⊢ a ⊗ … ⊗ a with m factors, provable within m − 1 copies on one branch, #0 intuitionistic (IMELL), #1 classical (MELL), so that the provers of either run it; the size is m",
         sizes: &[2, 4, 8],
-        instances: 1,
+        instances: 2,
         least: 1,
         powers_of_two: false,
         claim: "the other provers' caps on contraction: one clause used m − 1 times on one branch, past lolli's two uses of a clause, APLL's bound of 3, llprover's threshold of 5 and the Maude prover's copy bound of 5, while linlog's Horn engine decides it in about linear time",
         growth: &[
             2, 4, 8, 16, 32, 64, 128, 256, 1024, 4096, 16384, 65_536, 262_144,
         ],
-        generate: |m, _| {
+        generate: |m, index| {
             let text = format!("!(a -o a * a), a |- {}", power("a", m, " * "));
+            let mode = if index == 0 {
+                Mode::INTUITIONISTIC
+            } else {
+                Mode::CLASSICAL
+            };
             Instance {
                 copies: Some(m - 1),
-                ..instance(parse(&text), Mode::INTUITIONISTIC, true)
+                ..instance(parse(&text), mode, true)
             }
         },
     },
@@ -579,12 +587,12 @@ pub static FAMILIES: &[Family] = &[
     // decides it in general, so a search ends at a bound or the limit.
     Family {
         name: "reach-fo",
-        summary: "reachability through a cycle (IMELL1): !e(n0,n1), …, !e(n(n−1),n0), r(n0), !∀x∀y.(e(x,y) ⊗ r(x) ⊸ r(y)) ⊢ r(z), #0 with the exit !e(n(n−1),z), provable within n + 1 copies, #1 without it, unprovable, searched to n + 1 copies; the size is the cycle's nodes n",
+        summary: "reachability through a cycle (IMELL1): !e(n0,n1), …, !e(n(n−1),n0), r(n0), !∀x∀y.(e(x,y) ⊗ r(x) ⊸ r(y)) ⊢ r(z), #0 with the exit !e(n(n−1),z), provable within n + 1 copies, #1 without it, unprovable, searched to n + 1 copies; the size is the cycle's nodes n, one a loop",
         sizes: &[2, 4],
         instances: 2,
-        least: 2,
+        least: 1,
         powers_of_two: false,
-        claim: "the first-order memo's loop check: a search through a cycle comes back to an instance it has met, which the memo recognises, so the exit is found; the time still grows steeply with the cycle, and #1, the cycle without an exit, is refuted by the loop check on two nodes and ends at a bound beyond",
+        claim: "the first-order memo's loop check: a search through a cycle comes back to an instance it has met, which the memo recognises, so the exit is found (without the memo the search passes a minute at 8 nodes, with it at 12); the time still grows steeply with the cycle; #1, the cycle without an exit, ends at its copy bound",
         growth: &[2, 3, 4, 5, 6, 8, 10, 12, 16],
         generate: |n, index| {
             let mut hypotheses: Vec<String> = (0..n)
@@ -1131,6 +1139,7 @@ mod tests {
     fn refuses_sizes_without_instances() {
         for (name, size, least, powers_of_two) in [
             ("qbf", 2, 3, false),
+            ("wide-m1", 0, 1, false),
             ("3-partition-no", 3, 4, false),
             ("partition-no", 2, 3, false),
             ("counter", 6, 0, true),

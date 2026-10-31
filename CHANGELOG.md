@@ -129,6 +129,8 @@ second number (0.1.x to 0.2.0), anything else the third.
   provable and with `q(b)` unprovable. `Instance::witness_depth` names
   the witness depth a family's proof needs, as `Instance::copies` names
   its copy bound.
+- The families `wide-m1` to `wide-m4` start at one pair: size 0 was the
+  empty sequent, marked provable, which it is not without Mix.
 - Families that grow: `Family::growth`, the sizes of a family's growing
   set, from easy to past what the engines decide in a minute, and
   `Family::claim`, the strength or weakness of an engine or of another
@@ -140,7 +142,7 @@ second number (0.1.x to 0.2.0), anything else the third.
   (SYJ202) in intuitionistic affine MALL, `n + 1` pigeons provable and
   `n` not; `euler`, Euler tours through the square of a cycle in IMALL,
   provable, and without one edge, unprovable; `duplicate`, `!(a ⊸ a ⊗
-  a), a ⊢ a ⊗ … ⊗ a`, provable; and `reach-fo`, reachability through a
+  a), a ⊢ a ⊗ … ⊗ a`, provable in ILL and in classical linear logic; and `reach-fo`, reachability through a
   cycle to its exit at first order, provable, and without the exit,
   unprovable.
 

@@ -116,6 +116,38 @@ the generated families are read or changed; the harness that runs them is
   `provable: false`, which `summary` counts as undecided, never as a
   mismatch. `witness-fo` is intuitionistic so that LinearOne runs its
   MILL1 shapes (#2, #3); the MALL1 shapes (#0, #1) are the plan's.
+- **The growing sets** (`Family::growth`, `Family::claim`): a family
+  with a claim has sizes from easy to past what every engine that admits
+  it decides in the nights' minute, geometric where the time grows
+  polynomially and by one where it grows exponentially (one step would
+  jump from milliseconds past the limit). The claim is a sentence of
+  what the growth shows, written from measured rows, never from
+  expectation alone: six first drafts were wrong against the rows (the
+  net engine's strength on `wide-m1`, where the inverse method forced is
+  faster still; the focused engine "exponential" on `counter`, which is
+  about cubic; `pigeonhole` #1 "refuted at once", which waits for the
+  backward search; the loop check refuting `reach-fo` #1, which it does
+  only without the family's copy bound; the inverse method "filling its
+  memory" on `counter`, where it runs out of time; the deepening
+  repeating k + 2 levels of `chain`, where the proof is at about k/2 + 1
+  and the memo makes the levels cost nothing). A growing set must be monotone (a larger instance of
+  a shape no easier), since the harness skips a configuration's larger
+  sizes after a run at its limit: a random family gets no growing set.
+  The five families added for claims are argued at their generators:
+  `contraction` (Franzén's SYJ203 and SYJ209 in ILL; #1 by the forgetful
+  map to ILTP's SYJ209 and a two-world Kripke model), `pigeonhole`
+  (Cook's SYJ202 in intuitionistic affine MALL; #1 classically false),
+  `euler` (Euler tours on the square of a cycle, not Chaudhuri's complete
+  graphs, whose edges grow too fast for a curve; a proof of `x, E ⊢ y`
+  is a trail), `duplicate` (#0 intuitionistic, #1 the same sequent
+  classical, so that the classical provers run it too), and `reach-fo`
+  (its copies are n + 1: the first edge's copy ends the branch of n
+  nested clause uses; size 1 is a loop).
+- **The wide families start at one pair**: `wide(0, _)` is the empty
+  sequent, unprovable without Mix, which `least: 0` had marked provable.
+- **`batch-families`'s input is a list of names** (`BATCHED` in
+  `bench/src/journeys.rs`): a family added later stays out of the
+  journey, so that its ceiling keeps measuring the same batch.
 - **`Instance::witness_depth`** is the depth under which a proof
   exists, `None` where the default serves; `verdicts_as_constructed`
   and the harness's child apply it as they apply `copies`. A family
