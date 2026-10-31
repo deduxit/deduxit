@@ -82,7 +82,9 @@
             nativeBuildInputs = [ linlog-bench ];
           }
           ''
-            families=$(linlog-bench families | sed -E 's/^([^ ]+) \(([0-9]+).*/--family \1=\2/')
+            # A family's line names its first size; the indented line of a
+            # growing set beneath it is no family.
+            families=$(linlog-bench families | sed -nE 's/^([^ ]+) \(([0-9]+).*/--family \1=\2/p')
             # Every source of problems: the families, a problem file, an
             # LLTP file and a .spec file (the command's lock inputs, since
             # the libraries are not in the tree).

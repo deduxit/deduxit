@@ -459,11 +459,11 @@ pub static FAMILIES: &[Family] = &[
     // pi ⊸ f puts pi into the context for the next use, and once every pi
     // is there the tensor takes them. #1 is unprovable: forgetting
     // linearity and `!` gives ILTP's SYJ209, false in the Kripke model of
-    // two worlds r ≤ u with p2, …, pn forced at both and p1 and f at u
+    // two worlds r ≤ u with p2, …, p(n) forced at both and p1 and f at u
     // alone (¬¬p1 is forced at r, the clause at both, f not at r).
     Family {
         name: "contraction",
-        summary: "Franzén's formulas in ILL: !((p1 ⊗ … ⊗ pn) ⊕ (p1 ⊸ f) ⊕ … ⊕ (pn ⊸ f) ⊸ f) ⊢ f, #0 provable within n + 1 copies (ILTP's SYJ203), #1 with ((p1 ⊸ 0) ⊸ 0) ⊸ f for p1 ⊸ f, unprovable (SYJ209), searched to n + 1 copies; the size is n",
+        summary: "Franzén's formulas in ILL: !((p1 ⊗ … ⊗ p(n)) ⊕ (p1 ⊸ f) ⊕ … ⊕ (p(n) ⊸ f) ⊸ f) ⊢ f, #0 provable within n + 1 copies (ILTP's SYJ203), #1 with ((p1 ⊸ 0) ⊸ 0) ⊸ f for p1 ⊸ f, unprovable (SYJ209), searched to n + 1 copies; the size is n",
         sizes: &[2, 4, 8],
         instances: 2,
         least: 1,
