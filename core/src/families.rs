@@ -9,7 +9,13 @@
 //! Mix, wide sequents of distinct or shared atoms), and the slow cases of
 //! the exponentials, and first-order families: the Lambek calculus in
 //! first-order MILL, a chain of instances of a quantified clause under
-//! `!`, and a witness chosen among many. Each instance says whether it is provable, by
+//! `!`, and a witness chosen among many. Some families have a growing set
+//! ([`Family::growth`]) and a claim ([`Family::claim`]): what the growth of
+//! the time to decide them shows about one engine or another prover,
+//! among them Franzén's contraction formulas and Cook's pigeonhole
+//! principle from Dyckhoff's benchmarks, Euler tours from Chaudhuri's
+//! benchmarks of the inverse method, a clause used many times on one
+//! branch, and reachability through a cycle at first order. Each instance says whether it is provable, by
 //! construction or by solving the combinatorial problem it encodes, never
 //! by running an engine. Random families are seeded by their size and
 //! index, so an instance is the same on every run.
@@ -73,6 +79,15 @@ pub struct Family {
     pub least: u32,
     /// Whether its sizes are the powers of two.
     pub powers_of_two: bool,
+    /// What the family shows: the strength or weakness of an engine or
+    /// another prover it is chosen for, and what a run is expected to
+    /// show; empty for a family that has no growing set.
+    pub claim: &'static str,
+    /// The sizes of its growing set, from easy to the ceiling where every
+    /// engine that admits it has met the time limit of a minute or a
+    /// bound; geometric where the time grows polynomially, by one where it
+    /// grows exponentially. Empty for a family that has none.
+    pub growth: &'static [u32],
     /// Builds the instance of a size and an index.
     generate: fn(u32, u32) -> Instance,
 }
@@ -117,6 +132,8 @@ pub static FAMILIES: &[Family] = &[
         instances: 1,
         least: 4,
         powers_of_two: false,
+        claim: "",
+        growth: &[],
         generate: |b, _| {
             let items = solvable_triples(b);
             instance(three_partition(&items, 2, b), Mode::CLASSICAL, true)
@@ -129,6 +146,8 @@ pub static FAMILIES: &[Family] = &[
         instances: 1,
         least: 4,
         powers_of_two: false,
+        claim: "",
+        growth: &[],
         generate: |b, _| {
             instance(
                 three_partition(&unsolvable_triples(b), 2, b),
@@ -144,6 +163,8 @@ pub static FAMILIES: &[Family] = &[
         instances: 1,
         least: 4,
         powers_of_two: false,
+        claim: "",
+        growth: &[],
         generate: |b, _| {
             let items = solvable_triples(b);
             instance(three_partition_mll(&items, 2, b), Mode::CLASSICAL, true)
@@ -156,6 +177,8 @@ pub static FAMILIES: &[Family] = &[
         instances: 1,
         least: 4,
         powers_of_two: false,
+        claim: "",
+        growth: &[],
         generate: |b, _| {
             instance(
                 three_partition_mll(&unsolvable_triples(b), 2, b),
@@ -171,6 +194,8 @@ pub static FAMILIES: &[Family] = &[
         instances: 1,
         least: 2,
         powers_of_two: false,
+        claim: "",
+        growth: &[],
         generate: |n, _| instance(partition(&partition_items(n, true)), Mode::CLASSICAL, true),
     },
     Family {
@@ -180,6 +205,8 @@ pub static FAMILIES: &[Family] = &[
         instances: 1,
         least: 3,
         powers_of_two: false,
+        claim: "",
+        growth: &[],
         generate: |n, _| {
             instance(
                 partition(&partition_items(n, false)),
@@ -195,6 +222,8 @@ pub static FAMILIES: &[Family] = &[
         instances: 4,
         least: 3,
         powers_of_two: false,
+        claim: "",
+        growth: &[],
         generate: |n, index| {
             let (formula, valid) = qbf(n, index);
             instance(formula, Mode::CLASSICAL, valid)
@@ -207,6 +236,8 @@ pub static FAMILIES: &[Family] = &[
         instances: 1,
         least: 0,
         powers_of_two: false,
+        claim: "the net engine past the focused engine's limits: with every atom once with each sign the linking is forced, so where the focused engine stops at its memory bound (4 096 pairs) the default hands the sequent over to the net engine, which decides it in about quadratic time; the inverse method forced is faster still on this shape, though no row of the dispatch gives it a turn",
+        growth: &[256, 512, 1024, 2048, 4096, 8192, 16384, 32768],
         generate: |k, _| instance(wide(k, 1), Mode::CLASSICAL, true),
     },
     Family {
@@ -216,6 +247,8 @@ pub static FAMILIES: &[Family] = &[
         instances: 1,
         least: 0,
         powers_of_two: false,
+        claim: "",
+        growth: &[],
         generate: |k, _| instance(wide(k, 2), Mode::CLASSICAL, true),
     },
     Family {
@@ -225,6 +258,8 @@ pub static FAMILIES: &[Family] = &[
         instances: 1,
         least: 0,
         powers_of_two: false,
+        claim: "",
+        growth: &[],
         generate: |k, _| instance(wide(k, 3), Mode::CLASSICAL, true),
     },
     Family {
@@ -234,6 +269,8 @@ pub static FAMILIES: &[Family] = &[
         instances: 1,
         least: 0,
         powers_of_two: false,
+        claim: "",
+        growth: &[],
         generate: |k, _| instance(wide(k, 4), Mode::CLASSICAL, true),
     },
     Family {
@@ -243,6 +280,8 @@ pub static FAMILIES: &[Family] = &[
         instances: 1,
         least: 0,
         powers_of_two: false,
+        claim: "the inverse method on Mix: it saturates in a few sequents at every size, where the focused engine alone grows about eightfold per pair as it meets the partitions of the context; the default gives the inverse method its turn after 2²⁴ units of the focused engine's work",
+        growth: &[4, 6, 8, 10, 12, 16, 32, 64, 128, 256, 512, 1024],
         generate: |k, _| instance(mix(k), Mode::CLASSICAL.with_mix(), false),
     },
     Family {
@@ -252,6 +291,10 @@ pub static FAMILIES: &[Family] = &[
         instances: 1,
         least: 0,
         powers_of_two: true,
+        claim: "the Horn engine's strength: a counter decided as Petri-net reachability in about linear time, where the focused engine forced grows steeply, about as the cube of the tokens, and the inverse method forced fills its memory",
+        growth: &[
+            2, 4, 8, 16, 32, 64, 128, 256, 1024, 4096, 16384, 65_536, 262_144,
+        ],
         generate: |n, _| {
             let (sequent, levels) = counter(n, false);
             Instance {
@@ -267,6 +310,8 @@ pub static FAMILIES: &[Family] = &[
         instances: 1,
         least: 0,
         powers_of_two: true,
+        claim: "",
+        growth: &[],
         generate: |n, _| {
             let (sequent, levels) = counter(n, true);
             Instance {
@@ -282,6 +327,8 @@ pub static FAMILIES: &[Family] = &[
         instances: 1,
         least: 0,
         powers_of_two: false,
+        claim: "",
+        growth: &[],
         generate: |copies, _| Instance {
             copies: Some(copies),
             ..instance(parse("!(a -o a * a), a |- ?b"), Mode::CLASSICAL, false)
@@ -295,6 +342,8 @@ pub static FAMILIES: &[Family] = &[
         // `p0 ⊢ p1` at size 0 is unprovable, against the claim.
         least: 1,
         powers_of_two: false,
+        claim: "the focused engine's memo on repeated subgoals: the `&` of each clause offers two ways on, so Fibonacci-many paths lead to the goal and meet the same subgoals, which the memo answers once (about half the stable sequents are hits), so the time grows polynomially; under the default deepening (`--copies none`) the search repeats at each of the k + 2 copy levels; the inverse method forced is faster still, though no row of the dispatch gives it a turn on a classical sequent without Mix",
+        growth: &[16, 32, 64, 128, 256, 512, 1024, 2048],
         generate: |k, _| {
             let clauses: Vec<String> = (0..k)
                 .map(|i| format!("!(p{i} -o p{} & p{})", i + 1, i + 2))
@@ -313,6 +362,8 @@ pub static FAMILIES: &[Family] = &[
         instances: 1,
         least: 0,
         powers_of_two: false,
+        claim: "",
+        growth: &[],
         generate: |depth, _| {
             let formula = additive_tree(depth, 0, &mut 0);
             instance(
@@ -330,6 +381,8 @@ pub static FAMILIES: &[Family] = &[
         // The reversed product of one formula is the product itself.
         least: 2,
         powers_of_two: false,
+        claim: "LinearOne's home ground: the Lambek calculus in first-order MILL, the fragment LinearOne's proof-net search is written for; the two-sided first-order search is faster at small sizes and meets its recursion limit of 2 048 at 512 formulas on #0 and #2",
+        growth: &[8, 16, 32, 64, 128, 256, 512, 1024],
         generate: |k, index| {
             let (hypotheses, goal, provable) = lambek_shape(k, index);
             instance(
@@ -352,6 +405,8 @@ pub static FAMILIES: &[Family] = &[
         instances: 2,
         least: 1,
         powers_of_two: false,
+        claim: "the first-order search's instances of one clause: n instances on one branch, decided in polynomial time until the recursion limit of 2 048, met near 400 copies, while #1 ends at its copy bound; LinearOne refuses it, its fragment being MILL1",
+        growth: &[16, 32, 64, 128, 256, 384, 512, 1024],
         generate: |n, index| {
             let goal = if index == 0 {
                 format!("p({}z{})", "s(".repeat(n as usize), ")".repeat(n as usize))
@@ -378,6 +433,8 @@ pub static FAMILIES: &[Family] = &[
         instances: 4,
         least: 1,
         powers_of_two: false,
+        claim: "a witness among n: the first-order search tries the instances in turn, and its split steps on the MILL1 refutation #3 grow exponentially (seconds at ten) where LinearOne's proof-net search stays near flat, a pool of threads dividing that work; LinearOne refuses the MALL1 shapes #0 and #1",
+        growth: &[2, 4, 6, 8, 10, 12, 14, 16],
         generate: |n, index| {
             let alternatives: Vec<String> = (1..=n).map(|i| format!("p(a{i})")).collect();
             let q = if index % 2 == 0 {
@@ -394,6 +451,156 @@ pub static FAMILIES: &[Family] = &[
                 format!("{}, {q} |- {}", alternatives.join(", "), goal.join(" * "))
             };
             instance(parse(&text), Mode::INTUITIONISTIC, index % 2 == 0)
+        },
+    },
+    // #0 is proved by using the clause n + 1 times on one branch: choosing
+    // pi ⊸ f puts pi into the context for the next use, and once every pi
+    // is there the tensor takes them. #1 is unprovable: forgetting
+    // linearity and `!` gives ILTP's SYJ209, false in the Kripke model of
+    // two worlds r ≤ u with p2, …, pn forced at both and p1 and f at u
+    // alone (¬¬p1 is forced at r, the clause at both, f not at r).
+    Family {
+        name: "contraction",
+        summary: "Franzén's formulas in ILL: !((p1 ⊗ … ⊗ pn) ⊕ (p1 ⊸ f) ⊕ … ⊕ (pn ⊸ f) ⊸ f) ⊢ f, #0 provable within n + 1 copies (ILTP's SYJ203), #1 with ((p1 ⊸ 0) ⊸ 0) ⊸ f for p1 ⊸ f, unprovable (SYJ209), searched to n + 1 copies; the size is n",
+        sizes: &[2, 4, 8],
+        instances: 2,
+        least: 1,
+        powers_of_two: false,
+        claim: "the inverse method's strength on a clause used n + 1 times on one branch: the backward search finds the proof in exponentially many stable sequents and the inverse method in about n²/2 sequents, the default giving it its turn after 2²⁴ units of work; on the non-theorem #1 the backward search ends at its copy bound and the inverse method saturates, up to about eight atoms",
+        growth: &[2, 4, 8, 16, 32, 64, 128, 256],
+        generate: |n, index| {
+            let atoms: Vec<String> = (1..=n).map(|i| format!("p{i}")).collect();
+            let mut alternatives = vec![format!("({})", atoms.join(" * "))];
+            alternatives.extend(atoms.iter().enumerate().map(|(i, p)| {
+                if i == 0 && index == 1 {
+                    format!("((({p} -o 0) -o 0) -o f)")
+                } else {
+                    format!("({p} -o f)")
+                }
+            }));
+            let text = format!("!(({}) -o f) |- f", alternatives.join(" + "));
+            Instance {
+                copies: Some(n + 1),
+                ..instance(parse(&text), Mode::INTUITIONISTIC, index == 0)
+            }
+        },
+    },
+    // #0: each pigeon's ⊕ splits the proof, and on every branch two of the
+    // n + 1 pigeons share one of the n holes, whose disjunct the goal
+    // takes, the other atoms weakened. #1: with as many pigeons as holes
+    // the classical reading is false where pigeon i sits in hole i alone,
+    // and affine ILL proves nothing classically false.
+    Family {
+        name: "pigeonhole",
+        summary: "Cook's pigeonhole principle in intuitionistic affine MALL: o(p,1) ⊕ … ⊕ o(p,n) for each pigeon p ⊢ the ⊕ over the holes h and the pairs p < q of o(p,h) ⊗ o(q,h), #0 with n + 1 pigeons, provable (ILTP's SYJ202), #1 with n pigeons, unprovable; the size is the holes n",
+        sizes: &[2, 3, 4],
+        instances: 2,
+        least: 2,
+        powers_of_two: false,
+        claim: "the two-sided engine's weakness: the pigeons' ⊕ on the left split the search into nⁿ⁺¹ branches, which the inverse method forced avoids until its memory bound, while the default gives the inverse method no turn on a sequent without exponentials; #1, false classically, is refuted by its classical reading once the backward search has ended",
+        growth: &[2, 3, 4, 5, 6, 7, 8],
+        generate: |n, index| {
+            let pigeons = if index == 0 { n + 1 } else { n };
+            let hypotheses: Vec<String> = (0..pigeons)
+                .map(|p| {
+                    let holes: Vec<String> = (0..n).map(|h| format!("o{p}_{h}")).collect();
+                    format!("({})", holes.join(" + "))
+                })
+                .collect();
+            let mut pairs = Vec::new();
+            for h in 0..n {
+                for p in 0..pigeons {
+                    for q in p + 1..pigeons {
+                        pairs.push(format!("(o{p}_{h} * o{q}_{h})"));
+                    }
+                }
+            }
+            let text = format!("{} |- {}", hypotheses.join(", "), pairs.join(" + "));
+            instance(parse(&text), Mode::INTUITIONISTIC.with_affine(), index == 0)
+        },
+    },
+    // A cut-free proof of x, E ⊢ y, E edges between atoms, is a trail from
+    // x to y using every edge of E once: an axiom is the empty trail, `&`
+    // on the left picks a direction, and `⊸` on the left sends x to the
+    // premise proving its argument (a premise without an atom proves
+    // nothing) and its result to the other. So #0 is provable, the
+    // square of a cycle being connected with every degree four (Euler),
+    // and #1 is not: without the edge v1v2 those two vertices have degree
+    // three.
+    Family {
+        name: "euler",
+        summary: "Euler tours in IMALL: v0, (va ⊸ vb) & (vb ⊸ va) for every edge ab ⊢ v0, a closed trail from v0 through every edge once, on the square of a cycle of n vertices (vi adjacent to vi±1 and vi±2); #0 provable, #1 without the edge v1v2, unprovable; the size is n",
+        sizes: &[5, 6, 8],
+        instances: 2,
+        least: 5,
+        powers_of_two: false,
+        claim: "the focused engines' context splits: each ⊸ divides the remaining edges between its premises and each & picks a direction, so the exhaustive search on a graph without an Euler circuit (#1) grows exponentially, about twofold per vertex, where a circuit (#0) is found at once; Chaudhuri's inverse method was measured on complete graphs, whose edges grow too fast for a curve",
+        growth: &[5, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24],
+        generate: |n, index| {
+            let mut edges: Vec<(u32, u32)> = (0..n)
+                .flat_map(|i| [1, 2].map(|d| (i.min((i + d) % n), i.max((i + d) % n))))
+                .filter(|&edge| index == 0 || edge != (1, 2))
+                .collect();
+            edges.sort_unstable();
+            let edges: Vec<String> = edges
+                .iter()
+                .map(|(a, b)| format!("((v{a} -o v{b}) & (v{b} -o v{a}))"))
+                .collect();
+            let text = format!("v0, {} |- v0", edges.join(", "));
+            instance(parse(&text), Mode::INTUITIONISTIC, index == 0)
+        },
+    },
+    // m − 1 uses of the clause turn the one `a` into m, all on the branch
+    // before the goal's tensor splits them.
+    Family {
+        name: "duplicate",
+        summary: "!(a ⊸ a ⊗ a), a ⊢ a ⊗ … ⊗ a with m factors (IMELL), provable within m − 1 copies on one branch; the size is m",
+        sizes: &[2, 4, 8],
+        instances: 1,
+        least: 1,
+        powers_of_two: false,
+        claim: "the other provers' caps on contraction: one clause used m − 1 times on one branch, past lolli's two uses of a clause, APLL's bound of 3, llprover's threshold of 5 and the Maude prover's copy bound of 5, while linlog's Horn engine decides it in about linear time",
+        growth: &[
+            2, 4, 8, 16, 32, 64, 128, 256, 1024, 4096, 16384, 65_536, 262_144,
+        ],
+        generate: |m, _| {
+            let text = format!("!(a -o a * a), a |- {}", power("a", m, " * "));
+            Instance {
+                copies: Some(m - 1),
+                ..instance(parse(&text), Mode::INTUITIONISTIC, true)
+            }
+        },
+    },
+    // #0 is proved by n uses of the clause along the path n0, …, n(n−1),
+    // z, nested on one branch, at whose end the first edge is a copy of
+    // its own: n + 1 copies. #1 is unprovable: forgetting linearity, the model whose domain is
+    // the constants, with e true of the edges given and r of the cycle's
+    // nodes alone, satisfies the hypotheses and not r(z). No refuter
+    // decides it in general, so a search ends at a bound or the limit.
+    Family {
+        name: "reach-fo",
+        summary: "reachability through a cycle (IMELL1): !e(n0,n1), …, !e(n(n−1),n0), r(n0), !∀x∀y.(e(x,y) ⊗ r(x) ⊸ r(y)) ⊢ r(z), #0 with the exit !e(n(n−1),z), provable within n + 1 copies, #1 without it, unprovable, searched to n + 1 copies; the size is the cycle's nodes n",
+        sizes: &[2, 4],
+        instances: 2,
+        least: 2,
+        powers_of_two: false,
+        claim: "the first-order memo's loop check: a search through a cycle comes back to an instance it has met, which the memo recognises, so the exit is found; the time still grows steeply with the cycle, and #1, the cycle without an exit, is refuted by the loop check on two nodes and ends at a bound beyond",
+        growth: &[2, 3, 4, 5, 6, 8, 10, 12, 16],
+        generate: |n, index| {
+            let mut hypotheses: Vec<String> = (0..n)
+                .map(|i| format!("!e(n{i}, n{})", (i + 1) % n))
+                .collect();
+            if index == 0 {
+                hypotheses.push(format!("!e(n{}, z)", n - 1));
+            }
+            let text = format!(
+                "{}, r(n0), !forall x. forall y. (e(x, y) * r(x) -o r(y)) |- r(z)",
+                hypotheses.join(", ")
+            );
+            Instance {
+                copies: Some(n + 1),
+                ..instance(parse(&text), Mode::INTUITIONISTIC, index == 0)
+            }
         },
     },
 ];

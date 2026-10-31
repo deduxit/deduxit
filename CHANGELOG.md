@@ -129,6 +129,20 @@ second number (0.1.x to 0.2.0), anything else the third.
   provable and with `q(b)` unprovable. `Instance::witness_depth` names
   the witness depth a family's proof needs, as `Instance::copies` names
   its copy bound.
+- Families that grow: `Family::growth`, the sizes of a family's growing
+  set, from easy to past what the engines decide in a minute, and
+  `Family::claim`, the strength or weakness of an engine or of another
+  prover its growth shows, set for `wide-m1`, `mix`, `counter`, `chain`,
+  `lambek-fo`, `chain-fo` and `witness-fo` and for five new families:
+  `contraction`, Franzén's formulas (ILTP's SYJ203 and SYJ209) in ILL,
+  one `!` clause used `n + 1` times on a branch, provable, and its
+  intuitionistic non-theorem; `pigeonhole`, Cook's pigeonhole principle
+  (SYJ202) in intuitionistic affine MALL, `n + 1` pigeons provable and
+  `n` not; `euler`, Euler tours through the square of a cycle in IMALL,
+  provable, and without one edge, unprovable; `duplicate`, `!(a ⊸ a ⊗
+  a), a ⊢ a ⊗ … ⊗ a`, provable; and `reach-fo`, reachability through a
+  cycle to its exit at first order, provable, and without the exit,
+  unprovable.
 
 - Interactive proving with quantifiers: `Interactive` takes a sequent
   with `∀` and `∃`. `∀R` and `∃L` (`Rule::Forall`) open the formula with

@@ -411,12 +411,13 @@ fn render(format: Render) -> Result<()> {
 
 /// Decides the smallest instance of every family as one batch.
 fn batch() -> Result<()> {
-    // The propositional families: the first-order ones have searches of
-    // their own, which this count of the batch leaves out.
+    // The propositional families the journey was set on: the first-order
+    // ones have searches of their own, and a family added since stays out,
+    // so that the count measures the same batch.
     let mut problems: Vec<batch::Problem> = Vec::new();
     for family in linlog::families::FAMILIES {
         let problem = family.instance(family.sizes[0], 0)?;
-        if !problem.sequent.is_first_order() {
+        if BATCHED.contains(&family.name) {
             problems.push(batch::Problem::new(
                 problem.name,
                 problem.sequent,
@@ -436,6 +437,27 @@ fn batch() -> Result<()> {
     black_box(decided);
     Ok(())
 }
+
+/// The families whose smallest instances `batch-families` batches.
+const BATCHED: [&str; 17] = [
+    "3-partition-yes",
+    "3-partition-no",
+    "3-partition-mll-yes",
+    "3-partition-mll-no",
+    "partition-yes",
+    "partition-no",
+    "qbf",
+    "wide-m1",
+    "wide-m2",
+    "wide-m3",
+    "wide-m4",
+    "mix",
+    "counter",
+    "counter-over",
+    "growing",
+    "chain",
+    "additive",
+];
 
 /// Decides a classical pigeonhole formula through its translation, reads
 /// the proof back to LK and checks it.
