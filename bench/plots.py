@@ -363,8 +363,10 @@ def panels(groups, theme, title, series_of, out, columns, low):
     same time scale in every panel; `series_of` gives a group's series as
     (slot, label, rows), the slot a number or (number, dashed)."""
     height = -(-len(groups) // columns)
-    # The title and the legend above the panels, in inches.
-    header = 0.8
+    # The title and the legend above the panels, in inches: the legend has
+    # three entries a row, a series' and the two notes'.
+    labels = {label for _, group in groups for _, label, _ in series_of(group)}
+    header = 0.4 + 0.17 * -(-(len(labels) + 2) // 3)
     fig, axes = plt.subplots(
         height,
         columns,
@@ -449,7 +451,17 @@ def panels(groups, theme, title, series_of, out, columns, low):
         bbox_to_anchor=(0, 1 - 0.35 / fig.get_figheight()),
         ncol=3,
     )
-    fig.suptitle(title, color=theme["ink"], x=0.01, ha="left", fontsize=10)
+    # The title a fixed distance from the top, above the legend, whatever
+    # the figure's height.
+    fig.suptitle(
+        title,
+        color=theme["ink"],
+        x=0.01,
+        y=1 - 0.08 / fig.get_figheight(),
+        ha="left",
+        va="top",
+        fontsize=10,
+    )
     fig.tight_layout(rect=(0, 0, 1, 1 - header / fig.get_figheight()))
     save(fig, out)
 
@@ -597,7 +609,7 @@ def growth(files, theme, out):
         if tools
         else "Time against size, each family's shape, a line per engine"
     )
-    panels(groups, theme, title, each_series, out / "growth.svg", columns=3, low=1e-4)
+    panels(groups, theme, title, each_series, out / "growth.svg", columns=3, low=1e-5)
     lines = [
         "| shape | line | sizes fitted | fitted growth |",
         "|---|---|---|---|",
