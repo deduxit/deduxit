@@ -566,6 +566,39 @@ serde_json, which the CLI and the core's tests already have.
   `docs/src/results/` named by its date, the earlier chapters left as
   they are. The comparison's own `figures/` (`comparison.sh`) stay light
   only.
+- **The growing sets** (`run --growing`, `src/growth.rs`): every family
+  with a `growth` list at those sizes. A configuration's series (family,
+  index, mode, engine requested, jobs; for a tool family, index, mode,
+  tool) ends at a run refused, unknown at `timeout`, `killed`,
+  `memory_limit`, `out_of_memory` or a crash, or decided at or past the
+  limit; its larger sizes are written as rows of verdict `skipped`,
+  reason `past the limit at size N`, with the configuration's columns
+  filled, which `summary::read_all` drops (so no table counts one, as a
+  timeout or at all) and `plots.py` draws as a cross above the limit. A
+  run at a bound of the search's own (copies, recursion, witness depth)
+  ends nothing: an unprovable shape searched to a bound ends there at
+  every size, fast. `--resume` rebuilds the ends from the file
+  (`Ended::read`); under `--growing`, `--shard` takes whole shapes
+  (`Shard::of_groups`), since a series split across shards would not see
+  its end. The order of the sizes matters: `--reverse` defeats the skip.
+- **`--memo-limit N`** is a configuration axis (column `memo_limit`,
+  the last; 0 is no memo; empty in an older file, read as the default),
+  in the resume key and the summary's label (`memo off`), so that a claim
+  about the memo has its comparison line. The resumption of a clause's
+  answers at first order has no switch, so no figure shows its gain.
+- **`bench/growing.sh`** is the nights' run of the growing sets:
+  `engines-K.csv` (the default and every engine forced, a stream per
+  core, split by shape), `memo-off.csv` (`chain`, `reach-fo`),
+  `deepening.csv` (`chain`, `--copies none`), `pool.csv` (`witness-fo`,
+  `--jobs all` on `--pool-cores`, run alone after the streams). Each
+  comparison pass is the mechanism a claim names switched off;
+  `plots.py growth` draws it dashed in its engine's colour. The other
+  provers: `bench/comparison.sh --growing` (whole shapes per stream;
+  `--quick` the first two sizes of each set, read from `linlog-bench
+  families`). `plots.py growth` writes `growth.txt` beside `growth.svg` (a Markdown table the chapter includes with mdBook's `{{#include}}`; not `.md`, which the manual's test would take for an unlisted chapter after a local `manual`):
+  per line the sizes solved over 1 ms (`FLOOR`) and the better fit by
+  least squares in the logarithm of the time, `n^d` or `b^n`, or "fewer
+  than 3 sizes" where too few are over the floor.
 - **Rerunning a few published rows** (done once, on the author's word,
   for the default's six runs of `SYJ206+1.020` and `SYJ212+1.020`,
   2026-10-17): `run --tools TOOL --lltp FILE…` with the comparison's

@@ -18,10 +18,11 @@ pub const ENGINE_SERIES: [&str; 5] = ["family", "index", "mode", "engine_request
 /// family under one tool.
 pub const TOOL_SERIES: [&str; 4] = ["family", "index", "mode", "tool"];
 
-/// The series of the growing sets that a run has ended, each with the size
-/// it ended at: the shape's larger sizes are not run in that
-/// configuration, since every growing set is a constructed family whose
-/// larger instance of a shape is no easier.
+/// The series of the growing sets that a run has ended, each with the
+/// reason of the skipped rows of its larger sizes: the shape's larger
+/// sizes are not run in that configuration, since every growing set is a
+/// constructed family whose larger instance of a shape is no easier, and
+/// a configuration that refuses a shape refuses it at every size.
 #[derive(Debug, Default)]
 pub struct Ended(HashMap<String, String>);
 
@@ -80,11 +81,9 @@ impl Ended {
     }
 
     /// The reason of a skipped row of the series, if a run ended it: the
-    /// size it was past its limit at.
+    /// size it was refused at, or past its limit at.
     pub fn skipped(&self, series: &[&str]) -> Option<String> {
-        self.0
-            .get(&series.join(","))
-            .map(|size| format!("past the limit at size {size}"))
+        self.0.get(&series.join(",")).cloned()
     }
 
     /// Ends the series if the run ended it: refused (the engine or tool
@@ -110,11 +109,14 @@ impl Ended {
             "timeout" | "killed" | "killed while loading" | "memory_limit" | "out_of_memory"
         ) || reason.starts_with("crash");
         let late = time_ms >= timeout_s * 1000.0;
-        if verdict == "refused" || (verdict == "unknown" && limited) || late {
-            self.0
-                .entry(series.join(","))
-                .or_insert_with(|| size.to_owned());
-        }
+        let reason = if verdict == "refused" {
+            format!("refused at size {size}")
+        } else if (verdict == "unknown" && limited) || late {
+            format!("past the limit at size {size}")
+        } else {
+            return;
+        };
+        self.0.entry(series.join(",")).or_insert(reason);
     }
 }
 
@@ -138,7 +140,11 @@ mod tests {
             ended.record(&[series], "8", verdict, reason, time, 60.0);
         }
         ended.record(&["timeout"], "16", SKIPPED, "", 0.0, 60.0);
-        for series in ["refused", "timeout", "late"] {
+        assert_eq!(
+            ended.skipped(&["refused"]).as_deref(),
+            Some("refused at size 8")
+        );
+        for series in ["timeout", "late"] {
             assert_eq!(
                 ended.skipped(&[series]).as_deref(),
                 Some("past the limit at size 8")

@@ -21,8 +21,9 @@ the time against the size of each family's shape, a line per engine (the
 default and each engine forced) or per tool, a configuration that switches
 a mechanism off or adds threads dashed in its engine's colour
 (`growth.svg`), and beside it the growth fitted to each line
-(`growth.md`): a polynomial's degree or an exponential's base, whichever
-fits the logarithm of the time better by least squares.
+(`growth.txt`, a Markdown table the manual includes): a polynomial's
+degree or an exponential's base, whichever fits the logarithm of the time
+better by least squares.
 """
 
 import argparse
@@ -119,9 +120,15 @@ def judge(rows):
         r["judged"] = "wrong" if wrong else ""
 
 
-# The verdict of a growing set's size not run, past the limit its line met
-# at a smaller size: no run, drawn apart in the time against size.
+# The verdict of a growing set's size not run: past the limit its line met
+# at a smaller size, drawn apart in the time against size, or refused.
 SKIPPED = "skipped"
+
+
+def past_the_limit(row):
+    """Whether a row is a size not run because its line met the limit at a
+    smaller size."""
+    return row["verdict"] == SKIPPED and row["reason"].startswith("past the limit")
 
 
 def read(files, skipped=False):
@@ -338,7 +345,7 @@ def growth_line(ax, rows, slot, theme, limit, dashed=False):
     )
     # A size not run, past the limit at a smaller one: a small cross above
     # the limit's line, apart from a run that reached it.
-    skipped = sorted({int(r["size"]) for r in rows if r["verdict"] == SKIPPED})
+    skipped = sorted({int(r["size"]) for r in rows if past_the_limit(r)})
     ax.plot(
         skipped,
         [limit * 1.8] * len(skipped),
@@ -423,7 +430,7 @@ def panels(groups, theme, title, series_of, out, columns, low):
     )
     notes = [f"not decided: the {limit:g} s limit or a bound"]
     if any(
-        r["verdict"] == SKIPPED
+        past_the_limit(r)
         for _, group in groups
         for _, _, rows in series_of(group)
         for r in rows
@@ -552,9 +559,16 @@ def growth(files, theme, out):
     tools = tools_of([r for r in rows if r.get("tool")])
     shapes = defaultdict(lambda: defaultdict(list))
     dashed = {}
+    # A line is drawn where its configuration ran the shape: a refused
+    # configuration's skipped sizes are no line.
+    ran = {
+        (r["family"], r["index"], series_label(r)[0])
+        for r in rows
+        if r["verdict"] not in ("refused", SKIPPED)
+    }
     for r in rows:
-        if r["verdict"] != "refused":
-            label, dashed[label] = series_label(r)
+        label, dashed[label] = series_label(r)
+        if (r["family"], r["index"], label) in ran and r["verdict"] != "refused":
             shapes[(r["family"], int(r["index"]))][label].append(r)
     groups = [
         (f"{family} #{index}", shapes[(family, index)])
@@ -596,7 +610,7 @@ def growth(files, theme, out):
                 f"fewer than {FITTED} sizes solved over {FLOOR * 1000:g} ms",
             )
             lines.append(f"| {name} | {label} | {sizes} | {growth_of} |")
-    (out / "growth.md").write_text("\n".join(lines) + "\n")
+    (out / "growth.txt").write_text("\n".join(lines) + "\n")
 
 
 def main():

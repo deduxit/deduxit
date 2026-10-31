@@ -14,7 +14,8 @@
 #                   beside the default's line of engines.csv
 #   deepening.csv   chain under the default deepening (--copies none),
 #                   beside the family's own copy bound
-#   pool.csv        witness-fo on four threads, beside one thread
+#   pool.csv        witness-fo on every core of --pool-cores, beside one
+#                   thread
 #
 # Each run has the time limit; a configuration whose run on a size is
 # refused or meets the limit or the memory skips that shape's larger sizes.
@@ -100,5 +101,5 @@ status=0
 for pid in "${pids[@]}"; do
   wait "$pid" || status=1
 done
-pass "$pool_cores" pool.csv --only witness-fo/ --jobs 4
+pass "$pool_cores" pool.csv --only witness-fo/ --jobs all
 exit "$status"
