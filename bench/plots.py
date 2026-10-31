@@ -16,12 +16,18 @@ solved drawn at the limit. `families` takes a baseline's `families.csv`
 and `engines.csv`: the time against the size of every family under the
 engine the command chooses (`families.svg`), and of the families that
 both the focused and the net engine search under each (`engines.svg`).
-`growth` takes the rows of `run --tools` on generated families: the time
-against the size of each family's shape, a line per tool (`growth.svg`).
+`growth` takes the rows of `run` or `run --tools` on generated families:
+the time against the size of each family's shape, a line per engine (the
+default and each engine forced) or per tool, a configuration that switches
+a mechanism off or adds threads dashed in its engine's colour
+(`growth.svg`), and beside it the growth fitted to each line
+(`growth.md`): a polynomial's degree or an exponential's base, whichever
+fits the logarithm of the time better by least squares.
 """
 
 import argparse
 import csv
+import math
 import statistics
 from collections import defaultdict
 from pathlib import Path
@@ -113,12 +119,19 @@ def judge(rows):
         r["judged"] = "wrong" if wrong else ""
 
 
-def read(files):
-    """The rows of the CSV files, judged."""
+# The verdict of a growing set's size not run, past the limit its line met
+# at a smaller size: no run, drawn apart in the time against size.
+SKIPPED = "skipped"
+
+
+def read(files, skipped=False):
+    """The rows of the CSV files, judged, without the skipped sizes unless
+    asked for."""
     rows = []
     for name in files:
         with open(name, newline="") as f:
             rows.extend(csv.DictReader(f))
+    rows = [r for r in rows if skipped or r["verdict"] != SKIPPED]
     judge(rows)
     return rows
 
@@ -276,8 +289,9 @@ def points(rows):
     size's time is the median of its problems'."""
     runs = defaultdict(list)
     for r in rows:
-        # A problem outside the engine's or the tool's reach is no point.
-        if r["verdict"] != "refused":
+        # A problem outside the engine's or the tool's reach is no point,
+        # and a size not run is drawn apart.
+        if r["verdict"] not in ("refused", SKIPPED):
             runs[(int(r["size"]), r["problem"])].append(r)
     by_size = defaultdict(lambda: ([], False))
     for (size, _), each in sorted(runs.items()):
@@ -294,7 +308,7 @@ def points(rows):
     ]
 
 
-def growth_line(ax, rows, slot, theme, limit):
+def growth_line(ax, rows, slot, theme, limit, dashed=False):
     """One series of time against size: a line through the sizes solved,
     and a hollow marker on the limit's line at a size not solved. Returns
     the sizes, none when the rows are all refused."""
@@ -307,6 +321,7 @@ def growth_line(ax, rows, slot, theme, limit):
         [t for _, t, _ in series if t is not None],
         color=colour,
         linewidth=2,
+        linestyle="--" if dashed else "-",
         marker=MARKERS[slot],
         markersize=4,
     )
@@ -321,13 +336,25 @@ def growth_line(ax, rows, slot, theme, limit):
         markeredgecolor=colour,
         markeredgewidth=1.5,
     )
-    return [s for s, _, _ in series]
+    # A size not run, past the limit at a smaller one: a small cross above
+    # the limit's line, apart from a run that reached it.
+    skipped = sorted({int(r["size"]) for r in rows if r["verdict"] == SKIPPED})
+    ax.plot(
+        skipped,
+        [limit * 1.8] * len(skipped),
+        linestyle="none",
+        marker="x",
+        markersize=4,
+        color=colour,
+        alpha=0.6,
+    )
+    return [s for s, _, _ in series] + skipped
 
 
 def panels(groups, theme, title, series_of, out, columns, low):
     """Small multiples of time against size, one panel per group and the
     same time scale in every panel; `series_of` gives a group's series as
-    (slot, label, rows)."""
+    (slot, label, rows), the slot a number or (number, dashed)."""
     height = -(-len(groups) // columns)
     # The title and the legend above the panels, in inches.
     header = 0.8
@@ -349,11 +376,14 @@ def panels(groups, theme, title, series_of, out, columns, low):
         style(ax, theme, name, "size (log)", "time (s, log)", size=9)
         ax.axhline(limit, color=theme["axis"], linewidth=1)
         sizes = set()
-        for slot, label, rows in series_of(group):
-            drawn = growth_line(ax, rows, slot, theme, limit)
+        for style_of, label, rows in series_of(group):
+            slot, dashed = (
+                style_of if isinstance(style_of, tuple) else (style_of, False)
+            )
+            drawn = growth_line(ax, rows, slot, theme, limit, dashed)
             if drawn:
                 sizes.update(drawn)
-                seen[label] = slot
+                seen[label] = (slot, dashed)
         ax.set_xscale("log")
         ax.set_yscale("log")
         ax.set_ylim(low, limit * 3)
@@ -376,9 +406,10 @@ def panels(groups, theme, title, series_of, out, columns, low):
             color=theme["slots"][slot],
             marker=MARKERS[slot],
             linewidth=2,
+            linestyle="--" if dashed else "-",
             markersize=4,
         )
-        for slot in seen.values()
+        for slot, dashed in seen.values()
     ]
     handles.append(
         Line2D(
@@ -390,9 +421,20 @@ def panels(groups, theme, title, series_of, out, columns, low):
             markerfacecolor="none",
         )
     )
+    notes = [f"not decided: the {limit:g} s limit or a bound"]
+    if any(
+        r["verdict"] == SKIPPED
+        for _, group in groups
+        for _, _, rows in series_of(group)
+        for r in rows
+    ):
+        handles.append(
+            Line2D([], [], color=theme["muted"], marker="x", linestyle="none")
+        )
+        notes.append("not run: past the limit at a smaller size")
     fig.legend(
         handles,
-        [*seen, f"not decided: the {limit:g} s limit or a bound"],
+        [*seen, *notes],
         frameon=False,
         fontsize=8,
         labelcolor=theme["ink"],
@@ -454,32 +496,107 @@ def families(families_csv, engines_csv, theme, out):
     )
 
 
+# A time under this many seconds is the run's noise more than its growth,
+# and a line needs this many sizes above it to be fitted.
+FLOOR = 1e-3
+FITTED = 3
+
+
+def series_label(r):
+    """A row's series: its tool, or the engine it asked for (the default for
+    `auto`) and every option that departs from a plain run, and whether
+    such an option makes the line a comparison, drawn dashed."""
+    if r.get("tool"):
+        return r["tool"], False
+    engine = "default" if r["engine_requested"] == "auto" else r["engine_requested"]
+    variants = []
+    if r.get("jobs", "1") != "1":
+        variants.append(f"{r['jobs']} threads")
+    if r.get("memo_limit") == "0":
+        variants.append("memo off")
+    if r.get("copies") == "none":
+        variants.append("no copy bound")
+    if not variants:
+        return engine, False
+    return f"{engine}, {', '.join(variants)}", True
+
+
+def fit(series):
+    """The growth fitted to a line's solved sizes over the floor: a
+    polynomial n^d or an exponential b^n, whichever leaves the smaller sum
+    of squares in the logarithm of the time; None with too few sizes."""
+    solved = [(n, t) for n, t, _ in series if t is not None and t >= FLOOR]
+    if len(solved) < FITTED:
+        return None
+
+    def least_squares(xs, ys):
+        mx, my = statistics.fmean(xs), statistics.fmean(ys)
+        sxx = sum((x - mx) ** 2 for x in xs)
+        slope = sum((x - mx) * (y - my) for x, y in zip(xs, ys, strict=True)) / sxx
+        rss = sum((y - my - slope * (x - mx)) ** 2 for x, y in zip(xs, ys, strict=True))
+        return slope, rss
+
+    logs = [math.log(t) for _, t in solved]
+    degree, polynomial = least_squares([math.log(n) for n, _ in solved], logs)
+    rate, exponential = least_squares([float(n) for n, _ in solved], logs)
+    sizes = f"{solved[0][0]} to {solved[-1][0]}"
+    if polynomial <= exponential:
+        return sizes, f"n^{degree:.1f}"
+    return sizes, f"{math.exp(rate):.2f}^n"
+
+
 def growth(files, theme, out):
-    """Time against size of each generated family's shape, a line per tool."""
-    rows = [r for r in read(files) if r.get("tool") and r["source"] == "family"]
-    tools = tools_of(rows)
+    """Time against size of each generated family's shape, a line per
+    engine or tool, and the growth fitted to each line."""
+    rows = [r for r in read(files, skipped=True) if r["source"] == "family"]
+    tools = tools_of([r for r in rows if r.get("tool")])
     shapes = defaultdict(lambda: defaultdict(list))
+    dashed = {}
     for r in rows:
         if r["verdict"] != "refused":
-            shapes[(r["family"], int(r["index"]))][r["tool"]].append(r)
+            label, dashed[label] = series_label(r)
+            shapes[(r["family"], int(r["index"]))][label].append(r)
     groups = [
         (f"{family} #{index}", shapes[(family, index)])
         for family, index in sorted(shapes)
     ]
 
-    def each_tool(by_tool):
-        """A series per tool that ran the shape."""
-        return [(tools.index(t), t, by_tool[t]) for t in tools if t in by_tool]
+    def slot(label):
+        """A tool's slot by its order, an engine's by `ENGINES`, the
+        default last; a tool past the slots dashed."""
+        if label in tools:
+            i = tools.index(label)
+            return (i % len(MARKERS), i >= len(MARKERS))
+        engine = label.split(",")[0]
+        number = ENGINES.index(engine) if engine in ENGINES else len(ENGINES)
+        return (number, dashed[label])
 
-    panels(
-        groups,
-        theme,
-        "Time against size, each family's shape, a line per tool",
-        each_tool,
-        out / "growth.svg",
-        columns=3,
-        low=1e-4,
+    def each_series(by_label):
+        """A series per engine, configuration or tool that ran the shape."""
+        return [
+            (slot(label), label, by_label[label])
+            for label in sorted(by_label, key=lambda label: (slot(label), label))
+        ]
+
+    title = (
+        "Time against size, each family's shape, a line per tool"
+        if tools
+        else "Time against size, each family's shape, a line per engine"
     )
+    panels(groups, theme, title, each_series, out / "growth.svg", columns=3, low=1e-4)
+    lines = [
+        "| shape | line | sizes fitted | fitted growth |",
+        "|---|---|---|---|",
+    ]
+    for name, by_label in groups:
+        for _, label, series_rows in each_series(by_label):
+            fitted = fit(points(series_rows))
+            sizes, growth_of = fitted or (
+                "—",
+                f"fewer than {FITTED} sizes solved over {FLOOR * 1000:g} ms",
+            )
+            lines.append(f"| {name} | {label} | {sizes} | {growth_of} |")
+    (out / "growth.md").write_text("\n".join(lines) + "\n")
 
 
 def main():
