@@ -57,12 +57,20 @@ pub struct Problem {
     pub witness_depth: Option<u32>,
 }
 
-/// Lists the instances of the families named (`NAME` or `NAME=SIZES`), or
-/// of every family.
-pub fn families(specs: &[String], all: bool) -> Result<Vec<Reference>> {
+/// Lists the instances of the families named (`NAME` or `NAME=SIZES`), of
+/// every family at its default sizes, and of every growing set.
+pub fn families(specs: &[String], all: bool, growing: bool) -> Result<Vec<Reference>> {
     let mut chosen = Vec::new();
     if all {
         chosen.extend(FAMILIES.iter().map(|f| (f, f.sizes.to_vec())));
+    }
+    if growing {
+        chosen.extend(
+            FAMILIES
+                .iter()
+                .filter(|f| !f.growth.is_empty())
+                .map(|f| (f, f.growth.to_vec())),
+        );
     }
     for spec in specs {
         let (name, sizes) = spec.split_once('=').unwrap_or((spec, ""));

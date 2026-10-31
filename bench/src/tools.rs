@@ -11,6 +11,7 @@
 //! fragment gets a row of its own, verdict `refused` and reason `fragment`,
 //! and is not run.
 
+use crate::growth::{Ended, SKIPPED, TOOL_SERIES};
 use crate::problems::{self, Problem, Reference, mode_name};
 use crate::run::HEADER;
 use crate::translate;
@@ -555,6 +556,7 @@ pub fn run(
     references: &[Reference],
     settings: &Settings,
     done: &HashSet<String>,
+    mut growing: Option<Ended>,
     out: &mut dyn Write,
 ) -> Result<()> {
     std::fs::create_dir_all(settings.work)?;
@@ -576,10 +578,30 @@ pub fn run(
             count += settings.drivers.len();
             continue;
         }
+        let index = reference.index.map_or(String::new(), |i| i.to_string());
+        let series = |tool| {
+            [
+                reference.family.clone(),
+                index.clone(),
+                mode_name(reference.mode).to_owned(),
+                tool,
+            ]
+        };
+        let skipped = |growing: &Option<Ended>, tool: &str| {
+            growing
+                .as_ref()
+                .filter(|_| reference.source == "family")
+                .and_then(|e| e.skipped(&series(tool.to_owned()).each_ref().map(String::as_str)))
+        };
         let problem = problems::load(&reference.id);
         for driver in &settings.drivers {
             count += 1;
             if done.contains(&key(driver.name)) {
+                continue;
+            }
+            if let Some(reason) = skipped(&growing, driver.name) {
+                let filled = [("verdict", SKIPPED.to_owned()), ("reason", reason)];
+                writeln!(out, "{}", full_row(reference, driver, settings, &filled))?;
                 continue;
             }
             ran += 1;
@@ -598,6 +620,20 @@ pub fn run(
                     .find(|(n, _)| *n == name)
                     .map_or("", |(_, v)| v.as_str())
             };
+            if let Some(growing) = &mut growing
+                && reference.source == "family"
+            {
+                growing.record(
+                    &series(driver.name.to_owned())
+                        .each_ref()
+                        .map(String::as_str),
+                    &reference.size.map_or(String::new(), |s| s.to_string()),
+                    get("verdict"),
+                    get("reason"),
+                    get("time_ms").parse().unwrap_or(0.0),
+                    settings.timeout,
+                );
+            }
             let left = start.elapsed().as_secs_f64() / f64::from(ran) * (total - count) as f64;
             eprintln!(
                 "[{count}/{total}] {}/{} {}: {} {} {} ms, about {:.0} min left",
@@ -850,7 +886,18 @@ pub fn main(args: &crate::RunArgs, references: Vec<Reference>) -> Result<()> {
         writeln!(out, "{HEADER}")?;
     }
     record(&output.with_extension("env.json"), &settings, &tools)?;
-    let result = run(&references, &settings, &done, &mut out);
+    let ended = if args.resume && args.growing {
+        Ended::read(&output, &TOOL_SERIES)?
+    } else {
+        Ended::default()
+    };
+    let result = run(
+        &references,
+        &settings,
+        &done,
+        args.growing.then_some(ended),
+        &mut out,
+    );
     std::fs::remove_dir_all(&work).ok();
     result
 }

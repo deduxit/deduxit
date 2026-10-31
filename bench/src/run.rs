@@ -11,6 +11,7 @@
 //! grace period counted from the end of the load, is killed; one that
 //! dies in its check leaves the row its verdict.
 
+use crate::growth::{ENGINE_SERIES, Ended, SKIPPED};
 use crate::problems::{self, Reference, mode_name};
 use crate::{OneArgs, RunArgs};
 use anyhow::{Context, Result, anyhow};
@@ -34,10 +35,11 @@ pub const HEADER: &str = "source,family,size,index,problem,mode,engine_requested
                           fragment,occurrences,multiplicity,time_ms,nodes,memo_hits,memo_entries,\
                           splits,links,tests,recursion_limit,cpu_ms,wait_ms,bias,forward_copies,\
                           check_ms,memory_limit,copies_reached,pool_after,forward_copies_reached,work,\
-                          tool,tool_version,translate_ms,peak_bytes,raw,unifications,bindings";
+                          tool,tool_version,translate_ms,peak_bytes,raw,unifications,bindings,\
+                          memo_limit";
 
 /// The columns the child prints.
-const TAIL: usize = 34;
+const TAIL: usize = 35;
 
 /// The line the child prints when its problem is loaded and its search
 /// starts, from which the parent counts the time limit.
@@ -139,6 +141,24 @@ impl Shard {
     pub fn of<T>(self, list: Vec<T>) -> Vec<T> {
         list.into_iter().skip(self.k - 1).step_by(self.n).collect()
     }
+
+    /// Returns this shard's groups of the list, in their order: every
+    /// N-th group from the K-th, the groups numbered by where their first
+    /// problem stands, each group's problems whole.
+    pub fn of_groups<T, K: Eq + std::hash::Hash>(
+        self,
+        list: Vec<T>,
+        group: impl Fn(&T) -> K,
+    ) -> Vec<T> {
+        let mut numbers = std::collections::HashMap::new();
+        list.into_iter()
+            .filter(|item| {
+                let next = numbers.len();
+                let number = *numbers.entry(group(item)).or_insert(next);
+                number % self.n == self.k - 1
+            })
+            .collect()
+    }
 }
 
 /// The memory bound of a run in bytes: the one asked for, none for 0, or
@@ -187,6 +207,12 @@ impl std::fmt::Display for Bound {
     }
 }
 
+/// The `memo_limit` column of a row: the memo's entries the search may
+/// hold, the one asked for or the library's default; 0 is no memo.
+fn memo_column(asked: Option<u32>) -> String {
+    asked.unwrap_or(Options::DEFAULT_MEMO_LIMIT).to_string()
+}
+
 /// The column of how long one thread searched before the pool: the
 /// seconds, or empty for a pool from the start.
 fn pool_column(asked: Option<f64>) -> String {
@@ -229,7 +255,7 @@ fn name(value: &impl ValueEnum) -> String {
 
 /// Runs every problem in every configuration asked for and writes the rows.
 pub fn run(args: &RunArgs) -> Result<()> {
-    let mut references = problems::families(&args.family, args.all_families)?;
+    let mut references = problems::families(&args.family, args.all_families, args.growing)?;
     references.extend(problems::lltp(&args.lltp)?);
     references.extend(problems::specs(&args.spec)?);
     references.extend(problems::files(&args.problems)?);
@@ -240,7 +266,19 @@ pub fn run(args: &RunArgs) -> Result<()> {
         });
     }
     if let Some(shard) = args.shard {
-        references = shard.of(references);
+        // A growing set's series stays in one shard, so that the run that
+        // ends it ends it there.
+        references = if args.growing {
+            shard.of_groups(references, |r| {
+                (
+                    r.family.clone(),
+                    r.index,
+                    (r.source != "family").then(|| r.name.clone()),
+                )
+            })
+        } else {
+            shard.of(references)
+        };
     }
     if !args.tools.is_empty() {
         return crate::tools::main(args, references);
@@ -266,6 +304,10 @@ pub fn run(args: &RunArgs) -> Result<()> {
     let done_before = match &args.output {
         Some(path) if args.resume => finished(path)?,
         _ => HashSet::new(),
+    };
+    let mut ended = match &args.output {
+        Some(path) if args.resume && args.growing => Ended::read(path, &ENGINE_SERIES)?,
+        _ => Ended::default(),
     };
     let mut out: Box<dyn Write> = match &args.output {
         Some(path) => {
@@ -322,9 +364,52 @@ pub fn run(args: &RunArgs) -> Result<()> {
                         &forward_copies(args.forward_copies).to_string(),
                         &memory_column(args.memory_limit),
                         &pool_column(args.pool_after),
+                        &memo_column(args.memo_limit),
                     ]
                     .join(",");
+                    let index = reference.index.map_or(String::new(), |i| i.to_string());
+                    let threads_text = threads.to_string();
+                    let series = [
+                        reference.family.as_str(),
+                        &index,
+                        mode_name(mode),
+                        engine.name(),
+                        &threads_text,
+                    ];
+                    let growing = args.growing && reference.source == "family";
                     if done_before.contains(&key) {
+                        continue;
+                    }
+                    if let Some(reason) = ended.skipped(&series).filter(|_| growing) {
+                        // The configuration's columns, as a run's row has them.
+                        let tail = row(&[
+                            (
+                                "copies",
+                                &args.copies.map_or(String::new(), |c| c.to_string()),
+                            ),
+                            ("verdict", SKIPPED),
+                            ("reason", &reason),
+                            ("bias", &name(&args.bias)),
+                            (
+                                "forward_copies",
+                                &forward_copies(args.forward_copies).to_string(),
+                            ),
+                            ("memory_limit", &memory_column(args.memory_limit)),
+                            ("pool_after", &pool_column(args.pool_after)),
+                            ("memo_limit", &memo_column(args.memo_limit)),
+                        ]);
+                        writeln!(
+                            out,
+                            "{},{},{},{index},{},{},{},{threads},{},{},0,{tail}",
+                            reference.source,
+                            reference.family,
+                            reference.size.map_or(String::new(), |s| s.to_string()),
+                            reference.name,
+                            mode_name(mode),
+                            engine.name().to_owned(),
+                            args.test_period.map_or(String::new(), |p| p.to_string()),
+                            args.timeout,
+                        )?;
                         continue;
                     }
                     ran += 1;
@@ -349,6 +434,16 @@ pub fn run(args: &RunArgs) -> Result<()> {
                             args.timeout,
                         )?;
                         out.flush()?;
+                        if run == 0 && growing {
+                            ended.record(
+                                &series,
+                                &reference.size.map_or(String::new(), |s| s.to_string()),
+                                verdict,
+                                fields[column("reason")],
+                                time,
+                                args.timeout,
+                            );
+                        }
                         if run == 0 {
                             // The configurations left at this run's mean.
                             let left = start.elapsed().as_secs_f64() / f64::from(ran)
@@ -415,6 +510,9 @@ fn finished(path: &Path) -> Result<HashSet<String>> {
     let memory = at("memory_limit");
     // A file from before the column ran every pool from its start.
     let pool = at("pool_after");
+    // A file from before the column ran the default memo.
+    let memo = at("memo_limit");
+    let default_memo = memo_column(None);
     Ok(lines
         .map(|line| {
             let fields: Vec<&str> = line.split(',').collect();
@@ -427,6 +525,9 @@ fn finished(path: &Path) -> Result<HashSet<String>> {
                     forward.map_or("", field),
                     memory.map(field).filter(|m| !m.is_empty()).unwrap_or("0"),
                     pool.map_or("", field),
+                    memo.map(field)
+                        .filter(|m| !m.is_empty())
+                        .unwrap_or(&default_memo),
                 ])
                 .collect::<Vec<_>>()
                 .join(",")
@@ -475,6 +576,9 @@ fn child(
     }
     if let Some(alone) = args.pool_after {
         command.args(["--pool-after", &alone.to_string()]);
+    }
+    if let Some(entries) = args.memo_limit {
+        command.args(["--memo-limit", &entries.to_string()]);
     }
     let mut process = command
         .stdin(Stdio::null())
@@ -549,6 +653,7 @@ fn child(
             fields[column("forward_copies")] = forward_copies(args.forward_copies).to_string();
             fields[column("memory_limit")] = memory_column(args.memory_limit);
             fields[column("pool_after")] = pool_column(args.pool_after);
+            fields[column("memo_limit")] = memo_column(args.memo_limit);
             let since = searching.unwrap_or(spawned);
             fields[column("time_ms")] = format!("{:.3}", since.elapsed().as_secs_f64() * 1000.0);
             fields.join(",")
@@ -654,6 +759,7 @@ fn tail(args: &OneArgs) -> String {
         .with_bias(args.bias.bias())
         .with_forward_copies(forward_copies(args.forward_copies))
         .with_test_period(args.test_period)
+        .with_memo_limit(args.memo_limit.unwrap_or(Options::DEFAULT_MEMO_LIMIT))
         .with_classical_work(
             args.classical_work
                 .unwrap_or(Options::DEFAULT_CLASSICAL_WORK),
@@ -714,6 +820,7 @@ fn tail(args: &OneArgs) -> String {
                 ),
                 ("memory_limit", &memory_column(args.memory_limit)),
                 ("pool_after", &pool_column(args.pool_after)),
+                ("memo_limit", &memo_column(args.memo_limit)),
             ]);
         }
     };
@@ -764,7 +871,11 @@ fn tail(args: &OneArgs) -> String {
         // The columns of a row of `run --tools`: tool, tool_version,
         // translate_ms, peak_bytes and raw.
         .chain(std::iter::repeat_n(String::new(), 5))
-        .chain([s.unifications.to_string(), s.bindings.to_string()])
+        .chain([
+            s.unifications.to_string(),
+            s.bindings.to_string(),
+            memo_column(args.memo_limit),
+        ])
         .collect::<Vec<_>>()
         .join(",")
     };
@@ -878,7 +989,7 @@ fn multiplicity(forest: &Forest) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use super::{HEADER, Shard, finished};
+    use super::{HEADER, Options, Shard, finished};
 
     /// Every shard of a list, joined, is the list, each problem once, and
     /// each keeps the list's order; a shard outside 1 to N is refused.
@@ -904,6 +1015,17 @@ mod tests {
             );
             joined.sort_unstable();
             assert_eq!(joined, problems, "{n} shards take every problem once");
+            // By groups of three, a shard takes each group whole.
+            let mut joined: Vec<u32> = (1..=n)
+                .flat_map(|k| {
+                    let shard = format!("{k}/{n}").parse::<Shard>().unwrap();
+                    let taken = shard.of_groups(problems.clone(), |p| p / 3);
+                    assert!(taken.iter().all(|p| taken.contains(&(p / 3 * 3))));
+                    taken
+                })
+                .collect();
+            joined.sort_unstable();
+            assert_eq!(joined, problems, "{n} shards take every group once");
         }
         for bad in ["0/3", "4/3", "3", "a/b"] {
             assert!(bad.parse::<Shard>().is_err(), "{bad}");
@@ -939,7 +1061,10 @@ mod tests {
         let keys = finished(&own).unwrap();
         assert_eq!(
             keys.into_iter().collect::<Vec<_>>(),
-            ["family,chain,chain/3,classical,auto,1,,auto,,0,"]
+            [format!(
+                "family,chain,chain/3,classical,auto,1,,auto,,0,,{}",
+                Options::DEFAULT_MEMO_LIMIT
+            )]
         );
         std::fs::remove_dir_all(&dir).unwrap();
     }

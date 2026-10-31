@@ -11,6 +11,9 @@
 
 /// Two sets of rows compared problem by problem.
 mod compare;
+/// The growing sets: which runs end a configuration's series on a
+/// family's shape.
+mod growth;
 /// Small deterministic runs of the library's hot paths, counted by the
 /// ratchet.
 mod journeys;
@@ -158,6 +161,12 @@ pub struct RunArgs {
     /// Every generated family at its default sizes
     #[arg(long)]
     all_families: bool,
+    /// Every family that has a growing set, at its growth sizes
+    /// (`families` lists them with their claims); a configuration whose
+    /// run on a size is refused or not decided within the time limit or
+    /// the memory skips that shape's larger sizes
+    #[arg(long)]
+    growing: bool,
     /// An LLTP problem file, or a directory searched for `*.p` files; a
     /// problem under a directory named `ILL` is intuitionistic, any other
     /// classical; repeatable
@@ -230,6 +239,10 @@ pub struct RunArgs {
     /// from the start)
     #[arg(value_parser = seconds, long, value_name = "SECONDS")]
     pool_after: Option<f64>,
+    /// The most decided sequents the search's memo holds at once, 0 for
+    /// no memo, to measure what the memo gains (default: the library's)
+    #[arg(long, value_name = "N")]
+    memo_limit: Option<u32>,
     /// The time limit per run, in seconds
     #[arg(value_parser = seconds, long, default_value_t = 60.0)]
     timeout: f64,
@@ -272,7 +285,8 @@ pub struct RunArgs {
         value_delimiter = ',',
         value_name = "TOOL",
         conflicts_with_all = ["engines", "jobs", "copies", "bias", "forward_copies",
-            "classical_work", "test_period", "recursion_limit", "pool_after", "repeat"]
+            "classical_work", "test_period", "recursion_limit", "pool_after", "memo_limit",
+            "repeat"]
     )]
     tools: Vec<String>,
     /// Run only the K-th of N shards of the problems (from 1): every N-th
@@ -326,6 +340,9 @@ pub struct OneArgs {
     /// Seconds one thread searches before the pool takes over
     #[arg(value_parser = seconds, long)]
     pool_after: Option<f64>,
+    /// The memo's entries, 0 for none
+    #[arg(long)]
+    memo_limit: Option<u32>,
     /// The time limit, in seconds
     #[arg(value_parser = seconds, long)]
     timeout: f64,
@@ -350,6 +367,10 @@ fn main() -> ExitCode {
             for family in linlog::families::FAMILIES {
                 let sizes: Vec<String> = family.sizes.iter().map(u32::to_string).collect();
                 println!("{} ({}): {}", family.name, sizes.join(","), family.summary);
+                if !family.growth.is_empty() {
+                    let growth: Vec<String> = family.growth.iter().map(u32::to_string).collect();
+                    println!("  growing ({}): {}", growth.join(","), family.claim);
+                }
             }
             Ok(())
         }

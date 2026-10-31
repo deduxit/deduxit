@@ -11,7 +11,7 @@
 #
 #   bench/comparison.sh [--out DIR] [--shard K/N] [--cores LIST]
 #                       [--default-cores LIST] [--timeout S] [--memory BYTES]
-#                       [--quick]
+#                       [--quick] [--growing]
 #
 # --shard K/N    this job's share of the problems (every N-th, from the K-th)
 # --cores LIST   one stream of sequential runs per core, comma-separated
@@ -24,10 +24,16 @@
 # --memory B     the memory limit of every run in bytes (default 4 GiB)
 # --quick        three problems of each source only: a check that every
 #                tool runs
+# --growing      the growing sets of the families instead of the libraries
+#                (`linlog-bench run --growing`: a tool's run refused or at
+#                the limit skips that shape's larger sizes), each stream
+#                taking whole shapes; with --quick the first two sizes of
+#                each growing set
 #
-# It builds the flake's `comparison', `lltp' and `qcover' packages, runs the
-# streams side by side, joins their rows into DIR/runs.csv, and writes
-# DIR/ranking.md (`linlog-bench ranking') and DIR/figures/ (bench/plots.py).
+# It builds the flake's `comparison' package (and `lltp' and `qcover' for
+# the libraries), runs the streams side by side, joins their rows into
+# DIR/runs.csv, and writes DIR/ranking.md (`linlog-bench ranking') and
+# DIR/figures/ (bench/plots.py; with --growing also the time against size).
 # A stream's file is resumed when the script runs again on the same DIR.
 set -euo pipefail
 
@@ -38,6 +44,7 @@ default_cores=
 timeout=10
 memory=$((4 << 30))
 quick=
+growing=
 while [ $# -gt 0 ]; do
   case $1 in
   --out)
@@ -65,6 +72,7 @@ while [ $# -gt 0 ]; do
     shift
     ;;
   --quick) quick=1 ;;
+  --growing) growing=1 ;;
   *)
     echo "unknown option $1" >&2
     exit 2
@@ -78,8 +86,10 @@ mkdir -p "$out"
 out=$(cd "$out" && pwd)
 build() { nix build --no-link --print-out-paths "$root#$1"; }
 tools=$(build comparison)
-lltp=$(build lltp)
-qcover=$(build qcover)
+if [ -z "$growing" ]; then
+  lltp=$(build lltp)
+  qcover=$(build qcover)
+fi
 export PATH="$tools/bin:$PATH"
 export LINLOG_COMPARISON_TOOLS="$tools/share/linlog-comparison/tools.json"
 # The commit the tools were built from, where the caller knows it.
@@ -89,11 +99,25 @@ sequential=linlog,maude-ill,maude-cll,click-and-collect,llprover-cll,llprover-il
 # Each stream runs two passes: the small sets first, then the
 # intuitionistic library, whose Petri nets come last, so that a night that
 # ends early leaves Petri nets for the next.
-small=(--lltp "$lltp/CLL" --spec "$qcover/stable/benchmarks" --all-families)
-large=(--lltp "$lltp/ILL")
-if [ -n "$quick" ]; then
-  small=(--lltp "$lltp/CLL/misc" --spec "$qcover/stable/benchmarks/mist" --family mix=4 --family chain=16)
-  large=(--lltp "$lltp/ILL/ILLTP-SYJ-01/SYJ101+1.p" --lltp "$lltp/ILL/ILLTP-SYN-01")
+if [ -n "$growing" ]; then
+  small=(--growing)
+  large=()
+  if [ -n "$quick" ]; then
+    # Each growing set's first two sizes, from the families' listing.
+    small=()
+    while read -r family sizes; do
+      small+=(--family "$family=$sizes")
+    done < <(linlog-bench families | awk '
+      /^[^ ]/ { name = $1 }
+      /^  growing \(/ { split(substr($2, 2), s, ","); print name, s[1] "," s[2] }')
+  fi
+else
+  small=(--lltp "$lltp/CLL" --spec "$qcover/stable/benchmarks" --all-families)
+  large=(--lltp "$lltp/ILL")
+  if [ -n "$quick" ]; then
+    small=(--lltp "$lltp/CLL/misc" --spec "$qcover/stable/benchmarks/mist" --family mix=4 --family chain=16)
+    large=(--lltp "$lltp/ILL/ILLTP-SYJ-01/SYJ101+1.p" --lltp "$lltp/ILL/ILLTP-SYN-01")
+  fi
 fi
 # The job's shard of N, which its streams split once more.
 k=${shard%/*} n=${shard#*/}
@@ -110,6 +134,7 @@ stream() {
     local file="$out/$name-$pass.csv" resume=() sources
     [ -s "$file" ] && resume=(--append --resume)
     if [ "$pass" = small ]; then sources=("${small[@]}"); else sources=("${large[@]}"); fi
+    [ ${#sources[@]} = 0 ] && continue
     taskset -c "$cpus" linlog-bench run --tools "$tools" "${sources[@]}" \
       --shard "$((index * n + k))/$((count * n))" \
       --timeout "$timeout" --memory-limit "$memory" \
@@ -138,4 +163,7 @@ done
 } >"$out/runs.csv"
 linlog-bench ranking "$out/runs.csv" >"$out/ranking.md"
 python3 -I "$root/bench/plots.py" comparison "$out/runs.csv" "$out/figures"
+if [ -n "$growing" ]; then
+  python3 -I "$root/bench/plots.py" growth "$out/runs.csv" "$out/figures"
+fi
 exit "$status"

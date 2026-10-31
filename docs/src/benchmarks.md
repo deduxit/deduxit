@@ -17,8 +17,11 @@ problems: generated families with known verdicts (`linlog-bench families`
 lists them: 3-Partition as a Horn program and as an MLL sequent,
 Matsuoka's Partition, random QBF, wide sequents, contexts under Mix,
 Petri-net counters, the Lambek calculus in first-order MILL, a chain of
-instances of a quantified clause under `!`, a witness among many and
-more, each at any size), the problems of the
+instances of a quantified clause under `!`, a witness among many,
+Franzén's contraction formulas and Cook's pigeonhole principle from
+Dyckhoff's intuitionistic benchmarks read in linear logic, Euler tours,
+a clause used many times on one branch, reachability through a cycle at
+first order and more, each at any size), the problems of the
 [LLTP library](https://github.com/meta-logic/lltp) (`nix build .#lltp -o
 bench/lltp` fetches it at a pinned commit; its problems under `ILL/` run
 intuitionistically), coverability problems in the `.spec` format with
@@ -92,6 +95,43 @@ cores in a memory-capped user unit, into `bench/targets/LABEL.csv`;
 `bench/TARGETS.md` sets the engine before that work beside the engine
 after it. On one thread the engine's counters are a function of the
 input, so two such files tell whether a change altered the search at all.
+
+Some families have a growing set: sizes from easy to past what the
+engines decide in a minute, chosen with a claim, the strength or weakness
+of an engine or of another prover that the growth of the time shows
+(`linlog-bench families` prints each family's sizes and claim under its
+summary). `run --growing` runs every growing set; a configuration whose
+run on a size is refused or meets the time limit or the memory bound
+skips that shape's larger sizes, which are written as rows `skipped`
+("past the limit at size n") that no table counts, since every growing
+set is a constructed family whose larger instance is no easier. With
+`--shard`, a shard takes whole shapes. `run --memo-limit 0` runs without
+the memo, to measure what it gains.
+
+```console
+$ linlog-bench run --growing --only pigeonhole/ --engines auto,inverse --timeout 1 --output runs.csv
+[1/28] pigeonhole/2#0 intuitionistic-affine auto j1: proved  0.144 ms, about 0 min left
+[2/28] pigeonhole/2#0 intuitionistic-affine inverse j1: proved  0.078 ms, about 0 min left
+…
+[9/28] pigeonhole/4#0 intuitionistic-affine auto j1: proved  56.756 ms, about 0 min left
+[10/28] pigeonhole/4#0 intuitionistic-affine inverse j1: proved  0.697 ms, about 0 min left
+…
+[13/28] pigeonhole/5#0 intuitionistic-affine auto j1: unknown timeout 1010.707 ms, about 0 min left
+[14/28] pigeonhole/5#0 intuitionistic-affine inverse j1: proved  21.632 ms, about 0 min left
+…
+[18/28] pigeonhole/6#0 intuitionistic-affine inverse j1: proved  370.384 ms, about 0 min left
+…
+[22/28] pigeonhole/7#0 intuitionistic-affine inverse j1: unknown memory_limit 1038.479 ms, about 0 min left
+```
+
+`bench/growing.sh` runs the growing sets as the figures draw them, into
+`bench/growing/DAY/`: every family under the default and every engine
+forced (`engines-K.csv`, a stream per core), and beside them the passes
+that switch off the mechanism a claim is about, the memo on `chain` and
+`reach-fo` (`memo-off.csv`), the copy bound on `chain` (`deepening.csv`,
+`--copies none`) and the single thread on `witness-fo` (`pool.csv`, every
+core of `--pool-cores`). `bench/comparison.sh --growing` runs the other
+provers on them.
 
 `bench/baseline.sh --detach --fresh` takes the whole baseline, every
 family, engine and thread count and the whole LLTP library, at once as

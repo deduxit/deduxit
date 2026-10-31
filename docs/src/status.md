@@ -290,7 +290,11 @@ Built:
   which runs them with a time limit per run, writes CSV and summarises it,
   with a script that takes a whole baseline on an idle machine and one
   that runs the focused engine's target set by day, and a comparison of
-  two baselines problem by problem.
+  two baselines problem by problem; and growing sets, families each
+  chosen with a claim about an engine or another prover, run under the
+  default, every engine forced and with the mechanism a claim is about
+  switched off, drawn as time against size with the growth fitted to
+  each line.
 - Performance work on the focused engine, measured by three baselines,
   one before it, one after it and one at the first release.
 - Releases: the crates `linlog` and `linlog-cli` on crates.io, with a

@@ -170,6 +170,15 @@ pub(crate) fn configuration(row: &Row) -> String {
     if !row.get("pool_after").is_empty() {
         label.push_str(&format!(" pool after {}s", row.get("pool_after")));
     }
+    // A file from before the column ran the default memo.
+    match row.get("memo_limit") {
+        "" => {}
+        "0" => label.push_str(" memo off"),
+        memo if memo != linlog::search::Options::DEFAULT_MEMO_LIMIT.to_string() => {
+            label.push_str(&format!(" memo {memo}"));
+        }
+        _ => {}
+    }
     label
 }
 
@@ -460,7 +469,8 @@ pub(crate) fn read(files: &[PathBuf]) -> Result<Vec<Row>> {
 }
 
 /// The rows of the CSV files, each with its file's name in the column
-/// `file`, the refused ones included.
+/// `file`, the refused ones included and the skipped sizes of a growing
+/// set left out, which are no runs.
 pub(crate) fn read_all(files: &[PathBuf]) -> Result<Vec<Row>> {
     let mut rows = Vec::new();
     for file in files {
@@ -484,6 +494,9 @@ pub(crate) fn read_all(files: &[PathBuf]) -> Result<Vec<Row>> {
                 .zip(values)
                 .map(|(c, v)| ((*c).to_owned(), v.to_owned()));
             let mut row: HashMap<String, String> = row.collect();
+            if row.get("verdict").map(String::as_str) == Some(crate::growth::SKIPPED) {
+                continue;
+            }
             row.insert("file".to_owned(), stem.to_string());
             rows.push(Row(row));
         }
