@@ -368,6 +368,29 @@ recursion limit at 1 024 (incomplete, not false); it now names it.
   amend after; `wyvuxykp`, `kwrssksr`, `ttktylyk`, `vukmwwzr`).
 - [x] `.claude/rules/bench.md` and `core-inputs.md` amended; the
   changelog, the manual's benchmark chapter and status chapter true.
-- [ ] The rows, the chapter, the figure layout fix and this report
-  committed, the layout fix gated, and `nix flake check` at the last
-  commit: waiting for the signing key.
+- [x] The rows, the chapter, the figure layout fix and this report
+  committed after the author unlocked the key (`oklltymu`, `mknqmnqy`,
+  `orttrvur`, `vuvykpvu`, all signed); the layout fix's tree gated
+  before (`gate: passed`, 07:05).
+- [x] `nix flake check` at `vuvykpvu`: exit 1, two checks failing at
+  their cause in this session's changes, fixed in `lpxnmypo`: `bench`
+  (the check made every line of `linlog-bench families` an argument,
+  and a growing set's indented line broke it; its `sed` now prints only
+  the families' lines, all 25 families as before; its script run here
+  in bash: passed) and `typos` (the atom `pn` of `contraction`'s summary,
+  now `p(n)`). The run stopped at the first failure, so the other checks
+  were not all seen.
+- [ ] **Paused by the orchestrator at 07:25 (the author needs the
+  machine by 07:35); to resume, in `../linlog-step45b`:**
+  1. the gate of `lpxnmypo` (cut before it started): `systemd-run
+     --user --scope -p MemoryMax=8G -p MemorySwapMax=0 taskset -c 4-7
+     nix develop -c gate`;
+  2. `nix flake check` at the last commit, every failure at once:
+     `flock -o /tmp/linlog-machine.lock nix flake check -L --keep-going`
+     (detached as a user unit `linlog-step45b-flake-check`, about 30
+     minutes; each failure fixed at its cause, committed and gated, then
+     the check again);
+  3. `jj st` clean and `jj log -r 'ymvskwul::@'`, then the final
+     message to `linlog-orchestrator`: the outcome, the families with
+     their claims and sizes, the nights' estimate, the reviewer's
+     findings and answers, the departures, the workspace.
