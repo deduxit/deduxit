@@ -344,11 +344,22 @@ serde_json, which the CLI and the core's tests already have.
   long loads (the package counter is recorded per run and in the
   journal; 11 283 s of throttling over the first baseline's 9 h 21 min,
   most of it in the all-core stage), turbo stays on (off, the night would not fit),
-  TLP's power profile is `performance` on mains. A detached run keeps the
-  user's other slices (`app.slice`, `session.slice`, `background.slice`)
-  on CPUs 4–15 for its whole duration and gives them back in the unit's
-  `ExecStopPost` (`baseline.sh --unshield`), since a stopped unit's
-  processes can be killed before a trap of theirs runs; it holds a
+  TLP's power profile is `performance` on mains. A detached run would
+  keep the user's other slices (`app.slice`, `session.slice`,
+  `background.slice`) on `--others` (CPUs 4–15) for its whole duration
+  and give them back in the unit's `ExecStopPost` (`baseline.sh
+  --unshield`), since a stopped unit's processes can be killed before a
+  trap of theirs runs; but a slice's or unit's `AllowedCPUs` needs the
+  cpuset controller, which is not delegated to the user's systemd here
+  (`user@1000.service/cgroup.controllers` is `cpu io memory pids`, and
+  `systemd-run --user --scope -p AllowedCPUs=4-5 nproc` prints 16), so
+  no baseline's slices were ever kept off: the script now shields only
+  where the controller exists and RESULTS.md says which. `--cpus`
+  confines a run by its affinity (`taskset -cp` on the script, which
+  every child inherits), the one mechanism that works here; the fourth
+  baseline's `--cpus=2-9` was a unit's `AllowedCPUs` and did nothing, its
+  parallel stage ran 16 threads over the whole machine beside other
+  work, and its RESULTS.md says so. It holds a
   `sleep:idle:handle-lid-switch` inhibitor (logind suspends on a closed
   lid even on mains here, the idle manager on battery) and refuses to
   start on battery. The system's own services and kernel threads it

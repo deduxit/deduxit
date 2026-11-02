@@ -17,8 +17,17 @@ meanwhile were: none. The package throttled
 (platform profile performance, governor powersave, energy preference balance_performance, turbo on).
 The journal of `linlog-baseline` says every ten minutes what else used
 a CPU. The sequential runs went in four
-streams at once, each pinned to a performance core of its own; the
-parallel runs had the machine to themselves. A time is the median of up to
+streams at once, each pinned by taskset to a CPU of its own (CPUs 4 5 2
+3), which other processes could share. The record above says the run
+was confined to CPUs 2-9 and the other slices to 0-1,10-15, but neither
+took effect: the cpuset controller is not delegated to the user's
+systemd on this machine, so a unit's or a slice's AllowedCPUs does
+nothing (the script now confines a run by its affinity and says what it
+had). The parallel runs came after the sequential ones with no stream of
+the run beside them, on 16 threads over every core of the machine (the
+rows' `jobs`), while the machine's other work went on: their times and
+speedups are not comparable with the third baseline's, taken at night.
+A time is the median of up to
 three runs; `✓` is proved, `✗` refuted, `?` unknown (`bound`: the copy
 bound, `wide`: a context too wide to split, `depth`: the recursion
 limit), `>` a time limit reached, `MISMATCH` a verdict against the

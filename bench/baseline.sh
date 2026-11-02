@@ -70,13 +70,16 @@
 # its own with taskset; `cores' names four performance cores of the machine
 # the baseline was taken on (an Intel Core Ultra X9 388H: CPUs 0 to 3 are
 # its performance cores), so adjust it for another (`--cores=A,B,C,D`).
-# `--cpus=LIST` confines the whole run to those CPUs (its parallel runs'
-# "every core" is then theirs) and `--others=LIST` the user's other slices
-# meanwhile, so that the run can share the machine with other work by
-# day; a baseline taken so says it in its RESULTS.md. The parallel runs come
-# after them, with the machine to themselves, so that a run stopped at the
-# slot's end has the sequential stages, which a performance pass compares
-# with first, complete.
+# `--cpus=LIST` confines the whole run to those CPUs by its affinity (its
+# parallel runs' "every core" is then theirs), so that the run can share
+# the machine with other work by day, and `--others=LIST` names the CPUs
+# the user's other slices keep to meanwhile, which needs the cpuset
+# controller delegated to the user's systemd (without it a slice's
+# AllowedCPUs does nothing, and the run says so); RESULTS.md says what
+# the run had. The parallel runs come after the sequential ones, with no
+# stream of the run beside them, so that a run stopped at the slot's end
+# has the sequential stages, which a performance pass compares with first,
+# complete.
 set -euo pipefail
 self=$(realpath "$0")
 cd "$(dirname "$self")/.."
@@ -272,7 +275,6 @@ if $arm || $detach; then
   unit=(systemd-run --user --unit=linlog-baseline --slice=linlog.slice --same-dir -p MemoryMax=40G
     -p MemorySwapMax=0 -p OOMPolicy=continue -p LimitCORE=0 --setenv=PATH="$PATH"
     -p ExecStopPost="$self --unshield"
-    ${cpus:+-p AllowedCPUs="$cpus"}
     --setenv=CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$PWD/target/baseline}")
   script=(systemd-inhibit --what=sleep:idle:handle-lid-switch --who=linlog-baseline
     --why="the benchmark baseline" "$self" --force --into="$out"
@@ -351,9 +353,26 @@ if $fresh; then
 fi
 mkdir -p "$out"
 
+# The run's affinity, which every process it starts inherits and the
+# streams' taskset narrows: a user unit's AllowedCPUs needs the cpuset
+# controller, which a user's systemd may lack.
+if [ -n "$cpus" ]; then
+  taskset -cp "$cpus" $$ >/dev/null
+fi
+# Whether the user's slices can be kept to CPUs: AllowedCPUs on a slice
+# needs the cpuset controller delegated to the user's systemd.
+shield=false
+if grep -q linlog.slice /proc/self/cgroup &&
+  grep -qw cpuset "/sys/fs/cgroup/user.slice/user-$(id -u).slice/user@$(id -u).service/cgroup.controllers" 2>/dev/null; then
+  shield=true
+fi
+
 # Every start of the run, a line in starts.txt: a resumed baseline has
 # several, which RESULTS.md lists.
-record="$(date '+%Y-%m-%d %H:%M'), commit $(commit), load average $load${forced}, sequential streams on CPUs ${cores[*]}${cpus:+, the run confined to CPUs $cpus, the other slices to $others}"
+record="$(date '+%Y-%m-%d %H:%M'), commit $(commit), load average $load${forced}, sequential streams on CPUs ${cores[*]}${cpus:+, the run confined to CPUs $cpus}"
+if $shield; then
+  record+=", the other slices kept to CPUs $others"
+fi
 echo "$record" >>"$out/starts.txt"
 echo "started into $out: $record; timers due: ${due:-none}; $(settings)"
 read -r throttled_before throttled_ms_before < <(throttling)
@@ -364,10 +383,14 @@ read -r throttled_before throttled_ms_before < <(throttling)
 # services and kernel threads it cannot move (.claude/rules/bench.md says
 # how an administrator can).
 if grep -q linlog.slice /proc/self/cgroup; then
-  for slice in "${slices[@]}"; do
-    systemctl --user set-property --runtime "$slice" AllowedCPUs="$others"
-  done
-  echo "kept ${slices[*]} off CPUs ${cores[*]}"
+  if $shield; then
+    for slice in "${slices[@]}"; do
+      systemctl --user set-property --runtime "$slice" AllowedCPUs="$others"
+    done
+    echo "kept ${slices[*]} to CPUs $others"
+  else
+    echo "no cpuset controller: ${slices[*]} share CPUs ${cores[*]} with the run"
+  fi
   # The user's own timers due during the run wait for its end.
   systemctl --user list-timers --no-legend | awk '{ print $(NF - 1) }' |
     while read -r unit; do
@@ -559,13 +582,25 @@ again - lltp-all-cores 60 --lltp "$lltp/ILL" --copies 3 --jobs all --timeout 5
 
 fired=$(timers "$now" "$(date +%s)" LastTriggerUSec)
 fired=${fired%, }
+# What the run had, in words: whether other work could share the streams'
+# CPUs, and where the parallel runs ran.
+if $shield; then
+  shared="which the user's other slices were kept off"
+else
+  shared="which other processes could share (the user's slices could not be kept off them: no cpuset controller)"
+fi
+if [ -n "$cpus" ]; then
+  parallel="confined like the whole run to CPUs $cpus, so their \"every core\" was those $(nproc) CPUs, while other work could use the rest of the machine"
+else
+  parallel="on every core of the machine"
+fi
 read -r throttled_after throttled_ms_after < <(throttling)
 {
   cat <<EOF2
 # Benchmark results
 
 The baseline of ${out##*/} on an $(lscpu | sed -n 's/^Model name: *//p')
-($(nproc) cores, $(free -g | awk '/^Mem:/ { print $2 }') GB), release build, from
+($(nproc --all) cores, $(free -g | awk '/^Mem:/ { print $2 }') GB), release build, from
 \`bench/baseline.sh\`, which writes this file, the CSV files beside it
 (\`$out/\`, one row per run) and a copy of this file as
 \`bench/RESULTS.md\`, the latest baseline's. It started (once more for
@@ -581,8 +616,9 @@ $((throttled_after - throttled_before)) times for $(((throttled_ms_after - throt
 ($(settings)).
 The journal of \`linlog-baseline\` says every ten minutes what else used
 a CPU. The sequential runs went in four
-streams at once, each pinned to a performance core of its own; the
-parallel runs had the machine to themselves. A time is the median of up to
+streams at once, each pinned to a CPU of its own (CPUs ${cores[*]}),
+$shared; the parallel runs came after them with no stream of the run
+beside them, $parallel. A time is the median of up to
 three runs; \`✓\` is proved, \`✗\` refuted, \`?\` unknown (\`bound\`: the copy
 bound, \`wide\`: a context too wide to split, \`depth\`: the recursion
 limit), \`>\` a time limit reached, \`MISMATCH\` a verdict against the
