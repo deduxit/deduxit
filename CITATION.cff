@@ -17,7 +17,10 @@ abstract: >-
   the author is responsible for them. Its results do not rest on the
   model that wrote it: every proof it returns is validated by an
   independent proof checker, classical proofs can be exported as
-  certificates that the Rocq proof assistant checks, the tests are
+  certificates that the Rocq proof assistant checks, and proofs of every
+  mode as certificates against linlog's own Rocq library, rocq-linlog,
+  kept in its own repository
+  (https://github.com/linlog-prover/rocq-linlog), the tests are
   measured by mutation testing and fuzzing, and its verdicts on
   published problem libraries are compared with their known status and
   with those of eight other provers.
@@ -31,6 +34,18 @@ doi: 10.5281/zenodo.23448588
 license: EUPL-1.2
 repository-code: "https://github.com/linlog-prover/linlog"
 url: "https://linlog-prover.github.io/linlog/"
+references:
+  - type: software
+    title: rocq-linlog
+    abstract: >-
+      The Rocq library of linlog: linear logic's sequent calculi, linlog's
+      proof terms, their checkers and soundness theorems, against which
+      the certificates linlog writes for its kernel linlog are proved.
+    authors:
+      - given-names: Fabian Lukas
+        family-names: Grubmüller
+    license: EUPL-1.2
+    repository-code: "https://github.com/linlog-prover/rocq-linlog"
 keywords:
   - linear logic
   - intuitionistic linear logic

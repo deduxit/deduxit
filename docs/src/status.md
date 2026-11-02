@@ -203,7 +203,8 @@ Built:
   kernel, a lemma proved rule by rule and closed by `Qed`, for every
   classical fragment and for intuitionistic proofs as the classical
   proofs they are, with a flake check that runs Rocq on them.
-- A Rocq library of linlog's own (`rocq/`, the package `rocq-linlog`,
+- A Rocq library of linlog's own (the package `rocq-linlog`, in its own
+  repository, [linlog-prover/rocq-linlog](https://github.com/linlog-prover/rocq-linlog),
   on Rocq 9 and its standard library alone): the one-sided calculus of
   classical linear logic as a plain inductive, with Mix and general
   weakening as parameters, and the two-sided calculus of intuitionistic
@@ -218,11 +219,12 @@ Built:
   the first-order proof terms, their checkers in the two passes of
   linlog's own, and the same theorems in every mode. `--format rocq`
   writes them as its second kernel (`--kernel linlog`, the default for
-  Mix, affine, intuitionistic and first-order proofs). The flake builds the library and compiles the
-  certificates under `rocq/tests/` and those the command writes against
-  it. The library proves that a derivation with Mix gives one of
-  `?(⊥⊗⊥), Γ` without Mix and without cut, and, in modules under
-  `rocq/bridges/` that the flake checks against the kernels' own pinned
+  Mix, affine, intuitionistic and first-order proofs). Its flake builds
+  the library and compiles the certificates under its `tests/`, and
+  linlog's flake compiles those the command writes against it, pinned
+  to a commit. The library proves that a derivation with Mix gives one of
+  `?(⊥⊗⊥), Γ` without Mix and without cut, and, in modules under its
+  `bridges/` that its flake checks against the kernels' own pinned
   files, that its classical calculus derives exactly the sequents
   NanoYalla's derives and its intuitionistic calculus exactly those of
   Yalla's standalone `nanoill.v`.

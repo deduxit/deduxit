@@ -40,7 +40,5 @@ Fo = "Fo"
 # A field named after a plural of `&`, and a hyphenated prefix.
 withs = "withs"
 mis = "mis"
-# Rocq's `Arguments f x : clear implicits`.
-implicits = "implicits"
 # The intuitionistic tensor of the Rocq library, named as in Yalla.
 itens = "itens"

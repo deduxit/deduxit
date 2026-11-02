@@ -68,5 +68,8 @@ with the default features `parse`, `serialize`, `interactive`, `latex`,
 with `serde_json`, the caller's own dependency.
 
 The Rocq certificates the command writes (`--format rocq`) are checked
-by the NanoYalla kernel, whose installation [Rocq certificates](rocq.md)
-describes with them.
+by the NanoYalla kernel or by linlog's own Rocq library, `rocq-linlog`,
+in its repository
+[linlog-prover/rocq-linlog](https://github.com/linlog-prover/rocq-linlog);
+[Rocq certificates](rocq.md) says how to install each and compile a
+certificate.

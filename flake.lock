@@ -100,6 +100,39 @@
         "url": "https://channels.nixos.org/nixpkgs-unstable/nixexprs.tar.zst"
       }
     },
+    "rocq-linlog": {
+      "inputs": {
+        "flake-parts": [
+          "flake-parts"
+        ],
+        "import-tree": [
+          "import-tree"
+        ],
+        "nanoyalla": [
+          "nanoyalla"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "treefmt-nix": [
+          "treefmt-nix"
+        ],
+        "yalla": "yalla"
+      },
+      "locked": {
+        "lastModified": 1793613282,
+        "narHash": "sha256-VqMupKh5h6ZJyv7AShWASmDhoA8jG15qjq4g07B4giQ=",
+        "owner": "linlog-prover",
+        "repo": "rocq-linlog",
+        "rev": "ce2ea75761a0ba95f380e148f2c048bf1dcd99ad",
+        "type": "github"
+      },
+      "original": {
+        "owner": "linlog-prover",
+        "repo": "rocq-linlog",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "crane": "crane",
@@ -108,9 +141,9 @@
         "import-tree": "import-tree",
         "nanoyalla": "nanoyalla",
         "nixpkgs": "nixpkgs",
+        "rocq-linlog": "rocq-linlog",
         "rust-overlay": "rust-overlay",
-        "treefmt-nix": "treefmt-nix",
-        "yalla": "yalla"
+        "treefmt-nix": "treefmt-nix"
       }
     },
     "rust-overlay": {

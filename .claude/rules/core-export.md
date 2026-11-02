@@ -673,8 +673,10 @@ for NanoYalla. What the code relies on:
   NanoYalla exactly as before, which the NanoYalla snapshots pin (they
   name the kernel, since by default `ill.v` and `labels_ill.v` would go
   to the library), and an explicit `NanoYalla` keeps every refusal.
-- **linlog's kernel** (`export/rocq/linlog.rs`, the library `rocq/`,
-  `rocq.md`): a one-sided derivation is written as the library's dyadic
+- **linlog's kernel** (`export/rocq/linlog.rs`, the library
+  `rocq-linlog` in its own repository, `linlog-prover/rocq-linlog`, whose
+  rules `rocq.md` hold its invariants, taken as the pinned flake input
+  `rocq-linlog`): a one-sided derivation is written as the library's dyadic
   `proof`, a two-sided one as its `iproof`, under a lemma over `ll` or
   `ill` with `(atom := string)` and the atoms as Rocq strings (`"`
   doubled), so no atom is renamed. The one-sided term moves every `?`
@@ -706,8 +708,11 @@ for NanoYalla. What the code relies on:
   goals and compact runs are refused as for NanoYalla; nothing else is.
   The core tests pin this kernel's certificates in
   `core/tests/snapshots/linlog/`, which the flake's `rocq-linlog` check
-  compiles, and `rocq::LINLOG` is asserted equal to the opam file's
-  version.
+  compiles against the pinned library, and `rocq::LINLOG` is asserted
+  equal to the pinned package's version (its opam file's). A change of
+  the library's statements or terms is made and pushed in its repository
+  first; then `nix flake update rocq-linlog` moves the pin here, with the
+  exporter's change in the same commit.
 - **Certificates of non-derivability** (`rocq::write_disproof`,
   `linlog::disproof`): for linlog's library whatever the mode
   (`Unsupported::Disproof` where the options name NanoYalla), the lemma

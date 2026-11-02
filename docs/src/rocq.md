@@ -2,7 +2,8 @@
 
 `--format rocq` writes the derivation as a Rocq certificate for one of
 two kernels, which `--kernel` names: `nanoyalla`, the default for
-classical linear logic, or `linlog`, linlog's own Rocq library, the
+classical linear logic, or `linlog`, linlog's own Rocq library
+([linlog-prover/rocq-linlog](https://github.com/linlog-prover/rocq-linlog)), the
 default for Mix, affine and intuitionistic logic and for a sequent with
 a quantifier. The verdict becomes a
 comment, and `--standalone` adds the import lines.
@@ -127,12 +128,14 @@ no certificate: a refutation of kind `exhausted` rests on the search and has no 
 (* unprovable (MALL, classical, focus engine): the search was exhaustive *)
 ```
 
-The library is `rocq/` of this repository, on Rocq 9 and its standard
-library alone (`nix build .#rocq-linlog` builds it, or `make` in `rocq/`
-with Rocq on the path); compile a certificate with its theories on the
-load path:
+The library is the package `rocq-linlog`, in a repository of its own,
+[linlog-prover/rocq-linlog](https://github.com/linlog-prover/rocq-linlog),
+on Rocq 9 and its standard library alone (`nix build
+github:linlog-prover/rocq-linlog` builds it, or `make` in a checkout of
+it with Rocq on the path); compile a certificate with its theories on
+the load path:
 
 ```console
 $ linlog prove --mix --format rocq --standalone --output mix.v "A, B |- A, B"
-$ rocq compile -R path/to/rocq/theories Linlog mix.v
+$ rocq compile -R path/to/rocq-linlog/theories Linlog mix.v
 ```

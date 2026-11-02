@@ -96,4 +96,4 @@ valid proof (classical)
 ## Optional
 
 - [Web page](https://linlog-prover.github.io/): the prover in a browser, step by step, for people
-- [Rocq library](https://github.com/linlog-prover/linlog/tree/main/rocq): the calculi and checkers the `--kernel linlog` certificates are proved with
+- [Rocq library](https://github.com/linlog-prover/rocq-linlog): the calculi and checkers the `--kernel linlog` certificates are proved with

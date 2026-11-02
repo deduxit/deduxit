@@ -778,6 +778,15 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### Changed
 
+- The Rocq library `rocq-linlog` (added under "Added" above, under
+  `rocq/` until 2026-11-02) lives in a repository of its own,
+  [linlog-prover/rocq-linlog](https://github.com/linlog-prover/rocq-linlog),
+  with its tests, its certificates, its bridges to NanoYalla and Yalla
+  and its own changelog, started from the tree as it stood here. The
+  flake takes it as the pinned input `rocq-linlog` and compiles the
+  exporter's certificates for `--kernel linlog` against it (the check
+  `rocq-linlog`); the package `rocq-linlog`, the check `rocq-bridges`
+  and the input `yalla` are that repository's now.
 - `forall` and `exists` are no longer refused as reserved words: they
   are the quantifiers' keywords, and `ParseError::reserved` is never set.
 - The hint of a parse error of the strict intuitionistic syntax alone

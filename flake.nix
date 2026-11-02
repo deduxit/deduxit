@@ -45,12 +45,21 @@
       flake = false;
     };
 
-    # Yalla, whose standalone kernel `microyalla/nanoill.v' the Rocq
-    # library's bridges import (LGPL-3.0, so fetched and never copied),
-    # pinned to a commit: the last release tag predates that file.
-    yalla = {
-      url = "github:olaure01/yalla/a138437625f5bb39221cd6171b7dc464e15bbf8b";
-      flake = false;
+    # linlog's own Rocq library, the kernel of `--kernel linlog', in its own
+    # repository; pinned by flake.lock to a commit of its `main'. It follows
+    # this flake's nixpkgs, so that the library and the certificates are
+    # compiled by one Rocq, and its NanoYalla, which its bridges import.
+    # While a change of the library is under way, `--override-input
+    # rocq-linlog path:../rocq-linlog' points a build at a local checkout.
+    rocq-linlog = {
+      url = "github:linlog-prover/rocq-linlog";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-parts.follows = "flake-parts";
+        import-tree.follows = "import-tree";
+        treefmt-nix.follows = "treefmt-nix";
+        nanoyalla.follows = "nanoyalla";
+      };
     };
   };
 

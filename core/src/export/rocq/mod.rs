@@ -189,8 +189,9 @@ pub enum Kernel {
 }
 
 /// The version of linlog's Rocq library the certificates of its kernel are
-/// written for: the library under `rocq/` of linlog's repository, logical
-/// path `Linlog`, built with Rocq 9 and its standard library.
+/// written for: the package `rocq-linlog` of the repository
+/// <https://github.com/linlog-prover/rocq-linlog>, logical path `Linlog`,
+/// built with Rocq 9 and its standard library.
 pub const LINLOG: &str = "0.1.0";
 
 /// The prelude of a one-sided certificate for linlog's library: the

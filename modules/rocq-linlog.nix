@@ -1,56 +1,37 @@
 # linlog © Fabian Lukas Grubmüller 2026
 # Licensed under the EUPL
 
-# The Rocq library of linlog's own under rocq/ (logical path `Linlog'):
-# the package `rocq-linlog', built as nixpkgs builds a Rocq library
-# (mkRocqDerivation over the library's own Makefile, the reference
-# manual's wrapper of `rocq makefile' on _RocqProject), and the check
-# `rocq-linlog', which compiles every certificate under rocq/tests, every
-# one the core tests pin for this kernel in core/tests/snapshots/linlog
-# and some the CLI writes against the installed library, first-order ones
-# among them, requires a certificate with a planted fault to be refused,
-# and requires
-# `Print Assumptions' of the soundness theorems to answer `Closed under
-# the global context'. Rocq prints
-# nothing for a file it accepts, so any other output fails the check, as
-# does an `Admitted', `admit', `Axiom', `Parameter' or `Conjecture' in a
-# source. Rocq and its standard library are nixpkgs', the ones the
-# NanoYalla check uses (rocq.nix).
-{ ... }:
+# The check `rocq-linlog': every certificate the core tests pin for linlog's
+# own Rocq library in core/tests/snapshots/linlog, and some the CLI writes,
+# first-order ones among them, compiled against that library as the flake
+# input `rocq-linlog' pins it (github:linlog-prover/rocq-linlog, built with
+# this flake's nixpkgs, so with the Rocq the NanoYalla check uses, rocq.nix);
+# a certificate with a planted fault must be refused. Rocq prints nothing for
+# a file it accepts, so any other output fails the check. The library's own
+# tests, its bridges and its theorems' assumptions are checked in its
+# repository.
+{ inputs, ... }:
 {
   perSystem =
-    { config, pkgs, ... }:
+    {
+      config,
+      pkgs,
+      system,
+      ...
+    }:
     let
       inherit (pkgs) lib;
       rocq = pkgs.rocq-core;
       stdlib = pkgs.rocqPackages.stdlib;
+      library = inputs.rocq-linlog.packages.${system}.rocq-linlog;
       userContrib = "lib/coq/${rocq.rocq-version}/user-contrib";
-
-      # The library's version is the opam file's.
-      version = builtins.head (
-        builtins.match ''.*version: "([0-9.]+)".*'' (builtins.readFile ../rocq/rocq-linlog.opam)
-      );
-
-      library = lib.fileset.toSource {
-        root = ../rocq;
-        fileset = lib.fileset.unions [
-          ../rocq/_RocqProject
-          ../rocq/Makefile
-          ../rocq/theories
-        ];
-      };
-
-      tests = lib.fileset.toSource {
-        root = ../rocq/tests;
-        fileset = lib.fileset.fileFilter (file: file.hasExt "v") ../rocq/tests;
-      };
 
       snapshots = lib.fileset.toSource {
         root = ../core/tests/snapshots/linlog;
         fileset = lib.fileset.fileFilter (file: file.hasExt "v") ../core/tests/snapshots/linlog;
       };
 
-      # The version `linlog::export::rocq::LINLOG' names must be the
+      # The version `linlog::export::rocq::LINLOG' names must be the pinned
       # library's.
       named = builtins.head (
         builtins.match ''.*pub const LINLOG: &str = "([0-9.]+)";.*'' (
@@ -59,50 +40,22 @@
       );
     in
     {
-      packages.rocq-linlog = pkgs.rocqPackages.mkRocqDerivation {
-        pname = "linlog";
-        opam-name = "rocq-linlog";
-        inherit version;
-        # A release whose source is this tree: `hash' must be present, and
-        # the empty string stands for the fake hash nothing fetches.
-        release.${version} = {
-          src = library;
-          hash = "";
-        };
-        propagatedBuildInputs = [ stdlib ];
-        meta = {
-          description = "The Rocq library of linlog: linear logic, proof terms, their checker and its soundness";
-          license = lib.licenses.eupl12;
-        };
-      };
-
       checks.rocq-linlog =
-        assert lib.assertMsg (named == version) "export::rocq::LINLOG is ${named}, the library ${version}";
+        assert lib.assertMsg (
+          named == library.version
+        ) "export::rocq::LINLOG is ${named}, the pinned library ${library.version}";
         pkgs.runCommand "check-rocq-linlog"
           {
             nativeBuildInputs = [
               rocq
               stdlib
-              config.packages.rocq-linlog
+              library
               config.packages.linlog-cli
             ];
-            ROCQPATH = "${stdlib}/${userContrib}:${config.packages.rocq-linlog}/${userContrib}";
+            ROCQPATH = "${stdlib}/${userContrib}:${library}/${userContrib}";
           }
           ''
             export HOME=$TMPDIR
-            if grep -rnE '^[[:space:]]*(Axiom|Axioms|Parameter|Parameters|Conjecture|Admitted)\b|\badmit\.' \
-                ${library}/theories ${tests}; then
-              echo "an assumption or an admitted proof in the library"
-              exit 1
-            fi
-            cp ${tests}/*.v .
-            for file in *.v; do
-              [ "$file" = Assumptions.v ] && continue
-              rocq compile "$file" 2>&1 | tee log
-              if [ -s log ]; then exit 1; fi
-            done
-            # The exporter's certificates, in a directory of their own so
-            # that their names meet no test's.
             mkdir exporter
             cp ${snapshots}/*.v exporter/
             cd exporter
@@ -152,13 +105,6 @@
               echo "a certificate with a wrong witness was accepted"
               exit 1
             fi
-            cd ..
-            rocq compile Assumptions.v >assumptions 2>&1 || { cat assumptions; exit 1; }
-            cat assumptions
-            # One line per theorem the file asks about, and nothing else.
-            theorems=$(grep -c '^Print Assumptions' Assumptions.v)
-            for _ in $(seq "$theorems"); do echo 'Closed under the global context'; done |
-              diff - assumptions
             touch $out
           '';
     };

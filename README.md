@@ -82,6 +82,10 @@ document every option.
   [llms-full.txt](https://linlog-prover.github.io/linlog/llms-full.txt);
   copy the directory into an agent's skills (`~/.claude/skills/` for
   Claude Code) to give it the guide.
+- **The Rocq library**, `rocq-linlog`, in its own repository
+  [linlog-prover/rocq-linlog](https://github.com/linlog-prover/rocq-linlog):
+  the calculi, checkers and soundness theorems the certificates of
+  `--kernel linlog` are proved with.
 - **The library's API**: [docs.rs/linlog](https://docs.rs/linlog) for the
   releases, [linlog-prover.github.io/linlog](https://linlog-prover.github.io/linlog/)
   for `main`, rebuilt on every push.

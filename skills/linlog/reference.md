@@ -901,7 +901,8 @@ linear logic: NanoYalla, the kernel of Click & coLLecT at the version
 `prove --help` names, a proof script checked rule by rule, which
 refuses Mix and affine weakening. The kernel `linlog` is the default for
 Mix, affine and intuitionistic logic and for a sequent with a
-quantifier: the Rocq library in `rocq/` of the repository, a proof term
+quantifier: the Rocq library `rocq-linlog`, in its own repository
+(`github.com/linlog-prover/rocq-linlog`), a proof term
 its checker accepts. A first-order proof is stated in the library's
 first-order development (`ll (symbol := string) Calculus.classical`,
 `ill (symbol := string) Intuitionistic.intuitionistic`, …): predicates
@@ -943,7 +944,7 @@ no certificate: a refutation of kind `exhausted` rests on the search and has no 
 
 Compile a certificate with the kernel on the load path: `rocq compile
 -R path/to/nanoyalla NanoYalla proof.v`, or for `--kernel linlog`
-`rocq compile -R path/to/rocq/theories Linlog proof.v`; Rocq prints
+`rocq compile -R path/to/rocq-linlog/theories Linlog proof.v`; Rocq prints
 nothing for a certificate it accepts.
 
 ## 19. Mistakes to avoid

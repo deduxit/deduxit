@@ -108,7 +108,8 @@ Each entry point is described in the file of its module:
 **The rustdoc shows linlog's logo** by URL (`#![doc(html_logo_url,
 html_favicon_url)]` at the top of `lib.rs`, the site's
 `/logo/square-dark.svg` and `/logo/favicon-32.png`), as README's head and
-`rocq/README.md` show the word mark: the files are the web client's
+the Rocq library's README (in its repository, `linlog-prover/rocq-linlog`)
+show the word mark: the files are the web client's
 (CC BY 4.0, its `src/logo/`), never committed here, and their paths there
 must stay stable.
 

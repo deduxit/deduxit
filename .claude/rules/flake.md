@@ -101,33 +101,26 @@ evaluation) with nixpkgs' Rocq and standard library and compiles the
 `Prop`, of ordinary logic, classical and intuitionistic, two of `true`,
 which bind nothing; the intuitionistic linear one names `--kernel
 nanoyalla`, since the mode alone would choose linlog's library),
-requiring Rocq to print nothing; `rocq-linlog.nix` is the package
-`rocq-linlog`, the library under `rocq/` built with
-`rocqPackages.mkRocqDerivation` from a release entry whose `src` is the
-tree's `_RocqProject`, `Makefile` and `theories/` (`hash = ""` stands for
-the fake hash nothing fetches), the version read from
-`rocq/rocq-linlog.opam` and the standard library propagated, and the
-check `rocq-linlog`, which greps the sources for `Admitted`, `admit`,
-`Axiom`, `Parameter` and `Conjecture`, compiles every `.v` under
-`rocq/tests/`, then in a directory of their own the exporter's
-snapshots for this kernel (`core/tests/snapshots/linlog/`) and six
-certificates the CLI writes for it (Mix, affine, intuitionistic,
-intuitionistic affine, a `⊤`/`0` goal, classical with `--kernel
-linlog`), against the installed library (`ROCQPATH` names both
-`user-contrib` directories), requires silence from each certificate and
-requires `Assumptions.v` to print `Closed under the global context` once
-per `Print Assumptions` line it has and nothing else (`rocq.md`); an
-assertion at evaluation compares `export::rocq::LINLOG` with the opam
-file's version; `rocq-bridges.nix` is the check `rocq-bridges`, which
-copies `nanoll.v` from the input `nanoyalla` and `microyalla/nanoill.v`
-from the input `yalla` (Yalla pinned to a commit, since its last
-release tag predates that file; LGPL, so fetched and never copied into
-the tree), compiles them unchanged under their own logical paths
-(`NanoYalla`, `Yalla.MicroYalla`, judged by exit status), then the
-modules of `rocq/bridges/` against them and the installed `rocq-linlog`
-(silence required) and `bridges/Assumptions.v` as `rocq-linlog` does
-its own; the package leaves the bridges out, so no certificate and no
-build of the library needs either input; `bench.nix` is the `linlog-bench` package, the `bench`
+requiring Rocq to print nothing; `rocq-linlog.nix` is the check
+`rocq-linlog`, which compiles, in a directory of their own, the
+exporter's snapshots for linlog's own Rocq library
+(`core/tests/snapshots/linlog/`) and the certificates the CLI writes for
+it (Mix, affine, intuitionistic, intuitionistic affine, a `⊤`/`0` goal,
+classical with `--kernel linlog`, four refutations, five first-order
+ones, one of them from a session's open witness), against the package
+`rocq-linlog` of the flake input `rocq-linlog`
+(`github:linlog-prover/rocq-linlog`, pinned by the lock; `ROCQPATH`
+names its `user-contrib` and the standard library's), requires silence
+from each and that a first-order certificate with a wrong witness
+planted by `sed` be refused; an assertion at evaluation compares
+`export::rocq::LINLOG` with the pinned package's `version` (its opam
+file's). The input follows this flake's `nixpkgs`, `flake-parts`,
+`import-tree`, `treefmt-nix` and `nanoyalla`, so the library is built by
+the Rocq the `rocq` check uses (the same derivation as when the library
+was under `rocq/`); its own `yalla` stays in the lock for its bridges,
+which this flake never evaluates. The library's tests, its bridges and
+its theorems' assumptions are its repository's checks, not this flake's
+(that repository's CLAUDE.md and rules); `bench.nix` is the `linlog-bench` package, the `bench`
 check (the harness on the smallest instance of every family, the
 problem file, and an LLTP and a `.spec` file of the command's lock
 inputs, failing through `summary --strict` on a verdict against a known
