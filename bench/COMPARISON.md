@@ -67,7 +67,11 @@ the third's cores**:
   problems they decide within the limit are measured beside foreign
   load, and every parallel table below says so. A rerun of that stage on
   a quiet machine would replace these four files and the sentences on
-  them.
+  them. One thing in it holds whatever the load: on `mix`, one thread
+  decides 8 to 11 pairs in 0.27 to 0.30 s by the inverse method's turn,
+  which the dispatch gives only to a search of one thread, while 2 to 16
+  threads race the focused engine alone (0.8 to 1.4 s at 8 pairs, past
+  the 120 s limit at 11).
 
 ## At a glance
 
