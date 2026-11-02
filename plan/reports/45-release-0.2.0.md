@@ -4,6 +4,396 @@ The step's sessions each add a section here: 45b (the families that
 grow), 45a (the Rocq library in its own repository), 45c (the fourth
 baseline), 45d (the release prepared) and 45e (the package archives).
 
+## Session 45d, part 1: the release prepared
+
+### Outcome
+
+The 0.2.0 release's mechanics are prepared in both repositories, all
+but the fourth baseline's results, the final words of README and the
+manual, and the date, which part 2 does. In linlog
+(`../linlog-step45d1`, on `qknxxpoo`): what 0.2.0 breaks was found by
+two tools and is listed in the changelog's `## [0.2.0] - unreleased`
+with what to do instead; `core.md`'s lists of closed and marked types
+were checked against the rustdoc JSON and corrected (15 closed, 119
+marked); `Error::Quantifiers`, raised nowhere and never released, is
+retired; the version is 0.2.0 in the manifests, both locks,
+`CITATION.cff` and through them the web bindings' package; `cargo
+publish --dry-run --locked --workspace` packages and verifies both
+crates (exit 0). The command has prebuilt files for every system: the
+flake builds Linux's (a static musl binary with mimalloc, in an archive,
+a `.deb`, an `.rpm` and an Arch Linux package, `nix build .#dist`), the
+release workflow builds macOS's and Windows' archives on their runners
+and attaches everything with `SHA256SUMS` and a build provenance
+attestation; every package carries the licences, the crates' notices
+among them. The manual's Installation chapter covers Debian and Ubuntu,
+Fedora, Arch Linux, any Linux, NixOS and Nix, macOS and Windows, with
+what each needs, how to update and remove, and what an unsigned file
+meets; every Linux instruction ran in that distribution's root
+filesystem here, the Nix ones in a temporary profile, and a new workflow
+(`install.yml`) runs them all on GitHub's runners and containers. The
+Rocq library (`../rocq-linlog-45d1`) is ready for its own 0.2.0: checked
+with Rocq 9.0 to 9.3 by its flake, installed from its opam file into a
+fresh opam switch for each, `opam lint` passing, with a changelog,
+`CITATION.cff`, README, documentation and a release workflow; the
+supervisor pushed it (`main` = `2ad6487e8388`, after the review's README
+fix on `52e23df76340`) and linlog's lock is on it, every one of the 49
+certificates linlog's check compiles closed under the global context.
+
+### The break, found by tools
+
+- **Tools**: cargo-semver-checks 0.51.0 and cargo-public-api 0.52.0 from
+  the pinned nixpkgs, adopted through `new-tool` as the devshell's
+  `breaks VERSION` (`modules/devshell.nix`; `core.md`, "The break against
+  the last release", says how to read them). cargo-semver-checks has no
+  lint for a changed field or signature type, so the second tool diffs
+  both public APIs, each built as rustdoc JSON with every feature (the
+  published 0.1.0 from its crates.io package). cargo-semver-checks'
+  own JSON documents private items and its baseline overwrites
+  `target/doc/linlog.json`, which a first attempt at the diff ran into.
+- **Its findings** (`enum_variant_added`, `enum_no_repr_variant_discriminant_changed`,
+  `partial_ord_enum_variants_reordered`; the diff's "Changed"): the new
+  variants `Term::{Forall, Exists}`, `Kind::{Forall, Exists}`,
+  `Node::{Cut, Forall, Exists}`, `Rule::{Cut, Forall, Exists}`;
+  `Rule::ALL` `[Rule; 16]` → `[Rule; 19]` and `Named::ALL` `[Named; 34]`
+  → `[Named; 41]`; `Rule::Open` 15 → 18 and after the new rules in the
+  derived order; `export::rocq::Unsupported::AffineWeakening` 2 → 3 and
+  `Compact` 3 → 4. A test crate showed that a downstream `as` cast of
+  the `#[non_exhaustive]` fieldless `Unsupported` compiles, so its moved
+  numbers are a break, if a small one. The diff's other lines are none:
+  `svg::Font`'s derived `Deserialize` became a hand-written one (removed
+  and added again, the `where` bound alone differing), and
+  `view::Inference`'s hand-written `PartialEq` loses
+  `StructuralPartialEq`, which matters only to a constant pattern, which
+  its private fields already forbid.
+- **The plan's list corrected** (departs from the design's accounting):
+  `Placed::parent` is no break, since `Placed` came with the MELL nets on
+  2026-10-23, after 0.1.0; nor are the Rocq certificates with a record
+  literal, since 0.1.0's exporter wrote NanoYalla's alone (its crate has
+  no `Kernel`); `FoTerm`, `Fault`, `Refusal` and `Space` are new or
+  marked. The changelog said otherwise for the first two and now says
+  this.
+- **The command**: 0.1.0's binary (built from crates.io) and this one's
+  `--help` of every subcommand compared flag by flag and value by value:
+  nothing removed, 29 flags and the subcommand `eliminate` added, the
+  engines `essential` and `inverse` among `--engine`'s values. Three
+  changes of behaviour a script sees are in the break list with what
+  to do instead: `-i` reads ILL's syntax alone (`--ill-syntax
+  one-sided`), exit 1 instead of 3 after the classical refutation
+  (`--classical-work 0`), `--format rocq` without `--kernel` for linlog's
+  library (`--kernel nanoyalla`).
+- **`core.md`'s lists** were checked by a script over the head's JSON:
+  0.1.0 had 13 closed and 81 marked types; now 15 closed (`Division`
+  and `FoTerm` added; the list lacked `FoTerm`) and 119 marked (23 were
+  missing: the net looks, `Order`, the MELL and net-cut types,
+  `IllSyntax`, `InputOptions`, `TermNode`, `Witness`, the refutation
+  types, `SymbolFault`). `Named::ALL` stays an array: `Named` is a
+  struct over the closed `Rule`, `Side` and `Division`, so its length
+  changes only where a closed enum's does.
+- **`Error::Quantifiers`** is retired: not in 0.1.0, constructed by
+  the tests alone, its code `quantifiers` named by no document, the
+  guide or the web client. No item is `#[deprecated]`.
+
+### The versions
+
+0.2.0 in `[workspace.package]` and the workspace dependency, both
+`Cargo.lock`s (`cargo update --workspace`, `-p linlog` in `fuzz/`),
+`CITATION.cff` (its `date-released` removed until part 2 dates it),
+README's dependency line; the web bindings take the workspace's version.
+Every outcome writes the crate's version, so the behaviour lock
+(`core/tests/lock/json.txt`) and `core/tests/serialize.rs` change by it
+alone, in the version's commit (checked: masked, the files are equal).
+docs.rs builds `linlog` with every feature on x86_64 Linux and
+`linlog-cli`'s library, as the flake's `doc` check does.
+
+### Installing on each system
+
+- **Research** (three sub-agents on Sonnet 5.5 at `medium`, sources
+  read that day): ripgrep, fd, bat, hyperfine, typst, just, starship,
+  zoxide, Kani and Verus install pages; every one offers prebuilt
+  archives and a source build, most lead with distribution channels and
+  Homebrew, only typst says how to update and none how to remove.
+  rustc per system (packages.debian.org, packages.ubuntu.com,
+  packages.fedoraproject.org, archlinux.org, formulae.brew.sh): Debian
+  13 1.85.1 (backports 1.96.1), Ubuntu 24.04 1.75 (1.91 versioned),
+  Ubuntu 26.04 1.93.1, Fedora 43/44 1.99.1, Arch 1.99.1, Homebrew
+  1.99.1; MSRV 1.92. rustup's commands and Windows' MSVC need
+  (rust-lang.org/tools/install, the rustup book). `nix profile install`
+  became `add` in Nix 2.30 (its release notes); flakes are off on the
+  official installer (nix.conf reference). Release tooling: dist 0.34.0
+  owns its release workflow and builds `.msi` with WiX v3 only
+  (axodotdev's book); ripgrep, fd and typst build by hand-written
+  matrices, ripgrep a static musl binary and `.deb`, with jemalloc on
+  musl because musl's allocator is slow (its `main.rs`); Flathub takes
+  no console software ("Console softwares will not be accepted",
+  docs.flathub.org requirements); AppImage's documents say nothing for
+  a single static binary to gain; `actions/attest` is the current
+  provenance action. The Rocq practice is in its own bullet below.
+- **Offered for 0.2.0** (needs no account): prebuilt archives for
+  `x86_64`/`aarch64-unknown-linux-musl`, `aarch64`/`x86_64-apple-darwin`,
+  `x86_64`/`aarch64-pc-windows-msvc`; `.deb`, `.rpm` and an Arch Linux
+  package for both Linux architectures (one more than the plan named,
+  free with nfpm); `cargo install`; the flake. Not offered: Flatpak and
+  AppImage (above); an `.msi` (WiX v7 asks its user to accept a EULA
+  with the Open Source Maintenance Fee, for organisations above $10 000
+  of revenue, docs.firegiant.com/wix/osmf: the author's to accept;
+  departs from the design); a macOS `.pkg` (no surveyed tool ships one,
+  and an unsigned one meets Gatekeeper where a `curl`-fetched archive
+  does not); `cargo binstall` (it would need `[package.metadata.binstall]`
+  to find archives named `linlog-…`, untested, a follow-up).
+- **How they are made**: `modules/dist.nix` (`linlog-static`: crane's
+  musl example, `pkgsStatic`'s C compiler for mimalloc; `dist`: a
+  deterministic `.tar.gz` and nfpm 2.47.0's `.deb`, `.rpm` and
+  `.pkg.tar.zst` from one list of files; `notices`: cargo-about over
+  `cli/about.toml`'s eight targets); nfpm instead of cargo-deb and
+  cargo-generate-rpm (departs from the design: cargo-generate-rpm is not
+  in nixpkgs, and nfpm, GoReleaser's packager, makes all three formats
+  in the sandbox without running cargo). `.github/workflows/packages.yml`
+  builds them on `ubuntu-24.04` and `ubuntu-24.04-arm` with Nix, and
+  macOS's and Windows' archives with rustup at the flake's compiler
+  version on `macos-26`, `macos-26-intel`, `windows-2025` and
+  `windows-11-arm` (ci.md's exception, written down). `release.yml`
+  calls it after `check`, writes `SHA256SUMS`, attests every file
+  (`actions/attest` v4.2.2 by SHA) and attaches them with the crates.
+  Every package holds the binary, README, `LICENSE`, the five fonts'
+  licences and `THIRD-PARTY-NOTICES.txt` (143 crates' entries); the
+  flake's default package now installs the notices too.
+- **musl and speed** (the supervisor's request, two timed runs it
+  cleared, cores 4–7, medians of three, the flake's glibc build against
+  the static one of the same commit): with musl's allocator `chain` at
+  512 took 3.63 s against 4.70 s on one thread and 3.73 against 5.46 on
+  four; `witness-fo` #3 at 10 3.80 against 6.81 and 2.67 against 9.83.
+  With mimalloc (`#[global_allocator]` under `cfg(target_env =
+  "musl")`, MIT, `cargo deny check` ok): 3.62/4.67, 3.74/4.73,
+  3.82/5.50, 2.65/3.84, so 1.26 to 1.45 times on one thread and four
+  alike, the rest musl's libc. The supervisor decided: the static binary
+  for 0.2.0, the chapter states the numbers and recommends `cargo
+  install` or Nix for long searches, a glibc-linked prebuilt binary is a
+  follow-up.
+- **Unsigned, what a user meets** (in the chapter): apt and pacman say
+  nothing for a file; dnf5 installs it with "Warning: skipped OpenPGP
+  checks for 1 package from repository: @commandline" (seen); macOS
+  runs a `curl`-fetched binary and refuses a browser-fetched one until
+  `xattr -d com.apple.quarantine` or "Open Anyway" (Apple's support page
+  102445; not seen here); Windows may show SmartScreen's "Windows
+  protected your PC" (Microsoft's SmartScreen page; `Unblock-File`
+  clears the mark; not seen here).
+
+### Every instruction, and how it was tried
+
+| instruction | tried how | result |
+|---|---|---|
+| Debian 13: `curl -LO …deb`, `apt install ./…deb`, `apt remove linlog` | LXC root filesystem under bubblewrap (a user namespace, root mapped, capabilities inside it; apt's sandbox user set to root for the trial), the file served at 127.0.0.1 for the URL | installed, ran, removed |
+| Ubuntu 24.04: the same | the same | installed, ran, removed |
+| Fedora 44: `dnf install URL`, `dnf remove linlog` | the same; also `./file` | installed (the OpenPGP warning), ran, removed |
+| Arch: `curl -LO`, `pacman -U ./…`, `pacman -R linlog` | the same (pacman's `DownloadUser` off for the trial) | installed, ran, removed |
+| any Linux: `curl -LO` the archive and `SHA256SUMS`, `sha256sum --check --ignore-missing`, `tar -xzf`, `install -D … ~/.local/bin/linlog`, `rm` | in all four | OK, ran, removed |
+| `cargo install --locked linlog-cli`, `cargo uninstall` with Fedora's Rust (`dnf install cargo`) | the same (crates.io serves 0.1.0 until the author publishes) | built in 56 s, ran, removed |
+| the same with Arch's Rust (`pacman -S rust`) | the same, after `pacman-key --init --populate`, which the image skips (the first run failed for that; the rerun's output is in the session and appended to the trial log) | built, ran, removed |
+| rustup on Debian 13 (`curl … sh.rustup.rs \| sh`), `rustup self uninstall` | the same | built, ran, removed; rustup removed |
+| Debian 13's and Ubuntu 24.04's own rustc too old | `apt install rustc` there | 1.85.1 and 1.75.0, as the chapter says |
+| Nix: `nix run github:…`, `nix profile add`, `remove linlog` | a temporary profile, at origin's `main` (`ceed014d`) for the tag | ran; the entry is named `linlog`; added, removed. `nix profile upgrade linlog` on that locked entry only warned that it "can't be upgraded" (a first record here read it as done; the reviewer found it): the chapter now updates a tagged entry by adding the next tag, and `install.yml` tries `upgrade` on an untagged one |
+| Ubuntu 26.04's `apt install cargo build-essential`, macOS's archive and `shasum`, Windows' PowerShell steps, the arm64 `.deb` and `.rpm`, `cargo install` on macOS and Windows, the C compilers the source routes now name | not here (no root filesystem fetched for 26.04; no macOS or Windows) | by `install.yml` on the supervisor's push |
+| the Arch package on ARM | nowhere (Arch Linux ARM has no container image on GitHub) | not offered by the chapter: ARM takes the archive; the file is still built |
+| the chapter's downloads from the release (`v0.2.0` URLs, `dnf install URL`) | after the tag only: `install.yml`'s `release` jobs, skipped while the latest release has no `SHA256SUMS` | after the tag |
+| the Rocq library: `opam install` of the package, per Rocq version | `nix develop .#opam -c scripts/opam-install.sh 9.0.1 9.1.1 9.2.0 9.3.0` in a temporary opam root (OCaml 4.14 as `ocaml-system`) | lint Passed; installed, every module imported, removed: 9.0.1 with stdlib 9.1.0, 9.1.1/9.2.0, 9.2.0/9.2.0, 9.3.0/9.2.0 |
+| the library by Nix (`nix build`, a shell with the package) | a shell of Rocq, its stdlib and the package | `From Linlog Require Import Soundness` compiled without `ROCQPATH` |
+
+### The Rocq library, released
+
+- **Complete for 0.2.0**: linlog's check `rocq-linlog` now prints
+  `Print Assumptions` of every certificate's lemma: 49 certificates
+  (the 34 exporter snapshots: one-sided classical, Mix, affine, cut,
+  MALL, MELL, two-sided, first-order with cut, instances, witnesses and
+  eigenvariables, every refutation kind; and 15 the command writes),
+  each `Closed under the global context`. What it lacks, in its README:
+  theorems for linlog's count of one sign under an exponential, a state
+  equation, a saturated set and any first-order refutation, so linlog
+  writes no certificate for them; the ordered calculus; cut elimination.
+- **By the Rocq community's practice** (a sub-agent on Sonnet 5.5 at
+  `medium`, read that day): rocq-prover/opam's README (the `released`
+  repository, tags `logpath:`, `category:`, `keyword:`, `date:` "the date
+  the software was last updated"), its CI (`opam lint --check-upstream`,
+  one Rocq picked by the solver), rocq-partial, rocq-pi-leibniz,
+  rocq-smt-lib, rocq-sulfur and rocq-laproof (tag archives with their
+  checksums, open or bounded `rocq-core`); rocq-stdlib's versions do
+  not follow Rocq's (9.3 takes stdlib 9.2.0), so the file bounds
+  `rocq-stdlib` below only; `rocq doc` is the current name and `make
+  html` its target; the rocq-community templates emit `doc:` for a
+  Pages site.
+- **What it has now** (commits `zllvwomt`, `pxzymvww`, `oquqzrlr`,
+  `opkuqzzo`): the flake checks it with every admitted Rocq
+  (`rocq-linlog-9_0`, `-9_2`, `-9_3` beside the default 9.1; 9.2 and 9.3
+  print the deprecation of `Notation` for abbreviations, whose
+  replacement 9.0 and 9.1 lack); `nix build .#doc`; the opam shell and
+  `scripts/opam-install.sh`; the opam file at 0.2.0 with `rocq-core
+  {>= "9.0" & < "9.4~"}`, `rocq-stdlib {>= "9.0"}` and `doc:`; a
+  changelog section `## [0.2.0] - unreleased`; `CITATION.cff`; README's
+  install by opam and Nix and what it covers; `.github/workflows/release.yml`
+  (the tag against the opam file, changelog and citation file, `nix
+  flake check`, a GitHub release with the changelog's section and the
+  tag archive's SHA-512 for the opam file, the documentation on Pages);
+  CLAUDE.md and `rocq.md`, with the line on linlog's
+  `rocq-linlog-library` that 45a left. Its `nix flake check` exited 0 at
+  `52e23df7`; "rocq ready" was sent and answered (pushed), and linlog's
+  `nix flake update rocq-linlog` moved the lock there with `LINLOG =
+  "0.2.0"`.
+
+### The reviewer
+
+A fresh-context reviewer on Opus 5.5 at `high` (`linlog-review-45d1`),
+read only, judged four areas: the break list against the tools'
+outputs and `core.md`'s lists, every instruction against its trial and
+`install.yml`, the release's packages, and the Rocq library's
+readiness. The break list, the type lists, the packages' names,
+artifacts, pins and permissions, and the library held; seven findings:
+
+1. *A Nix entry added by the tag is never upgraded, and the trial
+   record claimed it was; the same for an opam pin.* Holds: the
+   chapter, `rocq.md`, the library's README (`2ad6487e`, pushed, the
+   lock moved) and `install.yml` now say and try what updates each, and
+   this report corrects the record.
+2. *macOS's and Windows' archives lack `THIRD-PARTY-NOTICES.txt`.*
+   Holds: `packages.yml` builds the notices once with Nix and puts them
+   into every archive.
+3. *Windows' binary needs the Visual C++ runtime, yet the table says it
+   needs nothing.* Holds as a risk the runners cannot show (they have
+   Visual Studio): the binaries link the C runtime in (`+crt-static`),
+   as ripgrep's do.
+4. *The rustup route omits the C compiler.* Holds: every source route
+   names it (`build-essential`, `gcc`, `xcode-select --install`), and
+   `install.yml` installs what the chapter says.
+5. *Arch on ARM is untried and no job tries it.* Holds: the chapter
+   offers the Arch package for x86_64 alone.
+6. *The Arch `cargo install` trial is unlogged.* Partly: it ran in the
+   session after the keyring setup (its output is in the session's
+   record), and its log now holds it; `install.yml` tries it too.
+7. *`core-sequents.md` still names the retired variants.* Holds: the
+   sentence says what refuses a binder today.
+
+Its side note, that `nix build .#dist` on the ARM runner may build
+`pkgsStatic`'s compiler when no cache has it, is in "What is left
+open".
+
+### Departures and assumptions
+
+- No `.msi` (departs from the design): WiX v7's EULA is the author's to
+  accept; a WiX v5 build (MS-RL, no EULA) or v7 is the proposal.
+- nfpm instead of cargo-deb and cargo-generate-rpm (departs from the
+  design), and an Arch Linux package beside them.
+- The plan's break list was corrected by the tools (departs from the
+  design's accounting): `Placed::parent` and the record-literal
+  certificates are no breaks against 0.1.0; the moved discriminants and
+  the arrays' lengths are.
+- `cargo binstall` is not offered, though the research recommended it.
+- Linux trials ran under bubblewrap, not proot (both need no system
+  change; bubblewrap was on the machine), with three trial-only
+  settings a real system does not need: apt's sandbox user, pacman's
+  download user, and the keyring an LXC Arch image ships empty.
+- The README test's list of other programs (`TOOLS`) gained `sudo`,
+  `pacman`, `gh` and `xattr`, the programs the chapter's prose shows
+  with flags: the list is the test's place for them, and every flag of
+  `linlog` is still checked.
+- The library's `doc:` field names its Pages site before the author
+  switches Pages on; its release workflow deploys the documentation, so
+  the switch belongs before its tag.
+
+### What the next sessions must know
+
+- **Part 2 (tomorrow)**: the baseline's results and figures, README's
+  and the manual's final words, and the dates. Dating means, in linlog,
+  `CHANGELOG.md`'s `## [0.2.0] - unreleased` becoming `## [0.2.0] -
+  YYYY-MM-DD` and `CITATION.cff`'s `date-released: "YYYY-MM-DD"` (both
+  workflows refuse a tag without them); in rocq-linlog the same two, and
+  the opam file's `"date:YYYY-MM-DD"` tag, which the Rocq opam archive
+  asks for (it is also what 45e's file states). Both repositories' heads
+  then need their checks again and a push.
+- **The chapter's commands name 0.2.0's files**, so a later release
+  changes the version there; `packages.yml` and `dist.nix` name the
+  files by the workspace's version, and `install.yml` finds them by
+  pattern or reads the latest tag, so neither needs a change.
+- **`install.yml` is the instructions' test**: a change of a chapter's
+  command changes it in the same commit (ci.md). Its first runs come
+  with the supervisor's push of this session's commits; its `release`
+  jobs and the release workflow's packaging run first at the tag.
+- **Nothing of the release workflow's new jobs has run**: actionlint
+  passes; the first real run is at the tag. If `packages` fails at the
+  tag, the GitHub release waits (the `release` job needs it), while the
+  crates are already published: fix and run the release job again (the
+  publish job skips versions already on crates.io).
+- **The prebuilt Linux binary is 1.26 to 1.45 times slower** than a
+  glibc build (`cli.md`), stated in the chapter; a glibc-linked prebuilt
+  binary built on an old-glibc runner is the follow-up.
+- **`breaks VERSION`** in the devshell lists a release's breaks; every
+  line is a changelog bullet or explained as none (core.md).
+- **45e** takes the library's opam file from its repository at the tag,
+  adds `url { src … checksum }` from the release notes' SHA-512 (the
+  release workflow writes it), drops `version:` as recent submissions
+  do, and runs `opam lint --check-upstream`; `nix develop .#opam` in the
+  library's repository has opam and an OCaml all admitted Rocq versions
+  accept.
+
+### What is left open
+
+- The runs of `install.yml` and `packages.yml` on GitHub after the
+  supervisor's push (read below, when they have run); the release
+  workflow's new jobs and `install.yml`'s `release` jobs first run at the
+  tag.
+- `nix build .#dist` on `ubuntu-24.04-arm` may build `pkgsStatic`'s
+  aarch64 C compiler when no cache holds it, which costs time on the
+  runner (the reviewer's note).
+- Follow-ups: a glibc-linked prebuilt Linux binary (built on an
+  old-glibc runner) for long searches; `[package.metadata.binstall]` for
+  `cargo binstall`; an `.msi` once the author decides on WiX; signing.
+- The channels that need an account, proposed to the author in the
+  last message: a Homebrew tap (`linlog-prover/homebrew-tap`), the AUR
+  (`linlog-bin`), winget (a manifest in `microsoft/winget-pkgs`, the
+  `.zip` as a portable installer), a Scoop bucket, Fedora COPR; Homebrew
+  core and Debian or Fedora proper later (Homebrew core asks 225 stars
+  of a self-submission, Debian packages every crate).
+
+### Checklist
+
+- [x] Read the brief, the step's prompt, conduct.md, step 30's prompt,
+  `distribution.md`, 45a's and 45b's reports, `ci.md`, `cli.md`,
+  `flake.md`, `core.md`, the changelog, `CITATION.cff`, `release.yml`,
+  the installation chapter, the library's CLAUDE.md and `rocq.md`, the
+  `new-tool` skill; research by three sub-agents on Sonnet 5.5 at
+  `medium` (install channels, release packaging, Rocq practice) and the
+  author's reminders by a fourth.
+- [x] The break by cargo-semver-checks and cargo-public-api
+  (`breaks 0.1.0`), the command's flags by both binaries' help; the
+  changelog's `## [0.2.0] - unreleased` with the break list;
+  `core.md`'s lists checked (15 closed, 119 marked);
+  `Error::Quantifiers` retired.
+- [x] 0.2.0 in the manifests, both locks, `CITATION.cff`, the bindings
+  by the workspace; the behaviour lock by the version alone; `cargo
+  publish --dry-run --locked --workspace`: exit 0.
+- [x] The Linux files from the flake (`linlog-static`, `dist`,
+  `notices`), mimalloc on musl after two timed runs the supervisor
+  cleared, `cargo deny check` ok; `packages.yml`, `release.yml` with
+  `SHA256SUMS` and attestations; the chapter; `install.yml`.
+- [x] Every Linux instruction in Debian 13, Ubuntu 24.04, Fedora 44 and
+  Arch under bubblewrap; the cargo route with Fedora's and Arch's Rust
+  and rustup on Debian; Nix in a temporary profile; the rest by
+  `install.yml` (its runs below).
+- [x] The Rocq library: four commits and the review's one (`2ad6487e`),
+  checked with Rocq 9.0 to 9.3, the opam install per version, `nix flake
+  check` exit 0 at `52e23df7` and at `2ad6487e`; "rocq ready" sent and
+  answered twice (pushed); linlog's lock on `2ad6487e`; 49 certificates
+  closed under the global context.
+- [x] D17: `45d.csv` against `45b.csv`, 0 of 145 decided rows differ;
+  `net-45d.csv` against `net-45b.csv`, 0 of 64; the ratchet within its
+  ceilings in every gate, none raised.
+- [x] The gate at every code commit: `tznykwpm`, `zrsxssrs`,
+  `ytyxokvy`, `slwypkqv`, `knmskrro`, and `xxtlmlst` (the head, with
+  `ktntzwks`'s test change), each `gate: passed`; linlog's `nix flake
+  check` exit 0 at `mykmzxwl` and again at this report's commit (in
+  the final message).
+- [x] The fresh-context reviewer's round, each finding answered and
+  fixed.
+- [ ] `install.yml`'s and `packages.yml`'s runs after the supervisor's
+  push, read through GitHub's API (below once read).
+
 ## Session 45b: families that grow
 
 ### Outcome
