@@ -4412,3 +4412,42 @@ client follows it (step 32).
   rather than in the library's `rocq.md`, which 45d adds with its
   first change there. Next: 45d's first part, the release mechanics,
   whose second part takes 45c's nights' results.
+- 2026-11-02: review of session 45d's first part, the release prepared
+  (Opus 5.5 at high, 11:25 to 13:50): the break since 0.1.0 found by
+  cargo-semver-checks and cargo-public-api (the devshell's `breaks
+  0.1.0`) and the command's help against 0.1.0's binary, in the
+  changelog's undated `## [0.2.0]` with what to do instead (the closed
+  enums' new variants, `Rule::ALL` and `Named::ALL`'s lengths, moved
+  discriminants, three command defaults); `core.md`'s type lists checked
+  by a script over the rustdoc JSON; `Error::Quantifiers` retired;
+  0.2.0 in the manifests and `CITATION.cff`, `cargo publish --dry-run`
+  passing; the installation chapter for Debian and Ubuntu, Fedora, Arch,
+  NixOS and Nix, macOS and Windows, each instruction tried (Linux in the
+  distributions' root filesystems under bubblewrap here, everything on
+  GitHub's runners by `install.yml`, 27 jobs green after the push);
+  the release workflow's packages (the static musl binary with mimalloc
+  in `.tar.gz`, `.deb`, `.rpm` and an Arch package; macOS and Windows
+  archives; notices, `SHA256SUMS` and a provenance attestation; nothing
+  signed); the Rocq library's 0.2.0 prepared in its repository (pushed:
+  checked with Rocq 9.0 to 9.3, opam lint, an install per Rocq version,
+  its documentation, release workflow, changelog, citation file), 49
+  certificates each closed. Heads-up boxes: the musl build's speed (timed:
+  1.29 to 3.68 times a glibc build, mimalloc removing the collapse under
+  threads but not the 1.26 to 1.45 times that musl's libc costs; decided
+  here: the static binary for the Linux files, the chapter recommending
+  `cargo install` or Nix for long searches, a glibc prebuilt binary a
+  follow-up). Its reviewer's seven findings fixed. Checked here: the new
+  workflows' permissions (read), secrets (none) and pins before the
+  push; the Rocq library's commits before each push; the runs on GitHub
+  through the public API (Install and Docs green, CI running). Decided on
+  the author's mandate, the departures: no `.msi` (WiX v7 needs a EULA
+  accepted, the author's); nfpm instead of cargo-deb and
+  cargo-generate-rpm; the plan's break accounting corrected
+  (`Placed::parent` and the record-literal certificates are no breaks
+  since 0.1.0); no cargo-binstall metadata yet; trials under bubblewrap.
+  Left for the author before the tags: the nights (45c), the library's
+  `CACHIX_AUTH_TOKEN`, its Pages source, Zenodo for it; at the tags:
+  linlog's `v0.2.0` and the crates-io environment's approval, the
+  library's `v0.2.0`; to decide: code signing, the WiX EULA, nixpkgs
+  (45e's assessment first), the channels that need an account (a
+  Homebrew tap, the AUR, winget, Scoop, COPR, Chocolatey).
