@@ -4334,3 +4334,42 @@ client follows it (step 32).
   family); the logo by URL. Both parts pushed. Next: step 45, its prompt
   finished first; 45b (the growing families) runs before 45a, whose
   repository needs a `gh` call the author is present for.
+- 2026-11-02: the machine rebooted over the weekend; resumed at 10:20
+  (the author unlocked signing; 45b resumed in its conversation, its
+  goal set again). At the author's word, resource use coordinated with
+  the learning website's session: every full `nix flake check` or large
+  `nix build` under the lock with `--max-jobs 2 --cores 6`, and no e2e
+  group or full test run of theirs while a full check holds the lock
+  (`plan/handoff.md`).
+- 2026-11-02: review of session 45b, families that grow (Opus 5.5 at
+  high, 2026-10-31 04:45 to 07:24 and 2026-11-02 10:22 to 11:05, paused
+  by the author's stop and a reboot, unattended): twelve families with a
+  growing set and a claim (`Family::growth`, `Family::claim`, additions
+  to a non-exhaustive struct): `wide-m1`, `counter`, `mix`, `chain`, and
+  new `contraction` (Franzén's formulas, ILTP SYJ203 and SYJ209 in ILL),
+  `pigeonhole` (SYJ202, intuitionistic affine), `euler` (Euler tours on
+  the square of a cycle), `duplicate` (the other provers' contraction
+  caps), `reach-fo` (first-order reachability through a cycle),
+  `chain-fo`, `witness-fo`, `lambek-fo`; `run --growing` (a series ends
+  at a refusal or its limit, its larger sizes `skipped` rows no table
+  counts), `--memo-limit` as an axis, `bench/growing.sh` the nights'
+  passes, `comparison.sh --growing`, `plots.py growth` (a line per
+  engine, configuration or prover, the fitted growth beside); the
+  manual's chapter `results/growing-2026-10-31.md` with the first runs
+  (60 s, cores 2 and 3). The nights: the engines about 27 minutes on
+  two streams, the provers about 50 minutes. Its reviewer: no wrong
+  verdict; five claims and least sizes corrected. Found: the inverse
+  method beats the default on `wide-m1`, the classical `chain` and
+  `pigeonhole`, where no dispatch row gives it a turn (`later.md`, after
+  0.2.0). Checked here: both target sets against `42k.csv` and
+  `net-42k.csv` (0 of 145 and 0 of 64 decided rows differ); the manual
+  built from the session's tree and its engines' growth figure read
+  (each family's lines, the comparison lines dashed, skipped sizes as
+  crosses). Departures, accepted on the author's mandate: exponential
+  families stepping by one; `euler` on the square of a cycle; the skip
+  after a refusal or the limit; no family showing deepening as a
+  weakness; the net engine's claim beside a faster inverse method; no
+  comparison line for the resumption (no switch); `reach-fo` new;
+  `duplicate` at llprover's documented threshold of five; the other
+  provers on the first two sizes only. Next, all the author's: 45a's
+  repository (a `gh` call), 45c's two nights, then 45d and the tags.

@@ -373,6 +373,12 @@ its zone, the first-order focused engine). Left, in order:
   an hour and stalled every build behind it); before each timed run of
   linlog's, send it "pause heavy work" with the run's length, and "go
   ahead" after. A server under the lock: tell it the pid, it stops it.
+  Since 2026-11-02 (the author: coordinate resource use), whoever holds
+  the lock for a `nix flake check` or a large `nix build` passes
+  `--max-jobs 2 --cores 6`, since the daemon's builds otherwise take
+  every core, the desktop's too; while anyone's full check holds the
+  lock the website's writers start no e2e group and no full Vitest run.
+  Briefs say so.
 - Night jobs (the baseline) start detached when ready (`bench/baseline.sh
   --detach --fresh`), on the night the author gives.
 - "Stop" or "Pause" from the author: the `graceful-stop` skill (`HH:MM`
