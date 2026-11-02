@@ -223,6 +223,26 @@ Doc examples that parse are fenced with `cfg_attr(feature = "parse", doc =
 "```")` and an `ignore` fence otherwise, so `cargo test --no-default-features`
 passes; copy that pattern for a new example.
 
+**The break against the last release** (`breaks VERSION` in the
+devshell, before every release): cargo-semver-checks against the
+version on crates.io, then cargo-public-api's diff of both public APIs,
+each built as rustdoc JSON with every feature. The first finds new
+variants of closed enums, moved discriminants (a downstream `as` cast
+of a fieldless enum compiles even when it is `#[non_exhaustive]`, so
+inserting a variant before others moves their numbers) and removed
+items, but no changed type of a field or signature (it has no such
+lint); the diff's "Changed" lists those, and an array constant's
+length is one (`Rule::ALL`). The diff shows an impl whose derive's
+`where` bound changed as removed and added again: look for it under
+"Added" before calling it a break. Every line of both is a bullet of
+the changelog's breaking list or is explained as none in the release's
+report. cargo-semver-checks' own JSON documents private items and its
+baseline's build overwrites the head's `target/doc/linlog.json`, so the
+command builds both APIs afresh. The two lists of types below are
+checked the same way: every public enum and every struct with a public
+field of the head's JSON, by its `non_exhaustive` attribute, against the
+names listed.
+
 ## Decisions
 
 The author's answers for the release (`plan/notes/api.md` §14), which
@@ -232,7 +252,8 @@ the commit that lands it rewrites that bullet.
 
 - **The calculus's enums stay exhaustive** (`Term`, `Kind`, `Node`,
   `Rule`, `Verdict`, `Branch`, `Sign`, `Polarity`, `Side`, `Division`
-  (the Lambek calculus's two, added at step 35),
+  (the Lambek calculus's two, added at step 35), `sequents::fo::FoTerm`
+  (a first-order term, added at step 42),
   `ordinary::{Node, Rule, Side}`, and `sequents::Visit`, whose enter,
   between and exit describe a walk over any tree); every other public enum, every
   options value and every struct with public fields that a later step
@@ -251,31 +272,36 @@ the commit that lands it rewrites that bullet.
   `Interactive::goal`). A public list of an open enum's values (`ALL`,
   `Fragment::NAMED`) is a slice, never an array, whose length is part of
   its type and would change with a new value.
-- **The marked ones at 0.1.0** (every public enum and every struct with
-  a public field, 81, each `#[non_exhaustive]`; the closed are the
-  fourteen above): `Bias`, `CheckError`, `Clock`, `Counter`,
-  `Criterion`, `Engine`, `Error`, `ErrorKind`, `Limits`, `Named`,
-  `NetError`, `NotTaken`, `Options`, `Outcome`, `ParseError`, `Phase`,
-  `Progress`, `Reason`, `Refusal`, `Refutation`, `Settings`,
+- **The marked ones at 0.2.0** (every public enum and every struct with
+  a public field, 119, each `#[non_exhaustive]`; 81 at 0.1.0; the closed
+  are the fifteen above, thirteen at 0.1.0; both lists checked against
+  the rustdoc JSON with every feature by a script, see "The break against
+  the last release" below): `Bias`, `CheckError`, `Clock`, `Counter`,
+  `Criterion`, `Engine`, `Error`, `ErrorKind`, `IllSyntax`,
+  `InputOptions`, `Limits`, `Named`, `NetError`, `NotTaken`, `Options`,
+  `Order`, `Outcome`, `ParseError`, `Parts`, `Phase`, `Placed`,
+  `Placement`, `Progress`, `Reason`, `Refusal`, `Refutation`, `Settings`,
   `ShapeError`, `Size`, `Statistics`, `Step`, `StepError`,
   `ViewOptions`; `export::{Drawable, Form, Styles}`,
   `export::latex::Options`, `export::pdf::{Date, Options}`,
   `export::png::Options`, `export::rocq::{Kernel, Options, Unsupported}`,
-  `export::svg::{Advances, Font, MathFont, Style}` (`MathFont` added after 0.1.0), `export::typst::{Layout,
-  Options}`; `families::{Family, Instance}`; `limits::Space`;
+  `export::svg::{Advances, Conclusions, Font, MathFont, NetDrawing,
+  NetLook, NetPreset, Premises, Style, WhyNot}`, `export::typst::{Layout,
+  Options}`; `families::{Family, Instance}`; `limits::{Bound, Space}`;
   `lltp::{Problem, Status}`; `mist::{Problem, Safety}`;
+  `nets::cut::{Elimination, Reduction, Step}`;
   `occurrences::IllConnective`; `ordinary::{Logic, Options, Outcome,
   Problem, Target, Translation, Verdict}`; `proofs::{ClassicalRule,
   ClassicalSides, Compact, Dyadic, Fault, Invalid, Labels, OpenGoal,
-  Refused, Sides, TextOptions}` (`ClassicalRule` and `ClassicalSides`
-  added after 0.1.0);
+  Refused, Sides, TextOptions}`;
   `proofs::interactive::{Applicable, Closed, Inverted, Needs, Options,
-  Split}` (`Inverted` and `Options` added after 0.1.0);
+  Split, TermNode, Witness}`;
   `proofs::cut::{Case, Elimination, End, Options, Reduction, Step,
-  Strategy}` and `limits::Bound` (added after 0.1.0);
-  `search::{Cadence, Equation, Jobs, OneSided, Schedule, StateEquation,
-  Unbalanced}`; `search::batch::{Answer, Cores, Options, Plan,
-  Problem}`. A new public type joins one of the two lists in its commit.
+  Strategy}`;
+  `search::{Cadence, Classical, Equation, Jobs, OneSided,
+  OneSidedSymbol, RefutationFault, Saturated, Schedule, Stable,
+  StateEquation, Unbalanced, UnbalancedSymbol}`; `search::batch::{Answer,
+  Cores, Options, Plan, Problem}`; `sequents::fo::SymbolFault`. A new public type joins one of the two lists in its commit.
 - **One error family**: every public fallible call returns `Error` or a
   specific type that converts into it without loss. `ErrorKind` has seven
   kinds: malformed, invalid, unsupported, limit, stopped, failed and

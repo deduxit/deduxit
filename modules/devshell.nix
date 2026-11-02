@@ -27,6 +27,10 @@
           # Mutation testing (mutants/run.sh), whose tests nextest runs.
           pkgs.cargo-mutants
           pkgs.cargo-nextest
+          # The break since a release (`breaks'): rustdoc's JSON of both
+          # versions, read by two tools that see different things.
+          pkgs.cargo-semver-checks
+          pkgs.cargo-public-api
           pkgs.bacon
           pkgs.zellij
         ]
@@ -67,6 +71,37 @@
             name = "ratchet";
             help = "Count the journeys' instructions under callgrind against bench/ceilings.csv, with the cache model's misses against bench/misses.csv (`ratchet --lower` writes the counts that went down, `--record-misses` the misses)";
             command = ''cargo run --release --locked --package linlog-bench -- ratchet --jobs 4 "$@"'';
+          }
+          {
+            name = "breaks";
+            help = "List what breaks a user of the library since a release (`breaks 0.1.0`): cargo-semver-checks against crates.io's version, then cargo-public-api's diff of the two public APIs with every feature";
+            command = ''
+              set -eu
+              base=''${1:?usage: breaks VERSION, a version of linlog on crates.io}
+              out=$(mktemp -d)
+              trap 'rm -rf "$out"' EXIT
+              # Exit status 100 when a check fails, which is what is asked.
+              cargo semver-checks --package linlog --baseline-version "$base" \
+                --release-type patch --color never || [ $? = 100 ]
+              # rustdoc's JSON is unstable; cargo-semver-checks unlocks it on
+              # the stable compiler the same way. Its own JSON documents
+              # private items, so the public API is built afresh, the
+              # published crate's from its package.
+              curl --silent --fail --location \
+                --user-agent "linlog breaks (github.com/linlog-prover/linlog)" \
+                "https://static.crates.io/crates/linlog/linlog-$base.crate" | tar -xz -C "$out"
+              for side in base head; do
+                if [ "$side" = base ]; then
+                  manifest="$out/linlog-$base/Cargo.toml"
+                else
+                  manifest="$PRJ_ROOT/core/Cargo.toml"
+                fi
+                RUSTC_BOOTSTRAP=1 CARGO_TARGET_DIR="$out/$side" cargo rustdoc --quiet \
+                  --manifest-path "$manifest" --all-features --lib \
+                  -- -Z unstable-options --output-format json
+              done
+              cargo public-api diff "$out/base/doc/linlog.json" "$out/head/doc/linlog.json"
+            '';
           }
           {
             name = "launch";
