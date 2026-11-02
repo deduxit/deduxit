@@ -141,6 +141,10 @@ opam install rocq-linlog
 opam pin add rocq-linlog https://github.com/linlog-prover/rocq-linlog.git#v0.2.0
 ```
 
+`opam upgrade rocq-linlog` takes a newer release from the archive and
+`opam remove rocq-linlog` removes it; a package pinned to a tag stays
+there until pinned to the next.
+
 or build it with Nix (`nix build github:linlog-prover/rocq-linlog/v0.2.0`)
 or `make` in a checkout with Rocq on the path. Installed, a certificate
 compiles as it is; built in place, with the theories on the load path:

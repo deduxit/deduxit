@@ -419,7 +419,7 @@ const COMMANDS: [&[&str]; 7] = [
 /// The programs other than `linlog` whose calls the documents show, and
 /// whose flags are theirs.
 /// `sudo` and the package managers come from the installation chapter.
-const TOOLS: [&str; 9] = [
+const TOOLS: [&str; 10] = [
     "cargo",
     "nix",
     "rocq",
@@ -429,6 +429,7 @@ const TOOLS: [&str; 9] = [
     "pacman",
     "gh",
     "xattr",
+    "xcode-select",
 ];
 
 /// The manual's chapters on the benchmark harness, `linlog-bench`: a flag

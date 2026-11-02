@@ -7,7 +7,7 @@
 # musl binary in an archive, a .deb, an .rpm and an Arch Linux package);
 # macOS and Windows have no Nix that builds a binary their users can run,
 # so their runners build with rustup, at the compiler version the flake
-# pins, which the first job reads.
+# pins, which the first job reads with the crates' notices it builds.
 name: Packages
 
 on:
@@ -35,6 +35,17 @@ jobs:
           skipPush: true
       - id: version
         run: echo "version=$(nix develop --command rustc --version | cut -d ' ' -f 2)" >>"$GITHUB_OUTPUT"
+      # The crates' notices, which every archive carries; Linux's packages
+      # take them from the flake directly.
+      - run: |
+          nix build --print-build-logs .#notices
+          mkdir notices
+          cp result notices/THIRD-PARTY-NOTICES.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: notices
+          path: notices/
+          if-no-files-found: error
 
   linux:
     name: Linux ${{ matrix.arch }}
@@ -110,7 +121,17 @@ jobs:
             echo "$HOME/.cargo/bin" >>"$GITHUB_PATH"
           fi
       - run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --target "$TARGET"
-      - run: cargo build --release --locked --package linlog-cli --target "$TARGET"
+      # On Windows the C runtime is linked in, so that the binary needs no
+      # Visual C++ redistributable on the user's machine.
+      - run: |
+          case "$TARGET" in
+            *windows*) export RUSTFLAGS="-C target-feature=+crt-static" ;;
+          esac
+          cargo build --release --locked --package linlog-cli --target "$TARGET"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: notices
+          path: notices
       # The binary, README and the licences' texts, in a directory of the
       # archive's name: a .zip for Windows, a .tar.gz for macOS.
       - name: The archive
@@ -122,7 +143,7 @@ jobs:
             *windows*) cp "target/$TARGET/release/linlog.exe" "dist/$stem/" ;;
             *) cp "target/$TARGET/release/linlog" "dist/$stem/" ;;
           esac
-          cp README.md LICENSE cli/fonts/*.txt "dist/$stem/"
+          cp README.md LICENSE cli/fonts/*.txt notices/THIRD-PARTY-NOTICES.txt "dist/$stem/"
           cd dist
           case "$TARGET" in
             *windows*) 7z a -tzip "$stem.zip" "$stem" ;;

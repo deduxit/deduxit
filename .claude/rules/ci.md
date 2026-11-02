@@ -100,7 +100,10 @@ releases a version tag `vX.Y.Z` (below).
   on `ubuntu-24.04` and `ubuntu-24.04-arm` (the static musl binary in a
   `.tar.gz`, a `.deb`, an `.rpm` and an Arch Linux package), the macOS
   `.tar.gz` on `macos-26` (aarch64) and `macos-26-intel` (x86_64) and the
-  Windows `.zip` on `windows-2025` and `windows-11-arm`, each with the
+  Windows `.zip` on `windows-2025` and `windows-11-arm` (the C runtime
+  linked in, `+crt-static`, so that no Visual C++ redistributable is
+  needed; the notices come from the first job's `nix build
+  .#notices`, the artifact `notices`), each with the
   binary, README, `LICENSE`, the fonts' licences and
   `THIRD-PARTY-NOTICES.txt`, uploaded as artifacts `dist-NAME`. Nothing
   is signed (Apple's notarisation and a Windows certificate are the

@@ -67,8 +67,8 @@ sudo pacman -U ./linlog-0.2.0-1-x86_64.pkg.tar.zst
 linlog --version
 ```
 
-`aarch64` instead of `x86_64` on an ARM machine. The package is not
-signed, so pacman, which checks the signatures of packages from its
+The package is for x86_64; on Arch Linux ARM, take the archive below.
+It is not signed, so pacman, which checks the signatures of packages from its
 repositories, asks nothing for a file. To update, install the next
 release's package; to remove, `sudo pacman -R linlog`.
 
@@ -100,10 +100,13 @@ once.
 ```sh
 nix run github:linlog-prover/linlog -- --help            # run it once, without installing
 nix profile add github:linlog-prover/linlog/v0.2.0       # install a release into your profile
-nix profile upgrade linlog                               # later: the newest of what you installed
 nix profile remove linlog                                # and to remove it
 ```
 
+An entry added by a release's tag stays that release: to update,
+remove it and add the next release's tag. One added without a tag
+(`github:linlog-prover/linlog`, the `main` branch, which may be ahead
+of the last release) follows it with `nix profile upgrade linlog`.
 On Nix before 2.30, `nix profile add` is `nix profile install`. The
 package carries the EUPL and the embedded fonts' licences under
 `share/doc/linlog-cli/`.
@@ -193,12 +196,15 @@ cargo uninstall linlog-cli             # and to remove it
 ```
 
 It needs Rust 1.92 or later (a release raises that only with its second
-number, 0.2 to 0.3), which not every distribution's own Rust reaches:
-Fedora's (`sudo dnf install cargo`), Arch's (`sudo pacman -S rust`),
-Ubuntu 26.04's (`sudo apt install cargo`) and Homebrew's (`brew install
-rust`) do; Debian 13's (1.85; 1.96 in `trixie-backports`) and Ubuntu
-24.04's (1.75) do not. Elsewhere, install Rust with
-[rustup](https://rustup.rs): on Linux and macOS
+number, 0.2 to 0.3) and a C compiler, which links the program. Not every
+distribution's own Rust reaches 1.92: Fedora's (`sudo dnf install cargo
+gcc`), Arch's (`sudo pacman -S rust gcc`), Ubuntu 26.04's (`sudo apt
+install cargo build-essential`) and Homebrew's (`brew install rust`) do;
+Debian 13's (1.85; 1.96 in `trixie-backports`) and Ubuntu 24.04's
+(1.75) do not. Elsewhere, install Rust with
+[rustup](https://rustup.rs), after the C compiler (`sudo apt install
+build-essential` on Debian and Ubuntu, `xcode-select --install` on
+macOS): on Linux and macOS
 
 ```sh
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh

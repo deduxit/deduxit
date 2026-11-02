@@ -213,9 +213,15 @@ jobs:
       - run: |
           set -eux
           nix run "$FLAKE" -- --version
+          # A release's entry is updated by removing it and adding the next.
           nix profile add "$FLAKE"
           linlog --version
+          nix profile remove linlog
+          test ! -e ~/.nix-profile/bin/linlog
+          # An entry without a tag follows `main` by upgrading.
+          nix profile add github:linlog-prover/linlog
           nix profile upgrade linlog
+          linlog --version
           nix profile remove linlog
           test ! -e ~/.nix-profile/bin/linlog
 
@@ -227,10 +233,10 @@ jobs:
         include:
           - { name: "Fedora's Rust", image: "fedora:44", setup: "dnf install -y cargo gcc" }
           - { name: "Arch's Rust", image: "archlinux:latest", setup: "pacman -Sy --noconfirm rust gcc" }
-          - { name: "Ubuntu 26.04's Rust", image: "ubuntu:26.04", setup: "apt-get update && apt-get install -y cargo" }
+          - { name: "Ubuntu 26.04's Rust", image: "ubuntu:26.04", setup: "apt-get update && apt-get install -y cargo build-essential" }
           - name: rustup on Debian 13
             image: "debian:13"
-            setup: "apt-get update && apt-get install -y curl gcc && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
+            setup: "apt-get update && apt-get install -y curl build-essential && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
     runs-on: ubuntu-24.04
     container: ${{ matrix.image }}
     env:
