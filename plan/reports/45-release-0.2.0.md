@@ -28,10 +28,11 @@ the manual's chapter `results/growing-2026-10-31.md` shows both figures,
 drawn at build time from the rows of this session's timed runs (by day,
 cores 2 and 3, the runs that placed each family's sizes); the nights'
 rows replace them. `--all-families` shows no mismatch; both target sets
-equal 42k's counters; every code commit passed the gate. Not done at the
-time of writing: the last three commits (the rows and the chapter, a
-figure layout fix, this report) and `nix flake check` at the last
-commit, which wait for the signing key (below, "What is left open").
+equal 42k's counters; every code commit passed the gate, and `nix flake
+check` passed at the session's last commit. The signing key lapsed
+during the session and the last commits waited for the author (below,
+"What is left open"); the session was paused on 2026-10-31 at 07:25 and
+finished on 2026-11-02.
 
 ### The research, and what each source gave
 
@@ -328,19 +329,17 @@ recursion limit at 1 024 (incomplete, not false); it now names it.
   forced beats the default on `wide-m1`, classical `chain` and
   `pigeonhole`, where no row gives it a turn; `pigeonhole` #1's classical
   refutation comes only after the backward search ends.
-- **Pending at the time of writing**: three commits and `nix flake
-  check` wait for the signing key (below).
+- **Every `nix flake check` and large `nix build` takes `--max-jobs 2
+  --cores 6`** (the author, through the orchestrator, 2026-11-02): the
+  daemon's builds otherwise take every core, the desktop's too.
 
 ### What is left open
 
-- **The signing key lapsed at 06:40** (the orchestrator's word; `gpg
-  --clearsign` waits for its passphrase until the time limit), and the
-  permission classifier of this session refused `jj --config
-  signing.behavior=drop`, which the brief names for that case. Every jj
-  command that snapshots the working copy signs, so the rows, the
-  chapter, the figure layout fix and this report are on disk in
-  `../linlog-step45b`, uncommitted, and `nix flake check` waits for them
-  to be in the git tree (new files reach it only through a jj snapshot).
+- **The signing key lapsed at 06:40 on 2026-10-31**, and the permission
+  classifier of this session refused `jj --config
+  signing.behavior=drop`, which the brief names for that case; the last
+  commits waited until the author unlocked the key (about 07:10), and
+  every commit of the session is signed.
 - The curves of the other provers and the nights' curves of the engines.
 - The dispatch findings above, as follow-ups.
 
@@ -380,17 +379,10 @@ recursion limit at 1 024 (incomplete, not false); it now names it.
   in bash: passed) and `typos` (the atom `pn` of `contraction`'s summary,
   now `p(n)`). The run stopped at the first failure, so the other checks
   were not all seen.
-- [ ] **Paused by the orchestrator at 07:25 (the author needs the
-  machine by 07:35); to resume, in `../linlog-step45b`:**
-  1. the gate of `lpxnmypo` (cut before it started): `systemd-run
-     --user --scope -p MemoryMax=8G -p MemorySwapMax=0 taskset -c 4-7
-     nix develop -c gate`;
-  2. `nix flake check` at the last commit, every failure at once:
-     `flock -o /tmp/linlog-machine.lock nix flake check -L --keep-going`
-     (detached as a user unit `linlog-step45b-flake-check`, about 30
-     minutes; each failure fixed at its cause, committed and gated, then
-     the check again);
-  3. `jj st` clean and `jj log -r 'ymvskwul::@'`, then the final
-     message to `linlog-orchestrator`: the outcome, the families with
-     their claims and sizes, the nights' estimate, the reviewer's
-     findings and answers, the departures, the workspace.
+- [x] Paused by the orchestrator on 2026-10-31 at 07:25 (the author
+  needed the machine) and resumed on 2026-11-02 from this checklist.
+- [x] The gate of `lpxnmypo`'s tree (`gate: passed`, 2026-11-02).
+- [x] `nix flake check -L --keep-going` under the machine lock at
+  `kpomtxsx`: exit 0; and again at the report's last commit with
+  `--max-jobs 2 --cores 6` (below, in the final message).
+- [x] The final message to `linlog-orchestrator`.
