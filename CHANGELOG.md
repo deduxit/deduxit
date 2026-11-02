@@ -7,7 +7,7 @@ versions follow [Semantic Versioning](https://semver.org/) as Cargo reads
 it for versions below 1.0: a change that breaks a caller raises the
 second number (0.1.x to 0.2.0), anything else the third.
 
-## [0.2.0] - unreleased
+## [0.2.0] - 2026-11-03
 
 The second release: cut and its elimination, on proofs and on proof
 nets, first-order linear logic, the two-sided surface of intuitionistic
