@@ -35,7 +35,9 @@ Contents:
 
 `cargo install --locked linlog-cli` installs the command `linlog`, and
 `nix run github:linlog-prover/linlog -- ARGS` runs
-it without installing. The commands are `prove`, `check`, `interact`
+it without installing; each GitHub release also has it prebuilt for
+Linux (an archive and `.deb`, `.rpm` and Arch Linux packages), macOS and
+Windows, as the manual's Installation chapter says. The commands are `prove`, `check`, `interact`
 and `seq` (with `print`, `json` and `fragment`).
 
 Exit statuses, the same for every command:

@@ -19,7 +19,13 @@ releases a version tag `vX.Y.Z` (below).
   `nix flake check`, `nix build` or `nix develop --command …`. No
   `setup-rust`, `apt` or `cargo install`: they would check with other versions
   than the devshell does. A new check goes into the flake
-  (`modules/checks.nix`), not into a workflow step.
+  (`modules/checks.nix`), not into a workflow step. Two exceptions, each
+  for what Nix cannot make: `packages.yml` builds the macOS and Windows
+  binaries with rustup on their runners (a Nix-built macOS binary links
+  the store's libraries, and Windows has no Nix), at the compiler version
+  the flake pins, which its first job reads with `nix develop`; and
+  `install.yml` runs the installation chapter's commands as users run
+  them, with each system's own tools, which is what it tests.
 - **Every action is pinned to a full commit SHA**, with the release as
   a comment: `uses: owner/repo@<sha> # vX.Y.Z`. The organization
   `linlog-prover` requires it of all actions, GitHub's own included
@@ -89,7 +95,32 @@ releases a version tag `vX.Y.Z` (below).
   do not all let this project redistribute them (APLL and the Maude LL
   prover state none; LLTP is GPL-3.0, and `bench.nix` repairs one of
   its files). It has never run: the first run is the author's.
-- **Release** (`release.yml`, on a tag `vX.Y.Z` only), three jobs. `check`:
+- **Packages** (`packages.yml`, `workflow_call` only, called by the
+  release and the install test): the Linux files from `nix build .#dist`
+  on `ubuntu-24.04` and `ubuntu-24.04-arm` (the static musl binary in a
+  `.tar.gz`, a `.deb`, an `.rpm` and an Arch Linux package), the macOS
+  `.tar.gz` on `macos-26` (aarch64) and `macos-26-intel` (x86_64) and the
+  Windows `.zip` on `windows-2025` and `windows-11-arm`, each with the
+  binary, README, `LICENSE`, the fonts' licences and
+  `THIRD-PARTY-NOTICES.txt`, uploaded as artifacts `dist-NAME`. Nothing
+  is signed (Apple's notarisation and a Windows certificate are the
+  author's decision); the installation chapter says what a user sees.
+  No `.msi` and no macOS `.pkg`: WiX's current toolset asks its user to
+  accept a EULA with a maintenance fee for revenue above a threshold,
+  which is the author's to accept, and an unsigned `.pkg` meets
+  Gatekeeper where a `curl`-downloaded archive does not.
+- **Install** (`install.yml`): the installation chapter's commands on
+  pushes to `main` that touch packaging or the chapter, weekly, after
+  each Release run and by dispatch: the packages of the commit installed,
+  run and removed in Debian 13, Ubuntu 24.04 and 26.04, Fedora 44 and
+  Arch containers (Debian and Fedora also on arm64), the archives on
+  macOS and Windows runners, the flake by `nix run` and `nix profile`,
+  `cargo install` with Fedora's, Arch's and Ubuntu 26.04's Rust, with
+  rustup on Debian 13 and on the macOS and Windows runners, and (not on
+  a push) the chapter's downloads from the latest release, skipped while
+  it carries no `SHA256SUMS`. A chapter's command that changes changes
+  this workflow in the same commit.
+- **Release** (`release.yml`, on a tag `vX.Y.Z` only), four jobs. `check`:
   the tag equals `[workspace.package]`'s version, CITATION.cff states it,
   and CHANGELOG.md has a dated section `## [X.Y.Z] - YYYY-MM-DD` (a
   section headed `- unreleased` fails it), then `nix flake check`.
@@ -104,7 +135,11 @@ releases a version tag `vX.Y.Z` (below).
   after a failure between the two finishes it. `release` (`contents:
   write`, after `publish` succeeded or was skipped, never after it
   failed): `gh release create` with the changelog's section as the notes
-  and the two `.crate` files downloaded from static.crates.io, the ones
-  published. The cache is only read (`skipPush`): a tag's builds are
+  (and a line naming the installation chapter), the two `.crate` files
+  downloaded from static.crates.io, the ones published, and the
+  `packages` job's files with their `SHA256SUMS` and a build provenance
+  attestation of each (`actions/attest`, `id-token: write`,
+  `attestations: write`), which `gh attestation verify FILE --repo
+  linlog-prover/linlog` checks; it waits for `packages` too. The cache is only read (`skipPush`): a tag's builds are
   `main`'s. Nothing of it can run before the author's first publication
   and tag; actionlint is all that checks it.

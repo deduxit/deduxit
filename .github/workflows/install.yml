@@ -1,0 +1,320 @@
+# linlog © Fabian Lukas Grubmüller 2026
+# Licensed under the EUPL
+
+# The installation chapter's commands (docs/src/installation.md), run on
+# the systems it names: the packages and archives built from this commit
+# (packages.yml) installed, run and removed on Debian, Ubuntu, Fedora and
+# Arch Linux (containers), macOS and Windows (runners); the flake through
+# Nix; `cargo install` with each system's Rust or rustup; and, after a
+# release and weekly, the chapter's downloads from the latest release. A
+# broken instruction fails its job.
+name: Install
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/install.yml
+      - .github/workflows/packages.yml
+      - modules/dist.nix
+      - docs/src/installation.md
+      - cli/Cargo.toml
+      - cli/about.toml
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  packages:
+    name: archives and packages
+    uses: ./.github/workflows/packages.yml
+
+  # SHA256SUMS of everything built, as the release writes it.
+  sums:
+    needs: packages
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+      - working-directory: dist
+        run: sha256sum -- * >SHA256SUMS
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sums
+          path: dist/SHA256SUMS
+
+  linux:
+    name: ${{ matrix.image }} ${{ matrix.arch }}
+    needs: sums
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: "debian:13", runner: ubuntu-24.04, arch: x86_64, deb: amd64 }
+          - { image: "ubuntu:24.04", runner: ubuntu-24.04, arch: x86_64, deb: amd64 }
+          - { image: "ubuntu:26.04", runner: ubuntu-24.04, arch: x86_64, deb: amd64 }
+          - { image: "fedora:44", runner: ubuntu-24.04, arch: x86_64 }
+          - { image: "archlinux:latest", runner: ubuntu-24.04, arch: x86_64 }
+          - { image: "debian:13", runner: ubuntu-24.04-arm, arch: aarch64, deb: arm64 }
+          - { image: "fedora:44", runner: ubuntu-24.04-arm, arch: aarch64 }
+    runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.image }}
+    defaults:
+      run:
+        shell: sh
+    env:
+      ARCH: ${{ matrix.arch }}
+      DEB: ${{ matrix.deb }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist-linux-${{ matrix.arch }}
+          path: dist
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sums
+          path: dist
+      - name: The distribution's package
+        working-directory: dist
+        run: |
+          set -eux
+          if [ -n "$DEB" ]; then
+            apt-get update
+            apt install -y ./linlog_*_"$DEB".deb
+            linlog --version
+            linlog prove 'A, A -o B |- B'
+            apt remove -y linlog
+          elif command -v dnf; then
+            dnf install -y ./linlog-*."$ARCH".rpm
+            linlog --version
+            linlog prove 'A, A -o B |- B'
+            dnf remove -y linlog
+          else
+            pacman -U --noconfirm ./linlog-*-"$ARCH".pkg.tar.zst
+            linlog --version
+            linlog prove 'A, A -o B |- B'
+            pacman -R --noconfirm linlog
+          fi
+          test ! -e /usr/bin/linlog
+      - name: Any Linux, the archive
+        working-directory: dist
+        run: |
+          set -eux
+          sha256sum --check --ignore-missing SHA256SUMS
+          tar -xzf linlog-*-"$ARCH"-unknown-linux-musl.tar.gz
+          install -D linlog-*-"$ARCH"-unknown-linux-musl/linlog ~/.local/bin/linlog
+          ~/.local/bin/linlog --version
+          rm ~/.local/bin/linlog
+
+  macos:
+    name: ${{ matrix.target }}
+    needs: sums
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: macos-26, target: aarch64-apple-darwin }
+          - { runner: macos-26-intel, target: x86_64-apple-darwin }
+    runs-on: ${{ matrix.runner }}
+    env:
+      TARGET: ${{ matrix.target }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist-${{ matrix.target }}
+          path: dist
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sums
+          path: dist
+      - working-directory: dist
+        run: |
+          set -eux
+          shasum -a 256 --check --ignore-missing SHA256SUMS
+          tar -xzf linlog-*-"$TARGET".tar.gz
+          mkdir -p ~/.local/bin
+          cp linlog-*-"$TARGET"/linlog ~/.local/bin/
+          ~/.local/bin/linlog --version
+          ~/.local/bin/linlog prove 'A, A -o B |- B'
+          rm ~/.local/bin/linlog
+
+  windows:
+    name: ${{ matrix.target }}
+    needs: sums
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: windows-2025, target: x86_64-pc-windows-msvc }
+          - { runner: windows-11-arm, target: aarch64-pc-windows-msvc }
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      TARGET: ${{ matrix.target }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist-${{ matrix.target }}
+          path: dist
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sums
+          path: dist
+      - working-directory: dist
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          $zip = (Get-ChildItem "linlog-*-$env:TARGET.zip").Name
+          $stem = $zip -replace '\.zip$', ''
+          Copy-Item $zip linlog.zip
+          $hash = (Get-FileHash linlog.zip -Algorithm SHA256).Hash
+          $line = Select-String -Path SHA256SUMS -SimpleMatch $zip
+          if (-not $line.Line.StartsWith($hash.ToLower())) { throw "the checksum of $zip differs" }
+          Expand-Archive linlog.zip -DestinationPath "$env:LOCALAPPDATA\Programs"
+          Rename-Item "$env:LOCALAPPDATA\Programs\$stem" linlog
+          $bin = "$env:LOCALAPPDATA\Programs\linlog"
+          [Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$bin", "User")
+          Unblock-File "$bin\linlog.exe"
+          & "$bin\linlog.exe" --version
+          & "$bin\linlog.exe" prove 'A, A -o B |- B'
+          if (-not ([Environment]::GetEnvironmentVariable("Path", "User") -split ";" -contains $bin)) { throw "the user's Path lacks $bin" }
+          Remove-Item -Recurse $bin
+          $rest = ([Environment]::GetEnvironmentVariable("Path", "User") -split ";" | Where-Object { $_ -ne $bin }) -join ";"
+          [Environment]::SetEnvironmentVariable("Path", $rest, "User")
+
+  nix:
+    name: Nix
+    runs-on: ubuntu-24.04
+    env:
+      FLAKE: github:linlog-prover/linlog/${{ github.sha }}
+    steps:
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+        with:
+          github_access_token: ${{ github.token }}
+      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
+        with:
+          name: linlog-prover
+          skipPush: true
+      - run: |
+          set -eux
+          nix run "$FLAKE" -- --version
+          nix profile add "$FLAKE"
+          linlog --version
+          nix profile upgrade linlog
+          nix profile remove linlog
+          test ! -e ~/.nix-profile/bin/linlog
+
+  cargo:
+    name: cargo install, ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "Fedora's Rust", image: "fedora:44", setup: "dnf install -y cargo gcc" }
+          - { name: "Arch's Rust", image: "archlinux:latest", setup: "pacman -Sy --noconfirm rust gcc" }
+          - { name: "Ubuntu 26.04's Rust", image: "ubuntu:26.04", setup: "apt-get update && apt-get install -y cargo" }
+          - name: rustup on Debian 13
+            image: "debian:13"
+            setup: "apt-get update && apt-get install -y curl gcc && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
+    runs-on: ubuntu-24.04
+    container: ${{ matrix.image }}
+    env:
+      SETUP: ${{ matrix.setup }}
+    steps:
+      - name: Rust
+        shell: sh
+        run: sh -c "$SETUP"
+      - shell: bash
+        run: |
+          set -eux
+          export PATH="$HOME/.cargo/bin:$PATH"
+          cargo install --locked linlog-cli
+          linlog --version
+          cargo uninstall linlog-cli
+          test ! -e ~/.cargo/bin/linlog
+
+  # The runners' own rustup, as a user of rustup has it.
+  cargo-rustup:
+    name: cargo install, ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-26, windows-2025]
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - run: |
+          set -eux
+          cargo install --locked linlog-cli
+          linlog --version
+          cargo uninstall linlog-cli
+          test ! -e ~/.cargo/bin/linlog && test ! -e ~/.cargo/bin/linlog.exe
+
+  # The chapter's downloads, from the latest release, once one carries the
+  # files (from 0.2.0 on).
+  release:
+    name: from the release, ${{ matrix.runner }}
+    if: github.event_name != 'push'
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, macos-26, windows-2025]
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - env:
+          RUNNER: ${{ matrix.runner }}
+        run: |
+          set -eux
+          tag=$(curl -sSf https://api.github.com/repos/linlog-prover/linlog/releases/latest |
+            sed -n 's/.*"tag_name": *"\(v[^"]*\)".*/\1/p')
+          version=${tag#v}
+          base="https://github.com/linlog-prover/linlog/releases/download/$tag"
+          if ! curl -sSfLO "$base/SHA256SUMS"; then
+            echo "$tag has no prebuilt files"
+            exit 0
+          fi
+          case "$RUNNER" in
+            ubuntu*)
+              curl -LO "$base/linlog-$version-x86_64-unknown-linux-musl.tar.gz"
+              sha256sum --check --ignore-missing SHA256SUMS
+              tar -xzf "linlog-$version-x86_64-unknown-linux-musl.tar.gz"
+              install -D "linlog-$version-x86_64-unknown-linux-musl/linlog" ~/.local/bin/linlog
+              ~/.local/bin/linlog --version
+              curl -LO "$base/linlog_$version-1_amd64.deb"
+              sudo apt install -y "./linlog_$version-1_amd64.deb"
+              linlog --version
+              sudo apt remove -y linlog
+              ;;
+            macos*)
+              curl -LO "$base/linlog-$version-aarch64-apple-darwin.tar.gz"
+              shasum -a 256 --check --ignore-missing SHA256SUMS
+              tar -xzf "linlog-$version-aarch64-apple-darwin.tar.gz"
+              "linlog-$version-aarch64-apple-darwin/linlog" --version
+              ;;
+            windows*)
+              curl -LO "$base/linlog-$version-x86_64-pc-windows-msvc.zip"
+              sha256sum --check --ignore-missing SHA256SUMS
+              7z x "linlog-$version-x86_64-pc-windows-msvc.zip"
+              "linlog-$version-x86_64-pc-windows-msvc/linlog.exe" --version
+              ;;
+          esac

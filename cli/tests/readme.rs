@@ -418,7 +418,18 @@ const COMMANDS: [&[&str]; 7] = [
 
 /// The programs other than `linlog` whose calls the documents show, and
 /// whose flags are theirs.
-const TOOLS: [&str; 5] = ["cargo", "nix", "rocq", "linlog-bench", "journalctl"];
+/// `sudo` and the package managers come from the installation chapter.
+const TOOLS: [&str; 9] = [
+    "cargo",
+    "nix",
+    "rocq",
+    "linlog-bench",
+    "journalctl",
+    "sudo",
+    "pacman",
+    "gh",
+    "xattr",
+];
 
 /// The manual's chapters on the benchmark harness, `linlog-bench`: a flag
 /// they name outside a call of `linlog` is the harness's or one of its

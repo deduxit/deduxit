@@ -17,9 +17,10 @@ the browser on the same library.
 
 ## Install
 
-The command `linlog` is the package `linlog-cli`, on
-[crates.io](https://crates.io/crates/linlog-cli), and the flake of this
-repository:
+The command `linlog` is the package `linlog-cli`. Each
+[release](https://github.com/linlog-prover/linlog/releases) has it built
+for Linux (an archive, a `.deb`, an `.rpm` and an Arch Linux package),
+macOS and Windows; crates.io and the flake of this repository build it:
 
 ```sh
 cargo install --locked linlog-cli                        # a Rust toolchain builds it
@@ -37,9 +38,11 @@ linlog = "0.2"
 
 The manual's
 [Installation](https://linlog-prover.github.io/linlog/manual/installation.html)
-has the rest: a release by its tag, the flake as an input of a NixOS or
-Home Manager configuration, the binary cache, the library's features and
-the Rocq kernel that checks the certificates.
+has the rest: the commands for Debian and Ubuntu, Fedora, Arch Linux,
+NixOS and Nix, macOS and Windows, with how to update and remove, which
+build to prefer for long searches, the flake as an input of a NixOS or
+Home Manager configuration, the library's features and the Rocq kernel
+that checks the certificates.
 
 ## A first proof
 
