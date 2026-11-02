@@ -116,7 +116,6 @@ impl Serialize for Details<'_> {
                 entries!(s; "fragment" => fragment; "mode" => mode)
             }
             OrderedMode { mode } => entries!(s; "mode" => mode),
-            Quantifiers { what } => entries!(s; "what" => what),
             Symbol { name, fault } => entries!(s; "name" => name; "fault" => fault),
             LooseVariable { term } => entries!(s; "term" => term),
             Predicates { predicates, atoms } => {

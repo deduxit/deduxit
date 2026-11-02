@@ -340,20 +340,6 @@ pub enum Error {
         /// The mode asked for.
         mode: Mode,
     },
-    /// A sequent with a quantifier reached an entry that takes
-    /// propositional sequents alone, which is every one but the parsers,
-    /// the printers, the JSON forms and the views of a sequent: the
-    /// engines and the proof structures refuse a first-order goal by its
-    /// fragment, and a cut in a first-order session of interactive proving
-    /// by this error, until a later version teaches them.
-    #[error(
-        "{what} takes no quantifiers yet: a sequent with ∀ or ∃ is read, printed and written as JSON, and nothing else"
-    )]
-    #[non_exhaustive]
-    Quantifiers {
-        /// The entry reached, in words: `the checker`.
-        what: &'static str,
-    },
     /// A sequent searched in an ordered mode lies beyond unit-free MLL,
     /// the fragment the ordered calculus is decided in.
     #[error("{mode} mode decides unit-free MLL, and the sequent lies in {fragment}")]
@@ -600,7 +586,6 @@ impl Error {
         "not_intuitionistic",
         "intuitionistic_mix",
         "ordered_mode",
-        "quantifiers",
         "symbol",
         "loose_variable",
         "predicates",
@@ -666,7 +651,7 @@ impl Error {
             Self::Step(_) | Self::OpenGoals { .. } | Self::ForeignProof | Self::GoalMismatch => {
                 Invalid
             }
-            Self::GoalProof | Self::Quantifiers { .. } => Unsupported,
+            Self::GoalProof => Unsupported,
             Self::SequentMismatch { .. } => Invalid,
             Self::NotIntuitionistic(_)
             | Self::IntuitionisticMix
@@ -743,7 +728,6 @@ impl Error {
             Self::NotIntuitionistic(_) => "not_intuitionistic",
             Self::IntuitionisticMix => "intuitionistic_mix",
             Self::OrderedMode { .. } => "ordered_mode",
-            Self::Quantifiers { .. } => "quantifiers",
             Self::OrderedFragment { .. } => "ordered_fragment",
             Self::GoalOutputs { .. } => "goal_outputs",
             Self::Succedents { .. } => "succedents",
@@ -1041,9 +1025,6 @@ mod tests {
             Error::OrderedMode {
                 mode: Mode::CYCLIC.with_mix(),
             },
-            Error::Quantifiers {
-                what: "the checker",
-            },
             Error::OrderedFragment {
                 fragment: Fragment::MALL,
                 mode: Mode::CYCLIC,
@@ -1254,7 +1235,6 @@ mod tests {
             | Error::NotIntuitionistic(_)
             | Error::IntuitionisticMix
             | Error::OrderedMode { .. }
-            | Error::Quantifiers { .. }
             | Error::OrderedFragment { .. }
             | Error::GoalOutputs { .. }
             | Error::Succedents { .. }

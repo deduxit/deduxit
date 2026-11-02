@@ -30,12 +30,11 @@ second number (0.1.x to 0.2.0), anything else the third.
   predicate or a function symbol, and every sequent is closed. Every
   printer writes the binders and the predicates, a bound name that a
   symbol or an enclosing binder takes written with `_` after it. A
-  sequent with a quantifier is refused by every engine by its fragment
-  (`Error::NoEngine`, or `EngineRefused` for a forced one) and by
-  interactive proving, cut elimination (`Error::Quantifiers`), the
-  classical two-sided view, the proof structures (by the fragment) and
-  the Rocq export (`Unsupported::Quantifiers`, which later stays
-  NanoYalla's and the refutations');
+  sequent with a quantifier is refused by its fragment by every engine
+  that does not decide first-order logic (below; `Error::NoEngine`, or
+  `EngineRefused` for a forced one) and by the proof structures, and by
+  the Rocq export for NanoYalla and for refutations
+  (`Unsupported::Quantifiers`);
   `Forest::has_binders` says whether one has a binder. A sequent whose
   atoms have arguments but whose formulas have no quantifier is
   propositional and decided by every engine. `Error::Symbol`,
