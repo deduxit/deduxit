@@ -9,10 +9,17 @@ checkable form and show them as derivation trees or proof nets, prove
 step by step, export to LaTeX, Typst, SVG and Rocq, and decide ordinary
 propositional logic through its embeddings into linear logic.
 
+Version 0.2.0 adds first-order linear logic, cut and its elimination on
+proofs and proof nets, MELL proof nets with boxes, intuitionistic
+sequents written two-sided, the inverse method, the logo, and linlog's
+Rocq library in a repository of its own; the
+[changelog](CHANGELOG.md) says what changed and what breaks since 0.1.0.
+
 linlog's manual, [linlog-prover.github.io/linlog/manual](https://linlog-prover.github.io/linlog/manual/),
 describes every command, format and engine with real output, and the
-benchmarks and the comparison with the other provers with their figures;
-the [web page](https://linlog-prover.github.io/) proves step by step in
+benchmarks and the comparison with the other provers with their figures
+(the other provers so far beside 0.1.0's engines and, at first order,
+LinearOne beside 0.2.0's search); the [web page](https://linlog-prover.github.io/) proves step by step in
 the browser on the same library.
 
 ## Install

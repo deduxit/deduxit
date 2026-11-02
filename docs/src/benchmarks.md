@@ -1,14 +1,17 @@
 # Benchmarks and the comparison
 
 The results, each run in a chapter of its own with its figures:
-[the baseline of 2026-10-17](results/baseline-2026-10-17.md), linlog's
-engines on the generated families and the LLTP library;
-[beside the other provers, 2026-10-15](results/provers-2026-10-15.md),
-the comparison with the other provers of linear logic;
-[first order against LinearOne, 2026-10-30](results/first-order-2026-10-30.md);
-and [families that grow, 2026-10-31](results/growing-2026-10-31.md), the
-time against size of the families chosen to show each engine's and each
-other prover's strengths and weaknesses.
+[the baseline of 2026-11-02](results/baseline-2026-11-02.md), the
+engines of 0.2.0 on the generated families and the LLTP library, and
+[the baseline of 2026-10-17](results/baseline-2026-10-17.md), those of
+0.1.0; [families that grow, 2026-11-02](results/growing-2026-11-02.md)
+and [2026-10-31](results/growing-2026-10-31.md), the time against size
+of the families chosen to show each engine's and each other prover's
+strengths and weaknesses; and the comparison with the other provers of
+linear logic, [beside the other provers, 2026-10-15](results/provers-2026-10-15.md)
+and [first order against LinearOne, 2026-10-30](results/first-order-2026-10-30.md),
+which ["Beside the other provers"](#beside-the-other-provers) below
+sums up.
 Every figure is drawn by `bench/plots.py` from the rows of the run's CSV
 files when the manual is built (`docs/figures.sh`), so none is drawn by
 hand and a figure always shows the rows it names. This chapter says how
@@ -156,12 +159,15 @@ on the next night added that last stage to it in 1 h 28 min; the second,
 of 2026-10-02, after the performance work on the focused engine, took
 8 h 4 min; the third, of 2026-10-17, of the engines of the first
 release, 2 h 58 min, with the intuitionistic library under the command's
-default as a pass of its own. `bench/RESULTS.md` has the third's tables
-and `bench/COMPARISON.md` sets the three side by side: no verdict differs
-between them, and the intuitionistic LLTP pass decides 3 610 problems
-within 5 s where the first decided 737 and the second 2 047. Under the
-command's default (no copy bound, every core, 2 s) it decides 4 024 of
-the 4 495.
+default as a pass of its own; the fourth, of 2026-11-02, of the engines
+of the second release, 2 h 23 min, by day beside other work and with
+two of its four streams on efficiency cores (its chapter says what that
+changes). `bench/RESULTS.md` has the fourth's tables and
+`bench/COMPARISON.md` sets the four side by side: no verdict differs
+between them, and the intuitionistic LLTP pass decides 3 663 problems
+within 5 s where the first decided 737, the second 2 047 and the third
+3 610. Under the command's default (no copy bound, every core, 2 s) the
+fourth decides 4 124 of the 4 495.
 
 `run --tools` runs the same problems through other provers of linear
 logic beside linlog's command, each built by the flake at a pinned
@@ -205,6 +211,23 @@ wrong.)
 and `bench/TOOLS.md` has the tools, how they were run and the results.
 
 ## Beside the other provers
+
+What the comparison with the other provers covers, run by run; a run
+of the other provers beside the engines of 0.2.0 joins this table as a
+row and its chapter as a page:
+
+| run | linlog | problems | other provers | chapter |
+|---|---|---|---|---|
+| 2026-10-15 | the engines of 0.1.0 | the LLTP library, qcover's coverability problems and the generated families, 4 811 | the eight of the table below | [Beside the other provers, 2026-10-15](results/provers-2026-10-15.md) |
+| 2026-10-30 | the first-order search of 0.2.0 | `lambek-fo` and `witness-fo`, 36 | LinearOne | [First order against LinearOne, 2026-10-30](results/first-order-2026-10-30.md) |
+| 2026-10-31 | the engines of 0.2.0 | each growing set's first two sizes, a check of every tool's verdicts, not its curve | the eight of the table below | [Families that grow, 2026-10-31](results/growing-2026-10-31.md#the-other-provers) |
+
+So the numbers below are those of 0.1.0's engines on the libraries,
+which the engines of 0.2.0 decide more of ([the baseline of
+2026-11-02](results/baseline-2026-11-02.md)), and of the first-order
+search against LinearOne. The other provers on the growing families to
+their limits, and on the libraries beside the engines of 0.2.0, are not
+yet run.
 
 The provers of linear logic we found, as their own sources state them
 (read on 2026-10-15); `bench/TOOLS.md` has every feature with its source

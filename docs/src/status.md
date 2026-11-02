@@ -297,11 +297,13 @@ Built:
   default, every engine forced and with the mechanism a claim is about
   switched off, drawn as time against size with the growth fitted to
   each line.
-- Performance work on the focused engine, measured by three baselines,
-  one before it, one after it and one at the first release.
+- Performance work on the focused engine, measured by four baselines,
+  one before it, one after it and one at each release, 0.1.0 and 0.2.0.
 - Releases: the crates `linlog` and `linlog-cli` on crates.io, with a
-  changelog that states what each version promises, and a workflow that
-  publishes a version tag.
+  changelog that states what each version promises and what it breaks,
+  and a workflow that publishes a version tag with the command built
+  for Linux (an archive, a `.deb`, an `.rpm` and an Arch Linux package),
+  macOS and Windows, their checksums and a provenance attestation.
 - WebAssembly bindings for a web page, the unpublished crate
   `linlog-web` in `web/`: the library compiled for
   `wasm32-unknown-unknown` behind calls of JSON in and JSON or SVG out
@@ -310,16 +312,19 @@ Built:
   defaults that fit a browser tab, built by the flake as a package of
   the module and its JavaScript, and tested under Node; the library's
   checker and memo are tested on a 32-bit target there too.
+- A web page for proving step by step in the browser on those bindings,
+  [linlog-prover.github.io](https://linlog-prover.github.io/), with
+  lessons, in a repository of its own.
 
 Planned, in roughly this order:
 
 - Certified refutations beyond the cheap ones and the saturated sets:
   countermodels of the other logics, failure certificates of the
   backward search.
-- A web page for proving step by step in the browser, on those bindings.
-- First-order linear logic beyond what is built: the memo and the
-  parallel search for first-order goals, the times against LinearOne,
-  and first-order proving on the web page.
+- First-order proving on the web page.
+- The other provers on the growing families, to their limits, beside
+  linlog's engines, and the comparison on the libraries with the
+  engines of 0.2.0.
 
 linlog is very much inspired by [Click & coLLecT](https://www.click-and-collect.linear-logic.org).
 It aims to support more use cases on a modern, more efficient base.
