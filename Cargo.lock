@@ -569,7 +569,7 @@ checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
 
 [[package]]
 name = "linlog"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "foldhash",
  "krilla",
@@ -588,7 +588,7 @@ dependencies = [
 
 [[package]]
 name = "linlog-bench"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -598,7 +598,7 @@ dependencies = [
 
 [[package]]
 name = "linlog-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -611,7 +611,7 @@ dependencies = [
 
 [[package]]
 name = "linlog-web"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "linlog",
  "serde",
