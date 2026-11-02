@@ -826,6 +826,16 @@ library's API in this release is an addition.
   each cut's `inference` and `formula` as typed (`cuts`), with which a
   page replays a session's cuts.
 
+- Prebuilt: each release on GitHub carries the command for Linux (one
+  binary linked statically against musl, in an archive, a `.deb`, an
+  `.rpm` and an Arch Linux package, for x86_64 and aarch64), macOS
+  (Apple silicon and Intel) and Windows (x86_64 and ARM64), with their
+  SHA-256 sums in `SHA256SUMS` and an attestation of their build; none
+  is signed. Every package of the command carries
+  `THIRD-PARTY-NOTICES.txt`, the licences of the crates compiled into it.
+  The manual's Installation chapter says how to install, update and
+  remove it on each system, and a workflow runs its commands there.
+
 ### Changed
 
 - The Rocq library `rocq-linlog` (added under "Added" above, under
@@ -835,8 +845,11 @@ library's API in this release is an addition.
   and its own changelog, started from the tree as it stood here. The
   flake takes it as the pinned input `rocq-linlog` and compiles the
   exporter's certificates for `--kernel linlog` against it (the check
-  `rocq-linlog`); the package `rocq-linlog`, the check `rocq-bridges`
-  and the input `yalla` are that repository's now.
+  `rocq-linlog`, which requires each certificate's assumptions closed);
+  the package `rocq-linlog`, the check `rocq-bridges` and the input
+  `yalla` are that repository's now. Its version is linlog's: 0.2.0,
+  released beside this one, on Rocq 9.0 to 9.3, installable by opam
+  and by Nix.
 - `forall` and `exists` are no longer refused as reserved words: they
   are the quantifiers' keywords, and `ParseError::reserved` is never set.
 - The hint of a parse error of the strict intuitionistic syntax alone

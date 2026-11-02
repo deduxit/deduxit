@@ -130,12 +130,26 @@ no certificate: a refutation of kind `exhausted` rests on the search and has no 
 
 The library is the package `rocq-linlog`, in a repository of its own,
 [linlog-prover/rocq-linlog](https://github.com/linlog-prover/rocq-linlog),
-on Rocq 9 and its standard library alone (`nix build
-github:linlog-prover/rocq-linlog` builds it, or `make` in a checkout of
-it with Rocq on the path); compile a certificate with its theories on
-the load path:
+on Rocq 9.0 to 9.3 and its standard library alone; its version is
+linlog's, so linlog 0.2.0's certificates compile against rocq-linlog
+0.2.0. Install it with opam, from the Rocq opam archive once the release
+is there, or from its tag meanwhile:
+
+```sh
+opam repo add rocq-released https://rocq-prover.org/opam/released
+opam install rocq-linlog
+opam pin add rocq-linlog https://github.com/linlog-prover/rocq-linlog.git#v0.2.0
+```
+
+or build it with Nix (`nix build github:linlog-prover/rocq-linlog/v0.2.0`)
+or `make` in a checkout with Rocq on the path. Installed, a certificate
+compiles as it is; built in place, with the theories on the load path:
 
 ```console
 $ linlog prove --mix --format rocq --standalone --output mix.v "A, B |- A, B"
 $ rocq compile -R path/to/rocq-linlog/theories Linlog mix.v
 ```
+
+The library's README says what it covers and what not, and its
+documentation is at
+[linlog-prover.github.io/rocq-linlog](https://linlog-prover.github.io/rocq-linlog/).
