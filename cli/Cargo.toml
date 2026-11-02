@@ -67,3 +67,7 @@ terminal_size = "0.4.4"
 
 [lints]
 workspace = true
+
+# A static build for musl takes mimalloc as its allocator (src/main.rs).
+[target.'cfg(target_env = "musl")'.dependencies]
+mimalloc = "0.1.52"

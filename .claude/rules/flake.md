@@ -16,6 +16,20 @@ Modules share values through `_module.args`:
 arguments, `workspace.nix`). `checks.nix`, `devshell.nix`, `treefmt.nix`
 and `systems.nix` are what their names say.
 
+- **`dist.nix`: what a release ships for Linux.** `linlog-static` is
+  the command linked statically against musl (crane's musl example: the
+  toolchain of rust-toolchain.toml with the musl target added,
+  `CARGO_BUILD_TARGET` and `+crt-static`), with `pkgs.pkgsStatic`'s C
+  compiler as `CC_<target>` and linker, since mimalloc, the musl
+  build's allocator, is C; `dist` packs it into the archive and, by
+  nfpm from one JSON list of files (JSON is YAML), the `.deb`, `.rpm`
+  and Arch Linux package, `arch` given in nfpm's names (`amd64`,
+  `arm64`), which it maps to each format's; `notices` is cargo-about's
+  `THIRD-PARTY-NOTICES.txt` for `cli/about.toml`'s targets, built once
+  (crane's vendored sources, `--frozen`) and installed by both
+  `linlog-cli` and `linlog-static`. The release workflow builds `dist`
+  on an x86_64 and an aarch64 runner (`packages.yml`); nothing checks it
+  in `nix flake check`, the install workflow installs what it makes.
 - **Each check reads only its crate's parts.** `workspace.nix` cuts the
   workspace into parts (`core`, `core-tests`, `cli`, `cli-tests`,
   `bench`, `bench-tests`, `web`, `web-tests`: a crate's `src/` with its

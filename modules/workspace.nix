@@ -39,6 +39,8 @@
           ../cli/Cargo.toml
           (craneLib.fileset.commonCargoSources ../cli/src)
           ../cli/fonts
+          ../cli/about.toml
+          ../cli/about.hbs
           ../LICENSE
         ];
         cli-tests = fileset.unions [
@@ -235,10 +237,12 @@
             # The `test-cli' check runs them.
             doCheck = false;
             # A copy of the binary carries the licences of what it contains:
-            # the EUPL's text, and each embedded font's OFL with its notice.
+            # the EUPL's text, each embedded font's OFL with its notice, and
+            # the notices of the crates compiled into it (`dist.nix`).
             postInstall = ''
               install -Dm644 LICENSE $out/share/doc/linlog-cli/LICENSE
               install -Dm644 -t $out/share/doc/linlog-cli cli/fonts/*.txt
+              install -Dm644 ${config.packages.notices} $out/share/doc/linlog-cli/THIRD-PARTY-NOTICES.txt
             '';
             # The binary is `linlog', not the package name `nix run' assumes.
             meta.mainProgram = "linlog";

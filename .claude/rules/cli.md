@@ -307,6 +307,24 @@ binary `linlog` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
 
 ## Invariants
 
+- **A static musl build allocates with mimalloc** (`src/main.rs`'s
+  `#[global_allocator]` under `cfg(target_env = "musl")`, the dependency
+  in `[target.'cfg(target_env = "musl")'.dependencies]`): with musl's own
+  allocator the search ran 1.3 to 1.8 times slower than the glibc build
+  on one thread and 3.7 times with four (`witness-fo` #3 at 10, cores
+  4–7, 2026-11-02); with mimalloc 1.26 to 1.45 times on one and four
+  threads alike, the rest being musl's libc, which no allocator changes.
+  Every other build keeps the system's allocator. The installation
+  chapter states these numbers and recommends `cargo install` or Nix
+  (glibc) for long searches; a glibc-linked prebuilt binary is a
+  follow-up.
+- **Every package of the command carries its licences**: `LICENSE`, the
+  fonts' (`cli/fonts/*.txt`) and `THIRD-PARTY-NOTICES.txt`, the crates
+  it contains, by cargo-about from `cli/about.toml` (every target a
+  release builds, so one file serves all) and `cli/about.hbs`: a new
+  dependency under a licence `deny.toml` allows but `about.toml` does
+  not accept fails the flake's `notices`, so the two lists move
+  together.
 - **Exit status**: 0 proved, valid or done; 1 unprovable or invalid; 2 an
   error, the same status clap uses for bad arguments; 3 unknown; 130 at a
   second Ctrl-C (the first one stops the search). Scripts depend on it,

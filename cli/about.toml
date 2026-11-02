@@ -1,0 +1,33 @@
+# linlog © Fabian Lukas Grubmüller 2026
+# Licensed under the EUPL
+
+# cargo-about's configuration for the notices of the crates compiled into
+# the command, which every package of it carries beside its licences
+# (`THIRD-PARTY-NOTICES.txt`). The targets are those a release builds, so
+# one file holds every crate any of its binaries contains; the licences
+# are those deny.toml allows, and the fonts' beside the command's own.
+accepted = [
+  "EUPL-1.2",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "MIT",
+  "Unicode-3.0",
+  "Zlib",
+  # The command's own, for the fonts it embeds.
+  "OFL-1.1",
+  "LPPL-1.3c",
+]
+targets = [
+  "x86_64-unknown-linux-gnu",
+  "x86_64-unknown-linux-musl",
+  "aarch64-unknown-linux-gnu",
+  "aarch64-unknown-linux-musl",
+  "x86_64-apple-darwin",
+  "aarch64-apple-darwin",
+  "x86_64-pc-windows-msvc",
+  "aarch64-pc-windows-msvc",
+]
+ignore-build-dependencies = true
+ignore-dev-dependencies = true

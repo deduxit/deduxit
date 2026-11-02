@@ -1,0 +1,13 @@
+The command linlog contains code of the following crates, under the
+licences below. Its own licence is in LICENSE, and the licences of the
+fonts it embeds are in the files named after them.
+{{#each licenses}}
+
+================================================================================
+{{name}} ({{id}}), used by:
+{{#each used_by}}
+- {{crate.name}} {{crate.version}}
+{{/each}}
+
+{{text}}
+{{/each}}
