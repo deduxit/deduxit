@@ -145,6 +145,28 @@ for arg; do
   esac
 done
 
+# Whether CPU $1 is among the CPUs the list $2 names (`2-9,12`).
+among() {
+  local part parts
+  IFS=, read -r -a parts <<<"$2"
+  for part in "${parts[@]}"; do
+    if [ "$1" -ge "${part%-*}" ] && [ "$1" -le "${part#*-}" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+# A stream's taskset may widen the run's affinity, so a confined run's
+# streams must lie inside it.
+if [ -n "$cpus" ]; then
+  for cpu in "${cores[@]}"; do
+    if ! among "$cpu" "$cpus"; then
+      echo "--cores names CPU $cpu, outside --cpus=$cpus" >&2
+      exit 2
+    fi
+  done
+fi
+
 # The baseline's directory: the one --into names (a finished baseline is
 # resumed too, its new runs added), else the latest one without
 # RESULTS.md, a baseline that has not finished, or else today's.
@@ -361,10 +383,13 @@ if [ -n "$cpus" ]; then
 fi
 # Whether the user's slices can be kept to CPUs: AllowedCPUs on a slice
 # needs the cpuset controller delegated to the user's systemd.
-shield=false
-if grep -q linlog.slice /proc/self/cgroup &&
-  grep -qw cpuset "/sys/fs/cgroup/user.slice/user-$(id -u).slice/user@$(id -u).service/cgroup.controllers" 2>/dev/null; then
-  shield=true
+shield=false unshielded="the run is not in a slice of its own (started without --detach or --arm)"
+if grep -q linlog.slice /proc/self/cgroup; then
+  if grep -qw cpuset "/sys/fs/cgroup/user.slice/user-$(id -u).slice/user@$(id -u).service/cgroup.controllers" 2>/dev/null; then
+    shield=true
+  else
+    unshielded="no cpuset controller"
+  fi
 fi
 
 # Every start of the run, a line in starts.txt: a resumed baseline has
@@ -389,7 +414,7 @@ if grep -q linlog.slice /proc/self/cgroup; then
     done
     echo "kept ${slices[*]} to CPUs $others"
   else
-    echo "no cpuset controller: ${slices[*]} share CPUs ${cores[*]} with the run"
+    echo "$unshielded: ${slices[*]} share CPUs ${cores[*]} with the run"
   fi
   # The user's own timers due during the run wait for its end.
   systemctl --user list-timers --no-legend | awk '{ print $(NF - 1) }' |
@@ -587,7 +612,7 @@ fired=${fired%, }
 if $shield; then
   shared="which the user's other slices were kept off"
 else
-  shared="which other processes could share (the user's slices could not be kept off them: no cpuset controller)"
+  shared="which other processes could share (the user's slices could not be kept off them: $unshielded)"
 fi
 if [ -n "$cpus" ]; then
   parallel="confined like the whole run to CPUs $cpus, so their \"every core\" was those $(nproc) CPUs, while other work could use the rest of the machine"
