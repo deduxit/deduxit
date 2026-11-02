@@ -1329,8 +1329,8 @@ pub(crate) enum KernelArg {
     /// NanoYalla 1.1.3, the kernel of Click & coLLecT: classical linear
     /// logic one-sided, a proof script checked rule by rule
     Nanoyalla,
-    /// linlog's own Rocq library (rocq/ of the repository, the package
-    /// rocq-linlog): every mode in its own calculus, intuitionistic
+    /// linlog's own Rocq library (the package rocq-linlog, from
+    /// github.com/linlog-prover/rocq-linlog): every mode in its own calculus, intuitionistic
     /// logic two-sided, a proof term checked by the library's checker
     Linlog,
 }
