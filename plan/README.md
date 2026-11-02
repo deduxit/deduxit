@@ -4501,3 +4501,7 @@ client follows it (step 32).
   Arch packages and the static archives for x86_64 and aarch64, macOS's
   and Windows's archives, both crates, `SHA256SUMS`), every job green.
   Next: the web client's linlog input on the release, then 45e.
+- 2026-11-03: the author on nixpkgs: skipped for now ("any nix user can
+  already get it quite easily anyway", through linlog's own flake); 45e
+  prepares the Rocq library's opam submission alone. Go for the web
+  client's update to 0.2.0 and for 45e.

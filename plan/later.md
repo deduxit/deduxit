@@ -2099,3 +2099,12 @@ tool writes a file at first (a drawing comes back as SVG text), so every
 tool is read-only. It needs a JSON-RPC layer (a
 crate such as `rmcp`, judged by the dependency rules then) and a test
 that runs a session over a pipe, as `cli/tests/cli.rs` runs `interact`.
+
+## For the author, later: nixpkgs
+
+Skipped for 0.2.0 (the author, 2026-11-03): any Nix user gets linlog
+through its own flake (`nix run github:linlog-prover/linlog`), and
+nixpkgs turns away packages of "a niche of 5 people". To raise again
+when there is public evidence of use beyond the author (crates.io
+downloads, stars, citations of the DOI, users asking); 45's prompt
+(45e's second part) says how it would be packaged.
