@@ -4388,3 +4388,27 @@ client follows it (step 32).
   `duplicate` at llprover's documented threshold of five; the other
   provers on the first two sizes only. Next, all the author's: 45a's
   repository (a `gh` call), 45c's two nights, then 45d and the tags.
+- 2026-11-02: review of session 45a, the Rocq library in its own
+  repository (Opus 5.5 at high, 10:46 to 11:20): the planning session
+  created `linlog-prover/rocq-linlog` at the author's word (public, the
+  client's rulesets, topics, Actions with SHA pinning and read-only
+  workflow permissions; its `CACHIX_AUTH_TOKEN` the author's to add),
+  `plan/push-main.sh --rocq` its push; the session made its one initial
+  commit (`ce2ea757`, pushed: the library, tests and bridges byte for
+  byte, the opam file on the new repository, a dendritic flake with its
+  checks, CI, `.claude/` with `rocq.md`, CLAUDE.md, the licence and a
+  changelog; its flake check passed, 23 and 4 assumptions closed);
+  linlog takes it as the pinned input `rocq-linlog`, its `rocq-linlog`
+  check compiling the exporter's certificates against it (no test lost,
+  the report's table says where each went), and a new check
+  `rocq-linlog-library` re-exporting the library's own check (a
+  heads-up box found that linlog's checks no longer confirmed the
+  library's theorems closed). Its reviewer: `update-deps` still named
+  `yalla` in linlog's flake (fixed). Checked here: the new repository's
+  files, licence and signature before its push, no secret in it; in
+  linlog `rocq/` gone, the lock's pin at `ce2ea757`, both Rocq checks
+  built from the session's tree. Departure, accepted: the note on
+  `rocq-linlog-library` in linlog's `flake.md` and `core-export.md`
+  rather than in the library's `rocq.md`, which 45d adds with its
+  first change there. Next: 45d's first part, the release mechanics,
+  whose second part takes 45c's nights' results.
