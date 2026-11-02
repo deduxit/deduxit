@@ -4,6 +4,262 @@ The step's sessions each add a section here: 45b (the families that
 grow), 45a (the Rocq library in its own repository), 45c (the fourth
 baseline), 45d (the release prepared) and 45e (the package archives).
 
+## Session 45d, part 2: the results and the date
+
+### Outcome
+
+The fourth baseline and the growing sets of 2026-11-02 are in the
+comparison and the manual, README and the manual speak for the released
+0.2.0, and both repositories are dated 2026-11-03. `bench/COMPARISON.md`
+sets the four baselines side by side (the tables printed by `summary
+--before` over the three earlier ones), with a section "Where the fourth
+baseline ran differently" and "At a glance" written from the rows: no
+decided verdict differs from the third's, every proof was checked, the
+gains are the inverse method's turns, the refutation by the classical
+reading and the net engine's pruning, the one slowdown a classical
+assignment search after an exhausted refutation (read from the code,
+not traced, under the author's rule of no timed runs). The manual has
+two new chapters, `results/baseline-2026-11-02.md` (its parallel stage
+in a section of its own that a quiet rerun replaces) and
+`results/growing-2026-11-02.md`, whose three figures `docs/figures.sh`
+draws at build time from the rows (`baseline-2026-11-02/families.svg`
+and `engines.svg`, `growing-2026-11-02/engines/growth.svg` with its
+`growth.txt`), beside the older chapters. The fourth baseline's
+boilerplate was false (its confinement to CPUs 2–9 never took effect),
+so `bench/baseline.sh` now confines by affinity and writes what the run
+had, and this run's `RESULTS.md` says what it had. README, the status
+chapter and the guide's description say what 0.2.0 adds; "Beside the
+other provers" says the comparison is of 0.1.0's engines on the
+libraries and of the first-order search against LinearOne, in a table a
+later run joins as a row. The Rocq library's commit was checked, sent as
+"rocq ready" and pushed by the supervisor, and linlog's lock follows it.
+The library's dated commit is `6f5028f8728f` (pushed by the supervisor);
+linlog's lock is on it (`flake.lock: Update`), its two Rocq checks built
+against it (exit 0).
+
+### The cores, and what the fourth baseline had
+
+- **Found at the start, confirmed by the supervisor**: the fourth
+  baseline's `--cpus=2-9` and `--others=0-1,10-15` did nothing. A user
+  unit's or slice's `AllowedCPUs` needs the cpuset controller, and the
+  user manager's cgroup has `cpu io memory pids` only
+  (`user@1000.service/cgroup.controllers`); `systemd-run --user --scope
+  -p AllowedCPUs=4-5 nproc` printed 16. The rows agree: the parallel
+  stage's `jobs` are 16. So its parallel stage ran 16 threads over the
+  whole machine beside two other projects' sessions, and the sequential
+  streams, pinned by taskset to CPUs 4, 5, 2 and 3, were not shielded
+  (46 problems `†`). The same holds of every earlier baseline's "kept
+  off" slices, which `bench.md` claimed; it now says so.
+- **The fix at its cause** (`Confine a baseline by its affinity and say
+  what it had`): `--cpus` is `taskset -cp` on the script's own PID
+  before anything starts, which every child inherits and the streams'
+  taskset narrows; the slices are shielded only where the cpuset
+  controller exists; RESULTS.md's paragraph and the record line say
+  which CPUs the streams had, whether other processes could share them,
+  and where the parallel runs ran (confined, with the count of CPUs, or
+  every core); the header counts the machine's cores by `nproc --all`.
+  Not run (no timed runs); `bash -n` and shellcheck through `nix fmt`.
+- **The two bias passes and the long runs** ran on CPUs 4 and 5,
+  efficiency cores, where the third's ran on 1 and 0: their times are
+  1.3 to 1.6 times the third's for that (median ratios per collection
+  1.29 to 1.58 but KLE-IMP-CONJ's non-theorems, against 0.89 to 1.08
+  for `lltp-intuitionistic` on CPU 2 in both), and the default's time over theirs is 0.75 and 0.76 where it
+  was 1.01 and 1.04. The comparison and the page say so.
+
+### What changed against the third baseline, from the rows
+
+- No decided verdict differs; 264 of 16 733 problems decided alike on
+  one thread differ in their counters (the engines changed).
+- Five problems decided before are not: four of `lltp-default` (the
+  parallel stage, at the 2 s limit; `SYJ212+1.012` had 13 s of CPU in
+  2 s, about 6.5 of 16 threads), and `SYJ205+1.009` of `lltp-forward`
+  (3.46 s on CPU 0, past 5 s on CPU 5).
+- Decided now, by the rows' engine and earlier reason: the inverse
+  method's turns 104 of `lltp-default`, 107 of `lltp-forward`, 94 of
+  `lltp-copies-10`, and `mix` (62.5 s → 259 ms at 10); the classical
+  reading 53 in the default and classical copy-bound-3 passes, 54
+  under `--bias rarer`, 27 of `lltp-copies-10`, 3 of
+  `lltp-forward`, and `growing` at every size; the net engine
+  `3-partition-mll-no`, `partition-table` and two sizes of the
+  Partition families. The one new verdict against an LLTP header,
+  `KLE083+1` of `KLE-01`, is a classical refutation, so the header is
+  wrong.
+- Slower: refuted QBF instances of 16 to 24 variables (1.1 → 8 ms,
+  5 → 80 ms) with equal nodes, splits and work. In the code, a search
+  whose refutation is `Exhausted` then looks for a classical assignment
+  within `Options::classical_work` (2²⁶) for the disproof
+  (`core/src/search/mod.rs`); on these instances it finds none. Derived
+  from the code and the rows, not traced (a follow-up below).
+- Holds whatever the load: on `mix`, one thread decides 8 to 11 pairs
+  in about 0.27 s by the inverse method's turn, which only a one-thread
+  search gets, while 2 to 16 threads race the focused engine alone (0.8
+  s at 8 pairs, past 120 s at 11).
+- The growing sets of 2026-11-02 reproduce 2026-10-31: every line both
+  runs drew ends at the same size, the largest decided size within a
+  quarter of the earlier time where over a millisecond, apart from the
+  sizes extended since and `duplicate`'s classical shape, new. So no
+  claim in `core/src/families.rs` changes, and no code did.
+
+### The pages, the figures and the words
+
+- `bench/COMPARISON.md`: the four baselines; the hand-written head, then
+  `summary --before … --before … --before …` with a note beside each
+  table that the parallel stage's rows are not comparable, then the
+  bias passes by `summary --against` with the cores said, then the
+  LinearOne section kept.
+- `docs/src/results/baseline-2026-11-02.md`: the families table beside
+  the third's numbers, the two figures with what each shows (both read
+  rendered), the LLTP table, and "The parallel stage, not comparable",
+  which names the four files a rerun replaces.
+- `docs/src/results/growing-2026-11-02.md`: the engines' figure (read
+  rendered), what is new, the fitted growth, and "The other provers",
+  which says they have not run to their limits and where their rows
+  join; `docs/figures.sh` has a comment where their `growth` line goes.
+  The chapter of 2026-10-31 stays as the run that placed the sizes.
+- `docs/src/benchmarks.md`: the list of chapters, the fourth baseline's
+  paragraph, and under "Beside the other provers" a table of what each
+  comparison run covers (0.1.0's engines on the libraries, 2026-10-15;
+  the first-order search against LinearOne, 2026-10-30; the check of
+  2026-10-31 at the first two sizes) that a later run joins as a row.
+- README: a paragraph of what 0.2.0 adds and a clause on what the
+  comparison covers (162 lines). `status.md`: four baselines; the
+  release's packages; the web page moved to built; "Planned" now
+  first-order proving on the web page and the other provers beside
+  0.2.0's engines (the first-order memo, its parallel search and the
+  times against LinearOne were built and listed as planned). The guide's
+  description names first-order logic and cut elimination; the rest of
+  the guide was already true for 0.2.0. The installation chapter's URLs
+  were already v0.2.0's (part 1).
+- Dates: linlog's `## [0.2.0] - 2026-11-03` and `date-released:
+  "2026-11-03"`; the library's the same and `"date:2026-11-03"` among
+  the opam file's tags.
+
+### The reviewer
+
+A fresh-context reviewer on Opus 5.5 at `high` (`linlog-review-45d2`),
+read only, on cores 4–7, no timed run, judged seven requirements: the
+comparison's columns and cores, every number on the pages against the
+rows, every figure drawn from the rows and listed, what the comparison
+with the other provers covers, README, the manual and the guide true for
+0.2.0, the dates and the release workflows' checks, and the script's
+change. It drew every figure and checked every count of the comparison
+and the pages (the LLTP counts of all four baselines, the inverse and
+classical counts, the five lost problems, all 200 growing lines' ends);
+those held. Seven findings, each answered:
+
+1. *The cores' ratios were misquoted* ("1.31 to 1.58 in every
+   collection", `lltp-intuitionistic` "0.89 to 1.06"; KLE-IMP-CONJ's
+   non-theorems are 1.56 on CPU 2 in both; the long runs differ).
+   Holds: 1.29 to 1.58 but the non-theorems, `lltp-intuitionistic` 0.89
+   to 1.08, the non-theorems 1.56 there and 1.89 and 1.90 in the passes,
+   the long runs' ratios given, in the comparison and the page.
+2. *Mix's default is flat from 8 pairs, not 6.* Holds; corrected.
+3. *`lltp-rarer` gained 54 by the classical reading, not 53.* Holds; the
+   page and the comparison say 54.
+4. *The page said every other pass ran on the third's cores*, but two
+   of the last stage's reruns ran on CPUs 4 and 5. Holds; the page names
+   them.
+5. *The guide's summary said `prove` decides quantified sequents "not
+   yet with `-i`"*, false for 0.2.0. Holds; it now says with `-i` too
+   (the readme test passes, the summary within its budget).
+6. *The script blamed the missing cpuset controller also when a
+   foreground run is simply not in a slice of its own; and a stream's
+   taskset outside `--cpus` would widen the affinity unchecked.* Holds:
+   the paragraph names the cause it has, and the script refuses
+   `--cores` outside `--cpus` (its membership test tried on `2-9` and
+   `2-9,12`).
+7. *The manual's introduction named the comparison without saying what
+   it covers.* Holds; it says so as README does.
+
+
+### Departures and assumptions
+
+- **The fourth baseline's parallel stage is reported, not rerun**
+  (departs from the design's "comparable with the third"): the author's
+  rule of 2026-11-02 forbids timed runs until further notice; the page
+  and the comparison say it is not comparable, and the supervisor puts a
+  quiet rerun to the author.
+- **The bias passes' times are not comparable with the third's
+  either**, for the cores (departs from the design's comparability); the
+  verdict counts are.
+- **The growing sets of 2026-11-02 ran by day**, on CPUs 2 and 3 beside
+  other work, not on an idle night (departs from the design's "the
+  nights"); they reproduce the placing run, and the page says how they
+  ran.
+- **The QBF slowdown is explained from the code, not traced** (no timed
+  run allowed); the comparison says so.
+- **The 2026-10-31 growing chapter is kept** beside the new one as the
+  placing run, with its check of the other provers at the first two
+  sizes, rather than replaced.
+
+### What the next sessions must know
+
+- **A baseline by day**: `bench/baseline.sh --cpus=LIST` now confines
+  by affinity; the user's slices are never shielded on this machine (no
+  cpuset controller), so a run beside other work is marked by its `†`
+  count and its RESULTS.md says so. A rerun of the fourth's parallel
+  stage on a quiet machine replaces `parallel.csv`, `parallel-net.csv`,
+  `lltp-all-cores*.csv` and `lltp-default.csv` in
+  `bench/results/2026-11-02/` and the section "The parallel stage, not
+  comparable" of its chapter, and the sentences on them in
+  `bench/COMPARISON.md`; the rest of the tables are regenerated by the
+  two `summary` commands at its head.
+- **The other provers' rows join** as a row of the table in
+  `benchmarks.md`'s "Beside the other provers", a `growth` line in
+  `docs/figures.sh` (the comment says where) and the section "The other
+  provers" of `results/growing-2026-11-02.md` (or a chapter of their
+  night's own date), from `bench/comparison/DAY-growing/runs.csv`.
+- **45e** starts after the author's tags: linlog's `v0.2.0` and the
+  library's `v0.2.0`, both dated 2026-11-03.
+- Follow-ups: the classical assignment search after an exhausted
+  refutation costs up to 80 ms on small QBFs for a certificate the
+  search does not need; the inverse method's turns are off under the
+  pool, so `--jobs` above 1 on Mix is hundreds of times slower than one
+  thread.
+
+### What is left open
+
+- The parallel stage's rerun on a quiet machine, and the other provers'
+  night, both the author's to give.
+- The two follow-ups above, after 0.2.0.
+
+### Checklist
+
+- [x] Workspaces `../linlog-step45d2` (on `sxprrrvl`) and
+  `../rocq-linlog-45d2` (on `rlunttwn`).
+- [x] Read the brief, the step's prompt, `conduct.md`, 45d part 1's and
+  45b's sections, the Status entries of 2026-11-02, `bench.md`, the
+  benchmark chapter and its results pages, `docs/figures.sh`,
+  `bench/COMPARISON.md`, the fourth baseline's `RESULTS.md`, README,
+  both changelogs and citation files, `bench/baseline.sh`.
+- [x] Paused at 17:36 for the author (graceful stop, nothing running),
+  resumed at 21:44 under the author's new rule: no timed run of any
+  kind.
+- [x] The cpuset finding sent and confirmed; `bench/baseline.sh` fixed;
+  `bench.md` corrected; this run's `RESULTS.md` corrected.
+- [x] `bench/COMPARISON.md` with the fourth baseline's column, the
+  cores stated, the parallel caveat beside every table.
+- [x] The manual's pages for the baseline and the growing sets of
+  2026-11-02, figures in `docs/figures.sh`, drawn (48 SVGs) and the new
+  light ones read rendered.
+- [x] README, `benchmarks.md`, `status.md` and the guide's description
+  for 0.2.0 and the other provers.
+- [x] `cargo test -p linlog-cli --test readme` (7 passed) and `cargo
+  test -p linlog-bench --test manual` (1 passed); `nix build
+  .#checks.x86_64-linux.manual .#checks.x86_64-linux.manual-links`:
+  exit 0, 0 link errors.
+- [x] The dates in both repositories; the library's `nix flake check`
+  at `6f5028f8728f`: exit 0; "rocq ready" sent.
+- [x] Linlog's lock moved to `6f5028f8728f` (`flake.lock: Update`);
+  `nix build .#checks.x86_64-linux.rocq-linlog
+  .#checks.x86_64-linux.rocq-linlog-library` against it: exit 0.
+- [x] The fresh-context reviewer's round: seven findings, each held and
+  fixed (three commits); the readme and manual tests passed again.
+- [x] `nix flake check` at this report's commit, under the machine lock
+  with `--max-jobs 2 --cores 6`: its exit status in the final message.
+- [x] `jj st` clean in both workspaces; the final message to
+  `linlog-orchestrator`.
+
 ## Session 45d, part 1: the release prepared
 
 ### Outcome
