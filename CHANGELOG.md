@@ -7,7 +7,58 @@ versions follow [Semantic Versioning](https://semver.org/) as Cargo reads
 it for versions below 1.0: a change that breaks a caller raises the
 second number (0.1.x to 0.2.0), anything else the third.
 
-## [Unreleased]
+## [0.2.0] - unreleased
+
+The second release: cut and its elimination, on proofs and on proof
+nets, first-order linear logic, the two-sided surface of intuitionistic
+sequents, MELL proof nets with boxes, the inverse method, the logo, and
+linlog's own Rocq library, now a repository of its own.
+
+### What breaks, and what to do instead
+
+Found by tools, not by memory: `cargo semver-checks` against the
+published 0.1.0 and `cargo public-api`'s diff of the two public APIs
+with every feature (the devshell's `breaks 0.1.0`), and, for the
+command, the help of every subcommand of 0.1.0 and of this release
+compared flag by flag and value by value. Every other change of the
+library's API in this release is an addition.
+
+- **New variants of the calculus's closed enums**, the break 0.1.0
+  announced: `Term::{Forall, Exists}` and `Kind::{Forall, Exists}` (the
+  quantifiers), `Node::{Cut, Forall, Exists}` and `Rule::{Cut, Forall,
+  Exists}` (cut and the quantifier rules). A `match` on one of them
+  stops compiling until it has an arm for each: a quantifier's term
+  holds its body (the bound variable's name is
+  `Sequent::binder_name`'s), a cut node names an occurrence of a cut
+  formula and two premises, a quantifier node its occurrence, an
+  eigenvariable (`∀`) or a witness (`∃`) and its premise. Code that
+  handles only propositional sequents without cut can send these to an
+  error arm: `Sequent::is_first_order` and `Forest::has_binders` say
+  beforehand whether a sequent has a quantifier, and `Sequent::cuts`
+  whether it has cut formulas.
+- **`Rule::ALL` is `[Rule; 19]`** (16 in 0.1.0) **and `Named::ALL`
+  `[Named; 41]`** (34): code that names the array's type writes the new
+  length, or takes a slice (`&Rule::ALL[..]`) or the `len()`.
+- **Moved numbers**: `Rule::Open` is 18 when cast with `as` (15 in
+  0.1.0) and sorts after `Cut`, `Forall` and `Exists` under the derived
+  `Ord`; `export::rocq::Unsupported::AffineWeakening` is 3 and
+  `Compact` 4 (2 and 3), `Unsupported::Cut` coming before them. Code
+  that keeps these numbers, or sorts rules and keeps the order, compares
+  the variants by name instead.
+- **The command**, whose subcommands, flags and their values of 0.1.0
+  all remain, behaves otherwise in three places a script may see:
+  - an intuitionistic sequent's text (`-i`) is read in the syntax of
+    intuitionistic linear logic alone, so `~`, `^`, `par`, `|`, `?` and
+    `bot` are refused with a line saying what to write: `--ill-syntax
+    one-sided` (settings key `input.intuitionistic`) reads the classical
+    syntax as 0.1.0 did;
+  - a sequent whose search ends unknown and whose classical reading an
+    assignment falsifies is unprovable, exit status 1 where 0.1.0 gave
+    3: `--classical-work 0` gives the search's word alone;
+  - `--format rocq` with no `--kernel` writes a proof of Mix, affine or
+    intuitionistic logic for linlog's Rocq library (`rocq-linlog`),
+    which 0.1.0 refused or wrote for NanoYalla: `--kernel nanoyalla`
+    keeps NanoYalla's certificate where it has one.
 
 ### Added
 
@@ -802,14 +853,13 @@ second number (0.1.x to 0.2.0), anything else the third.
   its cut formulas left out: a session's cut formulas are those of its
   cuts, and a session started on a sequent with cut formulas was refused
   when read back.
-- Breaking: `Placed::parent`, a public field of a type 0.1.0 released,
+- `Placed::parent`, of the structures with boxes added in this release,
   is an `Option<VertexId>`, `None` for an end of a cut link (a vertex of
   a structure with boxes that stands for a cut formula's occurrence and
-  is no premise). Code that read it as a `VertexId` reads the `Option`;
-  `Placed::new` keeps its signature, and `Placed::cut` makes an end of a
-  cut link. The additive alternative, naming a cut link's other end as
-  the parent, would let a walk down the parents go round between the two
-  ends without end.
+  is no premise); `Placed::new` keeps its signature, and `Placed::cut`
+  makes an end of a cut link. Naming a cut link's other end as the
+  parent instead would let a walk down the parents go round between the
+  two ends without end.
 - The command reads the text of an intuitionistic sequent (`-i`, and a
   batch's intuitionistic entries) in the syntax of intuitionistic linear
   logic alone: a `~`, `^`, `par`, `|`, `?` or `bot` is refused with a
@@ -908,15 +958,14 @@ second number (0.1.x to 0.2.0), anything else the third.
   components: Lincoln's MLL 3-Partition with bins of five is refuted in
   227 nodes instead of 16 million, Matsuoka's Partition with three
   items in 391 instead of 269 950.
-- The closed enums of the calculus gain the cut, the planned break of
-  0.2.0: `Node::Cut` and `Rule::Cut` (`Rule::ALL` now has 17 rules and
-  `Named::ALL` 35), so a `match` on either names the new variant.
+- The closed enums of the calculus gain the cut (`Node::Cut`,
+  `Rule::Cut`) and the quantifiers, as "What breaks" says.
 - The Rocq library's calculi have the cut as an optional rule: `rules`
-  gains the field `cut` and `irules` the field `icut`. A certificate that
-  states its calculus by a record literal (a one-sided proof with Mix or
-  affine weakening, and its refutations) now writes `cut := false`, and
-  one that 0.1.0 wrote without it no longer compiles; a certificate that
-  names `classical`, `intuitionistic` or `affine` is unchanged.
+  gains the field `cut` and `irules` the field `icut`, so a certificate
+  that states its calculus by a record literal (a one-sided proof with
+  Mix or affine weakening, and its refutations) writes `cut := false`; a
+  certificate that names `classical`, `intuitionistic` or `affine` names
+  a calculus without cut.
 
 ## [0.1.0] - 2026-10-18
 
@@ -1007,5 +1056,5 @@ The first release.
   for proved or valid, 1 for unprovable or invalid, 2 for an error, 3
   for unknown and 130 at a second Ctrl-C.
 
-[Unreleased]: https://github.com/linlog-prover/linlog/compare/v0.1.0...HEAD
+[0.2.0]: https://github.com/linlog-prover/linlog/releases/tag/v0.2.0
 [0.1.0]: https://github.com/linlog-prover/linlog/releases/tag/v0.1.0
