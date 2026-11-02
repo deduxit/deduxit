@@ -77,8 +77,13 @@ failure and the crate that caused it.
 ## 2. flake.lock and the toolchain
 
 The toolchain is `stable` of the locked rust-overlay (`rust-toolchain.toml`,
-`modules/toolchain.nix`), so it moves with flake.lock; `nanoyalla` and `yalla`
-are pinned to commits in `flake.nix` (compare them with their upstream heads).
+`modules/toolchain.nix`), so it moves with flake.lock; `nanoyalla` is pinned
+to a commit in `flake.nix` (compare it with its upstream head). The Rocq
+library's input `rocq-linlog` moves to its repository's `main`, and the check
+`rocq-linlog` then compiles the exporter's certificates against that library;
+its own `yalla` is pinned in its `flake.nix` and moves with its own lock
+there (`../rocq-linlog`, "flake.lock: Update", verified by its `nix flake
+check`).
 
 ```sh
 nix develop -c rustc --version      # before
