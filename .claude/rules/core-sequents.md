@@ -125,11 +125,13 @@ read back by `Reading` (below); there is no second data model.
   only) prints as `MLL`. No engine's `admits` contains the bit, so the
   dispatch finds no row (`Error::NoEngine`, "no engine for MLL1 in
   classical mode yet") and a forced engine refuses by fragment; the
-  checker (`CheckError::Quantifiers`), `Interactive::within`, cut
-  elimination (`Error::Quantifiers`), the proof structures (`has_nets`
-  is false with the bit) and the Rocq export (`Unsupported::Quantifiers`)
+  proof structures (`has_nets` is false with the bit) and the Rocq
+  export for NanoYalla and for refutations (`Unsupported::Quantifiers`)
   refuse a forest with a binder before anything else, and
-  `Disproof::check` answers `NotApplicable`; the `unreachable!` arms on
+  `Disproof::check` answers `NotApplicable` for a classical assignment
+  or a saturated set on one (the checker, interactive proving and cut
+  elimination take first-order proofs, so `CheckError::Quantifiers` and
+  `Error::Quantifiers` are gone); the `unreachable!` arms on
   `Kind::Forall | Kind::Exists` in the engines, the nets and the
   refuters rest on those guards. `NAMED` and `NAMES` are the named fragments and
   their names, which `FromStr` reads with or without the intuitionistic
