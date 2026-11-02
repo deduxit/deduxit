@@ -120,11 +120,11 @@
         "yalla": "yalla"
       },
       "locked": {
-        "lastModified": 1793621981,
-        "narHash": "sha256-tW3lyniznVonrKOMq9UjrFB8XidB77Y9AHN6z+PbFQA=",
+        "lastModified": 1793653193,
+        "narHash": "sha256-UgPsdI/zgcurEUJmtIfo0vXaQbf3ucDGcsJcNTItFhQ=",
         "owner": "linlog-prover",
         "repo": "rocq-linlog",
-        "rev": "2ad6487e8388a394134fe0411811c0ca92b3ac6c",
+        "rev": "6f5028f8728fdf82eb3be04876360091531c57e5",
         "type": "github"
       },
       "original": {
