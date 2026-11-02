@@ -4451,3 +4451,36 @@ client follows it (step 32).
   library's `v0.2.0`; to decide: code signing, the WiX EULA, nixpkgs
   (45e's assessment first), the channels that need an account (a
   Homebrew tap, the AUR, winget, Scoop, COPR, Chocolatey).
+- 2026-11-02: the fourth baseline, at the author's word by day (14:34 to
+  16:58, then 45b's growing sets 17:00 to 17:28), with the other
+  projects' sessions on cores 10 to 15 (and a third session,
+  `effect-optics-orchestrator`, told the arrangement). The planning
+  session's options for confining the run (`--cpus`, `--others`) had no
+  effect, the user manager having no cpuset controller: the sequential
+  streams were pinned by `taskset` but not shielded, and the parallel
+  stage ran 16 threads beside other work (found by 45d2; the script now
+  confines by affinity and says what a run had). At 21:20 the author:
+  no benchmark or timed run until further notice; the data before stands.
+- 2026-11-02: review of session 45d's second part, the results and the
+  date (Opus 5.5 at high, 17:30 to 22:40, paused 17:36 to 21:20):
+  `bench/COMPARISON.md` with four baselines side by side and where the
+  fourth ran differently (the bias passes and long runs on CPUs 4 and 5,
+  about 1.3 to 1.6 times slower for the cores; the parallel stage not
+  comparable, said beside every parallel table); no decided verdict
+  differs from the earlier baselines, every proof checked; the gains by
+  engine (the inverse method's turns, the classical refutation, the net
+  engine's prunes) and one slowdown (refuted small QBFs, explained from
+  the code, not traced, under the rule against timed runs); the manual's
+  pages for the baseline and the growing sets of 2026-11-02, every
+  figure drawn at build time from the rows; README and the manual saying
+  the comparison with the other provers is of 0.1.0's engines and, at
+  first order, LinearOne beside 0.2.0's; the date 2026-11-03 in both
+  repositories (the library's pushed, linlog's lock on it). Its reviewer's
+  seven findings fixed. Checked here: the commits and signatures, the
+  page's "not comparable" notes, both dates and the lock's pin; pushed.
+  Departures, accepted on the author's mandate: the parallel stage
+  reported as not comparable rather than rerun (the rerun is the
+  author's to give), the bias passes' times likewise, the growing sets
+  by day, the QBF slowdown explained not traced, the 2026-10-31 growing
+  chapter kept beside the new one. Next, the author's: the tags (45d2's
+  report lists the steps), then 45e.
