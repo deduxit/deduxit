@@ -1,0 +1,1 @@
+2026-11-02 14:34, commit a917eaf4772d (Let the baseline share the machine: its cores, CPUs and the others' as options), load average 1.23, sequential streams on CPUs 4 5 2 3, the run confined to CPUs 2-9, the other slices to 0-1,10-15
