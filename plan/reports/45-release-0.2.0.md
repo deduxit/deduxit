@@ -192,7 +192,7 @@ docs.rs builds `linlog` with every feature on x86_64 Linux and
 | rustup on Debian 13 (`curl … sh.rustup.rs \| sh`), `rustup self uninstall` | the same | built, ran, removed; rustup removed |
 | Debian 13's and Ubuntu 24.04's own rustc too old | `apt install rustc` there | 1.85.1 and 1.75.0, as the chapter says |
 | Nix: `nix run github:…`, `nix profile add`, `remove linlog` | a temporary profile, at origin's `main` (`ceed014d`) for the tag | ran; the entry is named `linlog`; added, removed. `nix profile upgrade linlog` on that locked entry only warned that it "can't be upgraded" (a first record here read it as done; the reviewer found it): the chapter now updates a tagged entry by adding the next tag, and `install.yml` tries `upgrade` on an untagged one |
-| Ubuntu 26.04's `apt install cargo build-essential`, macOS's archive and `shasum`, Windows' PowerShell steps, the arm64 `.deb` and `.rpm`, `cargo install` on macOS and Windows, the C compilers the source routes now name | not here (no root filesystem fetched for 26.04; no macOS or Windows) | by `install.yml` on the supervisor's push |
+| Ubuntu 26.04's `apt install cargo build-essential`, macOS's archive and `shasum`, Windows' PowerShell steps, the arm64 `.deb` and `.rpm`, `cargo install` on macOS and Windows, the C compilers the source routes now name | not here (no root filesystem fetched for 26.04; no macOS or Windows) | by `install.yml` after the supervisor's push: all passed (below) |
 | the Arch package on ARM | nowhere (Arch Linux ARM has no container image on GitHub) | not offered by the chapter: ARM takes the archive; the file is still built |
 | the chapter's downloads from the release (`v0.2.0` URLs, `dnf install URL`) | after the tag only: `install.yml`'s `release` jobs, skipped while the latest release has no `SHA256SUMS` | after the tag |
 | the Rocq library: `opam install` of the package, per Rocq version | `nix develop .#opam -c scripts/opam-install.sh 9.0.1 9.1.1 9.2.0 9.3.0` in a temporary opam root (OCaml 4.14 as `ocaml-system`) | lint Passed; installed, every module imported, removed: 9.0.1 with stdlib 9.1.0, 9.1.1/9.2.0, 9.2.0/9.2.0, 9.3.0/9.2.0 |
@@ -391,8 +391,38 @@ open".
   the final message).
 - [x] The fresh-context reviewer's round, each finding answered and
   fixed.
-- [ ] `install.yml`'s and `packages.yml`'s runs after the supervisor's
-  push, read through GitHub's API (below once read).
+- [x] `install.yml`'s and `packages.yml`'s runs after the supervisor's
+  push, read through GitHub's API: run 41446104804, every job a success
+  (below).
+
+### The runs on GitHub
+
+The supervisor pushed linlog's `main` = `0592d5f358ef` (2026-11-02);
+GitHub's public API (`/repos/linlog-prover/linlog/actions/runs/41446104804/jobs`,
+read without `gh`) reported the Install run `completed success`, its 27
+jobs:
+
+- **The packages** (`packages.yml`, called): the flake's Rust version and
+  the notices; Linux x86_64 and aarch64 by `nix build .#dist`;
+  `aarch64-apple-darwin`, `x86_64-apple-darwin`, `x86_64-pc-windows-msvc`
+  and `aarch64-pc-windows-msvc` by rustup on their runners; `sums`: all
+  success.
+- **The chapter's packages and archive** in containers: `debian:13`
+  (x86_64 and aarch64), `ubuntu:24.04`, `ubuntu:26.04`, `fedora:44`
+  (x86_64 and aarch64), `archlinux:latest`: installed, ran, removed, the
+  archive checked by `sha256sum` and installed and removed: success.
+- **macOS and Windows**: the archives checked (`shasum`, `Get-FileHash`),
+  installed, run and removed by the chapter's commands on `macos-26`,
+  `macos-26-intel`, `windows-2025` and `windows-11-arm`: success.
+- **Nix**: `nix run`, `nix profile add`/`remove` at the commit, `upgrade`
+  of an untagged entry: success.
+- **`cargo install`**: Fedora's, Arch's and Ubuntu 26.04's Rust, rustup
+  on Debian 13, the runners' rustup on macOS and Windows: success.
+- **From the release**: skipped on a push, as written; they run after
+  the tag.
+
+The push's Docs run succeeded; its CI run (`nix flake check` on GitHub)
+was still running when this was written.
 
 ## Session 45b: families that grow
 
