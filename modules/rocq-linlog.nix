@@ -7,7 +7,9 @@
 # input `rocq-linlog' pins it (github:linlog-prover/rocq-linlog, built with
 # this flake's nixpkgs, so with the Rocq the NanoYalla check uses, rocq.nix);
 # a certificate with a planted fault must be refused. Rocq prints nothing for
-# a file it accepts, so any other output fails the check. And the check
+# a file it accepts, so any other output fails the check, and `Print
+# Assumptions' of each certificate's lemma must answer that it is closed
+# under the global context. And the check
 # `rocq-linlog-library': the library's own check, re-exported from the input,
 # which compiles its tests and requires its theorems' assumptions to be
 # closed under the global context, so that every pin of the library these
@@ -98,6 +100,19 @@
               rocq compile "$file" 2>&1 | tee log
               if [ -s log ]; then exit 1; fi
             done
+            # Every certificate's lemma rests on the library's theorems
+            # alone: its assumptions are closed under the global context.
+            mkdir ../assumptions
+            for file in *.v; do
+              { cat "$file"; echo; echo 'Print Assumptions certificate.'; } >"../assumptions/$file"
+              (cd ../assumptions && rocq compile "$file") >log 2>&1 || { cat log; exit 1; }
+              if [ "$(cat log)" != 'Closed under the global context' ]; then
+                echo "$file:"
+                cat log
+                exit 1
+              fi
+            done
+            echo "$(ls ../assumptions/*.v | wc -l) certificates, each closed under the global context"
             # A planted fault: the first certificate with a wrong witness is
             # refused.
             mkdir ../fault
