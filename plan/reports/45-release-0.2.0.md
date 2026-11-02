@@ -386,3 +386,249 @@ recursion limit at 1 024 (incomplete, not false); it now names it.
   `kpomtxsx`: exit 0; and again at the report's last commit with
   `--max-jobs 2 --cores 6` (below, in the final message).
 - [x] The final message to `linlog-orchestrator`.
+
+## Session 45a: the Rocq library in its own repository
+
+### Outcome
+
+The Rocq library `rocq-linlog` (logical path `Linlog`) is a repository
+of its own, `linlog-prover/rocq-linlog` (`../rocq-linlog`), started with
+one signed commit, `vqnnvkms` (`ce2ea757`), of the tree that stood
+under `rocq/` at linlog's `pqyxnxkk` (`31f36a5d`), with no history
+carried over; the planning session pushed it as that repository's
+`main`. Its `nix flake check` passed (exit 0) under the machine lock:
+the library built as nixpkgs builds a Rocq library, every certificate
+under `tests/` compiled in silence, `tests/Assumptions.v` printed
+`Closed under the global context` 23 times (once per `Print
+Assumptions` line), and the bridges' check, rebuilt to show its
+output, printed it 4 times for `bridges/Assumptions.v`. linlog no
+longer holds the library: it takes it as the flake input `rocq-linlog`
+(`github:linlog-prover/rocq-linlog`, locked to `ce2ea757`, following
+linlog's `nixpkgs`, `flake-parts`, `import-tree`, `treefmt-nix` and
+`nanoyalla`), and its check `rocq-linlog` compiles every certificate
+the exporter writes for `--kernel linlog` against that package. The
+NanoYalla export check `rocq` is the very derivation it was at
+`pqyxnxkk` (`w8qprsl4…-check-rocq.drv` in both), and the library
+linlog now compiles against is the very derivation it built from
+`rocq/` before (`z1ngc80s…-rocq9.1-linlog-0.1.0.drv` at `pqyxnxkk`, in
+the new repository and through the input). linlog's commits:
+`xrrqvktq` (the `--kernel linlog` help names the new repository; the
+behaviour lock's three help texts change with it, a commit of its own
+as CLAUDE.md asks), `lnmmlutv` (the move), `luwqknxt` (D20 and D22's
+notes), `qkpvrkpz` (the update-deps skill, the reviewer's finding) and
+`mrumwypt` (the check `rocq-linlog-library`, the planning session's
+request, below). The gate passed at the move's tree (`gate: passed`);
+linlog's `nix flake check` at the report's commit is in the final
+message to the planning session.
+
+### What moved and what stayed
+
+| what | before | after |
+|---|---|---|
+| the library `theories/` (18 files), `_RocqProject`, `Makefile` | linlog `rocq/` | rocq-linlog, byte for byte |
+| `rocq-linlog.opam` | linlog `rocq/` | rocq-linlog: `homepage`, `bug-reports`, `dev-repo` name the new repository, `build`/`install` without `-C rocq`, the AI note worded for the library; version still 0.1.0 |
+| `README.md` with the logo | linlog `rocq/` | rocq-linlog: the build from the root and `nix develop`, the load path `path/to/rocq-linlog/theories`, where the library came from |
+| the tests `tests/*.v` (9 files) | linlog's check `rocq-linlog` | rocq-linlog's check `rocq-linlog`, byte for byte |
+| the bridges `bridges/*.v` (3 files), inputs `nanoyalla` and `yalla` | linlog's check `rocq-bridges` | rocq-linlog's check `rocq-bridges` (the same derivation as linlog's was), inputs pinned at linlog's revisions |
+| the grep for `Admitted`, `admit`, `Axiom`, `Parameter`, `Conjecture` | linlog's two checks, over theories, tests, bridges | rocq-linlog's two checks, the same greps over the same files |
+| `Print Assumptions` closed, counted per line | linlog's `rocq-linlog` and `rocq-bridges` | rocq-linlog's `rocq-linlog` and `rocq-bridges` |
+| the package `rocq-linlog` (mkRocqDerivation) | linlog `modules/rocq-linlog.nix` | rocq-linlog `modules/rocq-linlog.nix` (`packages.rocq-linlog` and `default`, `meta.homepage` added); linlog builds it through the input |
+| `.claude/rules/rocq.md` | linlog | rocq-linlog, its `paths:` the library's files, the references to `rocq/` and linlog's paths adapted |
+| the 34 exporter snapshots `core/tests/snapshots/linlog/*.v` | linlog's `rocq-linlog` | linlog's `rocq-linlog`, against the pinned input |
+| the 15 certificates the command writes (Mix, affine, intuitionistic, intuitionistic affine, the `⊤`/`0` goal, classical with `--kernel linlog`, four refutations, five first-order with the session's) and the planted wrong witness that must be refused | linlog's `rocq-linlog` | linlog's `rocq-linlog`, unchanged lines |
+| the library's own check (tests, assumptions closed), seen from linlog | none: the library's checks were linlog's own | linlog's `rocq-linlog-library`, the input's `checks.SYSTEM.rocq-linlog` re-exported, the same derivation as the library's repository builds |
+| `export::rocq::LINLOG` equal to the library's version | asserted against `rocq/rocq-linlog.opam` | asserted against the pinned package's `version` (read by its flake from its opam file) |
+| the NanoYalla export check `rocq` (`modules/rocq.nix`) | linlog | linlog, the same derivation |
+
+No certificate test is lost: each of the old checks' steps is in one of
+the two repositories' checks, as the table says. What the two `rocq-linlog`
+checks no longer share is one directory: before, the tests and the
+exporter's certificates were compiled in one derivation; now each
+repository compiles its own.
+
+### The new repository
+
+- **Form**, by the Rocq community's current practice as read on
+  2026-11-02 by a research sub-agent (Sonnet 5.5, `medium`):
+  `rocq-community/aac-tactics` (updated 2026-11-01) keeps
+  `rocq-NAME.opam`, `_RocqProject`, `theories/`, `tests/`, a thin
+  `Makefile` over `rocq makefile`, `CHANGELOG.md` and `LICENSE` at the
+  root, its opam file `build: [make "-j%{jobs}%"]` and `install: [make
+  "install"]`, which the library now has; the rocq-community templates
+  offer a Nix CI beside the Docker one, so a flake-only CI is within the
+  practice. The 9.0 and 9.1 reference manuals still name
+  `_CoqProject`; the Makefile passes `-f _RocqProject` explicitly, so the
+  name works with both (the check builds with nixpkgs' Rocq 9.1).
+- **Flake**, in linlog's dendritic style: `flake.nix` declares the
+  inputs (nixpkgs' channel tarball, flake-parts, import-tree,
+  treefmt-nix, `nanoyalla`, `yalla`), `modules/` holds
+  `rocq-linlog.nix` (package, check, a devshell with Rocq and the
+  standard library and `ROCQPATH`), `rocq-bridges.nix`,
+  `conventions.nix` (`conventions`: the licence header on every `.v`,
+  `.nix`, `.toml`, `.sh`, `.py`, `.yml`, the Makefile, the opam file and
+  `.envrc`, and no comment or README line naming the plan; `typos`,
+  `typos.toml` with `falso`, `implicits`, `itens`; `deadnix`;
+  `actionlint`), `treefmt.nix` (nixfmt, taplo, shfmt, shellcheck,
+  ruff-format), `claude-hooks.nix` (linlog's, byte for byte) and
+  `systems.nix`. Its `flake.lock` holds linlog's locked nodes for those
+  six inputs, copied from linlog's lock by a script and accepted by
+  `nix flake lock` unchanged, so both repositories build one Rocq.
+- **CI** (`.github/workflows/ci.yml`): `nix flake check` on pushes to
+  `main`, pull requests, weekly and by dispatch, with linlog's pinned
+  actions (`actions/checkout`, `cachix/install-nix-action`,
+  `cachix/cachix-action` by SHA), pulling from Cachix `linlog-prover`
+  and pushing from `main` only once the author adds the secret
+  `CACHIX_AUTH_TOKEN` (CLAUDE.md says so); `.github/dependabot.yml` as
+  linlog's.
+- **`.claude/`**: `rocq.md` as its rules, linlog's jj-only guards and
+  their shared module byte for byte, `format.sh` with the formatters'
+  suffixes of this repository, `session-jj-state.sh`, and
+  `settings.json` with linlog's env, the read-only allow rules that
+  apply, `ask` on `jj git push` and `gh`, `deny` on git and hand edits of
+  `LICENSE` and `flake.lock`. **CLAUDE.md** says what the library is,
+  that linlog depends on it and what a change of a statement breaks
+  there, the commands, the flake, CI, jj, the conventions and the setup.
+- **The changelog** (`CHANGELOG.md`, Keep a Changelog) has an
+  "Unreleased" section that says where the library came from (linlog's
+  `rocq/` at `31f36a5d` on 2026-11-02, its history linlog's) and what
+  changed in the move; linlog's changelog says where it went.
+
+### Decisions
+
+- **The version stays 0.1.0** in the opam file and in
+  `export::rocq::LINLOG`: the step's prompt leaves the raise to 45a and
+  45d, and the brief gives the 0.2.0 release to 45d, which raises both
+  together when it releases the library (linlog's flake asserts that
+  they agree); a version raised here would name a release that does not
+  exist yet.
+- **linlog's check keeps the name `rocq-linlog`**, since it still
+  compiles the `--kernel linlog` certificates; CLAUDE.md, the devshell's
+  `check` help and the verification table name it so. linlog no longer
+  has the package `rocq-linlog` (`nix build
+  github:linlog-prover/rocq-linlog` builds it), nor the check
+  `rocq-bridges`.
+- **The input follows linlog's `nanoyalla`**, so one pin of NanoYalla
+  serves the export check and the library's bridges; linlog no longer
+  declares `yalla`, which stays in the lock as the library's own input
+  (never fetched by linlog's evaluation, which reads only the package).
+- **The library's flake has no devshell input**: a `mkShell` with Rocq
+  serves `make`; linlog's numtide devshell is for its many commands.
+
+### Departures and assumptions
+
+- **The library's rules do not mention linlog's `rocq-linlog-library`**
+  (departs from the design: the planning session asked, after the push,
+  to say so in `rocq.md` too). `rocq.md` moved to the library's
+  repository, whose one initial commit is pushed; a second commit there
+  was not this session's to make once the goal named one. linlog's
+  `flake.md` and `core-export.md` say it, and the library's CLAUDE.md
+  already says that linlog compiles against its package. 45d adds the
+  line to `rocq.md` with its first change there.
+- **The new lock was written from linlog's**: the six locked nodes
+  copied by a script from linlog's `flake.lock`, then `nix flake lock`
+  accepted the file unchanged and `nix flake metadata` showed every
+  input at linlog's revision. Locking from scratch would have taken the
+  channel's newest nixpkgs and another Rocq build than linlog's.
+- **The library keeps the licence header `linlog © …`** on its files,
+  unchanged, since the library is part of the linlog project; its
+  conventions check requires that header.
+- **`.claude/` of the new repository has no `claude-infra.md`**: its
+  CLAUDE.md carries the setup's few points (the guards are copies of
+  linlog's, the hooks fail open), since one rules file serves a
+  repository of one area.
+
+### The reviewer
+
+A fresh-context reviewer on Opus 5.5 at `high` (`linlog-review-45a`),
+told to report only what breaks a stated requirement, judged five:
+nothing of the library lost (every file, every certificate compiled
+somewhere, the greps, the assumptions counted), the trusted base as
+`rocq.md` lists it and unchanged, linlog's input and checks, no stale
+reference to `rocq/`, the new repository's flake and CI. It compared
+the 34 files with `cmp`, the old and new modules by `diff`, the locks'
+nodes by a script, and the package's derivation in all three places.
+
+1. *`.claude/skills/update-deps/SKILL.md` still said that `nanoyalla`
+   and `yalla` are pinned in `flake.nix`* (requirement 4, outside the
+   listed paths). Holds: fixed in `qkpvrkpz`, which says the library's
+   `yalla` moves with that repository's lock and that `nix flake update`
+   moves `rocq-linlog` to its `main`.
+
+Its side notes, answered: the passing build of linlog's `rocq-linlog`
+in `linlog-rocq.log` was against the command before the `--kernel`
+help's commit; the final `nix flake check` builds it against the
+command of the last commit. It counted sixteen certificates the command
+writes; the check has fifteen `linlog prove`/`linlog interact` lines
+(the sixteenth file is the planted fault). Requirements 1, 2, 3 and 5
+held in its reading.
+
+### What the next sessions must know
+
+- The library is `../rocq-linlog` (`linlog-prover/rocq-linlog`), with
+  its own CLAUDE.md and `.claude/rules/rocq.md`; linlog's
+  `core-export.md` and `flake.md` say how linlog takes it.
+- A change of the library's statements, rules, record fields or proof
+  terms is made, checked (`nix flake check` there) and pushed in its
+  repository first (`plan/push-main.sh --rocq REV`); then
+  `nix flake update rocq-linlog` in linlog moves the pin, with the
+  exporter's change in the same commit. `--override-input rocq-linlog
+  path:../rocq-linlog` tries an unpushed change.
+- 45d: the version is 0.1.0 in `rocq-linlog.opam` and in
+  `export::rocq::LINLOG`; raise both to 0.2.0 together (linlog's
+  flake asserts they agree, through the pinned package's `version`).
+  The opam file's bounds, `doc`, `opam lint`, a release workflow, its
+  own `CITATION.cff` and the README's install instructions are 45d's.
+- The new repository's push to Cachix waits for the author's secret
+  `CACHIX_AUTH_TOKEN`; until then its CI downloads only.
+- The guards under `.claude/hooks/` are copies in both repositories; a
+  change to one belongs in both (each `claude-infra.md`/CLAUDE.md says
+  so).
+- The rocq-linlog repository's lock pins linlog's revisions (nixpkgs
+  of 2026-10-20) and moves on its own with "flake.lock: Update" commits;
+  linlog's input follows linlog's nixpkgs whatever that lock says.
+- linlog's check `rocq-linlog-library` is the library's own check
+  re-exported: a pin whose library check fails fails linlog's `nix flake
+  check`. 45d adds a line saying so to the library's `rocq.md`.
+
+### What is left open
+
+- The client's About does not link the library (checked: the client's
+  `src/` names no `tree/main/rocq` and no `rocq-linlog`), so nothing
+  changed there.
+- 45d's work on the library's release, listed above.
+
+### Checklist
+
+- [x] Read the brief, the step's prompt, conduct.md, `rocq.md`,
+  `flake.md`, `ci.md`, `core-export.md`, `claude-infra.md`, the three
+  Rocq modules, the CI workflow, the changelog, `CITATION.cff`, the
+  manual's Rocq chapter, the guide, the `new-tool` skill; the Rocq
+  community's practice through a research sub-agent (Sonnet 5.5,
+  `medium`).
+- [x] `../rocq-linlog`: `jj git init --colocate`, `origin` =
+  `git@github.com:linlog-prover/rocq-linlog.git`, one signed commit
+  `vqnnvkms` (`ce2ea757`): the library, tests, bridges, opam file,
+  README, flake modules, lock, CI, Dependabot, `.claude/`, CLAUDE.md,
+  LICENSE, CHANGELOG.md, typos.toml, `.gitignore`, `.envrc`.
+- [x] Its `nix flake check` under the machine lock: exit 0 (and again
+  at the commit: exit 0); assumptions closed, 23 lines and 4.
+- [x] "rocq ready" to `linlog-orchestrator`; its answer: pushed,
+  `main` = `ce2ea75761a0`.
+- [x] linlog without `rocq/`, `modules/rocq-bridges.nix`, the input
+  `yalla` and `.claude/rules/rocq.md`; the input `rocq-linlog` locked
+  at `ce2ea757` (`nix flake lock`, nothing else moved); the check
+  `rocq-linlog` against it built (exit 0); `rocq` the same derivation.
+- [x] Every certificate test placed (the table above).
+- [x] CLAUDE.md, README, the manual (`rocq.md`, `status.md`,
+  `installation.md`), `CITATION.cff` (the abstract and a `references`
+  entry), the rules (`flake.md`, `core-export.md`, `core.md`,
+  `claude-infra.md`), `plan/README.md`'s D20 and D22 with dated notes,
+  the guide (`SKILL.md`, `reference.md`; `cargo test -p linlog-cli
+  --test readme`: 7 passed), both changelogs.
+- [x] The `--kernel` help and the behaviour lock in a commit of their
+  own (`xrrqvktq`; `cargo test --test lock` passed after `BLESS=1`).
+- [x] The gate at the move's tree: `gate: passed`.
+- [x] The fresh-context reviewer's round, its one finding fixed.
+- [x] The planning session's request: `rocq-linlog-library` (`mrumwypt`).
+- [x] This report committed; linlog's `nix flake check` at its commit
+  and the final message to `linlog-orchestrator` follow.
