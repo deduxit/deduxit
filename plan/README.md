@@ -4484,3 +4484,20 @@ client follows it (step 32).
   by day, the QBF slowdown explained not traced, the 2026-10-31 growing
   chapter kept beside the new one. Next, the author's: the tags (45d2's
   report lists the steps), then 45e.
+- 2026-11-02 and 03: the 0.2.0 releases. At the author's word "re-tag"
+  the planning session re-dated both repositories to 2026-11-02 (the
+  library `b895ecd1`, linlog `1f4f986a` with its lock on it; their
+  changed checks passed here, CI green on GitHub); the author made and
+  pushed both signed tags `v0.2.0` by git. `rocq-linlog`'s release made
+  its GitHub release; its Pages deploy was refused by the `github-pages`
+  environment, which allowed `main` alone: at the author's yes the
+  planning session added a deployment rule for tags `v*` and reran the
+  job, and the documentation is at
+  `linlog-prover.github.io/rocq-linlog/` (Pages switched on with source
+  "GitHub Actions" at the author's yes before the tag). linlog's release
+  waited for the `crates-io` environment, which the author approved:
+  `linlog` and `linlog-cli` 0.2.0 on crates.io through Trusted
+  Publishing, the GitHub release with fifteen files (`.deb`, `.rpm` and
+  Arch packages and the static archives for x86_64 and aarch64, macOS's
+  and Windows's archives, both crates, `SHA256SUMS`), every job green.
+  Next: the web client's linlog input on the release, then 45e.
