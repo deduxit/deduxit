@@ -709,7 +709,10 @@ for NanoYalla. What the code relies on:
   The core tests pin this kernel's certificates in
   `core/tests/snapshots/linlog/`, which the flake's `rocq-linlog` check
   compiles against the pinned library, and `rocq::LINLOG` is asserted
-  equal to the pinned package's version (its opam file's). A change of
+  equal to the pinned package's version (its opam file's); the check
+  `rocq-linlog-library` (the library's own check, re-exported) verifies
+  at every pin that the theorems the certificates rest on are closed
+  under the global context. A change of
   the library's statements or terms is made and pushed in its repository
   first; then `nix flake update rocq-linlog` moves the pin here, with the
   exporter's change in the same commit.

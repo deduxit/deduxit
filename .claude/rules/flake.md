@@ -118,9 +118,15 @@ file's). The input follows this flake's `nixpkgs`, `flake-parts`,
 `import-tree`, `treefmt-nix` and `nanoyalla`, so the library is built by
 the Rocq the `rocq` check uses (the same derivation as when the library
 was under `rocq/`); its own `yalla` stays in the lock for its bridges,
-which this flake never evaluates. The library's tests, its bridges and
-its theorems' assumptions are its repository's checks, not this flake's
-(that repository's CLAUDE.md and rules); `bench.nix` is the `linlog-bench` package, the `bench`
+which this flake never evaluates. The check `rocq-linlog-library` is
+the input's own `checks.SYSTEM.rocq-linlog`, re-exported, since the
+certificates rest on the library's theorems: it compiles the library's
+tests and requires `Print Assumptions` of every theorem to answer
+`Closed under the global context` (counted per line), so every pin is
+verified here as well; with the inputs followed it is the same
+derivation as the library's repository builds, so a pin checked there
+costs nothing here. The bridges are that repository's check alone
+(they need its `yalla`, and no certificate rests on them); `bench.nix` is the `linlog-bench` package, the `bench`
 check (the harness on the smallest instance of every family, the
 problem file, and an LLTP and a `.spec` file of the command's lock
 inputs, failing through `summary --strict` on a verdict against a known

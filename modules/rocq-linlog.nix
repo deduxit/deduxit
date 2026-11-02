@@ -7,9 +7,13 @@
 # input `rocq-linlog' pins it (github:linlog-prover/rocq-linlog, built with
 # this flake's nixpkgs, so with the Rocq the NanoYalla check uses, rocq.nix);
 # a certificate with a planted fault must be refused. Rocq prints nothing for
-# a file it accepts, so any other output fails the check. The library's own
-# tests, its bridges and its theorems' assumptions are checked in its
-# repository.
+# a file it accepts, so any other output fails the check. And the check
+# `rocq-linlog-library': the library's own check, re-exported from the input,
+# which compiles its tests and requires its theorems' assumptions to be
+# closed under the global context, so that every pin of the library these
+# certificates rest on is verified here too (one derivation with the
+# library's own, so a pin already checked there is fetched or cached, not
+# rerun). Its bridges are checked in its repository alone.
 { inputs, ... }:
 {
   perSystem =
@@ -40,6 +44,8 @@
       );
     in
     {
+      checks.rocq-linlog-library = inputs.rocq-linlog.checks.${system}.rocq-linlog;
+
       checks.rocq-linlog =
         assert lib.assertMsg (
           named == library.version
