@@ -52,7 +52,10 @@ calculus, which the library's independent checker has validated.
   [bench/COMPARISON.md](https://github.com/linlog-prover/linlog/blob/main/bench/COMPARISON.md),
   and the comparison with the other provers of linear logic,
   [bench/TOOLS.md](https://github.com/linlog-prover/linlog/blob/main/bench/TOOLS.md)
-  ([Beside the other provers](benchmarks.md#beside-the-other-provers)).
+  ([Beside the other provers](benchmarks.md#beside-the-other-provers)),
+  so far of 0.1.0's engines on the libraries and, at first order, of
+  LinearOne beside 0.2.0's search; the other provers on the growing
+  families are not yet run.
 - To cite linlog, GitHub's "Cite this repository" reads
   [CITATION.cff](https://github.com/linlog-prover/linlog/blob/main/CITATION.cff).
 - linlog's code, tests and documentation were written with substantial

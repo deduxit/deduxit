@@ -43,12 +43,15 @@ the third's cores**:
   performance cores (5.1 GHz, an L2 of their own): `lltp-rarer` and
   `long-1` on CPU 4, `lltp-forward` and `long-2` on CPU 5, and in the
   last stage `lltp-intuitionistic-generous` and
-  `lltp-classical-generous`. Their times are about 1.3 to 1.5 times the
-  third's for the cores alone: the median ratio of the problems both
-  decide is 1.31 to 1.58 in every collection of `lltp-rarer` and
-  `lltp-forward` (1.89 and 1.90 on KLE-IMP-CONJ's non-theorems), where
-  the same collections of `lltp-intuitionistic`, on CPU 2 in both, stay
-  at 0.89 to 1.06. The other two streams (`lltp-intuitionistic`,
+  `lltp-classical-generous`. Their times are about 1.3 to 1.6 times the
+  third's for the cores: the median ratio of the problems both decide is
+  1.29 to 1.58 in every collection of `lltp-rarer` and `lltp-forward`
+  but KLE-IMP-CONJ's non-theorems, where the same collections of
+  `lltp-intuitionistic`, on CPU 2 in both, stay at 0.89 to 1.08; the
+  non-theorems are 1.56 in `lltp-intuitionistic` too, and 1.89 and 1.90
+  in the two passes. The long runs are 1.27 to 1.40 (`long-1`) and 1.12
+  and 1.19 (`long-2`'s `wide` families; its one QBF instance, 2.60, has
+  the slowdown of refuted QBFs below as well). The other two streams (`lltp-intuitionistic`,
   `families`, `lltp-copies-10` on CPU 2; `lltp-classical`, `engines`,
   `period-*`, `intuitionistic`, `lltp-recursion` on CPU 3) ran on the
   third's cores.
@@ -100,7 +103,7 @@ past 5 s on CPU 5 now, as the slower core accounts for.
 - **The refutation by the classical reading** after a search that ended
   at its copy bound: 53 problems of `lltp-intuitionistic` and 53 of
   `lltp-classical` that ended at the copy bound before are refuted (and
-  27 of `lltp-copies-10`, 3 of `lltp-forward`), and
+  54 of `lltp-rarer`, 27 of `lltp-copies-10`, 3 of `lltp-forward`), and
   `growing`, at the copy bound or the recursion limit at every size
   before, is refuted at every size (1 024 in 113 ms). Each such
   refutation is an assignment that falsifies the sequent's classical
