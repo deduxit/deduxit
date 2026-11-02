@@ -842,6 +842,15 @@ algorithm, never two implementations of one.
 2026-10-03): a library of this repository, written from nothing, built
 by the flake as nixpkgs builds a Rocq library, with the NanoYalla export
 kept unchanged as the compatibility target. `later.md` has its shape.
+*Note of 2026-11-02 (step 45a, the author's word of 2026-10-24):* the
+library left `rocq/` for its own repository,
+`linlog-prover/rocq-linlog` (`../rocq-linlog`), started from the tree
+as it stood (linlog's commit `31f36a5d`), with its tests, its bridges
+and their inputs `nanoyalla` and `yalla`, its flake checks and its rules
+(`rocq.md`); this flake takes it as the pinned input `rocq-linlog` and
+compiles the exporter's certificates against it. Everything else of
+this decision holds: the library is still written for linlog, built as
+nixpkgs builds a Rocq library, and the NanoYalla export is unchanged.
 
 **D21. Research and teaching are equal aims, and the command comes
 first** (the author, 2026-10-03). Where two pieces of work compete, the
@@ -862,7 +871,8 @@ code, its assets and its deployment) is a repository of its own under
 the organization from the start, with a toolchain, a release rhythm and
 an address of its own, taking this repository as a pinned input (the
 author, 2026-10-03, on the planning's recommendation); the Rocq library lives under `rocq/` until it has a
-release rhythm of its own, and may then get a repository; benchmark data
+release rhythm of its own, and may then get a repository (it did on
+2026-11-02, the note below); benchmark data
 may move to release assets. The first release is 0.1.0 at step 30: the
 crates `linlog` and `linlog-cli` on crates.io, a tag and a GitHub
 release, a `CITATION.cff` and a DOI. Later, in this order: `rocq-linlog`
@@ -877,6 +887,11 @@ GitHub (the author, 2026-10-03; an organization is free, and the name
 repository to it before the first publication, since the repository's
 address goes into metadata that cannot be changed. A session prepares; pushing, tagging, transferring and
 publishing are the author's acts.
+*Note of 2026-11-02 (step 45a):* the Rocq library is now the repository
+`linlog-prover/rocq-linlog`, a third under the organization beside this
+one and the web client, taken by this flake as a pinned input as the
+client takes this one; its first release, 0.2.0 beside linlog's, and its
+opam submission follow (45d, 45e). The workspace of crates is unchanged.
 
 **D23. The order to the release, and the audit once** (the author,
 2026-10-03, on the planning's recommendations at the review of step
