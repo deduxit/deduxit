@@ -1,0 +1,969 @@
+source,family,size,index,problem,mode,engine_requested,jobs,test_period,timeout_s,run,copies,expected,verdict,reason,checked,engine,fragment,occurrences,multiplicity,time_ms,nodes,memo_hits,memo_entries,splits,links,tests,recursion_limit,cpu_ms,wait_ms,bias,forward_copies,check_ms,memory_limit,copies_reached,pool_after,forward_copies_reached,work,tool,tool_version,translate_ms,peak_bytes,raw,unifications,bindings,memo_limit
+family,wide-m1,256,0,wide-m1/256,classical,auto,1,,60,0,3,provable,proved,,ok,focus,MLL,1791,1,3.322,257,0,257,66302,0,0,2048,0.000,0.046,auto,30,0.076,1073741824,0,,0,74776,,,,,,0,0,1048576
+family,wide-m1,256,0,wide-m1/256,classical,focus,1,,60,0,3,provable,proved,,ok,focus,MLL,1791,1,3.038,257,0,257,66302,0,0,2048,0.000,0.028,auto,30,0.073,1073741824,0,,0,74776,,,,,,0,0,1048576
+family,wide-m1,256,0,wide-m1/256,classical,two-sided,1,,60,0,3,provable,refused,the two-sided engine does not search in classical mode,,,,1791,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,256,0,wide-m1/256,classical,net,1,,60,0,3,provable,proved,,ok,net,MLL,1791,1,7.951,512,0,0,0,512,128,2048,0.000,0.017,auto,30,0.065,1073741824,0,,0,512,,,,,,0,0,1048576
+family,wide-m1,256,0,wide-m1/256,classical,horn,1,,60,0,3,provable,refused,the horn engine decides a Horn program only: atoms; implications between tensors of atoms; such implications under !; and one goal that is a tensor of atoms,,,,1791,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,256,0,wide-m1/256,classical,additive,1,,60,0,3,provable,refused,the additive engine decides a sequent of two additive-only formulas; not one of MLL,,,,1791,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,256,0,wide-m1/256,classical,essential,1,,60,0,3,provable,refused,the essential engine does not search in classical mode,,,,1791,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,256,0,wide-m1/256,classical,inverse,1,,60,0,3,provable,proved,,ok,inverse,MLL,1791,1,2.696,256,0,257,0,0,0,2048,0.000,0.021,auto,30,0.071,1073741824,0,,0,239747,,,,,,0,0,1048576
+family,wide-m1,512,0,wide-m1/512,classical,auto,1,,60,0,3,provable,proved,,ok,focus,MLL,3583,1,13.218,513,0,513,263678,0,0,2048,0.000,0.041,auto,30,0.142,1073741824,0,,0,289315,,,,,,0,0,1048576
+family,wide-m1,512,0,wide-m1/512,classical,focus,1,,60,0,3,provable,proved,,ok,focus,MLL,3583,1,12.261,513,0,513,263678,0,0,2048,0.000,0.056,auto,30,0.145,1073741824,0,,0,289315,,,,,,0,0,1048576
+family,wide-m1,512,0,wide-m1/512,classical,two-sided,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,512,0,wide-m1/512,classical,net,1,,60,0,3,provable,proved,,ok,net,MLL,3583,1,32.231,1024,0,0,0,1024,256,2048,30.000,0.112,auto,30,0.129,1073741824,0,,0,1024,,,,,,0,0,1048576
+family,wide-m1,512,0,wide-m1/512,classical,horn,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,512,0,wide-m1/512,classical,additive,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,512,0,wide-m1/512,classical,essential,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,512,0,wide-m1/512,classical,inverse,1,,60,0,3,provable,proved,,ok,inverse,MLL,3583,1,10.112,512,0,513,0,0,0,2048,0.000,0.043,auto,30,0.138,1073741824,0,,0,938243,,,,,,0,0,1048576
+family,wide-m1,1024,0,wide-m1/1024,classical,auto,1,,60,0,3,provable,proved,,ok,focus,MLL,7167,1,52.822,1025,0,1025,1051646,0,0,2048,50.000,0.089,auto,30,0.267,1073741824,0,,0,1138744,,,,,,0,0,1048576
+family,wide-m1,1024,0,wide-m1/1024,classical,focus,1,,60,0,3,provable,proved,,ok,focus,MLL,7167,1,51.802,1025,0,1025,1051646,0,0,2048,40.000,0.102,auto,30,0.277,1073741824,0,,0,1138744,,,,,,0,0,1048576
+family,wide-m1,1024,0,wide-m1/1024,classical,two-sided,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,1024,0,wide-m1/1024,classical,net,1,,60,0,3,provable,proved,,ok,net,MLL,7167,1,132.691,2048,0,0,0,2048,512,2048,130.000,0.716,auto,30,0.243,1073741824,0,,0,2048,,,,,,0,0,1048576
+family,wide-m1,1024,0,wide-m1/1024,classical,horn,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,1024,0,wide-m1/1024,classical,additive,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,1024,0,wide-m1/1024,classical,essential,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,1024,0,wide-m1/1024,classical,inverse,1,,60,0,3,provable,proved,,ok,inverse,MLL,7167,1,39.844,1024,0,1025,0,0,0,2048,30.000,0.058,auto,30,0.274,1073741824,0,,0,3711493,,,,,,0,0,1048576
+family,wide-m1,2048,0,wide-m1/2048,classical,auto,1,,60,0,3,provable,proved,,ok,focus,MLL,14335,1,208.566,2049,0,2049,4200446,0,0,2048,200.000,0.261,auto,30,0.545,1073741824,0,,0,4517986,,,,,,0,0,1048576
+family,wide-m1,2048,0,wide-m1/2048,classical,focus,1,,60,0,3,provable,proved,,ok,focus,MLL,14335,1,203.892,2049,0,2049,4200446,0,0,2048,200.000,0.246,auto,30,0.555,1073741824,0,,0,4517986,,,,,,0,0,1048576
+family,wide-m1,2048,0,wide-m1/2048,classical,two-sided,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,2048,0,wide-m1/2048,classical,net,1,,60,0,3,provable,proved,,ok,net,MLL,14335,1,538.767,4096,0,0,0,4096,1024,2048,530.000,0.728,auto,30,0.463,1073741824,0,,0,4096,,,,,,0,0,1048576
+family,wide-m1,2048,0,wide-m1/2048,classical,horn,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,2048,0,wide-m1/2048,classical,additive,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,2048,0,wide-m1/2048,classical,essential,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,2048,0,wide-m1/2048,classical,inverse,1,,60,0,3,provable,proved,,ok,inverse,MLL,14335,1,161.006,2048,0,2049,0,0,0,2048,160.000,0.163,auto,30,0.529,1073741824,0,,0,16893950,,,,,,0,0,1048576
+family,wide-m1,4096,0,wide-m1/4096,classical,auto,1,,60,0,3,provable,proved,,ok,net,MLL,28671,1,2969.248,8192,0,0,0,8192,2048,2048,2960.000,4.292,auto,30,1.009,1073741824,0,,0,17015208,,,,,,0,0,1048576
+family,wide-m1,4096,0,wide-m1/4096,classical,focus,1,,60,0,3,provable,unknown,memory_limit,,focus,MLL,28671,1,870.093,2,0,0,16785407,0,0,2048,860.000,1.292,auto,30,,1073741824,0,,0,17007016,,,,,,0,0,1048576
+family,wide-m1,4096,0,wide-m1/4096,classical,two-sided,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,4096,0,wide-m1/4096,classical,net,1,,60,0,3,provable,proved,,ok,net,MLL,28671,1,2212.999,8192,0,0,0,8192,2048,2048,2200.000,3.131,auto,30,0.919,1073741824,0,,0,8192,,,,,,0,0,1048576
+family,wide-m1,4096,0,wide-m1/4096,classical,horn,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,4096,0,wide-m1/4096,classical,additive,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,4096,0,wide-m1/4096,classical,essential,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,4096,0,wide-m1/4096,classical,inverse,1,,60,0,3,provable,proved,,ok,inverse,MLL,28671,1,650.937,4096,0,4097,0,0,0,2048,650.000,1.153,auto,30,1.111,1073741824,0,,0,67350532,,,,,,0,0,1048576
+family,wide-m1,8192,0,wide-m1/8192,classical,auto,1,,60,0,3,provable,proved,,ok,net,MLL,57343,1,9213.697,16384,0,0,0,16384,4096,2048,9180.000,13.344,auto,30,1.933,1073741824,0,,0,16384,,,,,,0,0,1048576
+family,wide-m1,8192,0,wide-m1/8192,classical,focus,1,,60,0,,,skipped,past the limit at size 4096,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,8192,0,wide-m1/8192,classical,two-sided,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,8192,0,wide-m1/8192,classical,net,1,,60,0,3,provable,proved,,ok,net,MLL,57343,1,8910.737,16384,0,0,0,16384,4096,2048,8880.000,11.996,auto,30,1.940,1073741824,0,,0,16384,,,,,,0,0,1048576
+family,wide-m1,8192,0,wide-m1/8192,classical,horn,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,8192,0,wide-m1/8192,classical,additive,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,8192,0,wide-m1/8192,classical,essential,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,8192,0,wide-m1/8192,classical,inverse,1,,60,0,3,provable,proved,,ok,inverse,MLL,57343,1,2699.711,8192,0,8193,0,0,0,2048,2690.000,4.733,auto,30,2.239,1073741824,0,,0,268922890,,,,,,0,0,1048576
+family,wide-m1,16384,0,wide-m1/16384,classical,auto,1,,60,0,3,provable,proved,,ok,net,MLL,114687,1,36185.530,32768,0,0,0,32768,8192,2048,36060.000,59.209,auto,30,4.225,1073741824,0,,0,32768,,,,,,0,0,1048576
+family,wide-m1,16384,0,wide-m1/16384,classical,focus,1,,60,0,,,skipped,past the limit at size 4096,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,16384,0,wide-m1/16384,classical,two-sided,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,16384,0,wide-m1/16384,classical,net,1,,60,0,3,provable,proved,,ok,net,MLL,114687,1,36303.983,32768,0,0,0,32768,8192,2048,36190.000,50.493,auto,30,4.182,1073741824,0,,0,32768,,,,,,0,0,1048576
+family,wide-m1,16384,0,wide-m1/16384,classical,horn,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,16384,0,wide-m1/16384,classical,additive,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,16384,0,wide-m1/16384,classical,essential,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,16384,0,wide-m1/16384,classical,inverse,1,,60,0,3,provable,proved,,ok,inverse,MLL,114687,1,11359.137,16384,0,16385,0,0,0,2048,11320.000,13.786,auto,30,4.755,1073741824,0,,0,1074720790,,,,,,0,0,1048576
+family,wide-m1,32768,0,wide-m1/32768,classical,auto,1,,60,0,3,provable,unknown,timeout,,net,MLL,229375,1,60081.028,46533,0,0,0,46532,11633,2048,59880.000,83.879,auto,30,,1073741824,0,,0,46533,,,,,,0,0,1048576
+family,wide-m1,32768,0,wide-m1/32768,classical,focus,1,,60,0,,,skipped,past the limit at size 4096,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,32768,0,wide-m1/32768,classical,two-sided,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,32768,0,wide-m1/32768,classical,net,1,,60,0,3,provable,unknown,timeout,,net,MLL,229375,1,60081.810,46110,0,0,0,46109,11527,2048,59870.000,78.866,auto,30,,1073741824,0,,0,46110,,,,,,0,0,1048576
+family,wide-m1,32768,0,wide-m1/32768,classical,horn,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,32768,0,wide-m1/32768,classical,additive,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,32768,0,wide-m1/32768,classical,essential,1,,60,0,,,skipped,refused at size 256,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,wide-m1,32768,0,wide-m1/32768,classical,inverse,1,,60,0,3,provable,proved,,ok,inverse,MLL,229375,1,47648.662,32768,0,32769,0,0,0,2048,47490.000,69.605,auto,30,9.433,1073741824,0,,0,4296929326,,,,,,0,0,1048576
+family,counter,2,0,counter/2,classical,auto,1,,60,0,1,provable,proved,,ok,horn,MELL,9,2,0.041,1,0,1,0,0,0,2048,0.000,0.000,auto,30,0.007,1073741824,0,,0,0,,,,,,0,0,1048576
+family,counter,2,0,counter/2,classical,focus,1,,60,0,1,provable,proved,,ok,focus,MELL,9,2,0.104,2,0,1,2,0,0,2048,0.000,0.011,auto,30,0.004,1073741824,1,,1,37,,,,,,0,0,1048576
+family,counter,2,0,counter/2,classical,two-sided,1,,60,0,1,provable,refused,the two-sided engine does not search in classical mode,,,,9,2,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,2,0,counter/2,classical,net,1,,60,0,1,provable,refused,proof nets exist for MLL without units only; not for MELL,,,,9,2,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,2,0,counter/2,classical,horn,1,,60,0,1,provable,proved,,ok,horn,MELL,9,2,0.039,1,0,1,0,0,0,2048,0.000,0.000,auto,30,0.007,1073741824,0,,0,0,,,,,,0,0,1048576
+family,counter,2,0,counter/2,classical,additive,1,,60,0,1,provable,refused,the additive engine decides a sequent of two additive-only formulas; not one of MELL,,,,9,2,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,2,0,counter/2,classical,essential,1,,60,0,1,provable,refused,the essential engine does not search in classical mode,,,,9,2,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,2,0,counter/2,classical,inverse,1,,60,0,1,provable,proved,,ok,inverse,MELL,9,2,0.040,1,0,2,0,0,0,2048,0.000,0.000,auto,30,0.005,1073741824,0,,0,18,,,,,,0,0,1048576
+family,counter,4,0,counter/4,classical,auto,1,,60,0,2,provable,proved,,ok,horn,MELL,17,4,0.034,3,0,3,0,0,0,2048,0.000,0.000,auto,30,0.005,1073741824,0,,0,2,,,,,,0,0,1048576
+family,counter,4,0,counter/4,classical,focus,1,,60,0,2,provable,proved,,ok,focus,MELL,17,4,0.121,9,0,3,18,0,0,2048,0.000,0.025,auto,30,0.005,1073741824,3,,3,211,,,,,,0,0,1048576
+family,counter,4,0,counter/4,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,4,0,counter/4,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,4,0,counter/4,classical,horn,1,,60,0,2,provable,proved,,ok,horn,MELL,17,4,0.032,3,0,3,0,0,0,2048,0.000,0.000,auto,30,0.005,1073741824,0,,0,2,,,,,,0,0,1048576
+family,counter,4,0,counter/4,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,4,0,counter/4,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,4,0,counter/4,classical,inverse,1,,60,0,2,provable,proved,,ok,inverse,MELL,17,4,0.052,8,12,14,0,0,0,2048,0.000,0.000,auto,30,0.005,1073741824,0,,0,1084,,,,,,0,0,1048576
+family,counter,8,0,counter/8,classical,auto,1,,60,0,3,provable,proved,,ok,horn,MELL,27,8,0.034,7,0,7,0,0,0,2048,0.000,0.000,auto,30,0.006,1073741824,0,,0,6,,,,,,0,0,1048576
+family,counter,8,0,counter/8,classical,focus,1,,60,0,3,provable,proved,,ok,focus,MELL,27,8,0.123,47,5,9,151,0,0,2048,0.000,0.010,auto,30,0.006,1073741824,7,,7,1297,,,,,,0,0,1048576
+family,counter,8,0,counter/8,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,8,0,counter/8,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,8,0,counter/8,classical,horn,1,,60,0,3,provable,proved,,ok,horn,MELL,27,8,0.032,7,0,7,0,0,0,2048,0.000,0.000,auto,30,0.006,1073741824,0,,0,6,,,,,,0,0,1048576
+family,counter,8,0,counter/8,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,8,0,counter/8,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,8,0,counter/8,classical,inverse,1,,60,0,3,provable,proved,,ok,inverse,MELL,27,8,0.887,128,756,198,0,0,0,2048,0.000,0.000,auto,30,0.006,1073741824,0,,0,152265,,,,,,0,0,1048576
+family,counter,16,0,counter/16,classical,auto,1,,60,0,4,provable,proved,,ok,horn,MELL,41,16,0.041,15,0,15,0,0,0,2048,0.000,0.000,auto,30,0.008,1073741824,0,,0,15,,,,,,0,0,1048576
+family,counter,16,0,counter/16,classical,focus,1,,60,0,4,provable,proved,,ok,focus,MELL,41,16,0.267,404,129,35,1529,0,0,2048,0.000,0.010,auto,30,0.008,1073741824,15,,15,12231,,,,,,0,0,1048576
+family,counter,16,0,counter/16,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,16,0,counter/16,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,16,0,counter/16,classical,horn,1,,60,0,4,provable,proved,,ok,horn,MELL,41,16,0.036,15,0,15,0,0,0,2048,0.000,0.000,auto,30,0.008,1073741824,0,,0,15,,,,,,0,0,1048576
+family,counter,16,0,counter/16,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,16,0,counter/16,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,16,0,counter/16,classical,inverse,1,,60,0,4,provable,proved,,ok,inverse,MELL,41,16,15970.750,16752,1794500,29622,0,0,0,2048,15920.000,17.040,auto,30,0.028,1073741824,0,,0,4890624142,,,,,,0,0,1048576
+family,counter,32,0,counter/32,classical,auto,1,,60,0,5,provable,proved,,ok,horn,MELL,63,32,0.059,31,0,31,0,0,0,2048,0.000,0.000,auto,30,0.013,1073741824,0,,0,32,,,,,,0,0,1048576
+family,counter,32,0,counter/32,classical,focus,1,,60,0,5,provable,proved,,ok,focus,MELL,63,32,3.013,11767,9291,470,109014,0,0,2048,0.000,0.639,auto,30,0.013,1073741824,5,,26,361976,,,,,,0,0,1048576
+family,counter,32,0,counter/32,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,32,0,counter/32,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,32,0,counter/32,classical,horn,1,,60,0,5,provable,proved,,ok,horn,MELL,63,32,0.044,31,0,31,0,0,0,2048,0.000,0.000,auto,30,0.012,1073741824,0,,0,32,,,,,,0,0,1048576
+family,counter,32,0,counter/32,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,32,0,counter/32,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,32,0,counter/32,classical,inverse,1,,60,0,5,provable,unknown,timeout,,inverse,MELL,63,32,60109.573,17563,43518404,1258101,0,0,0,2048,59930.000,86.608,auto,30,,1073741824,0,,0,8711822082,,,,,,0,0,1048576
+family,counter,64,0,counter/64,classical,auto,1,,60,0,6,provable,proved,,ok,horn,MELL,101,64,0.070,63,0,63,0,0,0,2048,0.000,0.000,auto,30,0.026,1073741824,0,,0,67,,,,,,0,0,1048576
+family,counter,64,0,counter/64,classical,focus,1,,60,0,6,provable,proved,,ok,focus,MELL,101,64,15.083,50991,45793,1127,999441,0,0,2048,10.000,2.768,auto,30,0.029,1073741824,6,,30,2139403,,,,,,0,0,1048576
+family,counter,64,0,counter/64,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,64,0,counter/64,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,64,0,counter/64,classical,horn,1,,60,0,6,provable,proved,,ok,horn,MELL,101,64,0.064,63,0,63,0,0,0,2048,0.000,0.000,auto,30,0.022,1073741824,0,,0,67,,,,,,0,0,1048576
+family,counter,64,0,counter/64,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,64,0,counter/64,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,64,0,counter/64,classical,inverse,1,,60,0,,,skipped,past the limit at size 32,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,128,0,counter/128,classical,auto,1,,60,0,7,provable,proved,,ok,horn,MELL,171,128,0.075,127,0,127,0,0,0,2048,0.000,0.000,auto,30,0.035,1073741824,0,,0,134,,,,,,0,0,1048576
+family,counter,128,0,counter/128,classical,focus,1,,60,0,7,provable,proved,,ok,focus,MELL,171,128,97.537,234644,227200,2084,9952701,0,0,2048,90.000,1.879,auto,30,0.050,1073741824,7,,30,14891235,,,,,,0,0,1048576
+family,counter,128,0,counter/128,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,128,0,counter/128,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,128,0,counter/128,classical,horn,1,,60,0,7,provable,proved,,ok,horn,MELL,171,128,0.077,127,0,127,0,0,0,2048,0.000,0.000,auto,30,0.033,1073741824,0,,0,134,,,,,,0,0,1048576
+family,counter,128,0,counter/128,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,128,0,counter/128,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,128,0,counter/128,classical,inverse,1,,60,0,,,skipped,past the limit at size 32,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,256,0,counter/256,classical,auto,1,,60,0,8,provable,proved,,ok,horn,MELL,305,256,0.098,255,0,255,0,0,0,2048,0.000,0.000,auto,30,0.059,1073741824,0,,0,263,,,,,,0,0,1048576
+family,counter,256,0,counter/256,classical,focus,1,,60,0,8,provable,proved,,ok,focus,MELL,305,256,828.478,1168986,1155903,4257,100318732,0,0,2048,820.000,7.288,auto,30,0.086,1073741824,8,,30,124429989,,,,,,0,0,1048576
+family,counter,256,0,counter/256,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,256,0,counter/256,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,256,0,counter/256,classical,horn,1,,60,0,8,provable,proved,,ok,horn,MELL,305,256,0.113,255,0,255,0,0,0,2048,0.000,0.000,auto,30,0.059,1073741824,0,,0,263,,,,,,0,0,1048576
+family,counter,256,0,counter/256,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,256,0,counter/256,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,256,0,counter/256,classical,inverse,1,,60,0,,,skipped,past the limit at size 32,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,1024,0,counter/1024,classical,auto,1,,60,0,10,provable,proved,,ok,horn,MELL,1085,1024,0.283,1023,0,1023,0,0,0,2048,0.000,0.000,auto,30,0.222,1073741824,0,,0,1033,,,,,,0,0,1048576
+family,counter,1024,0,counter/1024,classical,focus,1,,60,0,10,provable,unknown,timeout,,focus,MELL,1085,1024,60002.001,22386743,22338120,9513,7493444989,0,0,2048,59790.000,177.568,auto,30,,1073741824,9,,30,8115610631,,,,,,0,0,1048576
+family,counter,1024,0,counter/1024,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,1024,0,counter/1024,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,1024,0,counter/1024,classical,horn,1,,60,0,10,provable,proved,,ok,horn,MELL,1085,1024,0.283,1023,0,1023,0,0,0,2048,0.000,0.000,auto,30,0.228,1073741824,0,,0,1033,,,,,,0,0,1048576
+family,counter,1024,0,counter/1024,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,1024,0,counter/1024,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,1024,0,counter/1024,classical,inverse,1,,60,0,,,skipped,past the limit at size 32,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,4096,0,counter/4096,classical,auto,1,,60,0,12,provable,proved,,ok,horn,MELL,4169,4096,0.982,4095,0,4095,0,0,0,2048,0.000,0.000,auto,30,0.932,1073741824,0,,0,4107,,,,,,0,0,1048576
+family,counter,4096,0,counter/4096,classical,focus,1,,60,0,,,skipped,past the limit at size 1024,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,4096,0,counter/4096,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,4096,0,counter/4096,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,4096,0,counter/4096,classical,horn,1,,60,0,12,provable,proved,,ok,horn,MELL,4169,4096,1.008,4095,0,4095,0,0,0,2048,0.000,0.020,auto,30,0.902,1073741824,0,,0,4107,,,,,,0,0,1048576
+family,counter,4096,0,counter/4096,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,4096,0,counter/4096,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,4096,0,counter/4096,classical,inverse,1,,60,0,,,skipped,past the limit at size 32,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,16384,0,counter/16384,classical,auto,1,,60,0,14,provable,proved,,ok,horn,MELL,16469,16384,4.259,16383,0,16383,0,0,0,2048,0.000,0.026,auto,30,3.803,1073741824,0,,0,16397,,,,,,0,0,1048576
+family,counter,16384,0,counter/16384,classical,focus,1,,60,0,,,skipped,past the limit at size 1024,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,16384,0,counter/16384,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,16384,0,counter/16384,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,16384,0,counter/16384,classical,horn,1,,60,0,14,provable,proved,,ok,horn,MELL,16469,16384,4.274,16383,0,16383,0,0,0,2048,0.000,0.016,auto,30,3.926,1073741824,0,,0,16397,,,,,,0,0,1048576
+family,counter,16384,0,counter/16384,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,16384,0,counter/16384,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,16384,0,counter/16384,classical,inverse,1,,60,0,,,skipped,past the limit at size 32,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,65536,0,counter/65536,classical,auto,1,,60,0,16,provable,proved,,ok,horn,MELL,65633,65536,21.417,78958,8745,70213,0,0,0,2048,20.000,0.043,auto,30,15.614,1073741824,0,,0,78973,,,,,,0,0,1048576
+family,counter,65536,0,counter/65536,classical,focus,1,,60,0,,,skipped,past the limit at size 1024,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,65536,0,counter/65536,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,65536,0,counter/65536,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,65536,0,counter/65536,classical,horn,1,,60,0,16,provable,proved,,ok,horn,MELL,65633,65536,21.345,78958,8745,70213,0,0,0,2048,20.000,0.050,auto,30,15.323,1073741824,0,,0,78973,,,,,,0,0,1048576
+family,counter,65536,0,counter/65536,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,65536,0,counter/65536,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,65536,0,counter/65536,classical,inverse,1,,60,0,,,skipped,past the limit at size 32,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,262144,0,counter/262144,classical,auto,1,,60,0,18,provable,proved,,ok,horn,MELL,262253,262144,90.957,316058,37498,278560,0,0,0,2048,100.000,0.118,auto,30,65.439,1073741824,0,,0,316075,,,,,,0,0,1048576
+family,counter,262144,0,counter/262144,classical,focus,1,,60,0,,,skipped,past the limit at size 1024,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,262144,0,counter/262144,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,262144,0,counter/262144,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,262144,0,counter/262144,classical,horn,1,,60,0,18,provable,proved,,ok,horn,MELL,262253,262144,92.158,316058,37498,278560,0,0,0,2048,90.000,0.121,auto,30,64.681,1073741824,0,,0,316075,,,,,,0,0,1048576
+family,counter,262144,0,counter/262144,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,262144,0,counter/262144,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,counter,262144,0,counter/262144,classical,inverse,1,,60,0,,,skipped,past the limit at size 32,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,8,0,lambek-fo/8#0,intuitionistic,auto,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,34,1,0.115,8,0,0,52,0,0,2048,0.000,0.000,auto,30,0.013,1073741824,0,,0,207,,,,,,9,8,1048576
+family,lambek-fo,8,0,lambek-fo/8#0,intuitionistic,focus,1,,60,0,3,provable,refused,the focus engine does not search in intuitionistic mode,,,,34,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,8,0,lambek-fo/8#0,intuitionistic,two-sided,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,34,1,0.105,8,0,0,52,0,0,2048,0.000,0.000,auto,30,0.012,1073741824,0,,0,207,,,,,,9,8,1048576
+family,lambek-fo,8,0,lambek-fo/8#0,intuitionistic,net,1,,60,0,3,provable,refused,proof nets exist for MLL without units only; not for MLL1,,,,34,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,8,0,lambek-fo/8#0,intuitionistic,horn,1,,60,0,3,provable,refused,the horn engine decides a Horn program only: atoms; implications between tensors of atoms; such implications under !; and one goal that is a tensor of atoms,,,,34,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,8,0,lambek-fo/8#0,intuitionistic,additive,1,,60,0,3,provable,refused,the additive engine decides a sequent of two additive-only formulas; not one of MLL1,,,,34,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,8,0,lambek-fo/8#0,intuitionistic,essential,1,,60,0,3,provable,refused,essential nets exist for IMLL without units only; not for MLL1,,,,34,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,8,0,lambek-fo/8#0,intuitionistic,inverse,1,,60,0,3,provable,refused,the inverse engine decides LL at most; not MLL1,,,,34,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,8,2,lambek-fo/8#2,intuitionistic,auto,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,34,1,0.141,8,0,0,416,0,0,2048,0.000,0.000,auto,30,0.014,1073741824,0,,0,207,,,,,,9,8,1048576
+family,lambek-fo,8,2,lambek-fo/8#2,intuitionistic,focus,1,,60,0,3,provable,refused,the focus engine does not search in intuitionistic mode,,,,34,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,8,2,lambek-fo/8#2,intuitionistic,two-sided,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,34,1,0.119,8,0,0,416,0,0,2048,0.000,0.000,auto,30,0.011,1073741824,0,,0,207,,,,,,9,8,1048576
+family,lambek-fo,8,2,lambek-fo/8#2,intuitionistic,net,1,,60,0,3,provable,refused,proof nets exist for MLL without units only; not for MLL1,,,,34,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,8,2,lambek-fo/8#2,intuitionistic,horn,1,,60,0,3,provable,refused,the horn engine decides a Horn program only: atoms; implications between tensors of atoms; such implications under !; and one goal that is a tensor of atoms,,,,34,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,8,2,lambek-fo/8#2,intuitionistic,additive,1,,60,0,3,provable,refused,the additive engine decides a sequent of two additive-only formulas; not one of MLL1,,,,34,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,8,2,lambek-fo/8#2,intuitionistic,essential,1,,60,0,3,provable,refused,essential nets exist for IMLL without units only; not for MLL1,,,,34,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,8,2,lambek-fo/8#2,intuitionistic,inverse,1,,60,0,3,provable,refused,the inverse engine decides LL at most; not MLL1,,,,34,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,8,4,lambek-fo/8#4,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,30,1,0.086,1,0,1,77,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,17,,,,,,1,1,1048576
+family,lambek-fo,8,4,lambek-fo/8#4,intuitionistic,focus,1,,60,0,3,unprovable,refused,the focus engine does not search in intuitionistic mode,,,,30,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,8,4,lambek-fo/8#4,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,30,1,0.067,1,0,1,77,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,17,,,,,,1,1,1048576
+family,lambek-fo,8,4,lambek-fo/8#4,intuitionistic,net,1,,60,0,3,unprovable,refused,proof nets exist for MLL without units only; not for MLL1,,,,30,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,8,4,lambek-fo/8#4,intuitionistic,horn,1,,60,0,3,unprovable,refused,the horn engine decides a Horn program only: atoms; implications between tensors of atoms; such implications under !; and one goal that is a tensor of atoms,,,,30,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,8,4,lambek-fo/8#4,intuitionistic,additive,1,,60,0,3,unprovable,refused,the additive engine decides a sequent of two additive-only formulas; not one of MLL1,,,,30,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,8,4,lambek-fo/8#4,intuitionistic,essential,1,,60,0,3,unprovable,refused,essential nets exist for IMLL without units only; not for MLL1,,,,30,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,8,4,lambek-fo/8#4,intuitionistic,inverse,1,,60,0,3,unprovable,refused,the inverse engine decides LL at most; not MLL1,,,,30,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,16,0,lambek-fo/16#0,intuitionistic,auto,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,66,1,0.152,16,0,0,168,0,0,2048,0.000,0.000,auto,30,0.017,1073741824,0,,0,534,,,,,,17,16,1048576
+family,lambek-fo,16,0,lambek-fo/16#0,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,16,0,lambek-fo/16#0,intuitionistic,two-sided,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,66,1,0.122,16,0,0,168,0,0,2048,0.000,0.000,auto,30,0.014,1073741824,0,,0,534,,,,,,17,16,1048576
+family,lambek-fo,16,0,lambek-fo/16#0,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,16,0,lambek-fo/16#0,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,16,0,lambek-fo/16#0,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,16,0,lambek-fo/16#0,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,16,0,lambek-fo/16#0,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,16,2,lambek-fo/16#2,intuitionistic,auto,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,66,1,0.242,16,0,0,3008,0,0,2048,0.000,0.000,auto,30,0.012,1073741824,0,,0,534,,,,,,17,16,1048576
+family,lambek-fo,16,2,lambek-fo/16#2,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,16,2,lambek-fo/16#2,intuitionistic,two-sided,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,66,1,0.235,16,0,0,3008,0,0,2048,0.000,0.000,auto,30,0.013,1073741824,0,,0,534,,,,,,17,16,1048576
+family,lambek-fo,16,2,lambek-fo/16#2,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,16,2,lambek-fo/16#2,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,16,2,lambek-fo/16#2,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,16,2,lambek-fo/16#2,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,16,2,lambek-fo/16#2,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,16,4,lambek-fo/16#4,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,62,1,0.084,1,0,1,285,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,17,,,,,,1,1,1048576
+family,lambek-fo,16,4,lambek-fo/16#4,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,16,4,lambek-fo/16#4,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,62,1,0.080,1,0,1,285,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,17,,,,,,1,1,1048576
+family,lambek-fo,16,4,lambek-fo/16#4,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,16,4,lambek-fo/16#4,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,16,4,lambek-fo/16#4,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,16,4,lambek-fo/16#4,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,16,4,lambek-fo/16#4,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,32,0,lambek-fo/32#0,intuitionistic,auto,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,130,1,0.219,32,0,0,592,0,0,2048,0.000,0.000,auto,30,0.020,1073741824,0,,0,1588,,,,,,33,32,1048576
+family,lambek-fo,32,0,lambek-fo/32#0,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,32,0,lambek-fo/32#0,intuitionistic,two-sided,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,130,1,0.209,32,0,0,592,0,0,2048,0.000,0.000,auto,30,0.022,1073741824,0,,0,1588,,,,,,33,32,1048576
+family,lambek-fo,32,0,lambek-fo/32#0,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,32,0,lambek-fo/32#0,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,32,0,lambek-fo/32#0,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,32,0,lambek-fo/32#0,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,32,0,lambek-fo/32#0,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,32,2,lambek-fo/32#2,intuitionistic,auto,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,130,1,1.127,32,0,0,22912,0,0,2048,0.000,0.028,auto,30,0.021,1073741824,0,,0,22068,,,,,,33,32,1048576
+family,lambek-fo,32,2,lambek-fo/32#2,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,32,2,lambek-fo/32#2,intuitionistic,two-sided,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,130,1,1.032,32,0,0,22912,0,0,2048,0.000,0.000,auto,30,0.020,1073741824,0,,0,22068,,,,,,33,32,1048576
+family,lambek-fo,32,2,lambek-fo/32#2,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,32,2,lambek-fo/32#2,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,32,2,lambek-fo/32#2,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,32,2,lambek-fo/32#2,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,32,2,lambek-fo/32#2,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,32,4,lambek-fo/32#4,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,126,1,0.165,1,0,1,1085,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,17,,,,,,1,1,1048576
+family,lambek-fo,32,4,lambek-fo/32#4,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,32,4,lambek-fo/32#4,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,126,1,0.159,1,0,1,1085,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,17,,,,,,1,1,1048576
+family,lambek-fo,32,4,lambek-fo/32#4,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,32,4,lambek-fo/32#4,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,32,4,lambek-fo/32#4,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,32,4,lambek-fo/32#4,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,32,4,lambek-fo/32#4,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,64,0,lambek-fo/64#0,intuitionistic,auto,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,258,1,0.496,64,0,0,2208,0,0,2048,0.000,0.000,auto,30,0.037,1073741824,0,,0,5274,,,,,,65,64,1048576
+family,lambek-fo,64,0,lambek-fo/64#0,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,64,0,lambek-fo/64#0,intuitionistic,two-sided,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,258,1,0.485,64,0,0,2208,0,0,2048,0.000,0.000,auto,30,0.038,1073741824,0,,0,5274,,,,,,65,64,1048576
+family,lambek-fo,64,0,lambek-fo/64#0,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,64,0,lambek-fo/64#0,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,64,0,lambek-fo/64#0,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,64,0,lambek-fo/64#0,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,64,0,lambek-fo/64#0,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,64,2,lambek-fo/64#2,intuitionistic,auto,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,258,1,6.805,64,0,0,178944,0,0,2048,0.000,0.031,auto,30,0.037,1073741824,0,,0,181402,,,,,,65,64,1048576
+family,lambek-fo,64,2,lambek-fo/64#2,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,64,2,lambek-fo/64#2,intuitionistic,two-sided,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,258,1,6.803,64,0,0,178944,0,0,2048,0.000,0.024,auto,30,0.038,1073741824,0,,0,181402,,,,,,65,64,1048576
+family,lambek-fo,64,2,lambek-fo/64#2,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,64,2,lambek-fo/64#2,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,64,2,lambek-fo/64#2,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,64,2,lambek-fo/64#2,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,64,2,lambek-fo/64#2,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,64,4,lambek-fo/64#4,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,254,1,0.413,1,0,1,4221,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,4320,,,,,,1,1,1048576
+family,lambek-fo,64,4,lambek-fo/64#4,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,64,4,lambek-fo/64#4,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,254,1,0.418,1,0,1,4221,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,4320,,,,,,1,1,1048576
+family,lambek-fo,64,4,lambek-fo/64#4,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,64,4,lambek-fo/64#4,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,64,4,lambek-fo/64#4,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,64,4,lambek-fo/64#4,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,64,4,lambek-fo/64#4,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,128,0,lambek-fo/128#0,intuitionistic,auto,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,514,1,1.328,128,0,0,8512,0,0,2048,0.000,0.012,auto,30,0.068,1073741824,0,,0,27723,,,,,,129,128,1048576
+family,lambek-fo,128,0,lambek-fo/128#0,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,128,0,lambek-fo/128#0,intuitionistic,two-sided,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,514,1,1.273,128,0,0,8512,0,0,2048,0.000,0.023,auto,30,0.069,1073741824,0,,0,27723,,,,,,129,128,1048576
+family,lambek-fo,128,0,lambek-fo/128#0,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,128,0,lambek-fo/128#0,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,128,0,lambek-fo/128#0,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,128,0,lambek-fo/128#0,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,128,0,lambek-fo/128#0,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,128,2,lambek-fo/128#2,intuitionistic,auto,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,514,1,53.026,128,0,0,1414656,0,0,2048,50.000,0.098,auto,30,0.074,1073741824,0,,0,1440779,,,,,,129,128,1048576
+family,lambek-fo,128,2,lambek-fo/128#2,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,128,2,lambek-fo/128#2,intuitionistic,two-sided,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,514,1,53.224,128,0,0,1414656,0,0,2048,50.000,0.095,auto,30,0.074,1073741824,0,,0,1440779,,,,,,129,128,1048576
+family,lambek-fo,128,2,lambek-fo/128#2,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,128,2,lambek-fo/128#2,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,128,2,lambek-fo/128#2,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,128,2,lambek-fo/128#2,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,128,2,lambek-fo/128#2,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,128,4,lambek-fo/128#4,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,510,1,1.548,1,0,1,16637,0,0,2048,0.000,0.024,auto,30,,1073741824,0,,0,17059,,,,,,1,1,1048576
+family,lambek-fo,128,4,lambek-fo/128#4,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,128,4,lambek-fo/128#4,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,510,1,1.423,1,0,1,16637,0,0,2048,0.000,0.023,auto,30,,1073741824,0,,0,17059,,,,,,1,1,1048576
+family,lambek-fo,128,4,lambek-fo/128#4,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,128,4,lambek-fo/128#4,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,128,4,lambek-fo/128#4,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,128,4,lambek-fo/128#4,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,128,4,lambek-fo/128#4,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,256,0,lambek-fo/256#0,intuitionistic,auto,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,1026,1,4.334,256,0,0,33408,0,0,2048,0.000,0.027,auto,30,0.131,1073741824,0,,0,109390,,,,,,257,256,1048576
+family,lambek-fo,256,0,lambek-fo/256#0,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,256,0,lambek-fo/256#0,intuitionistic,two-sided,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,1026,1,4.209,256,0,0,33408,0,0,2048,0.000,0.058,auto,30,0.142,1073741824,0,,0,109390,,,,,,257,256,1048576
+family,lambek-fo,256,0,lambek-fo/256#0,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,256,0,lambek-fo/256#0,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,256,0,lambek-fo/256#0,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,256,0,lambek-fo/256#0,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,256,0,lambek-fo/256#0,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,256,2,lambek-fo/256#2,intuitionistic,auto,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,1026,1,441.424,256,0,0,11250688,0,0,2048,440.000,0.548,auto,30,0.143,1073741824,0,,0,11389518,,,,,,257,256,1048576
+family,lambek-fo,256,2,lambek-fo/256#2,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,256,2,lambek-fo/256#2,intuitionistic,two-sided,1,,60,0,3,provable,proved,,ok,two-sided,IMLL1,1026,1,444.379,256,0,0,11250688,0,0,2048,440.000,0.435,auto,30,0.134,1073741824,0,,0,11389518,,,,,,257,256,1048576
+family,lambek-fo,256,2,lambek-fo/256#2,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,256,2,lambek-fo/256#2,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,256,2,lambek-fo/256#2,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,256,2,lambek-fo/256#2,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,256,2,lambek-fo/256#2,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,256,4,lambek-fo/256#4,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,1022,1,6.095,1,0,1,66045,0,0,2048,0.000,0.074,auto,30,,1073741824,0,,0,68128,,,,,,1,1,1048576
+family,lambek-fo,256,4,lambek-fo/256#4,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,256,4,lambek-fo/256#4,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,1022,1,5.617,1,0,1,66045,0,0,2048,0.000,0.027,auto,30,,1073741824,0,,0,68128,,,,,,1,1,1048576
+family,lambek-fo,256,4,lambek-fo/256#4,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,256,4,lambek-fo/256#4,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,256,4,lambek-fo/256#4,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,256,4,lambek-fo/256#4,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,256,4,lambek-fo/256#4,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,512,0,lambek-fo/512#0,intuitionistic,auto,1,,60,0,3,provable,unknown,recursion_limit,,two-sided,IMLL1,2050,1,13.404,410,0,0,126790,0,0,2048,0.000,0.046,auto,30,,1073741824,0,,0,419956,,,,,,409,409,1048576
+family,lambek-fo,512,0,lambek-fo/512#0,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,512,0,lambek-fo/512#0,intuitionistic,two-sided,1,,60,0,3,provable,unknown,recursion_limit,,two-sided,IMLL1,2050,1,13.279,410,0,0,126790,0,0,2048,10.000,0.046,auto,30,,1073741824,0,,0,419956,,,,,,409,409,1048576
+family,lambek-fo,512,0,lambek-fo/512#0,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,512,0,lambek-fo/512#0,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,512,0,lambek-fo/512#0,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,512,0,lambek-fo/512#0,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,512,0,lambek-fo/512#0,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,512,2,lambek-fo/512#2,intuitionistic,auto,1,,60,0,3,provable,unknown,recursion_limit,,two-sided,IMLL1,2050,1,3924.652,410,0,0,89002081,0,0,2048,3900.000,5.214,auto,30,,1073741824,0,,0,89801312,,,,,,409,409,1048576
+family,lambek-fo,512,2,lambek-fo/512#2,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,512,2,lambek-fo/512#2,intuitionistic,two-sided,1,,60,0,3,provable,unknown,recursion_limit,,two-sided,IMLL1,2050,1,3927.468,410,0,0,89002081,0,0,2048,3910.000,4.192,auto,30,,1073741824,0,,0,89801312,,,,,,409,409,1048576
+family,lambek-fo,512,2,lambek-fo/512#2,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,512,2,lambek-fo/512#2,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,512,2,lambek-fo/512#2,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,512,2,lambek-fo/512#2,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,512,2,lambek-fo/512#2,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,512,4,lambek-fo/512#4,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,2046,1,24.190,1,0,1,263165,0,0,2048,10.000,0.178,auto,30,,1073741824,0,,0,272742,,,,,,1,1,1048576
+family,lambek-fo,512,4,lambek-fo/512#4,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,512,4,lambek-fo/512#4,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,2046,1,23.815,1,0,1,263165,0,0,2048,10.000,0.093,auto,30,,1073741824,0,,0,272742,,,,,,1,1,1048576
+family,lambek-fo,512,4,lambek-fo/512#4,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,512,4,lambek-fo/512#4,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,512,4,lambek-fo/512#4,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,512,4,lambek-fo/512#4,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,512,4,lambek-fo/512#4,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,1024,0,lambek-fo/1024#0,intuitionistic,auto,1,,60,0,3,provable,unknown,recursion_limit,,two-sided,IMLL1,4098,1,31.853,410,0,0,336198,0,0,2048,30.000,0.081,auto,30,,1073741824,0,,0,1159046,,,,,,409,409,1048576
+family,lambek-fo,1024,0,lambek-fo/1024#0,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,1024,0,lambek-fo/1024#0,intuitionistic,two-sided,1,,60,0,3,provable,unknown,recursion_limit,,two-sided,IMLL1,4098,1,31.849,410,0,0,336198,0,0,2048,20.000,0.061,auto,30,,1073741824,0,,0,1159046,,,,,,409,409,1048576
+family,lambek-fo,1024,0,lambek-fo/1024#0,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,1024,0,lambek-fo/1024#0,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,1024,0,lambek-fo/1024#0,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,1024,0,lambek-fo/1024#0,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,1024,0,lambek-fo/1024#0,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,1024,2,lambek-fo/1024#2,intuitionistic,auto,1,,60,0,3,provable,unknown,recursion_limit,,two-sided,IMLL1,4098,1,29157.656,410,0,0,561426529,0,0,2048,29080.000,34.118,auto,30,,1073741824,0,,0,564929374,,,,,,409,409,1048576
+family,lambek-fo,1024,2,lambek-fo/1024#2,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,1024,2,lambek-fo/1024#2,intuitionistic,two-sided,1,,60,0,3,provable,unknown,recursion_limit,,two-sided,IMLL1,4098,1,29268.521,410,0,0,561426529,0,0,2048,29170.000,35.514,auto,30,,1073741824,0,,0,564929374,,,,,,409,409,1048576
+family,lambek-fo,1024,2,lambek-fo/1024#2,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,1024,2,lambek-fo/1024#2,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,1024,2,lambek-fo/1024#2,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,1024,2,lambek-fo/1024#2,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,1024,2,lambek-fo/1024#2,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,1024,4,lambek-fo/1024#4,intuitionistic,auto,1,,60,0,3,unprovable,unknown,recursion_limit,,two-sided,IMLL1,4094,1,73.141,1,0,0,1049598,0,0,2048,70.000,0.101,auto,30,,1073741824,0,,0,1090634,,,,,,0,0,1048576
+family,lambek-fo,1024,4,lambek-fo/1024#4,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,1024,4,lambek-fo/1024#4,intuitionistic,two-sided,1,,60,0,3,unprovable,unknown,recursion_limit,,two-sided,IMLL1,4094,1,72.640,1,0,0,1049598,0,0,2048,70.000,0.174,auto,30,,1073741824,0,,0,1090634,,,,,,0,0,1048576
+family,lambek-fo,1024,4,lambek-fo/1024#4,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,1024,4,lambek-fo/1024#4,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,1024,4,lambek-fo/1024#4,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,1024,4,lambek-fo/1024#4,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,1024,4,lambek-fo/1024#4,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,2048,0,lambek-fo/2048#0,intuitionistic,auto,1,,60,0,3,provable,unknown,recursion_limit,,two-sided,IMLL1,8194,1,67.619,410,0,0,755014,0,0,2048,70.000,0.095,auto,30,,1073741824,0,,0,2684349,,,,,,409,409,1048576
+family,lambek-fo,2048,0,lambek-fo/2048#0,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,2048,0,lambek-fo/2048#0,intuitionistic,two-sided,1,,60,0,3,provable,unknown,recursion_limit,,two-sided,IMLL1,8194,1,67.440,410,0,0,755014,0,0,2048,60.000,0.102,auto,30,,1073741824,0,,0,2684349,,,,,,409,409,1048576
+family,lambek-fo,2048,0,lambek-fo/2048#0,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,2048,0,lambek-fo/2048#0,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,2048,0,lambek-fo/2048#0,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,2048,0,lambek-fo/2048#0,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,2048,0,lambek-fo/2048#0,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,2048,2,lambek-fo/2048#2,intuitionistic,auto,1,,60,0,3,provable,unknown,timeout,,two-sided,IMLL1,8194,1,60002.898,115,0,0,910086144,0,0,2048,59820.000,68.439,auto,30,,1073741824,0,,0,914324859,,,,,,114,114,1048576
+family,lambek-fo,2048,2,lambek-fo/2048#2,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,2048,2,lambek-fo/2048#2,intuitionistic,two-sided,1,,60,0,3,provable,unknown,timeout,,two-sided,IMLL1,8194,1,60003.130,116,0,0,912023552,0,0,2048,59850.000,59.045,auto,30,,1073741824,0,,0,916275202,,,,,,115,115,1048576
+family,lambek-fo,2048,2,lambek-fo/2048#2,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,2048,2,lambek-fo/2048#2,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,2048,2,lambek-fo/2048#2,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,2048,2,lambek-fo/2048#2,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,2048,2,lambek-fo/2048#2,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,2048,4,lambek-fo/2048#4,intuitionistic,auto,1,,60,0,3,unprovable,unknown,recursion_limit,,two-sided,IMLL1,8190,1,198.480,1,0,0,3144702,0,0,2048,190.000,0.165,auto,30,,1073741824,0,,0,3194754,,,,,,0,0,1048576
+family,lambek-fo,2048,4,lambek-fo/2048#4,intuitionistic,focus,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,2048,4,lambek-fo/2048#4,intuitionistic,two-sided,1,,60,0,3,unprovable,unknown,recursion_limit,,two-sided,IMLL1,8190,1,193.934,1,0,0,3144702,0,0,2048,190.000,0.170,auto,30,,1073741824,0,,0,3194754,,,,,,0,0,1048576
+family,lambek-fo,2048,4,lambek-fo/2048#4,intuitionistic,net,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,2048,4,lambek-fo/2048#4,intuitionistic,horn,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,2048,4,lambek-fo/2048#4,intuitionistic,additive,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,2048,4,lambek-fo/2048#4,intuitionistic,essential,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,lambek-fo,2048,4,lambek-fo/2048#4,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 8,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,16,1,chain-fo/16#1,classical,auto,1,,60,0,16,unprovable,unknown,copy_bound,,focus,MELL1,7,1,0.391,153,0,17,952,0,0,2048,0.000,0.000,auto,30,,1073741824,16,,0,3427,,,,,,289,136,1048576
+family,chain-fo,16,1,chain-fo/16#1,classical,focus,1,,60,0,16,unprovable,unknown,copy_bound,,focus,MELL1,7,1,0.340,153,0,17,952,0,0,2048,0.000,0.000,auto,30,,1073741824,16,,0,3427,,,,,,289,136,1048576
+family,chain-fo,16,1,chain-fo/16#1,classical,two-sided,1,,60,0,16,unprovable,refused,the two-sided engine does not search in classical mode,,,,7,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,16,1,chain-fo/16#1,classical,net,1,,60,0,16,unprovable,refused,proof nets exist for MLL without units only; not for MELL1,,,,7,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,16,1,chain-fo/16#1,classical,horn,1,,60,0,16,unprovable,refused,the horn engine decides a Horn program only: atoms; implications between tensors of atoms; such implications under !; and one goal that is a tensor of atoms,,,,7,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,16,1,chain-fo/16#1,classical,additive,1,,60,0,16,unprovable,refused,the additive engine decides a sequent of two additive-only formulas; not one of MELL1,,,,7,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,16,1,chain-fo/16#1,classical,essential,1,,60,0,16,unprovable,refused,the essential engine does not search in classical mode,,,,7,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,16,1,chain-fo/16#1,classical,inverse,1,,60,0,16,unprovable,refused,the inverse engine decides LL at most; not MELL1,,,,7,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,32,1,chain-fo/32#1,classical,auto,1,,60,0,32,unprovable,unknown,copy_bound,,focus,MELL1,7,1,1.384,561,0,33,3696,0,0,2048,0.000,0.021,auto,30,,1073741824,32,,0,13602,,,,,,1089,528,1048576
+family,chain-fo,32,1,chain-fo/32#1,classical,focus,1,,60,0,32,unprovable,unknown,copy_bound,,focus,MELL1,7,1,1.330,561,0,33,3696,0,0,2048,0.000,0.000,auto,30,,1073741824,32,,0,13602,,,,,,1089,528,1048576
+family,chain-fo,32,1,chain-fo/32#1,classical,two-sided,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,32,1,chain-fo/32#1,classical,net,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,32,1,chain-fo/32#1,classical,horn,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,32,1,chain-fo/32#1,classical,additive,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,32,1,chain-fo/32#1,classical,essential,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,32,1,chain-fo/32#1,classical,inverse,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,64,1,chain-fo/64#1,classical,auto,1,,60,0,64,unprovable,unknown,copy_bound,,focus,MELL1,7,1,6.989,2145,0,65,14560,0,0,2048,0.000,0.076,auto,30,,1073741824,64,,0,72828,,,,,,4225,2080,1048576
+family,chain-fo,64,1,chain-fo/64#1,classical,focus,1,,60,0,64,unprovable,unknown,copy_bound,,focus,MELL1,7,1,7.016,2145,0,65,14560,0,0,2048,0.000,0.054,auto,30,,1073741824,64,,0,72828,,,,,,4225,2080,1048576
+family,chain-fo,64,1,chain-fo/64#1,classical,two-sided,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,64,1,chain-fo/64#1,classical,net,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,64,1,chain-fo/64#1,classical,horn,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,64,1,chain-fo/64#1,classical,additive,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,64,1,chain-fo/64#1,classical,essential,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,64,1,chain-fo/64#1,classical,inverse,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,128,1,chain-fo/128#1,classical,auto,1,,60,0,128,unprovable,unknown,copy_bound,,focus,MELL1,7,1,42.135,8385,0,129,57792,0,0,2048,40.000,0.051,auto,30,,1073741824,128,,0,361088,,,,,,16641,8256,1048576
+family,chain-fo,128,1,chain-fo/128#1,classical,focus,1,,60,0,128,unprovable,unknown,copy_bound,,focus,MELL1,7,1,42.354,8385,0,129,57792,0,0,2048,40.000,0.319,auto,30,,1073741824,128,,0,361088,,,,,,16641,8256,1048576
+family,chain-fo,128,1,chain-fo/128#1,classical,two-sided,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,128,1,chain-fo/128#1,classical,net,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,128,1,chain-fo/128#1,classical,horn,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,128,1,chain-fo/128#1,classical,additive,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,128,1,chain-fo/128#1,classical,essential,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,128,1,chain-fo/128#1,classical,inverse,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,256,1,chain-fo/256#1,classical,auto,1,,60,0,256,unprovable,unknown,copy_bound,,focus,MELL1,7,1,281.958,33153,0,257,230272,0,0,2048,280.000,0.243,auto,30,,1073741824,256,,0,1960240,,,,,,66049,32896,1048576
+family,chain-fo,256,1,chain-fo/256#1,classical,focus,1,,60,0,256,unprovable,unknown,copy_bound,,focus,MELL1,7,1,285.386,33153,0,257,230272,0,0,2048,280.000,0.262,auto,30,,1073741824,256,,0,1960240,,,,,,66049,32896,1048576
+family,chain-fo,256,1,chain-fo/256#1,classical,two-sided,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,256,1,chain-fo/256#1,classical,net,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,256,1,chain-fo/256#1,classical,horn,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,256,1,chain-fo/256#1,classical,additive,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,256,1,chain-fo/256#1,classical,essential,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,256,1,chain-fo/256#1,classical,inverse,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,384,1,chain-fo/384#1,classical,auto,1,,60,0,384,unprovable,unknown,copy_bound,,focus,MELL1,7,1,889.767,74305,0,385,517440,0,0,2048,880.000,1.517,auto,30,,1073741824,384,,0,5583782,,,,,,148225,73920,1048576
+family,chain-fo,384,1,chain-fo/384#1,classical,focus,1,,60,0,384,unprovable,unknown,copy_bound,,focus,MELL1,7,1,887.579,74305,0,385,517440,0,0,2048,880.000,0.978,auto,30,,1073741824,384,,0,5583782,,,,,,148225,73920,1048576
+family,chain-fo,384,1,chain-fo/384#1,classical,two-sided,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,384,1,chain-fo/384#1,classical,net,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,384,1,chain-fo/384#1,classical,horn,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,384,1,chain-fo/384#1,classical,additive,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,384,1,chain-fo/384#1,classical,essential,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,384,1,chain-fo/384#1,classical,inverse,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,512,1,chain-fo/512#1,classical,auto,1,,60,0,512,unprovable,unknown,recursion_limit,,focus,MELL1,7,1,1070.048,84665,0,410,588553,0,0,2048,1060.000,1.707,auto,30,,1073741824,410,,0,6619750,,,,,,168919,84254,1048576
+family,chain-fo,512,1,chain-fo/512#1,classical,focus,1,,60,0,512,unprovable,unknown,recursion_limit,,focus,MELL1,7,1,1065.017,84665,0,410,588553,0,0,2048,1060.000,1.213,auto,30,,1073741824,410,,0,6619750,,,,,,168919,84254,1048576
+family,chain-fo,512,1,chain-fo/512#1,classical,two-sided,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,512,1,chain-fo/512#1,classical,net,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,512,1,chain-fo/512#1,classical,horn,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,512,1,chain-fo/512#1,classical,additive,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,512,1,chain-fo/512#1,classical,essential,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,512,1,chain-fo/512#1,classical,inverse,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,1024,1,chain-fo/1024#1,classical,auto,1,,60,0,1024,unprovable,unknown,recursion_limit,,focus,MELL1,7,1,1066.235,84665,0,410,588553,0,0,2048,1060.000,1.657,auto,30,,1073741824,410,,0,6619750,,,,,,168919,84254,1048576
+family,chain-fo,1024,1,chain-fo/1024#1,classical,focus,1,,60,0,1024,unprovable,unknown,recursion_limit,,focus,MELL1,7,1,1060.073,84665,0,410,588553,0,0,2048,1050.000,1.149,auto,30,,1073741824,410,,0,6619750,,,,,,168919,84254,1048576
+family,chain-fo,1024,1,chain-fo/1024#1,classical,two-sided,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,1024,1,chain-fo/1024#1,classical,net,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,1024,1,chain-fo/1024#1,classical,horn,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,1024,1,chain-fo/1024#1,classical,additive,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,1024,1,chain-fo/1024#1,classical,essential,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,chain-fo,1024,1,chain-fo/1024#1,classical,inverse,1,,60,0,,,skipped,refused at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,2,1,witness-fo/2#1,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL1,8,1,0.062,3,0,3,15,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,57,,,,,,4,2,1048576
+family,witness-fo,2,1,witness-fo/2#1,intuitionistic,focus,1,,60,0,3,unprovable,refused,the focus engine does not search in intuitionistic mode,,,,8,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,2,1,witness-fo/2#1,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL1,8,1,0.065,3,0,3,15,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,57,,,,,,4,2,1048576
+family,witness-fo,2,1,witness-fo/2#1,intuitionistic,net,1,,60,0,3,unprovable,refused,proof nets exist for MLL without units only; not for MALL1,,,,8,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,2,1,witness-fo/2#1,intuitionistic,horn,1,,60,0,3,unprovable,refused,the horn engine decides a Horn program only: atoms; implications between tensors of atoms; such implications under !; and one goal that is a tensor of atoms,,,,8,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,2,1,witness-fo/2#1,intuitionistic,additive,1,,60,0,3,unprovable,refused,the additive engine decides a sequent of two additive-only formulas; not one of MALL1,,,,8,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,2,1,witness-fo/2#1,intuitionistic,essential,1,,60,0,3,unprovable,refused,essential nets exist for IMLL without units only; not for MALL1,,,,8,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,2,1,witness-fo/2#1,intuitionistic,inverse,1,,60,0,3,unprovable,refused,the inverse engine decides LL at most; not MALL1,,,,8,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,2,3,witness-fo/2#3,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,10,2,0.058,1,0,1,21,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,17,,,,,,4,2,1048576
+family,witness-fo,2,3,witness-fo/2#3,intuitionistic,focus,1,,60,0,3,unprovable,refused,the focus engine does not search in intuitionistic mode,,,,10,2,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,2,3,witness-fo/2#3,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,10,2,0.047,1,0,1,21,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,17,,,,,,4,2,1048576
+family,witness-fo,2,3,witness-fo/2#3,intuitionistic,net,1,,60,0,3,unprovable,refused,proof nets exist for MLL without units only; not for MLL1,,,,10,2,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,2,3,witness-fo/2#3,intuitionistic,horn,1,,60,0,3,unprovable,refused,the horn engine decides a Horn program only: atoms; implications between tensors of atoms; such implications under !; and one goal that is a tensor of atoms,,,,10,2,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,2,3,witness-fo/2#3,intuitionistic,additive,1,,60,0,3,unprovable,refused,the additive engine decides a sequent of two additive-only formulas; not one of MLL1,,,,10,2,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,2,3,witness-fo/2#3,intuitionistic,essential,1,,60,0,3,unprovable,refused,essential nets exist for IMLL without units only; not for MLL1,,,,10,2,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,2,3,witness-fo/2#3,intuitionistic,inverse,1,,60,0,3,unprovable,refused,the inverse engine decides LL at most; not MLL1,,,,10,2,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,4,1,witness-fo/4#1,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL1,12,1,0.065,5,0,5,25,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,97,,,,,,8,4,1048576
+family,witness-fo,4,1,witness-fo/4#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,4,1,witness-fo/4#1,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL1,12,1,0.054,5,0,5,25,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,97,,,,,,8,4,1048576
+family,witness-fo,4,1,witness-fo/4#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,4,1,witness-fo/4#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,4,1,witness-fo/4#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,4,1,witness-fo/4#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,4,1,witness-fo/4#1,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,4,3,witness-fo/4#3,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,18,4,0.070,1,0,1,357,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,17,,,,,,48,24,1048576
+family,witness-fo,4,3,witness-fo/4#3,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,4,3,witness-fo/4#3,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,18,4,0.070,1,0,1,357,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,17,,,,,,48,24,1048576
+family,witness-fo,4,3,witness-fo/4#3,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,4,3,witness-fo/4#3,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,4,3,witness-fo/4#3,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,4,3,witness-fo/4#3,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,4,3,witness-fo/4#3,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,6,1,witness-fo/6#1,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL1,16,1,0.052,7,0,7,35,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,137,,,,,,12,6,1048576
+family,witness-fo,6,1,witness-fo/6#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,6,1,witness-fo/6#1,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL1,16,1,0.052,7,0,7,35,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,137,,,,,,12,6,1048576
+family,witness-fo,6,1,witness-fo/6#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,6,1,witness-fo/6#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,6,1,witness-fo/6#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,6,1,witness-fo/6#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,6,1,witness-fo/6#1,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,6,3,witness-fo/6#3,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,26,6,0.583,1,0,1,11011,0,0,2048,0.000,0.017,auto,30,,1073741824,0,,0,8222,,,,,,1440,720,1048576
+family,witness-fo,6,3,witness-fo/6#3,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,6,3,witness-fo/6#3,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,26,6,0.541,1,0,1,11011,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,8222,,,,,,1440,720,1048576
+family,witness-fo,6,3,witness-fo/6#3,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,6,3,witness-fo/6#3,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,6,3,witness-fo/6#3,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,6,3,witness-fo/6#3,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,6,3,witness-fo/6#3,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,8,1,witness-fo/8#1,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL1,20,1,0.057,9,0,9,45,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,177,,,,,,16,8,1048576
+family,witness-fo,8,1,witness-fo/8#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,8,1,witness-fo/8#1,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL1,20,1,0.057,9,0,9,45,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,177,,,,,,16,8,1048576
+family,witness-fo,8,1,witness-fo/8#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,8,1,witness-fo/8#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,8,1,witness-fo/8#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,8,1,witness-fo/8#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,8,1,witness-fo/8#1,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,8,3,witness-fo/8#3,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,34,8,29.041,1,0,1,617273,0,0,2048,20.000,0.074,auto,30,,1073741824,0,,0,614433,,,,,,80640,40320,1048576
+family,witness-fo,8,3,witness-fo/8#3,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,8,3,witness-fo/8#3,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,34,8,29.152,1,0,1,617273,0,0,2048,20.000,0.065,auto,30,,1073741824,0,,0,614433,,,,,,80640,40320,1048576
+family,witness-fo,8,3,witness-fo/8#3,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,8,3,witness-fo/8#3,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,8,3,witness-fo/8#3,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,8,3,witness-fo/8#3,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,8,3,witness-fo/8#3,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,10,1,witness-fo/10#1,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL1,24,1,0.069,11,0,11,55,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,217,,,,,,20,10,1048576
+family,witness-fo,10,1,witness-fo/10#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,10,1,witness-fo/10#1,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL1,24,1,0.062,11,0,11,55,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,217,,,,,,20,10,1048576
+family,witness-fo,10,1,witness-fo/10#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,10,1,witness-fo/10#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,10,1,witness-fo/10#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,10,1,witness-fo/10#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,10,1,witness-fo/10#1,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,10,3,witness-fo/10#3,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,42,10,2696.755,1,0,1,55555791,0,0,2048,2690.000,3.653,auto,30,,1073741824,0,,0,55554084,,,,,,7257600,3628800,1048576
+family,witness-fo,10,3,witness-fo/10#3,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,10,3,witness-fo/10#3,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMLL1,42,10,2659.348,1,0,1,55555791,0,0,2048,2650.000,3.592,auto,30,,1073741824,0,,0,55554084,,,,,,7257600,3628800,1048576
+family,witness-fo,10,3,witness-fo/10#3,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,10,3,witness-fo/10#3,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,10,3,witness-fo/10#3,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,10,3,witness-fo/10#3,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,10,3,witness-fo/10#3,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,12,1,witness-fo/12#1,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL1,28,1,0.074,13,0,13,65,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,257,,,,,,24,12,1048576
+family,witness-fo,12,1,witness-fo/12#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,12,1,witness-fo/12#1,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL1,28,1,0.068,13,0,13,65,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,257,,,,,,24,12,1048576
+family,witness-fo,12,1,witness-fo/12#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,12,1,witness-fo/12#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,12,1,witness-fo/12#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,12,1,witness-fo/12#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,12,1,witness-fo/12#1,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,12,3,witness-fo/12#3,intuitionistic,auto,1,,60,0,3,unprovable,unknown,timeout,,two-sided,IMLL1,50,12,60001.236,1,0,0,1267818496,0,0,2048,59860.000,60.804,auto,30,,1073741824,0,,0,1267818535,,,,,,165622988,82811494,1048576
+family,witness-fo,12,3,witness-fo/12#3,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,12,3,witness-fo/12#3,intuitionistic,two-sided,1,,60,0,3,unprovable,unknown,timeout,,two-sided,IMLL1,50,12,60001.651,1,0,0,1229271040,0,0,2048,59830.000,64.254,auto,30,,1073741824,0,,0,1229271079,,,,,,160587288,80293644,1048576
+family,witness-fo,12,3,witness-fo/12#3,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,12,3,witness-fo/12#3,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,12,3,witness-fo/12#3,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,12,3,witness-fo/12#3,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,12,3,witness-fo/12#3,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,14,1,witness-fo/14#1,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL1,32,1,0.092,15,0,15,75,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,297,,,,,,28,14,1048576
+family,witness-fo,14,1,witness-fo/14#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,14,1,witness-fo/14#1,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL1,32,1,0.070,15,0,15,75,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,297,,,,,,28,14,1048576
+family,witness-fo,14,1,witness-fo/14#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,14,1,witness-fo/14#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,14,1,witness-fo/14#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,14,1,witness-fo/14#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,14,1,witness-fo/14#1,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,14,3,witness-fo/14#3,intuitionistic,auto,1,,60,0,,,skipped,past the limit at size 12,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,14,3,witness-fo/14#3,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,14,3,witness-fo/14#3,intuitionistic,two-sided,1,,60,0,,,skipped,past the limit at size 12,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,14,3,witness-fo/14#3,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,14,3,witness-fo/14#3,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,14,3,witness-fo/14#3,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,14,3,witness-fo/14#3,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,14,3,witness-fo/14#3,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,16,1,witness-fo/16#1,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL1,36,1,0.072,17,0,17,85,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,337,,,,,,32,16,1048576
+family,witness-fo,16,1,witness-fo/16#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,16,1,witness-fo/16#1,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL1,36,1,0.073,17,0,17,85,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,337,,,,,,32,16,1048576
+family,witness-fo,16,1,witness-fo/16#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,16,1,witness-fo/16#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,16,1,witness-fo/16#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,16,1,witness-fo/16#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,16,1,witness-fo/16#1,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,16,3,witness-fo/16#3,intuitionistic,auto,1,,60,0,,,skipped,past the limit at size 12,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,16,3,witness-fo/16#3,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,16,3,witness-fo/16#3,intuitionistic,two-sided,1,,60,0,,,skipped,past the limit at size 12,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,16,3,witness-fo/16#3,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,16,3,witness-fo/16#3,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,16,3,witness-fo/16#3,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,16,3,witness-fo/16#3,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,witness-fo,16,3,witness-fo/16#3,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,2,1,contraction/2#1,intuitionistic,auto,1,,60,0,3,unprovable,unknown,copy_bound,,two-sided,ILL,19,3,0.080,73,35,23,105,0,0,2048,0.000,0.000,auto,30,,1073741824,3,,0,1348,,,,,,0,0,1048576
+family,contraction,2,1,contraction/2#1,intuitionistic,focus,1,,60,0,3,unprovable,refused,the focus engine does not search in intuitionistic mode,,,,19,3,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,2,1,contraction/2#1,intuitionistic,two-sided,1,,60,0,3,unprovable,unknown,copy_bound,,two-sided,ILL,19,3,0.071,73,35,23,105,0,0,2048,0.000,0.000,auto,30,,1073741824,3,,0,1348,,,,,,0,0,1048576
+family,contraction,2,1,contraction/2#1,intuitionistic,net,1,,60,0,3,unprovable,refused,proof nets exist for MLL without units only; not for LL,,,,19,3,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,2,1,contraction/2#1,intuitionistic,horn,1,,60,0,3,unprovable,refused,the horn engine decides a Horn program only: atoms; implications between tensors of atoms; such implications under !; and one goal that is a tensor of atoms,,,,19,3,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,2,1,contraction/2#1,intuitionistic,additive,1,,60,0,3,unprovable,refused,the additive engine decides a sequent of two additive-only formulas; not one of LL,,,,19,3,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,2,1,contraction/2#1,intuitionistic,essential,1,,60,0,3,unprovable,refused,essential nets exist for IMLL without units only; not for LL,,,,19,3,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,2,1,contraction/2#1,intuitionistic,inverse,1,,60,0,3,unprovable,unprovable,,ok,inverse,ILL,19,3,0.055,6,0,6,0,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,275,,,,,,0,0,1048576
+family,contraction,4,1,contraction/4#1,intuitionistic,auto,1,,60,0,5,unprovable,unknown,copy_bound,,two-sided,ILL,31,5,0.502,3419,2727,407,5923,0,0,2048,0.000,0.000,auto,30,,1073741824,5,,0,63458,,,,,,0,0,1048576
+family,contraction,4,1,contraction/4#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,4,1,contraction/4#1,intuitionistic,two-sided,1,,60,0,5,unprovable,unknown,copy_bound,,two-sided,ILL,31,5,0.457,3419,2727,407,5923,0,0,2048,0.000,0.000,auto,30,,1073741824,5,,0,63458,,,,,,0,0,1048576
+family,contraction,4,1,contraction/4#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,4,1,contraction/4#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,4,1,contraction/4#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,4,1,contraction/4#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,4,1,contraction/4#1,intuitionistic,inverse,1,,60,0,5,unprovable,unprovable,,ok,inverse,ILL,31,5,0.084,40,25,40,0,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,3407,,,,,,0,0,1048576
+family,contraction,8,1,contraction/8#1,intuitionistic,auto,1,,60,0,9,unprovable,unprovable,,ok,inverse,ILL,55,9,78.973,1152,2889,1152,0,0,0,2048,70.000,0.122,auto,30,,1073741824,0,,0,17076916,,,,,,0,0,1048576
+family,contraction,8,1,contraction/8#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,8,1,contraction/8#1,intuitionistic,two-sided,1,,60,0,9,unprovable,unknown,copy_bound,,two-sided,ILL,55,9,570.500,7014991,6784751,127271,15153429,0,0,2048,560.000,0.701,auto,30,,1073741824,9,,0,129525146,,,,,,0,0,1048576
+family,contraction,8,1,contraction/8#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,8,1,contraction/8#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,8,1,contraction/8#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,8,1,contraction/8#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,8,1,contraction/8#1,intuitionistic,inverse,1,,60,0,9,unprovable,unprovable,,ok,inverse,ILL,55,9,2.200,1152,2889,1152,0,0,0,2048,0.000,0.025,auto,30,,1073741824,0,,0,299693,,,,,,0,0,1048576
+family,contraction,16,1,contraction/16#1,intuitionistic,auto,1,,60,0,17,unprovable,unknown,timeout,,two-sided,ILL,103,17,60038.130,704184878,683266535,1048576,1376032714,0,0,2048,59860.000,76.721,auto,30,,1073741824,8,,0,13384596868,,,,,,0,0,1048576
+family,contraction,16,1,contraction/16#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,16,1,contraction/16#1,intuitionistic,two-sided,1,,60,0,17,unprovable,unknown,timeout,,two-sided,ILL,103,17,60038.396,742599563,720980209,1048576,1454760412,0,0,2048,59860.000,72.232,auto,30,,1073741824,8,,0,13548683673,,,,,,0,0,1048576
+family,contraction,16,1,contraction/16#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,16,1,contraction/16#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,16,1,contraction/16#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,16,1,contraction/16#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,16,1,contraction/16#1,intuitionistic,inverse,1,,60,0,17,unprovable,unprovable,,ok,inverse,ILL,103,17,3337.807,557056,3620881,557056,0,0,0,2048,3320.000,5.889,auto,30,,1073741824,0,,0,635496017,,,,,,0,0,1048576
+family,contraction,32,1,contraction/32#1,intuitionistic,auto,1,,60,0,,,skipped,past the limit at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,32,1,contraction/32#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,32,1,contraction/32#1,intuitionistic,two-sided,1,,60,0,,,skipped,past the limit at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,32,1,contraction/32#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,32,1,contraction/32#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,32,1,contraction/32#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,32,1,contraction/32#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,32,1,contraction/32#1,intuitionistic,inverse,1,,60,0,33,unprovable,unknown,memory_limit,,inverse,ILL,199,33,32096.990,3610786,26005023,3611198,0,0,0,2048,31990.000,50.535,auto,30,,1073741824,0,,0,5008015893,,,,,,0,0,1048576
+family,contraction,64,1,contraction/64#1,intuitionistic,auto,1,,60,0,,,skipped,past the limit at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,64,1,contraction/64#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,64,1,contraction/64#1,intuitionistic,two-sided,1,,60,0,,,skipped,past the limit at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,64,1,contraction/64#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,64,1,contraction/64#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,64,1,contraction/64#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,64,1,contraction/64#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,64,1,contraction/64#1,intuitionistic,inverse,1,,60,0,,,skipped,past the limit at size 32,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,128,1,contraction/128#1,intuitionistic,auto,1,,60,0,,,skipped,past the limit at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,128,1,contraction/128#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,128,1,contraction/128#1,intuitionistic,two-sided,1,,60,0,,,skipped,past the limit at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,128,1,contraction/128#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,128,1,contraction/128#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,128,1,contraction/128#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,128,1,contraction/128#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,128,1,contraction/128#1,intuitionistic,inverse,1,,60,0,,,skipped,past the limit at size 32,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,256,1,contraction/256#1,intuitionistic,auto,1,,60,0,,,skipped,past the limit at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,256,1,contraction/256#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,256,1,contraction/256#1,intuitionistic,two-sided,1,,60,0,,,skipped,past the limit at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,256,1,contraction/256#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,256,1,contraction/256#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,256,1,contraction/256#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,256,1,contraction/256#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,256,1,contraction/256#1,intuitionistic,inverse,1,,60,0,,,skipped,past the limit at size 32,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,512,1,contraction/512#1,intuitionistic,auto,1,,60,0,,,skipped,past the limit at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,512,1,contraction/512#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,512,1,contraction/512#1,intuitionistic,two-sided,1,,60,0,,,skipped,past the limit at size 16,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,512,1,contraction/512#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,512,1,contraction/512#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,512,1,contraction/512#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,512,1,contraction/512#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,contraction,512,1,contraction/512#1,intuitionistic,inverse,1,,60,0,,,skipped,past the limit at size 32,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,2,1,pigeonhole/2#1,intuitionistic-affine,auto,1,,60,0,3,unprovable,unprovable,,ok,two-sided,IMALL,13,1,0.058,2,0,2,20,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,37,,,,,,0,0,1048576
+family,pigeonhole,2,1,pigeonhole/2#1,intuitionistic-affine,focus,1,,60,0,3,unprovable,refused,the focus engine does not search in intuitionistic affine mode,,,,13,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,2,1,pigeonhole/2#1,intuitionistic-affine,two-sided,1,,60,0,3,unprovable,unprovable,,ok,two-sided,IMALL,13,1,0.038,2,0,2,20,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,37,,,,,,0,0,1048576
+family,pigeonhole,2,1,pigeonhole/2#1,intuitionistic-affine,net,1,,60,0,3,unprovable,refused,proof nets exist for MLL without units only; not for MALL,,,,13,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,2,1,pigeonhole/2#1,intuitionistic-affine,horn,1,,60,0,3,unprovable,refused,the horn engine decides a Horn program only: atoms; implications between tensors of atoms; such implications under !; and one goal that is a tensor of atoms,,,,13,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,2,1,pigeonhole/2#1,intuitionistic-affine,additive,1,,60,0,3,unprovable,refused,the additive engine decides a sequent of two additive-only formulas; not one of MALL,,,,13,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,2,1,pigeonhole/2#1,intuitionistic-affine,essential,1,,60,0,3,unprovable,refused,the essential engine does not search in intuitionistic affine mode,,,,13,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,2,1,pigeonhole/2#1,intuitionistic-affine,inverse,1,,60,0,3,unprovable,unprovable,,ok,inverse,IMALL,13,1,0.058,2,0,2,0,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,82,,,,,,0,0,1048576
+family,pigeonhole,3,1,pigeonhole/3#1,intuitionistic-affine,auto,1,,60,0,3,unprovable,unprovable,,ok,two-sided,IMALL,50,2,0.080,178,80,98,276,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,3117,,,,,,0,0,1048576
+family,pigeonhole,3,1,pigeonhole/3#1,intuitionistic-affine,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,3,1,pigeonhole/3#1,intuitionistic-affine,two-sided,1,,60,0,3,unprovable,unprovable,,ok,two-sided,IMALL,50,2,0.075,178,80,98,276,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,3117,,,,,,0,0,1048576
+family,pigeonhole,3,1,pigeonhole/3#1,intuitionistic-affine,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,3,1,pigeonhole/3#1,intuitionistic-affine,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,3,1,pigeonhole/3#1,intuitionistic-affine,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,3,1,pigeonhole/3#1,intuitionistic-affine,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,3,1,pigeonhole/3#1,intuitionistic-affine,inverse,1,,60,0,3,unprovable,unprovable,,ok,inverse,IMALL,50,2,0.061,9,0,9,0,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,743,,,,,,0,0,1048576
+family,pigeonhole,4,1,pigeonhole/4#1,intuitionistic-affine,auto,1,,60,0,3,unprovable,unprovable,,ok,two-sided,IMALL,123,3,0.297,1908,1290,618,3162,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,32683,,,,,,0,0,1048576
+family,pigeonhole,4,1,pigeonhole/4#1,intuitionistic-affine,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,4,1,pigeonhole/4#1,intuitionistic-affine,two-sided,1,,60,0,3,unprovable,unprovable,,ok,two-sided,IMALL,123,3,0.273,1908,1290,618,3162,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,32683,,,,,,0,0,1048576
+family,pigeonhole,4,1,pigeonhole/4#1,intuitionistic-affine,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,4,1,pigeonhole/4#1,intuitionistic-affine,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,4,1,pigeonhole/4#1,intuitionistic-affine,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,4,1,pigeonhole/4#1,intuitionistic-affine,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,4,1,pigeonhole/4#1,intuitionistic-affine,inverse,1,,60,0,3,unprovable,unprovable,,ok,inverse,IMALL,123,3,0.129,24,0,24,0,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,7264,,,,,,0,0,1048576
+family,pigeonhole,5,1,pigeonhole/5#1,intuitionistic-affine,auto,1,,60,0,3,unprovable,unprovable,,ok,two-sided,IMALL,244,4,2.585,25369,20867,4502,43242,0,0,2048,0.000,0.050,auto,30,,1073741824,0,,0,491913,,,,,,0,0,1048576
+family,pigeonhole,5,1,pigeonhole/5#1,intuitionistic-affine,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,5,1,pigeonhole/5#1,intuitionistic-affine,two-sided,1,,60,0,3,unprovable,unprovable,,ok,two-sided,IMALL,244,4,2.396,25369,20867,4502,43242,0,0,2048,0.000,0.039,auto,30,,1073741824,0,,0,491913,,,,,,0,0,1048576
+family,pigeonhole,5,1,pigeonhole/5#1,intuitionistic-affine,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,5,1,pigeonhole/5#1,intuitionistic-affine,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,5,1,pigeonhole/5#1,intuitionistic-affine,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,5,1,pigeonhole/5#1,intuitionistic-affine,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,5,1,pigeonhole/5#1,intuitionistic-affine,inverse,1,,60,0,3,unprovable,unprovable,,ok,inverse,IMALL,244,4,4.799,82,0,82,0,0,0,2048,0.000,0.024,auto,30,,1073741824,0,,0,783770,,,,,,0,0,1048576
+family,pigeonhole,6,1,pigeonhole/6#1,intuitionistic-affine,auto,1,,60,0,3,unprovable,unprovable,,ok,two-sided,IMALL,425,5,39.874,461774,419513,42261,800141,0,0,2048,30.000,0.071,auto,30,,1073741824,0,,0,9799722,,,,,,0,0,1048576
+family,pigeonhole,6,1,pigeonhole/6#1,intuitionistic-affine,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,6,1,pigeonhole/6#1,intuitionistic-affine,two-sided,1,,60,0,3,unprovable,unprovable,,ok,two-sided,IMALL,425,5,39.747,461774,419513,42261,800141,0,0,2048,30.000,0.092,auto,30,,1073741824,0,,0,9799722,,,,,,0,0,1048576
+family,pigeonhole,6,1,pigeonhole/6#1,intuitionistic-affine,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,6,1,pigeonhole/6#1,intuitionistic-affine,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,6,1,pigeonhole/6#1,intuitionistic-affine,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,6,1,pigeonhole/6#1,intuitionistic-affine,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,6,1,pigeonhole/6#1,intuitionistic-affine,inverse,1,,60,0,3,unprovable,unprovable,,ok,inverse,IMALL,425,5,98.199,200,0,200,0,0,0,2048,90.000,0.100,auto,30,,1073741824,0,,0,20610130,,,,,,0,0,1048576
+family,pigeonhole,7,1,pigeonhole/7#1,intuitionistic-affine,auto,1,,60,0,3,unprovable,unprovable,,ok,two-sided,IMALL,678,6,969.410,11169444,10657535,511909,19589611,0,0,2048,960.000,1.171,auto,30,,1073741824,0,,0,267202090,,,,,,0,0,1048576
+family,pigeonhole,7,1,pigeonhole/7#1,intuitionistic-affine,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,7,1,pigeonhole/7#1,intuitionistic-affine,two-sided,1,,60,0,3,unprovable,unprovable,,ok,two-sided,IMALL,678,6,965.008,11169444,10657535,511909,19589611,0,0,2048,950.000,1.653,auto,30,,1073741824,0,,0,267202090,,,,,,0,0,1048576
+family,pigeonhole,7,1,pigeonhole/7#1,intuitionistic-affine,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,7,1,pigeonhole/7#1,intuitionistic-affine,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,7,1,pigeonhole/7#1,intuitionistic-affine,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,7,1,pigeonhole/7#1,intuitionistic-affine,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,7,1,pigeonhole/7#1,intuitionistic-affine,inverse,1,,60,0,3,unprovable,unprovable,,ok,inverse,IMALL,678,6,1178.817,369,0,369,0,0,0,2048,1160.000,1.461,auto,30,,1073741824,0,,0,378472730,,,,,,0,0,1048576
+family,pigeonhole,8,1,pigeonhole/8#1,intuitionistic-affine,auto,1,,60,0,3,unprovable,unknown,memory_limit,,two-sided,IMALL,1015,7,4386.801,34757500,32989526,864045,69832991,0,0,2048,4370.000,4.999,auto,30,,1073741824,0,,0,918289106,,,,,,0,0,1048576
+family,pigeonhole,8,1,pigeonhole/8#1,intuitionistic-affine,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,8,1,pigeonhole/8#1,intuitionistic-affine,two-sided,1,,60,0,3,unprovable,unknown,memory_limit,,two-sided,IMALL,1015,7,4400.819,34757500,32989526,864045,69832991,0,0,2048,4380.000,6.230,auto,30,,1073741824,0,,0,918289106,,,,,,0,0,1048576
+family,pigeonhole,8,1,pigeonhole/8#1,intuitionistic-affine,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,8,1,pigeonhole/8#1,intuitionistic-affine,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,8,1,pigeonhole/8#1,intuitionistic-affine,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,8,1,pigeonhole/8#1,intuitionistic-affine,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,pigeonhole,8,1,pigeonhole/8#1,intuitionistic-affine,inverse,1,,60,0,3,unprovable,unprovable,,ok,inverse,IMALL,1015,7,757.951,0,0,0,0,0,0,2048,750.000,0.823,auto,30,,1073741824,0,,0,12808192,,,,,,0,0,1048576
+family,euler,5,1,euler/5#1,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL,65,5,0.175,273,118,155,1290,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,5371,,,,,,0,0,1048576
+family,euler,5,1,euler/5#1,intuitionistic,focus,1,,60,0,3,unprovable,refused,the focus engine does not search in intuitionistic mode,,,,65,5,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,5,1,euler/5#1,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL,65,5,0.155,273,118,155,1290,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,5371,,,,,,0,0,1048576
+family,euler,5,1,euler/5#1,intuitionistic,net,1,,60,0,3,unprovable,refused,proof nets exist for MLL without units only; not for MALL,,,,65,5,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,5,1,euler/5#1,intuitionistic,horn,1,,60,0,3,unprovable,refused,the horn engine decides a Horn program only: atoms; implications between tensors of atoms; such implications under !; and one goal that is a tensor of atoms,,,,65,5,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,5,1,euler/5#1,intuitionistic,additive,1,,60,0,3,unprovable,refused,the additive engine decides a sequent of two additive-only formulas; not one of MALL,,,,65,5,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,5,1,euler/5#1,intuitionistic,essential,1,,60,0,3,unprovable,refused,essential nets exist for IMLL without units only; not for MALL,,,,65,5,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,5,1,euler/5#1,intuitionistic,inverse,1,,60,0,3,unprovable,unprovable,,ok,inverse,IMALL,65,5,0.403,301,138,301,0,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,43074,,,,,,0,0,1048576
+family,euler,6,1,euler/6#1,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL,79,5,0.314,645,282,363,3694,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,13021,,,,,,0,0,1048576
+family,euler,6,1,euler/6#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,6,1,euler/6#1,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL,79,5,0.318,645,282,363,3694,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,13021,,,,,,0,0,1048576
+family,euler,6,1,euler/6#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,6,1,euler/6#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,6,1,euler/6#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,6,1,euler/6#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,6,1,euler/6#1,intuitionistic,inverse,1,,60,0,3,unprovable,unprovable,,ok,inverse,IMALL,79,5,0.877,699,320,699,0,0,0,2048,0.000,0.000,auto,30,,1073741824,0,,0,116228,,,,,,0,0,1048576
+family,euler,8,1,euler/8#1,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL,107,5,1.644,3353,1493,1860,25944,0,0,2048,0.000,0.014,auto,30,,1073741824,0,,0,71094,,,,,,0,0,1048576
+family,euler,8,1,euler/8#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,8,1,euler/8#1,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL,107,5,1.603,3353,1493,1860,25944,0,0,2048,0.000,0.023,auto,30,,1073741824,0,,0,71094,,,,,,0,0,1048576
+family,euler,8,1,euler/8#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,8,1,euler/8#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,8,1,euler/8#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,8,1,euler/8#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,8,1,euler/8#1,intuitionistic,inverse,1,,60,0,3,unprovable,unprovable,,ok,inverse,IMALL,107,5,4.913,3555,1624,3555,0,0,0,2048,0.000,0.035,auto,30,,1073741824,0,,0,753262,,,,,,0,0,1048576
+family,euler,10,1,euler/10#1,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL,135,5,8.680,15885,7129,8756,155298,0,0,2048,0.000,0.030,auto,30,,1073741824,0,,0,368970,,,,,,0,0,1048576
+family,euler,10,1,euler/10#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,10,1,euler/10#1,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL,135,5,8.738,15885,7129,8756,155298,0,0,2048,0.000,0.031,auto,30,,1073741824,0,,0,368970,,,,,,0,0,1048576
+family,euler,10,1,euler/10#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,10,1,euler/10#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,10,1,euler/10#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,10,1,euler/10#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,10,1,euler/10#1,intuitionistic,inverse,1,,60,0,3,unprovable,unprovable,,ok,inverse,IMALL,135,5,25.786,16621,7576,16621,0,0,0,2048,20.000,0.044,auto,30,,1073741824,0,,0,4276434,,,,,,0,0,1048576
+family,euler,12,1,euler/12#1,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL,163,5,45.060,71227,32086,39141,843034,0,0,2048,40.000,0.060,auto,30,,1073741824,0,,0,1727870,,,,,,0,0,1048576
+family,euler,12,1,euler/12#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,12,1,euler/12#1,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL,163,5,45.108,71227,32086,39141,843034,0,0,2048,40.000,0.065,auto,30,,1073741824,0,,0,1727870,,,,,,0,0,1048576
+family,euler,12,1,euler/12#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,12,1,euler/12#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,12,1,euler/12#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,12,1,euler/12#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,12,1,euler/12#1,intuitionistic,inverse,1,,60,0,3,unprovable,unprovable,,ok,inverse,IMALL,163,5,137.802,73905,33676,73905,0,0,0,2048,130.000,0.265,auto,30,,1073741824,0,,0,22356884,,,,,,0,0,1048576
+family,euler,14,1,euler/14#1,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL,191,5,221.891,308245,139121,169124,4287796,0,0,2048,210.000,0.290,auto,30,,1073741824,0,,0,7797497,,,,,,0,0,1048576
+family,euler,14,1,euler/14#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,14,1,euler/14#1,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL,191,5,220.225,308245,139121,169124,4287796,0,0,2048,210.000,0.216,auto,30,,1073741824,0,,0,7797497,,,,,,0,0,1048576
+family,euler,14,1,euler/14#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,14,1,euler/14#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,14,1,euler/14#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,14,1,euler/14#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,14,1,euler/14#1,intuitionistic,inverse,1,,60,0,3,unprovable,unprovable,,ok,inverse,IMALL,191,5,846.106,318073,145034,318073,0,0,0,2048,840.000,1.620,auto,30,,1073741824,0,,0,110518054,,,,,,0,0,1048576
+family,euler,16,1,euler/16#1,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL,219,5,1122.942,1302525,588459,714066,20836018,0,0,2048,1110.000,1.507,auto,30,,1073741824,0,,0,34310234,,,,,,0,0,1048576
+family,euler,16,1,euler/16#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,16,1,euler/16#1,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL,219,5,1115.760,1302525,588459,714066,20836018,0,0,2048,1100.000,1.025,auto,30,,1073741824,0,,0,34310234,,,,,,0,0,1048576
+family,euler,16,1,euler/16#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,16,1,euler/16#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,16,1,euler/16#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,16,1,euler/16#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,16,1,euler/16#1,intuitionistic,inverse,1,,60,0,3,unprovable,unprovable,,ok,inverse,IMALL,219,5,5621.230,1339047,611190,1339047,0,0,0,2048,5590.000,7.356,auto,30,,1073741824,0,,0,525032024,,,,,,0,0,1048576
+family,euler,18,1,euler/18#1,intuitionistic,auto,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL,247,5,10749.582,11283079,4663057,1048576,205786010,0,0,2048,10710.000,12.391,auto,30,,1073741824,0,,0,312422630,,,,,,0,0,1048576
+family,euler,18,1,euler/18#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,18,1,euler/18#1,intuitionistic,two-sided,1,,60,0,3,unprovable,unprovable,,,two-sided,IMALL,247,5,10996.688,11283079,4663057,1048576,205786010,0,0,2048,10960.000,13.153,auto,30,,1073741824,0,,0,312422630,,,,,,0,0,1048576
+family,euler,18,1,euler/18#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,18,1,euler/18#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,18,1,euler/18#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,18,1,euler/18#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,18,1,euler/18#1,intuitionistic,inverse,1,,60,0,3,unprovable,unknown,memory_limit,,inverse,IMALL,247,5,10105.825,2097153,794655,2840570,0,0,0,2048,10040.000,37.931,auto,30,,1073741824,0,,0,848322076,,,,,,0,0,1048576
+family,euler,20,1,euler/20#1,intuitionistic,auto,1,,60,0,3,unprovable,unknown,timeout,,two-sided,IMALL,275,5,60004.297,57338749,21891843,1048576,1175656938,0,0,2048,59830.000,67.192,auto,30,,1073741824,0,,0,1722299984,,,,,,0,0,1048576
+family,euler,20,1,euler/20#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,20,1,euler/20#1,intuitionistic,two-sided,1,,60,0,3,unprovable,unknown,timeout,,two-sided,IMALL,275,5,60005.063,58831740,22437409,1048576,1205142213,0,0,2048,59840.000,62.432,auto,30,,1073741824,0,,0,1767397506,,,,,,0,0,1048576
+family,euler,20,1,euler/20#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,20,1,euler/20#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,20,1,euler/20#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,20,1,euler/20#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,20,1,euler/20#1,intuitionistic,inverse,1,,60,0,,,skipped,past the limit at size 18,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,22,1,euler/22#1,intuitionistic,auto,1,,60,0,,,skipped,past the limit at size 20,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,22,1,euler/22#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,22,1,euler/22#1,intuitionistic,two-sided,1,,60,0,,,skipped,past the limit at size 20,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,22,1,euler/22#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,22,1,euler/22#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,22,1,euler/22#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,22,1,euler/22#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,22,1,euler/22#1,intuitionistic,inverse,1,,60,0,,,skipped,past the limit at size 18,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,24,1,euler/24#1,intuitionistic,auto,1,,60,0,,,skipped,past the limit at size 20,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,24,1,euler/24#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,24,1,euler/24#1,intuitionistic,two-sided,1,,60,0,,,skipped,past the limit at size 20,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,24,1,euler/24#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,24,1,euler/24#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,24,1,euler/24#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,24,1,euler/24#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 5,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,euler,24,1,euler/24#1,intuitionistic,inverse,1,,60,0,,,skipped,past the limit at size 18,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,2,1,duplicate/2#1,classical,auto,1,,60,0,1,provable,proved,,ok,horn,MELL,10,3,0.041,1,0,1,0,0,0,2048,0.000,0.000,auto,30,0.010,1073741824,0,,0,0,,,,,,0,0,1048576
+family,duplicate,2,1,duplicate/2#1,classical,focus,1,,60,0,1,provable,proved,,ok,focus,MELL,10,3,0.047,3,0,2,4,0,0,2048,0.000,0.000,auto,30,0.004,1073741824,1,,0,56,,,,,,0,0,1048576
+family,duplicate,2,1,duplicate/2#1,classical,two-sided,1,,60,0,1,provable,refused,the two-sided engine does not search in classical mode,,,,10,3,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,2,1,duplicate/2#1,classical,net,1,,60,0,1,provable,refused,proof nets exist for MLL without units only; not for MELL,,,,10,3,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,2,1,duplicate/2#1,classical,horn,1,,60,0,1,provable,proved,,ok,horn,MELL,10,3,0.030,1,0,1,0,0,0,2048,0.000,0.000,auto,30,0.004,1073741824,0,,0,0,,,,,,0,0,1048576
+family,duplicate,2,1,duplicate/2#1,classical,additive,1,,60,0,1,provable,refused,the additive engine decides a sequent of two additive-only formulas; not one of MELL,,,,10,3,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,2,1,duplicate/2#1,classical,essential,1,,60,0,1,provable,refused,the essential engine does not search in classical mode,,,,10,3,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,2,1,duplicate/2#1,classical,inverse,1,,60,0,1,provable,proved,,ok,inverse,MELL,10,3,0.043,2,3,8,0,0,0,2048,0.000,0.000,auto,30,0.004,1073741824,0,,0,177,,,,,,0,0,1048576
+family,duplicate,4,1,duplicate/4#1,classical,auto,1,,60,0,3,provable,proved,,ok,horn,MELL,14,5,0.030,3,0,3,0,0,0,2048,0.000,0.000,auto,30,0.005,1073741824,0,,0,4,,,,,,0,0,1048576
+family,duplicate,4,1,duplicate/4#1,classical,focus,1,,60,0,3,provable,proved,,ok,focus,MELL,14,5,0.102,10,0,4,32,0,0,2048,0.000,0.011,auto,30,0.005,1073741824,3,,3,203,,,,,,0,0,1048576
+family,duplicate,4,1,duplicate/4#1,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,4,1,duplicate/4#1,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,4,1,duplicate/4#1,classical,horn,1,,60,0,3,provable,proved,,ok,horn,MELL,14,5,0.030,3,0,3,0,0,0,2048,0.000,0.000,auto,30,0.004,1073741824,0,,0,4,,,,,,0,0,1048576
+family,duplicate,4,1,duplicate/4#1,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,4,1,duplicate/4#1,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,4,1,duplicate/4#1,classical,inverse,1,,60,0,3,provable,proved,,ok,inverse,MELL,14,5,0.082,21,39,33,0,0,0,2048,0.000,0.000,auto,30,0.005,1073741824,0,,0,3848,,,,,,0,0,1048576
+family,duplicate,8,1,duplicate/8#1,classical,auto,1,,60,0,7,provable,proved,,ok,horn,MELL,22,9,0.030,7,0,7,0,0,0,2048,0.000,0.000,auto,30,0.006,1073741824,0,,0,8,,,,,,0,0,1048576
+family,duplicate,8,1,duplicate/8#1,classical,focus,1,,60,0,7,provable,proved,,ok,focus,MELL,22,9,0.117,36,0,8,180,0,0,2048,0.000,0.011,auto,30,0.006,1073741824,7,,7,793,,,,,,0,0,1048576
+family,duplicate,8,1,duplicate/8#1,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,8,1,duplicate/8#1,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,8,1,duplicate/8#1,classical,horn,1,,60,0,7,provable,proved,,ok,horn,MELL,22,9,0.032,7,0,7,0,0,0,2048,0.000,0.000,auto,30,0.006,1073741824,0,,0,8,,,,,,0,0,1048576
+family,duplicate,8,1,duplicate/8#1,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,8,1,duplicate/8#1,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,8,1,duplicate/8#1,classical,inverse,1,,60,0,7,provable,proved,,ok,inverse,MELL,22,9,3.372,41,1263,65,0,0,0,2048,0.000,0.028,auto,30,0.006,1073741824,0,,0,553960,,,,,,0,0,1048576
+family,duplicate,16,1,duplicate/16#1,classical,auto,1,,60,0,15,provable,proved,,ok,horn,MELL,38,17,0.033,15,0,15,0,0,0,2048,0.000,0.000,auto,30,0.008,1073741824,0,,0,16,,,,,,0,0,1048576
+family,duplicate,16,1,duplicate/16#1,classical,focus,1,,60,0,15,provable,proved,,ok,focus,MELL,38,17,0.186,136,0,16,1068,0,0,2048,0.000,0.011,auto,30,0.007,1073741824,15,,15,3382,,,,,,0,0,1048576
+family,duplicate,16,1,duplicate/16#1,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,16,1,duplicate/16#1,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,16,1,duplicate/16#1,classical,horn,1,,60,0,15,provable,proved,,ok,horn,MELL,38,17,0.031,15,0,15,0,0,0,2048,0.000,0.000,auto,30,0.009,1073741824,0,,0,16,,,,,,0,0,1048576
+family,duplicate,16,1,duplicate/16#1,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,16,1,duplicate/16#1,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,16,1,duplicate/16#1,classical,inverse,1,,60,0,15,provable,proved,,ok,inverse,MELL,38,17,44065.516,81,589791,129,0,0,0,2048,43950.000,41.086,auto,30,0.024,1073741824,0,,0,9911373512,,,,,,0,0,1048576
+family,duplicate,32,1,duplicate/32#1,classical,auto,1,,60,0,31,provable,proved,,ok,horn,MELL,70,33,0.054,31,0,31,0,0,0,2048,0.000,0.000,auto,30,0.014,1073741824,0,,0,32,,,,,,0,0,1048576
+family,duplicate,32,1,duplicate/32#1,classical,focus,1,,60,0,31,provable,proved,,ok,focus,MELL,70,33,0.373,528,0,32,7004,0,0,2048,0.000,0.012,auto,30,0.013,1073741824,31,,31,16135,,,,,,0,0,1048576
+family,duplicate,32,1,duplicate/32#1,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,32,1,duplicate/32#1,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,32,1,duplicate/32#1,classical,horn,1,,60,0,31,provable,proved,,ok,horn,MELL,70,33,0.038,31,0,31,0,0,0,2048,0.000,0.000,auto,30,0.012,1073741824,0,,0,32,,,,,,0,0,1048576
+family,duplicate,32,1,duplicate/32#1,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,32,1,duplicate/32#1,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,32,1,duplicate/32#1,classical,inverse,1,,60,0,31,provable,unknown,timeout,,inverse,MELL,70,33,60001.973,59,23080934,124,0,0,0,2048,59860.000,49.894,auto,30,,1073741824,0,,0,17356891179,,,,,,0,0,1048576
+family,duplicate,64,1,duplicate/64#1,classical,auto,1,,60,0,63,provable,proved,,ok,horn,MELL,134,65,0.061,63,0,63,0,0,0,2048,0.000,0.000,auto,30,0.028,1073741824,0,,0,64,,,,,,0,0,1048576
+family,duplicate,64,1,duplicate/64#1,classical,focus,1,,60,0,63,provable,proved,,ok,focus,MELL,134,65,4.922,5209,3111,77,129267,0,0,2048,0.000,0.385,auto,30,0.018,1073741824,63,,63,220306,,,,,,0,0,1048576
+family,duplicate,64,1,duplicate/64#1,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,64,1,duplicate/64#1,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,64,1,duplicate/64#1,classical,horn,1,,60,0,63,provable,proved,,ok,horn,MELL,134,65,0.047,63,0,63,0,0,0,2048,0.000,0.000,auto,30,0.021,1073741824,0,,0,64,,,,,,0,0,1048576
+family,duplicate,64,1,duplicate/64#1,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,64,1,duplicate/64#1,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,64,1,duplicate/64#1,classical,inverse,1,,60,0,,,skipped,past the limit at size 32,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,128,1,duplicate/128#1,classical,auto,1,,60,0,127,provable,proved,,ok,horn,MELL,262,129,0.057,127,0,127,0,0,0,2048,0.000,0.000,auto,30,0.037,1073741824,0,,0,128,,,,,,0,0,1048576
+family,duplicate,128,1,duplicate/128#1,classical,focus,1,,60,0,127,provable,proved,,ok,focus,MELL,262,129,45.761,23753,15480,141,1156476,0,0,2048,40.000,8.720,auto,30,0.033,1073741824,127,,127,1610943,,,,,,0,0,1048576
+family,duplicate,128,1,duplicate/128#1,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,128,1,duplicate/128#1,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,128,1,duplicate/128#1,classical,horn,1,,60,0,127,provable,proved,,ok,horn,MELL,262,129,0.058,127,0,127,0,0,0,2048,0.000,0.000,auto,30,0.038,1073741824,0,,0,128,,,,,,0,0,1048576
+family,duplicate,128,1,duplicate/128#1,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,128,1,duplicate/128#1,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,128,1,duplicate/128#1,classical,inverse,1,,60,0,,,skipped,past the limit at size 32,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,256,1,duplicate/256#1,classical,auto,1,,60,0,255,provable,proved,,ok,horn,MELL,518,257,0.080,255,0,255,0,0,0,2048,0.000,0.000,auto,30,0.071,1073741824,0,,0,256,,,,,,0,0,1048576
+family,duplicate,256,1,duplicate/256#1,classical,focus,1,,60,0,255,provable,proved,,ok,focus,MELL,518,257,215.379,70381,37468,269,6310652,0,0,2048,210.000,39.902,auto,30,0.074,1073741824,255,,255,11291437,,,,,,0,0,1048576
+family,duplicate,256,1,duplicate/256#1,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,256,1,duplicate/256#1,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,256,1,duplicate/256#1,classical,horn,1,,60,0,255,provable,proved,,ok,horn,MELL,518,257,0.091,255,0,255,0,0,0,2048,0.000,0.000,auto,30,0.072,1073741824,0,,0,256,,,,,,0,0,1048576
+family,duplicate,256,1,duplicate/256#1,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,256,1,duplicate/256#1,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,256,1,duplicate/256#1,classical,inverse,1,,60,0,,,skipped,past the limit at size 32,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,1024,1,duplicate/1024#1,classical,auto,1,,60,0,1023,provable,proved,,ok,horn,MELL,2054,1025,0.204,1023,0,1023,0,0,0,2048,0.000,0.000,auto,30,0.288,1073741824,0,,0,1024,,,,,,0,0,1048576
+family,duplicate,1024,1,duplicate/1024#1,classical,focus,1,,60,0,1023,provable,unknown,timeout,,focus,MELL,2054,1025,60002.041,3305992,3174117,533,1113813025,0,0,2048,59840.000,327.689,auto,30,,1073741824,2,,512,5572062718,,,,,,0,0,1048576
+family,duplicate,1024,1,duplicate/1024#1,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,1024,1,duplicate/1024#1,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,1024,1,duplicate/1024#1,classical,horn,1,,60,0,1023,provable,proved,,ok,horn,MELL,2054,1025,0.230,1023,0,1023,0,0,0,2048,0.000,0.000,auto,30,0.299,1073741824,0,,0,1024,,,,,,0,0,1048576
+family,duplicate,1024,1,duplicate/1024#1,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,1024,1,duplicate/1024#1,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,1024,1,duplicate/1024#1,classical,inverse,1,,60,0,,,skipped,past the limit at size 32,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,4096,1,duplicate/4096#1,classical,auto,1,,60,0,4095,provable,proved,,ok,horn,MELL,8198,4097,0.777,4095,0,4095,0,0,0,2048,0.000,0.000,auto,30,1.224,1073741824,0,,0,4096,,,,,,0,0,1048576
+family,duplicate,4096,1,duplicate/4096#1,classical,focus,1,,60,0,,,skipped,past the limit at size 1024,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,4096,1,duplicate/4096#1,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,4096,1,duplicate/4096#1,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,4096,1,duplicate/4096#1,classical,horn,1,,60,0,4095,provable,proved,,ok,horn,MELL,8198,4097,0.813,4095,0,4095,0,0,0,2048,0.000,0.027,auto,30,1.151,1073741824,0,,0,4096,,,,,,0,0,1048576
+family,duplicate,4096,1,duplicate/4096#1,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,4096,1,duplicate/4096#1,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,4096,1,duplicate/4096#1,classical,inverse,1,,60,0,,,skipped,past the limit at size 32,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,16384,1,duplicate/16384#1,classical,auto,1,,60,0,16383,provable,proved,,ok,horn,MELL,32774,16385,3.772,16383,0,16383,0,0,0,2048,0.000,0.030,auto,30,5.417,1073741824,0,,0,16384,,,,,,0,0,1048576
+family,duplicate,16384,1,duplicate/16384#1,classical,focus,1,,60,0,,,skipped,past the limit at size 1024,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,16384,1,duplicate/16384#1,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,16384,1,duplicate/16384#1,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,16384,1,duplicate/16384#1,classical,horn,1,,60,0,16383,provable,proved,,ok,horn,MELL,32774,16385,2.997,16383,0,16383,0,0,0,2048,0.000,0.020,auto,30,4.852,1073741824,0,,0,16384,,,,,,0,0,1048576
+family,duplicate,16384,1,duplicate/16384#1,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,16384,1,duplicate/16384#1,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,16384,1,duplicate/16384#1,classical,inverse,1,,60,0,,,skipped,past the limit at size 32,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,65536,1,duplicate/65536#1,classical,auto,1,,60,0,65535,provable,proved,,ok,horn,MELL,131078,65537,14.800,81919,0,81919,0,0,0,2048,10.000,0.026,auto,30,22.868,1073741824,0,,0,81919,,,,,,0,0,1048576
+family,duplicate,65536,1,duplicate/65536#1,classical,focus,1,,60,0,,,skipped,past the limit at size 1024,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,65536,1,duplicate/65536#1,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,65536,1,duplicate/65536#1,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,65536,1,duplicate/65536#1,classical,horn,1,,60,0,65535,provable,proved,,ok,horn,MELL,131078,65537,15.103,81919,0,81919,0,0,0,2048,10.000,0.040,auto,30,21.287,1073741824,0,,0,81919,,,,,,0,0,1048576
+family,duplicate,65536,1,duplicate/65536#1,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,65536,1,duplicate/65536#1,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,65536,1,duplicate/65536#1,classical,inverse,1,,60,0,,,skipped,past the limit at size 32,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,262144,1,duplicate/262144#1,classical,auto,1,,60,0,262143,provable,proved,,ok,horn,MELL,524294,262145,63.211,327679,0,327679,0,0,0,2048,70.000,0.109,auto,30,83.865,1073741824,0,,0,327679,,,,,,0,0,1048576
+family,duplicate,262144,1,duplicate/262144#1,classical,focus,1,,60,0,,,skipped,past the limit at size 1024,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,262144,1,duplicate/262144#1,classical,two-sided,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,262144,1,duplicate/262144#1,classical,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,262144,1,duplicate/262144#1,classical,horn,1,,60,0,262143,provable,proved,,ok,horn,MELL,524294,262145,62.221,327679,0,327679,0,0,0,2048,60.000,0.087,auto,30,83.709,1073741824,0,,0,327679,,,,,,0,0,1048576
+family,duplicate,262144,1,duplicate/262144#1,classical,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,262144,1,duplicate/262144#1,classical,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,duplicate,262144,1,duplicate/262144#1,classical,inverse,1,,60,0,,,skipped,past the limit at size 32,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,2,1,reach-fo/2#1,intuitionistic,auto,1,,60,0,3,unprovable,unknown,copy_bound,,two-sided,IMELL1,14,1,0.166,31,9,11,263,0,0,2048,0.000,0.000,auto,30,,1073741824,3,,0,761,,,,,,82,114,1048576
+family,reach-fo,2,1,reach-fo/2#1,intuitionistic,focus,1,,60,0,3,unprovable,refused,the focus engine does not search in intuitionistic mode,,,,14,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,2,1,reach-fo/2#1,intuitionistic,two-sided,1,,60,0,3,unprovable,unknown,copy_bound,,two-sided,IMELL1,14,1,0.128,31,9,11,263,0,0,2048,0.000,0.000,auto,30,,1073741824,3,,0,761,,,,,,82,114,1048576
+family,reach-fo,2,1,reach-fo/2#1,intuitionistic,net,1,,60,0,3,unprovable,refused,proof nets exist for MLL without units only; not for MELL1,,,,14,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,2,1,reach-fo/2#1,intuitionistic,horn,1,,60,0,3,unprovable,refused,the horn engine decides a Horn program only: atoms; implications between tensors of atoms; such implications under !; and one goal that is a tensor of atoms,,,,14,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,2,1,reach-fo/2#1,intuitionistic,additive,1,,60,0,3,unprovable,refused,the additive engine decides a sequent of two additive-only formulas; not one of MELL1,,,,14,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,2,1,reach-fo/2#1,intuitionistic,essential,1,,60,0,3,unprovable,refused,essential nets exist for IMLL without units only; not for MELL1,,,,14,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,2,1,reach-fo/2#1,intuitionistic,inverse,1,,60,0,3,unprovable,refused,the inverse engine decides LL at most; not MELL1,,,,14,1,,,,,,,,2048,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,3,1,reach-fo/3#1,intuitionistic,auto,1,,60,0,4,unprovable,unknown,copy_bound,,two-sided,IMELL1,16,1,0.363,111,49,27,1288,0,0,2048,0.000,0.000,auto,30,,1073741824,4,,0,2840,,,,,,483,758,1048576
+family,reach-fo,3,1,reach-fo/3#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,3,1,reach-fo/3#1,intuitionistic,two-sided,1,,60,0,4,unprovable,unknown,copy_bound,,two-sided,IMELL1,16,1,0.355,111,49,27,1288,0,0,2048,0.000,0.000,auto,30,,1073741824,4,,0,2840,,,,,,483,758,1048576
+family,reach-fo,3,1,reach-fo/3#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,3,1,reach-fo/3#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,3,1,reach-fo/3#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,3,1,reach-fo/3#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,3,1,reach-fo/3#1,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,4,1,reach-fo/4#1,intuitionistic,auto,1,,60,0,5,unprovable,unknown,copy_bound,,two-sided,IMELL1,18,1,1.643,364,201,63,6122,0,0,2048,0.000,0.051,auto,30,,1073741824,5,,0,13844,,,,,,2502,4220,1048576
+family,reach-fo,4,1,reach-fo/4#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,4,1,reach-fo/4#1,intuitionistic,two-sided,1,,60,0,5,unprovable,unknown,copy_bound,,two-sided,IMELL1,18,1,1.552,364,201,63,6122,0,0,2048,0.000,0.020,auto,30,,1073741824,5,,0,13844,,,,,,2502,4220,1048576
+family,reach-fo,4,1,reach-fo/4#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,4,1,reach-fo/4#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,4,1,reach-fo/4#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,4,1,reach-fo/4#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,4,1,reach-fo/4#1,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,5,1,reach-fo/5#1,intuitionistic,auto,1,,60,0,6,unprovable,unknown,copy_bound,,two-sided,IMELL1,20,1,7.214,1111,701,143,28662,0,0,2048,0.000,0.027,auto,30,,1073741824,6,,0,55216,,,,,,11866,21048,1048576
+family,reach-fo,5,1,reach-fo/5#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,5,1,reach-fo/5#1,intuitionistic,two-sided,1,,60,0,6,unprovable,unknown,copy_bound,,two-sided,IMELL1,20,1,7.230,1111,701,143,28662,0,0,2048,0.000,0.028,auto,30,,1073741824,6,,0,55216,,,,,,11866,21048,1048576
+family,reach-fo,5,1,reach-fo/5#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,5,1,reach-fo/5#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,5,1,reach-fo/5#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,5,1,reach-fo/5#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,5,1,reach-fo/5#1,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,6,1,reach-fo/6#1,intuitionistic,auto,1,,60,0,7,unprovable,unknown,copy_bound,,two-sided,IMELL1,22,1,34.363,3208,2207,319,132872,0,0,2048,30.000,0.059,auto,30,,1073741824,7,,0,222361,,,,,,52909,97312,1048576
+family,reach-fo,6,1,reach-fo/6#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,6,1,reach-fo/6#1,intuitionistic,two-sided,1,,60,0,7,unprovable,unknown,copy_bound,,two-sided,IMELL1,22,1,34.766,3208,2207,319,132872,0,0,2048,30.000,0.046,auto,30,,1073741824,7,,0,222361,,,,,,52909,97312,1048576
+family,reach-fo,6,1,reach-fo/6#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,6,1,reach-fo/6#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,6,1,reach-fo/6#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,6,1,reach-fo/6#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,6,1,reach-fo/6#1,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,8,1,reach-fo/8#1,intuitionistic,auto,1,,60,0,9,unprovable,unknown,copy_bound,,two-sided,IMELL1,26,1,716.063,23722,18099,1535,2789850,0,0,2048,710.000,1.505,auto,30,,1073741824,9,,0,3816962,,,,,,927118,1781952,1048576
+family,reach-fo,8,1,reach-fo/8#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,8,1,reach-fo/8#1,intuitionistic,two-sided,1,,60,0,9,unprovable,unknown,copy_bound,,two-sided,IMELL1,26,1,711.142,23722,18099,1535,2789850,0,0,2048,700.000,0.492,auto,30,,1073741824,9,,0,3816962,,,,,,927118,1781952,1048576
+family,reach-fo,8,1,reach-fo/8#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,8,1,reach-fo/8#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,8,1,reach-fo/8#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,8,1,reach-fo/8#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,8,1,reach-fo/8#1,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,10,1,reach-fo/10#1,intuitionistic,auto,1,,60,0,11,unprovable,unknown,copy_bound,,two-sided,IMELL1,30,1,14113.269,156940,126999,7167,57008228,0,0,2048,14070.000,20.879,auto,30,,1073741824,11,,0,70200343,,,,,,14461875,28396256,1048576
+family,reach-fo,10,1,reach-fo/10#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,10,1,reach-fo/10#1,intuitionistic,two-sided,1,,60,0,11,unprovable,unknown,copy_bound,,two-sided,IMELL1,30,1,13387.875,156940,126999,7167,57008228,0,0,2048,13350.000,14.047,auto,30,,1073741824,11,,0,70200343,,,,,,14461875,28396256,1048576
+family,reach-fo,10,1,reach-fo/10#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,10,1,reach-fo/10#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,10,1,reach-fo/10#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,10,1,reach-fo/10#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,10,1,reach-fo/10#1,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,12,1,reach-fo/12#1,intuitionistic,auto,1,,60,0,13,unprovable,unknown,timeout,,two-sided,IMELL1,34,1,60001.834,487659,403645,24510,277100215,0,0,2048,59860.000,55.383,auto,30,,1073741824,11,,0,331836477,,,,,,56730334,111937364,1048576
+family,reach-fo,12,1,reach-fo/12#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,12,1,reach-fo/12#1,intuitionistic,two-sided,1,,60,0,13,unprovable,unknown,timeout,,two-sided,IMELL1,34,1,60001.816,487629,403624,24507,276670006,0,0,2048,59870.000,55.458,auto,30,,1073741824,11,,0,331391895,,,,,,56699012,111874892,1048576
+family,reach-fo,12,1,reach-fo/12#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,12,1,reach-fo/12#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,12,1,reach-fo/12#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,12,1,reach-fo/12#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,12,1,reach-fo/12#1,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,16,1,reach-fo/16#1,intuitionistic,auto,1,,60,0,,,skipped,past the limit at size 12,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,16,1,reach-fo/16#1,intuitionistic,focus,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,16,1,reach-fo/16#1,intuitionistic,two-sided,1,,60,0,,,skipped,past the limit at size 12,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,16,1,reach-fo/16#1,intuitionistic,net,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,16,1,reach-fo/16#1,intuitionistic,horn,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,16,1,reach-fo/16#1,intuitionistic,additive,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,16,1,reach-fo/16#1,intuitionistic,essential,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
+family,reach-fo,16,1,reach-fo/16#1,intuitionistic,inverse,1,,60,0,,,skipped,refused at size 2,,,,,,,,,,,,,,,,auto,30,,1073741824,,,,,,,,,,,,1048576
