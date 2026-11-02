@@ -69,7 +69,11 @@
 # The sequential runs go in four streams at once, each pinned to a core of
 # its own with taskset; `cores' names four performance cores of the machine
 # the baseline was taken on (an Intel Core Ultra X9 388H: CPUs 0 to 3 are
-# its performance cores), so adjust it for another. The parallel runs come
+# its performance cores), so adjust it for another (`--cores=A,B,C,D`).
+# `--cpus=LIST` confines the whole run to those CPUs (its parallel runs'
+# "every core" is then theirs) and `--others=LIST` the user's other slices
+# meanwhile, so that the run can share the machine with other work by
+# day; a baseline taken so says it in its RESULTS.md. The parallel runs come
 # after them, with the machine to themselves, so that a run stopped at the
 # slot's end has the sequential stages, which a performance pass compares
 # with first, complete.
@@ -79,6 +83,8 @@ cd "$(dirname "$self")/.."
 lltp=bench/lltp
 results=bench/results
 cores=(1 0 2 3)
+cpus=''
+others=4-15
 slot=20:00-07:00
 estimate=$((4 * 3600))
 # The baseline whose intuitionistic LLTP pass chooses the problems that
@@ -126,8 +132,11 @@ for arg; do
   --into=*) into=${arg#--into=} ;;
   --reference=*) reference=${arg#--reference=} ;;
   --reruns=*) rerun_list=${arg#--reruns=} ;;
+  --cores=*) IFS=, read -r -a cores <<<"${arg#--cores=}" ;;
+  --cpus=*) cpus=${arg#--cpus=} ;;
+  --others=*) others=${arg#--others=} ;;
   *)
-    echo "usage: bench/baseline.sh [--arm [--slot=HH:MM-HH:MM] | --detach] [--fresh] [--into=DIR] [--reference=DIR] [--reruns=FILE] [--force]" >&2
+    echo "usage: bench/baseline.sh [--arm [--slot=HH:MM-HH:MM] | --detach] [--fresh] [--into=DIR] [--reference=DIR] [--reruns=FILE] [--cores=A,B,C,D] [--cpus=LIST] [--others=LIST] [--force]" >&2
     exit 2
     ;;
   esac
@@ -263,10 +272,15 @@ if $arm || $detach; then
   unit=(systemd-run --user --unit=linlog-baseline --slice=linlog.slice --same-dir -p MemoryMax=40G
     -p MemorySwapMax=0 -p OOMPolicy=continue -p LimitCORE=0 --setenv=PATH="$PATH"
     -p ExecStopPost="$self --unshield"
+    ${cpus:+-p AllowedCPUs="$cpus"}
     --setenv=CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$PWD/target/baseline}")
   script=(systemd-inhibit --what=sleep:idle:handle-lid-switch --who=linlog-baseline
     --why="the benchmark baseline" "$self" --force --into="$out"
-    --reference="$reference" --reruns="$rerun_list")
+    --reference="$reference" --reruns="$rerun_list"
+    --cores="$(
+      IFS=,
+      echo "${cores[*]}"
+    )" --others="$others" ${cpus:+--cpus="$cpus"})
   if $detach; then
     "${unit[@]}" "${script[@]}"
     echo "into $out; follow it with: journalctl --user -fu linlog-baseline"
@@ -339,7 +353,7 @@ mkdir -p "$out"
 
 # Every start of the run, a line in starts.txt: a resumed baseline has
 # several, which RESULTS.md lists.
-record="$(date '+%Y-%m-%d %H:%M'), commit $(commit), load average $load${forced}"
+record="$(date '+%Y-%m-%d %H:%M'), commit $(commit), load average $load${forced}, sequential streams on CPUs ${cores[*]}${cpus:+, the run confined to CPUs $cpus, the other slices to $others}"
 echo "$record" >>"$out/starts.txt"
 echo "started into $out: $record; timers due: ${due:-none}; $(settings)"
 read -r throttled_before throttled_ms_before < <(throttling)
@@ -351,7 +365,7 @@ read -r throttled_before throttled_ms_before < <(throttling)
 # how an administrator can).
 if grep -q linlog.slice /proc/self/cgroup; then
   for slice in "${slices[@]}"; do
-    systemctl --user set-property --runtime "$slice" AllowedCPUs=4-15
+    systemctl --user set-property --runtime "$slice" AllowedCPUs="$others"
   done
   echo "kept ${slices[*]} off CPUs ${cores[*]}"
   # The user's own timers due during the run wait for its end.
