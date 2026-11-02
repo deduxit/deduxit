@@ -3,9 +3,12 @@
 
 # A tag `vX.Y.Z` releases version X.Y.Z: the flake's checks again, the
 # crates published to crates.io in their order through Trusted
-# Publishing, and a GitHub release with the changelog's section and the
-# packages. The first version was published by hand, since a crate must
-# exist before a workflow may publish it; its tag only makes the release.
+# Publishing, and a GitHub release with the changelog's section, the
+# crates' packages, the command's archives and Linux packages for every
+# system (`packages.yml`), their SHA-256 sums in `SHA256SUMS` and an
+# attestation of their build. The first version was published by hand,
+# since a crate must exist before a workflow may publish it; its tag only
+# makes the release.
 name: Release
 
 on:
@@ -102,21 +105,41 @@ jobs:
             fi
           done
 
+  packages:
+    name: archives and packages
+    needs: check
+    uses: ./.github/workflows/packages.yml
+
   release:
     name: GitHub release
-    needs: [check, publish]
+    needs: [check, publish, packages]
     # After the publication, or without it for the version published by
     # hand.
-    if: ${{ !cancelled() && needs.check.result == 'success' && (needs.publish.result == 'success' || needs.publish.result == 'skipped') }}
+    if: ${{ !cancelled() && needs.check.result == 'success' && needs.packages.result == 'success' && (needs.publish.result == 'success' || needs.publish.result == 'skipped') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # The notes are the changelog's section; the packages attached are
-      # those crates.io serves, the ones published.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+      - name: The checksums
+        working-directory: dist
+        run: sha256sum -- * >SHA256SUMS
+      # A provenance attestation of every file the sums name, which
+      # `gh attestation verify FILE --repo linlog-prover/linlog` checks.
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-checksums: dist/SHA256SUMS
+      # The notes are the changelog's section; the crates' packages
+      # attached are those crates.io serves, the ones published.
       - name: The release, with the changelog's section as its notes
         env:
           GH_TOKEN: ${{ github.token }}
@@ -129,10 +152,14 @@ jobs:
             on && /^\[[^]]*\]: / { exit }
             on { print }
           ' CHANGELOG.md >notes.md
+          {
+            echo
+            echo "Install it as the manual's [Installation](https://linlog-prover.github.io/linlog/manual/installation.html) says; \`SHA256SUMS\` holds the files' sums."
+          } >>notes.md
           for crate in linlog linlog-cli; do
             curl --silent --fail --location --output "$crate-$version.crate" \
               --user-agent "linlog release (github.com/linlog-prover/linlog)" \
               "https://static.crates.io/crates/$crate/$crate-$version.crate"
           done
           gh release create "$TAG" --title "linlog $version" --notes-file notes.md \
-            --verify-tag ./*.crate
+            --verify-tag ./*.crate dist/*

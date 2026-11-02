@@ -1,0 +1,136 @@
+# linlog © Fabian Lukas Grubmüller 2026
+# Licensed under the EUPL
+
+# The command's prebuilt archives and packages, called by the release and
+# by the install test, each job uploading its files as an artifact
+# `dist-NAME'. Linux's come from the flake (`nix build .#dist': the static
+# musl binary in an archive, a .deb, an .rpm and an Arch Linux package);
+# macOS and Windows have no Nix that builds a binary their users can run,
+# so their runners build with rustup, at the compiler version the flake
+# pins, which the first job reads.
+name: Packages
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  toolchain:
+    name: the flake's Rust version
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+        with:
+          github_access_token: ${{ github.token }}
+      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
+        with:
+          name: linlog-prover
+          skipPush: true
+      - id: version
+        run: echo "version=$(nix develop --command rustc --version | cut -d ' ' -f 2)" >>"$GITHUB_OUTPUT"
+
+  linux:
+    name: Linux ${{ matrix.arch }}
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x86_64
+          - runner: ubuntu-24.04-arm
+            arch: aarch64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+        with:
+          github_access_token: ${{ github.token }}
+      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
+        with:
+          name: linlog-prover
+          skipPush: true
+      - run: |
+          nix build --print-build-logs .#dist
+          mkdir dist
+          cp result/* dist/
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist-linux-${{ matrix.arch }}
+          path: dist/
+          if-no-files-found: error
+
+  others:
+    name: ${{ matrix.target }}
+    needs: toolchain
+    strategy:
+      matrix:
+        include:
+          - runner: macos-26
+            target: aarch64-apple-darwin
+          - runner: macos-26-intel
+            target: x86_64-apple-darwin
+          - runner: windows-2025
+            target: x86_64-pc-windows-msvc
+          - runner: windows-11-arm
+            target: aarch64-pc-windows-msvc
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      # Over rust-toolchain.toml's `stable': the flake's version.
+      RUSTUP_TOOLCHAIN: ${{ needs.toolchain.outputs.version }}
+      TARGET: ${{ matrix.target }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: rustup, where the runner has none
+        run: |
+          if ! command -v rustup >/dev/null; then
+            case "$TARGET" in
+              *windows*)
+                curl --proto '=https' --tlsv1.2 -sSfL -o rustup-init.exe \
+                  "https://static.rust-lang.org/rustup/dist/$TARGET/rustup-init.exe"
+                ./rustup-init.exe -y --default-toolchain none --profile minimal
+                ;;
+              *)
+                curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs |
+                  sh -s -- -y --default-toolchain none --profile minimal
+                ;;
+            esac
+            echo "$HOME/.cargo/bin" >>"$GITHUB_PATH"
+          fi
+      - run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --target "$TARGET"
+      - run: cargo build --release --locked --package linlog-cli --target "$TARGET"
+      # The binary, README and the licences' texts, in a directory of the
+      # archive's name: a .zip for Windows, a .tar.gz for macOS.
+      - name: The archive
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)
+          stem="linlog-$version-$TARGET"
+          mkdir -p "dist/$stem"
+          case "$TARGET" in
+            *windows*) cp "target/$TARGET/release/linlog.exe" "dist/$stem/" ;;
+            *) cp "target/$TARGET/release/linlog" "dist/$stem/" ;;
+          esac
+          cp README.md LICENSE cli/fonts/*.txt "dist/$stem/"
+          cd dist
+          case "$TARGET" in
+            *windows*) 7z a -tzip "$stem.zip" "$stem" ;;
+            *) tar -czf "$stem.tar.gz" "$stem" ;;
+          esac
+          rm -r "$stem"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist-${{ matrix.target }}
+          path: dist/
+          if-no-files-found: error
