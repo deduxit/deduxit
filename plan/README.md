@@ -4541,3 +4541,22 @@ client follows it (step 32).
   steps). The library now cites its concept DOI 10.5281/zenodo.23899109
   in README and `CITATION.cff`, pushed with `--rocq` after its flake
   check.
+- 2026-11-03: 45f done and reviewed: the other provers' rows on the
+  growing sets (`bench/comparison/2026-11-03-growing/`, byte-equal to the
+  run's), their chapter `results/provers-2026-11-03.md` with the growth,
+  cactus and scatter figures drawn at build time, and README, the growing
+  sets' page, `benchmarks.md` and `status.md` pointing to it.
+  - Checked here: the chapter's figures recomputed from `runs.csv`
+    (`wide-m1/4096`, `counter/262144`, `chain/512` per tool, `euler/18`,
+    Sympli's `duplicate/1024`, the tools' runs, the 3 068 rows' split).
+    The overflow read in Click & coLLecT's `focused_proof.ml` at the
+    pinned commit: `split_gamma` stops at `-1`, which `fast_exp_2 63 - 1`
+    is in OCaml's 63-bit integers.
+  - The finding: Click & coLLecT's and APLL's wrong refutations, in step
+    29's run too, are that overflow at 63 formulas beside a `⊗`, not the
+    harness. It is in `bench/TOOLS.md` and both drafts of
+    `plan/notes/comparison-messages.md`, which stay the author's to send.
+  - No departure marked. The assumptions in the report (the chapter's
+    name, the edits at the joins 45d2 named) are kept.
+  - The author, 2026-11-03: push, but not yet step 46. Next: the handoff
+    for a planner on either account.
