@@ -70,6 +70,23 @@ corrections and for the configuration the authors would choose. Attach
   which linlog proves with a checked proof from the
   very file Click & coLLecT read. Question: is that the use you would
   choose, and is a proof it reports checked anywhere?
+  *Added 2026-11-03, after the run on linlog's growing families (60 s
+  per run; `bench/comparison/2026-11-03-growing/`, the manual's chapter
+  `results/provers-2026-11-03.md`), where it refuted `wide-m1` at every
+  size from 256 to 32 768:* we believe we found the cause, and that it
+  is in the search, not in our translation. In `split_gamma` of the
+  `Tensor` case of `Focused_proof.prove` (`focused_proof.ml`, line 280
+  at `6b1c25ff`) the splits are counted down from `fast_exp_2
+  (List.length gamma) - 1`; with OCaml's 63-bit `int`, `fast_exp_2 63`
+  is 0, so with 63 or more formulas beside a focused `⊗` the count
+  starts at −1, the `⊗` gets no premise, and the search ends without a
+  proof, which `prove_sequent` reports as exhaustive. The smallest
+  example we have, written by hand (`|- (p0 * p0 * … * p0), p0^, …,
+  p0^` with 63 factors and 63 negations, 64 formulas, provable):
+  `NOT PROVABLE` in 6 ms; with 62 factors the search runs to its time
+  limit. `wide-m1` flips the same way between 62 and 63 pairs. A guard
+  on `List.length gamma` (or counting splits without a power of two)
+  would turn these into time-outs or proofs. Would you confirm?
 - **Sympli** (Kaustuv Chaudhuri; github.com/chaudhuri/sympli at
   `50e76a6d`, MLton 20241230 with a patch adding no-op functions to its
   pretty-printing device for the newer SML/NJ library): `Γ ⊢ A` posed as
@@ -102,6 +119,26 @@ corrections and for the configuration the authors would choose. Attach
   by construction (`wide-m1` at 256 literals). Questions: would you choose the
   inverse method (`-inv`) or another bound for the LLTP problems, and
   under which licence may the source be used?
+  *Added 2026-11-03, after the run on linlog's growing families (60 s
+  per run; `bench/comparison/2026-11-03-growing/`, the manual's chapter
+  `results/provers-2026-11-03.md`), where the LL search refuted
+  `wide-m1` at every size from 256 to 32 768:* we believe both findings
+  have one cause, in the search rather than in our translation. The
+  `Tensor` case of the backward searches counts the splits of the
+  context down from `fast_exp_2 (List.length gamma) - 1`
+  (`foc_ll_bwd.ml` line 157, `foc_ill_bwd.ml` lines 72 and 163 at
+  `c55f59d2`); with OCaml's 63-bit `int`, `fast_exp_2 63` is 0, so with
+  63 or more formulas beside a focused `⊗` the count starts at −1, the
+  `⊗` gets no premise, and the search answers `N`. The smallest example
+  we have, written by hand (`|- (p0 * p0 * … * p0), p0^, …, p0^` with
+  63 factors and 63 negations, 64 formulas, provable): `N` in 9 ms;
+  with 62 factors no answer within 12 s. `wide-m1` flips the same way
+  between 62 and 63 pairs, and of the library's Petri nets the ILL
+  search refuted exactly those whose initial marking has 63 tokens or
+  more (1 327, none with fewer; 1 296 of them proved by linlog with
+  checked proofs), as the same counter in `foc_ill_bwd.ml` predicts.
+  A guard on `List.length gamma` (or counting splits without a power
+  of two) would turn these into `-` or proofs. Would you confirm?
 - **Proof Net Calculator** (Satoshi Matsuoka): listed in the matrix as a
   net checker and enumerator, not run. Question: is that a fair
   description, and is there a licence for the source?

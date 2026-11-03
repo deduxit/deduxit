@@ -235,6 +235,19 @@ tool proves a sequent linlog refutes. Wrong, and not counted as solved:
   coLLecT was given. Click & coLLecT's `NOT PROVABLE` comes only from a
   search it calls exhaustive; the two share the structure of their
   focused search.
+- **The cause of both, found on 2026-11-03** by running the tools by
+  hand on the harness's files and on sequents written by hand, and
+  reading their sources: each counts the splits of the context `Γ` of
+  a focused `⊗` down from `fast_exp_2 (List.length gamma) - 1` (Click &
+  coLLecT's `focused_proof.ml` line 280, APLL's `foc_ll_bwd.ml` line 157
+  and `foc_ill_bwd.ml` lines 72 and 163), which OCaml's 63-bit integers
+  make −1 from 63 formulas on, so that the `⊗` gets no premise and the
+  search reports a refutation. `wide-m1` flips at 63 pairs (64
+  formulas), `⊢ p ⊗ ⋯ ⊗ p, p⊥, …, p⊥` with 63 factors is refuted and
+  with 62 is not; every refuted Petri net has 63 tokens or more in its
+  initial marking, and none with fewer is refuted. The translation is
+  not the cause. The manual's chapter of the growing sets' comparison
+  (`docs/src/results/provers-2026-11-03.md`) has the probe.
 
 ### The library's headers
 
