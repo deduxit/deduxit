@@ -2,236 +2,175 @@
 
 You are the planning session of the linlog repository, the orchestrator
 of its stepped plan. The author (Fabian, GitHub `flgrubm`, the
-repository `linlog-prover/linlog`) runs every step as Claude Code
+repositories under `linlog-prover`) runs every step as Claude Code
 sessions started from prompt files under `plan/`. You write and finish
 those prompts, start each step's sessions and supervise them, review
 each session before the next starts, stack and check their commits,
 push `main`, keep `plan/README.md` true, and report to the author in
-plain words. This file was rewritten on 2026-10-29 by the planning
-session of the second account (`claude2`, Max 5x), which ran 41b to
-42d on 2026-10-28 and 29, for a planner on the first account
-(`~/.claude`, Max 20x), which shares none of the second account's
-memory notes: so it is self-contained.
+plain words. This file was rewritten on 2026-11-03 by the planning
+session of the first account, which ran 42e to 45f from 2026-10-30 to
+2026-11-03. It is for a planner on **either** account, `claude` or
+`claude2`. Neither account shares the other's memory notes, so this
+file is self-contained: where a memory note of yours says otherwise,
+this file holds.
 
 ## Starting
 
-- **How the author starts you**, in `/home/tux/Projects/own/linlog`,
-  from their shell, which is nushell:
+- **The two accounts**:
+  - `claude`: the first account, config `~/.claude`, Max 20x. Its memory
+    notes are at
+    `/home/tux/.claude/projects/-home-tux-Projects-own-linlog/memory/`
+    (`MEMORY.md` the index).
+  - `claude2`: the second account, a wrapper that sets
+    `CLAUDE_CONFIG_DIR=/home/tux/.claude-2` and runs the same Claude Code,
+    Max 5x. Its notes are at
+    `/home/tux/.claude-2/projects/-home-tux-Projects-own-linlog/memory/`,
+    last written for this project on 2026-10-29.
+  - The sessions you start with `plan/start-session.sh` run on your own
+    account: it keeps `CLAUDE_CONFIG_DIR` (unset for `claude`). Every
+    session on one account shares its five-hour window, the planner's
+    included, and the author's other projects fill it too.
+- **How the author starts you**, in `/home/tux/Projects/own/linlog`, from
+  their shell, which is nushell (put `claude2` for `claude` on the second
+  account):
   ```nu
   claude --name linlog-orchestrator --model claude-opus-5-5 --effort high --permission-mode auto (open --raw plan/handoff.md)
   ```
-  The name matters: the step sessions' briefs and goals name
-  `linlog-orchestrator` as the recipient of their messages (the author's
-  name for the planner since 2026-10-28; earlier `planning`); check with
-  `ListAgents` that no other session of that name is alive (the second
-  account's planner ended at the handoff). Auto mode matters too:
-  messages between sessions of different permission classes wait for
-  approval.
-- **The first account is on Max 20x.** Keep the models and efforts the
-  plan names, never `max`; one step session at a time unless the author
-  says otherwise; sessions you start with `plan/start-session.sh` run on
-  your account (it keeps `CLAUDE_CONFIG_DIR`, unset here). Fable 5.1
-  may be used where the plan names it (the panel's argument reader).
-- **The second account's memory notes** are readable at
-  `/home/tux/.claude-2/projects/-home-tux-Projects-own-linlog/memory/`
-  (`MEMORY.md` the index); everything that matters from them is in this
-  file. Your own account's notes at
-  `/home/tux/.claude/projects/-home-tux-Projects-own-linlog/memory/`
-  predate 2026-10-28: where they differ from this file, this file holds.
-- **Read first**, in this order: `CLAUDE.md`; `plan/README.md` from its
-  first line to its last (the step table, "Why these models and
-  efforts", "How the prompts are written", "The commands (nushell)",
-  "Review protocol", the decisions, and the Status log's last fifteen
-  entries in full: 41b to 42d and the author's words of 28 and 29
-  October); `plan/conduct.md`, which every step prompt ends with;
-  `plan/42-first-order.md` and the step's own plan
-  `plan/first-order/README.md` whole; `plan/reports/42-first-order.md`
-  (sessions 42a to 42d, every "What the next sessions must know");
-  the prompts of the steps after 42 (43's section "43d", 45, 46);
-  `plan/later.md`'s section heads.
-- **Then find out where things stand** before you act: `jj log -r
-  'main@origin..'` and `jj workspace list` (in both repositories);
-  `ListAgents` and `zellij list-sessions` for step sessions alive;
-  `systemctl --user list-units 'step*' 'linlog-*'`; `plan/keys-warm.sh
-  --check`. `gh` asks the author's permission (a settings rule): read
-  CI's state only when the author is there, or from the repositories'
-  pages.
+  The name matters: every brief and goal names `linlog-orchestrator` as
+  the recipient of its messages, and the other project's session
+  (below) writes to that name. Check with `ListAgents` that no other
+  session of that name is alive: the first account's planner ended at
+  this handoff. Auto mode matters too, since messages between sessions
+  of different permission classes wait for approval.
+- **Models and efforts**: those the plan names, never `max`. On the
+  first account (Max 20x) Opus 5.5 at `high` by default, Fable 5.1 only
+  where the plan names it. On the second (Max 5x) the same choices, but
+  one step session at a time, and watch the window (below, "The usage
+  limit").
+- **Read first**, in this order:
+  1. `CLAUDE.md`.
+  2. `plan/README.md` from its first line to its last: the step table,
+     "Why these models and efforts", "How the prompts are written", "The
+     commands (nushell)", "Review protocol", the decisions, and the
+     Status log from 2026-10-30 on, in full.
+  3. `plan/conduct.md`, which every step prompt ends with.
+  4. `plan/45-release-0.2.0.md` and `plan/reports/45-release-0.2.0.md`:
+     45a to 45f, and every "What the next sessions must know".
+  5. `plan/46-research-next.md`, the next step.
+  6. `plan/later.md`'s section heads.
+- **Then find out where things stand** before you act:
+  - `jj log -r 'main@origin..'` and `jj workspace list`, in linlog and in
+    `../rocq-linlog`;
+  - `ListAgents`, and `zellij list-sessions` for step sessions alive;
+  - `systemctl --user list-units 'step*' 'linlog-*'`;
+  - `plan/keys-warm.sh --check`.
+  `gh` asks the author's permission (a settings rule), so read CI's state
+  only when the author is there, or from the repositories' pages, the
+  crates.io API and Zenodo's records. GitHub's unauthenticated API
+  allows 60 calls an hour, so never poll it in a loop.
 
-## Where things stand (2026-10-29, 17:00)
+## Where things stand (2026-11-03, about 11:00)
 
-- **Everything is stopped, at the author's word** ("Please stop
-  gracefully after 42d and any of its fixes finishes", 16:40). 42d was
-  reviewed, pushed and closed; no step session runs, no unit but the
-  key-warming loop `step-gpg-warm`. **Start nothing until the author
-  says go**, then ask whether it is unattended again (it was, "until
-  further notice", from 2026-10-29 01:00 to this stop).
-- **linlog `main`** = the commit "Plan: mdBook for the manual" (with this
-  file), pushed. **The web client's `main`** = `olvxtklw` (4a3c26fb),
-  41d's cut on the page, pushed. Only the default workspaces exist.
-- A stray change `ulktsrrq` (2026-10-23, `core/src/nets/mell/review.rs`,
-  921 lines, off `main`) is an earlier planner's review probe of MELL
-  nets, never meant for `main`; leave it.
-- `/tmp/linlog-handoff/` holds every session's brief and goal
-  (`start-NNx.md`, `goal-NNx.txt`); `start-42d.md` and `goal-42d.txt`
-  are the best models (the `linlog-` names, the pinned-time method,
-  the first-order plan's reading list), `42d-pause.md` a worker's pause
-  checklist. `/tmp` is volatile: a reboot loses them, and the patterns
-  below suffice.
-- **The keys**: the author unlocked signing and SSH at 13:47 on
-  2026-10-29; they lapse about twelve hours after (around 01:45 on the
-  30th), however warm the loop keeps them (see "What the author has
-  asked for, standing").
+- **0.2.0 is released**, in both repositories:
+  - linlog: the tag `v0.2.0` (`1f4f986a`, made by the author), `linlog`
+    and `linlog-cli` 0.2.0 on crates.io, and the GitHub release with
+    fifteen files;
+  - rocq-linlog: the tag `v0.2.0` (`b895ecd1`), its documentation at
+    `linlog-prover.github.io/rocq-linlog/`;
+  - Zenodo: linlog 0.2.0 is 10.5281/zenodo.23899551 (concept
+    10.5281/zenodo.23448588), rocq-linlog 0.2.0 is 10.5281/zenodo.23899110
+    (concept 10.5281/zenodo.23899109, now cited in the library's README
+    and `CITATION.cff`).
+- **Step 45 is done**: 45a to 45f, each reviewed and pushed.
+  - 45e prepared the Rocq library's opam submission. The fork, the push
+    and the pull request are the author's: see "Open with the author".
+  - 45f wrote up the other provers' run on the growing sets (2026-11-03,
+    by day). Its finding: Click & coLLecT's and APLL's wrong refutations
+    are an integer overflow in their shared search (2⁶³ wraps at 63
+    formulas beside a ⊗), not our harness.
+- **Step 46 is next, and waits for the author's word**: "not yet"
+  (2026-11-03). Start nothing until they say go, then ask whether it is
+  unattended.
+- **The heads**:
+  - linlog's `main`: the commit with this file, on `okvwpozo`
+    (`8fdfe7b4`, "Plan: review session 45f"), pushed;
+  - the web client's `main` (`linlog-prover.github.io`): `tmzuyqsq`
+    (`629bc52d`), on linlog v0.2.0, pushed;
+  - rocq-linlog's `main`: `qlxtsvqv` (`2bc4b36b`), the DOI citation,
+    pushed.
+  Only the default workspaces exist. `zellij list-sessions` still shows
+  exited sessions of steps 30 to 44 from earlier planners: harmless,
+  and they hold no work.
+- **Nothing runs**: no step session, and no unit but the warm loop
+  `step-gpg-warm`. The author unlocked signing at about 09:15 on
+  2026-11-03, so it lapses about 21:15.
+- **Two stray changes** are off `main` and never meant for it; leave
+  them:
+  - `ulktsrrq` (2026-10-23): an earlier planner's review probe of MELL
+    nets (`core/src/nets/mell/review.rs`);
+  - `zyqyunxy` (2026-10-30): a review probe of 42f's first-order cut
+    elimination (`scratch_fuzz.rs`, `scratch_hand.rs`), on top of
+    42f's commit.
+- **The opam clone**: `~/Projects/own/rocq-opam`, a jj clone of
+  `rocq-prover/opam` with the commit `40954aee` ("Add
+  rocq-linlog.0.2.0"), copied out of `/tmp` for the author's
+  submission. 45e's own scratch directory
+  (`/tmp/claude-1000/-home-tux-Projects-own-linlog/2e75f3b2-37e3-4af6-a93a-6dbd202461ad/scratchpad/`,
+  3.8 GB: its six opam switches and the original clone) is no longer
+  needed; `/tmp` ages it out.
+- **The briefs and goals** of every session are in `/tmp/linlog-handoff/`
+  (`start-NNx.md`, `goal-NNx.txt`). `start-45f.md` and `goal-45f.txt` are
+  recent models. `/tmp` survives a reboot here, but its files age out
+  after about ten days; the patterns below suffice.
 
 ## The steps left
 
-The table in `plan/README.md` is the authority; each Status entry says
-what a session delivered and what was checked. Done and on `main`:
-38 to 41 (41a to 41d: cut, its elimination on terms and nets, drawn,
-on the page), 43a to 43c, 44, and 42a to 42d (the first-order plan and
-data model, the proof term and checker, the focused engine generic over
-its zone, the first-order focused engine). Left, in order:
+The table in `plan/README.md` is the authority.
 
-- **42e to 42k**, as `plan/first-order/README.md` ("The sessions")
-  describes each, all on Opus 5.5 at `high`: **42e** the two-sided
-  engine, interactive proving with `∀`/`∃` (a witness given or left
-  open), the two-sided views (the panel); **42f** cut elimination at
-  first order (a reviewer); **42g** the Rocq development (a reviewer of
-  the statements); **42h** the first-order families and LinearOne (none);
-  **42i** the memo, the loop check and resumable answers at first
-  order (the panel; the author, 2026-10-30, before 0.2.0); **42j**
-  parallel first-order search (the panel; the same; for both, each
-  mechanism measured against 42d's simpler form and its cost in code,
-  the author deciding keep or revert from the report's recommendation:
-  "The keep-or-revert measurement"); **42k** first
-  order on the web page, in the client too (a reviewer;
-  linlog's part pushed first, "linlog ready"). Every session: D17's
-  oracles (the target sets against the latest labels, now
-  `bench/targets/42d.csv` and `net-42d.csv`; the ratchet, none raised)
-  and, where the propositional engine is touched, the pinned time by
-  `bench/pinned-time.py` (below), its rows about a second or more each
-  from 42e on (the author, 2026-10-30; 42e changes its `ROWS`).
-- **43d**: Learn's lessons on cut and the quantifiers, after 42k; its
-  outline goes to the author first, as 43b's and 43c's did.
-- **44b**: the manual (`plan/44-llm-guide.md`, its last section; the
-  author, 2026-10-29): README a front page of about 150 lines, the
-  reference an mdBook manual under `docs/` published on the Pages site
-  beside the rustdoc, `cli/tests/readme.rs` running every chapter's
-  examples; Opus 5.5 at `high` with a fresh reviewer, after 42k and 43d,
-  before step 45.
-- **45**, rewritten 2026-10-24 and 25 (read `plan/45-release-0.2.0.md`
-  whole):
-  - **45a**: the Rocq library moved to `linlog-prover/rocq-linlog`,
-    started fresh with no history; creating and setting up that
-    repository like the client's (ruleset, topics, Actions) is yours by
-    the author's yes of 2026-10-24, its `CACHIX_AUTH_TOKEN` theirs;
-  - **45b** (added 2026-10-30, the later letters moved by one):
-    families of linlog's own that grow in size, one per claim of an
-    engine's or another prover's strength or weakness, and graphs of
-    time against size in the comparison and the manual;
-  - **45c**: the fourth baseline, on a night the author gives, with
-    45b's families; a second night for the other provers on them;
-  - **45d**: the release prepared: the API break listed by a tool (the
-    reviews list every closed enum's new variant and `Placed::parent`
-    in the Status entries 41a to 42d), versions, README; install
-    instructions for each system (Debian and Ubuntu, Fedora, Arch,
-    NixOS, macOS, Windows), each tried in a container or on a runner;
-    native packages where feasible (`.deb`, `.rpm`, a macOS `.pkg` or
-    archive, a Windows `.msi`; Flatpak and AppImage judged, a static
-    musl binary the likely portable form); code signing the author's
-    decision; the Rocq library complete for 0.2.0 and given a release
-    of its own by the Rocq community's practice;
-  - **45e**, after the author's tags: the Rocq library's submission to
-    the Rocq opam repository prepared; then a thorough re-evaluation of
-    nixpkgs (its criteria of the day against the public evidence of
-    use, since nixpkgs refuses "a niche of 5 people"), the author
-    deciding whether to submit before anything is packaged.
-  The tags, publication, every pull request to another project and
-  the DOI are the author's.
-- **46**: research for what to add after 0.2.0, two sessions with the
-  author between.
+- **46**: research for what to add after 0.2.0 (`plan/46-research-next.md`).
+  It writes no code, and has two parts with the author between them:
+  1. the research and a ranked list of candidates, on Fable 5.1 at
+     `high`, its research sub-agents on Sonnet 5.5 at `medium`;
+  2. once the author has chosen, the prompts of the steps that follow,
+     on Opus 5.5 at `high`.
+  Finish its prompt first, with a section "What step 45 left you"
+  (0.2.0's contents, the 45 report's facts, the open items below), and
+  commit it as "Plan: finish the prompt of step 46".
 - **Proposed, not decided**: a desktop app (the author asked on
   2026-10-25 what it would take). The answer given: Tauri 2, the
   client's interface unchanged, its worker's ~20 JSON calls
   (`src/worker/linlog.worker.ts`) served by the linlog library compiled
-  natively (threads, 64-bit memory, native speed, PNG and PDF to
-  files), about three sessions (design, the native core and the
-  client's second transport with cancellation, packaging on three
-  systems), after 0.2.0. The author has not said yes; it is not in the
-  plan.
+  natively, about three sessions. The author has not said yes, so step
+  46 weighs it with the rest.
 
 ## Open with the author
 
-- **Departures**: all of 41's and 42a to 42d's are decided (the
-  Status entry of 2026-10-30); a new one goes to the author as it comes.
-- 43d's outline, when that session sends it.
-- The baseline's night and the second night for the other provers (45c); the 0.2.0 tags; code signing for the
-  installers; whether to submit to nixpkgs (at 45e).
-- 41a's departure for the release: certificates that linlog 0.1.0 wrote
-  with a record literal (one-sided Mix or affine proofs and their
-  refutations) no longer compile, the library's record having gained
-  `cut`; 45d states the break.
-- An MCP server ("not now", sketched in `later.md`); whether to add an
-  `AGENTS.md`; the Zenodo community (skipped for now, in `later.md`).
-- The desktop app above.
-
-## What the second account's run (2026-10-28 and 29) adds
-
-- **The author's words**, each in the Status log: "Go, unattended" and
-  "don't stop before 42's first session" (28th); the planner renamed
-  `linlog-orchestrator`; every session and agent the planner starts
-  named with the prefix `linlog` (step sessions `linlog-step-NNx`, the
-  launcher naming the zellij session the same; briefs ask sessions to
-  name their sub-agents `linlog-…`); the target sets (`bench/targets.sh`,
-  `net-targets.sh`, about 25 minutes on cores 2 and 3) run as usual,
-  but timed benchmark runs wait for the author's word; on the 29th at
-  01:00 they gave the machine for 42c's pinned time "directly", two or so
-  cores left free, coordinated with any other session loading the
-  machine, and resumable; a graceful stop at 11:05 and its resume; the
-  stop after 42d.
-- **The pinned-time method** (42c, 42d): `bench/pinned-time.py run BASE
-  LIFT RUNS.csv` in a detached user unit under the machine lock, both
-  release builds at once on the performance cores 2 and 3, swapped
-  halfway, five runs a row, each run appended so a restart resumes;
-  `summary RUNS.csv OUT.csv` gives medians, spreads and ratios; the rule
-  (3 % summed, 5 % a row for the focused rows) is set in the report
-  before the run. The target set's rows over a second are the Horn
-  engine's now, so the focused and two-sided engines are forced on
-  `mix` and `chain` rows (`bench.md`). Since 2026-10-30 21:40 no timed
-  run needs the author's yes, only coordination (below).
-- **The usage limit stops the planner too.** At the five-hour limit a
-  step session shows "Goal paused · usage limit reached · send a message
-  after it resets to continue" and does not go on by itself; its
-  running sub-agents die with an API error (panels had to be restarted
-  twice). Your own turns stop as well, so a cron cannot wake you: keep a
-  background wall-clock wait (`while [ "$(date +%s)" -lt TARGET ]; do
-  sleep 30; done`, `run_in_background`) ending two minutes after the
-  reset the session's pane names, and at the wake-up message the
-  session to continue and to restart any panel member that died. Max
-  20x makes this rarer, not impossible.
-- **Heads-up boxes found a real fault in nearly every session**: the
-  eliminate command's exit status at its default bound, the drawings'
-  bytes unbounded, a public field changed (`Placed::parent`), an
-  intuitionistic net drawn one-sided, an arity decision unmarked, the
-  ratchet at 0.02 % of its margin, the pinned rows no longer exercising
-  the focused engine, the memo off for first-order goals. Read each one
-  (`dump-screen --full`), act, then press `0` twice; a box can swallow
-  keys typed at the same moment (`/goal clear` once went into one), so
-  look at the screen after.
-- **Signing and SSH lapse about twelve hours after the author unlocks
-  them**, warm loop or not: tell the session to commit with
-  `--config signing.behavior=drop` and to pass it to every jj command
-  that may snapshot its working copy, `gpgconf --reload gpg-agent`, ask
-  the author for `! echo x | gpg --local-user flgrubm@grubmueller.dev
-  --sign -o /dev/null` and `! ssh -T git@github.com`, then
-  `plan/keys-warm.sh`. A rebase onto `main` re-signs the session's
-  commits; `jj sign -r 'main@origin..HEAD & ~signed()'` catches the
-  rest. Read another workspace with `jj --ignore-working-copy`, since a
-  snapshot there is a signed commit.
-- **Small things found at the reviews**, in `later.md`: `interact`'s
-  `cut` reads its formula as one word (`b&a`, not `b & a`); `-q` with
-  `--output` writes no file; `check` ignores a proof file's own mode
-  (pass `--affine`, `-i` and so on); `seq print FILE.json` reads its
-  argument as text (`--input-format json "$(cat FILE)"`).
+- **The opam pull request**, prepared by 45e (its report has the text).
+  The author:
+  1. forks `rocq-prover/opam` on GitHub;
+  2. in `~/Projects/own/rocq-opam`, runs `jj git remote add fork
+     git@github.com:flgrubm/opam.git`;
+  3. runs `jj git push --remote fork --named "rocq-linlog.0.2.0=40954aee"`;
+  4. opens the pull request against `master` with 45e's title and body.
+  coqbot runs the repository's CI, and a maintainer merges.
+- **A night for the quiet rerun of the fourth baseline's parallel stage**:
+  its four files ran 16 threads beside other work and are marked "not
+  comparable" in the manual. A rerun needs every core, the desktop's
+  too, for about 1.5 hours (stage 3 of `bench/baseline.sh`, which resumes
+  files it finds, so move the four files aside rather than deleting
+  them). Then the four rows replace theirs in `bench/COMPARISON.md`
+  and on the manual's page of the 2026-11-02 baseline.
+- **The messages to the other provers' authors**: the drafts in
+  `plan/notes/comparison-messages.md` now carry the overflow finding with
+  its smallest example. Sending them is the author's.
+- Code signing for the installers; the WiX EULA for a Windows `.msi`;
+  install channels that need an account (a Homebrew tap, the AUR,
+  winget, Scoop, COPR, Chocolatey); rocq-linlog's `CACHIX_AUTH_TOKEN`
+  secret; the LLTP header report (`plan/notes/lltp-headers.md`), theirs
+  to send; the MCP server ("not now", sketched in `later.md`); the
+  Zenodo community; the desktop app above.
+- nixpkgs: skipped at the author's word ("any nix user can already get
+  it quite easily anyway", 2026-11-03).
 
 ## How a step runs
 
@@ -241,76 +180,86 @@ its zone, the first-order focused engine). Left, in order:
    runs" (its sessions, each with its model and effort), "The machine"
    if another step runs beside it, and "Deliverables". Commit it as
    "Plan: finish the prompt of step N".
-2. **Write each session's brief and goal** in `/tmp/linlog-handoff/`:
-   `start-NNx.md` (where it starts, its workspaces `jj workspace add
-   --name stepNNx ../linlog-stepNNx -r REV` and for the client `jj
-   workspace add --name stepNNx ../linlog-prover.github.io-NNx -r CREV`,
-   what it reads, its review, the machine's cores, "nothing that asks
-   for the author's permission", how it ends, "Pause" and signing) and
-   `goal-NNx.txt`, one `/goal` line of numbered items, each proved "by a
-   command's own output" (the judge sees only the conversation), ending
-   with: "Nothing is pushed. A failing check is fixed at its cause;
-   never weaken, delete or loosen a test, a check or a tolerance to make
-   it pass. If a requirement turns out impossible, say why in the report
-   and in the message to linlog-orchestrator." A session that touches both
-   repositories sends "linlog ready" after its linlog part; you review
-   and push that part, then answer with linlog's commit and the client's
-   revision to base on. Briefs forbid entering the client's dev shell
-   from linlog's directory (it once left `node_modules` and `.cache`
-   symlinks in linlog's checkout).
-3. **Start it**: `plan/start-session.sh linlog-step-NNx MODEL EFFORT
-   /tmp/linlog-handoff/goal-NNx.txt` (it deletes an exited zellij session
-   of the same name first). The goal file is the launch prompt, so the
-   goal is set at once. Find its Claude pane (`zellij --session
-   linlog-step-NNx action list-panes`: the pane titled `linlog-step-NNx`,
-   `terminal_0` or `terminal_1`) and check that its screen shows `◎
-   /goal active`. Then `SendMessage` to it with `notify_when_idle: true`
-   and no message, and keep two crons: a supervision check (`17 */2 * *
-   *`: its commits, its checklist, its screen for a waiting prompt or a
-   heads-up box, the units, the load; nudge only an idle session with
-   work open, twice at most; say nothing when all is well) and, while
-   unattended, a wake-up every 20 minutes (below). Re-subscribe after
-   each idle notice, but not to a session already idle (it fires at
-   once).
-4. **Review it** when it reports (its last message to `linlog-orchestrator`):
+2. **Write each session's brief and goal** in `/tmp/linlog-handoff/`.
+   - `start-NNx.md` says where the session starts and what it reads,
+     its review, the machine's cores, "nothing that asks for the
+     author's permission", how it ends, "Pause" and signing. It also
+     names its workspaces: `jj workspace add --name stepNNx
+     ../linlog-stepNNx -r REV`, and for the client `jj workspace add
+     --name stepNNx ../linlog-prover.github.io-NNx -r CREV`.
+   - `goal-NNx.txt` is one `/goal` line of numbered items, each proved
+     "by a command's own output" (the judge sees only the conversation).
+     It ends with: "Nothing is pushed. A failing check is fixed at its
+     cause; never weaken, delete or loosen a test, a check or a
+     tolerance to make it pass. If a requirement turns out impossible,
+     say why in the report and in the message to linlog-orchestrator."
+   - A session that touches both repositories sends "linlog ready" after
+     its linlog part; you review and push that part, then answer with
+     linlog's commit and the client's revision to base on.
+   - Briefs forbid entering the client's dev shell from linlog's
+     directory: it once left `node_modules` and `.cache` symlinks in
+     linlog's checkout.
+3. **Start it**: `taskset -c CORES plan/start-session.sh linlog-step-NNx
+   MODEL EFFORT /tmp/linlog-handoff/goal-NNx.txt`. It deletes an exited
+   zellij session of the same name first, and the `taskset` keeps the
+   session's own process (and what it starts) off the cores a timed run
+   needs.
+   - The goal file is the launch prompt, so the goal is set at once.
+   - Find the session's Claude pane: `zellij --session linlog-step-NNx
+     action list-panes` lists it as the pane titled `linlog-step-NNx`.
+     Lately that is `terminal_1`, not `terminal_0`. Check that its
+     screen shows `◎ /goal active`.
+   - `SendMessage` to it with `notify_when_idle: true` and no message.
+   - Keep two crons:
+     - a supervision check (`17 */2 * * *`): its commits, its checklist,
+       its screen for a waiting prompt or a heads-up box, the units, the
+       load; nudge only an idle session with work open, twice at most,
+       and say nothing when all is well;
+     - while unattended, a wake-up every 20 minutes (below).
+   - Re-subscribe after each idle notice, but not to a session already
+     idle (it fires at once).
+4. **Review it** when it reports (its last message to
+   `linlog-orchestrator`):
    - read its report section and the diff (`jj diff -r 'BASE..HEAD'
      --stat`, every soundness-relevant file in full: the checker's arm,
      the Rocq trusted definitions);
-   - run checks yourself, not only read them: probe the command on what
-     the tests do not pin (a built `nix build -o SCRATCH/linlog-main`
-     binary for `main`, the session's `target/debug/linlog` for its
-     tree, on cores 4 to 11), compare target sets with their oracles
-     (`linlog-bench summary --against …`), rebuild a key check under the
-     lock; you are the same model as the session, so your independence
-     is in what you run;
+   - run checks yourself, not only read them. Probe the command on what
+     the tests do not pin: a `nix build -o SCRATCH/linlog-main` binary for
+     `main`, the session's `target/debug/linlog` for its tree, on cores 4
+     to 11. Compare target sets with their oracles (`linlog-bench summary
+     --against …`), recompute a checksum, rebuild a key check under the
+     lock. You are the same model as the session, so your independence
+     lies in what you run;
    - hold every "(departs from the design)" mark for the author;
    - fix a small defect yourself as a commit of its own; send a larger
      one back to the session.
 5. **Stack and check**: rebase its chain onto `main` (`jj rebase -s
    FIRST -d main`), resolve conflicts by hand, and check the combined
-   head: the gate and `nix flake check` when code from two chains meets
-   (that once found semantic conflicts each chain's checks had passed);
-   when only plan files came between, the text checks (`nix build
-   .#checks.x86_64-linux.typos .#checks.x86_64-linux.treefmt
-   .#checks.x86_64-linux.conventions`) suffice.
+   head. When code from two chains meets, that is the gate and `nix
+   flake check` (they once found semantic conflicts each chain's checks
+   had passed); when only plan files came between, the text checks
+   suffice (`nix build .#checks.x86_64-linux.typos
+   .#checks.x86_64-linux.treefmt .#checks.x86_64-linux.conventions`).
 6. **Record it**: a dated Status entry in `plan/README.md` (what was
    delivered, what you checked and how, what the author must decide),
    the follow-ups into `plan/later.md`, the next prompts amended. Commit
    as "Plan: review session NNx", on top of the session's commits.
-7. **Push**: `plan/push-main.sh REV` for linlog and `plan/push-main.sh
-   --client REV` for the client, the linlog part first, chained after
-   its check (`check && push`). They fail within a minute when the SSH
-   key is locked instead of waiting on a prompt, and check `main@origin`
-   after. Never push any other way: a raw `jj git push` asks the
-   author's permission (the settings' `ask` rule), which an unattended
-   run must not.
-8. **Clean up**: close the session (`zellij kill-session
-   linlog-step-NNx`, then `zellij delete-session`), check `jj st` clean
-   in its workspaces and that no result it cites lives only there, then
-   `jj workspace forget stepNNx` (by its jj name, in each repository),
-   `rm -rf` the directories (a session's helper workspaces too, such as
-   `stepNNx-base` and `stepNNx-panel`), `systemctl --user reset-failed
-   'linlog-stepNNx-*' 'stepNNx-*'`.
+7. **Push** with `plan/push-main.sh REV` for linlog, `--client REV` for
+   the client and `--rocq REV` for the Rocq library, the linlog part
+   first, chained after its check (`check && push`).
+   - The script fails within a minute when the SSH key is locked instead
+     of waiting on a prompt, and checks `main@origin` after.
+   - Never push any other way: any `jj git push …`, even with `--help`,
+     matches the settings' `ask` rule, and an unattended run must not
+     ask.
+8. **Clean up**:
+   - close the session: `zellij kill-session linlog-step-NNx`, then
+     `zellij delete-session linlog-step-NNx`;
+   - check `jj st` clean in its workspaces, and that no result it cites
+     lives only there (untracked lists, CSVs, logs);
+   - `jj workspace forget stepNNx` (by its jj name, in each repository),
+     then `rm -rf` the directories, a session's helper workspaces too;
+   - `systemctl --user reset-failed 'linlog-stepNNx-*' 'stepNNx-*'`.
 9. **Report** to the author: the outcome first, then what you checked,
    then what needs them, in short plain sentences. When you give the
    next step, say what it does and every model and effort it starts.
@@ -322,117 +271,163 @@ its zone, the first-order focused engine). Left, in order:
   sessions `linlog-step-NNx` (the launcher names the zellij session the
   same, the prefix once), sub-agents `linlog-…`; the briefs ask step
   sessions to name their own sub-agents so too.
-
 - **A step session**: a top-level Claude Code session in a detached
   zellij session, one writer per coupled change, its goal in its launch
-  prompt. Not agent teams or the Workflow tool (the latter only when the
-  author asks for multi-agent orchestration).
-- **`/goal`**: its judge sees only the conversation and has no turn cap;
-  the goal's last sentence lets it answer "impossible". After a pause
-  the goal is set again: `/goal ` typed alone, then the condition on one
-  line, then Enter (`zellij … action write-chars --pane-id PANE …`,
-  `… action write --pane-id PANE 13`); if the input line still holds
-  `/goal [Pasted text …]`, send Enter again.
+  prompt. Not agent teams, and not the Workflow tool, which is only for
+  when the author asks for multi-agent orchestration.
+- **`/goal`**: its judge sees only the conversation and has no turn cap,
+  and the goal's last sentence lets it answer "impossible". A goal cannot
+  be paused, only cleared and set again: Escape (`zellij … action write
+  --pane-id PANE 27`), `/goal clear`, Enter (`… write --pane-id PANE
+  13`). To set it again, type `/goal ` alone, then the condition on one
+  line (`… action write-chars --pane-id PANE …`), then Enter; if the
+  input line still holds `/goal [Pasted text …]`, send Enter again.
 - **A message from a step session does not wake you**: it arrives with
-  your next turn. While unattended keep a cron every 20 minutes
-  (`*/20 * * * *`) that acts on a waiting message or an idle session
-  with its work done, and otherwise ends at once without a message.
-  Crons fire only while you are idle; keep turns short.
+  your next turn. While unattended, keep a cron every 20 minutes
+  (`*/20 * * * *`) that acts on a waiting message or an idle session with
+  its work done, and otherwise ends at once without a message. Crons
+  fire only while you are idle, so keep turns short. Rewrite the cron's
+  prompt when the work moves on: a stale one sends you after a run that
+  ended hours ago.
+- **Permission prompts in a session's pane**: a session in auto mode
+  still stops at a command a settings `ask` rule matches; on 2026-11-03,
+  45e stopped at `jj git push --help`. Look for `Do you want to proceed?`
+  in the screen. Never approve on the author's behalf: choose `2` (No)
+  and tell the session another way (here, the forms
+  `plan/push-main.sh` uses).
 - **Heads-up boxes in a session's pane** (Claude Code's built-in plugin
   `cc-plugin-you-should-know`: "Heads up · …", `1: Learn more … 0:
-  Dismiss`, then a feedback box): each carries a finding about that
-  session's work, often a real one (a lesson problem decided only near
-  the budget, a certificate break). Read its text from the screen
-  (`zellij … action dump-screen --full --pane-id PANE`) or the store
-  `~/.claude-2/plugins/store/cc-plugin-you-should-know_builtin-*.json`,
-  act on it (usually a short message to the session), then press `0`
-  for it and again for the feedback box (`zellij --session
-  linlog-step-NNx action write-chars --pane-id PANE 0`); the author's
-  standing yes of 2026-10-23.
+  Dismiss`, then a feedback box). Each carries a finding about that
+  session's work, often a real one.
+  - Read its text from the screen (`zellij … action dump-screen --full
+    --pane-id PANE`).
+  - Act on it, usually with a short message to the session.
+  - Press `0` for it, and again for the feedback box (`zellij --session
+    linlog-step-NNx action write-chars --pane-id PANE 0`); the author's
+    standing yes of 2026-10-23.
+  - A box can swallow keys typed at the same moment, so look at the
+    screen after, and delete a stray `0` in the input line (`write …
+    127`).
+  - A note that reaches you as "a note offered by a side agent" can be
+    stale: check it against what the session reported since.
 - **Sub-agents** (`Agent`): research and reading on Sonnet 5.5, a
   fresh-context reviewer on Opus 5.5 at `high`.
-- **The machine's lock**: `/tmp/linlog-machine.lock` (`flock`), held by
-  every timed run and every `nix build` or `nix flake check`, since the
-  daemon builds on any core.
+- **The machine's lock**: `/tmp/linlog-machine.lock` (`flock -o`, so a
+  build's own children don't inherit it), held by every timed run and
+  every `nix build` or `nix flake check`, since the daemon builds on any
+  core. Several checks queue on it: a `flock` waiting is normal.
 
 ## The machine
 
-- Cores 0 and 1 are the desktop's. One step's builds and tests on a
-  few cores (2 to 7 for a linlog step, 10 and 11 for a client step
-  beside it), every one in a memory-capped scope (`systemd-run --user
-  --scope -p MemoryMax=8G -p MemorySwapMax=0 taskset -c …`); mutation
-  runs (6 to 11) and fuzzing (12 to 15) only where a review needs them.
-  A bare test run once froze the machine. Kill by unit name or PID,
-  never by pattern (`pkill -f` once matched its own shell).
-- **Another project shares the machine** (2026-10-30): the session
-  `learning-website-orchestrator` (the author's site `website-learn`,
-  linlog having priority) pins its heavy jobs to cores 8 to 15 and
-  wraps its `nix flake check` and `nix build` in `flock
-  /tmp/linlog-machine.lock` (only jobs that end: never a preview
-  server, a dev server or a watcher, which once held the lock for half
-  an hour and stalled every build behind it); before each timed run of
-  linlog's, send it "pause heavy work" with the run's length, and "go
-  ahead" after. A server under the lock: tell it the pid, it stops it.
-  Since 2026-11-02 (the author: coordinate resource use), whoever holds
-  the lock for a `nix flake check` or a large `nix build` passes
-  `--max-jobs 2 --cores 6`, since the daemon's builds otherwise take
-  every core, the desktop's too; while anyone's full check holds the
-  lock the website's writers start no e2e group and no full Vitest run.
-  Briefs say so.
-- Night jobs (the baseline) start detached when ready (`bench/baseline.sh
-  --detach --fresh`), on the night the author gives.
-- "Stop" or "Pause" from the author: the `graceful-stop` skill (`HH:MM`
-  for a stop by then, `resume` for the resume); it records each
+- **Its cores**: an Intel Core Ultra X9 388H, 16 cores without SMT. CPUs
+  0–3 are performance cores (5.1 GHz), 4–11 efficiency cores (4.0 GHz),
+  12–15 low-power cores (3.7 GHz).
+  - Cores 0 and 1 are the desktop's: runs keep to 2–15, and queue rather
+    than take 0 or 1.
+  - A linlog step's builds and tests go on a few cores (2 to 7, or 4 to 7
+    beside a timed run), every one in a memory-capped scope
+    (`systemd-run --user --scope -p MemoryMax=8G -p MemorySwapMax=0
+    taskset -c …`). A bare test run once froze the machine.
+  - Mutation runs (6 to 11) and fuzzing (12 to 15) only where a review
+    needs them.
+  - Kill by unit name or PID, never by pattern: `pkill -f` once matched
+    its own shell.
+- **Confine by affinity**: the user manager has no cpuset controller, so
+  a unit's `AllowedCPUs` does nothing. `taskset` (or `systemd-run -p
+  CPUAffinity=…`) is the one mechanism that works, and `bench/baseline.sh
+  --cpus` uses it since 45d2.
+- **Another project shares the machine**: the session
+  `learning-website-orchestrator`, for the author's site `website-learn`.
+  linlog has priority.
+  - It keeps its heavy jobs on cores 8 to 15, and wraps its `nix flake
+    check` and `nix build` in `flock -o /tmp/linlog-machine.lock` with
+    `--max-jobs 2 --cores 6`, as everyone does since 2026-11-02 (the
+    daemon's builds otherwise take every core, the desktop's too).
+  - It runs at most four unit writers, never a server under the lock (a
+    preview server once held the lock for half an hour), and no e2e
+    group or full Vitest run while anyone's full check holds the lock.
+  - Before each timed run of linlog's, send it "pause heavy work" with
+    the run's length and cores, and "go ahead" after. On 2026-11-03 it
+    moved its whole process to cores 10–11 (`taskset -acp`) for the
+    run's length.
+  - Other projects' sessions come and go (`effect-optics-orchestrator`
+    on 2026-11-02): look at `ListAgents` before each timed run and tell
+    each.
+- **After a reboot**:
+  - the step sessions' zellij sessions have exited: `zellij
+    delete-session linlog-NAME`, then `plan/start-session.sh --resume ID
+    NAME MODEL EFFORT` brings one back with its context but without its
+    goal, so set the goal again and send "Resume";
+  - signing is locked: ask the author for the unlock (below), then run
+    `plan/keys-warm.sh`;
+  - `nix-optimise` catches up its missed night run some minutes after
+    boot (`systemctl list-timers`). Start no timed run before it has
+    finished; it took a minute on 2026-11-03.
+- **Timers that would disturb a night run**: `nix-gc` at midnight,
+  `nix-optimise` at 03:45, `borgbackup-job-eth`, and `obsidian-snapshot`
+  (a user timer) at 23:00. System ones need the author's `sudo
+  systemctl stop …` for the night.
+- **Night jobs** (the baseline) start detached when ready
+  (`bench/baseline.sh --detach --fresh`), on the night the author gives.
+- **"Stop" or "Pause" from the author**: the `graceful-stop` skill
+  (`HH:MM` for a stop by then, `resume` for the resume). It records each
   session's goal file for the resume.
 
 ## What the author has asked for, standing
 
-- **jj only, never git**, not even to read; every commit signed as
-  `flgrubm@grubmueller.dev`, no other identity. Keep both keys warm
-  with `plan/keys-warm.sh` (the unit `step-gpg-warm`, signing and SSH
-  every four minutes; `--check` says which is unlocked). Signing lapses
-  12 hours after the author entered the passphrase however warm the
-  loop: then `gpgconf --reload gpg-agent`, the author types `! echo x |
-  gpg --local-user flgrubm@grubmueller.dev --sign -o /dev/null` (and
-  `ssh -T git@github.com` if SSH lapsed), and you run
-  `plan/keys-warm.sh` again. Never touch `~/.gnupg`; if a jj command
-  fails on a stale keyring lock, `/home/tux/.claude/hooks/unwedge-gpg-lock.sh`.
-  Sessions commit with `--config signing.behavior=drop` while signing
-  fails, and you sign later (`jj sign -r 'main@origin..REV &
-  ~signed()'`), never while a session works on those commits.
-- **Pushing** `main` of both repositories without asking, after
-  review, as above. Tags, releases and every administrative `gh` task
-  (settings, rulesets, secrets, Pages, a workflow run, a new
-  repository) need the author's yes for that task (the yes for
-  `rocq-linlog`'s creation and setup is given); deleting and
-  transferring are theirs alone.
+- **jj only, never git**, not even to read. Every commit is signed as
+  `flgrubm@grubmueller.dev`, with no other identity.
+- **The keys**:
+  - Keep both warm with `plan/keys-warm.sh` (the unit `step-gpg-warm`,
+    signing and SSH every four minutes; `--check` says which is
+    unlocked).
+  - Signing lapses 12 hours after the author entered the passphrase,
+    however warm the loop. Then the author types:
+    ```
+    ! gpgconf --reload gpg-agent
+    ! echo x | gpg --local-user flgrubm@grubmueller.dev --sign -o /dev/null
+    ```
+    plus `! ssh -T git@github.com` if SSH lapsed too, and you run
+    `plan/keys-warm.sh` again.
+  - Never touch `~/.gnupg`. If a jj command fails on a stale keyring
+    lock, run `/home/tux/.claude/hooks/unwedge-gpg-lock.sh`.
+  - Auto mode refuses `--config signing.behavior=drop`, so a lapsed key
+    stalls every commit: finish what needs no commit, tell the author,
+    and wait. Earlier sessions committed unsigned and the planner signed
+    later (`jj sign -r 'main@origin..REV & ~signed()'`, never while a
+    session works on those commits); that is refused now.
+- **Pushing** `main` of all three repositories without asking, after
+  review, as above.
+  - Tags, releases and every administrative `gh` task (settings,
+    rulesets, secrets, Pages, environments, a workflow run, a new
+    repository) need the author's yes for that one task.
+  - Deleting and transferring are theirs alone.
 - **Unattended, deciding** (the author, 2026-10-30, 22:07: "consider
   yourself unattended from now. If any decisions come up, please decide
-  them in the way that rational thinking makes you believe is best"):
-  decide what would have gone to the author, each decision with its
-  reason in the Status log; the tags, publication, the night baseline,
-  `gh` administration and anything outward stay theirs.
-- **Timed runs need no yes** (the author, 2026-10-30, 21:40: "You
-  don't need to ask before doing benchmarks. Just coordinate with the
-  other sessions"): a session tells the planning session before each
-  timed run; the planning session pauses the other sessions' heavy work
-  (the learning website's: "pause heavy work", then "go ahead") and the
-  run starts; the night baseline still waits for the night the author
-  gives.
-- **Benchmarks are protected from other load** (the author,
-  2026-10-30): whenever a timed run is going (the baseline's night, a
-  pinned-time comparison, a session's own timing while it iterates),
-  look for any other session or unit using the machine in a way that
-  would disturb it (its cores, the shared caches, memory bandwidth, a
-  `nix` build in the daemon on any core) and coordinate with it: ask
-  that session to move off the timed run's cores, hold its heavy work
-  (builds, test runs, panels' scratch runs) until the run ends, or
-  pause the run and resume it, whichever loses less; a timed run's
-  report says what else ran beside it. The supervision check looks for
-  this every time, and every brief tells its session to do the same
-  before and during its own timed runs.
+  them in the way that rational thinking makes you believe is best").
+  - Decide what would have gone to the author, each decision with its
+    reason in the Status log.
+  - The tags, publication, the night baseline, `gh` administration and
+    anything outward stay theirs.
+  - The author has been present since 2026-11-02 and gives the go for
+    each step: ask at the next go whether it is unattended again.
+- **Timed runs need no yes**, only coordination (the author, 2026-10-30,
+  and again on 2026-11-03: "feel free to do some benchmarks now.
+  Coordinate with the other Claude code sessions on resource usage").
+  - A session tells the planning session before each timed run, and the
+    planning session pauses the other sessions' heavy work, its own
+    sessions' included ("pause heavy work", then "go ahead").
+  - The night baseline still waits for the night the author gives.
+- **Benchmarks are protected from other load** (the author, 2026-10-30).
+  - Whenever a timed run is going, look for any other session or unit
+    that would disturb it: its cores, the shared caches, memory
+    bandwidth, a `nix` build in the daemon on any core, a system timer.
+  - Coordinate with it: ask that session to move off the timed run's
+    cores, hold its heavy work until the run ends, or pause the run and
+    resume it, whichever loses less.
+  - A timed run's report says what else ran beside it.
 - **Nothing that asks for permission while unattended**: no `gh`, no
-  raw `jj git push`, nothing the settings mark `ask`.
+  `jj git push`, nothing the settings mark `ask`.
 - **Idiomatic and current** (2026-10-25): everything written the way its
   ecosystem writes it today, from that ecosystem's current documents
   and recent examples, read, not remembered (`plan/conduct.md` says so
@@ -461,6 +456,22 @@ its zone, the first-order focused engine). Left, in order:
 - **Reports**: plain words, the outcome first; profiles as text and
   tables, never flame graphs.
 
+## The usage limit
+
+- **Both accounts stop at their five-hour limit**, the planner too. A
+  step session shows "Goal paused · usage limit reached" and does not go
+  on by itself; its running sub-agents die with an API error.
+- Claude Code continues a session by itself at the reset, but only for a
+  turn that a person's prompt or a peer's message started; a turn that a
+  cron, an idle notice or a task notification started does not.
+- So keep a background wall-clock wait ending a few minutes after the
+  reset the pane names (`while [ "$(date +%s)" -lt TARGET ]; do sleep 30;
+  done`, `run_in_background`), and at the wake message the session to go
+  on and restart any sub-agent that died. A plain `sleep` counts no
+  suspended time, and the laptop suspends on lid close.
+- On the second account (Max 5x) this comes often; on the first (Max
+  20x) rarely.
+
 ## Things that bit earlier sessions
 
 - **Stacked chains conflict semantically**: check the combined head.
@@ -475,13 +486,25 @@ its zone, the first-order focused engine). Left, in order:
   `--use-destination-message` or `-m`; never `jj new -m`.
 - **nix sees only tracked files**: `jj st` after creating a file,
   before a `nix` command that must see it.
+- **A snapshot is a signed commit**: read another workspace with `jj
+  --ignore-working-copy`; a background run writing into the repository
+  lands in `@` (write timed runs' output to a scratch directory and copy
+  it in).
 - **The Bash tool is zsh**: an unquoted `====` is an error; quote
-  separators.
-- **Found and parked at the last reviews** (`plan/later.md`): without
-  `--deterministic` the command answers unknown on a sequent the
-  inverse method saturates at once (intuitionistic follow-ups); `linlog
-  check` ignores a proof file's own `"mode"` (the command's output
-  follow-ups).
+  separators; a foreground `sleep` is refused, so wait with
+  `run_in_background` or Monitor.
+- **An uncapped build**: a `cargo run` typed in a hurry runs on every
+  core outside any scope; even a probe goes through the capped scope.
+- **Delete nothing unread**: look at a workspace's untracked files before
+  removing it (a reviewer's uncommitted scratch was once lost).
+- **A timed run measures giving up as easily as deciding**: a row that
+  ends at a limit (the recursion limit, the copy bound) times the limit,
+  not the search; read the reason column before comparing times.
+- **Found and parked** (`plan/later.md`): without `--deterministic` the
+  command answers unknown on a sequent the inverse method saturates at
+  once; `linlog check` ignores a proof file's own `"mode"`; linlog's
+  recursion limit on `lambek-fo` from 512 on (LinearOne solves them);
+  the memory account that never reaches its limit on `wide-m1/8192`.
 
 ## When asked to re-evaluate models and efforts
 
