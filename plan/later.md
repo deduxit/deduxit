@@ -1976,6 +1976,44 @@ of a clause's answers at first order has no switch, so no measurement
 shows its gain beside the memo's. Measured in
 `bench/growing/2026-10-31/`, before any change is weighed.
 
+*Found by the other provers on the growing sets (step 45f, 2026-11-03;
+unassigned; the rows in `bench/comparison/2026-11-03-growing/`).*
+
+- **LinearOne solves 8 problems linlog does not.** `lambek-fo` #0 and #2
+  at 512 and 1 024, #3 at 1 024 and #4 at 1 024 and 2 048: linlog's
+  two-sided search ends at its recursion limit (2 048), within 0.3 s on
+  #0, #3 and #4 and after 5.9 s and 44 s on #2, where LinearOne proves
+  or refutes them (#0, #2 and #3 at 1 024 in about 28 s, #4 at 2 048 in
+  0.46 s). And `witness-fo` #3 at 12: linlog reaches the 60 s limit
+  (10 in 3.4 s, about 2.1ⁿ), LinearOne refutes it in 82 ms, flat at
+  about 80 ms from 2. The recursion limit wants raising for these
+  first-order shapes, or a search whose depth does not grow with the
+  formulas (as for `chain-fo`, above under the first-order follow-ups);
+  `witness-fo` #3 wants the refutation LinearOne finds at once.
+- **linlog's memory on `wide-m1` at 8 192.** With the comparison's
+  `--memory-limit 4294967296B`, the cgroup's own bound, both linlog
+  columns are killed by the cgroup at 4 GiB (one thread after 3.3 s, the
+  default after 2.0 s) instead of the focused engine meeting its memory
+  bound and the default handing the sequent to the net engine, which
+  the engines' run (1 GiB) does at 4 096 and so decides 8 192 in 9.2 s.
+  So the memory account undercounts the focused engine's use on this
+  shape by enough that the process passes 4 GiB before the account
+  reaches it (derived from the two runs' rows, not traced). The
+  default's peak at 4 096 was 2.0 GiB, its largest 3.0 GiB on
+  `pigeonhole` #1 at 8.
+- **`chain-fo` without the family's copy bound**: the command, given
+  no copy bound, proves #0 to 64 and reaches the time limit at 128,
+  its deepening past a bound of 140 000 within the minute, and never
+  refutes #1 (16 at the limit); under the family's bound the engines
+  prove #0 to 384 and end #1 at that bound. A deepening that grows the
+  bound by more than one copy a level only where the search used them
+  all would bring the two closer.
+- **The harness reads linlog's reason in the wrong order**:
+  `linlog_read` (`bench/src/tools.rs`) looks for "copy bound" before
+  "recursion", so a line "the recursion limit of 2048 was reached …
+  at a copy bound of 410" is `copy_bound` (`chain` at 1 024); no
+  count changes, both being "gave up".
+
 ## Follow-ups: certified refutations
 
 *From step 31d (`plan/reports/31-rocq-library.md`, "Session 31d:
