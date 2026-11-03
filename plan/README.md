@@ -4528,3 +4528,16 @@ client follows it (step 32).
   the desktop's included, for about 1.5 h: it waits for a night the
   author gives. 45e resumed at 09:47 with six switches (`rocq-core`
   9.0.0 to 9.3.0, every published version the file admits), not four.
+- 2026-11-03: 45e done and reviewed. The package file
+  `released/packages/rocq-linlog/rocq-linlog.0.2.0/opam` is the library's
+  opam file at `v0.2.0` without its licence header and `version:`, plus
+  the `url` of the tag's archive. Its SHA-512, recomputed here from a
+  fresh download, equals the file's. `opam lint --check-upstream` passes,
+  and installs from the clone into six fresh switches (`rocq-core` 9.0.0
+  to 9.3.0) passed; the pull request's claims match the library's README.
+  The clone, commit `40954aee` ("Add rocq-linlog.0.2.0") on `master`
+  `80ee9978`, was copied out of `/tmp` to `~/Projects/own/rocq-opam`. The
+  fork, the push and the pull request are the author's (the report's
+  steps). The library now cites its concept DOI 10.5281/zenodo.23899109
+  in README and `CITATION.cff`, pushed with `--rocq` after its flake
+  check.
