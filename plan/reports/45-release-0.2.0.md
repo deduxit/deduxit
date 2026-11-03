@@ -2,7 +2,221 @@
 
 The step's sessions each add a section here: 45b (the families that
 grow), 45a (the Rocq library in its own repository), 45c (the fourth
-baseline), 45d (the release prepared) and 45e (the package archives).
+baseline), 45d (the release prepared), 45e (the package archives) and
+45f (the other provers on the growing sets).
+
+## Session 45f: the other provers on the growing sets
+
+### Outcome
+
+The other provers' rows on the growing sets of 2026-11-03 are committed
+as `bench/comparison/2026-11-03-growing/` (`runs.csv`, 3 068 rows;
+`ranking.md`; each stream's `env.json`; the script's light `figures/`),
+as `bench/comparison/2026-10-15/` keeps them. The manual has a chapter
+of their own, `docs/src/results/provers-2026-11-03.md` ("The other
+provers on the growing sets, 2026-11-03"), in `SUMMARY.md` beside the
+growing sets of 2026-11-02: what ran where and when, the solved table,
+each family per tool from the rows, the growth figure with its fitted
+growth, both cactus plots and twelve scatter plots, all drawn at build
+time by `bench/plots.py` from `runs.csv` through two lines of
+`docs/figures.sh`. The section "The other provers" of
+`growing-2026-11-02.md`, README's clause on the comparison, the
+benchmarks chapter's table of comparison runs and the status chapter
+point to it. The probe of the wrong refutations found their cause, an
+integer overflow in the search Click & coLLecT and APLL share, and
+cleared our translation: no translator changed, no row is the
+harness's fault. No code changed.
+
+### The probe of the wrong refutations
+
+Run by hand on cores 2 and 3 in capped scopes, each run under a
+timeout, with the binaries of `.#comparison` at this commit. The
+harness's own translations were captured by putting a shim named like
+each tool first on `PATH` (it copied the file it was given and answered
+"timeout") and running `linlog-bench run --tools click-and-collect,apll-ll
+--family wide-m1=1,2,3,4,8,32,36,64,128,200,255,256,512`; a hand
+generator of the same text matched the captured files byte for byte at
+3 and 256 pairs.
+
+- **The threshold**: both tools prove `wide-m1` at 1 to 4 pairs, reach
+  their limits (10 s for Click & coLLecT, 12 s for APLL by hand) at 8,
+  32, 36, 40, 48, 56, 60 and 62 pairs (APLL tried at 8, 32, 60 and 62),
+  and refute it at 63 pairs (64 formulas) in 4 ms and 5 ms, and at 64,
+  128, 200, 255, 256 and 512.
+- **Formulas, not atoms or depth**: one atom, `⊢ p0 ⊗ ⋯ ⊗ p0, p0⊥, …,
+  p0⊥`, is refuted by both with 63 factors (6 ms and 9 ms) and 64, and
+  reaches both limits with 61 and 62; linlog proves the 63-factor one.
+  A balanced tensor of 63 atoms beside their 63 negations (depth 6, 64
+  formulas) is refuted by both, of 62 not decided; `⊢ ⊥ ×63, 1` is
+  proved by both (the `⊥` leave the context first). The two-formula
+  shape `⊢ T, P` (the wide tensor and the `⅋` of its duals, 126 atoms)
+  is refuted by APLL and proved by Click & coLLecT, whose `auto_weak`
+  closes `⊢ A⊥, A` by an axiom (`proof.ml`, line 356): `P` is `T`'s
+  dual; written as one formula `T ⅋ P` both refute it.
+- **The cause, from the sources at the pinned revisions**: the `Tensor`
+  case of the backward search counts the context's splits down from
+  `fast_exp_2 (List.length gamma) - 1` (Click & coLLecT
+  `focused_proof.ml` line 280; APLL `foc_ll_bwd.ml` line 157 and
+  `foc_ill_bwd.ml` line 72, and the ILL search's left `⊸` at line 163;
+  `fast_exp_aux` multiplies native ints). In 63-bit arithmetic `fast_exp_2 63` is 2⁶³ ≡ 0, so the count
+  is −1 and `split_gamma` returns at once; at 62 it is 2⁶² = `min_int`,
+  so the count is `max_int` and the search runs (simulated in Python
+  with 63-bit wrapping: −1 for 63, 64 and 100). The search then fails
+  everywhere and reports an exhaustive failure.
+- **Both runs' wrong rows are this overflow**: in 2026-10-15's rows,
+  the classical wrong refutations are `wide-m*` at 256 and above and
+  `partition-yes` at 24 and 28, whose context after the `⅋` are taken
+  apart holds 75 and 87 formulas (63 at 20, where both timed out); every
+  APLL ILL refutation of a Petri net there has an initial marking of 63
+  tokens or more (1 327: the 1 296 counted wrong and 31 that nothing
+  proved; the other 13 such nets, of 401 to 20 000 tokens, ended in a
+  stack overflow), and none with fewer is refuted (derived from the
+  rows and the library's files, not run again).
+
+So the translation is cleared, and nothing in either run is marked the
+harness's fault; `provers-2026-10-15.md` is unchanged.
+
+### The chapter, from the rows
+
+- linlog 179 of the 202 problems it ran (both columns equal in every
+  count), LinearOne 58 of 61, Sympli 23 of 28, the rest 2 to 13; only
+  LinearOne solves problems linlog does not (8).
+- The supervisor's first look held but for two points, corrected from
+  the rows: `witness-fo/12` #3 ends at linlog's time limit, not its
+  recursion limit (that is `lambek-fo`, from 512 on #0 and #2 and from
+  1 024 on #3 and #4); and the default's 3 GiB peak is `pigeonhole` #1
+  at 8, not `wide-m1`, whose default peaked at 2.0 GiB at 4 096 and was
+  killed by the cgroup at 4 GiB at 8 192.
+- Found in writing it: APLL's LL search is the fastest tool on `chain`
+  (512 clauses in 9 ms against linlog's 3.7 s); linlog is slower than
+  LinearOne on `lambek-fo` #1 at 1 024 and 2 048; in the comparison
+  linlog gets no copy bound, so `chain-fo` decides less there than in
+  the engines' run (#0 to 64, #1 never refuted); and the harness reads
+  "copy bound" before "recursion" in linlog's verdict line, so `chain`
+  at 1 024 is `copy_bound` where the line says the recursion limit
+  (no count changes). The chapter says each; the last three are
+  follow-ups in `plan/later.md`.
+- `bench/TOOLS.md`'s "Wrong answers" gained the cause (it is what the
+  drafts attach); `bench/COMPARISON.md` does not speak of these rows and
+  is unchanged; the guide for AI models does not name the comparison
+  and is unchanged.
+
+### The reviewer
+
+A fresh-context reviewer on Opus 5.5 at `high` (`linlog-review-45f`),
+read only, on cores 2 and 3, judged six criteria: every number of the
+chapter, README and the benchmarks chapter against the rows; every
+figure drawn from the rows through `docs/figures.sh` (it drew all 16
+files of both themes); the threshold claim against the sources and the
+probe's files (8 runs by hand of its own, which agreed); the rows
+against the precedent and the run's files (all 25 equal by `cmp`); no
+mention of the plan in the manual or README; the follow-ups against the
+rows. Five findings, each answered:
+
+1. *The Petri-net claim says APLL refuted every net of 63 tokens or
+   more, but 13 such nets (401 to 20 000 tokens) ended in a stack
+   overflow.* Holds; the chapter and APLL's draft say "every one on
+   which it did not crash" and name the 13 (`bench/TOOLS.md`'s wording,
+   about the refuted nets, was already exact).
+2. *`foc_ill_bwd.ml` line 163 is not a `⊗` case but the left `⊸`
+   (`Impl`, line 146).* Holds (checked: `Tensor` at 41, `Impl` at 146);
+   the chapter, TOOLS.md, APLL's draft, `bench.md` and this report say
+   line 72 for the `⊗` and 163 for a `⊸` focused on the left.
+3. *`lambek-fo` #2 at 2 048 ends at the time limit, not the recursion
+   limit.* Holds (60.0 s, `timeout`, in both columns); the chapter says
+   so. The count of LinearOne's 7 problems there is unchanged.
+4. *Against Sympli, `duplicate` #0 at 2 to 8 and `contraction` #0 at 2
+   also lie above the diagonal*, by under a millisecond. Holds; the
+   chapter names them.
+5. *The rows equal the run's files and keep what the precedent keeps.*
+   Holds; no change.
+
+The rest held: every other number, both themes' figures, the arithmetic
+of the overflow, the partition counts, README, the status chapter and
+the follow-ups.
+
+### Departures and assumptions
+
+- **The chapter is named `provers-2026-11-03.md`**, by its date beside
+  `provers-2026-10-15.md`, and the run's directory
+  `bench/comparison/2026-11-03-growing/` as the brief named it.
+- **The stream logs are not committed**: the precedent keeps none
+  (`.gitignore` drops `bench/comparison/*/*.log` and the stream CSVs);
+  the brief's "the streams' logs as there" read as that. The env
+  records keep their scratch paths, as the precedent's do.
+- **Beyond "rewrite nothing else"**, kept true where the run changes
+  them: the benchmarks chapter (its list of chapters, a row of its
+  comparison table, the sentence that said the growing comparison was
+  not run, and a clause on the cause after the 1 308 and 12 wrong
+  refutations), the status chapter (the growing comparison moved from
+  planned to built), `bench/TOOLS.md`'s wrong answers, and two bullets
+  in `.claude/rules/bench.md`. The design asked for these joins
+  (45d2's "What the next sessions must know"), and conduct.md for a
+  true status chapter.
+- **The Petri-net link is derived, not run**: from 2026-10-15's rows and
+  the library's files, with the counter in APLL's ILL search read in
+  the source; said so in the chapter, the drafts and TOOLS.md.
+
+### What the next sessions must know
+
+- **Step 46** inherits a comparison whose wrong verdicts all have one
+  cause; a future run on larger contexts draws more of them, which the
+  judge already counts wrong. When the authors confirm or fix it, the
+  drafts' paragraphs of 2026-11-03 are the ones to update.
+- **The growing comparison runs linlog without a family's copy bound
+  and with the cgroup's 4 GiB as `--memory-limit`**: rows on
+  `chain-fo` and `wide-m1` differ from the engines' run for that, not
+  for the engines; `bench.md` says so.
+- **The probe's captured files and scripts are scratch** (this
+  session's scratchpad), not in the repository; the shim technique is
+  described above for a rerun.
+- **The follow-ups** in `plan/later.md` ("Found by the other provers on
+  the growing sets"): LinearOne's 8 problems (the recursion limit on
+  `lambek-fo`, `witness-fo` #3 at 12), linlog's memory account on
+  `wide-m1` at 8 192, `chain-fo` without its copy bound, the harness's
+  reading of linlog's reason.
+- **The other provers on the libraries beside 0.2.0's engines** are
+  still not run (the status chapter's planned item).
+
+### What is left open
+
+- The messages to Click & coLLecT's and APLL's authors, the author's to
+  send.
+- The follow-ups above.
+
+### Checklist
+
+- [x] Workspace `../linlog-step45f` on `qrxzmunm`.
+- [x] Read the brief, the step's prompt, `conduct.md`, 45b's and 45d2's
+  sections, the Status entries of 2026-11-02 and 03, `bench.md`,
+  `docs/figures.sh`, the results chapters, README's comparison clause,
+  `plan/notes/comparison-messages.md`.
+- [x] The rows committed (`ymqzpnqt`), each file equal to the run's.
+- [x] The probe by hand: threshold 63 formulas beside a `⊗`, the cause
+  in both sources, the translation cleared; sent to the supervisor.
+- [x] The chapter, its figures in `docs/figures.sh` (drawn in both
+  themes, the light growth, cactus and three scatter figures read
+  rendered), `SUMMARY.md`, the pointers (`muqtnmow`); the finding in
+  TOOLS.md, both drafts and `bench.md` (`mwxpoxzv`); the follow-ups
+  (`mwpvrlqu`).
+- [x] `nix build .#checks.x86_64-linux.manual
+  .#checks.x86_64-linux.manual-links`: exit 0, 0 link errors; the new
+  page holds its 32 figures and the growth table.
+- [x] `cargo test -p linlog-cli --test readme`: 7 passed; `cargo test -p
+  linlog-bench --test manual`: passed after the chapter named the
+  command's call (`linlog prove --deterministic`) instead of a bare
+  flag the test reads as the harness's.
+- [x] No code changed, so no gate.
+- [x] The fresh-context reviewer's round: five points, four corrections
+  (the Petri nets' crashes, line 163's `⊸`, `lambek-fo` #2's time
+  limit, two more points above Sympli's diagonal), one confirmation;
+  the manual and its links built again and both tests passed after
+  them.
+- [x] `nix flake check -L --keep-going` under the machine lock with
+  `--max-jobs 2 --cores 6`: exit 0 over the tree before the review's
+  corrections; again at this report's commit, its exit status in the
+  final message.
+- [x] `jj st` clean; the final message to `linlog-orchestrator`.
 
 ## Session 45e: the Rocq library's opam submission
 
