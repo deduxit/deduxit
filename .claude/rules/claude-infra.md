@@ -142,6 +142,12 @@ Current contents:
   id, so it moves by hand when a newer Sonnet ships. It also enables the
   `rust-analyzer-lsp` plugin (code intelligence;
   needs `rust-analyzer` on PATH, which the devshell provides).
+  `attribution.sessionUrl` is `false` (the author, 2026-11-03, for
+  privacy): a session connected through Remote Control or run in the
+  cloud otherwise ends each commit with a `Claude-Session:` trailer
+  linking its claude.ai session. 366 commits of `main` from 2026-10-14
+  to 2026-11-03 carry one, kept as pushed. `Co-Authored-By` stays. The
+  rocq-linlog and client repositories set the same.
 
 ## Hooks
 
