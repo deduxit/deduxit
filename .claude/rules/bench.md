@@ -562,9 +562,9 @@ serde_json, which the CLI and the core's tests already have.
   from the CSV by column names (`plots.py comparison`).
 - **Click & coLLecT's and APLL's wrong refutations are one overflow,
   not the translation** (probed by hand on 2026-11-03): both count a
-  focused `⊗`'s context splits down from `fast_exp_2 (List.length
-  gamma) - 1`, which OCaml's 63-bit `int` makes −1 from 63 formulas
-  beside the `⊗`, so the rule gets no premise and the search reports a
+  focused `⊗`'s context splits (in APLL's ILL search also a left `⊸`'s)
+  down from `fast_exp_2 (List.length gamma) - 1`, which OCaml's 63-bit
+  `int` makes −1 from 63 formulas beside the connective, so the rule gets no premise and the search reports a
   refutation. Any problem whose context reaches 64 formulas after the
   invertible rules can draw one (`wide-m*` from 63 pairs, `partition-yes`
   from 24, Petri nets with 63 tokens); the judge already counts each as

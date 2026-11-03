@@ -240,7 +240,8 @@ tool proves a sequent linlog refutes. Wrong, and not counted as solved:
   reading their sources: each counts the splits of the context `Γ` of
   a focused `⊗` down from `fast_exp_2 (List.length gamma) - 1` (Click &
   coLLecT's `focused_proof.ml` line 280, APLL's `foc_ll_bwd.ml` line 157
-  and `foc_ill_bwd.ml` lines 72 and 163), which OCaml's 63-bit integers
+  and `foc_ill_bwd.ml` line 72, and for a `⊸` focused on the left at
+  line 163), which OCaml's 63-bit integers
   make −1 from 63 formulas on, so that the `⊗` gets no premise and the
   search reports a refutation. `wide-m1` flips at 63 pairs (64
   formulas), `⊢ p ⊗ ⋯ ⊗ p, p⊥, …, p⊥` with 63 factors is refuted and

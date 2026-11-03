@@ -126,17 +126,20 @@ corrections and for the configuration the authors would choose. Attach
   have one cause, in the search rather than in our translation. The
   `Tensor` case of the backward searches counts the splits of the
   context down from `fast_exp_2 (List.length gamma) - 1`
-  (`foc_ll_bwd.ml` line 157, `foc_ill_bwd.ml` lines 72 and 163 at
-  `c55f59d2`); with OCaml's 63-bit `int`, `fast_exp_2 63` is 0, so with
-  63 or more formulas beside a focused `⊗` the count starts at −1, the
-  `⊗` gets no premise, and the search answers `N`. The smallest example
+  (`foc_ll_bwd.ml` line 157, `foc_ill_bwd.ml` line 72 at `c55f59d2`,
+  and the ILL search's `Impl` case, a `⊸` focused on the left, at line
+  163); with OCaml's 63-bit `int`, `fast_exp_2 63` is 0, so with 63 or
+  more formulas beside a focused `⊗` (or, in ILL, `⊸`) the count starts
+  at −1, the rule gets no premise, and the search answers `N`. The smallest example
   we have, written by hand (`|- (p0 * p0 * … * p0), p0^, …, p0^` with
   63 factors and 63 negations, 64 formulas, provable): `N` in 9 ms;
   with 62 factors no answer within 12 s. `wide-m1` flips the same way
   between 62 and 63 pairs, and of the library's Petri nets the ILL
-  search refuted exactly those whose initial marking has 63 tokens or
-  more (1 327, none with fewer; 1 296 of them proved by linlog with
-  checked proofs), as the same counter in `foc_ill_bwd.ml` predicts.
+  search refuted every one whose initial marking has 63 tokens or more
+  and on which it did not crash (1 327, 1 296 of them proved by linlog
+  with checked proofs; 13 nets of 401 to 20 000 tokens ended in a stack
+  overflow) and none with fewer, as the same counter in
+  `foc_ill_bwd.ml` predicts.
   A guard on `List.length gamma` (or counting splits without a power
   of two) would turn these into `-` or proofs. Would you confirm?
 - **Proof Net Calculator** (Satoshi Matsuoka): listed in the matrix as a
