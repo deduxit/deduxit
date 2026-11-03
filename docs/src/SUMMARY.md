@@ -24,6 +24,7 @@
 - [Benchmarks and the comparison](benchmarks.md)
   - [The baseline of 2026-11-02](results/baseline-2026-11-02.md)
   - [Families that grow, 2026-11-02](results/growing-2026-11-02.md)
+  - [The other provers on the growing sets, 2026-11-03](results/provers-2026-11-03.md)
   - [The baseline of 2026-10-17](results/baseline-2026-10-17.md)
   - [Beside the other provers, 2026-10-15](results/provers-2026-10-15.md)
   - [First order against LinearOne, 2026-10-30](results/first-order-2026-10-30.md)

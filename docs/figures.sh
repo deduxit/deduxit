@@ -39,7 +39,8 @@ for theme in light dark; do
     "$out/$theme/baseline-2026-11-02"
   python3 -I "$plots" growth --theme "$theme" "$growing"/2026-11-02/*.csv \
     "$out/$theme/growing-2026-11-02/engines"
-  # The other provers on the growing sets to their limits join as
-  # `growth` over bench/comparison/DAY-growing/runs.csv into
-  # growing-2026-11-02/provers, once that night has run.
+  python3 -I "$plots" comparison --theme "$theme" \
+    "$comparison/2026-11-03-growing/runs.csv" "$out/$theme/provers-2026-11-03"
+  python3 -I "$plots" growth --theme "$theme" \
+    "$comparison/2026-11-03-growing/runs.csv" "$out/$theme/provers-2026-11-03"
 done

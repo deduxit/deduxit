@@ -18,8 +18,9 @@ Rocq library in a repository of its own; the
 linlog's manual, [linlog-prover.github.io/linlog/manual](https://linlog-prover.github.io/linlog/manual/),
 describes every command, format and engine with real output, and the
 benchmarks and the comparison with the other provers with their figures
-(the other provers so far beside 0.1.0's engines and, at first order,
-LinearOne beside 0.2.0's search); the [web page](https://linlog-prover.github.io/) proves step by step in
+(the other provers beside 0.1.0's engines on the libraries, and beside
+0.2.0's on the growing families, where two of them refute provable
+sequents once 63 formulas stand beside a `⊗`); the [web page](https://linlog-prover.github.io/) proves step by step in
 the browser on the same library.
 
 ## Install

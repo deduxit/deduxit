@@ -9,7 +9,8 @@ and [2026-10-31](results/growing-2026-10-31.md), the time against size
 of the families chosen to show each engine's and each other prover's
 strengths and weaknesses; and the comparison with the other provers of
 linear logic, [beside the other provers, 2026-10-15](results/provers-2026-10-15.md)
-and [first order against LinearOne, 2026-10-30](results/first-order-2026-10-30.md),
+[first order against LinearOne, 2026-10-30](results/first-order-2026-10-30.md)
+and [the other provers on the growing sets, 2026-11-03](results/provers-2026-11-03.md),
 which ["Beside the other provers"](#beside-the-other-provers) below
 sums up.
 Every figure is drawn by `bench/plots.py` from the rows of the run's CSV
@@ -221,13 +222,14 @@ row and its chapter as a page:
 | 2026-10-15 | the engines of 0.1.0 | the LLTP library, qcover's coverability problems and the generated families, 4 811 | the eight of the table below | [Beside the other provers, 2026-10-15](results/provers-2026-10-15.md) |
 | 2026-10-30 | the first-order search of 0.2.0 | `lambek-fo` and `witness-fo`, 36 | LinearOne | [First order against LinearOne, 2026-10-30](results/first-order-2026-10-30.md) |
 | 2026-10-31 | the engines of 0.2.0 | each growing set's first two sizes, a check of every tool's verdicts, not its curve | the eight of the table below | [Families that grow, 2026-10-31](results/growing-2026-10-31.md#the-other-provers) |
+| 2026-11-03 | the engines of 0.2.0 | the growing sets to each tool's limit, 212 problems run | the eight of the table below | [The other provers on the growing sets, 2026-11-03](results/provers-2026-11-03.md) |
 
 So the numbers below are those of 0.1.0's engines on the libraries,
 which the engines of 0.2.0 decide more of ([the baseline of
 2026-11-02](results/baseline-2026-11-02.md)), and of the first-order
-search against LinearOne. The other provers on the growing families to
-their limits, and on the libraries beside the engines of 0.2.0, are not
-yet run.
+search against LinearOne; on the growing families the other provers
+ran beside the engines of 0.2.0 to their limits. The other provers on
+the libraries beside the engines of 0.2.0 are not yet run.
 
 The provers of linear logic we found, as their own sources state them
 (read on 2026-10-15); `bench/TOOLS.md` has every feature with its source
@@ -258,7 +260,9 @@ against Sympli's 811). On the other 1 358 intuitionistic problems Sympli
 solves the most, 873 against linlog's 829 (852 by its default), and 132
 that linlog does not, mostly refutations of the SYJ collections. No tool proves a
 sequent linlog refutes; APLL and Click & coLLecT refute provable
-sequents, 1 308 and 12 of them. On the first-order families in
+sequents, 1 308 and 12 of them, every one by an overflow in the
+search the two share, from 63 formulas beside a `⊗` ([the growing
+sets' comparison](results/provers-2026-11-03.md#the-wrong-refutations)). On the first-order families in
 LinearOne's fragment (28 problems) the two agree wherever both decide:
 LinearOne decides all 28 and linlog 25, the other three ending at its
 recursion and time limits (`bench/TOOLS.md`, "The first-order

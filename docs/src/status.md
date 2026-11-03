@@ -7,7 +7,9 @@ Built:
   syntax, every run measured by BenchExec under one time and memory
   limit, the problems solved, the contradictions and the figures drawn
   from the rows (`bench/TOOLS.md`, `bench/comparison.sh`, and a CI
-  workflow anyone can start).
+  workflow anyone can start), on the libraries beside the engines of
+  0.1.0 and on the growing families to each tool's limit beside those
+  of 0.2.0.
 - Parsing and printing of sequents in [the syntax](syntax.md), with the ASCII and
   Unicode spellings of every connective, and a compact JSON form.
 - The syntax of first-order linear logic: quantifiers over terms,
@@ -322,8 +324,7 @@ Planned, in roughly this order:
   countermodels of the other logics, failure certificates of the
   backward search.
 - First-order proving on the web page.
-- The other provers on the growing families, to their limits, beside
-  linlog's engines, and the comparison on the libraries with the
+- The comparison with the other provers on the libraries with the
   engines of 0.2.0.
 
 linlog is very much inspired by [Click & coLLecT](https://www.click-and-collect.linear-logic.org).
