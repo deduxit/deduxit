@@ -1,0 +1,102 @@
+| shape | line | sizes fitted | fitted growth |
+|---|---|---|---|
+| chain #0 | linlog | 16 to 512 | 1.01^n |
+| chain #0 | linlog-default | 16 to 512 | 1.01^n |
+| chain #0 | lolli | — | fewer than 3 sizes solved over 1 ms |
+| chain #0 | maude-cll | 16 to 512 | 1.01^n |
+| chain #0 | apll-ll | 16 to 512 | n^0.2 |
+| chain #0 | click-and-collect | — | fewer than 3 sizes solved over 1 ms |
+| chain #0 | llprover-cll | — | fewer than 3 sizes solved over 1 ms |
+| chain-fo #0 | linlog | 16 to 64 | 1.02^n |
+| chain-fo #0 | linlog-default | 16 to 64 | 1.02^n |
+| chain-fo #1 | linlog | — | fewer than 3 sizes solved over 1 ms |
+| chain-fo #1 | linlog-default | — | fewer than 3 sizes solved over 1 ms |
+| contraction #0 | linlog | 2 to 128 | n^2.2 |
+| contraction #0 | linlog-default | 2 to 128 | n^2.1 |
+| contraction #0 | sympli | 2 to 8 | 1.38^n |
+| contraction #0 | maude-ill | — | fewer than 3 sizes solved over 1 ms |
+| contraction #0 | apll-ill | — | fewer than 3 sizes solved over 1 ms |
+| contraction #0 | llprover-ill | — | fewer than 3 sizes solved over 1 ms |
+| contraction #1 | linlog | 2 to 8 | n^0.1 |
+| contraction #1 | linlog-default | 2 to 8 | 1.01^n |
+| contraction #1 | sympli | 2 to 8 | 1.20^n |
+| contraction #1 | maude-ill | — | fewer than 3 sizes solved over 1 ms |
+| contraction #1 | apll-ill | — | fewer than 3 sizes solved over 1 ms |
+| contraction #1 | llprover-ill | — | fewer than 3 sizes solved over 1 ms |
+| counter #0 | linlog | 2 to 262144 | 1.00^n |
+| counter #0 | linlog-default | 2 to 262144 | 1.00^n |
+| counter #0 | lolli | — | fewer than 3 sizes solved over 1 ms |
+| counter #0 | maude-cll | 2 to 16 | 1.15^n |
+| counter #0 | apll-ll | — | fewer than 3 sizes solved over 1 ms |
+| counter #0 | click-and-collect | 2 to 8 | 3.24^n |
+| counter #0 | llprover-cll | — | fewer than 3 sizes solved over 1 ms |
+| counter #0 | lintap | — | fewer than 3 sizes solved over 1 ms |
+| duplicate #0 | linlog | 2 to 262144 | 1.00^n |
+| duplicate #0 | linlog-default | 2 to 262144 | 1.00^n |
+| duplicate #0 | sympli | 2 to 1024 | 1.01^n |
+| duplicate #0 | maude-ill | — | fewer than 3 sizes solved over 1 ms |
+| duplicate #0 | apll-ill | — | fewer than 3 sizes solved over 1 ms |
+| duplicate #0 | llprover-ill | — | fewer than 3 sizes solved over 1 ms |
+| duplicate #1 | linlog | 2 to 262144 | 1.00^n |
+| duplicate #1 | linlog-default | 2 to 262144 | 1.00^n |
+| duplicate #1 | lolli | — | fewer than 3 sizes solved over 1 ms |
+| duplicate #1 | maude-cll | 2 to 8 | 2.01^n |
+| duplicate #1 | apll-ll | — | fewer than 3 sizes solved over 1 ms |
+| duplicate #1 | click-and-collect | — | fewer than 3 sizes solved over 1 ms |
+| duplicate #1 | llprover-cll | — | fewer than 3 sizes solved over 1 ms |
+| duplicate #1 | lintap | — | fewer than 3 sizes solved over 1 ms |
+| euler #0 | linlog | 5 to 24 | n^0.0 |
+| euler #0 | linlog-default | 5 to 24 | 1.01^n |
+| euler #0 | sympli | 5 to 10 | 4.75^n |
+| euler #0 | maude-ill | 5 to 8 | 5.00^n |
+| euler #0 | apll-ill | — | fewer than 3 sizes solved over 1 ms |
+| euler #0 | llprover-ill | — | fewer than 3 sizes solved over 1 ms |
+| euler #1 | linlog | 5 to 18 | 1.86^n |
+| euler #1 | linlog-default | 5 to 18 | 1.77^n |
+| euler #1 | sympli | 5 to 10 | 4.23^n |
+| euler #1 | maude-ill | 5 to 8 | 4.24^n |
+| euler #1 | apll-ill | — | fewer than 3 sizes solved over 1 ms |
+| euler #1 | llprover-ill | — | fewer than 3 sizes solved over 1 ms |
+| lambek-fo #0 | linlog | 8 to 256 | 1.00^n |
+| lambek-fo #0 | linearone | 8 to 1024 | 1.01^n |
+| lambek-fo #0 | linlog-default | 8 to 256 | 1.00^n |
+| lambek-fo #1 | linlog | 8 to 2048 | 1.00^n |
+| lambek-fo #1 | linearone | 8 to 2048 | 1.00^n |
+| lambek-fo #1 | linlog-default | 8 to 2048 | 1.00^n |
+| lambek-fo #2 | linlog | 8 to 256 | 1.02^n |
+| lambek-fo #2 | linearone | 8 to 1024 | 1.01^n |
+| lambek-fo #2 | linlog-default | 8 to 256 | 1.02^n |
+| lambek-fo #3 | linlog | 8 to 512 | 1.00^n |
+| lambek-fo #3 | linearone | 8 to 1024 | 1.01^n |
+| lambek-fo #3 | linlog-default | 8 to 512 | 1.00^n |
+| lambek-fo #4 | linlog | 8 to 512 | 1.00^n |
+| lambek-fo #4 | linearone | 8 to 2048 | 1.00^n |
+| lambek-fo #4 | linlog-default | 8 to 512 | 1.00^n |
+| mix #0 | linlog | 4 to 4096 | n^0.3 |
+| mix #0 | linlog-default | 4 to 4096 | n^0.3 |
+| pigeonhole #0 | linlog | 2 to 5 | 9.68^n |
+| pigeonhole #0 | linlog-default | 2 to 5 | 8.74^n |
+| pigeonhole #1 | linlog | 2 to 8 | 4.53^n |
+| pigeonhole #1 | linlog-default | 2 to 8 | 3.98^n |
+| reach-fo #0 | linlog | 2 to 10 | 3.13^n |
+| reach-fo #0 | linlog-default | 2 to 10 | 2.84^n |
+| reach-fo #1 | linlog | — | fewer than 3 sizes solved over 1 ms |
+| reach-fo #1 | linlog-default | — | fewer than 3 sizes solved over 1 ms |
+| wide-m1 #0 | linlog | 256 to 4096 | n^1.7 |
+| wide-m1 #0 | linlog-default | 256 to 4096 | n^1.7 |
+| wide-m1 #0 | lolli | — | fewer than 3 sizes solved over 1 ms |
+| wide-m1 #0 | maude-cll | — | fewer than 3 sizes solved over 1 ms |
+| wide-m1 #0 | apll-ll | — | fewer than 3 sizes solved over 1 ms |
+| wide-m1 #0 | click-and-collect | — | fewer than 3 sizes solved over 1 ms |
+| wide-m1 #0 | llprover-cll | — | fewer than 3 sizes solved over 1 ms |
+| wide-m1 #0 | lintap | — | fewer than 3 sizes solved over 1 ms |
+| witness-fo #0 | linlog | 2 to 16 | 1.01^n |
+| witness-fo #0 | linlog-default | 2 to 16 | n^0.0 |
+| witness-fo #1 | linlog | 2 to 16 | n^0.0 |
+| witness-fo #1 | linlog-default | 2 to 16 | 1.00^n |
+| witness-fo #2 | linlog | 2 to 16 | 1.00^n |
+| witness-fo #2 | linearone | 2 to 16 | 1.00^n |
+| witness-fo #2 | linlog-default | 2 to 16 | 1.00^n |
+| witness-fo #3 | linlog | 2 to 10 | 2.14^n |
+| witness-fo #3 | linearone | 2 to 16 | 1.00^n |
+| witness-fo #3 | linlog-default | 2 to 10 | 2.06^n |
