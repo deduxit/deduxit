@@ -4505,3 +4505,26 @@ client follows it (step 32).
   already get it quite easily anyway", through linlog's own flake); 45e
   prepares the Rocq library's opam submission alone. Go for the web
   client's update to 0.2.0 and for 45e.
+- 2026-11-03: the web client on linlog v0.2.0 (`629bc52d`, pushed, its
+  flake check passed). Paused for the night at the author's stop at 00:35,
+  45e at 00:23; the machine rebooted at 09:05. Resumed at the author's
+  word at 09:09, with benchmarks allowed again ("feel free to do some
+  benchmarks now", coordinated with the other sessions).
+- 2026-11-03: the other provers on the growing sets, by day:
+  `bench/comparison.sh --growing --cores 4,5,6,7,8,9 --default-cores
+  12-15 --timeout 60` at `540755d8` (the `v0.2.0` tag's tree but `plan/`),
+  09:29 to 09:46, after nix-optimise's catch-up run. The website's session
+  moved its process to cores 10–11 for light work only, 45e waited on 2–3,
+  and cores 0–1 stayed the desktop's. Decided: 4–9 rather than the
+  night's 6–11, the same class of core, because the website keeps 10–15
+  by day. The rows: linlog 179 of 202, LinearOne 58 of 61, Sympli 23 of
+  28. Click & coLLecT and APLL's LL refute `wide-m1` from 256 on (as in
+  step 29's run), and LinearOne solves 8 `lambek-fo`/`witness-fo` rows
+  where linlog ends at its recursion limit. Decided: a session of its own,
+  45f (`/tmp/linlog-handoff/start-45f.md`), commits the rows, writes their
+  chapter and probes the refutations' threshold before the manual claims
+  it. Our translator stays under suspicion until the probe clears it. The
+  quiet rerun of the fourth baseline's parallel stage needs every core,
+  the desktop's included, for about 1.5 h: it waits for a night the
+  author gives. 45e resumed at 09:47 with six switches (`rocq-core`
+  9.0.0 to 9.3.0, every published version the file admits), not four.
