@@ -31,7 +31,9 @@ on your machine, with `cargo install` or Nix, which link glibc; for
 everything else the packages are the quicker way in. Every release lists the SHA-256 sums of its files in `SHA256SUMS`
 and carries an attestation of where they were built, which
 `gh attestation verify FILE --repo sequentium/sequentium` checks with the
-GitHub command. The packages and binaries are not signed: what that
+GitHub command; the files of 0.2.0 and earlier were attested under the
+repository's former name, so for them it is
+`gh attestation verify FILE --repo linlog-prover/linlog`. The packages and binaries are not signed: what that
 means on each system is said in its section.
 
 ## Debian and Ubuntu
