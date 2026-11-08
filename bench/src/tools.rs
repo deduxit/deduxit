@@ -69,6 +69,9 @@ pub struct Answer {
     pub reason: String,
     /// The engine that decided, where the tool names one.
     pub engine: String,
+    /// The `checked` column of a refutation the driver checked itself,
+    /// `None` where the driver's [`Driver::checks`] says it.
+    pub checked: Option<String>,
 }
 
 impl Answer {
@@ -78,6 +81,7 @@ impl Answer {
             verdict,
             reason: reason.to_owned(),
             engine: String::new(),
+            checked: None,
         }
     }
 }
@@ -138,6 +142,10 @@ fn linlog_arguments(file: &Path, problem: &Problem, timeout: f64, memory: u64) -
         format!("{timeout}s"),
         "--memory-limit".into(),
         format!("{memory}B"),
+        // The outcome as JSON: an unprovable one holds the refutation that
+        // the driver checks.
+        "--format".into(),
+        "json".into(),
         "--quiet".into(),
     ]);
     arguments
@@ -152,39 +160,54 @@ fn linlog_one(file: &Path, problem: &Problem, timeout: f64, memory: u64) -> Vec<
 }
 
 /// Reads linlog's exit status (0 proved, 1 unprovable, 3 unknown, 2 an
-/// error) and the engine from its verdict line, `provable (MLL,
-/// classical, focused engine)`.
+/// error) and its outcome in JSON: the engine, the reason of an unknown
+/// verdict, and an unprovable verdict's refutation, which
+/// `Disproof::check` checks ([`refutation_checked`]).
 fn linlog_read(output: &str, status: i32, _: &Problem) -> Answer {
     let line = output.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
-    let engine = line
-        .rsplit_once(", ")
-        .and_then(|(_, rest)| rest.split_once(" engine"))
-        .map_or(String::new(), |(engine, _)| engine.to_owned());
-    let (verdict, reason) = match status {
-        0 => ("proved", String::new()),
-        1 => ("unprovable", String::new()),
+    let outcome = output
+        .lines()
+        .find_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
+        .unwrap_or_default();
+    let text = |value: &serde_json::Value| value.as_str().unwrap_or("").to_owned();
+    let engine = text(&outcome["engine"]);
+    let (verdict, reason, checked) = match status {
+        0 => ("proved", String::new(), None),
+        1 => (
+            "unprovable",
+            String::new(),
+            Some(refutation_checked(output)),
+        ),
         3 => {
-            // The verdict line says in words which bound stopped the search.
-            let why = line.split_once("): ").map_or("", |(_, why)| why);
-            let reason = [
-                ("time limit", "timeout"),
-                ("memory", "memory_limit"),
-                ("copy bound", "copy_bound"),
-                ("recursion", "recursion_limit"),
-                ("work limit", "work_limit"),
-                ("index", "index_limit"),
-            ]
-            .iter()
-            .find(|(words, _)| why.contains(words))
-            .map_or(why, |&(_, reason)| reason);
-            ("unknown", reason.to_owned())
+            // The library's reason; its stop is the time limit here.
+            let reason = match text(&outcome["reason"]["kind"]).as_str() {
+                "stopped" => "timeout".to_owned(),
+                kind => kind.to_owned(),
+            };
+            ("unknown", reason, None)
         }
-        _ => ("error", line.to_owned()),
+        _ => ("error", line.to_owned(), None),
     };
     Answer {
         verdict,
         reason,
         engine,
+        checked,
+    }
+}
+
+/// Returns the `checked` column of linlog's unprovable outcome, read from
+/// its JSON as the disproof it holds: `ok` where `Disproof::check` accepts
+/// the refutation, `failed: …` where it does not hold or cannot be read,
+/// empty for an exhausted search, which has no check.
+fn refutation_checked(output: &str) -> String {
+    let read = output.lines().find_map(|l| {
+        let mut document = serde_json::Deserializer::from_str(l);
+        linlog::wire::upgrade::<linlog::Disproof, _>(&mut document, &linlog::Limits::default()).ok()
+    });
+    match read {
+        Some(disproof) => crate::run::refutation_checked(&disproof),
+        None => "failed: no disproof in the output".to_owned(),
     }
 }
 
@@ -745,15 +768,16 @@ fn one(
         .rev()
         .find(|l| !l.trim().is_empty())
         .unwrap_or("");
-    let checked = match (answer.verdict, driver.checks) {
-        ("proved", true) => "ok",
-        ("proved", false) => "unchecked: no checker",
-        _ => "",
+    let checked = match (&answer.checked, answer.verdict, driver.checks) {
+        (Some(checked), _, _) => checked.clone(),
+        (None, "proved", true) => "ok".to_owned(),
+        (None, "proved", false) => "unchecked: no checker".to_owned(),
+        _ => String::new(),
     };
     row.extend([
         ("verdict", answer.verdict.into()),
         ("reason", crate::run::clean(&answer.reason)),
-        ("checked", checked.into()),
+        ("checked", checked),
         ("engine", answer.engine),
         ("time_ms", format!("{:.1}", m.wall_ms)),
         ("cpu_ms", format!("{:.1}", m.cpu_ms)),
@@ -980,4 +1004,35 @@ fn record(path: &Path, settings: &Settings, tools: &serde_json::Value) -> Result
     });
     std::fs::write(path, serde_json::to_string_pretty(&record)? + "\n")
         .with_context(|| format!("writing {}", path.display()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// linlog's unprovable outcome is checked by its refutation: `ok`
+    /// where it holds, `failed: …` where a planted change makes it fail,
+    /// and empty for an exhausted search.
+    #[test]
+    fn linlog_s_refutations_are_checked() {
+        let outcome = |input: &str, mode: Mode| {
+            let sequent: linlog::Sequent = input.parse().unwrap();
+            let outcome = linlog::prove(&sequent, mode, &linlog::Options::default()).unwrap();
+            serde_json::to_string(&outcome).unwrap()
+        };
+        let counted = outcome("!d, !((c * d * d) -o 1) |- c * c", Mode::CLASSICAL);
+        assert!(counted.contains(r#""kind":"one_sided""#), "{counted}");
+        assert_eq!(refutation_checked(&counted), "ok");
+        let wrong = counted.replace(r#""least":2,"most":2"#, r#""least":1,"most":2"#);
+        assert_ne!(wrong, counted);
+        assert!(refutation_checked(&wrong).starts_with("failed: "));
+        let net = outcome(
+            "!(a -o a * a), !(a * c -o b * c), a |- b",
+            Mode::INTUITIONISTIC,
+        );
+        assert!(net.contains(r#""kind":"state_equation""#), "{net}");
+        assert_eq!(refutation_checked(&net), "ok");
+        let exhausted = outcome("A & B |- A * B", Mode::CLASSICAL);
+        assert_eq!(refutation_checked(&exhausted), "");
+    }
 }

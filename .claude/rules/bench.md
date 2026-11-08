@@ -167,10 +167,11 @@ serde_json, which the CLI and the core's tests already have.
   these are findings, not configurations). `checked` is `ok` or the
   checker's message for a proof of the roots, or `failed: …` with how the
   child died in the check; for an unprovable row it is `Disproof::check`'s
-  answer, `ok` for a classical assignment, an unbalanced atom, the count
-  equation or a saturated set verified, `failed: …` for one that does not hold, empty for a
-  refutation that rests on the search (`exhausted`, `one_sided`,
-  `state_equation`), so the ranking's "(checked)" covers refutations too; `check_ms` is the wall-clock time of the check
+  answer (`run::refutation_checked`), `ok` for every refutation it
+  verifies (all but `exhausted`, the one-sided counts and state
+  equations included since step 51), `failed: …` for one that does not
+  hold, empty for an exhausted search, so the ranking's "(checked)"
+  covers refutations too; `check_ms` is the wall-clock time of the check
   alone.
 - **`time_ms` is wall-clock time of the search alone** (`Instant` around
   `prove_within`): forest construction and pool start-up included, parsing,
@@ -584,8 +585,19 @@ serde_json, which the CLI and the core's tests already have.
   from 24, Petri nets with 63 tokens); the judge already counts each as
   wrong. A hand-written `⊢ p ⊗ ⋯ ⊗ p, p⊥, …` of 63 factors reproduces
   it; the manual's `results/provers-2026-11-03.md` has the probe.
+- **linlog's comparison driver reads its outcome as JSON**
+  (`linlog_arguments` passes `--format json --quiet`, `linlog_read`):
+  the engine and an unknown verdict's reason come from the outcome's
+  keys (`stopped` written `timeout`), and an unprovable outcome is read
+  back as its disproof and checked (`tools::refutation_checked`, the
+  harness's `run::refutation_checked`), so the `checked` column credits
+  linlog's checked refutations as it does its proofs. The JSON of a
+  proof holds its nodes, which the timed run now serialises (small
+  beside the proof check it already includes); a comparison before
+  step 51 printed the verdict line only.
 - **linlog in the comparison gets no copy bound** (`linlog_arguments`
-  passes the sequent, `--timeout` and `--memory-limit` alone), like
+  passes the sequent, `--timeout`, `--memory-limit` and the output
+  format alone), like
   every other tool, so a family whose engines' rows rest on its stated
   copy bound (`chain-fo`) decides less here; its `--memory-limit` is the
   cgroup's 4 GiB, which the cgroup can reach before linlog's account

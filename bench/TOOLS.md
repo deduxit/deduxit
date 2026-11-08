@@ -130,7 +130,12 @@ and Isabelle formalisations (no automation).
 - **Contradictions are listed**, between two tools or against a known
   verdict, each verdict marked checked or not: linlog checks every proof
   it reports with a checker that shares no code with its search, Sympli
-  validates its own; no `unprovable` is checked, linlog's included.
+  validates its own. In the comparisons of 2026-10-15 and 2026-11-03 no
+  `unprovable` was checked, linlog's included; since then linlog writes
+  its outcome as JSON (`--format json`), and the driver reads an
+  unprovable one's refutation and marks it checked where the library's
+  `Disproof::check` accepts it, which it does for every refutation but
+  an exhausted search.
 
 Reproduce, on any Linux machine with Nix and a systemd user session:
 

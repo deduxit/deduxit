@@ -688,6 +688,17 @@ fn cause(stderr: &str) -> &str {
         .unwrap_or("")
 }
 
+/// Returns the `checked` column of a disproof: `ok` where
+/// `Disproof::check` accepts its refutation, `failed: …` where it does not
+/// hold, empty for an exhausted search, which has no check.
+pub(crate) fn refutation_checked(disproof: &linlog::Disproof) -> String {
+    match disproof.check() {
+        Ok(()) => "ok".to_owned(),
+        Err(error) if error.kind() == linlog::ErrorKind::Unsupported => String::new(),
+        Err(error) => clean(&format!("failed: {error}")),
+    }
+}
+
 /// Makes text a CSV field: no commas, no line breaks.
 pub(crate) fn clean(text: &str) -> String {
     text.replace(',', ";").replace(['\n', '\r'], " ")
@@ -883,13 +894,7 @@ fn tail(args: &OneArgs) -> String {
         Verdict::Proved(proof) => proof,
         // A refutation with a certificate is checked as a proof is; one
         // that rests on the search has nothing to check.
-        Verdict::Unprovable(disproof) => {
-            return match disproof.check() {
-                Ok(()) => tail("ok", ""),
-                Err(error) if error.kind() == linlog::ErrorKind::Unsupported => tail("", ""),
-                Err(error) => tail(&clean(&format!("failed: {error}")), ""),
-            };
-        }
+        Verdict::Unprovable(disproof) => return tail(&refutation_checked(disproof), ""),
         Verdict::Unknown(_) => return tail("", ""),
     };
     // The verdict is out before the check, which a proof can outgrow.
