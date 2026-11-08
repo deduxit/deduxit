@@ -4618,3 +4618,22 @@ client follows it (step 32).
     `.dev` are free (checked 2026-11-08).
   - 46b starts once the name is chosen, or with it left open if the
     author prefers.
+- 2026-11-08: the author's last answers for step 46.
+  - **Where the suites live**: one shared repository for every suite,
+    renamed after the new organisation when it moves; `linlog` stays the
+    linear suite's crate and command inside it, and GitHub redirects the
+    old repository links.
+  - **The name**: `sequentium` (Latinised from Gentzen's *Sequenz*, "of
+    sequents"), so the repository becomes `sequentium/sequentium`.
+    - Other candidates were offered and checked for clashes the same day:
+      the logicians' terms from Aristotle to Girard (`summulae`,
+      `schliessen`, `locussolum`, `grundsequenz` and others). The lists
+      are kept in the planning session's scratch.
+    - `sequentium` is free on GitHub, crates.io, opam, `.org` and `.dev`
+      (2026-11-08). PyPI's name belongs to an unrelated package, and
+      `sequentium.com` is registered.
+    - Nothing is registered: creating the organisation and transferring
+      the repositories are the author's acts.
+  - 46b starts (Opus 5.5 at `high`): the prompts of the steps from 47
+    on and the roadmap of the releases 0.3.0 to 0.7.0, the move to
+    `sequentium` among them, before the opam pull request.
