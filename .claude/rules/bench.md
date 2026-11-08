@@ -127,6 +127,17 @@ serde_json, which the CLI and the core's tests already have.
   `results/DAY/` (`*.csv`, `starts.txt`, `RESULTS.md`) and copies its
   tables to `bench/RESULTS.md`. `targets.sh`: the target set of the
   focused engine's performance pass, into `targets/LABEL.csv` (below).
+- `footprint.py`: the workspace's footprint as text tables, its header
+  the commands. `wasm TWIGGY.csv` gives the web module's bytes by group,
+  crate and linlog module from twiggy's CSV of a module built again with
+  its names (the package strips them; `wasm-opt -O3 -g` of the same
+  build is within 0.3 % of the package's size once stripped); an item
+  counts for the crate its name names first, so `core`'s generics
+  instantiated for linlog count as `core`'s. `timings REPORT.html…`
+  gives each crate's summed unit time and share from `cargo build
+  --timings` reports. Neither tool is in the devshell: `nix shell
+  --inputs-from . nixpkgs#twiggy nixpkgs#brotli` takes them from the
+  flake's nixpkgs. The figures of 0.2.0 are in step 47's report.
 
 ## Invariants
 

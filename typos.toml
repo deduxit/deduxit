@@ -42,3 +42,5 @@ withs = "withs"
 mis = "mis"
 # The intuitionistic tensor of the Rocq library, named as in Yalla.
 itens = "itens"
+# flate2, a compression crate the PNG and PDF renderers link.
+flate = "flate"
