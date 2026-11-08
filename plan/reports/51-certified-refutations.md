@@ -326,3 +326,291 @@ There the literal `p(ts)` weighs `table p ts` if `fixed p`, else
   `Variable` used before `induction` is not generalised, so the
   induction hypotheses do not take the side conditions. An existence
   proof for `out (fall A)` needs an instance, so it goes by `size`.
+
+## Session 51b: the certificates and the check
+
+### Outcome
+
+Every refutation linlog states is now checked without the search and
+certified in Rocq, except an exhausted search and a saturated set (which
+`Disproof::check` verifies but the library has no theorem for), and the
+count equation of a sequent with a quantifier. `Disproof::check` accepts
+a one-sided count (`OneSided`, `OneSidedSymbol`) and a state equation
+(`StateEquation`) by running the Rocq library's own weighted test,
+transcribed; the exporter's second kernel writes their certificates
+against 51a's theorems, and the first-order counts too; `linlog check`
+reads an unprovable outcome and checks its refutation with a proof's
+exit statuses; the comparison's driver marks linlog's refutations
+checked when `Disproof::check` accepts them. The commits, in the
+workspace `../linlog-step51b` on `main`, nothing pushed:
+
+- `umomxnty` "flake.lock: Update": the input `rocq-linlog` at `c63ff4db`
+  (0.3.0, unreleased) and `export::rocq::LINLOG` at `0.3.0`, which the
+  check `rocq-linlog` asserts equal to the library's version.
+- `qzstopmr` "Check one-sided counts and state equations by the
+  library's weighted count".
+- `mzvrslmy` "Certify one-sided counts and state equations in Rocq".
+- `xoxlwupv` "Let check read a disproof and check its refutation".
+- `lkzlzlvw` "Bless the behaviour lock: check reads a refutation, an
+  exhausted search has its own refusal".
+- `tsumszxq` "Credit linlog's checked refutations in the comparison".
+
+### Decisions
+
+- **The check runs the library's test, not the Farkas inequalities
+  (departs from the design).** The prompt and 51a's notes read "the
+  closure, the dead clauses and the Farkas inequalities over the program
+  read again". Instead `search/weighted.rs` transcribes `Weights.v`'s
+  `overweight` and `overweight_affine` (`least` with `keep` at every
+  subformula, `absorbs` with `reach`, `lstar`, `outputs`, `shaped`), and
+  both new arms end in it. The library proves that test sound for any
+  weights, dead atoms and sign, so the soundness of an accepted
+  refutation rests on one Rocq theorem and on the transcription, which
+  the panel read against the Rocq text, instead of on a second argument
+  of the Farkas kind written in prose. The Horn reading the check still
+  needs (`dead_atoms`: the markings' atoms and the heads of clauses whose
+  bodies are reached) only chooses the dead set, which soundness does not
+  depend on; both body signs are tried, positive first. The ticket
+  weights (`clauses`) and the `dropped` list are the engine's account
+  and are not compared: the test needs neither, and 51a showed every
+  vector `certify` accepts passes it, which the target sets confirm on
+  every state equation they hold.
+- **The one-sided count is recomputed, then weighed.** `check_copies`
+  recomputes the interval outside the goal's exponentials and the sign
+  of the counted literals below them, as `check_balance` does without
+  copies: the stated numbers must be the goal's (`Mismatch`), copies of
+  both signs are `NotApplicable`, and zero must lie outside on the side
+  copies cannot reach (`Holds`). Then the weighted test with `±1` must
+  accept, so the decisive step is again the library's test. The search's
+  `copied` is the forest's sign, so a goal with no copy of its own passes
+  with either; copies of the other sign in the goal are a `Mismatch`.
+- **A goal one of whose atoms no firing reaches is refuted whatever the
+  weights.** Its literal in the goal is dead and contributes nothing, so
+  the test accepts; the library proves that too. Two of my first planted
+  "wrong" state equations turned out right for that reason; the planted
+  ones in the test are now programs where the weights matter.
+- **The certificate's weights are negated with negative bodies in both
+  modes.** 51a's notes say the affine weights are "not negated", but its
+  own test `state_equation_affine_negative` negates them, and so must the
+  certificate: the goal's literals are `~a`, which contribute `−y`. The
+  exporter takes the sign, the weights and the dead set from
+  `weighted::state_equation`, the check's own reading, so the
+  certificate is written from exactly what the check accepted.
+- **The first-order counts are certified.** 51a left `UnbalancedSymbol`
+  and the counts of a sequent with a quantifier to 51b's wish. They go
+  through the same writer: the statement over the first-order calculi
+  (`Fo` without framing), and `FirstOrderWeights.weighted_refutation
+  FIXED TABLE WEIGHT _`, `FIXED` the predicates with no open atom, a
+  closed atom's count a `TABLE` matching its terms, a predicate's count
+  the unit on its name in both functions. The count equation of such a
+  sequent keeps `Unsupported::Quantifiers`, whose message now says so.
+- **An exhausted search is refused by `Unsupported::Exhausted`** before
+  the check runs, so every refusal of the writer is an `Unsupported`
+  variant with its reason (requirement 2); the behaviour lock's line
+  changed, in a commit of its own.
+- **`linlog check` checks a refutation in the mode its file states
+  (departs from the design: "the flags give the mode").** With no mode
+  flag it checks in the file's mode; a flag that names another mode is
+  an error naming both (exit 2); the verdict line and the JSON say the
+  mode checked. The reason, the supervisor's decision on my first
+  version, which checked in the flags' mode as for a proof: a refutation
+  is a claim about one mode, and checking it in another answers a
+  question nobody asked. Proofs have the same defect (53a's item
+  "`linlog check FILE` ignores the file's own mode"), left to 53a; the
+  refutations already follow the file. Exit 0 valid, 1 invalid, 3 for an
+  exhausted search (no check), a limit or the time limit; the check runs
+  on a thread within the time limit, since a saturated set's check has
+  no stop. `--format rocq` writes the certificate of a refutation that
+  holds, as `prove` does; the other drawn formats write the verdict
+  alone.
+- **The comparison's driver reads linlog's outcome as JSON.** The driver
+  had only the verdict line; the refutation needs the outcome. linlog
+  now runs with `--format json`, so the timed run serialises a proof's
+  nodes too, small beside the proof check it already includes; a re-run
+  untimed would double the time of every unprovable row and check
+  another run's refutation. `bench/TOOLS.md` and `bench.md` say that
+  comparisons before this one printed the verdict line only.
+- **The summary of the guide is unchanged.** `SKILL.md` was 5 bytes
+  under its budget; the disproof check is in `reference.md` (section 9,
+  with examples, and section 18), as conduct.md says a feature goes
+  where the summary has no room.
+- **What I read for the form.** The library's `Weights.v`,
+  `FirstOrderWeights.v` and its tests, whose certificate form the writer
+  follows (`weight_of String.eqb`, `fun a => existsb (String.eqb a)
+  [...]`, `vm_compute. reflexivity.`); compiling the twenty snapshots
+  against the pinned library found that the first-order prelude needs
+  `Bool` for `&&` and both need `ZArith` for `%Z`.
+
+### Options
+
+No option was added: the check and the certificate have no choice to
+vary. The web bindings' `refutation_checked` and `certificate` calls
+take the new arms and certificates unchanged; the place for quantifiers
+(D17) is the first-order writer, which this session used.
+
+### Checks
+
+- [x] The lock: "flake.lock: Update" (`umomxnty`) moved `rocq-linlog`
+  from `22f7de20` to `c63ff4db`, and `export::rocq::LINLOG` is `0.3.0`
+  in the same commit.
+- [x] The certificates: the twenty snapshots `refuted_*.v` compiled
+  silently against the pinned library (Rocq 9.1, the store paths of the
+  flake's nixpkgs and input), each `Print Assumptions` "Closed under the
+  global context"; a planted wrong weight and a planted wrong dead set
+  were refused ("Unable to unify true with false"). The flake's check
+  `rocq-linlog` compiles them, nine the command writes, and refuses its
+  own planted weight; its result is under `nix flake check` below.
+- [x] The refusals: `Unsupported::Exhausted`, `Unsupported::Saturated`
+  and `Unsupported::Quantifiers` (the count equation of a quantified
+  sequent), pinned by `disproof_certificates` (`core/tests/export.rs`).
+- [x] The check's tests: `a_wrong_count_with_copies_or_state_equation_is_refused`
+  (the search's refutations of both kinds in every mode accepted;
+  planted wrong ones of each kind refused with `Mismatch`, `Holds` or
+  `NotApplicable`), `a_sum_past_128_bits_is_refused` and
+  `the_test_refuses_a_sum_past_128_bits`, all passing; the
+  no-default-features build free of warnings.
+- [x] `linlog check`: `check_s_verdicts` (`cli/tests/cli.rs`) pins a
+  refutation that holds (0), a planted wrong one (1, `invalid_refutation`),
+  an exhausted search (3, `uncertified`), a contradicting mode flag (2)
+  and an unknown outcome (2); `cargo test -p linlog-cli --test readme`
+  passed (7 tests), with the manual's (`commands.md`, `rocq.md`) and the
+  guide's (`reference.md` sections 9 and 18) new examples.
+- [x] The comparison's driver: `linlog_s_refutations_are_checked`
+  (`bench/src/tools.rs`) pins `ok` for a one-sided count and a state
+  equation, `failed: …` for a planted change, empty for an exhausted
+  search.
+- [x] `cargo test --workspace` and `cargo clippy --workspace
+  --all-targets -- --deny warnings`, capped: passed.
+- [x] The gate (`nix develop -c gate`, capped, cores 13–15): "gate:
+  passed", exit 0, the ratchet within its ceilings (its misses note on
+  three journeys is not a failure).
+- [x] The focused target set `bench/targets/51b.csv` against
+  `bench/targets/47.csv`: no verdict differs, and none of the 145 rows
+  both decide alike differs in `nodes`, `splits`, `memo_hits`,
+  `memo_entries`, `links` or `tests`; every `unprovable` row's
+  `checked` is `ok` (33) or empty (57, exhausted), none `failed`.
+- [x] The net target set `bench/targets/net-51b.csv` against
+  `net-47.csv`: no verdict differs, none of the 64 decided rows differs
+  in its counters.
+- [x] `linlog-bench run --all-families --timeout 5` (one thread, capped):
+  195 rows, no `MISMATCH` in `summary`; its 66 unprovable rows checked
+  `ok` (17) or empty (49).
+- [x] `nix flake check` after the rebase onto `main` (under the machine
+  lock, `--max-jobs 4 --cores 8`): exit 0, "all checks passed!", the
+  check `rocq-linlog` compiling 66 certificates, each closed under the
+  global context, and `rocq-linlog-library` built; `nix build` of both
+  checks exit 0. Its first run failed at `doc-private`: rustdoc resolved
+  the module doc's link to `overweight` in the parent module's scope
+  (the module has an outer doc line there too); the link now names its
+  full path, folded into `qzstopmr`.
+- [x] The panel's round, below: two reviewers without a finding, one
+  finding that holds, fixed, and one remark answered in the doc comment.
+
+### The panel's round
+
+Three fresh-context reviewers read `Disproof::check`'s new arms, each
+given the commits, the claim and the code but not my reasoning, each
+trying to refute it one way; a finding counts only with a witness I
+reproduce.
+
+- **The argument** (Fable 5.1 at `high`, reading only): derived the test
+  from `Weights.v` and `FirstOrderWeights.v` first, then checked
+  `weighted.rs` line by line (`keep` at every occurrence, `absorbs` with
+  `reach`, `lstar`, `outputs`, `shaped`, the sequent-level conditions),
+  the forest against the library's formula list (one-sided, and
+  intuitionistic as `one_sided G C`), goals off the roots with repeated
+  members, the mode mapping (no cut field in `Mode`, weakening exactly in
+  affine mode, Mix allowed by both theorems), `check_copies` and
+  `state_equation`, and that the exporter writes the very weights, dead
+  set and sign the check used. It checked the first-order and the
+  `Unbalanced`/`UnbalancedSymbol` certificates beyond its scope too.
+  **No finding**: the claim holds.
+- **The integers and limits** (Sonnet 5.5 at `high`, core 6 then 12):
+  drove every bound with inputs (10⁶ literals weighing `i64::MIN` and
+  `i64::MAX` in `⊗` and `⅋` towers, a member repeated 2·10⁶ times, a
+  count past `i32`, repeated body literals for `dead_atoms`), and ran a
+  differential fuzz of 1 516 416 checks on 3 000 random sequents in
+  three modes (every `OneSided` in a range and 40 random `StateEquation`s
+  per sequent), 29 214 accepted, none for a sequent the search proves, no
+  panic. Two findings:
+  1. *The committed test reaches the 128-bit refusal through `Low::sum`
+     alone, not through `overweight`.* **Holds; fixed**: the test
+     `the_test_refuses_a_sum_past_128_bits` drives `overweight` there
+     with weights past any an `i64` gives, at both sites (a `⊗` and the
+     members' total). No real input gets there (±2⁹⁵ per member), as
+     its doc comment says.
+  2. *The check's time is linear in the goal's occurrences counted with
+     repeats.* Not a correctness finding; the doc comment of
+     `Disproof::check` now says so.
+- **Counterexamples** (Opus 5.5 at `high`, cores 10–11): against about
+  10 600 (sequent, mode) pairs that the test-only reference provers
+  (`reference.rs`, `reference_fo.rs`) prove, from random classical
+  sequents and Horn programs (either body sign, `1`, `⊥`, several goal
+  members, curried clauses), the generator's provable sequents for every
+  rule set and their mutants, first-order sequents and the shapes the
+  brief named, in classical linear, Mix, affine and affine-with-Mix and
+  intuitionistic linear and affine modes, it tried about 12.7 million
+  crafted refutations: every weight vector in [−2, 2] on up to four
+  atoms with every dead set and both signs directly on `overweight`,
+  the same as `StateEquation`s through `Disproof::check`, every
+  `OneSided` with `least ≤ most` in [−6, 6] and both signs, the
+  first-order counts, and the search's refutations moved to the other
+  modes (886 still accepted, none where the reference proves the
+  sequent). **No finding**: no refutation of a provable sequent was
+  accepted, and all 1 471 refutations of the three kinds the search gave
+  passed the check. Its limits, as it states them: the families at small
+  sizes gave none of the three kinds, so the second claim rests on
+  generated sequents (the target sets above add theirs: every
+  `unprovable` row's `checked` is `ok` or empty, none `failed`), the
+  weights were exhaustive within [−2, 2] only, and it did not attack the
+  JSON reader's goal list (the integers reviewer did, with repeated and
+  nested members).
+
+No finding of the panel needed a witness reproduced: neither the
+argument nor the counterexamples found one, and the integers reviewer's
+holding finding is a test that was missing, which the new test now
+pins.
+
+### What the next sessions must know
+
+- **What is certified now.** Every refutation kind but `Exhausted` is
+  checked by `Disproof::check` without the search, and every kind but
+  `Exhausted` and `Saturated` has a Rocq certificate for linlog's
+  library, with one exception: the count equation of a sequent with a
+  quantifier (`Unsupported::Quantifiers`). The one-sided counts and the
+  state equation are the library's weighted count (`Weights.v`), the
+  counts of a sequent with a quantifier its first-order weighted count
+  (`FirstOrderWeights.v`).
+- **What stays uncertified.** `Refutation::Exhausted` (no invariant;
+  `RefutationFault::Uncertified`, `Unsupported::Exhausted`); a saturated
+  set has a check but no theorem (`Unsupported::Saturated`); the count
+  equation with quantifiers has no first-order theorem; the affine
+  refutations of the Horn engine's backward coverability are
+  `Exhausted` (status.md plans them for 0.4.0).
+- **The weighted test is transcribed, so it moves with the library.**
+  `search/weighted.rs` must compute the bound of `Weights.v` (and of
+  `FirstOrderWeights.v`), never more generously; a change of the
+  library's test is a change there in the same lock bump, and the
+  rules file `core-search.md` lists the points where a transcription can
+  slip (`keep` at every subformula, `!A` never absorbing, `reach`).
+- **Every refutation certificate now needs the library at 0.3.0**: the
+  propositional prelude imports `Weights`. The manual's `rocq.md` still
+  says that linlog 0.2.0's certificates compile against rocq-linlog
+  0.2.0, which is true of the release; step 53 moves that sentence, the
+  pin's tag (`v0.3.0`) and the opam line with the release.
+- **The state equation's certificate is the check's reading.** The
+  exporter takes the bodies' sign, the negated weights and the dead set
+  from `weighted::state_equation`; a new kind of Horn program the engine
+  learns to refute must keep passing that reading, or the check refuses
+  its refutation (the target sets' `checked` column says `failed:`).
+- **A goal with an atom no firing reaches is refuted by the dead atom
+  alone**, whatever the weights; a test that plants wrong weights must
+  use a program whose atoms are all reachable.
+- **The comparison's driver reads JSON** (`--format json`), so the next
+  comparison's linlog rows serialise their proofs inside the timed run
+  and their refutations are checked after it; earlier comparisons'
+  `checked` columns are empty for every `unprovable`.
+- **`linlog check` checks a refutation in the mode its file states**
+  (a mode flag naming another is an error, exit 2), while a proof is
+  still checked in the flags' mode; 53a's item "`linlog check FILE`
+  ignores the file's own mode" is the proof path alone now.
