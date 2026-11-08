@@ -22,7 +22,9 @@ worlds, the modal suite's countermodels opened in it), a checker for a
 student's own tableau (a tree written by hand, checked rule by rule
 with the failing step named), and course packs: a link that fixes a set
 of problems and the allowed suites and methods, and a handed-in link a
-teacher opens in a check view; a print stylesheet for handouts.
+teacher opens in a check view; the page embedded in a course's own
+site (education-8's embed: a problem or a pack in a frame; the share
+link is built already); a print stylesheet for handouts.
 
 ## Fixed now
 

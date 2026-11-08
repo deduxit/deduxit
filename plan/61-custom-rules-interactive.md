@@ -10,7 +10,7 @@ step 60: it says what is fixed.
 
 Read `plan/notes/research/next/custom-rules.md` (candidates 2 and 6),
 `web-front-end.md` (candidates 1 and 5), the reports of steps 49 and 60,
-`.claude/rules/core-interactive.md`, and `plan/README.md`'s D13, D15,
+`.claude/rules/core-derivations.md` (interactive proving), and `plan/README.md`'s D13, D15,
 D28 and D29.
 
 ## Goal

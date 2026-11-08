@@ -139,8 +139,14 @@ their `main`. Requirements:
    the machine lock, `flock -o /tmp/linlog-machine.lock nix flake check
    --max-jobs 2 --cores 6`, in a capped scope on cores 2 to 7), which
    includes `manual-links`, `conventions` and `typos`; the client's own
-   checks. A link to a new address that does not exist yet is checked
-   by the remap rules, not fetched.
+   checks. The inputs now name repositories that do not exist until the
+   author's transfers, and an input whose URL no longer matches its lock
+   is fetched again, so 48a runs every check with the moved inputs
+   overridden to the local workspaces (`--override-input rocq-linlog
+   path:<the library's workspace>` here, and the client's input on this
+   repository likewise); 48b runs them without overrides after the
+   locks move. A link to a new address that does not exist yet is
+   checked by the remap rules, not fetched.
 
 The commits stay in the workspaces, unpushed; the planning session
 stacks them and pushes after the author's acts (48b).

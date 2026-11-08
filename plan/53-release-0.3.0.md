@@ -45,8 +45,7 @@ its reason:
   two-sided reading; `--style labels.table.RULE=LABEL` fails on an unset
   table and the rule keys are not listed; `check --file` (`check` takes
   the proof as an argument only);
-- the library: `Error::Quantifiers`, raised nowhere since 42k (retire it
-  in this 0.y bump, or keep it with a reason); the division by zero in
+- the library: the division by zero in
   the rules look's label narrowing at a zero-width advance; the essential
   net's input side drawn green by `svg::Style`'s default, and its drawing
   turned off for nets with cut links; the panic past the proof
@@ -64,8 +63,10 @@ its reason:
   two-sided goal), each checked against today's code first;
 - the older lists that name steps long done (the exports' lists of steps
   11 and 22, the command's output's of steps 18 and 20, the interactive
-  session's of step 28): each entry checked against the code and closed
-  as done or kept with its reason.
+  session's of steps 22, 28 and 34: the reading recomputed per
+  operation, the filtered `rules` list, a per-goal budget for
+  `close_all`, the map from a drawing's inferences): each entry checked
+  against the code and closed as done or kept with its reason.
 
 ## Session 53b: the release prepared
 

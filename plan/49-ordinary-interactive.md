@@ -9,7 +9,7 @@ client's repository. This prompt was written on 2026-11-08 by step 46's
 second session, from the author's decisions of that day. It is complete;
 the planning session adds the facts of steps 47 and 48 at their review.
 
-Read `.claude/rules/core-ordinary.md` and `core-interactive.md`,
+Read `.claude/rules/core-ordinary.md` and `core-derivations.md`,
 `plan/later.md` ("Follow-ups: ordinary logic", and "Ordinary logic's JSON
 forms" under "Follow-ups: the web bindings"), the report of step 25
 (`plan/reports/25-ordinary-logic.md`), `plan/notes/research/next/`
@@ -38,7 +38,7 @@ its tab is greyed on the page.
   the goals are two-sided ordinary sequents, the rules are the
   checker's rules (`ordinary::Rule`), a finished state is an
   `ordinary::Derivation` that `Derivation::check` validates, so the
-  trusted base does not grow. The linear session (`core-interactive.md`)
+  trusted base does not grow. The linear session (`core-derivations.md`)
   is the model of its shape (D13: a partial derivation, goals, rules
   applicable to a goal, apply, undo, close a goal by search within a
   budget, a hint read off the search's proof); "close" and "hint" use

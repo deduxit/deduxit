@@ -272,7 +272,7 @@ assigned to.
 | Follow-ups: ordinary logic | the loop check | 54 |
 | Follow-ups: ordinary logic | classical logic through affine MALL (116 unknown) | kept: a limit, not a task (not a SAT solver) |
 | Follow-ups: ordinary logic | the DAG read-back | kept: ordinary-sequents-4 |
-| Follow-ups: interactive proving | the review findings of 41b to 42k on the command (`cut G C P…` as one word, `eliminate`'s names and flag, the eigenvariable message at `∃L`, `Error::Quantifiers`, the unused import) and the older entries assigned to steps 22, 28 and 34 | 53a |
+| Follow-ups: interactive proving | the review findings of 41b to 42k on the command (`cut G C P…` as one word, `eliminate`'s names and flag, the eigenvariable message at `∃L`, the unused import) and the older entries assigned to steps 22, 28 and 34 | 53a; `Error::Quantifiers` done (retired by step 45) |
 | Follow-ups: interactive proving | cut in a first-order interactive session | kept: no user asked; the step that next changes the session may take it |
 | Follow-ups: interactive proving | the net engine on a sub-forest; the two-sided rule names on reading a state | kept, as written there |
 | Follow-ups: interactive proving | the ratchet's `derivation-chain-64` margin | a rule for whichever step next changes that path (it wins back first) |
@@ -295,6 +295,7 @@ assigned to.
 | Follow-ups: a first user's obstacles | nets on the command line | dropped with MALL nets, as written there |
 | For the author: an MCP server for linlog | | kept: llm-agents-1, when a client without a shell asks |
 | For the author, later: nixpkgs | | kept: the author's word (2026-11-03) |
+| (46a's "What the next sessions must know") | the comparison on the libraries with 0.2.0's engines, the manual's planned item and the only measure of `comparison-gaps.md`'s decisiveness defect today | kept, open with the author: it needs a night they give; step 51's driver change makes its refutations count as checked |
 
 ## Where each candidate went (2026-10-03)
 

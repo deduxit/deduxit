@@ -70,7 +70,7 @@ amended (see "Review protocol"). `notes/` holds research the prompts rely on.
 | 48 | The move to `sequentium` (D26): 48a prepares every URL, `Cargo.toml`'s fields, `CITATION.cff`, the manual, the guide, the flake's inputs, the client, the placeholder site and the opam change, nothing pushed; then the author's acts in order (the organisation created 2026-11-08; the settings; the transfers of `rocq-linlog`, `linlog` renamed `sequentium` and the site renamed `sequentium.github.io`; environments and secrets checked; crates.io's Trusted Publishing; Zenodo; the placeholder repository `linlog-prover/linlog-prover.github.io`); 48b the remotes, the push order, every old address checked; then the author's opam pull request (two sessions with the author between) | `48-sequentium.md` (complete) | Opus 5.5; a fresh-context reviewer on Opus 5.5 | high | 46 |
 | 49 | Ordinary logic step by step: a native goal state of LK and LJ, the ordinary JSON forms, `interact` with the ordinary logics, the bindings, and on the page the suite registry with the Ordinary segment switched on (three sessions, the third in the client) | `49-ordinary-interactive.md` (complete; the facts of 47 and 48 added at their review) | Opus 5.5; a fresh-context reviewer on Opus 5.5 | high | 47, 48 |
 | 50 | Proofs read back as lambda-terms: ILL proofs as linear terms, LJ derivations as simply typed terms, printed, exported and on the page (two sessions, the second in the client) | `50-lambda-terms.md` (complete) | Opus 5.5; research on Sonnet 5.5; a fresh-context reviewer on Opus 5.5 | high (research `medium`) | 49 |
-| 51 | Decision 8's first step (D31): the one-sided and state-equation refutations checked by `Disproof::check` and certified by lemmas of the Rocq library, `linlog check` reading a disproof, the comparison crediting checked refutations (two sessions, the first in `rocq-linlog`) | `51-certified-refutations.md` (complete) | Opus 5.5 (Fable 5.1 at `xhigh` only if Opus visibly falls short on a proof); the panel's argument on Fable 5.1 | high, with the panel | 48 |
+| 51 | Decision 8's first step (D31): the one-sided and state-equation refutations checked by `Disproof::check` and certified by lemmas of the Rocq library, `linlog check` reading a disproof, the comparison crediting checked refutations (two sessions, the first in `rocq-linlog`) | `51-certified-refutations.md` (complete) | Opus 5.5 (Fable 5.1 at `xhigh` only if Opus visibly falls short on a proof); the panel's argument on Fable 5.1 | high, with the panel | 47, 48 |
 | 52 | Dispatch rows for the inverse method where it wins (`wide-m1`, classical `chain`, affine `pigeonhole`), earned by measurement (D19); the harness's reason read in the right order first (one session, by day) | `52-inverse-dispatch.md` (complete; 47's figures added at its review) | Opus 5.5; a fresh-context reviewer on Opus 5.5 | high | 47 |
 | 53 | The release of 0.3.0, the first from `sequentium`: 53a the small defects of `later.md` a first user meets, 53b the release prepared, the tag, crates.io, the GitHub release and Zenodo the author's, the chain after the move proved (two sessions) | `53-release-0.3.0.md` (complete; what 47 to 52 leave added at their reviews) | Opus 5.5 | high | 47, 48, 49, 50, 51, 52 |
 | | **Release 0.4.0: intuitionistic logic decided, with Kripke countermodels, tableaux and truth tables** (D27) | | | | |
@@ -1035,8 +1035,10 @@ Gentzen's *Sequenz*, "of sequents"; created by the author on
 2026-11-08). The shared repository moves there and is renamed
 `sequentium/sequentium`; `rocq-linlog` moves with its name; the site's
 repository becomes `sequentium.github.io`. `linlog-prover` stays the
-author's, a placeholder whose site redirects every published URL, and
-no repository is created again at a moved repository's old name. The
+author's, a placeholder whose site redirects every published URL; no
+repository named `linlog` or `rocq-linlog` is created under it again,
+the placeholder site's repository `linlog-prover.github.io` being the one
+repository made at a moved one's old name. The
 move (step 48) comes before the Rocq library's opam pull request and
 before the next release. Creating, transferring, renaming and
 configuring the registries are the author's acts; sessions prepare.

@@ -15,7 +15,7 @@ refutations"), `plan/notes/research/next/verification.md` (sections 1 and
 candidate 2), `scope-semantics-decision.md`, `.claude/rules/core-search.md`
 (the refutations, `Disproof::check`, "The refuters with quantifiers"),
 `core-horn.md` (the state equation), `core-focus.md` (where the one-sided
-count is found), `core-exports.md` (the Rocq certificates), the report of
+count is found), `core-export.md` (the Rocq certificates), the report of
 step 31 (session 31d, "certified refutations") and the library's rules
 on its invariants. `plan/README.md`'s D31 is the decision this step
 starts.
