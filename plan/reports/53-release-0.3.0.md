@@ -410,3 +410,260 @@ the author's choice:
   `/home/tux/Projects/own/sequentium-mark/shortlist/shortlist.html`.
 - linlog: `../linlog-step53m`, this section's commit on top of `main`
   (`xlqqyrlk`); nothing pushed; the client untouched.
+
+## Session 53m, round 2: the three dots
+
+The author answered the shortlist (2026-11-08): "I like the three dots.
+Can you make a couple of mockups?", meaning the fresh Fable designer's free
+candidate "∴ sequentium"; then "Also think about other fonts" and "And
+different colours"; then "what's the deal with showing the linlog logo as
+well? I thought that will be phased out in favour of the logo." So the
+lollipop is retired: sequentium's mark replaces it everywhere (the site's
+header, favicon, social image, README's head, the rustdoc's logo), linlog
+stays the linear suite's name, crate and command without a mark of its
+own, and every mockup is judged alone; the first round's family criterion
+and its "beside the lollipop" views fall. The author also closed the first
+round's name question: "No, keep the name"; the SEQUENT finding is
+recorded as checked and the decision as the author's (2026-11-08), the
+hand searches kept as a reference. Same session (Fable 5.1), the same
+partner (`linlog-mark-opus`, Opus 5.5, resumed with its context), a
+researcher for the three-dot marks (`linlog-mark-dots-diligence`, Sonnet
+5.5). Nothing placed, nothing pushed.
+
+### The checklist
+
+| item | state | evidence |
+|---|---|---|
+| Four to six mockups of the ∴ direction, word mark and square as SVG with reasons, spanning the face (Euler Math, Figtree Bold), the sign's place (before the word, as the i's dot, after), the colour (orange, violet) and the square (∴ alone sized for 16 px; ∴s) | done | six in `round2-therefore/mockups/` by `make.py`, plus the partner's two revised drawings (`round2-therefore/opus/`, copied into the page); every colour check exit 0 |
+| The partner's critique of each and the answer to it | done | `round2-therefore/opus-critique.md` (212 lines), `round2-therefore/fable-answer.md` |
+| Every mockup at every size and place in a new private artifact | done | https://claude.ai/artifact/1SfyHfKBnNS9dLUAbrrTBE; the same page `round2-therefore/mockups.html`; eight sections, each with the eleven places in light and dark, a faces section and a colours section |
+| The author's additions: other fonts, with each licence read in its file; a palette of colours through the colour check and a contrast table | done | `faces.py`, nine faces, `faces/compare/`; `colours.py`, six colours, `colours/contrast.json`, the check on all twelve variants |
+| The diligence check run again: three-dot and ∴ marks of the field and of brands looked at, the fonts, each finding with its source | done | `checks/diligence-dots.md` (the researcher's report with the session's own look and the faces' licences appended), `checks/marks-dots/SOURCES.md` |
+| The design directory committed; this section committed in `../linlog-step53m`; `jj st` clean in both; nothing pushed or placed | done | the commits below |
+
+### Outcome
+
+The direction survives as the sign worked into the word: the i's dot of
+"sequentium" in Figtree Bold becomes ∴, three dots on a triangle above
+the i's stem, in the page's violet, with a square that is the i with its
+∴. Both designers rank it first, for the same reasons: the word stays
+whole and no wider, the sign lives in the word as the author's turnstile
+did, and it is the one layout of the direction that Asana's mark does not
+touch. Its trade-off, stated by both: at the band's 30 pixels the ∴ is a
+three-pixel cluster that reads as a diaeresis, and it reads plainly only
+from about 60 pixels, so the header would want the mark larger than the
+lollipop's 30, or a square beside the word. Second, the same drawing in
+the rubric's orange, on the condition of a token of its own at a moved
+value; third, the original "∴ sequentium" in Euler Math and orange as
+the formula voice for artwork (the social image, README's head), not for
+the header. Set aside with reasons: "∴ sequentium" in Figtree Bold (the
+clearest at 30 pixels, and Asana's lockup almost exactly), the same in
+Euler Math and violet, "sequentium ∴" (an ellipsis or a loading indicator
+at 30 pixels), and the first drawings of the i's dot (the top dot clipped
+by the frame, which the partner found).
+
+### The mockups
+
+Each a word mark and a square, light, dark and mono, with `colours.json`
+and rasters; the words' frame the first round's (−768 to 240), the revised
+in-word drawings' from −780.
+
+| mockup | what | by | where the other disagreed, or the trade-off |
+|---|---|---|---|
+| `dot-violet-r` | the i's dot as ∴ (dots of radius 50 on a side of 150, the lower two 86 above the stem's top), Figtree Bold, the page's violet; square: the i with its ∴ | Fable's layout, Opus's drawing after its critique | none left; the diaeresis reading at 30 pixels; at 512 some see a small figure in the square |
+| `dot-orange-r` | the same in the rubric's orange | the same | Opus: the orange is the nets' highlight token, 8.3 from the error red (dark) and 7.8 from the warning amber (light), the lowest contrast (4.6:1 on the dark field), the hue nearest Asana's coral; needs a token of its own at a moved value. Fable agrees, keeps it second |
+| `euler-before-orange` | the original: the word in Euler Math emboldened by a 22-unit stroke, ∴ before it as three discs (radius 72, side 300); square ∴s | the fresh Fable designer, reframed | both: the most elegant at 80 and 512 and the formula voice for artwork; not for the header (D25; the tabs' sequents are in Euler); the weakest favicon; 193 pixels wide in the band; Asana's layout softened by the face |
+| `euler-before-violet` | the same in violet, square ∴ alone | Fable | set aside: ∴ alone is Asana's app icon in another colour; the face not for the header |
+| `figtree-before-violet` | ∴ before the word in Figtree Bold, the dots the i-dot's size | Fable | set aside: the clearest "∴ sequentium" at 30 pixels, and Asana's lockup (a dot triangle before a lowercase geometric sans) |
+| `figtree-dot-violet`, `figtree-dot-orange` | the i's dot as ∴, first drawings (radius 54, side 168) | Fable | superseded: the top dot's crown at −795 in a frame from −768, clipped flat in every raster; the orange one's ∴s square shows specks at 16 and is Asana's lockup in small |
+| `figtree-after-violet` | sequentium ∴ | Fable | set aside: an ellipsis or a loading indicator at 30 pixels; alone, the conclusion is missing |
+
+The recommendation of both designers: `dot-violet-r`, with the 30-pixel
+trade-off told to the author plainly and the three dots alone never the
+favicon.
+
+### The faces
+
+`round2-therefore/faces.py` sets the same "∴ sequentium" in nine faces, the
+sign the face's own ∴ emboldened with the word where the face is a math
+face, three discs from geometry in the face's dot weight otherwise
+(Figtree and the text faces have no U+2234): Euler Math, STIX Two Math,
+Garamond Math, Asana Math and New Computer Modern Math (linlog's formula
+faces, from the client's `.cache/linlog-fonts/`), Figtree Bold (the
+page's text face), and Source Serif 4 Bold, IBM Plex Sans Bold and Zilla
+Slab Bold (from the nixpkgs linlog's `flake.lock` pins). Shown on the
+page at README's 80 pixels and the band's 30, light and dark. The
+judgement, both designers: Figtree Bold first (the page's own face, so the
+mark is one piece of the page's type); Source Serif 4 Bold the one other
+voice that belongs to no other organisation; Euler for artwork, not the
+header (D25 keeps Euler Math for what linlog draws, and the tabs' sequents
+are set in it, so a name in Euler reads as one more formula; the math
+faces also need a 14- to 22-unit stroke to hold 30 pixels, where their own
+∴ vanishes). IBM Plex and Zilla Slab are IBM's and Mozilla's brand faces,
+a resemblance of another kind, and Asana Math shares its name with Asana.
+
+### The colours
+
+`round2-therefore/colours.py` draws the two carrying mockups (the i's dot
+in Figtree; ∴ before the word in Euler) in six colours, each through the
+client's colour-vision check (the sign against ink and the field, both
+themes, all four groups; with the lollipop retired the violet binds
+nothing: the teal had failed against it under tritanopia at 7.8 of 8 and
+passes alone) and a WCAG 2 contrast table (`colours/contrast.json`):
+
+| colour | light / dark | light field | white | dark field | GitHub dark | check |
+|---|---|---|---|---|---|---|
+| violet (`--color-logo`, the accent) | #6b46cf / #958ad5 | 5.3 | 6.2 | 6.1 | 6.2 | passes |
+| orange (`--color-net-highlight`) | #933f02 / #d05c03 | 6.1 | 7.1 | 4.6 | 4.7 | passes |
+| blue (`--color-net-par`) | #045383 / #80c6ff | 7.0 | 8.2 | 10.2 | 10.3 | passes |
+| teal, new | #0f6b5c / #3fcfb5 | 5.5 | 6.4 | 9.6 | 9.7 | passes alone |
+| ink | #121a2e / #e3e8f4 | 14.7 | 17.3 | 15.2 | 15.4 | passes |
+| Learn's purple (`--color-learn`) | #730e73 / #f197ed | 8.8 | 10.3 | 9.2 | 9.4 | passes |
+
+The order, both designers: violet (the page's accent, far from Asana's
+coral), ink (the most robust; but an ink ∴ in the i reads as a diacritic),
+orange (needs its own token: it is the nets' highlight and near `bad`,
+`warn` and coral), teal (8.6 from `ok` in the dark theme, so the mark reads
+as a status lamp), blue (the nets' colour), purple (Learn's token, plum in
+light and pink in dark). Every option beyond the violet and ink collides
+with a token that means something on the page, so the mark should wear
+the accent, or a new token clear of `ok`, `bad`, `warn` and the nets'
+colours.
+
+### The checks
+
+A diligence check, not a legal opinion (`checks/diligence-dots.md`,
+`checks/marks-dots/SOURCES.md`).
+
+- **Asana** (looked at: three equal coral discs on an upright triangle
+  before a lowercase geometric-sans word mark; Asana's brand page: "3
+  coral dots arranged in a triangular format"; software, the same class):
+  a **real** resemblance for every mockup that sets ∴ before the word as
+  three discs, strongest in orange (a warm hue near coral), weakest in
+  violet, blue or ink; **faint** for the sign after the word; **none** for
+  the sign as the i's dot and for the ∴s square. The lone ∴ square is
+  Asana's app icon in another colour. This finding shaped the round:
+  the layout the author first liked is Asana's, and the direction
+  survives by moving the sign into the word.
+- **Other marks**: Domino's (dots on tilted tiles) faint; Messenger,
+  Zendesk, Mastercard none; Therefore Corporation's mark not seen
+  (therefore.net, software, worth the author's look); Freemasonry's ∴ a
+  pre-existing association, not a brand; the logic field's logos (the
+  first round's files) show no dots or ∴; HOL4, HOL Light, Lambdapi,
+  Logitext, Prover9, TPTP, Metamath, Mizar unverified; searches for "∴
+  logo", "therefore symbol logo", "three dots triangle logo" found no
+  software company, publisher or journal.
+- **The sign**: ∴ is Unicode's U+2234 THEREFORE and a conventional sign
+  since Rahn's Teutsche Algebra (1659; Cajori, A History of Mathematical
+  Notations, vol. 1, p. 211); owned by no one; only a particular drawing in
+  a particular use is protectable, and distinctiveness comes from the
+  whole mark.
+- **Fonts**, each licence read in its file: Figtree, Euler Math, STIX Two
+  Math, Garamond Math, Asana Math (the OFL 1.1, no Reserved Font Name);
+  Zilla Slab (OFL 1.1, Mozilla, no Reserved Font Name); Source Serif 4
+  (OFL 1.1, Adobe, Reserved Font Name "Source", "Source is a trademark of
+  Adobe"); IBM Plex (OFL 1.1, IBM, Reserved Font Name "Plex"); New
+  Computer Modern Math (the GUST Font License, LPPL 1.3c with a renaming
+  request for derived fonts, not the OFL). A Reserved Font Name binds a
+  modified font's name, not artwork (OFL FAQ 5.3, 5.7); a logo outlined
+  from any of them is the author's artwork (FAQ 1.1, 1.1.1, 1.13); the
+  three discs of most mockups are geometry and involve no font. The text
+  faces' licences were fetched from their upstream repositories
+  (`round2-therefore/fonts/licences/`), since the nixpkgs store paths
+  carry the font files alone.
+- **The registers** were not queried again for a dot-triangle device;
+  the design-code searches (Vienna 26.01, 26.04 at EUIPO and the USPTO)
+  are the author's hand searches. **The name**: closed, the author kept
+  "sequentium" (2026-11-08) after the SEQUENT finding.
+
+### Decisions
+
+- **The lollipop retired** (the author's word): the page says so, every
+  mockup is judged alone, the "beside the lollipop" views and the family
+  criterion are gone from this round's page (`tools/page.py` keeps them
+  behind a flag for the first page), and the colour check no longer takes
+  the violet as a constraint.
+- **The partner's revision taken**: the clipped top dot was a defect of
+  my drawing; Opus's dots (radius 50, side 150, 86 above the stem) and
+  frame (from −780) are the i's-dot mockups' drawing, and its square (the
+  i with its ∴) replaces ∴ alone, which is Asana's icon.
+- **The sign from geometry**, three discs in the word's dot weight, not
+  Euler's glyph: Euler's ∴ is a hairline sign (dots of radius 57 on a side
+  of 352) that vanishes beside emboldened letters; the faces comparison
+  shows each math face's own ∴ emboldened, for the author to see the
+  difference.
+- **The squares**: ∴ alone sized for 16 pixels (dots of radius 56 on a
+  side of 256, three and a half pixels each) and ∴s were drawn as the
+  brief asked and are on the page; after the Asana finding neither is the
+  recommended square.
+- **The faces from nixpkgs**: three text faces were built from the pinned
+  nixpkgs (`source-serif`, `ibm-plex`, `zilla-slab`) and their licences
+  fetched from upstream, the one network use of the round beyond the
+  researcher's.
+
+### Departures from the design
+
+- A formula face in the header would depart from D25 (Euler Math where
+  linlog draws and nowhere else); the Euler mockups are shown as artwork,
+  not recommended for the header (departs from the design, marked for the
+  author).
+- The lollipop's retirement reverses 38f and 38g's placement and the
+  first round's family criterion, at the author's word; the colour token
+  `--color-logo` and the colour test's `logo` group then name a retired
+  mark (for the placement).
+
+### What is left open
+
+- The author's choice among the mockups, the face (Figtree Bold, or
+  Source Serif 4 as the other voice), the colour (the violet, or a token
+  of its own), and whether the 30-pixel trade-off of the in-word sign is
+  acceptable in the header.
+- Therefore Corporation's mark, unseen; the design-code register searches.
+
+### What the next sessions must know
+
+For the placement, after the author's choice:
+
+- **The sources**: `round2-therefore/mockups/<name>/` in the design
+  repository (`dot-violet-r` and `dot-orange-r` are the partner's
+  drawings, `round2-therefore/opus/make.py`; the others
+  `round2-therefore/make.py`), their title and `aria-label` "sequentium
+  (<name>)" to change to "sequentium". A kerning or size change is a
+  number in the script and a rerun.
+- **The lollipop is retired**: the placement replaces it everywhere (the
+  client's `src/logo/`, `modules/logo.nix`'s rasters, the header's
+  `Logo.tsx`, the favicon, the manifest's icons, the Apple touch icon,
+  the Open Graph image, About, the 404 page; linlog's README head, the
+  rustdoc's `html_logo_url` and `html_favicon_url`, the Rocq library's
+  README; the organisation's avatar and the repositories' social previews
+  on the author's checklist). `--color-logo` and the colour test's `logo`
+  group are renamed or retired with it; the mark's colour is a token of
+  its own (`--color-mark`), the violet's value if the author keeps the
+  accent, and the colour-vision test's group follows 38g's guard 2.
+- **The header's size**: the in-word ∴ reads plainly from about 60
+  pixels; at 30 it is a diaeresis. The placement should look at the mark
+  at 36 to 40 pixels in the band, or set the square beside the word, and
+  the `Logo` test's height follows.
+- **The favicon** is never the three dots alone (Asana's icon): the i
+  with its ∴, or ∴s if the author prefers, both on the 32-unit grid.
+- **The orange** needs a token of its own at a value moved from the nets'
+  highlight, `bad`, `warn` and Asana's coral, checked by
+  `tools/colours.mjs` before it is placed.
+- **The faces**: if the author picks Source Serif 4, the licence's
+  Reserved Font Name and Adobe's trademark note mean the mark is never
+  called "Source" anything; the font file never travels (outlines only).
+- **The diligence record** stays in `checks/`; the fetched marks are not
+  tracked.
+
+### Repositories and workspaces
+
+- The design: `/home/tux/Projects/own/sequentium-mark/`, the round's
+  commits from `sqnrzwok` (the mockups, faces, colours, fonts' licences,
+  the diligence check) through `llklprul` and `wpvvmkky` (the lollipop
+  retired, the words), `lrtswlrn` (the page's words), `xtxzkzwz` (the
+  partner's critique and revision, the answer, the page) and the README's
+  update; `jj st` clean.
+- The artifact: https://claude.ai/artifact/1SfyHfKBnNS9dLUAbrrTBE,
+  private; the same page `round2-therefore/mockups.html`.
+- linlog: `../linlog-step53m` on top of `main` (`wmqrwoun`), this section's
+  commit; nothing pushed; the client untouched.
