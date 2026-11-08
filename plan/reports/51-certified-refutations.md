@@ -1,0 +1,328 @@
+# Step 51: the one-sided and state-equation refutations, checked and certified
+
+## Session 51a: the invariants
+
+### Outcome
+
+The Rocq library `rocq-linlog` proves both refutations, in every mode
+linlog states them in, with every theorem's assumptions closed under the
+global context. Its `nix flake check` passed at the head of three
+commits in the workspace `../rocq-linlog-51a` on `main`: change ids
+`olskqlku` ("Prove weighted counts: the one-sided count and the state
+equation"), `tvlumoul` ("Raise the version to 0.3.0 with the weighted
+counts in the changelog") and `wtkykwzw` ("Let a dead atom die in the
+sign of a Horn program's bodies", the reviewer's finding). Nothing is
+pushed.
+
+One theorem certifies both refutations. `Weights.weighted_refutation`
+says that weights per atom, a set of dead atoms and the sign they die in,
+which the Boolean test
+`overweight` accepts by computation refute a sequent, without weakening
+and without cut, Mix allowed. The one-sided count is that test with the
+weight 1 (or −1) on one atom. The state equation is the test with the
+Horn engine's Farkas weights on the atoms and the atoms outside the
+closure of the initial marking declared dead. With weakening (affine
+mode, where the state equation refutes coverability),
+`Weights.affine_refutation` does the same for sequents whose formulas
+have outputs as a Horn program's have. The first-order form of the count
+is `FirstOrderWeights.weighted_refutation`, and each one-sided theorem
+has its two-sided form through the translation.
+
+### Decisions
+
+- **The state equation is proved as a weighted count of the derivation,
+  not through firing sequences (departs from the design).** The plan
+  reads "a proof of a Horn program's goal gives a firing sequence whose
+  counts solve the state equation". Mechanising that needs the Horn
+  shape over every sequent of a proof (curried clauses, partial
+  clauses, the one-output count of `core-horn.md`) and an induction on
+  the dyadic proof. Instead the library proves an invariant of every
+  derivation of the calculus, whatever its shape: each formula has a set
+  of possible contributions to a weighted count of its literals
+  (`Weights.out`), `?A` contributing the sum of any number of `A`'s, and
+  every derivable sequent can contribute zero or absorb
+  (`weighted_balance`). The copies of a clause under `!` are the firing
+  counts `xₜ` of the state equation, so a Farkas certificate makes every
+  contribution of the goal positive. The Horn engine's refinement, that
+  transitions which can never fire are dropped from the inequalities, is
+  not linear (with them, the state equation of `a, !(a ⊗ a ⊸ b), !(c ⊸
+  c ⊗ a) ⊢ a ⊗ b` has a solution). It enters through dead atoms: an atom
+  declared dead contributes `dead` as a positive literal (nothing a sum
+  cancels, as `0`) and `absorb` as a negative one (as `⊤`), so its axiom
+  still settles and the invariant holds for every choice of dead atoms.
+  Which literal dies is a parameter `p` (the reviewer's finding, below).
+  It must be the bodies' sign, positive for every intuitionistic
+  program; a classical one-sided program may have negative bodies.
+  A `⊗` keeps a dead side dead whatever the other absorbs (`otimes`),
+  since its sides are proved apart. A clause that can never fire has a
+  dead atom in its body, so its copies contribute only zero. The
+  theorem refutes exactly what `Refutation::StateEquation` claims, in
+  each mode: every certificate `certify` accepts passes the test (the
+  argument is in "What the next sessions must know"), and the test's
+  inputs are the certificate's atom weights and the dead atoms, which a
+  pass over the program computes without a search.
+- **With weakening the invariant counts outputs.** Weakening drops any
+  formula, so the count holds only of what a Horn program's proof
+  never drops. `outputs` counts one for each literal of the output sign
+  and for `1`, `⊤` and `!A`, a `⊗` one fewer than its sides, a `⅋` the
+  sum and an additive the larger. Every derivable sequent of `shaped`
+  formulas (each subformula's count non-negative, none below a `?`) has
+  at least one output. One with exactly one output settles with the
+  formulas without an output dropped (`affine_balance`), which is
+  `core-horn.md`'s count `q − 1 = mixes + weakened outputs` made an
+  invariant. The weights need not be non-negative for soundness: the
+  test bounds a droppable formula by zero as well as by its own sum.
+- **The one-sided count and the state equation are one theorem.** The
+  one-sided count is the weighted count with one atom weighed: copies of
+  one sign add contributions of one sign, which the bound of `?A`
+  (`lstar`) follows. Every count Rust states passes the test. The
+  Rocq bound of a formula is at least the Rust interval's `least`:
+  equal on literals, units, `⊗`, `⅋`, `&`, `⊕` and exponentials, and
+  `0` contributes `never`, above any number. So `least > 0` in Rust,
+  or `most < 0` with the weight negated, gives a positive Rocq bound;
+  no `⊤` is in the goal, since the tally absorbs then.
+- **The first-order count weighs by predicate or by closed atom.** A
+  quantifier's rule changes no literal's predicate, and no literal
+  without a bound variable. linlog's counts group the atoms of a
+  predicate one of whose atoms has a bound variable
+  (`Predicates::counted`) and count the others alone. So `value p ts` is
+  `weight p` for a grouped predicate and `table p ts` for a `fixed`
+  one, and the test asks every literal of a fixed predicate closed
+  (`pinned`). This covers `OneSidedSymbol`, `UnbalancedSymbol`, and
+  `OneSided` and `Unbalanced` on a sequent with a quantifier. The
+  two-sided form needed the embedding of the first-order two-sided
+  calculus in the one-sided one, which the library lacked
+  (`FirstOrderWeights.ill_ll`).
+- **What I read for the form.** The library's own `Refutations.v`
+  (fixpoints that `cbn [...]` refolds, Boolean tests decided by
+  `vm_compute`, `forallb_perm`) and its tests' certificate form. The Rocq
+  9.0–9.3 import filter `Import M(T(..), f)`, which `FirstOrderWeights.v`
+  uses to take the outcomes from `Weights` without the propositional
+  names, is checked by the flake on all four versions.
+- **The version is 0.3.0, unreleased.** `rocq-linlog.opam` states
+  0.3.0, and the changelog has the section `[0.3.0] - unreleased` with
+  what was added. `CITATION.cff` stays at 0.2.0 with its release date,
+  since it describes the released version; the release (step 53) dates
+  the changelog's section and moves the citation file, as
+  `release.yml` requires. linlog's constant `export::rocq::LINLOG` must
+  equal the opam version, so 51b raises it to 0.3.0 when the lock moves.
+
+### Checks
+
+- [x] Both refutations stated and proved: `Weights.weighted_balance`,
+  `weighted_refutation`, `iweighted_refutation` (linear, Mix or not,
+  classical and intuitionistic), `affine_balance`, `affine_refutation`,
+  `iaffine_refutation` (with weakening), `FirstOrderWeights.weighted_balance`,
+  `weighted_refutation`, `ill_ll`, `iweighted_refutation` (first order,
+  linear).
+- [x] Tests: `tests/Weights.v`, fourteen lemmas. Seven are
+  certificates: the one-sided count two-sided, with Mix, and of the
+  negative literal; the state equation with a dead clause, with
+  positive and with negative bodies; the affine state equation
+  two-sided and one-sided with negative bodies. Seven are rejections:
+  the state equation without its dead atom, the dead sign wrong, a
+  derivable sequent, a `⊤`, a calculus with weakening under the linear
+  test, the wrong output sign, and a derivable affine sequent.
+  `tests/FirstOrderWeights.v`, four lemmas:
+  the count over a predicate, over one closed atom, the latter refused
+  when counted by predicate, and an unpinned fixed predicate refused.
+  Each compiled silently (exit 0).
+- [x] `Print Assumptions` of the ten new theorems added to
+  `tests/Assumptions.v`: 33 lines, each "Closed under the global
+  context".
+- [x] The library's `nix flake check` at `wtkykwzw` (commit `c63ff4db`,
+  after the fix; before it also at `tvlumoul`): exit 0, "all checks
+  passed!", 136 lines "Closed under the global context" (33 per
+  Rocq 9.0–9.3, the rest the bridges'), under `flock -o /tmp/linlog-machine.lock … --max-jobs 4
+  --cores 8`.
+- [x] Version and changelog: `0.3.0`, "[0.3.0] - unreleased".
+- [x] The fresh-context reviewer's round, one finding, answered and fixed
+  (below); the flake check run again after the fix.
+
+### The reviewer's round
+
+One fresh-context reviewer (Opus 5.5 at `high`) checked each statement
+against linlog's `Refutation::OneSided`, `OneSidedSymbol` and
+`StateEquation` (`focus/counts.rs`, `horn/mod.rs`, `horn/equation.rs`,
+`core-horn.md`), and checked that no assumption is open. It reported one
+finding and confirmed the rest: the one-sided count and its first-order
+form pass the test whenever Rust states them, the state equation passes
+it for positive bodies in both modes, the induction covers every rule
+of both calculi, and every theorem's assumptions are closed.
+
+1. **Dead atoms broke the test for Horn programs whose bodies are
+   negative literals.** A dead atom's positive literal was `dead` and
+   its negative one absorbed. In a classical program with bodies `~a`,
+   a clause that never fires has `~c` in its body, which absorbed, so
+   the test refused a refutation the Horn engine states. The witness
+   is `⊢ a, ?(~a ⊗ (a ⅋ a)), ?((~a ⊗ ~c) ⊗ b), ~b`: weight `b ↦ 1`,
+   `certify` accepts, the test answered `false`. **Holds; fixed** at its
+   cause, not by weakening a statement. The sign that dies is a
+   parameter `p` of every theorem of `Weights.v`, the same `p` that
+   names the outputs' sign with weakening. Soundness holds for either
+   sign, since an axiom on a dead atom pairs `dead` with `absorb`. The
+   witness is now the certificate `state_equation_negative_bodies`, and
+   `negative_bodies_wrong_sign` pins that the other sign refuses. The
+   reviewer had not run linlog to see whether it states
+   `StateEquation` for that exact sequent rather than `Exhausted`. That
+   does not matter, since the theorem must reach every certificate
+   `certify` accepts, and this one is accepted.
+
+### Modes the refutations do not reach
+
+- **Cut.** Neither invariant survives a cut, whose formula is no
+  subformula of the conclusion. Every test asks `cut R = false`, as the
+  balance does, and linlog's searches are cut-free.
+- **The one-sided count in affine mode.** Weakening drops any literal,
+  and linlog states no count there (`intervals_run`).
+- **The first-order count with weakening.** It is not stated, since
+  linlog states no count in affine mode. Nor is the first-order state
+  equation, since the Horn engine reads propositional programs only.
+
+### What the next sessions must know
+
+The theorems, as Rocq states them. The propositional ones are in
+`From Linlog Require Import Weights.` (which exports `Refutations`,
+`Calculus` and `Intuitionistic`). `y : atom -> Z` and `d : atom -> bool`
+are arguments before the others, and `p : bool` after them (the sign
+of a dead atom's literal that contributes nothing, `true` for the
+positive one; with weakening also the outputs' sign; a Horn program's
+bodies' sign in both roles):
+
+```coq
+Theorem weighted_refutation : forall {atom} (y : atom -> Z) (d : atom -> bool) (p : bool) R l,
+  overweight y d p R l = true -> ~ ll R l.
+Theorem iweighted_refutation : forall {atom} y d p R G C,
+  overweight y d p (lrules R) (one_sided G C) = true -> ~ ill R G C.
+Theorem affine_refutation : forall {atom} y d (p : bool) R l,
+  overweight_affine y d p R l = true -> ~ ll R l.
+Theorem iaffine_refutation : forall {atom} y d p R G C,
+  overweight_affine y d p (lrules R) (one_sided G C) = true -> ~ ill R G C.
+(* the invariants they rest on *)
+Theorem weighted_balance : forall {atom} y d p R l, ll R l ->
+  weakening R = false -> cut R = false ->
+  exists o, outs y d p nodrop l o /\ settled o = true.
+Theorem affine_balance : forall {atom} y d p R l, ll R l -> cut R = false ->
+  forallb (shaped p) l = true ->
+  (1 <= outputs_all p l)%Z /\
+  (outputs_all p l = 1%Z -> exists o, outs y d (droppable p) l o /\ settled o = true).
+```
+
+`overweight y d p R l` is `negb (weakening R) && negb (cut R) && negb
+(existsb (absorbs y d p nodrop) l) && positive (leasts y d p nodrop l)`.
+`overweight_affine y d p R l` is `negb (cut R) && forallb (shaped p) l
+&& (outputs_all p l =? 1) && negb (existsb (absorbs y d (droppable p))
+l) && positive (leasts y d p (droppable p) l)`. `weight_of String.eqb
+[("a", 1%Z); …]` is the weight a table gives an atom, zero for one it
+does not list. A dead set is written as the classical certificate writes
+its assignment, `fun a => existsb (String.eqb a) ["c"; …]`. The statement
+is the one the existing refutations state: `ll (atom := string) R [...]`
+one-sided, with `classical` or the record literal, and `ill (atom :=
+string) intuitionistic [...] C` two-sided.
+
+The first-order ones, `From Linlog Require Import FirstOrderCalculus
+FirstOrderIntuitionistic FirstOrderWeights.`, with `(symbol := string)`:
+
+```coq
+Theorem FirstOrderWeights.weighted_refutation :
+  forall {symbol} (fixed : symbol -> bool) (table : symbol -> list (term symbol) -> Z)
+    (weight : symbol -> Z) R l,
+  overweight fixed table weight R l = true -> ~ ll R l.
+Theorem FirstOrderWeights.iweighted_refutation : forall {symbol} fixed table weight R G C,
+  overweight fixed table weight (Refutations.lrules R) (one_sided G C) = true ->
+  ~ ill R G C.
+```
+
+There the literal `p(ts)` weighs `table p ts` if `fixed p`, else
+`weight p`. The test also asks every literal of a fixed predicate closed.
+
+**What the exporter writes, per refutation** (the proof is always
+`apply (THEOREM …). vm_compute. reflexivity.`):
+
+- `Refutation::OneSided { atom, copied, .. }`: `weighted_refutation
+  (weight_of String.eqb [("ATOM", W)]) (fun a => existsb (String.eqb a)
+  []) true RULES`, `W` = `1%Z` when `copied` is the atom, `(-1)%Z` when it is
+  the dual. Intuitionistic: `iweighted_refutation … intuitionistic` over
+  the two-sided statement. Nothing else is needed: least, most and
+  copied are recomputed by `vm_compute`.
+- `Refutation::OneSidedSymbol { symbol, copied, .. }` (and, if 51b
+  wishes, `UnbalancedSymbol`, or `OneSided`/`Unbalanced` of a sequent
+  with a quantifier): `FirstOrderWeights.weighted_refutation FIXED TABLE
+  WEIGHT RULES`. Here `FIXED` is the predicates none of whose atoms has
+  a bound variable (`fun p => existsb (String.eqb p) [...]`). `WEIGHT`
+  is `±1` on the symbol for a grouped predicate. For an atom of a fixed
+  predicate, `TABLE` is `fun p ts => if String.eqb p "P" && terms_eqb
+  String.eqb ts [TERMS] then ±1%Z else 0%Z` (`TermsCheck.terms_eqb`).
+  Today the writer refuses every sequent with a quantifier, and this is
+  the first first-order refutation the library certifies.
+- `Refutation::StateEquation { atoms, .. }` in linear mode (Mix or not):
+  `weighted_refutation (weight_of String.eqb [(NAME, W); …]) (fun a =>
+  existsb (String.eqb a) [DEAD…]) P RULES`, or the two-sided form. `P` is
+  `true` when the bodies' literals are positive (always in
+  intuitionistic mode) and `false` when they are negative (`~a`: the
+  goal's literals are negative). `W` is each listed atom's weight,
+  negated when `P` is `false`. `DEAD` is
+  every atom of the sequent outside the closure: start from the atoms
+  the markings hold (the inputs, the literals of the heads' sign outside
+  the clauses) and add the head atoms of every clause, used once or
+  under `!`, whose body atoms all lie in the set, until nothing changes.
+  That is `live`'s closure without the class places, which are always
+  in it. The ticket weights (`clauses`) and the `dropped` list are not
+  written: the test sums the clauses' own literals, which the ticket
+  inequality `y·Cₜ − z ≤ 0` bounds below by `−z`.
+- The same in affine mode: `affine_refutation (weight_of …) (fun a =>
+  …) P RULES`, or `iaffine_refutation … P affine`, with the weights as
+  `certify` gives them (not negative). `P` is `true` when the bodies'
+  literals are positive and `false` when they are negative, and the
+  weights are not negated in affine mode.
+- A worked instance, `tests/Weights.v`'s `state_equation_dead`: the
+  program `a, !(a ⊗ a ⊸ b), !(c ⊸ c ⊗ a) ⊢ a ⊗ b`. The initial
+  marking holds `a`. The first clause's body `a` is in the set, so `b`
+  joins it. The second's body `c` never does, so `c` is dead. The
+  weights `a ↦ 1`, `b ↦ 2` make the first clause's effect `2 − 2 = 0`
+  and the target `a + b` against the initial `a` raised by 2:
+  ```coq
+  Lemma state_equation_dead :
+    ~ ill (atom := string) intuitionistic
+        [ivar "a"; ioc (ilmap (itens (ivar "a") (ivar "a")) (ivar "b"));
+         ioc (ilmap (ivar "c") (itens (ivar "c") (ivar "a")))]
+        (itens (ivar "a") (ivar "b")).
+  Proof.
+    apply (iweighted_refutation (weight_of String.eqb [("a", 1%Z); ("b", 2%Z)])
+      (fun a => existsb (String.eqb a) ["c"]) true intuitionistic).
+    vm_compute. reflexivity.
+  Qed.
+  ```
+  Without the dead `c`, the same weights fail the test
+  (`state_equation_needs_dead`): each copy of the second clause lowers
+  the count by one. With negative bodies, `state_equation_negative_bodies`
+  writes `⊢ a, ?(~a ⊗ (a ⅋ a)), ?((~a ⊗ ~c) ⊗ b), ~b` with the weight
+  `b ↦ -1` (the engine's `1`, negated), `c` dead and `P = false`.
+- **Why every accepted certificate passes the test** (for 51b's Rust
+  check, which may recompute the same bound in place of the Farkas
+  inequalities). Read the sequent one-sided, bodies positive. A marking
+  token `~a` contributes `−y_a`, the goal `+y·M`, and a clause used
+  once `y·pre − y·post = −y·Cₜ`. A clause under `?` contributes `lstar`
+  of its own sum, which is `from 0` exactly when `−y·Cₜ ≥ 0`. A clause
+  with a dead body atom contributes `never`, so its `?` contributes
+  `from 0`, and as a clause used once it refutes outright. The bound is
+  `y·(M − M₀) − Σ y·C_c ≥ y·(M − M₀) − Σ z > 0`. In affine mode a
+  droppable formula is bounded by `min(0, its sum)`. With `y, z ≥ 0` a
+  token's bound is unchanged, a clause's is at least `−z`, and the
+  goal's literals are outputs, never dropped.
+- **What stays uncertified.** `Refutation::Exhausted` and
+  `Refutation::Saturated` have no theorem (`Unsupported::Saturated`
+  stays). Every other refutation now has one. 51b's
+  `Disproof::check` arms must recompute the invariant from the goal
+  alone. For the one-sided count, that is the Rust interval with copies
+  of one sign, as `check_unbalanced` does without copies. For the state
+  equation, it is the closure, the dead clauses and the Farkas
+  inequalities over the program read again, with the arithmetic that
+  `certify` uses (`i128`, checked).
+- **Pitfalls met.** `split` closes a reflexive equality (eq has one
+  constructor), so `repeat split` leaves fewer goals than conjuncts.
+  `cbn` unfolds `opar (num 0) o` into a match no lemma rewrites, so the
+  proofs use `cbn [app]` and `cbn [absorbs least]`. A section's
+  `Variable` used before `induction` is not generalised, so the
+  induction hypotheses do not take the side conditions. An existence
+  proof for `out (fall A)` needs an instance, so it goes by `size`.
