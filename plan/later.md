@@ -283,7 +283,7 @@ assigned to.
 | Follow-ups: the command's output | `check FILE` ignoring the file's mode; the records' constant wire level; the older lists of steps 18 and 20; the derivation builder's recursion | 53a |
 | Follow-ups: parallel search | every open entry (late cancellation at `&`, the short cube list, speculative work, the per-worker arena, a runtime kept across calls, duplicated exploration, the pool's memory on SYJ, a thread sanitizer) | kept: no measurement asks; no step changes the runtime |
 | Follow-ups: the benchmarks | the inverse method's wins without a row | 52 |
-| Follow-ups: the benchmarks | the harness reading linlog's reason in the wrong order | 52 (fixed first) |
+| Follow-ups: the benchmarks | the harness reading linlog's reason in the wrong order | done in 52 |
 | Follow-ups: the benchmarks | LinearOne's eight problems; `chain-fo` without the family's copy bound; `wide-m1`'s memory at 8 192; `pigeonhole` #1's late classical refutation; the resumption switch at first order | kept: with engines-13 and -14, a performance step the author chooses |
 | Follow-ups: the benchmarks | `bench/reruns.txt`; the forward bound tuned on more nets; the older lists of step 28 | kept: measured only |
 | Follow-ups: the benchmarks | the LLTP header report | open with the author (theirs to send) |
@@ -2314,11 +2314,6 @@ unassigned; the rows in `bench/comparison/2026-11-03-growing/`).*
   prove #0 to 384 and end #1 at that bound. A deepening that grows the
   bound by more than one copy a level only where the search used them
   all would bring the two closer.
-- **The harness reads linlog's reason in the wrong order**:
-  `linlog_read` (`bench/src/tools.rs`) looks for "copy bound" before
-  "recursion", so a line "the recursion limit of 2048 was reached …
-  at a copy bound of 410" is `copy_bound` (`chain` at 1 024); no
-  count changes, both being "gave up".
 
 ## Follow-ups: certified refutations
 

@@ -179,9 +179,28 @@ fn linlog_read(output: &str, status: i32, _: &Problem) -> Answer {
             Some(refutation_checked(output)),
         ),
         3 => {
-            // The library's reason; its stop is the time limit here.
+            // The library's reason, the one bound that stopped the search
+            // (its stop is the time limit here). Without an outcome, the
+            // verdict line says it in words, first, and may name another
+            // bound after it ("… at a copy bound of 410").
             let reason = match text(&outcome["reason"]["kind"]).as_str() {
                 "stopped" => "timeout".to_owned(),
+                "" => {
+                    let why = line.split_once("): ").map_or("", |(_, why)| why);
+                    [
+                        ("time limit", "timeout"),
+                        ("memory", "memory_limit"),
+                        ("copy bound", "copy_bound"),
+                        ("recursion", "recursion_limit"),
+                        ("work limit", "work_limit"),
+                        ("index", "index_limit"),
+                    ]
+                    .iter()
+                    .filter_map(|&(words, reason)| why.find(words).map(|at| (at, reason)))
+                    .min_by_key(|&(at, _)| at)
+                    .map_or(why, |(_, reason)| reason)
+                    .to_owned()
+                }
                 kind => kind.to_owned(),
             };
             ("unknown", reason, None)
@@ -1034,5 +1053,42 @@ mod tests {
         assert_eq!(refutation_checked(&net), "ok");
         let exhausted = outcome("A & B |- A * B", Mode::CLASSICAL);
         assert_eq!(refutation_checked(&exhausted), "");
+    }
+
+    /// The reason is the bound that stopped the search: the outcome's
+    /// kind, though the search deepened its copy bound before it met the
+    /// recursion limit; and without an outcome the bound the verdict line
+    /// names first, not a copy bound named after it.
+    #[test]
+    fn linlog_reason_is_the_bound_named_first() {
+        let problem = Problem {
+            sequent: "|- a".parse().unwrap(),
+            mode: Mode::CLASSICAL,
+            expected: None,
+            copies: None,
+            witness_depth: None,
+        };
+        let chain: linlog::Sequent = "!(p0 -o p1 & p2), !(p1 -o p2 & p3), !(p2 -o p3 & p4), \
+                                      !(p3 -o p4 & p5), p0 |- p5"
+            .parse()
+            .unwrap();
+        let options = linlog::Options::default()
+            .with_copies(None)
+            .with_engine(Some(linlog::Engine::Focus));
+        let limits = linlog::Limits::default().with_recursion_depth(4);
+        let outcome =
+            linlog::prove_within(&chain, Mode::CLASSICAL, &options, &limits, |_| false).unwrap();
+        let json = serde_json::to_string(&outcome).unwrap();
+        assert_eq!(
+            linlog_read(&json, 3, &problem).reason,
+            "recursion_limit",
+            "{json}"
+        );
+        let line = "unknown (classical MELL, focus engine): the recursion limit of 2048 was \
+                    reached after 0.30s at a copy bound of 410; raise it with --recursion-limit N";
+        assert_eq!(linlog_read(line, 3, &problem).reason, "recursion_limit");
+        let line = "unknown (classical MELL, focus engine): the copy bound of 3 was reached \
+                    after 1.00ms; raise it with --copies N";
+        assert_eq!(linlog_read(line, 3, &problem).reason, "copy_bound");
     }
 }
