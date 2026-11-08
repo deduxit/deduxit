@@ -5146,3 +5146,25 @@ move (D26).
     0.3.0 and the opam submission), or ask a lawyer.
   - The mark's design goes on regardless, since its shortlist works for
     any name.
+- 2026-11-08: 50a done and reviewed: intuitionistic proofs read back as
+  lambda-terms.
+  - What it built: `Derivation::term` (ILL, and affine where a formula
+    without `!` is weakened) and `ordinary::Derivation::term` (LJ). The
+    term is in `--lambda` on `prove` and `check`, the session command
+    `lambda`, the JSON's `lambda` key and the exports' judgement under
+    the conclusion, with a manual chapter, "Proofs as programs".
+  - The calculus: BBdPH as Bierman's thesis completes it (TR-346, ch. 3,
+    fig. 3.2), one published calculus for all of ILL. For LJ, Proofs and
+    Types (§3.1.2, §10.6).
+  - linlog's own notations are marked: the cut as a redex, the affine
+    reading, `⟨⟩` for LJ's unit, the ASCII form.
+  - Checked here with its binary: `a ⊸ b ⊸ a ⊗ b` gives `λx. λy. x ⊗
+    y`, LJ's composition gives `λf. λg. λx. g (f x)`, and classical
+    proofs (linear and LK) are refused with their reason.
+  - Its reviewer's three findings are fixed: the printer's
+    out-of-memory on shared types, the stop's phase, a documented bound.
+  - Target sets against 47: no counter differs.
+  - Decided (its departures): the term under the conclusion only, not
+    at each node, which would repeat substituted subterms. Haskell's
+    LinearTypes is not built, as it is not cheap.
+  - Next: 50b, and 52 now that 50a's builds are off the machine.
