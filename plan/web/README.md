@@ -159,7 +159,7 @@ to 2³² − 1, anything else refused):
 | `ordinary_apply(session, goal, step, settings)` | `{"session", "view", "opened"}`, or the refusal (`code` `step`, its `kind` and reason); a step is `{"side", "position", "rule", "split": {"left", "right"}}`, the rule by its name (`→L`), `split` the positions going to the first premise, left out to share the context |
 | `ordinary_undo(session, settings)` | `{"session", "view", "reopened"}`: a step or a graft retracted whole |
 | `ordinary_close(session, goal, settings)` | `{"session", "view", "outcome", "refused"}`: the goal decided through `ordinary.translation`, its derivation grafted; `outcome` the ordinary outcome (`valid`, `not_valid`, `unknown` with its `reason`) |
-| `ordinary_hint(session, goal, settings)` | `{"outcome", "step"}`: the goal decided, the session unchanged, `step` the first step of the derivation found, as `ordinary_apply` takes it |
+| `ordinary_hint(session, goal, settings)` | `{"outcome", "steps"}`: the goal decided, the session unchanged, `steps` the first steps of the derivation found (its weakenings and contractions at the root and the first rule that is not one), each on the goal the one before opened, as `ordinary_apply` takes them |
 | `ordinary_draw(session, settings)` | the derivation so far as SVG, open goals as bare leaves, the structural rules as `view.structural` draws them, `i<n>` on every conclusion |
 | `ordinary_export(session, format, settings)` | `text`, `latex`, `typst`, `svg` (the derivation so far) or `rocq` (the certificate of the finished derivation over `Prop`, checked first); PNG and PDF by `render` |
 

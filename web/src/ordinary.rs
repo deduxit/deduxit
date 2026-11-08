@@ -345,13 +345,18 @@ pub fn close(session: &str, goal: u32, settings: &str) -> Result<String, Failure
 struct Hint {
     /// The outcome of deciding the goal.
     outcome: ordinary::Outcome,
-    /// The first step of the derivation found, as [`apply`] takes it on
-    /// the goal; `null` unless the goal is valid.
-    step: Option<StepForm>,
+    /// The first steps of the derivation found, as [`apply`] takes them
+    /// in turn, each on the goal the one before opened, the first on the
+    /// goal asked for: the weakenings and contractions at its root and the
+    /// first rule that is not one, which ends the list. Empty unless the
+    /// goal is valid.
+    steps: Vec<StepForm>,
 }
 
 /// Decides a goal as [`close`] does, the session left as it was, and
-/// returns the outcome with the first step of the derivation found.
+/// returns the outcome with the first steps of the derivation found,
+/// which the page applies in turn: a contraction comes with the rule that
+/// uses both copies, so that following the hints proves the goal.
 ///
 /// # Errors
 ///
@@ -369,7 +374,7 @@ pub fn hint(session: &str, goal: u32, settings: &str) -> Result<String, Failure>
         )
         .map_err(Failure::from)?;
     written(&Hint {
-        step: hint.step.as_ref().map(StepForm::of),
+        steps: hint.steps.iter().map(StepForm::of).collect(),
         outcome: hint.outcome,
     })
 }

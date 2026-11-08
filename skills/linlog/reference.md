@@ -949,7 +949,9 @@ its own calls, `ordinary_start(sequent, logic, settings)`,
 settings)`, `ordinary_apply` (a step `{"side": "left"|"right",
 "position", "rule": "→L", "split": {"left": [..], "right": [..]}}`, the
 split left out to share the context), `ordinary_undo`, `ordinary_close`,
-`ordinary_hint` (its `step` one that `ordinary_apply` takes),
+`ordinary_hint` (its `steps`, the weakenings and contractions at the
+root of the derivation found and the rule above them, which
+`ordinary_apply` takes in turn),
 `ordinary_draw` and `ordinary_export` (`text`, `latex`, `typst`, `svg`,
 `rocq`), the session the library's `ordinary::Interactive` at wire level
 8; `about` lists the suites (`linear`, `ordinary`), each with the prefix

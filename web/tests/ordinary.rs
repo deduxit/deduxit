@@ -161,8 +161,8 @@ fn the_structural_rules_are_a_setting() {
     assert_eq!(view["inferences"].as_array().unwrap().len(), 2);
 }
 
-/// `close` grafts the derivation of a valid goal, `hint` names a first
-/// step that `apply` takes, and a goal that is not valid stays open with
+/// `close` grafts the derivation of a valid goal, `hint` names first
+/// steps that `apply` takes, and a goal that is not valid stays open with
 /// the outcome saying so.
 #[wasm_bindgen_test(unsupported = test)]
 fn close_and_hint_decide_a_goal() {
@@ -170,15 +170,15 @@ fn close_and_hint_decide_a_goal() {
     let state = session(&ordinary::start(peirce, "intuitionistic", "").unwrap());
     let hint = value(&ordinary::hint(&state, 0, "").unwrap());
     assert_eq!(
-        (&hint["outcome"]["verdict"], &hint["step"]),
-        (&json!("not_valid"), &Value::Null)
+        (&hint["outcome"]["verdict"], &hint["steps"]),
+        (&json!("not_valid"), &json!([]))
     );
     let closed = ordinary::close(&state, 0, "").unwrap();
     assert_eq!(open_goals(&closed), [0]);
     let state = session(&ordinary::start(peirce, "classical", "").unwrap());
     let hint = value(&ordinary::hint(&state, 0, "").unwrap());
-    assert_eq!(hint["step"]["rule"], "→R");
-    let stepped = ordinary::apply(&state, 0, &hint["step"].to_string(), "").unwrap();
+    assert_eq!(hint["steps"][0]["rule"], "→R");
+    let stepped = ordinary::apply(&state, 0, &hint["steps"][0].to_string(), "").unwrap();
     let closed = ordinary::close(&session(&stepped), 1, "").unwrap();
     let closed = value(&closed);
     assert_eq!(

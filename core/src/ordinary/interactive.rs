@@ -333,8 +333,8 @@ pub struct Closed {
 }
 
 /// What [`Interactive::hint`] found: the outcome of deciding the goal,
-/// and the first step of the derivation found, as a step that
-/// [`Interactive::apply`] takes on the goal.
+/// and the first steps of the derivation found, as steps that
+/// [`Interactive::apply`] takes in turn.
 ///
 /// Needs the cargo feature `interactive` (on by default).
 #[non_exhaustive]
@@ -342,10 +342,15 @@ pub struct Closed {
 pub struct Hint {
     /// The outcome of deciding the goal as a sequent of its own.
     pub outcome: Outcome,
-    /// The rule at the root of the derivation found, with its formula and
-    /// how its premises took the context; `None` unless the goal is
-    /// valid.
-    pub step: Option<Step>,
+    /// The first steps of the derivation found, each with its formula
+    /// and, for two premises, how they took the context: the weakenings
+    /// and contractions at its root and the first rule that is not one,
+    /// which ends the list, the first step on the goal asked for and each
+    /// other on the goal the step before it opened. Empty unless the goal
+    /// is valid. All are read off one derivation, so that following them
+    /// makes progress: a contraction alone, hinted again, could be
+    /// answered by a weakening of the copy.
+    pub steps: Vec<Step>,
 }
 
 /// What a rule makes of its principal formula in each premise: the
@@ -961,9 +966,10 @@ impl Interactive {
     }
 
     /// Decides the open goal as [`close`](Self::close) does and returns
-    /// the outcome with the first step of the derivation found, which
-    /// [`apply`](Self::apply) takes on the goal; the state is left as it
-    /// was.
+    /// the outcome with the first steps of the derivation found, its
+    /// structural rules at the root and the rule above them, which
+    /// [`apply`](Self::apply) takes in turn ([`Hint::steps`]); the state
+    /// is left as it was.
     ///
     /// # Errors
     ///
@@ -977,11 +983,12 @@ impl Interactive {
         stop: impl FnMut(Progress) -> bool,
     ) -> Result<Hint, Error> {
         let outcome = self.decide(goal, translation, search, limits, stop)?;
-        let step = match &outcome.verdict {
-            Verdict::Valid(derivation) => self.first_step(self.open(goal)?, derivation),
-            Verdict::NotValid | Verdict::Unknown(_) => None,
+        self.open(goal)?;
+        let steps = match &outcome.verdict {
+            Verdict::Valid(derivation) => self.first_steps(goal, derivation),
+            Verdict::NotValid | Verdict::Unknown(_) => Vec::new(),
         };
-        Ok(Hint { outcome, step })
+        Ok(Hint { outcome, steps })
     }
 
     /// Decides the open goal as a sequent of its own.
@@ -1087,14 +1094,43 @@ impl Interactive {
         Ok(())
     }
 
-    /// Returns the rule at the root of a derivation of the open goal as a
-    /// step on the goal, its formula found by what it is and, for two
-    /// premises, the context as the derivation gave it to them.
-    fn first_step(&self, goal: &Inference, found: &Derivation) -> Option<Step> {
+    /// Returns the steps of a derivation of the open goal from its root
+    /// up to and including the first rule that is not structural, each
+    /// applied in a copy of the state to find the goal the next one acts
+    /// on. Each turn goes one premise up the derivation, so there are no
+    /// more turns than it has inferences; a step the copy refuses (a
+    /// bound) ends the list there.
+    fn first_steps(&self, goal: GoalId, found: &Derivation) -> Vec<Step> {
+        let mut state = self.clone();
+        let (mut goal, mut at) = (goal, found.root());
+        let mut steps = Vec::new();
+        while let Some(step) = state
+            .open(goal)
+            .ok()
+            .and_then(|inference| state.step_at(inference, found, at))
+        {
+            steps.push(step.clone());
+            if !step.rule.is_structural() {
+                break;
+            }
+            match state.apply(goal, &step).as_deref() {
+                Ok(&[next]) => goal = next,
+                _ => break,
+            }
+            at = found.inference(at).premises[0];
+        }
+        steps
+    }
+
+    /// Returns the rule of inference `at` of a derivation of the open goal
+    /// (whose conclusion is the goal as multisets) as a step on the goal,
+    /// its formula found by what it is and, for two premises, the context
+    /// as the derivation gave it to them.
+    fn step_at(&self, goal: &Inference, found: &Derivation, at: InfId) -> Option<Step> {
         let mut formulas = self.formulas.clone();
         let ids = Self::ids_of(&mut formulas, found.formulas()).ok()?;
         let map = |list: &[NodeId]| list.iter().map(|k| ids[k.index()]).collect::<Vec<_>>();
-        let root = found.inference(found.root());
+        let root = found.inference(at);
         let Some((side, at)) = root.principal else {
             // An axiom concludes exactly the goal `A ⊢ A`.
             return Some(Step::new(Side::Right, 0, root.rule));
@@ -2057,17 +2093,21 @@ mod tests {
         let limits = Limits::default();
         let (mut s, g) = start("a -> b, b -> c |- a -> c", Logic::Intuitionistic);
         let hint = s.hint(g, None, &options, &limits, |_| false).unwrap();
-        let step = hint.step.unwrap();
+        let [step] = &hint.steps[..] else {
+            panic!("{:?}", hint.steps)
+        };
         assert_eq!((step.side, step.rule), (Right, Rule::ImpliesRight));
-        let [g] = s.apply(g, &step).unwrap()[..] else {
+        let [g] = s.apply(g, step).unwrap()[..] else {
             panic!()
         };
         // The hint of a split →L names the split the derivation made.
         let hint = s.hint(g, None, &options, &limits, |_| false).unwrap();
-        let step = hint.step.unwrap();
+        let [step] = &hint.steps[..] else {
+            panic!("{:?}", hint.steps)
+        };
         assert_eq!(step.rule, Rule::ImpliesLeft);
         assert!(matches!(step.context, Context::Split { .. }));
-        s.apply(g, &step).unwrap();
+        s.apply(g, step).unwrap();
         for goal in s.goals().collect::<Vec<_>>() {
             let closed = s.close(goal, None, &options, &limits, |_| false).unwrap();
             assert!(matches!(closed.outcome.verdict, Verdict::Valid(_)));
@@ -2083,17 +2123,50 @@ mod tests {
         };
         assert_eq!(reason, search::Reason::CopyBound { copies: 1 });
         assert_eq!(s.goals().collect::<Vec<_>>(), [g]);
-        assert!(
-            s.hint(g, None, &one, &limits, |_| false)
-                .unwrap()
-                .step
-                .is_none()
-        );
+        assert_eq!(s.hint(g, None, &one, &limits, |_| false).unwrap().steps, []);
         // Peirce's law is not intuitionistic: the goal stays open.
         let (mut s, g) = start("|- ((a -> b) -> a) -> a", Logic::Intuitionistic);
         let closed = s.close(g, None, &options, &limits, |_| false).unwrap();
         assert!(matches!(closed.outcome.verdict, Verdict::NotValid));
         assert_eq!(s.steps(), 0);
+    }
+
+    /// Following the hints proves a sequent whose derivation contracts a
+    /// hypothesis at its root: the contraction comes with the rule that
+    /// uses both copies, where hinted alone it was answered by a weakening
+    /// of the copy, and the two alternated for ever.
+    #[test]
+    fn following_the_hints_proves_a_sequent() {
+        // Every sequent is valid, so a search that deepens its copy bound
+        // ends.
+        let options = search::Options::default().with_copies(None);
+        let limits = Limits::default();
+        for (text, logic) in [
+            (
+                "a /\\ (b \\/ c) |- (a /\\ b) \\/ (a /\\ c)",
+                Logic::Intuitionistic,
+            ),
+            ("|- ~~(a \\/ ~a)", Logic::Intuitionistic),
+            ("|- ~~(a \\/ ~a)", Logic::Minimal),
+            ("(a -> b) -> a, a -> b |- b", Logic::Intuitionistic),
+        ] {
+            let (mut s, _) = start(text, logic);
+            // Each round takes at least one rule that is not structural.
+            for _ in 0..50 {
+                let Some(goal) = s.goals().next() else { break };
+                let hint = s.hint(goal, None, &options, &limits, |_| false).unwrap();
+                let mut goal = goal;
+                for step in &hint.steps {
+                    let opened = s.apply(goal, step).unwrap();
+                    if let [next, ..] = opened[..] {
+                        goal = next;
+                    }
+                }
+                assert!(!hint.steps.is_empty(), "{text}");
+            }
+            assert!(s.is_complete(), "{text}");
+            s.finished(&limits, |_| false).unwrap();
+        }
     }
 
     /// The sequent's size, the derivation's estimate and the stop bound

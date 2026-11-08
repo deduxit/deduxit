@@ -212,10 +212,16 @@ factored out of the two until the kernel crate is.
   (`ordinary::decide` with the state's logic): `close` grafts the
   derivation as one step (root in the goal's place keeping the goal's
   order, its principal found by formula; the rest appended in reverse),
-  refused past `derivation_bytes` by `estimate`; `hint` reads the root's
-  rule, its formula and, for two premises, whether they share the
-  context or which positions go to the first (`first_step`), as a
-  `Step` that `apply` takes. A refutation or an unknown leaves the goal
+  refused past `derivation_bytes` by `estimate`; `hint` reads the
+  derivation's first steps (`first_steps`): from the root up to and
+  including the first rule that is not structural, each step's rule,
+  formula and, for two premises, whether they share the context or which
+  positions go to the first (`step_at`), each applied in a copy of the
+  state to find the goal the next acts on. A contraction hinted alone was
+  answered, on the contracted goal, by a weakening of the copy, and the
+  two alternated for ever (the review of 49b; the linear bindings' hint
+  had the same fault, `web.md`); `following_the_hints_proves_a_sequent`
+  pins it. A refutation or an unknown leaves the goal
   open with the outcome saying why; a stop is `Unknown(Stopped)`, a
   refused read-back `decide`'s error.
 - **The structural rules as a display choice** (`ViewOptions::structural`,
