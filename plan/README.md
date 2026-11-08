@@ -5032,3 +5032,33 @@ move (D26).
       (`later.md`).
   - Each lock and fix is its own commit, each checked by its repository's
     full flake check.
+- 2026-11-08: 49a done and reviewed: `linlog::ordinary::Interactive`, the
+  native goal state of LK and LJ (classical, intuitionistic, minimal), its
+  JSON at wire level 8, and `ViewOptions::structural` (admissible by
+  default, or explicit).
+  - The planning session's correction, from a heads-up box in its pane,
+    is done: in LJ a shared →L or ¬L gives both premises every
+    hypothesis, through contractions made below the rule and hidden in
+    the default view. The finished derivation still passes
+    `Derivation::check`, with no checker change for it.
+  - Checked here:
+    - both target sets against step 47's oracles (no verdict and no
+      counter differs, 145 and 64 rows);
+    - each step's inferences pass the checker's own `check_inference`
+      before the state changes, and `finished` checks the whole
+      derivation;
+    - the one change to the checker narrows it: in classical logic it
+      takes only LK's own ¬ rules, which the read-back always made.
+  - The reviewer's five findings are fixed with tests: a reopened LJ goal
+    without a succedent, the Rocq writer on the `A → ⊥` form, the view
+    on a forged derivation, an open inference with premises, and
+    unbounded structural runs.
+  - Decided (a departure): in intuitionistic and minimal logic every goal
+    keeps exactly one formula right of ⊢, with `Γ ⊢` read as `Γ ⊢ ⊥` and
+    the rules needing two succedents refused. Single-succedent LJ is the
+    calculus courses teach, and it lets a search's derivation close the
+    goal it was asked for.
+  - Two follow-ups entered in `later.md`: the Rocq writer's term for LJ's
+    unary ¬L, and the warnings of `cargo test -p linlog` without
+    `parallel`.
+  - Next: 49b, the command and the bindings.

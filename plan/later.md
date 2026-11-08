@@ -1828,6 +1828,14 @@ stop for `Image::read_back` and `Derivation::check`, went to step 28.
   could not be checked within 6 GiB. A read-back on the proof term (a
   DAG), with a checker on terms, would avoid it.
 
+- **The Rocq writer and LJ's unary ¬L** (found by 49a's reviewer, by
+  reading): `Γ, ¬A ⊢` from `Γ ⊢ A` is accepted by the checker, but the
+  ordinary Rocq writer would write an ill-typed term for it. Neither the
+  read-back nor the goal state makes that form, so nothing reaches it
+  today.
+- **`cargo test -p linlog` without `parallel` warns** in
+  `search/focus/tests.rs` and `search/reference_fo.rs` (49a); the
+  workspace run, with the feature unified, does not.
 ## The web front end: a two-sided presentation of classical derivations
 
 *Assigned to step 40's second session (2026-10-23); done there: `TwoSided`, `--classical-sides`, `view.classical` and the client's switch (`plan/reports/40-ill-surface.md`, session 40b).*
