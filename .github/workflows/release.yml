@@ -48,7 +48,7 @@ jobs:
             echo "CITATION.cff does not state version $version" >&2
             exit 1
           fi
-      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
         with:
           github_access_token: ${{ github.token }}
       - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
@@ -73,7 +73,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
         with:
           github_access_token: ${{ github.token }}
       - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
@@ -84,7 +84,7 @@ jobs:
       # since it lives briefly; the publication reuses the build.
       - run: nix develop --command cargo package --locked --package linlog --package linlog-cli
       # A token for this job alone, revoked when it ends.
-      - uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1.0.5
+      - uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
         id: auth
       # The library before the command, each unless its version is on
       # crates.io already: publishing is not atomic, and a run again after
