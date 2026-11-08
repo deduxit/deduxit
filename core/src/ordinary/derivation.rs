@@ -427,7 +427,7 @@ impl Derivation {
     /// # Errors
     ///
     /// [`Error::NoTerm`] for a derivation of LK or one with open goals;
-    /// [`Refusal::Stopped`](crate::Refusal::Stopped) when `stop` fired.
+    /// [`Refusal::Stopped`] when `stop` fired.
     pub fn term(
         &self,
         limits: &crate::Limits,
