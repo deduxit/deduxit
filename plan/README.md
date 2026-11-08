@@ -4590,3 +4590,31 @@ client follows it (step 32).
   - One departure: the order note was written by the synthesis session
     itself.
   - Next: the decisions to the author; 46b after their answers.
+- 2026-11-08: the author's decisions on 46a's report.
+  - Decisions 1 to 8 as recommended:
+    1. grow linlog into a collection of suites, one at a time, `linlog`
+       kept as the linear suite;
+    2. one repository and one workspace, a kernel crate extracted only
+       after a second real suite;
+    3. a new umbrella organisation, the three repositories moved there
+       and `linlog-prover` kept as a placeholder whose site redirects;
+    4. the order 0.3.0 ordinary logic on the page, 0.4.0 intuitionistic
+       logic with countermodels and tableaux, 0.5.0 custom rules and
+       natural deduction, 0.6.0 modal logics, 0.7.0 resolution and the
+       simply typed lambda calculus;
+    5. custom rules as a generic derivation type with no search;
+    6. one stage whose tabs choose suite and method;
+    7. cyclic proofs and System F as research items after the decidable
+       suites;
+    8. verification stepwise.
+  - Decision 9: no Discussions and no announcement for now; the opam pull
+    request after the move to the new organisation.
+  - The name: not yet chosen. The author prefers `sequentium` and asked
+    for more candidates, from Latin, Greek and German and from terms
+    famous logicians used, which are being gathered with each checked
+    for clashes. 46a's note said `sequentium` was free on PyPI; it is
+    taken there by an unrelated package (number sequences, 0.0.5), and
+    `sequentium.com` is registered. GitHub, crates.io, opam, `.org` and
+    `.dev` are free (checked 2026-11-08).
+  - 46b starts once the name is chosen, or with it left open if the
+    author prefers.
