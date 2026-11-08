@@ -78,8 +78,9 @@ Two parts, as 38f and 38g were:
   - README's head and the rustdoc's logo, with the logo files, under
     the licence the author picks, served from the site as the
     lollipop's are;
-  - the lollipop kept where linlog alone is meant (the linear suite's
-    tab, the `linlog` crate's own pages, if the design says so);
+  - the lollipop retired everywhere (the author, 2026-11-08), the new
+    mark in its place, the client's `--color-logo` token and its guards
+    moved to the new mark's colour;
   - the author's checklist: the organisation's avatar and the
     repositories' social previews, which only the browser can set.
 
