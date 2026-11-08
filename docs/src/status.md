@@ -318,14 +318,30 @@ Built:
   [sequentium.github.io](https://sequentium.github.io/), with
   lessons, in a repository of its own.
 
-Planned, in roughly this order:
+Planned, release by release, as the repository grows from linlog into
+a collection of logic suites:
 
-- Certified refutations beyond the cheap ones and the saturated sets:
-  countermodels of the other logics, failure certificates of the
-  backward search.
-- First-order proving on the web page.
-- The comparison with the other provers on the libraries with the
-  engines of 0.2.0.
+- 0.3.0: ordinary logic on the web page, proved step by step in LK and
+  LJ; proofs read back as lambda-terms (intuitionistic linear proofs as
+  linear terms, LJ derivations as simply typed terms); the one-sided
+  and state-equation refutations checked and certified in the Rocq
+  library; the inverse method chosen by default where it is faster.
+- 0.4.0: intuitionistic logic decided by an engine of its own, with
+  Kripke countermodels for what is not provable, checked, drawn and
+  certified in Rocq; classical tableaux and truth tables; a checked
+  certificate for the affine refutations of the Horn engine.
+- 0.5.0: custom rules, a calculus given as data and derivations in it
+  checked and built in the command and on the page; natural deduction
+  for ordinary logic in Gentzen's and Fitch's styles.
+- 0.6.0: the modal logics K, T, K4, S4 and S5 decided, every refutation
+  a checked Kripke countermodel, and a labelled calculus proved sound
+  in Rocq; tools for teachers.
+- 0.7.0: propositional resolution at teaching scale, and the simply
+  typed lambda calculus, its typing derivations checked and built.
+
+Not yet placed in a release: first-order proving on the web page, and
+the comparison with the other provers on the libraries with the
+engines of 0.2.0.
 
 linlog is very much inspired by [Click & coLLecT](https://www.click-and-collect.linear-logic.org).
 It aims to support more use cases on a modern, more efficient base.

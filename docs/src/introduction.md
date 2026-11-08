@@ -7,6 +7,11 @@ checkable form and show them as derivation trees or proof nets, prove
 step by step, export to LaTeX, Typst, SVG and Rocq, and decide ordinary
 propositional logic through its embeddings into linear logic.
 
+The repository [sequentium](https://github.com/sequentium/sequentium) is a
+collection of logic suites, grown one suite at a time, whose linear suite
+is linlog: the crates `linlog` and `linlog-cli` and the command `linlog`
+keep that name.
+
 This manual describes the `main` branch of
 [the repository](https://github.com/sequentium/sequentium); a released
 version's manual is the `docs/` directory of its tag. linlog's

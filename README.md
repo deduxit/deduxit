@@ -9,6 +9,11 @@ checkable form and show them as derivation trees or proof nets, prove
 step by step, export to LaTeX, Typst, SVG and Rocq, and decide ordinary
 propositional logic through its embeddings into linear logic.
 
+The repository [sequentium](https://github.com/sequentium/sequentium) is a
+collection of logic suites, grown one suite at a time, whose linear suite
+is linlog: the crates `linlog` and `linlog-cli` and the command `linlog`
+keep that name.
+
 Version 0.2.0 adds first-order linear logic, cut and its elimination on
 proofs and proof nets, MELL proof nets with boxes, intuitionistic
 sequents written two-sided, the inverse method, the logo, and linlog's
