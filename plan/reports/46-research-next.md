@@ -484,7 +484,7 @@ teaching (T), the AI models that use linlog through its guide (M). The
 costs are the notes' estimates in sessions. Each row's sources are its
 note's.
 
-| rank | candidate | brings, to whom | cost | risk | prerequisites | note |
+| rank | candidate | brings, to whom | cost | risk | prerequisites | sources (the note; the index below gives each candidate's references in it) |
 |---|---|---|---|---|---|---|
 | 1 | name-and-organisation-3: the umbrella organisation, repositories transferred, `linlog-prover` kept as a stub | the collection has a home before anything else is published (R, T, M) | 1.5 + the author's browser tasks | the Pages URLs of 0.2.0's docs break unless the stub redirects; a window for squatting | the author's choice of name | name-and-organisation |
 | 2 | web-front-end-2 with web-front-end-1 and ordinary-sequents-3: the Ordinary tab real, interactive LK and LJ, the suite registry | T first: a first logic course's calculi on the stage; M: a second suite through the guide | 3 to 4 | old links and stored proofs must read as the linear suite; the session state duplicates the linear one unless generic | the ordinary JSON forms (`plan/later.md`) | web-front-end, ordinary-sequents |
@@ -539,7 +539,7 @@ note's.
 The remaining candidates of the notes, each placed after the list above
 unless a row says otherwise; the costs are the notes' lines:
 
-| candidate | brings, to whom | cost | risk or reason for its place | prerequisites | note |
+| candidate | brings, to whom | cost | risk or reason for its place | prerequisites | sources (the note; the index below gives each candidate's references in it) |
 |---|---|---|---|---|---|
 | web-front-end-3 and web-front-end-4: one module, or a module per suite loaded lazily | every suite's users; decided when a suite from another repository arrives | 0 now; 1 + 1 then | duplicated code per module, a heavier offline cache | web-front-end-5 | web-front-end |
 | web-teaching-1, web-teaching-6, web-teaching-9: a learner's local record exported as a file, its views, a teacher's reading of it | T | 1 + 1 + little code | a self-reported file | none | web-teaching |
@@ -548,61 +548,284 @@ unless a row says otherwise; the costs are the notes' lines:
 | web-teaching-5 (education-10): Learn and Practice keyed by suite, a lesson format as data | T | 1 for the mechanism, then content per suite | content is the largest cost | the registry | web-teaching, scope-education |
 | web-teaching-7, web-teaching-8, web-teaching-10: a print stylesheet, a classroom setting, localisation | T | 1, under 1, 2 or more | English only today | none | web-teaching |
 | education-2: proof-net exercises, a linking drawn and checked | T (linear-specific, the one thing no tool found offers) | 2 | bindings for `link` and `unlink` | none | scope-education |
-| education-3 (auto-reverse), education-5 (generated exercises in the library), education-9 (resource puzzles over the Horn engine), education-11 (a learner's record) | T | under 1, 2, 2, 1 | | | scope-education |
-| education-6: interactive LK and LJ on the page | T | 2 to 3 | the same item as ordinary-sequents-3 and web-front-end-2 above | | scope-education |
+| education-3 (auto-reverse), education-5 (generated exercises in the library), education-9 (resource puzzles over the Horn engine), education-11 (a learner's record) | T | under 1, 2, 2, 1 | auto-reverse needs the library's invertibility per rule (exists); generated problems need a measure of difficulty people confirm; puzzles need a Petri-net drawing | the Learn frame (built) | scope-education |
+| education-6: interactive LK and LJ on the page | T | 2 to 3 | the same item as ordinary-sequents-3 and web-front-end-2 above | the ordinary JSON forms and a native goal state (ordinary-sequents-3) | scope-education |
 | ordinary-sequents-4: the read-back on the proof DAG so large classical proofs check | R: seven classical proofs of 8 to 32 million inferences | 1 | checker work | none | ordinary-sequents |
 | ordinary-sequents-5: a classical G3c engine or SAT hand-off | R | 2 to 3 | "not a SAT solver" | none | ordinary-sequents |
 | ordinary-sequents-6: a structural-rule dial (relevant, BCK, ordered) for the ordinary calculi | T | 1 to 2 | R undecidable, so bounded | logics-1 | ordinary-sequents |
 | tableaux-4: prefixed modal tableaux | T | 4 to 6 | the labelled calculus (modal-logics-2) covers the same ground | modal-logics-1 | tableaux |
-| tableaux-5: a tableau or connection prover for linear logic beside linTAP | R | 3 or more | rejected by its note: the focused engines are stronger | | tableaux |
+| tableaux-5: a tableau or connection prover for linear logic beside linTAP | R | 3 or more | rejected by its note: the focused engines are stronger | a prefix unifier | tableaux |
 | resolution-4: a TPTP `cnf` reader with SZS output | R, M | 1 to 2 (+1 for TSTP) | none | resolution-1 | resolution |
 | more-logics-3: a QBF reader (QDIMACS) with a game view over the QBF-to-MALL encoding | R, T | 1 (+1 for certificates) | the encoding exists | none | more-logics |
-| more-logics-4: description logic ALC | T | 3 alone, about 1 over a generic modal K | | modal-logics-1 | more-logics |
+| more-logics-4: description logic ALC | T | 3 alone, about 1 over a generic modal K | three sessions alone against one over a generic modal K: build after the modal suite or not at all | modal-logics-1 | more-logics |
 | more-logics-5: Hoare logic over first-order assertions | T | 3 | through custom rules | custom-rules-1 | more-logics |
-| more-logics-7: a RUP or DRAT checker and a toy CDCL | T, M | 2 | the same ground as resolution-3 | | more-logics |
-| more-logics-8: equational logic and term rewriting | T | 3 to 4 | not for this project (its note) | | more-logics |
-| more-logics-9: temporal logics | R | 3 (LTL), double for CTL | a model checker's method; rejected as a suite | | more-logics |
+| more-logics-7: a RUP or DRAT checker and a toy CDCL | T, M | 2 | the same ground as resolution-3 | resolution-1 | more-logics |
+| more-logics-8: equational logic and term rewriting | T | 3 to 4 | not for this project (its note) | a term rewriting data model (none) | more-logics |
+| more-logics-9: temporal logics | R | 3 (LTL), double for CTL | a model checker's method; rejected as a suite | none | more-logics |
 | more-logics-10: many-valued and paraconsistent logics as tables and tableaux | T (philosophy courses) | 1 to 2 | a mode of the truth-table and tableau step | more-logics-2 | more-logics |
 | more-logics-11: epistemic, dynamic epistemic, deontic, conditional logics | T | 2 | modes of the modal suite | modal-logics-1 | more-logics |
-| more-logics-12, more-logics-13, more-logics-14: BI and separation logic, dependent type theory, categorical tools | | 3, large, none | rejected (BI undecidable; the proof assistants' ground; no proof suite fits) | | more-logics |
+| more-logics-12, more-logics-13, more-logics-14: BI and separation logic, dependent type theory, categorical tools | | 3, large, none | rejected (BI undecidable; the proof assistants' ground; no proof suite fits) | none | more-logics |
 | modal-logics-6: S4 and IS4 into linear logic through the MELL engines, as `ordinary/` does for LK and LJ | R: a cross-check, pedagogical | 2 (+1 for IS4) | the image lies in full LL, decidability of the image class unread | modal-logics-1's syntax | modal-logics |
 | natural-deduction-4: rule files for a course's own natural deduction rules | T | 3 to 5 | the same item as custom-rules-1 applied to natural deduction | custom-rules-1 | natural-deduction |
 | natural-deduction-5: Fitch-style modal natural deduction | T, R | 2 | only with a modal suite | natural-deduction-1, modal-logics-1 | natural-deduction |
 | applications-1: plans and their certificates from the Horn engine | R | 1 to 2 | none | none | scope-applications |
-| applications-3: enumerate and count proofs | R, T | medium to high | the memo assumes one answer; see lambda-calculi-3 | | scope-applications |
-| applications-4: proofs as programs and processes (term assignment per target) | T, R | 2 per target | the same ground as lambda-calculi-1 and types-higher-3 | | scope-applications |
+| applications-3: enumerate and count proofs | R, T | medium to high | the memo assumes one answer; see lambda-calculi-3 | lambda-calculi-3's enumeration front door | scope-applications |
+| applications-4: proofs as programs and processes (term assignment per target) | T, R | 2 per target | the same ground as lambda-calculi-1 and types-higher-3 | lambda-calculi-1 (the read-back) | scope-applications |
 | applications-5: a linear logic programming mode | R, T, M | 2 to 3 | quantifiers exist now | none | scope-applications |
-| applications-6: reaction networks and conservation laws (SBML and PNML readers) | R | 2 | | none | scope-applications |
-| applications-7, applications-8, applications-10: credentials, bounded exponentials, workflow specifications | M (documentation) | 0.5 each | folded or demoted by the note | | scope-applications |
+| applications-6: reaction networks and conservation laws (SBML and PNML readers) | R | 2 | the SBML subset must be chosen; multiplicities on literals are new | none | scope-applications |
+| applications-7, applications-8, applications-10: credentials, bounded exponentials, workflow specifications | M (documentation) | 0.5 each | folded or demoted by the note | none | scope-applications |
 | engines-1 with engines-4: a SAT-based intuitionistic engine, encodings as exports | R | 2 + under 1 | a dependency with an allowed licence; the pure-Rust choice changed | none | scope-engines |
-| engines-2, engines-3: lazy SAT over linkings, integer and trap refutations through a solver | R | unchanged, research | measured small gains | | scope-engines |
-| engines-5, engines-6: learned dispatch and schedules, learned ordering | R, M | unchanged | more data now (four baselines) | | scope-engines |
-| engines-7 with llm-agents-2: a proof-search environment and dataset for machine learning | M | low | the MCP server is the same work seen by a different consumer | | scope-engines, llm-agents |
-| engines-8: live provability feedback while proving by hand | T | small | partly built (hints, close within a budget); the light is D11's choice | | scope-engines |
-| engines-9: search state kept across calls | R | medium | a saturated set is a reusable state | | scope-engines |
+| engines-2, engines-3: lazy SAT over linkings, integer and trap refutations through a solver | R | unchanged, research | measured small gains | a solver crate with an allowed licence, or an exact simplex (exists for the state equation) | scope-engines |
+| engines-5, engines-6: learned dispatch and schedules, learned ordering | R, M | unchanged | more data now (four baselines) | the baselines' rows (exist) | scope-engines |
+| engines-7 with llm-agents-2: a proof-search environment and dataset for machine learning | M | low | the MCP server is the same work seen by a different consumer | none | scope-engines, llm-agents |
+| engines-8: live provability feedback while proving by hand | T | small | partly built (hints, close within a budget); the light is D11's choice | none | scope-engines |
+| engines-9: search state kept across calls | R | medium | a saturated set is a reusable state | the inverse method's saturated set (built) | scope-engines |
 | engines-10, engines-11: competition inputs for the Horn engine, linear logic in the TPTP World | R | 2 each | TPTP's authors name linear logic a candidate | interop-5 | scope-engines, scope-interop |
-| engines-15, engines-16: the inverse method at first order, a first-order comparison library | R | 3 or more, 2 | saturation does not terminate at first order; no linear first-order library exists | | scope-engines |
+| engines-15, engines-16: the inverse method at first order, a first-order comparison library | R | 3 or more, 2 | saturation does not terminate at first order; no linear first-order library exists | the inverse method and first-order terms (built) | scope-engines |
 | engines-17: a generic focused engine over rule schemas | R | 4 or more | adds the schema reader to the trusted base; the engine-side counterpart of custom-rules-3 | custom-rules-1 | scope-engines |
 | interop-2: Lean 4 certificates over cslib | R | 3 to 4 | cslib has no release | none | scope-interop |
-| interop-4: focused certificates with holes | R | 2 | | none | scope-interop |
-| interop-6 with interop-12: tactics that call linlog from Rocq or Lean, a `linlog serve` mode | R, M | 2 + 1 | | none | scope-interop |
+| interop-4: focused certificates with holes | R | 2 | certificates proportional to the choices; nothing built since the 2026-10 note | none | scope-interop |
+| interop-6 with interop-12: tactics that call linlog from Rocq or Lean, a `linlog serve` mode | R, M | 2 + 1 | a tactic that shells out is only as portable as the command's installation; whether Rocq's Ltac2 can run a process was not read | none | scope-interop |
 | interop-7: a Python package (PyO3, maturin) | M, T | 2 to 3 | not recommended yet by the agents note | none | scope-interop, llm-agents |
 | interop-8: a WebAssembly component with WIT | R | 2 | WASI 0.3 released; the objection weakened | none | scope-interop |
 | interop-9, interop-10: a language server and tree-sitter grammar, notebooks | T | 2, 1 | for course repositories of problem files | none | scope-interop |
-| interop-11: native reading of TPTP's non-classical syntax for the modal suite | R | 1 to 2 | | interop-5, modal-logics-1 | scope-interop |
+| interop-11: native reading of TPTP's non-classical syntax for the modal suite | R | 1 to 2 | the NXF syntax details come from a search summary only | interop-5, modal-logics-1 | scope-interop |
 | logics-3: ordered cut, then Lambek with modalities | R, T | the old estimate | the ordered mode refuses cut today | logics-1 for the modalities | scope-logics |
 | logics-6 (LR proper), logics-7 (light logics as a stratification checker), logics-8 (adjoint logic) | R | 1 over a `Mode` flag; small; 1 to 2 after logics-1 | no tool and no audience seen for LR | logics-1 | scope-logics |
-| logics-9: first-order and net-side follow-ups of 2025 and 2026 (nets for first-order MALL, Yeo's theorem for coloured graphs) | R | per item | | | scope-logics |
-| proof-theory-2 to proof-theory-8, proof-theory-10, proof-theory-11, proof-theory-14: MALL nets, unification nets, subformula linking, the calculus of structures, compression, a token machine, a dialogue mode, combinatorial proofs, the Curry–Howard export (the same as lambda-calculi-1), a certified net criterion | R, T | 1 to 3 each, 2 to 3 for the Rocq criterion | each untouched; prerequisites built for 3 and 7 | | scope-proof-theory |
-| semantics-decision-4 to semantics-decision-9: directed reachability, a Petri-net front door, the affine termination measure, phase countermodels, Petri nets with data, wider Horn shapes | R | 1 to 2, 3, 1, prototype, 4 to 6, medium | measured gains only | | scope-semantics-decision |
-| semantics-decision-10 and semantics-decision-12: Rocq certificates for saturated refutations and for the backward search's failures | R | 5 to 8; 6 to 10 | a project of its own: focusing completeness in Rocq | | scope-semantics-decision |
+| logics-9: first-order and net-side follow-ups of 2025 and 2026 (nets for first-order MALL, Yeo's theorem for coloured graphs) | R | per item | each item a paper read at abstract level | first-order nets (proof-theory-3), MALL nets (proof-theory-2) | scope-logics |
+| proof-theory-2: MALL nets as conflict nets or linking sets | R: a drawing of the one core fragment with none; the input of proof-theory-13 | 1 | linear-specific; `plan/later.md` dropped MALL nets "only if a use case appears"; conflict nets not re-read | boxes and cut links (built) | scope-proof-theory, sources S5, S6, S7, N1, N5 |
+| proof-theory-3: unification nets for first-order MLL | R: a canonical first-order net that no witness annotates | 1 (a first-order net data model, nets are propositional today) | the witness slot of `Node` must allow an implicit witness, to be checked in the code | first-order proofs with witnesses and eigenvariables (built) | scope-proof-theory, sources S8, S9 |
+| proof-theory-4: subformula linking in the interactive session | T: fewer clicks on wide sequents, "why these meet"; generalises to every sequent suite | small to 1 | the chain is not unique under `⊗` | none | scope-proof-theory, sources S24, S25, N13, N16 |
+| proof-theory-5: a calculus-of-structures view, and BV | R | 1 for an export; 2 or more and a new data model for BV | research grade; no cut-free sequent calculus for BV | none for the export | scope-proof-theory, sources S14 to S23, N12 |
+| proof-theory-6: proof compression and minimal proofs (redundancy removal, cut introduction) | R, T | small for (i), 1 for (iii) | (ii) has no default notion of minimal | cut elimination (built); proof-theory-12 gives (iii) its construction | scope-proof-theory, sources S26 to S29, N10, N13 |
+| proof-theory-7: a token machine on nets | T: a picture of the geometry of interaction beside the reduction animation | 1 | linear-specific; no visualiser found to compare with | MELL nets with boxes and cut links (built) | scope-proof-theory, sources S30 to S35 |
+| proof-theory-8: a dialogue mode | T: Lorenzen games; a suite-level feature | 1 plus a soundness panel | the game rules per logic must be sourced | none | scope-proof-theory, sources S37 to S41 |
+| proof-theory-10: combinatorial proofs for the ordinary layer (and the constructive modal logics) | T, R: one graph-over-formula drawing for classical, intuitionistic and modal logic | 1 | the modal papers were not read | the ordinary layer (built) | scope-proof-theory, sources S11, S12, N18 |
+| proof-theory-11: a Curry–Howard export of linear proofs (linear lambda-terms, session processes) | T, R: the bridge to the lambda-calculi suite | 0.5 | the same item as lambda-calculi-1 for the linear half | none | scope-proof-theory, sources S47, S48 |
+| proof-theory-14: a certified net criterion in the Rocq library | R: the criterion out of the trusted base | 2 to 3 in the library's repository | the sequentialization theorem is the hard part; the reference development's licence and reusability unread | the library's term checkers, a data model of nets in Rocq (new) | scope-proof-theory, sources N1, N6, N15 |
+| semantics-decision-4: directed and accelerated reachability for the undecided nets | R: speed on the 66 undecided LLTP nets | 1 to 2 per heuristic | changes speed, not what is certifiable; each heuristic earned on `bench/targets.sh` | none | scope-semantics-decision, no new source beyond the 2026-10 note's |
+| semantics-decision-5: a Petri-net front door (a PNML reader, reachability and coverability queries) | R: the Model Checking Contest's conversation with checkable certificates | 3 | the contest's formulas are richer than a sequent's goal; verifypn is GPL-3.0, callable not linkable | none | scope-semantics-decision, sources S20, S22, S23 |
+| semantics-decision-6: affine decision by saturation with subsumption (the termination claim and its measurement) | R: a documented decision for affine fragments with exponentials | 1 | partly built in the affine inverse method; termination in every affine fragment is an inference by Dickson's lemma | the inverse method (built) | scope-semantics-decision, source S8 and the 2026-10 note's S2 |
+| semantics-decision-7: finite phase countermodels | R | a prototype first | Lafont gives the theorem for MALL and the negative for MELL; no tool, no size bound; Yalla's phase semantics is ongoing work | none | scope-semantics-decision, sources S8, S9 |
+| semantics-decision-8: Petri nets with data (first-order Horn with fresh names) | R: protocol models | 4 to 6 | the WSTS algorithm and the data ordering are separate work; the focused engine, not the Horn row, decides `reach-fo` today | terms and eigenvariables (built) | scope-semantics-decision, the 2026-10 note's S45, S46 |
+| semantics-decision-9: Horn shapes beyond `!`-Horn | R | medium | the gain is unknown until the LLTP rows missing the Horn row for shape are counted | none | scope-semantics-decision, no new source |
+| semantics-decision-10 and semantics-decision-12: Rocq certificates for saturated refutations and for the backward search's failures | R | 5 to 8; 6 to 10 | a project of its own: focusing completeness in Rocq | semantics-decision-1 and -11 first, by the note's order | scope-semantics-decision |
 | types-higher-1 (with lambda-calculi-3), types-higher-3 (sessions), types-higher-4, types-higher-5, types-higher-6, types-higher-7, types-higher-8 (a linear lambda-term checker) | R, T | 2 to 3; 3 to 4; 1; 1 or 5+; 2 to 3; a flag; small | sessions lost their blocker (cut exists) | types-higher-2 | scope-types-higher |
-| users-2, users-3: a monthly reading of the public counters, one announcement | the author | fractions of a session | | | users |
-| llm-agents-3, llm-agents-4, llm-agents-5: a Python package, structured hints for models, `--explain` | M | 2 to 3, after a trial, 1 | not recommended yet | | llm-agents |
-| verification-7: a certificate download on the page | built already: the client's bottom band exports the finished proof's and a refuted goal's Rocq certificate (`BottomBand.tsx`, found by the reviewer) | 0 | dropped | | verification |
-| maintenance-6, maintenance-9: platform code signing, a crate and module budget; maintenance-2 is built already (`.github/dependabot.yml` of 2026-09-29 watches the actions weekly, found by the reviewer), so only advisories remain of it | users, the maintainer | accounts and fees; under 1 | | | maintenance |
-| structure-2, structure-3, structure-4: a repository per suite, features per logic, one engine with calculi as data | | | compared above; structure-2 kept open for a third party's suite | | structure |
-| name-and-organisation-1, name-and-organisation-2, name-and-organisation-4: keep the organisation, rename in place, the name table | | | compared above | | name-and-organisation |
+| users-2, users-3: a monthly reading of the public counters, one announcement | the author | fractions of a session | download counts include mirrors and scanners; one post that draws no one | none | users |
+| llm-agents-3, llm-agents-4, llm-agents-5: a Python package, structured hints for models, `--explain` | M | 2 to 3, after a trial, 1 | not recommended yet | a trial with a small model for -4 | llm-agents |
+| verification-7: a certificate download on the page | built already: the client's bottom band exports the finished proof's and a refuted goal's Rocq certificate (`BottomBand.tsx`, found by the reviewer) | 0 | dropped | none | verification |
+| maintenance-6, maintenance-9: platform code signing, a crate and module budget; maintenance-2 is built already (`.github/dependabot.yml` of 2026-09-29 watches the actions weekly, found by the reviewer), so only advisories remain of it | users, the maintainer | accounts and fees; under 1 | accounts, fees and a certificate the author must hold; the budget is a number to keep, not code | none | maintenance |
+| structure-2, structure-3, structure-4: a repository per suite, features per logic, one engine with calculi as data | | | compared above; structure-2 kept open for a third party's suite | structure-1's kernel for 2 and 4 | structure |
+| name-and-organisation-1, name-and-organisation-2, name-and-organisation-4: keep the organisation, rename in place, the name table | | | compared above | the author's choice | name-and-organisation |
+
+The sources of each candidate: the note that holds it and the
+references its section cites (the numbers are the note's source list;
+a section whose references stand inline in its text says so).
+
+| candidate | note | references |
+|---|---|---|
+| custom-rules-1 | `custom-rules.md` | [S1][S5][S9][S21][S23] |
+| custom-rules-2 | `custom-rules.md` | [S5][S17][S21][S23] |
+| custom-rules-3 | `custom-rules.md` | [S1][S2][S19][S20] |
+| custom-rules-4 | `custom-rules.md` | [S2][S17][S18] |
+| custom-rules-5 | `custom-rules.md` | [S3][S4] |
+| custom-rules-6 | `custom-rules.md` | [S6]; linlog's own `docs/src/status.md` for the Horn engine |
+| cyclic-proofs-1 | `cyclic-proofs.md` | 2, 7, 9, 11, 12, 20 |
+| cyclic-proofs-2 | `cyclic-proofs.md` | 1, 2, 3, 7, 8, 9 |
+| cyclic-proofs-3 | `cyclic-proofs.md` | 10, 11, 12, 13, 14, 17, `scope/logics.md` (Bae12, BDKS20, DDS22, NST18, NST19 as cited there) |
+| cyclic-proofs-4 | `cyclic-proofs.md` | 3, 6, 21 |
+| cyclic-proofs-5 | `cyclic-proofs.md` | 8, 12, 20 |
+| lambda-calculi-1 | `lambda-calculi.md` | [4][5][12][13], scope note |
+| lambda-calculi-2 | `lambda-calculi.md` | [1][12][13][18][22] |
+| lambda-calculi-3 | `lambda-calculi.md` | [7][9][10], scope note |
+| lambda-calculi-4 | `lambda-calculi.md` | [6][8][13][17] |
+| lambda-calculi-5 | `lambda-calculi.md` | [3][19][20][21] |
+| lambda-calculi-6 | `lambda-calculi.md` | [1][6][9][10][11][13] |
+| lambda-calculi-7 | `lambda-calculi.md` | the `CLAUDE.md` description of `rocq-linlog`; [12][14] as courses that do this in Agda and Rocq (Software Foundations' PLF volume, unverified as to content) |
+| llm-agents-1 | `llm-agents.md` | [1][2][3][4][5][6][7][8][9] and `plan/later.md` |
+| llm-agents-2 | `llm-agents.md` | [14][21][22][23], `plan/notes/research/scope/engines.md` engines-7 |
+| llm-agents-3 | `llm-agents.md` | [12][16], interop scope note |
+| llm-agents-4 | `llm-agents.md` | step 44's report; `skills/linlog/reference.md` sections 5 and 8; [9] |
+| llm-agents-5 | `llm-agents.md` | step 44's report; scope note `education.md` (not re-read here) |
+| llm-agents-6 | `llm-agents.md` | [17][20], step 44's report (trials) |
+| maintenance-1 | `maintenance.md` | [1], [2] |
+| maintenance-2 | `maintenance.md` | [4] |
+| maintenance-3 | `maintenance.md` | [11], [12], [13], [14] |
+| maintenance-4 | `maintenance.md` | [17], [18] |
+| maintenance-5 | `maintenance.md` | [5] |
+| maintenance-6 | `maintenance.md` | [6], `docs/src/installation.md` |
+| maintenance-7 | `maintenance.md` | [7], [8], [9], [10] |
+| maintenance-8 | `maintenance.md` | `docs/src/installation.md`, `plan/later.md` |
+| maintenance-9 | `maintenance.md` | `plan/web/design.md` D35 |
+| modal-logics-1 | `modal-logics.md` | [3], [4], [11], [18], [19], [26] |
+| modal-logics-2 | `modal-logics.md` | [11], [18], [35] |
+| modal-logics-3 | `modal-logics.md` | [30], [31] |
+| modal-logics-4 | `modal-logics.md` | [3], [11], [12], [18] |
+| modal-logics-5 | `modal-logics.md` | [26] |
+| modal-logics-6 | `modal-logics.md` | [2], [33], [34], [4] |
+| modal-logics-7 | `modal-logics.md` | [7], [16], [17], [22] |
+| modal-logics-8 | `modal-logics.md` | [10], [14], [16], [28], [29] |
+| more-logics-1 | `more-logics.md` | [1] [2] [4] [5] [11] |
+| more-logics-2 | `more-logics.md` | [1] [2] [3] [4] [5] |
+| more-logics-3 | `more-logics.md` | [13] [14] |
+| more-logics-4 | `more-logics.md` | [16] |
+| more-logics-5 | `more-logics.md` | [6] [7] [18] |
+| more-logics-6 | `more-logics.md` | [12] |
+| more-logics-7 | `more-logics.md` | [15] |
+| more-logics-8 | `more-logics.md` | [22] |
+| more-logics-9 | `more-logics.md` | [17] |
+| more-logics-10 | `more-logics.md` | [20] [21] |
+| more-logics-11 | `more-logics.md` | [8] [9] [10] |
+| more-logics-12 | `more-logics.md` | [18] [19] |
+| more-logics-13 | `more-logics.md` | [7] |
+| more-logics-14 | `more-logics.md` | [1], [4], [5], [6], [7], [11], [12], [17], [18], [22] |
+| name-and-organisation-1 | `name-and-organisation.md` | sections 1 and 2 |
+| name-and-organisation-2 | `name-and-organisation.md` | sections 1 and 2 |
+| name-and-organisation-3 | `name-and-organisation.md` | GitHub pages in section 2 |
+| name-and-organisation-4 | `name-and-organisation.md` | links inline in the section |
+| natural-deduction-1 | `natural-deduction.md` | [1], [12], [14], [19], [22] |
+| natural-deduction-2 | `natural-deduction.md` | [2], [4], [5], [6], [7], [8] |
+| natural-deduction-3 | `natural-deduction.md` | [4], [5], [3] |
+| natural-deduction-4 | `natural-deduction.md` | [10], [18], [25] |
+| natural-deduction-5 | `natural-deduction.md` | [1], [3] |
+| ordinary-sequents-1 | `ordinary-sequents.md` | [4][5][6][9][10]; `plan/reports/25-ordinary-logic.md` |
+| ordinary-sequents-2 | `ordinary-sequents.md` | [7][13][14]; `plan/later.md` (escalations, Kripke countermodels) |
+| ordinary-sequents-3 | `ordinary-sequents.md` | [1][3][21][26][30]; `plan/later.md` ("Follow-ups: ordinary logic"), `plan/web/design.md` D56, D57; `TopBand.tsx` |
+| ordinary-sequents-4 | `ordinary-sequents.md` | `plan/later.md`, "Follow-ups: ordinary logic" |
+| ordinary-sequents-5 | `ordinary-sequents.md` | [8]; `plan/later.md`; `plan/reports/25-ordinary-logic.md` |
+| ordinary-sequents-6 | `ordinary-sequents.md` | [17][18][19]; `plan/notes/research/scope/logics.md` |
+| resolution-1 | `resolution.md` | [1][2][3][5][28][29] |
+| resolution-2 | `resolution.md` | [1][2][7][8][9][10] |
+| resolution-3 | `resolution.md` | [3][4][11][12][13][19]-[27] |
+| resolution-4 | `resolution.md` | [14][15][16][9] |
+| applications-1 | `scope-applications.md` | [8] |
+| applications-2 | `scope-applications.md` | [6] |
+| applications-3 | `scope-applications.md` | links inline in the section |
+| applications-4 | `scope-applications.md` | [16], [21] |
+| applications-5 | `scope-applications.md` | [1], [2], [4] |
+| applications-6 | `scope-applications.md` | [11], [12], [13], [14] |
+| applications-7 | `scope-applications.md` | [15] |
+| applications-8 | `scope-applications.md` | links inline in the section |
+| applications-9 | `scope-applications.md` | links inline in the section |
+| applications-10 | `scope-applications.md` | [9], [10], [12], [18], [21] |
+| education-1 | `scope-education.md` | [1], [2] |
+| education-2 | `scope-education.md` | [3] |
+| education-3 | `scope-education.md` | [2] |
+| education-4 | `scope-education.md` | [4], [5] |
+| education-5 | `scope-education.md` | [6] |
+| education-6 | `scope-education.md` | [7], [8], [9] |
+| education-7 | `scope-education.md` | [10] |
+| education-8 | `scope-education.md` | [2], [11] |
+| education-9 | `scope-education.md` | [12] |
+| education-10 | `scope-education.md` | links inline in the section |
+| education-11 | `scope-education.md` | [1], [4], [5] |
+| engines-1 | `scope-engines.md` | [7], [8], [10], [11] |
+| engines-2 | `scope-engines.md` | links inline in the section |
+| engines-3 | `scope-engines.md` | links inline in the section |
+| engines-4 | `scope-engines.md` | links inline in the section |
+| engines-5 | `scope-engines.md` | links inline in the section |
+| engines-6 | `scope-engines.md` | links inline in the section |
+| engines-7 | `scope-engines.md` | [12], [13] |
+| engines-8 | `scope-engines.md` | links inline in the section |
+| engines-9 | `scope-engines.md` | links inline in the section |
+| engines-10 | `scope-engines.md` | links inline in the section |
+| engines-11 | `scope-engines.md` | [3], [4] |
+| engines-12 | `scope-engines.md` | links inline in the section |
+| engines-13 | `scope-engines.md` | As above, and LinearOne [2] |
+| engines-14 | `scope-engines.md` | links inline in the section |
+| engines-15 | `scope-engines.md` | [14] and `core-inverse.md` |
+| engines-16 | `scope-engines.md` | [3], [6] |
+| engines-17 | `scope-engines.md` | Repository only |
+| interop-1 | `scope-interop.md` | [1], [4] |
+| interop-2 | `scope-interop.md` | [1], [3], [4], [11] |
+| interop-3 | `scope-interop.md` | [10], [11], [12], [26] |
+| interop-4 | `scope-interop.md` | [27], [28] |
+| interop-5 | `scope-interop.md` | [14], [16], [17] |
+| interop-6 | `scope-interop.md` | [5], [6], [8], [9] |
+| interop-7 | `scope-interop.md` | [25] |
+| interop-8 | `scope-interop.md` | [24] |
+| interop-9 | `scope-interop.md` | [8], [21], [22], [23] |
+| interop-10 | `scope-interop.md` | links inline in the section |
+| interop-11 | `scope-interop.md` | [14], [16] |
+| interop-12 | `scope-interop.md` | [1], [5], [8], [11], [14] |
+| logics-1 | `scope-logics.md` | [1][12][13][6]; old note's NOP17, KKNS19 |
+| logics-2 | `scope-logics.md` | [3][4][5][14]; old note's GSS92, HO20, HO24, EO20 |
+| logics-3 | `scope-logics.md` | old note's KKNS19, KKNS20, MWS21, Pol01; [11] |
+| logics-4 | `scope-logics.md` | [11][7]; old note's Gug07, Hor15, NS23 |
+| logics-5 | `scope-logics.md` | [7], [8] |
+| logics-6 | `scope-logics.md` | [12]; old note's Urq16, Urq99 |
+| logics-7 | `scope-logics.md` | [9][7]; old note's GR09, Ter, DM04 |
+| logics-8 | `scope-logics.md` | [6][7]; old note's PCPR18, JFSCD24 |
+| proof-theory-1 | `scope-proof-theory.md` | S2, S3, S4, S6, N2, N7, N8, N9 |
+| proof-theory-2 | `scope-proof-theory.md` | S5, S6, S7, N1, N5 |
+| proof-theory-3 | `scope-proof-theory.md` | links inline in the section |
+| proof-theory-4 | `scope-proof-theory.md` | S24, S25, N13, N16 |
+| proof-theory-5 | `scope-proof-theory.md` | S14 to S23, N12 |
+| proof-theory-6 | `scope-proof-theory.md` | S26 to S29, N10, N13 |
+| proof-theory-7 | `scope-proof-theory.md` | links inline in the section |
+| proof-theory-8 | `scope-proof-theory.md` | [S41] |
+| proof-theory-9 | `scope-proof-theory.md` | S44 to S46 |
+| proof-theory-10 | `scope-proof-theory.md` | links inline in the section |
+| proof-theory-11 | `scope-proof-theory.md` | links inline in the section |
+| proof-theory-12 | `scope-proof-theory.md` | N10, N11 (the nets side, abstract only) |
+| proof-theory-13 | `scope-proof-theory.md` | N4, N5 |
+| proof-theory-14 | `scope-proof-theory.md` | N1, N6, N15 |
+| semantics-decision-1 | `scope-semantics-decision.md` | [S17] [S12]; `core-horn.md`; scope note S36, S37 |
+| semantics-decision-2 | `scope-semantics-decision.md` | [S5] [S6] [S12] [S13] [S14] |
+| semantics-decision-3 | `scope-semantics-decision.md` | [S15] [S16]; scope note S38 |
+| semantics-decision-4 | `scope-semantics-decision.md` | links inline in the section |
+| semantics-decision-5 | `scope-semantics-decision.md` | [S20], [S22], [S23] |
+| semantics-decision-6 | `scope-semantics-decision.md` | [S8] |
+| semantics-decision-7 | `scope-semantics-decision.md` | [S8], [S9] |
+| semantics-decision-8 | `scope-semantics-decision.md` | links inline in the section |
+| semantics-decision-9 | `scope-semantics-decision.md` | links inline in the section |
+| semantics-decision-10 | `scope-semantics-decision.md` | `core-inverse.md`; `plan/later.md`; refutations note |
+| semantics-decision-11 | `scope-semantics-decision.md` | [S10] [S11] [S8]; refutations note, group B and C |
+| semantics-decision-12 | `scope-semantics-decision.md` | `plan/later.md`; refutations note |
+| types-higher-1 | `scope-types-higher.md` | [16][17], old note S40 |
+| types-higher-2 | `scope-types-higher.md` | [3][18][19], `bench/TOOLS.md` |
+| types-higher-3 | `scope-types-higher.md` | [4][10][12][13][15], old note S28 to S35 |
+| types-higher-4 | `scope-types-higher.md` | [1][6][8], old note S18, S22, S23 |
+| types-higher-5 | `scope-types-higher.md` | [1][3][8] |
+| types-higher-6 | `scope-types-higher.md` | Old note S1, S5, S8; `docs/src/status.md` |
+| types-higher-7 | `scope-types-higher.md` | [1], [3], [5], [8], [10] |
+| structure-1 | `structure.md` | [Cargo book, Workspaces](https://doc.rust-lang.org/cargo/reference/workspaces.html); [matklad](https://matklad.github.io/2021/08/22/large-rust-workspaces.html); |
+| structure-2 | `structure.md` | [Cargo book, Publishing](https://doc.rust-lang.org/cargo/reference/publishing.html); the Rocq example in `CLAUDE.md`; rust-analyzer's separately published `lib/ |
+| structure-3 | `structure.md` | [Cargo book, Features](https://doc.rust-lang.org/cargo/reference/features.html), [SemVer](https://doc.rust-lang.org/cargo/reference/semver.html); Carnap |
+| structure-4 | `structure.md` | Jape (section 2.2), Isabelle (section 2.1), and the note on custom rules |
+| structure-5 | `structure.md` | links inline in the section |
+| tableaux-1 | `tableaux.md` | [1] [3] [5] [13] [20], `core/src/ordinary/` |
+| tableaux-2 | `tableaux.md` | [13] [3] [14] |
+| tableaux-3 | `tableaux.md` | [1] [2] [5] [19] [6], `status.md` |
+| tableaux-4 | `tableaux.md` | [3] [4] [5] [15] [18] |
+| tableaux-5 | `tableaux.md` | [8] |
+| users-1 | `users.md` | links inline in the section |
+| users-2 | `users.md` | links inline in the section |
+| users-3 | `users.md` | links inline in the section |
+| verification-1 | `verification.md` | links inline in the section |
+| verification-2 | `verification.md` | [1], `plan/later.md`, `docs/src/rocq.md` |
+| verification-3 | `verification.md` | [27], [28], [29], [30], [1] |
+| verification-4 | `verification.md` | [2] to [14] |
+| verification-5 | `verification.md` | [20], [21], [22] |
+| verification-6 | `verification.md` | [15], [16], [17], [18] |
+| verification-7 | `verification.md` | `docs/src/rocq.md` |
+| web-front-end-1 | `web-front-end.md` | Repository files in section 1; precedents Carnap's `system` attribute [3] and LogicProof's welcome-screen choice [6] |
+| web-front-end-2 | `web-front-end.md` | `plan/web/design.md` D2 and D57; `plan/later.md`; the precedents above |
+| web-front-end-3 | `web-front-end.md` | `src/worker/linlog.worker.ts`, `src/lib/protocol.ts`, `plan/reports/34-web.md`, `plan/reports/42-first-order.md`; Vite wasm docs [23] |
+| web-front-end-4 | `web-front-end.md` | Vite [23], wasm-bindgen [24], jsCoq's lazy packages [21] as the precedent for load on demand, the client's `CLAUDE.md` |
+| web-front-end-5 | `web-front-end.md` | `plan/web/README.md` ("The bindings' API"), `web/src/calls.rs`, `src/lib/linlog.ts` |
+| web-front-end-6 | `web-front-end.md` | LogicProof's three views [6][7]; the table in section 2.3 (inference) |
+| web-front-end-7 | `web-front-end.md` | Client `src/content.config.ts`, `plan/web/design.md` D21, D47, D56, D60 |
+| web-teaching-1 | `web-teaching.md` | [7], client `src/lib/practice.ts`, D29, D36 |
+| web-teaching-2 | `web-teaching.md` | [1][6][7], D20, D51, `scope-education.md` education-4 |
+| web-teaching-3 | `web-teaching.md` | [12], D6, D11, D12, `scope-education.md` education-1 |
+| web-teaching-4 | `web-teaching.md` | [19], D17, D18, D33, `scope-education.md` education-7 |
+| web-teaching-5 | `web-teaching.md` | [1][3], client `src/content.config.ts`, D56, D60, |
+| web-teaching-6 | `web-teaching.md` | [25][26] |
+| web-teaching-7 | `web-teaching.md` | [10], client README, `scope-education.md` education-8 |
+| web-teaching-8 | `web-teaching.md` | [7], D18 |
+| web-teaching-9 | `web-teaching.md` | [7][12][28], `plan/reports/43-learn-lessons.md` |
+| web-teaching-10 | `web-teaching.md` | [6][7] |
 
 ### Correctness verification, and its feasibility
 
@@ -1117,6 +1340,8 @@ verification-7 left the list and resolution-4 moved to rank 31.
   pushed, registered or renamed; no `gh`, no `git`. The plan's files
   are outside every automated check (`typos.toml` excludes `plan/`), so
   no check applies to this change.
-- [x] Committed in the workspace (`rqwluyuy`, `olvzzyyt`, and the
-  review's corrections), `jj st` clean; the final message to
+- [x] Committed in the workspace (`rqwluyuy`, `olvzzyyt`, `kposwtwu`, and
+  the ranked list's completion after the stop check: every candidate a
+  row of its own, no blank cell, a sources index per candidate), `jj st`
+  clean; the final message to
   `linlog-orchestrator`.
