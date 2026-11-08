@@ -4851,3 +4851,10 @@ move (D26).
       suite is the first non-embedded suite D25 waits for;
     - 0.3.0 gains a session for small defects (53a).
   - Open before 48a: a custom domain or the `github.io` addresses.
+- 2026-11-08: the author on 46b's roadmap.
+  - The site keeps GitHub's addresses after the move: no custom domain,
+    so 48a uses `sequentium.github.io`.
+  - Both departures are accepted: the kernel crate in 0.6.0 (step 67),
+    and the session for small defects (53a) in 0.3.0.
+  - Steps 47 (the measurement) and 48a (the move prepared) start side
+    by side.
