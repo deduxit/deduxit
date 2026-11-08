@@ -29,6 +29,42 @@ to prove the chain after the move: crates.io's Trusted Publishing from
 `sequentium/sequentium`, the GitHub release, and Zenodo's version records
 joining (or not) the concept DOIs.
 
+## Session 53m: a mark for `sequentium`, before 53a
+
+The author's decision of 2026-11-08: the collection gets a logo and a
+word mark of its own before 0.3.0, the first release from `sequentium`.
+linlog's lollipop (violet, CC BY 4.0, sessions 38f and 38g) stays the
+linear suite's mark. The organisation's avatar waits for the new mark.
+Two parts, as 38f and 38g were:
+
+- **The design** (Fable 5.1 at `high`, with the `frontend-design`
+  plugin, after step 49 has put the suite tabs on the page):
+  - Candidates for `sequentium`'s mark, each a word mark and a square
+    form, related to the lollipop as a family's mark is to a member's.
+    The report of 38f in `plan/reports/38-web-polish.md` and the files
+    in `~/Projects/own/linlog-logo/` show how the lollipop was made and
+    judged.
+  - Each candidate is shown at every size and place it will take (the
+    favicon, the page's header beside the suite tabs, the social image,
+    a GitHub avatar, README's head on GitHub and crates.io) in a private
+    artifact for the author.
+  - Its parts are checked as 38f's were: the font's licence, no clash
+    with a known mark of the field, and the trademark searches the
+    author may run by hand.
+  - The author chooses. The colour becomes a token of its own, as the
+    lollipop's is, under the client's colour-vision check.
+- **The placement** (Opus 5.5 at `high`, in the client and in this
+  repository):
+  - the client's favicon, icons, header, social image and the page's
+    name;
+  - README's head and the rustdoc's logo, with the logo files, under
+    the licence the author picks, served from the site as the
+    lollipop's are;
+  - the lollipop kept where linlog alone is meant (the linear suite's
+    tab, the `linlog` crate's own pages, if the design says so);
+  - the author's checklist: the organisation's avatar and the
+    repositories' social previews, which only the browser can set.
+
 ## Session 53a: the small defects, before the release
 
 Opus 5.5 at `high`. The open defects of `plan/later.md` that a first user
@@ -93,8 +129,9 @@ keep their title. Then the author tags and publishes.
 
 ## How the step runs
 
-Two sessions on Opus 5.5 at `high`, reviewed by the planning session
-between them; no benchmark (the engines changed only by step 52's rows,
+Session 53m first (its design on Fable 5.1 at `high`, the author
+choosing, its placement on Opus 5.5 at `high`), then 53a and 53b on
+Opus 5.5 at `high`, reviewed by the planning session between them; no benchmark (the engines changed only by step 52's rows,
 whose measurement stands). Deliverables: the commits, the draft release
 notes, the author's checklist (tag, crates.io through the workflow,
 GitHub release, Zenodo, the library's tag), and

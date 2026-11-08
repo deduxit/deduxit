@@ -72,7 +72,7 @@ amended (see "Review protocol"). `notes/` holds research the prompts rely on.
 | 50 | Proofs read back as lambda-terms: ILL proofs as linear terms, LJ derivations as simply typed terms, printed, exported and on the page (two sessions, the second in the client) | `50-lambda-terms.md` (complete) | Opus 5.5; research on Sonnet 5.5; a fresh-context reviewer on Opus 5.5 | high (research `medium`) | 49 |
 | 51 | Decision 8's first step (D31): the one-sided and state-equation refutations checked by `Disproof::check` and certified by lemmas of the Rocq library, `linlog check` reading a disproof, the comparison crediting checked refutations (two sessions, the first in `rocq-linlog`) | `51-certified-refutations.md` (complete) | Opus 5.5 (Fable 5.1 at `xhigh` only if Opus visibly falls short on a proof); the panel's argument on Fable 5.1 | high, with the panel | 47, 48 |
 | 52 | Dispatch rows for the inverse method where it wins (`wide-m1`, classical `chain`, affine `pigeonhole`), earned by measurement (D19); the harness's reason read in the right order first (one session, by day) | `52-inverse-dispatch.md` (complete; 47's figures added at its review) | Opus 5.5; a fresh-context reviewer on Opus 5.5 | high | 47 |
-| 53 | The release of 0.3.0, the first from `sequentium`: 53a the small defects of `later.md` a first user meets, 53b the release prepared, the tag, crates.io, the GitHub release and Zenodo the author's, the chain after the move proved (two sessions) | `53-release-0.3.0.md` (complete; what 47 to 52 leave added at their reviews) | Opus 5.5 | high | 47, 48, 49, 50, 51, 52 |
+| 53 | The release of 0.3.0, the first from `sequentium`: 53m a mark for `sequentium` (the design on Fable 5.1, the author choosing, then its placement; added 2026-11-08), 53a the small defects of `later.md` a first user meets, 53b the release prepared, the tag, crates.io, the GitHub release and Zenodo the author's, the chain after the move proved (two sessions) | `53-release-0.3.0.md` (complete; what 47 to 52 leave added at their reviews) | Opus 5.5; Fable 5.1 for 53m's design | high | 47, 48, 49, 50, 51, 52 |
 | | **Release 0.4.0: intuitionistic logic decided, with Kripke countermodels, tableaux and truth tables** (D27) | | | | |
 | 54 | A native engine on Dyckhoff's LJT for intuitionistic and minimal logic, always terminating, its proofs checked as LJ, the default where it wins (two sessions) | `54-ljt-engine.md` (finished at the review of 53) | Opus 5.5; the panel's argument on Fable 5.1 | high, with the panel | 53 |
 | 55 | Kripke countermodels as a shared, checked output kind, extracted from 54's search, drawn, on the page, and certified by a lemma of the Rocq library (three sessions) | `55-kripke-countermodels.md` (finished at the review of 54) | Opus 5.5 (Fable 5.1 at `xhigh` only if Opus visibly falls short on the proof); the panel's argument on Fable 5.1 | high, with the panel | 54 |
@@ -4946,3 +4946,11 @@ move (D26).
   - The website sessions were told of the new addresses.
   - Step 53 asks how the release is titled in citations.
   - Next: 48b.
+- 2026-11-08: the author on the marks. `sequentium` gets a logo and a
+  word mark of its own before 0.3.0, and the organisation's avatar waits
+  for it. linlog's lollipop stays the linear suite's mark. Placed as
+  session 53m, before 53a, after step 49's suite tabs: the design on
+  Fable 5.1 at `high` with the author choosing, as 38f was, then the
+  placement on Opus 5.5 at `high`, as 38g was. The logos' files already
+  answer at `sequentium.github.io/logo/`, and the placeholder keeps
+  copies at the old address for docs.rs's rustdoc.
