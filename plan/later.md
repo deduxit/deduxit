@@ -1928,6 +1928,9 @@ button of 39 px after Learn is turned off), as on the base since 41d,
 while the flake's e2e passes; `Error::Quantifiers` is raised nowhere
 now, for step 45 to retire.
 
+- **A session's PNG or PDF render is not bounded by the time limit**
+  (49b's reviewer): the rendering code the linear and ordinary sessions
+  share runs to the end once started. Older than step 49.
 ## Follow-ups: the exports
 
 - **The essential net's input side is green in the library's default

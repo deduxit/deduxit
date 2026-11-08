@@ -5062,3 +5062,30 @@ move (D26).
     unary ¬L, and the warnings of `cargo test -p linlog` without
     `parallel`.
   - Next: 49b, the command and the bindings.
+- 2026-11-08: 49b done and reviewed.
+  - What it built: `linlog interact --logic
+    classical|intuitionistic|minimal` with the linear session's commands
+    where they mean the same, `--structural admissible|explicit` on
+    `prove` and `interact` (key `view.structural`), and the bindings'
+    nine `ordinary_*` calls, with `about` listing the suites (linear, and
+    ordinary with `logic`).
+  - The web module is +3.4 % raw (7 148 412 bytes) against step 47. That
+    is the second suite's cost, now reachable from the bindings; nothing
+    can be trimmed without dropping a call.
+  - Checked here with its binary:
+    - an LJ session (→R, close by search, the checked LJ tree);
+    - malformed steps (an unknown rule, a goal or formula out of range,
+      cut, undo past the start), each refused with its reason;
+    - the explicit view;
+    - the verdicts: excluded middle not valid in LJ, double negation not
+      valid in minimal logic and valid in LK.
+  - Its reviewer broke none of its criteria. Its two notes: hints that
+    looped, fixed in the library (`Hint::steps`), and a session's PNG or
+    PDF render not bounded by the time limit, now in `later.md`.
+  - Decided: an ordinary `close` searches on one thread unless `--jobs`
+    is given (its departure), since `ordinary::decide` has no race of
+    one thread against a pool and `auto` would take every core from the
+    start. Formulas are named by side and position (`L0`, `R1`), as the
+    library's refusals name them. `--structural` is ignored on linear
+    output.
+  - Next: 49c, the page.
