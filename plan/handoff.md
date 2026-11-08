@@ -391,11 +391,15 @@ The table in `plan/README.md` is the authority.
     `plan/keys-warm.sh` again.
   - Never touch `~/.gnupg`. If a jj command fails on a stale keyring
     lock, run `/home/tux/.claude/hooks/unwedge-gpg-lock.sh`.
-  - Auto mode refuses `--config signing.behavior=drop`, so a lapsed key
-    stalls every commit: finish what needs no commit, tell the author,
-    and wait. Earlier sessions committed unsigned and the planner signed
-    later (`jj sign -r 'main@origin..REV & ~signed()'`, never while a
-    session works on those commits); that is refused now.
+  - Since 2026-11-08 jj writes commits unsigned (the author's flake,
+    `modules/jujutsu.nix`): the global hook
+    `~/.claude/hooks/jj-sign-commits.py` signs a session's new commits
+    right after the jj command that made them and reports their new
+    ids, and `git.sign-on-push` signs what is left before a push, so a
+    lapsed key stops no jj command and no commit. It does stop the push
+    (the signing before it fails), and `push-main.sh` fails then: tell
+    the author. Never pass `--config signing.behavior=…`; auto mode
+    refuses it anyway.
 - **Pushing** `main` of all three repositories without asking, after
   review, as above.
   - Tags, releases and every administrative `gh` task (settings,

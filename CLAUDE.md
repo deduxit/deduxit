@@ -202,8 +202,8 @@ even to read.** Every operation goes through `jj`, including lock updates:
   committed as soon as it is done with `jj commit -m`, which describes `@` and
   opens a fresh change on top. `jj describe -m` only names `@`; `jj squash`
   folds `@` into its parent (the amend) and, when the parent is described,
-  needs `--use-destination-message` or `-m`: without one it opens an editor,
-  which hangs a session. Never `jj new -m`: it describes a new,
+  needs `--use-destination-message` or `-m`: without one it wants an editor,
+  which in a Claude session is `false`, so it fails. Never `jj new -m`: it describes a new,
   empty change and leaves the work behind (a hook blocks it).
 - Edits land in `@` retroactively. If `@` already holds unrelated work, run
   `jj new` before editing. Another session or the author may commit in the
@@ -213,14 +213,14 @@ even to read.** Every operation goes through `jj`, including lock updates:
   `jj st` after creating a file, before a `nix` command that must see it.
 - Subjects are short, imperative and capitalised, with no type prefix
   ("Fix bug in reachability analysis for exponentials"). Add a body only when
-  the why is not obvious. jj signs every commit, and a snapshot of a
-  changed working copy is one: when the signing key's passphrase is no
-  longer cached and nobody answers the prompt, every jj command that
-  writes fails with a signing timeout, `jj st` included. The edits stay
-  on disk, `jj --ignore-working-copy …` still reads, and `nix flake
-  check` runs on the tree as it is; do not retry in a loop, finish what
-  needs no commit and ask the author to enter the passphrase. A long
-  session commits as it goes rather than at the end for that reason.
+  the why is not obvious. jj writes commits unsigned (the machine's jj
+  config): a global hook signs a session's new commits right after the
+  jj command that made them and reports their new commit ids, and the
+  push signs any still unsigned. A lapsed passphrase cache stops nothing:
+  the hook says which commits wait, and the first jj command after the
+  author unlocks, or the push, signs them. Cite change ids, or the
+  commit ids the hook reported; never pass `--config
+  signing.behavior=…`.
 - Lock bumps are changes of their own, "Cargo update" and "flake.lock: Update".
   `/update-deps` updates every dependency of both repositories (the locks,
   major releases and exact pins, the toolchain, the fuzz nightly, the
@@ -230,7 +230,8 @@ even to read.** Every operation goes through `jj`, including lock updates:
   outward-facing, so only when asked: `plan/push-main.sh @-`, which moves
   `main` and pushes it, failing at once rather than waiting on a
   passphrase prompt when the SSH key is locked, and checks
-  `main@origin` after.
+  `main@origin` after (by change id: the push signs what is unsigned,
+  which gives those commits new ids).
 - The GitHub CLI (`gh`) is logged in with the author's own rights, over the
   organization `linlog-prover` and everything else the account reaches.
   Ask before every administrative task through it (a setting of the

@@ -121,10 +121,11 @@ its commit and checklist. So:
    them, then `TaskStop`), and **your units** by name. A run that skips
    its finished parts on a rerun (a mutation batch whose list exists, a
    baseline that resumes) needs only a note of which part was cut.
-3. **Commit what is finished** (`jj st` first). If a test signature
-   fails, commit with `--config signing.behavior=drop`; the supervisor
-   signs later. Unfinished edits stay in `@`: say in the checklist what
-   they are.
+3. **Commit what is finished** (`jj st` first). jj writes commits
+   unsigned and a global hook signs them after the command; with the
+   key locked it says they wait, and the first jj command after the
+   unlock, or the push, signs them. Unfinished edits stay in `@`: say in
+   the checklist what they are.
 4. **Write the checklist**: each run's state, the command that resumes
    it, what comes next.
 5. **Report and end the turn**: one line to the supervisor with

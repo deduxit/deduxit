@@ -27,22 +27,28 @@ if (($# != 1)); then
   exit 2
 fi
 cd "$repo"
-want=$(jj log --no-graph -r "$1" -T 'commit_id')
+# By change id: with `git.sign-on-push` the push first signs the commits
+# still unsigned, which gives them new commit ids.
+want=$(jj log --no-graph -r "$1" -T 'change_id ++ "\n"')
+if [[ -z $want || $want == *$'\n'* ]]; then
+  echo "push-main: $1 is not one revision" >&2
+  exit 2
+fi
 # GitHub's `ssh -T` exits 1 even when it authenticates, so the output decides.
 if [[ $(timeout 20 ssh -o BatchMode=yes -T git@github.com 2>&1) != *successfully* ]]; then
   echo "push-main: the SSH key is locked; nothing pushed" >&2
   exit 1
 fi
 if [[ -n $(jj log --no-graph -r 'present(main@origin)' -T 'commit_id') ]]; then
-  jj bookmark set main -r "$want"
+  jj bookmark set main -r "change_id($want)"
   GIT_SSH_COMMAND='ssh -o BatchMode=yes' timeout 60 jj git push --bookmark main
 else
   # The remote has no `main` yet: create it there and track it.
-  GIT_SSH_COMMAND='ssh -o BatchMode=yes' timeout 60 jj git push --named "main=$want"
+  GIT_SSH_COMMAND='ssh -o BatchMode=yes' timeout 60 jj git push --named "main=change_id($want)"
 fi
-got=$(jj log --no-graph -r main@origin -T 'commit_id')
+got=$(jj log --no-graph -r main@origin -T 'change_id')
 if [[ $got != "$want" ]]; then
-  echo "push-main: main@origin is ${got:0:12}, not ${want:0:12}" >&2
+  echo "push-main: main@origin is change ${got:0:12}, not ${want:0:12}" >&2
   exit 1
 fi
-echo "push-main: main@origin is ${want:0:12}"
+echo "push-main: main@origin is $(jj log --no-graph -r main@origin -T 'commit_id.short(12) ++ " " ++ if(signature, "signed", "UNSIGNED")') (change ${want:0:12})"
