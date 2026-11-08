@@ -49,6 +49,19 @@ Two parts, as 38f and 38g were:
     explore other options"): the "t" of `sequentium` drawn as the
     turnstile `⊢`, as linlog's "i" is the lollipop `⊸`. Other options
     beside it, each judged by the same criteria.
+  - **Two designers who exchange ideas** (the author, 2026-11-08: "I
+    would like to have Fable and Opus both come up and exchange
+    ideas"): the session, on Fable 5.1, starts a design partner on Opus
+    5.5 as a sub-agent (named `linlog-mark-opus`) and keeps talking to
+    it with its context. There are three rounds:
+    1. Apart: each designs three to five candidates from the same brief
+       without seeing the other's, each drawn as SVG with its reason.
+    2. Exchange: each gets the other's set, critiques it, says what it
+       would borrow and proposes refinements or hybrids; a second
+       exchange if they are still converging.
+    3. Together: one shortlist, each candidate labelled by who proposed
+       it and where the other disagreed.
+    The report keeps both rounds' sets.
   - Each candidate is shown at every size and place it will take (the
     favicon, the page's header beside the suite tabs, the social image,
     a GitHub avatar, README's head on GitHub and crates.io) in a private
