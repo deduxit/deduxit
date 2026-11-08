@@ -2,10 +2,299 @@
 
 Step 17 (`reports/17-assessment.md`) assessed the candidates below, and
 the author decided on 2026-10-03; the steps from 18 are in `README.md`'s
-table. The sketches stay because the prompts point at them: a sketch is
+table. Step 46 (`reports/46-research-next.md`) ranked the
+candidates of its research, and the author decided on 2026-11-08; the
+steps from 47 are in the table, and the first section below places every
+candidate and every open follow-up. The sketches stay because the prompts point at them: a sketch is
 the detail of its step, corrected where the table below says so. The
 follow-up lists at the end are assigned to steps, each list under its
 heading.
+
+## Where each candidate went (2026-11-08)
+
+Step 46 (`reports/46-research-next.md`) ranked the candidates of its
+research notes (`notes/research/next/`, each candidate named by its note
+and number), and the author decided on 2026-11-08 (D24 to D32); the
+steps from 47 are in `README.md`'s table, grouped by release. Below,
+every candidate of that ranked list, and then every entry of this
+file's own lists that was still open, is placed in a step, kept for
+later with the reason, or dropped with it. "Kept" means no step of the
+roadmap to 0.7.0 takes it; the step after 73, which the author starts,
+reads this section first. A kept entry that a step's code touches anyway
+may be taken by that step and closed here, said in its report.
+
+### The ranked list of step 46
+
+| candidate | where | why |
+|---|---|---|
+| name-and-organisation-3 | 48 | the author's choice (D26) |
+| name-and-organisation-4 | done | the name `sequentium` chosen and checked, 2026-11-08 |
+| name-and-organisation-1 | dropped | the author chose to move (D26) |
+| name-and-organisation-2 | dropped | a rename in place breaks the Pages URLs and frees the name (D26) |
+| web-front-end-1 | 49 | the registry, written with the ordinary suite (D29) |
+| web-front-end-2 | 49 | the Ordinary segment switched on |
+| ordinary-sequents-3 | 49 | a native goal state (design b) |
+| education-6 | 49 | the same item as ordinary-sequents-3 |
+| lambda-calculi-1 | 50 | |
+| types-higher-2 | 50 | the same item as lambda-calculi-1 |
+| proof-theory-11 | 50 | the linear half of lambda-calculi-1 |
+| applications-4 | 50 for one target (lambda-terms); kept for more targets | a process calculus or other targets when asked |
+| verification-2 | 51 for (i) and (ii); (iii) kept, with semantics-decision-10 | (iii) needs focusing completeness in Rocq, a project of its own |
+| engines-12 | 52 | |
+| users-1 | kept | decision 9 (D32): no Discussions for now |
+| users-2 | kept | a reading of the public counters, the planning session's when the author asks |
+| users-3 | kept | decision 9 (D32): no announcement for now |
+| ordinary-sequents-1 | 54 | |
+| ordinary-sequents-2 | 55 | |
+| semantics-decision-11 | 55 | the shared countermodel kind |
+| tableaux-1 | 56 | |
+| more-logics-2 | 56 | truth tables |
+| semantics-decision-1 | 57 | its Rocq lemma kept: ranked after step 55's |
+| maintenance-1 | 58 | |
+| maintenance-2 | 58 for the advisory check; the actions' half built (`.github/dependabot.yml`) | |
+| maintenance-3 | 58 | |
+| maintenance-4 | 58 | |
+| maintenance-9 | 58 | |
+| verification-6 | 58 | decision 8's second step (D31) |
+| web-teaching-4 | 58 for the screen-reader pass; the structural twin only if the pass needs it | no reviewer who uses a screen reader was found |
+| education-7 | 58 | the same item as web-teaching-4 |
+| custom-rules-1 | 60 | D28 |
+| custom-rules-2 | 61 | D28 |
+| custom-rules-6 | 61 | the chapter on theories as hypotheses |
+| natural-deduction-1 | 62 | |
+| natural-deduction-4 | 62 | rule sets as files on step 60's language |
+| web-front-end-6 | 56 (tableau, table), 62 (Fitch list), 70 (graph) | each view with the suite that needs it (D29) |
+| web-front-end-5 | 63 | written from working suites (D29) |
+| web-front-end-7 | 63 | |
+| web-teaching-5 | 63 | |
+| education-10 | 63 | the lesson format as data |
+| education-3 | 63 checks what step 38h's automatic invertible rules leave on the new suites | |
+| interop-1 | 63 | a JSON Schema of the wire forms, with the protocol |
+| web-front-end-3 | adopted (D29) | one module until a measured size or an outside suite asks |
+| web-front-end-4 | kept, decided in 63 against step 47's figures | a module per suite only when one of D29's triggers holds |
+| structure-1 | adopted (D25) | |
+| structure-5 | 67 | gated on two suites' copies |
+| structure-2 | kept | for a suite a third party writes (D25) |
+| structure-3 | dropped | every variant a 0.y bump for all users; the feature powerset |
+| structure-4 | dropped | rewriting the trusted core; D28 keeps the generic layer beside it |
+| modal-logics-1 | 65 | |
+| modal-logics-2 | 66 | |
+| modal-logics-3 | 66 | |
+| modal-logics-5 | 68 | |
+| tableaux-2 | 68 | |
+| education-4 | 68 | course packs, a checkable handed-in link |
+| education-8 | 68 for the embed; the share link built | |
+| web-teaching-2 | 68 | the same item as education-4 |
+| web-teaching-9 | 68 | a teacher's check view |
+| web-teaching-7 | 68 | the print stylesheet |
+| resolution-1 | 70 | |
+| resolution-3 | 70, reduced to a reader and checker, only through an allowed licence | `splr` is MPL-2.0 |
+| more-logics-7 | 70 | the same ground as resolution-3 |
+| lambda-calculi-2 | 71 | |
+| lambda-calculi-3 | 71 | |
+| types-higher-1 | 71 | counting inhabitants, with lambda-calculi-3 |
+| types-higher-8 | 71 | the linear term checker closes step 50's loop |
+| llm-agents-2 | 72 | |
+| llm-agents-6 | 72 | |
+| engines-7 | 72 for the dataset; the environment kept | the environment is the MCP server's work seen by another consumer |
+| engines-13 | kept | measured only; a performance step the author chooses (LinearOne's eight problems) |
+| engines-14 | kept | as engines-13 |
+| proof-theory-9 | kept | explaining unprovability: after 0.7.0, the author's choice |
+| interop-5 | kept | TPTP's conventions: with resolution-4 and the first-order ordinary suite |
+| more-logics-1 | kept | first-order ordinary logic is after 0.7.0 |
+| more-logics-6 | kept | as more-logics-1 |
+| tableaux-3 | kept | needs a first-order ordinary syntax |
+| resolution-4 | kept | with resolution-2, after 0.7.0 |
+| resolution-2 | kept | needs resolution-4 and a first-order ordinary syntax |
+| logics-1 | kept | exponentials by signature: after 0.7.0, the author's choice |
+| logics-2 | kept | as logics-1 |
+| logics-6 | kept | as logics-1 (its exponential half); LR proper has no tool or audience seen |
+| applications-2 | kept | the rule-system front end, after step 60's rules |
+| applications-9 | kept | with applications-2 |
+| natural-deduction-2 | kept | translation from LK and LJ, after 62 |
+| natural-deduction-3 | kept | normalisation and linear natural deduction, after 62 |
+| lambda-calculi-4 | kept | inference, after 71 |
+| lambda-calculi-5 | kept | a reduction stepper, after 71 |
+| lambda-calculi-7 | kept | a Rocq checker for typing derivations, after 71 |
+| modal-logics-4 | kept | nested sequents, after 66 |
+| modal-logics-7 | kept | multimodal and epistemic, after 65 |
+| modal-logics-8 | kept | first-order modal logic: undecidable, after 65 |
+| llm-agents-1 | kept | the MCP server, when a client without a shell asks |
+| interop-3 | kept | Lambdapi: no linear encoding there yet |
+| maintenance-7 | kept, open with the author | install channels need the author's accounts |
+| maintenance-5 | kept | cosign: a release step takes it if the author asks |
+| maintenance-8 | kept | a glibc binary: no user asked |
+| maintenance-6 | kept, open with the author | code signing needs accounts and fees |
+| custom-rules-3 | kept | D28: no search under custom rules until asked |
+| custom-rules-4 | kept | research; mostly "unknown" |
+| custom-rules-5 | kept | research |
+| semantics-decision-2 | kept | measured only |
+| semantics-decision-3 | kept | measured only |
+| proof-theory-1 | kept | research |
+| proof-theory-12 | kept | research |
+| proof-theory-13 | kept | research |
+| verification-1 | kept | removes nothing from the trusted base; after D31's steps |
+| verification-3 | kept | only if a user without Rocq needs a verified verdict |
+| verification-4 | kept | D31: after the checker is refactored, the tool by a trial in Verus and Creusot |
+| verification-5 | kept | D31: as verification-4; the translators' Rocq back ends least mature |
+| verification-7 | dropped | built: the page exports the certificates |
+| cyclic-proofs-1 | kept | D30: a research item after the decidable suites |
+| cyclic-proofs-2 | kept | D30 |
+| cyclic-proofs-3 | kept | D30 (μMALL first if any) |
+| cyclic-proofs-4 | kept | D30 |
+| cyclic-proofs-5 | kept | D30 |
+| lambda-calculi-6 | kept | D30: System F as checking only, later |
+| logics-4 | kept | research projects (BV, pomset nets) |
+| logics-5 | kept | research beyond μMALL |
+| logics-3 | kept | ordered cut, then Lambek with modalities |
+| logics-7 | kept | small; no step asks |
+| logics-8 | kept | after logics-1 |
+| logics-9 | kept | per item, each read at abstract level only |
+| web-teaching-1 | kept | a learner's local record: after Learn by suite |
+| web-teaching-6 | kept | its views, with web-teaching-1 |
+| web-teaching-3 | kept | the page's D11: provability on request only |
+| education-1 | kept | as web-teaching-3 |
+| web-teaching-8 | kept | a classroom setting: no step asks |
+| web-teaching-10 | kept | localisation: English only until asked |
+| education-2 | kept | net exercises: linear-specific, after the suites |
+| education-5 | kept | generated exercises need a confirmed measure of difficulty |
+| education-9 | kept | resource puzzles need a Petri-net drawing |
+| education-11 | kept | with web-teaching-1 |
+| ordinary-sequents-4 | kept | a DAG read-back: seven classical proofs only, no user asked |
+| ordinary-sequents-5 | kept | not a SAT solver |
+| ordinary-sequents-6 | kept | needs logics-1; R is undecidable |
+| tableaux-4 | kept | the labelled calculus (66) covers the ground |
+| tableaux-5 | dropped | its note rejects it: the focused engines are stronger |
+| more-logics-3 | kept | a QBF reader: no step asks |
+| more-logics-4 | kept | ALC: about one session over the modal suite, after 65 |
+| more-logics-5 | kept | Hoare logic: a rule file over step 60's language when asked |
+| more-logics-8 | dropped | not for this project (its note) |
+| more-logics-9 | dropped | a model checker's method, rejected as a suite |
+| more-logics-10 | kept | a mode of step 56's tables and tableaux |
+| more-logics-11 | kept | modes of the modal suite, after 65 |
+| more-logics-12 | dropped | BI undecidable (LICS 2026); separation logic a verifier's |
+| more-logics-13 | dropped | the proof assistants' ground |
+| more-logics-14 | dropped | no proof suite fits |
+| modal-logics-6 | kept | S4 into linear logic: a cross-check, after 65 |
+| natural-deduction-5 | kept | Fitch modal natural deduction, after 62 and 65 |
+| applications-1 | kept | research |
+| applications-3 | kept | step 71's enumeration may serve it |
+| applications-5 | kept | a logic-programming mode: after 0.7.0, the author's choice |
+| applications-6 | kept | an SBML subset to choose |
+| applications-7 | kept | documentation, no audience asked |
+| applications-8 | kept | as applications-7 |
+| applications-10 | kept | as applications-7 |
+| engines-1 | kept | a SAT-based intuitionistic engine: LJT first (54) |
+| engines-4 | kept | with engines-1 |
+| engines-2 | kept | research |
+| engines-3 | kept | research |
+| engines-5 | kept | research; hand rows first (52) |
+| engines-6 | kept | research |
+| engines-8 | kept | the page's D11 |
+| engines-9 | kept | no client asks |
+| engines-10 | kept | needs interop-5 |
+| engines-11 | kept | needs interop-5 |
+| engines-15 | kept | saturation does not terminate at first order |
+| engines-16 | kept | no first-order linear library exists |
+| engines-17 | kept | D28: no search under custom rules |
+| interop-2 | kept | cslib has no release |
+| interop-4 | kept | research |
+| interop-6 | kept | tactics: portability unread |
+| interop-12 | kept | with interop-6 |
+| interop-7 | kept | a Python package: not recommended yet |
+| interop-8 | kept | a component: no client asks |
+| interop-9 | kept | a language server: no step asks |
+| interop-10 | kept | notebooks: no step asks |
+| interop-11 | kept | needs interop-5 and the modal suite |
+| proof-theory-2 | dropped | MALL nets: dropped 2026-10-03, "only if a use case appears" |
+| proof-theory-3 | kept | needs a first-order net data model |
+| proof-theory-4 | kept | small; the step that next changes the session may take it |
+| proof-theory-5 | kept | research |
+| proof-theory-6 | kept | research |
+| proof-theory-7 | kept | linear-specific; no step asks |
+| proof-theory-8 | kept | game rules per logic to source |
+| proof-theory-10 | kept | after the suites it would draw |
+| proof-theory-14 | kept | in the library's repository; the sequentialization theorem is the hard part |
+| semantics-decision-4 | kept | speed only, earned on the target set |
+| semantics-decision-5 | kept | a PNML front door: no step asks |
+| semantics-decision-6 | kept | partly built in the affine inverse method |
+| semantics-decision-7 | kept | research |
+| semantics-decision-8 | kept | research |
+| semantics-decision-9 | kept | the gain is uncounted |
+| semantics-decision-10 | kept | a project of its own (focusing completeness in Rocq) |
+| semantics-decision-12 | kept | as semantics-decision-10 |
+| types-higher-3 | kept | session types: after 71 |
+| types-higher-4 | kept | after 71 |
+| types-higher-5 | kept | after 71 |
+| types-higher-6 | kept | after 71 |
+| types-higher-7 | kept | after 71 |
+| llm-agents-3 | kept | a Python package: not recommended yet |
+| llm-agents-4 | kept | waits for a trial with a small model |
+| llm-agents-5 | kept | not recommended yet |
+| (step 46's dropped row) | dropped | BI as a suite, temporal model checking, Martin-Löf type theory, equational completion, categorical tools, a hosted service, a SAT solver as a goal, natural deduction for classical linear logic, nixpkgs for now: each for the reason the report gives |
+
+### The open entries of this file's lists
+
+Each section below keeps its entries; this table says where each open
+one goes. An entry not named here was closed by the step it was
+assigned to.
+
+| section | entry | where |
+|---|---|---|
+| Where each candidate went (2026-10-03) | a search that can be suspended | kept: no measurement under wasm asked for it |
+| Where each candidate went (2026-10-03) | a Lean certificate target | kept: interop-2 (cslib has no release) |
+| Where each candidate went (2026-10-03) | per-worker proof arena, duplicated `&` exploration, thread sanitizer; sharing among interchangeable sequents, split order, `&` as intersection; the net engine on a sub-forest | kept, for the reasons given there (no measurement, target or client asks) |
+| Where each candidate went (2026-10-03) | the loop check for dyadic sequents (35 ILTP problems) | 54: LJT terminates, so the 35 are decided natively |
+| Where each candidate went (2026-10-03) | Model Checking Contest nets beyond LLTP's, planning domains | kept: semantics-decision-5 |
+| Net-engine pruning and routing | the test period, partner counts per literal, bridges kept for sub-nets | kept: each to be earned by the harness (D19); no step of the roadmap changes the net engine |
+| The focused inverse method | what is left for it after the second baseline (Mix, Petri nets, intuitionistic libraries) | 52 for the dispatch; the rest kept |
+| Second certificate kernels | an unfinished proof with open goals as hypotheses; NanoYalla's `ex_perm_r` cost and identifier escaping | kept: no user asked |
+| Second certificate kernels | the library's name and publication | done: `rocq-linlog`, its opam submission after 48 |
+| Certified refutations | the state equation by a Farkas certificate | 51 |
+| Certified refutations | Kripke countermodels | 55 |
+| Certified refutations | finite phase models; failure certificates; proof by reflection; exponentials by a proved bound | kept: research (semantics-decision-7, -10, -12) |
+| A batch mode for the CLI | a second pass inside the command | kept: worth building when a user asks |
+| Ordinary logic through its embeddings | the loop check | 54 |
+| Follow-ups: the web bindings | the ordinary JSON forms | 49 |
+| Follow-ups: the web bindings | Clippy for wasm32; the unit suite on 32 bits | 58 |
+| Follow-ups: the web bindings | a turn's set-up kept across restarts; the first steps of a goal's proof and `Step`, `Applicable` as wire forms | kept: the page has not asked |
+| Follow-ups: the net engine after the cyclic mode | the vertex bound's panic past `nets::MOST`; the symmetry break; the quadratic `choose` | the panic to 53a (a refusal with its test); the other two kept (no row asks) |
+| Kept as built: the web client's choices | the list for the author to revisit; the Safari pinch | open with the author (`handoff.md`) |
+| Follow-ups: the web client | the client's phone goal bar wrapping, the tour's 39-px flake, the replayed classical session's one-sided cut, compact net edges below the literal | 49c (the client's next session) |
+| Follow-ups: the web client | the parser reading `a⊥`; the stray comma | the stray comma closed (42e); `a⊥` stays unassigned as written there |
+| Follow-ups: the web client | the inverse method's turns in a tab; the bindings' call for engines over `search::engine_for` | 52 decides the rows; the call kept until the page asks |
+| Follow-ups: the web client | judgement calls of step 38's sweep | open with the author |
+| Follow-ups: the focused engine | every open entry (the gap study's probes A2 to A4, the fixed cost per call, the memo leftovers, `Θ`'s sort, the hand-over at the recursion limit, Mix's costs, the default bias's unit of work, deepening from the root, the five LLTP problems at copy bound 3, the pool's arena and memory, the checker on a hostile file, the forward search's stop on GPPP nets, the one-sign count's tightening, and the rest of the list) | kept: no step of the roadmap changes the focused engine; each waits for a measurement that asks (D19), and the step after 73 or a performance step the author chooses takes them; the debug-build stack overflow of `a_raised_limit_holds_on_the_pool` to 53a |
+| Follow-ups: the Horn engine | the undecided nets, refutations no engine reaches, the simplex's limits, memory at tight bounds, the shares, forward coverability, the frontier's duplicates, constant factors, a shortest firing sequence | kept: no step changes the Horn engine but 57, which adds a certificate only |
+| Follow-ups: intuitionistic mode | the written succedent of `⊤`/`0`-only formulas; the additive path on more roots | kept: verdicts are unaffected |
+| Follow-ups: intuitionistic mode | what the default leaves to the time limit that the inverse method saturates at once | 52 |
+| Follow-ups: ordinary logic | `interact --logic` | 49, as a native goal state (design b), not a session over the image |
+| Follow-ups: ordinary logic | the loop check | 54 |
+| Follow-ups: ordinary logic | classical logic through affine MALL (116 unknown) | kept: a limit, not a task (not a SAT solver) |
+| Follow-ups: ordinary logic | the DAG read-back | kept: ordinary-sequents-4 |
+| Follow-ups: interactive proving | the review findings of 41b to 42k on the command (`cut G C P…` as one word, `eliminate`'s names and flag, the eigenvariable message at `∃L`, `Error::Quantifiers`, the unused import) and the older entries assigned to steps 22, 28 and 34 | 53a |
+| Follow-ups: interactive proving | cut in a first-order interactive session | kept: no user asked; the step that next changes the session may take it |
+| Follow-ups: interactive proving | the net engine on a sub-forest; the two-sided rule names on reading a state | kept, as written there |
+| Follow-ups: interactive proving | the ratchet's `derivation-chain-64` margin | a rule for whichever step next changes that path (it wins back first) |
+| Follow-ups: interactive proving | the size estimate's shadowing case; `chain-fo/512` at the recursion limit; the pool's cost on `chain-fo`; the pool's memory account of the ground-term table | kept: with engines-13 and -14 |
+| Follow-ups: interactive proving | the phone dock wrapping the export button | 49c |
+| Follow-ups: the exports | the essential net's green input side; the division by zero; `check -i --mix --net`; the essential drawing with cut links; `eliminate --net --output` without `--format`; the older lists of steps 11 and 22 | 53a (the last two checked against the code and closed or kept) |
+| Follow-ups: the exports | term against net normal forms compared only without doubled vertices | kept: a test's reach, no defect found |
+| Follow-ups: the command's output | `check FILE` ignoring the file's mode; the records' constant wire level; the older lists of steps 18 and 20; the derivation builder's recursion | 53a |
+| Follow-ups: parallel search | every open entry (late cancellation at `&`, the short cube list, speculative work, the per-worker arena, a runtime kept across calls, duplicated exploration, the pool's memory on SYJ, a thread sanitizer) | kept: no measurement asks; no step changes the runtime |
+| Follow-ups: the benchmarks | the inverse method's wins without a row | 52 |
+| Follow-ups: the benchmarks | the harness reading linlog's reason in the wrong order | 52 (fixed first) |
+| Follow-ups: the benchmarks | LinearOne's eight problems; `chain-fo` without the family's copy bound; `wide-m1`'s memory at 8 192; `pigeonhole` #1's late classical refutation; the resumption switch at first order | kept: with engines-13 and -14, a performance step the author chooses |
+| Follow-ups: the benchmarks | `bench/reruns.txt`; the forward bound tuned on more nets; the older lists of step 28 | kept: measured only |
+| Follow-ups: the benchmarks | the LLTP header report | open with the author (theirs to send) |
+| Follow-ups: certified refutations | the comparison counting checked refutations; the one-sided and state-equation refutations; `linlog check` reading a disproof | 51 |
+| Follow-ups: the release's licences | the command's notices file | 53b checks it is in the packages, or adds it |
+| For the author, later: a Zenodo community | | open with the author |
+| Follow-ups: a first user's obstacles | the style table; `check --file`; the library's front page; the Rocq entries (a refused certificate, batch file names, a lemma on a two-sided goal) | 53a (each checked against today's code first) |
+| Follow-ups: a first user's obstacles | the "unknown" verdict's wording | kept: needs measurements on LLTP |
+| Follow-ups: a first user's obstacles | nets on the command line | dropped with MALL nets, as written there |
+| For the author: an MCP server for linlog | | kept: llm-agents-1, when a client without a shell asks |
+| For the author, later: nixpkgs | | kept: the author's word (2026-11-03) |
 
 ## Where each candidate went (2026-10-03)
 
