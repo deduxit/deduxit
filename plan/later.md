@@ -2436,3 +2436,17 @@ nixpkgs turns away packages of "a niche of 5 people". To raise again
 when there is public evidence of use beyond the author (crates.io
 downloads, stars, citations of the DOI, users asking); 45's prompt
 (45e's second part) says how it would be packaged.
+
+## For the author: treefmt-nix and Biome 2.6 (found 2026-11-08)
+
+treefmt-nix's Biome module (`programs/biome.nix`, at its latest commit
+of 2026-10-13) passes its generated settings as `--config-path
+/nix/store/…-biome.json`. Biome 2.6 resolves a configuration's
+`files.includes` from the configuration's own directory, so files
+outside the store get Biome's defaults. Our client hit it as Tailwind's
+`@theme` failing to parse. The client now runs Biome without the flag
+(`modules/treefmt.nix` there). An issue or pull request upstream, if
+the author wants to send one: the module could write the settings into
+the tree's root or leave `--config-path` out when the tree has a
+`biome.json`.
+

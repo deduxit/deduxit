@@ -5012,3 +5012,23 @@ move (D26).
     repository. Profiles now install `#linlog-cli` (workflow, README,
     manual).
   - Step 49's prompt gains "What steps 47 and 48 left you".
+- 2026-11-08: the dependency update is done in all three repositories.
+  - The client: npm under the 14-day gate (astro 7.4.2,
+    @astrojs/solid-js 7.1.1, lucide-solid 1.61.0, vitest 5.0.5,
+    @astrojs/check 0.9.12, @types/node 24.19.2 on the 24 line; TypeScript
+    kept on 6, Playwright 1.64.1 still equal to nixpkgs' driver). Its
+    flake moved to linlog's pushed `main` with the new nixpkgs (Node.js
+    24.21.0, Biome 2.6.5). Its Actions are unchanged, `install-nix-action`
+    held at 31.11.1 until the gate passes.
+  - Found and fixed: Biome 2.6.5 resolves a configuration's `includes`
+    from the configuration's own directory, so treefmt-nix's
+    `--config-path /nix/store/…` left the tree's files on Biome's
+    defaults, and Tailwind's `@theme` failed to parse.
+    - Decided: the client's formatter runs Biome without the flag, so it
+      reads the tree's own `biome.json`, the file `biome lint` reads;
+      one source of truth, and no workaround kept in a copy.
+    - Upstream treefmt-nix (latest commit 2026-10-13) has the same
+      behaviour. A report or a pull request there is the author's
+      (`later.md`).
+  - Each lock and fix is its own commit, each checked by its repository's
+    full flake check.
