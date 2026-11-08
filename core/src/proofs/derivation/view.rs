@@ -49,7 +49,7 @@ impl InfId {
 /// # JSON
 ///
 /// With the feature `serialize` an object `{"compact": "auto", "sides":
-/// "auto", "classical": "one", "structural": "explicit"}`, `compact` one
+/// "auto", "classical": "one", "structural": "admissible"}`, `compact` one
 /// of `"auto"`, `"always"` and `"never"`, `sides` one of `"auto"`, `"one"`
 /// and `"two"`, `classical` one of `"one"` and `"two"`, `structural` one
 /// of `"explicit"` and `"admissible"`; a key left out keeps its default,
@@ -71,7 +71,7 @@ pub struct ViewOptions {
     /// two-sided view is made from one and the record of the sequent.
     pub classical: ClassicalSides,
     /// Whether a derivation of LK or LJ shows its weakenings and
-    /// contractions, explicit by default
+    /// contractions, admissible by default
     /// ([`DEFAULT_STRUCTURAL`](Self::DEFAULT_STRUCTURAL)). A linear
     /// derivation's structural rules are the compact view's.
     pub structural: Structural,
@@ -94,10 +94,10 @@ pub struct ViewOptions {
 #[cfg_attr(feature = "serialize", serde(rename_all = "lowercase"))]
 pub enum Structural {
     /// Every weakening and contraction drawn as an inference.
-    #[default]
     Explicit,
     /// A weakening or contraction left out wherever the rules above it
     /// close their branch.
+    #[default]
     Admissible,
 }
 
@@ -161,9 +161,10 @@ impl ViewOptions {
     /// calculus is.
     pub const DEFAULT_CLASSICAL: ClassicalSides = ClassicalSides::One;
 
-    /// The default view of a derivation of LK or LJ: every structural rule
-    /// drawn, as the checker reads the derivation.
-    pub const DEFAULT_STRUCTURAL: Structural = Structural::Explicit;
+    /// The default view of a derivation of LK or LJ: its structural rules
+    /// left out where admissible, as a first course writes LK and LJ with
+    /// the axiom taking a context and the context shared by both premises.
+    pub const DEFAULT_STRUCTURAL: Structural = Structural::Admissible;
 
     /// Returns the options with another [`structural`](Self::structural).
     #[must_use]

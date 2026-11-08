@@ -192,9 +192,17 @@ factored out of the two until the kernel crate is.
   below `A ⊢ A` (the last formula left of `⊢` first, then right), one
   step that `undo` takes back whole. A rule with two premises shares the
   context unless the step splits it (`Context::Split`, positions per
-  side going to the first premise); LJ's `→L` with a goal right of `⊢`
-  needs the split (`Succedents` says so), since the checker accepts a
-  binary rule either sharing or splitting, never both at once.
+  side going to the first premise). The checker accepts a binary rule
+  either sharing or splitting, never both at once, so LJ's `→L` and `¬L`
+  (their first premise has its own formula right of `⊢`) share by
+  `contracted`: a `CL` of every other hypothesis below, each copy right
+  after its formula, then the rule split, first copies to the first
+  premise, second copies and the goal's formula right of `⊢` to the
+  second; the admissible view (the default, `DEFAULT_STRUCTURAL`) leaves
+  the contractions out and shows G3's `→L` with the context in both
+  premises (the supervisor's correction of the first design, which made
+  a first course split by hand). The principal is not kept in the
+  premises: a hypothesis used twice is contracted by hand.
 - **The arena holds the extra nodes from the start** (`Extra::add`:
   false and both implications of every `↔`), so `shape` finds them by
   `Formulas::ids`, and the derivation `decide` returns for a goal is
@@ -211,7 +219,7 @@ factored out of the two until the kernel crate is.
   open with the outcome saying why; a stop is `Unknown(Stopped)`, a
   refused read-back `decide`'s error.
 - **The structural rules as a display choice** (`ViewOptions::structural`,
-  `Structural::{Explicit, Admissible}`): `Derivation::shown`/`admissible`
+  `Structural::{Explicit, Admissible}`, admissible by default): `Derivation::shown`/`admissible`
   leaves out every `WL`, `WR`, `CL`, `CR` whose branch the rules above
   close, giving its conclusion to the first rule above that is no
   structural one (principal found by formula), which reads as G3 (the

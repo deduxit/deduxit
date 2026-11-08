@@ -7,7 +7,7 @@
 //! position, and a rule; the rule is validated against the formula and
 //! the logic, every inference a step makes is checked by the rules the
 //! derivation's checker applies, and the goals it leaves are returned.
-//! The search closes a goal through the embeddings ([`decide`]), and a
+//! The search closes a goal through the embeddings ([`decide()`]), and a
 //! finished state is a [`Derivation`] that [`Derivation::check`]
 //! validates, so this layer adds nothing to what is trusted.
 //!
@@ -660,7 +660,12 @@ impl Interactive {
     /// weakening every other formula first, which the derivation shows as
     /// inferences of their own unless its structural rules are drawn
     /// admissible ([`Structural`]). A rule with two premises gives each
-    /// the whole context unless the step splits it ([`Step::split`]).
+    /// the whole context unless the step splits it ([`Step::split`]); in
+    /// intuitionistic and minimal logic `→L` and `¬L`, whose first premise
+    /// has its own formula right of `⊢`, give it every hypothesis and the
+    /// second premise every hypothesis and the goal's formula right of
+    /// `⊢`, the hypotheses contracted first, which an admissible drawing
+    /// leaves out.
     /// Every inference the step makes is checked by the rules of the
     /// derivation's checker before the state changes. Fails with what the
     /// rule needed, and changes nothing then.
@@ -698,6 +703,18 @@ impl Interactive {
             let shape = self.shape(rule, side, position, x)?;
             if step.context != Context::Shared && !matches!(shape, Shape::Binary(_)) {
                 return Err(StepError::NoSplit { rule });
+            }
+            // LJ's `→L` and `¬L` give their first premise a formula right
+            // of `⊢` of its own: shared, the hypotheses go to both premises
+            // through contractions below, the goal's formula right of `⊢`
+            // to the second.
+            if self.logic != Logic::Classical
+                && step.context == Context::Shared
+                && let Shape::Binary([first, second]) = &shape
+                && side == Side::Left
+                && !first.1.is_empty()
+            {
+                return Ok(self.checked(contracted(goal, position, rule, first, second)));
             }
             let premises = match &shape {
                 Shape::Leaf => vec![],
@@ -737,8 +754,13 @@ impl Interactive {
             made.extend(premises);
             made
         };
-        // The checker's own rules, inference by inference: what a step
-        // makes is what a finished derivation's check reads.
+        Ok(self.checked(made))
+    }
+
+    /// Returns the inferences a step made, each checked by the checker's
+    /// own rules, inference by inference: what a step makes is what a
+    /// finished derivation's check reads.
+    fn checked(&self, made: Vec<Inference>) -> Vec<Inference> {
         for inference in made.iter().filter(|i| i.rule != Rule::Open) {
             let premises: Vec<&Inference> = inference
                 .premises
@@ -749,7 +771,7 @@ impl Interactive {
                 unreachable!("a step made an inference the checker refuses: {inference:?}");
             }
         }
-        Ok(made)
+        made
     }
 
     /// Returns, for a split, which positions of each side go to the first
@@ -864,7 +886,7 @@ impl Interactive {
     /// # Errors
     ///
     /// [`Error::OrdinaryStep`] for a goal that is not open, the errors of
-    /// [`decide`] (a translation that does not decide the logic, the
+    /// [`decide()`] (a translation that does not decide the logic, the
     /// refusal of a bound or the stop), the goal then still open, and
     /// [`Error::GoalMismatch`] should the derivation found conclude
     /// another sequent than the goal.
@@ -1274,6 +1296,79 @@ fn premise(
         Side::Right => left.extend_from_slice(other),
     }
     open(left, right)
+}
+
+/// Returns the inferences of a rule with two premises on the hypothesis
+/// at `position` whose first premise has its own formula right of `⊢`
+/// (LJ's `→L` and `¬L`), the context shared as the checker can read it:
+/// a contraction of every other hypothesis, each copy right after its
+/// formula, then the rule with the formulas' first copies going to the
+/// first premise and the second copies and the goal's formulas right of
+/// `⊢` to the second.
+fn contracted(
+    goal: &Inference,
+    position: usize,
+    rule: Rule,
+    first: &(Vec<NodeId>, Vec<NodeId>),
+    second: &(Vec<NodeId>, Vec<NodeId>),
+) -> Vec<Inference> {
+    let mut made = Vec::with_capacity(goal.left.len() + 2);
+    let mut left = goal.left.clone();
+    // Each original hypothesis `i` stands at `i + k` once `k` copies were
+    // put before it; `copies[j]` marks the copies of the final sequent.
+    let mut copies = vec![false; left.len()];
+    let mut k = 0;
+    for i in 0..goal.left.len() {
+        if i == position {
+            continue;
+        }
+        let at = i + k;
+        // Each inference's premise is the next one made; fewer than a
+        // `u32` counts, as the goal's formulas are.
+        made.push(Inference {
+            left: left.clone(),
+            right: goal.right.clone(),
+            rule: Rule::ContractLeft,
+            principal: Some((Side::Left, at)),
+            premises: vec![InfId::new(made.len() as u32 + 1)],
+        });
+        left.insert(at + 1, left[at]);
+        copies.insert(at + 1, true);
+        k += 1;
+    }
+    // The rule's formula is an original, never copied, in its place.
+    let principal = (0..left.len())
+        .filter(|&j| !copies[j])
+        .nth(position)
+        .expect("the rule's formula is a hypothesis of the goal");
+    let contracted = open(left, goal.right.clone());
+    let n = made.len() as u32;
+    made.push(Inference {
+        left: contracted.left.clone(),
+        right: contracted.right.clone(),
+        rule,
+        principal: Some((Side::Left, principal)),
+        premises: vec![InfId::new(n + 1), InfId::new(n + 2)],
+    });
+    let to_first = |s: Side, j: usize| s == Side::Left && !copies[j];
+    let to_second = |s: Side, j: usize| s == Side::Right || copies[j];
+    made.push(premise(
+        &contracted,
+        Side::Left,
+        principal,
+        &first.0,
+        &first.1,
+        to_first,
+    ));
+    made.push(premise(
+        &contracted,
+        Side::Left,
+        principal,
+        &second.0,
+        &second.1,
+        to_second,
+    ));
+    made
 }
 
 /// Returns the inferences that close a goal by the axiom on the formula
@@ -1713,6 +1808,55 @@ mod tests {
         assert_eq!(shown.to_string(), " a ⊢ a\n──────── WL\na, c ⊢ a");
     }
 
+    /// LJ's →L shares its context by default: both premises keep every
+    /// hypothesis, the goal right of ⊢ goes to the second, the
+    /// contractions the checker needs are made below and left out of the
+    /// admissible drawing, and the finished derivation checks.
+    #[test]
+    fn a_shared_implication_left_checks() {
+        for logic in [Logic::Intuitionistic, Logic::Minimal] {
+            let (mut s, g) = start("c, a -> b, a |- b", logic);
+            let [p, q] = step(&mut s, g, (Left, "a → b"), Rule::ImpliesLeft, None)[..] else {
+                panic!()
+            };
+            let text = |s: &Interactive, g| {
+                let (left, right) = s.goal(g).unwrap();
+                let side = |list: &[NodeId]| -> Vec<String> {
+                    list.iter()
+                        .map(|&k| s.formulas().formula(k).to_string())
+                        .collect()
+                };
+                (side(left), side(right))
+            };
+            assert_eq!(
+                text(&s, p),
+                (vec!["c".into(), "a".into()], vec!["a".into()])
+            );
+            assert_eq!(
+                text(&s, q),
+                (vec!["c".into(), "b".into(), "a".into()], vec!["b".into()])
+            );
+            axiom(&mut s, p, "a");
+            axiom(&mut s, q, "b");
+            let derivation = s.finished(&Limits::default(), |_| false).unwrap();
+            let contractions = derivation
+                .inferences()
+                .iter()
+                .filter(|i| i.rule() == Rule::ContractLeft)
+                .count();
+            assert_eq!(contractions, 2);
+            let shown = s.derivation().unwrap().to_string();
+            assert_eq!(
+                shown,
+                "──────── ax   ─────────── ax\n\
+                 c, a ⊢ a      c, b, a ⊢ b\n\
+                 ───────────────────────── →L\n\
+                \x20    c, a → b, a ⊢ b"
+            );
+            assert_eq!(s.undo(), Some(q));
+        }
+    }
+
     /// Undo takes back the last step, a rule applied or a goal closed by
     /// the search, and the state is the one before it.
     #[test]
@@ -1773,8 +1917,11 @@ mod tests {
             "the rule ∨R is not one of LJ in intuitionistic logic: its premise would have two \
              formulas right of ⊢, and every goal keeps one"
         );
-        // →L sharing the context leaves c ∨ a beside a in the first premise.
-        let error = refused(&mut s, Step::new(Left, 1, Rule::ImpliesLeft));
+        // →L sending c ∨ a to the first premise leaves it beside a there.
+        let error = refused(
+            &mut s,
+            Step::new(Left, 1, Rule::ImpliesLeft).split(&[], &[0]),
+        );
         assert_eq!(error, StepError::Succedents { count: 2 });
         assert!(
             error
