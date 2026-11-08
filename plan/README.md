@@ -5315,3 +5315,26 @@ move (D26).
       command too (`plan/notes/structure.md`'s rename, now to deduxit);
     - the mark, which round 3 drew for "sequentium".
     No tag until then.
+- 2026-11-09, 01:00: **51b reviewed and pushed; step 51 is complete.**
+  - What it built:
+    - `Disproof::check` checks one-sided counts and state equations by
+      a transcription of the Rocq library's weighted test, so soundness
+      rests on that theorem;
+    - `--kernel linlog` certifies them, and the first-order counts;
+    - `linlog check` reads a disproof in the mode its file states;
+    - the comparison's driver credits the refutations it checked.
+  - Its checks: the gate, the target sets equal to 47's, all families
+    without MISMATCH, and `nix flake check` with 66 certificates closed.
+    The panel (Fable, Opus, Sonnet) found one holding point, fixed.
+  - The planning session's probes: the manual's example is valid; 1,460
+    crafted refutations on four provable sequents were all refused
+    through the command; malformed input exits 2; a mode flag that
+    contradicts the file is refused; `--format rocq` writes the
+    certificate.
+  - Decided (departures):
+    - the check runs the library's test, not the Farkas inequalities;
+    - a refutation is checked in its file's mode (the proof path is
+      left to 53a);
+    - the first-order counts are certified too.
+  - The panel's two scratch commits were abandoned (operation
+    95bb30221c83).
