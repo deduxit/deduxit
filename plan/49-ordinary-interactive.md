@@ -18,6 +18,35 @@ forms" under "Follow-ups: the web bindings"), the report of step 25
 D56, D57, D58), `.claude/rules/web.md`, and `plan/README.md`'s D13, D15,
 D16, D24, D25, D29.
 
+## What steps 47 and 48 left you (added at their review, 2026-11-08)
+
+- **The repository** is `github.com/sequentium/sequentium`. The page is
+  `https://sequentium.github.io/` from `sequentium/sequentium.github.io`,
+  and the manual is at `https://sequentium.github.io/sequentium/manual/`.
+  The client's lock names `github:sequentium/sequentium`. The local
+  checkouts keep their paths (`~/Projects/own/linlog`,
+  `../linlog-prover.github.io`).
+- **The oracles** are `bench/targets/47.csv` and `bench/targets/net-47.csv`
+  (step 47); both sets now run in seconds.
+- **The web module** at 0.2.0 is 6 913 020 bytes raw, 2 603 759 at gzip -9
+  and 1 854 124 at brotli -11. The PNG and PDF renderers' crates are at
+  least 39.9 % of it, and `linlog::ordinary` is 4.6 KB.
+  `bench/footprint.py` repeats the measurement; 49b compares against it.
+- **The ratchet's margins are thin**: `derivation-chain-64` stands at
+  +1.95 % and `search-wide-m2-256` at +1.76 % of the 2 % tolerance. The
+  ordinary goal state is new code beside the linear session. If a change
+  to shared code moves those journeys, the ratchet says so first.
+- **Builds**: a release build relinks the whole binary (fat LTO, 116 s
+  after touching one file, the link alone 66.5 s); a dev build after a
+  touch takes 3 s. Iterate in the dev profile and run the gate at the end.
+- **The dependency update of 2026-11-08** (rustc 1.99.1, nixpkgs of
+  2026-11-06, `wasm-bindgen` 0.2.130, the client's npm packages) is the
+  base. The flake's package installs as `nix profile add
+  github:sequentium/sequentium#linlog-cli`.
+- **The page's brand**: session 53m gives `sequentium` its own mark
+  before 0.3.0. 49c changes the calculus choice and the stage, not the
+  header's mark.
+
 ## Goal
 
 A first logic course can use linlog for what it teaches first: LK and LJ

@@ -4982,3 +4982,33 @@ move (D26).
   - Left for the author: opening the old site once in a browser that
     visited it, so the replacement service worker takes over; then the
     opam pull request (48b's report, step by step).
+- 2026-11-08: the author: "consider yourself unattended from now", and no
+  restart after the update: finish it, then step 49. The dependency
+  update of linlog is pushed.
+  - Committed, each after its check: `Cargo.lock` (11 crates: cc,
+    flate2, rustix, smallvec and smaller), `flake.lock` (nixpkgs of
+    2026-11-06, rust-overlay, crane, flake-parts; then the library input
+    at its new head), `wasm-bindgen` 0.2.130 (the exact pin following
+    nixpkgs' CLI, with `wasm-bindgen-test` 0.3.80), the fuzz workspace's
+    nightly of 2026-11-07 and its lock.
+  - Unchanged: rustc 1.99.1, since stable has no newer release.
+  - Held, waiting for a new `krilla`: `resvg` 0.49 (krilla-svg needs
+    usvg 0.47) and `skrifa` 0.49 (krilla's and subsetter's 0.42).
+  - The Actions are all at their newest release. Decided:
+    `cachix/install-nix-action` 31.11.3, at 12 days, stays in linlog by
+    the author's word on Dependabot's pull request, and the library took
+    it the same way; the client keeps 31.11.1 until the gate passes on
+    2026-11-10.
+  - Dependabot gets a 14-day cooldown in linlog and the library, its own
+    option for the age gate, so its pull requests respect the gate.
+  - Both Dependabot pull requests merged with their commits kept as
+    Dependabot signed them (the author's word).
+  - The library is pushed with its own lock update and its full check.
+    Its checkout's working copy had been left on the pre-move `main`, so
+    the commits were rebased onto the moved `main` and checked again
+    before the push.
+  - Found and fixed on the way: the Install workflow's Nix job failed,
+    since nix names a profile entry of the default package after the
+    repository. Profiles now install `#linlog-cli` (workflow, README,
+    manual).
+  - Step 49's prompt gains "What steps 47 and 48 left you".
