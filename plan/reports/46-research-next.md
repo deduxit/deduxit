@@ -618,214 +618,220 @@ unless a row says otherwise; the costs are the notes' lines:
 | structure-2, structure-3, structure-4: a repository per suite, features per logic, one engine with calculi as data | the maintainer: the shape of the collection | 2 to 3 of infrastructure per repository for structure-2; none for 3; 2 to 3 on top of a kernel for 4 | compared above; structure-2 kept open for a third party's suite | structure-1's kernel for 2 and 4 | structure |
 | name-and-organisation-1, name-and-organisation-2, name-and-organisation-4: keep the organisation, rename in place, the name table | the author: the organisation's home and name | 0 today for 1; 1.5 plus the author's browser tasks for 2; 0 for the table | compared above | the author's choice | name-and-organisation |
 
-The sources of each candidate: the note that holds it and the
-references its section cites (the numbers are the note's source list;
-a section whose references stand inline in its text says so).
 
-| candidate | note | references |
+
+The sources of each candidate: the note that holds it, and the links its
+section cites, resolved from the note's source list (for a scope update,
+from the 2026-10 note's list where the label is the old one) or taken from
+the section's text; at most six here, the note has the rest. "From the
+note's field section" marks a candidate whose section points at the
+note's survey rather than citing; a candidate that rests on the
+repository's own files or on another note alone says so.
+
+| candidate | note | links |
 |---|---|---|
-| custom-rules-1 | `custom-rules.md` | [S1][S5][S9][S21][S23] |
-| custom-rules-2 | `custom-rules.md` | [S5][S17][S21][S23] |
-| custom-rules-3 | `custom-rules.md` | [S1][S2][S19][S20] |
-| custom-rules-4 | `custom-rules.md` | [S2][S17][S18] |
-| custom-rules-5 | `custom-rules.md` | [S3][S4] |
-| custom-rules-6 | `custom-rules.md` | [S6]; linlog's own `docs/src/status.md` for the Horn engine |
-| cyclic-proofs-1 | `cyclic-proofs.md` | 2, 7, 9, 11, 12, 20 |
-| cyclic-proofs-2 | `cyclic-proofs.md` | 1, 2, 3, 7, 8, 9 |
-| cyclic-proofs-3 | `cyclic-proofs.md` | 10, 11, 12, 13, 14, 17, `scope/logics.md` (Bae12, BDKS20, DDS22, NST18, NST19 as cited there) |
-| cyclic-proofs-4 | `cyclic-proofs.md` | 3, 6, 21 |
-| cyclic-proofs-5 | `cyclic-proofs.md` | 8, 12, 20 |
-| lambda-calculi-1 | `lambda-calculi.md` | [4][5][12][13], scope note |
-| lambda-calculi-2 | `lambda-calculi.md` | [1][12][13][18][22] |
-| lambda-calculi-3 | `lambda-calculi.md` | [7][9][10], scope note |
-| lambda-calculi-4 | `lambda-calculi.md` | [6][8][13][17] |
-| lambda-calculi-5 | `lambda-calculi.md` | [3][19][20][21] |
-| lambda-calculi-6 | `lambda-calculi.md` | [1][6][9][10][11][13] |
-| lambda-calculi-7 | `lambda-calculi.md` | the `CLAUDE.md` description of `rocq-linlog`; [12][14] as courses that do this in Agda and Rocq (Software Foundations' PLF volume, unverified as to content) |
-| llm-agents-1 | `llm-agents.md` | [1][2][3][4][5][6][7][8][9] and `plan/later.md` |
-| llm-agents-2 | `llm-agents.md` | [14][21][22][23], `plan/notes/research/scope/engines.md` engines-7 |
-| llm-agents-3 | `llm-agents.md` | [12][16], interop scope note |
-| llm-agents-4 | `llm-agents.md` | step 44's report; `skills/linlog/reference.md` sections 5 and 8; [9] |
-| llm-agents-5 | `llm-agents.md` | step 44's report; scope note `education.md` (not re-read here) |
-| llm-agents-6 | `llm-agents.md` | [17][20], step 44's report (trials) |
-| maintenance-1 | `maintenance.md` | [1], [2] |
-| maintenance-2 | `maintenance.md` | [4] |
-| maintenance-3 | `maintenance.md` | [11], [12], [13], [14] |
-| maintenance-4 | `maintenance.md` | [17], [18] |
-| maintenance-5 | `maintenance.md` | [5] |
-| maintenance-6 | `maintenance.md` | [6], `docs/src/installation.md` |
-| maintenance-7 | `maintenance.md` | [7], [8], [9], [10] |
-| maintenance-8 | `maintenance.md` | `docs/src/installation.md`, `plan/later.md` |
-| maintenance-9 | `maintenance.md` | `plan/web/design.md` D35 |
-| modal-logics-1 | `modal-logics.md` | [3], [4], [11], [18], [19], [26] |
-| modal-logics-2 | `modal-logics.md` | [11], [18], [35] |
-| modal-logics-3 | `modal-logics.md` | [30], [31] |
-| modal-logics-4 | `modal-logics.md` | [3], [11], [12], [18] |
-| modal-logics-5 | `modal-logics.md` | [26] |
-| modal-logics-6 | `modal-logics.md` | [2], [33], [34], [4] |
-| modal-logics-7 | `modal-logics.md` | [7], [16], [17], [22] |
-| modal-logics-8 | `modal-logics.md` | [10], [14], [16], [28], [29] |
-| more-logics-1 | `more-logics.md` | [1] [2] [4] [5] [11] |
-| more-logics-2 | `more-logics.md` | [1] [2] [3] [4] [5] |
-| more-logics-3 | `more-logics.md` | [13] [14] |
-| more-logics-4 | `more-logics.md` | [16] |
-| more-logics-5 | `more-logics.md` | [6] [7] [18] |
-| more-logics-6 | `more-logics.md` | [12] |
-| more-logics-7 | `more-logics.md` | [15] |
-| more-logics-8 | `more-logics.md` | [22] |
-| more-logics-9 | `more-logics.md` | [17] |
-| more-logics-10 | `more-logics.md` | [20] [21] |
-| more-logics-11 | `more-logics.md` | [8] [9] [10] |
-| more-logics-12 | `more-logics.md` | [18] [19] |
-| more-logics-13 | `more-logics.md` | [7] |
-| more-logics-14 | `more-logics.md` | [1], [4], [5], [6], [7], [11], [12], [17], [18], [22] |
-| name-and-organisation-1 | `name-and-organisation.md` | sections 1 and 2 |
-| name-and-organisation-2 | `name-and-organisation.md` | sections 1 and 2 |
-| name-and-organisation-3 | `name-and-organisation.md` | GitHub pages in section 2 |
-| name-and-organisation-4 | `name-and-organisation.md` | links inline in the section |
-| natural-deduction-1 | `natural-deduction.md` | [1], [12], [14], [19], [22] |
-| natural-deduction-2 | `natural-deduction.md` | [2], [4], [5], [6], [7], [8] |
-| natural-deduction-3 | `natural-deduction.md` | [4], [5], [3] |
-| natural-deduction-4 | `natural-deduction.md` | [10], [18], [25] |
-| natural-deduction-5 | `natural-deduction.md` | [1], [3] |
-| ordinary-sequents-1 | `ordinary-sequents.md` | [4][5][6][9][10]; `plan/reports/25-ordinary-logic.md` |
-| ordinary-sequents-2 | `ordinary-sequents.md` | [7][13][14]; `plan/later.md` (escalations, Kripke countermodels) |
-| ordinary-sequents-3 | `ordinary-sequents.md` | [1][3][21][26][30]; `plan/later.md` ("Follow-ups: ordinary logic"), `plan/web/design.md` D56, D57; `TopBand.tsx` |
-| ordinary-sequents-4 | `ordinary-sequents.md` | `plan/later.md`, "Follow-ups: ordinary logic" |
-| ordinary-sequents-5 | `ordinary-sequents.md` | [8]; `plan/later.md`; `plan/reports/25-ordinary-logic.md` |
-| ordinary-sequents-6 | `ordinary-sequents.md` | [17][18][19]; `plan/notes/research/scope/logics.md` |
-| resolution-1 | `resolution.md` | [1][2][3][5][28][29] |
-| resolution-2 | `resolution.md` | [1][2][7][8][9][10] |
-| resolution-3 | `resolution.md` | [3][4][11][12][13][19]-[27] |
-| resolution-4 | `resolution.md` | [14][15][16][9] |
-| applications-1 | `scope-applications.md` | [8] |
-| applications-2 | `scope-applications.md` | [6] |
-| applications-3 | `scope-applications.md` | links inline in the section |
-| applications-4 | `scope-applications.md` | [16], [21] |
-| applications-5 | `scope-applications.md` | [1], [2], [4] |
-| applications-6 | `scope-applications.md` | [11], [12], [13], [14] |
-| applications-7 | `scope-applications.md` | [15] |
-| applications-8 | `scope-applications.md` | links inline in the section |
-| applications-9 | `scope-applications.md` | links inline in the section |
-| applications-10 | `scope-applications.md` | [9], [10], [12], [18], [21] |
-| education-1 | `scope-education.md` | [1], [2] |
-| education-2 | `scope-education.md` | [3] |
-| education-3 | `scope-education.md` | [2] |
-| education-4 | `scope-education.md` | [4], [5] |
-| education-5 | `scope-education.md` | [6] |
-| education-6 | `scope-education.md` | [7], [8], [9] |
-| education-7 | `scope-education.md` | [10] |
-| education-8 | `scope-education.md` | [2], [11] |
-| education-9 | `scope-education.md` | [12] |
-| education-10 | `scope-education.md` | links inline in the section |
-| education-11 | `scope-education.md` | [1], [4], [5] |
-| engines-1 | `scope-engines.md` | [7], [8], [10], [11] |
-| engines-2 | `scope-engines.md` | links inline in the section |
-| engines-3 | `scope-engines.md` | links inline in the section |
-| engines-4 | `scope-engines.md` | links inline in the section |
-| engines-5 | `scope-engines.md` | links inline in the section |
-| engines-6 | `scope-engines.md` | links inline in the section |
-| engines-7 | `scope-engines.md` | [12], [13] |
-| engines-8 | `scope-engines.md` | links inline in the section |
-| engines-9 | `scope-engines.md` | links inline in the section |
-| engines-10 | `scope-engines.md` | links inline in the section |
-| engines-11 | `scope-engines.md` | [3], [4] |
-| engines-12 | `scope-engines.md` | links inline in the section |
-| engines-13 | `scope-engines.md` | As above, and LinearOne [2] |
-| engines-14 | `scope-engines.md` | links inline in the section |
-| engines-15 | `scope-engines.md` | [14] and `core-inverse.md` |
-| engines-16 | `scope-engines.md` | [3], [6] |
-| engines-17 | `scope-engines.md` | Repository only |
-| interop-1 | `scope-interop.md` | [1], [4] |
-| interop-2 | `scope-interop.md` | [1], [3], [4], [11] |
-| interop-3 | `scope-interop.md` | [10], [11], [12], [26] |
-| interop-4 | `scope-interop.md` | [27], [28] |
-| interop-5 | `scope-interop.md` | [14], [16], [17] |
-| interop-6 | `scope-interop.md` | [5], [6], [8], [9] |
-| interop-7 | `scope-interop.md` | [25] |
-| interop-8 | `scope-interop.md` | [24] |
-| interop-9 | `scope-interop.md` | [8], [21], [22], [23] |
-| interop-10 | `scope-interop.md` | links inline in the section |
-| interop-11 | `scope-interop.md` | [14], [16] |
-| interop-12 | `scope-interop.md` | [1], [5], [8], [11], [14] |
-| logics-1 | `scope-logics.md` | [1][12][13][6]; old note's NOP17, KKNS19 |
-| logics-2 | `scope-logics.md` | [3][4][5][14]; old note's GSS92, HO20, HO24, EO20 |
-| logics-3 | `scope-logics.md` | old note's KKNS19, KKNS20, MWS21, Pol01; [11] |
-| logics-4 | `scope-logics.md` | [11][7]; old note's Gug07, Hor15, NS23 |
-| logics-5 | `scope-logics.md` | [7], [8] |
-| logics-6 | `scope-logics.md` | [12]; old note's Urq16, Urq99 |
-| logics-7 | `scope-logics.md` | [9][7]; old note's GR09, Ter, DM04 |
-| logics-8 | `scope-logics.md` | [6][7]; old note's PCPR18, JFSCD24 |
-| proof-theory-1 | `scope-proof-theory.md` | S2, S3, S4, S6, N2, N7, N8, N9 |
-| proof-theory-2 | `scope-proof-theory.md` | S5, S6, S7, N1, N5 |
-| proof-theory-3 | `scope-proof-theory.md` | links inline in the section |
-| proof-theory-4 | `scope-proof-theory.md` | S24, S25, N13, N16 |
-| proof-theory-5 | `scope-proof-theory.md` | S14 to S23, N12 |
-| proof-theory-6 | `scope-proof-theory.md` | S26 to S29, N10, N13 |
-| proof-theory-7 | `scope-proof-theory.md` | links inline in the section |
-| proof-theory-8 | `scope-proof-theory.md` | [S41] |
-| proof-theory-9 | `scope-proof-theory.md` | S44 to S46 |
-| proof-theory-10 | `scope-proof-theory.md` | links inline in the section |
-| proof-theory-11 | `scope-proof-theory.md` | links inline in the section |
-| proof-theory-12 | `scope-proof-theory.md` | N10, N11 (the nets side, abstract only) |
-| proof-theory-13 | `scope-proof-theory.md` | N4, N5 |
-| proof-theory-14 | `scope-proof-theory.md` | N1, N6, N15 |
-| semantics-decision-1 | `scope-semantics-decision.md` | [S17] [S12]; `core-horn.md`; scope note S36, S37 |
-| semantics-decision-2 | `scope-semantics-decision.md` | [S5] [S6] [S12] [S13] [S14] |
-| semantics-decision-3 | `scope-semantics-decision.md` | [S15] [S16]; scope note S38 |
-| semantics-decision-4 | `scope-semantics-decision.md` | links inline in the section |
-| semantics-decision-5 | `scope-semantics-decision.md` | [S20], [S22], [S23] |
-| semantics-decision-6 | `scope-semantics-decision.md` | [S8] |
-| semantics-decision-7 | `scope-semantics-decision.md` | [S8], [S9] |
-| semantics-decision-8 | `scope-semantics-decision.md` | links inline in the section |
-| semantics-decision-9 | `scope-semantics-decision.md` | links inline in the section |
-| semantics-decision-10 | `scope-semantics-decision.md` | `core-inverse.md`; `plan/later.md`; refutations note |
-| semantics-decision-11 | `scope-semantics-decision.md` | [S10] [S11] [S8]; refutations note, group B and C |
-| semantics-decision-12 | `scope-semantics-decision.md` | `plan/later.md`; refutations note |
-| types-higher-1 | `scope-types-higher.md` | [16][17], old note S40 |
-| types-higher-2 | `scope-types-higher.md` | [3][18][19], `bench/TOOLS.md` |
-| types-higher-3 | `scope-types-higher.md` | [4][10][12][13][15], old note S28 to S35 |
-| types-higher-4 | `scope-types-higher.md` | [1][6][8], old note S18, S22, S23 |
-| types-higher-5 | `scope-types-higher.md` | [1][3][8] |
-| types-higher-6 | `scope-types-higher.md` | Old note S1, S5, S8; `docs/src/status.md` |
-| types-higher-7 | `scope-types-higher.md` | [1], [3], [5], [8], [10] |
-| structure-1 | `structure.md` | [Cargo book, Workspaces](https://doc.rust-lang.org/cargo/reference/workspaces.html); [matklad](https://matklad.github.io/2021/08/22/large-rust-workspaces.html); |
-| structure-2 | `structure.md` | [Cargo book, Publishing](https://doc.rust-lang.org/cargo/reference/publishing.html); the Rocq example in `CLAUDE.md`; rust-analyzer's separately published `lib/ |
-| structure-3 | `structure.md` | [Cargo book, Features](https://doc.rust-lang.org/cargo/reference/features.html), [SemVer](https://doc.rust-lang.org/cargo/reference/semver.html); Carnap |
-| structure-4 | `structure.md` | Jape (section 2.2), Isabelle (section 2.1), and the note on custom rules |
-| structure-5 | `structure.md` | links inline in the section |
-| tableaux-1 | `tableaux.md` | [1] [3] [5] [13] [20], `core/src/ordinary/` |
-| tableaux-2 | `tableaux.md` | [13] [3] [14] |
-| tableaux-3 | `tableaux.md` | [1] [2] [5] [19] [6], `status.md` |
-| tableaux-4 | `tableaux.md` | [3] [4] [5] [15] [18] |
-| tableaux-5 | `tableaux.md` | [8] |
-| users-1 | `users.md` | links inline in the section |
-| users-2 | `users.md` | links inline in the section |
-| users-3 | `users.md` | links inline in the section |
-| verification-1 | `verification.md` | links inline in the section |
-| verification-2 | `verification.md` | [1], `plan/later.md`, `docs/src/rocq.md` |
-| verification-3 | `verification.md` | [27], [28], [29], [30], [1] |
-| verification-4 | `verification.md` | [2] to [14] |
-| verification-5 | `verification.md` | [20], [21], [22] |
-| verification-6 | `verification.md` | [15], [16], [17], [18] |
-| verification-7 | `verification.md` | `docs/src/rocq.md` |
-| web-front-end-1 | `web-front-end.md` | Repository files in section 1; precedents Carnap's `system` attribute [3] and LogicProof's welcome-screen choice [6] |
-| web-front-end-2 | `web-front-end.md` | `plan/web/design.md` D2 and D57; `plan/later.md`; the precedents above |
-| web-front-end-3 | `web-front-end.md` | `src/worker/linlog.worker.ts`, `src/lib/protocol.ts`, `plan/reports/34-web.md`, `plan/reports/42-first-order.md`; Vite wasm docs [23] |
-| web-front-end-4 | `web-front-end.md` | Vite [23], wasm-bindgen [24], jsCoq's lazy packages [21] as the precedent for load on demand, the client's `CLAUDE.md` |
-| web-front-end-5 | `web-front-end.md` | `plan/web/README.md` ("The bindings' API"), `web/src/calls.rs`, `src/lib/linlog.ts` |
-| web-front-end-6 | `web-front-end.md` | LogicProof's three views [6][7]; the table in section 2.3 (inference) |
-| web-front-end-7 | `web-front-end.md` | Client `src/content.config.ts`, `plan/web/design.md` D21, D47, D56, D60 |
-| web-teaching-1 | `web-teaching.md` | [7], client `src/lib/practice.ts`, D29, D36 |
-| web-teaching-2 | `web-teaching.md` | [1][6][7], D20, D51, `scope-education.md` education-4 |
-| web-teaching-3 | `web-teaching.md` | [12], D6, D11, D12, `scope-education.md` education-1 |
-| web-teaching-4 | `web-teaching.md` | [19], D17, D18, D33, `scope-education.md` education-7 |
-| web-teaching-5 | `web-teaching.md` | [1][3], client `src/content.config.ts`, D56, D60, |
-| web-teaching-6 | `web-teaching.md` | [25][26] |
-| web-teaching-7 | `web-teaching.md` | [10], client README, `scope-education.md` education-8 |
-| web-teaching-8 | `web-teaching.md` | [7], D18 |
-| web-teaching-9 | `web-teaching.md` | [7][12][28], `plan/reports/43-learn-lessons.md` |
-| web-teaching-10 | `web-teaching.md` | [6][7] |
+| custom-rules-1 | `custom-rules.md` | <https://www.joachim-breitner.de/publications/Incredible_LFMTP_2016-06-23.pdf>, <https://github.com/RBornat/jape>, <https://www.bohrium.com/paper-details/complexity-of-matching-problems/811926861788479489-885>, <https://uio.no/studier/emner/matnat/ifi/nedlagte-emner/INF5160/v10/undervisningsmateriale/kapur.narendran87Matching_unification_and_complexity.pdf>, <https://twelf.org/wiki/template-bibtex-hhp93lf/>, <https://arxiv.org/abs/2607.07722> |
+| custom-rules-2 | `custom-rules.md` | <https://www.joachim-breitner.de/publications/Incredible_LFMTP_2016-06-23.pdf>, <https://github.com/meta-logic/sequoia>, <https://github.com/RBornat/jape>, <https://arxiv.org/abs/2607.07722> |
+| custom-rules-3 | `custom-rules.md` | <https://www.cs.man.ac.uk/~schmidt/publications/TishkovskySchmidtKhodadadi12b.html>, <https://www.irit.fr/~Andreas.Herzig/Cours/CTableaux>, <https://www.bohrium.com/paper-details/complexity-of-matching-problems/811926861788479489-885>, <https://uio.no/studier/emner/matnat/ifi/nedlagte-emner/INF5160/v10/undervisningsmateriale/kapur.narendran87Matching_unification_and_complexity.pdf>, <https://arxiv.org/abs/2101.03113> |
+| custom-rules-4 | `custom-rules.md` | <https://arxiv.org/abs/2101.03113>, <https://github.com/meta-logic/sequoia>, <https://link.springer.com/10.1007/978-3-030-51054-1_32> |
+| custom-rules-5 | `custom-rules.md` | <https://figshare.le.ac.uk/articles/journal_contribution/From_axioms_to_synthetic_inference_rules_via_focusing/21708164>, <https://www.lix.polytechnique.fr/~dale/papers/synthetic-rules-via-focusing.pdf> |
+| custom-rules-6 | `custom-rules.md` | <https://lics.siglog.org/archive/1996/CervesatoPfenning-ALinearLogicalFrame.html>, <https://twelf.org/>, <https://twelf.org/wiki/template-bibtex-hhp93lf/>, <https://isabelle.in.tum.de/>, <https://arxiv.org/pdf/1507.08719>, <https://github.com/meta-logic/sequoia>, and 26 more in the note |
+| cyclic-proofs-1 | `cyclic-proofs.md` | <https://era.ed.ac.uk/items/f3318657-8d5e-42e4-810b-9eba4235a450/full>, <https://arxiv.org/abs/2109.03235>, <https://ar5iv.labs.arxiv.org/html/2109.03235>, <https://arxiv.org/abs/1807.10248>, <https://www.irif.fr/~doumane/these.pdf>, <https://arxiv.org/abs/2005.08257>, and 3 more in the note |
+| cyclic-proofs-2 | `cyclic-proofs.md` | <https://www.research.ed.ac.uk/en/publications/sequent-calculi-for-induction-and-infinite-descent/>, <https://era.ed.ac.uk/items/f3318657-8d5e-42e4-810b-9eba4235a450/full>, <https://github.com/cyclist-org/cyclist>, <https://arxiv.org/abs/2109.03235>, <https://ar5iv.labs.arxiv.org/html/2109.03235>, <https://arxiv.org/abs/1712.03502>, and 2 more in the note |
+| cyclic-proofs-3 | `cyclic-proofs.md` | <https://drops.dagstuhl.de/opus/volltexte/2016/6582>, <https://www.irif.fr/~doumane/these.pdf>, <https://arxiv.org/abs/2005.08257>, <https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.CSL.2018.35>, <https://hal-univ-tlse3.archives-ouvertes.fr/INRIA/hal-02173207>, <https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.FSCD.2022.20>, and 1 more in the note |
+| cyclic-proofs-4 | `cyclic-proofs.md` | <https://github.com/cyclist-org/cyclist>, <https://link.springer.com/doi/10.1007/978-3-642-35182-2_25>, <https://discovery-pp.ucl.ac.uk/10140071/1/cyclist_APLAS-new.pdf> |
+| cyclic-proofs-5 | `cyclic-proofs.md` | <https://arxiv.org/abs/1712.03502>, <https://lics.siglog.org/2017/BerardiTatsuta-Equivalenceofinduct.html>, <https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.CSL.2018.35>, <https://devel.isa-afp.org/entries/Infinite_Descent_Criteria.html>, <https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.ITP.2026.14>, <https://www.research.ed.ac.uk/en/publications/sequent-calculi-for-induction-and-infinite-descent/>, and 24 more in the note |
+| lambda-calculi-1 | `lambda-calculi.md` | <https://github.com/plfa/plfa.github.io>, <https://plfa.github.io/>, <https://flint.cs.yale.edu/cs428/notes/L17.pdf>, <https://www.microsoft.com/en-us/research/wp-content/uploads/2016/12/tlca93.pdf>, <https://www.doi.org/10.1007/BFB0037099> |
+| lambda-calculi-2 | `lambda-calculi.md` | <https://pages.github.khoury.northeastern.edu/sholtzen/cs4400-spr24/lecture-notes/lec10-stlc>, <https://ilyasergey.net/CS4212/_static/lectures/PLDI-Week-10-more-typing.pdf>, <https://rick00ne.github.io/LambdaCalculus_TypeChecker>, <https://en.wikipedia.org/wiki/System_F>, <https://github.com/plfa/plfa.github.io>, <https://plfa.github.io/> |
+| lambda-calculi-3 | `lambda-calculi.md` | <https://deepblue.lib.umich.edu/handle/2027.42/23534?show=full>, <https://portal.mardi4nfdi.de/wiki/Publication:1259589>, <https://www1.cuni.cz/~svejdar/papers/sv_pspin.pdf>, <https://unpaywall.org/10.1007%2F3-540-62688-3_47>, <https://cis.upenn.edu/~bcpierce/types/archives/1996/msg00387.html>, <https://core.ac.uk/download/248561704.pdf> |
+| lambda-calculi-4 | `lambda-calculi.md` | <https://plfa.github.io/>, <https://github.com/hmac/lc>, <https://seas.upenn.edu/~sweirich/types/archive/1989/msg00092.html>, <https://gallium.inria.fr/~fpottier/publis/emlti-final.pdf>, <https://researchportal.hw.ac.uk/en/publications/typability-and-type-checking-in-system-f-are-equivalent-and-undec/>, <https://lics.siglog.org/1994/Wells-Typabilityandtypech.html> |
+| lambda-calculi-5 | `lambda-calculi.md` | <https://www.paultaylor.eu/stable/Proofs+Types>, <https://logic.amu.edu.pl/images/5/54/Proofsandtypes.pdf>, <https://github.com/bntre/visual-lambda>, <https://github.com/thmsmlr/lambda-playground>, <https://tromp.github.io/cl/diagrams.html> |
+| lambda-calculi-6 | `lambda-calculi.md` | <https://plfa.github.io/>, <https://en.wikipedia.org/wiki/System_F>, <https://researchportal.hw.ac.uk/en/publications/typability-and-type-checking-in-system-f-are-equivalent-and-undec/>, <https://lics.siglog.org/1994/Wells-Typabilityandtypech.html>, <https://unpaywall.org/10.1007%2F3-540-62688-3_47>, <https://cis.upenn.edu/~bcpierce/types/archives/1996/msg00387.html>, and 4 more in the note |
+| lambda-calculi-7 | `lambda-calculi.md` | <https://github.com/plfa/plfa.github.io>, <https://github.com/DeepSpec/sf>, <https://github.com/the-little-typer/pie>, <https://researchportal.hw.ac.uk/en/publications/typability-and-type-checking-in-system-f-are-equivalent-and-undec/>, <https://lics.siglog.org/1994/Wells-Typabilityandtypech.html>, <https://unpaywall.org/10.1007%2F3-540-62688-3_47>, and 27 more in the note |
+| llm-agents-1 | `llm-agents.md` | <https://github.com/project-numina/lean-lsp-mcp>, <https://github.com/LLM4Rocq/rocq-mcp>, <https://modelcontextprotocol.io/specification/latest>, <https://modelcontextprotocol.io/specification/2026-07-28/changelog>, <https://modelcontextprotocol.io/community/working-groups/skills-over-mcp.md>, <https://modelcontextprotocol.io/extensions/client-matrix.md>, and 5 more in the note |
+| llm-agents-2 | `llm-agents.md` | <https://arxiv.org/pdf/2602.20973.pdf>, <https://www.preprints.org/manuscript/202604.1702>, <https://arxiv.org/abs/2306.15626>, <https://arxiv.org/abs/2009.10241>, <https://arxiv.org/abs/2009.12702> |
+| llm-agents-3 | `llm-agents.md` | <https://github.com/augustepoiroux/LeanInteract>, <https://github.com/LLM4Coq/pytanque> |
+| llm-agents-4 | `llm-agents.md` | <https://www.anthropic.com/engineering/code-execution-with-mcp> |
+| llm-agents-5 | `llm-agents.md` | the repository's own files and other notes only |
+| llm-agents-6 | `llm-agents.md` | <https://arxiv.org/abs/2603.20405>, <https://easychair.org/publications/paper/PMbN>, <https://tptp.org/cgi-bin/SystemOnTPTP>, <https://developers.openai.com/codex/skills>, <https://modelcontextprotocol.io/specification/latest>, <https://modelcontextprotocol.io/specification/2026-07-28/changelog>, and 18 more in the note |
+| maintenance-1 | `maintenance.md` | <https://blog.rust-lang.org/releases/>, <https://doc.rust-lang.org/cargo/reference/rust-version.html> |
+| maintenance-2 | `maintenance.md` | <https://docs.github.com/en/code-security/dependabot/working-with-dependabot/keeping-your-actions-up-to-date-with-dependabot> |
+| maintenance-3 | `maintenance.md` | <https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html>, <https://caniuse.com/wasm-bulk-memory>, <https://github.com/wasm-bindgen/wasm-bindgen/releases>, <https://webassembly.org/features/> |
+| maintenance-4 | `maintenance.md` | <https://www.w3.org/TR/WCAG22/>, <https://developer.mozilla.org/en-US/docs/Web/SVG/Guides/SVG_in_HTML> |
+| maintenance-5 | `maintenance.md` | <https://docs.sigstore.dev/cosign/signing/overview/>, <https://developer.apple.com/support/compare-memberships/> |
+| maintenance-6 | `maintenance.md` | <https://developer.apple.com/support/compare-memberships/> |
+| maintenance-7 | `maintenance.md` | <https://learn.microsoft.com/en-us/windows/package-manager/package/manifest>, <https://docs.brew.sh/How-to-Create-and-Maintain-a-Tap>, <https://github.com/ScoopInstaller/Scoop/wiki/Buckets>, <https://docs.chocolatey.org/en-us/community-repository/moderation/> |
+| maintenance-8 | `maintenance.md` | the repository's own files and other notes only |
+| maintenance-9 | `maintenance.md` | <https://developer.mozilla.org/en-US/docs/Web/MathML>, <https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html>, <https://github.com/rust-lang/rust/issues/43781>, <https://blog.rust-lang.org/releases/>, <https://doc.rust-lang.org/cargo/reference/rust-version.html>, <https://github.com/obi1kenobi/cargo-semver-checks>, and 14 more in the note |
+| modal-logics-1 | `modal-logics.md` | <https://rkirsling.github.io/modallogic/>, <https://github.com/rkirsling/modallogic>, <https://www.lix.polytechnique.fr/~lutz/Software/Moin/MoinProver.html>, <https://hal-univ-tlse3.archives-ouvertes.fr/INRIA/hal-02457240>, <https://hal.archives-ouvertes.fr/hal-03048966>, <https://github.com/cormackikkert/CEGARBox>, and 9 more in the note |
+| modal-logics-2 | `modal-logics.md` | <https://www.mv.helsinki.fi/home/negri/paml.pdf>, <https://portal.mardi4nfdi.de/entity/Q377468>, <https://www.lix.polytechnique.fr/~lutz/Software/Moin/MoinProver.html>, <https://hal-univ-tlse3.archives-ouvertes.fr/INRIA/hal-02457240>, <https://hal.archives-ouvertes.fr/hal-03048966>, <https://arxiv.org/pdf/1810.10257> |
+| modal-logics-3 | `modal-logics.md` | <https://arxiv.org/pdf/2404.14919>, <https://arxiv.org/pdf/1910.01697>, <https://link.springer.com/10.1007/978-3-030-89391-0_25> |
+| modal-logics-4 | `modal-logics.md` | <https://sirius.bfh.ch/~kai/Papers/2009dssml.pdf>, <https://ar5iv.arxiv.org/html/1004.1845>, <https://www.lix.polytechnique.fr/~lutz/orgs/ESSLLI22notes-5B-10-NestedSequents--Handout.pdf>, <https://www.lix.polytechnique.fr/~lutz/Software/Moin/MoinProver.html>, <https://hal-univ-tlse3.archives-ouvertes.fr/INRIA/hal-02457240>, <https://hal.archives-ouvertes.fr/hal-03048966>, and 2 more in the note |
+| modal-logics-5 | `modal-logics.md` | <https://rkirsling.github.io/modallogic/>, <https://github.com/rkirsling/modallogic> |
+| modal-logics-6 | `modal-logics.md` | <https://www.cambridge.org/core/journals/journal-of-symbolic-logic/article/modal-view-of-linear-logic/AA2232D491291E188ACBBE17BB8C6DC4>, <https://arxiv.org/pdf/1904.10605>, <https://core.ac.uk/display/103544924>, <https://episteme.tllm.fr/wiki/⅋> |
+| modal-logics-7 | `modal-logics.md` | <https://arxiv.org/pdf/2302.04218>, <https://portal.mardi4nfdi.de/wiki/Publication:1193476>, <https://www.leancop.de/mleancop/>, <http://leancop.de/nanocop-m/>, <https://link.springer.com/chapter/10.1007/978-3-030-86059-2_14>, <https://www.irit.fr/~Andreas.Herzig/P/ijcar01.html>, and 1 more in the note |
+| modal-logics-8 | `modal-logics.md` | <https://www.doi.org/10.1007/978-3-642-31365-3_35>, <https://arxiv.org/pdf/2212.09570>, <https://iltp.de/qmltp>, <https://arxiv.org/html/2508.09318v1>, <https://tptp.org/Seminars/NonClassical>, <https://tptp.org/TPTPTParty/2024/SpeakersSlides/MelanieTaprogge.pdf>, and 51 more in the note |
+| more-logics-1 | `more-logics.md` | <https://www.tptp.org/>, <https://carnap.io/about>, <https://forallx.openlogicproject.org/>, <https://www.cs.us.es/~jalonso/cursos/li-06/sistemas/tableros/info.html>, <https://www.umsu.de/wo/2002/3>, <https://carnap.io> |
+| more-logics-2 | `more-logics.md` | <https://carnap.io>, <https://carnap.io/about>, <https://github.com/Carnap/Carnap>, <https://forallx.openlogicproject.org/>, <https://www.cs.us.es/~jalonso/cursos/li-06/sistemas/tableros/info.html>, <https://www.umsu.de/wo/2002/3> |
+| more-logics-3 | `more-logics.md` | <https://en.wikipedia.org/wiki/True_quantified_Boolean_formula>, <https://www.qbflib.org/qbfeval22.php> |
+| more-logics-4 | `more-logics.md` | <https://en.wikipedia.org/wiki/Description_logic> |
+| more-logics-5 | `more-logics.md` | <https://softwarefoundations.cis.upenn.edu/plf-current/Hoare.html>, <https://arxiv.org/abs/2303.05865>, <https://arxiv.org/abs/2603.01595> |
+| more-logics-6 | `more-logics.md` | <https://link.springer.com/chapter/10.1007/11554554_28>, <https://www.cs.cornell.edu/info/people/kreitz/PDF/05tableaux-iltp.pdf> |
+| more-logics-7 | `more-logics.md` | <https://github.com/marijnheule/drat-trim> |
+| more-logics-8 | `more-logics.md` | <https://arxiv.org/pdf/1505.01338>, <https://cl-informatik.uibk.ac.at/research/software> |
+| more-logics-9 | `more-logics.md` | <https://en.wikipedia.org/wiki/Linear_temporal_logic> |
+| more-logics-10 | `more-logics.md` | <https://plato.stanford.edu/entries/logic-manyvalued/>, <https://plato.stanford.edu/entries/logic-paraconsistent/> |
+| more-logics-11 | `more-logics.md` | <https://people.irisa.fr/Francois.Schwarzentruber/software.html>, <https://www.ijcai.org/proceedings/2018/862>, <https://github.com/jrclogic/SMCDEL>, <https://hackage.haskell.org/package/smcdel> |
+| more-logics-12 | `more-logics.md` | <https://fbinfer.com/docs/checker-pulse/>, <https://arxiv.org/abs/2603.01595> |
+| more-logics-13 | `more-logics.md` | <https://softwarefoundations.cis.upenn.edu/plf-current/Hoare.html> |
+| more-logics-14 | `more-logics.md` | <https://en.wikipedia.org/wiki/Linear_temporal_logic>, <https://arxiv.org/abs/2603.01595>, <https://arxiv.org/pdf/1505.01338>, <https://cl-informatik.uibk.ac.at/research/software>, <https://www.tptp.org/>, <https://carnap.io>, and 20 more in the note |
+| name-and-organisation-1 | `name-and-organisation.md` | the repository's own files and other notes only |
+| name-and-organisation-2 | `name-and-organisation.md` | <https://linlog-prover.github.io/logo/> |
+| name-and-organisation-3 | `name-and-organisation.md` | from the note's field section: <https://docs.github.com/en/organizations/managing-organization-settings/renaming-an-organization>, <https://docs.github.com/en/repositories/creating-and-managing-repositories/transferring-a-repository>, <https://docs.github.com/en/repositories/creating-and-managing-repositories/renaming-a-repository>, <https://docs.github.com/en/pages/getting-started-with-github-pages/about-github-pages> |
+| name-and-organisation-4 | `name-and-organisation.md` | <https://github.com/NAME>, <https://crates.io/api/v1/crates/NAME>, <https://opam.ocaml.org/packages/NAME/>, <https://pypi.org/pypi/NAME/json>, <https://github.com/racket-tw/macrotypes>, <https://docs.github.com/en/organizations/managing-organization-settings/renaming-an-organization>, and 18 more in the note |
+| natural-deduction-1 | `natural-deduction.md` | <https://arxiv.org/abs/2607.07722>, <https://en.wikipedia.org/wiki/Jape_>, <https://www.ppig.org/files/1999-PPIG-11th-aczel.pdf>, <https://core.ac.uk/download/16156617.pdf>, <https://doaj.org/article/7f94b26d134b46f7ada5c91730198ed8>, <https://plato.stanford.edu/entries/natural-deduction/>, and 2 more in the note |
+| natural-deduction-2 | `natural-deduction.md` | <https://www.doi.org/10.1007/BFB0037099>, <https://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-262.html>, <https://nantilus.univ-nantes.fr/vufind/Record/PPN102137935/Description>, <https://rd.springer.com/chapter/10.1007/978-94-007-7548-0_2>, <https://www.microsoft.com/en-us/research/wp-content/uploads/2016/12/tlca93.pdf>, <https://www.cambridge.org/core/services/aop-cambridge-core/content/view/DDBBD2A74BC4F0D5F9DDB1326DCD70E9/S0956796800001246a.pdf/strong-normalisation-for-the-linear-term-calculus.pdf>, and 3 more in the note |
+| natural-deduction-3 | `natural-deduction.md` | <https://www.doi.org/10.1007/BFB0037099>, <https://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-262.html>, <https://www.microsoft.com/en-us/research/wp-content/uploads/2016/12/tlca93.pdf>, <https://www.cambridge.org/core/services/aop-cambridge-core/content/view/DDBBD2A74BC4F0D5F9DDB1326DCD70E9/S0956796800001246a.pdf/strong-normalisation-for-the-linear-term-calculus.pdf>, <https://www.cys.cic.ipn.mx/ojs/index.php/CyS/article/view/4542>, <https://typeset.io/pdf/fitch-style-rules-for-many-modal-logics-15zxluq9si.pdf> |
+| natural-deduction-4 | `natural-deduction.md` | <https://en.wikipedia.org/wiki/Jape_>, <https://www.ppig.org/files/1999-PPIG-11th-aczel.pdf>, <https://arxiv.org/abs/2210.11411>, <https://plato.stanford.edu/entries/natural-deduction/>, <https://projects.csail.mit.edu/jacm/References/harperhp1993:143.html> |
+| natural-deduction-5 | `natural-deduction.md` | <https://plato.stanford.edu/entries/natural-deduction/>, <https://www.cys.cic.ipn.mx/ojs/index.php/CyS/article/view/4542>, <https://typeset.io/pdf/fitch-style-rules-for-many-modal-logics-15zxluq9si.pdf>, <https://github.com/nomeata/incredible>, <https://arxiv.org/abs/2607.07722>, <https://core.ac.uk/download/16156617.pdf>, and 27 more in the note |
+| ordinary-sequents-1 | `ordinary-sequents.md` | <https://www.cambridge.org/core/journals/journal-of-symbolic-logic/article/contractionfree-sequent-calculi-for-intuitionistic-logic/C7ABBFC63E74878E52FF4E624029503B>, <https://rocq-prover.org/doc/v9.1/refman/proofs/automatic-tactics/logic.html>, <https://deepblue.lib.umich.edu/handle/2027.42/23534>, <https://portal.mardi4nfdi.de/wiki/Publication:1259589>, <https://www.bohrium.com/paper-details/an-o-n-log-n-space-decision-procedure-for-intuitionistic-propositional-logic/812031645379985408-2722>, <https://ipqcoq.github.io/cpp2023fereevangool-prepub.pdf>, and 2 more in the note |
+| ordinary-sequents-2 | `ordinary-sequents.md` | <https://logtalk.org/apis/fcube_0.html>, <https://www.mv.helsinki.fi/home/negri/procou_lu_rev.pdf>, <https://www.mv.helsinki.fi/home/negri/negri_tableaux_2013.pdf>, <https://irinsubria.uninsubria.it/handle/11383/2178111> |
+| ordinary-sequents-3 | `ordinary-sequents.md` | <https://github.com/Carnap/Carnap>, <https://uni-kassel.de/eecs/en/tifm/software/sequent-calculus-trainer>, <https://doaj.org/article/7f94b26d134b46f7ada5c91730198ed8>, <https://www.cambridge.org/core/books/basic-proof-theory/gentzen-systems/B273AB679C77FBDA4A534EC6A616A372>, <https://arxiv.org/pdf/2305.10888> |
+| ordinary-sequents-4 | `ordinary-sequents.md` | the repository's own files and other notes only |
+| ordinary-sequents-5 | `ordinary-sequents.md` | <https://en.wikipedia.org/wiki/Boolean_satisfiability_problem> |
+| ordinary-sequents-6 | `ordinary-sequents.md` | <https://www.cambridge.org/core/journals/journal-of-symbolic-logic/article/undecidability-of-entailment-and-relevant-implication/FC9AE61D959740AB0356AEE1F5BC70E8>, <https://resolve.cambridge.org/core/journals/journal-of-symbolic-logic/article/complexity-of-decision-procedures-in-relevance-logic-ii/C2C773998D8D629630ACEA0E64203A0F>, <https://carnap.github.io/Carnap-Manual/systems.html>, <https://carnap.github.io/Carnap-Manual/sequent-calculus.html>, <https://lics.siglog.org/archive/1995/Kopylov-DecidabilityofLinea.html>, <https://arxiv.org/abs/2603.01595>, and 37 more in the note |
+| resolution-1 | `resolution.md` | <https://www.aiai.ed.ac.uk/~gwickler/proposition-resolution.html>, <https://www.npmjs.com/package/@4zzz/resolution-editor>, <https://portal.mardi4nfdi.de/wiki/Item:Q1071750>, <https://arxiv.org/pdf/1912.00534>, <https://en.wikipedia.org/wiki/Resolution_>, <https://www.bohrium.com/paper-details/a-machine-oriented-logic-based-on-the-resolution-principle/813217272737824768-2464>, and 1 more in the note |
+| resolution-2 | `resolution.md` | <https://github.com/eprover/eprover>, <https://github.com/sneeuwballen/zipperposition>, <https://github.com/leoprover/Leo-III>, <https://github.com/vprover/vampire>, <https://tptp.org/CASC/index.html>, <https://en.wikipedia.org/wiki/Resolution_>, and 1 more in the note |
+| resolution-3 | `resolution.md` | <https://github.com/marijnheule/drat-trim>, <https://arxiv.org/pdf/1612.02353>, <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7984575/>, <https://en.wikipedia.org/wiki/Conflict-driven_clause_learning>, <https://crates.io/api/v1/crates/rustsat>, <https://github.com/chrjabs/rustsat>, and 9 more in the note |
+| resolution-4 | `resolution.md` | <https://arxiv.org/abs/2508.09318>, <https://arxiv.org/pdf/2508.09318>, <https://tptp.org/UserDocs/SZSOntology/>, <https://www.cs.miami.edu/home/geoff/Papers/Conference/2008_Sut08_KEAPPA-38-49.pdf>, <https://github.com/sneeuwballen/zipperposition>, <https://journals.flvc.org/FLAIRS/article/view/138642>, and 33 more in the note |
+| applications-1 | `scope-applications.md` | <https://cyber.bibl.u-szeged.hu/index.php/actcybern/article/view/3599> |
+| applications-2 | `scope-applications.md` | <https://raw.githubusercontent.com/chrisamaphone/interactive-lp/master/LICENSE> |
+| applications-3 | `scope-applications.md` | the repository's own files and other notes only |
+| applications-4 | `scope-applications.md` | <https://docs.rs/crate/par/0.3.2>, <https://arxiv.org/abs/2510.13082v1> |
+| applications-5 | `scope-applications.md` | <https://www.lix.polytechnique.fr/~dale/lolli>, <https://github.com/clf/celf>, <https://github.com/clf/celf/commits/master>, <https://github.com/clf/lollimon> |
+| applications-6 | `scope-applications.md` | <https://arxiv.org/abs/2309.10629>, <https://arxiv.org/abs/2211.12603>, <https://www.pnnl.gov/publications/crnt4sbml-python-package-detection-bistability-biochemical-reaction-networks>, <https://synkit.readthedocs.io/en/stable/crn.html> |
+| applications-7 | `scope-applications.md` | <https://www.mpi-sws.org/~dg/papers/aff-know.pdf>, <https://www.mpi-sws.org/~dg/papers/NDSS07Final.pdf>, <https://people.mpi-sws.org/~dg/papers/thesis.pdf> |
+| applications-8 | `scope-applications.md` | the repository's own files and other notes only |
+| applications-9 | `scope-applications.md` | the repository's own files and other notes only |
+| applications-10 | `scope-applications.md` | <https://arxiv.org/abs/2501.00169>, <https://arxiv.org/abs/2408.09516>, <https://arxiv.org/abs/2510.13082v1>, <https://arxiv.org/pdf/1909.05970>, <https://arxiv.org/abs/2309.10629>, <https://github.com/clf/celf>, and 22 more in the note |
+| education-1 | `scope-education.md` | <https://arxiv.org/abs/1803.01467>, <https://arxiv.org/pdf/1803.01467>, <https://click-and-collect.linear-logic.org/> |
+| education-2 | `scope-education.md` | <https://ll-handbook.pages.math.cnrs.fr/>, <https://ll-handbook.pages.math.cnrs.fr/book/ll-handbook-draft.pdf>, <https://staff.aist.go.jp/s-matsuoka/PNCalculator/index.html> |
+| education-3 | `scope-education.md` | <https://click-and-collect.linear-logic.org/> |
+| education-4 | `scope-education.md` | <https://iltis.rub.de/>, <https://arxiv.org/abs/2607.07722> |
+| education-5 | `scope-education.md` | <https://www.ijcai.org/Proceedings/13/Papers/291.pdf> |
+| education-6 | `scope-education.md` | <https://arxiv.org/abs/2607.04321>, <https://arxiv.org/abs/2505.05988>, <https://proof.compute.dtu.dk/>, <https://ankushdas.github.io/courses/CS599-S26.html> |
+| education-7 | `scope-education.md` | <https://forallx.openlogicproject.org/html/A4.html> |
+| education-8 | `scope-education.md` | <https://click-and-collect.linear-logic.org/>, <https://github.com/ComputerAidedLL/click-and-collect> |
+| education-9 | `scope-education.md` | <https://ojs.aaai.org/index.php/AIIDE/article/view/12784> |
+| education-10 | `scope-education.md` | the repository's own files and other notes only |
+| education-11 | `scope-education.md` | <https://iltis.rub.de/>, <https://arxiv.org/abs/2607.07722>, <https://arxiv.org/abs/1803.01467>, <https://arxiv.org/pdf/1803.01467>, <https://click-and-collect.linear-logic.org/>, <https://ll-handbook.pages.math.cnrs.fr/>, and 18 more in the note |
+| engines-1 | `scope-engines.md` | <https://github.com/chrjabs/rustsat>, <https://drops.dagstuhl.de/storage/00lipics/lipics-vol341-sat2025/html/LIPIcs.SAT.2025.15/LIPIcs.SAT.2025.15.html>, <https://github.com/jix/varisat>, <https://github.com/shnarazk/splr> |
+| engines-2 | `scope-engines.md` | the repository's own files and other notes only |
+| engines-3 | `scope-engines.md` | the repository's own files and other notes only |
+| engines-4 | `scope-engines.md` | the repository's own files and other notes only |
+| engines-5 | `scope-engines.md` | the repository's own files and other notes only |
+| engines-6 | `scope-engines.md` | the repository's own files and other notes only |
+| engines-7 | `scope-engines.md` | <https://arxiv.org/pdf/2404.07382>, <https://arxiv.org/abs/1811.00796> |
+| engines-8 | `scope-engines.md` | the repository's own files and other notes only |
+| engines-9 | `scope-engines.md` | the repository's own files and other notes only |
+| engines-10 | `scope-engines.md` | the repository's own files and other notes only |
+| engines-11 | `scope-engines.md` | <https://tptp.org/UserDocs/TPTPLanguage/NonClassicalLogics.html>, <https://arxiv.org/abs/2508.09318>, <https://arxiv.org/html/2508.09318> |
+| engines-12 | `scope-engines.md` | the repository's own files and other notes only |
+| engines-13 | `scope-engines.md` | <https://github.com/RichardMoot/LinearOne> |
+| engines-14 | `scope-engines.md` | the repository's own files and other notes only |
+| engines-15 | `scope-engines.md` | <https://link.springer.com/doi/10.1007/11538363_15>, <https://researchportal.ip-paris.fr/en/publications/focusing-the-inverse-method-for-linear-logic/> |
+| engines-16 | `scope-engines.md` | <https://tptp.org/UserDocs/TPTPLanguage/NonClassicalLogics.html>, <https://www.iltp.de/> |
+| engines-17 | `scope-engines.md` | <https://github.com/chaudhuri/sympli>, <https://github.com/RichardMoot/LinearOne>, <https://tptp.org/UserDocs/TPTPLanguage/NonClassicalLogics.html>, <https://arxiv.org/abs/2508.09318>, <https://arxiv.org/html/2508.09318>, <https://tptp.org/CASC/30/DesignFull.html>, and 10 more in the note |
+| interop-1 | `scope-interop.md` | <https://github.com/leanprover/cslib>, <https://github.com/leanprover/cslib/blob/main/Cslib/Logics/README.md> |
+| interop-2 | `scope-interop.md` | <https://github.com/leanprover/cslib/tree/main/Cslib/Logics/LinearLogic/CLL>, <https://github.com/leanprover/cslib>, <https://github.com/leanprover/cslib/blob/main/Cslib/Logics/README.md>, <https://github.com/Deducteam/lambdapi/blob/master/CHANGES.md> |
+| interop-3 | `scope-interop.md` | <https://github.com/Deducteam/lambdapi/blob/master/CHANGES.md>, <https://github.com/Deducteam/lambdapi>, <https://github.com/Deducteam/Dedukti>, <https://arxiv.org/abs/2311.07185> |
+| interop-4 | `scope-interop.md` | <https://hal.archives-ouvertes.fr/hal-01390912>, <https://www.lix.polytechnique.fr/~dale/papers/lku.pdf> |
+| interop-5 | `scope-interop.md` | <https://szs.tptp.org>, <https://arxiv.org/html/2508.09318v1>, <https://arxiv.org/abs/2508.09318>, <https://github.com/TPTPWorld/NonClassicalLogic> |
+| interop-6 | `scope-interop.md` | <https://lean-lang.org/doc/reference/latest/IO/Processes/>, <https://github.com/ufmg-smite/lean-smt>, <https://rocq-prover.org/doc/V9.0.0/refman/proof-engine/ltac2.html>, <https://github.com/ejgallego/coq-lsp> |
+| interop-7 | `scope-interop.md` | <https://github.com/PyO3/pyo3> |
+| interop-8 | `scope-interop.md` | <https://wasi.dev/releases/wasi-p3> |
+| interop-9 | `scope-interop.md` | <https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/>, <https://docs.rs/crate/lsp-server/latest>, <https://tree-sitter.github.io/tree-sitter/creating-parsers/>, <https://github.com/ejgallego/coq-lsp> |
+| interop-10 | `scope-interop.md` | the repository's own files and other notes only |
+| interop-11 | `scope-interop.md` | <https://arxiv.org/html/2508.09318v1>, <https://arxiv.org/abs/2508.09318>, <https://github.com/TPTPWorld/NonClassicalLogic> |
+| interop-12 | `scope-interop.md` | <https://arxiv.org/html/2508.09318v1>, <https://arxiv.org/abs/2508.09318>, <https://github.com/Deducteam/lambdapi/blob/master/CHANGES.md>, <https://github.com/leanprover/cslib>, <https://lean-lang.org/doc/reference/latest/IO/Processes/>, <https://github.com/ejgallego/coq-lsp>, and 24 more in the note |
+| logics-1 | `scope-logics.md` | <https://www.cs.cmu.edu/~fp/papers/xlang26.pdf>, <https://arxiv.org/abs/2507.12360>, <https://arxiv.org/abs/2509.00644>, <https://arxiv.org/abs/1502.04769> |
+| logics-2 | `scope-logics.md` | <https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.CSL.2025.32>, <https://github.com/granule-project/granule>, <https://granule-project.github.io>, <https://granule-project.github.io/research.html> |
+| logics-3 | `scope-logics.md` | <https://arxiv.org/abs/2505.13284> |
+| logics-4 | `scope-logics.md` | <https://arxiv.org/abs/2505.13284>, <https://lipn.univ-paris13.fr/TLLA/2025> |
+| logics-5 | `scope-logics.md` | <https://arxiv.org/abs/2602.01299>, <https://lipn.univ-paris13.fr/TLLA/2025> |
+| logics-6 | `scope-logics.md` | <https://arxiv.org/abs/2509.00644> |
+| logics-7 | `scope-logics.md` | <https://arxiv.org/abs/2605.12893>, <https://lipn.univ-paris13.fr/TLLA/2025> |
+| logics-8 | `scope-logics.md` | <https://www.cs.cmu.edu/~fp/papers/xlang26.pdf>, <https://lipn.univ-paris13.fr/TLLA/2025>, <https://arxiv.org/abs/2605.14476>, <https://arxiv.org/abs/2603.03262>, <https://arxiv.org/abs/2603.01595>, <https://arxiv.org/abs/2505.13284>, and 11 more in the note |
+| proof-theory-1 | `scope-proof-theory.md` | <https://www.lix.polytechnique.fr/~dale/papers/tcs08trackb.pdf>, <https://lmcs.episciences.org/1625>, <https://arxiv.org/abs/2110.02630>, <https://dc2.philarchive.org/rec/VELMMP>, <https://www.mathstat.dal.ca/wollic2023/papers/veltri.pdf>, <https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.TLCA.2015.60>, and 4 more in the note |
+| proof-theory-2 | `scope-proof-theory.md` | <https://www.irif.fr/~diguardia/papers/thesis_manuscript.pdf>, <https://www.ens-lyon.fr/evenement/recherche/identity-proofs-and-formulas-using-proof-nets-multiplicative-additive-linear>, <https://arxiv.org/abs/2603.03262>, <https://easychair.org/smart-program/FSCD2025/2025-07-18.html>, <https://doi.org/10.1145/2933575.2934559>, <https://people.bath.ac.uk/wbh22/pdf/2016-hughes-heijltjes.pdf>, and 2 more in the note |
+| proof-theory-3 | `scope-proof-theory.md` | the repository's own files and other notes only |
+| proof-theory-4 | `scope-proof-theory.md` | <https://github.com/ComputerAidedLL/click-and-collect>, <https://github.com/chaudhuri/profound>, <https://researchportal.ip-paris.fr/en/publications/subformula-linking-as-an-interaction-method/>, <https://arxiv.org/abs/2210.11820> |
+| proof-theory-5 | `scope-proof-theory.md` | <https://www.arxiv.org/abs/2505.13284>, <https://arxiv.org/abs/0709.1201>, <https://lmcs.episciences.org/1081>, <https://arxiv.org/abs/0903.5392>, <https://arxiv.org/abs/cs/9910023>, <https://www.lix.polytechnique.fr/~lutz/papers/dissvonlutz.pdf>, and 6 more in the note |
+| proof-theory-6 | `scope-proof-theory.md` | <https://github.com/ComputerAidedLL/click-and-collect>, <https://dmg.tuwien.ac.at/hetzl/research/towards.pdf>, <https://doi.org/10.1007/BF00247711>, <https://www.kurims.kyoto-u.ac.jp/~terui/pub_bib.html>, <https://www.springerprofessional.de/en/compression-of-propositional-resolution-proofs-by-lowering-subpr/4164474>, <https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.FSCD.2025.32> |
+| proof-theory-7 | `scope-proof-theory.md` | the repository's own files and other notes only |
+| proof-theory-8 | `scope-proof-theory.md` | <https://easychair.org/publications/paper/8r> |
+| proof-theory-9 | `scope-proof-theory.md` | <https://sun.iwu.edu/~mliffito/publications/jar_liffiton_CAMUS.pdf>, <https://www.cs.ox.ac.uk/publications/publication4972-abstract.html>, <https://www.joachim-breitner.de/publications/Incredible_ITP2016_preprint.pdf>, <http://logitext.mit.edu>, <https://arxiv.org/abs/1803.01467>, <https://click-and-collect.linear-logic.org/> |
+| proof-theory-10 | `scope-proof-theory.md` | <https://arxiv.org/pdf/2104.09115.pdf>, <https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.FSCD.2022.19> |
+| proof-theory-11 | `scope-proof-theory.md` | <https://www.springerprofessional.de/session-types-as-intuitionistic-linear-propositions/3352308>, <https://www.cambridge.org/core/journals/journal-of-functional-programming/article/propositions-as-sessions/0985539E5D607AC00FB00FF900BA1C86> |
+| proof-theory-12 | `scope-proof-theory.md` | <https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.FSCD.2025.32> |
+| proof-theory-13 | `scope-proof-theory.md` | <https://arxiv.org/abs/2402.11987>, <https://www.irif.fr/~diguardia/papers/thesis_manuscript.pdf>, <https://www.ens-lyon.fr/evenement/recherche/identity-proofs-and-formulas-using-proof-nets-multiplicative-additive-linear> |
+| proof-theory-14 | `scope-proof-theory.md` | <https://perso.ens-lyon.fr/olivier.laurent/rocqpn.pdf>, <https://arxiv.org/abs/2603.03262>, <https://easychair.org/smart-program/FSCD2025/2025-07-18.html>, <https://arxiv.org/html/2506.21678v1>, <https://doi.org/10.1145/2933575.2934559>, <https://people.bath.ac.uk/wbh22/pdf/2016-hughes-heijltjes.pdf>, and 21 more in the note |
+| semantics-decision-1 | `scope-semantics-decision.md` | <https://github.com/blondimi/qcover>, <https://arxiv.org/pdf/2302.14741>, <https://people.irisa.fr/Nicolas.Markey/biblio/tcs256> |
+| semantics-decision-2 | `scope-semantics-decision.md` | <https://arxiv.org/pdf/1009.1076>, <https://arxiv.org/pdf/2302.14741>, <https://arxiv.org/pdf/2208.03043>, <https://lmcs.episciences.org/13141> |
+| semantics-decision-3 | `scope-semantics-decision.md` | <https://link.springer.com/chapter/10.1007/978-3-031-57246-3_21>, <https://rocq-prover.org/p/coq-karp-miller> |
+| semantics-decision-4 | `scope-semantics-decision.md` | the repository's own files and other notes only |
+| semantics-decision-5 | `scope-semantics-decision.md` | <https://mcc.lip6.fr/2026/results.php>, <https://mcc.lip6.fr/2025/results.php>, <https://github.com/TAPAAL/verifypn> |
+| semantics-decision-6 | `scope-semantics-decision.md` | <https://www.cambridge.org/core/journals/journal-of-symbolic-logic/article/abs/finite-model-property-for-various-fragments-of-linear-logic/F75D11ED6907E37EA0424226108DDA66> |
+| semantics-decision-7 | `scope-semantics-decision.md` | <https://www.cambridge.org/core/journals/journal-of-symbolic-logic/article/abs/finite-model-property-for-various-fragments-of-linear-logic/F75D11ED6907E37EA0424226108DDA66>, <https://perso.ens-lyon.fr/olivier.laurent/yalla/> |
+| semantics-decision-8 | `scope-semantics-decision.md` | the repository's own files and other notes only |
+| semantics-decision-9 | `scope-semantics-decision.md` | the repository's own files and other notes only |
+| semantics-decision-10 | `scope-semantics-decision.md` | the repository's own files and other notes only |
+| semantics-decision-11 | `scope-semantics-decision.md` | <https://ijcai.org/proceedings/2019/232.md>, <https://arxiv.org/abs/2603.29424>, <https://www.cambridge.org/core/journals/journal-of-symbolic-logic/article/abs/finite-model-property-for-various-fragments-of-linear-logic/F75D11ED6907E37EA0424226108DDA66> |
+| semantics-decision-12 | `scope-semantics-decision.md` | <https://link.springer.com/chapter/10.1007/978-3-031-57246-3_21>, <https://rocq-prover.org/p/coq-karp-miller>, <https://www.lix.polytechnique.fr/Labo/Lutz.Strassburger/papers/OnDeciMELL.pdf>, <https://arxiv.org/abs/2502.13916>, <https://arxiv.org/html/2603.05221v1>, <https://mcc.lip6.fr/2025/results.php>, and 17 more in the note |
+| types-higher-1 | `scope-types-higher.md` | <https://byorgey.github.io/blog/posts/2011/01/26/counting-linear-lambda-terms.html>, <https://arxiv.org/abs/1604.02086> |
+| types-higher-2 | `scope-types-higher.md` | <https://github.com/ComputerAidedLL/click-and-collect>, <https://www.arxiv.org/abs/2401.17199>, <https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.CSL.2025.32>, <https://github.com/RichardMoot/LinearOne> |
+| types-higher-3 | `scope-types-higher.md` | <https://www.sciencedirect.com/science/article/pii/S0890540124000993>, <https://arxiv.org/html/2203.12875>, <https://github.com/freest-lang/freest>, <https://opam.ocaml.org/packages/sill>, <https://www.ideals.illinois.edu/items/92895>, <https://lmcs.episciences.org/8954>, and 1 more in the note |
+| types-higher-4 | `scope-types-higher.md` | <https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/linear_types.html>, <https://idris2.readthedocs.io/en/latest/tutorial/multiplicities.html>, <https://github.com/granule-project/granule>, <https://arxiv.org/abs/1903.00982>, <https://www.mpi-sws.org/news/programming-languages-and-verification/2018/> |
+| types-higher-5 | `scope-types-higher.md` | <https://www.arxiv.org/abs/2401.17199>, <https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.CSL.2025.32>, <https://idris2.readthedocs.io/en/latest/tutorial/multiplicities.html>, <https://github.com/granule-project/granule> |
+| types-higher-6 | `scope-types-higher.md` | <https://www.itu.dk/~carsten/papers/ijcar08.pdf>, <https://www.cs.cmu.edu/~fp/courses/15816-s12/software.html>, <https://ojs.aaai.org/index.php/AIIDE/article/view/12784> |
+| types-higher-7 | `scope-types-higher.md` | <https://idris2.readthedocs.io/en/latest/tutorial/multiplicities.html>, <https://arxiv.org/abs/2603.29716>, <https://github.com/granule-project/granule>, <https://github.com/freest-lang/freest>, <https://www.arxiv.org/abs/2401.17199>, <https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.CSL.2025.32>, and 16 more in the note |
+| structure-1 | `structure.md` | <https://doc.rust-lang.org/cargo/reference/workspaces.html>, <https://matklad.github.io/2021/08/22/large-rust-workspaces.html>, <https://github.com/Carnap/Carnap/blob/master/Carnap/Carnap.cabal> |
+| structure-2 | `structure.md` | <https://doc.rust-lang.org/cargo/reference/publishing.html> |
+| structure-3 | `structure.md` | <https://doc.rust-lang.org/cargo/reference/features.html>, <https://doc.rust-lang.org/cargo/reference/semver.html> |
+| structure-4 | `structure.md` | from the note's field section: <https://github.com/isabelle-prover/mirror-isabelle/tree/master/src>, <http://dists.isabelle.cit.tum.de/dist/library/?token=Isabelle>, <https://isabelle.in.tum.de/overview.html>, <https://github.com/isabelle-prover/mirror-isabelle/blob/master/src/Sequents/LK.thy> |
+| structure-5 | `structure.md` | <https://github.com/ezyang/logitext>, <https://github.com/rust-lang/rfcs/pull/3243>, <https://doc.rust-lang.org/cargo/reference/workspaces.html>, <https://doc.rust-lang.org/cargo/reference/features.html>, <https://doc.rust-lang.org/cargo/reference/semver.html>, <https://doc.rust-lang.org/cargo/reference/publishing.html>, and 31 more in the note |
+| tableaux-1 | `tableaux.md` | <https://carnap.github.io/Carnap-Manual/truth-tree.html>, <https://richardzach.org/2018/02/>, <https://www.umsu.de/trees/>, <https://ctan.org/pkg/prooftrees>, <https://en.wikipedia.org/wiki/Method_of_analytic_tableaux> |
+| tableaux-2 | `tableaux.md` | <https://carnap.github.io/Carnap-Manual/truth-tree.html>, <https://richardzach.org/2018/02/>, <https://richardzach.org/2020/01/adding-online-exercises-with-automated-grading-to-any-logic-course-with-carnap/> |
+| tableaux-3 | `tableaux.md` | <https://www.umsu.de/trees/>, <https://dblp.uni-trier.de/rec/journals/jar/BeckertP95.html>, <http://www.leancop.de>, <https://en.wikipedia.org/wiki/Method_of_analytic_tableaux>, <https://library.holycross.edu/Record/b3192539/TOC> |
+| tableaux-4 | `tableaux.md` | <https://richardzach.org/2018/02/>, <https://openlogicproject.org/2018/02/22/modal-logic-propositional-logic-tableaux/>, <http://www.irit.fr/Lotrec/>, <https://link.springer.com/doi/10.1007/11554554_25>, <https://www.umsu.de/trees/>, <https://www.ps.uni-saarland.de/spartacus> |
+| tableaux-5 | `tableaux.md` | <http://www.leancop.de/lintap/>, <http://www.irit.fr/Lotrec/>, <https://link.springer.com/doi/10.1007/11554554_25>, <https://www.cs.man.ac.uk/~schmidt/publications/TishkovskySchmidtKhodadadi12b.html>, <http://www.leancop.de>, <https://www.ijcai.org/proceedings/2017/695>, and 18 more in the note |
+| users-1 | `users.md` | the repository's own files and other notes only |
+| users-2 | `users.md` | the repository's own files and other notes only |
+| users-3 | `users.md` | <https://api.github.com/repos/linlog-prover/linlog/releases>, <https://api.github.com/repos/linlog-prover/linlog>, <https://github.com/linlog-prover/linlog>, <https://github.com/linlog-prover/linlog/issues?q=is%3Aissue>, <https://github.com/linlog-prover/linlog/pulls?q=is%3Apr>, <https://github.com/linlog-prover/linlog/discussions>, and 13 more in the note |
+| verification-1 | `verification.md` | the repository's own files and other notes only |
+| verification-2 | `verification.md` | <https://github.com/linlog-prover/rocq-linlog> |
+| verification-3 | `verification.md` | <https://rocq-prover.org/doc/V9.0.0/refman/addendum/extraction.html>, <https://github.com/MetaRocq/metarocq>, <https://github.com/ocsigen/js_of_ocaml>, <https://github.com/formal-land/coq-of-rust>, <https://github.com/CertiCoq/certicoq>, <https://github.com/linlog-prover/rocq-linlog> |
+| verification-4 | `verification.md` | <https://verus-lang.github.io/verus/guide/features.html>, <https://raw.githubusercontent.com/creusot-rs/creusot/master/CHANGELOG.md>, <https://github.com/creusot-rs/creusot/releases>, <https://github.com/viperproject/prusti-dev/blob/master/docs/user-guide/src/verify/summary.md>, <https://github.com/viperproject/prusti-dev/blob/master/docs/user-guide/src/verify/closure.md>, <https://github.com/viperproject/prusti-dev/releases>, and 9 more in the note |
+| verification-5 | `verification.md` | <https://github.com/AeneasVerif/aeneas>, <https://github.com/cryspen/hax>, <https://github.com/AeneasVerif/charon> |
+| verification-6 | `verification.md` | <https://github.com/model-checking/kani>, <https://model-checking.github.io/kani/>, <https://github.com/model-checking/kani/releases>, <https://model-checking.github.io/kani/rust-feature-support.html> |
+| verification-7 | `verification.md` | <https://plv.mpi-sws.org/refinedrust/>, <https://github.com/GillianPlatform/Gillian-Rust>, <https://github.com/formal-land/coq-of-rust>, <https://github.com/CertiCoq/certicoq>, <https://github.com/ocsigen/js_of_ocaml>, <https://github.com/linlog-prover/rocq-linlog>, and 25 more in the note |
+| web-front-end-1 | `web-front-end.md` | <https://carnap.github.io/Carnap-Manual/systems.html>, <https://arxiv.org/html/2607.04321v1> |
+| web-front-end-2 | `web-front-end.md` | <https://carnap.github.io/Carnap-Manual/systems.html>, <https://arxiv.org/html/2607.04321v1>, <https://github.com/ezyang/logitext>, <https://core.ac.uk/download/16156617.pdf>, <https://ar5iv.labs.arxiv.org/html/1005.2672>, <https://www.cs.us.es/~jalonso/cursos/li-06/sistemas/tableros/info.html> |
+| web-front-end-3 | `web-front-end.md` | <https://vite.dev/guide/features.html> |
+| web-front-end-4 | `web-front-end.md` | <https://vite.dev/guide/features.html>, <https://github.com/wasm-bindgen/wasm-bindgen>, <https://cdn.jsdelivr.net/npm/jscoq@0.17.1/docs/embedding.md>, <https://github.com/jscoq/jscoq/blob/master/docs/embedding.md> |
+| web-front-end-5 | `web-front-end.md` | the repository's own files and other notes only |
+| web-front-end-6 | `web-front-end.md` | <https://carnap.github.io/Carnap-Manual/systems.html>, <https://arxiv.org/html/2607.04321v1>, <https://www.cs.us.es/~jalonso/cursos/li-06/sistemas/tableros/info.html>, <https://github.com/6ximik9/naturalDeduction> |
+| web-front-end-7 | `web-front-end.md` | <https://github.com/leanprover-community/lean4web>, <https://core.ac.uk/download/16156617.pdf>, <https://ar5iv.labs.arxiv.org/html/1005.2672>, <https://www.goodfirstissue.org/ComputerAidedLL/click-and-collect>, <https://perso.ens-lyon.fr/olivier.laurent/ll2022/>, <https://arxiv.org/html/2607.04321v1>, and 23 more in the note |
+| web-teaching-1 | `web-teaching.md` | <https://www.joachim-breitner.de/publications/Incredible_ITP2016_preprint.pdf> |
+| web-teaching-2 | `web-teaching.md` | <https://arxiv.org/abs/2607.07722>, <https://www.joachim-breitner.de/publications/Incredible_ITP2016_preprint.pdf>, <https://iltis.rub.de/> |
+| web-teaching-3 | `web-teaching.md` | <https://arxiv.org/abs/1803.01467>, <https://arxiv.org/html/1803.01467v1> |
+| web-teaching-4 | `web-teaching.md` | <https://www.w3.org/TR/WCAG22/> |
+| web-teaching-5 | `web-teaching.md` | <https://arxiv.org/abs/2607.07722>, <https://carnap.io/book>, <https://arxiv.org/abs/2303.05865> |
+| web-teaching-6 | `web-teaching.md` | the repository's own files and other notes only |
+| web-teaching-7 | `web-teaching.md` | <https://github.com/ComputerAidedLL/click-and-collect> |
+| web-teaching-8 | `web-teaching.md` | <https://www.joachim-breitner.de/publications/Incredible_ITP2016_preprint.pdf> |
+| web-teaching-9 | `web-teaching.md` | <https://www.joachim-breitner.de/publications/Incredible_ITP2016_preprint.pdf>, <https://arxiv.org/abs/1803.01467>, <https://arxiv.org/html/1803.01467v1> |
+| web-teaching-10 | `web-teaching.md` | <https://www.joachim-breitner.de/publications/Incredible_ITP2016_preprint.pdf>, <https://iltis.rub.de/>, <https://www.imsglobal.org/spec/lti/v1p3/>, <https://arxiv.org/abs/2607.07722>, <https://arxiv.org/abs/2308.06970>, <https://github.com/RBornat/jape>, and 15 more in the note |
 
 ### Correctness verification, and its feasibility
 
