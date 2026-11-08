@@ -18,14 +18,15 @@
 
 pub mod calls;
 mod failure;
+pub mod ordinary;
 pub mod tab;
 
 pub use failure::Failure;
 
 /// The exports of the module, which wrap [`calls`] for JavaScript.
 mod exports {
-    use crate::calls;
     use crate::failure::Failure;
+    use crate::{calls, ordinary};
     use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 
     /// Returns a failure as the string a call throws.
@@ -252,5 +253,71 @@ mod exports {
     #[wasm_bindgen]
     pub fn certificate(document: &str, settings: &str) -> Result<String, JsValue> {
         calls::certificate(document, settings).map_err(thrown)
+    }
+
+    /// See [`ordinary::start`].
+    #[wasm_bindgen]
+    pub fn ordinary_start(sequent: &str, logic: &str, settings: &str) -> Result<String, JsValue> {
+        ordinary::start(sequent, logic, settings).map_err(thrown)
+    }
+
+    /// See [`ordinary::view`].
+    #[wasm_bindgen]
+    pub fn ordinary_view(session: &str, settings: &str) -> Result<String, JsValue> {
+        ordinary::view(session, settings).map_err(thrown)
+    }
+
+    /// See [`ordinary::rules`].
+    #[wasm_bindgen]
+    pub fn ordinary_rules(
+        session: &str,
+        goal: f64,
+        side: &str,
+        position: f64,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        let (goal, position) = (index(goal, "a goal")?, index(position, "a position")?);
+        ordinary::rules(session, goal, side, position, settings).map_err(thrown)
+    }
+
+    /// See [`ordinary::apply`].
+    #[wasm_bindgen]
+    pub fn ordinary_apply(
+        session: &str,
+        goal: f64,
+        step: &str,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        ordinary::apply(session, index(goal, "a goal")?, step, settings).map_err(thrown)
+    }
+
+    /// See [`ordinary::undo`].
+    #[wasm_bindgen]
+    pub fn ordinary_undo(session: &str, settings: &str) -> Result<String, JsValue> {
+        ordinary::undo(session, settings).map_err(thrown)
+    }
+
+    /// See [`ordinary::close`].
+    #[wasm_bindgen]
+    pub fn ordinary_close(session: &str, goal: f64, settings: &str) -> Result<String, JsValue> {
+        ordinary::close(session, index(goal, "a goal")?, settings).map_err(thrown)
+    }
+
+    /// See [`ordinary::hint`].
+    #[wasm_bindgen]
+    pub fn ordinary_hint(session: &str, goal: f64, settings: &str) -> Result<String, JsValue> {
+        ordinary::hint(session, index(goal, "a goal")?, settings).map_err(thrown)
+    }
+
+    /// See [`ordinary::draw`].
+    #[wasm_bindgen]
+    pub fn ordinary_draw(session: &str, settings: &str) -> Result<String, JsValue> {
+        ordinary::draw(session, settings).map_err(thrown)
+    }
+
+    /// See [`ordinary::export`].
+    #[wasm_bindgen]
+    pub fn ordinary_export(session: &str, format: &str, settings: &str) -> Result<String, JsValue> {
+        ordinary::export(session, format, settings).map_err(thrown)
     }
 }

@@ -314,7 +314,8 @@ Built:
   `linlog-web` in `web/`: the library compiled for
   `wasm32-unknown-unknown` behind calls of JSON in and JSON or SVG out
   (a sequent read, an interactive proof step by step, a goal closed by
-  the search within a budget of work, a hint, every export), with
+  the search within a budget of work, a hint, every export; for linear
+  logic and for LK and LJ, the suites `about` lists), with
   defaults that fit a browser tab, built by the flake as a package of
   the module and its JavaScript, and tested under Node; the library's
   checker and memo are tested on a 32-bit target there too.

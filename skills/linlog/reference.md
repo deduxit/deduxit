@@ -943,7 +943,18 @@ quantifiers is typed as for the command; a step's JSON `{"position",
 (left out: open, `$1`), `rules` marks such a rule `"witness": true`,
 `hint` on a goal of instances closes it in a copy of the session, and
 the first-order bounds are the settings `search.witness_depth`,
-`search.instances` and `limits.terms`. An agent with a shell uses the command instead.
+`search.instances` and `limits.terms`. An ordinary tab (LK and LJ) has
+its own calls, `ordinary_start(sequent, logic, settings)`,
+`ordinary_view`, `ordinary_rules(session, goal, side, position,
+settings)`, `ordinary_apply` (a step `{"side": "left"|"right",
+"position", "rule": "→L", "split": {"left": [..], "right": [..]}}`, the
+split left out to share the context), `ordinary_undo`, `ordinary_close`,
+`ordinary_hint` (its `step` one that `ordinary_apply` takes),
+`ordinary_draw` and `ordinary_export` (`text`, `latex`, `typst`, `svg`,
+`rocq`), the session the library's `ordinary::Interactive` at wire level
+8; `about` lists the suites (`linear`, `ordinary`), each with the prefix
+of its calls and the parameter its start takes (`mode`, `logic`), every
+value and the default. An agent with a shell uses the command instead.
 
 ## 18. Rocq certificates and the Rocq library
 

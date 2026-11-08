@@ -250,6 +250,28 @@ for `THIRD-PARTY-NOTICES.txt`.
   table refused a step. `search.witness_depth` and `search.instances`
   are the library's.
 
+- **An ordinary tab's calls** are `ordinary.rs`'s, exported as
+  `ordinary_start`, `ordinary_view`, `ordinary_rules`, `ordinary_apply`,
+  `ordinary_undo`, `ordinary_close`, `ordinary_hint`, `ordinary_draw` and
+  `ordinary_export`; a module of their own rather than a branch in each
+  linear call, since the session documents, the step's form and the
+  addressing (a side and a position) differ and nothing of the linear
+  calls' view applies. The session is `ordinary::Interactive` at wire
+  level 8; a linear session given to them is refused by its reader. The
+  step's JSON is the bindings' `StepForm` (`{"side", "position", "rule",
+  "split"}`, the rule by its exact name, which `Rule`'s serde form
+  reads), since the library's `Step` has no wire form; `split` left out
+  shares the context. `close` and `hint` take `ordinary.translation`
+  from the settings; `export` and `draw` draw with `view.structural`,
+  the view's `inferences` (`derivation_ids`) under the same setting so
+  that `i<n>` maps to the goal, and `rocq` is the finished derivation,
+  checked, always explicit. `tests/ordinary.rs` holds their tests.
+- **`about` lists the suites** (`suite`, `name`, `calls` the prefix of
+  the suite's calls, `parameters` the argument its start takes by name
+  with every value and the default, `settings` the keys that change how
+  it proves or draws). The client's registry reads it; a new suite is a
+  row there with its calls.
+
 ## The build (`modules/web.nix`)
 
 - The `wasm-bindgen` CLI is nixpkgs' `wasm-bindgen-cli_X_Y_Z` for the

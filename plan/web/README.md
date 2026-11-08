@@ -98,8 +98,8 @@ Left out of version 1, each for a later step:
 - the two-sided presentation of classical derivations (D58): a library
   feature (`plan/later.md`), its toggle greyed;
 - ordinary propositional logic (D2, D57): the tab's choice between
-  linear and ordinary is greyed; the bindings would need the JSON forms
-  the library lacks (below);
+  linear and ordinary is greyed; the bindings have its calls since
+  step 49 (below), the page takes them in 49c;
 - Learn's lessons (D56, D60) and the content of D21 beyond the examples
   list (the reasons, the prompts, the fading, the dead ends);
 - a progress display during a long search: a call answers when it
@@ -126,7 +126,7 @@ to 2³² − 1, anything else refused):
 
 | call | answers |
 |---|---|
-| `about()` | `{"linlog", "level", "stack_bytes"}`: the library's version, the highest wire level it reads |
+| `about()` | `{"linlog", "level", "stack_bytes", "suites"}`: the library's version, the highest wire level it reads, and the suites, each `{"suite", "name", "calls", "parameters": [{"name", "values", "default"}], "settings"}` (`linear` with the parameter `mode` and calls without prefix, `ordinary` with `logic` and the calls `ordinary_…`) |
 | `defaults()` | the tab's settings, for the Settings pane |
 | `read(input, settings)` | a typed sequent, a sequent's JSON (`seq json`) or a session (`save`): `{"kind": "sequent" or "session", "sequent", "text", "fragment": {"classical", "intuitionistic"}, "mode", "session"}`; a parse error carries the caret's place, a level above the module's is `unsupported_version` |
 | `start(sequent, mode, settings)` | a new session: `{"session", "view", "inverted"}`; `mode` one of `classical`, `affine`, `mix`, `affine-mix`, `intuitionistic`, `intuitionistic-affine`; with `interactive.invertible` on, every invertible rule applied first, `inverted` the steps that took |
@@ -153,6 +153,15 @@ to 2³² − 1, anything else refused):
 | `export_as(session, format, settings)` (`export` is reserved in JavaScript) | `text`, `latex`, `typst`, `svg` (the session's tree, open goals included) or `rocq` (the certificate of the finished proof) |
 | `render(svg, format, font, settings)` | `png` or `pdf` bytes of a drawing, rendered with the font's bytes the page passes; a PDF needs `styles.pdf.date` from the page's clock |
 | `certificate(document, settings)` | the Rocq certificate of non-derivability of a disproof, or of an unprovable outcome |
+| `ordinary_start(sequent, logic, settings)` | a session of LK or LJ: `{"session", "view"}`; `logic` one of `classical`, `intuitionistic`, `minimal`; the sequent typed in ordinary syntax or as the ordinary sequent's JSON; `Γ ⊢` in LJ as `Γ ⊢ ⊥` |
+| `ordinary_view(session, settings)` | `{"logic", "calculus", "complete", "steps", "goals": [{"goal", "left", "right"}], "inferences"}`: each goal's formulas as text by side, in the order of their positions; `inferences` maps a drawing's `i<n>` to its goal under `view.structural` |
+| `ordinary_rules(session, goal, side, position, settings)` | `[{"rule", "split"}]`: the rules of LK or LJ the formula takes, `side` `left` or `right`; `split` for a rule with two premises, which share the context unless a step splits it |
+| `ordinary_apply(session, goal, step, settings)` | `{"session", "view", "opened"}`, or the refusal (`code` `step`, its `kind` and reason); a step is `{"side", "position", "rule", "split": {"left", "right"}}`, the rule by its name (`→L`), `split` the positions going to the first premise, left out to share the context |
+| `ordinary_undo(session, settings)` | `{"session", "view", "reopened"}`: a step or a graft retracted whole |
+| `ordinary_close(session, goal, settings)` | `{"session", "view", "outcome", "refused"}`: the goal decided through `ordinary.translation`, its derivation grafted; `outcome` the ordinary outcome (`valid`, `not_valid`, `unknown` with its `reason`) |
+| `ordinary_hint(session, goal, settings)` | `{"outcome", "step"}`: the goal decided, the session unchanged, `step` the first step of the derivation found, as `ordinary_apply` takes it |
+| `ordinary_draw(session, settings)` | the derivation so far as SVG, open goals as bare leaves, the structural rules as `view.structural` draws them, `i<n>` on every conclusion |
+| `ordinary_export(session, format, settings)` | `text`, `latex`, `typst`, `svg` (the derivation so far) or `rocq` (the certificate of the finished derivation over `Prop`, checked first); PNG and PDF by `render` |
 
 The session's JSON itself is the session export (D16) and what the link
 carries (D20).
@@ -193,7 +202,7 @@ checked against the library on 2026-10-19:
 | the detected fragment | `read`, `view` | nothing |
 | the drawing's `Style` with the theme's colours | `styles.svg` in the settings (`text`, `line`, `par`, `link`, `highlight`, `background`) | nothing |
 | a step and a rule offered, as JSON | the bindings' own forms, `{"position", "rule", "left"}` and `{"rule", "split"}` | `Step` and `Applicable` have no wire form in the library; when one comes it is at level 1, and the bindings take it |
-| ordinary logic (D2, D57, after version 1) | none | the JSON forms of `ordinary::Outcome`, the ordinary sequent and its derivation, at level 1 |
+| ordinary logic (D2, D57, after version 1) | the `ordinary_…` calls over `ordinary::Interactive`, the forms at wire level 8 | the certificate of non-validity (`rocq::write_not_valid`) for a goal that is not valid |
 | the two-sided presentation of a classical derivation (D58) | none | a presentation pass over `Derivation` (`plan/later.md`), after step 32 |
 | the net editor (D4, after version 1) | none | the bindings' calls over `ProofStructure::link` and `unlink`; nothing in the library |
 

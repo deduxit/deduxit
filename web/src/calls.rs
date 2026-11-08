@@ -27,13 +27,40 @@ const fn never(_: Progress) -> bool {
     false
 }
 
-/// What the module is: the library's version and the highest wire level
-/// it reads and writes.
+/// What the module is: the library's version, the highest wire level it
+/// reads and writes, and the suites a tab proves in, each with its name,
+/// the prefix of its calls and its parameters: the parameter its `start`
+/// takes by name, with every value it reads and the default, and the
+/// settings that change how the suite proves or draws.
 pub fn about() -> String {
     serde_json::json!({
         "linlog": env!("CARGO_PKG_VERSION"),
         "level": wire::LEVEL,
         "stack_bytes": tab::STACK_BYTES,
+        "suites": [
+            {
+                "suite": "linear",
+                "name": "Linear",
+                "calls": "",
+                "parameters": [
+                    {"name": "mode", "values": Mode::NAMES, "default": Mode::default()},
+                ],
+                "settings": ["interactive.invertible", "view.classical", "view.compact"],
+            },
+            {
+                "suite": "ordinary",
+                "name": "Ordinary",
+                "calls": "ordinary_",
+                "parameters": [
+                    {
+                        "name": "logic",
+                        "values": linlog::ordinary::Logic::NAMES,
+                        "default": linlog::ordinary::Options::default().logic,
+                    },
+                ],
+                "settings": ["ordinary.translation", "view.structural"],
+            },
+        ],
     })
     .to_string()
 }
