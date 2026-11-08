@@ -18,7 +18,9 @@ tracking).
 
 A teacher can set, restrict and check exercises without a server: a
 Kripke model editor on the page (draw a model, evaluate formulas at its
-worlds, the modal suite's countermodels opened in it), a checker for a
+worlds by step 55's and step 65's checker of a model the user gives,
+the intuitionistic, minimal and modal suites' countermodels opened in
+it), a checker for a
 student's own tableau (a tree written by hand, checked rule by rule
 with the failing step named), and course packs: a link that fixes a set
 of problems and the allowed suites and methods, and a handed-in link a

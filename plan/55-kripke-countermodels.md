@@ -47,6 +47,22 @@ lemma of the Rocq library.
   ordinary tab's "not valid".
 - The model's size is bounded (D16); a model past the bound is reported
   as "not valid, model too large to show", never truncated silently.
+- **A model the user gives** (the author, 2026-11-08: "a way to check
+  whether one particular Kripke/fan model satisfies a certain
+  minimal/intuitionistic/modal sequent"): the same checker takes a
+  finite model as input, in the JSON form of the output kind. It says
+  whether the model satisfies the sequent at a world named or at every
+  world, and where it does not, which world fails and why (the forcing
+  of each subformula there). It first checks that the model is one of
+  the logic's: a preorder with a monotone valuation for intuitionistic
+  logic, and for minimal logic ⊥ read as an atom some worlds may force,
+  monotone too. This works in the command and in the bindings; on the
+  page the model editor of step 68 uses it. Beth models (the fans the
+  author named) are weighed here from the literature: on a finite tree
+  their forcing through bars is decidable and differs from Kripke's for
+  disjunction, so they can be a second semantics of the same checker;
+  an infinite fan needs a finite presentation and stays out unless one
+  is standard. The report says which was built and why.
 
 ## How the step runs
 

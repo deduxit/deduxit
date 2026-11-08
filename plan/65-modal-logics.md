@@ -35,6 +35,13 @@ and as a suite of the page.
   checked on the model; the check is a checker (the panel). A proof is
   given in the calculus the search uses and checked; the labelled
   calculus step by step is step 66's.
+- **A model the user gives** (the author, 2026-11-08): step 55's checker
+  takes a finite Kripke model with a system named. It says whether the
+  model satisfies a modal sequent at a world or at every world, and
+  where not, which world fails and why. It first checks the system's
+  frame conditions on the model and names the one that fails, if any.
+  The same command and bindings as step 55's; the page's model editor
+  is step 68's.
 - **This is the second non-embedded suite** (D25): its report records
   what it copied from the linear and ordinary suites, which step 67
   reads.

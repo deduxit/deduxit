@@ -4881,3 +4881,15 @@ move (D26).
     seconds, not minutes.
   - One departure: the client's critical path was read off Astro's
     output, which prints no size table.
+- 2026-11-08: the author asked for "a way to check whether one
+  particular Kripke/fan model satisfies a certain
+  minimal/intuitionistic/modal sequent", with counterexamples
+  otherwise. Placed without a step of its own, since finite model
+  checking is cheap and the roadmap already builds its pieces:
+  - step 55's countermodel checker now also takes a model the user
+    gives, checks that it is a model of the logic (intuitionistic or
+    minimal), and says where the sequent fails;
+  - step 55 weighs finite Beth models (fans) as a second semantics;
+  - step 65 does the same for the modal systems, with the frame
+    conditions checked;
+  - step 68's model editor evaluates formulas with that checker.
