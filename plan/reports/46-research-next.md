@@ -533,7 +533,7 @@ note's.
 | 45 | lambda-calculi-6: System F, checking only | R, T | 3 | inference and inhabitation undecidable | rank 23 | lambda-calculi |
 | 46 | custom-rules-4 and custom-rules-5: static analysis of rule sets, synthetic rules from axioms | R | 3+ and 2 | mostly "unknown" | rank 12 | custom-rules |
 | 47 | verification-4 and verification-5: deductive verification of the checker, refinement to the Rocq checker | R: the strongest statements | 4 to 8; more | Prusti does not fit (closures unsupported, no tagged release since 2024-02); Verus or Creusot after a spike; Aeneas's and hax's Rocq back ends are the least mature | a refactored checker core | verification |
-| 48 | logics-4, logics-5 beyond μMALL, cyclic-proofs-2, cyclic-proofs-4, cyclic-proofs-5: BV and pomset nets, cyclic LK with inductive definitions, Cyclist-style search, certificates for the trace condition | R | 4 to 8 each | research projects | | scope-logics, cyclic-proofs |
+| 48 | logics-4, logics-5 beyond μMALL, cyclic-proofs-2, cyclic-proofs-4, cyclic-proofs-5: BV and pomset nets, cyclic LK with inductive definitions, Cyclist-style search, certificates for the trace condition | R | 4 to 8 each | research projects | none now (research projects) | scope-logics, cyclic-proofs |
 | dropped | BI and separation logic as a suite (BI undecidable, LICS 2026), temporal model checking, Martin-Löf type theory, equational completion, categorical tools, a hosted service with accounts, a SAT solver as a goal, natural deduction for classical linear logic (no standard calculus found), nixpkgs for now (the author's word) | | | | | more-logics, custom-rules, resolution, natural-deduction |
 
 The remaining candidates of the notes, each placed after the list above
