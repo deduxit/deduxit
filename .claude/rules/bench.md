@@ -395,7 +395,9 @@ serde_json, which the CLI and the core's tests already have.
   swap for all of it and 6 GiB of address space per process, on a copy of
   the binary (`target/targets/LABEL/`), so that builds meanwhile do not
   touch it. About 35 minutes at the engines of the first baseline, about
-  20 after the pass (Mix at ten and eleven pairs is most of it). The
+  20 after the pass (Mix at ten and eleven pairs was most of it), and 14 s
+  at 0.2.0 (`45d`, `47`), since the Horn engine and the inverse method
+  decide the rows that took minutes. The
   streams write `LABEL.1.csv` and `LABEL.2.csv`, which a second start
   resumes, and the script joins them at the end.
 - **What compares**: the counters first. On one thread `nodes`, `splits`,
@@ -415,10 +417,11 @@ serde_json, which the CLI and the core's tests already have.
   sequent with exponentials: the rows without exponentials have the
   counters of `after`, those with them the sum over the turns of both
   searches); `bench/TARGETS.md` has the table. **The oracle now is
-  `after-efficiency.csv`** (`bench/TARGETS.md`, "Since then", says how
-  it descends from these): a later change that must not alter the search
+  `47.csv`**, the measurement of 0.2.0 (`bench/TARGETS.md`, "Since
+  then", says how it descends from these and from `after-efficiency`,
+  the oracle before it): a later change that must not alter the search
   runs the script under a label of its own and compares with it, by
-  `linlog-bench summary --against bench/targets/after-efficiency.csv
+  `linlog-bench summary --against bench/targets/47.csv
   bench/targets/LABEL.csv --counters` (the script names no `--bias`, so
   its runs take the default); trial labels `scratch-*` are ignored by
   jj. `baseline-2026-10-02`
@@ -445,21 +448,21 @@ serde_json, which the CLI and the core's tests already have.
   of which 85 are decided where `after-panels` decided 53, in 28 s of
   CPU against 197), and the 154 that kept their engine have every
   counter of their 116 decided rows equal to `after-panels`; the labels
-  after it are in `bench/TARGETS.md`, the last, `after-efficiency`, the
-  oracle.
+  after it are in `bench/TARGETS.md`, the last, `47`, the oracle.
 - **`bench/net-targets.sh LABEL`** is the net engine's set, which the
   focused engine's nearly leaves out (it forces no engine, and the
   dispatch sends one of its problems, `partition-table/1-1`, to the net
   engine): the problems of the second
   baseline's `engines` and `period-N` passes that the net engine decided
   within their minute, under the same test periods, forced onto the net
-  engine on one thread, one stream on core 2, about five minutes, into
+  engine on one thread, one stream on core 2, about five minutes when it
+  was made and 9 s at 0.2.0, into
   `bench/targets/net-LABEL.csv` (`net-LABEL.part.csv` while it runs,
   ignored by jj). What compares is `verdict`, `links` and `tests` of the
   decided rows, a function of the input on one thread; a change that
   must not alter the net search runs it and compares with the oracle,
-  `net-after-prunes.csv` (the symmetry breaks and the balance prune;
-  before them `net-after-efficiency.csv`, equal to
+  `net-47.csv` (0.2.0, equal in these columns to `net-after-prunes.csv`,
+  the symmetry breaks and the balance prune; before them `net-after-efficiency.csv`, equal to
   `net-after-retype.csv`, taken at the retype of `ProofStructure` over
   vertices). The Partition
   encodings of the problem file are copied out by exact name, since
