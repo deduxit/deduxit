@@ -1306,6 +1306,9 @@ final runs (a flake that predates the cut); a replayed classical session
 keeps no record of how it was written, so its cut shows one-sided in the
 two-sided view.
 
+- **A flaky e2e test** (50b): prover.spec's "link in the fragment restores
+  the proof" failed twice when run beside other specs and passed alone
+  and in the flake check.
 ## Follow-ups: the focused engine
 
 *Assigned (2026-10-03).* A reference prover kept in the repository,

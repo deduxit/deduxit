@@ -5240,3 +5240,18 @@ move (D26).
     reserved font names, New Computer Modern under GUST), and six
     colours, all passing the colour-vision check.
   - The author's choice is next.
+- 2026-11-08: 50b done and reviewed; step 50 is complete.
+  - What it built: the bindings' `term` and `ordinary_term` (pushed
+    earlier), and in the client the Export menu's "λ-term", which shows
+    and copies a finished proof's typing judgement, or says why there is
+    none in the page's words. The web module is +1.44 % on 49b.
+  - Checked here: the client's full flake check rerun at its head (exit
+    0).
+  - Its reviewer's finding is fixed: a stale judgement shown while the
+    term was reloading.
+  - Decided (its departure): the term is an item of the Export menu, not
+    an action in the band, because the band has no room with Learn on
+    at 1280 px; the menu already shows why an item is off.
+  - Follow-up in `later.md`: prover.spec's "link in the fragment
+    restores the proof" failed twice beside other specs and passed
+    alone.
