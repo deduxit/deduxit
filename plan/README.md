@@ -5168,3 +5168,28 @@ move (D26).
     at each node, which would repeat substituted subterms. Haskell's
     LinearTypes is not built, as it is not cheap.
   - Next: 50b, and 52 now that 50a's builds are off the machine.
+- 2026-11-08: 51a done and reviewed; the Rocq library is pushed
+  (`c63ff4db`, version 0.3.0 unreleased).
+  - What it proves: one theorem, `weighted_refutation` (and
+    `iweighted_refutation`, two-sided), certifies both refutations. The
+    one-sided count is a ±1 weight on one atom. The state equation is
+    the Horn engine's atom weights plus the atoms outside the initial
+    marking's closure, declared dead in the bodies' sign `p`. Also:
+    `affine_refutation` for coverability, and `FirstOrderWeights` for
+    `OneSidedSymbol` and the first-order counts.
+  - Not reached: proofs with cut, a count in affine mode, a first-order
+    state equation.
+  - Checked here: no `Admitted`, `Axiom` or `Parameter` in the changed
+    files; 33 `Print Assumptions` in the tests, all closed by its run.
+    The library's full check passed at its head.
+  - Its reviewer's one finding, a negative-bodied Horn program refused
+    by the test that certify accepted, is fixed at the cause: the dying
+    sign is a parameter.
+  - Decided (its departure): the state equation is proved as a weighted
+    count over every derivation, with dead atoms, not through firing
+    sequences, which would need the Horn shape on every sequent.
+    - The certificate's inputs come from the Rust refutation without a
+      search, as the planning session required.
+    - 51b writes `weighted_refutation y d p R l` (affine:
+      `affine_refutation …`, first order: `FirstOrderWeights.…`) and
+      moves `export::rocq::LINLOG` to 0.3.0 with the lock.
