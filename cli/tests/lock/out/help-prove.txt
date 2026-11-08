@@ -305,7 +305,7 @@ Options:
       --style <KEY=VALUE>
           Set an option of an output format, such as `labels=subscript`, `latex.open=bare` or `svg.font.family=monospace` (repeatable) (styles.FORMAT.KEY)
           
-          KEY is a field of the format's options, dotted into nested ones, as `--style-file` holds them; without a prefix `text.`, `latex.`, `typst.`, `svg.`, `png.`, `pdf.` or `rocq.` it names the format `--format` gives. VALUE is JSON, or else a string: `gap=5`, `ids=true`, `open={"mark":"?"}`, `labels.table.⊸L=⊸_L`. The fields: text: labels, open, bar, gap; latex: form, labels, open, align, ebproof, preamble; typst: form, labels, open, import, page, layout (auto, curryst or linlog: curryst for a tree up to nine inferences high, linlog's own code above), premise_gap, label_gap, band, stroke (lengths for linlog's own layout: a number and pt, mm, cm, in or em); svg: font (family, advances), labels, open, ids, description, font_size, label_size, line_height, premise_gap, literal_gap, label_gap, margin, stroke_width, link_height, link_cap, node_radius, text, line, par, link, highlight, background, essential, input, dominator, net (formulas: a proof net with every subformula written, or compact: only its literals and conclusions written, its inner links circles), net_look (a net's look: textbook or linlog, the default, or its fields premises: dashed or plain, the edges into a ⅋ or ? node; conclusions: raised or bottom, a ! with auxiliary doors written a row above the ? nodes or on the bottom row; why_not: node or rules, a ? node one node or the rules' dereliction, contraction and weakening nodes); png: scale, pixels; pdf: embed_text, compatible, accessible, title, language, date; rocq: form, lemma, prelude, kernel (where the command writes Rocq). `null` lifts a bound (`pixels=null`). Labels are upright, subscript, off or {"table":{RULE:LABEL}}; an open goal is dots, bare, dashed or {"mark":TEXT}
+          KEY is a field of the format's options, dotted into nested ones, as `--style-file` holds them; without a prefix `text.`, `latex.`, `typst.`, `svg.`, `png.`, `pdf.` or `rocq.` it names the format `--format` gives. VALUE is JSON, or else a string: `gap=5`, `ids=true`, `open={"mark":"?"}`, `labels.table.⊸L=⊸_L`. The fields: text: labels, open, bar, gap; latex: form, labels, open, align, ebproof, preamble, lambda (the lambda-term under the conclusion, null or {"notation","types"}, which --lambda sets); typst: form, labels, open, import, page, layout (auto, curryst or linlog: curryst for a tree up to nine inferences high, linlog's own code above), premise_gap, label_gap, band, stroke (lengths for linlog's own layout: a number and pt, mm, cm, in or em), lambda; svg: font (family, advances), labels, open, ids, description, font_size, label_size, line_height, premise_gap, literal_gap, label_gap, margin, stroke_width, link_height, link_cap, node_radius, text, line, par, link, highlight, background, essential, input, dominator, lambda, net (formulas: a proof net with every subformula written, or compact: only its literals and conclusions written, its inner links circles), net_look (a net's look: textbook or linlog, the default, or its fields premises: dashed or plain, the edges into a ⅋ or ? node; conclusions: raised or bottom, a ! with auxiliary doors written a row above the ? nodes or on the bottom row; why_not: node or rules, a ? node one node or the rules' dereliction, contraction and weakening nodes); png: scale, pixels; pdf: embed_text, compatible, accessible, title, language, date; rocq: form, lemma, prelude, kernel (where the command writes Rocq). `null` lifts a bound (`pixels=null`). Labels are upright, subscript, off or {"table":{RULE:LABEL}}; an open goal is dots, bare, dashed or {"mark":TEXT}
 
       --style-file <PATH>
           Read the options of the output formats from a JSON file: an object with a key per format (text, latex, typst, svg, png, pdf, and rocq where the command writes Rocq), each holding the fields `--style` names; a field left out keeps its default (styles)
@@ -319,6 +319,21 @@ Options:
           - garamond:            Garamond-Math 2022-01-03, matching EB Garamond
           - asana:               Asana Math 0.962, in the style of Palatino
           - new-computer-modern: New Computer Modern Math 7.1.1 (Book), the Computer Modern of TeX
+
+      --lambda
+          Print the lambda-term of the proof, an intuitionistic proof read back as a program: a proof of intuitionistic linear logic (-i, or --linear under --logic) as a term of the linear lambda calculus of Benton, Bierman, de Paiva and Hyland, the affine one under --affine, a derivation of LJ (--logic intuitionistic or minimal) as a simply typed term; as its typing judgement on a line after the derivation, under the conclusion in latex, typst, svg, png and pdf, and under the key lambda in json. A proof without one (classical, with Mix, cyclic or Lambek, with quantifiers) gets a line saying why instead
+
+      --lambda-notation <NOTATION>
+          The symbols of a lambda-term: unicode, as the calculus writes it (λx. x ⊗ y, ⟨x, y⟩), or ascii (\x. x * y, <x, y>), the types as the parser reads them (lambda.notation)
+
+          Possible values:
+          - unicode: λ, ⊗, ⟨⟩ and the other symbols of the calculus
+          - ascii:   ASCII alone
+          
+          [default: unicode]
+
+      --lambda-types
+          Write every binder of a lambda-term with its variable's type, λx:A. M, and false and abort with their goal's (lambda.types)
 
       --kernel <KERNEL>
           The Rocq kernel a certificate of linear logic is written for; by default the mode's: nanoyalla for classical linear logic, linlog for Mix, affine and intuitionistic logic and for a sequent with a quantifier (styles.rocq.kernel)
@@ -367,7 +382,7 @@ Options:
           The focused engines count stable sequents, memo use, splits and the copy bound reached, the net engine literals chosen, links tried and exact tests run, the essential-net engine the same with tests of the dominator condition, the additive one pairs of subformulas, the Horn engine markings, the inverse method the derived sequents taken up, subsumed and kept; every engine its units of work. JSON output always carries the counts; the time is printed only as text, and in a batch's JSON records as `seconds`.
 
       --settings <PATH>
-          Read the settings from a JSON file, before the flags, which override it: an object with any of the keys `clock`, `limits`, `search`, `view`, `styles`, `batch`, `ordinary` and `input`, each an object of the fields the flags name in parentheses (`{"search": {"copies": 3}, "limits": {"memory_bytes": null}}`); a field left out keeps the command's default, and a misspelt one is an error; `ordinary` applies under --logic, which names the logic, and `batch.mode` is a batch's mode unless a mode flag is given (one sequent's mode is the flags')
+          Read the settings from a JSON file, before the flags, which override it: an object with any of the keys `clock`, `limits`, `search`, `view`, `styles`, `batch`, `ordinary`, `lambda` and `input`, each an object of the fields the flags name in parentheses (`{"search": {"copies": 3}, "limits": {"memory_bytes": null}}`); a field left out keeps the command's default, and a misspelt one is an error; `ordinary` applies under --logic, which names the logic, and `batch.mode` is a batch's mode unless a mode flag is given (one sequent's mode is the flags')
 
       --files-from <LIST>
           Read the paths of the inputs from this file, one per line, or `-` for standard input, read as it streams

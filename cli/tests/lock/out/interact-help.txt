@@ -26,6 +26,8 @@ proof [--FORMAT] [FILE]
                     or --json, --latex, --typst, --svg, --png, --pdf, or --rocq for a
                     certificate (--png and --pdf need a FILE);
                     with a FILE and no format, the one its extension names, else JSON
+lambda              the finished proof's lambda-term, as its typing judgement (prove's
+                    --lambda); an open goal or a classical proof says why it has none
 save FILE           write the session as JSON
 load FILE           resume a session written by save
 help                this list

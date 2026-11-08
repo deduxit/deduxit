@@ -111,6 +111,18 @@ Options:
           
           [default: admissible]
 
+      --lambda-notation <NOTATION>
+          The symbols of a lambda-term: unicode, as the calculus writes it (λx. x ⊗ y, ⟨x, y⟩), or ascii (\x. x * y, <x, y>), the types as the parser reads them (lambda.notation)
+
+          Possible values:
+          - unicode: λ, ⊗, ⟨⟩ and the other symbols of the calculus
+          - ascii:   ASCII alone
+          
+          [default: unicode]
+
+      --lambda-types
+          Write every binder of a lambda-term with its variable's type, λx:A. M, and false and abort with their goal's (lambda.types)
+
       --bias <BIAS>
           How the focused engines pick the positive literal of every atom (search.bias)
           
@@ -235,7 +247,7 @@ Options:
       --style <KEY=VALUE>
           Set an option of an output format, such as `labels=subscript`, `latex.open=bare` or `svg.font.family=monospace` (repeatable) (styles.FORMAT.KEY)
           
-          KEY is a field of the format's options, dotted into nested ones, as `--style-file` holds them; without a prefix `text.`, `latex.`, `typst.`, `svg.`, `png.`, `pdf.` or `rocq.` it names the format `--format` gives. VALUE is JSON, or else a string: `gap=5`, `ids=true`, `open={"mark":"?"}`, `labels.table.⊸L=⊸_L`. The fields: text: labels, open, bar, gap; latex: form, labels, open, align, ebproof, preamble; typst: form, labels, open, import, page, layout (auto, curryst or linlog: curryst for a tree up to nine inferences high, linlog's own code above), premise_gap, label_gap, band, stroke (lengths for linlog's own layout: a number and pt, mm, cm, in or em); svg: font (family, advances), labels, open, ids, description, font_size, label_size, line_height, premise_gap, literal_gap, label_gap, margin, stroke_width, link_height, link_cap, node_radius, text, line, par, link, highlight, background, essential, input, dominator, net (formulas: a proof net with every subformula written, or compact: only its literals and conclusions written, its inner links circles), net_look (a net's look: textbook or linlog, the default, or its fields premises: dashed or plain, the edges into a ⅋ or ? node; conclusions: raised or bottom, a ! with auxiliary doors written a row above the ? nodes or on the bottom row; why_not: node or rules, a ? node one node or the rules' dereliction, contraction and weakening nodes); png: scale, pixels; pdf: embed_text, compatible, accessible, title, language, date; rocq: form, lemma, prelude, kernel (where the command writes Rocq). `null` lifts a bound (`pixels=null`). Labels are upright, subscript, off or {"table":{RULE:LABEL}}; an open goal is dots, bare, dashed or {"mark":TEXT}
+          KEY is a field of the format's options, dotted into nested ones, as `--style-file` holds them; without a prefix `text.`, `latex.`, `typst.`, `svg.`, `png.`, `pdf.` or `rocq.` it names the format `--format` gives. VALUE is JSON, or else a string: `gap=5`, `ids=true`, `open={"mark":"?"}`, `labels.table.⊸L=⊸_L`. The fields: text: labels, open, bar, gap; latex: form, labels, open, align, ebproof, preamble, lambda (the lambda-term under the conclusion, null or {"notation","types"}, which --lambda sets); typst: form, labels, open, import, page, layout (auto, curryst or linlog: curryst for a tree up to nine inferences high, linlog's own code above), premise_gap, label_gap, band, stroke (lengths for linlog's own layout: a number and pt, mm, cm, in or em), lambda; svg: font (family, advances), labels, open, ids, description, font_size, label_size, line_height, premise_gap, literal_gap, label_gap, margin, stroke_width, link_height, link_cap, node_radius, text, line, par, link, highlight, background, essential, input, dominator, lambda, net (formulas: a proof net with every subformula written, or compact: only its literals and conclusions written, its inner links circles), net_look (a net's look: textbook or linlog, the default, or its fields premises: dashed or plain, the edges into a ⅋ or ? node; conclusions: raised or bottom, a ! with auxiliary doors written a row above the ? nodes or on the bottom row; why_not: node or rules, a ? node one node or the rules' dereliction, contraction and weakening nodes); png: scale, pixels; pdf: embed_text, compatible, accessible, title, language, date; rocq: form, lemma, prelude, kernel (where the command writes Rocq). `null` lifts a bound (`pixels=null`). Labels are upright, subscript, off or {"table":{RULE:LABEL}}; an open goal is dots, bare, dashed or {"mark":TEXT}
 
       --style-file <PATH>
           Read the options of the output formats from a JSON file: an object with a key per format (text, latex, typst, svg, png, pdf, and rocq where the command writes Rocq), each holding the fields `--style` names; a field left out keeps its default (styles)
@@ -264,7 +276,7 @@ Options:
           The lines a standalone Rocq file starts with, before the lemma, in place of the certificate's own import (styles.rocq.prelude)
 
       --settings <PATH>
-          Read the settings from a JSON file, before the flags, which override it: an object with any of the keys `clock`, `limits`, `search`, `view`, `styles`, `batch`, `ordinary`, `interactive` and `input`, each an object of the fields the flags name in parentheses (`{"search": {"copies": 3}, "limits": {"memory_bytes": null}}`); a field left out keeps the command's default, and a misspelt one is an error; `ordinary` applies under --logic, which names the logic
+          Read the settings from a JSON file, before the flags, which override it: an object with any of the keys `clock`, `limits`, `search`, `view`, `styles`, `batch`, `ordinary`, `interactive`, `lambda` and `input`, each an object of the fields the flags name in parentheses (`{"search": {"copies": 3}, "limits": {"memory_bytes": null}}`); a field left out keeps the command's default, and a misspelt one is an error; `ordinary` applies under --logic, which names the logic
 
   -h, --help
           Print help (see a summary with '-h')
