@@ -29,7 +29,8 @@
 //! | `ProofStructure::from_proof`, `ProofStructure::sequentialize` | `memory_bytes` | at every node, at every stage |
 //! | `ordinary::Image::read_back`, `ordinary::Derivation::check` | `derivation_bytes`, `memory_bytes`; `work` inferences checked | at every inference |
 //! | `ordinary::decide` | all of the above it runs | as each step |
-//! | `ordinary::Interactive::within`, `ordinary::Interactive::apply` | `occurrences` at the start; a step's inferences are checked as made | never: linear in the goal |
+//! | `ordinary::Interactive::within` | `occurrences` | never: linear in the bound |
+//! | `ordinary::Interactive::apply` | `derivation_bytes` of the start, for the run of structural rules an axiom or a shared rule makes, by an estimate before it is made | never: within the bound |
 //! | `ordinary::Interactive::close`, `hint` | as `ordinary::decide`; `derivation_bytes` for the graft | as `ordinary::decide` |
 //! | `ordinary::Interactive::derivation_within`, `finished` | `derivation_bytes` by an estimate before anything is built; `work` for the check | before building, then as the check |
 //! | `export::{latex, typst, svg, rocq}::write`, `Derivation::write_text`, `write_steps` | the derivation's, when it was made | at every inference written |

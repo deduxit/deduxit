@@ -231,7 +231,12 @@ factored out of the two until the kernel crate is.
   goal, for both views.
 - **Bounds**: `within` and every reader refuse a sequent past
   `limits.occurrences` (subformula occurrences, saturating), the readers
-  also an arena longer than it; `derivation_within` and the graft refuse
+  also an arena longer than it; an axiom's weakenings and a shared
+  rule's contractions hold the square of the goal's size, so `apply`
+  refuses such a run past the `derivation_bytes` the state was started
+  or read under (`limit`, not serialized; `run_within`'s upper estimate,
+  `StepError::Size`) before it is made (the second review measured 2 000
+  hypotheses at 6 million ids, unbounded before); `derivation_within` and the graft refuse
   past `derivation_bytes` by `estimate` (the size estimate's constants,
   per formula its characters with brackets and two for its separator)
   before anything is built; the stop is asked by `derivation_within`,

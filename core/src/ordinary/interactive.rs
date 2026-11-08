@@ -102,6 +102,16 @@ pub enum StepError {
         /// The rule asked for.
         rule: Rule,
     },
+    /// The run of weakenings below an axiom, or of contractions below a
+    /// shared rule, would be estimated past the derivation's bound in
+    /// bytes the state was started under.
+    #[non_exhaustive]
+    Size {
+        /// The estimate of the run, in bytes.
+        estimate_bytes: u64,
+        /// The bound, `Limits::derivation_bytes`.
+        limit_bytes: u64,
+    },
 }
 
 /// Returns `left of ⊢` or `right of ⊢`.
@@ -193,6 +203,14 @@ impl Display for StepError {
                 "position {position} {} of the split is out of range, repeated, or the formula \
                  the rule acts on",
                 of(*side)
+            ),
+            StepError::Size {
+                estimate_bytes,
+                limit_bytes,
+            } => write!(
+                f,
+                "the step's structural rules would be estimated at {estimate_bytes} bytes, past \
+                 the bound of {limit_bytes} bytes the proof was started under"
             ),
             StepError::NoSplit { rule } => {
                 write!(
@@ -406,6 +424,9 @@ pub struct Interactive {
     inferences: Vec<Inference>,
     /// The goals closed so far, in order, for undo.
     history: Vec<InfId>,
+    /// The bound on the bytes of a step's run of structural rules, the
+    /// `derivation_bytes` the state was started or read under.
+    limit: Option<u64>,
 }
 
 /// Returns an open goal with the sides given.
@@ -458,6 +479,7 @@ impl Interactive {
             falsity,
             inferences: vec![open(sequent.left.clone(), right)],
             history: Vec::new(),
+            limit: limits.derivation_bytes,
         })
     }
 
@@ -698,6 +720,9 @@ impl Interactive {
                 .iter()
                 .position(|&y| y == x)
                 .ok_or(StepError::NoPartner { side, position })?;
+            // A weakening per formula, each with the sequent left.
+            let len = goal.left.len() + goal.right.len();
+            self.run_within(len, len)?;
             axiom(goal, side, position, partner)
         } else {
             let shape = self.shape(rule, side, position, x)?;
@@ -714,6 +739,9 @@ impl Interactive {
                 && side == Side::Left
                 && !first.1.is_empty()
             {
+                // A contraction per hypothesis, each sequent longer by one.
+                let len = 2 * goal.left.len() + goal.right.len() + first.1.len();
+                self.run_within(goal.left.len() + 2, len)?;
                 return Ok(self.checked(contracted(goal, position, rule, first, second)));
             }
             let premises = match &shape {
@@ -755,6 +783,28 @@ impl Interactive {
             made
         };
         Ok(self.checked(made))
+    }
+
+    /// Fails unless a run of `inferences` inferences whose sequents have
+    /// at most `len` formulas each is within the state's bound, by the size
+    /// estimate's measure with every formula three characters at least
+    /// (one and two for its separator): what an axiom's weakenings and a
+    /// shared rule's contractions hold grows with the square of the goal.
+    fn run_within(&self, inferences: usize, len: usize) -> Result<(), StepError> {
+        let (inferences, len) = (inferences as u64, len as u64);
+        let bytes = inferences.saturating_mul(
+            Size::BYTES_PER_INFERENCE.saturating_add(
+                len.saturating_mul(3)
+                    .saturating_mul(Size::BYTES_PER_CHARACTER),
+            ),
+        );
+        match self.limit {
+            Some(limit) if bytes > limit => Err(StepError::Size {
+                estimate_bytes: bytes,
+                limit_bytes: limit,
+            }),
+            _ => Ok(()),
+        }
     }
 
     /// Returns the inferences a step made, each checked by the checker's
@@ -1584,6 +1634,7 @@ impl Interactive {
             falsity,
             inferences,
             history,
+            limit: limits.derivation_bytes,
         })
     }
 }
@@ -2091,6 +2142,30 @@ mod tests {
             s.finished(&Limits::default(), |_| false),
             Err(Error::OpenGoals { count: 1 })
         ));
+        // A shared →L over 200 hypotheses makes 199 contractions of about
+        // 400 formulas each: past a bound of a megabyte, refused before
+        // anything is made.
+        let hypotheses: Vec<String> = (0..200).map(|i| format!("p{i}")).collect();
+        let text = format!("a -> b, {}, a |- b", hypotheses.join(", "));
+        let sequent: Sequent = text.parse().unwrap();
+        let small = Limits::default().with_derivation_bytes(Some(1 << 20));
+        let mut s = Interactive::within(&sequent, Logic::Intuitionistic, &small).unwrap();
+        let g = s.goals().next().unwrap();
+        let refused = s.apply(g, &Step::new(Left, 0, Rule::ImpliesLeft));
+        assert!(matches!(
+            refused,
+            Err(StepError::Size {
+                limit_bytes: 1_048_576,
+                ..
+            })
+        ));
+        assert_eq!(s.steps(), 0);
+        let mut s = Interactive::new(&sequent, Logic::Intuitionistic).unwrap();
+        assert_eq!(
+            s.apply(g, &Step::new(Left, 0, Rule::ImpliesLeft))
+                .map(|g| g.len()),
+            Ok(2)
+        );
     }
 
     /// On generated sequents in every logic, random steps with random
