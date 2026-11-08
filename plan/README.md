@@ -5129,3 +5129,20 @@ move (D26).
   - Left open: graft marks through a link, the tour's Escape race, the
     examples in the problems check (step 63), `ordinary_retract` (step
     63), a Settings row for `ordinary.translation`.
+- 2026-11-08: a name question for the author, from 53m's trademark
+  diligence, confirmed here in the USPTO's TSDR (serial 99746800):
+  SEQUENT, standard characters, Provable Systems, Inc. (Delaware), filed
+  2026-04-06, live and under examination (response to a non-final
+  office action entered 2026-10-02), classes 9 and 42, "downloadable
+  virtual assistant software using artificial intelligence (AI) for
+  performing formal verification of software" and the same as SaaS.
+  - The same field as the collection, and "sequentium" contains
+    "sequent".
+  - The USPTO has no hit for "sequentium" or "sequentum". EUIPO, WIPO
+    and Swissreg could not be queried from here; 53m's report gives the
+    hand searches.
+  - Not decided here, since the name is the author's: keep it (perhaps
+    after the EU and Swiss searches), rename while it is cheap (before
+    0.3.0 and the opam submission), or ask a lawyer.
+  - The mark's design goes on regardless, since its shortlist works for
+    any name.
