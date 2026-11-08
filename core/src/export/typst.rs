@@ -256,6 +256,14 @@ pub struct Options {
     pub band: Length,
     /// The thickness of an inference line in linlog's own layout.
     pub stroke: Length,
+    /// Whether the derivation's lambda-term is written under its
+    /// conclusion, as its typing judgement ([`lambda`](crate::lambda)),
+    /// with these options, their notation being the target's own; `None`
+    /// by default. A derivation without a term is refused
+    /// ([`Error::NoTerm`]), and a term whose text would pass the default
+    /// output bound ([`Limits::DEFAULT_DERIVATION_BYTES`](crate::Limits::DEFAULT_DERIVATION_BYTES))
+    /// is refused before anything is written.
+    pub lambda: Option<crate::lambda::Options>,
 }
 
 impl Default for Options {
@@ -275,6 +283,7 @@ impl Default for Options {
             label_gap: Length("0.2em".into()),
             band: Length("0.8em".into()),
             stroke: Length("0.05em".into()),
+            lambda: None,
         }
     }
 }
@@ -468,19 +477,29 @@ pub fn write<'a>(
     out: &mut impl Write,
     stop: impl FnMut(crate::limits::Progress) -> bool,
 ) -> Result<(), Error> {
+    let mut stop = stop;
+    let drawable = derivation.into();
+    let judgement = super::judgement(
+        drawable,
+        options.lambda.as_ref(),
+        &crate::lambda::print::TYPST,
+        &mut stop,
+    )?;
+    let judgement = judgement.as_deref();
     let stop = crate::limits::counting(stop, crate::limits::Phase::Write);
-    match derivation.into() {
-        Drawable::Linear(derivation) => tree(derivation, options, out, stop),
-        Drawable::Ordinary(derivation) => tree(derivation, options, out, stop),
-        Drawable::Classical(view) => tree(view, options, out, stop),
+    match drawable {
+        Drawable::Linear(derivation) => tree(derivation, options, judgement, out, stop),
+        Drawable::Ordinary(derivation) => tree(derivation, options, judgement, out, stop),
+        Drawable::Classical(view) => tree(view, options, judgement, out, stop),
     }
 }
 
 /// Writes any derivation as [`write()`] does, in the layout the options
-/// choose.
+/// choose, and under its conclusion the judgement given.
 fn tree<T: Drawn>(
     derivation: &T,
     options: &Options,
+    judgement: Option<&str>,
     out: &mut impl Write,
     stop: impl FnMut() -> bool,
 ) -> Result<(), Error> {
@@ -490,9 +509,9 @@ fn tree<T: Drawn>(
         Layout::Auto => height(derivation) > CURRYST_HEIGHT,
     };
     if own {
-        laid_out(derivation, options, out, stop)
+        laid_out(derivation, options, judgement, out, stop)
     } else {
-        curryst(derivation, options, out, stop)
+        curryst(derivation, options, judgement, out, stop)
     }
 }
 
@@ -630,15 +649,22 @@ const LAYOUT: &str = r#"  let n = nodes.len()
 "#;
 
 /// Writes a derivation in linlog's own layout into `out`, one inference
-/// at a time, and asks `stop` after each.
+/// at a time, and asks `stop` after each; with a judgement, the tree and
+/// the judgement under it in a stack.
 fn laid_out<T: Drawn>(
     derivation: &T,
     options: &Options,
+    judgement: Option<&str>,
     out: &mut impl Write,
     mut stop: impl FnMut() -> bool,
 ) -> Result<(), Error> {
     if options.form == Form::Standalone {
         write!(out, "{}\n\n", options.page.trim_end())?;
+    }
+    if judgement.is_some() {
+        out.write_str(STACK)?;
+    } else {
+        out.write_char('#')?;
     }
     let open = match options.open {
         OpenGoal::Dots => "dots",
@@ -647,7 +673,7 @@ fn laid_out<T: Drawn>(
     };
     write!(
         out,
-        "#context {{\n  let open = \"{open}\"\n  let gap = ({}).to-absolute()\n  \
+        "context {{\n  let open = \"{open}\"\n  let gap = ({}).to-absolute()\n  \
          let name-gap = ({}).to-absolute()\n  let band = ({}).to-absolute()\n  \
          let stroke = {}\n  let dots = $dots.v$\n  let nodes = (\n",
         options.premise_gap, options.label_gap, options.band, options.stroke
@@ -679,14 +705,28 @@ fn laid_out<T: Drawn>(
     })?;
     out.write_str("  )\n")?;
     out.write_str(LAYOUT.trim_end())?;
+    under(out, judgement)
+}
+
+/// What opens the stack of a tree and the judgement under it.
+const STACK: &str = "#stack(spacing: 0.8em, align(center, ";
+
+/// Closes the stack [`STACK`] opened with the judgement given under the
+/// tree, if there is one.
+fn under(out: &mut impl Write, judgement: Option<&str>) -> Result<(), Error> {
+    if let Some(judgement) = judgement {
+        write!(out, "), align(center, ${judgement}$))")?;
+    }
     Ok(())
 }
 
 /// Writes a derivation as a curryst tree into `out`, one inference at a
-/// time, and asks `stop` after each.
+/// time, and asks `stop` after each; with a judgement, the tree and the
+/// judgement under it in a stack.
 fn curryst<T: Drawn>(
     derivation: &T,
     options: &Options,
+    judgement: Option<&str>,
     out: &mut impl Write,
     mut stop: impl FnMut() -> bool,
 ) -> Result<(), Error> {
@@ -698,7 +738,8 @@ fn curryst<T: Drawn>(
             options.page.trim_end()
         )?;
     }
-    out.write_str("#prooftree(\n")?;
+    out.write_str(if judgement.is_some() { STACK } else { "#" })?;
+    out.write_str("prooftree(\n")?;
     let indent = |out: &mut String, depth: usize| {
         for _ in 0..depth {
             out.push_str("  ");
@@ -785,7 +826,7 @@ fn curryst<T: Drawn>(
         flush(out, &mut buffer, &mut stop)
     })?;
     out.write_char(')')?;
-    Ok(())
+    under(out, judgement)
 }
 
 #[cfg(test)]

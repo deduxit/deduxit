@@ -137,6 +137,7 @@ impl Serialize for Details<'_> {
             NotSvg { message } | RenderFailed { message } => entries!(s; "message" => message),
             Rejected(e) | Reduction(e) => e.serialize(s),
             NoCut { node } => entries!(s; "node" => node),
+            NoTerm { reason } => entries!(s; "reason" => reason),
             ReadBack { calculus, reason } => {
                 entries!(s; "calculus" => calculus; "reason" => reason)
             }

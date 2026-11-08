@@ -813,6 +813,22 @@ for NanoYalla. What the code relies on:
   input; the kernel needs Rocq 9 with `rocq-stdlib` (its `From Coq
   Require Import Lia`, deprecated but accepted) and nothing of Yalla.
 
+- **The lambda-term under the conclusion** (`lambda: Option<lambda::Options>`
+  on `latex::Options`, `typst::Options` and `svg::Style`, `None` by
+  default; `core-lambda.md`): `export::judgement` reads the drawable's
+  term back and writes its typing judgement in the target's `Spelling`
+  before anything of the tree is written, so a refusal (`Error::NoTerm`
+  for a classical drawable, the term's output bound) leaves the output
+  empty. LaTeX writes it as `\infer[no rule]1{…}` under the root, which
+  ebproof centres (a statement without `&` is one box); Typst wraps the
+  tree, curryst's or the own layout's (`#` left off its call), in
+  `#stack(spacing: 0.8em, align(center, …), align(center, $…$))`; SVG
+  adds a row a line height under the root, centred under the
+  conclusion, the tree moved right where the row reaches past it, with
+  the id `term`. The snapshots `term*`, which the `export` check
+  compiles, pin all three with binders typed. Typst's keywords are
+  strings (`"let"`), its spaces `space`, which its math mode reads.
+
 ## Quantifier rules (step 42b)
 
 - `Rule::Forall` and `Rule::Exists` follow `Cut` in `Rule::ALL` (the

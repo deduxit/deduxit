@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="1237.472" height="230.592" viewBox="0 0 77342 14412" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
+<title>1 ⊗ !(a ⊸ b), a ⊕ c ⊢ (b ⊕ c) &amp; ⊤</title>
+<desc>1. a ⊢ a, by ax.
+2. b ⊢ b, by ax.
+3. a ⊸ b, a ⊢ b, by ⊸L from 1 and 2.
+4. !(a ⊸ b), a ⊢ b, by !L from 3.
+5. !(a ⊸ b), a ⊢ b ⊕ c, by ⊕R₁ from 4.
+6. !(a ⊸ b), a ⊢ ⊤, by ⊤R.
+7. !(a ⊸ b), a ⊢ (b ⊕ c) &amp; ⊤, by &amp;R from 5 and 6.
+8. c ⊢ c, by ax.
+9. c ⊢ b ⊕ c, by ⊕R₂ from 8.
+10. c ⊢ ⊤, by ⊤R.
+11. c ⊢ (b ⊕ c) &amp; ⊤, by &amp;R from 9 and 10.
+12. !(a ⊸ b), c ⊢ (b ⊕ c) &amp; ⊤, by !w from 11.
+13. !(a ⊸ b), a ⊕ c ⊢ (b ⊕ c) &amp; ⊤, by ⊕L from 7 and 12.
+14. 1, !(a ⊸ b), a ⊕ c ⊢ (b ⊕ c) &amp; ⊤, by 1L from 13.
+15. 1 ⊗ !(a ⊸ b), a ⊕ c ⊢ (b ⊕ c) &amp; ⊤, by ⊗L from 14.</desc>
+<g fill="none" stroke="black" stroke-width="40">
+<path d="M30971 11312H46372"/>
+<path d="M31333 9812H46010"/>
+<path d="M23704 8312H53638"/>
+<path d="M20030 6812H39127"/>
+<path d="M20030 5312H28845"/>
+<path d="M20940 3812H27935"/>
+<path d="M20572 2312H28302"/>
+<path d="M20572 812H23154"/>
+<path d="M25762 812H28302"/>
+<path d="M31846 5312H39127"/>
+<path d="M42013 6812H53638"/>
+<path d="M42834 5312H52817"/>
+<path d="M42834 3812H47092"/>
+<path d="M43795 2312H46131"/>
+<path d="M50093 3812H52817"/>
+</g>
+<text x="30971" y="12402" textLength="15401" lengthAdjust="spacing" id="i14">1 ⊗ !(𝑎 ⊸ 𝑏), 𝑎 ⊕ 𝑐 ⊢ (𝑏 ⊕ 𝑐) &amp; ⊤</text>
+<text x="46572" y="11512" textLength="981" lengthAdjust="spacing" font-size="800">⊗L</text>
+<text x="31333" y="10902" textLength="14677" lengthAdjust="spacing" id="i13">1, !(𝑎 ⊸ 𝑏), 𝑎 ⊕ 𝑐 ⊢ (𝑏 ⊕ 𝑐) &amp; ⊤</text>
+<text x="46210" y="10012" textLength="846" lengthAdjust="spacing" font-size="800">1L</text>
+<text x="31887" y="9402" textLength="13568" lengthAdjust="spacing" id="i12">!(𝑎 ⊸ 𝑏), 𝑎 ⊕ 𝑐 ⊢ (𝑏 ⊕ 𝑐) &amp; ⊤</text>
+<text x="53838" y="8512" textLength="981" lengthAdjust="spacing" font-size="800">⊕L</text>
+<text x="23704" y="7902" textLength="11748" lengthAdjust="spacing" id="i6">!(𝑎 ⊸ 𝑏), 𝑎 ⊢ (𝑏 ⊕ 𝑐) &amp; ⊤</text>
+<text x="39327" y="7012" textLength="1076" lengthAdjust="spacing" font-size="800">&amp;R</text>
+<text x="20030" y="6402" textLength="8815" lengthAdjust="spacing" id="i4">!(𝑎 ⊸ 𝑏), 𝑎 ⊢ 𝑏 ⊕ 𝑐</text>
+<g font-size="800">
+<text x="29045" y="5512" textLength="1021" lengthAdjust="spacing">⊕R</text>
+<text x="30066" y="5632" textLength="280" lengthAdjust="spacing" font-size="560">1</text>
+</g>
+<text x="20940" y="4902" textLength="6995" lengthAdjust="spacing" id="i3">!(𝑎 ⊸ 𝑏), 𝑎 ⊢ 𝑏</text>
+<text x="28135" y="4012" textLength="683" lengthAdjust="spacing" font-size="800">!L</text>
+<text x="21415" y="3402" textLength="6044" lengthAdjust="spacing" id="i2">𝑎 ⊸ 𝑏, 𝑎 ⊢ 𝑏</text>
+<text x="28502" y="2512" textLength="1255" lengthAdjust="spacing" font-size="800">⊸L</text>
+<text x="20572" y="1902" textLength="2582" lengthAdjust="spacing" id="i0">𝑎 ⊢ 𝑎</text>
+<text x="23354" y="1012" textLength="908" lengthAdjust="spacing" font-size="800">ax</text>
+<text x="25762" y="1902" textLength="2540" lengthAdjust="spacing" id="i1">𝑏 ⊢ 𝑏</text>
+<text x="28502" y="1012" textLength="908" lengthAdjust="spacing" font-size="800">ax</text>
+<text x="31846" y="6402" textLength="7281" lengthAdjust="spacing" id="i5">!(𝑎 ⊸ 𝑏), 𝑎 ⊢ ⊤</text>
+<text x="39327" y="5512" textLength="1186" lengthAdjust="spacing" font-size="800">⊤R</text>
+<text x="42013" y="7902" textLength="11625" lengthAdjust="spacing" id="i11">!(𝑎 ⊸ 𝑏), 𝑐 ⊢ (𝑏 ⊕ 𝑐) &amp; ⊤</text>
+<text x="53838" y="7012" textLength="885" lengthAdjust="spacing" font-size="800">!w</text>
+<text x="44230" y="6402" textLength="7191" lengthAdjust="spacing" id="i10">𝑐 ⊢ (𝑏 ⊕ 𝑐) &amp; ⊤</text>
+<text x="53017" y="5512" textLength="1076" lengthAdjust="spacing" font-size="800">&amp;R</text>
+<text x="42834" y="4902" textLength="4258" lengthAdjust="spacing" id="i8">𝑐 ⊢ 𝑏 ⊕ 𝑐</text>
+<g font-size="800">
+<text x="47292" y="4012" textLength="1021" lengthAdjust="spacing">⊕R</text>
+<text x="48313" y="4132" textLength="280" lengthAdjust="spacing" font-size="560">2</text>
+</g>
+<text x="43795" y="3402" textLength="2336" lengthAdjust="spacing" id="i7">𝑐 ⊢ 𝑐</text>
+<text x="46331" y="2512" textLength="908" lengthAdjust="spacing" font-size="800">ax</text>
+<text x="50093" y="4902" textLength="2724" lengthAdjust="spacing" id="i9">𝑐 ⊢ ⊤</text>
+<text x="53017" y="4012" textLength="1186" lengthAdjust="spacing" font-size="800">⊤R</text>
+<text x="300" y="13902" textLength="76742" lengthAdjust="spacing" id="term">x : 1 ⊗ !(𝑎 ⊸ 𝑏), y : 𝑎 ⊕ 𝑐 ⊢ let x be z ⊗ u in let z be ∗ in case y of inl(v) → ⟨inl(derelict(u) v), true(u, v)⟩ ‖ inr(w) → discard u in ⟨inr(w), true(w)⟩ : (𝑏 ⊕ 𝑐) &amp; ⊤</text>
+</svg>

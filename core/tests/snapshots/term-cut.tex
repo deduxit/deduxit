@@ -1,0 +1,19 @@
+\documentclass[border=5pt]{standalone}
+\usepackage{amssymb}
+\usepackage{cmll}
+\usepackage{ebproof}
+\begin{document}
+\begin{prooftree}
+\infer0[$\mathrm{ax}$]{a &\vdash a}
+\infer1[$\oc\mathrm{L}$]{\oc a &\vdash a}
+\infer1[$\oc\mathrm{R}$]{\oc a &\vdash \oc a}
+\infer0[$\mathrm{ax}$]{a &\vdash a}
+\infer0[$\mathrm{ax}$]{a &\vdash a}
+\infer2[$\otimes\mathrm{R}$]{a, a &\vdash a \otimes a}
+\infer1[$\oc\mathrm{L}$]{\oc a, a &\vdash a \otimes a}
+\infer1[$\oc\mathrm{L}$]{\oc a, \oc a &\vdash a \otimes a}
+\infer1[$\oc\mathrm{c}$]{\oc a &\vdash a \otimes a}
+\infer2[$\mathrm{cut}$]{\oc a &\vdash a \otimes a}
+\infer[no rule]1{x : \oc a \vdash (\lambda y{:}\oc a.\,\mathsf{copy}\ y\ \mathsf{as}\ u, v\ \mathsf{in}\ \mathsf{derelict}(v) \otimes \mathsf{derelict}(u))\ (\mathsf{promote}\ x\ \mathsf{for}\ z\ \mathsf{in}\ \mathsf{derelict}(z)) : a \otimes a}
+\end{prooftree}
+\end{document}

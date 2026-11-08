@@ -28,6 +28,7 @@ it; only what holds for the whole crate goes here.
 | `core-export.md` | `export/`, `proofs/style.rs`, the export test and snapshots | the options values, the one signature, rule labels, notations, the packages' limits, Typst's own layout, fonts, SVG, PNG, PDF, Rocq |
 | `core-batch.md` | `search/batch.rs` | many sequents in one call: the order of results, the workers and the stream, how the batch's memory bound is shared |
 | `core-inputs.md` | `lltp.rs`, `mist.rs`, `families.rs` | the LLTP reader, the `.spec` reader of coverability problems and the generated families |
+| `core-lambda.md` | `lambda/` | proofs read back as lambda-terms: the calculus and its source, the term's data, matching premises by member, the structural rules, the DAG and the printer's bound, the refusals, the tests' own type checker |
 | `core-ordinary.md` | `ordinary/` | ordinary logic: its syntax and TPTP reader, the translations as one pattern table, the read-back to LK and LJ, its checker, the certificate over `Prop`, the goal state of LK and LJ |
 
 ## Layout
@@ -56,6 +57,8 @@ the criterion's front door in `mod.rs`, the graph and the Yeo test in
 walk over a derivation in `notation`, and `latex`, `typst`, `svg` with
 `font`, `tree` and `net`, `png`, `pdf` and `rocq` behind the features
 of those names),
+`lambda` (the term's data in `mod.rs`, the read-backs `linear` and
+`simple`, the printer `print`),
 `ordinary` (the arena and syntax in `mod.rs`, `parse` behind the
 feature of that name, `translate`, `derivation` with the read-back and
 its checker, `rocq` behind that feature, `interactive` behind that
@@ -104,7 +107,11 @@ Each entry point is described in the file of its module:
   LJ, `Derivation::check(&limits, stop)`, `ordinary::decide` all of it
   in one call, `export::rocq::ordinary`, and the goal state
   `ordinary::Interactive` (`within`, `rules`, `apply`, `undo`, `close`,
-  `hint`, `derivation_within`, `finished`) (`core-ordinary.md`).
+  `hint`, `derivation_within`, `finished`) (`core-ordinary.md`);
+- `lambda`: `Derivation::term(&limits, stop)` and
+  `ordinary::Derivation::term` to a `lambda::Term`,
+  `Term::write`/`write_judgement` under `lambda::Options`, and
+  `Error::NoTerm` with a `lambda::NoTerm` (`core-lambda.md`).
 
 ## Crate-wide rules
 
@@ -258,7 +265,8 @@ the commit that lands it rewrites that bullet.
   `Rule`, `Verdict`, `Branch`, `Sign`, `Polarity`, `Side`, `Division`
   (the Lambek calculus's two, added at step 35), `sequents::fo::FoTerm`
   (a first-order term, added at step 42),
-  `ordinary::{Node, Rule, Side}`, and `sequents::Visit`, whose enter,
+  `ordinary::{Node, Rule, Side}`, `lambda::{Node, Type}` (a term's
+  nodes and types, added at step 50), and `sequents::Visit`, whose enter,
   between and exit describe a walk over any tree); every other public enum, every
   options value and every struct with public fields that a later step
   extends is `#[non_exhaustive]`, and so is every struct-like variant of
@@ -278,7 +286,7 @@ the commit that lands it rewrites that bullet.
   its type and would change with a new value.
 - **The marked ones at 0.2.0** (every public enum and every struct with
   a public field, 119, each `#[non_exhaustive]`; 81 at 0.1.0; the closed
-  are the fifteen above, thirteen at 0.1.0; both lists checked against
+  are the seventeen above, fifteen at 0.2.0 and thirteen at 0.1.0; both lists checked against
   the rustdoc JSON with every feature by a script, see "The break against
   the last release" below): `Bias`, `CheckError`, `Clock`, `Counter`,
   `Criterion`, `Engine`, `Error`, `ErrorKind`, `IllSyntax`,
@@ -294,7 +302,8 @@ the commit that lands it rewrites that bullet.
   Options}`; `families::{Family, Instance}`; `limits::{Bound, Space}`;
   `lltp::{Problem, Status}`; `mist::{Problem, Safety}`;
   `nets::cut::{Elimination, Reduction, Step}`;
-  `occurrences::IllConnective`; `ordinary::{Logic, Options, Outcome,
+  `occurrences::IllConnective`; `lambda::{Calculus, Notation, NoTerm,
+  Options}` (added at step 50); `ordinary::{Logic, Options, Outcome,
   Problem, Target, Translation, Verdict}`; `proofs::{ClassicalRule,
   ClassicalSides, Compact, Dyadic, Fault, Invalid, Labels, OpenGoal,
   Refused, Sides, TextOptions}`;

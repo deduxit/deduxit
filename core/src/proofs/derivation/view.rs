@@ -333,10 +333,6 @@ pub struct Derivation<'a> {
     /// sequent.
     of_goal: bool,
     /// The mode the proof is meant for, where it records one.
-    #[cfg_attr(
-        not(feature = "rocq"),
-        expect(dead_code, reason = "only a certificate asks")
-    )]
     mode: Option<Mode>,
     /// The instances of the proof's members past the forest, where it
     /// has them.
@@ -469,9 +465,28 @@ impl<'a> Derivation<'a> {
     }
 
     /// Returns the mode the proof is meant for, where it records one.
-    #[cfg(feature = "rocq")]
     pub(crate) const fn mode(&self) -> Option<Mode> {
         self.mode
+    }
+
+    /// Reads the derivation back as a term of the linear lambda calculus
+    /// ([`lambda`](crate::lambda)), or of the affine one where it weakens
+    /// a formula of no `!`, asking `stop` once per inference: a two-sided
+    /// derivation of intuitionistic linear logic, compact or not, built
+    /// within `limits`.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::NoTerm`] for a derivation that has no term: one-sided (of
+    /// classical linear logic), with Mix, of the cyclic or the Lambek
+    /// calculus, with quantifiers, or with open goals;
+    /// [`Refusal::Stopped`](crate::Refusal::Stopped) when `stop` fired.
+    pub fn term(
+        &self,
+        limits: &Limits,
+        stop: impl FnMut(Progress) -> bool,
+    ) -> Result<crate::lambda::Term, Error> {
+        crate::lambda::linear::read(self, limits, stop)
     }
 
     /// Unfolds a proof whose root concludes `goal` rather than the roots,

@@ -399,6 +399,11 @@ pub struct Formulas {
 }
 
 impl Formulas {
+    /// Returns the id of a node the arena holds, if it holds it.
+    pub(crate) fn find(&self, node: Node) -> Option<NodeId> {
+        self.ids.get(&node).copied()
+    }
+
     /// The most nodes an arena holds: the ids are `u32`.
     pub const MOST: usize = u32::MAX as usize;
 

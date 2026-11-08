@@ -1,0 +1,24 @@
+\documentclass[border=5pt]{standalone}
+\usepackage{amssymb}
+\usepackage{cmll}
+\usepackage{ebproof}
+\begin{document}
+\begin{prooftree}
+\infer0[$\mathrm{ax}$]{a &\vdash a}
+\infer0[$\mathrm{ax}$]{b &\vdash b}
+\infer2[$\multimap\mathrm{L}$]{a \multimap b, a &\vdash b}
+\infer1[$\oc\mathrm{L}$]{\oc (a \multimap b), a &\vdash b}
+\infer1[$\oplus\mathrm{R}_1$]{\oc (a \multimap b), a &\vdash b \oplus c}
+\infer0[$\top\mathrm{R}$]{\oc (a \multimap b), a &\vdash \top}
+\infer2[$\with\mathrm{R}$]{\oc (a \multimap b), a &\vdash (b \oplus c) \with \top}
+\infer0[$\mathrm{ax}$]{c &\vdash c}
+\infer1[$\oplus\mathrm{R}_2$]{c &\vdash b \oplus c}
+\infer0[$\top\mathrm{R}$]{c &\vdash \top}
+\infer2[$\with\mathrm{R}$]{c &\vdash (b \oplus c) \with \top}
+\infer1[$\oc\mathrm{w}$]{\oc (a \multimap b), c &\vdash (b \oplus c) \with \top}
+\infer2[$\oplus\mathrm{L}$]{\oc (a \multimap b), a \oplus c &\vdash (b \oplus c) \with \top}
+\infer1[$\mathbf{1}\mathrm{L}$]{\mathbf{1}, \oc (a \multimap b), a \oplus c &\vdash (b \oplus c) \with \top}
+\infer1[$\otimes\mathrm{L}$]{\mathbf{1} \otimes \oc (a \multimap b), a \oplus c &\vdash (b \oplus c) \with \top}
+\infer[no rule]1{x : \mathbf{1} \otimes \oc (a \multimap b), y : a \oplus c \vdash \mathsf{let}\ x\ \mathsf{be}\ z \otimes u\ \mathsf{in}\ \mathsf{let}\ z\ \mathsf{be}\ \ast\ \mathsf{in}\ \mathsf{case}\ y\ \mathsf{of}\ \mathsf{inl}(v) \to \langle \mathsf{inl}(\mathsf{derelict}(u)\ v), \mathsf{true}(u, v)\rangle \parallel \mathsf{inr}(w) \to \mathsf{discard}\ u\ \mathsf{in}\ \langle \mathsf{inr}(w), \mathsf{true}(w)\rangle : (b \oplus c) \with \top}
+\end{prooftree}
+\end{document}

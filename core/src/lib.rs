@@ -22,7 +22,10 @@
 //! decides a sequent with the engine its fragment calls for and returns a
 //! checked proof; and [`ordinary`] propositional logic, classical,
 //! intuitionistic and minimal, decided through its embeddings into linear
-//! logic, with the proof read back as a derivation of LK or LJ.
+//! logic, with the proof read back as a derivation of LK or LJ; and the
+//! [`lambda`]-terms of intuitionistic proofs, a proof of intuitionistic
+//! linear logic read back as a linear lambda-term and a derivation of LJ
+//! as a simply typed one.
 //!
 //! A guide to the crate and to the `linlog` command for AI models is
 //! served beside this documentation, its summary as
@@ -138,7 +141,8 @@
 //! with public fields that may grow is `#[non_exhaustive]`; the enums of
 //! the calculus (`Term`, `Kind`, `Node`, `Rule`, [`Verdict`], `Branch`,
 //! `Sign`, `occurrences::Polarity`, `Side`, those of [`ordinary`]'s
-//! derivations and `Visit`, a walk's stops) are closed on purpose, so
+//! derivations, a lambda-term's nodes and types and `Visit`, a walk's
+//! stops) are closed on purpose, so
 //! that a match over them stops compiling when the calculus grows. The
 //! JSON forms of the data are promised by their wire level (the module
 //! `wire`, feature `serialize`), not by the crate's version. Display
@@ -154,6 +158,7 @@ pub mod families;
 pub mod fragment;
 /// The hash tables of this crate.
 mod hash;
+pub mod lambda;
 pub mod limits;
 #[cfg(feature = "parse")]
 pub mod lltp;

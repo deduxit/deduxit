@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="617.696" height="134.592" viewBox="0 0 38606 8412" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
+<title>a ∨ b, ¬a ⊢ b ∧ ⊤</title>
+<desc>1. a ⊢ a, by ax.
+2. ⊥ ⊢ b, by ⊥L.
+3. a, ¬a ⊢ b, by ¬L from 1 and 2.
+4. b ⊢ b, by ax.
+5. b, ¬a ⊢ b, by WL from 4.
+6. a ∨ b, ¬a ⊢ b, by ∨L from 3 and 5.
+7. a ∨ b, ¬a ⊢ ⊤, by ⊤R.
+8. a ∨ b, ¬a ⊢ b ∧ ⊤, by ∧R from 6 and 7.</desc>
+<g fill="none" stroke="black" stroke-width="40">
+<path d="M9340 5312H29266"/>
+<path d="M5800 3812H19462"/>
+<path d="M4068 2312H12084"/>
+<path d="M4068 812H6650"/>
+<path d="M9258 812H12084"/>
+<path d="M14930 2312H19462"/>
+<path d="M15926 812H18466"/>
+<path d="M22398 3812H29266"/>
+</g>
+<text x="14855" y="6402" textLength="8897" lengthAdjust="spacing" id="i7">𝑎 ∨ 𝑏, ¬𝑎 ⊢ 𝑏 ∧ ⊤</text>
+<text x="29466" y="5512" textLength="1107" lengthAdjust="spacing" font-size="800">∧R</text>
+<text x="9340" y="4902" textLength="6582" lengthAdjust="spacing" id="i5">𝑎 ∨ 𝑏, ¬𝑎 ⊢ 𝑏</text>
+<text x="19662" y="4012" textLength="1067" lengthAdjust="spacing" font-size="800">∨L</text>
+<text x="5800" y="3402" textLength="4553" lengthAdjust="spacing" id="i2">𝑎, ¬𝑎 ⊢ 𝑏</text>
+<text x="12284" y="2512" textLength="1065" lengthAdjust="spacing" font-size="800">¬L</text>
+<text x="4068" y="1902" textLength="2582" lengthAdjust="spacing" id="i0">𝑎 ⊢ 𝑎</text>
+<text x="6850" y="1012" textLength="908" lengthAdjust="spacing" font-size="800">ax</text>
+<text x="9258" y="1902" textLength="2826" lengthAdjust="spacing" id="i1">⊥ ⊢ 𝑏</text>
+<text x="12284" y="1012" textLength="1146" lengthAdjust="spacing" font-size="800">⊥L</text>
+<text x="14930" y="3402" textLength="4532" lengthAdjust="spacing" id="i4">𝑏, ¬𝑎 ⊢ 𝑏</text>
+<text x="19662" y="2512" textLength="1236" lengthAdjust="spacing" font-size="800">WL</text>
+<text x="15926" y="1902" textLength="2540" lengthAdjust="spacing" id="i3">𝑏 ⊢ 𝑏</text>
+<text x="18666" y="1012" textLength="908" lengthAdjust="spacing" font-size="800">ax</text>
+<text x="22398" y="4902" textLength="6868" lengthAdjust="spacing" id="i6">𝑎 ∨ 𝑏, ¬𝑎 ⊢ ⊤</text>
+<text x="29466" y="4012" textLength="1186" lengthAdjust="spacing" font-size="800">⊤R</text>
+<text x="300" y="7902" textLength="38006" lengthAdjust="spacing" id="term">x : 𝑎 ∨ 𝑏, f : 𝑎 → ⊥ ⊢ ⟨case x of inl(y) → abort_𝑏(f y) ‖ inr(z) → z, ⟨⟩⟩ : 𝑏 ∧ ⊤</text>
+</svg>

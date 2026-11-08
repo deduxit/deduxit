@@ -156,6 +156,14 @@ pub struct Style {
     /// implication to its antecedent, which no edge joins: the
     /// implication must dominate it.
     pub dominator: String,
+    /// Whether the derivation's lambda-term is written under its
+    /// conclusion, as its typing judgement ([`lambda`](crate::lambda)),
+    /// with these options, their notation being the target's own; `None`
+    /// by default. A derivation without a term is refused
+    /// ([`Error::NoTerm`]), and a term whose text would pass the default
+    /// output bound ([`Limits::DEFAULT_DERIVATION_BYTES`](crate::Limits::DEFAULT_DERIVATION_BYTES))
+    /// is refused before anything is written.
+    pub lambda: Option<crate::lambda::Options>,
 }
 
 impl Default for Style {
@@ -192,6 +200,7 @@ impl Default for Style {
             dominator: "#cc79a7".into(),
             net: NetDrawing::Formulas,
             net_look: NetLook::LINLOG,
+            lambda: None,
         }
     }
 }
@@ -1181,11 +1190,20 @@ pub fn write<'a>(
     stop: impl FnMut(crate::limits::Progress) -> bool,
 ) -> Result<(), Error> {
     style.check()?;
+    let mut stop = stop;
+    let drawable = derivation.into();
+    let judgement = super::judgement(
+        drawable,
+        style.lambda.as_ref(),
+        &crate::lambda::print::SVG,
+        &mut stop,
+    )?;
+    let judgement = judgement.as_deref();
     let stop = crate::limits::counting(stop, crate::limits::Phase::Write);
-    match derivation.into() {
-        Drawable::Linear(derivation) => tree::draw(derivation, style, out, stop),
-        Drawable::Ordinary(derivation) => tree::draw(derivation, style, out, stop),
-        Drawable::Classical(view) => tree::draw(view, style, out, stop),
+    match drawable {
+        Drawable::Linear(derivation) => tree::draw(derivation, style, judgement, out, stop),
+        Drawable::Ordinary(derivation) => tree::draw(derivation, style, judgement, out, stop),
+        Drawable::Classical(view) => tree::draw(view, style, judgement, out, stop),
     }
 }
 

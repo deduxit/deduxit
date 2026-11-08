@@ -133,6 +133,34 @@ pub(crate) fn math(
     Ok(out)
 }
 
+/// Returns the typing judgement of a derivation's lambda-term in a
+/// target's spelling, where `term` asks for one, read back and written
+/// within the default bounds, asking `stop`.
+#[cfg(any(feature = "latex", feature = "typst", feature = "svg"))]
+pub(crate) fn judgement(
+    drawable: Drawable<'_>,
+    term: Option<&crate::lambda::Options>,
+    spelling: &crate::lambda::print::Spelling,
+    mut stop: impl FnMut(crate::Progress) -> bool,
+) -> Result<Option<String>, crate::Error> {
+    let Some(options) = term else {
+        return Ok(None);
+    };
+    let limits = crate::Limits::default();
+    let term = match drawable {
+        Drawable::Linear(derivation) => derivation.term(&limits, &mut stop)?,
+        Drawable::Ordinary(derivation) => derivation.term(&limits, &mut stop)?,
+        Drawable::Classical(_) => {
+            return Err(crate::Error::NoTerm {
+                reason: crate::lambda::NoTerm::Classical,
+            });
+        }
+    };
+    let mut out = String::new();
+    term.write_in(spelling, options.types, true, &mut out, &limits, stop)?;
+    Ok(Some(out))
+}
+
 /// What the targets write: a derivation of linear logic, one- or
 /// two-sided, or a derivation of LK or LJ read back from a proof of an
 /// ordinary sequent's image. Each target's `write` takes either, as

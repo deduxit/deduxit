@@ -278,7 +278,7 @@ pub enum Phase {
     Render,
     /// Building or judging a proof net.
     Net,
-    /// Reading a linear proof back as one of ordinary logic.
+    /// Reading a proof back as one of ordinary logic or as a lambda-term.
     ReadBack,
     /// Eliminating the cuts of a proof.
     Eliminate,

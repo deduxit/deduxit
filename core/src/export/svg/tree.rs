@@ -36,11 +36,13 @@ struct Place {
 }
 
 /// Writes a derivation as an SVG document of its proof tree into `out`,
-/// titled with its conclusion in plain text, and asks `stop` after
-/// laying out each inference and after writing its elements.
+/// titled with its conclusion in plain text, with the judgement given on
+/// a row of its own under the conclusion, and asks `stop` after laying
+/// out each inference and after writing its elements.
 pub(super) fn draw<T: Drawn>(
     derivation: &T,
     style: &Style,
+    judgement: Option<&str>,
     out: &mut impl Write,
     mut stop: impl FnMut() -> bool,
 ) -> Result<(), Error> {
@@ -162,9 +164,21 @@ pub(super) fn draw<T: Drawn>(
         Ok(())
     })?;
 
+    // The judgement, centred under the conclusion, the tree moved right
+    // where the judgement reaches past its left end.
+    let root_place = places[derivation.root().index()];
+    let below = judgement.map(|j| run(j, 1000, font));
+    let (shift, reach) = match &below {
+        Some(line) => {
+            let left = root_place.left + root_place.conclusion / 2 - line.width / 2;
+            (-left.min(0), left.max(0) + line.width)
+        }
+        None => (0, 0),
+    };
+
     // Down the tree: every box at its place.
     let mut xs = vec![0; places.len()];
-    xs[derivation.root().index()] = margin;
+    xs[derivation.root().index()] = margin + shift;
     walk(derivation, |step| {
         if let Step::Enter(id, _) = step {
             for &p in derivation.premises(id) {
@@ -178,8 +192,9 @@ pub(super) fn draw<T: Drawn>(
     let root = derivation.root();
     let mut title = String::new();
     derivation.sequent(&mut title, &PLAIN, root, false, false);
-    let width = places[root.index()].width + 2 * margin;
-    let size = (width, DEPTH - top + 2 * margin);
+    let rows = if below.is_some() { line_height } else { 0 };
+    let width = (places[root.index()].width + shift).max(reach) + 2 * margin;
+    let size = (width, DEPTH - top + rows + 2 * margin);
     head(out, style, &title, size)?;
     if style.description {
         out.write_str("<desc>")?;
@@ -249,6 +264,18 @@ pub(super) fn draw<T: Drawn>(
         }
         flush(out, &mut buffer, &mut stop)
     })?;
+    if let Some(line) = &below {
+        let x = margin + shift + root_place.left + root_place.conclusion / 2 - line.width / 2;
+        text(
+            &mut buffer,
+            x,
+            y(0) + line_height,
+            line,
+            r#" id="term""#,
+            None,
+        );
+        flush(out, &mut buffer, &mut stop)?;
+    }
     out.write_str("</svg>")?;
     Ok(())
 }

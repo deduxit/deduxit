@@ -252,6 +252,73 @@ fn ordinary_derivation() {
     snapshot("ordinary.svg", &drawing);
 }
 
+/// Pins a derivation with its lambda-term under the conclusion, binders
+/// typed, as `name.tex`, `name.typ`, `name-linlog.typ` (Typst's own
+/// layout) and `name.svg`, which the `export` check compiles and renders.
+fn pin_term<'a>(name: &str, derivation: impl Into<Drawable<'a>> + Copy) {
+    let term = Some(linlog::lambda::Options::default().with_types(true));
+    let mut latex = latex::Options::default();
+    latex.form = Form::Standalone;
+    latex.lambda = term;
+    let tex = written(|out| latex::write(derivation, &latex, out, |_| false));
+    assert!(tex.contains(r"\infer[no rule]1{"), "{tex}");
+    snapshot(&format!("{name}.tex"), &tex);
+    let mut typst = typst::Options::default();
+    typst.form = Form::Standalone;
+    typst.lambda = term;
+    let typ = written(|out| typst::write(derivation, &typst, out, |_| false));
+    assert!(typ.contains("#stack("), "{typ}");
+    snapshot(&format!("{name}.typ"), &typ);
+    typst.layout = typst::Layout::Linlog;
+    snapshot(
+        &format!("{name}-linlog.typ"),
+        &written(|out| typst::write(derivation, &typst, out, |_| false)),
+    );
+    let mut style = Style::default();
+    style.lambda = term;
+    let drawing = written(|out| svg::write(derivation, &style, out, |_| false));
+    assert!(drawing.contains(r#"id="term""#), "{drawing}");
+    snapshot(&format!("{name}.svg"), &drawing);
+}
+
+/// The lambda-term of a proof of intuitionistic linear logic and of a
+/// derivation of LJ is written under the conclusion in every drawn
+/// target; a classical derivation, which has none, is refused.
+#[test]
+fn lambda_terms() {
+    let ill = proof(
+        "1 * !(a -o b), a + c |- (b + c) & top",
+        Mode::INTUITIONISTIC,
+    );
+    pin_term("term", &ill.derivation().unwrap());
+    let cut = cut_proof("!a |- a * a", Mode::INTUITIONISTIC, "!a", &[0]);
+    pin_term("term-cut", &cut.derivation().unwrap());
+    use linlog::ordinary::{self, Logic};
+    let sequent: ordinary::Sequent = "a \\/ b, ~a |- b /\\ true".parse().unwrap();
+    let options = ordinary::Options::default().with_logic(Logic::Intuitionistic);
+    let outcome = ordinary::decide(
+        &sequent,
+        &options,
+        &Options::default(),
+        &Limits::default(),
+        |_| false,
+    )
+    .unwrap();
+    let ordinary::Verdict::Valid(lj) = outcome.verdict else {
+        panic!("valid");
+    };
+    pin_term("term-lj", &*lj);
+    let classical = proof("A * B |- B * A", Mode::CLASSICAL);
+    let mut latex = latex::Options::default();
+    latex.lambda = Some(linlog::lambda::Options::default());
+    let mut out = String::new();
+    let refused = latex::write(&classical.derivation().unwrap(), &latex, &mut out, |_| {
+        false
+    });
+    assert!(matches!(refused, Err(Error::NoTerm { .. })), "{refused:?}");
+    assert!(out.is_empty(), "nothing written");
+}
+
 /// The certificate of an ordinary sequent without atoms or hypotheses
 /// binds nothing, in both logics: `fun =>` is no term; and its prelude is
 /// the one given, or the logic's own.

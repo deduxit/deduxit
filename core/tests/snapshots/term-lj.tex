@@ -1,0 +1,17 @@
+\documentclass[border=5pt]{standalone}
+\usepackage{amssymb}
+\usepackage{cmll}
+\usepackage{ebproof}
+\begin{document}
+\begin{prooftree}
+\infer0[$\mathrm{ax}$]{a &\vdash a}
+\infer0[$\bot\mathrm{L}$]{\bot &\vdash b}
+\infer2[$\lnot\mathrm{L}$]{a, \lnot a &\vdash b}
+\infer0[$\mathrm{ax}$]{b &\vdash b}
+\infer1[$\mathrm{WL}$]{b, \lnot a &\vdash b}
+\infer2[$\lor\mathrm{L}$]{a \lor b, \lnot a &\vdash b}
+\infer0[$\top\mathrm{R}$]{a \lor b, \lnot a &\vdash \top}
+\infer2[$\land\mathrm{R}$]{a \lor b, \lnot a &\vdash b \land \top}
+\infer[no rule]1{x : a \lor b, f : a \to \bot \vdash \langle \mathsf{case}\ x\ \mathsf{of}\ \mathsf{inl}(y) \to \mathsf{abort}_{b}(f\ y) \parallel \mathsf{inr}(z) \to z, \langle\rangle\rangle : b \land \top}
+\end{prooftree}
+\end{document}

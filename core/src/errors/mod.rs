@@ -484,6 +484,15 @@ pub enum Error {
     /// engine that found it, and no verdict on the sequent.
     #[error("{}{}", describe::REJECTED, .0)]
     Rejected(Box<CheckError>),
+    /// A proof or a derivation has no lambda-term, for the reason given:
+    /// a proof of classical logic, with Mix, of an ordered calculus, with
+    /// quantifiers or with open goals ([`Derivation::term`](crate::Derivation::term)).
+    #[error("the proof has no lambda-term: {reason}")]
+    #[non_exhaustive]
+    NoTerm {
+        /// Why.
+        reason: crate::lambda::NoTerm,
+    },
     /// A derivation read back from a linear proof is not one of LK or LJ,
     /// for the reason given: a defect of this crate.
     #[error("the proof read back is not a derivation of {calculus}: {reason}")]
@@ -620,6 +629,7 @@ impl Error {
         "no_date",
         "rejected",
         "read_back",
+        "no_term",
         "no_cut",
         "reduction_rejected",
     ];
@@ -686,6 +696,7 @@ impl Error {
             Self::NoDate => Malformed,
             Self::Rejected(_) | Self::ReadBack { .. } | Self::Reduction(_) => Defect,
             Self::NoCut { .. } => Unsupported,
+            Self::NoTerm { .. } => Unsupported,
         }
     }
 
@@ -759,6 +770,7 @@ impl Error {
             Self::Rejected(_) => "rejected",
             Self::ReadBack { .. } => "read_back",
             Self::NoCut { .. } => "no_cut",
+            Self::NoTerm { .. } => "no_term",
             Self::Reduction(_) => "reduction_rejected",
         }
     }
@@ -1060,6 +1072,9 @@ mod tests {
             Error::Rejected(Box::new(invalid.clone())),
             Error::Reduction(Box::new(invalid)),
             Error::NoCut { node: Some(3) },
+            Error::NoTerm {
+                reason: crate::lambda::NoTerm::Classical,
+            },
             Error::ReadBack {
                 calculus: "LK",
                 reason: message(),
@@ -1256,6 +1271,7 @@ mod tests {
             | Error::Rejected(_)
             | Error::ReadBack { .. }
             | Error::NoCut { .. }
+            | Error::NoTerm { .. }
             | Error::Reduction(_) => {}
         }
     }

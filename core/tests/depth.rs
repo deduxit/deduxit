@@ -164,6 +164,18 @@ fn walk(json: &str, fragment: Fragment) {
     proof.check(Mode::CLASSICAL).unwrap();
     let derivation = proof.derivation().unwrap();
     assert!(derivation.to_string().ends_with(&printed));
+
+    // Read two-sided, the `⊤` is `0L`, whose term carries the goal's type
+    // and the other hypotheses: its types are converted and printed.
+    let intuitionistic = proof.clone().with_mode(Mode::INTUITIONISTIC);
+    let term = intuitionistic.derivation().unwrap();
+    let term = term.term(&linlog::Limits::default(), |_| false).unwrap();
+    let options = linlog::lambda::Options::default().with_types(true);
+    let mut written = String::new();
+    let unbounded = linlog::Limits::default().with_derivation_bytes(None);
+    term.write_judgement(&mut written, &options, &unbounded, |_| false)
+        .unwrap();
+    assert!(written.chars().count() > DEPTH);
     #[cfg(feature = "rocq")]
     {
         use linlog::export::rocq::{self, Options};
@@ -178,7 +190,8 @@ fn walk(json: &str, fragment: Fragment) {
 
 /// A sequent whose formulas are nested 50 000 deep, to the right, to the
 /// left, or as towers of `?` and of `!`, is read, printed, optimized,
-/// numbered, read two-sided, walked, exported and written back on a stack
+/// numbered, read two-sided, walked, exported, read back as a term and
+/// written back on a stack
 /// of 256 KiB.
 #[test]
 fn deep_formulas_need_no_stack() {

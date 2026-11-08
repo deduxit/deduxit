@@ -419,6 +419,23 @@ impl Derivation {
         &self.inferences
     }
 
+    /// Reads the derivation back as a term of the simply typed lambda
+    /// calculus ([`lambda`](crate::lambda)), asking `stop` once per
+    /// inference: a derivation of LJ, in either view of its structural
+    /// rules.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::NoTerm`] for a derivation of LK or one with open goals;
+    /// [`Refusal::Stopped`](crate::Refusal::Stopped) when `stop` fired.
+    pub fn term(
+        &self,
+        limits: &crate::Limits,
+        stop: impl FnMut(crate::Progress) -> bool,
+    ) -> Result<crate::lambda::Term, Error> {
+        crate::lambda::simple::read(self, limits, stop)
+    }
+
     /// Returns the inference at `id`, which must belong to this derivation.
     ///
     /// # Panics

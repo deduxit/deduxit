@@ -237,6 +237,14 @@ pub struct Options {
     /// the content with `amssymb`, `cmll` and, for a tree, `ebproof`. A
     /// preamble of the user's must load those packages itself.
     pub preamble: Option<String>,
+    /// Whether the derivation's lambda-term is written under its
+    /// conclusion, as its typing judgement ([`lambda`](crate::lambda)),
+    /// with these options, their notation being the target's own; `None`
+    /// by default. A derivation without a term is refused
+    /// ([`Error::NoTerm`]), and a term whose text would pass the default
+    /// output bound ([`Limits::DEFAULT_DERIVATION_BYTES`](crate::Limits::DEFAULT_DERIVATION_BYTES))
+    /// is refused before anything is written.
+    pub lambda: Option<crate::lambda::Options>,
 }
 
 impl Default for Options {
@@ -251,6 +259,7 @@ impl Default for Options {
             align: true,
             ebproof: String::new(),
             preamble: None,
+            lambda: None,
         }
     }
 }
@@ -416,18 +425,29 @@ pub fn write<'a>(
     out: &mut impl Write,
     stop: impl FnMut(crate::limits::Progress) -> bool,
 ) -> Result<(), Error> {
+    let mut stop = stop;
+    let drawable = derivation.into();
+    let judgement = super::judgement(
+        drawable,
+        options.lambda.as_ref(),
+        &crate::lambda::print::LATEX,
+        &mut stop,
+    )?;
+    let judgement = judgement.as_deref();
     let stop = crate::limits::counting(stop, crate::limits::Phase::Write);
-    match derivation.into() {
-        Drawable::Linear(derivation) => tree(derivation, options, out, stop),
-        Drawable::Ordinary(derivation) => tree(derivation, options, out, stop),
-        Drawable::Classical(view) => tree(view, options, out, stop),
+    match drawable {
+        Drawable::Linear(derivation) => tree(derivation, options, judgement, out, stop),
+        Drawable::Ordinary(derivation) => tree(derivation, options, judgement, out, stop),
+        Drawable::Classical(view) => tree(view, options, judgement, out, stop),
     }
 }
 
-/// Writes any derivation as [`write()`] does.
+/// Writes any derivation as [`write()`] does, and under its conclusion the
+/// judgement given.
 fn tree<T: Drawn>(
     derivation: &T,
     options: &Options,
+    judgement: Option<&str>,
     out: &mut impl Write,
     mut stop: impl FnMut() -> bool,
 ) -> Result<(), Error> {
@@ -471,6 +491,9 @@ fn tree<T: Drawn>(
         buffer.push_str("}\n");
         flush(out, &mut buffer, &mut stop)
     })?;
+    if let Some(judgement) = judgement {
+        writeln!(out, "\\infer[no rule]1{{{judgement}}}")?;
+    }
     out.write_str("\\end{prooftree}")?;
     if standalone {
         out.write_str("\n\\end{document}")?;
