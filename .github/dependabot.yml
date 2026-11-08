@@ -9,6 +9,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # The same age gate as the dependency updates: no release younger than
+    # fourteen days is proposed.
+    cooldown:
+      default-days: 14
     groups:
       actions:
         patterns: ["*"]
