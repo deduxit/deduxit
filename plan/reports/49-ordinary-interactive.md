@@ -330,3 +330,161 @@ A fresh-context reviewer (Opus 5.5, high) judged three criteria: malformed input
 - [x] The gate at `tqtszpkr`: exit 0, `gate: passed`.
 - [x] `nix flake check`: exit 0 at `umllmppw`, before the hint's fix (all checks passed, web-wasm-tests among them). It runs again at the commit of this report, which changes nothing else after `tqtszpkr`; its exit status is in the last message to `linlog-orchestrator`.
 - [x] This report committed and `jj st` clean. The last message to `linlog-orchestrator` is sent after this commit.
+
+## Session 49c: the page
+
+### Outcome
+
+The web page now proves ordinary propositional logic. A tab's calculus mark opens a popover that lists the registered suites, Linear and Ordinary. Ordinary proves sequents of classical, intuitionistic and minimal logic step by step in Gentzen's LK and LJ, through linlog's `ordinary_…` calls at the lock of 49b (`864bca2c`).
+
+- **The suite registry** (client file `src/lib/suites.ts`): a tab's calculus is a `Calculus`, its suite, its method and the suite's parameter as linlog's `about` names them, in place of the closed linear `Mode`. `SUITES` holds each suite's name, tip, methods, parameter, the values the page offers, the calculus a new tab starts in and the prefix of its calls. `suites.test.ts` holds the registry to `about()`'s `suites`.
+- **The link and the stored proofs carry the suite.** The link is at version 2, `#v=2&u=<suite>&m=<parameter>&s=…&d=…`. The shelf of stored proofs is at version 2, each proof with its `calculus`. A link of version 1 and a shelf of version 1 read as the linear suite in their mode, each tested in `link.test.ts` and `shelf.test.ts`, and on the page in `tests/ordinary.spec.ts`.
+- **The Ordinary segment** (client file `src/lib/ordinary.ts`, and branches in `state.tsx`, `Stage.tsx`, `BottomBand.tsx`, `TopBand.tsx`, `Calculus.tsx`): a segmented control Classical | Intuitionistic | Minimal (marks LK, LJ, LM) and a switch "Structural rules", which sets `view.structural` to draw every weakening and contraction. The stage draws the LK or LJ derivation that `ordinary_draw` writes, never the linear image. A click on a formula lists `ordinary_rules`, and a rule applies at once (a rule of two premises shared, G3's form). The dock has Close goal, the hint ladder and the open-in-a-new-tab button. The bottom band has undo on a branch, redo, the step list, close all, and the exports: SVG, PNG, PDF, LaTeX, Typst, text, the session and the Rocq certificate over `Prop`.
+- **Examples in the sequent field's menu** (client file `src/content/examples.json`, CC BY): fifteen sequents, a lesson's worth, from modus ponens through distribution, contraposition, ex falso in minimal logic and the excluded middle in LJ and in LK, to Peirce's law and both halves of De Morgan. Each holds linlog's verdict in all three logics, and `src/content/examples.test.ts` checks every verdict with the module within a hundredth of the page's budget.
+- **README** says that the page proves ordinary logic and gives the store's true counts: 452 problems, 407 provable, and eleven lessons each with a worked proof. About, `llms.txt`, the page's description and lesson 11 (which said the page had no ordinary mode) say so too.
+- **The four entries of `plan/later.md`** this step names, all answered:
+  - the phone's goal bar and dock: fixed;
+  - the tour's 39-pixel stop: fixed at its cause;
+  - the replayed classical cut: no longer seen at linlog's `main`, now pinned by a test;
+  - the compact net's edges: fixed in step 39, seen on the page.
+
+Learn and Practice stay linear, as the prompt says.
+
+The client's commits, in the workspace `../linlog-prover.github.io-49c` on `main` (signed by the hook; commit ids as it reported them):
+
+| change | commit | subject |
+|---|---|---|
+| `suutnlrw` | `a5b638d70728` | flake.lock: Update (linlog `fe0cb97a` → `864bca2c`) |
+| `kztzlwwt` | `5012acf2ef68` | Choose a tab's calculus among registered suites, and prove ordinary logic in LK and LJ |
+| `knzvqkqu` | `5d3db23d5c0f` | Lay the formula buttons only over the current session's drawing, and keep the phone's goal bar on one row |
+| `vxqzpkqn` | `5c0f003ca1d0` | Say in README that the page proves ordinary logic, and correct its counts |
+| `usulopkw` | `37715afd0be1` | Measure an ordinary tab's controls in a walk of their own |
+| `vnxtqrox` | `c06ebe7dcecd` | Answer the review of the page's suites |
+
+### Decisions
+
+- **The registry's shape: `Calculus` is a discriminated union, `{suite: "linear", method, mode}` or `{suite: "ordinary", method, logic}`.** Each suite's parameter field carries the name `about` gives it. TypeScript then narrows a linear call's mode and an ordinary call's logic at every site. A record of string parameters would have hidden a linear mode handed to an ordinary call.
+- **The method is in the type and in the shelf, not in the link.** Each suite has one method today (`sequent`), so the link writes the suite and the parameter alone, and `calculusOf` reads a missing method as `sequent`. The second method adds a field `k` to the link at the same version. Writing `k=sequent` into every link now would lengthen each link for a choice no visitor has.
+- **The registry is in the page, and a test holds it to `about()`'s `suites`.** I did not build it from `about` at run time. The page needs its suites' names, tips and starting calculus before the module loads (D35: the first paint does not wait on the module). The test checks each suite's name, its call prefix, its parameter, that the page's values are among linlog's (the linear suite's cyclic and Lambek modes are not on the page), and that a new tab starts in linlog's default.
+- **An ordinary view is read into the shapes the stage already shows** (`asView`). A goal's formulas are numbered left of `⊢` first, then right, as the drawing's `i<n>-<p>` ids number them. So the stage's buttons, the rules popover, the hint ladder, the dock and the step list work unchanged. `ordinaryStep` turns a place back into a side and a position.
+  - A hint's first step carries its place, so that the ladder points at the formula.
+  - Its later steps carry their `side`, since each acts on a goal the one before opened, whose formulas the page has not seen.
+  - The adapter is small, it keeps one stage (D29: one module), and it copies none of the stage's 1 900 lines.
+- **A rule of two premises is applied shared in an ordinary proof; the page offers no split there.** This is linlog's default and G3's form, which 49a's report calls the default a first course wants. A split by hand stays possible in the command (`interact`, `Step::split`).
+- **Undo on a branch (the author's D13) cuts the step's subtree out of the session document** (`retract` in the client's `ordinary.ts`).
+  - `ordinary_undo` takes back the session's last step, as the library's undo does.
+  - The linear tab meets D13 by replaying the other steps. For the ordinary tab, rebuilding steps from inferences would have to guess the form of a shared LJ `→L`, whose contractions sit hidden below the rule.
+  - Instead, an ordinary session's history lists each step's goal, and a step's inferences are that goal's subtree, appended as one block after it. Taking the subtree of the step that opened the active goal out of the document, and numbering the rest anew in their order, leaves the document the other steps would have made.
+  - linlog's reader (`ordinary_view`, which replays and checks every inference and the history's order) must accept it before the page shows or stores it; a refusal leaves the session as it was and says so. No search runs again, so a closed goal stays exactly as closed.
+  - Redo restores the session as it was before each undo (`Proof.later`, kept with the stored proofs). The step list goes back by `ordinary_undo`, which is exact for the last steps.
+  - `linlog-orchestrator` agreed to this design on 2026-11-08, on three conditions: nothing unaccepted is shown or stored; the dependency is recorded (below and in the client's rules); and a retraction call in the bindings is named as the cleaner option (below).
+- **An ordinary graft is marked by the path the page saw the search close** (`Proof.engines`), not by `searchMade`. An ordinary session cannot tell a graft from a step's own run of weakenings or contractions, so `searchMade` would mark a shared `→L`'s contraction as the search's. A link therefore opens an ordinary proof with its grafts unmarked. The linear tab's marks of a graft are read off the document and survive a link.
+- **The outcome's engine is shown in an ordinary tab** (the chip beside a note, the label beside a graft, the step list). The engine is the one that searched linlog's translation. 49b's report leaves this to the page. An engine's name is not the linear image, and the chip's link to Learn's reference says what the engine does. Settings' engine choice is the linear suite's, and an ordinary tab says so there. Ordinary calls are never sent a forced engine (`ordinaryJson` leaves `search.engine` and the invertible rules out).
+- **The examples are a content collection of their own** (`src/content/examples.json`, Astro's `file()` loader), not entries of the problem store. The store's schema, its flake check (`problems.py`, which runs linlog's command on linear sequents) and Practice are linear, and step 63 keys them by suite. The menu sits beside the field of a tab whose suite Practice does not serve, which today means only ordinary tabs. The examples' verdicts are checked by the module in Vitest, not by the command in the flake's `problems` check. Extending that check to ordinary sequents is step 63's, when the store is keyed by suite.
+- **A change of suite reads the field's text anew in the other suite's syntax.** A linear session's sequent document cannot be started as an ordinary one. Text that does not parse in the other syntax is marked in the field as a typed error is. A change of logic within the ordinary suite starts from the session's sequent document, as a change of mode does in the linear suite.
+
+### What the later.md entries came to
+
+- **The phone's goal bar and dock** (41d, 42k): on a Pixel 7 the bar was 380 pixels wide with its items on three heights; the open-in-a-new-tab button had wrapped since "Cut" joined the bar. On a phone the navigator now says "Goal N", with the count of open goals left to the tab's status, by the page's `wide-only` class. The desktop's wording and the tests that read it are unchanged. `tests/phone.spec.ts` ("the goal bar keeps one row …") measures one row with Cut in it.
+- **The tour's flaky stop** (41d, 42k): it did not reproduce in 25 runs of the phone walk (10 at four workers, 15 at one), before the fix.
+  - The cause was found by reading. When the active proof or its session changes, the stage's active-goal effect re-decorated at once and laid the new view's buttons over the old drawing, whose `i<n>-<p>` ids the new view may match, until the new SVG arrived.
+  - Those buttons were sized at a zoom fitted to the other drawing, and the zoom floor that keeps a formula a control wide holds only for the drawing it was fitted to.
+  - The tour's first stop opens its example in a new tab, and the walk measures as soon as the tour's caption shows, so it could land in that window.
+  - The stage now lays buttons only over the drawing made for the current session (`hostSession`). The walk passed in every run since: four local runs (two of them the full e2e suite) and the flake check's last two runs in its sandbox.
+  - The flake check's first run failed in the phone walk at a step this session had appended (the ordinary tab's controls), past the sandbox's minute. There the tour's caption was still open: the Escape the walk presses after the tour's measure did not always close it in the slow sandbox, and the caption covered the calculus popover. The ordinary controls now have a walk of their own at both widths (`usulopkw`). The Escape race is older than this step, and the walk never relied on it (it reloads next); it is recorded below.
+- **The replayed classical cut** (41d): it no longer shows one-sided. At linlog's `main` the sequent's JSON records each occurrence's side (`antecedents`, step 40b's surface), and a replay's `start` keeps it, as a probe of the module showed. `tests/cut.spec.ts` ("a replayed classical cut is drawn two-sided as before the replay") pins it on the page: Two-sided on, a cut, a step, an undo that replays, the drawing's texts equal. I did not run the test against the old lock, so whether it would have failed at 41d's lock is not shown.
+- **The compact net's edges** (38b): fixed in linlog by step 39 (`xmlrsppp`, the edges begun at each font's own depth, tested by `net_edges_clear_the_font_s_descenders`). A screenshot of `A ⊗ B ⊢ B ⊗ A`'s compact net on the page at 195 % shows every edge begun clear below its literal. The entry is ticked with that reason.
+
+### Departures from the design
+
+None. The per-branch undo of D13 holds in ordinary tabs, by the retraction above, with the supervisor's agreement. The design's D2 and D57 (Ordinary on the tab, never mixed into the linear page's controls) are what the segment does.
+
+### What the next sessions must know
+
+- **The registry's shape, for steps 56, 62 and 65** (client file `src/lib/suites.ts`):
+  - A suite is an entry of `SUITES`: `key`, `name`, `tip`, `methods`, `parameter` (the field `about` names), `values` (the page's, a part of linlog's), `start` (a new tab's calculus) and `calls` (the prefix).
+  - A tab's calculus is a variant of `Calculus`, `{suite, method, <parameter>}`.
+  - Adding a suite (65's modal logics) takes a variant, an entry, its calls in `api.ts` and the worker's table, `markOf` and `calculusWords`, `calculusOf`'s construction, and a branch wherever a call is made: `state.tsx`'s actions branch on `ordinaryOf(p)` today, and a third suite is the moment to make that a lookup by suite. `suites.test.ts` holds the entry to `about()`.
+  - Adding a method (56's tableaux and truth tables, 62's natural deduction) widens `Method`. A method of its own needs a field `k` in the link (`link.ts`, at version 2, read as `sequent` when absent; the shelf stores it already). It also needs a view kind on the stage: the stage draws trees, and a Fitch list or a table is a second host element (the research note's web-front-end-6).
+- **The ordinary tab rests on linlog's layout of the ordinary session at wire level 8**: each history entry is the goal a step expanded, and a step's inferences are that goal's subtree, appended as one block after it. The client's `retract` cuts subtrees out of that document for undo on a branch, and `ordinary.test.ts`'s property against the real module catches a change of the layout: every retraction is read by `ordinary_view`, and equals `ordinary_undo` when it takes back the last step. A change of the layout in linlog must change the client too.
+  - **The cleaner option, for step 63's suite protocol**: a call `ordinary_retract(session, goal)` in the bindings, in Rust where the format lives, so that a third suite does not copy the surgery into its client. Not built now.
+- **The ordinary tab's grafts are marked by the page's record** (`Proof.engines`), not read off the document. A link opens them unmarked.
+- **Learn and Practice are linear**: `Example.mode` and the problem store's `mode` are linear modes, and `prover.example` opens them with `linear(mode)`. Step 63 keys them by suite, and the examples of `src/content/examples.json` (their verdicts in all three logics) are ready to move into an ordinary store then. The flake's `problems` check covers the linear store alone; the examples are checked by Vitest.
+- **The exports' "Not derivable" item is hidden in an ordinary tab**: linlog's ordinary certificate of non-validity (`rocq::write_not_valid`) is not among the bindings' calls (`plan/web/README.md`'s table).
+- **An ordinary `close` from the page searches on one thread**, under the page's work budget (the tab's `jobs` is 1). Its outcome's `engine` names the engine that searched linlog's translation, which the chip and the step list show.
+
+### The reviewer's round and the answers
+
+A fresh-context reviewer (`linlog-49c-reviewer`, Opus 5.5, high, cores 10–13) judged five criteria:
+
+1. old links and stored proofs open as linear sessions;
+2. the suite field round-trips;
+3. an ordinary tab never reaches the linear image or a linear call;
+4. the per-branch retraction is right and validated before it is shown;
+5. the e2e tests cover the segment.
+
+It reproduced five breaks in a browser against the built site. All five hold, and all five are fixed in `vnxtqrox`:
+
+1. **A stored proof in a linear mode the switches do not build made the whole shelf unreadable, and its visit's proofs were deleted**, a version-1 shelf included. A session pasted in `cyclic` or `lambek` opens as such, the registry refused that mode when the shelf was read, and `parseShelf` refused the whole shelf.
+   - Answer: the registry reads every linear mode linlog's `about` lists. `Mode` gains `cyclic`, `lambek` and `lambek-star`, with marks CyLL, L and L*. The switches still build six.
+   - `parseShelf` leaves out a proof it cannot read alone.
+   - `shelf.test.ts` pins a version-1 shelf with a `cyclic` proof, and an unknown suite beside a readable proof. The test that pinned a whole shelf refused for one unreadable proof now pins that proof left out alone, as that is the change.
+2. **"Fill from" was offered on an ordinary tab and sent its session to linlog's linear `fill`.** An ordinary LJ goal's formulas key alike to an ILL tab's.
+   - Answer: `fillable` and `fill` are kept to linear proofs. The e2e test "an ordinary goal is never offered a fill from a linear tab" covers it.
+3. **The invertible switch sent ordinary sessions to `invert_all`**, which refused them, so nothing showed.
+   - Answer: `setInvertible` skips proofs of other suites. There is no test, since nothing is visible.
+4. **After an undo, a step taken by hand where a search's graft had been was drawn and listed as the search's.** `Proof.engines` kept the retracted graft's entry.
+   - Answer: undo and the step list's going back keep only the entries of grafts the session still holds (`keptGrafts`). Redo restores the session with its entries (`Proof.later` holds both).
+   - The e2e test "a search's graft taken back by undo leaves no mark …" covers close, undo, redo, undo and a hand step.
+5. **The structural switch with a goal open left the view's map of the drawing's ids from the other setting**, so the marks and buttons sat on a closed branch's sequent.
+   - Answer: the switch is `setStructural`, which asks every ordinary proof's view again and changes the setting and the views together.
+   - The e2e test "the structural switch with a goal open …" covers it; the earlier test toggled it on a finished proof only.
+
+Each of the three new e2e tests failed with the state and popover from before the fixes and passed after them. Its gaps without a break, answered:
+
+- **An ordinary undo that linlog's reader refuses** has no test. The reviewer confirmed by reading that it returns before anything changes. No document the page makes is refused; the property test shows the reader accepts every retraction of random sessions.
+- **The version-1 shelf through `restore`** is covered by `parseShelf`'s unit tests. `restore` takes the parsed shelf as it takes a version-2 one.
+- **A version-1 link with a session** is read by the unit test, and on the page by `prover.spec.ts`'s older link tests, which open version-1 links with `d=` (unchanged in this step).
+
+The reviewer found criteria 1 to 4 sound apart from these. For the retraction, it judged by reading against linlog's `from_parts`, `record`, `graft` and `undo` that cutting a step's subtree keeps every remaining step's block contiguous, in history order and after its goal. That holds for shared rules with contractions, axioms with weakenings, grafts, and steps on several branches in any order.
+
+### What was checked, and by what
+
+- **The client's `nix flake check` at its last commit, `vnxtqrox` (`c06ebe7dcecd`): exit 0, "all checks passed!".**
+  - Its checks: `actionlint`, `claude-hooks`, `claude-worktree-hook`, `csp`, `deadnix`, `e2e` (136 passed in Chromium, the new segment's tests among them), `licence-headers`, `licences`, `lint` (Biome), `no-style-attributes`, `pages-paths`, `playwright-version`, `problems`, `site`, `treefmt`, `typecheck` and `unit` (Vitest, 569 passed).
+  - Earlier runs: at `usulopkw`, exit 0 (e2e 133 passed). At `vxqzpkqn`, exit 1: the phone walk's timeout described above, fixed in `usulopkw`.
+- **Locally**, capped on cores 4–9, before each commit: `lint` (Biome with warnings as errors, then `astro check`, 0 errors), `tests` (569 passed at the end) and `e2e` with four workers (136 passed at the end).
+- **The unit tests of this step**:
+  - `suites.test.ts`: the registry against `about()`, and the calculus read back by suite, method and parameter;
+  - `ordinary.test.ts`: positions against the drawing's ids, the sequent's text read back by the parser, undo on a branch across a split, and the retraction's property over 60 random sessions in all three logics, which asserts at least 31 retractions and at least one comparison with `ordinary_undo` per run, stable in eight repeats;
+  - `examples.test.ts`: the fifteen examples in three logics each;
+  - `link.test.ts` and `shelf.test.ts`: version 2, and version 1 read as the linear suite.
+- **The e2e tests of this step**:
+  - `tests/ordinary.spec.ts`, eight tests: the popover's suites and an LK proof with no linear sign in the drawing; Not valid in LJ and valid in LK from the examples menu; undo per branch across a split, and redo; the structural switch and the exports (LaTeX, text, Rocq, session, SVG); the link and the stored copy with their suite, and a version-1 link opening linear; and the three of the reviewer's round.
+  - `tests/targets.spec.ts`, an ordinary tab's controls at 24 and at 44 pixels.
+  - `tests/phone.spec.ts`, the goal bar on one row.
+  - `tests/cut.spec.ts`, the replayed two-sided cut.
+- **Screenshots**, read and not kept: the popover and the examples menu at desktop and phone widths, an ordinary proof in progress and finished, the phone's dock, and the compact net.
+- **linlog's text checks** for this report: see the checklist.
+
+### Left open, for later sessions
+
+- **The ordinary graft's mark does not survive a link**: a link carries the session, not `Proof.engines`. The bindings could say which history entries were grafts; step 63's protocol may add it.
+- **The tour's Escape race** (older than this step): an Escape pressed right after the tour's caption appears, while its first stop opens its example, does not always close the tour, as the flake check's sandbox showed. A visitor presses later; the walk no longer depends on it.
+- **The examples are checked by Vitest, not by the flake's `problems` check**, which runs linlog's command on the linear store; step 63, keying the store by suite, takes them into it.
+- **`ordinary_retract(session, goal)` in the bindings**, as said above, for step 63's protocol.
+- **Settings has no row for `ordinary.translation`**: the page decides through linlog's default translation. A row is a small addition when a course asks for another.
+
+### Checklist
+
+- [x] Read the brief, the prompt, 49a's and 49b's sections, `plan/web/README.md`'s table, `plan/web/design.md` (D2, D35, D50, D56, D57, D58), the client's CLAUDE.md and rules, `plan/conduct.md`, and the research note's web-front-end-1 and -2.
+- [x] Workspaces `../linlog-prover.github.io-49c` and `../linlog-step49c` on `main` (`864bca2c`).
+- [x] The client's lock moved to linlog's `main`: `suutnlrw`, "flake.lock: Update".
+- [x] The `frontend-design` plugin: loaded before the design; the page's look kept, no new tokens, the header's mark untouched.
+- [x] Requirement 4: the registry (`kztzlwwt`); the Ordinary segment with classical, intuitionistic and minimal; the stage drawing LK and LJ; the exports; fifteen examples in the field's menu; README's counts (`vxqzpkqn`).
+- [x] Per-branch undo in ordinary tabs (D13), agreed with `linlog-orchestrator` on its three conditions.
+- [x] The later.md entries: the phone's goal bar and dock, and the tour's flaky stop, fixed (`knzvqkqu`); the replayed classical cut no longer seen and pinned; the compact net's edges fixed by step 39 and seen. All ticked in `plan/later.md`.
+- [x] The reviewer's round: five breaks, all fixed and tested (`vnxtqrox`).
+- [x] The client's `nix flake check` at `vnxtqrox`: exit 0.
+- [x] linlog's text checks (typos, treefmt, conventions) at this report's commit.
+- [x] This report and `plan/later.md` committed; `jj st` clean in both workspaces. The last message to `linlog-orchestrator` is sent after that.

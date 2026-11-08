@@ -260,7 +260,7 @@ assigned to.
 | Follow-ups: the web bindings | a turn's set-up kept across restarts; the first steps of a goal's proof and `Step`, `Applicable` as wire forms | kept: the page has not asked |
 | Follow-ups: the net engine after the cyclic mode | the vertex bound's panic past `nets::MOST`; the symmetry break; the quadratic `choose` | the panic to 53a (a refusal with its test); the other two kept (no row asks) |
 | Kept as built: the web client's choices | the list for the author to revisit; the Safari pinch | open with the author (`handoff.md`) |
-| Follow-ups: the web client | the client's phone goal bar wrapping, the tour's 39-px flake, the replayed classical session's one-sided cut, compact net edges below the literal | 49c (the client's next session) |
+| Follow-ups: the web client | the client's phone goal bar wrapping, the tour's 39-px flake, the replayed classical session's one-sided cut, compact net edges below the literal | done in 49c (the edges in 39) |
 | Follow-ups: the web client | the parser reading `a⊥`; the stray comma | the stray comma closed (42e); `a⊥` stays unassigned as written there |
 | Follow-ups: the web client | the inverse method's turns in a tab; the bindings' call for engines over `search::engine_for` | 52 decides the rows; the call kept until the page asks |
 | Follow-ups: the web client | judgement calls of step 38's sweep | open with the author |
@@ -277,7 +277,7 @@ assigned to.
 | Follow-ups: interactive proving | the net engine on a sub-forest; the two-sided rule names on reading a state | kept, as written there |
 | Follow-ups: interactive proving | the ratchet's `derivation-chain-64` margin | a rule for whichever step next changes that path (it wins back first) |
 | Follow-ups: interactive proving | the size estimate's shadowing case; `chain-fo/512` at the recursion limit; the pool's cost on `chain-fo`; the pool's memory account of the ground-term table | kept: with engines-13 and -14 |
-| Follow-ups: interactive proving | the phone dock wrapping the export button | 49c |
+| Follow-ups: interactive proving | the phone dock wrapping the export button | done in 49c |
 | Follow-ups: the exports | the essential net's green input side; the division by zero; `check -i --mix --net`; the essential drawing with cut links; `eliminate --net --output` without `--format`; the older lists of steps 11 and 22 | 53a (the last two checked against the code and closed or kept) |
 | Follow-ups: the exports | term against net normal forms compared only without doubled vertices | kept: a test's reach, no defect found |
 | Follow-ups: the command's output | `check FILE` ignoring the file's mode; the records' constant wire level; the older lists of steps 18 and 20; the derivation builder's recursion | 53a |
@@ -1231,7 +1231,7 @@ reads as extra weight; keeping it off the formulas, or fainter, keeps
 them crisp. The stage itself is Euler Math's own weight, Medium, drawn
 large (checked 2026-10-23: no inherited weight, no fallback font).
 
-*Left by step 38b (the compact edges assigned to step 39's second session; Safari's pinch for the author to check by hand).* Safari's trackpad pinch (gesture
+*Left by step 38b (the compact edges assigned to step 39's second session; Safari's pinch for the author to check by hand).* *The compact edges: done in step 39 (`xmlrsppp`, each font's own depth, `net_edges_clear_the_font_s_descenders`), seen on the page at the client's lock of 2026-11-08 by session 49c (`plan/reports/49-ordinary-interactive.md`); Safari's pinch stays the author's.* Safari's trackpad pinch (gesture
 events) is handled and tested by no test; a compact net's edges begin
 a tenth of an em below each literal, inside every font's descenders,
 Euler Math's included (older than step 38b).
@@ -1297,6 +1297,7 @@ Left by step 38 (2026-10-22, `plan/reports/38-web-polish.md`):
 - **The judgement calls of step 38's sweep** (the author): in the
   report, "Judgement calls".
 
+*Done in session 49c (2026-11-08, client `knzvqkqu`, `plan/reports/49-ordinary-interactive.md`): the goal bar keeps one row on a phone (the navigator says the goal alone there), tested; the 39-pixel button had a cause, buttons laid over the previous drawing between a change of session and its new drawing, now laid only over the current session's; the replayed classical cut is drawn two-sided as before the replay at linlog's main (its sides are recorded in the sequent's JSON), pinned by a test.*
 Found at the review of 41d (2026-10-28): on a phone the goal bar wraps
 its last icon to a second row since "Cut" joined it (every target still
 44 pixels); `targets.spec`'s tour stop failed twice locally with a
@@ -1920,6 +1921,7 @@ first level offers no choice outside a rule that may ask for another
 answer would win it back. The pool's memory account counts the shared
 ground-term table once per engine, so a bound of a few hundred KiB can
 end a pool's search where one thread decides.
+*The phone dock and the walk's 39-pixel button below: done in session 49c (2026-11-08, client `knzvqkqu`), as under "Follow-ups: the web client".*
 Found at the review of 42k (2026-10-31): on a phone the goal's dock
 wraps its export button onto a second row (`first-order-cut` and
 `eigenvariable-refusal` screenshots, Pixel 7); the walk "every control
