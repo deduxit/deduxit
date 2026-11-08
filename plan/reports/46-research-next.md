@@ -1353,3 +1353,244 @@ verification-7 left the list and resolution-4 moved to rank 31.
   row of its own, no blank cell, a sources index per candidate), `jj st`
   clean; the final message to
   `linlog-orchestrator`.
+
+## Session 46b: the prompts and the roadmap
+
+### Outcome
+
+The roadmap from step 47 to step 73 is in `plan/README.md`'s table,
+grouped by the five releases the author chose on 2026-11-08 (D27), each
+row with its prompt file, its sessions' models and efforts and its
+dependencies; the prompts of the move and of 0.3.0's steps (47 to 53)
+are complete, and each later step has a prompt file with what is fixed,
+finished at the review its row names. The author's decisions are D24 to
+D32 in the plan's "Design decisions", with a note under D22. Every
+candidate of 46a's ranked list (204 names) and every open entry of
+`plan/later.md`'s lists is placed in a step, kept for later with its
+reason, or dropped with it, in `later.md`'s new first section "Where
+each candidate went (2026-11-08)". `plan/handoff.md`'s "The steps left"
+and "Open with the author" say the same in brief. A fresh-context
+reviewer read the work once; its findings and the answers are below.
+No code was changed, nothing was run but the checks and a script of
+this session's, nothing was pushed, created, registered or renamed.
+
+### The roadmap
+
+| release | steps (sessions; model and effort) |
+|---|---|
+| 0.3.0, ordinary logic on the page | 47 the measurement (1; Opus 5.5 `high`), 48 the move to `sequentium` (2 with the author's acts between; Opus, a reviewer), 49 ordinary logic step by step with the client's suite registry (3; Opus, a reviewer), 50 proofs as lambda-terms (2; Opus, research on Sonnet 5.5 `medium`, a reviewer), 51 the one-sided and state-equation refutations checked and certified (2; Opus, Fable 5.1 `xhigh` only if Opus falls short on a proof, the panel), 52 the inverse method's dispatch rows (1; Opus, a reviewer), 53 the small defects and the release (2; Opus) |
+| 0.4.0, intuitionistic logic decided | 54 the LJT engine (2; Opus, the panel), 55 Kripke countermodels and their Rocq lemma (3; Opus, the panel), 56 tableaux and truth tables (2 to 3; Opus, a reviewer), 57 a checked basis for non-coverability (1 to 2; Opus, the panel), 58 maintenance and Kani (2; Opus, a reviewer), 59 the release (1; Opus) |
+| 0.5.0, custom rules and natural deduction | 60 rules as data and the generic derivation (2 to 3; Fable 5.1 `high` first, then Opus, the panel), 61 building with custom rules (2 to 3; Opus), 62 natural deduction (4 to 6; Opus), 63 the suites' protocol and Learn and Practice by suite (2 to 3; Opus), 64 the release (1) |
+| 0.6.0, modal logics | 65 K to S5 decided with countermodels (3 to 4; Fable first, then Opus, the panel), 66 the labelled calculus and its Rocq soundness (5; Opus), 67 the kernel crate if the copies show it (3 to 5, or 1 at the gate; Fable first, then Opus), 68 tools for teachers (3; Opus), 69 the release (1) |
+| 0.7.0, resolution and the typed lambda calculus | 70 resolution at teaching scale (3 to 4; Opus, the panel), 71 the simply typed lambda calculus (3 to 4; Fable first, then Opus, the panel), 72 a dataset for models (1 to 2; Opus, research on Sonnet), 73 the release (1) |
+
+The dependencies are the table's last column; no step depends on a later
+one (the script below checks it). 47 and 48 may run side by side, 51
+and 52 after them, 57 and 58 beside 54 to 56, 72 beside 70 and 71. The
+models follow the role table of 2026-10-18 (a dated paragraph under "Why
+these models and efforts" says so); the model documentation was not
+read again this day.
+
+Where the order departs from 46a's release table, and why:
+
+- **The kernel crate is step 67, in 0.6.0, not in 0.5.0** (departs from
+  the design): decision 2 says "only after a second non-embedded suite
+  has shown what is shared", and 46a's own wording of the decision
+  separates that suite from `ordinary/`; the modal suite (65) is the
+  first suite that is neither linear nor embedded. Every suite step from
+  49 records what it copied, so step 67 has its evidence.
+- **0.3.0 gains a session of small defects (53a)**, the entries of
+  `later.md` a first user meets, before the release; 46a's table had no
+  such row (departs from the design).
+- **The "who uses linlog" channel (users-1) left 0.3.0** by decision 9.
+- **The measurement is a step of its own (47)**, first, as 46a's "What
+  the next sessions must know" asks.
+
+### The move to `sequentium`: the author's acts, in order
+
+Step 48's prompt lists them; 48a's report turns them into a checklist.
+The session's commits (every URL, `Cargo.toml`'s fields, `CITATION.cff`,
+the manual, the guide, the flake's inputs, the client, the placeholder
+site, the opam change) come before them and are pushed after them.
+
+1. Create the organisation `sequentium` (done by the author on
+   2026-11-08, `linlog-orchestrator`'s message).
+2. Mirror `linlog-prover`'s organisation settings.
+3. Transfer `rocq-linlog` (name kept).
+4. Transfer `linlog` and rename it `sequentium`.
+5. Transfer the site repository and rename it `sequentium.github.io`.
+6. Check and re-create on each what did not move (Pages source,
+   environments, the Cachix secret, rulesets, topics, Dependabot).
+7. crates.io: Trusted Publishing of `linlog` and `linlog-cli` moved to
+   `sequentium/sequentium`, `release.yml`, environment `crates-io`.
+8. Zenodo: the application granted for `sequentium`, both repositories
+   switched on, the two concept records' repository URL edited.
+9. Create `linlog-prover/linlog-prover.github.io` and push 48a's
+   placeholder site (never a repository named `linlog` or `rocq-linlog`
+   there again).
+10. After 48b's checks: the opam pull request.
+
+### Decisions and assumptions
+
+- **The decisions** are D24 (the collection), D25 (one repository and
+  workspace, the kernel's gate), D26 (the organisation, the move, the
+  placeholder, the cache's name, no placeholder crate), D27 (the
+  releases), D28 (custom rules), D29 (the stage), D30 (the research
+  items), D31 (verification), D32 (no Discussions or announcement), with
+  a sentence that the web design's decision numbers are its own: two
+  prompts that cited the web design's D31 and D36 now name the file.
+- **The placeholder site's repository ends one redirect**: creating
+  `linlog-prover/linlog-prover.github.io` deletes the git redirect of the
+  old site repository; its only clone is the author's checkout, whose
+  remote 48b moves, so the plan accepts it (inference from GitHub's
+  transfer page as 46a's note quotes it).
+- **The new documentation addresses** follow from the rename (a project
+  site is served under its repository's name, so `/linlog/` becomes
+  `/sequentium/`); step 48 chooses the layout once and the placeholder
+  answers every old address. A custom domain is open with the author;
+  without an answer 48a uses the `github.io` addresses.
+- **The local checkouts keep their paths**, so that the Claude Code
+  settings, memory and scripts keyed by them keep working; only the
+  remotes change.
+- **The desktop app** (proposed 2026-10-25) is not placed: the author has
+  not said yes, and step 46's decisions do not name it. It stays in
+  "Open with the author".
+- **The follow-up lists** are placed by entry where a step takes them and
+  by list where a whole list is kept for the same reason (the focused
+  engine's, the Horn engine's and the parallel search's: no step of the
+  roadmap changes those engines, and each entry waits for a measurement
+  that asks, D19).
+- **The checks**: `typos.toml` excludes `plan/`, `treefmt` formats no
+  Markdown and the `conventions` check skips `plan/`, so the three
+  checks pass whatever the plan says (`linlog-orchestrator` confirmed
+  it); the plan's content is checked by the reviewer and by a script of
+  this session's (`check_roadmap.py`, in this session's scratchpad: the
+  rows and their prompt files, the dependency order, each decision cited
+  by a step, every ranked-list name placed once, every `later.md` section
+  with open entries named), whose run is below.
+
+### The reviewer's round
+
+A fresh-context reviewer (Opus 5.5 at `high`, `linlog-reviewer-46b`),
+one round, on the three changes `uurrzlnu`, `wslllono` and `zpmqkxmq`,
+briefed with the author's nine decisions and two answers, the session's
+requirements and the role table, and told to report only what breaks a
+stated requirement or a fact. It ran the script, read it, and checked
+by reading what the script cannot. What held: decisions 1 to 9 and both
+answers in D24 to D32 and the prompts; step 48's touch points, counts,
+DOIs, opam commit and the author's acts in order; step 47's figures and
+oracles; every name the prompts 47 to 53 cite but the three below; the
+models and efforts; every other dependency by meaning; every open entry
+of the six `later.md` sections it sampled, each placed. Its seven
+findings, each confirmed here, and what was done:
+
+1. **Step 51 used step 47's oracles without depending on it.** Row 51's
+   dependencies are now 47 and 48.
+2. **48a's flake checks could not pass**: with the inputs moved to
+   repositories that do not exist before the transfers, Nix would fetch
+   them again. 48a now runs its checks with the moved inputs overridden
+   to the local workspaces; 48b runs them without, after the locks move.
+3. **`core-interactive.md` does not exist**: interactive proving's rules
+   are `core-derivations.md` (confirmed by listing `.claude/rules/`).
+   Prompts 49 and 61 corrected.
+4. **`core-exports.md` is `core-export.md`.** Prompt 51 corrected.
+5. **`Error::Quantifiers` was retired by step 45** (its report says so;
+   no `Error::Quantifiers` is left in `core/src`). Dropped from 53a and
+   marked done in `later.md`.
+6. **Two placements the named step did not take**: education-8's embed
+   (now in step 68's goal) and the interactive session's older entries
+   of steps 22 and 34 (now named in 53a beside step 28's).
+7. **D26 contradicted the move**: it forbade a repository at any moved
+   one's old name, while step 48 creates the placeholder site's. D26 now
+   says no repository named `linlog` or `rocq-linlog` is created under
+   `linlog-prover` again, the placeholder site's repository the one made
+   at an old name.
+
+It also noted, outside the requirements' letter, that the comparison on
+the libraries with 0.2.0's engines (46a's "What the next sessions must
+know", the manual's planned item) was nowhere placed: it is now a kept
+row of `later.md`, open with the author, since it needs a night they
+give. On the script it said the checks are sound for what they check,
+and named what they cannot see: dependencies by meaning (finding 1),
+an entry missing inside a section that has a row, and a section the list
+leaves out; its reading of the six sections covers the second, and
+the list of 26 sections is the inventory of every heading of `later.md`
+with an open entry.
+
+The script after the fixes (`python3 -I check_roadmap.py .`):
+
+```
+rows 47-73 found: True 27
+prompts and dependencies checked
+D24: cited by steps [47, 49, 54, 55, 65, 67]
+D25: cited by steps [47, 48, 49, 54, 60, 65, 67]
+D26: cited by steps [48]
+D27: cited by steps [48, 54, 55, 56, 57, 59, 62, 64, 65, 69, 70, 71, 73]
+D28: cited by steps [60, 61, 62, 66]
+D29: cited by steps [47, 49, 56, 61, 62, 63, 65, 70]
+D30: cited by steps [71, 73]
+D31: cited by steps [51, 55, 57, 58, 66, 68, 73]
+D32: cited by steps [47]
+ranked-list ids: 204; placed rows: 204
+sections with open entries: 26
+FAILURES: 0
+```
+
+Step 68 counts under D31 by the web design's D31, which it cites with
+its file, so the plan's D31 is cited by the other six. D30 is kept in `later.md` for after 0.7.0 and D32 asks for no step (it
+is in "Open with the author"), so neither needs a step of its own.
+
+### Checklist
+
+- [x] Workspace `../linlog-step46b` on `tnoxtkmt`.
+- [x] Read the brief, `plan/46-research-next.md`, 46a's report whole,
+  `plan/conduct.md`, the Status entries of 2026-11-08, the step table,
+  "Why these models and efforts", "How the prompts are written", the
+  review protocol, step 17's prompt and its report's section 9,
+  `plan/later.md` (through an inventory by a reading agent on Sonnet 5.5
+  at `medium`, `later-open.md`, and its sections read here),
+  `plan/handoff.md`, prompts 42 and 45, and the research notes the
+  prompts rest on (name and organisation, verification, ordinary
+  sequents, the web front end, lambda calculi, the engines' scope
+  update).
+- [x] The roadmap: steps 47 to 73 in the table by release, each with its
+  prompt file, models, efforts and dependencies; the move with the
+  author's acts in order; the measurement first; the opam pull request
+  after the move; decision 8's steps (51, 58; the third kept).
+- [x] The prompts: 47 to 53 in full, 54 to 73 with what is fixed.
+- [x] `later.md`: every ranked-list name and every open entry placed,
+  kept or dropped, with the reason.
+- [x] The decisions D24 to D32 and the note under D22; the commands and
+  the models paragraph; a Status entry; `handoff.md`'s two sections.
+- [x] The reviewer's round, every finding answered above.
+- [x] `nix build .#checks.x86_64-linux.typos .#checks.x86_64-linux.treefmt
+  .#checks.x86_64-linux.conventions` under the machine lock in a capped
+  scope on cores 2 to 7: exit 0 (none of the three reads `plan/`).
+- [x] Committed in the workspace, `jj st` clean; nothing pushed,
+  created, registered or renamed; no `gh`, no `git`.
+- [x] The last message to `linlog-orchestrator`.
+
+### What the next sessions must know
+
+- **Step 47 is next**, and step 48's first session may run beside it
+  (different files). 48a needs the author's answer on a custom domain
+  first, or uses the `github.io` addresses; 48b needs the author's acts,
+  which 48a's report lists as a checklist.
+- **The table is the authority** for order and dependencies; the
+  prompts from 54 on are finished at the review their row names, with a
+  section "What steps … left you" as prompts 42 and 45 have.
+- **Every suite step records what it copied** from the linear and
+  ordinary suites (49, 54, 60, 65 say so); step 67 extracts the kernel
+  from those records only.
+- **`later.md`'s "Where each candidate went (2026-11-08)"** is where a
+  step looks for the entries it takes, and where it closes them; a kept
+  entry a step's code touches anyway may be taken and closed, said in
+  its report.
+- **The plan's own files are outside the automated checks** (`typos`,
+  `treefmt`, `conventions` skip `plan/`); a prompt's names are checked
+  by its reviewer and the planning session, as this round found three
+  wrong file names.
+- **The web design's decision numbers are its own**: a prompt that cites
+  one names `plan/web/design.md`.
+- **The organisation `sequentium` exists** (the author, 2026-11-08); the
+  move's other acts are the author's, the opam pull request last.
