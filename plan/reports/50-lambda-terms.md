@@ -398,3 +398,218 @@ refuse `WR` in LJ, and `decide` never makes one), so it needs no change.
   matter. The premises are in the one-sided rule's order. A change to the
   derivation view that reorders premises breaks `⊗R`, `&R`, `⊕L`, `⊸L`
   and the cut.
+
+## Session 50b: the page
+
+### Outcome
+
+The page shows the program of a finished proof, for the linear suite and
+the ordinary one.
+
+- **In linlog**, two bindings calls read a session's own derivation back
+  as a lambda-term, the same way the command's session command `lambda`
+  does: `term(session, settings)` (file `web/src/calls.rs`) for the linear
+  suite and `ordinary_term(session, settings)` (file `web/src/ordinary.rs`)
+  for the ordinary one. Each answers in the shape `prove --lambda --format
+  json` writes under `lambda`: the term's JSON with its `text` and its
+  `judgement`, written as the settings' `lambda` key says
+  (`{"notation", "types"}`). A proof with no term is answered with
+  `{"error": …}`, holding the library's error (`no_term` with
+  `details.reason`, or the refusal of `limits.derivation_bytes`); only an
+  unreadable session throws. `about` names each suite's term call under
+  the new key `term` and lists `lambda` among its settings.
+- **In the client**, the bottom band's Export menu ends with a new item,
+  **λ-term**. On a finished proof its line shows the typing judgement in
+  the math font (`⊢ λx. λy. x ⊗ y : a ⊸ (b ⊸ (a ⊗ b))`, or in LJ
+  `⊢ λf. λg. λx. g (f x) : (a → b) → ((b → c) → (a → c))`), and a click
+  copies that judgement to the clipboard as text. For a proof with no term
+  the item is off and says why in the page's words for linlog's reason
+  ("No λ-term: a proof of classical logic has several conclusions at
+  once, and a λ-term has one type."). The call is chosen through the
+  suite registry (`Suite.term` in `src/lib/suites.ts`), which the
+  registry's test holds to `about`.
+
+The commits:
+
+| repository | change | commit | subject |
+|---|---|---|---|
+| linlog | `lsqxslvo` | `9c2c246409e1` | Read a finished proof's lambda-term in the web bindings |
+| client | `okpkynro` | `f8f3828ac622` | flake.lock: Update |
+| client | `oxrxlqto` | `3ffc826491ef` | Show a finished proof's lambda-term in the Export menu |
+
+`linlog-orchestrator` pushed the linlog commit after rebasing it onto
+`main` (only plan files came between), and the client's lock is moved to
+that commit. This report is the linlog change after them.
+
+### Decisions
+
+- **A refusal is an answer, not a throw.** Every other call throws the
+  library's error, but a proof with no term is not a failed call: it is
+  what the page shows in place of the term. The answer is the command's
+  JSON form under `lambda` (`{"error": …}`), so the bindings, the command
+  and step 71's checker read one shape. The refusals of the bounds on the
+  way (the derivation's estimate, the printer's estimate of the text and
+  the judgement, both under `limits.derivation_bytes`) are answered the
+  same way, as the command's JSON does.
+- **The session's own derivation, not its checked proof.** The call reads
+  `Interactive::derivation_within` as `lambda` in `linlog interact` does,
+  so a session with open goals is refused by the read-back with its own
+  reason (`open`) instead of the proof's `open_goals` error, and the
+  linear and the ordinary call are the same three lines. No proof
+  parameter was added for the proofs of a cut elimination: the plan asks
+  for the term of the finished proof, and the session's term already
+  shows each cut as a redex.
+- **`about` names the call, `term`, per suite.** The client's registry
+  takes the name from there, as it takes the prefix of the calls, so a
+  later suite with terms is a row of the registry and nothing in the page.
+- **The term is an item of the Export menu, not an action of its own in
+  the band (departs from the design).** The design's bottom band names its
+  actions, and a first version added a "Term" action with the key `T`. The
+  client's flake check failed on it: `learn.spec.ts` holds the band to one
+  row with Learn on at 1280 pixels. Measured there, the band had 894
+  pixels for 869 of actions, and Term took 56; even an icon alone (32)
+  would have been 7 pixels over. The Export menu opens from the band and
+  already copies the link to the clipboard and shows why an item is off,
+  so the term follows its pattern: the item's line is the judgement, a
+  click copies it, a refusal is the item's reason. On a phone it comes
+  with Export, which is in More's sheet. No key: `E` opens the menu.
+- **What is copied is what is shown**: the judgement, with the
+  hypotheses' types and the goal's, which is the term with its type, as
+  the command's text line writes it.
+- **The page words the reason itself** (`noTerm` in `src/lib/words.ts`, by
+  `details.reason`), the client's rule for every failure; an unknown
+  reason or a bound's refusal shows the library's message.
+- **Options (D15, D16).** The term's options are the library's
+  `lambda::Options` under the settings' `lambda` key, which the page sends
+  as JSON like every setting; the tab's default is the library's (Unicode,
+  no types on binders). The page offers no switch for them: the plan asks
+  for the term shown and copied, and the ASCII notation is the command's
+  and any wrapper's through the same key.
+
+### The web module's size
+
+Measured as steps 47 and 49b measured it: the package
+`nix build .#linlog-web` at `lsqxslvo`, then `stat`, `gzip -9` and
+`brotli -q 11` of `linlog_web_bg.wasm`; and `bench/footprint.py wasm`
+over twiggy's CSV of the same build with its names kept (cores 4–9).
+
+| module | raw | gzip -9 | brotli -11 |
+|---|--:|--:|--:|
+| step 47 | 6 913 020 | 2 603 759 | 1 854 124 |
+| 49b | 7 148 412 (+3.40 %) | 2 689 130 (+3.28 %) | 1 911 671 (+3.10 %) |
+| 50b | 7 251 460 (+4.90 % on 47, +1.44 % on 49b) | 2 726 473 (+4.71 %, +1.39 %) | 1 937 382 (+4.49 %, +1.34 %) |
+
+Code and data grew from 7 126 149 bytes at 49b to 7 229 197 (+103 048).
+`linlog` grew from 1 742 104 to 1 821 686 (+79 582), of which
+`linlog::lambda`, the read-back and its printer that the bindings now
+reach, is 51 146, and `linlog::ordinary` 67 229 → 79 798 (the LJ
+read-back's own share). `linlog_web` grew by 17 056 (the two calls and
+their JSON), `core` by 4 380, and the bindings' shims fell by 3 034. The
+PNG and PDF renderers' crates are still the largest share (37.1 %).
+
+### What was checked, and by what
+
+- **The bindings' tests**, one per behaviour: `a_finished_proof_reads_back_as_a_lambda_term`
+  (`web/tests/calls.rs`: the linear term and judgement, the ASCII notation
+  with types, the affine calculus, the refusals of a classical proof and
+  of open goals with their reasons, and a small `limits.derivation_bytes`
+  answered as a `limit` refusal, none thrown) and
+  `a_finished_derivation_reads_back_as_a_lambda_term`
+  (`web/tests/ordinary.rs`: composition in LJ, LK and open goals refused).
+  `about_lists_the_suites` checks both term calls, and
+  `no_intuitionistic_text_writes_a_classical_symbol` checks every
+  finished random session's judgement. Natively 29 and 6 passed; under
+  Node `nix build .#checks.x86_64-linux.web-wasm-tests` passed (exit 0,
+  29 and 6 passed, the two new tests among them).
+- **linlog's gate** at `lsqxslvo`: exit 0, `gate: passed` (capped, cores
+  4–9). The ratchet noted cache misses moved on `search-qbf-20-2` and
+  `check-qbf-20-2`, as at 50a; the search is unchanged.
+- **linlog's `nix flake check`** at `lsqxslvo` (before the rebase, whose
+  tree differs only in plan files): exit 0. At the commit holding this
+  report it runs again; its exit status is in the last message to
+  `linlog-orchestrator`.
+- **The client**: `lint` (Biome, `astro check`: 0 errors), Vitest (569
+  passed), and the e2e specs `tests/term.spec.ts` (three tests: the ILL
+  term shown and copied, the item off before the proof is finished; the
+  LJ term shown and copied; the classical refusal with its reason),
+  `tests/phone.spec.ts` (the term from More's sheet, no sideways scroll)
+  and `tests/learn.spec.ts` (the band in one row), all passing.
+  The client's first `nix flake check` (at the first version, with a Term
+  action) failed in `e2e` on `learn.spec.ts`'s one row, which is what
+  moved the term into the Export menu. Its `nix flake check` at
+  `oxrxlqto` (`3ffc826491ef`), the last client commit, passed: exit 0,
+  every check, the full e2e suite among them.
+- **Seen once, not reproduced**: `prover.spec.ts`'s "the link in the
+  fragment restores the proof" failed in two local runs of that file
+  beside other specs (an element not found within its timeout), and
+  passed three times of three alone and in the client's final flake check. It
+  touches neither the Export menu nor the term.
+
+### The reviewer's round
+
+The fresh-context reviewer (`linlog-review-50b`, Opus 5.5 at `high`)
+read both changes against four criteria: the refusals with the library's
+reason, the bounds, the page's handling of a refusal, and agreement with
+the command. It found the calls sound on all of them: every mode without
+a term is refused with `no_term` and its reason and none with one is,
+only an unreadable session throws, the derivation, text, judgement and
+JSON are bounded and walked without recursion, and the calls build the
+derivation and the JSON `interact`'s `lambda` and `lambda_json` build. It
+reported one finding, on the page, and it holds:
+
+1. **A stale term showed while a changed proof's term was read again.**
+   Solid 1.9's `createResource` keeps its last value while it fetches
+   again, and the first version's panel did not look at `term.loading`.
+   After undo and a different close, the old judgement and its Copy
+   showed until the worker answered (the window includes calls queued
+   before), and "Term copied" stayed under a term never copied.
+   **Fixed** in the version committed (`oxrxlqto`): the item shows the
+   judgement only while `complete()` holds and the term is not being read
+   (else "Reading the λ-term…"), and "λ-term copied as text." shows only
+   while the judgement copied is the one shown. The window is a worker's
+   round trip, which no e2e test can hold open reliably, so no test pins
+   it; the client's rule (`.claude/rules/web.md`) records why.
+
+The reviewer read the first version (an action of its own); the move
+into the Export menu came after it, and keeps the panel's logic with the
+fix above.
+
+### Checklist
+
+- [x] The bindings' term call for both suites (`term`, `ordinary_term`),
+  refusing what has no term with the library's reason; its tests under
+  Node passing; rows in `plan/web/README.md`'s table; `about` listing it.
+- [x] The web module's size with `bench/footprint.py`, against step 47's
+  and 49b's figures.
+- [x] linlog's gate and `nix flake check` passed; "linlog ready" sent;
+  `linlog-orchestrator` answered with `9c2c246409e1`.
+- [x] The client's lock moved ("flake.lock: Update"); the term of a
+  finished intuitionistic proof shown from the bottom band (its Export
+  menu) and copied as text, for both suites; a refusal shown with its
+  reason; e2e tests.
+- [x] The fresh-context reviewer's round, its finding answered.
+- [x] The client's `nix flake check` at its last commit (`oxrxlqto`):
+  exit 0.
+- [x] linlog's `nix flake check` at this report's commit (its exit status
+  in the last message to `linlog-orchestrator`).
+- [x] Last message to `linlog-orchestrator`.
+
+### What is left open
+
+- The page has no switch for the term's notation or its types on
+  binders; the settings' `lambda` key carries them when one is wanted.
+- The term of a proof reached by cut elimination (each step's reduct) is
+  not shown: the call reads the session, whose cuts are redexes.
+
+### What the next sessions must know
+
+- **A term call answers its refusal, it does not throw it.** The page
+  branches on `"error" in answer`; a new caller must too.
+- **The page's term follows the session document.** `createResource` is
+  keyed on it and the judgement is gated on `term.loading`, because
+  Solid keeps a resource's last value while it reads again.
+- **The bottom band has no room for another action with Learn on at
+  1280 pixels** (25 pixels were left before the term; `learn.spec.ts`
+  holds the row). A new action needs one moved into a menu or More.
+- **Step 71's checker** reads the same JSON the page gets: the term's
+  form as 50a describes it, plus `text` and `judgement`.
