@@ -3,4 +3,4 @@ $ linlog prove --format rocq 'A & B |- A * B'
 --- stdout
 (* unprovable (MALL, classical, focus engine): the search was exhaustive *)
 --- stderr
-no certificate: a refutation of kind `exhausted` rests on the search and has no check
+no certificate: an exhausted search states no invariant, so only the search rules the proofs out and Rocq has nothing to check

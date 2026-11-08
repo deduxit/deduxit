@@ -8,7 +8,7 @@ Usage: linlog <COMMAND>
 
 Commands:
   prove      Decide whether a sequent is provable, and print a proof if it is
-  check      Check a proof read from JSON, as `prove --format json` writes it
+  check      Check a proof read from JSON, as `prove --format json` writes it, or the refutation of an unprovable outcome
   eliminate  Eliminate the cuts of a proof read from JSON, step by step
   interact   Prove a sequent step by step, reading commands from standard input
   seq        Print a sequent, convert it to JSON, or name its fragment
