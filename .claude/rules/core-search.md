@@ -389,13 +389,21 @@ copies they had are gone (F103, F104).
   give the inverse method a turn (`Row::probe`, below): intuitionistic
   with an exponential in the goal (`Feature::Exponentials`) before the
   general intuitionistic row, and classical Mix without weakening
-  (`Modes::Mix`) before the general classical row.
+  (`Modes::Mix`) before the general classical row. Step 52 measured two
+  more and dropped both: intuitionistic affine (`pigeonhole` #0 won, #1
+  at 7 holes 1.27 times slower in pinned time, and the share that spares
+  it loses #0 at 6 holes) and classical with an exponential (`chain` and
+  100 classical readings of the LLTP library won at the 2 s default, but
+  `SYJ212+1.015` of cbn, refuted in 1.9 s on one thread, lost to the
+  limit); linear IMALL (`euler`) and classical goals without
+  exponentials or Mix (the generated families) lose on the inverse
+  method outright.
 - **`LL1` rows**: the two classical rows (Mix and classical) and the
   two intuitionistic ones take `Fragment::LL1`, so a first-order goal
   goes to the focused engine one-sided or two-sided, whose `admits`
   takes `LL1` both ways; every other row and engine refuses the
   quantifier bit by its fragment. The turns of the inverse method (the
-  Mix row's, the intuitionistic exponential row's) are asked of the
+  two rows') are asked of the
   inverse method's `admits`, which refuses `LL1`, so a first-order goal
   takes none. The two-sided search needs nothing of its own: the
   reading is per occurrence, a span member's side is its occurrence's,
@@ -438,15 +446,31 @@ copies they had are gone (F103, F104).
   Horn engine is two to three times faster at the same node counts. The
   row's feature is the fragment's exponentials and the shape, nothing
   finer.
-- **The net engine has no row; it takes over at a limit**
-  (`handed_over`, in `answer_goal`): no engine forced, the dispatch's
-  engine ended at `RecursionLimit` or `MemoryLimit`, the net engine
-  admits the goal (unit-free MLL, the roots, no weakening), and every
-  atom occurs once with each sign (`one_linking`). Then
-  `Account::rewind` gives back what the first search left charged, and
-  the net engine decides with the same options, limits, stop and work;
-  the outcome names it and carries its counters (in a race the other
-  search's are added), `work` both engines' units. Why each part:
+- **The net engine has no row; it, or the inverse method, takes over
+  at a limit** (`handed_over`, in `answer_goal`): no engine forced, the
+  dispatch's engine ended at `RecursionLimit` or `MemoryLimit`, the net
+  engine admits the goal (unit-free MLL, the roots, no weakening), and
+  every atom occurs once with each sign (`one_linking`). The taker is
+  the inverse method after `MemoryLimit` in classical mode without Mix,
+  and the net engine after it if the inverse method ends at
+  `MemoryLimit` or `IndexLimit`; the net engine everywhere else. Before
+  each taker `Account::rewind` gives back what the searches before left
+  charged, and it decides with the same options, limits, stop and work;
+  the outcome names the last and carries its counters (in a race the
+  other search's are added), `work` every engine's units. Why each part:
+  - *Which taker*: measured on the forced linkings that reach a limit,
+    the inverse method is three to four times as fast as the net engine
+    on `wide-m1` (memory bound, classical), and on wide products
+    `a₀, …, aₙ ⊢ a₀ ⊗ … ⊗ aₙ` of 4 096 and 8 192 atoms it took 5 to
+    65 ms against 0.8 to 4.1 s (these never reach the bound); the net
+    engine is twice as fast on the chain `a₀, a₀ ⊸ a₁, … ⊢ aₙ` (recursion
+    limit, either mode: 35 ms and 0.55 s against 51 ms and 1.0 s at 1 024
+    and 4 096 links), and under Mix the inverse method ran past 60 s on
+    `wide-m1` 4 096 and 8 192, which the net engine proved in 16 s (the
+    held-out check that narrowed the taker to classical without Mix).
+    Intuitionistic memory-bound goals were not measured, so they keep
+    the net engine. The split is by the limit met, which stands in for
+    deep against wide: no static feature was looked for.
   - *No row*: wherever both engines decide, the focused ones are faster
     (measured on the pruned net engine, `plan/reports/32-mll-engines.md`);
     the net engine decides only where they stop at a limit (long
@@ -519,7 +543,17 @@ copies they had are gone (F103, F104).
   the work is a small share of the time; a goal the inverse method
   decides in `w` units is answered once the engine has done about
   `32 w` (the six refutations, 48 million, within seconds); 2²⁴ units
-  are some hundredths of a second. *Why turns and no feature*: wins and losses share every static
+  are some hundredths of a second. *What the share does not bound*: a
+  turn's share is in the inverse method's units, and their time is not
+  the engine's: on the classical readings of the library's SYJ problems
+  (copy bound 3) the inverse method's set-up runs about 13 000 units a
+  millisecond against the focused engine's 146 000, so a classical turn
+  there took up to 2.8 times the engine's time alone (step 52's dropped
+  row) (pinned: `SYJ206+1.015`
+  of `-01` at copy bound 3, 0.22 to 0.61 s, undecided; `SYJ212+1.013`
+  79 ms to 0.83 s on a slower core; six rows went from the copy bound to
+  the time limit), and a decided row pays it too: `SYJ208+1.007` of cbv,
+  which the focused engine proves, 1.29 times in pinned time. *Why turns and no feature*: wins and losses share every static
   feature looked at (`SYJ205` won, `SYJ206` and `SYJ212`, alike in shape,
   lost; `SYJ208` won at size 4 and lost at size 7), as at step 32's
   routing; the turns cost nothing where the engine is fast. A test

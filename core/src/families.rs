@@ -238,7 +238,7 @@ pub static FAMILIES: &[Family] = &[
         instances: 1,
         least: 1,
         powers_of_two: false,
-        claim: "the net engine past the focused engine's limits: with every atom once with each sign the linking is forced, so where the focused engine stops at its memory bound (4 096 pairs) the default hands the sequent over to the net engine, which decides it in about quadratic time; the inverse method forced is faster still on this shape, though no row of the dispatch gives it a turn",
+        claim: "the inverse method past the focused engine's limits: with every atom once with each sign the linking is forced, so where the focused engine stops at its memory bound (4 096 pairs) the default hands the sequent over to the inverse method, which decides it in about quadratic time, three to four times as fast as the net engine, which takes it over under Mix",
         growth: &[256, 512, 1024, 2048, 4096, 8192, 16384, 32768],
         generate: |k, _| instance(wide(k, 1), Mode::CLASSICAL, true),
     },

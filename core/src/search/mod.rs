@@ -790,16 +790,37 @@ fn answer_goal<'a>(
         answer = probe?;
         Engine::Inverse
     } else if engine != Engine::Net && handed_over(options, &task, &answer) {
-        account.rewind(held);
-        answer = Engine::Net.implementation().decide(
-            &task,
-            options,
-            limits,
-            account,
-            work,
-            &mut |units| poll(&mut mine, &mut *stop, units).0,
-        )?;
-        Engine::Net
+        let mut taker = if matches!(answer.result, Err(Reason::MemoryLimit { .. }))
+            && !task.mode.is_intuitionistic()
+            && !task.mode.has_mix()
+            && Engine::Inverse.implementation().admits(&task).is_ok()
+        {
+            Engine::Inverse
+        } else {
+            Engine::Net
+        };
+        loop {
+            account.rewind(held);
+            answer = taker.implementation().decide(
+                &task,
+                options,
+                limits,
+                account,
+                work,
+                &mut |units| poll(&mut mine, &mut *stop, units).0,
+            )?;
+            // The inverse method's own bound leaves the goal to the net
+            // engine, which holds less.
+            if taker == Engine::Net
+                || !matches!(
+                    answer.result,
+                    Err(Reason::MemoryLimit { .. } | Reason::IndexLimit)
+                )
+            {
+                break taker;
+            }
+            taker = Engine::Net;
+        }
     } else {
         engine
     };
@@ -833,17 +854,24 @@ fn poll(
     (stopped || mine.passed(), done)
 }
 
-/// Whether the net engine takes over a goal the dispatch gave another
+/// Whether another engine takes over a goal the dispatch gave a focused
 /// engine: one of unit-free MLL, the roots, in a mode without weakening,
 /// whose linking is forced ([`one_linking`]), on which that engine ended
-/// at its recursion limit or memory bound. The
-/// focused engines recurse once per stable sequent and keep a memo, and a
-/// long chain of links or a wide enough sequent reaches one or the other;
-/// the net engine keeps neither. What the first search left charged goes
-/// first, so that the net engine's proof is checked under the bound as if
-/// it had run alone. Its answer replaces the first one, whose counters it
-/// drops (in a race the other search's are added, as ever); the work
-/// counted is both searches', each in its engine's unit.
+/// at its recursion limit or memory bound. The focused engines recurse
+/// once per stable sequent and keep a memo, and a long chain of links
+/// reaches the recursion limit, a wide enough sequent the memory bound.
+/// After the recursion limit the net engine takes over, which recurses
+/// not at all and on a chain is twice as fast as the inverse method; after
+/// the memory bound in classical mode without Mix the inverse method,
+/// which is three to four times as fast as the net engine on a wide
+/// sequent there, and the net engine after it where it meets a bound of
+/// its own; elsewhere the net engine (under Mix the inverse method ran
+/// past a minute where the net engine proved the same wide sequent).
+/// What a search before left charged goes first, so that the proof is
+/// checked under the bound as if its engine had run alone. The last
+/// answer replaces the ones before, whose counters it drops (in a race
+/// the other search's are added, as ever); the work counted is every
+/// search's, each in its engine's unit.
 fn handed_over(options: &Options, task: &Task<'_>, answer: &Answer) -> bool {
     options.engine.is_none()
         && matches!(
@@ -1663,14 +1691,23 @@ pub(crate) fn goal_fragment(forest: &Forest, goal: &[OccId]) -> Fragment {
 ///
 /// Where the focused engines end at their recursion limit or memory bound
 /// on a unit-free MLL sequent in a mode without weakening whose atoms occur
-/// once with each sign, the net engine takes it over: they recurse once
-/// per stable sequent and keep a memo, and it keeps neither, and on such a
-/// sequent its linking is forced, so its search ends within one pass. Measured: the chain `a₀, a₀ ⊸ a₁, … ⊢ aₙ` of
-/// 1 024 and 4 096 links, where the two-sided engine meets the recursion
-/// limit after 11 and 46 ms, proved by the net engine in 26 ms and
-/// 0.43 s more, and `wide-m1` with 4 096 literals, where the focused
-/// engine meets the memory bound after 0.75 s, in 2.1 s more (with Mix
-/// 0.79 s and 2.2 s). Everywhere else the focused engines decided first.
+/// once with each sign, another engine takes it over: they recurse once
+/// per stable sequent and keep a memo, and on such a sequent the linking
+/// is forced. After the recursion limit the net engine takes it, which
+/// keeps neither and ends within one pass: the chain `a₀, a₀ ⊸ a₁, … ⊢ aₙ`
+/// of 1 024 and 4 096 links, where the two-sided engine meets the
+/// recursion limit after 11 and 46 ms, proved by the net engine in 26 ms
+/// and 0.43 s more, where the inverse method took 51 ms and 1.0 s. After
+/// the memory bound in classical mode without Mix the inverse method takes
+/// it, and the net engine after it where the inverse method meets a bound
+/// of its own: `wide-m1` with 4 096, 8 192 and 16 384 literals proved in
+/// 1.48, 3.05 and 11.8 s against 3.09, 9.48 and 37.4 s by the net engine,
+/// and 32 768 in 49.3 s, where the net engine passes 60 s; and wide
+/// sequents shuffled or of triples that reach the memory bound in 0.017
+/// to 0.33 of the net engine's time. Under Mix and in
+/// intuitionistic mode the net engine takes it: under Mix the inverse
+/// method ran past 60 s on `wide-m1` with 4 096 and 8 192 literals, which
+/// the net engine proved. Everywhere else the focused engines decided first.
 /// Which goals reach a limit depends on the limits, which the dispatch's
 /// features (fragment, mode, the roots, the shape of a Horn program) do
 /// not see.
@@ -1693,12 +1730,24 @@ pub(crate) fn goal_fragment(forest: &Forest, goal: &[OccId]) -> Fragment {
 /// on one thread with no engine forced (a race's pool searches beside the
 /// thread that takes them), at a poll of the engine's own work: where the
 /// default bias's second search runs alone after the first ended, no turn
-/// comes. Measured where the dispatch lacks it, the
-/// inverse method decides in milliseconds what the engines leave
-/// undecided or decide in seconds, and loses on every other goal: on
-/// intuitionistic sequents without exponentials and on classical ones
-/// without Mix it decided none the engines did not, in the inverse
-/// method's measurement and on the generated families.
+/// comes. A turn's share is counted in the inverse method's units, whose
+/// time can differ much from the engine's. Where the dispatch gives no
+/// turn, the inverse method decided none the engines did not, or its
+/// turns would slow or lose a goal the engine decides: on intuitionistic
+/// linear sequents without exponentials (`euler`, slower at every size);
+/// on classical ones without exponentials or Mix (the generated
+/// families); in intuitionistic affine mode, where turns decided
+/// `pigeonhole` #0 from 5 holes (2.1 s to 0.54 s, and 6 holes in 18 s
+/// where the two-sided engine passes a minute) but made #1 with 7 holes,
+/// which the two-sided engine refutes in 1 s, 1.27 times slower, and a
+/// share small enough to spare it would have left 6 holes past the
+/// minute; and on classical goals with an exponential, where turns
+/// decided the family `chain` from 256 clauses on and 100 classical
+/// readings of the library's problems that the command leaves at its
+/// 2 s limit, but where the inverse method's units ran some fifteen
+/// times slower than the focused engine's they took up to 2.8 times the
+/// engine's time, and on one thread they lost `SYJ212+1.015`, which the
+/// focused engine refutes in 1.9 s, to the 2 s limit.
 ///
 /// The bias of the focused engines, [`Bias::Auto`], is chosen per goal as
 /// well, by the measurements its documentation names. Engines are ordered
@@ -3788,6 +3837,9 @@ mod tests {
     /// Mix the focused engine searches the partitions of `mix(8)`'s context
     /// for a second, and the two-sided engine takes some hundred units on
     /// the intuitionistic goal; the inverse method refutes both at once.
+    /// At the head start and share of every
+    /// search it refutes a goal that the two-sided engine, deepening its
+    /// copy bound, would leave to the time limit.
     #[test]
     fn the_inverse_method_takes_its_turn() {
         let options = Options::default().with_jobs(1);
@@ -3819,6 +3871,15 @@ mod tests {
         let counters = |s: &Statistics| (s.nodes, s.splits, s.memo_hits, s.memo_entries);
         assert_eq!(counters(&turned.statistics), counters(&alone.statistics));
         assert!(turned.statistics.work > alone.statistics.work);
+        // With the head start and share of every search, a goal the
+        // two-sided engine, deepening without a copy bound as the command
+        // does, leaves to the time limit is refuted in a turn once its
+        // work passes the head start.
+        let saturating = sequent("!(a -o a * a * a), !(a -o a), a |- a * (a + 0)");
+        let deepening = options.clone().with_copies(None);
+        let outcome = prove(&saturating, Mode::INTUITIONISTIC, &deepening).unwrap();
+        assert_eq!(outcome.engine, Engine::Inverse);
+        assert!(matches!(outcome.verdict, Verdict::Unprovable(_)));
     }
 
     /// The caller's stop ends both sides of the race, whether or not the
@@ -4160,12 +4221,13 @@ mod tests {
     }
 
     /// Where the focused engine the dispatch picked ends at its recursion
-    /// limit or memory bound on unit-free MLL whose linking is forced, the
-    /// net engine decides the sequent, in classical and intuitionistic
-    /// mode; not where an engine is forced, not on equal literals, nor
-    /// outside unit-free MLL.
+    /// limit on unit-free MLL whose linking is forced, the net engine
+    /// decides the sequent, in classical and intuitionistic mode, and
+    /// where it meets its memory bound in classical mode without Mix the
+    /// inverse method, or the net engine after it; not where an engine is forced, not on equal
+    /// literals, nor outside unit-free MLL.
     #[test]
-    fn the_net_engine_takes_over_at_a_limit() {
+    fn another_engine_takes_over_at_a_limit() {
         let limits = Limits::default().with_recursion_depth(8);
         let decide = |input: &str, mode: Mode, options: &Options| {
             prove_within(&sequent(input), mode, options, &limits, |_| false).unwrap()
@@ -4185,16 +4247,23 @@ mod tests {
             Verdict::Unknown(Reason::RecursionLimit { .. })
         ));
         // The focused engine's set-up meets a bound of 1 MiB on `wide`
-        // with 256 pairs; what it charged goes before the net engine's
-        // proof is checked under the same bound.
-        let tight = Limits::default().with_memory_bytes(Some(1 << 20));
-        let wide = crate::families::wide(256, 1);
-        let outcome = prove_within(&wide, Mode::CLASSICAL, &Options::default(), &tight, |_| {
-            false
-        })
-        .unwrap();
-        assert_eq!(outcome.engine, Engine::Net);
-        assert!(outcome.verdict.proof().is_some(), "{:?}", outcome.verdict);
+        // with 256 pairs, and the inverse method takes over; under 64 KiB
+        // on 64 pairs the inverse method meets it too, and the net engine
+        // proves the sequent. What each search charged goes before the
+        // next one's proof is checked under the same bound.
+        // Under Mix the net engine takes over at once.
+        for (pairs, bytes, mode, engine) in [
+            (256, 1 << 20, Mode::CLASSICAL, Engine::Inverse),
+            (64, 1 << 16, Mode::CLASSICAL, Engine::Net),
+            (256, 1 << 20, Mode::CLASSICAL.with_mix(), Engine::Net),
+        ] {
+            let tight = Limits::default().with_memory_bytes(Some(bytes));
+            let wide = crate::families::wide(pairs, 1);
+            let outcome =
+                prove_within(&wide, mode, &Options::default(), &tight, |_| false).unwrap();
+            assert_eq!(outcome.engine, engine, "{pairs} {mode}");
+            assert!(outcome.verdict.proof().is_some(), "{:?}", outcome.verdict);
+        }
         // Equal literals: the net engine's search could take without end
         // what the focused engine gave up quickly, so it stays given up.
         let equal = "a, a, a -o (a -o b0), b0 -o b1, b1 -o b2, b2 -o b3, b3 -o b4, \

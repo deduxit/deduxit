@@ -268,7 +268,7 @@ fragment and the mode call for):
 | `additive` | two additive-only formulas, in every mode |
 | `horn` | the markings of a Petri net, for Horn programs (atoms, implications between tensors of atoms, such implications under `!`, one goal that is a tensor of atoms): reachability in linear mode, coverability in affine mode |
 | `essential` | essential nets, IMLL without units, only when named |
-| `inverse` | the focused inverse method, forward from the axioms, in every mode but the ordered ones, only when named (and in turns beside the default on intuitionistic goals with an exponential and under Mix) |
+| `inverse` | the focused inverse method, forward from the axioms, in every mode but the ordered ones, only when named (and in turns beside the default on intuitionistic goals with an exponential and under Mix, and in place of the net engine where the focused engine meets its memory bound on a classical MLL sequent without Mix whose atoms occur once with each sign) |
 
 `--fragment NAME` (`mll`, `mll-units`, `all`, `mall`, `mell`, `ll`)
 searches in a fragment instead of the detected one; a sequent outside it

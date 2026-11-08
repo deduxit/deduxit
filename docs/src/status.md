@@ -96,7 +96,9 @@ Built:
   for two additive-only formulas a
   recursion on subformula pairs; in every commutative mode, when asked
   or in turns beside the default engine on intuitionistic goals with
-  an exponential and under Mix, the focused inverse method, a forward
+  an exponential and under Mix, and where the focused engine meets its
+  memory bound on a classical MLL sequent whose linking is forced, the
+  focused inverse method, a forward
   saturation from the axioms by
   rules that are whole focusing phases, with subsumption over tries of
   the sequents kept, which decides without exponentials and with them
@@ -342,7 +344,7 @@ a collection of logic suites:
 
 - 0.3.0: ordinary logic on the web page, proved step by step in LK and
   LJ; the lambda-term of a proof on the web page; the inverse method
-  chosen by default where it is faster.
+  chosen by default wherever else a measurement shows it faster.
 - 0.4.0: intuitionistic logic decided by an engine of its own, with
   Kripke countermodels for what is not provable, checked, drawn and
   certified in Rocq; classical tableaux and truth tables; a checked

@@ -54,9 +54,12 @@ its markings (below); for everything else the *focus engine* runs a
 focused sequent search over bitsets; and for MLL without units the *net
 engine* searches for an axiom linking that makes the sequent's formula
 trees a proof net, by default only where the focus engine stops at its
-recursion limit or memory bound on a sequent whose atoms occur once with
-each sign (a chain of thousands of links, some sequents of thousands of
-distinct atoms), since everywhere else the focus engine decides first. `--mix`, `--affine` and `--intuitionistic`
+recursion limit on a sequent whose atoms occur once with each sign (a
+chain of thousands of links), or at its memory bound on one under Mix,
+since everywhere else the focus engine decides first; at the memory
+bound without Mix (some sequents of thousands of distinct atoms) the
+inverse method below takes the sequent over, three to four times as
+fast there, and the net engine after it where it meets a bound of its own. `--mix`, `--affine` and `--intuitionistic`
 choose the logic, `--fragment` and `--engine focus|net|two-sided|additive|horn|essential|inverse`
 override what detection picks (`inverse`, the inverse method, runs alone only
 when asked, and takes a turn beside the engine on some goals; below), `--timeout`, `--copies N` and
