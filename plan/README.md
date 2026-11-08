@@ -4961,3 +4961,24 @@ move (D26).
   and exchange ideas. 53m's design now runs on Fable 5.1 with a partner
   on Opus 5.5 as its sub-agent, in three rounds: apart, then exchange,
   then one shortlist labelled by who proposed each candidate.
+- 2026-11-08: 48b done and reviewed: the move to `sequentium` finished.
+  - The pushes, in order, each after its flake check without overrides:
+    the library (`ff02e644`), linlog (`5f308848`, its lock on the moved
+    library) and the client (`b45452fc`, its lock on the moved linlog).
+  - Every row of 48a's address table was fetched after both deploys.
+    The placeholder's mapping was checked under Node. `nix run
+    github:sequentium/sequentium -- --version` from a clean shell prints
+    `linlog-cli 0.2.0`. Nothing failed.
+  - Found beyond the brief: Nix follows GitHub's redirect, so
+    `github:linlog-prover/linlog` still resolves.
+  - Checked here: the new addresses (page, rustdoc, manual, guide,
+    library docs, logos) answer 200, and the old guide files at the
+    placeholder name their new address.
+  - Act 2's settings were compared through `gh` before (2026-11-08,
+    above).
+  - Left for step 53: the attestations' `--repo` with `gh`, crates.io's
+    Trusted Publishing and Zenodo's version record, all proven only by
+    the 0.3.0 release.
+  - Left for the author: opening the old site once in a browser that
+    visited it, so the replacement service worker takes over; then the
+    opam pull request (48b's report, step by step).
