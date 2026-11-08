@@ -192,7 +192,7 @@ pub enum Kernel {
 /// written for: the package `rocq-linlog` of the repository
 /// <https://github.com/sequentium/rocq-linlog>, logical path `Linlog`,
 /// built with Rocq 9 and its standard library.
-pub const LINLOG: &str = "0.2.0";
+pub const LINLOG: &str = "0.3.0";
 
 /// The prelude of a one-sided certificate for linlog's library: the
 /// imports of its soundness theorems, of lists and of strings, whose
