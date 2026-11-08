@@ -11,7 +11,7 @@
   perSystem =
     { pkgs, ... }:
     let
-      nightly = (inputs.rust-overlay.lib.mkRustBin { } pkgs).nightly."2026-10-21".minimal;
+      nightly = (inputs.rust-overlay.lib.mkRustBin { } pkgs).nightly."2026-11-07".minimal;
     in
     {
       devshells.fuzz = {
