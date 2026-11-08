@@ -4954,3 +4954,6 @@ move (D26).
   placement on Opus 5.5 at `high`, as 38g was. The logos' files already
   answer at `sequentium.github.io/logo/`, and the placeholder keeps
   copies at the old address for docs.rs's rustdoc.
+- 2026-11-08: the author's idea for `sequentium`'s mark, written into
+  53m's prompt: the "t" drawn as the turnstile `⊢`, as linlog's "i" is
+  the lollipop. 53m weighs it first, with other options beside it.

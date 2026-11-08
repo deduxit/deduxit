@@ -44,6 +44,11 @@ Two parts, as 38f and 38g were:
     The report of 38f in `plan/reports/38-web-polish.md` and the files
     in `~/Projects/own/linlog-logo/` show how the lollipop was made and
     judged.
+  - The author's idea, to weigh first but not alone (2026-11-08: "I was
+    thinking about the 't' becoming the turnstile, but not sure. Also
+    explore other options"): the "t" of `sequentium` drawn as the
+    turnstile `⊢`, as linlog's "i" is the lollipop `⊸`. Other options
+    beside it, each judged by the same criteria.
   - Each candidate is shown at every size and place it will take (the
     favicon, the page's header beside the suite tabs, the social image,
     a GitHub avatar, README's head on GitHub and crates.io) in a private
