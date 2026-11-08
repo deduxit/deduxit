@@ -192,5 +192,5 @@ This is the record that the kernel crate (step 67) is extracted from. Nothing ge
 - [x] The gate at `mtvmuqvn`, `vukwtlxz` and `vxtzvymu`: exit 0 each time, both `cargo hack` runs inside it, and both alone with warnings denied.
 - [x] The target sets 49a and net-49a against 47 and net-47: no verdict differs, every counter equal (`mtvmuqvn`).
 - [x] The supervisor's correction: LJ's `→L` shares its context through hidden contractions, the admissible view the default, a focused test, and the reviewer's second round (`vukwtlxz`). Its bound finding was fixed (`vxtzvymu`).
-- [ ] `nix flake check` at the last commit.
-- [ ] This report committed; `jj st` clean; the last message to `linlog-orchestrator`.
+- [x] `nix flake check`: exit 0 at `kousyoxv`, the code's last change, and run again at the change that ticks this box, which changes this file alone.
+- [x] This report committed and `jj st` clean. The last message to `linlog-orchestrator` is sent after this commit.
