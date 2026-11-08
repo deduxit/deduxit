@@ -4571,3 +4571,22 @@ client follows it (step 32).
   author's direction (2026-11-08)" holds their words and what the
   research must settle. 46a started (Fable 5.1 at `high`, sub-agents on
   Sonnet 5.5 at `medium`, a reviewer on Opus 5.5 at `high`).
+- 2026-11-08: 46a done and reviewed: 26 research notes under
+  `plan/notes/research/next/` and the synthesis in
+  `plan/reports/46-research-next.md`, with the ranked list, the structure
+  options, what a rename touches with name candidates, an order of five
+  releases, and nine decisions for the author.
+  - Checked here against the sources, independently of the session's
+    reviewer:
+    - crates.io's counts (`linlog` 67, `linlog-cli` 43);
+    - the four free names on crates.io and GitHub (`sequentium`,
+      `gentzenlab`, `turnstilelab`, `prooflings`), and `gentzen` and
+      `organon` taken;
+    - GitHub's documentation: a transfer redirects web and git links but
+      not Pages URLs, and a renamed organisation's old name is free for
+      others to claim;
+    - Prusti's last tagged release (2024-02-28, nightlies since).
+    All held.
+  - One departure: the order note was written by the synthesis session
+    itself.
+  - Next: the decisions to the author; 46b after their answers.
