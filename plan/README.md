@@ -5213,3 +5213,16 @@ move (D26).
   - One departure, not shortlisted: two Euler Math free candidates
     outline the formula face into a logo.
   - The placement waits for the author's choice; 53a doesn't.
+- 2026-11-08: the author on the marks, correcting the earlier wording:
+  "I thought that will be phased out in favour of the logo". linlog's
+  lollipop is retired.
+  - `sequentium`'s mark replaces it everywhere: the site's header,
+    favicon and social image, README, the rustdoc's logo, the client's
+    `--color-logo` token and its guards.
+  - `linlog` stays the linear suite's name, crate and command, without a
+    mark of its own.
+  - docs.rs's published 0.1.0 and 0.2.0 keep the lollipop, served at the
+    old addresses by the placeholder.
+  - 53m's round 2 drops the family criterion.
+  - The author liked the free "∴ sequentium" and asked for mockups,
+    other fonts and other colours; 53m works on them.

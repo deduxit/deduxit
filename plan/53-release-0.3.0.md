@@ -34,7 +34,7 @@ joining (or not) the concept DOIs.
 The author's decision of 2026-11-08: the collection gets a logo and a
 word mark of its own before 0.3.0, the first release from `sequentium`.
 linlog's lollipop (violet, CC BY 4.0, sessions 38f and 38g) stays the
-linear suite's mark. The organisation's avatar waits for the new mark.
+linear suite's mark (corrected the same day: the author retires the lollipop, and the new mark replaces it everywhere; `linlog` stays the linear suite's name without a mark of its own). The organisation's avatar waits for the new mark.
 Two parts, as 38f and 38g were:
 
 - **The design** (Fable 5.1 at `high`, with the `frontend-design`
