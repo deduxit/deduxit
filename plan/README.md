@@ -5089,3 +5089,43 @@ move (D26).
     library's refusals name them. `--structural` is ignored on linear
     output.
   - Next: 49c, the page.
+- 2026-11-08: 49c done and reviewed: the page proves ordinary logic. Step
+  49 is complete.
+  - The client: a suite registry (`Calculus` = suite, method, parameter,
+    held to `about`'s suites by a test) in place of `Mode`. The popover
+    offers Linear | Ordinary, with Classical | Intuitionistic | Minimal
+    and a "Structural rules" switch. The stage draws LK/LJ, never the
+    linear image, with shared G3 rules (no hand split). It has close,
+    hints, the step list, the exports, fifteen examples checked in all
+    three logics, links at v=2 and the shelf at version 2. Version-1
+    links and shelves read as the linear suite, tested.
+  - Its later.md fixes: the phone's goal bar on one row; the tour's
+    39-px button, whose cause was buttons laid over the previous
+    drawing; the replayed classical cut pinned two-sided; README's
+    counts corrected (452 problems, 407 provable).
+  - Two heads-up boxes in its pane were acted on:
+    - Decided: ordinary tabs undo per branch, as the author's D13 says,
+      not globally. 49c's retraction cuts the step's subtree out of the
+      level-8 session document, and linlog's reader accepts it before
+      the page shows or stores it.
+    - The client now depends on that layout. That is written in the
+      client's rules and caught by a property test against the real
+      module. A bindings call `ordinary_retract` is named for step 63's
+      suite protocol.
+  - Its reviewer reproduced five breaks in a browser, all fixed, three
+    with e2e tests that fail without the fix:
+    - a cyclic or Lambek proof on the shelf made the whole shelf
+      unreadable and lost the visit's proofs; now that proof alone is
+      left out;
+    - "Fill from" and the invertible switch reached ordinary sessions;
+    - grafts were mislabelled after undo;
+    - the structural switch left a stale id map.
+  - Checked here:
+    - the client's full flake check rerun at its head (exit 0: 569 unit
+      and 136 e2e tests);
+    - the link codec read: `v=1` is the linear suite, `v=2` names its
+      suite, any other version is refused as such;
+    - the shelf's change to leaving an unreadable proof out.
+  - Left open: graft marks through a link, the tour's Escape race, the
+    examples in the problems check (step 63), `ordinary_retract` (step
+    63), a Settings row for `ordinary.translation`.
