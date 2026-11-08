@@ -5297,3 +5297,21 @@ move (D26).
     - 53m's placement and 53b wait for those choices, and so may the
       opam pull request (a full rename renames `rocq-linlog`).
     - Work that needs no tag goes on: 51b, 52, and 53a after them.
+- 2026-11-09, 00:30: **the author chose the name "deduxit"** ("Go with
+  deduxit"), pending a second, deeper trademark search that they asked
+  for.
+  - **What it was chosen from:** 71 names from four models working apart
+    (Fable 5.1, Opus 5.5, Sonnet 5.5, Haiku 5.5), on the page
+    https://claude.ai/artifact/Kzws7oLc52kXmhygcMrmAt.
+  - **What the first screen found:** deduxit is free on GitHub,
+    crates.io, npm, PyPI and opam (`rocq-deduxit`), and deduxit.org,
+    .dev and .com are unregistered. No US mark starts with it.
+  - **The second search, running:** the USPTO with wider prefixes, the
+    EU, WIPO, Swiss and German registers, and the field's near names.
+    Dedukti, Inria's proof checker, is spelt almost alike and is the one
+    to weigh.
+  - **Still to settle with the author:**
+    - the scope: the organisation and site only, or the crates and
+      command too (`plan/notes/structure.md`'s rename, now to deduxit);
+    - the mark, which round 3 drew for "sequentium".
+    No tag until then.
