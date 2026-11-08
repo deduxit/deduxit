@@ -5196,3 +5196,20 @@ move (D26).
 - 2026-11-08: the author on the name, after the SEQUENT finding: "No,
   keep the name". `sequentium` stays. The opam pull request and 0.3.0's
   tag no longer wait on it.
+- 2026-11-08: 53m's design done; the author's choice is next. The page:
+  https://claude.ai/artifact/Bnwgfv8f6CnFk4tkT9U4Mz (private), also
+  `~/Projects/own/sequentium-mark/shortlist/shortlist.html`.
+  - The shortlist, all in the lollipop's violet as `--color-mark`:
+    1. the turnstile, the t drawn as ⊢: the author's idea, drawn by all
+       four designers and ranked first by the two fresh ones, who were
+       never told it;
+    2. "⊢ sequentium";
+    3. "sequentium,", Opus's, which Fable disputes.
+  - The fresh designers' and anchored designers' free candidates are on
+    the page in sections of their own.
+  - Diligence: fonts OFL without a Reserved Font Name; the field's logos
+    looked at, none close; the name question was the SEQUENT
+    application, settled by the author.
+  - One departure, not shortlisted: two Euler Math free candidates
+    outline the formula face into a logo.
+  - The placement waits for the author's choice; 53a doesn't.
