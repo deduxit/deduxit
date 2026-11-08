@@ -319,6 +319,19 @@ area that took it (the reports under `plan/reports/` have the tables):
   One undecided net, `JoinFreeModules_joinFree-10_50_1`, ends at the
   memory bound after 3.5 s and 7.98 million nodes, where `37b` ended at
   its 5 s limit after 7.81 million.
+- The labels of the first-order logic and of the release 0.2.0
+  (`42a` to `42k`, `45b`, `45d` and their `net-` files) are compared in
+  their steps' reports, each with the label before it.
+- `47` and `net-47`, the measurement of 0.2.0 as released, **the oracles
+  from here on**: against `45d` and `net-45d`, the release's, every one
+  of the 284 and 64 rows has the same verdict, and none of the 145 and
+  64 rows decided alike on one thread differs in a counter. Against
+  `after-efficiency` the focused set differs, as recorded above, on the
+  chain family's four rows (`after-generations`), on
+  `partition-table/1-1` (`after-routing`) and on `mix/8` to `mix/10`
+  (`37b`), and on no other of the 135 rows both decide; the net set has
+  the counters of `net-after-prunes` on all 64. The whole focused set
+  takes 14 s on its two cores and the net set 9 s on one.
 
 **Without a copy bound.** Every other LLTP row runs at `--copies 3`, a
 bound at which none of the five below is refuted, so when cut entries of
@@ -332,13 +345,16 @@ within 4 ms at levels 5 to 16; a row of them at the time limit is the
 regression they are here for. They are not in `after-efficiency.csv`;
 `after-generations.csv` has them.
 
-**The oracle is `after-efficiency.csv`**: a change that must not alter
-the focused engine's search runs `bench/targets.sh LABEL` and compares
-with it, `linlog-bench summary --against bench/targets/after-efficiency.csv
+**The oracle is `47.csv`**: a change that must not alter the focused
+engine's search runs `bench/targets.sh LABEL` and compares with it,
+`linlog-bench summary --against bench/targets/47.csv
 bench/targets/LABEL.csv --counters`, which lists every row decided alike
 whose counters differ. The net engine's set (`bench/net-targets.sh`) has
-its own oracle, `net-after-prunes.csv`, since the prunes changed the
-search; before them it was `net-after-efficiency.csv`, equal in
-verdict, `links` and `tests` to `net-after-retype.csv`. The other files of the directory
-are intermediate labels of those steps and the pool's measurements.
+its own oracle, `net-47.csv`, compared the same way. Before them the
+oracles were `after-efficiency.csv`, which `47.csv` descends from by the
+changes listed above, and `net-after-prunes.csv`, equal in verdict,
+`links` and `tests` to `net-47.csv`; before the prunes the net set's was
+`net-after-efficiency.csv`, equal in verdict, `links` and `tests` to
+`net-after-retype.csv`. The other files of the directory are
+intermediate labels of those steps and the pool's measurements.
 
