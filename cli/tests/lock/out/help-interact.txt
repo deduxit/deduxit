@@ -61,7 +61,7 @@ Options:
           [default: strict]
 
       --state <PATH>
-          Resume a session saved with `save` instead of starting from a sequent; the mode is the file's, so the mode flags are refused
+          Resume a session saved with `save` instead of starting from a sequent; the mode or the logic is the file's, so the mode flags and --logic are refused
 
   -i, --intuitionistic
           Intuitionistic linear logic: hypotheses left of ⊢ and one goal right of it, written in its own syntax (--ill-syntax), and two-sided derivations
@@ -80,6 +80,36 @@ Options:
 
       --empty-antecedents
           With --lambek, allow sequents with no formula left of ⊢ (the calculus L*)
+
+      --logic <LOGIC>
+          Read the input as ordinary logic, through its translation into linear logic
+          
+          The input is a formula or a sequent of propositional logic in the syntax below (a `.p` file a TPTP problem, as the ILTP library writes them). `prove` decides its image and reads a proof back as a derivation of LK (classical) or LJ (intuitionistic, minimal), which is checked by the rules of the logic before it is shown; classical logic is decided in affine MALL, with no copy bound, intuitionistic and minimal logic in ILL, under the time limit, so they may be answered unknown, and the JSON output is the search's outcome on the image. `seq print` prints the image. `interact` proves the sequent step by step by the rules of LK or LJ, its `close` deciding a goal through the translation.
+
+          Possible values:
+          - classical:      Classical propositional logic, derivations in LK
+          - intuitionistic: Intuitionistic propositional logic, derivations in LJ
+          - minimal:        Minimal logic: intuitionistic without ex falso, false an atom
+
+      --translation <TRANSLATION>
+          The translation into linear logic: affine for classical logic, cbn (by default), cbv or 01 for intuitionistic and minimal logic (ordinary.translation)
+
+          Possible values:
+          - affine: Classical logic into affine MALL: negation normal form, ∧ as &, ∨ as ⅋
+          - cbn:    Girard's call-by-name translation into ILL: A → B as !A ⊸ B, A ∨ B as !A ⊕ !B, hypotheses under !
+          - cbv:    Girard's call-by-value translation into ILL: atoms as !a, A → B as !(A ⊸ B), ∧ as ⊗
+          - 01:     Liang and Miller's 0/1 translation into ILL, as the LLTP library states it
+
+      --structural <RULES>
+          How a derivation of LK or LJ (--logic) shows its weakenings and contractions: each left out where it is admissible, so that the derivation reads as G3's, whose axiom takes a context and whose rules contract what they use twice, or every one drawn as the checker has it, in every format but rocq (view.structural)
+          
+          The derivation is the same either way, and its explicit form is the one checked; a certificate (--format rocq) names every structural rule.
+
+          Possible values:
+          - admissible: Each weakening and contraction left out where it is admissible
+          - explicit:   Every weakening and contraction drawn
+          
+          [default: admissible]
 
       --bias <BIAS>
           How the focused engines pick the positive literal of every atom (search.bias)

@@ -83,7 +83,7 @@ Options:
       --logic <LOGIC>
           Read the input as ordinary logic, through its translation into linear logic
           
-          The input is a formula or a sequent of propositional logic in the syntax below (a `.p` file a TPTP problem, as the ILTP library writes them). `prove` decides its image and reads a proof back as a derivation of LK (classical) or LJ (intuitionistic, minimal), which is checked by the rules of the logic before it is shown; classical logic is decided in affine MALL, with no copy bound, intuitionistic and minimal logic in ILL, under the time limit, so they may be answered unknown, and the JSON output is the search's outcome on the image. `seq print` prints the image.
+          The input is a formula or a sequent of propositional logic in the syntax below (a `.p` file a TPTP problem, as the ILTP library writes them). `prove` decides its image and reads a proof back as a derivation of LK (classical) or LJ (intuitionistic, minimal), which is checked by the rules of the logic before it is shown; classical logic is decided in affine MALL, with no copy bound, intuitionistic and minimal logic in ILL, under the time limit, so they may be answered unknown, and the JSON output is the search's outcome on the image. `seq print` prints the image. `interact` proves the sequent step by step by the rules of LK or LJ, its `close` deciding a goal through the translation.
 
           Possible values:
           - classical:      Classical propositional logic, derivations in LK
@@ -101,6 +101,17 @@ Options:
 
       --linear
           With --logic, show the linear proof of the image instead of the proof read back as LK or LJ
+
+      --structural <RULES>
+          How a derivation of LK or LJ (--logic) shows its weakenings and contractions: each left out where it is admissible, so that the derivation reads as G3's, whose axiom takes a context and whose rules contract what they use twice, or every one drawn as the checker has it, in every format but rocq (view.structural)
+          
+          The derivation is the same either way, and its explicit form is the one checked; a certificate (--format rocq) names every structural rule.
+
+          Possible values:
+          - admissible: Each weakening and contraction left out where it is admissible
+          - explicit:   Every weakening and contraction drawn
+          
+          [default: admissible]
 
       --fragment <FRAGMENT>
           Search in this fragment instead of the detected one (search.fragment)
