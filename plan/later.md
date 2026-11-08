@@ -267,7 +267,7 @@ assigned to.
 | Follow-ups: the focused engine | every open entry (the gap study's probes A2 to A4, the fixed cost per call, the memo leftovers, `Θ`'s sort, the hand-over at the recursion limit, Mix's costs, the default bias's unit of work, deepening from the root, the five LLTP problems at copy bound 3, the pool's arena and memory, the checker on a hostile file, the forward search's stop on GPPP nets, the one-sign count's tightening, and the rest of the list) | kept: no step of the roadmap changes the focused engine; each waits for a measurement that asks (D19), and the step after 73 or a performance step the author chooses takes them; the debug-build stack overflow of `a_raised_limit_holds_on_the_pool` to 53a |
 | Follow-ups: the Horn engine | the undecided nets, refutations no engine reaches, the simplex's limits, memory at tight bounds, the shares, forward coverability, the frontier's duplicates, constant factors, a shortest firing sequence | kept: no step changes the Horn engine but 57, which adds a certificate only |
 | Follow-ups: intuitionistic mode | the written succedent of `⊤`/`0`-only formulas; the additive path on more roots | kept: verdicts are unaffected |
-| Follow-ups: intuitionistic mode | what the default leaves to the time limit that the inverse method saturates at once | 52 |
+| Follow-ups: intuitionistic mode | what the default leaves to the time limit that the inverse method saturates at once | done in 52: step 37's turn decides it (137 ms), pinned by a test |
 | Follow-ups: ordinary logic | `interact --logic` | 49, as a native goal state (design b), not a session over the image |
 | Follow-ups: ordinary logic | the loop check | 54 |
 | Follow-ups: ordinary logic | classical logic through affine MALL (116 unknown) | kept: a limit, not a task (not a SAT solver) |
@@ -282,7 +282,8 @@ assigned to.
 | Follow-ups: the exports | term against net normal forms compared only without doubled vertices | kept: a test's reach, no defect found |
 | Follow-ups: the command's output | `check FILE` ignoring the file's mode; the records' constant wire level; the older lists of steps 18 and 20; the derivation builder's recursion | 53a |
 | Follow-ups: parallel search | every open entry (late cancellation at `&`, the short cube list, speculative work, the per-worker arena, a runtime kept across calls, duplicated exploration, the pool's memory on SYJ, a thread sanitizer) | kept: no measurement asks; no step changes the runtime |
-| Follow-ups: the benchmarks | the inverse method's wins without a row | 52 |
+| Follow-ups: the benchmarks | the inverse method's wins without a row | done in 52 for `wide-m1` (a handover); `chain` and `pigeonhole` measured and kept below |
+| Follow-ups: the benchmarks | a turn bounded in time: the case of `chain`, the classical readings and `pigeonhole` | unassigned, found by 52 |
 | Follow-ups: the benchmarks | the harness reading linlog's reason in the wrong order | done in 52 |
 | Follow-ups: the benchmarks | LinearOne's eight problems; `chain-fo` without the family's copy bound; `wide-m1`'s memory at 8 192; `pigeonhole` #1's late classical refutation; the resumption switch at first order | kept: with engines-13 and -14, a performance step the author chooses |
 | Follow-ups: the benchmarks | `bench/reruns.txt`; the forward bound tuned on more nets; the older lists of step 28 | kept: measured only |
@@ -1804,15 +1805,6 @@ the focused engine today. The canonical choice among identical hypotheses
   bound: find it (the second search's own structures, the pool's
   workers, or a proof of `&` rules outside the focused engine's charge),
   charge it, and pin it with a test under a bound.
-- **The default leaves to the time limit what the inverse method
-  saturates at once** (found by session 43c, 2026-10-24). `linlog prove
-  -i '!(a -o a * a * a), !(a -o a), a |- a * (a + 0)'` answers unknown
-  after 2 s, the two-sided engine at a copy bound of 101, where `linlog
-  prove -i --deterministic` answers unprovable from the inverse engine,
-  saturated at 14 sequents. The default's race should give the inverse
-  method its turn, or an unprovable that it finds in milliseconds should
-  not wait for the time limit; find why the race misses it and pin the
-  sequent with a test.
 
 ## Follow-ups: ordinary logic
 
@@ -2268,14 +2260,10 @@ a question for pinned time, never as a regression by itself; and leave
 the baselines' wall time, on an idle machine, the arbiter of speed.
 
 *Found by the growing families (step 45b, 2026-10-31; unassigned).* The
-inverse method forced beats the default where no row of the dispatch
-gives it a turn: `wide-m1` (32 768 pairs in 47 s, where the default
-hands over to the net engine and decides 16 384 in 35 s), classical
-`chain` (2 048 clauses in 4 ms, where the focused engine meets the
-recursion limit from 1 024), and `pigeonhole` in intuitionistic affine
-MALL without exponentials (6 holes in 0.27 s against the two-sided
-engine's past a minute). Its turns today come only on classical Mix and
-intuitionistic sequents with exponentials. `pigeonhole` #1, false
+inverse method's wins without a row: `wide-m1` got a handover in step
+52 (`reports/52-inverse-dispatch.md`); classical `chain` and affine
+`pigeonhole` got turns, measured, and lost them (the entry on a turn
+bounded in time, below). `pigeonhole` #1, false
 classically, is refuted by its classical reading only after the backward
 search has ended (5 s at 8 holes, at the memory bound). The resumption
 of a clause's answers at first order has no switch, so no measurement
@@ -2314,6 +2302,27 @@ unassigned; the rows in `bench/comparison/2026-11-03-growing/`).*
   prove #0 to 384 and end #1 at that bound. A deepening that grows the
   bound by more than one copy a level only where the search used them
   all would bring the two closer.
+- **A turn bounded in time, the case of `chain`, the classical
+  readings and `pigeonhole`** (found by step 52, 2026-11-08). A turn's
+  share is counted in the inverse method's units, whose time is not the
+  engine's: on the classical readings of the LLTP library's SYJ problems
+  its set-up runs about 13 000 units a millisecond against the focused
+  engine's 146 000, and in affine IMALL several times slower than the
+  two-sided engine's. Step 52 built two turns and dropped both for it.
+  On classical goals with an exponential the turns decided `chain` from
+  256 clauses on (512 in 0.25 s against 2.35 s, 1 024 to 8 192 where the
+  focused engine meets its recursion limit) and 100 classical readings
+  of the library's intuitionistic problems that the command leaves at
+  its 2 s limit, but took up to 2.8 times the engine's time where they
+  did not decide (`ILLTP-SYJ-01/SYJ206+1.015` at copy bound 3), made 22
+  of 62 decided rows slower at the default on one thread (`SYJ212+1.013`
+  of cbn 1.78) and lost `SYJ212+1.015` of cbn, refuted in 1.88 s, to the
+  2 s limit. In affine mode they decided `pigeonhole` #0 at 5 and 6
+  holes and made #1 at 7, refuted in a second, 1.27 times slower. A unit
+  of the inverse method weighed by its time (its set-up above all), or a
+  share per row, would bound the turns' time as their work is bound; the
+  rows above are the measurement to repeat (`/tmp/linlog-handoff/52-measure/`
+  while it lasts, the report's commands after).
 
 ## Follow-ups: certified refutations
 
