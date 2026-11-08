@@ -1002,11 +1002,14 @@ first-order development (`ll (symbol := string) Calculus.classical`,
 `ill (symbol := string) Intuitionistic.intuitionistic`, …): predicates
 applied to terms, `bound 0` the innermost quantifier's variable,
 `eigen 0` an eigenvariable, a `∀` step naming its body and its
-eigenvariable, a `∃` step its witness; a refutation of a sequent with a
-quantifier has no certificate. An unprovable sequent whose refutation is `unbalanced`,
-`equation` or `classical` gets a certificate that the calculus does not
-derive it; one that rests on the search has none. `--standalone` adds
-the imports; `--lemma NAME` names the lemma.
+eigenvariable, a `∃` step its witness. An unprovable sequent gets a
+certificate that the calculus does not derive it for every refutation
+kind but `exhausted`, `saturated` and, with a quantifier, `equation`:
+`one_sided`, the `_symbol` kinds and `state_equation` are proved by the
+library's weighted count (`weighted_refutation`, `affine_refutation`:
+weights per atom, the atoms no firing reaches declared dead), the
+others by their own theorems. `--standalone` adds the imports;
+`--lemma NAME` names the lemma.
 
 ```console
 $ linlog prove --format rocq "A * B |- B * A"
@@ -1031,8 +1034,16 @@ Proof.
     (Exists (covar "p" [bound 0]) (eigen 0) (Exists (var "p" [bound 0]) (eigen 0) (Ax "p" [eigen 0])))).
   vm_compute. reflexivity.
 Qed.
+$ linlog prove -i --format rocq "!d, !(c * d * d -o 1) |- c * c"
+(* unprovable (IMELL, intuitionistic, horn engine): c occurs positively 2 more times than negatively outside the exponentials, and every occurrence of it below one, which copies add, is positive (positive right of ⊢, negative left of it, an implication's antecedent on the other side), so they cannot all meet in axioms *)
+Lemma certificate : ~ ill (atom := string) intuitionistic [ioc (ivar "d"); ioc (ilmap (itens (itens (ivar "c") (ivar "d")) (ivar "d")) ione)] (itens (ivar "c") (ivar "c")).
+Proof.
+  apply (iweighted_refutation (weight_of String.eqb [("c", 1%Z)])
+    (fun a => existsb (String.eqb a) []) true _).
+  vm_compute. reflexivity.
+Qed.
 $ linlog prove --format rocq "A & B |- A * B"
-no certificate: a refutation of kind `exhausted` rests on the search and has no check
+no certificate: an exhausted search states no invariant, so only the search rules the proofs out and Rocq has nothing to check
 (* unprovable (MALL, classical, focus engine): the search was exhaustive *)
 ```
 

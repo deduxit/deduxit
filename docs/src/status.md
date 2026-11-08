@@ -233,11 +233,16 @@ Built:
 - Certified refutations: the library proves that every derivable
   sequent, in every mode, is a tautology read classically, that without
   weakening an atom's literals balance and a multiplicative sequent
-  meets the count equation, so that `--format rocq` writes, for an
-  unprovable sequent with such a refutation, the lemma that the calculus
-  does not derive it, checked by computation; the library's
-  `Disproof::check` verifies the same refutations without the search, and
-  an ordinary sequent that is not valid gets the lemma over `Prop` by
+  meets the count equation, and that a weighted count of its literals,
+  the copies of its `?` formulas included, can be zero (with weakening,
+  of the formulas with one output), which certifies an atom's count with
+  copies of one sign and a Horn program's state equation, the atoms no
+  firing reaches declared dead, and the counts of a sequent with a
+  quantifier; so `--format rocq` writes, for an unprovable sequent with
+  such a refutation, the lemma that the calculus does not derive it,
+  checked by computation. The library's `Disproof::check` verifies the
+  same refutations without the search, and a saturated set; an
+  ordinary sequent that is not valid gets the lemma over `Prop` by
   instantiating its atoms.
 - Parallel search, behind the library's `parallel` feature and on by
   default in the command: the focus engine runs the choices nearest the
@@ -335,9 +340,8 @@ Planned, release by release, as the repository grows from linlog into
 a collection of logic suites:
 
 - 0.3.0: ordinary logic on the web page, proved step by step in LK and
-  LJ; the lambda-term of a proof on the web page; the one-sided
-  and state-equation refutations checked and certified in the Rocq
-  library; the inverse method chosen by default where it is faster.
+  LJ; the lambda-term of a proof on the web page; the inverse method
+  chosen by default where it is faster.
 - 0.4.0: intuitionistic logic decided by an engine of its own, with
   Kripke countermodels for what is not provable, checked, drawn and
   certified in Rocq; classical tableaux and truth tables; a checked

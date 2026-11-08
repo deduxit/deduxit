@@ -101,11 +101,20 @@ Qed.
 ```
 
 An unprovable sequent gets a certificate too where its refutation is one
-of the three that `check` verifies (an unbalanced atom, the count
-equation, a classical assignment): a lemma that the mode's calculus does
-not derive the sequent, proved by the library's theorem of that invariant
-from the atom or the assignment's true atoms, which the library's test
-accepts by computation. A refutation that rests on the search has none,
+that `check` verifies, a saturated set excepted: a lemma that the mode's
+calculus does not derive the sequent, proved by the library's theorem of
+the refutation's invariant, which the library's test accepts by
+computation. An unbalanced atom names the atom, a classical assignment
+its true atoms, and the count equation nothing. A count with copies of
+one sign and a Horn program's state equation are weighted counts: each
+atom weighs an integer, `1` or `−1` on the counted atom or the state
+equation's weights, the atoms no firing of the program reaches are
+declared dead, and the library's test asks every contribution of the
+sequent to the weighted count of its literals to be above zero, the
+copies of a `?` formula included (with weakening, of the formulas with
+one output). A sequent with a quantifier is stated over the first-order
+calculus, its counts weighing a predicate whole or one closed atom; its
+count equation has no certificate. An exhausted search has none either,
 which a line on standard error says:
 
 ```console
@@ -123,8 +132,16 @@ Proof.
   apply (iclassical_refutation _ (fun a => existsb (String.eqb a) ["B"])).
   vm_compute. reflexivity.
 Qed.
+$ linlog prove -i --format rocq "a, a -o b, !(b -o b * c), !(b -o d) |- b * d"
+(* unprovable (IMELL, intuitionistic, horn engine): the state equation of the Petri net has no solution, so no firing of its clauses yields the goal's atoms: weighting each a by 2, b by 1, d by 1 and the clauses used once by weights of their own, no clause that can fire raises the weighted count of the atoms, and the goal asks it raised *)
+Lemma certificate : ~ ill (atom := string) intuitionistic [ivar "a"; ilmap (ivar "a") (ivar "b"); ioc (ilmap (ivar "b") (itens (ivar "b") (ivar "c"))); ioc (ilmap (ivar "b") (ivar "d"))] (itens (ivar "b") (ivar "d")).
+Proof.
+  apply (iweighted_refutation (weight_of String.eqb [("a", 2%Z); ("b", 1%Z); ("d", 1%Z)])
+    (fun a => existsb (String.eqb a) []) true _).
+  vm_compute. reflexivity.
+Qed.
 $ linlog prove --format rocq "A & B |- A * B"
-no certificate: a refutation of kind `exhausted` rests on the search and has no check
+no certificate: an exhausted search states no invariant, so only the search rules the proofs out and Rocq has nothing to check
 (* unprovable (MALL, classical, focus engine): the search was exhaustive *)
 ```
 

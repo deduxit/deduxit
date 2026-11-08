@@ -6,7 +6,8 @@
 # first-order ones among them, compiled against that library as the flake
 # input `rocq-linlog' pins it (github:sequentium/rocq-linlog, built with
 # this flake's nixpkgs, so with the Rocq the NanoYalla check uses, rocq.nix);
-# a certificate with a planted fault must be refused. Rocq prints nothing for
+# a certificate with a planted fault (a wrong witness, a wrong weight) must
+# be refused. Rocq prints nothing for
 # a file it accepts, so any other output fails the check, and `Print
 # Assumptions' of each certificate's lemma must answer that it is closed
 # under the global context. And the check
@@ -83,6 +84,19 @@
             linlog prove -i --format rocq --standalone --output cli_refuted_ill.v 'A + B |- A & B' || [ $? -eq 1 ]
             linlog prove --copies 1 --format rocq --standalone --output cli_refuted_unknown.v \
               '!(A -o A * A), A |- ?B' || [ $? -eq 1 ]
+            # Weighted counts: a count with copies of one sign, state
+            # equations (one with atoms no firing reaches, one with a clause
+            # used once, one of coverability), and a predicate weighed whole.
+            linlog prove --format rocq --standalone --output cli_refuted_one_sided.v \
+              '!d, !((c * d * d) -o 1) |- c * c' || [ $? -eq 1 ]
+            linlog prove -i --format rocq --standalone --output cli_refuted_dead.v \
+              '!(a -o a * a), !(a * c -o b * c), a |- b' || [ $? -eq 1 ]
+            linlog prove -i --format rocq --standalone --output cli_refuted_once.v \
+              'a, a -o b, !(b -o b * c), !(b -o d) |- b * d' || [ $? -eq 1 ]
+            linlog prove -i --affine --format rocq --standalone --output cli_refuted_cover.v \
+              '!(a -o a * c), !(a -o b), a |- a * b' || [ $? -eq 1 ]
+            linlog prove --format rocq --standalone --output cli_refuted_fo.v \
+              '|- ~p(a), ?(exists x. ~p(x))' || [ $? -eq 1 ]
             # First-order proofs: classical with a witness no ∀ step
             # introduces, two-sided, affine, and a session's open witness
             # closed into such a constant.
@@ -124,6 +138,17 @@
             fi
             if rocq compile ../fault/fault.v >/dev/null 2>&1; then
               echo "a certificate with a wrong witness was accepted"
+              exit 1
+            fi
+            # And a state equation with a wrong weight, under which the
+            # copies of a clause raise the count.
+            sed 's/("d", 1%Z)/("d", 2%Z)/' cli_refuted_once.v >../fault/weight.v
+            if cmp -s cli_refuted_once.v ../fault/weight.v; then
+              echo "no weight was planted"
+              exit 1
+            fi
+            if rocq compile ../fault/weight.v >/dev/null 2>&1; then
+              echo "a certificate with a wrong weight was accepted"
               exit 1
             fi
             touch $out

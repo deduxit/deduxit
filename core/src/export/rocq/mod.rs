@@ -229,9 +229,21 @@ Import ListNotations.
 Open Scope string_scope.";
 
 /// The prelude of a certificate of non-derivability for linlog's library:
-/// the imports of its refutation theorems, of lists and of strings.
-pub const LINLOG_REFUTATION_PRELUDE: &str = "From Stdlib Require Import List String.
-From Linlog Require Import Refutations.
+/// the imports of its refutation theorems (`Weights`, which exports the
+/// others), of lists, strings and integers, whose notations the lemma uses.
+pub const LINLOG_REFUTATION_PRELUDE: &str = "From Stdlib Require Import List String ZArith.
+From Linlog Require Import Weights.
+Import ListNotations.
+Open Scope string_scope.";
+
+/// The prelude of a certificate of non-derivability of a sequent with a
+/// quantifier for linlog's library: as [`LINLOG_REFUTATION_PRELUDE`], with
+/// the first-order calculi, the first-order weighted count, Booleans and
+/// the modules whose names the statement and the weights use.
+pub const LINLOG_FIRST_ORDER_REFUTATION_PRELUDE: &str =
+    "From Stdlib Require Import Bool List String ZArith.
+From Linlog Require Calculus Intuitionistic TermsCheck.
+From Linlog Require Import FirstOrderCalculus FirstOrderIntuitionistic FirstOrderWeights.
 Import ListNotations.
 Open Scope string_scope.";
 
@@ -375,11 +387,18 @@ pub enum Unsupported {
     )]
     Saturated,
     /// The sequent has a quantifier, which NanoYalla's kernel and the
-    /// library's refutation theorems lack.
+    /// library's theorem of the count equation lack.
     #[error(
-        "NanoYalla's kernel and linlog's refutation theorems have no quantifiers, so a sequent with ∀ or ∃ has a certificate for linlog's library only, and of a derivation only"
+        "NanoYalla's kernel and linlog's theorem of the count equation have no quantifiers, so a sequent with ∀ or ∃ has a certificate for linlog's library only, and no refutation by the count equation"
     )]
     Quantifiers,
+    /// The disproof's refutation is an exhausted search, which no
+    /// invariant states: only the search that was exhaustive rules the
+    /// proofs out.
+    #[error(
+        "an exhausted search states no invariant, so only the search rules the proofs out and Rocq has nothing to check"
+    )]
+    Exhausted,
 }
 
 /// Rocq's keywords, which no atom and no lemma may take.
@@ -850,23 +869,31 @@ pub fn write<'a>(
 /// goal, `~ ll R Γ` one-sided or, in intuitionistic mode, `~ ill R Γ C`
 /// two-sided, with `R` the mode's rules, proved by the library's theorem
 /// of the refutation's invariant (`classical_refutation`,
-/// `unbalanced_refutation`, `equation_refutation`, or their two-sided
-/// forms) from the assignment's true atoms or the unbalanced atom, which
-/// Rocq's `vm_compute` checks. The refutations
-/// [`Disproof::check`](crate::Disproof::check) verifies have one, and the
-/// disproof is checked first. Standalone, the
+/// `unbalanced_refutation`, `equation_refutation`, `weighted_refutation`
+/// and `affine_refutation`, or their two-sided forms) from the
+/// assignment's true atoms, the unbalanced atom or the weights, which
+/// Rocq's `vm_compute` checks: a one-sided count weighs its atom `±1`, a
+/// state equation its atoms as the refutation does, the atoms no firing
+/// reaches declared dead in the bodies' sign. A sequent with a quantifier
+/// is stated over the first-order calculi, its counts proved by the
+/// first-order weighted theorem. Every refutation
+/// [`Disproof::check`](crate::Disproof::check) verifies has one but a
+/// saturated set and the count equation of a sequent with a quantifier,
+/// and the disproof is checked first. Standalone, the
 /// file starts with `options.prelude`, by default
-/// [`LINLOG_REFUTATION_PRELUDE`].
+/// [`LINLOG_REFUTATION_PRELUDE`], or [`LINLOG_FIRST_ORDER_REFUTATION_PRELUDE`]
+/// for a sequent with a quantifier.
 ///
 /// # Errors
 ///
 /// [`Error::Refutation`] for a refutation the check does not accept,
-/// among them those that rest on the search
-/// ([`RefutationFault::Uncertified`](crate::search::RefutationFault::Uncertified)),
 /// [`Error::Unsupported`]
 /// with [`Unsupported::Disproof`] where the options name NanoYalla,
-/// [`Unsupported::Ordered`] in the cyclic mode and
+/// [`Unsupported::Ordered`] in the cyclic mode,
 /// [`Unsupported::Saturated`] for a refutation by a saturated set,
+/// [`Unsupported::Exhausted`] for an exhausted search and
+/// [`Unsupported::Quantifiers`] for the count equation of a sequent with
+/// a quantifier,
 /// [`Error::GoalOutputs`] for an intuitionistic goal without exactly one
 /// conclusion, the errors of [`Forest::new`] and of the intuitionistic
 /// reading, and
@@ -882,11 +909,11 @@ pub fn write_disproof(
     if disproof.mode().is_ordered() {
         return Err(Unsupported::Ordered.into());
     }
-    if matches!(
-        disproof.refutation(),
-        crate::search::Refutation::Saturated(_)
-    ) {
+    if let crate::search::Refutation::Saturated(_) = disproof.refutation() {
         return Err(Unsupported::Saturated.into());
+    }
+    if let crate::search::Refutation::Exhausted = disproof.refutation() {
+        return Err(Unsupported::Exhausted.into());
     }
     linlog::disproof(disproof, options, out)
 }

@@ -34,17 +34,18 @@
 //! step its body and its witness.
 
 use super::{
-    LINLOG_FIRST_ORDER_PRELUDE, LINLOG_FIRST_ORDER_TWO_SIDED_PRELUDE, LINLOG_PRELUDE,
-    LINLOG_REFUTATION_PRELUDE, LINLOG_TWO_SIDED_PRELUDE, Options, Unsupported,
+    LINLOG_FIRST_ORDER_PRELUDE, LINLOG_FIRST_ORDER_REFUTATION_PRELUDE,
+    LINLOG_FIRST_ORDER_TWO_SIDED_PRELUDE, LINLOG_PRELUDE, LINLOG_REFUTATION_PRELUDE,
+    LINLOG_TWO_SIDED_PRELUDE, Options, Unsupported,
 };
 use crate::Error;
 use crate::export::Form;
 use crate::export::notation::{Step, flush, walk};
 use crate::occurrences::instances::Framing;
-use crate::occurrences::{Forest, FrameId, Member, OccId, Reading, Side};
+use crate::occurrences::{Forest, FrameId, Member, OccId, Reading, Side, Sign};
 use crate::proofs::{Derivation, InfId, Rule};
-use crate::search::{Classical, Disproof, Refutation};
-use crate::sequents::{Args, FoTerm, FoTermId, Stop, Stops, Term};
+use crate::search::{Classical, Disproof, OneSidedSymbol, Refutation, UnbalancedSymbol};
+use crate::sequents::{Args, Atom, FoTerm, FoTermId, Stop, Stops, Symbol, Term};
 use std::fmt::Write;
 
 /// The optional rules of the one-sided calculus a certificate states, and
@@ -974,10 +975,18 @@ fn iformula(forest: &Forest, reading: &Reading, out: &mut String, o: OccId, argu
 /// Writes the certificate of a disproof for linlog's library: the lemma
 /// that the calculus of the disproof's mode does not derive its goal,
 /// one-sided over `ll` or, in intuitionistic mode, two-sided over `ill`,
-/// proved by the theorem of the refutation's invariant from the atom or
-/// the assignment, which the library's test of the invariant accepts by
-/// computation. The disproof is checked first, so only a refutation that
-/// holds is written.
+/// proved by the theorem of the refutation's invariant from the atom, the
+/// assignment or the weights, which the library's test of the invariant
+/// accepts by computation. A one-sided count and a state equation are
+/// weighted counts (`Weights.v`): the weight `±1` on the atom, or the
+/// state equation's weights with the atoms no firing reaches dead in the
+/// bodies' sign, and with weakening the count of the formulas with one
+/// output. A sequent with a quantifier is stated over the first-order
+/// calculus, and its counts are the first-order weighted count
+/// (`FirstOrderWeights.v`), a predicate weighed whole where one of its
+/// atoms has a bound variable and its closed atoms one by one otherwise.
+/// The disproof is checked first, so only a refutation that holds is
+/// written.
 pub(super) fn disproof(
     disproof: &Disproof,
     options: &Options,
@@ -985,8 +994,11 @@ pub(super) fn disproof(
 ) -> Result<(), Error> {
     disproof.check()?;
     let forest = Forest::new(disproof.sequent())?;
-    // The library's counts and equation are of propositional sequents.
-    if forest.has_binders() {
+    let first_order = forest.has_binders();
+    // The library's count equation is of propositional sequents; the
+    // check refuses an assignment, a saturated set and a state equation
+    // of a sequent with a quantifier.
+    if first_order && matches!(disproof.refutation(), Refutation::Equation(_)) {
         return Err(super::Unsupported::Quantifiers.into());
     }
     let goal: Vec<OccId> = match disproof.goal() {
@@ -1015,12 +1027,29 @@ pub(super) fn disproof(
         }
     }
     if options.form == Form::Standalone {
-        let prelude = options
-            .prelude
-            .as_deref()
-            .unwrap_or(LINLOG_REFUTATION_PRELUDE);
+        let own = if first_order {
+            LINLOG_FIRST_ORDER_REFUTATION_PRELUDE
+        } else {
+            LINLOG_REFUTATION_PRELUDE
+        };
+        let prelude = options.prelude.as_deref().unwrap_or(own);
         write!(out, "{}\n\n", prelude.trim_end())?;
     }
+    let fo = Fo {
+        forest: &forest,
+        framing: None,
+    };
+    // A formula of the goal, one-sided or on its side of `⊢`.
+    let formula = |text: &mut String, o: OccId, argument: bool| match (&reading, first_order) {
+        (_, true) => fo.write_formula(text, reading.as_ref(), (o, None), 0, argument),
+        (Some(reading), false) => iformula(&forest, reading, text, o, argument),
+        (None, false) => self::formula(&forest, text, o, argument),
+    };
+    let (atom, module) = if first_order {
+        ("symbol", "Intuitionistic.")
+    } else {
+        ("atom", "")
+    };
     let mut text = format!("Lemma {} : ~ ", options.lemma);
     let side = if let Some(reading) = &reading {
         let rules = if mode.is_affine() {
@@ -1028,9 +1057,7 @@ pub(super) fn disproof(
         } else {
             "intuitionistic"
         };
-        text.push_str("ill (atom := string) ");
-        text.push_str(rules);
-        text.push_str(" [");
+        write!(text, "ill ({atom} := string) {module}{rules} [").expect("a string takes the text");
         let hypotheses = goal
             .iter()
             .copied()
@@ -1039,7 +1066,7 @@ pub(super) fn disproof(
             if i > 0 {
                 text.push_str("; ");
             }
-            iformula(&forest, reading, &mut text, o, false);
+            formula(&mut text, o, false);
         }
         text.push_str("] ");
         let conclusion = goal
@@ -1047,27 +1074,31 @@ pub(super) fn disproof(
             .copied()
             .find(|&o| reading.position(o) == Side::Output)
             .expect("the goal has one conclusion");
-        iformula(&forest, reading, &mut text, conclusion, true);
+        formula(&mut text, conclusion, true);
         "i"
     } else {
         // The refutations hold of the calculi without cut.
-        let rules = match (mode.has_mix(), mode.is_affine()) {
-            (false, false) => "classical".to_owned(),
-            (mix, weakening) => literal(mix, weakening, false),
+        let rules = match (mode.has_mix(), mode.is_affine(), first_order) {
+            (false, false, false) => "classical".to_owned(),
+            (false, false, true) => "Calculus.classical".to_owned(),
+            (mix, weakening, false) => literal(mix, weakening, false),
+            (mix, weakening, true) => qualified(mix, weakening, false),
         };
-        text.push_str("ll (atom := string) ");
-        text.push_str(&rules);
-        text.push_str(" [");
+        write!(text, "ll ({atom} := string) {rules} [").expect("a string takes the text");
         for (i, &o) in goal.iter().enumerate() {
             if i > 0 {
                 text.push_str("; ");
             }
-            formula(&forest, &mut text, o, false);
+            formula(&mut text, o, false);
         }
         text.push(']');
         ""
     };
-    let names = forest.sequent().atom_names();
+    let sequent = forest.sequent();
+    let names = sequent.atom_names();
+    // The weight `±1` a count puts on its atom: `1` where the positive
+    // literal outnumbers.
+    let unit = |positive: bool| if positive { "1%Z" } else { "(-1)%Z" };
     let theorem = match disproof.refutation() {
         Refutation::Classical(Classical { assignment }) => {
             let truths: Vec<String> = (0..names.len())
@@ -1079,18 +1110,83 @@ pub(super) fn disproof(
                 truths.join("; ")
             )
         }
+        Refutation::Unbalanced(unbalanced) if first_order => {
+            fo.weighted_atom(side, unbalanced.atom, unit(unbalanced.least > 0))
+        }
         Refutation::Unbalanced(unbalanced) => format!(
             "{side}unbalanced_refutation String.eqb {} _",
             string(&names[unbalanced.atom.index()])
         ),
+        Refutation::OneSided(one_sided) if first_order => {
+            fo.weighted_atom(side, one_sided.atom, unit(one_sided.copied == Sign::Atom))
+        }
+        Refutation::OneSided(one_sided) => weighted(
+            side,
+            &[(
+                &names[one_sided.atom.index()],
+                unit(one_sided.copied == Sign::Atom),
+            )],
+        ),
+        Refutation::UnbalancedSymbol(UnbalancedSymbol { symbol, least, .. })
+        | Refutation::OneSidedSymbol(OneSidedSymbol { symbol, least, .. }) => {
+            // The literal that outnumbers is the copied one's, where copies
+            // add literals.
+            let positive = if let Refutation::OneSidedSymbol(one_sided) = disproof.refutation() {
+                one_sided.copied == Sign::Atom
+            } else {
+                *least > 0
+            };
+            if first_order {
+                fo.weighted_symbol(side, *symbol, unit(positive))
+            } else {
+                // Without a binder every atom is counted alone: the
+                // predicate's atoms each weigh the unit.
+                let atoms: Vec<(&str, &str)> = (0..names.len())
+                    .filter(|&a| {
+                        sequent
+                            .atom_predicate(Atom::new(a as u32))
+                            .is_some_and(|(s, _)| s == *symbol)
+                    })
+                    .map(|a| (names[a].as_str(), unit(positive)))
+                    .collect();
+                weighted(side, &atoms)
+            }
+        }
         Refutation::Equation(_) => format!("{side}equation_refutation _"),
-        Refutation::Exhausted | Refutation::OneSided(_) | Refutation::StateEquation(_) => {
-            unreachable!("the check certifies three refutations alone")
+        Refutation::StateEquation(equation) => {
+            let deaths = crate::search::weighted::state_equation(&forest, &goal, mode, equation)
+                .expect("the check accepted the weights");
+            let negated = deaths.body == Sign::Dual;
+            let weights: Vec<String> = equation
+                .atoms
+                .iter()
+                .map(|&(a, w)| {
+                    let w = if negated {
+                        -i128::from(w)
+                    } else {
+                        i128::from(w)
+                    };
+                    format!("({}, {})", string(&names[a.index()]), integer(w))
+                })
+                .collect();
+            let dead: Vec<String> = (0..names.len())
+                .filter(|&a| deaths.dead[a])
+                .map(|a| string(&names[a]))
+                .collect();
+            let theorem = if mode.is_affine() {
+                "affine_refutation"
+            } else {
+                "weighted_refutation"
+            };
+            format!(
+                "{side}{theorem} (weight_of String.eqb [{}])\n    (fun a => existsb (String.eqb a) [{}]) {} _",
+                weights.join("; "),
+                dead.join("; "),
+                !negated
+            )
         }
+        Refutation::Exhausted => unreachable!("the check certifies no exhausted search"),
         Refutation::Saturated(_) => unreachable!("the writer refuses a saturated set first"),
-        Refutation::UnbalancedSymbol(_) | Refutation::OneSidedSymbol(_) => {
-            unreachable!("the writer refuses a sequent with a quantifier first")
-        }
     };
     write!(
         text,
@@ -1099,6 +1195,85 @@ pub(super) fn disproof(
     .expect("a string takes the text");
     out.write_str(&text)?;
     Ok(())
+}
+
+/// Returns the propositional weighted theorem's application for a count:
+/// the atoms named with their weights, nothing dead, the positive sign.
+fn weighted(side: &str, atoms: &[(&str, &str)]) -> String {
+    let table: Vec<String> = atoms
+        .iter()
+        .map(|&(name, w)| format!("({}, {w})", string(name)))
+        .collect();
+    format!(
+        "{side}weighted_refutation (weight_of String.eqb [{}])\n    (fun a => existsb (String.eqb a) []) true _",
+        table.join("; ")
+    )
+}
+
+/// Writes an integer as a Rocq `Z`, in brackets where it is below zero.
+fn integer(z: i128) -> String {
+    if z < 0 {
+        format!("({z})%Z")
+    } else {
+        format!("{z}%Z")
+    }
+}
+
+impl Fo<'_> {
+    /// Returns the predicates of the sequent none of whose atoms has a
+    /// bound variable, as the first-order weighted theorem's `fixed`, a
+    /// function of a predicate's name.
+    fn fixed(self) -> String {
+        let sequent = self.forest.sequent();
+        let atoms = sequent.atom_names().len();
+        let mut open = vec![false; sequent.symbols().len()];
+        let mut predicate = vec![false; sequent.symbols().len()];
+        for a in (0..atoms).map(|a| Atom::new(a as u32)) {
+            if let Some((symbol, _)) = sequent.atom_predicate(a) {
+                predicate[symbol.index()] = true;
+                open[symbol.index()] |= sequent.atom_is_open(a);
+            }
+        }
+        let fixed: Vec<String> = (0..open.len())
+            .filter(|&s| predicate[s] && !open[s])
+            .map(|s| string(&sequent.symbols()[s].0))
+            .collect();
+        format!("(fun p => existsb (String.eqb p) [{}])", fixed.join("; "))
+    }
+
+    /// Returns the first-order weighted theorem's application for a count
+    /// of one closed atom of a predicate none of whose atoms has a bound
+    /// variable: the unit `w` on that atom alone.
+    fn weighted_atom(self, side: &str, atom: Atom, w: &str) -> String {
+        let sequent = self.forest.sequent();
+        let (symbol, args) = sequent
+            .atom_predicate(atom)
+            .expect("an atom of a predicate");
+        let mut terms = String::new();
+        for (i, &t) in self.list(args).iter().enumerate() {
+            if i > 0 {
+                terms.push_str("; ");
+            }
+            // The atom is closed: no term of it is bound.
+            self.write_term(&mut terms, t, 0, &[], false);
+        }
+        format!(
+            "FirstOrderWeights.{side}weighted_refutation {}\n    (fun p ts => if String.eqb p {} && TermsCheck.terms_eqb String.eqb ts [{terms}] then {w} else 0%Z)\n    (fun _ => 0%Z) _",
+            self.fixed(),
+            string(&sequent.symbols()[symbol.index()].0),
+        )
+    }
+
+    /// Returns the first-order weighted theorem's application for a count
+    /// over every atom of a predicate: the unit `w` on the predicate,
+    /// whether it is weighed whole or atom by atom.
+    fn weighted_symbol(self, side: &str, symbol: Symbol, w: &str) -> String {
+        let name = string(&self.forest.sequent().symbols()[symbol.index()].0);
+        format!(
+            "FirstOrderWeights.{side}weighted_refutation {}\n    (fun p _ => if String.eqb p {name} then {w} else 0%Z)\n    (fun p => if String.eqb p {name} then {w} else 0%Z) _",
+            self.fixed(),
+        )
+    }
 }
 
 /// Returns an atom's name as a Rocq string, `"` doubled.

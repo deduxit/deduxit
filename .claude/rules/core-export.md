@@ -724,22 +724,49 @@ for NanoYalla. What the code relies on:
   (a disproof records no rules used), proved by `apply
   (THEOREM …). vm_compute. reflexivity.` with `classical_refutation _
   (fun a => existsb (String.eqb a) [true atoms])`,
-  `unbalanced_refutation String.eqb "a" _` or `equation_refutation _`
-  (`i…` two-sided). A saturated set (`Refutation::Saturated`) is refused
-  first (`Unsupported::Saturated`): the library has no theorem for it,
-  though `Disproof::check` accepts it. It runs `Disproof::check` first
-  and returns its error, so a refutation that rests on the search
-  (`RefutationFault::Uncertified`) or that does not hold has no
-  certificate: the library's tests and the Rust check accept the same
-  refutations under the same conditions, and a certificate is written
-  exactly when it compiles. The formula printers (`atom`, `formula`,
-  `iformula`) are free functions over the forest that the proof writer
-  calls too. The goal of a disproof off the roots is its members. The
-  command writes one for `--format rocq` on an unprovable verdict
+  `unbalanced_refutation String.eqb "a" _`, `equation_refutation _`, or
+  for a one-sided count and a state equation the weighted count of the
+  library's `Weights.v` (`i…` two-sided): `weighted_refutation
+  (weight_of String.eqb [("a", W); …]) (fun a => existsb (String.eqb a)
+  [DEAD]) P _`, `affine_refutation` in affine mode. A one-sided count
+  weighs its atom `1%Z` (copies of `a`) or `(-1)%Z` (copies of `~a`),
+  nothing dead, `P = true`. A state equation writes its atoms' weights,
+  negated where the goal reads as a Horn program with negative bodies,
+  `P` the bodies' sign, and as `DEAD` the goal's atoms that no firing
+  reaches, all three from `search::weighted::state_equation`, the
+  check's own reading (the ticket weights and the dropped clauses are
+  not written: the test sums each clause's own literals). A sequent
+  with a quantifier is stated over the first-order calculi (`Fo`, no
+  framing) with `LINLOG_FIRST_ORDER_REFUTATION_PRELUDE`, and its counts
+  (`Unbalanced`, `OneSided`, the `_symbol` kinds) are
+  `FirstOrderWeights.weighted_refutation FIXED TABLE WEIGHT _`: `FIXED`
+  the predicates none of whose atoms is open (`Fo::fixed`), a count of
+  one closed atom a `TABLE` matching its terms with
+  `TermsCheck.terms_eqb`, a predicate's count the unit on its name in
+  both functions (the test reads `TABLE` for a fixed predicate and
+  `WEIGHT` for an open one). Its count equation has no theorem
+  (`Unsupported::Quantifiers`). A propositional sequent's
+  `_symbol` refutation (planted only: the search counts atoms alone
+  without a binder) weighs every atom of the predicate. Both preludes
+  import `ZArith` for `%Z`, the first-order one `Bool` for `&&`; the
+  propositional one imports `Weights`, which exports `Refutations`, so
+  every refutation certificate needs the library at 0.3.0. A saturated
+  set (`Unsupported::Saturated`) and an exhausted search
+  (`Unsupported::Exhausted`) are refused first: no theorem states
+  either. Then it runs `Disproof::check` and returns its error, so a
+  refutation that does not hold has no certificate: the library's tests
+  and the Rust check accept the same refutations under the same
+  conditions (the weighted arms run the library's own test), and a
+  certificate is written exactly when it compiles. The formula printers
+  (`atom`, `formula`, `iformula`) are free functions over the forest
+  that the proof writer calls too. The goal of a disproof off the roots
+  is its members. The command writes one for `--format rocq` on an
+  unprovable verdict and on `check` of a refutation that holds
   (`disproof_into` in `cli/src/show.rs`), and a line `no certificate:
   …` on standard error where there is none, the verdict unchanged.
-  Snapshots `core/tests/snapshots/linlog/refuted_*.v`; the
-  `rocq-linlog` check compiles them and four the command writes.
+  Snapshots `core/tests/snapshots/linlog/refuted_*.v` (twenty); the
+  `rocq-linlog` check compiles them and nine the command writes, and
+  refuses one with a planted wrong weight.
 - **Not valid over `Prop`** (`rocq::write_not_valid`,
   `ordinary::rocq::not_valid`): from an ordinary sequent's image and its
   disproof with `Refutation::Classical`, the atoms valued by name in the
@@ -845,7 +872,8 @@ for NanoYalla. What the code relies on:
 - **The Rocq export of first-order proofs** (`export/rocq/linlog.rs`,
   `Fo`): a forest with a binder goes to linlog's library (the default
   kernel; an explicit NanoYalla answers `Unsupported::Quantifiers`, as
-  the disproof writer does for any sequent with a binder), stated over
+  the disproof writer does for the count equation of a sequent with a
+  binder), stated over
   the first-order development (`rocq.md`) with
   `LINLOG_FIRST_ORDER_PRELUDE` or `LINLOG_FIRST_ORDER_TWO_SIDED_PRELUDE`,
   `(symbol := string)` and the optional rules by module

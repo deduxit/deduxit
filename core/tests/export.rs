@@ -1831,8 +1831,9 @@ fn disproof(input: &str, mode: Mode) -> linlog::Disproof {
 
 /// Every refutation `Disproof::check` accepts has a certificate for
 /// linlog's library, one-sided and two-sided, pinned as
-/// `linlog/refuted_*.v`, which the `rocq-linlog` check compiles; the
-/// others, and NanoYalla, have none. An ordinary sequent whose image an
+/// `linlog/refuted_*.v`, which the `rocq-linlog` check compiles, but the
+/// count equation of a sequent with a quantifier; an exhausted search,
+/// and NanoYalla, have none. An ordinary sequent whose image an
 /// assignment refutes has a certificate over `Prop` that it is not
 /// valid, pinned as `not_valid_*.v`, which the `rocq` check compiles.
 #[cfg(feature = "serialize")]
@@ -1869,6 +1870,73 @@ fn disproof_certificates() {
         ),
         ("ill_unbalanced", disproof("A |- B", Mode::INTUITIONISTIC)),
         ("ill_equation", equation),
+        // Counts with copies of one sign, and state equations, some with
+        // atoms no firing reaches, one with a clause used once.
+        (
+            "one_sided",
+            disproof("!d, !((c * d * d) -o 1) |- c * c", classical),
+        ),
+        (
+            "one_sided_negative",
+            disproof("|- ~a * ~a, ?(~a * b), ~b", classical),
+        ),
+        (
+            "ill_one_sided",
+            disproof("!d, !((c * d * d) -o 1) |- c * c", Mode::INTUITIONISTIC),
+        ),
+        (
+            "state_equation",
+            disproof("|- a, ?(~a * (a par a)), ?((~a * ~c) * b), ~b", classical),
+        ),
+        (
+            "state_equation_mix",
+            disproof(
+                "!(a -o a * a), !(a * c -o b * c), a |- b",
+                classical.with_mix(),
+            ),
+        ),
+        (
+            "state_equation_affine",
+            disproof(
+                "|- a, ?(~a * (a par c)), ?(~a * b), ~a * ~b",
+                classical.with_affine(),
+            ),
+        ),
+        (
+            "ill_state_equation",
+            disproof(
+                "a, a -o b, !(b -o b * c), !(b -o d) |- b * d",
+                Mode::INTUITIONISTIC,
+            ),
+        ),
+        (
+            "ill_state_equation_affine",
+            disproof(
+                "!(a -o a * c), !(a -o b), a |- a * b",
+                Mode::INTUITIONISTIC.with_affine(),
+            ),
+        ),
+        // A sequent with a quantifier: a predicate weighed whole, or one
+        // closed atom.
+        (
+            "first_order_one_sided",
+            disproof("|- ~p(a), ?(exists x. ~p(x))", classical),
+        ),
+        (
+            "first_order_unbalanced_symbol",
+            disproof("forall x. p(x) |- p(a) * p(b)", classical),
+        ),
+        (
+            "first_order_ill_one_sided",
+            disproof("p(a), !(exists x. p(x)) |- 1", Mode::INTUITIONISTIC),
+        ),
+        (
+            "first_order_ill_unbalanced",
+            disproof(
+                "p(a), !(forall x. p(x) -o q(x) * q(x)) |- r(a)",
+                Mode::INTUITIONISTIC,
+            ),
+        ),
     ] {
         assert_eq!(disproof.check(), Ok(()), "{name}");
         snapshot(
@@ -1879,7 +1947,17 @@ fn disproof_certificates() {
     let exhausted = disproof("A & B |- A * B", classical);
     assert!(matches!(
         write(&exhausted, &options),
-        Err(Error::Refutation(_))
+        Err(Error::Unsupported(Unsupported::Exhausted))
+    ));
+    // The library's count equation is propositional.
+    let quantified = disproof("|- exists x. p(x) * ~p(x)", classical);
+    assert!(matches!(
+        quantified.refutation(),
+        linlog::Refutation::Equation(_)
+    ));
+    assert!(matches!(
+        write(&quantified, &options),
+        Err(Error::Unsupported(Unsupported::Quantifiers))
     ));
     // A disproof read from a file whose intuitionistic goal has no
     // conclusion holds, but has no two-sided statement.
