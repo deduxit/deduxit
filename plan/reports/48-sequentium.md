@@ -544,3 +544,258 @@ registration and cache prefix. Its three findings, each answered:
 - [x] Nothing pushed, created, transferred or renamed.
 - [x] `jj st` clean in every workspace and the placeholder; the final
   message to `linlog-orchestrator`.
+
+## Session 48b: the move finished and checked
+
+### Outcome
+
+The move to `sequentium` is finished. The three repositories' `main`
+hold 48a's commits and the moved locks, each pushed by the supervising
+session after this session's message that the repository was ready, in
+the order the step sets, and each checked at that head with `nix flake
+check` and no override:
+
+| repository | pushed head | check at that head |
+|---|---|---|
+| `sequentium/rocq-linlog` | `ksuqsuzm` (commit `ff02e644aa3c`), 48a's addresses | "all checks passed!", exit 0 |
+| `sequentium/sequentium` | `vwouyluy` (commit `5f308848c815`), "flake.lock: Update" on 48a's chain rebased onto `main` | "all checks passed!", exit 0 |
+| `sequentium/sequentium.github.io` | `utykqkvt` (commit `b45452fca458`), "flake.lock: Update" on 48a's `ssyqpvvz` | "all checks passed!", exit 0, its unit tests (557) and end-to-end run (124) among them |
+
+Every row of 48a's table of addresses was fetched after the Docs and
+Pages workflows had deployed, and answers as the table says; the
+placeholder's redirect scripts, fetched from the live site, send
+thirteen old addresses where the table says; `nix run
+github:sequentium/sequentium -- --version` from an empty environment
+and directory printed `linlog-cli 0.2.0`. The library's `v0.2.0`
+archive at its new address hashes to the opam file's SHA-512. Nothing
+failed. What could not be checked from here is listed below, each with
+who checks it and when.
+
+### What was done, in order
+
+1. **The library.** Its workspace was clean on `ksuqsuzm`, whose parent
+   was `main@origin` (`wyvsntvq`); its flake check passed; "rocq ready"
+   went to the supervisor, which pushed it ("pushed": `main` is
+   `ff02e644aa3c`, confirmed by a fetch).
+2. **linlog.** 48a's chain (`rpkkstus`, `xtvmuwom`, `poqskvln`,
+   `mzkukvsr`, `unxsytvk`) was rebased onto `main` (`wvpxvkqp`, which
+   had gained two plan commits touching no file of the chain), without
+   a conflict. `nix flake update rocq-linlog` moved the input from
+   `github:linlog-prover/rocq-linlog/b895ecd1` (2026-11-02) to
+   `github:sequentium/rocq-linlog/ff02e644` (2026-11-08), committed as
+   "flake.lock: Update" with nix's summary as its body. The flake check
+   passed; "linlog ready" went out; "pushed": `main` is `5f308848c815`.
+3. **The client.** `nix flake update linlog` moved the input from
+   `github:linlog-prover/linlog/1f4f986a` (2026-11-02) to
+   `github:sequentium/sequentium/5f308848` and with it
+   `linlog/rocq-linlog` to `github:sequentium/rocq-linlog/ff02e644`,
+   committed as "flake.lock: Update". Its flake check (which is the
+   client's `check`, everything its CI runs) passed; "client ready" went
+   out; "pushed": `main` is `b45452fca458`.
+4. **The addresses**, after the supervisor saw the Docs workflow of
+   `sequentium/sequentium` deploy (the manual's introduction with the
+   collection's sentence served) and the client's Pages deploy land
+   (its `/llms.txt` naming `/sequentium/`).
+
+Every commit is signed (the global hook signed each right after the jj
+command that made it; the key was never locked).
+
+### The addresses, fetched
+
+Each with `curl -sSIL` or `curl -sSL` once (a script listing each
+address, no loop against GitHub's API; one API request in all):
+
+- **GitHub's redirects** (rows 1 and 2): `github.com/linlog-prover/linlog`
+  and its `releases/tag/v0.2.0` land with one redirect on
+  `github.com/sequentium/sequentium/…`, status 200;
+  `github.com/linlog-prover/rocq-linlog` on
+  `github.com/sequentium/rocq-linlog`; both old `archive/refs/tags/v0.2.0.tar.gz`
+  addresses on `codeload.github.com/sequentium/…`; the API's
+  `repos/linlog-prover/linlog` on `repositories/1393906688`; git's
+  smart-HTTP `info/refs?service=git-upload-pack` at both old names
+  answers 200 with the tag `v0.2.0` listed (a `HEAD` request there
+  answers 405, so these two were `GET`s).
+- **The site's repository** (row 3): `github.com/linlog-prover/linlog-prover.github.io`
+  is the placeholder's repository, 200, no redirect, as the table says;
+  `github.com/sequentium/sequentium.github.io` answers 200.
+- **Nix** (rows 4 and 5, which 48a left unverified): `nix run
+  github:linlog-prover/linlog -- --version` from an empty environment
+  printed `linlog-cli 0.2.0`, exit 0, and `nix flake metadata
+  github:linlog-prover/rocq-linlog` locked
+  `github:linlog-prover/rocq-linlog/ff02e644…`, the pushed head: Nix
+  follows GitHub's redirect, so every published README's and doc's old
+  flake reference keeps working while no repository takes the old
+  names.
+- **The placeholder** (rows 6 to 16): `/` and `/index.html?proof=x#s`
+  answer 200 with "linlog has moved"; `/linlog` (a 301 to `/linlog/`),
+  `/linlog/`, `/linlog/linlog/index.html`, `/linlog/manual/`,
+  `/linlog/manual/commands.html`, `/rocq-linlog/` and `/privacy/`
+  answer 404 with the placeholder's page (Pages's `404.html`, whose
+  script redirects); `/linlog/llms.txt`, `/linlog/llms-full.txt`,
+  `/linlog/reference.md` and `/llms.txt` answer 200, each first line
+  "This file moved to" its new address; `/sw.js` answers 200, the
+  unregistering worker; the thirteen files of `/logo/` answer 200 (SVG,
+  PNG and the licence's text).
+- **The placeholder's mapping**, checked as 48a did: the inline scripts
+  of the live `404.html` and `index.html`, fetched from
+  `linlog-prover.github.io`, run under Node with a stubbed `location` on
+  thirteen old addresses (the rustdoc's root with and without the
+  slash, a manual page with a fragment, a crate page with a query, a
+  near miss `/linlogx/`, the library's root, a page and a root with
+  query and fragment, `/privacy/`, an unknown logo file, the root with a
+  shared proof's query and fragment, `/index.html?x=1`): each is sent
+  where the table says (`/linlog…` to `/sequentium…`, the rest to the
+  same path, all on `https://sequentium.github.io`, query and fragment
+  kept).
+- **The new addresses**: `https://sequentium.github.io/` (the page),
+  `/sequentium` (a 301 to `/sequentium/`), `/sequentium/`,
+  `/sequentium/linlog/` ("linlog - Rust"), `/sequentium/manual/` (with
+  the collection's sentence), `/sequentium/manual/commands.html`,
+  `/sequentium/llms.txt`, `/sequentium/llms-full.txt` and
+  `/sequentium/reference.md` (each naming `sequentium.github.io/sequentium/manual/`),
+  `/rocq-linlog/` (the library's documentation, so act 6's re-run was
+  either done or not needed), `/privacy/` and the thirteen files of
+  `/logo/` answer 200; the client's `/llms.txt` answers 200 and names
+  `https://sequentium.github.io/sequentium/llms.txt`, `…/llms-full.txt`
+  and `…/sequentium/linlog/` (the new build, deployed at 16:03 UTC;
+  a first pass before that deploy still saw the old build, which named
+  `linlog-prover.github.io/linlog/`, so the whole table was fetched
+  again after both deploys, with the results above).
+- **The archive**: `https://github.com/sequentium/rocq-linlog/archive/refs/tags/v0.2.0.tar.gz`
+  hashes to `sha512=14b5d239…39094b6e`, the opam file's checksum, equal
+  (`sha512sum`), as the supervisor had found.
+
+### Departures and assumptions
+
+- None from the design in this session. 48a's departures stand as its
+  section lists them (the placeholder's replacement service worker, the
+  opam file's `url` moved, the client's reserved path moved, the page's
+  `/llms.txt` as a file in the placeholder, `package.json`'s name, the
+  status chapter's two unplaced items, no changelog entry, no check job
+  in the placeholder's workflow).
+- **The lock moved the library by more than 48a's commit** (a
+  reading of "move the lock to the pushed library"): linlog's lock had
+  pinned the library at `b895ecd1` of 2026-11-02, so `nix flake update
+  rocq-linlog` brought in every library commit since, up to the pushed
+  `ff02e644`; the flake check at that head passed. The client's lock
+  likewise moved linlog from 2026-11-02 to the pushed head.
+
+### What failed or stayed unchecked
+
+Nothing that was checked failed. Not checked here, each with who
+checks it:
+
+- **The redirects in a browser**: the placeholder's scripts were run
+  under Node, not in a browser, and the replacement service worker
+  (`/sw.js`) was fetched, not seen to take over a browser that holds
+  the old page's worker. *The author*, once, in a browser that visited
+  the old page: open `https://linlog-prover.github.io/` and see it land
+  on `https://sequentium.github.io/`.
+- **The attestations of 0.2.0 and later**: `gh attestation verify FILE
+  --repo linlog-prover/linlog` for 0.2.0's files, and `--repo
+  sequentium/sequentium` for later ones, need `gh`, which asks the
+  author. *Step 53* (0.3.0's release), with the author's yes.
+- **crates.io's Trusted Publishing and Zenodo** for the moved
+  repositories (acts 7 and 8): configured by the author, provable only
+  by a release. *Step 53*.
+- **The organisation's settings** (act 2) are not readable without
+  `gh`; this session did not compare them.
+
+### What the next sessions must know
+
+- **Step 49 is next.** Every repository is at its new address and every
+  lock names it: linlog's input is `github:sequentium/rocq-linlog`, the
+  client's `github:sequentium/sequentium`. **No override is needed any
+  more**; 48a's note that every nix command needs one no longer holds.
+- **The addresses** are 48a's (its "What the next sessions must know"):
+  the repositories `github.com/sequentium/sequentium`,
+  `…/rocq-linlog`, `…/sequentium.github.io`; the page
+  `https://sequentium.github.io/`; the rustdoc
+  `https://sequentium.github.io/sequentium/` (the crate at
+  `…/sequentium/linlog/`), the manual `…/sequentium/manual/`, the guide
+  `…/sequentium/llms.txt`; the library's documentation
+  `https://sequentium.github.io/rocq-linlog/`. The Cachix cache stays
+  `linlog-prover`; the local checkouts keep their paths; the remotes
+  (`origin`) of all three checkouts name `sequentium`.
+- **The old addresses keep working** as long as no repository named
+  `linlog` or `rocq-linlog` is created under `linlog-prover` (GitHub's
+  redirects, which Nix follows too) and the placeholder repository
+  `linlog-prover/linlog-prover.github.io` stays published (its site
+  serves the logos every published rustdoc on docs.rs embeds). The
+  placeholder's source is that repository; 48a's scratchpad copy is not
+  needed.
+- **The opam pull request** is the author's, from the change `ywqlpnru`
+  in `~/Projects/own/rocq-opam`; its steps are in the final message to
+  the supervisor and below. The checksum holds for the new `url`.
+- **Step 53** proves the release chain from the new repository
+  (Trusted Publishing, the GitHub release, Zenodo, the attestations) and
+  says in 0.3.0's changelog that the repository moved.
+
+### The author's opam pull request, step by step
+
+From `~/Projects/own/rocq-opam` (its `origin` is
+`https://github.com/rocq-prover/opam.git`; `omkspqll` "Add
+rocq-linlog.0.2.0" with `ywqlpnru` "Move rocq-linlog.0.2.0 to the
+organisation sequentium" on top; `@` empty):
+
+1. Fold the move into the one commit, so the pull request adds the
+   package at its new addresses only: `jj squash --from ywqlpnru --into
+   omkspqll --use-destination-message`; `jj log -r omkspqll` then shows
+   the commit and `jj file show -r omkspqll
+   released/packages/rocq-linlog/rocq-linlog.0.2.0/opam` its file, with
+   `sequentium` in all five addresses and the checksum unchanged.
+2. Fork `rocq-prover/opam` on GitHub, if it is not forked yet.
+3. `jj git remote add fork git@github.com:USER/opam.git` (USER the
+   author's account).
+4. `jj git push --remote fork --named "rocq-linlog.0.2.0=omkspqll"`,
+   which creates the bookmark, pushes it and signs the commit.
+5. Open the pull request from the fork's branch `rocq-linlog.0.2.0`
+   against `master` of `rocq-prover/opam`, titled `Add
+   rocq-linlog.0.2.0`, with the body of 45e's report ("The pull
+   request's text"), its two old links changed: linlog at
+   `https://github.com/sequentium/sequentium` and the documentation at
+   `https://sequentium.github.io/rocq-linlog/`.
+6. coqbot runs the repository's GitLab CI (lint, an install per
+   compiler); a maintainer merges.
+
+### Checks
+
+Each `nix flake check` and `nix run` ran detached in a user unit on
+cores 4 to 15 under the machine lock (`flock -o
+/tmp/linlog-machine.lock`), with `--max-jobs 4 --cores 8
+--print-build-logs --keep-going`, no override:
+
+- the library at `ksuqsuzm`: "all checks passed!", exit 0;
+- linlog at `vwouyluy`: "all checks passed!", exit 0, no line of the
+  log matching `error` or `failed`;
+- the client at `utykqkvt`: "all checks passed!", exit 0 ("Tests 557
+  passed (557)", "124 passed");
+- `nix run --refresh github:sequentium/sequentium -- --version` under
+  `env -i` (only `HOME`, `USER` and the system's `PATH`) in a fresh
+  temporary directory: `linlog-cli 0.2.0`, exit 0, once after linlog's
+  push and again after both deploys (then resolving `main` to
+  `cd0c3418`, the supervisor's plan commits on top of the lock); the
+  same for `github:linlog-prover/linlog`: `linlog-cli 0.2.0`, exit 0.
+
+### Checklist
+
+- [x] Read the brief, the step's section, 48a's report and
+  `conduct.md`.
+- [x] The library's workspace clean and its check passed at
+  `ksuqsuzm`; "rocq ready" sent; "pushed" received.
+- [x] linlog's chain rebased onto `main`; the lock moved ("flake.lock:
+  Update"); the check passed without overrides; "linlog ready" sent;
+  "pushed" received.
+- [x] The client's lock moved to `github:sequentium/sequentium`
+  ("flake.lock: Update"); its check passed without overrides; "client
+  ready" sent; "pushed" received.
+- [x] The `v0.2.0` archive at its new address hashed against the opam
+  file's SHA-512: equal.
+- [x] Every row of 48a's table fetched after the Docs and Pages
+  workflows; the placeholder's mapping run under Node from the live
+  pages.
+- [x] `nix run github:sequentium/sequentium -- --version` from a clean
+  shell; the old flake references too.
+- [x] What stayed unchecked written above, with who checks it.
+- [x] This section committed on the pushed chain; `jj st` clean in all
+  three workspaces; the final message to `linlog-orchestrator`.
