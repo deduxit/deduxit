@@ -241,7 +241,8 @@ Built:
   quantifier; so `--format rocq` writes, for an unprovable sequent with
   such a refutation, the lemma that the calculus does not derive it,
   checked by computation. The library's `Disproof::check` verifies the
-  same refutations without the search, and a saturated set; an
+  same refutations without the search, and a saturated set; `linlog
+  check` reads an unprovable outcome and checks its refutation; an
   ordinary sequent that is not valid gets the lemma over `Prop` by
   instantiating its atoms.
 - Parallel search, behind the library's `parallel` feature and on by

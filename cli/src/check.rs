@@ -7,22 +7,23 @@ use crate::limit::Deadline;
 use crate::prove::{Stop, on_large_stack, stopped};
 use crate::settings::{Given, time_limit};
 use crate::show::{
-    Show, Shown, abbreviated, derivation, every_steps, lambda_json, lambda_line, linear_term,
-    net_into, net_json, nets_exist,
+    Show, Shown, abbreviated, derivation, disproof_into, every_steps, lambda_json, lambda_line,
+    linear_term, net_into, net_json, nets_exist,
 };
 use crate::{Status, exit_on_interrupt, interrupted};
-use anyhow::{Context, Result, bail};
-use linlog::{CheckError, Error, ErrorKind, Forest, Limits, Mode, Proof, Reading};
+use anyhow::{Context, Result, anyhow, bail};
+use linlog::{CheckError, Disproof, Error, ErrorKind, Forest, Limits, Mode, Proof, Reading};
 use std::time::Instant;
 
-/// Runs `check`: reads a proof, checks it in the mode the flags give
-/// under the time limit and the bounds, and prints the verdict and the
-/// derivation, or the verdict as JSON.
+/// Runs `check`: reads a proof, or a disproof, checks it in the mode the
+/// flags give (a disproof in the mode it states) under the time limit and
+/// the bounds, and prints the verdict and the proof's derivation, or the
+/// verdict as JSON.
 ///
 /// # Errors
 ///
-/// A file that is no proof in JSON, a proof of a goal, or an output that
-/// cannot be made; an invalid proof is a verdict, and a check given up at
+/// A file that is no proof in JSON, a proof of a goal, a disproof of
+/// another mode than the flags name, or an output that cannot be made; an invalid proof is a verdict, and a check given up at
 /// a limit is unknown, neither an error.
 pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
     let start = Instant::now();
@@ -38,9 +39,9 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
     let (source, limits) = (args.proof.clone(), settings.limits);
     let loaded = deadline.within(move || {
         let text = io::read(source.as_deref(), "proof", limits.memory_bytes)?;
-        read_proof(&text, &limits)
+        read_document(&text, &limits)
     })?;
-    let Some(proof) = loaded else {
+    let Some(document) = loaded else {
         let limit = deadline.limit().expect("only a limit passes");
         let line = format!(
             "unknown: the time limit of {limit:?} was reached while the proof was read; \
@@ -69,7 +70,25 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
         }
         return Ok(Status::Unknown);
     };
-    let proof = proof?;
+    let proof = match document? {
+        Document::Proof(proof) => *proof,
+        Document::Disproof(disproof) => {
+            // A refutation is a claim about the mode it was found in.
+            if args.mode.given() && mode != disproof.mode() {
+                bail!(
+                    "the refutation is of {} and the flags ask for {mode}: pass the flags it was \
+                     found with, or none",
+                    disproof.mode()
+                );
+            }
+            let mut out = io::Output::open(path.as_deref(), show.format.is_binary())?;
+            let (status, keep) = check_disproof(*disproof, &show, &deadline, &mut out)?;
+            if keep {
+                out.finish()?;
+            }
+            return Ok(status);
+        }
+    };
     if proof.goal().is_some() {
         return Err(Error::GoalProof.into());
     }
@@ -81,6 +100,143 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
         }
         anyhow::Ok(status)
     })?
+}
+
+/// What `check` reads: a proof, or a disproof, which an unprovable
+/// outcome holds too.
+enum Document {
+    /// A proof.
+    Proof(Box<Proof>),
+    /// A disproof.
+    Disproof(Box<Disproof>),
+}
+
+/// Reads a proof file, or failing that a disproof, which an unprovable
+/// outcome's keys make; its sequent within `limits.occurrences`.
+///
+/// # Errors
+///
+/// A document that is neither, or past the limit.
+fn read_document(text: &str, limits: &Limits) -> Result<Document> {
+    /// The key of a disproof that a proof lacks; serde skips the rest
+    /// without holding it.
+    #[derive(serde::Deserialize)]
+    struct Keys {
+        /// The refutation.
+        refutation: Option<serde::de::IgnoredAny>,
+    }
+    let error = match read_proof(text, limits) {
+        Ok(proof) => return Ok(Document::Proof(Box::new(proof))),
+        Err(error) => error,
+    };
+    let refuted = serde_json::from_str::<Keys>(text).is_ok_and(|keys| keys.refutation.is_some());
+    if !refuted {
+        return Err(error);
+    }
+    let mut document = serde_json::Deserializer::from_str(text);
+    let disproof = linlog::wire::upgrade::<Disproof, _>(&mut document, limits)
+        .map_err(|error| limit_advice(error).unwrap_or_else(|error| error.into()))?;
+    document
+        .end()
+        .context("not a disproof in JSON: more follows it")?;
+    Ok(Document::Disproof(Box::new(disproof)))
+}
+
+/// Returns a reader's refusal at a limit with the flag that raises it,
+/// or the error back where it is none.
+fn limit_advice(error: Error) -> std::result::Result<anyhow::Error, Error> {
+    // Only the occurrence and term bounds have flags: the width of the
+    // representation's indices is no setting.
+    match error.setting() {
+        Some("limits.occurrences") => Ok(anyhow!("{error}; raise it with --occurrence-limit")),
+        Some("limits.terms") => Ok(anyhow!("{error}; raise it with --term-limit")),
+        _ if error.kind() == ErrorKind::Limit => Ok(error.into()),
+        _ => Err(error),
+    }
+}
+
+/// Checks a disproof's refutation in the mode it states, within the
+/// time limit, and writes the verdict, as text with the refutation's
+/// phrase or as `check`'s JSON, and with `--format rocq` the certificate
+/// of a refutation that holds; returns the verdict's status (valid 0,
+/// invalid 1, unknown 3 for a refutation that rests on the search, the
+/// time limit or a limit of the sequent) and whether the output is to be
+/// finished.
+fn check_disproof(
+    disproof: Disproof,
+    show: &Show,
+    deadline: &Deadline,
+    out: &mut io::Output,
+) -> Result<(Status, bool)> {
+    let mode = disproof.mode();
+    // A saturated set's check has no stop of its own.
+    let checked = disproof.clone();
+    let result = deadline.within(move || checked.check())?;
+    let status = match &result {
+        Some(Ok(())) => Status::Yes,
+        Some(Err(error)) if error.kind() == ErrorKind::Invalid => Status::No,
+        Some(Err(_)) | None => Status::Unknown,
+    };
+    let sequent = shown_sequent(disproof.sequent(), mode, show);
+    let line = match &result {
+        Some(Ok(())) => format!("valid refutation of {sequent} ({mode}): {disproof}"),
+        Some(Err(error)) if status == Status::No => {
+            format!("invalid refutation of {sequent} ({mode}): {error}")
+        }
+        Some(Err(error)) => {
+            format!("unknown: the refutation of {sequent} ({mode}) is not checked: {error}")
+        }
+        None => format!(
+            "unknown: the refutation of {sequent} ({mode}) is not checked: the time limit of {:?} \
+             was reached; --timeout DURATION gives the check longer",
+            deadline.limit().expect("only a limit passes")
+        ),
+    };
+    if show.format == Format::Json {
+        let error = match &result {
+            Some(Err(error)) => Some(error.clone()),
+            _ => None,
+        };
+        let checked = Checked {
+            version: CHECKED_LEVEL,
+            verdict: match status {
+                Status::Yes => "valid",
+                Status::No => "invalid",
+                _ => "unknown",
+            },
+            mode,
+            message: (status != Status::Yes).then_some(line),
+            error,
+            lambda: None,
+        };
+        serde_json::to_writer(out.stream(), &checked)?;
+        return Ok((status, true));
+    }
+    let line = (show.verdict || status != Status::Yes).then_some(line);
+    let prefix = show.open(out, line.as_deref())?;
+    let shown = if status == Status::Yes && show.format == Format::Rocq {
+        disproof_into(&disproof, None, show, prefix.as_deref(), out)
+    } else {
+        Shown::Nothing
+    };
+    Ok((status, show.close(out, shown, line.as_deref())?))
+}
+
+/// Returns a sequent as `check` names it in a verdict: two-sided in an
+/// intuitionistic mode where it has the reading, one-sided otherwise.
+fn shown_sequent(sequent: &linlog::Sequent, mode: Mode, show: &Show) -> String {
+    let formulas = sequent.roots().len();
+    match Forest::new(sequent)
+        .ok()
+        .filter(|_| mode.is_intuitionistic())
+        .and_then(|forest| {
+            Reading::of_mode(&forest, mode)
+                .ok()
+                .map(|reading| abbreviated(&reading, show.abbreviate, formulas))
+        }) {
+        Some(two_sided) => two_sided,
+        None => abbreviated(sequent, show.abbreviate, formulas),
+    }
 }
 
 /// The wire level of `check`'s JSON: level 1 holds a verdict, a mode and
@@ -116,23 +272,15 @@ pub(crate) struct Checked {
 /// A document that is no proof, or past the limit.
 pub(crate) fn read_proof(text: &str, limits: &Limits) -> Result<Proof> {
     let mut document = serde_json::Deserializer::from_str(text);
-    match linlog::wire::upgrade::<Proof, _>(&mut document, limits) {
+    match linlog::wire::upgrade::<Proof, _>(&mut document, limits).map_err(limit_advice) {
         Ok(proof) => {
             document
                 .end()
                 .context("not a proof in JSON: more follows it")?;
             Ok(proof)
         }
-        // Only the occurrence bound has a flag: the width of the
-        // representation's indices is no setting.
-        Err(error) if error.setting() == Some("limits.occurrences") => {
-            bail!("{error}; raise it with --occurrence-limit")
-        }
-        Err(error) if error.setting() == Some("limits.terms") => {
-            bail!("{error}; raise it with --term-limit")
-        }
-        Err(error) if error.kind() == ErrorKind::Limit => Err(error.into()),
-        Err(error) => {
+        Err(Ok(refused)) => Err(refused),
+        Err(Err(error)) => {
             // An outcome without a proof is a file the user may well hand
             // over; say what it is rather than which key it lacks.
             /// The one key of an outcome looked for; serde skips the
@@ -218,18 +366,7 @@ fn check_into(
     }
     // A sequent with no intuitionistic reading is an invalid proof in
     // intuitionistic mode, printed one-sided.
-    let formulas = proof.sequent().roots().len();
-    let sequent = match Forest::new(proof.sequent())
-        .ok()
-        .filter(|_| mode.is_intuitionistic())
-        .and_then(|forest| {
-            Reading::of_mode(&forest, mode)
-                .ok()
-                .map(|reading| abbreviated(&reading, show.abbreviate, formulas))
-        }) {
-        Some(two_sided) => two_sided,
-        None => abbreviated(proof.sequent(), show.abbreviate, formulas),
-    };
+    let sequent = shown_sequent(proof.sequent(), mode, show);
     let line = match &result {
         Ok(()) => format!("valid proof of {sequent} ({mode})"),
         Err(e @ CheckError::Refused(refused)) => {

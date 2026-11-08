@@ -2091,8 +2091,10 @@ fn a_closed_pipe_keeps_the_verdict() {
 }
 
 /// `check` gives up at its limits with an unknown verdict, exit status 3,
-/// which its JSON says too, its time limit counting the read; an outcome that holds no proof is refused
-/// with what it is; an invalid proof is `invalid` in JSON with the error.
+/// which its JSON says too, its time limit counting the read; an
+/// unprovable outcome's refutation is checked with a proof's exit
+/// statuses in the mode its file states, and an outcome that holds
+/// neither is refused with what it is; an invalid proof is `invalid` in JSON with the error.
 #[test]
 fn check_s_verdicts() {
     let (_, proof, _) = linlog(
@@ -2128,13 +2130,58 @@ fn check_s_verdicts() {
     let (status, out, _) = linlog(&["check", "-i", "--format", "json"], &classical);
     let checked: serde_json::Value = serde_json::from_str(&out).unwrap();
     assert_eq!((status, &checked["verdict"]), (1, &"invalid".into()));
+    // An unprovable outcome's refutation is checked: it holds, or it is
+    // invalid; an exhausted search has no check.
     let (_, outcome, _) = linlog(&["prove", "--format", "json", "a |- b"], "");
-    let (status, _, err) = linlog(&["check"], &outcome);
+    let (status, out, _) = linlog(&["check"], &outcome);
+    assert_eq!(
+        (status, out.as_str()),
+        (
+            0,
+            "valid refutation of ⊢ ~a, b (classical): ~a occurs 1 more time than a in the \
+             one-sided sequent, so they cannot all meet in axioms\n"
+        )
+    );
+    let wrong = outcome.replace(r#""least":-1,"most":-1"#, r#""least":-1,"most":0"#);
+    assert_ne!(wrong, outcome);
+    let (status, out, _) = linlog(&["check", "--format", "json"], &wrong);
+    let checked: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!((status, &checked["verdict"]), (1, &"invalid".into()));
+    assert_eq!(checked["error"]["code"], "invalid_refutation");
+    // In the file's mode: a flag that names another is an error.
+    let (status, _, err) = linlog(&["check", "-i"], &outcome);
     assert_eq!(
         (status, err.as_str()),
         (
             2,
-            "error: the file is the outcome of a sequent the search found unprovable: it holds \
+            "error: the refutation is of classical and the flags ask for intuitionistic: pass the \
+             flags it was found with, or none\n"
+        )
+    );
+    let (_, exhausted, _) = linlog(&["prove", "--format", "json", "A & B |- A * B"], "");
+    let (status, out, _) = linlog(&["check", "--format", "json"], &exhausted);
+    let checked: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(
+        (status, &checked["error"]["code"]),
+        (3, &"uncertified".into())
+    );
+    let (_, unknown, _) = linlog(
+        &[
+            "prove",
+            "--format",
+            "json",
+            "--work-limit",
+            "1",
+            "A * B |- B * A",
+        ],
+        "",
+    );
+    let (status, _, err) = linlog(&["check"], &unknown);
+    assert_eq!(
+        (status, err.as_str()),
+        (
+            2,
+            "error: the file is the outcome of a sequent the search found unknown: it holds \
              no proof to check\n"
         )
     );

@@ -87,15 +87,21 @@ pub(crate) enum Command {
     /// ends its input, is unknown at best.
     #[command(after_help = ORDINARY)]
     Prove(ProveArgs),
-    /// Check a proof read from JSON, as `prove --format json` writes it
+    /// Check a proof read from JSON, as `prove --format json` writes it, or
+    /// the refutation of an unprovable outcome
     ///
     /// The mode comes from the flags, not from the file: pass the flags the
     /// proof was found with. The exit status is 0 for a valid proof, 1 for
     /// an invalid one, 3 when the check was given up at a limit (neither
-    /// valid nor invalid), and 2 for an error. With `--format json` the
-    /// verdict is `{"version", "verdict", "mode"}`, the verdict `valid`,
-    /// `invalid` or `unknown`, with the library's `error` object and its
-    /// `message` with formulas for the last two.
+    /// valid nor invalid), and 2 for an error. A refutation is checked
+    /// without the search in the mode its file states, a claim about that
+    /// mode alone (a mode flag that names another is an error), with the
+    /// same statuses: 0 where it holds, 1 where it does not, 3 for an
+    /// exhausted search, which has no check.
+    /// With `--format json` the verdict is `{"version", "verdict",
+    /// "mode"}`, the verdict `valid`, `invalid` or `unknown`, with the
+    /// library's `error` object and its `message` with formulas for the
+    /// last two.
     Check(CheckArgs),
     /// Eliminate the cuts of a proof read from JSON, step by step
     ///
@@ -1081,6 +1087,16 @@ impl ModeArgs {
             mode = mode.with_mix();
         }
         mode
+    }
+
+    /// Returns whether any flag names a mode.
+    pub(crate) const fn given(&self) -> bool {
+        self.intuitionistic
+            || self.affine
+            || self.mix
+            || self.cyclic
+            || self.lambek
+            || self.empty_antecedents
     }
 }
 

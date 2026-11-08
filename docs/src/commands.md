@@ -690,3 +690,25 @@ command. It exits with 0 for a valid proof, 1 for an invalid one and 3
 when it gave up at `--timeout`, `--work-limit` or `--memory-limit` without a
 verdict (a proof file can make its check quadratic); in JSON an invalid
 or unknown verdict carries the library's error object.
+
+The outcome of an unprovable sequent is checked too: `check` reads its
+refutation and verifies it without the search, as the library's
+`Disproof::check` does, in the mode the file states, since a refutation
+is a claim about that mode alone (a mode flag that names another mode is
+an error). An unbalanced atom,
+a count with copies of one sign, the count equation, a Horn program's
+state equation, a classical assignment and a saturated set each have a
+check; the exit status is 0 for a refutation that holds, 1 for one that
+does not, and 3 for an exhausted search, which only the search vouches
+for, or at the time limit:
+
+```console
+$ linlog prove -i --format json "a, a -o b, !(b -o b * c), !(b -o d) |- b * d" | linlog check
+valid refutation of a, a ⊸ b, !(b ⊸ (b ⊗ c)), !(b ⊸ d) ⊢ b ⊗ d (intuitionistic): the state equation of the Petri net has no solution, so no firing of its clauses yields the goal's atoms: weighting each a by 2, b by 1, d by 1 and the clauses used once by weights of their own, no clause that can fire raises the weighted count of the atoms, and the goal asks it raised
+$ linlog prove --format json "A & B |- A * B" | linlog check; echo "exit $?"
+unknown: the refutation of ⊢ ~A ⊕ ~B, A ⊗ B (classical) is not checked: a refutation of kind `exhausted` rests on the search and has no check
+exit 3
+```
+
+With `--format rocq` a refutation that holds is written as its Rocq
+certificate, as `prove` writes it.

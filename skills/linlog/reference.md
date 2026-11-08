@@ -508,6 +508,23 @@ $ linlog prove --format json "A |- A" | linlog check --format json
 {"version":1,"verdict":"valid","mode":"classical"}
 ```
 
+An unprovable outcome (or a disproof document, the same keys) is
+checked too: its refutation (section 5), without the search, in the
+mode the file states (a mode flag naming another mode is an error,
+exit 2). Exit status 0 for a refutation that
+holds, 1 for one that does not (error code `invalid_refutation`), 3 for
+`exhausted`, which only the search vouches for (code `uncertified`), or
+at the time limit; every other kind has a check. With `--format rocq` a
+refutation that holds is written as its certificate (section 18).
+
+```console
+$ linlog prove -i --format json "a, a -o b, !(b -o b * c), !(b -o d) |- b * d" | linlog check --format json
+{"version":1,"verdict":"valid","mode":"intuitionistic"}
+$ linlog prove --format json "A & B |- A * B" | linlog check; echo "exit $?"
+unknown: the refutation of ⊢ ~A ⊕ ~B, A ⊗ B (classical) is not checked: a refutation of kind `exhausted` rests on the search and has no check
+exit 3
+```
+
 A proof of a first-order sequent (wire level 7) adds the steps
 `{"∀": [member, eigenvariable, premise]}` and `{"∃": [member, term,
 premise]}` and the key `instances`: `members`, each `[occurrence,
