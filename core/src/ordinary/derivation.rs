@@ -405,17 +405,17 @@ impl Derivation {
             if inference.rule.is_structural()
                 && let [premise] = inference.premises[..]
                 && let (above, true) = shown[premise.index()]
+                // The rule above takes this conclusion where its principal
+                // formula is in it, as in a derivation the checker accepts,
+                // whose runs only add a formula or remove one of two
+                // copies; elsewhere this inference is shown.
+                && let Some(principal) = out[above.index()].principal.map_or(Some(None), |(side, at)| {
+                    let id = out[above.index()].side(side)[at];
+                    let found = inference.side(side).iter().position(|&x| x == id);
+                    found.map(|at| Some((side, at)))
+                })
             {
-                // The rule above takes this conclusion; its principal
-                // formula is in it, since a run only adds a formula or
-                // removes one of two copies.
                 let target = &mut out[above.index()];
-                let principal = target.principal.map(|(side, at)| {
-                    let id = target.side(side)[at];
-                    let list = inference.side(side);
-                    let at = list.iter().position(|&x| x == id).unwrap_or(at);
-                    (side, at)
-                });
                 target.left.clone_from(&inference.left);
                 target.right.clone_from(&inference.right);
                 target.principal = principal;
@@ -625,7 +625,12 @@ pub(super) fn check_inference(
         (OrRight2, Right, Node::Or(_, b)) => unary(&[(Right, b)]),
         (ImpliesLeft, Left, Node::Implies(a, b)) => binary(&[(Right, a)], &[(Left, b)]),
         (ImpliesRight, Right, Node::Implies(a, b)) => unary(&[(Left, a), (Right, b)]),
-        // `¬A` as itself, or as `A → ⊥` (LJ).
+        // `¬A` as itself, or as `A → ⊥` in LJ; LK's rules have their own
+        // forms only, which its certificate reads.
+        (NotRight, Right, Node::Not(a)) if logic == Logic::Classical => unary(&[(Left, a)]),
+        (NotLeft, Left, Node::Not(_)) if logic == Logic::Classical && premises.len() != 1 => {
+            Err("LK's ¬L has one premise".to_owned())
+        }
         (NotRight, Right, Node::Not(a)) => unary(&[(Left, a)]).or_else(|_| {
             let falsity = formulas.ids.get(&Node::False).copied();
             unary(&[

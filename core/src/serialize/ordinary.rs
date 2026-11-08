@@ -351,6 +351,15 @@ impl DerivationForm {
         let mut inferences = Vec::with_capacity(len);
         for (n, form) in self.inferences.into_iter().enumerate() {
             let inference = form.read(&read, n)?;
+            // An open goal is a leaf, which the drawings draw bare.
+            if inference.rule == Rule::Open
+                && (inference.principal.is_some() || !inference.premises.is_empty())
+            {
+                return Err(Error::Json {
+                    form: "ordinary derivation",
+                    message: format!("inference {n} is an open goal with a principal or premises"),
+                });
+            }
             for p in &inference.premises {
                 parents[p.index()] = parents[p.index()].saturating_add(1);
             }

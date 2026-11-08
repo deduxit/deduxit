@@ -121,8 +121,11 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   concluding the image's ordinary sequent. `the_checker_refuses_each_break`
   breaks a read-back derivation once per guard and asserts that guard's
   reason, so a guard removed shows (F11: `check_one` replaced by
-  `Ok(())` survived the suite). `¬L` and `¬R` take both
-  forms, LK's (one premise; `Γ, A ⊢` for `¬R`) and that of `A → ⊥`. It has
+  `Ok(())` survived the suite). `¬L` and `¬R` take LK's
+  forms (one premise; `Γ, A ⊢` for `¬R`) in every logic and that of
+  `A → ⊥` in LJ only: the classical certificate reads LK's forms alone,
+  and a classical derivation document in the other form made the Rocq
+  writer panic before the checker refused it (the goal state's review). It has
   no counter that can wrap: it compares sorted vectors.
 - **The certificate** (`rocq.rs`) is a term, not a tactic script: an LJ
   sequent `Γ ⊢ C` is a term of type `C` (`False` for none), an LK sequent
@@ -239,6 +242,16 @@ factored out of the two until the kernel crate is.
   last, indices in range), so that a drawing of any document is safe;
   the Rocq writer checks a derivation before it writes one and refuses
   an open goal (`Unsupported::Open`).
+- **What the review found** (all fixed, each pinned in
+  `a_forged_document_is_refused`): a session document whose history
+  closed an LJ goal without one formula right of `⊢` let `undo` reopen
+  it, and `close` then grafted the search's `Γ ⊢ ⊥` onto `Γ ⊢`; now the
+  reader refuses such a step and `graft` refuses a root that does not
+  conclude the goal (`Error::GoalMismatch`). The admissible view hides a
+  structural rule only where its conclusion holds the principal of the
+  rule above; the derivation reader takes an open goal only as a leaf
+  (the text layout's height underflowed under a bare goal with a
+  premise).
 - **`Rule::Open`** marks an open goal of a proof in progress and appears
   nowhere else: the checker refuses it first ("an open goal"), `Drawn`
   draws it without a bar or label, as the linear `Rule::Open`.

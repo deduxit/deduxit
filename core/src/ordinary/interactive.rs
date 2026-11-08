@@ -863,9 +863,11 @@ impl Interactive {
     ///
     /// # Errors
     ///
-    /// [`Error::OrdinaryStep`] for a goal that is not open, and the errors
-    /// of [`decide`]: a translation that does not decide the logic, and
-    /// the refusal of a bound or the stop, the goal then still open.
+    /// [`Error::OrdinaryStep`] for a goal that is not open, the errors of
+    /// [`decide`] (a translation that does not decide the logic, the
+    /// refusal of a bound or the stop), the goal then still open, and
+    /// [`Error::GoalMismatch`] should the derivation found conclude
+    /// another sequent than the goal.
     pub fn close(
         &mut self,
         goal: GoalId,
@@ -997,6 +999,9 @@ impl Interactive {
         // The goal keeps the order of its sides; the root's principal is
         // found there by its formula, the sides being the same multisets.
         let goal_inference = &self.inferences[at.index()];
+        if !same(&top.left, &goal_inference.left) || !same(&top.right, &goal_inference.right) {
+            return Err(Error::GoalMismatch);
+        }
         top.principal = top.principal.map(|(side, position)| {
             let id = top.side(side)[position];
             let list = goal_inference.side(side);
@@ -1452,6 +1457,13 @@ impl Interactive {
             if g >= end || named[g] || inferences[g].rule == Rule::Open {
                 return Err(inconsistent(
                     "a step names no inference it could have closed",
+                ));
+            }
+            // Its undo reopens the inference as a goal, which in LJ has
+            // one formula right of `⊢`.
+            if logic != Logic::Classical && inferences[g].right.len() != 1 {
+                return Err(inconsistent(
+                    "a step of LJ closed a goal without one formula right of ⊢",
                 ));
             }
             named[g] = true;
@@ -2034,8 +2046,38 @@ mod tests {
             &session.replace(r#""history":[0,1]"#, r#""history":[1,0]"#)
         ));
         let derivation = r#"{"version":8,"logic":"classical","sequent":{"formulas":[{"V":0}],"atoms":["a"],"left":[0],"right":[0]},"inferences":[{"left":[0],"right":[0],"rule":"ax"},{"left":[0],"right":[0],"rule":"ax"}]}"#;
-        let mut document = serde_json::Deserializer::from_str(derivation);
-        let read = crate::wire::upgrade::<Derivation, _>(&mut document, &Limits::default());
-        assert!(matches!(read, Err(Error::Json { .. })));
+        let derivation_of = |json: &str| {
+            let mut document = serde_json::Deserializer::from_str(json);
+            crate::wire::upgrade::<Derivation, _>(&mut document, &Limits::default())
+        };
+        assert!(matches!(derivation_of(derivation), Err(Error::Json { .. })));
+        // An open goal is a leaf: drawn bare with a premise above it, its
+        // layout's height underflowed.
+        let open = r#"{"version":8,"logic":"classical","sequent":{"formulas":[{"V":0},{"V":1}],"atoms":["a","b"],"left":[1],"right":[1]},"inferences":[{"left":[1],"right":[1],"rule":"ax"},{"left":[1],"right":[1],"rule":"open","premises":[0]}]}"#;
+        assert!(matches!(derivation_of(open), Err(Error::Json { .. })));
+        // A step of LJ that closed `a, ¬a ⊢`: undone, it would reopen a
+        // goal without a formula right of ⊢, whose search's derivation
+        // concludes `a, ¬a ⊢ ⊥`.
+        let empty = r#"{"version":8,"logic":"intuitionistic","sequent":{"formulas":[{"V":0},{"V":1},{"¬":0}],"atoms":["a","b"],"left":[0,2],"right":[1]},"inferences":[{"left":[0,2],"right":[1],"rule":"WR","principal":["right",0],"premises":[1]},{"left":[0,2],"right":[],"rule":"¬L","principal":["left",1],"premises":[2]},{"left":[0],"right":[0],"rule":"ax"}],"history":[0,1,2]}"#;
+        assert!(inconsistent(empty));
+        // LK's ¬R has its own form only, which its certificate reads.
+        let arrow = r#"{"version":8,"logic":"classical","sequent":{"formulas":[{"V":0},"⊥",{"¬":0}],"atoms":["a"],"left":[1],"right":[2]},"inferences":[{"left":[1],"right":[1],"rule":"ax"},{"left":[1,0],"right":[1],"rule":"WL","principal":["left",1],"premises":[0]},{"left":[1],"right":[2],"rule":"¬R","principal":["right",0],"premises":[1]}]}"#;
+        let arrow = derivation_of(arrow).unwrap();
+        assert!(matches!(
+            arrow.check(&Limits::default(), |_| false),
+            Err(Error::ReadBack { .. })
+        ));
+        #[cfg(feature = "rocq")]
+        {
+            let mut out = String::new();
+            let options = crate::export::rocq::Options::default();
+            let written = crate::export::rocq::write(&arrow, &options, &mut out, |_| false);
+            assert!(written.is_err());
+        }
+        // A run whose conclusion lacks the principal of the rule above is
+        // drawn, not left out.
+        let lacking = r#"{"version":8,"logic":"classical","sequent":{"formulas":[{"V":0},{"V":1},"⊤"],"atoms":["a","b"],"left":[],"right":[1,1]},"inferences":[{"left":[],"right":[0,2],"rule":"⊤R","principal":["right",1]},{"left":[],"right":[1],"rule":"WR","principal":["right",0],"premises":[0]},{"left":[],"right":[1,1],"rule":"WR","principal":["right",0],"premises":[1]}]}"#;
+        let lacking = derivation_of(lacking).unwrap();
+        assert_eq!(lacking.shown(Structural::Admissible).inferences().len(), 2);
     }
 }
