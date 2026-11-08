@@ -4919,3 +4919,30 @@ move (D26).
     worker, so that returning visitors reach the redirect.
   - Next: the author's acts 2 to 9 (48's prompt, the report's
     checklist), then 48b.
+- 2026-11-08: the author's acts for the move, done.
+  - By the planning session through `gh`, at the author's yes for
+    each act:
+    - act 2: `sequentium` matched to `linlog-prover`, its one difference
+      being the SHA-pinned actions; neither organisation requires 2FA,
+      which 48a's checklist had wrong;
+    - act 5: the site transferred and renamed `sequentium.github.io`;
+    - act 6: Pages, the environments, the Cachix secret, the rulesets
+      and the topics found intact on all three repositories, Dependabot
+      alerts switched on for `sequentium/sequentium`;
+    - act 9: `linlog-prover/linlog-prover.github.io` created, Pages from
+      Actions, the placeholder pushed and every kind of old address
+      answered.
+  - By the author:
+    - acts 3 and 4: `rocq-linlog`, and `linlog` renamed `sequentium`,
+      transferred; both redirect, the releases are kept, and the
+      library's archive at its new address hashes to the opam file's
+      SHA-512;
+    - act 7: crates.io's Trusted Publishing for both crates, provable
+      only at 0.3.0;
+    - act 8: Zenodo granted, both repositories on, and both 0.2.0
+      records' links (related works, the Software section's repository
+      URL, the description) at the new addresses, checked through
+      Zenodo's API.
+  - The website sessions were told of the new addresses.
+  - Step 53 asks how the release is titled in citations.
+  - Next: 48b.
