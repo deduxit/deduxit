@@ -46,7 +46,10 @@ sequent calculus has its term:
 | `!w`, `!c` | `discard z in M`; `copy z as x, y in M` |
 | cut | `(λx:A. N) M` |
 
-A left rule substitutes, as the thesis does, so the term of a cut-free
+Every form in the table is the thesis's, but the cut's: the thesis's cut
+is the substitution `N[x := M]` itself, and linlog writes it as the redex
+whose reduction that substitution is, in the calculus's own syntax. A
+left rule substitutes, as the thesis does, so the term of a cut-free
 proof is in normal form. `true` and `false` take every other hypothesis,
 since `⊤` and `0` discard a linear context only by consuming it, and the
 two components of a pair share their context:
@@ -80,7 +83,8 @@ lambda-term: x : !(a ⊸ b), y : !a ⊢ promote x, y for z, u in derelict(z) der
 
 A proof of affine linear logic (`--affine`) reads back to the affine
 lambda calculus: the same terms, with weakening left implicit, so a
-variable may go unused.
+variable may go unused. Neither the paper nor the thesis gives an affine
+calculus; this reading is linlog's own.
 
 ```console
 $ linlog prove -i --affine --lambda --tree never 'a, b |- a'
@@ -117,8 +121,9 @@ typed lambda calculus with products, sums, a unit and an empty type, as
 J.-Y. Girard, Y. Lafont and P. Taylor give it in *Proofs and Types*
 (Cambridge University Press, 1989), sections 3.1.2 and 10.6, their `π₁`,
 `π₂`, `ι₁`, `ι₂`, `δ` and `ε` written `fst`, `snd`, `inl`, `inr`, `case`
-and `abort`, and `⟨⟩` for the unit. `¬A` is `A → ⊥`, and `A ↔ B` the pair
-of both implications:
+and `abort`. The book names no term of the unit type; `⟨⟩`, the empty
+pair, is linlog's own notation for it. `¬A` is `A → ⊥`, and `A ↔ B` the
+pair of both implications:
 
 ```console
 $ linlog prove --logic intuitionistic --lambda --tree never '|- (a -> b) -> (b -> c) -> a -> c'
@@ -154,8 +159,9 @@ no lambda-term: quantifiers over first-order terms are no quantifiers over types
 
 ## How the term is printed
 
-`--lambda-notation ascii` writes it in ASCII, the types as the parser
-reads them, and `--lambda-types` gives every binder its variable's type,
+`--lambda-notation ascii` writes it in ASCII, a notation of linlog's own
+(`\x. M` for `λx. M`, `M * N` for `M ⊗ N`, `()` for `∗`, `<M, N>` for
+`⟨M, N⟩`, `->` and `|` in a case, the types as the parser reads them), and `--lambda-types` gives every binder its variable's type,
 `λx:A. M`, and `false` its goal's, as the calculus writes them; the
 settings keys are `lambda.notation` and `lambda.types`:
 

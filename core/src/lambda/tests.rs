@@ -907,6 +907,63 @@ fn a_term_past_the_bound_is_refused() {
     ));
 }
 
+/// A type whose text unfolds its shared operands past the bound is
+/// refused from the arena's lengths alone: an equivalence nested 64 deep
+/// writes its innermost atom 2⁶⁴ times, which building the text to
+/// measure it would never finish.
+#[test]
+fn a_type_past_the_bound_is_refused_unwritten() {
+    let mut builder = Builder::new();
+    let atom = builder.atom("a");
+    let a = builder.ty(Type::Atom { atom });
+    let mut nested = a;
+    for _ in 0..64 {
+        let there = builder.ty(Type::Lollipop {
+            from: nested,
+            to: a,
+        });
+        let back = builder.ty(Type::Lollipop {
+            from: a,
+            to: nested,
+        });
+        nested = builder.ty(Type::With {
+            left: there,
+            right: back,
+        });
+    }
+    let (x, root) = builder.variable(nested);
+    let term = builder.finish(Calculus::Simple, vec![x], nested, root);
+    for options in [Options::default(), Options::default().with_types(true)] {
+        let mut out = String::new();
+        let refused = term.write_judgement(&mut out, &options, &Limits::default(), never);
+        assert!(
+            matches!(
+                refused,
+                Err(crate::Error::Refused(Refusal::Output { what: "term", .. }))
+            ),
+            "{refused:?}"
+        );
+        assert!(out.is_empty(), "nothing written");
+    }
+}
+
+/// A read-back that `stop` ends says so in its own phase.
+#[test]
+fn a_stopped_read_back_names_its_phase() {
+    let proof = proved("a, a -o b |- b", Mode::INTUITIONISTIC);
+    let derivation = proof.derivation().unwrap();
+    let stopped = derivation.term(&Limits::default(), |_| true);
+    assert!(
+        matches!(
+            stopped,
+            Err(crate::Error::Refused(Refusal::Stopped {
+                phase: crate::limits::Phase::ReadBack
+            }))
+        ),
+        "{stopped:?}"
+    );
+}
+
 /// A derivation of any height reads back and prints on a small stack:
 /// 120 000 inferences, one above the other, on a thread with 256 KiB.
 #[test]

@@ -343,9 +343,55 @@ struct Printer<'t> {
     spelling: &'t Spelling,
     /// Whether binders carry their types.
     types: bool,
+    /// An upper bound of the length of every type written, in brackets.
+    type_lengths: Vec<u64>,
 }
 
-impl Printer<'_> {
+impl<'t> Printer<'t> {
+    /// Returns the printer of a term in a spelling, with the bounds of its
+    /// types' lengths computed over the arena of types, each type once:
+    /// an equal operand is one id, so a type's text can be longer than
+    /// the arena by any factor (an equivalence nested `k` deep writes its
+    /// innermost operand `2ᵏ` times), and no text is built to measure it.
+    fn new(term: &'t Term, spelling: &'t Spelling, types: bool) -> Self {
+        let mut printer = Self {
+            term,
+            spelling,
+            types,
+            type_lengths: Vec::with_capacity(term.types.len()),
+        };
+        let c = printer.connectives();
+        let mut lengths: Vec<u64> = Vec::with_capacity(term.types.len());
+        for ty in &term.types {
+            let of = |t: TypeId| lengths[t.index()];
+            let binary = |l: TypeId, op: &str, r: TypeId| {
+                of(l)
+                    .saturating_add(of(r))
+                    .saturating_add(op.len() as u64 + 2)
+            };
+            let length = match *ty {
+                Type::Atom { atom } => {
+                    let mut name = String::new();
+                    // An atom's name is the input's, as long as the input
+                    // allowed it.
+                    let written = spelling.atom.write(&mut name, &term.atoms[atom as usize]);
+                    written.map_or(u64::MAX, |()| name.len() as u64)
+                }
+                Type::One => c.one.len() as u64,
+                Type::Top => c.top.len() as u64,
+                Type::Zero => c.zero.len() as u64,
+                Type::Bang { of: a } => of(a).saturating_add(c.bang.len() as u64 + 2),
+                Type::Tensor { left, right } => binary(left, c.tensor, right),
+                Type::With { left, right } => binary(left, c.with, right),
+                Type::Plus { left, right } => binary(left, c.plus, right),
+                Type::Lollipop { from, to } => binary(from, c.lollipop, to),
+            };
+            lengths.push(length);
+        }
+        printer.type_lengths = lengths;
+        printer
+    }
+
     /// Returns the type connectives of the term's calculus.
     const fn connectives(&self) -> &Connectives {
         match self.term.calculus {
@@ -650,7 +696,7 @@ impl Printer<'_> {
             }
             Piece::Term(..) => return 0,
             Piece::Var(v) => self.var(&mut text, v),
-            Piece::Type(t, bracket) => self.ty(&mut text, t, bracket),
+            Piece::Type(t, _) => return self.type_lengths[t.index()],
         };
         written.map_or(u64::MAX, |()| text.len() as u64)
     }
@@ -822,11 +868,6 @@ impl Term {
         limits: &Limits,
         stop: impl FnMut(Progress) -> bool,
     ) -> Result<(), Error> {
-        Printer {
-            term: self,
-            spelling,
-            types,
-        }
-        .write(out, judgement, limits, stop)
+        Printer::new(self, spelling, types).write(out, judgement, limits, stop)
     }
 }

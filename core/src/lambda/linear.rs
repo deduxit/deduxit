@@ -93,8 +93,10 @@ struct ReadBack<'d, 'a> {
 /// Reads a two-sided derivation back as a term, or refuses one that has
 /// none, asking `stop` once per inference.
 ///
-/// Memory: the term holds at most two nodes per inference and the
-/// variables, each fewer than the inferences' members, and the tasks
+/// Memory: the term holds at most two nodes per inference, one per
+/// member a structural run of a compact derivation weakens or copies, and
+/// a node per variable, each variable bound to a member: never more nodes
+/// than the derivation has members. The tasks
 /// waiting hold the terms of the sequents of the premises not yet read,
 /// which lie on one branch: never more than the derivation itself, which
 /// was built within `limits` before it reached here. The walk counts on

@@ -59,7 +59,10 @@ the term's data, its printer, and the tests' own type checker.
   into `⊥` write no `abort` (`abort_⊥(M)` is `M`).
 - **The DAG and the bound.** A left rule's term is one node every place
   the hypothesis goes names, so the nodes stay within twice the
-  inferences plus the variables, but the text unfolds the DAG: a pair
+  inferences, one per formula a compact run weakens or copies (a run of
+  `!w` is one inference and a `Discard` per formula), and one per
+  variable, so never more than the derivation's members; but the text
+  unfolds the DAG: a pair
   under a `⊸L` doubles it (`a_term_past_the_bound_is_refused`). The
   printer computes an upper bound over the DAG, each node once with its
   own pieces and two brackets, saturating, and refuses past
@@ -67,6 +70,14 @@ the term's data, its printer, and the tests' own type checker.
   writing; the exports use the default limits, since their `write` takes
   none. `Builder::finish` drops the nodes the root does not reach (a
   weakened variable's).
+- **The types are a DAG too**: equal types are one id, so a type's
+  text is not bounded by the arena (the simple calculus's `A ↔ B` is `(A
+  → B) ∧ (B → A)` with `A` and `B` shared, and nested `k` deep writes
+  `2ᵏ` atoms). `Printer::new` bounds every type's length over the arena,
+  each type once, saturating, and builds no text to measure one; the
+  review found the first printer writing every type out to measure it,
+  which a session's `↔` nested 27 deep drove out of 2 GiB before the
+  refusal (`a_type_past_the_bound_is_refused_unwritten`).
 - **No recursion**: both read-backs walk with a task stack, the types
   are built with a stack of their own, the printer is one loop over
   pieces; `any_height_reads_back_on_a_small_stack` (120 000 inferences

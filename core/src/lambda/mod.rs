@@ -39,7 +39,9 @@
 //! typed calculus of Girard, Lafont and Taylor, *Proofs and Types* (1989),
 //! sections 3.1.2 and 10.6, with their `π₁`, `π₂`, `ι₁`, `ι₂`, `δ` and `ε`
 //! written `fst`, `snd`, `inl`, `inr`, `case` and `abort`, and `⟨⟩` for
-//! the unit; `¬A` is `A → ⊥` and `A ↔ B` the pair of both implications.
+//! the unit, which the book does not name; `¬A` is `A → ⊥` and `A ↔ B`
+//! the pair of both implications. The affine reading, `⟨⟩` and the ASCII
+//! notation are this crate's own; every other form is the sources'.
 //!
 //! A term is self-contained: its own atoms, types and variables, its
 //! nodes in an arena whose operands precede them, so that no walk over it
@@ -820,6 +822,6 @@ fn renumber(node: &mut Node, f: impl Fn(TermId) -> TermId) {
 /// Returns the refusal of a read-back that `stop` ended.
 const fn stopped() -> crate::Error {
     crate::Error::Refused(Refusal::Stopped {
-        phase: crate::limits::Phase::View,
+        phase: crate::limits::Phase::ReadBack,
     })
 }
