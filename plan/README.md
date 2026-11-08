@@ -5193,3 +5193,6 @@ move (D26).
     - 51b writes `weighted_refutation y d p R l` (affine:
       `affine_refutation …`, first order: `FirstOrderWeights.…`) and
       moves `export::rocq::LINLOG` to 0.3.0 with the lock.
+- 2026-11-08: the author on the name, after the SEQUENT finding: "No,
+  keep the name". `sequentium` stays. The opam pull request and 0.3.0's
+  tag no longer wait on it.
