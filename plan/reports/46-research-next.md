@@ -620,13 +620,15 @@ unless a row says otherwise; the costs are the notes' lines:
 
 
 
+
 The sources of each candidate: the note that holds it, and the links its
 section cites, resolved from the note's source list (for a scope update,
-from the 2026-10 note's list where the label is the old one) or taken from
-the section's text; at most six here, the note has the rest. "From the
-note's field section" marks a candidate whose section points at the
-note's survey rather than citing; a candidate that rests on the
-repository's own files or on another note alone says so.
+from the 2026-10 note's list where the label is the old one, or from that
+note's own section for the candidate where the update only states its
+status) or taken from the section's text; at most six here, the note has
+the rest. "From the note's field section" marks a candidate whose section
+points at the note's survey rather than citing; a candidate that rests on
+the repository's own files or on another note alone says so.
 
 | candidate | note | links |
 |---|---|---|
@@ -711,7 +713,7 @@ repository's own files or on another note alone says so.
 | applications-5 | `scope-applications.md` | <https://www.lix.polytechnique.fr/~dale/lolli>, <https://github.com/clf/celf>, <https://github.com/clf/celf/commits/master>, <https://github.com/clf/lollimon> |
 | applications-6 | `scope-applications.md` | <https://arxiv.org/abs/2309.10629>, <https://arxiv.org/abs/2211.12603>, <https://www.pnnl.gov/publications/crnt4sbml-python-package-detection-bistability-biochemical-reaction-networks>, <https://synkit.readthedocs.io/en/stable/crn.html> |
 | applications-7 | `scope-applications.md` | <https://www.mpi-sws.org/~dg/papers/aff-know.pdf>, <https://www.mpi-sws.org/~dg/papers/NDSS07Final.pdf>, <https://people.mpi-sws.org/~dg/papers/thesis.pdf> |
-| applications-8 | `scope-applications.md` | the repository's own files and other notes only |
+| applications-8 | `scope-applications.md` | from the 2026-10 note's section: <https://arxiv.org/abs/0910.2401>, <https://arxiv.org/abs/q-bio/0608019>, <https://research.tees.ac.uk/en/publications/linear-logic-for-non-linear-storytelling/>, <https://arxiv.org/abs/1710.09756>, <https://pldi20.sigplan.org/details/pldi-2020-papers/47/Silq-A-High-Level-Quantum-Language-with-Safe-Uncomputation-and-Intuitive-Semantics>, <https://arxiv.org/abs/2004.05106>, and 37 more in the note |
 | applications-9 | `scope-applications.md` | the repository's own files and other notes only |
 | applications-10 | `scope-applications.md` | <https://arxiv.org/abs/2501.00169>, <https://arxiv.org/abs/2408.09516>, <https://arxiv.org/abs/2510.13082v1>, <https://arxiv.org/pdf/1909.05970>, <https://arxiv.org/abs/2309.10629>, <https://github.com/clf/celf>, and 22 more in the note |
 | education-1 | `scope-education.md` | <https://arxiv.org/abs/1803.01467>, <https://arxiv.org/pdf/1803.01467>, <https://click-and-collect.linear-logic.org/> |
@@ -726,15 +728,15 @@ repository's own files or on another note alone says so.
 | education-10 | `scope-education.md` | the repository's own files and other notes only |
 | education-11 | `scope-education.md` | <https://iltis.rub.de/>, <https://arxiv.org/abs/2607.07722>, <https://arxiv.org/abs/1803.01467>, <https://arxiv.org/pdf/1803.01467>, <https://click-and-collect.linear-logic.org/>, <https://ll-handbook.pages.math.cnrs.fr/>, and 18 more in the note |
 | engines-1 | `scope-engines.md` | <https://github.com/chrjabs/rustsat>, <https://drops.dagstuhl.de/storage/00lipics/lipics-vol341-sat2025/html/LIPIcs.SAT.2025.15/LIPIcs.SAT.2025.15.html>, <https://github.com/jix/varisat>, <https://github.com/shnarazk/splr> |
-| engines-2 | `scope-engines.md` | the repository's own files and other notes only |
-| engines-3 | `scope-engines.md` | the repository's own files and other notes only |
-| engines-4 | `scope-engines.md` | the repository's own files and other notes only |
-| engines-5 | `scope-engines.md` | the repository's own files and other notes only |
-| engines-6 | `scope-engines.md` | the repository's own files and other notes only |
+| engines-2 | `scope-engines.md` | from the 2026-10 note's section: <https://ftp.math.utah.edu/pub/tex/bib/idx/tcs1990/135/1/155_169.html>, <https://software.imdea.org/Conferences/hcvs17/papers/paper_1.pdf> |
+| engines-3 | `scope-engines.md` | from the 2026-10 note's section: <https://archive.model.in.tum.de/um/courses/petri/SS2017/material/cav2014-paper.pdf>, <https://arxiv.org/abs/1510.05724> |
+| engines-4 | `scope-engines.md` | from the 2026-10 note's section: <https://arxiv.org/abs/1306.3542>, <https://arxiv.org/abs/1906.03611> |
+| engines-5 | `scope-engines.md` | from the 2026-10 note's section: <https://arxiv.org/abs/1111.2249>, <https://arxiv.org/abs/2403.12869> |
+| engines-6 | `scope-engines.md` | from the 2026-10 note's section: <https://arxiv.org/abs/1805.07563> |
 | engines-7 | `scope-engines.md` | <https://arxiv.org/pdf/2404.07382>, <https://arxiv.org/abs/1811.00796> |
-| engines-8 | `scope-engines.md` | the repository's own files and other notes only |
-| engines-9 | `scope-engines.md` | the repository's own files and other notes only |
-| engines-10 | `scope-engines.md` | the repository's own files and other notes only |
+| engines-8 | `scope-engines.md` | from the 2026-10 note's section: <https://click-and-collect.linear-logic.org/>, <https://www21.in.tum.de/~wenzelm/papers/itp-pide.pdf> |
+| engines-9 | `scope-engines.md` | from the 2026-10 note's section: <https://research.chalmers.se/en/publication/74330> |
+| engines-10 | `scope-engines.md` | from the 2026-10 note's section: <https://hal.archives-ouvertes.fr/hal-00003530>, <https://dblp.org/pid/34/462>, <https://mcc.lip6.fr/2025/>, <https://unsolve-ipc.eng.unimelb.edu.au> |
 | engines-11 | `scope-engines.md` | <https://tptp.org/UserDocs/TPTPLanguage/NonClassicalLogics.html>, <https://arxiv.org/abs/2508.09318>, <https://arxiv.org/html/2508.09318> |
 | engines-12 | `scope-engines.md` | the repository's own files and other notes only |
 | engines-13 | `scope-engines.md` | <https://github.com/RichardMoot/LinearOne> |
@@ -751,7 +753,7 @@ repository's own files or on another note alone says so.
 | interop-7 | `scope-interop.md` | <https://github.com/PyO3/pyo3> |
 | interop-8 | `scope-interop.md` | <https://wasi.dev/releases/wasi-p3> |
 | interop-9 | `scope-interop.md` | <https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/>, <https://docs.rs/crate/lsp-server/latest>, <https://tree-sitter.github.io/tree-sitter/creating-parsers/>, <https://github.com/ejgallego/coq-lsp> |
-| interop-10 | `scope-interop.md` | the repository's own files and other notes only |
+| interop-10 | `scope-interop.md` | from the 2026-10 note's section: <https://arxiv.org/abs/2311.07185>, <https://ocaml.org/p/lambdapi/3.0.0/lambdapi.export/Export/index.html>, <https://github.com/Deducteam/hol2dk/blob/main/README.md>, <https://ecosystem.code.gouv.fr/hosts/GitHub/owners/Deducteam>, <https://www.lix.polytechnique.fr/~dale/papers/checking-fpc.pdf>, <https://hal.archives-ouvertes.fr/hal-01390912>, and 29 more in the note |
 | interop-11 | `scope-interop.md` | <https://arxiv.org/html/2508.09318v1>, <https://arxiv.org/abs/2508.09318>, <https://github.com/TPTPWorld/NonClassicalLogic> |
 | interop-12 | `scope-interop.md` | <https://arxiv.org/html/2508.09318v1>, <https://arxiv.org/abs/2508.09318>, <https://github.com/Deducteam/lambdapi/blob/master/CHANGES.md>, <https://github.com/leanprover/cslib>, <https://lean-lang.org/doc/reference/latest/IO/Processes/>, <https://github.com/ejgallego/coq-lsp>, and 24 more in the note |
 | logics-1 | `scope-logics.md` | <https://www.cs.cmu.edu/~fp/papers/xlang26.pdf>, <https://arxiv.org/abs/2507.12360>, <https://arxiv.org/abs/2509.00644>, <https://arxiv.org/abs/1502.04769> |
@@ -764,14 +766,14 @@ repository's own files or on another note alone says so.
 | logics-8 | `scope-logics.md` | <https://www.cs.cmu.edu/~fp/papers/xlang26.pdf>, <https://lipn.univ-paris13.fr/TLLA/2025>, <https://arxiv.org/abs/2605.14476>, <https://arxiv.org/abs/2603.03262>, <https://arxiv.org/abs/2603.01595>, <https://arxiv.org/abs/2505.13284>, and 11 more in the note |
 | proof-theory-1 | `scope-proof-theory.md` | <https://www.lix.polytechnique.fr/~dale/papers/tcs08trackb.pdf>, <https://lmcs.episciences.org/1625>, <https://arxiv.org/abs/2110.02630>, <https://dc2.philarchive.org/rec/VELMMP>, <https://www.mathstat.dal.ca/wollic2023/papers/veltri.pdf>, <https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.TLCA.2015.60>, and 4 more in the note |
 | proof-theory-2 | `scope-proof-theory.md` | <https://www.irif.fr/~diguardia/papers/thesis_manuscript.pdf>, <https://www.ens-lyon.fr/evenement/recherche/identity-proofs-and-formulas-using-proof-nets-multiplicative-additive-linear>, <https://arxiv.org/abs/2603.03262>, <https://easychair.org/smart-program/FSCD2025/2025-07-18.html>, <https://doi.org/10.1145/2933575.2934559>, <https://people.bath.ac.uk/wbh22/pdf/2016-hughes-heijltjes.pdf>, and 2 more in the note |
-| proof-theory-3 | `scope-proof-theory.md` | the repository's own files and other notes only |
+| proof-theory-3 | `scope-proof-theory.md` | <https://arxiv.org/abs/1802.03224>, <https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.FSCD.2019.22> |
 | proof-theory-4 | `scope-proof-theory.md` | <https://github.com/ComputerAidedLL/click-and-collect>, <https://github.com/chaudhuri/profound>, <https://researchportal.ip-paris.fr/en/publications/subformula-linking-as-an-interaction-method/>, <https://arxiv.org/abs/2210.11820> |
 | proof-theory-5 | `scope-proof-theory.md` | <https://www.arxiv.org/abs/2505.13284>, <https://arxiv.org/abs/0709.1201>, <https://lmcs.episciences.org/1081>, <https://arxiv.org/abs/0903.5392>, <https://arxiv.org/abs/cs/9910023>, <https://www.lix.polytechnique.fr/~lutz/papers/dissvonlutz.pdf>, and 6 more in the note |
 | proof-theory-6 | `scope-proof-theory.md` | <https://github.com/ComputerAidedLL/click-and-collect>, <https://dmg.tuwien.ac.at/hetzl/research/towards.pdf>, <https://doi.org/10.1007/BF00247711>, <https://www.kurims.kyoto-u.ac.jp/~terui/pub_bib.html>, <https://www.springerprofessional.de/en/compression-of-propositional-resolution-proofs-by-lowering-subpr/4164474>, <https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.FSCD.2025.32> |
-| proof-theory-7 | `scope-proof-theory.md` | the repository's own files and other notes only |
-| proof-theory-8 | `scope-proof-theory.md` | <https://easychair.org/publications/paper/8r> |
+| proof-theory-7 | `scope-proof-theory.md` | <https://en.wikipedia.org/wiki/Geometry_of_interaction>, <https://www.cambridge.org/core/books/abs/advances-in-linear-logic/proofnets-and-the-hilbert-space/4C074845DBBF5BA14529DE8FFFD8DDF3>, <https://spiral.imperial.ac.uk/handle/10044/1/46072>, <https://perso.ens-lyon.fr/olivier.laurent/goi.bib>, <https://lmcs.episciences.org/5882>, <https://doi.org/10.1145/96709.96718>, and 1 more in the note |
+| proof-theory-8 | `scope-proof-theory.md` | <https://easychair.org/publications/paper/8r>, <https://deepblue.lib.umich.edu/handle/2027.42/30097>, <https://arxiv.org/abs/1311.6057>, <https://www.irif.fr/~mellies/papers/AbramskyMellies99.pdf>, <https://doi.org/10.1007/978-3-030-65824-3_8> |
 | proof-theory-9 | `scope-proof-theory.md` | <https://sun.iwu.edu/~mliffito/publications/jar_liffiton_CAMUS.pdf>, <https://www.cs.ox.ac.uk/publications/publication4972-abstract.html>, <https://www.joachim-breitner.de/publications/Incredible_ITP2016_preprint.pdf>, <http://logitext.mit.edu>, <https://arxiv.org/abs/1803.01467>, <https://click-and-collect.linear-logic.org/> |
-| proof-theory-10 | `scope-proof-theory.md` | <https://arxiv.org/pdf/2104.09115.pdf>, <https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.FSCD.2022.19> |
+| proof-theory-10 | `scope-proof-theory.md` | <https://arxiv.org/pdf/2104.09115.pdf>, <https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.FSCD.2022.19>, <https://annals.math.princeton.edu/2006/164-3/p09>, <https://people.bath.ac.uk/wbh22/pdf/2019-heijltjes-hughes-strassburger-LICS.pdf> |
 | proof-theory-11 | `scope-proof-theory.md` | <https://www.springerprofessional.de/session-types-as-intuitionistic-linear-propositions/3352308>, <https://www.cambridge.org/core/journals/journal-of-functional-programming/article/propositions-as-sessions/0985539E5D607AC00FB00FF900BA1C86> |
 | proof-theory-12 | `scope-proof-theory.md` | <https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.FSCD.2025.32> |
 | proof-theory-13 | `scope-proof-theory.md` | <https://arxiv.org/abs/2402.11987>, <https://www.irif.fr/~diguardia/papers/thesis_manuscript.pdf>, <https://www.ens-lyon.fr/evenement/recherche/identity-proofs-and-formulas-using-proof-nets-multiplicative-additive-linear> |
@@ -779,12 +781,12 @@ repository's own files or on another note alone says so.
 | semantics-decision-1 | `scope-semantics-decision.md` | <https://github.com/blondimi/qcover>, <https://arxiv.org/pdf/2302.14741>, <https://people.irisa.fr/Nicolas.Markey/biblio/tcs256> |
 | semantics-decision-2 | `scope-semantics-decision.md` | <https://arxiv.org/pdf/1009.1076>, <https://arxiv.org/pdf/2302.14741>, <https://arxiv.org/pdf/2208.03043>, <https://lmcs.episciences.org/13141> |
 | semantics-decision-3 | `scope-semantics-decision.md` | <https://link.springer.com/chapter/10.1007/978-3-031-57246-3_21>, <https://rocq-prover.org/p/coq-karp-miller> |
-| semantics-decision-4 | `scope-semantics-decision.md` | the repository's own files and other notes only |
+| semantics-decision-4 | `scope-semantics-decision.md` | from the 2026-10 note's section: <https://arxiv.org/abs/2010.07912>, <https://hal.archives-ouvertes.fr/hal-00346310> |
 | semantics-decision-5 | `scope-semantics-decision.md` | <https://mcc.lip6.fr/2026/results.php>, <https://mcc.lip6.fr/2025/results.php>, <https://github.com/TAPAAL/verifypn> |
 | semantics-decision-6 | `scope-semantics-decision.md` | <https://www.cambridge.org/core/journals/journal-of-symbolic-logic/article/abs/finite-model-property-for-various-fragments-of-linear-logic/F75D11ED6907E37EA0424226108DDA66> |
 | semantics-decision-7 | `scope-semantics-decision.md` | <https://www.cambridge.org/core/journals/journal-of-symbolic-logic/article/abs/finite-model-property-for-various-fragments-of-linear-logic/F75D11ED6907E37EA0424226108DDA66>, <https://perso.ens-lyon.fr/olivier.laurent/yalla/> |
-| semantics-decision-8 | `scope-semantics-decision.md` | the repository's own files and other notes only |
-| semantics-decision-9 | `scope-semantics-decision.md` | the repository's own files and other notes only |
+| semantics-decision-8 | `scope-semantics-decision.md` | from the 2026-10 note's section: <https://wrap.warwick.ac.uk/75834/>, <https://wrap.warwick.ac.uk/79162/>, <https://www.cs.cmu.edu/~iliano/papers/csfw99.pdf>, <https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.CONCUR.2024.31>, <https://eprints.ucm.es/20624/>, <https://kilthub.cmu.edu/articles/journal_contribution/Relating_State-Based_and_Process-Based_Concurrency_through_Linear_Logic/6608957> |
+| semantics-decision-9 | `scope-semantics-decision.md` | from the 2026-10 note's section: <https://www.engineering.upenn.edu/~sweirich/types/archive/1991/msg00101.html>, <https://api.openalex.org/works/doi:10.1016%2F0168-0072%2894%2990085-X>, <https://lics.siglog.org/archive/2004/deGrooteGuillaumeSa-VectorAdditionTreeA.html>, <https://dmtcs.episciences.org/350>, <https://arxiv.org/abs/1401.6785>, <https://arxiv.org/abs/1402.0705>, and 45 more in the note |
 | semantics-decision-10 | `scope-semantics-decision.md` | the repository's own files and other notes only |
 | semantics-decision-11 | `scope-semantics-decision.md` | <https://ijcai.org/proceedings/2019/232.md>, <https://arxiv.org/abs/2603.29424>, <https://www.cambridge.org/core/journals/journal-of-symbolic-logic/article/abs/finite-model-property-for-various-fragments-of-linear-logic/F75D11ED6907E37EA0424226108DDA66> |
 | semantics-decision-12 | `scope-semantics-decision.md` | <https://link.springer.com/chapter/10.1007/978-3-031-57246-3_21>, <https://rocq-prover.org/p/coq-karp-miller>, <https://www.lix.polytechnique.fr/Labo/Lutz.Strassburger/papers/OnDeciMELL.pdf>, <https://arxiv.org/abs/2502.13916>, <https://arxiv.org/html/2603.05221v1>, <https://mcc.lip6.fr/2025/results.php>, and 17 more in the note |
@@ -805,9 +807,9 @@ repository's own files or on another note alone says so.
 | tableaux-3 | `tableaux.md` | <https://www.umsu.de/trees/>, <https://dblp.uni-trier.de/rec/journals/jar/BeckertP95.html>, <http://www.leancop.de>, <https://en.wikipedia.org/wiki/Method_of_analytic_tableaux>, <https://library.holycross.edu/Record/b3192539/TOC> |
 | tableaux-4 | `tableaux.md` | <https://richardzach.org/2018/02/>, <https://openlogicproject.org/2018/02/22/modal-logic-propositional-logic-tableaux/>, <http://www.irit.fr/Lotrec/>, <https://link.springer.com/doi/10.1007/11554554_25>, <https://www.umsu.de/trees/>, <https://www.ps.uni-saarland.de/spartacus> |
 | tableaux-5 | `tableaux.md` | <http://www.leancop.de/lintap/>, <http://www.irit.fr/Lotrec/>, <https://link.springer.com/doi/10.1007/11554554_25>, <https://www.cs.man.ac.uk/~schmidt/publications/TishkovskySchmidtKhodadadi12b.html>, <http://www.leancop.de>, <https://www.ijcai.org/proceedings/2017/695>, and 18 more in the note |
-| users-1 | `users.md` | the repository's own files and other notes only |
-| users-2 | `users.md` | the repository's own files and other notes only |
-| users-3 | `users.md` | <https://api.github.com/repos/linlog-prover/linlog/releases>, <https://api.github.com/repos/linlog-prover/linlog>, <https://github.com/linlog-prover/linlog>, <https://github.com/linlog-prover/linlog/issues?q=is%3Aissue>, <https://github.com/linlog-prover/linlog/pulls?q=is%3Apr>, <https://github.com/linlog-prover/linlog/discussions>, and 13 more in the note |
+| users-1 | `users.md` | <https://api.github.com/repos/linlog-prover/linlog>, <https://github.com/linlog-prover/linlog/discussions> |
+| users-2 | `users.md` | <https://api.github.com/repos/linlog-prover/linlog/releases>, <https://api.github.com/repos/linlog-prover/linlog>, <https://crates.io/api/v1/crates/linlog>, <https://crates.io/api/v1/crates/linlog-cli>, <https://zenodo.org/records/23448588> |
+| users-3 | `users.md` | <https://awesome.ecosyste.ms/projects/github.com%2Fibrahimcesar%2Flolli>, <https://codeberg.org/flgrubm/linlog>, <https://api.github.com/repos/linlog-prover/linlog/releases>, <https://api.github.com/repos/linlog-prover/linlog>, <https://github.com/linlog-prover/linlog>, <https://github.com/linlog-prover/linlog/issues?q=is%3Aissue>, and 13 more in the note |
 | verification-1 | `verification.md` | the repository's own files and other notes only |
 | verification-2 | `verification.md` | <https://github.com/linlog-prover/rocq-linlog> |
 | verification-3 | `verification.md` | <https://rocq-prover.org/doc/V9.0.0/refman/addendum/extraction.html>, <https://github.com/MetaRocq/metarocq>, <https://github.com/ocsigen/js_of_ocaml>, <https://github.com/formal-land/coq-of-rust>, <https://github.com/CertiCoq/certicoq>, <https://github.com/linlog-prover/rocq-linlog> |
