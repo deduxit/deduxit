@@ -211,6 +211,12 @@ even to read.** Every operation goes through `jj`, including lock updates:
   rather than assuming `@` and `@-` from the session's start.
 - nix sees only files in the git tree, which any jj command updates: run
   `jj st` after creating a file, before a `nix` command that must see it.
+- A workspace whose commit another workspace rewrote updates itself on its
+  next jj command (the machine's jj config). Two sessions rewriting one
+  change at once leave it divergent (`X/0`, `X/1` in `jj log`): try
+  `jj converge --no-interactive -r 'change_id(X)'`; when it cannot decide
+  (different descriptions), compare them (`jj interdiff --from X/0 --to
+  X/1`) and `jj abandon` the one to drop.
 - Subjects are short, imperative and capitalised, with no type prefix
   ("Fix bug in reachability analysis for exponentials"). Add a body only when
   the why is not obvious. jj writes commits unsigned (the machine's jj
