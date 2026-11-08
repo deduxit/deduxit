@@ -33,7 +33,9 @@ mod classical;
 mod view;
 
 pub use classical::{ClassicalRule, TwoSided};
-pub use view::{ClassicalSides, Compact, Derivation, InfId, Inference, Sides, ViewOptions};
+pub use view::{
+    ClassicalSides, Compact, Derivation, InfId, Inference, Sides, Structural, ViewOptions,
+};
 
 #[cfg(all(test, feature = "parse"))]
 mod tests {

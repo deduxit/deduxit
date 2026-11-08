@@ -81,6 +81,9 @@ mod ill;
 mod interactive;
 /// Serde support for `ProofStructure`: the sequent and the links.
 mod nets;
+/// Serde support for ordinary logic: the sequent, the derivation, the
+/// outcome of deciding and a proof in progress.
+mod ordinary;
 /// Serde support for `Proof`, through a proxy with short tags.
 mod proofs;
 /// Serde support for `Fragment`, `Mode` and the outcome of a search.

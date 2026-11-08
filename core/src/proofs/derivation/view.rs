@@ -49,10 +49,11 @@ impl InfId {
 /// # JSON
 ///
 /// With the feature `serialize` an object `{"compact": "auto", "sides":
-/// "auto", "classical": "one"}`, `compact` one of `"auto"`, `"always"` and
-/// `"never"`, `sides` one of `"auto"`, `"one"` and `"two"`, `classical` one
-/// of `"one"` and `"two"`; a key left out keeps its default, and an unknown
-/// one is refused, as for every options value.
+/// "auto", "classical": "one", "structural": "explicit"}`, `compact` one
+/// of `"auto"`, `"always"` and `"never"`, `sides` one of `"auto"`, `"one"`
+/// and `"two"`, `classical` one of `"one"` and `"two"`, `structural` one
+/// of `"explicit"` and `"admissible"`; a key left out keeps its default,
+/// and an unknown one is refused, as for every options value.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -69,6 +70,35 @@ pub struct ViewOptions {
     /// The library's derivations are one-sided whatever it says: the
     /// two-sided view is made from one and the record of the sequent.
     pub classical: ClassicalSides,
+    /// Whether a derivation of LK or LJ shows its weakenings and
+    /// contractions, explicit by default
+    /// ([`DEFAULT_STRUCTURAL`](Self::DEFAULT_STRUCTURAL)). A linear
+    /// derivation's structural rules are the compact view's.
+    pub structural: Structural,
+}
+
+/// Whether a derivation of LK or LJ shows its structural rules: every
+/// weakening and contraction as an inference, as the calculus and its
+/// checker have them, or each left out where it is admissible, its
+/// conclusion shown as that of the rule above it, so that the derivation
+/// reads in the calculus whose axiom takes a context and whose rules
+/// contract what they use twice. The derivation is the same either way;
+/// only what is drawn differs.
+///
+/// # JSON
+///
+/// With the feature `serialize`, `"explicit"` or `"admissible"`.
+#[non_exhaustive]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", serde(rename_all = "lowercase"))]
+pub enum Structural {
+    /// Every weakening and contraction drawn as an inference.
+    #[default]
+    Explicit,
+    /// A weakening or contraction left out wherever the rules above it
+    /// close their branch.
+    Admissible,
 }
 
 /// Whether a derivation of classical linear logic is drawn one-sided, as
@@ -130,6 +160,16 @@ impl ViewOptions {
     /// The default view of a classical derivation: one-sided, as the
     /// calculus is.
     pub const DEFAULT_CLASSICAL: ClassicalSides = ClassicalSides::One;
+
+    /// The default view of a derivation of LK or LJ: every structural rule
+    /// drawn, as the checker reads the derivation.
+    pub const DEFAULT_STRUCTURAL: Structural = Structural::Explicit;
+
+    /// Returns the options with another [`structural`](Self::structural).
+    #[must_use]
+    pub const fn with_structural(self, structural: Structural) -> Self {
+        Self { structural, ..self }
+    }
 
     /// Returns the options with another [`classical`](Self::classical).
     #[must_use]

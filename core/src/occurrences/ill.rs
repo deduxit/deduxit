@@ -789,9 +789,14 @@ mod tests {
             read(r#"{"terms":[{"V":0}],"atoms":["A"],"hypotheses":[3],"goal":0}"#),
             Err(Error::IndexOutOfBounds { index: 3, .. })
         ));
+        // A level above this build's is refused by name.
+        let above = crate::wire::LEVEL + 1;
+        let json = format!(
+            r#"{{"version":{above},"terms":[{{"V":0}}],"atoms":["A"],"hypotheses":[],"goal":0}}"#
+        );
         assert!(matches!(
-            read(r#"{"version":8,"terms":[{"V":0}],"atoms":["A"],"hypotheses":[],"goal":0}"#),
-            Err(Error::Version { found: 8, .. })
+            read(&json),
+            Err(Error::Version { found, .. }) if found == u64::from(above)
         ));
     }
 }

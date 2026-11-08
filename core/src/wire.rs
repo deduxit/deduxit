@@ -34,7 +34,10 @@
 //! record of a cut elimination, whose proof's sequent holds them; level 7
 //! adds the first-order sequent (`"symbols"`, `"fo"`, `"binders"`, an atom
 //! as `{"P": [symbol, [terms]]}`, the terms `∀` and `∃`), so a document whose
-//! sequent is first-order is written at level 7; every other document is
+//! sequent is first-order is written at level 7; level 8 adds the forms of
+//! ordinary logic, an ordinary sequent, a derivation of LK or LJ, the
+//! outcome of deciding an ordinary sequent and a proof in progress of
+//! one, each always written at level 8; every other document is
 //! written at level 1. A reader refuses a
 //! document above its level by name ([`Error::Version`], code
 //! `unsupported_version`), before the other keys when `version` comes
@@ -54,7 +57,7 @@
 //! through one step per level that changed a form (none so far: level 2
 //! only adds a kind of refutation and a mode, level 3 a kind of
 //! refutation, levels 4 and 5 a form each, level 6 a key and a tag, level
-//! 7 keys, tags and a shape of atom), and
+//! 7 keys, tags and a shape of atom, level 8 forms), and
 //! counts every sequent's occurrences against `limits.occurrences` before
 //! anything unfolds. [`Within`] is the same as a serde seed, for a value
 //! nested in a document of the caller's; the plain `Deserialize` impls read
@@ -131,6 +134,33 @@
 //!   {"inputs": […], "implications": […]}`, a key that raises no level,
 //!   since a reader that ignores it reads the session as it is and draws
 //!   it one-sided; see `Interactive` (feature `interactive`).
+//! - **Ordinary sequent**: `{"version": 8, "formulas": [{"V": 0}, {"V":
+//!   1}, {"→": [0, 1]}], "atoms": ["a", "b"], "left": [2, 0], "right": [1]}`
+//!   for `a → b, a ⊢ b`: the formulas `V`, `⊤`, `⊥`, `¬`, `∧`, `∨`, `→`
+//!   and `↔`, every operand before its formula, and the two sides as
+//!   indices into them; see [`ordinary::Sequent`](crate::ordinary::Sequent).
+//! - **Ordinary derivation**: `{"version": 8, "logic": "intuitionistic",
+//!   "sequent": {…}, "inferences": [{"left": [0], "right": [0], "rule":
+//!   "ax"}, …, {"left": [2, 0], "right": [1], "rule": "→L", "principal":
+//!   ["left", 0], "premises": [0, 1]}]}`: the sequent with every formula
+//!   the inferences name, the inferences premises before conclusions and
+//!   the root last, each its two sides, its rule's name, its principal
+//!   formula's side and position and its premises; reading one checks its
+//!   shape (a tree, its root last), and [`Derivation::check`] its rules;
+//!   see [`ordinary::Derivation`](crate::ordinary::Derivation).
+//!
+//!   [`Derivation::check`]: crate::ordinary::Derivation::check
+//! - **Ordinary outcome** (written only): `{"version": 8, "linlog":
+//!   "0.2.0", "verdict": "valid", "logic": "classical", "translation":
+//!   "affine", "engine": "focus", "statistics": {…}, "derivation": {…}}`,
+//!   `verdict` one of `valid`, `not_valid` and `unknown` (with a `reason`
+//!   in an outcome's form), the engine and statistics the image's search's;
+//!   see [`ordinary::Outcome`](crate::ordinary::Outcome).
+//! - **Ordinary session**: `{"version": 8, "logic": "intuitionistic",
+//!   "sequent": {…}, "inferences": […], "history": […]}`, the inferences in
+//!   the state's own order, the root first, an open goal its two sides
+//!   alone; reading one checks every inference by the checker's rules; see
+//!   `ordinary::Interactive` (feature `interactive`).
 //! - **Cut elimination** (written only): `{"version": 6, "proof": {…},
 //!   "steps": [{"cut": 7, "formula": 9, "case": "tensor_par"}, …],
 //!   "end": "cut_free"}`, or `"end": "refused"` with the `reason` in an
@@ -149,7 +179,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// The highest wire level this build reads and writes.
-pub const LEVEL: u32 = 7;
+pub const LEVEL: u32 = 8;
 
 /// The level of every document but a disproof (or an unprovable
 /// outcome) with a classical refutation, which is level 2, or with a
@@ -297,6 +327,9 @@ pub(crate) const CUTS: u32 = 6;
 
 /// The level of a first-order sequent, which level 7 added.
 pub(crate) const TERMS: u32 = 7;
+
+/// The level of the forms of ordinary logic, which level 8 added.
+pub(crate) const ORDINARY: u32 = 8;
 
 /// The level of a document that holds `sequent`: 7 where it is
 /// first-order, which level 7 added, 6 where it has cut formulas, which

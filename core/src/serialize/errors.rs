@@ -103,6 +103,8 @@ impl Serialize for Details<'_> {
             #[cfg(feature = "interactive")]
             Step(e) => e.serialize(s),
             #[cfg(feature = "interactive")]
+            OrdinaryStep(e) => e.serialize(s),
+            #[cfg(feature = "interactive")]
             OpenGoals { count } => entries!(s; "count" => count),
             NotIntuitionistic(e) => e.serialize(s),
             GoalOutputs { count } | Succedents { count } => entries!(s; "count" => count),

@@ -9,7 +9,7 @@
 //! `wire/level-3.txt` those level 3 added, `wire/level-4.txt` those
 //! level 4 added, `wire/level-5.txt` those level 5 added,
 //! `wire/level-6.txt` those level 6 added, `wire/level-7.txt` those
-//! level 7 added; none is ever
+//! level 7 added, `wire/level-8.txt` those level 8 added; none is ever
 //! rewritten: where
 //! the lock moves on, these files stay. Every
 //! line of a form that is read back reads through
@@ -195,4 +195,33 @@ fn the_seventh_level_reads() {
             other => panic!("{other}: no form of level 7"),
         }
     }
+}
+
+/// Every document of level 8, the forms of ordinary logic (a sequent, a
+/// derivation of LK and a proof in progress in LJ), reads and writes the
+/// same bytes again; the derivation still checks and the proof in
+/// progress still has its open goal. Never rewritten, as
+/// `wire/level-1.txt` is not.
+#[test]
+fn the_eighth_level_reads() {
+    use linlog::ordinary;
+    let lines = include_str!("wire/level-8.txt");
+    for line in lines.lines() {
+        let (name, json) = line.split_once(": ").unwrap();
+        match name.split('-').next().unwrap() {
+            "sequent" => again::<ordinary::Sequent>(name, json),
+            "derivation" => {
+                again::<ordinary::Derivation>(name, json);
+                let derivation: ordinary::Derivation = read(name, json);
+                assert_eq!(derivation.check(&Limits::default(), |_| false), Ok(()));
+            }
+            "session" => {
+                again::<ordinary::Interactive>(name, json);
+                let session: ordinary::Interactive = read(name, json);
+                assert_eq!(session.goals().count(), 1, "{name}");
+            }
+            other => panic!("{other}: no form of level 8"),
+        }
+    }
+    assert_eq!(lines.lines().count(), 3);
 }

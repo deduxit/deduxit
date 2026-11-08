@@ -12,6 +12,14 @@ use crate::search::{self, Reason};
 
 /// What deciding an ordinary sequent found, with the linear search's own
 /// outcome on the image.
+///
+/// # JSON
+///
+/// With the feature `serialize` an outcome is written (never read) as
+/// `{"version": 8, "linlog": "0.2.0", "verdict": "valid", "logic":
+/// "classical", "translation": "affine", "engine": "focus", "statistics":
+/// {…}, "derivation": {…}}` ([`wire`](crate::wire)), `verdict` one of
+/// `valid`, `not_valid` and `unknown`, the last with its `reason`.
 #[non_exhaustive]
 #[derive(Clone, Debug)]
 pub struct Outcome {

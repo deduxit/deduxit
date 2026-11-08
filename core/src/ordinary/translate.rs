@@ -78,7 +78,7 @@ pub(super) struct Extra {
 
 impl Extra {
     /// Adds the extra nodes of every formula of the arena to it.
-    fn add(formulas: &mut Formulas) -> Result<Self, Error> {
+    pub(super) fn add(formulas: &mut Formulas) -> Result<Self, Error> {
         let mut iff = HashMap::default();
         for n in 0..formulas.len() {
             let id = NodeId(n as u32);

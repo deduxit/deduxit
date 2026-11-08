@@ -51,6 +51,9 @@
 mod decide;
 /// The derivations of LK and LJ, the read-back and its check.
 mod derivation;
+/// Step-by-step proving in LK and LJ.
+#[cfg(feature = "interactive")]
+mod interactive;
 #[cfg(feature = "parse")]
 mod parse;
 /// The certificates over `Prop`.
@@ -61,6 +64,10 @@ mod translate;
 
 pub use decide::{Outcome, Verdict, decide};
 pub use derivation::{Derivation, Inference, Rule, Side};
+#[cfg(all(feature = "interactive", feature = "serialize"))]
+pub(crate) use interactive::Parts;
+#[cfg(feature = "interactive")]
+pub use interactive::{Applicable, Closed, Context, Hint, Interactive, Needs, Step, StepError};
 #[cfg(feature = "parse")]
 pub use parse::{Problem, read_tptp};
 pub use translate::{FALSE, Image, translate};
@@ -404,6 +411,12 @@ impl Formulas {
         self.nodes[id.index()]
     }
 
+    /// Returns the nodes, each after its subformulas.
+    #[cfg(feature = "serialize")]
+    pub(crate) fn nodes(&self) -> &[Node] {
+        &self.nodes
+    }
+
     /// Returns the number of nodes.
     pub fn len(&self) -> usize {
         self.nodes.len()
@@ -622,8 +635,17 @@ impl Display for Formula<'_> {
 /// that a linear connective is never taken for an ordinary one.
 ///
 /// `Display` writes the Unicode symbols with every nested binary formula
-/// in brackets, which this syntax reads back; that text is the sequent's
-/// form between programs, since it has no JSON form yet.
+/// in brackets, which this syntax reads back.
+///
+/// # JSON
+///
+/// With the feature `serialize` a sequent is `{"version": 8, "formulas":
+/// [{"V": 0}, {"V": 1}, {"→": [0, 1]}], "atoms": ["a", "b"], "left": [0],
+/// "right": [1]}` for `a ⊢ b` with the arena `a, b, a → b`
+/// ([`wire`](crate::wire)): the formulas in the arena's order, every
+/// operand before the formula built from it, as `{"V": atom}`, `"⊤"`,
+/// `"⊥"`, `{"¬": a}`, `{"∧": [a, b]}`, `{"∨": [a, b]}`, `{"→": [a, b]}`
+/// and `{"↔": [a, b]}`, and the two sides as indices into them.
 ///
 #[cfg_attr(feature = "parse", doc = "```")]
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
@@ -680,6 +702,38 @@ impl Display for Sequent {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         let sides = (&self.left[..], &self.right[..]);
         TEXT.ordinary(f, &self.formulas, sides, false, false)
+    }
+}
+
+/// Returns the number of subformula occurrences the formulas unfold to,
+/// saturating.
+#[cfg(any(feature = "interactive", feature = "serialize"))]
+fn occurrences<'a>(formulas: &Formulas, roots: impl Iterator<Item = &'a NodeId>) -> u64 {
+    // Every subformula precedes the formulas built from it.
+    let mut size: Vec<u64> = Vec::with_capacity(formulas.len());
+    for node in &formulas.nodes {
+        let (a, b) = node.operands();
+        let of = |k: Option<NodeId>| k.map_or(0, |k| size[k.index()]);
+        size.push(1u64.saturating_add(of(a)).saturating_add(of(b)));
+    }
+    roots.fold(0, |sum, id| sum.saturating_add(size[id.index()]))
+}
+
+/// Checks that a sequent over the formulas unfolds to at most
+/// `limits.occurrences` subformula occurrences.
+#[cfg(any(feature = "interactive", feature = "serialize"))]
+pub(crate) fn bound(
+    formulas: &Formulas,
+    left: &[NodeId],
+    right: &[NodeId],
+    limits: &crate::Limits,
+) -> Result<(), Error> {
+    let occurrences = occurrences(formulas, left.iter().chain(right));
+    match limits.occurrences {
+        Some(limit) if occurrences > limit => {
+            Err(Error::Refused(Refusal::Occurrences { occurrences, limit }))
+        }
+        _ => Ok(()),
     }
 }
 
@@ -920,7 +974,7 @@ mod tests {
     /// Returns a sequent in the atoms `a`, `b` and `c` of up to two
     /// hypotheses and at most one formula right of `⊢`, each of depth
     /// three at most.
-    fn generated_sequent(rng: &mut Rng) -> Sequent {
+    pub(super) fn generated_sequent(rng: &mut Rng) -> Sequent {
         let mut formulas = Formulas::default();
         let atoms: Vec<_> = ["a", "b", "c"]
             .into_iter()

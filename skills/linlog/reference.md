@@ -824,7 +824,14 @@ and `rocq`, and `parallel`, `png` and `pdf` are off. Its documentation
 is at <https://sequentium.github.io/sequentium/linlog/> for `main` and on
 docs.rs for the releases: the text syntax on `Sequent`, every JSON form
 on its type (`Sequent`, `Proof`, `Outcome`, `ProofStructure`,
-`Interactive`), each engine on `Engine`.
+`Interactive`, and at wire level 8 ordinary logic's `ordinary::Sequent`,
+`ordinary::Derivation`, `ordinary::Outcome` and `ordinary::Interactive`),
+each engine on `Engine`. `ordinary::Interactive` proves an LK or LJ
+sequent step by step in the library (`rules`, `apply`, `undo`, `close`
+and `hint` through `ordinary::decide`), and its finished derivation
+passes `Derivation::check`; `ViewOptions::structural` draws a derivation
+of LK or LJ with its weakenings and contractions `explicit` or
+`admissible`.
 
 ```rust
 use linlog::{Fragment, Mode, Options, Sequent, Verdict, prove};

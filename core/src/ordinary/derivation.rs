@@ -6,15 +6,24 @@ use super::{Formulas, Logic, Node, NodeId, Translation};
 use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::occurrences::OccId;
 use crate::proofs::style::Drawn;
-use crate::proofs::{Compact, InfId, Labels, Rule as Linear, Sides, TextOptions, ViewOptions};
+use crate::proofs::{
+    Compact, InfId, Labels, Rule as Linear, Sides, Structural, TextOptions, ViewOptions,
+};
 #[cfg(any(feature = "latex", feature = "typst", feature = "svg"))]
 use crate::sequents::notation::Notation;
 use crate::sequents::notation::TEXT;
 use crate::{Error, Proof};
+use std::borrow::Cow;
 use std::fmt::{Display, Formatter, Result as FmtResult, Write};
 
 /// A side of the turnstile.
+///
+/// # JSON
+///
+/// With the feature `serialize`, `"left"` or `"right"`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", serde(rename_all = "lowercase"))]
 pub enum Side {
     /// Left of `⊢`: a hypothesis.
     Left,
@@ -24,7 +33,7 @@ pub enum Side {
 
 impl Side {
     /// Returns the other side.
-    const fn flip(self) -> Self {
+    pub(crate) const fn flip(self) -> Self {
         match self {
             Self::Left => Self::Right,
             Self::Right => Self::Left,
@@ -96,6 +105,9 @@ pub enum Rule {
     TrueLeft,
     /// `⊤R`
     TrueRight,
+    /// An open goal of a proof in progress, which no derivation the
+    /// checker accepts has.
+    Open,
 }
 
 /// The labels of every rule in the order of [`Rule::ALL`], upright and
@@ -127,12 +139,13 @@ const LABELS: [(&str, &str); Rule::ALL.len()] = [
     ("⊥R", "⊥_R"),
     ("⊤L", "⊤_L"),
     ("⊤R", "⊤_R"),
+    ("open", "open"),
 ];
 
 impl Rule {
     /// Every rule, in the order of declaration, which is the order of
     /// `rule as usize`.
-    pub(crate) const ALL: [Self; 25] = {
+    pub(crate) const ALL: [Self; 26] = {
         use Rule::*;
         [
             Axiom,
@@ -160,6 +173,7 @@ impl Rule {
             FalseRight,
             TrueLeft,
             TrueRight,
+            Open,
         ]
     };
 
@@ -192,7 +206,17 @@ impl Rule {
             FalseRight => "⊥R",
             TrueLeft => "⊤L",
             TrueRight => "⊤R",
+            Open => "open",
         }
+    }
+
+    /// Returns whether the rule is structural: a weakening or a
+    /// contraction.
+    pub const fn is_structural(self) -> bool {
+        matches!(
+            self,
+            Self::WeakenLeft | Self::WeakenRight | Self::ContractLeft | Self::ContractRight
+        )
     }
 
     /// Returns the label in the markup the exports set (a subscript as
@@ -268,11 +292,19 @@ impl Inference {
 }
 
 /// A derivation of LK or LJ (see [`Rule`]), read back from a linear proof
-/// of an image by [`Image::read_back`]: premises precede their conclusion,
-/// the root is the last inference.
+/// of an image by [`Image::read_back`] or made step by step (feature
+/// `interactive`): premises precede their conclusion, the root is the
+/// last inference.
 ///
-/// A derivation has no JSON form yet: the linear proof's form and the
-/// translation that made the image make it again.
+/// # JSON
+///
+/// With the feature `serialize` a derivation is `{"version": 8, "logic":
+/// "classical", "sequent": {…}, "inferences": […]}`, the sequent in the
+/// ordinary sequent's form with every formula the inferences name, each
+/// inference `{"left": [ids], "right": [ids], "rule": name, "principal":
+/// ["right", position], "premises": [indices]}` ([`wire`](crate::wire)).
+/// Reading one checks its shape, not its rules: that is
+/// [`check`](Self::check)'s.
 #[derive(Clone, Debug)]
 pub struct Derivation {
     /// The logic.
@@ -314,8 +346,106 @@ impl Derivation {
 
     /// Returns the root.
     pub fn root(&self) -> InfId {
-        // A derivation read back has an inference for every leaf.
+        // A derivation read back, made by a proof in progress or read from
+        // its JSON has an inference for every leaf.
         InfId::new(self.inferences.len() as u32 - 1)
+    }
+
+    /// Returns the derivation of `logic` over `formulas` that concludes
+    /// `left ⊢ right` with `inferences`, which have its shape: premises
+    /// before conclusions, the root last, at least one. Nothing is
+    /// checked: [`check`](Self::check) judges it.
+    #[cfg(any(feature = "interactive", feature = "serialize"))]
+    pub(crate) fn from_parts(
+        logic: Logic,
+        formulas: Formulas,
+        (left, right): (Vec<NodeId>, Vec<NodeId>),
+        inferences: Vec<Inference>,
+    ) -> Self {
+        Self {
+            logic,
+            formulas,
+            left,
+            right,
+            inferences,
+        }
+    }
+
+    /// Returns the sequent the derivation concludes, its two sides.
+    pub fn sequent(&self) -> (&[NodeId], &[NodeId]) {
+        (&self.left, &self.right)
+    }
+
+    /// Returns the derivation as `structural` shows it: itself when
+    /// explicit, and when admissible without every weakening and
+    /// contraction whose branch the rules above it close, each such run's
+    /// lowest conclusion shown as the conclusion of the first rule above
+    /// it that is no structural one, its principal formula found there by
+    /// its formula. A run above which a goal is still open stays, so that
+    /// an open goal shows its own sequent. What is shown when admissible
+    /// is no derivation [`check`](Self::check) accepts: its axioms have a
+    /// context.
+    pub fn shown(&self, structural: Structural) -> Cow<'_, Self> {
+        match structural {
+            Structural::Explicit => Cow::Borrowed(self),
+            Structural::Admissible => Cow::Owned(self.admissible().0),
+        }
+    }
+
+    /// Returns the derivation shown with its structural rules admissible,
+    /// as [`shown`](Self::shown) does, and for each inference of it the
+    /// inference of this derivation it shows.
+    pub(crate) fn admissible(&self) -> (Self, Vec<InfId>) {
+        let mut out: Vec<Inference> = Vec::with_capacity(self.inferences.len());
+        // Per inference of this derivation, the one of `out` that shows it
+        // and whether the rules above it close their branch.
+        let mut shown: Vec<(InfId, bool)> = Vec::with_capacity(self.inferences.len());
+        let mut origin = Vec::with_capacity(self.inferences.len());
+        for (n, inference) in self.inferences.iter().enumerate() {
+            if inference.rule.is_structural()
+                && let [premise] = inference.premises[..]
+                && let (above, true) = shown[premise.index()]
+            {
+                // The rule above takes this conclusion; its principal
+                // formula is in it, since a run only adds a formula or
+                // removes one of two copies.
+                let target = &mut out[above.index()];
+                let principal = target.principal.map(|(side, at)| {
+                    let id = target.side(side)[at];
+                    let list = inference.side(side);
+                    let at = list.iter().position(|&x| x == id).unwrap_or(at);
+                    (side, at)
+                });
+                target.left.clone_from(&inference.left);
+                target.right.clone_from(&inference.right);
+                target.principal = principal;
+                shown.push((above, true));
+                continue;
+            }
+            let premises = inference
+                .premises
+                .iter()
+                .map(|p| shown[p.index()].0)
+                .collect();
+            // Fewer inferences shown than this derivation has.
+            let id = InfId::new(out.len() as u32);
+            out.push(Inference {
+                premises,
+                ..inference.clone()
+            });
+            origin.push(InfId::new(n as u32));
+            let closes = inference.rule != Rule::Open
+                && inference.premises.iter().all(|p| shown[p.index()].1);
+            shown.push((id, closes));
+        }
+        let derivation = Self {
+            logic: self.logic,
+            formulas: self.formulas.clone(),
+            left: self.left.clone(),
+            right: self.right.clone(),
+            inferences: out,
+        };
+        (derivation, origin)
     }
 
     /// Checks the derivation by the rules of its logic, as [`Rule`]
@@ -369,155 +499,167 @@ impl Derivation {
             if inference.premises.iter().any(|p| p.index() >= n) {
                 return Err(fail(n, "a premise does not precede it".to_owned()));
             }
-            if self.logic != Logic::Classical && inference.right.len() > 1 {
-                return Err(fail(n, "more than one formula right of ⊢".to_owned()));
-            }
-            // An empty right side is ⊥ for one rule and anything for
-            // another (`WR`, a split `∨L`), which is ex falso.
-            if self.logic == Logic::Minimal && inference.right.is_empty() {
-                return Err(fail(n, "no formula right of ⊢ in minimal logic".to_owned()));
-            }
-            self.check_one(inference).map_err(|why| fail(n, why))?;
+            let premises: Vec<&Inference> = inference
+                .premises
+                .iter()
+                .map(|&p| &self.inferences[p.index()])
+                .collect();
+            check_inference(&self.formulas, self.logic, inference, &premises)
+                .map_err(|why| fail(n, why))?;
         }
         Ok(())
     }
+}
 
-    /// Checks one inference against its rule.
-    fn check_one(&self, inference: &Inference) -> Result<(), String> {
-        use Rule::*;
-        use Side::{Left, Right};
-        let f = &self.formulas;
-        let premises: Vec<&Inference> = inference
-            .premises
-            .iter()
-            .map(|&p| &self.inferences[p.index()])
-            .collect();
-        let count = |n: usize| {
-            if premises.len() == n {
-                Ok(())
-            } else {
-                Err(format!("{} premises instead of {n}", premises.len()))
-            }
-        };
-        if inference.rule == Axiom {
-            count(0)?;
-            return match (&inference.left[..], &inference.right[..]) {
-                ([a], [b]) if a == b && inference.principal.is_none() => Ok(()),
-                _ => Err("not a sequent A ⊢ A".to_owned()),
-            };
+/// Checks one inference of a derivation of `logic` over `formulas`
+/// against its rule, given its premises: the number of formulas right of
+/// `⊢` its logic allows, then the rule. [`Derivation::check`] asks it of
+/// every inference, and a proof in progress of every step it takes.
+pub(super) fn check_inference(
+    formulas: &Formulas,
+    logic: Logic,
+    inference: &Inference,
+    premises: &[&Inference],
+) -> Result<(), String> {
+    use Rule::*;
+    use Side::{Left, Right};
+    if inference.rule == Open {
+        return Err("an open goal".to_owned());
+    }
+    if logic != Logic::Classical && inference.right.len() > 1 {
+        return Err("more than one formula right of ⊢".to_owned());
+    }
+    // An empty right side is ⊥ for one rule and anything for another
+    // (`WR`, a split `∨L`), which is ex falso.
+    if logic == Logic::Minimal && inference.right.is_empty() {
+        return Err("no formula right of ⊢ in minimal logic".to_owned());
+    }
+    let f = formulas;
+    let count = |n: usize| {
+        if premises.len() == n {
+            Ok(())
+        } else {
+            Err(format!("{} premises instead of {n}", premises.len()))
         }
-        let Some((side, at)) = inference.principal else {
-            return Err("no principal formula".to_owned());
+    };
+    if inference.rule == Axiom {
+        count(0)?;
+        return match (&inference.left[..], &inference.right[..]) {
+            ([a], [b]) if a == b && inference.principal.is_none() => Ok(()),
+            _ => Err("not a sequent A ⊢ A".to_owned()),
         };
-        let principal = *inference
-            .side(side)
-            .get(at)
-            .ok_or("the principal position lies outside the sequent")?;
-        let node = f.node(principal);
-        // The sequent without the principal formula.
-        let mut context = (inference.left.clone(), inference.right.clone());
-        match side {
-            Left => context.0.remove(at),
-            Right => context.1.remove(at),
-        };
-        let with = |added: &[(Side, NodeId)]| {
-            let mut sequent = context.clone();
+    }
+    let Some((side, at)) = inference.principal else {
+        return Err("no principal formula".to_owned());
+    };
+    let principal = *inference
+        .side(side)
+        .get(at)
+        .ok_or("the principal position lies outside the sequent")?;
+    let node = f.node(principal);
+    // The sequent without the principal formula.
+    let mut context = (inference.left.clone(), inference.right.clone());
+    match side {
+        Left => context.0.remove(at),
+        Right => context.1.remove(at),
+    };
+    let with = |added: &[(Side, NodeId)]| {
+        let mut sequent = context.clone();
+        for &(side, id) in added {
+            match side {
+                Left => sequent.0.push(id),
+                Right => sequent.1.push(id),
+            }
+        }
+        sequent
+    };
+    // One premise that is the context with the formulas given added.
+    let unary = |added: &[(Side, NodeId)]| {
+        count(1)?;
+        if is(premises[0], &with(added)) {
+            Ok(())
+        } else {
+            Err("the premise is not what the rule makes of the conclusion".to_owned())
+        }
+    };
+    // Two premises, each the context, whole or a part of a split, with
+    // the formulas given added.
+    let binary = |first: &[(Side, NodeId)], second: &[(Side, NodeId)]| {
+        count(2)?;
+        if is(premises[0], &with(first)) && is(premises[1], &with(second)) {
+            return Ok(());
+        }
+        // Split: what each premise holds beyond its formulas is a part
+        // of the context, the two parts together all of it.
+        let rest = |p: &Inference, added: &[(Side, NodeId)]| {
+            let mut left = p.left.clone();
+            let mut right = p.right.clone();
             for &(side, id) in added {
-                match side {
-                    Left => sequent.0.push(id),
-                    Right => sequent.1.push(id),
-                }
+                let list = if side == Left { &mut left } else { &mut right };
+                let i = list.iter().position(|&x| x == id)?;
+                list.remove(i);
             }
-            sequent
+            Some((left, right))
         };
-        // One premise that is the context with the formulas given added.
-        let unary = |added: &[(Side, NodeId)]| {
-            count(1)?;
-            if is(premises[0], &with(added)) {
-                Ok(())
-            } else {
-                Err("the premise is not what the rule makes of the conclusion".to_owned())
-            }
-        };
-        // Two premises, each the context, whole or a part of a split, with
-        // the formulas given added.
-        let binary = |first: &[(Side, NodeId)], second: &[(Side, NodeId)]| {
-            count(2)?;
-            if is(premises[0], &with(first)) && is(premises[1], &with(second)) {
+        if let (Some(mut a), Some(b)) = (rest(premises[0], first), rest(premises[1], second)) {
+            a.0.extend(b.0);
+            a.1.extend(b.1);
+            if same(&a.0, &context.0) && same(&a.1, &context.1) {
                 return Ok(());
             }
-            // Split: what each premise holds beyond its formulas is a part
-            // of the context, the two parts together all of it.
-            let rest = |p: &Inference, added: &[(Side, NodeId)]| {
-                let mut left = p.left.clone();
-                let mut right = p.right.clone();
-                for &(side, id) in added {
-                    let list = if side == Left { &mut left } else { &mut right };
-                    let i = list.iter().position(|&x| x == id)?;
-                    list.remove(i);
-                }
-                Some((left, right))
-            };
-            if let (Some(mut a), Some(b)) = (rest(premises[0], first), rest(premises[1], second)) {
-                a.0.extend(b.0);
-                a.1.extend(b.1);
-                if same(&a.0, &context.0) && same(&a.1, &context.1) {
-                    return Ok(());
-                }
-            }
-            Err("the premises do not share or split the context".to_owned())
-        };
-        let leaf = || count(0);
-        match (inference.rule, side, node) {
-            (WeakenLeft, Left, _) | (WeakenRight, Right, _) => unary(&[]),
-            (ContractLeft, Left, _) => unary(&[(Left, principal), (Left, principal)]),
-            (ContractRight, Right, _) => unary(&[(Right, principal), (Right, principal)]),
-            (AndLeft, Left, Node::And(a, b)) => unary(&[(Left, a), (Left, b)]),
-            (AndLeft1, Left, Node::And(a, _)) => unary(&[(Left, a)]),
-            (AndLeft2, Left, Node::And(_, b)) => unary(&[(Left, b)]),
-            (AndRight, Right, Node::And(a, b)) => binary(&[(Right, a)], &[(Right, b)]),
-            (OrLeft, Left, Node::Or(a, b)) => binary(&[(Left, a)], &[(Left, b)]),
-            (OrRight, Right, Node::Or(a, b)) => unary(&[(Right, a), (Right, b)]),
-            (OrRight1, Right, Node::Or(a, _)) => unary(&[(Right, a)]),
-            (OrRight2, Right, Node::Or(_, b)) => unary(&[(Right, b)]),
-            (ImpliesLeft, Left, Node::Implies(a, b)) => binary(&[(Right, a)], &[(Left, b)]),
-            (ImpliesRight, Right, Node::Implies(a, b)) => unary(&[(Left, a), (Right, b)]),
-            // `¬A` as itself, or as `A → ⊥` (LJ).
-            (NotRight, Right, Node::Not(a)) => unary(&[(Left, a)]).or_else(|_| {
-                let falsity = self.formulas.ids.get(&Node::False).copied();
-                unary(&[
-                    (Left, a),
-                    (Right, falsity.ok_or("no ⊥ for the form of →R")?),
-                ])
-            }),
-            (NotLeft, Left, Node::Not(a)) if premises.len() == 1 => unary(&[(Right, a)]),
-            (NotLeft, Left, Node::Not(a)) => {
-                let falsity = self.formulas.ids.get(&Node::False).copied();
-                let falsity = falsity.ok_or("no ⊥ for the form of →L")?;
-                binary(&[(Right, a)], &[(Left, falsity)])
-            }
-            (IffLeft | IffLeft1 | IffLeft2 | IffRight, _, Node::Iff(a, b)) => {
-                let forward = self.formulas.ids.get(&Node::Implies(a, b)).copied();
-                let backward = self.formulas.ids.get(&Node::Implies(b, a)).copied();
-                let (Some(forward), Some(backward)) = (forward, backward) else {
-                    return Err("the implications of the equivalence are missing".to_owned());
-                };
-                match (inference.rule, side) {
-                    (IffLeft, Left) => unary(&[(Left, forward), (Left, backward)]),
-                    (IffLeft1, Left) => unary(&[(Left, forward)]),
-                    (IffLeft2, Left) => unary(&[(Left, backward)]),
-                    (IffRight, Right) => binary(&[(Right, forward)], &[(Right, backward)]),
-                    _ => Err("the rule does not apply on this side".to_owned()),
-                }
-            }
-            (FalseLeft, Left, Node::False) if self.logic != Logic::Minimal => leaf(),
-            (FalseLeft, ..) if self.logic == Logic::Minimal => {
-                Err("minimal logic has no ex falso".to_owned())
-            }
-            (FalseRight, Right, Node::False) | (TrueLeft, Left, Node::True) => unary(&[]),
-            (TrueRight, Right, Node::True) => leaf(),
-            _ => Err("the rule does not apply to the principal formula".to_owned()),
         }
+        Err("the premises do not share or split the context".to_owned())
+    };
+    let leaf = || count(0);
+    match (inference.rule, side, node) {
+        (WeakenLeft, Left, _) | (WeakenRight, Right, _) => unary(&[]),
+        (ContractLeft, Left, _) => unary(&[(Left, principal), (Left, principal)]),
+        (ContractRight, Right, _) => unary(&[(Right, principal), (Right, principal)]),
+        (AndLeft, Left, Node::And(a, b)) => unary(&[(Left, a), (Left, b)]),
+        (AndLeft1, Left, Node::And(a, _)) => unary(&[(Left, a)]),
+        (AndLeft2, Left, Node::And(_, b)) => unary(&[(Left, b)]),
+        (AndRight, Right, Node::And(a, b)) => binary(&[(Right, a)], &[(Right, b)]),
+        (OrLeft, Left, Node::Or(a, b)) => binary(&[(Left, a)], &[(Left, b)]),
+        (OrRight, Right, Node::Or(a, b)) => unary(&[(Right, a), (Right, b)]),
+        (OrRight1, Right, Node::Or(a, _)) => unary(&[(Right, a)]),
+        (OrRight2, Right, Node::Or(_, b)) => unary(&[(Right, b)]),
+        (ImpliesLeft, Left, Node::Implies(a, b)) => binary(&[(Right, a)], &[(Left, b)]),
+        (ImpliesRight, Right, Node::Implies(a, b)) => unary(&[(Left, a), (Right, b)]),
+        // `¬A` as itself, or as `A → ⊥` (LJ).
+        (NotRight, Right, Node::Not(a)) => unary(&[(Left, a)]).or_else(|_| {
+            let falsity = formulas.ids.get(&Node::False).copied();
+            unary(&[
+                (Left, a),
+                (Right, falsity.ok_or("no ⊥ for the form of →R")?),
+            ])
+        }),
+        (NotLeft, Left, Node::Not(a)) if premises.len() == 1 => unary(&[(Right, a)]),
+        (NotLeft, Left, Node::Not(a)) => {
+            let falsity = formulas.ids.get(&Node::False).copied();
+            let falsity = falsity.ok_or("no ⊥ for the form of →L")?;
+            binary(&[(Right, a)], &[(Left, falsity)])
+        }
+        (IffLeft | IffLeft1 | IffLeft2 | IffRight, _, Node::Iff(a, b)) => {
+            let forward = formulas.ids.get(&Node::Implies(a, b)).copied();
+            let backward = formulas.ids.get(&Node::Implies(b, a)).copied();
+            let (Some(forward), Some(backward)) = (forward, backward) else {
+                return Err("the implications of the equivalence are missing".to_owned());
+            };
+            match (inference.rule, side) {
+                (IffLeft, Left) => unary(&[(Left, forward), (Left, backward)]),
+                (IffLeft1, Left) => unary(&[(Left, forward)]),
+                (IffLeft2, Left) => unary(&[(Left, backward)]),
+                (IffRight, Right) => binary(&[(Right, forward)], &[(Right, backward)]),
+                _ => Err("the rule does not apply on this side".to_owned()),
+            }
+        }
+        (FalseLeft, Left, Node::False) if logic != Logic::Minimal => leaf(),
+        (FalseLeft, ..) if logic == Logic::Minimal => {
+            Err("minimal logic has no ex falso".to_owned())
+        }
+        (FalseRight, Right, Node::False) | (TrueLeft, Left, Node::True) => unary(&[]),
+        (TrueRight, Right, Node::True) => leaf(),
+        _ => Err("the rule does not apply to the principal formula".to_owned()),
     }
 }
 
@@ -588,11 +730,12 @@ impl Display for Derivation {
 
 impl Drawn for Derivation {
     const RULES: usize = Rule::ALL.len();
-    const OPEN: Option<usize> = None;
+    const OPEN: Option<usize> = Some(Rule::Open as usize);
 
     fn markup(rule: usize, labels: &Labels) -> Option<&str> {
         let rule = Rule::ALL[rule];
         match labels {
+            _ if rule == Rule::Open => None,
             Labels::Upright | Labels::Table(_) => Some(rule.markup(false)),
             Labels::Subscript => Some(rule.markup(true)),
             Labels::Off => None,
@@ -656,7 +799,7 @@ impl Drawn for Derivation {
 /// lengths differ or they are equal as they stand, by counting where they
 /// are short, and by sorting copies only where they are long, so that the
 /// checker's question of every inference costs no allocation.
-fn same(a: &[NodeId], b: &[NodeId]) -> bool {
+pub(super) fn same(a: &[NodeId], b: &[NodeId]) -> bool {
     /// The longest lists compared by counting, a square of comparisons.
     const SHORT: usize = 16;
     if a.len() != b.len() {
@@ -1248,7 +1391,11 @@ mod tests {
         // Each break with the reason its guard gives: with the guard
         // gone, another would fail it for another reason, or none would.
         type Break = (&'static str, Box<dyn Fn(&mut Derivation)>);
-        let broken: [Break; 11] = [
+        let broken: [Break; 12] = [
+            (
+                "an open goal",
+                Box::new(move |d| d.inferences[axiom].rule = Rule::Open),
+            ),
             ("the root does not conclude", Box::new(|d| d.right.clear())),
             (
                 "not a sequent A ⊢ A",

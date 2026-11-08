@@ -159,6 +159,8 @@ impl Certificate<'_> {
             tasks.push(text("))".to_owned()));
         };
         match inference.rule {
+            // `write` refuses a derivation with an open goal.
+            Open => unreachable!("an open goal has no term"),
             Axiom => {
                 let (x, y) = (inference.left[0], inference.right[0]);
                 let h = self.of(x, Left);
@@ -343,8 +345,8 @@ fn implications(formulas: &Formulas, a: NodeId, b: NodeId) -> (NodeId, NodeId) {
     )
 }
 
-/// Writes the certificate of a derivation, which must have passed
-/// [`Derivation::check`]: the lemma `options.lemma` stating the sequent
+/// Writes the certificate of a derivation, which is checked first
+/// ([`Derivation::check`], an open goal refused before it): the lemma `options.lemma` stating the sequent
 /// over `Prop`, with a variable for every atom, and its proof term;
 /// standalone, it starts with `options.prelude`, by default the import of
 /// the standard library's excluded middle for a classical certificate and
@@ -355,6 +357,21 @@ pub(crate) fn write(
     out: &mut impl Write,
     mut stop: impl FnMut() -> bool,
 ) -> Result<(), Error> {
+    // A derivation of a proof in progress or one read from a document
+    // may be no derivation of its logic; the terms are made only of one
+    // that is.
+    if derivation
+        .inferences()
+        .iter()
+        .any(|i| i.rule() == Rule::Open)
+    {
+        return Err(Unsupported::Open.into());
+    }
+    let unbounded = crate::Limits {
+        work: None,
+        ..crate::Limits::default()
+    };
+    derivation.check(&unbounded, |_| stop())?;
     let classical = derivation.logic() == Logic::Classical;
     let formulas = derivation.formulas();
     let mut atoms = identifiers(formulas.atom_names(), options.lemma.as_str());

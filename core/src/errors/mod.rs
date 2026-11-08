@@ -274,6 +274,13 @@ pub enum Error {
     #[cfg(feature = "interactive")]
     #[error(transparent)]
     Step(#[from] crate::proofs::StepError),
+    /// A step of a proof in progress of an ordinary sequent does not apply
+    /// as asked.
+    ///
+    /// Needs the cargo feature `interactive`.
+    #[cfg(feature = "interactive")]
+    #[error(transparent)]
+    OrdinaryStep(#[from] crate::ordinary::StepError),
     /// An interactive proof still has this many open goals, so there is no
     /// proof term to make of it yet.
     ///
@@ -648,9 +655,11 @@ impl Error {
             Self::Refutation(_) => Invalid,
             Self::Net(error) => error.kind(),
             #[cfg(feature = "interactive")]
-            Self::Step(_) | Self::OpenGoals { .. } | Self::ForeignProof | Self::GoalMismatch => {
-                Invalid
-            }
+            Self::Step(_)
+            | Self::OrdinaryStep(_)
+            | Self::OpenGoals { .. }
+            | Self::ForeignProof
+            | Self::GoalMismatch => Invalid,
             Self::GoalProof => Unsupported,
             Self::SequentMismatch { .. } => Invalid,
             Self::NotIntuitionistic(_)
@@ -716,7 +725,7 @@ impl Error {
             Self::Refutation(_) => "invalid_refutation",
             Self::Net(error) => error.code(),
             #[cfg(feature = "interactive")]
-            Self::Step(_) => "step",
+            Self::Step(_) | Self::OrdinaryStep(_) => "step",
             #[cfg(feature = "interactive")]
             Self::OpenGoals { .. } => "open_goals",
             #[cfg(feature = "interactive")]
@@ -1205,6 +1214,7 @@ mod tests {
             #[cfg(feature = "interactive")]
             Error::InconsistentSession { .. }
             | Error::Step(_)
+            | Error::OrdinaryStep(_)
             | Error::OpenGoals { .. }
             | Error::ForeignProof
             | Error::GoalMismatch => {}

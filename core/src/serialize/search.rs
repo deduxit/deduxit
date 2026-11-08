@@ -52,7 +52,7 @@ impl<'a> Deserialize<'a> for Mode {
 /// reason, never one of these.
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-enum Why {
+pub(super) enum Why {
     /// The stop condition fired.
     Stopped,
     /// The recursion limit was reached.
