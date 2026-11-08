@@ -5226,3 +5226,17 @@ move (D26).
   - 53m's round 2 drops the family criterion.
   - The author liked the free "∴ sequentium" and asked for mockups,
     other fonts and other colours; 53m works on them.
+- 2026-11-08: 53m's second round, the three dots, done. The page:
+  https://claude.ai/artifact/1SfyHfKBnNS9dLUAbrrTBE (private), also
+  `~/Projects/own/sequentium-mark/round2-therefore/mockups.html`.
+  - Recommended by both designers: `dot-violet-r`, the i's dot of
+    "sequentium" drawn as ∴ in Figtree Bold and violet, the square the i
+    with its ∴. It reads as a diaeresis at 30 px and plainly from about
+    60 px.
+  - Diligence: Asana's mark is three dots in a triangle before a
+    lowercase sans word, in the software class. So ∴ before the word
+    resembles it; the sign as the i's dot does not.
+  - Nine faces were tried, licences read (Source Serif's and Plex's
+    reserved font names, New Computer Modern under GUST), and six
+    colours, all passing the colour-vision check.
+  - The author's choice is next.
