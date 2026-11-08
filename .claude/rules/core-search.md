@@ -7,6 +7,7 @@ paths:
   - "core/src/search/reference.rs"
   - "core/src/search/reference_fo.rs"
   - "core/src/search/refutation.rs"
+  - "core/src/search/weighted.rs"
 ---
 
 # linlog core: proof search, its front door, its memory bound, the additive path and the reference prover
@@ -242,7 +243,8 @@ copies they had are gone (F103, F104).
   `Statistics::work`), and a decided verdict never changes; only an
   exhausted search's refutation and an undecided search's verdict do.
 - **`Disproof::check`** (`refutation.rs`) verifies `Classical`,
-  `Unbalanced` and `Equation` against the sequent, sharing no code with
+  `Unbalanced`, `Equation`, `OneSided`, `StateEquation` and their kin
+  (below) against the sequent, sharing no code with
   the search: it builds a `Forest` (default limits) and evaluates over
   occurrences bottom-up (preorder, so a subtree reversed is operands
   first). `Unbalanced` is recomputed as the hull interval of the atom's
@@ -262,10 +264,46 @@ copies they had are gone (F103, F104).
   rule's holes in the set (a sequent repeated; the reader does not refuse
   repeats), which the integers review found (2 491 bytes past 100 s). The
   search's own check of a set runs under its stop and within
-  `Limits::work` (its units counted apart, as a proof's check's are). `Exhausted`, `OneSided` and `StateEquation` answer
-  `RefutationFault::Uncertified` (code `uncertified`, kind unsupported);
-  a refutation that does not hold answers code `invalid_refutation`.
-  Sums are of at most a forest's 2³² occurrences, within `i64`.
+  `Limits::work` (its units counted apart, as a proof's check's are).
+  `OneSided` and `OneSidedSymbol` (`check_copies`) are recomputed as
+  `Unbalanced` is, outside the goal's exponentials (a `!` or `?` counts
+  `(0, 0)` unless a `⊤` lies below it), with the signs of the counted
+  literals below an exponential of the goal: both signs are
+  `NotApplicable`, the other sign than `copied` a `Mismatch` (the
+  search's `copied` is the forest's, so a goal with no copy at all
+  passes), and the interval must exclude zero on the side copies cannot
+  reach (`least > 0` for copies of `a`, `most < 0` for `~a`); then the
+  weighted test (`search/weighted.rs`) with `±1` on the counted literals
+  must accept. `StateEquation` is the weighted test alone
+  (`weighted::state_equation`): the stated atom weights (sorted, in
+  range, else `Mismatch`), the goal read as a Horn program with positive
+  bodies and else negative ones (weights negated), the goal's atoms
+  outside the closure of the markings dead in the bodies' sign
+  (`dead_atoms`), with weakening in affine mode; a quantified sequent or
+  a goal no reading takes is `NotApplicable`, weights the test refuses
+  `Holds`. The ticket weights and `dropped` are not compared: the test
+  needs neither. A goal one of whose atoms no firing reaches is refuted
+  whatever the weights (its dead literal contributes nothing), which the
+  library proves too: a planted change of weights proves nothing there.
+  `Exhausted` answers `RefutationFault::Uncertified` (code
+  `uncertified`, kind unsupported); a refutation that does not hold
+  answers code `invalid_refutation`. The balance's sums are of at most a
+  forest's 2³² occurrences, within `i64`; the weighted test's are
+  `i128` and checked (a refusal, `NotApplicable`, tested on the bound's
+  own sum, since no goal gets near: ±2⁹⁵ per member).
+- **The weighted test is the library's `overweight`, transcribed**
+  (`search/weighted.rs`, `Weights.v`'s `out`, `least`, `absorbs`,
+  `outputs`, `shaped`, `overweight` and `overweight_affine`, and
+  `FirstOrderWeights.v`'s for quantifiers, which leave a weight as it
+  is): `keep` (a droppable formula's bound `min(0, …)`) applies at every
+  subformula, not only at the members; `!A` contributes `from 0` and
+  never absorbs, whatever `A`; a `⊗` absorbs only where one side absorbs
+  and the other can contribute something (`reach`); a dead literal of
+  the sign `p` is `never` and its dual absorbs. Any weights, dead atoms
+  and sign are sound, so the check may try both signs and compute the
+  dead set as it likes; what it must not do is depart from the library's
+  bound in the direction that accepts more. A change of `Weights.v`'s
+  test is a change here.
 - **The refuters with quantifiers** (decision 5 of the first-order
   plan): the counts carry over, per predicate where one of its atoms is
   open (`counts::Predicates`: the predicate's atoms counted as its first
@@ -278,12 +316,13 @@ copies they had are gone (F103, F104).
   predicate is open (else `NotApplicable`), `UnbalancedSymbol` by
   `check_balance` over the predicate's literals, and `Equation` with a
   quantifier counted as its body; `Classical` and `Saturated` are
-  `NotApplicable` there, and `OneSidedSymbol` `Uncertified` as
-  `OneSided` is. The classical refuter answers nothing for a forest with
+  `NotApplicable` there, `OneSided` as `Unbalanced` (no open atom of its
+  predicate) and `OneSidedSymbol` over the predicate's literals, and
+  `StateEquation` `NotApplicable` (Horn programs are propositional). The classical refuter answers nothing for a forest with
   a binder (an assignment has no domain), and the inverse method, hence
   `Saturated`, refuses quantifiers by its fragment. The Rocq writer
-  refuses a quantified disproof (`Unsupported::Quantifiers`) before its
-  match, whose symbol arms are unreachable for that reason.
+  certifies a quantified disproof's counts by the first-order weighted
+  count and refuses its count equation (`Unsupported::Quantifiers`).
 - **The command lets the refutation run past its deadline**
   (`cli/src/prove.rs`, `halting`): its stop answers a `Phase::Refute`
   poll with Ctrl-C alone, so a search the time limit ended is still

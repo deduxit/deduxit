@@ -660,9 +660,8 @@ impl Display for Disproof {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[non_exhaustive]
 pub enum RefutationFault {
-    /// The refutation is no certificate: an exhausted search, a count with
-    /// copies or a Horn program's state equation rests on the search, and
-    /// the check verifies none of them.
+    /// The refutation is no certificate: an exhausted search rests on the
+    /// search, and the check cannot verify it.
     #[error("a refutation of kind `{kind}` rests on the search and has no check")]
     Uncertified {
         /// The refutation's word ([`Refutation::name`]).
@@ -683,7 +682,8 @@ pub enum RefutationFault {
     #[error("the refutation's numbers are not those of the sequent")]
     Mismatch,
     /// The numbers are the goal's, and they allow a proof: the atom's
-    /// excess can be zero, or the count equation holds.
+    /// excess can be zero, the count equation holds, or some contribution
+    /// to the weighted count is zero or below.
     #[error("the counts allow a proof")]
     Holds,
     /// The assignment has another number of values than the sequent has
@@ -747,11 +747,23 @@ impl Disproof {
     /// of premises among its sequents, each sequent derived one that a
     /// sequent of the set stands for or that no proof holds, Mix too
     /// where the mode has it, its sequents shaped as the mode's are, and
-    /// a stable sequent of the goal's phase that none stands for. Those
-    /// four are certificates: every derivation keeps the invariant the
-    /// first three break, and the set holds a sequent for every stable
-    /// one of every proof. Time and memory are linear in the goal's
-    /// occurrences for the first three; the set's check applies every
+    /// a stable sequent of the goal's phase that none stands for; a
+    /// one-sided count by its interval outside the goal's exponentials and
+    /// the sign of the atom's literals below them, as an unbalanced atom's
+    /// with the copies' side open, and then by the weighted test with the
+    /// weight `±1` on the atom; a state equation by the weighted test with
+    /// the stated weights, the goal read as a Horn program with positive
+    /// bodies, else negative ones (the weights negated), the atoms no
+    /// firing reaches declared dead, and in affine mode its count of the
+    /// formulas with one output. The weighted test is the one linlog's
+    /// Rocq library proves sound for any weights: no formula of the goal
+    /// may absorb, and every contribution to the weighted count of its
+    /// literals is above zero, a `?` formula's copies included. Those six
+    /// are certificates: every derivation keeps the invariant the others
+    /// break, and the set holds a sequent for every stable one of every
+    /// proof. Time and memory are linear in the goal's occurrences (a
+    /// member repeated counted each time) for all but the set, whose
+    /// check applies every
     /// rule to every choice of its sequents, which takes as long as the
     /// search that saturated did at most for a set a search gave, but has
     /// no stop here: for a set read from elsewhere it can take time
@@ -763,8 +775,8 @@ impl Disproof {
     ///
     /// [`Error::Refutation`](crate::Error::Refutation) with the
     /// [`RefutationFault`]: of kind invalid for a refutation that does not
-    /// hold, unsupported for an exhausted search and the refutations that
-    /// rest on it ([`RefutationFault::Uncertified`]); and the errors of
+    /// hold, unsupported for an exhausted search
+    /// ([`RefutationFault::Uncertified`]); and the errors of
     /// [`Forest::new`](crate::Forest::new) for a sequent past the default
     /// limits.
     pub fn check(&self) -> Result<(), crate::Error> {
@@ -813,10 +825,16 @@ impl Disproof {
                     }
                 }
             }
-            refutation @ (Refutation::Exhausted
-            | Refutation::OneSided(_)
-            | Refutation::OneSidedSymbol(_)
-            | Refutation::StateEquation(_)) => Err(RefutationFault::Uncertified {
+            Refutation::OneSided(one_sided) => {
+                check_one_sided(&forest, &goal, self.mode, one_sided)
+            }
+            Refutation::OneSidedSymbol(one_sided) => {
+                check_one_sided_symbol(&forest, &goal, self.mode, one_sided)
+            }
+            Refutation::StateEquation(equation) => {
+                super::weighted::state_equation(&forest, &goal, self.mode, equation).map(|_| ())
+            }
+            refutation @ Refutation::Exhausted => Err(RefutationFault::Uncertified {
                 kind: refutation.name(),
             }),
         }
@@ -990,6 +1008,181 @@ fn check_balance(
     } else {
         Ok(())
     }
+}
+
+/// Checks that the atom of `one_sided` has the stated excess interval
+/// outside the goal's exponentials, below which its literals all have the
+/// stated sign, and that copies of that sign cannot bring the excess to
+/// zero, where the count is an invariant: of a sequent with a quantifier,
+/// only where no atom of its predicate has a bound variable.
+fn check_one_sided(
+    forest: &crate::occurrences::Forest,
+    goal: &[OccId],
+    mode: Mode,
+    one_sided: &OneSided,
+) -> Result<(), RefutationFault> {
+    let atom = one_sided.atom;
+    let sequent = forest.sequent();
+    if atom.index() >= sequent.atom_names().len() {
+        return Err(RefutationFault::Mismatch);
+    }
+    if let Some((symbol, _)) = sequent.atom_predicate(atom)
+        && (0..sequent.atom_names().len()).any(|a| {
+            let a = Atom::new(a as u32);
+            sequent.atom_predicate(a).map(|(s, _)| s) == Some(symbol) && sequent.atom_is_open(a)
+        })
+    {
+        return Err(RefutationFault::NotApplicable {
+            invariant: "one-sided count of the atom",
+            why: "an atom of its predicate has a bound variable, whose instance may be it",
+        });
+    }
+    check_copies(
+        forest,
+        goal,
+        mode,
+        |o| forest.atom(o) == Some(atom),
+        (one_sided.least, one_sided.most, one_sided.copied),
+    )
+}
+
+/// Checks that the literals of the predicate of `one_sided`, every atom of
+/// it counted, have the stated excess interval outside the goal's
+/// exponentials and the stated sign below them, which copies cannot bring
+/// to zero.
+fn check_one_sided_symbol(
+    forest: &crate::occurrences::Forest,
+    goal: &[OccId],
+    mode: Mode,
+    one_sided: &OneSidedSymbol,
+) -> Result<(), RefutationFault> {
+    let sequent = forest.sequent();
+    if one_sided.symbol.index() >= sequent.symbols().len() {
+        return Err(RefutationFault::Mismatch);
+    }
+    check_copies(
+        forest,
+        goal,
+        mode,
+        |o| {
+            forest
+                .atom(o)
+                .and_then(|a| sequent.atom_predicate(a))
+                .is_some_and(|(s, _)| s == one_sided.symbol)
+        },
+        (one_sided.least, one_sided.most, one_sided.copied),
+    )
+}
+
+/// Checks a one-sided count of the literals `counted` picks: outside the
+/// goal's exponentials their excess interval (`⊗` and `⅋` adding their
+/// sides, `&` and `⊕` taking the hull, a `!` or `?` counting nothing) is
+/// the stated one, every one of them below an exponential of the goal has
+/// the stated sign `copied`, and the interval excludes zero on the side
+/// copies of that sign cannot reach (the least above zero for `a`, the
+/// greatest below zero for `~a`); then the weighted test with the weight
+/// `1` on `a` (`−1` for `~a`) and nothing dead must accept the goal, which
+/// is the theorem the count rests on. Outside affine mode and with no `⊤`
+/// in the goal.
+fn check_copies(
+    forest: &crate::occurrences::Forest,
+    goal: &[OccId],
+    mode: Mode,
+    counted: impl Fn(OccId) -> bool,
+    (least, most, copied): (i32, i32, Sign),
+) -> Result<(), RefutationFault> {
+    use crate::sequents::Kind::*;
+    const INVARIANT: &str = "one-sided count of the atom";
+    if mode.affine {
+        return Err(RefutationFault::NotApplicable {
+            invariant: INVARIANT,
+            why: "weakening discards literals",
+        });
+    }
+    // Per occurrence the least and the greatest excess outside the
+    // exponentials, `None` where a `⊤` absorbs: sums of ±1 over a member's
+    // subtree, fewer than 2³² occurrences, so within an `i64` per member;
+    // the members' sum is checked.
+    let mut span: Vec<Option<(i64, i64)>> = vec![None; forest.len()];
+    // Which signs of the counted literals lie below an exponential.
+    let mut below = [false; 2];
+    let (mut lo, mut hi) = (0i64, 0i64);
+    for &member in goal {
+        // An occurrence's subtree is the ids that follow it, so the end of
+        // the outermost exponential met says what lies below one.
+        let mut inside = 0;
+        for o in forest.subtree(member) {
+            if o.index() < inside
+                && let Some(sign) = forest.sign(o)
+                && counted(o)
+            {
+                below[sign as usize] = true;
+            }
+            if matches!(forest.kind(o), Bang | Quest) {
+                inside = inside.max(o.index() + forest.size(o) as usize);
+            }
+        }
+        for o in forest.subtree(member).rev() {
+            let side = |side: Option<OccId>| side.and_then(|s| span[s.index()]);
+            let (l, r) = (side(forest.left(o)), side(forest.right(o)));
+            let literal = |e| Some(if counted(o) { (e, e) } else { (0, 0) });
+            span[o.index()] = match forest.kind(o) {
+                Atom => literal(1),
+                DualAtom => literal(-1),
+                One | Bot | Zero => Some((0, 0)),
+                Top => None,
+                Tensor | Par => l.zip(r).map(|((a, b), (c, d))| (a + c, b + d)),
+                With | Plus => l.zip(r).map(|((a, b), (c, d))| (a.min(c), b.max(d))),
+                Bang | Quest => l.map(|_| (0, 0)),
+                Forall | Exists => l,
+            };
+        }
+        let Some((a, b)) = span[member.index()] else {
+            return Err(RefutationFault::NotApplicable {
+                invariant: INVARIANT,
+                why: "a ⊤ absorbs",
+            });
+        };
+        let (Some(a), Some(b)) = (lo.checked_add(a), hi.checked_add(b)) else {
+            return Err(RefutationFault::Mismatch);
+        };
+        (lo, hi) = (a, b);
+    }
+    match below {
+        [true, true] => {
+            return Err(RefutationFault::NotApplicable {
+                invariant: INVARIANT,
+                why: "copies add literals of both signs",
+            });
+        }
+        [positive, negative]
+            if positive && copied == Sign::Dual || negative && copied == Sign::Atom =>
+        {
+            return Err(RefutationFault::Mismatch);
+        }
+        _ => {}
+    }
+    if (lo, hi) != (i64::from(least), i64::from(most)) {
+        return Err(RefutationFault::Mismatch);
+    }
+    let excluded = match copied {
+        Sign::Atom => lo > 0,
+        Sign::Dual => hi < 0,
+    };
+    if !excluded {
+        return Err(RefutationFault::Holds);
+    }
+    let weight = match copied {
+        Sign::Atom => 1,
+        Sign::Dual => -1,
+    };
+    let weights = super::weighted::Weights {
+        weight: &|o| if counted(o) { weight } else { 0 },
+        dead: &|_| false,
+        sign: Sign::Atom,
+        weakening: false,
+    };
+    super::weighted::overweight(forest, goal, &weights)
 }
 
 /// Checks that the goal has the formulas and connectives `equation`
@@ -1237,5 +1430,174 @@ mod tests {
             (error.code(), error.kind()),
             ("invalid_refutation", crate::ErrorKind::Invalid)
         );
+    }
+
+    /// The check accepts the search's one-sided counts and state
+    /// equations, in each mode they are given in, and refuses a planted
+    /// wrong one of each kind: numbers not the goal's, copies of the other
+    /// sign, an interval that copies can bring to zero, weights that leave
+    /// a contribution at zero, a goal that is no Horn program, and the
+    /// modes where the invariant does not hold.
+    #[test]
+    fn a_wrong_count_with_copies_or_state_equation_is_refused() {
+        let (classical, ill) = (Mode::CLASSICAL, Mode::INTUITIONISTIC);
+        for (input, mode, kind) in [
+            ("!d, !((c * d * d) -o 1) |- c * c", classical, "one_sided"),
+            ("!d, !((c * d * d) -o 1) |- c * c", ill, "one_sided"),
+            ("|- ~a * ~a, ?(~a * b), ~b", classical, "one_sided"),
+            (
+                "!(a -o a * a), !(a * c -o b * c), a |- b",
+                ill,
+                "state_equation",
+            ),
+            (
+                "!(a -o a * a), !(a * c -o b * c), a |- b",
+                classical.with_mix(),
+                "state_equation",
+            ),
+            // Bodies written negative, with a clause that never fires.
+            (
+                "|- a, ?(~a * (a par a)), ?((~a * ~c) * b), ~b",
+                classical,
+                "state_equation",
+            ),
+            // A clause used once, whose ticket weighs.
+            (
+                "a, a -o b, !(b -o b * c), !(b -o d) |- b * d",
+                ill,
+                "state_equation",
+            ),
+            (
+                "!(a -o a * c), !(a -o b), a |- a * b",
+                ill.with_affine(),
+                "state_equation",
+            ),
+            (
+                "|- a, ?(~a * (a par c)), ?(~a * b), ~a * ~b",
+                classical.with_affine(),
+                "state_equation",
+            ),
+        ] {
+            let found = refuted(input, mode);
+            assert_eq!(found.refutation().name(), kind, "{input}");
+            assert_eq!(fault(&found), None, "{input}");
+        }
+
+        let one_sided = |atom: u32, least: i32, most: i32, copied: Sign| {
+            Refutation::OneSided(OneSided {
+                atom: Atom::new(atom),
+                least,
+                most,
+                copied,
+            })
+        };
+        // The atom `c` is the second: its copies add `c`.
+        let counted = "!d, !((c * d * d) -o 1) |- c * c";
+        for (input, mode, refutation, expected) in [
+            (
+                counted,
+                classical,
+                one_sided(1, 1, 1, Sign::Atom),
+                RefutationFault::Mismatch,
+            ),
+            (
+                counted,
+                classical,
+                one_sided(1, 2, 2, Sign::Dual),
+                RefutationFault::Mismatch,
+            ),
+            // The copies add `~c`: only a deficit of `~c` would refute.
+            (
+                "|- c * c, ?~c",
+                classical,
+                one_sided(0, 2, 2, Sign::Dual),
+                RefutationFault::Holds,
+            ),
+            (
+                "|- ~c, ~c, ?c",
+                classical,
+                one_sided(0, -2, -2, Sign::Dual),
+                RefutationFault::Mismatch,
+            ),
+            (
+                "|- ~c, ~c, ?c",
+                classical,
+                one_sided(0, -2, -2, Sign::Atom),
+                RefutationFault::Holds,
+            ),
+        ] {
+            let planted = claimed(input, mode, refutation);
+            assert_eq!(fault(&planted), Some(expected), "{input}");
+        }
+        for (input, mode, atom) in [
+            (counted, classical.with_affine(), 1),
+            ("|- c * c, ?~c, ?c", classical, 0),
+            ("|- c * c, ?~c, top", classical, 0),
+        ] {
+            assert!(
+                matches!(
+                    fault(&claimed(input, mode, one_sided(atom, 2, 2, Sign::Atom))),
+                    Some(RefutationFault::NotApplicable { .. })
+                ),
+                "{input}"
+            );
+        }
+
+        let weighed = |atoms: &[(u32, i64)]| {
+            Refutation::StateEquation(StateEquation {
+                atoms: atoms.iter().map(|&(a, w)| (Atom::new(a), w)).collect(),
+                clauses: Vec::new(),
+                dropped: Vec::new(),
+            })
+        };
+        let net = "!(a -o a * a), !(a * c -o b * c), a |- b";
+        let found = refuted(net, ill);
+        let Refutation::StateEquation(equation) = found.refutation() else {
+            panic!("{found:?}");
+        };
+        assert_eq!(equation.atoms, [(Atom::new(0), -1), (Atom::new(2), 1)]);
+        for (input, mode, atoms, expected) in [
+            // Found with `a ↦ 2, b ↦ 1, d ↦ 1`; the copies of `b ⊸ d` raise
+            // the count with `d ↦ 2`, those of `b ⊸ b ⊗ c` with `c ↦ 1`.
+            (
+                "a, a -o b, !(b -o b * c), !(b -o d) |- b * d",
+                ill,
+                &[(0, 1), (1, 1), (3, 2)][..],
+                RefutationFault::Holds,
+            ),
+            (
+                "a, a -o b, !(b -o b * c), !(b -o d) |- b * d",
+                ill,
+                &[(0, 2), (1, 1), (2, 1), (3, 1)][..],
+                RefutationFault::Holds,
+            ),
+            (net, ill, &[(2, 1), (0, -1)][..], RefutationFault::Mismatch),
+            (net, ill, &[(0, -1), (7, 1)][..], RefutationFault::Mismatch),
+            // The bodies negative, found with `a ↦ 1, b ↦ 1`: with `c ↦ 1`
+            // the copies of the first clause raise the count.
+            (
+                "|- a, ?(~a * (a par c)), ?(~a * b), ~a * ~b",
+                classical.with_affine(),
+                &[(0, 1), (1, 1), (2, 1)][..],
+                RefutationFault::Holds,
+            ),
+        ] {
+            let planted = claimed(input, mode, weighed(atoms));
+            assert_eq!(fault(&planted), Some(expected), "{input}");
+        }
+        for (input, mode) in [
+            ("|- a & b, ~a", classical),
+            // With weakening the goal has no output, or two.
+            ("|- ~a, ~a", classical.with_affine()),
+            ("forall x. p(x) |- p(c)", classical),
+        ] {
+            assert!(
+                matches!(
+                    fault(&claimed(input, mode, weighed(&[(0, 1)]))),
+                    Some(RefutationFault::NotApplicable { .. })
+                ),
+                "{input}"
+            );
+        }
     }
 }

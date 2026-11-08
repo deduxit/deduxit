@@ -45,6 +45,9 @@ pub(crate) mod reference_fo;
 mod refutation;
 /// The check of a refutation by a saturated set, apart from the search.
 mod saturated;
+/// The weighted count that certifies a one-sided count and a Horn
+/// program's state equation, apart from the search.
+pub(crate) mod weighted;
 /// A search's count of its work, and the values its threads share.
 mod work;
 

@@ -315,10 +315,17 @@ front door, the dispatch and the memory account it plugs into are in
   that is not zero (an atom's; a class's ticket as each clause of the
   class, whose ticket the class place counts) and the clauses that
   `live` dropped (`Program::dropped`, a dead transition's clause with
-  every clause under `?` that shares its arcs, `Program::alike`), so a
-  checker that shares no code with the engine can recompute the
-  closure, confirm the dropped clauses dead, and test `y·C ≤ 0` on the
-  others and `y·(M − M₀) > 0`.
+  every clause under `?` that shares its arcs, `Program::alike`).
+  `Disproof::check` does not read the program again: it runs the Rocq
+  library's weighted test (`search/weighted.rs`, core-search.md) with
+  the atoms' weights, the atoms outside the closure dead and the bodies'
+  sign, which every vector `certify` accepts passes (a clause used once
+  contributes `−y·C ≥ −z`, one under `?` `from 0` where `y·C ≤ 0`, a dead
+  clause nothing), so the ticket weights and `dropped` are the engine's
+  account, not the certificate. A change of what `certify` accepts (a
+  new kind of place or clause) must keep that so, or the check refuses
+  the engine's refutations (the target sets' `checked` column says
+  `failed:`).
 - **Who proposes the weights.** The first phase of a revised simplex
   (`Tableau`): a row per place that a transition changes or the target
   names, signed so the right-hand side is not negative; a column per
