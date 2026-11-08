@@ -2,7 +2,7 @@
 name: linlog
 description: Decides, checks, proves step by step and exports sequents of linear logic (classical, intuitionistic, affine, with Mix, cyclic, the Lambek calculus, first-order) and of ordinary propositional logic with the `linlog` command. Use it to learn whether a sequent is provable and why not, to get a checked proof as a derivation tree, proof net, JSON, LaTeX, Typst, SVG, PNG, PDF or Rocq certificate, to check a proof file or eliminate its cuts, to apply proof steps from a script, or to decide many sequents in one call.
 license: EUPL-1.2
-compatibility: Needs the `linlog` command, from `cargo install --locked linlog-cli` or `nix run github:linlog-prover/linlog -- ARGS`.
+compatibility: Needs the `linlog` command, from `cargo install --locked linlog-cli` or `nix run github:sequentium/sequentium -- ARGS`.
 ---
 
 # linlog
@@ -90,10 +90,10 @@ valid proof (classical)
 ## Docs
 
 - [Reference](reference.md): every command, flag, format and JSON form, with examples
-- [Manual](https://linlog-prover.github.io/linlog/manual/): every command, format and engine with its output, and the benchmarks
-- [Library API](https://linlog-prover.github.io/linlog/linlog/): the Rust crate's documentation, with the text syntax and every JSON form
+- [Manual](https://sequentium.github.io/sequentium/manual/): every command, format and engine with its output, and the benchmarks
+- [Library API](https://sequentium.github.io/sequentium/linlog/): the Rust crate's documentation, with the text syntax and every JSON form
 
 ## Optional
 
-- [Web page](https://linlog-prover.github.io/): the prover in a browser, step by step, for people
-- [Rocq library](https://github.com/linlog-prover/rocq-linlog): the calculi and checkers the `--kernel linlog` certificates are proved with
+- [Web page](https://sequentium.github.io/): the prover in a browser, step by step, for people
+- [Rocq library](https://github.com/sequentium/rocq-linlog): the calculi and checkers the `--kernel linlog` certificates are proved with

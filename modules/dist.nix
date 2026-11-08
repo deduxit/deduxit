@@ -122,7 +122,7 @@
                 maintainer = "Fabian Lukas Grubmüller <flgrubm@grubmueller.dev>";
                 description = "Decide, check, prove step by step and export sequents of linear logic";
                 vendor = "linlog";
-                homepage = "https://github.com/linlog-prover/linlog";
+                homepage = "https://github.com/sequentium/sequentium";
                 license = "EUPL-1.2 AND OFL-1.1 AND LPPL-1.3c";
                 contents = [
                   {

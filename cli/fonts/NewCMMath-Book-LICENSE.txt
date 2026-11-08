@@ -18,7 +18,7 @@ modification, so this distribution meets clause 6:
   and other math fonts, its LaTeX package and its documentation) are left out.
 - (c) Neither Antonis Tsolomitis nor anyone else provides support for this
   distribution; a problem with linlog's copy goes to linlog's issues,
-  https://github.com/linlog-prover/linlog/issues.
+  https://github.com/sequentium/sequentium/issues.
 - (d) The complete, unmodified Work: https://ctan.org/pkg/newcomputermodern, and
   every TeX Live distribution.
 The GUST Font License's request (not a legal requirement) that derived works rename

@@ -13,7 +13,7 @@ license = "EUPL-1.2 AND OFL-1.1 AND LPPL-1.3c"
 repository.workspace = true
 # The command's documentation is the manual; the library's, which crates.io
 # finds on docs.rs by itself, is the API.
-documentation = "https://linlog-prover.github.io/linlog/manual/"
+documentation = "https://sequentium.github.io/sequentium/manual/"
 readme = "../README.md"
 keywords = [
   "linear-logic",

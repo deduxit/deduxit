@@ -52,7 +52,7 @@
     # While a change of the library is under way, `--override-input
     # rocq-linlog path:../rocq-linlog' points a build at a local checkout.
     rocq-linlog = {
-      url = "github:linlog-prover/rocq-linlog";
+      url = "github:sequentium/rocq-linlog";
       inputs = {
         nixpkgs.follows = "nixpkgs";
         flake-parts.follows = "flake-parts";

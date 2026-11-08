@@ -88,7 +88,7 @@
               # private items, so the public API is built afresh, the
               # published crate's from its package.
               curl --silent --fail --location \
-                --user-agent "linlog breaks (github.com/linlog-prover/linlog)" \
+                --user-agent "linlog breaks (github.com/sequentium/sequentium)" \
                 "https://static.crates.io/crates/linlog/linlog-$base.crate" | tar -xz -C "$out"
               for side in base head; do
                 if [ "$side" = base ]; then

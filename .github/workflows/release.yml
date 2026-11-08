@@ -97,7 +97,7 @@ jobs:
           version=${TAG#v}
           for crate in linlog linlog-cli; do
             if curl --silent --fail --output /dev/null \
-              --user-agent "linlog release (github.com/linlog-prover/linlog)" \
+              --user-agent "linlog release (github.com/sequentium/sequentium)" \
               "https://crates.io/api/v1/crates/$crate/$version"; then
               echo "$crate $version is on crates.io already"
             else
@@ -134,7 +134,7 @@ jobs:
         working-directory: dist
         run: sha256sum -- * >SHA256SUMS
       # A provenance attestation of every file the sums name, which
-      # `gh attestation verify FILE --repo linlog-prover/linlog` checks.
+      # `gh attestation verify FILE --repo sequentium/sequentium` checks.
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-checksums: dist/SHA256SUMS
@@ -154,11 +154,11 @@ jobs:
           ' CHANGELOG.md >notes.md
           {
             echo
-            echo "Install it as the manual's [Installation](https://linlog-prover.github.io/linlog/manual/installation.html) says; \`SHA256SUMS\` holds the files' sums."
+            echo "Install it as the manual's [Installation](https://sequentium.github.io/sequentium/manual/installation.html) says; \`SHA256SUMS\` holds the files' sums."
           } >>notes.md
           for crate in linlog linlog-cli; do
             curl --silent --fail --location --output "$crate-$version.crate" \
-              --user-agent "linlog release (github.com/linlog-prover/linlog)" \
+              --user-agent "linlog release (github.com/sequentium/sequentium)" \
               "https://static.crates.io/crates/$crate/$crate-$version.crate"
           done
           gh release create "$TAG" --title "linlog $version" --notes-file notes.md \

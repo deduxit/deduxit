@@ -4,7 +4,7 @@
 # The check `rocq-linlog': every certificate the core tests pin for linlog's
 # own Rocq library in core/tests/snapshots/linlog, and some the CLI writes,
 # first-order ones among them, compiled against that library as the flake
-# input `rocq-linlog' pins it (github:linlog-prover/rocq-linlog, built with
+# input `rocq-linlog' pins it (github:sequentium/rocq-linlog, built with
 # this flake's nixpkgs, so with the Rocq the NanoYalla check uses, rocq.nix);
 # a certificate with a planted fault must be refused. Rocq prints nothing for
 # a file it accepts, so any other output fails the check, and `Print

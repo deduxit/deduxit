@@ -60,15 +60,15 @@
             ''
               site=${config.packages.doc}/share/doc
               tree=${../.}
-              # The site is served at /linlog/, which mdBook's 404 page
+              # The site is served at /sequentium/, which mdBook's 404 page
               # names absolutely.
               mkdir root
-              ln -s "$site" root/linlog
+              ln -s "$site" root/sequentium
               lychee --offline --no-progress --include-fragments \
                 --root-dir "$PWD/root" \
-                --remap "^https://github\.com/linlog-prover/linlog/(?:blob|tree|edit)/main/(.*)$ file://$tree/\$1" \
-                --remap "^https://raw\.githubusercontent\.com/linlog-prover/linlog/main/(.*)$ file://$tree/\$1" \
-                --remap "^https://linlog-prover\.github\.io/linlog/(.*)$ file://$site/\$1" \
+                --remap "^https://github\.com/sequentium/sequentium/(?:blob|tree|edit)/main/(.*)$ file://$tree/\$1" \
+                --remap "^https://raw\.githubusercontent\.com/sequentium/sequentium/main/(.*)$ file://$tree/\$1" \
+                --remap "^https://sequentium\.github\.io/sequentium/(.*)$ file://$site/\$1" \
                 "$site/manual/**/*.html" "$tree/README.md"
               touch $out
             '';

@@ -201,7 +201,7 @@ jobs:
     name: Nix
     runs-on: ubuntu-24.04
     env:
-      FLAKE: github:linlog-prover/linlog/${{ github.sha }}
+      FLAKE: github:sequentium/sequentium/${{ github.sha }}
     steps:
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
         with:
@@ -219,7 +219,7 @@ jobs:
           nix profile remove linlog
           test ! -e ~/.nix-profile/bin/linlog
           # An entry without a tag follows `main` by upgrading.
-          nix profile add github:linlog-prover/linlog
+          nix profile add github:sequentium/sequentium
           nix profile upgrade linlog
           linlog --version
           nix profile remove linlog
@@ -291,10 +291,10 @@ jobs:
           RUNNER: ${{ matrix.runner }}
         run: |
           set -eux
-          tag=$(curl -sSf https://api.github.com/repos/linlog-prover/linlog/releases/latest |
+          tag=$(curl -sSf https://api.github.com/repos/sequentium/sequentium/releases/latest |
             sed -n 's/.*"tag_name": *"\(v[^"]*\)".*/\1/p')
           version=${tag#v}
-          base="https://github.com/linlog-prover/linlog/releases/download/$tag"
+          base="https://github.com/sequentium/sequentium/releases/download/$tag"
           if ! curl -sSfLO "$base/SHA256SUMS"; then
             echo "$tag has no prebuilt files"
             exit 0

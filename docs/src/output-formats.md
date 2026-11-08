@@ -229,18 +229,18 @@ provable (MLL, classical, focus engine)
 
 The first two draw these:
 
-![The derivation of 1, A & B, B ⊸ C ⊢ C](https://raw.githubusercontent.com/linlog-prover/linlog/main/core/tests/snapshots/ill.svg)
-![The proof net of ⊢ A⊥ ⅋ B⊥, B ⊗ A](https://raw.githubusercontent.com/linlog-prover/linlog/main/core/tests/snapshots/net.svg)
+![The derivation of 1, A & B, B ⊸ C ⊢ C](https://raw.githubusercontent.com/sequentium/sequentium/main/core/tests/snapshots/ill.svg)
+![The proof net of ⊢ A⊥ ⅋ B⊥, B ⊗ A](https://raw.githubusercontent.com/sequentium/sequentium/main/core/tests/snapshots/net.svg)
 
 and the net with boxes, its two copies of `?a⊥` in the box of
 `!(a ⊗ a)`:
 
-![The proof net of ⊢ ?a⊥, ?c⊥, !(a ⊗ a) ⊗ ?c](https://raw.githubusercontent.com/linlog-prover/linlog/main/core/tests/snapshots/net-boxes.svg)
+![The proof net of ⊢ ?a⊥, ?c⊥, !(a ⊗ a) ⊗ ?c](https://raw.githubusercontent.com/sequentium/sequentium/main/core/tests/snapshots/net-boxes.svg)
 
 and a net in the textbooks' look, its two copies of `a⊥` derelicted in
 the box and contracted below it, `?b⊥` weakened:
 
-![The proof net of ⊢ ?a⊥, ?b⊥, ?(c⊥ ⅋ d⊥), !((a ⊗ a) ⊗ (d ⊗ c)) as the textbooks draw it](https://raw.githubusercontent.com/linlog-prover/linlog/main/core/tests/snapshots/net-promotion-textbook.svg)
+![The proof net of ⊢ ?a⊥, ?b⊥, ?(c⊥ ⅋ d⊥), !((a ⊗ a) ⊗ (d ⊗ c)) as the textbooks draw it](https://raw.githubusercontent.com/sequentium/sequentium/main/core/tests/snapshots/net-promotion-textbook.svg)
 
 `--settings FILE` reads every setting the flags set from one JSON file,
 in the form a front end keeps: an object with any of `clock`, `limits`,

@@ -27,9 +27,9 @@ releases a version tag `vX.Y.Z` (below).
   `install.yml` runs the installation chapter's commands as users run
   them, with each system's own tools, which is what it tests.
 - **Every action is pinned to a full commit SHA**, with the release as
-  a comment: `uses: owner/repo@<sha> # vX.Y.Z`. The organization
-  `linlog-prover` requires it of all actions, GitHub's own included
-  (its Actions policy, since 2026-10-03): a `uses:` with a tag or a
+  a comment: `uses: owner/repo@<sha> # vX.Y.Z`. The organisation
+  `sequentium` requires it of all actions, GitHub's own included
+  (its Actions policy, as `linlog-prover`'s since 2026-10-03): a `uses:` with a tag or a
   branch fails the run. Resolve a tag with
   `gh api repos/<owner>/<repo>/commits/<tag> --jq .sha`, or without `gh`
   by `nix flake prefetch --json github:<owner>/<repo>/<tag>` (its
@@ -50,7 +50,9 @@ releases a version tag `vX.Y.Z` (below).
 - **The cache: Cachix `linlog-prover`** (public,
   https://linlog-prover.cachix.org, key
   `linlog-prover.cachix.org-1:6K+DDVwwELnSYtfflwUdsHdYuolC7hprdD/r2/KOQZU=`,
-  signed by Cachix). `cachix/cachix-action` follows `install-nix-action`
+  signed by Cachix; the name is Cachix's, not GitHub's, so it stayed
+  when the repositories moved to `sequentium`, and no Cachix page says a
+  cache can be renamed). `cachix/cachix-action` follows `install-nix-action`
   in every job of the four workflows that installs Nix, with the
   repository secret `CACHIX_AUTH_TOKEN` (a write token) and `skipPush`
   unless the ref is `main` (`release.yml` only reads it): pushes to `main`, the weekly run and a dispatch on `main`
@@ -143,6 +145,6 @@ releases a version tag `vX.Y.Z` (below).
   `packages` job's files with their `SHA256SUMS` and a build provenance
   attestation of each (`actions/attest`, `id-token: write`,
   `attestations: write`), which `gh attestation verify FILE --repo
-  linlog-prover/linlog` checks; it waits for `packages` too. The cache is only read (`skipPush`): a tag's builds are
+  sequentium/sequentium` checks; it waits for `packages` too. The cache is only read (`skipPush`): a tag's builds are
   `main`'s. Nothing of it can run before the author's first publication
   and tag; actionlint is all that checks it.

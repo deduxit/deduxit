@@ -206,7 +206,7 @@ Built:
   classical fragment and for intuitionistic proofs as the classical
   proofs they are, with a flake check that runs Rocq on them.
 - A Rocq library of linlog's own (the package `rocq-linlog`, in its own
-  repository, [linlog-prover/rocq-linlog](https://github.com/linlog-prover/rocq-linlog),
+  repository, [sequentium/rocq-linlog](https://github.com/sequentium/rocq-linlog),
   on Rocq 9 and its standard library alone): the one-sided calculus of
   classical linear logic as a plain inductive, with Mix and general
   weakening as parameters, and the two-sided calculus of intuitionistic
@@ -315,7 +315,7 @@ Built:
   the module and its JavaScript, and tested under Node; the library's
   checker and memo are tested on a 32-bit target there too.
 - A web page for proving step by step in the browser on those bindings,
-  [linlog-prover.github.io](https://linlog-prover.github.io/), with
+  [sequentium.github.io](https://sequentium.github.io/), with
   lessons, in a repository of its own.
 
 Planned, in roughly this order:
@@ -331,4 +331,4 @@ linlog is very much inspired by [Click & coLLecT](https://www.click-and-collect.
 It aims to support more use cases on a modern, more efficient base.
 Feature requests and contributions are welcome. linlog is licensed
 under the EUPL; see
-[Licence](https://github.com/linlog-prover/linlog/blob/main/README.md#licence).
+[Licence](https://github.com/sequentium/sequentium/blob/main/README.md#licence).

@@ -2,8 +2,8 @@
 // Licensed under the EUPL
 
 #![doc(
-    html_logo_url = "https://linlog-prover.github.io/logo/square-dark.svg",
-    html_favicon_url = "https://linlog-prover.github.io/logo/favicon-32.png"
+    html_logo_url = "https://sequentium.github.io/logo/square-dark.svg",
+    html_favicon_url = "https://sequentium.github.io/logo/favicon-32.png"
 )]
 //! Decides sequents of linear logic: parse a sequent, prove it, get a
 //! proof the checker has validated, and print or export it. A caller adds
@@ -26,9 +26,9 @@
 //!
 //! A guide to the crate and to the `linlog` command for AI models is
 //! served beside this documentation, its summary as
-//! [`llms.txt`](https://linlog-prover.github.io/linlog/llms.txt) and its
+//! [`llms.txt`](https://sequentium.github.io/sequentium/llms.txt) and its
 //! full reference as
-//! [`llms-full.txt`](https://linlog-prover.github.io/linlog/llms-full.txt).
+//! [`llms-full.txt`](https://sequentium.github.io/sequentium/llms-full.txt).
 //!
 //! # The common path
 //!

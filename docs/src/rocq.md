@@ -3,7 +3,7 @@
 `--format rocq` writes the derivation as a Rocq certificate for one of
 two kernels, which `--kernel` names: `nanoyalla`, the default for
 classical linear logic, or `linlog`, linlog's own Rocq library
-([linlog-prover/rocq-linlog](https://github.com/linlog-prover/rocq-linlog)), the
+([sequentium/rocq-linlog](https://github.com/sequentium/rocq-linlog)), the
 default for Mix, affine and intuitionistic logic and for a sequent with
 a quantifier. The verdict becomes a
 comment, and `--standalone` adds the import lines.
@@ -129,7 +129,7 @@ no certificate: a refutation of kind `exhausted` rests on the search and has no 
 ```
 
 The library is the package `rocq-linlog`, in a repository of its own,
-[linlog-prover/rocq-linlog](https://github.com/linlog-prover/rocq-linlog),
+[sequentium/rocq-linlog](https://github.com/sequentium/rocq-linlog),
 on Rocq 9.0 to 9.3 and its standard library alone; its version is
 linlog's, so linlog 0.2.0's certificates compile against rocq-linlog
 0.2.0. Install it with opam, from the Rocq opam archive once the release
@@ -138,14 +138,14 @@ is there, or from its tag meanwhile:
 ```sh
 opam repo add rocq-released https://rocq-prover.org/opam/released
 opam install rocq-linlog
-opam pin add rocq-linlog https://github.com/linlog-prover/rocq-linlog.git#v0.2.0
+opam pin add rocq-linlog https://github.com/sequentium/rocq-linlog.git#v0.2.0
 ```
 
 `opam upgrade rocq-linlog` takes a newer release from the archive and
 `opam remove rocq-linlog` removes it; a package pinned to a tag stays
 there until pinned to the next.
 
-or build it with Nix (`nix build github:linlog-prover/rocq-linlog/v0.2.0`)
+or build it with Nix (`nix build github:sequentium/rocq-linlog/v0.2.0`)
 or `make` in a checkout with Rocq on the path. Installed, a certificate
 compiles as it is; built in place, with the theories on the load path:
 
@@ -156,4 +156,4 @@ $ rocq compile -R path/to/rocq-linlog/theories Linlog mix.v
 
 The library's README says what it covers and what not, and its
 documentation is at
-[linlog-prover.github.io/rocq-linlog](https://linlog-prover.github.io/rocq-linlog/).
+[sequentium.github.io/rocq-linlog](https://sequentium.github.io/rocq-linlog/).

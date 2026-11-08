@@ -7,7 +7,7 @@
   const icon = document.querySelector('link[rel="icon"]');
   const dark = window.matchMedia("(prefers-color-scheme: dark)");
   const set = () => {
-    icon.href = `https://linlog-prover.github.io/logo/square-${dark.matches ? "dark" : "light"}.svg`;
+    icon.href = `https://sequentium.github.io/logo/square-${dark.matches ? "dark" : "light"}.svg`;
   };
   set();
   dark.addEventListener("change", set);
