@@ -4858,3 +4858,26 @@ move (D26).
     and the session for small defects (53a) in 0.3.0.
   - Steps 47 (the measurement) and 48a (the move prepared) start side
     by side.
+- 2026-11-08: step 47 done and reviewed: 0.2.0 measured
+  (`plan/reports/47-measurement.md`).
+  - The figures:
+    - the web module is 6 913 020 B raw, 2 603 759 at gzip -9 and
+      1 854 124 at brotli -11, with the PNG and PDF renderers' crates at
+      least 39.9 % of it;
+    - the client's critical path is 120 KB gzipped, against its
+      design's 170;
+    - release builds relink everything (fat LTO, the binary's link
+      66.5 s);
+    - the ratchet passes with two journeys near the tolerance
+      (+1.95 %, +1.76 %).
+  - The target sets, labels 47 and net-47, are the new oracles.
+  - Checked here:
+    - the module's three sizes recomputed from `nix build .#linlog-web`
+      (equal);
+    - both target sets against 45d and net-45d by `linlog-bench summary
+      --against … --counters` (no verdict and no counter differs).
+  - 48a's flake check ran beside the timed slot; only the counters,
+    which load does not move, are compared. The target sets now take
+    seconds, not minutes.
+  - One departure: the client's critical path was read off Astro's
+    output, which prints no size table.
