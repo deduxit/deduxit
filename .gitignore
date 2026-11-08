@@ -40,6 +40,9 @@ scratchpad*.md
 # Claude Code: personal, per-machine overrides
 .claude/settings.local.json
 CLAUDE.local.md
+# Claude Code's own git worktrees; .claude/hooks/jj-worktree.py makes jj
+# workspaces beside the repository instead, but the path stays ignored
+.claude/worktrees/
 # The baseline's rows, which `result*` above would hide, but not its
 # progress logs
 !/bench/results/

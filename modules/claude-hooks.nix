@@ -141,6 +141,16 @@
       registered = lib.concatMap (
         entry: lib.optionals (entry.matcher == "Bash") (map (hook: baseNameOf hook.command) entry.hooks)
       ) (settings.hooks.PreToolUse or [ ]);
+
+      # The one hook there that is no guard: it makes and removes jj
+      # workspaces for isolated sessions, so it has a behavioural test of its
+      # own (`claude-worktree-hook`) instead of cases.
+      worktreeHook = "jj-worktree.py";
+      registeredFor =
+        event:
+        lib.any (entry: lib.any (hook: baseNameOf hook.command == worktreeHook) entry.hooks) (
+          settings.hooks.${event} or [ ]
+        );
     in
     {
       checks.claude-hooks =
@@ -155,8 +165,9 @@
             # settings.json runs each guard by its path, so it must be
             # executable and say its interpreter (the cases below run it
             # with python3, which tests neither); and every executable
-            # script there is a guard with cases (command_line.py is a module
-            # the guards import, not executable).
+            # script there but the worktree hook is a guard with cases
+            # (command_line.py is a module the guards import, not
+            # executable).
             for hook in ${lib.concatStringsSep " " (lib.attrNames cases)}; do
               if [ ! -x ${hooks}/"$hook" ] || [ "$(head -n 1 ${hooks}/"$hook")" != "#!/usr/bin/env python3" ]; then
                 echo "$hook is not executable with #!/usr/bin/env python3" >&2
@@ -165,7 +176,8 @@
             done
             for script in ${hooks}/*.py; do
               name=''${script##*/}
-              if [ -x "$script" ] && ! grep -qxF "$name" <<< "${lib.concatLines (lib.attrNames cases)}"; then
+              if [ -x "$script" ] && [ "$name" != ${worktreeHook} ] \
+                && ! grep -qxF "$name" <<< "${lib.concatLines (lib.attrNames cases)}"; then
                 echo "$name is an executable guard without cases here" >&2
                 fail=1
               fi
@@ -183,6 +195,32 @@
               fi
             done < "$cases"
             [ "$fail" = 0 ]
+            touch $out
+          '';
+
+      # The worktree hook against a throwaway colocated repository: where a
+      # workspace goes, that removal deletes only an empty one it made, what
+      # `prune` keeps (modules/claude-worktree-hook-test.py); and that
+      # settings.json runs it for both events, by its path.
+      checks.claude-worktree-hook =
+        pkgs.runCommand "check-claude-worktree-hook"
+          {
+            nativeBuildInputs = [
+              pkgs.python3
+              pkgs.jujutsu
+              pkgs.git
+            ];
+          }
+          ''
+            ${lib.optionalString (!(registeredFor "WorktreeCreate" && registeredFor "WorktreeRemove")) ''
+              echo "${worktreeHook} is not registered for WorktreeCreate and WorktreeRemove" >&2
+              exit 1
+            ''}
+            if [ ! -x ${hooks}/${worktreeHook} ] || [ "$(head -n 1 ${hooks}/${worktreeHook})" != "#!/usr/bin/env python3" ]; then
+              echo "${worktreeHook} is not executable with #!/usr/bin/env python3" >&2
+              exit 1
+            fi
+            python3 ${./claude-worktree-hook-test.py} ${hooks}/${worktreeHook}
             touch $out
           '';
     };

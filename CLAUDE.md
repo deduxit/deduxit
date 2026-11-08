@@ -290,7 +290,10 @@ even to read.** Every operation goes through `jj`, including lock updates:
 ## Claude Code setup
 
 `.claude/` is checked in: the hooks (the git and `jj new -m` guards, the
-formatter, a SessionStart note on the jj working copy), permission rules,
+formatter, a SessionStart note on the jj working copy, and jj workspaces
+in place of Claude Code's git worktrees for isolated agents and sessions,
+`../linlog-wt-NAME`, whose empty leftovers `.claude/hooks/jj-worktree.py
+prune` removes), permission rules,
 the `crate-source-explorer` agent (use it before guessing at a
 dependency's API), the `update-deps` and `new-tool` skills (the latter
 whenever a crate or tool is added or adopted), the `graceful-stop`

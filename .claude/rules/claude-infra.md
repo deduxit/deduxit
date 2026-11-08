@@ -122,6 +122,22 @@ Current contents:
   subdirectory).
 - `hooks/session-jj-state.sh`: `SessionStart`, prints `@` and `@-` and any
   bookmark `@` is stacked on that `main` lacks.
+- `hooks/jj-worktree.py`: `WorktreeCreate` and `WorktreeRemove`, which
+  replace Claude Code's git worktrees (a sub-agent's `isolation:
+  "worktree"`, `--worktree`, a background session, a workflow agent): in
+  this colocated repository a git worktree under `.claude/worktrees/` is
+  one jj does not know, and a jj command there acts on the main
+  workspace. It makes a jj workspace `wt-NAME` in `../linlog-wt-NAME` on
+  `@-` of the session's workspace (committed work only, as git's HEAD),
+  copies what `.worktreeinclude` names, and prints the directory; on
+  removal it deletes only a workspace it made whose `@` is empty, and
+  exits 1 otherwise, since Claude Code's check for uncommitted work reads
+  git and sees nothing in a workspace this hook made. Claude Code keeps
+  the workspaces of sub-agents and workflow agents and never asks to
+  remove them: once their commits are taken, `.claude/hooks/jj-worktree.py
+  prune` removes every empty one. The `claude-worktree-hook` check
+  (`modules/claude-worktree-hook-test.py`) runs it against a throwaway
+  colocated repository.
 - `settings.json`: allow rules for the build/check commands and jj's read-only
   ones, `ask` on `jj git push` and on every `gh` command (the GitHub CLI is
   logged in with the author's rights over the organization and beyond; see
@@ -158,7 +174,10 @@ Current contents:
   enters a worktree.
 - **Fail open.** A missing tool, an unparseable payload or any error exits 0.
   A hook that can wedge the session is worse than no hook. Only a guard that
-  is confident blocks, with exit 2.
+  is confident blocks, with exit 2. `jj-worktree.py` is the exception: a
+  creation that goes wrong exits 1 and Claude Code makes no worktree,
+  which is the safe side (the default would be a git worktree jj cannot
+  see), and a removal it doubts keeps the workspace.
 - **The guards are plain Python** and catch every exception. Without python3
   the harness reports a non-blocking hook error, which is still open.
 - **Both guards read a command line one way** (`command_line.py`,
