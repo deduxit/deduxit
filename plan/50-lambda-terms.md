@@ -16,6 +16,29 @@ and the rules of the two-sided surface and of the ordinary layer
 (`core-ordinary.md`), the reports of steps 40 and 41, and `plan/README.md`'s
 D13, D15, D16 and D17.
 
+## What step 49 left you (added at its review, 2026-11-08)
+
+- **The ordinary layer proves step by step**: `ordinary::Interactive`
+  (feature `interactive`), its JSON at wire level 8 (`wire::ORDINARY`),
+  and `ViewOptions::structural` (admissible by default: weakenings and
+  contractions hidden where admissible). In LJ every goal keeps one
+  formula right of ⊢, `Γ ⊢` read as `Γ ⊢ ⊥`, and a shared →L or ¬L gives
+  both premises every hypothesis through hidden contractions. An LJ
+  derivation's read-back must therefore read through those structural
+  steps (contraction duplicates a variable's uses, weakening leaves one
+  unused).
+- **The command**: `linlog interact --logic
+  classical|intuitionistic|minimal`, and `--structural` on `prove` and
+  `interact`. Reports: `plan/reports/49-ordinary-interactive.md`.
+- **The bindings**: the nine `ordinary_*` calls, and `about`'s `suites`
+  (linear with `mode`, ordinary with `logic`). A new call for the term
+  is a row of both suites' calls where it applies (`web.md`).
+- **The page**: a suite registry (`src/lib/suites.ts` in the client),
+  links at `v=2` and the shelf at version 2. 50b adds the term to the
+  bottom band for both suites through the registry.
+- **The web module** after 49b is 7 148 412 bytes raw (+3.4 % on step
+  47's 6 913 020). Say 50's growth against both figures.
+
 ## Goal
 
 Every intuitionistic proof linlog finds or checks shows its program: an
