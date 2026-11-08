@@ -286,7 +286,9 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
         // The verdict first, then the derivation as it is made.
         let ended = Ended { stop, elapsed };
         let line = show.verdict.then(|| match &image {
-            Some(image) => crate::ordinary::verdict_line(&outcome, image, &ended),
+            Some(image) => {
+                crate::ordinary::verdict_line(&outcome, image.logic(), image.translation(), &ended)
+            }
             None => verdict_line(&outcome, options.fragment.is_some(), &ended),
         });
         let prefix = show.open(&mut out, line.as_deref())?;

@@ -531,6 +531,19 @@ impl SequentInput {
         Ok((Forest::from_owned(sequent, &bound(most))?, image))
     }
 
+    /// Reads the input as an ordinary sequent, as [`image`](Self::image)
+    /// does before it translates it, within `limits.occurrences` and a
+    /// text within `limits.memory_bytes`.
+    ///
+    /// # Errors
+    ///
+    /// An input that cannot be read, text that is no ordinary sequent or
+    /// TPTP problem, or one past the limits.
+    pub(crate) fn ordinary(&self, limits: &Limits) -> Result<linlog::ordinary::Sequent> {
+        let (text, format) = self.text(true, limits.memory_bytes)?;
+        crate::ordinary::sequent_in(&text, format, Most::of(limits))
+    }
+
     /// Returns the bounds the flags give the sequent.
     pub(crate) fn most(&self) -> Most {
         Most {

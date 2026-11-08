@@ -23,6 +23,8 @@ use std::io::{IsTerminal, Write};
 use std::path::Path;
 use std::time::{Duration, Instant};
 
+mod ordinary;
+
 /// The commands, as `help` prints them.
 const HELP: &str = "\
 goals               the open goals, with the positions of their formulas
@@ -63,15 +65,20 @@ quit                end the session";
 /// the session goes on.
 pub(crate) fn interact(args: &InteractArgs, given: &Given) -> Result<Status> {
     let settings = args.settings(given)?;
-    let state = match &args.state {
-        Some(path) => load(path, &settings.limits)?,
+    let saved = match &args.state {
+        Some(path) => Some(load(path, &settings.limits)?),
+        None => None,
+    };
+    // `--state` conflicts with `--logic`, so a session is saved or has a
+    // logic, never both.
+    if args.logic.logic.is_some() {
+        return ordinary::interact(args, settings, None);
+    }
+    let state = match saved {
+        Some(Saved::Linear(state)) => *state,
+        Some(Saved::Ordinary(state)) => return ordinary::interact(args, settings, Some(*state)),
         None => {
-            let stdin = args.input.file.iter().any(|f| f.as_os_str() == "-");
-            if stdin || (args.input.sequent.is_none() && args.input.file.is_empty()) {
-                bail!(
-                    "no sequent given: pass it as an argument or with --file, since standard input carries the commands"
-                );
-            }
+            no_standard_input(args)?;
             let sequent =
                 args.input
                     .sequent(&settings.limits, &settings.input, args.mode.mode())?;
@@ -102,7 +109,77 @@ pub(crate) fn interact(args: &InteractArgs, given: &Given) -> Result<Status> {
         groups: Vec::new(),
     };
     let invertible = settings.interactive.invertible;
-    on_large_stack(stack_size, move || session.run(invertible))?
+    on_large_stack(stack_size, move || {
+        let first = if invertible {
+            session.invert_all()
+        } else {
+            None
+        };
+        run(&mut session, first.map(|taken| format!("applied {taken}")))
+    })?
+}
+
+/// A session's commands, as the loop of [`run`] hands them over.
+trait Commands {
+    /// Runs one command, its words as [`words`] split them, and returns
+    /// what to print.
+    fn command(&mut self, words: &[&str]) -> Result<String>;
+    /// Returns whether the proof is finished and checks.
+    fn finished(&self) -> bool;
+}
+
+/// Prints `first` if given, then reads and runs commands until `quit` or
+/// the end of input, and returns whether the proof was finished and
+/// checks.
+fn run(session: &mut impl Commands, first: Option<String>) -> Result<Status> {
+    let stdin = std::io::stdin();
+    let prompt = stdin.is_terminal();
+    let mut stdout = io::Stdout::lock();
+    if let Some(first) = first {
+        writeln!(stdout, "{first}")?;
+    }
+    let mut input = stdin.lock();
+    // A reader that closed the pipe ends the session as the end of its
+    // input does.
+    while !io::closed() {
+        if prompt {
+            write!(stdout, "> ")?;
+            stdout.flush()?;
+        }
+        let Some(line) = io::line(&mut input).context("cannot read standard input")? else {
+            break;
+        };
+        let text = match words(&line) {
+            Ok(words) if words.first().is_some_and(|w| w == "quit") => break,
+            Ok(words) => {
+                let words: Vec<&str> = words.iter().map(String::as_str).collect();
+                session
+                    .command(&words)
+                    .unwrap_or_else(|e| format!("error: {e:#}"))
+            }
+            Err(e) => format!("error: {e:#}"),
+        };
+        if !text.is_empty() {
+            writeln!(stdout, "{text}")?;
+        }
+    }
+    Ok(if session.finished() {
+        Status::Yes
+    } else {
+        Status::No
+    })
+}
+
+/// Refuses a session whose sequent would come from standard input, which
+/// carries the commands: the sequent is an argument or a file.
+fn no_standard_input(args: &InteractArgs) -> Result<()> {
+    let stdin = args.input.file.iter().any(|f| f.as_os_str() == "-");
+    if stdin || (args.input.sequent.is_none() && args.input.file.is_empty()) {
+        bail!(
+            "no sequent given: pass it as an argument or with --file, since standard input carries the commands"
+        );
+    }
+    Ok(())
 }
 
 /// What a target's `write` makes of a derivation, as a string.
@@ -155,13 +232,37 @@ fn words(line: &str) -> Result<Vec<String>> {
     Ok(words)
 }
 
+/// A session read from a file: of linear logic, or of LK or LJ.
+enum Saved {
+    /// A session of linear logic.
+    Linear(Box<Interactive>),
+    /// A session of LK or LJ.
+    Ordinary(Box<linlog::ordinary::Interactive>),
+}
+
 /// Reads a session from a JSON file, its sequent within
-/// `limits.occurrences` and its first-order terms within `limits.terms`.
-fn load(path: &Path, limits: &Limits) -> Result<Interactive> {
+/// `limits.occurrences` and its first-order terms within `limits.terms`:
+/// a session of LK or LJ when the document names a logic, else one of
+/// linear logic.
+fn load(path: &Path, limits: &Limits) -> Result<Saved> {
+    /// The key a session of LK or LJ has and a linear one lacks.
+    #[derive(serde::Deserialize)]
+    struct Probe {
+        /// The session's logic.
+        logic: Option<serde::de::IgnoredAny>,
+    }
     let text = io::read(Some(path), "session", limits.memory_bytes)?;
     let mut document = serde_json::Deserializer::from_str(&text);
     let not = || format!("{} is not a saved session", path.display());
-    match linlog::wire::upgrade::<Interactive, _>(&mut document, limits) {
+    let ordinary = serde_json::from_str::<Probe>(&text).is_ok_and(|probe| probe.logic.is_some());
+    let read = if ordinary {
+        linlog::wire::upgrade::<linlog::ordinary::Interactive, _>(&mut document, limits)
+            .map(|session| Saved::Ordinary(Box::new(session)))
+    } else {
+        linlog::wire::upgrade::<Interactive, _>(&mut document, limits)
+            .map(|session| Saved::Linear(Box::new(session)))
+    };
+    match read {
         Ok(session) => {
             document.end().with_context(not)?;
             Ok(session)
@@ -207,52 +308,19 @@ struct Session {
     groups: Vec<(usize, usize)>,
 }
 
-impl Session {
-    /// Applies the invertible rules first if `invertible`, then reads and
-    /// runs commands until `quit` or the end of input, and returns whether
-    /// the proof was finished and checks.
-    fn run(&mut self, invertible: bool) -> Result<Status> {
-        let stdin = std::io::stdin();
-        let prompt = stdin.is_terminal();
-        let mut stdout = io::Stdout::lock();
-        if invertible && let Some(taken) = self.invert_all() {
-            writeln!(stdout, "applied {taken}")?;
-        }
-        let mut input = stdin.lock();
-        // A reader that closed the pipe ends the session as the end of
-        // its input does.
-        while !io::closed() {
-            if prompt {
-                write!(stdout, "> ")?;
-                stdout.flush()?;
-            }
-            let Some(line) = io::line(&mut input).context("cannot read standard input")? else {
-                break;
-            };
-            let text = match words(&line) {
-                Ok(words) if words.first().is_some_and(|w| w == "quit") => break,
-                Ok(words) => {
-                    let words: Vec<&str> = words.iter().map(String::as_str).collect();
-                    self.command(&words)
-                        .unwrap_or_else(|e| format!("error: {e:#}"))
-                }
-                Err(e) => format!("error: {e:#}"),
-            };
-            if !text.is_empty() {
-                writeln!(stdout, "{text}")?;
-            }
-        }
-        Ok(
-            if self.state.is_complete() && self.state.proof(&self.limits, |_| false).is_ok() {
-                Status::Yes
-            } else {
-                Status::No
-            },
-        )
+impl Commands for Session {
+    fn command(&mut self, words: &[&str]) -> Result<String> {
+        self.answer(words)
     }
 
+    fn finished(&self) -> bool {
+        self.state.is_complete() && self.state.proof(&self.limits, |_| false).is_ok()
+    }
+}
+
+impl Session {
     /// Runs one command and returns what to print.
-    fn command(&mut self, words: &[&str]) -> Result<String> {
+    fn answer(&mut self, words: &[&str]) -> Result<String> {
         let (command, rest) = words.split_first().map_or(("", &[][..]), |(c, r)| (*c, r));
         let positions = |from: usize| -> Result<Vec<usize>> {
             rest.get(from..)
@@ -385,28 +453,12 @@ impl Session {
                 text
             }
             "show" => {
-                let (word, path) = match rest {
-                    [] => (None, None),
-                    [word] if word.starts_with("--") => (Some(*word), None),
-                    [path] => (None, Some(file_word(path)?)),
-                    [word, path] if word.starts_with("--") => (Some(*word), Some(*path)),
-                    _ => bail!("show [--FORMAT] [FILE]: one format and one file at most"),
-                };
-                let format = match (word, path) {
-                    (Some(word), _) => format_of(false, word)?,
-                    (None, Some(path)) => Format::of_path(Path::new(path)).unwrap_or(Format::Text),
-                    (None, None) => Format::Text,
-                };
+                let (format, path) = show_target(rest)?;
                 let derivation = self
                     .state
                     .derivation_within(&self.view, &self.limits, |_| false)?;
                 let styles = &self.styles;
                 let text = match format {
-                    Format::Text => {
-                        let mut text = String::new();
-                        derivation.write_text(&styles.text, &mut text, |_| false)?;
-                        text
-                    }
                     Format::Latex => {
                         written(|out| latex::write(&derivation, &styles.latex, out, |_| false))?
                     }
@@ -416,57 +468,12 @@ impl Session {
                     Format::Svg | Format::Png | Format::Pdf => {
                         written(|out| svg::write(&derivation, &styles.svg, out, |_| false))?
                     }
-                    Format::Json | Format::Rocq => bail!(
-                        "show writes the derivation so far as --text, --latex, --typst, --svg, \
-                         --png or --pdf; `save` writes the session, `proof --rocq` a finished proof"
-                    ),
+                    _ => written(|out| derivation.write_text(&styles.text, out, |_| false))?,
                 };
-                match (path, format.is_binary()) {
-                    (None, true) => bail!("a {} needs a FILE to be written to", format.title()),
-                    (None, false) => text,
-                    (Some(path), true) => {
-                        // A Ctrl-C of an earlier `close` must not stop it.
-                        clear_interrupt();
-                        match render(text, format, styles, self.limits.memory_bytes, &interrupted)?
-                        {
-                            Rendered::Bytes(bytes) => {
-                                let mut out = io::Output::open(Some(Path::new(path)), true)?;
-                                out.stream().write_all(&bytes)?;
-                                out.finish()?;
-                                format!("derivation so far written to {path}")
-                            }
-                            Rendered::Refused(line) => line,
-                            Rendered::Stopped => {
-                                "the derivation so far is not written: interrupted".to_owned()
-                            }
-                        }
-                    }
-                    (Some(path), false) => {
-                        let mut out = io::Output::open(Some(Path::new(path)), false)?;
-                        out.write_str(&text)?;
-                        out.finish()?;
-                        format!("derivation so far written to {path}")
-                    }
-                }
+                so_far(text, format, path, styles, &self.limits)?
             }
             "proof" => {
-                let (format, path) = match rest {
-                    [] => (None, None),
-                    [word] if word.starts_with("--") => (Some(format_of(true, word)?), None),
-                    [path] => (None, Some(file_word(path)?)),
-                    [word, path] if word.starts_with("--") => {
-                        (Some(format_of(true, word)?), Some(*path))
-                    }
-                    _ => bail!("proof [--FORMAT] [FILE]: one format and one file at most"),
-                };
-                let format = match (format, path) {
-                    (Some(format), _) => format,
-                    (None, Some(path)) => Format::of_path(Path::new(path)).unwrap_or(Format::Json),
-                    (None, None) => Format::Text,
-                };
-                if format.is_binary() && path.is_none() {
-                    bail!("a {} needs a FILE to be written to", format.title());
-                }
+                let (format, path) = proof_target(rest)?;
                 let proof = self.state.proof(&self.limits, |_| false)?;
                 let mode = self.state.mode();
                 let mut text = String::new();
@@ -476,45 +483,25 @@ impl Session {
                 if format == Format::Json {
                     let separator = if text.is_empty() { "" } else { "\n" };
                     text = format!("{text}{separator}{}", serde_json::to_string(&proof)?);
-                } else {
-                    let mut show =
-                        Show::session(format, self.view, self.limits, self.styles.clone());
-                    show.verdict = path.is_none();
-                    // A Ctrl-C of an earlier `close` must not stop it.
-                    clear_interrupt();
-                    let stopped = || "interrupted".to_owned();
-                    let prefix = (!text.is_empty()).then_some("\n");
-                    match derivation(
-                        &proof,
-                        mode,
-                        None,
-                        &show,
-                        interrupted,
-                        stopped,
-                        prefix,
-                        &mut text,
-                    )? {
-                        Shown::LeftOut(line) | Shown::Cut(line) => {
-                            text.push('\n');
-                            text.push_str(&line);
-                        }
-                        Shown::Rendered(bytes) => {
-                            let path = path.expect("a binary format has a file");
-                            let mut out = io::Output::open(Some(Path::new(path)), true)?;
-                            out.stream().write_all(&bytes)?;
-                            out.finish()?;
-                            return Ok(format!("valid proof written to {path}"));
-                        }
-                        Shown::Written | Shown::Nothing => {}
-                    }
+                    return proof_written(Shown::Written, text, path);
                 }
-                match path {
-                    Some(path) => {
-                        io::write(Some(Path::new(path)), &text)?;
-                        format!("valid proof written to {path}")
-                    }
-                    None => text,
-                }
+                let mut show = Show::session(format, self.view, self.limits, self.styles.clone());
+                show.verdict = path.is_none();
+                // A Ctrl-C of an earlier `close` must not stop it.
+                clear_interrupt();
+                let stopped = || "interrupted".to_owned();
+                let prefix = (!text.is_empty()).then_some("\n");
+                let shown = derivation(
+                    &proof,
+                    mode,
+                    None,
+                    &show,
+                    interrupted,
+                    stopped,
+                    prefix,
+                    &mut text,
+                )?;
+                proof_written(shown, text, path)?
             }
             "save" => {
                 let [path] = rest else {
@@ -527,7 +514,13 @@ impl Session {
                 let [path] = rest else {
                     bail!("load what? give one file, in quotes if its name has blanks");
                 };
-                let state = load(Path::new(path), &self.limits)?;
+                let state = match load(Path::new(path), &self.limits)? {
+                    Saved::Linear(state) => *state,
+                    Saved::Ordinary(_) => bail!(
+                        "{path} holds a session of LK or LJ; `load` resumes one of this sequent, \
+                         and `linlog interact --state {path}` starts that one"
+                    ),
+                };
                 // The exit status answers for the session's sequent and
                 // mode, so a file of another question is refused, as
                 // `--state` beside a sequent is.
@@ -726,6 +719,127 @@ impl Session {
         }
         line
     }
+}
+
+/// Reads the words after `show`: the format a word with dashes names,
+/// else the one the FILE's extension names, else text, and the FILE if
+/// given.
+///
+/// # Errors
+///
+/// More than a format and a FILE, a format `show` does not write (JSON,
+/// Rocq), and a format's name alone as the FILE.
+fn show_target<'a>(rest: &[&'a str]) -> Result<(Format, Option<&'a str>)> {
+    let (word, path) = match rest {
+        [] => (None, None),
+        [word] if word.starts_with("--") => (Some(*word), None),
+        [path] => (None, Some(file_word(path)?)),
+        [word, path] if word.starts_with("--") => (Some(*word), Some(*path)),
+        _ => bail!("show [--FORMAT] [FILE]: one format and one file at most"),
+    };
+    let format = match (word, path) {
+        (Some(word), _) => format_of(false, word)?,
+        (None, Some(path)) => Format::of_path(Path::new(path)).unwrap_or(Format::Text),
+        (None, None) => Format::Text,
+    };
+    if matches!(format, Format::Json | Format::Rocq) {
+        bail!(
+            "show writes the derivation so far as --text, --latex, --typst, --svg, --png or \
+             --pdf; `save` writes the session, `proof --rocq` a finished proof"
+        );
+    }
+    if format.is_binary() && path.is_none() {
+        bail!("a {} needs a FILE to be written to", format.title());
+    }
+    Ok((format, path))
+}
+
+/// Returns what `show` prints: the derivation so far, `text` in `format`
+/// (an SVG for PNG and PDF), printed, or rendered and written to `path`.
+fn so_far(
+    text: String,
+    format: Format,
+    path: Option<&str>,
+    styles: &Styles,
+    limits: &Limits,
+) -> Result<String> {
+    let Some(path) = path else {
+        return Ok(text);
+    };
+    if format.is_binary() {
+        // A Ctrl-C of an earlier `close` must not stop it.
+        clear_interrupt();
+        return Ok(
+            match render(text, format, styles, limits.memory_bytes, &interrupted)? {
+                Rendered::Bytes(bytes) => {
+                    let mut out = io::Output::open(Some(Path::new(path)), true)?;
+                    out.stream().write_all(&bytes)?;
+                    out.finish()?;
+                    format!("derivation so far written to {path}")
+                }
+                Rendered::Refused(line) => line,
+                Rendered::Stopped => "the derivation so far is not written: interrupted".to_owned(),
+            },
+        );
+    }
+    let mut out = io::Output::open(Some(Path::new(path)), false)?;
+    out.write_str(&text)?;
+    out.finish()?;
+    Ok(format!("derivation so far written to {path}"))
+}
+
+/// Reads the words after `proof`: the format a word with dashes names,
+/// else the one the FILE's extension names, else JSON for a FILE and text
+/// without one, and the FILE if given.
+///
+/// # Errors
+///
+/// More than a format and a FILE, an unknown format, a format's name
+/// alone as the FILE, and PNG or PDF without one.
+fn proof_target<'a>(rest: &[&'a str]) -> Result<(Format, Option<&'a str>)> {
+    let (format, path) = match rest {
+        [] => (None, None),
+        [word] if word.starts_with("--") => (Some(format_of(true, word)?), None),
+        [path] => (None, Some(file_word(path)?)),
+        [word, path] if word.starts_with("--") => (Some(format_of(true, word)?), Some(*path)),
+        _ => bail!("proof [--FORMAT] [FILE]: one format and one file at most"),
+    };
+    let format = match (format, path) {
+        (Some(format), _) => format,
+        (None, Some(path)) => Format::of_path(Path::new(path)).unwrap_or(Format::Json),
+        (None, None) => Format::Text,
+    };
+    if format.is_binary() && path.is_none() {
+        bail!("a {} needs a FILE to be written to", format.title());
+    }
+    Ok((format, path))
+}
+
+/// Returns what `proof` prints: `text`, the verdict and what was written
+/// of the proof as `shown` says, printed or written to `path`, or the
+/// rendered bytes written there.
+fn proof_written(shown: Shown, mut text: String, path: Option<&str>) -> Result<String> {
+    match shown {
+        Shown::LeftOut(line) | Shown::Cut(line) => {
+            text.push('\n');
+            text.push_str(&line);
+        }
+        Shown::Rendered(bytes) => {
+            let path = path.expect("a binary format has a file");
+            let mut out = io::Output::open(Some(Path::new(path)), true)?;
+            out.stream().write_all(&bytes)?;
+            out.finish()?;
+            return Ok(format!("valid proof written to {path}"));
+        }
+        Shown::Written | Shown::Nothing => {}
+    }
+    Ok(match path {
+        Some(path) => {
+            io::write(Some(Path::new(path)), &text)?;
+            format!("valid proof written to {path}")
+        }
+        None => text,
+    })
 }
 
 /// Returns the word given for `show`'s or `proof`'s FILE, refusing a

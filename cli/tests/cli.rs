@@ -631,6 +631,78 @@ fn intuitionistic_mode() {
     assert_eq!((status, out.as_str()), (0, "ILL\n"));
 }
 
+/// `interact --logic` proves an ordinary sequent by the rules of LK or
+/// LJ: formulas named by side and position, a split sending formulas to
+/// the first premise, a rule LJ lacks refused with the reason, an undo,
+/// the session saved and resumed, the finished derivation checked, which
+/// decides the exit status, and an axiom with a context drawn as G3's or
+/// with its weakenings under `--structural explicit`.
+#[test]
+fn ordinary_session() {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("cli-ordinary-session");
+    std::fs::create_dir_all(&dir).unwrap();
+    let session = dir.join("session.json");
+    let script = format!(
+        "goals\napply 0 L0 ->L L1\napply 1 R0 WR\napply 1 L0 ax\nundo\nsave {s}\n",
+        s = session.display()
+    );
+    let line = ["interact", "--logic", "intuitionistic", "a -> b, a |- b"];
+    let (status, out, err) = linlog(&line, &script);
+    assert_eq!(
+        out,
+        format!(
+            "goal 0: L0: a → b, L1: a ⊢ R0: b\n\
+             opened goal 1: L0: a ⊢ R0: a\n\
+             opened goal 2: L0: b ⊢ R0: b\n\
+             error: the rule WR is not one of LJ in intuitionistic logic: its premise would \
+             have no formula right of ⊢, and every goal keeps one\n\
+             closed\n\
+             reopened goal 1: L0: a ⊢ R0: a\n\
+             session written to {}\n",
+            session.display()
+        )
+    );
+    assert_eq!((status, err.as_str()), (1, ""));
+    let script = "apply 1 L0 ax\napply 2 L0 ax\nproof\n";
+    let (status, out, err) = linlog(&["interact", "--state", session.to_str().unwrap()], script);
+    assert_eq!(
+        out,
+        "closed\n\
+         closed; no goal is open: `proof` checks the proof\n\
+         valid proof in LJ (intuitionistic logic)\n\
+         ───── ax   ───── ax\n\
+         a ⊢ a      b ⊢ b\n\
+         ──────────────── →L\n\
+        \x20 a → b, a ⊢ b\n"
+    );
+    assert_eq!((status, err.as_str()), (0, ""));
+    std::fs::remove_dir_all(&dir).unwrap();
+
+    let line = ["interact", "--logic", "classical", "a, b |- a, c"];
+    let (status, out, _) = linlog(&line, "apply 0 L0 ax\nshow\n");
+    assert_eq!(
+        (status, out.as_str()),
+        (
+            0,
+            "closed; no goal is open: `proof` checks the proof\n\
+             ─────────── ax\n\
+             a, b ⊢ a, c\n"
+        )
+    );
+    let line = [&line[..], &["--structural", "explicit"]].concat();
+    let (_, out, _) = linlog(&line, "apply 0 L0 ax\nshow\n");
+    assert_eq!(
+        out,
+        "closed; no goal is open: `proof` checks the proof\n\
+        \x20 ───── ax\n\
+        \x20 a ⊢ a\n\
+        \x20──────── WR\n\
+        \x20a ⊢ a, c\n\
+         ─────────── WL\n\
+         a, b ⊢ a, c\n"
+    );
+}
+
 /// `interact` reads commands from standard input: rules are listed and
 /// applied by goal and position, refused with a reason, undone, goals are
 /// closed by the search, the session is saved and resumed, the finished

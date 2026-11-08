@@ -265,6 +265,13 @@ factored out of the two until the kernel crate is.
   rule above; the derivation reader takes an open goal only as a leaf
   (the text layout's height underflowed under a bare goal with a
   premise).
+- **`Rule` reads from text** (`FromStr`, `derivation.rs`): its name, a
+  subscript as a digit (`∧L1`), and the ASCII spellings of `ASCII`, the
+  connectives as the parser reads them (`/\R`, `->L`, `~R`, `<->L1`) and
+  as words (`andR`, `impL`, `notR`, `iffL1`, `falseL`, `trueR`), the
+  word forms because the command's word splitter takes `\` as an
+  escape. `open` is refused: no step takes it. The serde form stays the
+  name alone.
 - **`Rule::Open`** marks an open goal of a proof in progress and appears
   nowhere else: the checker refuses it first ("an open goal"), `Drawn`
   draws it without a bar or label, as the linear `Rule::Open`.

@@ -235,6 +235,90 @@ impl Display for Rule {
     }
 }
 
+/// The ASCII spellings of the rules, each beside its rule: the
+/// connectives as the parser of ordinary formulas reads them (`/\`, `\/`,
+/// `->`, `~`, `<->`) or as words (`and`, `or`, `imp`, `not`, `iff`,
+/// `false`, `true`), a subscript as a digit.
+const ASCII: [(&str, Rule); 36] = [
+    ("/\\L", Rule::AndLeft),
+    ("/\\L1", Rule::AndLeft1),
+    ("/\\L2", Rule::AndLeft2),
+    ("/\\R", Rule::AndRight),
+    ("\\/L", Rule::OrLeft),
+    ("\\/R", Rule::OrRight),
+    ("\\/R1", Rule::OrRight1),
+    ("\\/R2", Rule::OrRight2),
+    ("->L", Rule::ImpliesLeft),
+    ("->R", Rule::ImpliesRight),
+    ("~L", Rule::NotLeft),
+    ("~R", Rule::NotRight),
+    ("<->L", Rule::IffLeft),
+    ("<->L1", Rule::IffLeft1),
+    ("<->L2", Rule::IffLeft2),
+    ("<->R", Rule::IffRight),
+    ("andL", Rule::AndLeft),
+    ("andL1", Rule::AndLeft1),
+    ("andL2", Rule::AndLeft2),
+    ("andR", Rule::AndRight),
+    ("orL", Rule::OrLeft),
+    ("orR", Rule::OrRight),
+    ("orR1", Rule::OrRight1),
+    ("orR2", Rule::OrRight2),
+    ("impL", Rule::ImpliesLeft),
+    ("impR", Rule::ImpliesRight),
+    ("notL", Rule::NotLeft),
+    ("notR", Rule::NotRight),
+    ("iffL", Rule::IffLeft),
+    ("iffL1", Rule::IffLeft1),
+    ("iffL2", Rule::IffLeft2),
+    ("iffR", Rule::IffRight),
+    ("falseL", Rule::FalseLeft),
+    ("falseR", Rule::FalseRight),
+    ("trueL", Rule::TrueLeft),
+    ("trueR", Rule::TrueRight),
+];
+
+/// The names of every rule a step takes, all but [`Rule::Open`], as an
+/// unknown name's error lists them.
+const NAMES: [&str; Rule::ALL.len() - 1] = {
+    let mut names = [""; Rule::ALL.len() - 1];
+    let mut i = 0;
+    while i < names.len() {
+        names[i] = Rule::ALL[i].name();
+        i += 1;
+    }
+    names
+};
+
+impl std::str::FromStr for Rule {
+    type Err = Error;
+
+    /// Reads a rule from its [`name`](Self::name) or an ASCII spelling of
+    /// it: `/\R` or `andR` for `∧R`, `\/R1` or `orR1` for `∨R₁`, `->L` or
+    /// `impL` for `→L`, `~R` or `notR` for `¬R`, `<->L2` or `iffL2` for
+    /// `↔L₂`, `falseL` for `⊥L`, `trueR` for `⊤R`, and a subscript as a
+    /// digit after the Unicode connective too (`∧L1`). An open goal is no
+    /// rule a step takes, so `open` is refused.
+    fn from_str(text: &str) -> Result<Self, Error> {
+        let digits = text.replace('1', "₁").replace('2', "₂");
+        NAMES
+            .iter()
+            .position(|&name| name == text || name == digits)
+            .map(|i| Self::ALL[i])
+            .or_else(|| {
+                ASCII
+                    .iter()
+                    .find(|(name, _)| *name == text)
+                    .map(|&(_, rule)| rule)
+            })
+            .ok_or_else(|| Error::UnknownName {
+                what: "rule of LK or LJ",
+                name: text.into(),
+                known: &NAMES,
+            })
+    }
+}
+
 /// One inference of a derivation of LK or LJ: the sequent it concludes,
 /// the rule, the formula the rule introduces, and its premises.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1309,6 +1393,25 @@ mod tests {
             assert_eq!(rule as usize, i, "{rule}");
             assert_eq!(plain(rule.markup(false)), rule.name(), "{rule}");
             assert_eq!(plain(rule.markup(true)), rule.name(), "{rule}");
+        }
+    }
+
+    /// Every rule a step takes reads back from its name and from its
+    /// ASCII spelling, and an open goal or an unknown name is refused.
+    #[test]
+    fn rules_read_from_their_names() {
+        for rule in &Rule::ALL[..Rule::ALL.len() - 1] {
+            assert_eq!(rule.name().parse::<Rule>().unwrap(), *rule);
+        }
+        for (name, rule) in super::ASCII {
+            assert_eq!(name.parse::<Rule>().unwrap(), rule, "{name}");
+        }
+        assert_eq!("∨R2".parse::<Rule>().unwrap(), Rule::OrRight2);
+        for refused in ["open", "⊗", "and", "-oL"] {
+            assert!(matches!(
+                refused.parse::<Rule>(),
+                Err(Error::UnknownName { .. })
+            ));
         }
     }
 

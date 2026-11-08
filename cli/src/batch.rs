@@ -728,7 +728,9 @@ impl Shared {
         let status = Status::from(&outcome.verdict);
         let ended = Ended { stop, elapsed };
         let line = match &image {
-            Some(image) => ordinary::verdict_line(&outcome, image, &ended),
+            Some(image) => {
+                ordinary::verdict_line(&outcome, image.logic(), image.translation(), &ended)
+            }
             None => verdict_line(&outcome, search.fragment.is_some(), &ended),
         };
         let mut text = if self.json_lines() {

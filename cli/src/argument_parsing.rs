@@ -186,6 +186,9 @@ pub(crate) struct ProveArgs {
     /// proof read back as LK or LJ
     #[arg(long, requires = "logic")]
     pub(crate) linear: bool,
+    /// How a derivation of LK or LJ shows its structural rules.
+    #[command(flatten)]
+    pub(crate) structural: StructuralArgs,
     /// Search in this fragment instead of the detected one (search.fragment)
     ///
     /// A sequent outside it is an error. A larger fragment than the detected
@@ -559,16 +562,24 @@ pub(crate) struct InteractArgs {
     #[command(flatten)]
     pub(crate) input: SequentInput,
     /// Resume a session saved with `save` instead of starting from a
-    /// sequent; the mode is the file's, so the mode flags are refused
+    /// sequent; the mode or the logic is the file's, so the mode flags and
+    /// --logic are refused
     #[arg(
         long,
         value_name = "PATH",
-        conflicts_with_all = ["sequent", "file", "intuitionistic", "affine", "mix"]
+        conflicts_with_all = ["sequent", "file", "intuitionistic", "affine", "mix", "logic"]
     )]
     pub(crate) state: Option<PathBuf>,
     /// The logic.
     #[command(flatten)]
     pub(crate) mode: ModeArgs,
+    /// The ordinary logic the sequent is in, if any: the session then
+    /// proves it in LK or LJ.
+    #[command(flatten)]
+    pub(crate) logic: LogicArgs,
+    /// How `show` and `proof` draw a derivation of LK or LJ.
+    #[command(flatten)]
+    pub(crate) structural: StructuralArgs,
     /// The search's options, bounds and threads, for a `close`.
     #[command(flatten)]
     pub(crate) search: SearchArgs,
@@ -952,7 +963,9 @@ pub(crate) struct LogicArgs {
     /// logic is decided in affine MALL, with no copy bound, intuitionistic
     /// and minimal logic in ILL, under the time limit, so they may be
     /// answered unknown, and the JSON output is the search's outcome on the
-    /// image. `seq print` prints the image.
+    /// image. `seq print` prints the image. `interact` proves the sequent
+    /// step by step by the rules of LK or LJ, its `close` deciding a goal
+    /// through the translation.
     #[arg(long, value_enum, value_name = "LOGIC")]
     pub(crate) logic: Option<LogicArg>,
     /// The translation into linear logic: affine for classical logic, cbn
@@ -1178,6 +1191,41 @@ impl From<ClassicalSidesArg> for linlog::ClassicalSides {
         match sides {
             ClassicalSidesArg::One => Self::One,
             ClassicalSidesArg::Two => Self::Two,
+        }
+    }
+}
+
+/// How a derivation of LK or LJ shows its weakenings and contractions.
+#[derive(Args, Clone, Debug)]
+pub(crate) struct StructuralArgs {
+    /// How a derivation of LK or LJ (--logic) shows its weakenings and
+    /// contractions: each left out where it is admissible, so that the
+    /// derivation reads as G3's, whose axiom takes a context and whose
+    /// rules contract what they use twice, or every one drawn as the
+    /// checker has it, in every format but rocq (view.structural)
+    ///
+    /// The derivation is the same either way, and its explicit form is the
+    /// one checked; a certificate (--format rocq) names every structural
+    /// rule.
+    #[arg(long, value_enum, value_name = "RULES", default_value_t = StructuralArg::Admissible)]
+    pub(crate) structural: StructuralArg,
+}
+
+/// How a derivation of LK or LJ shows its structural rules.
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum StructuralArg {
+    /// Each weakening and contraction left out where it is admissible
+    Admissible,
+    /// Every weakening and contraction drawn
+    Explicit,
+}
+
+impl From<StructuralArg> for linlog::proofs::Structural {
+    /// Returns the library's value of the switch.
+    fn from(structural: StructuralArg) -> Self {
+        match structural {
+            StructuralArg::Admissible => Self::Admissible,
+            StructuralArg::Explicit => Self::Explicit,
         }
     }
 }

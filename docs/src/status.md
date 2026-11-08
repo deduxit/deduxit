@@ -286,7 +286,11 @@ Built:
   translations and the 0/1 translation into ILL, minimal logic with false
   an atom) with the image printable, the linear proof read back as a
   derivation of LK or LJ that a checker of its own validates and every
-  output draws, and a certificate over `Prop` for Rocq.
+  output draws, its weakenings and contractions drawn or left out where
+  they are admissible, and a certificate over `Prop` for Rocq; and
+  proved step by step in LK and LJ, in the command and the bindings, by
+  a goal state of ordinary sequents whose finished derivation that
+  checker validates.
 - Benchmarks: readers for the problems of the LLTP library and for
   coverability problems in the `.spec` format of the Mist tool, generated
   families with known verdicts (the hard families of the literature and

@@ -89,6 +89,10 @@ valid proof (classical)
    ⊢ A ⊗ ~B, B ⊗ ~C, ~A ⅋ C
 ```
 
+With `--logic`, a session proves a sequent of classical, intuitionistic
+or minimal logic by the rules of LK or LJ instead, with the same
+commands (see [Ordinary logic](ordinary-logic.md#step-by-step)).
+
 The exit status is 0 when the session ends with a finished proof that
 checks, 1 otherwise; a command's error is printed as `error: …` and the
 session goes on, and 2 means the session could not start or read its

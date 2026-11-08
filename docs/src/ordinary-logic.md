@@ -11,9 +11,7 @@ checked by the rules of the logic before it is shown:
 ```console
 $ linlog prove --logic classical '((a -> b) -> a) -> a'
 valid (classical logic by the affine translation into affine MALL, focus engine)
-  ───── ax
-  a ⊢ a
- ──────── WR
+ ──────── ax
  a ⊢ b, a
 ────────── →R   ───── ax
 ⊢ a → b, a      a ⊢ a
@@ -33,6 +31,28 @@ a ⊢ b ∨ a       b ⊢ b ∨ a
    ⊢ (a ∨ b) → (b ∨ a)
 $ linlog prove --logic intuitionistic '~~a -> a'
 not valid (intuitionistic logic by the cbn translation into ILL, two-sided engine): the image is unprovable: the search was exhaustive
+```
+
+The derivation is checked with every weakening and contraction as an
+inference of its own, and drawn with each of them left out where it is
+admissible, so that it reads as in G3, whose axiom takes a context
+(`a ⊢ b, a` above) and whose rules contract what they use twice;
+`--structural explicit` draws every one (the key `view.structural`), and
+a certificate names every one whatever the flag says:
+
+```console
+$ linlog prove --logic classical --structural explicit '((a -> b) -> a) -> a'
+valid (classical logic by the affine translation into affine MALL, focus engine)
+  ───── ax
+  a ⊢ a
+ ──────── WR
+ a ⊢ b, a
+────────── →R   ───── ax
+⊢ a → b, a      a ⊢ a
+───────────────────── →L
+   (a → b) → a ⊢ a
+ ─────────────────── →R
+ ⊢ ((a → b) → a) → a
 ```
 
 Classical logic goes into affine MALL without exponentials (negation
@@ -91,5 +111,83 @@ $ linlog prove --logic classical --format rocq 'a -> b, b |- a'
 Lemma certificate : ~ (forall a b : Prop, (a -> b) -> b -> a).
 Proof.
   intro H. specialize (H False True). tauto.
+Qed.
+```
+
+## Step by step
+
+`linlog interact --logic classical`, `intuitionistic` or `minimal`
+proves the sequent step by step by the rules of LK or LJ, with the
+commands of a linear session (see [Interactive proving](interactive.md)):
+`goals`, `rules`, `apply`, `undo`, `close`, `show`, `proof`, `save`,
+`load`, `help` and `quit`. A formula is named by its side and its position
+there, `L0`, `L1`, … left of `⊢` and `R0`, `R1`, … right of it, as `goals`
+lists them; a rule by its name or an ASCII spelling (`andR`, `orR1`, `->L`
+or `impL`, `~R` or `notR`, `iffL1`, `falseL`, `WL`, `CR`). The axiom closes
+a goal that has its formula on both sides, whatever else it holds. A rule
+with two premises gives both the whole context, as LJ's `→L` does in G3,
+unless the formulas named after the rule go to the first premise and
+the rest to the second (`apply 1 L1 ->L L0` sends `L0` to the first).
+`close` decides a goal through the translation (`--translation` chooses
+it) and grafts the derivation found, which `undo` takes back whole:
+
+```console
+$ linlog interact --logic intuitionistic 'a -> b, b -> c |- a -> c'
+> goals
+goal 0: L0: a → b, L1: b → c ⊢ R0: a → c
+> apply 0 R0 ->R
+opened goal 1: L0: a → b, L1: b → c, L2: a ⊢ R0: c
+> rules 1 L1
+WL  CL  →L (with a split or none)
+> apply 1 L1 ->L
+opened goal 4: L0: a → b, L1: a ⊢ R0: b
+opened goal 5: L0: a → b, L1: c, L2: a ⊢ R0: c
+> apply 5 L1 ax
+closed
+> close 4
+goal 4: valid (intuitionistic logic by the cbn translation into ILL, two-sided engine)
+no goal is open: `proof` checks the proof
+> proof
+valid proof in LJ (intuitionistic logic)
+───── ax   ───── ax
+a ⊢ a      b ⊢ b
+──────────────── →L   ─────────────── ax
+  a → b, a ⊢ b        a → b, c, a ⊢ c
+  ─────────────────────────────────── →L
+          a → b, b → c, a ⊢ c
+          ──────────────────── →R
+          a → b, b → c ⊢ a → c
+```
+
+In intuitionistic and minimal logic every goal keeps one formula right
+of `⊢`: a sequent with none starts as `Γ ⊢ ⊥`, the rules of LK that
+would leave a premise with none or two (`WR`, `CR`, `⊥R`, `∨R` with both
+disjuncts) are refused with the reason, and `¬R` and `¬L` take the form
+of `→R` and `→L` for `A → ⊥`; minimal logic has no `⊥L`. The goals the
+search cannot decide stay open with the reason, as `prove` gives it.
+`show` draws the derivation so far, open goals as bare sequents, and
+`proof` checks the finished one and prints it in every format of
+`prove`, `--structural` choosing how the structural rules are drawn
+(`proof --rocq` names every one); `save` writes the session as JSON,
+which `--state FILE` resumes:
+
+```console
+$ linlog interact --logic minimal 'a |- ~~a'
+> apply 0 R0 ~R
+opened goal 1: L0: a, L1: ¬a ⊢ R0: ⊥
+> apply 1 R0 falseR
+error: the rule ⊥R is not one of LJ in minimal logic: its premise would have no formula right of ⊢, and every goal keeps one
+> apply 1 L1 ~L
+opened goal 3: L0: a ⊢ R0: a
+opened goal 4: L0: a, L1: ⊥ ⊢ R0: ⊥
+> close
+goal 3: valid (minimal logic by the cbn translation into ILL, horn engine)
+goal 4: valid (minimal logic by the cbn translation into ILL, horn engine)
+no goal is open: `proof` checks the proof
+> proof --rocq
+valid proof in LJ (minimal logic)
+Lemma certificate : forall a : Prop, a -> (~ ~ a).
+Proof.
+  exact (fun (a : Prop) (h'1 : a) => (fun h'2 : (~ a) => (let h'3 : False := h'2 (h'1) in h'3))).
 Qed.
 ```

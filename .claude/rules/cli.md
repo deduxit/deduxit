@@ -89,13 +89,40 @@ binary `linlog` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   The derivation shown is the read-back (`ordinary::derivation`: the
   linear derivation under the view's bounds, `read_back`, `check`, then
   the format's `ordinary` writer, Rocq's being the certificate over
-  `Prop`), or with `--linear` the linear proof as without `--logic`. A
+  `Prop`), drawn with its weakenings and contractions as
+  `view.structural` says (`--structural`, admissible by default, so the
+  behaviour lock's `file-tptp` draws G3's axiom; Rocq always explicit,
+  `ordinary::shown`), or with `--linear` the linear proof as without
+  `--logic`. A
   read-back that fails its check is an error (exit 2), a defect. JSON is
   the search's outcome on the image, unchanged. `seq print --logic`
   prints the image (two-sided for ILL). In a batch the logic applies to
   every entry, `lines` being ordinary sequents, and JSON and LLTP inputs
   refused per entry.
-- `interact.rs`: `interact`, a line-based session over `Interactive`:
+- `interact/ordinary.rs`: `interact --logic`, a session of LK or LJ over
+  `ordinary::Interactive`, started from an ordinary sequent (read as
+  `prove --logic` reads one, `SequentInput::ordinary`) or from a saved
+  session that names a logic (`load` probes the file's `logic` key, so
+  `--state` takes either kind and `load` refuses the other kind by
+  name). It shares `mod.rs`'s loop (`run` over the `Commands` trait),
+  `words`, `show_target`/`so_far` and `proof_target`/`proof_written`;
+  the rest is its own. A formula is `L0`/`R1` (`address`), because the
+  library's refusals name a side and a position there, and a global
+  numbering as the linear intuitionistic session prints it would have
+  made those messages name other numbers than the user typed. Rule names
+  are `ordinary::Rule::from_str` (names, symbols, words: `andR`, `->L`;
+  the splitter takes `\` as an escape, so `/\R` needs quotes). `cut`
+  and `invertible` are refused by name, as are `-i`/`-a`/`--mix` and
+  `--invertible` beside `--logic`. `close` runs the library's
+  `Interactive::close` (through `ordinary::decide`), which has no race of
+  one thread against a pool, so it searches on one thread unless
+  `--jobs N` asks for a count from the start (`Threads::alone` is
+  `None`): with the command's `jobs: auto` the library would otherwise
+  take every core from the start. Its verdict line is `prove --logic`'s
+  (`ordinary::verdict_line`, which takes the logic and the translation).
+  `show` and `proof` draw with `view.structural` (`--structural`, on
+  `prove` too), `proof --rocq` always explicit (`ordinary::shown`).
+- `interact/mod.rs`: `interact`, a line-based session over `Interactive`:
   the state comes from the sequent argument or `--state FILE` (a session
   `save` wrote; the mode is then the file's), the commands from standard
   input (`goals`, `rules`, `apply`, `cut G C [P…]` (the cut formula's
@@ -842,9 +869,12 @@ binary `linlog` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   first-order sequent read from JSON numbers its argument lists apart
   from the parsed one, so `==` called a text-started session's own file
   another sequent's.
-- **An `interact` command**: an arm in `Session::command`, a line in
-  `HELP`, and the session test in `cli/tests/cli.rs`, which pins the
-  exact output of a scripted session.
+- **An `interact` command**: an arm in `Session::answer` (linear) or
+  `ordinary::Session::command` (LK and LJ), a line in that module's
+  `HELP`, and the session test in `cli/tests/cli.rs`
+  (`interactive_session`, `ordinary_session`), which pins the exact
+  output of a scripted session. A command one kind of session lacks is
+  refused there by name, never as unknown.
 - **An output format** (`lean`, say): a variant of `Format` (its
   extension in `Format::extension`, its key in `Format::style_key` and `Styles`),
   its arm in `shown`'s `match show.format` calling the library's

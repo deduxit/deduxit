@@ -5,13 +5,13 @@
 //! intuitionistic or minimal logic read under `--logic`, translated into
 //! linear logic, decided there, and its proof read back as LK or LJ.
 
-use crate::argument_parsing::{InputFormat, Tree};
+use crate::argument_parsing::{Format, InputFormat, Tree};
 use crate::io::{bound, refused};
 use crate::prove::{Ended, unknown};
 use crate::show::{Show, Shown, not_built};
 use anyhow::{Result, anyhow, bail};
-use linlog::ordinary::{self, Image};
-use linlog::proofs::Sides;
+use linlog::ordinary::{self, Derivation, Image, Logic, Translation};
+use linlog::proofs::{Sides, Structural};
 use linlog::search::{Outcome, Verdict};
 use linlog::{Error, ErrorKind, Limits, Proof, Refusal, ViewOptions};
 use std::fmt::Write;
@@ -64,14 +64,18 @@ pub(crate) fn image(
         .map_err(|e| refused(e, most))
 }
 
-/// Returns the first line of the text output for an ordinary sequent:
-/// the verdict, the logic and the translation, the engine, and for an
-/// undecided sequent why.
-pub(crate) fn verdict_line(outcome: &Outcome, image: &Image, ended: &Ended) -> String {
-    let translation = image.translation();
+/// Returns the first line of the text output for an ordinary sequent
+/// decided in `logic` through its image under `translation`: the verdict,
+/// the logic and the translation, the engine, and for an undecided
+/// sequent why.
+pub(crate) fn verdict_line(
+    outcome: &Outcome,
+    logic: Logic,
+    translation: Translation,
+    ended: &Ended,
+) -> String {
     let context = format!(
-        "{} logic by the {translation} translation into {}, {} engine",
-        image.logic(),
+        "{logic} logic by the {translation} translation into {}, {} engine",
         translation.target(),
         outcome.engine
     );
@@ -131,7 +135,17 @@ pub(crate) fn derivation(
         Err(Error::Refused(Refusal::Stopped { .. })) => return Ok(stopped()),
         checked => checked?,
     }
-    crate::show::shown(d, show.fit(), show, halt, why, prefix, out)
+    crate::show::shown(shown(d, show), show.fit(), show, halt, why, prefix, out)
+}
+
+/// Returns a checked derivation of LK or LJ with its structural rules as
+/// the view shows them, every one explicit in a certificate, which names
+/// each formula it weakens.
+pub(crate) fn shown(d: Derivation, show: &Show) -> Derivation {
+    match (show.format, show.view.structural) {
+        (Format::Rocq, _) | (_, Structural::Explicit) => d,
+        (_, structural) => d.shown(structural).into_owned(),
+    }
 }
 
 #[cfg(test)]

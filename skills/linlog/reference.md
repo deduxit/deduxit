@@ -764,7 +764,50 @@ $ linlog seq print --logic intuitionistic --translation cbv 'a, a -> b |- b'
 ```
 
 `-i`, `-a` and `--mix` are refused beside `--logic`: the translation
-decides the mode.
+decides the mode. A derivation of LK or LJ is checked with every
+weakening and contraction and drawn with each left out where it is
+admissible (G3's axiom with a context); `--structural explicit`
+(`view.structural`) draws every one, and `--format rocq` always names
+them.
+
+`linlog interact --logic LOGIC SEQUENT` proves an ordinary sequent step
+by step by the rules of LK or LJ, with the linear session's commands
+(`goals`, `rules`, `apply`, `undo`, `close`, `show`, `proof`, `save`,
+`load`, `help`, `quit`; no `cut`, no `invertible`). A formula is its side
+and position, `L0`, `L1`, … left of `⊢` and `R0`, … right, read off
+`goals`; a rule is its name or an ASCII spelling: `ax`, `WL`, `WR`, `CL`,
+`CR`, `andL`, `andL1`, `andL2`, `andR`, `orL`, `orR`, `orR1`, `orR2`,
+`impL` or `->L`, `impR` or `->R`, `notL` or `~L`, `notR` or `~R`, `iffL`,
+`iffL1`, `iffL2`, `iffR`, `falseL`, `falseR`, `trueL`, `trueR`. The axiom
+closes a goal with its formula on both sides, whatever else it holds. A
+rule with two premises shares the whole context unless formulas named
+after the rule go to the first premise (`apply G L1 ->L L0`). In
+intuitionistic and minimal logic every goal keeps exactly one formula
+right of `⊢` (`Γ ⊢` starts as `Γ ⊢ ⊥`; `WR`, `CR`, `⊥R` and `∨R` are
+refused), and minimal logic has no `⊥L`. `close [G]` decides a goal
+through the translation and grafts the derivation; one it cannot decide
+stays open with the reason. `proof` writes the checked derivation in
+any format of `prove`; `save FILE` writes the session, which
+`--state FILE` resumes. Exit 0 for a finished derivation, 1 otherwise.
+
+```console
+$ printf 'apply 0 R0 ->R\napply 1 R0 andR\nclose\nproof\n' | linlog interact --logic intuitionistic '|- a /\ b -> b /\ a'
+opened goal 1: L0: a ∧ b ⊢ R0: b ∧ a
+opened goal 2: L0: a ∧ b ⊢ R0: b
+opened goal 3: L0: a ∧ b ⊢ R0: a
+goal 2: valid (intuitionistic logic by the cbn translation into ILL, two-sided engine)
+goal 3: valid (intuitionistic logic by the cbn translation into ILL, two-sided engine)
+no goal is open: `proof` checks the proof
+valid proof in LJ (intuitionistic logic)
+  ───── ax        ───── ax
+  b ⊢ b           a ⊢ a
+───────── ∧L₂   ───────── ∧L₁
+a ∧ b ⊢ b       a ∧ b ⊢ a
+───────────────────────── ∧R
+      a ∧ b ⊢ b ∧ a
+   ─────────────────── →R
+   ⊢ (a ∧ b) → (b ∧ a)
+```
 
 ## 14. Cyclic linear logic and the Lambek calculus
 
@@ -831,7 +874,8 @@ sequent step by step in the library (`rules`, `apply`, `undo`, `close`
 and `hint` through `ordinary::decide`), and its finished derivation
 passes `Derivation::check`; `ViewOptions::structural` draws a derivation
 of LK or LJ with its weakenings and contractions `explicit` or
-`admissible`.
+`admissible`. `ordinary::Rule` reads from its name or an ASCII spelling
+(`"impL".parse::<ordinary::Rule>()`), as the command's `apply` does.
 
 ```rust
 use linlog::{Fragment, Mode, Options, Sequent, Verdict, prove};
@@ -899,8 +943,7 @@ quantifiers is typed as for the command; a step's JSON `{"position",
 (left out: open, `$1`), `rules` marks such a rule `"witness": true`,
 `hint` on a goal of instances closes it in a copy of the session, and
 the first-order bounds are the settings `search.witness_depth`,
-`search.instances` and `limits.terms`. An agent with a shell uses the
-command instead.
+`search.instances` and `limits.terms`. An agent with a shell uses the command instead.
 
 ## 18. Rocq certificates and the Rocq library
 

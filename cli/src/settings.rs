@@ -221,6 +221,9 @@ impl ProveArgs {
         if apply.set("no_check") {
             settings.search.check = !self.no_check;
         }
+        if apply.set("structural") {
+            settings.view.structural = self.structural.structural.into();
+        }
         // The mode flags together are the batch's mode; each is asked, so
         // that one given overrides the file's.
         if ["intuitionistic", "affine", "mix"]
@@ -296,6 +299,9 @@ impl InteractArgs {
         }
         if apply.set("invertible") {
             settings.interactive.invertible = self.invertible;
+        }
+        if apply.set("structural") {
+            settings.view.structural = self.structural.structural.into();
         }
         Ok(settings)
     }
@@ -590,6 +596,7 @@ mod tests {
             --workers 3             /batch/workers             2                 3
             --batch-memory 2MiB     /batch/total_memory_bytes  1048576           2097152
             --compact never         /view/compact              "always"          "never"
+            --structural admissible /view/structural           "explicit"        "admissible"
             --cores within          /batch/cores               "across"          "within"
             --ill-syntax one-sided  /input/intuitionistic      "strict"          "one-sided"
             --batch-timeout 2s      /clock/batch_time_limit_ms 1000              2000"#;
@@ -606,6 +613,7 @@ mod tests {
             --node-limit 9          /cut/nodes                 8                 9"#;
         const INTERACT: &str = r#"
             --invertible            /interactive/invertible    false             true
+            --structural admissible /view/structural           "explicit"        "admissible"
             --ill-syntax one-sided  /input/intuitionistic      "strict"          "one-sided""#;
         const PRINT: &str = r#"
             --memory-limit 2MiB     /limits/memory_bytes       1048576           2097152
