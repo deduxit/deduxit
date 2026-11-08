@@ -27,7 +27,10 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   call, answering an `Outcome` (`Verdict::Valid` with the derivation,
   `NotValid`, `Unknown`, and the linear outcome); `rocq.rs` (behind
   `rocq`): the certificate over `Prop`, public as
-  `export::rocq::ordinary`.
+  `export::rocq::ordinary`; `interactive.rs` (behind `interactive`): the
+  goal state `Interactive`, below. Its JSON forms and those of the
+  sequent, the derivation and the outcome are in
+  `core/src/serialize/ordinary.rs`, wire level 8 (`wire::ORDINARY`).
 - **Every entry keeps to the occurrence bound**: `Sequent::parse_within`
   and `read_tptp` refuse at the first formula of the arena past
   `limits.occurrences`, and at the formula of the sequent past it,
@@ -148,6 +151,97 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   variable and `Atom` gains terms; the pattern table gets their rows
   (Girard: `∀` as `∀`, `∃` as `∃!`), and the read-back's tags carry no
   more than the node.
+
+## The goal state (`interactive.rs`)
+
+A native state of ordinary sequents, not a session over the image: the
+goals are two-sided sequents, the rules `Rule`'s, and a finished state
+is a `Derivation` that `Derivation::check` validates, so nothing is
+added to what is trusted. The linear session (`core-derivations.md`,
+"Interactive proving") is its model; what was copied is listed in
+`plan/reports/49-ordinary-interactive.md`, and nothing generic is
+factored out of the two until the kernel crate is.
+
+- **Every inference a step makes passes `check_inference` before the
+  state changes** (`expand`): the checker's own per-inference check
+  (the logic's right-side counts, then the rule), factored out of
+  `Derivation::check` so that both read one function. A step the
+  construction got wrong is an `unreachable!` panic, never a state the
+  final check would refuse; `random_steps_finish_as_checked_derivations`
+  walks random steps, splits and undos over generated sequents in
+  every logic and finishes every state the search can close.
+- **`shape` is the one rule table**: which rule acts on which
+  connective and side, which the logic refuses (`WR`, `CR`, `⊥R` and
+  `∨R` with both disjuncts outside LK, `⊥L` in minimal logic), and what
+  each premise holds in the principal's place and on the other side.
+  `rules` lists exactly the rules `shape` accepts (plus the axiom where
+  the formula stands on both sides), so the list and `apply` cannot
+  disagree. A premise keeps the goal's order, the principal's place
+  taken by its subformulas, a formula crossing `⊢` appended.
+- **In LJ and minimal logic every goal has exactly one formula right of
+  `⊢`**: `Γ ⊢` starts as `Γ ⊢ ⊥` (as `translate` decides it, so the
+  search's derivation of a goal concludes the goal itself), the rules
+  whose premise would have none or two are refused, and `¬R`/`¬L` take
+  the form of `→R`/`→L` for `A → ⊥`; classically they are LK's
+  one-premise forms. The reader refuses an open goal of LJ without one
+  formula right of `⊢`.
+- **The axiom closes a goal with a context** by a run of weakenings
+  below `A ⊢ A` (the last formula left of `⊢` first, then right), one
+  step that `undo` takes back whole. A rule with two premises shares the
+  context unless the step splits it (`Context::Split`, positions per
+  side going to the first premise); LJ's `→L` with a goal right of `⊢`
+  needs the split (`Succedents` says so), since the checker accepts a
+  binary rule either sharing or splitting, never both at once.
+- **The arena holds the extra nodes from the start** (`Extra::add`:
+  false and both implications of every `↔`), so `shape` finds them by
+  `Formulas::ids`, and the derivation `decide` returns for a goal is
+  over an equal arena; `ids_of` maps its nodes anyway, adding any the
+  state lacks.
+- **`close` and `hint` decide the goal as a sequent of its own**
+  (`ordinary::decide` with the state's logic): `close` grafts the
+  derivation as one step (root in the goal's place keeping the goal's
+  order, its principal found by formula; the rest appended in reverse),
+  refused past `derivation_bytes` by `estimate`; `hint` reads the root's
+  rule, its formula and, for two premises, whether they share the
+  context or which positions go to the first (`first_step`), as a
+  `Step` that `apply` takes. A refutation or an unknown leaves the goal
+  open with the outcome saying why; a stop is `Unknown(Stopped)`, a
+  refused read-back `decide`'s error.
+- **The structural rules as a display choice** (`ViewOptions::structural`,
+  `Structural::{Explicit, Admissible}`): `Derivation::shown`/`admissible`
+  leaves out every `WL`, `WR`, `CL`, `CR` whose branch the rules above
+  close, giving its conclusion to the first rule above that is no
+  structural one (principal found by formula), which reads as G3 (the
+  axiom with a context, a contraction absorbed into the rule that uses
+  both copies). A run above an open goal stays, so an open goal shows
+  its own sequent. What is shown admissible fails the checker by
+  design; `finished` always checks the explicit derivation.
+  `derivation_ids(structural)` maps a drawn inference to the state's
+  goal, for both views.
+- **Bounds**: `within` and every reader refuse a sequent past
+  `limits.occurrences` (subformula occurrences, saturating), the readers
+  also an arena longer than it; `derivation_within` and the graft refuse
+  past `derivation_bytes` by `estimate` (the size estimate's constants,
+  per formula its characters with brackets and two for its separator)
+  before anything is built; the stop is asked by `derivation_within`,
+  by `decide` inside `close`/`hint` and by the check in `finished`. Every
+  walk is a loop (`postorder`, `subtree`, the reader's history walk),
+  and the arena-order passes (`occurrences`, `estimate`, `ids_of`) need
+  no recursion since every operand precedes its formula.
+- **Reading a session** (`Interactive::from_parts`): the root first,
+  every other inference the premise of exactly one before it, an open
+  goal without rule, principal or premises, every closed inference
+  passing `check_inference` with its premises, and the history walked
+  from the last step back as the linear reader walks it (each entry a
+  distinct closed inference below the arena's end then, what its step
+  added the suffix of that arena), so a state read is as sound as one
+  built. The derivation's reader checks only its shape (a tree, its root
+  last, indices in range), so that a drawing of any document is safe;
+  the Rocq writer checks a derivation before it writes one and refuses
+  an open goal (`Unsupported::Open`).
+- **`Rule::Open`** marks an open goal of a proof in progress and appears
+  nowhere else: the checker refuses it first ("an open goal"), `Drawn`
+  draws it without a bar or label, as the linear `Rule::Open`.
 
 ## Decisions
 

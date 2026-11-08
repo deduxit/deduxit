@@ -356,6 +356,16 @@ from before the release (`ids`, `var_dict`, `proof`, a mode as an object
 of flags) are not read: a file in them is refused naming the key it
 lacks.
 
+**Level 8 is ordinary logic** (`wire::ORDINARY`, `serialize/ordinary.rs`):
+the ordinary sequent (`formulas` in the arena's order with the tags
+`V ⊤ ⊥ ¬ ∧ ∨ → ↔`, `atoms`, `left`, `right`), the derivation of LK or LJ,
+the outcome of `ordinary::decide` (written only) and the goal state, each
+always written at level 8; a reader maps the document's indices to the
+arena it builds (equal formulas are one node there), so a document of
+ours writes back the same bytes. `ill.rs`'s refusal test names the level
+above `wire::LEVEL`, so that a raise of the level needs no test change.
+`core-ordinary.md` has the readers' checks.
+
 `core/src/serialize/sequents.rs` uses a private serde proxy struct
 `{version, terms, roots, atoms, symbols, fo, antecedents, cuts}`
 (`antecedents` written

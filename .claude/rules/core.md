@@ -28,7 +28,7 @@ it; only what holds for the whole crate goes here.
 | `core-export.md` | `export/`, `proofs/style.rs`, the export test and snapshots | the options values, the one signature, rule labels, notations, the packages' limits, Typst's own layout, fonts, SVG, PNG, PDF, Rocq |
 | `core-batch.md` | `search/batch.rs` | many sequents in one call: the order of results, the workers and the stream, how the batch's memory bound is shared |
 | `core-inputs.md` | `lltp.rs`, `mist.rs`, `families.rs` | the LLTP reader, the `.spec` reader of coverability problems and the generated families |
-| `core-ordinary.md` | `ordinary/` | ordinary logic: its syntax and TPTP reader, the translations as one pattern table, the read-back to LK and LJ, its checker, the certificate over `Prop` |
+| `core-ordinary.md` | `ordinary/` | ordinary logic: its syntax and TPTP reader, the translations as one pattern table, the read-back to LK and LJ, its checker, the certificate over `Prop`, the goal state of LK and LJ |
 
 ## Layout
 
@@ -58,7 +58,8 @@ walk over a derivation in `notation`, and `latex`, `typst`, `svg` with
 of those names),
 `ordinary` (the arena and syntax in `mod.rs`, `parse` behind the
 feature of that name, `translate`, `derivation` with the read-back and
-its checker, `rocq` behind that feature), and `lltp`, `mist` and
+its checker, `rocq` behind that feature, `interactive` behind that
+feature), and `lltp`, `mist` and
 `families` behind `parse`. `lib.rs` re-exports the
 public types, so users write `linlog::Sequent`, `linlog::Proof`,
 `linlog::prove`, and so on. `hash` is crate-private.
@@ -101,7 +102,9 @@ Each entry point is described in the file of its module:
   `translate(&sequent, logic, translation, &limits)` to an `Image`,
   `Image::read_back(&proof, &limits, stop)` to a `Derivation` of LK or
   LJ, `Derivation::check(&limits, stop)`, `ordinary::decide` all of it
-  in one call, `export::rocq::ordinary` (`core-ordinary.md`).
+  in one call, `export::rocq::ordinary`, and the goal state
+  `ordinary::Interactive` (`within`, `rules`, `apply`, `undo`, `close`,
+  `hint`, `derivation_within`, `finished`) (`core-ordinary.md`).
 
 ## Crate-wide rules
 
@@ -118,6 +121,7 @@ user of the crate needs and the code keeps private is said on a public
 item: the text syntax on `Sequent` and the ordinary one on
 `ordinary::Sequent` (the parsers are private), every JSON
 form on its type (`Sequent`, `Proof`, `Outcome`, `ProofStructure`,
+`Interactive`, and `ordinary`'s `Sequent`, `Derivation`, `Outcome` and
 `Interactive`; `serialize` is private), each engine on its `Engine`
 variant (the engine modules are private), the features in the crate
 docs, and "Needs the cargo feature" on every feature-gated public module
