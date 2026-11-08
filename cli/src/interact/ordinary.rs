@@ -48,6 +48,8 @@ proof [--FORMAT] [FILE]
                     text, or --json, --latex, --typst, --svg, --png, --pdf, or --rocq for
                     a certificate (--png and --pdf need a FILE); with a FILE and no
                     format, the one its extension names, else JSON
+lambda              the finished derivation's simply typed lambda-term, as its typing
+                    judgement (prove's --lambda); LK and an open goal say why it has none
 save FILE           write the session as JSON
 load FILE           resume a session written by save
 help                this list
@@ -99,6 +101,7 @@ pub(super) fn interact(
     catch_interrupt();
     let mut session = Session {
         styles: style::read(&settings.styles, &args.style, Some(&args.rocq), None, false)?,
+        lambda: settings.lambda,
         state,
         translation: args
             .logic
@@ -119,6 +122,8 @@ pub(super) fn interact(
 struct Session {
     /// How `show` and `proof` write each format.
     styles: Styles,
+    /// How `lambda` prints the proof's lambda-term.
+    lambda: linlog::lambda::Options,
     /// The proof in progress.
     state: Interactive,
     /// The translation a `close` decides a goal by, `None` for the
@@ -253,6 +258,12 @@ impl Commands for Session {
                     &mut text,
                 )?;
                 proof_written(shown, text, path)?
+            }
+            "lambda" => {
+                let d = self
+                    .state
+                    .derivation_within(&self.view, &self.limits, |_| false)?;
+                super::lambda_line(&d.term(&self.limits, |_| false), &self.lambda, &self.limits)
             }
             "save" => {
                 let [path] = rest else {

@@ -61,6 +61,8 @@ pub(crate) struct Show {
     pub(crate) verdict: bool,
     /// The most characters of a sequent in a verdict line.
     pub(crate) abbreviate: Option<usize>,
+    /// How the proof's lambda-term is printed, where it is asked for.
+    pub(crate) lambda: Option<linlog::lambda::Options>,
 }
 
 impl Show {
@@ -76,16 +78,27 @@ impl Show {
         {
             bail!("--net writes the formats text, json, svg, png and pdf");
         }
+        if output.lambda && (output.net || format == Format::Rocq) {
+            bail!(
+                "--lambda goes with a derivation in the formats text, json, latex, typst, svg, png and pdf"
+            );
+        }
         let stdout = std::io::stdout();
         for_terminal(format, output.output.as_deref())?;
         form(output.standalone, format.has_document())?;
-        let styles = style::read(
+        let mut styles = style::read(
             &settings.styles,
             &output.style,
             Some(&output.rocq),
             format.style_key(),
             output.standalone,
         )?;
+        let lambda = output.lambda.then_some(settings.lambda);
+        if lambda.is_some() {
+            styles.latex.lambda = lambda;
+            styles.typst.lambda = lambda;
+            styles.svg.lambda = lambda;
+        }
         // The size of the terminal that standard output is, and of no
         // other stream's.
         let terminal = match (&output.output, stdout.is_terminal()) {
@@ -111,6 +124,7 @@ impl Show {
             screens: output.screens.0.map(u64::from),
             verdict: !output.no_verdict,
             abbreviate: output.abbreviate.0.map(|n| n as usize),
+            lambda,
         })
     }
 
@@ -146,6 +160,7 @@ impl Show {
             screens: None,
             verdict: true,
             abbreviate: None,
+            lambda: None,
         }
     }
 
@@ -1321,6 +1336,81 @@ pub(crate) fn nets_exist(sequent: &Sequent, mode: Mode) -> Result<()> {
         return Ok(MellStructure::exist(fragment, mode)?);
     }
     Ok(linlog::nets::exist(fragment, mode)?)
+}
+
+/// Returns the lambda-term of a proof of linear logic, read back from its
+/// derivation, two-sided in an intuitionistic mode, within the show's
+/// limits, or why it has none.
+pub(crate) fn linear_term(
+    proof: &Proof,
+    mode: Mode,
+    show: &Show,
+    mut halt: impl FnMut() -> bool,
+) -> Result<linlog::lambda::Term, Error> {
+    let sides = if mode.is_intuitionistic() {
+        Sides::Two
+    } else {
+        Sides::One
+    };
+    let view = show.view.with_sides(sides);
+    let derivation = proof.derivation_within(&view, &show.limits, |_| halt())?;
+    derivation.term(&show.limits, |_| halt())
+}
+
+/// Returns the typing judgement of a term as `options` print it, within
+/// the limits.
+fn judgement(
+    term: &linlog::lambda::Term,
+    options: &linlog::lambda::Options,
+    limits: &Limits,
+    mut halt: impl FnMut() -> bool,
+) -> Result<String, Error> {
+    let mut text = String::new();
+    term.write_judgement(&mut text, options, limits, |_| halt())?;
+    Ok(text)
+}
+
+/// Returns the line of a proof's lambda-term: its typing judgement, or
+/// why it has none or is not written.
+pub(crate) fn lambda_line(
+    term: Result<linlog::lambda::Term, Error>,
+    show: &Show,
+    mut halt: impl FnMut() -> bool,
+) -> String {
+    let options = show.lambda.unwrap_or_default();
+    match term.and_then(|term| judgement(&term, &options, &show.limits, &mut halt)) {
+        Ok(text) => format!("lambda-term: {text}"),
+        Err(Error::NoTerm { reason, .. }) => format!("no lambda-term: {reason}"),
+        Err(error) => format!("the lambda-term is not written: {error}"),
+    }
+}
+
+/// Returns the JSON of a proof's lambda-term: the term's own form with
+/// its `text` and its `judgement` as the options print them, or `{"error":
+/// …}` with why it has none.
+pub(crate) fn lambda_json(
+    term: Result<linlog::lambda::Term, Error>,
+    show: &Show,
+    mut halt: impl FnMut() -> bool,
+) -> Result<serde_json::Value> {
+    let options = show.lambda.unwrap_or_default();
+    let written = term.and_then(|term| {
+        let mut text = String::new();
+        term.write(&mut text, &options, &show.limits, |_| halt())?;
+        let judgement = judgement(&term, &options, &show.limits, &mut halt)?;
+        Ok((term, text, judgement))
+    });
+    Ok(match written {
+        Ok((term, text, judgement)) => {
+            let mut value = serde_json::to_value(&term)?;
+            if let Some(object) = value.as_object_mut() {
+                object.insert("text".into(), text.into());
+                object.insert("judgement".into(), judgement.into());
+            }
+            value
+        }
+        Err(error) => serde_json::json!({ "error": error }),
+    })
 }
 
 #[cfg(test)]

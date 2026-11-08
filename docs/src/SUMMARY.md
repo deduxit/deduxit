@@ -17,6 +17,7 @@
 - [Proof nets](proof-nets.md)
 - [First-order logic](first-order.md)
 - [Ordinary logic](ordinary-logic.md)
+- [Proofs as programs](terms.md)
 - [Many sequents in one call](batch.md)
 
 # Results

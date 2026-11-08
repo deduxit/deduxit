@@ -6,8 +6,9 @@ A linear logic suite for all your needs: a command line program and a Rust
 library that parse, print and decide sequents of classical and
 intuitionistic linear logic and their fragments, keep the proofs in a
 checkable form and show them as derivation trees or proof nets, prove
-step by step, export to LaTeX, Typst, SVG and Rocq, and decide ordinary
-propositional logic through its embeddings into linear logic.
+step by step, export to LaTeX, Typst, SVG and Rocq, decide ordinary
+propositional logic through its embeddings into linear logic, and read
+intuitionistic proofs back as lambda-terms.
 
 The repository [sequentium](https://github.com/sequentium/sequentium) is a
 collection of logic suites, grown one suite at a time, whose linear suite
@@ -82,7 +83,8 @@ document every option.
   [sequentium.github.io/sequentium/manual](https://sequentium.github.io/sequentium/manual/),
   for `main`: [the commands](https://sequentium.github.io/sequentium/manual/commands.html)
   and their output formats, interactive proving, cut and its
-  elimination, proof nets, first-order and ordinary logic, many
+  elimination, proof nets, first-order and ordinary logic, proofs as
+  programs, many
   sequents in one call,
   [the benchmarks and the comparison](https://sequentium.github.io/sequentium/manual/benchmarks.html)
   with the other provers, what exists and what is planned, the

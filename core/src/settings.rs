@@ -92,7 +92,8 @@ impl Default for Clock {
 /// Everything that configures a front end's calls, in one value: the
 /// clock, the limits, the search's options, the view of a derivation, the
 /// options of every output format, the batch's, ordinary logic's, an
-/// interactive session's and cut elimination's.
+/// interactive session's, cut elimination's and how a proof's
+/// lambda-term is printed.
 ///
 /// `Settings::default()` is the command's behaviour: no copy bound (a
 /// front end with a clock deepens until its time limit), every thread
@@ -135,6 +136,8 @@ pub struct Settings {
     pub input: InputOptions,
     /// How cut elimination proceeds and when it stops.
     pub cut: cut::Options,
+    /// How a proof's lambda-term is printed where the front end shows it.
+    pub lambda: crate::lambda::Options,
 }
 
 impl Default for Settings {
@@ -152,6 +155,7 @@ impl Default for Settings {
             interactive: interactive::Options::default(),
             input: InputOptions::default(),
             cut: cut::Options::default(),
+            lambda: crate::lambda::Options::default(),
         }
     }
 }

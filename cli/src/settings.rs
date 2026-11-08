@@ -6,7 +6,7 @@
 //! the flags given on the command line, each the spelling of one key.
 
 use crate::argument_parsing::{
-    CheckArgs, CoresArg, EliminateArgs, InteractArgs, LogicArgs, ProveArgs, SearchArgs,
+    CheckArgs, CoresArg, EliminateArgs, InteractArgs, LambdaArgs, LogicArgs, ProveArgs, SearchArgs,
 };
 use crate::io;
 use anyhow::{Context, Result};
@@ -250,6 +250,7 @@ impl ProveArgs {
         if apply.set("classical_sides") {
             settings.view.classical = self.output.classical_sides.into();
         }
+        self.output.lambda_style.apply(&mut settings, &apply);
         let batch = &self.batch;
         if let Some(workers) = batch.workers {
             settings.batch.workers = workers.clamp(1, Options::MAX_JOBS);
@@ -300,6 +301,7 @@ impl InteractArgs {
         if apply.set("invertible") {
             settings.interactive.invertible = self.invertible;
         }
+        self.lambda_style.apply(&mut settings, &apply);
         if apply.set("structural") {
             settings.view.structural = self.structural.structural.into();
         }
@@ -344,7 +346,20 @@ impl CheckArgs {
         if apply.set("classical_sides") {
             settings.view.classical = self.output.classical_sides.into();
         }
+        self.output.lambda_style.apply(&mut settings, &apply);
         Ok(settings)
+    }
+}
+
+impl LambdaArgs {
+    /// Sets how a lambda-term is printed.
+    fn apply(&self, settings: &mut Settings, apply: &Apply<'_>) {
+        if apply.set("lambda_notation") {
+            settings.lambda.notation = self.lambda_notation.into();
+        }
+        if apply.set("lambda_types") {
+            settings.lambda.types = self.lambda_types;
+        }
     }
 }
 
@@ -599,7 +614,9 @@ mod tests {
             --structural admissible /view/structural           "explicit"        "admissible"
             --cores within          /batch/cores               "across"          "within"
             --ill-syntax one-sided  /input/intuitionistic      "strict"          "one-sided"
-            --batch-timeout 2s      /clock/batch_time_limit_ms 1000              2000"#;
+            --batch-timeout 2s      /clock/batch_time_limit_ms 1000              2000
+            --lambda-notation ascii /lambda/notation           "unicode"         "ascii"
+            --lambda-types          /lambda/types              false             true"#;
         const CHECK: &str = r#"
             --memory-limit 2MiB     /limits/memory_bytes       1048576           2097152
             --timeout 3s            /clock/time_limit_ms       5000              3000
@@ -608,13 +625,18 @@ mod tests {
             --term-limit 12         /limits/terms              11                12
             --derivation-limit 3KiB /limits/derivation_bytes   1024              3072
             --compact never         /view/compact              "always"          "never""#;
+        const LAMBDA: &str = r#"
+            --lambda-notation ascii /lambda/notation           "unicode"         "ascii"
+            --lambda-types          /lambda/types              false             true"#;
         const ELIMINATE: &str = r#"
             --steps 4               /cut/steps                 3                 4
             --node-limit 9          /cut/nodes                 8                 9"#;
         const INTERACT: &str = r#"
             --invertible            /interactive/invertible    false             true
             --structural admissible /view/structural           "explicit"        "admissible"
-            --ill-syntax one-sided  /input/intuitionistic      "strict"          "one-sided""#;
+            --ill-syntax one-sided  /input/intuitionistic      "strict"          "one-sided"
+            --lambda-notation ascii /lambda/notation           "unicode"         "ascii"
+            --lambda-types          /lambda/types              false             true"#;
         const PRINT: &str = r#"
             --memory-limit 2MiB     /limits/memory_bytes       1048576           2097152
             --occurrence-limit 12   /limits/occurrences        11                12
@@ -625,7 +647,7 @@ mod tests {
         for (command, operand, table) in [
             (&["prove"][..], "A |- A", [SEARCH, PROVE].concat()),
             (&["interact"], "A |- A", [SEARCH, INTERACT].concat()),
-            (&["check"], "proof.json", CHECK.to_owned()),
+            (&["check"], "proof.json", [CHECK, LAMBDA].concat()),
             (&["eliminate"], "proof.json", [CHECK, ELIMINATE].concat()),
             (&["seq", "print"], "A |- A", PRINT.to_owned()),
         ] {

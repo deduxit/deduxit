@@ -274,6 +274,34 @@ fragment and the mode call for):
 searches in a fragment instead of the detected one; a sequent outside it
 is an error.
 
+### The lambda-term: `--lambda`
+
+`--lambda` prints the program an intuitionistic proof is, as its typing
+judgement on a line after the derivation: a proof of `-i` as a term of
+the linear lambda calculus of Benton, Bierman, de Paiva and Hyland
+(Bierman's thesis, UCAM-CL-TR-346, chapter 3), the affine one under
+`-a`, a derivation of LJ (`--logic intuitionistic` or `minimal`) as a
+simply typed term, `¬A` read as `A → ⊥`. A cut is a redex `(λx:A. N) M`.
+A proof with no term (classical, Mix, cyclic, Lambek, first-order, LK)
+gets `no lambda-term:` and the reason. `--lambda-notation ascii` writes
+ASCII, `--lambda-types` types every binder (`lambda.notation`,
+`lambda.types`); `check --lambda` and the session command `lambda` print
+the same; latex, typst, svg, png and pdf write the judgement under the
+conclusion; JSON adds the key `lambda` (the term's nodes, types and
+variables, with `text` and `judgement`, or `error`).
+
+```console
+$ linlog prove -i --lambda --tree never "|- a -o b -o a * b"
+provable (IMLL, intuitionistic, two-sided engine)
+lambda-term: ⊢ λx. λy. x ⊗ y : a ⊸ (b ⊸ (a ⊗ b))
+$ linlog prove --logic intuitionistic --lambda --tree never "|- (a -> b) -> (b -> c) -> a -> c"
+valid (intuitionistic logic by the cbn translation into ILL, two-sided engine)
+lambda-term: ⊢ λf. λg. λx. g (f x) : (a → b) → ((b → c) → (a → c))
+$ linlog prove -i --lambda --tree never "a & b |- b & a"
+provable (IALL, intuitionistic, additive engine)
+lambda-term: x : a & b ⊢ ⟨snd(x), fst(x)⟩ : b & a
+```
+
 ## 5. Why unprovable, why unknown
 
 An unprovable verdict gives its reason; the JSON `refutation` has the
@@ -526,6 +554,7 @@ numbers from the output before writing the next step.
 | `close [G]` | lets the search close goal G, or every open goal |
 | `show [--FORMAT] [FILE]` | the derivation so far, open goals included: text, or `--latex`, `--typst`, `--svg`, `--png`, `--pdf` (these two need a FILE) |
 | `proof [--FORMAT] [FILE]` | checks the finished proof and prints it or writes it: text, `--json`, `--latex`, `--typst`, `--svg`, `--png`, `--pdf` or `--rocq`; a FILE without a format takes its extension's, else JSON |
+| `lambda` | the finished proof's lambda-term, as `--lambda` prints it, or why it has none |
 | `save FILE` | writes the session as JSON, which `load` and `--state` read and `check` does not |
 | `load FILE` | resumes a session of the same sequent and mode |
 | `help` | the list |
@@ -772,8 +801,8 @@ them.
 
 `linlog interact --logic LOGIC SEQUENT` proves an ordinary sequent step
 by step by the rules of LK or LJ, with the linear session's commands
-(`goals`, `rules`, `apply`, `undo`, `close`, `show`, `proof`, `save`,
-`load`, `help`, `quit`; no `cut`, no `invertible`). A formula is its side
+(`goals`, `rules`, `apply`, `undo`, `close`, `show`, `proof`, `lambda`,
+`save`, `load`, `help`, `quit`; no `cut`, no `invertible`). A formula is its side
 and position, `L0`, `L1`, … left of `⊢` and `R0`, … right, read off
 `goals`; a rule is its name or an ASCII spelling: `ax`, `WL`, `WR`, `CL`,
 `CR`, `andL`, `andL1`, `andL2`, `andR`, `orL`, `orR`, `orR1`, `orR2`,
@@ -831,7 +860,7 @@ provable (IMLL, Lambek, essential engine)
 
 `--settings FILE` reads every setting the flags set from one JSON object
 with any of `clock`, `limits`, `search`, `view`, `styles`, `batch`,
-`ordinary`, `input` and `cut`; each flag's help names its key in parentheses
+`ordinary`, `input`, `cut` and `lambda`; each flag's help names its key in parentheses
 (`--copies` is `search.copies`, `--timeout` `clock.time_limit_ms`,
 `--memory-limit` `limits.memory_bytes`). A key left out keeps the
 default, a misspelt one is an error, and a flag beside the file

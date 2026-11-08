@@ -7,7 +7,8 @@ use crate::limit::Deadline;
 use crate::prove::{Stop, on_large_stack, stopped};
 use crate::settings::{Given, time_limit};
 use crate::show::{
-    Show, Shown, abbreviated, derivation, every_steps, net_into, net_json, nets_exist,
+    Show, Shown, abbreviated, derivation, every_steps, lambda_json, lambda_line, linear_term,
+    net_into, net_json, nets_exist,
 };
 use crate::{Status, exit_on_interrupt, interrupted};
 use anyhow::{Context, Result, bail};
@@ -53,6 +54,7 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
                 mode,
                 error: None,
                 message: Some(line),
+                lambda: None,
             };
             serde_json::to_writer(out.stream(), &checked)?;
             true
@@ -101,6 +103,9 @@ pub(crate) struct Checked {
     /// was not made.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) message: Option<String>,
+    /// The proof's lambda-term, where `--lambda` asks for it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) lambda: Option<serde_json::Value>,
 }
 
 /// Reads a proof file, its sequent within `limits.occurrences`; the
@@ -189,6 +194,13 @@ fn check_into(
             Ok(()) => (None, None),
             Err(e) => (Some(Error::from(e.clone())), Some(report(e))),
         };
+        let lambda = match (&result, show.lambda) {
+            (Ok(()), Some(_)) => {
+                let term = linear_term(proof, mode, show, over);
+                Some(lambda_json(term, show, over)?)
+            }
+            _ => None,
+        };
         let checked = Checked {
             version: CHECKED_LEVEL,
             verdict: match status {
@@ -199,6 +211,7 @@ fn check_into(
             mode,
             error,
             message,
+            lambda,
         };
         serde_json::to_writer(out.stream(), &checked)?;
         return Ok((status, true));
@@ -237,8 +250,19 @@ fn check_into(
     };
     let line = (show.verdict || result.is_err()).then_some(line);
     let prefix = show.open(out, line.as_deref())?;
+    // The other formats write the term into their drawing.
+    let lambda = |out: &mut io::Output, drawn: bool| match (show.lambda, format) {
+        (Some(_), Format::Text) => {
+            let term = linear_term(proof, mode, show, over);
+            show.after(out, &lambda_line(term, show, over), drawn)
+        }
+        _ => Ok(()),
+    };
     if result.is_err() || quiet {
         let keep = show.close(out, Shown::Nothing, line.as_deref())?;
+        if result.is_ok() {
+            lambda(out, false)?;
+        }
         return Ok((status, keep));
     }
     let why = || Stop::why(stopped(deadline));
@@ -249,5 +273,8 @@ fn check_into(
     }
     let halt = every_steps(&over);
     let shown = derivation(proof, mode, None, show, halt, why, prefix.as_deref(), out)?;
-    Ok((status, show.close(out, shown, line.as_deref())?))
+    let drawn = matches!(shown, Shown::Written | Shown::Rendered(_));
+    let keep = show.close(out, shown, line.as_deref())?;
+    lambda(out, drawn)?;
+    Ok((status, keep))
 }

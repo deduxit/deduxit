@@ -851,6 +851,24 @@ binary `linlog` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   (`check_keeps_the_lambek_calculus_s_antecedents`). The fragment on the
   verdict line is `IMLL` (`Fragment::name_in`).
 
+- **`--lambda`** (`OutputArgs`, so `prove` and `check`; the session
+  command `lambda` in both `interact`s): the proof's lambda-term
+  (`core-lambda.md`), read back by `show::linear_term` (the derivation
+  two-sided in an intuitionistic mode, one-sided otherwise, so a
+  classical proof gets `NoTerm::Classical`) or under `--logic` by
+  `ordinary::term` (the read-back LJ derivation; `--linear` takes the
+  linear proof). Text writes `lambda-term: <judgement>` or `no
+  lambda-term: <reason>` after the derivation through `Show::after`, as
+  `--stats` does; latex, typst, svg, png and pdf get it under the
+  conclusion through the styles' `lambda` field, which `Show::new` sets
+  from `settings.lambda`; JSON adds the key `lambda` (the term's form
+  with `text` and `judgement`, or `{"error": …}`), to the outcome for
+  `prove` and to `Checked` for `check`. Refused beside `--net`, `--format
+  rocq` and a batch, exit 2. `--lambda-notation` and `--lambda-types`
+  set `settings.lambda` (`LambdaArgs::apply`, on `prove`, `check` and
+  `interact`). The flag is `--lambda`, not `--term`: `--term-limit`
+  already names the first-order terms.
+
 ## Extension points
 
 - **An engine**: its name reaches `--engine` from `Engine::NAMES`

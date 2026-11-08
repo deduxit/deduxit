@@ -148,6 +148,19 @@ pub(crate) fn shown(d: Derivation, show: &Show) -> Derivation {
     }
 }
 
+/// Returns the lambda-term of the LJ derivation read back from the proof
+/// of an image, within the show's limits, or why it has none (a
+/// derivation of LK).
+pub(crate) fn term(
+    image: &Image,
+    proof: &linlog::Proof,
+    show: &Show,
+    halt: &dyn Fn() -> bool,
+) -> Result<linlog::lambda::Term, linlog::Error> {
+    let derivation = image.read_back(proof, &show.limits, |_| halt())?;
+    derivation.term(&show.limits, |_| halt())
+}
+
 #[cfg(test)]
 mod tests {
     use super::derivation;

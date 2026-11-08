@@ -6,7 +6,8 @@ use crate::io;
 use crate::limit::{Deadline, Notice};
 use crate::settings::{Given, Threads, time_limit};
 use crate::show::{
-    Show, Shown, derivation, disproof_into, every_steps, net_into, net_json, nets_exist, note,
+    Show, Shown, derivation, disproof_into, every_steps, lambda_json, lambda_line, linear_term,
+    net_into, net_json, nets_exist, note,
 };
 use crate::{Status, catch_interrupt, interrupted};
 use anyhow::{Context, Result, bail};
@@ -196,6 +197,9 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
     let start = Instant::now();
     let settings = args.settings(given)?;
     if crate::batch::is_batch(args) {
+        if args.output.lambda {
+            bail!("--lambda prints the term of one proof, not of a batch's");
+        }
         return crate::batch::run(args, &settings, start);
     }
     ordinary_mode(args)?;
@@ -266,6 +270,12 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
         drop(notice);
         let elapsed = start.elapsed();
         let status = Status::from(&outcome.verdict);
+        // The proof's lambda-term: of its LJ derivation under --logic, of
+        // the linear proof otherwise.
+        let term_of = |proof: &linlog::Proof, over: &dyn Fn() -> bool| match (&image, args.linear) {
+            (Some(image), false) => crate::ordinary::term(image, proof, &show, over),
+            _ => linear_term(proof, mode, &show, over),
+        };
         let mut out = io::Output::open(args.output.output.as_deref(), format.is_binary())?;
         if format == Format::Json {
             let net = match &outcome.verdict {
@@ -277,8 +287,18 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
                 }
                 _ => false,
             };
-            if !net {
-                serde_json::to_writer(out.stream(), &outcome)?;
+            match (&outcome.verdict, net) {
+                (_, true) => {}
+                (Verdict::Proved(proof), false) if show.lambda.is_some() => {
+                    let over = || interrupted() || deadline.passed();
+                    let term = term_of(proof, &over);
+                    let mut value = serde_json::to_value(&outcome)?;
+                    if let Some(object) = value.as_object_mut() {
+                        object.insert("lambda".into(), lambda_json(term, &show, over)?);
+                    }
+                    serde_json::to_writer(out.stream(), &value)?;
+                }
+                (_, false) => serde_json::to_writer(out.stream(), &outcome)?,
             }
             out.finish()?;
             return Ok(status);
@@ -343,6 +363,13 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
         };
         let drawn = matches!(shown, Shown::Written | Shown::Rendered(_));
         let keep = show.close(&mut out, shown, line.as_deref())?;
+        // The other formats write the term into their drawing.
+        if let (Verdict::Proved(proof), Format::Text, Some(_)) =
+            (&outcome.verdict, format, show.lambda)
+        {
+            let term = term_of(proof, &over);
+            show.after(&mut out, &lambda_line(term, &show, &over), drawn)?;
+        }
         if args.stats {
             show.after(&mut out, &statistics(&outcome, elapsed), drawn)?;
         }

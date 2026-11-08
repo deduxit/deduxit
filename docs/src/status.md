@@ -291,6 +291,14 @@ Built:
   proved step by step in LK and LJ, in the command and the bindings, by
   a goal state of ordinary sequents whose finished derivation that
   checker validates.
+- [Proofs as programs](terms.md): every intuitionistic proof read back as
+  its lambda-term, a proof of intuitionistic linear logic as a term of
+  the linear lambda calculus of Benton, Bierman, de Paiva and Hyland
+  (the affine one in affine mode, a cut a redex), a derivation of LJ as
+  a simply typed term; printed in Unicode or ASCII, with or without
+  types, by `prove`, `check` and `interact`, in JSON, and under the
+  conclusion in LaTeX, Typst, SVG, PNG and PDF; what has no term is
+  refused with its reason.
 - Benchmarks: readers for the problems of the LLTP library and for
   coverability problems in the `.spec` format of the Mist tool, generated
   families with known verdicts (the hard families of the literature and
@@ -327,8 +335,7 @@ Planned, release by release, as the repository grows from linlog into
 a collection of logic suites:
 
 - 0.3.0: ordinary logic on the web page, proved step by step in LK and
-  LJ; proofs read back as lambda-terms (intuitionistic linear proofs as
-  linear terms, LJ derivations as simply typed terms); the one-sided
+  LJ; the lambda-term of a proof on the web page; the one-sided
   and state-equation refutations checked and certified in the Rocq
   library; the inverse method chosen by default where it is faster.
 - 0.4.0: intuitionistic logic decided by an engine of its own, with

@@ -49,6 +49,8 @@ proof [--FORMAT] [FILE]
                     or --json, --latex, --typst, --svg, --png, --pdf, or --rocq for a
                     certificate (--png and --pdf need a FILE);
                     with a FILE and no format, the one its extension names, else JSON
+lambda              the finished proof's lambda-term, as its typing judgement (prove's
+                    --lambda); an open goal or a classical proof says why it has none
 save FILE           write the session as JSON
 load FILE           resume a session written by save
 help                this list
@@ -97,6 +99,7 @@ pub(crate) fn interact(args: &InteractArgs, given: &Given) -> Result<Status> {
     let styles = style::read(&settings.styles, &args.style, Some(&args.rocq), None, false)?;
     let mut session = Session {
         styles,
+        lambda: settings.lambda,
         state,
         deepens: settings.search.copies.is_none(),
         timeout: time_limit(&settings),
@@ -282,6 +285,8 @@ fn load(path: &Path, limits: &Limits) -> Result<Saved> {
 struct Session {
     /// How `show` and `proof` write each format.
     styles: Styles,
+    /// How `lambda` prints the proof's lambda-term.
+    lambda: linlog::lambda::Options,
     /// The proof in progress.
     state: Interactive,
     /// The search settings of `close`.
@@ -502,6 +507,16 @@ impl Session {
                     &mut text,
                 )?;
                 proof_written(shown, text, path)?
+            }
+            "lambda" => {
+                let derivation = self
+                    .state
+                    .derivation_within(&self.view, &self.limits, |_| false)?;
+                lambda_line(
+                    &derivation.term(&self.limits, |_| false),
+                    &self.lambda,
+                    &self.limits,
+                )
             }
             "save" => {
                 let [path] = rest else {
@@ -898,6 +913,25 @@ fn inverted_line(steps: usize, refused: Option<&Refusal>) -> Option<String> {
         )),
         None if steps == 0 => None,
         None => Some(taken),
+    }
+}
+
+/// Returns what the command `lambda` prints: the term's typing judgement,
+/// or why there is none.
+fn lambda_line(
+    term: &Result<linlog::lambda::Term, linlog::Error>,
+    options: &linlog::lambda::Options,
+    limits: &Limits,
+) -> String {
+    let mut text = String::new();
+    match term
+        .as_ref()
+        .map_err(Clone::clone)
+        .and_then(|term| term.write_judgement(&mut text, options, limits, |_| false))
+    {
+        Ok(()) => text,
+        Err(linlog::Error::NoTerm { reason, .. }) => format!("no lambda-term: {reason}"),
+        Err(error) => format!("the lambda-term is not written: {error}"),
     }
 }
 

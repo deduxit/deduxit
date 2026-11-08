@@ -13,7 +13,9 @@ checks the finished proof independently and prints it or writes it for
 `check` (`proof --rocq` certifies it, `proof --pdf FILE` draws it, and
 `show proof.pdf` writes the derivation so far, open goals included;
 every format of `prove` is a word with dashes there, and a file without
-one takes the format its extension names). In intuitionistic mode the goals are two-sided and the
+one takes the format its extension names), and `lambda` prints the
+finished proof's lambda-term (the chapter [Proofs as programs](terms.md)).
+In intuitionistic mode the goals are two-sided and the
 rules carry the names of ILL:
 
 ```console

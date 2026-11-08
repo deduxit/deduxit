@@ -244,7 +244,7 @@ pub(crate) struct ProveArgs {
     pub(crate) stats: bool,
     /// Read the settings from a JSON file, before the flags, which
     /// override it: an object with any of the keys `clock`, `limits`,
-    /// `search`, `view`, `styles`, `batch`, `ordinary` and `input`, each an
+    /// `search`, `view`, `styles`, `batch`, `ordinary`, `lambda` and `input`, each an
     /// object of the fields the flags name in parentheses (`{"search":
     /// {"copies": 3}, "limits": {"memory_bytes": null}}`); a field left
     /// out keeps the command's default, and a misspelt one is an error;
@@ -580,6 +580,9 @@ pub(crate) struct InteractArgs {
     /// How `show` and `proof` draw a derivation of LK or LJ.
     #[command(flatten)]
     pub(crate) structural: StructuralArgs,
+    /// How the command `lambda` prints the proof's lambda-term.
+    #[command(flatten)]
+    pub(crate) lambda_style: LambdaArgs,
     /// The search's options, bounds and threads, for a `close`.
     #[command(flatten)]
     pub(crate) search: SearchArgs,
@@ -603,8 +606,8 @@ pub(crate) struct InteractArgs {
     pub(crate) rocq: RocqArgs,
     /// Read the settings from a JSON file, before the flags, which
     /// override it: an object with any of the keys `clock`, `limits`,
-    /// `search`, `view`, `styles`, `batch`, `ordinary`, `interactive` and
-    /// `input`, each an object of the fields the flags name in parentheses
+    /// `search`, `view`, `styles`, `batch`, `ordinary`, `interactive`,
+    /// `lambda` and `input`, each an object of the fields the flags name in parentheses
     /// (`{"search": {"copies": 3}, "limits": {"memory_bytes": null}}`); a
     /// field left out keeps the command's default, and a misspelt one is
     /// an error; `ordinary` applies under --logic, which names the logic
@@ -667,7 +670,7 @@ pub(crate) struct CheckArgs {
     pub(crate) output: OutputArgs,
     /// Read the settings from a JSON file, before the flags, which
     /// override it: an object with any of the keys `clock`, `limits`,
-    /// `search`, `view`, `styles`, `batch`, `ordinary` and `input`, each an
+    /// `search`, `view`, `styles`, `batch`, `ordinary`, `lambda` and `input`, each an
     /// object of the fields the flags name in parentheses (`{"search":
     /// {"copies": 3}, "limits": {"memory_bytes": null}}`); a field left
     /// out keeps the command's default, and a misspelt one is an error;
@@ -1139,6 +1142,21 @@ pub(crate) struct OutputArgs {
     /// How the output looks.
     #[command(flatten)]
     pub(crate) style: StyleArgs,
+    /// Print the lambda-term of the proof, an intuitionistic proof read
+    /// back as a program: a proof of intuitionistic linear logic (-i, or
+    /// --linear under --logic) as a term of the linear lambda calculus of
+    /// Benton, Bierman, de Paiva and Hyland, the affine one under
+    /// --affine, a derivation of LJ (--logic intuitionistic or minimal) as
+    /// a simply typed term; as its typing judgement on a line after the
+    /// derivation, under the conclusion in latex, typst, svg, png and pdf,
+    /// and under the key lambda in json. A proof without one (classical,
+    /// with Mix, cyclic or Lambek, with quantifiers) gets a line saying
+    /// why instead
+    #[arg(long)]
+    pub(crate) lambda: bool,
+    /// How the lambda-term is printed.
+    #[command(flatten)]
+    pub(crate) lambda_style: LambdaArgs,
     /// The Rocq certificate's lemma and prelude.
     #[command(flatten)]
     pub(crate) rocq: RocqArgs,
@@ -1209,6 +1227,39 @@ pub(crate) struct StructuralArgs {
     /// rule.
     #[arg(long, value_enum, value_name = "RULES", default_value_t = StructuralArg::Admissible)]
     pub(crate) structural: StructuralArg,
+}
+
+/// How a proof's lambda-term is printed.
+#[derive(Args, Clone, Debug)]
+pub(crate) struct LambdaArgs {
+    /// The symbols of a lambda-term: unicode, as the calculus writes it
+    /// (λx. x ⊗ y, ⟨x, y⟩), or ascii (\x. x * y, <x, y>), the types as the
+    /// parser reads them (lambda.notation)
+    #[arg(long, value_enum, value_name = "NOTATION", default_value_t = NotationArg::Unicode)]
+    pub(crate) lambda_notation: NotationArg,
+    /// Write every binder of a lambda-term with its variable's type,
+    /// λx:A. M, and false and abort with their goal's (lambda.types)
+    #[arg(long)]
+    pub(crate) lambda_types: bool,
+}
+
+/// The symbols of a lambda-term.
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum NotationArg {
+    /// λ, ⊗, ⟨⟩ and the other symbols of the calculus
+    Unicode,
+    /// ASCII alone
+    Ascii,
+}
+
+impl From<NotationArg> for linlog::lambda::Notation {
+    /// Returns the library's notation.
+    fn from(notation: NotationArg) -> Self {
+        match notation {
+            NotationArg::Unicode => Self::Unicode,
+            NotationArg::Ascii => Self::Ascii,
+        }
+    }
 }
 
 /// How a derivation of LK or LJ shows its structural rules.
@@ -1287,16 +1338,18 @@ pub(crate) struct StyleArgs {
     /// VALUE is JSON, or else a string: `gap=5`, `ids=true`,
     /// `open={"mark":"?"}`, `labels.table.⊸L=⊸_L`. The fields:
     /// text: labels, open, bar, gap; latex: form, labels, open, align,
-    /// ebproof, preamble; typst: form, labels, open, import, page,
+    /// ebproof, preamble, lambda (the lambda-term under the conclusion,
+    /// null or {"notation","types"}, which --lambda sets); typst: form,
+    /// labels, open, import, page,
     /// layout (auto, curryst or linlog: curryst for a tree up to nine
     /// inferences high, linlog's own code above), premise_gap, label_gap,
     /// band, stroke (lengths for linlog's own layout: a number and pt,
-    /// mm, cm, in or em); svg:
+    /// mm, cm, in or em), lambda; svg:
     /// font (family, advances), labels, open, ids, description, font_size,
     /// label_size, line_height, premise_gap, literal_gap, label_gap,
     /// margin, stroke_width, link_height, link_cap, node_radius, text,
     /// line, par, link, highlight, background, essential, input,
-    /// dominator, net (formulas: a proof net with every subformula
+    /// dominator, lambda, net (formulas: a proof net with every subformula
     /// written, or compact: only its literals and conclusions written,
     /// its inner links circles), net_look (a net's look: textbook or
     /// linlog, the default, or its fields premises: dashed or plain,

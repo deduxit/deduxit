@@ -60,6 +60,7 @@ pub(crate) fn eliminate(args: &EliminateArgs, given: &Given) -> Result<Status> {
                 mode,
                 error: None,
                 message: Some(line),
+                lambda: None,
             };
             serde_json::to_writer(out.stream(), &unknown)?;
             out.finish()?;
@@ -207,6 +208,7 @@ fn eliminate_into(
                     mode,
                     error: Some(Error::Check(error)),
                     message: Some(message),
+                    lambda: None,
                 };
                 serde_json::to_writer(out.stream(), &checked)?;
                 return Ok((status, true));
@@ -641,6 +643,7 @@ fn unchecked(
                 mode,
                 error: Some(Error::Check(error)),
                 message: Some(message),
+                lambda: None,
             };
             serde_json::to_writer(out.stream(), &checked)?;
         }
