@@ -534,7 +534,7 @@ note's.
 | 46 | custom-rules-4 and custom-rules-5: static analysis of rule sets, synthetic rules from axioms | R | 3+ and 2 | mostly "unknown" | rank 12 | custom-rules |
 | 47 | verification-4 and verification-5: deductive verification of the checker, refinement to the Rocq checker | R: the strongest statements | 4 to 8; more | Prusti does not fit (closures unsupported, no tagged release since 2024-02); Verus or Creusot after a spike; Aeneas's and hax's Rocq back ends are the least mature | a refactored checker core | verification |
 | 48 | logics-4, logics-5 beyond μMALL, cyclic-proofs-2, cyclic-proofs-4, cyclic-proofs-5: BV and pomset nets, cyclic LK with inductive definitions, Cyclist-style search, certificates for the trace condition | R | 4 to 8 each | research projects | none now (research projects) | scope-logics, cyclic-proofs |
-| dropped | BI and separation logic as a suite (BI undecidable, LICS 2026), temporal model checking, Martin-Löf type theory, equational completion, categorical tools, a hosted service with accounts, a SAT solver as a goal, natural deduction for classical linear logic (no standard calculus found), nixpkgs for now (the author's word) | | | | | more-logics, custom-rules, resolution, natural-deduction |
+| dropped | BI and separation logic as a suite (BI undecidable, LICS 2026), temporal model checking, Martin-Löf type theory, equational completion, categorical tools, a hosted service with accounts, a SAT solver as a goal, natural deduction for classical linear logic (no standard calculus found), nixpkgs for now (the author's word) | nothing: each is rejected for the reason named | 0 | none | none | more-logics, custom-rules, resolution, natural-deduction |
 
 The remaining candidates of the notes, each placed after the list above
 unless a row says otherwise; the costs are the notes' lines:
@@ -564,7 +564,7 @@ unless a row says otherwise; the costs are the notes' lines:
 | more-logics-9: temporal logics | R | 3 (LTL), double for CTL | a model checker's method; rejected as a suite | none | more-logics |
 | more-logics-10: many-valued and paraconsistent logics as tables and tableaux | T (philosophy courses) | 1 to 2 | a mode of the truth-table and tableau step | more-logics-2 | more-logics |
 | more-logics-11: epistemic, dynamic epistemic, deontic, conditional logics | T | 2 | modes of the modal suite | modal-logics-1 | more-logics |
-| more-logics-12, more-logics-13, more-logics-14: BI and separation logic, dependent type theory, categorical tools | | 3, large, none | rejected (BI undecidable; the proof assistants' ground; no proof suite fits) | none | more-logics |
+| more-logics-12, more-logics-13, more-logics-14: BI and separation logic, dependent type theory, categorical tools | none for this project (the notes reject each) | 3, large, none | rejected (BI undecidable; the proof assistants' ground; no proof suite fits) | none | more-logics |
 | modal-logics-6: S4 and IS4 into linear logic through the MELL engines, as `ordinary/` does for LK and LJ | R: a cross-check, pedagogical | 2 (+1 for IS4) | the image lies in full LL, decidability of the image class unread | modal-logics-1's syntax | modal-logics |
 | natural-deduction-4: rule files for a course's own natural deduction rules | T | 3 to 5 | the same item as custom-rules-1 applied to natural deduction | custom-rules-1 | natural-deduction |
 | natural-deduction-5: Fitch-style modal natural deduction | T, R | 2 | only with a modal suite | natural-deduction-1, modal-logics-1 | natural-deduction |
@@ -615,8 +615,8 @@ unless a row says otherwise; the costs are the notes' lines:
 | llm-agents-3, llm-agents-4, llm-agents-5: a Python package, structured hints for models, `--explain` | M | 2 to 3, after a trial, 1 | not recommended yet | a trial with a small model for -4 | llm-agents |
 | verification-7: a certificate download on the page | built already: the client's bottom band exports the finished proof's and a refuted goal's Rocq certificate (`BottomBand.tsx`, found by the reviewer) | 0 | dropped | none | verification |
 | maintenance-6, maintenance-9: platform code signing, a crate and module budget; maintenance-2 is built already (`.github/dependabot.yml` of 2026-09-29 watches the actions weekly, found by the reviewer), so only advisories remain of it | users, the maintainer | accounts and fees; under 1 | accounts, fees and a certificate the author must hold; the budget is a number to keep, not code | none | maintenance |
-| structure-2, structure-3, structure-4: a repository per suite, features per logic, one engine with calculi as data | | | compared above; structure-2 kept open for a third party's suite | structure-1's kernel for 2 and 4 | structure |
-| name-and-organisation-1, name-and-organisation-2, name-and-organisation-4: keep the organisation, rename in place, the name table | | | compared above | the author's choice | name-and-organisation |
+| structure-2, structure-3, structure-4: a repository per suite, features per logic, one engine with calculi as data | the maintainer: the shape of the collection | 2 to 3 of infrastructure per repository for structure-2; none for 3; 2 to 3 on top of a kernel for 4 | compared above; structure-2 kept open for a third party's suite | structure-1's kernel for 2 and 4 | structure |
+| name-and-organisation-1, name-and-organisation-2, name-and-organisation-4: keep the organisation, rename in place, the name table | the author: the organisation's home and name | 0 today for 1; 1.5 plus the author's browser tasks for 2; 0 for the table | compared above | the author's choice | name-and-organisation |
 
 The sources of each candidate: the note that holds it and the
 references its section cites (the numbers are the note's source list;
