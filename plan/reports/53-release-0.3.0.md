@@ -759,8 +759,11 @@ A diligence check, not a legal opinion (`checks/diligence-cc.md`).
 
 - **Click & coLLecT** (https://click-and-collect.linear-logic.org/, the
   repository etiennecallies/click-and-collect; its page and favicon
-  fetched into `checks/marks-cc/`, looked at): the name "C1ick ⅋ c⊗LLec⊥",
-  the favicon a calligraphic ⅋. Against every candidate: a single replaced
+  fetched into `checks/marks-cc/`, looked at; the repository's README and
+  file list fetched too: the README carries the same title and no image,
+  and the repository's only image files are jQuery UI's icon sheets, the
+  Coq, camera, share and GitHub icons and the favicon, so the favicon is
+  its only mark): the name "C1ick ⅋ c⊗LLec⊥", the favicon a calligraphic ⅋. Against every candidate: a single replaced
   letter is the lollipop's own grammar, never their several signs,
   capitalised LL or calligraphic ⅋; no candidate combines two replaced
   letters; no credible resemblance. One coincidence named: their t is ⊥
