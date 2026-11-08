@@ -17,6 +17,18 @@ beside it, Zenodo), `plan/notes/distribution.md`, `.claude/rules/ci.md`
 of steps 47 to 52 (and 48's table of addresses), and the `later.md`
 entries named below.
 
+**Held (the author, 2026-11-08): "Let's figure out a name and logo
+later. In the meantime don't make another tag until I figure it out."**
+
+- No tag until the author has chosen the name and the mark:
+  - the name: the rename to `sequentium` and its form, or none, as
+    weighed in `plan/notes/structure.md`;
+  - the mark: one of 53m's three rounds.
+- 53m's placement and 53b wait for those choices.
+- 53a needs no tag and may run.
+- If the name changes, 53b's question on the citation title is answered
+  by it, and a session renaming the crates comes before 53b.
+
 ## Goal
 
 0.3.0 is "ordinary logic on the page": LK and LJ step by step in the

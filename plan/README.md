@@ -5255,3 +5255,45 @@ move (D26).
   - Follow-up in `later.md`: prover.spec's "link in the fragment
     restores the proof" failed twice beside other specs and passed
     alone.
+- 2026-11-08, late evening: three things returned, and the author put the
+  release on hold.
+  - **Session 53m's round 3 is done** (report in
+    `plan/reports/53-release-0.3.0.md`; its page is
+    https://claude.ai/artifact/2G7yo4bvDPGPv2HBhXgDyA).
+    - It drew the turnstile t at a normal turnstile's width ("sequen⊢ium",
+      the long arm on the axis), beside round 2's narrower drawing.
+    - It also drew letter plays in Click & coLLecT's spirit: s∈quentium,
+      Σequentium, seq, sequentᵢum.
+    - Both designers put the turnstile first: the full width if the sign
+      should be read first, round 2's drawing if the word should. Among
+      the plays they favour s∈quentium for the word mark and Σ for the
+      square.
+    - No candidate copies Click & coLLecT's look.
+  - **Asana, at the author's question** (a diligence view, not legal
+    advice). Asana holds US Reg. 8068874 (2025-12-16): three coral dots,
+    coral claimed, software. Its 2015 mark of the dots with the word
+    claims no colour, so a different colour or dot size helps little. The
+    word and the layout separate the marks:
+    - three dots alone as the square: closest, avoid;
+    - three dots before the word: a modest resemblance;
+    - three dots as the i's dot, or ∴s: none.
+    No round-3 candidate uses dots.
+  - **The structure research is done** (`plan/notes/structure.md`, its
+    sources and what it could not verify inside).
+    - It recommends renaming the library and command to `sequentium` at
+      0.3.0. The last `linlog` and `linlog-cli` releases would say
+      "renamed" and pass through to the new crates, as gitoxide's
+      `git-repository` did for `gix`. Never delete them: the name is free
+      again after a day.
+    - The planning session advised the smaller form: rename the crates,
+      the command, the bindings and the citation title, but leave the
+      modules where they are until step 67 and keep `rocq-linlog`.
+    - Under the rename the name moves onto the software itself, closer to
+      the pending SEQUENT application.
+  - **The author: "Let's figure out a name and logo later. In the meantime
+    don't make another tag until I figure it out."**
+    - No tag of linlog or the Rocq library until the author has chosen
+      the name (the rename, its form, or no rename) and the mark.
+    - 53m's placement and 53b wait for those choices, and so may the
+      opam pull request (a full rename renames `rocq-linlog`).
+    - Work that needs no tag goes on: 51b, 52, and 53a after them.
