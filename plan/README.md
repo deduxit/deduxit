@@ -4835,3 +4835,19 @@ move (D26).
   - `handoff.md`'s "The steps left" and "Open with the author" brought
     up to date. The reviewer's round and the departures are in the
     report's section "Session 46b".
+- 2026-11-08: 46b reviewed.
+  - Checked here, by commands of my own rather than the session's
+    script:
+    - every one of the 27 rows has its prompt file, and each depends
+      only on earlier steps;
+    - the decisions are carried: no search for custom rules (60, 61),
+      the move with the renamed repositories and the opam pull request
+      after it (48), Kani (58), and cyclic proofs and System F kept
+      (`later.md`).
+  - Stacked on the note of the organisation's creation: the one conflict
+    was two Status entries at the log's end, both kept.
+  - Two departures for the author:
+    - the kernel crate is step 67 in 0.6.0, not 0.5.0, since the modal
+      suite is the first non-embedded suite D25 waits for;
+    - 0.3.0 gains a session for small defects (53a).
+  - Open before 48a: a custom domain or the `github.io` addresses.
