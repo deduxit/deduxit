@@ -65,6 +65,38 @@ amended (see "Review protocol"). `notes/` holds research the prompts rely on.
 | 44 | A guide to linlog for AI models: a compact summary of the command and the library by the practices current then (research first), every example run by a test, tried on a small model given nothing else, kept true by every later step (one session, documentation only; after 40, may run beside 41); 44b the manual: README a front page, the reference an mdBook manual on the Pages site, every example still run (the author, 2026-10-29; after 42k and 43d, before 45) | `44-llm-guide.md` (written 2026-10-23 at the author's word) | Opus 5.5; research on Sonnet 5.5; the trial agents Haiku 5.5 and Sonnet 5.5 | high (the sub-agents `medium`) | 40 |
 | 45 | The fourth baseline, and the second release, 0.2.0, the bump the closed enums' new variants call for (five sessions: the Rocq library moved to its own repository `linlog-prover/rocq-linlog`, the author's of 2026-10-24; families of linlog's own that grow in size, one per engine's or prover's strength or weakness, with graphs of time against size, the author's of 2026-10-30; the baseline on a night the author gives, the other provers on the new families on a second; then the release prepared, the tag and publication the author's; the Rocq library given a release of its own; after the tags, the library's submission to the Rocq opam repository prepared, and whether to submit linlog and its Rocq library to nixpkgs assessed for the author, and if they say so packaged by nixpkgs' current practice, the pull request the author's, 2026-10-25) | `45-release-0.2.0.md` (written 2026-10-23 at the author's word; finished at the review of the last step before it) | Opus 5.5 | high | every step before it |
 | 46 | Research: what to add after 0.2.0, from the literature, the other tools, what users say publicly and `later.md`, ranked, the author choosing; widened by the author on 2026-11-08 to a collection of suites for many kinds of logic (ordinary, natural deduction, resolution, tableaux, modal, cyclic proofs, typed lambda calculi, custom rules), its structure, its unified web front end and the organisation's name; then the prompts of the chosen steps (two sessions with the author between, no code) | `46-research-next.md` (written 2026-10-23 at the author's word) | Fable 5.1 for the research and its synthesis, the sub-agents on Sonnet 5.5; Opus 5.5 for the prompts | high (the sub-agents `medium`) | 45 |
+| | **Release 0.3.0: ordinary logic on the page** (D27) | | | | |
+| 47 | The measurement before the collection grows: the web module's size, the build's timings, the ratchet, the target sets as the new oracles (one session, by day, timed runs coordinated; may run beside 48) | `47-measurement.md` (complete) | Opus 5.5 | high | 46 |
+| 48 | The move to `sequentium` (D26): 48a prepares every URL, `Cargo.toml`'s fields, `CITATION.cff`, the manual, the guide, the flake's inputs, the client, the placeholder site and the opam change, nothing pushed; then the author's acts in order (the organisation created 2026-11-08; the settings; the transfers of `rocq-linlog`, `linlog` renamed `sequentium` and the site renamed `sequentium.github.io`; environments and secrets checked; crates.io's Trusted Publishing; Zenodo; the placeholder repository `linlog-prover/linlog-prover.github.io`); 48b the remotes, the push order, every old address checked; then the author's opam pull request (two sessions with the author between) | `48-sequentium.md` (complete) | Opus 5.5; a fresh-context reviewer on Opus 5.5 | high | 46 |
+| 49 | Ordinary logic step by step: a native goal state of LK and LJ, the ordinary JSON forms, `interact` with the ordinary logics, the bindings, and on the page the suite registry with the Ordinary segment switched on (three sessions, the third in the client) | `49-ordinary-interactive.md` (complete; the facts of 47 and 48 added at their review) | Opus 5.5; a fresh-context reviewer on Opus 5.5 | high | 47, 48 |
+| 50 | Proofs read back as lambda-terms: ILL proofs as linear terms, LJ derivations as simply typed terms, printed, exported and on the page (two sessions, the second in the client) | `50-lambda-terms.md` (complete) | Opus 5.5; research on Sonnet 5.5; a fresh-context reviewer on Opus 5.5 | high (research `medium`) | 49 |
+| 51 | Decision 8's first step (D31): the one-sided and state-equation refutations checked by `Disproof::check` and certified by lemmas of the Rocq library, `linlog check` reading a disproof, the comparison crediting checked refutations (two sessions, the first in `rocq-linlog`) | `51-certified-refutations.md` (complete) | Opus 5.5 (Fable 5.1 at `xhigh` only if Opus visibly falls short on a proof); the panel's argument on Fable 5.1 | high, with the panel | 48 |
+| 52 | Dispatch rows for the inverse method where it wins (`wide-m1`, classical `chain`, affine `pigeonhole`), earned by measurement (D19); the harness's reason read in the right order first (one session, by day) | `52-inverse-dispatch.md` (complete; 47's figures added at its review) | Opus 5.5; a fresh-context reviewer on Opus 5.5 | high | 47 |
+| 53 | The release of 0.3.0, the first from `sequentium`: 53a the small defects of `later.md` a first user meets, 53b the release prepared, the tag, crates.io, the GitHub release and Zenodo the author's, the chain after the move proved (two sessions) | `53-release-0.3.0.md` (complete; what 47 to 52 leave added at their reviews) | Opus 5.5 | high | 47, 48, 49, 50, 51, 52 |
+| | **Release 0.4.0: intuitionistic logic decided, with Kripke countermodels, tableaux and truth tables** (D27) | | | | |
+| 54 | A native engine on Dyckhoff's LJT for intuitionistic and minimal logic, always terminating, its proofs checked as LJ, the default where it wins (two sessions) | `54-ljt-engine.md` (finished at the review of 53) | Opus 5.5; the panel's argument on Fable 5.1 | high, with the panel | 53 |
+| 55 | Kripke countermodels as a shared, checked output kind, extracted from 54's search, drawn, on the page, and certified by a lemma of the Rocq library (three sessions) | `55-kripke-countermodels.md` (finished at the review of 54) | Opus 5.5 (Fable 5.1 at `xhigh` only if Opus visibly falls short on the proof); the panel's argument on Fable 5.1 | high, with the panel | 54 |
+| 56 | Classical tableaux as a view of the LK read-back with countermodels from open branches, and truth tables, in the command and as methods on the page (two to three sessions) | `56-tableaux-truth-tables.md` (finished at the review of 55) | Opus 5.5; a fresh-context reviewer on Opus 5.5 | high | 49, 55 |
+| 57 | A checked basis for the Horn engine's non-coverability in affine mode (one to two sessions) | `57-basis-certificate.md` (finished at the review of 53) | Opus 5.5; the panel's argument on Fable 5.1 | high, with the panel | 53 |
+| 58 | Maintenance and decision 8's second step (D31): the MSRV and cadence policy, an advisory check, a wasm feature baseline, a budget, Clippy and tests on 32 bits for the bindings, Kani harnesses for the checker's integers, the client's accessibility audit (two sessions) | `58-maintenance.md` (finished at the review of 53) | Opus 5.5; a fresh-context reviewer on Opus 5.5 | high | 53 |
+| 59 | The release of 0.4.0 (one session) | `59-release-0.4.0.md` (finished at the review of 58) | Opus 5.5 | high | 54, 55, 56, 57, 58 |
+| | **Release 0.5.0: custom rules and natural deduction** (D27) | | | | |
+| 60 | Rules as data, a generic derivation carrying discharge links, scope trees, literal closure and labels, and its checker by matching; LK, LJ and the linear calculus as rule files (two to three sessions) | `60-rule-schemas.md` (finished at the review of 59) | Fable 5.1 for the first session (the rule language and the derivation type), Opus 5.5 for the rest; the panel's argument on Fable 5.1 | high, with the panel | 59 |
+| 61 | Building derivations with custom rules in the command and on the page, every verdict "valid in the calculus given"; the manual's chapter on theories as hypotheses (two to three sessions) | `61-custom-rules-interactive.md` (finished at the review of 60) | Opus 5.5; a fresh-context reviewer on Opus 5.5 | high | 60 |
+| 62 | Natural deduction for ordinary logic in Gentzen's and Fitch's styles, on the generic derivation, rule sets as files, the Fitch view on the page (four to six sessions) | `62-natural-deduction.md` (finished at the review of 61) | Opus 5.5; a fresh-context reviewer on Opus 5.5 | high | 61 |
+| 63 | The suites' written protocol with a JSON Schema, the module question against 47's figures, Learn and Practice keyed by suite with the ordinary suite's content (two to three sessions) | `63-suite-protocol.md` (finished at the review of 62) | Opus 5.5; a fresh-context reviewer per content session | high | 47, 62 |
+| 64 | The release of 0.5.0 (one session) | `64-release-0.5.0.md` (finished at the review of 63) | Opus 5.5 | high | 60, 61, 62, 63 |
+| | **Release 0.6.0: modal logics K to S5** (D27) | | | | |
+| 65 | Modal logics K, T, K4, S4 and S5 decided, every "not valid" a checked Kripke countermodel against the frame conditions, drawn, on the page; the second non-embedded suite (three to four sessions) | `65-modal-logics.md` (finished at the review of 64) | Fable 5.1 for the first session (the modal arena and systems), Opus 5.5 for the rest; the panel's argument on Fable 5.1 | high, with the panel | 55, 64 |
+| 66 | The labelled modal calculus step by step on the generic derivation, and its soundness proved in Rocq (five sessions) | `66-labelled-modal.md` (finished at the review of 65) | Opus 5.5 (Fable 5.1 at `xhigh` only if Opus visibly falls short on the proof); a fresh-context reviewer on Opus 5.5 | high | 60, 61, 65 |
+| 67 | The kernel crate, extracted only from what at least two suites copied, unpublished at 0.0.0, `linlog`'s paths kept (D25; three to five sessions, or one that ends at the gate) | `67-kernel-crate.md` (finished at the review of 66) | Fable 5.1 for the first session (the inventory and the boundary), Opus 5.5 for the extraction | high | 47, 65, 66 |
+| 68 | Tools for teachers: a Kripke model editor, a checker for students' tableaux, course packs with a checkable handed-in link, a print stylesheet (three sessions) | `68-teaching-tools.md` (finished at the review of 67) | Opus 5.5; a fresh-context reviewer per client session | high | 56, 63, 65, 67 |
+| 69 | The release of 0.6.0 (one session) | `69-release-0.6.0.md` (finished at the review of 68) | Opus 5.5 | high | 65, 66, 67, 68 |
+| | **Release 0.7.0: resolution and the simply typed lambda calculus** (D27) | | | | |
+| 70 | Propositional resolution at teaching scale: CNF, refutations drawn as graphs, DPLL traced, a refutation checker, an outside proof read only through an allowed licence (three to four sessions) | `70-resolution.md` (finished at the review of 69) | Opus 5.5; the panel's argument on Fable 5.1 | high, with the panel | 63, 69 |
+| 71 | The simply typed lambda calculus: typing derivations checked and built, the linear terms of 50 checked, inhabitation enumerated and counted within a bound (three to four sessions) | `71-typed-lambda.md` (finished at the review of 69) | Fable 5.1 for the first session (the term model), Opus 5.5 for the rest; the panel's argument on Fable 5.1 | high, with the panel | 50, 69 |
+| 72 | Problems with verified answers for evaluating models, and a one-call grading mode (one to two sessions) | `72-model-dataset.md` (finished at the review of 69) | Opus 5.5; research on Sonnet 5.5 | high (research `medium`) | 69 |
+| 73 | The release of 0.7.0, its report the state of every item kept for after it (one session) | `73-release-0.7.0.md` (finished at the review of 72) | Opus 5.5 | high | 70, 71, 72 |
 
 A step has a whole number, one prompt file named after it, one report
 under `reports/` with the same name, and as many sessions as it takes to
@@ -90,6 +122,21 @@ Steps 5–6 and 7 are independent of each other; 10, 11 and 13 are
 independent of each other; 22 is independent of 19 to 21; 31 and 32 ran
 side by side, as did 33 and 34, 35 and 34, and 36 and 37. Everything
 else is in order.
+
+The steps from 47 are the roadmap step 46 set from the author's
+decisions of 2026-11-08 (D24 to D32), grouped by the release each
+leads to. Within a release the table's dependencies are the order:
+47 and 48 may run side by side, as may 51 and 52 after them (each in
+other files), 57 and 58 beside 54 to 56, and 72 beside 70 and 71; a
+step that touches the web client waits for the one before it that does.
+The Rocq library's opam pull request is the author's, after step 48's
+second session has checked the move. Decision 8's verification (D31)
+is steps 51 (certified refutations) and 58 (Kani), with 55 and 57
+adding certificates of their own kind; its third part, deductive
+verification of the checker, waits in `later.md` for the checker's
+refactoring, as do the research items of D30 and every candidate the
+roadmap does not take (`later.md`, "Where each candidate went
+(2026-11-08)"), for the step after 73 that the author starts.
 
 On 2026-10-19 the steps from 32 on were renumbered in the order they
 ran and will run (the author's request; that day's Status entry maps
@@ -410,6 +457,21 @@ self-preference studies cited above. What they say, and what follows:
   correctness and the stated requirements, and the session answers
   each finding rather than building for it. `conduct.md` carries both.
 
+Chosen on 2026-11-08 by step 46's second session for steps 47 to 73,
+by the role table above, which it did not re-evaluate (no model
+documentation was read that day; the planning session re-checks it
+when it finishes each prompt): every step session on Opus 5.5 at
+`high`; Fable 5.1 at `high` only for the first session of the four
+steps whose data model every later session builds on (60, the rule
+language and the generic derivation; 65, the modal arena; 67, the
+kernel's boundary; 71, the term model), the rest of those steps on
+Opus; a mechanised proof (51, 55, 66) moved to Fable 5.1 at `xhigh`
+only where Opus visibly falls short; the panel of step 26's prompt for
+every new search, checker or certificate check (51, 54, 55, 57, 60, 65,
+70, 71), its argument on Fable 5.1 at `high`; a fresh-context reviewer
+on Opus 5.5 at `high` elsewhere; research sub-agents on Sonnet 5.5 at
+`medium`. No `max`, no Haiku for a session.
+
 ### How the prompts are written
 
 Following Anthropic's prompting guidance for Fable 5.1 and Opus 5.5 (the
@@ -559,6 +621,33 @@ claude --model claude-opus-5-5 --effort high --name step-43 ((open --raw plan/43
 claude --model claude-opus-5-5 --effort high --name step-44 ((open --raw plan/44-llm-guide.md) + "\n" + (open --raw plan/conduct.md))
 claude --model claude-opus-5-5 --effort high --name step-45 ((open --raw plan/45-release-0.2.0.md) + "\n" + (open --raw plan/conduct.md))
 claude --model claude-fable-5-1 --effort high --name step-46 ((open --raw plan/46-research-next.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-opus-5-5 --effort high --name step-47 ((open --raw plan/47-measurement.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-opus-5-5 --effort high --name step-48 ((open --raw plan/48-sequentium.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-opus-5-5 --effort high --name step-49 ((open --raw plan/49-ordinary-interactive.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-opus-5-5 --effort high --name step-50 ((open --raw plan/50-lambda-terms.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-opus-5-5 --effort high --name step-51 ((open --raw plan/51-certified-refutations.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-opus-5-5 --effort high --name step-52 ((open --raw plan/52-inverse-dispatch.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-opus-5-5 --effort high --name step-53 ((open --raw plan/53-release-0.3.0.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-opus-5-5 --effort high --name step-54 ((open --raw plan/54-ljt-engine.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-opus-5-5 --effort high --name step-55 ((open --raw plan/55-kripke-countermodels.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-opus-5-5 --effort high --name step-56 ((open --raw plan/56-tableaux-truth-tables.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-opus-5-5 --effort high --name step-57 ((open --raw plan/57-basis-certificate.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-opus-5-5 --effort high --name step-58 ((open --raw plan/58-maintenance.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-opus-5-5 --effort high --name step-59 ((open --raw plan/59-release-0.4.0.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-fable-5-1 --effort high --name step-60 ((open --raw plan/60-rule-schemas.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-opus-5-5 --effort high --name step-61 ((open --raw plan/61-custom-rules-interactive.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-opus-5-5 --effort high --name step-62 ((open --raw plan/62-natural-deduction.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-opus-5-5 --effort high --name step-63 ((open --raw plan/63-suite-protocol.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-opus-5-5 --effort high --name step-64 ((open --raw plan/64-release-0.5.0.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-fable-5-1 --effort high --name step-65 ((open --raw plan/65-modal-logics.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-opus-5-5 --effort high --name step-66 ((open --raw plan/66-labelled-modal.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-fable-5-1 --effort high --name step-67 ((open --raw plan/67-kernel-crate.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-opus-5-5 --effort high --name step-68 ((open --raw plan/68-teaching-tools.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-opus-5-5 --effort high --name step-69 ((open --raw plan/69-release-0.6.0.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-opus-5-5 --effort high --name step-70 ((open --raw plan/70-resolution.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-fable-5-1 --effort high --name step-71 ((open --raw plan/71-typed-lambda.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-opus-5-5 --effort high --name step-72 ((open --raw plan/72-model-dataset.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-opus-5-5 --effort high --name step-73 ((open --raw plan/73-release-0.7.0.md) + "\n" + (open --raw plan/conduct.md))
 ```
 
 A step of several sessions is started again with the same command, with
@@ -569,8 +658,9 @@ sessions at `--effort xhigh`, all started by the planning session with
 `--permission-mode auto` and a note of where to start (prompt 28,
 "Unattended, supervised"); step 22's second session at `--effort high`;
 step 31's sessions after the checker's proof with `--model
-claude-opus-5-5 --effort high`); a session
-picks up from the step's report. The aliases `fable` and `opus` also
+claude-opus-5-5 --effort high`; steps 60, 65, 67 and 71 likewise
+after their first session, which the command above starts on Fable);
+a session picks up from the step's report. The aliases `fable` and `opus` also
 work for `--model`. A session the author leaves to run at night adds
 `--permission-mode auto`, and its prompt a section like step 23's
 "Tonight: unattended" (decide instead of asking, keep the passphrase's
@@ -892,6 +982,9 @@ publishing are the author's acts.
 one and the web client, taken by this flake as a pinned input as the
 client takes this one; its first release, 0.2.0 beside linlog's, and its
 opam submission follow (45d, 45e). The workspace of crates is unchanged.
+*Note of 2026-11-08 (step 46):* the owner becomes the organisation
+`sequentium` and this repository `sequentium/sequentium` (D26, step 48);
+the workspace stays one, now for every suite (D25).
 
 **D23. The order to the release, and the audit once** (the author,
 2026-10-03, on the planning's recommendations at the review of step
@@ -909,6 +1002,91 @@ and a CI job reproduces them and commits nothing. The Rocq library
 comes right after the release (step 31), when the proof term it mirrors
 is settled, so that cut and first-order logic only extend it; the web
 client follows it (step 32).
+
+D24 to D32 are the author's decisions of 2026-11-08 on step 46's
+research (`reports/46-research-next.md`, "The decisions for the author",
+answered as recommended but for decision 9), with their two answers on
+the repository and the name; steps 47 to 73 implement them. The web
+client's design (`web/design.md`) numbers its own decisions; a prompt
+that cites one of those names the file.
+
+**D24. A collection of suites, grown one at a time** (decision 1).
+linlog grows into a collection of suites for many kinds of logic, one
+suite at a time, each release leaving a useful tool; `linlog` stays the
+linear suite, its name, crates and command unchanged. The ordinary
+suite (`core/src/ordinary/`) is the second, made whole first.
+
+**D25. One repository and one workspace; the kernel crate only after
+a second non-embedded suite** (decision 2, and the answer "one shared
+repository for every suite"). Every suite lives in the one repository
+and Cargo workspace, `sequentium/sequentium` after the move (D26). A
+kernel crate of the generic parts is extracted only after a second
+non-embedded suite has shown what is shared (the modal suite, step 65;
+the extraction step 67 decides from what each suite recorded it
+copied), and is unpublished, a path crate at 0.0.0, until a second
+suite crate depends on it. The arena, the occurrence forest and the
+proof term stay in `linlog` (D17). A repository per suite stays open
+for a suite a third party writes. The Rocq library stays the linear
+library in its own repository.
+
+**D26. The organisation `sequentium`** (decision 3, and the answer on
+the name). The umbrella organisation is `sequentium` (Latinised from
+Gentzen's *Sequenz*, "of sequents"; created by the author on
+2026-11-08). The shared repository moves there and is renamed
+`sequentium/sequentium`; `rocq-linlog` moves with its name; the site's
+repository becomes `sequentium.github.io`. `linlog-prover` stays the
+author's, a placeholder whose site redirects every published URL, and
+no repository is created again at a moved repository's old name. The
+move (step 48) comes before the Rocq library's opam pull request and
+before the next release. Creating, transferring, renaming and
+configuring the registries are the author's acts; sessions prepare.
+The Cachix cache keeps the name `linlog-prover`; crates.io gets no
+placeholder crate.
+
+**D27. The order of the releases** (decision 4). 0.3.0 ordinary logic
+on the page; 0.4.0 intuitionistic logic decided, with Kripke
+countermodels, tableaux and truth tables; 0.5.0 custom rules and
+natural deduction; 0.6.0 modal logics K to S5; 0.7.0 resolution and the
+simply typed lambda calculus. Each release also carries what the linear
+suite gains on the way (lambda-terms, certified refutations, dispatch
+rows).
+
+**D28. Custom rules are a second, generic derivation type** (decision
+5). Beside the fast linear checker, which stays: rules as data (JSON
+first), a derivation that names its rules and carries from its first
+design what natural deduction, tableaux and labelled modal calculi need
+(discharge links, scope trees, closure by complementary literals,
+labels), a checker by matching within the linear checker's bounds,
+interactive building in the command and on the page, every output
+marked "valid in the calculus given"; no certificate and no search
+(bounded search only if asked later).
+
+**D29. One stage; each tab chooses suite, method and parameters**
+(decision 6). The web page keeps one stage; a tab's calculus choice
+becomes a suite, a method and the suite's parameters (the registry,
+written with the ordinary suite, step 49), old links reading as the
+linear suite; views for list, graph and text proofs are built with the
+suite that needs them; one wasm module until a measured size or a suite
+from another repository asks for a module per suite loaded lazily;
+Learn and Practice are organised by suite (step 63).
+
+**D30. Cyclic proofs and System F are research items** (decision 7),
+after the decidable suites: the trace-condition checker and μMALL first
+if any, System F as checking only. They are kept in `later.md` for the
+step after 0.7.0 that the author starts.
+
+**D31. Verification stepwise** (decision 8). First the one-sided and
+state-equation refutations checked and certified in the Rocq library
+(step 51); Kani harnesses for the checker's integers in a maintenance
+step (58); deductive verification of the Rust checker deferred until
+the checker is refactored for it, its tool then chosen by a trial in
+Verus and Creusot (Prusti does not fit on the sources read: closures
+unsupported, no tagged release since 2024-02).
+
+**D32. No Discussions and no announcement for now** (decision 9). The
+repository gets no GitHub Discussions and no announcement is posted
+until the author says otherwise; the opam pull request is sent after the
+move (D26).
 
 ## Status
 
@@ -4643,3 +4821,15 @@ client follows it (step 32).
   plans for it. crates.io gets no placeholder crate (its usage policy
   forbids name squatting); `sequentium.org` and `.dev` were free that
   day, a custom domain the author's option.
+- 2026-11-08: 46b, the roadmap and the prompts (Opus 5.5 at `high`).
+  - Steps 47 to 73 in the table, grouped by release from 0.3.0 to 0.7.0
+    (D27), each with its prompt file: 47 to 53 complete, 54 to 73 with
+    what is fixed, finished at the review each row names.
+  - The decisions recorded as D24 to D32, and a note under D22.
+  - `later.md` reconciled: "Where each candidate went (2026-11-08)"
+    places every candidate of step 46's ranked list and every open
+    entry of `later.md`'s lists in a step, or keeps or drops it with
+    its reason.
+  - `handoff.md`'s "The steps left" and "Open with the author" brought
+    up to date. The reviewer's round and the departures are in the
+    report's section "Session 46b".
