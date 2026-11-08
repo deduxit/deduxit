@@ -4637,3 +4637,9 @@ client follows it (step 32).
   - 46b starts (Opus 5.5 at `high`): the prompts of the steps from 47
     on and the roadmap of the releases 0.3.0 to 0.7.0, the move to
     `sequentium` among them, before the opam pull request.
+- 2026-11-08: the author created the organisation `sequentium` on GitHub
+  (14:05 UTC, empty), so that the name, public in this plan since the
+  same day, is theirs. The repositories move later, in the step 46b
+  plans for it. crates.io gets no placeholder crate (its usage policy
+  forbids name squatting); `sequentium.org` and `.dev` were free that
+  day, a custom domain the author's option.
