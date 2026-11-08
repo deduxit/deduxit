@@ -38,7 +38,7 @@ macOS and Windows; crates.io and the flake of this repository build it:
 ```sh
 cargo install --locked linlog-cli                        # a Rust toolchain builds it
 nix run github:sequentium/sequentium -- --help           # run it once, without installing
-nix profile add github:sequentium/sequentium             # install it into your profile
+nix profile add github:sequentium/sequentium#linlog-cli  # install it into your profile
 ```
 
 Building needs Rust 1.92 or later. The library is the crate

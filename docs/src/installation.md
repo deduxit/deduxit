@@ -100,15 +100,17 @@ Determinate Systems' installer; with the official installer, add
 once.
 
 ```sh
-nix run github:sequentium/sequentium -- --help           # run it once, without installing
-nix profile add github:sequentium/sequentium/v0.2.0      # install a release into your profile
-nix profile remove linlog                                # and to remove it
+nix run github:sequentium/sequentium -- --help                   # run it once, without installing
+nix profile add github:sequentium/sequentium/v0.2.0#linlog-cli   # install a release into your profile
+nix profile remove linlog-cli                                    # and to remove it
 ```
 
 An entry added by a release's tag stays that release: to update,
 remove it and add the next release's tag. One added without a tag
-(`github:sequentium/sequentium`, the `main` branch, which may be ahead
-of the last release) follows it with `nix profile upgrade linlog`.
+(`github:sequentium/sequentium#linlog-cli`, the `main` branch, which may
+be ahead of the last release) follows it with `nix profile upgrade
+linlog-cli`. The profile names an entry after the package installed,
+here `linlog-cli`.
 On Nix before 2.30, `nix profile add` is `nix profile install`. The
 package carries the EUPL and the embedded fonts' licences under
 `share/doc/linlog-cli/`.

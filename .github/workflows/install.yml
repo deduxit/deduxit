@@ -214,15 +214,15 @@ jobs:
           set -eux
           nix run "$FLAKE" -- --version
           # A release's entry is updated by removing it and adding the next.
-          nix profile add "$FLAKE"
+          nix profile add "$FLAKE#linlog-cli"
           linlog --version
-          nix profile remove linlog
+          nix profile remove linlog-cli
           test ! -e ~/.nix-profile/bin/linlog
           # An entry without a tag follows `main` by upgrading.
-          nix profile add github:sequentium/sequentium
-          nix profile upgrade linlog
+          nix profile add github:sequentium/sequentium#linlog-cli
+          nix profile upgrade linlog-cli
           linlog --version
-          nix profile remove linlog
+          nix profile remove linlog-cli
           test ! -e ~/.nix-profile/bin/linlog
 
   cargo:
