@@ -98,7 +98,9 @@ the gap is said.
   ([docs](https://docs.github.com/en/repositories/creating-and-managing-repositories/transferring-a-repository)).
   Web links, `git clone`, `git fetch` and `git push` redirect. Issues, pull
   requests, wiki, stars, watchers, webhooks, secrets and deploy keys stay.
-  "The Pages site itself is not" redirected. Redirects are permanently
+  The page says "we don't redirect GitHub Pages associated with the
+  repository" (quoted exactly at the review of 2026-11-08; the first
+  reading paraphrased it). Redirects are permanently
   deleted if a new repository or fork is created at the old location. A
   repository with more than 100 clones or Actions uses in the prior week is
   retired at its old name. To transfer into an organization one needs

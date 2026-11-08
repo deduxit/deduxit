@@ -124,12 +124,12 @@ the notes), and the ranked list below places each candidate.
 
 | logic or method | linlog today | the decision problem | a suite would offer | cost (sessions) | verdict |
 |---|---|---|---|---|---|
-| ordinary classical, intuitionistic, minimal sequents | decided through the embeddings, the proof read back as LK or LJ with a checker, a TPTP `fof` reader, a certificate over `Prop`; no native engine, no countermodel, no interactive proving, the web tab greyed (`core/src/ordinary/`, `TopBand.tsx`) | classical coNP-complete; intuitionistic PSPACE-complete (Statman 1979); first order undecidable | a native LJT (Dyckhoff's G4ip) engine that always terminates (today 108 of ILTP's 274 problems at 2 s, step 25's measurement), Kripke countermodels as checked certificates with a Rocq lemma, interactive LK and LJ with the web tab made real, a structural-rule dial for the substructural corners | 2 + 2 (+1 Rocq) + 2 | **first**: the second suite already half exists |
+| ordinary classical, intuitionistic, minimal sequents | decided through the embeddings, the proof read back as LK or LJ with a checker, a TPTP `fof` reader, a certificate over `Prop`; no native engine, no Kripke countermodel for intuitionistic or minimal logic (a classical "not valid" gets a falsifying assignment and a lemma over `Prop`), no interactive proving, the web tab greyed (`core/src/ordinary/`, `TopBand.tsx`) | classical coNP-complete; intuitionistic PSPACE-complete (Statman 1979); first order undecidable | a native LJT (Dyckhoff's G4ip) engine that always terminates (today 108 of ILTP's 274 problems at 2 s, step 25's measurement), Kripke countermodels as checked certificates with a Rocq lemma, interactive LK and LJ with the web tab made real, a structural-rule dial for the substructural corners | 2 + 2 (+1 Rocq) + 2 | **first**: the second suite already half exists |
 | substructural variants | linear, affine, Mix, cyclic MLL and the Lambek calculus natively | R undecidable (Urquhart 1984); LR decidable but not primitive recursive (Urquhart 1999); BI undecidable (Galatos, Jipsen, Knudstorp, Ramanayake, LICS 2026, arXiv 2603.01595, read here) | relevant logic as a bounded mode of the ordinary suite (contraction without weakening); BI only as fragments | 1 to 2 | a mode, not a suite; BI rejected |
 | natural deduction | nothing; sequent derivations one- and two-sided, interactive proving of sequents | checking linear; search is the logic's (via sequent calculus) | a checker and step-by-step builder for Gentzen trees and Fitch proofs with discharge at a distance, ordinary logic first; translation from LK and LJ proofs; linear natural deduction (Benton, Bierman, de Paiva, Hyland) after | 4 to 6, then 3 to 4, then 2 to 3 | **second method**: the widest teaching audience, a new data model |
-| resolution | nothing clausal; `read_tptp` reads propositional `fof` only; the inverse method is a forward method for linear logic | propositional resolution complete, refutations may be exponential (Haken 1985); CDCL in practice; first order semi-decidable | a propositional clausal suite at teaching scale (CNF, resolution as a DAG, DPLL with bounds), first-order resolution over the existing `FoTerm`s, a certified SAT back end (DRAT or LRAT) only through a crate with an allowed licence, a TPTP `cnf` reader with SZS output | 3 to 4, 3, 2 to 3, 1 | teaching scale only; never offered as a SAT solver |
-| tableaux | nothing; a closed classical tableau is an LK proof upside down | the logic's; tableaux can be exponentially worse than resolution on some families | classical propositional tableaux as a second drawing of the LK read-back with countermodels from open branches, a checker for student trees, first-order free-variable tableaux over the term arena, prefixed modal tableaux | 2 to 3, 2, 3, 3 to 4 | cheap first step; the beginner's method with truth tables |
-| modal logics | nothing; `!` and `?` are S4-like (Martini and Masini 1994) but read as exponentials | K, T, K4, S4 PSPACE-complete, S5 NP-complete (Ladner 1977); GL PSPACE; common knowledge EXPTIME | a decision procedure for K to S5 with a checked Kripke countermodel drawn as SVG, step-by-step proving in Negri's labelled calculus (frame rules visible), Rocq soundness for the labelled derivations, nested sequents as the search calculus, a model editor on the page, multimodal and epistemic, first-order modal with QMLTP | 3 to 4, 3, 2, 3, 2, 1 to 3, 4+ | **third suite**: a new judgement (labels and relational atoms), well-trodden theory |
+| resolution | nothing clausal; `read_tptp` reads propositional `fof` only; the inverse method is a forward method for linear logic | propositional resolution complete, refutations may be exponential (Haken 1985); CDCL in practice; first order semi-decidable | a propositional clausal suite at teaching scale (CNF, resolution as a DAG, DPLL with bounds), first-order resolution over the existing `FoTerm`s, a certified SAT back end (DRAT or LRAT) only through a crate with an allowed licence, a TPTP `cnf` reader with SZS output | 3 to 4, 4 to 6, 2 to 3, 1 to 2 | teaching scale only; never offered as a SAT solver |
+| tableaux | nothing; a closed classical tableau is an LK proof upside down | the logic's (the note cites a quasi-polynomial simulation of tree resolution by tableaux, Arai, Pitassi and Urquhart) | classical propositional tableaux as a second drawing of the LK read-back with countermodels from open branches, a checker for student trees, first-order free-variable tableaux over the term arena, prefixed modal tableaux | 2 to 3, 2, 3 to 5, 4 to 6 | cheap first step; the beginner's method with truth tables |
+| modal logics | nothing; `!` and `?` are S4-like (Martini and Masini 1994) but read as exponentials | K, T and S4 PSPACE-complete, S5 satisfiability NP-complete so validity coNP (Ladner 1977, read at abstract level); GL PSPACE; common knowledge EXPTIME | a decision procedure for K to S5 with a checked Kripke countermodel drawn as SVG, step-by-step proving in Negri's labelled calculus (frame rules visible), Rocq soundness for the labelled derivations, nested sequents as the search calculus, a model editor on the page, multimodal and epistemic, first-order modal with QMLTP | 3 to 4, 3, 2, 3, 2, 1 to 3, 4+ | **third suite**: a new judgement (labels and relational atoms), well-trodden theory |
 | cyclic proofs (infinite descent) | nothing (linlog's "cyclic linear logic" is the order of formulas, a different thing); proof terms are trees | provability undecidable in every variant found (CLKIDω contains arithmetic; μMALL Σ⁰₁-complete); checking a pre-proof is decidable (the trace condition, Büchi inclusion, PSPACE) | a trace-condition checker (the kernel of the area), cyclic LK with inductive definitions step by step, μMALL finitary and circular (the nearest to linlog), Cyclist-style bounded search, certificates (only an Isabelle mechanisation of the abstract condition exists) | 2 to 3, 4 to 6, 6 to 9, 4+, 4 to 8 | research item; no teaching use found; after the others |
 | simply typed lambda calculus, System F | nothing; ILL proofs are linear lambda-terms by Curry–Howard, no printer; first-order binders are over terms, not propositions | STLC checking and inference decidable, inhabitation PSPACE-complete (Statman); System F checking decidable, inference undecidable (Wells 1999), inhabitation undecidable (Löb 1976) | read ILL and LJ proofs back as lambda-terms (the cheapest, highest-value item of the area), a Church-style STLC checker with typing derivations drawn as trees, inhabitation (enumerate, count, uniqueness) over the existing engines, inference by unification, a beta-reduction stepper tied to cut elimination, System F checking only, a Rocq checker for typing derivations | 1 to 2, 3 to 4, 2 to 3, 2, 2, 3, 2 | the read-back early; the checker as the fourth suite; System F as checking only |
 | custom rules | fixed calculi: `Rule` is an enum, the checker one pass over occurrence terms, the inverse method keeps rules as terms with holes | checking under user rules decidable by matching; search undecidable in general; soundness is the user's | a rule language (JSON first) and a generic checker for derivations under user rules, interactive building in the command and the web stage, bounded backward search without an "unprovable" verdict, static checks of a rule set (Sequoia-style, research), synthetic rules from axioms, and a manual chapter on theories as hypotheses (the Horn engine already runs rule systems written as `!(a ⊗ b ⊸ c)`) | 2 to 3, 2 to 3, 2 to 4, 3+, 2, 1 | **the generic layer**: a second derivation type beside the fast kernel, never a rewrite of it |
@@ -156,10 +156,12 @@ Three points the notes make that change the shape of the plan:
   `tableaux.md` section 5; `modal-logics.md` section 5). Building it
   once, with the first method that needs it, is the plan's largest
   saving.
-- **Three things are cheap because of what 0.2.0 built**: lambda-terms
-  read off ILL and LJ proofs (binders and a derivation walk exist),
-  first-order tableaux and resolution (the term arena and unification
-  with the occurs check exist, `core/src/sequents/term.rs`), and a
+- **Three things got cheaper because of what 0.2.0 built**: lambda-terms
+  read off ILL and LJ proofs (binders and a derivation walk exist; 1 to
+  2 sessions), first-order tableaux and resolution (the term arena and
+  unification with the occurs check exist, `core/src/sequents/term.rs`,
+  though both still need a first-order ordinary syntax and cost 3 to 6
+  sessions each), and a
   first-order logic-programming mode (`scope-applications.md`,
   applications-5, its quantifier prerequisite met).
 
@@ -374,12 +376,15 @@ session and say what the note says):
   `/rocq-linlog/`, the logo URLs that README, the Rocq library's README
   and the rustdoc of every published version embed (docs.rs's 0.2.0
   pages are frozen with them). A custom domain on Pages makes the
-  `github.io` address redirect to it, which is the one way to make the
-  published URLs independent of the organisation's name from then on.
+  `github.io` address secondary: GitHub's page on custom domains describes
+  redirects only between the apex and `www` forms of the custom domain
+  and says nothing about the `github.io` address (read here), so the
+  gain is that every URL published from then on names the domain, not
+  the organisation (inference).
   The repository counts 164 occurrences of `linlog-prover` outside
   `plan/`, the Rocq library 25, the web client 36.
-- **crates.io.** A crate is never renamed, only its ownership
-  transferred; `linlog` and `linlog-cli` keep their names. Trusted
+- **crates.io.** No page read offers a rename of a crate, only a transfer of
+  ownership (inference from the pages that could be read); `linlog` and `linlog-cli` keep their names. Trusted
   Publishing is configured per crate for a repository owner and name,
   so a transfer needs the configuration edited by hand before the next
   release; whether crates.io matches on a numeric repository id could
@@ -393,7 +398,8 @@ session and say what the note says):
 - **opam.** The prepared pull request's `homepage`, `dev-repo`,
   `bug-reports` and `doc` fields can be edited freely before it is
   submitted; after a merge no page read says how a released package's
-  fields are changed, and a renamed package is a new package. The
+  fields are changed; that a renamed package is a new package is the
+  convention the note infers, not a page it read. The
   package name `rocq-linlog` need not change.
 - **Cachix.** The cache `linlog-prover` can keep its name whatever the
   organisation is called; no page read says a cache can be renamed.
@@ -457,7 +463,7 @@ estimates summed.
 | release | what it adds | why it is useful on its own | sessions |
 |---|---|---|---|
 | 0.3.0, ordinary logic on the page | the organisation and name settled first if the author chooses so (name-and-organisation-3, before the opam submission); the client's suite registry written with the Ordinary tab made real (web-front-end-1 and 2) over interactive LK and LJ in the library (ordinary-sequents-3) and the ordinary JSON forms; lambda-terms read off ILL and LJ proofs (lambda-calculi-1, types-higher-2); the one-sided and state-equation refutations certified (verification-2 i and ii); the inverse method's dispatch rows (engines-12); a "who uses linlog" channel (users-1) | a first logic course can use the page for LK and LJ; every linear proof shows its program; two more refutation kinds carry a Rocq lemma; measured gains on three families | 9 to 11 |
-| 0.4.0, intuitionistic logic decided, with countermodels | a native engine on Dyckhoff's LJT that always terminates (ordinary-sequents-1), Kripke countermodels as checked certificates with their Rocq lemma and a shared countermodel output kind (ordinary-sequents-2, semantics-decision-11), classical tableaux as a view of the LK read-back with countermodels from open branches and truth tables as the beginner's mode (tableaux-1, more-logics-2), a basis certificate for non-coverability (semantics-decision-1), the maintenance cadence, wasm baseline and accessibility audit (maintenance-1, 3, 4) | "unknown" disappears for propositional intuitionistic logic (today 166 of ILTP's 274 problems at 2 s by step 25's measurement); every invalid ordinary sequent gets a model; the beginner's two methods exist | 9 to 11 |
+| 0.4.0, intuitionistic logic decided, with countermodels | a native engine on Dyckhoff's LJT whose search always terminates (ordinary-sequents-1), Kripke countermodels as checked certificates with their Rocq lemma and a shared countermodel output kind (ordinary-sequents-2, semantics-decision-11), classical tableaux as a view of the LK read-back with countermodels from open branches and truth tables as the beginner's mode (tableaux-1, more-logics-2), a basis certificate for non-coverability (semantics-decision-1), the maintenance cadence, wasm baseline and accessibility audit (maintenance-1, 3, 4) | the copy-bound "unknown" goes for the 35 ILTP problems a loop check settles and the search never runs without end, though hard problems may still time out (today 166 of ILTP's 274 are undecided at 2 s by step 25's measurement); every invalid ordinary sequent gets a model; the beginner's two methods exist | 9 to 11 |
 | 0.5.0, custom rules and natural deduction | the generic derivation type over rules given as data, its checker and the rule language (custom-rules-1), interactive building in the command and on the page (custom-rules-2), natural deduction in Gentzen and Fitch style for ordinary logic on that type with the client's list view (natural-deduction-1, web-front-end-6), the written suite protocol and content keyed by suite (web-front-end-5, 7), the chapter on theories as hypotheses (custom-rules-6); the kernel crate extracted here if the two suites' copies say so (structure-5) | the author's custom-rules wish met; the method most courses teach first; the collection's frame written from two working suites | 13 to 16 |
 | 0.6.0, modal logics | K to S5 decided with checked Kripke countermodels drawn as SVG (modal-logics-1), step-by-step proving in the labelled calculus (modal-logics-2) on the generic derivation, Rocq soundness for the labelled derivations (modal-logics-3), the model editor on the page (modal-logics-5), a tableau checker for student trees (tableaux-2), course packs with a checkable handed-in link (education-4) | a third logic family with the certificate story linlog is known for; teachers can set and check exercises | 11 to 13 |
 | 0.7.0, resolution and the typed lambda calculus | a propositional clausal suite at teaching scale (resolution-1), a Church-style STLC checker with typing derivations and inhabitation over the existing engines (lambda-calculi-2, 3), a DRAT or LRAT reader if an allowed crate exists (resolution-3, reduced), the dataset of problems with verified answers for models (llm-agents-2) | the remaining methods of a first course; the Curry–Howard side as a tool | 9 to 11 |
@@ -510,13 +516,13 @@ note's.
 | 28 | proof-theory-9: explaining unprovability (a failing slice, missing resources, the stuck leaf drawn) | T, M | 1 to 2 | a bound on the attempt kept | none | scope-proof-theory |
 | 29 | interop-1 and interop-5(a): a JSON Schema of the wire forms, TPTP conventions in and out | M, R | 2 | none | none | scope-interop |
 | 30 | more-logics-1 and more-logics-6: classical first-order logic with equality, intuitionistic first-order logic with Kripke countermodels | R, T: the TPTP mainstream and ILTP's first-order half | 4 to 6 | equality and undecidability; bounded answers | the ordinary suite | more-logics |
-| 31 | tableaux-3 and resolution-2: first-order tableaux and resolution over the term arena | R, T | 3 + 3 | unification exists; no library to measure by but TPTP | ranks 9, 22 | tableaux, resolution |
+| 31 | tableaux-3, resolution-4 and resolution-2: first-order tableaux, the TPTP `cnf` and first-order `fof` reader with SZS output, first-order resolution over the term arena | R, T | 3 to 5 + 1 to 2 + 4 to 6 | a first-order ordinary syntax does not exist yet; no library to measure by but TPTP | ranks 9 and 22; resolution-2 needs resolution-4 first | tableaux, resolution |
 | 32 | logics-1 with logics-6 (its exponential-only half) and logics-2: exponentials by signature (SELL, a weakening-free exponential, counting grades) | R: the live literature of 2025 | 3 to 4 | every exponential case of cut elimination and the Rocq mirror per label | none | scope-logics |
 | 33 | applications-2 with applications-9: the rule-system front end (run, explore, play), first-order rule systems by grounding | T, R: Ceptre's and LLF's use | 3 + 1 to 2 | a forward-chaining mode beside the engines | rank 12 | scope-applications |
 | 34 | natural-deduction-2 and natural-deduction-3: translation from LK and LJ, normalisation, linear natural deduction | R, T | 3 to 4 + 2 to 3 | Zucker's non-bijection bounds the claim | rank 13 | natural-deduction |
 | 35 | lambda-calculi-4, lambda-calculi-5, lambda-calculi-7: inference, a reduction stepper tied to cut elimination, a Rocq checker for typing derivations | T, R | 2 + 2 + 2 | crowded by small tools | rank 23 | lambda-calculi |
 | 36 | modal-logics-4, modal-logics-7, modal-logics-8: nested sequents, multimodal and epistemic, first-order modal with QMLTP | R | 3 + 1 to 3 + 4 | the first-order case undecidable; common knowledge EXPTIME | rank 17 | modal-logics |
-| 37 | llm-agents-1: an MCP server | M: clients without a shell | 1.5 | none now that the specification is stateless (revision 2026-07-28) | a client that asks | llm-agents |
+| 37 | llm-agents-1: an MCP server | M: clients without a shell | 1.5 | `rmcp` is at major version 3 with breaking releases; chat clients without a shell may need a remote HTTP server, so hosting; the specification itself is stateless since revision 2026-07-28 | a client that asks | llm-agents |
 | 38 | interop-3: a Lambdapi theory with its Lean export | R | 2 to 3 | no linear logic encoding found there yet | none | scope-interop |
 | 39 | maintenance-7, maintenance-5, maintenance-8: install channels in order (winget, a Homebrew tap, Scoop, Chocolatey), cosign, a glibc binary | users | 1 each | accounts the author must hold | none | maintenance |
 | 40 | custom-rules-3: bounded search under user rules | R | 2 to 4 | never "unprovable" | rank 12 | custom-rules |
@@ -544,7 +550,7 @@ unless a row says otherwise; the costs are the notes' lines:
 | education-2: proof-net exercises, a linking drawn and checked | T (linear-specific, the one thing no tool found offers) | 2 | bindings for `link` and `unlink` | none | scope-education |
 | education-3 (auto-reverse), education-5 (generated exercises in the library), education-9 (resource puzzles over the Horn engine), education-11 (a learner's record) | T | under 1, 2, 2, 1 | | | scope-education |
 | education-6: interactive LK and LJ on the page | T | 2 to 3 | the same item as ordinary-sequents-3 and web-front-end-2 above | | scope-education |
-| ordinary-sequents-4: the read-back on the proof DAG so large classical proofs check | R: seven classical proofs of 8 to 32 million inferences | 2 (inference) | checker work | none | ordinary-sequents |
+| ordinary-sequents-4: the read-back on the proof DAG so large classical proofs check | R: seven classical proofs of 8 to 32 million inferences | 1 | checker work | none | ordinary-sequents |
 | ordinary-sequents-5: a classical G3c engine or SAT hand-off | R | 2 to 3 | "not a SAT solver" | none | ordinary-sequents |
 | ordinary-sequents-6: a structural-rule dial (relevant, BCK, ordered) for the ordinary calculi | T | 1 to 2 | R undecidable, so bounded | logics-1 | ordinary-sequents |
 | tableaux-4: prefixed modal tableaux | T | 4 to 6 | the labelled calculus (modal-logics-2) covers the same ground | modal-logics-1 | tableaux |
@@ -593,8 +599,8 @@ unless a row says otherwise; the costs are the notes' lines:
 | types-higher-1 (with lambda-calculi-3), types-higher-3 (sessions), types-higher-4, types-higher-5, types-higher-6, types-higher-7, types-higher-8 (a linear lambda-term checker) | R, T | 2 to 3; 3 to 4; 1; 1 or 5+; 2 to 3; a flag; small | sessions lost their blocker (cut exists) | types-higher-2 | scope-types-higher |
 | users-2, users-3: a monthly reading of the public counters, one announcement | the author | fractions of a session | | | users |
 | llm-agents-3, llm-agents-4, llm-agents-5: a Python package, structured hints for models, `--explain` | M | 2 to 3, after a trial, 1 | not recommended yet | | llm-agents |
-| verification-7: a certificate download on the page | R, T | 0.5 | if absent | none | verification |
-| maintenance-2, maintenance-6, maintenance-9: notifications of outdated actions, platform code signing, a crate and module budget | users, the maintainer | under 1; accounts and fees; under 1 | | | maintenance |
+| verification-7: a certificate download on the page | built already: the client's bottom band exports the finished proof's and a refuted goal's Rocq certificate (`BottomBand.tsx`, found by the reviewer) | 0 | dropped | | verification |
+| maintenance-6, maintenance-9: platform code signing, a crate and module budget; maintenance-2 is built already (`.github/dependabot.yml` of 2026-09-29 watches the actions weekly, found by the reviewer), so only advisories remain of it | users, the maintainer | accounts and fees; under 1 | | | maintenance |
 | structure-2, structure-3, structure-4: a repository per suite, features per logic, one engine with calculi as data | | | compared above; structure-2 kept open for a third party's suite | | structure |
 | name-and-organisation-1, name-and-organisation-2, name-and-organisation-4: keep the organisation, rename in place, the name table | | | compared above | | name-and-organisation |
 
@@ -622,7 +628,9 @@ says closures are "NOT YET SUPPORTED"; the last tagged release is of
 2024-02-28 and only automated nightly pre-releases since, which this
 session confirmed on its releases page), Creusot (LGPL-2.1, to Why3;
 monthly releases, v0.14.0 on 2026-10-12, iterator and slice
-specifications growing, no `HashMap` entry in its changelog, a
+specifications growing, specifications for `HashMap` and `HashSet`
+iterators since 0.4.0 of 2025-03-03 (the note said none; corrected at
+the review), a
 `flake.nix`), Verus (SMT with Z3; releases about weekly on a pinned
 stable compiler 1.99.1; closures as expressions, traits, `HashMap`,
 `Vec` supported, iterators partially; "features may be broken and/or
@@ -645,7 +653,7 @@ the trusted base, and its cost:
 | verification-6: Kani harnesses for the integer and bound facts of the checker | no wrap, no out-of-bounds index, within a bound | nothing, but it targets the one fault class the project has met (a wrapped counter, `plan/conduct.md`) | 1 to 2 | second |
 | verification-1: a second checker of a different shape, fuzzed against the first | agreement of two transcriptions | nothing | 1 | third |
 | verification-3: a checker extracted from Rocq beside or instead of the Rust one, native then in the browser | the extracted function is the proved one | nothing: the reader that feeds it and the extraction become trusted instead; in the browser it would be a second module | 2 + 1 to 2 | only if a user without Rocq needs a verified verdict |
-| verification-4: functional correctness of the Rust checker with a deductive verifier | the checker accepts exactly the derivable sequents, given the calculus in the tool's specification language | the checker | 4 to 8 on a refactored core | a project of its own; **Prusti does not meet the author's "as good a fit" clause** on the sources read (closures unsupported, release state); Verus fits the code shape best, Creusot second; a spike on `zones.rs` in both would decide |
+| verification-4: functional correctness of the Rust checker with a deductive verifier | the checker accepts exactly the derivable sequents, given the calculus in the tool's specification language | the checker | 4 to 8 on a refactored core | a project of its own; **Prusti does not meet the author's "as good a fit" clause** on the sources read (closures unsupported, release state); Verus and Creusot both fit the code shape on the sources read (Verus: a stable pinned compiler, closures as expressions, `HashMap` supported; Creusot: monthly releases, `HashMap` and `HashSet` iterator specifications since 0.4.0); a spike on `zones.rs` in both would decide |
 | verification-5: the Rust checker refines the Rocq checker through Aeneas or hax | the strongest statement: the Rust checker agrees with the proved one | the checker | larger than 4 | the Rocq back ends of both tools are their least mature; a project of its own |
 
 Feasible in a step or two: verification-2 (i) and (ii), verification-6,
@@ -704,15 +712,16 @@ client) is in the note with links.
 `maintenance.md` reads the toolchain and the ecosystem today: stable
 Rust is 1.99.1 and linlog's MSRV 1.92 is seven minor releases behind,
 with no written policy; the oldest flake input is of 2026-04-13; the
-actions are SHA-pinned and moved by the `update-deps` skill with no
-notification of a new release; the wasm module is built with the
+actions are SHA-pinned, watched weekly by `.github/dependabot.yml`
+(grouped, since 2026-09-29) and moved by the `update-deps` skill, with
+no notification of a new advisory between runs; the wasm module is built with the
 toolchain's default feature set and no check records which features
 the module uses; the page's WCAG 2.2 AA floor was swept by hand (step
 38) and the SVGs' reading for screen readers was never tried with a
 screen reader. Recommended, in order (maintenance-1 to 4): a written
 cadence and MSRV policy (for example "stable minus two, moved at each
-`update-deps`"), notifications for outdated actions and advisories
-beside the skill, a wasm feature baseline checked on the built module
+`update-deps`"), a scheduled advisory check beside the skill (the
+actions are watched already), a wasm feature baseline checked on the built module
 with a bindgen policy, and an accessibility audit with axe or
 Lighthouse and a screen-reader pass over the exports. Then the install
 channels by users reached against cost (maintenance-7: winget, a
@@ -901,11 +910,15 @@ Each can be answered in a line. The recommendation comes first.
    Start a verification project now with Prusti. I recommend (a); on the
    sources read Prusti does not meet your "as good a fit" clause
    (closures unsupported, no tagged release since 2024-02).
-9. **Three small acts of yours**, each a yes or no: switch on GitHub
-   Discussions for `linlog` with a "who uses linlog" thread (a `gh`
-   administrative task); one announcement where users of this kind are
-   (the text prepared by a session, the posting yours); the opam pull
-   request after, not before, decision 3.
+9. **Three small acts of yours**, each a yes or no, each recommended
+   yes: switch on GitHub Discussions for `linlog` with a "who uses
+   linlog" thread (a `gh` administrative task; I recommend yes, since
+   there is no channel today and an issue tracker invites bugs, not
+   use); one announcement where users of this kind are (the text
+   prepared by a session, the posting yours; I recommend yes, pointing
+   at the page's lessons, after decision 3 so that the links last); the
+   opam pull request after, not before, decision 3 (I recommend that
+   order, since the fields are free to edit before submission).
 
 ### What the next sessions must know
 
@@ -979,3 +992,131 @@ Each can be answered in a line. The recommendation comes first.
 - **Cost estimates** are the notes' and this session's judgement in
   sessions, marked "(inference)" in each note; none rests on a
   measurement.
+
+### The reviewer's round
+
+A fresh-context reviewer (Opus 5.5 at `high`), one round, on the
+notes and this report at change `olvzzyyt`: it checked 41 claims, 28
+against web sources and 13 against the repository or the client; 37
+held (among them GitHub's rename and transfer pages, the BI paper,
+Prusti's closures page and releases, the MCP revision's statelessness
+and `rmcp` 3.9.0, TPTP's "obvious candidates", Lambdapi 4.0.0's Lean
+export, Rocq's `tauto` on LJT, the μMALL complexity results, Cyclist
+and Sequoia, Carnap's `system` attribute, LogicProof, crates.io's
+download counts, three name checks, Suzuki and Sano, Ceptre's licence,
+Verus's toolchain, Creusot's v0.14.0, typst's `default-members`,
+MiniCalc, the client's 452 and 407 problems, the 6.9 MB module, the
+checker's size, the uncertified refutation kinds, the occurrence
+counts). Its sixteen findings and what was done with each:
+
+1. **Creusot's changelog does list `HashMap`** (0.4.0, 2025-03-03,
+   specifications for `HashMap` and `HashSet` iterators), where the
+   verification note said none and this report repeated it to rank
+   Verus above Creusot. Confirmed against the changelog here. Corrected
+   in the note (marked) and in the report: both tools fit the code
+   shape on the sources read; the spike on `zones.rs` decides between
+   them. The ranking of verification-4 does not move.
+2. **The custom-domain redirect**: the report said a custom domain
+   makes the `github.io` address redirect to it; GitHub's page describes
+   redirects only between the apex and `www` forms of the custom domain,
+   as the note said. Confirmed here. The report now says so and keeps
+   the custom domain as a way to publish URLs that name a domain rather
+   than the organisation, marked inference. Decision 3's recommendation
+   does not rest on the redirect.
+3. **"A renamed opam package is a new package" and "a crate is never
+   renamed"** were stated as fact where the note marks them inferred or
+   unsourced. Both now read as inferences from the pages that could be
+   read.
+4. **The name note paraphrased GitHub's transfer page** as "The Pages
+   site itself is not redirected" inside quotation marks; the page says
+   "we don't redirect GitHub Pages associated with the repository". The
+   note now quotes it exactly.
+5. **Ladner's results**: the report added K4 to the PSPACE list and
+   wrote "S5 NP-complete" without saying satisfiability, where the note
+   says K, T and S4, and S5 non-provability NP-complete (validity coNP).
+   Corrected to the note's statement, marked as read at abstract level.
+6. **"Tableaux can be exponentially worse than resolution"** is not what
+   the tableaux note says (it cites a quasi-polynomial simulation of
+   tree resolution by tableaux). Replaced by the note's statement.
+7. **verification-7, a certificate download on the page, is built**:
+   the client's bottom band exports the finished proof's and a refuted
+   goal's Rocq certificate. Confirmed in `BottomBand.tsx`. Dropped from
+   the ranked list and marked in the note.
+8. **maintenance-2's actions half is built**: `.github/dependabot.yml`
+   watches the actions weekly since 2026-09-29, where the maintenance
+   note said there was none. Confirmed here. The note and the report's
+   maintenance section and ranked list now say so; what remains of the
+   candidate is an advisory check between `update-deps` runs.
+9. **"No countermodel" for ordinary logic** was too broad: a classical
+   "not valid" gets a falsifying assignment and a lemma over `Prop`.
+   The table now says no Kripke countermodel for intuitionistic or
+   minimal logic.
+10. **Costs that differed from the notes'**: tableaux-3 (3 to 5, not
+    3), resolution-2 (4 to 6, not 3), resolution-4 (1 to 2, not 1),
+    tableaux-4 (4 to 6, not 3 to 4), ordinary-sequents-4 (1, not 2),
+    and the sentence calling first-order tableaux and resolution
+    "cheap" where the notes cost them at 3 to 6 sessions each and
+    tableaux-3 needs a first-order ordinary syntax. All corrected to the
+    notes' figures; the sentence now says "got cheaper".
+11. **A prerequisite after its dependant**: resolution-2 needs the
+    first-order TPTP reader of resolution-4, which sat in the unranked
+    tail. resolution-4 now shares rank 31 and the row says it comes
+    first.
+12. **llm-agents-1's risk** read "none" where the note names two
+    (`rmcp`'s breaking major releases; chat clients may need a remote
+    HTTP server, so hosting). The row now carries both.
+13. **0.4.0's promise that "unknown" disappears** overstated the note,
+    which says hard ILTP problems may still time out. The release row
+    now says the search always terminates and the 35 loop-check cases
+    are settled, while hard problems may still time out.
+14. **Decision 9 gave a recommendation only for the opam order.** It
+    now recommends yes on all three, with the reason each.
+15. **`users.md` lacked "What the structure must allow"** and the
+    brief's "The field" heading. A short section was added and the
+    mapping of its sections to the brief's stated.
+16. **The reviewer's section did not exist yet** when it read the
+    report (pending, not a finding). It is this section.
+
+Findings 1, 2, 7 and 8 are the four of its 41 checks that failed; the
+rest are statements of this report that its notes did not support, now
+aligned with the notes. No ranking changed place except that
+verification-7 left the list and resolution-4 moved to rank 31.
+
+### Checklist
+
+- [x] Workspace `../linlog-step46a` on `rwsoxnoz`.
+- [x] Read the brief, `plan/46-research-next.md` whole,
+  `plan/conduct.md`, step 17's prompt and report (sections 6, 7, 9),
+  `plan/later.md`, the scope notes and their synthesis, README,
+  `docs/src/status.md`, the reports of steps 38 to 45 (outcomes and
+  open items), `bench/TOOLS.md`, `comparison-gaps.md`, the handoff's
+  open items, the Status log from 2026-10-30, the web design, the core
+  rules, the client's `CLAUDE.md`, islands and content.
+- [x] Twenty-five research sub-agents on Sonnet 5.5 at `medium`, one
+  per area, each with the shared brief and an area brief; their notes
+  under `plan/notes/research/next/`, each with its "Not verified"
+  section; `order.md` by this session.
+- [x] The claims the recommendations lean on read again here: GitHub's
+  rename and transfer pages, the BI undecidability paper, Prusti's
+  releases, Creusot's changelog, GitHub's custom-domain page, the
+  client's greyed Ordinary button, `core/src/ordinary/` without
+  interactive proving, the client's 452 problems, `.github/dependabot.yml`,
+  the client's certificate export.
+- [x] The report: the author's direction answered (each logic and
+  method, what else, custom rules, the structure with the options
+  compared and a recommendation, the web front end, the name with its
+  touch points and the candidates checked, the order with releases),
+  the ranked list naming every candidate of the notes with what it
+  brings and to whom, cost, risk, prerequisites and its note,
+  verification's feasibility, users, agents, maintenance, the scope
+  updates, the decisions with a recommendation each, what the next
+  sessions must know, the departures.
+- [x] The fresh-context reviewer's round (Opus 5.5 at `high`): sixteen
+  findings, each answered above; the notes and the report corrected.
+- [x] No code changed, nothing built or run, no benchmark; nothing
+  pushed, registered or renamed; no `gh`, no `git`. The plan's files
+  are outside every automated check (`typos.toml` excludes `plan/`), so
+  no check applies to this change.
+- [x] Committed in the workspace (`rqwluyuy`, `olvzzyyt`, and the
+  review's corrections), `jj st` clean; the final message to
+  `linlog-orchestrator`.

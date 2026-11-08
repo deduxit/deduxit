@@ -93,6 +93,17 @@ All three use only public, self-reported signals and track no one.
 - *Risk:* one post that draws no one; reputation cost if the claims are over-stated (every claim in a post must be one the manual's `status.md` makes).
 - *Prerequisites:* the page and the manual public (they are). *Sources:* 13, 14, 16.
 
+## 4b. What the structure must allow
+
+Added at the review of 2026-11-08, since the brief's form asks for it:
+nothing in the code. What this area asks of the project's structure is
+where the public counters are read from once a collection of suites
+exists: one organisation's repositories, one crate family on crates.io,
+one Zenodo community, so that the monthly table of users-2 has one list
+to walk. The brief's section "The field" is this note's sections 1 to 3
+("What is public", "The numbers", "What is said"), as the area brief
+asked.
+
 ## 5. Considered and rejected
 
 - **Analytics or telemetry of any kind** (page visit counters, CLI "phone home"): the author's rule is that the page tracks no one; a counter would be the only direct measure of use and is excluded for that reason.
