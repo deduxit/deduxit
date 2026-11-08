@@ -4893,3 +4893,29 @@ move (D26).
   - step 65 does the same for the modal systems, with the frame
     conditions checked;
   - step 68's model editor evaluates formulas with that checker.
+- 2026-11-08: 48a done and reviewed: the move to `sequentium` prepared
+  in linlog, the Rocq library, the client and the opam clone, and the
+  placeholder site.
+  - The new addresses:
+    - `sequentium.github.io` (the page);
+    - `/sequentium/` (rustdoc, `/sequentium/manual/`, `llms.txt`);
+    - `/rocq-linlog/`;
+    - `/logo/`.
+  - Checked here:
+    - the old name recounted outside `plan/` (31 in linlog, 7 in the
+      library, 11 in the client, each kept for its reason: the Cachix
+      name, local paths, the attestations of 0.2.0, the locks moved in
+      48b);
+    - `Cargo.toml`'s repository, the flake's input
+      `github:sequentium/rocq-linlog`, the opam fields and `url`, and
+      the client's site and input;
+    - the placeholder's `404.html` mapping (`/linlog/` to
+      `/sequentium/`, the rest kept).
+  - linlog's chain rebased onto `main` without conflict and kept
+    unpushed, with the library's and the client's, until the author's
+    acts. The placeholder site is copied out of `/tmp` to
+    `~/Projects/own/linlog-prover-placeholder` (commit `wmvquqvq`).
+  - One departure: the placeholder serves a self-unregistering service
+    worker, so that returning visitors reach the redirect.
+  - Next: the author's acts 2 to 9 (48's prompt, the report's
+    checklist), then 48b.
