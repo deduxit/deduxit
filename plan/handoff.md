@@ -88,9 +88,9 @@ this file holds.
     by day). Its finding: Click & coLLecT's and APLL's wrong refutations
     are an integer overflow in their shared search (2⁶³ wraps at 63
     formulas beside a ⊗), not our harness.
-- **Step 46 is next, and waits for the author's word**: "not yet"
-  (2026-11-03). Start nothing until they say go, then ask whether it is
-  unattended.
+- **Step 46 is done** (2026-11-08: 46a's research, the author's
+  decisions, 46b's roadmap and prompts); step 47 and step 48's first
+  session are next, at the author's go (below, "The steps left").
 - **The heads**:
   - linlog's `main`: the commit with this file, on `okvwpozo`
     (`8fdfe7b4`, "Plan: review session 45f"), pushed;
@@ -125,34 +125,71 @@ this file holds.
 
 ## The steps left
 
-The table in `plan/README.md` is the authority.
+The table in `plan/README.md` is the authority; its steps from 47 are
+the roadmap step 46 set on 2026-11-08 from the author's decisions (D24
+to D32), grouped by release. In brief:
 
-- **46**: research for what to add after 0.2.0 (`plan/46-research-next.md`).
-  It writes no code, and has two parts with the author between them:
-  1. the research and a ranked list of candidates, on Fable 5.1 at
-     `high`, its research sub-agents on Sonnet 5.5 at `medium`;
-  2. once the author has chosen, the prompts of the steps that follow,
-     on Opus 5.5 at `high`.
-  Finish its prompt first, with a section "What step 45 left you"
-  (0.2.0's contents, the 45 report's facts, the open items below), and
-  commit it as "Plan: finish the prompt of step 46".
-- **Proposed, not decided**: a desktop app (the author asked on
-  2026-10-25 what it would take). The answer given: Tauri 2, the
-  client's interface unchanged, its worker's ~20 JSON calls
-  (`src/worker/linlog.worker.ts`) served by the linlog library compiled
-  natively, about three sessions. The author has not said yes, so step
-  46 weighs it with the rest.
+- **0.3.0, ordinary logic on the page**: 47 the measurement (may run
+  beside 48); 48 the move to `sequentium` (48a prepares, the author
+  acts, 48b checks; then the author's opam pull request); 49 ordinary
+  logic step by step in the library, the command and on the page, with
+  the client's suite registry; 50 proofs as lambda-terms; 51 the
+  one-sided and state-equation refutations checked and certified; 52
+  the inverse method's dispatch rows; 53 the small defects and the
+  release. Prompts 47 to 53 are complete: finish each with what the
+  steps before it left, at their reviews, as the rows say.
+- **0.4.0, intuitionistic logic decided**: 54 the LJT engine, 55 Kripke
+  countermodels with their Rocq lemma, 56 tableaux and truth tables, 57
+  a checked basis for non-coverability, 58 maintenance with Kani, 59 the
+  release.
+- **0.5.0, custom rules and natural deduction**: 60 rules as data and
+  the generic derivation (its first session on Fable 5.1), 61 building
+  with custom rules, 62 natural deduction, 63 the suites' protocol and
+  Learn and Practice by suite, 64 the release.
+- **0.6.0, modal logics**: 65 K to S5 decided with countermodels (first
+  session on Fable), 66 the labelled calculus and its Rocq soundness,
+  67 the kernel crate if the copies show it (first session on Fable),
+  68 tools for teachers, 69 the release.
+- **0.7.0, resolution and the typed lambda calculus**: 70 resolution, 71
+  the simply typed lambda calculus (first session on Fable), 72 a
+  dataset for models, 73 the release.
+- **After 73**: the research items (D30), the deferred verification
+  (D31) and every candidate `later.md` keeps, for a step the author
+  starts.
+- The prompts from 54 on say what is fixed and are finished at the
+  review their row names; `later.md`'s "Where each candidate went
+  (2026-11-08)" says which `later.md` entries each step takes.
+- **Proposed, not decided**: a desktop app (Tauri 2, about three
+  sessions; asked by the author on 2026-10-25). Step 46 did not place
+  it; it waits for the author.
 
 ## Open with the author
 
-- **The opam pull request**, prepared by 45e (its report has the text).
-  The author:
+- **The move to `sequentium`** (step 48): the organisation exists
+  (created 2026-11-08). The author's acts, in order, are in
+  `plan/48-sequentium.md` and, as a checklist, in 48a's report: the
+  organisation's settings; the transfers of `rocq-linlog`, of `linlog`
+  renamed `sequentium` and of the site renamed `sequentium.github.io`;
+  what did not move re-created; crates.io's Trusted Publishing for both
+  crates; Zenodo's integration and records; the placeholder repository
+  `linlog-prover/linlog-prover.github.io` with 48a's site. Never create
+  a repository named `linlog` or `rocq-linlog` under `linlog-prover`.
+- **A custom domain** for the site (`sequentium.org` and `.dev` were
+  free on 2026-11-08): to decide before 48a starts, since the new
+  addresses depend on it; without an answer 48a uses the `github.io`
+  addresses.
+- **The opam pull request**, after 48b, from 45e's commit moved to the
+  new addresses by 48a. The author:
   1. forks `rocq-prover/opam` on GitHub;
   2. in `~/Projects/own/rocq-opam`, runs `jj git remote add fork
      git@github.com:flgrubm/opam.git`;
-  3. runs `jj git push --remote fork --named "rocq-linlog.0.2.0=40954aee"`;
+  3. pushes the change 48a names (`jj git push --remote fork --named
+     "rocq-linlog.0.2.0=REV"`);
   4. opens the pull request against `master` with 45e's title and body.
   coqbot runs the repository's CI, and a maintainer merges.
+- **Where step 66's Rocq proof lives** (a module of `rocq-linlog` or a
+  new library of the collection, whose repository the author would
+  create): at the review of step 65.
 - **A night for the quiet rerun of the fourth baseline's parallel stage**:
   its four files ran 16 threads beside other work and are marked "not
   comparable" in the manual. A rerun needs every core, the desktop's
@@ -163,12 +200,17 @@ The table in `plan/README.md` is the authority.
 - **The messages to the other provers' authors**: the drafts in
   `plan/notes/comparison-messages.md` now carry the overflow finding with
   its smallest example. Sending them is the author's.
+- **Not now, by decision 9 (D32)**: GitHub Discussions and an
+  announcement; ask again when the author raises them.
 - Code signing for the installers; the WiX EULA for a Windows `.msi`;
   install channels that need an account (a Homebrew tap, the AUR,
   winget, Scoop, COPR, Chocolatey); rocq-linlog's `CACHIX_AUTH_TOKEN`
-  secret; the LLTP header report (`plan/notes/lltp-headers.md`), theirs
-  to send; the MCP server ("not now", sketched in `later.md`); the
-  Zenodo community; the desktop app above.
+  secret (checked again after its transfer, step 48); the LLTP header
+  report (`plan/notes/lltp-headers.md`), theirs to send; the MCP server
+  ("not now", kept in `later.md` until a client without a shell asks);
+  the Zenodo community; the desktop app above; the web client's choices
+  kept as built and the Safari pinch to check by hand (`later.md`,
+  "Kept as built").
 - nixpkgs: skipped at the author's word ("any nix user can already get
   it quite easily anyway", 2026-11-03).
 
