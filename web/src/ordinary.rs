@@ -379,6 +379,26 @@ pub fn hint(session: &str, goal: u32, settings: &str) -> Result<String, Failure>
     })
 }
 
+/// Returns the lambda-term of a session's derivation
+/// ([`ordinary::Derivation::term`]): a finished derivation of LJ as a term
+/// of the simply typed lambda calculus, answered as the linear
+/// [`calls::term`](crate::calls::term) answers, the term's JSON with its
+/// `text` and `judgement`, or `{"error": …}` where it has none (`no_term`:
+/// a derivation of LK, or one with open goals) or the settings' bounds
+/// refuse it.
+///
+/// # Errors
+///
+/// A session the reader refuses.
+pub fn term(session: &str, settings: &str) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let state = session_of(session, &settings)?;
+    let term = state
+        .derivation_within(&settings.view, &settings.limits, never)
+        .and_then(|derivation| derivation.term(&settings.limits, never));
+    crate::calls::termed(term, &settings)
+}
+
 /// Returns a session's derivation, open goals as bare leaves, as an SVG
 /// drawing in the settings' style (`styles.svg`) with its structural
 /// rules as `view.structural` draws them, with an id on every conclusion

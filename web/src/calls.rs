@@ -30,8 +30,9 @@ const fn never(_: Progress) -> bool {
 /// What the module is: the library's version, the highest wire level it
 /// reads and writes, and the suites a tab proves in, each with its name,
 /// the prefix of its calls and its parameters: the parameter its `start`
-/// takes by name, with every value it reads and the default, and the
-/// settings that change how the suite proves or draws.
+/// takes by name, with every value it reads and the default, the
+/// settings that change how the suite proves or draws, and the name of
+/// its call that reads a finished proof back as a lambda-term.
 pub fn about() -> String {
     serde_json::json!({
         "linlog": env!("CARGO_PKG_VERSION"),
@@ -45,7 +46,8 @@ pub fn about() -> String {
                 "parameters": [
                     {"name": "mode", "values": Mode::NAMES, "default": Mode::default()},
                 ],
-                "settings": ["interactive.invertible", "view.classical", "view.compact"],
+                "settings": ["interactive.invertible", "lambda", "view.classical", "view.compact"],
+                "term": "term",
             },
             {
                 "suite": "ordinary",
@@ -58,7 +60,8 @@ pub fn about() -> String {
                         "default": linlog::ordinary::Options::default().logic,
                     },
                 ],
-                "settings": ["ordinary.translation", "view.structural"],
+                "settings": ["lambda", "ordinary.translation", "view.structural"],
+                "term": "ordinary_term",
             },
         ],
     })
@@ -1119,6 +1122,66 @@ pub fn proof(session: &str, settings: &str) -> Result<String, Failure> {
         .proof(&settings.limits, never)
         .map_err(|e| Failure::described(&e, &state))?;
     written(&proof)
+}
+
+/// Returns the lambda-term of a session's proof, the session's own
+/// derivation read back ([`Derivation::term`](linlog::Derivation::term)):
+/// a finished proof of intuitionistic linear logic as a term of the
+/// linear lambda calculus, one of affine logic as a term of the affine
+/// one, a cut as a redex. The answer is the term's JSON with its `text`
+/// and its `judgement` (`x : A ⊢ M : B`) as the settings' `lambda` writes
+/// them, as `prove --lambda --format json` writes its `lambda`; or
+/// `{"error": …}`, the library's error, where the proof has no term
+/// (`no_term`, its `reason` saying why: a classical proof, Mix, the
+/// cyclic and Lambek modes, quantifiers, open goals) or the settings'
+/// bounds refuse the term or its derivation.
+///
+/// # Errors
+///
+/// A session the reader refuses.
+pub fn term(session: &str, settings: &str) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let state = session_of(session, &settings)?;
+    let term = state
+        .derivation_within(&settings.view, &settings.limits, never)
+        .and_then(|derivation| derivation.term(&settings.limits, never));
+    termed(term, &settings)
+}
+
+/// A term as [`term`] answers it.
+#[derive(Serialize)]
+struct Termed {
+    /// The term's own form.
+    #[serde(flatten)]
+    term: linlog::lambda::Term,
+    /// The term as the settings' `lambda` writes it.
+    text: String,
+    /// Its typing judgement, likewise.
+    judgement: String,
+}
+
+/// Writes a term read back, or why there is none, as [`term`] answers:
+/// the term and its judgement written within `limits.derivation_bytes`,
+/// a refusal on the way as `{"error": …}`.
+pub(crate) fn termed(
+    term: Result<linlog::lambda::Term, Error>,
+    settings: &Settings,
+) -> Result<String, Failure> {
+    let (options, limits) = (&settings.lambda, &settings.limits);
+    let termed = term.and_then(|term| {
+        let (mut text, mut judgement) = (String::new(), String::new());
+        term.write(&mut text, options, limits, never)?;
+        term.write_judgement(&mut judgement, options, limits, never)?;
+        Ok(Termed {
+            term,
+            text,
+            judgement,
+        })
+    });
+    match termed {
+        Ok(termed) => written(&termed),
+        Err(error) => written(&serde_json::json!({ "error": error })),
+    }
 }
 
 /// A search's outcome, with what the page shows beside a refutation.

@@ -819,6 +819,8 @@ fn no_intuitionistic_text_writes_a_classical_symbol() {
         if let Ok(net) = calls::draw_net(&session(&closed), "") {
             check("the net", &net);
         }
+        let term = value(&calls::term(&session(&closed), "").unwrap());
+        check("the term", term["judgement"].as_str().unwrap());
         // Every step of the cut's elimination, on the derivation and on
         // the net, each drawn in the intuitionistic syntax.
         let ran = value(&calls::eliminate(&session(&closed), "", "").unwrap());
@@ -1400,4 +1402,54 @@ fn the_first_order_bounds_are_settings() {
     assert_eq!(closed["outcome"]["verdict"], "unknown", "{closed}");
     let closed = value(&calls::close(&session(&answer), root, "").unwrap());
     assert_eq!(closed["outcome"]["verdict"], "proved", "{closed}");
+}
+
+/// A finished intuitionistic proof reads back as a term of the linear
+/// lambda calculus, written as the settings' `lambda` says, an affine one
+/// as a term of the affine calculus; what has no term (a classical proof,
+/// open goals) and a term past the bounds are answered with the library's
+/// refusal, never thrown.
+#[wasm_bindgen_test(unsupported = test)]
+fn a_finished_proof_reads_back_as_a_lambda_term() {
+    let finished = |sequent: &str, mode: &str| {
+        let started = calls::start(sequent, mode, "").unwrap();
+        let closed = calls::close_all(&session(&started), "").unwrap();
+        assert_eq!(value(&closed)["view"]["complete"], true, "{sequent}");
+        session(&closed)
+    };
+    let proof = finished("|- a -o b -o a * b", "intuitionistic");
+    let term = value(&calls::term(&proof, "").unwrap());
+    assert_eq!(term["calculus"], "linear");
+    assert_eq!(term["text"], "λx. λy. x ⊗ y");
+    assert_eq!(term["judgement"], "⊢ λx. λy. x ⊗ y : a ⊸ (b ⊸ (a ⊗ b))");
+    let ascii = settings(&json!({"lambda": {"notation": "ascii", "types": true}}));
+    let term = value(&calls::term(&proof, &ascii).unwrap());
+    assert_eq!(term["text"], r"\x:a. \y:b. x * y");
+    let affine = finished("a, b |- a", "intuitionistic-affine");
+    assert_eq!(
+        value(&calls::term(&affine, "").unwrap())["calculus"],
+        "affine"
+    );
+    let refused = |session: &str, settings: &str| value(&calls::term(session, settings).unwrap());
+    let classical = refused(&finished("|- a -o a", "classical"), "");
+    assert_eq!(classical["error"]["code"], "no_term");
+    assert!(
+        classical["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("several conclusions"),
+        "{classical}"
+    );
+    let started = calls::start("|- a -o a", "intuitionistic", "").unwrap();
+    let open = refused(&session(&started), "");
+    assert_eq!(open["error"]["code"], "no_term");
+    assert!(
+        open["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("open goals"),
+        "{open}"
+    );
+    let small = settings(&json!({"limits": {"derivation_bytes": 8}}));
+    assert_eq!(refused(&proof, &small)["error"]["kind"], "limit");
 }

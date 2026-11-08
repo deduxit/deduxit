@@ -266,10 +266,19 @@ for `THIRD-PARTY-NOTICES.txt`.
   the view's `inferences` (`derivation_ids`) under the same setting so
   that `i<n>` maps to the goal, and `rocq` is the finished derivation,
   checked, always explicit. `tests/ordinary.rs` holds their tests.
+- **The lambda-term** (`term`, `ordinary_term`) is the session's own
+  derivation read back, as the command's session command `lambda` reads
+  it, written with the settings' `lambda` (the command's key). What has no
+  term, and a refusal of the bounds on the way (the derivation's, the
+  term's text, both `limits.derivation_bytes`), is the answer
+  `{"error": …}` with the library's error, the command's JSON form under
+  `lambda`, never thrown: a refusal is what the page shows in place of the
+  term, and only an unreadable session throws. The judgement writes types
+  and joins `no_intuitionistic_text_writes_a_classical_symbol`.
 - **`about` lists the suites** (`suite`, `name`, `calls` the prefix of
   the suite's calls, `parameters` the argument its start takes by name
   with every value and the default, `settings` the keys that change how
-  it proves or draws). The client's registry reads it; a new suite is a
+  it proves or draws, `term` the name of its call for the lambda-term). The client's registry reads it; a new suite is a
   row there with its calls.
 
 ## The build (`modules/web.nix`)

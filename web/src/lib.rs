@@ -159,6 +159,12 @@ mod exports {
         calls::proof(session, settings).map_err(thrown)
     }
 
+    /// See [`calls::term`].
+    #[wasm_bindgen]
+    pub fn term(session: &str, settings: &str) -> Result<String, JsValue> {
+        calls::term(session, settings).map_err(thrown)
+    }
+
     /// See [`calls::prove`].
     #[wasm_bindgen]
     pub fn prove(sequent: &str, mode: &str, settings: &str) -> Result<String, JsValue> {
@@ -307,6 +313,12 @@ mod exports {
     #[wasm_bindgen]
     pub fn ordinary_hint(session: &str, goal: f64, settings: &str) -> Result<String, JsValue> {
         ordinary::hint(session, index(goal, "a goal")?, settings).map_err(thrown)
+    }
+
+    /// See [`ordinary::term`].
+    #[wasm_bindgen]
+    pub fn ordinary_term(session: &str, settings: &str) -> Result<String, JsValue> {
+        ordinary::term(session, settings).map_err(thrown)
     }
 
     /// See [`ordinary::draw`].

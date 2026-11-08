@@ -126,7 +126,7 @@ to 2³² − 1, anything else refused):
 
 | call | answers |
 |---|---|
-| `about()` | `{"linlog", "level", "stack_bytes", "suites"}`: the library's version, the highest wire level it reads, and the suites, each `{"suite", "name", "calls", "parameters": [{"name", "values", "default"}], "settings"}` (`linear` with the parameter `mode` and calls without prefix, `ordinary` with `logic` and the calls `ordinary_…`) |
+| `about()` | `{"linlog", "level", "stack_bytes", "suites"}`: the library's version, the highest wire level it reads, and the suites, each `{"suite", "name", "calls", "parameters": [{"name", "values", "default"}], "settings", "term"}` (`linear` with the parameter `mode` and calls without prefix, `ordinary` with `logic` and the calls `ordinary_…`; `term` the name of the suite's call for the lambda-term) |
 | `defaults()` | the tab's settings, for the Settings pane |
 | `read(input, settings)` | a typed sequent, a sequent's JSON (`seq json`) or a session (`save`): `{"kind": "sequent" or "session", "sequent", "text", "fragment": {"classical", "intuitionistic"}, "mode", "session"}`; a parse error carries the caret's place, a level above the module's is `unsupported_version` |
 | `start(sequent, mode, settings)` | a new session: `{"session", "view", "inverted"}`; `mode` one of `classical`, `affine`, `mix`, `affine-mix`, `intuitionistic`, `intuitionistic-affine`; with `interactive.invertible` on, every invertible rule applied first, `inverted` the steps that took |
@@ -141,6 +141,7 @@ to 2³² − 1, anything else refused):
 | `close_all(session, settings)` | `{"session", "view", "results": [{"goal", "outcome", "refused", "error", "work"}]}`: every goal's search within one budget of `limits.work` for all of them, a goal it runs out on `work_limit` |
 | `hint(session, goal, settings)` | `{"outcome", "steps", "invertible"}`: the search on the goal, the session unchanged, and the first steps of its proof (the structural rules at its root and the first rule that is not one), each for `apply` on the goal the one before opened, and whether the last applies an invertible rule; following the hints proves the goal. In a session with quantifiers the goal is closed in a copy of the session (`Interactive::close`, the goal written as a sequent of its own) and the steps are read off the copy, an `∃R`/`∀L` step with the witness the search chose where the session reads it, else open |
 | `proof(session, settings)` | the checked proof of a finished session |
+| `term(session, settings)` | the lambda-term of the session's proof, read back from its derivation: the term's JSON (`calculus`, `atoms`, `types`, `variables`, `context`, `goal`, `nodes`, `root`) with its `text` and `judgement` written as the settings' `lambda` says (`{"notation": "unicode" or "ascii", "types"}`), as `prove --lambda --format json` writes it; or `{"error": …}`, the library's error: `no_term` with the reason (a classical proof, Mix, the cyclic and Lambek modes, quantifiers, open goals), or the refusal of `limits.derivation_bytes` |
 | `prove(sequent, mode, settings)` | `{"outcome", "refutation_checked"}`: the verdict for the status light, `refutation_checked` what `Disproof::check` said |
 | `draw(session, settings)` | the session's derivation as SVG, open goals as leaves, `i<n>` and `i<n>-<p>` on every conclusion and formula |
 | `draw_net(session, settings)` | the net of a finished session's proof as SVG (`styles.svg.essential` for an essential net) |
@@ -160,6 +161,7 @@ to 2³² − 1, anything else refused):
 | `ordinary_undo(session, settings)` | `{"session", "view", "reopened"}`: a step or a graft retracted whole |
 | `ordinary_close(session, goal, settings)` | `{"session", "view", "outcome", "refused"}`: the goal decided through `ordinary.translation`, its derivation grafted; `outcome` the ordinary outcome (`valid`, `not_valid`, `unknown` with its `reason`) |
 | `ordinary_hint(session, goal, settings)` | `{"outcome", "steps"}`: the goal decided, the session unchanged, `steps` the first steps of the derivation found (its weakenings and contractions at the root and the first rule that is not one), each on the goal the one before opened, as `ordinary_apply` takes them |
+| `ordinary_term(session, settings)` | as `term`, the derivation of LJ read back as a simply typed term (`calculus` `simple`); `no_term` for a derivation of LK or with open goals |
 | `ordinary_draw(session, settings)` | the derivation so far as SVG, open goals as bare leaves, the structural rules as `view.structural` draws them, `i<n>` on every conclusion |
 | `ordinary_export(session, format, settings)` | `text`, `latex`, `typst`, `svg` (the derivation so far) or `rocq` (the certificate of the finished derivation over `Prop`, checked first); PNG and PDF by `render` |
 

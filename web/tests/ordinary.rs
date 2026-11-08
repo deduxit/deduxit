@@ -57,14 +57,17 @@ fn open_goals(answer: &str) -> Vec<u32> {
         .collect()
 }
 
-/// `about` lists both suites, each with the prefix of its calls and the
-/// parameter its `start` takes, with every value and the default.
+/// `about` lists both suites, each with the prefix of its calls, its term
+/// call and the parameter its `start` takes, with every value and the
+/// default.
 #[wasm_bindgen_test(unsupported = test)]
 fn about_lists_the_suites() {
     let about = value(&calls::about());
     let suites = about["suites"].as_array().unwrap();
     let names: Vec<&Value> = suites.iter().map(|s| &s["suite"]).collect();
     assert_eq!(names, [&json!("linear"), &json!("ordinary")]);
+    let terms: Vec<&Value> = suites.iter().map(|s| &s["term"]).collect();
+    assert_eq!(terms, [&json!("term"), &json!("ordinary_term")]);
     let ordinary = &suites[1];
     assert_eq!(ordinary["calls"], "ordinary_");
     assert_eq!(
@@ -237,4 +240,25 @@ fn malformed_input_is_refused_with_its_reason() {
     assert!(ordinary::view("{", "").is_err());
     assert_eq!(code(ordinary::export(&state, "png", "")), "unknown_name");
     assert_eq!(code(ordinary::export(&state, "rocq", "")), "open_goals");
+}
+
+/// A finished derivation of LJ reads back as a simply typed term; one of
+/// LK and one with open goals are answered with the library's refusal.
+#[wasm_bindgen_test(unsupported = test)]
+fn a_finished_derivation_reads_back_as_a_lambda_term() {
+    let finished = |sequent: &str, logic: &str| {
+        let started = ordinary::start(sequent, logic, "").unwrap();
+        let closed = ordinary::close(&session(&started), 0, "").unwrap();
+        assert_eq!(value(&closed)["view"]["complete"], true, "{sequent}");
+        session(&closed)
+    };
+    let composition = "|- (a -> b) -> (b -> c) -> a -> c";
+    let term = value(&ordinary::term(&finished(composition, "intuitionistic"), "").unwrap());
+    assert_eq!(term["calculus"], "simple");
+    assert_eq!(term["text"], "λf. λg. λx. g (f x)");
+    let classical = value(&ordinary::term(&finished(composition, "classical"), "").unwrap());
+    assert_eq!(classical["error"]["code"], "no_term");
+    let started = ordinary::start(composition, "minimal", "").unwrap();
+    let open = value(&ordinary::term(&session(&started), "").unwrap());
+    assert_eq!(open["error"]["code"], "no_term");
 }
