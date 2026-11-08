@@ -667,3 +667,178 @@ For the placement, after the author's choice:
   private; the same page `round2-therefore/mockups.html`.
 - linlog: `../linlog-step53m` on top of `main` (`wmqrwoun`), this section's
   commit; nothing pushed; the client untouched.
+
+## Session 53m, round 3: the turnstile at a turnstile's width, and letters that point to the logic
+
+The author, after round 2 (2026-11-08): "I don't like the new dots
+mockups that much. Can you look at the turnstile option again? I want to
+see how it looks like if the t is a normal width turnstile. Also, can you
+explore other options similar to click and collect?" The lollipop stays
+retired, the name stays sequentium, the mark is judged alone. The same
+session (Fable 5.1) and partner (`linlog-mark-opus`, Opus 5.5, resumed);
+no researcher this round, the session fetched Click & coLLecT's site and
+favicon itself. Nothing placed, nothing pushed.
+
+### The checklist
+
+| item | state | evidence |
+|---|---|---|
+| The turnstile t at a normal turnstile's width, in at least two drawings with the spacing handled, and the first round's 237-unit drawing beside them, each with its square | done | `round3/fable/turnstile-wide-axis`, `turnstile-wide` (a math ⊢'s proportions, 0.84 as wide as tall: stem 132 by 656, arm 422, 140 units of air each side; the arm on the math axis and in the crossbar band), `turnstile-237` (the first round's), and round 2's `t-literal` copied beside them as `turnstile-literal`; every square the grid ⊢ |
+| Click & coLLecT's name and mark fetched and looked at, what makes it work said | done | `checks/diligence-cc.md` and `checks/marks-cc/` (the site's page and favicon; the repository named on the site); below |
+| Four to six candidates in that spirit, of both designers, each with its square and reason | done | six: Fable's `seq`, `seqventivm`, `sigma`; Opus's `member`, `hypersequent`, `indexed` (`round3/fable/`, `round3/opus/`, each `make.py`) |
+| The partner's critique and the answer | done | `round3/opus-critique.md`, `round3/fable-on-opus.md`, `round3/fable-answer.md` |
+| Every candidate at every size and place, alone, in a new private artifact | done | https://claude.ai/artifact/2G7yo4bvDPGPv2HBhXgDyA; the same page `round3/page.html` (`round3/page.py` over `tools/page.py`); ten sections, each with the eleven places in light and dark, fetched back and checked |
+| The diligence check: Click & coLLecT against every candidate, Asana's registrations, the fonts, sources | done | `checks/diligence-cc.md`; below |
+| The design repository committed; this section committed on `main` in `../linlog-step53m`; `jj st` clean in both | done | the commits below |
+
+### Outcome
+
+Two directions were drawn and critiqued. **The turnstile at a turnstile's
+width**: a math font's ⊢ is about 0.84 as wide as tall (Euler's is 586 by
+694), so at the t's height of 656 the sign is 554 wide, a stem of 132 and
+an arm of 422, with 140 units of air on each side as a sequent has around
+its turnstile; the letters after it move 385 units and the word is 7.5 per
+cent wider. Drawn with the arm on the font's math axis and in the t's
+crossbar band, beside the first round's drawing (the arm 330, the letters
+stepped 237, air on the right alone) and round 2's settled drawing (the
+arm 250 in the crossbar band). The partner's finding, which I take: at a
+turnstile's width the arm belongs on the axis, since a 422-unit arm in the
+crossbar band on a 656 stem reads as Γ or as an F without its middle bar
+at 30 pixels; the full-width drawing reads "sequen ⊢ ium", a sequent,
+which a logician enjoys and a newcomer reads as two fragments around a
+sign, so it is the sign-first answer and round 2's drawing the word-first
+one, and the author chooses between them. The air could tighten from 140
+to about 90 if it is chosen, a tuning for the placement.
+
+**Letters that point to the logic**: Click & coLLecT's name, read on its
+site, is "C1ick ⅋ c⊗LLec⊥": letters replaced by the signs of linear logic
+they resemble (1 for the i, ⅋ for the ampersand, ⊗ for the o, ⊥ for the t)
+and the LL of "collect" in capitals for linear logic; its only mark is a
+favicon of a calligraphic par sign ⅋. What makes it work is that the name
+spells its subject letter by letter, so a logician reads the logic before
+the word and a newcomer reads the word and then learns the signs; it is
+also a pun on a shop's "click and collect". Taking the idea and none of
+the look, six plays on the letters of sequentium: `seq` (the first three
+letters in colour, the root of sequent and of the scholar's "et seq.",
+"and the following", the word's own meaning; the square "seq."),
+`seqventivm` (Roman capitals with V for U, the V's in colour; the square
+S), `sigma` (the initial as Σ, the letter sequent calculus gives a
+collection of formulas, drawn from geometry since Figtree has no Greek;
+the square Σ), `member` (the first e as ∈: every suite a member of the
+house, "A ∈ Γ" how rules speak of a context; the square ∈), `hypersequent`
+(the i as the bar between a hypersequent's sequents; the square ⊢|⊢) and
+`indexed` (the i as a subscript, sequentᵢ, the i-th sequent; the square
+sᵢ). Shown: member, sigma, seq, indexed; set aside: seqventivm (the
+capitals change the page's voice, the square has no sign and no colour,
+and a logician reads the violet V's as ∨) and hypersequent (the i is lost
+and a tall bar in a word is a text cursor).
+
+The recommendation of both designers: the turnstile before any letter
+play; the full-width drawing with the arm on the axis if the sign is to
+be read first, round 2's drawing if the word is. Among the letter plays,
+member for the word and sigma for the square.
+
+### The candidates
+
+| candidate | by | the reason | where the other disagreed, or the trade-off |
+|---|---|---|---|
+| `turnstile-wide-axis` | Fable, at the author's request; the arm's height Opus's reading | the t as a turnstile of a turnstile's width, the sign read first | both: a sequent to a logician, two fragments to a newcomer; the air a thick space, 90 would bind more |
+| `turnstile-literal` | both, round 2 | the word-first drawing, beside it for the choice | none |
+| `turnstile-wide` | Fable | the full width with the arm in the crossbar band | Opus: reads as Γ or an F at 30 pixels; kept as the comparison that shows why |
+| `turnstile-237` | Fable, round 1 | the author asked to see it beside the full-width one | both: a sign in a gap, superseded |
+| `member` | Opus | the first e as ∈, every suite a member of the house | Fable: ∈ is set theory's sign; the square reads as Є at 512; at 30 the play is the colour |
+| `sigma` | Fable | the initial as Σ, a collection of formulas | Opus: newcomers hesitate on the first letter; Σ read as a sum; the round's strongest square |
+| `seq` | Fable | seq in colour, "et seq.", the square a word | Opus: splits seq\|uent, the commonest two-colour device, `seq` a Unix command, the square specks at 16 |
+| `indexed` | Opus | the i as an index, the i-th sequent | Fable: the word hiccups, the i a nine-pixel tick at 30; a mathematician's joke |
+| `seqventivm` (set aside) | Fable | the Latin inscription | Opus: the voice, the square, the V's as ∨ |
+| `hypersequent` (set aside) | Opus | the hypersequent's bar | both: the i lost, a cursor; the crispest favicon of the round |
+
+### The checks
+
+A diligence check, not a legal opinion (`checks/diligence-cc.md`).
+
+- **Click & coLLecT** (https://click-and-collect.linear-logic.org/, the
+  repository etiennecallies/click-and-collect; its page and favicon
+  fetched into `checks/marks-cc/`, looked at): the name "C1ick ⅋ c⊗LLec⊥",
+  the favicon a calligraphic ⅋. Against every candidate: a single replaced
+  letter is the lollipop's own grammar, never their several signs,
+  capitalised LL or calligraphic ⅋; no candidate combines two replaced
+  letters; no credible resemblance. One coincidence named: their t is ⊥
+  (the up tack) and ours is ⊢ (the right tack), the same letter turned
+  into a sibling glyph in the same field.
+- **Asana** (US Reg. 8068874, registered 2025-12-16, "three solid dots of
+  coral in equilateral triangle formation", coral claimed, class 9; the
+  2015 registration of the dots with the word, no colour claimed; the
+  supervisor's note): no round-3 candidate uses ∴ or three dots, so it is
+  not engaged; recorded for any later return to the dots, where ∴
+  standing alone as the square is the closest case.
+- **Fonts**: every candidate's letters are Figtree Bold outlined (the SIL
+  OFL 1.1, read in the client's `node_modules/@fontsource-variable/figtree/LICENSE`,
+  no Reserved Font Name); the turnstiles and the Σ are geometry in the
+  word's stem weight. A logo outlined from the font is the author's
+  artwork (OFL FAQ 1.1, 1.1.1, 1.13). The name stays sequentium (the
+  author, 2026-11-08).
+
+### Decisions
+
+- **The turnstile's width from a math font's proportions** (Euler's ⊢,
+  586 by 694), not from the t's advance; the air on both sides as a
+  sequent's thick spaces; the square unchanged (the grid ⊢, 288 by 320,
+  the same proportion).
+- **Round 2's drawing on the page** beside the full-width one, so the
+  author's choice is between two readings of one idea rather than between
+  rounds.
+- **The comparison drawings kept on the page** in the turnstile group,
+  labelled as comparisons, against the partner's placing them among the
+  set aside: the author asked to see them.
+- **The partner's finding on the long arm's height** taken outright, and
+  its ⊥/⊢ coincidence named in the check.
+- **Click & coLLecT's site and favicon fetched by the session itself**
+  (two small files), no researcher; the fetched files are ignored, not
+  tracked, their sources in `checks/marks-cc/SOURCES.md` and in the check.
+
+### Departures from the design
+
+- None from D1 to D60 knowingly; the page's chrome is unchanged from the
+  earlier rounds. The lollipop's retirement (round 2) stands.
+
+### What is left open
+
+- The author's choice: the turnstile (which reading) or a letter play;
+  the colour (the page's violet throughout this round); the air around
+  the full-width turnstile (140 or about 90).
+
+### What the next sessions must know
+
+- **The sources** are `round3/all/<name>/` (gathered by `round3/page.py`
+  from `round3/fable/` and `round3/opus/`; `turnstile-literal` is round
+  2's `t-literal`), drawn by `round3/fable/make.py` and
+  `round3/opus/make.py` over `tools/lib.py`; the air and the arm are
+  numbers in the script. Titles and `aria-label`s "sequentium (<name>)"
+  change to "sequentium" at placement.
+- **If the full-width turnstile is chosen**: the word mark is 7.5 per
+  cent wider than Figtree's word (about 184 pixels at the band's 30);
+  the header's `Logo` component and its test take the new width; the
+  square is the same grid ⊢ as round 2's, so the favicon, the manifest's
+  icons and the maskable icon need no new rule.
+- **If a letter play is chosen**: `member`'s ∈ and `sigma`'s Σ are
+  geometry, so no Greek or symbol font enters the client; the square is
+  the sign alone on the grid.
+- **Never** combine two replaced letters in one mark (Click & coLLecT's
+  look), and never return to ∴ before the word or the three dots alone
+  (Asana's registrations).
+- **The lollipop is retired** (round 2's notes stand): the placement
+  replaces it everywhere and renames or retires `--color-logo` and the
+  colour test's `logo` group.
+
+### Repositories and workspaces
+
+- The design: `/home/tux/Projects/own/sequentium-mark/`, the round's
+  commits `yyzsmrtt` (the turnstiles, Fable's plays, Click & coLLecT
+  fetched), `wzmpnwpz` (Opus's plays, Fable's critique, the page's script)
+  and `psxnmuoy` (the critique, the answer, the page, the check); `jj st`
+  clean.
+- The artifact: https://claude.ai/artifact/2G7yo4bvDPGPv2HBhXgDyA,
+  private; the same page `round3/page.html`.
+- linlog: `../linlog-step53m` on `main` (`kzropsto`), this section's
+  commit; nothing pushed; the client untouched.
