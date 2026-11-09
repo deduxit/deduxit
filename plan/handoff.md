@@ -1,6 +1,7 @@
 # Handoff: the planning session
 
-You are the planning session of the linlog repository, the orchestrator
+You are the planning session of deduxit's repository (the local
+checkout `linlog`), the orchestrator
 of its stepped plan. The author (Fabian, GitHub `flgrubm`, the
 repositories under `deduxit`, before 2026-11-08 `linlog-prover`) runs every step as Claude Code
 sessions started from prompt files under `plan/`. You write and finish
@@ -169,7 +170,8 @@ to D32), grouped by release. In brief:
 - **The move is done**: step 48 moved everything to the organisation
   `sequentium` on 2026-11-08; the author renamed it `deduxit` on
   2026-11-09 (the repositories `deduxit/deduxit`,
-  `deduxit/rocq-linlog`, `deduxit/deduxit.github.io`), and session 53n
+  `deduxit/rocq-linlog`, `deduxit/deduxit.github.io`; the library
+  renamed `rocq-deduxit` the same day, 53r), and session 53n
   moved every address and the placeholder's redirects
   (`plan/reports/53-release-0.3.0.md`). Never create a repository
   named `linlog` or `rocq-linlog` under `linlog-prover`, nor take the
@@ -177,16 +179,20 @@ to D32), grouped by release. In brief:
   redirects.
 - **A custom domain** for the site: open; without one the addresses are
   the `github.io` ones.
-- **The opam pull request**, after 48b, from 45e's commit moved to the
-  new addresses by 48a. The author:
+- **The opam pull request**, after the library's `v0.3.0` tag: the
+  change `mmsqlyzk` "Add rocq-deduxit.0.3.0" in `~/Projects/own/rocq-opam`
+  (the chain for `rocq-linlog.0.2.0` is superseded and never sent). The
+  planning session first fills in its checksum and `date:` tag by the
+  commands of 53b's report; then the author:
   1. forks `rocq-prover/opam` on GitHub;
   2. in `~/Projects/own/rocq-opam`, runs `jj git remote add fork
      git@github.com:flgrubm/opam.git`;
-  3. pushes the change 48a names (`jj git push --remote fork --named
-     "rocq-linlog.0.2.0=REV"`);
-  4. opens the pull request against `master` with 45e's title and body.
+  3. pushes it (`jj git push --remote fork --named
+     "rocq-deduxit.0.3.0=mmsqlyzk"`);
+  4. opens the pull request against `master` with the text in 53b's
+     report.
   coqbot runs the repository's CI, and a maintainer merges.
-- **Where step 66's Rocq proof lives** (a module of `rocq-linlog` or a
+- **Where step 66's Rocq proof lives** (a module of `rocq-deduxit` or a
   new library of the collection, whose repository the author would
   create): at the review of step 65.
 - **A night for the quiet rerun of the fourth baseline's parallel stage**:
@@ -203,7 +209,7 @@ to D32), grouped by release. In brief:
   announcement; ask again when the author raises them.
 - Code signing for the installers; the WiX EULA for a Windows `.msi`;
   install channels that need an account (a Homebrew tap, the AUR,
-  winget, Scoop, COPR, Chocolatey); rocq-linlog's `CACHIX_AUTH_TOKEN`
+  winget, Scoop, COPR, Chocolatey); rocq-deduxit's `CACHIX_AUTH_TOKEN`
   secret (checked again after its transfer, step 48); the LLTP header
   report (`plan/notes/lltp-headers.md`), theirs to send; the MCP server
   ("not now", kept in `later.md` until a client without a shell asks);
@@ -265,9 +271,9 @@ to D32), grouped by release. In brief:
      --stat`, every soundness-relevant file in full: the checker's arm,
      the Rocq trusted definitions);
    - run checks yourself, not only read them. Probe the command on what
-     the tests do not pin: a `nix build -o SCRATCH/linlog-main` binary for
-     `main`, the session's `target/debug/linlog` for its tree, on cores 4
-     to 11. Compare target sets with their oracles (`linlog-bench summary
+     the tests do not pin: a `nix build -o SCRATCH/deduxit-main` binary for
+     `main`, the session's `target/debug/deduxit` for its tree, on cores 4
+     to 11. Compare target sets with their oracles (`deduxit-bench summary
      --against …`), recompute a checksum, rebuild a key check under the
      lock. You are the same model as the session, so your independence
      lies in what you run;
@@ -481,12 +487,12 @@ to D32), grouped by release. In brief:
   design)" and goes on; you relay each to the author.
 - **The web client**: Practice holds only provable problems; Learn and
   Practice draw from one store of problems, whose flake check decides
-  every one by linlog's command; every lesson problem is decided well
+  every one by deduxit's command; every lesson problem is decided well
   inside the page's budget of work, except lesson 7's deliberate
-  small-budget example. The logo is the lollipop in violet, CC BY 4.0,
-  with its `--color-logo` token held by the colour test and a rules
-  line. The client's content is CC BY 4.0, its code EUPL-1.2.
-- **The guide for AI models** (`skills/linlog/`): a step that changes a
+  small-budget example. The mark is dēdūxit in Gentium ExtraBold, its
+  long marks lapis (#2456c9 light, #7aa7ff dark) as `--color-logo`,
+  CC BY 4.0, held to the `.logo` rule by the colour test. The client's content is CC BY 4.0, its code EUPL-1.2.
+- **The guide for AI models** (`skills/deduxit/`): a step that changes a
   feature it describes changes it in the same commit (conduct.md);
   remind sessions that touch the command, the JSON forms or the
   library's entry points.
@@ -547,7 +553,7 @@ to D32), grouped by release. In brief:
   not the search; read the reason column before comparing times.
 - **Found and parked** (`plan/later.md`): without `--deterministic` the
   command answers unknown on a sequent the inverse method saturates at
-  once; `linlog check` ignores a proof file's own `"mode"`; linlog's
+  once; deduxit's
   recursion limit on `lambek-fo` from 512 on (LinearOne solves them);
   the memory account that never reaches its limit on `wide-m1/8192`.
 

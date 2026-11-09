@@ -1,6 +1,6 @@
 # Step 68: tools for teachers: a model editor, a tableau checker, course packs
 
-You are working in linlog (`deduxit/deduxit`) and in the web client
+You are working in deduxit (`deduxit/deduxit`, the checkout `../linlog`) and in the web client
 (`deduxit/deduxit.github.io`). CLAUDE.md applies throughout: jj
 only (never git), thematic commits as soon as a unit is done, doc
 comments on every item, the verification table, no pushing. This prompt

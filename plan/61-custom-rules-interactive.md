@@ -1,6 +1,6 @@
 # Step 61: building derivations with custom rules, in the command and on the page
 
-You are working in linlog (`deduxit/deduxit`) and, for the page, in
+You are working in deduxit (`deduxit/deduxit`, the checkout `../linlog`) and, for the page, in
 the web client (`deduxit/deduxit.github.io`). CLAUDE.md applies
 throughout: jj only (never git), thematic commits as soon as a unit is
 done, doc comments on every item, the verification table, no pushing.
@@ -17,7 +17,7 @@ D28 and D29.
 
 The author's "a way to add custom derivation rules and a way to
 interactively build derivations with them" (2026-11-08): a session over
-step 60's generic derivation, in the command (`linlog interact
+step 60's generic derivation, in the command (`deduxit interact
 --calculus FILE`, with `rules`, `apply`, `undo`, `show`, `save`, `load`)
 and on the page (a tab whose calculus is a rule file the user loads or
 writes), the rules applicable to a goal listed by matching, every output

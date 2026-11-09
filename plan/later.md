@@ -10,6 +10,12 @@ the detail of its step, corrected where the table below says so. The
 follow-up lists at the end are assigned to steps, each list under its
 heading.
 
+Names as of their day (2026-11-09): an entry names the program as it
+was called when it was written. linlog is deduxit (the crates `deduxit`
+and `deduxit-cli`, the command `deduxit`, the linear suite the module
+`deduxit::linear`), rocq-linlog is rocq-deduxit, linlog-web is
+deduxit-web; the open entries below say so where it matters.
+
 ## Where each candidate went (2026-11-08)
 
 Step 46 (`reports/46-research-next.md`) ranked the candidates of its
@@ -1273,7 +1279,7 @@ Left by session 32c (2026-10-19):
   while the module still loads on a slow machine for one, is dropped
   without a word; it could wait for the running action instead. *Done in
   step 38: it waits.*
-- **`linlog interact` prints a stray comma** (the command, unassigned):
+- **`deduxit interact` prints a stray comma** (the command, unassigned):
   a two-sided goal whose first hypothesis is not at position 0 prints as
   `goal 2:, 1: A ⊢ 0: A` (`A -o B, B -o C |- A -o C` in `-i` after
   `apply 0 2 ⊸R`, `apply 1 0 ⊸L 2`).
@@ -2248,7 +2254,7 @@ translation that lost a negation of the ILTP original under
 SYJ206+1.018 in its 01 translation has a tab for a closing parenthesis
 (repaired in the flake's fetch): worth reporting upstream with linlog's
 checked proofs and the countermodels attached. The CLI does not read
-LLTP files, a one-flag addition over `linlog::lltp::read`. The net
+LLTP files, a one-flag addition over `deduxit::linear::lltp::read`. The net
 engine's exact test could run less often on large structures (a period
 of 16 was 1.39× faster at 14 000 occurrences). Matsuoka's 3D-Matching
 encoding is not among the families. `summary` counts a verdict found after the time limit as
@@ -2408,7 +2414,7 @@ certified refutations"; unassigned).*
 - **The one-sided and state-equation refutations** have neither a
   check nor a Rocq lemma, so they stay uncertified; each needs its
   invariant stated, checked without the search, and proved.
-- **`linlog check` reads proofs only.** A disproof's JSON could be
+- **`deduxit check` reads proofs only.** A disproof's JSON could be
   read and checked the same way, with the exit statuses of a proof.
 
 ## Follow-ups: the release's licences
@@ -2423,14 +2429,20 @@ generated from the lock (cargo-about, through the new-tool skill),
 installed beside them under `share/doc/linlog-cli/` and checked by the
 flake so that it follows every `cargo update`, closes it. The crates on
 crates.io and the release's `.crate` files are sources and need none.
+*Done in session 45d (2026-11-02, `slwypkqv`), checked again by 53b
+(2026-11-09):* the flake's `notices` (cargo-about over `cli/about.toml`'s
+targets, from the lock, so it follows every `cargo update`) is installed
+as `share/doc/deduxit-cli/THIRD-PARTY-NOTICES.txt` by the package
+`deduxit-cli` and put into every archive and Linux package of the
+release.
 
 ## For the author, later: a Zenodo community
 
 *Skipped for now at the author's word (2026-10-23); raise it again at
-a release (step 45) or when linlog has more kinds of records.* A
-community page on Zenodo (`zenodo.org/communities/linlog`, its logo
-`/home/tux/Projects/own/linlog-logo/for-github/zenodo-community.png`,
-which 38g drew) gathering the release archives and later the Rocq
+a release (step 45) or when deduxit has more kinds of records.* A
+community page on Zenodo (`zenodo.org/communities/deduxit`, its logo
+drawn from the mark's square by the client's `modules/logo.nix`; the
+lollipop 38g drew for it retired on 2026-11-09) gathering the release archives and later the Rocq
 library's releases, papers, slides or data; created by the author on
 Zenodo, the existing records submitted to it by hand. Filing future
 releases into it automatically needs a `.zenodo.json`, which Zenodo then
@@ -2492,15 +2504,15 @@ left for later; the fixes it made are in the step's report.
   *Done in session 53a (2026-11-09, `slmqnpmt`):* both examples; README's licence
   section has named the fonts and their licences since 2026-10-22.
 
-## For the author: an MCP server for linlog (asked by step 44, not built)
+## For the author: an MCP server for deduxit (asked by step 44, not built)
 
 The question was whether a Model Context Protocol server is what lets a
-model use linlog's features most easily. Step 44's research (2026-10-24,
+model use deduxit's features most easily. Step 44's research (2026-10-24,
 `plan/reports/44-llm-guide.md` has the sources) says **no, not now**:
 
-- linlog is a local command without state between calls, with text and
+- deduxit is a local command without state between calls, with text and
   JSON output and exit statuses that say the verdict. An agent with a
-  shell runs it directly, and the Agent Skill `skills/linlog/` costs it
+  shell runs it directly, and the Agent Skill `skills/deduxit/` costs it
   about a hundred tokens until it is needed (agentskills.io's
   progressive disclosure), where an MCP client that loads every tool's
   schema up front pays for them on every turn (Anthropic's post on code
@@ -2510,9 +2522,9 @@ model use linlog's features most easily. Step 44's research (2026-10-24,
 - What a server would add: typed input and output schemas, a read-only
   hint, cancellation and progress notifications, and use from clients
   without a shell (a chat app). That is where to revisit the question:
-  when someone asks to use linlog from such a client.
+  when someone asks to use deduxit from such a client.
 
-If it is built then, a sketch: a subcommand `linlog mcp` serving MCP
+If it is built then, a sketch: a subcommand `deduxit mcp` serving MCP
 over stdio (newline-delimited JSON-RPC on standard input and output),
 with a handful of tools named after the commands, each a thin call of
 what the command already does and described by the guide's sentences:
@@ -2533,8 +2545,8 @@ that runs a session over a pipe, as `cli/tests/cli.rs` runs `interact`.
 
 ## For the author, later: nixpkgs
 
-Skipped for 0.2.0 (the author, 2026-11-03): any Nix user gets linlog
-through its own flake (`nix run github:linlog-prover/linlog`), and
+Skipped for 0.2.0 (the author, 2026-11-03): any Nix user gets deduxit
+through its own flake (`nix run github:deduxit/deduxit`), and
 nixpkgs turns away packages of "a niche of 5 people". To raise again
 when there is public evidence of use beyond the author (crates.io
 downloads, stars, citations of the DOI, users asking); 45's prompt

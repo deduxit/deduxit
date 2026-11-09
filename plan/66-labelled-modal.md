@@ -1,6 +1,6 @@
 # Step 66: the labelled modal calculus step by step, and its soundness in Rocq
 
-You are working in linlog (`deduxit/deduxit`) and in a Rocq
+You are working in deduxit (`deduxit/deduxit`, the checkout `../linlog`) and in a Rocq
 library (below). CLAUDE.md applies throughout: jj only (never git),
 thematic commits as soon as a unit is done, doc comments on every item,
 the verification table, no pushing. This prompt was written on
@@ -28,11 +28,11 @@ exported as a certificate is checked by the library.
   given") until the certificate makes it more; the page uses step 61's
   builder.
 - **Where the proof lives** is settled at the review of step 65 with the
-  author: a module of `rocq-linlog`, or a library of the collection of
+  author: a module of `rocq-deduxit`, or a library of the collection of
   its own (a new repository and opam package, created by the author;
   46a's structure note expects a generic checker's library to be a new
   package). Either way the flake checks the certificates against the
-  pinned library, as `rocq-linlog`'s check does.
+  pinned library, as `rocq-deduxit`'s check does.
 
 ## How the step runs
 

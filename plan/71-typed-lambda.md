@@ -1,6 +1,6 @@
 # Step 71: the simply typed lambda calculus: typing derivations and inhabitation
 
-You are working in linlog (`deduxit/deduxit`) and, for the page, in
+You are working in deduxit (`deduxit/deduxit`, the checkout `../linlog`) and, for the page, in
 the web client (`deduxit/deduxit.github.io`). CLAUDE.md applies
 throughout: jj only (never git), thematic commits as soon as a unit is
 done, doc comments on every item, the verification table, no pushing.
@@ -20,7 +20,7 @@ checked, with their typing derivations drawn as trees and built step by
 step; the linear lambda calculus of step 50's read-back checked the
 same way (closing its round trip); and inhabitation: whether a type has
 an inhabitant, its inhabitants enumerated and counted within a bound,
-uniqueness decided, through the engines linlog already has (a type is a
+uniqueness decided, through the engines deduxit already has (a type is a
 formula, an inhabitant a proof read back).
 
 ## Fixed now

@@ -7,6 +7,12 @@ API as `linlog-web` offers it, and what the library lacks for the page.
 The decisions are the design's; where this plan settles something the
 design left open, it says so.
 
+Names as of their day (2026-11-09): this plan was written when the
+program was linlog. The bindings are the crate `deduxit-web` now, the
+command `deduxit`, the rustdoc at `deduxit.github.io/deduxit/`, the
+library's items under `deduxit::linear` (`deduxit::Settings` at the
+root), and `about()` answers `{"deduxit", …}`.
+
 ## The sessions
 
 Three sessions, each on Opus 5.5 at `high` (`plan/34-web.md`, "How the

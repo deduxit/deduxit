@@ -10,6 +10,10 @@ hosting, licences, accessibility), both of 2026-10-18. Step 32's
 sessions treat the decisions as fixed; the open points are what the
 five mockups explore, and Phase 3 closes them.
 
+Names as of their day (2026-11-09): the design names the program
+linlog, as it was called then; it is deduxit now (the command
+`deduxit`, the bindings `deduxit-web`).
+
 The research's two findings that shaped the most: no web tool draws or
 edits proof nets interactively (the nearest is the Incredible Proof
 Machine's wired blocks for natural deduction, and Click & coLLecT's

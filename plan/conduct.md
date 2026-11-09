@@ -139,7 +139,7 @@ figures drawn by `bench/plots.py` from the rows and listed in
 `docs/figures.sh`. Do not mention the plan, its steps or these sessions
 in README or the manual (the `conventions` check fails on it).
 
-The guide for AI models, `skills/linlog/` (its summary `SKILL.md`, an
+The guide for AI models, `skills/deduxit/` (its summary `SKILL.md`, an
 Agent Skill served as `llms.txt`, and `reference.md`), describes the same
 features for models: a step that changes a command, a flag, a format, a
 JSON form, an exit status, a verdict's wording or a library entry point

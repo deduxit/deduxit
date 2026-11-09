@@ -1,7 +1,7 @@
 # Step 55: Kripke countermodels, checked and certified
 
-You are working in linlog (`deduxit/deduxit`) and in the Rocq
-library (`../rocq-linlog`, `deduxit/rocq-linlog`). CLAUDE.md applies
+You are working in deduxit (`deduxit/deduxit`, the checkout `../linlog`) and in the Rocq
+library (`../rocq-linlog`, `deduxit/rocq-deduxit`). CLAUDE.md applies
 throughout: jj only (never git), thematic commits as soon as a unit is
 done, doc comments on every item, the verification table, no pushing; a
 change of the library is made, checked and pushed there first. This
@@ -40,7 +40,7 @@ lemma of the Rocq library.
   finite Kripke model refuting a sequent shows it underivable in LJ (and
   the minimal variant), and the exporter's second kernel writes the
   model and the lemma's application, compiled by the flake's
-  `rocq-linlog` check.
+  `rocq-deduxit` check.
 - **The drawing**: the model as SVG (worlds as nodes with their atoms,
   the order as arrows, the refuting world marked), on the command and,
   in a session in the client's repository, on the page beside the

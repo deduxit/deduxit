@@ -1,6 +1,6 @@
 # Step 67: the kernel crate, if the suites show what they share
 
-You are working in the linlog repository (`deduxit/deduxit`).
+You are working in deduxit (`deduxit/deduxit`, the checkout `../linlog`).
 CLAUDE.md applies throughout: jj only (never git), thematic commits as
 soon as a unit is done, doc comments on every item, the verification
 table, no pushing. This prompt was written on 2026-11-08 by step 46's
@@ -17,7 +17,9 @@ build figures, `.claude/rules/core.md`, and `plan/README.md`'s D17, D18
 One copy of what the suites share, extracted only now that a second
 non-embedded suite (the modal suite, step 65) has shown what it is
 (D25): a kernel crate holding the generic parts, the suites depending on
-it, every published path of `linlog` still working.
+it, every published path of `deduxit` still working (0.2.0's paths are kept by
+the crate `linlog` 0.3.0 under `compat/linlog`, and the linear suite is
+`deduxit::linear`).
 
 ## Fixed now (D25 and the structure note's structure-5)
 
@@ -31,13 +33,13 @@ it, every published path of `linlog` still working.
   behind a small trait for a derivation tree, interactive proving's
   goals and undo, the front door's `Outcome`, `Verdict` and `Reason`,
   the parallel runtime. The arena, the occurrence forest and the proof
-  term stay in `linlog`, so the propositional speed does not move (D17:
+  term stay in `deduxit`, so the propositional speed does not move (D17:
   the target sets' counters equal, the ratchet within its ceilings).
 - **The crate** starts as an unpublished path crate at version 0.0.0,
-  published only when a second suite crate depends on it; `linlog`
+  published only when a second suite crate depends on it; `deduxit`
   re-exports at the old paths, checked by `breaks` against the last
   release with no break; the workspace moves to a flat `crates/` only
-  when a second crate beyond `linlog` exists, `default-members` the
+  when a second crate beyond `deduxit` exists, `default-members` the
   command and the library.
 
 ## How the step runs

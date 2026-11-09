@@ -1,7 +1,7 @@
 # Step 53: the release of 0.3.0, the first from `deduxit`
 
-You are working in linlog (`deduxit/deduxit`) and, for its release,
-in the Rocq library (`../rocq-linlog`, `deduxit/rocq-linlog`).
+You are working in deduxit (`deduxit/deduxit`, the checkout `../linlog`) and, for its release,
+in the Rocq library (`../rocq-linlog`, `deduxit/rocq-deduxit`).
 CLAUDE.md applies throughout: jj only (never git), thematic commits as
 soon as a unit is done, doc comments on every item, the verification
 table, no pushing. Tagging and publishing are the author's acts. The
@@ -171,7 +171,10 @@ written by the planning session when it starts):
    - **What 53b changes:** the release workflow publishes `deduxit` and
      `deduxit-cli` with it while they are not on crates.io yet. The old
      crates `linlog` and `linlog-cli` (their final "renamed" 0.3.0) keep
-     Trusted Publishing through `rust-lang/crates-io-auth-action`.
+     Trusted Publishing through `rust-lang/crates-io-auth-action`, under
+     a trusted publisher naming `deduxit`/`deduxit` (crates.io matches
+     the repository by name, so the author re-entered it after the
+     rename, 2026-11-09).
    - **The order:** the library before the command, and each crate is
      skipped if its version is already published, as now.
    - **The tags** (the author, 2026-11-09: "I want the annotated and
@@ -314,18 +317,13 @@ changelog); the command's third-party notices in the packages
 manual's `status.md` true; the guide for AI models
 within its budget; `nix flake check` in both; the release workflow's
 dry run as 0.2.0's was; the GitHub release notes drafted; the Zenodo
-check written down for the author: after the tag, whether the new
-version record sits under linlog's concept DOI 10.5281/zenodo.23448588
-(and the library's under 10.5281/zenodo.23899109) or started a new
-concept, and what to do if it did. Before that, a question for the
-author with a recommendation (they asked on 2026-11-08 whether linlog
-can be renamed): what the release is called in citations. Zenodo titles
-a version from `CITATION.cff` (`title: linlog` after step 48), and
-crates.io renames no crate. So either the concept DOI stays "linlog",
-the linear suite, and the collection gets a record of its own later; or
-the title changes from 0.3.0 on, for example to "deduxit: logic
-suites (linlog, …)", in `CITATION.cff` and on Zenodo. 0.2.0's records
-keep their title. Then the author tags and publishes.
+check written down for the author: the 0.3.0 records are titled
+deduxit and rocq-deduxit from `CITATION.cff` (settled above); confirm
+that each lands under its concept DOI (deduxit's
+10.5281/zenodo.23448588, the library's 10.5281/zenodo.23899109) and
+say what to do if one started a new concept. 0.2.0's records keep
+their title. Then the planning session tags and the author approves
+the publication.
 
 ## How the step runs
 

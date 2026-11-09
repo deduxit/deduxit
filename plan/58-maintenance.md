@@ -1,6 +1,6 @@
 # Step 58: maintenance, and Kani on the checker's integers
 
-You are working in linlog (`deduxit/deduxit`) and, for the
+You are working in deduxit (`deduxit/deduxit`, the checkout `../linlog`) and, for the
 accessibility audit, in the web client (`deduxit/deduxit.github.io`,
 `../linlog-prover.github.io`). CLAUDE.md applies throughout: jj only
 (never git), thematic commits as soon as a unit is done, the
@@ -36,7 +36,7 @@ met (a counter that wrapped, `conduct.md`).
   (maintenance-9) against step 47's figures.
 - **Kani** (verification-6), adopted through the `new-tool` skill at the
   version a lock pins: harnesses for the checker's counters, sums and
-  arena indices (`core/src/proofs/check/`), each stating the fact it
+  arena indices (`core/src/linear/proofs/check/`), each stating the fact it
   checks and its bound; a flake check or a CI job for them as the tool's
   toolchain allows (a nightly is the fuzz devshell's precedent), never
   in the gate if it makes the gate slow.

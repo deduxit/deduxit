@@ -1,6 +1,6 @@
 # Proof search: the implementation plan
 
-The steps that take linlog from "parse, print, serialize" to a proof-search
+The steps that take deduxit from "parse, print, serialize" to a proof-search
 suite: the algorithms of `proof-search-specifications.md` (the spec) for every
 propositional fragment, automatic fragment detection with manual override,
 intuitionistic and affine modes, proofs kept in a checkable format, exported
@@ -89,7 +89,7 @@ amended (see "Review protocol"). `notes/` holds research the prompts rely on.
 | | **Release 0.6.0: modal logics K to S5** (D27) | | | | |
 | 65 | Modal logics K, T, K4, S4 and S5 decided, every "not valid" a checked Kripke countermodel against the frame conditions, drawn, on the page; the second non-embedded suite (three to four sessions) | `65-modal-logics.md` (finished at the review of 64) | Fable 5.1 for the first session (the modal arena and systems), Opus 5.5 for the rest; the panel's argument on Fable 5.1 | high, with the panel | 55, 64 |
 | 66 | The labelled modal calculus step by step on the generic derivation, and its soundness proved in Rocq (five sessions) | `66-labelled-modal.md` (finished at the review of 65) | Opus 5.5 (Fable 5.1 at `xhigh` only if Opus visibly falls short on the proof); a fresh-context reviewer on Opus 5.5 | high | 60, 61, 65 |
-| 67 | The kernel crate, extracted only from what at least two suites copied, unpublished at 0.0.0, `linlog`'s paths kept (D25; three to five sessions, or one that ends at the gate) | `67-kernel-crate.md` (finished at the review of 66) | Fable 5.1 for the first session (the inventory and the boundary), Opus 5.5 for the extraction | high | 47, 65, 66 |
+| 67 | The kernel crate, extracted only from what at least two suites copied, unpublished at 0.0.0, deduxit's paths kept (D25; three to five sessions, or one that ends at the gate) | `67-kernel-crate.md` (finished at the review of 66) | Fable 5.1 for the first session (the inventory and the boundary), Opus 5.5 for the extraction | high | 47, 65, 66 |
 | 68 | Tools for teachers: a Kripke model editor, a checker for students' tableaux, course packs with a checkable handed-in link, a print stylesheet (three sessions) | `68-teaching-tools.md` (finished at the review of 67) | Opus 5.5; a fresh-context reviewer per client session | high | 56, 63, 65, 67 |
 | 69 | The release of 0.6.0 (one session) | `69-release-0.6.0.md` (finished at the review of 68) | Opus 5.5 | high | 65, 66, 67, 68 |
 | | **Release 0.7.0: resolution and the simply typed lambda calculus** (D27) | | | | |
@@ -687,6 +687,13 @@ documented at code.claude.com/docs/en/cli-reference.
 These bind every step. A step that finds one of them wrong says so in its
 report and, if the fix is local, makes it; otherwise it stops and asks.
 
+Names as of their day (2026-11-09): the decisions below name things as
+they were called when each was made. linlog is deduxit (the crates
+`deduxit` and `deduxit-cli`, the command `deduxit`, the linear suite the
+module `deduxit::linear`), rocq-linlog is rocq-deduxit (logical root
+`Deduxit`), linlog-web is deduxit-web, and the organisation
+`linlog-prover` is `deduxit`.
+
 **D1. One formula representation.** Formulas stay in the hash-consed arena
 of `Sequent` (`core/src/sequents/`), in negation normal form, one-sided:
 two-sided input `Γ ⊢ Δ` is lowered to `⊢ Γ^⊥, Δ`. Intuitionistic sequents
@@ -868,8 +875,8 @@ takes only what it ships: `interactive` (D13), `latex`, `typst`, `svg`,
 the CLI enables. Search, the checker, the derivation view and proof nets
 are unconditional: they are the crate. Once there are more than four
 features, the `features` check and the documented command become
-`cargo hack check --each-feature -p linlog` plus
-`cargo hack check --feature-powerset --depth 2 -p linlog` rather than the
+`cargo hack check --each-feature -p deduxit` plus
+`cargo hack check --feature-powerset --depth 2 -p deduxit` rather than the
 full powerset; the step that adds the fifth feature makes that change in
 `modules/checks.nix` and CLAUDE.md.
 
@@ -1013,7 +1020,9 @@ that cites one of those names the file.
 **D24. A collection of suites, grown one at a time** (decision 1).
 linlog grows into a collection of suites for many kinds of logic, one
 suite at a time, each release leaving a useful tool; `linlog` stays the
-linear suite, its name, crates and command unchanged. The ordinary
+linear suite, its name, crates and command unchanged (superseded
+2026-11-09: the crates and the command are deduxit, the linear suite is
+the module `deduxit::linear`). The ordinary
 suite (`core/src/ordinary/`) is the second, made whole first.
 
 **D25. One repository and one workspace; the kernel crate only after
@@ -1025,7 +1034,7 @@ non-embedded suite has shown what is shared (the modal suite, step 65;
 the extraction step 67 decides from what each suite recorded it
 copied), and is unpublished, a path crate at 0.0.0, until a second
 suite crate depends on it. The arena, the occurrence forest and the
-proof term stay in `linlog` (D17). A repository per suite stays open
+proof term stay in `deduxit` (D17). A repository per suite stays open
 for a suite a third party writes. The Rocq library stays the linear
 library in its own repository.
 
@@ -1046,7 +1055,8 @@ The Cachix cache keeps the name `linlog-prover`; crates.io gets no
 placeholder crate. On 2026-11-09 the author renamed the organisation
 `deduxit` (Latin, "it has derived"), the shared repository
 `deduxit/deduxit` and the site's `deduxit.github.io`, `rocq-linlog`
-keeping its name; session 53n moved every address and the
+keeping its name until it was renamed `rocq-deduxit` the same day
+(53r); session 53n moved every address and the
 placeholder's redirects to them.
 
 **D27. The order of the releases** (decision 4). 0.3.0 ordinary logic

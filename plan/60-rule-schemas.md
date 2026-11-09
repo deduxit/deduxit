@@ -1,6 +1,6 @@
 # Step 60: rules as data, a generic derivation and its checker
 
-You are working in the linlog repository (`deduxit/deduxit`).
+You are working in deduxit (`deduxit/deduxit`, the checkout `../linlog`).
 CLAUDE.md applies throughout: jj only (never git), thematic commits as
 soon as a unit is done, doc comments on every item, the verification
 table, no pushing. This prompt was written on 2026-11-08 by step 46's
@@ -51,7 +51,7 @@ of them.
   generic checker and `ordinary::Derivation::check` agree), and the
   linear calculus as a file whose derivations agree with the linear
   checker's on a sample.
-- **Where it lives**: a module of the `linlog` crate until step 67
+- **Where it lives**: a module of the `deduxit` crate until step 67
   decides the kernel (D25); what it copies is recorded for that step.
 
 ## How the step runs

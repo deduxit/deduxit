@@ -1,6 +1,6 @@
 # Step 62: natural deduction, in Gentzen's trees and in Fitch's style
 
-You are working in linlog (`deduxit/deduxit`) and, for the page, in
+You are working in deduxit (`deduxit/deduxit`, the checkout `../linlog`) and, for the page, in
 the web client (`deduxit/deduxit.github.io`). CLAUDE.md applies
 throughout: jj only (never git), thematic commits as soon as a unit is
 done, doc comments on every item, the verification table, no pushing.
@@ -31,7 +31,7 @@ command and on the page as a method of the ordinary suite.
 - **The Fitch view** is new drawing work (`web-front-end.md`, candidate
   6): a list layout on the stage and in the exports (LaTeX and Typst
   through the packages their communities use, read at the version built
-  against; SVG of linlog's own), configured by one options value (D15).
+  against; SVG of deduxit's own), configured by one options value (D15).
 - Natural deduction for classical linear logic is not built (no
   standard calculus found, 46a's dropped row).
 

@@ -1,6 +1,6 @@
 # Step 70: resolution at teaching scale
 
-You are working in linlog (`deduxit/deduxit`) and, for the page, in
+You are working in deduxit (`deduxit/deduxit`, the checkout `../linlog`) and, for the page, in
 the web client (`deduxit/deduxit.github.io`). CLAUDE.md applies
 throughout: jj only (never git), thematic commits as soon as a unit is
 done, doc comments on every item, the verification table, no pushing.
@@ -27,7 +27,7 @@ refutation read and checked; in the command and as a method on the page.
 - **A checked refutation**: a resolution proof is checked step by step;
   a RUP or DRAT/LRAT proof from an outside solver is read and checked
   only if a crate with a licence `deny.toml` allows does it, or by a
-  small checker of linlog's own (resolution-3 reduced, more-logics-7);
+  small checker of deduxit's own (resolution-3 reduced, more-logics-7);
   no solver dependency with another licence (`splr` is MPL-2.0).
 - DIMACS in, the ordinary syntax in; the TPTP `cnf` reader with SZS
   output and first-order resolution are kept in `later.md`.

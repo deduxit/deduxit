@@ -1,6 +1,6 @@
 # Step 72: problems with verified answers for evaluating models
 
-You are working in the linlog repository (`deduxit/deduxit`).
+You are working in deduxit (`deduxit/deduxit`, the checkout `../linlog`).
 CLAUDE.md applies throughout: jj only (never git), thematic commits as
 soon as a unit is done, doc comments on every item, the verification
 table, no pushing. This prompt was written on 2026-11-08 by step 46's
@@ -9,13 +9,13 @@ at the review of step 69: it says what is fixed.
 
 Read `plan/notes/research/next/llm-agents.md` (candidates 2 and 6),
 `scope-engines.md` (engines-7), the guide for AI models
-(`skills/linlog/`), the report of step 44, and `bench/RESULTS.md`'s
+(`skills/deduxit/`), the report of step 44, and `bench/RESULTS.md`'s
 sources and licences.
 
 ## Goal
 
 What models need of the collection beyond the guide: a dataset of
-problems in every suite with answers linlog has verified (each proof
+problems in every suite with answers deduxit has verified (each proof
 checked, each refutation checked or certified, each "unknown" left
 out), in a form current evaluation harnesses read, and a one-call
 grading mode over `interact`'s session script that checks a model's
