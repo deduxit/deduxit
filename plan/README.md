@@ -5536,3 +5536,18 @@ move (D26).
       Biome to the Actions cache.
     - The site deploys when that run passes; until then
       `deduxit.github.io` serves the build of 2026-11-08.
+- 2026-11-09, 04:45: **53s started**: the crates, the command and the
+  library renamed `deduxit`, by the brief `/tmp/linlog-handoff/start-53s.md`.
+  Decided for it:
+  - **The licence header becomes `deduxit © …`** in all three
+    repositories, each as a commit of its own with its conventions
+    check. A header names the project; 53r had kept the old one for
+    now.
+  - **The final "renamed" crates live in the workspace**
+    (`compat/linlog/`, `compat/linlog-cli/`, or as the session finds
+    clearest). The precedent is gitoxide's `git-repository` 0.35.0: a
+    re-export, and a `linlog` binary that runs `deduxit`'s command and
+    says so once on standard error.
+  - **The module split is decided from the code**, with what `ordinary`
+    and `lambda` already share at the root. The target sets must equal
+    47's on every counter.
