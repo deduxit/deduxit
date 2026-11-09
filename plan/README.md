@@ -5858,3 +5858,22 @@ move (D26).
       in opam;
     - `introduction.md:66` on the other provers and the growing
       families.
+- 2026-11-09, 14:50: **54w-a reviewed and pushed: the page's text and
+  the rule hints** (client qyxnytmo; the report slrutwyo).
+  - **The text:**
+    - refusals, verdicts and hints end with what to do next;
+    - lesson 1 introduces the goal, the dual and the axiom before its
+      worked proof;
+    - jargon is gone ("context", "rung", "grafted"), and the logic mark
+      is "Logic".
+  - **The hints:** every rule label (the popover, the drawing, Learn's
+    steps) has one, with its full name, its drawn form and one
+    sentence, for the linear rules, LK, LJ, Mix, weakening and Lambek.
+    It opens on hover, focus and tap, and a unit test holds every label
+    to having one.
+  - **The checks:** its flake check passed (579 unit, 151 e2e); its
+    reviewer's eight findings were fixed or kept as departures.
+  - **Departures, accepted:**
+    - the dialog's screen-reader group names stay;
+    - the prediction buttons have no tap hint, since a tap predicts;
+    - the lessons' order is W13, so unchanged.
