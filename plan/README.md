@@ -5570,3 +5570,16 @@ move (D26).
   sessions (53s, 53n, 53p, 53m) were told. `plan/handoff.md` names the
   new name. Briefs and goals written from now on send to it; finished
   prompts keep the old one as history.
+- 2026-11-09, 08:30: **decided for the client's CI.** Biome is built
+  without its own test suite (`doCheck = false`) where the client's
+  flake takes it for treefmt. A comment gives the reason and when to
+  drop the override; later.md keeps the follow-up.
+  - **Why:** CI's check job keeps dying with exit 143 at about 48
+    minutes, below the raised limit. That is the runner killing it,
+    most likely for memory, while it builds Biome's test binary from
+    source. The locked channel release has no cache.nixos.org build of
+    Biome.
+  - **What it costs:** those tests are nixpkgs' tests of a third-party
+    tool; none of the project's checks change.
+  - **Not available:** the job log. Every `gh` command asks the author,
+    who is away.
