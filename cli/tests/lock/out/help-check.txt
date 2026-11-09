@@ -149,7 +149,7 @@ Options:
 
           Possible values:
           - nanoyalla: NanoYalla 1.1.3, the kernel of Click & coLLecT: classical linear logic one-sided, a proof script checked rule by rule
-          - linlog:    linlog's own Rocq library (the package rocq-linlog, from github.com/sequentium/rocq-linlog): every mode in its own calculus, intuitionistic logic two-sided, a proof term checked by the library's checker
+          - linlog:    linlog's own Rocq library (the package rocq-linlog, from github.com/deduxit/rocq-linlog): every mode in its own calculus, intuitionistic logic two-sided, a proof term checked by the library's checker
 
       --lemma <NAME>
           The name of the lemma of a Rocq certificate (styles.rocq.lemma)

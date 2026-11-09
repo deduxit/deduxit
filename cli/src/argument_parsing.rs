@@ -1447,7 +1447,7 @@ pub(crate) enum KernelArg {
     /// logic one-sided, a proof script checked rule by rule
     Nanoyalla,
     /// linlog's own Rocq library (the package rocq-linlog, from
-    /// github.com/sequentium/rocq-linlog): every mode in its own calculus, intuitionistic
+    /// github.com/deduxit/rocq-linlog): every mode in its own calculus, intuitionistic
     /// logic two-sided, a proof term checked by the library's checker
     Linlog,
 }
