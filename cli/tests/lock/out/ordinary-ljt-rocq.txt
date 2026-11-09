@@ -1,0 +1,10 @@
+$ deduxit prove --logic intuitionistic --format rocq '(a /\ b) -> c |- a -> b -> c'
+--- status 0
+--- stdout
+(* valid (intuitionistic logic by LJT) *)
+Lemma certificate : forall a b c : Prop, ((a /\ b) -> c) -> (a -> (b -> c)).
+Proof.
+  exact (fun (a b c : Prop) (h'1 : ((a /\ b) -> c)) => (fun h'2 : a => (fun h'3 : b => (let h'4 : (a -> (b -> c)) := ((fun h'5 : a => (fun h'6 : b => (let h'7 : c := h'1 ((conj h'5 h'6 : a /\ b)) in h'7)))) in (let h'8 : (b -> c) := h'4 (h'2) in (let h'9 : c := h'8 (h'3) in h'9)))))).
+Qed.
+
+--- stderr

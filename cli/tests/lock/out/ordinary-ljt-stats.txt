@@ -1,0 +1,26 @@
+$ deduxit prove --logic minimal --stats '(a /\ b) -> c |- a -> b -> c'
+--- status 0
+--- stdout
+valid (minimal logic by LJT)
+──────── ax   ──────── ax
+a, b ⊢ a      b, a ⊢ b
+────────────────────── ∧R   ───── ax
+     a, b ⊢ a ∧ b           c ⊢ c
+     ──────────────────────────── →L              ───── ax   ─────────── ax
+        (a ∧ b) → c, a, b ⊢ c                     b ⊢ b      c, a, b ⊢ c
+        ────────────────────── →R      ───── ax   ────────────────────── →L
+        (a ∧ b) → c, a ⊢ b → c         a ⊢ a         a, b, b → c ⊢ c
+       ───────────────────────── →R    ───────────────────────────── →L
+       (a ∧ b) → c ⊢ a → (b → c)           b, a, a → (b → c) ⊢ c
+       ───────────────────────────────────────────────────────── cut
+                         a, b, (a ∧ b) → c ⊢ c
+                         ────────────────────── →R
+                         a, (a ∧ b) → c ⊢ b → c
+                        ───────────────────────── →R
+                        (a ∧ b) → c ⊢ a → (b → c)
+sequents expanded: 6
+memo hits: 0
+memo entries: 6
+refuted by an earlier failure: 0
+time: …
+--- stderr

@@ -82,9 +82,9 @@ Options:
           With --lambek, allow sequents with no formula left of ⊢ (the calculus L*)
 
       --logic <LOGIC>
-          Read the input as ordinary logic, through its translation into linear logic
+          Read the input as ordinary logic
           
-          The input is a formula or a sequent of propositional logic in the syntax below (a `.p` file a TPTP problem, as the ILTP library writes them). `prove` decides its image and reads a proof back as a derivation of LK (classical) or LJ (intuitionistic, minimal), which is checked by the rules of the logic before it is shown; classical logic is decided in affine MALL, with no copy bound, intuitionistic and minimal logic in ILL, under the time limit, so they may be answered unknown, and the JSON output is the search's outcome on the image. `seq print` prints the image. `interact` proves the sequent step by step by the rules of LK or LJ, its `close` deciding a goal through the translation.
+          The input is a formula or a sequent of propositional logic in the syntax below (a `.p` file a TPTP problem, as the ILTP library writes them). `prove` decides it and shows the proof as a derivation of LK (classical) or LJ (intuitionistic, minimal), which is checked by the rules of the logic before it is shown. Intuitionistic and minimal logic are decided by LJT, whose search always ends; classical logic through its translation into affine MALL, with no copy bound (--method chooses). Through the translation into ILL (--method embedding) intuitionistic and minimal logic may be answered unknown at the time limit, and the JSON output is the search's outcome on the image. `seq print` prints the image. `interact` proves the sequent step by step by the rules of LK or LJ, its `close` deciding a goal through the translation.
 
           Possible values:
           - classical:      Classical propositional logic, derivations in LK

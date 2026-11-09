@@ -314,6 +314,49 @@ const CASES: &[Case] = &[
             "a \\/ ~a",
         ],
     ),
+    call(
+        "ordinary-embedding",
+        &[
+            "prove",
+            "--logic",
+            "intuitionistic",
+            "--method",
+            "embedding",
+            "a \\/ ~a",
+        ],
+    ),
+    call(
+        "ordinary-ljt-json",
+        &[
+            "prove",
+            "--logic",
+            "intuitionistic",
+            "--format",
+            "json",
+            "(a /\\ b) -> c |- a -> b -> c",
+        ],
+    ),
+    call(
+        "ordinary-ljt-stats",
+        &[
+            "prove",
+            "--logic",
+            "minimal",
+            "--stats",
+            "(a /\\ b) -> c |- a -> b -> c",
+        ],
+    ),
+    call(
+        "ordinary-ljt-rocq",
+        &[
+            "prove",
+            "--logic",
+            "intuitionistic",
+            "--format",
+            "rocq",
+            "(a /\\ b) -> c |- a -> b -> c",
+        ],
+    ),
     // Problem files.
     call("file-lltp", &["prove", "--file", "double.p"]),
     call(
