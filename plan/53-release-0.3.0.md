@@ -114,8 +114,22 @@ written by the planning session when it starts):
      logo colour, so it needs a rule for `rect` (lapis).
    - **The colour token:** `--color-logo` becomes lapis (#2456c9
      light, #7aa7ff dark) under the client's colour-vision check.
-   - **The licence of the mark:** the author's to pick. The lollipop's
-     was CC BY 4.0.
+   - **The licence of the mark:** CC BY 4.0, as the lollipop's (the
+     author, 2026-11-09).
+   - **When:** it runs as session 53p right after 53n, beside 53a and
+     53r, before 53s. The mark depends only on the final files and the
+     addresses, so it goes live sooner; 53s keeps the dictionary lines
+     when it renames.
+   - **Where the dictionary line goes**, in the author's words
+     "everywhere you see fit, e.g. readme, docs, maybe on hover":
+     - the READMEs of the three repositories, under the logo;
+     - the manual's introduction;
+     - the crate docs' front page;
+     - the guide's reference;
+     - on the page, a hover and focus card on the header's mark.
+   - **The author's browser** sets only GitHub's organisation avatar and
+     the repositories' social previews. The author asked that sessions
+     do everything else.
    - **The dictionary line** goes under the logo in each README
      (deduxit, rocq-deduxit, the client), as the author approved it on
      2026-11-09, in classical Latin with the IPA:
