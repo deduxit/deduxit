@@ -5815,3 +5815,22 @@ move (D26).
   rule labels** (full name, the rule's form, one plain sentence). They go
   to 54w-a, the web client's text session, in the page's own
   keyword-and-sentence pattern, with no change to the library.
+- 2026-11-09, 13:40: **54w-b reviewed and pushed: the Rocq library's text
+  is rewritten** (rocq-deduxit qlxkqlrx; the report okpzqxmt).
+  - **What changed:**
+    - the README now leads with its two tasks, checking a certificate
+      and proving with the library;
+    - the opam description and every comment of theories/, tests/ and
+      bridges/ are rewritten;
+    - the library has a copy of the writing rule.
+  - **Wrong claims fixed along the way:** an exponential's interval, a
+    file list, "shares no name", and "rule by rule".
+  - **The checks:**
+    - no definition, theorem or proof changed (its two comparators, and
+      the planning session's own: 34 `.v` files identical with comments
+      stripped);
+    - its flake check passed.
+  - **Departures, accepted:**
+    - README gained the AI disclaimer;
+    - the scripts' and modules' comments were left for later;
+    - CITATION's abstract was left as 0.3.0's record.
