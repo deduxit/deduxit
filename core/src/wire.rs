@@ -151,7 +151,7 @@
 //!
 //!   [`Derivation::check`]: crate::ordinary::Derivation::check
 //! - **Ordinary outcome** (written only): `{"version": 8, "deduxit":
-//!   "0.2.0", "verdict": "valid", "logic": "classical", "translation":
+//!   "0.3.0", "verdict": "valid", "logic": "classical", "translation":
 //!   "affine", "engine": "focus", "statistics": {…}, "derivation": {…}}`,
 //!   `verdict` one of `valid`, `not_valid` and `unknown` (with a `reason`
 //!   in an outcome's form), the engine and statistics the image's search's;

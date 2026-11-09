@@ -16,7 +16,7 @@ use crate::linear::search::{self, Reason};
 /// # JSON
 ///
 /// With the feature `serialize` an outcome is written (never read) as
-/// `{"version": 8, "deduxit": "0.2.0", "verdict": "valid", "logic":
+/// `{"version": 8, "deduxit": "0.3.0", "verdict": "valid", "logic":
 /// "classical", "translation": "affine", "engine": "focus", "statistics":
 /// {…}, "derivation": {…}}` ([`wire`](crate::wire)), `verdict` one of
 /// `valid`, `not_valid` and `unknown`, the last with its `reason`.
