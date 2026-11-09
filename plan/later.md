@@ -1313,6 +1313,17 @@ two-sided view.
 - **A flaky e2e test** (50b): prover.spec's "link in the fragment restores
   the proof" failed twice when run beside other specs and passed alone
   and in the flake check.
+- **Drop the client's Biome override** (53n, 2026-11-09): the client
+  builds Biome without its test suite (`modules/biome.nix`), since the
+  locked nixpkgs `4fe25e12` has no cache.nixos.org build of Biome 2.6.5
+  and the tests' fat-LTO links got CI's check job killed. At the first
+  client `flake.lock` update whose nixpkgs has Biome there (`nix
+  path-info --store https://cache.nixos.org --inputs-from . nixpkgs#biome`
+  prints a path), go back to `pkgs.biome`: delete `biome.nix`, point
+  its three users (`treefmt.nix`, `checks.nix`'s `lint`, the dev shell)
+  at `pkgs.biome` again, and drop its bullet in the client's
+  `.claude/rules/flake.md`.
+
 ## Follow-ups: the focused engine
 
 *Assigned (2026-10-03).* A reference prover kept in the repository,
