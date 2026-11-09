@@ -980,11 +980,10 @@ fn check_reads_what_prove_writes() {
 /// instance, as `check` does, not by its occurrence's id.
 #[test]
 fn eliminate_names_a_cut_by_its_instance() {
-    let file = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../core/tests/first-order/cut_frame.json"
-    );
-    let (status, out, _) = linlog(&["eliminate", file], "");
+    // The core tests' `first-order/cut_frame.json`: a cut on `p(a)` whose
+    // ∀ step's eigenvariable escapes into the other premise.
+    let proof = r#"{"version":7,"sequent":{"terms":[{"V":0},{"∀":0},"⊤",{"V":0},{"∀":3},{"D":0},{"∃":5}],"roots":[1,2],"atoms":[{"P":[0,[0]]}],"symbols":[["p",1]],"fo":[{"B":0}],"binders":["x","x","x"],"antecedents":0,"cuts":[4]},"nodes":[{"⊤":2},{"ax":[7,9]},{"∀":[0,0,1]},{"cut":[8,0,2]}],"instances":{"members":[[1,0],[4,0],[6,0]],"frames":[[null,1]],"terms":[{"E":0}]}}"#;
+    let (status, out, _) = linlog(&["eliminate"], proof);
     assert_eq!(
         (status, out.as_str()),
         (
