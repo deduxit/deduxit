@@ -130,8 +130,11 @@ translating into linear logic, and the linear proof read back as LK or LJ.
 - **LJ has Gentzen's cut** (`Rule::Cut`), for the derivations a native
   engine translates: the cut formula is the one formula right of `⊢` in
   the first premise, the second premise holds it left, and the context
-  is shared or split as for any binary rule (`binary` with the whole
-  conclusion as context, since a cut has no principal formula). LK
+  is split between them (`binary` with the whole conclusion as context,
+  since a cut has no principal formula; its shared form would put the
+  conclusion's goal beside `C` in the first premise, which LJ's count
+  refuses, so it is taken only for a conclusion with nothing right of
+  `⊢`). LK
   refuses it ("LK's derivations have no cut"): the embedding's read-back
   makes none and the classical certificate has no term for one. The
   certificate writes it `(let h : C := (first) in second)`, the
@@ -195,6 +198,25 @@ translation are untrusted, the checker is the trust.
   (`ModusPonens`), and the axiom for any formula: both shorten proofs and
   stay invertible and lighter. Minimal logic is the same with `⊥` an
   atom: no `⊥L`, and `⊥ → C` acts only where `⊥` is a hypothesis.
+- **`→→L`'s second premise first**: `C, Γ ⊢ G` follows from
+  `(A → B) → C, Γ ⊢ G` (Dyckhoff 2018, Prop. 2.2), so where it fails the
+  frame fails at once, every alternative left untried
+  (`Search::prove`); `close` stores the premises back in the rule's
+  order for the translation. The `→→L` alternatives are tried nearest
+  the goal first (`levels`, `heads`): an order, never a prune. Korn and
+  Kreitz's formulas (ILTP's SYJ205) went from doubling per size to
+  `15 + 5n` sequents.
+- **Failure subsumption** (`subsumed`, `entailed`): a sequent fails
+  without search when a failed sequent of the same goal has hypotheses
+  `Δ` from which every hypothesis `x` of the new one follows by a rule
+  that needs no search: `x ∈ Δ`, `x = ⊤`, `x = A → A`, `x = A → C` with `C ∈ Δ`, or
+  `x = (A → B) → B` with `A ∈ Δ`. A proof of the new sequent and those
+  derivations would cut to one of `Δ ⊢ G`. Each entailment holds in
+  minimal logic (`⊥ → A` is left out: it does not). It makes no proof,
+  so `Valid` still rests on the checker; it turned ILTP's SYJ209 and
+  SYJ211 (non-theorems the backward search refuted in `2.1ⁿ` and
+  `3.6ⁿ` sequents) polynomial. Only the latest `SUBSUMING` failures of
+  a goal are compared, which bounds the cost and loses no verdict.
 - **The memo is the verdict of every sequent closed**, proved (with its
   step) or failed: the search has no history, so a sequent's verdict
   does not depend on the branch. Proofs are steps in an arena, premises

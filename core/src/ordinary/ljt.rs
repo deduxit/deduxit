@@ -65,10 +65,17 @@ pub struct Statistics {
     pub memo_hits: u64,
     /// The sequents the memo holds at the end.
     pub memo_entries: u64,
+    /// The sequents refuted because a failed one of the same goal has
+    /// hypotheses that entail theirs.
+    pub subsumed: u64,
 }
 
 /// How many sequents the search expands between two polls of its stop.
 pub const POLL: u64 = 1 << 8;
+
+/// How many of the latest failures of a goal a new sequent of that goal
+/// is compared with.
+const SUBSUMING: usize = 1 << 10;
 
 /// Decides an intuitionistic or minimal sequent by LJT within `limits`,
 /// asking `stop` every [`POLL`] sequents: the search counts a sequent
@@ -83,7 +90,8 @@ pub const POLL: u64 = 1 << 8;
 /// [`Error::Logic`] for classical logic; [`Error::Succedents`] for more
 /// than one formula right of `⊢`; [`Refusal::Output`],
 /// [`Refusal::Memory`] or [`Refusal::Stopped`] where a bound or the stop
-/// refused the derivation of a proof, which is no verdict; as
+/// refused the derivation of a proof, and [`Refusal::Work`] where its
+/// check would pass `limits.work` inferences, none of them a verdict; as
 /// [`Derivation::check`], [`Error::ReadBack`] being a defect of the
 /// translation.
 pub fn decide(
@@ -121,6 +129,7 @@ fn run(
         logic,
         account: Account::holding(limits.memory_bytes, 0),
         memo: HashMap::default(),
+        failed: HashMap::default(),
         steps: Vec::new(),
         statistics: Statistics::default(),
         work: limits.work.unwrap_or(u64::MAX),
@@ -257,6 +266,9 @@ struct Search {
     account: Account,
     /// The verdict of every sequent decided.
     memo: HashMap<Key, Known>,
+    /// The hypotheses of every sequent that failed, per goal, the latest
+    /// last: what a sequent of the same goal is compared with.
+    failed: HashMap<NodeId, Vec<Box<[NodeId]>>>,
     /// The steps of the proofs found, premises first.
     steps: Vec<Step>,
     /// The costs.
@@ -387,17 +399,88 @@ impl Search {
                 });
             }
         }
-        for &h in left {
-            if let Some((a, _)) = self.split(h)
-                && self.split(a).is_some()
-            {
-                moves.push(Move {
-                    kind: Kind::ImpliesImplies,
-                    principal: h,
-                });
+        let mut implications: Vec<NodeId> = left
+            .iter()
+            .copied()
+            .filter(|&h| self.split(h).is_some_and(|(a, _)| self.split(a).is_some()))
+            .collect();
+        if implications.len() > 1 {
+            // Only the order of the alternatives changes, so no proof is
+            // lost: those whose consequent leads to the goal sooner first.
+            let levels = self.levels(left, goal);
+            let rank = |h: NodeId| {
+                let (_, c) = self.split(h).unwrap_or((h, h));
+                let mut heads = Vec::new();
+                self.heads(c, &mut heads);
+                heads
+                    .iter()
+                    .filter_map(|x| levels.get(x))
+                    .min()
+                    .copied()
+                    .unwrap_or(u32::MAX)
+            };
+            implications.sort_by_cached_key(|&h| rank(h));
+        }
+        moves.extend(implications.into_iter().map(|principal| Move {
+            kind: Kind::ImpliesImplies,
+            principal,
+        }));
+        moves
+    }
+
+    /// Adds to `heads` the atoms (and `⊥`) a proof of `x` as the goal
+    /// ends in: `x` itself for an atom, the heads of `C` for `A → C`, and
+    /// of both operands of `∧`, `∨` and `↔`; with a stack of its own.
+    fn heads(&self, x: NodeId, heads: &mut Vec<NodeId>) {
+        let mut stack = vec![x];
+        while let Some(x) = stack.pop() {
+            match self.formulas.node(x) {
+                Node::Atom(_) | Node::False => heads.push(x),
+                Node::True => {}
+                Node::Not(_) => heads.push(self.falsity),
+                Node::Implies(_, c) => stack.push(c),
+                Node::And(a, b) | Node::Or(a, b) | Node::Iff(a, b) => stack.extend([a, b]),
             }
         }
-        moves
+    }
+
+    /// Returns how far each atom is from the goal: the goal's heads are 0,
+    /// and the heads of `A` are one more than the nearest head of `C`
+    /// for every hypothesis `A → C`.
+    fn levels(&self, left: &[NodeId], goal: NodeId) -> HashMap<NodeId, u32> {
+        let mut levels: HashMap<NodeId, u32> = HashMap::default();
+        let mut heads = Vec::new();
+        self.heads(goal, &mut heads);
+        levels.extend(heads.drain(..).map(|x| (x, 0)));
+        // Each round settles the atoms one step further, at most one
+        // round per hypothesis.
+        for _ in 0..left.len() {
+            let mut changed = false;
+            for &h in left {
+                let Some((a, c)) = self.split(h) else {
+                    continue;
+                };
+                self.heads(c, &mut heads);
+                let near = heads
+                    .drain(..)
+                    .filter_map(|x| levels.get(&x))
+                    .min()
+                    .copied();
+                let Some(near) = near else { continue };
+                self.heads(a, &mut heads);
+                for x in heads.drain(..) {
+                    let level = levels.entry(x).or_insert(u32::MAX);
+                    if near + 1 < *level {
+                        *level = near + 1;
+                        changed = true;
+                    }
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+        levels
     }
 
     /// Returns the premises of a rule applied to a sequent, adding the
@@ -445,9 +528,11 @@ impl Search {
             Kind::AndImplies | Kind::IffImplies | Kind::OrImplies => {
                 vec![(without(&self.made(m.kind, a, b)?), goal)]
             }
+            // The second premise first: it is invertible, so where it
+            // fails the sequent does (`Search::prove`).
             Kind::ImpliesImplies => {
                 let made = self.made(m.kind, a, b)?;
-                vec![(without(&made), a), (without(&[b]), goal)]
+                vec![(without(&[b]), goal), (without(&made), a)]
             }
         })
     }
@@ -509,6 +594,19 @@ impl Search {
             };
             match answer.take() {
                 Some(Known::Proved(step)) => top.proved.push(step),
+                // `C, Γ ⊢ G` is a consequence of `(A → B) → C, Γ ⊢ G` (Dyckhoff,
+                // JSL 83(4), 2018, Prop. 2.2): where it fails, so does the
+                // sequent, whatever alternatives are left.
+                Some(Known::Failed)
+                    if top.proved.is_empty()
+                        && top
+                            .moves
+                            .get(top.at)
+                            .is_some_and(|m| m.kind == Kind::ImpliesImplies) =>
+                {
+                    top.at = top.moves.len();
+                    top.premises = None;
+                }
                 Some(Known::Failed) => {
                     top.at += 1;
                     top.premises = None;
@@ -564,6 +662,13 @@ impl Search {
         }
         // Below the work bound, or below 2⁶⁴ expansions: it cannot wrap.
         self.statistics.sequents += 1;
+        if self.subsumed(&key) {
+            // At most one per expansion.
+            self.statistics.subsumed += 1;
+            self.account.charge(bytes(key.0.len()));
+            self.memo.insert(key, Known::Failed);
+            return Ok(Some(Known::Failed));
+        }
         let moves = self.moves((&key.0, key.1));
         let frame = Frame {
             key,
@@ -583,23 +688,63 @@ impl Search {
         self.account.release(frame_bytes(&frame));
         self.account.charge(bytes(frame.key.0.len()));
         let known = if proved {
+            let applied = frame.moves[frame.at];
+            let mut premises = frame.proved;
+            // The search proves `→→L`'s premises in reverse.
+            if applied.kind == Kind::ImpliesImplies {
+                premises.reverse();
+            }
             // A step per sequent proved, each charged: within the memory
             // bound, and without one below 2³² in any address space that
             // holds the memo of this many sequents.
             let id = u32::try_from(self.steps.len()).unwrap_or(u32::MAX);
             self.account
-                .charge(size_of::<Step>() + bytes(frame.key.0.len()) + frame.proved.len() * 4);
+                .charge(size_of::<Step>() + bytes(frame.key.0.len()) + premises.len() * 4);
             self.steps.push(Step {
                 key: frame.key.clone(),
-                applied: frame.moves[frame.at],
-                premises: frame.proved,
+                applied,
+                premises,
             });
             Known::Proved(id)
         } else {
+            self.account.charge(bytes(frame.key.0.len()));
+            let failed = self.failed.entry(frame.key.1).or_default();
+            failed.push(frame.key.0.clone());
             Known::Failed
         };
         self.memo.insert(frame.key, known);
         known
+    }
+
+    /// Returns whether a failed sequent of the same goal has hypotheses
+    /// `Δ` that entail each of `Γ`'s: then `Γ ⊢ G` fails too, since a
+    /// proof of it and the derivations of `Δ ⊢ x` would make one of
+    /// `Δ ⊢ G` by cuts. Only the latest [`SUBSUMING`] failures are
+    /// compared, which bounds the cost and loses no verdict.
+    fn subsumed(&self, (left, goal): &Key) -> bool {
+        let Some(failed) = self.failed.get(goal) else {
+            return false;
+        };
+        failed
+            .iter()
+            .rev()
+            .take(SUBSUMING)
+            .any(|by| left.iter().all(|&x| self.entailed(x, by)))
+    }
+
+    /// Returns whether one of the hypotheses `by` (sorted) entails `x`
+    /// by a rule of minimal logic that needs no search: `x` is one of
+    /// them, `x` is `A → A`, `x` is `A → C` with `C` one of them, or `x`
+    /// is `(A → B) → B` with `A` one of them (`¬¬A` among those).
+    fn entailed(&self, x: NodeId, by: &[NodeId]) -> bool {
+        let has = |y: NodeId| by.binary_search(&y).is_ok();
+        if has(x) || self.formulas.node(x) == Node::True {
+            return true;
+        }
+        let Some((a, c)) = self.split(x) else {
+            return false;
+        };
+        a == c || has(c) || self.split(a).is_some_and(|(h, b)| b == c && has(h))
     }
 }
 
@@ -641,13 +786,22 @@ struct Lj<'s, S> {
 impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
     /// A translation of a proof of `search`, within `limits`.
     fn new(search: &'s Search, limits: &Limits, stop: S) -> Self {
+        let widths = super::derivation::widths(&search.formulas);
+        // What the search still holds counts against the same bound, and
+        // so do the widths and the copy of the arena the derivation keeps
+        // (a node and its entry in the table of ids).
+        let held = search.account.used();
+        let account = Account::holding(limits.memory_bytes, held);
+        account.charge(
+            widths.len() * size_of::<u64>() + search.formulas.len() * 4 * size_of::<Node>(),
+        );
         Self {
             search,
-            widths: super::derivation::widths(&search.formulas),
+            widths,
             inferences: Vec::new(),
             bytes: 0,
             limit: limits.derivation_bytes,
-            account: Account::holding(limits.memory_bytes, 0),
+            account,
             stop,
             plant: None,
         }
@@ -686,7 +840,7 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
             }));
         }
         let held = (left.len() + right.len() + premises.len()) * size_of::<u32>();
-        self.account.charge(size_of::<Inference>() + held);
+        self.account.charge(held);
         if self.account.over() {
             return Err(Error::Refused(Refusal::Memory {
                 phase: Phase::ReadBack,
@@ -702,6 +856,7 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
                 most: u64::from(u32::MAX),
             })
         })?;
+        let before = self.inferences.capacity();
         self.inferences.push(Inference {
             left,
             right,
@@ -709,6 +864,10 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
             principal,
             premises,
         });
+        // The list by what it allocated, not by what it holds.
+        let size = size_of::<Inference>();
+        self.account
+            .resize(before * size, self.inferences.capacity() * size);
         Ok(InfId::new(id))
     }
 
@@ -1159,6 +1318,38 @@ mod tests {
             decide(&sequent, Logic::Classical, &Limits::default(), |_| false),
             Err(Error::Logic { .. })
         ));
+    }
+
+    /// Two families of Dyckhoff's benchmark at size 20 are decided within
+    /// a few thousand sequents: Korn and Kreitz's theorem, whose `→→L`
+    /// alternatives are ordered towards the goal, and Franzén's
+    /// non-theorem, which the failure subsumption refutes (each doubled
+    /// with the size before, past a million sequents at 20).
+    #[test]
+    fn the_benchmark_families_stay_small() {
+        const N: usize = 20;
+        let chain: Vec<String> = (1..=N)
+            .map(|i| format!("((b{} -> a{i}) -> a{})", i - 1, i - 1))
+            .collect();
+        let korn = format!("a0 -> f, ((b{N} -> b0) -> a{N}), {} |- f", chain.join(", "));
+        let conjunction: Vec<String> = (1..=N).map(|i| format!("p{i}")).collect();
+        let disjuncts: Vec<String> = (2..=N).map(|i| format!("(p{i} -> f)")).collect();
+        let franzen = format!(
+            "(({}) \\/ (~~p1 -> f) \\/ {}) -> f |- f",
+            conjunction.join(" /\\ "),
+            disjuncts.join(" \\/ ")
+        );
+        let work = Limits::default().with_work(Some(5_000));
+        for (text, valid) in [(korn, true), (franzen, false)] {
+            let sequent: Sequent = text.parse().unwrap();
+            let outcome = decide(&sequent, Logic::Intuitionistic, &work, |_| false).unwrap();
+            let answer = match outcome.verdict {
+                Verdict::Valid(_) => Some(true),
+                Verdict::NotValid => Some(false),
+                _ => None,
+            };
+            assert_eq!(answer, Some(valid), "{text}: {:?}", outcome.statistics);
+        }
     }
 
     /// Each fault planted in the translation is refused by the checker,

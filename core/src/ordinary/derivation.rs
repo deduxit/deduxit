@@ -106,10 +106,12 @@ pub enum Rule {
     TrueLeft,
     /// `⊤R`
     TrueRight,
-    /// `cut`, in LJ only: `Γ ⊢ C` and `Δ, C ⊢ E` conclude `Γ, Δ ⊢ E`, or
-    /// both premises take the whole context, the cut formula `C` being the
-    /// one right of `⊢` in the first premise and no formula of the
-    /// conclusion, which has no principal formula.
+    /// `cut`, in LJ only: `Γ ⊢ C` and `Δ, C ⊢ E` conclude `Γ, Δ ⊢ E`
+    /// (Gentzen's cut, the context split between the premises), the cut
+    /// formula `C` being the one right of `⊢` in the first premise and no
+    /// formula of the conclusion, which has no principal formula. Where
+    /// the conclusion has nothing right of `⊢`, both premises may take
+    /// its whole context instead.
     Cut,
     /// An open goal of a proof in progress, which no derivation the
     /// checker accepts has.
