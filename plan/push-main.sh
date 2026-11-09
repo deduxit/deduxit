@@ -2,7 +2,7 @@
 # linlog © Fabian Lukas Grubmüller 2026
 # Licensed under the EUPL
 
-# push-main.sh [--client|--rocq] REV
+# push-main.sh [--client|--rocq|--placeholder] REV
 #
 # Moves `main` to REV and pushes it, failing within a minute instead of
 # waiting on a passphrase prompt when the SSH key is locked, and checks
@@ -10,8 +10,10 @@
 # With --client, in the web client's repository beside this one
 # (../linlog-prover.github.io), which the planning session pushes the
 # same way; with --rocq, in the Rocq library's repository beside it
-# (../rocq-linlog), whose first push creates `main` on the remote. Exit
-# status 0 pushed, 1 the key is locked or the push failed.
+# (../rocq-linlog), whose first push creates `main` on the remote; with
+# --placeholder, in the old organisation's redirect site
+# (../linlog-prover-placeholder). Exit status 0 pushed, 1 the key is
+# locked or the push failed.
 set -euo pipefail
 
 repo="$(dirname "$0")/.."
@@ -21,9 +23,12 @@ if [[ ${1-} == --client ]]; then
 elif [[ ${1-} == --rocq ]]; then
   repo="$repo/../rocq-linlog"
   shift
+elif [[ ${1-} == --placeholder ]]; then
+  repo="$repo/../linlog-prover-placeholder"
+  shift
 fi
 if (($# != 1)); then
-  echo "usage: $0 [--client|--rocq] REV" >&2
+  echo "usage: $0 [--client|--rocq|--placeholder] REV" >&2
   exit 2
 fi
 cd "$repo"

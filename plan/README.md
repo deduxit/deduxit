@@ -5551,3 +5551,14 @@ move (D26).
   - **The module split is decided from the code**, with what `ordinary`
     and `lambda` already share at the root. The target sets must equal
     47's on every counter.
+- 2026-11-09, 07:50: **pushes and `gh` calls while unattended.**
+  - **Why:** a raw `jj git push` of the placeholder site waited about
+    two hours at the repository's permission prompt (`ask` on
+    `jj git push`), and the sessions waiting on it sat idle.
+  - **Pushes:** `plan/push-main.sh` gains `--placeholder` for the old
+    organisation's redirect site, beside `--client` and `--rocq`. Every
+    push goes through the script, the route CLAUDE.md names.
+  - **The release tags:** they go through `gh api`, which the settings
+    ask about each time; that guard stays as it is. The planning session
+    makes them in a background agent, so that their prompts wait for
+    the author without stopping the night's other work.
