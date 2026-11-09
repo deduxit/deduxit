@@ -57,6 +57,25 @@ const NONE: u32 = u32::MAX;
 /// `u32`, and the last offset is the total.
 const MOST: u64 = (u32::MAX / 3 - 1) as u64;
 
+/// Refuses a forest of more occurrences than a structure has room for
+/// vertices ([`MOST`]), which the engines that build a structure check
+/// before they search: a structure is made with no vertex past it.
+///
+/// # Errors
+///
+/// [`Refusal::Index`] past [`MOST`].
+pub(crate) const fn fits(occurrences: usize) -> Result<(), Error> {
+    if occurrences as u64 > MOST {
+        Err(Error::Refused(Refusal::Index {
+            what: Space::Vertex,
+            count: occurrences as u64,
+            most: MOST,
+        }))
+    } else {
+        Ok(())
+    }
+}
+
 /// Checks that proof structures exist for a sequent of `fragment` in
 /// `mode`: unit-free MLL, in a linear mode, with or without Mix. A front
 /// end asks it before it offers a net, and gets the refusal
@@ -784,13 +803,7 @@ impl ProofStructure {
             return Err(NetError::Mode { mode }.into());
         }
         let n = forest.len();
-        if n as u64 > MOST {
-            return Err(Error::Refused(Refusal::Index {
-                what: Space::Vertex,
-                count: n as u64,
-                most: MOST,
-            }));
-        }
+        fits(n)?;
         let (cuts, live) = Self::place_cuts(&forest, cuts)?;
         let alive = |o: OccId| live.as_ref().is_none_or(|live| live.contains(o));
         let mut skeleton = Skeleton::new(n);
@@ -1435,6 +1448,24 @@ mod tests {
     /// Wraps a raw vertex id.
     const fn v(id: u32) -> VertexId {
         VertexId::new(id)
+    }
+
+    /// A forest of one occurrence more than a structure has vertices is
+    /// refused, as the net engines refuse it before they search, rather
+    /// than panic where a search makes its structure; no forest that large
+    /// is built here, at some 25 bytes an occurrence.
+    #[test]
+    fn a_forest_past_the_vertices_is_refused() {
+        let most = usize::try_from(MOST).unwrap();
+        assert!(fits(most).is_ok());
+        assert!(matches!(
+            fits(most + 1),
+            Err(Error::Refused(Refusal::Index {
+                what: Space::Vertex,
+                count,
+                most: MOST,
+            })) if count == MOST + 1
+        ));
     }
 
     /// The criterion with Mix allowed or not.

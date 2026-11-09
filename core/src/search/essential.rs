@@ -90,7 +90,7 @@ impl Decide for Essentials {
         if !task.roots && !(mode.is_ordered() && net::apart(task.forest, task.goal)) {
             return Err(refused(NotTaken::Goal));
         }
-        Ok(())
+        crate::nets::fits(task.forest.len())
     }
 
     /// Links the roots on the calling thread, whatever

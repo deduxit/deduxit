@@ -39,6 +39,12 @@ code relies on:
   refuses it (`NetError::NoVertex`); `is_acyclic` replaces a scratch
   sized for another structure with one of its own (one comparison).
   The probe found the panics (H23, H24).
+- **The vertex bound `MOST` (2³²/3 − 1) is checked by `nets::fits`**,
+  which `ProofStructure`'s constructors and both net engines' `admits`
+  call, so a forest past it (only with `limits.occurrences` lifted) is
+  `Refusal::Index`, never the `expect` where an engine builds its
+  structure (`Switching::new`, the essential engine's `structure`). Its
+  test calls `fits` at `MOST + 1`: a forest that size is some 36 GB.
 - **`from_proof` matches every node** (`ax` a link, `cut` a cut link,
   `⊗`, `⅋` and Mix nothing, every other rule `NetError::Rule` by its name, `wk` on an
   MLL sequent included), so a node kind added later is a compile error

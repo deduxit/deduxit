@@ -68,7 +68,7 @@ impl Decide for Nets {
         if !task.roots && !(task.mode.is_ordered() && apart(task.forest, task.goal)) {
             return Err(refused(NotTaken::Goal));
         }
-        Ok(())
+        crate::nets::fits(task.forest.len())
     }
 
     /// Links the roots on one thread, or with the feature `parallel` on
