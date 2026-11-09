@@ -648,8 +648,10 @@ binary `linlog` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   verdict line goes in first and the derivation after it as the library
   writes it, so no second copy is held; a file is written under another
   name and renamed when whole, and an output dropped unfinished (an
-  error) drops its buffer, so that a refused certificate leaves standard
-  output empty. `--derivation-limit`
+  error) drops its buffer. A refused certificate (`Error::Unsupported`
+  from `rocq::write`, raised before it writes anything) is
+  `Shown::LeftOut("no certificate: …")`, as a disproof's is: the verdict
+  and its exit status stand, the line on standard error. `--derivation-limit`
   (`Bytes`, default the library's `Limits::DEFAULT_DERIVATION_BYTES`, `none`
   lifts it) is `Limits::derivation_bytes`, on `prove`, `check` and `interact`.
   A derivation past it is not built: the verdict line stands, the exit

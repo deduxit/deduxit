@@ -528,9 +528,9 @@ pub(crate) fn disproof_into(
 /// left out: a text tree that does not fit the terminal, a derivation
 /// past the limit, or one that `halt` stopped, which is polled as it is
 /// built and written and whose reason `why` then gives. A derivation cut
-/// short by `halt` stays written as far as it came. Fails with the
-/// checker's complaint, with formulas, on a proof that is none, and on a
-/// derivation that has no certificate, before anything is written. Drawn
+/// short by `halt` stays written as far as it came, and one that has no
+/// certificate is left out with the reason. Fails with the checker's
+/// complaint, with formulas, on a proof that is none. Drawn
 /// two-sided where [`Show::as_written`] says, as `writing` records the
 /// sequent was written, or where it records nothing as its one-sided
 /// syntax writes it.
@@ -821,7 +821,9 @@ pub(crate) fn shown(
             "the derivation is cut short: {}",
             why()
         ))),
-        Err(Error::Unsupported(e)) => Err(anyhow!(e).context("no certificate")),
+        // Refused before anything is written, so the verdict stands, as a
+        // disproof's does.
+        Err(Error::Unsupported(e)) => Ok(Shown::LeftOut(format!("no certificate: {e}"))),
         // The output's own error, which finishing it reports.
         Err(_) => Ok(Shown::Written),
     }

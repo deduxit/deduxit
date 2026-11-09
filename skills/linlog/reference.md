@@ -1015,7 +1015,8 @@ A Rocq certificate (`--format rocq`) is written for the kernel
 `--kernel` names. The kernel `nanoyalla` is the default for classical
 linear logic: NanoYalla, the kernel of Click & coLLecT at the version
 `prove --help` names, a proof script checked rule by rule, which
-refuses Mix and affine weakening. The kernel `linlog` is the default for
+refuses Mix and affine weakening (a refused certificate leaves the
+verdict and its exit status, the reason on standard error). The kernel `linlog` is the default for
 Mix, affine and intuitionistic logic and for a sequent with a
 quantifier: the Rocq library `rocq-linlog`, in its own repository
 (`github.com/deduxit/rocq-linlog`), a proof term

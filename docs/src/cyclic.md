@@ -41,11 +41,13 @@ planar proof net
 
 Units, additives, exponentials, Mix, weakening and `--intuitionistic`
 are refused in the mode, the other engines too, and Rocq certificates,
-whose calculi are commutative:
+whose calculi are commutative (the verdict stands, a line on standard
+error saying why it has no certificate):
 
 ```console
 $ linlog prove --cyclic "|- a * b, 1"
 error: cyclic mode decides unit-free MLL, and the sequent lies in MLL with units
 $ linlog prove --cyclic --format rocq "a |- a"
-error: no certificate: the Rocq calculi are commutative, so a derivation or a disproof of the cyclic mode has no certificate
+no certificate: the Rocq calculi are commutative, so a derivation or a disproof of the cyclic mode has no certificate
+(* provable (MLL, cyclic, net engine) *)
 ```

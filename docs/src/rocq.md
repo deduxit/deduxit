@@ -16,8 +16,9 @@ of the kernel per inference, with an exchange before a `⊗` where the
 kernel's list sequents need one, and closed by `Qed`, so Rocq accepts the
 file only if the kernel accepts the proof. A proof with Mix or with the
 weakening of affine mode has no certificate there, since the kernel has
-no such rule; an intuitionistic proof is certified as the classical proof
-it is.
+no such rule (a line on standard error says so, and the verdict and its
+exit status stand); an intuitionistic proof is certified as the
+classical proof it is.
 
 ```console
 $ linlog prove --format rocq "A * B |- B * A"

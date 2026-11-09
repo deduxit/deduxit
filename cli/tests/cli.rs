@@ -1309,7 +1309,8 @@ fn latex_and_typst_formats() {
 /// `--format rocq` prints the verdict as a Rocq comment and the
 /// derivation as a lemma with its proof script for `prove` and `check`;
 /// `--standalone` adds the import; a proof with Mix has a certificate for
-/// linlog's library, which the mode chooses, and none for NanoYalla.
+/// linlog's library, which the mode chooses, and none for NanoYalla, whose
+/// refusal leaves the verdict standing.
 #[test]
 fn rocq_format() {
     let (status, out, _) = linlog(&["prove", "--format", "rocq", "A |- A"], "");
@@ -1339,9 +1340,17 @@ fn rocq_format() {
         ),
         "{out}"
     );
+    // A proof the kernel has no certificate for keeps its verdict and its
+    // exit status, the reason on standard error.
     let (status, out, err) = linlog(&[&mix[..], &["--kernel", "nanoyalla"]].concat(), "");
-    assert_eq!((status, out.as_str()), (2, ""));
-    assert!(err.contains("NanoYalla has no Mix rule"), "{err}");
+    assert_eq!(
+        (status, out.as_str(), err.as_str()),
+        (
+            0,
+            "(* provable (MLL, classical with Mix, focus engine) *)\n",
+            "no certificate: NanoYalla has no Mix rule, so a proof with Mix has no certificate\n"
+        )
+    );
 }
 
 /// `--format svg`, with and without `--net`, prints the verdict as an XML
