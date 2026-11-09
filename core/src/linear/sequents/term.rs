@@ -25,27 +25,29 @@ impl TermId {
     }
 }
 
-/// An atomic formula, by its index in a sequent's table of atoms: a
-/// predicate symbol applied to its arguments, interned, so that two
-/// literals of one atom are two occurrences of one atomic formula. Every
-/// atom of a propositional sequent is nullary, and a ground atom (`p(a)`)
-/// is propositional too: only an atom under a binder has a bound variable
-/// among its arguments ([`Sequent::atom_is_open`](super::Sequent::atom_is_open)).
+/// An atomic formula, by its index in a sequent's table of atoms.
+///
+/// An atom is a predicate symbol applied to its arguments. The table holds
+/// each atom once, so two literals of one atom are two occurrences of one
+/// atomic formula. Every atom of a propositional sequent is nullary. A
+/// ground atom such as `p(a)` behaves as a propositional one: only an atom
+/// under a quantifier has a bound variable among its arguments
+/// ([`Sequent::atom_is_open`](super::Sequent::atom_is_open)).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Atom(u32);
 
 impl Atom {
-    /// Wraps a raw dictionary index.
+    /// Wraps a raw index into the atom table.
     pub const fn new(index: u32) -> Self {
         Self(index)
     }
 
-    /// Returns the raw dictionary index.
+    /// Returns the raw index into the atom table.
     pub const fn get(self) -> u32 {
         self.0
     }
 
-    /// Returns the index as a `usize`, for indexing the dictionary.
+    /// Returns the index as a `usize`, for indexing the atom table.
     pub const fn index(self) -> usize {
         self.0 as usize
     }
@@ -79,26 +81,29 @@ pub enum Term {
     Bang(TermId),
     /// `?A`
     Quest(TermId),
-    /// `∀x.A`: a binder and its body, in which the variable it binds is
-    /// the bound variable of index 0 and the variables of the binders
-    /// above it are shifted by one (locally nameless, so two binders that
-    /// differ in their variable's name alone are one term). The name is
-    /// kept beside the arena for printing.
+    /// `∀x.A`: a quantifier and its body.
+    ///
+    /// In the body, the variable it binds is the bound variable of index
+    /// 0, and the variables of the quantifiers above it are shifted up by
+    /// one. Variables have no names in the term, so two quantifiers that
+    /// differ only in their variable's name are one term. The name is kept
+    /// beside the arena, for printing.
     Forall(TermId),
-    /// `∃x.A`, a binder as [`Forall`](Self::Forall) is.
+    /// `∃x.A`: a quantifier and its body, as for [`Forall`](Self::Forall).
     Exists(TermId),
 }
 
-/// A term is a tag and two arena indices at most: every arena and every
-/// table keyed by terms grows with it.
+/// A term is a tag and at most two arena indices. Every arena, and every
+/// table keyed by terms, grows with its size.
 const _: () = assert!(size_of::<Term>() == 12);
 
 impl std::hash::Hash for Term {
-    /// Hashes the term as one word: its two indices, the second zero
-    /// where there is none, and its kind in the top byte, over the second
-    /// index's top bits, which only an arena past 2²⁴ terms fills; one
-    /// write whatever the variant, where the derived form writes the
-    /// discriminant and each field.
+    /// Hashes the term as one word: its two indices (the second zero where
+    /// there is none), with its kind in the top byte.
+    ///
+    /// The kind is XORed over the second index's top bits, which only an
+    /// arena past 2²⁴ terms fills. That costs one write for every variant,
+    /// where the derived hash writes the discriminant and each field.
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         use Term::*;
         let (a, b) = match *self {
@@ -231,9 +236,10 @@ impl Term {
         }
     }
 
-    /// Returns the term with its top node dualised (`⊗` to `⅋`, `a` to `~a`,
-    /// …) and the same subterm indices. Dualising a whole formula dualises
-    /// every node, which `Sequent` does when it lowers a two-sided sequent.
+    /// Returns the term with its top node dualised (`⊗` to `⅋`, `a` to
+    /// `~a`, …) and the same subterm indices. To dualise a whole formula,
+    /// dualise every node, as the parser does when it pushes a negation
+    /// down to the atoms.
     #[must_use]
     pub const fn dual(self) -> Self {
         use Term::*;
@@ -256,7 +262,8 @@ impl Term {
     }
 
     /// Returns the subterms in order: none for a literal or a unit, one for
-    /// `!`, `?` and a binder (its body), the left one then the right one for a binary connective.
+    /// `!`, `?` and a quantifier (its body), and the left one then the
+    /// right one for a binary connective.
     pub fn subterms(self) -> impl Iterator<Item = TermId> {
         let (first, second) = self.operands();
         first.into_iter().chain(second)
@@ -272,8 +279,8 @@ impl Term {
         }
     }
 
-    /// Returns the term with every subterm index replaced by what `f` maps it
-    /// to.
+    /// Returns the term with every subterm index replaced by what `f` maps
+    /// it to.
     pub(crate) fn map_subterms(self, mut f: impl FnMut(TermId) -> TermId) -> Self {
         use Term::*;
         match self {

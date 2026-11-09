@@ -2,9 +2,9 @@
 // Licensed under the EUPL
 
 //! The first-order tables of a sequent: its symbols, its terms, their
-//! argument lists, what each atom is as a predicate applied to arguments,
-//! and the names of its bound variables. A propositional sequent has
-//! empty tables and pays nothing for them.
+//! argument lists, each atom as a predicate applied to arguments, and the
+//! names of its bound variables. A propositional sequent has empty tables
+//! and pays nothing for them.
 
 use super::TermId;
 #[cfg(any(test, feature = "parse", feature = "serialize"))]
@@ -15,7 +15,7 @@ use crate::hash::HashMap;
 use std::fmt::{Result as FmtResult, Write};
 
 /// A predicate or function symbol, by its index in its sequent's symbol
-/// table. A symbol is a name with one arity: a constant is a function
+/// table. A symbol is a name with one arity. A constant is a function
 /// symbol of arity 0.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Symbol(u32);
@@ -59,7 +59,7 @@ impl FoTermId {
 }
 
 /// An argument list, by its index in its sequent's table of argument
-/// lists; the list of a constant is empty.
+/// lists. A constant has the empty list.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Args(u32);
 
@@ -80,10 +80,11 @@ impl Args {
     }
 }
 
-/// An eigenvariable of a proof: the fresh constant a `∀` inference
-/// introduces, by its number in the proof. It is never bound in the term:
-/// the proof's instance table names it wherever a witness or a frame
-/// holds it.
+/// An eigenvariable of a proof, by its number in the proof: the fresh
+/// constant that a `∀` inference introduces.
+///
+/// No quantifier binds it. The proof's instance table names it wherever a
+/// witness or a frame holds it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(
     feature = "serialize",
@@ -104,32 +105,33 @@ impl Eigen {
     }
 }
 
-/// A first-order term: a bound variable or a function symbol applied to
-/// arguments, which refers to its arguments by arena index, or in a
-/// proof's extension of the arena an eigenvariable, or in an interactive
-/// session's a metavariable. Every term of a sequent's own arena is bound
-/// or ground: the free variables of a search, the eigenvariables of a
-/// proof and the open witnesses of a session live in their own extension
-/// of it.
+/// A first-order term: a bound variable, or a function symbol applied to
+/// arguments, which it refers to by arena index.
+///
+/// A sequent's own arena holds only terms built from symbols and bound
+/// variables. The free variables of a search, the eigenvariables of a
+/// proof ([`Eigen`](Self::Eigen)) and the open witnesses of an
+/// interactive session ([`Meta`](Self::Meta)) live in their own
+/// extensions of the arena.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum FoTerm {
-    /// A bound variable, as the number of binders between it and the one
-    /// that binds it: `0` is the innermost binder's variable.
+    /// A bound variable, as the number of quantifiers between it and the
+    /// one that binds it: `0` is the innermost quantifier's variable.
     Bound(u32),
-    /// A function symbol applied to its arguments, a constant to none.
+    /// A function symbol applied to its arguments; a constant has none.
     App(Symbol, Args),
-    /// An eigenvariable, which only a proof's extension of the arena
-    /// holds ([`Instances`](crate::linear::Instances)).
+    /// An eigenvariable. Only a proof's extension of the arena holds one
+    /// ([`Instances`](crate::linear::Instances)).
     Eigen(Eigen),
-    /// A metavariable by its number: a witness of an interactive session
-    /// left open, which a later axiom or the search binds
-    /// ([`Interactive`](crate::linear::Interactive)). Only a session's extension
-    /// of the arena holds one; a proof never does.
+    /// A metavariable, by its number: a witness of an interactive session
+    /// left open, which a later axiom or the search fills in
+    /// ([`Interactive`](crate::linear::Interactive)). Only a session's
+    /// extension of the arena holds one; a proof never does.
     Meta(u32),
 }
 
-/// A term is a tag and two indices at most: every arena and every table
-/// keyed by terms grows with it.
+/// A term is a tag and at most two indices. Every arena, and every table
+/// keyed by terms, grows with its size.
 const _: () = assert!(size_of::<FoTerm>() == 12);
 
 /// The first-order tables of a sequent, empty exactly when every atom is
@@ -174,14 +176,16 @@ impl FirstOrder {
     }
 
     /// Drops what nothing reaches, once the atoms and the binders are cut
-    /// back to a sequent's kept formulas: the terms past the last that a
-    /// kept atom reaches and past the first `keep` (a cut formula joined
-    /// to a sequent brings its own after the sequent's), the lists past
-    /// the last a kept term or atom names, the symbols past the last one
-    /// of those names unless `all_symbols` keeps them while a binder is
-    /// left; and every table
-    /// where no binder is left and every atom left is nullary, which the
-    /// tables' invariant asks.
+    /// back to a sequent's kept formulas.
+    ///
+    /// - Where no binder is left and every atom left is nullary, every
+    ///   table goes, as the tables' invariant asks.
+    /// - Otherwise the terms past the last that a kept atom reaches go,
+    ///   but the first `keep` stay. A cut formula joined to a sequent
+    ///   brings its terms after the sequent's.
+    /// - The lists past the last that a kept term or atom names go.
+    /// - The symbols past the last that those name go, unless
+    ///   `all_symbols` is set and a binder is left.
     #[cfg(feature = "interactive")]
     pub(crate) fn trim(&mut self, keep: usize, all_symbols: bool) {
         let nullary = self
@@ -200,7 +204,8 @@ impl FirstOrder {
                 terms = terms.max(t.index() + 1);
             }
         }
-        // A term's arguments come before it: the terms kept are a prefix.
+        // A term's arguments come before it, so the terms kept are a
+        // prefix.
         for term in &self.terms[..terms] {
             if let FoTerm::App(f, args) = *term {
                 symbols = symbols.max(f.index() + 1);
@@ -215,7 +220,8 @@ impl FirstOrder {
             .map(|&(start, len)| (start + len) as usize);
         let args = args.max().unwrap_or(0);
         self.args.truncate(args);
-        // A table left without binders belongs to no session's table.
+        // Tables without a binder left belong to no session's table, so
+        // their unused symbols go even with `all_symbols`.
         if !all_symbols || self.binders.is_empty() {
             self.symbols.truncate(symbols);
         }
@@ -236,9 +242,10 @@ impl FirstOrder {
             .map(|i| self.binders[i].1.as_str())
     }
 
-    /// Writes the term `term` with `symbol` writing a symbol's name and
-    /// `bound` a bound variable, as `f(t, …)` with `, ` between the
-    /// arguments, on an explicit stack: no term costs the caller's stack.
+    /// Writes the term `term` as `f(t, …)`, with `, ` between the
+    /// arguments. `symbol` writes a symbol's name and `bound` a bound
+    /// variable. It works on an explicit stack, so no term costs the
+    /// caller's stack.
     pub(crate) fn write<W: Write + ?Sized>(
         &self,
         out: &mut W,
@@ -260,8 +267,8 @@ impl FirstOrder {
                             open.push((args, 0));
                         }
                     }
-                    // Every way to a sequent builds its arena of bound and
-                    // ground terms alone.
+                    // Every way to a sequent builds its arena from bound
+                    // and ground terms alone.
                     FoTerm::Eigen(_) | FoTerm::Meta(_) => {
                         unreachable!("a sequent's arena holds no eigenvariable or metavariable")
                     }
@@ -285,8 +292,8 @@ impl FirstOrder {
     }
 
     /// Writes the atom of `symbol` applied to `args` as its canonical
-    /// text, the key of the atom table: `p` for a nullary atom, else
-    /// `p(t, …)`, a bound variable as `#n`.
+    /// text, its name in the atom table: `p` for a nullary atom, else
+    /// `p(t, …)`, with a bound variable as `#n`.
     pub(crate) fn write_atom<W: Write + ?Sized>(
         &self,
         out: &mut W,
@@ -322,7 +329,7 @@ impl FirstOrder {
     }
 
     /// Returns, per term of the arena, how many terms it unfolds to when
-    /// written out as a tree, itself included, saturating: a term that
+    /// written out as a tree, itself included, saturating. A term that
     /// several terms share counts once for each.
     pub(crate) fn unfolded(&self) -> Vec<u64> {
         let mut unfolded = vec![0u64; self.terms.len()];
@@ -358,12 +365,18 @@ impl FirstOrder {
     }
 
     /// Checks the tables' invariants, which every public way to a sequent
-    /// keeps: `atoms` is as long as the sequent's table of `atom_count`
-    /// atoms or empty, every index names an entry, a term refers to terms
-    /// before it, every application and every atom has as many arguments
-    /// as its symbol's arity, no symbol is both a predicate and a function
-    /// symbol, every symbol's name is an identifier of the text syntax,
-    /// and the binders' terms ascend.
+    /// keeps:
+    /// - `atoms` is empty or as long as the sequent's table of
+    ///   `atom_count` atoms;
+    /// - every index names an entry;
+    /// - a term refers only to terms before it;
+    /// - every application and every atom has as many arguments as its
+    ///   symbol's arity;
+    /// - no symbol is both a predicate and a function symbol;
+    /// - every symbol's name is an atom name of the text syntax, and no
+    ///   name is listed twice;
+    /// - the binders' terms ascend, and their names are atom names of the
+    ///   text syntax.
     #[cfg(any(test, feature = "parse", feature = "serialize"))]
     pub(crate) fn check(&self, atom_count: usize) -> Result<(), Error> {
         use crate::limits::Space;
@@ -471,7 +484,7 @@ impl FirstOrder {
     }
 }
 
-/// Why a symbol of a sequent's table cannot be one.
+/// What is wrong with a symbol of a sequent's table.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[cfg_attr(
@@ -496,8 +509,8 @@ pub enum SymbolFault {
     Role,
 }
 
-/// Builds the first-order tables of a sequent, interning every symbol,
-/// term and argument list, so that equal terms are one entry.
+/// Builds the first-order tables of a sequent. It interns every symbol,
+/// term and argument list, so equal ones are one entry.
 #[derive(Debug, Default)]
 pub(crate) struct Interner {
     /// The tables built.
@@ -518,8 +531,8 @@ impl Interner {
         Self::default()
     }
 
-    /// Returns the symbol called `name`, in NFC, of `arity` and of the
-    /// role `predicate` says, interned.
+    /// Returns the symbol called `name`, of `arity` and of the role
+    /// `predicate` says, interned. `name` must be in NFC.
     ///
     /// # Errors
     ///

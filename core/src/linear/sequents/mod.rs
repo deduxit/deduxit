@@ -1,7 +1,8 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-// A variant a later step adds must not fall into an existing arm.
+// A new variant must get its own arm in every match, not fall into an
+// existing one.
 #![deny(clippy::wildcard_enum_match_arm)]
 
 /// Printing sequents and formulas in one-sided notation.
@@ -10,8 +11,8 @@ pub mod fmt;
 pub mod fo;
 /// Atom names: identifiers of the text syntax that no keyword takes.
 pub(crate) mod name;
-/// The one printer of formulas and sequents, a table of spellings per
-/// target.
+/// The printer of formulas and sequents, with a table of spellings for
+/// each output format.
 pub(crate) mod notation;
 /// The terms an arena is built from.
 pub mod term;
@@ -24,96 +25,157 @@ pub use term::{Atom, Kind, Term, TermId};
 
 use crate::hash::HashMap;
 
-/// A one-sided sequent in negation normal form: root formulas over an arena of
-/// shared subterms.
+/// A sequent of linear logic: its formulas, kept one-sided and in
+/// negation normal form, over an arena of shared subterms.
 ///
-/// # Syntax
+/// Read a sequent from text with `parse` (feature `parse`) or from JSON
+/// (feature `serialize`). `Display` writes it one-sided: `A |- A` prints
+/// as `⊢ ~A, A`.
 ///
-/// With the feature `parse`, `"…".parse::<Sequent>()` reads a sequent
-/// written `formulas ⊢ formulas` (or `|-`), each side a list separated by
-/// commas and possibly empty, with whitespace allowed between any two
-/// tokens. From the loosest binding to the tightest, a formula is built
-/// with `-o`/`⊸` (to the right), `+`/`⊕`, `&`, `|`/`par`/`⅋`, `*`/`⊗`
-/// (these to the left), the prefix operators `~`, `!` and `?`, and the
-/// postfix `^`, over the constants `0`, `1`, `bot`/`⊥` and `top`/`⊤`,
-/// atoms and parentheses. An atom is named by a Unicode identifier (it
-/// starts with `_` or a character of `XID_Start` and goes on with
-/// characters of `XID_Continue`), read in NFC, so that one name is one
-/// atom however its accents are encoded, other than the keywords `bot`, `top` and
-/// `par`, which are that constant or connective only as whole
-/// identifiers, and `forall` and `exists`, the quantifiers' keywords.
-/// Text that is no sequent is `Error::Parse`, whose `ParseError` says
-/// where. Every atom name of a sequent, however it was read, is such an
-/// identifier, so that the formulas written as text read back as
-/// themselves.
+/// # Text syntax
 ///
-/// First-order sequents: `forall x. A` (`∀x. A`) and `exists x. A`
-/// (`∃x. A`) bind loosest, their scope running to the right as far as it
-/// can (to a `)`, a `,`, the turnstile or the end), and `forall x y. A`
-/// binds both; an atom may be a predicate applied to terms, `p(x,
-/// f(a))`, where an identifier bound by an enclosing quantifier is its
-/// variable and any other a constant or, before a `(`, a function
-/// symbol. A symbol has one arity throughout the sequent, a name is a
-/// predicate or a function symbol, not both, a keyword names none of
-/// them, and every formula is closed. A quantifier's variable is kept by
-/// name for printing ([`binder_name`](Self::binder_name)) and bound by
-/// index in the arena ([`Term::Forall`]), so two quantifiers that differ
-/// in their variable's name alone are one term. An atom with arguments
-/// is interned by its text, `p(f(a), b)`, and an atom under a quantifier
-/// by its text with the bound variables as indices, `p(#0)`
-/// ([`atom_name`](Self::atom_name)); the symbols and the terms are the
-/// sequent's tables ([`symbols`](Self::symbols),
-/// [`fo_terms`](Self::fo_terms), [`atom_predicate`](Self::atom_predicate)),
-/// empty for a propositional sequent. The ordered
-/// parse ([`parse_ordered`](Self::parse_ordered)) reads the divisions of
-/// the Lambek calculus besides, `\` (to the right) and `/` (to the left),
-/// as loose as `-o`; mixed, a division takes all to its right, `A \ B / C`
-/// being `A \ (B / C)` and `A / B \ C` being `A / (B \ C)`.
+/// A sequent is written `formulas ⊢ formulas`, or with `|-` for `⊢`.
+/// Each side is a list of formulas separated by commas, and may be
+/// empty. Whitespace may stand between any two tokens. Text that is no
+/// sequent gives `Error::Parse`, whose `ParseError` says where it went
+/// wrong.
 ///
-/// The sequent is kept one-sided in negation normal form: the formulas
-/// left of the turnstile are negated, `A ⊸ B` is `A^⊥ ⅋ B`, and a negation
-/// is pushed to the atoms, so `A |- A` is `⊢ ~A, A`, which is what
-/// `Display` writes. The formulas keep the order they were written in,
-/// and the sequent remembers how many stood left of the turnstile
-/// ([`antecedents`](Self::antecedents)), from which
-/// [`Reading`](crate::linear::Reading) reads an intuitionistic sequent back
-/// two-sided. `Display`'s one-sided text leaves the sides out, so it
-/// reads back as `⊢ Γ`; the text of the reading, which writes them, and
-/// the JSON keep them.
+/// The connectives, from the loosest to the tightest:
+///
+/// | connective | ASCII | Unicode | groups |
+/// |---|---|---|---|
+/// | linear implication | `-o` | `⊸` | to the right |
+/// | plus | `+` | `⊕` | to the left |
+/// | with | `&` | `&` | to the left |
+/// | par | `\|` or `par` | `⅋` | to the left |
+/// | tensor | `*` | `⊗` | to the left |
+/// | negation, of course, why not | `~A`, `!A`, `?A` | | prefix |
+/// | negation | `A^` | | postfix |
+///
+/// The constants are `0`, `1`, `bot` (`⊥`) and `top` (`⊤`). Parentheses
+/// group.
+///
+/// An atom is named by a Unicode identifier: `_` or a character of
+/// `XID_Start`, then characters of `XID_Continue`.
+/// - A name is read in NFC, so one name is one atom however its accents
+///   are encoded.
+/// - `bot`, `top` and `par` are keywords: as whole identifiers they are
+///   that constant or connective. `forall` and `exists` are the
+///   quantifiers' keywords. No keyword names an atom.
+/// - Every atom name of a sequent is such an identifier, however the
+///   sequent was read, so a sequent written as text reads back as itself.
+///
+/// [`parse_ordered`](Self::parse_ordered) also reads the two divisions of
+/// the Lambek calculus, `A \ B` (groups to the right) and `B / A`
+/// (groups to the left). They bind as loosely as `-o`. Mixed, a division
+/// takes everything to its right: `A \ B / C` is `A \ (B / C)`, and
+/// `A / B \ C` is `A / (B \ C)`.
+///
+/// # First-order syntax
+///
+/// - `forall x. A` (`∀x. A`) and `exists x. A` (`∃x. A`) bind loosest.
+///   Their scope runs right as far as it can: to a `)`, a `,`, the
+///   turnstile or the end. `forall x y. A` binds both variables.
+/// - An atom may be a predicate applied to terms: `p(x, f(a))`. In a
+///   term, an identifier that an enclosing quantifier binds is that
+///   variable. Any other identifier is a constant, or a function symbol
+///   when a `(` follows it.
+/// - A symbol has one arity in the whole sequent. A name is a predicate
+///   or a function symbol, never both. No keyword names a symbol or a
+///   variable.
+/// - Every formula is closed: each variable is bound by a quantifier.
+///
+/// How the sequent stores them:
+/// - A quantifier's variable is bound by index in the arena
+///   ([`Term::Forall`]); its name is kept for printing
+///   ([`binder_name`](Self::binder_name)). Two quantifiers that differ
+///   only in their variable's name are one term.
+/// - An atom with arguments is named by its text, `p(f(a), b)`. An atom
+///   under a quantifier is named by its text with the bound variables as
+///   indices, `p(#0)` ([`atom_name`](Self::atom_name)).
+/// - The symbols and the terms are the sequent's tables
+///   ([`symbols`](Self::symbols), [`fo_terms`](Self::fo_terms),
+///   [`atom_predicate`](Self::atom_predicate)). A propositional sequent
+///   has them empty.
+///
+/// # The one-sided form
+///
+/// - The formulas left of the turnstile are negated.
+/// - `A ⊸ B` is `~A ⅋ B`.
+/// - Negations are pushed down to the atoms.
+///
+/// So `A |- A` is `⊢ ~A, A`, which is what `Display` writes.
+///
+/// The formulas keep the order they were written in. The sequent also
+/// remembers how many stood left of the turnstile
+/// ([`antecedents`](Self::antecedents)). From that,
+/// [`Reading`](crate::linear::Reading) reads an intuitionistic sequent
+/// back two-sided. `Display` leaves the sides out, so its text reads back
+/// as `⊢ Γ`. The reading's text and the JSON keep the sides.
 ///
 /// # JSON
 ///
-/// With the feature `serialize` a sequent is the object `{"version": 1,
-/// "terms": […], "roots": […], "atoms": […], "antecedents": k}`, the
-/// `version` only at the top of a document ([`wire`](crate::wire)).
-/// `terms` is the arena: a unit is its symbol (`"1"`, `"⊥"`, `"⊤"`,
-/// `"0"`), any other term an object of one key, its tag, which names terms
-/// by their index in `terms`, each before it (`{"⊗": [0, 1]}`, and `⅋`,
-/// `&`, `⊕` alike; `{"!": 2}`, `{"?": 2}`), or an atom by its index in
-/// `atoms` (`{"V": 0}` the atom, `{"D": 0}` its dual). `roots` are the
-/// root formulas, in the order written, and `antecedents` how many of
-/// them, the first, stand left of `⊢`, written whenever the sides are
-/// known, `0` included, and absent where they are not. Reading checks
-/// that every term names only terms before it, that `antecedents` is at
-/// most the number of roots and that every atom name is an identifier of
-/// the text syntax (`Error::AtomName` otherwise), takes a name the table
-/// repeats as one atom, and counts the occurrences against the limits
-/// before anything unfolds. The command's `seq json` writes this form.
-/// A sequent with cut formulas ([`cuts`](Self::cuts)) writes them as
-/// `"cuts": […]`, the term of each cut formula `A` (its dual is the
-/// reader's to build), which a document that holds one writes at wire
-/// level 6; a sequent without them writes no key. A first-order sequent
-/// writes `"symbols": [["p", 1], …]` (each a name with its arity),
-/// `"fo": […]` (its terms, `{"B": n}` a bound variable and `{"F":
-/// [symbol, [terms]]}` an application, each term before the one that
-/// names it), every atom as `{"P": [symbol, [terms]]}`, a quantifier
-/// as `{"∀": body}` or `{"∃": body}`, and `"binders": ["x", …]`, the
-/// quantifiers' variable names in the order of the terms, at wire level
-/// 7; a propositional sequent writes none of it.
+/// With the feature `serialize`, a sequent is the object
+/// `{"version": 1, "terms": […], "roots": […], "atoms": […], "antecedents": k}`.
+/// The `version` stands only at the top of a document
+/// ([`wire`](crate::wire)). The command's `seq json` writes this form.
+///
+/// | key | holds |
+/// |---|---|
+/// | `terms` | the arena, each term naming only terms before it |
+/// | `roots` | the root formulas, as indices into `terms`, in the order written |
+/// | `atoms` | the atom names |
+/// | `antecedents` | how many of the roots, the first ones, stand left of `⊢`; absent when the sides are not known |
+/// | `cuts` | the cut formulas ([`cuts`](Self::cuts)), only when there are some |
+/// | `symbols`, `fo`, `binders` | the first-order tables, only for a first-order sequent |
+///
+/// `antecedents` is written whenever the sides are known, `0` included.
+///
+/// A term of `terms` is one of these, `k` and `l` indices into `terms`
+/// and `a` an index into `atoms`:
+///
+/// | term | JSON |
+/// |---|---|
+/// | a unit | its symbol: `"1"`, `"⊥"`, `"⊤"` or `"0"` |
+/// | an atom, its dual | `{"V": a}`, `{"D": a}` |
+/// | a binary connective | `{"⊗": [k, l]}`, and `⅋`, `&`, `⊕` alike |
+/// | `!A`, `?A` | `{"!": k}`, `{"?": k}` |
+/// | `∀x. A`, `∃x. A` | `{"∀": k}`, `{"∃": k}`, `k` the body |
+///
+/// Reading checks that:
+/// - every term names only terms before it;
+/// - `antecedents` is at most the number of roots;
+/// - every atom name is an identifier of the text syntax
+///   (`Error::AtomName` otherwise).
+///
+/// A name that the table repeats is one atom. Reading counts the
+/// occurrences against the limits before anything unfolds.
+///
+/// `cuts` holds the term of each cut formula `A`; the reader builds its
+/// dual. A document that holds a cut formula is at wire level 6.
+///
+/// A first-order sequent is at wire level 7 and writes:
+/// - `"symbols": [["p", 1], …]`, each symbol's name and arity;
+/// - `"fo": […]`, its terms, each before the terms that name it:
+///   `{"B": n}` is a bound variable, `{"F": [symbol, [terms]]}` an
+///   application;
+/// - every atom as `{"P": [symbol, [terms]]}`;
+/// - `"binders": ["x", …]`, the quantifiers' variable names in the order
+///   of their terms.
+///
+/// A propositional sequent writes none of these keys.
+///
+/// # Examples
 ///
 #[cfg_attr(all(feature = "parse", feature = "serialize"), doc = "```")]
 #[cfg_attr(not(all(feature = "parse", feature = "serialize")), doc = "```ignore")]
-/// let sequent: deduxit::linear::Sequent = "A |- A".parse()?;
+/// use deduxit::linear::Sequent;
+///
+/// let sequent: Sequent = "A, A -o B |- B".parse()?;
+/// assert_eq!(sequent.to_string(), "⊢ ~A, A ⊗ ~B, B");
+/// assert_eq!(sequent.antecedents(), Some(2));
+///
+/// let sequent: Sequent = "A |- A".parse()?;
 /// assert_eq!(
 ///     serde_json::to_string(&sequent)?,
 ///     r#"{"version":1,"terms":[{"D":0},{"V":0}],"roots":[0,1],"atoms":["A"],"antecedents":1}"#
@@ -125,19 +187,19 @@ pub struct Sequent {
     /// Every subformula; a term refers only to terms at lower indices.
     pub(crate) terms: Vec<Term>,
     /// The root formulas, as arena indices, in the order they were
-    /// written, which nothing sorts.
+    /// written. Nothing sorts them.
     pub(crate) roots: Vec<TermId>,
     /// The atom names that `Atom` and `DualAtom` refer to by index.
     pub(crate) atoms: Vec<String>,
-    /// How many of the roots, the first ones, were written left of `⊢`;
-    /// `None` where no sides were given. At most the number of roots.
+    /// How many of the roots, the first ones, were written left of `⊢`,
+    /// or `None` where no sides were given. At most the number of roots.
     pub(crate) antecedents: Option<u32>,
-    /// The cut formulas, in the order they were added: each the term of a
-    /// formula `A` and the term of its dual `A⊥`, of one shape, which
-    /// the forest numbers after the roots, `A` then `A⊥`.
+    /// The cut formulas, in the order they were added. Each is the term of
+    /// a formula `A` and the term of its dual `A⊥`, which has the same
+    /// shape. The forest numbers them after the roots, `A` before `A⊥`.
     pub(crate) cuts: Vec<[TermId; 2]>,
-    /// The first-order tables: the symbols, the terms, what each atom is
-    /// as a predicate over terms, the binders' names. Empty exactly when
+    /// The first-order tables: the symbols, the terms, each atom as a
+    /// predicate over terms, and the binders' names. Empty exactly when
     /// every atom is nullary and there is no binder.
     pub(crate) fo: fo::FirstOrder,
 }
@@ -172,7 +234,8 @@ impl Sequent {
     ///
     /// # Panics
     ///
-    /// For an id of another one, past its end.
+    /// If `id` is past the end of the arena, as an id of another sequent
+    /// can be.
     pub fn term(&self, id: TermId) -> Term {
         self.terms[id.index()]
     }
@@ -182,38 +245,45 @@ impl Sequent {
         &self.roots
     }
 
-    /// Returns how many root formulas were written left of `⊢`: the first
-    /// ones of [`roots`](Self::roots), the rest being right of it. `None`
-    /// when the sides are not known, as for a JSON sequent without them or
-    /// the sum of two sequents; the text syntax always gives them (`Some(0)`
-    /// for `⊢ Γ`). Intuitionistic mode reads the goal from them
-    /// ([`Reading`](crate::linear::Reading)); nothing else does.
+    /// Returns how many root formulas were written left of `⊢`.
+    ///
+    /// They are the first ones of [`roots`](Self::roots); the rest stood
+    /// right of `⊢`. The result is `None` when the sides are not known: a
+    /// JSON sequent without them, or the sum of two sequents
+    /// ([`add`](Self::add)). Text always gives them, `Some(0)` for `⊢ Γ`.
+    /// Only the intuitionistic reading uses them, to find the goal
+    /// ([`Reading`](crate::linear::Reading)).
     pub fn antecedents(&self) -> Option<u32> {
         self.antecedents
     }
 
-    /// Returns the cut formulas, in the order they were added: per cut
-    /// the term of the formula `A` and the term of its dual `A⊥`. They
-    /// are no part of the conclusion (the [`roots`](Self::roots)): a
-    /// proof with cuts ([`Node::Cut`](crate::linear::Node::Cut)) is of a sequent
-    /// that holds its cut formulas, whose [`Forest`](crate::linear::Forest)
-    /// numbers each pair after the roots. A sequent read as text holds
-    /// none, and `Display` writes the conclusion only.
+    /// Returns the cut formulas, in the order they were added: for each
+    /// cut, the term of the formula `A` and the term of its dual `A⊥`.
+    ///
+    /// Cut formulas are not part of the conclusion (the
+    /// [`roots`](Self::roots)). A proof with cuts
+    /// ([`Node::Cut`](crate::linear::Node::Cut)) proves a sequent that
+    /// holds its cut formulas, and that sequent's
+    /// [`Forest`](crate::linear::Forest) numbers each pair after the roots.
+    /// A sequent read from text holds none, and `Display` writes only the
+    /// conclusion.
     pub fn cuts(&self) -> &[[TermId; 2]] {
         &self.cuts
     }
 
-    /// Adds a cut formula: `formula`, a sequent of one root formula `A`
-    /// whose atoms are this sequent's atoms of the same names, joins the
-    /// arena with its dual `A⊥`, and the pair is numbered after the
-    /// roots and the cut formulas before it. The roots and their sides
-    /// are unchanged.
+    /// Adds a cut formula `A`, given as `formula`, a sequent of one root
+    /// formula.
+    ///
+    /// An atom of `formula` is this sequent's atom of the same name. `A`
+    /// and its dual `A⊥` join the arena, and the pair is numbered after
+    /// the roots and the earlier cut formulas. The roots and their sides
+    /// do not change.
     ///
     /// # Errors
     ///
     /// [`Error::CutFormula`](crate::Error::CutFormula) when `formula`
-    /// has another number of root formulas than one or cut formulas of
-    /// its own.
+    /// has more or fewer than one root formula, or cut formulas of its
+    /// own.
     pub fn add_cut(&mut self, formula: Self) -> Result<(), crate::Error> {
         if formula.roots.len() != 1 || !formula.cuts.is_empty() {
             return Err(crate::Error::CutFormula {
@@ -236,21 +306,23 @@ impl Sequent {
     }
 
     /// Adds the cut formulas whose terms are `cuts`, terms of the arena, in
-    /// that order: each one's dual joins the arena, a term for each term
-    /// below it, so the two are of one shape, each the first equal term the
-    /// arena has where it has one, so that a sequent written with its duals
-    /// reads back as it was. Every term is dualised once whatever the
-    /// number of cut formulas that reach it, so the pass costs the arena
-    /// and the cut formulas, not their product; no recursion.
+    /// that order.
+    ///
+    /// Each one's dual joins the arena, with a term for each term below
+    /// it, so the two have the same shape. Where the arena already has an
+    /// equal term, the dual uses the first one, so a sequent written with
+    /// its duals reads back as it was. Each term is dualised once, however
+    /// many cut formulas reach it: the pass costs the arena plus the cut
+    /// formulas, not their product. It does not recurse.
     pub(crate) fn push_cuts(&mut self, cuts: &[TermId]) {
-        // A sequent read without cut formulas pays nothing for them.
+        // A sequent without cut formulas pays nothing here.
         if cuts.is_empty() {
             return;
         }
         let mut known =
             HashMap::<Term, TermId>::with_capacity_and_hasher(self.terms.len(), Default::default());
-        // Not `entry`, whose one use in `optimize_terms` the compiler
-        // inlines into the parser's path when it is the only one.
+        // Not `entry`: while `optimize_terms` is its only user, the
+        // compiler inlines it into the parser's path.
         for (n, &term) in self.terms.iter().enumerate().rev() {
             known.insert(term, TermId::new(n as u32));
         }
@@ -277,8 +349,9 @@ impl Sequent {
                         let fresh = TermId::new(self.terms.len() as u32);
                         known.insert(term, fresh);
                         self.terms.push(term);
-                        // A dual binder's variable is its binder's; the
-                        // fresh term is the last, so the names ascend.
+                        // A dual binder's variable has its binder's name.
+                        // The fresh term is the last, so the names stay in
+                        // ascending order of terms.
                         if let Some(name) = self.fo.binder_name(t) {
                             let name = name.to_owned();
                             self.fo.binders.push((fresh, name));
@@ -292,16 +365,16 @@ impl Sequent {
         }
     }
 
-    /// Takes the last cut formula away, with the terms and atoms past those
-    /// the roots and the other cut formulas reach, which a cut formula
-    /// added last brought: the arena as it was before the cut was added.
+    /// Removes the last cut formula and the terms and atoms past those
+    /// that the roots and the other cut formulas reach. For the cut
+    /// formula added last, this gives back the arena as it was before.
     #[cfg(feature = "interactive")]
     pub(crate) fn pop_cut(&mut self) {
         self.pop_cut_keeping(0, false);
     }
 
-    /// Takes the last cut formula away as [`pop_cut`](Self::pop_cut)
-    /// does, keeping the first-order arena's first `terms` terms and,
+    /// Removes the last cut formula as [`pop_cut`](Self::pop_cut) does,
+    /// but keeps the first `terms` terms of the first-order arena and,
     /// with `symbols`, every symbol: what a session's table still names.
     #[cfg(feature = "interactive")]
     pub(crate) fn pop_cut_keeping(&mut self, terms: usize, symbols: bool) {
@@ -323,8 +396,8 @@ impl Sequent {
             .map(|a| a.index() + 1)
             .max()
             .unwrap_or(0);
-        // An atom no term names, which only a sequent read from JSON can
-        // have, goes too.
+        // An atom that no term names goes too. Only a sequent read from
+        // JSON can have one.
         self.atoms.truncate(atoms);
         self.fo.atoms.truncate(atoms.min(self.fo.atoms.len()));
         self.fo.binders.retain(|&(t, _)| t.index() < end);
@@ -333,9 +406,9 @@ impl Sequent {
         }
     }
 
-    /// A sequent of an arena built elsewhere in the crate: every term's
-    /// subterms come before it, every atom is named, the roots are terms of
-    /// the arena, as a reader that builds the arena itself makes them, and
+    /// Returns the sequent of an arena that a reader in the crate built.
+    /// The caller keeps the invariants: every term's subterms come before
+    /// it, every atom is named, the roots are terms of the arena, and
     /// `antecedents` is at most their number.
     #[cfg(feature = "parse")]
     pub(crate) fn from_parts(
@@ -365,7 +438,8 @@ impl Sequent {
     ///
     /// # Panics
     ///
-    /// For an id of another one, past its end.
+    /// If `atom` is past the end of the atom table, as an atom of another
+    /// sequent can be.
     pub fn atom_name(&self, atom: Atom) -> &str {
         &self.atoms[atom.index()]
     }
@@ -379,28 +453,31 @@ impl Sequent {
     }
 
     /// Returns whether the sequent is first-order: an atom has arguments
-    /// or a formula has a binder. A propositional sequent's first-order
-    /// tables are empty, and its JSON holds none of their keys.
+    /// or a formula has a quantifier. A propositional sequent has empty
+    /// first-order tables, and its JSON holds none of their keys.
     pub fn is_first_order(&self) -> bool {
         !self.fo.is_empty()
     }
 
-    /// Returns the predicate symbol of `atom` and its argument list, or
-    /// `None` in a propositional sequent, where every atom is its name
-    /// alone ([`atom_name`](Self::atom_name)) and no symbol table exists.
+    /// Returns the predicate symbol of `atom` and its argument list.
+    ///
+    /// Returns `None` in a propositional sequent, which has no symbol
+    /// table: there an atom is just its name ([`atom_name`](Self::atom_name)).
     ///
     /// # Panics
     ///
-    /// For an atom of another sequent, past the table's end.
+    /// If `atom` is past the end of the table, as an atom of another
+    /// sequent can be.
     pub fn atom_predicate(&self, atom: Atom) -> Option<(Symbol, Args)> {
         self.fo.atoms.get(atom.index()).copied()
     }
 
-    /// Returns how many first-order terms the atoms' arguments unfold to,
-    /// written out as trees: a term that several atoms or terms share
-    /// counts once for each place, saturating. What
-    /// [`Limits::terms`](crate::Limits::terms) bounds; `0` for a
-    /// propositional sequent.
+    /// Returns how many first-order terms the atoms' arguments unfold to
+    /// when written out as trees, saturating at `u64::MAX`.
+    ///
+    /// A term that several atoms or terms share counts once for each
+    /// place. This is what [`Limits::terms`](crate::Limits::terms) bounds.
+    /// A propositional sequent gives `0`.
     pub fn fo_size(&self) -> u64 {
         if self.fo.atoms.is_empty() {
             return 0;
@@ -415,13 +492,15 @@ impl Sequent {
     }
 
     /// Returns whether an argument of `atom` holds a bound variable, which
-    /// only an atom under a binder can. A ground atom pairs with its dual
-    /// as a propositional atom does; an open one is instantiated by the
-    /// binders above it.
+    /// only an atom under a quantifier can.
+    ///
+    /// A ground atom pairs with its dual as a propositional atom does. An
+    /// open one is instantiated through the quantifiers above it.
     ///
     /// # Panics
     ///
-    /// For an atom of another sequent, past the table's end.
+    /// If `atom` is past the end of the table, as an atom of another
+    /// sequent can be.
     pub fn atom_is_open(&self, atom: Atom) -> bool {
         self.atom_predicate(atom).is_some_and(|(_, args)| {
             let loose = self.fo.loose();
@@ -430,7 +509,7 @@ impl Sequent {
     }
 
     /// Returns the symbols, each a name with its arity, in the order
-    /// `Symbol` indexes them: empty in a propositional sequent.
+    /// `Symbol` indexes them. Empty in a propositional sequent.
     pub fn symbols(&self) -> &[(String, u32)] {
         &self.fo.symbols
     }
@@ -446,21 +525,21 @@ impl Sequent {
     ///
     /// # Panics
     ///
-    /// For a list of another sequent, past the table's end.
+    /// If `args` is past the end of the table, as a list of another
+    /// sequent can be.
     pub fn arguments(&self, args: Args) -> &[FoTermId] {
         self.fo.list(args)
     }
 
-    /// Returns the name of the variable the binder `term` binds, for
-    /// printing, or `None` where `term` is no binder.
+    /// Returns the name of the variable that the quantifier `term` binds,
+    /// for printing, or `None` where `term` is no quantifier.
     pub fn binder_name(&self, term: TermId) -> Option<&str> {
         self.fo.binder_name(term)
     }
 
     /// Returns, per arena term, the number of subformula occurrences of the
-    /// formula it is the top of, itself included: a subterm counts once
-    /// for every place it stands in. A number that passes `u64::MAX` is
-    /// that.
+    /// formula it is the top of, itself included. A subterm counts once
+    /// for every place it stands in. Saturates at `u64::MAX`.
     pub(crate) fn sizes(&self) -> Vec<u64> {
         // A subterm precedes its parent, so its size is there when the
         // parent's is added up.
@@ -473,20 +552,21 @@ impl Sequent {
         sizes
     }
 
-    /// Returns the number of subformula occurrences of the sequent, which
-    /// is the number of nodes of its formulas written out as trees: a
-    /// term that several terms or root formulas share counts once for
-    /// each. That is how many occurrences a [`Forest`](crate::linear::Forest) of
-    /// the sequent has, and it can be exponentially more than the arena
-    /// has terms; a number that passes `u64::MAX` is returned as that.
-    /// One pass over the arena.
+    /// Returns the number of subformula occurrences of the sequent: the
+    /// nodes of its formulas, cut formulas included, written out as trees.
+    ///
+    /// A term that several terms or formulas share counts once for each
+    /// place. This is how many occurrences a
+    /// [`Forest`](crate::linear::Forest) of the sequent has. It can be
+    /// exponentially more than the arena has terms, and saturates at
+    /// `u64::MAX`. It takes one pass over the arena.
     pub fn occurrences(&self) -> u64 {
         self.occurrences_of(&self.sizes())
     }
 
     /// Returns the number of occurrences of the sequent from the
-    /// [`sizes`](Self::sizes) of its terms: those of the roots, then those
-    /// of each cut formula and its dual.
+    /// [`sizes`](Self::sizes) of its terms: the roots' sizes, then those
+    /// of each cut formula and its dual, saturating.
     pub(crate) fn occurrences_of(&self, sizes: &[u64]) -> u64 {
         self.roots
             .iter()
@@ -494,23 +574,25 @@ impl Sequent {
             .fold(0u64, |sum, r| sum.saturating_add(sizes[r.index()]))
     }
 
-    /// Checks the arena's invariants, which every public way to a
-    /// sequent keeps: every term names only earlier terms and atoms of the
-    /// table, every root a term, and `antecedents` at most the roots.
+    /// Checks the invariants that every public way to a sequent keeps.
+    ///
+    /// Every term names only earlier terms and atoms of the table, every
+    /// root and cut formula is a term, and `antecedents` is at most the
+    /// number of roots. A first-order sequent also has valid tables
+    /// ([`fo::FirstOrder::check`]), closed root and cut formulas, and a
+    /// quantifier term for every recorded variable name.
     #[cfg(any(test, feature = "parse", feature = "serialize"))]
     pub(crate) fn check(&self) -> Result<(), crate::Error> {
         let num_atoms = self.atoms.len() as u32;
         let num_terms = self.terms.len() as u32;
 
-        // check that terms only reference
-        //   - other terms with lower IDs than themselves
-        //   - existing atom IDS
+        // Every term names only earlier terms and atoms of the table.
         self.terms
             .iter()
             .enumerate()
             .try_for_each(|(n, e)| e.check_bounds(num_atoms, n as u32))?;
 
-        // check that all root and cut indices are valid
+        // Every root and cut formula is a term of the arena.
         self.roots
             .iter()
             .chain(self.cuts.iter().flatten())
@@ -539,9 +621,9 @@ impl Sequent {
             return Ok(());
         }
         self.fo.check(self.atoms.len())?;
-        // The scope: per term how many binders it needs above it, which a
-        // root or a cut formula, closed, needs none of. A subterm precedes
-        // its parent, so one ascending pass has every subterm's count.
+        // Per term, how many binders it needs above it. A root or cut
+        // formula is closed and needs none. A subterm precedes its parent,
+        // so one ascending pass has every subterm's count ready.
         let fo_loose = self.fo.loose();
         let mut loose = vec![0u32; self.terms.len()];
         for (n, term) in self.terms.iter().enumerate() {
@@ -586,8 +668,8 @@ impl Sequent {
         Ok(())
     }
 
-    /// Drops the terms no root formula reaches and merges equal terms, keeping
-    /// the arena topologically sorted, which it must be.
+    /// Drops the terms that no root or cut formula reaches and merges equal
+    /// terms. The arena must be topologically sorted, and stays so.
     fn optimize_terms(&mut self) {
         let num_terms = self.terms.len();
 
@@ -596,8 +678,8 @@ impl Sequent {
             reachable[n.index()] = true;
         }
 
-        // A subterm precedes its parent, so one pass from the top marks every
-        // reachable term before it is visited.
+        // A subterm precedes its parent, so one pass from the top marks
+        // every reachable term before the pass gets to it.
         for n in (0..num_terms).rev() {
             if !reachable[n] {
                 continue;
@@ -608,9 +690,9 @@ impl Sequent {
             }
         }
 
-        // In index order, every subterm has its final index before its parents
-        // are rebuilt, so hashing the rebuilt terms merges equal terms at any
-        // depth.
+        // In index order, every subterm has its final index before its
+        // parents are rebuilt, so hashing the rebuilt terms merges equal
+        // terms at any depth.
         let mut new_index = vec![None; num_terms];
         let mut terms = Vec::with_capacity(num_terms);
         let mut kept = HashMap::<Term, TermId>::default();
@@ -639,8 +721,8 @@ impl Sequent {
             *pair = pair.map(|k| new_index[k.index()].unwrap());
         }
         if !self.fo.binders.is_empty() {
-            // A binder's name follows its term; where two binders merged
-            // the first name wins, and a dropped binder's name goes.
+            // A binder's name follows its term. Where two binders merged,
+            // the first name wins; a dropped binder's name goes.
             let mut binders = Vec::with_capacity(self.fo.binders.len());
             for (t, name) in std::mem::take(&mut self.fo.binders) {
                 if let Some(t) = new_index[t.index()] {
@@ -653,16 +735,16 @@ impl Sequent {
         }
     }
 
-    /// Numbers the atoms in the order the terms first name them and drops
-    /// the entries no term names; every literal must name an atom of the
-    /// table. The names move into the new table, none is copied.
+    /// Numbers the atoms in the order the terms first name them, and drops
+    /// the entries no term names. Every literal must name an atom of the
+    /// table. The names move into the new table; none is copied.
     fn renumber_atoms(&mut self) {
         use Term::*;
         /// No term names the atom.
         const UNUSED: u32 = u32::MAX;
         // Per entry of the table its new number, and per new number the
-        // entry: a table has fewer entries than `u32::MAX`, as it is
-        // indexed by `Atom`s.
+        // entry. A table has fewer entries than `u32::MAX`, since `Atom`
+        // indexes it, so `UNUSED` is no number.
         let mut number = vec![UNUSED; self.atoms.len()];
         let mut entries = Vec::with_capacity(self.atoms.len());
         for e in &mut self.terms {
@@ -687,10 +769,12 @@ impl Sequent {
             .collect();
     }
 
-    /// Merges atoms of the same name and equal terms and drops the terms no
-    /// root formula reaches; the root formulas keep the order they were
-    /// written in. Every sequent a caller can hold keeps the arena's
-    /// invariants, which this relies on.
+    /// Merges atoms of the same name and equal terms, and drops the terms
+    /// that no root or cut formula reaches.
+    ///
+    /// The root formulas keep the order they were written in. The parser
+    /// optimizes what it reads; after [`add`](Self::add), this merges the
+    /// terms the two sequents share.
     pub fn optimize(&mut self) {
         // Equal names first, so that terms over them are equal terms.
         self.merge_atoms();
@@ -698,10 +782,10 @@ impl Sequent {
         self.renumber_atoms();
     }
 
-    /// Gives atoms of the same name one index, the first's, and drops the
-    /// later entries of the table, so that a name is an atom; a table of
-    /// distinct names stays as it is. The terms must refer to atoms of the
-    /// table.
+    /// Gives atoms of the same name one index, the first one's, and drops
+    /// the later entries of the table, so that a name is one atom. A table
+    /// of distinct names stays as it is. The terms must refer to atoms of
+    /// the table.
     pub(crate) fn merge_atoms(&mut self) {
         use Term::*;
         let mut seen = HashMap::<&str, term::Atom>::with_capacity_and_hasher(
@@ -736,8 +820,8 @@ impl Sequent {
                 | other @ Exists(_) => other,
             };
         }
-        // An entry stays when it is the first of its name, which is when
-        // its new index is the number of entries kept before it.
+        // An entry stays when it is the first of its name: when its new
+        // index is the number of entries kept before it.
         let (mut old, mut kept) = (0, 0);
         self.atoms.retain(|_| {
             let first = merged[old].index() == kept;
@@ -756,11 +840,12 @@ impl Sequent {
         }
     }
 
-    /// Consumes another sequent and appends its root formulas to this one,
-    /// and its cut formulas after this one's, with the arenas
-    /// concatenated; an atom of the other sequent is the
-    /// atom of the same name here, if there is one. The sides of the sum
-    /// are not known: [`antecedents`](Self::antecedents) is `None`.
+    /// Appends the sequent `s` to this one: its root formulas after this
+    /// one's, its cut formulas after this one's, its arena after this one's.
+    ///
+    /// An atom of `s` becomes this sequent's atom of the same name, if
+    /// there is one. The sides of the sum are not known, so
+    /// [`antecedents`](Self::antecedents) becomes `None`.
     pub fn add(&mut self, s: Self) {
         let offset_atoms = self.atoms.len() as u32;
         let offset_terms = self.terms.len() as u32;
@@ -785,20 +870,24 @@ impl Sequent {
 
         self.atoms.extend(s.atoms);
         self.join_first_order(s.fo, offset_terms);
-        // The roots of the second sequent follow those of the first, so
-        // its antecedents are no longer the first roots.
+        // The roots of `s` follow this sequent's, so its antecedents are
+        // not the first roots of the sum.
         self.antecedents = None;
         self.merge_atoms();
     }
 
-    /// Appends another sequent's first-order tables to this one's, whose
-    /// atoms the other's follow in the table: the symbols, terms and lists
-    /// of both are interned anew, a symbol of one name being one symbol
-    /// (one of another arity or role is renamed with `_` after it, so
-    /// that nothing is lost), a nullary atom of a propositional side gets
-    /// its predicate where the other side has tables, and every atom's
-    /// key is its canonical text over the joined symbols. `terms_offset`
-    /// is where the other's formula terms start.
+    /// Joins the first-order tables of another sequent, whose atoms follow
+    /// this one's in the atom table, to this one's.
+    ///
+    /// - The symbols, terms and lists of both are interned anew.
+    /// - A name is one symbol. A symbol of the same name but another arity
+    ///   or role is renamed with `_` after it, so nothing is lost.
+    /// - An atom without a predicate in its side's tables, as every atom
+    ///   of a propositional side is, gets a nullary predicate of its name.
+    /// - Every atom's name becomes its canonical text over the joined
+    ///   symbols.
+    ///
+    /// `terms_offset` is where the other sequent's formula terms start.
     fn join_first_order(&mut self, other: fo::FirstOrder, terms_offset: u32) {
         if other.is_empty() && self.fo.is_empty() {
             return;
@@ -832,7 +921,7 @@ impl Sequent {
         let sides = [(&self.fo, 0, own_atoms), (&other, own_atoms, names.len())];
         for (tables, from, to) in sides {
             // A symbol's role on its side: a predicate where an atom has
-            // it, a function symbol where a term does.
+            // it, else a function symbol.
             let mut predicate = vec![false; tables.symbols.len()];
             for &(p, _) in &tables.atoms {
                 predicate[p.index()] = true;
@@ -870,8 +959,8 @@ impl Sequent {
                 });
             }
         }
-        /// Returns the list `args` of `tables` interned over `terms`, the
-        /// tables' terms as interned, once per list.
+        /// Returns the list `args` of `tables`, interned over `terms` (the
+        /// tables' terms as interned). Each list is interned once.
         fn join_list(
             interner: &mut fo::Interner,
             tables: &fo::FirstOrder,
@@ -954,7 +1043,7 @@ mod tests {
         assert_eq!(s.roots.len(), 5);
     }
 
-    /// The empty sequent survives optimisation unchanged.
+    /// Optimizing the empty sequent leaves it empty.
     #[test]
     fn optimize_empty() {
         let mut s = Sequent::new();
@@ -1002,8 +1091,8 @@ mod tests {
         assert_eq!(s.roots, [TermId::new(1), TermId::new(2)]);
     }
 
-    /// A subterm that does not precede its parent is reported with each index
-    /// in its place.
+    /// A subterm that does not precede its parent is reported with both
+    /// indices, each in its place.
     #[test]
     fn subterm_order_error_names_both_terms() {
         use Term::*;

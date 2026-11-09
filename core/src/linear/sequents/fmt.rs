@@ -5,7 +5,8 @@ use super::notation::TEXT;
 use super::{Sequent, TermId};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-/// A formula of a sequent, as a value that prints it in one-sided notation.
+/// A formula of a sequent, as a value that `Display` prints in one-sided
+/// notation. [`Sequent::formula`] returns one.
 #[derive(Clone, Copy, Debug)]
 pub struct Formula<'a> {
     /// The sequent whose arena and atom names the formula lives in.
@@ -14,14 +15,14 @@ pub struct Formula<'a> {
     id: TermId,
 }
 
-/// One stop of the crate's printers' walk over a formula, which carries
-/// what they need to place brackets.
+/// One stop of the walk over a formula that the crate's printers follow,
+/// with what they need to place brackets.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Stop<T> {
     /// A subformula is reached, before anything below it. The flag says
     /// whether it stands inside another formula, where a binary one is
-    /// written in brackets; for the formula the walk started on it is the
-    /// flag the walk was given.
+    /// written in brackets. The formula the walk starts on has the flag
+    /// the walk was given.
     Enter(T, bool),
     /// The place between the two subformulas of a binary formula.
     Between(T),
@@ -41,16 +42,18 @@ enum Step<T> {
     Exit(T, bool),
 }
 
-/// How many pending steps a walk holds before it allocates: one for each
-/// formula it is inside of, so an ordinary formula is written without an
-/// allocation.
+/// How many pending steps a walk holds before it allocates. A walk holds
+/// about one for each formula it is inside of, so an ordinary formula is
+/// written without an allocation.
 const INLINE: usize = 16;
 
 /// The stops of a formula in the order it is written: every subformula
-/// when it is reached, a binary one again between its two subformulas, and
-/// a compound one once more when it is left. The walk keeps the formulas
-/// it is inside of in a stack of its own, so a formula of any depth takes
-/// no more of the caller's stack than a literal does.
+/// when it is reached, a binary one again between its two subformulas,
+/// and a compound one once more when it is left.
+///
+/// The walk keeps the formulas it is inside of in a stack of its own, so
+/// a formula of any depth takes no more of the caller's stack than a
+/// literal does.
 pub(crate) struct Stops<T, F> {
     /// The first pending steps, the next one last.
     inline: [Step<T>; INLINE],
@@ -127,15 +130,18 @@ impl<T: Copy, F: Fn(T) -> (Option<T>, Option<T>)> Iterator for Stops<T, F> {
 }
 
 /// One stop of a [`Walk`] over a formula, in the order the formula is
-/// written. A literal or a unit is one `Enter`; a formula with operands is
-/// an `Enter`, its first operand, a `Between` before every further one and
-/// an `Exit` after the last.
+/// written.
+///
+/// A literal or a unit is one `Enter`. A formula with operands is an
+/// `Enter`, its first operand, a `Between` before each further operand,
+/// and an `Exit` after the last.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Visit<T> {
     /// A formula is reached, before anything below it.
     Enter(T),
-    /// The place before the operand of the formula whose index (from 0) is
-    /// the number: 1 for the second operand of a binary formula.
+    /// The place before an operand of the formula: the number is the
+    /// operand's index, counted from 0, so 1 is the second operand of a
+    /// binary formula.
     Between(T, u32),
     /// A formula with operands is left, after the last of them.
     Exit(T),
@@ -143,10 +149,12 @@ pub enum Visit<T> {
 
 /// The stops of a formula in the order it is written (see [`Visit`]),
 /// returned by [`Sequent::walk`] and
-/// [`Reading::walk`](crate::linear::Reading::walk). The walk keeps the formulas it
-/// is inside of in a stack of its own, so a printer that follows it takes
-/// no more of its caller's stack for a formula of any depth than for a
-/// literal.
+/// [`Reading::walk`](crate::linear::Reading::walk).
+///
+/// Use it to print a formula in a syntax of your own. The walk keeps the
+/// formulas it is inside of in a stack of its own, so a printer that
+/// follows it takes no more of its caller's stack for a formula of any
+/// depth than for a literal.
 pub struct Walk<'a, T> {
     /// The stops with the flags the crate's printers place brackets by.
     stops: Stops<T, Operands<'a, T>>,
@@ -187,9 +195,12 @@ impl<T> std::fmt::Debug for Walk<'_, T> {
 }
 
 impl Sequent {
-    /// Returns the walk over the formula rooted at `id`, which must belong to
-    /// this sequent: the stops a printer of the formula in another syntax
-    /// follows, each naming a term that [`Sequent::term`] returns.
+    /// Returns the walk over the formula rooted at `id`, which must belong
+    /// to this sequent: the stops a printer of the formula in another
+    /// syntax follows. Each stop names a term that [`Sequent::term`]
+    /// returns.
+    ///
+    /// # Examples
     ///
     /// ```
     /// use deduxit::linear::sequents::Visit;
@@ -215,18 +226,20 @@ impl Sequent {
     ///
     /// # Panics
     ///
-    /// For an id of another one, past its end.
+    /// The walk panics if `id` is past the end of the arena, as an id of
+    /// another sequent can be.
     pub fn walk(&self, id: TermId) -> Walk<'_, TermId> {
         debug_assert!(id.index() < self.terms.len());
         Walk::new(id, |k| self.term(k).operands())
     }
 
-    /// Returns the formula rooted at `id`, which must belong to this sequent,
-    /// as a value that prints it.
+    /// Returns the formula rooted at `id`, which must belong to this
+    /// sequent, as a value that prints it.
     ///
     /// # Panics
     ///
-    /// For an id of another one, past its end.
+    /// Printing it panics if `id` is past the end of the arena, as an id
+    /// of another sequent can be.
     pub fn formula(&self, id: TermId) -> Formula<'_> {
         debug_assert!(id.index() < self.terms.len());
         Formula { sequent: self, id }
@@ -234,15 +247,16 @@ impl Sequent {
 }
 
 impl Display for Formula<'_> {
-    /// Writes the formula with brackets around every binary subformula.
+    /// Writes the formula with brackets around every binary subformula and
+    /// every quantifier inside another formula.
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         TEXT.term(f, self.sequent, self.id, false)
     }
 }
 
 impl Display for Sequent {
-    /// Writes the sequent one-sided: `⊢` followed by its formulas, separated by
-    /// commas.
+    /// Writes the sequent one-sided: `⊢` followed by its formulas,
+    /// separated by commas.
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         TEXT.one_sided(f, self)
     }

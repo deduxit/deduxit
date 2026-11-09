@@ -7,11 +7,32 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::ops::{BitAnd, BitOr, BitOrAssign};
 use std::str::FromStr;
 
-/// The connective classes a sequent uses, which name the fragment of
-/// linear logic it lives in, the quantifiers one class among them. Fragments form a lattice under
-/// [`union`](Self::union) and [`contains`](Self::contains); the named
-/// constants are the usual fragments, and [`Sequent::fragment`] computes
-/// the smallest one a sequent fits.
+/// A fragment of linear logic: a set of connective classes.
+///
+/// There are six classes: the multiplicatives `⊗ ⅋`, their units `1 ⊥`,
+/// the additives `& ⊕`, their units `⊤ 0`, the exponentials `! ?`, and
+/// the quantifiers `∀ ∃`. A fragment is any set of them.
+///
+/// - [`Sequent::fragment`] returns the classes a sequent uses.
+/// - [`union`](Self::union) joins two fragments, and
+///   [`contains`](Self::contains) tells whether one is part of another.
+/// - The constants [`MLL`](Self::MLL) to [`LL1`](Self::LL1) are the usual
+///   named fragments.
+/// - A fragment prints as the name of the smallest named fragment that
+///   contains it, and `FromStr` reads such a name.
+///
+/// # Examples
+///
+/// ```
+/// use deduxit::linear::Fragment;
+///
+/// let fragment = Fragment::MULTIPLICATIVES | Fragment::EXPONENTIALS;
+/// assert!(Fragment::MELL.contains(fragment));
+/// assert!(!Fragment::MALL.contains(fragment));
+/// assert_eq!(fragment.to_string(), "MELL");
+/// assert_eq!("IMALL".parse::<Fragment>()?, Fragment::MALL);
+/// # Ok::<(), deduxit::Error>(())
+/// ```
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Fragment(u8);
 
@@ -28,10 +49,12 @@ impl Fragment {
     pub const ADDITIVE_UNITS: Self = Self(8);
     /// `!` and `?`.
     pub const EXPONENTIALS: Self = Self(16);
-    /// `∀` and `∃`: the quantifiers of first-order linear logic, whose
-    /// fragments are the propositional ones with a `1` after the acronym
-    /// (`MLL1`, `MALL1`, `LL1`). A ground atom (`p(a)`) sets no class: a
-    /// sequent is first-order by its binders alone.
+    /// `∀` and `∃`: the quantifiers of first-order linear logic.
+    ///
+    /// A first-order fragment is named as the propositional one with a `1`
+    /// after the acronym (`MLL1`, `MALL1`, `LL1`). A ground atom such as
+    /// `p(a)` sets no class: only a quantifier puts a sequent in a
+    /// first-order fragment.
     pub const QUANTIFIERS: Self = Self(32);
 
     /// Multiplicative linear logic without units: `⊗ ⅋`.
@@ -39,8 +62,8 @@ impl Fragment {
     /// Multiplicative linear logic with units: `⊗ ⅋ 1 ⊥`.
     pub const MLL_WITH_UNITS: Self = Self::MLL.union(Self::MULTIPLICATIVE_UNITS);
     /// Additive linear logic, named `ALL`: `& ⊕ ⊤ 0`, and nothing
-    /// multiplicative. Not to be confused with [`LL`](Self::LL), which has
-    /// every connective.
+    /// multiplicative. The fragment with every connective is
+    /// [`LL`](Self::LL).
     pub const ADDITIVE: Self = Self::ADDITIVES.union(Self::ADDITIVE_UNITS);
     /// Multiplicative-additive linear logic: `⊗ ⅋ 1 ⊥ & ⊕ ⊤ 0`.
     pub const MALL: Self = Self::MLL_WITH_UNITS.union(Self::ADDITIVE);
@@ -61,7 +84,7 @@ impl Fragment {
     /// Full first-order linear logic: every connective and both quantifiers.
     pub const LL1: Self = Self::LL.union(Self::QUANTIFIERS);
 
-    /// The named fragments, in the order of [`NAMES`](Self::NAMES): each is
+    /// The named fragments, in the order of [`NAMES`](Self::NAMES). Each is
     /// the largest fragment of its name.
     pub const NAMED: &'static [Self] = &[
         Self::MLL,
@@ -107,8 +130,8 @@ impl Fragment {
         Self(self.0 & other.0)
     }
 
-    /// Returns whether every connective class of `other` is in this fragment,
-    /// that is, whether a sequent of `other` is also a sequent of this
+    /// Returns whether every connective class of `other` is in this
+    /// fragment: whether a sequent of `other` is also a sequent of this
     /// fragment.
     pub const fn contains(self, other: Self) -> bool {
         self.0 & other.0 == other.0
@@ -144,24 +167,26 @@ impl Fragment {
         self.contains(Self::EXPONENTIALS)
     }
 
-    /// Returns whether `∀` or `∃` occurs: whether the fragment is
+    /// Returns whether `∀` or `∃` occurs, which makes the fragment
     /// first-order.
     pub const fn has_quantifiers(self) -> bool {
         self.contains(Self::QUANTIFIERS)
     }
 
-    /// Returns whether a sequent of this fragment has proof structures:
-    /// whether it is unit-free MLL.
+    /// Returns whether a sequent of this fragment has proof structures
+    /// ([`ProofStructure`](crate::linear::ProofStructure)): whether the
+    /// fragment is unit-free MLL.
     pub const fn has_nets(self) -> bool {
         Self::MLL.contains(self)
     }
 
-    /// Returns the usual name of the smallest named fragment that contains
-    /// this one: `MLL`, `MLL with units`, `ALL`, `MALL`, `MELL` or `LL`,
-    /// with a `1` after the acronym where the fragment has quantifiers
-    /// (`MLL1`, `MLL1 with units`, `LL1`). The empty fragment is named
-    /// `MLL`, and units only count for the name of a purely multiplicative
-    /// fragment, where they decide which engine applies.
+    /// Returns the name of the smallest named fragment that contains this
+    /// one: `MLL`, `MLL with units`, `ALL`, `MALL`, `MELL` or `LL`.
+    ///
+    /// A fragment with quantifiers has a `1` after the acronym (`MLL1`,
+    /// `MLL1 with units`, `LL1`). The empty fragment is named `MLL`. Units
+    /// change only the name of a purely multiplicative fragment, where
+    /// they decide which engine applies.
     pub const fn name(self) -> &'static str {
         let additive = self.has_additives() || self.has_additive_units();
         let multiplicative = self.has_multiplicatives() || self.has_multiplicative_units();
@@ -187,10 +212,11 @@ impl Fragment {
         }
     }
 
-    /// Returns the fragment's name in a mode: the classical
-    /// [`name`](Self::name), or in intuitionistic mode the intuitionistic
-    /// one, `IMLL`, `IMLL with units`, `IALL`, `IMALL`, `IMELL` or `ILL`,
-    /// with the `1` of a first-order fragment (`IMLL1`, …).
+    /// Returns the fragment's name in `mode`: the classical
+    /// [`name`](Self::name), or in an intuitionistic mode the
+    /// intuitionistic one: `IMLL`, `IMLL with units`, `IALL`, `IMALL`,
+    /// `IMELL` or `ILL`, with the `1` of a first-order fragment (`IMLL1`,
+    /// …).
     pub const fn name_in(self, mode: Mode) -> &'static str {
         if !mode.is_intuitionistic() {
             return self.name();
@@ -224,7 +250,8 @@ impl FromStr for Fragment {
     type Err = Error;
 
     /// Reads a fragment's name, classical or with the intuitionistic `I`
-    /// before it (`MALL`, `IMALL`), as the largest fragment of that name.
+    /// before it (`MALL`, `IMALL`). Returns the largest fragment of that
+    /// name.
     fn from_str(name: &str) -> Result<Self, Error> {
         let classical = name.strip_prefix('I').unwrap_or(name);
         Self::NAMES
@@ -272,8 +299,8 @@ impl Display for Fragment {
 }
 
 impl Kind {
-    /// Returns the connective class of this kind, or the empty fragment for a
-    /// literal.
+    /// Returns the connective class of this kind, or the empty fragment
+    /// for a literal.
     pub const fn fragment(self) -> Fragment {
         use Kind::*;
         match self {
@@ -290,7 +317,7 @@ impl Kind {
 
 impl Sequent {
     /// Returns the smallest fragment the sequent lives in: the connective
-    /// classes of the terms its root formulas and its cut formulas reach.
+    /// classes of the terms that its root and cut formulas reach.
     ///
     /// # Examples
     ///
@@ -311,8 +338,8 @@ impl Sequent {
     /// ```
     pub fn fragment(&self) -> Fragment {
         let mut fragment = Fragment::EMPTY;
-        // A subterm precedes its parent, so one pass from the top visits every
-        // reachable term after the term that reaches it.
+        // A subterm precedes its parent, so one pass from the top visits
+        // every reachable term after the term that reaches it.
         let mut reachable = vec![false; self.terms.len()];
         for root in self.roots.iter().chain(self.cuts.iter().flatten()) {
             reachable[root.index()] = true;
@@ -330,16 +357,48 @@ impl Sequent {
     }
 }
 
-/// What the user asks of proof search beyond the sequent: the calculus and
-/// the structural rules in force. Built from [`CLASSICAL`](Self::CLASSICAL)
-/// or [`INTUITIONISTIC`](Self::INTUITIONISTIC) with the builders, or read
-/// from its [`name`](Self::name); [`check`](Self::check) refuses a
-/// combination no calculus has.
+/// The logic a sequent is proved in: classical or intuitionistic,
+/// ordered or not, and which extra rules hold.
+///
+/// Pass a mode to [`prove`](crate::linear::prove) and the other entry
+/// points of the search. Start from a constant, add rules with the
+/// builders, or read a mode from its name:
+///
+/// | name | value | what it means |
+/// |---|---|---|
+/// | `classical` | [`CLASSICAL`](Self::CLASSICAL), the default | classical linear logic: a sequent `⊢ Γ`, every formula used exactly once (a `?A` may be dropped or copied) |
+/// | `affine` | `CLASSICAL.with_affine()` | adds weakening: a formula may go unused, so `A, B ⊢ A` holds |
+/// | `mix` | `CLASSICAL.with_mix()` | adds the Mix rule: proofs of `⊢ Γ` and `⊢ Δ` side by side prove `⊢ Γ, Δ` |
+/// | `affine-mix` | `CLASSICAL.with_affine().with_mix()` | adds both |
+/// | `intuitionistic` | [`INTUITIONISTIC`](Self::INTUITIONISTIC) | intuitionistic linear logic: a sequent `Γ ⊢ A` with one formula, the goal, right of `⊢` |
+/// | `intuitionistic-affine` | `INTUITIONISTIC.with_affine()` | adds weakening: a hypothesis may go unused |
+/// | `cyclic` | [`CYCLIC`](Self::CYCLIC) | cyclic linear logic: classical, and the order of the formulas counts, up to rotation |
+/// | `lambek` | [`LAMBEK`](Self::LAMBEK) | the Lambek calculus `L`: intuitionistic, the hypotheses in their written order, at least one of them |
+/// | `lambek-star` | `LAMBEK.with_empty_antecedents()` | the Lambek calculus `L*`: as `L`, and a sequent may have no hypothesis |
+///
+/// [`check`](Self::check) refuses the combinations that no calculus has:
+/// intuitionistic with Mix, and an ordered mode with weakening or Mix.
+///
+/// # Examples
+///
+/// ```
+/// use deduxit::linear::Mode;
+///
+/// // Intuitionistic linear logic in which a hypothesis may go unused.
+/// let mode = Mode::INTUITIONISTIC.with_affine();
+/// assert_eq!(mode.name(), "intuitionistic-affine");
+/// assert_eq!("intuitionistic-affine".parse::<Mode>()?, mode);
+/// assert!(mode.check().is_ok());
+///
+/// // No calculus is intuitionistic with Mix.
+/// assert!(Mode::INTUITIONISTIC.with_mix().check().is_err());
+/// # Ok::<(), deduxit::Error>(())
+/// ```
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct Mode {
-    /// Intuitionistic linear logic, with one formula on the right, instead of
-    /// classical one-sided sequents.
+    /// Intuitionistic linear logic, with one formula right of `⊢`. Else
+    /// classical, with one-sided sequents.
     pub(crate) intuitionistic: bool,
     /// Affine logic: weakening is allowed, so a formula may go unused.
     pub(crate) affine: bool,
@@ -348,24 +407,26 @@ pub struct Mode {
     /// Whether the order of a sequent's formulas counts.
     pub(crate) order: Order,
     /// In an ordered intuitionistic mode, whether a sequent may have no
-    /// formula left of `⊢`: the Lambek calculus with empty antecedents
-    /// (`L*`) rather than without (`L`). False in every other mode, which
-    /// has no such restriction to lift.
+    /// formula left of `⊢`: true for the Lambek calculus `L*`, false for
+    /// `L`. False in every other mode, which has no such restriction to
+    /// lift.
     pub(crate) empty_antecedents: bool,
 }
 
 /// Whether a calculus keeps the order of a sequent's formulas.
 ///
-/// In the commutative calculi a sequent is a multiset and exchange is
-/// free. In the cyclic one a one-sided sequent is a cyclic sequence of
-/// formulas, read up to rotation, with no other exchange: `⊗` joins the
-/// two arcs `⊢ Γ, A` and `⊢ B, Δ` into `⊢ Γ, A ⊗ B, Δ`, `⅋` joins two
-/// neighbours `A, B` into `A ⅋ B`, and the dual of a product reverses it,
-/// `(A ⊗ B)⊥ = B⊥ ⅋ A⊥`. The order of a sequent is that of its
-/// literals as written, which the occurrence forest numbers in that
-/// order (a formula's left operand before its right one), so that a
-/// cyclic sequent's formulas and every subproof's stand in ascending
-/// occurrence order, up to rotation.
+/// In a commutative calculus a sequent is a multiset: its formulas may
+/// be exchanged freely. In the cyclic calculus a one-sided sequent is a
+/// cyclic sequence of formulas. It may be rotated, and allows no other
+/// exchange:
+/// - `⊗` joins the two arcs `⊢ Γ, A` and `⊢ B, Δ` into `⊢ Γ, A ⊗ B, Δ`;
+/// - `⅋` joins two neighbours `A, B` into `A ⅋ B`;
+/// - the dual of a product reverses it: `(A ⊗ B)⊥ = B⊥ ⅋ A⊥`.
+///
+/// A sequent's order is that of its literals as written. The occurrence
+/// forest numbers them in that order, a formula's left operand before
+/// its right one. So the formulas of a cyclic sequent, and of every
+/// subproof, stand in ascending occurrence order, up to rotation.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum Order {
@@ -377,7 +438,7 @@ pub enum Order {
 }
 
 impl Mode {
-    /// Classical linear logic without Mix, the default.
+    /// Classical linear logic, the default: no weakening, no Mix.
     pub const CLASSICAL: Self = Self {
         intuitionistic: false,
         affine: false,
@@ -386,7 +447,8 @@ impl Mode {
         empty_antecedents: false,
     };
 
-    /// Intuitionistic linear logic without Mix.
+    /// Intuitionistic linear logic: one formula right of `⊢`, no
+    /// weakening.
     pub const INTUITIONISTIC: Self = Self {
         intuitionistic: true,
         affine: false,
@@ -405,13 +467,15 @@ impl Mode {
         empty_antecedents: false,
     };
 
-    /// The Lambek calculus `L`: intuitionistic and in the cyclic order,
-    /// a sequent `A₁, …, Aₙ ⊢ B` with its hypotheses in the order written
-    /// and at least one of them, with the two divisions `A \ B` and
-    /// `B / A` and the product `A ⊗ B`. It is the fragment of cyclic MLL
-    /// whose sequents and every subproof's have one output and at least
-    /// one input; [`with_empty_antecedents`](Self::with_empty_antecedents)
-    /// lifts the last condition (`L*`).
+    /// The Lambek calculus `L`: intuitionistic, in the cyclic order.
+    ///
+    /// A sequent is `A₁, …, Aₙ ⊢ B`, with its hypotheses in the order
+    /// written and at least one of them. The connectives are the two
+    /// divisions `A \ B` and `B / A` and the product `A ⊗ B`. `L` is the
+    /// fragment of cyclic MLL whose sequents, and every subproof's, have
+    /// one output and at least one input.
+    /// [`with_empty_antecedents`](Self::with_empty_antecedents) drops the
+    /// condition of at least one input (`L*`).
     pub const LAMBEK: Self = Self {
         intuitionistic: true,
         affine: false,
@@ -420,8 +484,8 @@ impl Mode {
         empty_antecedents: false,
     };
 
-    /// The names of the modes a calculus has, as [`name`](Self::name)
-    /// writes them and [`FromStr`] reads them.
+    /// The names of the modes that [`check`](Self::check) accepts, as
+    /// [`name`](Self::name) writes them and [`FromStr`] reads them.
     pub const NAMES: &'static [&'static str] = &[
         "classical",
         "affine",
@@ -434,13 +498,14 @@ impl Mode {
         "lambek-star",
     ];
 
-    /// Returns whether sequents are intuitionistic, with one formula on
-    /// the right, rather than classical and one-sided.
+    /// Returns whether sequents are intuitionistic: two-sided, with one
+    /// formula right of `⊢`. Otherwise they are classical and one-sided.
     pub const fn is_intuitionistic(self) -> bool {
         self.intuitionistic
     }
 
-    /// Returns whether weakening is allowed.
+    /// Returns whether weakening is allowed: whether a formula may go
+    /// unused.
     pub const fn is_affine(self) -> bool {
         self.affine
     }
@@ -450,14 +515,13 @@ impl Mode {
         self.mix
     }
 
-    /// Returns whether the calculus keeps the order of a sequent's
-    /// formulas, and which.
+    /// Returns which order of a sequent's formulas the calculus keeps.
     pub const fn order(self) -> Order {
         self.order
     }
 
     /// Returns whether the order of a sequent's formulas counts: whether
-    /// the calculus is not [`Order::Commutative`].
+    /// the order is other than [`Order::Commutative`].
     pub const fn is_ordered(self) -> bool {
         !matches!(self.order, Order::Commutative)
     }
@@ -477,9 +541,9 @@ impl Mode {
         Self { mix: true, ..self }
     }
 
-    /// Returns the mode with sequents allowed that have no formula left
-    /// of `⊢`: the Lambek calculus `L*` from [`LAMBEK`](Self::LAMBEK).
-    /// Every other mode allows them already and comes back as it is.
+    /// Returns the mode that also allows sequents with no formula left of
+    /// `⊢`: from [`LAMBEK`](Self::LAMBEK), the Lambek calculus `L*`. Every
+    /// other mode allows them already and comes back unchanged.
     #[must_use]
     pub const fn with_empty_antecedents(self) -> Self {
         Self {
@@ -488,16 +552,16 @@ impl Mode {
         }
     }
 
-    /// Returns whether a sequent may have no formula left of `⊢`: true in
-    /// every mode but the Lambek calculus without empty antecedents,
-    /// where every sequent of a proof keeps a hypothesis.
+    /// Returns whether a sequent may have no formula left of `⊢`. True in
+    /// every mode but the Lambek calculus `L`, where every sequent of a
+    /// proof keeps a hypothesis.
     pub const fn allows_empty_antecedents(self) -> bool {
         !(self.intuitionistic && self.is_ordered()) || self.empty_antecedents
     }
 
-    /// Returns the mode's name: one of [`NAMES`](Self::NAMES), or for a
-    /// mode [`check`](Self::check) refuses, the words of what it combines
-    /// (`intuitionistic-mix`, `cyclic-affine`, `lambek-mix`, …).
+    /// Returns the mode's name: one of [`NAMES`](Self::NAMES). A mode that
+    /// [`check`](Self::check) refuses is named by the words of what it
+    /// combines (`intuitionistic-mix`, `cyclic-affine`, `lambek-mix`, …).
     pub const fn name(self) -> &'static str {
         let Self {
             intuitionistic,
@@ -530,8 +594,8 @@ impl Mode {
         }
     }
 
-    /// Refuses a combination no calculus has: intuitionistic with Mix,
-    /// and an ordered mode with weakening or Mix.
+    /// Refuses a combination that no calculus has: intuitionistic with
+    /// Mix, or an ordered mode with weakening or Mix.
     ///
     /// # Errors
     ///
@@ -577,10 +641,9 @@ impl FromStr for Mode {
 }
 
 impl Display for Mode {
-    /// Writes the mode in words: `classical`, `intuitionistic` or, where
-    /// the order counts, `cyclic` or `Lambek`, then `affine` and `with
-    /// Mix` where they apply, and for the Lambek calculus `with empty
-    /// antecedents` where it allows them.
+    /// Writes the mode in words: `classical`, `intuitionistic`, or where
+    /// the order counts `cyclic` or `Lambek`. Then `affine` and
+    /// `with Mix` where they apply, and for `L*` `with empty antecedents`.
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         f.write_str(match (self.is_ordered(), self.intuitionistic) {
             (false, false) => "classical",
@@ -794,7 +857,7 @@ mod tests {
         );
     }
 
-    /// Only the Lambek calculus forbids empty antecedents, and lifting
+    /// Only the Lambek calculus `L` forbids empty antecedents, and lifting
     /// the restriction changes no other mode.
     #[test]
     fn empty_antecedents() {

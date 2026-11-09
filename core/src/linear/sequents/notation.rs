@@ -1,11 +1,16 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The one printer of formulas and sequents: a table of spellings per
-//! target, [`TEXT`](crate::linear::sequents::notation::TEXT) for `Display` and one per export, and the walks that
-//! write a formula, a sequent one-sided or two-sided under a reading, and
-//! a sequent of ordinary logic through it. A new connective is an arm here
-//! and a spelling in each table, never a printer of its own.
+//! The printer of formulas and sequents that `Display` and every export
+//! share.
+//!
+//! A [`Notation`](crate::linear::sequents::notation::Notation) is the
+//! table of spellings of one target:
+//! [`TEXT`](crate::linear::sequents::notation::TEXT) for `Display`, and
+//! one per export. Its walks write a formula, a sequent one-sided or
+//! two-sided under a reading, and a sequent of ordinary logic. A new
+//! connective is an arm here and a spelling in each table, never a
+//! printer of its own.
 
 use crate::hash::HashMap;
 use crate::linear::occurrences::instances::Framing;
@@ -17,7 +22,7 @@ use std::borrow::Cow;
 use std::fmt::{Result as FmtResult, Write};
 
 /// How a target writes formulas and sequents: the spelling of every
-/// connective, unit and of the turnstile, and how an atom's name is
+/// connective, unit and the turnstile, and how an atom's name is
 /// escaped. Binary connectives are written between spaces, `!` and `?`
 /// directly before their operand.
 pub(crate) struct Notation {
@@ -34,7 +39,8 @@ pub(crate) struct Notation {
     /// `\`, the left division, which only a two-sided sequent of the
     /// Lambek calculus shows.
     pub(crate) under: &'static str,
-    /// `/`, the right division, as `under`.
+    /// `/`, the right division, which only a two-sided sequent of the
+    /// Lambek calculus shows.
     pub(crate) over: &'static str,
     /// `!`
     pub(crate) bang: &'static str,
@@ -62,7 +68,7 @@ pub(crate) struct Notation {
     pub(crate) atom: Atoms,
     /// `∀`, with what stands between it and the variable's name.
     pub(crate) forall: &'static str,
-    /// `∃`, as `forall`.
+    /// `∃`, with what stands between it and the variable's name.
     pub(crate) exists: &'static str,
     /// What stands between a binder's variable and its body: the dot and
     /// a space.
@@ -98,10 +104,11 @@ pub(crate) const TEXT: Notation = Notation {
     ordinary: Symbols::UNICODE,
 };
 
-/// How a target writes an atom's name: a closed set rather than a function
-/// pointer, so that every writer is compiled for the output it writes
-/// into (through `dyn Write` one call per character made the Typst
-/// export a fifth slower).
+/// How a target writes an atom's name.
+///
+/// It is an enum, not a function pointer, so each writer is compiled for
+/// the output it writes into. Through `dyn Write`, one call per character
+/// made the Typst export a fifth slower.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Atoms {
     /// As it is.
@@ -133,10 +140,11 @@ impl Atoms {
 }
 
 /// The binders a printer's walk is inside of: their variables' names as
-/// written, innermost last, and how many binders of each name are open,
-/// so that a bound variable is written as its binder's name and a new
-/// binder's name is checked in constant time. Empty, and allocating
-/// nothing, while the walk meets no binder.
+/// written, innermost last, and how many binders of each name are open.
+///
+/// With it, a bound variable is written as its binder's name, and a new
+/// binder's name is checked in constant time. It stays empty, and
+/// allocates nothing, while the walk meets no binder.
 #[derive(Default)]
 pub(crate) struct Scope<'a> {
     /// The names, innermost last.
@@ -151,9 +159,9 @@ pub(crate) struct Scope<'a> {
     frame: Vec<String>,
 }
 
-/// What a sequent of a proof with instances is written under: the
-/// reading of a two-sided one, the proof's instances, and the marks
-/// around every formula.
+/// What a sequent of a proof with instances is written with: the reading
+/// of a two-sided one, the proof's instances, and the marks around every
+/// formula.
 struct Sides<'r, 'f> {
     /// The reading, of a two-sided sequent.
     reading: Option<&'r Reading<'r>>,
@@ -163,8 +171,8 @@ struct Sides<'r, 'f> {
     marks: (&'static str, &'static str),
 }
 
-/// A string that takes `left` more characters and then refuses: a term
-/// written in it stops at the cap.
+/// A string that takes `left` more characters and then refuses, so a
+/// term written into it stops at the cap.
 struct Capped {
     /// What was written.
     text: String,
@@ -186,8 +194,9 @@ impl Write for Capped {
     }
 }
 
-/// A writer that passes everything on to the one it holds: a type of its
-/// own for the walks an instance makes.
+/// A writer that passes everything on to the one it holds. Its own type
+/// keeps the walks of an instance apart from those of a propositional
+/// print.
 struct Apart<'w, W: ?Sized>(&'w mut W);
 
 impl<W: Write + ?Sized> Write for Apart<'_, W> {
@@ -209,11 +218,13 @@ enum Bound<'s> {
 }
 
 impl<'a> Scope<'a> {
-    /// Returns the name a binder's variable of `name` is written with:
-    /// `name` itself, or with `_` and a number after it where a symbol of
-    /// `sequent` or an enclosing binder has the name, so that the text
-    /// reads back as the formula it writes (`∀x. p(x, x)` with a constant
-    /// `x` would not); then opens the binder.
+    /// Opens a binder whose variable is called `name`, and returns the
+    /// name it is written with.
+    ///
+    /// That is `name` itself, or `name` with `_` and a number after it
+    /// where a symbol of `sequent` or an enclosing binder has the name. So
+    /// the text reads back as the formula it writes: `∀x. p(x, x)` with a
+    /// constant `x` would not.
     #[cold]
     #[inline(never)]
     fn enter(&mut self, sequent: &'a Sequent, name: &'a str) -> &str {
@@ -260,10 +271,10 @@ impl<'a> Scope<'a> {
         }
     }
 
-    /// Returns the scope of an instance whose frame's terms are written
-    /// as `frame`, the innermost binder's first, where `taken` (the
-    /// eigenvariables' names) are open, so that no binder of the formula
-    /// is written with one of them.
+    /// Returns the scope of an instance whose frame's terms are written as
+    /// `frame`, the innermost binder's first. The names in `taken` (the
+    /// eigenvariables') count as open, so no binder of the formula is
+    /// written with one of them.
     pub(crate) fn framed(frame: Vec<String>, taken: impl Iterator<Item = &'a str>) -> Self {
         let mut open = HashMap::default();
         for name in taken {
@@ -280,14 +291,14 @@ impl<'a> Scope<'a> {
 
 /// Returns whether a formula of `kind` is written in brackets where it
 /// stands inside another: a binary one, and a binder, whose scope would
-/// otherwise run on.
+/// otherwise run on to the right.
 fn bracketed(kind: Kind) -> bool {
     kind.arity() == 2 || kind.is_binder()
 }
 
-/// The place a walk keeps its scope: made at the first binder, and
-/// dropped by [`close`] at the walk's end, so that a walk without a
-/// binder, which is every propositional one, pays no drop.
+/// The place a walk keeps its scope. The scope is made at the first
+/// binder and dropped by [`close`] at the walk's end, so a walk without a
+/// binder, as every propositional one is, pays no drop.
 type Slot<'a> = std::mem::ManuallyDrop<Option<Box<Scope<'a>>>>;
 
 /// Drops the scope of `slot`, if one was made.
@@ -299,10 +310,10 @@ fn close(slot: Slot<'_>) {
 }
 
 impl Notation {
-    /// Writes the atom `atom` of `sequent`: its name, or a predicate with
-    /// its arguments, a bound variable by the name of its binder in
-    /// `scope`, and by its index after `#` where the scope does not reach
-    /// it (an occurrence written below its binder).
+    /// Writes the atom `atom` of `sequent`: its name, or with `predicates`
+    /// its predicate and arguments. A bound variable is written as the
+    /// name of its binder in `scope`, or as `#` and its index where the
+    /// scope does not reach it (an occurrence written without its binder).
     #[inline(always)]
     pub(crate) fn write_atom<W: Write + ?Sized>(
         &self,
@@ -356,9 +367,10 @@ impl Notation {
         out.write_char(')')
     }
 
-    /// Opens the binder `term` of `sequent` in `scope` and writes it, `∀x.
-    /// ` up to where its body starts, with the name its variable is
-    /// written by (`x` where none is recorded).
+    /// Opens the binder `term` of `sequent` in `scope` and writes it up to
+    /// where its body starts, as `∀x. `. The variable is written by the
+    /// name the scope gives it, from its recorded name or `x` where none
+    /// is recorded.
     #[cold]
     #[inline(never)]
     fn binder<'a, W: Write + ?Sized>(
@@ -380,8 +392,8 @@ impl Notation {
         out.write_str(self.dot)
     }
 
-    /// Writes the formula rooted at `id` of `sequent` one-sided, in
-    /// brackets if it is binary or a binder and `brackets` is set.
+    /// Writes the formula rooted at `id` of `sequent` one-sided. With
+    /// `brackets`, a binary formula or a binder is put in brackets.
     pub(crate) fn term<W: Write>(
         &self,
         out: &mut W,
@@ -397,10 +409,12 @@ impl Notation {
 
     /// Writes the formula of the instance `member` of a proof's `framing`
     /// as [`term`](Self::term) writes an occurrence's, or under a reading
-    /// as [`ill`](Self::ill) does: its bound variables that no binder of
-    /// it binds written as the terms of its frame, each cut after `cap`
-    /// characters with `…` where one is given (a term of shared subterms
-    /// can be exponentially longer than the proof that names it).
+    /// as [`ill`](Self::ill) does.
+    ///
+    /// A bound variable that no binder of the formula binds is written as
+    /// the term of its frame. With `cap`, each such term is cut after
+    /// `cap` characters with `…`: a term of shared subterms can be
+    /// exponentially longer than the proof that names it.
     #[cold]
     #[inline(never)]
     pub(crate) fn instance<W: Write>(
@@ -413,8 +427,8 @@ impl Notation {
         cap: Option<usize>,
     ) -> FmtResult {
         let (o, mut slot) = self.framed_scope(framing, member, cap)?;
-        // A writer of its own type, so that the walks a propositional
-        // print makes stay instantiated once, with the iterator inside.
+        // A writer of its own type, so the walks of a propositional print
+        // stay one instantiation, with the iterator inside.
         let mut out = Apart(out);
         let written = match reading {
             Some(reading) => self.ill_in(&mut out, reading, o, false, &mut slot),
@@ -425,9 +439,9 @@ impl Notation {
     }
 
     /// Writes the formula of the instance `member` of a proof's `framing`
-    /// as [`written`](Self::written) writes an occurrence, as its author
-    /// wrote it, with its bound variables that no binder of it binds
-    /// written as the terms of its frame.
+    /// as its author wrote it, as [`written`](Self::written) writes an
+    /// occurrence. A bound variable that no binder of the formula binds is
+    /// written as the term of its frame.
     #[cold]
     #[inline(never)]
     fn written_instance<W: Write>(
@@ -446,9 +460,9 @@ impl Notation {
     }
 
     /// Returns the occurrence the instance `member` of `framing` stands
-    /// for and the scope it is written in: its frame's terms, each cut
-    /// after `cap` characters with `…` where one is given, and the
-    /// eigenvariables' names open.
+    /// for, and the scope it is written in. The scope holds the frame's
+    /// terms, each cut after `cap` characters with `…` where `cap` is
+    /// given, and the eigenvariables' names as open.
     fn framed_scope<'f>(
         &self,
         framing: &'f Framing<'_>,
@@ -557,8 +571,8 @@ impl Notation {
     }
 
     /// Writes the intuitionistic formula at `o` as the reading reads it
-    /// (`⊸`, `1` for `⊥`, `⊤` for an input `0`, and so on), in brackets if
-    /// it is binary and `brackets` is set.
+    /// (`⊸`, `1` for `⊥`, `⊤` for an input `0`, and so on). With
+    /// `brackets`, a binary formula or a binder is put in brackets.
     pub(crate) fn ill<W: Write>(
         &self,
         out: &mut W,
@@ -649,12 +663,15 @@ impl Notation {
         Ok(())
     }
 
-    /// Writes the formula at `o` as its author wrote it (`writing`): each
-    /// connective on the side it stands on, `⊸` where an implication was
-    /// written, a negation before every subformula written with one, and
-    /// before `o` itself where `negated` says. A negated binary formula,
-    /// and where the negation follows its operand a negated `!` or `?`, is
-    /// in brackets, as is a binary one inside another.
+    /// Writes the formula at `o` as its author wrote it (`writing`).
+    ///
+    /// - Each connective is written for the side it stands on, and `⊸`
+    ///   where an implication was written.
+    /// - A negation stands before every subformula written with one, and
+    ///   before `o` itself where `negated` says.
+    /// - A binary formula is in brackets when it is negated or inside
+    ///   another, and so is a binder. Where the negation follows its
+    ///   operand, a negated `!` or `?` is too.
     pub(crate) fn written<W: Write>(
         &self,
         out: &mut W,
@@ -796,12 +813,15 @@ impl Notation {
         Ok(())
     }
 
-    /// Writes a classical sequent two-sided, `left ⊢ right`, each formula
-    /// a member as its author wrote it with a negation before it or
-    /// without ([`written`](Self::written)), a member past the forest an
-    /// instance of the proof's `framing`, the turnstile lined up as
-    /// [`sequent`](Self::sequent) does when `aligned` is set, and with
-    /// `marks` every formula between `'\u{2}'` and `'\u{3}'`.
+    /// Writes a classical sequent two-sided, `left ⊢ right`.
+    ///
+    /// - Each formula is a member as its author wrote it, with or without
+    ///   a negation before it ([`written`](Self::written)).
+    /// - A member past the forest is an instance of the proof's `framing`.
+    /// - With `aligned`, the turnstile is lined up as
+    ///   [`sequent`](Self::sequent) does.
+    /// - With `marks`, every formula stands between `'\u{2}'` and
+    ///   `'\u{3}'`.
     #[expect(
         clippy::too_many_arguments,
         reason = "the sides, the instances and the two switches are what every target passes"
@@ -851,7 +871,7 @@ impl Notation {
     }
 
     /// Writes a sequent one-sided: the turnstile, then its root formulas,
-    /// comma-separated.
+    /// separated by commas.
     pub(crate) fn one_sided<W: Write>(&self, out: &mut W, sequent: &Sequent) -> FmtResult {
         out.write_str(self.turnstile)?;
         for (i, &id) in sequent.roots().iter().enumerate() {
@@ -861,12 +881,15 @@ impl Notation {
         Ok(())
     }
 
-    /// Writes a sequent of a derivation, occurrences in ascending order:
-    /// one-sided, or two-sided under a reading with the hypotheses in the
-    /// order it writes them before the turnstile and the goal after it, which `aligned`
-    /// lines up with the turnstiles above and below. With `marks`, every
-    /// formula stands between the two characters `'\u{2}'` and `'\u{3}'`.
-    /// A member past the forest is an instance of the proof's `framing`.
+    /// Writes a sequent of a derivation, its occurrences in ascending order.
+    ///
+    /// - Without a reading it is one-sided. Under a reading it is
+    ///   two-sided: the hypotheses, in the order the reading writes them,
+    ///   then the turnstile and the goal.
+    /// - With `aligned`, the turnstile lines up with those above and below.
+    /// - With `marks`, every formula stands between the two characters
+    ///   `'\u{2}'` and `'\u{3}'`.
+    /// - A member past the forest is an instance of the proof's `framing`.
     #[expect(
         clippy::too_many_arguments,
         reason = "the sides, the instances and the two switches are what every target passes"
@@ -910,9 +933,8 @@ impl Notation {
     }
 
     /// Writes a sequent of a derivation as [`sequent`](Self::sequent) does,
-    /// whose members past the forest are instances of `sides.framing`: out
-    /// of line, so that a sequent of occurrences is written as it always
-    /// was.
+    /// its members past the forest instances of `sides.framing`. It is out
+    /// of line, so a sequent of occurrences alone pays nothing for it.
     #[cold]
     #[inline(never)]
     fn framed<W: Write>(
@@ -1033,10 +1055,10 @@ impl Notation {
         Ok(())
     }
 
-    /// Writes a sequent of ordinary formulas two-sided, `left ⊢ right`
-    /// in the order given, with the turnstile lined up as
-    /// [`sequent`](Self::sequent) does when `aligned` is set, and with
-    /// `marks` every formula between `'\u{2}'` and `'\u{3}'`.
+    /// Writes a sequent of ordinary formulas two-sided, `left ⊢ right`, in
+    /// the order given. With `aligned`, the turnstile is lined up as
+    /// [`sequent`](Self::sequent) does. With `marks`, every formula stands
+    /// between `'\u{2}'` and `'\u{3}'`.
     pub(crate) fn ordinary<W: Write>(
         &self,
         out: &mut W,

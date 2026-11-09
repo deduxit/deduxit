@@ -1,11 +1,11 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Atom names: identifiers of the text syntax in Unicode's composed
-//! normal form (NFC) that no keyword and no word reserved for a later
-//! version of the syntax takes, so that a sequent written as text reads
-//! back as itself, and a name means one atom however its accents were
-//! encoded.
+//! Atom names: identifiers of the text syntax, in Unicode's composed
+//! normal form (NFC), that are no keyword.
+//!
+//! The rules make a sequent written as text read back as itself, and make
+//! a name mean one atom however its accents were encoded.
 
 use crate::Error;
 use std::borrow::Cow;
@@ -18,8 +18,8 @@ pub(crate) const KEYWORDS: [&str; 3] = ["par", "top", "bot"];
 /// The keywords of the ordinary syntax: its constants.
 pub(crate) const ORDINARY_KEYWORDS: [&str; 2] = ["true", "false"];
 
-/// The keywords of the quantifiers, `forall x.` and `exists x.`, which
-/// name no atom, variable or symbol in either syntax.
+/// The quantifiers' keywords, `forall x.` and `exists x.`. They name no
+/// atom, variable or symbol in either syntax.
 pub(crate) const RESERVED: [&str; 2] = ["forall", "exists"];
 
 /// Returns whether an identifier may start with `c`: `_` or a character
@@ -29,9 +29,9 @@ pub(crate) fn starts_identifier(c: char) -> bool {
 }
 
 /// Returns whether `name` is an identifier: `_` or a character of
-/// `XID_Start`, then characters of `XID_Continue`. An ASCII name, which
-/// most are, is read without the Unicode tables: every JSON reader asks
-/// this of every name.
+/// `XID_Start`, then characters of `XID_Continue`. An ASCII name, as most
+/// are, is checked without the Unicode tables, since every JSON reader
+/// asks this of every name.
 pub(crate) fn is_identifier(name: &str) -> bool {
     if name.is_ascii() {
         let mut bytes = name.bytes();
@@ -44,7 +44,8 @@ pub(crate) fn is_identifier(name: &str) -> bool {
     chars.next().is_some_and(starts_identifier) && chars.all(unicode_ident::is_xid_continue)
 }
 
-/// Returns `name` in NFC: itself where it is, which every ASCII name is.
+/// Returns `name` in NFC, borrowed where it is in NFC already, as every
+/// ASCII name is.
 pub(crate) fn normalized(name: &str) -> Cow<'_, str> {
     if name.is_ascii() || is_nfc_quick(name.chars()) == IsNormalized::Yes {
         Cow::Borrowed(name)
@@ -55,6 +56,8 @@ pub(crate) fn normalized(name: &str) -> Cow<'_, str> {
 
 /// Checks that `name` can name an atom of a sequent: an identifier that is
 /// no keyword of the linear syntax and no quantifier's keyword.
+///
+/// Returns [`Error::AtomName`] otherwise.
 pub(crate) fn check(name: &str) -> Result<(), Error> {
     if is_identifier(name) && !KEYWORDS.contains(&name) && !RESERVED.contains(&name) {
         Ok(())
@@ -65,9 +68,11 @@ pub(crate) fn check(name: &str) -> Result<(), Error> {
     }
 }
 
-/// Checks that `name` can name an atom of an ordinary sequent: an atom
-/// name of a sequent, since the atom keeps its name in the translations,
-/// that is no keyword of the ordinary syntax either.
+/// Checks that `name` can name an atom of an ordinary sequent: it passes
+/// [`check`], since the atom keeps its name in the translations to linear
+/// logic, and is no keyword of the ordinary syntax (`true`, `false`).
+///
+/// Returns [`Error::AtomName`] otherwise.
 pub(crate) fn check_ordinary(name: &str) -> Result<(), Error> {
     check(name)?;
     if ORDINARY_KEYWORDS.contains(&name) {
@@ -133,8 +138,8 @@ mod tests {
         }
     }
 
-    /// A name is composed: `é` as `e` and a combining acute is the `é` of
-    /// one code point, and a name already composed is lent back.
+    /// A name is composed: `é` written as `e` and a combining acute becomes
+    /// the `é` of one code point, and a name already composed is borrowed.
     #[test]
     fn names_are_composed() {
         assert_eq!(normalized("e\u{301}x"), "\u{e9}x");
