@@ -616,7 +616,7 @@ intended).
 | FW1 | Reasons (refusal, verdict, "Cannot close", greyed export) are tips only; touch never sees them. | Show the sentence as a visible line under the keyword (W1). | See W1. | W1 |
 | FW2 | Undo beside a refusal undoes the last good step. | Remove it, or offer "Other rules" (W2). | See W2. | W2 |
 | FW3 | The first visit gives no syntax and no way to Learn or the Tour. | A syntax line (text); buttons for lesson 1 and the Tour (W3). | Text: none found (no test asserts "open one from Practice"). Buttons: W3. | text + W3 |
-| FW4 | Rules are bare symbols; their meaning is a hover with Learn on. | Show each rule's one-line `says` under its name with Learn on (W4). | See W4. | W4 |
+| FW4 | Rules are bare symbols; their meaning is a hover with Learn on. | A hint for every rule label, on hover, focus and tap (the author's request of 2026-11-09, in 54w-a; W4). | The e2e tests of the hint, which 54w-a adds. | answered (54w-a) |
 | FW5 | Refusal and hint sentences say what is wrong, not what to do; "ladder", "rung", "context"; the fourth Hint applies silently. | Rewrite (54w-a): add the next action ("Apply the other formulas' rules first"; "Press Hint again to apply it"). | The e2e and unit tests that assert the refusal and hint texts change with them (`src/lib/words.test.ts:80-110`, `tests/prover.spec.ts`, `tests/lessons.spec.ts`). | text |
 | FW6 | A goal lost by the student's step reads like an unprovable sequent. | "This goal has no proof. The sequent may still have one: an earlier step lost it." (54w-a); a "Go back" button is W15. | The tests asserting the verdict keywords for a goal (`tests/prover.spec.ts`). The button: W15. | text |
 | FW7 | Lesson 1 explains eight ideas before a one-step example; predictions offer untaught rules. | Cut the opening to what the example shows; De Morgan to lesson 2; `choices: ["ax", "no rule"]` (54w-a). A longer worked proof or the opening below it: W13. | `src/content/lessons.test.ts:77-91` (every played rule in `choices`) still holds with `["ax", "no rule"]`; lesson 1's e2e runs (`tests/lessons.spec.ts:70-100`) press "Predict ax", which stays. | text + W13 |
@@ -1052,8 +1052,17 @@ syntax?
   ⊗, `|` ⅋, `-o` ⊸, `|-` ⊢), or open one from Practice." The buttons'
   words come with W3.
 
-**W4. What a rule does, in the popover.** With Learn on, should each
-rule in the rule popover show its one-line `says` under its name?
+**W4. What a rule does, in the popover.** *Answered by the author on
+2026-11-09, after this review was written:* every rule label (the
+popover's list, the derivation's labels, Learn's steps, in every suite)
+gets a hint with the rule's full name, its form and one plain sentence,
+opening on hover, keyboard focus and tap, announced to screen readers;
+it is in 54w-a's scope (`plan/54w-text.md`, session 2). The question as
+first asked stays below for the record. That the hint opens on tap is
+the precedent W1 asks for the other reasons.
+
+With Learn on, should each rule in the rule popover show its one-line
+`says` under its name?
 - *Recommendation:* yes (recognition rather than recall, heuristic 6).
 - *Cost:* a taller popover; nothing changes with Learn off.
 - *Text either way:* the `says` lines are one clause each, every term
