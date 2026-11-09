@@ -1008,6 +1008,24 @@ fn an_unquoted_cut_formula_is_explained() {
     );
 }
 
+/// The refusal of an eigenvariable younger than the witness it would fill
+/// names the two-sided steps that introduce one, `∃L` among them.
+#[test]
+fn an_eigenvariable_of_exists_left_is_refused_by_its_step() {
+    let sequent = "forall x. exists y. r(x, y) |- exists y. forall x. r(x, y)";
+    let script = "apply 0 1 existsR\napply 1 1 forallR\napply 2 0 forallL a\n\
+                  apply 3 1 existsL\napply 4 0 ax\n";
+    let (_, out, _) = linlog(&["interact", "-i", sequent], script);
+    assert!(
+        out.ends_with(
+            "error: the eigenvariable b cannot stand there: no step below this goal introduced \
+             it (a ∀ step, or ∀R or ∃L two-sided), or it is younger than the open witness it \
+             would fill\n"
+        ),
+        "{out}"
+    );
+}
+
 /// `check` takes the mode a proof file states where no flag names one,
 /// and refuses a flag that names another.
 #[test]

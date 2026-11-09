@@ -178,9 +178,9 @@ pub enum StepError {
         reason: String,
     },
     /// The eigenvariable condition: the step would put an eigenvariable
-    /// where its `∀` step does not reach, into a witness of a goal that
-    /// no `∀` step below introduced it to, or into an open witness made
-    /// before it.
+    /// where the step that introduced it (a `∀`, or two-sided a `∀R` or an
+    /// `∃L`) does not reach, into a witness of a goal that no such step
+    /// below introduced it to, or into an open witness made before it.
     #[non_exhaustive]
     Eigenvariable {
         /// The eigenvariable, as the session writes it.
@@ -250,8 +250,9 @@ impl Display for StepError {
             StepError::Witness { reason } => write!(f, "the witness is no term here: {reason}"),
             StepError::Eigenvariable { name } => write!(
                 f,
-                "the eigenvariable {name} cannot stand there: no ∀ step below this goal \
-                 introduced it, or it is younger than the open witness it would fill"
+                "the eigenvariable {name} cannot stand there: no step below this goal \
+                 introduced it (a ∀ step, or ∀R or ∃L two-sided), or it is younger than the \
+                 open witness it would fill"
             ),
             StepError::CutSymbol { name } => write!(
                 f,
