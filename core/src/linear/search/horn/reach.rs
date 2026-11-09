@@ -1,23 +1,28 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Reachability by explicit states: every marking expanded is kept once,
-//! as its count vector written sparsely in a few bytes, and the frontier
-//! holds the successors not yet expanded as the marking and the
-//! transition they come from, nearest to the target first. A successor
-//! is written out only when it is expanded, and dropped then if it was
-//! kept before. A finite set of reachable markings is exhausted, which
-//! refutes the goal; an infinite one runs until the stop or the memory
+//! Reachability: whether the net's transitions, fired one after the
+//! other from the initial marking (a firing sequence), can reach the
+//! target marking. A marking is a count of tokens per place.
+//!
+//! The search visits the markings one by one. It keeps every marking it
+//! expands once, as its counts written sparsely in a few bytes. The
+//! frontier holds the successors not yet expanded, each as the marking
+//! and the transition it comes from, nearest to the target first. A
+//! successor is written out only when it is expanded, and dropped then if
+//! it was kept before. A finite set of reachable markings runs out, which
+//! refutes the goal. An infinite one runs until the stop or the memory
 //! bound.
 //!
 //! Once the forward search has done some work without deciding, a second
-//! search runs beside it, a share of the work at a time: the same search
-//! on the reversed net, from the target toward the initial marking, with
-//! the places that no transition raises capped at their initial count
-//! (no marking a firing sequence from the initial one passes has more).
-//! Its finding the initial marking is a firing sequence read backward,
-//! and its exhausting its markings refutes: nets whose markings grow
-//! without end forward often have few backward.
+//! search runs beside it, a share of the work at a time. It is the same
+//! search on the reversed net, from the target toward the initial
+//! marking. It caps the places that no transition raises at their initial
+//! count, since no marking that a firing sequence from the initial one
+//! passes has more. When it finds the initial marking, its firings read
+//! backward are a firing sequence. When it runs out of markings, that
+//! refutes. Nets whose markings grow without end forward often have few
+//! backward.
 
 use super::equation::Equation;
 use super::{Parents, Program};
@@ -28,33 +33,40 @@ use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 use std::hash::BuildHasher;
 
-/// The most markings the search keeps: their indices are `u32`, and the
-/// table stores an index plus one. Reaching it is
-/// [`Reason::IndexLimit`]; with a memory bound the bound comes first,
-/// since a marking kept takes more than thirty bytes.
+/// The most markings the search keeps. Their indices are `u32`, and the
+/// table stores an index plus one.
+///
+/// Reaching it is [`Reason::IndexLimit`]. With a memory bound the bound
+/// comes first, since a marking kept takes more than thirty bytes.
 pub(super) const MOST_MARKINGS: usize = u32::MAX as usize - 1;
 
-/// The markings the forward search keeps alone before the backward
-/// search starts beside it: a net decided within them is searched exactly
-/// as without the backward search, which most nets of practice are (a
-/// count of work instead started it after a few expansions of the
-/// library's largest nets).
+/// How many markings the forward search keeps alone before the backward
+/// search starts beside it.
+///
+/// A net decided within them is searched exactly as without the backward
+/// search, and most nets met in practice are. A count of work would start
+/// the backward search after a few expansions of the LLTP library's
+/// largest nets.
 const BACKWARD_AFTER: usize = 1 << 14;
 
 /// The backward search's share: it may do one unit of work for every
 /// this many of the forward search's.
 const FORWARD_PER_BACKWARD: u64 = 4;
 
-/// Searches the program's markings from the initial one for the target,
-/// polling `stop` at every successor taken from the frontier, keeping at
-/// most `most` markings in each direction and giving `equation` and the
-/// backward search their shares of the work, and returns the transitions
-/// of a firing sequence that reaches it, `None` when the markings of
-/// either direction are exhausted or the state equation refutes, or the
-/// reason it stopped; and the counters of both directions: the initial
-/// marking and the successors taken from the frontier as `nodes`, those
-/// of them kept already or above a cap as `memo_hits`, the markings kept,
-/// each expanded once, as `memo_entries`.
+/// Searches the program's markings from the initial one for the target.
+///
+/// Returns the transitions of a firing sequence that reaches the target,
+/// `None` when the markings of either direction run out or the state
+/// equation refutes, or the reason the search stopped. Also returns the
+/// counters of both directions:
+/// - `nodes`: the initial marking and the successors taken from the
+///   frontier;
+/// - `memo_hits`: those of them kept already or above a cap;
+/// - `memo_entries`: the markings kept, each expanded once.
+///
+/// It polls `stop` at every successor taken from the frontier, keeps at
+/// most `most` markings in each direction, and gives `equation` and the
+/// backward search their shares of the work.
 pub(super) fn search(
     program: &Program,
     account: &Account,
@@ -63,7 +75,7 @@ pub(super) fn search(
     stop: &mut dyn FnMut(u64) -> bool,
 ) -> (Result<Option<Vec<u32>>, Reason>, Statistics) {
     // The reversed program and the backward search are made only when the
-    // backward search starts: most nets are decided before.
+    // backward search starts, since most nets are decided before.
     let reversed = OnceCell::new();
     let mut forward = Reach::new(program, account, Vec::new());
     let mut backward = None;
@@ -80,9 +92,11 @@ pub(super) fn search(
     (result, statistics)
 }
 
-/// The forward search with the state equation and the backward search
-/// beside it, as [`search`] describes; the backward search is made in
-/// `backward` when it starts, on the program reversed in `reversed`.
+/// Runs the forward search with the state equation and the backward
+/// search beside it, as [`search`] describes.
+///
+/// The backward search is made in `backward` when it starts, on the
+/// program reversed in `reversed`.
 fn both<'a>(
     forward: &mut Reach<'a>,
     backward: &mut Option<Reach<'a>>,
@@ -96,7 +110,7 @@ fn both<'a>(
     // Out of room, the forward search takes back the simplex's memory and
     // the backward search's, and tries once more.
     let release = |equation: &mut Equation<'_>, backward: &mut Option<Reach<'a>>| {
-        // Both give back, whichever held something.
+        // Both give back at once, whichever of them held something.
         let gave = equation.release();
         backward.as_mut().is_some_and(Reach::give_back) || gave
     };
@@ -140,7 +154,7 @@ fn both<'a>(
     }
 }
 
-/// What a step or a slice of a search came to.
+/// The outcome of a step or a slice of a search.
 enum Slice {
     /// The target was reached, by these firings from the initial marking.
     Found(Vec<u32>),
@@ -150,34 +164,40 @@ enum Slice {
     Paused,
 }
 
-/// An entry of the frontier: the distance of the successor to the
-/// target above and its parent's index complemented below, so that the
-/// nearest comes first and, among equals, a successor of the latest
-/// marking expanded; and the transition that leads to it.
+/// An entry of the frontier: a key and the transition that leads to the
+/// successor.
+///
+/// The key has the successor's distance to the target in its high bits
+/// and its parent's index complemented in its low bits. So the nearest
+/// successor comes first and, among equals, a successor of the latest
+/// marking expanded.
 type Successor = Reverse<(u64, u32)>;
 
-/// The state of a search: the markings kept, the frontier, the index of
-/// the transitions by their first input place, the marking at hand, and
-/// the counters.
+/// A search in one direction: the markings kept, the frontier, the
+/// transitions indexed by their first input place, the marking at hand,
+/// and the counters.
 struct Reach<'a> {
-    /// The program.
+    /// The program searched.
     program: &'a Program,
-    /// The tokens of the target, the distance to it of the empty
-    /// marking: at most the forest's occurrences.
+    /// The tokens of the target, which is the empty marking's distance to
+    /// it. At most the forest's occurrences.
     target_total: u64,
-    /// The markings kept, one after the other, each as its marked places
-    /// in increasing order, a place as its distance from the one before
-    /// less one and then its count less one, both in LEB128: a function
-    /// of the marking, so two are equal exactly when their bytes are.
+    /// The markings kept, one after the other.
+    ///
+    /// Each is its marked places in increasing order. A place is written
+    /// as its distance from the one before less one, then its count less
+    /// one, both in LEB128. The bytes are a function of the marking, so
+    /// two markings are equal exactly when their bytes are.
     bytes: Vec<u8>,
     /// Where each marking's bytes end.
     ends: Vec<u64>,
     /// The hash of each marking's bytes.
     hashes: Vec<u64>,
-    /// The marking each was reached from and the transition fired.
+    /// For each marking kept, the marking it was reached from and the
+    /// transition fired.
     parents: Parents,
-    /// The table of markings: a power of two of slots, each zero or a
-    /// marking's index plus one, at most half of them used.
+    /// The hash table of markings: a power of two of slots, each zero or
+    /// a marking's index plus one. At most half of them are used.
     slots: Vec<u32>,
     /// The successors to expand.
     frontier: BinaryHeap<Successor>,
@@ -186,9 +206,10 @@ struct Reach<'a> {
     starts: Vec<u32>,
     /// The transitions by their first input place.
     by_place: Vec<u32>,
-    /// The transitions without inputs, always enabled.
+    /// The transitions without inputs, which can always fire.
     free: Vec<u32>,
-    /// The marking at hand, as a count per place: zero but on `marked`.
+    /// The marking at hand, as a count per place: zero except on
+    /// `marked`.
     counts: Vec<u32>,
     /// The places the marking at hand marks, in increasing order.
     marked: Vec<u32>,
@@ -196,7 +217,7 @@ struct Reach<'a> {
     next: Vec<u32>,
     /// A buffer for a marking's bytes.
     written: Vec<u8>,
-    /// What the buffers that grow hold.
+    /// The memory charged for the buffers that grow.
     charged: Charged<'a>,
     /// The successors taken from the frontier that were kept already or
     /// above a cap.
@@ -205,19 +226,19 @@ struct Reach<'a> {
     kept: usize,
     /// The work done, in transitions examined and markings written.
     work: u64,
-    /// The most tokens a marking may hold on each place, the marking
-    /// above it dropped; empty for no caps.
+    /// The most tokens a marking may hold on each place. A marking above
+    /// a cap is dropped. Empty for no caps.
     caps: Vec<u32>,
     /// Whether the search has started.
     started: bool,
-    /// Whether the search still holds its markings, not having given its
-    /// memory back.
+    /// Whether the search still holds its markings, that is, has not
+    /// given its memory back.
     alive: bool,
 }
 
 impl<'a> Reach<'a> {
-    /// A search of the program with nothing kept yet, with caps per place
-    /// or none.
+    /// Returns a search of the program with nothing kept yet, with caps
+    /// per place, or none when `caps` is empty.
     fn new(program: &'a Program, account: &'a Account, caps: Vec<u32>) -> Self {
         let width = program.places;
         let mut starts = vec![0u32; width + 1];
@@ -267,13 +288,14 @@ impl<'a> Reach<'a> {
         }
     }
 
-    /// The markings taken: the kept and the dropped.
+    /// Returns how many markings were taken: the kept and the dropped.
     fn nodes(&self) -> u64 {
         self.kept as u64 + self.repeated
     }
 
     /// Gives back the memory the markings hold, for a search beside this
-    /// one that has no room left: returns whether there was any to give.
+    /// one that has no room left. Returns whether there was any to give.
+    ///
     /// This search then ends without deciding.
     fn give_back(&mut self) -> bool {
         if !self.alive || !self.started {
@@ -290,9 +312,11 @@ impl<'a> Reach<'a> {
         true
     }
 
-    /// Starts at the initial marking: returns the empty firing sequence
-    /// if it is the target, the firing that reaches the target from it if
-    /// one does, and else nothing, its successors on the frontier.
+    /// Starts at the initial marking.
+    ///
+    /// Returns the empty firing sequence if the initial marking is the
+    /// target, and the firing that reaches the target from it if one does.
+    /// Otherwise returns `None`, with its successors on the frontier.
     fn start(
         &mut self,
         most: usize,
@@ -325,7 +349,8 @@ impl<'a> Reach<'a> {
     }
 
     /// Runs until the work reaches `until`, polling `stop` at every
-    /// successor; out of room, it ends.
+    /// successor. Out of room, it fails with the reason, and the caller
+    /// ends it (`give_back`).
     fn advance(
         &mut self,
         until: u64,
@@ -349,11 +374,12 @@ impl<'a> Reach<'a> {
         Ok(Slice::Paused)
     }
 
-    /// Takes the marking at hand, reached from `parent` by `transition`:
-    /// drops it if it is kept already or above a cap, and else keeps and
-    /// expands it; returns the firing sequence when one of its successors
-    /// is the target. Out of room, it calls `release` and tries once more
-    /// if that gave memory back.
+    /// Takes the marking at hand, reached from `parent` by `transition`.
+    ///
+    /// Drops it if it is kept already or above a cap, and otherwise keeps
+    /// and expands it. Returns the firing sequence when one of its
+    /// successors is the target. Out of room, it calls `release` and tries
+    /// once more if that gave memory back.
     fn take(
         &mut self,
         parent: u32,
@@ -390,8 +416,8 @@ impl<'a> Reach<'a> {
         Ok(None)
     }
 
-    /// The distance of the marking at hand to the target: the tokens by
-    /// which the two differ.
+    /// Returns the distance of the marking at hand to the target: the
+    /// tokens by which the two differ.
     fn distance(&self) -> u64 {
         let target = &self.program.target;
         let unmarked: u64 = self.target_total
@@ -409,8 +435,10 @@ impl<'a> Reach<'a> {
     }
 
     /// Puts every successor of the marking at hand, kept as `index`, on
-    /// the frontier; returns a transition that reaches the target from
-    /// it, if one does, or why the frontier has no room.
+    /// the frontier.
+    ///
+    /// Returns a transition that reaches the target from it, if one does.
+    /// Fails with the memory limit when the frontier has no room.
     fn expand(&mut self, index: u32) -> Result<Option<u32>, Reason> {
         let program = self.program;
         let distance = self.distance();
@@ -441,7 +469,8 @@ impl<'a> Reach<'a> {
                 self.marked = marked;
                 return Ok(Some(t));
             }
-            // A distance of 2³² or more ranks with the farthest.
+            // The key holds 32 bits of distance, so a distance of 2³² or
+            // more ranks with the farthest.
             let rank = d.min(u64::from(u32::MAX));
             successors.push(Reverse((rank << 32 | u64::from(u32::MAX - index), t)));
         }
@@ -466,8 +495,11 @@ impl<'a> Reach<'a> {
         Ok(None)
     }
 
-    /// Makes the marking kept as `parent` with `transition` fired the
-    /// marking at hand, or says that a count would pass `u32::MAX`.
+    /// Makes the marking at hand the marking kept as `parent`, with
+    /// `transition` fired on it.
+    ///
+    /// Fails with [`Reason::IndexLimit`] when a count would pass
+    /// `u32::MAX`.
     fn successor(&mut self, parent: u32, transition: u32) -> Result<(), Reason> {
         let start = match parent {
             0 => 0,
@@ -487,7 +519,7 @@ impl<'a> Reach<'a> {
             self.counts[p as usize] -= w;
         }
         // The places marked before and those the transition marks, in
-        // order, without those it empties.
+        // order. The places it empties are removed below.
         self.next.clear();
         let outputs = program.outputs(transition);
         let (mut i, mut o) = (0, 0);
@@ -545,12 +577,12 @@ impl<'a> Reach<'a> {
         self.marked.clear();
     }
 
-    /// The hash of the marking written.
+    /// Returns the hash of the marking written.
     fn hash(&self) -> u64 {
         crate::hash::BuildHasher::default().hash_one(&self.written)
     }
 
-    /// The index of the marking written, if it is kept.
+    /// Returns the index of the marking written, if it is kept.
     fn find(&self) -> Option<u32> {
         if self.slots.is_empty() {
             return None;
@@ -568,8 +600,8 @@ impl<'a> Reach<'a> {
         }
     }
 
-    /// Keeps the marking written, reached from `parent` by `transition`;
-    /// returns its index, or why it cannot be kept.
+    /// Keeps the marking written, reached from `parent` by `transition`.
+    /// Returns its index, or the reason it cannot be kept.
     fn keep(&mut self, parent: u32, transition: u32, most: usize) -> Result<u32, Reason> {
         let index = self.parents.len();
         if index >= most {
@@ -628,7 +660,8 @@ impl<'a> Reach<'a> {
         true
     }
 
-    /// The transitions fired from the initial marking to marking `j`.
+    /// Returns the transitions fired from the initial marking to marking
+    /// `j`.
     fn path(&self, j: u32) -> Vec<u32> {
         let mut firings = self.parents.up(j);
         firings.reverse();
@@ -636,9 +669,11 @@ impl<'a> Reach<'a> {
     }
 }
 
-/// The distance to the target after a transition with these arcs fires
-/// on `counts`, at `distance` before. Both lists of arcs are sorted, so
-/// a place both touch is counted once.
+/// Returns the distance to the target after a transition with these arcs
+/// fires on `counts`, whose distance was `distance`.
+///
+/// Both lists of arcs are sorted, so a place that both touch is counted
+/// once.
 fn moved(
     distance: u64,
     inputs: &[(u32, u32)],
@@ -669,7 +704,7 @@ fn moved(
             (None, None) => unreachable!("the loop's condition"),
         };
         let (count, goal) = (u64::from(counts[p as usize]), u64::from(target[p as usize]));
-        // In u64 a count past u32::MAX is still exact; the successor
+        // In u64 a count past u32::MAX is still exact. The successor
         // refuses it when it is written out.
         let after = count - u64::from(taken) + u64::from(given);
         distance = distance - count.abs_diff(goal) + after.abs_diff(goal);
@@ -702,14 +737,14 @@ fn get(bytes: &[u8], at: &mut usize) -> u32 {
 }
 
 /// Makes room in a buffer for `more` elements, doubling it, and charges
-/// what it grew by; returns false when the bound has no room.
+/// what it grew by. Returns false when the bound has no room.
 pub(super) fn room<T>(buffer: &mut Vec<T>, more: usize, charged: &mut Charged<'_>) -> bool {
     if buffer.capacity() - buffer.len() >= more {
         return true;
     }
     let before = bytes_of(buffer);
-    // On a target of 32 bits these could pass `usize::MAX`: that is a
-    // buffer the bound cannot have room for.
+    // On a 32-bit target these could pass `usize::MAX`. Such a buffer
+    // cannot fit the bound either.
     let capacity = buffer
         .len()
         .checked_add(more)

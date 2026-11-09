@@ -1,15 +1,20 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The proof of a Horn program read off a firing sequence. Bottom up it
-//! moves the clauses under `?` into the unrestricted zone, decomposes the
-//! markings into tokens, and fires: a copy of the clause (or the clause
-//! used once itself), whose tensors hand each body literal the token it
-//! consumes by an axiom and the rest of the linear zone to the head, whose
-//! `⅋` and `⊥` leave its literals as new tokens beside it. At the top the
-//! goal's tensors meet the tokens left, an axiom each, and in affine mode
-//! the tokens beyond the goal's and the clauses used once that were not
-//! are weakened there.
+//! The proof of a Horn program read off a firing sequence.
+//!
+//! Read from the root up, the proof does three things. It moves the
+//! clauses under `?` into the unrestricted zone (the formulas that may be
+//! used any number of times). It decomposes the markings into tokens,
+//! one literal each. Then it fires the clauses in order. A firing is a
+//! copy of a clause under `?`, or the clause used once itself. Its
+//! tensors give each body literal the token it takes, by an axiom, and
+//! the rest of the linear zone to the head. The head's `⅋` and `⊥` leave
+//! its literals beside the rest as new tokens.
+//!
+//! At the top, the goal's tensors meet the tokens left, an axiom each. In
+//! affine mode the tokens beyond the goal's, and the clauses used once
+//! that no firing used, are weakened there.
 
 use super::{Clause, Program, clause_head};
 use crate::linear::occurrences::{Forest, Member, OccId, Sign};
@@ -18,15 +23,20 @@ use crate::linear::search::Reason;
 use crate::linear::search::memory::{Account, Charged};
 use crate::linear::sequents::Kind;
 
-/// The most nodes a proof may have: its ids are `u32`. A proof larger
-/// than that is [`Reason::IndexLimit`]; with a memory bound the bound
-/// comes first, since a node takes sixteen bytes.
+/// The most nodes a proof may have, since its ids are `u32`.
+///
+/// A larger proof is [`Reason::IndexLimit`]. With a memory bound the
+/// bound comes first, since a node takes sixteen bytes.
 pub(super) const MOST_NODES: u64 = u32::MAX as u64;
 
 /// Builds the proof of the program's goal that fires `firings` from the
-/// initial marking, which reaches the target, or in affine mode covers
-/// it, into an arena of at most `most` nodes, the arena charged to
-/// `account`; returns its root and the arena, or why it is not built.
+/// initial marking. The firings reach the target, or in affine mode cover
+/// it.
+///
+/// Returns the proof's root and its arena of at most `most` nodes, which
+/// is charged to `account`. Fails with [`Reason::IndexLimit`] when the
+/// proof has more nodes, and with the memory limit when the account has
+/// no room.
 pub(super) fn build(
     forest: &Forest,
     program: &Program,
@@ -36,8 +46,9 @@ pub(super) fn build(
     most: u64,
 ) -> Result<(NodeId, Vec<Node>), Reason> {
     let mut charged = Charged::new(account);
-    // The clause each firing fires, and its size: an occurrence of the
-    // clause is at most one node, and a copy one more.
+    // The clause each firing fires, and whether it is under `?`. Each
+    // occurrence of the clause is at most one node, and a copy is one
+    // more.
     let mut once = program.once.clone();
     let clauses: Vec<(OccId, bool)> = firings
         .iter()
@@ -51,7 +62,8 @@ pub(super) fn build(
             ),
         })
         .collect();
-    // In affine mode the clauses used once that the firings left.
+    // The clauses used once that no firing used, which only affine mode
+    // leaves.
     let unused: Vec<OccId> = once.into_iter().flatten().collect();
     debug_assert!(affine || unused.is_empty());
     let size = |o: OccId| u64::from(forest.size(o));
@@ -63,8 +75,8 @@ pub(super) fn build(
         return Err(Reason::IndexLimit);
     }
     // A weakening for each token left beside the goal's: the tokens given
-    // and made less those taken, each a literal and so a node counted
-    // above, so that none of these sums passes twice the bound.
+    // and made less those taken. Each token is a literal, and so a node
+    // counted above. So none of these sums passes twice the bound.
     let atoms = program.places - program.once.len();
     let literals = |arcs: &[(u32, u32)]| {
         arcs.iter()
@@ -85,9 +97,11 @@ pub(super) fn build(
     if nodes > most {
         return Err(Reason::IndexLimit);
     }
-    // The nodes, and a pair of a body literal and its token for each, at
-    // most a node each; the tokens the replay keeps, a literal each; and
-    // the clauses fired, with where each one's pairs start.
+    // The charge covers:
+    // - the nodes;
+    // - a pair of a body literal and its token per node at most;
+    // - the tokens the replay keeps, a literal and so a node each;
+    // - the clauses fired, with where each one's pairs start.
     let per_node = size_of::<Node>() + size_of::<(OccId, OccId)>() + size_of::<OccId>();
     let per_firing = size_of::<(OccId, bool)>() + size_of::<usize>();
     let bytes = usize::try_from(nodes)
@@ -108,7 +122,8 @@ pub(super) fn build(
         nodes: Vec::with_capacity(nodes as usize),
         values: Vec::new(),
     };
-    // The goal's pairs come last in the replay, each firing's in its place.
+    // The goal's pairs come last in the replay, and each firing's in its
+    // place.
     let mut goal = &pairs[starts[clauses.len()]..];
     let mut root = builder.clause(program.goal, None, &mut goal, NodeId::new(0));
     debug_assert_eq!(goal, []);
@@ -133,20 +148,22 @@ pub(super) fn build(
     Ok((root, builder.nodes))
 }
 
-/// The tokens of a marking.
+/// Returns the tokens of a marking.
 fn literals_of(marking: &[u32]) -> u64 {
     marking.iter().map(|&c| u64::from(c)).sum()
 }
 
-/// Replays the firings on the tokens, which are occurrences of head
-/// literals, from those of the markings: every body literal of a clause
-/// fired takes a token of its atom, and its head's literals become
-/// tokens. Returns the pairs of a body literal and its token, each
-/// firing's and then the goal's, each in decreasing order of the body
-/// literals' ids, which is the order the proof takes them in; where each
-/// firing's pairs start, and the goal's last; and the tokens the goal
-/// leaves, which only a firing sequence that covers the target and does
-/// not reach it leaves.
+/// Replays the firings on the tokens, starting from the markings' tokens.
+/// A token is an occurrence of a head literal.
+///
+/// Every body literal of a clause fired takes a token of its atom, and
+/// the clause's head literals become tokens. Returns three things:
+/// - the pairs of a body literal and its token, each firing's and then
+///   the goal's, each in decreasing order of the body literals' ids,
+///   which is the order the proof takes them in;
+/// - where each firing's pairs start, and the goal's last;
+/// - the tokens the goal leaves, which only a firing sequence that covers
+///   the target without reaching it leaves.
 fn replay(
     forest: &Forest,
     program: &Program,
@@ -162,7 +179,7 @@ fn replay(
             tokens[place(x)].push(x);
         }
     }
-    // Each firing's pairs and the goal's, and where they start.
+    // Each firing's pairs and the goal's, and where each list starts.
     let mut pairs = Vec::with_capacity(capacity);
     let mut starts = Vec::with_capacity(clauses.len() + 1);
     let take =
@@ -189,14 +206,14 @@ fn replay(
     (pairs, starts, tokens.into_iter().flatten().collect())
 }
 
-/// What builds the nodes: the forest, the sign of the bodies, the arena,
-/// and a stack of the nodes that prove the factors of a tensor.
+/// The builder of the proof's nodes: the forest, the sign of the bodies,
+/// the arena, and a stack of the nodes that prove a tensor's factors.
 struct Builder<'a> {
     /// The forest.
     forest: &'a Forest,
     /// The sign of the bodies' atoms.
     body: Sign,
-    /// The arena.
+    /// The arena of the proof's nodes.
     nodes: Vec<Node>,
     /// The proofs of the factors of a clause whose tensors are not built
     /// yet.
@@ -211,8 +228,11 @@ impl Builder<'_> {
     }
 
     /// Wraps `above`, whose conclusion holds the literals of a head or a
-    /// marking, in that formula's `⅋` and `⊥`: in decreasing order of
-    /// ids, so that both subformulas of a `⅋` are there when it comes.
+    /// marking, in that formula's `⅋` and `⊥` rules, and returns the new
+    /// root.
+    ///
+    /// The rules go in decreasing order of ids, so both subformulas of a
+    /// `⅋` are in the conclusion when its rule comes.
     fn head(&mut self, head: OccId, mut above: NodeId) -> NodeId {
         for x in self.forest.subtree(head).rev() {
             match self.forest.kind(x) {
@@ -224,11 +244,13 @@ impl Builder<'_> {
         above
     }
 
-    /// Builds the proof of a clause fired, or of the goal, whose head's
-    /// literals the proof `above` takes as tokens: an axiom for each body
-    /// literal with its token, the next of `pairs`, `1` for each `1`, and
-    /// the tensors over them, in decreasing order of ids, so that both
-    /// factors of a tensor are proved when it comes.
+    /// Builds the proof of a clause fired, or of the goal, and returns its
+    /// root. The proof `above` takes the head's literals as tokens.
+    ///
+    /// The proof has an axiom for each body literal with its token (the
+    /// next of `pairs`), a `1` rule for each `1`, and the tensors over
+    /// them. The nodes go in decreasing order of ids, so both factors of a
+    /// tensor are proved when it comes.
     fn clause(
         &mut self,
         clause: OccId,

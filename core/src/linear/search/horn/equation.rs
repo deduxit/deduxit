@@ -1,54 +1,68 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The state equation of a net: a marking `M` reached from `M₀` by firing
-//! each transition `t` some `xₜ` times is `M = M₀ + Σ xₜ·Cₜ`, `Cₜ` the
-//! transition's effect, and a marking that covers the target is at least
-//! the target. When no rational `x ≥ 0` solves that, Farkas' lemma gives a
-//! weight per place, `y`, such that no transition raises the weighted
-//! count of a marking (`y·Cₜ ≤ 0`) while the target asks it raised
-//! (`y·(M − M₀) > 0`), and in affine mode no weight is negative: then no
-//! firing sequence reaches, or covers, the target.
+//! The state equation of a net, which can prove that no firing sequence
+//! reaches, or covers, the target.
 //!
-//! A simplex in floating point proposes the weights; [`certify`](crate::linear::search::horn::equation::certify) checks
-//! them in exact integer arithmetic, and only a vector it accepts refutes,
-//! so a rounding error of the simplex costs a refutation and never makes
-//! a wrong one. The simplex runs beside a search, a slice at a time, its
-//! work kept in step with the search's: most nets of practice are
-//! decided by the search long before the tableau would be worth its
-//! cost.
+//! A marking `M` reached from `M₀` by firing each transition `t` some
+//! `xₜ` times is `M = M₀ + Σ xₜ·Cₜ`, where `Cₜ` is the transition's
+//! effect: the tokens it puts on each place less those it takes. A
+//! marking that covers the target is at least the target. When no
+//! rational `x ≥ 0` solves that, Farkas' lemma gives a weight `y` per
+//! place such that:
+//! - no transition raises the weighted count of a marking (`y·Cₜ ≤ 0`);
+//! - the target asks for it raised (`y·(M − M₀) > 0`);
+//! - in affine mode, no weight is negative.
+//!
+//! Then no firing sequence reaches, or covers, the target.
+//!
+//! A simplex in floating point proposes the weights.
+//! [`certify`](crate::linear::search::horn::equation::certify) checks them
+//! in exact integer arithmetic, and only a vector it accepts refutes. So a
+//! rounding error of the simplex costs a refutation and never makes a
+//! wrong one. The simplex runs beside a search, a slice at a time, its
+//! work kept in step with the search's. The search decides most nets met
+//! in practice long before the tableau would be worth its cost.
 
 use super::Program;
 use crate::linear::search::Reason;
 use crate::linear::search::memory::{Account, Charged};
 
-/// The entries of the simplex's basis and columns it may touch for each
-/// unit of work the search beside it has done in affine mode: a unit is a
-/// marking computed, an element compared or a lookup, which takes some
-/// sixteen times an entry's update, so the simplex has about half the
-/// time. A coverability problem from verification is mostly safe, and the
-/// equation refutes most of those.
+/// How many entries of its basis and columns the simplex may touch for
+/// each unit of work the search beside it has done, in affine mode.
+///
+/// There a unit is a marking computed, an element compared or a lookup.
+/// A unit takes some sixteen times an entry's update, so the simplex has
+/// about half the time. Most coverability problems from verification are
+/// safe (the target is not coverable), and the equation refutes most of
+/// those.
 const AFFINE_ENTRIES_PER_UNIT: u64 = 16;
 
 /// The same in linear mode, where a unit is a transition examined or a
-/// marking written: about a fifth of the time, beside a search that on
-/// the nets of practice mostly proves the goal.
+/// marking written. This gives the simplex about a fifth of the time,
+/// since there the search mostly proves the goal on the nets met in
+/// practice.
 const LINEAR_ENTRIES_PER_UNIT: u64 = 4;
 
-/// What the tolerance of the simplex counts as zero. The tableau starts
-/// with small integers, and what the simplex gets wrong by more than this
-/// only costs a refutation, since the weights it proposes are checked
-/// exactly.
+/// The simplex's tolerance: what it counts as zero.
+///
+/// The tableau starts with small integers. An error of the simplex larger
+/// than this only costs a refutation, since the weights it proposes are
+/// checked exactly.
 const EPSILON: f64 = 1e-9;
 
-/// The largest denominator a weight is read as, before the weights are
-/// brought to integers: the weights of a vertex are ratios of
-/// determinants of the tableau, small on nets of small weights.
+/// The largest denominator a weight is read with, before the weights are
+/// brought to integers.
+///
+/// The weights of a vertex are ratios of determinants of the tableau,
+/// which are small on nets of small weights.
 const MOST_DENOMINATOR: i64 = 1 << 20;
 
-/// The largest common denominator of the weights: a fraction `n/d` of
-/// the weights' range has `|n| ≤ d`, so its integer `n · (common / d)` is
-/// at most the common denominator, 2⁴⁰, which an `i64` holds.
+/// The largest common denominator of the weights.
+///
+/// A fraction `n/d` of the weights' range has `|n| ≤ d`, so its integer
+/// `n · (common / d)` is at most the common denominator, 2⁴⁰, which an
+/// `i64` holds.
 const MOST_COMMON_DENOMINATOR: i64 = 1 << 40;
 
 /// The state equation of a program, solved a slice at a time.
@@ -62,7 +76,7 @@ pub(super) struct Equation<'a> {
     /// The tableau's memory, charged to the search's account.
     charged: Charged<'a>,
     /// The weights that refute the target, once found and checked: a
-    /// place and its weight, for the places of the tableau's rows.
+    /// place and its weight for each place of the tableau's rows.
     certificate: Option<Vec<(u32, i64)>>,
 }
 
@@ -72,16 +86,17 @@ enum State {
     Waiting,
     /// Pivoting.
     Solving(Tableau),
-    /// Its tableau given back to a search that ran out of room; it starts
-    /// again only after the search, from [`Equation::finish`].
+    /// Its tableau given back to a search that ran out of room, or never
+    /// built because it did not fit beside the search. It starts again
+    /// only after the search, from [`Equation::finish`].
     Yielded,
     /// Done: refuted, solved, or given up.
     Done,
 }
 
 impl<'a> Equation<'a> {
-    /// The state equation of a program not yet looked at, whose tableau
-    /// will be charged to `account`.
+    /// Returns the state equation of a program not yet looked at, whose
+    /// tableau will be charged to `account`.
     pub(super) fn new(affine: bool, account: &'a Account) -> Self {
         Self {
             affine,
@@ -92,7 +107,8 @@ impl<'a> Equation<'a> {
         }
     }
 
-    /// The entries the simplex may touch for the search's `work`.
+    /// Returns how many entries the simplex may touch for the search's
+    /// `work`.
     pub(super) fn budget(&self, work: u64) -> u64 {
         let per_unit = if self.affine {
             AFFINE_ENTRIES_PER_UNIT
@@ -103,14 +119,15 @@ impl<'a> Equation<'a> {
     }
 
     /// Whether the simplex would run within `budget` entries: it is
-    /// neither done nor yielded and has spent less.
+    /// neither done nor yielded, and it has spent less.
     pub(super) fn wants(&self, budget: u64) -> bool {
         !matches!(self.state, State::Done | State::Yielded) && self.spent < budget
     }
 
     /// Gives the tableau's memory back, for a search that has no room
-    /// left: returns whether there was a tableau to give. The search never
-    /// loses a decision to the simplex's memory.
+    /// left. Returns whether there was a tableau to give.
+    ///
+    /// So the search never loses a decision to the simplex's memory.
     pub(super) fn release(&mut self) -> bool {
         if !matches!(self.state, State::Solving(_)) {
             return false;
@@ -121,8 +138,9 @@ impl<'a> Equation<'a> {
     }
 
     /// Runs the simplex to its end after a search that ran out of room and
-    /// gave its memory back, starting afresh if it had yielded; returns
-    /// what [`run`](Self::run) does.
+    /// gave its memory back. It starts afresh if it had yielded.
+    ///
+    /// Returns what [`run`](Self::run) does.
     pub(super) fn finish(
         &mut self,
         program: &Program,
@@ -135,10 +153,13 @@ impl<'a> Equation<'a> {
     }
 
     /// Runs the simplex until it has touched `budget` entries in all, or
-    /// is done; returns whether the weights it found refute the target,
-    /// or that `stop` fired, which it polls at every pivot. A tableau the
-    /// memory bound has no room for, a solution, and a pivot limit end it
-    /// without a refutation.
+    /// is done.
+    ///
+    /// Returns whether the weights it found refute the target. Fails with
+    /// [`Reason::Stopped`] when `stop` fires, which it polls at every
+    /// pivot. It returns false without a refutation when its tableau does
+    /// not fit beside the search (it then waits for `finish`), and it ends
+    /// without one at a solution or at the pivot limit.
     pub(super) fn run(
         &mut self,
         program: &Program,
@@ -147,8 +168,9 @@ impl<'a> Equation<'a> {
     ) -> Result<bool, Reason> {
         if let State::Waiting = self.state {
             // The set-up reads every arc and lays out a basis of up to a
-            // row per place, and a pivot touches it twice: the simplex
-            // waits until the search has done as much as both.
+            // row per place, and a pivot touches that basis twice. The
+            // simplex waits until the budget covers all of it, so a net
+            // the search decides at once never builds a tableau.
             let places = program.places as u64;
             let set_up = places
                 .saturating_mul(places)
@@ -162,7 +184,7 @@ impl<'a> Equation<'a> {
                     self.spent = self.spent.saturating_add(tableau.entries());
                     State::Solving(tableau)
                 }
-                // No room beside the search: it may have after the
+                // No room beside the search. There may be room after the
                 // search, from `finish`.
                 None => State::Yielded,
             };
@@ -184,7 +206,7 @@ impl<'a> Equation<'a> {
                 Step::GiveUp => break None,
             }
         };
-        // The tableau goes, and what it was charged with it.
+        // The tableau goes, and so does its charge.
         self.state = State::Done;
         self.charged = Charged::new(self.charged.account());
         self.certificate = weights
@@ -193,15 +215,15 @@ impl<'a> Equation<'a> {
         Ok(self.certificate.is_some())
     }
 
-    /// The weights that refute the target, a place and its weight, the
-    /// places not named weighing nothing, if the simplex found them and
-    /// [`certify`] accepted them.
+    /// Returns the weights that refute the target, if the simplex found
+    /// them and [`certify`] accepted them. Each is a place and its weight,
+    /// and the places not named weigh nothing.
     pub(super) fn certificate(&self) -> Option<&[(u32, i64)]> {
         self.certificate.as_deref()
     }
 }
 
-/// What a pivot came to.
+/// The outcome of a pivot.
 enum Step {
     /// The basis changed.
     Pivoted,
@@ -211,15 +233,19 @@ enum Step {
     GiveUp,
 }
 
-/// The first phase of the revised simplex for `A·x (= or ≥) b`, `x ≥ 0`:
-/// one row per place the net touches, each signed so that its right-hand
-/// side is not negative; a column per distinct effect of a transition, in
-/// affine mode a surplus column per row, and an artificial column per row,
-/// whose sum is the objective, zero exactly when the equation has a
-/// solution. The basis is kept as its dense inverse and the columns
-/// sparse, so a pivot costs the square of the rows and a pass over the
-/// columns' entries, not the rows times the columns: a net of practice has
-/// hundreds of places and tens of thousands of transitions.
+/// The first phase of the revised simplex for `A·x (= or ≥) b`, `x ≥ 0`.
+///
+/// It has one row per place that a transition changes or where the
+/// target and the initial marking differ. Each row is signed so that its
+/// right-hand side is not negative. The columns are one per distinct
+/// effect of a transition, in affine mode a surplus column per row, and
+/// an artificial column per row. The artificial columns' sum is the
+/// objective, which is zero exactly when the equation has a solution.
+///
+/// The basis is kept as its dense inverse and the columns sparse. So a
+/// pivot costs the square of the rows and a pass over the columns'
+/// entries, not the rows times the columns. A net met in practice may
+/// have hundreds of places and tens of thousands of transitions.
 struct Tableau {
     /// The columns of the transitions' effects, each its rows and entries,
     /// signed as the rows are.
@@ -232,43 +258,45 @@ struct Tableau {
     inverse: Vec<f64>,
     /// The values of the basic variables, one per row.
     values: Vec<f64>,
-    /// The basic column of each row: a transition's below the number of
-    /// columns, then the surplus columns, then the artificial ones.
+    /// The basic column of each row. The indices below the number of
+    /// `columns` are transitions' effects, then come the surplus columns,
+    /// then the artificial ones.
     basis: Vec<usize>,
-    /// The prices of the rows, the objective's coefficients of the basis
-    /// times its inverse: the weights, at the optimum.
+    /// The prices of the rows: the objective's coefficients of the basis
+    /// times its inverse. At the optimum they are the weights.
     prices: Vec<f64>,
     /// The entering column times the inverse.
     column: Vec<f64>,
     /// The pivots made.
     pivots: u64,
-    /// The most pivots before the simplex gives up: in floating point a
+    /// The most pivots before the simplex gives up. In floating point, a
     /// simplex that has not ended after this many is taken to cycle on
-    /// rounding.
+    /// rounding errors.
     most_pivots: u64,
-    /// The pivots in a row that did not move the objective; above
-    /// [`STALLED`], Bland's rule chooses the columns, which ends in exact
-    /// arithmetic.
+    /// The pivots in a row that did not move the objective. From
+    /// [`STALLED`] on, Bland's rule chooses the columns, which ends in
+    /// exact arithmetic.
     stalled: u32,
 }
 
 /// The pivots in a row without progress after which the simplex chooses
-/// by Bland's rule (the first improving column) instead of the steepest
-/// one, which may cycle.
+/// by Bland's rule (the first improving column). Until then it takes the
+/// steepest column, which may cycle.
 const STALLED: u32 = 64;
 
 impl Tableau {
-    /// The simplex of a program's state equation, or `None` when the memory
-    /// bound has no room for its basis; charged to `charged`.
+    /// Returns the simplex of a program's state equation, charged to
+    /// `charged`, or `None` when the memory bound has no room for it.
     fn new(program: &Program, affine: bool, charged: &mut Charged<'_>) -> Option<Self> {
         let places = program.places;
-        // The effect of each transition on each place it changes, each
-        // distinct effect once.
+        // The effect of each transition on each place it changes. Each
+        // distinct effect is kept once.
         let mut effects: Vec<Vec<(u32, i64)>> = Vec::new();
         let mut seen = crate::hash::HashSet::default();
         let mut touched = vec![false; places];
         for transition in &program.transitions {
-            // The inputs and the outputs are each sorted by place: one merge.
+            // The inputs and the outputs are each sorted by place, so one
+            // merge does.
             let inputs = program.inputs(transition);
             let outputs = program.outputs(transition);
             let mut effect: Vec<(u32, i64)> = Vec::with_capacity(inputs.len() + outputs.len());
@@ -363,21 +391,21 @@ impl Tableau {
         })
     }
 
-    /// The entries one pivot touches: the inverse twice, and every column
-    /// once to price it.
+    /// Returns how many entries one pivot touches: the inverse twice, and
+    /// every column once to price it.
     fn entries(&self) -> u64 {
         let height = self.places.len() as u64;
         let priced: usize = self.columns.iter().map(Vec::len).sum();
         2 * height * height + priced as u64 + height
     }
 
-    /// The columns before the artificial ones.
+    /// Returns how many columns come before the artificial ones.
     fn structural(&self) -> usize {
         self.columns.len() + if self.surplus { self.places.len() } else { 0 }
     }
 
-    /// The reduced cost of a column: its cost, one for an artificial
-    /// column, less the prices times its entries.
+    /// Returns the reduced cost of a column: its cost (one for an
+    /// artificial column, else zero) less the prices times its entries.
     fn reduced(&self, j: usize) -> f64 {
         let (n, structural) = (self.columns.len(), self.structural());
         if j < n {
@@ -393,10 +421,12 @@ impl Tableau {
         }
     }
 
-    /// Makes one pivot: the column of the most negative reduced cost
-    /// enters, or the first such column after [`STALLED`] pivots without
-    /// progress, and among the rows that bound it the one whose basic
-    /// column comes first leaves.
+    /// Makes one pivot.
+    ///
+    /// The column of the most negative reduced cost enters, or the first
+    /// column with a negative one after [`STALLED`] pivots without
+    /// progress. Among the rows that bound it, the one whose basic column
+    /// comes first leaves.
     fn pivot(&mut self) -> Step {
         let height = self.places.len();
         let columns = self.structural() + height;
@@ -449,7 +479,8 @@ impl Tableau {
             }
         }
         // The objective is bounded below by zero, so a column that
-        // improves it is bounded by some row, but for rounding.
+        // improves it is bounded by some row. Only a rounding error can
+        // leave it unbounded.
         let Some((p, ratio)) = leaving else {
             return Step::GiveUp;
         };
@@ -492,9 +523,9 @@ impl Tableau {
         Step::Pivoted
     }
 
-    /// At the optimum, the weights the prices give each place when the
-    /// objective is above zero, that is when the equation has no solution,
-    /// with the row's sign. `None` when the equation has a solution.
+    /// Returns, at the optimum, the weight of each row's place: its price
+    /// with the row's sign. Returns `None` when the objective is zero, that
+    /// is when the equation has a solution.
     fn weights(&self) -> Option<Vec<(u32, f64)>> {
         let structural = self.structural();
         let objective: f64 = (0..self.places.len())
@@ -514,14 +545,21 @@ impl Tableau {
     }
 }
 
-/// Brings weights in floating point to integers of the same ratios, each
-/// read as the nearest fraction of a denominator up to
-/// [`MOST_DENOMINATOR`] and all multiplied by the least common multiple of
-/// the denominators; `None` when that passes [`MOST_COMMON_DENOMINATOR`].
-/// The result is checked by [`certify`], so this need only be right where
-/// it can.
+/// Brings weights in floating point to integers of about the same
+/// ratios.
+///
+/// Each weight, divided by the largest, is read as a close fraction of a
+/// denominator up to [`MOST_DENOMINATOR`] ([`fraction`]). All are then
+/// multiplied by the least common multiple of the denominators and
+/// divided by their greatest common divisor. Returns `None` when that
+/// multiple passes [`MOST_COMMON_DENOMINATOR`], when a weight is no
+/// finite number, or when every weight is within the tolerance of zero.
+///
+/// [`certify`] checks the result, so this need only be right where it
+/// can.
 fn integers(weights: &[(u32, f64)]) -> Option<Vec<(u32, i64)>> {
-    // A weight that is no number would keep the continued fraction going.
+    // The continued fraction of a weight that is no finite number would
+    // not end.
     if weights.iter().any(|&(_, w)| !w.is_finite()) {
         return None;
     }
@@ -555,21 +593,25 @@ fn integers(weights: &[(u32, f64)]) -> Option<Vec<(u32, i64)>> {
     Some(integers)
 }
 
-/// The fraction `n/d`, `0 < d ≤` [`MOST_DENOMINATOR`], nearest to `x` in
-/// `[-1, 1]`, by its continued fraction; numbers within the tolerance of
-/// zero are zero.
+/// Returns a fraction `n/d` close to `x` in `[-1, 1]`, with
+/// `0 < d ≤` [`MOST_DENOMINATOR`].
+///
+/// It is the last convergent of `x`'s continued fraction whose
+/// denominator is within the bound, or the first within the tolerance of
+/// `x`. A number within the tolerance of zero is zero.
 fn fraction(x: f64) -> (i64, i64) {
     if x.abs() <= EPSILON {
         return (0, 1);
     }
     let (sign, x) = if x < 0.0 { (-1, -x) } else { (1, x) };
-    // The convergents h/k of the continued fraction of x.
+    // The convergents h/k of the continued fraction of x, and the ones
+    // before them.
     let (mut h, mut h_before, mut k, mut k_before) = (1i64, 0i64, 0i64, 1i64);
     let mut rest = x;
     loop {
         let a = rest.floor();
-        // Both numerators and denominators stay at most the bound, and
-        // `a` at most its reciprocal of the tolerance: no product wraps.
+        // Numerators and denominators stay at most the bound, and `a` at
+        // most the tolerance's reciprocal, so no product wraps.
         let a = a as i64;
         let (h_next, k_next) = (a * h + h_before, a * k + k_before);
         if k_next > MOST_DENOMINATOR {
@@ -588,7 +630,8 @@ fn fraction(x: f64) -> (i64, i64) {
     if k == 0 { (0, 1) } else { (sign * h, k) }
 }
 
-/// The greatest common divisor of two numbers, not negative.
+/// Returns the greatest common divisor of two numbers, which is not
+/// negative.
 fn gcd(a: i64, b: i64) -> i64 {
     let (mut a, mut b) = (a.unsigned_abs(), b.unsigned_abs());
     while b != 0 {
@@ -597,14 +640,17 @@ fn gcd(a: i64, b: i64) -> i64 {
     a as i64
 }
 
-/// Whether integer weights, one for each place they name and zero for
-/// the others, refute the target: no transition raises the weighted count
-/// of a marking, the target's lies above the initial marking's, and in
-/// affine mode no weight is negative. Exact: a weight is below 2⁶³ and an
-/// arc's weight below 2³², so a product lies below 2⁹⁵, and a sum of the
-/// fewer than 2³² terms of a transition or of the places lies below 2¹²⁷;
-/// the arithmetic is checked all the same, and a sum it cannot hold is no
-/// refutation.
+/// Whether integer weights refute the target. The weights are one for
+/// each place they name and zero for the others.
+///
+/// They refute when no transition raises the weighted count of a marking,
+/// the target's weighted count lies above the initial marking's, and, in
+/// affine mode, no weight is negative.
+///
+/// The check is exact. A weight is below 2⁶³ and an arc's weight below
+/// 2³², so a product lies below 2⁹⁵. A sum of the fewer than 2³² terms of
+/// a transition or of the places lies below 2¹²⁷. The arithmetic is
+/// checked all the same, and a sum it cannot hold is no refutation.
 pub(super) fn certify(program: &Program, affine: bool, weights: &[(u32, i64)]) -> bool {
     let mut y = vec![0i64; program.places];
     for &(p, w) in weights {

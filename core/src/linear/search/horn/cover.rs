@@ -1,22 +1,29 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Coverability by the backward algorithm: the markings from which some
-//! firing sequence covers the target form an upward-closed set, kept as
-//! its minimal elements, the basis. It starts from the target, and every
-//! element `m` and transition `t` give the least marking from which `t`
-//! leads to a marking at least `m`, `max(m − out(t), 0) + in(t)`, which
-//! joins the basis unless an element is already at most it. A marking at
-//! most the initial one proves the target coverable, and its line of
-//! descent is the firing sequence; a basis that no transition adds to is
-//! the whole set, and the initial marking outside it refutes.
+//! Coverability by the backward algorithm. A marking (a count of tokens
+//! per place) covers the target when it has at least the target's count
+//! on every place. The question is whether some firing sequence from the
+//! initial marking reaches a marking that covers the target.
 //!
-//! It ends: every element added is at least no element added before it
-//! (that one, which stays in the index, would have kept it out), and an
-//! infinite sequence of count vectors in
-//! which no element is at least an earlier one does not exist (Dickson's
-//! lemma). How long it takes, Dickson does not bound: the memory bound
-//! and the caller's stop do.
+//! The markings from which some firing sequence covers the target form an
+//! upward-closed set: with a marking it holds every larger one. The
+//! search keeps the set as its minimal elements, the basis. It starts
+//! from the target. Every element `m` and transition `t` give the least
+//! marking from which `t` leads to a marking at least `m`:
+//! `max(m − out(t), 0) + in(t)`. That marking joins the basis unless an
+//! element is already at most it.
+//!
+//! A marking at most the initial one proves the target coverable, and the
+//! transitions from it up its line of parents are the firing sequence. A
+//! basis that no transition adds to is the whole set, and then the
+//! initial marking outside it refutes.
+//!
+//! The search ends. No element added is at least an element added before
+//! it: that one stays in the index and would have kept it out. And by
+//! Dickson's lemma, every infinite sequence of count vectors has an
+//! element at least an earlier one. Dickson's lemma does not bound how
+//! long the search takes; the memory bound and the caller's stop do.
 
 use super::equation::Equation;
 use super::reach::room;
@@ -29,14 +36,19 @@ use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 
 /// Searches backward from the program's target for a marking at most the
-/// initial one, polling `stop` at every element taken from the queue,
-/// keeping at most `most` elements and giving `equation` its share of the
-/// work; returns the transitions of a firing sequence from the initial
-/// marking that covers the target, `None` when no marking reached
-/// covers it or the state equation refutes, or the reason it stopped;
-/// and the counters: the markings computed as `nodes`, those kept out by
-/// an element at most them as `memo_hits`, the elements kept as
-/// `memo_entries`.
+/// initial one.
+///
+/// Returns the transitions of a firing sequence from the initial marking
+/// to one that covers the target, `None` when no reachable marking covers
+/// it or the state equation refutes, or the reason the search stopped.
+/// Also returns the counters:
+/// - `nodes`: the markings computed;
+/// - `memo_hits`: those kept out by an element at most them;
+/// - `memo_entries`: the elements kept.
+///
+/// It polls `stop` at every element taken from the queue and every
+/// marking computed, keeps at most `most` elements, and gives `equation`
+/// its share of the work.
 pub(super) fn search(
     program: &Program,
     account: &Account,
@@ -55,26 +67,29 @@ pub(super) fn search(
     (result, statistics)
 }
 
-/// The state of a search: the elements kept, their index by their first
-/// place, the queue, the index of the transitions by their output places,
-/// and the counters.
+/// The state of a search: the elements kept, their index (a trie of
+/// their places), the queue, the transitions indexed by their output
+/// places, and the counters.
 struct Cover<'a> {
-    /// The program.
+    /// The program searched.
     program: &'a Program,
-    /// The elements, one after the other, each as its places in
-    /// increasing order with their counts, all above zero.
+    /// The elements, one after the other. Each is its places in increasing
+    /// order with their counts, all above zero.
     entries: Vec<(u32, u32)>,
     /// Where each element's entries end.
     ends: Vec<usize>,
     /// The tokens of each element.
     sums: Vec<u64>,
-    /// The element each came from and the transition.
+    /// For each element, the element it was computed from and the
+    /// transition.
     parents: Parents,
     /// The index of the elements by their places, a trie: the child of a
-    /// node by a place, the root being node zero and a path following
-    /// places in increasing order. An element is listed at the node its
-    /// places lead to, so the elements at most a marking are listed at
-    /// nodes that some of the marking's places lead to.
+    /// node by a place.
+    ///
+    /// The root is node zero, and a path follows places in increasing
+    /// order. An element is listed at the node its places lead to. So the
+    /// elements at most a marking are listed at nodes that some of the
+    /// marking's places lead to.
     edges: HashMap<(u32, u32), u32>,
     /// The first element listed at each node, plus one; zero for none.
     listed: Vec<u32>,
@@ -84,12 +99,12 @@ struct Cover<'a> {
     sibling: Vec<u32>,
     /// The place that leads to each node from its parent.
     place_of_node: Vec<u32>,
-    /// The children of each node.
+    /// How many children each node has.
     children: Vec<u32>,
     /// The element listed after each at its node, plus one.
     after: Vec<u32>,
-    /// The nodes a query has still to visit, with where in the marking's
-    /// places their children start.
+    /// The nodes a query has still to visit, each with where its children
+    /// start in the marking's places.
     stack: RefCell<Vec<(u32, u32)>>,
     /// The elements to take, fewest tokens first.
     queue: BinaryHeap<Reverse<(u64, u32)>>,
@@ -107,18 +122,19 @@ struct Cover<'a> {
     position: Vec<u32>,
     /// A buffer for a computed marking.
     next: Vec<(u32, u32)>,
-    /// What the buffers that grow hold.
+    /// The memory charged for the buffers that grow.
     charged: Charged<'a>,
     /// The markings computed.
     computed: u64,
-    /// Those an element at most them kept out.
+    /// The markings computed that an element at most them kept out.
     covered: u64,
-    /// The work done, in transitions tried and elements compared.
+    /// The work done: transitions tried, elements compared, and the
+    /// index's nodes and lookups.
     work: u64,
 }
 
 impl<'a> Cover<'a> {
-    /// A search of the program with nothing kept yet.
+    /// Returns a search of the program with nothing kept yet.
     fn new(program: &'a Program, account: &'a Account) -> Self {
         let width = program.places;
         let mut starts = vec![0u32; width + 1];
@@ -166,7 +182,7 @@ impl<'a> Cover<'a> {
         }
     }
 
-    /// The search itself.
+    /// Runs the search, as [`search`] describes.
     fn run(
         &mut self,
         most: usize,
@@ -193,8 +209,8 @@ impl<'a> Cover<'a> {
                 return Ok(None);
             }
             let (start, end) = self.span(e);
-            // An element kept after this one and at most it covers what
-            // this one would.
+            // An element kept after this one and at most it covers
+            // everything this one would compute, so this one is skipped.
             load(
                 &mut self.probe,
                 &mut self.position,
@@ -252,7 +268,7 @@ impl<'a> Cover<'a> {
         Ok(None)
     }
 
-    /// The span of an element's entries.
+    /// Returns where an element's entries start and end.
     fn span(&self, e: u32) -> (usize, usize) {
         let e = e as usize;
         (if e == 0 { 0 } else { self.ends[e - 1] }, self.ends[e])
@@ -260,8 +276,9 @@ impl<'a> Cover<'a> {
 
     /// Computes into `next` the least marking from which transition `t`
     /// leads to one at least element `e`: the element less the outputs,
-    /// but not below zero, plus the inputs. A count past `u32::MAX` is
-    /// [`Reason::IndexLimit`].
+    /// but not below zero, plus the inputs.
+    ///
+    /// Fails with [`Reason::IndexLimit`] when a count passes `u32::MAX`.
     fn before(&mut self, e: u32, t: u32) -> Result<(), Reason> {
         let program = self.program;
         let transition = &program.transitions[t as usize];
@@ -271,7 +288,7 @@ impl<'a> Cover<'a> {
         let element = &self.entries[start..end];
         self.next.clear();
         // The element, the outputs and the inputs are each sorted by
-        // place: one merge.
+        // place, so one merge does.
         let (mut i, mut j, mut o) = (0, 0, 0);
         while i < element.len() || j < inputs.len() {
             let p = match (element.get(i), inputs.get(j)) {
@@ -314,10 +331,13 @@ impl<'a> Cover<'a> {
             .all(|&(p, c)| c <= self.program.initial[p as usize])
     }
 
-    /// Whether an element other than `except` is at most `marking`, which
-    /// the probe holds, and the nodes and elements looked at: the index's
-    /// nodes that the marking's places lead to, and of the elements listed
-    /// there, whose places the marking all marks, those of no more tokens.
+    /// Returns whether an element other than `except` is at most
+    /// `marking`, which the probe holds, and how many nodes and elements it
+    /// looked at.
+    ///
+    /// It visits the index's nodes that the marking's places lead to. The
+    /// elements listed there have all their places marked by the marking,
+    /// and it compares those of no more tokens.
     fn dominated(&self, marking: &[(u32, u32)], except: u32) -> (bool, u64) {
         let tokens: u64 = marking.iter().map(|&(_, c)| u64::from(c)).sum();
         let mut looked = 0;
@@ -342,8 +362,8 @@ impl<'a> Cover<'a> {
                 listed = self.after[b as usize];
             }
             // The node's children that the rest of the marking's places
-            // lead to: from the side with fewer, the children or the
-            // places, each a step that costs about a comparison.
+            // lead to. They are found from the smaller side, the children
+            // or the places, each step costing about a comparison.
             let rest = marking.len() - from as usize;
             let children = self.children[node as usize] as usize;
             if children <= rest {
@@ -370,14 +390,15 @@ impl<'a> Cover<'a> {
     }
 
     /// Keeps the marking in `next` as an element, computed from `parent`
-    /// by `transition`; or says why it cannot be kept.
+    /// by `transition`. Fails with the reason when it cannot be kept.
     fn keep(&mut self, parent: u32, transition: u32, most: usize) -> Result<(), Reason> {
         let index = self.parents.len();
         if index >= most {
             return Err(Reason::IndexLimit);
         }
         let more = self.next.len();
-        // A node per place at most: the nodes are `u32`.
+        // An element adds at most a node per place, and the nodes are
+        // `u32`.
         if self.listed.len() + more >= u32::MAX as usize {
             return Err(Reason::IndexLimit);
         }
@@ -429,7 +450,7 @@ impl<'a> Cover<'a> {
     }
 
     /// Makes room in the index's edges for `more`, and charges what the
-    /// table grew by (its slots and a control byte each); returns false
+    /// table grew by (its slots and a control byte each). Returns false
     /// when the bound has no room.
     fn room_in_edges(&mut self, more: usize) -> bool {
         let slot = size_of::<((u32, u32), u32)>() + 1;
@@ -454,7 +475,7 @@ impl<'a> Cover<'a> {
     }
 
     /// Makes room in the queue for one more element, doubling it, and
-    /// charges what it grew by; returns false when the bound has no room.
+    /// charges what it grew by. Returns false when the bound has no room.
     fn room_in_queue(&mut self) -> bool {
         let size = size_of::<Reverse<(u64, u32)>>();
         if self.queue.len() < self.queue.capacity() {
@@ -473,17 +494,17 @@ impl<'a> Cover<'a> {
         true
     }
 
-    /// The transitions fired from a marking at least element `e` to one
-    /// that covers the target: `e`'s transition, then its parent's, up to
-    /// the target.
+    /// Returns the transitions fired from a marking at least element `e`
+    /// to one that covers the target: `e`'s transition, then its
+    /// parent's, up to the target.
     fn path(&self, e: u32) -> Vec<u32> {
         self.parents.up(e)
     }
 }
 
-/// Writes a marking's counts into a dense vector of counts and each
-/// place's index among its marked places, plus one, into another, or
-/// clears both.
+/// Writes a marking into two dense vectors, or clears them: its count on
+/// each place into `counts`, and each place's index among its marked
+/// places, plus one, into `position`.
 fn load(counts: &mut [u32], position: &mut [u32], marking: &[(u32, u32)], clear: bool) {
     for (i, &(p, c)) in marking.iter().enumerate() {
         (counts[p as usize], position[p as usize]) = if clear { (0, 0) } else { (c, i as u32 + 1) };

@@ -15,12 +15,12 @@ use crate::linear::search::memory::Account;
 use crate::linear::search::{Engine, Options, Reason, Refutation, Task, Verdict, prove};
 use crate::linear::sequents::{Atom, Sequent};
 
-/// The options that force the engine.
+/// Returns the options that force the engine.
 fn horn() -> Options {
     Options::default().with_engine(Some(Engine::Horn))
 }
 
-/// The program of a sequent read in classical mode.
+/// Returns the program of a sequent read in classical mode.
 fn program(forest: &Forest) -> Program {
     let task = Task {
         forest,
@@ -34,9 +34,9 @@ fn program(forest: &Forest) -> Program {
     Program::read(&task).expect("a Horn program")
 }
 
-/// The engine decides the families that are Horn programs as they are
-/// constructed, the counters also read intuitionistically, and every
-/// proof passes the checker.
+/// The engine decides the generated families that are Horn programs, in
+/// the mode each instance is made for, and the counters in
+/// intuitionistic mode as well. Every proof passes the checker.
 #[test]
 fn decides_the_horn_families() {
     for (name, sizes) in [
@@ -95,8 +95,8 @@ fn refuses_what_it_does_not_decide() {
     }
 }
 
-/// The verdict of a sequent under the engine, as a word, with the
-/// refutation's kind.
+/// Returns the verdict of a sequent under the engine as a word, which
+/// names a refutation by the state equation apart.
 fn verdict(text: &str, mode: Mode) -> &'static str {
     let sequent: Sequent = text.parse().unwrap();
     match prove(&sequent, mode, &horn()).unwrap().verdict {
@@ -109,10 +109,10 @@ fn verdict(text: &str, mode: Mode) -> &'static str {
     }
 }
 
-/// The refutation the counts give before any search is handed back with
-/// the answer, which the front door takes as it is rather than count
-/// again: here of `c`, the first atom, whose one `~c` outside the `!`
-/// nothing balances, since the `!` holds a `~c` too.
+/// The refutation the counts give before any search comes back with the
+/// answer, so the front door takes it as it is and does not count again.
+/// Here it refutes `c`, the first atom: nothing balances its `~c` outside
+/// the `!`, since the `!` holds a `~c` too.
 #[test]
 fn counted_refutations_are_handed_back() {
     use crate::linear::search::{Decide, OneSided};
@@ -149,17 +149,19 @@ fn counted_refutations_are_handed_back() {
     );
 }
 
-/// Nets whose markings grow without end are refuted by the state
-/// equation where it has no solution, the transitions that can never fire
-/// left out, or by a backward search whose markings run out; in affine
-/// mode the backward coverability search decides, refuting what no
-/// firing covers and proving what one does with the tokens and the
-/// clauses left over weakened.
+/// Nets whose markings grow without end are decided.
+///
+/// In linear mode, the state equation refutes where it has no solution
+/// once the transitions that can never fire are left out, or a backward
+/// search refutes when its markings run out. In affine mode the backward
+/// coverability search decides. It refutes what no firing sequence
+/// covers, and proves what one does, with the tokens and clauses left
+/// over weakened.
 #[test]
 fn decides_unbounded_nets() {
     for (text, linear, affine) in [
-        // Nothing makes `c`, which the counts see: every `c` below the
-        // `!` is a body's.
+        // Nothing makes `c`, which the counts see, since every `c` below
+        // the `!` is in a body.
         (
             "!d, !((c * d * d) -o 1) |- c * c",
             "unprovable",
@@ -177,15 +179,15 @@ fn decides_unbounded_nets() {
             "state equation",
             "unprovable",
         ),
-        // The clause that makes `b` needs a `c`, which is never marked:
-        // without it, nothing makes `b`.
+        // The clause that makes `b` needs a `c`, which is never marked.
+        // Without that clause, nothing makes `b`.
         (
             "!(a -o a * a), !(a * c -o b * c), a |- b",
             "state equation",
             "unprovable",
         ),
         // The equation has a solution, `a` and the clause used once each
-        // fired once, but the clause needs two `a`; backward, the goal has
+        // fired once, but the clause needs two `a`. Backward, the goal has
         // no predecessor.
         ("!(1 -o 1), !a, (a * a -o a) |- 1", "unprovable", "proved"),
         // Covered with an `a`, a `c` and a clause used once to spare.
@@ -199,8 +201,8 @@ fn decides_unbounded_nets() {
             assert_eq!(verdict(text, Mode::CLASSICAL), linear, "{text}");
             assert_eq!(verdict(text, Mode::INTUITIONISTIC), linear, "{text}");
         }
-        // Which of the backward search and the equation refutes first is a
-        // matter of their shares of the work.
+        // Whether the backward search or the equation refutes first
+        // depends on their shares of the work.
         for mode in [
             Mode::CLASSICAL.with_affine(),
             Mode::INTUITIONISTIC.with_affine(),
@@ -214,9 +216,10 @@ fn decides_unbounded_nets() {
     }
 }
 
-/// A refutation by the state equation names every place's weight, the
-/// tickets of clauses used once by clause, and the clauses that can never
-/// fire, which the inequalities leave out.
+/// A refutation by the state equation names every weight that is not
+/// zero: the atoms', and a class's ticket under each of its clauses used
+/// once. It also names the clauses that can never fire, which the
+/// inequalities leave out.
 #[test]
 fn the_certificate_names_its_clauses() {
     let certificate = |text: &str| {
@@ -230,14 +233,14 @@ fn the_certificate_names_its_clauses() {
         };
         (Forest::new(&sequent).unwrap(), certificate)
     };
-    // The atoms `a`, `c`, `b`; the clause that needs a `c` is under the
-    // second `!`.
+    // The atoms are `a`, `c`, `b`. The clause that needs a `c` is under
+    // the second `!`.
     let (forest, dead) = certificate("!(a -o a * a), !(a * c -o b * c), a |- b");
     let needs_c = forest.children(forest.roots()[1]).next().unwrap();
     assert_eq!(dead.atoms, [(Atom::new(0), -1), (Atom::new(2), 1)]);
     assert_eq!((dead.clauses, dead.dropped), (vec![], vec![needs_c]));
-    // One clause used once makes one `b`, and the goal asks two: its ticket
-    // weighs as a `b` does.
+    // One clause used once makes one `b`, and the goal asks for two. Its
+    // ticket weighs as much as a `b`.
     let (forest, once) = certificate("!(a -o a * a), !(b -o b), (a * a -o b), a |- b * b");
     assert_eq!(once.atoms, [(Atom::new(1), 1)]);
     assert_eq!(
@@ -246,20 +249,21 @@ fn the_certificate_names_its_clauses() {
     );
 }
 
-/// The check of the weights is exact: weights whose products wrap in 64
-/// bits, so that wrapping arithmetic would find the transition lowering
-/// the weighted count, are no refutation.
+/// The check of the weights is exact. Weights whose products wrap in 64
+/// bits are no refutation, although wrapping arithmetic would find that
+/// the transition lowers the weighted count.
 #[test]
 fn checks_the_weights_exactly() {
     let sequent: Sequent = "!(a -o b * b), a |- b * b * b".parse().unwrap();
     let forest = Forest::new(&sequent).unwrap();
     let net = program(&forest);
     let (a, b) = (net.place_of[0], net.place_of[1]);
-    // `b` weighs `i64::MAX`: the transition raises the count by
-    // `2 · i64::MAX − 1`, which wraps to `−3` in 64 bits, while the goal's
+    // `b` weighs `i64::MAX`. The transition raises the count by
+    // `2 · i64::MAX − 1`, which wraps to `−3` in 64 bits, and the goal's
     // `3 · i64::MAX − 1` wraps to a number above zero.
     assert!(!certify(&net, false, &[(a, 1), (b, i64::MAX)]));
-    // Not raised, but not asked raised either.
+    // The transition does not raise the count, but the goal does not ask
+    // for it raised either.
     assert!(!certify(&net, false, &[(a, 3), (b, 1)]));
     for affine in [false, true] {
         assert!(certify(&net, affine, &[(a, 2), (b, 1)]));
@@ -267,8 +271,8 @@ fn checks_the_weights_exactly() {
 }
 
 /// Every number the engine's answer rests on refuses at its limit
-/// instead of wrapping: the markings kept, a token count, the nodes of
-/// the proof, and the memory bound.
+/// instead of wrapping: the markings kept, a token count, the proof's
+/// nodes, and the memory bound.
 #[test]
 fn refuses_at_its_limits() {
     let account = Account::new(None);
@@ -299,7 +303,7 @@ fn refuses_at_its_limits() {
     assert_eq!(found, Err(Reason::IndexLimit));
 
     // A clause that adds almost 2³² tokens passes the count's bound at
-    // its second firing; the state equation, which would refute the goal,
+    // its second firing. The state equation, which would refute the goal,
     // has no room here.
     let sequent: Sequent = "!(a -o a * a), a |- b".parse().unwrap();
     let forest = Forest::new(&sequent).unwrap();
@@ -317,7 +321,7 @@ fn refuses_at_its_limits() {
     assert_eq!(found, Err(Reason::IndexLimit));
 
     // Backward, a clause that takes almost 2³² tokens and gives one back
-    // asks for more than 2³² before its own output; the state equation has
+    // asks for more than 2³² before its own output. The state equation has
     // a solution, since `c` makes as many `a` as asked.
     let sequent: Sequent = "!(a * a -o a), !(a -o b), !(c -o c * a), c |- b"
         .parse()
@@ -337,8 +341,8 @@ fn refuses_at_its_limits() {
     );
     assert_eq!(found, Err(Reason::IndexLimit));
 
-    // Nothing refutes this one but its markings, which grow without end in
-    // both directions: the tokens `a` stay odd, so the goal is never
+    // Only its markings could refute this one, and they grow without end
+    // in both directions. The tokens `a` stay odd, so the goal is never
     // reached, but the state equation has a rational solution, and the
     // tokens `d` grow and shrink.
     let sequent: Sequent =
@@ -359,8 +363,9 @@ fn refuses_at_its_limits() {
     );
 }
 
-/// A sequent's verdict under the engine within a memory bound of `bytes`
-/// beside its input: the forest, and the reading in intuitionistic mode.
+/// Returns a sequent's verdict under the engine within a memory bound of
+/// `bytes` beside its input. The input is the forest, and the reading in
+/// intuitionistic mode.
 fn bounded(sequent: &Sequent, mode: Mode, bytes: u64) -> Verdict {
     let forest = Forest::new(sequent).unwrap();
     let reading = if mode.intuitionistic {
@@ -377,9 +382,9 @@ fn bounded(sequent: &Sequent, mode: Mode, bytes: u64) -> Verdict {
 
 /// The backward search tries every transition on every element it takes.
 /// Elements leave the queue by their tokens, not by their index, so an
-/// element kept later may be taken earlier: a transition already tried on
-/// that one is still to be tried on this one, here the step that covers
-/// the goal.
+/// element kept later may be taken earlier. A transition already tried on
+/// the later one must still be tried on the earlier one. Here that firing
+/// is the step that covers the goal.
 #[test]
 fn tries_every_transition_on_every_element() {
     let text = "(c * b -o c * c * b), (1 -o b * c * b), !(c * b * c -o c * a * a) |- a";
@@ -392,16 +397,16 @@ fn tries_every_transition_on_every_element() {
 }
 
 /// The backward search caps a place at its initial count unless some
-/// clause gives it more tokens than it takes, which no marking on the way
-/// from the initial one passes: a place only taken from, or given back as
-/// many as taken, is capped, the place of a class of clauses used once
-/// among them, and one that a clause raises is not.
+/// clause gives it more tokens than it takes. No marking on the way from
+/// the initial one has more there. So a place only taken from, or given
+/// back as many tokens as taken, is capped, the place of a class of
+/// clauses used once among them. A place that a clause raises is not.
 #[test]
 fn caps_the_places_no_clause_raises() {
-    // The places `a`, `d`, `g`, `b`, `c` and the class of the clause used
-    // once. The clause under `!` gives `d` back after taking an `a`, a
-    // place before it; the clause used once raises `c` and takes `b` and
-    // its ticket, a place before it and one after.
+    // The places are `a`, `d`, `g`, `b`, `c` and the class of the clause
+    // used once. The second clause under `!` gives `d` back after taking
+    // an `a`, a place before it. The clause used once raises `c` and takes
+    // `b` and its ticket, a place before `c` and one after.
     let sequent: Sequent = "!(a -o a * a), !(a * d -o d * g), a, b, b, b, d, (a * b -o c) |- c"
         .parse()
         .unwrap();
@@ -413,7 +418,7 @@ fn caps_the_places_no_clause_raises() {
 /// Once the forward search has kept its share of markings without
 /// deciding, the backward search runs beside it and may find the firing
 /// sequence first. Forward, every marking of fewer than 200 tokens comes
-/// before the clause used once can fire; backward, its 200 tokens are
+/// before the clause used once can fire. Backward, its 200 tokens are
 /// walked down to one, with its ticket at its cap, the initial count.
 #[test]
 fn the_backward_search_finds_a_long_firing_sequence() {
@@ -436,9 +441,9 @@ fn the_backward_search_finds_a_long_firing_sequence() {
 }
 
 /// The distance to the target after a firing merges the clause's inputs
-/// and outputs by place, so a place both touch is counted once even when
-/// an output on a place before it comes first: the firing that reaches the
-/// target is seen to.
+/// and outputs by place. So a place that both touch is counted once, even
+/// when an output on an earlier place comes first, and the firing that
+/// reaches the target is seen to reach it.
 #[test]
 fn sees_the_firing_that_reaches_the_target() {
     for text in [
@@ -449,8 +454,8 @@ fn sees_the_firing_that_reaches_the_target() {
     }
 }
 
-/// A marking kept with a count past a byte reads back as written: 130
-/// tokens on one place, moved one by one to another.
+/// A marking kept with a count that needs more than a byte reads back as
+/// written. Here 130 tokens on one place move one by one to another.
 #[test]
 fn keeps_counts_past_a_byte() {
     let given = vec!["a"; 130].join(", ");
@@ -459,11 +464,11 @@ fn keeps_counts_past_a_byte() {
     assert_eq!(verdict(&text, Mode::CLASSICAL), "proved");
 }
 
-/// Out of room, a search takes the simplex's tableau back, and the
-/// forward search the backward one's markings, and tries once more: the
-/// simplex never costs it a decision. At these bounds the tableau is held
-/// when the search's buffers next grow, and without it the search has
-/// room to prove the goal.
+/// Out of room, a search takes back the simplex's tableau, and the
+/// forward search the backward one's markings, and tries once more. So
+/// the simplex never costs it a decision. At these bounds the tableau is
+/// held when the search's buffers next grow, and without it the search
+/// has room to prove the goal.
 #[test]
 fn the_simplex_gives_its_memory_back() {
     let sequent: Sequent = "!(c * a -o b), !(1 -o b * d), !(b * b * d -o a), d |- a"
@@ -483,10 +488,10 @@ fn the_simplex_gives_its_memory_back() {
 }
 
 /// In intuitionistic mode a marking of several atoms is read whole on the
-/// left of `⊢`, each literal lying within the marking's extent, here
-/// where the marking is the forest's first occurrence (and a clause
-/// consumes a `c`, so that no atom's literals below the `!` all have
-/// one sign and the counts leave the goal to the engine).
+/// left of `⊢`, since each literal lies within the marking. Here the
+/// marking is the forest's first occurrence. A clause takes a `c`, so no
+/// atom's literals below the `!` all have one sign, and the counts leave
+/// the goal to the engine.
 #[test]
 fn reads_a_marking_of_several_atoms_intuitionistically() {
     let text = "a * c, !(a -o a * c * c), !(c -o 1) |- 1";
@@ -496,8 +501,8 @@ fn reads_a_marking_of_several_atoms_intuitionistically() {
 
 /// In intuitionistic mode the reading must put on the left of `⊢` exactly
 /// the occurrences that hold a head or lie in one, and not what follows
-/// the head within its member. The reading is given by hand, since only
-/// so can a clause be written with its head before a body literal:
+/// the head within its member. The reading is given by hand, since that
+/// is the only way to write a clause with its head before a body literal:
 /// `a, a ⊸ b ⊢ b` with the clause `b⊥ ⊗ a`.
 #[cfg(feature = "interactive")]
 #[test]
@@ -524,8 +529,8 @@ fn the_reading_puts_exactly_the_heads_on_the_left() {
     assert!(!reads(&[Input, Input, Input, Input, Output]));
 }
 
-/// The simplex polls the stop before every pivot: a stop that fires at
-/// once ends it with the reason the caller gets, where it would refute.
+/// The simplex polls the stop before every pivot. On a net it would
+/// refute, a stop that fires at once ends it with `Reason::Stopped`.
 #[test]
 fn the_simplex_polls_the_stop() {
     let sequent: Sequent = "!(A -o A * A), !(B * B -o C), A, B |- C".parse().unwrap();
@@ -541,15 +546,16 @@ fn the_simplex_polls_the_stop() {
     assert_eq!(equation.run(&net, u64::MAX, &mut |_| false), Ok(true));
 }
 
-/// The searches charge every buffer they grow, at its capacity: each
-/// decides these nets exactly from the least bound below and refuses one
-/// byte under it. The bounds are the account's, so they move when what is
-/// charged does; the simplex has no room here. Forward, the markings of
-/// the partition run out; backward, its elements; and the third net is
-/// refuted by the backward search beside the forward one, which keeps
-/// 2¹⁴ markings first. The fourth is proved by the first marking the
-/// backward search computes, so its bound is its first element's, whose
-/// last buffer to grow is the queue.
+/// The searches charge every buffer they grow, at its capacity. Each
+/// decides these nets from exactly the least bound below, and refuses at
+/// one byte less. The simplex has no room here.
+///
+/// The bounds are the account's, so they move when what is charged
+/// changes. Forward, the markings of the partition run out; backward, its
+/// elements. The third net is refuted by the backward search beside the
+/// forward one, which keeps 2¹⁴ markings first. The fourth is proved by
+/// the first marking the backward search computes, so its bound is its
+/// first element's, and the last buffer of it to grow is the queue.
 #[test]
 fn charges_what_it_grows() {
     let partition: Sequent = FAMILIES
@@ -600,13 +606,16 @@ fn charges_what_it_grows() {
     }
 }
 
-/// The searches' counters on these runs, the simplex given no room so
-/// that the search alone decides: the markings taken (`nodes`), those
-/// dropped as kept already, covered or above a cap (`memo_hits`), those
-/// kept (`memo_entries`), and the units of work polled. The numbers are
-/// the search's own, a function of the net: they change only when the
-/// search does. Forward and backward on the partitions, and the net the
-/// backward reachability search refutes beside the forward one.
+/// The searches' counters on these runs, with no room for the simplex
+/// so that the search alone decides. They are the markings taken
+/// (`nodes`), those dropped as kept already, covered or above a cap
+/// (`memo_hits`), those kept (`memo_entries`), and the units of work
+/// polled.
+///
+/// The numbers are a function of the net, so they change only when the
+/// search does. The runs are forward and backward on the partitions, and
+/// the net that the backward reachability search refutes beside the
+/// forward one.
 #[test]
 fn counts_its_work() {
     let family = |name: &str| -> Sequent {
@@ -659,11 +668,12 @@ fn counts_its_work() {
 }
 
 /// The simplex's weights for nets whose state equation has no solution,
-/// a place and its weight each, the places numbered as the goal's atoms
-/// are met, and the units it polls, one before each pivot and one at the
-/// optimum. In affine mode it enters the surplus columns, and no weight is
-/// negative. The tokens of `z` grow without end, so only the equation
-/// refutes these nets.
+/// and the units it polls: one before each pivot and one at the optimum.
+///
+/// Each weight is a place and its weight, the places numbered in the
+/// order the goal's atoms are met. In affine mode the simplex enters the
+/// surplus columns, and no weight is negative. The tokens of `z` grow
+/// without end, so only the equation refutes these nets.
 #[test]
 fn the_simplex_finds_these_weights() {
     for (text, linear, affine) in [
@@ -710,8 +720,8 @@ fn the_simplex_finds_these_weights() {
 }
 
 /// A search that runs out of room gives its memory back, and the simplex
-/// then runs to its end with the rest of the bound: at this bound the
-/// search cannot keep its first marking, while the tableau fits.
+/// then runs to its end with the rest of the bound. At this bound the
+/// search cannot keep its first marking, but the tableau fits.
 #[test]
 fn the_simplex_refutes_after_the_search() {
     let sequent: Sequent = "!(A -o A * A), !(B * B -o C), A, B |- C".parse().unwrap();
@@ -722,11 +732,11 @@ fn the_simplex_refutes_after_the_search() {
     );
 }
 
-/// Out of room for its frontier, the forward search takes the simplex's
-/// tableau back and expands the marking again. The tableau is built before
-/// the search and held; at this bound the frontier's growth, not the
-/// markings', is the first to find no room, and without the tableau the
-/// counter is proved.
+/// Out of room for its frontier, the forward search takes back the
+/// simplex's tableau and expands the marking again. The tableau is built
+/// before the search and held. At this bound the frontier's growth, not
+/// the markings', is the first to find no room, and without the tableau
+/// the counter is proved.
 #[test]
 fn the_frontier_takes_the_simplex_memory() {
     let sequent: Sequent = FAMILIES
@@ -754,8 +764,9 @@ fn the_frontier_takes_the_simplex_memory() {
     assert!(matches!(found, Ok(Some(_))), "{found:?}");
 }
 
-/// A task reads its goal once: every ask answers with the same program,
-/// its dead transitions dropped, and the dispatch's net feature agrees.
+/// A task reads its goal once. Every call returns the same program,
+/// without the transitions that can never fire, and the dispatch's net
+/// feature agrees with it.
 #[test]
 fn a_task_reads_its_program_once() {
     let sequent: Sequent = "!(a -o b), !(c -o d), a |- b".parse().unwrap();
@@ -773,6 +784,7 @@ fn a_task_reads_its_program_once() {
     assert!(std::ptr::eq(first, Program::of(&task).unwrap()));
     assert!(super::is_net(&task));
     assert!(std::ptr::eq(first, Program::of(&task).unwrap()));
-    // `c -o d` waits for the never marked `c`, so only one transition lives.
+    // `c -o d` waits for a `c`, which is never marked, so only one
+    // transition is left.
     assert_eq!(first.transitions.len(), 1);
 }

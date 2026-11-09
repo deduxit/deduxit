@@ -1,15 +1,23 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The Horn engine: a goal that is a Horn program, clauses that may be
-//! used any number of times under `!`, clauses used once, atoms and one
-//! goal of atoms, is a Petri net with a marking to reach, and in affine
-//! mode a marking to cover, and is decided by a search over the markings
-//! instead of over sequents. A firing of a clause is a copy of it, a split
-//! of the linear zone that hands the clause's body exactly the tokens it
-//! consumes, and a decomposition of its head into new tokens, so the
-//! firing sequence found is the proof. Beside the search, the net's state
-//! equation may refute.
+//! The Horn engine, which decides a goal that is a Horn program by a
+//! search over the markings of a Petri net instead of over sequents.
+//!
+//! A Horn program has atoms, clauses used once, clauses under `!` that
+//! may be used any number of times, and one goal of atoms. It reads as a
+//! Petri net: the atoms are places, a marking is how many tokens (atoms)
+//! each place holds, and a clause is a transition, which takes tokens
+//! from its input places and puts tokens on its output places when it
+//! fires. The goal asks whether the net can reach a target marking, and
+//! in affine mode whether it can cover one (reach a marking at least the
+//! target).
+//!
+//! A firing of a clause is one step of a proof. It copies the clause,
+//! splits the linear zone so that the clause's body gets exactly the
+//! tokens it takes, and decomposes the clause's head into new tokens. So
+//! the firing sequence found is the proof. Beside the search, the net's
+//! state equation may refute the goal.
 
 /// Coverability by the backward algorithm, for affine mode.
 mod cover;
@@ -57,10 +65,12 @@ impl Decide for Horn {
         })
     }
 
-    /// Searches the markings on the calling thread, whatever
-    /// [`Options::jobs`] says, forward for the target in linear mode and
-    /// backward from it in affine mode, with the state equation beside the
-    /// search, and reads the proof off the firing sequence found.
+    /// Decides the goal by a search over its net's markings, and reads the
+    /// proof off the firing sequence found.
+    ///
+    /// The search runs on the calling thread, whatever [`Options::jobs`]
+    /// says. It goes forward to the target in linear mode and backward
+    /// from it in affine mode, with the state equation beside it.
     fn decide(
         &self,
         task: &Task<'_>,
@@ -71,10 +81,10 @@ impl Decide for Horn {
         stop: &mut dyn FnMut(u64) -> bool,
     ) -> Result<Answer, Error> {
         // What the counts of the goal's literals rule out needs no
-        // search: a goal that never balances an atom, whose net may be
-        // infinite and searched until the memory bound otherwise. The
-        // counts are charged to an account of their own, which they give
-        // back when they go, so that the search has the whole bound.
+        // search. A goal that never balances an atom may have an infinite
+        // net, which the search would explore until the memory bound. The
+        // counts are charged to an account of their own and give it back
+        // when they go, so the search has the whole bound.
         let counted = super::focus::counts::refutation(
             task.forest,
             task.goal,
@@ -84,9 +94,10 @@ impl Decide for Horn {
             stop,
         );
         if counted != Refutation::Exhausted {
-            // The front door takes the refutation as it is, rather than
-            // count again, which a stop between the two would answer as
-            // an exhausted search no search ran.
+            // The front door takes this refutation as it is and does not
+            // count again. A second count would cost as much again, and a
+            // stop between the two would report an exhausted search that
+            // never ran.
             return Ok(Answer {
                 refutation: Some(counted),
                 ..Answer::of_arena(
@@ -110,14 +121,15 @@ impl Decide for Horn {
         } else {
             reach::search(program, account, most, &mut equation, stop)
         };
-        // A search that ran out of room has given its memory back: the
-        // state equation may still refute, and has the rest of the time.
+        // A search that ran out of room has given its memory back. The
+        // state equation may still refute, with the rest of the time.
         if let Err(Reason::MemoryLimit { .. } | Reason::IndexLimit) = found
             && let Ok(true) = equation.finish(program, stop)
         {
             found = Ok(None);
         }
-        // The proof has the whole bound: the simplex's memory goes.
+        // The simplex gives its memory back, so the proof has the whole
+        // bound.
         if let Ok(Some(_)) = found {
             equation.release();
         }
@@ -155,8 +167,9 @@ impl Decide for Horn {
     }
 }
 
-/// Whether a goal is a Horn program with a clause under `!`, a Petri net:
-/// the feature of the engine's row in the dispatch.
+/// Whether a goal is a Horn program with a clause under `!`, which makes
+/// it a Petri net. This is the feature of the engine's row in the
+/// dispatch.
 pub(crate) fn is_net(task: &Task<'_>) -> bool {
     Program::of(task).is_some_and(|program| !program.quests.is_empty())
 }
@@ -175,9 +188,11 @@ impl Program {
         t.outputs_in(&self.arcs)
     }
 
-    /// The program with every transition reversed and the initial and the
-    /// target marking swapped: a firing sequence of one is one of the
-    /// other read backward. Only the net is kept, for a search.
+    /// Returns the program with every transition reversed, and the initial
+    /// and the target marking swapped.
+    ///
+    /// A firing sequence of one program, read backward, is a firing
+    /// sequence of the other. Only the net is kept, for a search.
     fn reversed(&self) -> Program {
         let mut arcs = Vec::with_capacity(self.arcs.len());
         let transitions = self
@@ -213,9 +228,11 @@ impl Program {
         }
     }
 
-    /// The most tokens each place holds in a marking that a firing
-    /// sequence from the initial marking passes: its initial count where
-    /// no transition raises it, else no bound (`u32::MAX`).
+    /// Returns, for each place, the most tokens it holds in any marking
+    /// that a firing sequence from the initial marking passes.
+    ///
+    /// That is the place's initial count where no transition raises it,
+    /// and no bound (`u32::MAX`) otherwise.
     fn caps(&self) -> Vec<u32> {
         let mut raised = vec![false; self.places];
         for t in &self.transitions {
@@ -234,10 +251,13 @@ impl Program {
             .collect()
     }
 
-    /// The refutation that weights for the places, a place and its weight
-    /// each, give: every place's weight that is not zero, an atom's for
-    /// the atom and a class's for each clause of the class, whose ticket
-    /// the place counts, and the clauses that can never fire.
+    /// Returns the refutation that weights for the places give, each
+    /// given as a place and its weight.
+    ///
+    /// The refutation lists every weight that is not zero: an atom's
+    /// place weighs the atom, and a class's place weighs each clause of
+    /// the class, since the place counts the class's tickets (one token
+    /// per unused clause). It also lists the clauses that can never fire.
     fn refutation(&self, weights: &[(u32, i64)]) -> Refutation {
         let mut weight = vec![0; self.places];
         for &(p, w) in weights {
@@ -269,8 +289,9 @@ impl Program {
     }
 }
 
-/// What a clause fired is: one under a `?`, whose occurrence is copied at
-/// every firing, or one of a class of interchangeable clauses used once.
+/// The clause a transition fires: one under a `?`, whose occurrence is
+/// copied at every firing, or one of a class of interchangeable clauses
+/// used once.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Clause {
     /// The occurrence of the clause under its `?`.
@@ -279,9 +300,10 @@ enum Clause {
     Once(u32),
 }
 
-/// The line of parents of a search's markings or elements: for each, the
-/// one it came from and the transition between them, as
-/// `parent << 32 | transition`, with [`Parents::ROOT`] above the first.
+/// The parents of a search's markings or elements. For each entry, the
+/// entry it came from and the transition between them, packed as
+/// `parent << 32 | transition`. The first entry's parent is
+/// [`Parents::ROOT`].
 #[derive(Default)]
 struct Parents(Vec<u64>);
 
@@ -294,8 +316,8 @@ impl Parents {
         self.0.len()
     }
 
-    /// Makes room for one more entry and charges what the list grew by;
-    /// false when the bound has no room.
+    /// Makes room for one more entry and charges what the list grew by.
+    /// Returns false when the bound has no room.
     fn room(&mut self, charged: &mut Charged<'_>) -> bool {
         reach::room(&mut self.0, 1, charged)
     }
@@ -305,8 +327,8 @@ impl Parents {
         self.0.push(u64::from(parent) << 32 | u64::from(transition));
     }
 
-    /// The transitions on the line from entry `i` up to the first, `i`'s
-    /// own first.
+    /// Returns the transitions on the way from entry `i` up to the first
+    /// entry, the one into `i` first.
     fn up(&self, mut i: u32) -> Vec<u32> {
         let mut transitions = Vec::new();
         loop {
@@ -323,7 +345,7 @@ impl Parents {
 /// A transition of the net: the clause it fires and its arcs.
 #[derive(Clone, Copy, Debug)]
 struct Transition {
-    /// The clause.
+    /// The clause it fires.
     clause: Clause,
     /// Where its inputs start in [`Program::arcs`].
     inputs: u32,
@@ -347,14 +369,16 @@ impl Transition {
     }
 }
 
-/// A Horn program read off a goal, as a Petri net. Every count below is
-/// at most the forest's occurrences, which are fewer than 2³², so none
-/// of them overflows its `u32`: a weight counts literals of one clause, a
-/// marking's count literals of the goal, a place an atom or a class of
-/// clauses.
+/// A Horn program read off a goal, as a Petri net.
+///
+/// Every count below is at most the forest's occurrences, which are
+/// fewer than 2³², so none of them overflows its `u32`. A weight counts
+/// literals of one clause, a marking's count literals of the goal, and a
+/// place an atom or a class of clauses.
 pub(super) struct Program {
-    /// The places: one per atom of the goal, then one per class of clauses
-    /// used once, whose token is the class's unused clauses.
+    /// How many places there are: one per atom of the goal, then one per
+    /// class of clauses used once, which holds a token per unused clause
+    /// of the class.
     places: usize,
     /// The place of each atom of the sequent, `u32::MAX` for an atom the
     /// goal does not name.
@@ -367,7 +391,8 @@ pub(super) struct Program {
     arcs: Vec<(u32, u32)>,
     /// The marking the search starts from.
     initial: Vec<u32>,
-    /// The marking to reach: the goal's atoms, and no clause left unused.
+    /// The marking to reach: the goal's atoms, with no clause used once
+    /// left unused.
     target: Vec<u32>,
     /// The sign of the atoms in bodies and in the goal; heads and markings
     /// have the other.
@@ -390,9 +415,11 @@ pub(super) struct Program {
 }
 
 impl Program {
-    /// The Horn program a goal is, its transitions that can never fire
-    /// dropped ([`live`]), or `None` when it is none: read on the task's
-    /// first call and kept in it.
+    /// Returns the Horn program a goal is, without the transitions that
+    /// can never fire ([`live`]), or `None` when the goal is no Horn
+    /// program.
+    ///
+    /// The first call on a task reads the program, and the task keeps it.
     fn of<'t>(task: &'t Task<'_>) -> Option<&'t Self> {
         task.program
             .get_or_init(|| {
@@ -404,16 +431,22 @@ impl Program {
             .as_ref()
     }
 
-    /// Reads the Horn program a goal is, with the atoms of bodies written
-    /// `a` or else with all of them written `~a`, or `None` when it is
-    /// none: every member under a `?` a clause with exactly one head,
-    /// every other member a marking, a clause with exactly one head, used
-    /// once, or the goal, a clause without one, of which there is exactly
-    /// one. A clause is a tensor of body literals and `1` with at most one
-    /// factor a head, a `⅋` of head literals and `⊥`. In intuitionistic
-    /// mode the reading must put the goal and the clauses' bodies on the
-    /// right of `⊢` and everything else on the left, as the proof built
-    /// for a firing sequence does.
+    /// Reads the Horn program a goal is, or returns `None` when the goal
+    /// is none.
+    ///
+    /// The atoms of the bodies are all written `a`, or else all written
+    /// `~a`. Every member under a `?` must be a clause with exactly one
+    /// head. Every other member is one of these:
+    /// - a marking;
+    /// - a clause with exactly one head, used once;
+    /// - the goal, a clause without a head, of which there is exactly one.
+    ///
+    /// A clause is a tensor of body literals and `1`, with at most one
+    /// factor a head. A head is a `⅋` of head literals and `⊥`.
+    ///
+    /// In intuitionistic mode the reading must put the goal and the
+    /// clauses' bodies on the right of `⊢` and everything else on the
+    /// left, as the proof built for a firing sequence does.
     fn read(task: &Task<'_>) -> Option<Self> {
         [Sign::Atom, Sign::Dual]
             .into_iter()
@@ -467,7 +500,7 @@ impl Program {
                 };
                 forest.subtree(member).all(|x| {
                     // An occurrence is on the left exactly when it holds
-                    // the head or lies in it; a marking is its own head.
+                    // the head or lies in it. A marking is its own head.
                     let left = head.is_some_and(|h| forest.is_below(h, x) || forest.is_below(x, h));
                     reading.position(x) == if left { Side::Input } else { Side::Output }
                 })
@@ -491,8 +524,8 @@ impl Program {
 }
 
 /// The members of a goal read as a net, before the transitions are
-/// gathered: each clause under `?` and used once with its input and
-/// output places, the tokens of the markings and the goal's.
+/// gathered. Each clause, under `?` or used once, comes with its input and
+/// output places; then the tokens of the markings and of the goal.
 struct Parts {
     /// The clauses under `?`.
     reusable: Vec<(OccId, Vec<u32>, Vec<u32>)>,
@@ -504,8 +537,8 @@ struct Parts {
     target: Vec<u32>,
 }
 
-/// What reads the members of a goal: the forest, the sign of the bodies,
-/// and the places the atoms read so far got.
+/// The reader of a goal's members: the forest, the sign of the bodies,
+/// and the places given to the atoms read so far.
 struct Reader<'a> {
     /// The forest.
     forest: &'a Forest,
@@ -518,7 +551,8 @@ struct Reader<'a> {
 }
 
 impl Reader<'_> {
-    /// The place of a literal's atom, given out when the atom is new.
+    /// Returns the place of a literal's atom, given out when the atom is
+    /// new.
     fn place(&mut self, literal: OccId) -> u32 {
         let atom = self.forest.atom(literal).expect("a literal").index();
         if self.place_of[atom] == u32::MAX {
@@ -528,7 +562,8 @@ impl Reader<'_> {
         self.place_of[atom]
     }
 
-    /// The places of the literals of a subformula, one per literal.
+    /// Returns the places of the literals of a subformula, one per
+    /// literal.
     fn literals(&mut self, o: OccId) -> Vec<u32> {
         let forest = self.forest;
         forest
@@ -538,9 +573,11 @@ impl Reader<'_> {
             .collect()
     }
 
-    /// Reads a clause: the places of its body literals, of its head's
-    /// literals, and its head, or `None` when it is no clause: a factor
-    /// that is neither a body literal, `1`, a tensor nor a head, or two
+    /// Reads a clause. Returns the places of its body literals, the
+    /// places of its head's literals, and its head.
+    ///
+    /// Returns `None` when it is no clause: it has a factor that is
+    /// neither a body literal, `1`, a tensor nor a head, or it has two
     /// heads.
     fn clause(&mut self, clause: OccId) -> Option<(Vec<u32>, Vec<u32>, Option<OccId>)> {
         let forest = self.forest;
@@ -559,18 +596,20 @@ impl Reader<'_> {
         Some((inputs, outputs, head))
     }
 
-    /// The head of a clause read before, or the clause itself for a
-    /// marking.
+    /// Returns the head of a clause already read, or the clause itself
+    /// for a marking.
     fn head_of(&self, clause: OccId) -> OccId {
         clause_head(self.forest, self.body, clause)
             .flatten()
             .unwrap_or(clause)
     }
 
-    /// Gathers the transitions: the clauses under `?` with distinct arcs
-    /// that change the marking, and the clauses used once by class of
-    /// equal arcs, each class with a place of its own that holds a token
-    /// per clause, which a firing takes.
+    /// Gathers the transitions and returns the program.
+    ///
+    /// The clauses under `?` give a transition per distinct set of arcs
+    /// that changes the marking. The clauses used once give a transition
+    /// per class of equal arcs. Each class has a place of its own that
+    /// holds a token per clause, and a firing takes one.
     fn program(
         self,
         parts: Parts,
@@ -578,8 +617,8 @@ impl Reader<'_> {
         markings: Vec<OccId>,
         goal: OccId,
     ) -> Program {
-        /// The arcs of a list of places, one per literal: each place with
-        /// its multiplicity, sorted.
+        /// Returns the arcs of a list of places, one per literal: each
+        /// place with its multiplicity, sorted by place.
         fn weights(mut places: Vec<u32>) -> Vec<(u32, u32)> {
             places.sort_unstable();
             let mut arcs: Vec<(u32, u32)> = Vec::new();
@@ -678,13 +717,18 @@ impl Reader<'_> {
 
 /// Drops the program's transitions that no firing sequence from the
 /// initial marking can fire: those with an input place that no marking
-/// it passes marks. The places that can be marked are those the initial
-/// marking marks (the tokens given and the class places of the clauses
-/// used once) and the outputs of every transition whose inputs can all be
-/// marked, by induction on the firing sequence; a transition with an
-/// input outside them is never enabled. Their clauses go to
-/// [`Program::dropped`], with those under `?` that share their arcs.
-/// One pass, made where the program is read ([`Program::of`]).
+/// on the way marks.
+///
+/// The places that can be marked lie within the least set that holds the
+/// places the initial marking marks (the tokens given and the class
+/// places of the clauses used once) and the outputs of every transition
+/// whose inputs are all in it. This holds by induction on the firing
+/// sequence. A transition with an input outside that set is never
+/// enabled (able to fire).
+///
+/// The dropped transitions' clauses go to [`Program::dropped`], with the
+/// clauses under `?` that share their arcs. It is one pass, made where
+/// the program is read ([`Program::of`]).
 fn live(program: &mut Program) {
     let Program {
         transitions,
@@ -759,10 +803,11 @@ pub(crate) fn is_head(forest: &Forest, body: Sign, o: OccId) -> bool {
     })
 }
 
-/// The head of a clause whose bodies have the sign `body`: `Some(None)`
-/// for a clause without one, `None` for no clause, which has a factor
-/// that is neither a body literal, `1`, a tensor nor a head, or two
-/// heads.
+/// Returns the head of a clause whose bodies have the sign `body`.
+///
+/// Returns `Some(None)` for a clause without a head, and `None` for no
+/// clause: one with a factor that is neither a body literal, `1`, a
+/// tensor nor a head, or with two heads.
 #[expect(
     clippy::option_option,
     reason = "no clause, or a clause with or without a head: the goal has none"
