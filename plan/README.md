@@ -5877,3 +5877,24 @@ move (D26).
     - the dialog's screen-reader group names stay;
     - the prediction buttons have no tap hint, since a tap predicts;
     - the lessons' order is W13, so unchanged.
+- 2026-11-09, 15:00: **54a reviewed and pushed: intuitionistic and
+  minimal logic are decided by LJT** (`ordinary::ljt::decide`, swyyyllw).
+  - **What it is:** Dyckhoff's G4ip, terminating, within the work,
+    stop and memory bounds, on a stack of its own. Each proof becomes
+    an LJ derivation that the checker validates, now with Gentzen's cut
+    (a departure, accepted at the pause).
+  - **Its prunes** (the second premise first, the goal order, failure
+    subsumption) were needed to match the embedding on ILTP. With them
+    it agrees on all 394 verdicts the embedding gives at 2 s.
+  - **Two panel rounds** (Fable's argument, Opus's counterexamples on
+    about 14 million sequents with Kripke models and its own G3,
+    Sonnet's integers) left no refutation standing. The findings were
+    fixed: memory 1.8 times the bound, then 1.1; an exponential walk of
+    shared formulas.
+  - **The planning session's probe:** eleven textbook formulas in both
+    logics agree with their known answers. One expectation was the
+    planning session's mistake: `⊢ ¬¬(¬¬a → a)` is not minimally valid,
+    and a two-world model shows it.
+  - **The target sets** equal 47's, and the gate and flake check
+    passed.
+  - **Not yet the command's default:** that is 54b.
