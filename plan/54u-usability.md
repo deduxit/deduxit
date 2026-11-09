@@ -178,7 +178,9 @@ once before its final message.
 - **Step 54w's later sessions wait for what they document:**
   - 54w-c (README, the manual, the guide) after 54u-a, 54u-b and 54u-e;
   - 54w-d (the command's help and errors) after 54u-b;
-  - 54w-e3 (export) and 54w-e4 (ordinary and lambda) after 54u-a;
+  - 54w-e3 (export) after 54u-a;
+  - 54w-e4 (ordinary and lambda) after 54u-a and step 55's first
+    session, which reshapes `ordinary`'s calls;
   - 54w-e5 (the root, `web/`, `bench/`, `compat/`) after 54u-a;
   - 54w-e6 (linear's `lltp`, `mist` and families) on go, if a slot is
     free.

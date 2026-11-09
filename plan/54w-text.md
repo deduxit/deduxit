@@ -119,7 +119,8 @@ once before its final message.
      `linear::proofs` and the checker;
    - 54w-e2 (done): `linear::search` and its engines, `linear::nets`;
    - 54w-e3: `export`, after 54u-a (Q2's `to_string`);
-   - 54w-e4: `ordinary` and `lambda`, after 54u-a (Q2's `Display`);
+   - 54w-e4: `ordinary` and `lambda`, after 54u-a (Q2's `Display`) and
+     after step 55's first session, which reshapes `ordinary`'s calls;
    - 54w-e5: the root, `web/`, `bench/`, `compat/`, after 54u-a (the
      crate root's recipe becomes Q1's one line); it also renames the
      test names that refer to how the code was made
