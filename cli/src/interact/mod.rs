@@ -395,9 +395,28 @@ impl Session {
                     CutFormula::parse_within(text, self.state.mode(), &self.input, &self.limits)
                         .context("cannot read the cut formula")?;
                 // A formula with blanks, unquoted, leaves its second word
-                // where a position is read.
-                let positions = positions(2)
-                    .context("quote a cut formula that has blanks, as in cut 0 \"A * B\" 1")?;
+                // where a position is read: where the words after it make
+                // a longer formula with it, that is the one meant.
+                let positions = positions(2).map_err(|error| {
+                    let meant = (3..=rest.len()).rev().find_map(|end| {
+                        let words = rest[1..end].join(" ");
+                        CutFormula::parse_within(
+                            &words,
+                            self.state.mode(),
+                            &self.input,
+                            &self.limits,
+                        )
+                        .is_ok()
+                        .then_some(words)
+                    });
+                    match meant {
+                        Some(words) => error.context(format!(
+                            "quote a cut formula that has blanks: cut {} \"{words}\" …",
+                            rest[0]
+                        )),
+                        None => error,
+                    }
+                })?;
                 let before = self.state.steps();
                 let opened = self.state.cut(goal, &formula, &positions, &self.limits)?;
                 self.stepped(before, opened.to_vec())?

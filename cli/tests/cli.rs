@@ -997,14 +997,16 @@ fn eliminate_names_a_cut_by_its_instance() {
 }
 
 /// `interact`'s `cut` with a formula of blanks left unquoted says to quote
-/// it.
+/// it, and a position mistyped after a quoted one says only that.
 #[test]
 fn an_unquoted_cut_formula_is_explained() {
-    let (_, out, _) = linlog(&["interact", "a & b |- b & a"], "cut 0 b & a 0\n");
+    let script = "cut 0 b & a 0\ncut 0 \"b & a\" x\n";
+    let (_, out, _) = linlog(&["interact", "a & b |- b & a"], script);
     assert_eq!(
         out,
-        "error: quote a cut formula that has blanks, as in cut 0 \"A * B\" 1: \"&\" is not a \
-         position: invalid digit found in string\n"
+        "error: quote a cut formula that has blanks: cut 0 \"b & a\" …: \"&\" is not a \
+         position: invalid digit found in string\n\
+         error: \"x\" is not a position: invalid digit found in string\n"
     );
 }
 
