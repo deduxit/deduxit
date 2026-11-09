@@ -5583,3 +5583,36 @@ move (D26).
     tool; none of the project's checks change.
   - **Not available:** the job log. Every `gh` command asks the author,
     who is away.
+- 2026-11-09, 10:00: **53s reviewed and pushed. The project is
+  `deduxit`** in linlog (`tumwnprv`), the Rocq library (`rqtyouoz`) and
+  the client (`uqpnuosq`).
+  - **What it built:**
+    - the packages `deduxit`, `deduxit-cli` (binary `deduxit`),
+      `deduxit-web` and `deduxit-bench`;
+    - the linear suite under `deduxit::linear`. At the root stay
+      errors, limits, settings, export and wire, what `ordinary` and
+      `lambda` share;
+    - `--kernel deduxit` on `rocq-deduxit`;
+    - `compat/linlog` and `compat/linlog-cli` 0.3.0, which point to the
+      new crates;
+    - the `deduxit ©` headers in all three repositories.
+  - **Its checks:**
+    - the gate and `nix flake check`;
+    - the target sets equal 47's on every counter;
+    - its reviewer's three findings, all dated records renamed by
+      mistake, restored.
+  - **The planning session's probes:**
+    - `deduxit prove` works;
+    - a file holding the old `"linlog"` key checks;
+    - new output writes `"deduxit"`;
+    - the old `linlog` binary gives its one notice, then runs the
+      command.
+  - **Decided** (its departures, accepted):
+    - user-facing values renamed beyond the kernel (the outcome key,
+      the Typst layout and net look values, the harness's tool
+      names), with serde aliases for the old ones;
+    - the release workflow's crate list left to 53b, so that the old
+      crates are published once, not at every version;
+    - `install.yml` skips `deduxit-cli` until crates.io has it.
+  - **Running:** the rename audit (a fresh agent) over all four
+    repositories, the public metadata and the live sites.
