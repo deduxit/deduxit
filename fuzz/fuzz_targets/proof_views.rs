@@ -1,4 +1,4 @@
-// linlog © Fabian Lukas Grubmüller 2026
+// deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
 //! A proof file's views, as `check` draws one: no input panics the

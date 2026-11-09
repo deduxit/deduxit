@@ -1,4 +1,4 @@
-# linlog © Fabian Lukas Grubmüller 2026
+# deduxit © Fabian Lukas Grubmüller 2026
 # Licensed under the EUPL
 
 # The repository's conventions as checks, so that they never regress:
@@ -41,7 +41,7 @@
             --glob '*.v' --glob '!core/tests/snapshots/**/*.v')
           for file in $sources; do
             # A script's header follows its shebang line.
-            if ! head -n 3 "$file" | rg --quiet --fixed-strings 'linlog © Fabian Lukas Grubmüller 2026' \
+            if ! head -n 3 "$file" | rg --quiet --fixed-strings 'deduxit © Fabian Lukas Grubmüller 2026' \
               || ! head -n 4 "$file" | rg --quiet --fixed-strings 'Licensed under the EUPL'; then
               echo "$file: no licence header"
               status=1

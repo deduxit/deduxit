@@ -1,4 +1,4 @@
-// linlog © Fabian Lukas Grubmüller 2026
+// deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
 //! SVG: a sequent as one line of text, and a whole SVG document for each

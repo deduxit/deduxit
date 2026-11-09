@@ -1,4 +1,4 @@
-// linlog © Fabian Lukas Grubmüller 2026
+// deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
 //! A session rebuilt from its parts: the derivation it held, replayed

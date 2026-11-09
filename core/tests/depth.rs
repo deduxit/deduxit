@@ -1,4 +1,4 @@
-// linlog © Fabian Lukas Grubmüller 2026
+// deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
 //! Formulas nested deeper than a stack lets a recursion follow them: every

@@ -1,4 +1,4 @@
-// linlog © Fabian Lukas Grubmüller 2026
+// deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
 //! The options of every output format in one value, read from the JSON of

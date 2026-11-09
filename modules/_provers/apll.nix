@@ -1,4 +1,4 @@
-# linlog © Fabian Lukas Grubmüller 2026
+# deduxit © Fabian Lukas Grubmüller 2026
 # Licensed under the EUPL
 
 # APLL (Jui-Hsuan Wu, 2019, no licence stated), a focused prover for LL and

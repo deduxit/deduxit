@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# linlog © Fabian Lukas Grubmüller 2026
+# deduxit © Fabian Lukas Grubmüller 2026
 # Licensed under the EUPL
 """Behavioural test of .claude/hooks/jj-worktree.py, run by the
 `claude-worktree-hook` check against a throwaway colocated jj repository.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# linlog © Fabian Lukas Grubmüller 2026
+# deduxit © Fabian Lukas Grubmüller 2026
 # Licensed under the EUPL
 
 # The comparison of deduxit with the other provers (bench/TOOLS.md): every

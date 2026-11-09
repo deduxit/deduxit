@@ -1,4 +1,4 @@
-# linlog © Fabian Lukas Grubmüller 2026
+# deduxit © Fabian Lukas Grubmüller 2026
 # Licensed under the EUPL
 
 # The toolchain rust-toolchain.toml names, shared by the devshell, rustfmt and

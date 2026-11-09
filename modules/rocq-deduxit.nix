@@ -1,4 +1,4 @@
-# linlog © Fabian Lukas Grubmüller 2026
+# deduxit © Fabian Lukas Grubmüller 2026
 # Licensed under the EUPL
 
 # The check `rocq-deduxit': every certificate the core tests pin for

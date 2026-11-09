@@ -1,4 +1,4 @@
-# linlog © Fabian Lukas Grubmüller 2026
+# deduxit © Fabian Lukas Grubmüller 2026
 # Licensed under the EUPL
 
 # The command as a release ships it for Linux: `deduxit-static', the binary

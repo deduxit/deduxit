@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# linlog © Fabian Lukas Grubmüller 2026
+# deduxit © Fabian Lukas Grubmüller 2026
 # Licensed under the EUPL
 
 # Takes the benchmark baseline: CSV files in bench/results/DAY/, DAY being

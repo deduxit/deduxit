@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# linlog © Fabian Lukas Grubmüller 2026
+# deduxit © Fabian Lukas Grubmüller 2026
 # Licensed under the EUPL
 
 # The workspace's footprint as text tables: the web module's bytes by crate,

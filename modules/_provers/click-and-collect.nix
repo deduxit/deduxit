@@ -1,4 +1,4 @@
-# linlog © Fabian Lukas Grubmüller 2026
+# deduxit © Fabian Lukas Grubmüller 2026
 # Licensed under the EUPL
 
 # Click & coLLecT's automatic prover (Callies and Laurent, LGPL-2.1), whose
