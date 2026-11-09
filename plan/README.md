@@ -5497,3 +5497,42 @@ move (D26).
     - `wide-m1` 4096 is proved by the inverse method in 1.9 s on one
       thread, its proof checked;
     - `--all-families --timeout 5` shows no MISMATCH in 195 rows.
+- 2026-11-09, 04:30: **53r, 53a and 53p's pushes are in.** 53n and 53p
+  wait for the client's deploy to check the live site.
+  - **53r, the Rocq library** (pushed `nxmkmupx`):
+    - it is now `rocq-deduxit` 0.3.0 under the root `Deduxit`, with
+      `Deduxit.Linear.*`, `Deduxit.Linear.Tests` and
+      `Deduxit.Linear.Bridges`;
+    - its flake check closes 33 theorems for each Rocq from 9.0 to 9.3,
+      and the 4 bridges;
+    - the placeholder forwards `/rocq-linlog`;
+    - the opam submission is prepared as `rocq-deduxit.0.3.0`, unsent,
+      with its checksum after the tag.
+    - It left a list of every linlog name and path 53s must move (its
+      report), and a note for 53b: the 0.3.0 docs drop
+      `Linlog.*.html`, so stubs could keep the old deep links working.
+  - **53a, the small defects** (pushed `upqvxull`, 26 commits):
+    - every entry is fixed with a test, found already done, or kept with
+      its reason;
+    - its reviewer's three findings were fixed;
+    - the target sets equal 47's.
+    - The planning session's checks on the tree merged with 53p's
+      changes: `cargo test --workspace` passes, and probes of `check`
+      (the file's mode, `--file`, the contradicting flag's exit 2, `-i
+      --mix` refused) and `eliminate --at`.
+    - One more break for 53b's changelog: `proofs::cut::eliminate`
+      takes `at`.
+  - **53p, the mark** (pushed: the client `ntlwovor`, linlog
+    `txzqskkz`):
+    - the mark, the dictionary line in four places of linlog, the
+      client's hover and focus card, lapis as `--color-logo`;
+    - `/rocq-linlog/` forwards from the client.
+  - **The client's CI.** It had failed since 2026-11-08 at the check
+    job's 60 minutes, while building Biome from source: the channel
+    release has no cache.nixos.org build of it, and Cachix takes no
+    third-party builds.
+    - 53n raised the job to 180 minutes (`qrmxktrk`, pushed), with the
+      reason in the client's `ci.md`. The first passing run saves
+      Biome to the Actions cache.
+    - The site deploys when that run passes; until then
+      `deduxit.github.io` serves the build of 2026-11-08.
