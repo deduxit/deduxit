@@ -5,6 +5,8 @@
     html_logo_url = "https://deduxit.github.io/logo/square-dark.svg",
     html_favicon_url = "https://deduxit.github.io/logo/favicon-32.png"
 )]
+//! **dēdūxit** \[deːˈduːk.sɪt\] *Latin, verb*: \"it has derived\", the perfect of *dēdūcō*, to lead down, derive.
+//!
 //! Decides sequents of linear logic: parse a sequent, prove it, get a
 //! proof the checker has validated, and print or export it. A caller adds
 //! the crate from crates.io and, for the examples below, `serde_json`. An
@@ -13,8 +15,7 @@
 //! occurrences by those numbers.
 //!
 //! The crate is [deduxit](https://github.com/deduxit/deduxit), a
-//! collection of logic suites whose name is Latin:
-//! **dēdūxit** \[deːˈduːk.sɪt\] *Latin, verb*: \"it has derived\", the perfect of *dēdūcō*, to lead down, derive.
+//! collection of logic suites.
 //!
 //! In more detail: the linear suite, [`linear`], with sequents of linear
 //! logic stored as compact arena DAGs in negation normal form, with

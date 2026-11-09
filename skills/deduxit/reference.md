@@ -1,5 +1,7 @@
 # deduxit: the reference
 
+> **dēdūxit** [deːˈduːk.sɪt] *Latin, verb*: "it has derived", the perfect of *dēdūcō*, to lead down, derive.
+
 Everything the `deduxit` command does, with the flags, the formats, the
 JSON forms and the exit statuses, then the Rust library, the WebAssembly
 bindings and the Rocq library. Every example below is a real call with
@@ -7,8 +9,7 @@ its real output (a time a search took varies). `deduxit COMMAND --help`
 documents every flag; a flag that sets a key of the settings file names
 it in parentheses there. The manual for people,
 <https://deduxit.github.io/deduxit/manual/>, says the same at more
-length, with the benchmarks. deduxit is a collection of logic suites,
-named in Latin: **dēdūxit** [deːˈduːk.sɪt] *Latin, verb*: "it has derived", the perfect of *dēdūcō*, to lead down, derive.
+length, with the benchmarks. deduxit is a collection of logic suites.
 
 Contents:
 

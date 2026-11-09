@@ -15,14 +15,14 @@ intuitionistic proofs back as lambda-terms.
 deduxit is a collection of logic suites, grown one suite at a time: the
 crates `deduxit` and `deduxit-cli`, the command `deduxit`, whose
 `--logic` chooses the suite, and the library's modules `deduxit::linear`,
-`deduxit::ordinary` and `deduxit::lambda`. Up to 0.2.0 it was called
-linlog.
+`deduxit::ordinary` and `deduxit::lambda`. It began as linlog, a linear
+logic library (up to 0.2.0), and is growing to take in more calculi.
 
 Version 0.3.0 is the first under the name deduxit: the linear suite is
 the module `deduxit::linear`, ordinary logic is proved step by step in
 LK and LJ, intuitionistic proofs read back as lambda-terms, the
 one-sided count and the state equation are checked without the search
-and certified in Rocq, and the mark dēdūxit replaces linlog's logo; the
+and certified in Rocq, and the mark dēdūxit replaces the old logo; the
 [changelog](CHANGELOG.md) says what changed and what breaks since 0.2.0.
 
 deduxit's manual, [deduxit.github.io/deduxit/manual](https://deduxit.github.io/deduxit/manual/),

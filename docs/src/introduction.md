@@ -1,5 +1,7 @@
 # deduxit
 
+> **dēdūxit** [deːˈduːk.sɪt] *Latin, verb*: "it has derived", the perfect of *dēdūcō*, to lead down, derive.
+
 Logic suites for all your needs, linear logic first: a command line
 program and a Rust library that parse, print and decide sequents of classical and
 intuitionistic linear logic and their fragments, keep the proofs in a
@@ -10,9 +12,8 @@ propositional logic through its embeddings into linear logic.
 deduxit, the repository [deduxit](https://github.com/deduxit/deduxit), is
 a collection of logic suites, grown one suite at a time: one command,
 `deduxit`, whose `--logic` chooses the suite, and one library, the crate
-`deduxit`. Up to 0.2.0 it was called linlog. Its name is Latin:
-
-> **dēdūxit** [deːˈduːk.sɪt] *Latin, verb*: "it has derived", the perfect of *dēdūcō*, to lead down, derive.
+`deduxit`. It began as linlog, a linear logic library (up to 0.2.0), and
+is growing to take in more calculi.
 
 This manual describes the `main` branch of
 [the repository](https://github.com/deduxit/deduxit); a released
