@@ -5616,3 +5616,17 @@ move (D26).
     - `install.yml` skips `deduxit-cli` until crates.io has it.
   - **Running:** the rename audit (a fresh agent) over all four
     repositories, the public metadata and the live sites.
+- 2026-11-09, 10:20: **the rename audit is done; 53b started.**
+  - **The audit:** a fresh-context agent over all four repositories, the
+    public metadata and the live sites (`plan/notes/rename-audit.md`).
+    It found 37 findings: 22 to fix before the release, 7 at it and 8
+    suggestions.
+    - The code, rustdoc, help, guide, Cargo fields, CITATION,
+      workflows and the client's and library's sources are clean.
+    - What is left: the live site (it deploys when the client's CI
+      passes), the GitHub descriptions, a curly-quoted dictionary line
+      in the rustdoc, the placeholder's README and deep links, and
+      prose in plan/ and the rules.
+  - **53b** fixes the findings first, then prepares 0.3.0.
+  - **A background agent** sets the four repositories' descriptions,
+    homepages and topics through `gh`; its prompts wait for the author.
