@@ -2,10 +2,11 @@
 // Licensed under the EUPL
 
 //! First-order proofs written by hand, the checker's verdict on each, and
-//! the tests that run the checker, its first implementation, the size
-//! estimate, the derivation and the JSON form on them. Each proof is
-//! pinned as a file under `core/tests/first-order/`, which the
-//! integration tests read.
+//! the tests that run on them: the checker, the oracle (the second
+//! checker the tests compare it with), cut elimination, the size
+//! estimate, the derivation and the JSON form. Each proof is pinned as a
+//! file under `core/tests/first-order/`, which the integration tests
+//! read.
 
 use super::{Node, NodeId, Proof};
 use crate::linear::fragment::Mode;
@@ -21,7 +22,7 @@ pub(crate) struct Case {
     /// The mode it is checked in.
     pub(crate) mode: Mode,
     /// The fault the checker finds, by its kind in the JSON form, and the
-    /// node it finds it at; `None` for a proof.
+    /// node it finds it at; `None` when the proof is valid.
     pub(crate) fault: Option<(&'static str, u32)>,
 }
 
@@ -35,7 +36,8 @@ struct Build {
 }
 
 impl Build {
-    /// Starts a proof of `input`, with the cut formulas `cuts`.
+    /// Starts a proof of `input`, with the cut formulas `cuts` and an
+    /// empty instance table.
     fn new(input: &str, cuts: &[&str]) -> Self {
         let mut sequent: Sequent = input.parse().unwrap();
         for cut in cuts {
@@ -48,7 +50,8 @@ impl Build {
         Self { forest, table }
     }
 
-    /// The root formula `i`, the cut formulas' trees after the roots.
+    /// Returns the root occurrence `i`. The cut formulas follow the roots,
+    /// each formula before its dual.
     fn root(&self, i: usize) -> OccId {
         let roots: Vec<OccId> = self
             .forest
@@ -60,7 +63,8 @@ impl Build {
         roots[i]
     }
 
-    /// The sequent's term written `text`, a constant or an application.
+    /// Returns the sequent's term written `text`, a constant or an
+    /// application.
     fn term(&self, text: &str) -> FoTermId {
         let sequent = self.forest.sequent();
         let written = |t: usize| {
@@ -84,8 +88,8 @@ impl Build {
             .map_or_else(|| panic!("no term {text}"), |t| FoTermId::new(t as u32))
     }
 
-    /// The term `name(args…)` the proof writes anew, `name` a function
-    /// symbol of the sequent.
+    /// Returns the term `name(args…)`, added to the proof's table; `name`
+    /// is a function symbol of the sequent.
     fn apply(&mut self, name: &str, args: &[FoTermId]) -> FoTermId {
         let symbols = self.forest.sequent().symbols();
         let f = symbols.iter().position(|(s, _)| s == name).unwrap();
@@ -93,12 +97,12 @@ impl Build {
             .apply(crate::linear::sequents::Symbol::new(f as u32), args)
     }
 
-    /// The term of eigenvariable `a`.
+    /// Returns the term of eigenvariable `a`.
     fn eigen(&mut self, a: u32) -> FoTermId {
         self.table.eigen(Eigen::new(a))
     }
 
-    /// The frame of `terms`, the outermost binder's first.
+    /// Returns the frame of `terms`, given the outermost binder's first.
     fn frame(&mut self, terms: &[FoTermId]) -> FrameId {
         let mut frame = None;
         for &t in terms {
@@ -107,24 +111,24 @@ impl Build {
         frame.unwrap()
     }
 
-    /// The member that is `o` under `frame`.
+    /// Returns the member that is `o` under `frame`.
     fn at(&mut self, o: OccId, frame: FrameId) -> Member {
         self.table.member(o, frame)
     }
 
-    /// The proof of the nodes, the root last.
+    /// Returns the proof of the nodes, the root last.
     fn proof(self, nodes: Vec<Node>) -> Proof {
         let root = NodeId::new(nodes.len() as u32 - 1);
         Proof::with_instances(self.forest, self.table, nodes, root).unwrap()
     }
 }
 
-/// The member that is the occurrence `o` itself.
+/// Returns the member that is the occurrence `o` itself, under no frame.
 fn bare(o: OccId) -> Member {
     Member::from(o)
 }
 
-/// The occurrence `k` places after `o`.
+/// Returns the occurrence `k` places after `o`.
 fn below(o: OccId, k: u32) -> OccId {
     OccId::new(o.get() + k)
 }
@@ -137,8 +141,9 @@ pub(crate) fn cases() -> Vec<Case> {
     let classical = Mode::CLASSICAL;
     let ill = Mode::INTUITIONISTIC;
 
-    // `∀x. p(x) ⊢ p(f(a))`: the witness `f(a)`, a term the proof writes
-    // anew and the sequent holds.
+    // `∀x. p(x) ⊢ p(f(a))`: the witness `f(a)`, a term the proof's table
+    // adds although the sequent holds it too. With the witness `a` the
+    // axiom fails.
     let witness = |wrong: bool| {
         let mut b = Build::new("forall x. p(x) |- p(f(a))", &[]);
         let (ex, goal) = (b.root(0), b.root(1));
@@ -181,8 +186,8 @@ pub(crate) fn cases() -> Vec<Case> {
     });
 
     // `∃x. ∀y. p(x, y) ⊢ ∀y. ∃x. p(x, y)`: each `∃` step's witness names
-    // the eigenvariable of a `∀` step below it, which is the condition
-    // met.
+    // the eigenvariable of a `∀` step below it, which meets the
+    // eigenvariable condition.
     let swap = || {
         let mut b = Build::new(
             "exists x. forall y. p(x, y) |- forall y. exists x. p(x, y)",
@@ -249,11 +254,13 @@ pub(crate) fn cases() -> Vec<Case> {
         });
     }
 
-    // `⊢ ∀x. (~p(x) ⅋ p(x)), q & r`, in affine mode: both premises of the
-    // `&` hold a `∀` step on the one member, each with its own
-    // eigenvariable over its own subproof; one subproof shared under both
-    // with one eigenvariable, which is introduced twice; and one shared
-    // under both with two, whose second body the subproof lacks.
+    // `⊢ ∀x. (~p(x) ⅋ p(x)), q & r`, in affine mode, with a `∀` step on
+    // the same member in both premises of the `&`. Three cases:
+    // - `apart`: each step has its own eigenvariable and its own subproof;
+    // - `shared`: one subproof under both steps, with one eigenvariable,
+    //   which is then introduced twice;
+    // - `shared_apart`: one subproof under both, with two eigenvariables,
+    //   so the subproof lacks the second step's body.
     let affine = classical.with_affine();
     for (name, shared, second, fault) in [
         ("apart", false, 1, None),
@@ -302,10 +309,11 @@ pub(crate) fn cases() -> Vec<Case> {
         });
     }
 
-    // `∀x. p(x) ⊢ p(a)`: an axiom on the open atom named bare, `∀x. p(x)
-    // ⊢ ∃y. p(y)` with a witness no `∀` step introduces, a constant
-    // outside the signature, and a `∀` step on the `∃` the hypothesis is
-    // one-sided.
+    // Three more: `∀x. p(x) ⊢ p(a)` with an axiom on the open atom named
+    // bare; `∀x. p(x) ⊢ ∃y. p(y)` with a witness that no `∀` step
+    // introduces, a constant outside the signature; and `∀x. p(x) ⊢ p(a)`
+    // with a `∀` step on the hypothesis, which is an `∃` on the one-sided
+    // sequent.
     {
         let b = Build::new("forall x. p(x) |- p(a)", &[]);
         let (ex, goal) = (b.root(0), b.root(1));
@@ -320,8 +328,8 @@ pub(crate) fn cases() -> Vec<Case> {
         let c = b.eigen(2);
         let frame = b.frame(&[c]);
         let (l, r) = (b.at(below(ex, 1), frame), b.at(below(ey, 1), frame));
-        // An eigenvariable no `∀` step introduces is a constant outside
-        // the signature, a witness of its own.
+        // An eigenvariable that no `∀` step introduces is a constant
+        // outside the signature, which any witness may name.
         cases.push(Case {
             name: "unintroduced",
             proof: b.proof(vec![
@@ -630,11 +638,11 @@ mod tests {
         assert_eq!(reached.into_iter().collect::<Vec<_>>(), all);
     }
 
-    /// The checker's first implementation, which has the quantifier rules
-    /// of its own, gives the same verdict and error on every written proof
-    /// in several modes, and on its mutants: every eigenvariable, every
-    /// closed term as a witness, and every member of the table in place of
-    /// a member a node names.
+    /// The oracle, which has quantifier rules of its own, gives the same
+    /// verdict and error as the checker on every written proof, in five
+    /// modes and its own, and on its mutants: every eigenvariable, every term as a
+    /// witness, and every member of the table in place of a member a node
+    /// names.
     #[test]
     fn the_first_implementation_agrees() {
         let modes = [
@@ -716,12 +724,13 @@ mod tests {
     }
 
     /// Every written proof with a cut is eliminated by the strategy, step
-    /// by step, in its mode and in every mode beside it that takes it
-    /// (affine, Mix): every step's proof passes the checker, over the same
-    /// sequent with the same conclusion, the last is cut-free, and
-    /// `eliminate` takes the same steps; the key case of `∀` and `∃` is
-    /// met, and where it substitutes into a copy of a subproof another cut
-    /// still reads, the copy's `∀` step has an eigenvariable of its own.
+    /// by step, in its mode and in the modes beside it (affine, and Mix
+    /// for a classical proof). Every step's proof passes the checker, over
+    /// the same sequent with the same conclusion, the last is cut-free,
+    /// and `eliminate` takes the same steps. The key case of `∀` and `∃`
+    /// is met. Where it substitutes into a copy of a subproof that another
+    /// cut still reads, the copy's `∀` step gets an eigenvariable of its
+    /// own.
     #[test]
     fn the_cuts_are_eliminated() {
         use crate::linear::proofs::cut::{self, End};
@@ -777,7 +786,8 @@ mod tests {
                 assert_eq!(elimination.end, End::CutFree, "{}", case.name);
                 assert_eq!(elimination.steps, steps, "{} in {mode:?}", case.name);
                 elimination.proof.check(mode).unwrap();
-                // The proofs name the eigenvariables 0 to 3.
+                // The written proofs name eigenvariables 0 to 3 only, so a
+                // higher one is a fresh one that a step made.
                 assert_eq!(
                     renamed,
                     case.name.starts_with("cut_shared"),
@@ -798,11 +808,11 @@ mod tests {
         }
     }
 
-    /// `∀x. ∀y. ∀z. p(x, y, z) ⊢ G`, `G` eight `∀y. ∀z. p(a, y, z)` under
-    /// three levels of `&`, with the cut formula `∀x. ∀y. ∀z. p(x, y, z)`:
-    /// the cut moves into every branch, the eight cuts share their first
-    /// premise, and each key case of `∀` and `∃` copies it while the
-    /// others still read it.
+    /// Returns a proof of `∀x. ∀y. ∀z. p(x, y, z) ⊢ G`, with `G` eight
+    /// `∀y. ∀z. p(a, y, z)` under three levels of `&` and the cut formula
+    /// `∀x. ∀y. ∀z. p(x, y, z)`. Elimination moves the cut into every
+    /// branch, the eight cuts share their first premise, and each key case
+    /// of `∀` and `∃` copies it while the others still read it.
     fn shared_eight() -> Proof {
         use Node::*;
         let leaf = "(forall y. forall z. p(a, y, z))";
@@ -837,8 +847,8 @@ mod tests {
             Forall(b.at(below(c, 1), f0), Eigen::new(1), top),
         );
         let shared = push(&mut nodes, Forall(bare(c), Eigen::new(0), top));
-        // The goal's tree: a `&` above two subtrees, or a leaf, each
-        // closed by its own two eigenvariables.
+        // The goal's tree: each `&` over its two subtrees, and each leaf
+        // closed with two eigenvariables of its own.
         let mut next = 3;
         let mut stack = vec![(g, false)];
         let mut made: Vec<NodeId> = Vec::new();
@@ -875,11 +885,11 @@ mod tests {
     }
 
     /// The copies a step makes of a subproof are charged against the bound
-    /// on nodes before they are made: the proof of
-    /// [`shared_eight`] grows by copies alone, and under a bound between its
-    /// nodes and the most the elimination reaches, the elimination stops
-    /// with its last checked proof, cuts and all, and the bound's refusal;
-    /// the step it stops at is a key case of `∀` and `∃`.
+    /// on nodes before they are made. The proof of [`shared_eight`] grows
+    /// by copies alone. Under a bound between its nodes and the most the
+    /// elimination reaches, the elimination stops with its last checked
+    /// proof, cuts and all, and the bound's refusal. The step it stops at
+    /// is a key case of `∀` and `∃`.
     #[test]
     fn copies_are_charged_against_the_bounds() {
         use crate::limits::{Bound, Refusal};
@@ -932,9 +942,9 @@ mod tests {
         );
     }
 
-    /// The size computed of a proof with instances is that of its
-    /// derivation: the inferences and the height exactly, and at least
-    /// the characters of every sequent as written.
+    /// The size computed of a proof with instances bounds its derivation:
+    /// the number of inferences exactly, and at least the characters of
+    /// every sequent as written. The size says it is not exact.
     #[test]
     fn the_size_bounds_the_derivation() {
         for case in cases().into_iter().filter(|c| c.fault.is_none()) {
@@ -970,8 +980,8 @@ mod tests {
     }
 
     /// The derivation of a proof with instances writes every instance with
-    /// its frame's terms, the eigenvariables named after letters no
-    /// symbol takes, one-sided and two-sided.
+    /// its frame's terms, one-sided and two-sided. Eigenvariables are
+    /// named by letters that no symbol takes.
     #[test]
     fn a_derivation_writes_instances() {
         let derivations: Vec<(&str, String)> = cases()
@@ -1019,10 +1029,10 @@ mod tests {
         );
     }
 
-    /// The walk of the witnesses is work the pass counts: a tower of `∃`
-    /// steps each of whose witnesses holds the last, `f(t, a)`, is quadratic
-    /// in the walk, and a work limit above its nodes and below the walk
-    /// refuses it, without a verdict; without one it is a proof.
+    /// The pass counts the walk of the witnesses as work. In a tower of `∃`
+    /// steps whose witnesses each hold the last, `f(t, a)`, the walk is
+    /// quadratic. A work bound above the nodes and below the walk refuses
+    /// the check without a verdict; without that bound it is a proof.
     #[test]
     fn the_walk_of_witnesses_is_counted_work() {
         let n = 200u32;
@@ -1073,10 +1083,10 @@ mod tests {
         );
     }
 
-    /// An error writes a frame's term cut after a few thousand characters:
-    /// a witness of forty doubly shared levels, `f(t, t)`, which a file of
-    /// a kilobyte names and no memory holds written out, is reported in a
-    /// short message.
+    /// An error cuts a frame's term after a few thousand characters. A
+    /// witness of forty levels of `f(t, t)`, which a file of a kilobyte
+    /// can name and no memory could hold written out, gets a short
+    /// message.
     #[test]
     fn an_error_cuts_a_frame_term() {
         let mut b = Build::new("forall x. p(x) |- p(f(a, a))", &[]);
@@ -1105,8 +1115,9 @@ mod tests {
     }
 
     /// Every written proof is pinned as a JSON file under
-    /// `core/tests/first-order/`, at wire level 7, and reads back as the
-    /// proof it is, which writes the same bytes again.
+    /// `core/tests/first-order/`, at wire version 7. It reads back as the
+    /// same proof, which writes the same bytes again. Run with `BLESS=1`
+    /// to write the files anew.
     #[cfg(feature = "serialize")]
     #[test]
     fn the_proofs_are_pinned_and_read_back() {

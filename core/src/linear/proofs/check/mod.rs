@@ -1,36 +1,41 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The proof checker: it derives, node by node, the sequent a proof term
-//! proves under the rules of the dyadic sequent calculus and accepts the
-//! term only if the root derives the proof's sequent. It is the reference
-//! for what a proof is, so it shares no code with any search engine and must
-//! never: an engine's proofs are validated by something that cannot repeat
-//! the engine's mistakes.
+//! The proof checker. It derives, node by node, the sequent a proof term
+//! proves under the rules of the dyadic sequent calculus, and accepts the
+//! term only if the root derives the proof's sequent. A dyadic sequent
+//! `⊢ Θ ; Γ` has an unrestricted zone `Θ`, the subformulas of `?`
+//! formulas, and a linear zone `Γ`.
+//!
+//! The checker is the reference for what a proof is. It shares no code
+//! with any search engine and must not, so that an engine's proofs are
+//! checked by something that cannot repeat the engine's mistakes.
 //!
 //! The pass is bottom-up, one node at a time in arena order, and never
 //! recurses. What a subproof proves is a `State`, a sequent kept as two
-//! tables of its members; the one rule whose conclusion the premises do not
-//! determine, `⊤`, is handled by a flag that says the subproof proves its
-//! sequent under any further context. A node's sequent is built from its
+//! tables of its members. The premises of `⊤` do not determine its
+//! conclusion, so a flag says that the subproof proves its sequent under
+//! any further linear context. A node's sequent is built from its
 //! premises' own: the last node to read a premise takes its sequent and
-//! changes it in place, an earlier reader a copy, so what the pass holds at
-//! any moment is the sequents some later node still reads. Those are
-//! counted in bytes as they come and go, and a pass that would hold more
-//! than its bound ends with a refusal, which is no verdict on the proof.
+//! changes it in place, and an earlier reader takes a copy. So the pass
+//! holds, at any moment, the sequents some later node still reads. They
+//! are counted in bytes as they come and go, and a pass that would hold
+//! more than its bound ends with a refusal, which is no verdict on the
+//! proof.
 //!
-//! No arithmetic here may wrap, in any build: a term from a file is
-//! hostile input, and a counter that wrapped once made a term a proof
-//! that was none. So every integer says at its declaration why it stays
-//! in range, or saturates into a refusal.
+//! No arithmetic here may wrap, in any build. A term from a file is
+//! hostile input, and a counter that wraps can make a term that is no
+//! proof pass as one. So every integer says at its declaration why it
+//! stays in range, or saturates into a fault or a refusal.
 //!
 //! In intuitionistic mode the same pass also checks the one-succedent
-//! condition against the sequent's intuitionistic reading: every derived
-//! linear zone holds at most one formula in output position, exactly one
-//! unless a `⊤` above absorbs the rest, a `⊤` never absorbs a second
-//! output, weakening never discards the goal, and Mix has no premise with
-//! a goal at all. Every intuitionistic rule is a classical rule on the
-//! one-sided sequent, so nothing else is intuitionistic about a proof.
+//! condition against the sequent's intuitionistic reading. Every derived
+//! linear zone holds at most one formula in output position, and exactly
+//! one unless a `⊤` above absorbs the rest. A `⊤` never absorbs a second
+//! output, weakening never discards the goal, and Mix is forbidden, since
+//! one of its premises would have no goal. Every intuitionistic rule is a
+//! classical rule on the one-sided sequent, so nothing else about a proof
+//! is intuitionistic.
 
 mod error;
 /// What the pass knows of a proof's members, and the frame pass.
@@ -67,18 +72,18 @@ mod tests {
     }
 
     /// Builds a proof of the sequent `input` parses to, with the last node
-    /// as the root. Occurrence ids are the preorder numbering, which each
-    /// test lists in a comment.
+    /// as the root. Occurrence ids are the preorder numbering, which the
+    /// tests list in comments.
     fn proof(input: &str, nodes: Vec<Node>) -> Proof {
         let s: Sequent = input.parse().unwrap_or_else(|e| panic!("{input:?}: {e}"));
         let root = n(nodes.len() as u32 - 1);
         Proof::new(Forest::new(&s).unwrap(), nodes, root).unwrap()
     }
 
-    /// A proof with one node changed at random, or none when the change
-    /// does not leave a proof term: another occurrence, another premise,
-    /// another rule on the same operands, the premises swapped, or a
-    /// weakening in the node's place.
+    /// Returns the proof with one node changed at random, or `None` when
+    /// the change leaves no proof term. The change is another occurrence,
+    /// another premise, another rule on the same operands, the premises
+    /// swapped, or a weakening in the node's place.
     fn mutant(rng: &mut Rng, proof: &Proof) -> Option<Proof> {
         use Node::*;
         let mut nodes = proof.nodes().to_vec();
@@ -142,11 +147,10 @@ mod tests {
         Proof::new(proof.forest().clone(), nodes, proof.root()).ok()
     }
 
-    /// The checker agrees with its first implementation, which keeps every
-    /// node's sequent, on the verdict and on the error: on the proofs the
-    /// engines find of generated sequents, classical and intuitionistic,
-    /// and of the smallest instance of every family, in the mode they were
-    /// found in and in the others, and on mutants of them.
+    /// The checker and the oracle, a second implementation that keeps
+    /// every node's sequent, give the same verdict and the same error.
+    /// They run on every proof of [`oracle::proofs`] in seven modes, and
+    /// on mutants of those proofs in four.
     #[test]
     fn agrees_with_the_first_implementation() {
         let classical = Mode::CLASSICAL;
@@ -406,8 +410,8 @@ mod tests {
     }
 
     /// Every rule misapplied is rejected at the node that misapplies it,
-    /// with the problem named; a rule the mode forbids is rejected too, and
-    /// so is a root that concludes something else.
+    /// with the fault named. So is a rule the mode forbids, and a root
+    /// that concludes something else.
     #[test]
     fn rejects_every_misuse() {
         use Fault::*;
@@ -612,8 +616,9 @@ mod tests {
 
     /// A term that doubles a zone at every node is refused where the zone
     /// outgrows what the rest of the proof can consume, long before a
-    /// counter is full: this one mixes 2⁶⁴ copies of `⊢ 1`, promotes `⊥`
-    /// over them and mixes one more in, and `⊢ !⊥, 1` has no proof.
+    /// counter is full. This one mixes 2⁶⁴ copies of `⊢ 1`, promotes `⊥`
+    /// over them and mixes one more in. With counters that wrap it would
+    /// pass, but `⊢ !⊥, 1` has no proof.
     #[test]
     fn refuses_a_zone_too_large_to_conclude() {
         use Node::*;
@@ -637,15 +642,16 @@ mod tests {
         // Node 8 holds 256 copies with 122 nodes to come.
         assert_eq!((e.node(), e.fault()), (n(8), Some(&Fault::Surplus)));
         assert_eq!(Err(e.clone()), oracle::check(&p, mode));
-        // The pass that adds up weights for the size refuses it there too.
+        // The size estimate's pass, which adds up weights, finds the same
+        // fault.
         assert_eq!(p.size_of(false), Err(e));
     }
 
-    /// A proof of `⊢ 1, ⊥, …, ⊥, T` with `width` formulas `⊥` and `T` a
-    /// balanced tree of `&` over `2^depth` leaves `⊥`: the `⊥` formulas are
-    /// introduced once, into one sequent that every leaf of the tree then
-    /// reads, and all the leaves come before the first `&` that joins two
-    /// of them. So a pass holds a copy of that sequent for every leaf.
+    /// Returns a proof of `⊢ 1, ⊥, …, ⊥, T` with `width` formulas `⊥`, and
+    /// `T` a balanced tree of `&` over `2^depth` leaves `⊥`. The `⊥`
+    /// formulas are introduced once, into one sequent that every leaf of
+    /// the tree then reads, and all the leaves come before the first `&`.
+    /// So a pass holds a copy of that sequent for every leaf.
     fn shared(width: u32, depth: u32) -> Proof {
         use crate::linear::sequents::{Term, TermId};
         use Node::*;
@@ -704,10 +710,10 @@ mod tests {
         Proof::new(Forest::new(&sequent).unwrap(), nodes, root).unwrap()
     }
 
-    /// A zone's count of its bytes stays what its table takes when a
-    /// member that is there already is added again: the table is full at
-    /// fourteen members in sixteen slots, and would double to make room
-    /// before it looked the member up.
+    /// Adding a member a zone already holds leaves its table and its count
+    /// of bytes as they were. The table is full at fourteen members in
+    /// sixteen slots, and would double to make room before it looked the
+    /// member up.
     #[test]
     fn a_member_twice_grows_no_table() {
         let mut zone = Zone::default();
@@ -722,10 +728,10 @@ mod tests {
         assert_eq!((zone.bytes(), zone.members.capacity()), (bytes, room));
     }
 
-    /// The pass's own tables are asked for before it judges anything: a
-    /// term whose first node is no rule is refused, not judged, under a
-    /// bound of a byte less than its tables, and judged at the tables'
-    /// size exactly.
+    /// The pass counts its own tables before it judges anything. A term
+    /// whose first node misapplies its rule is refused, not judged, under
+    /// a bound one byte below its tables, and judged under a bound of
+    /// exactly their size.
     #[test]
     fn refuses_its_tables_before_it_judges() {
         let (o, mode) = (|i| Member::new(i), Mode::CLASSICAL);
@@ -753,12 +759,12 @@ mod tests {
         }
     }
 
-    /// A proof of `⊢ ⊤, ⊥, …, ⊥, ⊥ & ⊥, …, ⊥ & ⊥` with `width` formulas
-    /// `⊥` and `length` of `⊥ & ⊥`: the `⊥` formulas introduced one by one
-    /// over the `⊤`, then a chain of `&` nodes each of whose right premises
-    /// is that one node, which absorbs both of its subformulas. The chain
-    /// is a proof file linear in its length whose pass handles the
-    /// node's sequent at every link.
+    /// Returns a proof of `⊢ ⊤, ⊥, …, ⊥, ⊥ & ⊥, …, ⊥ & ⊥` with `width`
+    /// formulas `⊥` and `length` of `⊥ & ⊥`. The `⊥` formulas are
+    /// introduced one by one over the `⊤`. Then comes a chain of `&`
+    /// nodes whose right premise is always that last `⊥` node, which
+    /// absorbs both subformulas. The proof is linear in its length, but
+    /// the pass handles that node's sequent at every link.
     fn chained(width: u32, length: u32) -> Proof {
         use crate::linear::sequents::{Term, TermId};
         use Node::*;
@@ -792,10 +798,10 @@ mod tests {
         Proof::new(Forest::new(&sequent).unwrap(), nodes, previous).unwrap()
     }
 
-    /// A node that many others read costs each of them its sequent: the
+    /// A node that many others read costs each of them its sequent. The
     /// pass counts that work, asks the stop by it and refuses past a bound
-    /// on it. Counted by nodes, an 8.6 MB file of this shape took 83 s,
-    /// between two polls a few seconds apart.
+    /// on it. With work counted by nodes alone, an 8.6 MB file of this
+    /// shape took 83 s, with polls of the stop seconds apart.
     #[test]
     fn counts_the_work_of_shared_premises() {
         let (proof, mode) = (chained(2000, 2000), Mode::CLASSICAL);
@@ -805,9 +811,9 @@ mod tests {
             false
         });
         assert_eq!(checked, Ok(()));
-        // 4 001 nodes, one poll by their count; each link handles two
-        // sequents of thousands of formulas: 176 polls, one per 65 536
-        // units, not one per node.
+        // 4 001 nodes, too few for a poll by their count (every 4 096).
+        // Each link handles two sequents of thousands of formulas, so
+        // there are about 176 polls, one per 65 536 units of work.
         assert!((100..300).contains(&polls), "{polls} polls");
         let enough = crate::Limits::default().with_work(Some(1 << 40));
         assert_eq!(proof.check_within(mode, &enough, |_| false), Ok(()));
@@ -819,9 +825,9 @@ mod tests {
         );
     }
 
-    /// The bound is exact: the check of `⊢ 1` holds its tables and the
-    /// root's sequent, the value and a table of one member, passes at
-    /// exactly their bytes and is refused one byte below; and a zone's
+    /// The bound is exact. The check of `⊢ 1` holds its tables and the
+    /// root's sequent (the value and a table of one member). It passes at
+    /// exactly their bytes and is refused one byte below. And a zone's
     /// bound leaves its counters room.
     #[test]
     fn the_bound_is_exact() {
@@ -837,11 +843,12 @@ mod tests {
         assert!(Bag::MOST < u32::MAX as usize);
     }
 
-    /// A check holds no more than it is allowed: a proof file of a megabyte
-    /// whose pass would hold 16 384 copies of a sequent of 14 001 formulas,
-    /// over two gigabytes, is refused after a few hundred of them, and the
-    /// refusal is no verdict. So are its size and its derivation. The same
-    /// proof at a size that fits is valid.
+    /// A check holds no more than it is allowed. A proof file of a
+    /// megabyte whose pass would hold 16 384 copies of a sequent of 14 001
+    /// formulas, over two gigabytes, is refused after a few hundred of
+    /// them, and the refusal is no verdict. Its size and its derivation
+    /// are refused the same way. The same shape of proof at a size that
+    /// fits is valid.
     #[test]
     fn holds_no_more_than_its_bound() {
         let mode = Mode::CLASSICAL;
@@ -914,8 +921,8 @@ mod tests {
                 needed_bytes: None
             }
         );
-        // A copy takes 16 384 slots of nine bytes, 144 KiB: the bound is
-        // reached within 512 leaves of the tree.
+        // A copy takes 16 384 slots of nine bytes, 144 KiB, so the bound
+        // is reached within 512 leaves of the tree.
         let leaf = e.node().get() - width - 1;
         assert!((256..512).contains(&leaf), "leaf {leaf}");
         assert_eq!(
@@ -927,7 +934,7 @@ mod tests {
             )
         );
         // The size and the derivation are under the same bound, and their
-        // refusal is no invalid proof either.
+        // refusal is no verdict either.
         assert!(matches!(
             large.derivation_size(
                 &crate::linear::proofs::ViewOptions::default(),
@@ -1094,10 +1101,10 @@ mod tests {
         Proof::new(Forest::new(&s).unwrap(), nodes, root).unwrap()
     }
 
-    /// A cut takes its formula from its first premise and the dual from
-    /// its second, in every commutative mode, and is refused on any other
+    /// In every commutative mode a cut takes its formula from its first
+    /// premise and the dual from its second. It is refused on any other
     /// member, with premises that lack them, where a premise would have
-    /// two goals, and in the ordered modes; the oracle agrees.
+    /// two goals, and in the ordered modes. The oracle agrees.
     #[test]
     fn cut() {
         use Fault::*;
@@ -1233,7 +1240,7 @@ mod tests {
 
     /// In the Lambek calculus every sequent of a proof keeps a hypothesis
     /// unless empty antecedents are allowed, and the ordered reading
-    /// takes either factor as a division's antecedent; the oracle agrees.
+    /// takes either factor as a division's antecedent. The oracle agrees.
     #[test]
     fn lambek() {
         use Node::*;
@@ -1311,7 +1318,8 @@ mod tests {
             "node 2 (⊗ on A ⊗ ~B from 1, 0) with premises ⊢ ~B, B and ⊢ ~A, A: \
              premise 0 lacks A"
         );
-        // Cut to three characters a formula, as a long report is.
+        // An abbreviated report cuts every formula, here after three
+        // characters.
         assert_eq!(
             p.check(Mode::CLASSICAL)
                 .unwrap_err()
@@ -1321,8 +1329,8 @@ mod tests {
             "node 2 (⊗ on A ⊗… from 1, 0) with premises ⊢ ~B… (2 formulas) and ⊢ ~A… \
              (2 formulas): premise 0 lacks A"
         );
-        // The fault's formula is cut too: an axiom on a formula a proof
-        // file can make as long as it likes.
+        // The fault's formula is cut too: a proof file can put an axiom
+        // on a formula as long as it likes.
         let p = proof("|- a * (b * c), ~a", vec![Ax(o(0), o(5))]);
         let report = |limit| {
             p.check(Mode::CLASSICAL)
@@ -1339,7 +1347,7 @@ mod tests {
             report(None),
             "node 0 (ax on a ⊗ (b ⊗ c), ~a): a ⊗ (b ⊗ c) is not what the rule acts on"
         );
-        // ⊢ ?~A, A with the ? step missing: a dyadic sequent with Θ.
+        // ⊢ ?~A, A with the ? step missing: the root's sequent has a Θ.
         let p = proof("!A |- A", vec![Ax(o(1), o(2)), Copy(o(1), n(0))]);
         assert_eq!(
             p.check(Mode::CLASSICAL).unwrap_err().to_string(),

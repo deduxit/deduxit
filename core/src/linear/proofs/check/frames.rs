@@ -3,10 +3,13 @@
 
 //! What the checker's bottom-up pass asks of a proof's members: the
 //! occurrence a member stands for, the member of a subformula under the
-//! same frame, and whether two literals are an atom and its negation. A
-//! proof without binders answers by occurrences alone ([`Ground`]); a
-//! proof with an instance table answers from the frame pass ([`Framed`]),
-//! which runs before the bottom-up pass.
+//! same frame, and whether two literals are an atom and its negation.
+//!
+//! A frame is the list of terms that an instance puts in place of the
+//! bound variables above its occurrence. A proof without binders answers
+//! by occurrences alone ([`Ground`]). A proof with an instance table
+//! answers from the frame pass ([`Framed`]), which runs before the
+//! bottom-up pass.
 
 use super::error::Fault;
 use crate::hash::{HashMap, HashSet};
@@ -17,9 +20,9 @@ use crate::linear::sequents::{Eigen, FoTerm, FoTermId};
 
 /// What the bottom-up pass needs to know of members beyond the forest.
 pub(crate) trait Instancing {
-    /// Whether the proof has an instance table, and the pass carries
-    /// eigenvariables: false for the pass of a proof without binders,
-    /// which compiles without the eigenvariables' code.
+    /// Whether the proof has an instance table and the pass carries
+    /// eigenvariables. False for a proof without binders, whose pass then
+    /// compiles without the eigenvariables' code.
     const FRAMED: bool;
 
     /// Returns the occurrence `m` stands for.
@@ -30,12 +33,13 @@ pub(crate) trait Instancing {
     fn child(&self, m: Member, c: OccId) -> Member;
 
     /// Returns the member of `p`, the parent of `m`'s occurrence and no
-    /// binder, under `m`'s frame, where the proof has it.
+    /// binder, under `m`'s frame; or `p` itself when the proof has no such
+    /// member.
     fn parent(&self, m: Member, p: OccId) -> Member;
 
     /// Returns whether the literals `a` and `b` are an atom and its
-    /// negation: one atom, or under frames one predicate applied to equal
-    /// terms.
+    /// negation: the same atom, or under frames the same predicate applied
+    /// to equal terms.
     fn dual_literals(&mut self, forest: &Forest, a: Member, b: Member) -> bool;
 
     /// Returns the member of the dual of `m`'s occurrence in its cut
@@ -43,7 +47,7 @@ pub(crate) trait Instancing {
     fn dual(&self, forest: &Forest, m: Member) -> Option<Member>;
 
     /// Returns the fault the frame pass found at `node`, if any: a member
-    /// under binders named without its instance, an eigenvariable
+    /// under binders named without its instance, or an eigenvariable
     /// introduced a second time.
     fn fault(&self, node: NodeId) -> Option<Fault>;
 
@@ -52,15 +56,15 @@ pub(crate) trait Instancing {
     /// witness pushed.
     fn body(&self, node: NodeId) -> Member;
 
-    /// Adds to `into` the eigenvariables the `∃` step or the cut `node`
-    /// brings in, those of its witness or of its member's frame, and
-    /// returns the units of work that took: a term or a frame visited is
-    /// one. Each shared term is visited once.
+    /// Adds to `into` the eigenvariables that the `∃` step or the cut
+    /// `node` brings in: those of its witness, or of its member's frame.
+    /// Returns the units of work that took, one for each term or frame
+    /// cell visited. Each shared term is visited once.
     fn bring(&self, node: Node, into: &mut Vec<Eigen>) -> u64;
 
-    /// Returns whether a `∀` step of the proof introduces `a`: one no step
-    /// introduces is a constant outside the signature, which any witness
-    /// may name.
+    /// Returns whether a `∀` step of the proof introduces `a`. One that no
+    /// step introduces is a constant outside the signature, which any
+    /// witness may name.
     fn introduces(&self, a: Eigen) -> bool;
 
     /// Returns how many terms the frame of `m` holds: the work of reading
@@ -106,7 +110,7 @@ impl Instancing for Ground {
 
     fn body(&self, _: NodeId) -> Member {
         // A forest without binders has no occurrence of the kind a `∀` or
-        // `∃` step acts on, which the pass tests first.
+        // `∃` step acts on, and the pass tests the kind first.
         unreachable!("a binder's step on a forest without binders fails its kind")
     }
 
@@ -133,10 +137,13 @@ struct Found {
     body: Option<Member>,
 }
 
-/// The members of a proof with an instance table, which
-/// [`Proof::with_instances`] made canonical and closed under the members
-/// the rules derive: equal instances are one member, so the bottom-up
-/// pass compares them by number.
+/// The members of a proof with an instance table, and what the frame pass
+/// found.
+///
+/// [`Proof::with_instances`] made the table canonical, so equal instances
+/// are one member and the bottom-up pass compares them by number. It also
+/// closed the table under the members the rules derive, so every lookup
+/// here finds its member.
 pub(crate) struct Framed<'a> {
     /// The proof's table.
     table: &'a Instances,
@@ -155,15 +162,20 @@ pub(crate) struct Framed<'a> {
 }
 
 impl<'a> Framed<'a> {
-    /// Runs the frame pass over `proof`, top-down in reverse arena order:
-    /// every member a node names under binders must be an instance of
-    /// the table; a `∀` step's body is its member's frame with its
-    /// eigenvariable pushed, an `∃` step's with its witness, and the
-    /// eigenvariables of the witness, as those of a cut's frame, come in
-    /// there; every eigenvariable is introduced by one `∀` step, the
-    /// first in arena order, and a second introduction is a fault of the
-    /// later one. A frame is never derived here: every member names its
-    /// own, and the bottom-up pass finds a member a premise lacks.
+    /// Runs the frame pass over `proof`, top-down in reverse arena order.
+    /// It finds:
+    /// - a member under binders that a node names bare, without an
+    ///   instance ([`Fault::Instance`]);
+    /// - the body of each `∀` and `∃` step: the member of the binder's
+    ///   body under its frame with the eigenvariable or the witness pushed;
+    /// - the `∀` step that introduces each eigenvariable, the first in
+    ///   arena order. A later step that introduces it again is at fault
+    ///   ([`Fault::Reintroduced`]).
+    ///
+    /// The eigenvariables that witnesses and cut frames name are walked
+    /// later, in the bottom-up pass ([`Instancing::bring`]). No frame is
+    /// derived here: every member names its own, and the bottom-up pass
+    /// finds a member a premise lacks.
     pub(crate) fn new(proof: &'a Proof, table: &'a Instances) -> Self {
         let forest = proof.forest();
         let terms = Terms {
@@ -256,8 +268,8 @@ impl<'a> Framed<'a> {
     }
 
     /// Returns the instance of the body of `m`'s occurrence `o`, a
-    /// binder, under `m`'s frame with `term` pushed: a member of the table,
-    /// which holds every one a node derives.
+    /// binder, under `m`'s frame with `term` pushed. The table holds it,
+    /// as it holds every member a node derives.
     fn pushed(&self, m: Member, o: OccId, term: FoTermId) -> Member {
         let frame = self.frames[&(self.frame(m), term)];
         self.members[&(OccId::new(o.get() + 1), frame)]
@@ -274,8 +286,8 @@ impl Instancing for Framed<'_> {
     fn child(&self, m: Member, c: OccId) -> Member {
         match self.frame(m) {
             None => Member::from(c),
-            // The table holds every subformula's instance of a member a
-            // node names.
+            // The table holds the instance of every subformula of a
+            // member a node names.
             Some(frame) => self.members[&(c, frame)],
         }
     }
@@ -306,8 +318,8 @@ impl Instancing for Framed<'_> {
         };
         let predicates = (sequent.atom_predicate(ax), sequent.atom_predicate(ay));
         let (Some((px, lx)), Some((py, ly))) = predicates else {
-            // Nullary atoms of a sequent with binders but no predicates
-            // are compared by name.
+            // An atom without a predicate is nullary, and compared by
+            // name.
             return ax == ay;
         };
         if px != py {
@@ -358,7 +370,7 @@ impl Instancing for Framed<'_> {
             },
             _ => return 0,
         };
-        // The frame's cells, each one unit.
+        // Each of the frame's cells is one unit.
         let mut units = stack.len() as u64;
         let terms = self.numbering.terms();
         let mut seen = HashSet::default();

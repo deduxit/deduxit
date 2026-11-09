@@ -1,7 +1,8 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The checker's one pass, its bounds and its observers.
+//! The checker's pass, its bounds on memory and work, and the observers
+//! that read every node's sequent from it.
 
 use super::error::{CheckError, Fault, Refused};
 use super::frames::{Framed, Ground, Instancing};
@@ -12,7 +13,9 @@ use crate::linear::occurrences::{Forest, Member, OccId, Reading, Side};
 use crate::linear::proofs::{Branch, Node, NodeId, Proof};
 use crate::linear::sequents::Kind;
 
-/// Why the pass stopped at a node: a fault of the proof, or its bound.
+/// Why the pass stopped at a node: a fault of the proof, a bound or the
+/// stop. [`examine_with`] turns a fault into [`CheckError::Invalid`] and
+/// the rest into [`CheckError::Refused`].
 #[derive(Debug)]
 pub(super) enum Halt {
     /// The rule required what it did not get.
@@ -35,17 +38,20 @@ pub(super) enum Halt {
 pub(super) const POLL: usize = 4096;
 
 /// How many units of work a pass does between two polls of its stop, at
-/// most: a node with large shared premises does many.
+/// most. A poll by nodes alone is too rare: one node with large shared
+/// premises does many units.
 pub(super) const POLL_WORK: u64 = 1 << 16;
 
 /// What a pass of the checker may spend, and whom it asks whether to go
-/// on: the memory bound, the most work it may do, the phase a refusal
-/// names, and the caller's stop, asked every [`POLL`] nodes or
-/// [`POLL_WORK`] units of work, whichever comes first, with the work
-/// done. A unit of work is a node, or an entry of a premise's sequent
-/// that the node's rule is handed (and copies, pours or compares): a
-/// node read by many others with a large sequent costs each of them its
-/// size, so a file of a few megabytes can ask for 10¹⁰ units.
+/// on: the memory bound, the work bound, the phase a refusal names, and
+/// the caller's stop.
+///
+/// The stop is asked every [`POLL`] nodes or [`POLL_WORK`] units of work,
+/// whichever comes first, and is told the work done. A unit of work is a
+/// node, or an entry of a premise's sequent that the node's rule is
+/// handed and then copies, pours or compares. A node that many others
+/// read costs each of them the size of its sequent, so a file of a few
+/// megabytes can ask for 10¹⁰ units.
 pub(crate) struct Allowance<'s> {
     /// The most bytes the pass may hold, or `None` for any number.
     pub(crate) memory: Option<u64>,
@@ -80,39 +86,47 @@ impl From<Fault> for Halt {
     }
 }
 
-/// Checks that a proof proves its sequent: every node applies its rule to
-/// what its premises derive, the mode allows the rule, and the root derives
-/// exactly the sequent's formulas with nothing left in the unrestricted
-/// zone; in intuitionistic mode also that the sequent has an intuitionistic
-/// reading and every sequent of the proof one formula on the right of `⊢`.
-/// Returns the first node that fails, in arena order, with what it needed.
+/// Checks that a proof proves its sequent, within the default [`Limits`].
 ///
-/// The memory taken is that of the sequents some later node still reads,
-/// which for a proof without shared subproofs is proportional to the
-/// proof, and within [`Limits::DEFAULT_MEMORY_BYTES`]: see [`check_within`].
+/// The proof passes when every node applies its rule to what its premises
+/// derive, the mode allows every rule, and the root derives exactly the
+/// sequent's formulas with nothing left in the unrestricted zone. In
+/// intuitionistic mode the sequent must also have an intuitionistic
+/// reading, and every sequent of the proof one formula right of `⊢`.
+/// Otherwise the error names the first node that fails, in arena order,
+/// with what it needed.
+///
+/// The pass holds the sequents that some later node still reads. For a
+/// proof without shared subproofs that is proportional to the proof. It
+/// stays within [`Limits::DEFAULT_MEMORY_BYTES`]: see [`check_within`].
 pub(crate) fn check(proof: &Proof, mode: Mode) -> Result<(), CheckError> {
     check_within(proof, mode, &Limits::default(), &mut |_| false)
 }
 
-/// Checks that a proof proves its sequent as [`check`] does, holding
-/// `memory` bytes at most, or any number with `None`. A node that several
-/// others read has its sequent copied for each, so a proof with shared
-/// subproofs can take its nodes times its sequents; a check that would
-/// pass the bound ends with an error that
-/// [`Refused`](CheckError::Refused), which says nothing about the
-/// proof.
+/// Checks that a proof proves its sequent as [`check`] does, within
+/// `limits.memory_bytes` and `limits.work` (`None` for no bound), asking
+/// `stop` as [`Allowance`] says.
 ///
-/// What is counted is what the pass allocates beyond the proof and the
-/// forest it is given: a count and a pointer for every node (twelve
-/// bytes on a 64-bit target, eight on a 32-bit one), and every sequent it
-/// holds at the size of its two tables of members, which is the least
-/// they take and at least a quarter of what they do (a table that
-/// members came and went from can have up to four times the slots of one
-/// that only grew). A copy is counted before it is made. Not counted:
-/// what one rule needs while it joins two sequents and the sequents of
-/// an error's report, each within a small multiple of the largest
-/// sequent counted, and the intuitionistic reading, which is a few bytes
-/// for every occurrence of the forest.
+/// A node that several others read has its sequent copied for each, so a
+/// proof with shared subproofs can take its nodes times its sequents. A
+/// check that would pass a bound, or that `stop` ends, returns
+/// [`CheckError::Refused`], which says nothing about the proof.
+///
+/// What is counted is what the pass allocates beyond the proof and its
+/// forest:
+/// - a count and a pointer for every node: twelve bytes on a 64-bit
+///   target, eight on a 32-bit one;
+/// - every sequent the pass holds, at the size of its two tables of
+///   members when they were fullest. That is the least the tables take,
+///   and at least a quarter of what they do: a table that members came
+///   and went from can have up to four times the slots of one that only
+///   grew.
+///
+/// A copy is counted before it is made. Not counted: what one rule needs
+/// while it joins two sequents and the sequents of an error's report,
+/// each within a small multiple of the largest sequent counted; and the
+/// intuitionistic reading, a few bytes for every occurrence of the
+/// forest.
 pub(crate) fn check_within(
     proof: &Proof,
     mode: Mode,
@@ -130,9 +144,12 @@ pub(crate) fn check_within(
     )
 }
 
-/// Returns the intuitionistic reading of the proof's sequent in
-/// intuitionistic mode and none otherwise, or the error of a sequent that
-/// has no reading.
+/// Returns the intuitionistic reading of the proof's sequent in an
+/// intuitionistic mode, and `None` in any other.
+///
+/// # Errors
+///
+/// [`Fault::Shape`] at the root when the sequent has no reading.
 pub(crate) fn reading(proof: &Proof, mode: Mode) -> Result<Option<Reading<'_>>, CheckError> {
     if !mode.intuitionistic {
         return Ok(None);
@@ -148,10 +165,14 @@ pub(crate) fn reading(proof: &Proof, mode: Mode) -> Result<Option<Reading<'_>>, 
     }
 }
 
-/// Checks that a proof concludes `goal`, a multiset of occurrences in any
-/// order (the roots, for a proof of the sequent), as [`check_within`]
-/// does, with the one-succedent condition when a reading is given, and
+/// Checks that a proof concludes `goal` as [`check_within`] does, and
 /// shows every node's sequent to `observer` on the way.
+///
+/// `goal` is a multiset of occurrences in any order: the roots, for a
+/// proof of the sequent. With a `reading`, the pass also checks the
+/// one-succedent condition: every sequent has one formula right of `⊢`.
+/// This one pass is behind the check, the derivation view and the size
+/// estimate.
 pub(crate) fn examine<O: Observer>(
     proof: &Proof,
     goal: &[OccId],
@@ -168,8 +189,9 @@ pub(crate) fn examine<O: Observer>(
     }
 }
 
-/// Checks a proof as [`examine`] does, whose members `instancing` (made
-/// anew for a second pass) knows.
+/// Checks a proof as [`examine`] does, asking `instancing` about its
+/// members. `instancing` makes a fresh value for each pass, since a
+/// failure runs the pass a second time.
 fn examine_with<O: Observer, I: Instancing>(
     proof: &Proof,
     goal: &[OccId],
@@ -208,11 +230,11 @@ fn examine_with<O: Observer, I: Instancing>(
         Halt::Work { limit } => return Err(refused(node, Refusal::Work { limit })),
         Halt::Stopped => return Err(refused(node, Refusal::Stopped { phase })),
     };
-    // The premises' sequents are gone, moved into the node that failed, so
-    // the pass runs once more up to it. They are kept then, since the node
-    // itself has yet to read them, and the pass does what the first did
-    // up to there, with nothing of an observer's to count: it holds no
-    // more, and cannot fail.
+    // The premises' sequents are gone: they moved into the node that
+    // failed. So the pass runs once more, up to that node, where they are
+    // still kept because the node has yet to read them. This second pass
+    // does what the first did up to there, with no observer's bytes to
+    // count, so it holds no more and cannot fail.
     let mut nobody = ();
     let mut never = |_| false;
     let again = Allowance {
@@ -244,25 +266,26 @@ fn examine_with<O: Observer, I: Instancing>(
 /// either side of it: going round from `o` in occurrence order, every
 /// member of `right` before every member of `left`.
 ///
-/// A cyclic sequent's formulas stand in ascending occurrence order up to
-/// rotation, and so do every subproof's: the conclusion `Γ, A ⊗ B, Δ`
-/// read from the `⊗` is `Δ` then `Γ`, and `A` and `B` take the `⊗`'s
-/// place in that order, since its subtree holds no other member. So the
-/// premises `⊢ Γ, A` and `⊢ B, Δ` are each in the order the forest gives
-/// them, and checking this at every `⊗` of a proof the commutative rules
-/// accept makes it a proof of cyclic MLL; the axiom and `⅋` need nothing,
-/// a link's two literals being neighbours in any order and the two
-/// operands of a `⅋` neighbours in the forest's.
+/// Why this is the cyclic rule: a cyclic sequent's formulas stand in
+/// ascending occurrence order up to rotation, and so do every subproof's.
+/// The conclusion `Γ, A ⊗ B, Δ`, read from the `⊗`, is `Δ` then `Γ`, and
+/// `A` and `B` take the `⊗`'s place in that order, since its subtree holds
+/// no other member. So the premises `⊢ Γ, A` and `⊢ B, Δ` are each in the
+/// forest's order. Checking this at every `⊗` of a proof the commutative
+/// rules accept makes it a proof of cyclic MLL. The axiom and `⅋` need no
+/// check: a link's two literals are neighbours in any order, and the two
+/// operands of a `⅋` are neighbours in the forest's.
 fn arcs(forest: &Forest, o: OccId, left: &Bag, right: &Bag, occ: impl Fn(Member) -> OccId) -> bool {
-    // An occurrence's distance from `o` going round: below the forest's
-    // length, which fits a `u32`, so no sum wraps in a `u64`.
+    // An occurrence's distance from `o` going round. It is below the
+    // forest's length, which fits a `u32`, so no sum wraps in a `u64`.
     let n = forest.len() as u64;
     let from = |x: OccId| (u64::from(x.get()) + n - u64::from(o.get())) % n;
     let last_right = right.counts().map(|(x, _)| from(occ(x))).max();
     let first_left = left.counts().map(|(x, _)| from(occ(x))).min();
     // A member in both contexts belongs to no proof the commutative rules
-    // accept, which concludes every occurrence once; it passes here as in
-    // the oracle, which lists the right context first.
+    // accept, since such a proof concludes every occurrence once. It
+    // passes here (`<=`), as in the oracle, which lists the right context
+    // first, so that the two checkers agree.
     match (last_right, first_left) {
         (Some(r), Some(l)) => r <= l,
         _ => true,
@@ -287,16 +310,21 @@ pub(super) fn refused(node: NodeId, refusal: Refusal) -> CheckError {
     CheckError::Refused(Refused { node, refusal })
 }
 
-/// Returns the bytes of the two tables a pass over `proof` keeps: a count
-/// of readers and a place for a sequent, a `u32` and a pointer, for each
-/// of fewer than 2³² nodes: below 2³⁶ on any target.
+/// Returns the bytes of the two tables a pass over `proof` keeps: for each
+/// node a count of readers, a `u32`, and a place for a sequent, a
+/// pointer. With fewer than 2³² nodes that is below 2³⁶ on any target.
 pub(super) fn tables(proof: &Proof) -> u64 {
     proof.nodes().len() as u64 * (size_of::<u32>() + size_of::<Option<Box<State>>>()) as u64
 }
 
-/// Refuses a pass over `proof` that may hold `memory` bytes when its own
-/// tables and the `observer` bytes of its observer's are more than that
-/// already. An observer asks before it allocates its own.
+/// Refuses a pass over `proof` within `memory` bytes when the pass's own
+/// tables and `observer`, the bytes of its observer, take more than that.
+/// The pass calls it before it allocates its tables, and an observer
+/// such as the size estimate before it allocates its own.
+///
+/// # Errors
+///
+/// [`CheckError::Refused`] at node 0 when they take more than `memory`.
 pub(crate) fn afford(
     proof: &Proof,
     observer: u64,
@@ -312,18 +340,19 @@ pub(crate) fn afford(
 }
 
 /// What a caller of [`examine`] learns about every node of a correct
-/// proof, in arena order.
+/// proof, in arena order. The derivation view and the size estimate are
+/// observers, so what they know of a proof is what the checker derived.
 pub(crate) trait Observer {
     /// Returns the weight of a member `m`, which stands for the occurrence
-    /// `o`, that a [`State`] adds up over its sequent. A `u32`, so that the
-    /// sum over a zone fits a `u64`.
+    /// `o`. A [`State`] adds up the weights over its sequent. A weight is a
+    /// `u32`, so that the sum over a zone fits a `u64`.
     fn weight(&self, m: Member, o: OccId) -> u32 {
         let _ = (m, o);
         0
     }
 
     /// Returns the bytes the observer holds for the pass by now, which
-    /// count against the pass's bound.
+    /// count against the pass's memory bound.
     fn bytes(&self) -> u64 {
         0
     }
@@ -342,14 +371,15 @@ pub(crate) struct Facts<'a> {
     /// For a `?` step, whether a copy above uses its formula; for a copy,
     /// whether another copy above uses the same occurrence.
     pub(crate) used: bool,
-    /// For `⊗` and Mix, the unrestricted members both premises need, in
-    /// no particular order.
+    /// For `⊗`, Mix and cut, the unrestricted members both premises need,
+    /// in no particular order.
     pub(crate) shared: &'a [Member],
     /// Whether a subformula the rule consumes was missing from its premise
-    /// and absorbed by a `⊤` above: the left and the right one of `⅋`, `⊗`
-    /// and `&`, and the first for a rule that consumes one.
+    /// and absorbed by a `⊤` above. The two entries are the left and right
+    /// subformulas of `⅋`, `⊗` and `&` (for a cut, the cut formula and its
+    /// dual); a rule that consumes one subformula uses the first.
     pub(crate) absent: [bool; 2],
-    /// For `⊗`, `&` and Mix, how many unrestricted occurrences each
+    /// For `⊗`, `&`, Mix and cut, how many unrestricted occurrences each
     /// premise needs: the sizes of two sets of occurrences.
     pub(crate) needs: [usize; 2],
 }
@@ -360,20 +390,24 @@ pub(super) struct Pass<'a, 's, O, I> {
     proof: &'a Proof,
     /// Its forest.
     forest: &'a Forest,
-    /// How many formulas the proof is to conclude: the length of a slice,
-    /// only ever added to with saturation, and then taken to
-    /// [`Bag::MOST`], below `usize::MAX` on a 32-bit target too.
+    /// How many formulas the proof is to conclude: the length of a slice.
+    /// [`within`](Self::within) adds to it only with saturation and then
+    /// caps the sum at [`Bag::MOST`], which is below `usize::MAX` on a
+    /// 32-bit target too.
     goal: usize,
     /// The rules in force.
     mode: Mode,
     /// The intuitionistic reading, in intuitionistic mode.
     reading: Option<&'a Reading<'a>>,
-    /// How many later nodes still read each node's sequent. A proof of `n`
-    /// nodes has `n` references to one node at most: every node after it
-    /// has two premises at most, and every one of them but the root is
-    /// itself the premise of a later node, or the proof would not hold
-    /// it. And `n` fits a `u32`, as [`Proof::new`] sees to, whatever the
-    /// width of a `usize`.
+    /// How many references from later nodes to each node's sequent are
+    /// still to be read.
+    ///
+    /// A proof of `n` nodes has at most `n` references to one node. Say
+    /// `k` nodes come after it. They have `2k` premise slots at most, and
+    /// each of them but the root fills one slot of a later node, because
+    /// the proof keeps only nodes its root reaches. That leaves `k + 1`
+    /// slots at most for the node itself, and `k + 1 ≤ n`. And `n` fits a
+    /// `u32`, as [`Proof::new`] sees to, whatever the width of a `usize`.
     readers: Vec<u32>,
     /// The sequents of the nodes that a later node still reads.
     live: Vec<Option<Box<State>>>,
@@ -383,40 +417,47 @@ pub(super) struct Pass<'a, 's, O, I> {
     shared: Vec<Member>,
     /// What the pass knows of the proof's members.
     inst: I,
-    /// Per node a later node still reads, the eigenvariables its sequent
-    /// brings to the root ([`Eigens`]); empty for a proof without binders.
+    /// For each node a later node still reads, the eigenvariables its
+    /// sequent carries towards the root ([`Eigens`]). Empty for a proof
+    /// without binders.
     eigens: Vec<Option<Box<Eigens>>>,
     /// The most bytes the pass may hold, or none for any number.
     memory: Option<u64>,
     /// The most units of work the pass may do, or none for any number.
     work: Option<u64>,
-    /// The units of work done: nodes visited and the entries of the
-    /// premises handed to their rules, each premise's fewer than 2³³ and
-    /// at most two premises a node, of fewer than 2³² nodes: below 2⁶⁶,
-    /// so the count saturates. It is a `u64` on every target, and each
-    /// premise's entries are summed in `u64` ([`State::entries`]).
+    /// The units of work done: the nodes visited, the entries of the
+    /// premises handed to their rules, and the terms walked for
+    /// eigenvariables and axioms. The entries alone may pass 2⁶⁴: a
+    /// premise has fewer than 2³³, a node at most two premises, and a
+    /// proof fewer than 2³² nodes, which is below 2⁶⁶. So the count
+    /// saturates. It is a `u64` on every target, and each premise's
+    /// entries are summed in `u64` ([`State::entries`]).
     done: u64,
     /// The work done when the stop was last asked.
     polled: u64,
     /// What the pass is for, which its progress names.
     phase: Phase,
-    /// The caller's stop, asked every [`POLL`] nodes.
+    /// The caller's stop, asked every [`POLL`] nodes or [`POLL_WORK`]
+    /// units of work.
     stop: &'s mut dyn FnMut(Progress) -> bool,
     /// The bytes the pass holds itself: its two tables, and every sequent
     /// in `live` or in the hands of the current rule, each as
-    /// [`State::bytes`] counts it. Every part is allocated, and counted
-    /// at no more than it takes, so the sum is below what the process
-    /// holds and far from 2⁶⁴; it saturates all the same, so that no
-    /// estimate, however wrong, could wrap it. What the observer holds
-    /// is added whenever the sum is compared with the bound.
+    /// [`State::bytes`] counts it.
+    ///
+    /// Every part is allocated and counted at no more than it takes, so
+    /// the sum is below what the process holds and far from 2⁶⁴. It
+    /// saturates all the same, so that no estimate, however wrong, could
+    /// wrap it. What the observer holds is added whenever the sum is
+    /// compared with the bound.
     held: u64,
-    /// The bytes among them of the sequents the current rule was handed.
+    /// The bytes, counted in `held`, of the sequents the current rule was
+    /// handed.
     passed: u64,
 }
 
 impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
-    /// The pass before its first node, which [`afford`] has allowed its
-    /// tables.
+    /// Returns the pass before its first node. [`afford`] must have
+    /// allowed its tables.
     fn new(
         proof: &'a Proof,
         goal: usize,
@@ -476,11 +517,14 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
         }
     }
 
-    /// Derives the nodes before `end` in arena order, or returns the first
-    /// that misapplies its rule, uses one the mode forbids, derives more
-    /// than the proof can conclude or breaks the one-succedent condition,
-    /// with the problem; or the node at which the pass would hold more
-    /// than its bound.
+    /// Derives the nodes before `end` in arena order.
+    ///
+    /// # Errors
+    ///
+    /// The first node that misapplies its rule, uses one the mode
+    /// forbids, derives more than the proof can conclude or breaks the
+    /// one-succedent condition, with the fault; or the node at which the
+    /// pass would go over its memory or work bound, or the stop ended it.
     fn run(&mut self, end: usize) -> Result<(), (NodeId, Halt)> {
         for id in self.proof.ids().take(end) {
             if let Some(limit) = self.work
@@ -512,9 +556,9 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
             }
             facts.shared = &self.shared;
             self.observer.derived(id, &state, &facts);
-            // The premises' sequents are gone into the node's own. Each was
-            // counted when it was kept or copied, so the difference is exact
-            // as long as the count never saturated.
+            // The premises' sequents went into the node's own. Each was
+            // counted when it was kept or copied, so the difference is
+            // exact as long as the count never saturated.
             self.held = self.held.saturating_sub(self.passed);
             // The root has no reader and is read at the end.
             if self.readers[id.index()] > 0 || id == self.proof.root() {
@@ -526,9 +570,10 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
         Ok(())
     }
 
-    /// Checks that the root derived `goal` and needs no unrestricted
-    /// occurrence, and under a reading that the goal is an intuitionistic
-    /// sequent: one output, as every sequent of the derivation has.
+    /// Checks that the root derived `goal`, needs no unrestricted
+    /// occurrence and carries no eigenvariable a `∀` step introduces.
+    /// Under a reading the goal must also have one output, as every
+    /// sequent of the derivation has.
     fn conclude(&self, goal: &[OccId]) -> Result<(), Halt> {
         if let Some(reading) = self.reading {
             let count = reading.outputs(goal.iter().copied());
@@ -539,9 +584,9 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
         let root = self.live[self.proof.root().index()]
             .as_deref()
             .expect("the root's sequent is kept");
-        // A root's eigenvariable remained: a witness or a cut's frame
-        // names it outside the `∀` step that introduces it. One that no
-        // step introduces is a constant outside the signature.
+        // An eigenvariable left at the root is named by a witness or a
+        // cut's frame outside the `∀` step that introduces it. One that no
+        // step introduces is a constant outside the signature, and passes.
         let remained = self
             .eigens
             .get(self.proof.root().index())
@@ -571,9 +616,13 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
         }
     }
 
-    /// What premise `p` derived: the sequent itself for its last reader, a
-    /// copy for the others, unless the pass would hold more than its bound
-    /// with the copy.
+    /// Returns what premise `p` derived: the sequent itself for its last
+    /// reader, a copy for the others. Counts the entries handed over as
+    /// work.
+    ///
+    /// # Errors
+    ///
+    /// [`Halt::Memory`] when the copy would take the pass past its bound.
     fn premise(&mut self, p: NodeId) -> Result<Box<State>, Halt> {
         // The count includes this reader, so it is one at least.
         self.readers[p.index()] -= 1;
@@ -583,7 +632,7 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
         let bytes = state.bytes();
         self.done = self.done.saturating_add(state.entries());
         // A copy takes what its original does, and is counted before it is
-        // made; the original is counted already.
+        // made. The original is counted already.
         if !last {
             self.charge(bytes)?;
         }
@@ -597,8 +646,8 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
         self.reading.is_some_and(|r| r.position(o) == Side::Output)
     }
 
-    /// Fails unless the member `m`, of the occurrence `o`, has the kind
-    /// the rule acts on.
+    /// Fails with [`Fault::Kind`] unless the member `m`, of the occurrence
+    /// `o`, has the kind the rule acts on.
     fn expect(&self, m: Member, o: OccId, kind: Kind) -> Result<(), Halt> {
         if self.forest.kind(o) == kind {
             Ok(())
@@ -620,13 +669,14 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
     }
 
     /// Consumes one copy of `m` from the linear zone of `d`, the derived
-    /// sequent of premise `premise`, and returns whether there was none: a
-    /// `⊤` above stands in for a missing one, but never for a second goal.
+    /// sequent of premise `premise`, and returns whether there was none.
+    /// A `⊤` above stands in for a missing one, but never for a second
+    /// goal.
     fn take(&self, d: &mut State, m: Member, premise: usize) -> Result<bool, Halt> {
         let o = self.inst.occ(m);
         if d.gamma.remove(m) {
             // The premise's sums are exact and count `m`, which was a
-            // member: nothing goes below zero.
+            // member, so no subtraction goes below zero.
             let weight = u64::from(self.observer.weight(m, o));
             d.linear -= weight;
             if self.is_output(o) {
@@ -638,15 +688,16 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
         if !d.any {
             return Err(Halt::Fault(Fault::Missing { premise, member: m }));
         }
-        // The premise's sequent holds `m` besides its zone: one goal at
-        // most.
+        // The `⊤` puts `m` into the premise's sequent beside its zone, and
+        // that sequent may have one goal at most.
         if self.is_output(o) && d.outputs > 0 {
             return Err(Halt::Fault(Fault::Succedents { count: 2 }));
         }
         Ok(true)
     }
 
-    /// The weight of the `?` formula an unrestricted member stands for.
+    /// Returns the weight of the `?` formula that the unrestricted member
+    /// `a` is the subformula of.
     fn quest_weight(&self, a: Member) -> u64 {
         let q = self
             .forest
@@ -656,13 +707,17 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
     }
 
     /// Checks that the linear zone node `id` derived is one the proof can
-    /// still conclude its goal from. A rule consumes two members of a
-    /// premise's zone at most and passes the others on, and the root's zone
-    /// lies within the goal, so a zone with more members than the goal has
-    /// formulas plus two for every later node belongs to no proof. This is
-    /// what keeps a zone's counters exact: a term may double a zone at
-    /// every node (a Mix of a subproof with itself), which no counter of a
-    /// fixed width follows for long.
+    /// still conclude its goal from, or fails with [`Fault::Surplus`].
+    ///
+    /// A rule consumes two members of a premise's zone at most and passes
+    /// the others on, and the root's zone lies within the goal. So a zone
+    /// with more members than the goal has formulas, plus two for every
+    /// later node, belongs to no proof. The bound is also capped at
+    /// [`Bag::MOST`].
+    ///
+    /// This is a soundness rule: it keeps a zone's counters exact. A term
+    /// may double a zone at every node (a Mix of a subproof with itself),
+    /// and no counter of a fixed width follows that for long.
     fn within(&self, id: NodeId, d: Box<State>) -> Result<Box<State>, Halt> {
         // A node's index is below the number of nodes.
         let later = self.proof.nodes().len() - 1 - id.index();
@@ -677,32 +732,36 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
     }
 
     /// Checks the one-succedent condition on what a node derived: one
-    /// output at most, and exactly one unless a `⊤` above supplies it;
-    /// in the Lambek calculus without empty antecedents, an input besides.
+    /// output at most, and exactly one unless a `⊤` above supplies it
+    /// ([`Fault::Succedents`]). In the Lambek calculus without empty
+    /// antecedents the zone must also hold an input
+    /// ([`Fault::EmptyAntecedent`]).
     fn one_succedent(&self, d: Box<State>) -> Result<Box<State>, Halt> {
         if self.reading.is_some() && (d.outputs > 1 || (d.outputs == 0 && !d.any)) {
             return Err(Halt::Fault(Fault::Succedents { count: d.outputs }));
         }
-        // The zone's count is exact: `within` held it to the bound.
+        // The zone's length is exact: `within` held it to the bound. So
+        // `len <= outputs` means no member is an input.
         if !self.mode.allows_empty_antecedents() && d.gamma.len <= d.outputs {
             return Err(Halt::Fault(Fault::EmptyAntecedent));
         }
         Ok(d)
     }
 
-    /// The member of the left subformula of `m`, of the occurrence `o`,
-    /// which must have one.
+    /// Returns the member of the left subformula of `m`, of the occurrence
+    /// `o`, which must have one.
     fn left(&self, m: Member, o: OccId) -> Member {
         self.inst.child(m, self.forest.left(o).unwrap())
     }
 
-    /// The member of the right subformula of `m`, of the occurrence `o`,
-    /// which must have one.
+    /// Returns the member of the right subformula of `m`, of the
+    /// occurrence `o`, which must have one.
     fn right(&self, m: Member, o: OccId) -> Member {
         self.inst.child(m, self.forest.right(o).unwrap())
     }
 
-    /// The sequent with only the given members in its linear zone.
+    /// Returns the sequent with only the given members in its linear zone,
+    /// absorbing when `any` is set.
     fn just(&self, ids: impl IntoIterator<Item = Member>, any: bool) -> Box<State> {
         let mut d = Box::new(State {
             theta: Zone::default(),
@@ -719,8 +778,9 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
         d
     }
 
-    /// Unites the unrestricted zone of `r` into that of `l`, the smaller
-    /// set into the larger, and notes the members both hold.
+    /// Unites the unrestricted zone of `r` into that of `l`, pouring the
+    /// smaller set into the larger, and notes in `shared` the members both
+    /// hold.
     fn unite(&mut self, l: &mut State, r: &mut State) {
         if r.theta.len() > l.theta.len() {
             std::mem::swap(&mut l.theta, &mut r.theta);
@@ -735,9 +795,9 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
         }
     }
 
-    /// The sequent both premises of a two-premise rule give together: the
-    /// unrestricted zones united, the linear zones summed, absorbing if
-    /// either is.
+    /// Returns the sequent both premises of a two-premise rule give
+    /// together: the unrestricted zones united, the linear zones summed,
+    /// absorbing if either is.
     fn join(&mut self, mut l: Box<State>, mut r: Box<State>) -> Box<State> {
         self.unite(&mut l, &mut r);
         l.gamma.add(std::mem::take(&mut r.gamma));
@@ -748,10 +808,16 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
         l
     }
 
-    /// Carries the eigenvariables to node `id` from its premises, whose
-    /// sets go with their last reader and are copied for the others:
-    /// those a `∀` step introduces stay behind, those an `∃` step's
-    /// witness or a cut's frame names come in.
+    /// Carries the eigenvariables from the premises of node `id` to the
+    /// node. A premise's set goes to its last reader and is copied for
+    /// the others. A `∀` step drops the eigenvariable it introduces; an
+    /// `∃` step adds those its witness names, and a cut those of its
+    /// member's frame.
+    ///
+    /// # Errors
+    ///
+    /// [`Halt::Memory`] when a copy or a larger set would take the pass
+    /// past its bound.
     fn flow(&mut self, id: NodeId) -> Result<(), Halt> {
         let node = self.proof.node(id);
         let mut set: Option<Box<Eigens>> = None;
@@ -767,7 +833,8 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
             };
             match (&mut set, theirs) {
                 (Some(ours), Some(theirs)) => {
-                    // Both were counted; what is left is the one they make.
+                    // Both sets were counted. Count the united set in
+                    // their place.
                     let before = ours.bytes().saturating_add(theirs.bytes());
                     ours.add(*theirs);
                     let after = ours.bytes();
@@ -786,9 +853,9 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
         {
             set.set.remove(&a);
         }
-        // The walk of the terms is work like any other, counted and
-        // polled for: a chain of witnesses each holding the last makes it
-        // quadratic in the proof.
+        // The walk of the terms is counted as work, which the work bound
+        // and the stop see: a chain of witnesses, each holding the last,
+        // makes the walks quadratic in the proof.
         let mut brought = Vec::new();
         let units = self.inst.bring(node, &mut brought);
         self.done = self.done.saturating_add(units);
@@ -809,8 +876,8 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
         Ok(())
     }
 
-    /// Applies node `id`'s rule to what its premises derived, noting in
-    /// `facts` how it applied.
+    /// Applies node `id`'s rule to what its premises derived, and returns
+    /// the node's sequent. Notes in `facts` how the rule applied.
     fn rule(&mut self, id: NodeId, node: Node, facts: &mut Facts<'_>) -> Result<Box<State>, Halt> {
         use Node::*;
         let f = self.forest;
@@ -939,7 +1006,8 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
                 self.expect(m, o, Kind::Quest)?;
                 let mut d = self.premise(p)?;
                 if d.theta.remove(self.left(m, o)) {
-                    // What the member added when it came in.
+                    // Take off the weight the copy added when it put the
+                    // member into the zone.
                     facts.used = true;
                     d.unrestricted -= u64::from(self.observer.weight(m, o));
                 }
@@ -985,8 +1053,8 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
                 Ok(self.join(dl, dr))
             }
             Cut(a, l, r) => {
-                // The ordered modes refused it above: the dual of an
-                // ordered cut formula is not of one shape with it.
+                // The ordered modes refused the cut above: the reversing
+                // dual of an ordered cut formula does not have its shape.
                 let o = self.inst.occ(a);
                 let dual = match self.inst.dual(f, a) {
                     Some(dual) if o < self.inst.occ(dual) => dual,
@@ -997,16 +1065,16 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
                 facts.absent[0] = self.take(&mut dl, a, 0)?;
                 facts.absent[1] = self.take(&mut dr, dual, 1)?;
                 // A cut on an instance chooses its frame's terms, as an `∃`
-                // step its witness: the frame pass found them, and `flow`
-                // brings them in.
+                // step chooses its witness, so `flow` brings in their
+                // eigenvariables.
                 Ok(self.join(dl, dr))
             }
             Forall(m, _, p) => {
                 self.expect(m, self.inst.occ(m), Kind::Forall)?;
                 let mut d = self.premise(p)?;
                 facts.absent[0] = self.take(&mut d, self.inst.body(id), 0)?;
-                // Every witness above that names its eigenvariable is
-                // inside this step, which `flow` sees to.
+                // `flow` drops this step's eigenvariable, so one that a
+                // witness names outside the step reaches the root.
                 self.put(&mut d, m);
                 Ok(d)
             }
@@ -1020,19 +1088,20 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
         }
     }
 
-    /// The conclusion of a `&` whose linear zone is that of `keep`: its
-    /// sequent with the unrestricted zone of `other` united into it.
+    /// Returns the conclusion of a `&` whose linear zone is that of
+    /// `keep`: its sequent with the unrestricted zone of `other` united
+    /// into it.
     fn over(&mut self, mut keep: Box<State>, mut other: Box<State>) -> Box<State> {
         self.unite(&mut keep, &mut other);
         keep
     }
 
     /// Counts the outputs and the weights of the linear zone of `d` anew,
-    /// after it was replaced.
+    /// after the zone was replaced.
     fn recount(&self, d: &mut State) {
         let (mut outputs, mut linear, mut goal) = (0usize, 0u64, 0u64);
         for (o, n) in d.gamma.counts() {
-            // Two factors below 2³².
+            // Two factors below 2³², so the product fits a `u64`.
             let occ = self.inst.occ(o);
             let weight = u64::from(self.observer.weight(o, occ)) * u64::from(n);
             linear = linear.saturating_add(weight);

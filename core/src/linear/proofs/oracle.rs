@@ -1,11 +1,17 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The checker as it was first written, kept for the tests: it derives a
-//! sequent for every node and keeps them all, each with a set as wide as
-//! the forest, so it is quadratic in memory and easy to read. The checker
-//! proper must accept and reject exactly what this one does, with the same
-//! error.
+//! A second, independent implementation of the proof checker, which the
+//! tests compare the checker with. The checker must accept and reject
+//! exactly what this one does, with the same error, so a change to a rule
+//! is made in both.
+//!
+//! It is written to be easy to read, not to be fast or small. It derives
+//! a sequent for every node and keeps them all, as ordered sets and
+//! sorted lists, so its memory is the sum of every node's sequent. It
+//! reads first-order instances by writing their terms out as text, and
+//! uses only the instance table's data, not the checker's lookups. It is
+//! compiled for tests only.
 
 use super::check::{CheckError, Dyadic, Fault};
 use super::multiset::Multiset;
@@ -17,15 +23,16 @@ use crate::linear::occurrences::{Forest, Member, OccId, Reading, Side};
 use crate::linear::sequents::{Eigen, FoTerm, FoTermId, Kind};
 use std::collections::{BTreeMap, BTreeSet};
 
-/// What a subproof proves, as the checker derives it from the node's
-/// premises: the dyadic sequent `⊢ Θ ; Γ`, or with `any` set `⊢ Θ ; Γ, Δ` for
-/// every `Δ`, because a `⊤` leaf above absorbs whatever context it is given.
+/// What a subproof proves, as the oracle derives it from the node's
+/// premises: the dyadic sequent `⊢ Θ ; Γ`. With `any` set it proves
+/// `⊢ Θ ; Γ, Δ` for every `Δ`, because a `⊤` leaf above absorbs whatever
+/// context it is given.
 ///
-/// `Θ` is the least unrestricted zone the subproof needs, the occurrences it
-/// copies without moving them into `Θ` itself; since weakening and
-/// contraction on `Θ` are implicit, any larger zone does as well. So a proof
-/// is correct when its root needs an empty `Θ` and derives the sequent's
-/// formulas, and the checker never has to know the actual zone.
+/// `Θ` is the least unrestricted zone the subproof needs: the occurrences
+/// it copies and does not itself move into `Θ` with a `?` step. Weakening
+/// and contraction on `Θ` are implicit, so any larger zone does as well.
+/// So a proof is correct when its root needs an empty `Θ` and derives the
+/// sequent's formulas, and the oracle never has to know the actual zone.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Derived {
     /// The unrestricted zone the subproof needs.
@@ -50,12 +57,16 @@ impl Derived {
     }
 }
 
-/// Checks that a proof proves its sequent: every node applies its rule to
-/// what its premises derive, the mode allows the rule, and the root derives
-/// exactly the sequent's formulas with nothing left in the unrestricted
-/// zone; in intuitionistic mode also that the sequent has an intuitionistic
-/// reading and every sequent of the proof one formula on the right of `⊢`.
-/// Returns the first node that fails, in arena order, with what it needed.
+/// Checks that a proof proves its sequent, as [`Proof::check`] does but
+/// with no bound on memory or work.
+///
+/// The proof passes when every node applies its rule to what its premises
+/// derive, the mode allows every rule, and the root derives exactly the
+/// sequent's formulas with nothing left in the unrestricted zone. In
+/// intuitionistic mode the sequent must also have an intuitionistic
+/// reading, and every sequent of the proof one formula right of `⊢`.
+/// Otherwise the error names the first node that fails, in arena order,
+/// with what it needed.
 pub(crate) fn check(proof: &Proof, mode: Mode) -> Result<(), CheckError> {
     let reading = if mode.intuitionistic {
         match Reading::of_mode(proof.forest(), mode) {
@@ -76,9 +87,13 @@ pub(crate) fn check(proof: &Proof, mode: Mode) -> Result<(), CheckError> {
     conclude(proof, mode, &derived)
 }
 
-/// Derives what every node proves, in arena order, or reports the first
-/// node that misapplies its rule or uses one the mode forbids; with a
-/// reading, also the first sequent that breaks the one-succedent condition.
+/// Derives what every node proves, in arena order.
+///
+/// # Errors
+///
+/// The first node that misapplies its rule, uses one the mode forbids or
+/// derives a zone the rest of the proof cannot consume; with a reading,
+/// also the first sequent that breaks the one-succedent condition.
 pub(crate) fn derive(
     proof: &Proof,
     mode: Mode,
@@ -88,8 +103,8 @@ pub(crate) fn derive(
     let (nodes, roots) = (proof.nodes().len(), proof.conclusion().len());
     let frames = Frames::of(proof);
     for id in proof.ids() {
-        // A zone the later nodes cannot bring down to the roots: each
-        // consumes two members at most.
+        // The most members a zone may have that the later nodes can still
+        // bring down to the roots: each consumes two at most.
         let room = roots + 2 * (nodes - 1 - id.index());
         let d = Step::new(proof, mode, id, &derived, reading, &frames).derive(room)?;
         derived.push(d);
@@ -97,10 +112,10 @@ pub(crate) fn derive(
     Ok(derived)
 }
 
-/// The proof's instances as the oracle reads them: every member by its
-/// occurrence and its frame's terms written out, the innermost binder's
-/// first, so that two instances are equal when their texts are; and the
-/// faults that rest on the proof as a whole.
+/// The proof's instances as the oracle reads them, and the faults that
+/// rest on the proof as a whole. Every member is known by its occurrence
+/// and its frame's terms written out, the innermost binder's first, so
+/// two instances are equal when their texts are.
 struct Frames {
     /// The forest's length.
     first: usize,
@@ -156,7 +171,8 @@ impl Frames {
                 this.members.push((o, terms, texts));
             }
         }
-        // Bound variables above each occurrence, by walking its parents.
+        // The number of binders above an occurrence, found by walking its
+        // parents.
         let binders = |o: OccId| {
             let mut n = 0;
             let mut at = o;
@@ -250,7 +266,8 @@ impl Frames {
     }
 }
 
-/// Checks that the root derives the proof's sequent.
+/// Checks that the root derives the proof's sequent, needs no unrestricted
+/// occurrence and carries no eigenvariable a `∀` step introduces.
 pub(crate) fn conclude(proof: &Proof, mode: Mode, derived: &[Derived]) -> Result<(), CheckError> {
     let root = proof.root();
     let d = &derived[root.index()];
@@ -296,8 +313,8 @@ struct Step<'a> {
 }
 
 impl<'a> Step<'a> {
-    /// The step for node `id`, whose premises have their entries in
-    /// `derived`.
+    /// Returns the step for node `id`, whose premises have their entries
+    /// in `derived`.
     fn new(
         proof: &'a Proof,
         mode: Mode,
@@ -317,27 +334,27 @@ impl<'a> Step<'a> {
         }
     }
 
-    /// The occurrence a member stands for.
+    /// Returns the occurrence a member stands for.
     fn occ(&self, m: Member) -> OccId {
         self.frames.occ(m)
     }
 
-    /// The member of the subformula `c` of `m`'s occurrence, under `m`'s
-    /// frame.
+    /// Returns the member of the subformula `c` of `m`'s occurrence, under
+    /// `m`'s frame.
     fn sub(&self, m: Member, c: OccId) -> Member {
         self.frames.member(c, self.frames.frame(m))
     }
 
-    /// The member of the body of `m`'s binder under its frame with the
-    /// term `t` pushed.
+    /// Returns the member of the body of `m`'s binder, under `m`'s frame
+    /// with the term `t` pushed.
     fn body(&self, m: Member, t: FoTermId) -> Member {
         let mut frame = vec![self.frames.text(t, &[])];
         frame.extend(self.frames.frame(m));
         self.frames.member(OccId::new(self.occ(m).get() + 1), frame)
     }
 
-    /// The atom of the literal `m` with its frame's terms in place of its
-    /// bound variables, written out, and whether it is negated.
+    /// Returns the atom of the literal `m` written out, its frame's terms
+    /// in place of its bound variables, and whether it is negated.
     fn atom(&self, m: Member) -> (String, bool) {
         let o = self.occ(m);
         let f = self.forest;
@@ -357,7 +374,7 @@ impl<'a> Step<'a> {
         (format!("{name}({})", items.join(",")), negated)
     }
 
-    /// The error for this node.
+    /// Returns the error of `fault` at this node.
     fn fail(&self, fault: Fault) -> CheckError {
         let premises = self
             .node
@@ -367,12 +384,12 @@ impl<'a> Step<'a> {
         CheckError::invalid(self.id, self.node, premises, fault)
     }
 
-    /// What premise `p` derived.
+    /// Returns a copy of what premise `p` derived.
     fn premise(&self, p: NodeId) -> Derived {
         self.derived[p.index()].clone()
     }
 
-    /// Fails unless `o` has the kind the rule acts on.
+    /// Fails with [`Fault::Kind`] unless `m` has the kind the rule acts on.
     fn expect(&self, m: Member, kind: Kind) -> Result<(), CheckError> {
         if self.forest.kind(self.occ(m)) == kind {
             Ok(())
@@ -382,7 +399,7 @@ impl<'a> Step<'a> {
     }
 
     /// Consumes one copy of `o` from the linear zone of `d`, the derived
-    /// sequent of premise `premise`; a `⊤` above stands in for a missing
+    /// sequent of premise `premise`. A `⊤` above stands in for a missing
     /// one, but never for a second goal.
     fn take(&self, d: &mut Derived, o: Member, premise: usize) -> Result<(), CheckError> {
         if d.gamma.remove(o) {
@@ -391,8 +408,8 @@ impl<'a> Step<'a> {
         if !d.any {
             return Err(self.fail(Fault::Missing { premise, member: o }));
         }
-        // The premise's sequent holds `o` besides its zone: one goal at
-        // most.
+        // The `⊤` puts `o` into the premise's sequent beside its zone, and
+        // that sequent may have one goal at most.
         if let Some(reading) = self.reading
             && reading.position(self.occ(o)) == Side::Output
             && self.outputs(&d.gamma) > 0
@@ -402,8 +419,8 @@ impl<'a> Step<'a> {
         Ok(())
     }
 
-    /// Counts the formulas of a linear zone in output position, in
-    /// intuitionistic mode.
+    /// Counts the formulas of a linear zone in output position: zero
+    /// without a reading.
     fn outputs(&self, gamma: &Multiset<Member>) -> usize {
         self.reading.map_or(0, |r| {
             r.outputs(gamma.as_slice().iter().map(|&m| self.occ(m)))
@@ -423,17 +440,18 @@ impl<'a> Step<'a> {
         Ok(d)
     }
 
-    /// The left subformula of `m`, which must have one.
+    /// Returns the left subformula of `m`, which must have one.
     fn left(&self, m: Member) -> Member {
         self.sub(m, self.forest.left(self.occ(m)).unwrap())
     }
 
-    /// The right subformula of `m`, which must have one.
+    /// Returns the right subformula of `m`, which must have one.
     fn right(&self, m: Member) -> Member {
         self.sub(m, self.forest.right(self.occ(m)).unwrap())
     }
 
-    /// The sequent with only `o` in its linear zone.
+    /// Returns the sequent with only `o` in its linear zone, absorbing
+    /// when `any` is set.
     fn just(&self, o: Member, any: bool) -> Derived {
         Derived {
             theta: BTreeSet::new(),
@@ -443,9 +461,9 @@ impl<'a> Step<'a> {
         }
     }
 
-    /// The sequent both premises of a two-premise rule give together: the
-    /// unrestricted zones united, the linear zones summed, absorbing if
-    /// either is.
+    /// Returns the sequent both premises of a two-premise rule give
+    /// together: the unrestricted zones united, the linear zones summed,
+    /// absorbing if either is.
     fn join(&self, l: Derived, r: Derived) -> Derived {
         Derived {
             theta: &l.theta | &r.theta,
@@ -455,8 +473,8 @@ impl<'a> Step<'a> {
         }
     }
 
-    /// Derives what the node proves from what its premises derived, a
-    /// linear zone of `room` members at most.
+    /// Derives what the node proves from what its premises derived. Its
+    /// linear zone may have `room` members at most ([`Fault::Surplus`]).
     fn derive(self, room: usize) -> Result<Derived, CheckError> {
         let d = self.rule()?;
         if d.gamma.as_slice().len() > room {
@@ -485,9 +503,9 @@ impl<'a> Step<'a> {
         }
     }
 
-    /// Whether the conclusion of a `⊗` at `o` over the contexts `left` and
-    /// `right`, listed in occurrence order and turned to start after `o`,
-    /// is the right context followed by the left one.
+    /// Returns whether the conclusion of a `⊗` at `o` over the contexts
+    /// `left` and `right`, listed in occurrence order and turned to start
+    /// after `o`, is the right context followed by the left one.
     fn arcs(&self, o: OccId, left: &Multiset<Member>, right: &Multiset<Member>) -> bool {
         let mut members: Vec<(OccId, bool)> = left
             .as_slice()
@@ -655,8 +673,8 @@ impl<'a> Step<'a> {
                 Ok(self.join(self.premise(l), self.premise(r)))
             }
             Cut(a, l, r) => {
-                // The occurrence of `A⊥` in the place `a` has in `A`, from
-                // the pairs themselves, under `a`'s frame.
+                // The occurrence of `A⊥` at the place `a` has in `A`,
+                // found from the cut pairs themselves, under `a`'s frame.
                 let o = self.occ(a);
                 let Some(dual) = f
                     .cut_pairs()
@@ -670,7 +688,8 @@ impl<'a> Step<'a> {
                 self.take(&mut dl, a, 0)?;
                 self.take(&mut dr, dual, 1)?;
                 let mut d = self.join(dl, dr);
-                // The terms the cut's frame chose come in as a witness's.
+                // The cut chooses its frame's terms as a witness is chosen,
+                // so their eigenvariables come in.
                 if let Some(at) = a.index().checked_sub(self.frames.first) {
                     for &t in &self.frames.members[at].1 {
                         self.frames.eigens(t, &mut d.eigens);
@@ -706,10 +725,14 @@ impl<'a> Step<'a> {
 }
 
 /// Returns proofs to test a pass over proofs on, each with the mode it was
-/// found in: those the engines find of generated sequents, classical and
-/// intuitionistic, linear and affine, and of the smallest instance of
-/// every family, and with the feature `interactive` proofs with cuts of
-/// the generated sequents.
+/// found in:
+/// - the engines' proofs of generated sequents, classical and
+///   intuitionistic, linear and affine;
+/// - their proofs of the smallest instance of every family;
+/// - the Lambek search's proofs of generated sequents, with and without
+///   empty antecedents;
+/// - with the feature `interactive`, proofs with cuts of the generated
+///   sequents, at the end.
 #[cfg(feature = "parse")]
 pub(crate) fn proofs() -> Vec<(Proof, Mode)> {
     use crate::linear::search::generate::{self, IllRules, Rng, Rules};
@@ -755,7 +778,8 @@ pub(crate) fn proofs() -> Vec<(Proof, Mode)> {
             proofs.push((*proof, mode));
         }
     }
-    // Proofs with cuts of the generated sequents, kept for the end.
+    // Proofs with cuts of the generated sequents, made now from the
+    // generated proofs alone and added at the end.
     #[cfg(feature = "interactive")]
     let cuts = crate::linear::proofs::interactive::with_cuts(&proofs, &mut Rng::new(41));
     for family in crate::linear::families::FAMILIES {

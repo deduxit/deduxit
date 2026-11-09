@@ -10,19 +10,22 @@ use crate::linear::occurrences::Member;
 use crate::linear::sequents::Eigen;
 
 /// Returns the bytes of a hash table whose entries take `entry` bytes and
-/// which held `most` of them when it was fullest. The standard library's
-/// table has a power of two of slots, four at least and seven in eight
-/// taken at most, each with a byte beside its entry, and sixteen bytes at
-/// the end, the width of its SSE2 group; it never gives slots back, and a
-/// copy has as many as its original. A table that entries came and went
-/// from can have twice or four times the slots, so this is the least the
-/// table takes and within that factor of what it does. Where the group is
-/// eight bytes (wasm32, and aarch64's NEON) the table takes eight bytes
-/// fewer than counted, which only makes a bound stricter.
+/// which held `most` of them when it was fullest.
 ///
-/// Nothing overflows: `most` counts distinct occurrence ids, 2³² at most,
-/// so there are 2³³ slots at most and fewer than 2³⁸ bytes, counted in
-/// `u64` on every target; on a 32-bit one `most` is below 2³² anyway.
+/// The standard library's table has a power of two of slots, four at
+/// least, and fills seven in eight at most. Each slot has a control byte
+/// beside its entry, and sixteen more bytes follow, the width of its SSE2
+/// group. The table never gives slots back, and a copy has as many as its
+/// original. A table that entries came and went from can have twice or
+/// four times the slots, so this is the least the table takes, and within
+/// that factor of what it does. Where the group is eight bytes (wasm32,
+/// and aarch64's NEON) the table takes eight bytes fewer than counted,
+/// which only makes a bound stricter.
+///
+/// Nothing overflows: `most` counts distinct members, each a `u32`, so 2³²
+/// at most. That is 2³³ slots at most and fewer than 2³⁸ bytes, counted
+/// in `u64` on every target. On a 32-bit target `most` is below 2³²
+/// anyway.
 pub(super) fn table_bytes(most: usize, entry: usize) -> u64 {
     if most == 0 {
         return 0;
@@ -36,9 +39,9 @@ pub(super) fn table_bytes(most: usize, entry: usize) -> u64 {
 pub(super) struct Zone {
     /// The members.
     pub(super) members: HashSet<Member>,
-    /// The most members the table has held, which its memory follows:
-    /// distinct occurrence ids, so 2³² at most, and a table's length on a
-    /// 32-bit target, so below 2³² there.
+    /// The most members the table has held, which its memory follows.
+    /// They are distinct `u32` members, so 2³² at most; on a 32-bit target
+    /// it is a table's length, so below 2³² there.
     pub(super) most: usize,
 }
 
@@ -60,9 +63,9 @@ impl Zone {
 
     /// Adds `o` and returns whether it was not a member.
     pub(super) fn insert(&mut self, o: Member) -> bool {
-        // The table makes room before it looks a member up, so adding one
-        // that is there already would double a full table, which the
-        // count of its bytes would not see.
+        // The table makes room before it looks a member up. Adding one
+        // that is there already would double a full table, and the count
+        // of its bytes would miss it.
         if self.members.contains(&o) {
             return false;
         }
@@ -82,26 +85,26 @@ impl Zone {
     }
 }
 
-/// How many copies of each occurrence a linear zone holds: a multiset
+/// The linear zone: how many copies of each member it holds. A multiset
 /// whose insertions and removals cost the same whatever its size.
 ///
-/// The counters saturate and never wrap: a zone of more than
-/// [`MOST`](Self::MOST) members is refused by the pass before any rule
-/// reads it, so every count a rule sees is the true one.
+/// The counters saturate and never wrap. The pass refuses a zone of more
+/// than [`MOST`](Self::MOST) members before any rule reads it, so every
+/// count a rule sees is the true one.
 #[derive(Clone, Debug, Default)]
 pub(super) struct Bag {
     /// The copies of every member, never zero. A count saturates at
-    /// `u32::MAX`, and then the zone has that many members at least, more
-    /// than [`MOST`](Self::MOST): a count that a rule reads is exact.
+    /// `u32::MAX`, and then the zone has at least that many members, more
+    /// than [`MOST`](Self::MOST). So a count that a rule reads is exact.
     pub(super) counts: HashMap<Member, u32>,
     /// The number of members, with repeats. The sum of two zones within
     /// [`MOST`](Self::MOST) is below 2³³, so on a 64-bit target it is
-    /// exact until the pass refuses it; where a `usize` has 32 bits it
+    /// exact until the pass refuses it. Where a `usize` has 32 bits it
     /// saturates at `u32::MAX`, which is over the bound as well.
     pub(super) len: usize,
     /// The most distinct members the table has held, which its memory
-    /// follows: distinct occurrence ids, so 2³² at most, and a table's
-    /// length on a 32-bit target, so below 2³² there.
+    /// follows. They are `u32` members, so 2³² at most; on a 32-bit
+    /// target it is a table's length, so below 2³² there.
     pub(super) most: usize,
 }
 
@@ -116,9 +119,9 @@ impl PartialEq for Bag {
 impl Eq for Bag {}
 
 impl Bag {
-    /// The most members a zone may hold: fewer than a counter saturates
-    /// at, so that a saturated counter is always over it. It fits a
-    /// `usize` of 32 bits.
+    /// The most members a zone may hold. It is below the value a counter
+    /// saturates at, so a saturated counter is always over it, and it fits
+    /// a `usize` of 32 bits.
     pub(super) const MOST: usize = (u32::MAX - 1) as usize;
 
     /// Returns the multiset of the given ids.
@@ -165,7 +168,7 @@ impl Bag {
             return false;
         };
         // A count in the table is one at least, and the length is no less
-        // than any count.
+        // than any count, so neither goes below zero.
         *n -= 1;
         if *n == 0 {
             self.counts.remove(&o);
@@ -174,8 +177,8 @@ impl Bag {
         true
     }
 
-    /// Adds every copy of every member of `other`: the multiset sum, the
-    /// smaller table poured into the larger.
+    /// Adds every copy of every member of `other`: the multiset sum,
+    /// pouring the smaller table into the larger.
     pub(super) fn add(&mut self, mut other: Self) {
         if other.counts.len() > self.counts.len() {
             std::mem::swap(self, &mut other);
@@ -209,7 +212,7 @@ impl Bag {
         table_bytes(self.most, size_of::<(Member, u32)>())
     }
 
-    /// Returns whether no id has more copies here than in `other`.
+    /// Returns whether no member has more copies here than in `other`.
     pub(super) fn is_subset(&self, other: &Self) -> bool {
         self.len <= other.len
             && self
@@ -219,41 +222,43 @@ impl Bag {
 }
 
 /// What a subproof proves, as the checker derives it from the node's
-/// premises: the dyadic sequent `⊢ Θ ; Γ`, or with `any` set `⊢ Θ ; Γ, Δ` for
-/// every `Δ`, because a `⊤` leaf above absorbs whatever context it is given.
+/// premises: the dyadic sequent `⊢ Θ ; Γ`. With `any` set it proves
+/// `⊢ Θ ; Γ, Δ` for every `Δ`, because a `⊤` leaf above absorbs whatever
+/// context it is given.
 ///
-/// `Θ` is the least unrestricted zone the subproof needs, the occurrences it
-/// copies without moving them into `Θ` itself; since weakening and
-/// contraction on `Θ` are implicit, any larger zone does as well. So a proof
-/// is correct when its root needs an empty `Θ` and derives the sequent's
-/// formulas, and the checker never has to know the actual zone.
+/// `Θ` is the least unrestricted zone the subproof needs: the occurrences
+/// it copies and does not itself move into `Θ` with a `?` step. Weakening
+/// and contraction on `Θ` are implicit, so any larger zone does as well.
+/// So a proof is correct when its root needs an empty `Θ` and derives the
+/// sequent's formulas, and the checker never has to know the actual zone.
 ///
 /// Both zones are tables of their members, so a sequent takes memory for
 /// what it holds and none for the width of the forest.
 ///
 /// A sequent that a rule or an observer reads has passed
-/// [`Pass::within`](super::pass::Pass::within), so its linear zone has [`Bag::MOST`] members at
-/// most, fewer than 2³² − 1. The sums below are exact for such a sequent;
-/// while a rule builds one they saturate, which only a longer zone can
-/// make them do, and that zone is refused before anything reads them.
+/// [`Pass::within`](super::pass::Pass::within), so its linear zone has at
+/// most [`Bag::MOST`] members, fewer than 2³² − 1. The sums below are
+/// exact for such a sequent. While a rule builds one they saturate, which
+/// only a longer zone can make them do, and that zone is refused before
+/// anything reads them.
 #[derive(Clone, Debug)]
 pub(crate) struct State {
     /// The unrestricted zone the subproof needs.
     pub(super) theta: Zone,
     /// The linear zone.
     pub(super) gamma: Bag,
-    /// The members of the linear zone in output position, under a reading:
-    /// no more than the zone has members, and saturating with its length,
-    /// at `usize::MAX` as it does, which on a 32-bit target is `u32::MAX`
-    /// and over [`Bag::MOST`] as well.
+    /// How many members of the linear zone are in output position, under
+    /// a reading. No more than the zone has members; it saturates with the
+    /// zone's length, at `usize::MAX` as the length does, which on a
+    /// 32-bit target is `u32::MAX` and over [`Bag::MOST`] as well.
     pub(super) outputs: usize,
     /// The weights of the linear zone's members, added up: fewer than
     /// 2³² − 1 members of a weight below 2³² each, so below 2⁶⁴.
     pub(super) linear: u64,
     /// The weights of the `?` formulas of the unrestricted zone's members,
-    /// added up. It is the sum over the set as it stands at every moment,
-    /// and a set of occurrences has fewer than 2³² − 1 members (a forest
-    /// has no more occurrences), each of a weight below 2³²: below 2⁶⁴.
+    /// added up. It is at every moment the sum over the set as it stands.
+    /// The set holds at most 2³² members, since a member is a `u32`, each
+    /// of a weight below 2³²: below 2⁶⁴.
     pub(super) unrestricted: u64,
     /// The weights of the linear zone's members in output position: no
     /// more than `linear`.
@@ -262,15 +267,15 @@ pub(crate) struct State {
     pub(super) any: bool,
 }
 
-/// A set of eigenvariables, as the pass carries it from a node to the
-/// root: those the witnesses and cut frames above name and no `∀` step
-/// above introduces.
+/// A set of eigenvariables, as the pass carries it from a node towards
+/// the root: those that the witnesses and cut frames above name and no
+/// `∀` step above introduces.
 #[derive(Clone, Debug, Default)]
 pub(super) struct Eigens {
     /// The members.
     pub(super) set: HashSet<Eigen>,
-    /// The most members the table has held, which its memory follows:
-    /// fewer than a proof's terms, so a table's length.
+    /// The most members the table has held, which its memory follows. It
+    /// is a table's length, and no more than the proof has terms.
     pub(super) most: usize,
 }
 
@@ -282,7 +287,7 @@ impl Eigens {
         }
     }
 
-    /// Adds every member of `other`, the smaller set poured into the
+    /// Adds every member of `other`, pouring the smaller set into the
     /// larger.
     pub(super) fn add(&mut self, mut other: Self) {
         if other.set.len() > self.set.len() {
@@ -292,7 +297,8 @@ impl Eigens {
         self.most = self.most.max(self.set.len());
     }
 
-    /// Returns the bytes the set takes: its table and its box.
+    /// Returns the bytes the set takes: its table, and its box with what
+    /// the allocator keeps for it.
     pub(super) fn bytes(&self) -> u64 {
         table_bytes(self.most, size_of::<Eigen>()) + size_of::<Self>() as u64 + 16
     }
@@ -303,17 +309,17 @@ impl State {
     /// allocator keeps for it.
     pub(super) const OWN: u64 = size_of::<Self>() as u64 + 16;
 
-    /// Returns the bytes the sequent takes in memory, at the least: the
-    /// value and its two tables as they were when fullest. Fewer than 2³⁹.
+    /// Returns the least bytes the sequent takes in memory: the value and
+    /// its two tables as they were when fullest. Fewer than 2³⁹.
     pub(super) fn bytes(&self) -> u64 {
         Self::OWN + self.theta.bytes() + self.gamma.bytes()
     }
 
-    /// Returns the entries of the sequent's two tables, which a rule that
-    /// copies, pours or compares it handles: distinct occurrence ids, so
-    /// fewer than 2³³, which a `u64` holds; each table's length is taken
-    /// to `u64` before the sum, which on a 32-bit target a `usize` might
-    /// not hold.
+    /// Returns how many entries the sequent's two tables hold, which a rule
+    /// that copies, pours or compares it handles. They are distinct
+    /// members, so fewer than 2³³, which a `u64` holds. Each table's length
+    /// is widened to `u64` before the sum, which on a 32-bit target a
+    /// `usize` might not hold.
     pub(super) fn entries(&self) -> u64 {
         self.theta.len() as u64 + self.gamma.counts.len() as u64
     }
@@ -353,7 +359,7 @@ impl State {
 
     /// Returns the weight of the standard sequent `⊢ ?Θ, Γ`: its formulas'
     /// weights added up, or `u64::MAX` when that is less. Each zone's sum
-    /// is below 2⁶⁴ and the two together need not be.
+    /// is below 2⁶⁴, but the two together need not be.
     pub(crate) fn weight(&self) -> u64 {
         self.linear.saturating_add(self.unrestricted)
     }
