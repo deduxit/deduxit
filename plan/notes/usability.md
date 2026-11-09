@@ -135,8 +135,8 @@ provable (MELL, classical, focus engine)
 So the default really does differ (third sequent), and **the documented
 recipe does not reproduce the command** (first sequent): the command's
 stop ignores the clock while the classical refutation runs after the
-search (`cli/src/prove.rs:88`, `halting`: `Phase::Refute =>
-interrupted()`), while the recipe's stop fires in every phase, so the
+search (`cli/src/prove.rs:88-95`, `halting`: `Phase::Refute =>
+interrupted()` at :92), while the recipe's stop fires in every phase, so the
 refutation never runs and the verdict is "unknown: the search was
 stopped". This is a wrong claim in the crate root (`core/src/lib.rs`,
 the paragraph "The command's verdicts differ…" and its example) and in
@@ -489,7 +489,7 @@ both suites.
 | FC7 | A losing split is accepted without a word. | Q9: say after `apply` when a premise is refuted by the counts, as the page does. | A cheap count per split. | Q9 |
 | FC8 | `-h` is 93 lines, 65 options in one block. | clap's `help_heading` groups (the logic, the output, the limits, the search's tuning) and the input flags last (54w-d; layout only). Hiding expert flags from `-h` is Q10. | None for headings. | text (54w-d) + Q10 |
 | FC9 | Ordinary logic's "not valid" is about "the image", with no counter-model. | Say it in ordinary terms (54w-d: "no proof in LJ; the search through the translation was exhaustive"); a counter-model is a feature (Q5). | | text + Q5 |
-| FC10 | Two pieces of advice on deterministic answers: commands.md says "names its bound (`--copies`) or lifts the limit (`--timeout none`)", reference.md §6 and SKILL.md add `--work-limit`. | One sentence, the same in both: `--work-limit N` (or `--copies N`) for the same verdict everywhere. | None. | text (54w-c) |
+| FC10 | Two pieces of advice on deterministic answers: `docs/src/commands.md:236-237` says "names its bound (`--copies`) or lifts the limit (`--timeout none`)" (the chapter names `--work-limit` only as a limit that ends a check, :702); `skills/deduxit/reference.md:384` and `SKILL.md:51` add `--work-limit`. | One sentence, the same in both: `--work-limit N` (or `--copies N`) for the same verdict everywhere. | None. | text (54w-c) |
 
 ## 4. A student or teacher on the web page
 
@@ -611,23 +611,23 @@ intended).
 
 ### Frictions and the change that removes each
 
-| # | friction | change | kind |
-|---|---|---|---|
-| FW1 | Reasons (refusal, verdict, "Cannot close", greyed export) are tips only; touch never sees them. | Show the sentence as a visible line under the keyword (W1). | W1 |
-| FW2 | Undo beside a refusal undoes the last good step. | Remove it, or offer "Other rules" (W2). | W2 |
-| FW3 | The first visit gives no syntax and no way to Learn or the Tour. | A syntax line (text); buttons for lesson 1 and the Tour (W3). | text + W3 |
-| FW4 | Rules are bare symbols; their meaning is a hover with Learn on. | Show each rule's one-line `says` under its name with Learn on (W4). | W4 |
-| FW5 | Refusal and hint sentences say what is wrong, not what to do; "ladder", "rung", "context"; the fourth Hint applies silently. | Rewrite (54w-a): add the next action ("Apply the other formulas' rules first"; "Press Hint again to apply it"). | text |
-| FW6 | A goal lost by the student's step reads like an unprovable sequent. | "This goal has no proof. The sequent may still have one: an earlier step lost it." (54w-a); a "Go back" button is optional (W2). | text |
-| FW7 | Lesson 1 explains eight ideas before a one-step example; predictions offer untaught rules. | Cut the opening to what the example shows; De Morgan to lesson 2; `choices: ["ax", "no rule"]` (54w-a). A longer worked proof or the opening below it: W13. | text + W13 |
-| FW8 | "Decide first" with no control; a wrong hinge answer does not offer its problem. | W5, W6. | W5, W6 |
-| FW9 | Exports do not compile alone and do not name what they need. | Name the packages and the kernel in each item's detail (54w-a); a standalone form (W7). | text + W7 |
-| FW10 | No link to a bare sequent once a step is taken. | W8. | W8 |
-| FW11 | The logic mark is not a visible control and has three names. | One name, "Logic" (54w-a); a visible label on wide screens (W9). | text + W9 |
-| FW12 | "Goal 2 · 1 open" numbers goals by id. | W10. | W10 |
-| FW13 | Practice's "proved" rules are unstated. | Say it (54w-a); W11 asks which rule. | text + W11 |
-| FW14 | Lesson 11 cites a command-line call; Practice's "new tab"; the difficulty sentence; "Proved, not grafted"; the net look "deduxit". | Rewrite (54w-a). | text |
-| FW15 | `linlog-*` storage keys on the privacy page. | W14. | W14 |
+| # | friction | change | cost elsewhere | kind |
+|---|---|---|---|---|
+| FW1 | Reasons (refusal, verdict, "Cannot close", greyed export) are tips only; touch never sees them. | Show the sentence as a visible line under the keyword (W1). | See W1. | W1 |
+| FW2 | Undo beside a refusal undoes the last good step. | Remove it, or offer "Other rules" (W2). | See W2. | W2 |
+| FW3 | The first visit gives no syntax and no way to Learn or the Tour. | A syntax line (text); buttons for lesson 1 and the Tour (W3). | Text: none found (no test asserts "open one from Practice"). Buttons: W3. | text + W3 |
+| FW4 | Rules are bare symbols; their meaning is a hover with Learn on. | Show each rule's one-line `says` under its name with Learn on (W4). | See W4. | W4 |
+| FW5 | Refusal and hint sentences say what is wrong, not what to do; "ladder", "rung", "context"; the fourth Hint applies silently. | Rewrite (54w-a): add the next action ("Apply the other formulas' rules first"; "Press Hint again to apply it"). | The e2e and unit tests that assert the refusal and hint texts change with them (`src/lib/words.test.ts:80-110`, `tests/prover.spec.ts`, `tests/lessons.spec.ts`). | text |
+| FW6 | A goal lost by the student's step reads like an unprovable sequent. | "This goal has no proof. The sequent may still have one: an earlier step lost it." (54w-a); a "Go back" button is W15. | The tests asserting the verdict keywords for a goal (`tests/prover.spec.ts`). The button: W15. | text |
+| FW7 | Lesson 1 explains eight ideas before a one-step example; predictions offer untaught rules. | Cut the opening to what the example shows; De Morgan to lesson 2; `choices: ["ax", "no rule"]` (54w-a). A longer worked proof or the opening below it: W13. | `src/content/lessons.test.ts:77-91` (every played rule in `choices`) still holds with `["ax", "no rule"]`; lesson 1's e2e runs (`tests/lessons.spec.ts:70-100`) press "Predict ax", which stays. | text + W13 |
+| FW8 | "Decide first" with no control; a wrong hinge answer does not offer its problem. | W5, W6. | See W5, W6. | W5, W6 |
+| FW9 | Exports do not compile alone and do not name what they need. | Name the packages and the kernel in each item's detail (54w-a); a standalone form (W7). | None found for the details (no test asserts "The derivation for ebproof" or "certificate for Rocq"); a standalone form: W7. | text + W7 |
+| FW10 | No link to a bare sequent once a step is taken. | W8. | See W8. | W8 |
+| FW11 | The logic mark is not a visible control and has three names. | One name, "Logic" (54w-a); a visible label on wide screens (W9). | `tests/prover.ts` finds the dialog by "Logic"; the fieldset "Suite" is asserted in `tests/ordinary.spec.ts:54`. The label: W9. | text + W9 |
+| FW12 | "Goal 2 · 1 open" numbers goals by id. | W10. | See W10. | W10 |
+| FW13 | Practice's "proved" rules are unstated. | Say it (54w-a); W11 asks which rule. | Practice's tests (`tests/practice.spec.ts`) where they assert the opening's words. The rule: W11. | text + W11 |
+| FW14 | Lesson 11 cites a command-line call; Practice's "new tab"; the difficulty sentence; "Proved, not grafted"; the net look "deduxit". | Rewrite (54w-a). | The tests that assert those strings, if any (`grafted` is asserted in `tests/ordinary.spec.ts`). | text |
+| FW15 | `linlog-*` storage keys on the privacy page. | W14. | See W14. | W14 |
 
 
 ## 5. A logician checking a proof or exporting it
@@ -836,7 +836,7 @@ command's verdicts in one line?
   takes its time from the caller: `Settings::stop(&self, elapsed: impl
   FnMut() -> Duration) -> impl FnMut(Progress) -> bool`, which fires
   past `clock.time_limit_ms` in every phase but `Phase::Refute` (the
-  rule `cli/src/prove.rs:88` applies). A caller writes
+  rule `cli/src/prove.rs:88-95` applies). A caller writes
   `prove_within(&s, mode, &settings.search, &settings.limits,
   settings.stop(|| start.elapsed()))`. It keeps the crate free of a
   clock (wasm): the caller supplies the time, as `prove_within`'s stop
@@ -1007,8 +1007,11 @@ checking a certificate be one command, and one kernel by default?
 - *Cost:* a flake app to keep; the default's change alters every
   classical certificate in the manual and the behaviour lock.
 - *Docs either way:* the Rocq chapter leads with the shortest working
-  way (today: the pin or `nix build`, never the unpublished opam line
-  first).
+  way: with Q11, "`nix run github:deduxit/deduxit#check-certificate --
+  proof.v`" first and the manual installs after it; without, the pin
+  or `nix build` first, never the unpublished opam line first. With
+  the default kernel changed, the chapter shows one kernel and
+  NanoYalla as the flag for Click & coLLecT.
 
 ### The page
 
@@ -1137,6 +1140,22 @@ renamed, migrating on load for one release?
   `src/lib/shelf.test.ts`, the offline spec's cache prefix).
 - *Text either way:* the privacy page lists the keys as they are.
 
+**W15. A way back from a lost goal.** When the search refutes a goal
+that is not the root, should the note offer "Go back", which undoes
+the steps on that branch back to the last goal that still had a
+proof?
+- *Recommendation:* yes, as a button beside the verdict, since the
+  student's next move is to go back and the page knows how far (the
+  search answers per goal). This is heuristic 9 (help to recover)
+  applied where the page already shows the verdict.
+- *Cost:* the page must find the last provable ancestor (one search
+  per ancestor, each within the budget, or the verdicts already
+  kept); one button; the e2e tests of a refuted goal gain a control.
+- *Text either way:* "This goal has no proof. The sequent may still
+  have one: an earlier step lost it." With W15 it adds "Go back takes
+  you to the last step that could still be proved."; without, "Undo or
+  Steps goes back."
+
 ## 7. Text work for the 54w sessions
 
 What the 54w sessions can do without asking, because it changes text
@@ -1212,6 +1231,12 @@ just reworded.
   (`outcome.linear.verdict`), until Q5 is answered.
 
 ### 54w-a: the page
+
+The lesson changes below include lesson 1's `choices` (FW7): a lesson's
+front matter is the Learn material 54w-a rewrites (`plan/54w-text.md`,
+session 2), and the prediction buttons only offer what the text has
+taught. If the planning session reads it as page behaviour, it joins
+W13.
 
 - Where the text lives: `src/content/texts/*.md`, `tour/*.md`,
   `lessons/*.md` (front matter `steps[].reason`, `explain`, `hinge`,
