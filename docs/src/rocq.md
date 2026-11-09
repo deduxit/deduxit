@@ -172,6 +172,30 @@ $ linlog prove --mix --format rocq --standalone --output mix.v "A, B |- A, B"
 $ rocq compile -R path/to/rocq-linlog/theories Linlog mix.v
 ```
 
+A certificate is a module, named by its file, so another file (`use.v`
+here) requires it and applies its lemma; an intuitionistic certificate
+states the two-sided sequent itself, so it proves that goal as written:
+
+```coq
+From Stdlib Require Import List String.
+From Linlog Require Import IntuitionisticCheck.
+Import ListNotations.
+Open Scope string_scope.
+From Proofs Require mp.
+
+Goal ill (atom := string) intuitionistic [ivar "A"; ilmap (ivar "A") (ivar "B")] (ivar "B").
+Proof. apply mp.certificate. Qed.
+```
+
+with the certificate written beside it as `mp.v` and both compiled under
+one logical name:
+
+```sh
+linlog prove -i --format rocq --standalone --output mp.v "A, A -o B |- B"
+rocq compile -R . Proofs mp.v
+rocq compile -R . Proofs use.v
+```
+
 The library's README says what it covers and what not, and its
 documentation is at
 [deduxit.github.io/rocq-linlog](https://deduxit.github.io/rocq-linlog/).

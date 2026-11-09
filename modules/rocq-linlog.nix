@@ -7,7 +7,8 @@
 # input `rocq-linlog' pins it (github:deduxit/rocq-linlog, built with
 # this flake's nixpkgs, so with the Rocq the NanoYalla check uses, rocq.nix);
 # a certificate with a planted fault (a wrong witness, a wrong weight) must
-# be refused. Rocq prints nothing for
+# be refused, and a file that requires a certificate and applies its lemma
+# compiles. Rocq prints nothing for
 # a file it accepts, so any other output fails the check, and `Print
 # Assumptions' of each certificate's lemma must answer that it is closed
 # under the global context. And the check
@@ -151,6 +152,25 @@
               echo "a certificate with a wrong weight was accepted"
               exit 1
             fi
+            # A certificate is a module that another file requires, applying
+            # its lemma to the two-sided goal, as the manual's Rocq chapter
+            # shows (docs/src/rocq.md).
+            mkdir ../use
+            cd ../use
+            linlog prove -i --format rocq --standalone --output mp.v 'A, A -o B |- B'
+            cat >use.v <<'EOF'
+            From Stdlib Require Import List String.
+            From Linlog Require Import IntuitionisticCheck.
+            Import ListNotations.
+            Open Scope string_scope.
+            From Proofs Require mp.
+
+            Goal ill (atom := string) intuitionistic [ivar "A"; ilmap (ivar "A") (ivar "B")] (ivar "B").
+            Proof. apply mp.certificate. Qed.
+            EOF
+            rocq compile -R . Proofs mp.v
+            rocq compile -R . Proofs use.v 2>&1 | tee log
+            if [ -s log ]; then exit 1; fi
             touch $out
           '';
     };

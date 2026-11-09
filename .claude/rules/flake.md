@@ -126,7 +126,10 @@ ones, one of them from a session's open witness), against the package
 (`github:deduxit/rocq-linlog`, pinned by the lock; `ROCQPATH`
 names its `user-contrib` and the standard library's), requires silence
 from each and that a first-order certificate with a wrong witness
-planted by `sed` be refused; an assertion at evaluation compares
+planted by `sed` be refused, and compiles a file that requires an
+intuitionistic certificate as a module and applies its lemma to the
+two-sided goal (the Rocq chapter's example, `-R . Proofs`, kept equal to
+it by hand); an assertion at evaluation compares
 `export::rocq::LINLOG` with the pinned package's `version` (its opam
 file's). The input follows this flake's `nixpkgs`, `flake-parts`,
 `import-tree`, `treefmt-nix` and `nanoyalla`, so the library is built by
