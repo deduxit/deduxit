@@ -5924,3 +5924,27 @@ move (D26).
   steps finish."** 54b and 54w-e1 run to their finals and are reviewed
   and pushed; no new session starts until the author says go. Next on
   go: 54w-c beside 54w-d, then 54w-e3 onward.
+- 2026-11-09, 16:15: **54w-e1 reviewed and pushed: the comments of the
+  sequents, the parser, the forest and proofs** (43 files, the checker
+  included; the report ovwvnmln).
+  - **The text:** about 7 200 comment lines rewritten; new examples for
+    `Mode`, `Fragment`, `Sequent::parse_within`, `IllSequent` (named as
+    the way to read intuitionistic input), `CheckError`,
+    `ViewOptions`, `Derivation`, `derivation_size`, `cut::eliminate`
+    and the shortest interactive session.
+  - **Wrong claims fixed:** about 40, in every module (the report lists
+    them); its reviewer's finding on `IllSequent`'s doc was fixed.
+  - **The checks:** no code changed but eight doc-test fences, one of
+    them the fix of `walk`'s example without default features (its own
+    stripped comparison, and mine); the doc tests pass with every
+    feature and with none; the gate and the flake check passed.
+  - **Handed on:**
+    - the Display text of `ShapeError`, `CheckError`, `StepError`,
+      canonical and replay errors: to 54w-d;
+    - two test names that say "first implementation": to the root
+      session, with `the_review_s_witnesses`;
+    - `core-sequents.md` said no engine takes the quantifier bit; the
+      focused engines do. Fixed by the planning session (xyxwqnow);
+    - a possible fault in `Sequent::join_first_order` for a table with
+      binders and no atoms, which only JSON may reach: recorded in
+      `plan/later.md` to confirm (uyusoupk).
