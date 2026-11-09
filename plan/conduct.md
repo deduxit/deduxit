@@ -166,3 +166,7 @@ In the report and in your final message, lead with the outcome, then the
 decisions, then what is left open. Complete sentences, no working
 shorthand, and every file, type or flag you name gets its own clause saying
 what it is.
+
+Every text a person reads follows `.claude/rules/writing.md` (the
+author's standing instruction of 2026-11-09). A brief that has a session
+write such text names that file.

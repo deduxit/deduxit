@@ -269,6 +269,15 @@ even to read.** Every operation goes through `jj`, including lock updates:
   Prose and configuration carry none: Markdown (CLAUDE.md, `.claude/`,
   `plan/`, README), JSON, `.gitignore`, `LICENSE` and the lock files. The
   project is EUPL-1.2.
+- Every text a person reads (README, the manual, doc comments and
+  comments, the command's help and messages, the web page's text and
+  teaching material) follows `.claude/rules/writing.md`, the author's
+  standing instruction of 2026-11-09:
+  - concise, plain language;
+  - self-contained;
+  - written for someone using it, an API change that would serve them
+    asked of the author first;
+  - free of the patterns that make text hard to read.
 - Comments are short and targeted: they say why, or what the code cannot.
   Types and names carry the rest.
 - Comments are self-contained: they make sense from inside this repository,

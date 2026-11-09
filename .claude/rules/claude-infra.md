@@ -90,6 +90,8 @@ Current contents:
   flake module holds and what each check runs.
 - `rules/ci.md` (`.github/**`): what the GitHub workflows run, and how they
   are written and pinned.
+- `rules/writing.md` (no `paths:`, so it loads at launch with CLAUDE.md):
+  the author's standing instruction for every text a person reads.
 - `rules/evidence.md` (`mutants/**`, `fuzz/**`, `.cargo/mutants.toml`):
   the mutation run's scope and two passes, the fuzz targets, their seeds
   and how they run.
