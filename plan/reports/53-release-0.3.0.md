@@ -1548,6 +1548,24 @@ the old names stop existing at the new pin.
   `ywqlpnru` 64a4e199, `tznmymqy` 3f809fa8).
 - linlog: `../linlog-step53r` on `main`, this section's commit only.
 
+### After the push
+
+- linlog-orchestrator pushed both: the library's `main@origin` is
+  `nxmkmupx` (62d02be1), the placeholder's is `yxlomtlm` (ec21c4b7).
+- The live check, once Pages had deployed: an old path,
+  `https://linlog-prover.github.io/rocq-linlog/Linlog.Soundness.html`,
+  is served the new `404.html` (status 404, byte-identical to
+  `/404.html`, whose table holds `["/rocq-linlog", "/rocq-deduxit"]`).
+  That page's script, run in Node with a stub `location`, sends
+  `/rocq-linlog/` to `https://deduxit.github.io/rocq-deduxit/`
+  (status 200), `/rocq-linlog` to `https://deduxit.github.io/rocq-deduxit`
+  and `/rocq-linlog/Linlog.Soundness.html` to
+  `https://deduxit.github.io/rocq-deduxit/Linlog.Soundness.html`.
+- That deep link still answers 200 today, because the Pages of
+  `deduxit/rocq-deduxit` serve the 0.2.0 docs until the release
+  publishes `Deduxit.Linear.*.html` (now 404). From then on it breaks
+  (the 53b item above).
+
 ## Session 53a: the small defects
 
 Opus 5.5 at `high`, 2026-11-09, in the jj workspace `../linlog-step53a`
