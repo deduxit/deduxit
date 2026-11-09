@@ -5783,3 +5783,14 @@ move (D26).
   - When the author decides to submit, the submission is redone for the
     release current then: its checksum and date, the installs, the pull
     request.
+- 2026-11-09, 12:55: **the author on the docs' wording.**
+  - The dictionary line now sits directly after each title with no
+    lead-in ("The name is Latin for" and the like): the manual's
+    introduction, the crate docs (their first paragraph), the guide's
+    reference. README and the compat READMEs had it so already.
+  - The history note now reads "It began as linlog, a linear logic
+    library (up to 0.2.0), and is growing to take in more calculi."
+  - From 0.4.0 no logic is singled out ("linear logic first" goes) and
+    the name linlog is phased out except in that note, the compat
+    crates, the changelog's past and the reports. This is written into
+    `plan/59-release-0.4.0.md`.
