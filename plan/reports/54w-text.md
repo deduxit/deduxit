@@ -814,3 +814,201 @@ the identifier below, every listed fix true.
 - **The `doc tests without default features` failure** in
   `sequents/fmt.rs` (`Sequent::walk`'s example parses without the
   `parse` fence) is the sequents session's to fence.
+
+## Session 54w-e1: the comments of core/src/linear/sequents, core/src/linear/parse, core/src/linear/occurrences, core/src/linear/fragment.rs and core/src/linear/proofs (the checker included)
+
+Session 6 of `plan/54w-text.md` for two of its groups, `linear::sequents`,
+`parse` and the forest, and `linear::proofs` with the checker (Opus 5.5
+at `high`, background job, 2026-11-09), in the jj workspace
+`../linlog-step54w-e1` (name `step54w-e1`), branched from `main` at
+`lytrpkmw` and rebased onto `main@origin` (`ryuqpssm`). Nothing was
+pushed.
+
+### Outcome
+
+Every doc comment and comment of the 43 Rust files under
+`core/src/linear/sequents/`, `parse/`, `occurrences/`, `proofs/` and
+`fragment.rs` is rewritten to `.claude/rules/writing.md`: about 6 200
+doc-comment lines and 1 000 comment lines, 4 574 lines in and 3 479 out.
+No code changed, apart from eight pairs of
+`#[cfg_attr(feature …, doc = "```")]` / `doc = "```ignore"` lines that
+fence a doc test on the features it needs, the crate's existing form.
+Six Opus helpers each rewrote a disjoint group of files from one shared
+brief. I committed each module's files as they were finished.
+
+The chain, oldest first (change ids):
+
+| change | what |
+|---|---|
+| `mtuvnkmq` | sequents (`mod`, `fmt`, `fo`, `name`, `notation`, `term`) and `fragment.rs`: `Sequent`'s reference split under headings, with a table of the connectives and tables of the JSON keys; `Mode` with a table of its nine names and what each allows; examples on `Mode` and `Fragment` |
+| `kvryyopp` | the parser; an example on `Sequent::parse_within` |
+| `zxvxtnsv` | the occurrence forest, the sets, the written sides, `IllSequent` (now said to be the way to read intuitionistic input, with an example), the instances and the intuitionistic reading |
+| `nmmmrxsz` | proof terms (`proofs/mod.rs`), the rules, the multiset, the rule labels (`style.rs`) and the text tree (`fmt.rs`); `Proof::derivation`'s example reads its input with `IllSequent` |
+| `vtytxxll` | `Sequent::walk`'s example fenced on `parse` (it failed `cargo test --doc --no-default-features` on main; found by 54w-e2, asked by deduxit-orchestrator) |
+| `szpxvpyl` | the checker (`check/`), the oracle and the first-order proofs' tests; an example on `CheckError` showing a verdict and a refusal |
+| `wpxsrkpy` | cut elimination, the size estimate and the derivation view; examples on `ViewOptions`, `Derivation`, `Proof::derivation_size` and `cut::eliminate` |
+| `rzouqrml` | interactive proving; the module doc shows the shortest session |
+| `oruknsqk` | the reviewer's finding, and an unsupported reason dropped |
+| this one | this section |
+
+### Wrong claims fixed
+
+Sequents and modes:
+- `name.rs`: atom names were said to avoid words "reserved for a later
+  version"; `forall` and `exists` are keywords today.
+- `Display` for `Formula` and the intuitionistic printer bracket a nested
+  quantifier too, not only binary formulas.
+- `Sequent::optimize` keeps the terms cut formulas reach;
+  `occurrences` counts cut formulas.
+- `walk` and `formula` panic on a foreign id when iterated or printed in
+  a release build, not at the call (only a `debug_assert!` is there).
+
+The parser:
+- `owed` and `prefix` count binders as well as `!` and `?`;
+  `implications` records `\` as well as `⊸`; the right operand of `/`
+  is negated too; an identifier before `(` is a function symbol even
+  where a binder has that name (the code tests `(` first).
+- `Sequent::parse_within` can refuse with `Refusal::Terms`.
+
+The forest and the readings:
+- `IllSequent::read_one_sided`'s example gave a one-sided form that was
+  not one-sided (`⊢ ~(A ⊗ ~B), ~A, B` for `⊢ A ⊗ ~B, ~A, B`); the
+  `goal` field is the root on the output side, not the last root; the
+  roots' order is the parse's only for parsed input.
+- `Polarity` and the reading's position lists omitted `∀` and `∃`.
+- `Forest::is_empty` and `has_binders` cover cut formulas.
+- `Reading` can find two possible goals whenever each of the two roots
+  holds a `⊤` or `0`, not only in roots built from them (`a ⊗ ⊤`);
+  `Reading::new` can fail with `ShapeError::CutFormula`; `ShapeError`'s
+  doc quoted a message the code never writes.
+- `instances.rs`: a canonical table's terms may take open arguments; the
+  frame check catches them. A metavariable as a table term is refused.
+- `IllSequent`'s new text (the reviewer's finding, below).
+
+Proof terms, rules, labels, the text tree:
+- `Proof`'s JSON and the module's rule list omitted the cut node and
+  the quantifier rules; `Named::name` and `style.rs`'s symbols omitted
+  the quantifiers; `style.rs` claimed to say why a derivation was cut
+  short, which it does not.
+- `Place::bar` is `None` only for an open goal drawn bare;
+  `write_steps` ends an open goal's line in ", open.".
+
+The checker:
+- `check_within`'s doc named a `memory` argument that does not exist;
+  the bounds are `limits.memory_bytes`, `limits.work` and the stop,
+  which is asked every `POLL` nodes or `POLL_WORK` units of work; the
+  work count includes the term walks of `bring` and the axioms' frames.
+- The cut fills `shared`, `absent` and `needs`; a cut frame's
+  eigenvariables are walked by `Instancing::bring`, not the frame pass.
+- The zone bounds count members, each a `u32`, which may be instances
+  past the forest (the bounds hold unchanged).
+- A refusal before the first node names node 0; a saturated zone ends
+  in `Fault::Surplus`, a verdict; in intuitionistic mode Mix is
+  forbidden outright.
+- The oracle's memory is not quadratic (it keeps `BTreeSet`s and sorted
+  multisets); its `proofs()` includes the Lambek proofs; a parameter
+  name and a missing eigenvariable check in its docs.
+- Test docs: a test said 4 001 nodes poll once (fewer than `POLL`, so
+  never); another claimed to check "the height exactly".
+
+Cut elimination, sizes, the derivation view:
+- `Derivation::new` and `two_sided` are bounded by the limits, not the
+  view, and ask the stop once per node unfolded; `derivation_size` is
+  bounded by `limits.work` too and polls by work as well as nodes.
+- `cut::Options::drawn_bytes` bounds eliminations on proofs too (the web
+  bindings use it so); at first order `Rewrite::apart` also asks the stop.
+
+Interactive proving:
+- `!` needs a context of `?` formulas, not an empty one; the rules
+  offered include `∀` and `∃`, and `∀R`/`∃L` are invertible; a comment
+  said a session holds no binder, which first-order sessions do;
+  `framed_premises` also fails on the session's bound on terms; `rebase`
+  moves only its own map; the first-order bound also caps the table.
+
+### The checks
+
+All at the chain's head after the rebase onto `main@origin` (`ryuqpssm`), compared with `main@origin`.
+
+| check | result |
+|---|---|
+| No code change: the 43 files, comments stripped (a small lexer that knows strings, raw strings, chars and nested block comments), against `main@origin` (`strip_compare.py`); then keeping each line's indentation (`strict_compare.py`) | only the eight fence pairs, in six files, differ (one split over four lines by rustfmt); with `--ignore-doc-test-fences` 43 of 43 identical, exit 0, both tools. The lexer was shown to catch a hidden `==` → `!=` beside a comment edit |
+| Only in-scope files changed from the base | none outside the five paths and this report |
+| `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features`, and `-p deduxit --document-private-items` | exit 0, exit 0 |
+| `cargo test -p deduxit --all-features --doc`; `--no-default-features --doc` | 63 passed; 5 passed, 44 ignored (54w-e2's examples included); exit 0 both |
+| `gate` and `nix flake check` | reported with their exit statuses in the message to deduxit-orchestrator, run at this section's commit |
+
+### The review
+
+The `fresh-reviewer` agent read the chain against the brief, the
+writing rules and the code (facts, the rules, no code changed): one
+finding and one question, both answered in `oruknsqk`.
+
+1. `IllSequent`'s new doc said text with a classical symbol, parsed as a
+   `Sequent`, is refused when proved, with a subformula's number. False:
+   `~(A * ~B), A |- B` has the reading `A ⊸ B, A ⊢ B` and is proved, and
+   a refusal can be any `ShapeError`. Fixed: it says both.
+2. The question: a comment in `quantified.rs` had gained a reason
+   ("keeps reading linear") that the code does not support. Dropped; the
+   comment says what `main` said.
+
+The reviewer found the commit messages' fixed claims, the public items'
+docs, every integer-range and memory-bound statement of the checker,
+and the doc tests sound, and agreed by a second method that only fence
+pairs changed as code.
+
+### Departures from the prompt
+
+- Eight `cfg_attr` fence pairs are attribute lines, not comments. A new
+  doc test that parses needs one under the crate's feature set, and one
+  fixes a failing doc test on main; the strip-compare lists them.
+- The two groups of session 6 ran as one session, its files split among
+  six helpers by module (the goal's scope).
+- One helper edited by exact string replacement from small scripts
+  instead of the Edit tool, so the format hook did not run on those
+  seven files; `rustfmt --check` was clean, and the flake's `treefmt`
+  check covers it.
+- Code text was left as it is (the brief): messages and test names are
+  listed below for whoever owns them.
+
+### What the next sessions must know
+
+- `.claude/rules/core-sequents.md` (the paragraph on `Fragment`'s
+  quantifier bit) still says no engine admits the bit and the dispatch
+  answers `NoEngine` for first-order fragments; the focused engine
+  decides `Fragment::LL1` (`core/src/linear/search/focus/mod.rs:154`).
+  A rules file is outside this session's scope: fix it with the search
+  sessions' notes.
+- `core-sequents.md` splits the parser's inlining measurement (1.5 % for
+  the loop out of line, 2 to 7 % for a copy per reader) differently
+  from the comment in `parse::read` ("1.5 % to 7 %"), which was kept.
+- Possible bug, unconfirmed: `Sequent::join_first_order` takes
+  `self.fo.atoms.len()` as this side's atom count when `self.fo` is not
+  empty; a JSON sequent with binder names but no atom predicates would
+  then count 0 own atoms and could hand its atoms the other side's
+  predicates. Only such a document reaches that state.
+- Messages that read badly but are code (the crate's `Display` texts):
+  `ShapeError`'s "(⅋ only as A ⊸ B, that is ~A ⅋ B, and ? only under a
+  negation)" and its "on the right of ⊢" beside "right of ⊢";
+  `canonical`'s "term {id} is a metavariable, an open witness" and
+  "frame {n} pushes no closed term"; `CheckError`'s "the premises
+  differ", "is not under a hypothesis's !", "stands under a binder and
+  is named without its instance", and "occurrence" for what may be an
+  instance; `StepError`'s "the witness is no term here", "which the
+  sequent has not with this arity and role", "is no symbol of the
+  sequent", "symbol {} is none of the sequent"; `make_premises`'s "a
+  u32 numbers"; `replay_cut`'s and `replay.rs`'s refusals of a
+  malformed session. The test names `agrees_with_the_first_implementation`
+  and `the_first_implementation_agrees` keep the history wording.
+- To show that a comment-only change touches no code: strip comments
+  with a lexer that keeps string literals verbatim, drop blank lines,
+  and compare with the base, once per line stripped and once keeping
+  indentation; a doc-test fence is the only attribute such a change may
+  add. The two tools are in the job's scratch directory, gone with it.
+- New doc tests use the crate's fence (`#[cfg_attr(feature = "parse",
+  doc = "```")]` and its `not` twin; `#![…]` in a module doc), not a
+  hidden `fn main` gated by `cfg`: both work, the crate uses the first.
+- A fence whose `cfg` is long (`not(all(feature = "parse", feature =
+  "interactive"))`) passes 100 columns, and rustfmt splits it over four
+  lines; the flake's `treefmt` check failed on one such line here until
+  `nix fmt` reformatted it. Run `nix fmt` on a file edited outside the
+  Edit tool before the flake check.
