@@ -115,13 +115,21 @@ Each entry point is described in the file of its module:
 
 ## Crate-wide rules
 
-**The rustdoc shows linlog's logo** by URL (`#![doc(html_logo_url,
+**The rustdoc shows deduxit's mark** by URL (`#![doc(html_logo_url,
 html_favicon_url)]` at the top of `lib.rs`, the site's
 `/logo/square-dark.svg` and `/logo/favicon-32.png`), as README's head and
-the Rocq library's README (in its repository, `deduxit/rocq-linlog`)
-show the word mark: the files are the web client's
+the Rocq library's README (in its repository, `deduxit/rocq-deduxit`)
+show the word mark dēdūxit: the files are the web client's
 (CC BY 4.0, its `src/logo/`), never committed here, and their paths there
-must stay stable.
+must stay stable. linlog has no mark of its own since the lollipop
+retired (2026-11-09).
+
+**The dictionary line** of the name, approved by the author word for
+word, stands under README's mark, in the manual's introduction, in the
+crate docs' second paragraph and at the head of the guide's reference:
+**dēdūxit** [deːˈduːk.sɪt] *Latin, verb*: "it has derived", the perfect
+of *dēdūcō*, to lead down, derive. A rename keeps it unchanged (rustdoc
+needs its brackets escaped, `\[…\]`, or it reads them as a link).
 
 **The rustdoc is the library's manual**, published from `main`. What a
 user of the crate needs and the code keeps private is said on a public

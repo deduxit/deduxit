@@ -1,4 +1,6 @@
-# <picture><source media="(prefers-color-scheme: dark)" srcset="https://deduxit.github.io/logo/wordmark-dark.svg"><img alt="linlog" src="https://deduxit.github.io/logo/wordmark-light.svg" height="80"></picture>
+# <picture><source media="(prefers-color-scheme: dark)" srcset="https://deduxit.github.io/logo/wordmark-dark.svg"><img alt="deduxit" src="https://deduxit.github.io/logo/wordmark-light.svg" height="80"></picture>
+
+> **dēdūxit** [deːˈduːk.sɪt] *Latin, verb*: "it has derived", the perfect of *dēdūcō*, to lead down, derive.
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23448588.svg)](https://doi.org/10.5281/zenodo.23448588)
 
@@ -154,11 +156,11 @@ fonts are not covered by their licence (its condition 5); a PNG holds
 no font, while a PDF embeds the part of the font its text uses, and for
 New Computer Modern Math the LPPL makes no exception for documents.
 
-linlog's logo, at the head of this file, is not in the repository: it is
-served by [linlog's site](https://deduxit.github.io/logo/LICENSE.txt),
+deduxit's mark, at the head of this file, is not in the repository: it
+is served by [deduxit's site](https://deduxit.github.io/logo/LICENSE.txt),
 © Fabian Lukas Grubmüller, under
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The name
-linlog and its mark identify this project, and may not be used to
+deduxit and its mark identify this project, and may not be used to
 suggest its endorsement of anything else.
 
 The problem libraries and the other provers that the benchmarks and the

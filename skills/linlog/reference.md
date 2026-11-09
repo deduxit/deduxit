@@ -7,7 +7,8 @@ its real output (a time a search took varies). `linlog COMMAND --help`
 documents every flag; a flag that sets a key of the settings file names
 it in parentheses there. The manual for people,
 <https://deduxit.github.io/deduxit/manual/>, says the same at more
-length, with the benchmarks.
+length, with the benchmarks. linlog is the linear suite of deduxit, a
+collection of logic suites named in Latin: **dēdūxit** [deːˈduːk.sɪt] *Latin, verb*: "it has derived", the perfect of *dēdūcō*, to lead down, derive.
 
 Contents:
 

@@ -12,6 +12,11 @@
 //! sequent's [`Forest`]; proofs, nets and errors name occurrences by those
 //! numbers.
 //!
+//! The crate is the linear suite of
+//! [deduxit](https://github.com/deduxit/deduxit), a collection of logic
+//! suites whose name is Latin: **dēdūxit** \[deːˈduːk.sɪt\] *Latin, verb*:
+//! "it has derived", the perfect of *dēdūcō*, to lead down, derive.
+//!
 //! In more detail: sequents of linear logic, stored as compact arena DAGs
 //! in negation normal form, with parsing, printing and serialization; the fragment a sequent
 //! lives in and the mode proof search runs in; the occurrence forest of a
