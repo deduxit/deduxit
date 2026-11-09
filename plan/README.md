@@ -5428,3 +5428,23 @@ move (D26).
     - deleting the secret and revoking the token;
     - the Zenodo check;
     - the opam pull request.
+- 2026-11-09, 02:30:
+  - **53n's client part is pushed** (vumtzlyo). Its remaining address
+    checks and final message follow.
+  - **The Rocq repository is renamed.** `deduxit/rocq-linlog` became
+    `deduxit/rocq-deduxit` (the author's yes): the old address
+    redirects, its Pages serve at `/rocq-deduxit/`, and the website
+    field is updated.
+  - **Sessions 53r and 53p started**, side by side:
+    - 53r renames the library to the root `Deduxit`, with
+      `Deduxit.Linear.*`, its README taking the new mark and the
+      dictionary line;
+    - 53p places the mark in the client and linlog, with the dictionary
+      line and the hover card. Its client part also forwards the old
+      path `/rocq-linlog/` on the shared origin.
+  - **Decided: the opam repository gets only `rocq-deduxit`, from
+    0.3.0.** The unsent submission of `rocq-linlog.0.2.0` is superseded
+    by one of `rocq-deduxit.0.3.0`. The reason: opam has no rename
+    (`plan/notes/cli-library.md` found no procedure), so a package
+    under the old name would stay there stale. This is current
+    practice for a package not yet published.
