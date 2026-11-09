@@ -3,7 +3,7 @@
 
 [package]
 name = "deduxit-web"
-description = "linlog compiled to WebAssembly for a web page: JSON in, JSON or SVG out, over the interactive state, the settings and a search's outcome."
+description = "deduxit compiled to WebAssembly for a web page: JSON in, JSON or SVG out, over the interactive state, the settings and a search's outcome."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

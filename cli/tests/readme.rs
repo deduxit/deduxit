@@ -2,14 +2,14 @@
 // Licensed under the EUPL
 
 //! The examples of README, of the manual (`docs/src/`, every chapter
-//! `SUMMARY.md` lists) and of the guide for AI models (`skills/linlog/`)
+//! `SUMMARY.md` lists) and of the guide for AI models (`skills/deduxit/`)
 //! against the binary: every command of every `console` block of
 //! `README.md`, the manual's chapters, `SKILL.md` and `reference.md` is
 //! run in a directory of its block's own, through
 //! `sh` so that pipes and redirections work, and its output (standard
 //! output and standard error together) is compared with the lines that
 //! follow it in the block. Lines of the block that start with `> ` are
-//! the command's standard input, as in a transcript of `linlog interact`.
+//! the command's standard input, as in a transcript of `deduxit interact`.
 //!
 //! A comment on the line before a block says how much of its output is
 //! the machine's (`<!-- readme-check: WORD -->`):
@@ -42,10 +42,10 @@ use common::timeless;
 const README: &str = include_str!("../../README.md");
 
 /// The guide's summary, an Agent Skill's `SKILL.md`.
-const SUMMARY: &str = include_str!("../../skills/linlog/SKILL.md");
+const SUMMARY: &str = include_str!("../../skills/deduxit/SKILL.md");
 
 /// The guide's full reference beside it.
-const REFERENCE: &str = include_str!("../../skills/linlog/reference.md");
+const REFERENCE: &str = include_str!("../../skills/deduxit/reference.md");
 
 /// The guide's documents by their names.
 const GUIDE: [(&str, &str); 2] = [("SKILL.md", SUMMARY), ("reference.md", REFERENCE)];
@@ -88,7 +88,7 @@ fn manual() -> Vec<(String, String)> {
         .collect()
 }
 
-/// The programs other than `linlog` that the README's examples call and
+/// The programs other than `deduxit` that the README's examples call and
 /// this test does not run: the harness has the flake's `bench` check, and
 /// the LaTeX and Rocq output its `export` and `rocq` checks.
 const OTHER_PROGRAMS: [&str; 3] = ["deduxit-bench", "pdflatex", "rocq"];
@@ -215,10 +215,10 @@ fn shape(text: &str) -> String {
 }
 
 /// Runs the command line with `sh` in the directory, with the directory
-/// of the `linlog` under test first on the path, and returns what it
+/// of the `deduxit` under test first on the path, and returns what it
 /// wrote to standard output and standard error, in the order it wrote it.
 fn run(directory: &Path, command: &str, input: &str) -> String {
-    let binary = PathBuf::from(env!("CARGO_BIN_EXE_linlog"));
+    let binary = PathBuf::from(env!("CARGO_BIN_EXE_deduxit"));
     let mut path = binary.parent().unwrap().as_os_str().to_owned();
     if let Some(inherited) = std::env::var_os("PATH") {
         path.push(":");
@@ -298,7 +298,7 @@ fn examples(name: &str, text: &str, root: &Path) -> (usize, Vec<String>) {
                 continue;
             }
             assert!(
-                program == "linlog" || SHELL_COMMANDS.contains(&program),
+                program == "deduxit" || SHELL_COMMANDS.contains(&program),
                 "{name}:{}: no rule for the program {program}",
                 example.line
             );
@@ -326,7 +326,7 @@ fn examples(name: &str, text: &str, root: &Path) -> (usize, Vec<String>) {
             };
             if actual != expected {
                 failures.push(format!(
-                    "{name}:{}: $ {}\n--- {name}\n{expected}\n--- linlog\n{actual}",
+                    "{name}:{}: $ {}\n--- {name}\n{expected}\n--- deduxit\n{actual}",
                     example.line, example.command
                 ));
             }
@@ -405,7 +405,7 @@ fn guide_examples() {
 }
 
 /// The commands whose help the guide's flags are looked up in, as the
-/// words after `linlog`.
+/// words after `deduxit`.
 const COMMANDS: [&[&str]; 7] = [
     &["prove"],
     &["check"],
@@ -416,7 +416,7 @@ const COMMANDS: [&[&str]; 7] = [
     &["seq", "fragment"],
 ];
 
-/// The programs other than `linlog` whose calls the documents show, and
+/// The programs other than `deduxit` whose calls the documents show, and
 /// whose flags are theirs.
 /// `sudo` and the package managers come from the installation chapter.
 const TOOLS: [&str; 10] = [
@@ -433,7 +433,7 @@ const TOOLS: [&str; 10] = [
 ];
 
 /// The manual's chapters on the benchmark harness, `deduxit-bench`: a flag
-/// they name outside a call of `linlog` is the harness's or one of its
+/// they name outside a call of `deduxit` is the harness's or one of its
 /// scripts', which `bench/tests/manual.rs` checks against the harness's
 /// help.
 const HARNESS_CHAPTERS: [&str; 2] = ["docs/src/benchmarks.md", "docs/src/results/"];
@@ -450,11 +450,11 @@ const SETTINGS: [&str; 8] = [
     "interactive",
 ];
 
-/// Returns what `linlog` writes for the arguments, standard output and
+/// Returns what `deduxit` writes for the arguments, standard output and
 /// error together.
-fn linlog(arguments: &[&str], input: &str) -> String {
+fn deduxit(arguments: &[&str], input: &str) -> String {
     let out = common::output(
-        Command::new(env!("CARGO_BIN_EXE_linlog")).args(arguments),
+        Command::new(env!("CARGO_BIN_EXE_deduxit")).args(arguments),
         input,
     );
     let mut text = String::from_utf8(out.stdout).unwrap();
@@ -473,7 +473,7 @@ fn settings_know(key: &str) -> bool {
     }
     let file = Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("settings-{key}.json"));
     std::fs::write(&file, json).unwrap();
-    let out = linlog(
+    let out = deduxit(
         &[
             "seq",
             "print",
@@ -614,7 +614,7 @@ fn readme_names_what_exists() {
 }
 
 /// Returns what the documents, each a name and its text, name that does
-/// not exist: a flag after `linlog COMMAND` not in the command's help, any
+/// not exist: a flag after `deduxit COMMAND` not in the command's help, any
 /// other not in some command's help or the session's, a session command
 /// not in the list `help` prints in a session, and a settings key that the
 /// help of no flag names (`keys_in_help`) or else that a settings file
@@ -625,10 +625,10 @@ fn names_that_do_not_exist(documents: &[(String, String)], keys_in_help: bool) -
         .map(|command| {
             let mut arguments = command.to_vec();
             arguments.push("--help");
-            (*command, linlog(&arguments, ""))
+            (*command, deduxit(&arguments, ""))
         })
         .collect();
-    let session = linlog(&["interact", "A |- A"], "help\n");
+    let session = deduxit(&["interact", "A |- A"], "help\n");
     let session_commands: Vec<&str> = session
         .lines()
         .filter(|line| line.starts_with(|c: char| c.is_ascii_lowercase()))
@@ -663,10 +663,10 @@ fn names_that_do_not_exist(documents: &[(String, String)], keys_in_help: bool) -
                     ));
                 }
             }
-            // Each `linlog COMMAND …` up to the next pipe, list or redirection.
+            // Each `deduxit COMMAND …` up to the next pipe, list or redirection.
             for call in piece.split(['|', ';', '>']).filter_map(|part| {
-                let at = part.find("linlog ")?;
-                Some(&part[at + "linlog ".len()..])
+                let at = part.find("deduxit ")?;
+                Some(&part[at + "deduxit ".len()..])
             }) {
                 let mut words = call.split_whitespace();
                 let Some(first) = words.next() else { continue };
@@ -681,7 +681,7 @@ fn names_that_do_not_exist(documents: &[(String, String)], keys_in_help: bool) -
                 let Some((_, help)) = helps.iter().find(|(known, _)| *known == command.as_slice())
                 else {
                     failures.push(format!(
-                        "{name}:{line}: no command linlog {}",
+                        "{name}:{line}: no command deduxit {}",
                         command.join(" ")
                     ));
                     continue;
@@ -689,7 +689,7 @@ fn names_that_do_not_exist(documents: &[(String, String)], keys_in_help: bool) -
                 for flag in flags_in(&words.collect::<Vec<_>>().join(" ")) {
                     if !names_flag(help, &flag) {
                         failures.push(format!(
-                            "{name}:{line}: linlog {} has no flag {flag}",
+                            "{name}:{line}: deduxit {} has no flag {flag}",
                             command.join(" ")
                         ));
                     }
@@ -724,7 +724,7 @@ fn names_that_do_not_exist(documents: &[(String, String)], keys_in_help: bool) -
             for span in spans {
                 let word = span.split_whitespace().next().unwrap_or("");
                 let is_word = !word.is_empty() && word.chars().all(|c| c.is_ascii_lowercase());
-                // A span may name a command of `linlog` beside the session's.
+                // A span may name a command of `deduxit` beside the session's.
                 let a_command = COMMANDS.iter().any(|command| command[0] == word);
                 if is_word && !a_command && !session_commands.contains(&word) {
                     failures.push(format!("{name}: no session command {word}"));
@@ -791,7 +791,7 @@ fn the_summary_keeps_its_budget() {
             .find_map(|line| line.strip_prefix(key)?.strip_prefix(": "))
             .unwrap_or_else(|| panic!("SKILL.md has no {key}"))
     };
-    assert_eq!(field("name"), "linlog");
+    assert_eq!(field("name"), "deduxit");
     assert!(field("description").chars().count() <= 1024);
     assert!(body.lines().count() < 100, "{} lines", body.lines().count());
     assert!(body.len() <= 8000, "{} bytes", body.len());
@@ -843,7 +843,7 @@ fn guide_states_the_defaults() {
         .map(|command| {
             let mut arguments = command.to_vec();
             arguments.push("--help");
-            linlog(&arguments, "")
+            deduxit(&arguments, "")
         })
         .collect();
     let mut failures = Vec::new();

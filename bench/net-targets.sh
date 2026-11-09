@@ -17,9 +17,9 @@
 # focused engine's target set (bench/targets.sh) runs no net search.
 #
 # One stream on one performance core, no run over 300 s, about five
-# minutes. It runs as the user unit `linlog-net-targets', with 8 GiB and
+# minutes. It runs as the user unit `deduxit-net-targets', with 8 GiB and
 # no swap and 6 GiB of address space per process; `journalctl --user -fu
-# linlog-net-targets' follows it, and the unit is gone when the file
+# deduxit-net-targets' follows it, and the unit is gone when the file
 # bench/targets/net-LABEL.csv exists. A run of a label that has rows
 # already (in net-LABEL.part.csv) resumes it.
 set -euo pipefail
@@ -35,11 +35,11 @@ if [ "${2:-}" != --inside ]; then
   cargo build --release --locked --package deduxit-bench
   install -D "${CARGO_TARGET_DIR:-target}/release/deduxit-bench" "target/targets/net-$label/deduxit-bench"
   mkdir -p "$out"
-  systemctl --user reset-failed linlog-net-targets.service 2>/dev/null || true
-  systemd-run --user --unit=linlog-net-targets --same-dir --collect \
+  systemctl --user reset-failed deduxit-net-targets.service 2>/dev/null || true
+  systemd-run --user --unit=deduxit-net-targets --same-dir --collect \
     -p MemoryMax=8G -p MemorySwapMax=0 -p OOMPolicy=continue -p LimitCORE=0 \
     --setenv=PATH="$PATH" "$self" "$label" --inside
-  echo "into $out/net-$label.csv; follow it with: journalctl --user -fu linlog-net-targets"
+  echo "into $out/net-$label.csv; follow it with: journalctl --user -fu deduxit-net-targets"
   exit
 fi
 

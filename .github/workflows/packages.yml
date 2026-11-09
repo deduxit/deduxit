@@ -137,11 +137,11 @@ jobs:
       - name: The archive
         run: |
           version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)
-          stem="linlog-$version-$TARGET"
+          stem="deduxit-$version-$TARGET"
           mkdir -p "dist/$stem"
           case "$TARGET" in
-            *windows*) cp "target/$TARGET/release/linlog.exe" "dist/$stem/" ;;
-            *) cp "target/$TARGET/release/linlog" "dist/$stem/" ;;
+            *windows*) cp "target/$TARGET/release/deduxit.exe" "dist/$stem/" ;;
+            *) cp "target/$TARGET/release/deduxit" "dist/$stem/" ;;
           esac
           cp README.md LICENSE cli/fonts/*.txt notices/THIRD-PARTY-NOTICES.txt "dist/$stem/"
           cd dist

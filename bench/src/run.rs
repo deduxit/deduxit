@@ -1042,7 +1042,7 @@ mod tests {
     /// at their defaults where empty.
     #[test]
     fn resume_reads_its_own_files_only() {
-        let dir = std::env::temp_dir().join(format!("linlog-resume-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("deduxit-resume-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         assert!(finished(&dir.join("absent.csv")).unwrap().is_empty());
         let foreign = dir.join("foreign.csv");

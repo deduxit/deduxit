@@ -208,7 +208,7 @@ impl Runtime {
         let pool = ThreadPoolBuilder::new()
             .num_threads(threads)
             .stack_size(stack_size)
-            .thread_name(|i| format!("linlog-search-{i}"))
+            .thread_name(|i| format!("deduxit-search-{i}"))
             .build()
             .map_err(|e| Error::ThreadPool {
                 threads,

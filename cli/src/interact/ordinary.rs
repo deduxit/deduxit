@@ -280,7 +280,7 @@ impl Commands for Session {
                     Saved::Ordinary(state) => *state,
                     Saved::Linear(_) => bail!(
                         "{path} holds a session of linear logic; `load` resumes one of this \
-                         sequent, and `linlog interact --state {path}` starts that one"
+                         sequent, and `deduxit interact --state {path}` starts that one"
                     ),
                 };
                 // The exit status answers for the session's sequent and
@@ -289,13 +289,13 @@ impl Commands for Session {
                 if sequent_text(&state) != sequent_text(&self.state) {
                     bail!(
                         "{path} holds a session of another sequent; `load` resumes one of this \
-                         sequent, and `linlog interact --state {path}` starts that one"
+                         sequent, and `deduxit interact --state {path}` starts that one"
                     );
                 }
                 if state.logic() != self.state.logic() {
                     bail!(
                         "{path} holds a session in {} logic, this one is in {} logic; \
-                         `linlog interact --state {path}` starts that one",
+                         `deduxit interact --state {path}` starts that one",
                         state.logic(),
                         self.state.logic()
                     );

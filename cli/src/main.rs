@@ -1,7 +1,7 @@
 // linlog © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The `linlog` binary: one call into the library of the same package.
+//! The `deduxit` binary: one call into the library of the same package.
 
 /// The allocator of a static build for musl, whose own allocator made the
 /// search up to three and a half times slower with four threads, and

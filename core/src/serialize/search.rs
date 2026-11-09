@@ -624,7 +624,7 @@ struct Outcome<'a> {
     /// The wire level.
     version: u32,
     /// The crate's version, which wrote the outcome.
-    linlog: &'static str,
+    deduxit: &'static str,
     /// `proved`, `unprovable` or `unknown`.
     verdict: &'static str,
     /// Whether the proof passed the checker, for `proved`.
@@ -680,7 +680,7 @@ impl Serialize for Out {
         };
         Outcome {
             version,
-            linlog: env!("CARGO_PKG_VERSION"),
+            deduxit: env!("CARGO_PKG_VERSION"),
             verdict,
             checked: proof.as_ref().map(|_| self.checked),
             reason,

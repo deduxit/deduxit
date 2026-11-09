@@ -1374,9 +1374,9 @@ pub(crate) struct StyleArgs {
     /// ebproof, preamble, lambda (the lambda-term under the conclusion,
     /// null or {"notation","types"}, which --lambda sets); typst: form,
     /// labels, open, import, page,
-    /// layout (auto, curryst or linlog: curryst for a tree up to nine
-    /// inferences high, linlog's own code above), premise_gap, label_gap,
-    /// band, stroke (lengths for linlog's own layout: a number and pt,
+    /// layout (auto, curryst or deduxit: curryst for a tree up to nine
+    /// inferences high, deduxit's own code above), premise_gap, label_gap,
+    /// band, stroke (lengths for deduxit's own layout: a number and pt,
     /// mm, cm, in or em), lambda; svg:
     /// font (family, advances), labels, open, ids, description, font_size,
     /// label_size, line_height, premise_gap, literal_gap, label_gap,
@@ -1385,7 +1385,7 @@ pub(crate) struct StyleArgs {
     /// dominator, lambda, net (formulas: a proof net with every subformula
     /// written, or compact: only its literals and conclusions written,
     /// its inner links circles), net_look (a net's look: textbook or
-    /// linlog, the default, or its fields premises: dashed or plain,
+    /// deduxit, the default, or its fields premises: dashed or plain,
     /// the edges into a ⅋ or ? node; conclusions: raised or bottom, a !
     /// with auxiliary doors written a row above the ? nodes or on the
     /// bottom row; why_not: node or rules, a ? node one node or the
@@ -1588,7 +1588,7 @@ pub(crate) enum Format {
     /// of the ebproof package, with the connectives of cmll and amssymb
     Latex,
     /// The verdict as a comment, then the derivation as a Typst proof tree:
-    /// with the curryst package for a low tree, in linlog's own layout for
+    /// with the curryst package for a low tree, in deduxit's own layout for
     /// a high one (`--style typst.layout`)
     Typst,
     /// The verdict as an XML comment, then the derivation drawn as an SVG
@@ -1607,7 +1607,7 @@ pub(crate) enum Format {
     /// directory of github.com/ComputerAidedLL/click-and-collect, built
     /// with Rocq 9 and its standard library, no Yalla needed), a lemma
     /// stating the sequent one-sided, proved rule by rule, which refuses
-    /// Mix and the weakening of affine mode; for linlog's own library, a
+    /// Mix and the weakening of affine mode; for deduxit's own library, a
     /// lemma stating the sequent in the mode's calculus, two-sided for
     /// intuitionistic logic, proved from the proof term by the library's
     /// checker; closed by Qed, `--standalone` adds the imports

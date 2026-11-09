@@ -103,7 +103,7 @@ pub fn ratchet(
     }
     let scratch = match keep {
         Some(dir) => dir.to_owned(),
-        None => std::env::temp_dir().join(format!("linlog-ratchet-{}", std::process::id())),
+        None => std::env::temp_dir().join(format!("deduxit-ratchet-{}", std::process::id())),
     };
     std::fs::create_dir_all(&scratch)?;
     let counts = count_all(&names, jobs, &scratch);

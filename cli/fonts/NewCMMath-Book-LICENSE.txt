@@ -1,5 +1,5 @@
 New Computer Modern Math 7.1.1 in its Book weight, the font in NewCMMath-Book.otf,
-embedded in the linlog command.
+embedded in the deduxit command.
 
 NewCMMath-Book.otf is one file of the package newcomputermodern 7.1.1 by Antonis
 Tsolomitis, as CTAN distributes it (TeX Live's newcomputermodern), copied unmodified
@@ -17,7 +17,7 @@ modification, so this distribution meets clause 6:
   byte for byte. The one change is that the Work's other files (its text, sans, mono
   and other math fonts, its LaTeX package and its documentation) are left out.
 - (c) Neither Antonis Tsolomitis nor anyone else provides support for this
-  distribution; a problem with linlog's copy goes to linlog's issues,
+  distribution; a problem with deduxit's copy goes to deduxit's issues,
   https://github.com/deduxit/deduxit/issues.
 - (d) The complete, unmodified Work: https://ctan.org/pkg/newcomputermodern, and
   every TeX Live distribution.

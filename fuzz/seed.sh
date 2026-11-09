@@ -12,7 +12,7 @@
 #   cargo build --package deduxit-cli && fuzz/seed.sh
 set -euo pipefail
 cd "$(dirname "$(realpath "$0")")/.."
-linlog=${LINLOG:-target/debug/linlog}
+deduxit=${DEDUXIT:-target/debug/deduxit}
 corpus=fuzz/corpus
 for t in sequent_text ordinary_text tptp lltp spec json_sequent json_proof json_structure json_session json_disproof \
   session_steps proof_views ordinary_decide; do
@@ -27,9 +27,9 @@ grep -v '^#' bench/problems/* | cut -d';' -f5 | sed 's/^ //' | while read -r s; 
   [ -n "$s" ] || continue
   i=$((i + 1))
   printf '%s' "$s" | seed sequent_text "problem-$i"
-  "$linlog" seq json "$s" | seed json_sequent "problem-$i"
+  "$deduxit" seq json "$s" | seed json_sequent "problem-$i"
   # The first byte of a proof seed is the mode: 0 is classical.
-  if out=$(timeout 5 "$linlog" prove --format json --timeout 2 "$s"); then
+  if out=$(timeout 5 "$deduxit" prove --format json --timeout 2 "$s"); then
     {
       printf '\0'
       printf '%s' "$out"
@@ -43,14 +43,14 @@ for s in "A |- A" "A * B |- B * A" "!A |- A * !A" "A & B |- A + B" "|- 1" "0 |-"
   "A, A -o B |- B" "?A, !~A |-" "|- T, 0"; do
   i=$((i + 1))
   printf '%s' "$s" | seed sequent_text "small-$i"
-  "$linlog" seq json "$s" | seed json_sequent "small-$i"
-  if out=$("$linlog" prove --format json "$s"); then
+  "$deduxit" seq json "$s" | seed json_sequent "small-$i"
+  if out=$("$deduxit" prove --format json "$s"); then
     {
       printf '\0'
       printf '%s' "$out"
     } | seed json_proof "small-$i"
   fi
-  if out=$("$linlog" prove -i --format json "$s"); then
+  if out=$("$deduxit" prove -i --format json "$s"); then
     {
       printf '\1'
       printf '%s' "$out"
@@ -64,7 +64,7 @@ for s in "A |- A" "A * B |- B * A" "!A |- A * !A" "A & B |- A + B" "|- 1" "0 |-"
   } | seed session_steps "small-$i"
   dir=$(mktemp -d)
   printf 'save %s/open.json\nclose\nsave %s/closed.json\n' "$dir" "$dir" |
-    "$linlog" interact "$s" >/dev/null 2>&1 || true
+    "$deduxit" interact "$s" >/dev/null 2>&1 || true
   for f in open closed; do
     [ -e "$dir/$f.json" ] && seed json_session "small-$i-$f" <"$dir/$f.json"
   done
@@ -74,12 +74,12 @@ done
 # whose literals below an exponential all have one sign), the equation.
 for s in "A |- A * A" "|- ?A, A" "|- A * ~A"; do
   i=$((i + 1))
-  { "$linlog" prove --format json "$s" || true; } | seed json_disproof "refuted-$i"
+  { "$deduxit" prove --format json "$s" || true; } | seed json_disproof "refuted-$i"
 done
-s=$("$linlog" seq json "A, A -o B |- B")
+s=$("$deduxit" seq json "A, A -o B |- B")
 printf '{"sequent":%s,"mix":false,"links":[[0,2],[3,4]]}' "$s" | seed json_structure net-1
 printf '{"sequent":%s,"mix":true,"links":[[0,2]]}' "$s" | seed json_structure net-2
-s=$("$linlog" seq json "A * B |- B * A")
+s=$("$deduxit" seq json "A * B |- B * A")
 printf '{"sequent":%s,"mix":false,"links":[]}' "$s" | seed json_structure net-3
 
 for s in 'a \/ ~a' 'a -> b, a |- b' '~~a |- a' '(a /\ b) -> (b /\ a)' \

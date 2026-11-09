@@ -77,22 +77,28 @@
             help = "List what breaks a user of the library since a release (`breaks 0.1.0`): cargo-semver-checks against crates.io's version, then cargo-public-api's diff of the two public APIs with every feature";
             command = ''
               set -eu
-              base=''${1:?usage: breaks VERSION, a version of linlog on crates.io}
+              base=''${1:?usage: breaks VERSION, a version of deduxit or linlog on crates.io}
               out=$(mktemp -d)
               trap 'rm -rf "$out"' EXIT
+              # Up to 0.2.0 the library was the crate linlog. Its package is
+              # fetched and named deduxit, so that both tools compare it with
+              # this one.
+              crate=deduxit
+              case $base in 0.1.* | 0.2.*) crate=linlog ;; esac
+              curl --silent --fail --location \
+                --user-agent "deduxit breaks (github.com/deduxit/deduxit)" \
+                "https://static.crates.io/crates/$crate/$crate-$base.crate" | tar -xz -C "$out"
+              sed -i "s/^name = \"$crate\"$/name = \"deduxit\"/" "$out/$crate-$base/Cargo.toml"
               # Exit status 100 when a check fails, which is what is asked.
-              cargo semver-checks --package deduxit --baseline-version "$base" \
+              cargo semver-checks --package deduxit --baseline-root "$out/$crate-$base" \
                 --release-type patch --color never || [ $? = 100 ]
               # rustdoc's JSON is unstable; cargo-semver-checks unlocks it on
               # the stable compiler the same way. Its own JSON documents
               # private items, so the public API is built afresh, the
               # published crate's from its package.
-              curl --silent --fail --location \
-                --user-agent "linlog breaks (github.com/deduxit/deduxit)" \
-                "https://static.crates.io/crates/linlog/linlog-$base.crate" | tar -xz -C "$out"
               for side in base head; do
                 if [ "$side" = base ]; then
-                  manifest="$out/linlog-$base/Cargo.toml"
+                  manifest="$out/$crate-$base/Cargo.toml"
                 else
                   manifest="$PRJ_ROOT/core/Cargo.toml"
                 fi
@@ -100,7 +106,7 @@
                   --manifest-path "$manifest" --all-features --lib \
                   -- -Z unstable-options --output-format json
               done
-              cargo public-api diff "$out/base/doc/linlog.json" "$out/head/doc/linlog.json"
+              cargo public-api diff "$out/base/doc/deduxit.json" "$out/head/doc/deduxit.json"
             '';
           }
           {

@@ -9,7 +9,7 @@ C as a hypothesis, so that a goal `Γ, Δ ⊢ D` leaves `Γ ⊢ C` and
 makes a cut, and `close` proves each premise without one:
 
 ```console
-$ linlog interact -i "A, A -o B, B -o C |- C"
+$ deduxit interact -i "A, A -o B, B -o C |- C"
 > cut 0 B 0 1
 opened goal 1: 0: A, 1: A ⊸ B ⊢ 2: B
 opened goal 2: 0: B ⊸ C, 2: B ⊢ 1: C
@@ -27,7 +27,7 @@ A ⊢ A      B ⊢ B      B ⊢ B      C ⊢ C
          A, A ⊸ B, B ⊸ C ⊢ C
 ```
 
-`linlog eliminate` reads a proof file, as `proof FILE` or `prove
+`deduxit eliminate` reads a proof file, as `proof FILE` or `prove
 --format json` writes it, checks it in the mode the file states (or
 the flags give, where it states none), and
 eliminates its cuts one step at a time: each step reduces the cut that
@@ -56,12 +56,12 @@ no cut is an error. Here the proof has a cut on `a` (node 6) below a
 cut on `b` (node 5):
 
 ```console
-$ printf 'cut 0 a 0\ncut 2 b 0 2\nclose\nproof two.json\n' | linlog interact -i "a, a -o b |- b" > /dev/null
-$ linlog eliminate -q two.json
+$ printf 'cut 0 a 0\ncut 2 b 0 2\nclose\nproof two.json\n' | deduxit interact -i "a, a -o b |- b" > /dev/null
+$ deduxit eliminate -q two.json
 1. the axiom case on the cut of b
 2. the axiom case on the cut of a
 cut-free proof of a, a ⊸ b ⊢ b (intuitionistic) after 2 steps
-$ linlog eliminate -q --at 6 two.json
+$ deduxit eliminate -q --at 6 two.json
 1. the axiom case on the cut of a
 2. the axiom case on the cut of b
 cut-free proof of a, a ⊸ b ⊢ b (intuitionistic) after 2 steps
@@ -91,7 +91,7 @@ which step, and `FILE` still holds the net reached. `--format json` writes the r
 vertices of its cut link.
 
 ```console
-$ linlog interact -i "!a |- a * a"
+$ deduxit interact -i "!a |- a * a"
 > cut 0 !a 0
 opened goal 1: 0: !a ⊢ 1: !a
 opened goal 2: 1: !a ⊢ 0: a ⊗ a
@@ -101,7 +101,7 @@ goal 2: provable (IMELL, intuitionistic, horn engine)
 no goal is open: `proof` checks the proof
 > proof contraction.json
 valid proof written to contraction.json
-$ linlog eliminate -q -i contraction.json
+$ deduxit eliminate -q -i contraction.json
 1. contraction on the cut of !a
 2. dereliction on the cut of !a
 3. a commutative case on the cut of a
@@ -109,7 +109,7 @@ $ linlog eliminate -q -i contraction.json
 5. a commutative case on the cut of a
 6. the axiom case on the cut of a
 cut-free proof of !a ⊢ a ⊗ a (intuitionistic) after 6 steps
-$ linlog eliminate -i --steps=2 contraction.json
+$ deduxit eliminate -i --steps=2 contraction.json
 1. contraction on the cut of !a
 2. dereliction on the cut of !a
 proof of !a ⊢ a ⊗ a (intuitionistic) with 2 cuts left after 2 steps: the elimination took the most steps allowed, 2; --steps N allows more
@@ -123,7 +123,7 @@ a ⊢ a       !a ⊢ a        a, a ⊢ a ⊗ a
         !a, !a ⊢ a ⊗ a
         ────────────── !c
           !a ⊢ a ⊗ a
-$ linlog eliminate -i --net --steps=1 contraction.json
+$ deduxit eliminate -i --net --steps=1 contraction.json
 1. contraction on the cut of !a
 proof net of !a ⊢ a ⊗ a (intuitionistic) with 2 cut links left after 1 step: the elimination took the most steps allowed, 1; --steps N allows more
 !a ⊢ a ⊗ a
@@ -137,7 +137,7 @@ a[3] — a[7]
 a[4] — a[13]
 a[5] — a[9]
 proof net
-$ linlog eliminate -i --net --format svg --output net.svg contraction.json
+$ deduxit eliminate -i --net --format svg --output net.svg contraction.json
 1. contraction on the cut of !a
 2. dereliction on the cut of !a
 3. the axiom case on the cut of a

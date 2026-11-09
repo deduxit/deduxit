@@ -7,7 +7,7 @@
 //! names is one the harness has, each flag after it is in that
 //! subcommand's help, each flag of a script `bench/*.sh` is one the script
 //! reads, and each other flag, alone or after a subcommand's name, is in
-//! the harness's help or a script's. The calls of `linlog` are the
+//! the harness's help or a script's. The calls of `deduxit` are the
 //! command's tests' (`cli/tests/readme.rs`).
 
 use std::path::{Path, PathBuf};
@@ -210,7 +210,7 @@ fn the_manual_names_what_exists() {
                 } else if first.starts_with("--") {
                     (everything.as_str(), "the harness".to_owned())
                 } else {
-                    // Another program's call, `linlog`'s among them.
+                    // Another program's call, `deduxit`'s among them.
                     continue;
                 };
                 for flag in flags_in(&format!("{first} {}", rest.join(" "))) {

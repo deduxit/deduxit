@@ -14,13 +14,13 @@ quantifiers, and `seq fragment` names the first-order fragment with a
 
 <!-- readme-check: machine -->
 ```console
-$ linlog seq print "forall x. p(x) -o q(x), p(a) |- exists y. q(y)"
+$ deduxit seq print "forall x. p(x) -o q(x), p(a) |- exists y. q(y)"
 ⊢ ∃x. (p(x) ⊗ ~q(x)), ~p(a), ∃y. q(y)
-$ linlog seq print "|- ∀x y. ~r(x, f(y)) ⅋ r(x, f(y)), (exists z. p(z))^"
+$ deduxit seq print "|- ∀x y. ~r(x, f(y)) ⅋ r(x, f(y)), (exists z. p(z))^"
 ⊢ ∀x. (∀y. (~r(x, f(y)) ⅋ r(x, f(y)))), ∀z. ~p(z)
-$ linlog seq fragment "forall x. p(x) |- p(a)"
+$ deduxit seq fragment "forall x. p(x) |- p(a)"
 MLL1
-$ linlog seq fragment "p(a), !p(a) -o q(f(a)) |- q(f(a))"
+$ deduxit seq fragment "p(a), !p(a) -o q(f(a)) |- q(f(a))"
 MELL
 ```
 
@@ -39,13 +39,13 @@ witness, a closed term, and passes the checker (below):
 
 <!-- readme-check: machine -->
 ```console
-$ linlog prove "p(a), p(a) -o q(f(a)) |- q(f(a))"
+$ deduxit prove "p(a), p(a) -o q(f(a)) |- q(f(a))"
 provable (MLL, classical, focus engine)
 ───────────── ax   ─────────────────── ax
 ⊢ ~p(a), p(a)      ⊢ ~q(f(a)), q(f(a))
 ────────────────────────────────────── ⊗
   ⊢ ~p(a), p(a) ⊗ ~q(f(a)), q(f(a))
-$ linlog prove "p(a) & p(b), q(b) |- exists x. (p(x) * q(x))"
+$ deduxit prove "p(a) & p(b), q(b) |- exists x. (p(x) * q(x))"
 provable (MALL1, classical, focus engine)
      ───────────── ax   ───────────── ax
      ⊢ ~p(b), p(b)      ⊢ ~q(b), q(b)
@@ -55,10 +55,10 @@ provable (MALL1, classical, focus engine)
     ⊢ ~p(b), ~q(b), ∃x. (p(x) ⊗ q(x))
 ───────────────────────────────────────── ⊕₂
 ⊢ ~p(a) ⊕ ~p(b), ~q(b), ∃x. (p(x) ⊗ q(x))
-$ linlog prove "forall x. exists y. r(x, y) |- exists y. forall x. r(x, y)"; echo "exit $?"
+$ deduxit prove "forall x. exists y. r(x, y) |- exists y. forall x. r(x, y)"; echo "exit $?"
 unprovable (MLL1, classical, focus engine): the search was exhaustive
 exit 1
-$ linlog prove -i "exists y. forall x. r(x, y) |- forall x. exists y. r(x, y)"
+$ deduxit prove -i "exists y. forall x. r(x, y) |- forall x. exists y. r(x, y)"
 provable (IMLL1, intuitionistic, two-sided engine)
           ───────────────── ax
           r(b, a) ⊢ r(b, a)
@@ -80,7 +80,7 @@ about the `a` at hand, held as the instance of `∀a. p(a)`'s body.
 an eigenvariable of another branch, by name:
 
 ```console
-$ printf 'apply 0 2 forallR\ncut 1 "r(a)" 1\ncut 1 "p(a)" 1\nclose\nproof\n' | linlog interact -i "forall x. (p(x) -o q(x)), forall x. p(x) |- forall y. q(y)"
+$ printf 'apply 0 2 forallR\ncut 1 "r(a)" 1\ncut 1 "p(a)" 1\nclose\nproof\n' | deduxit interact -i "forall x. (p(x) -o q(x)), forall x. p(x) |- forall y. q(y)"
 opened goal 1: 0: ∀x. (p(x) ⊸ q(x)), 1: ∀x. p(x) ⊢ 2: q(a)
 error: the cut formula names r, which the sequent has not with this arity and role: a cut formula in a session with quantifiers holds the sequent's symbols and the goal's eigenvariables only
 opened goal 2: 0: ∀x. p(x) ⊢ 1: p(a)
@@ -128,7 +128,7 @@ rule around a choice may ask its premise for another witness:
 
 <!-- readme-check: machine -->
 ```console
-$ linlog prove -q -j 4 "p(a1), p(a2), p(a3), p(a4), q(b) |- (exists x. (p(x) * q(x))) * (exists x. p(x)) * (exists x. p(x)) * (exists x. p(x))"; echo "exit $?"
+$ deduxit prove -q -j 4 "p(a1), p(a2), p(a3), p(a4), q(b) |- (exists x. (p(x) * q(x))) * (exists x. p(x)) * (exists x. p(x)) * (exists x. p(x))"; echo "exit $?"
 unprovable (MLL1, classical, focus engine): the search was exhaustive
 exit 1
 ```
@@ -140,18 +140,18 @@ linlog's library ([Rocq certificates](rocq.md)). The verdicts and the bounds:
 
 <!-- readme-check: machine -->
 ```console
-$ linlog prove "forall x. p(x), p(a) |- p(b)"; echo "exit $?"
+$ deduxit prove "forall x. p(x), p(a) |- p(b)"; echo "exit $?"
 unprovable (MLL1, classical, focus engine): ~p(…) occurs 1 more time than p(…) in the one-sided sequent, every atom of the predicate counted, since one has a bound variable, so they cannot all meet in axioms
 exit 1
-$ linlog prove --copies 2 "p(z), !forall x. (p(x) -o p(s(x))) |- p(s(s(z)))" | head -1
+$ deduxit prove --copies 2 "p(z), !forall x. (p(x) -o p(s(x))) |- p(s(s(z)))" | head -1
 provable (MELL1, classical, focus engine)
-$ linlog prove -i --copies 6 "!(forall x. (p(x) -o p(x))), !(q -o r), !(r -o q), p(e) |- r"; echo "exit $?"
+$ deduxit prove -i --copies 6 "!(forall x. (p(x) -o p(x))), !(q -o r), !(r -o q), p(e) |- r"; echo "exit $?"
 unprovable (IMELL1, intuitionistic, two-sided engine): the search was exhaustive
 exit 1
-$ linlog prove --witness-depth 2 "|- exists x. p(x), ~p(f(f(f(a))))" | sed 's/after .*;/after …;/'; echo "exit $?"
+$ deduxit prove --witness-depth 2 "|- exists x. p(x), ~p(f(f(f(a))))" | sed 's/after .*;/after …;/'; echo "exit $?"
 unknown (MLL1, classical, focus engine): the witness depth of 2 was reached after …; raise it with --witness-depth N
 exit 3
-$ linlog prove -q --deterministic --stats "p(a), p(b) & q(c) |- exists x. (p(x) * p(b))"
+$ deduxit prove -q --deterministic --stats "p(a), p(b) & q(c) |- exists x. (p(x) * p(b))"
 provable (MALL1, classical, focus engine)
 stable sequents visited: 2
 from the memo: 0
@@ -180,7 +180,7 @@ each step's mark, so that `undo` in a session resumed from its file
 drops what the step made, as in the session saved):
 
 ```console
-$ linlog interact -i "exists y. forall x. r(x, y) |- forall x. exists y. r(x, y)"
+$ deduxit interact -i "exists y. forall x. r(x, y) |- forall x. exists y. r(x, y)"
 > apply 0 0 ∃L
 opened goal 1: 1: ∀x. r(x, a) ⊢ 0: ∀x. (∃y. r(x, y))
 > apply 1 0 ∀R
@@ -222,7 +222,7 @@ order of the terms:
 
 <!-- readme-check: machine -->
 ```console
-$ linlog seq json "forall x. p(x) |- p(a)"
+$ deduxit seq json "forall x. p(x) |- p(a)"
 {"version":7,"terms":[{"D":0},{"∃":0},{"V":1}],"roots":[1,2],"atoms":[{"P":[0,[0]]},{"P":[0,[1]]}],"symbols":[["p",1],["a",0]],"fo":[{"B":0},{"F":[1,[]]}],"binders":["x"],"antecedents":1}
 ```
 
@@ -244,7 +244,7 @@ symbol takes:
 
 <!-- readme-check: machine -->
 ```console
-$ echo '{"version":7,"sequent":{"terms":[{"D":0},{"∃":0},{"V":1}],"roots":[1,2],"atoms":[{"P":[0,[0]]},{"P":[0,[2]]}],"symbols":[["p",1],["a",0],["f",1]],"fo":[{"B":0},{"F":[1,[]]},{"F":[2,[1]]}],"binders":["x"],"antecedents":1},"nodes":[{"ax":[3,2]},{"∃":[0,2,0]}],"instances":{"members":[[1,0]],"frames":[[null,2]],"terms":[]}}' | linlog check
+$ echo '{"version":7,"sequent":{"terms":[{"D":0},{"∃":0},{"V":1}],"roots":[1,2],"atoms":[{"P":[0,[0]]},{"P":[0,[2]]}],"symbols":[["p",1],["a",0],["f",1]],"fo":[{"B":0},{"F":[1,[]]},{"F":[2,[1]]}],"binders":["x"],"antecedents":1},"nodes":[{"ax":[3,2]},{"∃":[0,2,0]}],"instances":{"members":[[1,0]],"frames":[[null,2]],"terms":[]}}' | deduxit check
 valid proof of ⊢ ∃x. ~p(x), p(f(a)) (classical)
 ─────────────────── ax
 ⊢ p(f(a)), ~p(f(a))
@@ -267,7 +267,7 @@ step with the witness `a`:
 
 ```console
 $ echo '{"version":7,"sequent":{"terms":[{"D":0},{"∃":0},{"V":1},{"V":0},{"∀":3}],"roots":[1,2],"atoms":[{"P":[0,[0]]},{"P":[0,[1]]}],"symbols":[["p",1],["a",0]],"fo":[{"B":0},{"F":[1,[]]}],"binders":["x","x"],"antecedents":1,"cuts":[4]},"nodes":[{"ax":[7,8]},{"∃":[0,2,0]},{"∀":[3,0,1]},{"ax":[9,2]},{"∃":[5,1,3]},{"cut":[3,2,4]}],"instances":{"members":[[1,0],[4,0],[6,1]],"frames":[[null,2],[null,1]],"terms":[{"E":0}]}}' > cut.json
-$ linlog eliminate cut.json
+$ deduxit eliminate cut.json
 1. the key case of ∀ and ∃ on the cut of ∀x. p(x)
 2. the axiom case on the cut of p(a)
 cut-free proof of ⊢ ∃x. ~p(x), p(a) (classical) after 2 steps
@@ -275,7 +275,7 @@ cut-free proof of ⊢ ∃x. ~p(x), p(a) (classical) after 2 steps
   ⊢ p(a), ~p(a)
 ───────────────── ∃
 ⊢ ∃x. ~p(x), p(a)
-$ linlog eliminate -i --steps=1 cut.json
+$ deduxit eliminate -i --steps=1 cut.json
 1. the key case of ∀ and ∃ on the cut of ∀x. p(x)
 proof of ∀x. p(x) ⊢ p(a) (intuitionistic) with 1 cut left after 1 step: the elimination took the most steps allowed, 1; --steps N allows more
   ─────────── ax

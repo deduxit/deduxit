@@ -18,11 +18,11 @@
 # The set is small enough for a shared machine by day: two streams, each
 # pinned to a performance core of its own (`cores'), no run over 300 s,
 # about three quarters of an hour at the commit the first baseline
-# measured. It runs as the user unit `linlog-targets', which survives the
+# measured. It runs as the user unit `deduxit-targets', which survives the
 # terminal, with 8 GiB and no swap for all of it and 6 GiB of address
 # space per process, so that a search whose memory grows without bound
-# fails its own run. `journalctl --user -fu linlog-targets' follows it and
-# `systemctl --user stop linlog-targets' stops it; the unit is gone when
+# fails its own run. `journalctl --user -fu deduxit-targets' follows it and
+# `systemctl --user stop deduxit-targets' stops it; the unit is gone when
 # the file bench/targets/LABEL.csv exists. A run of a label that has rows
 # already (in LABEL.1.csv and LABEL.2.csv, the streams' files) resumes it.
 #
@@ -46,11 +46,11 @@ if [ "${2:-}" != --inside ]; then
   cargo build --release --locked --package deduxit-bench
   install -D "${CARGO_TARGET_DIR:-target}/release/deduxit-bench" "target/targets/$label/deduxit-bench"
   mkdir -p "$out"
-  systemctl --user reset-failed linlog-targets.service 2>/dev/null || true
-  systemd-run --user --unit=linlog-targets --same-dir --collect \
+  systemctl --user reset-failed deduxit-targets.service 2>/dev/null || true
+  systemd-run --user --unit=deduxit-targets --same-dir --collect \
     -p MemoryMax=8G -p MemorySwapMax=0 -p OOMPolicy=continue -p LimitCORE=0 \
     --setenv=PATH="$PATH" "$self" "$label" --inside
-  echo "into $out/$label.csv; follow it with: journalctl --user -fu linlog-targets"
+  echo "into $out/$label.csv; follow it with: journalctl --user -fu deduxit-targets"
   exit
 fi
 

@@ -6,7 +6,7 @@
 # and a build's time by crate.
 #
 #   wasm TWIGGY.csv
-#     The module's bytes by crate and linlog's by module, from
+#     The module's bytes by crate and deduxit's by module, from
 #     `twiggy top -n 1000000 --format csv` of a module that keeps its names.
 #     The package strips them, so build it again with them kept, in a
 #     target directory of its own:
@@ -16,7 +16,7 @@
 #         DIR/wasm32-unknown-unknown/release/deduxit_web.wasm
 #       wasm-opt -O3 -g OUT/deduxit_web_bg.wasm -o OUT/deduxit_web_bg.wasm
 #     An item is the crate its name names first (`<A as B>::f` is A's), so a
-#     generic of `core` or `alloc` instantiated for linlog counts as theirs;
+#     generic of `core` or `alloc` instantiated for deduxit counts as theirs;
 #     data segments and the bindings' shims have no crate.
 #
 #   timings REPORT.html...
@@ -89,7 +89,7 @@ RENDERING = {
     "zune_jpeg",
 }
 
-# linlog's modules shown with their submodule, where that is the unit a
+# deduxit's modules shown with their submodule, where that is the unit a
 # question about the module's size is asked of.
 SPLIT = {"search", "export", "proofs"}
 
@@ -107,7 +107,7 @@ def table(title, counts, total, limit):
 
 
 def wasm(path):
-    """The module's bytes by crate, by group and linlog's by module."""
+    """The module's bytes by crate, by group and deduxit's by module."""
     crates = collections.Counter()
     modules = collections.Counter()
     names = 0
@@ -123,8 +123,8 @@ def wasm(path):
             continue
         crate = re.search(r"([A-Za-z_]\w*)\[[0-9a-f]{16}\]", name)
         crates[crate.group(1) if crate else "(bindings' shims, no crate)"] += size
-        if crate and crate.group(1) == "linlog":
-            path_ = re.search(r"linlog\[[0-9a-f]{16}\]::(\w+)(?:::(\w+))?", name)
+        if crate and crate.group(1) == "deduxit":
+            path_ = re.search(r"deduxit\[[0-9a-f]{16}\]::(\w+)(?:::(\w+))?", name)
             if path_ is None:
                 modules["(no module)"] += size
             elif path_.group(1) in SPLIT and path_.group(2):
@@ -137,15 +137,15 @@ def wasm(path):
     for crate, size in crates.items():
         if crate in RENDERING:
             groups["the PNG and PDF renderers' crates"] += size
-        elif crate in ("linlog", "deduxit_web"):
-            groups["linlog and deduxit-web"] += size
+        elif crate in ("deduxit", "deduxit_web"):
+            groups["deduxit and deduxit-web"] += size
         elif crate in ("core", "alloc", "std", "compiler_builtins", "dlmalloc"):
             groups["the standard library"] += size
         else:
             groups[crate if crate.startswith("(") else "the other crates"] += size
     table("group", groups, total, 20)
     table("crate", crates, total, 30)
-    table("linlog's module", modules, total, 30)
+    table("deduxit's module", modules, total, 30)
 
 
 def timings(paths):

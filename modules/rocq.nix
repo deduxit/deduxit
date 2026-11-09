@@ -58,25 +58,25 @@
                 { cat kernel.log; exit 1; }
             done
             cp ${snapshots}/*.v .
-            linlog prove --format rocq --standalone --output cli.v 'A * top |- A * (B + top)'
-            # An intuitionistic proof goes to linlog's library unless the
+            deduxit prove --format rocq --standalone --output cli.v 'A * top |- A * (B + top)'
+            # An intuitionistic proof goes to deduxit's library unless the
             # kernel is named.
-            linlog prove -i --kernel nanoyalla --format rocq --standalone --output cli_ill.v \
+            deduxit prove -i --kernel nanoyalla --format rocq --standalone --output cli_ill.v \
               '!A, A -o B |- B * !A'
             # Certificates over Prop of ordinary logic: classical through the
             # excluded middle, intuitionistic with no axiom.
-            linlog prove --logic classical --format rocq --standalone --output cli_lk.v \
+            deduxit prove --logic classical --format rocq --standalone --output cli_lk.v \
               '(a <-> b) -> ~(a /\ ~b) /\ (((a -> c) -> a) -> a)'
-            linlog prove --logic intuitionistic --copies 8 --format rocq --standalone --output cli_lj.v \
+            deduxit prove --logic intuitionistic --copies 8 --format rocq --standalone --output cli_lj.v \
               'a \/ b, ~a, (b -> c) /\ true |- ~~c'
             # Without atoms or hypotheses, a certificate binds nothing.
-            linlog prove --logic classical --format rocq --standalone --output cli_lk_true.v 'true'
-            linlog prove --logic intuitionistic --format rocq --standalone --output cli_lj_true.v 'true'
+            deduxit prove --logic classical --format rocq --standalone --output cli_lk_true.v 'true'
+            deduxit prove --logic intuitionistic --format rocq --standalone --output cli_lj_true.v 'true'
             # Not valid, by an assignment of the image's classical refutation;
             # the command exits with 1 for a sequent that is not valid.
-            linlog prove --logic classical --format rocq --standalone --output cli_lk_not_valid.v \
+            deduxit prove --logic classical --format rocq --standalone --output cli_lk_not_valid.v \
               'a -> b, b |- a' || [ $? -eq 1 ]
-            linlog prove --logic intuitionistic --format rocq --standalone --output cli_lj_not_valid.v \
+            deduxit prove --logic intuitionistic --format rocq --standalone --output cli_lj_not_valid.v \
               'a \/ (b -> a)' || [ $? -eq 1 ]
             for file in *.v; do
               rocq compile -R nanoyalla NanoYalla "$file" 2>&1 | tee log

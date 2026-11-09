@@ -35,7 +35,7 @@ const fn never(_: Progress) -> bool {
 /// its call that reads a finished proof back as a lambda-term.
 pub fn about() -> String {
     serde_json::json!({
-        "linlog": env!("CARGO_PKG_VERSION"),
+        "deduxit": env!("CARGO_PKG_VERSION"),
         "level": wire::LEVEL,
         "stack_bytes": tab::STACK_BYTES,
         "suites": [
@@ -1243,7 +1243,7 @@ fn nets_exist(fragment: Fragment, mode: Mode) -> Result<(), NetError> {
 /// `o<n>` on the only vertex of occurrence `n`, `v<k>` on vertex `k` of an
 /// occurrence with several, `b<k>` on the box of the `!` vertex `k`); every
 /// subformula written, or with `styles.svg.net` `"compact"` only the
-/// literals and the conclusions; in linlog's look, or with
+/// literals and the conclusions; in deduxit's look, or with
 /// `styles.svg.net_look` `"textbook"` (or its fields `premises`,
 /// `conclusions` and `why_not`) the textbooks'.
 ///

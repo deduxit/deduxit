@@ -175,7 +175,7 @@ mod tests {
     /// pass inside it, is left out with the stop's reason.
     #[test]
     fn a_stopped_read_back_says_why() {
-        let line = ["linlog", "check", "--format", "latex", "--output", "x.tex"];
+        let line = ["deduxit", "check", "--format", "latex", "--output", "x.tex"];
         let Command::Check(check) = Cli::try_parse_from(line).unwrap().command else {
             unreachable!("a check command")
         };

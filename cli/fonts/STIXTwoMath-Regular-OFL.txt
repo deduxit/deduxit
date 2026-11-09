@@ -1,5 +1,5 @@
 STIX Two Math 2.12, the font in STIXTwoMath-Regular.otf (STIX Two 2.12, as
-CTAN's stix2-otf package ships it), embedded in the linlog command:
+CTAN's stix2-otf package ships it), embedded in the deduxit command:
 
 Copyright 2001-2021 The STIX Fonts Project Authors (https://github.com/stipub/stixfonts)
 

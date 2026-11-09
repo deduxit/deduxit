@@ -10,7 +10,7 @@ columns by their names, in the light or the dark scheme:
 
 `comparison` takes the rows of `deduxit-bench run --tools`: a cactus plot
 per mode (the problems each tool solves within the limit against the time
-each took, sorted) and a scatter plot of linlog on one thread against each
+each took, sorted) and a scatter plot of deduxit on one thread against each
 other tool on the problems both cover, both times in log scale, a run not
 solved drawn at the limit. `families` takes a baseline's `families.csv`
 and `engines.csv`: the time against the size of every family under the
@@ -41,7 +41,7 @@ from matplotlib.lines import Line2D  # noqa: E402
 from matplotlib.ticker import NullFormatter  # noqa: E402
 
 # The same rows give the same file: no random ids, no date.
-matplotlib.rcParams["svg.hashsalt"] = "linlog"
+matplotlib.rcParams["svg.hashsalt"] = "deduxit"
 
 # Each scheme's surface, ink and categorical slots, these in a fixed order
 # whose neighbours stay apart under colour blindness; the surfaces are the
@@ -84,7 +84,9 @@ THEMES = {
     },
 }
 MARKERS = ["o", "s", "^", "D", "v", "P", "X", "*"]
-REFERENCE = "linlog"
+REFERENCE = "deduxit"
+# The tools' names in rows recorded before the command was renamed deduxit.
+RENAMED = {"linlog": "deduxit", "linlog-default": "deduxit-default"}
 # Every engine keeps its slot in every figure.
 ENGINES = ["focus", "net", "horn", "additive", "two-sided", "essential", "inverse"]
 
@@ -138,6 +140,9 @@ def read(files, skipped=False):
     for name in files:
         with open(name, newline="") as f:
             rows.extend(csv.DictReader(f))
+    for r in rows:
+        if r.get("tool") in RENAMED:
+            r["tool"] = RENAMED[r["tool"]]
     rows = [r for r in rows if skipped or r["verdict"] != SKIPPED]
     judge(rows)
     return rows
@@ -205,7 +210,7 @@ def cactus(rows, mode, tools, theme, out):
 
 
 def scatter(by_problem, tool, theme, out):
-    """linlog's time against the tool's on every problem both cover."""
+    """deduxit's time against the tool's on every problem both cover."""
     points = []
     for runs in by_problem.values():
         a, b = runs.get(REFERENCE), runs.get(tool)
@@ -252,7 +257,7 @@ def scatter(by_problem, tool, theme, out):
 
 
 def tools_of(rows):
-    """The tools of the rows in their order, linlog's columns first, so
+    """The tools of the rows in their order, deduxit's columns first, so
     that they keep the first slots."""
     tools = []
     for r in rows:

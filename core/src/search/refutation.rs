@@ -755,7 +755,7 @@ impl Disproof {
     /// the stated weights, the goal read as a Horn program with positive
     /// bodies, else negative ones (the weights negated), the atoms no
     /// firing reaches declared dead, and in affine mode its count of the
-    /// formulas with one output. The weighted test is the one linlog's
+    /// formulas with one output. The weighted test is the one deduxit's
     /// Rocq library proves sound for any weights: no formula of the goal
     /// may absorb, and every contribution to the weighted count of its
     /// literals is above zero, a `?` formula's copies included. Those six

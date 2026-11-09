@@ -200,7 +200,7 @@ impl Default for Style {
             input: "#0072b2".into(),
             dominator: "#cc79a7".into(),
             net: NetDrawing::Formulas,
-            net_look: NetLook::LINLOG,
+            net_look: NetLook::DEDUXIT,
             lambda: None,
         }
     }
@@ -229,7 +229,7 @@ pub enum NetDrawing {
 }
 
 /// How the nodes and edges of a proof net look, in either
-/// [`NetDrawing`]: linlog's own look by default ([`NetLook::LINLOG`]), or
+/// [`NetDrawing`]: deduxit's own look by default ([`NetLook::DEDUXIT`]), or
 /// the textbooks' ([`NetLook::TEXTBOOK`]). In JSON (feature `serialize`)
 /// the three fields, or the name of a [`NetPreset`] alone
 /// (`"textbook"`), which reads as that preset's [`NetPreset::look`].
@@ -247,10 +247,10 @@ pub struct NetLook {
 }
 
 impl NetLook {
-    /// linlog's own look, the default: switched edges dashed, a `!`
+    /// deduxit's own look, the default: switched edges dashed, a `!`
     /// conclusion with auxiliary doors a row above its `?` nodes, and one
     /// `?` node with any number of premises.
-    pub const LINLOG: Self = Self {
+    pub const DEDUXIT: Self = Self {
         premises: Premises::Dashed,
         conclusions: Conclusions::Raised,
         why_not: WhyNot::Node,
@@ -355,16 +355,16 @@ impl<'de> serde::Deserialize<'de> for NetLook {
     }
 }
 
-/// A named [`NetLook`]. In JSON (feature `serialize`) `"linlog"` or
+/// A named [`NetLook`]. In JSON (feature `serialize`) `"deduxit"` or
 /// `"textbook"`.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", serde(rename_all = "lowercase"))]
 pub enum NetPreset {
-    /// [`NetLook::LINLOG`].
+    /// [`NetLook::DEDUXIT`].
     #[default]
-    Linlog,
+    Deduxit,
     /// [`NetLook::TEXTBOOK`].
     Textbook,
 }
@@ -374,7 +374,7 @@ impl NetPreset {
     #[must_use]
     pub const fn look(self) -> NetLook {
         match self {
-            Self::Linlog => NetLook::LINLOG,
+            Self::Deduxit => NetLook::DEDUXIT,
             Self::Textbook => NetLook::TEXTBOOK,
         }
     }

@@ -1,29 +1,29 @@
-# linlog
+# deduxit
 
-A linear logic suite for all your needs: a command line program and a Rust
-library that parse, print and decide sequents of classical and
+Logic suites for all your needs, linear logic first: a command line
+program and a Rust library that parse, print and decide sequents of classical and
 intuitionistic linear logic and their fragments, keep the proofs in a
 checkable form and show them as derivation trees or proof nets, prove
 step by step, export to LaTeX, Typst, SVG and Rocq, and decide ordinary
 propositional logic through its embeddings into linear logic.
 
-The repository [deduxit](https://github.com/deduxit/deduxit) is a
-collection of logic suites, grown one suite at a time, whose linear suite
-is linlog: the crates `linlog` and `deduxit-cli` and the command `linlog`
-keep that name. The collection's name is Latin:
+deduxit, the repository [deduxit](https://github.com/deduxit/deduxit), is
+a collection of logic suites, grown one suite at a time: one command,
+`deduxit`, whose `--logic` chooses the suite, and one library, the crate
+`deduxit`. Up to 0.2.0 it was called linlog. Its name is Latin:
 
 > **dēdūxit** [deːˈduːk.sɪt] *Latin, verb*: "it has derived", the perfect of *dēdūcō*, to lead down, derive.
 
 This manual describes the `main` branch of
 [the repository](https://github.com/deduxit/deduxit); a released
-version's manual is the `docs/` directory of its tag. linlog's
+version's manual is the `docs/` directory of its tag. deduxit's
 [web page](https://deduxit.github.io/) proves step by step in the
 browser on the same library.
 
 ## A first proof
 
 ```console
-$ linlog prove "A, A -o B |- B"
+$ deduxit prove "A, A -o B |- B"
 provable (MLL, classical, focus engine)
 ─────── ax   ─────── ax
 ⊢ ~A, A      ⊢ ~B, B
@@ -34,16 +34,16 @@ provable (MLL, classical, focus engine)
 The verdict, the fragment the sequent lives in and the engine that
 searched, then the proof as a derivation tree of the one-sided sequent
 calculus, which the library's independent checker has validated.
-[The commands](commands.md) has every command; `linlog --help` and
-`linlog <command> --help` document every option.
+[The commands](commands.md) has every command; `deduxit --help` and
+`deduxit <command> --help` document every option.
 
-## Documentation, results and how linlog was written
+## Documentation, results and how deduxit was written
 
-- The library's API: [docs.rs/linlog](https://docs.rs/linlog) for the
+- The library's API: [docs.rs/deduxit](https://docs.rs/deduxit) for the
   releases, [deduxit.github.io/deduxit](https://deduxit.github.io/deduxit/)
   for `main`, rebuilt on every push.
 - For AI models: a guide to the command and the library, the Agent Skill
-  [`skills/linlog/`](https://github.com/deduxit/deduxit/tree/main/skills/linlog)
+  [`skills/deduxit/`](https://github.com/deduxit/deduxit/tree/main/skills/deduxit)
   (a summary, `SKILL.md`, and the full reference beside it, whose every
   example a test runs), served as
   [llms.txt](https://deduxit.github.io/deduxit/llms.txt) and
@@ -63,9 +63,9 @@ calculus, which the library's independent checker has validated.
   so far of 0.1.0's engines on the libraries and, at first order, of
   LinearOne beside 0.2.0's search; the other provers on the growing
   families are not yet run.
-- To cite linlog, GitHub's "Cite this repository" reads
+- To cite deduxit, GitHub's "Cite this repository" reads
   [CITATION.cff](https://github.com/deduxit/deduxit/blob/main/CITATION.cff).
-- linlog's code, tests and documentation were written with substantial
+- deduxit's code, tests and documentation were written with substantial
   AI assistance, by Anthropic's Claude models in Claude Code, in steps
   the author planned, directed and accepted. Every proof the library
   returns has passed its independent checker, and a Rocq certificate

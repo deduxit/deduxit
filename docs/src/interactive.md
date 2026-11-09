@@ -1,6 +1,6 @@
 # Interactive proving
 
-`linlog interact` proves a sequent step by step, reading commands from
+`deduxit interact` proves a sequent step by step, reading commands from
 standard input: the open goals are listed with the position of every
 formula, `rules` names the rules that act on a formula, `apply` applies one
 (a `⊗` or Mix takes the positions of the formulas that go to its left
@@ -19,7 +19,7 @@ In intuitionistic mode the goals are two-sided and the
 rules carry the names of ILL:
 
 ```console
-$ linlog interact -i "A, A -o B |- B"
+$ deduxit interact -i "A, A -o B |- B"
 > goals
 goal 0: 0: A, 1: A ⊸ B ⊢ 2: B
 > rules 0 1
@@ -58,7 +58,7 @@ goals each step opens. Each is a step of the session, and `undo`
 retracts a step together with the invertible steps that followed it:
 
 ```console
-$ linlog interact --invertible "A -o B, B -o C |- A -o C"
+$ deduxit interact --invertible "A -o B, B -o C |- A -o C"
 applied 1 invertible step
 > goals
 goal 1: ⊢ 0: A ⊗ ~B, 1: B ⊗ ~C, 2: ~A, 3: C

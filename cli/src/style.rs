@@ -64,7 +64,7 @@ pub(crate) fn read(
         set(&mut value, &path, parsed);
     }
     let mut styles: Styles =
-        serde_json::from_value(value).context("the style is not one linlog knows")?;
+        serde_json::from_value(value).context("the style is not one deduxit knows")?;
     if let Some(lemma) = rocq.and_then(|r| r.lemma.as_ref()) {
         styles.rocq.lemma = lemma.parse()?;
     }

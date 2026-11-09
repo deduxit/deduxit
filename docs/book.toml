@@ -3,9 +3,9 @@
 
 # The manual, built by mdBook into the Pages site beside the API documentation.
 [book]
-title = "linlog"
+title = "deduxit"
 authors = ["Fabian Lukas Grubmüller"]
-description = "The manual of linlog, a linear logic suite: the command, its formats and engines, and the benchmarks."
+description = "The manual of deduxit, a collection of logic suites: the command, its formats and engines, and the benchmarks."
 language = "en"
 
 [build]
@@ -13,11 +13,11 @@ language = "en"
 create-missing = false
 
 [output.html]
-# The page's light and dark, its violet and its logo (theme/linlog.css).
+# The page's light and dark, its violet and its logo (theme/deduxit.css).
 default-theme = "light"
 preferred-dark-theme = "navy"
-additional-css = ["theme/linlog.css"]
-additional-js = ["theme/linlog.js"]
+additional-css = ["theme/deduxit.css"]
+additional-js = ["theme/deduxit.js"]
 # The text is README's, written for GitHub's rendering, which keeps
 # straight quotes and `--`.
 smart-punctuation = false

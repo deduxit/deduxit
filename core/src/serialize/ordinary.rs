@@ -422,7 +422,7 @@ struct OutcomeForm {
     /// The wire level.
     version: u32,
     /// The crate's version, which wrote the outcome.
-    linlog: &'static str,
+    deduxit: &'static str,
     /// `valid`, `not_valid` or `unknown`.
     verdict: &'static str,
     /// Why the search could not decide.
@@ -452,7 +452,7 @@ impl Serialize for Outcome {
         };
         OutcomeForm {
             version: wire::ORDINARY,
-            linlog: env!("CARGO_PKG_VERSION"),
+            deduxit: env!("CARGO_PKG_VERSION"),
             verdict,
             reason,
             logic: self.logic,

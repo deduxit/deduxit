@@ -57,7 +57,7 @@ jobs:
           until [ -S "/run/user/$uid/bus" ]; do sleep 1; done
           echo "XDG_RUNTIME_DIR=/run/user/$uid" >>"$GITHUB_ENV"
           echo "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus" >>"$GITHUB_ENV"
-      # Two streams of the sequential tools on a core each, linlog's default
+      # Two streams of the sequential tools on a core each, deduxit's default
       # on the other two.
       - name: Run the shard
         env:

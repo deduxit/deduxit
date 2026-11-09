@@ -1,17 +1,17 @@
 ---
-name: linlog
-description: Decides, checks, proves step by step and exports sequents of linear logic (classical, intuitionistic, affine, with Mix, cyclic, the Lambek calculus, first-order) and of ordinary propositional logic with the `linlog` command. Use it to learn whether a sequent is provable and why not, to get a checked proof as a derivation tree, proof net, JSON, LaTeX, Typst, SVG, PNG, PDF or Rocq certificate, to check a proof file or eliminate its cuts, to apply proof steps from a script, or to decide many sequents in one call.
+name: deduxit
+description: Decides, checks, proves step by step and exports sequents of linear logic (classical, intuitionistic, affine, with Mix, cyclic, the Lambek calculus, first-order) and of ordinary propositional logic with the `deduxit` command. Use it to learn whether a sequent is provable and why not, to get a checked proof as a derivation tree, proof net, JSON, LaTeX, Typst, SVG, PNG, PDF or Rocq certificate, to check a proof file or eliminate its cuts, to apply proof steps from a script, or to decide many sequents in one call.
 license: EUPL-1.2
-compatibility: Needs the `linlog` command, from `cargo install --locked deduxit-cli` or `nix run github:deduxit/deduxit -- ARGS`.
+compatibility: Needs the `deduxit` command, from `cargo install --locked deduxit-cli` or `nix run github:deduxit/deduxit -- ARGS`.
 ---
 
-# linlog
+# deduxit
 
-> `linlog` decides sequents of linear logic and of ordinary propositional logic. A proof it prints has passed an independent checker; an unprovable verdict says why where it can; an unknown verdict names the limit that ended the search and the flag that raises it.
+> `deduxit` decides sequents of linear logic and of ordinary propositional logic. A proof it prints has passed an independent checker; an unprovable verdict says why where it can; an unknown verdict names the limit that ended the search and the flag that raises it.
 
-[reference.md](reference.md) beside this file has every command, flag, format and JSON form with examples; `linlog COMMAND --help` documents every flag.
+[reference.md](reference.md) beside this file has every command, flag, format and JSON form with examples; `deduxit COMMAND --help` documents every flag.
 
-**Commands.** `linlog prove SEQUENT` decides a sequent and prints a proof; `linlog check FILE` checks a proof that `prove --format json` wrote; `linlog eliminate FILE` eliminates its cuts step by step; `linlog interact SEQUENT` applies proof steps read from standard input; `linlog seq print|json|fragment SEQUENT` prints the sequent, writes its JSON or names its fragment (MLL, MALL, MELL, LL, …).
+**Commands.** `deduxit prove SEQUENT` decides a sequent and prints a proof; `deduxit check FILE` checks a proof that `prove --format json` wrote; `deduxit eliminate FILE` eliminates its cuts step by step; `deduxit interact SEQUENT` applies proof steps read from standard input; `deduxit seq print|json|fragment SEQUENT` prints the sequent, writes its JSON or names its fragment (MLL, MALL, MELL, LL, …).
 
 **Syntax.** Quote the sequent for the shell: `"A, A -o B |- B"` (`⊢` also works; either side may be empty). Connectives: `*` (⊗), `par` or `|` (⅋), `&`, `+` (⊕), `-o` (⊸), `~A` or `A^` (negation), `!A`, `?A`; units `1`, `bot`, `top`, `0`. Binding, tightest first: `~ ! ?`, then `*`, `|`, `&`, `+`, and `-o`, which groups to the right. Atoms are identifiers, or predicates over terms, `p(x, f(a))`; `forall x. A` and `exists x. A` bind loosest; `prove` decides a sequent with them in classical mode (with `--mix` and `--affine` too) and with `-i` (affine too).
 
@@ -25,7 +25,7 @@ compatibility: Needs the `linlog` command, from `cargo install --locked deduxit-
 - 3: unknown: a limit ended the search first. That is not unprovable; the line names the flag to raise.
 
 ```console
-$ linlog prove "A * B |- B * A"
+$ deduxit prove "A * B |- B * A"
 provable (MLL, classical, focus engine)
 ─────── ax   ─────── ax
 ⊢ ~B, B      ⊢ ~A, A
@@ -33,16 +33,16 @@ provable (MLL, classical, focus engine)
   ⊢ ~A, ~B, B ⊗ A
   ──────────────── ⅋
   ⊢ ~A ⅋ ~B, B ⊗ A
-$ linlog prove -q "A |- B"; echo "exit $?"
+$ deduxit prove -q "A |- B"; echo "exit $?"
 unprovable (MLL, classical, focus engine): ~A occurs 1 more time than A in the one-sided sequent, so they cannot all meet in axioms
 exit 1
-$ linlog prove -q --copies 1 "!(A & B) |- A * B"; echo "exit $?"
+$ deduxit prove -q --copies 1 "!(A & B) |- A * B"; echo "exit $?"
 unknown (LL, classical, focus engine): the copy bound of 1 was reached after 3.56ms; raise it with --copies N, or lift it with --copies none to deepen it while the time limit lasts
 exit 3
-$ linlog prove --engine net "A & B |- A"; echo "exit $?"
+$ deduxit prove --engine net "A & B |- A"; echo "exit $?"
 error: proof nets exist for MLL without units only, not for ALL
 exit 2
-$ linlog prove --logic intuitionistic -q "~~a -> a"
+$ deduxit prove --logic intuitionistic -q "~~a -> a"
 not valid (intuitionistic logic by the cbn translation into ILL, two-sided engine): the image is unprovable: the search was exhaustive
 ```
 
@@ -53,10 +53,10 @@ The derivation is one-sided (`Γ ⊢ Δ` read as `⊢ ~Γ, Δ`); `-i` and `--log
 **Output.** `-q` prints the verdict line alone. `--format json` writes one JSON object: `verdict` (`proved`, `unprovable` or `unknown`), `refutation` or `reason`, `fragment`, `mode`, `engine`, `statistics` and the proof, which `check` reads back. `check` takes the logic the file's `"mode"` states, so a proof of `prove -i` needs no flag; a mode flag that names another logic is an error (exit 2). `--format latex|typst|svg|png|pdf|rocq` or `--output FILE` with that extension exports the derivation; `--net` gives the proof net instead (MLL and MELL without units); `--stats` adds the search's counters.
 
 ```console
-$ linlog prove --format json "A |- A" > proof.json
-$ linlog check -q proof.json
+$ deduxit prove --format json "A |- A" > proof.json
+$ deduxit check -q proof.json
 valid proof of ⊢ ~A, A (classical)
-$ linlog prove --format latex "A, A -o B |- B"
+$ deduxit prove --format latex "A, A -o B |- B"
 % provable (MLL, classical, focus engine)
 \begin{prooftree}
 \infer0[$\mathrm{ax}$]{\vdash A^\bot, A}
@@ -72,7 +72,7 @@ $ linlog prove --format latex "A, A -o B |- B"
 The session starts with goal 0; a step closes its goal and opens new ones with new numbers (`opened goal 1: ⊢ 0: ~A, 1: A`), each goal's formulas numbered from 0, so read the numbers from the output (or `goals`) before the next step. A RULE is `ax` (on either literal), `*`, `par`, `&`, `+1`, `+2`, `1`, `bot`, `top`, `?d`, `?c`, `?w`, `!`, `mix` or `wk`, and with `-i` the two-sided names (`-oL`, `-oR`, `*L`, `*R`, …, in reference.md). It exits 0 when the session ends with a checked proof, 1 otherwise. With `--logic`, LK's or LJ's rules (`andR`, `->L`) on formulas named `L0`, `R1` (reference.md, section 13).
 
 ```console
-$ printf 'apply 0 2 * 0\nclose\nproof\n' | linlog interact "A, B |- A * B"
+$ printf 'apply 0 2 * 0\nclose\nproof\n' | deduxit interact "A, B |- A * B"
 opened goal 1: ⊢ 0: ~A, 1: A
 opened goal 2: ⊢ 0: ~B, 1: B
 goal 1: provable (MLL, classical, focus engine)
@@ -85,13 +85,13 @@ valid proof (classical)
   ⊢ ~A, ~B, A ⊗ B
 ```
 
-**The library** is the Rust crate `linlog`: `"…".parse::<deduxit::Sequent>()`, `deduxit::prove(&sequent, Mode::CLASSICAL, &Options::default())` and the `Outcome` it returns; its default bounds the copies at 3, where the command deepens under its time limit.
+**The library** is the Rust crate `deduxit`: `"…".parse::<deduxit::Sequent>()`, `deduxit::prove(&sequent, Mode::CLASSICAL, &Options::default())` and the `Outcome` it returns; its default bounds the copies at 3, where the command deepens under its time limit.
 
 ## Docs
 
 - [Reference](reference.md): every command, flag, format and JSON form, with examples
 - [Manual](https://deduxit.github.io/deduxit/manual/): every command, format and engine with its output, and the benchmarks
-- [Library API](https://deduxit.github.io/deduxit/linlog/): the Rust crate's documentation, with the text syntax and every JSON form
+- [Library API](https://deduxit.github.io/deduxit/deduxit/): the Rust crate's documentation, with the text syntax and every JSON form
 
 ## Optional
 

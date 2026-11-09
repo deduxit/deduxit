@@ -9,7 +9,7 @@
 const STACK_BYTES: usize = 8 << 20;
 
 fn main() {
-    println!("cargo::rustc-env=LINLOG_WEB_STACK_BYTES={STACK_BYTES}");
+    println!("cargo::rustc-env=DEDUXIT_WEB_STACK_BYTES={STACK_BYTES}");
     if std::env::var("CARGO_CFG_TARGET_ARCH").as_deref() == Ok("wasm32") {
         println!("cargo::rustc-link-arg=-zstack-size={STACK_BYTES}");
     }

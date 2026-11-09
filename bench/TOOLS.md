@@ -1,4 +1,4 @@
-# linlog beside the other provers
+# deduxit beside the other provers
 
 What each prover of linear logic we could find can do, and what each of
 those that run in batch decides on the same problems under the same
@@ -8,13 +8,13 @@ page on 2026-10-15; the numbers come from one night on one machine, and
 
 ## The tools
 
-| | linlog | Maude LL prover | llprover | linTAP | Click & coLLecT | Sympli | LinearOne | lolli | APLL | Proof Net Calculator |
+| | deduxit | Maude LL prover | llprover | linTAP | Click & coLLecT | Sympli | LinearOne | lolli | APLL | Proof Net Calculator |
 |---|---|---|---|---|---|---|---|---|---|---|
 | authors | this repository | Olarte et al. | Tamura | Mantel, Otten | Callies, Laurent | Chaudhuri | Moot | ibrahimcesar | Wu | Matsuoka |
 | fragments | MLL to full LL, propositional and first order, units | full LL and full ILL, propositional, units | full LL, first order | MLL with units and `?` | full LL, propositional, units | ILL: `! ⊗ & ⊕ ⊸ 1 0 ⊤` | MILL (`⊗ ⊸`), first order | MLL, MALL, MELL with units | full LL and full ILL, propositional, units | unit-free MLL |
 | modes | classical, intuitionistic, affine, Mix | classical, intuitionistic | classical, intuitionistic | classical | classical | intuitionistic | intuitionistic | classical | classical, intuitionistic | — |
 | automatic | ✓ | ✓ | ✓ | ✓ | ✓ (and interactive) | ✓ | ✓ | ✓ (and a REPL) | ✓ (backward search or inverse method) | ✗ (net checks and enumeration) |
-| interactive | ✓ (`linlog interact`) | ✗ | ✗ | ✗ | ✓ (web) | ✗ | ✗ | REPL only | ✗ | GUI for drawing nets |
+| interactive | ✓ (`deduxit interact`) | ✗ | ✗ | ✗ | ✓ (web) | ✗ | ✗ | REPL only | ✗ | GUI for drawing nets |
 | decides unprovability | ✓ (an exhaustive search or a refutation) | without `!`; with `!` up to a copy bound | without exponentials; with them up to a threshold | without `?` | ✓ when the search is exhaustive | ✓ (saturation) | ✓ | ✗ (a depth limit) | ✓ unless its bound of contractions is met | — |
 | proofs output | ✓ (terms, derivations) | ✓ (LaTeX tree, ILL) | ✓ (ASCII, LaTeX, Prolog term) | ✗ (yes or no) | ✓ | ✓ (proof terms) | ✓ (λ-terms, LaTeX) | ✓ (tree, λ-term) | ✓ (its proof trees, LaTeX) | nets |
 | proof nets | ✓ (MLL, search and criterion) | ✗ | ✓ (an output style) | ✗ | ✗ | ✗ | ✓ (TikZ) | ✗ | ✗ | ✓ |
@@ -30,8 +30,8 @@ page on 2026-10-15; the numbers come from one night on one machine, and
 
 Sources, all read on 2026-10-15:
 
-- **linlog**: README, "What exists and what is planned"; the crate's
-  documentation, "Features", and the dispatch table on `Engine`; `linlog
+- **deduxit**: README, "What exists and what is planned"; the crate's
+  documentation, "Features", and the dispatch table on `Engine`; `deduxit
   prove --help` for the limits and input formats.
 - **Maude LL prover**: github.com/carlosolarte/Linear-Logic-Prover-in-Maude
   at `5e1da7f` (its README, `maude-prover/*.maude`, and
@@ -86,14 +86,14 @@ and Isabelle formalisations (no automation).
   the generated families of `deduxit-bench families` at their default
   sizes, with their known verdicts where the source states one.
 - **Every tool runs every problem of its fragment and mode**, translated
-  from linlog's reading of the problem into the tool's own syntax by
+  from deduxit's reading of the problem into the tool's own syntax by
   `bench/src/translate.rs`, which prints through the library's public
   walk over a formula (atoms renamed `p0`, `p1`, …, every compound
   formula in parentheses). A problem outside a tool's fragment or mode
-  is counted apart and not run; no tool but linlog has an affine or a
+  is counted apart and not run; no tool but deduxit has an affine or a
   Mix mode, so the coverability problems and the Mix family are
-  linlog's alone, and a classical tool never gets an intuitionistic
-  problem. linlog reads the LLTP and `.spec` files itself. The
+  deduxit's alone, and a classical tool never gets an intuitionistic
+  problem. deduxit reads the LLTP and `.spec` files itself. The
   translation's time is stated per tool and is not part of a run.
 - **Every tool in its own documented configuration**: APLL's backward
   search under its default bound of 3 contractions, the Maude prover's
@@ -103,20 +103,20 @@ and Isabelle formalisations (no automation).
   coLLecT's prover as its web server calls it with its limit of CPU time
   set to the run's, Sympli's inverse method on `(⊗Γ) ⊸ A`. A tool's
   bounded failure is `unknown`, never `unprovable`.
-- **linlog in two columns**: `linlog`, the command on one thread
+- **deduxit in two columns**: `deduxit`, the command on one thread
   (`--deterministic`), the main column, since every other tool is
-  sequential; and `linlog-default`, the command as a user runs it (one
+  sequential; and `deduxit-default`, the command as a user runs it (one
   thread, then a pool beside it), on four cores. Those four are the
   machine's low-power cluster (3.7 GHz, no share of the last-level
   cache), slower than the efficiency cores (4.0 GHz) every sequential
-  tool and linlog's own one-thread column ran on, so the default column
+  tool and deduxit's own one-thread column ran on, so the default column
   is measured on slower cores than the others.
 - **Measured with BenchExec** (`runexec` 3.27, cgroups v2): each run is a
   process of its own under the same limits, wall time of the whole
-  process (its start, its parse and, for linlog, the check of its proof
-  included), CPU time and the cgroup's peak memory. linlog gets
+  process (its start, its parse and, for deduxit, the check of its proof
+  included), CPU time and the cgroup's peak memory. deduxit gets
   `--timeout` and `--memory-limit` equal to the limits BenchExec
-  enforces; a run the cgroup ends for memory is that tool's, linlog's
+  enforces; a run the cgroup ends for memory is that tool's, deduxit's
   included.
 - **The time limit, 10 s, is what one night allows** for every tool on
   every problem, and it disadvantages a tool that answers late: the
@@ -128,10 +128,10 @@ and Isabelle formalisations (no automation).
   competition rank; times are in the figures, never averaged into
   ratios.
 - **Contradictions are listed**, between two tools or against a known
-  verdict, each verdict marked checked or not: linlog checks every proof
+  verdict, each verdict marked checked or not: deduxit checks every proof
   it reports with a checker that shares no code with its search, Sympli
   validates its own. In the comparisons of 2026-10-15 and 2026-11-03 no
-  `unprovable` was checked, linlog's included; since then linlog writes
+  `unprovable` was checked, deduxit's included; since then deduxit writes
   its outcome as JSON (`--format json`), and the driver reads an
   unprovable one's refutation and marks it checked where the library's
   `Disproof::check` accepts it, which it does for every refutation but
@@ -149,10 +149,10 @@ ten shards (`workflow_dispatch`) and uploads the rows, tables and figures.
 ## Results
 
 One run on 2026-10-15 on an Intel Core Ultra X9 388H (16 cores, 64 GB,
-Linux 7.2.9): the sequential tools and linlog's one-thread column each
+Linux 7.2.9): the sequential tools and deduxit's one-thread column each
 on one efficiency core (4.0 GHz, cores 6–11, six streams side by side),
-linlog's default on the four low-power cores (12–15, 3.7 GHz), every run
-under 10 s and 4 GiB, measured by BenchExec 3.27. linlog was built from
+deduxit's default on the four low-power cores (12–15, 3.7 GHz), every run
+under 10 s and 4 GiB, measured by BenchExec 3.27. deduxit was built from
 commit 60226b2c (signed since as 8a06dd9c, the same tree; six runs of
 its default at e0215978, below), every other tool at the version the
 flake pins (`comparison/2026-10-15/*.env.json` records each, with the
@@ -165,8 +165,8 @@ ranking runs.csv`), the figures `comparison/2026-10-15/figures/`
 
 | tool | solved | proved | unprovable | wrong | ended at the limit | out of memory | the tool's bound | error | outside its fragment |
 |---|---|---|---|---|---|---|---|---|---|
-| linlog, default (4 low-power cores) | 4 204 | 3 907 | 297 | 0 | 547 | 1 | 59 | 0 | 0 |
-| **linlog, one thread** | **4 181** | 3 899 | 282 | 0 | 571 | 0 | 59 | 0 | 0 |
+| deduxit, default (4 low-power cores) | 4 204 | 3 907 | 297 | 0 | 547 | 1 | 59 | 0 | 0 |
+| **deduxit, one thread** | **4 181** | 3 899 | 282 | 0 | 571 | 0 | 59 | 0 | 0 |
 | Sympli | 1 684 | 1 439 | 245 | 0 | 1 935 | 876 | 0 | 0 | 316 |
 | Maude, ILL | 768 | 742 | 26 | 0 | 2 940 | 71 | 700 | 16 | 316 |
 | APLL, ILL | 612 | 544 | 68 | **1 296** | 2 015 | 20 | 412 | 140 | 316 |
@@ -185,7 +185,7 @@ prover's, 14 of Sympli's, 5 of llprover's; `ranking.md` lists them).
 An error is mostly a stack overflow on a deep formula (APLL 140,
 llprover 129 of its 140).
 
-| problems | linlog | linlog, default | Maude | llprover | Sympli | APLL | LinearOne | Click & coLLecT | linTAP | lolli |
+| problems | deduxit | deduxit, default | Maude | llprover | Sympli | APLL | LinearOne | Click & coLLecT | linTAP | lolli |
 |---|---|---|---|---|---|---|---|---|---|---|
 | LLTP intuitionistic, 1 358 | 829 | 852 | 613 | 479 | **873** | 548 | 69 / 69 | – | – | – |
 | LLTP Petri nets, 3 137 | **3 072** | 3 072 | 155 | 0 | 811 | 64 | – | – | – | – |
@@ -196,16 +196,16 @@ llprover 129 of its 140).
 A dash is a set outside the tool's fragment or mode; `n / m` where the
 tool covers only `m` of the set.
 
-### Where linlog loses
+### Where deduxit loses
 
-- **Sympli solves 132 intuitionistic LLTP problems that linlog on one
+- **Sympli solves 132 intuitionistic LLTP problems that deduxit on one
   thread does not**: 122 refutations (unchecked), most of them in the
   SYJ collections (96), where Sympli's inverse method saturates in
-  milliseconds what linlog's backward search leaves at its time limit or
+  milliseconds what deduxit's backward search leaves at its time limit or
   its copy bound, and 10 proofs (SYJ, call-by-name). On the
   intuitionistic problems other than Petri nets Sympli solves 873
-  against linlog's 829.
-- **linlog's default solves 23 that its one thread does not** (it races
+  against deduxit's 829.
+- **deduxit's default solves 23 that its one thread does not** (it races
   a second search on a pool). In the night's run it ended 3 runs at the
   4 GiB cgroup limit (SYJ206+1.020 in 01, SYJ212+1.020 in 01 and cbn):
   its memory bound left out the input, the forest of 17 to 30 million
@@ -214,21 +214,21 @@ tool covers only `m` of the set.
   default's six runs of those two problems (all three translations)
   were run again at commit e0215978 under the same settings
   (2026-10-17, `comparison/2026-10-15/default-rerun.env.json`): none
-  is solved, as before; SYJ212+1.020 in 01 ends at linlog's own memory
+  is solved, as before; SYJ212+1.020 in 01 ends at deduxit's own memory
   bound after 7.5 s, the other five at the time limit, at peaks of 2.8
   to 3.5 GiB. The table counts that one as out of memory.
-- **APLL's ILL search refutes 31 Petri nets that linlog does not
+- **APLL's ILL search refutes 31 Petri nets that deduxit does not
   decide**, against their headers (Theorem). Since APLL refutes 1 296
-  nets that linlog proves with checked proofs (below), these 31 are
+  nets that deduxit proves with checked proofs (below), these 31 are
   most likely wrong too; they count as solved, since nothing here
   proves them.
 
 ### Wrong answers
 
-linlog gave none: every proof it reported passed its checker, and no
-tool proves a sequent linlog refutes. Wrong, and not counted as solved:
+deduxit gave none: every proof it reported passed its checker, and no
+tool proves a sequent deduxit refutes. Wrong, and not counted as solved:
 
-- **APLL (ILL)** refutes 1 296 Petri nets that linlog proves with checked
+- **APLL (ILL)** refutes 1 296 Petri nets that deduxit proves with checked
   proofs; APLL answers the same on the library's own files read by its
   own LLTP reader (`-lltp`), so the translation is not the cause. Its
   `N` is meant to come only from a search that never met its bound of 3
@@ -236,7 +236,7 @@ tool proves a sequent linlog refutes. Wrong, and not counted as solved:
 - **APLL (LL) and Click & coLLecT** each refute the same 12 generated
   classical MLL sequents (`wide-m*` at 256 literals and more, and
   `partition-yes` at 24 and 28), provable by construction; 10 of them
-  linlog proves with checked proofs, also from the very file Click &
+  deduxit proves with checked proofs, also from the very file Click &
   coLLecT was given. Click & coLLecT's `NOT PROVABLE` comes only from a
   search it calls exhaustive; the two share the structure of their
   focused search.
@@ -257,10 +257,10 @@ tool proves a sequent linlog refutes. Wrong, and not counted as solved:
 
 ### The library's headers
 
-29 LLTP files have a header that linlog's answers contradict (checked
+29 LLTP files have a header that deduxit's answers contradict (checked
 proofs of 9 marked Non-Theorem, refutations of 20 marked Theorem; most of
-them known from linlog's earlier baselines), and Sympli refutes 18
-more marked Theorem that linlog leaves undecided. 15 of those 18 have a
+them known from deduxit's earlier baselines), and Sympli refutes 18
+more marked Theorem that deduxit leaves undecided. 15 of those 18 have a
 classical countermodel once linearity is forgotten (`!` erased, `⊸` as
 implication, `0` as falsity), so their headers are wrong and Sympli is
 right; KLE075 in its three translations has none and stays open. Such
@@ -273,7 +273,7 @@ The Maude prover's own results in the LLTP library, at five minutes on a
 counts the status files match), beside its results here at 10 s. The
 library has changed since: the problem counts differ in some sets.
 
-| set | problems then | Maude 2018, 300 s | Maude here, 10 s | linlog here, 10 s |
+| set | problems then | Maude 2018, 300 s | Maude here, 10 s | deduxit here, 10 s |
 |---|---|---|---|---|
 | ILLTP-SYJ-01 | 248 | 39 | 30 of 252 | 56 |
 | ILLTP-SYJ-cbn | 248 | 45 | 30 of 252 | 106 |
@@ -294,13 +294,13 @@ problem; a longer one on the problems no tool solved is open.
 
 ![Cactus plot, classical problems](comparison/2026-10-15/figures/cactus-classical.svg)
 
-Scatter plots of linlog on one thread against each tool, one point per
+Scatter plots of deduxit on one thread against each tool, one point per
 problem both cover (a run not solved at the limit's line), are in
 `comparison/2026-10-15/figures/scatter-*.svg`.
 
 ## The first-order families
 
-linlog's first-order families against LinearOne, the only other prover
+deduxit's first-order families against LinearOne, the only other prover
 of first-order linear logic here that is run (llprover is not, since its
 threshold of 5 contractions makes its failures bounded): `lambek-fo`
 (the Lambek calculus in Moot and Piazza's translation into MILL1, at
@@ -313,21 +313,21 @@ symbol `f<i>` by the symbol's index and the binders' variables `X0`,
 
 **The verdicts** (`comparison/first-order/verdicts.csv`, `ranking.md`
 and `verdicts.env.json` beside them; 2026-10-30, `deduxit-bench run
---tools linlog,linearone --family lambek-fo --family witness-fo
+--tools deduxit,linearone --family lambek-fo --family witness-fo
 --timeout 10 --memory-limit 4294967296` under runexec 3.35 on core 2 of
 a machine in use, so the times in the rows are not a measurement):
 
 | tool | in its fragment | proved | unprovable | undecided | wrong |
 |---|---|---|---|---|---|
-| linlog, one thread | 36 | 18 | 15 | 3 | 0 |
+| deduxit, one thread | 36 | 18 | 15 | 3 | 0 |
 | LinearOne | 28 | 16 | 12 | 0 | 0 |
 
 No contradiction: on the 25 problems both decide the verdicts are
 equal, and every verdict of either equals the family's by
 construction. LinearOne alone decides three: `lambek-fo/512` #0 and #2,
-where linlog's two-sided search meets its recursion limit of 2 048 (the
+where deduxit's two-sided search meets its recursion limit of 2 048 (the
 chains of 512 implications are searched one level of recursion per
-step and more), and `witness-fo/12#3`, which linlog leaves at the time
+step and more), and `witness-fo/12#3`, which deduxit leaves at the time
 limit while LinearOne refutes it at once: its search has no memo for a
 first-order goal yet and tries the witnesses of the twelve factors
 ∃x.p(x) in every order, where a proof net's unification sees at once
@@ -341,8 +341,8 @@ from a checkout with `nix build .#comparison`'s `bin` on the path (the
 release build, BenchExec and every prover), under the machine's lock:
 
 ```sh
-taskset -c 2 deduxit-bench run --tools linlog,linearone --family lambek-fo --family witness-fo \
+taskset -c 2 deduxit-bench run --tools deduxit,linearone --family lambek-fo --family witness-fo \
   --timeout 10 --memory-limit 4294967296 --shard 1/2 --output first-order-1.csv &
-taskset -c 3 deduxit-bench run --tools linlog,linearone --family lambek-fo --family witness-fo \
+taskset -c 3 deduxit-bench run --tools deduxit,linearone --family lambek-fo --family witness-fo \
   --timeout 10 --memory-limit 4294967296 --shard 2/2 --output first-order-2.csv
 ```

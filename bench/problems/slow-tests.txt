@@ -5,7 +5,7 @@
 #
 # mode: classical, mix, affine, intuitionistic or intuitionistic-affine;
 # expected: provable, unprovable or -; copies: the copy bound or -; the
-# sequent as the linlog command reads it. The part of the name before the
+# sequent as the deduxit command reads it. The part of the name before the
 # first / is the family.
 
 # Matsuoka's Partition encoding at the item sizes the net engine was first

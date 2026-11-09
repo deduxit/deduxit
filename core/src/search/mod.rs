@@ -549,7 +549,7 @@ pub fn race(
                     // search alone.
                     pool = Some(
                         std::thread::Builder::new()
-                            .name("linlog-race".into())
+                            .name("deduxit-race".into())
                             .stack_size(limits.stack_bytes())
                             .spawn_scoped(scope, move || {
                                 let _raise = parallel::RaiseOnPanic(decided);
@@ -2897,7 +2897,7 @@ impl Options {
 /// # JSON
 ///
 /// With the feature `serialize` an outcome is written, never read, as one
-/// object ([`wire`](crate::wire)): `version`, `linlog` (the crate's
+/// object ([`wire`](crate::wire)): `version`, `deduxit` (the crate's
 /// version, which wrote it), `verdict` (`"proved"`, `"unprovable"` or
 /// `"unknown"`), with `checked` for a proved sequent, `refutation` for an
 /// unprovable one (in the form [`Refutation`] gives) and `reason` for an
@@ -3818,7 +3818,7 @@ mod tests {
                 &Limits::default(),
                 3,
                 |_| true,
-                |_| (std::thread::current().name() == Some("linlog-race")) == pool_stops,
+                |_| (std::thread::current().name() == Some("deduxit-race")) == pool_stops,
             )
             .unwrap();
             assert!(
@@ -3927,7 +3927,7 @@ mod tests {
                     3,
                     |_| true,
                     |_| {
-                        let pool = std::thread::current().name() == Some("linlog-race");
+                        let pool = std::thread::current().name() == Some("deduxit-race");
                         assert!(!pool, "the pool's stop panics");
                         false
                     },

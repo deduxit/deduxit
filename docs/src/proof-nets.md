@@ -8,14 +8,14 @@ focus engine it is read off the proof. Proof nets exist for MLL without
 units, with or without Mix:
 
 ```console
-$ linlog prove --net "|- A * B, C * (~A par ~B), ~C"
+$ deduxit prove --net "|- A * B, C * (~A par ~B), ~C"
 provable (MLL, classical, focus engine)
 ⊢ A ⊗ B, C ⊗ (~A ⅋ ~B), ~C
 A[1] — ~A[6]
 B[2] — ~B[7]
 C[4] — ~C[8]
 proof net
-$ linlog prove --engine net "A & B |- A"
+$ deduxit prove --engine net "A & B |- A"
 error: proof nets exist for MLL without units only, not for ALL
 ```
 
@@ -29,14 +29,14 @@ the net's document instead of the outcome, which the library reads back
 (`MellStructure`, the form the wire level 4 added):
 
 ```console
-$ linlog prove --net "!a, !b |- !a"
+$ deduxit prove --net "!a, !b |- !a"
 provable (MELL, classical, focus engine)
 ⊢ ?~a, ?~b, !a
 ?~a[0]: ~a[3] in !a[2]
 ?~b[1]: no copy, hangs on a[4]
 ~a[3] — a[4]
 proof net
-$ linlog prove --net --format json "!a, !b |- !a"
+$ deduxit prove --net --format json "!a, !b |- !a"
 {"version":4,"sequent":{"terms":[{"D":0},{"?":0},{"D":1},{"?":2},{"V":0},{"!":4}],"roots":[1,3,5],"atoms":["a","b"],"antecedents":2},"mix":false,"vertices":[[1,0,2],[5,2,2]],"links":[[4,3]],"weakenings":[[1,4]]}
 ```
 
@@ -47,7 +47,7 @@ links an atom left of `⊢` to the same atom right of it. Affine logic has
 no proof nets:
 
 ```console
-$ linlog prove --net -i "!a, !(a -o b) |- !b"
+$ deduxit prove --net -i "!a, !(a -o b) |- !b"
 provable (IMELL, intuitionistic, two-sided engine)
 !a, !(a ⊸ b) ⊢ !b
 !a[0]: a[3] in !b[2]
@@ -55,6 +55,6 @@ provable (IMELL, intuitionistic, two-sided engine)
 a[3] — a[5]
 b[6] — b[7]
 proof net
-$ linlog prove --net -i --affine "!a |- !a"
+$ deduxit prove --net -i --affine "!a |- !a"
 error: proof nets exist in linear mode only, with or without --mix, not in intuitionistic affine mode
 ```

@@ -12,7 +12,7 @@ rules, conventions and pointers. Guidance for one area of the tree goes in
 
 ## Project
 
-linlog is a linear logic suite: it decides, checks, proves step by step
+deduxit is a collection of logic suites, linear logic first: it decides, checks, proves step by step
 and exports sequents of classical and intuitionistic linear logic and
 of cyclic MLL (the order of the formulas kept), and
 decides ordinary propositional logic through its embeddings (the
@@ -22,7 +22,7 @@ no clock and uses threads only behind a feature. Performance is a stated
 goal: the data structures are compact and cache-friendly.
 
 Workspace crates:
-- `core/` is package **`linlog`**: all logic. It has seven optional
+- `core/` is package **`deduxit`**: all logic. It has seven optional
   default features, `parse` (the text parser, the LLTP reader and the
   generated families),
   `serialize` (serde), `interactive` (step-by-step proving), and
@@ -31,18 +31,18 @@ Workspace crates:
   wasm), `png` (resvg) and `pdf` (krilla), which render the SVG with
   fonts the caller gives; the CLI enables the last eight.
 - `cli/` is package **`deduxit-cli`**, library **`deduxit_cli`** and binary
-  **`linlog`** (one call into the library; `doc = false` because it shares
+  **`deduxit`** (one call into the library; `doc = false` because it shares
   the core crate's name): `prove` (one sequent, or a batch of many),
   `check`, `interact` and `seq print|json|fragment`. README is a front
   page; the manual under `docs/` (mdBook, `docs/src/SUMMARY.md` its
   chapters, published at `deduxit.github.io/deduxit/manual/`) shows every command and
   format and the main flags with their output, and `cli/tests/readme.rs`
-  runs those examples, README's and the guide's; `linlog <command> --help` is the doc comments of
+  runs those examples, README's and the guide's; `deduxit <command> --help` is the doc comments of
   `cli/src/argument_parsing.rs`, every flag that sets a key naming
-  it. The guide for AI models, `skills/linlog/` (an Agent Skill:
+  it. The guide for AI models, `skills/deduxit/` (an Agent Skill:
   `SKILL.md` the summary, `reference.md` the full reference, served on
   the rustdoc site as `llms.txt` and `llms-full.txt`), describes the
-  command and the library for models that use linlog (not a skill of
+  command and the library for models that use deduxit (not a skill of
   this repository's Claude Code setup); the same test runs its examples
   and checks every name it uses. Exit status 0 proved/valid, 1 unprovable/invalid, 2 error, 3
   unknown, 130 at a second Ctrl-C.
@@ -62,7 +62,7 @@ Workspace crates:
   beside this checkout, with its own CLAUDE.md and rules; under `rocq/`
   here until 2026-11-02): the one-sided calculus of linear logic with Mix and
   weakening as parameters and the two-sided calculus of intuitionistic
-  linear logic and its affine variant as inductives, linlog's proof
+  linear logic and its affine variant as inductives, deduxit's proof
   terms as datatypes, checkers as functions and the theorems that a term
   they accept proves its sequent, which the certificates of the
   exporter's second kernel (`--kernel linlog`) rest on, and the
@@ -141,7 +141,7 @@ ratchet           # the journeys' instruction counts under callgrind against ben
 mutants/run.sh    # mutation testing of the checker, the readers, the front door, the Horn refutations (cores 6-11, detached): mutants/baseline/
 nix develop .#fuzz -c fuzz/run.sh   # every fuzz target until its coverage stops growing (nightly, cores 12-15, detached), after fuzz/seed.sh
 nix fmt           # nixfmt, rustfmt, taplo, shfmt, shellcheck, ruff-format (a hook runs it on each file changed with Write or Edit; a file changed from the shell needs it run by hand before the commit, or the treefmt check fails)
-nix build         # deduxit-cli, whose binary is result/bin/linlog
+nix build         # deduxit-cli, whose binary is result/bin/deduxit
 nix build .#deduxit-web   # the web bindings: deduxit_web.js, deduxit_web_bg.wasm, LICENSE, THIRD-PARTY-NOTICES.txt
 CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=wasm-bindgen-test-runner cargo test -p deduxit-web --target wasm32-unknown-unknown   # the bindings' tests under Node
 nix build .#doc   # the Pages site, as the Docs workflow publishes it: the rustdoc and the manual under manual/
@@ -161,7 +161,7 @@ Verify as much as the change needs:
 | changes what the command prints, or a console block of README or the manual | `cargo test --workspace` runs README's and the manual's examples (`cli/tests/readme.rs`); a change of output changes the chapter that shows it in the same commit |
 | adds a command, flag or format | add it to its chapter of the manual (`docs/src/`) with a real invocation, as README's usage section was; `cargo test -p deduxit-cli --test readme` runs it and checks every name, and `nix build .#checks.x86_64-linux.manual .#checks.x86_64-linux.manual-links` builds the manual and resolves its links |
 | touches `docs/`, `bench/plots.py` or a CSV a figure reads | `nix build .#checks.x86_64-linux.manual .#checks.x86_64-linux.manual-links`; the harness's chapters' names are `cargo test -p deduxit-bench --test manual` |
-| changes a feature the guide for AI models describes (a command, flag, format, JSON form, exit status, verdict or library entry point) | change `skills/linlog/` in the same commit, as the manual; `cargo test -p deduxit-cli --test readme` runs its examples, checks every command, flag, session command and settings key it names, and holds the summary to its budget |
+| changes a feature the guide for AI models describes (a command, flag, format, JSON form, exit status, verdict or library entry point) | change `skills/deduxit/` in the same commit, as the manual; `cargo test -p deduxit-cli --test readme` runs its examples, checks every command, flag, session command and settings key it names, and holds the summary to its budget |
 | touches `search/parallel.rs`, `focus/parallel.rs` or `net::parallel` | `cargo test --workspace` covers them (the CLI depends on `parallel`, and cargo unifies features across a workspace run); `cargo test -p deduxit` alone needs `--features parallel` |
 | changes the `--kernel linlog` certificates, or moves the input `rocq-linlog` | `nix build .#checks.x86_64-linux.rocq-linlog .#checks.x86_64-linux.rocq-linlog-library` (the exporter's certificates against the pinned library, and the library's own check with its theorems' assumptions), under the machine lock while a timed run may hold it; a change of the library itself is checked in its own repository (`nix flake check` there) |
 | adds or changes a dependency | add `cargo deny check`. New deps must use a license `deny.toml` allows: EUPL-1.2, MIT, Apache-2.0 (± LLVM-exception), Unicode-3.0, Zlib, BSD-2-Clause or BSD-3-Clause |
@@ -253,7 +253,7 @@ even to read.** Every operation goes through `jj`, including lock updates:
 - Every source file starts with the license header, in the file's comment
   syntax: `//` in Rust, `#` in Nix, TOML, shell, Python and YAML.
   ```
-  // linlog © Fabian Lukas Grubmüller 2026
+  // deduxit © Fabian Lukas Grubmüller 2026
   // Licensed under the EUPL
   ```
   Prose and configuration carry none: Markdown (CLAUDE.md, `.claude/`,

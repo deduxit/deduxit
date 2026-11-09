@@ -3,7 +3,7 @@
 
 //! Export of sequents and derivations: to LaTeX with the `ebproof` package
 //! ([`latex`], feature `latex`), to Typst with the
-//! `curryst` package or a layout of linlog's own
+//! `curryst` package or a layout of deduxit's own
 //! ([`typst`], feature `typst`),
 //! to SVG, with proof nets ([`svg`], feature `svg`),
 //! and to Rocq as proof scripts for the NanoYalla kernel
@@ -408,7 +408,7 @@ impl Measure {
     fn of(svg: &str) -> Result<Self, crate::Error> {
         let refused = |what: String| {
             Err(crate::Error::NotSvg {
-                message: format!("{what}, which no drawing of linlog has"),
+                message: format!("{what}, which no drawing of deduxit has"),
             })
         };
         let count = |text: &str| text.chars().filter(|c| !c.is_whitespace()).count() as u64;

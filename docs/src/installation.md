@@ -1,6 +1,6 @@
 # Installation
 
-The command `linlog` is the package `deduxit-cli`. Each release on
+The command `deduxit` is the package `deduxit-cli`. Each release on
 [GitHub](https://github.com/deduxit/deduxit/releases) has it built
 for Linux, macOS and Windows, with packages for Debian and Ubuntu,
 Fedora and Arch Linux; it is on [crates.io](https://crates.io/crates/deduxit-cli)
@@ -33,46 +33,46 @@ and carries an attestation of where they were built, which
 `gh attestation verify FILE --repo deduxit/deduxit` checks with the
 GitHub command; the files of 0.2.0 and earlier were attested under the
 repository's former name, so for them it is
-`gh attestation verify FILE --repo linlog-prover/linlog`. The packages and binaries are not signed: what that
+`gh attestation verify FILE --repo linlog-prover/deduxit`. The packages and binaries are not signed: what that
 means on each system is said in its section.
 
 ## Debian and Ubuntu
 
 ```sh
-curl -LO https://github.com/deduxit/deduxit/releases/download/v0.2.0/linlog_0.2.0-1_amd64.deb
-sudo apt install ./linlog_0.2.0-1_amd64.deb
-linlog --version
+curl -LO https://github.com/deduxit/deduxit/releases/download/v0.2.0/deduxit_0.2.0-1_amd64.deb
+sudo apt install ./deduxit_0.2.0-1_amd64.deb
+deduxit --version
 ```
 
 `arm64` instead of `amd64` on an ARM machine. The package holds the
-binary, `/usr/bin/linlog`, and the licences under
-`/usr/share/doc/linlog`; it depends on nothing. To update, install the
-next release's `.deb` the same way; to remove, `sudo apt remove linlog`.
+binary, `/usr/bin/deduxit`, and the licences under
+`/usr/share/doc/deduxit`; it depends on nothing. To update, install the
+next release's `.deb` the same way; to remove, `sudo apt remove deduxit`.
 
 ## Fedora
 
 ```sh
-sudo dnf install https://github.com/deduxit/deduxit/releases/download/v0.2.0/linlog-0.2.0-1.x86_64.rpm
-linlog --version
+sudo dnf install https://github.com/deduxit/deduxit/releases/download/v0.2.0/deduxit-0.2.0-1.x86_64.rpm
+deduxit --version
 ```
 
 `aarch64` instead of `x86_64` on an ARM machine. The package is not
 signed, which dnf accepts for a package named on its command line. To
 update, install the next release's `.rpm`; to remove, `sudo dnf remove
-linlog`.
+deduxit`.
 
 ## Arch Linux
 
 ```sh
-curl -LO https://github.com/deduxit/deduxit/releases/download/v0.2.0/linlog-0.2.0-1-x86_64.pkg.tar.zst
-sudo pacman -U ./linlog-0.2.0-1-x86_64.pkg.tar.zst
-linlog --version
+curl -LO https://github.com/deduxit/deduxit/releases/download/v0.2.0/deduxit-0.2.0-1-x86_64.pkg.tar.zst
+sudo pacman -U ./deduxit-0.2.0-1-x86_64.pkg.tar.zst
+deduxit --version
 ```
 
 The package is for x86_64; on Arch Linux ARM, take the archive below.
 It is not signed, so pacman, which checks the signatures of packages from its
 repositories, asks nothing for a file. To update, install the next
-release's package; to remove, `sudo pacman -R linlog`.
+release's package; to remove, `sudo pacman -R deduxit`.
 
 ## Any Linux
 
@@ -80,17 +80,17 @@ The archive holds one statically linked binary, which runs on any
 distribution, with README and the licences:
 
 ```sh
-curl -LO https://github.com/deduxit/deduxit/releases/download/v0.2.0/linlog-0.2.0-x86_64-unknown-linux-musl.tar.gz
+curl -LO https://github.com/deduxit/deduxit/releases/download/v0.2.0/deduxit-0.2.0-x86_64-unknown-linux-musl.tar.gz
 curl -LO https://github.com/deduxit/deduxit/releases/download/v0.2.0/SHA256SUMS
 sha256sum --check --ignore-missing SHA256SUMS
-tar -xzf linlog-0.2.0-x86_64-unknown-linux-musl.tar.gz
-install -D linlog-0.2.0-x86_64-unknown-linux-musl/linlog ~/.local/bin/linlog
-linlog --version
+tar -xzf deduxit-0.2.0-x86_64-unknown-linux-musl.tar.gz
+install -D deduxit-0.2.0-x86_64-unknown-linux-musl/deduxit ~/.local/bin/deduxit
+deduxit --version
 ```
 
 `aarch64` instead of `x86_64` on an ARM machine; `~/.local/bin` is on
 the path of most distributions' shells. To update, do the same with the
-next release; to remove, `rm ~/.local/bin/linlog`.
+next release; to remove, `rm ~/.local/bin/deduxit`.
 
 ## NixOS and Nix
 
@@ -121,15 +121,15 @@ it as an input:
 ```nix
 {
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-  inputs.linlog.url = "github:deduxit/deduxit/v0.2.0";
+  inputs.deduxit.url = "github:deduxit/deduxit/v0.2.0";
 
-  outputs = { nixpkgs, linlog, ... }: {
+  outputs = { nixpkgs, deduxit, ... }: {
     nixosConfigurations.HOST = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
         ({ pkgs, ... }: {
           environment.systemPackages = [
-            linlog.packages.${pkgs.stdenv.hostPlatform.system}.default
+            deduxit.packages.${pkgs.stdenv.hostPlatform.system}.default
           ];
         })
       ];
@@ -147,13 +147,13 @@ x86_64-linux and saves that, once it is trusted.
 ## macOS
 
 ```sh
-curl -LO https://github.com/deduxit/deduxit/releases/download/v0.2.0/linlog-0.2.0-aarch64-apple-darwin.tar.gz
+curl -LO https://github.com/deduxit/deduxit/releases/download/v0.2.0/deduxit-0.2.0-aarch64-apple-darwin.tar.gz
 curl -LO https://github.com/deduxit/deduxit/releases/download/v0.2.0/SHA256SUMS
 shasum -a 256 --check --ignore-missing SHA256SUMS
-tar -xzf linlog-0.2.0-aarch64-apple-darwin.tar.gz
+tar -xzf deduxit-0.2.0-aarch64-apple-darwin.tar.gz
 mkdir -p ~/.local/bin
-cp linlog-0.2.0-aarch64-apple-darwin/linlog ~/.local/bin/
-~/.local/bin/linlog --version
+cp deduxit-0.2.0-aarch64-apple-darwin/deduxit ~/.local/bin/
+~/.local/bin/deduxit --version
 ```
 
 `x86_64` instead of `aarch64` on an Intel Mac; add `~/.local/bin` to
@@ -162,29 +162,29 @@ your shell's path (`echo 'export PATH="$HOME/.local/bin:$PATH"' >>
 with `curl` as above it runs; fetched with a browser, macOS marks it and
 refuses to open it the first time ("cannot be opened because Apple
 cannot check it for malicious software"): remove the mark with `xattr
--d com.apple.quarantine ~/.local/bin/linlog`, or allow it once under
+-d com.apple.quarantine ~/.local/bin/deduxit`, or allow it once under
 System Settings, Privacy & Security, "Open Anyway". To update, do the
-same with the next release; to remove, `rm ~/.local/bin/linlog`.
+same with the next release; to remove, `rm ~/.local/bin/deduxit`.
 
 ## Windows
 
 In PowerShell:
 
 ```powershell
-Invoke-WebRequest -OutFile linlog.zip https://github.com/deduxit/deduxit/releases/download/v0.2.0/linlog-0.2.0-x86_64-pc-windows-msvc.zip
-(Get-FileHash linlog.zip -Algorithm SHA256).Hash    # compare with the line of SHA256SUMS
-Expand-Archive linlog.zip -DestinationPath "$env:LOCALAPPDATA\Programs"
-Rename-Item "$env:LOCALAPPDATA\Programs\linlog-0.2.0-x86_64-pc-windows-msvc" linlog
-$bin = "$env:LOCALAPPDATA\Programs\linlog"
+Invoke-WebRequest -OutFile deduxit.zip https://github.com/deduxit/deduxit/releases/download/v0.2.0/deduxit-0.2.0-x86_64-pc-windows-msvc.zip
+(Get-FileHash deduxit.zip -Algorithm SHA256).Hash    # compare with the line of SHA256SUMS
+Expand-Archive deduxit.zip -DestinationPath "$env:LOCALAPPDATA\Programs"
+Rename-Item "$env:LOCALAPPDATA\Programs\deduxit-0.2.0-x86_64-pc-windows-msvc" deduxit
+$bin = "$env:LOCALAPPDATA\Programs\deduxit"
 [Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$bin", "User")
-& "$bin\linlog.exe" --version
+& "$bin\deduxit.exe" --version
 ```
 
 `aarch64` instead of `x86_64` on an ARM machine. A new terminal finds
-`linlog` on its path. The program is not signed: if Windows shows
+`deduxit` on its path. The program is not signed: if Windows shows
 "Windows protected your PC" when it first starts, choose More info, then
 Run anyway, or clear the download's mark beforehand with `Unblock-File
-"$bin\linlog.exe"`. To update, replace the folder with the next
+"$bin\deduxit.exe"`. To update, replace the folder with the next
 release's; to remove, delete it and its entry of the user's `Path`
 (Settings, System, About, Advanced system settings, Environment
 Variables).
@@ -221,11 +221,11 @@ update` keeps it current and `rustup self uninstall` removes it.
 
 ## The library
 
-The library is the crate [`linlog`](https://crates.io/crates/linlog):
+The library is the crate [`deduxit`](https://crates.io/crates/deduxit):
 
 ```toml
 [dependencies]
-linlog = "0.2"
+deduxit = "0.2"
 ```
 
 with the default features `parse`, `serialize`, `interactive`, `latex`,

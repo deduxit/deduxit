@@ -21,7 +21,7 @@ exit status stand); an intuitionistic proof is certified as the
 classical proof it is.
 
 ```console
-$ linlog prove --format rocq "A * B |- B * A"
+$ deduxit prove --format rocq "A * B |- B * A"
 (* provable (MLL, classical, focus engine) *)
 Lemma certificate (A B : formula) : ll [parr (dual A) (dual B); tens B A].
 Proof.
@@ -44,14 +44,14 @@ library: `./configure && make && make install` there, or
 compile the certificate with the kernel on the load path:
 
 ```console
-$ linlog prove --format rocq --standalone --output proof.v "!A, !B |- !(A * A)"
+$ deduxit prove --format rocq --standalone --output proof.v "!A, !B |- !(A * A)"
 $ rocq compile -R path/to/nanoyalla NanoYalla proof.v
 ```
 
 Rocq prints nothing for a certificate it accepts. The kernel needs no
 Yalla installation, and the certificate uses no cut and no axiom.
 
-For `linlog` it is a lemma stating the sequent over the library's own
+For `deduxit` it is a lemma stating the sequent over the library's own
 calculus, with the atoms as strings: one-sided in the calculus of the
 mode (`ll classical`, or with Mix or weakening), and two-sided for an
 intuitionistic proof (`ill intuitionistic` or `ill affine`, hypotheses
@@ -61,7 +61,7 @@ by computation, so Rocq accepts the file only if the checker accepts the
 term; every rule has its term, Mix and weakening included:
 
 ```console
-$ linlog prove -i --format rocq "A, A -o B |- B"
+$ deduxit prove -i --format rocq "A, A -o B |- B"
 (* provable (IMLL, intuitionistic, two-sided engine) *)
 Lemma certificate : ill (atom := string) intuitionistic [ivar "A"; ilmap (ivar "A") (ivar "B")] (ivar "B").
 Proof.
@@ -69,7 +69,7 @@ Proof.
     (ILmapL (ivar "A") (ivar "B") (IAx "A") (IAx "B"))).
   vm_compute. reflexivity.
 Qed.
-$ linlog prove --format rocq --kernel linlog "A * B |- B * A"
+$ deduxit prove --format rocq --kernel linlog "A * B |- B * A"
 (* provable (MLL, classical, focus engine) *)
 Lemma certificate : ll (atom := string) classical [parr (covar "A") (covar "B"); tens (var "B") (var "A")].
 Proof.
@@ -91,7 +91,7 @@ conclusion, an `∃` step its witness, here a constant that no `∀` step
 introduces, as a domain is never empty:
 
 ```console
-$ linlog prove --format rocq "forall x. p(x) |- exists y. p(y)"
+$ deduxit prove --format rocq "forall x. p(x) |- exists y. p(y)"
 (* provable (MLL1, classical, focus engine) *)
 Lemma certificate : ll (symbol := string) Calculus.classical [fex (covar "p" [bound 0]); fex (var "p" [bound 0])].
 Proof.
@@ -119,21 +119,21 @@ count equation has no certificate. An exhausted search has none either,
 which a line on standard error says:
 
 ```console
-$ linlog prove --format rocq "A |- B"
+$ deduxit prove --format rocq "A |- B"
 (* unprovable (MLL, classical, focus engine): ~A occurs 1 more time than A in the one-sided sequent, so they cannot all meet in axioms *)
 Lemma certificate : ~ ll (atom := string) classical [covar "A"; var "B"].
 Proof.
   apply (unbalanced_refutation String.eqb "A" _).
   vm_compute. reflexivity.
 Qed.
-$ linlog prove -i --format rocq "A + B |- A"
+$ deduxit prove -i --format rocq "A + B |- A"
 (* unprovable (IALL, intuitionistic, additive engine): the classical reading is false where B is true and every other atom false (! erased, ⊗ and & as and, ⊕ as or, ⊸ as implies, 1 and ⊤ true, 0 false), and every provable sequent reads as a tautology *)
 Lemma certificate : ~ ill (atom := string) intuitionistic [iplus (ivar "A") (ivar "B")] (ivar "A").
 Proof.
   apply (iclassical_refutation _ (fun a => existsb (String.eqb a) ["B"])).
   vm_compute. reflexivity.
 Qed.
-$ linlog prove -i --format rocq "a, a -o b, !(b -o b * c), !(b -o d) |- b * d"
+$ deduxit prove -i --format rocq "a, a -o b, !(b -o b * c), !(b -o d) |- b * d"
 (* unprovable (IMELL, intuitionistic, horn engine): the state equation of the Petri net has no solution, so no firing of its clauses yields the goal's atoms: weighting each a by 2, b by 1, d by 1 and the clauses used once by weights of their own, no clause that can fire raises the weighted count of the atoms, and the goal asks it raised *)
 Lemma certificate : ~ ill (atom := string) intuitionistic [ivar "a"; ilmap (ivar "a") (ivar "b"); ioc (ilmap (ivar "b") (itens (ivar "b") (ivar "c"))); ioc (ilmap (ivar "b") (ivar "d"))] (itens (ivar "b") (ivar "d")).
 Proof.
@@ -141,7 +141,7 @@ Proof.
     (fun a => existsb (String.eqb a) []) true _).
   vm_compute. reflexivity.
 Qed.
-$ linlog prove --format rocq "A & B |- A * B"
+$ deduxit prove --format rocq "A & B |- A * B"
 no certificate: an exhausted search states no invariant, so only the search rules the proofs out and Rocq has nothing to check
 (* unprovable (MALL, classical, focus engine): the search was exhaustive *)
 ```
@@ -168,7 +168,7 @@ or `make` in a checkout with Rocq on the path. Installed, a certificate
 compiles as it is; built in place, with the theories on the load path:
 
 ```console
-$ linlog prove --mix --format rocq --standalone --output mix.v "A, B |- A, B"
+$ deduxit prove --mix --format rocq --standalone --output mix.v "A, B |- A, B"
 $ rocq compile -R path/to/rocq-linlog/theories Linlog mix.v
 ```
 
@@ -191,7 +191,7 @@ with the certificate written beside it as `mp.v` and both compiled under
 one logical name:
 
 ```sh
-linlog prove -i --format rocq --standalone --output mp.v "A, A -o B |- B"
+deduxit prove -i --format rocq --standalone --output mp.v "A, A -o B |- B"
 rocq compile -R . Proofs mp.v
 rocq compile -R . Proofs use.v
 ```

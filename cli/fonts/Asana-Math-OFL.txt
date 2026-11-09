@@ -1,5 +1,5 @@
 Asana Math 0.962, the font in Asana-Math.otf (as CTAN's asana-math
-package ships it), embedded in the linlog command:
+package ships it), embedded in the deduxit command:
 
 Copyright (c) 2007-2025, Apostolos Syropoulos (<asyropoulos@yahoo.com),
 with Reserved Font Name Asana Math.

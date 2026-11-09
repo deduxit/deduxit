@@ -75,7 +75,7 @@
         }
         # The package holds New Computer Modern's every font, its Regular
         # math font of the same family among them: the Book weight alone,
-        # with the licence linlog gives it, since this path is one file of
+        # with the licence deduxit gives it, since this path is one file of
         # the package and the public cache may hold it.
         {
           name = "new-computer-modern";
@@ -108,8 +108,8 @@
             cp ${snapshots}/* .
             # The command's fragments, the form it writes by default, beside
             # the library's snapshots.
-            linlog prove -i --format latex '!A, A -o B |- B * !A' >cli-default.frag.tex
-            linlog prove --format typst 'A & B, !C |- (B + A) * !C' >cli-default.frag.typ
+            deduxit prove -i --format latex '!A, A -o B |- B * !A' >cli-default.frag.tex
+            deduxit prove --format typst 'A & B, !C |- (B + A) * !C' >cli-default.frag.typ
             # A fragment goes into a document of the packages it names.
             for file in *.frag.tex; do
               {
@@ -128,23 +128,23 @@
               } >"''${file%.frag.typ}-fragment.typ"
               rm "$file"
             done
-            linlog prove -i --format latex --standalone --output cli.tex '!A, A -o B |- B * !A'
-            linlog prove --format typst --standalone --output cli.typ 'A & B, !C |- (B + A) * !C'
-            linlog prove -i --format svg --output cli.svg '!A, A -o B |- B * !A'
-            linlog prove --net --output cli-net.svg 'A -o B, B -o C |- A -o C'
+            deduxit prove -i --format latex --standalone --output cli.tex '!A, A -o B |- B * !A'
+            deduxit prove --format typst --standalone --output cli.typ 'A & B, !C |- (B + A) * !C'
+            deduxit prove -i --format svg --output cli.svg '!A, A -o B |- B * !A'
+            deduxit prove --net --output cli-net.svg 'A -o B, B -o C |- A -o C'
             # The command's PNG and PDF, rendered with the font it embeds: a
             # valid image, and a PDF whose text is text.
-            linlog prove -i --output cli.png '!A, A -o B |- B * !A' 2>/dev/null
+            deduxit prove -i --output cli.png '!A, A -o B |- B * !A' 2>/dev/null
             pngcheck -q cli.png
-            linlog prove --net --output cli-net.pdf 'A -o B, B -o C |- A -o C' 2>/dev/null
-            linlog prove -i --output cli.pdf '!A, A -o B |- B * !A' 2>/dev/null
+            deduxit prove --net --output cli-net.pdf 'A -o B, B -o C |- A -o C' 2>/dev/null
+            deduxit prove -i --output cli.pdf '!A, A -o B |- B * !A' 2>/dev/null
             pdffonts cli.pdf | grep -q Euler-Math
             pdftotext cli.pdf - | grep -q '⊢'
             # Every profile conforms, by veraPDF: PDF/A-4 by default,
             # PDF/A-2u compatible, PDF/A-2a and PDF/UA-1 accessible. The
             # date is the build's SOURCE_DATE_EPOCH.
-            linlog prove -i --style compatible=true --output cli-2u.pdf '!A, A -o B |- B * !A' 2>/dev/null
-            linlog prove -i --style accessible=true --output cli-ua.pdf '!A, A -o B |- B * !A' 2>/dev/null
+            deduxit prove -i --style compatible=true --output cli-2u.pdf '!A, A -o B |- B * !A' 2>/dev/null
+            deduxit prove -i --style accessible=true --output cli-ua.pdf '!A, A -o B |- B * !A' 2>/dev/null
             for check in "cli.pdf 4" "cli-net.pdf 4" "cli-2u.pdf 2u" "cli-ua.pdf 2a" "cli-ua.pdf ua1"; do
               set -- $check
               verapdf --format text --flavour "$2" "$1" >verdict 2>&1
@@ -167,16 +167,16 @@
             # command's PNG and PDF, the font embedded and the PDF conforming.
             ${lib.concatMapStrings (font: ''
               mkdir ${font.name} && cd ${font.name}
-              linlog prove --font ${font.name} --format svg --output tree.svg '|- ~A par A, 0 + top, ?(B * ~B), bot'
-              linlog prove -i --font ${font.name} --format svg --output ill.svg '!A, A -o B, C & D |- B * !A * (C + E)'
-              linlog prove --net --font ${font.name} --output net.svg 'A -o B, B -o C |- A -o C'
+              deduxit prove --font ${font.name} --format svg --output tree.svg '|- ~A par A, 0 + top, ?(B * ~B), bot'
+              deduxit prove -i --font ${font.name} --format svg --output ill.svg '!A, A -o B, C & D |- B * !A * (C + E)'
+              deduxit prove --net --font ${font.name} --output net.svg 'A -o B, B -o C |- A -o C'
               for file in *.svg; do
                 resvg --skip-system-fonts --use-fonts-dir ${font.dir} "$file" "''${file%.svg}.png" 2>log
                 if [ -s log ]; then echo "${font.name}: $file"; cat log; exit 1; fi
               done
-              linlog prove -i --font ${font.name} --output cli.png '!A, A -o B |- B * !A' 2>/dev/null
+              deduxit prove -i --font ${font.name} --output cli.png '!A, A -o B |- B * !A' 2>/dev/null
               pngcheck -q cli.png
-              linlog prove -i --font ${font.name} --output cli.pdf '!A, A -o B, C & D |- B * !A * (C + E)' 2>/dev/null
+              deduxit prove -i --font ${font.name} --output cli.pdf '!A, A -o B, C & D |- B * !A * (C + E)' 2>/dev/null
               pdffonts cli.pdf | grep -q ${font.embedded} || { pdffonts cli.pdf; exit 1; }
               pdftotext cli.pdf - | grep -q '⊸'
               verapdf --format text --flavour 4 cli.pdf >verdict 2>&1

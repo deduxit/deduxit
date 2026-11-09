@@ -768,10 +768,10 @@ mod tests {
             let given = Given::of(&matches);
             asked_steps(&given, &args.settings(&given).unwrap())
         };
-        assert!(!asked(&["linlog", "eliminate", "p.json"]));
-        assert!(asked(&["linlog", "eliminate", "--steps=1", "p.json"]));
+        assert!(!asked(&["deduxit", "eliminate", "p.json"]));
+        assert!(asked(&["deduxit", "eliminate", "--steps=1", "p.json"]));
         assert!(asked(&[
-            "linlog",
+            "deduxit",
             "eliminate",
             "--steps",
             "10000",

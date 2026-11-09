@@ -27,8 +27,8 @@
 #
 #   nix build .#lltp -o bench/lltp          # once: the LLTP library
 #   bench/baseline.sh --arm --fresh          # from the devshell
-#   systemctl --user list-timers             # linlog-baseline and its stop
-#   journalctl --user -fu linlog-baseline    # progress every ten minutes
+#   systemctl --user list-timers             # deduxit-baseline and its stop
+#   journalctl --user -fu deduxit-baseline    # progress every ten minutes
 #
 # --arm takes the baseline unattended in the night the machine is the
 # benchmark's (`slot', 20:00 to 07:00; --slot=HH:MM-HH:MM gives another):
@@ -40,14 +40,14 @@
 # recording that it did. --detach starts the unit at once and never stops
 # it.
 #
-# The unit, `linlog-baseline', survives the terminal: 40 GiB of memory and
+# The unit, `deduxit-baseline', survives the terminal: 40 GiB of memory and
 # no swap for all of it, the kernel's OOM killer taking the runaway
 # process alone (`OOMPolicy=continue', its run a crash row) rather than
 # systemd stopping the unit, no core dumps, and its own target directory
 # (target/baseline) so that builds in the checkout do not touch the binary
 # it runs. It keeps the user's other slices off the performance cores and
 # stops the user timers due during the run, and its ExecStopPost undoes
-# both however the run ends. `systemctl --user stop linlog-baseline' stops
+# both however the run ends. `systemctl --user stop deduxit-baseline' stops
 # it.
 #
 # Without --fresh the script resumes the latest baseline directory that
@@ -102,7 +102,7 @@ rerun_list=bench/reruns.txt
 # The user slices a detached run keeps off the performance cores, and the
 # file listing the user timers it stopped for its duration.
 slices=(app.slice session.slice background.slice)
-paused=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/linlog-baseline-timers
+paused=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/deduxit-baseline-timers
 unshield() {
   local slice
   for slice in "${slices[@]}"; do
@@ -199,7 +199,7 @@ timers() {
   for scope in --system --user; do
     systemctl "$scope" list-timers --all --no-legend | awk '{ print $(NF - 1) }' |
       while read -r unit; do
-        case $unit in logrotate.timer | fwupd-refresh.timer | systemd-tmpfiles-clean.timer | linlog-baseline*) continue ;; esac
+        case $unit in logrotate.timer | fwupd-refresh.timer | systemd-tmpfiles-clean.timer | deduxit-baseline*) continue ;; esac
         t=$(systemctl "$scope" show "$unit" -p "$3" --value --timestamp=unix)
         t=${t#@}
         if [ -n "$t" ] && [ "$t" -ge "$1" ] && [ "$t" -le "$2" ]; then
@@ -277,13 +277,13 @@ commit() {
 }
 
 if $arm || $detach; then
-  if systemctl --user is-active --quiet linlog-baseline.service; then
-    echo "linlog-baseline runs already; stop it with: systemctl --user stop linlog-baseline" >&2
+  if systemctl --user is-active --quiet deduxit-baseline.service; then
+    echo "deduxit-baseline runs already; stop it with: systemctl --user stop deduxit-baseline" >&2
     exit 1
   fi
-  systemctl --user stop linlog-baseline.timer linlog-baseline-stop.timer 2>/dev/null || true
-  systemctl --user reset-failed linlog-baseline.service linlog-baseline.timer \
-    linlog-baseline-stop.service linlog-baseline-stop.timer 2>/dev/null || true
+  systemctl --user stop deduxit-baseline.timer deduxit-baseline-stop.timer 2>/dev/null || true
+  systemctl --user reset-failed deduxit-baseline.service deduxit-baseline.timer \
+    deduxit-baseline-stop.service deduxit-baseline-stop.timer 2>/dev/null || true
   if $fresh; then
     rm -rf "$out"
   fi
@@ -294,11 +294,11 @@ if $arm || $detach; then
   # A slice of its own, so that the other user slices can be kept off the
   # performance cores; an inhibitor, so that neither the idle manager nor a
   # closed lid suspends the machine.
-  unit=(systemd-run --user --unit=linlog-baseline --slice=linlog.slice --same-dir -p MemoryMax=40G
+  unit=(systemd-run --user --unit=deduxit-baseline --slice=deduxit.slice --same-dir -p MemoryMax=40G
     -p MemorySwapMax=0 -p OOMPolicy=continue -p LimitCORE=0 --setenv=PATH="$PATH"
     -p ExecStopPost="$self --unshield"
     --setenv=CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$PWD/target/baseline}")
-  script=(systemd-inhibit --what=sleep:idle:handle-lid-switch --who=linlog-baseline
+  script=(systemd-inhibit --what=sleep:idle:handle-lid-switch --who=deduxit-baseline
     --why="the benchmark baseline" "$self" --force --into="$out"
     --reference="$reference" --reruns="$rerun_list"
     --cores="$(
@@ -307,7 +307,7 @@ if $arm || $detach; then
     )" --others="$others" ${cpus:+--cpus="$cpus"})
   if $detach; then
     "${unit[@]}" "${script[@]}"
-    echo "into $out; follow it with: journalctl --user -fu linlog-baseline"
+    echo "into $out; follow it with: journalctl --user -fu deduxit-baseline"
     exit
   fi
   read -r start end < <(slot_times)
@@ -318,9 +318,9 @@ if $arm || $detach; then
   fi
   due=$(timers "$start" "$end" NextElapseUSecRealtime)
   "${unit[@]}" "${when[@]}" --timer-property=AccuracySec=1s "${script[@]}" --start-by="$latest"
-  systemd-run --user --unit=linlog-baseline-stop --on-calendar="$(date -d "@$end" '+%F %T')" \
+  systemd-run --user --unit=deduxit-baseline-stop --on-calendar="$(date -d "@$end" '+%F %T')" \
     --timer-property=AccuracySec=1s "$(command -v systemctl)" --user stop \
-    linlog-baseline.timer linlog-baseline.service
+    deduxit-baseline.timer deduxit-baseline.service
   # The estimate is a whole baseline's; a resumed one runs only what its
   # CSV files lack, which may be minutes.
   length="takes about $((estimate / 3600)) h $((estimate % 3600 / 60)) min"
@@ -384,7 +384,7 @@ fi
 # Whether the user's slices can be kept to CPUs: AllowedCPUs on a slice
 # needs the cpuset controller delegated to the user's systemd.
 shield=false unshielded="the run is not in a slice of its own (started without --detach or --arm)"
-if grep -q linlog.slice /proc/self/cgroup; then
+if grep -q deduxit.slice /proc/self/cgroup; then
   if grep -qw cpuset "/sys/fs/cgroup/user.slice/user-$(id -u).slice/user@$(id -u).service/cgroup.controllers" 2>/dev/null; then
     shield=true
   else
@@ -407,7 +407,7 @@ read -r throttled_before throttled_ms_before < <(throttling)
 # streams are pinned to, and lets them back when it ends; the system's
 # services and kernel threads it cannot move (.claude/rules/bench.md says
 # how an administrator can).
-if grep -q linlog.slice /proc/self/cgroup; then
+if grep -q deduxit.slice /proc/self/cgroup; then
   if $shield; then
     for slice in "${slices[@]}"; do
       systemctl --user set-property --runtime "$slice" AllowedCPUs="$others"
@@ -419,7 +419,7 @@ if grep -q linlog.slice /proc/self/cgroup; then
   # The user's own timers due during the run wait for its end.
   systemctl --user list-timers --no-legend | awk '{ print $(NF - 1) }' |
     while read -r unit; do
-      case $unit in linlog-baseline* | systemd-tmpfiles-clean.timer) continue ;; esac
+      case $unit in deduxit-baseline* | systemd-tmpfiles-clean.timer) continue ;; esac
       t=$(systemctl --user show "$unit" -p NextElapseUSecRealtime --value --timestamp=unix)
       t=${t#@}
       if [ -n "$t" ] && [ "$t" -le $((now + estimate)) ]; then
@@ -639,7 +639,7 @@ Its last part took $((SECONDS / 3600)) h $((SECONDS % 3600 / 60)) min, and the s
 meanwhile were: ${fired:-none}. The package throttled
 $((throttled_after - throttled_before)) times for $(((throttled_ms_after - throttled_ms_before) / 1000)) s in that part
 ($(settings)).
-The journal of \`linlog-baseline\` says every ten minutes what else used
+The journal of \`deduxit-baseline\` says every ten minutes what else used
 a CPU. The sequential runs went in four
 streams at once, each pinned to a CPU of its own (CPUs ${cores[*]}),
 $shared; the parallel runs came after them with no stream of the run

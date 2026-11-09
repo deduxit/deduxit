@@ -3,13 +3,13 @@
 An intuitionistic proof is a program: by the Curry-Howard correspondence
 a proof of intuitionistic linear logic is a term of a linear lambda
 calculus, whose type is the proved sequent, and a derivation of LJ is a
-term of the simply typed lambda calculus. linlog reads every
+term of the simply typed lambda calculus. deduxit reads every
 intuitionistic proof it finds or checks back as its term. `--lambda`
 prints the term's typing judgement, the hypotheses' variables with their
 types, then the term and its type:
 
 ```console
-$ linlog prove -i --lambda 'a, a -o b |- b'
+$ deduxit prove -i --lambda 'a, a -o b |- b'
 provable (IMLL, intuitionistic, two-sided engine)
 ───── ax   ───── ax
 a ⊢ a      b ⊢ b
@@ -47,7 +47,7 @@ sequent calculus has its term:
 | cut | `(λx:A. N) M` |
 
 Every form in the table is the thesis's, but the cut's: the thesis's cut
-is the substitution `N[x := M]` itself, and linlog writes it as the redex
+is the substitution `N[x := M]` itself, and deduxit writes it as the redex
 whose reduction that substitution is, in the calculus's own syntax. A
 left rule substitutes, as the thesis does, so the term of a cut-free
 proof is in normal form. `true` and `false` take every other hypothesis,
@@ -55,28 +55,28 @@ since `⊤` and `0` discard a linear context only by consuming it, and the
 two components of a pair share their context:
 
 ```console
-$ linlog prove -i --lambda --tree never '|- a -o b -o a * b'
+$ deduxit prove -i --lambda --tree never '|- a -o b -o a * b'
 provable (IMLL, intuitionistic, two-sided engine)
 lambda-term: ⊢ λx. λy. x ⊗ y : a ⊸ (b ⊸ (a ⊗ b))
-$ linlog prove -i --lambda --tree never '1 * a |- a'
+$ deduxit prove -i --lambda --tree never '1 * a |- a'
 provable (IMLL with units, intuitionistic, two-sided engine)
 lambda-term: x : 1 ⊗ a ⊢ let x be y ⊗ z in let y be ∗ in z : a
-$ linlog prove -i --lambda --tree never 'a & b |- b & a'
+$ deduxit prove -i --lambda --tree never 'a & b |- b & a'
 provable (IALL, intuitionistic, additive engine)
 lambda-term: x : a & b ⊢ ⟨snd(x), fst(x)⟩ : b & a
-$ linlog prove -i --lambda --tree never 'a + b |- b + a'
+$ deduxit prove -i --lambda --tree never 'a + b |- b + a'
 provable (IALL, intuitionistic, additive engine)
 lambda-term: x : a ⊕ b ⊢ case x of inl(y) → inr(y) ‖ inr(z) → inl(z) : b ⊕ a
-$ linlog prove -i --lambda --tree never 'a, b |- top'
+$ deduxit prove -i --lambda --tree never 'a, b |- top'
 provable (IALL, intuitionistic, two-sided engine)
 lambda-term: x : a, y : b ⊢ true(x, y) : ⊤
-$ linlog prove -i --lambda --tree never '0, a |- b'
+$ deduxit prove -i --lambda --tree never '0, a |- b'
 provable (IALL, intuitionistic, two-sided engine)
 lambda-term: x : 0, y : a ⊢ false(y; x) : b
-$ linlog prove -i --lambda --tree never '!a |- a * a'
+$ deduxit prove -i --lambda --tree never '!a |- a * a'
 provable (IMELL, intuitionistic, horn engine)
 lambda-term: x : !a ⊢ copy x as y, z in derelict(z) ⊗ derelict(y) : a ⊗ a
-$ linlog prove -i --lambda --tree never '!(a -o b), !a |- !b'
+$ deduxit prove -i --lambda --tree never '!(a -o b), !a |- !b'
 provable (IMELL, intuitionistic, two-sided engine)
 lambda-term: x : !(a ⊸ b), y : !a ⊢ promote x, y for z, u in derelict(z) derelict(u) : !b
 ```
@@ -84,10 +84,10 @@ lambda-term: x : !(a ⊸ b), y : !a ⊢ promote x, y for z, u in derelict(z) der
 A proof of affine linear logic (`--affine`) reads back to the affine
 lambda calculus: the same terms, with weakening left implicit, so a
 variable may go unused. Neither the paper nor the thesis gives an affine
-calculus; this reading is linlog's own.
+calculus; this reading is deduxit's own.
 
 ```console
-$ linlog prove -i --affine --lambda --tree never 'a, b |- a'
+$ deduxit prove -i --affine --lambda --tree never 'a, b |- a'
 provable (IMLL, intuitionistic affine, two-sided engine)
 lambda-term: x : a, y : b ⊢ x : a
 ```
@@ -96,12 +96,12 @@ lambda-term: x : a, y : b ⊢ x : a
 
 A cut on `A` between a proof of `Γ ⊢ M : A` and one of `Δ, x : A ⊢ N :
 C` is the redex `(λx:A. N) M`, whose reduction is the substitution of
-the thesis's cut: eliminating the cut (`linlog eliminate`, the chapter
+the thesis's cut: eliminating the cut (`deduxit eliminate`, the chapter
 [Cut and its elimination](cut.md)) reduces the term. A session that
 cuts shows it:
 
 ```console
-$ linlog interact -i 'a, a -o b |- b'
+$ deduxit interact -i 'a, a -o b |- b'
 > cut 0 b 0 1
 > close
 > lambda
@@ -122,17 +122,17 @@ J.-Y. Girard, Y. Lafont and P. Taylor give it in *Proofs and Types*
 (Cambridge University Press, 1989), sections 3.1.2 and 10.6, their `π₁`,
 `π₂`, `ι₁`, `ι₂`, `δ` and `ε` written `fst`, `snd`, `inl`, `inr`, `case`
 and `abort`. The book names no term of the unit type; `⟨⟩`, the empty
-pair, is linlog's own notation for it. `¬A` is `A → ⊥`, and `A ↔ B` the
+pair, is deduxit's own notation for it. `¬A` is `A → ⊥`, and `A ↔ B` the
 pair of both implications:
 
 ```console
-$ linlog prove --logic intuitionistic --lambda --tree never '|- (a -> b) -> (b -> c) -> a -> c'
+$ deduxit prove --logic intuitionistic --lambda --tree never '|- (a -> b) -> (b -> c) -> a -> c'
 valid (intuitionistic logic by the cbn translation into ILL, two-sided engine)
 lambda-term: ⊢ λf. λg. λx. g (f x) : (a → b) → ((b → c) → (a → c))
-$ linlog prove --logic intuitionistic --lambda --tree never '~(a \/ b) |- ~a /\ ~b'
+$ deduxit prove --logic intuitionistic --lambda --tree never '~(a \/ b) |- ~a /\ ~b'
 valid (intuitionistic logic by the cbn translation into ILL, two-sided engine)
 lambda-term: f : (a ∨ b) → ⊥ ⊢ ⟨λx. f inl(x), λy. f inr(y)⟩ : (a → ⊥) ∧ (b → ⊥)
-$ linlog prove --logic minimal --lambda --tree never '|- a -> ~~a'
+$ deduxit prove --logic minimal --lambda --tree never '|- a -> ~~a'
 valid (minimal logic by the cbn translation into ILL, two-sided engine)
 lambda-term: ⊢ λx. λf. f x : a → ((a → ⊥) → ⊥)
 ```
@@ -149,24 +149,24 @@ calculus of their own), or a proof with first-order quantifiers, which
 are no quantifiers over types. The line says why:
 
 ```console
-$ linlog prove --lambda --tree never '|- a, ~a'
+$ deduxit prove --lambda --tree never '|- a, ~a'
 provable (MLL, classical, focus engine)
 no lambda-term: a proof of classical logic has several conclusions, which no lambda-term types
-$ linlog prove -i --lambda --tree never 'forall x. p(x) |- p(c)'
+$ deduxit prove -i --lambda --tree never 'forall x. p(x) |- p(c)'
 provable (IMLL1, intuitionistic, two-sided engine)
 no lambda-term: quantifiers over first-order terms are no quantifiers over types
 ```
 
 ## How the term is printed
 
-`--lambda-notation ascii` writes it in ASCII, a notation of linlog's own
+`--lambda-notation ascii` writes it in ASCII, a notation of deduxit's own
 (`\x. M` for `λx. M`, `M * N` for `M ⊗ N`, `()` for `∗`, `<M, N>` for
 `⟨M, N⟩`, `->` and `|` in a case, the types as the parser reads them), and `--lambda-types` gives every binder its variable's type,
 `λx:A. M`, and `false` its goal's, as the calculus writes them; the
 settings keys are `lambda.notation` and `lambda.types`:
 
 ```console
-$ linlog prove -i --lambda --lambda-notation ascii --lambda-types --tree never '|- a -o b -o a * b'
+$ deduxit prove -i --lambda --lambda-notation ascii --lambda-types --tree never '|- a -o b -o a * b'
 provable (IMLL, intuitionistic, two-sided engine)
 lambda-term: |- \x:a. \y:b. x * y : a -o (b -o (a * b))
 ```
@@ -176,8 +176,8 @@ session command `lambda` of `interact` that of the finished proof or
 derivation:
 
 ```console
-$ linlog prove -i --format json 'a & b |- b & a' > proof.json
-$ linlog check -i --lambda --tree never proof.json
+$ deduxit prove -i --format json 'a & b |- b & a' > proof.json
+$ deduxit check -i --lambda --tree never proof.json
 valid proof of a & b ⊢ b & a (intuitionistic)
 lambda-term: x : a & b ⊢ ⟨snd(x), fst(x)⟩ : b & a
 ```
@@ -186,7 +186,7 @@ In LaTeX, Typst, SVG, PNG and PDF the judgement stands under the
 conclusion of the derivation:
 
 ```console
-$ linlog prove -i --lambda --format latex 'a, a -o b |- b'
+$ deduxit prove -i --lambda --format latex 'a, a -o b |- b'
 % provable (IMLL, intuitionistic, two-sided engine)
 \begin{prooftree}
 \infer0[$\mathrm{ax}$]{a &\vdash a}
@@ -203,8 +203,8 @@ names, `root` the whole term), with its `text` and its `judgement` as
 printed, or `{"error": …}` where there is none:
 
 ```console
-$ linlog prove -i --format json --lambda 'a |- a'
-{"checked":true,"engine":"two-sided","fragment":"IMLL","lambda":{"atoms":["a"],"calculus":"linear","context":[0],"goal":0,"judgement":"x : a ⊢ x : a","nodes":[{"kind":"var","variable":0}],"root":0,"text":"x","types":[{"atom":0,"kind":"atom"}],"variables":[{"index":0,"letter":"x","type":0}]},"linlog":"0.2.0","mode":"intuitionistic","nodes":[{"ax":[0,1]}],"sequent":{"antecedents":1,"atoms":["a"],"roots":[0,1],"terms":[{"D":0},{"V":0}]},"statistics":{"copies":0,"forward_copies":0,"links":0,"memo_entries":1,"memo_hits":0,"nodes":1,"splits":0,"tests":0,"work":16},"verdict":"proved","version":1}
+$ deduxit prove -i --format json --lambda 'a |- a'
+{"checked":true,"deduxit":"0.2.0","engine":"two-sided","fragment":"IMLL","lambda":{"atoms":["a"],"calculus":"linear","context":[0],"goal":0,"judgement":"x : a ⊢ x : a","nodes":[{"kind":"var","variable":0}],"root":0,"text":"x","types":[{"atom":0,"kind":"atom"}],"variables":[{"index":0,"letter":"x","type":0}]},"mode":"intuitionistic","nodes":[{"ax":[0,1]}],"sequent":{"antecedents":1,"atoms":["a"],"roots":[0,1],"terms":[{"D":0},{"V":0}]},"statistics":{"copies":0,"forward_copies":0,"links":0,"memo_entries":1,"memo_hits":0,"nodes":1,"splits":0,"tests":0,"work":16},"verdict":"proved","version":1}
 ```
 
 A term repeats a left rule's term wherever its hypothesis goes, in both

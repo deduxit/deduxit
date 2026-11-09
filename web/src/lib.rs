@@ -1,7 +1,7 @@
 // linlog © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! linlog for a web page: the library compiled to WebAssembly behind
+//! deduxit for a web page: the library compiled to WebAssembly behind
 //! calls of JSON text in and JSON or SVG text out, over the interactive
 //! state, the settings and a search's outcome.
 //!

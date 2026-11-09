@@ -2,9 +2,9 @@
 # Licensed under the EUPL
 
 cff-version: 1.2.0
-message: "If you use linlog in your work, please cite it as below."
+message: "If you use deduxit in your work, please cite it as below."
 type: software
-title: linlog
+title: deduxit
 abstract: >-
   A linear logic suite: a Rust library and a command line program that
   decide, check, prove step by step and export sequents of classical and

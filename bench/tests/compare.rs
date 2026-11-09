@@ -55,7 +55,7 @@ fn summary(args: &[&Path]) -> String {
 /// counters' rows and the reverse list.
 #[test]
 fn the_comparison_prints_what_differs() {
-    let dir = std::env::temp_dir().join(format!("linlog-compare-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("deduxit-compare-{}", std::process::id()));
     let earlier = dir.join("old");
     std::fs::create_dir_all(&earlier).unwrap();
     let (before, after) = (dir.join("before.csv"), dir.join("after.csv"));
@@ -158,7 +158,7 @@ Problems in both; decided (late: after the time limit); decided by one and not t
 /// it compares the files with the last of them.
 #[test]
 fn three_baselines_side_by_side() {
-    let dir = std::env::temp_dir().join(format!("linlog-compare-three-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("deduxit-compare-three-{}", std::process::id()));
     for (name, rows) in [("first", BEFORE), ("second", AFTER), ("third", BEFORE)] {
         std::fs::create_dir_all(dir.join(name)).unwrap();
         write(&dir.join(name).join("runs.csv"), rows);

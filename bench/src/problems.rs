@@ -11,7 +11,7 @@
 //! ignored: the mode is `classical`, `mix`, `affine`, `intuitionistic` or
 //! `intuitionistic-affine`, `expected` is `provable`, `unprovable` or
 //! `-`, `copies` a number or `-`, and the sequent is written as the
-//! `linlog` command reads it. The part of the name before a `/` is the
+//! `deduxit` command reads it. The part of the name before a `/` is the
 //! family, else the file's stem.
 
 use anyhow::{Context, Result, anyhow, bail};

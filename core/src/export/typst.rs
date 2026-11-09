@@ -3,7 +3,7 @@
 
 //! Typst: formulas in math mode, and derivations as proof trees, of the
 //! `curryst` package, whose `rule(name: …, premises…, conclusion)` nests
-//! the premises inside their conclusion, or of linlog's own layout.
+//! the premises inside their conclusion, or of deduxit's own layout.
 //!
 //! The connectives are written as their Unicode characters (`⊗ ⅋ ⊕ ⊸ ⊢
 //! ⊥ ⊤`), which Typst's math reads with their Unicode math class and which
@@ -19,7 +19,7 @@
 //! curryst nests its layout at every level of the tree, so Typst refuses a
 //! tree with two premises on a branch more than [`CURRYST_HEIGHT`]
 //! inferences high ("maximum show rule depth exceeded"). A higher tree is
-//! therefore written by default in linlog's own layout ([`Layout`]): a
+//! therefore written by default in deduxit's own layout ([`Layout`]): a
 //! `#context` block that lists the inferences and measures, lays out and
 //! places them in one box, the SVG drawing's layout with Typst's
 //! measurements, so that no height reaches a limit and no package is
@@ -139,14 +139,14 @@ pub const CURRYST_HEIGHT: usize = 9;
 #[cfg_attr(feature = "serialize", serde(rename_all = "lowercase"))]
 pub enum Layout {
     /// curryst for a tree of at most [`CURRYST_HEIGHT`] inferences on
-    /// its longest branch, linlog's own layout for a higher one.
+    /// its longest branch, deduxit's own layout for a higher one.
     #[default]
     Auto,
     /// curryst's `prooftree` and `rule`, which a document imports.
     Curryst,
-    /// Typst code of linlog's own in the output, which measures every
+    /// Typst code of deduxit's own in the output, which measures every
     /// sequent and places it, with no package and no limit on the height.
-    Linlog,
+    Deduxit,
 }
 
 /// A Typst length the output writes as code: a number of digits, with a
@@ -244,17 +244,17 @@ pub struct Options {
     pub page: String,
     /// Which code sets the tree.
     pub layout: Layout,
-    /// The least space between two premises side by side in linlog's own
+    /// The least space between two premises side by side in deduxit's own
     /// layout.
     pub premise_gap: Length,
     /// The space between an inference line and its rule's label in
-    /// linlog's own layout.
+    /// deduxit's own layout.
     pub label_gap: Length,
     /// The least height of the space an inference line stands in, between
-    /// its premises and its conclusion, in linlog's own layout; a taller
+    /// its premises and its conclusion, in deduxit's own layout; a taller
     /// label makes it taller.
     pub band: Length,
-    /// The thickness of an inference line in linlog's own layout.
+    /// The thickness of an inference line in deduxit's own layout.
     pub stroke: Length,
     /// Whether the derivation's lambda-term is written under its
     /// conclusion, as its typing judgement ([`lambda`](crate::lambda)),
@@ -269,7 +269,7 @@ pub struct Options {
 impl Default for Options {
     /// Returns a fragment with upright labels, an open goal under
     /// vertical dots, the import of curryst [`CURRYST`], the page
-    /// [`PAGE`], curryst up to its height and linlog's own layout above
+    /// [`PAGE`], curryst up to its height and deduxit's own layout above
     /// it, with curryst's spacing and line.
     fn default() -> Self {
         Self {
@@ -459,7 +459,7 @@ pub fn sequent(
 /// one inference at a time, and asks `stop` after each: a curryst
 /// `#prooftree(…)` call, in which a rule with premises spans several
 /// lines, indented by its depth, and a leaf is one line; or a `#context`
-/// block of linlog's own layout ([`Options::layout`]), the inferences
+/// block of deduxit's own layout ([`Options::layout`]), the inferences
 /// listed first, from the root in preorder, one line each, then the code
 /// that sets them. A linear derivation is two-sided if it is; one of LK
 /// or LJ is two-sided, its connectives and constants their Unicode
@@ -505,7 +505,7 @@ fn tree<T: Drawn>(
 ) -> Result<(), Error> {
     let own = match options.layout {
         Layout::Curryst => false,
-        Layout::Linlog => true,
+        Layout::Deduxit => true,
         Layout::Auto => height(derivation) > CURRYST_HEIGHT,
     };
     if own {
@@ -527,7 +527,7 @@ fn height<T: Drawn>(derivation: &T) -> usize {
     heights.last().copied().unwrap_or(0)
 }
 
-/// The Typst code of linlog's own layout, which follows the inferences
+/// The Typst code of deduxit's own layout, which follows the inferences
 /// (`nodes`: premises, label and conclusion, from the root in preorder;
 /// `none` premises for an open goal drawn as `open` says) and the spacing
 /// in a `#context` block. It measures every sequent and label, lays the
@@ -648,7 +648,7 @@ const LAYOUT: &str = r#"  let n = nodes.len()
 }
 "#;
 
-/// Writes a derivation in linlog's own layout into `out`, one inference
+/// Writes a derivation in deduxit's own layout into `out`, one inference
 /// at a time, and asks `stop` after each; with a judgement, the tree and
 /// the judgement under it in a stack.
 fn laid_out<T: Drawn>(

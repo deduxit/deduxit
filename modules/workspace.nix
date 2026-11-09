@@ -181,14 +181,14 @@
             cat > $out/share/doc/index.html <<'EOF'
             <!DOCTYPE html>
             <meta charset="utf-8">
-            <title>linlog</title>
-            <meta http-equiv="refresh" content="0; url=linlog/">
-            <a href="linlog/">linlog</a>
+            <title>deduxit</title>
+            <meta http-equiv="refresh" content="0; url=deduxit/">
+            <a href="deduxit/">deduxit</a>
             EOF
             awk 'n >= 2 && (body || NF) { body = 1; print } /^---$/ { n++ }' \
-              skills/linlog/SKILL.md > $out/share/doc/llms.txt
-            install -Dm644 skills/linlog/reference.md $out/share/doc/reference.md
-            install -Dm644 skills/linlog/reference.md $out/share/doc/llms-full.txt
+              skills/deduxit/SKILL.md > $out/share/doc/llms.txt
+            install -Dm644 skills/deduxit/reference.md $out/share/doc/reference.md
+            install -Dm644 skills/deduxit/reference.md $out/share/doc/llms-full.txt
           '';
         }
       );
@@ -244,13 +244,13 @@
               install -Dm644 -t $out/share/doc/deduxit-cli cli/fonts/*.txt
               install -Dm644 ${config.packages.notices} $out/share/doc/deduxit-cli/THIRD-PARTY-NOTICES.txt
             '';
-            # The binary is `linlog', not the package name `nix run' assumes.
-            meta.mainProgram = "linlog";
+            # The binary is `deduxit', not the package name `nix run' assumes.
+            meta.mainProgram = "deduxit";
           }
         );
 
         # The site the Docs workflow publishes, which the `doc' check also
-        # builds: the rustdoc of both crates, `linlog' and `deduxit_cli', in
+        # builds: the rustdoc of both crates, `deduxit' and `deduxit_cli', in
         # one tree, and the manual under `manual/' (`manual.nix'), put
         # together after both are built, so that a change of either leaves
         # the other's build as it was.

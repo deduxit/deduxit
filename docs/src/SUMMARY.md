@@ -1,10 +1,10 @@
 # Summary
 
-[linlog](introduction.md)
+[deduxit](introduction.md)
 
 - [Installation](installation.md)
 
-# Using linlog
+# Using deduxit
 
 - [The commands](commands.md)
   - [Output formats](output-formats.md)

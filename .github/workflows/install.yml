@@ -93,31 +93,31 @@ jobs:
           set -eux
           if [ -n "$DEB" ]; then
             apt-get update
-            apt install -y ./linlog_*_"$DEB".deb
-            linlog --version
-            linlog prove 'A, A -o B |- B'
-            apt remove -y linlog
+            apt install -y ./deduxit_*_"$DEB".deb
+            deduxit --version
+            deduxit prove 'A, A -o B |- B'
+            apt remove -y deduxit
           elif command -v dnf; then
-            dnf install -y ./linlog-*."$ARCH".rpm
-            linlog --version
-            linlog prove 'A, A -o B |- B'
-            dnf remove -y linlog
+            dnf install -y ./deduxit-*."$ARCH".rpm
+            deduxit --version
+            deduxit prove 'A, A -o B |- B'
+            dnf remove -y deduxit
           else
-            pacman -U --noconfirm ./linlog-*-"$ARCH".pkg.tar.zst
-            linlog --version
-            linlog prove 'A, A -o B |- B'
-            pacman -R --noconfirm linlog
+            pacman -U --noconfirm ./deduxit-*-"$ARCH".pkg.tar.zst
+            deduxit --version
+            deduxit prove 'A, A -o B |- B'
+            pacman -R --noconfirm deduxit
           fi
-          test ! -e /usr/bin/linlog
+          test ! -e /usr/bin/deduxit
       - name: Any Linux, the archive
         working-directory: dist
         run: |
           set -eux
           sha256sum --check --ignore-missing SHA256SUMS
-          tar -xzf linlog-*-"$ARCH"-unknown-linux-musl.tar.gz
-          install -D linlog-*-"$ARCH"-unknown-linux-musl/linlog ~/.local/bin/linlog
-          ~/.local/bin/linlog --version
-          rm ~/.local/bin/linlog
+          tar -xzf deduxit-*-"$ARCH"-unknown-linux-musl.tar.gz
+          install -D deduxit-*-"$ARCH"-unknown-linux-musl/deduxit ~/.local/bin/deduxit
+          ~/.local/bin/deduxit --version
+          rm ~/.local/bin/deduxit
 
   macos:
     name: ${{ matrix.target }}
@@ -144,12 +144,12 @@ jobs:
         run: |
           set -eux
           shasum -a 256 --check --ignore-missing SHA256SUMS
-          tar -xzf linlog-*-"$TARGET".tar.gz
+          tar -xzf deduxit-*-"$TARGET".tar.gz
           mkdir -p ~/.local/bin
-          cp linlog-*-"$TARGET"/linlog ~/.local/bin/
-          ~/.local/bin/linlog --version
-          ~/.local/bin/linlog prove 'A, A -o B |- B'
-          rm ~/.local/bin/linlog
+          cp deduxit-*-"$TARGET"/deduxit ~/.local/bin/
+          ~/.local/bin/deduxit --version
+          ~/.local/bin/deduxit prove 'A, A -o B |- B'
+          rm ~/.local/bin/deduxit
 
   windows:
     name: ${{ matrix.target }}
@@ -179,19 +179,19 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $true
-          $zip = (Get-ChildItem "linlog-*-$env:TARGET.zip").Name
+          $zip = (Get-ChildItem "deduxit-*-$env:TARGET.zip").Name
           $stem = $zip -replace '\.zip$', ''
-          Copy-Item $zip linlog.zip
-          $hash = (Get-FileHash linlog.zip -Algorithm SHA256).Hash
+          Copy-Item $zip deduxit.zip
+          $hash = (Get-FileHash deduxit.zip -Algorithm SHA256).Hash
           $line = Select-String -Path SHA256SUMS -SimpleMatch $zip
           if (-not $line.Line.StartsWith($hash.ToLower())) { throw "the checksum of $zip differs" }
-          Expand-Archive linlog.zip -DestinationPath "$env:LOCALAPPDATA\Programs"
-          Rename-Item "$env:LOCALAPPDATA\Programs\$stem" linlog
-          $bin = "$env:LOCALAPPDATA\Programs\linlog"
+          Expand-Archive deduxit.zip -DestinationPath "$env:LOCALAPPDATA\Programs"
+          Rename-Item "$env:LOCALAPPDATA\Programs\$stem" deduxit
+          $bin = "$env:LOCALAPPDATA\Programs\deduxit"
           [Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$bin", "User")
-          Unblock-File "$bin\linlog.exe"
-          & "$bin\linlog.exe" --version
-          & "$bin\linlog.exe" prove 'A, A -o B |- B'
+          Unblock-File "$bin\deduxit.exe"
+          & "$bin\deduxit.exe" --version
+          & "$bin\deduxit.exe" prove 'A, A -o B |- B'
           if (-not ([Environment]::GetEnvironmentVariable("Path", "User") -split ";" -contains $bin)) { throw "the user's Path lacks $bin" }
           Remove-Item -Recurse $bin
           $rest = ([Environment]::GetEnvironmentVariable("Path", "User") -split ";" | Where-Object { $_ -ne $bin }) -join ";"
@@ -215,15 +215,15 @@ jobs:
           nix run "$FLAKE" -- --version
           # A release's entry is updated by removing it and adding the next.
           nix profile add "$FLAKE#deduxit-cli"
-          linlog --version
+          deduxit --version
           nix profile remove deduxit-cli
-          test ! -e ~/.nix-profile/bin/linlog
+          test ! -e ~/.nix-profile/bin/deduxit
           # An entry without a tag follows `main` by upgrading.
           nix profile add github:deduxit/deduxit#deduxit-cli
           nix profile upgrade deduxit-cli
-          linlog --version
+          deduxit --version
           nix profile remove deduxit-cli
-          test ! -e ~/.nix-profile/bin/linlog
+          test ! -e ~/.nix-profile/bin/deduxit
 
   cargo:
     name: cargo install, ${{ matrix.name }}
@@ -250,9 +250,9 @@ jobs:
           set -eux
           export PATH="$HOME/.cargo/bin:$PATH"
           cargo install --locked deduxit-cli
-          linlog --version
+          deduxit --version
           cargo uninstall deduxit-cli
-          test ! -e ~/.cargo/bin/linlog
+          test ! -e ~/.cargo/bin/deduxit
 
   # The runners' own rustup, as a user of rustup has it.
   cargo-rustup:
@@ -269,9 +269,9 @@ jobs:
       - run: |
           set -eux
           cargo install --locked deduxit-cli
-          linlog --version
+          deduxit --version
           cargo uninstall deduxit-cli
-          test ! -e ~/.cargo/bin/linlog && test ! -e ~/.cargo/bin/linlog.exe
+          test ! -e ~/.cargo/bin/deduxit && test ! -e ~/.cargo/bin/deduxit.exe
 
   # The chapter's downloads, from the latest release, once one carries the
   # files (from 0.2.0 on).
@@ -301,26 +301,26 @@ jobs:
           fi
           case "$RUNNER" in
             ubuntu*)
-              curl -LO "$base/linlog-$version-x86_64-unknown-linux-musl.tar.gz"
+              curl -LO "$base/deduxit-$version-x86_64-unknown-linux-musl.tar.gz"
               sha256sum --check --ignore-missing SHA256SUMS
-              tar -xzf "linlog-$version-x86_64-unknown-linux-musl.tar.gz"
-              install -D "linlog-$version-x86_64-unknown-linux-musl/linlog" ~/.local/bin/linlog
-              ~/.local/bin/linlog --version
-              curl -LO "$base/linlog_$version-1_amd64.deb"
-              sudo apt install -y "./linlog_$version-1_amd64.deb"
-              linlog --version
-              sudo apt remove -y linlog
+              tar -xzf "deduxit-$version-x86_64-unknown-linux-musl.tar.gz"
+              install -D "deduxit-$version-x86_64-unknown-linux-musl/deduxit" ~/.local/bin/deduxit
+              ~/.local/bin/deduxit --version
+              curl -LO "$base/deduxit_$version-1_amd64.deb"
+              sudo apt install -y "./deduxit_$version-1_amd64.deb"
+              deduxit --version
+              sudo apt remove -y deduxit
               ;;
             macos*)
-              curl -LO "$base/linlog-$version-aarch64-apple-darwin.tar.gz"
+              curl -LO "$base/deduxit-$version-aarch64-apple-darwin.tar.gz"
               shasum -a 256 --check --ignore-missing SHA256SUMS
-              tar -xzf "linlog-$version-aarch64-apple-darwin.tar.gz"
-              "linlog-$version-aarch64-apple-darwin/linlog" --version
+              tar -xzf "deduxit-$version-aarch64-apple-darwin.tar.gz"
+              "deduxit-$version-aarch64-apple-darwin/deduxit" --version
               ;;
             windows*)
-              curl -LO "$base/linlog-$version-x86_64-pc-windows-msvc.zip"
+              curl -LO "$base/deduxit-$version-x86_64-pc-windows-msvc.zip"
               sha256sum --check --ignore-missing SHA256SUMS
-              7z x "linlog-$version-x86_64-pc-windows-msvc.zip"
-              "linlog-$version-x86_64-pc-windows-msvc/linlog.exe" --version
+              7z x "deduxit-$version-x86_64-pc-windows-msvc.zip"
+              "deduxit-$version-x86_64-pc-windows-msvc/deduxit.exe" --version
               ;;
           esac

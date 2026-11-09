@@ -69,48 +69,48 @@
             mkdir exporter
             cp ${snapshots}/*.v exporter/
             cd exporter
-            linlog prove --mix --format rocq --standalone --output cli_mix.v 'A, B |- A, B * (C -o C)'
-            linlog prove --affine --format rocq --standalone --output cli_affine.v '!A, A -o B, C |- B'
-            linlog prove -i --format rocq --standalone --output cli_ill.v '!A, A -o B |- B * !A'
-            linlog prove -i --affine --format rocq --standalone --output cli_ill_affine.v \
+            deduxit prove --mix --format rocq --standalone --output cli_mix.v 'A, B |- A, B * (C -o C)'
+            deduxit prove --affine --format rocq --standalone --output cli_affine.v '!A, A -o B, C |- B'
+            deduxit prove -i --format rocq --standalone --output cli_ill.v '!A, A -o B |- B * !A'
+            deduxit prove -i --affine --format rocq --standalone --output cli_ill_affine.v \
               'A, B, A -o C |- C * 1'
             # A goal built from top and 0 alone: the reading's goal.
-            linlog prove -i --format rocq --standalone --output cli_ill_units.v '0, top |- top'
-            linlog prove --kernel linlog --format rocq --standalone --output cli_classical.v \
+            deduxit prove -i --format rocq --standalone --output cli_ill_units.v '0, top |- top'
+            deduxit prove --kernel linlog --format rocq --standalone --output cli_classical.v \
               '!(A & B) |- !A * !B'
             # Certificates of non-derivability, one-sided and two-sided; the
             # command exits with 1 for an unprovable sequent.
-            linlog prove --format rocq --standalone --output cli_refuted.v 'A, A -o B |- B * B' || [ $? -eq 1 ]
-            linlog prove --mix --format rocq --standalone --output cli_refuted_mix.v '|- (A * ~A) * 1' || [ $? -eq 1 ]
-            linlog prove -i --format rocq --standalone --output cli_refuted_ill.v 'A + B |- A & B' || [ $? -eq 1 ]
-            linlog prove --copies 1 --format rocq --standalone --output cli_refuted_unknown.v \
+            deduxit prove --format rocq --standalone --output cli_refuted.v 'A, A -o B |- B * B' || [ $? -eq 1 ]
+            deduxit prove --mix --format rocq --standalone --output cli_refuted_mix.v '|- (A * ~A) * 1' || [ $? -eq 1 ]
+            deduxit prove -i --format rocq --standalone --output cli_refuted_ill.v 'A + B |- A & B' || [ $? -eq 1 ]
+            deduxit prove --copies 1 --format rocq --standalone --output cli_refuted_unknown.v \
               '!(A -o A * A), A |- ?B' || [ $? -eq 1 ]
             # Weighted counts: a count with copies of one sign, state
             # equations (one with atoms no firing reaches, one with a clause
             # used once, one of coverability), and a predicate weighed whole.
-            linlog prove --format rocq --standalone --output cli_refuted_one_sided.v \
+            deduxit prove --format rocq --standalone --output cli_refuted_one_sided.v \
               '!d, !((c * d * d) -o 1) |- c * c' || [ $? -eq 1 ]
-            linlog prove -i --format rocq --standalone --output cli_refuted_dead.v \
+            deduxit prove -i --format rocq --standalone --output cli_refuted_dead.v \
               '!(a -o a * a), !(a * c -o b * c), a |- b' || [ $? -eq 1 ]
-            linlog prove -i --format rocq --standalone --output cli_refuted_once.v \
+            deduxit prove -i --format rocq --standalone --output cli_refuted_once.v \
               'a, a -o b, !(b -o b * c), !(b -o d) |- b * d' || [ $? -eq 1 ]
-            linlog prove -i --affine --format rocq --standalone --output cli_refuted_cover.v \
+            deduxit prove -i --affine --format rocq --standalone --output cli_refuted_cover.v \
               '!(a -o a * c), !(a -o b), a |- a * b' || [ $? -eq 1 ]
-            linlog prove --format rocq --standalone --output cli_refuted_fo.v \
+            deduxit prove --format rocq --standalone --output cli_refuted_fo.v \
               '|- ~p(a), ?(exists x. ~p(x))' || [ $? -eq 1 ]
             # First-order proofs: classical with a witness no ∀ step
             # introduces, two-sided, affine, and a session's open witness
             # closed into such a constant.
-            linlog prove --kernel linlog --format rocq --standalone --output cli_fo.v \
+            deduxit prove --kernel linlog --format rocq --standalone --output cli_fo.v \
               'forall x. p(x) |- exists y. p(y)'
-            linlog prove -i --format rocq --standalone --output cli_fo_ill.v \
+            deduxit prove -i --format rocq --standalone --output cli_fo_ill.v \
               'exists y. forall x. r(x, y) |- forall x. exists y. r(x, y)'
-            linlog prove --affine --format rocq --standalone --output cli_fo_affine.v \
+            deduxit prove --affine --format rocq --standalone --output cli_fo_affine.v \
               'forall x. p(x), q |- exists y. p(y)'
-            linlog prove -i --affine --format rocq --standalone --output cli_fo_ill_affine.v \
+            deduxit prove -i --affine --format rocq --standalone --output cli_fo_ill_affine.v \
               'forall x. p(x), q |- exists y. p(y)'
             printf '%s\n' 'apply 0 0 ∀L' 'apply 1 0 ∃R' 'close 2' 'proof --rocq cli_fo_session.v' |
-              linlog interact -i --style rocq.form=standalone 'forall x. p(x) |- exists y. p(y)' >/dev/null
+              deduxit interact -i --style rocq.form=standalone 'forall x. p(x) |- exists y. p(y)' >/dev/null
             for file in *.v; do
               rocq compile "$file" 2>&1 | tee log
               if [ -s log ]; then exit 1; fi
@@ -157,7 +157,7 @@
             # shows (docs/src/rocq.md).
             mkdir ../use
             cd ../use
-            linlog prove -i --format rocq --standalone --output mp.v 'A, A -o B |- B'
+            deduxit prove -i --format rocq --standalone --output mp.v 'A, A -o B |- B'
             cat >use.v <<'EOF'
             From Stdlib Require Import List String.
             From Linlog Require Import IntuitionisticCheck.

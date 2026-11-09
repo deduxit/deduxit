@@ -55,9 +55,9 @@ pub fn timeless(text: &str) -> String {
 }
 
 /// Returns the text with the crate's version that an outcome names, in
-/// `"linlog":"0.1.0"`, as `…`: a release moves it.
+/// `"deduxit":"0.1.0"`, as `…`: a release moves it.
 fn unversioned(text: &str) -> String {
-    const KEY: &str = "\"linlog\":\"";
+    const KEY: &str = "\"deduxit\":\"";
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
     while let Some(at) = rest.find(KEY) {

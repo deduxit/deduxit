@@ -12,9 +12,8 @@
 //! sequent's [`Forest`]; proofs, nets and errors name occurrences by those
 //! numbers.
 //!
-//! The crate is the linear suite of
-//! [deduxit](https://github.com/deduxit/deduxit), a collection of logic
-//! suites whose name is Latin: **dēdūxit** \[deːˈduːk.sɪt\] *Latin, verb*:
+//! The crate is [deduxit](https://github.com/deduxit/deduxit), a
+//! collection of logic suites whose name is Latin: **dēdūxit** \[deːˈduːk.sɪt\] *Latin, verb*:
 //! "it has derived", the perfect of *dēdūcō*, to lead down, derive.
 //!
 //! In more detail: sequents of linear logic, stored as compact arena DAGs
@@ -32,7 +31,7 @@
 //! linear logic read back as a linear lambda-term and a derivation of LJ
 //! as a simply typed one.
 //!
-//! A guide to the crate and to the `linlog` command for AI models is
+//! A guide to the crate and to the `deduxit` command for AI models is
 //! served beside this documentation, its summary as
 //! [`llms.txt`](https://deduxit.github.io/deduxit/llms.txt) and its
 //! full reference as
@@ -97,7 +96,7 @@
 //!
 //! **The command's verdicts differ from `Options::default()`'s on purpose.**
 //! A library call without a stop must end, so the default options bound
-//! the copies of a `?` formula per branch at three; the `linlog` command
+//! the copies of a `?` formula per branch at three; the `deduxit` command
 //! has a clock, so it deepens without a bound until its time limit of two
 //! seconds, and after a tenth of a second it adds a pool of every other
 //! thread beside the first. [`Settings::default()`](Settings) is that

@@ -11,9 +11,9 @@ left of `|-` come in the reverse order, each negated, and `A -o B` is
 it reads:
 
 ```console
-$ linlog seq print --cyclic "a * b |- a * b"
+$ deduxit seq print --cyclic "a * b |- a * b"
 ⊢ ~b ⅋ ~a, a ⊗ b
-$ linlog prove --cyclic "a * b |- a * b"
+$ deduxit prove --cyclic "a * b |- a * b"
 provable (MLL, cyclic, net engine)
 ─────── ax   ─────── ax
 ⊢ ~a, a      ⊢ ~b, b
@@ -21,7 +21,7 @@ provable (MLL, cyclic, net engine)
   ⊢ ~b, ~a, a ⊗ b
   ──────────────── ⅋
   ⊢ ~b ⅋ ~a, a ⊗ b
-$ linlog prove --cyclic "a * b |- b * a"
+$ deduxit prove --cyclic "a * b |- b * a"
 unprovable (MLL, cyclic, net engine): the search was exhaustive
 ```
 
@@ -31,7 +31,7 @@ linking that is a proof net and planar, no two links crossing when the
 literals stand in their order around a circle, and `--net` draws it so:
 
 ```console
-$ linlog prove --cyclic --net "a, a -o b |- b"
+$ deduxit prove --cyclic --net "a, a -o b |- b"
 provable (MLL, cyclic, net engine)
 ⊢ ~b ⊗ a, ~a, b
 ~b[1] — b[4]
@@ -45,9 +45,9 @@ whose calculi are commutative (the verdict stands, a line on standard
 error saying why it has no certificate):
 
 ```console
-$ linlog prove --cyclic "|- a * b, 1"
+$ deduxit prove --cyclic "|- a * b, 1"
 error: cyclic mode decides unit-free MLL, and the sequent lies in MLL with units
-$ linlog prove --cyclic --format rocq "a |- a"
+$ deduxit prove --cyclic --format rocq "a |- a"
 no certificate: the Rocq calculi are commutative, so a derivation or a disproof of the cyclic mode has no certificate
 (* provable (MLL, cyclic, net engine) *)
 ```

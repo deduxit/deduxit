@@ -562,7 +562,7 @@ pub static FAMILIES: &[Family] = &[
         instances: 2,
         least: 1,
         powers_of_two: false,
-        claim: "the other provers' caps on contraction: one clause used m − 1 times on one branch, past lolli's two uses of a clause, APLL's bound of 3, llprover's threshold of 5 and the Maude prover's copy bound of 5, while linlog's Horn engine decides it in about linear time",
+        claim: "the other provers' caps on contraction: one clause used m − 1 times on one branch, past lolli's two uses of a clause, APLL's bound of 3, llprover's threshold of 5 and the Maude prover's copy bound of 5, while deduxit's Horn engine decides it in about linear time",
         growth: &[
             2, 4, 8, 16, 32, 64, 128, 256, 1024, 4096, 16384, 65_536, 262_144,
         ],

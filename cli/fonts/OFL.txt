@@ -1,4 +1,4 @@
-Euler Math 0.75, the font in Euler-Math.otf, embedded in the linlog command:
+Euler Math 0.75, the font in Euler-Math.otf, embedded in the deduxit command:
 
 Copyright (c) 1997, 2009 American Mathematical Society (http://www.ams.org).
 Copyright (c) 2009, 2021 Khaled Hosny (khaledhosny@eglug.org).

@@ -109,19 +109,19 @@ fn cut_proof(input: &str, mode: Mode, formula: &str, left: &[usize]) -> Proof {
 }
 
 /// Pins a derivation's certificates as the snapshots `name.v`, for
-/// NanoYalla, and `linlog/name.v`, for linlog's library.
+/// NanoYalla, and `linlog/name.v`, for deduxit's library.
 fn pin_certificate(name: &str, derivation: &Derivation) {
     let options = rocq::Options::default()
         .with_form(Form::Standalone)
         .with_kernel(Some(Kernel::NanoYalla));
     let script = certificate(|out| rocq::write(derivation, &options, out, |_| false));
     snapshot(&format!("{name}.v"), &script.unwrap());
-    pin_linlog(name, derivation);
+    pin_deduxit(name, derivation);
 }
 
-/// Pins a derivation's certificate for linlog's library as the snapshot
+/// Pins a derivation's certificate for deduxit's library as the snapshot
 /// `linlog/name.v`.
-fn pin_linlog(name: &str, derivation: &Derivation) {
+fn pin_deduxit(name: &str, derivation: &Derivation) {
     let options = rocq::Options::default()
         .with_form(Form::Standalone)
         .with_kernel(Some(Kernel::Linlog));
@@ -187,7 +187,7 @@ fn derivations() {
     pin_proof("ill", "1, A & B, B -o C |- C", Mode::INTUITIONISTIC);
 }
 
-/// A tree higher than curryst sets is laid out by linlog's own Typst
+/// A tree higher than curryst sets is laid out by deduxit's own Typst
 /// code, which the `export` check compiles at 41 inferences high; the
 /// own layout of a proof in progress draws its open goal under dots.
 #[test]
@@ -210,9 +210,9 @@ fn typst_layout() {
         )
         .unwrap();
     state.apply(goals[0], &Step::new(0, Rule::Ax)).unwrap();
-    options.layout = typst::Layout::Linlog;
+    options.layout = typst::Layout::Deduxit;
     snapshot(
-        "open-linlog.typ",
+        "open-deduxit.typ",
         &written(|out| typst::write(&state.derivation().unwrap(), &options, out, |_| false)),
     );
 }
@@ -253,7 +253,7 @@ fn ordinary_derivation() {
 }
 
 /// Pins a derivation with its lambda-term under the conclusion, binders
-/// typed, as `name.tex`, `name.typ`, `name-linlog.typ` (Typst's own
+/// typed, as `name.tex`, `name.typ`, `name-deduxit.typ` (Typst's own
 /// layout) and `name.svg`, which the `export` check compiles and renders.
 fn pin_term<'a>(name: &str, derivation: impl Into<Drawable<'a>> + Copy) {
     let term = Some(deduxit::lambda::Options::default().with_types(true));
@@ -269,9 +269,9 @@ fn pin_term<'a>(name: &str, derivation: impl Into<Drawable<'a>> + Copy) {
     let typ = written(|out| typst::write(derivation, &typst, out, |_| false));
     assert!(typ.contains("#stack("), "{typ}");
     snapshot(&format!("{name}.typ"), &typ);
-    typst.layout = typst::Layout::Linlog;
+    typst.layout = typst::Layout::Deduxit;
     snapshot(
-        &format!("{name}-linlog.typ"),
+        &format!("{name}-deduxit.typ"),
         &written(|out| typst::write(derivation, &typst, out, |_| false)),
     );
     let mut style = Style::default();
@@ -456,7 +456,7 @@ fn every_label() {
         if name.starts_with("labels") {
             pin_certificate(name, &derivation);
         } else {
-            pin_linlog(name, &derivation);
+            pin_deduxit(name, &derivation);
         }
         if name == "labels_ill" {
             pin_fragments(name, &derivation, Labels::Subscript, OpenGoal::Dots);
@@ -474,7 +474,7 @@ fn every_label() {
         let derivation = derivation.unwrap();
         rules.extend(derivation.inferences().iter().map(Inference::rule));
         pin(name, &derivation);
-        pin_linlog(name, &derivation);
+        pin_deduxit(name, &derivation);
     }
     // First-order derivations of proofs written by hand: the quantifier
     // rules one-sided, and two-sided as `∀R`, `∀L`, `∃R` and `∃L`, every
@@ -555,7 +555,7 @@ fn a_font_of_the_callers_sets_the_widths() {
 }
 
 /// The committed first-order proofs that their check accepts are pinned
-/// as certificates for linlog's library, one-sided and two-sided, with
+/// as certificates for deduxit's library, one-sided and two-sided, with
 /// their cuts, which the flake's `rocq-linlog` check compiles; with no
 /// kernel named a first-order derivation goes to the library, and
 /// NanoYalla, whose formulas have no quantifier, refuses it.
@@ -596,7 +596,7 @@ fn first_order_certificates() {
         let derivation = proof
             .derivation_within(&view, &Limits::default(), |_| false)
             .unwrap();
-        pin_linlog(&format!("first_order_{name}"), &derivation);
+        pin_deduxit(&format!("first_order_{name}"), &derivation);
     }
     let proof = proof("forall x. p(x) |- exists y. p(y)", Mode::CLASSICAL);
     let derivation = proof.derivation().unwrap();
@@ -618,7 +618,7 @@ fn first_order_certificates() {
 /// certificate; the lemma's name and the prelude are options; a proof
 /// with Mix or with the weakening of affine mode has no certificate for
 /// NanoYalla. With no kernel named, the mode chooses: NanoYalla for
-/// classical linear logic, linlog's library for the others.
+/// classical linear logic, deduxit's library for the others.
 #[test]
 fn certificates() {
     let ll = proof("!(A & B) |- !A * !B", Mode::CLASSICAL);
@@ -969,7 +969,7 @@ fn cut_elimination_is_drawn() {
             None => assert!(!svg.contains(r#"id="c"#), "{svg}"),
         }
     };
-    let looks = [NetLook::LINLOG, NetLook::TEXTBOOK];
+    let looks = [NetLook::DEDUXIT, NetLook::TEXTBOOK];
     let drawings = [NetDrawing::Formulas, NetDrawing::Compact];
     let styles: Vec<Style> = looks
         .iter()
@@ -1195,7 +1195,7 @@ fn a_label_of_no_width_in_no_room_is_drawn() {
     )
     .unwrap();
     let style = Style::default()
-        .with_net_look(NetLook::LINLOG.with_why_not(WhyNot::Rules))
+        .with_net_look(NetLook::DEDUXIT.with_why_not(WhyNot::Rules))
         .with_node_radius(0)
         .with_font(Font::euler().with_advances(Advances::Fixed(0)));
     let svg = svg::mell_net(&net, &style, &unbounded(), |_| false).unwrap();
@@ -1224,13 +1224,13 @@ fn net_looks() {
         .unwrap()
     };
     let looks = [
-        ("", NetLook::LINLOG),
-        ("-plain", NetLook::LINLOG.with_premises(Premises::Plain)),
+        ("", NetLook::DEDUXIT),
+        ("-plain", NetLook::DEDUXIT.with_premises(Premises::Plain)),
         (
             "-bottom",
-            NetLook::LINLOG.with_conclusions(Conclusions::Bottom),
+            NetLook::DEDUXIT.with_conclusions(Conclusions::Bottom),
         ),
-        ("-rules", NetLook::LINLOG.with_why_not(WhyNot::Rules)),
+        ("-rules", NetLook::DEDUXIT.with_why_not(WhyNot::Rules)),
         ("-textbook", NetLook::TEXTBOOK),
     ];
     for (name, input, looks) in [
@@ -1277,8 +1277,8 @@ fn net_looks() {
     let cases = drawings.into_iter().flat_map(|d| {
         [
             (&six, d, NetLook::TEXTBOOK, 6),
-            (&six, d, NetLook::LINLOG, 6),
-            (&doors, d, NetLook::LINLOG, 6),
+            (&six, d, NetLook::DEDUXIT, 6),
+            (&doors, d, NetLook::DEDUXIT, 6),
         ]
     });
     for (net, drawing, look, count) in cases {
@@ -1317,7 +1317,7 @@ fn net_looks() {
             let style = Style::default().with_net(drawing).with_net_look(look);
             svg::net(&net, &style, &unbounded(), |_| false).unwrap()
         };
-        let plain = drawn(NetLook::LINLOG.with_premises(Premises::Plain));
+        let plain = drawn(NetLook::DEDUXIT.with_premises(Premises::Plain));
         assert!(!plain.contains("stroke-dasharray"), "{plain}");
         assert_eq!(drawn(NetLook::TEXTBOOK), plain);
         snapshot(&format!("net-plain{suffix}.svg"), &plain);
@@ -1471,13 +1471,13 @@ fn essential_nets() {
         (
             "essential-boxes",
             &copies,
-            NetLook::LINLOG,
+            NetLook::DEDUXIT,
             NetDrawing::Formulas,
         ),
         (
             "essential-boxes-compact",
             &copies,
-            NetLook::LINLOG,
+            NetLook::DEDUXIT,
             NetDrawing::Compact,
         ),
         (
@@ -1495,7 +1495,7 @@ fn essential_nets() {
         (
             "essential-boxes-implication",
             &implication,
-            NetLook::LINLOG,
+            NetLook::DEDUXIT,
             NetDrawing::Formulas,
         ),
     ] {
@@ -1808,7 +1808,7 @@ fn render_bounds_come_first() {
             ..
         }))
     ));
-    // What no drawing of linlog has is refused before the estimate, which
+    // What no drawing of deduxit has is refused before the estimate, which
     // could not see its cost: six levels of seven `<use>` over a `<rect>`
     // took 227 MB under a bound of 64 MiB.
     for svg in [
@@ -1851,7 +1851,7 @@ fn disproof(input: &str, mode: Mode) -> deduxit::Disproof {
 }
 
 /// Every refutation `Disproof::check` accepts has a certificate for
-/// linlog's library, one-sided and two-sided, pinned as
+/// deduxit's library, one-sided and two-sided, pinned as
 /// `linlog/refuted_*.v`, which the `rocq-linlog` check compiles, but the
 /// count equation of a sequent with a quantifier; an exhausted search,
 /// and NanoYalla, have none. An ordinary sequent whose image an

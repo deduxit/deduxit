@@ -23,10 +23,10 @@
 # target/mutation/LABEL/BATCH/ (target/mutants/ is where the cargo
 # profile of that name builds).
 #
-# It runs as the user unit `linlog-mutants' on cores 6 to 11, three
+# It runs as the user unit `deduxit-mutants' on cores 6 to 11, three
 # mutants at a time, with 24 GiB and no swap for all of it:
-# `journalctl --user -fu linlog-mutants' follows it, `systemctl --user
-# stop linlog-mutants' stops it.
+# `journalctl --user -fu deduxit-mutants' follows it, `systemctl --user
+# stop deduxit-mutants' stops it.
 set -euo pipefail
 self=$(realpath "$0")
 cd "$(dirname "$self")/.."
@@ -61,11 +61,11 @@ if [ "${1:-}" = --compare ]; then
 fi
 
 if [ "${1:-}" != --inside ]; then
-  systemctl --user reset-failed linlog-mutants.service 2>/dev/null || true
-  systemd-run --user --unit=linlog-mutants --same-dir --collect \
+  systemctl --user reset-failed deduxit-mutants.service 2>/dev/null || true
+  systemd-run --user --unit=deduxit-mutants --same-dir --collect \
     -p MemoryMax=24G -p MemorySwapMax=0 -p OOMPolicy=continue -p LimitCORE=0 \
     --setenv=PATH="$PATH" "$self" --inside "$@"
-  echo "follow it with: journalctl --user -fu linlog-mutants"
+  echo "follow it with: journalctl --user -fu deduxit-mutants"
   exit
 fi
 shift

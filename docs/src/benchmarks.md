@@ -150,7 +150,7 @@ again without `--fresh` finishes a stopped baseline).
 Every baseline keeps a directory of its own named by the day it started,
 `bench/results/DAY/`: the CSV files of its runs, `starts.txt` with the
 commit measured, and its tables in `RESULTS.md`, which `bench/RESULTS.md`
-copies for the latest baseline; `journalctl --user -fu linlog-baseline`
+copies for the latest baseline; `journalctl --user -fu deduxit-baseline`
 follows it. A last stage runs again, with more time before the kill and
 more memory, the runs that `bench/reruns.txt` lists: those of an earlier
 baseline that were killed or crashed and that measurement showed to
@@ -171,24 +171,24 @@ within 5 s where the first decided 737, the second 2 047 and the third
 fourth decides 4 124 of the 4 495.
 
 `run --tools` runs the same problems through other provers of linear
-logic beside linlog's command, each built by the flake at a pinned
+logic beside deduxit's command, each built by the flake at a pinned
 version (`nix build .#comparison` has them all, with BenchExec): every
 problem is translated into each tool's syntax, every run is a process
 measured by BenchExec's `runexec` under the same time and memory limit
 (`--timeout`, `--memory-limit`, 4 GiB by default), and a problem outside a
 tool's fragment or mode is a row of its own and not run. `ranking`
 prints the comparison: the problems each tool solves within the limit,
-per group of problems, linlog on one thread against each tool, and every
+per group of problems, deduxit on one thread against each tool, and every
 problem on which tools contradict each other or the known verdict.
 `--shard K/N` runs every N-th problem from the K-th, so that jobs on
 several machines split a set.
 
 ```console
-$ deduxit-bench run --tools linlog,maude-ill,sympli --lltp lltp/ILL/ILLTP-SYJ-01 --only SYJ101+1,SYJ105+1.003 --timeout 10 --output tools.csv
-[1/6] ILLTP-SYJ-01/SYJ101+1.p linlog: proved  3.4 ms, about 0 min left
+$ deduxit-bench run --tools deduxit,maude-ill,sympli --lltp lltp/ILL/ILLTP-SYJ-01 --only SYJ101+1,SYJ105+1.003 --timeout 10 --output tools.csv
+[1/6] ILLTP-SYJ-01/SYJ101+1.p deduxit: proved  3.4 ms, about 0 min left
 [2/6] ILLTP-SYJ-01/SYJ101+1.p maude-ill: proved  89.8 ms, about 0 min left
 [3/6] ILLTP-SYJ-01/SYJ101+1.p sympli: proved  11.7 ms, about 0 min left
-[4/6] ILLTP-SYJ-01/SYJ105+1.003.p linlog: unprovable  4.0 ms, about 0 min left
+[4/6] ILLTP-SYJ-01/SYJ105+1.003.p deduxit: unprovable  4.0 ms, about 0 min left
 [5/6] ILLTP-SYJ-01/SYJ105+1.003.p maude-ill: unknown copy_bound 131.5 ms, about 0 min left
 [6/6] ILLTP-SYJ-01/SYJ105+1.003.p sympli: unprovable  3.0 ms, about 0 min left
 
@@ -198,13 +198,13 @@ $ deduxit-bench ranking tools.csv
 
 | tool | solved | proved | unprovable | wrong | late | time | memory | gave up | error | outside | against the header |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| linlog | 2 | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
+| deduxit | 2 | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
 | sympli | 2 | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
 | maude-ill | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 |
 …
 ```
 
-(linlog's and Sympli's refutations of SYJ105+1.003 count as solved and
+(deduxit's and Sympli's refutations of SYJ105+1.003 count as solved and
 against the file's header, which says Theorem; the formula has a
 classical countermodel, `a` and `b` false, so the header is what is
 wrong.)
@@ -217,7 +217,7 @@ What the comparison with the other provers covers, run by run; a run
 of the other provers beside the engines of 0.2.0 joins this table as a
 row and its chapter as a page:
 
-| run | linlog | problems | other provers | chapter |
+| run | deduxit | problems | other provers | chapter |
 |---|---|---|---|---|
 | 2026-10-15 | the engines of 0.1.0 | the LLTP library, qcover's coverability problems and the generated families, 4 811 | the eight of the table below | [Beside the other provers, 2026-10-15](results/provers-2026-10-15.md) |
 | 2026-10-30 | the first-order search of 0.2.0 | `lambek-fo` and `witness-fo`, 36 | LinearOne | [First order against LinearOne, 2026-10-30](results/first-order-2026-10-30.md) |
@@ -237,7 +237,7 @@ and the results of running all of them on the same problems.
 
 | prover | fragments | modes | refutes | checked proofs | licence |
 |---|---|---|---|---|---|
-| linlog | MLL to LL, units | classical, intuitionistic, affine, Mix, cyclic and Lambek (MLL) | ✓ | ✓ (and Rocq certificates) | EUPL-1.2 |
+| deduxit | MLL to LL, units | classical, intuitionistic, affine, Mix, cyclic and Lambek (MLL) | ✓ | ✓ (and Rocq certificates) | EUPL-1.2 |
 | Maude LL prover | LL, ILL | classical, intuitionistic | without `!` | ✗ | none stated |
 | llprover | first-order LL | classical, intuitionistic | without `!`, `?` | ✗ | none formal |
 | linTAP | MLL with `?` | classical | without `?` | ✗ | GPL |
@@ -250,20 +250,20 @@ and the results of running all of them on the same problems.
 
 On the same 4 811 problems (the LLTP library, qcover's coverability
 problems and the generated families), each run under 10 s and 4 GiB on
-one core and measured by BenchExec, linlog on one thread solves 4 181,
+one core and measured by BenchExec, deduxit on one thread solves 4 181,
 Sympli 1 684, the Maude prover 768 with its intuitionistic system and
 31 with its classical one, APLL 612 and 31, llprover 479 and 11, Click &
 coLLecT 31, LinearOne 69, linTAP 15 and lolli 14, each of the problems
-in its own fragment and modes. Most of linlog's lead is the library's
+in its own fragment and modes. Most of deduxit's lead is the library's
 3 137 Petri nets, which it decides with an engine of its own (3 072,
 against Sympli's 811). On the other 1 358 intuitionistic problems Sympli
-solves the most, 873 against linlog's 829 (852 by its default), and 132
-that linlog does not, mostly refutations of the SYJ collections. No tool proves a
-sequent linlog refutes; APLL and Click & coLLecT refute provable
+solves the most, 873 against deduxit's 829 (852 by its default), and 132
+that deduxit does not, mostly refutations of the SYJ collections. No tool proves a
+sequent deduxit refutes; APLL and Click & coLLecT refute provable
 sequents, 1 308 and 12 of them, every one by an overflow in the
 search the two share, from 63 formulas beside a `⊗` ([the growing
 sets' comparison](results/provers-2026-11-03.md#the-wrong-refutations)). On the first-order families in
 LinearOne's fragment (28 problems) the two agree wherever both decide:
-LinearOne decides all 28 and linlog 25, the other three ending at its
+LinearOne decides all 28 and deduxit 25, the other three ending at its
 recursion and time limits (`bench/TOOLS.md`, "The first-order
 families").

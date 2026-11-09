@@ -12,7 +12,7 @@ use deduxit::{Clock, Limits, Settings};
 use serde_json::Value;
 
 /// The stack the module is linked with (`build.rs`), in bytes.
-pub const STACK_BYTES: usize = parse(env!("LINLOG_WEB_STACK_BYTES"));
+pub const STACK_BYTES: usize = parse(env!("DEDUXIT_WEB_STACK_BYTES"));
 
 /// The memory bound of a call: 96 MiB. A tab on iOS gets about 256 MiB of
 /// WebAssembly memory in all; what the bound does not count (the forest,

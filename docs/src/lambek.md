@@ -12,9 +12,9 @@ calculus reads it, and derivations are two-sided with the divisions'
 rules:
 
 ```console
-$ linlog seq print --lambek "b / a, a |- b"
+$ deduxit seq print --lambek "b / a, a |- b"
 b / a, a ⊢ b
-$ linlog prove --lambek "c / b, a, a \ b |- c"
+$ deduxit prove --lambek "c / b, a, a \ b |- c"
 provable (IMLL, Lambek, essential engine)
 ───── ax   ───── ax
 b ⊢ b      c ⊢ c
@@ -22,11 +22,11 @@ b ⊢ b      c ⊢ c
   c / b, b ⊢ c        a ⊢ a
   ───────────────────────── \L
      c / b, a, a \ b ⊢ c
-$ linlog prove --lambek "a, b |- b * a"
+$ deduxit prove --lambek "a, b |- b * a"
 unprovable (IMLL, Lambek, essential engine): the search was exhaustive
-$ linlog prove --lambek "e |- e * (a \ a)"
+$ deduxit prove --lambek "e |- e * (a \ a)"
 unprovable (IMLL, Lambek, essential engine): the search was exhaustive
-$ linlog prove --lambek --empty-antecedents "e |- e * (a \ a)"
+$ deduxit prove --lambek --empty-antecedents "e |- e * (a \ a)"
 provable (IMLL, Lambek with empty antecedents, essential engine)
             ───── ax
             a ⊢ a
@@ -34,7 +34,7 @@ provable (IMLL, Lambek with empty antecedents, essential engine)
 e ⊢ e      ⊢ a \ a
 ────────────────── ⊗R
  e ⊢ e ⊗ (a \ a)
-$ linlog prove --lambek "|- a \ a"
+$ deduxit prove --lambek "|- a \ a"
 error: not an intuitionistic sequent: the sequent has no formula left of ⊢, which the Lambek calculus without empty antecedents needs
 ```
 

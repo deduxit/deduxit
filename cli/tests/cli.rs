@@ -1,7 +1,7 @@
 // linlog © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The `linlog` binary end to end: verdicts, exit statuses, the JSON round
+//! The `deduxit` binary end to end: verdicts, exit statuses, the JSON round
 //! trip from `prove` to `check`, the interactive session, the `seq`
 //! commands and the help text.
 
@@ -12,14 +12,14 @@ use std::process::{Command, Stdio};
 mod common;
 use common::timeless;
 
-/// Runs `linlog` with the arguments and `stdin` as standard input, and
+/// Runs `deduxit` with the arguments and `stdin` as standard input, and
 /// returns the exit status, standard output and standard error.
 ///
 /// A machine of fewer threads than a call's `--jobs` adds a note that it
 /// takes fewer, which is left out of standard error here
 /// (`jobs_are_bounded` pins it).
-fn linlog(args: &[&str], stdin: &str) -> (i32, String, String) {
-    let (status, out, err) = linlog_as_is(args, stdin);
+fn deduxit(args: &[&str], stdin: &str) -> (i32, String, String) {
+    let (status, out, err) = deduxit_as_is(args, stdin);
     let err: String = err
         .split_inclusive('\n')
         .filter(|line| !line.starts_with("note: --jobs "))
@@ -35,10 +35,13 @@ fn without_mode(json: &str) -> String {
     proof.to_string()
 }
 
-/// Runs `linlog` as [`linlog`] does, and returns its standard error as
+/// Runs `deduxit` as [`deduxit`] does, and returns its standard error as
 /// it is.
-fn linlog_as_is(args: &[&str], stdin: &str) -> (i32, String, String) {
-    let out = common::output(Command::new(env!("CARGO_BIN_EXE_linlog")).args(args), stdin);
+fn deduxit_as_is(args: &[&str], stdin: &str) -> (i32, String, String) {
+    let out = common::output(
+        Command::new(env!("CARGO_BIN_EXE_deduxit")).args(args),
+        stdin,
+    );
     (
         out.status.code().unwrap(),
         String::from_utf8(out.stdout).unwrap(),
@@ -53,7 +56,7 @@ fn linlog_as_is(args: &[&str], stdin: &str) -> (i32, String, String) {
 #[test]
 fn parse_errors() {
     let error = |args: &[&str], stdin: &str| {
-        let (status, out, err) = linlog(args, stdin);
+        let (status, out, err) = deduxit(args, stdin);
         assert_eq!((status, out.as_str()), (2, ""), "{err}");
         err
     };
@@ -106,7 +109,7 @@ fn timeout() {
             &[&sequent],
         ]
         .concat();
-        let (status, out, err) = linlog(&args, "");
+        let (status, out, err) = deduxit(&args, "");
         assert_eq!(
             (status, out.as_str(), err.as_str()),
             (
@@ -119,7 +122,7 @@ fn timeout() {
     }
     // By default the classical refutation answers the search the time
     // limit ended, after it.
-    let (status, out, _) = linlog(&["prove", "-a", "--timeout", "200ms", &sequent], "");
+    let (status, out, _) = deduxit(&["prove", "-a", "--timeout", "200ms", &sequent], "");
     assert_eq!(status, 1, "{out}");
     assert!(
         out.starts_with(
@@ -130,7 +133,7 @@ fn timeout() {
     );
 
     // Standard input stays open and empty until the command has answered.
-    let mut child = Command::new(env!("CARGO_BIN_EXE_linlog"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_deduxit"))
         .args(["prove", "--timeout", "100ms"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -170,7 +173,7 @@ fn limits_on_memory_and_occurrences() {
             &[&sequent],
         ]
         .concat();
-        let (status, out, err) = linlog(&args, "");
+        let (status, out, err) = deduxit(&args, "");
         assert_eq!(
             (status, timeless(&out), err),
             (
@@ -188,7 +191,7 @@ fn limits_on_memory_and_occurrences() {
     // beside the sequent under bounds from about 920 KiB, and the check of
     // its proof beside the sequent only from about 1 040 KiB.
     let counter = format!("!(a -o a * b), a |- a * {}", vec!["b"; 3000].join(" * "));
-    let (status, out, err) = linlog(&["prove", "-i", "--memory-limit", "960KiB", &counter], "");
+    let (status, out, err) = deduxit(&["prove", "-i", "--memory-limit", "960KiB", &counter], "");
     assert_eq!(
         (status, timeless(&out), err),
         (
@@ -211,7 +214,7 @@ fn limits_on_memory_and_occurrences() {
         &["seq", "print"],
         &["seq", "fragment"],
     ] {
-        let (status, out, err) = linlog(&[command, &["--input-format", "json"]].concat(), &shared);
+        let (status, out, err) = deduxit(&[command, &["--input-format", "json"]].concat(), &shared);
         assert_eq!(
             (status, out.as_str(), err.as_str()),
             (
@@ -222,7 +225,7 @@ fn limits_on_memory_and_occurrences() {
             )
         );
     }
-    let (status, _, err) = linlog(
+    let (status, _, err) = deduxit(
         &["seq", "fragment", "--occurrence-limit", "2", "A |- A * A"],
         "",
     );
@@ -235,7 +238,7 @@ fn limits_on_memory_and_occurrences() {
         )
     );
     assert_eq!(
-        linlog(
+        deduxit(
             &["seq", "fragment", "--occurrence-limit", "none", "A |- A"],
             ""
         ),
@@ -254,10 +257,10 @@ fn check_advises_only_the_limit_that_refused() {
         r#"{{"version":1,"sequent":{{"terms":[{{"V":0}},{}],"roots":[32],"atoms":["A"]}},"nodes":[]}}"#,
         doublings.join(",")
     );
-    let (status, _, err) = linlog(&["check", "--occurrence-limit", "none"], &proof);
+    let (status, _, err) = deduxit(&["check", "--occurrence-limit", "none"], &proof);
     assert_eq!(status, 2, "{err}");
     assert!(!err.contains("--occurrence-limit"), "{err}");
-    let (status, _, err) = linlog(&["check"], &proof);
+    let (status, _, err) = deduxit(&["check"], &proof);
     assert_eq!(status, 2, "{err}");
     assert!(
         err.ends_with("; raise it with --occurrence-limit\n"),
@@ -270,7 +273,7 @@ fn check_advises_only_the_limit_that_refused() {
 /// search's.
 #[test]
 fn jobs_are_bounded() {
-    let (status, out, err) = linlog_as_is(&["prove", "--quiet", "--jobs", "100000", "A |- A"], "");
+    let (status, out, err) = deduxit_as_is(&["prove", "--quiet", "--jobs", "100000", "A |- A"], "");
     assert_eq!(
         (status, out.as_str()),
         (0, "provable (MLL, classical, focus engine)\n")
@@ -292,7 +295,7 @@ fn jobs_are_bounded() {
 fn derivation_limit_and_tree_switch() {
     let sequent = "A, A -o B |- B";
     let verdict = "provable (MLL, classical, focus engine)\n";
-    let (status, out, err) = linlog(
+    let (status, out, err) = deduxit(
         &[
             "prove",
             "--format",
@@ -309,9 +312,9 @@ fn derivation_limit_and_tree_switch() {
         "{out}{err}"
     );
 
-    let (_, whole, _) = linlog(&["prove", sequent], "");
+    let (_, whole, _) = deduxit(&["prove", sequent], "");
     for when in ["always", "auto"] {
-        let (status, out, err) = linlog(
+        let (status, out, err) = deduxit(
             &[
                 "prove",
                 "--tree",
@@ -324,12 +327,12 @@ fn derivation_limit_and_tree_switch() {
         );
         assert_eq!((status, out, err), (0, whole.clone(), String::new()));
     }
-    let (status, out, err) = linlog(&["prove", "--tree", "never", sequent], "");
+    let (status, out, err) = deduxit(&["prove", "--tree", "never", sequent], "");
     assert_eq!((status, out.as_str(), err.as_str()), (0, verdict, ""));
 
     // `check` is under the same limit.
-    let (_, proof, _) = linlog(&["prove", "--format", "json", sequent], "");
-    let (status, out, err) = linlog(&["check", "--derivation-limit", "100"], &proof);
+    let (_, proof, _) = deduxit(&["prove", "--format", "json", sequent], "");
+    let (status, out, err) = deduxit(&["check", "--derivation-limit", "100"], &proof);
     assert_eq!(
         (status, out.as_str()),
         (0, "valid proof of ⊢ ~A, A ⊗ ~B, B (classical)\n")
@@ -349,7 +352,7 @@ fn bounded_drawings() {
     let file = scratch("bounded.pdf");
     let path = file.to_str().unwrap();
     let args = ["prove", "-o", path, "--memory-limit", "1000", "A |- A"];
-    let (status, out, err) = linlog(&args, "");
+    let (status, out, err) = deduxit(&args, "");
     assert_eq!((status, out.as_str()), (0, ""));
     assert!(
         err.starts_with(
@@ -368,7 +371,7 @@ fn bounded_drawings() {
         "--derivation-limit",
         "100",
     ];
-    let (status, out, err) = linlog(&[&net[..], &["A * B |- B * A"]].concat(), "");
+    let (status, out, err) = deduxit(&[&net[..], &["A * B |- B * A"]].concat(), "");
     assert_eq!((status, out.as_str()), (0, ""));
     assert!(
         err.contains("the proof net is not drawn: its 6 occurrences and 2 links are estimated at ")
@@ -385,7 +388,7 @@ fn bounded_drawings() {
         "-o",
         file.to_str().unwrap(),
     ];
-    let (status, _, err) = linlog(
+    let (status, _, err) = deduxit(
         &[&args[..], &["--memory-limit", "1KiB", "A |- A"]].concat(),
         "",
     );
@@ -398,7 +401,7 @@ fn bounded_drawings() {
 /// provable, 1 for unprovable, 3 for unknown and 2 for an error.
 #[test]
 fn prove_verdicts_and_exit_statuses() {
-    let (status, out, _) = linlog(&["prove", "A, A -o B |- B"], "");
+    let (status, out, _) = deduxit(&["prove", "A, A -o B |- B"], "");
     assert_eq!(status, 0);
     assert_eq!(
         out,
@@ -468,14 +471,14 @@ fn prove_verdicts_and_exit_statuses() {
             "provable (MLL, classical affine, focus engine)",
         ),
     ] {
-        let (code, out, err) = linlog(args, "");
+        let (code, out, err) = deduxit(args, "");
         assert_eq!(
             (code, timeless(&out), err),
             (status, format!("{line}\n"), String::new())
         );
     }
 
-    let (status, out, _) = linlog(
+    let (status, out, _) = deduxit(
         &[
             "prove",
             "-q",
@@ -511,7 +514,7 @@ fn prove_verdicts_and_exit_statuses() {
             "outside the asserted fragment MLL",
         ),
     ] {
-        let (status, out, err) = linlog(args, "");
+        let (status, out, err) = deduxit(args, "");
         assert_eq!((status, out.as_str()), (2, ""), "{args:?}");
         assert!(err.contains(error), "{args:?}: {err}");
     }
@@ -523,7 +526,7 @@ fn prove_verdicts_and_exit_statuses() {
 /// no intuitionistic reading is an error that names the subformula.
 #[test]
 fn intuitionistic_mode() {
-    let (status, out, _) = linlog(&["prove", "-i", "A, A -o B |- B"], "");
+    let (status, out, _) = deduxit(&["prove", "-i", "A, A -o B |- B"], "");
     assert_eq!(status, 0);
     assert_eq!(
         out,
@@ -567,7 +570,7 @@ fn intuitionistic_mode() {
             "provable (ALL, classical, additive engine)",
         ),
     ] {
-        let (got, out, err) = linlog(args, "");
+        let (got, out, err) = deduxit(args, "");
         assert_eq!(got, status, "{args:?}: {err}");
         assert_eq!(out.lines().next(), Some(line), "{args:?}");
     }
@@ -594,18 +597,18 @@ fn intuitionistic_mode() {
             "the additive engine decides a sequent of two additive-only formulas, not one of MLL",
         ),
     ] {
-        let (status, out, err) = linlog(args, "");
+        let (status, out, err) = deduxit(args, "");
         assert_eq!((status, out.as_str()), (2, ""), "{args:?}");
         assert!(err.contains(error), "{args:?}: {err}");
     }
 
-    let (status, json, _) = linlog(&["prove", "-i", "--format", "json", "A & B |- B"], "");
+    let (status, json, _) = deduxit(&["prove", "-i", "--format", "json", "A & B |- B"], "");
     assert_eq!(status, 0);
     assert!(
         json.contains(r#""verdict":"proved","checked":true,"fragment":"IALL","#),
         "{json}"
     );
-    let (status, out, _) = linlog(&["check", "-i"], &json);
+    let (status, out, _) = deduxit(&["check", "-i"], &json);
     assert_eq!(status, 0);
     assert_eq!(
         out,
@@ -618,24 +621,24 @@ fn intuitionistic_mode() {
     // The classical proof of a sequent classical linear logic proves and
     // intuitionistic linear logic does not is an invalid proof under -i.
     let schellinx = "((A * top) & (B * top)) -o 0 |- (A -o C) + (B -o C)";
-    let (status, json, _) = linlog(&["prove", "--format", "json", schellinx], "");
+    let (status, json, _) = deduxit(&["prove", "--format", "json", schellinx], "");
     assert_eq!(status, 0);
-    let (status, out, _) = linlog(&["check", "-i", "-q"], &without_mode(&json));
+    let (status, out, _) = deduxit(&["check", "-i", "-q"], &without_mode(&json));
     assert_eq!(status, 1);
     assert!(
         out.contains("a sequent of the rule has 2 formulas on the right of ⊢ instead of one"),
         "{out}"
     );
 
-    let (status, out, _) = linlog(&["seq", "print", "-i", "A, A -o B |- B"], "");
+    let (status, out, _) = deduxit(&["seq", "print", "-i", "A, A -o B |- B"], "");
     assert_eq!((status, out.as_str()), (0, "A, A ⊸ B ⊢ B\n"));
-    let (status, _, err) = linlog(&["seq", "print", "-i", "A, B |-"], "");
+    let (status, _, err) = deduxit(&["seq", "print", "-i", "A, B |-"], "");
     assert_eq!(status, 2);
     assert!(
         err.contains("exactly one formula right of ⊢, not 0"),
         "{err}"
     );
-    let (status, out, _) = linlog(&["seq", "fragment", "-i", "!A |- A & 1"], "");
+    let (status, out, _) = deduxit(&["seq", "fragment", "-i", "!A |- A & 1"], "");
     assert_eq!((status, out.as_str()), (0, "ILL\n"));
 }
 
@@ -655,7 +658,7 @@ fn ordinary_session() {
         s = session.display()
     );
     let line = ["interact", "--logic", "intuitionistic", "a -> b, a |- b"];
-    let (status, out, err) = linlog(&line, &script);
+    let (status, out, err) = deduxit(&line, &script);
     assert_eq!(
         out,
         format!(
@@ -672,7 +675,7 @@ fn ordinary_session() {
     );
     assert_eq!((status, err.as_str()), (1, ""));
     let script = "apply 1 L0 ax\napply 2 L0 ax\nproof\n";
-    let (status, out, err) = linlog(&["interact", "--state", session.to_str().unwrap()], script);
+    let (status, out, err) = deduxit(&["interact", "--state", session.to_str().unwrap()], script);
     assert_eq!(
         out,
         "closed\n\
@@ -687,7 +690,7 @@ fn ordinary_session() {
     std::fs::remove_dir_all(&dir).unwrap();
 
     let line = ["interact", "--logic", "classical", "a, b |- a, c"];
-    let (status, out, _) = linlog(&line, "apply 0 L0 ax\nshow\n");
+    let (status, out, _) = deduxit(&line, "apply 0 L0 ax\nshow\n");
     assert_eq!(
         (status, out.as_str()),
         (
@@ -698,7 +701,7 @@ fn ordinary_session() {
         )
     );
     let line = [&line[..], &["--structural", "explicit"]].concat();
-    let (_, out, _) = linlog(&line, "apply 0 L0 ax\nshow\n");
+    let (_, out, _) = deduxit(&line, "apply 0 L0 ax\nshow\n");
     assert_eq!(
         out,
         "closed; no goal is open: `proof` checks the proof\n\
@@ -727,7 +730,7 @@ fn interactive_session() {
         "goals\nrules 0 1\napply 0 1 par\napply 0 1 * 0\napply 1 0 ax\nundo\nsave {s}\nquit\n",
         s = session.display()
     );
-    let (status, out, err) = linlog(&["interact", "A, A -o B |- B"], &script);
+    let (status, out, err) = deduxit(&["interact", "A, A -o B |- B"], &script);
     assert_eq!(
         out,
         format!(
@@ -747,7 +750,7 @@ fn interactive_session() {
         "close 1\napply 2 1 ax\nshow\nproof {p}\n",
         p = proof.display()
     );
-    let (status, out, err) = linlog(&["interact", "--state", session.to_str().unwrap()], &script);
+    let (status, out, err) = deduxit(&["interact", "--state", session.to_str().unwrap()], &script);
     assert_eq!(
         out,
         format!(
@@ -762,14 +765,14 @@ fn interactive_session() {
         )
     );
     assert_eq!((status, err.as_str()), (0, ""));
-    let (status, _, _) = linlog(&["check", "-q", proof.to_str().unwrap()], "");
+    let (status, _, _) = deduxit(&["check", "-q", proof.to_str().unwrap()], "");
     assert_eq!(status, 0);
     std::fs::remove_dir_all(&dir).unwrap();
 
     // Two-sided: the goals show both sides, the rules their ILL names, and
     // a split that leaves two goals on a side is refused.
     let script = "goals\nrules 0 1\napply 0 1 -oL 2\napply 0 1 -oL 0\nclose\nproof\n";
-    let (status, out, err) = linlog(&["interact", "-i", "A, A -o B |- B"], script);
+    let (status, out, err) = deduxit(&["interact", "-i", "A, A -o B |- B"], script);
     assert_eq!(
         out,
         "goal 0: 0: A, 1: A ⊸ B ⊢ 2: B\n\
@@ -798,7 +801,7 @@ fn interactive_session() {
         "cut 0 \"A * * B\"\ncut 0 \"A -o B\" 1\nclose\nproof {p}\n",
         p = proof.display()
     );
-    let (status, out, err) = linlog(&["interact", "A, A -o B |- B"], &script);
+    let (status, out, err) = deduxit(&["interact", "A, A -o B |- B"], &script);
     assert_eq!(
         out,
         format!(
@@ -814,23 +817,23 @@ fn interactive_session() {
         )
     );
     assert_eq!((status, err.as_str()), (0, ""));
-    let (status, _, _) = linlog(&["check", "-q", proof.to_str().unwrap()], "");
+    let (status, _, _) = deduxit(&["check", "-q", proof.to_str().unwrap()], "");
     assert_eq!(status, 0);
     // Its elimination: to the end, done; the one step asked for, done with
     // a cut left; a bound on nodes the first step passes, unknown with the
     // proof given; one step asked for by a settings file, done.
     let file = proof.to_str().unwrap();
     let last = |out: &str| out.lines().last().unwrap_or_default().to_owned();
-    let (status, out, _) = linlog(&["eliminate", "-q", file], "");
+    let (status, out, _) = deduxit(&["eliminate", "-q", file], "");
     assert!(last(&out).starts_with("cut-free proof of"), "{out}");
     assert_eq!(status, 0);
-    let (status, out, _) = linlog(&["eliminate", "-q", "--steps=1", file], "");
+    let (status, out, _) = deduxit(&["eliminate", "-q", "--steps=1", file], "");
     assert!(
         last(&out).contains("left after 1 step: the elimination took"),
         "{out}"
     );
     assert_eq!(status, 0);
-    let (status, out, _) = linlog(&["eliminate", "-q", "--node-limit", "1", file], "");
+    let (status, out, _) = deduxit(&["eliminate", "-q", "--node-limit", "1", file], "");
     assert!(last(&out).contains("--node-limit N"), "{out}");
     assert_eq!(status, 3);
     let settings = dir.join("settings.json");
@@ -842,13 +845,13 @@ fn interactive_session() {
         settings.to_str().unwrap(),
         file,
     ];
-    let (status, _, _) = linlog(&args, "");
+    let (status, _, _) = deduxit(&args, "");
     assert_eq!(status, 0);
     // On its net: the steps, the end cut-free and the net reached; each
     // step's drawing in a file of its own, the cut link the next step
     // reduces highlighted, the last without one; the record in JSON; no
     // drawing without a file to number.
-    let (status, out, _) = linlog(&["eliminate", "--net", file], "");
+    let (status, out, _) = deduxit(&["eliminate", "--net", file], "");
     assert!(
         out.starts_with("1. the key case of ⊗ and ⅋ on the cut of ~A ⅋ B\n"),
         "{out}"
@@ -862,7 +865,7 @@ fn interactive_session() {
     assert_eq!(status, 0);
     let drawing = dir.join("net.svg");
     let args = ["eliminate", "--net", "--format", "svg", "--output"];
-    let (status, out, _) = linlog(
+    let (status, out, _) = deduxit(
         &[&args[..], &[drawing.to_str().unwrap(), file]].concat(),
         "",
     );
@@ -890,7 +893,7 @@ fn interactive_session() {
         "--drawings-limit",
         "1",
     ];
-    let (status, out, err) = linlog(
+    let (status, out, err) = deduxit(
         &[&args[..], &["--output", bounded.to_str().unwrap(), file]].concat(),
         "",
     );
@@ -903,7 +906,7 @@ fn interactive_session() {
     assert!(err.contains("--drawings-limit SIZE"), "{err}");
     assert!(!dir.join("bounded-1.svg").exists());
     assert!(bounded.is_file());
-    let (status, json, _) = linlog(&["eliminate", "--net", "--format", "json", file], "");
+    let (status, json, _) = deduxit(&["eliminate", "--net", "--format", "json", file], "");
     assert!(
         json.starts_with(r#"{"version":6,"net":{"sequent":"#)
             && json.contains(r#""steps":[{"cut":["#)
@@ -911,7 +914,7 @@ fn interactive_session() {
         "{json}"
     );
     assert_eq!(status, 0);
-    let (status, _, err) = linlog(&["eliminate", "--net", "--format", "svg", file], "");
+    let (status, _, err) = deduxit(&["eliminate", "--net", "--format", "svg", file], "");
     assert!(err.contains("--output FILE"), "{err}");
     assert_eq!(status, 2);
     // A proof that cuts one occurrence in two branches has a net with
@@ -922,7 +925,7 @@ fn interactive_session() {
         r#"{"version":6,"sequent":{"terms":[{"V":0},{"⊗":[0,0]},{"D":0},{"V":0}],"roots":[1,2,2],"atoms":["a"],"antecedents":0,"cuts":[3]},"nodes":[{"ax":[5,3]},{"ax":[1,6]},{"cut":[5,0,1]},{"ax":[5,4]},{"ax":[2,6]},{"cut":[5,3,4]},{"⊗":[0,2,5]}]}"#,
     )
     .unwrap();
-    let (status, out, _) = linlog(&["eliminate", "-q", "--net", twice.to_str().unwrap()], "");
+    let (status, out, _) = deduxit(&["eliminate", "-q", "--net", twice.to_str().unwrap()], "");
     assert!(
         out.contains("cut-free proof net of ⊢ a ⊗ a, ~a, ~a"),
         "{out}"
@@ -934,7 +937,7 @@ fn interactive_session() {
     // undone alone and the start's invertible steps together.
     let script = "goals\nclose 2\nundo\nundo\nundo\n";
     let args = ["interact", "--invertible", "-i", "A * B, 1 |- B * A"];
-    let (status, out, err) = linlog(&args, script);
+    let (status, out, err) = deduxit(&args, script);
     assert_eq!(
         out,
         "applied 2 invertible steps\n\
@@ -947,7 +950,7 @@ fn interactive_session() {
          nothing to undo\n"
     );
     assert_eq!((status, err.as_str()), (1, ""));
-    let (status, _, err) = linlog(&["interact"], "");
+    let (status, _, err) = deduxit(&["interact"], "");
     assert_eq!(status, 2);
     assert!(err.contains("no sequent given"), "{err}");
 }
@@ -956,19 +959,19 @@ fn interactive_session() {
 /// mode it was found in and rejects in a stricter one.
 #[test]
 fn check_reads_what_prove_writes() {
-    let (status, json, _) = linlog(
+    let (status, json, _) = deduxit(
         &["prove", "--mix", "--format", "json", "|- A par B, ~A, ~B"],
         "",
     );
     assert_eq!(status, 0);
     assert!(json.contains(r#""verdict":"proved","checked":true,"fragment":"MLL","#));
 
-    let (status, out, _) = linlog(&["check", "--mix", "-q"], &json);
+    let (status, out, _) = deduxit(&["check", "--mix", "-q"], &json);
     assert_eq!(
         (status, out.as_str()),
         (0, "valid proof of ⊢ A ⅋ B, ~A, ~B (classical with Mix)\n")
     );
-    let (status, out, _) = linlog(&["check"], &without_mode(&json));
+    let (status, out, _) = deduxit(&["check"], &without_mode(&json));
     assert_eq!(status, 1);
     assert!(
         out.starts_with("invalid proof of ⊢ A ⅋ B, ~A, ~B (classical): node 2 (mix from 0, 1)"),
@@ -983,7 +986,7 @@ fn eliminate_names_a_cut_by_its_instance() {
     // The core tests' `first-order/cut_frame.json`: a cut on `p(a)` whose
     // ∀ step's eigenvariable escapes into the other premise.
     let proof = r#"{"version":7,"sequent":{"terms":[{"V":0},{"∀":0},"⊤",{"V":0},{"∀":3},{"D":0},{"∃":5}],"roots":[1,2],"atoms":[{"P":[0,[0]]}],"symbols":[["p",1]],"fo":[{"B":0}],"binders":["x","x","x"],"antecedents":0,"cuts":[4]},"nodes":[{"⊤":2},{"ax":[7,9]},{"∀":[0,0,1]},{"cut":[8,0,2]}],"instances":{"members":[[1,0],[4,0],[6,0]],"frames":[[null,1]],"terms":[{"E":0}]}}"#;
-    let (status, out, _) = linlog(&["eliminate"], proof);
+    let (status, out, _) = deduxit(&["eliminate"], proof);
     assert_eq!(
         (status, out.as_str()),
         (
@@ -1000,7 +1003,7 @@ fn eliminate_names_a_cut_by_its_instance() {
 #[test]
 fn an_unquoted_cut_formula_is_explained() {
     let script = "cut 0 b & a 0\ncut 0 \"b & a\" x\n";
-    let (_, out, _) = linlog(&["interact", "a & b |- b & a"], script);
+    let (_, out, _) = deduxit(&["interact", "a & b |- b & a"], script);
     assert_eq!(
         out,
         "error: quote a cut formula that has blanks: cut 0 \"b & a\" …: \"&\" is not a \
@@ -1016,7 +1019,7 @@ fn an_eigenvariable_of_exists_left_is_refused_by_its_step() {
     let sequent = "forall x. exists y. r(x, y) |- exists y. forall x. r(x, y)";
     let script = "apply 0 1 existsR\napply 1 1 forallR\napply 2 0 forallL a\n\
                   apply 3 1 existsL\napply 4 0 ax\n";
-    let (_, out, _) = linlog(&["interact", "-i", sequent], script);
+    let (_, out, _) = deduxit(&["interact", "-i", sequent], script);
     assert!(
         out.ends_with(
             "error: the eigenvariable b cannot stand there: no step below this goal introduced \
@@ -1045,7 +1048,7 @@ fn a_batch_s_certificates_are_modules() {
         "--output",
         &output,
     ];
-    let (status, _, _) = linlog(&args, entries);
+    let (status, _, _) = deduxit(&args, entries);
     assert_eq!(status, 0);
     let mut files: Vec<_> = std::fs::read_dir(&dir)
         .unwrap()
@@ -1060,13 +1063,13 @@ fn a_batch_s_certificates_are_modules() {
 /// and refuses a flag that names another.
 #[test]
 fn check_takes_the_file_s_mode() {
-    let (_, json, _) = linlog(&["prove", "-i", "--format", "json", "a, b |- a * b"], "");
-    let (status, out, _) = linlog(&["check", "-q"], &json);
+    let (_, json, _) = deduxit(&["prove", "-i", "--format", "json", "a, b |- a * b"], "");
+    let (status, out, _) = deduxit(&["check", "-q"], &json);
     assert_eq!(
         (status, out.as_str()),
         (0, "valid proof of a, b ⊢ a ⊗ b (intuitionistic)\n")
     );
-    let (status, _, err) = linlog(&["check", "--mix"], &json);
+    let (status, _, err) = deduxit(&["check", "--mix"], &json);
     assert_eq!(
         (status, err.as_str()),
         (
@@ -1081,8 +1084,8 @@ fn check_takes_the_file_s_mode() {
 /// no drawing names one.
 #[test]
 fn check_refuses_intuitionistic_mix() {
-    let (_, json, _) = linlog(&["prove", "-i", "--format", "json", "a, b |- a * b"], "");
-    let (status, out, err) = linlog(&["check", "-i", "--mix", "--net"], &json);
+    let (_, json, _) = deduxit(&["prove", "-i", "--format", "json", "a, b |- a * b"], "");
+    let (status, out, err) = deduxit(&["check", "-i", "--mix", "--net"], &json);
     assert_eq!(
         (status, out.as_str(), err.as_str()),
         (
@@ -1099,7 +1102,7 @@ fn check_refuses_intuitionistic_mix() {
 #[test]
 fn check_keeps_the_lambek_calculus_s_antecedents() {
     let sequent = "e |- e * (a \\ a)";
-    let (status, json, _) = linlog(
+    let (status, json, _) = deduxit(
         &[
             "prove",
             "--lambek",
@@ -1111,7 +1114,7 @@ fn check_keeps_the_lambek_calculus_s_antecedents() {
         "",
     );
     assert_eq!(status, 0);
-    let (status, out, _) = linlog(&["check", "--lambek", "--empty-antecedents", "-q"], &json);
+    let (status, out, _) = deduxit(&["check", "--lambek", "--empty-antecedents", "-q"], &json);
     assert_eq!(
         (status, out.as_str()),
         (
@@ -1120,7 +1123,7 @@ fn check_keeps_the_lambek_calculus_s_antecedents() {
         )
     );
     for flags in [&["check", "--lambek"][..], &["check", "--lambek", "--net"]] {
-        let (status, out, _) = linlog(flags, &without_mode(&json));
+        let (status, out, _) = deduxit(flags, &without_mode(&json));
         assert_eq!(status, 1, "{flags:?}");
         assert!(
             out.starts_with("invalid proof of e ⊢ e ⊗ (a \\ a) (Lambek): ")
@@ -1131,7 +1134,7 @@ fn check_keeps_the_lambek_calculus_s_antecedents() {
             "{out}"
         );
     }
-    let (status, _, _) = linlog(&["prove", "--lambek", sequent], "");
+    let (status, _, _) = deduxit(&["prove", "--lambek", sequent], "");
     assert_eq!(status, 1);
 }
 
@@ -1144,13 +1147,13 @@ fn net_format() {
                     ~A[0] — A[2]\n\
                     ~B[3] — B[4]\n\
                     proof net\n";
-    let (status, out, _) = linlog(&["prove", "--net", "A, A -o B |- B"], "");
+    let (status, out, _) = deduxit(&["prove", "--net", "A, A -o B |- B"], "");
     assert_eq!(status, 0);
     assert_eq!(
         out,
         format!("provable (MLL, classical, focus engine)\n{expected}")
     );
-    let (status, out, _) = linlog(
+    let (status, out, _) = deduxit(
         &["prove", "--net", "--engine", "focus", "A, A -o B |- B"],
         "",
     );
@@ -1159,8 +1162,8 @@ fn net_format() {
         out,
         format!("provable (MLL, classical, focus engine)\n{expected}")
     );
-    let (_, json, _) = linlog(&["prove", "--format", "json", "A, A -o B |- B"], "");
-    let (status, out, _) = linlog(&["check", "--net"], &json);
+    let (_, json, _) = deduxit(&["prove", "--format", "json", "A, A -o B |- B"], "");
+    let (status, out, _) = deduxit(&["check", "--net"], &json);
     assert_eq!(status, 0);
     assert!(out.ends_with("~B[3] — B[4]\nproof net\n"), "{out}");
     for (args, error) in [
@@ -1173,7 +1176,7 @@ fn net_format() {
             "proof nets exist in linear mode only",
         ),
     ] {
-        let (status, out, err) = linlog(args, "");
+        let (status, out, err) = deduxit(args, "");
         assert_eq!((status, out.as_str()), (2, ""), "{args:?}");
         assert!(err.contains(error), "{args:?}: {err}");
     }
@@ -1193,14 +1196,14 @@ fn mell_nets() {
                     ?~b[1]: no copy, hangs on a[4]\n\
                     ~a[3] — a[4]\n\
                     proof net\n";
-    let (status, out, _) = linlog(&["prove", "--net", sequent], "");
+    let (status, out, _) = deduxit(&["prove", "--net", sequent], "");
     assert_eq!(status, 0);
     assert_eq!(
         out,
         format!("provable (MELL, classical, focus engine)\n{expected}")
     );
-    let (_, proof, _) = linlog(&["prove", "--format", "json", sequent], "");
-    let (status, out, _) = linlog(&["check", "--net"], &proof);
+    let (_, proof, _) = deduxit(&["prove", "--format", "json", sequent], "");
+    let (status, out, _) = deduxit(&["check", "--net"], &proof);
     assert_eq!(status, 0);
     assert!(out.ends_with(expected), "{out}");
 
@@ -1208,7 +1211,7 @@ fn mell_nets() {
         &["prove", "--net", "--format", "json", sequent][..],
         &["check", "--net", "--format", "json"],
     ] {
-        let (status, json, _) = linlog(args, &proof);
+        let (status, json, _) = deduxit(args, &proof);
         assert_eq!(status, 0, "{args:?}");
         assert!(json.starts_with(r#"{"version":4,"#), "{json}");
         let mut document = serde_json::Deserializer::from_str(&json);
@@ -1218,13 +1221,13 @@ fn mell_nets() {
         assert_eq!(format!("{net}\n"), expected);
     }
 
-    let (status, svg, _) = linlog(&["prove", "--net", "--format", "svg", sequent], "");
+    let (status, svg, _) = deduxit(&["prove", "--net", "--format", "svg", sequent], "");
     assert_eq!(status, 0);
     assert!(svg.contains(r#"<path id="b2" d="M"#), "{svg}");
     // The textbook look by its name is its three fields; another name is
     // refused.
     let drawn = |style: &[&str]| {
-        linlog(
+        deduxit(
             &[&["prove", "--net", "--format", "svg"], style, &[sequent]].concat(),
             "",
         )
@@ -1246,7 +1249,7 @@ fn mell_nets() {
     assert!(err.contains("textbook"), "{err}");
     for (name, magic) in [("boxes.png", &b"\x89PNG"[..]), ("boxes.pdf", b"%PDF")] {
         let path = scratch(name);
-        let (status, _, _) = linlog(
+        let (status, _, _) = deduxit(
             &["prove", "--net", "-o", path.to_str().unwrap(), sequent],
             "",
         );
@@ -1257,15 +1260,15 @@ fn mell_nets() {
     // An intuitionistic proof has the net of its one-sided sequent, in
     // `prove` and in `check`, written as the reading writes its formulas;
     // an affine one none.
-    let (status, out, _) = linlog(&["prove", "--net", "-i", "!a |- !a * !a"], "");
+    let (status, out, _) = deduxit(&["prove", "--net", "-i", "!a |- !a * !a"], "");
     assert_eq!(status, 0);
     assert!(out.contains("!a[0]: a[2] in !a[4], a[3] in !a[6]"), "{out}");
-    let (status, proof, _) = linlog(&["prove", "-i", "--format", "json", "!a |- !a * !a"], "");
+    let (status, proof, _) = deduxit(&["prove", "-i", "--format", "json", "!a |- !a * !a"], "");
     assert_eq!(status, 0);
-    let (status, checked, _) = linlog(&["check", "--net", "-i"], &proof);
+    let (status, checked, _) = deduxit(&["check", "--net", "-i"], &proof);
     assert_eq!(status, 0);
     assert!(checked.ends_with("proof net\n"), "{checked}");
-    let (status, svg, _) = linlog(
+    let (status, svg, _) = deduxit(
         &[
             "check",
             "--net",
@@ -1279,7 +1282,7 @@ fn mell_nets() {
     );
     assert_eq!(status, 0);
     assert!(svg.contains(r#"id="b"#), "{svg}");
-    let (status, out, err) = linlog(&["prove", "--net", "-i", "--affine", "!a |- !a"], "");
+    let (status, out, err) = deduxit(&["prove", "--net", "-i", "--affine", "!a |- !a"], "");
     assert_eq!((status, out.as_str()), (2, ""));
     assert!(
         err.contains("proof nets exist in linear mode only"),
@@ -1293,7 +1296,7 @@ fn mell_nets() {
 /// and is refused for the other formats.
 #[test]
 fn latex_and_typst_formats() {
-    let (status, out, _) = linlog(&["prove", "--format", "latex", "A, A -o B |- B"], "");
+    let (status, out, _) = deduxit(&["prove", "--format", "latex", "A, A -o B |- B"], "");
     assert_eq!(status, 0);
     assert_eq!(
         out,
@@ -1304,8 +1307,8 @@ fn latex_and_typst_formats() {
          \\infer2[$\\otimes$]{\\vdash A^\\bot, A \\otimes B^\\bot, B}\n\
          \\end{prooftree}\n"
     );
-    let (_, json, _) = linlog(&["prove", "-i", "--format", "json", "A, A -o B |- B"], "");
-    let (status, out, _) = linlog(&["check", "-i", "--format", "typst", "--standalone"], &json);
+    let (_, json, _) = deduxit(&["prove", "-i", "--format", "json", "A, A -o B |- B"], "");
+    let (status, out, _) = deduxit(&["check", "-i", "--format", "typst", "--standalone"], &json);
     assert_eq!(status, 0);
     assert!(
         out.starts_with(
@@ -1314,7 +1317,7 @@ fn latex_and_typst_formats() {
         ),
         "{out}"
     );
-    let printed = linlog(
+    let printed = deduxit(
         &["seq", "print", "-i", "--format", "latex", "A, A -o B |- B"],
         "",
     );
@@ -1322,10 +1325,10 @@ fn latex_and_typst_formats() {
         printed,
         (0, "$A, A \\multimap B \\vdash B$\n".into(), String::new())
     );
-    let (status, out, err) = linlog(&["prove", "--standalone", "A |- A"], "");
+    let (status, out, err) = deduxit(&["prove", "--standalone", "A |- A"], "");
     assert_eq!((status, out.as_str()), (2, ""));
     assert!(err.contains("--standalone needs --format latex"), "{err}");
-    let (status, out, _) = linlog(&["interact", "A |- A"], "show --latex\nquit\n");
+    let (status, out, _) = deduxit(&["interact", "A |- A"], "show --latex\nquit\n");
     assert_eq!(status, 1);
     assert_eq!(
         out,
@@ -1339,19 +1342,19 @@ fn latex_and_typst_formats() {
 /// `--format rocq` prints the verdict as a Rocq comment and the
 /// derivation as a lemma with its proof script for `prove` and `check`;
 /// `--standalone` adds the import; a proof with Mix has a certificate for
-/// linlog's library, which the mode chooses, and none for NanoYalla, whose
+/// deduxit's library, which the mode chooses, and none for NanoYalla, whose
 /// refusal leaves the verdict standing.
 #[test]
 fn rocq_format() {
-    let (status, out, _) = linlog(&["prove", "--format", "rocq", "A |- A"], "");
+    let (status, out, _) = deduxit(&["prove", "--format", "rocq", "A |- A"], "");
     assert_eq!(status, 0);
     assert_eq!(
         out,
         "(* provable (MLL, classical, focus engine) *)\n\
          Lemma certificate (A : formula) : ll [dual A; A].\nProof.\nax_expansion.\nQed.\n"
     );
-    let (_, json, _) = linlog(&["prove", "--format", "json", "A * B |- B * A"], "");
-    let (status, out, _) = linlog(&["check", "--format", "rocq", "--standalone"], &json);
+    let (_, json, _) = deduxit(&["prove", "--format", "json", "A * B |- B * A"], "");
+    let (status, out, _) = deduxit(&["check", "--format", "rocq", "--standalone"], &json);
     assert_eq!(status, 0);
     assert!(
         out.starts_with(
@@ -1362,7 +1365,7 @@ fn rocq_format() {
     );
     assert!(out.contains("apply (ex_perm_r [2; 0; 1] [dual B; tens B A; dual A]).\n"));
     let mix = ["prove", "--mix", "--format", "rocq", "A, B |- A, B"];
-    let (status, out, _) = linlog(&mix, "");
+    let (status, out, _) = deduxit(&mix, "");
     assert_eq!(status, 0);
     assert!(
         out.contains(
@@ -1372,7 +1375,7 @@ fn rocq_format() {
     );
     // A proof the kernel has no certificate for keeps its verdict and its
     // exit status, the reason on standard error.
-    let (status, out, err) = linlog(&[&mix[..], &["--kernel", "nanoyalla"]].concat(), "");
+    let (status, out, err) = deduxit(&[&mix[..], &["--kernel", "nanoyalla"]].concat(), "");
     assert_eq!(
         (status, out.as_str(), err.as_str()),
         (
@@ -1386,7 +1389,7 @@ fn rocq_format() {
     std::fs::create_dir_all(&dir).unwrap();
     let file = dir.join("cert.v");
     let script = format!("close\nproof {}\n", file.display());
-    let (_, out, _) = linlog(&["interact", "--cyclic", "a |- a"], &script);
+    let (_, out, _) = deduxit(&["interact", "--cyclic", "a |- a"], &script);
     assert!(
         out.ends_with(
             "error: no certificate: the Rocq calculi are commutative, so a derivation or a \
@@ -1404,15 +1407,15 @@ fn rocq_format() {
 /// `show`; an SVG is always a document, so `--standalone` is refused.
 #[test]
 fn svg_formats() {
-    let (status, out, _) = linlog(&["prove", "--format", "svg", "A |- A"], "");
+    let (status, out, _) = deduxit(&["prove", "--format", "svg", "A |- A"], "");
     assert_eq!(status, 0);
     assert!(
         out.starts_with("<!-- provable (MLL, classical, focus engine) -->\n<svg ")
             && out.ends_with("</svg>\n"),
         "{out}"
     );
-    let (_, json, _) = linlog(&["prove", "--format", "json", "A * B |- B * A"], "");
-    let (status, out, _) = linlog(&["check", "--net", "--format", "svg"], &json);
+    let (_, json, _) = deduxit(&["prove", "--format", "json", "A * B |- B * A"], "");
+    let (status, out, _) = deduxit(&["check", "--net", "--format", "svg"], &json);
     assert_eq!(status, 0);
     assert!(out.contains("<g id=\"o0\">"), "{out}");
     let bounds = [
@@ -1426,16 +1429,16 @@ fn svg_formats() {
     let args = [&["prove", "--format", "svg"], &bounds[..], &["|- ?A"]].concat();
     // Without a drawing an SVG output is nothing, never a comment alone;
     // the verdict goes to standard error.
-    let (status, out, err) = linlog(&args, "");
+    let (status, out, err) = deduxit(&args, "");
     assert_eq!((status, out.as_str()), (3, ""));
     assert!(err.contains("while the time limit lasts"), "{err}");
-    let (status, out, _) = linlog(&["seq", "print", "--format", "svg", "A |- A"], "");
+    let (status, out, _) = deduxit(&["seq", "print", "--format", "svg", "A |- A"], "");
     assert_eq!(status, 0);
     assert!(out.contains("<title>⊢ A⊥, A</title>"), "{out}");
-    let (status, _, err) = linlog(&["prove", "--format", "svg", "--standalone", "A |- A"], "");
+    let (status, _, err) = deduxit(&["prove", "--format", "svg", "--standalone", "A |- A"], "");
     assert_eq!(status, 2);
     assert!(err.contains("--standalone needs --format latex"), "{err}");
-    let (_, out, _) = linlog(&["interact", "A |- A"], "show --svg\nquit\n");
+    let (_, out, _) = deduxit(&["interact", "A |- A"], "show --svg\nquit\n");
     assert!(
         out.starts_with("<svg ") && out.contains(">⋮</text>"),
         "{out}"
@@ -1446,11 +1449,11 @@ fn svg_formats() {
 /// fragment.
 #[test]
 fn seq_commands() {
-    let (status, json, _) = linlog(&["seq", "json", "A, A -o B |- B"], "");
+    let (status, json, _) = deduxit(&["seq", "json", "A, A -o B |- B"], "");
     assert_eq!(status, 0);
-    let printed = linlog(&["seq", "print", "--input-format", "json"], &json);
+    let printed = deduxit(&["seq", "print", "--input-format", "json"], &json);
     assert_eq!(printed, (0, "⊢ ~A, A ⊗ ~B, B\n".into(), String::new()));
-    let fragment = linlog(&["seq", "fragment", "--file", "-"], "A & B |- 1");
+    let fragment = deduxit(&["seq", "fragment", "--file", "-"], "A & B |- 1");
     assert_eq!(fragment, (0, "MALL\n".into(), String::new()));
 }
 
@@ -1471,16 +1474,16 @@ fn scratch(name: &str) -> std::path::PathBuf {
 fn binary_formats() {
     let (png, pdf) = (scratch("proof.png"), scratch("net.pdf"));
     let png_path = png.to_str().unwrap();
-    let (status, out, err) = linlog(&["prove", "-o", png_path, "A * B |- B * A"], "");
+    let (status, out, err) = deduxit(&["prove", "-o", png_path, "A * B |- B * A"], "");
     assert_eq!((status, out.as_str()), (0, ""), "{err}");
     assert!(err.starts_with("provable"), "{err}");
     assert!(std::fs::read(&png).unwrap().starts_with(b"\x89PNG"));
     let pdf_path = pdf.to_str().unwrap();
-    let (status, _, _) = linlog(&["prove", "--net", "-o", pdf_path, "A * B |- B * A"], "");
+    let (status, _, _) = deduxit(&["prove", "--net", "-o", pdf_path, "A * B |- B * A"], "");
     assert_eq!(status, 0);
     assert!(std::fs::read(&pdf).unwrap().starts_with(b"%PDF-"));
     // `--format` wins over the extension.
-    let (status, _, _) = linlog(&["prove", "--format", "text", "-o", png_path, "A |- A"], "");
+    let (status, _, _) = deduxit(&["prove", "--format", "text", "-o", png_path, "A |- A"], "");
     assert_eq!(status, 0);
     assert!(
         std::fs::read_to_string(&png)
@@ -1491,7 +1494,7 @@ fn binary_formats() {
     // and its verdict on standard error.
     for name in ["none.pdf", "none.svg", "none.tex", "none.json"] {
         let file = scratch(name);
-        let (status, out, err) = linlog(&["prove", "-o", file.to_str().unwrap(), "A |- B"], "");
+        let (status, out, err) = deduxit(&["prove", "-o", file.to_str().unwrap(), "A |- B"], "");
         assert_eq!((status, out.as_str()), (1, ""), "{name}");
         assert_eq!(file.exists(), name.ends_with(".json"), "{name}");
         assert_eq!(
@@ -1504,10 +1507,10 @@ fn binary_formats() {
     // the format its file's extension names.
     let part = scratch("part.pdf");
     let commands = format!("apply 0 1 -oL 0\nshow {}\nquit\n", part.to_str().unwrap());
-    let (_, out, _) = linlog(&["interact", "-i", "A, A -o B |- B"], &commands);
+    let (_, out, _) = deduxit(&["interact", "-i", "A, A -o B |- B"], &commands);
     assert!(out.contains("derivation so far written to"), "{out}");
     assert!(std::fs::read(&part).unwrap().starts_with(b"%PDF-2.0"));
-    let (status, _, err) = linlog(&["prove", "--net", "--format", "latex", "A |- A"], "");
+    let (status, _, err) = deduxit(&["prove", "--net", "--format", "latex", "A |- A"], "");
     assert_eq!(status, 2);
     assert!(
         err.contains("--net writes the formats text, json, svg, png and pdf"),
@@ -1521,7 +1524,7 @@ fn binary_formats() {
 #[test]
 fn fonts() {
     let svg = |args: &[&str]| {
-        let (status, out, err) = linlog(
+        let (status, out, err) = deduxit(
             &[&["prove", "--format", "svg"], args, &["A * B |- B * A"]].concat(),
             "",
         );
@@ -1549,7 +1552,7 @@ fn fonts() {
     let png = |args: &[&str]| {
         let file = scratch(&format!("font{}.png", args.len()));
         let path = file.to_str().unwrap();
-        let (status, _, err) = linlog(
+        let (status, _, err) = deduxit(
             &[&["prove", "-o", path], args, &["A * B |- B * A"]].concat(),
             "",
         );
@@ -1557,7 +1560,7 @@ fn fonts() {
         std::fs::read(&file).unwrap()
     };
     assert_ne!(png(&["--font", "stix-two"]), png(&[]));
-    let (status, _, err) = linlog(&["prove", "--font", "stix", "A |- A"], "");
+    let (status, _, err) = deduxit(&["prove", "--font", "stix", "A |- A"], "");
     assert_eq!(status, 2, "{err}");
 }
 
@@ -1614,30 +1617,30 @@ fn every_style_option() {
             true,
         ),
         (&ill, "svg", "font", "\"stix-two\"", true),
-        (&ill, "typst", "layout", "\"linlog\"", true),
+        (&ill, "typst", "layout", "\"deduxit\"", true),
         (
-            &["--style", "layout=linlog", "-i", "A, A -o B |- B"],
+            &["--style", "layout=deduxit", "-i", "A, A -o B |- B"],
             "typst",
             "premise_gap",
             "\"2em\"",
             true,
         ),
         (
-            &["--style", "layout=linlog", "-i", "A, A -o B |- B"],
+            &["--style", "layout=deduxit", "-i", "A, A -o B |- B"],
             "typst",
             "label_gap",
             "\"1em\"",
             true,
         ),
         (
-            &["--style", "layout=linlog", "-i", "A, A -o B |- B"],
+            &["--style", "layout=deduxit", "-i", "A, A -o B |- B"],
             "typst",
             "band",
             "\"2em\"",
             true,
         ),
         (
-            &["--style", "layout=linlog", "-i", "A, A -o B |- B"],
+            &["--style", "layout=deduxit", "-i", "A, A -o B |- B"],
             "typst",
             "stroke",
             "\"1pt\"",
@@ -1800,7 +1803,7 @@ fn every_style_option() {
             args,
         ]
         .concat();
-        let (status, _, err) = linlog(&all, "");
+        let (status, _, err) = deduxit(&all, "");
         (
             status,
             std::fs::read(&out).unwrap_or_else(|_| err.into_bytes()),
@@ -1834,7 +1837,7 @@ fn every_style_option() {
         std::fs::write(&file, format!("{{\"{format}\":{{\"open\":\"dashed\"}}}}")).unwrap();
         let session = |style: &[&str]| {
             let args = [&["interact", "-i"], style, &["A, A -o B |- B"]].concat();
-            linlog(&args, &commands).1
+            deduxit(&args, &commands).1
         };
         let by_flag = session(&["--style", &flag]);
         assert_eq!(
@@ -1844,7 +1847,7 @@ fn every_style_option() {
         );
         assert_ne!(by_flag, session(&[]), "{format}");
     }
-    let (status, _, err) = linlog(&["interact", "--style", "labels=off", "A |- A"], "quit\n");
+    let (status, _, err) = deduxit(&["interact", "--style", "labels=off", "A |- A"], "quit\n");
     assert_eq!(status, 2);
     assert!(err.contains("name the format"), "{err}");
 }
@@ -1853,11 +1856,11 @@ fn every_style_option() {
 /// formulas, `--quiet` included; `--no-verdict` leaves the line out.
 #[test]
 fn verdict_lines() {
-    let (_, json, _) = linlog(&["prove", "--format", "json", "A, B, C |- A * B * C"], "");
-    let (status, out, _) = linlog(&["check", "--quiet", "--abbreviate", "8"], &json);
+    let (_, json, _) = deduxit(&["prove", "--format", "json", "A, B, C |- A * B * C"], "");
+    let (status, out, _) = deduxit(&["check", "--quiet", "--abbreviate", "8"], &json);
     assert_eq!(status, 0);
     assert_eq!(out, "valid proof of ⊢ ~A, ~B… (4 formulas) (classical)\n");
-    let (status, out, _) = linlog(
+    let (status, out, _) = deduxit(
         &["prove", "--format", "latex", "--no-verdict", "A |- A"],
         "",
     );
@@ -1870,17 +1873,17 @@ fn verdict_lines() {
 #[test]
 fn compact_runs() {
     let input = "!A, !B, !C |- 1";
-    let (status, out, _) = linlog(&["prove", "-i", "--compact", "always", input], "");
+    let (status, out, _) = deduxit(&["prove", "-i", "--compact", "always", input], "");
     assert_eq!(status, 0);
     assert!(out.contains("!w*"), "{out}");
-    let (_, out, _) = linlog(&["prove", "-i", "--compact", "never", input], "");
+    let (_, out, _) = deduxit(&["prove", "-i", "--compact", "never", input], "");
     assert!(!out.contains('*'), "{out}");
     let rocq = ["prove", "-i", "--compact", "always", "--format", "rocq"];
-    let (status, out, _) = linlog(&[&rocq[..], &["--kernel", "nanoyalla", input]].concat(), "");
+    let (status, out, _) = deduxit(&[&rocq[..], &["--kernel", "nanoyalla", input]].concat(), "");
     assert_eq!(status, 0);
     assert!(out.contains("wk_r_ext"), "{out}");
     // linlog's library, the mode's kernel, has a term per weakening.
-    let (status, out, _) = linlog(&[&rocq[..], &[input]].concat(), "");
+    let (status, out, _) = deduxit(&[&rocq[..], &[input]].concat(), "");
     assert_eq!(status, 0);
     assert_eq!(out.matches("(IWk ").count(), 3, "{out}");
 }
@@ -1899,13 +1902,13 @@ fn batch_inputs_and_exit_status() {
         "fof(a, axiom, a).\nfof(c, conjecture, a).\n",
     )
     .unwrap();
-    let (_, json, _) = linlog(&["seq", "json", "A |- B"], "");
+    let (_, json, _) = deduxit(&["seq", "json", "A |- B"], "");
     std::fs::write(dir.join("a.json"), json).unwrap();
     std::fs::write(dir.join("c.txt"), "not read").unwrap();
     #[cfg(unix)]
     let _ = std::os::unix::fs::symlink("..", dir.join("b/up"));
     let d = dir.display();
-    let (status, out, _) = linlog(&["prove", "--file", &dir.to_string_lossy()], "");
+    let (status, out, _) = deduxit(&["prove", "--file", &dir.to_string_lossy()], "");
     assert_eq!(
         out,
         format!(
@@ -1916,7 +1919,7 @@ fn batch_inputs_and_exit_status() {
     );
     assert_eq!(status, 1);
     let list = format!("{d}/b/x.p\0{d}/missing.p\0");
-    let (status, out, _) = linlog(&["prove", "--files-from", "-", "--null", "-q"], &list);
+    let (status, out, _) = deduxit(&["prove", "--files-from", "-", "--null", "-q"], &list);
     assert!(out.starts_with(&format!("{d}/b/x.p: provable")), "{out}");
     assert!(
         out.contains(&format!("{d}/missing.p: error: cannot read")),
@@ -1926,7 +1929,7 @@ fn batch_inputs_and_exit_status() {
     let problems = "one; intuitionistic; -; -; A, A -o B |- B\ntwo; nonsense; -; -; A |- A\n";
     for isolate in [&[][..], &["--isolate"]] {
         let args = [&["prove", "--input-format", "problems"][..], isolate].concat();
-        let (status, out, _) = linlog(&args, problems);
+        let (status, out, _) = deduxit(&args, problems);
         assert_eq!(
             out,
             "one: provable (IMLL, intuitionistic, two-sided engine)\ntwo: error: unknown mode \
@@ -1949,8 +1952,8 @@ fn isolated_entries_with_bundled_flags() {
     let d = dir.to_string_lossy();
     let common = ["prove", "--deterministic", "--workers", "1"];
     let flags = ["--input-format", "text", "-qf", &d];
-    let (status, out, _) = linlog(&[&common[..], &flags].concat(), "");
-    let isolated = linlog(&[&common[..], &["--isolate"], &flags].concat(), "");
+    let (status, out, _) = deduxit(&[&common[..], &flags].concat(), "");
+    let isolated = deduxit(&[&common[..], &["--isolate"], &flags].concat(), "");
     assert_eq!((isolated.0, &isolated.1), (status, &out));
     assert_eq!(status, 1);
     assert!(out.contains(&format!("{d}/b.txt: unprovable")), "{out}");
@@ -1961,13 +1964,13 @@ fn isolated_entries_with_bundled_flags() {
 #[test]
 fn a_prelude_needs_a_standalone_certificate() {
     let prelude = ["prove", "--format", "rocq", "--prelude", "(* mine *)"];
-    let (status, out, err) = linlog(&[&prelude[..], &["A |- A"]].concat(), "");
+    let (status, out, err) = deduxit(&[&prelude[..], &["A |- A"]].concat(), "");
     assert_eq!((status, out.as_str()), (2, ""));
     assert!(
         err.contains("--prelude goes into a standalone certificate"),
         "{err}"
     );
-    let (status, out, _) = linlog(&[&prelude[..], &["--standalone", "A |- A"]].concat(), "");
+    let (status, out, _) = deduxit(&[&prelude[..], &["--standalone", "A |- A"]].concat(), "");
     assert_eq!(status, 0);
     assert!(out.contains("(* mine *)"), "{out}");
 }
@@ -1985,8 +1988,8 @@ fn isolated_entries_named_like_flags() {
         "lines",
     ];
     let input = "-x: A |- A\n--y: A |- B\n";
-    let (status, out, _) = linlog(&common, input);
-    let isolated = linlog(&[&common[..], &["--isolate"]].concat(), input);
+    let (status, out, _) = deduxit(&common, input);
+    let isolated = deduxit(&[&common[..], &["--isolate"]].concat(), input);
     assert_eq!((isolated.0, &isolated.1), (status, &out));
     assert_eq!(status, 1);
     assert!(out.starts_with("-x: provable"), "{out}");
@@ -2004,7 +2007,7 @@ fn a_typed_sequent_is_no_batch_entry() {
         &["--input-format", "lines"][..],
         &["--files-from", &list.to_string_lossy()],
     ] {
-        let (status, out, err) = linlog(&[&["prove", "A |- B"][..], batch].concat(), "");
+        let (status, out, err) = deduxit(&[&["prove", "A |- B"][..], batch].concat(), "");
         assert_eq!((status, out.as_str()), (2, ""), "{batch:?}");
         assert!(err.contains("not read in a batch"), "{err}");
     }
@@ -2022,7 +2025,7 @@ fn an_empty_batch_is_an_error() {
         (&["prove", "--file", &dir.to_string_lossy()][..], ""),
         (&["prove", "--input-format", "lines"], "# a comment\n\n"),
     ] {
-        let (status, out, err) = linlog(args, input);
+        let (status, out, err) = deduxit(args, input);
         assert_eq!((status, out.as_str()), (2, ""), "{args:?}");
         assert!(err.contains("the batch holds no sequent"), "{err}");
     }
@@ -2034,7 +2037,7 @@ fn an_empty_batch_is_an_error() {
 #[test]
 fn an_interrupted_batch_is_unknown() {
     use std::io::{BufRead, BufReader};
-    let mut child = Command::new(env!("CARGO_BIN_EXE_linlog"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_deduxit"))
         .args(["prove", "--input-format", "lines"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -2072,10 +2075,10 @@ fn load_keeps_the_question() {
     let saved = scratch("affine-session.json");
     let saved = saved.to_str().unwrap();
     let finished = format!("close\nsave {saved}\n");
-    let (status, _, _) = linlog(&["interact", "-a", "a, b |- a"], &finished);
+    let (status, _, _) = deduxit(&["interact", "-a", "a, b |- a"], &finished);
     assert_eq!(status, 0);
     let load = format!("load {saved}\n");
-    let (status, _, _) = linlog(&["interact", "-a", "a, b |- a"], &load);
+    let (status, _, _) = deduxit(&["interact", "-a", "a, b |- a"], &load);
     assert_eq!(status, 0);
     for (args, why) in [
         (&["interact", "|- 1, 1"][..], "a session of another sequent"),
@@ -2084,7 +2087,7 @@ fn load_keeps_the_question() {
             "in classical affine mode, this one is in classical",
         ),
     ] {
-        let (status, out, _) = linlog(args, &load);
+        let (status, out, _) = deduxit(args, &load);
         assert_eq!(status, 1, "{args:?}");
         assert!(out.starts_with("error: ") && out.contains(why), "{out}");
     }
@@ -2103,12 +2106,12 @@ fn a_spec_file_is_affine() {
         "vars x y\nrules\n  x >= 1 -> x' = x - 1, y' = y + 1;\ninit x = 2\ntarget y >= 1\n",
     )
     .unwrap();
-    let (status, out, _) = linlog(&["prove", "-q", "--file", spec.to_str().unwrap()], "");
+    let (status, out, _) = deduxit(&["prove", "-q", "--file", spec.to_str().unwrap()], "");
     assert_eq!(
         (status, out.as_str()),
         (0, "provable (MELL, classical affine, horn engine)\n")
     );
-    let (status, out, _) = linlog(
+    let (status, out, _) = deduxit(
         &[
             "prove",
             "-q",
@@ -2136,7 +2139,7 @@ fn json_lines_records_are_whole() {
 {"name":"dup","mode":"affine","mode":"classical","sequent":"A, B |- A"}
 {"name":"ids","sequent":{"terms":[{"D":0},{"V":0}],"roots":[0,1],"roots":[1],"atoms":["A"]}}
 "#;
-    let (status, out, _) = linlog(
+    let (status, out, _) = deduxit(
         &["prove", "--deterministic", "--input-format", "jsonl"],
         lines,
     );
@@ -2175,7 +2178,7 @@ fn every_entry_file_lies_inside_the_directory() {
         "json",
         "--output",
     ];
-    let (status, lines, _) = linlog(
+    let (status, lines, _) = deduxit(
         &[&args[..], &[out.to_str().unwrap()]].concat(),
         "/: A |- A\n.: A |- A\n",
     );
@@ -2196,7 +2199,7 @@ fn a_drawing_is_held_within_the_memory_bound() {
     let atoms: Vec<String> = (0..60).map(|i| format!("a{i}")).collect();
     let sequent = format!("{} |- {}", atoms.join(", "), atoms.join(" * "));
     let png = scratch("held").with_extension("png");
-    let (status, _, err) = linlog(
+    let (status, _, err) = deduxit(
         &[
             "prove",
             "--deterministic",
@@ -2222,7 +2225,7 @@ fn a_drawing_is_held_within_the_memory_bound() {
 #[test]
 fn a_closed_pipe_keeps_the_verdict() {
     for (sequent, status) in [("|- a * b * c * d * e, ~a, ~b, ~c, ~d, ~e", 0), ("|- a", 1)] {
-        let mut child = Command::new(env!("CARGO_BIN_EXE_linlog"))
+        let mut child = Command::new(env!("CARGO_BIN_EXE_deduxit"))
             .args(["prove", "--tree", "always", sequent])
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -2246,7 +2249,7 @@ fn a_closed_pipe_keeps_the_verdict() {
 /// neither is refused with what it is; an invalid proof is `invalid` in JSON with the error.
 #[test]
 fn check_s_verdicts() {
-    let (_, proof, _) = linlog(
+    let (_, proof, _) = deduxit(
         &[
             "prove",
             "--format",
@@ -2255,17 +2258,17 @@ fn check_s_verdicts() {
         ],
         "",
     );
-    let (status, out, _) = linlog(&["check", "--work-limit", "2"], &proof);
+    let (status, out, _) = deduxit(&["check", "--work-limit", "2"], &proof);
     assert!(
         status == 3 && out.starts_with("unknown: the proof of") && out.contains("--work-limit"),
         "{out}"
     );
-    let (status, out, _) = linlog(&["check", "--work-limit", "2", "--format", "json"], &proof);
+    let (status, out, _) = deduxit(&["check", "--work-limit", "2", "--format", "json"], &proof);
     let checked: serde_json::Value = serde_json::from_str(&out).unwrap();
     assert_eq!((status, &checked["verdict"]), (3, &"unknown".into()));
     assert_eq!(checked["error"]["code"], "work_limit");
     // The time limit counts from the start: the proof is read within it.
-    let (status, out, _) = linlog(&["check", "--timeout", "0ms", "--format", "json"], &proof);
+    let (status, out, _) = deduxit(&["check", "--timeout", "0ms", "--format", "json"], &proof);
     let checked: serde_json::Value = serde_json::from_str(&out).unwrap();
     assert_eq!((status, &checked["verdict"]), (3, &"unknown".into()));
     assert!(
@@ -2275,15 +2278,15 @@ fn check_s_verdicts() {
             .contains("was reached while the proof was read"),
         "{out}"
     );
-    let (_, classical, _) = linlog(&["prove", "--format", "json", "|- a, ~a"], "");
+    let (_, classical, _) = deduxit(&["prove", "--format", "json", "|- a, ~a"], "");
     let classical = without_mode(&classical);
-    let (status, out, _) = linlog(&["check", "-i", "--format", "json"], &classical);
+    let (status, out, _) = deduxit(&["check", "-i", "--format", "json"], &classical);
     let checked: serde_json::Value = serde_json::from_str(&out).unwrap();
     assert_eq!((status, &checked["verdict"]), (1, &"invalid".into()));
     // An unprovable outcome's refutation is checked: it holds, or it is
     // invalid; an exhausted search has no check.
-    let (_, outcome, _) = linlog(&["prove", "--format", "json", "a |- b"], "");
-    let (status, out, _) = linlog(&["check"], &outcome);
+    let (_, outcome, _) = deduxit(&["prove", "--format", "json", "a |- b"], "");
+    let (status, out, _) = deduxit(&["check"], &outcome);
     assert_eq!(
         (status, out.as_str()),
         (
@@ -2294,12 +2297,12 @@ fn check_s_verdicts() {
     );
     let wrong = outcome.replace(r#""least":-1,"most":-1"#, r#""least":-1,"most":0"#);
     assert_ne!(wrong, outcome);
-    let (status, out, _) = linlog(&["check", "--format", "json"], &wrong);
+    let (status, out, _) = deduxit(&["check", "--format", "json"], &wrong);
     let checked: serde_json::Value = serde_json::from_str(&out).unwrap();
     assert_eq!((status, &checked["verdict"]), (1, &"invalid".into()));
     assert_eq!(checked["error"]["code"], "invalid_refutation");
     // In the file's mode: a flag that names another is an error.
-    let (status, _, err) = linlog(&["check", "-i"], &outcome);
+    let (status, _, err) = deduxit(&["check", "-i"], &outcome);
     assert_eq!(
         (status, err.as_str()),
         (
@@ -2308,14 +2311,14 @@ fn check_s_verdicts() {
              flags it was found with, or none\n"
         )
     );
-    let (_, exhausted, _) = linlog(&["prove", "--format", "json", "A & B |- A * B"], "");
-    let (status, out, _) = linlog(&["check", "--format", "json"], &exhausted);
+    let (_, exhausted, _) = deduxit(&["prove", "--format", "json", "A & B |- A * B"], "");
+    let (status, out, _) = deduxit(&["check", "--format", "json"], &exhausted);
     let checked: serde_json::Value = serde_json::from_str(&out).unwrap();
     assert_eq!(
         (status, &checked["error"]["code"]),
         (3, &"uncertified".into())
     );
-    let (_, unknown, _) = linlog(
+    let (_, unknown, _) = deduxit(
         &[
             "prove",
             "--format",
@@ -2326,7 +2329,7 @@ fn check_s_verdicts() {
         ],
         "",
     );
-    let (status, _, err) = linlog(&["check"], &unknown);
+    let (status, _, err) = deduxit(&["check"], &unknown);
     assert_eq!(
         (status, err.as_str()),
         (
@@ -2346,7 +2349,7 @@ fn check_s_verdicts() {
 /// of one file name in `--output DIR` are refused, the second an error.
 #[test]
 fn a_batch_s_records_names_and_files() {
-    let (status, lines, _) = linlog(
+    let (status, lines, _) = deduxit(
         &["prove", "--input-format", "jsonl", "--format", "json"],
         "{\"name\": \"bad\", \"sequent\": \"A |-|- B\"}\n\
          {\"name\": \"big\", \"sequent\": {\"terms\": [{\"V\": 0}], \"roots\": [0, 0, 0], \"var_dict\": [\"a\"]}}\n",
@@ -2364,7 +2367,7 @@ fn a_batch_s_records_names_and_files() {
     // The parse error is the command's line with a caret, and the
     // library's error object beside it.
     assert_eq!(records[0]["error"]["code"], "parse", "{}", records[0]);
-    let (status, lines, _) = linlog(
+    let (status, lines, _) = deduxit(
         &[
             "prove",
             "--input-format",
@@ -2378,7 +2381,7 @@ fn a_batch_s_records_names_and_files() {
     );
     let record: serde_json::Value = serde_json::from_str(lines.trim()).unwrap();
     assert_eq!((status, &record["verdict"]), (3, &"unknown".into()));
-    let (_, lines, _) = linlog(
+    let (_, lines, _) = deduxit(
         &["prove", "--input-format", "jsonl"],
         "{\"name\": \"x\\ny: proved\", \"sequent\": \"A |- A\"}\n",
     );
@@ -2386,7 +2389,7 @@ fn a_batch_s_records_names_and_files() {
     // A line past the memory limit is an error of its own, skipped without
     // being held, and a line that is no UTF-8 too; the batch goes on.
     let long = format!("a: A |- A\nb: {}A |- A\nc: A |- A\n", "A * ".repeat(600));
-    let (status, lines, _) = linlog(
+    let (status, lines, _) = deduxit(
         &["prove", "--input-format", "lines", "--memory-limit", "2KiB"],
         &long,
     );
@@ -2401,13 +2404,13 @@ fn a_batch_s_records_names_and_files() {
         ]
     );
     // A mark that reorders the text after it is escaped too.
-    let (_, lines, _) = linlog(
+    let (_, lines, _) = deduxit(
         &["prove", "--input-format", "jsonl"],
         "{\"name\": \"a\\u202eb\", \"sequent\": \"A |- A\"}\n",
     );
     assert!(lines.starts_with("a\\u{202e}b: provable"), "{lines}");
     let dir = scratch("collide");
-    let (status, lines, _) = linlog(
+    let (status, lines, _) = deduxit(
         &[
             "prove",
             "--input-format",
@@ -2436,7 +2439,7 @@ fn ordinary_logic() {
     let decide = |args: &[&str]| {
         let mut all = vec!["prove", "--deterministic", "--copies", "6"];
         all.extend(args);
-        linlog(&all, "")
+        deduxit(&all, "")
     };
     let (status, out, _) = decide(&["--logic", "classical", "~~a -> a"]);
     assert_eq!(status, 0);
@@ -2477,7 +2480,7 @@ fn ordinary_logic() {
     assert_eq!(status, 0);
     std::fs::remove_dir_all(&dir).unwrap();
 
-    let (status, out, _) = linlog(
+    let (status, out, _) = deduxit(
         &["seq", "print", "--logic", "intuitionistic", "a -> b |- b"],
         "",
     );
@@ -2512,7 +2515,7 @@ fn search_flags() {
             &[sequent],
         ]
         .concat();
-        let (status, out, _) = linlog(&args, "");
+        let (status, out, _) = deduxit(&args, "");
         assert_eq!(status, 0, "{out}");
         timeless(&out)
     };
@@ -2534,7 +2537,7 @@ fn search_flags() {
         (&["--format", "json"][..], true),
         (&["--format", "json", "--no-check"], false),
     ] {
-        let (_, json, _) = linlog(&[&["prove"], flags, &["A |- A"]].concat(), "");
+        let (_, json, _) = deduxit(&[&["prove"], flags, &["A |- A"]].concat(), "");
         let outcome: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(outcome["checked"], checked, "{flags:?}");
     }
@@ -2562,7 +2565,7 @@ fn interrupt() {
                 .success()
         );
     };
-    let child = Command::new(env!("CARGO_BIN_EXE_linlog"))
+    let child = Command::new(env!("CARGO_BIN_EXE_deduxit"))
         .args(["prove", "-a", "--timeout", "none", "--deterministic", &hard])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -2576,7 +2579,7 @@ fn interrupt() {
         stdout.starts_with("unknown (") && stdout.contains("interrupted after"),
         "{stdout}"
     );
-    let mut child = Command::new(env!("CARGO_BIN_EXE_linlog"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_deduxit"))
         .args([
             "prove",
             "-a",
@@ -2649,7 +2652,7 @@ fn output_is_whole_or_untouched() {
     ] {
         std::fs::write(&keep, "OLD").unwrap();
         let args = [&args[..], &["--output", keep.to_str().unwrap()]].concat();
-        let (got, _, err) = linlog(&args, stdin);
+        let (got, _, err) = deduxit(&args, stdin);
         assert_eq!(got, status, "{err}");
         if status == 0 {
             assert!(err.contains("the derivation is not written"), "{err}");
@@ -2658,7 +2661,7 @@ fn output_is_whole_or_untouched() {
     }
     // A directory is refused before the search, which it would lose.
     let directory = Path::new(env!("CARGO_TARGET_TMPDIR"));
-    let (status, _, err) = linlog(
+    let (status, _, err) = deduxit(
         &["prove", "--output", directory.to_str().unwrap(), "A |- A"],
         "",
     );
@@ -2693,7 +2696,7 @@ fn batch_flags() {
             extra,
         ]
         .concat();
-        linlog(&args, input)
+        deduxit(&args, input)
     };
     let (status, out, err) = batch(&["--timeout", "100ms"], &lines);
     assert_eq!(status, 3, "{out}{err}");
@@ -2786,7 +2789,7 @@ fn batch_flags() {
 fn standard_input_is_answered_line_by_line() {
     use std::io::{BufRead, BufReader, Write};
     for named in [&[][..], &["--file", "-"]] {
-        let mut child = Command::new(env!("CARGO_BIN_EXE_linlog"))
+        let mut child = Command::new(env!("CARGO_BIN_EXE_deduxit"))
             .args([&["prove", "--input-format", "lines"][..], named].concat())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -2825,7 +2828,7 @@ fn an_output_pipe_gets_the_output() {
         let fifo = fifo.clone();
         std::thread::spawn(move || std::fs::read_to_string(fifo).unwrap())
     };
-    let (status, _, err) = linlog(&["prove", "--output", fifo.to_str().unwrap(), "A |- A"], "");
+    let (status, _, err) = deduxit(&["prove", "--output", fifo.to_str().unwrap(), "A |- A"], "");
     assert_eq!(status, 0, "{err}");
     assert!(reader.join().unwrap().starts_with("provable (MLL"));
     std::fs::remove_file(&fifo).unwrap();
@@ -2893,7 +2896,7 @@ fn no_intuitionistic_output_writes_a_classical_symbol() {
             }
         };
         for format in ["text", "latex", "typst", "svg", "rocq"] {
-            let (status, out, err) = linlog(
+            let (status, out, err) = deduxit(
                 &[
                     "prove",
                     "-i",
@@ -2911,7 +2914,7 @@ fn no_intuitionistic_output_writes_a_classical_symbol() {
             check(format, &err);
         }
         for format in ["text", "svg"] {
-            let (_, out, err) = linlog(
+            let (_, out, err) = deduxit(
                 &[
                     "prove",
                     "-i",
@@ -2929,11 +2932,11 @@ fn no_intuitionistic_output_writes_a_classical_symbol() {
         }
         for format in ["text", "latex", "typst", "svg"] {
             let (status, out, _) =
-                linlog(&["seq", "print", "-i", "--format", format, &sequent], "");
+                deduxit(&["seq", "print", "-i", "--format", format, &sequent], "");
             assert_eq!(status, 0, "{sequent:?}");
             check(format, &out);
         }
-        let (_, out, err) = linlog(
+        let (_, out, err) = deduxit(
             &["interact", "-i", &sequent],
             "goals\nrules 0 0\nclose 0\nshow\nquit\n",
         );
@@ -2954,7 +2957,7 @@ fn an_intuitionistic_json_sequent_is_read_within_the_limit() {
         r#"{{"version":5,"terms":[{}],"atoms":["a"],"hypotheses":[],"goal":29}}"#,
         terms.join(",")
     );
-    let (status, _, err) = linlog(
+    let (status, _, err) = deduxit(
         &[
             "prove",
             "-i",

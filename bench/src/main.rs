@@ -3,7 +3,7 @@
 
 //! `deduxit-bench`, the benchmark harness: runs the generated families, the
 //! problems of the LLTP library, coverability problems in Mist's `.spec`
-//! format and problem files of its own through linlog's engines, one
+//! format and problem files of its own through deduxit's engines, one
 //! child process per run with a time limit, writes one CSV row per run,
 //! and summarises or compares CSV files as Markdown tables; and counts the
 //! instructions of the library's hot paths against committed ceilings
@@ -30,7 +30,7 @@ mod ratchet;
 mod run;
 /// Markdown tables from the CSV rows.
 mod summary;
-/// Other provers beside linlog's command, each run by BenchExec.
+/// Other provers beside deduxit's command, each run by BenchExec.
 mod tools;
 /// Problems written in other provers' syntax.
 mod translate;
@@ -39,7 +39,7 @@ use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-/// Benchmark linlog's engines on generated families, the LLTP library,
+/// Benchmark deduxit's engines on generated families, the LLTP library,
 /// `.spec` coverability problems and problem files, and count the hot
 /// paths' instructions against their ceilings
 #[derive(Parser, Debug)]
@@ -88,7 +88,7 @@ enum Command {
     },
     /// Print the comparison of tools in CSV files of `run --tools` as
     /// Markdown: per tool the problems solved within the time limit and
-    /// how the others ended, per group of problems, linlog against each
+    /// how the others ended, per group of problems, deduxit against each
     /// other tool, the translation times and peak memory, and every
     /// problem on which tools contradict each other or the known verdict
     Ranking {
@@ -274,12 +274,12 @@ pub struct RunArgs {
     /// row for: finishes an interrupted run
     #[arg(long, requires = "append")]
     resume: bool,
-    /// Run every problem with each of these provers instead of linlog's
-    /// engines in a child: `linlog` (the command on one thread),
-    /// `linlog-default` (the command as a user runs it) and the other
+    /// Run every problem with each of these provers instead of deduxit's
+    /// engines in a child: `deduxit` (the command on one thread),
+    /// `deduxit-default` (the command as a user runs it) and the other
     /// provers' drivers, each process measured by BenchExec's `runexec`
     /// under the same --timeout and --memory-limit (by default 4 GiB);
-    /// the options of linlog's engines are refused beside it
+    /// the options of deduxit's engines are refused beside it
     #[arg(
         long,
         value_delimiter = ',',

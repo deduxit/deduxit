@@ -68,7 +68,7 @@
                   inherit (workspace) cargoArtifacts;
                   cargoExtraArgs = "--locked ${c.selection}";
                   # crane appends its own suffix (`-test', `-clippy').
-                  pname = "linlog-${crate}";
+                  pname = "deduxit-${crate}";
                   # A check's result is that it passed; the cache holds no
                   # build tree of it.
                   doInstallCargoArtifacts = false;
@@ -205,8 +205,8 @@
                 tar -xzf "$crate" -C "$packages"
               done
               cd "$packages"/deduxit-cli-*
-              printf '\n[patch.crates-io]\nlinlog = { path = "../%s" }\n' \
-                "$(basename ../linlog-[0-9]*)" >>Cargo.toml
+              printf '\n[patch.crates-io]\ndeduxit = { path = "../%s" }\n' \
+                "$(basename ../deduxit-[0-9]*)" >>Cargo.toml
               # The workspace's lock, so that every dependency is the one it pins.
               cp "$workspace/Cargo.lock" .
               CARGO_TARGET_DIR=$workspace/target cargo build --offline --release

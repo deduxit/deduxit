@@ -2,7 +2,7 @@
 # linlog © Fabian Lukas Grubmüller 2026
 # Licensed under the EUPL
 
-# The growing sets of linlog's engines (`deduxit-bench families` lists each
+# The growing sets of deduxit's engines (`deduxit-bench families` lists each
 # family's sizes and claim): every family under the default and every
 # engine forced, and the passes that switch off the mechanism a claim is
 # about, so that a figure draws the claim beside its comparison:

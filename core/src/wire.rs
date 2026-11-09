@@ -150,7 +150,7 @@
 //!   see [`ordinary::Derivation`](crate::ordinary::Derivation).
 //!
 //!   [`Derivation::check`]: crate::ordinary::Derivation::check
-//! - **Ordinary outcome** (written only): `{"version": 8, "linlog":
+//! - **Ordinary outcome** (written only): `{"version": 8, "deduxit":
 //!   "0.2.0", "verdict": "valid", "logic": "classical", "translation":
 //!   "affine", "engine": "focus", "statistics": {…}, "derivation": {…}}`,
 //!   `verdict` one of `valid`, `not_valid` and `unknown` (with a `reason`
@@ -165,7 +165,7 @@
 //!   "steps": [{"cut": 7, "formula": 9, "case": "tensor_par"}, …],
 //!   "end": "cut_free"}`, or `"end": "refused"` with the `reason` in an
 //!   error's form; see [`Elimination`](crate::proofs::cut::Elimination).
-//! - **Outcome** (written only): `{"version": 1, "linlog": "0.1.0",
+//! - **Outcome** (written only): `{"version": 1, "deduxit": "0.1.0",
 //!   "verdict": "proved", "checked": true, "fragment": "MLL", "mode":
 //!   "classical", "engine": "net", "statistics": {…}, "sequent": {…},
 //!   "nodes": […]}`, a proof's keys for `proved` and a disproof's for

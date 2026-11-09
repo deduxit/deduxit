@@ -107,7 +107,7 @@ fn read(path: Option<&Path>) -> Result<Settings> {
     let mut value = serde_json::to_value(&base)?;
     over(&mut value, file);
     serde_json::from_value(value)
-        .with_context(|| format!("{} holds settings linlog does not know", path.display()))
+        .with_context(|| format!("{} holds settings deduxit does not know", path.display()))
 }
 
 /// Writes `new` over `value`: an object key by key, anything else whole.
@@ -491,7 +491,7 @@ mod tests {
     /// Returns the settings `prove` runs under with `args` before its
     /// sequent, and `--settings FILE` first where a file is given.
     fn prove_settings(file: Option<&Path>, args: &[&str]) -> Settings {
-        let mut line = vec!["linlog", "prove"];
+        let mut line = vec!["deduxit", "prove"];
         if let Some(file) = file {
             line.extend(["--settings", file.to_str().unwrap()]);
         }
@@ -525,7 +525,7 @@ mod tests {
     #[test]
     fn flags_given_override_the_file() {
         let file =
-            std::env::temp_dir().join(format!("linlog-settings-{}.json", std::process::id()));
+            std::env::temp_dir().join(format!("deduxit-settings-{}.json", std::process::id()));
         std::fs::write(&file, r#"{"search": {"copies": 0}, "limits": {"work": 7}}"#).unwrap();
         let settings = |args: &[&str]| prove_settings(Some(&file), args);
         let read = settings(&["--memo-limit", "5"]);
@@ -641,8 +641,10 @@ mod tests {
             --memory-limit 2MiB     /limits/memory_bytes       1048576           2097152
             --occurrence-limit 12   /limits/occurrences        11                12
             --ill-syntax one-sided  /input/intuitionistic      "strict"          "one-sided""#;
-        let file =
-            std::env::temp_dir().join(format!("linlog-settings-flags-{}.json", std::process::id()));
+        let file = std::env::temp_dir().join(format!(
+            "deduxit-settings-flags-{}.json",
+            std::process::id()
+        ));
         let path = file.to_str().unwrap();
         for (command, operand, table) in [
             (&["prove"][..], "A |- A", [SEARCH, PROVE].concat()),
@@ -682,7 +684,7 @@ mod tests {
             std::fs::write(&file, written.to_string()).unwrap();
             let read = |flag: &[&str]| {
                 let line = [
-                    &["linlog"],
+                    &["deduxit"],
                     command,
                     &["--settings", path],
                     flag,
@@ -713,7 +715,7 @@ mod tests {
     fn ordinary_applies_under_logic_alone() {
         use deduxit::ordinary::{Logic, Translation};
         let file = std::env::temp_dir().join(format!(
-            "linlog-settings-ordinary-{}.json",
+            "deduxit-settings-ordinary-{}.json",
             std::process::id()
         ));
         std::fs::write(
@@ -723,7 +725,7 @@ mod tests {
         .unwrap();
         let ordinary_of = |args: &[&str]| {
             let line = [
-                &["linlog", "prove", "--settings", file.to_str().unwrap()],
+                &["deduxit", "prove", "--settings", file.to_str().unwrap()],
                 args,
                 &["a -> a"],
             ]
@@ -754,11 +756,11 @@ mod tests {
         use clap::Parser;
         let cli = Cli::command();
         for line in [
-            &["linlog", "prove", "A |- A"][..],
-            &["linlog", "interact", "A |- A"],
-            &["linlog", "check", "proof.json"],
-            &["linlog", "eliminate", "proof.json"],
-            &["linlog", "seq", "print", "A |- A"],
+            &["deduxit", "prove", "A |- A"][..],
+            &["deduxit", "interact", "A |- A"],
+            &["deduxit", "check", "proof.json"],
+            &["deduxit", "eliminate", "proof.json"],
+            &["deduxit", "seq", "print", "A |- A"],
         ] {
             ASKED.with_borrow_mut(Vec::clear);
             let given = Given::default();
@@ -792,7 +794,7 @@ mod tests {
     #[test]
     fn a_file_is_the_library_s_settings() {
         let file =
-            std::env::temp_dir().join(format!("linlog-settings-keys-{}.json", std::process::id()));
+            std::env::temp_dir().join(format!("deduxit-settings-keys-{}.json", std::process::id()));
         let mut kept = Settings::default();
         kept.batch.mode = deduxit::Mode::CLASSICAL.with_affine();
         std::fs::write(&file, serde_json::to_string(&kept).unwrap()).unwrap();

@@ -2828,7 +2828,7 @@ Problems in both; decided (late: after the time limit); decided by one and not t
 |  | ILL/misc | intuitionistic auto j1 | 3 | 3 | 3 | 0 | 0 | – | – | 0.96× (3) | 0 |
 |  | ILL/petri-nets/MCC | intuitionistic auto j1 | 3137 | 3071 | 3071 | 0 | 0 | 63 time, 3 memory | 57 time, 9 memory | 0.76× (3071) | 0 |
 
-## linlog against LinearOne on the first-order families
+## deduxit against LinearOne on the first-order families
 
 Not a baseline: the first-order families (`lambek-fo`, `chain-fo`,
 `witness-fo`) came after the first three baselines, and LinearOne, Moot's prover of
@@ -2837,13 +2837,13 @@ first-order MILL, is the prover their comparison is made with
 2026-10-30, each problem once with each tool under runexec at 10 s and
 4 GiB (`comparison/first-order/verdicts.csv`):
 
-| family (shapes) | problems | linlog decides | LinearOne decides | both, verdicts equal | contradictions |
+| family (shapes) | problems | deduxit decides | LinearOne decides | both, verdicts equal | contradictions |
 |---|---|---|---|---|---|
 | lambek-fo (#0 to #4) | 20 | 18 | 20 | 18 | 0 |
 | witness-fo, MILL1 (#2, #3) | 8 | 7 | 8 | 7 | 0 |
 | witness-fo, MALL1 (#0, #1) | 8 | 8 | outside its fragment | – | – |
 
-Every verdict of both equals the family's by construction. linlog's three
+Every verdict of both equals the family's by construction. deduxit's three
 undecided rows: `lambek-fo/512` #0 and #2 at its recursion limit (2 048),
 `witness-fo/12#3` at the time limit. `chain-fo` (MELL1) is outside
 LinearOne's fragment.
@@ -2851,10 +2851,10 @@ LinearOne's fragment.
 The wall times (`comparison/first-order/times-1.csv` and `times-2.csv`,
 2026-10-30, the command of `bench/TOOLS.md` on cores 2 and 3 of an
 otherwise quiet machine, one run per problem): on the 25 problems both
-decide, linlog takes 4.0 ms in the median and LinearOne 51 ms, linlog
+decide, deduxit takes 4.0 ms in the median and LinearOne 51 ms, deduxit
 the faster on 24; LinearOne's floor of about 46 ms is SWI-Prolog's
-start. Where the problems grow, `lambek-fo/512#3` takes linlog 24 ms and
+start. Where the problems grow, `lambek-fo/512#3` takes deduxit 24 ms and
 LinearOne 3.2 s, and the one row LinearOne wins of those both decide,
-`witness-fo/10#3`, takes linlog 2.5 s and LinearOne 46 ms; LinearOne
-also decides the three linlog leaves undecided.
+`witness-fo/10#3`, takes deduxit 2.5 s and LinearOne 46 ms; LinearOne
+also decides the three deduxit leaves undecided.
 

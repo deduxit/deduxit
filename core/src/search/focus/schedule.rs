@@ -487,7 +487,7 @@ pub(super) fn alternate<Z: Zone>(
     let (forward, backward) = std::thread::scope(|scope| {
         let baton = &baton;
         let thread = std::thread::Builder::new()
-            .name("linlog-search".to_owned())
+            .name("deduxit-search".to_owned())
             .stack_size(limits.stack_bytes())
             .spawn_scoped(scope, move || {
                 let _ended = Ended(baton, 1);

@@ -1,7 +1,7 @@
 // linlog © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Provers side by side: every problem run by each tool of a list, linlog's
+//! Provers side by side: every problem run by each tool of a list, deduxit's
 //! command among them, each as a process of its own measured by BenchExec's
 //! `runexec` (wall time, CPU time and peak memory of the process and its
 //! children, in a cgroup with the memory limit), with the same time and
@@ -26,9 +26,9 @@ use std::time::Instant;
 /// How a driver hands a problem to its tool.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Input {
-    /// linlog's command: an LLTP or `.spec` file as it is, anything else
+    /// deduxit's command: an LLTP or `.spec` file as it is, anything else
     /// as the sequent's JSON.
-    Linlog,
+    Deduxit,
     /// A file the translator writes, with this extension.
     Translated(&'static str),
 }
@@ -104,18 +104,18 @@ const fn propositional(fragment: Fragment) -> bool {
     !fragment.has_quantifiers()
 }
 
-/// linlog covers every problem the harness has.
+/// deduxit covers every problem the harness has.
 const fn everything(_: Fragment, _: Mode) -> bool {
     true
 }
 
-/// linlog reads its input itself.
+/// deduxit reads its input itself.
 fn untranslated(_: &Problem) -> Result<String> {
     Ok(String::new())
 }
 
-/// The arguments of `linlog prove` common to both of linlog's columns.
-fn linlog_arguments(file: &Path, problem: &Problem, timeout: f64, memory: u64) -> Vec<String> {
+/// The arguments of `deduxit prove` common to both of deduxit's columns.
+fn deduxit_arguments(file: &Path, problem: &Problem, timeout: f64, memory: u64) -> Vec<String> {
     let format = match file.extension().and_then(|e| e.to_str()) {
         Some("p") => "lltp",
         Some("spec") => "spec",
@@ -151,19 +151,19 @@ fn linlog_arguments(file: &Path, problem: &Problem, timeout: f64, memory: u64) -
     arguments
 }
 
-/// linlog on one thread: its sequential engines, the counters a function
+/// deduxit on one thread: its sequential engines, the counters a function
 /// of the input.
-fn linlog_one(file: &Path, problem: &Problem, timeout: f64, memory: u64) -> Vec<String> {
-    let mut arguments = linlog_arguments(file, problem, timeout, memory);
+fn deduxit_one(file: &Path, problem: &Problem, timeout: f64, memory: u64) -> Vec<String> {
+    let mut arguments = deduxit_arguments(file, problem, timeout, memory);
     arguments.push("--deterministic".into());
     arguments
 }
 
-/// Reads linlog's exit status (0 proved, 1 unprovable, 3 unknown, 2 an
+/// Reads deduxit's exit status (0 proved, 1 unprovable, 3 unknown, 2 an
 /// error) and its outcome in JSON: the engine, the reason of an unknown
 /// verdict, and an unprovable verdict's refutation, which
 /// `Disproof::check` checks ([`refutation_checked`]).
-fn linlog_read(output: &str, status: i32, _: &Problem) -> Answer {
+fn deduxit_read(output: &str, status: i32, _: &Problem) -> Answer {
     let line = output.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
     let outcome = output
         .lines()
@@ -215,7 +215,7 @@ fn linlog_read(output: &str, status: i32, _: &Problem) -> Answer {
     }
 }
 
-/// Returns the `checked` column of linlog's unprovable outcome, read from
+/// Returns the `checked` column of deduxit's unprovable outcome, read from
 /// its JSON as the disproof it holds: `ok` where `Disproof::check` accepts
 /// the refutation, `failed: …` where it does not hold or cannot be read,
 /// empty for an exhausted search, which has no check.
@@ -231,29 +231,29 @@ fn refutation_checked(output: &str) -> String {
     }
 }
 
-/// Every driver, linlog's two columns first.
+/// Every driver, deduxit's two columns first.
 pub const DRIVERS: &[Driver] = &[
     Driver {
-        name: "linlog",
-        program: "linlog",
-        summary: "linlog prove --deterministic: one thread",
+        name: "deduxit",
+        program: "deduxit",
+        summary: "deduxit prove --deterministic: one thread",
         covers: everything,
-        input: Input::Linlog,
+        input: Input::Deduxit,
         translate: untranslated,
-        arguments: linlog_one,
-        read: linlog_read,
+        arguments: deduxit_one,
+        read: deduxit_read,
         jobs: "1",
         checks: true,
     },
     Driver {
-        name: "linlog-default",
-        program: "linlog",
-        summary: "linlog prove as a user runs it: one thread, then a pool beside it",
+        name: "deduxit-default",
+        program: "deduxit",
+        summary: "deduxit prove as a user runs it: one thread, then a pool beside it",
         covers: everything,
-        input: Input::Linlog,
+        input: Input::Deduxit,
         translate: untranslated,
-        arguments: linlog_arguments,
-        read: linlog_read,
+        arguments: deduxit_arguments,
+        read: deduxit_read,
         jobs: "all",
         checks: true,
     },
@@ -583,7 +583,7 @@ pub struct Settings<'a> {
     /// The memory limit in bytes, the same for every tool.
     pub memory: u64,
     /// Seconds a tool may run past the limit before runexec ends it, so
-    /// that linlog's own stop answers first.
+    /// that deduxit's own stop answers first.
     pub grace: f64,
     /// Where the inputs and logs of a run are written, emptied after it.
     pub work: &'a Path,
@@ -723,10 +723,10 @@ fn one(
     std::fs::create_dir_all(&dir)?;
     let started = Instant::now();
     let input = match driver.input {
-        Input::Linlog if matches!(reference.source, "lltp" | "spec") => {
+        Input::Deduxit if matches!(reference.source, "lltp" | "spec") => {
             PathBuf::from(reference.id.split_once(':').map_or("", |(_, path)| path))
         }
-        Input::Linlog => {
+        Input::Deduxit => {
             let file = dir.join("problem.json");
             std::fs::write(&file, serde_json::to_string(&problem.sequent)?)?;
             file
@@ -863,14 +863,14 @@ fn full_row(
 /// The memory limit of every tool when `--memory-limit` names none.
 pub const DEFAULT_MEMORY: u64 = 4 << 30;
 
-/// Seconds past the time limit before runexec ends a run: linlog stops
+/// Seconds past the time limit before runexec ends a run: deduxit stops
 /// itself at the limit and needs a moment to say so.
 const GRACE: f64 = 1.0;
 
 /// The environment variable naming the record of the tools' versions, a
 /// JSON object from each tool's name to its version, source and licence,
 /// which the flake writes beside the tools.
-const TOOLS_RECORD: &str = "LINLOG_COMPARISON_TOOLS";
+const TOOLS_RECORD: &str = "DEDUXIT_COMPARISON_TOOLS";
 
 /// `run --tools`: runs the problems listed with every tool named, writes
 /// the rows to the output (appending and resuming as `run` does) and the
@@ -976,8 +976,8 @@ fn done(path: &Path) -> Result<HashSet<String>> {
 }
 
 /// Writes the record of a run: the command line, the limits, every tool
-/// with its program, version and source, linlog's commit where the
-/// environment names it (`LINLOG_COMMIT`), and the machine (processor,
+/// with its program, version and source, deduxit's commit where the
+/// environment names it (`DEDUXIT_COMMIT`), and the machine (processor,
 /// cores this process may use, memory, kernel), as the run sees them.
 fn record(path: &Path, settings: &Settings, tools: &serde_json::Value) -> Result<()> {
     let read = |file: &str| std::fs::read_to_string(file).unwrap_or_default();
@@ -1007,8 +1007,8 @@ fn record(path: &Path, settings: &Settings, tools: &serde_json::Value) -> Result
         "memory_limit_bytes": settings.memory,
         "grace_s": settings.grace,
         "measured_by": format!("runexec {}", version("runexec")),
-        "linlog": version("linlog"),
-        "linlog_commit": std::env::var("LINLOG_COMMIT").unwrap_or_default(),
+        "deduxit": version("deduxit"),
+        "deduxit_commit": std::env::var("DEDUXIT_COMMIT").unwrap_or_default(),
         "tools": settings.drivers.iter().map(|d| serde_json::json!({
             "name": d.name,
             "program": d.program,
@@ -1030,11 +1030,11 @@ fn record(path: &Path, settings: &Settings, tools: &serde_json::Value) -> Result
 mod tests {
     use super::*;
 
-    /// linlog's unprovable outcome is checked by its refutation: `ok`
+    /// deduxit's unprovable outcome is checked by its refutation: `ok`
     /// where it holds, `failed: …` where a planted change makes it fail,
     /// and empty for an exhausted search.
     #[test]
-    fn linlog_s_refutations_are_checked() {
+    fn deduxit_s_refutations_are_checked() {
         let outcome = |input: &str, mode: Mode| {
             let sequent: deduxit::Sequent = input.parse().unwrap();
             let outcome = deduxit::prove(&sequent, mode, &deduxit::Options::default()).unwrap();
@@ -1061,7 +1061,7 @@ mod tests {
     /// recursion limit; and without an outcome the bound the verdict line
     /// names first, not a copy bound named after it.
     #[test]
-    fn linlog_reason_is_the_bound_named_first() {
+    fn deduxit_reason_is_the_bound_named_first() {
         let problem = Problem {
             sequent: "|- a".parse().unwrap(),
             mode: Mode::CLASSICAL,
@@ -1081,15 +1081,15 @@ mod tests {
             deduxit::prove_within(&chain, Mode::CLASSICAL, &options, &limits, |_| false).unwrap();
         let json = serde_json::to_string(&outcome).unwrap();
         assert_eq!(
-            linlog_read(&json, 3, &problem).reason,
+            deduxit_read(&json, 3, &problem).reason,
             "recursion_limit",
             "{json}"
         );
         let line = "unknown (classical MELL, focus engine): the recursion limit of 2048 was \
                     reached after 0.30s at a copy bound of 410; raise it with --recursion-limit N";
-        assert_eq!(linlog_read(line, 3, &problem).reason, "recursion_limit");
+        assert_eq!(deduxit_read(line, 3, &problem).reason, "recursion_limit");
         let line = "unknown (classical MELL, focus engine): the copy bound of 3 was reached \
                     after 1.00ms; raise it with --copies N";
-        assert_eq!(linlog_read(line, 3, &problem).reason, "copy_bound");
+        assert_eq!(deduxit_read(line, 3, &problem).reason, "copy_bound");
     }
 }

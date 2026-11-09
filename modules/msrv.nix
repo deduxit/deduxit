@@ -21,7 +21,7 @@
       checks.msrv = craneLib.mkCargoDerivation (
         workspace.commonArgs
         // {
-          pname = "linlog-msrv";
+          pname = "deduxit-msrv";
           inherit version;
           cargoArtifacts = null;
           buildPhaseCargoCommand = "cargo check --locked --workspace --all-targets --all-features";

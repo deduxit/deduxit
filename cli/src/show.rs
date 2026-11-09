@@ -1427,7 +1427,7 @@ mod tests {
     /// stop's reason, never as a check given up without a verdict.
     #[test]
     fn a_stopped_derivation_says_why() {
-        let line = ["linlog", "check", "--format", "latex", "--output", "x.tex"];
+        let line = ["deduxit", "check", "--format", "latex", "--output", "x.tex"];
         let Command::Check(check) = Cli::try_parse_from(line).unwrap().command else {
             unreachable!("a check command")
         };

@@ -139,7 +139,7 @@ pub enum Error {
     },
     /// A document is not of the form it was read as: not JSON, a key
     /// missing or of another type.
-    #[error("not a {form} of linlog's wire form: {message}")]
+    #[error("not a {form} of deduxit's wire form: {message}")]
     #[non_exhaustive]
     Json {
         /// The form read: `sequent`, `proof`, …

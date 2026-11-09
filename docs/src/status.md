@@ -183,11 +183,11 @@ Built:
   cut link and what the step acts on highlighted.
 - Export of sequents and derivations, finished or in progress, to LaTeX
   (ebproof proof trees) and Typst (curryst proof trees, and trees of any
-  height in a layout of linlog's own), as fragments or standalone
+  height in a layout of deduxit's own), as fragments or standalone
   documents that choose no font, and drawings of sequents,
   derivations and proof nets as SVG (every subformula of a net written,
   or compact; a net with boxes with every `!`-box a rectangle; in
-  linlog's look or the textbooks', with plain edges, the conclusions on
+  deduxit's look or the textbooks', with plain edges, the conclusions on
   the bottom row and a `?` node as the dereliction, contraction and
   weakening nodes of its rules, each of the three an option of its own), laid out with the character widths
   of Euler Math, STIX Two Math, Garamond-Math, Asana Math or New Computer
@@ -213,7 +213,7 @@ Built:
   classical linear logic as a plain inductive, with Mix and general
   weakening as parameters, and the two-sided calculus of intuitionistic
   linear logic and its affine variant, each with the cut as an optional
-  rule; linlog's proof terms as
+  rule; deduxit's proof terms as
   datatypes, one-sided and two-sided, checkers as functions, and for
   every mode the theorem that a term the checker accepts proves its
   sequent, closed under the global context; a certificate is the
@@ -225,7 +225,7 @@ Built:
   writes them as its second kernel (`--kernel linlog`, the default for
   Mix, affine, intuitionistic and first-order proofs). Its flake builds
   the library and compiles the certificates under its `tests/`, and
-  linlog's flake compiles those the command writes against it, pinned
+  deduxit's flake compiles those the command writes against it, pinned
   to a commit. The library proves that a derivation with Mix gives one of
   `?(⊥⊗⊥), Γ` without Mix and without cut, and, in modules under its
   `bridges/` that its flake checks against the kernels' own pinned
@@ -243,7 +243,7 @@ Built:
   quantifier; so `--format rocq` writes, for an unprovable sequent with
   such a refutation, the lemma that the calculus does not derive it,
   checked by computation. The library's `Disproof::check` verifies the
-  same refutations without the search, and a saturated set; `linlog
+  same refutations without the search, and a saturated set; `deduxit
   check` reads an unprovable outcome and checks its refutation; an
   ordinary sequent that is not valid gets the lemma over `Prop` by
   instantiating its atoms.
@@ -271,7 +271,7 @@ Built:
   copy bound, with the flag that changes it, and an "unprovable" says why
   where the counts of the sequent tell (an atom whose literals cannot
   pair up, the count equation that fails) or an assignment falsifies it.
-- The `linlog` command: `prove`, `check`, `interact` and `seq`, with time
+- The `deduxit` command: `prove`, `check`, `interact` and `seq`, with time
   limits, Ctrl-C, statistics, JSON output, proof nets, LaTeX, Typst,
   SVG and Rocq output, and `--jobs`, `--pool-after` and `--deterministic`
   for the search; every setting a flag sets read from one file with
@@ -321,7 +321,7 @@ Built:
   each line.
 - Performance work on the focused engine, measured by four baselines,
   one before it, one after it and one at each release, 0.1.0 and 0.2.0.
-- Releases: the crates `linlog` and `deduxit-cli` on crates.io, with a
+- Releases: the crates `deduxit` and `deduxit-cli` on crates.io, with a
   changelog that states what each version promises and what it breaks,
   and a workflow that publishes a version tag with the command built
   for Linux (an archive, a `.deb`, an `.rpm` and an Arch Linux package),
@@ -339,8 +339,8 @@ Built:
   [deduxit.github.io](https://deduxit.github.io/), with
   lessons, in a repository of its own.
 
-Planned, release by release, as the repository grows from linlog into
-a collection of logic suites:
+Planned, release by release, as the collection of logic suites grows
+by a suite at a time:
 
 - 0.3.0: ordinary logic on the web page, proved step by step in LK and
   LJ; the lambda-term of a proof on the web page; the inverse method
@@ -362,8 +362,8 @@ Not yet placed in a release: first-order proving on the web page, and
 the comparison with the other provers on the libraries with the
 engines of 0.2.0.
 
-linlog is very much inspired by [Click & coLLecT](https://www.click-and-collect.linear-logic.org).
+deduxit is very much inspired by [Click & coLLecT](https://www.click-and-collect.linear-logic.org).
 It aims to support more use cases on a modern, more efficient base.
-Feature requests and contributions are welcome. linlog is licensed
+Feature requests and contributions are welcome. deduxit is licensed
 under the EUPL; see
 [Licence](https://github.com/deduxit/deduxit/blob/main/README.md#licence).

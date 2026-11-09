@@ -1,23 +1,23 @@
 # Output formats
 
-`linlog seq` prints a sequent one-sided in negation normal form, or
+`deduxit seq` prints a sequent one-sided in negation normal form, or
 two-sided as intuitionistic linear logic reads it, converts it to JSON
 (which a `.json` file or `--input-format json` reads back; with `-i` the
 intuitionistic sequent's own form, whose formulas have the connectives
 of ILL alone), or names its fragment:
 
 ```console
-$ linlog seq print "A * B -o C |- A -o B -o C"
+$ deduxit seq print "A * B -o C |- A -o B -o C"
 ⊢ (A ⊗ B) ⊗ ~C, ~A ⅋ (~B ⅋ C)
-$ linlog seq print -i "A * B -o C |- A -o B -o C"
+$ deduxit seq print -i "A * B -o C |- A -o B -o C"
 (A ⊗ B) ⊸ C ⊢ A ⊸ (B ⊸ C)
-$ linlog seq fragment -i "A & B |- 1"
+$ deduxit seq fragment -i "A & B |- 1"
 IMALL
-$ linlog seq json "A |- A"
+$ deduxit seq json "A |- A"
 {"version":1,"terms":[{"D":0},{"V":0}],"roots":[0,1],"atoms":["A"],"antecedents":1}
-$ linlog seq json -i "A * B -o C |- A -o B -o C"
+$ deduxit seq json -i "A * B -o C |- A -o B -o C"
 {"version":5,"terms":[{"V":0},{"V":1},{"⊗":[0,1]},{"V":2},{"⊸":[2,3]},{"⊸":[1,3]},{"⊸":[0,5]}],"atoms":["A","B","C"],"hypotheses":[4],"goal":6}
-$ linlog seq fragment "A & B |- 1"
+$ deduxit seq fragment "A & B |- 1"
 MALL
 ```
 
@@ -30,14 +30,14 @@ two-sided trees), Typst for the
 line becomes a comment. `seq print` takes the same formats for a sequent:
 
 ```console
-$ linlog prove -i --format latex "A, A -o B |- B"
+$ deduxit prove -i --format latex "A, A -o B |- B"
 % provable (IMLL, intuitionistic, two-sided engine)
 \begin{prooftree}
 \infer0[$\mathrm{ax}$]{A &\vdash A}
 \infer0[$\mathrm{ax}$]{B &\vdash B}
 \infer2[$\multimap\mathrm{L}$]{A, A \multimap B &\vdash B}
 \end{prooftree}
-$ linlog prove --format typst "A & B |- A + B"
+$ deduxit prove --format typst "A & B |- A + B"
 // provable (ALL, classical, additive engine)
 #prooftree(
   rule(
@@ -50,9 +50,9 @@ $ linlog prove --format typst "A & B |- A + B"
     $⊢ A^⊥ ⊕ B^⊥, A ⊕ B$,
   ),
 )
-$ linlog seq print -i --format latex "A * B -o C |- A -o B -o C"
+$ deduxit seq print -i --format latex "A * B -o C |- A -o B -o C"
 $(A \otimes B) \multimap C \vdash A \multimap (B \multimap C)$
-$ linlog seq print --format typst "A * B -o C |- A -o B -o C"
+$ deduxit seq print --format typst "A * B -o C |- A -o B -o C"
 $⊢ (A ⊗ B) ⊗ C^⊥, A^⊥ ⅋ (B^⊥ ⅋ C)$
 ```
 
@@ -61,16 +61,16 @@ to the tree. Neither form chooses a font: the output takes the fonts of
 the document it goes into. `pdflatex` needs the ebproof, cmll, amsfonts
 and standalone packages, and `typst compile` fetches curryst 0.6.0 on
 first use. Typst refuses a curryst tree with binary rules more than nine
-inferences high, so a higher tree is written in a layout of linlog's own
+inferences high, so a higher tree is written in a layout of deduxit's own
 instead: a `#context` block that lists the inferences and the Typst code
 that measures and places them, which needs no package and sets a tree of
-any height. `--style layout=linlog` asks for it at any height,
+any height. `--style layout=deduxit` asks for it at any height,
 `layout=curryst` for curryst always, and `premise_gap`, `label_gap`,
 `band` and `stroke` set its spacing, each a number and one of the units
 `pt`, `mm`, `cm`, `in` and `em`:
 
 ```console
-$ linlog prove --format typst --style layout=linlog "A & B |- A + B" | head -12
+$ deduxit prove --format typst --style layout=deduxit "A & B |- A + B" | head -12
 // provable (ALL, classical, additive engine)
 #context {
   let open = "dots"
@@ -86,7 +86,7 @@ $ linlog prove --format typst --style layout=linlog "A & B |- A + B" | head -12
 ```
 
 ```console
-$ linlog prove --format latex --standalone --output proof.tex "!A |- A * !A"
+$ deduxit prove --format latex --standalone --output proof.tex "!A |- A * !A"
 $ pdflatex proof.tex
 ```
 
@@ -133,7 +133,7 @@ the copy's box), each copy's wire leaving its boxes through doors of its
 own, binary contractions `?c` joining them below, and a weakening `?w`.
 Each of the three is a key of its own: `svg.net_look.premises=plain`,
 `svg.net_look.conclusions=bottom` and `svg.net_look.why_not=rules`, and
-`svg.net_look=linlog` is the default. `seq print --format svg` and `show --svg`
+`svg.net_look=deduxit` is the default. `seq print --format svg` and `show --svg`
 in `interact` draw a sequent and the derivation so far. The drawings ask for
 the Euler Math font without embedding it; every text is stretched to the
 width Euler Math gives it, so a viewer without the font keeps the layout.
@@ -146,14 +146,14 @@ The text stays selectable, and `--standalone` is refused, since an SVG is
 always a document.
 
 ```console
-$ linlog prove -i --format svg --output proof.svg "1, A & B, B -o C |- C"
-$ linlog prove --net --output net.svg "A * B |- B * A"
-$ linlog prove --net --style svg.net=compact --output compact.svg "A * B |- B * A"
-$ linlog prove --net --output boxes.svg "!a, !c |- !(a * a) * ?c"
-$ linlog prove --net --style svg.net_look=textbook --output textbook.svg "!a, !b, !(c * d) |- !((a * a) * (d * c))"
-$ linlog prove -i --net --style svg.essential=true --output essential.svg "A -o B, B -o C |- A -o C"
-$ linlog prove -i --net --style svg.essential=true --output essential-boxes.svg "!a, !(a -o b) |- !(b * a)"
-$ linlog seq print --format svg "A |- A"
+$ deduxit prove -i --format svg --output proof.svg "1, A & B, B -o C |- C"
+$ deduxit prove --net --output net.svg "A * B |- B * A"
+$ deduxit prove --net --style svg.net=compact --output compact.svg "A * B |- B * A"
+$ deduxit prove --net --output boxes.svg "!a, !c |- !(a * a) * ?c"
+$ deduxit prove --net --style svg.net_look=textbook --output textbook.svg "!a, !b, !(c * d) |- !((a * a) * (d * c))"
+$ deduxit prove -i --net --style svg.essential=true --output essential.svg "A -o B, B -o C |- A -o C"
+$ deduxit prove -i --net --style svg.essential=true --output essential-boxes.svg "!a, !(a -o b) |- !(b * a)"
+$ deduxit seq print --format svg "A |- A"
 <svg xmlns="http://www.w3.org/2000/svg" role="img" width="70.272" height="27.2" viewBox="0 0 4392 1700" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
 <title>⊢ A⊥, A</title>
 <g>
@@ -162,7 +162,7 @@ $ linlog seq print --format svg "A |- A"
 <text x="2712" y="1190" textLength="1380" lengthAdjust="spacing">, 𝐴</text>
 </g>
 </svg>
-$ linlog seq print --format svg --font stix-two "A |- A"
+$ deduxit seq print --format svg --font stix-two "A |- A"
 <svg xmlns="http://www.w3.org/2000/svg" role="img" width="62.416" height="27.2" viewBox="0 0 3901 1700" font-family="'STIX Two Math', serif" font-size="1000" fill="black">
 <title>⊢ A⊥, A</title>
 <g>
@@ -192,7 +192,7 @@ for byte, and the current time otherwise. Every drawing carries that
 reading too, as the SVG's description.
 
 ```console
-$ linlog prove -i --output proof.pdf "1, A & B, B -o C |- C"
+$ deduxit prove -i --output proof.pdf "1, A & B, B -o C |- C"
 provable (IMALL, intuitionistic, two-sided engine)
 ```
 
@@ -210,14 +210,14 @@ as JSON, one object per format, which is the form a front end keeps;
 `--no-verdict` writes the derivation alone.
 
 ```console
-$ linlog prove -i --format latex --style labels=subscript --style align=false "A, A -o B |- B"
+$ deduxit prove -i --format latex --style labels=subscript --style align=false "A, A -o B |- B"
 % provable (IMLL, intuitionistic, two-sided engine)
 \begin{prooftree}
 \infer0[$\mathrm{ax}$]{A \vdash A}
 \infer0[$\mathrm{ax}$]{B \vdash B}
 \infer2[$\multimap_{\mathrm{L}}$]{A, A \multimap B \vdash B}
 \end{prooftree}
-$ linlog prove --style gap=6 --style bar="=" "A * B |- A * B"
+$ deduxit prove --style gap=6 --style bar="=" "A * B |- A * B"
 provable (MLL, classical, focus engine)
 ======= ax      ======= ax
 ⊢ ~A, A         ⊢ ~B, B
@@ -225,12 +225,12 @@ provable (MLL, classical, focus engine)
     ⊢ ~A, ~B, A ⊗ B
     ================ ⅋
     ⊢ ~A ⅋ ~B, A ⊗ B
-$ linlog prove --style labels.table.ax=id "A |- A"
+$ deduxit prove --style labels.table.ax=id "A |- A"
 provable (MLL, classical, focus engine)
 ─────── id
 ⊢ ~A, A
 $ echo '{"svg": {"background": "white"}, "png": {"scale": 3}}' > style.json
-$ linlog prove --net --style-file style.json --output net.png "A * B |- B * A"
+$ deduxit prove --net --style-file style.json --output net.png "A * B |- B * A"
 provable (MLL, classical, focus engine)
 ```
 
@@ -265,8 +265,8 @@ one.
 
 ```console
 $ echo '{"search": {"copies": 0, "engine": "focus"}}' > settings.json
-$ linlog prove --settings settings.json "|- ?(~a * ~a), a * a * a * a"
+$ deduxit prove --settings settings.json "|- ?(~a * ~a), a * a * a * a"
 unknown (MELL, classical, focus engine): the copy bound of 0 was reached after 300.39µs; raise it with --copies N, or lift it with --copies none to deepen it while the time limit lasts
-$ linlog prove --settings settings.json --copies 3 "|- ?(~a * ~a), a * a * a * a"
+$ deduxit prove --settings settings.json --copies 3 "|- ?(~a * ~a), a * a * a * a"
 unprovable (MELL, classical, focus engine): the search was exhaustive
 ```

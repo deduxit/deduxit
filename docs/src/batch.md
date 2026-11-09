@@ -18,14 +18,14 @@ $ cat > sequents.txt
 > modus ponens: A, A -o B |- B
 > A |- B
 > broken: A |- (
-$ linlog prove --input-format lines --file sequents.txt
+$ deduxit prove --input-format lines --file sequents.txt
 identity: provable (MLL, classical, focus engine)
 modus ponens: provable (MLL, classical, focus engine)
 sequents.txt:4: unprovable (MLL, classical, focus engine): ~A occurs 1 more time than A in the one-sided sequent, so they cannot all meet in axioms
 broken: error: cannot parse the sequent
    A |- (
          ^ unexpected end of input, expected a formula
-$ linlog prove --input-format lines --file sequents.txt --format svg --output drawings
+$ deduxit prove --input-format lines --file sequents.txt --format svg --output drawings
 identity: provable (MLL, classical, focus engine)
 modus ponens: provable (MLL, classical, focus engine)
 sequents.txt:4: unprovable (MLL, classical, focus engine): ~A occurs 1 more time than A in the one-sided sequent, so they cannot all meet in axioms
@@ -59,7 +59,7 @@ $ cat > problem.p
 > fof(rule, axiom, !(a -o b)).
 > fof(fact, axiom, a).
 > fof(goal, conjecture, b * 1).
-$ linlog prove -i -q --file problem.p
+$ deduxit prove -i -q --file problem.p
 provable (IMELL, intuitionistic, horn engine)
 ```
 
@@ -81,7 +81,7 @@ $ cat > mutex.spec
 >   critical >= 1 -> critical' = critical - 1, idle' = idle + 1, lock' = lock + 1;
 > init idle >= 1, lock = 1
 > target critical >= 2
-$ linlog prove -i --affine -q --file mutex.spec
+$ deduxit prove -i --affine -q --file mutex.spec
 unprovable (IMELL, intuitionistic affine, horn engine): the state equation of the Petri net has no solution, so no firing of its clauses yields the goal's atoms: weighting each lock by 1 and critical by 1, no clause that can fire raises the weighted count of the atoms, and the goal asks it raised
 ```
 
@@ -103,8 +103,8 @@ flags' (else a settings file's `batch.mode`), a problem file's column or
 a record's:
 
 ```console
-$ echo '{"name": "pair", "mode": "intuitionistic", "sequent": "A, B |- A * B"}' | linlog prove --input-format jsonl --format json
-{"version":1,"name":"pair","linlog":"…","verdict":"proved","checked":true,"fragment":"IMLL","mode":"intuitionistic","engine":"two-sided","statistics":{"nodes":1,"memo_hits":0,"memo_entries":1,"splits":1,"links":0,"tests":0,"copies":0,"forward_copies":0,"work":16},"sequent":{"terms":[{"D":0},{"D":1},{"V":0},{"V":1},{"⊗":[2,3]}],"roots":[0,1,4],"atoms":["A","B"],"antecedents":2},"nodes":[{"ax":[3,0]},{"ax":[4,1]},{"⊗":[2,0,1]}]}
+$ echo '{"name": "pair", "mode": "intuitionistic", "sequent": "A, B |- A * B"}' | deduxit prove --input-format jsonl --format json
+{"version":1,"name":"pair","deduxit":"…","verdict":"proved","checked":true,"fragment":"IMLL","mode":"intuitionistic","engine":"two-sided","statistics":{"nodes":1,"memo_hits":0,"memo_entries":1,"splits":1,"links":0,"tests":0,"copies":0,"forward_copies":0,"work":16},"sequent":{"terms":[{"D":0},{"D":1},{"V":0},{"V":1},{"⊗":[2,3]}],"roots":[0,1,4],"atoms":["A","B"],"antecedents":2},"nodes":[{"ax":[3,0]},{"ax":[4,1]},{"⊗":[2,0,1]}]}
 ```
 
 By default the cores go across the sequents, one sequent per worker on
@@ -119,9 +119,9 @@ worth a second pass on the whole machine, which costs little because
 it is a few sequents:
 
 ```sh
-linlog prove -i --file problems/ > results.txt
+deduxit prove -i --file problems/ > results.txt
 grep ': unknown' results.txt | cut -d: -f1 > unknown.txt
-linlog prove -i --files-from unknown.txt --cores within > second.txt
+deduxit prove -i --files-from unknown.txt --cores within > second.txt
 ```
 
 `--timeout` is each sequent's limit, reading included, and

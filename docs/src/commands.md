@@ -1,26 +1,26 @@
 # The commands
 
-The command line program is `linlog` (`cargo install --locked deduxit-cli`, `nix run
+The command line program is `deduxit` (`cargo install --locked deduxit-cli`, `nix run
 github:deduxit/deduxit -- …`, or `cargo run -p deduxit-cli -- …` in a
-checkout). `linlog --help` and `linlog <command> --help` document every
+checkout). `deduxit --help` and `deduxit <command> --help` document every
 option.
 
-`linlog prove` decides a sequent, written as below (`-o` is ⊸, `*` ⊗,
+`deduxit prove` decides a sequent, written as below (`-o` is ⊸, `*` ⊗,
 `par` ⅋, `~` negation; the whole syntax is in [The syntax](syntax.md),
-and `linlog --help` prints it). The first line gives the verdict,
+and `deduxit --help` prints it). The first line gives the verdict,
 the fragment the sequent was detected to live in and the engine that
 searched; a proof follows as a derivation tree of the one-sided sequent
 calculus:
 
 ```console
-$ linlog prove "A, A -o B |- B"
+$ deduxit prove "A, A -o B |- B"
 provable (MLL, classical, focus engine)
 ─────── ax   ─────── ax
 ⊢ ~A, A      ⊢ ~B, B
 ──────────────────── ⊗
   ⊢ ~A, A ⊗ ~B, B
 
-$ linlog prove "A & B |- A + B"
+$ deduxit prove "A & B |- A + B"
 provable (ALL, classical, additive engine)
     ─────── ax
     ⊢ ~A, A
@@ -29,11 +29,11 @@ provable (ALL, classical, additive engine)
 ──────────────── ⊕₁
 ⊢ ~A ⊕ ~B, A ⊕ B
 
-$ linlog prove "|- A par B, ~A, ~B"
+$ deduxit prove "|- A par B, ~A, ~B"
 unprovable (MLL, classical, focus engine): the count equation fails: a provable one-sided sequent of MLL has exactly #⊗ − #⅋ − #1 + #⊥ + 2 formulas, here 0 − 1 − 0 + 0 + 2 = 1, and this one has 3
-$ linlog prove "A |- B"
+$ deduxit prove "A |- B"
 unprovable (MLL, classical, focus engine): ~A occurs 1 more time than A in the one-sided sequent, so they cannot all meet in axioms
-$ linlog prove "!A, A |- 1"
+$ deduxit prove "!A, A |- 1"
 unprovable (MELL, classical, horn engine): ~A occurs 1 more time than A outside the exponentials of the one-sided sequent, and every literal of the atom below one, which copies add, is ~A, so they cannot all meet in axioms
 ```
 
@@ -73,7 +73,7 @@ run; units of work are each engine's steps, the same on every machine
 on one thread):
 
 ```console
-$ linlog prove --mix --stats --deterministic --engine net "|- A par B, ~A, ~B"
+$ deduxit prove --mix --stats --deterministic --engine net "|- A par B, ~A, ~B"
 provable (MLL, classical with Mix, net engine)
 ─────── ax   ─────── ax
 ⊢ A, ~A      ⊢ B, ~B
@@ -86,7 +86,7 @@ links tried: 2
 exact tests run: 2
 units of work: 2
 time: 63.45µs
-$ linlog prove --engine focus --stats --quiet --deterministic "|- A * B, C * (~A par ~B), ~C"
+$ deduxit prove --engine focus --stats --quiet --deterministic "|- A * B, C * (~A par ~B), ~C"
 provable (MLL, classical, focus engine)
 stable sequents visited: 2
 from the memo: 0
@@ -105,7 +105,7 @@ N. The derivation shows the standard rules: dereliction, contraction,
 weakening and promotion.
 
 ```console
-$ linlog prove "!A |- !(A * A)"
+$ deduxit prove "!A |- !(A * A)"
 provable (MELL, classical, focus engine)
 ─────── ax    ─────── ax
 ⊢ ~A, A       ⊢ ~A, A
@@ -147,7 +147,7 @@ start, or none is new, which always comes. `--stats` counts the
 markings:
 
 ```console
-$ linlog prove "!A, !(A -o B), !(B -o C) |- C"
+$ deduxit prove "!A, !(A -o B), !(B -o C) |- C"
 provable (MELL, classical, horn engine)
              ─────── ax   ─────── ax
              ⊢ ~B, B      ⊢ ~C, C
@@ -161,30 +161,30 @@ provable (MELL, classical, horn engine)
   ⊢ ~A, ?(A ⊗ ~B), ?(B ⊗ ~C), C
   ────────────────────────────── ?d
   ⊢ ?~A, ?(A ⊗ ~B), ?(B ⊗ ~C), C
-$ linlog prove -q --deterministic --stats "!(a * a -o b), !(b * b -o c), !(c * c -o d), a, a, a, a, a, a, a, a |- d"
+$ deduxit prove -q --deterministic --stats "!(a * a -o b), !(b * b -o c), !(c * c -o d), a, a, a, a, a, a, a, a |- d"
 provable (MELL, classical, horn engine)
 markings reached: 7
 markings met again: 0
 markings kept: 7
 units of work: 6
 time: 45.06µs
-$ linlog prove -q --deterministic --stats "!(a * a -o b), !(b * b -o c), !(c * c -o d), a, a, a, a, a, a, a, a |- d * a"
+$ deduxit prove -q --deterministic --stats "!(a * a -o b), !(b * b -o c), !(c * c -o d), a, a, a, a, a, a, a, a |- d * a"
 unprovable (MELL, classical, horn engine): the search was exhaustive
 markings reached: 12
 markings met again: 2
 markings kept: 10
 units of work: 13
 time: 31.81µs
-$ linlog prove -q "!(a -o a * a), !(b * b -o c), a, b |- c"
+$ deduxit prove -q "!(a -o a * a), !(b * b -o c), a, b |- c"
 unprovable (MELL, classical, horn engine): the state equation of the Petri net has no solution, so no firing of its clauses yields the goal's atoms: weighting each a by −2, b by 1 and c by 2, no clause that can fire raises the weighted count of the atoms, and the goal asks it raised
-$ linlog prove -q --affine --stats "!(a * a -o b * b * b), a, a, a |- b * b * b"
+$ deduxit prove -q --affine --stats "!(a * a -o b * b * b), a, a, a |- b * b * b"
 provable (MELL, classical affine, horn engine)
 markings computed backward: 1
 markings covered already: 0
 markings kept: 1
 units of work: 2
 time: 268.07µs
-$ linlog prove -q --affine "!(a * a -o b * b * b), a, a, a |- b * b * b * b"
+$ deduxit prove -q --affine "!(a * a -o b * b * b), a, a, a |- b * b * b * b"
 unprovable (MELL, classical affine, horn engine): the search was exhaustive
 ```
 
@@ -202,13 +202,13 @@ flag changes it; `--stats` adds the copy bound reached:
 
 <!-- readme-check: machine -->
 ```console
-$ linlog prove -q "!(A & B) |- A * B"
+$ deduxit prove -q "!(A & B) |- A * B"
 provable (LL, classical, focus engine)
-$ linlog prove -q --copies 1 "!(A & B) |- A * B"
+$ deduxit prove -q --copies 1 "!(A & B) |- A * B"
 unknown (LL, classical, focus engine): the copy bound of 1 was reached after 54.08µs; raise it with --copies N, or lift it with --copies none to deepen it while the time limit lasts
-$ linlog prove -q "A |- !A"
+$ deduxit prove -q "A |- !A"
 unprovable (MELL, classical, focus engine): the search was exhaustive
-$ linlog prove -q --classical-work 0 "!(A -o A * A), !(A -o B), !(B * B -o C), A |- C * ?D"
+$ deduxit prove -q --classical-work 0 "!(A -o A * A), !(A -o B), !(B * B -o C), A |- C * ?D"
 unknown (MELL, classical, focus engine): the time limit of 2s was reached at a copy bound of 97; --timeout DURATION gives the search longer
 ```
 
@@ -227,7 +227,7 @@ gave. The last sequent above is unprovable so, and `A |- !A`, true read
 classically, keeps the search's word:
 
 ```console
-$ linlog prove -q "!(A -o A * A), !(A -o B), !(B * B -o C), A |- C * ?D"
+$ deduxit prove -q "!(A -o A * A), !(A -o B), !(B * B -o C), A |- C * ?D"
 unprovable (MELL, classical, focus engine): the classical reading is false where A, B and C are true and every other atom false (! and ? erased, ⊗ and & as and, ⅋ and ⊕ as or, 1 and ⊤ true, ⊥ and 0 false), and every provable sequent reads as a tautology
 ```
 
@@ -238,7 +238,7 @@ bound (`--copies`) or lifts the limit (`--timeout none`), and
 `--deterministic` (below) makes the statistics a function of the input:
 
 ```console
-$ linlog prove -q --deterministic --stats --engine focus --bias rarer --copies 3 "!(A -o B), !(B -o C), !(C -o D), !(D -o E), A |- E"
+$ deduxit prove -q --deterministic --stats --engine focus --bias rarer --copies 3 "!(A -o B), !(B -o C), !(C -o D), !(D -o E), A |- E"
 unknown (MELL, classical, focus engine): the copy bound of 3 was reached after 36.65µs; raise it with --copies N, or lift it with --copies none to deepen it while the time limit lasts
 stable sequents visited: 10
 from the memo: 0
@@ -247,7 +247,7 @@ splits examined: 24
 copy bound reached: 3
 units of work: 250
 time: 36.65µs
-$ linlog prove -q --deterministic --stats --engine focus --bias rarer --timeout none "!(A -o B), !(B -o C), !(C -o D), !(D -o E), A |- E"
+$ deduxit prove -q --deterministic --stats --engine focus --bias rarer --timeout none "!(A -o B), !(B -o C), !(C -o D), !(D -o E), A |- E"
 provable (MELL, classical, focus engine)
 stable sequents visited: 15
 from the memo: 0
@@ -268,13 +268,13 @@ one:
 
 <!-- readme-check: machine -->
 ```console
-$ linlog prove -a "A, B |- A"
+$ deduxit prove -a "A, B |- A"
 provable (MLL, classical affine, focus engine)
   ─────── ax
   ⊢ ~A, A
 ─────────── wk
 ⊢ ~A, ~B, A
-$ linlog prove -q -a --classical-work 0 "!(A -o A * A), A |- ?B"
+$ deduxit prove -q -a --classical-work 0 "!(A -o A * A), A |- ?B"
 unknown (MELL, classical affine, focus engine): the time limit of 2s was reached at a copy bound of 18; --timeout DURATION gives the search longer
 ```
 
@@ -299,7 +299,7 @@ of atoms, which is what a Petri net is), where it runs within
 `--forward-copies` (30 by default), a bound in steps of the chain:
 
 ```console
-$ linlog prove -q --deterministic --stats --engine focus "!(a * a -o b), !(b * b -o c), !(c * c -o d), a, a, a, a, a, a, a, a |- d"
+$ deduxit prove -q --deterministic --stats --engine focus "!(a * a -o b), !(b * b -o c), !(c * c -o d), a, a, a, a, a, a, a, a |- d"
 provable (MELL, classical, focus engine)
 stable sequents visited: 47
 from the memo: 5
@@ -309,7 +309,7 @@ copy bound reached: 7
 forward search's copy bound reached: 7
 units of work: 1297
 time: 136.45µs
-$ linlog prove -q --deterministic --stats --engine focus --bias rarer "!(a * a -o b), !(b * b -o c), !(c * c -o d), a, a, a, a, a, a, a, a |- d"
+$ deduxit prove -q --deterministic --stats --engine focus --bias rarer "!(a * a -o b), !(b * b -o c), !(c * c -o d), a, a, a, a, a, a, a, a |- d"
 provable (MELL, classical, focus engine)
 stable sequents visited: 230
 from the memo: 178
@@ -318,7 +318,7 @@ splits examined: 1036
 copy bound reached: 3
 units of work: 4256
 time: 181.10µs
-$ linlog prove -q --deterministic --stats --engine focus --bias factors --copies 3 "!(a * a -o b), !(b * b -o c), !(c * c -o d), a, a, a, a, a, a, a, a |- d"
+$ deduxit prove -q --deterministic --stats --engine focus --bias factors --copies 3 "!(a * a -o b), !(b * b -o c), !(c * c -o d), a, a, a, a, a, a, a, a |- d"
 unknown (MELL, classical, focus engine): the copy bound of 3 was reached after 55.51µs; raise it with --copies N, or lift it with --copies none to deepen it while the time limit lasts
 stable sequents visited: 11
 from the memo: 0
@@ -327,9 +327,9 @@ splits examined: 31
 copy bound reached: 3
 units of work: 322
 time: 55.51µs
-$ linlog prove -q --engine focus --copies 1 "!A, !(A -o B), !(B -o C) |- C"
+$ deduxit prove -q --engine focus --copies 1 "!A, !(A -o B), !(B -o C) |- C"
 provable (MELL, classical, focus engine)
-$ linlog prove -q --engine focus --copies 1 --forward-copies 1 "!A, !(A -o B), !(B -o C) |- C"
+$ deduxit prove -q --engine focus --copies 1 --forward-copies 1 "!A, !(A -o B), !(B -o C) |- C"
 unknown (MELL, classical, focus engine): the copy bound of 1 was reached after 149.56µs; raise it with --copies N, or lift it with --copies none to deepen it while the time limit lasts
 ```
 
@@ -341,13 +341,13 @@ of work, which the example switches off:
 
 <!-- readme-check: machine -->
 ```console
-$ linlog prove -q --engine focus --timeout 1s --classical-work 0 "!(A -o A * A), !(A -o B), !(B * B -o C), A |- C * ?D"
+$ deduxit prove -q --engine focus --timeout 1s --classical-work 0 "!(A -o A * A), !(A -o B), !(B * B -o C), A |- C * ?D"
 unknown (MELL, classical, focus engine): the time limit of 1s was reached at a copy bound of 82; --timeout DURATION gives the search longer
 ```
 
 <!-- readme-check: skip, the file is the LLTP library's -->
 ```console
-$ linlog prove -q -i --timeout 1s --file SYJ212+1.020.p
+$ deduxit prove -q -i --timeout 1s --file SYJ212+1.020.p
 unknown: the time limit of 1s was reached while the sequent was read
 ```
 
@@ -376,11 +376,11 @@ larger `--jobs` is taken as that many, with a note:
 
 <!-- readme-check: machine -->
 ```console
-$ linlog prove -q -j 4 --copies 3 --classical-work 0 "!(A -o A * A), !(B * B -o C), A, B |- A * A * A * ?D"
+$ deduxit prove -q -j 4 --copies 3 --classical-work 0 "!(A -o A * A), !(B * B -o C), A, B |- A * A * A * ?D"
 unknown (MELL, classical, focus engine): the copy bound of 3 was reached after 1.79ms; raise it with --copies N, or lift it with --copies none to deepen it while the time limit lasts
-$ linlog prove -q --deterministic --copies 3 --classical-work 0 "!(A -o A * A), !(B * B -o C), A, B |- A * A * A * ?D"
+$ deduxit prove -q --deterministic --copies 3 --classical-work 0 "!(A -o A * A), !(B * B -o C), A, B |- A * A * A * ?D"
 unknown (MELL, classical, focus engine): the copy bound of 3 was reached after 2.55ms; raise it with --copies N, or lift it with --copies none to deepen it while the time limit lasts
-$ linlog prove -q -j 10000 "A |- A"
+$ deduxit prove -q -j 10000 "A |- A"
 note: --jobs 10000 is more than this machine runs at once; a search uses 16
 provable (MLL, classical, focus engine)
 ```
@@ -416,14 +416,14 @@ engine on all but the smallest sequents it was measured on, so it runs
 only when asked:
 
 ```console
-$ linlog prove -i --engine essential --net "A -o B, B -o C |- A -o C"
+$ deduxit prove -i --engine essential --net "A -o B, B -o C |- A -o C"
 provable (IMLL, intuitionistic, essential engine)
 A ⊸ B, B ⊸ C ⊢ A ⊸ C
 A[1] — A[7]
 B[2] — B[4]
 C[5] — C[8]
 proof net
-$ linlog prove -i "A -o B -o C, A * B |- C"
+$ deduxit prove -i "A -o B -o C, A * B |- C"
 provable (IMLL, intuitionistic, two-sided engine)
            ───── ax   ───── ax
            B ⊢ B      C ⊢ C
@@ -433,7 +433,7 @@ A ⊢ A        B ⊸ C, B ⊢ C
   A ⊸ (B ⊸ C), A, B ⊢ C
   ────────────────────── ⊗L
   A ⊸ (B ⊸ C), A ⊗ B ⊢ C
-$ linlog prove -i "!A, !(A -o B) |- !B & A"
+$ deduxit prove -i "!A, !(A -o B) |- !B & A"
 provable (ILL, intuitionistic, two-sided engine)
 ───── ax
 A ⊢ A
@@ -447,23 +447,23 @@ A ⊢ A
  !A, !(A ⊸ B) ⊢ !B      !A, !(A ⊸ B) ⊢ A
  ─────────────────────────────────────── &R
           !A, !(A ⊸ B) ⊢ !B & A
-$ linlog prove -i -q --stats "(A & B) + (A & C) |- A & (B + C)"
+$ deduxit prove -i -q --stats "(A & B) + (A & C) |- A & (B + C)"
 provable (IALL, intuitionistic, additive engine)
 pairs of subformulas visited: 20
 from the memo: 0
 memo entries: 20
 units of work: 20
 time: 89.90µs
-$ linlog prove -i "|- ~A par B"
+$ deduxit prove -i "|- ~A par B"
 error: cannot parse the sequent
   |- ~A par B
      ^ unexpected "~"
   intuitionistic linear logic has no negation: write a negated formula on the other side of |- (A |- B, not |- ~A, B), and ~A par B as A -o B; --ill-syntax one-sided reads the classical syntax
-$ linlog prove -i -q --ill-syntax one-sided "|- ~A par B"
+$ deduxit prove -i -q --ill-syntax one-sided "|- ~A par B"
 unprovable (IMLL, intuitionistic, two-sided engine): A occurs negatively 1 more time than positively (positive right of ⊢, negative left of it, an implication's antecedent on the other side), so they cannot all meet in axioms
-$ linlog prove -i --ill-syntax one-sided "|- A par B"
+$ deduxit prove -i --ill-syntax one-sided "|- A par B"
 error: not an intuitionistic sequent: the subformula A ⅋ B is neither an intuitionistic formula nor the negation of one (⅋ only as A ⊸ B, that is ~A ⅋ B, and ? only under a negation)
-$ linlog prove -i "A |- B, C"
+$ deduxit prove -i "A |- B, C"
 error: not an intuitionistic sequent: an intuitionistic sequent has exactly one formula right of ⊢, not 2: write the hypotheses left of ⊢
 ```
 
@@ -471,9 +471,9 @@ Classical linear logic proves more than intuitionistic linear logic once
 `0` is around, and the two-sided search knows the difference:
 
 ```console
-$ linlog prove -q "((A * top) & (B * top)) -o 0 |- (A -o C) + (B -o C)"
+$ deduxit prove -q "((A * top) & (B * top)) -o 0 |- (A -o C) + (B -o C)"
 provable (MALL, classical, focus engine)
-$ linlog prove -i -q "((A * top) & (B * top)) -o 0 |- (A -o C) + (B -o C)"
+$ deduxit prove -i -q "((A * top) & (B * top)) -o 0 |- (A -o C) + (B -o C)"
 unprovable (IMALL, intuitionistic, two-sided engine): the search was exhaustive
 ```
 
@@ -504,7 +504,7 @@ decides in milliseconds what the backward search leaves undecided after
 a minute. Alone it runs only when asked:
 
 ```console
-$ linlog prove -i --engine inverse --stats "!(a -o b), !(b -o c), a |- c"
+$ deduxit prove -i --engine inverse --stats "!(a -o b), !(b -o c), a |- c"
 provable (IMELL, intuitionistic, inverse engine)
            ───── ax   ───── ax
            b ⊢ b      c ⊢ c
@@ -521,7 +521,7 @@ sequents subsumed: 0
 sequents kept: 3
 units of work: 50
 time: 102.44µs
-$ linlog prove -i --engine inverse -q "!(a -o b), a |- b * b"
+$ deduxit prove -i --engine inverse -q "!(a -o b), a |- b * b"
 unprovable (IMELL, intuitionistic, inverse engine): the search saturated: 2 sequents closed under the rules, and the goal needs one they do not give
 ```
 
@@ -529,7 +529,7 @@ The exit status tells scripts the verdict: 0 provable, 1 unprovable, 3
 unknown (the time limit, a bound, a limit or Ctrl-C stopped the search), 2 an
 error, such as a sequent outside the asserted fragment or an engine forced
 on a sequent it cannot search. A reader that closes the pipe early, as
-`linlog prove … | head -1` does, changes none of it, and a second Ctrl-C
+`deduxit prove … | head -1` does, changes none of it, and a second Ctrl-C
 ends the command at once with 130, as the shell's own interrupt does.
 
 Every proof the search finds passes the proof checker before anything is
@@ -546,7 +546,7 @@ terminal 30 columns wide:
 
 <!-- readme-check: terminal -->
 ```console
-$ linlog prove "A, A -o B, B -o C, C -o D |- D"
+$ deduxit prove "A, A -o B, B -o C, C -o D |- D"
 provable (MLL, classical, focus engine)
 the proof tree is not shown: 7 inferences, at least 31 columns by 8 lines, for a terminal of 30 columns and at most 30 lines (3 screens); print it with --tree always, write it with --output FILE, or get the proof with --format json
 ```
@@ -557,7 +557,7 @@ all. The line then goes to standard error, unless the output is a
 terminal:
 
 ```console
-$ linlog prove --derivation-limit 100 "A, A -o B |- B" > verdict.txt
+$ deduxit prove --derivation-limit 100 "A, A -o B |- B" > verdict.txt
 the derivation is not written: its 3 inferences with 29 characters of sequents are estimated at 616 B, over the limit of 100 B; --format json writes the proof itself, --derivation-limit SIZE raises the limit and --derivation-limit none lifts it
 $ cat verdict.txt
 provable (MLL, classical, focus engine)
@@ -571,7 +571,7 @@ default, `--compact auto`, does so where the whole derivation would pass
 every rule.
 
 ```console
-$ linlog prove -i --compact always '!A, !B, !C |- 1'
+$ deduxit prove -i --compact always '!A, !B, !C |- 1'
 provable (IMELL, intuitionistic, horn engine)
      ─── 1R
      ⊢ 1
@@ -589,7 +589,7 @@ keeps how each formula was written; a sequent given as JSON, LLTP or
 `.spec` is written one-sided, its antecedents on the left.
 
 ```console
-$ linlog prove --classical-sides two "A par B |- ~(~A * ~B)"
+$ deduxit prove --classical-sides two "A par B |- ~(~A * ~B)"
 provable (MLL, classical, focus engine)
 ───── ax   ───── ax
 A ⊢ A      B ⊢ B
@@ -603,7 +603,7 @@ A ⊢ A      B ⊢ B
  A ⅋ B, ~A ⊗ ~B ⊢
 ────────────────── ~R
 A ⅋ B ⊢ ~(~A ⊗ ~B)
-$ linlog prove --classical-sides two --format latex "A -o B, A |- B"
+$ deduxit prove --classical-sides two --format latex "A -o B, A |- B"
 % provable (MLL, classical, focus engine)
 \begin{prooftree}
 \infer0[$\mathrm{ax}$]{A &\vdash A}
@@ -616,7 +616,7 @@ A first-order derivation is drawn so too, its quantifier steps named by
 side (`∀L`, `∀R`, `∃L`, `∃R`) and every instance written out:
 
 ```console
-$ linlog prove --classical-sides two "|- ~(forall x. p(x)), p(a)"
+$ deduxit prove --classical-sides two "|- ~(forall x. p(x)), p(a)"
 provable (MLL1, classical, focus engine)
     ─────────── ax
     p(a) ⊢ p(a)
@@ -637,10 +637,10 @@ time and never an answer; when that is not enough, the verdict is
 "unknown" with the limit as its reason, exit status 3:
 
 ```console
-$ linlog prove --memory-limit 100 "|- (a & b) + (a & c), ~a par (~b & ~c)"
+$ deduxit prove --memory-limit 100 "|- (a & b) + (a & c), ~a par (~b & ~c)"
 unknown (MALL, classical, focus engine): the memory limit of 100 B was reached after 32.28µs; raise it with --memory-limit SIZE
-$ linlog prove --memory-limit 100 --format json "|- (a & b) + (a & c), ~a par (~b & ~c)"
-{"version":1,"linlog":"…","verdict":"unknown","reason":{"kind":"memory_limit","limit_bytes":100},"fragment":"MALL","mode":"classical","engine":"focus","statistics":{"nodes":0,"memo_hits":0,"memo_entries":0,"splits":0,"links":0,"tests":0,"copies":0,"forward_copies":0,"work":0}}
+$ deduxit prove --memory-limit 100 --format json "|- (a & b) + (a & c), ~a par (~b & ~c)"
+{"version":1,"deduxit":"…","verdict":"unknown","reason":{"kind":"memory_limit","limit_bytes":100},"fragment":"MALL","mode":"classical","engine":"focus","statistics":{"nodes":0,"memo_hits":0,"memo_entries":0,"splits":0,"links":0,"tests":0,"copies":0,"forward_copies":0,"work":0}}
 ```
 
 The bound counts the sequent as the search holds it (about 25 bytes for
@@ -653,7 +653,7 @@ reads a sequent: a sequent in JSON can share subformulas, so a file of
 occurrences, and is refused before anything unfolds it:
 
 ```console
-$ linlog seq fragment --file shared.json
+$ deduxit seq fragment --file shared.json
 error: the sequent unfolds to 67108863 subformula occurrences, more than the limit of 50000000; raise it with --occurrence-limit
 ```
 
@@ -664,7 +664,7 @@ and the entries of a proof's instance table that `check` reads:
 
 <!-- readme-check: machine -->
 ```console
-$ linlog seq fragment --term-limit 2 "|- p(f(f(a)))"
+$ deduxit seq fragment --term-limit 2 "|- p(f(f(a)))"
 error: the first-order terms unfold to at least 3 terms, more than the limit of 2; raise it with --term-limit
 ```
 
@@ -675,15 +675,15 @@ a parse error far into a long line is shown with the part of the line
 around it.
 
 `--format json` writes the outcome as one JSON object, which is also a proof
-file that `linlog check` verifies independently of the search, in the mode
+file that `deduxit check` verifies independently of the search, in the mode
 the file states (a mode flag that names another mode is an error):
 
 ```console
-$ linlog prove --format json "A |- A"
-{"version":1,"linlog":"…","verdict":"proved","checked":true,"fragment":"MLL","mode":"classical","engine":"focus","statistics":{"nodes":1,"memo_hits":0,"memo_entries":1,"splits":0,"links":0,"tests":0,"copies":0,"forward_copies":0,"work":16},"sequent":{"terms":[{"D":0},{"V":0}],"roots":[0,1],"atoms":["A"],"antecedents":1},"nodes":[{"ax":[0,1]}]}
-$ linlog prove --format json "A |- A" | linlog check --quiet
+$ deduxit prove --format json "A |- A"
+{"version":1,"deduxit":"…","verdict":"proved","checked":true,"fragment":"MLL","mode":"classical","engine":"focus","statistics":{"nodes":1,"memo_hits":0,"memo_entries":1,"splits":0,"links":0,"tests":0,"copies":0,"forward_copies":0,"work":16},"sequent":{"terms":[{"D":0},{"V":0}],"roots":[0,1],"atoms":["A"],"antecedents":1},"nodes":[{"ax":[0,1]}]}
+$ deduxit prove --format json "A |- A" | deduxit check --quiet
 valid proof of ⊢ ~A, A (classical)
-$ linlog prove --format json "A |- A" | linlog check --format json
+$ deduxit prove --format json "A |- A" | deduxit check --format json
 {"version":1,"verdict":"valid","mode":"classical"}
 ```
 
@@ -691,8 +691,8 @@ $ linlog prove --format json "A |- A" | linlog check --format json
 `--file`, as the other commands read their input:
 
 ```console
-$ linlog prove --format json "A |- A" > identity.json
-$ linlog check -q --file identity.json
+$ deduxit prove --format json "A |- A" > identity.json
+$ deduxit check -q --file identity.json
 valid proof of ⊢ ~A, A (classical)
 ```
 
@@ -715,9 +715,9 @@ does not, and 3 for an exhausted search, which only the search vouches
 for, or at the time limit:
 
 ```console
-$ linlog prove -i --format json "a, a -o b, !(b -o b * c), !(b -o d) |- b * d" | linlog check
+$ deduxit prove -i --format json "a, a -o b, !(b -o b * c), !(b -o d) |- b * d" | deduxit check
 valid refutation of a, a ⊸ b, !(b ⊸ (b ⊗ c)), !(b ⊸ d) ⊢ b ⊗ d (intuitionistic): the state equation of the Petri net has no solution, so no firing of its clauses yields the goal's atoms: weighting each a by 2, b by 1, d by 1 and the clauses used once by weights of their own, no clause that can fire raises the weighted count of the atoms, and the goal asks it raised
-$ linlog prove --format json "A & B |- A * B" | linlog check; echo "exit $?"
+$ deduxit prove --format json "A & B |- A * B" | deduxit check; echo "exit $?"
 unknown: the refutation of ⊢ ~A ⊕ ~B, A ⊗ B (classical) is not checked: a refutation of kind `exhausted` rests on the search and has no check
 exit 3
 ```

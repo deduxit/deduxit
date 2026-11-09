@@ -4,7 +4,7 @@
 //! The comparison of tools in the rows of `run --tools`, as Markdown: per
 //! tool the problems solved within the time limit (the ranking), how the
 //! others ended and those outside its fragment, per group of problems; for
-//! linlog on one thread against each other tool what one solves and the
+//! deduxit on one thread against each other tool what one solves and the
 //! other does not; the translation times and peak memory; and every
 //! problem on which two tools, or a tool and the problem's known verdict,
 //! contradict each other.
@@ -16,7 +16,7 @@ use std::fmt::Write as _;
 use std::path::PathBuf;
 
 /// The tool every other is set against.
-const REFERENCE: &str = "linlog";
+const REFERENCE: &str = "deduxit";
 
 /// How many problems a list names before it says how many more there are.
 const LISTED: usize = 40;
@@ -275,9 +275,9 @@ fn groups_table(
     out.push('\n');
 }
 
-/// linlog on one thread against each other tool on the problems both
+/// deduxit on one thread against each other tool on the problems both
 /// cover: solved by both, by one alone, by neither, and the problems the
-/// other solves and linlog does not.
+/// other solves and deduxit does not.
 fn pairs(out: &mut String, tools: &[&str], problems: &BTreeMap<String, BTreeMap<&str, &Row>>) {
     if !tools.contains(&REFERENCE) {
         return;
@@ -411,7 +411,7 @@ fn costs(out: &mut String, tools: &[&str], problems: &BTreeMap<String, BTreeMap<
         );
     }
     out.push_str(
-        "\nlinlog reads LLTP and `.spec` files itself and the rest as JSON, which the \
+        "\ndeduxit reads LLTP and `.spec` files itself and the rest as JSON, which the \
          harness writes; the translation time is the harness's, outside the measured run.\n\n",
     );
 }
@@ -427,8 +427,8 @@ fn contradictions(
         out,
         "## Contradictions\n\nA problem on which one tool proves what another refutes, or \
          a tool decides against the known verdict. A proof is checked where the row \
-         says so (linlog's command checks every proof it reports, Sympli validates \
-         its own); no tool's `unprovable` is checked, linlog's included.\n"
+         says so (deduxit's command checks every proof it reports, Sympli validates \
+         its own); no tool's `unprovable` is checked, deduxit's included.\n"
     );
     let mut any = false;
     for (name, p) in problems {
@@ -491,7 +491,7 @@ mod tests {
             ("expected", if problem == "p3" { "unprovable" } else { "" }),
             (
                 "checked",
-                if tool == "linlog" && verdict == "proved" {
+                if tool == "deduxit" && verdict == "proved" {
                     "ok"
                 } else {
                     ""
@@ -509,20 +509,20 @@ mod tests {
     #[test]
     fn tools_ranked_and_contradictions_listed() {
         let mut rows = [
-            run("linlog", "p1", "proved", "5"),
+            run("deduxit", "p1", "proved", "5"),
             run("other", "p1", "unprovable", "7"),
-            run("linlog", "p2", "unknown", "10000"),
+            run("deduxit", "p2", "unknown", "10000"),
             run("other", "p2", "proved", "30"),
-            run("linlog", "p3", "unprovable", "1"),
+            run("deduxit", "p3", "unprovable", "1"),
             run("other", "p3", "proved", "20000"),
         ];
         judge(&mut rows);
         let text = report(&rows);
-        assert!(text.contains("| linlog | 2 | 1 | 1 | 0 | 0 |"), "{text}");
+        assert!(text.contains("| deduxit | 2 | 1 | 1 | 0 | 0 |"), "{text}");
         assert!(text.contains("| other | 1 | 1 | 0 | 2 | 0 |"), "{text}");
         assert!(text.contains("| other | 3 | 0 | 2 | 1 | 0 |"), "{text}");
         assert!(
-            text.contains("Solved by other and not by linlog (1):\n\n- f/p2 (classical)"),
+            text.contains("Solved by other and not by deduxit (1):\n\n- f/p2 (classical)"),
             "{text}"
         );
         assert!(

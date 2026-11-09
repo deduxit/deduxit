@@ -2,7 +2,7 @@
 # linlog © Fabian Lukas Grubmüller 2026
 # Licensed under the EUPL
 
-# The comparison of linlog with the other provers (bench/TOOLS.md): every
+# The comparison of deduxit with the other provers (bench/TOOLS.md): every
 # problem of the LLTP library (intuitionistic and classical), qcover's
 # coverability problems and the generated families, run by every tool whose
 # fragment covers it, each run measured by BenchExec's runexec under one
@@ -17,7 +17,7 @@
 # --cores LIST   one stream of sequential runs per core, comma-separated
 #                (default: the first core this process may use); each stream
 #                takes every problem of its share with every sequential tool
-# --default-cores LIST  the cores of the stream of linlog's default, which
+# --default-cores LIST  the cores of the stream of deduxit's default, which
 #                runs a pool beside its first thread: CPU lists separated by
 #                `/', one stream each (default: none, the column left out)
 # --timeout S    the time limit of every run (default 10)
@@ -91,11 +91,11 @@ if [ -z "$growing" ]; then
   qcover=$(build qcover)
 fi
 export PATH="$tools/bin:$PATH"
-export LINLOG_COMPARISON_TOOLS="$tools/share/linlog-comparison/tools.json"
+export DEDUXIT_COMPARISON_TOOLS="$tools/share/deduxit-comparison/tools.json"
 # The commit the tools were built from, where the caller knows it.
-export LINLOG_COMMIT=${LINLOG_COMMIT:-${GITHUB_SHA:-}}
+export DEDUXIT_COMMIT=${DEDUXIT_COMMIT:-${GITHUB_SHA:-}}
 
-sequential=linlog,maude-ill,maude-cll,click-and-collect,llprover-cll,llprover-ill,lintap,linearone,sympli,lolli,apll-ll,apll-ill
+sequential=deduxit,maude-ill,maude-cll,click-and-collect,llprover-cll,llprover-ill,lintap,linearone,sympli,lolli,apll-ll,apll-ill
 # Each stream runs two passes: the small sets first, then the
 # intuitionistic library, whose Petri nets come last, so that a night that
 # ends early leaves Petri nets for the next.
@@ -148,7 +148,7 @@ for i in "${!streams[@]}"; do
   pids+=($!)
 done
 for i in "${!defaults[@]}"; do
-  stream "default-$k-$((i + 1))" "${defaults[$i]}" linlog-default "$i" "${#defaults[@]}" &
+  stream "default-$k-$((i + 1))" "${defaults[$i]}" deduxit-default "$i" "${#defaults[@]}" &
   pids+=($!)
 done
 status=0

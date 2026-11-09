@@ -1,14 +1,14 @@
-# linlog: the reference
+# deduxit: the reference
 
-Everything the `linlog` command does, with the flags, the formats, the
+Everything the `deduxit` command does, with the flags, the formats, the
 JSON forms and the exit statuses, then the Rust library, the WebAssembly
 bindings and the Rocq library. Every example below is a real call with
-its real output (a time a search took varies). `linlog COMMAND --help`
+its real output (a time a search took varies). `deduxit COMMAND --help`
 documents every flag; a flag that sets a key of the settings file names
 it in parentheses there. The manual for people,
 <https://deduxit.github.io/deduxit/manual/>, says the same at more
-length, with the benchmarks. linlog is the linear suite of deduxit, a
-collection of logic suites named in Latin: **dēdūxit** [deːˈduːk.sɪt] *Latin, verb*: "it has derived", the perfect of *dēdūcō*, to lead down, derive.
+length, with the benchmarks. deduxit is a collection of logic suites,
+named in Latin: **dēdūxit** [deːˈduːk.sɪt] *Latin, verb*: "it has derived", the perfect of *dēdūcō*, to lead down, derive.
 
 Contents:
 
@@ -34,7 +34,7 @@ Contents:
 
 ## 1. Running it
 
-`cargo install --locked deduxit-cli` installs the command `linlog`, and
+`cargo install --locked deduxit-cli` installs the command `deduxit`, and
 `nix run github:deduxit/deduxit -- ARGS` runs
 it without installing; each GitHub release also has it prebuilt for
 Linux (an archive and `.deb`, `.rpm` and Arch Linux packages), macOS and
@@ -55,19 +55,19 @@ before unprovable (1) before proved (0). A reader that closes the pipe
 early (`| head -1`) changes no status.
 
 ```console
-$ linlog prove -q "A |- A"; echo "exit $?"
+$ deduxit prove -q "A |- A"; echo "exit $?"
 provable (MLL, classical, focus engine)
 exit 0
-$ linlog prove --engine net "A & B |- A"; echo "exit $?"
+$ deduxit prove --engine net "A & B |- A"; echo "exit $?"
 error: proof nets exist for MLL without units only, not for ALL
 exit 2
-$ echo '{"version":1,"sequent":{"terms":[{"V":0},{"V":1}],"roots":[0,1],"atoms":["A","B"]},"nodes":[{"ax":[0,1]}]}' | linlog check; echo "exit $?"
+$ echo '{"version":1,"sequent":{"terms":[{"V":0},{"V":1}],"roots":[0,1],"atoms":["A","B"]},"nodes":[{"ax":[0,1]}]}' | deduxit check; echo "exit $?"
 invalid proof of ⊢ A, B (classical): node 0 (ax on A, B): the literals are not an atom and its negation
 exit 1
-$ linlog prove --format json "A * B |- B * A" | linlog check --work-limit 1; echo "exit $?"
+$ deduxit prove --format json "A * B |- B * A" | deduxit check --work-limit 1; echo "exit $?"
 unknown: the proof of ⊢ ~A ⅋ ~B, B ⊗ A (classical) is not checked: the check was given up at node 1, without a verdict on the proof: the call did the most work allowed, 1 unit; raise it with --work-limit N
 exit 3
-$ echo quit | linlog interact "A |- A"; echo "exit $?"
+$ echo quit | deduxit interact "A |- A"; echo "exit $?"
 exit 1
 ```
 
@@ -118,21 +118,21 @@ arguments and no quantifier is propositional and decided by every
 engine.
 
 ```console
-$ linlog seq print "forall x. p(x) -o q(x), p(a) |- exists y. q(y)"
+$ deduxit seq print "forall x. p(x) -o q(x), p(a) |- exists y. q(y)"
 ⊢ ∃x. (p(x) ⊗ ~q(x)), ~p(a), ∃y. q(y)
-$ linlog seq fragment "forall x. p(x) |- p(a)"
+$ deduxit seq fragment "forall x. p(x) |- p(a)"
 MLL1
-$ linlog prove "forall x. p(x) |- p(a)"; echo "exit $?"
+$ deduxit prove "forall x. p(x) |- p(a)"; echo "exit $?"
 provable (MLL1, classical, focus engine)
   ───────────── ax
   ⊢ p(a), ~p(a)
 ───────────────── ∃
 ⊢ ∃x. ~p(x), p(a)
 exit 0
-$ linlog prove -q "forall x. exists y. r(x, y) |- exists y. forall x. r(x, y)"; echo "exit $?"
+$ deduxit prove -q "forall x. exists y. r(x, y) |- exists y. forall x. r(x, y)"; echo "exit $?"
 unprovable (MLL1, classical, focus engine): the search was exhaustive
 exit 1
-$ linlog prove -i "forall x. p(x) |- p(a)"
+$ deduxit prove -i "forall x. p(x) |- p(a)"
 provable (IMLL1, intuitionistic, two-sided engine)
   ─────────── ax
   p(a) ⊢ p(a)
@@ -144,7 +144,7 @@ The search works on the one-sided sequent: `Γ ⊢ Δ` is `⊢ ~Γ, Δ` in
 negation normal form, `A -o B` is `~A par B`. `seq print` shows it:
 
 ```console
-$ linlog seq print "A * B -o C |- A -o B -o C"
+$ deduxit seq print "A * B -o C |- A -o B -o C"
 ⊢ (A ⊗ B) ⊗ ~C, ~A ⅋ (~B ⅋ C)
 ```
 
@@ -176,19 +176,19 @@ IMLL to ILL in intuitionistic mode) and picks the engine; `seq fragment`
 names it:
 
 ```console
-$ linlog seq fragment "A & B |- 1"
+$ deduxit seq fragment "A & B |- 1"
 MALL
-$ linlog seq fragment -i "A & B |- 1"
+$ deduxit seq fragment -i "A & B |- 1"
 IMALL
 ```
 
 ```console
-$ linlog prove -i "|- ~A par B"
+$ deduxit prove -i "|- ~A par B"
 error: cannot parse the sequent
   |- ~A par B
      ^ unexpected "~"
   intuitionistic linear logic has no negation: write a negated formula on the other side of |- (A |- B, not |- ~A, B), and ~A par B as A -o B; --ill-syntax one-sided reads the classical syntax
-$ linlog prove -i "A |- B, C"
+$ deduxit prove -i "A |- B, C"
 error: not an intuitionistic sequent: an intuitionistic sequent has exactly one formula right of ⊢, not 2: write the hypotheses left of ⊢
 ```
 
@@ -196,27 +196,27 @@ Classical linear logic proves more than intuitionistic linear logic once
 `0` is around:
 
 ```console
-$ linlog prove -q "((A * top) & (B * top)) -o 0 |- (A -o C) + (B -o C)"
+$ deduxit prove -q "((A * top) & (B * top)) -o 0 |- (A -o C) + (B -o C)"
 provable (MALL, classical, focus engine)
-$ linlog prove -i -q "((A * top) & (B * top)) -o 0 |- (A -o C) + (B -o C)"
+$ deduxit prove -i -q "((A * top) & (B * top)) -o 0 |- (A -o C) + (B -o C)"
 unprovable (IMALL, intuitionistic, two-sided engine): the search was exhaustive
 ```
 
 ## 4. Deciding a sequent: `prove`
 
-`linlog prove SEQUENT` prints the verdict line and, for a provable
+`deduxit prove SEQUENT` prints the verdict line and, for a provable
 sequent, a derivation that the proof checker has validated. The verdict
 line is `provable`, `unprovable` or `unknown`, then in parentheses the
 fragment, the mode and the engine, and after a colon the reason.
 
 ```console
-$ linlog prove "A, A -o B |- B"
+$ deduxit prove "A, A -o B |- B"
 provable (MLL, classical, focus engine)
 ─────── ax   ─────── ax
 ⊢ ~A, A      ⊢ ~B, B
 ──────────────────── ⊗
   ⊢ ~A, A ⊗ ~B, B
-$ linlog prove -i "A -o B -o C, A * B |- C"
+$ deduxit prove -i "A -o B -o C, A * B |- C"
 provable (IMLL, intuitionistic, two-sided engine)
            ───── ax   ───── ax
            B ⊢ B      C ⊢ C
@@ -235,7 +235,7 @@ step `~L` or `~R` where a negation was written, a first-order one with
 Intuitionistic derivations are always two-sided.
 
 ```console
-$ linlog prove --classical-sides two "A par B |- ~(~A * ~B)"
+$ deduxit prove --classical-sides two "A par B |- ~(~A * ~B)"
 provable (MLL, classical, focus engine)
 ───── ax   ───── ax
 A ⊢ A      B ⊢ B
@@ -292,13 +292,13 @@ conclusion; JSON adds the key `lambda` (the term's nodes, types and
 variables, with `text` and `judgement`, or `error`).
 
 ```console
-$ linlog prove -i --lambda --tree never "|- a -o b -o a * b"
+$ deduxit prove -i --lambda --tree never "|- a -o b -o a * b"
 provable (IMLL, intuitionistic, two-sided engine)
 lambda-term: ⊢ λx. λy. x ⊗ y : a ⊸ (b ⊸ (a ⊗ b))
-$ linlog prove --logic intuitionistic --lambda --tree never "|- (a -> b) -> (b -> c) -> a -> c"
+$ deduxit prove --logic intuitionistic --lambda --tree never "|- (a -> b) -> (b -> c) -> a -> c"
 valid (intuitionistic logic by the cbn translation into ILL, two-sided engine)
 lambda-term: ⊢ λf. λg. λx. g (f x) : (a → b) → ((b → c) → (a → c))
-$ linlog prove -i --lambda --tree never "a & b |- b & a"
+$ deduxit prove -i --lambda --tree never "a & b |- b & a"
 provable (IALL, intuitionistic, additive engine)
 lambda-term: x : a & b ⊢ ⟨snd(x), fst(x)⟩ : b & a
 ```
@@ -320,11 +320,11 @@ same, tagged by `kind`:
 | `exhausted` | the search was exhaustive |
 
 ```console
-$ linlog prove "|- A par B, ~A, ~B"
+$ deduxit prove "|- A par B, ~A, ~B"
 unprovable (MLL, classical, focus engine): the count equation fails: a provable one-sided sequent of MLL has exactly #⊗ − #⅋ − #1 + #⊥ + 2 formulas, here 0 − 1 − 0 + 0 + 2 = 1, and this one has 3
-$ linlog prove -q "!(A -o A * A), !(A -o B), !(B * B -o C), A |- C * ?D"
+$ deduxit prove -q "!(A -o A * A), !(A -o B), !(B * B -o C), A |- C * ?D"
 unprovable (MELL, classical, focus engine): the classical reading is false where A, B and C are true and every other atom false (! and ? erased, ⊗ and & as and, ⅋ and ⊕ as or, 1 and ⊤ true, ⊥ and 0 false), and every provable sequent reads as a tautology
-$ linlog prove -q "!(a -o a * a), !(b * b -o c), a, b |- c"
+$ deduxit prove -q "!(a -o a * a), !(b * b -o c), a, b |- c"
 unprovable (MELL, classical, horn engine): the state equation of the Petri net has no solution, so no firing of its clauses yields the goal's atoms: weighting each a by −2, b by 1 and c by 2, no clause that can fire raises the weighted count of the atoms, and the goal asks it raised
 ```
 
@@ -343,9 +343,9 @@ after how long, at which copy bound, and which flag to raise; the JSON
 first-order search `witness_depth` and `instances`):
 
 ```console
-$ linlog prove -q --copies 1 "!(A & B) |- A * B"
+$ deduxit prove -q --copies 1 "!(A & B) |- A * B"
 unknown (LL, classical, focus engine): the copy bound of 1 was reached after 3.56ms; raise it with --copies N, or lift it with --copies none to deepen it while the time limit lasts
-$ linlog prove --memory-limit 100 "|- (a & b) + (a & c), ~a par (~b & ~c)"
+$ deduxit prove --memory-limit 100 "|- (a & b) + (a & c), ~a par (~b & ~c)"
 unknown (MALL, classical, focus engine): the memory limit of 100 B was reached after 32.28µs; raise it with --memory-limit SIZE
 ```
 
@@ -353,7 +353,7 @@ A time limit's line says at which copy bound the search was:
 
 <!-- readme-check: machine -->
 ```console
-$ linlog prove -q --timeout 1s --classical-work 0 "!(A -o A * A), !(A -o B), !(B * B -o C), A |- C * ?D"; echo "exit $?"
+$ deduxit prove -q --timeout 1s --classical-work 0 "!(A -o A * A), !(A -o B), !(B * B -o C), A |- C * ?D"; echo "exit $?"
 unknown (MELL, classical, focus engine): the time limit of 1s was reached at a copy bound of 46; --timeout DURATION gives the search longer
 exit 3
 ```
@@ -388,7 +388,7 @@ atom's positive literal, which changes the search and never what is
 provable.
 
 ```console
-$ linlog prove -q --deterministic --stats "!(a * a -o b), !(b * b -o c), !(c * c -o d), a, a, a, a, a, a, a, a |- d"
+$ deduxit prove -q --deterministic --stats "!(a * a -o b), !(b * b -o c), !(c * c -o d), a, a, a, a, a, a, a, a |- d"
 provable (MELL, classical, horn engine)
 markings reached: 7
 markings met again: 0
@@ -409,7 +409,7 @@ written to a terminal.
 - `latex`: the verdict as a comment, then a proof tree for the ebproof
   package with the connectives of cmll and amssymb.
 - `typst`: a proof tree for the curryst package, or for a high tree in
-  linlog's own layout (`--style layout=linlog` asks for it always).
+  deduxit's own layout (`--style layout=deduxit` asks for it always).
 - `svg`, `png`, `pdf`: the derivation drawn, set in Euler Math unless
   `--font stix-two|garamond|asana|new-computer-modern` names another.
 - `rocq`: a certificate (section 18).
@@ -419,15 +419,15 @@ written to a terminal.
   one inference with a starred label (`?w*`).
 
 ```console
-$ linlog prove -i --format latex "A, A -o B |- B"
+$ deduxit prove -i --format latex "A, A -o B |- B"
 % provable (IMLL, intuitionistic, two-sided engine)
 \begin{prooftree}
 \infer0[$\mathrm{ax}$]{A &\vdash A}
 \infer0[$\mathrm{ax}$]{B &\vdash B}
 \infer2[$\multimap\mathrm{L}$]{A, A \multimap B &\vdash B}
 \end{prooftree}
-$ linlog prove --output proof.svg "A, A -o B |- B"
-$ linlog prove -i --output proof.pdf "1, A & B, B -o C |- C"
+$ deduxit prove --output proof.svg "A, A -o B |- B"
+$ deduxit prove -i --output proof.pdf "1, A & B, B -o C |- C"
 provable (IMALL, intuitionistic, two-sided engine)
 ```
 
@@ -438,14 +438,14 @@ pairs of literals with their positions, and the criterion's verdict; in
 `json` the net's document; drawn in `svg`, `png` or `pdf`.
 
 ```console
-$ linlog prove --net "|- A * B, C * (~A par ~B), ~C"
+$ deduxit prove --net "|- A * B, C * (~A par ~B), ~C"
 provable (MLL, classical, focus engine)
 ⊢ A ⊗ B, C ⊗ (~A ⅋ ~B), ~C
 A[1] — ~A[6]
 B[2] — ~B[7]
 C[4] — ~C[8]
 proof net
-$ linlog prove --engine net "A & B |- A"
+$ deduxit prove --engine net "A & B |- A"
 error: proof nets exist for MLL without units only, not for ALL
 ```
 
@@ -459,9 +459,9 @@ its symbol (`"1"`, `"⊥"`, `"⊤"`, `"0"`). `roots` are the formulas in
 order, and `antecedents` how many of them stood left of `⊢`.
 
 ```console
-$ linlog seq json "A |- A"
+$ deduxit seq json "A |- A"
 {"version":1,"terms":[{"D":0},{"V":0}],"roots":[0,1],"atoms":["A"],"antecedents":1}
-$ linlog seq json -i "A * B -o C |- A -o B -o C"
+$ deduxit seq json -i "A * B -o C |- A -o B -o C"
 {"version":5,"terms":[{"V":0},{"V":1},{"⊗":[0,1]},{"V":2},{"⊸":[2,3]},{"⊸":[1,3]},{"⊸":[0,5]}],"atoms":["A","B","C"],"hypotheses":[4],"goal":6}
 ```
 
@@ -479,10 +479,10 @@ with a cut (from `interact`'s `cut`) is at level 6: its sequent's
 cut is `{"cut": [a, l, r]}`.
 
 ```console
-$ linlog prove --format json "A |- A"
-{"version":1,"linlog":"…","verdict":"proved","checked":true,"fragment":"MLL","mode":"classical","engine":"focus","statistics":{"nodes":1,"memo_hits":0,"memo_entries":1,"splits":0,"links":0,"tests":0,"copies":0,"forward_copies":0,"work":16},"sequent":{"terms":[{"D":0},{"V":0}],"roots":[0,1],"atoms":["A"],"antecedents":1},"nodes":[{"ax":[0,1]}]}
-$ linlog prove --format json "A |- B"
-{"version":1,"linlog":"…","verdict":"unprovable","refutation":{"kind":"unbalanced","atom":0,"least":-1,"most":-1},"fragment":"MLL","mode":"classical","engine":"focus","statistics":{"nodes":1,"memo_hits":0,"memo_entries":1,"splits":0,"links":0,"tests":0,"copies":0,"forward_copies":0,"work":16},"sequent":{"terms":[{"D":0},{"V":1}],"roots":[0,1],"atoms":["A","B"],"antecedents":1}}
+$ deduxit prove --format json "A |- A"
+{"version":1,"deduxit":"…","verdict":"proved","checked":true,"fragment":"MLL","mode":"classical","engine":"focus","statistics":{"nodes":1,"memo_hits":0,"memo_entries":1,"splits":0,"links":0,"tests":0,"copies":0,"forward_copies":0,"work":16},"sequent":{"terms":[{"D":0},{"V":0}],"roots":[0,1],"atoms":["A"],"antecedents":1},"nodes":[{"ax":[0,1]}]}
+$ deduxit prove --format json "A |- B"
+{"version":1,"deduxit":"…","verdict":"unprovable","refutation":{"kind":"unbalanced","atom":0,"least":-1,"most":-1},"fragment":"MLL","mode":"classical","engine":"focus","statistics":{"nodes":1,"memo_hits":0,"memo_entries":1,"splits":0,"links":0,"tests":0,"copies":0,"forward_copies":0,"work":16},"sequent":{"terms":[{"D":0},{"V":1}],"roots":[0,1],"atoms":["A","B"],"antecedents":1}}
 ```
 
 An error of the library, in a batch record, `check`'s JSON or the web
@@ -492,7 +492,7 @@ that lifts the bound that refused the call, where one did.
 
 ## 9. Checking a proof: `check`
 
-`linlog check FILE` (or `--file FILE`, or standard input) reads a proof as `prove --format
+`deduxit check FILE` (or `--file FILE`, or standard input) reads a proof as `prove --format
 json` writes it and checks it independently of the search, in the mode
 the file's `"mode"` states (the flags' mode for a file that states none);
 a mode flag that names another mode is an error naming both, exit 2.
@@ -503,9 +503,9 @@ and `--memory-limit` bound it too; a check a limit gives up is unknown,
 exit status 3. It takes `prove`'s output formats and `--net`.
 
 ```console
-$ linlog prove --format json "A |- A" | linlog check --quiet
+$ deduxit prove --format json "A |- A" | deduxit check --quiet
 valid proof of ⊢ ~A, A (classical)
-$ linlog prove --format json "A |- A" | linlog check --format json
+$ deduxit prove --format json "A |- A" | deduxit check --format json
 {"version":1,"verdict":"valid","mode":"classical"}
 ```
 
@@ -519,9 +519,9 @@ at the time limit; every other kind has a check. With `--format rocq` a
 refutation that holds is written as its certificate (section 18).
 
 ```console
-$ linlog prove -i --format json "a, a -o b, !(b -o b * c), !(b -o d) |- b * d" | linlog check --format json
+$ deduxit prove -i --format json "a, a -o b, !(b -o b * c), !(b -o d) |- b * d" | deduxit check --format json
 {"version":1,"verdict":"valid","mode":"intuitionistic"}
-$ linlog prove --format json "A & B |- A * B" | linlog check; echo "exit $?"
+$ deduxit prove --format json "A & B |- A * B" | deduxit check; echo "exit $?"
 unknown: the refutation of ⊢ ~A ⊕ ~B, A ⊗ B (classical) is not checked: a refutation of kind `exhausted` rests on the search and has no check
 exit 3
 ```
@@ -541,13 +541,13 @@ the error names the one that is not (`eigenvariable a occurs outside the ∀ ste
 introduces it`).
 
 ```console
-$ echo '{"version":7,"sequent":{"terms":[{"D":0},{"∃":0},{"V":1}],"roots":[1,2],"atoms":[{"P":[0,[0]]},{"P":[0,[2]]}],"symbols":[["p",1],["a",0],["f",1]],"fo":[{"B":0},{"F":[1,[]]},{"F":[2,[1]]}],"binders":["x"],"antecedents":1},"nodes":[{"ax":[3,2]},{"∃":[0,2,0]}],"instances":{"members":[[1,0]],"frames":[[null,2]],"terms":[]}}' | linlog check --quiet
+$ echo '{"version":7,"sequent":{"terms":[{"D":0},{"∃":0},{"V":1}],"roots":[1,2],"atoms":[{"P":[0,[0]]},{"P":[0,[2]]}],"symbols":[["p",1],["a",0],["f",1]],"fo":[{"B":0},{"F":[1,[]]},{"F":[2,[1]]}],"binders":["x"],"antecedents":1},"nodes":[{"ax":[3,2]},{"∃":[0,2,0]}],"instances":{"members":[[1,0]],"frames":[[null,2]],"terms":[]}}' | deduxit check --quiet
 valid proof of ⊢ ∃x. ~p(x), p(f(a)) (classical)
 ```
 
 ## 10. Step by step: `interact`
 
-`linlog interact SEQUENT` (or `--file`; standard input carries the
+`deduxit interact SEQUENT` (or `--file`; standard input carries the
 commands) starts a session with the sequent as goal 0 and reads one
 command per line. Formulas are named by their position in a goal, from
 0, as `goals` lists them. A step closes its goal and opens its premises
@@ -608,7 +608,7 @@ and an eigenvariable of another branch (`error: the eigenvariable a
 cannot stand there: …`).
 
 ```console
-$ printf 'apply 0 0 forallL\napply 1 1 ax\nproof\n' | linlog interact -i "forall x. p(x) |- p(f(a))"
+$ printf 'apply 0 0 forallL\napply 1 1 ax\nproof\n' | deduxit interact -i "forall x. p(x) |- p(f(a))"
 opened goal 1: 1: p($1) ⊢ 0: p(f(a))
 closed; no goal is open: `proof` checks the proof
 valid proof (intuitionistic)
@@ -627,7 +627,7 @@ finished proof keeps the cut (its JSON is at wire level 6, which `check`
 reads).
 
 ```console
-$ printf 'goals\nrules 0 2\napply 0 2 * 0\nclose\nproof\n' | linlog interact "A, B |- A * B"
+$ printf 'goals\nrules 0 2\napply 0 2 * 0\nclose\nproof\n' | deduxit interact "A, B |- A * B"
 goal 0: ⊢ 0: ~A, 1: ~B, 2: A ⊗ B
 ⊗ (with a split)
 opened goal 1: ⊢ 0: ~A, 1: A
@@ -640,15 +640,15 @@ valid proof (classical)
 ⊢ ~A, A      ⊢ ~B, B
 ──────────────────── ⊗
   ⊢ ~A, ~B, A ⊗ B
-$ printf 'apply 0 1 -oL 0\napply 1 0 ax\napply 2 0 ax\nproof --json p.json\n' | linlog interact -i "A, A -o B |- B"
+$ printf 'apply 0 1 -oL 0\napply 1 0 ax\napply 2 0 ax\nproof --json p.json\n' | deduxit interact -i "A, A -o B |- B"
 opened goal 1: 0: A ⊢ 1: A
 opened goal 2: 0: B ⊢ 1: B
 closed
 closed; no goal is open: `proof` checks the proof
 valid proof written to p.json
-$ linlog check -i -q p.json
+$ deduxit check -i -q p.json
 valid proof of A, A ⊸ B ⊢ B (intuitionistic)
-$ printf 'cut 0 B 0 1\nclose\n' | linlog interact -i "A, A -o B, B -o C |- C"
+$ printf 'cut 0 B 0 1\nclose\n' | deduxit interact -i "A, A -o B, B -o C |- C"
 opened goal 1: 0: A, 1: A ⊸ B ⊢ 2: B
 opened goal 2: 0: B ⊸ C, 2: B ⊢ 1: C
 goal 1: provable (IMLL, intuitionistic, two-sided engine)
@@ -656,7 +656,7 @@ goal 2: provable (IMLL, intuitionistic, two-sided engine)
 no goal is open: `proof` checks the proof
 ```
 
-`linlog eliminate FILE` eliminates the cuts of a proof file step by
+`deduxit eliminate FILE` eliminates the cuts of a proof file step by
 step: it checks the proof in its file's mode (`check`'s flags and
 formats), reduces the cut with no cut above it (`--at NODE` takes the
 first step on the cut at that index of the file's `nodes` instead), prints each step's case
@@ -696,12 +696,12 @@ undrawn and standard error says from which); `--format json` writes
 "end"}`.
 
 ```console
-$ printf 'cut 0 !a 0\nclose\nproof c.json\n' | linlog interact -i "!a |- a * a" > /dev/null
-$ linlog eliminate -q -i --steps 2 c.json
+$ printf 'cut 0 !a 0\nclose\nproof c.json\n' | deduxit interact -i "!a |- a * a" > /dev/null
+$ deduxit eliminate -q -i --steps 2 c.json
 1. contraction on the cut of !a
 2. dereliction on the cut of !a
 proof of !a ⊢ a ⊗ a (intuitionistic) with 2 cuts left after 2 steps: the elimination took the most steps allowed, 2; --steps N allows more
-$ linlog eliminate -q -i c.json
+$ deduxit eliminate -q -i c.json
 1. contraction on the cut of !a
 2. dereliction on the cut of !a
 3. a commutative case on the cut of a
@@ -709,7 +709,7 @@ $ linlog eliminate -q -i c.json
 5. a commutative case on the cut of a
 6. the axiom case on the cut of a
 cut-free proof of !a ⊢ a ⊗ a (intuitionistic) after 6 steps
-$ linlog eliminate -q -i --net c.json
+$ deduxit eliminate -q -i --net c.json
 1. contraction on the cut of !a
 2. dereliction on the cut of !a
 3. the axiom case on the cut of a
@@ -717,7 +717,7 @@ $ linlog eliminate -q -i --net c.json
 5. the axiom case on the cut of a
 cut-free proof net of !a ⊢ a ⊗ a (intuitionistic) after 5 steps
 $ echo '{"version":7,"sequent":{"terms":[{"D":0},{"∃":0},{"V":1},{"V":0},{"∀":3}],"roots":[1,2],"atoms":[{"P":[0,[0]]},{"P":[0,[1]]}],"symbols":[["p",1],["a",0]],"fo":[{"B":0},{"F":[1,[]]}],"binders":["x","x"],"antecedents":1,"cuts":[4]},"nodes":[{"ax":[7,8]},{"∃":[0,2,0]},{"∀":[3,0,1]},{"ax":[9,2]},{"∃":[5,1,3]},{"cut":[3,2,4]}],"instances":{"members":[[1,0],[4,0],[6,1]],"frames":[[null,2],[null,1]],"terms":[{"E":0}]}}' > cut.json
-$ linlog eliminate -q -i cut.json
+$ deduxit eliminate -q -i cut.json
 1. the key case of ∀ and ∃ on the cut of ∀x. p(x)
 2. the axiom case on the cut of p(a)
 cut-free proof of ∀x. p(x) ⊢ p(a) (intuitionistic) after 2 steps
@@ -734,9 +734,9 @@ cut-free proof of ∀x. p(x) ⊢ p(a) (intuitionistic) after 2 steps
 - `seq fragment` names its fragment.
 
 ```console
-$ linlog seq print -i "A * B -o C |- A -o B -o C"
+$ deduxit seq print -i "A * B -o C |- A -o B -o C"
 (A ⊗ B) ⊸ C ⊢ A ⊸ (B ⊸ C)
-$ linlog seq print --format typst "A * B -o C |- A -o B -o C"
+$ deduxit seq print --format typst "A * B -o C |- A -o B -o C"
 $⊢ (A ⊗ B) ⊗ C^⊥, A^⊥ ⅋ (B^⊥ ⅋ C)$
 ```
 
@@ -764,12 +764,12 @@ answered line by line.
 
 ```console
 $ printf 'identity: A |- A\nmp: A, A -o B |- B\nA |- B\n' > sequents.txt
-$ linlog prove --input-format lines --file sequents.txt
+$ deduxit prove --input-format lines --file sequents.txt
 identity: provable (MLL, classical, focus engine)
 mp: provable (MLL, classical, focus engine)
 sequents.txt:3: unprovable (MLL, classical, focus engine): ~A occurs 1 more time than A in the one-sided sequent, so they cannot all meet in axioms
-$ echo '{"name": "pair", "mode": "intuitionistic", "sequent": "A, B |- A * B"}' | linlog prove --input-format jsonl --format json
-{"version":1,"name":"pair","linlog":"…","verdict":"proved","checked":true,"fragment":"IMLL","mode":"intuitionistic","engine":"two-sided","statistics":{"nodes":1,"memo_hits":0,"memo_entries":1,"splits":1,"links":0,"tests":0,"copies":0,"forward_copies":0,"work":16},"sequent":{"terms":[{"D":0},{"D":1},{"V":0},{"V":1},{"⊗":[2,3]}],"roots":[0,1,4],"atoms":["A","B"],"antecedents":2},"nodes":[{"ax":[3,0]},{"ax":[4,1]},{"⊗":[2,0,1]}]}
+$ echo '{"name": "pair", "mode": "intuitionistic", "sequent": "A, B |- A * B"}' | deduxit prove --input-format jsonl --format json
+{"version":1,"name":"pair","deduxit":"…","verdict":"proved","checked":true,"fragment":"IMLL","mode":"intuitionistic","engine":"two-sided","statistics":{"nodes":1,"memo_hits":0,"memo_entries":1,"splits":1,"links":0,"tests":0,"copies":0,"forward_copies":0,"work":16},"sequent":{"terms":[{"D":0},{"D":1},{"V":0},{"V":1},{"⊗":[2,3]}],"roots":[0,1,4],"atoms":["A","B"],"antecedents":2},"nodes":[{"ax":[3,0]},{"ax":[4,1]},{"⊗":[2,0,1]}]}
 ```
 
 The modes a record or a problem names: `classical`, `mix`, `affine`,
@@ -796,7 +796,7 @@ proof of the image, and `seq print --logic` the image. A `.p` file is a
 TPTP problem.
 
 ```console
-$ linlog prove --logic intuitionistic 'a \/ b -> b \/ a'
+$ deduxit prove --logic intuitionistic 'a \/ b -> b \/ a'
 valid (intuitionistic logic by the cbn translation into ILL, two-sided engine)
   ───── ax        ───── ax
   a ⊢ a           b ⊢ b
@@ -806,9 +806,9 @@ a ⊢ b ∨ a       b ⊢ b ∨ a
       a ∨ b ⊢ b ∨ a
    ─────────────────── →R
    ⊢ (a ∨ b) → (b ∨ a)
-$ linlog prove --logic classical -q '((a -> b) -> a) -> a'
+$ deduxit prove --logic classical -q '((a -> b) -> a) -> a'
 valid (classical logic by the affine translation into affine MALL, focus engine)
-$ linlog seq print --logic intuitionistic --translation cbv 'a, a -> b |- b'
+$ deduxit seq print --logic intuitionistic --translation cbv 'a, a -> b |- b'
 !a, !(!a ⊸ !b) ⊢ !b
 ```
 
@@ -819,7 +819,7 @@ admissible (G3's axiom with a context); `--structural explicit`
 (`view.structural`) draws every one, and `--format rocq` always names
 them.
 
-`linlog interact --logic LOGIC SEQUENT` proves an ordinary sequent step
+`deduxit interact --logic LOGIC SEQUENT` proves an ordinary sequent step
 by step by the rules of LK or LJ, with the linear session's commands
 (`goals`, `rules`, `apply`, `undo`, `close`, `show`, `proof`, `lambda`,
 `save`, `load`, `help`, `quit`; no `cut`, no `invertible`). A formula is its side
@@ -840,7 +840,7 @@ any format of `prove`; `save FILE` writes the session, which
 `--state FILE` resumes. Exit 0 for a finished derivation, 1 otherwise.
 
 ```console
-$ printf 'apply 0 R0 ->R\napply 1 R0 andR\nclose\nproof\n' | linlog interact --logic intuitionistic '|- a /\ b -> b /\ a'
+$ printf 'apply 0 R0 ->R\napply 1 R0 andR\nclose\nproof\n' | deduxit interact --logic intuitionistic '|- a /\ b -> b /\ a'
 opened goal 1: L0: a ∧ b ⊢ R0: b ∧ a
 opened goal 2: L0: a ∧ b ⊢ R0: b
 opened goal 3: L0: a ∧ b ⊢ R0: a
@@ -870,9 +870,9 @@ additives, exponentials, Mix, weakening and Rocq certificates are refused
 in these modes.
 
 ```console
-$ linlog prove --cyclic "a * b |- b * a"
+$ deduxit prove --cyclic "a * b |- b * a"
 unprovable (MLL, cyclic, net engine): the search was exhaustive
-$ linlog prove --lambek -q "c / b, a, a \ b |- c"
+$ deduxit prove --lambek -q "c / b, a, a \ b |- c"
 provable (IMLL, Lambek, essential engine)
 ```
 
@@ -888,7 +888,7 @@ overrides it.
 
 ```console
 $ echo '{"search": {"copies": 0, "engine": "focus"}}' > settings.json
-$ linlog prove --settings settings.json --copies 3 "|- ?(~a * ~a), a * a * a * a"
+$ deduxit prove --settings settings.json --copies 3 "|- ?(~a * ~a), a * a * a * a"
 unprovable (MELL, classical, focus engine): the search was exhaustive
 ```
 
@@ -900,7 +900,7 @@ option (`labels.table.⊸L=⊸_L` relabels one rule, the others upright);
 `prove --help` lists every field and the rules' names.
 
 ```console
-$ linlog prove --style gap=6 --style bar="=" "A * B |- A * B"
+$ deduxit prove --style gap=6 --style bar="=" "A * B |- A * B"
 provable (MLL, classical, focus engine)
 ======= ax      ======= ax
 ⊢ ~A, A         ⊢ ~B, B
@@ -912,10 +912,10 @@ provable (MLL, classical, focus engine)
 
 ## 16. The Rust library
 
-The crate `linlog` on crates.io holds all of it; its default
+The crate `deduxit` on crates.io holds all of it; its default
 features are `parse`, `serialize`, `interactive`, `latex`, `typst`, `svg`
 and `rocq`, and `parallel`, `png` and `pdf` are off. Its documentation
-is at <https://deduxit.github.io/deduxit/linlog/> for `main` and on
+is at <https://deduxit.github.io/deduxit/deduxit/> for `main` and on
 docs.rs for the releases: the text syntax on `Sequent`, every JSON form
 on its type (`Sequent`, `Proof`, `Outcome`, `ProofStructure`,
 `Interactive`, and at wire level 8 ordinary logic's `ordinary::Sequent`,
@@ -1036,7 +1036,7 @@ others by their own theorems. `--standalone` adds the imports;
 `--lemma NAME` names the lemma.
 
 ```console
-$ linlog prove --format rocq "A * B |- B * A"
+$ deduxit prove --format rocq "A * B |- B * A"
 (* provable (MLL, classical, focus engine) *)
 Lemma certificate (A B : formula) : ll [parr (dual A) (dual B); tens B A].
 Proof.
@@ -1050,7 +1050,7 @@ apply (tens_r_ext [dual B]); cbn_sequent.
   ax_expansion.
 }
 Qed.
-$ linlog prove --format rocq "forall x. p(x) |- exists y. p(y)"
+$ deduxit prove --format rocq "forall x. p(x) |- exists y. p(y)"
 (* provable (MLL1, classical, focus engine) *)
 Lemma certificate : ll (symbol := string) Calculus.classical [fex (covar "p" [bound 0]); fex (var "p" [bound 0])].
 Proof.
@@ -1058,7 +1058,7 @@ Proof.
     (Exists (covar "p" [bound 0]) (eigen 0) (Exists (var "p" [bound 0]) (eigen 0) (Ax "p" [eigen 0])))).
   vm_compute. reflexivity.
 Qed.
-$ linlog prove -i --format rocq "!d, !(c * d * d -o 1) |- c * c"
+$ deduxit prove -i --format rocq "!d, !(c * d * d -o 1) |- c * c"
 (* unprovable (IMELL, intuitionistic, horn engine): c occurs positively 2 more times than negatively outside the exponentials, and every occurrence of it below one, which copies add, is positive (positive right of ⊢, negative left of it, an implication's antecedent on the other side), so they cannot all meet in axioms *)
 Lemma certificate : ~ ill (atom := string) intuitionistic [ioc (ivar "d"); ioc (ilmap (itens (itens (ivar "c") (ivar "d")) (ivar "d")) ione)] (itens (ivar "c") (ivar "c")).
 Proof.
@@ -1066,7 +1066,7 @@ Proof.
     (fun a => existsb (String.eqb a) []) true _).
   vm_compute. reflexivity.
 Qed.
-$ linlog prove --format rocq "A & B |- A * B"
+$ deduxit prove --format rocq "A & B |- A * B"
 no certificate: an exhausted search states no invariant, so only the search rules the proofs out and Rocq has nothing to check
 (* unprovable (MALL, classical, focus engine): the search was exhaustive *)
 ```

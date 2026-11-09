@@ -85,7 +85,7 @@
                 install -Dm644 -t $out/share/doc/deduxit-cli cli/fonts/*.txt
                 install -Dm644 ${config.packages.notices} $out/share/doc/deduxit-cli/THIRD-PARTY-NOTICES.txt
               '';
-              meta.mainProgram = "linlog";
+              meta.mainProgram = "deduxit";
             }
           );
 
@@ -106,7 +106,7 @@
                 "NewCMMath-Book-LICENSE.txt"
               ];
               nfpm = builtins.toJSON {
-                name = "linlog";
+                name = "deduxit";
                 # nfpm's names, which it turns into each format's own.
                 arch =
                   {
@@ -121,37 +121,37 @@
                 priority = "optional";
                 maintainer = "Fabian Lukas Grubmüller <flgrubm@grubmueller.dev>";
                 description = "Decide, check, prove step by step and export sequents of linear logic";
-                vendor = "linlog";
+                vendor = "deduxit";
                 homepage = "https://github.com/deduxit/deduxit";
                 license = "EUPL-1.2 AND OFL-1.1 AND LPPL-1.3c";
                 contents = [
                   {
-                    src = "${static}/bin/linlog";
-                    dst = "/usr/bin/linlog";
+                    src = "${static}/bin/deduxit";
+                    dst = "/usr/bin/deduxit";
                     file_info.mode = 493;
                   }
                 ]
                 ++ map (file: {
                   src = "${doc}/${file}";
-                  dst = "/usr/share/doc/linlog/${file}";
+                  dst = "/usr/share/doc/deduxit/${file}";
                   packager = "deb";
                   file_info.mode = 420;
                 }) licences
                 ++ map (file: {
                   src = "${doc}/${file}";
-                  dst = "/usr/share/doc/linlog/${file}";
+                  dst = "/usr/share/doc/deduxit/${file}";
                   packager = "rpm";
                   type = "doc";
                   file_info.mode = 420;
                 }) licences
                 ++ map (file: {
                   src = "${doc}/${file}";
-                  dst = "/usr/share/licenses/linlog/${file}";
+                  dst = "/usr/share/licenses/deduxit/${file}";
                   packager = "archlinux";
                   file_info.mode = 420;
                 }) licences;
               };
-              stem = "linlog-${version}-${target}";
+              stem = "deduxit-${version}-${target}";
             in
             pkgs.runCommand "deduxit-dist-${version}"
               {
@@ -161,7 +161,7 @@
               }
               ''
                 mkdir -p $out ${stem}
-                cp ${static}/bin/linlog ${stem}/
+                cp ${static}/bin/deduxit ${stem}/
                 cp ${../README.md} ${stem}/README.md
                 for file in ${toString licences}; do cp ${doc}/$file ${stem}/; done
                 chmod -R u+w,go-w ${stem}

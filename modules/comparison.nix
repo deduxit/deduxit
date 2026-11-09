@@ -3,10 +3,10 @@
 
 # The other provers of the comparison (`bench/TOOLS.md'), each built at a
 # pinned version from its own source, since several state no licence or a
-# licence other than linlog's; their derivations live in `_provers/'.
-# `comparison' is everything `bench/comparison.sh' runs: linlog's command
+# licence other than deduxit's; their derivations live in `_provers/'.
+# `comparison' is everything `bench/comparison.sh' runs: deduxit's command
 # and harness, BenchExec, the provers, Python with matplotlib for the
-# figures, and `share/linlog-comparison/tools.json', the record of every
+# figures, and `share/deduxit-comparison/tools.json', the record of every
 # tool's version and source that the harness copies into a run's record
 # (each `--tools' name to its prover's).
 {
@@ -26,11 +26,11 @@
         apll = pkgs.callPackage ./_provers/apll.nix { };
       }
       // pkgs.callPackages ./_provers/prolog.nix { };
-      linlog = config.packages.deduxit-cli;
+      deduxit = config.packages.deduxit-cli;
       # Each name of `run --tools' to the program that runs it.
       tools = {
-        linlog = linlog;
-        linlog-default = linlog;
+        deduxit = deduxit;
+        deduxit-default = deduxit;
         maude-ill = provers.maude-ll;
         maude-cll = provers.maude-ll;
         click-and-collect = provers.click-and-collect;
@@ -43,7 +43,7 @@
         apll-ll = provers.apll;
         apll-ill = provers.apll;
       };
-      record = pkgs.writeTextDir "share/linlog-comparison/tools.json" (
+      record = pkgs.writeTextDir "share/deduxit-comparison/tools.json" (
         builtins.toJSON (
           lib.mapAttrs (
             _: p:
@@ -59,9 +59,9 @@
     {
       packages = lib.mapAttrs' (name: lib.nameValuePair "prover-${name}") provers // {
         comparison = pkgs.symlinkJoin {
-          name = "linlog-comparison";
+          name = "deduxit-comparison";
           paths = [
-            linlog
+            deduxit
             config.packages.deduxit-bench
             pkgs.benchexec
             (pkgs.python3.withPackages (ps: [ ps.matplotlib ]))

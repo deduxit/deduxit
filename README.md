@@ -4,26 +4,25 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23448588.svg)](https://doi.org/10.5281/zenodo.23448588)
 
-A linear logic suite for all your needs: a command line program and a Rust
-library that parse, print and decide sequents of classical and
+Logic suites for all your needs, linear logic first: a command line
+program and a Rust library that parse, print and decide sequents of classical and
 intuitionistic linear logic and their fragments, keep the proofs in a
 checkable form and show them as derivation trees or proof nets, prove
 step by step, export to LaTeX, Typst, SVG and Rocq, decide ordinary
 propositional logic through its embeddings into linear logic, and read
 intuitionistic proofs back as lambda-terms.
 
-The repository [deduxit](https://github.com/deduxit/deduxit) is a
-collection of logic suites, grown one suite at a time, whose linear suite
-is linlog: the crates `linlog` and `deduxit-cli` and the command `linlog`
-keep that name.
+deduxit is a collection of logic suites, grown one suite at a time: the
+crates `deduxit` and `deduxit-cli` and the command `deduxit`, whose
+`--logic` chooses the suite. Up to 0.2.0 it was called linlog.
 
 Version 0.2.0 adds first-order linear logic, cut and its elimination on
 proofs and proof nets, MELL proof nets with boxes, intuitionistic
-sequents written two-sided, the inverse method, the logo, and linlog's
+sequents written two-sided, the inverse method, the logo, and deduxit's
 Rocq library in a repository of its own; the
 [changelog](CHANGELOG.md) says what changed and what breaks since 0.1.0.
 
-linlog's manual, [deduxit.github.io/deduxit/manual](https://deduxit.github.io/deduxit/manual/),
+deduxit's manual, [deduxit.github.io/deduxit/manual](https://deduxit.github.io/deduxit/manual/),
 describes every command, format and engine with real output, and the
 benchmarks and the comparison with the other provers with their figures
 (the other provers beside 0.1.0's engines on the libraries, and beside
@@ -33,7 +32,7 @@ the browser on the same library.
 
 ## Install
 
-The command `linlog` is the package `deduxit-cli`. Each
+The command `deduxit` is the package `deduxit-cli`. Each
 [release](https://github.com/deduxit/deduxit/releases) has it built
 for Linux (an archive, a `.deb`, an `.rpm` and an Arch Linux package),
 macOS and Windows; crates.io and the flake of this repository build it:
@@ -45,11 +44,11 @@ nix profile add github:deduxit/deduxit#deduxit-cli  # install it into your profi
 ```
 
 Building needs Rust 1.92 or later. The library is the crate
-[`linlog`](https://crates.io/crates/linlog):
+[`deduxit`](https://crates.io/crates/deduxit):
 
 ```toml
 [dependencies]
-linlog = "0.2"
+deduxit = "0.2"
 ```
 
 The manual's
@@ -63,20 +62,20 @@ that checks the certificates.
 ## A first proof
 
 ```console
-$ linlog prove "A, A -o B |- B"
+$ deduxit prove "A, A -o B |- B"
 provable (MLL, classical, focus engine)
 ─────── ax   ─────── ax
 ⊢ ~A, A      ⊢ ~B, B
 ──────────────────── ⊗
   ⊢ ~A, A ⊗ ~B, B
-$ linlog prove "A |- B"
+$ deduxit prove "A |- B"
 unprovable (MLL, classical, focus engine): ~A occurs 1 more time than A in the one-sided sequent, so they cannot all meet in axioms
 ```
 
 The verdict, the fragment the sequent lives in and the engine that
 searched, then the proof as a derivation tree of the one-sided sequent
 calculus, which the library's independent checker has validated, or
-why there is none. `linlog --help` and `linlog <command> --help`
+why there is none. `deduxit --help` and `deduxit <command> --help`
 document every option.
 
 ## Where to go next
@@ -95,7 +94,7 @@ document every option.
 - **The web page**, [deduxit.github.io](https://deduxit.github.io/):
   proving step by step in the browser, with lessons.
 - **For AI models**: a guide to the command and the library, the Agent
-  Skill [`skills/linlog/`](https://github.com/deduxit/deduxit/tree/main/skills/linlog)
+  Skill [`skills/deduxit/`](https://github.com/deduxit/deduxit/tree/main/skills/deduxit)
   (a summary, `SKILL.md`, and the full reference beside it, whose every
   example a test runs), served as
   [llms.txt](https://deduxit.github.io/deduxit/llms.txt) and
@@ -106,23 +105,23 @@ document every option.
   [deduxit/rocq-linlog](https://github.com/deduxit/rocq-linlog):
   the calculi, checkers and soundness theorems the certificates of
   `--kernel linlog` are proved with.
-- **The library's API**: [docs.rs/linlog](https://docs.rs/linlog) for the
+- **The library's API**: [docs.rs/deduxit](https://docs.rs/deduxit) for the
   releases, [deduxit.github.io/deduxit](https://deduxit.github.io/deduxit/)
   for `main`, rebuilt on every push.
 - **The changes of every release**:
   [CHANGELOG.md](https://github.com/deduxit/deduxit/blob/main/CHANGELOG.md).
 
-linlog's code, tests and documentation were written with substantial AI
+deduxit's code, tests and documentation were written with substantial AI
 assistance, by Anthropic's Claude models in Claude Code, in steps the
 author planned, directed and accepted. Every proof the library returns
 has passed its independent checker, and a Rocq certificate can be
-checked by Rocq. linlog is very much inspired by
+checked by Rocq. deduxit is very much inspired by
 [Click & coLLecT](https://www.click-and-collect.linear-logic.org);
 feature requests and contributions are welcome.
 
 ## Citing
 
-Each release is archived on Zenodo. To cite linlog, use the DOI
+Each release is archived on Zenodo. To cite deduxit, use the DOI
 [10.5281/zenodo.23448588](https://doi.org/10.5281/zenodo.23448588),
 which always resolves to the latest version, or the DOI of the version
 you used, which its Zenodo record gives. [`CITATION.cff`](CITATION.cff)
@@ -131,12 +130,12 @@ or APA.
 
 ## Licence
 
-linlog is © Fabian Lukas Grubmüller and licensed under the European
+deduxit is © Fabian Lukas Grubmüller and licensed under the European
 Union Public Licence, version 1.2 (EUPL-1.2), whose text is in
 [`LICENSE`](LICENSE).
 
 One part of the repository is someone else's work under its own licence:
-the five math fonts in [`cli/fonts/`](cli/fonts), which the `linlog`
+the five math fonts in [`cli/fonts/`](cli/fonts), which the `deduxit`
 command embeds to draw proofs, four under the SIL Open Font License 1.1:
 Euler Math, © the American Mathematical Society, Khaled Hosny and
 Daniel Flipo ([`cli/fonts/OFL.txt`](cli/fonts/OFL.txt)); STIX Two Math,
@@ -151,7 +150,7 @@ the GUST Font License, which is the LaTeX Project Public License 1.3c
 ([`cli/fonts/NewCMMath-Book-LICENSE.txt`](cli/fonts/NewCMMath-Book-LICENSE.txt),
 which also says where the complete package is). The package
 `deduxit-cli` is therefore `EUPL-1.2 AND OFL-1.1 AND LPPL-1.3c`; the
-library `linlog` contains no font. Drawings and documents made with the OFL
+library `deduxit` contains no font. Drawings and documents made with the OFL
 fonts are not covered by their licence (its condition 5); a PNG holds
 no font, while a PDF embeds the part of the font its text uses, and for
 New Computer Modern Math the LPPL makes no exception for documents.

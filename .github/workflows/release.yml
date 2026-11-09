@@ -95,9 +95,9 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           version=${TAG#v}
-          for crate in linlog deduxit-cli; do
+          for crate in deduxit deduxit-cli; do
             if curl --silent --fail --output /dev/null \
-              --user-agent "linlog release (github.com/deduxit/deduxit)" \
+              --user-agent "deduxit release (github.com/deduxit/deduxit)" \
               "https://crates.io/api/v1/crates/$crate/$version"; then
               echo "$crate $version is on crates.io already"
             else
@@ -156,10 +156,10 @@ jobs:
             echo
             echo "Install it as the manual's [Installation](https://deduxit.github.io/deduxit/manual/installation.html) says; \`SHA256SUMS\` holds the files' sums."
           } >>notes.md
-          for crate in linlog deduxit-cli; do
+          for crate in deduxit deduxit-cli; do
             curl --silent --fail --location --output "$crate-$version.crate" \
-              --user-agent "linlog release (github.com/deduxit/deduxit)" \
+              --user-agent "deduxit release (github.com/deduxit/deduxit)" \
               "https://static.crates.io/crates/$crate/$crate-$version.crate"
           done
-          gh release create "$TAG" --title "linlog $version" --notes-file notes.md \
+          gh release create "$TAG" --title "deduxit $version" --notes-file notes.md \
             --verify-tag ./*.crate dist/*

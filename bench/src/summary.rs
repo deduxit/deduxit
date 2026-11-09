@@ -124,7 +124,7 @@ pub(crate) const COUNTERS: [&str; 6] = [
 /// passes under other options keeps: its mode, requested engine or tool
 /// and threads, a portfolio and a test period.
 pub(crate) fn base(row: &Row) -> String {
-    // A row of another prover, or of linlog's command, names its tool.
+    // A row of another prover, or of deduxit's command, names its tool.
     let mut label = match row.get("tool") {
         "" => format!(
             "{} {} j{}",
@@ -554,7 +554,7 @@ pub(crate) mod tests {
     /// verdict and on files without a run, and passes the others.
     #[test]
     fn strict_fails_on_a_failed_run_or_none() {
-        let dir = std::env::temp_dir().join(format!("linlog-strict-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("deduxit-strict-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let header = "family,problem,verdict,expected,reason,time_ms,timeout_s,checked";
         let file = |name: &str, rows: &str| {

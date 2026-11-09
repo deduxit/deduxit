@@ -9,7 +9,7 @@ logic, and the proof is read back as a derivation of LK or LJ, which is
 checked by the rules of the logic before it is shown:
 
 ```console
-$ linlog prove --logic classical '((a -> b) -> a) -> a'
+$ deduxit prove --logic classical '((a -> b) -> a) -> a'
 valid (classical logic by the affine translation into affine MALL, focus engine)
  ──────── ax
  a ⊢ b, a
@@ -19,7 +19,7 @@ valid (classical logic by the affine translation into affine MALL, focus engine)
    (a → b) → a ⊢ a
  ─────────────────── →R
  ⊢ ((a → b) → a) → a
-$ linlog prove --logic intuitionistic 'a \/ b -> b \/ a'
+$ deduxit prove --logic intuitionistic 'a \/ b -> b \/ a'
 valid (intuitionistic logic by the cbn translation into ILL, two-sided engine)
   ───── ax        ───── ax
   a ⊢ a           b ⊢ b
@@ -29,7 +29,7 @@ a ⊢ b ∨ a       b ⊢ b ∨ a
       a ∨ b ⊢ b ∨ a
    ─────────────────── →R
    ⊢ (a ∨ b) → (b ∨ a)
-$ linlog prove --logic intuitionistic '~~a -> a'
+$ deduxit prove --logic intuitionistic '~~a -> a'
 not valid (intuitionistic logic by the cbn translation into ILL, two-sided engine): the image is unprovable: the search was exhaustive
 ```
 
@@ -41,7 +41,7 @@ admissible, so that it reads as in G3, whose axiom takes a context
 a certificate names every one whatever the flag says:
 
 ```console
-$ linlog prove --logic classical --structural explicit '((a -> b) -> a) -> a'
+$ deduxit prove --logic classical --structural explicit '((a -> b) -> a) -> a'
 valid (classical logic by the affine translation into affine MALL, focus engine)
   ───── ax
   a ⊢ a
@@ -66,11 +66,11 @@ the time limit, so an intuitionistic formula may be answered unknown
 proof of it:
 
 ```console
-$ linlog seq print --logic intuitionistic --translation cbv 'a, a -> b |- b'
+$ deduxit seq print --logic intuitionistic --translation cbv 'a, a -> b |- b'
 !a, !(!a ⊸ !b) ⊢ !b
-$ linlog seq print --logic minimal '~a |- a -> b'
+$ deduxit seq print --logic minimal '~a |- a -> b'
 !(!a ⊸ false) ⊢ !a ⊸ b
-$ linlog prove --logic intuitionistic --linear 'a, a -> b |- b'
+$ deduxit prove --logic intuitionistic --linear 'a, a -> b |- b'
 valid (intuitionistic logic by the cbn translation into ILL, two-sided engine)
 ───── ax
 a ⊢ a
@@ -96,17 +96,17 @@ propositions, proved by instantiating the atoms with `True` and `False`:
 
 ```console
 $ echo 'fof(pel1, conjecture, (p => q) <=> (~ q => ~ p)).' > pel1.p
-$ linlog prove --logic intuitionistic --quiet --file pel1.p
+$ deduxit prove --logic intuitionistic --quiet --file pel1.p
 not valid (intuitionistic logic by the cbn translation into ILL, two-sided engine): the image is unprovable: the search was exhaustive
-$ linlog prove --logic classical --quiet --file pel1.p
+$ deduxit prove --logic classical --quiet --file pel1.p
 valid (classical logic by the affine translation into affine MALL, focus engine)
-$ linlog prove --logic classical --format rocq 'a \/ ~a'
+$ deduxit prove --logic classical --format rocq 'a \/ ~a'
 (* valid (classical logic by the affine translation into affine MALL, focus engine) *)
 Lemma certificate : forall a : Prop, (a \/ ~ a).
 Proof.
   exact (fun (a : Prop) => NNPP (a \/ ~ a) (fun k'1 : ~ (a \/ ~ a) => (let k'2 : ~ a := fun x' => k'1 (or_introl x') in let k'3 : ~ (~ a) := fun x' => k'1 (or_intror x') in (k'3 (fun h'4 : a => (k'2 h'4)))))).
 Qed.
-$ linlog prove --logic classical --format rocq 'a -> b, b |- a'
+$ deduxit prove --logic classical --format rocq 'a -> b, b |- a'
 (* not valid (classical logic by the affine translation into affine MALL, focus engine): the image is unprovable: the classical reading is false where b is true and every other atom false (! and ? erased, ⊗ and & as and, ⅋ and ⊕ as or, 1 and ⊤ true, ⊥ and 0 false), and every provable sequent reads as a tautology *)
 Lemma certificate : ~ (forall a b : Prop, (a -> b) -> b -> a).
 Proof.
@@ -116,7 +116,7 @@ Qed.
 
 ## Step by step
 
-`linlog interact --logic classical`, `intuitionistic` or `minimal`
+`deduxit interact --logic classical`, `intuitionistic` or `minimal`
 proves the sequent step by step by the rules of LK or LJ, with the
 commands of a linear session (see [Interactive proving](interactive.md)):
 `goals`, `rules`, `apply`, `undo`, `close`, `show`, `proof`, `save`,
@@ -132,7 +132,7 @@ the rest to the second (`apply 1 L1 ->L L0` sends `L0` to the first).
 it) and grafts the derivation found, which `undo` takes back whole:
 
 ```console
-$ linlog interact --logic intuitionistic 'a -> b, b -> c |- a -> c'
+$ deduxit interact --logic intuitionistic 'a -> b, b -> c |- a -> c'
 > goals
 goal 0: L0: a → b, L1: b → c ⊢ R0: a → c
 > apply 0 R0 ->R
@@ -172,7 +172,7 @@ search cannot decide stay open with the reason, as `prove` gives it.
 which `--state FILE` resumes:
 
 ```console
-$ linlog interact --logic minimal 'a |- ~~a'
+$ deduxit interact --logic minimal 'a |- ~~a'
 > apply 0 R0 ~R
 opened goal 1: L0: a, L1: ¬a ⊢ R0: ⊥
 > apply 1 R0 falseR

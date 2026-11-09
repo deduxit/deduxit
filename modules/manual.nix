@@ -19,7 +19,7 @@
     in
     {
       packages.manual = pkgs.stdenvNoCC.mkDerivation {
-        name = "linlog-manual";
+        name = "deduxit-manual";
         src = lib.fileset.toSource {
           root = ../.;
           fileset = lib.fileset.unions [

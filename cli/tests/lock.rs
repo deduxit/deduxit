@@ -441,13 +441,13 @@ const CASES: &[Case] = &[
 /// the command line, the exit status, standard output and standard error.
 fn run(case: &Case, inputs: &Path) -> String {
     let out = common::output(
-        Command::new(env!("CARGO_BIN_EXE_linlog"))
+        Command::new(env!("CARGO_BIN_EXE_deduxit"))
             .args(case.args)
             .current_dir(inputs)
             .env_remove("NO_COLOR"),
         case.stdin,
     );
-    let mut text = String::from("$ linlog");
+    let mut text = String::from("$ deduxit");
     for arg in case.args {
         if arg.is_empty()
             || arg.contains(|c: char| c.is_whitespace() || "\"'\\|*&!?~()<>;$".contains(c))

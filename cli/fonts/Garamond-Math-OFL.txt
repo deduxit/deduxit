@@ -1,6 +1,6 @@
 Garamond-Math 2022-01-03, the font in Garamond-Math.otf (as CTAN's
 garamond-math package ships it, whose README says it is licensed under
-the SIL Open Font License, Version 1.1), embedded in the linlog command:
+the SIL Open Font License, Version 1.1), embedded in the deduxit command:
 
 Copyleft (C) 2018-2022 Yuansheng Zhao and Xiangdong Zeng
 
