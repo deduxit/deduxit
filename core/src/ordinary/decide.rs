@@ -1,17 +1,18 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Deciding an ordinary sequent in one call: the translation, the search
-//! on the image, and for a valid sequent the derivation of LK or LJ read
-//! back and checked.
+//! Deciding an ordinary sequent in one call, by the method the options
+//! choose: through the embedding (the translation, the search on the
+//! image, and for a valid sequent the derivation of LK or LJ read back and
+//! checked) or by LJT.
 
-use super::{Derivation, Logic, Options, Sequent, Translation, translate};
+use super::{Derivation, Logic, Method, Options, Sequent, Translation, ljt, translate};
 use crate::Error;
 use crate::limits::{Limits, Progress};
 use crate::linear::search::{self, Reason};
 
-/// What deciding an ordinary sequent found, with the linear search's own
-/// outcome on the image.
+/// What deciding an ordinary sequent found, with what the method's
+/// search found and cost.
 ///
 /// # JSON
 ///
@@ -19,7 +20,9 @@ use crate::linear::search::{self, Reason};
 /// `{"version": 8, "deduxit": "0.3.0", "verdict": "valid", "logic":
 /// "classical", "translation": "affine", "engine": "focus", "statistics":
 /// {…}, "derivation": {…}}` ([`wire`](crate::wire)), `verdict` one of
-/// `valid`, `not_valid` and `unknown`, the last with its `reason`.
+/// `valid`, `not_valid` and `unknown`, the last with its `reason`. An
+/// outcome of LJT has no `translation`, its `engine` is `ljt`, and its
+/// `statistics` are [`ljt::Statistics`].
 #[non_exhaustive]
 #[derive(Clone, Debug)]
 pub struct Outcome {
@@ -27,10 +30,45 @@ pub struct Outcome {
     pub verdict: Verdict,
     /// The logic decided.
     pub logic: Logic,
-    /// The translation the image was made by.
-    pub translation: Translation,
-    /// The search's outcome on the image.
-    pub linear: search::Outcome,
+    /// How the sequent was searched, and what the search found and cost.
+    pub search: Search,
+}
+
+/// How an ordinary sequent was searched, by its [`Method`].
+#[non_exhaustive]
+#[derive(Clone, Debug)]
+pub enum Search {
+    /// Through the embedding: the translation the image was made by, and
+    /// the linear search's outcome on the image.
+    Embedding {
+        /// The translation the image was made by.
+        translation: Translation,
+        /// The search's outcome on the image.
+        linear: Box<search::Outcome>,
+    },
+    /// By LJT, and what its search cost.
+    Ljt(ljt::Statistics),
+}
+
+impl Outcome {
+    /// Returns the method the sequent was decided by.
+    pub const fn method(&self) -> Method {
+        match self.search {
+            Search::Embedding { .. } => Method::Embedding,
+            Search::Ljt(_) => Method::Ljt,
+        }
+    }
+}
+
+impl From<ljt::Outcome> for Outcome {
+    /// The outcome of LJT as an outcome of deciding an ordinary sequent.
+    fn from(outcome: ljt::Outcome) -> Self {
+        Self {
+            verdict: outcome.verdict,
+            logic: outcome.logic,
+            search: Search::Ljt(outcome.statistics),
+        }
+    }
 }
 
 /// Whether an ordinary sequent is valid in its logic.
@@ -47,17 +85,19 @@ pub enum Verdict {
     Unknown(Reason),
 }
 
-/// Decides an ordinary sequent as `options` say: translates it, searches
-/// the image in its mode under `search` within `limits` and until `stop`
-/// fires, and for a proof reads the derivation of LK or LJ back and
-/// checks it, under the same limits and stop.
+/// Decides an ordinary sequent as `options` say, within `limits` and
+/// until `stop` fires. By the embedding it translates the sequent,
+/// searches the image in its mode under `search`, and for a proof reads
+/// the derivation of LK or LJ back and checks it, under the same limits
+/// and stop; by LJT it is [`ljt::decide`], which reads no `search`
+/// option.
 ///
 /// # Errors
 ///
 /// As [`translate()`], [`search::prove_within`], [`Image::read_back`] and
-/// [`Derivation::check`]: a proof whose derivation a bound or the stop
-/// refused is that refusal, not a verdict, and a read-back that fails the
-/// check is [`Error::ReadBack`], a defect.
+/// [`Derivation::check`], or as [`ljt::decide`]: a proof whose derivation
+/// a bound or the stop refused is that refusal, not a verdict, and a
+/// derivation that fails the check is [`Error::ReadBack`], a defect.
 ///
 /// [`Image::read_back`]: super::Image::read_back
 ///
@@ -89,6 +129,9 @@ pub fn decide(
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
     let (logic, translation) = (options.logic, options.translation());
+    if options.method() == Method::Ljt {
+        return ljt::decide(sequent, logic, limits, stop).map(Outcome::from);
+    }
     let image = translate(sequent, logic, translation, limits)?;
     let linear = search::prove_within(image.sequent(), image.mode(), search, limits, &mut stop)?;
     let verdict = match &linear.verdict {
@@ -103,7 +146,47 @@ pub fn decide(
     Ok(Outcome {
         verdict,
         logic,
-        translation,
-        linear,
+        search: Search::Embedding {
+            translation,
+            linear: Box::new(linear),
+        },
     })
+}
+
+#[cfg(all(test, feature = "parse"))]
+mod tests {
+    use super::{Method, Options, Search, Verdict, decide};
+    use crate::Limits;
+    use crate::linear::search;
+    use crate::ordinary::{Logic, Sequent, Translation};
+
+    /// A translation given names the embedding unless a method is given,
+    /// and LJT's outcome says so: written with the engine `ljt` and no
+    /// translation.
+    #[test]
+    fn the_options_choose_the_method() {
+        let options = Options::default().with_logic(Logic::Intuitionistic);
+        assert_eq!(options.method(), Method::default_for(Logic::Intuitionistic));
+        let translated = options.with_translation(Some(Translation::CallByValue));
+        assert_eq!(translated.method(), Method::Embedding);
+        let ljt = translated.with_method(Some(Method::Ljt));
+        assert_eq!(ljt.method(), Method::Ljt);
+
+        let sequent: Sequent = "~~(a \\/ ~a)".parse().unwrap();
+        let (search, limits) = (search::Options::default(), Limits::default());
+        let outcome = decide(&sequent, &ljt, &search, &limits, |_| false).unwrap();
+        assert!(matches!(outcome.verdict, Verdict::Valid(_)));
+        assert!(matches!(outcome.search, Search::Ljt(_)));
+        #[cfg(feature = "serialize")]
+        {
+            let json = serde_json::to_value(&outcome).unwrap();
+            assert_eq!(json["engine"], "ljt");
+            assert!(json.get("translation").is_none());
+            assert!(json["statistics"]["sequents"].as_u64().unwrap() > 0);
+        }
+        let embedded = decide(&sequent, &translated, &search, &limits, |_| false).unwrap();
+        assert_eq!(embedded.method(), Method::Embedding);
+        let classical = ljt.with_logic(Logic::Classical);
+        assert!(decide(&sequent, &classical, &search, &limits, |_| false).is_err());
+    }
 }

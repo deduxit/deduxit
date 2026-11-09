@@ -7,7 +7,8 @@
 //! position, and a rule; the rule is validated against the formula and
 //! the logic, every inference a step makes is checked by the rules the
 //! derivation's checker applies, and the goals it leaves are returned.
-//! The search closes a goal through the embeddings ([`decide()`]), and a
+//! The search closes a goal through the embeddings ([`decide()`]), whose
+//! derivations have no cut, and a
 //! finished state is a [`Derivation`] that [`Derivation::check`]
 //! validates, so this layer adds nothing to what is trusted.
 //!
@@ -1007,9 +1008,11 @@ impl Interactive {
             left: goal.left.clone(),
             right: goal.right.clone(),
         };
+        // The embedding's derivations have no cut, which no step takes.
         let options = super::Options::default()
             .with_logic(self.logic)
-            .with_translation(translation);
+            .with_translation(translation)
+            .with_method(Some(super::Method::Embedding));
         decide(&sequent, &options, search, limits, stop)
     }
 

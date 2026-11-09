@@ -56,8 +56,14 @@ pub struct Outcome {
 }
 
 /// What a search by LJT cost.
+///
+/// # JSON
+///
+/// With the feature `serialize` it is written (never read) as
+/// `{"sequents": 12, "memo_hits": 3, "memo_entries": 9, "subsumed": 0}`.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize))]
 pub struct Statistics {
     /// The sequents expanded, the search's unit of work.
     pub sequents: u64,

@@ -6,8 +6,8 @@ use crate::Error;
 use crate::limits::{Limits, Refusal, Space};
 use crate::linear::proofs::InfId;
 use crate::ordinary::{
-    Derivation, Formulas, Inference, Logic, Node, NodeId, Outcome, Rule, Sequent, Side,
-    Translation, Verdict, bound,
+    Derivation, Formulas, Inference, Logic, Method, Node, NodeId, Outcome, Rule, Search, Sequent,
+    Side, Translation, Verdict, bound, ljt,
 };
 #[cfg(feature = "interactive")]
 use crate::ordinary::{Interactive, Parts};
@@ -415,10 +415,10 @@ impl Readable for Derivation {
 }
 
 /// The serialized form of the outcome of deciding an ordinary sequent:
-/// the verdict, the logic and translation, the image's search, and the
-/// derivation of a valid sequent.
+/// the verdict, the logic, the translation and the image's search, or
+/// LJT's, and the derivation of a valid sequent.
 #[derive(Serialize)]
-struct OutcomeForm {
+struct OutcomeForm<'a> {
     /// The wire level.
     version: u32,
     /// The crate's version, which wrote the outcome.
@@ -430,15 +430,26 @@ struct OutcomeForm {
     reason: Option<Why>,
     /// The logic decided.
     logic: Logic,
-    /// The translation the image was made by.
-    translation: Translation,
-    /// The engine that searched the image.
-    engine: crate::linear::search::Engine,
-    /// What the image's search cost.
-    statistics: crate::linear::search::Statistics,
+    /// The translation the image was made by, for the embedding.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    translation: Option<Translation>,
+    /// The engine that searched the image, or `ljt`.
+    engine: &'static str,
+    /// What the search cost.
+    statistics: StatisticsForm<'a>,
     /// The derivation, for `valid`.
     #[serde(skip_serializing_if = "Option::is_none")]
     derivation: Option<DerivationForm>,
+}
+
+/// What the search of an outcome cost: the image's, or LJT's.
+#[derive(Serialize)]
+#[serde(untagged)]
+enum StatisticsForm<'a> {
+    /// The linear search's on the image.
+    Linear(&'a crate::linear::search::Statistics),
+    /// LJT's.
+    Ljt(&'a ljt::Statistics),
 }
 
 impl Serialize for Outcome {
@@ -454,15 +465,26 @@ impl Serialize for Outcome {
             Verdict::NotValid => ("not_valid", None, None),
             Verdict::Unknown(r) => ("unknown", Some(Why::from(*r)), None),
         };
+        let (translation, engine, statistics) = match &self.search {
+            Search::Embedding {
+                translation,
+                linear,
+            } => (
+                Some(*translation),
+                linear.engine.name(),
+                StatisticsForm::Linear(&linear.statistics),
+            ),
+            Search::Ljt(statistics) => (None, Method::Ljt.name(), StatisticsForm::Ljt(statistics)),
+        };
         OutcomeForm {
             version,
             deduxit: env!("CARGO_PKG_VERSION"),
             verdict,
             reason,
             logic: self.logic,
-            translation: self.translation,
-            engine: self.linear.engine,
-            statistics: self.linear.statistics,
+            translation,
+            engine,
+            statistics,
             derivation,
         }
         .serialize(serializer)

@@ -22,7 +22,7 @@ use crate::{Status, catch_interrupt, clear_interrupt, interrupted, io, style};
 use anyhow::{Context, Result, bail};
 use deduxit::export::{Styles, latex, svg, typst};
 use deduxit::linear::search::Options;
-use deduxit::ordinary::{Interactive, Needs, Rule, Side, Step, Translation};
+use deduxit::ordinary::{self, Interactive, Needs, Rule, Side, Step, Translation};
 use deduxit::{
     Error, Limits, Refusal, Settings,
     linear::{GoalId, ViewOptions},
@@ -347,12 +347,14 @@ impl Session {
             Err(error) => return Err(error.into()),
         };
         let outcome = &closed.outcome;
-        let line = crate::ordinary::verdict_line(
-            &outcome.linear,
-            outcome.logic,
-            outcome.translation,
-            &ended,
-        );
+        let ordinary::Search::Embedding {
+            translation,
+            linear,
+        } = &outcome.search
+        else {
+            unreachable!("a session closes a goal through the embedding")
+        };
+        let line = crate::ordinary::verdict_line(linear, outcome.logic, *translation, &ended);
         match closed.grafted {
             Ok(()) => Ok(line),
             Err(Refusal::Output {

@@ -63,7 +63,7 @@ pub(crate) mod rocq;
 /// The translations into linear logic.
 mod translate;
 
-pub use decide::{Outcome, Verdict, decide};
+pub use decide::{Outcome, Search, Verdict, decide};
 pub use derivation::{Derivation, Inference, Rule, Side};
 #[cfg(all(feature = "interactive", feature = "serialize"))]
 pub(crate) use interactive::Parts;
@@ -295,8 +295,84 @@ impl std::str::FromStr for Translation {
     }
 }
 
-/// How an ordinary sequent is decided: the logic, and the translation,
-/// `None` for the logic's default ([`Translation::default_for`]).
+/// How an ordinary sequent is decided: through its embedding into linear
+/// logic, or by a calculus of its own logic.
+#[non_exhaustive]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", serde(rename_all = "lowercase"))]
+pub enum Method {
+    /// The sequent's image under a [`Translation`] is searched in linear
+    /// logic, and the proof read back as a derivation of LK or LJ
+    /// ([`decide()`]). It decides every logic; intuitionistic and minimal
+    /// logic go through exponentials, so the search may answer "unknown".
+    Embedding,
+    /// Dyckhoff's calculus LJT ([`ljt::decide`]), whose search always
+    /// ends: intuitionistic and minimal logic only.
+    Ljt,
+}
+
+impl Method {
+    /// Every method, in the order of [`NAMES`](Self::NAMES).
+    pub const ALL: &'static [Self] = &[Self::Embedding, Self::Ljt];
+
+    /// The methods' names, which [`name`](Self::name) writes and `FromStr`
+    /// reads.
+    pub const NAMES: &'static [&'static str] = &["embedding", "ljt"];
+
+    /// Returns the method's name: `embedding` or `ljt`, as the command and
+    /// the JSON spell it.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Embedding => "embedding",
+            Self::Ljt => "ljt",
+        }
+    }
+
+    /// Returns the method the logic is decided with by default.
+    pub const fn default_for(logic: Logic) -> Self {
+        match logic {
+            Logic::Classical | Logic::Intuitionistic | Logic::Minimal => Self::Embedding,
+        }
+    }
+
+    /// Returns whether the method decides the logic: the embedding every
+    /// logic, LJT intuitionistic and minimal logic.
+    pub const fn decides(self, logic: Logic) -> bool {
+        match self {
+            Self::Embedding => true,
+            Self::Ljt => !matches!(logic, Logic::Classical),
+        }
+    }
+}
+
+impl Display for Method {
+    /// Writes the method's [`name`](Self::name).
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        f.write_str(self.name())
+    }
+}
+
+impl std::str::FromStr for Method {
+    type Err = Error;
+
+    /// Reads a method's [`name`](Self::name), one of
+    /// [`NAMES`](Self::NAMES).
+    fn from_str(name: &str) -> Result<Self, Error> {
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|method| method.name() == name)
+            .ok_or_else(|| Error::UnknownName {
+                what: "method",
+                name: name.into(),
+                known: Self::NAMES,
+            })
+    }
+}
+
+/// How an ordinary sequent is decided: the logic, the method, and the
+/// translation of the embedding.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -304,8 +380,12 @@ impl std::str::FromStr for Translation {
 pub struct Options {
     /// The logic.
     pub logic: Logic,
-    /// The translation, or `None` for the logic's default.
+    /// The translation, or `None` for the logic's default. A translation
+    /// given names the embedding: with no method given, it is the method.
     pub translation: Option<Translation>,
+    /// The method, or `None` for the embedding when a translation is
+    /// given and otherwise the logic's default ([`Method::default_for`]).
+    pub method: Option<Method>,
 }
 
 impl Options {
@@ -330,6 +410,23 @@ impl Options {
         match self.translation {
             Some(translation) => translation,
             None => Translation::default_for(self.logic),
+        }
+    }
+
+    /// Returns the options with the method given, `None` for the
+    /// default.
+    #[must_use]
+    pub const fn with_method(self, method: Option<Method>) -> Self {
+        Self { method, ..self }
+    }
+
+    /// Returns the method these options choose: the one given, else the
+    /// embedding when a translation is given, else the logic's default.
+    pub const fn method(&self) -> Method {
+        match (self.method, self.translation) {
+            (Some(method), _) => method,
+            (None, Some(_)) => Method::Embedding,
+            (None, None) => Method::default_for(self.logic),
         }
     }
 }
