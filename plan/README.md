@@ -5473,3 +5473,27 @@ move (D26).
       brand;
     - the logo keeps a contrast test against the field;
     - a new test keeps `--color-logo` to the header's mark.
+- 2026-11-09, 03:00: **52 reviewed and pushed; step 52 is complete.**
+  - **What it built:** where the focused engine meets its memory bound on
+    a forced-linking, unit-free MLL sequent in classical mode without
+    Mix, the inverse method takes it over before the net engine.
+    - On cores 2 and 3, with builds made alike, `wide-m1` with 4 096,
+      8 192 and 16 384 literals is proved in 1.48, 3.05 and 11.8 s,
+      against 3.09, 9.48 and 37.4 s; 32 768 in 49.3 s, where base times
+      out.
+    - None of the held-out shapes was lost.
+  - **Decided: the classical turn (`chain`) is dropped.** On one thread
+    it lost SYJ212+1.015 of cbn at the 2 s default, which breaks D19.
+    The affine turn (`pigeonhole`) is dropped too: 7#1 was 1.27 times
+    slower. Both cases are kept in later.md.
+  - **No new oracle:** the target sets equal 47's.
+  - **The harness:** it now reads the reason from 51b's JSON outcome.
+  - **Its reviewer's three findings** all held and were answered:
+    - the handover's held-out shapes were measured;
+    - the default view was re-timed on one pair of cores, which found
+      the lost row;
+    - the cost figures were corrected.
+  - **The planning session's probes:**
+    - `wide-m1` 4096 is proved by the inverse method in 1.9 s on one
+      thread, its proof checked;
+    - `--all-families --timeout 5` shows no MISMATCH in 195 rows.
