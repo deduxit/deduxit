@@ -2,20 +2,21 @@
 // Licensed under the EUPL
 
 //! The size of a derivation, computed from the proof term without building
-//! the derivation: one pass of the checker, with a handful of numbers kept
-//! per node. A term stores a subproof that several nodes share once and
-//! the derivation unfolds it at every use, so a derivation can be
-//! exponentially larger than its term; the numbers here are what says so
-//! before anything is built.
+//! the derivation.
 //!
-//! All of them are `u64` and saturate: every sum and product here is a
-//! saturating one, and every difference too, so nothing wraps in any
-//! build, and on a 32-bit target as on a 64-bit one: a `usize` that
-//! enters a count (a length, a position) is widened to `u64` first. A number that reached `u64::MAX` stays there through every
-//! later sum, since nothing is ever taken away from a count of
-//! inferences, of characters or of a height on its way to the root; so a
-//! saturated count shows in the size returned, whose estimate in bytes is
-//! then over every bound.
+//! A term stores a shared subproof once, but the derivation unfolds it at
+//! every use, so a derivation can be exponentially larger than its term.
+//! One pass of the checker, keeping a few numbers per node, tells how
+//! large before anything is built.
+//!
+//! Every number is a `u64`, and every sum, product and difference
+//! saturates, so nothing wraps in any build, on a 32-bit target as on a
+//! 64-bit one. A `usize` that enters a count (a length, a position) is
+//! widened to `u64` first. Nothing is ever taken away from a count of
+//! inferences, of characters or of a height on its way to the root, so a
+//! number that reached `u64::MAX` stays there. A saturated count thus
+//! shows in the size returned, whose estimate in bytes is then over every
+//! bound.
 
 use super::check::{
     self, Allowance, CheckError, Facts, Framed, Ground, Instancing, Observer, State,
@@ -29,10 +30,14 @@ use crate::linear::sequents::{FoTerm, Kind, Term};
 use std::collections::{HashMap, HashSet};
 
 /// How large the derivation of a proof is, as
-/// [`Proof::derivation_size`] computes it. A count that passes `u64::MAX`
-/// is written as `u64::MAX`, meaning more than can be counted, and then
-/// `exact` is false. In JSON (feature `serialize`) an object of its
-/// fields.
+/// [`Proof::derivation_size`] computes it without building it.
+///
+/// A count that passes `u64::MAX` is `u64::MAX`, meaning more than can be
+/// counted, and `exact` is then false.
+///
+/// # JSON
+///
+/// With the feature `serialize`, an object of its fields.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -41,42 +46,43 @@ pub struct Size {
     pub inferences: u64,
     /// The characters of every inference's sequent added up, each sequent
     /// written one-sided with its formulas separated by a comma and a
-    /// space: what a renderer writes, up to its rule names, its layout and
-    /// its own spelling of the connectives. Exact when `exact` is set, and
-    /// never less than the sum otherwise.
+    /// space. This is what a renderer writes, leaving out its rule names,
+    /// its layout and its own spelling of the connectives. Exact when
+    /// `exact` is set, and never less than the true sum otherwise.
     pub characters: u64,
     /// The inferences on the longest branch, exact unless saturated. The
     /// text tree has two lines for each.
     pub height: u64,
-    /// The characters of the widest sequent the pass saw, which the text
-    /// tree is at least as wide as: a lower bound of its width.
+    /// The characters of the widest sequent the pass saw. The text tree is
+    /// at least this wide, so this is a lower bound of its width.
     pub width: u64,
-    /// Whether every count is exact: false when one saturated, and when
+    /// Whether every count is exact. False when one saturated, and when
     /// `characters` is an upper bound because a `&` has several `?`
-    /// formulas that only one of its premises uses (the weakenings above
+    /// formulas that only one of its premises uses: the weakenings above
     /// the other premise are then each counted with the sequent of the
-    /// last).
+    /// last.
     pub exact: bool,
 }
 
 impl Size {
-    /// What a derivation takes in memory and in most of its written forms
-    /// for every character of its sequents: the occurrence ids of the
-    /// sequents, the rule lines of the text tree, the markup of the
+    /// The bytes a derivation takes for every character of its sequents,
+    /// in memory and in most of its written forms: the occurrence ids of
+    /// the sequents, the rule lines of the text tree, the markup of the
     /// exports.
     pub const BYTES_PER_CHARACTER: u64 = 8;
 
-    /// What a derivation takes for every inference beside its sequent.
+    /// The bytes a derivation takes for every inference besides its
+    /// sequent.
     pub const BYTES_PER_INFERENCE: u64 = 128;
 
-    /// Returns an estimate, good to the order of magnitude, of the bytes
-    /// the derivation takes to build and to write in any format:
-    /// [`BYTES_PER_CHARACTER`](Self::BYTES_PER_CHARACTER) for each
-    /// character of a sequent and
+    /// Returns an estimate of the bytes the derivation takes to build and
+    /// to write in any format, good to the order of magnitude.
+    ///
+    /// It counts [`BYTES_PER_CHARACTER`](Self::BYTES_PER_CHARACTER) for
+    /// each character of a sequent and
     /// [`BYTES_PER_INFERENCE`](Self::BYTES_PER_INFERENCE) for each
-    /// inference. It is what
-    /// [`Limits::derivation_bytes`](crate::Limits::derivation_bytes)
-    /// bounds.
+    /// inference. [`Limits::derivation_bytes`](crate::Limits::derivation_bytes)
+    /// bounds this number.
     pub fn bytes(&self) -> u64 {
         self.characters
             .saturating_mul(Self::BYTES_PER_CHARACTER)
@@ -91,19 +97,41 @@ impl Size {
 }
 
 impl Proof {
-    /// Returns how large the derivation of the proof that `view` shows is,
-    /// one-sided or two-sided, without building it, or the checker's
-    /// complaint about the proof: the proof passes the checker once,
-    /// holding `limits.memory_bytes` at most and asking `stop` every 4 096
-    /// nodes (a pass that would hold more, or that `stop` ends, answers
-    /// [`CheckError::Refused`]), and a subproof that several nodes share is
-    /// counted at every use, as the derivation repeats it.
+    /// Returns how large the derivation that `view` would draw is,
+    /// one-sided or two-sided, without building it.
+    ///
+    /// This is how a caller learns whether a derivation fits before it
+    /// asks for one. The proof passes the checker once, within
+    /// `limits.memory_bytes` and `limits.work`. A subproof that several
+    /// nodes share is counted at every use, as the derivation repeats it.
+    /// `stop` is asked every 4 096 nodes, or sooner on nodes that take much
+    /// work.
     ///
     /// # Errors
     ///
     /// [`CheckError::Invalid`] for a term that is no proof, and
-    /// [`CheckError::Refused`] when the memory bound or `stop` ended the
+    /// [`CheckError::Refused`] when a bound of `limits` or `stop` ended the
     /// pass.
+    ///
+    /// # Examples
+    ///
+    #[cfg_attr(feature = "parse", doc = "```")]
+    #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
+    /// use deduxit::Limits;
+    /// use deduxit::linear::{Mode, Options, Sequent, Verdict, ViewOptions, prove};
+    ///
+    /// let sequent: Sequent = "|- A * B, ~A, ~B".parse()?;
+    /// let outcome = prove(&sequent, Mode::CLASSICAL, &Options::default())?;
+    /// let Verdict::Proved(proof) = &outcome.verdict else {
+    ///     panic!("provable");
+    /// };
+    /// // The closure `|_| false` never stops the pass.
+    /// let size = proof.derivation_size(&ViewOptions::default(), &Limits::default(), |_| false)?;
+    /// assert_eq!((size.inferences, size.height), (3, 2));
+    /// assert!(size.exact);
+    /// assert!(size.bytes() < Limits::DEFAULT_DERIVATION_BYTES);
+    /// # Ok::<(), deduxit::Error>(())
+    /// ```
     pub fn derivation_size(
         &self,
         view: &ViewOptions,
@@ -159,8 +187,8 @@ struct Sub {
     /// are more ([`State::weight`]); the node's own characters are then
     /// no fewer.
     weight: u64,
-    /// Those of the formula in output position among them. Exact: one
-    /// zone's sum.
+    /// The characters of the formula in output position among them;
+    /// exact, since it is one zone's sum.
     goal: u64,
     /// Whether a `⊤` in it absorbs any context.
     absorbs: bool,
@@ -168,9 +196,9 @@ struct Sub {
     firm: Firm,
 }
 
-/// The inferences of a derivation that are no weakening or contraction,
-/// which a compact view draws as they are: what it holds at least.
-/// Both numbers saturate.
+/// The inferences of a derivation that are no weakening or contraction.
+/// A compact view draws them as they are, so they are what it holds at
+/// least. Both numbers saturate.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Firm {
     /// How many there are.
@@ -264,11 +292,11 @@ pub(crate) fn weights(forest: &Forest) -> Vec<u32> {
         .collect()
 }
 
-/// Per occurrence, the characters of the name a printer writes its
-/// binder's variable with inside its root, zero for an occurrence that is
-/// no binder: the binder's name (`x` where it has none), or with `_` and
-/// a number after it where a symbol or an enclosing binder's written name
-/// takes it, as the printers rename.
+/// Returns, per occurrence, the characters of the name a printer gives its
+/// binder's variable inside its root; zero for an occurrence that is no
+/// binder. The name is the binder's own (`x` where it has none), with `_`
+/// and a number after it where a function symbol or an enclosing binder's
+/// written name already takes it, as the printers rename.
 fn printed_names(forest: &Forest) -> Vec<u32> {
     let sequent = forest.sequent();
     let symbols: HashSet<&str> = sequent.fo.symbols.iter().map(|(s, _)| s.as_str()).collect();
@@ -304,10 +332,10 @@ fn printed_names(forest: &Forest) -> Vec<u32> {
     printed
 }
 
-/// The weights of a forest whose sequent has binders, per occurrence,
-/// since an atom's key writes a bound variable as `#i` and a printer
-/// writes the name of the binder that binds it there ([`printed_names`]),
-/// which differs between occurrences of one shared atom.
+/// Returns the weights of a forest whose sequent has binders, computed per
+/// occurrence. An atom's key writes a bound variable as `#i`, but a printer
+/// writes the name of the binder that binds it ([`printed_names`]), and
+/// that differs between occurrences of one shared atom.
 fn weights_with_binders(forest: &Forest, names: &[u32]) -> Vec<u32> {
     let sequent = forest.sequent();
     let fo = &sequent.fo;
@@ -398,10 +426,11 @@ fn weights_with_binders(forest: &Forest, names: &[u32]) -> Vec<u32> {
     top.iter().map(|w| w.saturating_add(2)).collect()
 }
 
-/// The characters of every member's formula and its separator, by member:
-/// an occurrence's as [`weights`] counts it, an instance's at most, its
-/// occurrence's characters with every bound variable it holds written as
-/// the widest term of its frame. Each saturates at `u32::MAX`.
+/// The characters of every member's formula and its separator, by member.
+/// An occurrence's are counted as [`weights`] counts them. An instance's
+/// are an upper bound: its occurrence's characters with every bound
+/// variable written as the widest term of its frame. Each saturates at
+/// `u32::MAX`.
 pub(crate) struct Weights(Vec<u32>);
 
 impl Weights {
@@ -477,11 +506,11 @@ fn instance_weights(
         written.push(w);
         bound.push(b);
     }
-    // The occurrence's characters with each loose bound variable's name
-    // written as its frame's term: exactly the instance, but where a
-    // binder inside it takes a name an eigenvariable has, which its
-    // scope then renames, at most `rename` characters more per name it
-    // writes.
+    // An instance's characters are its occurrence's, each loose bound
+    // variable's name replaced by its frame's term. That is exact unless
+    // a binder inside takes a name an eigenvariable has: the printer then
+    // renames it in its scope, which costs at most `rename` characters
+    // more per name it writes.
     let printed = printed_names(forest);
     let loose = loose_variables(forest);
     let enclosing = enclosing_binders(forest);
@@ -620,8 +649,8 @@ fn merge(uses: &mut Vec<(u32, u64)>, more: impl Iterator<Item = (u32, u64)>) {
 
 impl<I: Instancing> Measure<'_, I> {
     /// Returns the bytes of the two tables a measure of `proof` keeps: a
-    /// record for each of fewer than 2³² nodes, a weight for each of fewer
-    /// than 2³² occurrences and members of its table.
+    /// record per node, and a weight per occurrence and per member of its
+    /// table. Each count is below 2³², so the sum cannot overflow.
     fn tables(proof: &Proof) -> u64 {
         let members = proof.instances().map_or(0, |t| t.len() as u64);
         proof.nodes().len() as u64 * size_of::<Sub>() as u64
@@ -651,8 +680,8 @@ impl<I: Instancing> Measure<'_, I> {
         }
     }
 
-    /// The characters a premise's subtree gains from a subformula `o` its
-    /// sequent lacked, which a `⊤` in it absorbs.
+    /// The characters a premise's subtree gains from the subformula `o`
+    /// where its sequent lacks it (`absent`) and a `⊤` in it absorbs it.
     fn absorbed(&self, sub: &Sub, o: Member, absent: bool) -> u64 {
         if absent {
             self.characters(o).saturating_mul(self.reach(sub, o))
@@ -662,9 +691,9 @@ impl<I: Instancing> Measure<'_, I> {
     }
 
     /// The size of a node with one premise that unfolds into `own`
-    /// inferences below the premise's subtree, their sequents `extra`
-    /// characters over `own` times the node's own, and whose premise
-    /// absorbs `absorbed` characters more.
+    /// inferences below the premise's subtree. Their sequents hold `extra`
+    /// characters beyond `own` times the node's own, and the premise's
+    /// subtree gains `absorbed` characters from what a `⊤` absorbs.
     fn unary(sub: &Sub, premise: &Sub, own: u64, extra: u64, absorbed: u64) -> Sub {
         Sub {
             inferences: premise.inferences.saturating_add(own),
@@ -682,11 +711,11 @@ impl<I: Instancing> Measure<'_, I> {
     }
 
     /// What a premise of a `&` adds to it: its own subtree under the
-    /// conclusion's context, which holds `beyond` characters more than the
-    /// premise derives, `beyond_goal` of them the goal's, and `unused`
-    /// formulas `?A` that only the other premise uses, weakened above this
-    /// one unless a `⊤` absorbs them. Returns the inferences, the
-    /// characters and the height.
+    /// conclusion's context. That context holds `beyond` characters more
+    /// than the premise derives, `beyond_goal` of them the goal's, and
+    /// `unused` formulas `?A` that only the other premise uses, weakened
+    /// above this one unless a `⊤` absorbs them. Returns the inferences,
+    /// the characters and the height.
     fn padded(
         &mut self,
         premise: &Sub,
@@ -818,9 +847,9 @@ impl<I: Instancing> Observer for Measure<'_, I> {
                     }
                     _ => 0,
                 };
-                // Two-sided, the premise that keeps the conclusion's goal:
-                // the right one of a `⊗` (below), and of a cut the one
-                // whose cut formula is no output there.
+                // Two-sided, whether the right premise keeps the
+                // conclusion's goal: always for a `⊗` (see below), and for
+                // a cut when the cut formula is the left premise's goal.
                 let goal_right = match node {
                     Cut(a, ..) => self
                         .reading
@@ -828,12 +857,12 @@ impl<I: Instancing> Observer for Measure<'_, I> {
                     _ => true,
                 };
                 // What the rule's conclusion absorbs goes to the left
-                // premise if it absorbs, else to the right one; two-sided,
+                // premise if it absorbs, else to the right one. Two-sided,
                 // with both absorbing, the goal goes to the premise that
-                // has none, which is the right one: the left factor of a
-                // `⊗` is an antecedent or a part of the goal (the reading
-                // takes `⅋` only as `~A ⅋ B`), in output position either
-                // way, so the left premise has its goal.
+                // has none. For a `⊗` that is the right one: the reading
+                // takes `⅋` only as `~A ⅋ B`, so the left factor of a `⊗`
+                // is an antecedent or part of the goal, in output position
+                // either way, and the left premise has its goal.
                 let (reached, reached_goal) = if self.reading.is_some() && pl.absorbs && pr.absorbs
                 {
                     (
@@ -1027,8 +1056,8 @@ fn measured_with<I: Instancing>(
         .saturating_add((beyond - beyond_goal).saturating_mul(root.reached))
         .saturating_add(beyond_goal.saturating_mul(root.reached_goal));
     // A formula of more characters than a weight holds was counted short
-    // wherever it stands, so the characters are not known: more than can
-    // be said, rather than a sum that is too low.
+    // wherever it stands, so the sum is unknown. Say "more than can be
+    // counted" rather than give a sum that is too low.
     if measure.weights.saturated() {
         let size = Size {
             inferences: root.inferences,
@@ -1096,7 +1125,7 @@ mod tests {
     /// The size computed from a proof is the size of the derivation built
     /// from it, one-sided and two-sided: the inferences and the height
     /// exactly, the characters exactly unless it says otherwise and never
-    /// fewer, and a width between the conclusion's and the widest
+    /// fewer, and the width between the conclusion's and the widest
     /// sequent's.
     #[test]
     fn is_the_size_of_the_derivation_built() {
@@ -1111,11 +1140,12 @@ mod tests {
             panic!("provable");
         };
         proofs.push((*proof, Mode::CLASSICAL));
-        // Two-sided, a `⊸L` both of whose premises a `⊤` closes, and the
-        // goal absorbed in the one without a goal of its own, the larger
-        // or the smaller; a `⊕L` of
-        // two such premises over a hypothesis copied twice; and a
-        // generated sample whose goal a premise consumes before a `&`.
+        // Two-sided:
+        // - a `⊸L` both of whose premises a `⊤` closes, with the goal
+        //   absorbed in the premise without a goal of its own, the larger
+        //   premise or the smaller;
+        // - a `⊕L` of two such premises over a hypothesis copied twice;
+        // - a generated sample whose goal a premise consumes before a `&`.
         let affine = Mode::INTUITIONISTIC.with_affine();
         for (input, mode) in [
             ("0, 0 -o 0 * D |- C * C * C", Mode::INTUITIONISTIC),

@@ -19,14 +19,20 @@ use crate::linear::proofs::{Branch, Node, NodeId, Proof, Rule};
 use crate::linear::sequents::Kind;
 
 /// Unfolds a proof that concludes `goal` into the inferences of its
-/// derivation, premises before conclusions and the root last: one pass of
-/// the checker for the size, which must be within the bounds, a second for
-/// what the translation reads, then the translation. Every pass holds no
-/// more than the memory bound, and so does the derivation by its estimate.
-/// Where the options ask for the compact view, or allow it and the whole
-/// derivation is over a bound, the translation draws runs of a structural
-/// rule as one inference and counts what it holds as it goes, giving up
-/// with the whole derivation's error once that passes the bound.
+/// derivation, premises before conclusions and the root last.
+///
+/// It takes three passes:
+/// 1. a pass of the checker measures the size, which must be within the
+///    bounds;
+/// 2. a second pass records what the translation reads;
+/// 3. the translation builds the inferences.
+///
+/// Every pass holds no more than the memory bound, and so does the
+/// derivation by its estimate. Where the options ask for the compact view,
+/// or allow it and the whole derivation is over a bound, the translation
+/// draws a run of a structural rule as one inference. It then counts what
+/// it holds as it goes, and gives up with the whole derivation's error
+/// once that passes the bound.
 pub(super) fn unfold(
     proof: &Proof,
     goal: &[OccId],
@@ -74,10 +80,10 @@ pub(super) fn unfold(
                 .into_iter()
                 .flatten()
                 .min();
-            // What a compact view cannot do without is known before it is
+            // What a compact view holds at least is known before it is
             // built. Without a bound in bytes it is tried only when asked
-            // for, since nothing would then end the attempt but the count
-            // of inferences.
+            // for: nothing but the count of inferences would end the
+            // attempt.
             if (compact == Compact::Auto && most.is_none())
                 || most.is_some_and(|most| firm.bytes > most)
                 || firm.inferences > Derivation::MOST
@@ -103,13 +109,13 @@ pub(super) fn unfold(
 
 /// What [`unfold`] has settled before it unfolds the proof.
 struct Made<'g> {
-    /// The goal.
+    /// The occurrences the proof's root concludes.
     goal: &'g [OccId],
-    /// The mode.
+    /// The mode the proof is checked in.
     mode: Mode,
     /// The reading, for a two-sided derivation.
     reading: Option<&'g Reading<'g>>,
-    /// The limits.
+    /// The bounds of the checker's pass.
     limits: &'g Limits,
     /// The size the derivation was measured at.
     size: &'g Size,
@@ -141,9 +147,9 @@ impl Made<'_> {
             inst,
             record: &record,
             reading,
-            // As many as the size says, which fit a `usize` since they fit a
-            // `u32` (`Derivation::MOST`), on a 32-bit target too; a compact
-            // view has fewer.
+            // As many as the size says. They fit a `u32`
+            // (`Derivation::MOST`), so they fit a `usize` on a 32-bit
+            // target too. A compact view has fewer.
             inferences: match compact {
                 None => Vec::with_capacity(size.inferences as usize),
                 Some(_) => Vec::new(),
@@ -180,7 +186,8 @@ pub(super) fn too_many(size: &Size) -> Refusal {
     }
 }
 
-/// The bound of a compact view, which is not measured before it is built.
+/// The bound of a compact view, checked while it is built since its size
+/// is not measured before.
 pub(super) struct Budget {
     /// The most bytes the derivation may take by [`Size::bytes`]'s
     /// estimate, or `None` for no bound but [`Derivation::MOST`].
@@ -245,8 +252,8 @@ impl<'a, I: Instancing> Record<'a, I> {
     /// the table and its allocation.
     pub(super) const ENTRY: u64 = 96;
 
-    /// Counts a list of `members` occurrences as kept: four bytes each,
-    /// in a vector that may have room for as many again.
+    /// Counts a list of `members` occurrences as kept: eight bytes each,
+    /// four for the member and four for the room a vector may have spare.
     fn keep(&mut self, members: usize) {
         let bytes = (members as u64).saturating_mul(8);
         self.held = self.held.saturating_add(Self::ENTRY).saturating_add(bytes);
@@ -312,9 +319,9 @@ impl<I: Instancing> Observer for Record<'_, I> {
     }
 }
 
-/// A step the translation has yet to take. The steps wait on a stack of
-/// the translation's own, so a derivation of any height is built on a call
-/// stack of any size.
+/// A step the translation has yet to take. The steps wait on a stack the
+/// translation keeps itself, so a derivation of any height is built on a
+/// call stack of any size.
 pub(super) enum Task {
     /// Unfold the subproof at a node under a conclusion: the standard
     /// sequent it derives plus whatever a `⊤` in it absorbs.
@@ -835,10 +842,11 @@ impl<'a, I: Instancing> Build<'a, I> {
 
     /// Plans, in a compact view, the run of weakenings that starts at the
     /// node at `id`, which weakens `o` by `rule`, under the conclusion
-    /// `actual`: one inference for every weakening of the same named rule
-    /// down the chain of nodes, through the `?` steps whose formula is
-    /// used above, which are no inference, without a sequent per step (a
-    /// chain of `wk` took a sequent per node, quadratic in the chain).
+    /// `actual`. The run is one inference for every weakening of the same
+    /// named rule up the chain of nodes. It passes through the `?` steps
+    /// whose formula is used above, which are no inference. It makes no
+    /// sequent per step: one per node would cost time quadratic in the
+    /// chain's length.
     fn weaken_run(&mut self, id: NodeId, o: Member, rule: Rule, actual: Multiset<Member>) {
         let named = |o: Member, rule: Rule| match (rule, self.reading) {
             (Rule::Weakening, Some(reading)) => Rule::Weakening.on(reading.position(self.occ(o))),

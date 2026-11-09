@@ -1,40 +1,44 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Cut elimination on proof terms: a step reduces one cut, the caller's
-//! or the strategy's, and says which and by which case; [`eliminate`]
-//! takes steps by the strategy until no cut is left or a bound is reached.
+//! Cut elimination on proof terms.
+//!
+//! [`step`] reduces one cut, the caller's or the strategy's, and says
+//! which cut and by which case. [`eliminate`] takes steps by the strategy
+//! until no cut is left or a bound is reached.
 //!
 //! Every proof a step makes lives over the forest of the proof it was
 //! made from, and every cut it makes is on an occurrence of the cut
 //! formula's tree: a key case cuts the subformulas of the formula cut,
-//! and the other cases cut the occurrence they were given. A step
-//! copies nothing in the forest: a contraction or a commutation over `&`
-//! makes a second cut of a subproof that both cuts share, and a copy of
-//! a box shares the box's subproof, as the arena shares any subproof.
+//! and the other cases cut the occurrence they were given. A step copies
+//! nothing in the forest. A contraction or a commutation over `&` makes a
+//! second cut of a subproof that both cuts share, and a copy of a box
+//! shares the box's subproof, as the arena shares any subproof.
 //!
-//! The exponentials are the dyadic calculus's (a `?` step moves its
-//! formula into the unrestricted zone, a copy uses it from there), so a
-//! box `!A` cut against a `?A⊥` that a `?` step took into the zone goes
-//! up the other premise with that step: a copy of `A⊥` it meets is a
-//! *dereliction* (the box's content cut against the copy's premise), or a
-//! *contraction* where the premise still uses `A⊥` (the content cut and
-//! the box kept for the uses above); a box it meets it enters; a
-//! subproof that does not use `A⊥` *weakens* the box away.
+//! The exponentials are those of the dyadic calculus: a `?` step moves
+//! its formula into the unrestricted zone, and a copy uses it from there.
+//! So a box `!A` cut against a `?A⊥` that a `?` step took into the zone
+//! moves up the other premise with that step. On its way:
+//! - at a copy of `A⊥` it is a *dereliction*: the box's content is cut
+//!   against the copy's premise;
+//! - it is a *contraction* where that premise still uses `A⊥`: the
+//!   content is cut, and the box is kept for the uses above;
+//! - a box it meets, it enters;
+//! - a subproof that does not use `A⊥` *weakens* the box away.
 //!
-//! At first order a member is an instance, an occurrence under binders
-//! with the terms they were opened with; the cases read members through
+//! At first order a member is an instance: an occurrence under binders,
+//! with the terms they were opened with. The cases read members through
 //! the proof's instance table and are the propositional ones, with one
 //! more key case: `∀x.A` against `∃x.A⊥` with the witness `t` cuts `A`
-//! with `t` for `x`, the witness substituted for the eigenvariable
+//! with `t` for `x`, and substitutes the witness for the eigenvariable
 //! throughout the `∀` premise. A subproof shared under the cut is
-//! substituted in a copy, and a `∀` step a step remakes while the proof
-//! still reads the original elsewhere is given an eigenvariable of its
-//! own, so that every eigenvariable stays introduced by one step.
+//! substituted in a copy. A `∀` step that a step remakes while the proof
+//! still reads the original elsewhere gets an eigenvariable of its own, so
+//! every eigenvariable stays introduced by one step.
 //!
-//! A step is checked, not trusted: [`step`] returns a proof the checker
+//! A step is checked, not trusted. [`step`] returns a proof the checker
 //! accepts for the same conclusion in the mode it was given, and
-//! [`eliminate`] checks every proof it reaches before its next step and
+//! [`eliminate`] checks every proof it reaches before its next step, and
 //! the last one before it returns.
 
 use crate::Error;
@@ -67,14 +71,14 @@ pub struct Options {
     /// The most steps [`eliminate`] takes.
     #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::exact"))]
     pub steps: Option<u64>,
-    /// The most nodes a proof a step makes may have; on a proof net
-    /// ([`nets::cut`](crate::linear::nets::cut)), the most vertices a net a step
-    /// makes may have.
+    /// The most nodes a proof made by a step may have. On a proof net
+    /// ([`nets::cut`](crate::linear::nets::cut)), the most vertices a net
+    /// made by a step may have.
     #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::exact"))]
     pub nodes: Option<u64>,
-    /// For a front end that draws the net of every step of an elimination
-    /// on a net, the most bytes those drawings take together; past it the
-    /// steps are taken undrawn. The library draws none itself.
+    /// For a front end that draws every step of an elimination, on a proof
+    /// or on a net, the most bytes those drawings take together. Past it,
+    /// the steps are taken undrawn. The library draws none itself.
     #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::exact"))]
     pub drawn_bytes: Option<u64>,
 }
@@ -82,12 +86,12 @@ pub struct Options {
 impl Options {
     /// The default bound on steps: ten thousand.
     pub const DEFAULT_STEPS: u64 = 10_000;
-    /// The default bound on a proof's nodes: a hundred thousand, 1.6 MB
-    /// of arena.
+    /// The default bound on a proof's nodes: a hundred thousand, which is
+    /// 1.6 MB of arena.
     pub const DEFAULT_NODES: u64 = 100_000;
     /// The default bound on the bytes the drawings of an elimination's
     /// steps take together: 256 MiB, four drawings at the default bound on
-    /// one.
+    /// one drawing.
     pub const DEFAULT_DRAWN_BYTES: u64 = 256 << 20;
 
     /// Returns the options with another [`strategy`](Self::strategy).
@@ -144,10 +148,9 @@ impl Default for Options {
 )]
 pub enum Strategy {
     /// The cut that comes first in the proof's arena, so that no cut
-    /// stands above it: a cut whose premises are cut-free is reduced by
-    /// its own steps and those of the cuts they make, each on a smaller
-    /// formula or between smaller premises, which is the classical
-    /// argument that elimination ends.
+    /// stands above it. Its steps, and those of the cuts they make, each
+    /// work on a smaller formula or between smaller premises. That is the
+    /// classical argument that elimination ends.
     #[default]
     Topmost,
 }
@@ -183,30 +186,30 @@ pub enum Case {
     /// `A & B` against `A⊥ ⊕ B⊥`: one cut, on the subformula the `⊕`
     /// chose.
     WithPlus,
-    /// A weakened formula: a box cut against a `?A⊥` that the rest of the
-    /// subproof does not use, or that a `?w` brought in, is erased; in
+    /// A weakened formula. A box cut against a `?A⊥` that the rest of the
+    /// subproof does not use, or that a `?w` brought in, is erased. In
     /// affine mode a weakened cut formula erases the other premise, whose
     /// formulas are weakened in.
     Weakening,
     /// A box cut against the last copy of `A⊥`: the box's content cut
     /// against the copy's premise.
     Dereliction,
-    /// A box cut against a copy of `A⊥` whose premise uses `A⊥` again, or
-    /// against a rule both of whose premises use it: the box's content cut
-    /// against the copy's premise and the box kept for the other uses, or
-    /// the box cut against each premise.
+    /// A box cut against a copy of `A⊥` whose premise uses `A⊥` again: the
+    /// box's content is cut against the copy's premise, and the box kept
+    /// for the other uses. Or a box cut against a rule both of whose
+    /// premises use `A⊥`: the box is cut against each premise.
     Contraction,
     /// A box cut against a box whose content uses `A⊥`: the cut enters
     /// that box.
     BoxIntoBox,
     /// `∀x.A` against `∃x.A⊥` with the witness `t`: one cut, on `A` with
-    /// `t` for `x`, the witness substituted for the `∀` step's
+    /// `t` for `x`, and the witness substituted for the `∀` step's
     /// eigenvariable throughout its premise.
     ForallExists,
     /// The cut moves above a rule of one premise that does not act on the
-    /// cut formula, into the premise of it that holds the formula, or into
-    /// both premises of `&`; above `⊤`, which absorbs the cut formula, the
-    /// cut and the other premise are gone.
+    /// cut formula: into the premise of that rule that holds the formula,
+    /// or into both premises of a `&`. At a `⊤`, which absorbs the cut
+    /// formula, the cut and the other premise are gone.
     Commutative,
 }
 
@@ -256,8 +259,8 @@ pub struct Step {
     pub case: Case,
     /// The node of the proof the step was taken on where the step acted
     /// besides the cut, if any: the rule a commutative case moved the cut
-    /// above, the copy a dereliction or a contraction opened, the box a
-    /// box entered.
+    /// above, the copy a dereliction or a contraction opened, or the box
+    /// that a box entered.
     pub above: Option<NodeId>,
 }
 
@@ -289,13 +292,16 @@ pub enum End {
 ///
 /// With the feature `serialize`, written only: `{"version": 6, "proof":
 /// {…}, "steps": [{"cut": 7, "formula": 9, "case": "tensor_par"}, …],
-/// "end": "cut_free"}`, the proof in [`Proof`]'s form without `version`,
-/// each step's `cut` a node of the proof it was taken on, `formula` the
-/// occurrence it cut, `case` the [`Case`] in snake case and `above` the
-/// node [`Step::above`] names where there is one; `end` is `cut_free`, or
-/// `refused` with `reason`, the refusal in an error's form. The level is
-/// the proof's, 6 for a sequent with cut formulas
-/// ([`wire`](crate::wire)).
+/// "end": "cut_free"}`.
+/// - `proof` is in [`Proof`]'s form without `version`.
+/// - Each step's `cut` is a node of the proof it was taken on, `formula`
+///   the occurrence it cut, `case` the [`Case`] in snake case, and
+///   `above` the node [`Step::above`] names, where there is one.
+/// - `end` is `cut_free`, or `refused` with `reason`, the refusal in an
+///   error's form.
+///
+/// The wire level in `version` is the proof's: 6 for a sequent with cut
+/// formulas ([`wire`](crate::wire)).
 #[non_exhaustive]
 #[derive(Clone, Debug)]
 pub struct Elimination {
@@ -308,19 +314,21 @@ pub struct Elimination {
     pub end: End,
 }
 
-/// Reduces one cut of `proof`, the one at `at`, or the one the strategy
-/// of `options` picks: checks the proof in `mode`, takes the step and
-/// checks the proof it made, each check within `limits` and asking
-/// `stop`.
+/// Reduces one cut of `proof`: the one at `at`, or the one the strategy
+/// of `options` picks.
+///
+/// It checks the proof in `mode`, takes the step and checks the proof the
+/// step made, each check within `limits` and asking `stop`.
+/// [`eliminate`] takes such steps until no cut is left.
 ///
 /// # Errors
 ///
-/// The checker's error for a proof that is not one in `mode`;
-/// [`Error::NoCut`] for an `at` that is no cut, or a proof without one;
-/// [`Refusal::Elimination`] for a proof made
-/// past `options.nodes`, and the refusals of the checks;
-/// [`Error::Reduction`] where the checker refuses the proof made, a
-/// defect of this crate.
+/// - The checker's error for a proof that is not one in `mode`.
+/// - [`Error::NoCut`] for an `at` that is no cut, or a proof without one.
+/// - [`Refusal::Elimination`] for a proof made past `options.nodes`, and
+///   the refusals of the checks.
+/// - [`Error::Reduction`] where the checker refuses the proof made: a
+///   defect of this crate.
 pub fn step(
     proof: &Proof,
     mode: Mode,
@@ -360,23 +368,61 @@ pub fn step(
     }
 }
 
-/// Eliminates the cuts of `proof`, the first step on the cut at `at` where
-/// one is given and every step by the strategy of `options` otherwise,
-/// step by step, until none is left or a bound of `options` or `limits` or the
-/// stop ends it: the proof reached is then returned with its cuts and the
-/// refusal that ended it. Every proof reached is checked in `mode` before
-/// the next step is taken on it, and the last before it is returned;
-/// `each` is given every step once the proof it made has passed its
-/// check, with the proof it was taken on, which is how a caller draws
-/// every step. `limits` bound each check; the stop is asked between steps
-/// and by the checks.
+/// Eliminates the cuts of `proof` step by step, until none is left or a
+/// bound or `stop` ends the elimination.
+///
+/// The first step reduces the cut at `at` where one is given; every other
+/// step reduces the cut the strategy of `options` picks. When a bound of
+/// `options` or `limits`, or `stop`, ends the elimination, the proof
+/// reached is returned with its cuts and the refusal that ended it.
+///
+/// Every proof reached is checked in `mode` before the next step is taken
+/// on it, and the last one before it is returned. `each` gets every step,
+/// with the proof it was taken on, once the proof the step made has
+/// passed its check: a caller draws every step there. `limits` bound each
+/// check. `stop` is asked between steps and by the checks.
+///
+/// # Examples
+///
+/// A proof of `a ⊢ a` with a cut on `a`, made in a session, loses its cut
+/// in one step:
+///
+#[cfg_attr(all(feature = "parse", feature = "interactive"), doc = "```")]
+#[cfg_attr(
+    not(all(feature = "parse", feature = "interactive")),
+    doc = "```ignore"
+)]
+/// use deduxit::Limits;
+/// use deduxit::linear::proofs::cut::{self, Case, End};
+/// use deduxit::linear::{CutFormula, InputOptions, Interactive, Mode, Options, Sequent, ViewOptions};
+///
+/// let (mode, limits) = (Mode::CLASSICAL, Limits::default());
+/// let sequent: Sequent = "a |- a".parse()?;
+/// let mut session = Interactive::new(&sequent, mode)?;
+/// let goal = session.goals().next().unwrap();
+/// let formula = CutFormula::parse_within("a", mode, &InputOptions::default(), &limits)?;
+/// session.cut(goal, &formula, &[0], &limits)?;
+/// // The closures `|_| false` never stop.
+/// session.close_all(&Options::default(), &ViewOptions::default(), &limits, |_| false);
+/// let proof = session.proof(&limits, |_| false)?;
+/// assert!(!proof.is_cut_free());
+///
+/// let options = cut::Options::default();
+/// let done = cut::eliminate(&proof, mode, None, &options, &limits, |_| false, |_, _| {})?;
+/// assert_eq!(done.end, End::CutFree);
+/// assert!(done.proof.is_cut_free());
+/// let cases: Vec<Case> = done.steps.iter().map(|step| step.case).collect();
+/// assert_eq!(cases, [Case::Axiom]);
+/// # Ok::<(), deduxit::Error>(())
+/// ```
 ///
 /// # Errors
 ///
-/// The checker's error for a proof that is not one in `mode`, or its
-/// refusal of the first check; [`Error::NoCut`] for an `at` that is no
-/// cut; [`Error::Reduction`] where the checker refuses a proof a step
-/// made, a defect of this crate.
+/// - The checker's error for a proof that is not one in `mode`, or its
+///   refusal of the first check.
+/// - [`Error::NoCut`] for an `at` that is no cut.
+/// - [`Error::Reduction`] where the checker refuses a proof a step made:
+///   a defect of this crate.
 pub fn eliminate(
     proof: &Proof,
     mode: Mode,
@@ -387,8 +433,8 @@ pub fn eliminate(
     mut each: impl FnMut(&Proof, &Step),
 ) -> Result<Elimination, Error> {
     let mut steps: Vec<Step> = Vec::new();
-    // The proof reached last and the one before it, which is the last one
-    // checked while the latest waits for its check.
+    // The proof reached last, and the one before it: while the latest
+    // waits for its check, that one is the last proof checked.
     let mut current = proof.clone();
     let mut checked: Option<Proof> = None;
     loop {
@@ -403,8 +449,9 @@ pub fn eliminate(
                 let Some(checked) = checked else {
                     return Err(Error::Check(CheckError::Refused(refused)));
                 };
-                // The latest proof is unchecked: the one before it is the
-                // proof reached.
+                // The latest proof is unchecked, so the one before it is
+                // the proof reached, and the step that made the latest is
+                // dropped.
                 steps.pop();
                 return Ok(ended(checked, steps, refused.refusal));
             }
@@ -455,9 +502,9 @@ pub fn eliminate(
     }
 }
 
-/// What the checker derived of a proof that a step reads: whether each
+/// What a step reads of the checker's pass over a proof: whether each
 /// node's subproof absorbs any context through a `⊤`, and the linear zone
-/// of every premise of a `⊗`, a Mix or a cut, as the checker derived it.
+/// of every premise of a `⊗`, a Mix or a cut.
 struct Record {
     /// Whether a `⊤` in a node's subproof absorbs any context.
     absorbs: Vec<bool>,
@@ -536,10 +583,12 @@ impl Observer for Record {
     }
 }
 
-/// Reduces the cut at `cut` of a checked proof whose record is `record`
-/// and returns the proof made, not yet checked, and the step; or the
-/// refusal of a proof past the bounds, or of the stop, which the one
-/// rewrite that may make more nodes than the proof has asks.
+/// Reduces the cut at `cut` of a checked proof whose record is `record`,
+/// and returns the proof made, not yet checked, and the step.
+///
+/// Fails with the refusal of a proof past the bounds, or of `stop`, which
+/// the specialized erasure and, at first order, the renaming of twin
+/// eigenvariables ask.
 fn reduce(
     proof: &Proof,
     record: &Record,
@@ -566,10 +615,10 @@ fn reduce(
         memory: limits.memory_bytes,
     };
     // Every propositional rewrite but the specialized erasure adds fewer
-    // nodes than the proof has for each of its passes, so only that one is
-    // bounded on the way, by the nodes, the memory and the stop; a copy of
-    // a subproof at first order is charged before it is made
-    // (`Rewrite::afford`); the proof made is measured after.
+    // nodes than the proof has for each of its passes. So only that one is
+    // bounded on the way, by the nodes, the memory and the stop. At first
+    // order a copy of a subproof is charged before it is made
+    // (`Rewrite::afford`). The proof made is measured after.
     let (made, step) = rewrite.reduce(cut, mode)?;
     let mut root = match made {
         Made::Subproof(replacement) => rewrite.replace(cut, replacement, proof.root()),
@@ -625,8 +674,9 @@ enum Made {
     /// A subproof of the cut's conclusion, which takes the cut's place
     /// wherever the proof reads it.
     Subproof(NodeId),
-    /// The weakenings of the context every place the proof reads the cut
-    /// at gives it, over `kept`, which proves `proved` of that context.
+    /// Over `kept`, which proves `proved` of the cut's context, the
+    /// weakenings of the rest of that context, as each place that reads the
+    /// cut gives it.
     Erasure {
         /// The subproof kept.
         kept: NodeId,
@@ -664,8 +714,8 @@ struct Rewrite<'a> {
 
 impl Rewrite<'_> {
     /// Adds a node and returns its id. The arena grows by a few times the
-    /// proof's nodes at most, which [`reduce`] measures after; past what a
-    /// node id names the id returned is a placeholder and the step is
+    /// proof's nodes at most, which [`reduce`] measures after. Past what a
+    /// node id names, the id returned is a placeholder and the step is
     /// refused.
     fn push(&mut self, node: Node) -> NodeId {
         let id = match u32::try_from(self.nodes.len()) {
@@ -783,9 +833,9 @@ impl Rewrite<'_> {
     }
 
     /// Returns the premise of a two-premise rule whose `⊤` takes formulas
-    /// its zone lacks: the first that absorbs any, unless they include a
-    /// formula on the right of `⊢` (`output`), which a premise with one
-    /// there already cannot take.
+    /// its zone lacks: the first that absorbs any. With `output`, the
+    /// formulas include one right of `⊢`, which a premise that already has
+    /// a formula there cannot take.
     fn absorber(
         &self,
         output: bool,
@@ -809,10 +859,10 @@ impl Rewrite<'_> {
             .is_some_and(|reading| reading.position(self.occ(x)) == Side::Output)
     }
 
-    /// Returns whether the sequent of `id`, a premise of a `⊗`, a Mix or a
-    /// cut whose rule takes `taken` from it, has its formula right of `⊢`:
-    /// in its derived zone, or as the formula taken where a `⊤` absorbed
-    /// it.
+    /// Returns whether the sequent of `id` already has its formula right of
+    /// `⊢`, in its derived zone or as the formula `taken` where a `⊤`
+    /// absorbed it. `id` is a premise of a `⊗`, a Mix or a cut whose rule
+    /// takes `taken` from it.
     fn has_output(&self, id: NodeId, taken: Option<Member>) -> bool {
         self.reading.is_some()
             && (self
@@ -978,10 +1028,10 @@ impl Rewrite<'_> {
         self.push(node.map_premises(|_| p))
     }
 
-    /// The exponential cases of a box at `cut`'s premise `boxed` (`Left`
-    /// for `!A` in the first premise) whose content is `content`, against
-    /// the `?` step of the other premise, whose premise is `quest`. Returns
-    /// the subproof made, the case and the node acted at.
+    /// Reduces the exponential cases: a box at `cut`'s premise `boxed`
+    /// (`Left` for `!A` in the first premise), whose content is `content`,
+    /// against the `?` step of the other premise, whose premise is
+    /// `quest`. Returns the subproof made, the case and the node acted at.
     fn exponential(
         &mut self,
         cut: NodeId,
@@ -1077,9 +1127,9 @@ impl Rewrite<'_> {
     }
 
     /// Returns, for every node up to `top`, whether its subproof uses the
-    /// unrestricted occurrence `x`: a copy of it that no `?` step of its
-    /// formula below discharges, as the checker's least unrestricted zone
-    /// holds it.
+    /// unrestricted occurrence `x`: whether it has a copy of `x` that no
+    /// `?` step of its formula below discharges. That is when the
+    /// checker's least unrestricted zone holds `x`.
     fn uses(&mut self, top: NodeId, x: Member) -> Vec<bool> {
         let quest = self.forest.parent(self.occ(x)).map(|q| self.beside(q, x));
         let mut uses = vec![false; top.index() + 1];
@@ -1095,7 +1145,7 @@ impl Rewrite<'_> {
 
     /// Returns a subproof that is the one at `top` with the occurrence of
     /// `from` in its conclusion renamed to `to`, a literal of the same
-    /// atom and sign: the occurrence is followed up to the axiom (or the
+    /// atom and sign. The occurrence is followed up to the axiom (or the
     /// affine weakening) that introduces it, or the `⊤` that absorbs it,
     /// and every node on the way is made anew.
     fn rename(&mut self, top: NodeId, from: Member, to: Member) -> NodeId {
@@ -1156,12 +1206,14 @@ impl Rewrite<'_> {
         made.get(&top).copied().unwrap_or(top)
     }
 
-    /// The erasure of the premise `erased` of the cut, whose formula there
-    /// is `theirs`, by the affine weakening at `weakened` of `ours` over
-    /// `kept`: the weakenings of the erased premise's formulas over `kept`.
-    /// Where the erased premise absorbs any context through a `⊤` and the
-    /// kept one does not, those formulas are the ones each place the proof
-    /// reads the cut at gives it, not only those the checker derived.
+    /// Erases the premise `erased` of the cut, whose cut formula there is
+    /// `theirs`, by the affine weakening at `weakened` of `ours` over
+    /// `kept`: the erased premise's formulas are weakened over `kept`.
+    ///
+    /// Where the erased premise absorbs context through a `⊤` and the kept
+    /// one does not, those formulas are what each place that reads the cut
+    /// gives it, not only what the checker derived. That case returns
+    /// [`Made::Erasure`] for [`specialize`](Self::specialize).
     fn erase(
         &mut self,
         kept: NodeId,
@@ -1205,14 +1257,17 @@ impl Rewrite<'_> {
         made[root.index()].unwrap_or(root)
     }
 
-    /// Erases a cut that only the place the proof reads it at can say the
-    /// context of: every node from the root to the cut is made anew for
-    /// each exact conclusion it has on the way there, and each place the
-    /// cut is read at gets the weakenings of its own conclusion's formulas
-    /// beyond `proved` over `kept`. Returns the root, or the refusal of
-    /// more than `most` nodes made, of more than `memory` bytes held by the
-    /// conclusions it keeps and the nodes it makes, or of the stop, which
-    /// it asks every 4 096 pairs.
+    /// Erases a cut whose context only the places that read it can tell,
+    /// and returns the root.
+    ///
+    /// Every node from the root to the cut is made anew for each exact
+    /// conclusion it has on the way there. Each place that reads the cut
+    /// gets, over `kept`, the weakenings of its own conclusion's formulas
+    /// beyond `proved`.
+    ///
+    /// Refuses more than `most` nodes made, more than `memory` bytes held
+    /// by the conclusions it keeps and the nodes it makes, and a `stop`,
+    /// which it asks every 4 096 pairs.
     fn specialize(
         &mut self,
         cut: NodeId,
@@ -1252,9 +1307,10 @@ impl Rewrite<'_> {
             what: crate::limits::Bound::Nodes,
             limit: most as u64,
         };
-        // The bytes the pairs hold, each conclusion twice (the pair's and
-        // the index's key) at four bytes a member beside a node's sixteen
-        // and a table entry, and the nodes made; they saturate.
+        // The bytes held, saturating: eight a member, since each
+        // conclusion is held twice (the pair's and the index's key) at
+        // four bytes a member, and 64 a node made, for its sixteen bytes
+        // and a table entry.
         let mut held: u64 = 0;
         let mut hold = |members: usize, nodes: usize| -> Result<(), Refusal> {
             held = held
@@ -1311,8 +1367,8 @@ impl Rewrite<'_> {
                 pairs[k].premises[j] = Some(at);
             }
         }
-        // Each pair makes a node, and each place the cut is read at the
-        // weakenings of its context: counted before any is made.
+        // Each pair makes a node, and each place that reads the cut makes
+        // the weakenings of its context. Count them before making any.
         let weakenings = pairs
             .iter()
             .filter(|pair| pair.id == cut)
@@ -1347,10 +1403,12 @@ impl Rewrite<'_> {
     }
 
     /// Returns the exact conclusions of the premises of `node`, in the
-    /// rule's order, when its own is `zone`: what the rule takes away
-    /// and adds, and for a rule of two premises each premise's derived
-    /// zone, the formula the rule takes from it where a `⊤` absorbed it,
-    /// and the rest of `zone` given to a premise that absorbs it.
+    /// rule's order, when its own is `zone`.
+    ///
+    /// For a rule of one premise, that is `zone` with what the rule takes
+    /// away and adds. For a rule of two premises, each premise gets its
+    /// derived zone, and the formula the rule takes from it where a `⊤`
+    /// absorbed it; the rest of `zone` goes to a premise that absorbs it.
     fn above(&mut self, node: Node, zone: &Multiset<Member>) -> Vec<Multiset<Member>> {
         let change = |removed: Option<Member>, added: &[Member]| {
             let mut up = zone.clone();
@@ -1431,8 +1489,7 @@ impl Rewrite<'_> {
 
 /// Returns whether the last rule of a premise acts on its occurrence `x`
 /// of the cut formula: introduces it, or for `⊤` is it. A copy never
-/// does, since it adds to the linear zone rather than introducing what
-/// is there.
+/// does: it adds to the linear zone, and introduces nothing there.
 fn principal(node: Node, x: Member) -> bool {
     match node {
         Node::Ax(p, q) => p == x || q == x,

@@ -51,9 +51,9 @@ fn proofs() -> Vec<(Proof, Mode)> {
         .filter(|(proof, _)| !proof.is_cut_free())
         .collect();
     for mode in [Mode::INTUITIONISTIC, Mode::INTUITIONISTIC.with_affine()] {
-        // Two copies of the box's formula: a contraction, then a
-        // dereliction; a box's content using it: a box entering a box; a
-        // formula the premise never uses: weakening.
+        // Two copies of the box's formula give a contraction, then a
+        // dereliction. A box whose content uses it gives a box entering a
+        // box. A formula the premise never uses gives weakening.
         for text in [
             "!a |- a * a",
             "!a |- !a",
@@ -81,12 +81,15 @@ fn proofs() -> Vec<(Proof, Mode)> {
 }
 
 /// Every step of every proof with cuts, taken one at a time by the
-/// strategy, makes a proof over the same sequent, cut formulas included,
-/// with the same conclusion, that the checker accepts in the proof's
-/// mode, every cut of it on a cut formula's tree; each elimination ends
-/// cut-free, as `eliminate` does in the same steps, giving its callback
-/// each step with the proof it was taken on; and every case is met, in
-/// every commutative mode.
+/// strategy, makes a proof that:
+/// - is over the same sequent, cut formulas included;
+/// - has the same conclusion;
+/// - passes the checker in the proof's mode;
+/// - cuts only on a cut formula's tree.
+///
+/// Each elimination ends cut-free, as `eliminate` does in the same steps,
+/// and `eliminate` gives its callback each step with the proof it was
+/// taken on. Every case is met, in every commutative mode.
 #[test]
 fn every_step_keeps_the_conclusion() {
     let proofs = proofs();
@@ -247,11 +250,11 @@ fn an_elimination_starts_at_the_cut_given() {
     assert!(matches!(error, Err(Error::NoCut { .. })));
 }
 
-/// In affine mode a weakened cut formula erases the other premise; where
-/// that premise absorbs the context through a `⊤` and the place the cut is
-/// read at gives it more than the checker derived, each place gets the
-/// weakenings of its own context: here a cut that both premises of a `&`
-/// read, absorbing `c` in one and `d` in the other.
+/// In affine mode a weakened cut formula erases the other premise. Where
+/// that premise absorbs the context through a `⊤`, and a place that reads
+/// the cut gives it more than the checker derived, each place gets the
+/// weakenings of its own context. Here both premises of a `&` read the
+/// cut, one absorbing `c` and the other `d`.
 #[test]
 fn an_erasure_weakens_what_each_place_gives() {
     let mode = Mode::CLASSICAL.with_affine();
@@ -633,12 +636,14 @@ fn identity(
     }
 }
 
-/// Returns `proof`, a first-order proof of a sequent's roots, cut on its
-/// root `root`: the sequent with that root's formula `A` as a cut
-/// formula, the proof with `A` moved onto the cut formula's tree, cut
+/// Returns `proof`, a first-order proof of a sequent's roots, remade with
+/// a cut on its root number `root`, or `None` where adding the cut
+/// formula moves the sequent's tables or roots.
+///
+/// The sequent made has that root's formula `A` as a cut formula. The
+/// proof made is `proof` with `A` moved onto the cut formula's tree, cut
 /// against the identity of `A` (`⊢ A⊥, A`, expanded rule by rule) on the
-/// root itself; `None` where the sequent's tables or roots move with the
-/// cut formula.
+/// root itself.
 fn identity_cut(proof: &Proof, root: usize) -> Option<Proof> {
     let forest = proof.forest();
     let table = proof.instances()?;
@@ -706,10 +711,10 @@ fn identity_cut(proof: &Proof, root: usize) -> Option<Proof> {
     Proof::with_instances(cut_forest, instances, nodes, root).ok()
 }
 
-/// First-order proofs with a cut, from the search's proofs of generated
-/// sequents (classical) and of written ones (intuitionistic), each root
-/// cut against its identity, with every mode beside the search's that
-/// takes it: affine, Mix.
+/// Returns first-order proofs with a cut, each with its mode: the
+/// search's proofs of generated sequents (classical) and of written ones
+/// (intuitionistic), each root cut against its identity, in the search's
+/// mode and in every other that accepts it (affine, Mix).
 fn first_order_cuts() -> Vec<(Proof, Mode)> {
     use crate::linear::search::generate::Rng;
     use crate::linear::search::reference_fo::tests::random_sequent;
@@ -773,13 +778,15 @@ fn first_order_cuts() -> Vec<(Proof, Mode)> {
     proofs
 }
 
-/// Every step of the elimination of first-order proofs with cuts, each
-/// a search's proof cut against an identity, makes a proof over the same
-/// sequent with the same conclusion that the checker accepts, every cut
-/// of it on a cut formula's tree, and ends cut-free as `eliminate` does;
-/// any cut of a proof on the way may be reduced first;
-/// in the classical modes and the intuitionistic ones; the key case of
-/// `∀` and `∃` is met on both sides of `⊢`.
+/// The elimination of first-order proofs with cuts, each a search's proof
+/// cut against an identity, in the classical modes and the
+/// intuitionistic ones:
+/// - every step makes a proof over the same sequent, with the same
+///   conclusion, that the checker accepts, every cut of it on a cut
+///   formula's tree;
+/// - the elimination ends cut-free, as `eliminate` does;
+/// - any cut of a proof on the way may be reduced first;
+/// - the key case of `∀` and `∃` is met on both sides of `⊢`.
 #[test]
 fn first_order_cuts_are_eliminated() {
     let proofs = first_order_cuts();

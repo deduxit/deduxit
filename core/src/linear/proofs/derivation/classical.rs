@@ -3,9 +3,9 @@
 
 //! The two-sided view of a derivation of classical linear logic: the
 //! one-sided derivation read through the record of how its sequent was
-//! written, every sequent split by side, every rule named by the side of
-//! its principal formula, and a negation step wherever a negation was
-//! written, which the one-sided calculus does not have.
+//! written. Every sequent is split by side, every rule is named by the
+//! side of its principal formula, and a negation step, which the one-sided
+//! calculus does not have, stands wherever a negation was written.
 
 use super::view::{Derivation, InfId, Inference};
 use crate::Error;
@@ -18,9 +18,11 @@ use crate::linear::proofs::{Rule, Size, TextOptions};
 use std::fmt::{Display, Formatter, Result as FmtResult, Write};
 
 /// A rule of the two-sided sequent calculus of classical linear logic, as
-/// the two-sided view ([`TwoSided`]) names it: the one-sided rule applied
-/// to a formula on one side of `⊢`, or a negation step, which moves a
-/// formula written with a negation to the other side of `⊢` without it.
+/// the two-sided view ([`TwoSided`]) names it.
+///
+/// It is a one-sided rule applied to a formula on one side of `⊢`, or a
+/// negation step, which moves a formula written with a negation to the
+/// other side of `⊢` without it.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ClassicalRule {
@@ -209,9 +211,9 @@ impl ClassicalRule {
         }
     }
 
-    /// Returns the one-sided rule the rule is, or `None` for a negation
-    /// step, which the one-sided calculus does not have: its premise and
-    /// its conclusion are one one-sided sequent.
+    /// Returns the one-sided rule behind the rule, or `None` for a
+    /// negation step. The one-sided calculus has no negation step: read
+    /// one-sided, its premise and its conclusion are the same sequent.
     pub const fn rule(self) -> Option<Rule> {
         use ClassicalRule::*;
         Some(match self {
@@ -254,10 +256,10 @@ impl ClassicalRule {
         }
     }
 
-    /// Returns the one-sided rule `rule` applied to a formula written as
-    /// `written`, named two-sided: a `⊗` on the input side is `⅋L`, or
-    /// `⊸L` where an implication was written, a `∀` on the input side
-    /// `∃L`, and so on.
+    /// Returns the two-sided name of the one-sided rule `rule` applied to a
+    /// formula written as `written`. For example, a `⊗` on the input side
+    /// is `⅋L` (or `⊸L` where an implication was written), and a `∀` on the
+    /// input side is `∃L`.
     fn applied(rule: Rule, written: Written) -> Self {
         use ClassicalRule::*;
         let left = written.side() == Side::Input;
@@ -321,14 +323,14 @@ impl Display for ClassicalRule {
 struct Shown {
     /// The one-sided inference whose sequent this one shows.
     base: InfId,
-    /// The positions in that sequent of the formulas shown as written
-    /// inside their parent, negation and all, on the side their parent
-    /// puts them: those whose negation step stands above.
+    /// The positions in that sequent of the formulas whose negation step
+    /// stands above: they are shown as written inside their parent,
+    /// negation and all, on the side their parent puts them.
     pending: Vec<usize>,
-    /// The positions in that sequent of formulas it leaves out: the
-    /// copies the upper half of a run of contractions has not made yet,
-    /// or what the lower half of a run of weakenings weakens, where a run
-    /// of the one-sided derivation is split by side.
+    /// The positions in that sequent of formulas it leaves out, where a
+    /// run of the one-sided derivation is split by side: the copies the
+    /// upper half of a run of contractions has not made yet, or what the
+    /// lower half of a run of weakenings weakens.
     hidden: Vec<usize>,
     /// The rule.
     rule: ClassicalRule,
@@ -338,31 +340,39 @@ struct Shown {
     times: u32,
 }
 
-/// The two-sided view of a derivation of classical linear logic, as its
-/// sequent was written: every inference's sequent its formulas split by
-/// the side of `⊢` they stand on as written, every rule named two-sided
-/// (`⊗L`, `⅋R`, `⊸L`, …, [`ClassicalRule`]), and a negation step (`~L`,
-/// `~R`) inserted wherever a negation was written, which the one-sided
-/// proof absorbed: from `Γ, A ⊢ Δ` to `Γ ⊢ A⊥, Δ`.
+/// The two-sided view of a derivation of classical linear logic, drawn as
+/// its sequent was written.
 ///
-/// A one-sided proof has many two-sided derivations; the record of the
-/// written sequent ([`ClassicalSequent::writing`](crate::linear::ClassicalSequent::writing))
-/// picks the one written. A formula is shown on the side its connective
-/// was written on; one written with a negation is shown so, on the side
-/// its parent puts it, only in the premise of the rule that exposes it
-/// (or in the conclusion, for a formula of the sequent), and a negation
-/// step right above moves it, so that every rule acts on formulas as they
-/// were written. A run of weakenings or contractions that a compact view
-/// draws as one inference and that acts on both sides of `⊢` is shown as
-/// two, `!w*` below `?w*`, so that every inference is one rule. The
-/// derivation of a goal off the roots (a proof of a goal) ends in the goal
-/// as the rules above it read it, with no negation step below, as the goal
-/// stands in a larger derivation. Read one-sided (every formula on the
-/// left negated and moved right), every inference is the one-sided
-/// inference it shows, a negation step its premise's sequent again. A
-/// first-order derivation's quantifier rules are `∀L`, `∀R`, `∃L` and
-/// `∃R`, and an instance is written with the eigenvariables and witnesses
-/// of its frame, as the derivation writes it.
+/// Each formula stands on the side of `⊢` it was written on, each rule
+/// has its two-sided name (`⊗L`, `⅋R`, `⊸L`, …, [`ClassicalRule`]), and
+/// a negation step (`~L`, `~R`) stands wherever a negation was written.
+/// A negation step moves a formula across `⊢`: from `Γ, A ⊢ Δ` to
+/// `Γ ⊢ A⊥, Δ`. The one-sided calculus has no such step.
+///
+/// A one-sided proof has many two-sided derivations. The record of the
+/// written sequent
+/// ([`ClassicalSequent::writing`](crate::linear::ClassicalSequent::writing))
+/// picks the one written:
+/// - A formula is shown on the side its connective was written on.
+/// - A formula written with a negation is shown with it, on the side its
+///   parent puts it, only in the premise of the rule that exposes it (or
+///   in the conclusion, for a formula of the sequent). A negation step
+///   right above moves it. So every rule acts on formulas as they were
+///   written.
+/// - A compact run of weakenings or contractions that acts on both sides
+///   of `⊢` is shown as two inferences, `!w*` below `?w*`, so that each
+///   inference is one rule.
+/// - The derivation of a goal (a proof of a goal rather than of the
+///   sequent) ends in the goal as the rules above it read it, with no
+///   negation step below: that is how the goal stands in a larger
+///   derivation.
+/// - At first order the quantifier rules are `∀L`, `∀R`, `∃L` and `∃R`,
+///   and an instance is written with the eigenvariables and witnesses of
+///   its frame, as the derivation writes it.
+///
+/// Read one-sided (every formula on the left negated and moved right),
+/// every inference is the one-sided inference it shows, and a negation
+/// step's conclusion is its premise's sequent again.
 ///
 /// [`Display`] draws the tree as [`Derivation`]'s does.
 ///
@@ -395,10 +405,10 @@ pub struct TwoSided<'a> {
 
 impl<'a> TwoSided<'a> {
     /// Returns the two-sided view of a one-sided derivation whose sequent
-    /// was written as `writing` records, unless the view is estimated
-    /// past `limits.derivation_bytes`: each negation step repeats a
-    /// sequent, so the view holds at most twice as many inferences more
-    /// than the derivation, and one per formula of the sequent.
+    /// was written as `writing` records, unless the view is estimated past
+    /// `limits.derivation_bytes`. A negation step repeats a sequent, so
+    /// the view has at most three times the derivation's inferences, plus
+    /// one per formula of the sequent.
     ///
     /// # Errors
     ///
@@ -426,8 +436,8 @@ impl<'a> TwoSided<'a> {
             writing,
             inferences: Vec::new(),
         };
-        // Built twice over the same walk: first counted, then made, so that
-        // nothing past the bound is made.
+        // The same walk runs twice, first counting and then making, so
+        // that nothing past the bound is made.
         let mut counted = Counted::new(derivation);
         view.walk(&mut counted);
         if counted.inferences > Derivation::MOST {
@@ -447,8 +457,8 @@ impl<'a> TwoSided<'a> {
                 least_bytes: None,
             }));
         }
-        // At most `Derivation::MOST`, which a `usize` holds where a
-        // derivation of that many could be built.
+        // At most `Derivation::MOST`. A `usize` holds that on any target
+        // with the memory for that many inferences.
         let mut made = Vec::with_capacity(usize::try_from(counted.inferences).unwrap_or(0));
         view.walk(&mut made);
         Ok(Self {
@@ -473,8 +483,8 @@ impl<'a> TwoSided<'a> {
             for (j, &premise) in inference.premises().iter().enumerate() {
                 let top: InfId = ids[premise.index()];
                 // A cut puts its cut formula into its first premise and the
-                // dual into its second, as roots are written; each is exposed
-                // under the member it comes from.
+                // dual into its second, each written as a root is; each is
+                // exposed under the cut's member.
                 let exposed = match (inference.cut(), principal) {
                     (Some(a), _) => {
                         let o = derivation.occurrence(a);
@@ -523,13 +533,14 @@ impl<'a> TwoSided<'a> {
         }
     }
 
-    /// Hands `sink` the inference `shown` of the one-sided rule `rule`, and
-    /// returns its id: a run of weakenings or contractions of `?` formulas
-    /// on both sides of `⊢`, which the one-sided derivation draws as one
-    /// inference, as two, the formulas on the input side (`!w`, `!c`)
-    /// below those on the output side (`?w`, `?c`), so that every
-    /// inference is one two-sided rule.
-    /// `below` is the one-sided inference's own premises.
+    /// Hands `sink` the inference `shown` of the one-sided rule `rule`,
+    /// whose own premises are `below`, and returns its id.
+    ///
+    /// The one-sided derivation may draw a run of weakenings or
+    /// contractions of `?` formulas on both sides of `⊢` as one inference.
+    /// Such a run is handed as two, so that each inference is one
+    /// two-sided rule: the input side's (`!w`, `!c`) below the output
+    /// side's (`?w`, `?c`).
     fn by_side(
         &self,
         sink: &mut impl Sink,
@@ -580,11 +591,13 @@ impl<'a> TwoSided<'a> {
         sink.take(shown)
     }
 
-    /// Hands `sink` a negation step below the inference `top`, which shows
-    /// the one-sided inference `base`, for each of `negated` in turn (a
-    /// position in its sequent and the occurrence there), and returns the
-    /// id of the last, or `top` for none: each step's conclusion shows one
-    /// formula more as written, negation and all.
+    /// Hands `sink` one negation step below the inference `top` for each
+    /// of `negated` in turn, and returns the id of the last (`top` for
+    /// none).
+    ///
+    /// `top` shows the one-sided inference `base`, and each of `negated`
+    /// is a position in its sequent with the occurrence there. Each step's
+    /// conclusion shows one more formula as written, negation and all.
     fn negations(
         &self,
         sink: &mut impl Sink,
@@ -614,12 +627,14 @@ impl<'a> TwoSided<'a> {
         top
     }
 
-    /// Returns the position in the sequent of the one-sided inference
-    /// `premise` of the member of `c` that the rule of `below` exposes
-    /// there: a subformula of the member `of` (the principal formula or
-    /// the cut formula) under its frame, or the body of a binder (`body`)
-    /// under a frame that pushes one term onto it. A formula the sequent
-    /// holds twice is either copy.
+    /// Returns the position, in the sequent of the one-sided inference
+    /// `premise`, of the member of `c` that the rule of `below` exposes
+    /// there.
+    ///
+    /// That member is a subformula of the member `of` (the principal or
+    /// the cut formula) under the same frame or, with `body`, a binder's
+    /// body under a frame that pushes one term onto `of`'s. Where the
+    /// sequent holds the formula twice, either copy may be returned.
     fn exposed_at(
         &self,
         below: &Inference,
@@ -671,8 +686,8 @@ impl<'a> TwoSided<'a> {
         self.inferences.len()
     }
 
-    /// Returns whether the view has no inference, which no view built
-    /// from a derivation lacks.
+    /// Returns whether the view has no inference. A view built from a
+    /// derivation always has one.
     pub fn is_empty(&self) -> bool {
         self.inferences.is_empty()
     }
@@ -713,10 +728,10 @@ impl<'a> TwoSided<'a> {
         self.inferences[id.index()].base
     }
 
-    /// Returns the formulas of the inference at `id`'s sequent as it
-    /// shows them, in the order of the one-sided sequent: each member,
-    /// the side of `⊢` it stands on, and whether it is shown with the
-    /// negation it was written with.
+    /// Returns the formulas of the sequent of the inference at `id` as it
+    /// shows them, in the order of the one-sided sequent: each member, the
+    /// side of `⊢` it stands on, and whether it is shown with the negation
+    /// it was written with.
     ///
     /// # Panics
     ///
@@ -974,7 +989,8 @@ struct Counted<'d> {
     /// instance's at most.
     weights: Weights,
     /// The characters of each one-sided inference's sequent, by its id,
-    /// once computed: a chain of negation steps shows one sequent again.
+    /// kept once computed: a chain of negation steps shows one sequent
+    /// many times.
     characters: Vec<Option<u64>>,
     /// The inferences so far.
     inferences: u64,
@@ -1032,10 +1048,13 @@ mod tests {
     }
 
     /// Returns a proof with a cut of a written sequent in `mode` and the
-    /// record of its session: the sequent's session cut on one of its
-    /// formulas, typed as it was written (the others going to the first
-    /// premise, or the formula alone where it stands left of `⊢`), both
-    /// goals closed by the search; `None` where the search leaves one.
+    /// record of its session, or `None` where the search leaves a goal
+    /// open.
+    ///
+    /// The session cuts on one of the sequent's formulas, typed as it was
+    /// written. The first premise takes the other formulas or, where the
+    /// cut formula stands left of `⊢`, that formula alone. The search
+    /// closes both goals.
     #[cfg(feature = "interactive")]
     fn cut_written(
         written: &ClassicalSequent,
@@ -1217,15 +1236,16 @@ mod tests {
     }
 
     /// Checks the two-sided views of `proof`, drawn with and without
-    /// compaction, of a sequent written as `written` records: every
-    /// inference prints as a sequent that parses back to the same, its
-    /// formulas on the same sides, each written as its occurrence was and
-    /// an instance with its frame's terms, with the negation shown where
-    /// the view shows one. Read one-sided, each is the inference it shows:
-    /// a rule of the term with its principal formula as written on the
-    /// side its name says, or a negation step that moves one formula,
-    /// written with its negation in the conclusion, without it to the
-    /// other side in the premise. The root is the sequent as written.
+    /// compaction, of a sequent written as `writing` records:
+    /// - every inference prints as a sequent that parses back to the same
+    ///   formulas on the same sides, each written as its occurrence was,
+    ///   an instance with its frame's terms, and a negation where the view
+    ///   shows one;
+    /// - read one-sided, each inference is the one it shows: a rule of the
+    ///   term, its principal formula as written on the side its name says,
+    ///   or a negation step that moves one formula across, with its
+    ///   negation in the conclusion and without it in the premise;
+    /// - the root is the sequent as written.
     fn reads_as_its_term(proof: &Proof, writing: &[Written], text: &str, tally: &mut Tally) {
         let limits = Limits::default();
         let written: ClassicalSequent = text.parse().unwrap();
@@ -1355,8 +1375,8 @@ mod tests {
 
     /// Over the proofs of generated sequents written at random, every
     /// inference of the two-sided view reads as its term
-    /// ([`reads_as_its_term`]); so does every inference of a proof with
-    /// a cut on a formula typed as written, whose two occurrences the
+    /// ([`reads_as_its_term`]). So does every inference of a proof with a
+    /// cut on a formula typed as written, whose two occurrences the
     /// session records on their sides.
     #[test]
     fn every_inference_parses_back_and_reads_as_its_term() {
@@ -1396,10 +1416,10 @@ mod tests {
         assert!(cuts > 50, "{cuts} cuts");
     }
 
-    /// A first-order proof's view reads as its term too: its quantifier
-    /// rules named by side, its instances written with the eigenvariables
-    /// and witnesses of their frames, a negation written over a binder or
-    /// its body a step of its own.
+    /// A first-order proof's view reads as its term too. Its quantifier
+    /// rules are named by side, its instances are written with the
+    /// eigenvariables and witnesses of their frames, and a negation written
+    /// over a binder or its body is a step of its own.
     #[test]
     fn a_first_order_view_reads_as_its_term() {
         let mut tally = Tally::default();

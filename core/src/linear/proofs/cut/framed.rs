@@ -6,13 +6,16 @@
 //! eigenvariable, and the renaming apart that keeps every eigenvariable
 //! introduced by one `∀` step.
 //!
-//! A step reads the proof's members through its instance table and adds
-//! to a copy of it what it makes: a binder's body under a witness, and the
-//! terms, frames and members of a subproof it substitutes into. A step
-//! copies a subproof only where it changes, so a `∀` step it remakes may
-//! still be read elsewhere, by a subproof that two places share; two
-//! `∀` steps with one eigenvariable are no proof, so the copy is given an
-//! eigenvariable of its own ([`Rewrite::apart`]).
+//! A step reads the proof's members through its instance table. It adds
+//! what it makes to a copy of that table: a binder's body under a
+//! witness, and the terms, frames and members of a subproof it
+//! substitutes into.
+//!
+//! A step copies a subproof only where it changes. So where a step
+//! remakes a `∀` step, the proof may still read the original elsewhere,
+//! through a subproof that two places share. Two `∀` steps with one
+//! eigenvariable are no proof, so the copy gets an eigenvariable of its
+//! own ([`Rewrite::apart`]).
 
 use super::Rewrite;
 use crate::hash::HashMap;
@@ -192,12 +195,13 @@ impl Rewrite<'_> {
     /// Returns the subproof at `top` with the eigenvariables `sigma` maps
     /// replaced by their terms: in the frames of the members its nodes
     /// name, in the witnesses of its `∃` steps, and as the eigenvariable of
-    /// a `∀` step, where the term is an eigenvariable (a renaming). A node
-    /// whose subproof names none of them is kept, shared with whatever
-    /// else reads it; every other is made anew. Terms are closed, so no
-    /// variable is captured. The nodes made anew are counted and charged
-    /// ([`afford`](Self::afford)) before any is made: a copy has at most
-    /// the nodes `top` reaches.
+    /// a `∀` step, where the term is an eigenvariable (a renaming).
+    ///
+    /// A node whose subproof names none of them is kept, shared with
+    /// whatever else reads it; every other is made anew. Terms are closed,
+    /// so no variable is captured. The nodes made anew are counted and
+    /// charged ([`afford`](Self::afford)) before any is made; a copy has at
+    /// most the nodes `top` reaches.
     pub(super) fn substitute(
         &mut self,
         top: NodeId,
@@ -249,13 +253,14 @@ impl Rewrite<'_> {
         Ok(made.get(&top).copied().unwrap_or(top))
     }
 
-    /// Refuses `more` nodes added to the arena past a step's bounds: an
-    /// arena, the proof's nodes and those the step made, of more than
-    /// `most` nodes, or of more bytes than `memory` at sixteen a node. The
-    /// proof made has at most the arena's nodes, so a step within the
-    /// bound makes a proof within it; one whose copies take the place of
-    /// subproofs it no longer reads may be refused though the proof it
-    /// would make is smaller.
+    /// Refuses `more` nodes added to the arena past a step's bounds. The
+    /// arena (the proof's nodes and those the step made) may hold at most
+    /// `most` nodes, and at most `memory` bytes at sixteen a node.
+    ///
+    /// The proof made has at most the arena's nodes, so a step within the
+    /// bound makes a proof within it. The check is conservative: a step
+    /// whose copies replace subproofs it no longer reads may be refused
+    /// though the proof it would make is smaller.
     pub(super) fn afford(&self, more: usize) -> Result<(), Refusal> {
         self.within_ids()?;
         if self.nodes.len().saturating_add(more) > self.most {
@@ -444,16 +449,19 @@ impl Rewrite<'_> {
     }
 
     /// Gives every eigenvariable that two `∀` steps of the proof at `root`
-    /// introduce a step of its own, and returns the root. A step remakes
-    /// a `∀` step that a subproof it changes holds, while the original may
-    /// still be read elsewhere; the later of two such steps, or the
-    /// earlier where it lies above the later, is then made anew with a
-    /// fresh eigenvariable throughout its subproof, and so is every `∀`
-    /// step of that subproof that the proof still reads elsewhere. Each
-    /// round takes one introduction away from an eigenvariable two steps
-    /// introduce, and gives none to another. Every node a round makes is
-    /// charged before it is made ([`afford`](Self::afford)), and the stop
-    /// is asked each round.
+    /// introduce a step of its own, and returns the root.
+    ///
+    /// A step remakes a `∀` step held by a subproof it changes, while the
+    /// proof may still read the original elsewhere. Each round takes the
+    /// first such pair of twins in arena order. It makes the later one
+    /// anew (or the earlier, where it lies above the later) with a fresh
+    /// eigenvariable throughout its subproof, and so every `∀` step of
+    /// that subproof that the proof still reads elsewhere.
+    ///
+    /// A round takes one introduction away from an eigenvariable that two
+    /// steps introduce and adds none, so the rounds end. Every node a
+    /// round makes is charged before it is made
+    /// ([`afford`](Self::afford)), and `stop` is asked each round.
     pub(super) fn apart(
         &mut self,
         mut root: NodeId,
@@ -494,9 +502,9 @@ impl Rewrite<'_> {
             let Node::Forall(m, a, premise) = self.nodes[renamed.index()] else {
                 unreachable!("a twin is a `∀` step")
             };
-            // The `∀` steps above that the proof reads besides through the
-            // one renamed keep their eigenvariables there, so their copies
-            // take fresh ones.
+            // A `∀` step above that the proof also reads other than through
+            // the one renamed keeps its eigenvariable there, so its copy
+            // takes a fresh one.
             let elsewhere = reached(&self.nodes, root, Some(renamed));
             let above = reached(&self.nodes, premise, None);
             let mut sigma: HashMap<Eigen, FoTermId> = HashMap::default();
@@ -526,9 +534,9 @@ impl Rewrite<'_> {
     }
 
     /// Returns a table that holds only what the nodes `root` reaches name,
-    /// with those nodes' members and witnesses renumbered into it: a
-    /// step's table extends the proof's, and what the step left unread is
-    /// not carried to the next.
+    /// with those nodes' members and witnesses renumbered into it. A
+    /// step's table extends the proof's, so without this what the step left
+    /// unread would pile up across the steps.
     pub(super) fn compact(&mut self, root: NodeId) -> Instances {
         let table = self.table.as_ref().expect("a proof with instances");
         let mut copy = Transfer {

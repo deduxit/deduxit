@@ -1,32 +1,37 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The derivation view: a proof term unfolded into the tree of explicit
-//! sequents and rule names of the standard one-sided sequent calculus, with
-//! the term's dyadic bookkeeping expanded into dereliction, contraction and
-//! weakening. Renderers and exporters read this view, never the term.
+//! The derivation view: a proof term unfolded into the tree of the
+//! standard sequent calculus, each inference with its sequent and rule
+//! name. Renderers and exporters read this view, never the term.
 //!
-//! The translation keeps the derivation small: the standard sequent of a
-//! subproof is `⊢ ?Θ, Γ` for the unrestricted zone `Θ` it needs (see
-//! [`check`](crate::linear::proofs::check)), not for the zone in force. So a copy is a
-//! dereliction, and a contraction as well when the copied formula is used
-//! again above; the `?` step is nothing when its formula is used above and
-//! a weakening otherwise; a `⊗` or Mix contracts the `?` formulas both
-//! premises use, below the rule; and a `&` weakens, above each premise, the
-//! `?` formulas only the other premise uses. A `⊤` absorbs whatever context
-//! reaches it, so nothing is weakened above it.
+//! A proof term keeps its `?` formulas in an unrestricted zone `Θ` (see
+//! [`check`](crate::linear::proofs::check)). The view turns that
+//! bookkeeping into dereliction, contraction and weakening. To keep the
+//! derivation small, a subproof's sequent is `⊢ ?Θ, Γ` for the least `Θ`
+//! the subproof needs, not for the whole zone in force. So:
+//! - a copy is a dereliction, with a contraction below it when the copied
+//!   formula is used again above;
+//! - a `?` step is no inference when its formula is used above, and a
+//!   weakening otherwise;
+//! - a `⊗` or Mix contracts, below the rule, the `?` formulas both
+//!   premises use;
+//! - a `&` weakens, above each premise, the `?` formulas only the other
+//!   premise uses;
+//! - a `⊤` takes whatever context reaches it, so nothing is weakened above
+//!   it.
 //!
 //! An intuitionistic derivation is the same tree over the same term, read
-//! two-sided: every sequent has one goal, the inferences carry the
+//! two-sided. Every sequent has one goal, the inferences have the
 //! intuitionistic rule names (`⊸L` for a `⊗` on a hypothesis, `⊗L` for a
-//! `⅋` on one, `!L` for a dereliction, and so on), and what a `⊤` absorbs
-//! is distributed so that each premise keeps exactly one goal.
+//! `⅋` on one, `!L` for a dereliction, and so on), and what a `⊤` takes is
+//! shared out so that each premise keeps exactly one goal.
 //!
-//! A classical derivation is drawn two-sided by [`TwoSided`], a view over
-//! the one-sided derivation and the record of how its sequent was
-//! written: the same inferences with their formulas split by side and
-//! their rules named two-sided, and a negation step wherever a negation
-//! was written.
+//! [`TwoSided`] draws a classical derivation two-sided. It reads the
+//! one-sided derivation through the record of how its sequent was written:
+//! the same inferences, their formulas on the sides they were written on,
+//! their rules named by side, and a negation step wherever a negation was
+//! written.
 
 mod build;
 mod classical;
@@ -440,10 +445,10 @@ mod tests {
         );
     }
 
-    /// The compact view is the whole derivation with every run of one
-    /// structural rule drawn as its lowest inference, standing for the run
-    /// and resting on the premises of its highest, on the proofs of the
-    /// checker's differential test, one-sided and two-sided.
+    /// On the proofs of the checker's differential test, one-sided and
+    /// two-sided, the compact view is the whole derivation with each run
+    /// of one structural rule drawn as its lowest inference, which stands
+    /// for the run and rests on the premises of its highest.
     #[test]
     fn compact_is_the_whole_with_its_runs_merged() {
         /// An inference as the test compares it: its sequent, rule,
@@ -580,10 +585,10 @@ mod tests {
     }
 
     /// Every inference of a proof's derivation names the node whose rule
-    /// it shows, on the proofs of the checker's differential test (cuts
-    /// among them), one-sided and two-sided: a cut inference its cut
-    /// node, on that node's formula, every node but a `?` step shown by
-    /// one inference at least, and an inference without a node a
+    /// it shows. On the proofs of the checker's differential test (cuts
+    /// among them), one-sided and two-sided: a cut inference names its cut
+    /// node and that node's formula, every node but a `?` step is shown by
+    /// at least one inference, and an inference without a node is a
     /// structural rule the derivation adds.
     #[test]
     fn every_inference_names_its_node() {
@@ -628,8 +633,8 @@ mod tests {
     }
 
     /// A chain of affine weakenings is one run of a compact view, planned
-    /// in one step: the builder asks its stop once per step, so a chain
-    /// walked node by node, with a sequent per node, asked it per node.
+    /// in one step. The builder asks its stop once per step, so it asks a
+    /// few times here, not once per node of the chain.
     #[test]
     fn a_chain_of_weakenings_is_one_step() {
         use Node::*;
@@ -712,7 +717,7 @@ mod tests {
     }
 
     /// A proof of `⊢ 1, ⊥ & ⊥, …` with `levels` formulas `⊥ & ⊥`, whose
-    /// two premises at every level are one subproof: 3 · `levels` + 1
+    /// two premises at every level share one subproof: 3 · `levels` + 1
     /// nodes that unfold into more than 2^`levels` inferences.
     fn tower(levels: u32) -> Proof {
         use crate::linear::sequents::{Term, TermId};
@@ -840,13 +845,15 @@ mod tests {
             &mut record,
         )
         .unwrap();
-        // ⊢ ?~A, A twice and ⊢ ?~A, A ⊗ A, and the one shared ~A.
+        // The sequents ⊢ ?~A, A (twice) and ⊢ ?~A, A ⊗ A, and the shared
+        // ~A.
         let sequents: Vec<usize> = [1, 3, 4]
             .map(|id| record.standard[&n(id)].as_slice().len())
             .into();
         assert_eq!((sequents, record.standard.len()), (vec![2, 2, 2], 3));
         assert_eq!(record.shared[&n(4)], [o(1)]);
-        // Three flags for each of six nodes, four lists of seven members.
+        // Three flags for each of six nodes, and four lists that hold
+        // seven members in all.
         assert_eq!(
             record.bytes(),
             6 * 3 + 4 * Record::<check::Ground>::ENTRY + 7 * 8
