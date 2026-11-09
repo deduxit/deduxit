@@ -120,15 +120,15 @@
         "yalla": "yalla"
       },
       "locked": {
-        "lastModified": 1794174169,
-        "narHash": "sha256-v2EVxDNCJV3AKMG9dy17vXQgREFFneZnQK3AbVA3ojg=",
-        "owner": "sequentium",
+        "lastModified": 1794182746,
+        "narHash": "sha256-Bfg/oI1t5qpjrJZ4lrcQnQ+wnbyFShBSXmbmNIS6LG0=",
+        "owner": "deduxit",
         "repo": "rocq-linlog",
-        "rev": "c63ff4dbffc3408dca4bdd4598dd46a5835a0612",
+        "rev": "ea6602c4b050b30beb260a788e7b8a6877145e52",
         "type": "github"
       },
       "original": {
-        "owner": "sequentium",
+        "owner": "deduxit",
         "repo": "rocq-linlog",
         "type": "github"
       }
