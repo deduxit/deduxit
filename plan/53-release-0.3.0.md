@@ -151,6 +151,23 @@ written by the planning session when it starts):
      Trusted Publishing through `rust-lang/crates-io-auth-action`.
    - **The order:** the library before the command, and each crate is
      skipped if its version is already published, as now.
+   - **The tags** (the author, 2026-11-09: "I want the annotated and
+     signed tags. Can't you do them yourself?"). The planning session
+     makes them:
+     - annotated and signed with the author's key, as 0.2.0's were;
+     - without git: the tag object's exact bytes (object, type, tag, a
+       tagger line with the time in UTC, the message) signed with
+       `gpg --detach-sign --armor`, the armored signature appended to
+       the message;
+     - created with `gh api repos/OWNER/REPO/git/tags`, then the ref
+       `refs/tags/vX.Y.Z` with `gh api …/git/refs`, which starts the
+       release workflow;
+     - first `rocq-deduxit`, then `deduxit`;
+     - messages like 0.2.0's ("deduxit 0.3.0").
+
+     A throwaway tag object made this way, with no ref, was "Verified,
+     valid" on GitHub (2026-11-09, `92e7d8da`). The publish job's
+     approval in the environment `crates-io` stays the author's click.
    - **After the release, the author's checklist:**
      - add Trusted Publishing for `deduxit` and `deduxit-cli` (owner
        `deduxit`, repository `deduxit`, workflow `release.yml`,
