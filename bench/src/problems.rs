@@ -1,7 +1,7 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The four sources of problems. The parent lists [`Reference`]s without
+//! The five sources of problems. The parent lists [`Reference`]s without
 //! building a sequent from a file, so that an input that crashes the
 //! parser crashes a child, not the run; the child [`load`]s the one it is
 //! given.
@@ -13,11 +13,18 @@
 //! `-`, `copies` a number or `-`, and the sequent is written as the
 //! `deduxit` command reads it. The part of the name before a `/` is the
 //! family, else the file's stem.
+//!
+//! A TPTP problem (`--tptp`, as the ILTP library has them) is ordinary
+//! logic, which `run` decides in each of its `--logics` rather than in a
+//! mode; its family is the TPTP problem's own where the file is one size
+//! of a generated family (`SYJ201+1.005.p`, family `SYJ201`, size 5),
+//! else its directory.
 
 use anyhow::{Context, Result, anyhow, bail};
 use deduxit::linear::families::{FAMILIES, find};
 use deduxit::linear::lltp::{self, Status};
 use deduxit::linear::mist::{self, Safety};
+use deduxit::ordinary;
 use deduxit::{
     Limits,
     linear::{Mode, Sequent},
@@ -27,7 +34,7 @@ use std::path::{Path, PathBuf};
 /// A problem as the parent names it.
 #[derive(Clone, Debug)]
 pub struct Reference {
-    /// Where it comes from: `family`, `lltp`, `spec` or `file`.
+    /// Where it comes from: `family`, `lltp`, `spec`, `file` or `tptp`.
     pub source: &'static str,
     /// Its family: a generated family, an LLTP or `.spec` directory
     /// (relative to the parent of the path given), or a problem file's
@@ -39,12 +46,23 @@ pub struct Reference {
     pub index: Option<u32>,
     /// Its name within the family.
     pub name: String,
-    /// The mode it is meant for.
+    /// The mode it is meant for; a TPTP problem, which is run in logics
+    /// and not in modes, has intuitionistic mode, which no run reads.
     pub mode: Mode,
     /// How the child is told which problem to load: `family:NAME:SIZE:INDEX`,
-    /// `lltp:PATH`, `spec:PATH` or `file:PATH:LINE`.
+    /// `lltp:PATH`, `spec:PATH`, `file:PATH:LINE` or `tptp:PATH`.
     pub id: String,
 }
+
+impl Reference {
+    /// Whether the problem is ordinary logic, a TPTP problem.
+    pub fn is_ordinary(&self) -> bool {
+        self.source == TPTP
+    }
+}
+
+/// The source of the problems of ordinary logic.
+pub const TPTP: &str = "tptp";
 
 /// A problem the child runs.
 pub struct Problem {
@@ -120,6 +138,42 @@ pub fn specs(paths: &[PathBuf]) -> Result<Vec<Reference>> {
     listed(paths, "spec", "spec", |_| {
         Mode::INTUITIONISTIC.with_affine()
     })
+}
+
+/// Lists the TPTP problems of ordinary logic under the paths, in path
+/// order, each in the family of its TPTP name where it is one size of a
+/// generated family.
+pub fn tptp(paths: &[PathBuf]) -> Result<Vec<Reference>> {
+    let mut references = listed(paths, TPTP, "p", |_| Mode::INTUITIONISTIC)?;
+    for reference in &mut references {
+        if let Some((family, size)) = sized(&reference.name) {
+            reference.family = family.to_owned();
+            reference.size = Some(size);
+        }
+    }
+    Ok(references)
+}
+
+/// The family and size of a TPTP problem's file name of one size of a
+/// generated family, `NAME+VERSION.SIZE.p` with a size of three digits:
+/// `SYJ201+1.005.p` is `SYJ201` at 5.
+fn sized(name: &str) -> Option<(&str, u32)> {
+    let (family, rest) = name.strip_suffix(".p")?.split_once('+')?;
+    let (_, size) = rest.split_once('.')?;
+    (size.len() == 3)
+        .then(|| size.parse().ok())
+        .flatten()
+        .map(|size| (family, size))
+}
+
+/// Loads a TPTP problem of ordinary logic that a [`Reference::id`] names:
+/// its sequent, and the status its header claims.
+pub fn load_ordinary(id: &str) -> Result<ordinary::Problem> {
+    let path = id
+        .strip_prefix("tptp:")
+        .ok_or_else(|| anyhow!("not a TPTP problem: `{id}`"))?;
+    let text = std::fs::read_to_string(path).with_context(|| format!("reading {path}"))?;
+    Ok(ordinary::read_tptp(&text, &Limits::default())?)
 }
 
 /// Lists the files of a source under the paths, in path order: each path
@@ -303,6 +357,7 @@ pub fn load(id: &str) -> Result<Problem> {
                 witness_depth: None,
             })
         }
+        TPTP => bail!("`{id}` is ordinary logic, which runs in a logic, not a mode"),
         _ => bail!("unknown problem source in `{id}`"),
     }
 }
@@ -334,5 +389,14 @@ mod tests {
             }
         }
         assert!(parse_mode("classicl").is_err());
+    }
+
+    /// A TPTP problem of one size of a generated family is of that family,
+    /// any other of its directory's.
+    #[test]
+    fn tptp_families_are_read_from_names() {
+        assert_eq!(sized("SYJ201+1.005.p"), Some(("SYJ201", 5)));
+        assert_eq!(sized("SYJ105+1.2.p"), None);
+        assert_eq!(sized("LCL181+1.p"), None);
     }
 }

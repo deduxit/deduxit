@@ -12,7 +12,7 @@
 //! row that a check must not pass (`Runs::failed`).
 
 use anyhow::{Context, Result, bail};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 
 /// One CSV row, as a map from column to value.
@@ -263,9 +263,44 @@ struct Group<'a> {
     problems: Vec<(String, Runs<'a>)>,
 }
 
+/// Returns a line for every problem that two configurations decided
+/// differently in one mode (or logic), which one of them got wrong: the
+/// problem, the mode, and the configurations behind each verdict.
+fn disagreements(groups: &[Group]) -> Vec<String> {
+    // Per source, family, problem and mode, the configurations behind
+    // each verdict.
+    type Problem<'a> = (&'a str, &'a str, &'a str, &'a str);
+    let mut verdicts: BTreeMap<Problem, BTreeMap<&str, Vec<&str>>> = BTreeMap::new();
+    for group in groups {
+        for (problem, runs) in &group.problems {
+            let row = runs.first;
+            if runs.decided() {
+                verdicts
+                    .entry((row.get("source"), &group.family, problem, row.get("mode")))
+                    .or_default()
+                    .entry(row.get("verdict"))
+                    .or_default()
+                    .push(&group.config);
+            }
+        }
+    }
+    verdicts
+        .into_iter()
+        .filter(|(_, by)| by.len() > 1)
+        .map(|((_, family, problem, mode), by)| {
+            let by: Vec<String> = by
+                .iter()
+                .map(|(verdict, configs)| format!("{verdict} by {}", configs.join(", ")))
+                .collect();
+            format!("{family}/{problem} in {mode}: {}", by.join("; "))
+        })
+        .collect()
+}
+
 /// Prints the tables for the CSV files; with `strict`, fails after them
-/// when a verdict contradicts the known one, a run ended in an error, a
-/// crash or a kill, or there is no run.
+/// when a verdict contradicts the known one, two configurations decide a
+/// problem differently in one mode, a run ended in an error, a crash or a
+/// kill, or there is no run.
 pub fn summary(files: &[PathBuf], strict: bool) -> Result<()> {
     let rows = read(files)?;
 
@@ -401,6 +436,15 @@ pub fn summary(files: &[PathBuf], strict: bool) -> Result<()> {
         );
     }
 
+    let disagreeing = disagreements(&groups);
+    println!("\n## Verdicts that disagree\n");
+    if disagreeing.is_empty() {
+        println!("None: every problem decided in a mode has one verdict.");
+    }
+    for line in &disagreeing {
+        println!("- {line}");
+    }
+
     // One table per family of generated or listed problems: a row per
     // problem, a column per configuration.
     let mut families: Vec<&str> = Vec::new();
@@ -456,6 +500,12 @@ pub fn summary(files: &[PathBuf], strict: bool) -> Result<()> {
         }
         if !failed.is_empty() {
             bail!("{} runs failed: {}", failed.len(), failed.join(", "));
+        }
+        if !disagreeing.is_empty() {
+            bail!(
+                "problems with two verdicts in one mode: {}",
+                disagreeing.len()
+            );
         }
     }
     Ok(())
@@ -551,7 +601,8 @@ pub(crate) mod tests {
     /// not solved; a verdict against the known one, a failed check, an
     /// error and a crash are failures, a run stopped at its limit is not.
     /// `--strict` fails after the tables on a run against its known
-    /// verdict and on files without a run, and passes the others.
+    /// verdict, on files without a run and on a problem two configurations
+    /// decide differently in one mode, and passes the others.
     #[test]
     fn strict_fails_on_a_failed_run_or_none() {
         let dir = std::env::temp_dir().join(format!("deduxit-strict-{}", std::process::id()));
@@ -574,6 +625,15 @@ pub(crate) mod tests {
         assert!(summary(std::slice::from_ref(&wrong), false).is_ok());
         let none = summary(&[empty], true).unwrap_err();
         assert_eq!(none.to_string(), "the files hold no run");
+        let split = dir.join("split.csv");
+        std::fs::write(
+            &split,
+            "family,problem,mode,engine_requested,verdict,time_ms,timeout_s,checked\n\
+             f,p,m,a,proved,1,1,ok\nf,p,m,b,unprovable,1,1,\nf,p,n,b,unprovable,1,1,\n",
+        )
+        .unwrap();
+        let two = summary(std::slice::from_ref(&split), true).unwrap_err();
+        assert_eq!(two.to_string(), "problems with two verdicts in one mode: 1");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

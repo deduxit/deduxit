@@ -17,6 +17,7 @@ use crate::{OneArgs, RunArgs};
 use anyhow::{Context, Result, anyhow};
 use clap::ValueEnum;
 use deduxit::linear::search::{Engine, Options, Reason, Verdict, prove_within};
+use deduxit::ordinary::{Logic, Method};
 use deduxit::{
     Error, Limits,
     linear::{Atom, Bias, Forest, Mode, Sign},
@@ -46,7 +47,7 @@ const TAIL: usize = 35;
 
 /// The line the child prints when its problem is loaded and its search
 /// starts, from which the parent counts the time limit.
-const LOADED: &str = "loaded";
+pub(crate) const LOADED: &str = "loaded";
 
 /// Returns the index in the tail of the column `name`.
 fn column(name: &str) -> usize {
@@ -166,7 +167,7 @@ impl Shard {
 
 /// The memory bound of a run in bytes: the one asked for, none for 0, or
 /// the library's default.
-fn memory_limit(asked: Option<u64>) -> Option<u64> {
+pub(crate) fn memory_limit(asked: Option<u64>) -> Option<u64> {
     match asked {
         None => Some(Limits::DEFAULT_MEMORY_BYTES),
         Some(0) => None,
@@ -176,7 +177,7 @@ fn memory_limit(asked: Option<u64>) -> Option<u64> {
 
 /// The memory bound of a run as its column has it: the bytes, or 0 for
 /// none.
-fn memory_column(asked: Option<u64>) -> String {
+pub(crate) fn memory_column(asked: Option<u64>) -> String {
     memory_limit(asked).unwrap_or(0).to_string()
 }
 
@@ -212,45 +213,92 @@ impl std::fmt::Display for Bound {
 
 /// The `memo_limit` column of a row: the memo's entries the search may
 /// hold, the one asked for or the library's default; 0 is no memo.
-fn memo_column(asked: Option<u32>) -> String {
+pub(crate) fn memo_column(asked: Option<u32>) -> String {
     asked.unwrap_or(Options::DEFAULT_MEMO_LIMIT).to_string()
 }
 
 /// The column of how long one thread searched before the pool: the
 /// seconds, or empty for a pool from the start.
-fn pool_column(asked: Option<f64>) -> String {
+pub(crate) fn pool_column(asked: Option<f64>) -> String {
     asked.map_or(String::new(), |t| t.to_string())
 }
 
 /// The forward search's copy bound of a run: the one asked for, or the
 /// library's default.
-fn forward_copies(asked: Option<u32>) -> u32 {
+pub(crate) fn forward_copies(asked: Option<u32>) -> u32 {
     asked.unwrap_or(Options::DEFAULT_FORWARD_COPIES)
 }
 
-/// Which engine to run: one the library names, or `None` for the one the
-/// fragment and the mode call for.
+/// Which engine to run: the one the fragment and the mode call for (on a
+/// problem of ordinary logic, the logic's default method), one the
+/// library names, or a method of ordinary logic.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct EngineChoice(pub Option<Engine>);
+pub enum EngineChoice {
+    /// The automatic choice.
+    Auto,
+    /// A linear engine, which on a problem of ordinary logic searches the
+    /// image.
+    Linear(Engine),
+    /// A method of ordinary logic, which a linear problem refuses.
+    Ordinary(Method),
+}
 
 impl EngineChoice {
-    /// Reads an engine's name, as the library spells it, or `auto`.
+    /// Reads an engine's or a method's name, as the library spells it, or
+    /// `auto`.
     pub fn parser() -> impl clap::builder::TypedValueParser<Value = Self> {
         use clap::builder::TypedValueParser as _;
         clap::builder::PossibleValuesParser::new(
-            std::iter::once("auto").chain(Engine::NAMES.iter().copied()),
+            std::iter::once("auto")
+                .chain(Engine::NAMES.iter().copied())
+                .chain(Method::NAMES.iter().copied()),
         )
-        .map(|name| Self(name.parse().ok()))
+        .map(|name| match (name.parse(), name.parse()) {
+            (Ok(engine), _) => Self::Linear(engine),
+            (_, Ok(method)) => Self::Ordinary(method),
+            _ => Self::Auto,
+        })
     }
 
-    /// Returns the engine's name, `auto` for the automatic choice.
+    /// Returns the name, `auto` for the automatic choice.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::Linear(engine) => engine.name(),
+            Self::Ordinary(method) => method.name(),
+        }
+    }
+
+    /// Returns the linear engine forced, `None` for the automatic choice.
+    pub const fn engine(self) -> Option<Engine> {
+        match self {
+            Self::Linear(engine) => Some(engine),
+            Self::Auto | Self::Ordinary(_) => None,
+        }
+    }
+}
+
+/// What a problem runs in: a mode, or for ordinary logic a logic.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Setting {
+    /// The mode asked for, and the mode it gives the problem.
+    Mode(ModeChoice, Mode),
+    /// A logic.
+    Logic(Logic),
+}
+
+impl Setting {
+    /// Returns the name the `mode` column has for it.
     fn name(self) -> &'static str {
-        self.0.map_or("auto", Engine::name)
+        match self {
+            Self::Mode(_, mode) => mode_name(mode),
+            Self::Logic(logic) => logic.name(),
+        }
     }
 }
 
 /// The name of a value as its argument spells it.
-fn name(value: &impl ValueEnum) -> String {
+pub(crate) fn name(value: &impl ValueEnum) -> String {
     value
         .to_possible_value()
         .map_or_else(String::new, |v| v.get_name().to_owned())
@@ -262,6 +310,7 @@ pub fn run(args: &RunArgs) -> Result<()> {
     references.extend(problems::lltp(&args.lltp)?);
     references.extend(problems::specs(&args.spec)?);
     references.extend(problems::files(&args.problems)?);
+    references.extend(problems::tptp(&args.tptp)?);
     if !args.only.is_empty() {
         references.retain(|r| {
             let path = format!("{}/{}", r.family, r.name);
@@ -284,6 +333,9 @@ pub fn run(args: &RunArgs) -> Result<()> {
         };
     }
     if !args.tools.is_empty() {
+        if references.iter().any(Reference::is_ordinary) {
+            anyhow::bail!("--tools runs problems of linear logic, not TPTP problems");
+        }
         return crate::tools::main(args, references);
     }
     let jobs = args
@@ -338,20 +390,35 @@ pub fn run(args: &RunArgs) -> Result<()> {
     if args.reverse {
         references.reverse();
     }
-    let total = references.len() * args.modes.len() * args.engines.len() * jobs.len();
+    let settings = |reference: &Reference| -> Vec<Setting> {
+        if reference.is_ordinary() {
+            return args
+                .logics
+                .iter()
+                .map(|&logic| Setting::Logic(logic))
+                .collect();
+        }
+        let mut settings: Vec<Setting> = Vec::new();
+        for &choice in &args.modes {
+            let mode = choice.apply(reference.mode);
+            if !settings
+                .iter()
+                .any(|s| matches!(s, Setting::Mode(_, m) if *m == mode))
+            {
+                settings.push(Setting::Mode(choice, mode));
+            }
+        }
+        settings
+    };
+    let total = references.iter().map(|r| settings(r).len()).sum::<usize>()
+        * args.engines.len()
+        * jobs.len();
     let mut done = 0;
     // The configurations run by this invocation, for the estimate of the
     // time left: those a resumed run skips cost nothing.
     let (start, mut ran) = (Instant::now(), 0);
     for reference in &references {
-        let mut modes: Vec<(ModeChoice, Mode)> = Vec::new();
-        for &choice in &args.modes {
-            let mode = choice.apply(reference.mode);
-            if !modes.iter().any(|&(_, m)| m == mode) {
-                modes.push((choice, mode));
-            }
-        }
-        for &(choice, mode) in &modes {
+        for setting in settings(reference) {
             for &engine in &args.engines {
                 for &threads in &jobs {
                     done += 1;
@@ -359,7 +426,7 @@ pub fn run(args: &RunArgs) -> Result<()> {
                         reference.source,
                         &reference.family,
                         &reference.name,
-                        mode_name(mode),
+                        setting.name(),
                         engine.name(),
                         &threads.to_string(),
                         &args.test_period.map_or(String::new(), |p| p.to_string()),
@@ -375,7 +442,7 @@ pub fn run(args: &RunArgs) -> Result<()> {
                     let series = [
                         reference.family.as_str(),
                         &index,
-                        mode_name(mode),
+                        setting.name(),
                         engine.name(),
                         &threads_text,
                     ];
@@ -408,7 +475,7 @@ pub fn run(args: &RunArgs) -> Result<()> {
                             reference.family,
                             reference.size.map_or(String::new(), |s| s.to_string()),
                             reference.name,
-                            mode_name(mode),
+                            setting.name(),
                             engine.name().to_owned(),
                             args.test_period.map_or(String::new(), |p| p.to_string()),
                             args.timeout,
@@ -417,7 +484,7 @@ pub fn run(args: &RunArgs) -> Result<()> {
                     }
                     ran += 1;
                     for run in 0..args.repeat {
-                        let tail = child(&exe, reference, choice, engine, threads, args)?;
+                        let tail = child(&exe, reference, setting, engine, threads, args)?;
                         let fields: Vec<&str> = tail.split(',').collect();
                         let (verdict, time) = (
                             fields[column("verdict")],
@@ -431,7 +498,7 @@ pub fn run(args: &RunArgs) -> Result<()> {
                             reference.size.map_or(String::new(), |s| s.to_string()),
                             reference.index.map_or(String::new(), |i| i.to_string()),
                             reference.name,
-                            mode_name(mode),
+                            setting.name(),
                             engine.name().to_owned(),
                             args.test_period.map_or(String::new(), |p| p.to_string()),
                             args.timeout,
@@ -456,7 +523,7 @@ pub fn run(args: &RunArgs) -> Result<()> {
                                 "[{done}/{total}] {} {} {} j{threads}: {verdict} {} {time:.3} ms, \
                                  about {left:.0} min left",
                                 reference.name,
-                                mode_name(mode),
+                                setting.name(),
                                 engine.name().to_owned(),
                                 fields[column("reason")],
                             );
@@ -543,21 +610,23 @@ fn finished(path: &Path) -> Result<HashSet<String>> {
 fn child(
     exe: &Path,
     reference: &Reference,
-    mode: ModeChoice,
+    setting: Setting,
     engine: EngineChoice,
     jobs: usize,
     args: &RunArgs,
 ) -> Result<String> {
     let mut command = Command::new(exe);
-    command
-        .args(["one", "--problem", &reference.id])
-        .args(["--mode", &name(&mode), "--engine", engine.name()])
-        .args([
-            "--jobs",
-            &jobs.to_string(),
-            "--timeout",
-            &args.timeout.to_string(),
-        ]);
+    command.args(["one", "--problem", &reference.id]);
+    match setting {
+        Setting::Mode(choice, _) => command.args(["--mode", &name(&choice)]),
+        Setting::Logic(logic) => command.args(["--logic", logic.name()]),
+    };
+    command.args(["--engine", engine.name()]).args([
+        "--jobs",
+        &jobs.to_string(),
+        "--timeout",
+        &args.timeout.to_string(),
+    ]);
     if let Some(copies) = args.copies {
         command.args(["--copies", &copies.to_string()]);
     }
@@ -722,7 +791,7 @@ pub fn one(args: OneArgs) -> Result<()> {
 }
 
 /// Prints a line for the parent at once.
-fn say(line: &str) {
+pub(crate) fn say(line: &str) {
     let mut out = std::io::stdout().lock();
     let _ = writeln!(out, "{line}");
     let _ = out.flush();
@@ -732,6 +801,9 @@ fn say(line: &str) {
 /// way it says when the problem is loaded, and prints the tail of a
 /// proved problem once before the proof is checked.
 fn tail(args: &OneArgs) -> String {
+    if let Some(logic) = args.logic {
+        return crate::ordinary::tail(args, logic);
+    }
     let problem = match problems::load(&args.problem) {
         Ok(problem) => problem,
         Err(error) => {
@@ -741,15 +813,13 @@ fn tail(args: &OneArgs) -> String {
             ]);
         }
     };
+    if let EngineChoice::Ordinary(method) = args.engine {
+        return row(&[
+            ("verdict", "refused"),
+            ("reason", &format!("{method} decides ordinary logic")),
+        ]);
+    }
     let mode = args.mode.apply(problem.mode);
-    let copies = match args.copies {
-        Some(Bound(bound)) => bound,
-        None => Some(problem.copies.unwrap_or(Options::DEFAULT_COPIES)),
-    };
-    let bound = Bound(copies).to_string();
-    let recursion = args
-        .recursion_limit
-        .unwrap_or(Limits::DEFAULT_RECURSION_DEPTH);
     // A known verdict holds in the problem's own mode only: classical
     // linear logic proves more than intuitionistic, affine more than linear.
     let expected = match problem.expected.filter(|_| mode == problem.mode) {
@@ -757,160 +827,240 @@ fn tail(args: &OneArgs) -> String {
         Some(false) => "unprovable",
         None => "",
     };
-    let (occurrences, multiplicity) = match Forest::new(&problem.sequent) {
-        Ok(forest) => (forest.len(), multiplicity(&forest)),
-        Err(_) => (0, 0),
+    let searched = Searched {
+        sequent: &problem.sequent,
+        mode,
+        expected,
+        copies: problem.copies,
+        witness_depth: problem.witness_depth,
     };
-    let options = Options::default()
-        .with_engine(args.engine.0)
-        .with_jobs(args.jobs)
-        .with_copies(copies)
-        .with_witness_depth(
-            problem
-                .witness_depth
-                .unwrap_or(Options::DEFAULT_WITNESS_DEPTH),
-        )
-        .with_bias(args.bias.bias())
-        .with_forward_copies(forward_copies(args.forward_copies))
-        .with_test_period(args.test_period)
-        .with_memo_limit(args.memo_limit.unwrap_or(Options::DEFAULT_MEMO_LIMIT))
-        .with_classical_work(
-            args.classical_work
-                .unwrap_or(Options::DEFAULT_CLASSICAL_WORK),
-        )
-        // The check is the child's own, outside the time measured.
-        .with_check(false);
-    let limits = Limits::default()
-        .with_memory_bytes(memory_limit(args.memory_limit))
-        .with_recursion_depth(recursion);
-    say(LOADED);
+    searched.run(args, |proof, limits| {
+        match proof.check_within(mode, limits, |_| false) {
+            Ok(()) => "ok".to_owned(),
+            // Given up within the run's memory bound: no verdict on the proof.
+            Err(deduxit::linear::CheckError::Refused(_)) => "unchecked: memory limit".to_owned(),
+            Err(error) => clean(&format!("failed: {error}")),
+        }
+    })
+}
 
-    // The limit is a flag that a thread of its own raises, so that a poll
-    // costs one load whatever the engine's cadence: a clock read every so
-    // many polls is late by that many, which on a large net, where a poll
-    // comes many milliseconds after the last, was seconds.
-    let expired = Arc::new(AtomicBool::new(false));
-    let limit = Duration::from_secs_f64(args.timeout);
-    let (cpu_before, wait_before) = (cpu_ms(), wait_ms());
-    let start = Instant::now();
-    {
-        let expired = Arc::clone(&expired);
-        thread::spawn(move || {
-            thread::sleep(limit);
-            expired.store(true, Ordering::Relaxed);
-        });
+/// A linear sequent to search, as a problem gives it.
+pub(crate) struct Searched<'a> {
+    /// The sequent.
+    pub(crate) sequent: &'a deduxit::linear::Sequent,
+    /// The mode to search it in.
+    pub(crate) mode: Mode,
+    /// The `expected` column: `provable`, `unprovable` or empty.
+    pub(crate) expected: &'a str,
+    /// The copy bound the problem names.
+    pub(crate) copies: Option<u32>,
+    /// The witness depth the problem names.
+    pub(crate) witness_depth: Option<u32>,
+}
+
+impl Searched<'_> {
+    /// Searches the sequent as `args` say and returns the tail of its row;
+    /// on the way it says when the search starts, and prints the tail of a
+    /// proved sequent once before `check` checks the proof (within the
+    /// run's limits) and names the `checked` column.
+    pub(crate) fn run(
+        &self,
+        args: &OneArgs,
+        check: impl FnOnce(&deduxit::linear::Proof, &Limits) -> String,
+    ) -> String {
+        let Self {
+            sequent,
+            mode,
+            expected,
+            copies,
+            witness_depth,
+        } = *self;
+        let copies = match args.copies {
+            Some(Bound(bound)) => bound,
+            None => Some(copies.unwrap_or(Options::DEFAULT_COPIES)),
+        };
+        let bound = Bound(copies).to_string();
+        let recursion = args
+            .recursion_limit
+            .unwrap_or(Limits::DEFAULT_RECURSION_DEPTH);
+        let (occurrences, multiplicity) = match Forest::new(sequent) {
+            Ok(forest) => (forest.len(), multiplicity(&forest)),
+            Err(_) => (0, 0),
+        };
+        let options = Options::default()
+            .with_engine(args.engine.engine())
+            .with_jobs(args.jobs)
+            .with_copies(copies)
+            .with_witness_depth(witness_depth.unwrap_or(Options::DEFAULT_WITNESS_DEPTH))
+            .with_bias(args.bias.bias())
+            .with_forward_copies(forward_copies(args.forward_copies))
+            .with_test_period(args.test_period)
+            .with_memo_limit(args.memo_limit.unwrap_or(Options::DEFAULT_MEMO_LIMIT))
+            .with_classical_work(
+                args.classical_work
+                    .unwrap_or(Options::DEFAULT_CLASSICAL_WORK),
+            )
+            // The check is the child's own, outside the time measured.
+            .with_check(false);
+        let limits = Limits::default()
+            .with_memory_bytes(memory_limit(args.memory_limit))
+            .with_recursion_depth(recursion);
+        say(LOADED);
+
+        // The limit is a flag that a thread of its own raises, so that a poll
+        // costs one load whatever the engine's cadence: a clock read every so
+        // many polls is late by that many, which on a large net, where a poll
+        // comes many milliseconds after the last, was seconds.
+        let clock = Clock::start(args.timeout);
+        let outcome = decide(sequent, mode, &options, &limits, args, &clock.expired);
+        let (time, cpu, wait) = clock.read();
+
+        let outcome = match outcome {
+            Ok(outcome) => outcome,
+            Err(error) => {
+                let verdict = match error {
+                    Error::EngineRefused { .. } | Error::IntuitionisticMix => "refused",
+                    _ => "error",
+                };
+                return row(&[
+                    ("copies", &bound),
+                    ("expected", expected),
+                    ("verdict", verdict),
+                    ("reason", &clean(&error.to_string())),
+                    ("occurrences", &occurrences.to_string()),
+                    ("multiplicity", &multiplicity.to_string()),
+                    ("recursion_limit", &recursion.to_string()),
+                    ("bias", &name(&args.bias)),
+                    (
+                        "forward_copies",
+                        &forward_copies(args.forward_copies).to_string(),
+                    ),
+                    ("memory_limit", &memory_column(args.memory_limit)),
+                    ("pool_after", &pool_column(args.pool_after)),
+                    ("memo_limit", &memo_column(args.memo_limit)),
+                ]);
+            }
+        };
+        let (verdict, reason) = match &outcome.verdict {
+            Verdict::Proved(_) => ("proved", ""),
+            Verdict::Unprovable(_) => ("unprovable", ""),
+            Verdict::Unknown(reason) => {
+                // The harness's stop is its time limit.
+                let reason = match reason {
+                    Reason::Stopped => "timeout",
+                    reason => reason.name(),
+                };
+                ("unknown", reason)
+            }
+        };
+        let s = outcome.statistics;
+        let tail = |checked: &str, check_ms: &str| {
+            [
+                bound.clone(),
+                expected.to_owned(),
+                verdict.to_owned(),
+                reason.to_owned(),
+                checked.to_owned(),
+                outcome.engine.to_string(),
+                outcome.fragment.name_in(mode).to_owned(),
+                occurrences.to_string(),
+                multiplicity.to_string(),
+                format!("{time:.3}"),
+                s.nodes.to_string(),
+                s.memo_hits.to_string(),
+                s.memo_entries.to_string(),
+                s.splits.to_string(),
+                s.links.to_string(),
+                s.tests.to_string(),
+                recursion.to_string(),
+                cpu.clone(),
+                wait.clone(),
+                name(&args.bias),
+                forward_copies(args.forward_copies).to_string(),
+                check_ms.to_owned(),
+                memory_column(args.memory_limit),
+                s.copies.to_string(),
+                pool_column(args.pool_after),
+                s.forward_copies.to_string(),
+                s.work.to_string(),
+            ]
+            .into_iter()
+            // The columns of a row of `run --tools`: tool, tool_version,
+            // translate_ms, peak_bytes and raw.
+            .chain(std::iter::repeat_n(String::new(), 5))
+            .chain([
+                s.unifications.to_string(),
+                s.bindings.to_string(),
+                memo_column(args.memo_limit),
+            ])
+            .collect::<Vec<_>>()
+            .join(",")
+        };
+        let proof = match &outcome.verdict {
+            Verdict::Proved(proof) => proof,
+            // A refutation with a certificate is checked as a proof is; one
+            // that rests on the search has nothing to check.
+            Verdict::Unprovable(disproof) => return tail(&refutation_checked(disproof), ""),
+            Verdict::Unknown(_) => return tail("", ""),
+        };
+        // The verdict is out before the check, which a proof can outgrow.
+        say(&tail("", ""));
+        let start = Instant::now();
+        let checked = check(proof, &limits);
+        let check = start.elapsed().as_secs_f64() * 1000.0;
+        tail(&checked, &format!("{check:.3}"))
     }
-    let outcome = decide(&problem.sequent, mode, &options, &limits, args, &expired);
-    let time = start.elapsed().as_secs_f64() * 1000.0;
-    // The time the search took on the CPUs, and the time its thread was
-    // ready but waited for one: a run another process slowed down has the
-    // latter well above zero.
-    let since = |after: Option<f64>, before: Option<f64>| {
-        after
-            .zip(before)
-            .map_or(String::new(), |(a, b)| format!("{:.3}", a - b))
-    };
-    let (cpu, wait) = (since(cpu_ms(), cpu_before), since(wait_ms(), wait_before));
+}
 
-    let outcome = match outcome {
-        Ok(outcome) => outcome,
-        Err(error) => {
-            let verdict = match error {
-                Error::EngineRefused { .. } | Error::IntuitionisticMix => "refused",
-                _ => "error",
-            };
-            return row(&[
-                ("copies", &bound),
-                ("expected", expected),
-                ("verdict", verdict),
-                ("reason", &clean(&error.to_string())),
-                ("occurrences", &occurrences.to_string()),
-                ("multiplicity", &multiplicity.to_string()),
-                ("recursion_limit", &recursion.to_string()),
-                ("bias", &name(&args.bias)),
-                (
-                    "forward_copies",
-                    &forward_copies(args.forward_copies).to_string(),
-                ),
-                ("memory_limit", &memory_column(args.memory_limit)),
-                ("pool_after", &pool_column(args.pool_after)),
-                ("memo_limit", &memo_column(args.memo_limit)),
-            ]);
+/// The clock of a run: the flag a thread of its own raises at the time
+/// limit, and the wall-clock time, the CPU time and the time waited for a
+/// CPU from the start.
+pub(crate) struct Clock {
+    /// Raised when the time limit has passed.
+    pub(crate) expired: Arc<AtomicBool>,
+    /// When the run started.
+    start: Instant,
+    /// The process's CPU time at the start.
+    cpu: Option<f64>,
+    /// The calling thread's time waited for a CPU at the start.
+    wait: Option<f64>,
+}
+
+impl Clock {
+    /// Starts the clock of a run with a time limit of `timeout` seconds.
+    pub(crate) fn start(timeout: f64) -> Self {
+        let expired = Arc::new(AtomicBool::new(false));
+        let limit = Duration::from_secs_f64(timeout);
+        let (cpu, wait) = (cpu_ms(), wait_ms());
+        let start = Instant::now();
+        {
+            let expired = Arc::clone(&expired);
+            thread::spawn(move || {
+                thread::sleep(limit);
+                expired.store(true, Ordering::Relaxed);
+            });
         }
-    };
-    let (verdict, reason) = match &outcome.verdict {
-        Verdict::Proved(_) => ("proved", ""),
-        Verdict::Unprovable(_) => ("unprovable", ""),
-        Verdict::Unknown(reason) => {
-            // The harness's stop is its time limit.
-            let reason = match reason {
-                Reason::Stopped => "timeout",
-                reason => reason.name(),
-            };
-            ("unknown", reason)
+        Self {
+            expired,
+            start,
+            cpu,
+            wait,
         }
-    };
-    let s = outcome.statistics;
-    let tail = |checked: &str, check_ms: &str| {
-        [
-            bound.clone(),
-            expected.to_owned(),
-            verdict.to_owned(),
-            reason.to_owned(),
-            checked.to_owned(),
-            outcome.engine.to_string(),
-            outcome.fragment.name_in(mode).to_owned(),
-            occurrences.to_string(),
-            multiplicity.to_string(),
-            format!("{time:.3}"),
-            s.nodes.to_string(),
-            s.memo_hits.to_string(),
-            s.memo_entries.to_string(),
-            s.splits.to_string(),
-            s.links.to_string(),
-            s.tests.to_string(),
-            recursion.to_string(),
-            cpu.clone(),
-            wait.clone(),
-            name(&args.bias),
-            forward_copies(args.forward_copies).to_string(),
-            check_ms.to_owned(),
-            memory_column(args.memory_limit),
-            s.copies.to_string(),
-            pool_column(args.pool_after),
-            s.forward_copies.to_string(),
-            s.work.to_string(),
-        ]
-        .into_iter()
-        // The columns of a row of `run --tools`: tool, tool_version,
-        // translate_ms, peak_bytes and raw.
-        .chain(std::iter::repeat_n(String::new(), 5))
-        .chain([
-            s.unifications.to_string(),
-            s.bindings.to_string(),
-            memo_column(args.memo_limit),
-        ])
-        .collect::<Vec<_>>()
-        .join(",")
-    };
-    let proof = match &outcome.verdict {
-        Verdict::Proved(proof) => proof,
-        // A refutation with a certificate is checked as a proof is; one
-        // that rests on the search has nothing to check.
-        Verdict::Unprovable(disproof) => return tail(&refutation_checked(disproof), ""),
-        Verdict::Unknown(_) => return tail("", ""),
-    };
-    // The verdict is out before the check, which a proof can outgrow.
-    say(&tail("", ""));
-    let start = Instant::now();
-    let checked = match proof.check_within(mode, &limits, |_| false) {
-        Ok(()) => "ok".to_owned(),
-        // Given up within the run's memory bound: no verdict on the proof.
-        Err(deduxit::linear::CheckError::Refused(_)) => "unchecked: memory limit".to_owned(),
-        Err(error) => clean(&format!("failed: {error}")),
-    };
-    let check = start.elapsed().as_secs_f64() * 1000.0;
-    tail(&checked, &format!("{check:.3}"))
+    }
+
+    /// Returns the `time_ms`, `cpu_ms` and `wait_ms` columns since the
+    /// start: the time the run took on the CPUs, and the time its thread
+    /// was ready but waited for one, which a run another process slowed
+    /// down has well above zero.
+    pub(crate) fn read(&self) -> (f64, String, String) {
+        let time = self.start.elapsed().as_secs_f64() * 1000.0;
+        let since = |after: Option<f64>, before: Option<f64>| {
+            after
+                .zip(before)
+                .map_or(String::new(), |(a, b)| format!("{:.3}", a - b))
+        };
+        (time, since(cpu_ms(), self.cpu), since(wait_ms(), self.wait))
+    }
 }
 
 /// Decides a problem under the options until the flag is raised: with
@@ -950,7 +1100,7 @@ fn decide(
 }
 
 /// A tail with the given fields filled in and the others empty.
-fn row(filled: &[(&str, &str)]) -> String {
+pub(crate) fn row(filled: &[(&str, &str)]) -> String {
     let mut fields = vec![""; TAIL];
     for &(name, value) in filled {
         fields[column(name)] = value;
@@ -961,7 +1111,7 @@ fn row(filled: &[(&str, &str)]) -> String {
 /// The CPU time of the process so far, in milliseconds: the user and system
 /// time of all its threads, dead ones included, from `/proc/self/stat`, in
 /// the kernel's ticks of 10 ms; `None` where there is no such file.
-fn cpu_ms() -> Option<f64> {
+pub(crate) fn cpu_ms() -> Option<f64> {
     let stat = std::fs::read_to_string("/proc/self/stat").ok()?;
     // After the command in parentheses, utime and stime are the 12th and
     // 13th fields.
@@ -974,7 +1124,7 @@ fn cpu_ms() -> Option<f64> {
 /// How long the calling thread has been ready to run but waiting for a CPU,
 /// in milliseconds, from `/proc/thread-self/schedstat`; `None` where there
 /// is no such file.
-fn wait_ms() -> Option<f64> {
+pub(crate) fn wait_ms() -> Option<f64> {
     let stat = std::fs::read_to_string("/proc/thread-self/schedstat").ok()?;
     let nanoseconds: f64 = stat.split_whitespace().nth(1)?.parse().ok()?;
     Some(nanoseconds / 1e6)

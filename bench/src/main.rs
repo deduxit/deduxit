@@ -3,7 +3,8 @@
 
 //! `deduxit-bench`, the benchmark harness: runs the generated families, the
 //! problems of the LLTP library, coverability problems in Mist's `.spec`
-//! format and problem files of its own through deduxit's engines, one
+//! format, problem files of its own and TPTP problems of ordinary logic
+//! (the ILTP library) through deduxit's engines, one
 //! child process per run with a time limit, writes one CSV row per run,
 //! and summarises or compares CSV files as Markdown tables; and counts the
 //! instructions of the library's hot paths against committed ceilings
@@ -17,8 +18,11 @@ mod growth;
 /// Small deterministic runs of the library's hot paths, counted by the
 /// ratchet.
 mod journeys;
+/// The child's run of a problem of ordinary logic, through the embedding
+/// or by LJT.
+mod ordinary;
 /// Where problems come from: the families, LLTP files, `.spec` files,
-/// problem files.
+/// problem files, TPTP problems of ordinary logic.
 mod problems;
 /// The comparison of tools: per tool the problems solved, those outside
 /// its fragment, the translation times, and where tools contradict each
@@ -40,7 +44,8 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 /// Benchmark deduxit's engines on generated families, the LLTP library,
-/// `.spec` coverability problems and problem files, and count the hot
+/// `.spec` coverability problems, problem files and TPTP problems of
+/// ordinary logic, and count the hot
 /// paths' instructions against their ceilings
 #[derive(Parser, Debug)]
 #[command(name = "deduxit-bench", version)]
@@ -81,7 +86,8 @@ enum Command {
         #[arg(long, requires = "against")]
         counters: bool,
         /// Fail, after the tables, when a run's verdict contradicts the
-        /// known one, a run ended in an error, a crash or a kill, or the
+        /// known one, two configurations decide a problem differently in
+        /// one mode, a run ended in an error, a crash or a kill, or the
         /// files hold no run: what the flake's `bench` check asks
         #[arg(long, conflicts_with_all = ["before", "against"])]
         strict: bool,
@@ -181,6 +187,15 @@ pub struct RunArgs {
     /// `bench/problems/`); repeatable
     #[arg(long, value_name = "FILE")]
     problems: Vec<PathBuf>,
+    /// A TPTP problem of ordinary propositional logic, as the ILTP
+    /// library has them, or a directory searched for `*.p` files, run in
+    /// each of `--logics`; repeatable
+    #[arg(long, value_name = "PATH")]
+    tptp: Vec<PathBuf>,
+    /// The logics to run every TPTP problem in: `classical`,
+    /// `intuitionistic` or `minimal`
+    #[arg(long, value_delimiter = ',', default_value = "intuitionistic")]
+    logics: Vec<deduxit::ordinary::Logic>,
     /// Run only the problems whose family and name, `FAMILY/NAME` (as
     /// `ILL/KLE-cbn/KLE017+1.p`), contain one of these
     #[arg(long, value_delimiter = ',', value_name = "TEXT")]
@@ -197,7 +212,10 @@ pub struct RunArgs {
     /// The engines to run every problem with: `auto` (the one the fragment
     /// calls for), `focus`, `net`, `two-sided`, `additive`, `horn`,
     /// `essential` or `inverse`; a forced engine that does not apply to a
-    /// problem gives a `refused` row
+    /// problem gives a `refused` row. A TPTP problem takes the methods of
+    /// ordinary logic too: `embedding` (its image searched by the engine
+    /// the fragment calls for, as a linear engine's name forces one) or
+    /// `ljt`, and `auto` is the logic's default method
     #[arg(long, value_delimiter = ',', default_value = "auto", value_parser = run::EngineChoice::parser())]
     engines: Vec<run::EngineChoice>,
     /// The thread counts to run every problem with; `all` is every core
@@ -304,12 +322,15 @@ pub struct RunArgs {
 #[derive(Args, Debug)]
 pub struct OneArgs {
     /// The problem, as `run` names it (`family:NAME:SIZE:INDEX`,
-    /// `lltp:PATH`, `spec:PATH`, `file:PATH:LINE`)
+    /// `lltp:PATH`, `spec:PATH`, `file:PATH:LINE`, `tptp:PATH`)
     #[arg(long)]
     problem: String,
     /// The mode to run in
-    #[arg(long)]
+    #[arg(long, default_value = "given")]
     mode: run::ModeChoice,
+    /// The logic to run a TPTP problem in
+    #[arg(long)]
+    logic: Option<deduxit::ordinary::Logic>,
     /// The engine to run
     #[arg(long, value_parser = run::EngineChoice::parser())]
     engine: run::EngineChoice,

@@ -2,9 +2,10 @@
 # Licensed under the EUPL
 
 # The benchmark harness. `deduxit-bench' is the package; the `bench' check
-# runs it on the smallest instance of every generated family and on the
-# problem file with a short time limit, and fails on a verdict that
-# contradicts the one a problem is known to have: it keeps the harness
+# runs it on the smallest instance of every generated family, on the
+# problem file and on every other source with a short time limit, and
+# fails on a verdict that contradicts the one a problem is known to have
+# or another configuration's: it keeps the harness
 # building and running, while its timings on a build machine mean nothing.
 # `lltp' is the LLTP problem library at a pinned commit with its Petri-net
 # archives unpacked, for `deduxit-bench run --lltp': it is GPL-3.0, so it is
@@ -93,8 +94,14 @@
               --lltp ${../cli/tests/lock/inputs}/double.p \
               --spec ${../cli/tests/lock/inputs}/mutex.spec \
               --timeout 2 --output runs.csv 2> progress.log
-            # A verdict against a known one, an error, a crash or a kill
-            # fails the check, and so do no runs at all.
+            # A TPTP problem of ordinary logic, by the embedding and by
+            # LJT in both logics LJT decides.
+            deduxit-bench run --tptp ${../bench/problems}/excluded-middle.p \
+              --logics intuitionistic,minimal --engines auto,embedding,ljt --copies none \
+              --timeout 2 --output runs.csv --append 2>> progress.log
+            # A verdict against a known one, two verdicts of one problem, an
+            # error, a crash or a kill fail the check, and so do no runs at
+            # all.
             if ! deduxit-bench summary --strict runs.csv > summary.md; then
               cat summary.md progress.log
               exit 1
