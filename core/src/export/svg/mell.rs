@@ -1066,7 +1066,9 @@ pub(super) fn draw(
             if circled && !formulas {
                 circle(lines, centre, None);
             }
-            let room = 2 * radius - 4 * stroke;
+            // No room is less than none, so a label narrowed is wider
+            // than the room and of a width to divide by.
+            let room = (2 * radius - 4 * stroke).max(0);
             let full = run(sign, label_size, &style.font).width;
             let size = if full > room {
                 label_size * room / full

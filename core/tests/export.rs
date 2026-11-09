@@ -1181,6 +1181,27 @@ fn mell_nets() {
     snapshot("net-boxes-cycle.svg", &svg);
 }
 
+/// The rules look narrows a label to its node's room; a style whose node
+/// has no room and a font whose label has no width draws it at no size,
+/// rather than dividing by that width.
+#[test]
+fn a_label_of_no_width_in_no_room_is_drawn() {
+    use linlog::export::svg::{Advances, Font};
+    let net = MellStructure::from_proof(
+        &proof("!a |- (a * a) * !a", Mode::CLASSICAL),
+        Criterion::MLL,
+        &Limits::default(),
+        |_| false,
+    )
+    .unwrap();
+    let style = Style::default()
+        .with_net_look(NetLook::LINLOG.with_why_not(WhyNot::Rules))
+        .with_node_radius(0)
+        .with_font(Font::euler().with_advances(Advances::Fixed(0)));
+    let svg = svg::mell_net(&net, &style, &unbounded(), |_| false).unwrap();
+    structure(&svg);
+}
+
 /// The looks of a net are pinned as SVG in both drawings: each option
 /// alone and the textbook preset on a `!` conclusion with auxiliary doors,
 /// a `⅋` and a weakening (the compact drawing has its conclusions at the
