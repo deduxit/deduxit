@@ -5767,3 +5767,11 @@ move (D26).
       memory directory.
   - **The resume waits** for the review of the Claude Code setup that
     the author asked for first.
+- 2026-11-09, 12:30: **the author's release acts are done.**
+  - Trusted Publishing is set for `deduxit` and `deduxit-cli` ("require
+    trusted publishing" recommended).
+  - The secret `CRATES_IO_FIRST_PUBLISH_TOKEN` is deleted and the token
+    revoked.
+  - **Left:** the opam pull request. The planning session runs the
+    installs per Rocq version after the setup review, then hands the
+    author the prepared commands.
