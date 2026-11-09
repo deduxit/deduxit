@@ -25,27 +25,27 @@ for a stop by then, and `resume` for a resume.
 ## A stop by a time (`HH:MM`)
 
 The author wants the machine free at `HH:MM` and the work going until
-shortly before. The pause itself takes about ten minutes: the goal
-cleared, the worker's message read at its next step, its units stopped,
-its commit and checklist. So:
+shortly before. The pause itself takes about ten minutes: the worker's
+message read at its next step, its units stopped, its commit and
+checklist, then its job stopped. So:
 
 1. **Read the deadline** `D` as today's `HH:MM`. If `D` is less than
    fifteen minutes away, or already past, stop now (the sections below)
    and tell the author why it did not wait.
 2. **Tell each worker now** (`SendMessage`, no reply needed): the
-   machine must be free at `D`; at `D − 12 min` its goal is cleared and
-   it gets "Pause"; by `D − 4 min` every unit of its own but the warm
+   machine must be free at `D`; at `D − 12 min` it gets "Pause"; by
+   `D − 4 min` every unit of its own but the warm
    loop must be stopped, or the supervisor stops it by name; until then
    it carries on, but starts nothing (a batch, a pass, a build) that
    cannot end or reach a resumable point by `D − 8 min`.
 3. **Schedule the stop** with two one-shot crons (`CronCreate`,
    `recurring: false`, the minute and hour pinned to today's date):
-   - at `D − 12 min`: the supervisor's steps 2 to 4 below (clear the
-     goals, send "Pause", pause your own work and delete the recurring
-     crons, noting them for the resume);
-   - at `D − 4 min`: step 5 at once (stop every leftover unit by name,
-     tell the worker which, check the load), then step 6 (tell the
-     author).
+   - at `D − 12 min`: the supervisor's steps 2 to 4 below (send
+     "Pause", pause your own work and delete the recurring crons, noting
+     them for the resume);
+   - at `D − 4 min`: step 5 at once (stop each worker's job, stop
+     every leftover unit by name, tell the worker which, check the
+     load), then step 6 (tell the author).
 
    A cron fires only while this session is idle, so keep turns short
    from `D − 15 min` on, and run nothing long in the foreground.
@@ -71,43 +71,46 @@ its commit and checklist. So:
 
 ## As a supervisor (you started other sessions)
 
-1. **Take stock**: the sessions you run (`ListAgents`, `zellij
-   list-sessions`), your sub-agents and workflows, your background
-   tasks and monitors, your crons, and the units:
-   `systemctl --user list-units 'step*' 'deduxit-*' 'linlog-*' --no-pager`.
-2. **Clear each worker's goal first.** A session started with a
-   `/goal` has a fresh model check the goal after every turn and start
-   the next turn while it is unmet, which undoes a pause; a goal cannot
-   be paused, only cleared and set again (code.claude.com/docs/en/goal,
-   checked 2026-10-16). Keys typed into a busy session are dropped, and
-   an idle one is restarted by the goal within moments, so: interrupt
-   it with Escape (`zellij --session linlog-NAME action write --pane-id PANE 27`; it
-   cuts only the model's current step, its units run on), type
-   `zellij --session linlog-NAME action write-chars --pane-id PANE
-   "/goal clear"`, then `… action write --pane-id PANE 13` for Enter, and look at its screen (`zellij
-   --session linlog-NAME action dump-screen --pane-id PANE`): it must
-   say `Goal cleared`, or its status line lose `◎ /goal active`; if
-   not, repeat once. PANE is the Claude pane (`zellij --session
-   linlog-NAME action list-panes`: the one titled NAME, `terminal_0`
-   from `plan/start-session.sh`); without `--pane-id` the keys go to
-   the focused pane, a shell (`terminal_1`). Note which file held the
-   goal's text (the one given to `plan/start-session.sh`) for the
-   resume.
-3. **Pause each worker**: `SendMessage` "Pause" with `notify_when_idle`.
-   A worker whose brief does not mention this skill gets "Pause: run
-   the graceful-stop skill as a worker".
-4. **Pause your own work**: tell your sub-agents to stop at a resumable
-   point, then `TaskStop` them; stop the background tasks that run
-   work, and your units by name. Delete your crons (`CronDelete`): a
-   supervision check would nudge a paused worker back to work. Note
-   each cron's schedule and prompt so the resume recreates it.
-5. **Wait for the idle notices**, about fifteen minutes at most (at
-   once if the author says "stop now"), then check the units and the
-   load (`uptime`). Stop a worker's leftover unit by its name and tell
-   the worker which, for its resume.
-6. **Tell the author**, shortly: the machine is free (the load, no
-   unit left but the warm loop), what was paused and where, what each
-   piece loses (the batch it was in), and that "go" resumes it.
+Step sessions run as background jobs (`claude --bg`, started by
+`plan/start-session.sh`). `claude agents --json` lists them with their
+job id, name, session id and state; `claude logs NAME` prints a job's
+recent screen.
+
+1. **Take stock**:
+   - the jobs you run (`claude agents --json`, `ListAgents`);
+   - your sub-agents and workflows;
+   - your background tasks and monitors;
+   - your crons;
+   - the units: `systemctl --user list-units 'step*' 'deduxit-*'
+     'linlog-*' --no-pager`.
+
+   Note each worker's name, model, effort and session id: they resume
+   it.
+2. **Pause each worker by message**: `SendMessage` "Pause" with
+   `notify_when_idle`. A worker whose brief does not mention this skill
+   gets "Pause: run the graceful-stop skill as a worker". It finishes or
+   cuts its task, stops its units, commits and writes its checklist,
+   then ends its turn.
+3. **Stop each worker's job** once its idle notice has come:
+   `claude stop JOB`. That ends its turns, its goal's included: a goal
+   cannot be paused, and a stopped job takes no more turns. The goal is
+   kept with the conversation and comes back on resume, so it is not
+   cleared. A worker that does not answer within the deadline is stopped
+   all the same; its checklist then says less.
+4. **Pause your own work**:
+   - tell your sub-agents to stop at a resumable point, then `TaskStop`
+     them;
+   - stop the background tasks that run work, and your units by name;
+   - delete your crons (`CronDelete`), since a supervision check would
+     nudge a paused worker back to work. Note each cron's schedule and
+     prompt so the resume recreates it.
+5. **Check the units and the load** (`uptime`). Stop a worker's leftover
+   unit by its name, and tell the worker which, for its resume.
+6. **Tell the author**, shortly:
+   - the machine is free (the load, no unit left but the warm loop);
+   - what was paused and where;
+   - what each piece loses (the batch it was in);
+   - that "go" resumes it.
 
 ## As a worker (you got "Pause", or the author said "stop" to you)
 
@@ -138,25 +141,26 @@ its commit and checklist. So:
 
 ## Resume (`resume`, "go", "Resume")
 
-- **A supervisor**: test signing with a signature (`echo x | gpg
-  --batch --pinentry-mode error --local-user flgrubm@grubmueller.dev
-  --sign -o /dev/null`); if it fails, ask the author for the passphrase
-  once and restart the warm loop. Restart your own units, recreate your
-  crons, and send each paused worker "Resume" with `notify_when_idle`.
-  For a worker whose goal you cleared, set it again: a long text typed
-  at once is collapsed into a paste, which is no command, so type
-  `/goal ` alone first, then the condition on one line, then Enter:
-  `zellij --session linlog-NAME action write-chars --pane-id PANE
-  "/goal "`, then `… write-chars --pane-id PANE "$(sed 's|^/goal ||'
-  GOAL_FILE | tr '\n' ' ')"`, then `… write --pane-id PANE 13` (while it
-  is busy, this queues). Its screen shows `◎ /goal active`; if its
-  input line still holds `/goal [Pasted text …]`, the Enter came before
-  the paste was taken and was lost: send `… write --pane-id PANE 13`
-  again and look once more (2026-10-17). The goal's
-  turn count and timer start afresh; the work is kept.
-- **After a reboot**, a worker's zellij session has exited: `zellij
-  delete-session linlog-NAME`, then `plan/start-session.sh --resume ID
-  NAME MODEL EFFORT` brings it back with its context, without its goal;
-  set the goal as above and send "Resume".
+- **A supervisor**:
+  1. Test signing with a signature (`echo x | gpg --batch --pinentry-mode
+     error --local-user flgrubm@grubmueller.dev --sign -o /dev/null`).
+     If it fails, ask the author to unlock through SSH (`ssh -T
+     git@github.com`, which unlocks the signing key too), and restart
+     the warm loop (`plan/keys-warm.sh`).
+  2. Restart your own units and recreate your crons.
+  3. Resume each stopped worker:
+     `plan/start-session.sh --resume SESSION_ID NAME MODEL EFFORT
+     "Resume"`.
+     - The job comes back in the background with its conversation, and
+       with the goal it had, whose turn count and timer start afresh.
+     - "Resume" is its next prompt, and the work is kept.
+     - The launcher prints the new job and session ids: a resumed
+       session gets a new session id, so note that one for the next
+       resume.
+- **After a reboot**, every background job has stopped. Resume each as
+  above. A session started before 2026-11-09 ran in a zellij pane, not
+  as a job: resume it the same way, from its session id. Its transcript
+  must be under the account's projects directory for this checkout's
+  path; copy it there if the checkout was renamed since.
 - **A worker**: read your checklist, rerun the commands it records, and
   carry on from there.

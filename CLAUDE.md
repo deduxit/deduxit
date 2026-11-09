@@ -313,7 +313,11 @@ in place of Claude Code's git worktrees for isolated agents and sessions,
 `../linlog-wt-NAME`, whose empty leftovers `.claude/hooks/jj-worktree.py
 prune` removes), permission rules,
 the `crate-source-explorer` agent (use it before guessing at a
-dependency's API), the `update-deps` and `new-tool` skills (the latter
+dependency's API), the reviewers `fresh-reviewer` and the panel's
+`panel-counterexamples`, `panel-argument` and `panel-integers`, a
+`Notification` hook that logs a session waiting on a prompt for the
+planning session (`plan/start-session.sh` starts step sessions as
+background jobs, `claude --bg`), the `update-deps` and `new-tool` skills (the latter
 whenever a crate or tool is added or adopted), the `graceful-stop`
 skill (whenever the author says "stop", or a supervisor sends "Pause")
 and the rules above.

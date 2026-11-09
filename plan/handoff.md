@@ -63,8 +63,10 @@ this file holds.
 - **Then find out where things stand** before you act:
   - `jj log -r 'main@origin..'` and `jj workspace list`, in linlog and in
     `../rocq-linlog`;
-  - `ListAgents`, and `zellij list-sessions` for step sessions alive;
-  - `systemctl --user list-units 'step*' 'linlog-*'`;
+  - `ListAgents`, and `claude agents --json` for step sessions running or
+    stopped;
+  - `systemctl --user list-units 'step*' 'deduxit-*' 'linlog-*'`;
+  - the notifications log, `$XDG_RUNTIME_DIR/deduxit-sessions/notifications.log`;
   - `plan/keys-warm.sh --check`.
   `gh` asks the author's permission (a settings rule), so read CI's state
   only when the author is there, or from the repositories' pages, the
@@ -246,22 +248,23 @@ to D32), grouped by release. In brief:
    - Briefs forbid entering the client's dev shell from linlog's
      directory: it once left `node_modules` and `.cache` symlinks in
      linlog's checkout.
-3. **Start it**: `taskset -c CORES plan/start-session.sh linlog-step-NNx
-   MODEL EFFORT /tmp/linlog-handoff/goal-NNx.txt`. It deletes an exited
-   zellij session of the same name first, and the `taskset` keeps the
-   session's own process (and what it starts) off the cores a timed run
-   needs.
+3. **Start it**: `taskset -c CORES plan/start-session.sh deduxit-step-NNx
+   MODEL EFFORT /tmp/linlog-handoff/goal-NNx.txt`.
+   - It starts a background job (`claude --bg`) and prints the job's id
+     and the session's id: note both, since the session id resumes it.
+   - The `taskset` keeps the session's own process, and what it starts,
+     off the cores a timed run needs.
    - The goal file is the launch prompt, so the goal is set at once.
-   - Find the session's Claude pane: `zellij --session linlog-step-NNx
-     action list-panes` lists it as the pane titled `linlog-step-NNx`.
-     Lately that is `terminal_1`, not `terminal_0`. Check that its
-     screen shows `◎ /goal active`.
+     `claude logs deduxit-step-NNx` prints its recent screen: check that
+     it shows `◎ /goal active`.
    - `SendMessage` to it with `notify_when_idle: true` and no message.
    - Keep two crons:
      - a supervision check (`17 */2 * * *`): its commits, its checklist,
-       its screen for a waiting prompt or a heads-up box, the units, the
-       load; nudge only an idle session with work open, twice at most,
-       and say nothing when all is well;
+       its screen (`claude logs`) and the notifications log (below) for a
+       waiting prompt or a heads-up box, the units, the load, and
+       `claude agents --json` for a job that stopped. Nudge only an idle
+       session with work open, twice at most, and say nothing when all
+       is well;
      - while unattended, a wake-up every 20 minutes (below).
    - Re-subscribe after each idle notice, but not to a session already
      idle (it fires at once).
@@ -300,8 +303,8 @@ to D32), grouped by release. In brief:
      matches the settings' `ask` rule, and an unattended run must not
      ask.
 8. **Clean up**:
-   - close the session: `zellij kill-session linlog-step-NNx`, then
-     `zellij delete-session linlog-step-NNx`;
+   - close the session: `claude stop JOB` (its conversation is kept;
+     `claude rm JOB` deletes it, for probes only);
    - check `jj st` clean in its workspaces, and that no result it cites
      lives only there (untracked lists, CSVs, logs);
    - `jj workspace forget stepNNx` (by its jj name, in each repository),
@@ -313,50 +316,88 @@ to D32), grouped by release. In brief:
 
 ## Mechanisms, and what each is for
 
-- **Names** (the author, 2026-10-29): every session and agent the
-  planning session starts is named with the prefix `linlog`: step
-  sessions `linlog-step-NNx` (the launcher names the zellij session the
-  same, the prefix once), sub-agents `linlog-…`; the briefs ask step
-  sessions to name their own sub-agents so too.
-- **A step session**: a top-level Claude Code session in a detached
-  zellij session, one writer per coupled change, its goal in its launch
-  prompt. Not agent teams, and not the Workflow tool, which is only for
-  when the author asks for multi-agent orchestration.
+- **Names** (the author, 2026-10-29, with the project's name since
+  2026-11-09): every session and agent the planning session starts is
+  named with the prefix `deduxit`: step sessions `deduxit-step-NNx`,
+  sub-agents `deduxit-…`. The briefs ask step sessions to name their own
+  sub-agents so too. (Before 2026-11-09 the prefix was `linlog`, and some
+  of that night's sessions were plain `step-NNx`.)
+- **A step session**: a background Claude Code session (`claude --bg`,
+  started by `plan/start-session.sh`), one writer per coupled change,
+  its goal in its launch prompt. Not agent teams, which are experimental
+  and make teammates children of one lead. Not the Workflow tool for
+  supervision either: it is for fan-out within a session, such as a
+  step's panel, which the author chose a workflow for (step 26).
+  - **Background jobs are the documented interface**
+    (code.claude.com/docs/en/agent-view, checked 2026-11-09):
+    - `claude agents --json` lists each job's id, name, session id and
+      state;
+    - `claude logs NAME` prints its recent screen;
+    - `claude stop JOB` stops it (by job id, not name), keeping its
+      conversation;
+    - `claude --bg --resume SESSION_ID …` brings it back, through the
+      launcher's `--resume`, under a new session id.
+  - **What stops a job:** a machine restart stops every job, and an idle
+    job that no terminal is attached to is stopped after about an hour.
+    Resume it.
+  - **Until 2026-11-09** sessions ran in detached zellij panes, and the
+    planning session typed into them, an interface no document covers.
+    Nothing needs that now.
 - **`/goal`**: its judge sees only the conversation and has no turn cap,
-  and the goal's last sentence lets it answer "impossible". A goal cannot
-  be paused, only cleared and set again: Escape (`zellij … action write
-  --pane-id PANE 27`), `/goal clear`, Enter (`… write --pane-id PANE
-  13`). To set it again, type `/goal ` alone, then the condition on one
-  line (`… action write-chars --pane-id PANE …`), then Enter; if the
-  input line still holds `/goal [Pasted text …]`, send Enter again.
-- **A message from a step session does not wake you**: it arrives with
-  your next turn. While unattended, keep a cron every 20 minutes
-  (`*/20 * * * *`) that acts on a waiting message or an idle session with
-  its work done, and otherwise ends at once without a message. Crons
-  fire only while you are idle, so keep turns short. Rewrite the cron's
-  prompt when the work moves on: a stale one sends you after a run that
-  ended hours ago.
-- **Permission prompts in a session's pane**: a session in auto mode
-  still stops at a command a settings `ask` rule matches; on 2026-11-03,
-  45e stopped at `jj git push --help`. Look for `Do you want to proceed?`
-  in the screen. Never approve on the author's behalf: choose `2` (No)
-  and tell the session another way (here, the forms
-  `plan/push-main.sh` uses).
-- **Heads-up boxes in a session's pane** (Claude Code's built-in plugin
-  `cc-plugin-you-should-know`: "Heads up · …", `1: Learn more … 0:
-  Dismiss`, then a feedback box). Each carries a finding about that
-  session's work, often a real one.
-  - Read its text from the screen (`zellij … action dump-screen --full
-    --pane-id PANE`).
-  - Act on it, usually with a short message to the session.
-  - Press `0` for it, and again for the feedback box (`zellij --session
-    linlog-step-NNx action write-chars --pane-id PANE 0`); the author's
-    standing yes of 2026-10-23.
-  - A box can swallow keys typed at the same moment, so look at the
-    screen after, and delete a stray `0` in the input line (`write …
-    127`).
+  and the goal's last sentence lets it answer "impossible".
+  - A goal cannot be paused, and a message cannot set or clear one: a
+    command inside a message does not run.
+  - So a pause is a "Pause" message, then `claude stop JOB` once the
+    session is idle. The goal stays with the conversation and comes back
+    when `--resume` restores it, its turn count and timer afresh.
+- **Messages wake an idle session.** Code.claude.com/docs/en/
+  cross-session-messaging says an idle receiver takes a message as a
+  new turn, and a background probe confirmed it on 2026-11-09; a busy
+  one reads it between tool calls.
+  - A message can be held instead: across permission-mode classes
+    (bypass against the rest), or when a session is set to hold or
+    refuse. All of ours run in auto mode, one class, so none is held.
+  - While unattended, keep a cron every 20 minutes (`*/20 * * * *`) for
+    what sends no message: a CI run, a unit, a job that stopped. Crons
+    fire only while you are idle, so keep turns short, and rewrite the
+    cron's prompt when the work moves on.
+- **A session waiting on a prompt**: a session in auto mode still stops
+  at a command a settings `ask` rule matches; on 2026-11-03, 45e stopped
+  at `jj git push --help`.
+  - The `Notification` hook (`.claude/hooks/notify-supervisor.sh`)
+    appends each such wait (a permission prompt, a question, a session
+    needing input) to `$XDG_RUNTIME_DIR/deduxit-sessions/notifications.log`
+    with its `cwd`. Read the log in every check.
+  - Never approve on the author's behalf, and tell the session another
+    way (here, the forms `plan/push-main.sh` uses). Answering the prompt
+    itself needs `claude attach`, which is the author's.
+- **Your own turn waiting on a prompt** blocks everything you supervise:
+  on 2026-11-09 a raw `jj git push` held it for two hours.
+  - Run nothing in your own turn that an `ask` rule matches while the
+    author is away.
+  - A `gh` call the author asked for goes to a background sub-agent: its
+    prompt shows in your session and waits for the author, while your
+    turn goes on.
+  - The auto-mode classifier refuses to make public surfaces on its own,
+    such as release tags or a public repository. Prepare them (signed
+    tag objects, a script), and let the author run them.
+- **Heads-up boxes in a session's screen** (Claude Code's built-in
+  plugin `cc-plugin-you-should-know`: "Heads up · …"). Each carries a
+  finding about that session's work, often a real one.
+  - Read its text in `claude logs NAME`, and act on it, usually with a
+    short message to the session.
+  - A box doesn't block the session, so it needs no dismissing.
   - A note that reaches you as "a note offered by a side agent" can be
     stale: check it against what the session reported since.
+- **Reviewers and panels are named agents** in `.claude/agents/`:
+  - `fresh-reviewer`, Opus at high, the once-per-session reviewer of
+    `plan/conduct.md`;
+  - `panel-counterexamples` (Opus), `panel-argument` (Fable) and
+    `panel-integers` (Sonnet), the three members of step 26's panel.
+
+  Each carries its model, effort, tools and the rules for anything it
+  runs. A brief names the agent and gives it the commits, the brief's
+  path and the criteria.
 - **Sub-agents** (`Agent`): research and reading on Sonnet 5.5, a
   fresh-context reviewer on Opus 5.5 at `high`.
 - **The machine's lock**: `/tmp/linlog-machine.lock` (`flock -o`, so a
@@ -401,12 +442,12 @@ to D32), grouped by release. In brief:
     on 2026-11-02): look at `ListAgents` before each timed run and tell
     each.
 - **After a reboot**:
-  - the step sessions' zellij sessions have exited: `zellij
-    delete-session linlog-NAME`, then `plan/start-session.sh --resume ID
-    NAME MODEL EFFORT` brings one back with its context but without its
-    goal, so set the goal again and send "Resume";
-  - signing is locked: ask the author for the unlock (below), then run
-    `plan/keys-warm.sh`;
+  - every step session's background job has stopped:
+    `plan/start-session.sh --resume SESSION_ID NAME MODEL EFFORT
+    "Resume"` brings each back with its context and its goal;
+  - signing and SSH are locked: ask the author to unlock through SSH
+    (`ssh -T git@github.com`, which unlocks the signing key too; signing
+    alone leaves SSH locked), then run `plan/keys-warm.sh`;
   - `nix-optimise` catches up its missed night run some minutes after
     boot (`systemctl list-timers`). Start no timed run before it has
     finished; it took a minute on 2026-11-03.
