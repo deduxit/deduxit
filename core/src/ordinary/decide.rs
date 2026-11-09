@@ -95,8 +95,7 @@ pub fn gives_way(decided: &Result<ljt::Outcome, Error>) -> bool {
         Ok(outcome) => {
             matches!(outcome.verdict, Verdict::Unknown(reason) if reason != Reason::Stopped)
         }
-        Err(Error::Refused(Refusal::Stopped { .. })) => false,
-        Err(error) => error.is_refusal(),
+        Err(error) => matches!(error, Error::Refused(r) if !matches!(r, Refusal::Stopped { .. })),
     }
 }
 

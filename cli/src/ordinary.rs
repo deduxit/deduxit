@@ -165,10 +165,10 @@ pub(crate) fn by_ljt(
                 }
                 return Ok(Some(Status::Unknown));
             }
-            Err(error) if error.is_refusal() => bail!(
-                "LJT found a proof, but its derivation was not checked: {error}; raise the limit \
-                 (--derivation-limit, --memory-limit), or decide through the embedding with \
-                 --method embedding"
+            Err(error @ Error::Refused(_)) => bail!(
+                "LJT gave no verdict: {error}; raise the limit (--derivation-limit, \
+                 --memory-limit, --work-limit), or decide through the embedding with --method \
+                 embedding"
             ),
             Err(error) => return Err(error.into()),
         };
