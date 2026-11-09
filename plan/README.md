@@ -5641,3 +5641,18 @@ move (D26).
     - the opam submission's addresses moved too;
     - the placeholder was worked on in place;
     - the CI fixes and their later.md entry went beyond the addresses.
+- 2026-11-09, 11:05: **53p reviewed; the mark is live.**
+  - Its live check:
+    - deduxit.github.io serves "deduxit", with the new og image;
+    - `/logo/wordmark-light.svg` is the macron mark with lapis rects
+      and no lollipop path;
+    - README's pictures answer 200;
+    - the header's dictionary card opens on hover, focus and tap.
+  - Its departures, accepted:
+    - the colour exemption (decided at 02:40);
+    - the line in the crate docs' second paragraph;
+    - SKILL.md without the line (its budget is full; reference.md
+      carries it);
+    - the mark as a `<button>`.
+  - Overtaken since: its forward covered only `/rocq-linlog/` itself;
+    53b has since added the deep links (wplzznrm).
