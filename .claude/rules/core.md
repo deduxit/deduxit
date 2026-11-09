@@ -146,15 +146,17 @@ html_favicon_url)]` at the top of `lib.rs`, the site's
 the Rocq library's README (in its repository, `deduxit/rocq-deduxit`)
 show the word mark dēdūxit: the files are the web client's
 (CC BY 4.0, its `src/logo/`), never committed here, and their paths there
-must stay stable. deduxit has no mark of its own since the lollipop
-retired (2026-11-09).
+must stay stable. The lollipop, linlog's mark up to 0.2.0, retired on
+2026-11-09; the linear suite has no mark of its own.
 
 **The dictionary line** of the name, approved by the author word for
 word, stands under README's mark, in the manual's introduction, in the
 crate docs' second paragraph and at the head of the guide's reference:
 **dēdūxit** [deːˈduːk.sɪt] *Latin, verb*: "it has derived", the perfect
-of *dēdūcō*, to lead down, derive. A rename keeps it unchanged (rustdoc
-needs its brackets escaped, `\[…\]`, or it reads them as a link).
+of *dēdūcō*, to lead down, derive. A rename keeps it unchanged. rustdoc needs its brackets escaped,
+`\[…\]`, or it reads them as a link, and its quotes escaped, `\"…\"`, or
+its smart punctuation renders them curly (the manual sets
+`smart-punctuation = false`); check the bytes of the built page.
 
 **The rustdoc is the library's manual**, published from `main`. What a
 user of the crate needs and the code keeps private is said on a public

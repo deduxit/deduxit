@@ -14,7 +14,7 @@
 //!
 //! The crate is [deduxit](https://github.com/deduxit/deduxit), a
 //! collection of logic suites whose name is Latin:
-//! **dēdūxit** \[deːˈduːk.sɪt\] *Latin, verb*: "it has derived", the perfect of *dēdūcō*, to lead down, derive.
+//! **dēdūxit** \[deːˈduːk.sɪt\] *Latin, verb*: \"it has derived\", the perfect of *dēdūcō*, to lead down, derive.
 //!
 //! In more detail: the linear suite, [`linear`], with sequents of linear
 //! logic stored as compact arena DAGs in negation normal form, with
