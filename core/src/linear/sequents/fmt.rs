@@ -202,7 +202,8 @@ impl Sequent {
     ///
     /// # Examples
     ///
-    /// ```
+    #[cfg_attr(feature = "parse", doc = "```")]
+    #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
     /// use deduxit::linear::sequents::Visit;
     /// use deduxit::linear::{Sequent, Term};
     ///
