@@ -5630,3 +5630,14 @@ move (D26).
   - **53b** fixes the findings first, then prepares 0.3.0.
   - **A background agent** sets the four repositories' descriptions,
     homepages and topics through `gh`; its prompts wait for the author.
+- 2026-11-09, 10:55: **53n reviewed; its report is pushed** (tutvylqr).
+  - Every address moved to deduxit in the four repositories.
+  - The client's CI is fixed: Biome is built without its tests (its
+    test links ran the 16 GB runner out of memory), and the check job
+    has 180 minutes.
+  - The site deployed at 08:52 GMT, serving the new mark at `/logo/`;
+    the planning session fetched it.
+  - Its departures, accepted:
+    - the opam submission's addresses moved too;
+    - the placeholder was worked on in place;
+    - the CI fixes and their later.md entry went beyond the addresses.
