@@ -1814,7 +1814,8 @@ binary `deduxit`, `doc = false` kept), `deduxit-web` and `deduxit-bench`,
 the directories unchanged. The linear suite is the module
 `deduxit::linear`. The Rocq kernel is `deduxit` and writes for
 `rocq-deduxit` (`From Deduxit.Linear Require …`), the flake input
-`rocq-deduxit` locked to the library's pushed `main` (`62d02be1`). The
+`rocq-deduxit` locked to the library's pushed `main` (`62d02be1`, then
+`678dbaab`, its header commit, once pushed). The
 last releases of the old names, `linlog` 0.3.0 and `linlog-cli` 0.3.0,
 live under `compat/` and point to deduxit. Every source file is headed
 `deduxit ©`, in linlog, the Rocq library and the client, each by a
@@ -2045,6 +2046,8 @@ linlog, on `main` (`zpmnrkkq`), oldest first:
 - `kmwzmors` Head every source file deduxit ©, and check that header
 - `orplklqo` Name 0.3.0's files in the installation chapter, and wait for them in its workflow
 - `qqztoolq` Keep the old names where a dated record states what ran
-- this report
+- `kymrtkwn` Report session 53s: renamed deduxit
+- `xqwqwrrn` flake.lock: Update (the input `rocq-deduxit` to `678dbaab`)
+- this report's update
 
 The Rocq library, on its `main` (`nxmkmupx`): `yrxqynvu` Head every source file deduxit ©, and check that header.
