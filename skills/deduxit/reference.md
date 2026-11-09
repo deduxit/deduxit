@@ -1017,10 +1017,10 @@ A Rocq certificate (`--format rocq`) is written for the kernel
 linear logic: NanoYalla, the kernel of Click & coLLecT at the version
 `prove --help` names, a proof script checked rule by rule, which
 refuses Mix and affine weakening (a refused certificate leaves the
-verdict and its exit status, the reason on standard error). The kernel `linlog` is the default for
+verdict and its exit status, the reason on standard error). The kernel `deduxit` is the default for
 Mix, affine and intuitionistic logic and for a sequent with a
-quantifier: the Rocq library `rocq-linlog`, in its own repository
-(`github.com/deduxit/rocq-linlog`), a proof term
+quantifier: the Rocq library `rocq-deduxit`, in its own repository
+(`github.com/deduxit/rocq-deduxit`), a proof term
 its checker accepts. A first-order proof is stated in the library's
 first-order development (`ll (symbol := string) Calculus.classical`,
 `ill (symbol := string) Intuitionistic.intuitionistic`, …): predicates
@@ -1072,8 +1072,8 @@ no certificate: an exhausted search states no invariant, so only the search rule
 ```
 
 Compile a certificate with the kernel on the load path: `rocq compile
--R path/to/nanoyalla NanoYalla proof.v`, or for `--kernel linlog`
-`rocq compile -R path/to/rocq-linlog/theories Linlog proof.v`; Rocq prints
+-R path/to/nanoyalla NanoYalla proof.v`, or for `--kernel deduxit`
+`rocq compile -Q path/to/rocq-deduxit/theories Deduxit proof.v`; Rocq prints
 nothing for a certificate it accepts.
 
 ## 19. Mistakes to avoid

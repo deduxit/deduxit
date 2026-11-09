@@ -1784,7 +1784,7 @@ fn every_style_option() {
         (&ill, "svg", "description", "false", true),
         (&["A |- A"], "rocq", "form", "\"standalone\"", true),
         (&["A |- A"], "rocq", "lemma", "\"identity\"", true),
-        (&["A |- A"], "rocq", "kernel", "\"linlog\"", true),
+        (&["A |- A"], "rocq", "kernel", "\"deduxit\"", true),
         (
             &["--standalone", "A |- A"],
             "rocq",
@@ -1882,7 +1882,7 @@ fn compact_runs() {
     let (status, out, _) = deduxit(&[&rocq[..], &["--kernel", "nanoyalla", input]].concat(), "");
     assert_eq!(status, 0);
     assert!(out.contains("wk_r_ext"), "{out}");
-    // linlog's library, the mode's kernel, has a term per weakening.
+    // deduxit's library, the mode's kernel, has a term per weakening.
     let (status, out, _) = deduxit(&[&rocq[..], &[input]].concat(), "");
     assert_eq!(status, 0);
     assert_eq!(out.matches("(IWk ").count(), 3, "{out}");
@@ -2970,4 +2970,47 @@ fn an_intuitionistic_json_sequent_is_read_within_the_limit() {
     );
     assert_eq!(status, 2, "{err}");
     assert!(err.contains("more than the limit of 1000"), "{err}");
+}
+
+/// What 0.2.0 wrote, under the name linlog, is read: a proof file and a
+/// refutation file with the writer's version under `"linlog"`, and a
+/// settings file that names the kernel, the Typst layout and the net look
+/// `linlog`, now `deduxit`.
+#[test]
+fn what_0_2_0_wrote_is_read() {
+    let proof = r#"{"version":1,"linlog":"0.2.0","verdict":"proved","checked":true,"fragment":"MLL","mode":"classical","engine":"focus","statistics":{"nodes":1,"memo_hits":0,"memo_entries":1,"splits":1,"links":0,"tests":0,"copies":0,"forward_copies":0,"work":16},"sequent":{"terms":[{"D":0},{"D":1},{"⅋":[0,1]},{"V":1},{"V":0},{"⊗":[3,4]}],"roots":[2,5],"atoms":["A","B"],"antecedents":1},"nodes":[{"ax":[4,2]},{"ax":[5,1]},{"⊗":[3,0,1]},{"⅋":[0,2]}]}"#;
+    let (status, out, err) = deduxit(&["check", "-q"], proof);
+    assert_eq!(status, 0, "{out}{err}");
+    let refutation = r#"{"version":1,"linlog":"0.2.0","verdict":"unprovable","refutation":{"kind":"unbalanced","atom":0,"least":-1,"most":-1},"fragment":"MLL","mode":"classical","engine":"focus","statistics":{"nodes":1,"memo_hits":0,"memo_entries":1,"splits":0,"links":0,"tests":0,"copies":0,"forward_copies":0,"work":16},"sequent":{"terms":[{"D":0},{"V":1}],"roots":[0,1],"atoms":["A","B"],"antecedents":1}}"#;
+    let (status, out, err) = deduxit(&["check", "-q"], refutation);
+    assert_eq!(status, 0, "{out}{err}");
+    assert!(out.starts_with("valid refutation"), "{out}");
+
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("cli-0.2.0");
+    std::fs::create_dir_all(&dir).unwrap();
+    let settings = dir.join("settings.json");
+    std::fs::write(
+        &settings,
+        r#"{"styles": {"rocq": {"kernel": "linlog"}, "typst": {"layout": "linlog"}, "svg": {"net_look": "linlog"}}}"#,
+    )
+    .unwrap();
+    let settings = settings.to_str().unwrap();
+    let with = |format: &str| {
+        let args = [
+            "prove",
+            "--settings",
+            settings,
+            "--format",
+            format,
+            "--standalone",
+        ];
+        deduxit(&[&args[..], &["A |- A"]].concat(), "")
+    };
+    let (status, out, err) = with("rocq");
+    assert_eq!(status, 0, "{err}");
+    assert!(out.contains("From Deduxit.Linear Require"), "{out}");
+    let (status, _, err) = with("typst");
+    assert_eq!(status, 0, "{err}");
+    let (status, _, err) = deduxit(&["prove", "--settings", settings, "--net", "A |- A"], "");
+    assert_eq!(status, 0, "{err}");
 }

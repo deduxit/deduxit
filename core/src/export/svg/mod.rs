@@ -362,8 +362,10 @@ impl<'de> serde::Deserialize<'de> for NetLook {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", serde(rename_all = "lowercase"))]
 pub enum NetPreset {
-    /// [`NetLook::DEDUXIT`].
+    /// [`NetLook::DEDUXIT`]. Read from `"linlog"` too, its name up to
+    /// 0.2.0.
     #[default]
+    #[cfg_attr(feature = "serialize", serde(alias = "linlog"))]
     Deduxit,
     /// [`NetLook::TEXTBOOK`].
     Textbook,

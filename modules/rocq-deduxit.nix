@@ -1,0 +1,177 @@
+# linlog © Fabian Lukas Grubmüller 2026
+# Licensed under the EUPL
+
+# The check `rocq-deduxit': every certificate the core tests pin for
+# deduxit's own Rocq library in core/tests/snapshots/deduxit, and some the
+# CLI writes, first-order ones among them, compiled against that library as
+# the flake input `rocq-deduxit' pins it (github:deduxit/rocq-deduxit, built with
+# this flake's nixpkgs, so with the Rocq the NanoYalla check uses, rocq.nix);
+# a certificate with a planted fault (a wrong witness, a wrong weight) must
+# be refused, and a file that requires a certificate and applies its lemma
+# compiles. Rocq prints nothing for
+# a file it accepts, so any other output fails the check, and `Print
+# Assumptions' of each certificate's lemma must answer that it is closed
+# under the global context. And the check
+# `rocq-deduxit-library': the library's own check, re-exported from the input,
+# which compiles its tests and requires its theorems' assumptions to be
+# closed under the global context, so that every pin of the library these
+# certificates rest on is verified here too (one derivation with the
+# library's own, so a pin already checked there is fetched or cached, not
+# rerun). Its bridges are checked in its repository alone.
+{ inputs, ... }:
+{
+  perSystem =
+    {
+      config,
+      pkgs,
+      system,
+      ...
+    }:
+    let
+      inherit (pkgs) lib;
+      rocq = pkgs.rocq-core;
+      stdlib = pkgs.rocqPackages.stdlib;
+      library = inputs.rocq-deduxit.packages.${system}.rocq-deduxit;
+      userContrib = "lib/coq/${rocq.rocq-version}/user-contrib";
+
+      snapshots = lib.fileset.toSource {
+        root = ../core/tests/snapshots/deduxit;
+        fileset = lib.fileset.fileFilter (file: file.hasExt "v") ../core/tests/snapshots/deduxit;
+      };
+
+      # The version `deduxit::export::rocq::DEDUXIT' names must be the pinned
+      # library's.
+      named = builtins.head (
+        builtins.match ''.*pub const DEDUXIT: &str = "([0-9.]+)";.*'' (
+          builtins.readFile ../core/src/export/rocq/mod.rs
+        )
+      );
+    in
+    {
+      checks.rocq-deduxit-library = inputs.rocq-deduxit.checks.${system}.rocq-deduxit;
+
+      checks.rocq-deduxit =
+        assert lib.assertMsg (
+          named == library.version
+        ) "export::rocq::DEDUXIT is ${named}, the pinned library ${library.version}";
+        pkgs.runCommand "check-rocq-deduxit"
+          {
+            nativeBuildInputs = [
+              rocq
+              stdlib
+              library
+              config.packages.deduxit-cli
+            ];
+            ROCQPATH = "${stdlib}/${userContrib}:${library}/${userContrib}";
+          }
+          ''
+            export HOME=$TMPDIR
+            mkdir exporter
+            cp ${snapshots}/*.v exporter/
+            cd exporter
+            deduxit prove --mix --format rocq --standalone --output cli_mix.v 'A, B |- A, B * (C -o C)'
+            deduxit prove --affine --format rocq --standalone --output cli_affine.v '!A, A -o B, C |- B'
+            deduxit prove -i --format rocq --standalone --output cli_ill.v '!A, A -o B |- B * !A'
+            deduxit prove -i --affine --format rocq --standalone --output cli_ill_affine.v \
+              'A, B, A -o C |- C * 1'
+            # A goal built from top and 0 alone: the reading's goal.
+            deduxit prove -i --format rocq --standalone --output cli_ill_units.v '0, top |- top'
+            deduxit prove --kernel deduxit --format rocq --standalone --output cli_classical.v \
+              '!(A & B) |- !A * !B'
+            # Certificates of non-derivability, one-sided and two-sided; the
+            # command exits with 1 for an unprovable sequent.
+            deduxit prove --format rocq --standalone --output cli_refuted.v 'A, A -o B |- B * B' || [ $? -eq 1 ]
+            deduxit prove --mix --format rocq --standalone --output cli_refuted_mix.v '|- (A * ~A) * 1' || [ $? -eq 1 ]
+            deduxit prove -i --format rocq --standalone --output cli_refuted_ill.v 'A + B |- A & B' || [ $? -eq 1 ]
+            deduxit prove --copies 1 --format rocq --standalone --output cli_refuted_unknown.v \
+              '!(A -o A * A), A |- ?B' || [ $? -eq 1 ]
+            # Weighted counts: a count with copies of one sign, state
+            # equations (one with atoms no firing reaches, one with a clause
+            # used once, one of coverability), and a predicate weighed whole.
+            deduxit prove --format rocq --standalone --output cli_refuted_one_sided.v \
+              '!d, !((c * d * d) -o 1) |- c * c' || [ $? -eq 1 ]
+            deduxit prove -i --format rocq --standalone --output cli_refuted_dead.v \
+              '!(a -o a * a), !(a * c -o b * c), a |- b' || [ $? -eq 1 ]
+            deduxit prove -i --format rocq --standalone --output cli_refuted_once.v \
+              'a, a -o b, !(b -o b * c), !(b -o d) |- b * d' || [ $? -eq 1 ]
+            deduxit prove -i --affine --format rocq --standalone --output cli_refuted_cover.v \
+              '!(a -o a * c), !(a -o b), a |- a * b' || [ $? -eq 1 ]
+            deduxit prove --format rocq --standalone --output cli_refuted_fo.v \
+              '|- ~p(a), ?(exists x. ~p(x))' || [ $? -eq 1 ]
+            # First-order proofs: classical with a witness no ∀ step
+            # introduces, two-sided, affine, and a session's open witness
+            # closed into such a constant.
+            deduxit prove --kernel deduxit --format rocq --standalone --output cli_fo.v \
+              'forall x. p(x) |- exists y. p(y)'
+            deduxit prove -i --format rocq --standalone --output cli_fo_ill.v \
+              'exists y. forall x. r(x, y) |- forall x. exists y. r(x, y)'
+            deduxit prove --affine --format rocq --standalone --output cli_fo_affine.v \
+              'forall x. p(x), q |- exists y. p(y)'
+            deduxit prove -i --affine --format rocq --standalone --output cli_fo_ill_affine.v \
+              'forall x. p(x), q |- exists y. p(y)'
+            printf '%s\n' 'apply 0 0 ∀L' 'apply 1 0 ∃R' 'close 2' 'proof --rocq cli_fo_session.v' |
+              deduxit interact -i --style rocq.form=standalone 'forall x. p(x) |- exists y. p(y)' >/dev/null
+            for file in *.v; do
+              rocq compile "$file" 2>&1 | tee log
+              if [ -s log ]; then exit 1; fi
+            done
+            # Every certificate's lemma rests on the library's theorems
+            # alone: its assumptions are closed under the global context.
+            mkdir ../assumptions
+            for file in *.v; do
+              { cat "$file"; echo; echo 'Print Assumptions certificate.'; } >"../assumptions/$file"
+              (cd ../assumptions && rocq compile "$file") >log 2>&1 || { cat log; exit 1; }
+              if [ "$(cat log)" != 'Closed under the global context' ]; then
+                echo "$file:"
+                cat log
+                exit 1
+              fi
+            done
+            echo "$(ls ../assumptions/*.v | wc -l) certificates, each closed under the global context"
+            # A planted fault: the first certificate with a wrong witness is
+            # refused.
+            mkdir ../fault
+            sed 's/(Exists (var "p" \[bound 0\]) (eigen 0)/(Exists (var "p" [bound 0]) (eigen 1)/' \
+              cli_fo.v >../fault/fault.v
+            if cmp -s cli_fo.v ../fault/fault.v; then
+              echo "no fault was planted"
+              exit 1
+            fi
+            if rocq compile ../fault/fault.v >/dev/null 2>&1; then
+              echo "a certificate with a wrong witness was accepted"
+              exit 1
+            fi
+            # And a state equation with a wrong weight, under which the
+            # copies of a clause raise the count.
+            sed 's/("d", 1%Z)/("d", 2%Z)/' cli_refuted_once.v >../fault/weight.v
+            if cmp -s cli_refuted_once.v ../fault/weight.v; then
+              echo "no weight was planted"
+              exit 1
+            fi
+            if rocq compile ../fault/weight.v >/dev/null 2>&1; then
+              echo "a certificate with a wrong weight was accepted"
+              exit 1
+            fi
+            # A certificate is a module that another file requires, applying
+            # its lemma to the two-sided goal, as the manual's Rocq chapter
+            # shows (docs/src/rocq.md).
+            mkdir ../use
+            cd ../use
+            deduxit prove -i --format rocq --standalone --output mp.v 'A, A -o B |- B'
+            cat >use.v <<'EOF'
+            From Stdlib Require Import List String.
+            From Deduxit.Linear Require Import IntuitionisticCheck.
+            Import ListNotations.
+            Open Scope string_scope.
+            From Proofs Require mp.
+
+            Goal ill (atom := string) intuitionistic [ivar "A"; ilmap (ivar "A") (ivar "B")] (ivar "B").
+            Proof. apply mp.certificate. Qed.
+            EOF
+            rocq compile -R . Proofs mp.v
+            rocq compile -R . Proofs use.v 2>&1 | tee log
+            if [ -s log ]; then exit 1; fi
+            touch $out
+          '';
+    };
+}

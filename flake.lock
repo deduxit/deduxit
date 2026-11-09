@@ -100,7 +100,7 @@
         "url": "https://channels.nixos.org/nixpkgs-unstable/nixexprs.tar.zst"
       }
     },
-    "rocq-linlog": {
+    "rocq-deduxit": {
       "inputs": {
         "flake-parts": [
           "flake-parts"
@@ -120,16 +120,16 @@
         "yalla": "yalla"
       },
       "locked": {
-        "lastModified": 1794182746,
-        "narHash": "sha256-Bfg/oI1t5qpjrJZ4lrcQnQ+wnbyFShBSXmbmNIS6LG0=",
+        "lastModified": 1794189325,
+        "narHash": "sha256-bpE4c4Lc21b5Y/GWJrQ6w8BVxnK+nFKxd4/4hscACsQ=",
         "owner": "deduxit",
-        "repo": "rocq-linlog",
-        "rev": "ea6602c4b050b30beb260a788e7b8a6877145e52",
+        "repo": "rocq-deduxit",
+        "rev": "62d02be1f7459c46b7fb12e4c871e01fe519ed7a",
         "type": "github"
       },
       "original": {
         "owner": "deduxit",
-        "repo": "rocq-linlog",
+        "repo": "rocq-deduxit",
         "type": "github"
       }
     },
@@ -141,7 +141,7 @@
         "import-tree": "import-tree",
         "nanoyalla": "nanoyalla",
         "nixpkgs": "nixpkgs",
-        "rocq-linlog": "rocq-linlog",
+        "rocq-deduxit": "rocq-deduxit",
         "rust-overlay": "rust-overlay",
         "treefmt-nix": "treefmt-nix"
       }

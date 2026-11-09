@@ -2,8 +2,8 @@
 
 `--format rocq` writes the derivation as a Rocq certificate for one of
 two kernels, which `--kernel` names: `nanoyalla`, the default for
-classical linear logic, or `linlog`, linlog's own Rocq library
-([deduxit/rocq-linlog](https://github.com/deduxit/rocq-linlog)), the
+classical linear logic, or `deduxit`, deduxit's own Rocq library
+([deduxit/rocq-deduxit](https://github.com/deduxit/rocq-deduxit)), the
 default for Mix, affine and intuitionistic logic and for a sequent with
 a quantifier. The verdict becomes a
 comment, and `--standalone` adds the import lines.
@@ -69,7 +69,7 @@ Proof.
     (ILmapL (ivar "A") (ivar "B") (IAx "A") (IAx "B"))).
   vm_compute. reflexivity.
 Qed.
-$ deduxit prove --format rocq --kernel linlog "A * B |- B * A"
+$ deduxit prove --format rocq --kernel deduxit "A * B |- B * A"
 (* provable (MLL, classical, focus engine) *)
 Lemma certificate : ll (atom := string) classical [parr (covar "A") (covar "B"); tens (var "B") (var "A")].
 Proof.
@@ -146,30 +146,30 @@ no certificate: an exhausted search states no invariant, so only the search rule
 (* unprovable (MALL, classical, focus engine): the search was exhaustive *)
 ```
 
-The library is the package `rocq-linlog`, in a repository of its own,
-[deduxit/rocq-linlog](https://github.com/deduxit/rocq-linlog),
-on Rocq 9.0 to 9.3 and its standard library alone; its version is
-linlog's, so linlog 0.2.0's certificates compile against rocq-linlog
-0.2.0. Install it with opam, from the Rocq opam archive once the release
+The library is the package `rocq-deduxit`, in a repository of its own,
+[deduxit/rocq-deduxit](https://github.com/deduxit/rocq-deduxit),
+on Rocq 9.0 to 9.3 and its standard library alone, its linear logic
+under the logical path `Deduxit.Linear`; its version is deduxit's, so
+deduxit 0.3.0's certificates compile against rocq-deduxit 0.3.0. Install it with opam, from the Rocq opam archive once the release
 is there, or from its tag meanwhile:
 
 ```sh
 opam repo add rocq-released https://rocq-prover.org/opam/released
-opam install rocq-linlog
-opam pin add rocq-linlog https://github.com/deduxit/rocq-linlog.git#v0.2.0
+opam install rocq-deduxit
+opam pin add rocq-deduxit https://github.com/deduxit/rocq-deduxit.git#v0.3.0
 ```
 
-`opam upgrade rocq-linlog` takes a newer release from the archive and
-`opam remove rocq-linlog` removes it; a package pinned to a tag stays
+`opam upgrade rocq-deduxit` takes a newer release from the archive and
+`opam remove rocq-deduxit` removes it; a package pinned to a tag stays
 there until pinned to the next.
 
-or build it with Nix (`nix build github:deduxit/rocq-linlog/v0.2.0`)
+or build it with Nix (`nix build github:deduxit/rocq-deduxit/v0.3.0`)
 or `make` in a checkout with Rocq on the path. Installed, a certificate
 compiles as it is; built in place, with the theories on the load path:
 
 ```console
 $ deduxit prove --mix --format rocq --standalone --output mix.v "A, B |- A, B"
-$ rocq compile -R path/to/rocq-linlog/theories Linlog mix.v
+$ rocq compile -Q path/to/rocq-deduxit/theories Deduxit mix.v
 ```
 
 A certificate is a module, named by its file, so another file (`use.v`
@@ -178,7 +178,7 @@ states the two-sided sequent itself, so it proves that goal as written:
 
 ```coq
 From Stdlib Require Import List String.
-From Linlog Require Import IntuitionisticCheck.
+From Deduxit.Linear Require Import IntuitionisticCheck.
 Import ListNotations.
 Open Scope string_scope.
 From Proofs Require mp.
@@ -198,4 +198,4 @@ rocq compile -R . Proofs use.v
 
 The library's README says what it covers and what not, and its
 documentation is at
-[deduxit.github.io/rocq-linlog](https://deduxit.github.io/rocq-linlog/).
+[deduxit.github.io/rocq-deduxit](https://deduxit.github.io/rocq-deduxit/).

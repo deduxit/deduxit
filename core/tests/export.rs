@@ -5,8 +5,8 @@
 //! Derivations are pinned as standalone documents in `tests/snapshots/`,
 //! which the flake's `export` check compiles and renders and its `rocq`
 //! check runs through Rocq against NanoYalla, and the certificates for
-//! linlog's own Rocq library in `tests/snapshots/linlog/`, which its
-//! `rocq-linlog` check compiles; run with `BLESS=1` to rewrite them after
+//! deduxit's own Rocq library in `tests/snapshots/deduxit/`, which its
+//! `rocq-deduxit` check compiles; run with `BLESS=1` to rewrite them after
 //! an intended change, and review the diff.
 
 #![cfg(all(
@@ -112,7 +112,7 @@ fn cut_proof(input: &str, mode: Mode, formula: &str, left: &[usize]) -> Proof {
 }
 
 /// Pins a derivation's certificates as the snapshots `name.v`, for
-/// NanoYalla, and `linlog/name.v`, for deduxit's library.
+/// NanoYalla, and `deduxit/name.v`, for deduxit's library.
 fn pin_certificate(name: &str, derivation: &Derivation) {
     let options = rocq::Options::default()
         .with_form(Form::Standalone)
@@ -123,13 +123,13 @@ fn pin_certificate(name: &str, derivation: &Derivation) {
 }
 
 /// Pins a derivation's certificate for deduxit's library as the snapshot
-/// `linlog/name.v`.
+/// `deduxit/name.v`.
 fn pin_deduxit(name: &str, derivation: &Derivation) {
     let options = rocq::Options::default()
         .with_form(Form::Standalone)
-        .with_kernel(Some(Kernel::Linlog));
+        .with_kernel(Some(Kernel::Deduxit));
     let script = certificate(|out| rocq::write(derivation, &options, out, |_| false));
-    snapshot(&format!("linlog/{name}.v"), &script.unwrap());
+    snapshot(&format!("deduxit/{name}.v"), &script.unwrap());
 }
 
 /// Proves `input` in `mode` and pins its derivation, two-sided in
@@ -559,7 +559,7 @@ fn a_font_of_the_callers_sets_the_widths() {
 
 /// The committed first-order proofs that their check accepts are pinned
 /// as certificates for deduxit's library, one-sided and two-sided, with
-/// their cuts, which the flake's `rocq-linlog` check compiles; with no
+/// their cuts, which the flake's `rocq-deduxit` check compiles; with no
 /// kernel named a first-order derivation goes to the library, and
 /// NanoYalla, whose formulas have no quantifier, refuses it.
 #[test]
@@ -1856,7 +1856,7 @@ fn disproof(input: &str, mode: Mode) -> deduxit::linear::Disproof {
 
 /// Every refutation `Disproof::check` accepts has a certificate for
 /// deduxit's library, one-sided and two-sided, pinned as
-/// `linlog/refuted_*.v`, which the `rocq-linlog` check compiles, but the
+/// `deduxit/refuted_*.v`, which the `rocq-deduxit` check compiles, but the
 /// count equation of a sequent with a quantifier; an exhausted search,
 /// and NanoYalla, have none. An ordinary sequent whose image an
 /// assignment refutes has a certificate over `Prop` that it is not
@@ -1965,7 +1965,7 @@ fn disproof_certificates() {
     ] {
         assert_eq!(disproof.check(), Ok(()), "{name}");
         snapshot(
-            &format!("linlog/refuted_{name}.v"),
+            &format!("deduxit/refuted_{name}.v"),
             &write(&disproof, &options).unwrap(),
         );
     }

@@ -136,7 +136,7 @@ exit 1
 The proof
 nets refuse a quantifier yet, saying so with the exit status 2, the
 error's, and a first-order proof's Rocq certificate is written for
-linlog's library ([Rocq certificates](rocq.md)). The verdicts and the bounds:
+deduxit's library ([Rocq certificates](rocq.md)). The verdicts and the bounds:
 
 <!-- readme-check: machine -->
 ```console

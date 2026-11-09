@@ -146,6 +146,8 @@ pub enum Layout {
     Curryst,
     /// Typst code of deduxit's own in the output, which measures every
     /// sequent and places it, with no package and no limit on the height.
+    /// Read from `"linlog"` too, its name up to 0.2.0.
+    #[cfg_attr(feature = "serialize", serde(alias = "linlog"))]
     Deduxit,
 }
 

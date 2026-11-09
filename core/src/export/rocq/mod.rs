@@ -4,9 +4,9 @@
 //! Rocq: a derivation as a certificate for one of two kernels
 //! ([`Kernel`]): a proof script that the NanoYalla kernel checks, version
 //! [`NANOYALLA`], the kernel of Click & coLLecT, or a proof term that
-//! linlog's own Rocq library checks ([`LINLOG`]). Where the options name
+//! deduxit's own Rocq library checks ([`DEDUXIT`]). Where the options name
 //! no kernel, the derivation's mode chooses: classical linear logic goes
-//! to NanoYalla, Mix, affine and intuitionistic logic to linlog's
+//! to NanoYalla, Mix, affine and intuitionistic logic to deduxit's
 //! library, which states each in its own calculus; so does a sequent with
 //! a quantifier, which the library's first-order development states and
 //! NanoYalla's formulas cannot.
@@ -37,7 +37,7 @@
 //! fragment is the lemma alone, for a file that imports `macroll`; a
 //! standalone file starts with [`Options::prelude`].
 //!
-//! For linlog's library the certificate is a lemma stating the sequent
+//! For deduxit's library the certificate is a lemma stating the sequent
 //! over the library's own calculus, `ll` one-sided with the rules the
 //! mode allows or `ill` two-sided for a two-sided derivation, with cut
 //! where the derivation uses one, proved by
@@ -93,7 +93,7 @@ use crate::{Error, linear::Mode};
 use std::fmt::Write;
 use thiserror::Error;
 
-mod linlog;
+mod deduxit;
 
 /// The version of NanoYalla the scripts are written for: the `nanoyalla`
 /// directory of Click & coLLecT, whose `macroll` module defines the
@@ -113,17 +113,17 @@ pub struct Options {
     pub lemma: Identifier,
     /// The lines a standalone file starts with, before the lemma, or
     /// `None` for the target's own: the import of NanoYalla's `macroll`
-    /// for a linear certificate ([`NANOYALLA_PRELUDE`]), of linlog's
-    /// library for one of its kernel ([`LINLOG_PRELUDE`],
-    /// [`LINLOG_TWO_SIDED_PRELUDE`], and for a sequent with a quantifier
-    /// [`LINLOG_FIRST_ORDER_PRELUDE`] and
-    /// [`LINLOG_FIRST_ORDER_TWO_SIDED_PRELUDE`]), of the standard library's excluded
+    /// for a linear certificate ([`NANOYALLA_PRELUDE`]), of deduxit's
+    /// library for one of its kernel ([`DEDUXIT_PRELUDE`],
+    /// [`DEDUXIT_TWO_SIDED_PRELUDE`], and for a sequent with a quantifier
+    /// [`DEDUXIT_FIRST_ORDER_PRELUDE`] and
+    /// [`DEDUXIT_FIRST_ORDER_TWO_SIDED_PRELUDE`]), of the standard library's excluded
     /// middle for a classical one over `Prop` ([`CLASSICAL_PRELUDE`]),
     /// nothing for one of LJ.
     pub prelude: Option<String>,
     /// The kernel a linear certificate is written for, or `None` for the
     /// one the derivation's mode chooses: NanoYalla for classical linear
-    /// logic, linlog's library for Mix, affine and intuitionistic logic
+    /// logic, deduxit's library for Mix, affine and intuitionistic logic
     /// and for a sequent with a quantifier.
     /// A certificate of ordinary logic needs no kernel and ignores it.
     pub kernel: Option<Kernel>,
@@ -180,70 +180,72 @@ pub enum Kernel {
     /// linear logic one-sided, without Mix, cut or the weakening of
     /// affine mode, checked rule by rule by a proof script.
     NanoYalla,
-    /// linlog's own Rocq library [`LINLOG`]: one-sided linear logic with
+    /// deduxit's own Rocq library [`DEDUXIT`]: one-sided linear logic with
     /// Mix and weakening where the mode allows them, and two-sided
     /// intuitionistic linear logic and its affine variant, each with cut
     /// where the proof uses one, checked by the library's checker on a
-    /// proof term.
-    Linlog,
+    /// proof term. Read from `"linlog"` too, its name up to 0.2.0.
+    #[cfg_attr(feature = "serialize", serde(alias = "linlog"))]
+    Deduxit,
 }
 
-/// The version of linlog's Rocq library the certificates of its kernel are
-/// written for: the package `rocq-linlog` of the repository
-/// <https://github.com/deduxit/rocq-linlog>, logical path `Linlog`,
-/// built with Rocq 9 and its standard library.
-pub const LINLOG: &str = "0.3.0";
+/// The version of deduxit's Rocq library the certificates of its kernel
+/// are written for: the package `rocq-deduxit` of the repository
+/// <https://github.com/deduxit/rocq-deduxit>, logical root `Deduxit`, its
+/// linear logic under `Deduxit.Linear`, built with Rocq 9 and its standard
+/// library.
+pub const DEDUXIT: &str = "0.3.0";
 
-/// The prelude of a one-sided certificate for linlog's library: the
+/// The prelude of a one-sided certificate for deduxit's library: the
 /// imports of its soundness theorems, of lists and of strings, whose
 /// notations the lemma uses.
-pub const LINLOG_PRELUDE: &str = "From Stdlib Require Import List String.
-From Linlog Require Import Soundness.
+pub const DEDUXIT_PRELUDE: &str = "From Stdlib Require Import List String.
+From Deduxit.Linear Require Import Soundness.
 Import ListNotations.
 Open Scope string_scope.";
 
-/// The prelude of a two-sided certificate for linlog's library: as
-/// [`LINLOG_PRELUDE`], with the two-sided calculus and its theorem.
-pub const LINLOG_TWO_SIDED_PRELUDE: &str = "From Stdlib Require Import List String.
-From Linlog Require Import IntuitionisticCheck.
+/// The prelude of a two-sided certificate for deduxit's library: as
+/// [`DEDUXIT_PRELUDE`], with the two-sided calculus and its theorem.
+pub const DEDUXIT_TWO_SIDED_PRELUDE: &str = "From Stdlib Require Import List String.
+From Deduxit.Linear Require Import IntuitionisticCheck.
 Import ListNotations.
 Open Scope string_scope.";
 
-/// The prelude of a certificate of a first-order derivation for linlog's
-/// library: as [`LINLOG_PRELUDE`], with the first-order calculus and its
+/// The prelude of a certificate of a first-order derivation for deduxit's
+/// library: as [`DEDUXIT_PRELUDE`], with the first-order calculus and its
 /// theorems, and the propositional calculus's module, whose optional
 /// rules the statement names.
-pub const LINLOG_FIRST_ORDER_PRELUDE: &str = "From Stdlib Require Import List String.
-From Linlog Require Calculus.
-From Linlog Require Import FirstOrderSoundness.
+pub const DEDUXIT_FIRST_ORDER_PRELUDE: &str = "From Stdlib Require Import List String.
+From Deduxit.Linear Require Calculus.
+From Deduxit.Linear Require Import FirstOrderSoundness.
 Import ListNotations.
 Open Scope string_scope.";
 
 /// The prelude of a two-sided certificate of a first-order derivation for
-/// linlog's library: as [`LINLOG_FIRST_ORDER_PRELUDE`], with the two-sided
+/// deduxit's library: as [`DEDUXIT_FIRST_ORDER_PRELUDE`], with the two-sided
 /// calculus and its theorem.
-pub const LINLOG_FIRST_ORDER_TWO_SIDED_PRELUDE: &str = "From Stdlib Require Import List String.
-From Linlog Require Intuitionistic.
-From Linlog Require Import FirstOrderIntuitionisticCheck.
+pub const DEDUXIT_FIRST_ORDER_TWO_SIDED_PRELUDE: &str = "From Stdlib Require Import List String.
+From Deduxit.Linear Require Intuitionistic.
+From Deduxit.Linear Require Import FirstOrderIntuitionisticCheck.
 Import ListNotations.
 Open Scope string_scope.";
 
-/// The prelude of a certificate of non-derivability for linlog's library:
+/// The prelude of a certificate of non-derivability for deduxit's library:
 /// the imports of its refutation theorems (`Weights`, which exports the
 /// others), of lists, strings and integers, whose notations the lemma uses.
-pub const LINLOG_REFUTATION_PRELUDE: &str = "From Stdlib Require Import List String ZArith.
-From Linlog Require Import Weights.
+pub const DEDUXIT_REFUTATION_PRELUDE: &str = "From Stdlib Require Import List String ZArith.
+From Deduxit.Linear Require Import Weights.
 Import ListNotations.
 Open Scope string_scope.";
 
 /// The prelude of a certificate of non-derivability of a sequent with a
-/// quantifier for linlog's library: as [`LINLOG_REFUTATION_PRELUDE`], with
+/// quantifier for deduxit's library: as [`DEDUXIT_REFUTATION_PRELUDE`], with
 /// the first-order calculi, the first-order weighted count, Booleans and
 /// the modules whose names the statement and the weights use.
-pub const LINLOG_FIRST_ORDER_REFUTATION_PRELUDE: &str =
+pub const DEDUXIT_FIRST_ORDER_REFUTATION_PRELUDE: &str =
     "From Stdlib Require Import Bool List String ZArith.
-From Linlog Require Calculus Intuitionistic TermsCheck.
-From Linlog Require Import FirstOrderCalculus FirstOrderIntuitionistic FirstOrderWeights.
+From Deduxit.Linear Require Calculus Intuitionistic TermsCheck.
+From Deduxit.Linear Require Import FirstOrderCalculus FirstOrderIntuitionistic FirstOrderWeights.
 Import ListNotations.
 Open Scope string_scope.";
 
@@ -347,7 +349,7 @@ pub enum Unsupported {
     /// The derivation uses a cut, which NanoYalla's kernel has as an
     /// axiom or as a theorem of the Yalla library only.
     #[error(
-        "NanoYalla's kernel has no cut rule, so a proof with a cut has its certificate in linlog's library"
+        "NanoYalla's kernel has no cut rule, so a proof with a cut has its certificate in deduxit's library"
     )]
     Cut,
     /// The derivation weakens a formula that is not a `?` formula.
@@ -364,7 +366,7 @@ pub enum Unsupported {
     /// A disproof was to be written for NanoYalla, which states
     /// derivations only.
     #[error(
-        "NanoYalla's kernel states derivations only, so a refutation has its certificate in linlog's library"
+        "NanoYalla's kernel states derivations only, so a refutation has its certificate in deduxit's library"
     )]
     Disproof,
     /// The refutation of an ordinary sequent's image is no assignment that
@@ -383,13 +385,13 @@ pub enum Unsupported {
     /// calculi have no theorem for: its certificate is the set itself,
     /// which the disproof's check verifies.
     #[error(
-        "linlog's library has no theorem for a saturated set, so a refutation by one has no certificate in Rocq"
+        "deduxit's library has no theorem for a saturated set, so a refutation by one has no certificate in Rocq"
     )]
     Saturated,
     /// The sequent has a quantifier, which NanoYalla's kernel and the
     /// library's theorem of the count equation lack.
     #[error(
-        "NanoYalla's kernel and linlog's theorem of the count equation have no quantifiers, so a sequent with ∀ or ∃ has a certificate for linlog's library only, and no refutation by the count equation"
+        "NanoYalla's kernel and deduxit's theorem of the count equation have no quantifiers, so a sequent with ∀ or ∃ has a certificate for deduxit's library only, and no refutation by the count equation"
     )]
     Quantifiers,
     /// The disproof's refutation is an exhausted search, which no
@@ -827,7 +829,7 @@ impl Script<'_> {
 /// written. A linear derivation is a lemma for the kernel the options
 /// name or the mode chooses ([`Options::kernel`]): with its proof script
 /// for NanoYalla, checked one-sided, or proved from its proof term by
-/// linlog's library, one-sided or, for a two-sided derivation, two-sided.
+/// deduxit's library, one-sided or, for a two-sided derivation, two-sided.
 /// One of LK or LJ, which must have passed
 /// [`check`](crate::ordinary::Derivation::check), is the lemma
 /// `options.lemma` stating the ordinary sequent over `Prop`, every atom a
@@ -864,7 +866,7 @@ pub fn write<'a>(
 }
 
 /// Writes the certificate that a disproof's goal has no derivation, for
-/// linlog's library ([`Kernel::Linlog`], whatever the mode): the lemma
+/// deduxit's library ([`Kernel::Deduxit`], whatever the mode): the lemma
 /// `options.lemma` stating that the mode's calculus does not derive the
 /// goal, `~ ll R Γ` one-sided or, in intuitionistic mode, `~ ill R Γ C`
 /// two-sided, with `R` the mode's rules, proved by the library's theorem
@@ -881,7 +883,7 @@ pub fn write<'a>(
 /// saturated set and the count equation of a sequent with a quantifier,
 /// and the disproof is checked first. Standalone, the
 /// file starts with `options.prelude`, by default
-/// [`LINLOG_REFUTATION_PRELUDE`], or [`LINLOG_FIRST_ORDER_REFUTATION_PRELUDE`]
+/// [`DEDUXIT_REFUTATION_PRELUDE`], or [`DEDUXIT_FIRST_ORDER_REFUTATION_PRELUDE`]
 /// for a sequent with a quantifier.
 ///
 /// # Errors
@@ -915,7 +917,7 @@ pub fn write_disproof(
     if let crate::linear::search::Refutation::Exhausted = disproof.refutation() {
         return Err(Unsupported::Exhausted.into());
     }
-    linlog::disproof(disproof, options, out)
+    deduxit::disproof(disproof, options, out)
 }
 
 /// Writes the certificate that an ordinary sequent is not valid, from its
@@ -966,7 +968,7 @@ fn linear(
     let binders = derivation.forest().has_binders();
     let kernel = options.kernel.unwrap_or(match mode {
         Some(mode) if mode.is_intuitionistic() || mode.is_affine() || mode.has_mix() => {
-            Kernel::Linlog
+            Kernel::Deduxit
         }
         // Classical linear logic, or a proof that records no mode and
         // shows its own: NanoYalla, unless it needs what the kernel lacks.
@@ -976,7 +978,7 @@ fn linear(
             || binders
             || (mode.is_none() && derivation.reading().is_some()) =>
         {
-            Kernel::Linlog
+            Kernel::Deduxit
         }
         _ => Kernel::NanoYalla,
     });
@@ -984,15 +986,15 @@ fn linear(
         // NanoYalla's formulas have no quantifier.
         Kernel::NanoYalla if binders => Err(Unsupported::Quantifiers.into()),
         Kernel::NanoYalla => nanoyalla(derivation, options, out, stop),
-        Kernel::Linlog => {
+        Kernel::Deduxit => {
             // The calculus states what the mode allows and what the proof
             // uses, which a proof checked in another mode may exceed.
-            let calculus = linlog::Calculus {
+            let calculus = deduxit::Calculus {
                 mix: mix || mode.is_some_and(Mode::has_mix),
                 weakening: weakening || mode.is_some_and(Mode::is_affine),
                 cut,
             };
-            linlog::write(derivation, options, calculus, out, stop)
+            deduxit::write(derivation, options, calculus, out, stop)
         }
     }
 }

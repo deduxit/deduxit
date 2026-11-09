@@ -502,7 +502,7 @@ pub(crate) fn over_memory(size: &Size, limit: u64) -> String {
 }
 
 /// Writes the certificate of a disproof into `out` after `prefix`, for
-/// `--format rocq`: that linlog's library does not derive the sequent,
+/// `--format rocq`: that deduxit's library does not derive the sequent,
 /// or for an ordinary sequent (`image`) that it is not valid over `Prop`;
 /// or says why there is none, a refutation that rests on the search
 /// among them, which leaves the verdict as it is.

@@ -23,11 +23,11 @@
       ...
     }:
     let
-      # The certificates for linlog's Rocq library are the rocq-linlog
+      # The certificates for deduxit's Rocq library are the rocq-deduxit
       # check's.
       snapshots = lib.fileset.toSource {
         root = ../core/tests/snapshots;
-        fileset = lib.fileset.difference ../core/tests/snapshots ../core/tests/snapshots/linlog;
+        fileset = lib.fileset.difference ../core/tests/snapshots ../core/tests/snapshots/deduxit;
       };
 
       latex = pkgs.texliveBasic.withPackages (ps: [

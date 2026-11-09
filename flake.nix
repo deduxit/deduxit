@@ -45,14 +45,14 @@
       flake = false;
     };
 
-    # linlog's own Rocq library, the kernel of `--kernel linlog', in its own
+    # deduxit's own Rocq library, the kernel of `--kernel deduxit', in its own
     # repository; pinned by flake.lock to a commit of its `main'. It follows
     # this flake's nixpkgs, so that the library and the certificates are
     # compiled by one Rocq, and its NanoYalla, which its bridges import.
     # While a change of the library is under way, `--override-input
-    # rocq-linlog path:../rocq-linlog' points a build at a local checkout.
-    rocq-linlog = {
-      url = "github:deduxit/rocq-linlog";
+    # rocq-deduxit path:../rocq-linlog' points a build at a local checkout.
+    rocq-deduxit = {
+      url = "github:deduxit/rocq-deduxit";
       inputs = {
         nixpkgs.follows = "nixpkgs";
         flake-parts.follows = "flake-parts";

@@ -164,7 +164,7 @@ Built:
   interactive proving the user names a cut formula, written as the
   mode writes formulas, whose two premises open as goals; every view
   draws the cut, the two-sided ones with the cut formula as it was
-  typed, every export writes it, and a certificate in linlog's Rocq
+  typed, every export writes it, and a certificate in deduxit's Rocq
   library states the calculus with cut. The search stays cut-free.
 - Cut elimination on proof terms, in every mode that has the cut
   (classical, affine, with Mix, intuitionistic): one step at a time, on
@@ -207,8 +207,8 @@ Built:
   kernel, a lemma proved rule by rule and closed by `Qed`, for every
   classical fragment and for intuitionistic proofs as the classical
   proofs they are, with a flake check that runs Rocq on them.
-- A Rocq library of linlog's own (the package `rocq-linlog`, in its own
-  repository, [deduxit/rocq-linlog](https://github.com/deduxit/rocq-linlog),
+- A Rocq library of deduxit's own (the package `rocq-deduxit`, in its own
+  repository, [deduxit/rocq-deduxit](https://github.com/deduxit/rocq-deduxit),
   on Rocq 9 and its standard library alone): the one-sided calculus of
   classical linear logic as a plain inductive, with Mix and general
   weakening as parameters, and the two-sided calculus of intuitionistic
@@ -221,8 +221,8 @@ Built:
   development: terms with de Bruijn indices and eigenvariables, both
   calculi with the quantifier rules and the eigenvariable condition,
   the first-order proof terms, their checkers in the two passes of
-  linlog's own, and the same theorems in every mode. `--format rocq`
-  writes them as its second kernel (`--kernel linlog`, the default for
+  deduxit's own, and the same theorems in every mode. `--format rocq`
+  writes them as its second kernel (`--kernel deduxit`, the default for
   Mix, affine, intuitionistic and first-order proofs). Its flake builds
   the library and compiles the certificates under its `tests/`, and
   deduxit's flake compiles those the command writes against it, pinned

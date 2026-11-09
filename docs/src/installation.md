@@ -236,8 +236,8 @@ with `serde_json`, the caller's own dependency.
 ## The Rocq library
 
 The Rocq certificates the command writes (`--format rocq`) are checked
-by the NanoYalla kernel or by linlog's own Rocq library, `rocq-linlog`,
+by the NanoYalla kernel or by deduxit's own Rocq library, `rocq-deduxit`,
 in its repository
-[deduxit/rocq-linlog](https://github.com/deduxit/rocq-linlog);
+[deduxit/rocq-deduxit](https://github.com/deduxit/rocq-deduxit);
 [Rocq certificates](rocq.md) says how to install each and compile a
 certificate.

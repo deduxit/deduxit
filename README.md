@@ -103,10 +103,10 @@ document every option.
   [llms-full.txt](https://deduxit.github.io/deduxit/llms-full.txt);
   copy the directory into an agent's skills (`~/.claude/skills/` for
   Claude Code) to give it the guide.
-- **The Rocq library**, `rocq-linlog`, in its own repository
-  [deduxit/rocq-linlog](https://github.com/deduxit/rocq-linlog):
+- **The Rocq library**, `rocq-deduxit`, in its own repository
+  [deduxit/rocq-deduxit](https://github.com/deduxit/rocq-deduxit):
   the calculi, checkers and soundness theorems the certificates of
-  `--kernel linlog` are proved with.
+  `--kernel deduxit` are proved with.
 - **The library's API**: [docs.rs/deduxit](https://docs.rs/deduxit) for the
   releases, [deduxit.github.io/deduxit](https://deduxit.github.io/deduxit/)
   for `main`, rebuilt on every push.

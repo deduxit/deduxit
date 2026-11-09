@@ -1450,7 +1450,7 @@ impl From<FontArg> for MathFont {
 #[derive(Args, Clone, Debug, Default)]
 pub(crate) struct RocqArgs {
     /// The Rocq kernel a certificate of linear logic is written for; by
-    /// default the mode's: nanoyalla for classical linear logic, linlog
+    /// default the mode's: nanoyalla for classical linear logic, deduxit
     /// for Mix, affine and intuitionistic logic and for a sequent with a
     /// quantifier (styles.rocq.kernel)
     #[arg(long, value_enum, value_name = "KERNEL")]
@@ -1470,10 +1470,10 @@ pub(crate) enum KernelArg {
     /// NanoYalla 1.1.3, the kernel of Click & coLLecT: classical linear
     /// logic one-sided, a proof script checked rule by rule
     Nanoyalla,
-    /// linlog's own Rocq library (the package rocq-linlog, from
-    /// github.com/deduxit/rocq-linlog): every mode in its own calculus, intuitionistic
+    /// deduxit's own Rocq library (the package rocq-deduxit, from
+    /// github.com/deduxit/rocq-deduxit): every mode in its own calculus, intuitionistic
     /// logic two-sided, a proof term checked by the library's checker
-    Linlog,
+    Deduxit,
 }
 
 impl From<KernelArg> for Kernel {
@@ -1481,7 +1481,7 @@ impl From<KernelArg> for Kernel {
     fn from(kernel: KernelArg) -> Self {
         match kernel {
             KernelArg::Nanoyalla => Self::NanoYalla,
-            KernelArg::Linlog => Self::Linlog,
+            KernelArg::Deduxit => Self::Deduxit,
         }
     }
 }

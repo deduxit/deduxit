@@ -96,4 +96,4 @@ valid proof (classical)
 ## Optional
 
 - [Web page](https://deduxit.github.io/): the prover in a browser, step by step, for people
-- [Rocq library](https://github.com/deduxit/rocq-linlog): the calculi and checkers the `--kernel linlog` certificates are proved with
+- [Rocq library](https://github.com/deduxit/rocq-deduxit): the calculi and checkers the `--kernel deduxit` certificates are proved with
