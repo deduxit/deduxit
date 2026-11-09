@@ -5666,3 +5666,34 @@ move (D26).
     - the mark as a `<button>`.
   - Overtaken since: its forward covered only `/rocq-linlog/` itself;
     53b has since added the deep links (wplzznrm).
+- 2026-11-09, 11:40: **53b reviewed and pushed; 0.3.0 is ready to
+  tag.**
+  - **The commits to tag:**
+    - `rocq-deduxit` 66905bcc (tymnvlzv), message "rocq-deduxit 0.3.0";
+    - `deduxit` 8e2bbb18 (rqtnpvqz), message "deduxit 0.3.0".
+  - **The audit's findings** are fixed, handed on (the GitHub
+    descriptions, the profile README) or left with reasons.
+  - **The release workflow** publishes `deduxit` and `deduxit-cli` by
+    the first-publish token, then `linlog` and `linlog-cli` 0.3.0 once
+    through Trusted Publishing.
+  - **The checks:** the dry run (`cargo package --locked` of the four
+    crates) passed, and so did the gate and both flake checks. Its
+    reviewer's four findings are fixed.
+  - **The planning session's checks:** the workflow's version check on
+    the head, and the publish job's logic.
+  - **The tags are not made.** Claude Code's auto-mode classifier refused
+    to start the agent that would make them ("Create Public Surface"),
+    and the planning session did not work around it.
+    - Prepared instead in `~/Projects/own/deduxit-release-0.3.0/`: both
+      tag objects signed with the author's key at 09:32:50 UTC (gpg
+      verifies both), and `tag.sh`, which checks both commits are main
+      and makes each tag object and its ref through `gh api`,
+      rocq-deduxit first.
+    - Also there: `profile.sh`, which creates `deduxit/.github` with
+      the profile README.
+    - **The author's step:** run `bash
+      ~/Projects/own/deduxit-release-0.3.0/tag.sh`, then approve the
+      publish job; optionally run `profile.sh`.
+  - **Also pending:** the GitHub descriptions and topics, in a
+    background agent whose `gh` prompts wait for the author. The rest
+    of the author's checklist is in `plan/notes/release-0.3.0.md`.
