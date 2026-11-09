@@ -1,19 +1,20 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! A precedence parser that keeps its own stack and writes the terms it
-//! reads straight into the arena, so that neither the nesting of a formula
-//! nor its length costs any of the caller's stack.
+//! The text parser of sequents.
 //!
-//! The syntax it reads is documented on [`Sequent`], the
-//! type a library user meets it on.
+//! It is a precedence parser with a stack of its own. It writes each term
+//! into the arena as soon as the term is complete, so neither deep nesting
+//! nor a long formula uses the caller's stack.
 //!
-//! The arena holds the formulas in negation normal form, one-sided: the
-//! formulas left of the turnstile are negated, `A ⊸ B` is `A^⊥ ⅋ B`, and a
-//! negation is pushed to the atoms. The parser writes every term as it
-//! stands in the text and notes where a negation applies; one pass from
-//! the last term to the first then dualises what stands under an odd
-//! number of them.
+//! [`Sequent`] documents the syntax it reads.
+//!
+//! The arena holds the formulas one-sided, in negation normal form: the
+//! formulas left of the turnstile are negated, `A ⊸ B` is `A^⊥ ⅋ B`, and
+//! every negation is pushed down to the atoms. The parser writes each term
+//! as the text has it and notes where a negation applies. At the end, one
+//! pass from the last term to the first dualises every term under an odd
+//! number of negations.
 
 use crate::Error;
 use crate::errors::ParseError;
@@ -28,13 +29,14 @@ use crate::linear::sequents::name::{KEYWORDS, RESERVED, normalized, starts_ident
 use crate::linear::sequents::{Atom, Sequent, Term, TermId};
 use std::borrow::Cow;
 
-/// What a symbol used with another number of arguments than before is
-/// told.
+/// The hint for a symbol used with another number of arguments than at
+/// its first use.
 const ARITY: &str = "a symbol takes the same number of arguments everywhere: \
                      this use differs from the first";
-/// What a name used as a predicate and as a function symbol is told.
+/// The hint for a name used both as a predicate and as a function symbol.
 const ROLE: &str = "a name is a predicate or a function symbol, not both";
-/// What a keyword in term position is told.
+/// The hint for a keyword where a variable, constant or function symbol
+/// should stand.
 const KEYWORD: &str = "a keyword names no variable, constant or function symbol";
 
 /// A binary connective as it is written.
@@ -50,16 +52,17 @@ enum Binary {
     Plus,
     /// `-o` or `⊸`
     Lollipop,
-    /// `\`, the left division of an ordered parse: `A \ B` is `A⊥ ⅋ B`,
-    /// as `A ⊸ B` is.
+    /// `\`, the left division, read only by an ordered parse: `A \ B` is
+    /// `A⊥ ⅋ B`, like `A ⊸ B`.
     Under,
-    /// `/`, the right division of an ordered parse: `B / A` is `B ⅋ A⊥`.
+    /// `/`, the right division, read only by an ordered parse: `B / A` is
+    /// `B ⅋ A⊥`.
     Over,
 }
 
 impl Binary {
-    /// Returns how tightly the connective binds: of two connectives around
-    /// an operand, the one with the larger number takes it.
+    /// Returns how tightly the connective binds: of two connectives on
+    /// either side of an operand, the one with the larger number takes it.
     const fn strength(self) -> u8 {
         match self {
             Binary::Tensor => 5,
@@ -70,18 +73,17 @@ impl Binary {
         }
     }
 
-    /// Returns whether an operand between this connective on its left and
-    /// `next` on its right is this one's: it binds tighter, or the two are
-    /// the same connective and it associates to the left, as every one but
-    /// `⊸` and `\` does.
+    /// Returns whether an operand between this connective (on its left)
+    /// and `next` (on its right) belongs to this one. It does when this one
+    /// binds tighter, or when both are the same connective and it
+    /// associates to the left, as every connective but `⊸` and `\` does.
     fn takes_before(self, next: Binary) -> bool {
         self.strength() > next.strength()
             || (self == next && !matches!(self, Binary::Lollipop | Binary::Under))
     }
 }
 
-/// What has been read and waits for the operand to its right to be
-/// complete.
+/// Something read that waits for the operand on its right to be complete.
 #[derive(Clone, Copy, Debug)]
 enum Pending {
     /// `(`, which waits for its `)`.
@@ -92,8 +94,8 @@ enum Pending {
     Bang,
     /// `?`
     Quest,
-    /// `∀x.` or `∃x.`, whose variable's name is the innermost of the
-    /// parser's open scope.
+    /// `∀x.` (`true`) or `∃x.` (`false`). Its variable's name is the last
+    /// one in the parser's `scope`.
     Binder(bool),
     /// A binary connective with its left operand.
     Binary(Binary, TermId),
@@ -103,15 +105,14 @@ enum Pending {
 enum State {
     /// Something a formula starts with.
     Operand,
-    /// Something that follows the operand just read, which is the term
-    /// given.
+    /// What follows an operand, the term given.
     Operator(TermId),
     /// Nothing: the sequent is complete.
     End,
 }
 
-/// A sequent in the reading: the text and the place in it, the arena so
-/// far, and what waits for its right operand.
+/// The state of reading one sequent: the text and the place in it, the
+/// arena so far, and what waits for its right operand.
 struct Parser<'a> {
     /// The text of the sequent.
     input: &'a str,
@@ -119,15 +120,17 @@ struct Parser<'a> {
     at: usize,
     /// Whether the formulas being read stand left of the turnstile.
     left: bool,
-    /// Whether nothing of this side of the turnstile has been read yet, so
-    /// that the side may still turn out to have no formula.
+    /// Whether nothing on this side of the turnstile has been read yet, so
+    /// that the side may still be empty.
     empty: bool,
     /// The terms read so far, each as it stands in the text.
     terms: Vec<Term>,
-    /// Per term, whether the text negates it an odd number of times: by a
-    /// `~` or a `^` on it, as the antecedent of a `⊸`, or as a formula
-    /// left of the turnstile. The negations of the terms above it are not
-    /// counted.
+    /// Per term, whether the text negates it an odd number of times. A
+    /// negation is a `~` or `^` on the term, the term being the antecedent
+    /// of a `⊸` or `\` or the right operand of a `/`, or the term being a
+    /// formula left of the turnstile. The negations of the terms above it
+    /// are not counted until `dualise`, after which the flag says whether
+    /// the term was dualised.
     negated: Vec<bool>,
     /// The formulas of the sequent, in the order of the text.
     roots: Vec<TermId>,
@@ -135,32 +138,34 @@ struct Parser<'a> {
     antecedents: u32,
     /// The names of the atoms, in the order they first occur.
     atoms: Vec<String>,
-    /// The atom of every name read so far, by its NFC.
+    /// The atom of every name read so far, keyed by the name in NFC
+    /// (Unicode's composed form).
     names: HashMap<Cow<'a, str>, Atom>,
     /// The prefix operators, parentheses and binary connectives whose
     /// right operand is being read, the innermost last.
     pending: Vec<Pending>,
     /// How many parentheses are open.
     open: usize,
-    /// How many `!` and `?` wait in `pending`: each is a term to come,
-    /// counted against the bound when it is read, so that a run of them
-    /// is refused before it is reduced.
+    /// How many `!`, `?` and binders wait in `pending`. Each will become a
+    /// term, so it counts against the bound as soon as it is read, and a
+    /// long run of them is refused before it is reduced.
     owed: u64,
-    /// How many `(` and `~` wait in `pending`: they make no term, and are
-    /// refused past the bound all the same, so that a run of them cannot
-    /// pile up.
+    /// How many `(` and `~` wait in `pending`. They make no term, but more
+    /// of them than the bound are refused all the same, so that a run of
+    /// them cannot pile up.
     marks: u64,
-    /// The most terms the arena may hold: the bound, and never more than
-    /// a forest indexes.
+    /// The most terms the arena may hold: the caller's bound, capped at
+    /// what a forest can index.
     most: u64,
     /// The bound on occurrences the caller set, if any.
     limit: Option<u64>,
     /// The order of the calculus the sequent is read for, which decides
     /// what a negation does to a product and to the antecedents.
     order: Order,
-    /// Whether the reading records how every term was written.
+    /// Whether to record how every term was written.
     recording: bool,
-    /// While recording, the terms written as `⊸`, in ascending order.
+    /// While recording, the terms written as `⊸` or `\`, in ascending
+    /// order.
     implications: Vec<TermId>,
     /// The names of the binders whose body is being read, the innermost
     /// last: what an identifier in term position is resolved against.
@@ -168,8 +173,8 @@ struct Parser<'a> {
     /// The symbols, terms and argument lists read so far, interned; empty
     /// until the text is first-order.
     interner: Interner,
-    /// Whether the text is first-order so far: an atom with arguments or a
-    /// binder has been read.
+    /// Whether the text is first-order so far: whether an atom with
+    /// arguments or a binder has been read.
     first_order: bool,
     /// Per atom, its predicate symbol and arguments, once the text is
     /// first-order; empty before, so that a propositional text pays
@@ -180,14 +185,16 @@ struct Parser<'a> {
     binders: Vec<(TermId, String)>,
 }
 
-/// Reads `text` as a sequent for a calculus of `order`, refused past
-/// `limit` terms or past `terms` first-order terms in its atoms
-/// ([`Sequent::fo_size`]), and where `written` is given fills it with how every
-/// occurrence of the sequent's forest was written. The one place a parser
-/// is made and run: every reader calls it, so the parser is a local of
-/// this function and its loop, with what the loop calls, has one caller
-/// (a loop each reader inlined cost the commutative one 1.5 % to 7 % of
-/// its instructions, as a shared callee lost its inlining).
+/// Reads `text` as a sequent for a calculus of `order`. The text is
+/// refused past `limit` terms, or past `terms` first-order terms in its
+/// atoms ([`Sequent::fo_size`]). Where `written` is given, it is filled
+/// with how every occurrence of the sequent's forest was written.
+///
+/// Every reader calls this function, the only place a parser is made and
+/// run. So the parser's loop, and all the loop calls, has one caller and
+/// is inlined. A copy of the loop in each reader costs the commutative
+/// reader 1.5 % to 7 % more instructions, because a callee the copies
+/// share loses its inlining.
 fn read(
     text: &str,
     limit: Option<u64>,
@@ -204,10 +211,10 @@ fn read(
     first_order_within(sequent, terms)
 }
 
-/// Returns a first-order `sequent`, or the refusal of one whose atoms
-/// unfold to more than `terms` terms. A text writes every term it holds,
-/// so this bounds no more than its length does; it is the bound every
-/// reader applies.
+/// Returns a first-order `sequent`, or its refusal when its atoms unfold
+/// to more than `terms` terms. Text spells out every term it holds, so
+/// here the bound limits no more than the text's length does; the parser
+/// applies it because every reader does.
 #[cold]
 #[inline(never)]
 fn first_order_within(sequent: Sequent, terms: Option<u64>) -> Result<Sequent, Error> {
@@ -237,7 +244,7 @@ pub(crate) fn written(text: &str, limits: &Limits) -> Result<(Sequent, Vec<Writt
 
 impl<'a> Parser<'a> {
     /// Returns a parser at the start of `input`, for a sequent of at most
-    /// `limit` terms and as many as a forest indexes.
+    /// `limit` terms and never more than a forest can index.
     fn new(input: &'a str, limit: Option<u64>, order: Order) -> Self {
         let most = limit.unwrap_or(Forest::MOST).min(Forest::MOST);
         Self {
@@ -279,8 +286,8 @@ impl<'a> Parser<'a> {
         Error::from(ParseError::new(self.input, at, expected))
     }
 
-    /// What can start a formula here: on an empty left side the turnstile
-    /// too.
+    /// Returns what can stand here where a formula starts: a formula, and
+    /// on an empty left side the turnstile too.
     const fn operands(&self) -> &'static [&'static str] {
         if self.empty && self.left {
             &["a formula", "`|-`"]
@@ -289,8 +296,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// What can follow an operand here: a connective, and inside a
-    /// parenthesis its closing one, outside every parenthesis a comma and
+    /// Returns what can follow an operand here: a connective, and then
+    /// inside a parenthesis its `)`; outside every parenthesis a comma, and
     /// the turnstile on the left side or the end on the right side.
     const fn operators(&self) -> &'static [&'static str] {
         if self.open > 0 {
@@ -302,8 +309,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Appends a term to the arena and returns its index, or fails when
-    /// the arena is full.
+    /// Appends a term to the arena and returns its index, or the refusal
+    /// when the arena, with the terms still owed, is full.
     fn push(&mut self, term: Term) -> Result<TermId, Error> {
         let index = self.terms.len() as u64;
         if index.saturating_add(self.owed) >= self.most {
@@ -330,8 +337,8 @@ impl<'a> Parser<'a> {
         &self.input[start..self.at]
     }
 
-    /// Returns the atom called `name` in NFC, a new one if the name is:
-    /// one lookup, which inserts the name where it is new.
+    /// Returns the atom of `name`, compared in NFC, and makes a new atom
+    /// for a new name, in one map lookup.
     fn atom(&mut self, name: &'a str) -> Atom {
         use std::collections::hash_map::Entry;
         let next = Atom::new(self.atoms.len() as u32);
@@ -345,8 +352,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Gives `atom`, read as `name`, its predicate in a first-order text
-    /// where it is new: the nullary symbol of its name.
+    /// In a first-order text, gives `atom`, read as `name`, its predicate
+    /// if the atom is new: the nullary symbol of its name.
     #[cold]
     #[inline(never)]
     fn nullary(&mut self, atom: Atom, name: &'a str) -> Result<(), Error> {
@@ -361,8 +368,8 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    /// Makes the text first-order, if it was not: every atom read so far
-    /// gets its predicate, the nullary symbol of its name.
+    /// Marks the text as first-order, if it is not yet: every atom read so
+    /// far gets its predicate, the nullary symbol of its name.
     #[cold]
     #[inline(never)]
     fn enter_first_order(&mut self, span: std::ops::Range<usize>) -> Result<(), Error> {
@@ -379,9 +386,9 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    /// Returns the symbol called `name` of `arity` in the role `predicate`
-    /// says, interned, or the error at `span` for a name known with
-    /// another arity or in the other role.
+    /// Returns the interned symbol `name` of `arity`, a predicate or a
+    /// function symbol as `predicate` says. Fails with an error at `span`
+    /// when the name is known with another arity or in the other role.
     #[cold]
     #[inline(never)]
     fn symbol(
@@ -404,15 +411,15 @@ impl<'a> Parser<'a> {
             })
     }
 
-    /// Reads the variables and the dot of a binder whose keyword ends at
-    /// the current place, `x y.` of `forall x y.`, and opens a binder per
-    /// variable, the first outermost.
+    /// Reads the variables and the dot after a binder's keyword (`x y.`
+    /// of `forall x y.`), and opens one binder per variable, the first
+    /// outermost.
     #[cold]
     #[inline(never)]
     fn binder(&mut self, universal: bool) -> Result<State, Error> {
         let keyword = self.at;
-        // Before the variables open their scope, so that every atom read
-        // so far gets its predicate.
+        // The text turns first-order here: every atom read so far gets its
+        // predicate before any variable is in scope.
         self.enter_first_order(keyword..self.at)?;
         let mut names = 0;
         loop {
@@ -455,20 +462,22 @@ impl<'a> Parser<'a> {
     }
 
     /// Reads the argument list of the predicate `name`, whose `(` has been
-    /// read, up to its `)`, and returns the predicate's atom: an
-    /// identifier bound by an open binder is that variable, any other a
-    /// constant or, before a `(`, a function symbol. Nested applications
-    /// are read on an explicit stack: no term costs the caller's stack.
+    /// read, up to its `)`, and returns the predicate's atom.
+    ///
+    /// An identifier before a `(` is a function symbol. Any other
+    /// identifier is the variable of the innermost open binder of that
+    /// name, or else a constant. Nested applications go on an explicit
+    /// stack, so no term uses the caller's stack.
     #[cold]
     #[inline(never)]
     fn predicate(&mut self, name: &'a str, start: usize) -> Result<Atom, Error> {
         self.enter_first_order(start..self.at)?;
-        // The applications being read, each its symbol, where it starts
-        // and its arguments so far; the predicate's own list is the first.
+        // The applications being read: each one's symbol, where it starts
+        // and its arguments so far. The predicate's own list is the first.
         let mut open: Vec<(Cow<'a, str>, usize, Vec<FoTermId>)> =
             vec![(normalized(name), start, Vec::new())];
         loop {
-            // A term.
+            // One term.
             self.skip_blank();
             let at = self.at;
             match self.peek() {
@@ -535,10 +544,10 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Gives `operand` to the pending operators that take it before the
-    /// connective `next` does, or to all of them up to the innermost open
-    /// parenthesis for `None`, the innermost first, and returns the term
-    /// they make of it.
+    /// Applies to `operand` the pending operators that take it before the
+    /// connective `next` does, the innermost first, and returns the term
+    /// they make. For `None` it applies every one of them up to the
+    /// innermost open parenthesis.
     fn reduce(&mut self, mut operand: TermId, next: Option<Binary>) -> Result<TermId, Error> {
         while let Some(&top) = self.pending.last() {
             let term = match top {
@@ -549,7 +558,7 @@ impl<'a> Parser<'a> {
                     self.marks -= 1;
                     continue;
                 }
-                // Each pays the term it owed.
+                // Each becomes the term `owed` counted it as.
                 Pending::Bang => {
                     self.owed -= 1;
                     Term::Bang(operand)
@@ -596,8 +605,8 @@ impl<'a> Parser<'a> {
         Ok(operand)
     }
 
-    /// Closes the innermost binder over `operand`, its variable's name
-    /// recorded for the term about to be pushed, and returns that term.
+    /// Closes the innermost binder over `operand` and returns its term,
+    /// recording the variable's name for the term about to be pushed.
     #[cold]
     #[inline(never)]
     fn close_binder(&mut self, universal: bool, operand: TermId) -> Term {
@@ -612,8 +621,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Completes a formula of the sequent, outside every parenthesis, with
-    /// its last operand.
+    /// Completes a formula of the sequent with its last operand, outside
+    /// every parenthesis, and negates it on the left side.
     fn root(&mut self, operand: TermId) -> Result<(), Error> {
         let root = self.reduce(operand, None)?;
         if self.left {
@@ -633,9 +642,11 @@ impl<'a> Parser<'a> {
         State::Operand
     }
 
-    /// Returns the refusal of a text with more terms than the bound.
-    /// Every term of the text is an occurrence of its own, so the text is
-    /// refused at the first term past it.
+    /// Returns the refusal of a text with more terms than the bound:
+    /// [`Refusal::Occurrences`] for the caller's bound, [`Refusal::Index`]
+    /// where the bound is what a forest can index. Every term of a text is
+    /// an occurrence of its own, so the text is refused at the first term
+    /// past the bound.
     fn past_bound(&self) -> Error {
         Error::Refused(match self.limit {
             Some(limit) if limit < Forest::MOST => Refusal::Occurrences {
@@ -651,9 +662,9 @@ impl<'a> Parser<'a> {
     }
 
     /// Notes an operator that stands before its operand, or an open
-    /// parenthesis. Two `~` in a row cancel, so a run of them waits as
-    /// one at most; a `!` or `?` is counted as the term it will be, and a
-    /// `(` or `~` as a mark, of which no more than the bound may wait.
+    /// parenthesis. Two `~` in a row cancel, so a run of them waits as one
+    /// at most. A `!`, `?` or binder counts as the term it will become, and
+    /// a `(` or `~` as a mark; more of either than the bound is refused.
     fn prefix(&mut self, operator: Pending) -> Result<State, Error> {
         self.empty = false;
         match operator {
@@ -681,8 +692,9 @@ impl<'a> Parser<'a> {
     }
 
     /// Reads what a formula starts with: a prefix operator, an open
-    /// parenthesis, a constant or a variable. An empty left side may have
-    /// the turnstile there and an empty right side the end of the input.
+    /// parenthesis, a constant, an atom or a binder. On an empty left side
+    /// the turnstile may stand there, and on an empty right side the end
+    /// of the input.
     fn operand(&mut self) -> Result<State, Error> {
         let start = self.at;
         let Some(c) = self.peek() else {
@@ -720,7 +732,7 @@ impl<'a> Parser<'a> {
             _ if starts_identifier(c) => match self.identifier(start) {
                 "bot" => Term::Bot,
                 "top" => Term::Top,
-                // The connective, where only a formula can stand.
+                // `par` is a connective, and only a formula can stand here.
                 "par" => {
                     let error = ParseError::spanning(self.input, start..self.at, self.operands());
                     return Err(error.into());
@@ -779,7 +791,7 @@ impl<'a> Parser<'a> {
                 self.at += 1;
                 Binary::Lollipop
             }
-            // The divisions of the Lambek calculus, in an ordered parse.
+            // The divisions of the Lambek calculus, only in an ordered parse.
             '\\' if self.order != Order::Commutative => Binary::Under,
             '/' if self.order != Order::Commutative => Binary::Over,
             '|' if self.left && outermost && self.peek() == Some('-') => {
@@ -787,8 +799,8 @@ impl<'a> Parser<'a> {
                 self.root(operand)?;
                 return Ok(self.turnstile());
             }
-            // Where no turnstile can stand, `|-` is a `|` before a `-`,
-            // which starts no formula and is reported as that.
+            // Where no turnstile can stand, `|-` is a par `|` before a `-`.
+            // The `-` starts no formula, so the error is reported there.
             '|' => Binary::Par,
             '⊢' if self.left && outermost => {
                 self.root(operand)?;
@@ -814,8 +826,8 @@ impl<'a> Parser<'a> {
         Ok(State::Operand)
     }
 
-    /// Reads the whole input as a sequent, and where `written` is given
-    /// records into it how every occurrence was written.
+    /// Reads the whole input as a sequent. Where `written` is given, it
+    /// records there how every occurrence was written.
     fn sequent(mut self, written: Option<&mut Vec<Written>>) -> Result<Sequent, Error> {
         let mut state = State::Operand;
         loop {
@@ -833,7 +845,7 @@ impl<'a> Parser<'a> {
     /// reversing the operands of a product when `ORDERED`.
     fn dualise<const ORDERED: bool>(&mut self) {
         // A term comes after its subterms, so one pass from the last term
-        // sees every negation of a term before it reaches the term.
+        // passes every negation down to a term before it reaches it.
         for n in (0..self.terms.len()).rev() {
             if self.negated[n] {
                 let mut term = self.terms[n].dual();
@@ -853,11 +865,11 @@ impl<'a> Parser<'a> {
     }
 
     /// Returns how every occurrence of the sequent's forest was written,
-    /// by occurrence id, once the negations are applied: a term the
-    /// negations dualised stands on the input side, which is what
-    /// `negated` then holds of it. Before `optimize` every term has one
-    /// parent, so the terms in preorder from the roots in order are the
-    /// forest's occurrences in its numbering.
+    /// by occurrence id. It runs after `dualise`: a term the negations
+    /// dualised stands on the input side, and `negated` then says which
+    /// terms those are. Before `optimize` every term has one parent, so
+    /// the terms in preorder from the roots, in order, are the forest's
+    /// occurrences in its numbering.
     fn written(&self) -> Vec<Written> {
         let mut implication = vec![false; self.terms.len()];
         for &term in &self.implications {
@@ -882,11 +894,13 @@ impl<'a> Parser<'a> {
         writing
     }
 
-    /// Applies the negations noted and returns the sequent, optimized,
-    /// and where `written` is given records into it how every occurrence
-    /// was written. In the cyclic order the dual of a product reverses it,
-    /// `(A ⊗ B)⊥ = B⊥ ⅋ A⊥`, and the antecedents `A₁, …, Aₙ ⊢` become
-    /// `Aₙ⊥, …, A₁⊥`, the dual of their product.
+    /// Applies the negations noted and returns the sequent, optimized.
+    /// Where `written` is given, it records there how every occurrence was
+    /// written.
+    ///
+    /// In the cyclic order the dual of a product reverses it, `(A ⊗ B)⊥ =
+    /// B⊥ ⅋ A⊥`, and the antecedents `A₁, …, Aₙ ⊢` become `Aₙ⊥, …, A₁⊥`,
+    /// the dual of their product.
     fn finish(mut self, written: Option<&mut Vec<Written>>) -> Result<Sequent, Error> {
         if self.order == Order::Commutative {
             self.dualise::<false>();
@@ -915,18 +929,37 @@ impl<'a> Parser<'a> {
 }
 
 impl Sequent {
-    /// Parses a two-sided sequent such as `A, B |- A * B` into a one-sided
-    /// one, optimized, refusing it at the first term past
-    /// `limits.occurrences`, before anything of that size is built. The
-    /// nesting of its formulas may be of any depth.
+    /// Parses a sequent such as `A, B |- A * B` into its one-sided form,
+    /// within `limits`.
+    ///
+    /// The text is refused at the first term past `limits.occurrences`,
+    /// before anything of that size is built. Formulas may nest to any
+    /// depth.
     ///
     /// Needs the cargo feature `parse` (on by default).
     ///
     /// # Errors
     ///
-    /// [`Error::Parse`] for text that is no sequent, [`Refusal::Occurrences`]
-    /// past the bound, and [`Refusal::Index`] for more terms than a forest
-    /// indexes, whatever the bound.
+    /// - [`Error::Parse`] for text that is no sequent;
+    /// - [`Refusal::Occurrences`] past `limits.occurrences`;
+    /// - [`Refusal::Index`] for more terms than a forest can index,
+    ///   whatever the bound;
+    /// - [`Refusal::Terms`] when the atoms' arguments unfold to more than
+    ///   `limits.terms` terms.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use deduxit::{Limits, linear::Sequent};
+    ///
+    /// let sequent = Sequent::parse_within("A, A -o B |- B", &Limits::default())?;
+    /// assert_eq!(sequent.to_string(), "⊢ ~A, A ⊗ ~B, B");
+    ///
+    /// // The text has five terms, more than this bound allows.
+    /// let small = Limits::default().with_occurrences(Some(3));
+    /// assert!(Sequent::parse_within("A, A -o B |- B", &small).is_err());
+    /// # Ok::<(), deduxit::Error>(())
+    /// ```
     pub fn parse_within(text: &str, limits: &Limits) -> Result<Self, Error> {
         read(
             text,
@@ -938,16 +971,20 @@ impl Sequent {
     }
 
     /// Parses a sequent as [`parse_within`](Self::parse_within) does, for
-    /// a calculus that keeps `order`: in [`Order::Cyclic`] the dual of a
-    /// product reverses it, `~(A * B)` reading as `~B par ~A`, and the
-    /// formulas left of the turnstile come in the reverse order, each
-    /// negated, so that `A, B |- C` is `|- ~B, ~A, C`, the cyclic sequent
-    /// whose proofs are those of the two-sided one. The formulas then
-    /// stand in the order the cyclic calculus reads, which is the
-    /// occurrence forest's. An ordered parse also reads the two divisions
-    /// of the Lambek calculus, `A \ B` as `A -o B` (associating to the
-    /// right) and `B / A` as `B par ~A` (to the left), both binding as
-    /// loosely as `-o`. In [`Order::Commutative`] it is
+    /// a calculus that keeps the order `order`.
+    ///
+    /// In [`Order::Cyclic`]:
+    /// - the dual of a product reverses it: `~(A * B)` reads as
+    ///   `~B par ~A`;
+    /// - the formulas left of the turnstile come in reverse order, each
+    ///   negated: `A, B |- C` is `|- ~B, ~A, C`, the cyclic sequent with
+    ///   the same proofs as the two-sided one;
+    /// - the two divisions of the Lambek calculus are read: `A \ B` as
+    ///   `A -o B` (associating to the right) and `B / A` as `B par ~A`
+    ///   (to the left), both binding as loosely as `-o`.
+    ///
+    /// The formulas then stand in the order the cyclic calculus reads,
+    /// which is the occurrence forest's. In [`Order::Commutative`] this is
     /// [`parse_within`](Self::parse_within).
     ///
     /// Needs the cargo feature `parse` (on by default).
@@ -972,28 +1009,31 @@ impl Sequent {
     }
 }
 
-/// What intuitionistic linear logic writes instead of a symbol of the
-/// classical syntax.
+/// The hint for a negation in intuitionistic text: what to write instead.
 const NEGATION: &str = "intuitionistic linear logic has no negation: write a negated formula \
                         on the other side of |- (A |- B, not |- ~A, B), and ~A par B as A -o B";
-/// See [`NEGATION`].
+/// The hint for a par in intuitionistic text.
 const PAR: &str = "intuitionistic linear logic has no par: write ~A par B as A -o B";
-/// See [`NEGATION`].
+/// The hint for a `?` in intuitionistic text.
 const QUEST: &str = "intuitionistic linear logic has no ?: write ?~A right of |- as !A left of it";
-/// See [`NEGATION`].
+/// The hint for a bottom in intuitionistic text.
 const BOT: &str = "intuitionistic linear logic has no bot: write bot right of |- as 1 left of it";
 
-/// Returns the error for the first symbol of `text` that classical linear
-/// logic has and intuitionistic linear logic does not (`~`, `^`, `⅋`,
-/// `par`, `|` as a connective, `?`, `⊥`, `bot`), with its hint, if one
-/// starts before byte `before`, else `None`. The symbols are whole tokens
-/// wherever they stand, so a scan finds them without the parser's state,
-/// cutting the text into tokens where the parser does: `|-` is the
-/// turnstile and `-o` the implication, each one token, and an identifier
-/// is read whole from where one starts, so that `bottom` and the `obot`
-/// of `-obot`'s neighbour `|-obot` are atoms and the `bot` of `-obot` is
-/// the constant. The text is scanned whole, so that a token is read as
-/// the parser reads it whatever follows the place.
+/// Returns the error, with its hint, for the first symbol of `text` that
+/// classical linear logic has and intuitionistic linear logic lacks (`~`,
+/// `^`, `⅋`, `par`, `|` as a connective, `?`, `⊥`, `bot`), if one starts
+/// before byte `before`; else `None`.
+///
+/// None of these symbols is intuitionistic syntax wherever it stands, so a
+/// scan finds them without the parser's state. The scan must cut the text
+/// into tokens where the parser does:
+/// - `|-` (the turnstile) and `-o` (the implication) are one token each;
+/// - an identifier is read whole from where one starts.
+///
+/// So `bottom` is an atom, `A -obot` is `-o` and then the constant `bot`,
+/// and `A |-obot` is the turnstile and then the atom `obot`. The scan runs
+/// over the whole text, not a prefix cut at `before`, so that a token
+/// across `before`, such as `|-`, is read as the parser reads it.
 pub(crate) fn classical(text: &str, before: usize) -> Option<ParseError> {
     let mut chars = text.char_indices().peekable();
     while let Some((at, c)) = chars.next() {
@@ -1011,7 +1051,7 @@ pub(crate) fn classical(text: &str, before: usize) -> Option<ParseError> {
         let hint = match c {
             '~' | '^' => NEGATION,
             '⅋' => PAR,
-            // The turnstile and the implication, read as single tokens.
+            // The turnstile and the implication, each one token.
             '|' if next_is('-') => continue,
             '-' if next_is('o') => continue,
             '|' => PAR,
