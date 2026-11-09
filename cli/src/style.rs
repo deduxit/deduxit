@@ -61,7 +61,7 @@ pub(crate) fn read(
         // A value that is no JSON is a string, so that `bar=|` and
         // `family=monospace` need no quotes.
         let parsed = serde_json::from_str(text).unwrap_or_else(|_| Value::String(text.to_owned()));
-        set(&mut value, &path, parsed).with_context(|| format!("--style {setting}"))?;
+        set(&mut value, &path, parsed);
     }
     let mut styles: Styles =
         serde_json::from_value(value).context("the style is not one linlog knows")?;
@@ -93,17 +93,19 @@ pub(crate) fn read(
 }
 
 /// Sets the field at `path` of a JSON object to `new`, making the objects
-/// on the way.
-fn set(value: &mut Value, path: &[&str], new: Value) -> Result<()> {
+/// on the way: a value that is no object where the path goes on, such as
+/// `labels`' `"upright"` under `labels.table.ax`, is replaced by one.
+fn set(value: &mut Value, path: &[&str], new: Value) {
     let mut at = value;
-    for (i, key) in path.iter().enumerate() {
-        let Value::Object(object) = at else {
-            bail!("{} is not an object", path[..i].join("."));
-        };
-        at = object
-            .entry(key.to_string())
+    for key in path {
+        if !at.is_object() {
+            *at = Value::Object(serde_json::Map::new());
+        }
+        at = at
+            .as_object_mut()
+            .expect("made an object above")
+            .entry((*key).to_owned())
             .or_insert_with(|| Value::Object(serde_json::Map::new()));
     }
     *at = new;
-    Ok(())
 }

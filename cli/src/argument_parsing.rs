@@ -1393,8 +1393,12 @@ pub(crate) struct StyleArgs {
     /// embed_text, compatible, accessible, title, language, date; rocq:
     /// form, lemma, prelude, kernel (where the command writes Rocq). `null` lifts a
     /// bound (`pixels=null`). Labels
-    /// are upright, subscript, off or {"table":{RULE:LABEL}}; an open goal
-    /// is dots, bare, dashed or {"mark":TEXT}
+    /// are upright, subscript, off or {"table":{RULE:LABEL}}, which
+    /// `labels.table.RULE=LABEL` sets one rule of, the others upright; RULE
+    /// is ax, ⊗, ⅋, 1, ⊥, &, ⊕₁, ⊕₂, ⊤, !, ?d, ?c, ?w, mix, wk, cut, ∀, ∃,
+    /// ⊸L, ⊸R, ⊗L, ⊗R, &L₁, &L₂, &R, ⊕L, ⊕R₁, ⊕R₂, 1L, 1R, 0L, ⊤R, !L, !R,
+    /// !c, !w, ∀R, ∃L, ∃R, ∀L, \L, \R, /L or /R. An open goal is dots, bare,
+    /// dashed or {"mark":TEXT}
     #[arg(long = "style", value_name = "KEY=VALUE")]
     pub(crate) style: Vec<String>,
     /// Read the options of the output formats from a JSON file: an object

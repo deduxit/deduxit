@@ -201,7 +201,10 @@ option of the format's options (`labels` upright, subscript or off, the
 shape of an open goal, LaTeX's turnstile alignment, ebproof options and
 preamble, Typst's import and page, the SVG's font, sizes and colours, a
 PNG's scale, the text tree's bar and gap; `--help` lists them), with a
-prefix such as `svg.` for another format; `--style-file` reads them all
+prefix such as `svg.` for another format; a dotted key reaches into an
+option, so `labels.table.RULE=LABEL` relabels one rule (by its name in
+a derivation, `--help` lists them) and leaves the others upright;
+`--style-file` reads them all
 as JSON, one object per format, which is the form a front end keeps;
 `--lemma` and `--prelude` name the Rocq lemma and its file's first lines;
 `--no-verdict` writes the derivation alone.
@@ -222,6 +225,10 @@ provable (MLL, classical, focus engine)
     ⊢ ~A, ~B, A ⊗ B
     ================ ⅋
     ⊢ ~A ⅋ ~B, A ⊗ B
+$ linlog prove --style labels.table.ax=id "A |- A"
+provable (MLL, classical, focus engine)
+─────── id
+⊢ ~A, A
 $ echo '{"svg": {"background": "white"}, "png": {"scale": 3}}' > style.json
 $ linlog prove --net --style-file style.json --output net.png "A * B |- B * A"
 provable (MLL, classical, focus engine)

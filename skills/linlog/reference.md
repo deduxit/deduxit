@@ -893,8 +893,10 @@ unprovable (MELL, classical, focus engine): the search was exhaustive
 
 `--style KEY=VALUE` (repeatable) sets one option of an output format,
 prefixed `text.`, `latex.`, `typst.`, `svg.`, `png.`, `pdf.` or `rocq.`
-for another format than `--format`'s; `--style-file FILE` reads them all
-as JSON, an object per format. `prove --help` lists every field.
+for another format than `--format`'s, a dotted key reaching into an
+option (`labels.table.⊸L=⊸_L` relabels one rule, the others upright);
+`--style-file FILE` reads them all as JSON, an object per format.
+`prove --help` lists every field and the rules' names.
 
 ```console
 $ linlog prove --style gap=6 --style bar="=" "A * B |- A * B"
