@@ -135,8 +135,28 @@ written by the planning session when it starts):
      2026-11-09, in classical Latin with the IPA:
 
      > **dēdūxit** [deːˈduːk.sɪt] *Latin, verb*: "it has derived", the perfect of *dēdūcō*, to lead down, derive.
-6. **53b, the release prepared.** The author publishes the new crates
-   once with a token, then sets up their Trusted Publishing.
+6. **53b, the release prepared.** The first publication of the new crates
+   is prepared (the author, 2026-11-09):
+   - **The token:** the author created a crates.io token named
+     `deduxit first release`:
+     - scopes `publish-new` and `publish-update`;
+     - crates `deduxit` and `deduxit-cli` only;
+     - it expires after 30 days.
+   - **Where it lives:** the environment secret
+     `CRATES_IO_FIRST_PUBLISH_TOKEN` of `deduxit/deduxit`'s environment
+     `crates-io`, checked by the planning session.
+   - **What 53b changes:** the release workflow publishes `deduxit` and
+     `deduxit-cli` with it while they are not on crates.io yet. The old
+     crates `linlog` and `linlog-cli` (their final "renamed" 0.3.0) keep
+     Trusted Publishing through `rust-lang/crates-io-auth-action`.
+   - **The order:** the library before the command, and each crate is
+     skipped if its version is already published, as now.
+   - **After the release, the author's checklist:**
+     - add Trusted Publishing for `deduxit` and `deduxit-cli` (owner
+       `deduxit`, repository `deduxit`, workflow `release.yml`,
+       environment `crates-io`);
+     - delete the secret;
+     - revoke the token.
 
 ## Goal
 
