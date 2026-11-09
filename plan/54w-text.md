@@ -60,7 +60,24 @@ once before its final message.
      rules file names: worked examples first, one new idea at a time,
      feedback that says what to do next;
    - About and the README;
-   - the client's own comments.
+   - the client's own comments;
+   - **a hint for every rule label** (the author, 2026-11-09: "can you
+     give hover-hints for each of the applicable rules? It's a bit hard
+     to know which exact rule is meant for each abbreviation"). The hint
+     covers:
+     - where a label shows: the rule popover's list of applicable rules,
+       each inference's label in the derivation tree, and Learn's steps;
+     - what it shows: the rule's full name ("⊗R: tensor, right"), its
+       form (the premises over the conclusion), and one plain sentence
+       on what it does;
+     - every suite: the linear rules and LK's and LJ's.
+
+     It follows the page's keyword-and-sentence pattern
+     (`src/lib/words.ts`): it opens on hover, keyboard focus and tap,
+     and is announced to screen readers, not a `title` alone. It is a
+     feature the author asked for, so it is in scope although it
+     changes the page. It needs no change to the library, and comes
+     with e2e tests.
 
    Then it runs the e2e tests and `nix flake check`. Behaviour does not
    change: an e2e test that asserts an old text changes with it.

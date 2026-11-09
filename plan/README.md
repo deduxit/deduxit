@@ -5811,3 +5811,7 @@ move (D26).
   The rework of the existing text is step 54w (`plan/54w-text.md`): a
   usability review first, the client and the Rocq library beside 54,
   the rest after 54b.
+- 2026-11-09, 13:25: **the author asked for hover hints on the page's
+  rule labels** (full name, the rule's form, one plain sentence). They go
+  to 54w-a, the web client's text session, in the page's own
+  keyword-and-sentence pattern, with no change to the library.
