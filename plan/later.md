@@ -2565,3 +2565,13 @@ the author wants to send one: the module could write the settings into
 the tree's root or leave `--config-path` out when the tree has a
 `biome.json`.
 
+
+## Follow-ups: the opam submission
+
+- **Submit `rocq-deduxit` to opam once it has more features** (the
+  author, 2026-11-09). 0.3.0's file is prepared in
+  `~/Projects/own/rocq-opam` (change mmsqlyzk: checksum filled in,
+  linted, never sent).
+  - At the release chosen: redo the file for that version, run
+    `scripts/opam-install.sh` for each admitted Rocq, then the author's
+    pull request (`plan/handoff.md`, "The opam pull request").

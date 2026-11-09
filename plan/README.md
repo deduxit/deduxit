@@ -5775,3 +5775,11 @@ move (D26).
   - **Left:** the opam pull request. The planning session runs the
     installs per Rocq version after the setup review, then hands the
     author the prepared commands.
+- 2026-11-09, 12:40: **the opam submission waits** (the author: "Let's
+  wait with OPAM until we have more features").
+  - `rocq-deduxit.0.3.0` stays prepared and unsent in
+    `~/Projects/own/rocq-opam` (mmsqlyzk, filled in and linted).
+  - The installs per Rocq version are not run now.
+  - When the author decides to submit, the submission is redone for the
+    release current then: its checksum and date, the installs, the pull
+    request.
