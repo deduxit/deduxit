@@ -75,6 +75,7 @@ amended (see "Review protocol"). `notes/` holds research the prompts rely on.
 | 53 | The release of 0.3.0, the first from `deduxit`: 53m a mark for the collection, drawn for `sequentium` (the design on Fable 5.1, the author choosing, then its placement; added 2026-11-08), 53a the small defects of `later.md` a first user meets, 53b the release prepared, the tag, crates.io, the GitHub release and Zenodo the author's, the chain after the move proved (two sessions) | `53-release-0.3.0.md` (complete; what 47 to 52 leave added at their reviews) | Opus 5.5; Fable 5.1 with an Opus 5.5 partner for 53m's design | high | 47, 48, 49, 50, 51, 52 |
 | | **Release 0.4.0: intuitionistic logic decided, with Kripke countermodels, tableaux and truth tables** (D27) | | | | |
 | 54 | A native engine on Dyckhoff's LJT for intuitionistic and minimal logic, always terminating, its proofs checked as LJ, the default where it wins (two sessions) | `54-ljt-engine.md` (finished at the review of 53) | Opus 5.5; the panel's argument on Fable 5.1 | high, with the panel | 53 |
+| 54w | Every text a person reads rewritten to the author's standing rules (`.claude/rules/writing.md`): a usability review first (its API changes asked of the author), then the web client and the Rocq library beside 54, then README, the manual, the help and the doc comments after 54b | `54w-text.md` | Opus 5.5 | high, with a fresh reviewer per session | 53 |
 | 55 | Kripke countermodels as a shared, checked output kind, extracted from 54's search, drawn, on the page, and certified by a lemma of the Rocq library (three sessions) | `55-kripke-countermodels.md` (finished at the review of 54) | Opus 5.5 (Fable 5.1 at `xhigh` only if Opus visibly falls short on the proof); the panel's argument on Fable 5.1 | high, with the panel | 54 |
 | 56 | Classical tableaux as a view of the LK read-back with countermodels from open branches, and truth tables, in the command and as methods on the page (two to three sessions) | `56-tableaux-truth-tables.md` (finished at the review of 55) | Opus 5.5; a fresh-context reviewer on Opus 5.5 | high | 49, 55 |
 | 57 | A checked basis for the Horn engine's non-coverability in affine mode (one to two sessions) | `57-basis-certificate.md` (finished at the review of 53) | Opus 5.5; the panel's argument on Fable 5.1 | high, with the panel | 53 |
@@ -5794,3 +5795,19 @@ move (D26).
     the name linlog is phased out except in that note, the compat
     crates, the changelog's past and the reports. This is written into
     `plan/59-release-0.4.0.md`.
+- 2026-11-09, 13:15: **the author's standing instruction for every text
+  a person reads** (comments, docs, README, the page's teaching), saved
+  as `.claude/rules/writing.md` (loaded in every session) with a pointer
+  in CLAUDE.md:
+  - concise, plain language;
+  - self-contained (no reference to how the project is made, except the
+    AI disclaimer, `plan/` and the status chapter);
+  - written for someone using the library, the command or the page,
+    the education plugin's skills as references, and an API change that
+    would serve users asked of the author with a recommendation;
+  - free of the patterns from Wikipedia's "Signs of AI writing" that
+    make text harder to follow.
+
+  The rework of the existing text is step 54w (`plan/54w-text.md`): a
+  usability review first, the client and the Rocq library beside 54,
+  the rest after 54b.
