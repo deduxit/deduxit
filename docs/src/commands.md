@@ -687,6 +687,15 @@ $ linlog prove --format json "A |- A" | linlog check --format json
 {"version":1,"verdict":"valid","mode":"classical"}
 ```
 
+`check` reads the proof from standard input, from its argument, or from
+`--file`, as the other commands read their input:
+
+```console
+$ linlog prove --format json "A |- A" > identity.json
+$ linlog check -q --file identity.json
+valid proof of ⊢ ~A, A (classical)
+```
+
 `check`'s time limit is that of `prove`: two seconds unless `--timeout`
 says otherwise (`--timeout none` lifts it), counted from the start of the
 command. It exits with 0 for a valid proof, 1 for an invalid one and 3

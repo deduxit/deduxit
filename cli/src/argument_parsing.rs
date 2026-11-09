@@ -668,6 +668,10 @@ pub(crate) struct CheckArgs {
     /// The proof file, or standard input when absent or `-`
     #[arg(value_name = "PROOF")]
     pub(crate) proof: Option<PathBuf>,
+    /// Read the proof from this file, or `-` for standard input, as the
+    /// argument PROOF does
+    #[arg(short, long, value_name = "PATH", conflicts_with = "proof")]
+    pub(crate) file: Option<PathBuf>,
     /// The logic the proof must hold in.
     #[command(flatten)]
     pub(crate) mode: ModeArgs,
@@ -683,6 +687,14 @@ pub(crate) struct CheckArgs {
     /// `ordinary` applies under --logic, which names the logic
     #[arg(long, value_name = "PATH")]
     pub(crate) settings: Option<PathBuf>,
+}
+
+impl CheckArgs {
+    /// Returns the proof file, from `--file` or the argument, or `None`
+    /// for standard input.
+    pub(crate) fn source(&self) -> Option<PathBuf> {
+        self.file.clone().or_else(|| self.proof.clone())
+    }
 }
 
 /// The arguments of `eliminate`.

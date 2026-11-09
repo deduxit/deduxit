@@ -492,7 +492,7 @@ that lifts the bound that refused the call, where one did.
 
 ## 9. Checking a proof: `check`
 
-`linlog check FILE` (or standard input) reads a proof as `prove --format
+`linlog check FILE` (or `--file FILE`, or standard input) reads a proof as `prove --format
 json` writes it and checks it independently of the search, in the mode
 the file's `"mode"` states (the flags' mode for a file that states none);
 a mode flag that names another mode is an error naming both, exit 2.

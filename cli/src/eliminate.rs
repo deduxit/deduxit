@@ -43,7 +43,7 @@ pub(crate) fn eliminate(args: &EliminateArgs, given: &Given) -> Result<Status> {
     let show = Show::new(&check.output, &settings)?;
     let path = check.output.output.clone();
     exit_on_interrupt();
-    let (source, limits) = (check.proof.clone(), settings.limits);
+    let (source, limits) = (check.source(), settings.limits);
     let loaded = deadline.within(move || {
         let text = io::read(source.as_deref(), "proof", limits.memory_bytes)?;
         read_proof(&text, &limits)

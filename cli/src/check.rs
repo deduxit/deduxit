@@ -38,7 +38,7 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
     exit_on_interrupt();
     // The file is read and parsed within the time limit, as `prove` reads
     // its sequent: a large proof file takes seconds to parse.
-    let (source, limits) = (args.proof.clone(), settings.limits);
+    let (source, limits) = (args.source(), settings.limits);
     let loaded = deadline.within(move || {
         let text = io::read(source.as_deref(), "proof", limits.memory_bytes)?;
         read_document(&text, &limits)
