@@ -1,13 +1,14 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! A sequent of classical linear logic as its author wrote it: the
-//! one-sided forest every engine, checker and view works on, and beside
-//! it, per occurrence, what the lowering to it merged. Classical syntax
-//! has negation and both sides of `⊢`, so `Γ, A ⊢ Δ` and `Γ ⊢ A⊥, Δ`,
-//! `~(A ⊗ B)` and `A⊥ ⅋ B⊥`, `A ⊸ B` and `A⊥ ⅋ B` lower alike; the
-//! record keeps which was written, recorded where the text is read and
-//! never inferred from the one-sided form.
+//! Sequents of classical linear logic as their author wrote them.
+//!
+//! The engines, the checker and the views work on a one-sided form, to
+//! which different texts lower alike: `Γ, A ⊢ Δ` and `Γ ⊢ A⊥, Δ`,
+//! `~(A ⊗ B)` and `A⊥ ⅋ B⊥`, `A ⊸ B` and `A⊥ ⅋ B`. A [`ClassicalSequent`]
+//! keeps, beside the one-sided forest, a record per occurrence of which
+//! was written. The record is made where the text is read, never guessed
+//! from the one-sided form.
 
 use super::reading::Side;
 use super::{Forest, Member, OccId};
@@ -19,16 +20,17 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 /// How one occurrence of a classical sequent was written: the side of `⊢`
 /// its connective stands on, and whether it is an implication.
 ///
-/// The side is the one-sided occurrence's position once every negation
-/// above it is passed: `Output` where the one-sided connective is the
-/// written one, `Input` where the written one is its dual (`A ⊗ B` left
-/// of `⊢` is the one-sided `A⊥ ⅋ B⊥` on the input side). A negation was
+/// The side is where the occurrence stands once every negation above it
+/// is applied. On the `Output` side the one-sided connective is the one
+/// written. On the `Input` side the written one is its dual: `A ⊗ B` left
+/// of `⊢` is the one-sided `A⊥ ⅋ B⊥` on the input side. A negation was
 /// written before the occurrence exactly where its side differs from the
-/// side its parent puts it on (its context), up to double negations; an
-/// atom is `Output`, a negated atom `Input`. An implication is a `⅋` on
-/// the output side or a `⊗` on the input side written as `A ⊸ B`, whose
-/// left factor is then the antecedent, on the other side than the
-/// implication's.
+/// side its parent puts it on (its context), up to double negations. An
+/// atom is `Output`, a negated atom `Input`.
+///
+/// An implication is a `⅋` on the output side, or a `⊗` on the input
+/// side, that was written as `A ⊸ B`. Its left factor is the antecedent,
+/// on the other side from the implication.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Written(u8);
 
@@ -64,11 +66,14 @@ impl Written {
     }
 }
 
-/// Returns the side of `⊢` an occurrence stands on as its parent writes
-/// it: a root's side of the turnstile (a cut formula `A` right of it, as
-/// the premise that proves it writes it, and its dual left of it), the
-/// implication's other side for its antecedent, and its parent's side for
-/// every other subformula.
+/// Returns the side of `⊢` an occurrence's context puts it on, before any
+/// negation of its own:
+/// - for a root, its side of the turnstile: a cut formula `A` on the
+///   right, as the premise that proves it writes it, and its dual on the
+///   left;
+/// - for the antecedent of an implication, the other side from the
+///   implication's;
+/// - for any other subformula, its parent's side.
 pub(crate) fn context(forest: &Forest, writing: &[Written], o: OccId) -> Side {
     match forest.parent(o) {
         Some(parent) => {
@@ -89,7 +94,7 @@ pub(crate) fn context(forest: &Forest, writing: &[Written], o: OccId) -> Side {
         None => {
             let roots = forest.roots();
             let antecedents = forest.sequent().antecedents().unwrap_or(0) as usize;
-            // The roots are in ascending order, so a search finds one.
+            // The roots ascend, so a binary search finds the root's index.
             match roots.binary_search(&o) {
                 Ok(index) if index < antecedents => Side::Input,
                 _ => Side::Output,
@@ -98,16 +103,16 @@ pub(crate) fn context(forest: &Forest, writing: &[Written], o: OccId) -> Side {
     }
 }
 
-/// Returns whether a negation stands before the occurrence as written:
-/// its side differs from its context's.
+/// Returns whether a negation stands before the occurrence as written,
+/// that is whether its side differs from its context's.
 pub(crate) fn negated(forest: &Forest, writing: &[Written], o: OccId) -> bool {
     writing[o.index()].side() != context(forest, writing, o)
 }
 
-/// Returns why a record cannot be one of the forest's, or `None` where it
-/// can: one entry per occurrence, every atom on the output side and every
-/// negated atom on the input side, and an implication only of a `⅋` on the
-/// output side or a `⊗` on the input side.
+/// Returns why `writing` cannot be a record of the forest, or `None` if it
+/// can. A record fits when it has one entry per occurrence, every atom is
+/// on the output side and every negated atom on the input side, and only
+/// a `⅋` on the output side or a `⊗` on the input side is an implication.
 pub(crate) fn fault(forest: &Forest, writing: &[Written]) -> Option<&'static str> {
     if writing.len() != forest.len() {
         return Some("the record has another number of occurrences than the sequent");
@@ -129,10 +134,10 @@ pub(crate) fn fault(forest: &Forest, writing: &[Written]) -> Option<&'static str
     None
 }
 
-/// The record of a one-sided sequent as its one-sided syntax writes it:
-/// every formula on its root's side of `⊢` (a cut formula right of it,
-/// its dual left of it), and an atom negated by a negation of its own
-/// where its root's side is not its own.
+/// Returns the record of a sequent written in one-sided syntax. Every
+/// formula stands on its root's side of `⊢`, a cut formula on the right
+/// and its dual on the left. A literal stands on its sign's side, so it
+/// shows a negation of its own where that differs from its root's side.
 pub(crate) fn one_sided(forest: &Forest) -> Box<[Written]> {
     let mut writing = vec![Written::new(Side::Output, false); forest.len()];
     let antecedents = forest.sequent().antecedents().unwrap_or(0) as usize;
@@ -174,19 +179,21 @@ pub(crate) fn one_sided(forest: &Forest) -> Box<[Written]> {
 }
 
 /// A sequent of classical linear logic, `Γ ⊢ Δ`, as its author wrote it:
-/// the formulas in the order written on their sides of `⊢`, negations and
-/// implications where they were written.
+/// the formulas in the order written on their sides of `⊢`, with negations
+/// and implications where they were written.
 ///
-/// It is built from text by [`parse_within`](Self::parse_within) (or
+/// Make one from text with [`parse_within`](Self::parse_within) (or
 /// [`str::parse`]), which reads the syntax [`Sequent`] reads and records
-/// how every occurrence was written, and by
-/// [`read_one_sided`](Self::read_one_sided), which takes a one-sided
-/// sequent as its one-sided syntax writes it. Either lowers the sequent
-/// once to the [`Forest`] the engines take; the record
-/// ([`writing`](Self::writing), a byte per occurrence) is what printing
-/// reads to write the sequent back as it was written, up to brackets and
-/// double negations, and what the two-sided view of a derivation
-/// ([`TwoSided`](crate::linear::TwoSided)) reads to split its sequents by side.
+/// how every occurrence was written. Or make one from a one-sided
+/// sequent with [`read_one_sided`](Self::read_one_sided), which records it
+/// as one-sided syntax writes it.
+///
+/// Either lowers the sequent once to the [`Forest`] the engines take. The
+/// record ([`writing`](Self::writing), a byte per occurrence) is what
+/// printing reads to write the sequent back as it was written, up to
+/// brackets and double negations. The two-sided view of a derivation,
+/// [`TwoSided`](crate::linear::TwoSided), reads it to split its sequents
+/// by side.
 ///
 /// # Examples
 ///
@@ -214,12 +221,12 @@ pub struct ClassicalSequent {
 }
 
 impl ClassicalSequent {
-    /// Reads a one-sided sequent as its one-sided syntax writes it: the
-    /// formulas on the sides of `⊢` the sequent records
-    /// ([`Sequent::antecedents`]), the right side where it records none,
-    /// each with the connectives the one-sided formula has and a negated
-    /// atom written as the negation of its atom. `⊢ ~a, a` stays `⊢ ~a,
-    /// a`.
+    /// Reads a one-sided sequent as one-sided syntax writes it.
+    ///
+    /// Each formula stands on the side of `⊢` the sequent records
+    /// ([`Sequent::antecedents`]), or on the right where it records none.
+    /// Each keeps its one-sided connectives, and a negated atom is written
+    /// as the negation of its atom: `⊢ ~a, a` stays `⊢ ~a, a`.
     ///
     /// # Errors
     ///
@@ -286,8 +293,8 @@ impl ClassicalSequent {
     }
 }
 
-/// An occurrence written as its author wrote it, with a negation before
-/// it or without.
+/// An occurrence that prints as its author wrote it, with or without a
+/// negation before it.
 pub(crate) struct Shown<'a> {
     /// The forest the occurrence is of.
     pub(crate) forest: &'a Forest,
@@ -351,10 +358,12 @@ impl Display for ClassicalSequent {
 
 #[cfg(feature = "parse")]
 impl ClassicalSequent {
-    /// Parses a sequent of classical linear logic, `A -o B, A |- B`, in the
-    /// syntax [`Sequent`] reads, and records how every occurrence was
-    /// written. Refused at the first term past `limits.occurrences`, as
-    /// [`Sequent::parse_within`] refuses; its one-sided
+    /// Parses a sequent of classical linear logic, such as `A -o B, A |- B`,
+    /// in the syntax [`Sequent`] reads, and records how every occurrence
+    /// was written.
+    ///
+    /// The text is refused at the first term past `limits.occurrences`, as
+    /// [`Sequent::parse_within`] refuses it. Its one-sided
     /// [`sequent`](Self::sequent) is the one that call returns.
     ///
     /// Needs the cargo feature `parse` (on by default).

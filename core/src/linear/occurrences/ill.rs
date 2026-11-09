@@ -1,11 +1,13 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! A sequent of intuitionistic linear logic as its author wrote it: its
-//! hypotheses in the order written and exactly one goal, built from the
-//! connectives of intuitionistic linear logic alone, lowered once to the
-//! one-sided forest every engine, checker and view works on, with the side
-//! of every occurrence recorded at the lowering.
+//! Sequents of intuitionistic linear logic as their author wrote them.
+//!
+//! An [`IllSequent`] has its hypotheses in the order written and exactly
+//! one goal, built from the connectives of intuitionistic linear logic
+//! alone. It is lowered once to the one-sided forest the engines, the
+//! checker and the views work on, and the side of every occurrence is
+//! recorded at the lowering.
 
 use super::reading::{Reading, Side};
 use super::{Forest, OccId};
@@ -17,26 +19,39 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 /// the order written and exactly one goal, every formula built from `⊗`,
 /// `⊸`, `&`, `⊕`, `!`, `1`, `⊤`, `0` and atoms.
 ///
-/// It is built three ways: from text by [`parse_within`](Self::parse_within)
-/// (or [`str::parse`]), which reads intuitionistic syntax alone and
-/// refuses the symbols of classical linear logic with a hint; from its
-/// JSON form (with the feature `serialize`); and by
-/// [`read_one_sided`](Self::read_one_sided), the explicit reading of a
-/// one-sided sequent as intuitionistic, which takes the sides from the
-/// one-sided formulas where they decide them and refuses what they do not.
+/// To read intuitionistic input, parse it as an `IllSequent` and prove its
+/// [`sequent`](Self::sequent) in
+/// [`Mode::INTUITIONISTIC`](crate::linear::Mode::INTUITIONISTIC). A
+/// classical symbol in the text is then refused with a hint of what to
+/// write instead. The same text parsed as a [`Sequent`] is refused only
+/// when it is proved, with the number of a subformula that has no
+/// intuitionistic reading.
+///
+/// There are three ways to make one:
+/// - from text, with [`parse_within`](Self::parse_within) (or
+///   [`str::parse`]), which reads intuitionistic syntax alone;
+/// - from its JSON form, with the feature `serialize`;
+/// - from a one-sided sequent, with
+///   [`read_one_sided`](Self::read_one_sided), which takes the sides from
+///   the one-sided formulas where they decide them and refuses the
+///   sequent where they do not.
+///
 /// Each lowers the sequent once to the [`Forest`] the engines take and
-/// records the side of every occurrence; [`reading`](Self::reading) lends
-/// the [`Reading`] over those sides, which prints the sequent two-sided as
-/// it was written and is the reading [`Reading::new`] gives of the same
+/// records the side of every occurrence. [`reading`](Self::reading) lends
+/// the [`Reading`] over those sides. It prints the sequent two-sided as
+/// written, and it is the reading [`Reading::new`] gives of the same
 /// forest.
 ///
 /// # JSON
 ///
 /// With the feature `serialize`, the document `{"version": 5, "terms":
-/// […], "atoms": […], "hypotheses": […], "goal": n}`: an arena of
-/// intuitionistic formulas, each a term `{"V": atom}`, `"1"`, `"0"`,
-/// `"⊤"`, `{"!": t}` or `{"⊗": [t, u]}` with `⊗`, `⊸`, `&` or `⊕`, every
-/// operand an index below its own, the atom names, and the roots by index.
+/// […], "atoms": […], "hypotheses": […], "goal": n}`:
+/// - `terms`, an arena of intuitionistic formulas, each a term
+///   `{"V": atom}`, `"1"`, `"0"`, `"⊤"`, `{"!": t}`, or `{"⊗": [t, u]}`
+///   with `⊗`, `⊸`, `&` or `⊕`, every operand an index below its own;
+/// - `atoms`, the atom names;
+/// - `hypotheses` and `goal`, the roots by index.
+///
 /// A tag of classical linear logic (`D`, `⅋`, `?`, `⊥`) is refused as an
 /// unknown variant.
 ///
@@ -44,7 +59,7 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 ///
 #[cfg_attr(feature = "parse", doc = "```")]
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
-/// use deduxit::{Error, linear::{IllSequent, Side}};
+/// use deduxit::{Error, linear::{IllSequent, Mode, Options, Side, prove}};
 ///
 /// let sequent: IllSequent = "A -o B, A |- B".parse()?;
 /// assert_eq!(sequent.to_string(), "A ⊸ B, A ⊢ B");
@@ -52,11 +67,15 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 /// let reading = sequent.reading();
 /// assert_eq!(reading.position(sequent.goal()), Side::Output);
 ///
-/// let Err(Error::Parse(error)) = "~(A * ~B), A |- B".parse::<IllSequent>() else {
-///     panic!("a negation is no intuitionistic syntax");
+/// let outcome = prove(sequent.sequent(), Mode::INTUITIONISTIC, &Options::default())?;
+/// assert!(outcome.verdict.proof().is_some());
+///
+/// // A symbol of classical linear logic is refused with a hint.
+/// let Err(Error::Parse(error)) = "|- A par B".parse::<IllSequent>() else {
+///     panic!("par is no intuitionistic syntax");
 /// };
-/// assert_eq!(error.span, 0..1);
-/// assert!(error.hint.is_some());
+/// assert_eq!(error.span, 5..8);
+/// assert!(error.to_string().contains("write ~A par B as A -o B"));
 /// # Ok::<(), Error>(())
 /// ```
 #[derive(Clone, Debug)]
@@ -65,19 +84,21 @@ pub struct IllSequent {
     forest: Forest,
     /// Per occurrence, the side it stands on as written.
     position: Box<[Side]>,
-    /// The goal: the last root of a sequent written two-sided.
+    /// The goal: the one root on the output side.
     goal: OccId,
 }
 
 impl IllSequent {
-    /// Lowers a sequent whose sides were written and whose formulas are
-    /// intuitionistic as written: the roots after the first
-    /// `antecedents` are the goal, of which there must be exactly one,
-    /// and every occurrence is on its root's side but the antecedent of
-    /// an implication, which is on the other. An implication is a `⅋` on
-    /// the goal's side or a `⊗` on the hypotheses', whose left factor is
-    /// the antecedent, since a written `A ⊸ B` is lowered to `A⊥ ⅋ B`
-    /// and intuitionistic syntax writes no other `⅋`.
+    /// Lowers a sequent written two-sided in intuitionistic syntax, and
+    /// records the side of every occurrence.
+    ///
+    /// The roots after the first `antecedents` are the goal, and there
+    /// must be exactly one. Every other occurrence takes its parent's
+    /// side, except the antecedent of an implication, which takes the
+    /// other side. An implication is a `⅋` on the goal's side or a `⊗` on
+    /// the hypotheses' side, and its left factor is the antecedent. This
+    /// is exact because a written `A ⊸ B` is lowered to `A⊥ ⅋ B` and
+    /// intuitionistic syntax writes no other `⅋`.
     #[cfg(any(feature = "parse", feature = "serialize"))]
     pub(crate) fn lowered(sequent: Sequent, limits: &Limits) -> Result<Self, Error> {
         use super::reading::ShapeError;
@@ -124,11 +145,12 @@ impl IllSequent {
     }
 
     /// Reads a one-sided sequent as intuitionistic, as [`Reading::new`]
-    /// reads its forest: the goal is the formula written right of `⊢`
-    /// where the sequent records its sides, else the one root that can be
-    /// the goal, and every formula is read in the position the one-sided
-    /// formula decides. `⊢ ~(A ⊗ ~B), ~A, B` (the text `~(A * ~B), A |-
-    /// B`) is read as `A ⊸ B, A ⊢ B`.
+    /// reads its forest.
+    ///
+    /// The goal is the formula right of `⊢` where the sequent records its
+    /// sides, else the one root that can be the goal. Every formula is
+    /// read in the position its one-sided form decides: `⊢ A ⊗ ~B, ~A, B`
+    /// (the text `~(A * ~B), A |- B`) is read as `A ⊸ B, A ⊢ B`.
     ///
     /// # Errors
     ///
@@ -147,9 +169,9 @@ impl IllSequent {
         })
     }
 
-    /// Returns the one-sided sequent the engines take: the hypotheses
-    /// negated, then the goal where the sequent was written two-sided,
-    /// with `A ⊸ B` as `A⊥ ⅋ B`.
+    /// Returns the one-sided sequent the engines take, with `A ⊸ B` as
+    /// `A⊥ ⅋ B`. Of a parsed sequent it is the hypotheses negated, then
+    /// the goal.
     pub fn sequent(&self) -> &Sequent {
         self.forest.sequent()
     }
@@ -169,9 +191,9 @@ impl IllSequent {
         self.goal
     }
 
-    /// Returns the reading over the recorded sides, in constant time: the
-    /// position of every occurrence, the formulas as written and the
-    /// sequent printed two-sided.
+    /// Returns the reading over the recorded sides, in constant time. It
+    /// gives the position of every occurrence and prints the formulas and
+    /// the sequent as written.
     pub fn reading(&self) -> Reading<'_> {
         Reading::of_parts(&self.forest, &self.position, self.goal, false)
     }
@@ -206,13 +228,16 @@ impl Display for IllSequent {
 
 #[cfg(feature = "parse")]
 impl IllSequent {
-    /// Parses a sequent of intuitionistic linear logic, `A -o B, A |- B`,
-    /// in the syntax [`Sequent`] reads without the symbols of classical
-    /// linear logic: a `~`, `^`, `⅋` (`par`, `|`), `?` or `⊥` (`bot`) is
-    /// a parse error whose [`hint`](crate::ParseError::hint) says what to
-    /// write instead. Exactly one formula stands right of `|-`; the
-    /// hypotheses keep the order written. Refused at the first term past
-    /// `limits.occurrences`, as [`Sequent::parse_within`] refuses.
+    /// Parses a sequent of intuitionistic linear logic, such as
+    /// `A -o B, A |- B`.
+    ///
+    /// The syntax is the one [`Sequent`] reads, without the symbols of
+    /// classical linear logic. A `~`, `^`, `⅋` (`par`, `|`), `?` or `⊥`
+    /// (`bot`) is a parse error whose [`hint`](crate::ParseError::hint)
+    /// says what to write instead. Exactly one formula stands right of
+    /// `|-`, and the hypotheses keep the order written. The text is
+    /// refused at the first term past `limits.occurrences`, as
+    /// [`Sequent::parse_within`] refuses it.
     ///
     /// Needs the cargo feature `parse` (on by default).
     ///
@@ -269,10 +294,10 @@ pub enum IllSyntax {
     /// symbol of classical linear logic is refused with a hint.
     #[default]
     Strict,
-    /// The syntax of classical linear logic, read as the one-sided
-    /// sequent it lowers to and that read as intuitionistic
-    /// ([`IllSequent::read_one_sided`]): `~(A * ~B), A |- B` is `A ⊸ B,
-    /// A ⊢ B`.
+    /// The syntax of classical linear logic. The text is lowered to a
+    /// one-sided sequent, which is then read as intuitionistic
+    /// ([`IllSequent::read_one_sided`]): `~(A * ~B), A |- B` is
+    /// `A ⊸ B, A ⊢ B`.
     OneSided,
 }
 
@@ -308,7 +333,7 @@ impl InputOptions {
 }
 
 impl Default for InputOptions {
-    /// The defaults named by the constants.
+    /// Returns the defaults the constants name.
     fn default() -> Self {
         Self {
             intuitionistic: Self::DEFAULT_INTUITIONISTIC,
@@ -594,8 +619,8 @@ mod tests {
     }
 
     /// The symbols of classical linear logic in every notation's spelling
-    /// (text, LaTeX, Typst, SVG), of which no intuitionistic output has
-    /// any.
+    /// (text, LaTeX, Typst, SVG), none of which an intuitionistic output
+    /// may contain.
     const CLASSICAL: [&str; 8] = ["~", "⅋", "⊥", "?", r"\parr", r"\bot", r"\wn", "perp"];
 
     /// Asserts that `out`, what `what` wrote of `sequent`, has no symbol of

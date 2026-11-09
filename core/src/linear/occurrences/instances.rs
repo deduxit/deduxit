@@ -1,14 +1,17 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The instance table of a proof: what its members past the forest's
-//! length stand for. An occurrence under binders is a formula with loose
-//! bound variables; a member of a sequent of the proof is such an
-//! occurrence with a *frame*, the terms its binders were opened with, and
-//! the table numbers each one. The terms a frame holds are the sequent's
-//! closed terms or the proof's own, which extend the sequent's arena
-//! past its end: the witnesses of `∃` steps and the eigenvariables of
-//! `∀` steps.
+//! The instance table of a first-order proof: what the proof's members
+//! past the forest's length stand for.
+//!
+//! An occurrence under binders is a formula with loose bound variables.
+//! A sequent inside the proof holds such an occurrence together with a
+//! *frame*: the terms its binders were opened with. The table gives each
+//! pair of an occurrence and a frame its own member number.
+//!
+//! A frame holds closed terms of the sequent, or terms of the proof's
+//! own. These extend the sequent's term arena past its end: the
+//! witnesses of `∃` steps and the eigenvariables of `∀` steps.
 
 use crate::Error;
 use crate::hash::HashMap;
@@ -19,9 +22,10 @@ use crate::linear::sequents::fo::FirstOrder;
 use crate::linear::sequents::{Args, Eigen, FoTerm, FoTermId, Symbol};
 use std::fmt::{Result as FmtResult, Write};
 
-/// A frame of a proof's instance table: a term pushed onto a parent
-/// frame, the innermost binder's term first. Frames are cons cells, so
-/// the members of a tower of binders share their frames' tails.
+/// The index of a frame in a proof's instance table. A frame is a term
+/// pushed onto a parent frame, so the innermost binder's term comes
+/// first. Frames are linked lists, so the members under nested binders
+/// share the tails of their frames.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct FrameId(u32);
 
@@ -42,17 +46,22 @@ impl FrameId {
     }
 }
 
-/// What the members of a proof past its forest's length stand for: each
-/// an occurrence under `n` binders with a frame of `n` terms, the
-/// innermost binder's first; the frames as cons cells; and the proof's
-/// extension of its sequent's term arena, the witnesses and
-/// eigenvariables the frames hold, numbered on from the sequent's own
-/// terms and argument lists.
+/// The instance table of a first-order proof: what the proof's members
+/// past its forest's length stand for.
 ///
-/// A table is built for one forest ([`new`](Self::new)) and handed to
-/// [`Proof::with_instances`](crate::linear::Proof::with_instances), which checks
-/// it and makes it canonical: equal terms, frames and members one entry
-/// each, so that the checker compares instances by their numbers.
+/// It holds:
+///
+/// - each member: an occurrence under `n` binders, with a frame of `n`
+///   terms, the innermost binder's first;
+/// - the frames, each a term pushed onto a parent frame;
+/// - the proof's own terms: the witnesses and eigenvariables the frames
+///   hold, numbered on from the sequent's own terms and argument lists.
+///
+/// Build a table for one forest with [`new`](Self::new), then hand it to
+/// [`Proof::with_instances`](crate::linear::Proof::with_instances). That
+/// checks it and makes it canonical: equal terms, frames and members
+/// become one entry each, so the checker can compare instances by their
+/// numbers.
 ///
 /// # Examples
 ///
@@ -60,8 +69,8 @@ impl FrameId {
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
 /// use deduxit::linear::{Eigen, Forest, Instances, Member, Mode, Node, NodeId, OccId, Proof, Sequent};
 ///
-/// // ⊢ ∀x. (~p(x) ⅋ p(x)): occurrence 0 the binder, 1 the `⅋`, 2 and 3
-/// // the literals.
+/// // ⊢ ∀x. (~p(x) ⅋ p(x)): occurrence 0 is the binder, 1 the `⅋`, 2 and
+/// // 3 the literals.
 /// let sequent: Sequent = "|- forall x. p(x) -o p(x)".parse()?;
 /// let forest = Forest::new(&sequent)?;
 /// let mut instances = Instances::new(&forest);
@@ -79,18 +88,20 @@ impl FrameId {
 /// ```
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Instances {
-    /// The forest's length: the first member the table numbers.
+    /// The forest's length, which is the first member the table numbers.
     pub(crate) occurrences: u32,
-    /// The terms of the sequent's arena: the first term of the extension.
+    /// The number of terms in the sequent's arena, which is the id of the
+    /// extension's first term.
     pub(crate) base_terms: u32,
-    /// The argument lists of the sequent: the first list of the extension.
+    /// The number of argument lists of the sequent, which is the id of the
+    /// extension's first list.
     pub(crate) base_lists: u32,
     /// Per member past the forest, its occurrence and frame.
     pub(crate) members: Vec<(OccId, FrameId)>,
     /// Per frame, its parent and the term it pushes.
     pub(crate) frames: Vec<(Option<FrameId>, FoTermId)>,
-    /// The extension of the term arena: closed terms, each referring to
-    /// terms before it.
+    /// The extension of the term arena, each term referring only to terms
+    /// before it. In a canonical table every term is closed.
     pub(crate) terms: Vec<FoTerm>,
     /// The arguments of every list of the extension, one after the other.
     pub(crate) args: Vec<FoTermId>,
@@ -104,8 +115,9 @@ impl Instances {
     pub fn new(forest: &Forest) -> Self {
         let fo = &forest.sequent().fo;
         Self {
-            // A forest has fewer than 2³² occurrences and a sequent's
-            // arenas no more entries than its text or document.
+            // These fit a `u32`: a forest has fewer than 2³² occurrences,
+            // and a sequent's arenas have no more entries than its text or
+            // document.
             occurrences: forest.len() as u32,
             base_terms: fo.terms.len() as u32,
             base_lists: fo.lists.len() as u32,
@@ -113,16 +125,19 @@ impl Instances {
         }
     }
 
-    /// Returns the term of the eigenvariable `a`, added to the extension.
+    /// Adds the term of the eigenvariable `a` to the table and returns its
+    /// id.
     pub fn eigen(&mut self, a: Eigen) -> FoTermId {
         self.push_term(FoTerm::Eigen(a))
     }
 
-    /// Returns the term `symbol(args…)`, added to the extension with its
-    /// argument list; `args` are terms of the sequent or of the extension.
+    /// Adds the term `symbol(args…)` and its argument list to the table
+    /// and returns its id. `args` are terms of the sequent or of the
+    /// table.
     pub fn apply(&mut self, symbol: Symbol, args: &[FoTermId]) -> FoTermId {
-        // The ids saturate: a table past what a `u32` counts is refused
-        // when a proof takes it (`canonical`), before any id is read.
+        // The ids saturate. A table with more ids than a `u32` counts is
+        // refused when a proof takes it (`canonical`), before any id is
+        // read.
         let start = saturated(self.args.len());
         self.args.extend_from_slice(args);
         self.lists.push((start, saturated(args.len())));
@@ -133,15 +148,17 @@ impl Instances {
         self.push_term(FoTerm::App(symbol, list))
     }
 
-    /// Returns the frame that pushes `term` onto `parent`, the frame of
-    /// the binders further out, or onto none for an outermost binder.
+    /// Adds the frame that pushes `term` onto `parent` and returns it.
+    /// `parent` is the frame of the binders further out, or `None` for an
+    /// outermost binder.
     pub fn frame(&mut self, parent: Option<FrameId>, term: FoTermId) -> FrameId {
         self.frames.push((parent, term));
         FrameId::new(saturated(self.frames.len() - 1))
     }
 
-    /// Returns the member that stands for `occurrence` under `frame`,
-    /// which holds a term for every binder above the occurrence.
+    /// Adds the member that stands for `occurrence` under `frame` and
+    /// returns it. `frame` must hold a term for every binder above the
+    /// occurrence.
     pub fn member(&mut self, occurrence: OccId, frame: FrameId) -> Member {
         self.members.push((occurrence, frame));
         Member::new(
@@ -160,8 +177,8 @@ impl Instances {
         self.members.is_empty()
     }
 
-    /// Returns the occurrence and frame `member` stands for: `None` for a
-    /// member that is an occurrence of the forest, or that the table does
+    /// Returns the occurrence and frame `member` stands for, or `None` for
+    /// a member that is an occurrence of the forest or that the table does
     /// not number.
     pub fn instance(&self, member: Member) -> Option<(OccId, FrameId)> {
         let at = member.get().checked_sub(self.occurrences)?;
@@ -193,18 +210,18 @@ impl Instances {
         terms
     }
 
-    /// Returns the extension's terms, numbered on from the sequent's.
+    /// Returns the table's own terms, whose ids follow the sequent's.
     pub fn terms(&self) -> &[FoTerm] {
         &self.terms
     }
 
-    /// Returns the first term of the extension: the number of the
-    /// sequent's own terms.
+    /// Returns the id of the table's first term, which is the number of
+    /// the sequent's own terms.
     pub fn first_term(&self) -> FoTermId {
         FoTermId::new(self.base_terms)
     }
 
-    /// Returns the eigenvariables the table's terms name, ascending and
+    /// Returns the eigenvariables among the table's terms, ascending and
     /// each once.
     pub fn eigenvariables(&self) -> Vec<Eigen> {
         let mut eigens: Vec<Eigen> = self
@@ -220,7 +237,7 @@ impl Instances {
         eigens
     }
 
-    /// Adds `term` to the extension and returns its id.
+    /// Adds `term` to the table and returns its id.
     pub(crate) fn push_term(&mut self, term: FoTerm) -> FoTermId {
         self.terms.push(term);
         FoTermId::new(
@@ -230,13 +247,13 @@ impl Instances {
     }
 }
 
-/// Returns `n` as a `u32`, or `u32::MAX` where it is more.
+/// Returns `n` as a `u32`, or `u32::MAX` where `n` is larger.
 fn saturated(n: usize) -> u32 {
     u32::try_from(n).unwrap_or(u32::MAX)
 }
 
-/// The terms of a proof: its sequent's arena and the proof's extension
-/// of it, one space of ids.
+/// The terms of a proof: its sequent's arena and the proof's extension of
+/// it, under one range of ids.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Terms<'a> {
     /// The sequent's tables.
@@ -276,22 +293,25 @@ impl Terms<'_> {
     }
 }
 
-/// A term as hash-consing keys it: its tag with its children's numbers.
+/// The key [`Hashcons`] numbers a term by: its tag and its children's
+/// numbers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 enum Key {
     /// A bound variable.
     Bound(u32),
-    /// A symbol applied to the list of that number.
+    /// A symbol applied to the argument list of that number.
     App(Symbol, u64),
     /// An eigenvariable.
     Eigen(Eigen),
 }
 
-/// Numbers first-order terms and argument lists so that equal ones have
-/// one number: every term is numbered by its symbol and its arguments'
-/// numbers, every list by its items'. A number is the count of distinct
-/// terms or lists numbered before it, each held in a table: a `u64`, which
-/// no memory holds as many entries as it counts.
+/// Numbers first-order terms and argument lists so that equal ones get the
+/// same number. A term is numbered by its symbol and its arguments'
+/// numbers, and a list by its items' numbers.
+///
+/// A number is the count of distinct terms or lists numbered before it,
+/// each held in a table. So a `u64` cannot overflow: no memory holds 2⁶⁴
+/// entries.
 #[derive(Default)]
 pub(crate) struct Hashcons {
     /// Every term numbered, by its key.
@@ -321,8 +341,9 @@ impl Hashcons {
     }
 }
 
-/// The numbers of a proof's terms and the means to number the instances
-/// of its atoms: what the checker compares an axiom's two literals by.
+/// The numbers of a proof's terms, and the means to number the instances
+/// of its atoms. The checker compares an axiom's two literals by these
+/// numbers.
 pub(crate) struct Numbering<'a> {
     /// The proof's terms.
     terms: Terms<'a>,
@@ -330,7 +351,7 @@ pub(crate) struct Numbering<'a> {
     cons: Hashcons,
     /// Per term of both arenas, its number.
     numbers: Vec<u64>,
-    /// Per term, one more than its largest loose bound index: `0` for a
+    /// Per term, one more than its largest loose bound index, or `0` for a
     /// closed term.
     loose: Vec<u32>,
     /// Per argument list, its number once computed.
@@ -338,7 +359,8 @@ pub(crate) struct Numbering<'a> {
 }
 
 impl<'a> Numbering<'a> {
-    /// Numbers every term of both arenas, which are topological.
+    /// Numbers every term of both arenas, in one pass, since every term
+    /// comes after its arguments.
     pub(crate) fn new(terms: Terms<'a>) -> Self {
         let mut this = Self {
             terms,
@@ -352,7 +374,8 @@ impl<'a> Numbering<'a> {
             let (key, loose) = match terms.term(id) {
                 FoTerm::Bound(i) => (Key::Bound(i), i.saturating_add(1)),
                 FoTerm::Eigen(a) => (Key::Eigen(a), 0),
-                // `canonical` refuses a table with one before it numbers.
+                // `canonical` refuses a table with a metavariable before
+                // it numbers the terms.
                 FoTerm::Meta(_) => unreachable!("a proof's table holds no metavariable"),
                 FoTerm::App(f, args) => {
                     let loose = terms
@@ -370,8 +393,8 @@ impl<'a> Numbering<'a> {
         this
     }
 
-    /// Returns the number of the argument list `args`, whose items are
-    /// numbered.
+    /// Returns the number of the argument list `args`, whose items must
+    /// already be numbered.
     fn list_number(&mut self, args: Args) -> u64 {
         if let Some(n) = self.list_numbers[args.index()] {
             return n;
@@ -397,8 +420,8 @@ impl<'a> Numbering<'a> {
         self.numbers[id.index()]
     }
 
-    /// Returns whether the term `id` is closed: no bound variable of it
-    /// is loose.
+    /// Returns whether the term `id` is closed: it has no loose bound
+    /// variable.
     pub(crate) fn is_closed(&self, id: FoTermId) -> bool {
         self.loose[id.index()] == 0
     }
@@ -406,7 +429,8 @@ impl<'a> Numbering<'a> {
     /// Returns the number of the argument list `args` with every loose
     /// bound variable `i` replaced by the term numbered `frame[i]`: the
     /// arguments of an atom's instance. Each shared subterm is visited
-    /// once, on an explicit stack.
+    /// once, on an explicit stack, so deep terms cannot overflow the call
+    /// stack.
     pub(crate) fn instance(&mut self, args: Args, frame: &[u64]) -> u64 {
         let mut memo: HashMap<FoTermId, u64> = HashMap::default();
         let terms = self.terms;
@@ -430,9 +454,9 @@ impl<'a> Numbering<'a> {
                 continue;
             }
             match self.terms.term(u) {
-                // The sequent's check holds every bound index of an atom
-                // below its occurrence's binders, and the frame has a term
-                // for each.
+                // The sequent's check keeps every bound index of an atom
+                // below the number of its occurrence's binders, and the
+                // frame has a term for each binder.
                 FoTerm::Bound(i) => {
                     memo.insert(u, frame[i as usize]);
                 }
@@ -460,9 +484,11 @@ impl<'a> Numbering<'a> {
                         }
                     }
                 }
-                // An eigenvariable is closed, numbered above.
+                // An eigenvariable is closed, so the check at the top
+                // returned its number.
                 FoTerm::Eigen(_) => unreachable!("an eigenvariable is a closed term"),
-                // `canonical` refuses a table with one before it numbers.
+                // `canonical` refuses a table with a metavariable before
+                // it numbers the terms.
                 FoTerm::Meta(_) => unreachable!("a proof's table holds no metavariable"),
             }
         }
@@ -475,7 +501,8 @@ pub(crate) fn binders(forest: &Forest) -> Vec<u32> {
     let mut depth = vec![0u32; forest.len()];
     for o in forest.ids() {
         if let Some(p) = forest.parent(o) {
-            // At most one per ancestor: below the forest's length.
+            // At most one binder per ancestor, so the depth stays below the
+            // forest's length and cannot overflow.
             depth[o.index()] = depth[p.index()] + u32::from(forest.kind(p).is_binder());
         }
     }
@@ -490,28 +517,37 @@ fn malformed(message: String) -> Error {
     }
 }
 
-/// Checks `table` against `forest` and the proof's `nodes` (already
-/// within their bounds), and returns it canonical, with the nodes'
-/// members and witnesses renumbered into it: equal terms, lists, frames
-/// and members one entry each, the sequent's own terms kept where they
-/// are, and every member the checker derives from a member a node names
-/// added (the subformulas of a named member under its frame, the body of
-/// a `∀` or `∃` step under its frame with the eigenvariable or witness
-/// pushed, the dual of a cut's member), so that every member a check or a
-/// derivation of the proof speaks of has a number.
+/// Checks `table` against `forest` and the proof's `nodes`, whose
+/// indices are already within bounds. Returns the table in canonical
+/// form, with the nodes' members and witnesses renumbered into it.
+///
+/// In canonical form:
+///
+/// - equal terms, lists, frames and members are one entry each;
+/// - the sequent's own terms keep their ids;
+/// - every member the checker derives from a member a node names has a
+///   number: the subformulas of a named member under its frame, the body
+///   of a `∀` or `∃` step under its frame with the eigenvariable or
+///   witness pushed, and the dual of a cut's member. So every member a
+///   check or a derivation of the proof uses is in the table.
 ///
 /// # Errors
 ///
-/// [`Error::Json`] (form `instance table`) for a table made for another
-/// forest, an index out of its range, an entry referring to a later one,
-/// an extension term with a bound variable, a symbol applied with another
-/// number of arguments or a predicate applied as a function, a frame
-/// term with a loose bound variable, and a member whose frame has not
-/// one term for each binder above its occurrence;
-/// and a witness out of range or with a loose bound variable;
+/// [`Error::Json`] (form `instance table`) for:
+///
+/// - a table made for another forest;
+/// - an index out of range, or an entry that refers to a later one;
+/// - a table term that is a bound variable or a metavariable;
+/// - a symbol applied to the wrong number of arguments, or a predicate
+///   applied as a function;
+/// - a frame term with a loose bound variable;
+/// - a member whose frame does not have one term for each binder above
+///   its occurrence;
+/// - a witness out of range or with a loose bound variable.
+///
 /// [`Error::IndexOutOfBounds`] for a member past the table, and
 /// [`Refusal::Index`](crate::Refusal::Index) for a table whose ids would
-/// pass what a `u32` counts.
+/// not fit a `u32`.
 pub(crate) fn canonical(
     forest: &Forest,
     table: &Instances,
@@ -528,9 +564,10 @@ pub(crate) fn canonical(
     {
         return Err(malformed("the table was made for another sequent".into()));
     }
-    // Every id the table made gives, with the members, frames and terms
-    // the closure adds (three members, one frame and one term a node at
-    // most), must be a `u32`: past that the table is refused.
+    // Every id of the table made must fit a `u32`, counting the members,
+    // frames and terms that the derived members add: at most three
+    // members, one frame and one term per node. Past that the table is
+    // refused.
     let count = nodes.len() as u64;
     let most = u64::from(u32::MAX);
     let ids = [
@@ -604,8 +641,9 @@ pub(crate) fn canonical(
         }
     }
     let numbering = Numbering::new(terms);
-    // Every extension term is closed (no bound variable, and arguments
-    // before it), so only the sequent's terms may be open.
+    // A table term is never a bound variable itself, but its arguments may
+    // be open terms of the sequent. So the frames' terms and the witnesses
+    // are checked for loose bound variables through the numbering.
     let mut lengths: Vec<u32> = Vec::with_capacity(table.frames.len());
     for (n, &(parent, term)) in table.frames.iter().enumerate() {
         if term.index() >= all_terms || !numbering.is_closed(term) {
@@ -651,13 +689,13 @@ pub(crate) fn canonical(
     Canonical::new(forest, table, numbering).finish(nodes)
 }
 
-/// The canonical table [`canonical`] builds.
+/// The canonical table that [`canonical`] builds, while it builds it.
 struct Canonical<'a> {
     /// The forest.
     forest: &'a Forest,
     /// The table read.
     table: &'a Instances,
-    /// The numbers of its terms.
+    /// The numbers of the read table's terms.
     numbering: Numbering<'a>,
     /// The table made.
     out: Instances,
@@ -665,17 +703,18 @@ struct Canonical<'a> {
     term_at: HashMap<u64, FoTermId>,
     /// Per list number, its id in the table made.
     list_at: HashMap<u64, Args>,
-    /// Per frame of the table made, by its parent and term.
+    /// The frames of the table made, by their parent and term.
     frame_at: HashMap<(Option<FrameId>, FoTermId), FrameId>,
-    /// Per frame of the table read, its frame in the table made once
-    /// made: a tower of frames is made once, not once per member.
+    /// Per frame of the table read, its frame in the table made, once
+    /// made. So a chain of frames is made once, not once per member.
     made: Vec<Option<FrameId>>,
-    /// Per member of the table made, by its occurrence and frame.
+    /// The members of the table made, by their occurrence and frame.
     member_at: HashMap<(OccId, FrameId), Member>,
 }
 
 impl<'a> Canonical<'a> {
-    /// The empty table, the sequent's terms and lists in place.
+    /// Returns the empty table, with the sequent's terms and lists in
+    /// place.
     fn new(forest: &'a Forest, table: &'a Instances, numbering: Numbering<'a>) -> Self {
         let fo = &forest.sequent().fo;
         let mut this = Self {
@@ -702,9 +741,9 @@ impl<'a> Canonical<'a> {
     }
 
     /// Returns the id in the table made of the closed term `id` of the
-    /// table read, adding it and its arguments where they are new. A walk
-    /// with a stack of its own, arguments first, since a search's
-    /// witness may be nested as deep as its bindings go.
+    /// table read, adding it and its arguments where they are new. It
+    /// walks the term on a stack of its own, arguments first, since a
+    /// search's witness may be nested as deep as its bindings go.
     fn term(&mut self, id: FoTermId) -> FoTermId {
         let mut walk = vec![(id, false)];
         while let Some((t, expanded)) = walk.pop() {
@@ -712,8 +751,8 @@ impl<'a> Canonical<'a> {
             if self.term_at.contains_key(&n) {
                 continue;
             }
-            // Not among the sequent's terms: an extension term, whose
-            // arguments precede it.
+            // Not among the terms made so far, so a table term, whose
+            // arguments come before it.
             let term = match self.numbering.terms.term(t) {
                 FoTerm::App(f, args) => {
                     let ln = self.numbering.list_number(args);
@@ -769,7 +808,7 @@ impl<'a> Canonical<'a> {
     fn push(&mut self, parent: Option<FrameId>, term: FoTermId) -> FrameId {
         *self.frame_at.entry((parent, term)).or_insert_with(|| {
             self.out.frames.push((parent, term));
-            // Within what `canonical` checked first.
+            // Fits a `u32`: `canonical` checked the bound first.
             FrameId::new(self.out.frames.len() as u32 - 1)
         })
     }
@@ -777,7 +816,8 @@ impl<'a> Canonical<'a> {
     /// Returns the frame of the table made for the frame `f` of the table
     /// read.
     fn frame(&mut self, f: FrameId) -> FrameId {
-        // The frames up to the first made, then made downwards.
+        // Collect the frames out to the first one already made, then make
+        // them from the outermost in.
         let mut chain = Vec::new();
         let mut next = Some(f);
         let mut below = None;
@@ -798,8 +838,8 @@ impl<'a> Canonical<'a> {
         below.expect("a frame holds a term")
     }
 
-    /// Returns the member of the table made for `o` under `frame`, a
-    /// frame of the table made, or the occurrence itself without one.
+    /// Returns the member of the table made for `o` under `frame`, a frame
+    /// of the table made, or the occurrence itself when there is no frame.
     fn member(&mut self, o: OccId, frame: Option<FrameId>) -> Member {
         let Some(frame) = frame else {
             return Member::from(o);
@@ -818,8 +858,8 @@ impl<'a> Canonical<'a> {
         }
     }
 
-    /// Renumbers the nodes' members and witnesses into the table made,
-    /// adds the members the checker derives from them, and returns it.
+    /// Renumbers the nodes' members and witnesses into the table made, adds
+    /// the members the checker derives from them, and returns the table.
     fn finish(mut self, nodes: &mut [Node]) -> Result<Instances, Error> {
         let read: Vec<Member> = (0..self.table.members.len())
             .map(|n| {
@@ -900,9 +940,9 @@ impl<'a> Canonical<'a> {
 }
 
 /// Returns the names the eigenvariables `eigens` are written with: `a`,
-/// `b`, … `z`, then `a_1`, `b_1`, …, skipping every name a symbol of the
-/// sequent has, so that a sequent of a derivation reads as a sequent with
-/// those constants.
+/// `b`, … `z`, then `a_1`, `b_1`, …. Names of the sequent's symbols are
+/// skipped, so a sequent of a derivation reads as a sequent with those
+/// eigenvariables as new constants.
 pub(crate) fn eigen_names(fo: &FirstOrder, eigens: &[Eigen]) -> HashMap<Eigen, String> {
     let taken: std::collections::HashSet<&str> =
         fo.symbols.iter().map(|(s, _)| s.as_str()).collect();
@@ -924,10 +964,11 @@ pub(crate) fn eigen_names(fo: &FirstOrder, eigens: &[Eigen]) -> HashMap<Eigen, S
     names
 }
 
-/// Returns the name an open witness, the metavariable `k` of a session,
-/// is written with: `$1` for the first. No reader of either surface takes
-/// a `$` (where `?1` reads as the formula `?(1)`), so the name is no
-/// formula, term or symbol, nor a name renamed apart (`x_1`).
+/// Returns the name an open witness is written with: the metavariable `k`
+/// of an interactive session, written `$1` for the first. No reader of
+/// either syntax accepts a `$`, so the name cannot be mistaken for a
+/// formula, term or symbol, or for a renamed variable such as `x_1`. A
+/// `?` would not do: `?1` reads as the formula `?(1)`.
 pub(crate) fn meta_name(k: u32) -> String {
     format!("${}", u64::from(k) + 1)
 }
@@ -945,8 +986,8 @@ pub(crate) struct Framing<'a> {
 }
 
 impl<'a> Framing<'a> {
-    /// Returns the framing of `table`, a proof's over a sequent of the
-    /// tables `fo`.
+    /// Returns the framing of `table`, a proof's table over a sequent
+    /// whose first-order tables are `fo`.
     pub(crate) fn new(fo: &'a FirstOrder, table: &'a Instances) -> Self {
         Self {
             table,
@@ -977,13 +1018,15 @@ impl<'a> Framing<'a> {
         self.names.values().map(String::as_str)
     }
 
-    /// Returns the name eigenvariable `a` is written with.
+    /// Returns the name eigenvariable `a` is written with, or `?` for one
+    /// the table does not hold.
     pub(crate) fn name(&self, a: Eigen) -> &str {
         self.names.get(&a).map_or("?", String::as_str)
     }
 
-    /// Writes the closed term `term` as `f(t, …)`, every symbol's and
-    /// eigenvariable's name through `atom`, on an explicit stack.
+    /// Writes the closed term `term` as `f(t, …)`, writing every symbol's
+    /// and eigenvariable's name through `atom`. It uses an explicit stack,
+    /// so deep terms cannot overflow the call stack.
     pub(crate) fn write_term<W: Write + ?Sized>(
         &self,
         out: &mut W,
@@ -1004,7 +1047,8 @@ impl<'a> Framing<'a> {
                     }
                     FoTerm::Eigen(a) => atom(out, self.name(a))?,
                     FoTerm::Meta(k) => atom(out, &meta_name(k))?,
-                    // A frame and a witness hold closed terms.
+                    // Frames and witnesses hold closed terms, so this is
+                    // only a fallback.
                     FoTerm::Bound(index) => write!(out, "#{index}")?,
                 }
             }

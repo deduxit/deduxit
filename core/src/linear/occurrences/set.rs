@@ -5,19 +5,19 @@ use super::{Forest, OccId};
 use std::fmt::{Debug, Formatter, Result as FmtResult};
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, Sub, SubAssign};
 
-/// A set of occurrence ids of one forest: a bitset whose width is fixed when
-/// it is made, one bit per occurrence. Sets of the same forest have the same
-/// width, so they compare, hash and combine word by word.
+/// A set of occurrence ids of one forest: a bitset with one bit per
+/// occurrence, whose width is fixed when it is made. Sets of the same
+/// forest have the same width, so they compare, hash and combine word by
+/// word.
 ///
 /// Sets of different widths combine too, as the sets of ids they are: a
 /// narrower set holds nothing beyond its width, so the words it lacks count
-/// as empty. An operation that changes a set leaves it at its width, since
-/// a set is never widened. An intersection and a difference always fit;
-/// the one result a width cannot hold, a union with a member beyond it, is
-/// a panic in every build, and never a set that lacks the member. A
-/// difference of widths as such is no error: inclusion and disjointness
-/// have an answer for any two sets, and the operations follow them rather
-/// than refuse what the tests accept.
+/// as empty. An operation never widens the set it changes. An
+/// intersection and a difference always fit. A union with a member beyond
+/// the set's width cannot fit, and it panics in every build, so no union
+/// ever lacks a member. Different widths are no error as such: inclusion
+/// and disjointness have an answer for any two sets, and the operations
+/// agree with those answers.
 ///
 /// Equality, order and hash are of the words, so two sets of different
 /// widths are different values even with the same members.
@@ -35,8 +35,8 @@ impl Clone for OccSet {
     }
 
     /// Copies `source` into this set's own words when the widths agree,
-    /// which between sets of one forest they always do: a search copies
-    /// sets at every step and must not allocate for it.
+    /// as they always do between sets of one forest. A search copies sets
+    /// at every step and must not allocate for it.
     fn clone_from(&mut self, source: &Self) {
         if self.words.len() == source.words.len() {
             self.words.copy_from_slice(&source.words);
@@ -127,8 +127,8 @@ impl OccSet {
         self.iter().next()
     }
 
-    /// Returns the members in the words `lo..hi`, in ascending order:
-    /// every member, where the words outside are empty.
+    /// Returns the members in the words `lo..hi`, in ascending order. When
+    /// the words outside that range are empty, these are all the members.
     pub(crate) fn iter_words(&self, lo: usize, hi: usize) -> Iter<'_> {
         let words = &self.words[..hi];
         Iter {
@@ -309,7 +309,7 @@ impl Sub for &OccSet {
 /// The members of an [`OccSet`] in ascending order.
 #[derive(Clone, Debug)]
 pub(crate) struct Iter<'a> {
-    /// The words still to visit, from `index` on.
+    /// The set's words, of which those after `index` are still to visit.
     words: &'a [u64],
     /// The word `current` was taken from.
     index: usize,
@@ -331,7 +331,7 @@ impl Iterator for Iter<'_> {
         Some(OccId::new((self.index * 64) as u32 + bit))
     }
 
-    /// The exact number of members left.
+    /// Returns the exact number of members left.
     fn size_hint(&self) -> (usize, Option<usize>) {
         let rest = self.words.get(self.index + 1..).unwrap_or_default();
         let n = self.current.count_ones() as usize

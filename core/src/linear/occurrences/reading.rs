@@ -2,20 +2,24 @@
 // Licensed under the EUPL
 
 //! The intuitionistic reading of a sequent: which occurrences are
-//! hypotheses and which one is the goal, so that a one-sided sequent in
-//! negation normal form is read as a two-sided sequent `Γ ⊢ A` of
-//! intuitionistic linear logic without a second representation.
+//! hypotheses and which one is the goal. With it, a one-sided sequent in
+//! negation normal form reads as a two-sided sequent `Γ ⊢ A` of
+//! intuitionistic linear logic, with no second copy of the formulas.
 //!
-//! An intuitionistic formula stands in *output position* when it is the goal
-//! or the antecedent of a hypothesis: it is built from `⊗ ⊕ & ! 1 ⊤ 0`,
-//! atoms `a`, and `A ⊸ B`, which the one-sided arena stores as the par
-//! `A⊥ ⅋ B`. In *input position*, as a hypothesis or as the antecedent of
-//! the goal, a formula is the negation of such a formula: `⅋ & ⊕ ? ⊥ 0 ⊤`,
-//! negated atoms `~a`, and `A ⊗ B⊥` for a hypothesis `A ⊸ B`. The position
-//! flips at the antecedent of an implication and nowhere else, which is
-//! Lamarche's polarization of intuitionistic proof structures. An
-//! intuitionistic sequent is a one-sided sequent with exactly one
-//! output-shaped root, the goal, and every other root input-shaped.
+//! A formula in *output position* is the goal, or the antecedent of a
+//! hypothesis `A ⊸ B`. It is built from `⊗ ⊕ & ! 1 ⊤ 0 ∀ ∃`, atoms `a`,
+//! and `A ⊸ B`, which the one-sided form stores as `A⊥ ⅋ B`.
+//!
+//! A formula in *input position* is a hypothesis, or the antecedent of the
+//! goal `A ⊸ B`. It is the negation of an output formula, so it is built
+//! from `⅋ & ⊕ ? ⊥ 0 ⊤ ∃ ∀`, negated atoms `~a`, and `A ⊗ B⊥` for a
+//! hypothesis `A ⊸ B`.
+//!
+//! The position flips at the antecedent of an implication and nowhere
+//! else. This is Lamarche's polarization of intuitionistic proof
+//! structures. An intuitionistic sequent is a one-sided sequent with
+//! exactly one root in output position, the goal, and every other root in
+//! input position.
 
 use super::{Forest, OccId};
 use crate::errors::describe::{Limit, Names, cut};
@@ -26,21 +30,22 @@ use std::borrow::Cow;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 /// The side of `⊢` an occurrence stands on under the intuitionistic reading
-/// of its sequent: a hypothesis, or a subformula that behaves like one, is
-/// input; the goal, or a subformula that behaves like it, is output.
+/// of its sequent. A hypothesis, or a subformula that behaves like one, is
+/// input. The goal, or a subformula that behaves like it, is output.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Side {
-    /// A hypothesis, or the antecedent of a formula in output position.
+    /// A hypothesis, or the antecedent of an implication in output
+    /// position.
     Input,
-    /// The goal, or the antecedent of a formula in input position.
+    /// The goal, or the antecedent of an implication in input position.
     Output,
 }
 
 impl std::ops::Not for Side {
     type Output = Self;
 
-    /// The other position.
+    /// Returns the other side.
     fn not(self) -> Self {
         match self {
             Side::Input => Side::Output,
@@ -53,9 +58,9 @@ impl std::ops::Not for Side {
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ShapeError {
-    /// No root formula can be the goal: with the sides known, the formula
-    /// right of `⊢` cannot; without them, every one is input-shaped only, or
-    /// the sequent is empty.
+    /// No root formula can be the goal. With the sides known, the formula
+    /// right of `⊢` cannot be one. Without them, every root can only be a
+    /// hypothesis, or the sequent is empty.
     NoGoal,
     /// Two root formulas can only be goals (the sides not known).
     #[non_exhaustive]
@@ -66,27 +71,27 @@ pub enum ShapeError {
         second: OccId,
     },
     /// A subformula is neither an intuitionistic formula nor the negation of
-    /// one, in any position.
+    /// one, so it can stand in no position.
     #[non_exhaustive]
     Formula {
         /// The subformula.
         occurrence: OccId,
     },
-    /// The sequent has another number of formulas right of `⊢` than one.
+    /// The sequent does not have exactly one formula right of `⊢`.
     #[non_exhaustive]
     Succedents {
         /// How many formulas stand right of `⊢`.
         count: usize,
     },
-    /// A formula written left of `⊢` (the first is 0) cannot be a
-    /// hypothesis.
+    /// A formula written left of `⊢` cannot be a hypothesis.
     #[non_exhaustive]
     Hypothesis {
-        /// Its index among the formulas left of `⊢`.
+        /// Its index among the formulas left of `⊢`, in the order written,
+        /// counting from 0.
         index: usize,
     },
-    /// Two root formulas can each be the goal, every other root reading as
-    /// a hypothesis either way, and the sequent does not say which was
+    /// Two root formulas can each be the goal, with every other root a
+    /// hypothesis either way, and the sequent does not say which was
     /// written right of `⊢`.
     #[non_exhaustive]
     Undetermined {
@@ -98,10 +103,9 @@ pub enum ShapeError {
     /// In the Lambek calculus without empty antecedents, the sequent has
     /// no formula left of `⊢`.
     EmptyAntecedent,
-    /// A cut formula is no intuitionistic formula: the root of a cut
-    /// formula `A`, which a cut proves in one premise and uses as a
-    /// hypothesis in the other, cannot be output, or its dual's cannot
-    /// be input.
+    /// A cut formula `A` is no intuitionistic formula. A cut proves `A` in
+    /// one premise and uses it as a hypothesis in the other, so `A` must be
+    /// able to stand in output position and its dual in input position.
     #[non_exhaustive]
     CutFormula {
         /// The root of the cut formula `A`.
@@ -110,22 +114,23 @@ pub enum ShapeError {
 }
 
 impl Display for ShapeError {
-    /// Writes the reason with occurrence ids, such as `subformula 3 has no
-    /// intuitionistic reading`.
+    /// Writes the reason with occurrence ids, such as `subformula 0 is
+    /// neither an intuitionistic formula nor the negation of one (…)`.
+    /// [`describe`](Self::describe) writes the formulas instead.
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         self.write(f, None, None)
     }
 }
 
 impl ShapeError {
-    /// Returns the error for display with formulas instead of occurrence
-    /// ids, read from `owner`, the forest the reading was attempted on.
+    /// Returns the error ready to print with formulas instead of occurrence
+    /// ids. `owner` holds the forest the reading was tried on.
     pub fn describe<'a>(&'a self, owner: &'a impl Owner) -> Described<'a> {
         Described::new(Subject::Shape(self), owner)
     }
 
     /// Writes the reason as [`Display`] does, with formulas instead of ids
-    /// when a forest is given.
+    /// when `names` gives a forest.
     pub(crate) fn write(
         &self,
         f: &mut Formatter<'_>,
@@ -211,34 +216,34 @@ impl ShapeError {
 
 impl std::error::Error for ShapeError {}
 
-/// An occurrence's possible positions, as two bits.
+/// The bit for input position in a set of possible positions.
 const IN: u8 = 1;
-/// See [`IN`].
+/// The bit for output position in a set of possible positions.
 const OUT: u8 = 2;
 
 /// The intuitionistic reading of a sequent: the position of every
-/// occurrence of its forest and which root is the goal. It prints the
+/// occurrence of its forest, and which root is the goal. It prints the
 /// sequent two-sided, `Γ ⊢ A`, with intuitionistic formulas.
 ///
-/// The reading is what was written and guesses nothing:
+/// The reading follows what was written and guesses nothing:
 ///
 /// - **An implication's antecedent is its left factor**, where the
-///   lowering of `A ⊸ B` puts it: `⅋` in output position is `A ⊸ B` for
-///   `A⊥ ⅋ B`, and `⊗` in input position `A ⊗ B⊥`. `b ⅋ ~a` has no
+///   one-sided form of `A ⊸ B` puts it. In output position `A⊥ ⅋ B` is
+///   `A ⊸ B`, and in input position `A ⊗ B⊥` is. So `b ⅋ ~a` has no
 ///   reading in output position.
-/// - **With the sides known** ([`Sequent::antecedents`]), the formulas
-///   right of `⊢` must be exactly one, the goal
-///   ([`ShapeError::Succedents`]), which must read in output position
-///   ([`ShapeError::NoGoal`]), and every formula left of it a hypothesis
-///   in input position ([`ShapeError::Hypothesis`]).
-/// - **With the sides unknown**, the goal is the one root that can be it
-///   with every other root a hypothesis; where two can, which only
-///   formulas built from `⊤` and `0` allow (`⊢ 0, ⊤`), the reading refuses
-///   ([`ShapeError::Undetermined`]) and asks for the sides. `⊢ ⊤, a` has
-///   one reading, `0 ⊢ a`.
-/// - **A cut formula** `A` ([`Sequent::cuts`](crate::linear::Sequent::cuts)) is
-///   proved by one premise of its cut and used as a hypothesis by the
-///   other: its tree reads in output position and its dual's in input
+/// - **With the sides known** ([`Sequent::antecedents`]), exactly one
+///   formula stands right of `⊢` ([`ShapeError::Succedents`]). It is the
+///   goal and must read in output position ([`ShapeError::NoGoal`]).
+///   Every formula left of `⊢` must be a hypothesis in input position
+///   ([`ShapeError::Hypothesis`]).
+/// - **With the sides unknown**, the goal is the one root that can be the
+///   goal while every other root is a hypothesis. Where two roots can,
+///   the reading refuses and asks for the sides
+///   ([`ShapeError::Undetermined`]). This needs a `⊤` or `0` in each of
+///   the two, as in `⊢ 0, ⊤`. `⊢ ⊤, a` has one reading, `0 ⊢ a`.
+/// - **A cut formula** `A` ([`Sequent::cuts`](crate::linear::Sequent::cuts))
+///   is proved by one premise of its cut and used as a hypothesis by the
+///   other. So `A` reads in output position and its dual in input
 ///   position ([`ShapeError::CutFormula`] where either cannot).
 ///
 /// [`Sequent::antecedents`]: crate::linear::Sequent::antecedents
@@ -268,8 +273,8 @@ const OUT: u8 = 2;
 pub struct Reading<'a> {
     /// The forest read.
     forest: &'a Forest,
-    /// Per occurrence, its position: the reading's own, or a session's
-    /// kept beside its forest.
+    /// Per occurrence, its position: owned by the reading, or borrowed from
+    /// a session that keeps them beside its forest.
     position: Cow<'a, [Side]>,
     /// The goal.
     goal: OccId,
@@ -278,36 +283,47 @@ pub struct Reading<'a> {
 }
 
 impl<'a> Reading<'a> {
-    /// Reads the forest as an intuitionistic sequent, or says why it is
-    /// none: a subformula with no reading in any position, a formula on a
-    /// side of `⊢` it cannot stand on, or, with the sides unknown, no root
-    /// that can be the goal or two that can.
+    /// Reads the forest as an intuitionistic sequent.
     ///
     /// # Errors
     ///
-    /// A [`ShapeError`]: [`Formula`](ShapeError::Formula) for a subformula
-    /// with no reading, and for the roots
-    /// [`Succedents`](ShapeError::Succedents), [`NoGoal`](ShapeError::NoGoal),
-    /// [`Hypothesis`](ShapeError::Hypothesis),
-    /// [`SeveralGoals`](ShapeError::SeveralGoals) or
-    /// [`Undetermined`](ShapeError::Undetermined).
+    /// A [`ShapeError`] that says why the forest is no intuitionistic
+    /// sequent:
+    ///
+    /// - [`Formula`](ShapeError::Formula) for a subformula that can stand
+    ///   in no position;
+    /// - [`Succedents`](ShapeError::Succedents),
+    ///   [`NoGoal`](ShapeError::NoGoal) or
+    ///   [`Hypothesis`](ShapeError::Hypothesis) for a root on a side of `⊢`
+    ///   it cannot stand on;
+    /// - with the sides unknown, [`NoGoal`](ShapeError::NoGoal),
+    ///   [`SeveralGoals`](ShapeError::SeveralGoals) or
+    ///   [`Undetermined`](ShapeError::Undetermined) when no root or more
+    ///   than one can be the goal;
+    /// - [`CutFormula`](ShapeError::CutFormula) for a cut formula that
+    ///   cannot be read.
     pub fn new(forest: &'a Forest) -> Result<Self, ShapeError> {
         Self::read(forest, false)
     }
 
-    /// Reads the forest as a sequent of `mode`: as [`new`](Self::new)
-    /// does in a commutative mode, and in an ordered one as a sequent of
-    /// the Lambek calculus, whose formulas stand in the cyclic order of
-    /// [`Sequent::parse_ordered`](crate::linear::Sequent::parse_ordered). There
-    /// an implication is a division, its antecedent the factor in the
-    /// other position from it, whichever that is: in output position
-    /// `A⊥ ⅋ B` is `A \ B` and `B ⅋ A⊥` is `B / A`, and in input
-    /// position, where the reversing dual turned every product round,
-    /// the operands of `⊗` and `⅋` are written right one first, so that
-    /// `B⊥ ⊗ A` is the hypothesis `A \ B` and `A ⊗ B⊥` is `B / A`. The
-    /// hypotheses are read going round from the goal backwards, which is
-    /// the order they were written in. Without empty antecedents
-    /// ([`Mode::allows_empty_antecedents`]) a sequent needs a hypothesis.
+    /// Reads the forest as a sequent of `mode`.
+    ///
+    /// In a commutative mode this is what [`new`](Self::new) does. In an
+    /// ordered mode it reads a sequent of the Lambek calculus, whose
+    /// formulas stand in the cyclic order of
+    /// [`Sequent::parse_ordered`](crate::linear::Sequent::parse_ordered):
+    ///
+    /// - An implication is a division. Its antecedent is the factor in the
+    ///   other position from the implication, whichever factor that is.
+    /// - In output position, `A⊥ ⅋ B` is `A \ B` and `B ⅋ A⊥` is `B / A`.
+    /// - In input position, the dual has reversed every product, so the
+    ///   operands of `⊗` and `⅋` are written right one first: `B⊥ ⊗ A` is
+    ///   the hypothesis `A \ B`, and `A ⊗ B⊥` is `B / A`.
+    /// - The hypotheses are read going round backwards from the goal,
+    ///   which is the order they were written in.
+    /// - Without empty antecedents
+    ///   ([`Mode::allows_empty_antecedents`]), a sequent needs a
+    ///   hypothesis.
     ///
     /// [`Mode::allows_empty_antecedents`]: crate::linear::Mode::allows_empty_antecedents
     ///
@@ -341,7 +357,7 @@ impl<'a> Reading<'a> {
     /// Reads the forest, in the Lambek calculus's order when `ordered`.
     fn read(forest: &'a Forest, ordered: bool) -> Result<Self, ShapeError> {
         use Kind::*;
-        // Which positions each occurrence can take, children before parents.
+        // The positions each occurrence can take, children before parents.
         let mut can = vec![0u8; forest.len()];
         for o in forest.ids().rev() {
             let child = |k: Option<OccId>| k.map_or(0, |k| can[k.index()]);
@@ -354,9 +370,9 @@ impl<'a> Reading<'a> {
                 Top | Zero => IN | OUT,
                 Forall | Exists => both(l_in, l_out),
                 With | Plus => both(l_in && r_in, l_out && r_out),
-                // In input position `A ⊗ B⊥` is `A ⊸ B`, in output position
-                // `A⊥ ⅋ B`: the left factor is the antecedent, or in the
-                // ordered reading either factor.
+                // `A ⊸ B` is `A ⊗ B⊥` in input position and `A⊥ ⅋ B` in
+                // output position. The left factor is the antecedent; in
+                // the ordered reading either factor can be.
                 Tensor => both(l_out && r_in || ordered && l_in && r_out, l_out && r_out),
                 Par => both(l_in && r_in, l_in && r_out || ordered && l_out && r_in),
             };
@@ -373,8 +389,8 @@ impl<'a> Reading<'a> {
                     return Err(ShapeError::Succedents { count: right.len() });
                 };
                 let refused = |o: &OccId| can[o.index()] & IN == 0;
-                // The ordered parse reversed the formulas left of ⊢: the
-                // first written is the last root before the goal.
+                // The ordered parse reversed the formulas left of ⊢, so the
+                // first one written is the last root before the goal.
                 let index = if ordered {
                     left.iter().rposition(refused).map(|i| left.len() - 1 - i)
                 } else {
@@ -389,8 +405,9 @@ impl<'a> Reading<'a> {
                 goal
             }
             None => {
-                // A root that cannot be input is the goal; else the one
-                // root that can be output, every other one being input.
+                // A root that cannot be input is the goal. Failing that,
+                // the goal is the one root that can be output, and every
+                // other root is input.
                 let mut only_goals = roots.iter().copied().filter(|&o| can[o.index()] == OUT);
                 match (only_goals.next(), only_goals.next()) {
                     (Some(a), Some(b)) => {
@@ -437,8 +454,9 @@ impl<'a> Reading<'a> {
                 }
                 continue;
             };
-            // An implication's antecedent flips: its left factor, or in
-            // the ordered reading the right one where only that can.
+            // An implication's antecedent flips position. It is the left
+            // factor, or in the ordered reading the right one where the
+            // factors cannot be read with the left one flipped.
             let implication = matches!(
                 (forest.kind(o), p),
                 (Tensor, Side::Input) | (Par, Side::Output)
@@ -458,14 +476,14 @@ impl<'a> Reading<'a> {
         })
     }
 
-    /// Returns the positions and the goal, for an owner of the forest to
+    /// Returns the positions and the goal, for the owner of the forest to
     /// keep beside it.
     pub(crate) fn into_parts(self) -> (Box<[Side]>, OccId) {
         (self.position.into_owned().into_boxed_slice(), self.goal)
     }
 
-    /// Returns the bytes the reading allocated itself: its positions, where
-    /// it does not read a session's.
+    /// Returns the bytes the reading allocated itself: its positions,
+    /// unless it borrows a session's.
     pub(crate) fn held_bytes(&self) -> usize {
         match &self.position {
             Cow::Owned(position) => position.capacity() * size_of::<Side>(),
@@ -515,8 +533,8 @@ impl<'a> Reading<'a> {
     }
 
     /// Returns the hypotheses: every root but the goal, in the order
-    /// written. In the ordered reading that is going round from the goal
-    /// backwards, the formulas before it from the last, then those after
+    /// written. In the ordered reading that order goes round backwards
+    /// from the goal: the roots before it from the last, then those after
     /// it from the last.
     pub fn hypotheses(&self) -> impl Iterator<Item = OccId> + '_ {
         let roots = self.forest.roots();
@@ -534,10 +552,11 @@ impl<'a> Reading<'a> {
         })
     }
 
-    /// Returns the positions in `sequent`, a sequent of the forest's
-    /// occurrences in ascending order, of its hypotheses in the order a
-    /// two-sided sequent writes them, then of its goal: in id order, or
-    /// in the ordered reading going round from the goal backwards.
+    /// Returns the indices into `sequent` in the order a two-sided sequent
+    /// writes its formulas: the hypotheses, then the goal. `sequent` holds
+    /// occurrences of the forest in ascending order. The hypotheses come in
+    /// id order, or in the ordered reading going round backwards from the
+    /// goal.
     pub(crate) fn written<'s>(
         &'s self,
         sequent: &'s [super::Member],
@@ -545,7 +564,7 @@ impl<'a> Reading<'a> {
         self.written_by(sequent, super::Member::occ)
     }
 
-    /// Returns the positions as [`written`](Self::written) does, of a
+    /// Returns the indices as [`written`](Self::written) does, for a
     /// sequent of members whose occurrences `occ` gives.
     pub(crate) fn written_by<'s>(
         &'s self,
@@ -571,10 +590,12 @@ impl<'a> Reading<'a> {
             .chain(order.filter(move |&p| output(p)))
     }
 
-    /// Returns the antecedent and the consequent of an implication `A ⊸ B`:
-    /// a `⅋` in output position or a `⊗` in input position, whose antecedent
-    /// is the left factor, or in the ordered reading the factor in the
-    /// other position. `None` for any other occurrence.
+    /// Returns the antecedent and the consequent of an implication `A ⊸ B`,
+    /// or `None` for an occurrence that is no implication.
+    ///
+    /// An implication is a `⅋` in output position or a `⊗` in input
+    /// position. Its antecedent is the left factor, or in the ordered
+    /// reading the factor in the other position from it.
     pub fn implication(&self, o: OccId) -> Option<(OccId, OccId)> {
         match (self.forest.kind(o), self.position(o)) {
             (Kind::Par, Side::Output) | (Kind::Tensor, Side::Input) => {
@@ -589,7 +610,7 @@ impl<'a> Reading<'a> {
         }
     }
 
-    /// Counts the occurrences in output position among `ids`: an
+    /// Returns how many of `ids` are in output position. An
     /// intuitionistic sequent has exactly one.
     pub fn outputs(&self, ids: impl IntoIterator<Item = OccId>) -> usize {
         ids.into_iter()
@@ -598,8 +619,8 @@ impl<'a> Reading<'a> {
     }
 
     /// Returns the intuitionistic formula at `o`, as a value that prints it
-    /// with `⊸`, `1` for `⊥`, `⊤` for an input `0` and so on, according to
-    /// the position of `o`.
+    /// as its position reads it: with `⊸`, `1` for `⊥`, `⊤` for an input
+    /// `0`, and so on.
     pub fn formula(&self, o: OccId) -> IllFormula<'_> {
         IllFormula {
             reading: self,
@@ -607,10 +628,10 @@ impl<'a> Reading<'a> {
         }
     }
 
-    /// Returns the connective, unit or atom that the occurrence `o` is as
-    /// an intuitionistic formula in its position: an output `⅋` or an input
-    /// `⊗` is an implication, in the ordered reading a division, `⊥` is
-    /// `1`, an input `⊤` is `0`, and so on.
+    /// Returns what the occurrence `o` is as an intuitionistic formula in
+    /// its position: a connective, unit or atom. For example, an output `⅋`
+    /// or an input `⊗` is an implication (a division in the ordered
+    /// reading), `⊥` is `1`, and an input `⊤` is `0`.
     pub fn connective(&self, o: OccId) -> IllConnective {
         use IllConnective as C;
         if self.ordered
@@ -638,10 +659,12 @@ impl<'a> Reading<'a> {
     }
 
     /// Returns the walk over the intuitionistic formula at `o`: the stops
-    /// a printer of it in another syntax follows, each naming an
-    /// occurrence whose [`connective`](Self::connective) says what it is,
-    /// the operands of an implication its antecedent and then its
-    /// consequent.
+    /// that a printer for another syntax follows. Each stop names an
+    /// occurrence, and [`connective`](Self::connective) says what it is.
+    /// An implication's operands come antecedent first.
+    ///
+    /// # Examples
+    ///
     #[cfg_attr(feature = "parse", doc = "```")]
     #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
     /// use deduxit::linear::occurrences::IllConnective;
@@ -675,11 +698,11 @@ impl<'a> Reading<'a> {
     }
 
     /// Returns the first and the second subformula of the intuitionistic
-    /// formula at `o`, each if there is one, in the order they are written:
-    /// of an implication the antecedent, then the consequent. In the
-    /// ordered reading the operands of a product in input position are
-    /// written right one first, the reversing dual having turned them
-    /// round, which puts the consequent of `B / A` first.
+    /// formula at `o`, where it has them, in the order they are written.
+    /// For an implication that is the antecedent, then the consequent. In
+    /// the ordered reading the dual has reversed the products in input
+    /// position, so their operands are written right one first. That puts
+    /// the consequent of `B / A` first.
     pub(crate) fn operands(&self, o: OccId) -> (Option<OccId>, Option<OccId>) {
         let (l, r) = (self.forest.left(o), self.forest.right(o));
         if self.ordered {
@@ -695,15 +718,15 @@ impl<'a> Reading<'a> {
 }
 
 impl Display for Reading<'_> {
-    /// Writes the sequent two-sided: the hypotheses, `⊢`, the goal, with
-    /// intuitionistic formulas.
+    /// Writes the sequent two-sided with intuitionistic formulas: the
+    /// hypotheses, `⊢`, then the goal.
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         TEXT.reading(f, self)
     }
 }
 
-/// What an occurrence is as a formula of intuitionistic linear logic
-/// under its position: the table every printer of a reading follows.
+/// What an occurrence is as a formula of intuitionistic linear logic in
+/// its position. Every printer of a reading follows this table.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum IllConnective {
@@ -738,7 +761,8 @@ pub enum IllConnective {
     Exists,
 }
 
-/// An intuitionistic formula of a read sequent, as a value that prints it.
+/// An intuitionistic formula of a read sequent, as a value that prints
+/// it.
 #[derive(Clone, Copy, Debug)]
 pub struct IllFormula<'a> {
     /// The reading the formula's position comes from.
@@ -769,10 +793,10 @@ mod tests {
             .map_err(|e| e.describe(&forest).to_string())
     }
 
-    /// One occurrence, anywhere below a root, is written as the reading
-    /// reads it in its position: a hypothesis `A ⊸ B` (one-sided `A ⊗
-    /// B⊥`) as `A ⊸ B`, the same formula under a hypothesis's `!` and
-    /// under the goal's `!` alike, and a negated atom as its atom.
+    /// Any occurrence, at any depth, is written as its position reads it:
+    /// a hypothesis `A ⊸ B` (one-sided `A ⊗ B⊥`) as `A ⊸ B`, the same
+    /// formula alike under a hypothesis's `!` and under the goal's `!`, and
+    /// a negated atom as its atom.
     #[test]
     fn one_occurrence_is_written_in_its_position() {
         let s: Sequent = "!(A -o B), A |- !(A -o B) * A".parse().unwrap();
@@ -793,9 +817,9 @@ mod tests {
         );
     }
 
-    /// Intuitionistic sequents print back two-sided with `⊸`, `1`, `⊤` and
-    /// `0` recovered from their one-sided forms, the goal being the formula
-    /// written right of `⊢`.
+    /// Intuitionistic sequents print back two-sided, with `⊸`, `1`, `⊤`
+    /// and `0` recovered from their one-sided forms. The goal is the
+    /// formula written right of `⊢`.
     #[test]
     fn shapes() {
         for (input, two_sided) in [
@@ -876,14 +900,7 @@ mod tests {
             .map_err(|e| e.describe(&forest).to_string())
     }
 
-    /// The reading takes the goal from the written sides and an
-    /// implication's antecedent from its left factor, and never answers a
-    /// question the input did not ask: `|- top, a` (two formulas right of
-    /// `⊢`, read as `0 ⊢ a` by a guessed goal) and `(A -o bot) -o bot |- A`
-    /// (read as `1 ⊸ (A ⊗ 1) ⊢ A` by a symmetric implication) are refused,
-    /// with the sides known and without them, where without them a
-    /// sequent with one reading is read and one with two is refused.
-    /// The ordered reading names the first formula written left of ⊢
+    /// The ordered reading names the first formula written left of `⊢`
     /// that cannot be a hypothesis, as the commutative one does.
     #[test]
     fn the_first_written_hypothesis_is_named() {
@@ -900,6 +917,13 @@ mod tests {
         );
     }
 
+    /// The reading takes the goal from the written sides and an
+    /// implication's antecedent from its left factor, and guesses nothing.
+    /// `|- top, a` has two formulas right of `⊢` and is refused, though a
+    /// guessed goal would read it as `0 ⊢ a`. `(A -o bot) -o bot |- A` is
+    /// refused with the sides known and without them, though a symmetric
+    /// implication would read it as `1 ⊸ (A ⊗ 1) ⊢ A`. Without the sides,
+    /// a sequent with one reading is read and one with two is refused.
     #[test]
     fn the_written_sides_decide() {
         let several = "an intuitionistic sequent has exactly one formula right of ⊢, not 2: write the hypotheses left of ⊢";
@@ -930,11 +954,12 @@ mod tests {
         );
     }
 
-    /// The positions: the antecedent of an implication flips, the rest
-    /// inherits, and `implication` names the antecedent first.
+    /// The antecedent of an implication flips position, every other
+    /// subformula keeps its parent's, and `implication` names the
+    /// antecedent first.
     #[test]
     fn positions() {
-        // ⊢ ~A ⅋ (~B ⅋ C), D: two formulas right of `⊢`, of which, the sides
+        // ⊢ ~A ⅋ (~B ⅋ C), D: two formulas right of `⊢`. With the sides
         // unknown, both can only be the goal.
         let mut s: Sequent = "|- A -o (B -o C), D".parse().unwrap();
         let forest = Forest::new(&s).unwrap();
@@ -948,7 +973,8 @@ mod tests {
             Reading::new(&forest),
             Err(ShapeError::SeveralGoals { first: a, second: b }) if a == OccId::new(0) && b == OccId::new(5)
         ));
-        // ⊢ A ⊗ (B ⊗ ~C), D: hypothesis A ⊸ (B ⊸ C): 0 ⊗, 1 A, 2 ⊗, 3 B, 4 ~C, 5 D
+        // ⊢ A ⊗ (B ⊗ ~C), D, the hypothesis A ⊸ (B ⊸ C): 0 ⊗, 1 A, 2 ⊗,
+        // 3 B, 4 ~C, 5 D.
         let s: Sequent = "A -o (B -o C) |- D".parse().unwrap();
         let forest = Forest::new(&s).unwrap();
         let r = Reading::new(&forest).unwrap();
@@ -1003,9 +1029,9 @@ mod tests {
             let back: Sequent = printed
                 .parse()
                 .unwrap_or_else(|e| panic!("{input:?} printed as {printed:?}: {e}"));
-            // The print is canonical (the antecedent of an implication comes
-            // first), so its own reading prints the same, over the same
-            // fragment and as many formulas.
+            // The print is canonical (an implication's antecedent comes
+            // first), so the reparsed sequent has the same fragment and as
+            // many formulas, and its reading prints the same text.
             assert_eq!(
                 back.fragment(),
                 s.fragment(),

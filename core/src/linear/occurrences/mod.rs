@@ -1,10 +1,10 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-// A variant a later step adds must not fall into an existing arm.
+// A new variant of an enum matched here must not fall into an existing
+// arm unnoticed.
 #![deny(clippy::wildcard_enum_match_arm)]
 
-/// Sequents of intuitionistic linear logic as written.
 pub mod ill;
 pub mod instances;
 pub mod reading;
@@ -45,10 +45,13 @@ impl OccId {
     }
 }
 
-/// A member of a sequent of its owner (a proof, a derivation, a session,
-/// a goal): below the forest's length the occurrence with that id, and so
-/// the same number in every owner. Every public list of a sequent's
-/// members holds members; [`Forest`] and [`Reading`] speak of occurrences.
+/// A member of a sequent held by a proof, a derivation, a session or a
+/// goal.
+///
+/// A member below the forest's length is the occurrence with that id, so
+/// it is the same number in every owner. The public API lists the members
+/// of a sequent as `Member`s; [`Forest`] and [`Reading`] take
+/// [`OccId`]s.
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(
@@ -74,14 +77,15 @@ impl Member {
         self.0 as usize
     }
 
-    /// Returns the occurrence the member is, when it is one of the
-    /// forest's own.
+    /// Returns the occurrence this member is, or `None` when it is no
+    /// occurrence of `forest`.
     pub fn occurrence(self, forest: &Forest) -> Option<OccId> {
         (self.index() < forest.len()).then_some(OccId(self.0))
     }
 
-    /// Returns the occurrence the member is, for a member of an owner
-    /// without a table of its own, which every member of a proposition is.
+    /// Returns the occurrence with this member's number, unchecked: right
+    /// for an owner without an instance table, whose members are all
+    /// occurrences.
     pub(crate) const fn occ(self) -> OccId {
         OccId(self.0)
     }
@@ -122,17 +126,20 @@ impl Not for Sign {
     }
 }
 
-/// The polarity of a formula in focused proof search: positive connectives
-/// (`⊗ 1 ⊕ 0 !`) have non-invertible rules and are decomposed under focus,
-/// negative ones (`⅋ ⊥ & ⊤ ?`) have invertible rules and are decomposed
-/// eagerly. A literal's polarity is chosen per atom by the search, under
+/// The polarity of a formula in focused proof search.
+///
+/// A rule is invertible when its premises are provable whenever its
+/// conclusion is. The rules of the negative connectives (`⅋ ⊥ & ⊤ ? ∀`)
+/// are invertible, so the search decomposes them at once. Those of the
+/// positive connectives (`⊗ 1 ⊕ 0 ! ∃`) are not, so the search decomposes
+/// them under focus. The search chooses a literal's polarity per atom, by
 /// its [`Bias`](crate::linear::search::Bias).
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Polarity {
-    /// `⊗ 1 ⊕ 0 !`, and the literals the bias makes positive.
+    /// `⊗ 1 ⊕ 0 ! ∃`, and the literals the bias makes positive.
     Positive,
-    /// `⅋ ⊥ & ⊤ ?`, and the literals the bias makes negative.
+    /// `⅋ ⊥ & ⊤ ? ∀`, and the literals the bias makes negative.
     Negative,
 }
 
@@ -183,34 +190,37 @@ impl Kind {
     }
 }
 
-/// The subformula occurrences of a sequent, numbered so that every subtree is
-/// a contiguous range of ids, with what proof search asks of each occurrence
-/// and of each atom.
+/// The subformula occurrences of a sequent, numbered so that every subtree
+/// is a contiguous range of ids, with what proof search asks of each
+/// occurrence and of each atom.
 ///
 /// The numbering is a depth-first preorder walk: the roots in the order
 /// [`Sequent::roots`] lists them, and below a connective its left subterm
-/// before its right one. So a root comes before everything below it, the
-/// left child of `o` is `o + 1`, the right child follows the left child's
-/// subtree, and the subtree of `o` is exactly the ids `o .. o + size(o)`.
+/// before its right one. So:
+/// - a root comes before everything below it;
+/// - the left child of `o` is `o + 1`, and the right child follows the
+///   left child's subtree;
+/// - the subtree of `o` is exactly the ids `o .. o + size(o)`.
+///
 /// Two occurrences of one arena term are distinct ids that share a
 /// [`TermId`].
 ///
 /// A sequent with cut formulas ([`Sequent::cuts`]) has a tree for each
 /// cut formula `A` and one for its dual `A⊥` after the roots' trees, in
-/// the same preorder, `A` then `A⊥` per pair: [`roots`](Self::roots)
-/// stays the conclusion, [`ids`](Self::ids) is every occurrence, and
+/// the same preorder, `A` then `A⊥` per pair. [`roots`](Self::roots) is
+/// still the conclusion, and [`ids`](Self::ids) is every occurrence.
 /// [`cut_pairs`](Self::cut_pairs), [`dual`](Self::dual) and
 /// [`is_conclusion`](Self::is_conclusion) tell the trees apart. The two
-/// trees of a pair are of one shape, so the occurrence of `A⊥` dual to
-/// `x` in `A` is `x + size(A)`.
+/// trees of a pair have one shape, so the occurrence of `A⊥` dual to `x`
+/// in `A` is `x + size(A)`.
 ///
-/// A forest owns a copy of its sequent, so that an occurrence can be printed
-/// as a formula, and every other per-occurrence datum is an array of `u32`
+/// A forest owns a copy of its sequent, so it can print an occurrence as a
+/// formula. Everything else it holds per occurrence is an array of `u32`
 /// or smaller.
 ///
-/// Every accessor that takes an [`OccId`] reads arrays per occurrence and
-/// panics for an id past the forest's end, one of another forest:
-/// [`Member::occurrence`] and [`len`](Self::len) are the checked way in.
+/// Every accessor that takes an [`OccId`] panics for an id past the
+/// forest's end, such as one of another forest. [`Member::occurrence`] and
+/// [`len`](Self::len) check an id first.
 ///
 /// # Examples
 ///
@@ -298,11 +308,13 @@ impl Forest {
     }
 
     /// Builds the forest of a sequent within the default
-    /// [`Limits::occurrences`], keeping a copy of the sequent. A forest
-    /// takes about 25 bytes per occurrence, and an arena that shares its
-    /// subterms unfolds to exponentially more occurrences than it has
-    /// terms, so a sequent of a few hundred bytes can ask for gigabytes;
-    /// the bound refuses it before anything of that size is built.
+    /// [`Limits::occurrences`], keeping a copy of the sequent.
+    ///
+    /// A forest takes about 25 bytes per occurrence. An arena that shares
+    /// its subterms can unfold to exponentially more occurrences than it
+    /// has terms, so a sequent of a few hundred bytes can ask for
+    /// gigabytes. The bound refuses such a sequent before anything of that
+    /// size is built.
     ///
     /// # Errors
     ///
@@ -326,8 +338,8 @@ impl Forest {
     }
 
     /// Builds the forest of a sequent as [`within`](Self::within) does,
-    /// taking the sequent instead of copying it: of a sequent of millions
-    /// of terms the copy is memory worth saving.
+    /// taking the sequent instead of copying it, which saves memory on a
+    /// sequent of millions of terms.
     ///
     /// # Errors
     ///
@@ -338,8 +350,8 @@ impl Forest {
     }
 
     /// Returns the number of occurrences below every arena term of a
-    /// sequent, itself included, if the sequent has no more occurrences
-    /// than the limits and a forest allow.
+    /// sequent, the term's own included, or the refusal when the sequent
+    /// has more occurrences than the limits or a forest allow.
     fn measure(sequent: &Sequent, limits: &Limits) -> Result<Vec<u64>, Error> {
         let sizes = sequent.sizes();
         let occurrences = sequent.occurrences_of(&sizes);
@@ -369,7 +381,8 @@ impl Forest {
         self.term.len()
     }
 
-    /// Returns whether the sequent has no formula.
+    /// Returns whether the forest has no occurrence: the sequent has no
+    /// formula and no cut formula.
     pub fn is_empty(&self) -> bool {
         self.term.is_empty()
     }
@@ -401,8 +414,8 @@ impl Forest {
             .map(|&a| (a, OccId::new(a.get() + self.size(a))))
     }
 
-    /// Returns whether a formula of the sequent has a binder, `∀` or `∃`:
-    /// whether the sequent is first-order with quantifiers.
+    /// Returns whether any occurrence, cut formulas included, is a
+    /// quantifier, `∀` or `∃`.
     pub fn has_binders(&self) -> bool {
         self.kind.iter().any(|k| k.is_binder())
     }
@@ -422,10 +435,9 @@ impl Forest {
         self.cuts.first().is_none_or(|&first| self.root(o) < first)
     }
 
-    /// Returns the occurrence in the other tree of a cut pair that stands
-    /// where `o` stands in its own, the two trees being of one shape: for
-    /// an occurrence of a cut formula `A` the one of `A⊥` that is its
-    /// dual, and the other way round; `None` for an occurrence of the
+    /// Returns the occurrence dual to `o` across a cut pair: for an
+    /// occurrence of a cut formula `A`, the one at the same place in `A⊥`,
+    /// and the other way round. Returns `None` for an occurrence of the
     /// conclusion.
     ///
     /// # Panics
@@ -433,7 +445,8 @@ impl Forest {
     /// For an id of another forest, past this one's end.
     pub fn dual(&self, o: OccId) -> Option<OccId> {
         let root = self.root(o);
-        // The cut formulas ascend; `A⊥`'s root is no entry.
+        // `cuts` ascends and holds only the `A` roots, so the last entry
+        // at or before `root` is the pair's `A`, if `root` is in a pair.
         let at = self.cuts.partition_point(|&a| a <= root).checked_sub(1)?;
         let a = self.cuts[at];
         let size = self.size(a);
@@ -446,8 +459,8 @@ impl Forest {
         }
     }
 
-    /// Returns whether `o` lies in a cut formula `A`, not in its dual:
-    /// where a [`Node::Cut`](crate::linear::Node::Cut) names its cut.
+    /// Returns whether `o` lies in a cut formula `A`, not in its dual.
+    /// A [`Node::Cut`](crate::linear::Node::Cut) names its cut there.
     ///
     /// # Panics
     ///
@@ -456,8 +469,8 @@ impl Forest {
         self.dual(o).is_some_and(|d| o < d)
     }
 
-    /// Returns whether `goal` is the roots, in any order: the sequent
-    /// itself.
+    /// Returns whether `goal` is the roots in any order, that is the
+    /// sequent itself.
     pub(crate) fn is_roots(&self, goal: &[OccId]) -> bool {
         if goal.len() != self.roots.len() {
             return false;
@@ -576,9 +589,9 @@ impl Forest {
         self.kind(o).sign()
     }
 
-    /// Returns whether `x` and `y` are an atom and its negation, which an
-    /// axiom pairs: the one test of axiom partners, which atoms with
-    /// arguments will make a comparison of instances.
+    /// Returns whether `x` and `y` are an atom and its negation, the two
+    /// literals an axiom pairs. Every test of axiom partners asks this
+    /// function, so what pairs two literals changes here alone.
     pub(crate) fn dual_literals(&self, x: OccId, y: OccId) -> bool {
         self.is_literal(x) && self.atom(x) == self.atom(y) && self.sign(x) != self.sign(y)
     }
@@ -653,8 +666,8 @@ impl Forest {
     }
 
     /// Returns the occurrences of one literal of an atom, `a` or `~a`, in
-    /// ascending id order: the candidate partners in an axiom of a literal
-    /// of the other sign, which `dual_literals` decides.
+    /// ascending id order: the candidate axiom partners of a literal of
+    /// the other sign.
     pub fn literals(&self, atom: Atom, sign: Sign) -> &[OccId] {
         let group = Self::list(atom, sign);
         let (start, end) = (self.literal_start[group], self.literal_start[group + 1]);
@@ -682,8 +695,8 @@ impl Forest {
 
 impl Forest {
     /// Builds the forest of a sequent from the number of occurrences below
-    /// each of its arena terms, itself included, which add up to no more
-    /// than a forest can hold.
+    /// each of its arena terms, the term's own included. The sizes must
+    /// add up to no more than a forest can hold.
     fn build(sequent: Sequent, term_size: &[u64]) -> Self {
         let terms = sequent.terms();
         let n = sequent.occurrences_of(term_size) as usize;
