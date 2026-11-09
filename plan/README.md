@@ -5729,3 +5729,16 @@ move (D26).
       because the public API still served the new ref as 404 from its
       cache. Creating the ref was refused ("already exists"), so the
       real tag is untouched.
+- 2026-11-09, 11:10: **rocq-deduxit 0.3.0 is released** (its workflow
+  succeeded).
+  - **The opam submission is filled in** (`~/Projects/own/rocq-opam`,
+    change mmsqlyzk, 4d70b1e7):
+    - the archive's SHA-512 computed here equals the release notes'
+      (1f84f7d2…);
+    - the `date:2026-11-09` tag is in place;
+    - `opam lint --check-upstream` passed.
+  - **Still to run before the author's pull request:** the installs per
+    Rocq version (`scripts/opam-install.sh 9.0.1 9.1.1 9.2.0 9.3.0`,
+    about an hour). They are deferred past the author's stop at 11:30.
+  - **deduxit's release workflow** still runs, its publish job waiting
+    for the author.
