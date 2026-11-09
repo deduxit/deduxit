@@ -1,17 +1,17 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Many sequents decided in one call: problems in, results out, in the
-//! order of the problems and each as soon as it and those before it are
-//! decided, so that a stream of questions is answered one by one. The
-//! machine's threads go across the sequents, one sequent per worker on
-//! the sequential engines, or within one sequent at a time
-//! ([`Cores`]); the memory bound of each search and the batch's own
-//! bound decide how many workers run at once (the [`Plan`] each work
-//! call is handed).
-//! The options of every sequent's search and the [`Limits`] each runs
-//! within are the batch's arguments beside its own options.
-//! Without the `parallel` feature a batch runs on the caller's thread.
+//! Many sequents decided in one call. Problems go in and results come
+//! out, in the order of the problems, each as soon as it and those before
+//! it are decided. So a stream of questions is answered one by one.
+//!
+//! The machine's threads go either across the sequents, one sequent per
+//! worker on the sequential engines, or within one sequent at a time
+//! ([`Cores`]). The memory bound of each search and the batch's own bound
+//! decide how many workers run at once (the [`Plan`] each work call is
+//! handed). The options of every sequent's search and the [`Limits`] each
+//! runs within are arguments of the batch beside its own options. Without
+//! the `parallel` feature a batch runs on the caller's thread.
 //!
 //! # Examples
 //!
@@ -38,7 +38,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// How a batch spends the machine's threads. In JSON (feature
-/// `serialize`) `"auto"`, `"across"` or `"within"`.
+/// `serialize`) it is `"auto"`, `"across"` or `"within"`.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -57,16 +57,17 @@ pub enum Cores {
 }
 
 /// How a batch shares the machine among its sequents. The options of each
-/// sequent's search and the limits it runs within are given beside them;
-/// `Limits::memory_bytes` is each search's bound.
+/// sequent's search and the limits it runs within are separate arguments
+/// of [`run`] and [`prove`]. `Limits::memory_bytes` is each search's
+/// bound.
 ///
 /// # JSON
 ///
-/// With the feature `serialize` an object of the fields, a missing one
-/// taking its default and a misspelt one refused: `"mode"` a mode's name
-/// (`"classical"`), `"cores"` one of `"auto"`, `"across"` and `"within"`,
-/// `"workers"` a number, `"total_memory_bytes"` a number or `null` for no
-/// bound.
+/// With the feature `serialize`, an object of the fields. A missing field
+/// takes its default, and a misspelt one is refused. `"mode"` is a mode's
+/// name (`"classical"`), `"cores"` one of `"auto"`, `"across"` and
+/// `"within"`, `"workers"` a number, and `"total_memory_bytes"` a number,
+/// or `null` for no bound.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(
@@ -79,9 +80,9 @@ pub struct Options {
     pub mode: Mode,
     /// Where the threads go.
     pub cores: Cores,
-    /// The most sequents decided at once, across the sequents: at least
-    /// one, and more than [`MAX_JOBS`](SearchOptions::MAX_JOBS) are taken as that
-    /// many.
+    /// The most sequents decided at once, across the sequents. Zero is
+    /// taken as one, and a number above
+    /// [`MAX_JOBS`](SearchOptions::MAX_JOBS) as that many.
     pub workers: usize,
     /// The most memory all the searches of the batch may hold together,
     /// or `None` for no bound but each search's.
@@ -125,12 +126,14 @@ impl Options {
         }
     }
 
-    /// Returns how the batch runs, `within` its sequents or across them:
-    /// across, as many workers as the batch's bound holds searches at the
-    /// bound of each (at least one, whose bound is then the batch's), each
-    /// on one thread; within, one worker at the batch's bound, which a race
-    /// of one thread against a pool of the others shares between its two
-    /// searches ([`race`](super::race), feature `parallel`).
+    /// Returns how the batch runs, `within` its sequents or across them.
+    ///
+    /// Across, as many workers run as the batch's bound holds searches at
+    /// the bound of each, each on one thread. There is at least one, whose
+    /// bound is then the batch's. Within, one worker runs at the batch's
+    /// bound. A race of one thread against a pool of the others shares
+    /// that bound between its two searches ([`race`](super::race),
+    /// feature `parallel`).
     pub(crate) fn plan(&self, within: bool, search: &SearchOptions, limits: &Limits) -> Plan {
         let search = search.clone();
         let mut limits = *limits;
@@ -183,7 +186,8 @@ impl Default for Options {
     }
 }
 
-/// How a batch runs.
+/// How a batch runs: how many workers, and the options and limits of
+/// each search.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Plan {
@@ -241,9 +245,9 @@ pub struct Answer {
     pub outcome: Result<Outcome, Error>,
 }
 
-/// Decides the problems, and returns their answers in order as they are
-/// decided. Each search ends by the limits or when the results are
-/// cancelled ([`Results::cancel`], or dropped); a front end that needs a
+/// Decides the problems, and returns their answers in order, as they are
+/// decided. Each search ends at the limits, or when the results are
+/// cancelled ([`Results::cancel`]) or dropped. A front end that needs a
 /// time limit of its own calls [`run`].
 pub fn prove(
     problems: impl IntoIterator<Item = Problem, IntoIter: Send + 'static>,
@@ -271,17 +275,52 @@ pub fn prove(
     )
 }
 
-/// Applies `work` to every problem with the options of its search, as the
+/// Applies `work` to every problem, with the options of its search as the
 /// plan says, and returns the results in the order of the problems, each
-/// as soon as it and those before it are done. `Cores::Auto` reads up to
-/// as many problems as there are workers before the first starts; a
-/// stream whose next problem waits on an answer wants `Across` or
-/// `Within`. `work` is handed the batch's [`Cancel`], which its stop asks.
-/// A panic in `work` is resumed by the iterator at its problem's place,
-/// after the results before it; the batch then takes no more problems
-/// and is cancelled, so the other workers end. Workers that cannot
-/// start (the stack the limits ask for is not to be had) leave the batch
-/// to those that did, or to the caller's thread.
+/// as soon as it and those before it are done.
+///
+/// `work` is handed the batch's [`Cancel`], which its stop asks.
+/// `Cores::Auto` reads up to as many problems as there are workers before
+/// the first starts, so a stream whose next problem waits on an answer
+/// wants `Across` or `Within`. Workers that cannot start, because the
+/// stack the limits ask for is not to be had, leave the batch to those
+/// that did, or to the caller's thread.
+///
+/// # Panics
+///
+/// The iterator resumes a panic in `work` at its problem's place, after
+/// the results before it. The batch then takes no more problems and is
+/// cancelled, so the other workers end.
+///
+/// # Examples
+///
+/// Each problem's work proves its sequent within a time limit of its own,
+/// and stops early when the batch is cancelled:
+///
+#[cfg_attr(feature = "parse", doc = "```")]
+#[cfg_attr(not(feature = "parse"), doc = "```ignore")]
+/// use deduxit::Limits;
+/// use deduxit::linear::search::{self, batch};
+/// use deduxit::linear::{Mode, Sequent, Verdict, prove_within};
+/// use std::time::{Duration, Instant};
+///
+/// let problems: Vec<Sequent> = vec!["A |- A".parse()?, "A |- B".parse()?];
+/// let results = batch::run(
+///     problems,
+///     &batch::Options::default(),
+///     &search::Options::default(),
+///     &Limits::default(),
+///     |sequent: Sequent, plan: &batch::Plan, cancel: &batch::Cancel| {
+///         let start = Instant::now();
+///         let outcome = prove_within(&sequent, Mode::CLASSICAL, &plan.search, &plan.limits, |_| {
+///             cancel.is_cancelled() || start.elapsed() > Duration::from_secs(2)
+///         });
+///         matches!(outcome.map(|o| o.verdict), Ok(Verdict::Proved(_)))
+///     },
+/// );
+/// assert_eq!(results.collect::<Vec<bool>>(), [true, false]);
+/// # Ok::<(), deduxit::Error>(())
+/// ```
 pub fn run<P, R>(
     problems: impl IntoIterator<Item = P, IntoIter: Send + 'static>,
     options: &Options,
@@ -330,8 +369,8 @@ where
     }
 }
 
-/// Asks the work of a batch to end: [`Results::cancel`] raises it, and so
-/// does dropping the results; the work's stop asks it, so a search in
+/// Asks the work of a batch to end. [`Results::cancel`] raises it, and so
+/// does dropping the results. The work's stop asks it, so a search in
 /// flight ends as `Unknown(Reason::Stopped)`.
 #[derive(Clone, Debug, Default)]
 pub struct Cancel(Arc<AtomicBool>);
@@ -380,7 +419,7 @@ impl<R> Drop for Results<R> {
 }
 
 impl<R> std::fmt::Debug for Results<R> {
-    /// Names the type: what it holds is the workers' state.
+    /// Writes the type's name only: what it holds is the workers' state.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Results").finish_non_exhaustive()
     }
@@ -424,7 +463,8 @@ mod workers {
     /// few while a slow problem is decided.
     pub(super) const AHEAD: usize = 4;
 
-    /// How long a worker waits for its turn before it looks again.
+    /// How long a worker waits for its turn before it looks again. A lost
+    /// wake-up costs this much, not a hang.
     const WAIT: Duration = Duration::from_millis(10);
 
     /// The problems not yet taken, and where the workers are in them.
@@ -441,16 +481,18 @@ mod workers {
     struct Shared<P> {
         /// The queue, locked only to take a problem.
         queue: Mutex<Queue<P>>,
-        /// How many results were given out, which the iterator raises
-        /// without the lock: a worker that waits on a stream for the next
-        /// problem holds the lock, and the answer it waits for must not.
+        /// How many results were given out. The iterator raises it without
+        /// the lock: a worker that waits on a stream for the next problem
+        /// holds the lock, and the client may send that problem only after
+        /// the answer, so giving the answer out must not take the lock.
         given: AtomicUsize,
         /// Woken when a result is given out.
         turn: Condvar,
-        /// Whether the batch ended (its results dropped, or a work
-        /// panicked), set and read without the lock, which a worker
-        /// waiting on a stream holds: a mark set under it with `try_lock`
-        /// was missed, and a worker waiting at the window waited for good.
+        /// Whether the batch ended: its results were dropped, or a work
+        /// panicked. It is set and read without the lock, which a worker
+        /// waiting on a stream holds. A mark under the lock would have to
+        /// be set with `try_lock`, which can miss, and a worker waiting at
+        /// the window would then wait for good.
         over: AtomicBool,
     }
 
@@ -752,8 +794,8 @@ mod tests {
     }
 
     /// Workers whose stack cannot be had leave the batch to the caller's
-    /// thread: a recursion limit read from a file asks for terabytes of
-    /// stack, which panicked a batch of two workers.
+    /// thread: a recursion limit read from a file can ask for terabytes of
+    /// stack, which must not panic a batch of two workers.
     #[test]
     fn workers_that_cannot_start_leave_the_batch_here() {
         let sequent: Sequent = "|- a, ~a".parse().unwrap();
@@ -873,8 +915,8 @@ mod tests {
     }
 
     /// A panic of the problems themselves, on a worker, ends the batch at
-    /// its place too: the results before it, then the panic, where the
-    /// workers went on past it and moved the later results up a place.
+    /// its place too: the results before it, then the panic. Workers that
+    /// went on past it would move the later results up a place.
     #[cfg(feature = "parallel")]
     #[test]
     fn a_panic_of_the_problems_ends_the_batch_at_its_place() {

@@ -1,12 +1,12 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The parallel runtime: a thread pool per search, built for it or lent
-//! by a [`Pool`] the caller keeps across searches, an atomic stop flag
-//! the workers poll, and the driver that polls the caller's stop
-//! condition on the calling thread while the pool searches. The engines
-//! own the rest (shared memo, cubes, per-worker state); nothing here is
-//! global.
+//! The parallel runtime. Each search runs on a thread pool, built for it
+//! or lent by a [`Pool`] the caller keeps across searches. The workers
+//! poll atomic stop flags, and a driver polls the caller's stop condition
+//! on the calling thread while the pool searches. The engines own the
+//! rest: the shared memo, the cubes and each worker's state. Nothing here
+//! is global.
 
 use super::{Work, lock};
 use crate::Error;
@@ -22,8 +22,9 @@ use std::time::Duration;
 /// stop condition again.
 const POLL: Duration = Duration::from_millis(1);
 
-/// The threads a search uses of the `jobs` its options name: no more than
-/// the machine runs at once, where the platform tells how many that is.
+/// Returns how many threads a search uses of the `jobs` its options name:
+/// no more than the machine runs at once, where the platform tells how
+/// many that is.
 pub(crate) fn threads(jobs: usize) -> usize {
     if jobs <= 1 {
         return jobs;
@@ -31,27 +32,47 @@ pub(crate) fn threads(jobs: usize) -> usize {
     std::thread::available_parallelism().map_or(jobs, |machine| jobs.min(machine.get()))
 }
 
-/// The most runtimes a [`Pool`] keeps between searches: one search
-/// holds two at most (the two searches of the default bias), and two
+/// The most runtimes a [`Pool`] keeps between searches. One search holds
+/// two at most, for the two searches of the default bias, and two
 /// parallel searches running at once through one pool hold four. A kept
 /// runtime's threads sleep, but each holds its stack's mapping and a
-/// thread of the process, so a pool keeps no more than it can lend at
+/// thread of the process. So a pool keeps no more than it can lend at
 /// once.
 const MAX_KEPT: usize = 4;
 
 /// Thread pools kept across searches, for a caller that runs many
-/// parallel searches one after another, such as a batch of sequents: a
-/// search with this handle in its options
+/// parallel searches one after another, such as a batch of sequents.
+///
+/// A search with this handle in its options
 /// ([`Options::pool`](super::Options::pool)) borrows a kept pool of
-/// exactly the threads it runs on, or builds one, and gives it back when
-/// it ends, so that the threads start once rather than per search. The
-/// search on a kept pool is the search on a fresh one; a kept pool is
-/// lent to one search at a time, so searches running at once through
-/// one handle each run on pools of their own. At most four pools are
-/// kept; their threads end when the last clone of the handle is dropped
-/// and no search holds them. Clones share the pools; nothing is global.
+/// exactly the threads it runs on, or builds one. It gives the pool back
+/// when it ends, so the threads start once, not once per search. A search
+/// on a kept pool is the same search as on a fresh one. A kept pool is
+/// lent to one search at a time, so searches that run at once through one
+/// handle each run on pools of their own. At most four pools are kept.
+/// Their threads end when the last clone of the handle is dropped and no
+/// search holds them. Clones share the pools; nothing is global.
 ///
 /// Needs the cargo feature `parallel` (off by default).
+///
+/// # Examples
+///
+/// Two searches on two threads each, the second on the threads the first
+/// started:
+///
+#[cfg_attr(feature = "parse", doc = "```")]
+#[cfg_attr(not(feature = "parse"), doc = "```ignore")]
+/// use deduxit::linear::search::Pool;
+/// use deduxit::linear::{Mode, Options, Sequent, Verdict, prove};
+///
+/// let options = Options::default().with_jobs(2).with_pool(Some(Pool::new()));
+/// for text in ["A |- A", "A, B |- A * B"] {
+///     let sequent: Sequent = text.parse()?;
+///     let outcome = prove(&sequent, Mode::CLASSICAL, &options)?;
+///     assert!(matches!(outcome.verdict, Verdict::Proved(_)));
+/// }
+/// # Ok::<(), deduxit::Error>(())
+/// ```
 #[derive(Clone, Default)]
 pub struct Pool {
     /// The shared state.
@@ -75,8 +96,8 @@ impl Pool {
         Self::default()
     }
 
-    /// Locks the idle runtimes; a panic elsewhere leaves the list whole,
-    /// since it is changed only by one push or one removal.
+    /// Locks the idle runtimes. A panic elsewhere leaves the list whole,
+    /// since each change of it is one push or one removal.
     fn idle(&self) -> MutexGuard<'_, Vec<Runtime>> {
         lock(&self.inner.idle)
     }
@@ -114,9 +135,10 @@ impl Debug for Pool {
     }
 }
 
-/// A runtime a search holds: lent by a [`Pool`], which takes it back when
-/// this is dropped (on a return, an error or a panic, after every task
-/// on it has ended), or built for the search alone and dropped with it.
+/// A runtime a search holds. It is lent by a [`Pool`], which takes it back
+/// when this is dropped, or built for the search alone and dropped with
+/// it. The drop comes on a return, an error or a panic, after every task
+/// on the runtime has ended.
 pub(crate) struct Lent<'p> {
     /// The runtime, until it is given back.
     runtime: Option<Runtime>,
@@ -184,9 +206,9 @@ impl Drop for Lent<'_> {
     }
 }
 
-/// The pool a parallel search runs on, built for one search and dropped
-/// with it or kept by a [`Pool`]: `threads` workers whose stacks fit the
-/// recursion limit.
+/// The thread pool a parallel search runs on: `threads` workers whose
+/// stacks fit the recursion limit. It is built for one search and dropped
+/// with it, or kept by a [`Pool`].
 pub(crate) struct Runtime {
     /// The pool.
     pub(crate) pool: ThreadPool,
@@ -228,10 +250,10 @@ impl Runtime {
     }
 
     /// Returns the recursion depth on the calling thread's stack below
-    /// what it runs now: that of the engine waiting at a scope there, zero
-    /// on a thread outside the pool. A task stolen by a waiting thread
-    /// starts from it, so that its recursion counts on top of the frames it
-    /// sits on and the recursion limit holds for the stack.
+    /// what it runs now: that of the engine waiting at a scope there, or
+    /// zero on a thread outside the pool. A task that a waiting thread
+    /// steals starts from this depth. So its recursion counts on top of the
+    /// frames it sits on, and the recursion limit holds for the stack.
     pub(crate) fn depth_here(&self) -> u32 {
         self.pool
             .current_thread_index()
@@ -279,7 +301,8 @@ impl Runtime {
                 match receiver.recv_timeout(POLL) {
                     Ok(result) => return Some(result),
                     Err(RecvTimeoutError::Timeout) => {
-                        // The workers add their work themselves.
+                        // The workers count their own work, so this poll
+                        // tells of none.
                         if stop(0) {
                             flag.store(true, Ordering::Relaxed);
                         }
@@ -311,17 +334,18 @@ impl Drop for Waiting<'_> {
     }
 }
 
-/// Records a worker's reason for giving up: the first, a stop giving way
-/// to any other, which is the reason.
+/// Records a worker's reason for giving up. The first reason recorded
+/// stays, except that a stop gives way to any later reason, which is then
+/// the reason.
 pub(crate) fn record(slot: &mut Option<super::Reason>, reason: super::Reason) {
     if slot.is_none_or(|old| old == super::Reason::Stopped) {
         *slot = Some(reason);
     }
 }
 
-/// Raises a flag when a panic drops it, so that the tasks the flag reaches
-/// stop at their next poll: a scope runs every task it spawned to its end
-/// before it lets a panic go on, which without the flag is the whole
+/// Raises a flag when a panic drops it, so the tasks the flag reaches stop
+/// at their next poll. A scope runs every task it spawned to its end
+/// before it lets a panic go on. Without the flag, that is the whole
 /// search below the panic.
 pub(crate) struct RaiseOnPanic<'a>(pub(crate) &'a AtomicBool);
 
@@ -337,7 +361,7 @@ impl Drop for RaiseOnPanic<'_> {
 /// Runs two pieces of work at once, each on a pool of its own and given
 /// the root of its own stop flags, and returns both results. The calling
 /// thread polls `stop` once a millisecond, as [`Runtime::drive`] does, and
-/// raises both flags when it fires; a result that `settles` the matter
+/// raises both flags when it fires. A result that `settles` the matter
 /// raises the other work's flag, so the other returns as soon as it polls.
 /// A panic in either raises the other's flag too, and propagates to the
 /// caller once both have ended.
@@ -400,9 +424,9 @@ pub(crate) fn race<T: Send>(
 
 /// The stop flags a worker polls: its own, which a sibling raises to
 /// cancel it once their common alternative is settled, and its
-/// ancestors', up to the root flag the driver raises for the caller's stop
-/// condition. A chain is as long as the nesting of parallel choices, a
-/// few links at most.
+/// ancestors', up to the root flag that the driver raises for the
+/// caller's stop condition. A chain is as long as the nesting of parallel
+/// choices, a few links at most.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Flags<'a> {
     /// This level's flag.
