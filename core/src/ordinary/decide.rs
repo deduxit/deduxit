@@ -181,7 +181,7 @@ mod tests {
 
     /// A translation given names the embedding unless a method is given,
     /// and LJT's outcome says so: written with the engine `ljt` and no
-    /// translation.
+    /// translation; by default LJT gives way where a bound stops it.
     #[test]
     fn the_options_choose_the_method() {
         let options = Options::default().with_logic(Logic::Intuitionistic);
@@ -207,5 +207,16 @@ mod tests {
         assert_eq!(embedded.method(), Method::Embedding);
         let classical = ljt.with_logic(Logic::Classical);
         assert!(decide(&sequent, &classical, &search, &limits, |_| false).is_err());
+
+        // By default LJT gives way to the embedding where a bound refuses
+        // its derivation; named, it reports the bound.
+        let small = limits.with_derivation_bytes(Some(64));
+        let refused = super::ljt::decide(&sequent, Logic::Intuitionistic, &small, |_| false);
+        assert!(super::gives_way(&refused), "{refused:?}");
+        assert!(decide(&sequent, &ljt, &search, &small, |_| false).is_err());
+        let stopped = super::ljt::decide(&sequent, Logic::Intuitionistic, &limits, |_| true);
+        assert!(!super::gives_way(&stopped), "{stopped:?}");
+        let classical = super::ljt::decide(&sequent, Logic::Classical, &limits, |_| false);
+        assert!(!super::gives_way(&classical), "{classical:?}");
     }
 }

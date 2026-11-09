@@ -193,7 +193,7 @@ pub(crate) struct ProveArgs {
     pub(crate) logic: LogicArgs,
     /// With --logic, how to decide the sequent: through its embedding
     /// into linear logic, or by LJT, Dyckhoff's calculus for
-    /// intuitionistic and minimal logic, which always comes to a verdict
+    /// intuitionistic and minimal logic, whose search always ends
     /// (ordinary.method)
     ///
     /// By default classical logic goes through the embedding and
@@ -1618,8 +1618,9 @@ pub(crate) enum Format {
     /// The verdict on one line, then the derivation as a text tree
     Text,
     /// JSON: prove's outcome (verdict, fragment, mode, engine, statistics,
-    /// and the proof, which `check` reads), one record a line in a batch;
-    /// check's verdict and error
+    /// and the proof, which `check` reads; under --logic decided by LJT,
+    /// the ordinary outcome with its derivation of LJ), one record a line
+    /// in a batch; check's verdict and error
     Json,
     /// The verdict as a comment, then the derivation as a LaTeX proof tree
     /// of the ebproof package, with the connectives of cmll and amssymb

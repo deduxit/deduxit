@@ -317,12 +317,26 @@ pub(crate) fn read_proof(text: &str, limits: &Limits) -> Result<Proof> {
                 logic: Option<String>,
             }
             let outcome = serde_json::from_str::<Outcome>(text).ok();
-            if let Some(logic) = outcome.as_ref().and_then(|o| o.logic.as_ref()) {
-                bail!(
-                    "the file is the outcome of a sequent of {logic} logic decided by LJT, and \
-                     check reads proofs of linear logic: `prove --logic {logic} --method \
-                     embedding --format json` writes one, the proof of its image"
-                );
+            if let Some(Outcome {
+                verdict,
+                logic: Some(logic),
+            }) = &outcome
+            {
+                match verdict.as_deref() {
+                    Some("valid") => bail!(
+                        "the file is the outcome of a sequent of {logic} logic decided by LJT, \
+                         and check reads proofs of linear logic: `prove --logic {logic} --method \
+                         embedding --format json` writes one, the proof of its image"
+                    ),
+                    Some(verdict) => bail!(
+                        "the file is the outcome of a sequent of {logic} logic found {verdict}: \
+                         it holds no proof to check"
+                    ),
+                    None => bail!(
+                        "the file is a derivation of {logic} logic, and check reads proofs of \
+                         linear logic"
+                    ),
+                }
             }
             let verdict = outcome.and_then(|outcome| outcome.verdict);
             if let Some(verdict) = verdict.filter(|v| v != "proved") {

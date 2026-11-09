@@ -2468,6 +2468,24 @@ fn ordinary_logic() {
     let (status, _, err) = deduxit(&["check"], &json);
     assert_eq!(status, 2);
     assert!(err.contains("decided by LJT"), "{err}");
+    let (_, json, _) = decide(&["--logic", "intuitionistic", "--format", "json", "a |- b"]);
+    let (status, _, err) = deduxit(&["check"], &json);
+    assert_eq!(status, 2);
+    assert!(err.contains("found not_valid: it holds no proof"), "{err}");
+    // By default LJT gives way to the embedding where a bound stops it.
+    let (status, out, _) = decide(&[
+        "--logic",
+        "intuitionistic",
+        "--derivation-limit",
+        "100",
+        "-q",
+        "a |- a",
+    ]);
+    assert_eq!(status, 0);
+    assert!(
+        out.starts_with("valid (intuitionistic logic by the cbn"),
+        "{out}"
+    );
     let (status, out, _) = decide(&["--logic", "minimal", "--stats", "a, a -> b |- b"]);
     assert_eq!(status, 0);
     assert!(
