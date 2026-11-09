@@ -135,6 +135,29 @@ written by the planning session when it starts):
      2026-11-09, in classical Latin with the IPA:
 
      > **dēdūxit** [deːˈduːk.sɪt] *Latin, verb*: "it has derived", the perfect of *dēdūcō*, to lead down, derive.
+5a. **A rename audit, after 53s** (decided 2026-11-09 at the author's
+   question "did you make sure that the rename/new logos reached every
+   part already?").
+   - **Who:** a fresh-context agent searches all four repositories
+     (READMEs, docs, comments, descriptions, metadata, served files) and
+     the live sites.
+   - **What it looks for:**
+     - "linlog" left as the product's name;
+     - "sequentium";
+     - the lollipop.
+
+     It skips history (reports, the Status log, finished prompts, past
+     changelog sections) and the old crates kept on purpose.
+   - **What follows:** its findings are fixed before 53b's release
+     commit.
+   - **The GitHub repositories' descriptions and topics** move to the
+     collection (for example "deduxit: logic suites that decide,
+     check, prove step by step and export proofs"). This is done with
+     `gh repo edit` in a background agent, whose prompt waits for the
+     author.
+   - **The author's website sessions** (`website-c1`, `website-labs-*`)
+     are told the product's new name and where the new mark's files
+     are served.
 6. **53b, the release prepared.** The first publication of the new crates
    is prepared (the author, 2026-11-09):
    - **The token:** the author created a crates.io token named
