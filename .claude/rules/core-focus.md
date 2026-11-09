@@ -1119,8 +1119,10 @@ relies on:
   every test that gets a proof calls `check`. The test-only generator
   `search/generate.rs` builds random provable sequents (and mutants of
   them) for every combination of units, additives, Mix and exponentials,
-  and reports the most derelictions on one branch of the proof it read
-  the sequent off, which bounds the copies the engine needs; a new rule
+  and reports the derelictions of the proof it read the sequent off, all
+  branches together, which bounds the copies the engine needs on any
+  branch (the most on one branch would not: a focused proof copies at a
+  stable sequent for every branch of the positive phase above it); a new rule
   set extends it rather than writing new positives by hand. A mutant
   (`mutate`, `mutate_two_sided` for an intuitionistic sequent, whose
   goal's literals count with the opposite sign) is half the time two
