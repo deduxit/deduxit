@@ -1877,10 +1877,19 @@ Left by step 54 (`plan/reports/54-ljt-engine.md`, session 54b):
   step, or LJT's derivation is made cut-free for a hint (cut
   elimination on LJ, with its blow-up). The page's `ordinary_close` is
   the same call.
+- **`check` reads no derivation of LK or LJ**: it checks proofs of
+  linear logic, so the JSON of `prove --logic` under LJT (the ordinary
+  outcome) is refused with what it is, where the embedding's outcome is
+  checked (54b's counterexamples panel). Reading an ordinary outcome or
+  derivation and running `Derivation::check` is a new feature of the
+  command, the author's to ask for.
 - **The verdict line does not say that LJT gave way**: where the
   default hands a sequent to the embedding, the line names the
   translation as `--method embedding` would. A note on why (the
   derivation limit) would tell the user what `--derivation-limit` buys.
+- **The embedding's memory message under `--memory-limit 1MiB`** said
+  "limit of 0 B" (seen by 54b's integers panel on a large ordinary
+  sequent, through the embedding; not traced, and not LJT's).
 - **`Derivation::term` checks nothing** (54a's follow-up): checking first
   would refuse the admissible view, which `term` reads too, and the
   derivation of a session with open goals. Its doc says so (`# Panics`).

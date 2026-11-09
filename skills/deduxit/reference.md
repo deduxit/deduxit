@@ -815,7 +815,9 @@ derivation of LK or LJ, checked before it is shown.
 `{"version": 8, "deduxit": …, "verdict": "valid"|"not_valid"|"unknown",
 "reason": …, "logic": …, "engine": "ljt", "statistics": {"sequents",
 "memo_hits", "memo_entries", "subsumed"}, "derivation": …}`; through the
-embedding, the image's outcome as without `--logic`. `seq print --logic`
+embedding, the image's outcome as without `--logic`, which `check`
+reads; `check` refuses LJT's outcome (exit 2), whose derivation
+`ordinary::Derivation::check` validates in the library. `seq print --logic`
 prints the image. A `.p` file is a TPTP problem.
 
 ```console

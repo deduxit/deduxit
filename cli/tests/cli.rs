@@ -2435,7 +2435,8 @@ fn a_batch_s_records_names_and_files() {
 /// is read back as LK or LJ, `--linear` shows the image's proof instead,
 /// a `.p` file is a TPTP problem, `seq print` prints the image, and the
 /// linear connectives, a translation into the wrong logic, LJT for
-/// classical logic and LJT beside a translation are refused.
+/// classical logic and LJT beside a translation are refused, and `check`
+/// says that it does not read LJT's outcome.
 #[test]
 fn ordinary_logic() {
     let decide = |args: &[&str]| {
@@ -2462,6 +2463,11 @@ fn ordinary_logic() {
     ]);
     assert_eq!(status, 1);
     assert!(out.starts_with("not valid (intuitionistic logic by the cbn translation into ILL"));
+    // `check` reads proofs of linear logic, and says so of LJT's outcome.
+    let (_, json, _) = decide(&["--logic", "intuitionistic", "--format", "json", "a |- a"]);
+    let (status, _, err) = deduxit(&["check"], &json);
+    assert_eq!(status, 2);
+    assert!(err.contains("decided by LJT"), "{err}");
     let (status, out, _) = decide(&["--logic", "minimal", "--stats", "a, a -> b |- b"]);
     assert_eq!(status, 0);
     assert!(

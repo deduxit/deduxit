@@ -73,6 +73,8 @@ lambda-term may hold a redex and its certificate a `let`. With
 `--format json` the output is the outcome of the ordinary sequent: its
 `verdict` (`valid`, `not_valid` or `unknown` with a `reason`), its
 `logic`, the `engine` `ljt`, its `statistics` and the `derivation`.
+`check` reads proofs of linear logic, so it takes the embedding's
+outcome and refuses LJT's.
 
 The derivation is checked with every weakening and contraction as an
 inference of its own, and drawn with each of them left out where it is
