@@ -296,6 +296,13 @@ goal, permission-modes, auto-mode-config, sub-agents, hooks, workflows),
     again (the launcher does).
   - A machine restart stops every job. An idle job with no terminal
     attached stops after about an hour.
+  - **Never `EnterWorktree` into a jj workspace.** Moving the session
+    into a directory outside `.claude/worktrees/` is a "permission-root
+    relocation", and it asks the user every time. On 2026-11-09 it
+    blocked 54w-e1 while the author was away; a stop and a resume
+    cleared it. A step session works in its workspace through absolute
+    paths: `cd /…/linlog-stepNN && …` inside each Bash call, and
+    absolute paths for Read, Edit and Write. Its sub-agents do the same.
   - **jj:** a job the launcher starts works in the checkout itself, with
     no worktree (checked 2026-11-09: no `.claude/worktrees/`, no
     `../linlog-wt-*`). A step session moves to its own jj workspace, as

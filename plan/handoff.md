@@ -371,6 +371,11 @@ to D32), grouped by release. In brief:
   - Never approve on the author's behalf, and tell the session another
     way (here, the forms `plan/push-main.sh` uses). Answering the prompt
     itself needs `claude attach`, which is the author's.
+- **A session that uses `EnterWorktree`** to move into its jj workspace
+  waits on a prompt (moving outside `.claude/worktrees/` always asks).
+  Briefs say "absolute paths and `cd` in Bash, never EnterWorktree". If
+  one is stuck there anyway: `claude stop JOB`, then resume it with that
+  instruction.
 - **Your own turn waiting on a prompt** blocks everything you supervise:
   on 2026-11-09 a raw `jj git push` held it for two hours.
   - Run nothing in your own turn that an `ask` rule matches while the
