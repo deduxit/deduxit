@@ -6,6 +6,247 @@ the Rocq library; 54w-c, README, the manual, the changelog's Unreleased
 section and the guide; 54w-d, the command's help and messages; 54w-e
 and on, the crate's doc comments and comments.
 
+## Session 54w-r: the usability review
+
+Session 1 of `plan/54w-text.md` (Opus 5.5 at `high`, 2026-11-09), read
+only: the one file it adds is `plan/notes/usability.md`, and this
+section. Nothing else in any repository was changed, nothing was
+pushed. W4 was answered by the author during the session (below). The page was reviewed by the sub-agent deduxit-web-usability
+(general-purpose, Opus 5.5); the notes' claims by deduxit-fresh-reviewer.
+
+### The checklist
+
+| item | state | evidence |
+|---|---|---|
+| The prompt, the writing rules, README, SUMMARY, the newcomer's chapters (introduction, installation, syntax, commands, interactive, batch, cut, output formats, Rocq), SKILL.md and reference.md's library and limits sections, the crate root and the `linear`, `ordinary`, `export` and `lambda` module docs read | done | |
+| The web client read from its `main` (`vpkkppkk`), not its stale working copy (16 commits behind) | done | copied read-only with `jj file show -r main` into the job's `tmp/client-main/` |
+| Every task of the command run for real | done | `deduxit-cli 0.3.0` built from `main` in this workspace (release, capped, cores 12-15); 64 scripted lines and about ten more by hand, their output in the notes' sections 3 and 5 |
+| The library's tasks run for real in a scratch crate outside the repository | done | `tmp/libuser` (path dependency on this workspace's `core`), eight tasks; the program and its output are the notes' appendices A and B |
+| The page run for real, as it was cheap | done | headless Chromium against https://deduxit.github.io/ by the sub-agent, desktop and phone width, from the client checkout's installed Playwright (no build); its main claims checked against the source and the exported files |
+| Per user kind: tasks, today's way with real output, frictions, proposed changes | done | `plan/notes/usability.md` sections 2-5 |
+| The proposals that change the API, flags, behaviour or the page listed apart as questions, each with a recommendation, its cost and the docs either way | done | the notes' section 6: Q1-Q11 and W1-W14 |
+| Text work for each later session | done | the notes' section 7 |
+| fresh-reviewer's round, each finding answered | done | below: four points, three fixed in `kvyvkntl`, one answered with its witness |
+| The notes and this section committed in `../linlog-step54w-r` on `main`, `jj st` clean, nothing pushed | done | the commits below, rebased onto `main` at `ryzrtzyo` |
+
+### Outcome
+
+The main frictions, in the order they hurt:
+
+1. The crate root claims a recipe that decides what the command
+   decides; it does not. On `!(A -o A * A), !(A -o B), !(B * B -o C),
+   A |- C * ?D` it answers "unknown: the search was stopped" and the
+   command "unprovable", because the command's stop lets the classical
+   refutation run past the time limit (`cli/src/prove.rs:88-95`) and the
+   recipe's stop does not. A wrong claim to fix in 54w-e (and in
+   reference.md §16, 54w-c); Q1 asks for a helper.
+2. On the page, every reason (a refused step, why a goal has no proof,
+   "Cannot close", why an export is greyed) is a hover tip, never seen
+   on touch, and the Undo beside a refusal undoes the last good step.
+3. Lesson 1 explains about eight ideas before a worked proof of one
+   step, and offers `⅋` and `⊗` as predictions before teaching them.
+4. Exports and certificates do not stand alone: the page's LaTeX,
+   Typst and Rocq files are fragments that do not say what they need;
+   a logician needs two Rocq kernels installed two ways; the manual's
+   `opam install rocq-deduxit` fails today (the package is not in the
+   archive).
+5. The command's first errors do not say what to do: no command named,
+   an unquoted sequent (`-o B` is read as `--output B`), `->` in
+   linear mode, `--format tex`.
+6. Two-sided input, one-sided output and one-sided refutation texts,
+   on the command and the page.
+7. The library's printers want `Limits` and a `|_| false` stop at every
+   call; `Term` has no `Display`; `Outcome` cannot be read back;
+   intuitionistic input has two parsers and the common path shows the
+   one with the worse error.
+8. The manual's commands chapter is 726 lines under one heading, and
+   README opens with a list and history before Install.
+
+Two facts in the docs are wrong besides the first: `docs/src/introduction.md:66`
+says the other provers have not run on the growing families (the
+manual has that chapter, 2026-11-03), and the manual leads its Rocq
+install with an opam line that fails today.
+
+### The questions for the author
+
+Short forms; the notes' section 6 has each with its recommendation,
+cost and the docs either way.
+
+- Q1 (library): a `Settings::stop(elapsed)` that stops as the command
+  does. Recommended: yes, additive.
+- Q2: `Display` for a lambda-term, and `to_string` exports without a
+  stop. Recommended: yes, additive.
+- Q3: `Outcome: Deserialize`, so the command's JSON reads back.
+  Recommended: yes.
+- Q4: the intuitionistic shape error names the formula, not "subformula
+  0". Recommended: yes.
+- Q5: `ordinary::decide` in the linear suite's shape (`decide` and
+  `decide_within`) at 0.4; a counter-model for "not valid" later.
+  Recommended: the shape at the next breaking release; the
+  counter-model to `plan/later.md`.
+- Q6 (command): hints on the first errors (missing `prove`, unquoted
+  sequent, `->`, `tex` as an alias of `latex`, a lines file).
+  Recommended: yes.
+- Q7: two-sided derivations by default for two-sided input.
+  Recommended: no; say it in the text and show `--classical-sides two`.
+- Q8: refutations in the sides the user wrote, naming the flag that
+  would help (`-a`). Recommended: yes.
+- Q9: `interact` lists the mode's own rules in ASCII on an unknown
+  rule, and warns after a losing split. Recommended: yes.
+- Q10: `-h` hides the expert flags. Recommended: yes, with headings.
+- Q11 (certificates): a flake app that checks a certificate; `--kernel
+  deduxit` the default everywhere once rocq-deduxit is in opam.
+  Recommended: yes, in that order.
+- W1-W14 (page): reasons in view (yes), no Undo beside a refusal (yes),
+  first-visit buttons for lesson 1 and the tour (yes), rule meanings in
+  the popover (W4: answered by the author's request for hints on every
+  rule label, now in 54w-a), a wrong hinge answer offers its
+  problem (yes), answer buttons for "decide first" (yes, or drop the
+  instruction), standalone exports (Rocq always, LaTeX and Typst as an
+  item; yes), a link to the bare sequent (yes), the logic choice in
+  view (yes), goals numbered among the open ones (yes), Practice's
+  "proved" rule kept and said (keep), one-sided lessons kept with the
+  rewrite as lesson 1's example (keep), example before explanation
+  (text first), `deduxit-*` storage keys with a migration (yes), a
+  "Go back" from a goal the student's step lost (W15, yes).
+
+### The reviewer's round
+
+deduxit-fresh-reviewer (the `fresh-reviewer` agent) reviewed
+`syxnslpy` against session 1 of the prompt and the goal's criteria. It
+re-ran 43 console examples of sections 2, 3 and 5 with the same binary
+in a directory of its own: every output matched, exit statuses
+included. It rebuilt appendix A from a copy and ran it: its output was
+byte-identical to appendix B. It confirmed the repository claims
+(`cli/src/prove.rs`, `core/src/lib.rs`, `introduction.md:66`,
+`show.rs:392`, `nets/mod.rs:1404`, `rocq.md`'s opam lines) and
+spot-checked the page's citations and live files, all holding. Its
+four points and the answers:
+
+1. "FC10's claim about commands.md is false: commands.md:51 already
+   says `--work-limit N` gives the same answer on every machine." Not
+   upheld: that sentence is `skills/deduxit/SKILL.md:51`;
+   `docs/src/commands.md` names `--work-limit` only at :702, as a limit
+   that ends a check (`grep -n work-limit docs/src/commands.md`). FC10
+   now cites the exact lines (`commands.md:236-237` against
+   `reference.md:384` and `SKILL.md:51`). Also fixed: the citation
+   `cli/src/prove.rs:88` is the function `halting`, its
+   `Phase::Refute` arm at :92; the notes and this report cite
+   `:88-95`.
+2. "FW6 sends a Go-back button to W2, which does not cover it."
+   Upheld: the button is now its own question, W15, with its
+   recommendation, cost and the text either way.
+3. "Section 4's table has no cost column." Upheld: added, each cost
+   checked against the client's tests (e.g. `ordinary.spec.ts:54`
+   asserts the fieldset "Suite"; lesson 1's e2e runs press "Predict
+   ax", which FW7's `choices` keep; no test asserts the empty stage's
+   text or the export items' details).
+4. "FW7's `choices` may be page behaviour." Kept as text work, with the
+   reason in the notes' section 7: a lesson's front matter is the Learn
+   material 54w-a rewrites, and the buttons only offer what the text
+   has taught; if the planning session reads it otherwise, it joins
+   W13. Its side remark that Q11's "docs either way" covered only the
+   case without the change is fixed too.
+
+### Departures from the design
+
+None. The page was run against the live site rather than the client's
+dev server, as the prompt allows ("only if cheap"): it needed no build.
+No Rocq certificate was compiled (the notes say so, R3).
+
+### What the next sessions must know
+
+**For 54w-a (the page's text and teaching):**
+- Work from the client's `main`, not its working copy: on 2026-11-09
+  the working copy was 16 commits behind `main`.
+- The text to rewrite and the traps are listed in the notes' section 7,
+  "54w-a": where the text lives, the tests that assert exact strings
+  (`tests/prover.spec.ts` alone has about 250), the front-matter rules
+  `src/content/lessons.test.ts` enforces (every played rule in
+  `choices`, one hinge option without a misconception, readings equal
+  `READINGS`), lesson titles in two places, the tour's eight stops.
+- Text you can fix without asking: the refusal and hint sentences end
+  with the next action; "ladder", "rung", "context", "grafted", the
+  net look "deduxit" go; lesson 1's opening keeps only what its worked
+  proof shows (De Morgan to lesson 2) and its `choices` become `["ax",
+  "no rule"]`; lesson 11 drops the command line; one name, "Logic",
+  for the calculus mark; the export items name what each file needs
+  (ebproof and cmll; curryst; NanoYalla or rocq-deduxit); Practice says
+  it holds only provable problems and what counts as proved; the
+  tour's stop 7 names the shapes, not only the colours.
+- The author asked on 2026-11-09 for a hint on every rule label
+  (`plan/54w-text.md`, session 2): that answers W4, and it opens on
+  tap, unlike every tip of the page today ("no tip follows a touch",
+  `src/islands/App.tsx:274`). Write the rule hints' sentences in the
+  same keyword-and-sentence form as the reasons, so that W1, if
+  accepted, can show them the same way.
+- What you must not do without the author: anything else in W1-W15
+  (a visible reason line, removing the Undo beside a refusal, new
+  buttons, standalone exports, renamed storage keys, a "Go back"). Write the text so
+  that it reads right today and still reads right if W1 (reasons in
+  view) is accepted: each reason sentence is complete on its own.
+- Most reasons are seen only on hover today. While W1 is open, do not
+  move information into tips.
+
+**For 54w-c (README, the manual, the guide):**
+- Three facts to fix, not just reword: `introduction.md:66` (the
+  provers on the growing sets did run); reference.md §16 ("the
+  command's behaviour as data" holds for the options, not the stop);
+  the Rocq chapter's opam line, which fails until the package is in
+  the archive.
+- The newcomer's path, from the review: install; decide a first
+  sequent and read the verdict line and the exit status; why
+  unprovable, and what unknown means and the flag to raise; `-i`;
+  export (LaTeX, `--standalone`); `check`; step by step. The first
+  proof says in one line that `⊢ ~A, A` is the axiom `A ⊢ A` and shows
+  `--classical-sides two` (whatever Q7's answer, the text works).
+- `commands.md` needs headings and a split: how-to pages per task, the
+  four engines in an explanation page. README leads with one sentence
+  of what deduxit does, then Install, then the first proof; history to
+  the changelog.
+- Add a "mistakes to avoid" how-to to the manual with the cases of the
+  notes' C4 and their fixes as they work today (quote the sequent;
+  `prove` is needed; `-o`, not `->`; `--input-format lines`); if Q6 is
+  accepted later, the hints shorten it.
+- One sentence for deterministic answers in both the manual and the
+  guide: `--work-limit N` or `--copies N`.
+- Every console example you touch must still run: `cli/tests/readme.rs`
+  runs README's, the manual's and the guide's.
+
+**For 54w-d (the command's help, messages, errors):** headings for `-h`
+whatever Q10's answer; "does not act on formula 1" names the formula
+and `rules G P`; `--lambda` on a classical proof names `-i`; ordinary
+logic's "not valid … the image is unprovable" said in ordinary terms;
+the `proof net` line of `--net` (its text is `Display` in
+`core/src/linear/nets/mod.rs:1404`, so agree with 54w-e's nets session
+who changes it). Q6, Q8 and Q9 are behaviour: not yours.
+
+**For 54w-e and on (the crate's docs):** fix the crate root's recipe
+(the first friction) so that its stop lets `Phase::Refute` run, or use
+Q1's helper if the author accepts it first; the common path shows
+`IllSequent` for intuitionistic input, `println!("{d}")` for a
+disproof and what `|_| false` means; the root's 150-word sentence.
+
+**For the planning session:** the questions go to the author with the
+recommendations above; Q1's doc fix does not wait for the answer.
+
+### Repositories and workspaces
+
+- deduxit: the jj workspace `../linlog-step54w-r` (name `step54w-r`),
+  made on `main` at `lxxwutox` and rebased onto `main` at `ryzrtzyo`
+  ("Plan: review session 54w-b"), whose report section for 54w-b this
+  file merges below; the commits below. Not pushed.
+- The web client: read only, from `main` copied out; nothing changed.
+- Scratch, outside every repository: the job directory's `tmp/`
+  (the release build, `libuser/`, `cli/`, `client-main/`, `web/`).
+
+Commits in `../linlog-step54w-r`, on `main` (`ryzrtzyo`), by change
+id (the commit ids moved with the rebase):
+- `syxnslpy` Notes: the usability review of step 54w
+- `kvyvkntl` Notes: answer the review of the usability notes
+- `kxxplkxn` Report: session 54w-r, the usability review
+- `kkkmyxkv` Notes: W4 answered by the author's hints for rule labels
+
 ## Session 54w-b: the Rocq library's text
 
 Session 3 of `plan/54w-text.md` (Opus 5.5 at `high`, background job,
