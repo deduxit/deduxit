@@ -976,6 +976,26 @@ fn check_reads_what_prove_writes() {
     );
 }
 
+/// `eliminate` names a cut of an invalid first-order proof by its
+/// instance, as `check` does, not by its occurrence's id.
+#[test]
+fn eliminate_names_a_cut_by_its_instance() {
+    let file = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../core/tests/first-order/cut_frame.json"
+    );
+    let (status, out, _) = linlog(&["eliminate", file], "");
+    assert_eq!(
+        (status, out.as_str()),
+        (
+            1,
+            "invalid proof of ⊢ ∀x. p(x), ⊤ (classical): node 3 (cut on p(a) from 0, 2) with \
+             premises ⊢ ⊤, … and ⊢ ∀x. p(x), ~p(a): eigenvariable a occurs outside the ∀ step \
+             that introduces it\n"
+        )
+    );
+}
+
 /// `check` takes the mode a proof file states where no flag names one,
 /// and refuses a flag that names another.
 #[test]

@@ -194,7 +194,7 @@ fn eliminate_into(
                         "invalid proof of {} ({mode}): {}",
                         sequent(proof),
                         error
-                            .describe(proof.forest())
+                            .describe(proof)
                             .in_mode(mode)
                             .abbreviated(show.abbreviate)
                     ),
@@ -628,7 +628,7 @@ fn unchecked(
                 "invalid proof of {} ({mode}): {}",
                 sequent_of(proof, mode, show),
                 error
-                    .describe(proof.forest())
+                    .describe(proof)
                     .in_mode(mode)
                     .abbreviated(show.abbreviate)
             ),
