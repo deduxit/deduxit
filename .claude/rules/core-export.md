@@ -674,7 +674,7 @@ for NanoYalla. What the code relies on:
   name the kernel, since by default `ill.v` and `labels_ill.v` would go
   to the library), and an explicit `NanoYalla` keeps every refusal.
 - **linlog's kernel** (`export/rocq/linlog.rs`, the library
-  `rocq-linlog` in its own repository, `sequentium/rocq-linlog`, whose
+  `rocq-linlog` in its own repository, `deduxit/rocq-linlog`, whose
   rules `rocq.md` hold its invariants, taken as the pinned flake input
   `rocq-linlog`): a one-sided derivation is written as the library's dyadic
   `proof`, a two-sided one as its `iproof`, under a lemma over `ll` or

@@ -20,7 +20,7 @@ abstract: >-
   certificates that the Rocq proof assistant checks, and proofs of every
   mode as certificates against linlog's own Rocq library, rocq-linlog,
   kept in its own repository
-  (https://github.com/sequentium/rocq-linlog), the tests are
+  (https://github.com/deduxit/rocq-linlog), the tests are
   measured by mutation testing and fuzzing, and its verdicts on
   published problem libraries are compared with their known status and
   with those of eight other provers.
@@ -32,8 +32,8 @@ date-released: "2026-11-02"
 # The DOI of every version, which resolves to the latest.
 doi: 10.5281/zenodo.23448588
 license: EUPL-1.2
-repository-code: "https://github.com/sequentium/sequentium"
-url: "https://sequentium.github.io/sequentium/"
+repository-code: "https://github.com/deduxit/deduxit"
+url: "https://deduxit.github.io/deduxit/"
 references:
   - type: software
     title: rocq-linlog
@@ -45,7 +45,7 @@ references:
       - given-names: Fabian Lukas
         family-names: Grubmüller
     license: EUPL-1.2
-    repository-code: "https://github.com/sequentium/rocq-linlog"
+    repository-code: "https://github.com/deduxit/rocq-linlog"
 keywords:
   - linear logic
   - intuitionistic linear logic

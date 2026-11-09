@@ -3,7 +3,7 @@
 `--format rocq` writes the derivation as a Rocq certificate for one of
 two kernels, which `--kernel` names: `nanoyalla`, the default for
 classical linear logic, or `linlog`, linlog's own Rocq library
-([sequentium/rocq-linlog](https://github.com/sequentium/rocq-linlog)), the
+([deduxit/rocq-linlog](https://github.com/deduxit/rocq-linlog)), the
 default for Mix, affine and intuitionistic logic and for a sequent with
 a quantifier. The verdict becomes a
 comment, and `--standalone` adds the import lines.
@@ -146,7 +146,7 @@ no certificate: an exhausted search states no invariant, so only the search rule
 ```
 
 The library is the package `rocq-linlog`, in a repository of its own,
-[sequentium/rocq-linlog](https://github.com/sequentium/rocq-linlog),
+[deduxit/rocq-linlog](https://github.com/deduxit/rocq-linlog),
 on Rocq 9.0 to 9.3 and its standard library alone; its version is
 linlog's, so linlog 0.2.0's certificates compile against rocq-linlog
 0.2.0. Install it with opam, from the Rocq opam archive once the release
@@ -155,14 +155,14 @@ is there, or from its tag meanwhile:
 ```sh
 opam repo add rocq-released https://rocq-prover.org/opam/released
 opam install rocq-linlog
-opam pin add rocq-linlog https://github.com/sequentium/rocq-linlog.git#v0.2.0
+opam pin add rocq-linlog https://github.com/deduxit/rocq-linlog.git#v0.2.0
 ```
 
 `opam upgrade rocq-linlog` takes a newer release from the archive and
 `opam remove rocq-linlog` removes it; a package pinned to a tag stays
 there until pinned to the next.
 
-or build it with Nix (`nix build github:sequentium/rocq-linlog/v0.2.0`)
+or build it with Nix (`nix build github:deduxit/rocq-linlog/v0.2.0`)
 or `make` in a checkout with Rocq on the path. Installed, a certificate
 compiles as it is; built in place, with the theories on the load path:
 
@@ -173,4 +173,4 @@ $ rocq compile -R path/to/rocq-linlog/theories Linlog mix.v
 
 The library's README says what it covers and what not, and its
 documentation is at
-[sequentium.github.io/rocq-linlog](https://sequentium.github.io/rocq-linlog/).
+[deduxit.github.io/rocq-linlog](https://deduxit.github.io/rocq-linlog/).

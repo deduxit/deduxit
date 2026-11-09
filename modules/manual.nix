@@ -60,15 +60,15 @@
             ''
               site=${config.packages.doc}/share/doc
               tree=${../.}
-              # The site is served at /sequentium/, which mdBook's 404 page
+              # The site is served at /deduxit/, which mdBook's 404 page
               # names absolutely.
               mkdir root
-              ln -s "$site" root/sequentium
+              ln -s "$site" root/deduxit
               lychee --offline --no-progress --include-fragments \
                 --root-dir "$PWD/root" \
-                --remap "^https://github\.com/sequentium/sequentium/(?:blob|tree|edit)/main/(.*)$ file://$tree/\$1" \
-                --remap "^https://raw\.githubusercontent\.com/sequentium/sequentium/main/(.*)$ file://$tree/\$1" \
-                --remap "^https://sequentium\.github\.io/sequentium/(.*)$ file://$site/\$1" \
+                --remap "^https://github\.com/deduxit/deduxit/(?:blob|tree|edit)/main/(.*)$ file://$tree/\$1" \
+                --remap "^https://raw\.githubusercontent\.com/deduxit/deduxit/main/(.*)$ file://$tree/\$1" \
+                --remap "^https://deduxit\.github\.io/deduxit/(.*)$ file://$site/\$1" \
                 "$site/manual/**/*.html" "$tree/README.md"
               touch $out
             '';

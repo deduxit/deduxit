@@ -1,7 +1,7 @@
 # Installation
 
 The command `linlog` is the package `linlog-cli`. Each release on
-[GitHub](https://github.com/sequentium/sequentium/releases) has it built
+[GitHub](https://github.com/deduxit/deduxit/releases) has it built
 for Linux, macOS and Windows, with packages for Debian and Ubuntu,
 Fedora and Arch Linux; it is on [crates.io](https://crates.io/crates/linlog-cli)
 for `cargo install`, and the flake of this repository builds it with
@@ -30,7 +30,7 @@ on one thread and on four alike. For long searches, build the command
 on your machine, with `cargo install` or Nix, which link glibc; for
 everything else the packages are the quicker way in. Every release lists the SHA-256 sums of its files in `SHA256SUMS`
 and carries an attestation of where they were built, which
-`gh attestation verify FILE --repo sequentium/sequentium` checks with the
+`gh attestation verify FILE --repo deduxit/deduxit` checks with the
 GitHub command; the files of 0.2.0 and earlier were attested under the
 repository's former name, so for them it is
 `gh attestation verify FILE --repo linlog-prover/linlog`. The packages and binaries are not signed: what that
@@ -39,7 +39,7 @@ means on each system is said in its section.
 ## Debian and Ubuntu
 
 ```sh
-curl -LO https://github.com/sequentium/sequentium/releases/download/v0.2.0/linlog_0.2.0-1_amd64.deb
+curl -LO https://github.com/deduxit/deduxit/releases/download/v0.2.0/linlog_0.2.0-1_amd64.deb
 sudo apt install ./linlog_0.2.0-1_amd64.deb
 linlog --version
 ```
@@ -52,7 +52,7 @@ next release's `.deb` the same way; to remove, `sudo apt remove linlog`.
 ## Fedora
 
 ```sh
-sudo dnf install https://github.com/sequentium/sequentium/releases/download/v0.2.0/linlog-0.2.0-1.x86_64.rpm
+sudo dnf install https://github.com/deduxit/deduxit/releases/download/v0.2.0/linlog-0.2.0-1.x86_64.rpm
 linlog --version
 ```
 
@@ -64,7 +64,7 @@ linlog`.
 ## Arch Linux
 
 ```sh
-curl -LO https://github.com/sequentium/sequentium/releases/download/v0.2.0/linlog-0.2.0-1-x86_64.pkg.tar.zst
+curl -LO https://github.com/deduxit/deduxit/releases/download/v0.2.0/linlog-0.2.0-1-x86_64.pkg.tar.zst
 sudo pacman -U ./linlog-0.2.0-1-x86_64.pkg.tar.zst
 linlog --version
 ```
@@ -80,8 +80,8 @@ The archive holds one statically linked binary, which runs on any
 distribution, with README and the licences:
 
 ```sh
-curl -LO https://github.com/sequentium/sequentium/releases/download/v0.2.0/linlog-0.2.0-x86_64-unknown-linux-musl.tar.gz
-curl -LO https://github.com/sequentium/sequentium/releases/download/v0.2.0/SHA256SUMS
+curl -LO https://github.com/deduxit/deduxit/releases/download/v0.2.0/linlog-0.2.0-x86_64-unknown-linux-musl.tar.gz
+curl -LO https://github.com/deduxit/deduxit/releases/download/v0.2.0/SHA256SUMS
 sha256sum --check --ignore-missing SHA256SUMS
 tar -xzf linlog-0.2.0-x86_64-unknown-linux-musl.tar.gz
 install -D linlog-0.2.0-x86_64-unknown-linux-musl/linlog ~/.local/bin/linlog
@@ -100,14 +100,14 @@ Determinate Systems' installer; with the official installer, add
 once.
 
 ```sh
-nix run github:sequentium/sequentium -- --help                   # run it once, without installing
-nix profile add github:sequentium/sequentium/v0.2.0#linlog-cli   # install a release into your profile
+nix run github:deduxit/deduxit -- --help                   # run it once, without installing
+nix profile add github:deduxit/deduxit/v0.2.0#linlog-cli   # install a release into your profile
 nix profile remove linlog-cli                                    # and to remove it
 ```
 
 An entry added by a release's tag stays that release: to update,
 remove it and add the next release's tag. One added without a tag
-(`github:sequentium/sequentium#linlog-cli`, the `main` branch, which may
+(`github:deduxit/deduxit#linlog-cli`, the `main` branch, which may
 be ahead of the last release) follows it with `nix profile upgrade
 linlog-cli`. The profile names an entry after the package installed,
 here `linlog-cli`.
@@ -121,7 +121,7 @@ it as an input:
 ```nix
 {
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-  inputs.linlog.url = "github:sequentium/sequentium/v0.2.0";
+  inputs.linlog.url = "github:deduxit/deduxit/v0.2.0";
 
   outputs = { nixpkgs, linlog, ... }: {
     nixosConfigurations.HOST = nixpkgs.lib.nixosSystem {
@@ -147,8 +147,8 @@ x86_64-linux and saves that, once it is trusted.
 ## macOS
 
 ```sh
-curl -LO https://github.com/sequentium/sequentium/releases/download/v0.2.0/linlog-0.2.0-aarch64-apple-darwin.tar.gz
-curl -LO https://github.com/sequentium/sequentium/releases/download/v0.2.0/SHA256SUMS
+curl -LO https://github.com/deduxit/deduxit/releases/download/v0.2.0/linlog-0.2.0-aarch64-apple-darwin.tar.gz
+curl -LO https://github.com/deduxit/deduxit/releases/download/v0.2.0/SHA256SUMS
 shasum -a 256 --check --ignore-missing SHA256SUMS
 tar -xzf linlog-0.2.0-aarch64-apple-darwin.tar.gz
 mkdir -p ~/.local/bin
@@ -171,7 +171,7 @@ same with the next release; to remove, `rm ~/.local/bin/linlog`.
 In PowerShell:
 
 ```powershell
-Invoke-WebRequest -OutFile linlog.zip https://github.com/sequentium/sequentium/releases/download/v0.2.0/linlog-0.2.0-x86_64-pc-windows-msvc.zip
+Invoke-WebRequest -OutFile linlog.zip https://github.com/deduxit/deduxit/releases/download/v0.2.0/linlog-0.2.0-x86_64-pc-windows-msvc.zip
 (Get-FileHash linlog.zip -Algorithm SHA256).Hash    # compare with the line of SHA256SUMS
 Expand-Archive linlog.zip -DestinationPath "$env:LOCALAPPDATA\Programs"
 Rename-Item "$env:LOCALAPPDATA\Programs\linlog-0.2.0-x86_64-pc-windows-msvc" linlog
@@ -238,6 +238,6 @@ with `serde_json`, the caller's own dependency.
 The Rocq certificates the command writes (`--format rocq`) are checked
 by the NanoYalla kernel or by linlog's own Rocq library, `rocq-linlog`,
 in its repository
-[sequentium/rocq-linlog](https://github.com/sequentium/rocq-linlog);
+[deduxit/rocq-linlog](https://github.com/deduxit/rocq-linlog);
 [Rocq certificates](rocq.md) says how to install each and compile a
 certificate.

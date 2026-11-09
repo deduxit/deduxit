@@ -96,7 +96,7 @@ Current contents:
 - The Rocq library's rules (`rocq.md`: its layout and trusted base, its
   modules, how its checker reads the Rust algorithm, the certificates,
   where a rule, a calculus or quantifiers plug in) moved with the library
-  to its own repository on 2026-11-02, now `sequentium/rocq-linlog`,
+  to its own repository on 2026-11-02, now `deduxit/rocq-linlog`,
   whose `.claude/` has them with copies of this repository's guards; a
   change to a guard belongs in both.
 - `agents/crate-source-explorer.md`: read-only, answers dependency-API questions

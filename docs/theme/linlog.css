@@ -37,7 +37,7 @@ html:not(.js) {
   --searchresults-li-bg: #f1f4fa;
   --search-mark-bg: rgb(107 70 207 / 0.25);
   --footnote-highlight: #6b46cf;
-  --logo: url("https://sequentium.github.io/logo/wordmark-light.svg");
+  --logo: url("https://deduxit.github.io/logo/wordmark-light.svg");
 }
 
 .navy {
@@ -69,7 +69,7 @@ html:not(.js) {
   --searchresults-li-bg: #151c30;
   --search-mark-bg: rgb(149 138 213 / 0.3);
   --footnote-highlight: #958ad5;
-  --logo: url("https://sequentium.github.io/logo/wordmark-dark.svg");
+  --logo: url("https://deduxit.github.io/logo/wordmark-dark.svg");
 }
 
 #mdbook-theme-rust,

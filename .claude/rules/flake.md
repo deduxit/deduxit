@@ -75,7 +75,7 @@ the benchmarks' CSV rows (Python with matplotlib, the comparison's), and
 `manual` is that package, and `manual-links` runs lychee offline over
 the manual's pages and README with `--include-fragments`, remapping the
 repository's GitHub URLs (`blob`, `tree`, `edit`, raw) to the tree and
-`sequentium.github.io/sequentium/` to the `doc` package, so a link to a
+`deduxit.github.io/deduxit/` to the `doc` package, so a link to a
 file, a heading or a page of the site that does not exist fails; links
 elsewhere (the web page among them) are not fetched. lychee needs
 `cacert` even offline, to build its client. The figures are drawn at
@@ -123,7 +123,7 @@ it (Mix, affine, intuitionistic, intuitionistic affine, a `⊤`/`0` goal,
 classical with `--kernel linlog`, four refutations, five first-order
 ones, one of them from a session's open witness), against the package
 `rocq-linlog` of the flake input `rocq-linlog`
-(`github:sequentium/rocq-linlog`, pinned by the lock; `ROCQPATH`
+(`github:deduxit/rocq-linlog`, pinned by the lock; `ROCQPATH`
 names its `user-contrib` and the standard library's), requires silence
 from each and that a first-order certificate with a wrong witness
 planted by `sed` be refused; an assertion at evaluation compares

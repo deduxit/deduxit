@@ -35,7 +35,7 @@ Workspace crates:
   the core crate's name): `prove` (one sequent, or a batch of many),
   `check`, `interact` and `seq print|json|fragment`. README is a front
   page; the manual under `docs/` (mdBook, `docs/src/SUMMARY.md` its
-  chapters, published at `sequentium.github.io/sequentium/manual/`) shows every command and
+  chapters, published at `deduxit.github.io/deduxit/manual/`) shows every command and
   format and the main flags with their output, and `cli/tests/readme.rs`
   runs those examples, README's and the guide's; `linlog <command> --help` is the doc comments of
   `cli/src/argument_parsing.rs`, every flag that sets a key naming
@@ -58,7 +58,7 @@ Workspace crates:
   cargo-about's notices) that the client's repository takes, and runs
   the tests under Node. `plan/web/README.md` is the web front end's plan.
 - The Rocq library **`rocq-linlog`** (logical path `Linlog`) lives in its
-  own repository, `github.com/sequentium/rocq-linlog` (`../rocq-linlog`
+  own repository, `github.com/deduxit/rocq-linlog` (`../rocq-linlog`
   beside this checkout, with its own CLAUDE.md and rules; under `rocq/`
   here until 2026-11-02): the one-sided calculus of linear logic with Mix and
   weakening as parameters and the two-sided calculus of intuitionistic
@@ -192,7 +192,7 @@ same for `nix flake check`; the flake sets no `nixConfig`.
 ## Version control: jj only
 
 A jj repository, colocated with git only so that nix and the GitHub remote
-`origin` (`github.com/sequentium/sequentium`) keep working. **Never run git, not
+`origin` (`github.com/deduxit/deduxit`) keep working. **Never run git, not
 even to read.** Every operation goes through `jj`, including lock updates:
 `nix … --commit-lock-file` commits through git. The `Bash(git *)` deny rule and
 `.claude/hooks/block-git.py` enforce this.
@@ -239,7 +239,7 @@ even to read.** Every operation goes through `jj`, including lock updates:
   `main@origin` after (by change id: the push signs what is unsigned,
   which gives those commits new ids).
 - The GitHub CLI (`gh`) is logged in with the author's own rights, over the
-  organisations `sequentium` and `linlog-prover` (the old one, kept as a
+  organisations `deduxit` and `linlog-prover` (the old one, kept as a
   placeholder that redirects) and everything else the account reaches.
   Ask before every administrative task through it (a setting of the
   organization or a repository, Pages, Actions, branch rules, secrets,

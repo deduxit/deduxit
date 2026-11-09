@@ -6,7 +6,7 @@ that the comparison runs: `lambek-fo` (the Lambek calculus in Moot and
 Piazza's translation into MILL1, at 16, 64, 256 and 512 formulas, five
 shapes) and `witness-fo` (a witness among 4, 8, 10 and 12, four shapes,
 of which LinearOne's fragment holds the MILL1 shapes #2 and #3).
-[bench/TOOLS.md](https://github.com/sequentium/sequentium/blob/main/bench/TOOLS.md#the-first-order-families)
+[bench/TOOLS.md](https://github.com/deduxit/deduxit/blob/main/bench/TOOLS.md#the-first-order-families)
 says how the problems are translated and discusses the verdicts.
 
 The times are `bench/comparison/first-order/times-1.csv` and

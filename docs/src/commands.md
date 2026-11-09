@@ -1,7 +1,7 @@
 # The commands
 
 The command line program is `linlog` (`cargo install --locked linlog-cli`, `nix run
-github:sequentium/sequentium -- …`, or `cargo run -p linlog-cli -- …` in a
+github:deduxit/deduxit -- …`, or `cargo run -p linlog-cli -- …` in a
 checkout). `linlog --help` and `linlog <command> --help` document every
 option.
 

@@ -21,7 +21,7 @@ additional-js = ["theme/linlog.js"]
 # The text is README's, written for GitHub's rendering, which keeps
 # straight quotes and `--`.
 smart-punctuation = false
-git-repository-url = "https://github.com/sequentium/sequentium"
-edit-url-template = "https://github.com/sequentium/sequentium/edit/main/docs/{path}"
-# Served under the API documentation's site, sequentium.github.io/sequentium/.
-site-url = "/sequentium/manual/"
+git-repository-url = "https://github.com/deduxit/deduxit"
+edit-url-template = "https://github.com/deduxit/deduxit/edit/main/docs/{path}"
+# Served under the API documentation's site, deduxit.github.io/deduxit/.
+site-url = "/deduxit/manual/"
