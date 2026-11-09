@@ -5565,3 +5565,8 @@ move (D26).
 - 2026-11-09, 08:03: **unattended again**, under the same rules as at
   02:12. The keys were unlocked afresh at 08:02, so they hold until
   about 20:00; the warming loop runs.
+- 2026-11-09, 08:10: **the planning session is renamed
+  `deduxit-orchestrator`** (the author, with `/rename`). The running
+  sessions (53s, 53n, 53p, 53m) were told. `plan/handoff.md` names the
+  new name. Briefs and goals written from now on send to it; finished
+  prompts keep the old one as history.

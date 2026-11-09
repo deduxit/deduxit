@@ -34,10 +34,11 @@ this file holds.
   their shell, which is nushell (put `claude2` for `claude` on the second
   account):
   ```nu
-  claude --name linlog-orchestrator --model claude-opus-5-5 --effort high --permission-mode auto (open --raw plan/handoff.md)
+  claude --name deduxit-orchestrator --model claude-opus-5-5 --effort high --permission-mode auto (open --raw plan/handoff.md)
   ```
-  The name matters: every brief and goal names `linlog-orchestrator` as
-  the recipient of its messages, and the other project's session
+  The name matters: every brief and goal names `deduxit-orchestrator`
+  (`linlog-orchestrator` until 2026-11-09, when the author renamed the
+  session with `/rename`) as the recipient of its messages, and the other project's session
   (below) writes to that name. Check with `ListAgents` that no other
   session of that name is alive: the first account's planner ended at
   this handoff. Auto mode matters too, since messages between sessions
@@ -232,7 +233,7 @@ to D32), grouped by release. In brief:
      It ends with: "Nothing is pushed. A failing check is fixed at its
      cause; never weaken, delete or loosen a test, a check or a
      tolerance to make it pass. If a requirement turns out impossible,
-     say why in the report and in the message to linlog-orchestrator."
+     say why in the report and in the message to deduxit-orchestrator."
    - A session that touches both repositories sends "linlog ready" after
      its linlog part; you review and push that part, then answer with
      linlog's commit and the client's revision to base on.
@@ -259,7 +260,7 @@ to D32), grouped by release. In brief:
    - Re-subscribe after each idle notice, but not to a session already
      idle (it fires at once).
 4. **Review it** when it reports (its last message to
-   `linlog-orchestrator`):
+   `deduxit-orchestrator`):
    - read its report section and the diff (`jj diff -r 'BASE..HEAD'
      --stat`, every soundness-relevant file in full: the checker's arm,
      the Rocq trusted definitions);
