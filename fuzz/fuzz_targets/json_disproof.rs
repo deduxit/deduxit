@@ -5,8 +5,8 @@
 //! deserializes writes back as a document that reads back as itself.
 #![no_main]
 
+use deduxit::Disproof;
 use libfuzzer_sys::fuzz_target;
-use linlog::Disproof;
 
 fuzz_target!(|data: &[u8]| {
     if let Ok(disproof) = serde_json::from_slice::<Disproof>(data) {

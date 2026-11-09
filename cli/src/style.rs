@@ -8,8 +8,8 @@
 use crate::argument_parsing::{RocqArgs, StyleArgs};
 use crate::io;
 use anyhow::{Context, Result, bail};
-use linlog::export::svg::MathFont;
-use linlog::export::{Form, Styles};
+use deduxit::export::svg::MathFont;
+use deduxit::export::{Form, Styles};
 use serde_json::Value;
 
 /// The names of the formats that have options, as `--style` keys and the

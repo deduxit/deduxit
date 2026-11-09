@@ -25,14 +25,14 @@
 //!
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
-//! use linlog::export::svg::{self, Style};
-//! use linlog::{Limits, Mode, Sequent};
+//! use deduxit::export::svg::{self, Style};
+//! use deduxit::{Limits, Mode, Sequent};
 //!
 //! let sequent: Sequent = "A |- A".parse()?;
 //! let svg = svg::sequent(&sequent, Mode::CLASSICAL, &Style::default(), &Limits::default())?;
 //! assert!(svg.starts_with("<svg xmlns=\"http://www.w3.org/2000/svg\""));
 //! assert!(svg.contains("<title>⊢ A⊥, A</title>"));
-//! # Ok::<(), linlog::Error>(())
+//! # Ok::<(), deduxit::Error>(())
 //! ```
 
 /// The metrics of the font.

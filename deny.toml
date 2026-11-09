@@ -123,7 +123,7 @@ exceptions = [
   # The command embeds its math fonts, four under the OFL and New Computer
   # Modern Math under the GUST Font License (the LPPL 1.3c); no dependency
   # may bring either in.
-  { allow = ["OFL-1.1", "LPPL-1.3c"], crate = "linlog-cli" },
+  { allow = ["OFL-1.1", "LPPL-1.3c"], crate = "deduxit-cli" },
 ]
 
 # Some crates don't have (easily) machine readable licensing information,

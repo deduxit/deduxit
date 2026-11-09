@@ -9,10 +9,10 @@
 //! the ordinary text.
 #![no_main]
 
+use deduxit::ordinary::{self, Logic, Sequent, Translation};
+use deduxit::search::Options;
+use deduxit::{ErrorKind, Limits};
 use libfuzzer_sys::fuzz_target;
-use linlog::ordinary::{self, Logic, Sequent, Translation};
-use linlog::search::Options;
-use linlog::{ErrorKind, Limits};
 
 fuzz_target!(|data: &[u8]| {
     let Some((&bits, text)) = data.split_first() else {

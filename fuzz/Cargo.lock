@@ -27,6 +27,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600"
 
 [[package]]
+name = "deduxit"
+version = "0.2.0"
+dependencies = [
+ "foldhash",
+ "serde",
+ "thiserror",
+ "unicode-ident",
+ "unicode-normalization",
+]
+
+[[package]]
+name = "deduxit-fuzz"
+version = "0.0.0"
+dependencies = [
+ "deduxit",
+ "libfuzzer-sys",
+ "serde_json",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -79,26 +99,6 @@ checksum = "a9fd2f41a1cba099f79a0b6b6c35656cf7c03351a7bae8ff0f28f25270f929d2"
 dependencies = [
  "arbitrary",
  "cc",
-]
-
-[[package]]
-name = "linlog"
-version = "0.2.0"
-dependencies = [
- "foldhash",
- "serde",
- "thiserror",
- "unicode-ident",
- "unicode-normalization",
-]
-
-[[package]]
-name = "linlog-fuzz"
-version = "0.0.0"
-dependencies = [
- "libfuzzer-sys",
- "linlog",
- "serde_json",
 ]
 
 [[package]]

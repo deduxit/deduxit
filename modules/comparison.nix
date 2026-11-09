@@ -26,7 +26,7 @@
         apll = pkgs.callPackage ./_provers/apll.nix { };
       }
       // pkgs.callPackages ./_provers/prolog.nix { };
-      linlog = config.packages.linlog-cli;
+      linlog = config.packages.deduxit-cli;
       # Each name of `run --tools' to the program that runs it.
       tools = {
         linlog = linlog;
@@ -62,7 +62,7 @@
           name = "linlog-comparison";
           paths = [
             linlog
-            config.packages.linlog-bench
+            config.packages.deduxit-bench
             pkgs.benchexec
             (pkgs.python3.withPackages (ps: [ ps.matplotlib ]))
             record

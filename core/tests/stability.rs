@@ -19,8 +19,8 @@
 //! wire level promises.
 #![cfg(all(feature = "serialize", feature = "interactive"))]
 
-use linlog::wire::{self, Readable};
-use linlog::{
+use deduxit::wire::{self, Readable};
+use deduxit::{
     Disproof, IllSequent, Interactive, Limits, MellStructure, Proof, ProofStructure, Sequent,
 };
 
@@ -160,7 +160,7 @@ fn the_sixth_level_reads() {
             "proof" => {
                 again::<Proof>(name, json);
                 let proof: Proof = read(name, json);
-                assert_eq!(proof.check(linlog::Mode::CLASSICAL), Ok(()), "{name}");
+                assert_eq!(proof.check(deduxit::Mode::CLASSICAL), Ok(()), "{name}");
                 assert_eq!(proof.sequent().cuts().len(), 1, "{name}");
             }
             "session" => {
@@ -204,7 +204,7 @@ fn the_seventh_level_reads() {
 /// `wire/level-1.txt` is not.
 #[test]
 fn the_eighth_level_reads() {
-    use linlog::ordinary;
+    use deduxit::ordinary;
     let lines = include_str!("wire/level-8.txt");
     for line in lines.lines() {
         let (name, json) = line.split_once(": ").unwrap();

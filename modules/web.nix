@@ -1,7 +1,7 @@
 # linlog © Fabian Lukas Grubmüller 2026
 # Licensed under the EUPL
 
-# The web bindings (`web/', the crate linlog-web) as a browser runs them:
+# The web bindings (`web/', the crate deduxit-web) as a browser runs them:
 # the package a page loads, built for wasm32 with the wasm-bindgen CLI and
 # wasm-opt, which the client's flake takes through its pinned input; and
 # the checks that run them there. The CLI must be the version of the
@@ -46,11 +46,11 @@
       wasmArtifacts = craneLib.buildDepsOnly (
         args
         // {
-          pname = "linlog-web-wasm";
+          pname = "deduxit-web-wasm";
           CARGO_BUILD_TARGET = target;
           buildPhaseCargoCommand = ''
-            cargoWithProfile build --locked --package linlog-web
-            cargo test --locked --package linlog-web --no-run
+            cargoWithProfile build --locked --package deduxit-web
+            cargo test --locked --package deduxit-web --no-run
           '';
           checkPhaseCargoCommand = "";
           doCheck = false;
@@ -70,7 +70,7 @@
           ];
           CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER = "wasm-bindgen-test-runner";
           WASM_BINDGEN_TEST_TIMEOUT = "300";
-          buildPhaseCargoCommand = "cargo test --locked --target ${target} --package linlog-web";
+          buildPhaseCargoCommand = "cargo test --locked --target ${target} --package deduxit-web";
           doInstallCargoArtifacts = false;
         }
       );
@@ -87,17 +87,17 @@
           CARGO_TARGET_WASM32_WASIP1_RUNNER = "wasmtime run --";
           buildPhaseCargoCommand = ''
             export HOME=$TMPDIR
-            cargo test --locked --target wasm32-wasip1 --package linlog --lib -- ${core32}
+            cargo test --locked --target wasm32-wasip1 --package deduxit --lib -- ${core32}
           '';
           doInstallCargoArtifacts = false;
         }
       );
     in
     {
-      packages.linlog-web = craneLib.mkCargoDerivation (
+      packages.deduxit-web = craneLib.mkCargoDerivation (
         args
         // {
-          pname = "linlog-web";
+          pname = "deduxit-web";
           inherit (craneLib.crateNameFromCargoToml { cargoToml = ../Cargo.toml; }) version;
           cargoArtifacts = wasmArtifacts;
           nativeBuildInputs = [
@@ -106,14 +106,14 @@
             pkgs.cargo-about
           ];
           buildPhaseCargoCommand = ''
-            cargo build --locked --release --target ${target} --package linlog-web
+            cargo build --locked --release --target ${target} --package deduxit-web
             cargo about generate --frozen --manifest-path web/Cargo.toml \
               --config web/about.toml web/about.hbs --output-file THIRD-PARTY-NOTICES.txt
           '';
           installPhaseCommand = ''
             wasm-bindgen --target web --out-dir $out \
-              target/${target}/release/linlog_web.wasm
-            wasm-opt -O3 $out/linlog_web_bg.wasm -o $out/linlog_web_bg.wasm
+              target/${target}/release/deduxit_web.wasm
+            wasm-opt -O3 $out/deduxit_web_bg.wasm -o $out/deduxit_web_bg.wasm
             install -Dm644 LICENSE $out/LICENSE
             install -Dm644 THIRD-PARTY-NOTICES.txt $out/THIRD-PARTY-NOTICES.txt
           '';
@@ -122,7 +122,7 @@
       );
 
       checks = {
-        web-package = config.packages.linlog-web;
+        web-package = config.packages.deduxit-web;
         web-wasm-tests = wasmTests;
         web-core-wasm32 = core32Tests;
         # The CLI the package is built with speaks the crate's version.

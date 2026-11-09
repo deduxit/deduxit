@@ -32,8 +32,8 @@ core=2
 if [ "${2:-}" != --inside ]; then
   # A copy of the binary, so that builds in the checkout meanwhile do not
   # touch the one the unit runs.
-  cargo build --release --locked --package linlog-bench
-  install -D "${CARGO_TARGET_DIR:-target}/release/linlog-bench" "target/targets/net-$label/linlog-bench"
+  cargo build --release --locked --package deduxit-bench
+  install -D "${CARGO_TARGET_DIR:-target}/release/deduxit-bench" "target/targets/net-$label/deduxit-bench"
   mkdir -p "$out"
   systemctl --user reset-failed linlog-net-targets.service 2>/dev/null || true
   systemd-run --user --unit=linlog-net-targets --same-dir --collect \
@@ -43,7 +43,7 @@ if [ "${2:-}" != --inside ]; then
   exit
 fi
 
-bench=target/targets/net-$label/linlog-bench
+bench=target/targets/net-$label/deduxit-bench
 part=$out/net-$label.part.csv
 
 # The Partition encodings of the slow tests that the net engine decided:

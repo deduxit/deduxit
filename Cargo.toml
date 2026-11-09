@@ -6,7 +6,7 @@ resolver = "3"
 members = ["bench", "cli", "core", "web"]
 
 [workspace.metadata.crane]
-name = "linlog-workspace"
+name = "deduxit-workspace"
 
 # What every package shares; crates.io keeps a published version's
 # metadata as it was, so the addresses are the final ones.
@@ -23,7 +23,7 @@ repository = "https://github.com/deduxit/deduxit"
 # The core crate, written once for the members that depend on it; each
 # names the features it uses, the defaults included.
 [workspace.dependencies]
-linlog = { version = "0.2.0", path = "core", default-features = false }
+deduxit = { version = "0.2.0", path = "core", default-features = false }
 
 # Every item gets a doc comment (CLAUDE.md, Conventions): rustc checks the
 # public ones, clippy the private ones.

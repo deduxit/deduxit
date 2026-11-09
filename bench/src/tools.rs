@@ -16,7 +16,7 @@ use crate::problems::{self, Problem, Reference, mode_name};
 use crate::run::HEADER;
 use crate::translate;
 use anyhow::{Context, Result, anyhow, bail};
-use linlog::{Fragment, Mode};
+use deduxit::{Fragment, Mode};
 use std::collections::HashSet;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -222,7 +222,8 @@ fn linlog_read(output: &str, status: i32, _: &Problem) -> Answer {
 fn refutation_checked(output: &str) -> String {
     let read = output.lines().find_map(|l| {
         let mut document = serde_json::Deserializer::from_str(l);
-        linlog::wire::upgrade::<linlog::Disproof, _>(&mut document, &linlog::Limits::default()).ok()
+        deduxit::wire::upgrade::<deduxit::Disproof, _>(&mut document, &deduxit::Limits::default())
+            .ok()
     });
     match read {
         Some(disproof) => crate::run::refutation_checked(&disproof),
@@ -1035,8 +1036,8 @@ mod tests {
     #[test]
     fn linlog_s_refutations_are_checked() {
         let outcome = |input: &str, mode: Mode| {
-            let sequent: linlog::Sequent = input.parse().unwrap();
-            let outcome = linlog::prove(&sequent, mode, &linlog::Options::default()).unwrap();
+            let sequent: deduxit::Sequent = input.parse().unwrap();
+            let outcome = deduxit::prove(&sequent, mode, &deduxit::Options::default()).unwrap();
             serde_json::to_string(&outcome).unwrap()
         };
         let counted = outcome("!d, !((c * d * d) -o 1) |- c * c", Mode::CLASSICAL);
@@ -1068,16 +1069,16 @@ mod tests {
             copies: None,
             witness_depth: None,
         };
-        let chain: linlog::Sequent = "!(p0 -o p1 & p2), !(p1 -o p2 & p3), !(p2 -o p3 & p4), \
+        let chain: deduxit::Sequent = "!(p0 -o p1 & p2), !(p1 -o p2 & p3), !(p2 -o p3 & p4), \
                                       !(p3 -o p4 & p5), p0 |- p5"
             .parse()
             .unwrap();
-        let options = linlog::Options::default()
+        let options = deduxit::Options::default()
             .with_copies(None)
-            .with_engine(Some(linlog::Engine::Focus));
-        let limits = linlog::Limits::default().with_recursion_depth(4);
+            .with_engine(Some(deduxit::Engine::Focus));
+        let limits = deduxit::Limits::default().with_recursion_depth(4);
         let outcome =
-            linlog::prove_within(&chain, Mode::CLASSICAL, &options, &limits, |_| false).unwrap();
+            deduxit::prove_within(&chain, Mode::CLASSICAL, &options, &limits, |_| false).unwrap();
         let json = serde_json::to_string(&outcome).unwrap();
         assert_eq!(
             linlog_read(&json, 3, &problem).reason,

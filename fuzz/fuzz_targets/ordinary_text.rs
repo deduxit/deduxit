@@ -5,8 +5,8 @@
 //! that parses prints as text that parses back to it.
 #![no_main]
 
+use deduxit::ordinary::Sequent;
 use libfuzzer_sys::fuzz_target;
-use linlog::ordinary::Sequent;
 
 fuzz_target!(|text: &str| {
     if let Ok(sequent) = text.parse::<Sequent>() {

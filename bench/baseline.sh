@@ -184,7 +184,7 @@ fi
 others() {
   top -b -n 2 -d 2 -o %CPU -w 200 | awk '
     /^top -/ { frame++ }
-    frame == 2 && $1 ~ /^[0-9]+$/ && $9 + 0 >= 1 && $12 !~ /^(linlog-bench|top)$/ {
+    frame == 2 && $1 ~ /^[0-9]+$/ && $9 + 0 >= 1 && $12 !~ /^(deduxit-bench|top)$/ {
       printf "%s%s %s%%", sep, $12, $9
       sep = ", "
     }' | head -c 300
@@ -430,8 +430,8 @@ if grep -q linlog.slice /proc/self/cgroup; then
     done
 fi
 
-cargo build --release --locked --package linlog-bench
-bench=${CARGO_TARGET_DIR:-target}/release/linlog-bench
+cargo build --release --locked --package deduxit-bench
+bench=${CARGO_TARGET_DIR:-target}/release/deduxit-bench
 
 # Every ten minutes: the last progress line of every run (with its estimate
 # of the time left), the load and whatever else uses a CPU.
@@ -647,7 +647,7 @@ beside them, $parallel. A time is the median of up to
 three runs; \`✓\` is proved, \`✗\` refuted, \`?\` unknown (\`bound\`: the copy
 bound, \`wide\`: a context too wide to split, \`depth\`: the recursion
 limit), \`>\` a time limit reached, \`MISMATCH\` a verdict against the
-problem's known one (for LLTP, the one its header claims). \`linlog-bench
+problem's known one (for LLTP, the one its header claims). \`deduxit-bench
 summary $out/*.csv\` prints the tables again.
 
 EOF2

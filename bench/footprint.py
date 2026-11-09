@@ -11,10 +11,10 @@
 #     The package strips them, so build it again with them kept, in a
 #     target directory of its own:
 #       cargo build --locked --release --target wasm32-unknown-unknown \
-#         --package linlog-web --target-dir DIR
+#         --package deduxit-web --target-dir DIR
 #       wasm-bindgen --target web --out-dir OUT \
-#         DIR/wasm32-unknown-unknown/release/linlog_web.wasm
-#       wasm-opt -O3 -g OUT/linlog_web_bg.wasm -o OUT/linlog_web_bg.wasm
+#         DIR/wasm32-unknown-unknown/release/deduxit_web.wasm
+#       wasm-opt -O3 -g OUT/deduxit_web_bg.wasm -o OUT/deduxit_web_bg.wasm
 #     An item is the crate its name names first (`<A as B>::f` is A's), so a
 #     generic of `core` or `alloc` instantiated for linlog counts as theirs;
 #     data segments and the bindings' shims have no crate.
@@ -137,8 +137,8 @@ def wasm(path):
     for crate, size in crates.items():
         if crate in RENDERING:
             groups["the PNG and PDF renderers' crates"] += size
-        elif crate in ("linlog", "linlog_web"):
-            groups["linlog and linlog-web"] += size
+        elif crate in ("linlog", "deduxit_web"):
+            groups["linlog and deduxit-web"] += size
         elif crate in ("core", "alloc", "std", "compiler_builtins", "dlmalloc"):
             groups["the standard library"] += size
         else:

@@ -3,9 +3,9 @@
 
 use crate::argument_parsing::{InputFormat, SequentInput};
 use anyhow::{Context, Result, bail};
-use linlog::ordinary::Image;
-use linlog::wire::Within;
-use linlog::{
+use deduxit::ordinary::Image;
+use deduxit::wire::Within;
+use deduxit::{
     ClassicalSequent, Forest, IllSequent, IllSyntax, InputOptions, Limits, Mode, Order, Sequent,
     Written,
 };
@@ -267,11 +267,11 @@ pub(crate) fn sequent_in(
             sequent.context("not a sequent in JSON")
         }
         // The library's error says that the text is no LLTP problem.
-        InputFormat::Lltp => Ok(linlog::lltp::read(text, &within).map_err(refused)?.sequent),
-        InputFormat::Spec => match linlog::mist::read(text, &within) {
+        InputFormat::Lltp => Ok(deduxit::lltp::read(text, &within).map_err(refused)?.sequent),
+        InputFormat::Spec => match deduxit::mist::read(text, &within) {
             Ok(problem) => Ok(problem.sequent),
             Err(
-                error @ linlog::Error::Refused(linlog::limits::Refusal::Occurrences {
+                error @ deduxit::Error::Refused(deduxit::limits::Refusal::Occurrences {
                     occurrences,
                     ..
                 }),
@@ -289,12 +289,12 @@ pub(crate) fn sequent_in(
             IllSequent::parse_within(text, &within)
                 .map(IllSequent::into_sequent)
                 .map_err(|e| match e {
-                    linlog::Error::Parse(_) => crate::parse_error(text, e),
+                    deduxit::Error::Parse(_) => crate::parse_error(text, e),
                     e => refused(e),
                 })
         }
         _ => Sequent::parse_ordered(text, order, &within).map_err(|e| match e {
-            linlog::Error::Parse(_) => crate::parse_error(text, e),
+            deduxit::Error::Parse(_) => crate::parse_error(text, e),
             e => refused(e),
         }),
     }
@@ -322,7 +322,7 @@ pub(crate) fn written_in(
     let text_format = matches!(format, InputFormat::Auto | InputFormat::Text);
     if keep && text_format && !mode.is_intuitionistic() && mode.order() == Order::Commutative {
         let written = ClassicalSequent::parse_within(text, &bound(most)).map_err(|e| match e {
-            linlog::Error::Parse(_) => crate::parse_error(text, e),
+            deduxit::Error::Parse(_) => crate::parse_error(text, e),
             e => refused(e, most),
         })?;
         let writing = written.writing().into();
@@ -345,9 +345,9 @@ fn is_ill_json(text: &str) -> bool {
 
 /// Returns the library's error, or for an input refused past `most`
 /// occurrences the line that names the flag raising it.
-pub(crate) fn refused(error: linlog::Error, most: Most) -> anyhow::Error {
+pub(crate) fn refused(error: deduxit::Error, most: Most) -> anyhow::Error {
     match error {
-        linlog::Error::Refused(linlog::limits::Refusal::Occurrences { .. }) => {
+        deduxit::Error::Refused(deduxit::limits::Refusal::Occurrences { .. }) => {
             crate::Explained::error(
                 format!(
                     "the sequent has more subformula occurrences than the limit of {}; \
@@ -357,7 +357,7 @@ pub(crate) fn refused(error: linlog::Error, most: Most) -> anyhow::Error {
                 error,
             )
         }
-        linlog::Error::Refused(linlog::limits::Refusal::Terms { .. }) => {
+        deduxit::Error::Refused(deduxit::limits::Refusal::Terms { .. }) => {
             crate::Explained::error(format!("{error}; raise it with --term-limit"), error)
         }
         error => error.into(),
@@ -397,7 +397,7 @@ pub(crate) fn bound(most: Most) -> Limits {
 ///
 /// # Errors
 ///
-/// The library's [`Refusal::Occurrences`](linlog::Refusal::Occurrences)
+/// The library's [`Refusal::Occurrences`](deduxit::Refusal::Occurrences)
 /// past `most`, naming the flag that raises it.
 pub(crate) fn admit(sequent: Sequent, most: Most) -> Result<Sequent> {
     let occurrences = sequent.occurrences();
@@ -500,7 +500,7 @@ impl SequentInput {
         // ways gets a note, since its verdicts differ.
         if self.input_format == InputFormat::Auto
             && format == InputFormat::Lltp
-            && linlog::ordinary::read_tptp(&text, &bound(most)).is_ok()
+            && deduxit::ordinary::read_tptp(&text, &bound(most)).is_ok()
         {
             eprintln!(
                 "note: the file is read as an LLTP problem of linear logic; it is also a TPTP \
@@ -520,7 +520,7 @@ impl SequentInput {
     /// translation's error.
     pub(crate) fn image(
         &self,
-        options: &linlog::ordinary::Options,
+        options: &deduxit::ordinary::Options,
         limits: &Limits,
     ) -> Result<(Forest, Image)> {
         let most = Most::of(limits);
@@ -539,7 +539,7 @@ impl SequentInput {
     ///
     /// An input that cannot be read, text that is no ordinary sequent or
     /// TPTP problem, or one past the limits.
-    pub(crate) fn ordinary(&self, limits: &Limits) -> Result<linlog::ordinary::Sequent> {
+    pub(crate) fn ordinary(&self, limits: &Limits) -> Result<deduxit::ordinary::Sequent> {
         let (text, format) = self.text(true, limits.memory_bytes)?;
         crate::ordinary::sequent_in(&text, format, Most::of(limits))
     }

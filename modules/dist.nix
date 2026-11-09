@@ -1,7 +1,7 @@
 # linlog © Fabian Lukas Grubmüller 2026
 # Licensed under the EUPL
 
-# The command as a release ships it for Linux: `linlog-static', the binary
+# The command as a release ships it for Linux: `deduxit-static', the binary
 # linked statically against musl, which runs on any distribution of its
 # architecture, built as crane's musl example builds one, with the
 # toolchain rust-toolchain.toml names and the musl target added; and
@@ -37,7 +37,7 @@
             "cli"
           ]
           // {
-            pname = "linlog-notices";
+            pname = "deduxit-notices";
             inherit (craneLib.crateNameFromCargoToml { cargoToml = ../Cargo.toml; }) version;
             cargoArtifacts = null;
             nativeBuildInputs = [ pkgs.cargo-about ];
@@ -62,15 +62,15 @@
           staticCc = "${pkgs.pkgsStatic.stdenv.cc}/bin/${pkgs.pkgsStatic.stdenv.cc.targetPrefix}cc";
         in
         {
-          linlog-static = craneLib.buildPackage (
+          deduxit-static = craneLib.buildPackage (
             workspace.argsOf [
               "core"
               "cli"
             ]
             // {
-              pname = "linlog-static";
+              pname = "deduxit-static";
               inherit version;
-              cargoExtraArgs = "--locked --package linlog-cli";
+              cargoExtraArgs = "--locked --package deduxit-cli";
               CARGO_BUILD_TARGET = target;
               CARGO_BUILD_RUSTFLAGS = "-C target-feature=+crt-static";
               # mimalloc, the static build's allocator, is C: compiled and
@@ -81,9 +81,9 @@
               # The `test-cli' check runs the tests, on the default build.
               doCheck = false;
               postInstall = ''
-                install -Dm644 LICENSE $out/share/doc/linlog-cli/LICENSE
-                install -Dm644 -t $out/share/doc/linlog-cli cli/fonts/*.txt
-                install -Dm644 ${config.packages.notices} $out/share/doc/linlog-cli/THIRD-PARTY-NOTICES.txt
+                install -Dm644 LICENSE $out/share/doc/deduxit-cli/LICENSE
+                install -Dm644 -t $out/share/doc/deduxit-cli cli/fonts/*.txt
+                install -Dm644 ${config.packages.notices} $out/share/doc/deduxit-cli/THIRD-PARTY-NOTICES.txt
               '';
               meta.mainProgram = "linlog";
             }
@@ -91,8 +91,8 @@
 
           dist =
             let
-              static = config.packages.linlog-static;
-              doc = "${static}/share/doc/linlog-cli";
+              static = config.packages.deduxit-static;
+              doc = "${static}/share/doc/deduxit-cli";
               # The binary, and the licences where each format keeps them:
               # Arch Linux under /usr/share/licenses, the others beside the
               # package's documentation.
@@ -153,7 +153,7 @@
               };
               stem = "linlog-${version}-${target}";
             in
-            pkgs.runCommand "linlog-dist-${version}"
+            pkgs.runCommand "deduxit-dist-${version}"
               {
                 nativeBuildInputs = [ pkgs.nfpm ];
                 passAsFile = [ "nfpm" ];

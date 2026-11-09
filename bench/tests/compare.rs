@@ -1,7 +1,7 @@
 // linlog © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The comparison of two runs' CSV files as `linlog-bench summary`
+//! The comparison of two runs' CSV files as `deduxit-bench summary`
 //! prints it, end to end on a pair of small files.
 
 use std::path::Path;
@@ -31,10 +31,10 @@ fn write(path: &Path, rows: &str) {
     std::fs::write(path, format!("{HEADER}\n{rows}")).unwrap();
 }
 
-/// Runs `linlog-bench summary` with the arguments, and returns its
+/// Runs `deduxit-bench summary` with the arguments, and returns its
 /// standard output once it succeeded.
 fn summary(args: &[&Path]) -> String {
-    let out = Command::new(env!("CARGO_BIN_EXE_linlog-bench"))
+    let out = Command::new(env!("CARGO_BIN_EXE_deduxit-bench"))
         .arg("summary")
         .args(args)
         .output()

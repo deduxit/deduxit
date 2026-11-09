@@ -82,7 +82,7 @@ jobs:
           skipPush: true
       # The packages built and verified before the token is asked for,
       # since it lives briefly; the publication reuses the build.
-      - run: nix develop --command cargo package --locked --package linlog --package linlog-cli
+      - run: nix develop --command cargo package --locked --package deduxit --package deduxit-cli
       # A token for this job alone, revoked when it ends.
       - uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
         id: auth
@@ -95,7 +95,7 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           version=${TAG#v}
-          for crate in linlog linlog-cli; do
+          for crate in linlog deduxit-cli; do
             if curl --silent --fail --output /dev/null \
               --user-agent "linlog release (github.com/deduxit/deduxit)" \
               "https://crates.io/api/v1/crates/$crate/$version"; then
@@ -156,7 +156,7 @@ jobs:
             echo
             echo "Install it as the manual's [Installation](https://deduxit.github.io/deduxit/manual/installation.html) says; \`SHA256SUMS\` holds the files' sums."
           } >>notes.md
-          for crate in linlog linlog-cli; do
+          for crate in linlog deduxit-cli; do
             curl --silent --fail --location --output "$crate-$version.crate" \
               --user-agent "linlog release (github.com/deduxit/deduxit)" \
               "https://static.crates.io/crates/$crate/$crate-$version.crate"

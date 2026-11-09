@@ -14,9 +14,9 @@
 
 use crate::problems::Problem;
 use anyhow::{Result, anyhow};
-use linlog::occurrences::IllConnective;
-use linlog::sequents::Visit;
-use linlog::{Forest, OccId, Reading, Sequent, Term, TermId};
+use deduxit::occurrences::IllConnective;
+use deduxit::sequents::Visit;
+use deduxit::{Forest, OccId, Reading, Sequent, Term, TermId};
 use std::fmt::Write as _;
 
 /// How a tool spells the connectives and units.
@@ -394,15 +394,15 @@ pub fn linearone(problem: &Problem) -> Result<String> {
 /// symbol's index. Iterative, as every translator is.
 fn linearone_term(
     sequent: &Sequent,
-    t: linlog::sequents::FoTermId,
+    t: deduxit::sequents::FoTermId,
     scope: &[u32],
     out: &mut String,
 ) -> Result<()> {
-    use linlog::sequents::FoTerm;
+    use deduxit::sequents::FoTerm;
     /// What is left to write of a term.
     enum Item {
         /// A term.
-        Term(linlog::sequents::FoTermId),
+        Term(deduxit::sequents::FoTermId),
         /// The comma between two arguments.
         Comma,
         /// An application's closing parenthesis.
@@ -548,7 +548,7 @@ mod tests {
     use super::*;
 
     /// A problem of the sequent in the mode.
-    fn problem(text: &str, mode: linlog::Mode) -> Problem {
+    fn problem(text: &str, mode: deduxit::Mode) -> Problem {
         Problem {
             sequent: text.parse().unwrap(),
             mode,
@@ -563,7 +563,7 @@ mod tests {
     fn translations() {
         let classical = problem(
             "!a, b * c |- ?~a par (1 & top), 0 + bot",
-            linlog::Mode::CLASSICAL,
+            deduxit::Mode::CLASSICAL,
         );
         assert_eq!(
             click_and_collect(&classical).unwrap(),
@@ -576,7 +576,7 @@ mod tests {
         );
         let intuitionistic = problem(
             "!a, a -o (b & 1) |- !(b + top) * 0",
-            linlog::Mode::INTUITIONISTIC,
+            deduxit::Mode::INTUITIONISTIC,
         );
         assert_eq!(
             maude_ill(&intuitionistic).unwrap(),
@@ -590,18 +590,18 @@ mod tests {
             llprover_ill(&intuitionistic).unwrap(),
             "ill(full).\n!(p0), (p0 -> (p1 /\\ 1)) --> (!((p1 \\/ top)) * bot).\n"
         );
-        let mll = problem("a * b, ~c |- b * a, ?~c", linlog::Mode::CLASSICAL);
+        let mll = problem("a * b, ~c |- b * a, ?~c", deduxit::Mode::CLASSICAL);
         assert_eq!(
             lintap(&mll).unwrap(),
             "(((~p0) @ (~p1)) @ (p2 @ ((p1 * p0) @ ?((~p2))))).\n"
         );
         assert_eq!(
-            lintap(&problem("|-", linlog::Mode::CLASSICAL)).unwrap(),
+            lintap(&problem("|-", deduxit::Mode::CLASSICAL)).unwrap(),
             "0.\n"
         );
-        let bang = problem("?~a |- !a", linlog::Mode::CLASSICAL);
+        let bang = problem("?~a |- !a", deduxit::Mode::CLASSICAL);
         assert!(lintap(&bang).is_err(), "a ! is refused");
-        let mill = problem("a -o b, a * c |- b * c", linlog::Mode::INTUITIONISTIC);
+        let mill = problem("a -o b, a * c |- b * c", deduxit::Mode::INTUITIONISTIC);
         assert_eq!(
             linearone(&mill).unwrap(),
             "[impl(at(p0,[]),at(p1,[])),p(at(p0,[]),at(p2,[]))] => p(at(p1,[]),at(p2,[])).\n"
@@ -609,7 +609,7 @@ mod tests {
         // Symbols by their index, every binder a variable of its own.
         let mill1 = problem(
             "a(c), forall x. (a(x) -o b(x, g(x))) |- exists x. b(c, x)",
-            linlog::Mode::INTUITIONISTIC,
+            deduxit::Mode::INTUITIONISTIC,
         );
         assert_eq!(
             linearone(&mill1).unwrap(),
@@ -632,7 +632,7 @@ mod tests {
             apll_ill(&intuitionistic).unwrap(),
             "!(p0), (p0 -o (p1 & 1)) |- (!((p1 + top)) * 0)\n"
         );
-        let goal = problem("|- a -o a", linlog::Mode::INTUITIONISTIC);
+        let goal = problem("|- a -o a", deduxit::Mode::INTUITIONISTIC);
         assert_eq!(
             maude_ill(&goal).unwrap(),
             "red solve(5, ([emp] empMS |~ ('p0 -o 'p0))) .\nq\n"
@@ -644,7 +644,7 @@ mod tests {
     fn deep_formulas_need_no_stack() {
         let depth = 100_000;
         let text = format!("|- {}a{}", "!(a * ".repeat(depth), ")".repeat(depth));
-        let deep = problem(&text, linlog::Mode::CLASSICAL);
+        let deep = problem(&text, deduxit::Mode::CLASSICAL);
         let translated = std::thread::Builder::new()
             .stack_size(256 * 1024)
             .spawn(move || click_and_collect(&deep).unwrap().len())

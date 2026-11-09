@@ -10,8 +10,8 @@
 BASE on core 2 and LIFT on core 3 for the first half of the runs and
 the cores swapped for the second, so that a core, a minute or the
 machine's load weighs on both alike. Each run is a process of its own:
-a target-set row through `linlog-bench run`, whose `cpu_ms` it takes,
-or a journey through `linlog-bench journey NAME --repeat N`, whose
+a target-set row through `deduxit-bench run`, whose `cpu_ms` it takes,
+or a journey through `deduxit-bench journey NAME --repeat N`, whose
 measured parts' times it sums (one thread on an idle core: its CPU
 time). A focused row runs about a second or more: `cpu_ms` counts in
 ticks of 10 ms, so a row of a tenth of a second moves 9 % by one tick,
@@ -39,7 +39,7 @@ CORES = (2, 3)
 LLTP = "bench/lltp/ILL"
 
 # (name, group, arguments): a journey's name with how many times it is
-# repeated, or a row's arguments to `linlog-bench run`. The groups:
+# repeated, or a row's arguments to `deduxit-bench run`. The groups:
 # `focused` the focused engine's searches, one- and two-sided (the
 # families' rows forced onto it where the dispatch sends them elsewhere),
 # each about a second or more, `other` the other engines' journeys, the

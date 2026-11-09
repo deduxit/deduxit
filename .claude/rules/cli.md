@@ -17,7 +17,7 @@ binary `linlog` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `SYNTAX` string shown after the help of every command that reads a
   sequent. `Cli::command().debug_assert()` in its tests catches
   inconsistent definitions.
-- `lib.rs`: the package's library `linlog_cli`, which holds everything
+- `lib.rs`: the package's library `deduxit_cli`, which holds everything
   behind one public `main` (the modules and their items are crate-private:
   the library is the binary's, not an API, and the published rustdoc shows
   `main` alone; the flake's `doc-private` check documents the rest):
@@ -142,7 +142,7 @@ binary `linlog` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   and the whole loop runs inside `on_large_stack` so that `close` and the
   derivation drawing have the stack `prove` has. `goal_line` prints a goal
   with the position of every formula, two-sided under the reading.
-- `settings.rs`: the one `linlog::Settings` a command runs under (R183,
+- `settings.rs`: the one `deduxit::Settings` a command runs under (R183,
   the library's `Settings::default()` being the command's behaviour):
   the command's defaults (`defaults`: a batch's workers the machine's
   threads and its memory half the process's, which the library cannot
@@ -497,7 +497,7 @@ binary `linlog` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   value) in a sentence that says "default", so a sentence that says
   "default" names no other value of a flag; the batch's order of exit
   statuses is held to `prove --help`'s sentence, and every "bounds the
-  copies … at N" to `linlog::Options::default().copies`. The exit
+  copies … at N" to `deduxit::Options::default().copies`. The exit
   statuses are shown by examples that print them (`; echo "exit $?"`).
   A number the guide states in no such form is not tested: write it in
   one, or leave it out.

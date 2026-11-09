@@ -2,7 +2,7 @@
 # linlog © Fabian Lukas Grubmüller 2026
 # Licensed under the EUPL
 
-# The growing sets of linlog's engines (`linlog-bench families` lists each
+# The growing sets of linlog's engines (`deduxit-bench families` lists each
 # family's sizes and claim): every family under the default and every
 # engine forced, and the passes that switch off the mechanism a claim is
 # about, so that a figure draws the claim beside its comparison:
@@ -30,7 +30,7 @@
 # --pool-cores LIST  the cores of pool.csv, run alone after the streams
 #                    (default 2-5)
 # --timeout S        the time limit of every run (default 60)
-# --bin PATH         the linlog-bench binary (default: target/release's)
+# --bin PATH         the deduxit-bench binary (default: target/release's)
 #
 # A file is resumed when the script runs again on the same DIR. The other
 # provers run on the growing sets through `bench/comparison.sh --growing`.
@@ -41,7 +41,7 @@ out=$root/bench/growing/$(date +%F)
 cores=2,3
 pool_cores=2-5
 timeout=60
-bin=$root/target/release/linlog-bench
+bin=$root/target/release/deduxit-bench
 while [ $# -gt 0 ]; do
   case $1 in
   --out)

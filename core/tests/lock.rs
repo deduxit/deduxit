@@ -11,8 +11,8 @@
 //! input.
 #![cfg(all(feature = "parse", feature = "serialize", feature = "interactive"))]
 
-use linlog::search::Engine;
-use linlog::{
+use deduxit::search::Engine;
+use deduxit::{
     Criterion, Forest, Interactive, Limits, Mode, Named, Options, ProofStructure, Sequent, Step,
     VertexId, ViewOptions,
 };
@@ -67,7 +67,7 @@ fn lines() -> String {
             classical,
         ),
     ] {
-        let outcome = linlog::prove(&sequent(text), mode, &options).unwrap();
+        let outcome = deduxit::prove(&sequent(text), mode, &options).unwrap();
         pin(name, json(&outcome));
     }
 
@@ -75,27 +75,27 @@ fn lines() -> String {
     let tiny = Limits::default().with_memory_bytes(Some(100));
     pin(
         "outcome-memory-limit",
-        json(&linlog::prove_within(&hard, classical, &options, &tiny, |_| false).unwrap()),
+        json(&deduxit::prove_within(&hard, classical, &options, &tiny, |_| false).unwrap()),
     );
     let stopped =
-        linlog::prove_within(&hard, classical, &options, &Limits::default(), |_| true).unwrap();
+        deduxit::prove_within(&hard, classical, &options, &Limits::default(), |_| true).unwrap();
     pin("outcome-stopped", json(&stopped));
     let bounded = options.clone().with_copies(Some(0));
     pin(
         "outcome-copy-bound",
-        json(&linlog::prove(&hard, classical, &bounded).unwrap()),
+        json(&deduxit::prove(&hard, classical, &bounded).unwrap()),
     );
     let forced = options.clone().with_engine(Some(Engine::Focus));
     pin(
         "outcome-forced-engine",
-        json(&linlog::prove(&sequent("A * B |- B * A"), classical, &forced).unwrap()),
+        json(&deduxit::prove(&sequent("A * B |- B * A"), classical, &forced).unwrap()),
     );
 
-    let proved = |text: &str, mode| match linlog::prove(&sequent(text), mode, &options)
+    let proved = |text: &str, mode| match deduxit::prove(&sequent(text), mode, &options)
         .unwrap()
         .verdict
     {
-        linlog::Verdict::Proved(proof) => proof,
+        deduxit::Verdict::Proved(proof) => proof,
         other => panic!("{text}: {other:?}"),
     };
     for (name, text, mode) in [
@@ -151,7 +151,7 @@ fn lines() -> String {
     // Level 2: the classical refutation.
     pin(
         "outcome-classical",
-        json(&linlog::prove(&sequent("A + B |- A"), classical, &options).unwrap()),
+        json(&deduxit::prove(&sequent("A + B |- A"), classical, &options).unwrap()),
     );
 
     out

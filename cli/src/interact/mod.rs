@@ -10,11 +10,11 @@ use crate::style;
 use crate::{Status, catch_interrupt, clear_interrupt, interrupted, io};
 use anyhow::{Context, Result, bail};
 use clap::ValueEnum;
-use linlog::export::Styles;
-use linlog::export::{latex, svg, typst};
-use linlog::proofs::interactive::Needs;
-use linlog::search::{Goal, Options, Outcome, Verdict};
-use linlog::{
+use deduxit::export::Styles;
+use deduxit::export::{latex, svg, typst};
+use deduxit::proofs::interactive::Needs;
+use deduxit::search::{Goal, Options, Outcome, Verdict};
+use deduxit::{
     CutFormula, Error, GoalId, InputOptions, Interactive, Limits, Named, Reading, Refusal, Rule,
     Side, Step, ViewOptions,
 };
@@ -186,7 +186,7 @@ fn no_standard_input(args: &InteractArgs) -> Result<()> {
 }
 
 /// What a target's `write` makes of a derivation, as a string.
-fn written(write: impl FnOnce(&mut String) -> Result<(), linlog::Error>) -> Result<String> {
+fn written(write: impl FnOnce(&mut String) -> Result<(), deduxit::Error>) -> Result<String> {
     let mut out = String::new();
     write(&mut out)?;
     Ok(out)
@@ -240,7 +240,7 @@ enum Saved {
     /// A session of linear logic.
     Linear(Box<Interactive>),
     /// A session of LK or LJ.
-    Ordinary(Box<linlog::ordinary::Interactive>),
+    Ordinary(Box<deduxit::ordinary::Interactive>),
 }
 
 /// Reads a session from a JSON file, its sequent within
@@ -259,10 +259,10 @@ fn load(path: &Path, limits: &Limits) -> Result<Saved> {
     let not = || format!("{} is not a saved session", path.display());
     let ordinary = serde_json::from_str::<Probe>(&text).is_ok_and(|probe| probe.logic.is_some());
     let read = if ordinary {
-        linlog::wire::upgrade::<linlog::ordinary::Interactive, _>(&mut document, limits)
+        deduxit::wire::upgrade::<deduxit::ordinary::Interactive, _>(&mut document, limits)
             .map(|session| Saved::Ordinary(Box::new(session)))
     } else {
-        linlog::wire::upgrade::<Interactive, _>(&mut document, limits)
+        deduxit::wire::upgrade::<Interactive, _>(&mut document, limits)
             .map(|session| Saved::Linear(Box::new(session)))
     };
     match read {
@@ -273,7 +273,7 @@ fn load(path: &Path, limits: &Limits) -> Result<Saved> {
         Err(e) if e.setting() == Some("limits.terms") => {
             bail!("{e}; raise it with --term-limit")
         }
-        Err(e) if e.kind() == linlog::ErrorKind::Limit => {
+        Err(e) if e.kind() == deduxit::ErrorKind::Limit => {
             bail!("{e}; raise it with --occurrence-limit")
         }
         Err(e) => Err(anyhow::Error::from(e).context(not())),
@@ -286,7 +286,7 @@ struct Session {
     /// How `show` and `proof` write each format.
     styles: Styles,
     /// How `lambda` prints the proof's lambda-term.
-    lambda: linlog::lambda::Options,
+    lambda: deduxit::lambda::Options,
     /// The proof in progress.
     state: Interactive,
     /// The search settings of `close`.
@@ -562,7 +562,7 @@ impl Session {
                 // `--state` beside a sequent is.
                 // By their JSON forms: a first-order sequent read from JSON
                 // numbers its argument lists apart from the parsed one.
-                let written = |s: &linlog::Sequent| serde_json::to_string(s).ok();
+                let written = |s: &deduxit::Sequent| serde_json::to_string(s).ok();
                 if written(state.sequent()) != written(self.state.sequent()) {
                     bail!(
                         "{path} holds a session of another sequent; `load` resumes one of this \
@@ -947,8 +947,8 @@ fn inverted_line(steps: usize, refused: Option<&Refusal>) -> Option<String> {
 /// Returns what the command `lambda` prints: the term's typing judgement,
 /// or why there is none.
 fn lambda_line(
-    term: &Result<linlog::lambda::Term, linlog::Error>,
-    options: &linlog::lambda::Options,
+    term: &Result<deduxit::lambda::Term, deduxit::Error>,
+    options: &deduxit::lambda::Options,
     limits: &Limits,
 ) -> String {
     let mut text = String::new();
@@ -958,7 +958,7 @@ fn lambda_line(
         .and_then(|term| term.write_judgement(&mut text, options, limits, |_| false))
     {
         Ok(()) => text,
-        Err(linlog::Error::NoTerm { reason, .. }) => format!("no lambda-term: {reason}"),
+        Err(deduxit::Error::NoTerm { reason, .. }) => format!("no lambda-term: {reason}"),
         Err(error) => format!("the lambda-term is not written: {error}"),
     }
 }

@@ -20,9 +20,9 @@ dependencies moved with `flake.lock` and `Cargo.lock` between the third
 and the fourth. The tables after "At a glance" are printed by
 
 ```sh
-linlog-bench summary --before bench/results/2026-09-30 --before bench/results/2026-10-02 \
+deduxit-bench summary --before bench/results/2026-09-30 --before bench/results/2026-10-02 \
   --before bench/results/2026-10-17 bench/results/2026-11-02/*.csv
-linlog-bench summary --against bench/results/2026-11-02/lltp-intuitionistic.csv \
+deduxit-bench summary --against bench/results/2026-11-02/lltp-intuitionistic.csv \
   bench/results/2026-11-02/lltp-rarer.csv bench/results/2026-11-02/lltp-forward.csv
 ```
 

@@ -12,9 +12,9 @@ use crate::io;
 use anyhow::{Context, Result};
 use clap::ArgMatches;
 use clap::parser::ValueSource;
-use linlog::Settings;
-use linlog::search::batch::{self, Cores};
-use linlog::search::{Jobs, Options, Schedule};
+use deduxit::Settings;
+use deduxit::search::batch::{self, Cores};
+use deduxit::search::{Jobs, Options, Schedule};
 use serde_json::Value;
 use std::collections::HashSet;
 use std::path::Path;
@@ -399,7 +399,7 @@ pub(crate) fn of_print(
     path: Option<&Path>,
     memory: Option<u64>,
     occurrences: Option<u64>,
-    syntax: linlog::IllSyntax,
+    syntax: deduxit::IllSyntax,
     given: &Given,
 ) -> Result<Settings> {
     let mut settings = read(path)?;
@@ -469,7 +469,7 @@ impl Threads {
 pub(crate) fn ordinary(
     settings: &Settings,
     logic: &LogicArgs,
-) -> Option<linlog::ordinary::Options> {
+) -> Option<deduxit::ordinary::Options> {
     let options = settings.ordinary.with_logic(logic.logic?.into());
     Some(match logic.translation {
         Some(translation) => options.with_translation(Some(translation.into())),
@@ -711,7 +711,7 @@ mod tests {
     /// translation is taken unless `--translation` names another.
     #[test]
     fn ordinary_applies_under_logic_alone() {
-        use linlog::ordinary::{Logic, Translation};
+        use deduxit::ordinary::{Logic, Translation};
         let file = std::env::temp_dir().join(format!(
             "linlog-settings-ordinary-{}.json",
             std::process::id()
@@ -768,7 +768,7 @@ mod tests {
                 Command::Check(args) => drop(args.settings(&given).unwrap()),
                 Command::Eliminate(args) => drop(args.settings(&given).unwrap()),
                 Command::Seq { .. } => {
-                    drop(of_print(None, None, None, linlog::IllSyntax::Strict, &given).unwrap())
+                    drop(of_print(None, None, None, deduxit::IllSyntax::Strict, &given).unwrap())
                 }
             }
             let mut leaf = &cli;
@@ -794,11 +794,11 @@ mod tests {
         let file =
             std::env::temp_dir().join(format!("linlog-settings-keys-{}.json", std::process::id()));
         let mut kept = Settings::default();
-        kept.batch.mode = linlog::Mode::CLASSICAL.with_affine();
+        kept.batch.mode = deduxit::Mode::CLASSICAL.with_affine();
         std::fs::write(&file, serde_json::to_string(&kept).unwrap()).unwrap();
         let mode = |args: &[&str]| prove_settings(Some(&file), args).batch.mode;
         assert_eq!(mode(&[]), kept.batch.mode);
-        assert_eq!(mode(&["--intuitionistic"]), linlog::Mode::INTUITIONISTIC);
+        assert_eq!(mode(&["--intuitionistic"]), deduxit::Mode::INTUITIONISTIC);
         std::fs::remove_file(&file).unwrap();
         let error = read(Some(Path::new("-"))).unwrap_err().to_string();
         assert!(error.contains("standard input"), "{error}");
@@ -848,7 +848,7 @@ mod tests {
         assert_eq!(default.search.jobs, Settings::default().search.jobs);
         assert_eq!(
             default.clock.pool_after_ms,
-            Some(linlog::Clock::DEFAULT_POOL_AFTER_MS)
+            Some(deduxit::Clock::DEFAULT_POOL_AFTER_MS)
         );
     }
 
@@ -870,7 +870,7 @@ mod tests {
         assert_eq!(auto.jobs, machine.min(Options::MAX_JOBS));
         assert_eq!(
             auto.alone,
-            (auto.jobs > 1).then(|| Duration::from_millis(linlog::Clock::DEFAULT_POOL_AFTER_MS))
+            (auto.jobs > 1).then(|| Duration::from_millis(deduxit::Clock::DEFAULT_POOL_AFTER_MS))
         );
     }
 }

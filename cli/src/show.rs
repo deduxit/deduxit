@@ -6,11 +6,11 @@ use crate::io;
 use crate::limit::detached;
 use crate::style;
 use anyhow::{Context, Result, anyhow, bail};
-use linlog::export::Styles;
-use linlog::export::svg::MathFont;
-use linlog::export::{Drawable, Form, latex, pdf, png, rocq, svg, typst};
-use linlog::proofs::{Compact, Sides, TextOptions};
-use linlog::{
+use deduxit::export::Styles;
+use deduxit::export::svg::MathFont;
+use deduxit::export::{Drawable, Form, latex, pdf, png, rocq, svg, typst};
+use deduxit::proofs::{Compact, Sides, TextOptions};
+use deduxit::{
     CheckError, ClassicalSequent, ClassicalSides, Criterion, Derivation, Error, ErrorKind, Forest,
     Limits, MellStructure, Mode, Order, Proof, ProofStructure, Reading, Refusal, Sequent, Size,
     TwoSided, ViewOptions, Written as Writing,
@@ -62,13 +62,13 @@ pub(crate) struct Show {
     /// The most characters of a sequent in a verdict line.
     pub(crate) abbreviate: Option<usize>,
     /// How the proof's lambda-term is printed, where it is asked for.
-    pub(crate) lambda: Option<linlog::lambda::Options>,
+    pub(crate) lambda: Option<deduxit::lambda::Options>,
 }
 
 impl Show {
     /// Reads the output arguments over the settings' styles, view and
     /// limits.
-    pub(crate) fn new(output: &OutputArgs, settings: &linlog::Settings) -> Result<Self> {
+    pub(crate) fn new(output: &OutputArgs, settings: &deduxit::Settings) -> Result<Self> {
         let format = output.format();
         if output.net
             && !matches!(
@@ -504,8 +504,8 @@ pub(crate) fn over_memory(size: &Size, limit: u64) -> String {
 /// or says why there is none, a refutation that rests on the search
 /// among them, which leaves the verdict as it is.
 pub(crate) fn disproof_into(
-    disproof: &linlog::Disproof,
-    image: Option<&linlog::ordinary::Image>,
+    disproof: &deduxit::Disproof,
+    image: Option<&deduxit::ordinary::Image>,
     show: &Show,
     prefix: Option<&str>,
     out: &mut impl Write,
@@ -551,7 +551,7 @@ pub(crate) fn derivation(
     if show.tree == Tree::Never {
         return Ok(Shown::Nothing);
     }
-    let invalid = |e: linlog::CheckError| {
+    let invalid = |e: deduxit::CheckError| {
         anyhow!(
             "the proof is invalid: {}",
             e.describe(proof).in_mode(mode).abbreviated(show.abbreviate)
@@ -647,7 +647,7 @@ pub(crate) trait Written {
         &self,
         options: &TextOptions,
         out: &mut impl Write,
-        stop: impl FnMut(linlog::Progress) -> bool,
+        stop: impl FnMut(deduxit::Progress) -> bool,
     ) -> Result<(), Error>;
 }
 
@@ -668,7 +668,7 @@ impl Written for Derivation<'_> {
         &self,
         options: &TextOptions,
         out: &mut impl Write,
-        stop: impl FnMut(linlog::Progress) -> bool,
+        stop: impl FnMut(deduxit::Progress) -> bool,
     ) -> Result<(), Error> {
         Derivation::write_text(self, options, out, stop)
     }
@@ -691,13 +691,13 @@ impl Written for TwoSided<'_> {
         &self,
         options: &TextOptions,
         out: &mut impl Write,
-        stop: impl FnMut(linlog::Progress) -> bool,
+        stop: impl FnMut(deduxit::Progress) -> bool,
     ) -> Result<(), Error> {
         TwoSided::write_text(self, options, out, stop)
     }
 }
 
-impl Written for linlog::ordinary::Derivation {
+impl Written for deduxit::ordinary::Derivation {
     fn drawable(&self) -> Drawable<'_> {
         self.into()
     }
@@ -714,7 +714,7 @@ impl Written for linlog::ordinary::Derivation {
         &self,
         options: &TextOptions,
         out: &mut impl Write,
-        stop: impl FnMut(linlog::Progress) -> bool,
+        stop: impl FnMut(deduxit::Progress) -> bool,
     ) -> Result<(), Error> {
         Self::write_text(self, options, out, stop)
     }
@@ -1118,7 +1118,7 @@ impl Net<'_> {
     /// alike in every mode.
     pub(crate) fn step_drawing(
         &self,
-        step: Option<&linlog::nets::cut::Step>,
+        step: Option<&deduxit::nets::cut::Step>,
         show: &Show,
         stop: &dyn Fn() -> bool,
     ) -> std::result::Result<String, String> {
@@ -1146,7 +1146,7 @@ impl Net<'_> {
     }
 
     /// Returns the formula of a vertex as `mode` reads it.
-    pub(crate) fn formula(&self, v: linlog::VertexId, mode: Mode) -> String {
+    pub(crate) fn formula(&self, v: deduxit::VertexId, mode: Mode) -> String {
         let (forest, o) = match self {
             Self::Mll(net) => (net.forest(), net.occurrence(v)),
             Self::Mell(net) => (net.forest(), net.occurrence(v)),
@@ -1226,8 +1226,8 @@ pub(crate) fn net_of<'a>(
             Err(Error::Net(error))
                 if matches!(
                     *error,
-                    linlog::NetError::Placement {
-                        fault: linlog::Placement::Cut,
+                    deduxit::NetError::Placement {
+                        fault: deduxit::Placement::Cut,
                         ..
                     }
                 ) =>
@@ -1337,7 +1337,7 @@ pub(crate) fn nets_exist(sequent: &Sequent, mode: Mode) -> Result<()> {
     if fragment.has_exponentials() {
         return Ok(MellStructure::exist(fragment, mode)?);
     }
-    Ok(linlog::nets::exist(fragment, mode)?)
+    Ok(deduxit::nets::exist(fragment, mode)?)
 }
 
 /// Returns the lambda-term of a proof of linear logic, read back from its
@@ -1348,7 +1348,7 @@ pub(crate) fn linear_term(
     mode: Mode,
     show: &Show,
     mut halt: impl FnMut() -> bool,
-) -> Result<linlog::lambda::Term, Error> {
+) -> Result<deduxit::lambda::Term, Error> {
     let sides = if mode.is_intuitionistic() {
         Sides::Two
     } else {
@@ -1362,8 +1362,8 @@ pub(crate) fn linear_term(
 /// Returns the typing judgement of a term as `options` print it, within
 /// the limits.
 fn judgement(
-    term: &linlog::lambda::Term,
-    options: &linlog::lambda::Options,
+    term: &deduxit::lambda::Term,
+    options: &deduxit::lambda::Options,
     limits: &Limits,
     mut halt: impl FnMut() -> bool,
 ) -> Result<String, Error> {
@@ -1375,7 +1375,7 @@ fn judgement(
 /// Returns the line of a proof's lambda-term: its typing judgement, or
 /// why it has none or is not written.
 pub(crate) fn lambda_line(
-    term: Result<linlog::lambda::Term, Error>,
+    term: Result<deduxit::lambda::Term, Error>,
     show: &Show,
     mut halt: impl FnMut() -> bool,
 ) -> String {
@@ -1391,7 +1391,7 @@ pub(crate) fn lambda_line(
 /// its `text` and its `judgement` as the options print them, or `{"error":
 /// …}` with why it has none.
 pub(crate) fn lambda_json(
-    term: Result<linlog::lambda::Term, Error>,
+    term: Result<deduxit::lambda::Term, Error>,
     show: &Show,
     mut halt: impl FnMut() -> bool,
 ) -> Result<serde_json::Value> {
@@ -1421,7 +1421,7 @@ mod tests {
     use crate::argument_parsing::{Cli, Command};
     use crate::settings::Given;
     use clap::Parser;
-    use linlog::{Mode, Options, Sequent};
+    use deduxit::{Mode, Options, Sequent};
 
     /// A derivation the stop ends while it is built is left out with the
     /// stop's reason, never as a check given up without a verdict.
@@ -1438,8 +1438,8 @@ mod tests {
         let duals: Vec<String> = atoms.iter().map(|a| format!("~{a}")).collect();
         let text = format!("|- {}, {}", atoms.join(" * "), duals.join(", "));
         let sequent: Sequent = text.parse().unwrap();
-        let outcome = linlog::prove(&sequent, Mode::CLASSICAL, &Options::default()).unwrap();
-        let linlog::search::Verdict::Proved(proof) = outcome.verdict else {
+        let outcome = deduxit::prove(&sequent, Mode::CLASSICAL, &Options::default()).unwrap();
+        let deduxit::search::Verdict::Proved(proof) = outcome.verdict else {
             panic!("the sequent is provable")
         };
         let mut out = String::new();

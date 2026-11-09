@@ -45,7 +45,7 @@
 //!
 #![cfg_attr(all(feature = "parse", feature = "serialize"), doc = "```")]
 #![cfg_attr(not(all(feature = "parse", feature = "serialize")), doc = "```ignore")]
-//! use linlog::{Fragment, Mode, Options, Sequent, Verdict, prove};
+//! use deduxit::{Fragment, Mode, Options, Sequent, Verdict, prove};
 //!
 //! // Two-sided input becomes one-sided: ⊢ ~A, A ⊗ ~B, B.
 //! let sequent: Sequent = "A, A -o B |- B".parse()?;
@@ -64,7 +64,7 @@
 //! );
 //!
 //! let json = serde_json::to_string(&proof)?;
-//! let back: linlog::Proof = serde_json::from_str(&json)?;
+//! let back: deduxit::Proof = serde_json::from_str(&json)?;
 //! back.check(Mode::CLASSICAL)?;
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
@@ -79,7 +79,7 @@
 //!
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
-//! use linlog::{Fragment, Limits, Mode, Options, Verdict, prove_within};
+//! use deduxit::{Fragment, Limits, Mode, Options, Verdict, prove_within};
 //!
 //! let mode = Mode::CLASSICAL.with_mix();
 //! let options = Options::default().with_fragment(Some(Fragment::MALL));
@@ -92,7 +92,7 @@
 //! })?;
 //! assert!(matches!(outcome.verdict, Verdict::Proved(_)));
 //! assert_eq!(outcome.fragment, Fragment::MALL);
-//! # Ok::<(), linlog::Error>(())
+//! # Ok::<(), deduxit::Error>(())
 //! ```
 //!
 //! **The command's verdicts differ from `Options::default()`'s on purpose.**
@@ -107,7 +107,7 @@
 //!
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
-//! use linlog::{Mode, Settings, Verdict, prove_within};
+//! use deduxit::{Mode, Settings, Verdict, prove_within};
 //! use std::time::{Duration, Instant};
 //!
 //! let settings = Settings::default();
@@ -119,7 +119,7 @@
 //!     limit.is_some_and(|limit| start.elapsed() > limit)
 //! })?;
 //! assert!(matches!(outcome.verdict, Verdict::Proved(_)));
-//! # Ok::<(), linlog::Error>(())
+//! # Ok::<(), deduxit::Error>(())
 //! ```
 //!
 //! Errors are one family, [`Error`]: its [`kind`](Error::kind) says what

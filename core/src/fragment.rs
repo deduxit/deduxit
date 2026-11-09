@@ -296,7 +296,7 @@ impl Sequent {
     ///
     #[cfg_attr(feature = "parse", doc = "```")]
     #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
-    /// use linlog::{Fragment, Sequent};
+    /// use deduxit::{Fragment, Sequent};
     ///
     /// let mll: Sequent = "A, A -o B |- B".parse()?;
     /// assert_eq!(mll.fragment(), Fragment::MLL);
@@ -307,7 +307,7 @@ impl Sequent {
     /// assert!(Fragment::LL.contains(ll.fragment()));
     /// assert!(!Fragment::MALL.contains(ll.fragment()));
     /// assert_eq!(ll.fragment().to_string(), "LL");
-    /// # Ok::<(), linlog::Error>(())
+    /// # Ok::<(), deduxit::Error>(())
     /// ```
     pub fn fragment(&self) -> Fragment {
         let mut fragment = Fragment::EMPTY;

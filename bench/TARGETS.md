@@ -347,7 +347,7 @@ regression they are here for. They are not in `after-efficiency.csv`;
 
 **The oracle is `47.csv`**: a change that must not alter the focused
 engine's search runs `bench/targets.sh LABEL` and compares with it,
-`linlog-bench summary --against bench/targets/47.csv
+`deduxit-bench summary --against bench/targets/47.csv
 bench/targets/LABEL.csv --counters`, which lists every row decided alike
 whose counters differ. The net engine's set (`bench/net-targets.sh`) has
 its own oracle, `net-47.csv`, compared the same way. Before them the

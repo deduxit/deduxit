@@ -36,8 +36,8 @@
 //!
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
-//! use linlog::export::typst;
-//! use linlog::{Limits, Mode, Options, Sequent, Verdict, prove};
+//! use deduxit::export::typst;
+//! use deduxit::{Limits, Mode, Options, Sequent, Verdict, prove};
 //!
 //! let sequent: Sequent = "A, A -o B |- B".parse()?;
 //! let options = typst::Options::default();

@@ -257,7 +257,7 @@ impl<'de, T: Readable> DeserializeSeed<'de> for Within<'_, T> {
 ///
 #[cfg_attr(feature = "parse", doc = "```")]
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
-/// use linlog::{Error, Limits, Sequent, wire};
+/// use deduxit::{Error, Limits, Sequent, wire};
 ///
 /// let json = r#"{"version": 1, "terms": [{"V": 0}], "roots": [0], "atoms": ["A"]}"#;
 /// let mut document = serde_json::Deserializer::from_str(json);

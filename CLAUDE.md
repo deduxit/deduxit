@@ -17,7 +17,7 @@ and exports sequents of classical and intuitionistic linear logic and
 of cyclic MLL (the order of the formulas kept), and
 decides ordinary propositional logic through its embeddings (the
 manual's "What exists and what is planned", `docs/src/status.md`). It is written in Rust with
-WebAssembly in mind for a planned `linlog-web` crate: the library reads
+WebAssembly in mind for a planned `deduxit-web` crate: the library reads
 no clock and uses threads only behind a feature. Performance is a stated
 goal: the data structures are compact and cache-friendly.
 
@@ -30,7 +30,7 @@ Workspace crates:
   default, `parallel` (rayon: the search on a thread pool, off for
   wasm), `png` (resvg) and `pdf` (krilla), which render the SVG with
   fonts the caller gives; the CLI enables the last eight.
-- `cli/` is package **`linlog-cli`**, library **`linlog_cli`** and binary
+- `cli/` is package **`deduxit-cli`**, library **`deduxit_cli`** and binary
   **`linlog`** (one call into the library; `doc = false` because it shares
   the core crate's name): `prove` (one sequent, or a batch of many),
   `check`, `interact` and `seq print|json|fragment`. README is a front
@@ -46,15 +46,15 @@ Workspace crates:
   this repository's Claude Code setup); the same test runs its examples
   and checks every name it uses. Exit status 0 proved/valid, 1 unprovable/invalid, 2 error, 3
   unknown, 130 at a second Ctrl-C.
-- `bench/` is package **`linlog-bench`** (not published, `doc = false`):
+- `bench/` is package **`deduxit-bench`** (not published, `doc = false`):
   the benchmark harness, the baselines under `bench/results/DAY/`
   (`bench/RESULTS.md`, `bench/COMPARISON.md`) and the focused engine's
   target set (`bench/targets.sh`, `bench/TARGETS.md`).
-- `web/` is package **`linlog-web`** (not published): the WebAssembly
+- `web/` is package **`deduxit-web`** (not published): the WebAssembly
   bindings of a web page, the library for `wasm32-unknown-unknown`
   without `parallel` behind calls of JSON in and JSON, SVG or bytes out,
   with a browser tab's defaults; `modules/web.nix` builds the package
-  `linlog-web` (wasm-bindgen's CLI at the lock's version, `wasm-opt`,
+  `deduxit-web` (wasm-bindgen's CLI at the lock's version, `wasm-opt`,
   cargo-about's notices) that the client's repository takes, and runs
   the tests under Node. `plan/web/README.md` is the web front end's plan.
 - The Rocq library **`rocq-linlog`** (logical path `Linlog`) lives in its
@@ -116,16 +116,16 @@ lists its commands: `check`, `gate`, `tests`, `ratchet`, `launch` (the CLI), `ma
 ```sh
 cargo build
 cargo test --workspace
-cargo test -p linlog <test_name>                           # single test in core
+cargo test -p deduxit <test_name>                           # single test in core
 cargo clippy --workspace --all-targets -- --deny warnings
-cargo hack check --each-feature -p linlog                  # each feature alone, all, none
-cargo hack check --feature-powerset --depth 2 -p linlog    # and every pair
+cargo hack check --each-feature -p deduxit                  # each feature alone, all, none
+cargo hack check --feature-powerset --depth 2 -p deduxit    # and every pair
 cargo deny check                                           # licenses, bans, sources + advisories (online)
-cargo run -p linlog-cli -- <args>
-cargo run --release -p linlog-bench -- run --family partition-no=3,4 --engines focus,net
+cargo run -p deduxit-cli -- <args>
+cargo run --release -p deduxit-bench -- run --family partition-no=3,4 --engines focus,net
 nix build .#lltp -o bench/lltp   # the LLTP library (1.1 GB, GPL-3.0, fetched at a pinned commit)
 nix build .#iltp -o bench/iltp   # the ILTP library's 274 propositional problems (no licence stated, fetched at v1.1.2)
-nix build .#qcover -o bench/qcover   # the qcover coverability suite's 176 .spec problems (Apache-2.0, the licence of its repository, fetched at a pinned commit); linlog-bench run --spec
+nix build .#qcover -o bench/qcover   # the qcover coverability suite's 176 .spec problems (Apache-2.0, the licence of its repository, fetched at a pinned commit); deduxit-bench run --spec
 nix build .#checks.x86_64-linux.rocq-linlog   # the exporter's certificates for --kernel linlog against the pinned Rocq library (the input rocq-linlog)
 nix build .#checks.x86_64-linux.rocq-linlog-library   # that library's own check: its tests, its theorems' assumptions closed
 bench/targets.sh LABEL            # the focused engine's target set into bench/targets/LABEL.csv (two cores, about 15 s at 0.2.0, detached)
@@ -141,9 +141,9 @@ ratchet           # the journeys' instruction counts under callgrind against ben
 mutants/run.sh    # mutation testing of the checker, the readers, the front door, the Horn refutations (cores 6-11, detached): mutants/baseline/
 nix develop .#fuzz -c fuzz/run.sh   # every fuzz target until its coverage stops growing (nightly, cores 12-15, detached), after fuzz/seed.sh
 nix fmt           # nixfmt, rustfmt, taplo, shfmt, shellcheck, ruff-format (a hook runs it on each file changed with Write or Edit; a file changed from the shell needs it run by hand before the commit, or the treefmt check fails)
-nix build         # linlog-cli, whose binary is result/bin/linlog
-nix build .#linlog-web   # the web bindings: linlog_web.js, linlog_web_bg.wasm, LICENSE, THIRD-PARTY-NOTICES.txt
-CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=wasm-bindgen-test-runner cargo test -p linlog-web --target wasm32-unknown-unknown   # the bindings' tests under Node
+nix build         # deduxit-cli, whose binary is result/bin/linlog
+nix build .#deduxit-web   # the web bindings: deduxit_web.js, deduxit_web_bg.wasm, LICENSE, THIRD-PARTY-NOTICES.txt
+CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=wasm-bindgen-test-runner cargo test -p deduxit-web --target wasm32-unknown-unknown   # the bindings' tests under Node
 nix build .#doc   # the Pages site, as the Docs workflow publishes it: the rustdoc and the manual under manual/
 nix build .#manual   # the manual alone (docs/, mdBook), its figures drawn by bench/plots.py; `manual` in the devshell draws them and serves it
 ```
@@ -154,15 +154,15 @@ Verify as much as the change needs:
 |---|---|
 | any commit that touches code | `gate` passes (capped: `systemd-run --user --scope -p MemoryMax=8G -p MemorySwapMax=0 taskset -c 2-5 nix develop -c gate`); a change of the behaviour lock's files or of a ceiling is a commit of its own that says why |
 | any `.rs` edit | `cargo clippy …` and `cargo test --workspace` |
-| touches `#[cfg(feature = …)]` or `[features]` | add `cargo hack check --each-feature -p linlog` and `cargo hack check --feature-powerset --depth 2 -p linlog` (both cover `parallel`, which is off by default: `--each-feature`'s `--all-features` run is the one that differs from the defaults) |
-| touches `bench/` or `core/src/families.rs` | add `cargo run --release -p linlog-bench -- run --all-families --timeout 5` for the verdicts (a `MISMATCH` in `summary` is a bug); timings only from `bench/baseline.sh` on an idle machine |
-| changes how the focused engine searches, or must not (a refactoring) | add `bench/targets.sh LABEL` and compare `bench/targets/LABEL.csv` with the oracle, `bench/targets/47.csv` (`bench/TARGETS.md` says why it is the one): `linlog-bench summary --against bench/targets/47.csv bench/targets/LABEL.csv --counters` lists the verdicts that differ and every row decided alike whose `nodes`, `splits`, `memo_hits` or `memo_entries` differ; on one thread they are a function of the input, so a decided row has them equal exactly when the search is |
+| touches `#[cfg(feature = …)]` or `[features]` | add `cargo hack check --each-feature -p deduxit` and `cargo hack check --feature-powerset --depth 2 -p deduxit` (both cover `parallel`, which is off by default: `--each-feature`'s `--all-features` run is the one that differs from the defaults) |
+| touches `bench/` or `core/src/families.rs` | add `cargo run --release -p deduxit-bench -- run --all-families --timeout 5` for the verdicts (a `MISMATCH` in `summary` is a bug); timings only from `bench/baseline.sh` on an idle machine |
+| changes how the focused engine searches, or must not (a refactoring) | add `bench/targets.sh LABEL` and compare `bench/targets/LABEL.csv` with the oracle, `bench/targets/47.csv` (`bench/TARGETS.md` says why it is the one): `deduxit-bench summary --against bench/targets/47.csv bench/targets/LABEL.csv --counters` lists the verdicts that differ and every row decided alike whose `nodes`, `splits`, `memo_hits` or `memo_entries` differ; on one thread they are a function of the input, so a decided row has them equal exactly when the search is |
 | changes how the net engine searches, or must not (a retype of `ProofStructure`) | add `bench/net-targets.sh LABEL` and compare the columns `verdict`, `links` and `tests` of `bench/targets/net-LABEL.csv` with the oracle `bench/targets/net-47.csv` on every decided row (`summary --against … --counters` compares them) |
 | changes what the command prints, or a console block of README or the manual | `cargo test --workspace` runs README's and the manual's examples (`cli/tests/readme.rs`); a change of output changes the chapter that shows it in the same commit |
-| adds a command, flag or format | add it to its chapter of the manual (`docs/src/`) with a real invocation, as README's usage section was; `cargo test -p linlog-cli --test readme` runs it and checks every name, and `nix build .#checks.x86_64-linux.manual .#checks.x86_64-linux.manual-links` builds the manual and resolves its links |
-| touches `docs/`, `bench/plots.py` or a CSV a figure reads | `nix build .#checks.x86_64-linux.manual .#checks.x86_64-linux.manual-links`; the harness's chapters' names are `cargo test -p linlog-bench --test manual` |
-| changes a feature the guide for AI models describes (a command, flag, format, JSON form, exit status, verdict or library entry point) | change `skills/linlog/` in the same commit, as the manual; `cargo test -p linlog-cli --test readme` runs its examples, checks every command, flag, session command and settings key it names, and holds the summary to its budget |
-| touches `search/parallel.rs`, `focus/parallel.rs` or `net::parallel` | `cargo test --workspace` covers them (the CLI depends on `parallel`, and cargo unifies features across a workspace run); `cargo test -p linlog` alone needs `--features parallel` |
+| adds a command, flag or format | add it to its chapter of the manual (`docs/src/`) with a real invocation, as README's usage section was; `cargo test -p deduxit-cli --test readme` runs it and checks every name, and `nix build .#checks.x86_64-linux.manual .#checks.x86_64-linux.manual-links` builds the manual and resolves its links |
+| touches `docs/`, `bench/plots.py` or a CSV a figure reads | `nix build .#checks.x86_64-linux.manual .#checks.x86_64-linux.manual-links`; the harness's chapters' names are `cargo test -p deduxit-bench --test manual` |
+| changes a feature the guide for AI models describes (a command, flag, format, JSON form, exit status, verdict or library entry point) | change `skills/linlog/` in the same commit, as the manual; `cargo test -p deduxit-cli --test readme` runs its examples, checks every command, flag, session command and settings key it names, and holds the summary to its budget |
+| touches `search/parallel.rs`, `focus/parallel.rs` or `net::parallel` | `cargo test --workspace` covers them (the CLI depends on `parallel`, and cargo unifies features across a workspace run); `cargo test -p deduxit` alone needs `--features parallel` |
 | changes the `--kernel linlog` certificates, or moves the input `rocq-linlog` | `nix build .#checks.x86_64-linux.rocq-linlog .#checks.x86_64-linux.rocq-linlog-library` (the exporter's certificates against the pinned library, and the library's own check with its theorems' assumptions), under the machine lock while a timed run may hold it; a change of the library itself is checked in its own repository (`nix flake check` there) |
 | adds or changes a dependency | add `cargo deny check`. New deps must use a license `deny.toml` allows: EUPL-1.2, MIT, Apache-2.0 (± LLVM-exception), Unicode-3.0, Zlib, BSD-2-Clause or BSD-3-Clause |
 | touches `web/` | add the bindings' tests under Node (`nix build .#checks.x86_64-linux.web-wasm-tests`, or the command above in the devshell) |

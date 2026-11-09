@@ -12,5 +12,5 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 /// Runs the command line interface.
 fn main() -> std::process::ExitCode {
-    linlog_cli::main()
+    deduxit_cli::main()
 }

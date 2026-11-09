@@ -2,7 +2,7 @@
 name: linlog
 description: Decides, checks, proves step by step and exports sequents of linear logic (classical, intuitionistic, affine, with Mix, cyclic, the Lambek calculus, first-order) and of ordinary propositional logic with the `linlog` command. Use it to learn whether a sequent is provable and why not, to get a checked proof as a derivation tree, proof net, JSON, LaTeX, Typst, SVG, PNG, PDF or Rocq certificate, to check a proof file or eliminate its cuts, to apply proof steps from a script, or to decide many sequents in one call.
 license: EUPL-1.2
-compatibility: Needs the `linlog` command, from `cargo install --locked linlog-cli` or `nix run github:deduxit/deduxit -- ARGS`.
+compatibility: Needs the `linlog` command, from `cargo install --locked deduxit-cli` or `nix run github:deduxit/deduxit -- ARGS`.
 ---
 
 # linlog
@@ -85,7 +85,7 @@ valid proof (classical)
   ⊢ ~A, ~B, A ⊗ B
 ```
 
-**The library** is the Rust crate `linlog`: `"…".parse::<linlog::Sequent>()`, `linlog::prove(&sequent, Mode::CLASSICAL, &Options::default())` and the `Outcome` it returns; its default bounds the copies at 3, where the command deepens under its time limit.
+**The library** is the Rust crate `linlog`: `"…".parse::<deduxit::Sequent>()`, `deduxit::prove(&sequent, Mode::CLASSICAL, &Options::default())` and the `Outcome` it returns; its default bounds the copies at 3, where the command deepens under its time limit.
 
 ## Docs
 

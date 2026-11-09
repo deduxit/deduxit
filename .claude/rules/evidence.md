@@ -24,7 +24,7 @@ browser or a stranger's file would.
   commit that says why.
 - Two passes per batch: the mutants against the tests that exercise the
   file (a nextest filterset over test paths and binary ids such as
-  `linlog::serialize` or `linlog-cli::cli`), then only the survivors
+  `deduxit::serialize` or `linlog-cli::cli`), then only the survivors
   against the whole workspace (`--iterate` skips what the first pass
   caught). The whole suite for every mutant would cost hours more and
   tell little more.
@@ -109,7 +109,7 @@ browser or a stranger's file would.
 - **The command's own readers have no target**: its JSON Lines record
   (`batch::record`, member by member) and a batch's lines hand the
   sequent to the library's readers, which the targets above cover, and
-  a target over `linlog_cli` would need its modules public, which they
+  a target over `deduxit_cli` would need its modules public, which they
   are not (the command's library is its binary's, not an API). Two do
   arithmetic of their own: `parse_error`, the caret's place in a line
   of any characters, which `every_parse_error_has_its_caret` drives

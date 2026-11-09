@@ -1,19 +1,19 @@
 # linlog © Fabian Lukas Grubmüller 2026
 # Licensed under the EUPL
 
-# The benchmark harness. `linlog-bench' is the package; the `bench' check
+# The benchmark harness. `deduxit-bench' is the package; the `bench' check
 # runs it on the smallest instance of every generated family and on the
 # problem file with a short time limit, and fails on a verdict that
 # contradicts the one a problem is known to have: it keeps the harness
 # building and running, while its timings on a build machine mean nothing.
 # `lltp' is the LLTP problem library at a pinned commit with its Petri-net
-# archives unpacked, for `linlog-bench run --lltp': it is GPL-3.0, so it is
+# archives unpacked, for `deduxit-bench run --lltp': it is GPL-3.0, so it is
 # fetched on demand rather than kept in this repository, and at 1.1 GB it
 # is no input of any check. `iltp' is the propositional part of the ILTP
 # library (274 problems of intuitionistic logic in TPTP syntax), fetched at
 # a pinned version for the same reason: it states no licence. `qcover' is
 # the coverability suite of the qcover tool at a pinned commit, for
-# `linlog-bench run --spec': 176 problems in Mist's `.spec' format, under
+# `deduxit-bench run --spec': 176 problems in Mist's `.spec' format, under
 # that repository's Apache-2.0.
 {
   perSystem =
@@ -24,7 +24,7 @@
       ...
     }:
     let
-      linlog-bench = craneLib.buildPackage (
+      deduxit-bench = craneLib.buildPackage (
         workspace.argsOf [
           "core"
           "bench"
@@ -34,16 +34,16 @@
           inherit (craneLib.crateNameFromCargoToml { cargoToml = ../bench/Cargo.toml; }) pname;
           # The crates inherit the workspace's version.
           inherit (craneLib.crateNameFromCargoToml { cargoToml = ../Cargo.toml; }) version;
-          cargoExtraArgs = "--locked --package linlog-bench";
+          cargoExtraArgs = "--locked --package deduxit-bench";
           # The `test-bench' check runs them.
           doCheck = false;
-          meta.mainProgram = "linlog-bench";
+          meta.mainProgram = "deduxit-bench";
         }
       );
     in
     {
       packages = {
-        inherit linlog-bench;
+        inherit deduxit-bench;
 
         iltp = pkgs.fetchzip {
           url = "https://www.iltp.de/download/ILTP-v1.1.2-propositional.tar.gz";
@@ -79,23 +79,23 @@
       checks.bench =
         pkgs.runCommand "check-bench"
           {
-            nativeBuildInputs = [ linlog-bench ];
+            nativeBuildInputs = [ deduxit-bench ];
           }
           ''
             # A family's line names its first size; the indented line of a
             # growing set beneath it is no family.
-            families=$(linlog-bench families | sed -nE 's/^([^ ]+) \(([0-9]+).*/--family \1=\2/p')
+            families=$(deduxit-bench families | sed -nE 's/^([^ ]+) \(([0-9]+).*/--family \1=\2/p')
             # Every source of problems: the families, a problem file, an
             # LLTP file and a .spec file (the command's lock inputs, since
             # the libraries are not in the tree).
             # shellcheck disable=SC2086
-            linlog-bench run $families --problems ${../bench/problems}/slow-tests.txt \
+            deduxit-bench run $families --problems ${../bench/problems}/slow-tests.txt \
               --lltp ${../cli/tests/lock/inputs}/double.p \
               --spec ${../cli/tests/lock/inputs}/mutex.spec \
               --timeout 2 --output runs.csv 2> progress.log
             # A verdict against a known one, an error, a crash or a kill
             # fails the check, and so do no runs at all.
-            if ! linlog-bench summary --strict runs.csv > summary.md; then
+            if ! deduxit-bench summary --strict runs.csv > summary.md; then
               cat summary.md progress.log
               exit 1
             fi

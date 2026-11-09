@@ -8,7 +8,7 @@ use crate::argument_parsing::{Format, SeqCommand};
 use crate::settings::{self, Given};
 use crate::{Status, exit_on_interrupt, io, show, style};
 use anyhow::{Result, bail};
-use linlog::{IllSequent, InputOptions, Mode};
+use deduxit::{IllSequent, InputOptions, Mode};
 use std::io::Write as _;
 
 /// Returns the mode of `seq`'s `--intuitionistic` flag.

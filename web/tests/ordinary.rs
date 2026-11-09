@@ -4,8 +4,8 @@
 //! The calls of an ordinary tab as the page makes them, under WebAssembly
 //! in Node and as ordinary tests elsewhere.
 
-use linlog_web::ordinary::{self, SplitForm, StepForm};
-use linlog_web::{Failure, calls};
+use deduxit_web::ordinary::{self, SplitForm, StepForm};
+use deduxit_web::{Failure, calls};
 use serde_json::{Value, json};
 use wasm_bindgen_test::wasm_bindgen_test;
 

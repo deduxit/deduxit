@@ -27,12 +27,12 @@
           pkgs.runCommand "check-ratchet"
             {
               nativeBuildInputs = [
-                config.packages.linlog-bench
+                config.packages.deduxit-bench
                 pkgs.valgrind.out
               ];
             }
             ''
-              linlog-bench ratchet --check --jobs "$NIX_BUILD_CORES" --ceilings ${../bench/ceilings.csv} \
+              deduxit-bench ratchet --check --jobs "$NIX_BUILD_CORES" --ceilings ${../bench/ceilings.csv} \
                 --misses ${../bench/misses.csv}
               touch $out
             '';

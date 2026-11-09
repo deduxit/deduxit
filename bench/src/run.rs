@@ -16,8 +16,8 @@ use crate::problems::{self, Reference, mode_name};
 use crate::{OneArgs, RunArgs};
 use anyhow::{Context, Result, anyhow};
 use clap::ValueEnum;
-use linlog::search::{Engine, Options, Reason, Verdict, prove_within};
-use linlog::{Atom, Bias, Error, Forest, Limits, Mode, Sign};
+use deduxit::search::{Engine, Options, Reason, Verdict, prove_within};
+use deduxit::{Atom, Bias, Error, Forest, Limits, Mode, Sign};
 use std::collections::HashSet;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::Path;
@@ -691,10 +691,10 @@ fn cause(stderr: &str) -> &str {
 /// Returns the `checked` column of a disproof: `ok` where
 /// `Disproof::check` accepts its refutation, `failed: …` where it does not
 /// hold, empty for an exhausted search, which has no check.
-pub(crate) fn refutation_checked(disproof: &linlog::Disproof) -> String {
+pub(crate) fn refutation_checked(disproof: &deduxit::Disproof) -> String {
     match disproof.check() {
         Ok(()) => "ok".to_owned(),
-        Err(error) if error.kind() == linlog::ErrorKind::Unsupported => String::new(),
+        Err(error) if error.kind() == deduxit::ErrorKind::Unsupported => String::new(),
         Err(error) => clean(&format!("failed: {error}")),
     }
 }
@@ -903,7 +903,7 @@ fn tail(args: &OneArgs) -> String {
     let checked = match proof.check_within(mode, &limits, |_| false) {
         Ok(()) => "ok".to_owned(),
         // Given up within the run's memory bound: no verdict on the proof.
-        Err(linlog::CheckError::Refused(_)) => "unchecked: memory limit".to_owned(),
+        Err(deduxit::CheckError::Refused(_)) => "unchecked: memory limit".to_owned(),
         Err(error) => clean(&format!("failed: {error}")),
     };
     let check = start.elapsed().as_secs_f64() * 1000.0;
@@ -917,17 +917,17 @@ fn tail(args: &OneArgs) -> String {
 /// within one memory bound, as the command does by default. The outcome
 /// of two searches has the counters of both.
 fn decide(
-    sequent: &linlog::Sequent,
-    mode: linlog::Mode,
+    sequent: &deduxit::Sequent,
+    mode: deduxit::Mode,
     options: &Options,
     limits: &Limits,
     args: &OneArgs,
     expired: &AtomicBool,
-) -> Result<linlog::search::Outcome, Error> {
+) -> Result<deduxit::search::Outcome, Error> {
     // The refutation after the search is bounded by its own work and
     // answers a search the time limit ended, as the command's does.
-    let stop = |progress: linlog::Progress| {
-        progress.phase != linlog::Phase::Refute && expired.load(Ordering::Relaxed)
+    let stop = |progress: deduxit::Progress| {
+        progress.phase != deduxit::Phase::Refute && expired.load(Ordering::Relaxed)
     };
     let Some(alone) = args.pool_after.filter(|_| args.jobs > 1) else {
         return prove_within(sequent, mode, options, limits, stop);
@@ -935,8 +935,8 @@ fn decide(
     let forest = Forest::within(sequent, limits)?;
     let alone = Duration::from_secs_f64(alone);
     let start = Instant::now();
-    linlog::search::race(
-        linlog::Goal::conclusion(&forest),
+    deduxit::search::race(
+        deduxit::Goal::conclusion(&forest),
         mode,
         options,
         limits,

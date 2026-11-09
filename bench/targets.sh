@@ -8,7 +8,7 @@
 #
 #   bench/targets.sh before        # at the commit to compare with
 #   bench/targets.sh after         # at the commit to judge
-#   linlog-bench summary bench/targets/before.csv bench/targets/after.csv
+#   deduxit-bench summary bench/targets/before.csv bench/targets/after.csv
 #
 # prints the two side by side. On one thread the engine's counters
 # (`nodes', `splits', `memo_hits', `memo_entries') are a function of the
@@ -43,8 +43,8 @@ fi
 if [ "${2:-}" != --inside ]; then
   # A copy of the binary, so that builds in the checkout meanwhile do not
   # touch the one the unit runs.
-  cargo build --release --locked --package linlog-bench
-  install -D "${CARGO_TARGET_DIR:-target}/release/linlog-bench" "target/targets/$label/linlog-bench"
+  cargo build --release --locked --package deduxit-bench
+  install -D "${CARGO_TARGET_DIR:-target}/release/deduxit-bench" "target/targets/$label/deduxit-bench"
   mkdir -p "$out"
   systemctl --user reset-failed linlog-targets.service 2>/dev/null || true
   systemd-run --user --unit=linlog-targets --same-dir --collect \
@@ -54,7 +54,7 @@ if [ "${2:-}" != --inside ]; then
   exit
 fi
 
-bench=target/targets/$label/linlog-bench
+bench=target/targets/$label/deduxit-bench
 
 # run STREAM ARGS...: one `run' into the stream's file, on the stream's
 # core.

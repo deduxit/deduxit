@@ -35,14 +35,14 @@ jobs=3
 
 # name | files (space-separated globs) | the tests that exercise them
 batches=(
-  "check|core/src/proofs/check/*.rs core/src/proofs/mod.rs|test(/^proofs::/) | binary_id(linlog::serialize) | binary_id(linlog-cli::cli)"
-  "parse|core/src/parse/mod.rs|binary_id(linlog::parse) | binary_id(linlog::depth) | test(/^(parse|sequents|fragment)::/)"
-  "serialize|core/src/serialize/*.rs|binary_id(linlog::serialize) | binary_id(linlog::depth)"
-  "lltp|core/src/lltp.rs|test(/^lltp::/) | package(linlog-bench)"
-  "mist|core/src/mist.rs|test(/^(mist|search::horn)::/) | package(linlog-bench)"
-  "ordinary-parse|core/src/ordinary/parse.rs|test(/^ordinary::/) | binary_id(linlog::depth) | binary_id(linlog-cli::cli)"
-  "ordinary-derivation|core/src/ordinary/derivation.rs|test(/^ordinary::/) | binary_id(linlog::depth) | binary_id(linlog-cli::cli) | binary_id(linlog-cli::readme)"
-  "search|core/src/search/mod.rs|test(/^search::/) | binary_id(linlog::serialize) | binary_id(linlog-cli::cli)"
+  "check|core/src/proofs/check/*.rs core/src/proofs/mod.rs|test(/^proofs::/) | binary_id(deduxit::serialize) | binary_id(deduxit-cli::cli)"
+  "parse|core/src/parse/mod.rs|binary_id(deduxit::parse) | binary_id(deduxit::depth) | test(/^(parse|sequents|fragment)::/)"
+  "serialize|core/src/serialize/*.rs|binary_id(deduxit::serialize) | binary_id(deduxit::depth)"
+  "lltp|core/src/lltp.rs|test(/^lltp::/) | package(deduxit-bench)"
+  "mist|core/src/mist.rs|test(/^(mist|search::horn)::/) | package(deduxit-bench)"
+  "ordinary-parse|core/src/ordinary/parse.rs|test(/^ordinary::/) | binary_id(deduxit::depth) | binary_id(deduxit-cli::cli)"
+  "ordinary-derivation|core/src/ordinary/derivation.rs|test(/^ordinary::/) | binary_id(deduxit::depth) | binary_id(deduxit-cli::cli) | binary_id(deduxit-cli::readme)"
+  "search|core/src/search/mod.rs|test(/^search::/) | binary_id(deduxit::serialize) | binary_id(deduxit-cli::cli)"
   "horn-mod|core/src/search/horn/mod.rs|test(/^(search::(horn|reference)|mist)::/)"
   "horn-equation|core/src/search/horn/equation.rs|test(/^(search::(horn|reference)|mist)::/)"
   "horn-cover|core/src/search/horn/cover.rs|test(/^(search::(horn|reference)|mist)::/)"
@@ -87,7 +87,7 @@ for batch in "${batches[@]}"; do
     echo "$name: done, $(wc -l <"$list") surviving"
     continue
   fi
-  args=(--package linlog --test-workspace true --no-shuffle --colors never
+  args=(--package deduxit --test-workspace true --no-shuffle --colors never
     --jobs "$jobs" --jobserver-tasks 6 --output "target/mutation/$label/$name")
   for f in $files; do args+=(--file "$f"); done
   start=$SECONDS

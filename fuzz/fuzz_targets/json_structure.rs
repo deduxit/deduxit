@@ -6,8 +6,8 @@
 //! accepts.
 #![no_main]
 
+use deduxit::{Limits, Mode, ProofStructure};
 use libfuzzer_sys::fuzz_target;
-use linlog::{Limits, Mode, ProofStructure};
 
 fuzz_target!(|data: &[u8]| {
     if let Ok(structure) = serde_json::from_slice::<ProofStructure>(data) {

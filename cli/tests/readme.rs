@@ -91,7 +91,7 @@ fn manual() -> Vec<(String, String)> {
 /// The programs other than `linlog` that the README's examples call and
 /// this test does not run: the harness has the flake's `bench` check, and
 /// the LaTeX and Rocq output its `export` and `rocq` checks.
-const OTHER_PROGRAMS: [&str; 3] = ["linlog-bench", "pdflatex", "rocq"];
+const OTHER_PROGRAMS: [&str; 3] = ["deduxit-bench", "pdflatex", "rocq"];
 
 /// The shell's own commands that the examples use to make or show a file.
 const SHELL_COMMANDS: [&str; 3] = ["cat", "echo", "printf"];
@@ -423,7 +423,7 @@ const TOOLS: [&str; 10] = [
     "cargo",
     "nix",
     "rocq",
-    "linlog-bench",
+    "deduxit-bench",
     "journalctl",
     "sudo",
     "pacman",
@@ -432,7 +432,7 @@ const TOOLS: [&str; 10] = [
     "xcode-select",
 ];
 
-/// The manual's chapters on the benchmark harness, `linlog-bench`: a flag
+/// The manual's chapters on the benchmark harness, `deduxit-bench`: a flag
 /// they name outside a call of `linlog` is the harness's or one of its
 /// scripts', which `bench/tests/manual.rs` checks against the harness's
 /// help.
@@ -911,10 +911,10 @@ fn guide_states_the_defaults() {
                 .nth(1)
                 .and_then(|rest| rest.split(|c: char| !c.is_ascii_digit()).next())
                 .and_then(|digits| digits.parse::<u32>().ok());
-            if number != linlog::Options::default().copies {
+            if number != deduxit::Options::default().copies {
                 failures.push(format!(
                     "{name}: the library's default copy bound is {:?}, not {number:?}",
-                    linlog::Options::default().copies
+                    deduxit::Options::default().copies
                 ));
             }
         }

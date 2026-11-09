@@ -6,8 +6,8 @@
 //! first byte picks the mode, the rest is the JSON form.
 #![no_main]
 
+use deduxit::{Limits, Mode, Proof};
 use libfuzzer_sys::fuzz_target;
-use linlog::{Limits, Mode, Proof};
 
 fuzz_target!(|data: &[u8]| {
     let Some((&bits, json)) = data.split_first() else {

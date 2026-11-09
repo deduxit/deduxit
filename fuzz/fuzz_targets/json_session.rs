@@ -5,8 +5,8 @@
 //! complete session gives a proof the checker accepts.
 #![no_main]
 
+use deduxit::{Interactive, Limits};
 use libfuzzer_sys::fuzz_target;
-use linlog::{Interactive, Limits};
 
 fuzz_target!(|data: &[u8]| {
     if let Ok(session) = serde_json::from_slice::<Interactive>(data) {

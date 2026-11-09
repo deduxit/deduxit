@@ -57,8 +57,8 @@
 //!
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
-//! use linlog::export::rocq::{self, Options};
-//! use linlog::{Mode, Options as Search, Sequent, Verdict, prove};
+//! use deduxit::export::rocq::{self, Options};
+//! use deduxit::{Mode, Options as Search, Sequent, Verdict, prove};
 //!
 //! let sequent: Sequent = "A, A -o B |- B".parse()?;
 //! let outcome = prove(&sequent, Mode::CLASSICAL, &Search::default())?;

@@ -31,7 +31,7 @@ A time is the median of up to
 three runs; `✓` is proved, `✗` refuted, `?` unknown (`bound`: the copy
 bound, `wide`: a context too wide to split, `depth`: the recursion
 limit), `>` a time limit reached, `MISMATCH` a verdict against the
-problem's known one (for LLTP, the one its header claims). `linlog-bench
+problem's known one (for LLTP, the one its header claims). `deduxit-bench
 summary bench/results/2026-11-02/*.csv` prints the tables again.
 
 ## Solved within the time limit

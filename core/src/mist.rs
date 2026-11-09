@@ -26,8 +26,8 @@
 //! # Examples
 //!
 //! ```
-//! use linlog::Limits;
-//! use linlog::mist::{Safety, read};
+//! use deduxit::Limits;
+//! use deduxit::mist::{Safety, read};
 //!
 //! let text = "#expected result: unsafe\n\
 //!             vars x y\n\
@@ -37,7 +37,7 @@
 //! let problem = read(text, &Limits::default())?;
 //! assert_eq!(problem.expected, Some(Safety::Unsafe));
 //! assert_eq!(problem.sequent.to_string(), "⊢ ?(x ⊗ (~y ⅋ ~y)), ?~y, ~x, y ⊗ y");
-//! # Ok::<(), linlog::Error>(())
+//! # Ok::<(), deduxit::Error>(())
 //! ```
 //!
 //! Needs the cargo feature `parse` (on by default).

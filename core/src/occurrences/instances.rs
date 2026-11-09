@@ -58,7 +58,7 @@ impl FrameId {
 ///
 #[cfg_attr(feature = "parse", doc = "```")]
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
-/// use linlog::{Eigen, Forest, Instances, Member, Mode, Node, NodeId, OccId, Proof, Sequent};
+/// use deduxit::{Eigen, Forest, Instances, Member, Mode, Node, NodeId, OccId, Proof, Sequent};
 ///
 /// // ⊢ ∀x. (~p(x) ⅋ p(x)): occurrence 0 the binder, 1 the `⅋`, 2 and 3
 /// // the literals.

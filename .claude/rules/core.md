@@ -64,8 +64,8 @@ feature of that name, `translate`, `derivation` with the read-back and
 its checker, `rocq` behind that feature, `interactive` behind that
 feature), and `lltp`, `mist` and
 `families` behind `parse`. `lib.rs` re-exports the
-public types, so users write `linlog::Sequent`, `linlog::Proof`,
-`linlog::prove`, and so on. `hash` is crate-private.
+public types, so users write `deduxit::Sequent`, `deduxit::Proof`,
+`deduxit::prove`, and so on. `hash` is crate-private.
 
 ## The public API at a glance
 

@@ -6,7 +6,7 @@
 # proof in each format as the CLI writes it, with pdfLaTeX from a minimal
 # TeX Live, Typst with curryst from nixpkgs and resvg, offline; the CLI's
 # PNG and PDF are checked with pngcheck, poppler and veraPDF. The curryst here is the version
-# `linlog::export::typst::CURRYST' names, read from the source, so a change of
+# `deduxit::export::typst::CURRYST' names, read from the source, so a change of
 # one without the other fails to evaluate. The LaTeX
 # and Typst output names no font, so Typst sees only the fonts it embeds;
 # resvg sees one math font and no system font: Euler Math for the
@@ -94,7 +94,7 @@
         pkgs.runCommand "check-export"
           {
             nativeBuildInputs = [
-              config.packages.linlog-cli
+              config.packages.deduxit-cli
               latex
               typst
               pkgs.resvg

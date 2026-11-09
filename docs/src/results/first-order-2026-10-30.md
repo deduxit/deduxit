@@ -10,7 +10,7 @@ of which LinearOne's fragment holds the MILL1 shapes #2 and #3).
 says how the problems are translated and discusses the verdicts.
 
 The times are `bench/comparison/first-order/times-1.csv` and
-`times-2.csv`: on 2026-10-30, `linlog-bench run --tools
+`times-2.csv`: on 2026-10-30, `deduxit-bench run --tools
 linlog,linearone --family lambek-fo --family witness-fo --timeout 10
 --memory-limit 4294967296` in two shards on cores 2 and 3 of an
 otherwise quiet Intel Core Ultra X9 388H, measured by runexec 3.35, one

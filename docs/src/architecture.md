@@ -1,9 +1,9 @@
 # Architecture
 
 Four crates: the library `linlog` in `core/` holds all the logic; the
-command line program `linlog` (package `linlog-cli`) in `cli/` is a thin
-front end; the benchmark harness `linlog-bench` in `bench/` runs the
-library's engines on problem sets; and the bindings `linlog-web` in
+command line program `linlog` (package `deduxit-cli`) in `cli/` is a thin
+front end; the benchmark harness `deduxit-bench` in `bench/` runs the
+library's engines on problem sets; and the bindings `deduxit-web` in
 `web/` compile the library to WebAssembly for a web page, so the library
 uses no clock, and threads only behind its `parallel` feature, which the
 bindings leave off (the flake builds them for `wasm32-unknown-unknown`

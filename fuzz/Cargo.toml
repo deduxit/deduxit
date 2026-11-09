@@ -6,7 +6,7 @@
 # fuzz/run.sh runs them. A workspace of its own, so that the main
 # workspace's stable builds never see it.
 [package]
-name = "linlog-fuzz"
+name = "deduxit-fuzz"
 version = "0.0.0"
 edition = "2024"
 publish = false
@@ -19,12 +19,12 @@ cargo-fuzz = true
 members = ["."]
 
 [dependencies]
-libfuzzer-sys = "0.4.13"
-linlog = { path = "../core", default-features = false, features = [
+deduxit = { path = "../core", default-features = false, features = [
   "interactive",
   "parse",
   "serialize",
 ] }
+libfuzzer-sys = "0.4.13"
 serde_json = "1.0.151"
 
 [[bin]]

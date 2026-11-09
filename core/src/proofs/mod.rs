@@ -344,7 +344,7 @@ impl Display for Node {
 ///
 #[cfg_attr(feature = "parse", doc = "```")]
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
-/// use linlog::{Forest, Member, Mode, Node, NodeId, Proof, Sequent};
+/// use deduxit::{Forest, Member, Mode, Node, NodeId, Proof, Sequent};
 ///
 /// // ⊢ ~A, A ⊗ ~B, B, with the members 0: ~A, 1: A ⊗ ~B, 2: A,
 /// // 3: ~B, 4: B.
@@ -365,7 +365,7 @@ impl Display for Node {
 ///      ──────────────────── ⊗\n\
 ///     \x20 ⊢ ~A, A ⊗ ~B, B"
 /// );
-/// # Ok::<(), linlog::Error>(())
+/// # Ok::<(), deduxit::Error>(())
 /// ```
 ///
 /// # JSON
@@ -903,7 +903,7 @@ impl Proof {
     ///
     #[cfg_attr(feature = "parse", doc = "```")]
     #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
-    /// use linlog::{Mode, Options, Sequent, Verdict, prove};
+    /// use deduxit::{Mode, Options, Sequent, Verdict, prove};
     ///
     /// let sequent: Sequent = "A, A -o B |- B".parse()?;
     /// let outcome = prove(&sequent, Mode::INTUITIONISTIC, &Options::default())?;

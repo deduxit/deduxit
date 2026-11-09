@@ -8,7 +8,7 @@ columns by their names, in the light or the dark scheme:
     python3 bench/plots.py families [--theme T] FAMILIES.csv ENGINES.csv OUTDIR
     python3 bench/plots.py growth [--theme T] RUNS.csv... OUTDIR
 
-`comparison` takes the rows of `linlog-bench run --tools`: a cactus plot
+`comparison` takes the rows of `deduxit-bench run --tools`: a cactus plot
 per mode (the problems each tool solves within the limit against the time
 each took, sorted) and a scatter plot of linlog on one thread against each
 other tool on the problems both cover, both times in log scale, a run not
@@ -91,14 +91,14 @@ ENGINES = ["focus", "net", "horn", "additive", "two-sided", "essential", "invers
 
 def solved(row):
     """Whether a row decided its problem within the time limit and not
-    wrongly, as `linlog-bench ranking` counts it."""
+    wrongly, as `deduxit-bench ranking` counts it."""
     if row["verdict"] not in ("proved", "unprovable") or row.get("judged") == "wrong":
         return False
     return float(row["time_ms"] or "inf") <= float(row["timeout_s"]) * 1000
 
 
 def judge(rows):
-    """Marks as wrong, as `linlog-bench ranking` does, a refutation of a
+    """Marks as wrong, as `deduxit-bench ranking` does, a refutation of a
     problem some tool proved with a checked proof, and a verdict on a
     generated problem against its verdict by construction."""
 

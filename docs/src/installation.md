@@ -1,9 +1,9 @@
 # Installation
 
-The command `linlog` is the package `linlog-cli`. Each release on
+The command `linlog` is the package `deduxit-cli`. Each release on
 [GitHub](https://github.com/deduxit/deduxit/releases) has it built
 for Linux, macOS and Windows, with packages for Debian and Ubuntu,
-Fedora and Arch Linux; it is on [crates.io](https://crates.io/crates/linlog-cli)
+Fedora and Arch Linux; it is on [crates.io](https://crates.io/crates/deduxit-cli)
 for `cargo install`, and the flake of this repository builds it with
 Nix. Pick your system:
 
@@ -16,7 +16,7 @@ Nix. Pick your system:
 | NixOS, Nix | the flake | flakes enabled |
 | macOS | the release's archive | nothing |
 | Windows | the release's `.zip` | nothing |
-| any system | `cargo install --locked linlog-cli` | Rust 1.92 or later |
+| any system | `cargo install --locked deduxit-cli` | Rust 1.92 or later |
 
 The files below are those of version 0.2.0; a later release names its
 own.
@@ -101,19 +101,19 @@ once.
 
 ```sh
 nix run github:deduxit/deduxit -- --help                   # run it once, without installing
-nix profile add github:deduxit/deduxit/v0.2.0#linlog-cli   # install a release into your profile
-nix profile remove linlog-cli                                    # and to remove it
+nix profile add github:deduxit/deduxit/v0.2.0#deduxit-cli   # install a release into your profile
+nix profile remove deduxit-cli                                    # and to remove it
 ```
 
 An entry added by a release's tag stays that release: to update,
 remove it and add the next release's tag. One added without a tag
-(`github:deduxit/deduxit#linlog-cli`, the `main` branch, which may
+(`github:deduxit/deduxit#deduxit-cli`, the `main` branch, which may
 be ahead of the last release) follows it with `nix profile upgrade
-linlog-cli`. The profile names an entry after the package installed,
-here `linlog-cli`.
+deduxit-cli`. The profile names an entry after the package installed,
+here `deduxit-cli`.
 On Nix before 2.30, `nix profile add` is `nix profile install`. The
 package carries the EUPL and the embedded fonts' licences under
-`share/doc/linlog-cli/`.
+`share/doc/deduxit-cli/`.
 
 In a flake of your own, a NixOS or Home Manager configuration say, take
 it as an input:
@@ -194,9 +194,9 @@ Variables).
 `cargo install` builds the command from crates.io:
 
 ```sh
-cargo install --locked linlog-cli
-cargo install --locked linlog-cli      # later: the newest release
-cargo uninstall linlog-cli             # and to remove it
+cargo install --locked deduxit-cli
+cargo install --locked deduxit-cli      # later: the newest release
+cargo uninstall deduxit-cli             # and to remove it
 ```
 
 It needs Rust 1.92 or later (a release raises that only with its second

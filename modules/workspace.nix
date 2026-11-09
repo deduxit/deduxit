@@ -136,10 +136,10 @@
       # the core crate without the command's `serde_json` features, the
       # harness without `png` and `pdf`.
       selections = {
-        core = "--package linlog --all-features";
-        cli = "--package linlog-cli";
-        bench = "--package linlog-bench";
-        web = "--package linlog-web";
+        core = "--package deduxit --all-features";
+        cli = "--package deduxit-cli";
+        bench = "--package deduxit-bench";
+        web = "--package deduxit-web";
       };
 
       # The dependencies of every crate as its checks and packages select
@@ -175,7 +175,7 @@
         ]
         // {
           inherit cargoArtifacts;
-          cargoDocExtraArgs = "--no-deps --package linlog --package linlog-cli";
+          cargoDocExtraArgs = "--no-deps --package deduxit --package deduxit-cli";
           env.RUSTDOCFLAGS = "--deny warnings";
           postInstall = ''
             cat > $out/share/doc/index.html <<'EOF'
@@ -204,7 +204,7 @@
         commonArgs
         // debugAssertions
         // {
-          pname = "linlog-workspace-debug-assertions";
+          pname = "deduxit-workspace-debug-assertions";
         }
       );
     in
@@ -223,7 +223,7 @@
       };
 
       packages = {
-        linlog-cli = craneLib.buildPackage (
+        deduxit-cli = craneLib.buildPackage (
           argsOf [
             "core"
             "cli"
@@ -233,16 +233,16 @@
             inherit (craneLib.crateNameFromCargoToml { cargoToml = ../cli/Cargo.toml; }) pname;
             # The crates inherit the workspace's version.
             inherit (craneLib.crateNameFromCargoToml { cargoToml = ../Cargo.toml; }) version;
-            cargoExtraArgs = "--locked --package linlog-cli";
+            cargoExtraArgs = "--locked --package deduxit-cli";
             # The `test-cli' check runs them.
             doCheck = false;
             # A copy of the binary carries the licences of what it contains:
             # the EUPL's text, each embedded font's OFL with its notice, and
             # the notices of the crates compiled into it (`dist.nix`).
             postInstall = ''
-              install -Dm644 LICENSE $out/share/doc/linlog-cli/LICENSE
-              install -Dm644 -t $out/share/doc/linlog-cli cli/fonts/*.txt
-              install -Dm644 ${config.packages.notices} $out/share/doc/linlog-cli/THIRD-PARTY-NOTICES.txt
+              install -Dm644 LICENSE $out/share/doc/deduxit-cli/LICENSE
+              install -Dm644 -t $out/share/doc/deduxit-cli cli/fonts/*.txt
+              install -Dm644 ${config.packages.notices} $out/share/doc/deduxit-cli/THIRD-PARTY-NOTICES.txt
             '';
             # The binary is `linlog', not the package name `nix run' assumes.
             meta.mainProgram = "linlog";
@@ -250,18 +250,18 @@
         );
 
         # The site the Docs workflow publishes, which the `doc' check also
-        # builds: the rustdoc of both crates, `linlog' and `linlog_cli', in
+        # builds: the rustdoc of both crates, `linlog' and `deduxit_cli', in
         # one tree, and the manual under `manual/' (`manual.nix'), put
         # together after both are built, so that a change of either leaves
         # the other's build as it was.
-        doc = pkgs.runCommand "linlog-doc" { } ''
+        doc = pkgs.runCommand "deduxit-doc" { } ''
           mkdir -p $out/share
           cp -r ${rustdoc}/share/doc $out/share/doc
           chmod u+w $out/share/doc
           cp -r ${config.packages.manual} $out/share/doc/manual
         '';
 
-        default = config.packages.linlog-cli;
+        default = config.packages.deduxit-cli;
       };
     };
 }

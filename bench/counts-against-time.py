@@ -8,8 +8,8 @@
 #
 #   for o in 1 2 3; do
 #     CARGO_PROFILE_RELEASE_OPT_LEVEL=$o cargo build --release --locked \
-#       -p linlog-bench --target-dir target/opt$o
-#     target/opt$o/release/linlog-bench ratchet --jobs 4 \
+#       -p deduxit-bench --target-dir target/opt$o
+#     target/opt$o/release/deduxit-bench ratchet --jobs 4 \
 #       --ceilings target/opt$o/none.csv > target/opt$o/counts.txt
 #   done
 #   bench/counts-against-time.py run 2 5 > target/counts-against-time.csv
@@ -33,7 +33,7 @@ import subprocess
 import sys
 import time
 
-BUILDS = {b: f"target/{b}/release/linlog-bench" for b in ("opt1", "opt2", "opt3")}
+BUILDS = {b: f"target/{b}/release/deduxit-bench" for b in ("opt1", "opt2", "opt3")}
 
 
 def cpu_times():

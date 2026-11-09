@@ -32,8 +32,8 @@
 //!
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
-//! use linlog::export::latex;
-//! use linlog::{Limits, Mode, Options, Sequent, Verdict, prove};
+//! use deduxit::export::latex;
+//! use deduxit::{Limits, Mode, Options, Sequent, Verdict, prove};
 //!
 //! let sequent: Sequent = "A, A -o B |- B".parse()?;
 //! let options = latex::Options::default();

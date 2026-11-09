@@ -6,7 +6,7 @@
 //! state, the settings and a search's outcome.
 //!
 //! Every call takes the documents it works on and the page's settings
-//! (the JSON of [`linlog::Settings`], read over the tab's defaults: an
+//! (the JSON of [`deduxit::Settings`], read over the tab's defaults: an
 //! empty text is the defaults, a key replaces the default there) and
 //! returns a document; nothing is kept between calls. A call that fails
 //! throws the error's JSON as a string, `{"code", "kind", "message",

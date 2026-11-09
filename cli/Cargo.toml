@@ -2,7 +2,7 @@
 # Licensed under the EUPL
 
 [package]
-name = "linlog-cli"
+name = "deduxit-cli"
 description = "The linlog command: decide, check, prove step by step and export sequents of linear logic, and ordinary logic through its translations."
 version.workspace = true
 edition.workspace = true
@@ -31,11 +31,11 @@ exclude = ["tests/readme.rs"]
 targets = ["x86_64-unknown-linux-gnu"]
 
 # The command is `linlog`; the package keeps its name next to the library's.
-# The code is the library `linlog_cli`, so that rustdoc documents it under a
+# The code is the library `deduxit_cli`, so that rustdoc documents it under a
 # name of its own: the binary, one call into it, is named like the core
 # crate and would otherwise be written over it.
 [lib]
-name = "linlog_cli"
+name = "deduxit_cli"
 path = "src/lib.rs"
 
 [[bin]]
@@ -47,7 +47,7 @@ doc = false
 anyhow = "1.0.100"
 clap = { version = "4.5.54", features = ["derive", "unicode"] }
 ctrlc = "3.5.2"
-linlog = { workspace = true, features = [
+deduxit = { workspace = true, features = [
   "interactive",
   "latex",
   "parallel",

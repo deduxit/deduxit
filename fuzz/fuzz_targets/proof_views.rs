@@ -7,9 +7,9 @@
 //! view, the rest is the JSON form.
 #![no_main]
 
+use deduxit::proofs::{Compact, Sides, TextOptions};
+use deduxit::{Limits, Mode, Proof, ViewOptions};
 use libfuzzer_sys::fuzz_target;
-use linlog::proofs::{Compact, Sides, TextOptions};
-use linlog::{Limits, Mode, Proof, ViewOptions};
 
 fuzz_target!(|data: &[u8]| {
     let Some((&bits, json)) = data.split_first() else {
@@ -45,7 +45,7 @@ fuzz_target!(|data: &[u8]| {
     // Read as `check` reads a proof file: through the wire level, its
     // sequent within the limits.
     let mut document = serde_json::Deserializer::from_slice(json);
-    let Ok(proof) = linlog::wire::upgrade::<Proof, _>(&mut document, &limits) else {
+    let Ok(proof) = deduxit::wire::upgrade::<Proof, _>(&mut document, &limits) else {
         return;
     };
     if proof.check_within(mode, &limits, |_| false).is_err() {

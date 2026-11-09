@@ -3,11 +3,11 @@
 
 use clap::builder::TypedValueParser;
 use clap::{Args, Parser, Subcommand, ValueEnum};
-use linlog::export::rocq::Kernel;
-use linlog::export::svg::MathFont;
-use linlog::proofs::{Compact, cut};
-use linlog::search::{Cadence, Engine, Options, Schedule};
-use linlog::{Bias, Clock, Fragment, Limits, Mode};
+use deduxit::export::rocq::Kernel;
+use deduxit::export::svg::MathFont;
+use deduxit::proofs::{Compact, cut};
+use deduxit::search::{Cadence, Engine, Options, Schedule};
+use deduxit::{Bias, Clock, Fragment, Limits, Mode};
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -904,7 +904,7 @@ pub(crate) enum IllSyntaxArg {
     OneSided,
 }
 
-impl From<IllSyntaxArg> for linlog::IllSyntax {
+impl From<IllSyntaxArg> for deduxit::IllSyntax {
     /// The library's syntax of the flag's.
     fn from(syntax: IllSyntaxArg) -> Self {
         match syntax {
@@ -1012,7 +1012,7 @@ pub(crate) enum LogicArg {
     Minimal,
 }
 
-impl From<LogicArg> for linlog::ordinary::Logic {
+impl From<LogicArg> for deduxit::ordinary::Logic {
     fn from(logic: LogicArg) -> Self {
         match logic {
             LogicArg::Classical => Self::Classical,
@@ -1040,7 +1040,7 @@ pub(crate) enum TranslationArg {
     ZeroOne,
 }
 
-impl From<TranslationArg> for linlog::ordinary::Translation {
+impl From<TranslationArg> for deduxit::ordinary::Translation {
     fn from(translation: TranslationArg) -> Self {
         match translation {
             TranslationArg::Affine => Self::Affine,
@@ -1236,7 +1236,7 @@ pub(crate) enum ClassicalSidesArg {
     Two,
 }
 
-impl From<ClassicalSidesArg> for linlog::ClassicalSides {
+impl From<ClassicalSidesArg> for deduxit::ClassicalSides {
     /// Returns the library's value of the switch.
     fn from(sides: ClassicalSidesArg) -> Self {
         match sides {
@@ -1285,7 +1285,7 @@ pub(crate) enum NotationArg {
     Ascii,
 }
 
-impl From<NotationArg> for linlog::lambda::Notation {
+impl From<NotationArg> for deduxit::lambda::Notation {
     /// Returns the library's notation.
     fn from(notation: NotationArg) -> Self {
         match notation {
@@ -1304,7 +1304,7 @@ pub(crate) enum StructuralArg {
     Explicit,
 }
 
-impl From<StructuralArg> for linlog::proofs::Structural {
+impl From<StructuralArg> for deduxit::proofs::Structural {
     /// Returns the library's value of the switch.
     fn from(structural: StructuralArg) -> Self {
         match structural {
@@ -1832,7 +1832,7 @@ mod tests {
             .find(|a| a.get_id() == "style")
             .unwrap();
         let help = style.get_long_help().unwrap().to_string();
-        let styles = serde_json::to_value(linlog::export::Styles::default()).unwrap();
+        let styles = serde_json::to_value(deduxit::export::Styles::default()).unwrap();
         for (format, fields) in styles.as_object().unwrap() {
             assert!(help.contains(&format!("{format}:")), "{format}");
             for field in fields.as_object().unwrap().keys() {

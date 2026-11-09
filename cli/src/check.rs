@@ -12,7 +12,7 @@ use crate::show::{
 };
 use crate::{Status, exit_on_interrupt, interrupted};
 use anyhow::{Context, Result, anyhow, bail};
-use linlog::{CheckError, Disproof, Error, ErrorKind, Forest, Limits, Mode, Proof, Reading};
+use deduxit::{CheckError, Disproof, Error, ErrorKind, Forest, Limits, Mode, Proof, Reading};
 use std::time::Instant;
 
 /// Runs `check`: reads a proof, or a disproof, checks it in the mode the
@@ -155,7 +155,7 @@ fn read_document(text: &str, limits: &Limits) -> Result<Document> {
         return Err(error);
     }
     let mut document = serde_json::Deserializer::from_str(text);
-    let disproof = linlog::wire::upgrade::<Disproof, _>(&mut document, limits)
+    let disproof = deduxit::wire::upgrade::<Disproof, _>(&mut document, limits)
         .map_err(|error| limit_advice(error).unwrap_or_else(|error| error.into()))?;
     document
         .end()
@@ -245,7 +245,7 @@ fn check_disproof(
 
 /// Returns a sequent as `check` names it in a verdict: two-sided in an
 /// intuitionistic mode where it has the reading, one-sided otherwise.
-fn shown_sequent(sequent: &linlog::Sequent, mode: Mode, show: &Show) -> String {
+fn shown_sequent(sequent: &deduxit::Sequent, mode: Mode, show: &Show) -> String {
     let formulas = sequent.roots().len();
     match Forest::new(sequent)
         .ok()
@@ -293,7 +293,7 @@ pub(crate) struct Checked {
 /// A document that is no proof, or past the limit.
 pub(crate) fn read_proof(text: &str, limits: &Limits) -> Result<Proof> {
     let mut document = serde_json::Deserializer::from_str(text);
-    match linlog::wire::upgrade::<Proof, _>(&mut document, limits).map_err(limit_advice) {
+    match deduxit::wire::upgrade::<Proof, _>(&mut document, limits).map_err(limit_advice) {
         Ok(proof) => {
             document
                 .end()
@@ -345,7 +345,7 @@ fn check_into(
         Err(CheckError::Refused(_)) => Status::Unknown,
         Err(_) => Status::No,
     };
-    let report = |e: &linlog::CheckError| {
+    let report = |e: &deduxit::CheckError| {
         e.describe(proof)
             .in_mode(mode)
             .abbreviated(show.abbreviate)

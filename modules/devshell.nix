@@ -55,10 +55,10 @@
               # set fails here. Their own target directory, since RUSTFLAGS
               # are part of every artifact and would rebuild the tests'.
               RUSTFLAGS="-D warnings" CARGO_TARGET_DIR=target/hack \
-                cargo hack check --each-feature --locked --package linlog
+                cargo hack check --each-feature --locked --package deduxit
               RUSTFLAGS="-D warnings" CARGO_TARGET_DIR=target/hack \
-                cargo hack check --feature-powerset --depth 2 --locked --package linlog
-              cargo run --release --locked --package linlog-bench -- ratchet --check --jobs 4
+                cargo hack check --feature-powerset --depth 2 --locked --package deduxit
+              cargo run --release --locked --package deduxit-bench -- ratchet --check --jobs 4
               echo "gate: passed"
             '';
           }
@@ -70,7 +70,7 @@
           {
             name = "ratchet";
             help = "Count the journeys' instructions under callgrind against bench/ceilings.csv, with the cache model's misses against bench/misses.csv (`ratchet --lower` writes the counts that went down, `--record-misses` the misses)";
-            command = ''cargo run --release --locked --package linlog-bench -- ratchet --jobs 4 "$@"'';
+            command = ''cargo run --release --locked --package deduxit-bench -- ratchet --jobs 4 "$@"'';
           }
           {
             name = "breaks";
@@ -81,7 +81,7 @@
               out=$(mktemp -d)
               trap 'rm -rf "$out"' EXIT
               # Exit status 100 when a check fails, which is what is asked.
-              cargo semver-checks --package linlog --baseline-version "$base" \
+              cargo semver-checks --package deduxit --baseline-version "$base" \
                 --release-type patch --color never || [ $? = 100 ]
               # rustdoc's JSON is unstable; cargo-semver-checks unlocks it on
               # the stable compiler the same way. Its own JSON documents
@@ -106,7 +106,7 @@
           {
             name = "launch";
             help = "Build and run the CLI; arguments are passed on";
-            command = ''cargo run --package linlog-cli -- "$@"'';
+            command = ''cargo run --package deduxit-cli -- "$@"'';
           }
           {
             name = "live";

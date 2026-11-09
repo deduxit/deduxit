@@ -11,11 +11,11 @@
 //! count is a function of the build and the input.
 
 use anyhow::{Context, Result, bail};
-use linlog::export::{latex, svg, typst};
-use linlog::ordinary::{self, Logic, Translation};
-use linlog::proofs::TextOptions;
-use linlog::search::{Bias, Engine, batch};
-use linlog::{Limits, Mode, Options, Proof, Sequent, Verdict, ViewOptions};
+use deduxit::export::{latex, svg, typst};
+use deduxit::ordinary::{self, Logic, Translation};
+use deduxit::proofs::TextOptions;
+use deduxit::search::{Bias, Engine, batch};
+use deduxit::{Limits, Mode, Options, Proof, Sequent, Verdict, ViewOptions};
 use std::fmt::Write as _;
 use std::hint::black_box;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -155,7 +155,7 @@ static ELAPSED: AtomicU64 = AtomicU64::new(0);
 /// time of each measured part in nanoseconds on a line of its own.
 pub fn run(name: &str, repeat: Option<u32>) -> Result<()> {
     let Some(journey) = JOURNEYS.iter().find(|j| j.name == name) else {
-        bail!("no journey {name:?}; `linlog-bench journeys` lists them");
+        bail!("no journey {name:?}; `deduxit-bench journeys` lists them");
     };
     match repeat {
         None => (journey.run)(),
@@ -188,8 +188,8 @@ fn options(sequent: &Sequent, copies: Option<u32>) -> Options {
 }
 
 /// An instance of a family.
-fn instance(family: &str, size: u32, index: u32) -> Result<linlog::families::Instance> {
-    let family = linlog::families::find(family).with_context(|| format!("no family {family}"))?;
+fn instance(family: &str, size: u32, index: u32) -> Result<deduxit::families::Instance> {
+    let family = deduxit::families::find(family).with_context(|| format!("no family {family}"))?;
     Ok(family.instance(size, index)?)
 }
 
@@ -197,7 +197,7 @@ fn instance(family: &str, size: u32, index: u32) -> Result<linlog::families::Ins
 fn search_family(family: &str, size: u32, index: u32) -> Result<()> {
     let problem = instance(family, size, index)?;
     let options = options(&problem.sequent, problem.copies);
-    let outcome = measured(|| linlog::prove(&problem.sequent, problem.mode, &options))?;
+    let outcome = measured(|| deduxit::prove(&problem.sequent, problem.mode, &options))?;
     decided(&outcome.verdict, problem.provable)
 }
 
@@ -206,7 +206,7 @@ fn search_family(family: &str, size: u32, index: u32) -> Result<()> {
 fn search_net(family: &str, size: u32) -> Result<()> {
     let problem = instance(family, size, 0)?;
     let options = options(&problem.sequent, problem.copies).with_engine(Some(Engine::Net));
-    let outcome = measured(|| linlog::prove(&problem.sequent, problem.mode, &options))?;
+    let outcome = measured(|| deduxit::prove(&problem.sequent, problem.mode, &options))?;
     decided(&outcome.verdict, problem.provable)
 }
 
@@ -221,7 +221,7 @@ fn search_intuitionistic(family: &str, size: u32) -> Result<()> {
         mode = mode.with_mix();
     }
     let options = options(&problem.sequent, problem.copies);
-    let outcome = measured(|| linlog::prove(&problem.sequent, mode, &options))?;
+    let outcome = measured(|| deduxit::prove(&problem.sequent, mode, &options))?;
     decided(&outcome.verdict, problem.provable)
 }
 
@@ -246,7 +246,7 @@ fn proof(family: &str, size: u32, index: u32) -> Result<Proof> {
 /// The proof of an instance by `engine`, or by the dispatch's engine.
 fn proof_by(family: &str, size: u32, index: u32, engine: Option<Engine>) -> Result<Proof> {
     let problem = instance(family, size, index)?;
-    match linlog::prove(
+    match deduxit::prove(
         &problem.sequent,
         problem.mode,
         &options(&problem.sequent, problem.copies).with_engine(engine),
@@ -294,7 +294,7 @@ fn read_lltp() -> Result<()> {
         text,
         "fof(start, axiom, p0).\nfof(goal, conjecture, p{LINES})."
     )?;
-    measured(|| linlog::lltp::read(&text, &Limits::default()))?;
+    measured(|| deduxit::lltp::read(&text, &Limits::default()))?;
     Ok(())
 }
 
@@ -336,17 +336,17 @@ fn spec() -> Result<String> {
 /// Reads a coverability problem.
 fn read_spec() -> Result<()> {
     let text = spec()?;
-    measured(|| linlog::mist::read(&text, &Limits::default()))?;
+    measured(|| deduxit::mist::read(&text, &Limits::default()))?;
     Ok(())
 }
 
 /// Decides a coverability problem as the harness does, intuitionistic
 /// affine.
 fn search_spec() -> Result<()> {
-    let problem = linlog::mist::read(&spec()?, &Limits::default())?;
+    let problem = deduxit::mist::read(&spec()?, &Limits::default())?;
     let mode = Mode::INTUITIONISTIC.with_affine();
     let options = options(&problem.sequent, None);
-    let outcome = measured(|| linlog::prove(&problem.sequent, mode, &options))?;
+    let outcome = measured(|| deduxit::prove(&problem.sequent, mode, &options))?;
     decided(&outcome.verdict, true)
 }
 
@@ -382,7 +382,7 @@ enum Render {
 }
 
 /// What a target's `write` makes of a derivation, as a string.
-fn written(write: impl FnOnce(&mut String) -> Result<(), linlog::Error>) -> String {
+fn written(write: impl FnOnce(&mut String) -> Result<(), deduxit::Error>) -> String {
     let mut out = String::new();
     write(&mut out).expect("a string takes any text and nothing stops");
     out
@@ -415,7 +415,7 @@ fn batch() -> Result<()> {
     // ones have searches of their own, and a family added since stays out,
     // so that the count measures the same batch.
     let mut problems: Vec<batch::Problem> = Vec::new();
-    for family in linlog::families::FAMILIES {
+    for family in deduxit::families::FAMILIES {
         let problem = family.instance(family.sizes[0], 0)?;
         if BATCHED.contains(&family.name) {
             problems.push(batch::Problem::new(

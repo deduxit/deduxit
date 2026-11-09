@@ -216,7 +216,7 @@ impl Kind {
 ///
 #[cfg_attr(feature = "parse", doc = "```")]
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
-/// use linlog::{Forest, Kind, Sequent, Sign};
+/// use deduxit::{Forest, Kind, Sequent, Sign};
 ///
 /// // ⊢ ~A, A ⊗ ~B, B
 /// let sequent: Sequent = "A, A -o B |- B".parse()?;
@@ -236,7 +236,7 @@ impl Kind {
 /// let a = sequent.atom("A").unwrap();
 /// assert_eq!(forest.literals(a, Sign::Atom), [left]);
 /// assert_eq!(forest.literals(a, Sign::Dual), [forest.roots()[0]]);
-/// # Ok::<(), linlog::Error>(())
+/// # Ok::<(), deduxit::Error>(())
 /// ```
 #[derive(Clone, Debug)]
 pub struct Forest {

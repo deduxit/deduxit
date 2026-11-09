@@ -18,20 +18,20 @@
     feature = "typst"
 ))]
 
-use linlog::export::rocq::{self, Kernel, Unsupported};
-use linlog::export::svg::{
+use deduxit::export::rocq::{self, Kernel, Unsupported};
+use deduxit::export::svg::{
     self, Conclusions, MathFont, NetDrawing, NetLook, Premises, Style, WhyNot,
 };
-use linlog::export::{Drawable, Form, latex, typst};
-use linlog::proofs::{Compact, Sides};
-use linlog::proofs::{Labels, OpenGoal};
-use linlog::{
+use deduxit::export::{Drawable, Form, latex, typst};
+use deduxit::proofs::{Compact, Sides};
+use deduxit::proofs::{Labels, OpenGoal};
+use deduxit::{
     ClassicalSequent, Criterion, CutFormula, Derivation, Forest, GoalId, IllSequent, Inference,
     InputOptions, Interactive, Limits, MellStructure, Mode, OccId, Options, Order, Parts, Placed,
     Proof, ProofStructure, Step, TwoSided, VertexId, ViewOptions,
 };
-use linlog::{Error, Refusal};
-use linlog::{Named, Rule, Sequent, Verdict, prove};
+use deduxit::{Error, Refusal};
+use deduxit::{Named, Rule, Sequent, Verdict, prove};
 use std::collections::BTreeSet;
 use std::path::Path;
 
@@ -158,7 +158,7 @@ fn bounded(bytes: u64) -> Limits {
 }
 
 /// What a target's `write` makes of a derivation, as a string.
-fn written(write: impl FnOnce(&mut String) -> Result<(), linlog::Error>) -> String {
+fn written(write: impl FnOnce(&mut String) -> Result<(), deduxit::Error>) -> String {
     let mut out = String::new();
     write(&mut out).expect("a string takes any text and nothing stops");
     out
@@ -167,12 +167,12 @@ fn written(write: impl FnOnce(&mut String) -> Result<(), linlog::Error>) -> Stri
 /// What Rocq's `write` makes of a derivation, or why it has no
 /// certificate.
 fn certificate(
-    write: impl FnOnce(&mut String) -> Result<(), linlog::Error>,
+    write: impl FnOnce(&mut String) -> Result<(), deduxit::Error>,
 ) -> Result<String, Unsupported> {
     let mut out = String::new();
     match write(&mut out) {
         Ok(()) => Ok(out),
-        Err(linlog::Error::Unsupported(unsupported)) => Err(unsupported),
+        Err(deduxit::Error::Unsupported(unsupported)) => Err(unsupported),
         Err(error) => panic!("{error}"),
     }
 }
@@ -222,7 +222,7 @@ fn typst_layout() {
 /// and the rules of LJ.
 #[test]
 fn ordinary_derivation() {
-    use linlog::ordinary::{self, Logic, Translation};
+    use deduxit::ordinary::{self, Logic, Translation};
     let sequent: ordinary::Sequent = "a -> b, b -> c |- a -> c".parse().unwrap();
     let image = ordinary::translate(
         &sequent,
@@ -256,7 +256,7 @@ fn ordinary_derivation() {
 /// typed, as `name.tex`, `name.typ`, `name-linlog.typ` (Typst's own
 /// layout) and `name.svg`, which the `export` check compiles and renders.
 fn pin_term<'a>(name: &str, derivation: impl Into<Drawable<'a>> + Copy) {
-    let term = Some(linlog::lambda::Options::default().with_types(true));
+    let term = Some(deduxit::lambda::Options::default().with_types(true));
     let mut latex = latex::Options::default();
     latex.form = Form::Standalone;
     latex.lambda = term;
@@ -293,7 +293,7 @@ fn lambda_terms() {
     pin_term("term", &ill.derivation().unwrap());
     let cut = cut_proof("!a |- a * a", Mode::INTUITIONISTIC, "!a", &[0]);
     pin_term("term-cut", &cut.derivation().unwrap());
-    use linlog::ordinary::{self, Logic};
+    use deduxit::ordinary::{self, Logic};
     let sequent: ordinary::Sequent = "a \\/ b, ~a |- b /\\ true".parse().unwrap();
     let options = ordinary::Options::default().with_logic(Logic::Intuitionistic);
     let outcome = ordinary::decide(
@@ -310,7 +310,7 @@ fn lambda_terms() {
     pin_term("term-lj", &*lj);
     let classical = proof("A * B |- B * A", Mode::CLASSICAL);
     let mut latex = latex::Options::default();
-    latex.lambda = Some(linlog::lambda::Options::default());
+    latex.lambda = Some(deduxit::lambda::Options::default());
     let mut out = String::new();
     let refused = latex::write(&classical.derivation().unwrap(), &latex, &mut out, |_| {
         false
@@ -324,7 +324,7 @@ fn lambda_terms() {
 /// the one given, or the logic's own.
 #[test]
 fn ordinary_certificate_without_binders() {
-    use linlog::ordinary::{self, Logic};
+    use deduxit::ordinary::{self, Logic};
     let sequent: ordinary::Sequent = "|- true".parse().unwrap();
     for logic in [Logic::Classical, Logic::Intuitionistic] {
         let options = ordinary::Options::default().with_logic(logic);
@@ -540,7 +540,7 @@ fn ids_name_goals() {
 /// character is twice as wide as the monospace font's widens the drawing.
 #[test]
 fn a_font_of_the_callers_sets_the_widths() {
-    use linlog::export::svg::{Advances, Font, MONOSPACE};
+    use deduxit::export::svg::{Advances, Font, MONOSPACE};
     let proof = proof("A * B |- B * A", Mode::CLASSICAL);
     let derivation = proof.derivation().unwrap();
     let width = |font: Font| {
@@ -634,7 +634,7 @@ fn certificates() {
         assert!(
             matches!(
                 &refused,
-                Err(linlog::Error::InvalidOption {
+                Err(deduxit::Error::InvalidOption {
                     key: "rocq.lemma",
                     ..
                 })
@@ -719,7 +719,7 @@ fn sequents() {
     let tight = Limits::default().with_derivation_bytes(Some(100));
     assert!(matches!(
         svg::sequent(&sequent, classical, &Style::default(), &tight),
-        Err(linlog::Error::Refused(linlog::Refusal::Output {
+        Err(deduxit::Error::Refused(deduxit::Refusal::Output {
             what: "sequent",
             ..
         }))
@@ -727,7 +727,7 @@ fn sequents() {
     let classical_only: Sequent = "|- a, b".parse().unwrap();
     assert!(matches!(
         latex::sequent(&classical_only, i, &latex::Options::default(), &unbounded),
-        Err(linlog::Error::NotIntuitionistic(_))
+        Err(deduxit::Error::NotIntuitionistic(_))
     ));
 }
 
@@ -937,8 +937,8 @@ fn outline(drawing: &str, b: u32) -> (i64, i64, i64, i64) {
 /// is pinned.
 #[test]
 fn cut_elimination_is_drawn() {
-    use linlog::nets::cut::{self, Step};
-    use linlog::proofs::cut::{Case, Options as Bounds};
+    use deduxit::nets::cut::{self, Step};
+    use deduxit::proofs::cut::{Case, Options as Bounds};
     let highlighted = |svg: &str| -> String {
         let colour = format!(r#"stroke="{}""#, Style::default().highlight);
         svg.split(&colour)
@@ -1050,7 +1050,7 @@ fn cut_elimination_is_drawn() {
             cases.insert(step.case.name());
             let (x, y) = step.cut;
             let bang =
-                |v: VertexId| net.forest().kind(net.occurrence(v).unwrap()) == linlog::Kind::Bang;
+                |v: VertexId| net.forest().kind(net.occurrence(v).unwrap()) == deduxit::Kind::Bang;
             let mut boxes = Vec::new();
             if matches!(
                 step.case,
@@ -1186,7 +1186,7 @@ fn mell_nets() {
 /// rather than dividing by that width.
 #[test]
 fn a_label_of_no_width_in_no_room_is_drawn() {
-    use linlog::export::svg::{Advances, Font};
+    use deduxit::export::svg::{Advances, Font};
     let net = MellStructure::from_proof(
         &proof("!a |- (a * a) * !a", Mode::CLASSICAL),
         Criterion::MLL,
@@ -1717,7 +1717,7 @@ fn svg_structure() {
 #[cfg(all(feature = "png", feature = "pdf"))]
 #[test]
 fn renders() {
-    use linlog::export::{pdf, png};
+    use deduxit::export::{pdf, png};
     let font =
         std::fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("../cli/fonts/Euler-Math.otf"))
             .unwrap();
@@ -1782,7 +1782,7 @@ fn renders() {
 #[cfg(all(feature = "png", feature = "pdf"))]
 #[test]
 fn render_bounds_come_first() {
-    use linlog::export::{pdf, png};
+    use deduxit::export::{pdf, png};
     let glyphs = format!("<svg><text>{}</text>", "x".repeat(1 << 16));
     let limits = Limits::default().with_memory_bytes(Some(64 << 20));
     assert!(matches!(
@@ -1842,7 +1842,7 @@ fn render_bounds_come_first() {
 }
 
 /// Returns the disproof the default search gives `input` in `mode`.
-fn disproof(input: &str, mode: Mode) -> linlog::Disproof {
+fn disproof(input: &str, mode: Mode) -> deduxit::Disproof {
     let sequent: Sequent = input.parse().unwrap();
     match prove(&sequent, mode, &Options::default()).unwrap().verdict {
         Verdict::Unprovable(disproof) => *disproof,
@@ -1861,12 +1861,12 @@ fn disproof(input: &str, mode: Mode) -> linlog::Disproof {
 #[test]
 fn disproof_certificates() {
     let options = rocq::Options::default().with_form(Form::Standalone);
-    let write = |disproof: &linlog::Disproof, options: &rocq::Options| {
+    let write = |disproof: &deduxit::Disproof, options: &rocq::Options| {
         let mut out = String::new();
         rocq::write_disproof(disproof, options, &mut out).map(|()| out)
     };
     let classical = Mode::CLASSICAL;
-    let equation: linlog::Disproof = serde_json::from_str(
+    let equation: deduxit::Disproof = serde_json::from_str(
         r#"{"version":1,"sequent":{"terms":[{"V":0},{"D":1},{"⊗":[0,1]}],"roots":[2,0],
         "atoms":["A","B"],"antecedents":1},"mode":"intuitionistic","refutation":{"kind":
         "equation","formulas":2,"needed":3,"tensors":1,"pars":0,"ones":0,"bottoms":0,
@@ -1974,7 +1974,7 @@ fn disproof_certificates() {
     let quantified = disproof("|- exists x. p(x) * ~p(x)", classical);
     assert!(matches!(
         quantified.refutation(),
-        linlog::Refutation::Equation(_)
+        deduxit::Refutation::Equation(_)
     ));
     assert!(matches!(
         write(&quantified, &options),
@@ -1982,7 +1982,7 @@ fn disproof_certificates() {
     ));
     // A disproof read from a file whose intuitionistic goal has no
     // conclusion holds, but has no two-sided statement.
-    let headless: linlog::Disproof = serde_json::from_str(
+    let headless: deduxit::Disproof = serde_json::from_str(
         r#"{"version":2,"sequent":{"terms":[{"D":0},{"V":1}],"roots":[0,1],"atoms":["a","b"],
         "antecedents":1},"mode":"intuitionistic","refutation":{"kind":"classical",
         "assignment":[true,false]},"goal":[0]}"#,
@@ -1999,7 +1999,7 @@ fn disproof_certificates() {
         Err(Error::Unsupported(Unsupported::Disproof))
     ));
 
-    use linlog::ordinary::{self, Logic};
+    use deduxit::ordinary::{self, Logic};
     for (name, input, logic) in [
         ("lk", "a -> b, b |- a", Logic::Classical),
         ("lj", "|- a \\/ (b -> a)", Logic::Intuitionistic),
@@ -2024,8 +2024,8 @@ fn disproof_certificates() {
 /// in the highlight colour, in both drawings; the net reached too.
 #[test]
 fn an_intuitionistic_elimination_is_drawn_in_its_syntax() {
-    use linlog::nets::cut;
-    use linlog::proofs::cut::Options as Bounds;
+    use deduxit::nets::cut;
+    use deduxit::proofs::cut::Options as Bounds;
     const CLASSICAL: [&str; 4] = ["~", "⅋", "⊥", "?"];
     let classical = |svg: &str| {
         let body = svg.replace("<?xml", "").replace("?>", "");

@@ -154,7 +154,8 @@ pub(crate) fn configuration(row: &Row) -> String {
         label.push_str(&format!(" bias {}", row.get("bias")));
     }
     let forward = row.get("forward_copies");
-    if !forward.is_empty() && forward != linlog::search::Options::DEFAULT_FORWARD_COPIES.to_string()
+    if !forward.is_empty()
+        && forward != deduxit::search::Options::DEFAULT_FORWARD_COPIES.to_string()
     {
         label.push_str(&format!(" forward {forward}"));
     }
@@ -163,7 +164,7 @@ pub(crate) fn configuration(row: &Row) -> String {
     let memory = row.get("memory_limit");
     if memory == "0" {
         label.push_str(" memory none");
-    } else if !memory.is_empty() && memory != linlog::Limits::DEFAULT_MEMORY_BYTES.to_string() {
+    } else if !memory.is_empty() && memory != deduxit::Limits::DEFAULT_MEMORY_BYTES.to_string() {
         label.push_str(&format!(" memory {memory}"));
     }
     // A file from before the column ran every pool from its start.
@@ -174,7 +175,7 @@ pub(crate) fn configuration(row: &Row) -> String {
     match row.get("memo_limit") {
         "" => {}
         "0" => label.push_str(" memo off"),
-        memo if memo != linlog::search::Options::DEFAULT_MEMO_LIMIT.to_string() => {
+        memo if memo != deduxit::search::Options::DEFAULT_MEMO_LIMIT.to_string() => {
             label.push_str(&format!(" memo {memo}"));
         }
         _ => {}
@@ -668,7 +669,7 @@ pub(crate) mod tests {
     /// an error.
     #[test]
     fn files_read_by_their_header() {
-        let dir = std::env::temp_dir().join(format!("linlog-bench-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("deduxit-bench-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("pass.csv");
         std::fs::write(&file, "problem,verdict\na,proved\nb,refused\n").unwrap();

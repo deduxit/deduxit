@@ -3,7 +3,7 @@
 
 //! The manual's chapters on the harness name only what exists: in
 //! `docs/src/benchmarks.md` and every chapter under `docs/src/results/`,
-//! each `linlog-bench` subcommand a command line or an inline code span
+//! each `deduxit-bench` subcommand a command line or an inline code span
 //! names is one the harness has, each flag after it is in that
 //! subcommand's help, each flag of a script `bench/*.sh` is one the script
 //! reads, and each other flag, alone or after a subcommand's name, is in
@@ -16,9 +16,9 @@ use std::process::Command;
 /// The repository's root.
 const ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/..");
 
-/// Returns what `linlog-bench` prints for the arguments.
+/// Returns what `deduxit-bench` prints for the arguments.
 fn bench(arguments: &[&str]) -> String {
-    let out = Command::new(env!("CARGO_BIN_EXE_linlog-bench"))
+    let out = Command::new(env!("CARGO_BIN_EXE_deduxit-bench"))
         .args(arguments)
         .output()
         .unwrap();
@@ -189,15 +189,15 @@ fn the_manual_names_what_exists() {
                 let Some(first) = words.next() else { continue };
                 let rest: Vec<&str> = words.collect();
                 // The text a flag of this call must be found in.
-                let (known, call) = if first == "linlog-bench" {
+                let (known, call) = if first == "deduxit-bench" {
                     let Some(name) = rest.first().filter(|word| !word.starts_with('-')) else {
                         continue;
                     };
                     match helps.iter().find(|(known, _)| known == name) {
-                        Some((_, help)) => (help.as_str(), format!("linlog-bench {name}")),
+                        Some((_, help)) => (help.as_str(), format!("deduxit-bench {name}")),
                         None => {
                             failures.push(format!(
-                                "{chapter}:{line}: no subcommand linlog-bench {name}"
+                                "{chapter}:{line}: no subcommand deduxit-bench {name}"
                             ));
                             continue;
                         }
@@ -206,7 +206,7 @@ fn the_manual_names_what_exists() {
                 {
                     (script.as_str(), name.clone())
                 } else if let Some((name, help)) = helps.iter().find(|(name, _)| name == first) {
-                    (help.as_str(), format!("linlog-bench {name}"))
+                    (help.as_str(), format!("deduxit-bench {name}"))
                 } else if first.starts_with("--") {
                     (everything.as_str(), "the harness".to_owned())
                 } else {

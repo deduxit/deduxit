@@ -247,7 +247,7 @@ const OUT: u8 = 2;
 ///
 #[cfg_attr(feature = "parse", doc = "```")]
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
-/// use linlog::{Forest, Side, Reading, Sequent};
+/// use deduxit::{Forest, Side, Reading, Sequent};
 ///
 /// // ⊢ ~A, A ⊗ ~B, B
 /// let sequent: Sequent = "A, A -o B |- B".parse()?;
@@ -321,7 +321,7 @@ impl<'a> Reading<'a> {
     ///
     #[cfg_attr(feature = "parse", doc = "```")]
     #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
-    /// use linlog::{Forest, Limits, Mode, Order, Reading, Sequent};
+    /// use deduxit::{Forest, Limits, Mode, Order, Reading, Sequent};
     ///
     /// let text = "b / a, a |- b";
     /// let sequent = Sequent::parse_ordered(text, Order::Cyclic, &Limits::default())?;
@@ -644,9 +644,9 @@ impl<'a> Reading<'a> {
     /// consequent.
     #[cfg_attr(feature = "parse", doc = "```")]
     #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
-    /// use linlog::occurrences::IllConnective;
-    /// use linlog::sequents::Visit;
-    /// use linlog::{Forest, Reading, Sequent};
+    /// use deduxit::occurrences::IllConnective;
+    /// use deduxit::sequents::Visit;
+    /// use deduxit::{Forest, Reading, Sequent};
     ///
     /// let sequent: Sequent = "a |- !b -o a".parse()?;
     /// let forest = Forest::new(&sequent)?;

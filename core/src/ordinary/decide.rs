@@ -65,12 +65,12 @@ pub enum Verdict {
 ///
 #[cfg_attr(feature = "parse", doc = "```")]
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
-/// use linlog::Limits;
-/// use linlog::ordinary::{self, Logic, Verdict};
+/// use deduxit::Limits;
+/// use deduxit::ordinary::{self, Logic, Verdict};
 ///
 /// let sequent: ordinary::Sequent = "|- ((a -> b) -> a) -> a".parse()?;
 /// let options = ordinary::Options::default().with_logic(Logic::Classical);
-/// let search = linlog::Options::default();
+/// let search = deduxit::Options::default();
 /// let outcome = ordinary::decide(&sequent, &options, &search, &Limits::default(), |_| false)?;
 /// let Verdict::Valid(derivation) = outcome.verdict else {
 ///     panic!("Peirce's law holds classically");
@@ -79,7 +79,7 @@ pub enum Verdict {
 /// let options = options.with_logic(Logic::Intuitionistic);
 /// let outcome = ordinary::decide(&sequent, &options, &search, &Limits::default(), |_| false)?;
 /// assert!(matches!(outcome.verdict, Verdict::NotValid));
-/// # Ok::<(), linlog::Error>(())
+/// # Ok::<(), deduxit::Error>(())
 /// ```
 pub fn decide(
     sequent: &Sequent,

@@ -14,7 +14,7 @@ intuitionistic proofs back as lambda-terms.
 
 The repository [deduxit](https://github.com/deduxit/deduxit) is a
 collection of logic suites, grown one suite at a time, whose linear suite
-is linlog: the crates `linlog` and `linlog-cli` and the command `linlog`
+is linlog: the crates `linlog` and `deduxit-cli` and the command `linlog`
 keep that name.
 
 Version 0.2.0 adds first-order linear logic, cut and its elimination on
@@ -33,15 +33,15 @@ the browser on the same library.
 
 ## Install
 
-The command `linlog` is the package `linlog-cli`. Each
+The command `linlog` is the package `deduxit-cli`. Each
 [release](https://github.com/deduxit/deduxit/releases) has it built
 for Linux (an archive, a `.deb`, an `.rpm` and an Arch Linux package),
 macOS and Windows; crates.io and the flake of this repository build it:
 
 ```sh
-cargo install --locked linlog-cli                        # a Rust toolchain builds it
+cargo install --locked deduxit-cli                        # a Rust toolchain builds it
 nix run github:deduxit/deduxit -- --help           # run it once, without installing
-nix profile add github:deduxit/deduxit#linlog-cli  # install it into your profile
+nix profile add github:deduxit/deduxit#deduxit-cli  # install it into your profile
 ```
 
 Building needs Rust 1.92 or later. The library is the crate
@@ -150,7 +150,7 @@ New Computer Modern Math (its Book weight), © Antonis Tsolomitis, under
 the GUST Font License, which is the LaTeX Project Public License 1.3c
 ([`cli/fonts/NewCMMath-Book-LICENSE.txt`](cli/fonts/NewCMMath-Book-LICENSE.txt),
 which also says where the complete package is). The package
-`linlog-cli` is therefore `EUPL-1.2 AND OFL-1.1 AND LPPL-1.3c`; the
+`deduxit-cli` is therefore `EUPL-1.2 AND OFL-1.1 AND LPPL-1.3c`; the
 library `linlog` contains no font. Drawings and documents made with the OFL
 fonts are not covered by their licence (its condition 5); a PNG holds
 no font, while a PDF embeds the part of the font its text uses, and for

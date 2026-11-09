@@ -8,10 +8,10 @@
 //! bytes after it are a step: what to do, which goal, which formula.
 #![no_main]
 
+use deduxit::proofs::interactive::Needs;
+use deduxit::search::Options;
+use deduxit::{Interactive, Limits, Mode, Sequent, Step, ViewOptions};
 use libfuzzer_sys::fuzz_target;
-use linlog::proofs::interactive::Needs;
-use linlog::search::Options;
-use linlog::{Interactive, Limits, Mode, Sequent, Step, ViewOptions};
 
 fuzz_target!(|data: &[u8]| {
     let Some((&bits, rest)) = data.split_first() else {
@@ -83,7 +83,7 @@ fuzz_target!(|data: &[u8]| {
     {
         let check = proof.check_within(session.mode(), &limits, |_| false);
         assert!(
-            !matches!(check, Err(linlog::CheckError::Invalid(_))),
+            !matches!(check, Err(deduxit::CheckError::Invalid(_))),
             "a finished session's proof checks: {check:?}"
         );
     }

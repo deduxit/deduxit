@@ -178,8 +178,8 @@ pub(crate) fn set_up_stopped(forest: &Forest, stop: &mut dyn FnMut(u64) -> bool)
 ///
 #[cfg_attr(feature = "parse", doc = "```")]
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
-/// use linlog::search::{Engine, Options, Verdict, prove};
-/// use linlog::{Fragment, Mode, Sequent};
+/// use deduxit::search::{Engine, Options, Verdict, prove};
+/// use deduxit::{Fragment, Mode, Sequent};
 ///
 /// let sequent: Sequent = "A, A -o B |- B".parse()?;
 /// let outcome = prove(&sequent, Mode::CLASSICAL, &Options::default())?;
@@ -204,7 +204,7 @@ pub(crate) fn set_up_stopped(forest: &Forest, stop: &mut dyn FnMut(u64) -> bool)
 /// assert!(matches!(outcome.verdict, Verdict::Unprovable(_)));
 /// let outcome = prove(&sequent, Mode::CLASSICAL.with_mix(), &Options::default())?;
 /// assert!(matches!(outcome.verdict, Verdict::Proved(_)));
-/// # Ok::<(), linlog::Error>(())
+/// # Ok::<(), deduxit::Error>(())
 /// ```
 pub fn prove(sequent: &Sequent, mode: Mode, options: &Options) -> Result<Outcome, Error> {
     prove_within(sequent, mode, options, &Limits::default(), |_| false)
@@ -236,8 +236,8 @@ pub fn prove(sequent: &Sequent, mode: Mode, options: &Options) -> Result<Outcome
 ///
 #[cfg_attr(feature = "parse", doc = "```")]
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
-/// use linlog::search::{Options, Reason, Verdict, prove_within};
-/// use linlog::{Limits, Mode, Sequent};
+/// use deduxit::search::{Options, Reason, Verdict, prove_within};
+/// use deduxit::{Limits, Mode, Sequent};
 /// use std::time::{Duration, Instant};
 ///
 /// let sequent: Sequent = "|- (a & b) + (a & c), ~a par (~b & ~c)".parse()?;
@@ -247,7 +247,7 @@ pub fn prove(sequent: &Sequent, mode: Mode, options: &Options) -> Result<Outcome
 ///     Instant::now() >= deadline
 /// })?;
 /// assert!(!matches!(outcome.verdict, Verdict::Unknown(Reason::Stopped)));
-/// # Ok::<(), linlog::Error>(())
+/// # Ok::<(), deduxit::Error>(())
 /// ```
 pub fn prove_within(
     sequent: &Sequent,
@@ -429,8 +429,8 @@ impl<'a> Goal<'a> {
 ///
 #[cfg_attr(feature = "parse", doc = "```")]
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
-/// use linlog::search::{Goal, Options, Verdict, prove_goal};
-/// use linlog::{Forest, Limits, Member, Mode, Sequent};
+/// use deduxit::search::{Goal, Options, Verdict, prove_goal};
+/// use deduxit::{Forest, Limits, Member, Mode, Sequent};
 ///
 /// // ⊢ ~A, A ⊗ ~B, B, with the occurrences 0: ~A, 1: A ⊗ ~B, 2: A,
 /// // 3: ~B, 4: B. The goal ⊢ ~A, A is the left premise of the ⊗.
@@ -441,7 +441,7 @@ impl<'a> Goal<'a> {
 /// let limits = Limits::default();
 /// let outcome = prove_goal(goal, Mode::CLASSICAL, &Options::default(), &limits, |_| false)?;
 /// assert!(matches!(outcome.verdict, Verdict::Proved(_)));
-/// # Ok::<(), linlog::Error>(())
+/// # Ok::<(), deduxit::Error>(())
 /// ```
 pub fn prove_goal(
     goal: Goal<'_>,
@@ -2532,8 +2532,8 @@ pub enum Schedule {
 /// # Examples
 ///
 /// ```
-/// use linlog::Fragment;
-/// use linlog::search::Options;
+/// use deduxit::Fragment;
+/// use deduxit::search::Options;
 ///
 /// let options = Options::default()
 ///     .with_memo_limit(1 << 16)

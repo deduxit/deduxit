@@ -9,7 +9,7 @@
 # qcover libraries where they are built (nix build .#lltp -o bench/lltp,
 # .#iltp, .#qcover). Run from the repository with the command built:
 #
-#   cargo build --package linlog-cli && fuzz/seed.sh
+#   cargo build --package deduxit-cli && fuzz/seed.sh
 set -euo pipefail
 cd "$(dirname "$(realpath "$0")")/.."
 linlog=${LINLOG:-target/debug/linlog}

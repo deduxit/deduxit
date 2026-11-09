@@ -1212,8 +1212,8 @@ fn mell_nets() {
         assert_eq!(status, 0, "{args:?}");
         assert!(json.starts_with(r#"{"version":4,"#), "{json}");
         let mut document = serde_json::Deserializer::from_str(&json);
-        let net: linlog::MellStructure =
-            linlog::wire::upgrade(&mut document, &linlog::Limits::default()).unwrap();
+        let net: deduxit::MellStructure =
+            deduxit::wire::upgrade(&mut document, &deduxit::Limits::default()).unwrap();
         assert_eq!(net.is_correct(|_| false), Ok(()));
         assert_eq!(format!("{net}\n"), expected);
     }

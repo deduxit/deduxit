@@ -13,8 +13,8 @@ use crate::show::{
 };
 use crate::{Status, exit_on_interrupt, interrupted};
 use anyhow::{Result, bail};
-use linlog::proofs::cut::{self, Elimination, End};
-use linlog::{
+use deduxit::proofs::cut::{self, Elimination, End};
+use deduxit::{
     CheckError, Error, Forest, Member, Mode, Node, NodeId, Proof, Reading, Refusal, Settings,
 };
 use std::fmt::Write as _;
@@ -125,7 +125,7 @@ fn status(end: &End, asked: bool) -> Status {
     match end {
         End::CutFree => Status::Yes,
         End::Refused(Refusal::Elimination {
-            what: linlog::limits::Bound::Steps,
+            what: deduxit::limits::Bound::Steps,
             ..
         }) if asked => Status::Yes,
         _ => Status::Unknown,
@@ -474,7 +474,7 @@ fn eliminate_net_into(
     if show.format == Format::Json {
         let status = match &net {
             Net::Mll(net) => {
-                let e = linlog::nets::cut::eliminate(
+                let e = deduxit::nets::cut::eliminate(
                     net.as_ref(),
                     &settings.cut,
                     &settings.limits,
@@ -485,7 +485,7 @@ fn eliminate_net_into(
                 status(&e.end, asked)
             }
             Net::Mell(net) => {
-                let e = linlog::nets::cut::eliminate(
+                let e = deduxit::nets::cut::eliminate(
                     net,
                     &settings.cut,
                     &settings.limits,
@@ -535,11 +535,11 @@ fn run<'n>(
     mode: Mode,
     settings: &Settings,
     over: &dyn Fn() -> bool,
-    mut each: impl FnMut(&Net<'_>, &linlog::nets::cut::Step, String),
+    mut each: impl FnMut(&Net<'_>, &deduxit::nets::cut::Step, String),
 ) -> Result<(Net<'n>, Vec<String>, End)> {
     use std::borrow::Cow;
     let mut lines = Vec::new();
-    let mut seen = |before: &Net<'_>, step: &linlog::nets::cut::Step| {
+    let mut seen = |before: &Net<'_>, step: &deduxit::nets::cut::Step| {
         let line = format!(
             "{}. {} on the cut of {}",
             lines.len() + 1,
@@ -551,7 +551,7 @@ fn run<'n>(
     };
     let (reached, end) = match net {
         Net::Mll(net) => {
-            let e = linlog::nets::cut::eliminate(
+            let e = deduxit::nets::cut::eliminate(
                 net.as_ref(),
                 &settings.cut,
                 &settings.limits,
@@ -561,7 +561,7 @@ fn run<'n>(
             (Net::Mll(Cow::Owned(e.net)), e.end)
         }
         Net::Mell(net) => {
-            let e = linlog::nets::cut::eliminate(
+            let e = deduxit::nets::cut::eliminate(
                 net,
                 &settings.cut,
                 &settings.limits,
@@ -779,21 +779,21 @@ mod tests {
         ]));
         // The ends of a proof with cuts at one step and at a bound on
         // nodes the first step passes.
-        let limits = linlog::Limits::default();
+        let limits = deduxit::Limits::default();
         let mode = Mode::CLASSICAL;
-        let sequent: linlog::Sequent = "A, A -o B |- B".parse().unwrap();
-        let mut session = linlog::Interactive::new(&sequent, mode).unwrap();
+        let sequent: deduxit::Sequent = "A, A -o B |- B".parse().unwrap();
+        let mut session = deduxit::Interactive::new(&sequent, mode).unwrap();
         let goal = session.goals().next().unwrap();
-        let formula = linlog::CutFormula::parse_within(
+        let formula = deduxit::CutFormula::parse_within(
             "A -o B",
             mode,
-            &linlog::InputOptions::default(),
+            &deduxit::InputOptions::default(),
             &limits,
         )
         .unwrap();
         session.cut(goal, &formula, &[1], &limits).unwrap();
-        let options = linlog::Options::default();
-        let view = linlog::ViewOptions::default();
+        let options = deduxit::Options::default();
+        let view = deduxit::ViewOptions::default();
         session.close_all(&options, &view, &limits, |_| false);
         let proof = session.proof(&limits, |_| false).unwrap();
         let end = |options: cut::Options| {

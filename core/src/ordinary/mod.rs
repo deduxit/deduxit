@@ -27,8 +27,8 @@
 //!
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
-//! use linlog::ordinary::{self, Logic, Sequent, Translation, Verdict, translate};
-//! use linlog::{Limits, Options};
+//! use deduxit::ordinary::{self, Logic, Sequent, Translation, Verdict, translate};
+//! use deduxit::{Limits, Options};
 //!
 //! let sequent: Sequent = "a -> b, b -> c |- a -> c".parse()?;
 //! let limits = Limits::default();
@@ -41,7 +41,7 @@
 //!     panic!("valid");
 //! };
 //! assert_eq!(derivation.inference(derivation.root()).rule().name(), "→R");
-//! # Ok::<(), linlog::Error>(())
+//! # Ok::<(), deduxit::Error>(())
 //! ```
 
 // A variant a later step adds must not fall into an existing arm.
@@ -654,9 +654,9 @@ impl Display for Formula<'_> {
 ///
 #[cfg_attr(feature = "parse", doc = "```")]
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
-/// let sequent: linlog::ordinary::Sequent = "a /\\ b -> c |- ~c -> ~a \\/ ~b".parse()?;
+/// let sequent: deduxit::ordinary::Sequent = "a /\\ b -> c |- ~c -> ~a \\/ ~b".parse()?;
 /// assert_eq!(sequent.to_string(), "(a ∧ b) → c ⊢ ¬c → (¬a ∨ ¬b)");
-/// # Ok::<(), linlog::Error>(())
+/// # Ok::<(), deduxit::Error>(())
 /// ```
 #[derive(Clone, Debug)]
 pub struct Sequent {

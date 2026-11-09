@@ -192,7 +192,7 @@ pub(crate) fn one_sided(forest: &Forest) -> Box<[Written]> {
 ///
 #[cfg_attr(feature = "parse", doc = "```")]
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
-/// use linlog::{ClassicalSequent, Side};
+/// use deduxit::{ClassicalSequent, Side};
 ///
 /// let written: ClassicalSequent = "A -o B, A |- B".parse()?;
 /// assert_eq!(written.to_string(), "A ⊸ B, A ⊢ B");
@@ -203,7 +203,7 @@ pub(crate) fn one_sided(forest: &Forest) -> Box<[Written]> {
 /// let implication = moved.forest().roots()[0];
 /// assert!(moved.is_negated(implication));
 /// assert_eq!(moved.written(implication).side(), Side::Input);
-/// # Ok::<(), linlog::Error>(())
+/// # Ok::<(), deduxit::Error>(())
 /// ```
 #[derive(Clone, Debug)]
 pub struct ClassicalSequent {

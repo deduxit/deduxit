@@ -775,7 +775,7 @@ serde_json, which the CLI and the core's tests already have.
 
 ## Extension points
 
-- **A family**: an entry of `linlog::families::FAMILIES` (name, summary,
+- **A family**: an entry of `deduxit::families::FAMILIES` (name, summary,
   default sizes, instances per size, generator) with its verdict proved
   by construction; `verdicts_as_constructed` then covers its smallest
   size. Pick the default sizes so that the largest one times out at the

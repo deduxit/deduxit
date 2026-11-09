@@ -11,11 +11,11 @@
 
 use crate::failure::Failure;
 use crate::tab;
-use linlog::export::{latex, rocq, svg, typst};
-use linlog::ordinary::{
+use deduxit::export::{latex, rocq, svg, typst};
+use deduxit::ordinary::{
     self, Applicable, Context, Interactive, Logic, Needs, NodeId, Rule, Sequent, Side, Step,
 };
-use linlog::{GoalId, Progress, Settings, wire};
+use deduxit::{GoalId, Progress, Settings, wire};
 use serde::{Deserialize, Serialize};
 
 /// The stop of every call: the page cancels by stopping the worker, so
@@ -183,7 +183,7 @@ pub fn rules(
     let state = session_of(session, &settings)?;
     let rules = state
         .rules(GoalId::new(goal), side_of(side)?, position as usize)
-        .map_err(|e| Failure::from(linlog::Error::from(e)))?;
+        .map_err(|e| Failure::from(deduxit::Error::from(e)))?;
     written(&rules.into_iter().map(Offered::from).collect::<Vec<_>>())
 }
 
@@ -268,7 +268,7 @@ pub fn apply(session: &str, goal: u32, step: &str, settings: &str) -> Result<Str
     let step: StepForm = serde_json::from_str(step).map_err(Failure::json)?;
     let opened = state
         .apply(GoalId::new(goal), &step.step())
-        .map_err(|e| Failure::from(linlog::Error::from(e)))?;
+        .map_err(|e| Failure::from(deduxit::Error::from(e)))?;
     changed(&state, &settings, Opened { opened })
 }
 
@@ -329,7 +329,7 @@ pub fn close(session: &str, goal: u32, settings: &str) -> Result<String, Failure
     let refused = closed
         .grafted
         .err()
-        .and_then(|refusal| serde_json::to_value(linlog::Error::Refused(refusal)).ok());
+        .and_then(|refusal| serde_json::to_value(deduxit::Error::Refused(refusal)).ok());
     changed(
         &state,
         &settings,

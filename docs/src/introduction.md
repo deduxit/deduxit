@@ -9,7 +9,7 @@ propositional logic through its embeddings into linear logic.
 
 The repository [deduxit](https://github.com/deduxit/deduxit) is a
 collection of logic suites, grown one suite at a time, whose linear suite
-is linlog: the crates `linlog` and `linlog-cli` and the command `linlog`
+is linlog: the crates `linlog` and `deduxit-cli` and the command `linlog`
 keep that name. The collection's name is Latin:
 
 > **dēdūxit** [deːˈduːk.sɪt] *Latin, verb*: "it has derived", the perfect of *dēdūcō*, to lead down, derive.

@@ -9,11 +9,11 @@
 
 use crate::failure::Failure;
 use crate::tab;
-use linlog::export::{Drawable, latex, pdf, png, rocq, svg, typst};
-use linlog::proofs::Compact;
-use linlog::proofs::interactive::{Applicable, Inverted, Needs, Split};
-use linlog::proofs::{Sides, cut};
-use linlog::{
+use deduxit::export::{Drawable, latex, pdf, png, rocq, svg, typst};
+use deduxit::proofs::Compact;
+use deduxit::proofs::interactive::{Applicable, Inverted, Needs, Split};
+use deduxit::proofs::{Sides, cut};
+use deduxit::{
     ClassicalRule, ClassicalSequent, ClassicalSides, Criterion, CutFormula, Disproof, Error,
     Fragment, GoalId, IllSequent, IllSyntax, InfId, Inference, Interactive, MellStructure, Member,
     Mode, Named, NetError, Node, NodeId, Outcome, Progress, Proof, ProofStructure, Reading, Rule,
@@ -56,8 +56,8 @@ pub fn about() -> String {
                 "parameters": [
                     {
                         "name": "logic",
-                        "values": linlog::ordinary::Logic::NAMES,
-                        "default": linlog::ordinary::Options::default().logic,
+                        "values": deduxit::ordinary::Logic::NAMES,
+                        "default": deduxit::ordinary::Options::default().logic,
                     },
                 ],
                 "settings": ["lambda", "ordinary.translation", "view.structural"],
@@ -365,8 +365,8 @@ struct CutMade {
 /// Returns a session's cuts with their formulas as typed.
 fn cuts_made(state: &Interactive) -> Vec<CutMade> {
     let Ok(derivation) = state.derivation_within(
-        &linlog::ViewOptions::default(),
-        &linlog::Limits::default().with_derivation_bytes(None),
+        &deduxit::ViewOptions::default(),
+        &deduxit::Limits::default().with_derivation_bytes(None),
         never,
     ) else {
         return Vec::new();
@@ -391,8 +391,8 @@ fn cuts_made(state: &Interactive) -> Vec<CutMade> {
 /// closed: each closed inference whose rule, on its conclusion, is one.
 fn invertible_steps(state: &Interactive) -> Vec<GoalId> {
     let Ok(derivation) = state.derivation_within(
-        &linlog::ViewOptions::default(),
-        &linlog::Limits::default().with_derivation_bytes(None),
+        &deduxit::ViewOptions::default(),
+        &deduxit::Limits::default().with_derivation_bytes(None),
         never,
     ) else {
         return Vec::new();
@@ -630,7 +630,7 @@ impl Automatic {
 /// Returns the bounds of a run of invertible steps: the settings' memory
 /// bound, and no more than the size of a derivation the page draws, so
 /// that the steps never make a session the page could not show.
-fn inverting(settings: &Settings) -> linlog::Limits {
+fn inverting(settings: &Settings) -> deduxit::Limits {
     let limits = settings.limits;
     let bound = match (limits.memory_bytes, limits.derivation_bytes) {
         (Some(memory), Some(derivation)) => Some(memory.min(derivation)),
@@ -943,8 +943,8 @@ pub fn hint(session: &str, goal: u32, settings: &str) -> Result<String, Failure>
     if state.forest().has_binders() {
         return first_order_hint(&state, GoalId::new(goal), &settings);
     }
-    let target = linlog::Goal::new(state.forest(), members).map_err(Failure::from)?;
-    let outcome = linlog::prove_goal(
+    let target = deduxit::Goal::new(state.forest(), members).map_err(Failure::from)?;
+    let outcome = deduxit::prove_goal(
         target,
         state.mode(),
         &settings.search,
@@ -1002,7 +1002,7 @@ fn first_order_hint(
                     let at = ids.iter().position(|&g| g == goal).map(|i| {
                         // A derivation numbers fewer inferences than a
                         // `u32` counts, as the session does.
-                        linlog::proofs::derivation::InfId::new(i as u32)
+                        deduxit::proofs::derivation::InfId::new(i as u32)
                     });
                     match at {
                         // A witness the search made a constant of reads
@@ -1032,7 +1032,7 @@ fn first_order_hint(
 /// when the bounds refuse its derivation.
 fn first_steps(
     state: &Interactive,
-    proof: &linlog::Proof,
+    proof: &deduxit::Proof,
     settings: &Settings,
 ) -> Result<Option<(Vec<StepForm>, bool)>, Failure> {
     let view = settings.view.with_compact(Compact::Never);
@@ -1051,9 +1051,9 @@ fn first_steps(
 /// on its left.
 fn read_steps(
     state: &Interactive,
-    derivation: &linlog::Derivation<'_>,
-    from: linlog::proofs::derivation::InfId,
-    witness: impl Fn(linlog::proofs::derivation::InfId) -> Option<String>,
+    derivation: &deduxit::Derivation<'_>,
+    from: deduxit::proofs::derivation::InfId,
+    witness: impl Fn(deduxit::proofs::derivation::InfId) -> Option<String>,
 ) -> Option<(Vec<StepForm>, bool)> {
     let mut steps = Vec::new();
     let mut at = from;
@@ -1125,7 +1125,7 @@ pub fn proof(session: &str, settings: &str) -> Result<String, Failure> {
 }
 
 /// Returns the lambda-term of a session's proof, the session's own
-/// derivation read back ([`Derivation::term`](linlog::Derivation::term)):
+/// derivation read back ([`Derivation::term`](deduxit::Derivation::term)):
 /// a finished proof of intuitionistic linear logic as a term of the
 /// linear lambda calculus, one of affine logic as a term of the affine
 /// one, a cut as a redex. The answer is the term's JSON with its `text`
@@ -1153,7 +1153,7 @@ pub fn term(session: &str, settings: &str) -> Result<String, Failure> {
 struct Termed {
     /// The term's own form.
     #[serde(flatten)]
-    term: linlog::lambda::Term,
+    term: deduxit::lambda::Term,
     /// The term as the settings' `lambda` writes it.
     text: String,
     /// Its typing judgement, likewise.
@@ -1164,7 +1164,7 @@ struct Termed {
 /// the term and its judgement written within `limits.derivation_bytes`,
 /// a refusal on the way as `{"error": …}`.
 pub(crate) fn termed(
-    term: Result<linlog::lambda::Term, Error>,
+    term: Result<deduxit::lambda::Term, Error>,
     settings: &Settings,
 ) -> Result<String, Failure> {
     let (options, limits) = (&settings.lambda, &settings.limits);
@@ -1204,7 +1204,7 @@ pub fn prove(sequent: &str, mode: &str, settings: &str) -> Result<String, Failur
     let settings = tab::read(settings)?;
     let mode: Mode = mode.parse().map_err(Failure::from)?;
     let sequent = sequent_in(sequent, mode, &settings)?;
-    let outcome = linlog::prove_within(&sequent, mode, &settings.search, &settings.limits, never)
+    let outcome = deduxit::prove_within(&sequent, mode, &settings.search, &settings.limits, never)
         .map_err(Failure::from)?;
     written(&Decided {
         refutation_checked: refutation_checked(&outcome),
@@ -1318,7 +1318,7 @@ pub fn export(session: &str, format: &str, settings: &str) -> Result<String, Fai
         Some(writing) => writing,
         None if as_written => {
             // The session's sequent passed the bounds already.
-            let unbounded = linlog::Limits::default().with_occurrences(None);
+            let unbounded = deduxit::Limits::default().with_occurrences(None);
             one_sided = ClassicalSequent::read_one_sided(state.sequent().clone(), &unbounded)
                 .map_err(Failure::from)?;
             one_sided.writing()
@@ -1516,7 +1516,7 @@ fn refutation_checked(outcome: &Outcome) -> Option<bool> {
 }
 
 /// Returns a refusal in its written form, as an error.
-fn refusal(refusal: linlog::Refusal) -> serde_json::Value {
+fn refusal(refusal: deduxit::Refusal) -> serde_json::Value {
     serde_json::to_value(Error::Refused(refusal)).unwrap_or_default()
 }
 
@@ -1617,7 +1617,7 @@ fn drawn(proof: &Proof, state: &Interactive, settings: &Settings) -> Result<Draw
         Some(writing) => writing,
         None => {
             // The session's sequent passed the bounds already.
-            let unbounded = linlog::Limits::default().with_occurrences(None);
+            let unbounded = deduxit::Limits::default().with_occurrences(None);
             one_sided = ClassicalSequent::read_one_sided(state.sequent().clone(), &unbounded)?;
             one_sided.writing()
         }
@@ -1656,7 +1656,7 @@ fn member_in(proof: &Proof, member: Member, mode: Mode) -> String {
 
 /// Returns the text of an occurrence as `mode` reads it: under the
 /// intuitionistic reading in an intuitionistic mode, else one-sided.
-fn formula_in(forest: &linlog::Forest, occurrence: linlog::OccId, mode: Mode) -> String {
+fn formula_in(forest: &deduxit::Forest, occurrence: deduxit::OccId, mode: Mode) -> String {
     match Reading::of_mode(forest, mode)
         .ok()
         .filter(|_| mode.is_intuitionistic())
@@ -2024,7 +2024,7 @@ impl Net {
     /// boxes for a sequent with exponentials, and for one without where
     /// the proof cuts an occurrence twice, which needs two vertices of one
     /// occurrence.
-    fn of(proof: &Proof, mode: Mode, limits: &linlog::Limits) -> Result<Self, Error> {
+    fn of(proof: &Proof, mode: Mode, limits: &deduxit::Limits) -> Result<Self, Error> {
         nets_exist(proof.sequent().fragment(), mode)?;
         let criterion = Criterion::of(mode)?;
         let boxed = || MellStructure::from_proof(proof, criterion, limits, never).map(Self::Mell);
@@ -2036,7 +2036,7 @@ impl Net {
                 if matches!(
                     *error,
                     NetError::Placement {
-                        fault: linlog::Placement::Cut,
+                        fault: deduxit::Placement::Cut,
                         ..
                     }
                 ) =>

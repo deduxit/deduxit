@@ -689,7 +689,7 @@ for NanoYalla. What the code relies on:
   it is not the Rust proof's own term (the Rocq checker accepts every
   term that keeps its zones consistent, `rocq.md`). The statement's
   calculus is what the mode allows and what the derivation uses together
-  (`linlog::Calculus`, `cut` among its fields, set by a cut inference),
+  (`deduxit::Calculus`, `cut` among its fields, set by a cut inference),
   so a certificate never claims less than the proof needs (a proof with
   a cut states the calculus with `cut := true`, through `soundness` with
   the record literal); a cut's premises get a `Quest` for a `?` cut
@@ -717,7 +717,7 @@ for NanoYalla. What the code relies on:
   first; then `nix flake update rocq-linlog` moves the pin here, with the
   exporter's change in the same commit.
 - **Certificates of non-derivability** (`rocq::write_disproof`,
-  `linlog::disproof`): for linlog's library whatever the mode
+  `deduxit::disproof`): for linlog's library whatever the mode
   (`Unsupported::Disproof` where the options name NanoYalla), the lemma
   `~ ll (atom := string) R [Γ]`, or `~ ill … R [Γ] C` in intuitionistic
   mode with the reading's goal as for proofs, `R` the mode's rules alone

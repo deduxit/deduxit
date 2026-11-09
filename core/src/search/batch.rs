@@ -17,9 +17,9 @@
 //!
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
-//! use linlog::Limits;
-//! use linlog::search::{self, Verdict};
-//! use linlog::search::batch::{Options, Problem, prove};
+//! use deduxit::Limits;
+//! use deduxit::search::{self, Verdict};
+//! use deduxit::search::batch::{Options, Problem, prove};
 //!
 //! let problems = ["A |- A", "A |- B"].map(|text| Problem::new(text, text.parse().unwrap(), None));
 //! let search = search::Options::default();

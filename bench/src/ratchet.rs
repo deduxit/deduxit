@@ -99,7 +99,7 @@ pub fn ratchet(
         .filter(|name| only.is_empty() || only.iter().any(|o| o == name))
         .collect();
     if let Some(unknown) = only.iter().find(|o| !names.contains(&o.as_str())) {
-        bail!("no journey {unknown:?}; `linlog-bench journeys` lists them");
+        bail!("no journey {unknown:?}; `deduxit-bench journeys` lists them");
     }
     let scratch = match keep {
         Some(dir) => dir.to_owned(),

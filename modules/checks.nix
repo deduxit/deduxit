@@ -90,7 +90,7 @@
     in
     {
       checks = {
-        build = config.packages.linlog-cli;
+        build = config.packages.deduxit-cli;
 
       }
       // perCrate {
@@ -135,7 +135,7 @@
           // {
             inherit (workspace) cargoArtifacts;
             pnameSuffix = "-doc-private";
-            cargoDocExtraArgs = "--no-deps --document-private-items --package linlog --package linlog-cli";
+            cargoDocExtraArgs = "--no-deps --document-private-items --package deduxit --package deduxit-cli";
             env.RUSTDOCFLAGS = "--deny warnings";
           }
         );
@@ -160,7 +160,7 @@
             pnameSuffix = "-wasm";
             cargoArtifacts = null;
             buildPhaseCargoCommand = ''
-              cargo check --locked --target wasm32-unknown-unknown --package linlog \
+              cargo check --locked --target wasm32-unknown-unknown --package deduxit \
                 --no-default-features \
                 --features parse,serialize,interactive,latex,typst,svg,rocq,png,pdf
             '';
@@ -193,8 +193,8 @@
             inherit (workspace) cargoArtifacts;
             pnameSuffix = "-package";
             buildPhaseCargoCommand = ''
-              cargo package --locked --offline --registry crates-io --package linlog
-              cargo package --offline --registry crates-io --package linlog-cli \
+              cargo package --locked --offline --registry crates-io --package deduxit
+              cargo package --offline --registry crates-io --package deduxit-cli \
                 --no-verify --exclude-lockfile
               # Outside the workspace's directory, whose manifest would claim
               # the packages.
@@ -204,7 +204,7 @@
               for crate in target/package/*.crate; do
                 tar -xzf "$crate" -C "$packages"
               done
-              cd "$packages"/linlog-cli-*
+              cd "$packages"/deduxit-cli-*
               printf '\n[patch.crates-io]\nlinlog = { path = "../%s" }\n' \
                 "$(basename ../linlog-[0-9]*)" >>Cargo.toml
               # The workspace's lock, so that every dependency is the one it pins.
@@ -229,8 +229,8 @@
             env.RUSTFLAGS = "-D warnings";
             nativeBuildInputs = [ pkgs.cargo-hack ];
             buildPhaseCargoCommand = ''
-              cargo hack check --each-feature --locked --package linlog
-              cargo hack check --feature-powerset --depth 2 --locked --package linlog
+              cargo hack check --each-feature --locked --package deduxit
+              cargo hack check --feature-powerset --depth 2 --locked --package deduxit
             '';
             doInstallCargoArtifacts = false;
           }

@@ -383,8 +383,8 @@ enum Shape {
 ///
 #[cfg_attr(feature = "parse", doc = "```")]
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
-/// use linlog::Limits;
-/// use linlog::ordinary::{Interactive, Logic, Rule, Sequent, Side, Step};
+/// use deduxit::Limits;
+/// use deduxit::ordinary::{Interactive, Logic, Rule, Sequent, Side, Step};
 ///
 /// let sequent: Sequent = "a /\\ b |- b /\\ a".parse()?;
 /// let mut state = Interactive::new(&sequent, Logic::Intuitionistic)?;
@@ -398,7 +398,7 @@ enum Shape {
 /// }
 /// let derivation = state.finished(&Limits::default(), |_| false)?;
 /// assert_eq!(derivation.inference(derivation.root()).rule(), Rule::AndLeft);
-/// # Ok::<(), linlog::Error>(())
+/// # Ok::<(), deduxit::Error>(())
 /// ```
 ///
 /// # JSON

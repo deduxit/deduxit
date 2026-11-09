@@ -7,13 +7,13 @@
 
 #![cfg(all(feature = "parse", feature = "serialize"))]
 
-use linlog::search::{Engine, Options, prove, prove_within};
-use linlog::{
+use deduxit::search::{Engine, Options, prove, prove_within};
+use deduxit::{
     Branch, Criterion, Forest, Fragment, GoalId, Interactive, Limits, MellStructure, Member, Mode,
     Named, NetError, Node, NodeId, OccId, Order, Placement, Proof, ProofStructure, Rule, Sequent,
     Step, VertexId, ViewOptions,
 };
-use linlog::{CutFormula, InputOptions};
+use deduxit::{CutFormula, InputOptions};
 
 /// A sequent's JSON as another form nests it: without `version`.
 fn nested(s: &Sequent) -> String {
@@ -48,7 +48,7 @@ fn repeated_atom_name_is_one_atom() {
     let s: Sequent = serde_json::from_str(json).unwrap();
     assert_eq!(s, "A |- A".parse().unwrap());
     let outcome = prove(&s, Mode::CLASSICAL, &Options::default()).unwrap();
-    assert!(matches!(outcome.verdict, linlog::Verdict::Proved(_)));
+    assert!(matches!(outcome.verdict, deduxit::Verdict::Proved(_)));
 }
 
 /// An atom's name is a variable of the text syntax, so that the sequent
@@ -61,12 +61,12 @@ fn atom_names_are_variables_of_the_text() {
             r#"{{"version":1,"terms":[{{"V":0}}],"roots":[0],"atoms":[{}]}}"#,
             serde_json::to_string(name).unwrap()
         );
-        let read = linlog::wire::upgrade::<Sequent, _>(
+        let read = deduxit::wire::upgrade::<Sequent, _>(
             &mut serde_json::Deserializer::from_str(&json),
-            &linlog::Limits::default(),
+            &deduxit::Limits::default(),
         );
         assert!(
-            matches!(&read, Err(linlog::Error::AtomName { name: n, .. }) if n == name),
+            matches!(&read, Err(deduxit::Error::AtomName { name: n, .. }) if n == name),
             "{name:?}: {read:?}"
         );
     }
@@ -367,7 +367,7 @@ fn outcome_json_format() {
         &s,
         Mode::CLASSICAL.with_mix(),
         &net,
-        &linlog::Limits::default(),
+        &deduxit::Limits::default(),
         |_| true,
     )
     .unwrap();
@@ -461,7 +461,7 @@ fn net_json_format_and_round_trip() {
 /// than read its links as occurrences.
 #[test]
 fn mell_structure_json_format_and_round_trip() {
-    use linlog::{Error, wire};
+    use deduxit::{Error, wire};
     let s: Sequent = "!a, !b |- !a".parse().unwrap();
     let outcome = prove(&s, Mode::CLASSICAL, &Options::default()).unwrap();
     let proof = outcome.verdict.proof().unwrap();
@@ -519,7 +519,7 @@ fn mell_structure_json_format_and_round_trip() {
 /// whole, and a record that cannot be the sequent's is refused.
 #[test]
 fn a_session_keeps_how_its_sequent_was_written() {
-    let written: linlog::ClassicalSequent = "A -o B, A |- ~~B".parse().unwrap();
+    let written: deduxit::ClassicalSequent = "A -o B, A |- ~~B".parse().unwrap();
     let state = Interactive::of_classical(&written, Mode::CLASSICAL, &Limits::default()).unwrap();
     let json = serde_json::to_string(&state).unwrap();
     assert!(json.starts_with(r#"{"version":1,"#), "{json}");
@@ -703,7 +703,7 @@ fn interactive_json_format_and_round_trip() {
             goals[0],
             &Options::default(),
             &ViewOptions::default(),
-            &linlog::Limits::default(),
+            &deduxit::Limits::default(),
             |_| false,
         )
         .unwrap();
@@ -714,12 +714,12 @@ fn interactive_json_format_and_round_trip() {
     let closed = back.close_all(
         &Options::default(),
         &ViewOptions::default(),
-        &linlog::Limits::default(),
+        &deduxit::Limits::default(),
         |_| false,
     );
     assert_eq!(closed.len(), 2);
     assert_eq!(
-        back.proof(&linlog::Limits::default(), |_| false)
+        back.proof(&deduxit::Limits::default(), |_| false)
             .unwrap()
             .check(mix),
         Ok(())
@@ -742,7 +742,7 @@ fn interactive_json_format_and_round_trip() {
 /// call, and the variant's fields; described, the message has formulas.
 #[test]
 fn error_json_format() {
-    let limits = linlog::Limits::default().with_occurrences(Some(2));
+    let limits = deduxit::Limits::default().with_occurrences(Some(2));
     let error = Sequent::parse_within("|- a * b", &limits).unwrap_err();
     assert_eq!(
         serde_json::to_string(&error).unwrap(),
@@ -765,7 +765,7 @@ fn error_json_format() {
     let s: Sequent = "|- a * b, ~a, ~b".parse().unwrap();
     let axiom = vec![Node::Ax(Member::new(1), Member::new(3))];
     let proof = Proof::new(Forest::new(&s).unwrap(), axiom, NodeId::new(0)).unwrap();
-    let error = linlog::Error::from(proof.check(Mode::CLASSICAL).unwrap_err());
+    let error = deduxit::Error::from(proof.check(Mode::CLASSICAL).unwrap_err());
     let json = serde_json::to_string(&error).unwrap();
     assert!(
         json.starts_with(
@@ -790,12 +790,12 @@ fn error_json_format() {
     ];
     let net = ProofStructure::from_links(Forest::new(&s).unwrap(), Criterion::MLL, &links).unwrap();
     let error = net.is_correct(|_| false).unwrap_err();
-    let linlog::nets::NetError::SwitchingCycle { cycle, .. } = &error else {
+    let deduxit::nets::NetError::SwitchingCycle { cycle, .. } = &error else {
         panic!("{error}");
     };
     let ids: Vec<u32> = cycle.iter().map(|v| v.get()).collect();
     assert!(ids.len() > 1, "{ids:?}");
-    let json = serde_json::to_value(linlog::Error::from(error.clone())).unwrap();
+    let json = serde_json::to_value(deduxit::Error::from(error.clone())).unwrap();
     assert_eq!(json["details"]["cycle"], serde_json::json!(ids));
 }
 
@@ -804,7 +804,7 @@ fn error_json_format() {
 /// `"auto"`, and no bound `null`.
 #[test]
 fn options_json_format() {
-    use linlog::search::{Bias, Cadence, Jobs, Schedule};
+    use deduxit::search::{Bias, Cadence, Jobs, Schedule};
     let defaults = serde_json::to_string(&Options::default()).unwrap();
     assert_eq!(
         defaults,
@@ -854,7 +854,7 @@ fn options_json_format() {
 #[cfg(feature = "latex")]
 #[test]
 fn settings_json_format() {
-    use linlog::Settings;
+    use deduxit::Settings;
     let defaults = Settings::default();
     let json = serde_json::to_string(&defaults).unwrap();
     assert_eq!(serde_json::from_str::<Settings>(&json).unwrap(), defaults);
@@ -868,7 +868,7 @@ fn settings_json_format() {
     assert_eq!(read.clock.pool_after_ms, defaults.clock.pool_after_ms);
     assert_eq!(read.limits.memory_bytes, Some(1024));
     assert_eq!(read.search.copies, Some(5));
-    assert_eq!(read.styles.latex.form, linlog::export::Form::Standalone);
+    assert_eq!(read.styles.latex.form, deduxit::export::Form::Standalone);
     let error = serde_json::from_str::<Settings>("{\"styles\":{\"html\":{}}}").unwrap_err();
     assert!(
         error.to_string().contains("unknown field `html`"),
@@ -882,7 +882,7 @@ fn settings_json_format() {
 /// sequent lacks is refused.
 #[test]
 fn disproof_json_format_and_round_trip() {
-    use linlog::{Disproof, Error, ErrorKind, Limits, Verdict, wire};
+    use deduxit::{Disproof, Error, ErrorKind, Limits, Verdict, wire};
     let s: Sequent = "|- a, a".parse().unwrap();
     let outcome = prove(&s, Mode::CLASSICAL, &Options::default()).unwrap();
     let Verdict::Unprovable(disproof) = &outcome.verdict else {
@@ -921,11 +921,11 @@ fn disproof_json_format_and_round_trip() {
 /// they write.
 fn read_alike<T>(json: &str) -> String
 where
-    T: linlog::wire::Readable + serde::Serialize + serde::de::DeserializeOwned,
+    T: deduxit::wire::Readable + serde::Serialize + serde::de::DeserializeOwned,
 {
-    use linlog::wire::{self, Within};
+    use deduxit::wire::{self, Within};
     use serde::de::DeserializeSeed;
-    let limits = linlog::Limits::default();
+    let limits = deduxit::Limits::default();
     let document = || serde_json::Deserializer::from_str(json);
     let upgraded: T = wire::upgrade(&mut document(), &limits).unwrap();
     let within: T = Within::<T>::new(&limits)
@@ -947,8 +947,8 @@ where
 /// every reader counts a sequent against the occurrence bound.
 #[test]
 fn wire_levels() {
-    use linlog::limits::Refusal;
-    use linlog::{Error, Limits, wire};
+    use deduxit::limits::Refusal;
+    use deduxit::{Error, Limits, wire};
     let s: Sequent = "A, A -o B |- B".parse().unwrap();
     let sequent = serde_json::to_string(&s).unwrap();
     let outcome = prove(&s, Mode::INTUITIONISTIC, &Options::default()).unwrap();
@@ -1073,7 +1073,7 @@ fn first_order_round_trip() {
         serde_json::to_string(&s).unwrap(),
         r#"{"version":7,"terms":[{"V":0},{"D":1},{"⊗":[0,1]},{"∃":2},{"D":2},{"V":1},{"∃":5}],"roots":[3,4,6],"atoms":[{"P":[1,[0,1]]},{"P":[2,[0]]},{"P":[1,[2,1]]}],"symbols":[["c",0],["p",2],["q",1],["a",0]],"fo":[{"B":0},{"F":[0,[]]},{"F":[3,[]]}],"binders":["x","y"],"antecedents":2}"#
     );
-    let ill: linlog::IllSequent = "forall x. p(x, c) -o q(x), p(a, c) |- exists y. q(y)"
+    let ill: deduxit::IllSequent = "forall x. p(x, c) -o q(x), p(a, c) |- exists y. q(y)"
         .parse()
         .unwrap();
     let json = serde_json::to_string(&ill).unwrap();
@@ -1081,7 +1081,7 @@ fn first_order_round_trip() {
         json,
         r#"{"version":7,"terms":[{"V":0},{"V":1},{"⊸":[0,1]},{"∀":2},{"V":2},{"∃":1}],"atoms":[{"P":[1,[0,1]]},{"P":[2,[0]]},{"P":[1,[2,1]]}],"symbols":[["c",0],["p",2],["q",1],["a",0]],"fo":[{"B":0},{"F":[0,[]]},{"F":[3,[]]}],"binders":["x","y"],"hypotheses":[3,4],"goal":5}"#
     );
-    let back: linlog::IllSequent = serde_json::from_str(&json).unwrap();
+    let back: deduxit::IllSequent = serde_json::from_str(&json).unwrap();
     assert_eq!(back.to_string(), ill.to_string());
     assert_eq!(back.sequent().to_string(), ill.sequent().to_string());
     // A propositional sequent's bytes are those of level 1.
@@ -1112,8 +1112,8 @@ fn first_order_round_trip() {
         r#"{{"version":7,"terms":[{{"V":0}}],"roots":[0],"atoms":[{{"P":[2,[40]]}}],"symbols":[["a",0],["f",2],["p",1]],"fo":[{fo}]}}"#
     );
     let mut document = serde_json::Deserializer::from_str(&json);
-    let error =
-        linlog::wire::upgrade::<Sequent, _>(&mut document, &linlog::Limits::default()).unwrap_err();
+    let error = deduxit::wire::upgrade::<Sequent, _>(&mut document, &deduxit::Limits::default())
+        .unwrap_err();
     assert_eq!(error.code(), "too_many_terms", "{error}");
     assert_eq!(error.setting(), Some("limits.terms"));
     // What a file cannot hold: a loose variable, a symbol at two arities,
@@ -1145,9 +1145,10 @@ fn first_order_round_trip() {
             .unwrap_err()
             .to_string();
         let mut document = serde_json::Deserializer::from_str(json);
-        let error = linlog::wire::upgrade::<Sequent, _>(&mut document, &linlog::Limits::default())
-            .map(|_| error.clone())
-            .unwrap_err();
+        let error =
+            deduxit::wire::upgrade::<Sequent, _>(&mut document, &deduxit::Limits::default())
+                .map(|_| error.clone())
+                .unwrap_err();
         assert_eq!(error.code(), code, "{json}: {error}");
     }
 }

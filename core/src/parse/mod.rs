@@ -959,13 +959,13 @@ impl Sequent {
     /// # Examples
     ///
     /// ```
-    /// use linlog::{Limits, Order, Sequent};
+    /// use deduxit::{Limits, Order, Sequent};
     ///
     /// let cyclic = Sequent::parse_ordered("a * b |- a * b", Order::Cyclic, &Limits::default())?;
     /// assert_eq!(cyclic.to_string(), "⊢ ~b ⅋ ~a, a ⊗ b");
     /// let commutative: Sequent = "a * b |- a * b".parse()?;
     /// assert_eq!(commutative.to_string(), "⊢ ~a ⅋ ~b, a ⊗ b");
-    /// # Ok::<(), linlog::Error>(())
+    /// # Ok::<(), deduxit::Error>(())
     /// ```
     pub fn parse_ordered(text: &str, order: Order, limits: &Limits) -> Result<Self, Error> {
         read(text, limits.occurrences, limits.terms, order, None)

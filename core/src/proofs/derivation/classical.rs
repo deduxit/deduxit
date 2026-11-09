@@ -370,7 +370,7 @@ struct Shown {
 ///
 #[cfg_attr(feature = "parse", doc = "```")]
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
-/// use linlog::{ClassicalSequent, Limits, Mode, Options, TwoSided, prove};
+/// use deduxit::{ClassicalSequent, Limits, Mode, Options, TwoSided, prove};
 ///
 /// let written: ClassicalSequent = "|- A^ par A".parse()?;
 /// let outcome = prove(written.sequent(), Mode::CLASSICAL, &Options::default())?;
@@ -381,7 +381,7 @@ struct Shown {
 ///     view.to_string(),
 ///     " ───── ax\n A ⊢ A\n─────── ~R\n⊢ ~A, A\n──────── ⅋R\n⊢ ~A ⅋ A"
 /// );
-/// # Ok::<(), linlog::Error>(())
+/// # Ok::<(), deduxit::Error>(())
 /// ```
 #[derive(Clone, Debug)]
 pub struct TwoSided<'a> {

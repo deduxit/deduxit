@@ -192,8 +192,8 @@ impl Sequent {
     /// follows, each naming a term that [`Sequent::term`] returns.
     ///
     /// ```
-    /// use linlog::sequents::Visit;
-    /// use linlog::{Sequent, Term};
+    /// use deduxit::sequents::Visit;
+    /// use deduxit::{Sequent, Term};
     ///
     /// let sequent: Sequent = "⊢ a ⊗ !b".parse().unwrap();
     /// let mut out = String::new();

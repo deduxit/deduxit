@@ -44,7 +44,7 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 ///
 #[cfg_attr(feature = "parse", doc = "```")]
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
-/// use linlog::{Error, IllSequent, Side};
+/// use deduxit::{Error, IllSequent, Side};
 ///
 /// let sequent: IllSequent = "A -o B, A |- B".parse()?;
 /// assert_eq!(sequent.to_string(), "A ⊸ B, A ⊢ B");

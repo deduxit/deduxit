@@ -1,7 +1,7 @@
 // linlog © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! `linlog-bench`, the benchmark harness: runs the generated families, the
+//! `deduxit-bench`, the benchmark harness: runs the generated families, the
 //! problems of the LLTP library, coverability problems in Mist's `.spec`
 //! format and problem files of its own through linlog's engines, one
 //! child process per run with a time limit, writes one CSV row per run,
@@ -43,7 +43,7 @@ use std::process::ExitCode;
 /// `.spec` coverability problems and problem files, and count the hot
 /// paths' instructions against their ceilings
 #[derive(Parser, Debug)]
-#[command(name = "linlog-bench", version)]
+#[command(name = "deduxit-bench", version)]
 struct Cli {
     /// What to do
     #[command(subcommand)]
@@ -364,7 +364,7 @@ fn main() -> ExitCode {
         },
         Command::Ranking { files } => ranking::ranking(&files),
         Command::Families => {
-            for family in linlog::families::FAMILIES {
+            for family in deduxit::families::FAMILIES {
                 let sizes: Vec<String> = family.sizes.iter().map(u32::to_string).collect();
                 println!("{} ({}): {}", family.name, sizes.join(","), family.summary);
                 if !family.growth.is_empty() {

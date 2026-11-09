@@ -2,7 +2,7 @@
 # Licensed under the EUPL
 
 [package]
-name = "linlog"
+name = "deduxit"
 description = "A linear logic suite: decides, checks, proves step by step and exports sequents of classical and intuitionistic linear logic, and ordinary propositional logic through its embeddings."
 version.workspace = true
 edition.workspace = true

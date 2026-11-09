@@ -39,7 +39,7 @@
         fileset = lib.fileset.fileFilter (file: file.hasExt "v") ../core/tests/snapshots/linlog;
       };
 
-      # The version `linlog::export::rocq::LINLOG' names must be the pinned
+      # The version `deduxit::export::rocq::LINLOG' names must be the pinned
       # library's.
       named = builtins.head (
         builtins.match ''.*pub const LINLOG: &str = "([0-9.]+)";.*'' (
@@ -60,7 +60,7 @@
               rocq
               stdlib
               library
-              config.packages.linlog-cli
+              config.packages.deduxit-cli
             ];
             ROCQPATH = "${stdlib}/${userContrib}:${library}/${userContrib}";
           }

@@ -502,8 +502,8 @@ pub enum Needs {
 ///
 #[cfg_attr(feature = "parse", doc = "```")]
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
-/// use linlog::proofs::interactive::Needs;
-/// use linlog::{Interactive, Limits, Mode, Named, Rule, Sequent, Step};
+/// use deduxit::proofs::interactive::Needs;
+/// use deduxit::{Interactive, Limits, Mode, Named, Rule, Sequent, Step};
 ///
 /// // ⊢ ~A, A ⊗ ~B, B: the goal's formulas are 0: ~A, 1: A ⊗ ~B, 2: B.
 /// let sequent: Sequent = "A, A -o B |- B".parse()?;
@@ -518,7 +518,7 @@ pub enum Needs {
 /// state.apply(goals[1], &Step::new(0, Rule::Ax))?;
 /// let proof = state.proof(&Limits::default(), |_| false)?;
 /// assert_eq!(proof.nodes().len(), 3);
-/// # Ok::<(), linlog::Error>(())
+/// # Ok::<(), deduxit::Error>(())
 /// ```
 ///
 /// # JSON

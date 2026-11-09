@@ -39,7 +39,7 @@ mod style;
 use anyhow::Result;
 use argument_parsing::{Cli, Command};
 use clap::{CommandFactory, FromArgMatches};
-use linlog::Error;
+use deduxit::Error;
 use std::fmt::Write;
 use std::process::ExitCode;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -76,13 +76,13 @@ impl Status {
     }
 }
 
-impl From<&linlog::search::Verdict> for Status {
+impl From<&deduxit::search::Verdict> for Status {
     /// Returns the status of a verdict: proved, unprovable or unknown.
-    fn from(verdict: &linlog::search::Verdict) -> Self {
+    fn from(verdict: &deduxit::search::Verdict) -> Self {
         match verdict {
-            linlog::search::Verdict::Proved(_) => Self::Yes,
-            linlog::search::Verdict::Unprovable(_) => Self::No,
-            linlog::search::Verdict::Unknown(_) => Self::Unknown,
+            deduxit::search::Verdict::Proved(_) => Self::Yes,
+            deduxit::search::Verdict::Unprovable(_) => Self::No,
+            deduxit::search::Verdict::Unknown(_) => Self::Unknown,
         }
     }
 }
@@ -309,7 +309,7 @@ pub fn main() -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::parse_error;
-    use linlog::{Error, Sequent};
+    use deduxit::{Error, Sequent};
 
     /// The parse error's message is written for every text the parser
     /// refuses, without a panic, with its caret: texts drawn from the
@@ -334,7 +334,7 @@ mod tests {
             let pieces = 1 + next(if round % 10 == 0 { 400 } else { 12 });
             let text: String = (0..pieces).map(|_| PIECES[next(PIECES.len())]).collect();
             if let Err(error @ Error::Parse(_)) =
-                Sequent::parse_within(&text, &linlog::Limits::default())
+                Sequent::parse_within(&text, &deduxit::Limits::default())
             {
                 let message = format!("{:#}", parse_error(&text, error));
                 assert!(

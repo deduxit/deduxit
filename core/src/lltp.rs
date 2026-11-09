@@ -16,8 +16,8 @@
 //! # Examples
 //!
 //! ```
-//! use linlog::Limits;
-//! use linlog::lltp::{Status, read};
+//! use deduxit::Limits;
+//! use deduxit::lltp::{Status, read};
 //!
 //! let text = "% Status (intuit.) : Theorem\n\
 //!             fof(ax1, axiom, !(a -o b)).\n\
@@ -26,7 +26,7 @@
 //! let problem = read(text, &Limits::default())?;
 //! assert_eq!(problem.status, Some(Status::Theorem));
 //! assert_eq!(problem.sequent, "!(a -o b), a |- b * 1".parse()?);
-//! # Ok::<(), linlog::Error>(())
+//! # Ok::<(), deduxit::Error>(())
 //! ```
 //!
 //! Needs the cargo feature `parse` (on by default).

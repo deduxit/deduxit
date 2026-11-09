@@ -214,15 +214,15 @@ jobs:
           set -eux
           nix run "$FLAKE" -- --version
           # A release's entry is updated by removing it and adding the next.
-          nix profile add "$FLAKE#linlog-cli"
+          nix profile add "$FLAKE#deduxit-cli"
           linlog --version
-          nix profile remove linlog-cli
+          nix profile remove deduxit-cli
           test ! -e ~/.nix-profile/bin/linlog
           # An entry without a tag follows `main` by upgrading.
-          nix profile add github:deduxit/deduxit#linlog-cli
-          nix profile upgrade linlog-cli
+          nix profile add github:deduxit/deduxit#deduxit-cli
+          nix profile upgrade deduxit-cli
           linlog --version
-          nix profile remove linlog-cli
+          nix profile remove deduxit-cli
           test ! -e ~/.nix-profile/bin/linlog
 
   cargo:
@@ -249,9 +249,9 @@ jobs:
         run: |
           set -eux
           export PATH="$HOME/.cargo/bin:$PATH"
-          cargo install --locked linlog-cli
+          cargo install --locked deduxit-cli
           linlog --version
-          cargo uninstall linlog-cli
+          cargo uninstall deduxit-cli
           test ! -e ~/.cargo/bin/linlog
 
   # The runners' own rustup, as a user of rustup has it.
@@ -268,9 +268,9 @@ jobs:
     steps:
       - run: |
           set -eux
-          cargo install --locked linlog-cli
+          cargo install --locked deduxit-cli
           linlog --version
-          cargo uninstall linlog-cli
+          cargo uninstall deduxit-cli
           test ! -e ~/.cargo/bin/linlog && test ! -e ~/.cargo/bin/linlog.exe
 
   # The chapter's downloads, from the latest release, once one carries the

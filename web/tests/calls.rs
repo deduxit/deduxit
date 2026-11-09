@@ -4,8 +4,8 @@
 //! The calls as the page makes them, under WebAssembly in Node and as
 //! ordinary tests elsewhere.
 
-use linlog_web::calls::{self, StepForm};
-use linlog_web::{Failure, tab};
+use deduxit_web::calls::{self, StepForm};
+use deduxit_web::{Failure, tab};
 use serde_json::{Value, json};
 use wasm_bindgen_test::wasm_bindgen_test;
 
@@ -625,7 +625,7 @@ fn on_a_search_stack(f: impl FnOnce() -> String + Send + 'static) -> String {
     if cfg!(target_family = "wasm") {
         return f();
     }
-    let limits = linlog::Limits::default().with_recursion_depth(tab::RECURSION_DEPTH);
+    let limits = deduxit::Limits::default().with_recursion_depth(tab::RECURSION_DEPTH);
     std::thread::Builder::new()
         .stack_size(limits.stack_bytes())
         .spawn(f)
@@ -1221,7 +1221,7 @@ fn a_first_order_session_takes_the_quantifier_rules() {
 /// left memory.
 #[wasm_bindgen_test(unsupported = test)]
 fn undo_through_the_calls_keeps_a_live_session_s_letters() {
-    use linlog::{Interactive, Mode, Rule, Sequent, Step};
+    use deduxit::{Interactive, Mode, Rule, Sequent, Step};
     let text = "|- forall x. exists y. p(f(x), y) -o p(f(x), y)";
     let sequent: Sequent = text.parse().unwrap();
     let mut live = Interactive::new(&sequent, Mode::CLASSICAL).unwrap();

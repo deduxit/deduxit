@@ -310,7 +310,7 @@ Built:
 - Benchmarks: readers for the problems of the LLTP library and for
   coverability problems in the `.spec` format of the Mist tool, generated
   families with known verdicts (the hard families of the literature and
-  the cases where one engine is known to be slow), and `linlog-bench`,
+  the cases where one engine is known to be slow), and `deduxit-bench`,
   which runs them with a time limit per run, writes CSV and summarises it,
   with a script that takes a whole baseline on an idle machine and one
   that runs the focused engine's target set by day, and a comparison of
@@ -321,13 +321,13 @@ Built:
   each line.
 - Performance work on the focused engine, measured by four baselines,
   one before it, one after it and one at each release, 0.1.0 and 0.2.0.
-- Releases: the crates `linlog` and `linlog-cli` on crates.io, with a
+- Releases: the crates `linlog` and `deduxit-cli` on crates.io, with a
   changelog that states what each version promises and what it breaks,
   and a workflow that publishes a version tag with the command built
   for Linux (an archive, a `.deb`, an `.rpm` and an Arch Linux package),
   macOS and Windows, their checksums and a provenance attestation.
 - WebAssembly bindings for a web page, the unpublished crate
-  `linlog-web` in `web/`: the library compiled for
+  `deduxit-web` in `web/`: the library compiled for
   `wasm32-unknown-unknown` behind calls of JSON in and JSON or SVG out
   (a sequent read, an interactive proof step by step, a goal closed by
   the search within a budget of work, a hint, every export; for linear

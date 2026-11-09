@@ -8,8 +8,8 @@
 
 #![cfg(feature = "serialize")]
 
-use linlog::sequents::Visit;
-use linlog::{Forest, Fragment, Member, Mode, Node, NodeId, Proof, Reading, Sequent};
+use deduxit::sequents::Visit;
+use deduxit::{Forest, Fragment, Member, Mode, Node, NodeId, Proof, Reading, Sequent};
 
 /// How deep the formulas are nested: deep enough that the stack below
 /// holds about five bytes per level, less than a call frame even where
@@ -119,39 +119,39 @@ fn walk(json: &str, fragment: Fragment) {
 
     #[cfg(feature = "latex")]
     {
-        use linlog::export::latex;
+        use deduxit::export::latex;
         for mode in [Mode::CLASSICAL, Mode::INTUITIONISTIC] {
             let printed = latex::sequent(
                 &sequent,
                 mode,
                 &latex::Options::default(),
-                &linlog::Limits::default(),
+                &deduxit::Limits::default(),
             );
             assert!(printed.unwrap().len() > DEPTH);
         }
     }
     #[cfg(feature = "typst")]
     {
-        use linlog::export::typst;
+        use deduxit::export::typst;
         for mode in [Mode::CLASSICAL, Mode::INTUITIONISTIC] {
             let printed = typst::sequent(
                 &sequent,
                 mode,
                 &typst::Options::default(),
-                &linlog::Limits::default(),
+                &deduxit::Limits::default(),
             );
             assert!(printed.unwrap().len() > DEPTH);
         }
     }
     #[cfg(feature = "svg")]
     {
-        use linlog::export::svg::{self, Style};
+        use deduxit::export::svg::{self, Style};
         for mode in [Mode::CLASSICAL, Mode::INTUITIONISTIC] {
             let printed = svg::sequent(
                 &sequent,
                 mode,
                 &Style::default(),
-                &linlog::Limits::default(),
+                &deduxit::Limits::default(),
             );
             assert!(printed.unwrap().len() > DEPTH);
         }
@@ -169,16 +169,16 @@ fn walk(json: &str, fragment: Fragment) {
     // and the other hypotheses: its types are converted and printed.
     let intuitionistic = proof.clone().with_mode(Mode::INTUITIONISTIC);
     let term = intuitionistic.derivation().unwrap();
-    let term = term.term(&linlog::Limits::default(), |_| false).unwrap();
-    let options = linlog::lambda::Options::default().with_types(true);
+    let term = term.term(&deduxit::Limits::default(), |_| false).unwrap();
+    let options = deduxit::lambda::Options::default().with_types(true);
     let mut written = String::new();
-    let unbounded = linlog::Limits::default().with_derivation_bytes(None);
+    let unbounded = deduxit::Limits::default().with_derivation_bytes(None);
     term.write_judgement(&mut written, &options, &unbounded, |_| false)
         .unwrap();
     assert!(written.chars().count() > DEPTH);
     #[cfg(feature = "rocq")]
     {
-        use linlog::export::rocq::{self, Options};
+        use deduxit::export::rocq::{self, Options};
         let mut certificate = String::new();
         rocq::write(&derivation, &Options::default(), &mut certificate, |_| {
             false
@@ -209,15 +209,15 @@ fn deep_formulas_need_no_stack() {
 /// every translation, each in a logic it decides.
 #[cfg(feature = "parse")]
 fn ordinary(text: &str, unicode: &str) {
-    use linlog::ordinary::{Logic, Translation, translate};
-    let sequent: linlog::ordinary::Sequent = text.parse().unwrap();
+    use deduxit::ordinary::{Logic, Translation, translate};
+    let sequent: deduxit::ordinary::Sequent = text.parse().unwrap();
     assert!(sequent.to_string() == format!("⊢ {unicode}"), "printed");
     for &translation in Translation::ALL {
         let logic = match translation {
             Translation::Affine => Logic::Classical,
             _ => Logic::Intuitionistic,
         };
-        let image = translate(&sequent, logic, translation, &linlog::Limits::default()).unwrap();
+        let image = translate(&sequent, logic, translation, &deduxit::Limits::default()).unwrap();
         assert!(image.sequent().to_string().starts_with('⊢'));
     }
 }

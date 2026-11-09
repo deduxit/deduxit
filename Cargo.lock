@@ -278,6 +278,60 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be1e0bca6c3637f992fc1cc7cbc52a78c1ef6db076dbf1059c4323d6a2048376"
 
 [[package]]
+name = "deduxit"
+version = "0.2.0"
+dependencies = [
+ "foldhash",
+ "krilla",
+ "krilla-svg",
+ "png",
+ "rayon",
+ "resvg",
+ "roxmltree 0.21.2",
+ "serde",
+ "serde_json",
+ "skrifa",
+ "thiserror",
+ "unicode-ident",
+ "unicode-normalization",
+]
+
+[[package]]
+name = "deduxit-bench"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "deduxit",
+ "serde_json",
+]
+
+[[package]]
+name = "deduxit-cli"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "ctrlc",
+ "deduxit",
+ "mimalloc",
+ "serde",
+ "serde_json",
+ "terminal_size",
+]
+
+[[package]]
+name = "deduxit-web"
+version = "0.2.0"
+dependencies = [
+ "deduxit",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "dispatch2"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -563,60 +617,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a45a52f43e1c16f667ccfe4dd8c85b7f7c204fd5e3bf46c5b0db9a5c3c0b8e9"
 dependencies = [
  "cc",
-]
-
-[[package]]
-name = "linlog"
-version = "0.2.0"
-dependencies = [
- "foldhash",
- "krilla",
- "krilla-svg",
- "png",
- "rayon",
- "resvg",
- "roxmltree 0.21.2",
- "serde",
- "serde_json",
- "skrifa",
- "thiserror",
- "unicode-ident",
- "unicode-normalization",
-]
-
-[[package]]
-name = "linlog-bench"
-version = "0.2.0"
-dependencies = [
- "anyhow",
- "clap",
- "linlog",
- "serde_json",
-]
-
-[[package]]
-name = "linlog-cli"
-version = "0.2.0"
-dependencies = [
- "anyhow",
- "clap",
- "ctrlc",
- "linlog",
- "mimalloc",
- "serde",
- "serde_json",
- "terminal_size",
-]
-
-[[package]]
-name = "linlog-web"
-version = "0.2.0"
-dependencies = [
- "linlog",
- "serde",
- "serde_json",
- "wasm-bindgen",
- "wasm-bindgen-test",
 ]
 
 [[package]]

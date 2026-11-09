@@ -83,7 +83,7 @@ and Isabelle formalisations (no automation).
 - **The problems**: the LLTP library's intuitionistic problems (`ILL/`,
   4 495 of them, 3 137 of them Petri nets) and classical ones (`CLL/`,
   17), qcover's 176 coverability problems (intuitionistic affine) and
-  the generated families of `linlog-bench families` at their default
+  the generated families of `deduxit-bench families` at their default
   sizes, with their known verdicts where the source states one.
 - **Every tool runs every problem of its fragment and mode**, translated
   from linlog's reading of the problem into the tool's own syntax by
@@ -157,7 +157,7 @@ commit 60226b2c (signed since as 8a06dd9c, the same tree; six runs of
 its default at e0215978, below), every other tool at the version the
 flake pins (`comparison/2026-10-15/*.env.json` records each, with the
 command lines). The rows are `comparison/2026-10-15/runs.csv` (62 543
-runs), the tables `comparison/2026-10-15/ranking.md` (`linlog-bench
+runs), the tables `comparison/2026-10-15/ranking.md` (`deduxit-bench
 ranking runs.csv`), the figures `comparison/2026-10-15/figures/`
 (`bench/plots.py`).
 
@@ -312,7 +312,7 @@ symbol `f<i>` by the symbol's index and the binders' variables `X0`,
 `X1`, … across the problem.
 
 **The verdicts** (`comparison/first-order/verdicts.csv`, `ranking.md`
-and `verdicts.env.json` beside them; 2026-10-30, `linlog-bench run
+and `verdicts.env.json` beside them; 2026-10-30, `deduxit-bench run
 --tools linlog,linearone --family lambek-fo --family witness-fo
 --timeout 10 --memory-limit 4294967296` under runexec 3.35 on core 2 of
 a machine in use, so the times in the rows are not a measurement):
@@ -341,8 +341,8 @@ from a checkout with `nix build .#comparison`'s `bin` on the path (the
 release build, BenchExec and every prover), under the machine's lock:
 
 ```sh
-taskset -c 2 linlog-bench run --tools linlog,linearone --family lambek-fo --family witness-fo \
+taskset -c 2 deduxit-bench run --tools linlog,linearone --family lambek-fo --family witness-fo \
   --timeout 10 --memory-limit 4294967296 --shard 1/2 --output first-order-1.csv &
-taskset -c 3 linlog-bench run --tools linlog,linearone --family lambek-fo --family witness-fo \
+taskset -c 3 deduxit-bench run --tools linlog,linearone --family lambek-fo --family witness-fo \
   --timeout 10 --memory-limit 4294967296 --shard 2/2 --output first-order-2.csv
 ```

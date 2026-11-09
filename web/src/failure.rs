@@ -4,7 +4,7 @@
 //! Why a call answered no value: the library's error in its written form,
 //! which the page words itself.
 
-use linlog::{Error, Owner};
+use deduxit::{Error, Owner};
 use std::fmt::{self, Display, Formatter};
 
 /// A failed call: the JSON of the error, `{"code", "kind", "message",

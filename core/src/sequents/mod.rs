@@ -113,7 +113,7 @@ use crate::hash::HashMap;
 ///
 #[cfg_attr(all(feature = "parse", feature = "serialize"), doc = "```")]
 #[cfg_attr(not(all(feature = "parse", feature = "serialize")), doc = "```ignore")]
-/// let sequent: linlog::Sequent = "A |- A".parse()?;
+/// let sequent: deduxit::Sequent = "A |- A".parse()?;
 /// assert_eq!(
 ///     serde_json::to_string(&sequent)?,
 ///     r#"{"version":1,"terms":[{"D":0},{"V":0}],"roots":[0,1],"atoms":["A"],"antecedents":1}"#

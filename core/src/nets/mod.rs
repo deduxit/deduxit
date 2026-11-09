@@ -667,7 +667,7 @@ const STOPPED: NetError = NetError::Refused {
 ///
 #[cfg_attr(feature = "parse", doc = "```")]
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
-/// use linlog::{Criterion, Forest, ProofStructure, Sequent, VertexId};
+/// use deduxit::{Criterion, Forest, ProofStructure, Sequent, VertexId};
 ///
 /// // ⊢ ~A, A ⊗ ~B, B, with the vertices 0: ~A, 1: A ⊗ ~B, 2: A,
 /// // 3: ~B, 4: B.
@@ -678,7 +678,7 @@ const STOPPED: NetError = NetError::Refused {
 /// assert!(net.is_complete());
 /// assert_eq!(net.partner(v(2)), Some(v(0)));
 /// assert_eq!(net.is_correct(|_| false), Ok(()));
-/// # Ok::<(), linlog::Error>(())
+/// # Ok::<(), deduxit::Error>(())
 /// ```
 ///
 /// # JSON

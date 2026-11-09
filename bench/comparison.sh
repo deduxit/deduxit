@@ -25,14 +25,14 @@
 # --quick        three problems of each source only: a check that every
 #                tool runs
 # --growing      the growing sets of the families instead of the libraries
-#                (`linlog-bench run --growing`: a tool's run refused or at
+#                (`deduxit-bench run --growing`: a tool's run refused or at
 #                the limit skips that shape's larger sizes), each stream
 #                taking whole shapes; with --quick the first two sizes of
 #                each growing set
 #
 # It builds the flake's `comparison' package (and `lltp' and `qcover' for
 # the libraries), runs the streams side by side, joins their rows into
-# DIR/runs.csv, and writes DIR/ranking.md (`linlog-bench ranking') and
+# DIR/runs.csv, and writes DIR/ranking.md (`deduxit-bench ranking') and
 # DIR/figures/ (bench/plots.py; with --growing also the time against size).
 # A stream's file is resumed when the script runs again on the same DIR.
 set -euo pipefail
@@ -107,7 +107,7 @@ if [ -n "$growing" ]; then
     small=()
     while read -r family sizes; do
       small+=(--family "$family=$sizes")
-    done < <(linlog-bench families | awk '
+    done < <(deduxit-bench families | awk '
       /^[^ ]/ { name = $1 }
       /^  growing \(/ { split(substr($2, 2), s, ","); print name, s[1] "," s[2] }')
   fi
@@ -135,7 +135,7 @@ stream() {
     [ -s "$file" ] && resume=(--append --resume)
     if [ "$pass" = small ]; then sources=("${small[@]}"); else sources=("${large[@]}"); fi
     [ ${#sources[@]} = 0 ] && continue
-    taskset -c "$cpus" linlog-bench run --tools "$tools" "${sources[@]}" \
+    taskset -c "$cpus" deduxit-bench run --tools "$tools" "${sources[@]}" \
       --shard "$((index * n + k))/$((count * n))" \
       --timeout "$timeout" --memory-limit "$memory" \
       --output "$file" "${resume[@]}" --work "$out/work-$name" 2>>"$out/$name.log"
@@ -161,7 +161,7 @@ done
     [ -f "$f" ] && tail -n +2 "$f"
   done
 } >"$out/runs.csv"
-linlog-bench ranking "$out/runs.csv" >"$out/ranking.md"
+deduxit-bench ranking "$out/runs.csv" >"$out/ranking.md"
 python3 -I "$root/bench/plots.py" comparison "$out/runs.csv" "$out/figures"
 if [ -n "$growing" ]; then
   python3 -I "$root/bench/plots.py" growth "$out/runs.csv" "$out/figures"

@@ -34,7 +34,7 @@ Contents:
 
 ## 1. Running it
 
-`cargo install --locked linlog-cli` installs the command `linlog`, and
+`cargo install --locked deduxit-cli` installs the command `linlog`, and
 `nix run github:deduxit/deduxit -- ARGS` runs
 it without installing; each GitHub release also has it prebuilt for
 Linux (an archive and `.deb`, `.rpm` and Arch Linux packages), macOS and
@@ -929,7 +929,7 @@ of LK or LJ with its weakenings and contractions `explicit` or
 (`"impL".parse::<ordinary::Rule>()`), as the command's `apply` does.
 
 ```rust
-use linlog::{Fragment, Mode, Options, Sequent, Verdict, prove};
+use deduxit::{Fragment, Mode, Options, Sequent, Verdict, prove};
 
 // Two-sided input becomes one-sided: ⊢ ~A, A ⊗ ~B, B.
 let sequent: Sequent = "A, A -o B |- B".parse()?;
@@ -948,7 +948,7 @@ assert_eq!(
 );
 
 let json = serde_json::to_string(&proof)?;
-let back: linlog::Proof = serde_json::from_str(&json)?;
+let back: deduxit::Proof = serde_json::from_str(&json)?;
 back.check(Mode::CLASSICAL)?;
 ```
 
@@ -957,7 +957,7 @@ library call without a stop must end; the command deepens without a
 bound under its time limit. `prove_within(&sequent, mode, &options,
 &limits, stop)` takes `Limits` and a stop closure (the crate reads no
 clock), and `Settings::default()` is the command's behaviour as data.
-Every error is `linlog::Error`, whose `code()` is the stable reason.
+Every error is `deduxit::Error`, whose `code()` is the stable reason.
 `proofs::cut::step(&proof, mode, at, &options, &limits, stop)` reduces
 one cut (the node `at`, or the strategy's with `None`) and returns the
 checked proof and the `Step` (`cut`, `formula`, `case`);
@@ -978,8 +978,8 @@ every step and the net it was taken on); `svg::net_step` and
 
 The page at <https://deduxit.github.io/> is the prover in a
 browser, for people: a sequent proved step by step with the mouse. Its
-engine is the unpublished crate `linlog-web` (`web/` of the repository,
-`nix build github:deduxit/deduxit#linlog-web` builds the module and
+engine is the unpublished crate `deduxit-web` (`web/` of the repository,
+`nix build github:deduxit/deduxit#deduxit-web` builds the module and
 its JavaScript): the library compiled to WebAssembly behind calls of
 JSON text in and JSON, SVG or bytes out, which keep nothing between
 calls. The calls are `about`, `defaults`, `read`, `read_as`, `start`,

@@ -15,10 +15,10 @@
 //! family, else the file's stem.
 
 use anyhow::{Context, Result, anyhow, bail};
-use linlog::families::{FAMILIES, find};
-use linlog::lltp::{self, Status};
-use linlog::mist::{self, Safety};
-use linlog::{Limits, Mode, Sequent};
+use deduxit::families::{FAMILIES, find};
+use deduxit::lltp::{self, Status};
+use deduxit::mist::{self, Safety};
+use deduxit::{Limits, Mode, Sequent};
 use std::path::{Path, PathBuf};
 
 /// A problem as the parent names it.

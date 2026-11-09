@@ -23,15 +23,15 @@
 //! # Examples
 //!
 //! ```
-//! use linlog::families;
-//! use linlog::search::{Options, Verdict, prove};
+//! use deduxit::families;
+//! use deduxit::search::{Options, Verdict, prove};
 //!
 //! let family = families::find("partition-no").unwrap();
 //! let instance = family.instance(3, 0)?;
 //! assert!(!instance.provable);
 //! let outcome = prove(&instance.sequent, instance.mode, &Options::default())?;
 //! assert!(matches!(outcome.verdict, Verdict::Unprovable(_)));
-//! # Ok::<(), linlog::Error>(())
+//! # Ok::<(), deduxit::Error>(())
 //! ```
 //!
 //! Needs the cargo feature `parse` (on by default).

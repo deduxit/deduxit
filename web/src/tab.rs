@@ -6,9 +6,9 @@
 //! are read over them.
 
 use crate::failure::Failure;
-use linlog::export::Styles;
-use linlog::search::{Jobs, Options};
-use linlog::{Clock, Limits, Settings};
+use deduxit::export::Styles;
+use deduxit::search::{Jobs, Options};
+use deduxit::{Clock, Limits, Settings};
 use serde_json::Value;
 
 /// The stack the module is linked with (`build.rs`), in bytes.
@@ -80,7 +80,7 @@ pub fn defaults() -> Settings {
         .with_pool_after_ms(None);
     let mut styles = Styles::default();
     styles.svg = styles.svg.with_ids(true).with_description(true);
-    let cut = linlog::proofs::cut::Options::default().with_drawn_bytes(Some(DRAWN_BYTES));
+    let cut = deduxit::proofs::cut::Options::default().with_drawn_bytes(Some(DRAWN_BYTES));
     Settings::default()
         .with_cut(cut)
         .with_clock(clock)
@@ -151,7 +151,7 @@ const fn parse(text: &str) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use linlog::export::svg::MathFont;
+    use deduxit::export::svg::MathFont;
 
     /// A page's key replaces the tab's value and leaves its siblings, and
     /// a misspelt key, or a value that is no object where one belongs, is

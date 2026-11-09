@@ -17,10 +17,10 @@ use crate::settings::{Threads, time_limit};
 use crate::show::{Show, Shown, derivation, every_steps, net_into, nets_exist};
 use crate::{Status, catch_interrupt, interrupted};
 use anyhow::{Context, Result, anyhow, bail};
-use linlog::ordinary::Image;
-use linlog::search::batch::{self, Cores};
-use linlog::search::{Goal, Outcome, Pool, Verdict, prove_goal};
-use linlog::{Forest, InputOptions, Mode, Settings};
+use deduxit::ordinary::Image;
+use deduxit::search::batch::{self, Cores};
+use deduxit::search::{Goal, Outcome, Pool, Verdict, prove_goal};
+use deduxit::{Forest, InputOptions, Mode, Settings};
 use serde::de::{Deserialize, Deserializer, MapAccess, Visitor};
 use serde_json::value::RawValue;
 use std::collections::{HashSet, VecDeque};
@@ -448,7 +448,7 @@ struct Shared {
     /// Each sequent's time limit.
     timeout: Option<Duration>,
     /// The options of ordinary logic, under `--logic`.
-    ordinary: Option<linlog::ordinary::Options>,
+    ordinary: Option<deduxit::ordinary::Options>,
     /// The most occurrences a sequent may have.
     most: io::Most,
     /// How the input is read.
@@ -575,7 +575,7 @@ impl Shared {
     fn unknown(&self, name: &str, line: &str) -> String {
         if self.json_lines() {
             let reason =
-                serde_json::to_string(&linlog::search::Reason::Stopped).expect("a reason is JSON");
+                serde_json::to_string(&deduxit::search::Reason::Stopped).expect("a reason is JSON");
             let line = serde_json::to_string(line).expect("a string is JSON");
             let body = format!(r#"{{"verdict":"unknown","reason":{reason},"message":{line}}}"#);
             record_json(name, &body)
@@ -681,8 +681,8 @@ impl Shared {
         let read = self.read;
         let logic = self.ordinary;
         // How a sequent was written is kept for a derivation drawn so.
-        let keep = self.show.view.classical == linlog::ClassicalSides::Two;
-        type Loaded = (Forest, Option<Image>, Option<Box<[linlog::Written]>>);
+        let keep = self.show.view.classical == deduxit::ClassicalSides::Two;
+        type Loaded = (Forest, Option<Image>, Option<Box<[deduxit::Written]>>);
         let loaded = deadline.within(move || -> Result<Loaded> {
             let (text, format) = match source {
                 Source::Bad(why) => return Err(anyhow!(why)),
@@ -794,7 +794,7 @@ impl Shared {
         name: &str,
         directory: &Path,
         outcome: &Outcome,
-        (mode, image, writing): (Mode, Option<&Image>, Option<&[linlog::Written]>),
+        (mode, image, writing): (Mode, Option<&Image>, Option<&[deduxit::Written]>),
         line: &str,
         deadline: &Deadline,
     ) -> Result<Option<String>> {

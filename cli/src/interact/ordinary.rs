@@ -20,10 +20,10 @@ use crate::settings::Threads;
 use crate::show::{Show, Shown, bytes_text};
 use crate::{Status, catch_interrupt, clear_interrupt, interrupted, io, style};
 use anyhow::{Context, Result, bail};
-use linlog::export::{Styles, latex, svg, typst};
-use linlog::ordinary::{Interactive, Needs, Rule, Side, Step, Translation};
-use linlog::search::Options;
-use linlog::{Error, GoalId, Limits, Refusal, Settings, ViewOptions};
+use deduxit::export::{Styles, latex, svg, typst};
+use deduxit::ordinary::{Interactive, Needs, Rule, Side, Step, Translation};
+use deduxit::search::Options;
+use deduxit::{Error, GoalId, Limits, Refusal, Settings, ViewOptions};
 use std::path::Path;
 use std::time::{Duration, Instant};
 
@@ -123,7 +123,7 @@ struct Session {
     /// How `show` and `proof` write each format.
     styles: Styles,
     /// How `lambda` prints the proof's lambda-term.
-    lambda: linlog::lambda::Options,
+    lambda: deduxit::lambda::Options,
     /// The proof in progress.
     state: Interactive,
     /// The translation a `close` decides a goal by, `None` for the
@@ -403,7 +403,7 @@ impl Session {
     fn goal_line(&self, goal: GoalId) -> String {
         let (left, right) = self.state.goal(goal).unwrap_or_default();
         let formulas = self.state.formulas();
-        let side = |letter: char, ids: &[linlog::ordinary::NodeId]| {
+        let side = |letter: char, ids: &[deduxit::ordinary::NodeId]| {
             ids.iter()
                 .enumerate()
                 .map(|(i, &id)| format!(" {letter}{i}: {}", formulas.formula(id)))
@@ -452,7 +452,7 @@ fn not_a_formula(word: &str) -> String {
 fn sequent_text(state: &Interactive) -> String {
     let (left, right) = state.sequent();
     let formulas = state.formulas();
-    let side = |ids: &[linlog::ordinary::NodeId]| {
+    let side = |ids: &[deduxit::ordinary::NodeId]| {
         ids.iter()
             .map(|&id| formulas.formula(id).to_string())
             .collect::<Vec<_>>()

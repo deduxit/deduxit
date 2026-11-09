@@ -18,9 +18,9 @@ files when the manual is built (`docs/figures.sh`), so none is drawn by
 hand and a figure always shows the rows it names. This chapter says how
 the runs are made.
 
-`linlog-bench` (`cargo run --release -p linlog-bench -- …` in a checkout,
-or `nix build .#linlog-bench`) times the engines on four kinds of
-problems: generated families with known verdicts (`linlog-bench families`
+`deduxit-bench` (`cargo run --release -p deduxit-bench -- …` in a checkout,
+or `nix build .#deduxit-bench`) times the engines on four kinds of
+problems: generated families with known verdicts (`deduxit-bench families`
 lists them: 3-Partition as a Horn program and as an MLL sequent,
 Matsuoka's Partition, random QBF, wide sequents, contexts under Mix,
 Petri-net counters, the Lambek calculus in first-order MILL, a chain of
@@ -44,7 +44,7 @@ limit per family and configuration, and a time per problem and
 configuration.
 
 ```console
-$ linlog-bench run --family partition-no=3,4 --engines focus,net --jobs 1,4 --timeout 10 --output runs.csv
+$ deduxit-bench run --family partition-no=3,4 --engines focus,net --jobs 1,4 --timeout 10 --output runs.csv
 [1/8] partition-no/3 classical focus j1: unprovable  0.089 ms, about 0 min left
 [2/8] partition-no/3 classical focus j4: unprovable  0.146 ms, about 0 min left
 [3/8] partition-no/3 classical net j1: unprovable  3355.671 ms, about 0 min left
@@ -54,7 +54,7 @@ $ linlog-bench run --family partition-no=3,4 --engines focus,net --jobs 1,4 --ti
 [7/8] partition-no/4 classical net j1: unknown timeout 10000.591 ms, about 0 min left
 [8/8] partition-no/4 classical net j4: unknown timeout 10000.139 ms, about 0 min left
 
-$ linlog-bench summary runs.csv
+$ deduxit-bench summary runs.csv
 …
 ## partition-no
 
@@ -76,7 +76,7 @@ same way whatever the files' names, as the passes under one bias with the
 default:
 
 ```console
-$ linlog-bench summary --before bench/results/2026-09-30 bench/results/2026-10-02/long-1.csv
+$ deduxit-bench summary --before bench/results/2026-09-30 bench/results/2026-10-02/long-1.csv
 …
 | file | family | configuration | problem | before | after | after/before |
 |---|---|---|---|--:|--:|--:|
@@ -106,7 +106,7 @@ input, so two such files tell whether a change altered the search at all.
 Some families have a growing set: sizes from easy to past what the
 engines decide in a minute, chosen with a claim, the strength or weakness
 of an engine or of another prover that the growth of the time shows
-(`linlog-bench families` prints each family's sizes and claim under its
+(`deduxit-bench families` prints each family's sizes and claim under its
 summary). `run --growing` runs every growing set; a configuration whose
 run on a size is refused or meets the time limit or the memory bound
 skips that shape's larger sizes, which are written as rows `skipped`
@@ -116,7 +116,7 @@ set is a constructed family whose larger instance is no easier. With
 the memo, to measure what it gains.
 
 ```console
-$ linlog-bench run --growing --only pigeonhole/ --engines auto,inverse --timeout 1 --output runs.csv
+$ deduxit-bench run --growing --only pigeonhole/ --engines auto,inverse --timeout 1 --output runs.csv
 [1/28] pigeonhole/2#0 intuitionistic-affine auto j1: proved  0.144 ms, about 0 min left
 [2/28] pigeonhole/2#0 intuitionistic-affine inverse j1: proved  0.078 ms, about 0 min left
 …
@@ -184,7 +184,7 @@ problem on which tools contradict each other or the known verdict.
 several machines split a set.
 
 ```console
-$ linlog-bench run --tools linlog,maude-ill,sympli --lltp lltp/ILL/ILLTP-SYJ-01 --only SYJ101+1,SYJ105+1.003 --timeout 10 --output tools.csv
+$ deduxit-bench run --tools linlog,maude-ill,sympli --lltp lltp/ILL/ILLTP-SYJ-01 --only SYJ101+1,SYJ105+1.003 --timeout 10 --output tools.csv
 [1/6] ILLTP-SYJ-01/SYJ101+1.p linlog: proved  3.4 ms, about 0 min left
 [2/6] ILLTP-SYJ-01/SYJ101+1.p maude-ill: proved  89.8 ms, about 0 min left
 [3/6] ILLTP-SYJ-01/SYJ101+1.p sympli: proved  11.7 ms, about 0 min left
@@ -192,7 +192,7 @@ $ linlog-bench run --tools linlog,maude-ill,sympli --lltp lltp/ILL/ILLTP-SYJ-01 
 [5/6] ILLTP-SYJ-01/SYJ105+1.003.p maude-ill: unknown copy_bound 131.5 ms, about 0 min left
 [6/6] ILLTP-SYJ-01/SYJ105+1.003.p sympli: unprovable  3.0 ms, about 0 min left
 
-$ linlog-bench ranking tools.csv
+$ deduxit-bench ranking tools.csv
 …
 ## Solved within the limit
 
