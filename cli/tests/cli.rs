@@ -1380,6 +1380,21 @@ fn rocq_format() {
             "no certificate: NanoYalla has no Mix rule, so a proof with Mix has no certificate\n"
         )
     );
+    // A session's `proof FILE.v` makes no file for a refused certificate.
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("cli-refused-certificate");
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("cert.v");
+    let script = format!("close\nproof {}\n", file.display());
+    let (_, out, _) = linlog(&["interact", "--cyclic", "a |- a"], &script);
+    assert!(
+        out.ends_with(
+            "error: no certificate: the Rocq calculi are commutative, so a derivation or a \
+             disproof of the cyclic mode has no certificate\n"
+        ),
+        "{out}"
+    );
+    assert!(!file.exists());
+    std::fs::remove_dir_all(&dir).unwrap();
 }
 
 /// `--format svg`, with and without `--net`, prints the verdict as an XML

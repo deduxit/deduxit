@@ -835,8 +835,15 @@ fn proof_target<'a>(rest: &[&'a str]) -> Result<(Format, Option<&'a str>)> {
 /// Returns what `proof` prints: `text`, the verdict and what was written
 /// of the proof as `shown` says, printed or written to `path`, or the
 /// rendered bytes written there.
+///
+/// # Errors
+///
+/// A proof left out (a refused certificate, a derivation past its limit)
+/// when `path` names a file, which is made only with the proof in it, and
+/// a file that cannot be written.
 fn proof_written(shown: Shown, mut text: String, path: Option<&str>) -> Result<String> {
     match shown {
+        Shown::LeftOut(line) if path.is_some() => bail!("{line}"),
         Shown::LeftOut(line) | Shown::Cut(line) => {
             text.push('\n');
             text.push_str(&line);
