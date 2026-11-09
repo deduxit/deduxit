@@ -997,6 +997,22 @@ fn check_takes_the_file_s_mode() {
     );
 }
 
+/// `check` refuses a mode no calculus has before it reads the proof, so
+/// no drawing names one.
+#[test]
+fn check_refuses_intuitionistic_mix() {
+    let (_, json, _) = linlog(&["prove", "-i", "--format", "json", "a, b |- a * b"], "");
+    let (status, out, err) = linlog(&["check", "-i", "--mix", "--net"], &json);
+    assert_eq!(
+        (status, out.as_str(), err.as_str()),
+        (
+            2,
+            "",
+            "error: Mix has no intuitionistic form: a premise of a Mix would have no goal\n"
+        )
+    );
+}
+
 /// A proof of the Lambek calculus with an empty antecedent passes `check`
 /// only where empty antecedents are allowed, and without them no net of
 /// it is drawn as correct: the verdict is the checker's, with its rule.

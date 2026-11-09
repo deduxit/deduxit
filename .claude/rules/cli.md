@@ -773,6 +773,10 @@ binary `linlog` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   flags' only where the file has none; a flag that names another mode is
   an error, exit 2, so a test that checks a proof in a stricter mode
   drops the key first (`without_mode` in `cli/tests/cli.rs`).
+- `check` and `eliminate` refuse a mode no calculus has (`Mode::check`:
+  intuitionistic with Mix, an ordered mode with weakening or Mix), exit 2,
+  before reading the file, as the search does; the checker itself takes
+  any `Mode` it is handed.
 - **`check` has a time limit and a work limit** (`--timeout`, default the
   command's 2 s, and `--work-limit`, through `Settings`): a proof file
   can make its check quadratic (a shared subproof read by a chain of `&`

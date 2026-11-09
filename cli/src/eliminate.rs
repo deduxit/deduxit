@@ -27,7 +27,7 @@ use std::time::Instant;
 ///
 /// # Errors
 ///
-/// A file that is no proof in JSON or states
+/// A mode no calculus has, a file that is no proof in JSON or states
 /// another mode than the flags name, a proof of a goal, a step the checker
 /// refuses (a defect of the library), or an output that cannot be made;
 /// an invalid proof is a verdict, and an elimination a bound stopped
@@ -39,6 +39,7 @@ pub(crate) fn eliminate(args: &EliminateArgs, given: &Given) -> Result<Status> {
     let deadline = Deadline::start(time_limit(&settings), start)?;
     let check = &args.check;
     let mode = check.mode.mode();
+    mode.check()?;
     let show = Show::new(&check.output, &settings)?;
     let path = check.output.output.clone();
     exit_on_interrupt();

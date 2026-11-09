@@ -22,15 +22,16 @@ use std::time::Instant;
 ///
 /// # Errors
 ///
-/// A file that is no proof in JSON, a proof of a goal, a proof or
-/// disproof of another mode than the flags name, or an output that
-/// cannot be made; an invalid proof is a verdict, and a check given up at
-/// a limit is unknown, neither an error.
+/// A mode no calculus has, a file that is no proof in JSON, a proof of a
+/// goal, a proof or disproof of another mode than the flags name, or an
+/// output that cannot be made; an invalid proof is a verdict, and a check
+/// given up at a limit is unknown, neither an error.
 pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
     let start = Instant::now();
     let settings = args.settings(given)?;
     let deadline = Deadline::start(time_limit(&settings), start)?;
     let mode = args.mode.mode();
+    mode.check()?;
     let quiet = args.output.quiet;
     let show = Show::new(&args.output, &settings)?;
     let path = args.output.output.clone();
