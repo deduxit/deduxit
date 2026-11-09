@@ -1249,3 +1249,301 @@ Not checked, or not checkable:
   `vumtzlyo` pushed.
 - The opam submission: `~/Projects/own/rocq-opam`, `tznmymqy`, not
   pushed (the author's pull request).
+
+## Session 53r: the Rocq library renamed
+
+Opus 5.5 at high, started by the planning session from
+`/tmp/linlog-handoff/start-53r.md`, 2026-11-09. The library is now
+`rocq-deduxit`, with one logical root `Deduxit` and today's files as
+`Deduxit.Linear.*`. Its check passes, and the placeholder forwards
+`/rocq-linlog`. The opam submission is prepared as `rocq-deduxit.0.3.0`
+and not sent. linlog itself is unchanged.
+
+### What was done
+
+- **The library** (`../rocq-linlog-53r` on `main`, two commits):
+  - `trtpormz` "Rename the library rocq-deduxit, under the logical root
+    Deduxit":
+    - the twenty `.v` files moved to `theories/Linear/`;
+    - `_RocqProject` maps `-Q theories Deduxit`;
+    - every `From Linlog Require` became `From Deduxit.Linear Require`;
+    - the tests compile as `Deduxit.Linear.Tests` and the bridges as
+      `Deduxit.Linear.Bridges`;
+    - `tests/Assumptions.v` and `bridges/Assumptions.v` name every
+      theorem by its full path, the same 33 and 4 theorems as before;
+    - `rocq-deduxit.opam`: synopsis, description, `logpath:Deduxit`,
+      the URLs, version 0.3.0;
+    - the flake's package `rocq-deduxit`, its checks `rocq-deduxit` and
+      `rocq-deduxit-9_N`, installing into `user-contrib/Deduxit/Linear`;
+    - the documentation in `share/doc/rocq-deduxit`, its pages named
+      `Deduxit.Linear.*.html`;
+    - the release workflow and `scripts/opam-install.sh`;
+    - `CITATION.cff`: the title `rocq-deduxit` and the new URLs, the
+      concept DOI unchanged;
+    - `CHANGELOG.md`: the rename as a break in 0.3.0's section;
+    - CLAUDE.md and `.claude/rules/rocq.md`, with the shape the author
+      decided and the logical paths.
+  - `nxmkmupx` "Head README with deduxit's mark and the dictionary
+    line":
+    - the word mark by URL (`https://deduxit.github.io/logo/wordmark-{light,dark}.svg`);
+    - the dictionary line under it;
+    - the mark's licence (CC BY 4.0, linked to the site's
+      `LICENSE.txt`) where the lollipop's was named;
+    - `opam install rocq-deduxit`, `From Deduxit.Linear Require Import
+      Soundness.`, the Nix path `user-contrib/Deduxit`;
+    - a note for users of 0.2.0.
+- **The placeholder** (`../linlog-prover-placeholder`, `yxlomtlm`):
+  - `site/404.html` sends `/rocq-linlog/…` to
+    `https://deduxit.github.io/rocq-deduxit/…`;
+  - README's table and text name the library's new addresses.
+- **The opam submission** (`~/Projects/own/rocq-opam`):
+  - `mmsqlyzk` "Add rocq-deduxit.0.3.0", on `master`, adds
+    `released/packages/rocq-deduxit/rocq-deduxit.0.3.0/opam`. It is the
+    repository's opam file without its header and `version:`, plus a
+    `url` naming the `v0.3.0` tag's archive.
+  - The checksum is a placeholder, 128 zeros under a comment saying so.
+  - `opam lint` passes.
+  - The old chain (`omkspqll` "Add rocq-linlog.0.2.0", `ywqlpnru`,
+    `tznmymqy`) is kept, not deleted. Each description now ends with a
+    paragraph marking it superseded by rocq-deduxit.0.3.0 and never to
+    be sent.
+  - Nothing was pushed, and no pull request was opened.
+
+### The tests' and bridges' paths: `Deduxit.Linear.Tests` and `Deduxit.Linear.Bridges`
+
+- Both forms the brief offered work with the same simplicity: one `-Q`
+  flag in each check and the flat directories unchanged.
+  - The test files compile one by one in the check, now with `-Q .
+    Deduxit.Linear.Tests`.
+  - The bridges compile with `-Q bridges Deduxit.Linear.Bridges`.
+- `Deduxit.Linear.*` keeps them in the namespace of the calculus they
+  test, as the author's namespace per calculus does for the theories.
+  A later calculus's tests take its own namespace.
+- The one risk was shadowing. Three test files are named after theory
+  files (`Refutations.v`, `Weights.v`, `FirstOrderWeights.v`). A probe
+  compiled the `Refutations` test as `Deduxit.Linear.Tests.Refutations`,
+  then a file with `From Deduxit.Linear Require Import Refutations.`
+  beside it: Rocq 9.1 took the exact path `Deduxit.Linear.Refutations`,
+  silently. `Deduxit.Tests` behaved the same.
+- `-Q` rather than `-R`: Rocq 9.1's reference manual says installed
+  packages "are loaded with the less-permissive `-Q` option" and
+  encourages `From` clauses, which every `Require` here has. So the build
+  sees exactly the paths a user sees.
+
+### Checks
+
+- `nix flake check` of the library on the committed tree: exit status
+  0, "all checks passed!". It ran under the machine lock with
+  `--max-jobs 4 --cores 8`, on cores 10–15.
+  - `rocq-deduxit-9_0`, `-9_2` and `-9_3` were built in that run, each
+    printing "Closed under the global context" 33 times.
+  - `rocq-deduxit` (Rocq 9.1) and `rocq-bridges` were built just before
+    from the same derivations (33 and 4 lines), and were cached in the
+    run.
+  - `conventions`, `typos`, `deadnix`, `actionlint` and the treefmt
+    check were built in the run.
+- `nix build .#doc`: twenty pages `Deduxit.Linear.*.html`, none naming
+  `Linlog`.
+- linlog's 46 snapshot certificates (`core/tests/snapshots/linlog/*.v`)
+  were compiled against the renamed library, with only their `From
+  Linlog Require` lines rewritten to `From Deduxit.Linear Require`. All
+  46 compiled silently, so 53s's prelude change is that substitution
+  alone. The qualified names the first-order certificates use
+  (`Calculus.classical`, `Intuitionistic.affine`, `Calculus.mix`, …)
+  still resolve.
+- `scripts/opam-install.sh`'s new import line (`From Deduxit Require
+  Linear.Formulas … Linear.FirstOrderWeights.`) compiled against the
+  built library. The script itself, which needs the network and about
+  an hour, was not run.
+- The placeholder's redirect: the page's own script, run in Node with a
+  stub `location`, sends `/rocq-linlog/` to
+  `https://deduxit.github.io/rocq-deduxit/` and `/linlog/manual/` to
+  `https://deduxit.github.io/deduxit/manual/`. The live check after the
+  push is below.
+
+### Departures from the brief
+
+- `tests/FromLinlog.v` is now `tests/FromCommand.v`, and its lemmas
+  `from_linlog_N` are `from_command_N`, so that no logical path names
+  Linlog.
+- The assumptions files name every theorem by its full path
+  (`Deduxit.Linear.Soundness.soundness`, …), so the check's list shows
+  each theorem's new name. The list of theorems is the same.
+- README's "What it covers" was out of date: it described 0.2.0 and
+  listed the one-sided count and the state equation as uncovered. It
+  now says what 0.3.0's certificates cover.
+- README and the changelog describe the 0.3.0 release, so they name
+  what exists only after 53s and 53b: `deduxit prove`, `--kernel
+  deduxit` and the tag `v0.3.0`.
+- The theories' and bridges' comments say "deduxit" for the prover
+  (its checker, its `Node` variants, the certificates it writes), since
+  the library releases beside deduxit 0.3.0.
+- Kept unchanged:
+  - the licence header `linlog © …`, which the conventions check looks
+    for, as linlog's own files do;
+  - the Cachix cache `linlog-prover`;
+  - the local directory names (`../rocq-linlog`, its `wt-` workspaces).
+- Left for 53b:
+  - `CITATION.cff`'s `version: 0.2.0` and `date-released`;
+  - the opam file's tag `date:2026-11-02` (0.2.0's date), in the
+    repository and in the submission;
+  - the submission's checksum.
+- The placeholder's README got one sentence on the rename beside its
+  table.
+
+### What the next sessions must know
+
+**For 53s: every name and path linlog uses for the library, and its
+new form.** The lock pins a commit of the old shape (`rocq-linlog`,
+`Linlog`). Everything below moves in one change with the lock, since
+the old names stop existing at the new pin.
+
+- **The flake input** (`flake.nix`, lines 48–60): the input
+  `rocq-linlog` with `url = "github:deduxit/rocq-linlog"` and the
+  comment's `--override-input rocq-linlog path:../rocq-linlog` become
+  the input `rocq-deduxit` with `url = "github:deduxit/rocq-deduxit"`
+  and `--override-input rocq-deduxit path:../rocq-linlog` (the local
+  directory keeps its name). `flake.lock` then locks the new input,
+  pinned to the pushed head of the library's `main`.
+- **`modules/rocq-linlog.nix`** becomes `modules/rocq-deduxit.nix`:
+  - `library = inputs.rocq-linlog.packages.${system}.rocq-linlog` →
+    `inputs.rocq-deduxit.packages.${system}.rocq-deduxit`;
+  - `checks.rocq-linlog-library = inputs.rocq-linlog.checks.${system}.rocq-linlog`
+    → `checks.rocq-deduxit-library = inputs.rocq-deduxit.checks.${system}.rocq-deduxit`;
+  - `checks.rocq-linlog` and `runCommand "check-rocq-linlog"` →
+    `checks.rocq-deduxit` and `"check-rocq-deduxit"`;
+  - the commands `linlog prove --kernel linlog …` (the classical and
+    first-order lines) → `deduxit prove --kernel deduxit …`;
+  - the version assertion's regex on `pub const LINLOG: &str` follows
+    the constant if it is renamed;
+  - the header comment names `rocq-linlog` and
+    `github:deduxit/rocq-linlog`.
+  - The library's own check prints 33 "Closed under the global context"
+    lines; the package installs `user-contrib/Deduxit/Linear/*.vo`.
+- **`modules/export.nix`** line 26: the comment "the rocq-linlog
+  check's".
+- **`modules/devshell.nix`** line 44: the `check` command's help names
+  `rocq-linlog, rocq-linlog-library`.
+- **The exporter** (`core/src/export/rocq/mod.rs`):
+  - `Kernel::Linlog` (serde `"linlog"`, the value of `--kernel` and the
+    settings key `rocq.kernel`) → `Kernel::Deduxit` (`"deduxit"`), and
+    its doc comment "linlog's own Rocq library";
+  - `pub const LINLOG: &str = "0.3.0"` with its doc comment ("the
+    package `rocq-linlog` of the repository
+    <https://github.com/deduxit/rocq-linlog>, logical path `Linlog`") →
+    the package `rocq-deduxit`, <https://github.com/deduxit/rocq-deduxit>,
+    logical root `Deduxit`, modules under `Deduxit.Linear`. The value
+    stays `"0.3.0"`, the opam file's version;
+  - the six preludes, every line `From Linlog Require …` →
+    `From Deduxit.Linear Require …`, the module names unchanged:
+    - `LINLOG_PRELUDE` (line 201): `Import Soundness`;
+    - `LINLOG_TWO_SIDED_PRELUDE` (208): `Import IntuitionisticCheck`;
+    - `LINLOG_FIRST_ORDER_PRELUDE` (217–218): `Calculus`,
+      `Import FirstOrderSoundness`;
+    - `LINLOG_FIRST_ORDER_TWO_SIDED_PRELUDE` (226–227):
+      `Intuitionistic`, `Import FirstOrderIntuitionisticCheck`;
+    - `LINLOG_REFUTATION_PRELUDE` (235): `Import Weights`;
+    - `LINLOG_FIRST_ORDER_REFUTATION_PRELUDE` (245–246):
+      `Calculus Intuitionistic TermsCheck`, `Import FirstOrderCalculus
+      FirstOrderIntuitionistic FirstOrderWeights`.
+  - The constants' names (`LINLOG_*`) and `core/src/export/rocq/linlog.rs`
+    are 53s's choice. The module qualifiers inside certificates
+    (`Calculus.classical`, `{| Calculus.mix := … |}`,
+    `Intuitionistic.affine`, `{| Intuitionistic.iweakening := … |}`)
+    stay as they are: they resolve under `Deduxit.Linear`, as the 46
+    snapshots showed.
+- **The snapshots** `core/tests/snapshots/linlog/*.v`: 46 files, lines
+  2–3, `From Linlog Require` → `From Deduxit.Linear Require` (re-bless
+  with `BLESS=1`). The directory's name `linlog/` is 53s's choice.
+  `core/tests/export.rs` lines 9, 559 and 1834 name the `rocq-linlog`
+  check.
+- **The command**: `cli/src/argument_parsing.rs` lines 1449–1450, the
+  kernel's help text "linlog's own Rocq library (the package
+  rocq-linlog, from github.com/deduxit/rocq-linlog)" → deduxit's, the
+  package rocq-deduxit, github.com/deduxit/rocq-deduxit. The behaviour
+  lock's `cli/tests/lock/out/help-prove.txt:343`,
+  `help-check.txt:152` and `help-interact.txt:270` follow, in a commit
+  of their own. `cli/tests/cli.rs:1635` tests the settings value
+  `"linlog"` of `rocq.kernel`.
+- **The manual**:
+  - `docs/src/rocq.md`:
+    - lines 4–6: the kernel `linlog` and
+      `[deduxit/rocq-linlog](https://github.com/deduxit/rocq-linlog)`;
+    - line 71: `--kernel linlog`;
+    - lines 148–176:
+      - the package `rocq-linlog`;
+      - the repository's link;
+      - "linlog 0.2.0's certificates compile against rocq-linlog";
+      - `opam install rocq-linlog`;
+      - `opam pin add rocq-linlog https://github.com/deduxit/rocq-linlog.git#v0.2.0`
+        → `rocq-deduxit https://github.com/deduxit/rocq-deduxit.git#v0.3.0`;
+      - `opam upgrade` and `opam remove`;
+      - `nix build github:deduxit/rocq-linlog/v0.2.0` →
+        `github:deduxit/rocq-deduxit/v0.3.0`;
+      - `rocq compile -R path/to/rocq-linlog/theories Linlog mix.v` →
+        `rocq compile -Q path/to/rocq-deduxit/theories Deduxit mix.v`;
+      - the documentation's link `deduxit.github.io/rocq-linlog` →
+        `deduxit.github.io/rocq-deduxit`.
+  - `docs/src/installation.md` lines 239–241 and `docs/src/status.md`
+    lines 210–211 and 225 name the package, its repository and
+    `--kernel linlog`.
+- **README** lines 103–106 (the package, its repository and `--kernel
+  linlog`).
+- **`CITATION.cff`** lines 21, 23, 39 and 48: the reference `title:
+  rocq-linlog` → `rocq-deduxit`, its `repository-code` →
+  `https://github.com/deduxit/rocq-deduxit`, and the abstract's
+  mention. The library's concept DOI 10.5281/zenodo.23899109 stays.
+- **The guide for AI models**:
+  - `skills/linlog/SKILL.md` line 99: the link and `--kernel linlog`;
+  - `skills/linlog/reference.md`:
+    - lines 1015–1016: the package and its repository;
+    - lines 1068–1069: `--kernel linlog` and `rocq compile -R
+      path/to/rocq-linlog/theories Linlog proof.v` → `rocq compile -Q
+      path/to/rocq-deduxit/theories Deduxit proof.v`.
+- **CLAUDE.md**:
+  - lines 60–80: the library's paragraph — the package, the logical
+    path `Linlog` → root `Deduxit` with `Deduxit.Linear`, the input,
+    `modules/rocq-linlog.nix`, `nix flake update rocq-linlog`,
+    `--override-input`;
+  - lines 129–130: the commands `checks.…rocq-linlog` and
+    `rocq-linlog-library`;
+  - line 136: the list of checks;
+  - line 166: the verification table's row.
+- **`.claude/`**:
+  - `rules/core-export.md` lines 677–717, 768 and 902;
+  - `rules/core.md` line 121;
+  - `rules/claude-infra.md` lines 99 and 166;
+  - `rules/flake.md` lines 98 and 118–136;
+  - `skills/update-deps/SKILL.md` lines 82–85.
+- **`CHANGELOG.md`**: 0.3.0's section names the break: `--kernel
+  linlog` → `--kernel deduxit`, and certificates import `From
+  Deduxit.Linear`. The past sections (lines 59, 388–410 and 841–849)
+  stay as history.
+- **Not linlog's to change**: the placeholder's frozen copies of the
+  guide (`site/linlog/llms*.txt`, `reference.md`). The web client names
+  neither the kernel nor the library.
+
+**For 53b:**
+- Set `CITATION.cff`'s `version` and `date-released`, the opam file's
+  `date:` tag and the changelog's date. The release workflow checks the
+  tag against `rocq-deduxit.opam` and `CITATION.cff`.
+- After the tag, replace the submission's placeholder checksum with the
+  SHA-512 the GitHub release's notes give, and its `date:` tag with the
+  release's date, in `~/Projects/own/rocq-opam` (`mmsqlyzk`). The pull
+  request is the author's.
+- The release's Pages replace the 0.2.0 pages (`Linlog.*.html`) with
+  `Deduxit.Linear.*.html`. An old deep link
+  `…/rocq-linlog/Linlog.Calculus.html` then forwards to
+  `…/rocq-deduxit/Linlog.Calculus.html`, which will no longer exist.
+  Redirect stubs in `modules/doc.nix` could keep such links working;
+  none is known to exist outside the repositories.
+
+### Repositories and workspaces
+
+- The library: `../rocq-linlog-53r` (workspace `53r`), `trtpormz`
+  (a3b48351), `nxmkmupx` (62d02be1).
+- The placeholder: `../linlog-prover-placeholder`, `yxlomtlm` (ec21c4b7).
+- The opam fork: `~/Projects/own/rocq-opam`, `mmsqlyzk` (1904ab56) on
+  `master`; the superseded chain re-described (`omkspqll` 74bce97c,
+  `ywqlpnru` 64a4e199, `tznmymqy` 3f809fa8).
+- linlog: `../linlog-step53r` on `main`, this section's commit only.
