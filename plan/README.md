@@ -5920,3 +5920,7 @@ move (D26).
     - `core-focus.md` said the generator reports the most derelictions
       on one branch; it sums every branch. Fixed by the planning
       session (ooukzvsu).
+- 2026-11-09, 15:55: **The author: "Please stop after the current
+  steps finish."** 54b and 54w-e1 run to their finals and are reviewed
+  and pushed; no new session starts until the author says go. Next on
+  go: 54w-c beside 54w-d, then 54w-e3 onward.
