@@ -370,3 +370,154 @@ opam description true, the four rules copied word for word.
 - `rocq.md` still says `excess` is `None` "under an exponential that
   contains the atom (`bang` keeps `(0, 0)` alone)"; that parenthesis is
   the accurate part.
+
+## Session 54w-a: the page's text and the rule hints
+
+Session 2 of `plan/54w-text.md` (Opus 5.5 at `high`, background job,
+2026-11-09), in the web client's jj workspace
+`../linlog-prover.github.io-54w-a` (workspace `54w-a`) on its `main`
+(`vpkkppkk`, "flake.lock: Update"). Nothing was pushed by the session: after "client ready",
+deduxit-orchestrator pushed the chain, and the client's `main@origin` is
+`qyxnytmo` (`223ba9ef`). It accepted the empty stage's example line and
+"Logic" for "Calculus" as text.
+
+### Outcome
+
+Every text the page shows was read against the writing rules and the
+notes' section 7, and changed where it broke them; every rule label now
+has a hint; the client has its own copy of the writing rule. The page's
+behaviour is unchanged but for the hint (below), and nothing of W1-W15
+was built.
+
+The chain on the client's `main`, oldest first (change ids; commit ids
+as the signing hook gave them last):
+
+| change | commit | what |
+|---|---|---|
+| `zmrylklr` | `3cdfaa55` | `.claude/rules/writing.md`, a copy of deduxit's: the four rules word for word, the scope and reader paragraphs the client's; no `paths:`, so it loads in every session. CLAUDE.md points to it ("## Writing"), `claude-infra.md` lists it |
+| `yvorvkto` | `0514c81b` | refusals, verdicts, hints and settings say what to do next: each refusal sentence ends with the next action ("Apply their rules first.", "Choose another split."); "a split of the context" became "a split of the goal's formulas"; the third hint rung ends "Press Hint again to apply it.", the fourth asks "Can you say why this was the step to take?"; Unknown ends "try a larger budget"; the saturation and the ordinary not-valid sentences split; the invertible switch's tip in two sentences; the budget's "about under one second" fixed; the export details name what each file needs (ebproof, cmll and amssymb; curryst; NanoYalla or rocq-deduxit) |
+| `lqpkmrwv` | `2c57ab6b` | Learn and the tour: lesson 1's opening cut to the goal, the dual and the axiom (one idea before its worked proof; the rewrite of `A ⊢ A` stays in its explain answer), `choices: ["ax", "no rule"]`, its hinge's `⊤`/`?w` clause replaced; De Morgan, the double dual and the classical rewrite moved to lesson 2; `A -o B` as `A⊥ ⅋ B` moved to lesson 6; lesson 7 in the page's words (Proved, checked; Unprovable; Unknown) with its reasons as a list; lesson 8 defines MLL, MELL and the switching condition; lesson 11 drops the command line for "click the mark beside the sequent field and choose Ordinary"; the tour's stop 7 names the shapes (check, cross, question mark), stop 8 drops "branch"; Practice says only provable problems are there, what counts as proved (W11's rule as it is today) and what difficulty counts; About leads with what the page does |
+| `ummswzmk` | `ba017bf2` | one name, "Logic": the mark's tip and accessible name ("Logic: …") and the Status row; the empty stage gets a syntax line ("For example A * B \|- B * A: * is ⊗, …", the ordinary signs in an ordinary tab: FW3's text) |
+| `vupupxnp` | `36154fc8` | comments: no "the author's D13", no deduxit `plan/` paths, no other repositories named in `modules/*.nix` and `derive.py` |
+| `xxvkxvzm` | `1cfcdf51` | the rule hints (below), with `src/lib/rules.test.ts` and `tests/hints.spec.ts` (six tests) and a tap test in `tests/phone.spec.ts`; the client's `web.md` describes them |
+| `ktynqmtn` | `226a7661` | README leads with what the page does, then "Using the page" in four steps, then a short list of features; the 60-line bullet list is gone |
+| `qpwpwvvk` | `fc5b37f8` | jargon out: "context" in six problems' bodies (lesson 3 now defines it at first use), "rung" (Learn, the tour), "Proved, not grafted" became "Proved, but not added to the derivation", the net look "deduxit" became "Default"; reference.md's hover sentence; llms.txt's summary shortened |
+| `mxtqnvkw` | `bb90409f` | the review's hint findings: a popover rule's hint stands beside the popover, never over its list (it covered the next rule and took its click, which `ordinary.spec.ts` caught); the popover and the drawing look rules up in separate lists; every hint and every rule's `says` in `src/content/rules/` is one sentence, which the unit test now checks; LK's and LJ's `→L` and LJ's `¬L` in Gentzen's split form |
+| `qyxnytmo` | `223ba9ef` | the review's text findings: the Rocq detail per suite (NanoYalla for classical linear logic without Mix, weakening, cuts or quantifiers, rocq-deduxit the rest; nothing over `Prop`), LaTeX's amssymb, Typst's own layout when tall, lesson 7's "three reasons", lesson 6's "calculus's switch", reference.md's tap |
+
+### The rule hints
+
+- Where: every rule of the popover (hover, focus, and an "About <rule>"
+  button with an ⓘ for a tap, since a press on the rule applies it);
+  every label of the derivation (a transparent button `.lb` laid over
+  deduxit's SVG label as the formulas' buttons are, under them, at least
+  a control's size on screen; read off the drawing, so the two-sided
+  names come out as drawn); Learn's "The step is …" lines and the
+  refusal's last step (`RuleName`, a button); Learn's prediction buttons
+  on hover and focus.
+- What: the label and the full name ("⊗R: tensor, right"), the schema
+  (the reference's `Schema`), one sentence. Screen readers get the same
+  words as the label's description (`aria-describedby` to a hidden span
+  per rule). Escape closes the hint alone; the pointer may rest on it;
+  a tap keeps it until a tap elsewhere.
+- Every suite: the reference's one-sided rules and ILL's two-sided ones
+  from `src/content/rules/`; tables in `src/lib/rules.ts` for classical
+  linear logic drawn two-sided (deduxit's `ClassicalRule` names, `~L`
+  and `~R` among them), Mix, affine `wk`, the Lambek calculus, LK and LJ
+  (G3's forms, `→L` and `¬L` in Gentzen's split form since grafts draw
+  them so). `rules.test.ts` holds every label deduxit draws or offers,
+  in each calculus, to a hint with a form and one sentence.
+- It replaces the Learn-only schema tip of popover rules (`data-rule`,
+  `ruleNamed`, both removed): the hint shows with Learn on and off.
+
+### The checks
+
+| check | result |
+|---|---|
+| Vitest (`tests`), capped on cores 12-15 | 579 passed, after the review's fixes |
+| `lint` (Biome, `astro check`) | 0 errors |
+| e2e of the touched specs (hints, phone, lessons, prover, ordinary, targets, dismiss) | 85 passed, after the review's fixes |
+| the client's `nix flake check --keep-going --max-jobs 4 --cores 8`, under the machine lock, capped on cores 12-15 | exit 0 at `qyxnytmo` (`223ba9ef`): 579 unit tests and 151 e2e tests passed, every check built |
+
+Two earlier runs of the flake check failed and were fixed at their
+cause: treefmt (two files edited from the shell, formatted), then seven
+e2e tests: three still named the mark "Calculus" (changed with the
+text), and the hint covered the popover's next rule (fixed by placing
+it beside the popover).
+
+### The review
+
+The `fresh-reviewer` agent read `main..qpwpwvvk` against the prompt, the
+writing rules and the notes (read only, nothing run). Eight findings:
+
+1. F1, the hint forms of LK's and LJ's `→L` and LJ's `¬L` were the shared
+   form, while deduxit's read-back draws them split. Upheld: the split
+   form, and a sentence that a formula may go to either premise or both
+   (`mxtqnvkw`).
+2. F2, the Rocq detail named NanoYalla for proofs with cuts or
+   quantifiers, and appeared on ordinary tabs. Upheld (`qyxnytmo`).
+3. F3, lesson 7 said deduxit gives three reasons; the page has six.
+   Upheld: "The most common:".
+4. F4, LaTeX also needs amssymb; Typst's own layout has no curryst.
+   Upheld.
+5. F5, in a two-sided classical tab the popover's `?c`/`?w` showed the
+   right-side forms. Upheld: steps and drawing look rules up in
+   separate lists.
+6. F6, hints of two sentences, and a test that did not check one. Upheld:
+   every hint and `says` is one sentence; the test strips formulas and
+   allows one full stop.
+7. F7, "one name, Logic" only partly: the dialog's fieldsets are still
+   "Calculus" and "Suite", lesson 6 said "the calculus's switch". Lesson
+   6 fixed; the fieldsets kept (a departure, below).
+8. F8, the prediction buttons have no tap path to the hint, and
+   reference.md promised a tap everywhere. reference.md now says where a
+   tap works; the predictions keep hover and focus (a departure, below).
+
+### Departures from the prompt
+
+- The Logic dialog's accessible group names stay "Calculus" (the
+  outer fieldset) and "Suite" (linear or ordinary): the inner groups are
+  already named "Logic", so renaming the outer one would give two groups
+  of one name, and the tests find the switches by these names. The
+  visible names (the mark's tip, the Status row, the texts) say "Logic".
+- Learn's prediction buttons show the hint on hover and focus but not on
+  a tap, since a tap predicts; the step's rule after it (`RuleName`) and
+  the drawing's label have the tap.
+- The lessons' structure (worked proof, fading, practice, hinge) is
+  unchanged: `worked-example-fading-designer`'s sequence is the one the
+  lessons already follow, and moving parts is W13. The education skills
+  used: `cognitive-load-analyser` on lesson 1 (eight elements in the
+  opening, three used by its example; the cut above) and
+  `ai-feedback-design-principles` on the refusals and hints (task and
+  process feedback, no praise; its one fix, saying that the next Hint
+  applies the step, is in `yvorvkto`).
+- The problems' bodies, the examples' notes and the rules' sentences were
+  read and changed only where they broke a rule (jargon, two sentences);
+  most were already plain.
+
+### What the next sessions must know
+
+- The client's `.claude/rules/writing.md` is a copy of deduxit's: a
+  change to the four rules belongs in deduxit, the client and the Rocq
+  library.
+- A new rule label deduxit draws needs a hint: an entry in
+  `src/lib/rules.ts` (or `src/content/rules/` for a one-sided or ILL
+  rule the reference draws) and its label in `src/lib/rules.test.ts`'s
+  lists, which fail without it. Every hint is one sentence.
+- The hint finds the drawing's labels as the next sibling of each `g#i<n>`
+  (a text, or a group for a subscript); a change of deduxit's SVG there
+  silently drops the label buttons (only `hints.spec.ts` would see it).
+- If W1 (reasons in view) is accepted, the refusal sentences already end
+  with the next action and stand alone; the hint's opening on tap is
+  the precedent.
+- Accessible names changed with the text: the logic mark's button is
+  "Logic: …" (tests find it by `/^Logic/`); the net look button
+  "Default"; the popover rows have an "About <rule's full name>" button,
+  so a test that counts the popover's buttons counts rows instead.
+
+### Repositories and workspaces
+
+- The web client: the workspace `../linlog-prover.github.io-54w-a`
+  (name `54w-a`), the chain above.
+- deduxit: the workspace `../linlog-step54w-a` (name `step54w-a`) on
+  `main` (`uwvntrmx`), this section only.
