@@ -2150,3 +2150,376 @@ The planning session pushed linlog's chain up to `rxlqptkn` (`ac9b8f06`),
 rebased without conflict onto `main`'s newer plan commits.
 
 The Rocq library, on its `main` (`nxmkmupx`): `yrxqynvu` Head every source file deduxit ©, and check that header; `rqtyouoz` Name deduxit's input, checks, kernel and constant as its rename left them.
+
+## Session 53b: the release prepared
+
+Opus 5.5 at high, started by `deduxit-orchestrator` from
+`/tmp/linlog-handoff/start-53b.md` on 2026-11-09. It worked in the jj
+workspaces `../linlog-step53b` (deduxit), `../rocq-linlog-53b` (the Rocq
+library) and `../linlog-prover.github.io-53b` (the client), and in the
+placeholder's only workspace.
+
+### Outcome
+
+0.3.0 is ready to tag in both repositories:
+
+- **The audit.** Every B and R finding of the rename audit is fixed in
+  its repository or handed on as the brief says. The cheap suggestions
+  are taken.
+- **The version** is 0.3.0 everywhere, dated 2026-11-09.
+- **The break.** `breaks 0.2.0` ran with both tools. `CHANGELOG.md` has
+  a dated 0.3.0 section with every break they found, the command's
+  changes a script sees, and what 0.3.0 adds.
+- **The release workflow** publishes the new crates by the first-publish
+  token, and `linlog` and `linlog-cli` 0.3.0 once, by Trusted
+  Publishing.
+- **The Rocq library's documentation** forwards 0.2.0's `Linlog.X.html`
+  pages.
+- **The notes.** The release notes, the opam commands, the Zenodo
+  check, the organisation's profile README and the author's checklist
+  are in `plan/notes/release-0.3.0.md`.
+
+The commits to tag:
+
+- **rocq-deduxit** (first): `tymnvlzv` (`66905bcc61ed`), "Date the
+  release of 0.3.0", pushed. The tag is `v0.3.0`, with the message
+  "rocq-deduxit 0.3.0".
+- **deduxit**: this report's commit, the head of the chain below, once
+  pushed. The tag is `v0.3.0`, with the message "deduxit 0.3.0". The
+  last message to `deduxit-orchestrator` gives its ids.
+
+### The audit's findings, and what became of each
+
+Fixed in deduxit:
+
+| finding | what was done | commit |
+|---|---|---|
+| B1 the rustdoc's curly quotes | `\"…\"` in `lib.rs`; the built page has straight quotes (checked in its bytes); `core.md` says why | `wvtyomxk` |
+| B2 "no mark of its own" | `core.md`: the lollipop retired, the linear suite has no mark of its own | `wvtyomxk` |
+| B3 conduct.md's guide path | `skills/deduxit/` | `woxtrwuw` |
+| B4, B5, B6 the handoff | the mark as it is, deduxit's command and paths, the `check`/"mode" item dropped (53a closed it), the opam steps rewritten for `rocq-deduxit.0.3.0` (`mmsqlyzk`), `rocq-deduxit` for the module and the secret; also the review steps' `target/debug/deduxit` and `deduxit-bench` (the reviewer's finding 4) | `woxtrwuw` |
+| B7 step 53's prompt | `deduxit/rocq-deduxit`; the citation question replaced by the check; item 6 says why linlog's trusted publisher was re-entered | `woxtrwuw` |
+| B8 prompts 54–73 | the opening line, `deduxit/rocq-deduxit`, `rocq-deduxit`, the `deduxit` crate, `deduxit interact`, `skills/deduxit/`, deduxit's own, the moved checker path; 67's paths with `compat/linlog` and `deduxit::linear` | `woxtrwuw` |
+| B9 plan/README.md | line 3, step 67's row, a dated note on names at the head of the decisions, D14's commands `-p deduxit`, D24 superseded, D25, D26 | `woxtrwuw` |
+| B10 later.md | the Zenodo community `deduxit` (its logo from `modules/logo.nix`), the MCP entry, `nix run github:deduxit/deduxit` | `woxtrwuw` |
+| B11 the scripts' headers | `deduxit ©` in the three scripts and `plan/web/mockup/tools/bundle.py` | `wooruxwu` |
+| B12 the spec's erratum | deduxit, `core/src/linear/search/horn/` | `wooruxwu` |
+| R1 README's version paragraph | rewritten for 0.3.0 | `ptvqnpqw` |
+| R2 versions and dates | `Cargo.toml` and its requirements, both locks, `CITATION.cff` 0.3.0 and 2026-11-09 | `rptmstxs` |
+| R3 the publication | the workflow's publish job (below); the trusted publishers in the author's checklist | `kxmykyqr` |
+| R4 the changelog's link | `[0.3.0]` | `mltkzuvp` |
+| S1 the web plan | a dated note on names at the head of `plan/web/README.md` and `design.md` | `woxtrwuw` |
+| S2 later.md's open entries | a dated note on names at its head, `deduxit interact`, `deduxit::linear::lltp::read`, `deduxit check`; the notices entry closed (done by 45d's `slwypkqv`: `share/doc/deduxit-cli/THIRD-PARTY-NOTICES.txt` and every archive) | `woxtrwuw` |
+| S3 the mark in the changelog | 0.3.0's "Changed" | `mltkzuvp` |
+| S8 the compat crates' pages | the dictionary line under their heading | `wnyqrwxz` |
+
+Fixed in the other repositories:
+
+| finding | what was done | commit |
+|---|---|---|
+| R5 rocq-deduxit's version and date | `CITATION.cff` 0.3.0 and 2026-11-09, the opam file's `date:2026-11-09`, the changelog dated with its `[0.3.0]` link; its documentation is redeployed by the tag's workflow | `tymnvlzv` |
+| S4 rocq-deduxit's README | 0.2.0 came from `linlog-prover/rocq-linlog` | `trxzwyqs` |
+| (the brief) the old deep links | `doc.nix` writes `Linlog.X.html` beside each `Deduxit.Linear.X.html`, forwarding with the fragment | `zmvusrml` |
+| B13 the client's rules line | the final period, the note in parentheses | `znykkyyq` |
+| (the brief) the client's forward | the 404 page sends `/rocq-linlog/X` to `/rocq-deduxit/X`. Before, only `/rocq-linlog/` forwarded and a deep link landed on "Not found". Its e2e test is "a page under the Rocq library's old path forwards to its new path". | `wplzznrm` |
+| B14 the placeholder's README | linlog renamed deduxit at 0.3.0 | `ptzzwpwx` |
+| B15 the placeholder's 404 | the link `/deduxit/deduxit/`; `/linlog/linlog/…` goes to the crate's front page | `ptzzwpwx` |
+| S5 the frozen guides | their dead API link and the library's old address | `ttzqynvz` |
+
+Handed on, or left:
+
+- **B16–B19** (the repositories' descriptions and homepages) and **S7**
+  (the old organisation's avatar): the planning session's, through
+  `gh`, with the author's yes.
+- **B20–B22**: the live site, resolved by the client's deploy.
+  - At 09:50 CET `deduxit.github.io` still served the build of
+    2026-11-08.
+  - The client's CI run 42 (`6480c8f1`, this session's head) succeeded
+    and deployed at 08:57 UTC. After that the site served:
+    - `<title>deduxit</title>` and the manifest's name `deduxit`;
+    - `/llms.txt`'s "# deduxit in the browser";
+    - the word mark `aria-label="deduxit"` and the mark's licence;
+    - `/rocq-linlog/` forwarding to `/rocq-deduxit/`, and the 404
+      page's script for `/rocq-linlog/X`.
+  - No "sequentium" is left. The page's remaining "linlog" and
+    "lollipop" are the kept storage key `linlog-theme` and the lesson
+    ids of `⊸`'s rules.
+- **R6** (crates.io's metadata) changes with the publication. **R7**:
+  the Zenodo check is written in `plan/notes/release-0.3.0.md`.
+- **S6** (Zenodo's related identifiers): the author's account. Left as
+  published, since each link redirects.
+- **S8** elsewhere:
+  - The organisation's profile README is in
+    `plan/notes/release-0.3.0.md`, for the planning session to create.
+  - `skills/deduxit/SKILL.md` has no room for the line: its body is
+    7 953 of its 8 000 bytes.
+  - The client's `llms.txt` was left: the client was checked and pushed
+    before this was weighed, and the page's band card and About carry
+    the line.
+  - A coqdoc front page with the mark is a page to design, so it was
+    left: coqdoc's `index.html` lists the modules.
+  - The release notes are the changelog's section, which names the
+    mark.
+
+### The release
+
+- **The version.**
+  - In the manifests and both locks: `cargo update --workspace` and
+    `-p deduxit` in `fuzz/`, which moved only the workspace's own
+    packages.
+  - In `CITATION.cff`, README's and the installation chapter's
+    dependency line `deduxit = "0.3"`, the serialization tests'
+    outcomes and the manual's example in `terms.md`.
+  - The behaviour lock was blessed in a commit of its own. Its 18
+    outcomes change by the version string alone (checked: with the
+    version masked, the lines are equal; the reviewer checked it byte
+    for byte).
+  - The compat crates keep their literal 0.3.0.
+- **The break.**
+  - `breaks 0.2.0`:
+    - cargo-semver-checks: 229 checks, 10 failed.
+    - cargo-public-api: 17 396 items removed, 18 934 added, 160
+      changed.
+  - Normalised by mapping `deduxit::linear::X` to `deduxit::X` and
+    Linlog to Deduxit, the removals and additions reduce to two breaks
+    beyond the rename and the move:
+    - one item really removed, the old `cut::eliminate` (its new
+      parameter `at`);
+    - one variant added to a closed enum, `ordinary::Rule::Open`.
+  - Every "Changed" line is a moved type in a signature.
+  - The other new variants and fields belong to `#[non_exhaustive]`
+    types: `Error::NoTerm`, `Error::OrdinaryStep`,
+    `Unsupported::Exhausted` (last, so no discriminant moved),
+    `ViewOptions::structural`, `Settings::lambda` and the exports'
+    `lambda`. The changelog lists them as not breaks.
+  - For the command, the behaviour lock's outputs at the `v0.2.0` tag
+    and now, compared line by line with the name masked, show four
+    changes a script sees. Each is in the break list with what to do
+    instead:
+    - `check`/`eliminate` take the file's mode;
+    - a refused certificate keeps the verdict;
+    - the batch's certificate file names;
+    - `prove --logic` draws admissible structural rules by default.
+  - The changelog's section also has "Added", "Wire forms", "Changed"
+    and "Fixed", and `## [Unreleased]` stays empty above it.
+- **The workflow.** The publish job (`release.yml`) does four things:
+  1. It lists the crates due: `deduxit` and `deduxit-cli` at the tag's
+     version, then `linlog` and `linlog-cli` at 0.3.0. Each one
+     crates.io has at that version is skipped, and the rest are
+     classed new (the crate is absent) or existing.
+  2. It packages them before any token.
+  3. It publishes the new crates with the environment secret
+     `CRATES_IO_FIRST_PUBLISH_TOKEN`.
+  4. Only if an existing crate is due, it asks
+     `rust-lang/crates-io-auth-action` for a token and publishes those.
+
+  How the old names publish once and never again:
+  - their entry names the version 0.3.0;
+  - crates.io then has it, so every later run skips them;
+  - crates.io refuses a republished version anyway.
+
+  A rerun after a failure finishes what is left. A research agent read
+  crates.io's source and found three things:
+  - the token exchange finds a trusted publisher by the repository's
+    owner and name, then checks the owner's id, the workflow and the
+    environment;
+  - a crate must exist before a trusted publisher can be added to it;
+  - one exchange gives a token for every crate whose entry matches.
+
+  So `linlog`'s old `linlog-prover`/`linlog` entry matched nothing
+  after the move. The planning session reports that the author
+  re-entered it for `deduxit`/`deduxit`. `ci.md` says all of this.
+
+  The decision logic was run locally against crates.io's API for `v0.3.0`
+  and `v0.2.0`: `new=deduxit deduxit-cli`, `existing=linlog
+  linlog-cli`. actionlint passed.
+- **The packages.**
+  - The notices: 45d already put `THIRD-PARTY-NOTICES.txt` into the
+    package and every archive, so the `later.md` entry is closed.
+  - The manual's `status.md`:
+    - 0.3.0's planned items are moved to what exists (the page's
+      ordinary logic and lambda-terms; the inverse method's handover
+      was already described);
+    - the releases bullet names the old crates' last release.
+  - The guide for AI models is unchanged and within its budget (the
+    readme test).
+- **The Rocq library.**
+  - Its three commits are above, and the planning session pushed them.
+  - deduxit's lock moved to `tymnvlzv` ("flake.lock: Update",
+    `qympmxzk`), so deduxit 0.3.0 pins the library's 0.3.0.
+  - The stubs were built and read: 20 pages `Linlog.X.html`, one per
+    module of 0.2.0, each with a refresh, a canonical link and
+    `location.replace(target + location.hash)`.
+  - The placeholder's 404 sends
+    `linlog-prover.github.io/rocq-linlog/Linlog.Calculus.html#ll` to
+    `deduxit.github.io/rocq-deduxit/Linlog.Calculus.html#ll`, which then
+    forwards to `Deduxit.Linear.Calculus.html#ll`. The client's 404 does
+    the same for `deduxit.github.io/rocq-linlog/…`.
+- **The notes, opam and Zenodo**: `plan/notes/release-0.3.0.md`.
+  - **The release notes**, as both workflows will write them. They
+    were generated by the workflows' own `awk` from the commits to tag.
+  - **The opam commands**, tried on a copy of the submission's file
+    with a dummy digest:
+    - the archive's SHA-512 compared with the release notes';
+    - the checksum and `date:2026-11-09` filled in `mmsqlyzk`;
+    - `opam lint --check-upstream`;
+    - the installs per Rocq version.
+  - **The pull request's text.**
+  - **The Zenodo check**, its query run today: it lists v0.1.0 and
+    v0.2.0 under 23448588 and v0.2.0 under 23899109. The note also
+    says what to do if a version is missing or starts a new concept.
+
+### The checks
+
+Every build and test ran in a capped scope on cores 4–9. Every `nix`
+command ran under `flock -o /tmp/linlog-machine.lock` with `--max-jobs 4
+--cores 8`.
+
+- **rocq-deduxit**: `nix flake check` at `tymnvlzv` passed: exit 0, "all
+  checks passed!". `nix build .#doc` built the 20 stubs. "rocq ready"
+  was sent and "pushed" received (`main` = `tymnvlzv`).
+- **The placeholder** has no flake. Its 404 script ran in Node with a
+  stub `location` on seven paths: old API pages go to the crate's page,
+  and the manual, the library, `/linlog` and the root go where they
+  did. "placeholder ready" was sent and "pushed" received (`main` =
+  `ttzqynvz`).
+- **The client**: `nix flake check` at `znykkyyq` passed: exit 0, "all
+  checks passed!", the e2e log "143 passed" with the new test. "client
+  ready" was sent and "pushed" received (`main` = `znykkyyq`).
+- **deduxit**:
+  - `cargo test --workspace` after the version: only `json_lock` and
+    `outcome_json_format` failed, on the version, before the bless.
+  - `cargo package --locked` of `deduxit`, `deduxit-cli`, `linlog` and
+    `linlog-cli`, the workflow's own step: exit 0, each packaged and
+    verified. This stands in for 0.2.0's `cargo publish --dry-run
+    --workspace`: this session's permissions deny `cargo publish`, and
+    the dry run adds nothing to the package's verification but the
+    upload it skips.
+  - The gate at `mltkzuvp`, before the review's fixes: exit 0, "gate:
+    passed". The ratchet's cache model reported moved misses on
+    `search-qbf-20-2` and `check-qbf-20-2`, never a failure, as at 53a
+    and 53s.
+  - The gate and `nix flake check` ran once more at this report's
+    commit. The last message to `deduxit-orchestrator` gives their exit
+    statuses and the "linlog ready" and "pushed" exchange.
+
+### The reviewer
+
+A fresh-context reviewer on Opus 5.5 at high read the four
+repositories' changes once, against eight criteria. The criteria were
+the release workflow, the changelog against the tools' output and the
+code, the versions, the lock, README and the status chapter, the
+audit's findings, the stubs and both 404 scripts, and false text. It
+ran the workspace's debug binary and actionlint.
+
+It found no defect in the workflow, the versions, the lock, the stubs
+or the scripts. Each of its four findings held and is fixed:
+
+1. **The changelog said `--style` takes the new name only.** It reads
+   `linlog` through the settings' serde alias, which the reviewer
+   showed with `--style typst.layout=linlog` and `rocq.kernel=linlog`.
+   The sentence now says only `--kernel` refuses the old name. The
+   sentence was 53s's.
+2. **A stray line break in the changelog's "Wire forms"**, left by an
+   edit of this session. Fixed.
+3. **`wire.rs` and `ordinary/decide.rs` showed an ordinary outcome as
+   version 8 with `"deduxit": "0.2.0"`**, a document no release wrote.
+   Now `"0.3.0"` (`lozktzro`).
+4. **The handoff's review steps named `target/debug/linlog` and
+   `linlog-bench`.** Now deduxit's (`woxtrwuw`).
+
+Its note on `plan/53`'s item 6, that linlog's trusted publisher must name
+`deduxit/deduxit`, is answered: the author did it, and the prompt says
+so.
+
+### Departures from the brief
+
+- **The client's 404 page forwards `/rocq-linlog/X`.** The brief took
+  that forward as existing. It was missing for deep links, so the
+  client gained it with its test.
+- **The dry run is `cargo package --locked`** of the four crates, not
+  `cargo publish --dry-run`, which this session's permission rules
+  deny.
+- **`core.md`'s list of marked types still counts 0.2.0's (119).** This
+  session did not recount it for 0.3.0. The tools' output shows no
+  marked type turned closed, and the one closed enum that grew is in
+  the break list.
+- **The compat crates' READMEs gained the dictionary line** (S8, taken
+  as cheap).
+
+### The author's checklist
+
+The full list is in `plan/notes/release-0.3.0.md`.
+
+Before the tags:
+- Confirm that `linlog` and `linlog-cli` each name the trusted publisher
+  `deduxit`/`deduxit`/`release.yml`/`crates-io` on crates.io.
+- Confirm that the environment `crates-io` holds
+  `CRATES_IO_FIRST_PUBLISH_TOKEN`.
+
+After the planning session's tags:
+- Approve the publish job.
+- Add Trusted Publishing to `deduxit` and `deduxit-cli`.
+- Delete the secret and revoke the token "deduxit first release".
+- Run the Zenodo check for both releases.
+- Open the opam pull request, once the planning session has filled in
+  the checksum and run the installs.
+- Create the organisation's profile README if wanted.
+
+### What the next sessions must know
+
+- **Trusted Publishing is matched by name.** crates.io finds a trusted
+  publisher by the repository's owner and name. A repository renamed
+  again needs a new entry on every crate before its next release.
+- **The first-publish token is for crates.io's absent crates only.**
+  Once `deduxit` and `deduxit-cli` have their trusted publishers and the
+  secret is deleted, the step is skipped in every release, unless a new
+  crate (a kernel crate, say) joins the publish list. Then that crate's
+  first version needs such a token again, scoped to it, and the list in
+  `release.yml` gains its entry.
+- **The old names are done.** `linlog` and `linlog-cli` publish only
+  at 0.3.0. After that their entry is skipped, and `compat/` can leave
+  the workspace (or get `publish = false`) whenever that is simpler. If
+  it stays, the workspace's next version raises its requirement on
+  `deduxit`, which nothing publishes.
+- **After the tag, the planning session**:
+  - fills in the opam submission (commands in
+    `plan/notes/release-0.3.0.md`);
+  - moves the client's input `deduxit` to the tagged commit;
+  - checks Zenodo.
+- **The release notes are the changelog's sections.** Correct the
+  text in `CHANGELOG.md` before a tag. After it, `gh release edit` is
+  an administrative act.
+- **The live site.** Check `deduxit.github.io` again after the
+  client's deploy: the mark, `/llms.txt`, `/rocq-linlog/` (B20–B22).
+
+### Commits
+
+deduxit, in `../linlog-step53b`, rebased onto `main` (`wlqlwlur`, the planning session's reviews of 53n and 53p), oldest first:
+
+- `wvtyomxk` Keep the dictionary line's quotes straight in the rustdoc
+- `wooruxwu` Head the plan's scripts deduxit ©, and name deduxit in the spec's erratum
+- `woxtrwuw` Plan: name deduxit in the current texts, the rename audit's findings
+- `kxmykyqr` Publish new crates by the first-publish token, and linlog's last release once
+- `rptmstxs` Raise the version to 0.3.0
+- `ptvqnpqw` Say what 0.3.0 brings in README and keep the status chapter true
+- `wmszlvux` Bless the behaviour lock: an outcome states version 0.3.0
+- `qympmxzk` flake.lock: Update (the input `rocq-deduxit` to `66905bcc`)
+- `mltkzuvp` Date 0.3.0's section of the changelog, with every break the tools found
+- `wnyqrwxz` Head the old names' crates.io pages with the dictionary line
+- `qvxuuotw` Plan: the release's notes, the opam commands and the Zenodo check
+- `lozktzro` Show the ordinary outcome as 0.3.0 writes it in the docs
+- this report
+
+rocq-deduxit, pushed (`main` = `tymnvlzv`):
+- `zmvusrml` Forward 0.2.0's documentation pages Linlog.X.html to Deduxit.Linear.X.html
+- `trxzwyqs` Name the repository 0.2.0 was released from
+- `tymnvlzv` Date the release of 0.3.0
+
+The client, pushed (`main` = `znykkyyq`):
+- `wplzznrm` Forward a page under the Rocq library's old path to its new one
+- `znykkyyq` Quote the dictionary line in the rules with its final period
+
+The placeholder, pushed (`main` = `ttzqynvz`):
+- `ptzzwpwx` Say that linlog was renamed deduxit, and send 0.2.0's API links to the crate's page
+- `ttzqynvz` Point the frozen guides' links at the live API and library
