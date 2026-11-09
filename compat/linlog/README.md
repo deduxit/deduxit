@@ -1,5 +1,7 @@
 # linlog is now deduxit
 
+> **dēdūxit** [deːˈduːk.sɪt] *Latin, verb*: "it has derived", the perfect of *dēdūcō*, to lead down, derive.
+
 The crate `linlog` was renamed
 [`deduxit`](https://crates.io/crates/deduxit) at 0.3.0, the library of
 [deduxit](https://github.com/deduxit/deduxit), a collection of logic

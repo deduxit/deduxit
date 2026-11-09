@@ -1,5 +1,7 @@
 # linlog-cli is now deduxit-cli
 
+> **dēdūxit** [deːˈduːk.sɪt] *Latin, verb*: "it has derived", the perfect of *dēdūcō*, to lead down, derive.
+
 The command `linlog` was renamed `deduxit` at 0.3.0, the package
 [`deduxit-cli`](https://crates.io/crates/deduxit-cli) of
 [deduxit](https://github.com/deduxit/deduxit), a collection of logic
