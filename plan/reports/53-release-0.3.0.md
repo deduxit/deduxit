@@ -1547,3 +1547,235 @@ the old names stop existing at the new pin.
   `master`; the superseded chain re-described (`omkspqll` 74bce97c,
   `ywqlpnru` 64a4e199, `tznmymqy` 3f809fa8).
 - linlog: `../linlog-step53r` on `main`, this section's commit only.
+
+## Session 53a: the small defects
+
+Opus 5.5 at `high`, 2026-11-09, in the jj workspace `../linlog-step53a`
+on `main` (`kstwysqo`), with today's names (`linlog`, `linlog-cli`).
+The brief: `/tmp/linlog-handoff/start-53a.md`; the list: this step's
+prompt, "Session 53a".
+
+### Outcome
+
+Every entry of the list is accounted for: 16 fixed, each with its
+focused test (or, for a lint, the build that showed it); 9 found
+already done, with the evidence; and of the older lists, two done but
+for three items kept with their reasons (Greek as mathematical italic
+in the SVG, a smaller row height, the filtered `rules` list). The
+reviewer's three findings are fixed. The
+fixes change the command's behaviour in four visible ways, each in the
+manual and the guide in the same commit: `check` and `eliminate` take
+the mode a proof file states; a refused Rocq certificate keeps the
+verdict and its exit status; a batch's Rocq certificates are named by
+Rocq identifiers; `eliminate --at NODE` and `check --file` are new
+flags. The library's `proofs::cut::eliminate` takes the first step's
+cut (`at`), a change of its signature that 53b lists among 0.3.0's
+breaks.
+
+### The entries
+
+| entry | outcome | commit | test or evidence |
+|---|---|---|---|
+| `check FILE` ignores the file's `"mode"` | fixed: the file's mode with no mode flag, a contradicting flag an error naming both (exit 2), as for refutations; `eliminate` shares it (`proof_mode`) | `uvtwltrn`, the help and the guide `pwtlxlvw`, lock `pytylwnp` | `check_takes_the_file_s_mode` (cli); three tests that checked a proof in a stricter mode drop the file's mode first (`without_mode`) |
+| `check -i --mix --net` prints "proof net with Mix" | fixed: `check` and `eliminate` refuse a mode no calculus has (`Mode::check`), exit 2 | `qomlvkkz` | `check_refuses_intuitionistic_mix` |
+| `eliminate --net --output FILE` without `--format` writes nothing | found already done: `--output n.svg` writes `n-1.svg` and `n.svg`, `--output n.txt` and `--output netout` the steps, the end and the net (runs in this session); `-q` with `--output` kept as documented, the same for every command | — | the runs |
+| `eliminate` names a cut by its raw id (`cut on #8`) | fixed: the error is described against the proof, which knows the instances, as `check` does | `wrlkwtvy`, the test's proof inline `syloztmu` | `eliminate_names_a_cut_by_its_instance` (on `core/tests/first-order/cut_frame.json`) |
+| `eliminate` has no flag to name the cut | fixed: `--at NODE` (the file's `nodes` index), `cut::eliminate(…, at, …)` | `rwkmollk` | `an_elimination_starts_at_the_cut_given` (core); the manual's example in `cut.md` |
+| `interact`'s `cut G C P…` reads the formula as one word | a quoted formula was read already (`cut.md`, the guide); fixed: an unquoted one with blanks says to quote it, where the words after it make one formula with it | `nmkvymwl`, `znyvknpr` | `an_unquoted_cut_formula_is_explained` |
+| the eigenvariable refusal at `∃L`, two-sided | fixed: the message names the steps that introduce one (`a ∀ step, or ∀R or ∃L two-sided`) | `tmpkptpr` | `an_eigenvariable_of_exists_left_is_refused_by_its_step` |
+| `--style labels.table.RULE=LABEL` on an unset table; no rule keys listed | fixed: a dotted key replaces a value that is no object by one; `--style`'s help lists the rules | `mroovkzs`, lock `wwyxvpky` | the manual's example in `output-formats.md` |
+| `check --file` | fixed: `-f, --file PATH` beside the argument | `ymysuzpp`, lock `qprzosys` | the manual's example in `commands.md` |
+| the division by zero in the rules look's label narrowing | fixed: the node's room is never below zero, so a label narrowed is wider than it and has a width | `mwmllwtk` | `a_label_of_no_width_in_no_room_is_drawn` (failed with "attempt to divide by zero" before the fix) |
+| the essential net's input side green by default | fixed: `#0072b2` (dark `#56b4e9`), the page's blue; the essential snapshots regenerated | `qyqouupl` | the snapshots; the bindings' test of the colour |
+| the essential drawing off for nets with cut links | found already done (`pvuwrssq`, 2026-10-28) | — | `check --net --format svg --style svg.essential=true` on a proof with two cuts draws 7 strokes in the input colour |
+| the panic past `nets::MOST` | fixed: `nets::fits` in both net engines' `admits` and in `ProofStructure`'s constructor | `yyzmqlzr` | `a_forest_past_the_vertices_is_refused` (calls `fits` at `MOST + 1`: see Departures) |
+| the records writing `wire::LEVEL` as a constant | found already done: `check` writes `CHECKED_LEVEL` (since `uzsqzswr`, 2026-10-18), the batch's `record_json` its body's level | — | `cli/src/check.rs`, `cli/src/batch.rs` |
+| the derivation builder's recursion | found already done (`rpponnqlrkvn`, 2026-10-03) | — | `any_height_on_a_small_stack` |
+| the unused `Member` import without `parallel` | fixed, with `random_ill_text`, dead in the same build | `xptmksmv` | `cargo clippy -p linlog --all-targets` with and without `--features parallel`, clean |
+| `a_raised_limit_holds_on_the_pool` overflowing in a debug build | found already done | — | passes with `--test-threads=1` and with `RUST_TEST_THREADS=1` over `focus::parallel`, debug, no `RUST_MIN_STACK` |
+| the front page's examples read `Instant` | fixed: a stop counting `Progress::work` against a budget, and the command's search from `Settings::default()` | `slmqnpmt` | the doctests |
+| where the Euler Math font's source is said | found already done: README's licence section names every font and its licence (since 2026-10-22) | — | README |
+| Rocq: a refused certificate loses the verdict | fixed: the verdict and its exit status stand, `no certificate: …` on standard error, as a disproof's; a session's `proof FILE.v` makes no file then | `xqrpzsuu`, `kpvuuxvl` | `rocq_format` (its pin of exit 2 changed: the behaviour meant to change) |
+| Rocq: the batch's certificate file names | fixed: each part of the path a Rocq identifier (`modus_ponens.v`, `entry_1_1_p.v`); every lemma stays `certificate`, which the module qualifies | `lutlkvyz` | `a_batch_s_certificates_are_modules` |
+| Rocq: applying a lemma to a two-sided goal | fixed: the Rocq chapter's example, compiled by the `rocq-linlog` check | `lpqmtrtl` | `nix build .#checks.x86_64-linux.rocq-linlog`, exit 0 |
+| older lists: the exports' of step 10 (and 22) | found already done: Typst's `layout`, Greek in LaTeX, `proof --rocq/--latex` in a session, `Labels::Table` | — | the code |
+| older lists: the exports' of step 11 | four done (a goal's formulas `<g id="i<n>-<p>">`, edges at a negated literal's atom, the nesting-safe link cap, a disconnection coloured); two kept: Greek as mathematical italic in the SVG (the five fonts' advance tables would need those code points) and a smaller row height without a raised `⊥` (`Style::line_height` sets it); no client asked for either | — | the code |
+| older lists: the command's output's of step 18 | found already done by step 22 (exports into a `fmt::Write` with a stop, the SVG tree's layout not kept, the command's output streamed, `--screens`, `gap`, `--abbreviate`) | — | step 22's report, the code |
+| older lists: the command's output's of step 20 | found already done by step 20 (the pass's integers, the verdict kept under `--derivation-limit none`; the last reader of a shared state takes it in place) | — | step 20's report, `core-proofs.md` |
+| older lists: the interactive session's of steps 22, 28 and 34 | done but one: the empty Mix premise refused, `close_all` keeping every outcome and naming each goal's polls (`Progress::item`, a per-goal budget), the reading's parts kept, `derivation_ids`; kept: the filtered `rules` list (no client asked; a full filter tries each rule on a clone) | — | the code |
+
+`plan/later.md` closes every entry under its section with the commit
+(`uvxowxuo`, the review's fixes `spolwwyq`), and its table of open entries says where each went.
+
+### Decisions
+
+- **The file's mode, for `eliminate` too.** `eliminate` flattens
+  `check`'s arguments and read the same file, so both take the mode by
+  one function (`check::proof_mode`).
+- **`cut::eliminate` takes `at`.** The command cannot build an
+  `Elimination` (it is `#[non_exhaustive]`), and a step taken by
+  `cut::step` then handed to `eliminate` has no way to report a refusal
+  of that step as an end. The library's `step` already takes `at`, so
+  `eliminate` takes it in the same place, for the first step only.
+  `--at` is refused beside `--net`, whose cut links are no proof nodes,
+  and is an input of the call, like the file, so it has no settings key.
+- **A refused certificate is a left-out drawing.** `rocq::write` refuses
+  before it writes anything, so the verdict line can stand; a disproof's
+  refusal already worked so, and the two now agree. With `--output` the
+  file is not made, as for every left-out derivation.
+- **Rocq identifiers for file names.** ASCII letters, digits and `_`, a
+  part not starting with a letter prefixed `entry_`; the batch's check
+  that no two entries write one file refuses two names that come out
+  alike.
+- **The unquoted cut formula.** Quoting already mends it; the session
+  reads its words before it knows where a formula ends, so the error
+  says to quote rather than guessing the formula's extent.
+
+### The checks
+
+- **The gate** (`systemd-run --user --scope -p MemoryMax=8G -p
+  MemorySwapMax=0 taskset -c 4-9 nix develop -c gate`): passed at
+  `uvxowxuo` before the review, and again at `spolwwyq` after its fixes
+  (exit 0 both; clippy, the tests with the behaviour lock, both `cargo
+  hack` runs, the ratchet). The ratchet's cache model reported misses
+  moved on `search-qbf-20-2` and `check-qbf-20-2`, which it says is
+  never a failure; no change of this session touches the focused
+  engine's search, and the target set's counters below are 47's.
+- **The target sets** (the `nets::MOST` refusal is in the net engines'
+  `admits`): `bench/targets.sh 53a` and `bench/net-targets.sh 53a`,
+  then `linlog-bench summary --against bench/targets/47.csv
+  bench/targets/53a.csv --counters` and the same for `net-47`: no
+  verdict differs, and none of the 145 (focused) and 64 (net) problems
+  decided alike differs in `nodes`, `splits`, `memo_hits`,
+  `memo_entries`, `links` or `tests`. The rows are `qwwzxnoq`.
+- **The Rocq library's check**: `nix build
+  .#checks.x86_64-linux.rocq-linlog` with the new `use.v` step, exit 0
+  (66 certificates closed under the global context, then `use.v`).
+- **`nix flake check`**, without overrides, under the machine lock with
+  `--max-jobs 4 --cores 8`: the first run, at `qwwzxnoq`, failed (exit
+  1) in `test-debug-assertions-cli`: `eliminate_names_a_cut_by_its_instance`
+  read `core/tests/first-order/cut_frame.json`, which the check, built
+  from the command's crate alone, does not have, so `eliminate` exited 2.
+  Fixed at its cause (`syloztmu`, the proof inline in the test); the run
+  at `syloztmu` passed (exit 0). The gate and `nix flake check` ran
+  once more at this report's commit, which changes this file alone; the
+  final message to the planning session gives their exit statuses.
+- Along the way: `cargo test -p linlog-cli` after every command change,
+  `cargo test -p linlog --test export`, the `cut` and `first_order`
+  tests, `cargo test -p linlog-web`, the front page's doctests, `cargo
+  clippy -p linlog --all-targets` with and without `--features
+  parallel`, each in a capped scope on cores 4-9.
+
+### The reviewer
+
+A fresh-context reviewer on Opus 5.5 at `high` read the chain
+`kstwysqo..uvxowxuo` once, against correctness and the repository's
+rules, and ran the debug binary in a capped scope. Three findings, all
+of which held and are fixed; every other change it called sound, and it
+checked `later.md`'s closing notes against the code.
+
+1. **`check --help`, `eliminate --help` and a line of the guide's
+   pitfalls still said the mode comes from the flags** (on `uvtwltrn`;
+   the behaviour lock pinned the old help). Fixed: `pwtlxlvw`, the lock
+   in its own commit `pytylwnp`.
+2. **A session's `proof FILE.v` wrote a file that is no Rocq** after a
+   refused certificate became a left-out drawing (on `xqrpzsuu`): it put
+   the verdict and the refusal's line into FILE.v and said the proof was
+   written. Fixed: `kpvuuxvl`, a left-out proof with a FILE makes no
+   file and is the session's error, as before; tested in `rocq_format`.
+3. **The quoting hint was attached to every position that failed**
+   (on `nmkvymwl`), so `cut 0 "b & a" x` was told to quote. Fixed:
+   `znyvknpr`, the hint only where the words after the formula make a
+   longer one with it, which it names; the test covers both.
+
+It left one claim unverified, the "found already done" of
+`a_raised_limit_holds_on_the_pool`, which needs a build: this session's
+runs (the table) are the evidence.
+
+### Departures from the design
+
+- `proofs::cut::eliminate` gained a parameter `at: Option<NodeId>`
+  (departs from the design: a signature change of a public function,
+  one more break for 53b to list; the call sites in the library, its
+  tests, the command and the bindings pass `None`).
+- `eliminate` follows the file's mode as `check` does, beyond the
+  entry, which named `check` (departs from the design).
+- The test of the `nets::MOST` refusal calls `nets::fits` at
+  `MOST + 1` instead of searching a forest that large (departs from the
+  design: conduct asks for an input that gets there; a forest of 1.43
+  billion occurrences is some 36 GB, past the 8 GB cap of every run).
+- `random_ill_text` went behind `parallel` with the named `Member`
+  import (departs from the design: not on the list; without it
+  `cargo clippy -p linlog --all-targets` still fails).
+- The manual's and the guide's first-order `eliminate` example drops
+  its hand-written file's `"mode": "classical"`, since the example shows
+  one file in both modes.
+- `cli.md`'s pin "a refused certificate leaves standard output
+  empty" is replaced, as the entry foresaw.
+
+### What is left open
+
+- Greek atom names as mathematical italic in the SVG, and a smaller row
+  height for trees without a raised `⊥` (step 11's list): kept.
+- The filtered `rules` list of a session: kept.
+- `cargo clippy -p linlog --all-targets` without `parallel` is in no
+  check (the gate's clippy is the workspace's, which unifies
+  `parallel`), so a test-only item used by the pool's tests alone can go
+  dead again unnoticed; the `features` check builds no tests.
+
+### What the next sessions must know
+
+- `check` and `eliminate` read the mode from the file; a test that
+  checks a proof in another mode removes the file's `mode` key
+  (`without_mode` in `cli/tests/cli.rs`), since a flag that contradicts
+  it is now an error.
+- `proofs::cut::eliminate(&proof, mode, at, &options, &limits, stop,
+  each)`: 53b lists the new parameter among 0.3.0's breaks; 53s keeps it
+  when it moves the module.
+- A refused Rocq certificate is `Shown::LeftOut`, never an error: the
+  exit status is the verdict's. A batch names a certificate's file by
+  `rocq_name`.
+- The `rocq-linlog` check compiles the Rocq chapter's `use.v` example
+  from a copy in `modules/rocq-linlog.nix`, kept equal to the chapter by
+  hand: 53s, which renames the library to `Deduxit`, changes both (the
+  `From Linlog Require Import IntuitionisticCheck` line among them).
+- `nets::fits` is the one check of the vertex bound; an engine that
+  builds a `ProofStructure` from a task calls it in `admits`.
+- The command's tests in the flake (`test-cli`,
+  `test-debug-assertions-cli`) are built from `cli/` alone: a test there
+  reads no file of `core/`, though `cargo test --workspace` would find
+  it; a fixture is inline or under `cli/`.
+- The essential net's input colour is `par`'s blue; the client's
+  `--color-net-input` token is the page's own and did not change.
+
+### Commits
+
+On `main` (`kstwysqo`), oldest first:
+
+- `uvtwltrn` Check a proof in the mode its file states
+- `qomlvkkz` Refuse a mode no calculus has in check and eliminate
+- `ymysuzpp` Read check's proof from --file, as every other command reads its input
+- `qprzosys` Bless the behaviour lock: check's help names --file
+- `wrlkwtvy` Name an invalid proof's cut by its instance in eliminate, as check does
+- `rwkmollk` Name the cut eliminate takes first: --at NODE, and cut::eliminate's at
+- `nmkvymwl` Say to quote a cut formula with blanks when its second word is read as a position
+- `tmpkptpr` Name ∃L among the steps an eigenvariable refusal speaks of
+- `mroovkzs` Make the table of a dotted style key such as labels.table.RULE, and list the rules in --style's help
+- `wwyxvpky` Bless the behaviour lock: --style's help names the rules of a label table
+- `mwmllwtk` Narrow a rule node's label within no less than no room
+- `qyqouupl` Draw an essential net's input side in the blue of ⅋ by default, as the page does
+- `yyzmqlzr` Refuse a forest past a proof structure's vertices before the net engines search
+- `xptmksmv` Keep the parallel-only test items behind the feature
+- `slmqnpmt` Stop the front page's search by a budget of work, and show the command's search from Settings
+- `xqrpzsuu` Keep the verdict of a proof whose certificate is refused
+- `lutlkvyz` Name a batch's Rocq certificates by Rocq identifiers
+- `lpqmtrtl` Show a certificate's lemma applied from another file, and check it compiles
+- `uvxowxuo` Plan: close session 53a's entries in later.md
+- `pwtlxlvw` Say in check's and eliminate's help, and the guide's pitfalls, that the mode comes from the file
+- `kpvuuxvl` Make no file for a session's proof that is left out
+- `znyvknpr` Say to quote a cut formula only where the words after it make one with it
+- `pytylwnp` Bless the behaviour lock: check's help says the mode comes from the file
+- `spolwwyq` Plan: note the review's fixes in later.md
+- `qwwzxnoq` Record both target sets after session 53a
+- `syloztmu` Carry the proof of eliminate's naming test inline
+- this report
