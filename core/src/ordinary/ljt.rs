@@ -947,6 +947,27 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
         Ok(d)
     }
 
+    /// Writes the hypotheses of the root `d` in the order of `left`, the
+    /// sequent as written, where it holds the same formulas as often: the
+    /// checker reads them as a multiset, while the lambda-term, the
+    /// certificate and the drawings name them in their order. A principal
+    /// formula left of `⊢` is found again by formula.
+    fn in_order(&mut self, d: InfId, left: &[NodeId]) {
+        let inference = &mut self.inferences[d.index()];
+        if !super::derivation::same(&inference.left, left) {
+            return;
+        }
+        if let Some((Side::Left, at)) = inference.principal {
+            let principal = inference.left[at];
+            let at = left
+                .iter()
+                .position(|&x| x == principal)
+                .unwrap_or_else(|| unreachable!("the same formulas as often"));
+            inference.principal = Some((Side::Left, at));
+        }
+        inference.left = left.to_vec();
+    }
+
     /// Contracts the derivation `d` until it concludes `want` left of
     /// `⊢`, which holds each of its hypotheses once at least.
     fn contract_to(&mut self, d: InfId, want: &[NodeId]) -> Result<InfId, Error> {
@@ -1025,7 +1046,8 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
         let d = made
             .pop()
             .unwrap_or_else(|| unreachable!("the root's derivation"));
-        self.weaken_to(d, left)?;
+        let d = self.weaken_to(d, left)?;
+        self.in_order(d, left);
         let search = self.search;
         Ok(Derivation::from_parts(
             search.logic,
@@ -1228,6 +1250,18 @@ mod tests {
             Verdict::Valid(_) => true,
             Verdict::NotValid => false,
             Verdict::Unknown(reason) => panic!("unknown: {reason:?}"),
+        }
+    }
+
+    /// A derivation's root names the hypotheses in the order the sequent
+    /// was written, which the search keeps as a set.
+    #[test]
+    fn the_root_keeps_the_written_order() {
+        for text in ["a -> a -> b, a |- b", "b, a, b /\\ a |- a /\\ b"] {
+            let Verdict::Valid(d) = ljt(text, Logic::Intuitionistic).verdict else {
+                panic!("{text} is valid");
+            };
+            assert_eq!(d.inference(d.root()).left(), d.sequent().0, "{text}");
         }
     }
 
