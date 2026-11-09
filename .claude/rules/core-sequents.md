@@ -122,9 +122,10 @@ read back by `Reading` (below); there is no second data model.
   connective), `contains` as the subset order, and `Display` naming the
   smallest named fragment containing the value, a `1` after the acronym
   with the bit (`MLL1 with units`). The empty fragment (atoms
-  only) prints as `MLL`. No engine's `admits` contains the bit, so the
-  dispatch finds no row (`Error::NoEngine`, "no engine for MLL1 in
-  classical mode yet") and a forced engine refuses by fragment; the
+  only) prints as `MLL`. Only the focused engines' `admits` (one-sided
+  and two-sided, `Fragment::LL1`) contains the bit: the dispatch sends a
+  first-order goal to them (`core-focus.md`, "The first-order zone"),
+  and any other engine forced on one refuses by fragment; the
   proof structures (`has_nets` is false with the bit) and the Rocq
   export for NanoYalla and for refutations (`Unsupported::Quantifiers`)
   refuse a forest with a binder before anything else, and
