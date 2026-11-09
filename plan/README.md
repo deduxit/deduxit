@@ -5898,3 +5898,25 @@ move (D26).
   - **The target sets** equal 47's, and the gate and flake check
     passed.
   - **Not yet the command's default:** that is 54b.
+- 2026-11-09, 15:50: **54w-e2 reviewed and pushed: the comments of the
+  proof search and the proof nets** (59 files; the report xmwowxtu).
+  - **The text:** every doc opens with what the item does for its
+    caller; each search or net term is said at its first use in a
+    file; 19 new doc examples, run by the doc tests.
+  - **Wrong claims fixed:** about 60, each checked against the code and
+    listed in the report.
+  - **The checks:** no code changed but the crate's usual doc-test
+    fences (its own stripped comparison, and mine); the gate and the
+    flake check passed; its reviewer's finding (`!A` gives zero, not
+    "nothing below zero") was fixed.
+  - **Handed on:**
+    - `NetError::Placement`'s text for `Uncut` ("above every cut
+      link") is wrong, and the proof-net verdict's Display text: to
+      54w-d, with the command's messages;
+    - the test name `the_review_s_witnesses` (search/essential.rs)
+      refers to a review: to the root session, 54w-e5, as a rename;
+    - `sequents/fmt.rs`'s `walk` example fails the doc tests without
+      default features: to 54w-e1, whose file it is;
+    - `core-focus.md` said the generator reports the most derelictions
+      on one branch; it sums every branch. Fixed by the planning
+      session (ooukzvsu).
