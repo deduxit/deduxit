@@ -1,6 +1,6 @@
 # pinned CPU time, base build 0f807b61 (qlqzolyl, main at the start) against the lifted build af09b399 (wtozsvrq, the focused engine generic over its zone), 2026-10-29 05:39 to 05:42, host wired
 # each row five runs, both builds at once, base on core 2 and lift on core 3 for the first half of the runs and swapped for the second; another session's nix builds ran on the other cores meanwhile
-# runs: bench/targets/pinned-42c.runs.csv; ms: cpu_ms of deduxit-bench run (10 ms ticks) or the measured part of a journey
+# runs: bench/targets/pinned-42c.runs.csv; ms: cpu_ms of linlog-bench run (10 ms ticks) or the measured part of a journey
 # load, the 1-minute average at each run's start: 1.74 to 1.99, median 1.90
 row,group,runs,base_median_ms,base_spread,lift_median_ms,lift_spread,ratio,ratio_min,ratio_max
 search-qbf-20-2,focused,5,26.419,0.0383,26.597,0.0471,1.0067,0.9857,1.0184

@@ -15,7 +15,7 @@ Its last part took 2 h 23 min, and the scheduled jobs that ran
 meanwhile were: none. The package throttled
 24521 times for 302 s in that part
 (platform profile performance, governor powersave, energy preference balance_performance, turbo on).
-The journal of `deduxit-baseline` says every ten minutes what else used
+The journal of `linlog-baseline` says every ten minutes what else used
 a CPU. The sequential runs went in four
 streams at once, each pinned by taskset to a CPU of its own (CPUs 4 5 2
 3), which other processes could share. The record above says the run

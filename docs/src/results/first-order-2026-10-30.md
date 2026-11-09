@@ -10,12 +10,13 @@ of which LinearOne's fragment holds the MILL1 shapes #2 and #3).
 says how the problems are translated and discusses the verdicts.
 
 The times are `bench/comparison/first-order/times-1.csv` and
-`times-2.csv`: on 2026-10-30, `deduxit-bench run --tools
-deduxit,linearone --family lambek-fo --family witness-fo --timeout 10
---memory-limit 4294967296` in two shards on cores 2 and 3 of an
+`times-2.csv`: on 2026-10-30, `linlog-bench run --tools
+linlog,linearone --family lambek-fo --family witness-fo --timeout 10
+--memory-limit 4294967296` (the harness and the command were named
+linlog then) in two shards on cores 2 and 3 of an
 otherwise quiet Intel Core Ultra X9 388H, measured by runexec 3.35, one
-run per problem, deduxit on one thread. The run did not record the
-commit of deduxit's build (its `env.json` leaves `deduxit_commit` empty);
+run per problem, linlog on one thread. The run did not record the
+commit of linlog's build (its `env.json` leaves `linlog_commit` empty);
 the rows were committed in `af34ca95711d`.
 
 | tool | in its fragment | proved | unprovable | undecided | wrong |
