@@ -1,21 +1,23 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The classical refuter: a search for an assignment of truth values to
-//! the atoms under which a goal's classical reading is false. The reading
-//! erases `!` and `?`, reads `⊗` and `&` as "and", `⅋` and `⊕` as "or",
-//! `1` and `⊤` as true, `⊥` and `0` as false and `~a` as "not a", and a
-//! sequent as the disjunction of its formulas. Every rule of linear
-//! logic, in every mode, derives a tautology from tautologies (Mix and
-//! weakening add a disjunct, contraction repeats one), and an
-//! intuitionistic sequent's one-sided form reads as its implication, so
+//! The classical refuter: it looks for an assignment of truth values to
+//! the atoms under which a goal's classical reading is false.
+//!
+//! The reading erases `!` and `?`, reads `⊗` and `&` as "and", `⅋` and
+//! `⊕` as "or", `1` and `⊤` as true, `⊥` and `0` as false and `~a` as
+//! "not a", and a sequent as the disjunction of its formulas. Every rule
+//! of linear logic, in every mode, derives a tautology from tautologies:
+//! Mix and weakening add a disjunct, and contraction repeats one. An
+//! intuitionistic sequent's one-sided form reads as its implication. So
 //! an assignment that falsifies a goal's reading proves it unprovable.
 //!
-//! The search runs after a search that did not prove the goal: a
-//! backtracking over the goal's atoms in the order of their indices,
-//! false before true, that evaluates the reading in three values at every
-//! step and backs off where it is already true. It is bounded by work,
-//! one unit per term evaluated, and by the memory account.
+//! The refuter runs after a search that did not prove the goal. It
+//! backtracks over the goal's atoms in the order of their indices, trying
+//! false before true. At every step it evaluates the reading in three
+//! values, and it backs off where the reading is already true. Its work
+//! is bounded, one unit per term evaluated, and so is its memory, by the
+//! account.
 
 use super::memory::{Account, Charged};
 use super::refutation::Classical;
@@ -56,11 +58,13 @@ impl Value {
 
 /// Returns an assignment under which the classical reading of the goal
 /// (`goal`'s occurrences of `forest`) is false, one value per atom of the
-/// sequent by index, or `None` when its reading is a tautology, when the
-/// search would pass `work` units (one per term evaluated, so zero
-/// switches it off), when its buffers do not fit `account`, when
-/// `stop` says so (asked before each evaluation with the units done), or
-/// for a forest with a quantifier.
+/// sequent by index.
+///
+/// Returns `None` when the reading is a tautology, when the search would
+/// pass `work` units (one per term evaluated, so zero switches it off),
+/// when its buffers do not fit `account`, when `stop` says so, or for a
+/// forest with a quantifier. `stop` is asked before each evaluation, with
+/// the units done.
 pub(crate) fn refute(
     forest: &Forest,
     goal: &[OccId],
@@ -78,8 +82,9 @@ pub(crate) fn refute(
     let members: Vec<TermId> = goal.iter().map(|&o| forest.term(o)).collect();
     let width = members.iter().map(|t| t.index() + 1).max().unwrap_or(0);
     let atoms = sequent.atom_names().len();
-    // A byte per term of the arena below the goal for the marks and the
-    // values, four per term reached, a slot per atom twice.
+    // The bytes held: per term of the arena below the goal, one for its
+    // mark and one for its value, and four for the order of the terms
+    // reached; and two per atom.
     let bytes = width * 2 + width * 4 + atoms * 2;
     if !account.fits(bytes) {
         return None;
@@ -118,8 +123,8 @@ pub(crate) fn refute(
     let mut both = vec![false; decided.len()];
     let mut done: u64 = 0;
     loop {
-        // The bound is on work done, so the sum cannot pass it by more
-        // than one evaluation, and `work` is a `u64`.
+        // The bound is checked before each evaluation, so `done` never
+        // passes `work`, a `u64`, and the addition below cannot overflow.
         if done.saturating_add(cost) > work || stop(Progress::new(Phase::Refute, cost, done)) {
             return None;
         }

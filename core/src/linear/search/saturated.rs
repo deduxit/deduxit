@@ -1,60 +1,73 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The check of a refutation by saturation ([`Saturated`]): a set of
-//! stable sequents closed under the derived rules of the focused calculus,
-//! none of which stands for a stable sequent of the goal's asynchronous
-//! phase that a proof needs. It shares no code with the search that
-//! saturates: the rules are read off the forest here again, and every
-//! rule is applied to every choice of premises from the set.
+//! The check of a refutation by saturation ([`Saturated`]).
 //!
-//! Why it refutes. Fix the polarity of the atoms the certificate names.
-//! Focusing is complete under every polarity and in every commutative
-//! mode, so a provable goal has a focused proof. Its asynchronous phases
-//! end in stable sequents (positive formulas and negative literals in the
-//! linear zone, the subformulas of `?` in the unrestricted one); take each
-//! with a negative literal under a `?` in its linear zone moved back to
-//! the unrestricted zone (only a copy put it there, and the copy left it
-//! there too), and with the globals below left out of it. By induction
-//! over the proof, every such sequent is one a member of the set stands
-//! for: the phase above it is an instance of a rule below (its focus or
-//! copy, the sides of its `⊕`, the partners of its axioms, the releases
-//! ending in its premises), each premise is one a member stands for, and
-//! applied to those members the rule derives a sequent that stands for
-//! it, since every step is monotone in what a sequent stands for (a
-//! member absent from a premise that absorbs or weakens it is absorbed or
-//! weakened at the step that takes it, the `&` join of two that stand
-//! for equal zones stands for that zone, and the steps keep one output
-//! under the reading). That sequent, its globals left out, is coherent,
-//! since the proof's is, and so the closure gives a member that stands
-//! for it, and for the proof's sequent. So a member stands for each
-//! stable sequent of the goal's phase, which is what filling a hole
-//! asks of a hole; one hole that no member fills refutes the goal.
+//! The certificate is a set of stable sequents, closed under the derived
+//! rules of the focused calculus. None of them stands for a certain stable
+//! sequent of the goal's asynchronous phase, one that a proof needs. The
+//! check shares no code with the search that saturates: it reads the
+//! rules off the forest again, and applies every rule to every choice of
+//! premises from the set.
+//!
+//! # Why it refutes
+//!
+//! Fix the polarity of the atoms the certificate names. Focusing is
+//! complete under every polarity and in every commutative mode, so a
+//! provable goal has a focused proof. Its asynchronous phases end in
+//! stable sequents: positive formulas and negative literals in the linear
+//! zone, and the subformulas of `?` in the unrestricted one. Take each of
+//! them with two changes. A negative literal under a `?` in its linear
+//! zone moves back to the unrestricted zone: only a copy put it there,
+//! and the copy left it there too. And the globals (below) are left out.
+//!
+//! By induction over the proof, every such sequent is one that a member
+//! of the set stands for. The phase above it is an instance of a rule
+//! below: its focus or copy, the sides of its `⊕`, the partners of its
+//! axioms, and the releases ending in its premises. Each premise is one
+//! that a member stands for. Applied to those members, the rule derives a
+//! sequent that stands for it, since every step is monotone in what a
+//! sequent stands for:
+//!
+//! - a member absent from a premise that absorbs or weakens it is
+//!   absorbed or weakened at the step that takes it;
+//! - the `&` join of two premises that stand for equal zones stands for
+//!   that zone;
+//! - the steps keep one output under the reading.
+//!
+//! That sequent, its globals left out, is coherent, since the proof's is.
+//! So the closure gives a member that stands for it, and so for the
+//! proof's sequent. Each stable sequent that the goal's phase ends in, a
+//! hole of the phase, then has a member that stands for it: that is what
+//! filling the hole means. One hole that no member fills refutes the goal.
+//!
+//! # The terms
 //!
 //! - *What a sequent stands for*: `linear ; unrestricted` stands for the
 //!   stable sequents with exactly that linear zone and an unrestricted
-//!   zone that holds `unrestricted`; where it `absorbs` (a `⊤` above), or
-//!   in affine mode, for a larger linear zone too, a member in output
-//!   position absorbed only where the zone has none, and weakened in
-//!   never.
+//!   zone that holds `unrestricted`. Where it `absorbs` (a `⊤` above), or
+//!   in affine mode, it also stands for those with a larger linear zone.
+//!   A member in output position is then absorbed only where the zone has
+//!   none, and never weakened in.
 //! - *The normal form* of the partners: a negative literal under a `?`
-//!   reaches the linear zone only by a copy, so an axiom takes it from the
+//!   reaches the linear zone only by a copy. So an axiom takes it from the
 //!   unrestricted zone, and from the linear zone only where the goal holds
-//!   it; no copy rule is read for it. A partner outside the goal's
-//!   subtrees stands in no proof of the goal, which a goal off the roots
-//!   has beside it.
-//! - *Coherence*: outside the subformulas of `?` no proof's sequent holds
-//!   an occurrence twice, or two that a connective other than `⅋` joins
-//!   (one below the other, or a `⊗`, `&` or `⊕` above both, which sends
-//!   them to different premises or keeps one side), given a goal whose own
-//!   members are coherent. The sorted members' neighbours are tested,
-//!   since the forest numbers its occurrences in preorder, and the common
+//!   it, and no copy rule is read for it. A partner outside the goal's
+//!   subtrees stands in no proof of the goal; a goal other than the roots
+//!   has such occurrences beside it.
+//! - *Coherence*: outside the subformulas of `?`, no sequent of a proof
+//!   holds an occurrence twice, or two that a connective other than `⅋`
+//!   joins, given a goal whose own members are coherent. Two occurrences
+//!   are joined that way when one lies below the other, or when a `⊗`, `&`
+//!   or `⊕` lies above both, which sends them to different premises or
+//!   keeps one side. The check tests only the neighbours in a sorted list:
+//!   the forest numbers its occurrences in preorder, and the common
 //!   ancestors of a sorted list are those of its neighbours.
-//! - *The globals*: the subformulas of the `?` the goal reaches through
-//!   `⅋` alone are in the unrestricted zone of every sequent of a proof,
-//!   since the goal's phase decomposes the `?` before any `&`, so a set's
-//!   sequents may leave them out, and a sequent derived is compared with
-//!   them left out.
+//! - *The globals* are the subformulas of the `?` the goal reaches through
+//!   `⅋` alone. They are in the unrestricted zone of every sequent of a
+//!   proof, since the goal's phase decomposes the `?` before any `&`. So a
+//!   set's sequents may leave them out, and a sequent derived is compared
+//!   with them left out.
 
 use super::refutation::{RefutationFault, Saturated, Stable};
 use crate::hash::HashMap;
@@ -135,10 +148,10 @@ struct Partner {
     unrestricted: bool,
 }
 
-/// A stable sequent a rule's asynchronous phase ends in: the members the
-/// phase takes from its premise, the subformulas of `?` it met, and the
-/// release it belongs to (the premises of one release are joined by its
-/// `&`, those of different releases side by side).
+/// A stable sequent that a rule's asynchronous phase ends in: the members
+/// the phase takes from its premise, the subformulas of `?` it met, and
+/// the release it belongs to. The `&` of a release joins its premises;
+/// premises of different releases stand side by side.
 #[derive(Clone, Debug)]
 struct Hole {
     /// The members taken, sorted.
@@ -221,8 +234,8 @@ struct Calculus<'a> {
 }
 
 impl<'a> Calculus<'a> {
-    /// Whether an occurrence is positive: `⊗ 1 ⊕ 0 !` and the literals the
-    /// polarity names.
+    /// Whether an occurrence is positive: `⊗`, `1`, `⊕`, `0`, `!`, `∃`,
+    /// and the literals the polarity names.
     fn positive(&self, o: OccId) -> bool {
         match self.forest.kind(o) {
             Kind::Tensor | Kind::One | Kind::Plus | Kind::Zero | Kind::Bang | Kind::Exists => true,
@@ -246,7 +259,7 @@ impl<'a> Calculus<'a> {
             .is_some_and(|r| r.position(o) == Side::Output)
     }
 
-    /// The members of a list in output position.
+    /// How many members of a list are in output position.
     fn outputs(&self, list: &[OccId]) -> usize {
         list.iter().filter(|&&o| self.output(o)).count()
     }
@@ -298,10 +311,10 @@ impl<'a> Calculus<'a> {
 
     /// The partners of a positive literal: the negative literals of its
     /// atom within the goal's subtrees, in the other position under the
-    /// reading, from the unrestricted zone where they lie under a `?`, and
-    /// from the linear one where they do not or the goal holds them. A
-    /// literal outside the goal's subtrees stands in no sequent of a proof
-    /// of the goal.
+    /// reading. One directly under a `?` comes from the unrestricted zone.
+    /// One that is not, or that the goal holds, comes from the linear
+    /// zone. A literal outside the goal's subtrees stands in no sequent of
+    /// a proof of the goal.
     fn partners(&self, p: OccId) -> Vec<Partner> {
         let forest = self.forest;
         let (Some(atom), Some(sign)) = (forest.atom(p), forest.sign(p)) else {
@@ -334,10 +347,10 @@ impl<'a> Calculus<'a> {
         found
     }
 
-    /// Writes the term of a rule from `start`, under the sides of its `⊕`
-    /// given as each `⊕` and the operand taken: its steps in postorder,
-    /// its holes and slots. Steps are found root first, the right operand
-    /// before the left, which reversed is postorder.
+    /// Writes the term of a rule from `start`: its steps in postorder, its
+    /// holes and its slots. `sides` gives the side taken at each `⊕`, as
+    /// the `⊕` and its operand. The steps are found root first, the right
+    /// operand before the left, which reversed is postorder.
     fn write(&self, start: Start<'_>, sides: &[(OccId, OccId)]) -> Rule {
         let forest = self.forest;
         let mut rule = Rule::default();
@@ -541,10 +554,10 @@ fn sorted(list: &[OccId], set: bool) -> bool {
 }
 
 impl Calculus<'_> {
-    /// Takes a principal's subformula out of a premise's linear zone: it
-    /// is there, or the premise absorbs it (one in output position only
-    /// where the zone has none), or in affine mode it is weakened in (one
-    /// in output position never).
+    /// Takes a principal's subformula out of a premise's linear zone, and
+    /// returns whether it could. The subformula is there; or the premise
+    /// absorbs it, one in output position only where the zone has none; or
+    /// in affine mode it is weakened in, never one in output position.
     fn take(&self, z: &mut Zone, o: OccId) -> bool {
         if let Ok(at) = z.linear.binary_search(&o) {
             z.linear.remove(at);
@@ -556,10 +569,12 @@ impl Calculus<'_> {
         self.affine && !self.output(o)
     }
 
-    /// Joins the premises of a `&`, their subformulas taken: equal linear
-    /// zones; one that absorbs within one that does not; two that absorb,
-    /// to the larger count of each member; in affine mode either side
-    /// weakened up to that, members in output position never.
+    /// Joins the premises of a `&`, their subformulas taken, or returns
+    /// `None` where they do not join. They join when their linear zones are
+    /// equal, when one that absorbs lies within one that does not, or when
+    /// both absorb, to the larger count of each member. In affine mode
+    /// either side may be weakened up to that, never with a member in
+    /// output position.
     fn join(&self, l: Zone, r: Zone) -> Option<Zone> {
         let most = sum(&l.linear, &excess(&r.linear, &l.linear));
         let joined = match (l.absorbs, r.absorbs) {
@@ -584,9 +599,9 @@ impl Calculus<'_> {
     }
 
     /// Evaluates a rule's term over the premises of its holes and the
-    /// partners of its slots, by index into `set` and into each slot's
-    /// list, and returns the sequent derived, or `None` where a step's
-    /// condition fails; adds to `units` a unit for each step and each
+    /// partners of its slots, given by index into `set` and into each
+    /// slot's list. Returns the sequent derived, or `None` where a step's
+    /// condition fails. Adds to `units` a unit for each step and for each
     /// member of the zone it yields.
     fn derive(
         &self,
@@ -703,12 +718,12 @@ impl Calculus<'_> {
         stack.is_empty().then_some(z)
     }
 
-    /// Calls `each` with every rule: a focus on every positive formula a
-    /// stable sequent can hold (whose parent is `⅋`, `&`, `!` or none
-    /// within the goal) and a copy of every subformula of a `?` but a
-    /// negative literal, each under every choice of the sides of its
-    /// `⊕`, a choice that reaches a `0` left out. Counts each choice
-    /// looked at as work.
+    /// Calls `each` with every rule, and counts each choice looked at as
+    /// work. The rules are a focus on every positive formula a stable
+    /// sequent can hold (one whose parent is `⅋`, `&` or `!`, or a member
+    /// of the goal), and a copy of every subformula of a `?` but a negative
+    /// literal. Each is taken under every choice of the sides of its `⊕`,
+    /// leaving out a choice that reaches a `0`.
     fn rules(
         &self,
         work: &mut Work<'_>,
@@ -843,11 +858,11 @@ impl Set {
         set
     }
 
-    /// The sequents that can go into a hole: those that stand for their
-    /// zone alone and hold the hole's members, and every one that stands
-    /// for larger zones. Any other fails at the step that takes the member
-    /// it lacks. Counts a unit for each sequent looked at and each member
-    /// compared.
+    /// Returns the sequents that can go into a hole: those that stand for
+    /// their zone alone and hold the hole's members, and every one that
+    /// stands for larger zones. Any other fails at the step that takes the
+    /// member it lacks. Counts a unit for each sequent looked at and for
+    /// each member compared.
     fn candidates(&self, hole: &Hole, work: &mut Work<'_>) -> Result<Vec<usize>, Failed> {
         let mut out: Vec<usize> = match hole.leaves.first() {
             None => self.exact.values().flatten().copied().collect(),
@@ -867,13 +882,15 @@ impl Set {
         Ok(out)
     }
 
-    /// Whether a sequent of the set stands for every sequent `c` stands
-    /// for: one that stands for its linear zone alone, for `c`'s with an
-    /// unrestricted zone within `c`'s, where `c` does not stand for more;
-    /// one that stands for larger zones, for `c`'s with both zones within
-    /// `c`'s (its members in output position, which `c`'s linear zone
-    /// holds at most one of, are those of `c` or absorbed, since the
-    /// set's sequents are shaped).
+    /// Returns whether a sequent of the set stands for every sequent that
+    /// `c` stands for.
+    ///
+    /// A sequent that stands for its linear zone alone does, where it has
+    /// `c`'s linear zone and an unrestricted zone within `c`'s, and `c`
+    /// does not stand for more. A sequent that stands for larger zones
+    /// does, where both its zones lie within `c`'s. Its members in output
+    /// position are then those of `c`, or absorbed: the set's sequents are
+    /// shaped, and `c`'s linear zone holds at most one such member.
     fn subsumes(
         &self,
         calculus: &Calculus<'_>,
@@ -910,14 +927,20 @@ impl Set {
 }
 
 /// Checks a refutation by saturation of the goal `goal` of the forest in
-/// `mode` (the module's documentation says why it refutes), polling `stop`
-/// with its units of work: the certificate names a positive literal for
-/// each atom and occurrences of the forest in sorted zones, its sequents
-/// are sequents of the mode, every rule applied to every choice of its
-/// premises among them and of its axioms' partners derives a sequent that
-/// cannot stand in a proof or that one of them stands for, so does Mix
-/// where the mode has it, and some stable sequent of the goal's phase is
-/// one none of them stands for.
+/// `mode`, polling `stop` with its units of work. The module's
+/// documentation says why such a set refutes.
+///
+/// The check passes when:
+///
+/// - the certificate names a positive literal for each atom, and
+///   occurrences of the forest in sorted zones;
+/// - its sequents are sequents of the mode;
+/// - every rule, applied to every choice of its premises among them and
+///   of its axioms' partners, derives a sequent that cannot stand in a
+///   proof or that one of them stands for, and so does Mix where the mode
+///   has it;
+/// - some stable sequent of the goal's phase is one that none of them
+///   stands for.
 pub(crate) fn check(
     forest: &Forest,
     goal: &[OccId],
@@ -1016,8 +1039,8 @@ pub(crate) fn check(
     }
     let set = Set::new(&calculus, zones);
     let mut work = Work { unpolled: 0, stop };
-    // A sequent derived, its globals left out: it cannot stand in a proof,
-    // or a sequent of the set stands for it.
+    // Checks a sequent derived, its globals left out: it cannot stand in a
+    // proof, or a sequent of the set stands for it.
     let closed = |mut c: Zone, work: &mut Work<'_>| -> Result<(), Failed> {
         c.unrestricted
             .retain(|o| calculus.globals.binary_search(o).is_err());
@@ -1037,9 +1060,9 @@ pub(crate) fn check(
         if lists.iter().any(Vec::is_empty) || rule.slots.iter().any(Vec::is_empty) {
             return Ok(());
         }
-        // What each candidate brings beside the hole's members, for the
-        // premises of one release, whose `&` steps join them: two that
-        // stand for their zone alone must bring the same.
+        // What each candidate brings beside the hole's members. The `&`
+        // steps of a release join its premises, so two of them that stand
+        // for their zone alone must bring the same.
         let contexts: Vec<Vec<Vec<OccId>>> = rule
             .holes
             .iter()
@@ -1133,8 +1156,8 @@ pub(crate) fn check(
             }
         }
     }
-    // The goal's phase: some stable sequent of it is one no sequent of
-    // the set stands for, which a proof would need.
+    // The goal's phase: a proof would need each of its stable sequents,
+    // and some is one that no sequent of the set stands for.
     let phase = calculus.write(Start::Goal(&calculus.goal), &[]);
     let fills = |s: &Zone, hole: &Hole| {
         within(&s.unrestricted, &hole.met)
@@ -1175,8 +1198,8 @@ mod tests {
     };
     use crate::linear::{Mode, Sequent};
 
-    /// The forest of a sequent and the saturated set the inverse method
-    /// refutes it with in `mode`.
+    /// Returns the forest of a sequent and the saturated set the inverse
+    /// method refutes it with in `mode`.
     fn saturated(text: &str, mode: Mode) -> (Forest, Saturated) {
         let sequent: Sequent = text.parse().unwrap();
         let options = Options::default().with_engine(Some(Engine::Inverse));
@@ -1195,10 +1218,10 @@ mod tests {
         check(forest, forest.roots(), mode, set, &mut |_| false)
     }
 
-    /// A goal off the roots: a literal of the atom outside the goal's
-    /// subtrees is no partner, and the engine's set passes; with every
-    /// literal of the forest as a partner the check refused it as not
-    /// closed.
+    /// A goal other than the roots: a literal of the atom outside the
+    /// goal's subtrees is no partner, and the engine's set passes. A check
+    /// that took every literal of the forest as a partner would refuse the
+    /// set as not closed.
     #[test]
     fn a_goal_off_the_roots_is_refuted() {
         let sequent: Sequent = "|- ((?a par ?~a) par (b * ~b)) * (a * ~a)".parse().unwrap();

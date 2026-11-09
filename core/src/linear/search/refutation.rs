@@ -1,43 +1,53 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Why a sequent is unprovable: the refutation an exhaustive search or a
-//! test of the sequent gives, and the disproof that holds it with the
-//! sequent, the goal and the mode it means something in.
+//! Why a sequent is unprovable. A [`Refutation`] is the reason a search
+//! or a test of the sequent gives. A [`Disproof`] holds it with the
+//! sequent, the goal and the mode it is about.
 
 use crate::linear::fragment::Mode;
 use crate::linear::occurrences::{Member, OccId, Sign};
 use crate::linear::sequents::{Atom, Sequent, Symbol};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-/// Why a sequent is unprovable. Most refutations rest on the search that
-/// was exhaustive; where the literals or the connectives of the sequent
-/// alone rule out a proof, the refutation says which, as the focused
-/// engine checks them on every sequent it searches; and the Horn engine
-/// may refute a Horn program by its state equation, whatever its search
-/// found. A refutation means something only with its sequent, goal and
-/// mode, which a [`Disproof`] holds; its [`Display`] writes atoms by
-/// number (`#0`), the disproof's by name. Of a goal off the roots, the
-/// "one-sided sequent" a count speaks of is the goal: its members, which
-/// may lie below an exponential of the sequent, are counted as written.
+/// Why a sequent is unprovable.
 ///
-/// In JSON (feature `serialize`) a refutation, as an unprovable outcome's
-/// and a disproof's `refutation`, is tagged by `kind`: `{"kind": "exhausted"}`, `{"kind": "unbalanced",
-/// "atom", "least", "most"}` (the atom by its index into the sequent
-/// beside it), `{"kind": "one_sided", "atom", "least", "most", "copied"}`
-/// (`copied` the literal `"atom"` or `"dual"`), `{"kind": "equation", "formulas", "needed", "tensors",
-/// "pars", "ones", "bottoms", "mix"}` or `{"kind": "state_equation",
-/// "atoms": [[atom, weight], …], "clauses": [[occurrence, weight], …],
-/// "dropped": [occurrence, …]}` or `{"kind": "classical", "assignment":
-/// [true, false, …]}` (a value per atom of the sequent, by index) or
-/// `{"kind": "saturated", "positive": ["atom", "dual", …], "sequents":
-/// [{"linear": [occurrence, …], "unrestricted": [occurrence, …],
-/// "absorbs": false}, …]}` or `{"kind": "unbalanced_symbol", "symbol",
-/// "least", "most"}` or `{"kind": "one_sided_symbol", "symbol", "least",
-/// "most", "copied"}` (the predicate by its index into the sequent's
-/// symbols), and reads back so. A reader refuses a
-/// kind it does not know: read as another, it would claim a certificate
-/// it does not hold.
+/// Most refutations rest on a search that tried every way to a proof.
+/// Others rest on the sequent alone: its literals or its connectives rule
+/// out a proof, and the refutation says which. The focused engine tests
+/// these on every sequent it searches. The Horn engine may refute a Horn
+/// program by its state equation, whatever its search found.
+///
+/// A refutation means something only with its sequent, goal and mode,
+/// which a [`Disproof`] holds. Its [`Display`] writes atoms by number
+/// (`#0`); a disproof's writes them by name. For a goal other than the
+/// sequent's roots, the "one-sided sequent" a count speaks of is the goal.
+/// Its members are counted as written, even where they lie below an
+/// exponential of the sequent.
+///
+/// In JSON (feature `serialize`), a refutation is tagged by `kind`. It is
+/// the `refutation` of an unprovable outcome and of a disproof:
+///
+/// - `{"kind": "exhausted"}`;
+/// - `{"kind": "unbalanced", "atom", "least", "most"}`, the atom by its
+///   index into the sequent beside it;
+/// - `{"kind": "one_sided", "atom", "least", "most", "copied"}`, with
+///   `copied` the literal `"atom"` or `"dual"`;
+/// - `{"kind": "equation", "formulas", "needed", "tensors", "pars",
+///   "ones", "bottoms", "mix"}`;
+/// - `{"kind": "state_equation", "atoms": [[atom, weight], …], "clauses":
+///   [[occurrence, weight], …], "dropped": [occurrence, …]}`;
+/// - `{"kind": "classical", "assignment": [true, false, …]}`, a value per
+///   atom of the sequent, by index;
+/// - `{"kind": "saturated", "positive": ["atom", "dual", …], "sequents":
+///   [{"linear": [occurrence, …], "unrestricted": [occurrence, …],
+///   "absorbs": false}, …]}`;
+/// - `{"kind": "unbalanced_symbol", "symbol", "least", "most"}` and
+///   `{"kind": "one_sided_symbol", "symbol", "least", "most", "copied"}`,
+///   the predicate by its index into the sequent's symbols.
+///
+/// It reads back the same way. A reader refuses a kind it does not know:
+/// read as another kind, it would claim a certificate it does not hold.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Refutation {
@@ -45,8 +55,8 @@ pub enum Refutation {
     Exhausted,
     /// The literals of an atom cannot all meet their duals in axioms.
     Unbalanced(Unbalanced),
-    /// Nor can they where copies may add literals of the atom, but only
-    /// of one sign.
+    /// The literals of an atom cannot all meet their duals in axioms, even
+    /// though copies may add some, all of one sign.
     OneSided(OneSided),
     /// The count equation of the multiplicatives fails.
     Equation(Equation),
@@ -54,23 +64,24 @@ pub enum Refutation {
     StateEquation(StateEquation),
     /// The classical reading of the goal is false under an assignment.
     Classical(Classical),
-    /// A forward search saturated: its sequents are closed under the
+    /// A forward search saturated. Its sequents are closed under the
     /// rules, and the goal needs one they do not give.
     Saturated(Saturated),
-    /// The literals of a predicate, one of whose atoms has a bound
-    /// variable, cannot all meet their duals in axioms, counted over all
-    /// its atoms.
+    /// The literals of a predicate cannot all meet their duals in axioms,
+    /// counted over all its atoms. One of its atoms has a bound variable.
     UnbalancedSymbol(UnbalancedSymbol),
-    /// Nor can they where copies may add literals of the predicate, but
-    /// only of one sign.
+    /// The literals of a predicate cannot all meet their duals in axioms,
+    /// even though copies may add some, all of one sign.
     OneSidedSymbol(OneSidedSymbol),
 }
 
-/// The literals of a predicate that cannot all meet their duals in axioms,
-/// counted as [`Unbalanced`] counts an atom's but over every atom of the
-/// predicate together: one of them has a bound variable, so an instance
-/// of it may be any atom of the predicate, and only literals of one
-/// predicate meet.
+/// The literals of a predicate, which cannot all meet their duals in
+/// axioms. They are counted as [`Unbalanced`] counts an atom's, but over
+/// every atom of the predicate together.
+///
+/// One of the predicate's atoms has a bound variable, so an instance of
+/// it may be any atom of the predicate. An axiom joins only literals of
+/// one predicate.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct UnbalancedSymbol {
@@ -82,9 +93,9 @@ pub struct UnbalancedSymbol {
     pub most: i32,
 }
 
-/// The literals of a predicate counted as [`UnbalancedSymbol`] counts
-/// them, some below a `?` or `!`, where copies may add any number of
-/// them, all of one sign, as [`OneSided`] says of an atom.
+/// The literals of a predicate, counted as [`UnbalancedSymbol`] counts
+/// them, some of which lie below a `?` or `!`. Copies may add any number
+/// of those, all of one sign, as [`OneSided`] says of an atom.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct OneSidedSymbol {
@@ -95,15 +106,15 @@ pub struct OneSidedSymbol {
     pub least: i32,
     /// The greatest excess.
     pub most: i32,
-    /// The literal of the predicate that every one below an exponential
-    /// is.
+    /// The sign of every literal of the predicate below an exponential.
     pub copied: Sign,
 }
 
-/// The literals of an atom that cannot all meet their duals in axioms:
-/// whichever additive alternatives a proof takes, the positive literal
-/// occurs between `least` and `most` times more than the negative one
-/// (fewer, where these are negative), and never as often.
+/// The literals of an atom, which cannot all meet their duals in axioms.
+///
+/// Whichever additive alternatives a proof takes, the positive literal
+/// occurs between `least` and `most` times more often than the negative
+/// one (less often, where these are negative), and never equally often.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct Unbalanced {
@@ -115,13 +126,16 @@ pub struct Unbalanced {
     pub most: i32,
 }
 
-/// The literals of an atom that cannot all meet their duals in axioms,
+/// The literals of an atom, which cannot all meet their duals in axioms
 /// although some lie below a `?` or `!`, where copies may add any number
-/// of them: every literal of the atom below one is `copied`, so copies can
-/// only add that literal, and outside the exponentials it already occurs
-/// between `least` and `most` times more than the other one (counted as
-/// [`Unbalanced`] counts, so `least` above zero for the atom and `most`
-/// below zero for its negation).
+/// of them.
+///
+/// Every literal of the atom below an exponential has the sign `copied`,
+/// so copies add only that literal. Outside the exponentials, that
+/// literal already outnumbers the other one. Its excess, counted as
+/// [`Unbalanced`] counts it, lies between `least` and `most`: `least` is
+/// above zero where `copied` is the atom, and `most` is below zero where
+/// it is the negation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct OneSided {
@@ -132,42 +146,45 @@ pub struct OneSided {
     pub least: i32,
     /// The greatest excess.
     pub most: i32,
-    /// The literal of the atom that every one below an exponential is.
+    /// The sign of every literal of the atom below an exponential.
     pub copied: Sign,
 }
 
-/// The count equation of the multiplicatives, which fails: a provable
-/// sequent of MLL with units has exactly `tensors − pars − ones +
-/// bottoms + 2` formulas, and at least that many with Mix, counted on the
-/// one-sided sequent.
+/// The count equation of the multiplicatives, which the sequent fails.
+///
+/// A provable one-sided sequent of MLL with units has exactly `tensors −
+/// pars − ones + bottoms + 2` formulas, and at least that many with Mix.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct Equation {
-    /// The formulas of the sequent.
+    /// How many formulas the sequent has.
     pub formulas: u64,
-    /// The formulas the equation asks for, below zero where the `⅋` and
-    /// the `1` outnumber the rest.
+    /// How many formulas the equation asks for. It is below zero where the
+    /// `⅋` and the `1` outnumber the rest.
     pub needed: i64,
-    /// Its `⊗`.
+    /// How many `⊗` the sequent has.
     pub tensors: u64,
-    /// Its `⅋`.
+    /// How many `⅋` it has.
     pub pars: u64,
-    /// Its `1`.
+    /// How many `1` it has.
     pub ones: u64,
-    /// Its `⊥`.
+    /// How many `⊥` it has.
     pub bottoms: u64,
-    /// Whether Mix was allowed.
+    /// Whether the mode allows Mix.
     pub mix: bool,
 }
 
-/// Weights for a Horn program's Petri net, every place included, that
-/// its state equation fails under (Farkas' lemma): weighting the tokens
-/// of each atom and the ticket of each clause used once as given (zero
-/// where not listed), no clause that can fire raises the weighted count,
-/// while the goal asks it raised, so no sequence of firings reaches the
-/// goal; in affine mode, where the weights are not negative, none covers
-/// it either. A clause with an input that no marking reached from the
-/// start holds can never fire, and is dropped from the inequalities.
+/// Weights under which a Horn program's state equation fails, so that no
+/// sequence of firings reaches the goal.
+///
+/// The weights are for the program's Petri net, every place included.
+/// Weigh the tokens of each atom, and the ticket of each clause used
+/// once, as given, zero where not listed. Then no clause that can fire
+/// raises the weighted count, while the goal asks it raised (Farkas'
+/// lemma). In affine mode, with weights that are not negative, no
+/// sequence of firings covers the goal either. A clause with an input
+/// that no marking reachable from the start holds can never fire, and is
+/// dropped from the inequalities.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct StateEquation {
@@ -182,36 +199,43 @@ pub struct StateEquation {
 }
 
 /// An assignment of truth values to the atoms under which the classical
-/// reading of the goal is false: `!` and `?` erased, `⊗` and `&` read as
-/// "and", `⅋` and `⊕` as "or", `1` and `⊤` as true, `⊥` and `0` as false,
-/// `~a` as "not a", and the goal as the disjunction of its formulas. In
-/// every mode a provable sequent's reading is true under every assignment
-/// (each rule, Mix and weakening included, derives a tautology from
+/// reading of the goal is false.
+///
+/// The classical reading erases `!` and `?`, reads `⊗` and `&` as "and",
+/// `⅋` and `⊕` as "or", `1` and `⊤` as true, `⊥` and `0` as false, `~a`
+/// as "not a", and the goal as the disjunction of its formulas. In every
+/// mode, a provable sequent's reading is true under every assignment.
+/// Each rule, Mix and weakening included, derives a tautology from
 /// tautologies, and an intuitionistic sequent's one-sided form reads as
-/// its implication), so the assignment proves the goal unprovable.
+/// its implication. So the assignment proves the goal unprovable.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct Classical {
-    /// The value of each atom of the sequent, by index; an atom the goal
+    /// The value of each atom of the sequent, by index. An atom the goal
     /// does not contain has one too.
     pub assignment: Vec<bool>,
 }
 
-/// The sequents a forward search kept when it saturated, which are closed
-/// under the rules of the focused calculus and leave a stable sequent of
-/// the goal's asynchronous phase underived: no proof of the goal exists.
-/// Every rule (a focus on a positive formula, or a copy of a `?`
+/// The sequents a forward search kept when it saturated, which show that
+/// the goal has no proof.
+///
+/// The sequents are stable ([`Stable`]) and closed under the rules of the
+/// focused calculus. They leave underived a stable sequent of the goal's
+/// asynchronous phase, the part of a proof where only invertible rules
+/// apply. A rule is a focus on a positive formula, or a copy of a `?`
 /// formula's subformula, with the sides of its `⊕`, the partners of its
-/// axioms and the asynchronous phases of what it releases) applied to any
-/// of the sequents derives one that a sequent of the set stands for, or
-/// one no proof holds (a member twice, or two a `⊗`, `&` or `⊕`
-/// separates, outside the subformulas of `?`), and so does Mix where the
-/// mode has it; so by induction every stable sequent of a focused proof
-/// is one a sequent of the set stands for, and some stable sequent of the
-/// goal's phase is one none of them does. The rules are those of the
-/// polarity `positive` names, under which focusing is as complete as
-/// under any other. The certificate is as large as the set, which the
-/// check reads whole and applies every rule to.
+/// axioms and the asynchronous phases of what it releases. Applied to any
+/// of the sequents, every rule derives a sequent that a sequent of the set
+/// stands for, or one that no proof holds: a member twice, or two members
+/// that a `⊗`, `&` or `⊕` separates, outside the subformulas of `?`. Mix
+/// does the same where the mode has it. So, by induction, every stable
+/// sequent of a focused proof is one that a sequent of the set stands for,
+/// and some stable sequent of the goal's phase is one that none stands
+/// for.
+///
+/// The rules are those of the polarity `positive` names. Focusing is as
+/// complete under it as under any other. The certificate is as large as
+/// the set, which the check reads whole and applies every rule to.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct Saturated {
@@ -223,15 +247,17 @@ pub struct Saturated {
     pub sequents: Vec<Stable>,
 }
 
-/// A stable sequent of a saturated set: positive formulas and negative
-/// literals in its linear zone, subformulas of `?` in its unrestricted
-/// one, as occurrences of the sequent's forest. It stands for the
-/// sequents with exactly this linear zone and an unrestricted zone that
-/// holds this one, and where it `absorbs` (a `⊤` above) or in affine mode
-/// for those with a larger linear zone too, a member in output position
-/// absorbed only where the zone has none and weakened in never. The
-/// subformulas of the `?` the goal reaches through `⅋` alone, which every
-/// sequent of a proof holds, may be left out of its unrestricted zone.
+/// A stable sequent of a saturated set, as occurrences of the sequent's
+/// forest. Its linear zone holds positive formulas and negative literals,
+/// and its unrestricted zone holds subformulas of `?`.
+///
+/// It stands for the sequents with exactly this linear zone and an
+/// unrestricted zone that holds this one. Where it `absorbs` (a `⊤`
+/// above), or in affine mode, it also stands for those with a larger
+/// linear zone. A member in output position is then absorbed only where
+/// the zone has none, and never weakened in. Every sequent of a proof
+/// holds the subformulas of the `?` the goal reaches through `⅋` alone,
+/// so they may be left out of the unrestricted zone.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct Stable {
@@ -292,10 +318,11 @@ impl Refutation {
         }
     }
 
-    /// Writes the refutation as a phrase, each atom and predicate by its
-    /// name in `sequent`, or by its number without one; of an
-    /// `intuitionistic` sequent in its two-sided terms, an atom's
-    /// occurrences positive right of `⊢` and negative left of it.
+    /// Writes the refutation as a phrase. Each atom and predicate is
+    /// written by its name in `sequent`, or by its number where there is
+    /// no sequent. An `intuitionistic` sequent is described in its
+    /// two-sided terms: an atom's occurrences are positive right of `⊢`
+    /// and negative left of it.
     fn write(
         &self,
         f: &mut Formatter<'_>,
@@ -307,7 +334,7 @@ impl Refutation {
             Some(name) => name.clone(),
             None => format!("#{}", atom.get()),
         };
-        // A predicate as its literals read: its name and its arguments
+        // A predicate as its literals read: its name, with its arguments
         // left out.
         let predicate = |symbol: Symbol| match sequent.and_then(|s| s.symbols().get(symbol.index()))
         {
@@ -371,7 +398,7 @@ impl Refutation {
                 bottoms,
                 mix,
             }) => {
-                // A count below zero with the minus sign of the expression.
+                // A count below zero takes the minus sign the expression uses.
                 let needed = if *needed < 0 {
                     format!("−{}", needed.unsigned_abs())
                 } else {
@@ -481,12 +508,13 @@ fn list(names: &[String]) -> String {
     }
 }
 
-/// Writes why the literals of an atom named `name` cannot all meet in
-/// axioms: the one outnumbers the other between `least` and `most` times,
-/// outside the exponentials where some literals, all `copied`, lie below
-/// one, counted over every atom of a predicate where `predicate` says so;
-/// of an `intuitionistic` sequent as its positive and negative
-/// occurrences, which are its atoms right and left of `⊢`.
+/// Writes why the literals of the atom `name` cannot all meet in axioms:
+/// one literal outnumbers the other between `least` and `most` times.
+/// Where `copied` is given, the count is outside the exponentials, and
+/// every literal below one has that sign. Where `predicate` is set, the
+/// count is over every atom of a predicate. An `intuitionistic` sequent
+/// is described by its positive and negative occurrences, its atoms right
+/// and left of `⊢`.
 fn write_unbalanced(
     f: &mut Formatter<'_>,
     name: &str,
@@ -545,9 +573,9 @@ fn write_unbalanced(
     } else {
         (format!("~{name}"), name.to_owned())
     };
-    // The copied literal is the one `copied` names, which the engine's
-    // refutations make the one that outnumbers; a form read from JSON says
-    // what its fields say.
+    // The copied literal is the one `copied` names. The engine's
+    // refutations make it the one that outnumbers the other; a refutation
+    // read from JSON says what its fields say.
     let (place, copies) = match copied {
         Some(sign) => {
             let literal = match sign {
@@ -579,21 +607,45 @@ impl Display for Refutation {
 }
 
 /// A refutation with what it refutes: the sequent, the goal within it if
-/// another than the sequent's roots, and the mode. A search's
+/// that is not the sequent's roots, and the mode. A search's
 /// [`Verdict::Unprovable`](super::Verdict::Unprovable) carries one, as a
 /// [`Verdict::Proved`](super::Verdict::Proved) carries a proof.
 ///
+/// Its [`Display`] says why the goal is unprovable, with every atom by
+/// its name. [`check`](Self::check) verifies a disproof read from
+/// elsewhere.
+///
+/// # Examples
+///
+#[cfg_attr(feature = "parse", doc = "```")]
+#[cfg_attr(not(feature = "parse"), doc = "```ignore")]
+/// use deduxit::linear::{Mode, Options, Refutation, Sequent, Verdict, prove};
+///
+/// let sequent: Sequent = "a |- b".parse()?;
+/// let outcome = prove(&sequent, Mode::CLASSICAL, &Options::default())?;
+/// let Verdict::Unprovable(disproof) = outcome.verdict else {
+///     panic!("a |- b has no proof");
+/// };
+/// // `~a` has no `a` to meet in an axiom.
+/// assert!(matches!(disproof.refutation(), Refutation::Unbalanced(_)));
+/// println!("{disproof}");
+/// disproof.check()?;
+/// # Ok::<(), deduxit::Error>(())
+/// ```
+///
 /// # JSON
 ///
-/// With the feature `serialize` a disproof is the document `{"version":
-/// 1, "sequent": …, "mode": …, "refutation": …, "goal": […]}`: the
-/// refutation in the form [`Refutation`] gives, the goal's members only
-/// for a goal off the roots. An unprovable outcome writes the same keys,
-/// so it reads back as its disproof. Reading counts the sequent against
-/// the limits and checks every atom and occurrence the refutation and the
-/// goal name against it (`Error::IndexOutOfBounds` otherwise), not the
-/// refutation itself; a refutation kind the reader does not know is
-/// refused (`Error::Json`, kind malformed).
+/// With the feature `serialize`, a disproof is the document `{"version":
+/// 1, "sequent": …, "mode": …, "refutation": …, "goal": […]}`. The
+/// refutation has the form [`Refutation`] describes, and `goal` lists the
+/// goal's members only for a goal other than the roots. An unprovable
+/// outcome writes the same keys, so it reads back as its disproof.
+///
+/// Reading counts the sequent against the limits. It checks that every
+/// atom and occurrence the refutation and the goal name is in the
+/// sequent (`Error::IndexOutOfBounds` otherwise), but not the refutation
+/// itself: that is what [`check`](Self::check) does. A refutation kind
+/// the reader does not know is refused (`Error::Json`, kind malformed).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Disproof {
     /// The sequent.
@@ -648,8 +700,8 @@ impl Disproof {
 }
 
 impl Display for Disproof {
-    /// Writes the refutation as a phrase, with every atom by its name, in
-    /// an intuitionistic mode in the sequent's two-sided terms.
+    /// Writes the refutation as a phrase, with every atom by its name. In
+    /// an intuitionistic mode it uses the sequent's two-sided terms.
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         self.refutation
             .write(f, Some(&self.sequent), self.mode.is_intuitionistic())
@@ -660,28 +712,31 @@ impl Display for Disproof {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[non_exhaustive]
 pub enum RefutationFault {
-    /// The refutation is no certificate: an exhausted search rests on the
-    /// search, and the check cannot verify it.
+    /// The refutation is no certificate. An exhausted search rests on the
+    /// search itself, which the check cannot verify.
     #[error("a refutation of kind `{kind}` rests on the search and has no check")]
     Uncertified {
         /// The refutation's word ([`Refutation::name`]).
         kind: &'static str,
     },
-    /// The invariant does not hold where the goal is: weakening discards
-    /// literals and connectives, a `⊤` absorbs them, copies add them, and
-    /// the count equation holds in the multiplicative fragment alone.
+    /// The refutation's invariant does not hold for this goal and mode.
+    /// Weakening discards literals and connectives, a `⊤` absorbs them,
+    /// copies add them, and the count equation holds in the
+    /// multiplicative fragment only.
     #[error("the {invariant} is no invariant here: {why}")]
     NotApplicable {
-        /// The invariant: `balance of the atom` or `count equation`.
+        /// The invariant, such as `balance of the atom` or `count
+        /// equation`.
         invariant: &'static str,
         /// What defeats it.
         why: &'static str,
     },
-    /// The refutation's numbers are not the goal's: an atom or an
-    /// occurrence the sequent lacks, or counts that differ from its own.
+    /// The refutation's numbers are not the goal's. It names an atom or an
+    /// occurrence the sequent lacks, or states counts that differ from the
+    /// goal's.
     #[error("the refutation's numbers are not those of the sequent")]
     Mismatch,
-    /// The numbers are the goal's, and they allow a proof: the atom's
+    /// The numbers are the goal's, and they allow a proof. The atom's
     /// excess can be zero, the count equation holds, or some contribution
     /// to the weighted count is zero or below.
     #[error("the counts allow a proof")]
@@ -698,8 +753,8 @@ pub enum RefutationFault {
     /// The assignment makes the classical reading true.
     #[error("the classical reading is true under the assignment")]
     Satisfied,
-    /// A sequent of a saturated set is none of the mode: under the
-    /// intuitionistic reading it has other than one member in output
+    /// A sequent of a saturated set is not a sequent of the mode. Under
+    /// the intuitionistic reading it has other than one member in output
     /// position, or more than one where it absorbs.
     #[error("a sequent of the saturated set is no sequent of the mode")]
     Unshaped,
@@ -731,59 +786,111 @@ impl RefutationFault {
 }
 
 impl Disproof {
-    /// Checks the refutation against the sequent, the goal and the mode,
-    /// sharing no code with the search: an assignment by evaluating the
-    /// goal's classical reading, which must be false; an unbalanced atom
-    /// by its excess of positive over negative literals, whose interval
-    /// over the additive alternatives (`⊗` and `⅋` adding their sides, `&`
-    /// and `⊕` taking the hull of theirs) must be the one stated and
-    /// exclude zero, outside affine mode and with no `⊤` and no `!` or `?`
-    /// over the atom in the goal; the count equation by the goal's
-    /// formulas, `⊗`, `⅋`, `1` and `⊥`, which must be the ones stated and
-    /// fail it, outside affine mode and in the multiplicative fragment
-    /// with units, with Mix exactly where the mode allows it; a saturated
-    /// set by reading the rules of the focused calculus off the forest
-    /// again, under the set's polarity, and applying each to every choice
-    /// of premises among its sequents, each sequent derived one that a
-    /// sequent of the set stands for or that no proof holds, Mix too
-    /// where the mode has it, its sequents shaped as the mode's are, and
-    /// a stable sequent of the goal's phase that none stands for; a
-    /// one-sided count by its interval outside the goal's exponentials and
-    /// the sign of the atom's literals below them, as an unbalanced atom's
-    /// with the copies' side open, and then by the weighted test with the
-    /// weight `±1` on the atom; a state equation by the weighted test with
-    /// the stated weights, the goal read as a Horn program with positive
-    /// bodies, else negative ones (the weights negated), the atoms no
-    /// firing reaches declared dead, and in affine mode its count of the
-    /// formulas with one output. The weighted test is the one deduxit's
-    /// Rocq library proves sound for any weights: no formula of the goal
-    /// may absorb, and every contribution to the weighted count of its
-    /// literals is above zero, a `?` formula's copies included. Those six
-    /// are certificates: every derivation keeps the invariant the others
-    /// break, and the set holds a sequent for every stable one of every
-    /// proof. Time and memory are linear in the goal's occurrences (a
-    /// member repeated counted each time) for all but the set, whose
-    /// check applies every
-    /// rule to every choice of its sequents, which takes as long as the
-    /// search that saturated did at most for a set a search gave, but has
-    /// no stop here: for a set read from elsewhere it can take time
-    /// exponential in the `&` under `⅋` of the goal and of the degree of
-    /// a rule's holes in the set's size (a set repeating one sequent), so
-    /// a caller checks such a set within a time limit of its own.
+    /// Checks that the refutation proves the goal unprovable in the mode,
+    /// and returns `Ok` when it does.
+    ///
+    /// The check shares no code with the search. Each kind is checked by
+    /// the invariant it rests on:
+    ///
+    /// - An assignment ([`Refutation::Classical`]): the goal's classical
+    ///   reading, evaluated under it, must be false.
+    /// - An unbalanced atom ([`Refutation::Unbalanced`]): its excess of
+    ///   positive over negative literals is computed as an interval over
+    ///   the additive alternatives. `⊗` and `⅋` add their sides', and `&`
+    ///   and `⊕` take the hull of theirs. The interval must be the one
+    ///   stated and exclude zero. The mode must not be affine, and the goal
+    ///   must have no `⊤` and no `!` or `?` over the atom.
+    /// - The count equation ([`Refutation::Equation`]): the goal's
+    ///   formulas, `⊗`, `⅋`, `1` and `⊥` must be the ones stated and fail
+    ///   it. The goal must be in the multiplicative fragment with units,
+    ///   the mode must not be affine, and Mix must be stated exactly where
+    ///   the mode allows it.
+    /// - A saturated set ([`Refutation::Saturated`]): the rules of the
+    ///   focused calculus are read off the forest again, under the set's
+    ///   polarity. Each is applied to every choice of premises among the
+    ///   set's sequents, and so is Mix where the mode has it. Each sequent
+    ///   derived must be one that a sequent of the set stands for, or one
+    ///   that no proof holds. The set's sequents must be shaped as the
+    ///   mode's are, and some stable sequent of the goal's phase must be
+    ///   one that none of them stands for.
+    /// - A one-sided count ([`Refutation::OneSided`]): its interval is
+    ///   computed outside the goal's exponentials, as an unbalanced atom's,
+    ///   with the side that copies reach left open. The sign of the atom's
+    ///   literals below the exponentials must be the one stated. Then the
+    ///   weighted test with the weight `±1` on the atom must accept the
+    ///   goal.
+    /// - A state equation ([`Refutation::StateEquation`]): the weighted
+    ///   test with the stated weights must accept the goal, read as a Horn
+    ///   program with positive bodies, else negative ones (the weights
+    ///   negated). The atoms that no firing reaches are declared dead. In
+    ///   affine mode the test counts the formulas with one output.
+    ///
+    /// The predicate forms, [`Refutation::UnbalancedSymbol`] and
+    /// [`Refutation::OneSidedSymbol`], are checked as their atom forms,
+    /// over every atom of the predicate.
+    ///
+    /// The weighted test is the one deduxit's Rocq library proves sound for
+    /// any weights. No formula of the goal may absorb, and every
+    /// contribution to the weighted count of its literals must be above
+    /// zero, a `?` formula's copies included.
+    ///
+    /// These six kinds are certificates. Every derivation keeps the
+    /// invariant that each of the five others breaks, and the set holds a
+    /// sequent for every stable one of every proof.
+    ///
+    /// # Cost
+    ///
+    /// Time and memory are linear in the goal's occurrences, a member
+    /// repeated counted each time, for every kind but the saturated set.
+    /// The set's check applies every rule to every choice of its sequents.
+    /// For a set a search gave, that takes at most as long as the search
+    /// that saturated. The check has no stop, though. For a set read from
+    /// elsewhere it can take time exponential in the `&` under `⅋` of the
+    /// goal, and polynomial in the set's size, of the degree of a rule's
+    /// holes (a set that repeats one sequent). So a caller checks such a
+    /// set within a time limit of its own.
     ///
     /// # Errors
     ///
     /// [`Error::Refutation`](crate::Error::Refutation) with the
-    /// [`RefutationFault`]: of kind invalid for a refutation that does not
-    /// hold, unsupported for an exhausted search
-    /// ([`RefutationFault::Uncertified`]); and the errors of
-    /// [`Forest::new`](crate::linear::Forest::new) for a sequent past the default
-    /// limits.
+    /// [`RefutationFault`]. The error's kind is invalid for a refutation
+    /// that does not hold, and unsupported for an exhausted search
+    /// ([`RefutationFault::Uncertified`]). The errors of
+    /// [`Forest::new`](crate::linear::Forest::new) for a sequent past the
+    /// default limits.
+    ///
+    /// # Examples
+    ///
+    /// A disproof sent as JSON, read back and checked, and a changed one
+    /// that the check refuses:
+    ///
+    #[cfg_attr(all(feature = "parse", feature = "serialize"), doc = "```")]
+    #[cfg_attr(not(all(feature = "parse", feature = "serialize")), doc = "```ignore")]
+    /// use deduxit::linear::{Disproof, Mode, Options, Refutation, Sequent, Verdict, prove};
+    ///
+    /// let sequent: Sequent = "|- a & b, ~a".parse()?;
+    /// let outcome = prove(&sequent, Mode::CLASSICAL, &Options::default())?;
+    /// let Verdict::Unprovable(disproof) = outcome.verdict else {
+    ///     panic!("the sequent has no proof");
+    /// };
+    /// // False where `a` is true and `b` false.
+    /// assert!(matches!(disproof.refutation(), Refutation::Classical(_)));
+    /// let json = serde_json::to_string(&disproof)?;
+    ///
+    /// let read: Disproof = serde_json::from_str(&json)?;
+    /// read.check()?;
+    ///
+    /// // Under this assignment the reading is true.
+    /// let changed = json.replace("[true,false]", "[true,true]");
+    /// let read: Disproof = serde_json::from_str(&changed)?;
+    /// assert_eq!(read.check().unwrap_err().code(), "invalid_refutation");
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn check(&self) -> Result<(), crate::Error> {
         let fault = |fault| crate::Error::Refutation(fault);
         let forest = crate::linear::occurrences::Forest::new(&self.sequent)?;
-        // The counts carry over to quantifiers, a quantifier's rule
-        // changing none of them; an assignment and a saturated set are
+        // The counts carry over to quantifiers, since a quantifier's rule
+        // changes none of them. An assignment and a saturated set are
         // propositional.
         if forest.has_binders()
             && matches!(
@@ -862,8 +969,8 @@ fn check_classical(
     };
     let mut truth = vec![false; forest.len()];
     for &member in goal {
-        // Preorder: a subtree's occurrences follow its root, so its
-        // operands are evaluated first from the end.
+        // The forest is in preorder: a subtree's occurrences follow its
+        // root. Walked from the end, operands come before their connective.
         for o in forest.subtree(member).rev() {
             let side = |side: Option<OccId>| side.is_some_and(|s| truth[s.index()]);
             let (l, r) = (side(forest.left(o)), side(forest.right(o)));
@@ -888,9 +995,10 @@ fn check_classical(
 }
 
 /// Checks that the atom of `unbalanced` has the stated excess interval in
-/// the goal, which excludes zero, where the balance is an invariant: of a
-/// sequent with a quantifier, only where no atom of its predicate has a
-/// bound variable, which an instance could make the atom.
+/// the goal, and that the interval excludes zero. In a sequent with a
+/// quantifier, the balance is an invariant only where no atom of the
+/// atom's predicate has a bound variable, since an instance of such an
+/// atom could be this one.
 fn check_unbalanced(
     forest: &crate::linear::occurrences::Forest,
     goal: &[OccId],
@@ -923,8 +1031,8 @@ fn check_unbalanced(
 }
 
 /// Checks that the literals of the predicate of `unbalanced`, every atom
-/// of it counted, have the stated excess interval in the goal, which
-/// excludes zero, where the balance is an invariant.
+/// of it counted, have the stated excess interval in the goal, and that
+/// it excludes zero, where the balance is an invariant.
 fn check_unbalanced_symbol(
     forest: &crate::linear::occurrences::Forest,
     goal: &[OccId],
@@ -950,11 +1058,11 @@ fn check_unbalanced_symbol(
 }
 
 /// Checks that the literals `counted` picks have the excess interval
-/// `stated` in the goal, which excludes zero, where the balance is an
-/// invariant: every axiom joins one positive and one negative literal of
-/// a group (an atom, or a predicate), `⊗` and `⅋` add their sides'
-/// excesses, `&` and `⊕` take the hull of theirs, and a quantifier's rule
-/// changes none.
+/// `stated` in the goal, and that it excludes zero, where the balance is
+/// an invariant. It is one because every axiom joins one positive and one
+/// negative literal of a group (an atom, or a predicate). `⊗` and `⅋` add
+/// their sides' excesses, `&` and `⊕` take the hull of theirs, and a
+/// quantifier's rule changes none.
 fn check_balance(
     forest: &crate::linear::occurrences::Forest,
     goal: &[OccId],
@@ -970,11 +1078,11 @@ fn check_balance(
             why: "weakening discards literals",
         });
     }
-    // Per occurrence the least and the greatest excess, `None` where a
-    // `⊤` absorbs or copies of the counted literals can add any number:
-    // sums of ±1 over the goal's members, each a subtree of the forest's
-    // fewer than 2³² occurrences: a goal past 2³¹ members would be needed
-    // to leave an `i64`, which no memory holds.
+    // Per occurrence, the least and the greatest excess, or `None` where a
+    // `⊤` absorbs or copies of the counted literals can add any number.
+    // They are sums of ±1 over the goal's members, each a subtree of the
+    // forest's fewer than 2³² occurrences. Leaving an `i64` would take a
+    // goal of more than 2³¹ members, which no memory holds.
     let mut span: Vec<Option<(i64, i64)>> = vec![None; forest.len()];
     let (mut least, mut most) = (0, 0);
     for &member in goal {
@@ -1011,10 +1119,10 @@ fn check_balance(
 }
 
 /// Checks that the atom of `one_sided` has the stated excess interval
-/// outside the goal's exponentials, below which its literals all have the
-/// stated sign, and that copies of that sign cannot bring the excess to
-/// zero, where the count is an invariant: of a sequent with a quantifier,
-/// only where no atom of its predicate has a bound variable.
+/// outside the goal's exponentials, that its literals below them all have
+/// the stated sign, and that copies of that sign cannot bring the excess
+/// to zero. In a sequent with a quantifier, the count is an invariant
+/// only where no atom of the atom's predicate has a bound variable.
 fn check_one_sided(
     forest: &crate::linear::occurrences::Forest,
     goal: &[OccId],
@@ -1048,8 +1156,8 @@ fn check_one_sided(
 
 /// Checks that the literals of the predicate of `one_sided`, every atom of
 /// it counted, have the stated excess interval outside the goal's
-/// exponentials and the stated sign below them, which copies cannot bring
-/// to zero.
+/// exponentials and the stated sign below them, and that copies cannot
+/// bring the excess to zero.
 fn check_one_sided_symbol(
     forest: &crate::linear::occurrences::Forest,
     goal: &[OccId],
@@ -1074,16 +1182,17 @@ fn check_one_sided_symbol(
     )
 }
 
-/// Checks a one-sided count of the literals `counted` picks: outside the
-/// goal's exponentials their excess interval (`⊗` and `⅋` adding their
-/// sides, `&` and `⊕` taking the hull, a `!` or `?` counting nothing) is
-/// the stated one, every one of them below an exponential of the goal has
-/// the stated sign `copied`, and the interval excludes zero on the side
-/// copies of that sign cannot reach (the least above zero for `a`, the
-/// greatest below zero for `~a`); then the weighted test with the weight
-/// `1` on `a` (`−1` for `~a`) and nothing dead must accept the goal, which
-/// is the theorem the count rests on. Outside affine mode and with no `⊤`
-/// in the goal.
+/// Checks a one-sided count of the literals `counted` picks.
+///
+/// Outside the goal's exponentials, their excess interval must be the
+/// stated one: `⊗` and `⅋` add their sides', `&` and `⊕` take the hull,
+/// and a `!` or `?` counts nothing. Every one of them below an exponential
+/// of the goal must have the stated sign `copied`. The interval must
+/// exclude zero on the side that copies of that sign cannot reach: the
+/// least above zero for `a`, the greatest below zero for `~a`. Then the
+/// weighted test, with the weight `1` on `a` (`−1` for `~a`) and nothing
+/// dead, must accept the goal: that is the theorem the count rests on.
+/// The mode must not be affine, and the goal must have no `⊤`.
 fn check_copies(
     forest: &crate::linear::occurrences::Forest,
     goal: &[OccId],
@@ -1099,17 +1208,17 @@ fn check_copies(
             why: "weakening discards literals",
         });
     }
-    // Per occurrence the least and the greatest excess outside the
-    // exponentials, `None` where a `⊤` absorbs: sums of ±1 over a member's
-    // subtree, fewer than 2³² occurrences, so within an `i64` per member;
-    // the members' sum is checked.
+    // Per occurrence, the least and the greatest excess outside the
+    // exponentials, or `None` where a `⊤` absorbs. They are sums of ±1
+    // over a member's subtree of fewer than 2³² occurrences, so within an
+    // `i64` per member. The sum over the members is checked.
     let mut span: Vec<Option<(i64, i64)>> = vec![None; forest.len()];
     // Which signs of the counted literals lie below an exponential.
     let mut below = [false; 2];
     let (mut lo, mut hi) = (0i64, 0i64);
     for &member in goal {
         // An occurrence's subtree is the ids that follow it, so the end of
-        // the outermost exponential met says what lies below one.
+        // the outermost exponential met so far says what lies below one.
         let mut inside = 0;
         for o in forest.subtree(member) {
             if o.index() < inside
@@ -1221,7 +1330,8 @@ fn check_equation(
         }
     }
     // Counts over the goal's members, each a subtree of fewer than 2³²
-    // occurrences: far within an `i64` for any goal a memory holds.
+    // occurrences. For any goal a memory holds they are far within an
+    // `i64`.
     let needed = tensors as i64 - pars as i64 - ones as i64 + bottoms as i64 + 2;
     let formulas = goal.len() as u64;
     let stated = Equation {

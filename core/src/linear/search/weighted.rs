@@ -4,28 +4,36 @@
 //! The weighted count of a goal's literals, which certifies a one-sided
 //! count and a Horn program's state equation apart from the search.
 //!
-//! Each atom (or predicate) weighs an integer, and every formula has the
+//! Each atom (or predicate) has an integer weight. Every formula has the
 //! numbers it can contribute to the weighted count of a derivable
-//! sequent's literals: a literal its weight (negated for the negative
-//! one), `⊗` and `⅋` their sides' sums, `&` and `⊕` either side's, `!A`
-//! nothing, and `?A` the sum of any number of `A`'s contributions, none
-//! included. Every derivable sequent, without weakening and without cut,
-//! Mix allowed, can contribute zero or has a formula that absorbs (a
-//! `⊤`); so a goal none of whose formulas may absorb and every
-//! contribution of which is above zero is not derivable. An atom may be
-//! declared dead: its literal of one sign contributes nothing a sum can
-//! cancel (as `0`), its other one absorbs (as `⊤`), so an axiom on it
-//! still settles; a Horn program's atoms that no firing reaches die in
-//! the bodies' sign. With weakening the count holds of the formulas that
-//! have one output, those of the sign the bodies' literals have, and a
-//! formula without an output may be dropped, contributing zero.
+//! sequent's literals:
 //!
-//! This is the test `overweight` of deduxit's Rocq library (`Weights.v`,
-//! `overweight_affine` with weakening, and `FirstOrderWeights.v` for a
-//! goal with a quantifier, whose rule changes no literal's weight), which
-//! proves it sound for any weights, dead atoms and sign: [`overweight`](crate::linear::search::weighted::overweight)
-//! computes the same lower bound per occurrence, so a goal it accepts is
-//! one the library's theorem refutes.
+//! - a literal its weight, negated for the negative literal;
+//! - `⊗` and `⅋` the sums of their sides' numbers;
+//! - `&` and `⊕` either side's;
+//! - `!A` zero;
+//! - `?A` the sum of any number of `A`'s contributions, none included.
+//!
+//! Every sequent derivable without weakening and without cut, Mix
+//! allowed, can contribute zero or has a formula that absorbs (a `⊤`).
+//! So a goal is not derivable when none of its formulas may absorb and
+//! every contribution it can make is above zero.
+//!
+//! An atom may be declared dead. Its literal of one sign then contributes
+//! nothing that a sum can cancel, as `0` does, and its other literal
+//! absorbs, as `⊤` does, so an axiom on it still settles. A Horn
+//! program's atoms that no firing reaches die in the bodies' sign. With
+//! weakening, an output is a literal of the sign the bodies' literals
+//! have, and the count holds of a goal with one output. A formula without
+//! an output may be dropped, so it contributes zero too.
+//!
+//! This is the test `overweight` of deduxit's Rocq library: `Weights.v`,
+//! with `overweight_affine` for weakening, and `FirstOrderWeights.v` for a
+//! goal with a quantifier, whose rule changes no literal's weight. The
+//! library proves it sound for any weights, dead atoms and sign.
+//! [`overweight`](crate::linear::search::weighted::overweight) computes
+//! the same lower bound per occurrence, so a goal it accepts is one the
+//! library's theorem refutes.
 
 use super::refutation::RefutationFault;
 use crate::linear::occurrences::{Forest, OccId, Sign};
@@ -34,9 +42,9 @@ use crate::linear::sequents::Kind;
 /// The invariant the faults of the test name.
 const INVARIANT: &str = "weighted count";
 
-/// A lower bound of the numbers a formula can contribute: none at all
-/// (`Never`, as `0` contributes), every one at least a number, or none
-/// known (`Unbounded`).
+/// A lower bound of the numbers a formula can contribute. `Never` means it
+/// contributes no number at all, as `0`; `From(n)` that every number is at
+/// least `n`; `Unbounded` that no bound is known.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Low {
     /// The formula contributes no number.
@@ -48,8 +56,8 @@ enum Low {
 }
 
 impl Low {
-    /// Returns the bound of a sum, `None` where it leaves an `i128`; every
-    /// sum of the test is one of these, so none wraps.
+    /// Returns the bound of a sum, or `None` where it leaves an `i128`.
+    /// Every sum of the test goes through here, so none wraps.
     fn sum(self, other: Self) -> Option<Self> {
         Some(match (self, other) {
             (Low::Never, _) | (_, Low::Never) => Low::Never,
@@ -58,7 +66,8 @@ impl Low {
         })
     }
 
-    /// Returns the bound of either.
+    /// Returns the bound of a formula that contributes either side's
+    /// numbers.
     fn min(self, other: Self) -> Self {
         match (self, other) {
             (Low::Never, z) | (z, Low::Never) => z,
@@ -93,12 +102,12 @@ impl Low {
     }
 }
 
-/// What the test weighs: the weight of each literal's atom (or group),
-/// which the literal's positive form contributes and its negation
-/// negated, whether the atom is dead, the sign of a dead atom's literal
-/// that contributes nothing (the other one absorbs), and whether
-/// formulas without an output may be dropped (with weakening, where the
-/// outputs are the literals of that sign).
+/// What the test weighs. A literal's atom (or group) has a weight, which
+/// the positive literal contributes, and the negative one negated. An atom
+/// may be dead: its literal of the sign `sign` then contributes nothing,
+/// and its other literal absorbs. With weakening, formulas without an
+/// output may be dropped, and the outputs are the literals of the sign
+/// `sign`.
 pub(crate) struct Weights<'a> {
     /// The weight of a literal's atom, at most 2⁶³ in absolute value.
     pub(crate) weight: &'a dyn Fn(OccId) -> i128,
@@ -112,24 +121,26 @@ pub(crate) struct Weights<'a> {
 }
 
 /// What the test knows of an occurrence: its bound, whether it may
-/// absorb, its outputs and whether it and every subformula has outputs as
-/// the count with weakening needs (none below zero, none below a `?`).
+/// absorb, its outputs, and whether it is shaped. It is shaped when it and
+/// every subformula have outputs as the count with weakening needs: none
+/// below zero, and none below a `?`.
 #[derive(Clone, Copy)]
 struct Node {
     /// The lower bound of its contributions.
     least: Low,
     /// Whether it may absorb.
     absorbs: bool,
-    /// Its outputs: a sum of ±1 over its subtree's occurrences, fewer
-    /// than 2³², within an `i64`.
+    /// Its outputs: a sum of ±1 over its subtree's fewer than 2³²
+    /// occurrences, so within an `i64`.
     outputs: i64,
     /// Whether it is shaped.
     shaped: bool,
 }
 
 /// Checks that the weighted test accepts the goal: no formula of it may
-/// absorb, and every contribution it can make is above zero, with
-/// weakening of the goal's formulas shaped and with exactly one output.
+/// absorb, and every contribution it can make is above zero. With
+/// weakening, the goal's formulas must also be shaped and have exactly one
+/// output in all.
 ///
 /// # Errors
 ///
@@ -150,8 +161,8 @@ pub(crate) fn overweight(
     let mut nodes: Vec<Option<Node>> = vec![None; forest.len()];
     let (mut total, mut outputs, mut shaped, mut absorbs) = (Low::From(0), 0i64, true, false);
     for &member in goal {
-        // Preorder: a subtree's occurrences follow its root, so its
-        // operands come first from the end.
+        // The forest is in preorder: a subtree's occurrences follow its
+        // root. Walked from the end, operands come before their connective.
         for o in forest.subtree(member).rev() {
             let side = |side: Option<OccId>| side.and_then(|s| nodes[s.index()]);
             let (l, r) = (side(forest.left(o)), side(forest.right(o)));
@@ -230,9 +241,9 @@ pub(crate) fn overweight(
         }
         let node = nodes[member.index()].expect("the member was just visited");
         total = total.sum(node.least).ok_or(overflow)?;
-        // A shaped member has no output below zero and an unshaped one
-        // refuses whatever the sum, so a sum saturated past an `i64` is
-        // more than one output and stays so.
+        // A shaped member has no output below zero, and an unshaped one is
+        // refused whatever the sum. So a sum saturated at the top of an
+        // `i64` is more than one output, and stays so.
         outputs = outputs.saturating_add(node.outputs);
         shaped &= node.shaped;
         absorbs |= node.absorbs;
@@ -256,16 +267,18 @@ pub(crate) fn overweight(
     }
 }
 
-/// Returns the atoms of the goal that no firing reaches when the goal is
-/// read as a Horn program whose bodies' literals have the sign `body`, as
-/// a value per atom of the sequent, or `None` where it is no such program.
-/// A member under `?` is a clause, any other a marking (a `⅋` of `⊥` and
-/// literals of the other sign) or a clause: a tensor of body literals and
-/// `1` with at most one head, a marking's shape. The atoms reached are
-/// the least set that holds the markings' atoms and the heads' atoms of
-/// every clause whose body atoms it holds; the rest of the goal's atoms
-/// are dead. Whatever the set, the weighted test is sound; this one makes
-/// a clause that can never fire contribute nothing.
+/// Returns the atoms of the goal that no firing reaches, as a value per
+/// atom of the sequent, when the goal is read as a Horn program whose
+/// bodies' literals have the sign `body`. Returns `None` where the goal is
+/// no such program.
+///
+/// A member under `?` is a clause. Any other member is a marking (a `⅋` of
+/// `⊥` and literals of the other sign) or a clause: a tensor of body
+/// literals and `1` with at most one head, which has a marking's shape.
+/// The atoms reached are the least set that holds the markings' atoms and
+/// the heads' atoms of every clause whose body atoms it holds. The goal's
+/// other atoms are dead. The weighted test is sound whatever the set;
+/// this one makes a clause that can never fire contribute nothing.
 pub(crate) fn dead_atoms(forest: &Forest, goal: &[OccId], body: Sign) -> Option<Vec<bool>> {
     let atoms = forest.sequent().atom_names().len();
     let head = |o: OccId| {
@@ -343,13 +356,13 @@ pub(crate) fn dead_atoms(forest: &Forest, goal: &[OccId], body: Sign) -> Option<
     Some((0..atoms).map(|a| named[a] && !live[a]).collect())
 }
 
-/// The dead atoms and the sign they die in under which a state equation's
-/// weights pass the weighted test: the bodies' sign of the Horn program
-/// the goal is read as, and a value per atom of the sequent.
+/// The reading of the goal under which a state equation's weights pass
+/// the weighted test: the bodies' sign of the Horn program the goal is
+/// read as, which the dead atoms die in, and whether each atom is dead.
 pub(crate) struct Deaths {
-    /// The bodies' sign, whose literal of a dead atom contributes nothing;
-    /// the weights are negated for [`Sign::Dual`], whose bodies and goal
-    /// are negative literals.
+    /// The bodies' sign. A dead atom's literal of this sign contributes
+    /// nothing. The weights are negated for [`Sign::Dual`], whose bodies
+    /// and goal are negative literals.
     #[cfg_attr(
         not(feature = "rocq"),
         expect(dead_code, reason = "the Rocq certificate writes the reading")
@@ -363,14 +376,16 @@ pub(crate) struct Deaths {
     pub(crate) dead: Vec<bool>,
 }
 
-/// Checks a state equation's weights by the weighted test: the goal read
-/// as a Horn program with its bodies' literals positive, else negative,
-/// the atoms no firing reaches dead in that sign, and the atoms weighed
-/// as stated, negated for negative bodies, with weakening in affine mode;
-/// returns the reading the test accepts. The ticket weights and the
-/// clauses dropped are the engine's account of its inequalities, which
-/// the test does not need: it sums each clause's own literals, and a
-/// clause that can never fire has a dead atom in its body.
+/// Checks a state equation's weights by the weighted test, and returns the
+/// reading the test accepts.
+///
+/// The goal is read as a Horn program with its bodies' literals positive,
+/// else negative. The atoms no firing reaches are dead in that sign. The
+/// atoms are weighed as stated, the weights negated for negative bodies,
+/// with weakening in affine mode. The ticket weights and the clauses
+/// dropped are the engine's account of its inequalities, which the test
+/// does not need: it sums each clause's own literals, and a clause that
+/// can never fire has a dead atom in its body.
 ///
 /// # Errors
 ///
@@ -413,7 +428,7 @@ pub(crate) fn state_equation(
         weight[a.index()] = i128::from(w);
     }
     let atom = |o: OccId| forest.atom(o).expect("a literal").index();
-    // The first reading's fault, or that there is none.
+    // The fault of the first reading tried, if any.
     let mut fault = None;
     for body in [Sign::Atom, Sign::Dual] {
         let Some(dead) = dead_atoms(forest, goal, body) else {
@@ -446,9 +461,9 @@ pub(crate) fn state_equation(
 mod tests {
     use super::*;
 
-    /// A sum past an `i128` is refused, not wrapped: no goal gets there
-    /// (its bounds stay within ±2⁹⁵ per member), so the bounds' own sum is
-    /// tested where it does.
+    /// A sum past an `i128` is refused, not wrapped. No goal gets there,
+    /// since its bounds stay within ±2⁹⁵ per member, so the test drives the
+    /// bounds' own sum there.
     #[test]
     fn a_sum_past_128_bits_is_refused() {
         let top = Low::From(i128::MAX);
