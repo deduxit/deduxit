@@ -327,9 +327,12 @@ panel's and the reviewer's answers: `zlyoltsk` (the stop asked by the
 hypotheses expanded), `qpmywnsk` (`gives_way` and the message
 narrowed), `qzlputqs` (LJT's test compares with the embedding again),
 `xtyuxxwn` and `rtuztqok` (`check`'s refusal said truly, the help
-corrected, the dispatch tested), `mrxsmuxm` (the help's lock), and this
-report's commit. The chain is rebased onto `main@origin` (`ryuqpssm`)
-without a conflict.
+corrected, the dispatch tested), `mrxsmuxm` (the help's lock), this
+report's commit `pppolmns`, `nkttvuln` (the ratchet's ceiling of
+`ordinary-pigeons`, below) and the report's last commit. The chain is
+rebased onto `main@origin` (`qlnrutvm`, after 54w-e1 and 54w-e2's
+comment rewrites) without a conflict; the ceiling's counts below were
+taken on the earlier base `ryuqpssm`.
 
 ### The measurement
 
@@ -660,6 +663,35 @@ the fresh-context reviewer (Opus 5.5) on the whole chain to `xtyuxxwn`.
   through the cbn translation).
 
 
+### The ratchet's ceiling of `ordinary-pigeons`
+
+`nix flake check` at `pppolmns` failed on the ratchet alone:
+`ordinary-pigeons` (classical pigeons through `ordinary::decide`) counted
+31 742 013 instructions, 3.46 % over its ceiling of 30 679 397, where the
+gate's devshell build counted +1.55 %. Every count below is from the
+flake's own `deduxit-bench`:
+- main@origin (`ryuqpssm`): 31 241 646, +1.83 %;
+- `tnunknxk`, the only change on the journey's path: 31 115 129, +1.42 %,
+  lower than main;
+- `xwoynwpv`, which changes only the harness, not the code measured:
+  31 699 337, +3.32 %.
+
+callgrind per function, main against the head: every deduxit function
+equal or lower (`ordinary::decide` −59 k), the whole rise in glibc's
+allocator (`_int_malloc` +356 k, `_int_free_merge_chunk` +132 k) with
+fewer `malloc` calls. The ratchet collects inside `measured` only, but
+the heap that part starts from depends on what the process allocated
+before it, which the harness's new arguments change. Holding the
+linear outcome unboxed changed nothing (31 741 926), and was not kept.
+Pinned to one core each (`bench/pinned-time.py` on that journey alone,
+repeated 500 times, five rounds, cores 2 and 3 under the machine lock,
+the flake's builds of main and of the head), the head's time over
+main's is 0.9845 (0.9795 to 0.9945), each build's spread about 1 %.
+deduxit-orchestrator decided the raise, by bench.md's rule for a count
+moved by the allocator or a binary's layout with the code the same per
+function: `nkttvuln` sets the ceiling to 31 742 013, the larger build's
+count, in a commit of its own that says why.
+
 ### The checklist
 
 | item | state | evidence |
@@ -674,7 +706,7 @@ the fresh-context reviewer (Opus 5.5) on the whole chain to `xtyuxxwn`.
 | the page's settings | untouched | they name no ordinary engine; `close` stays the embedding |
 | `Derivation::term` checks first | kept, with its reason | `xxlnqlnq` (`# Panics`), later.md |
 | the panel, the fresh reviewer | see above | |
-| the gate and `nix flake check` at the last commit | run at this report's commit | exit statuses in the message to deduxit-orchestrator |
+| the gate and `nix flake check` at the last commit | the first flake check failed on the ratchet alone (above); both run again at the report's last commit | exit statuses in the message to deduxit-orchestrator |
 
 
 ### What the next sessions must know
