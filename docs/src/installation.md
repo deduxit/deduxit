@@ -225,7 +225,7 @@ The library is the crate [`deduxit`](https://crates.io/crates/deduxit):
 
 ```toml
 [dependencies]
-deduxit = "0.2"
+deduxit = "0.3"
 ```
 
 with the default features `parse`, `serialize`, `interactive`, `latex`,

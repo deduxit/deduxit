@@ -50,7 +50,7 @@ Building needs Rust 1.92 or later. The library is the crate
 
 ```toml
 [dependencies]
-deduxit = "0.2"
+deduxit = "0.3"
 ```
 
 The manual's

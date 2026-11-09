@@ -11,7 +11,7 @@ name = "deduxit-workspace"
 # What every package shares; crates.io keeps a published version's
 # metadata as it was, so the addresses are the final ones.
 [workspace.package]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 # The oldest toolchain that builds every crate with every feature: krilla,
 # behind `pdf', needs 1.92. The `msrv' check holds it; it rises only with
@@ -23,9 +23,9 @@ repository = "https://github.com/deduxit/deduxit"
 # The core crate, written once for the members that depend on it; each
 # names the features it uses, the defaults included.
 [workspace.dependencies]
-deduxit = { version = "0.2.0", path = "core", default-features = false }
+deduxit = { version = "0.3.0", path = "core", default-features = false }
 # The command's library, which the last release of linlog-cli runs.
-deduxit-cli = { version = "0.2.0", path = "cli" }
+deduxit-cli = { version = "0.3.0", path = "cli" }
 
 # Every item gets a doc comment (CLAUDE.md, Conventions): rustc checks the
 # public ones, clippy the private ones.
