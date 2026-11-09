@@ -90,13 +90,12 @@ pub(crate) enum Command {
     /// Check a proof read from JSON, as `prove --format json` writes it, or
     /// the refutation of an unprovable outcome
     ///
-    /// The mode comes from the flags, not from the file: pass the flags the
-    /// proof was found with. The exit status is 0 for a valid proof, 1 for
-    /// an invalid one, 3 when the check was given up at a limit (neither
-    /// valid nor invalid), and 2 for an error. A refutation is checked
-    /// without the search in the mode its file states, a claim about that
-    /// mode alone (a mode flag that names another is an error), with the
-    /// same statuses: 0 where it holds, 1 where it does not, 3 for an
+    /// The mode is the one the file states, or the flags' where it states
+    /// none; a mode flag that names another is an error. The exit status is
+    /// 0 for a valid proof, 1 for an invalid one, 3 when the check was given
+    /// up at a limit (neither valid nor invalid), and 2 for an error. A
+    /// refutation is checked without the search in the mode its file
+    /// states, a claim about that mode alone, with the same statuses: 0 where it holds, 1 where it does not, 3 for an
     /// exhausted search, which has no check.
     /// With `--format json` the verdict is `{"version", "verdict",
     /// "mode"}`, the verdict `valid`, `invalid` or `unknown`, with the
@@ -105,7 +104,8 @@ pub(crate) enum Command {
     Check(CheckArgs),
     /// Eliminate the cuts of a proof read from JSON, step by step
     ///
-    /// The proof is checked in the mode the flags give, then its cuts are
+    /// The proof is checked in the mode its file states (the flags' where
+    /// it states none, as for `check`), then its cuts are
     /// reduced one step at a time, each step on the cut that comes first in
     /// the proof (no cut above it), until no cut is left or a bound is
     /// reached: `--steps=1` takes a single one. Each step is printed with its

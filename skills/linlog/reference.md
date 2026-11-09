@@ -1083,8 +1083,8 @@ nothing for a certificate it accepts.
   it.
 - With `-i`, write `A -o B` and put hypotheses left of `|-`: `~`, `par`,
   `?` and `bot` are refused, and so are two formulas right of `|-`.
-- `check` takes the mode from its flags: check a proof of `prove -i`
-  with `check -i`.
+- `check` takes the mode its file states: a proof of `prove -i` needs
+  no flag, and a mode flag that names another mode is an error.
 - A derivation is one-sided by default: `⊢ ~A, A` is the axiom
   `A ⊢ A`.
 - Quote the sequent; `*`, `|`, `&`, `!` and `?` mean something to the
