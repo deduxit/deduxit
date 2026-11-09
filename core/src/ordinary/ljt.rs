@@ -1333,7 +1333,9 @@ mod tests {
                     Verdict::NotValid => false,
                     Verdict::Unknown(reason) => panic!("{sequent} in {logic} logic: {reason:?}"),
                 };
-                let options = super::super::Options::default().with_logic(logic);
+                let options = super::super::Options::default()
+                    .with_logic(logic)
+                    .with_method(Some(super::super::Method::Embedding));
                 let embedded =
                     super::super::decide(&sequent, &options, &search, &bounded, |_| false).unwrap();
                 match embedded.verdict {
