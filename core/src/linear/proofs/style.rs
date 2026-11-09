@@ -2,17 +2,21 @@
 // Licensed under the EUPL
 
 //! What every output that draws a derivation shares: the labels of the
-//! rules, the shape of an open goal, and why a derivation was not written
-//! whole.
+//! rules and the shape of an open goal.
 //!
-//! A label is written once per convention in a small markup that each
-//! output sets in its own way: the connective and unit characters `⊗ ⅋ &
-//! ⊕ ⊸ \ / ! ? ⊤ ⊥ 0 1` are symbols, `_x` or `_{xy}` is a subscript, and every
-//! other character is text set upright. `⊸L` is the upright `L` after
-//! `⊸`, `&L_1` has the subscript `1`. A `*` is a symbol too, a superscript
-//! where the output sets one: the mark of a run of a rule (`?w*`). The
-//! connectives of ordinary logic `∧ ∨ → ¬ ↔` are symbols as well, for the
-//! labels of LK and LJ (`→L`, `∧_{L1}`).
+//! Each label convention is written once, in a small markup that each
+//! output typesets its own way:
+//!
+//! - the connective and unit characters `⊗ ⅋ & ⊕ ⊸ \ / ! ? ⊤ ⊥ 0 1`, the
+//!   quantifiers `∀ ∃`, and the connectives of ordinary logic
+//!   `∧ ∨ → ¬ ↔` (for the labels of LK and LJ, such as `→L`) are symbols;
+//! - `*` is a symbol too, set as a superscript where the output can: it
+//!   marks a run of one rule (`?w*`);
+//! - `_x` or `_{xy}` is a subscript;
+//! - every other character is upright text.
+//!
+//! So `⊸L` is `⊸` followed by an upright `L`, and `&L_1` has the
+//! subscript `1`.
 //!
 //! Every output draws a derivation through the crate-private trait
 //! `Drawn`, which the linear derivations and those of LK and LJ
@@ -25,9 +29,11 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::fmt::Write;
 
-/// How the rules of a derivation are labelled. In JSON (feature
-/// `serialize`) `"upright"`, `"subscript"`, `"off"`, or `{"table": {"⊗":
-/// "\\otimes", …}}` keyed by the rules' names.
+/// How the rules of a derivation are labelled.
+///
+/// In JSON (feature `serialize`) it is `"upright"`, `"subscript"`,
+/// `"off"`, or `{"table": {"⊗": "\\otimes", …}}` keyed by the rules'
+/// names.
 #[non_exhaustive]
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -37,13 +43,13 @@ pub enum Labels {
     /// and `2`: `⊸L`, `&L₁`, `?d`, as [`Named::name`] spells them.
     #[default]
     Upright,
-    /// The side and the letter of a structural rule as a subscript: `⊸_L`,
-    /// `&_{L1}`, `?_d`.
+    /// The side, and the letter of an exponential rule, as a subscript:
+    /// `⊸_L`, `&_{L1}`, `?_d`.
     Subscript,
     /// No labels.
     Off,
-    /// The user's labels in the markup of this module, by rule; a rule the
-    /// table leaves out keeps its upright label.
+    /// Your own labels by rule, in the [label markup](crate::linear::proofs::style).
+    /// A rule the table leaves out keeps its upright label.
     Table(BTreeMap<Named, String>),
 }
 
@@ -68,9 +74,9 @@ const SUBSCRIPT: [&str; LABELLED] = [
 ];
 
 impl Labels {
-    /// Returns the label of a rule in the markup of this module, or `None`
-    /// where the rule has none: an open goal, or every rule when labels
-    /// are off.
+    /// Returns the label of a rule in the [label
+    /// markup](crate::linear::proofs::style), or `None` where the rule has
+    /// none: an open goal, or every rule when labels are off.
     pub fn markup(&self, rule: Named) -> Option<&str> {
         let index = rule.index();
         let label = match self {
@@ -83,14 +89,14 @@ impl Labels {
     }
 }
 
-/// What the label of an inference that stands for a run of a structural
-/// rule ends with: `?w*`.
+/// The mark at the end of the label of an inference that stands for a run
+/// of a structural rule, as in `?w*`.
 pub(crate) const RUN: &str = "*";
 
 /// One part of a label's markup.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Part<'a> {
-    /// A connective or unit character.
+    /// A symbol: a connective, unit or quantifier character, or `*`.
     Symbol(char),
     /// Text set upright.
     Text(&'a str),
@@ -98,7 +104,7 @@ pub(crate) enum Part<'a> {
     Sub(&'a str),
 }
 
-/// Whether a character of a label is a symbol.
+/// Returns whether a character of a label is a symbol.
 fn symbol(c: char) -> bool {
     matches!(
         c,
@@ -125,8 +131,9 @@ fn symbol(c: char) -> bool {
     )
 }
 
-/// Returns the parts of a label's markup in order. A `_` at the end, or
-/// a `{` that is never closed, takes the rest as its subscript.
+/// Returns the parts of a label's markup in order. A `_` at the end
+/// gives an empty subscript, and a `{` that is never closed makes the
+/// rest of the label its subscript.
 pub(crate) fn parts(markup: &str) -> Vec<Part<'_>> {
     let mut parts = Vec::new();
     let mut rest = markup;
@@ -153,8 +160,8 @@ pub(crate) fn parts(markup: &str) -> Vec<Part<'_>> {
     parts
 }
 
-/// Returns a label's markup as plain Unicode text: subscript digits as
-/// their subscript characters, every other part as it is.
+/// Returns a label's markup as plain Unicode text: subscript digits
+/// become subscript characters, and everything else stays as it is.
 pub(crate) fn plain(markup: &str) -> String {
     let mut out = String::new();
     for part in parts(markup) {
@@ -170,10 +177,10 @@ pub(crate) fn plain(markup: &str) -> String {
     out
 }
 
-/// What an output needs of a derivation to draw it: the tree, the rule
-/// of every inference and its label, and its sequent in the text tree's
-/// characters or in a target's notation. The linear derivations and those
-/// of LK and LJ implement it, so that every output draws both.
+/// What an output needs from a derivation to draw it: the tree, each
+/// inference's rule and label, and each inference's sequent, as text or
+/// in a target's notation. The linear derivations and those of LK and LJ
+/// implement it, so every output draws both.
 pub(crate) trait Drawn {
     /// How many rules the calculus has: a rule is a number below it.
     const RULES: usize;
@@ -181,9 +188,9 @@ pub(crate) trait Drawn {
     /// The rule of an open goal, if the calculus has one.
     const OPEN: Option<usize>;
 
-    /// Returns the label of a rule in the markup of this module under
-    /// `labels`, or `None` where it has none: an open goal, or every rule
-    /// when labels are off.
+    /// Returns the label of a rule under `labels`, in the label markup, or
+    /// `None` where it has none: an open goal, or every rule when labels
+    /// are off.
     fn markup(rule: usize, labels: &Labels) -> Option<&str>;
 
     /// Returns the number of inferences.
@@ -199,15 +206,15 @@ pub(crate) trait Drawn {
     /// Returns the rule of an inference, a number below [`RULES`](Self::RULES).
     fn rule(&self, id: InfId) -> usize;
 
-    /// Returns the name of an inference's rule, as the reading of the
-    /// steps says it.
+    /// Returns the name of an inference's rule, as the numbered list of
+    /// steps writes it.
     fn name(&self, id: InfId) -> &'static str;
 
     /// Returns how many applications of its rule an inference stands for.
     fn times(&self, id: InfId) -> u32;
 
-    /// Writes the sequent an inference concludes as the text tree shows
-    /// it, in Unicode.
+    /// Writes the sequent an inference concludes in Unicode, as the text
+    /// tree shows it.
     fn write_sequent(&self, out: &mut impl Write, id: InfId) -> std::fmt::Result;
 
     /// Writes the sequent an inference concludes in a target's notation,
@@ -233,8 +240,8 @@ pub(crate) trait Drawn {
         Self::OPEN == Some(self.rule(id))
     }
 
-    /// Returns the label of an inference as [`markup`](Self::markup)
-    /// does, followed by [`RUN`] when it stands for a run of its rule.
+    /// Returns the label of an inference as [`markup`](Self::markup) does,
+    /// followed by [`RUN`] when the inference stands for a run of its rule.
     #[cfg(any(feature = "latex", feature = "typst"))]
     fn label<'l>(&self, id: InfId, labels: &'l Labels) -> Option<Cow<'l, str>> {
         let markup = Self::markup(self.rule(id), labels)?;
@@ -324,8 +331,10 @@ impl Drawn for Derivation<'_> {
     }
 }
 
-/// How an open goal of a proof in progress is drawn. In JSON (feature
-/// `serialize`) `"dots"`, `"bare"`, `"dashed"`, or `{"mark": "?"}`.
+/// How an open goal of a proof in progress is drawn.
+///
+/// In JSON (feature `serialize`) it is `"dots"`, `"bare"`, `"dashed"`, or
+/// `{"mark": "?"}`.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -336,10 +345,10 @@ pub enum OpenGoal {
     /// Its sequent alone.
     Bare,
     /// Its sequent under an inference line labelled with this text, in the
-    /// markup of the labels: `?`, or a name.
+    /// [label markup](crate::linear::proofs::style): `?`, or a name.
     Mark(String),
-    /// Its sequent under a dashed line, where the output can draw one, and
-    /// under vertical dots where it cannot.
+    /// Its sequent under a dashed line where the output can draw one, else
+    /// under vertical dots.
     Dashed,
 }
 
@@ -347,8 +356,8 @@ pub enum OpenGoal {
 mod tests {
     use super::*;
 
-    /// Every rule's name reads back as the rule, and the upright labels as
-    /// plain text are the names.
+    /// Every rule's name parses back to the rule, and each upright label,
+    /// written as plain text, is the rule's name.
     #[test]
     fn names_round_trip() {
         for rule in Named::ALL.into_iter().chain(Named::DIVISIONS) {

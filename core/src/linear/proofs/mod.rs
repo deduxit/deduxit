@@ -1,19 +1,22 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Proofs: terms over occurrence ids, the checker that validates a term
-//! against its sequent independently of any engine, and the derivation view
-//! for humans and exporters.
+//! Proofs: the proof terms the engines return, the checker that tests a
+//! term against its sequent, and the derivations that show a proof to
+//! people and to the exporters.
 //!
-//! A [`Proof`] is an arena of [`Node`]s, one per rule instance, over the
-//! [`Forest`] of the sequent it proves. A node names the rule, the
-//! occurrence the rule acts on and the nodes that prove its premises. The
-//! rules are those of the dyadic sequent calculus every engine searches in:
-//! the standard rules, with the `?` formulas handled through an unrestricted
-//! zone `Θ` (a `?` step moves a formula into it, a copy uses it without
-//! consuming it), plus weakening for affine mode and Mix. A node does not
-//! record the sequent it proves: the checker derives that from the premises,
-//! and the derivation view shows it.
+//! A [`Proof`] is an array of [`Node`]s, one per rule application, over
+//! the [`Forest`] of the sequent it proves. A node names the rule, the
+//! occurrence the rule acts on and the nodes that prove its premises.
+//!
+//! The rules are those of the dyadic sequent calculus that every engine
+//! searches in. It has the standard rules, but handles the `?` formulas
+//! through an unrestricted zone `Θ`: a `?` step moves a formula into `Θ`,
+//! and a copy uses a formula of `Θ` without consuming it. Weakening (affine
+//! mode), Mix, the cut and the quantifier rules complete the set.
+//!
+//! A node does not record the sequent it proves. The checker computes it
+//! from the premises, and the derivation shows it.
 
 pub mod check;
 pub mod cut;
@@ -27,7 +30,7 @@ pub(crate) mod fmt;
 pub mod interactive;
 /// Multisets of occurrence ids.
 mod multiset;
-/// The checker's first implementation, which the tests compare it with.
+/// A second, independent checker that the tests compare the checker with.
 #[cfg(all(test, feature = "parse"))]
 mod oracle;
 /// The rules of the standard calculus, one-sided and named two-sided.
@@ -55,8 +58,8 @@ use crate::linear::occurrences::{Forest, Member, OccId, Reading};
 use crate::linear::sequents::{Eigen, FoTermId, Sequent};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-/// A number of bytes, written in the largest binary unit that divides it:
-/// `1 GiB`, `512 MiB`, `1500 B`.
+/// A number of bytes, printed in the largest binary unit that divides it
+/// exactly: `1 GiB`, `512 MiB`, `1500 B`.
 pub(crate) struct Bytes(pub(crate) u64);
 
 impl std::fmt::Display for Bytes {
@@ -73,22 +76,22 @@ impl std::fmt::Display for Bytes {
     }
 }
 
-/// The index of a node in a proof's arena.
+/// The index of a node in a proof's array of nodes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct NodeId(u32);
 
 impl NodeId {
-    /// Wraps a raw arena index.
+    /// Wraps a raw index.
     pub const fn new(index: u32) -> Self {
         Self(index)
     }
 
-    /// Returns the raw arena index.
+    /// Returns the raw index.
     pub const fn get(self) -> u32 {
         self.0
     }
 
-    /// Returns the index as a `usize`, for indexing the arena.
+    /// Returns the index as a `usize`, for indexing the nodes.
     pub const fn index(self) -> usize {
         self.0 as usize
     }
@@ -104,23 +107,25 @@ pub enum Branch {
     Right,
 }
 
-/// One rule instance of a proof: the rule, the member it acts on, and the
-/// nodes that prove its premises, which precede it in the arena. The rules
-/// are the dyadic calculus's, so `⊢ Θ ; Γ` below is a sequent with the
-/// unrestricted zone `Θ` and the linear zone `Γ`; `Θ` is empty until a
-/// [`Quest`](Self::Quest) fills it.
+/// One rule application in a proof: the rule, the member it acts on, and
+/// the nodes that prove its premises, which come before it in the proof.
 ///
-/// The type is closed: a new rule is a new release of the calculus, with
-/// its tag, its checker's arm, its rule of the derivation view and its
-/// constructor wherever the type is mirrored ([`NAMES`](Self::NAMES)).
+/// The rules are those of the dyadic calculus. Below, `⊢ Θ ; Γ` is a
+/// sequent with the unrestricted zone `Θ` and the linear zone `Γ`. `Θ` is
+/// empty until a [`Quest`](Self::Quest) puts a formula in it.
+///
+/// The enum is exhaustive, so adding a rule is a breaking change. A new
+/// rule needs its tag, an arm in the checker, a rule in the derivation
+/// view, and a constructor in every mirror of the type
+/// ([`NAMES`](Self::NAMES)).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Node {
-    /// The axiom `⊢ Θ ; a, ~a` on two literal occurrences of one atom with
+    /// The axiom `⊢ Θ ; a, ~a`, on two occurrences of one atom with
     /// opposite signs, in either order.
     Ax(Member, Member),
     /// `⊢ Θ ; Γ, Δ, A ⊗ B` from `⊢ Θ ; Γ, A` and `⊢ Θ ; Δ, B`, on the
-    /// occurrence of `A ⊗ B`; the premises prove its left and right
-    /// subformula, in that order.
+    /// occurrence of `A ⊗ B`. The first premise proves the left
+    /// subformula, the second the right one.
     Tensor(Member, NodeId, NodeId),
     /// `⊢ Θ ; Γ, A ⅋ B` from `⊢ Θ ; Γ, A, B`.
     Par(Member, NodeId),
@@ -128,79 +133,82 @@ pub enum Node {
     One(Member),
     /// `⊢ Θ ; Γ, ⊥` from `⊢ Θ ; Γ`.
     Bot(Member, NodeId),
-    /// `⊢ Θ ; Γ, A & B` from `⊢ Θ ; Γ, A` and `⊢ Θ ; Γ, B`, the premises in
-    /// that order.
+    /// `⊢ Θ ; Γ, A & B` from `⊢ Θ ; Γ, A` and `⊢ Θ ; Γ, B`, in that order.
     With(Member, NodeId, NodeId),
-    /// `⊢ Θ ; Γ, A ⊕ B` from `⊢ Θ ; Γ, A` or from `⊢ Θ ; Γ, B`, as the side
-    /// says.
+    /// `⊢ Θ ; Γ, A ⊕ B` from `⊢ Θ ; Γ, A` or from `⊢ Θ ; Γ, B`, as the
+    /// [`Branch`] says.
     Plus(Member, Branch, NodeId),
     /// `⊢ Θ ; Γ, ⊤` for any `Γ`.
     Top(Member),
-    /// Promotion: `⊢ Θ ; !A` from `⊢ Θ ; A`, with an empty linear zone.
+    /// Promotion: `⊢ Θ ; !A` from `⊢ Θ ; A`. The linear zone must be empty.
     Bang(Member, NodeId),
-    /// `⊢ Θ ; Γ, ?A` from `⊢ Θ, A ; Γ`: the subformula moves into the
+    /// `⊢ Θ ; Γ, ?A` from `⊢ Θ, A ; Γ`: the subformula `A` moves into the
     /// unrestricted zone.
     Quest(Member, NodeId),
     /// A copy: `⊢ Θ, A ; Γ` from `⊢ Θ, A ; Γ, A`, on the occurrence of `A`,
-    /// which stays in `Θ`. The only rule that can repeat an occurrence in a
-    /// branch, which is why the linear zone is a multiset.
+    /// which stays in `Θ`. It is the only rule that can repeat an
+    /// occurrence in a branch, which is why the linear zone is a multiset.
     Copy(Member, NodeId),
-    /// Weakening: `⊢ Θ ; Γ, A` from `⊢ Θ ; Γ`, in affine mode, or in any
-    /// mode when `A` is a `?` formula (the standard `?w`; the dyadic form of
-    /// it is a [`Quest`](Self::Quest) whose formula goes unused).
+    /// Weakening: `⊢ Θ ; Γ, A` from `⊢ Θ ; Γ`. Allowed in affine mode, and
+    /// in every mode when `A` is a `?` formula. That case is the standard
+    /// `?w`, which the dyadic calculus also gets as a
+    /// [`Quest`](Self::Quest) whose formula goes unused.
     Weaken(Member, NodeId),
     /// Mix, when the mode allows it: `⊢ Θ ; Γ, Δ` from `⊢ Θ ; Γ` and
     /// `⊢ Θ ; Δ`.
     Mix(NodeId, NodeId),
-    /// The cut `⊢ Θ ; Γ, Δ` from `⊢ Θ ; Γ, A` and `⊢ Θ ; Δ, A⊥`, on an
-    /// occurrence of a cut formula `A` of the sequent
-    /// ([`Sequent::cuts`](crate::linear::Sequent::cuts)), whose dual in `A⊥`
-    /// ([`Forest::dual`](crate::linear::Forest::dual)) the second premise
-    /// consumes. Refused in an ordered mode. Intuitionistically `Γ ⊢ A`
-    /// and `Δ, A ⊢ C` give `Γ, Δ ⊢ C`, whichever premise has the cut
-    /// formula in output position.
+    /// The cut: `⊢ Θ ; Γ, Δ` from `⊢ Θ ; Γ, A` and `⊢ Θ ; Δ, A⊥`.
+    ///
+    /// The member is an occurrence in a cut formula `A` of the sequent
+    /// ([`Sequent::cuts`](crate::linear::Sequent::cuts)). The second
+    /// premise consumes its dual in `A⊥`
+    /// ([`Forest::dual`](crate::linear::Forest::dual)). An ordered mode
+    /// refuses the cut. In intuitionistic mode, `Γ ⊢ A` and `Δ, A ⊢ C`
+    /// give `Γ, Δ ⊢ C`, whichever premise has the cut formula as its goal.
     Cut(Member, NodeId, NodeId),
     /// `⊢ Θ ; Γ, ∀x.A` from `⊢ Θ ; Γ, A[a/x]`, on the occurrence of
-    /// `∀x.A`, with the eigenvariable `a`, which the proof's instance
-    /// table ([`Instances`]) names: `a` must occur
-    /// nowhere in the conclusion, which the checker sees to by a
-    /// condition on the whole proof (every eigenvariable introduced by
-    /// one such node, and found in witnesses above it alone). The premise
-    /// consumes the body's instance under the frame of `∀x.A` with `a`
-    /// added.
+    /// `∀x.A`, with the eigenvariable `a`.
+    ///
+    /// The premise consumes the body's instance under the frame of `∀x.A`
+    /// with `a` added; the proof's instance table ([`Instances`]) numbers
+    /// it. `a` must not occur in the conclusion. The checker ensures this
+    /// with a condition on the whole proof: one such node introduces each
+    /// eigenvariable, and only witnesses above that node contain it.
     Forall(Member, Eigen, NodeId),
     /// `⊢ Θ ; Γ, ∃x.A` from `⊢ Θ ; Γ, A[t/x]`, on the occurrence of
-    /// `∃x.A`, with the witness `t`, a closed term of the sequent's arena
-    /// or of the proof's extension of it. The premise consumes the body's
-    /// instance under the frame of `∃x.A` with `t` added.
+    /// `∃x.A`, with the witness `t`.
+    ///
+    /// `t` is a closed term of the sequent or of the proof's instance
+    /// table. The premise consumes the body's instance under the frame of
+    /// `∃x.A` with `t` added.
     Exists(Member, FoTermId, NodeId),
 }
 
-/// A node is a tag, an occurrence and two node indices at most.
+/// A node is a tag, a member and at most two node indices: 16 bytes.
 const _: () = assert!(size_of::<Node>() == 16);
 
-/// How many nodes [`Proof::build`] passes over between two polls of its
-/// stop: some tenths of a millisecond.
+/// How many nodes [`Proof::build`] passes over between two calls of its
+/// stop: some tenths of a millisecond of work.
 const BUILD_POLL: usize = 1 << 16;
 
 impl Node {
-    /// The variants' names, in their order: what a mirror of the type in
-    /// another language matches, one constructor each.
+    /// The variants' names, in declaration order: one constructor each for
+    /// a mirror of the type in another language to match.
     pub const NAMES: &'static [&'static str] = &[
         "Ax", "Tensor", "Par", "One", "Bot", "With", "Plus", "Top", "Bang", "Quest", "Copy",
         "Weaken", "Mix", "Cut", "Forall", "Exists",
     ];
 
-    /// The rules' tags in a proof's JSON form and their names
-    /// ([`name`](Self::name)): one per variant, and two for `Plus`, whose
-    /// branch is in its tag.
+    /// The rules' tags in a proof's JSON form, which are also their
+    /// [`name`](Self::name)s: one per variant, and two for `Plus`, whose
+    /// tag holds its branch.
     pub const TAGS: &'static [&'static str] = &[
         "ax", "⊗", "⅋", "1", "⊥", "&", "⊕₁", "⊕₂", "⊤", "!", "?", "copy", "wk", "mix", "cut", "∀",
         "∃",
     ];
 
-    /// Returns the member the rule acts on: `None` for Mix and the cut,
-    /// and the first literal of an axiom.
+    /// Returns the member the rule acts on: the first literal of an axiom,
+    /// and `None` for Mix and the cut.
     pub const fn principal(self) -> Option<Member> {
         use Node::*;
         match self {
@@ -222,8 +230,8 @@ impl Node {
         }
     }
 
-    /// Returns the members the node names: one, or two for an axiom, or
-    /// none for Mix; the cut names its cut formula's occurrence.
+    /// Returns the members the node names: two for an axiom, none for Mix,
+    /// and one otherwise. The cut names its occurrence in the cut formula.
     pub fn members(self) -> impl Iterator<Item = Member> {
         use Node::*;
         let second = match self {
@@ -234,8 +242,8 @@ impl Node {
         self.principal().into_iter().chain(second)
     }
 
-    /// Returns the node with every member it names renamed, or the first
-    /// error the renaming gives.
+    /// Returns the node with every member it names passed through
+    /// `rename`, or the first error `rename` returns.
     pub(crate) fn renamed<E>(
         self,
         rename: impl Fn(Member) -> Result<Member, E>,
@@ -309,8 +317,8 @@ impl Node {
 }
 
 impl Display for Node {
-    /// Writes the rule's name, then `on` the occurrences and `from` the
-    /// premise nodes, as in `⊗ on 1 from 0, 2`.
+    /// Writes the rule's name, the members after `on` and the premise
+    /// nodes after `from`: `⊗ on 1 from 0, 2`.
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         f.write_str(self.name())?;
         let mut occurrences = self.members().map(Member::get);
@@ -331,14 +339,16 @@ impl Display for Node {
     }
 }
 
-/// A proof of a sequent: an arena of rule instances over the sequent's
-/// occurrence forest, which the proof owns. Every node refers only to nodes
-/// before it, the last node is the root, and every node is reachable from
-/// the root; a subproof that two nodes share is stored once.
+/// A proof of a sequent: an array of rule applications ([`Node`]s) over
+/// the sequent's [`Forest`], which the proof owns.
 ///
-/// A proof is built bottom-up, premises before conclusions, and is what a
-/// search engine returns. Whether it proves its sequent is a separate
-/// question, answered by [`check`](Self::check).
+/// - Every node refers only to nodes before it.
+/// - The last node is the root.
+/// - The root reaches every node.
+/// - A subproof that two nodes share is stored once.
+///
+/// A search engine returns a proof. Whether it proves its sequent is a
+/// separate question, which [`check`](Self::check) answers.
 ///
 /// # Examples
 ///
@@ -346,7 +356,7 @@ impl Display for Node {
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
 /// use deduxit::linear::{Forest, Member, Mode, Node, NodeId, Proof, Sequent};
 ///
-/// // ⊢ ~A, A ⊗ ~B, B, with the members 0: ~A, 1: A ⊗ ~B, 2: A,
+/// // ⊢ ~A, A ⊗ ~B, B, whose members are 0: ~A, 1: A ⊗ ~B, 2: A,
 /// // 3: ~B, 4: B.
 /// let sequent: Sequent = "A, A -o B |- B".parse()?;
 /// let forest = Forest::new(&sequent)?;
@@ -370,24 +380,37 @@ impl Display for Node {
 ///
 /// # JSON
 ///
-/// With the feature `serialize` a proof is `{"version": 1, "sequent": …,
-/// "nodes": […], "mode": …, "goal": […]}` ([`wire`](crate::wire)): its
-/// sequent in [`Sequent`]'s form (nested, without `version`), the mode it
-/// is meant for and the goal it concludes where recorded, and its nodes,
-/// premises before conclusions and the root last, each an object of one
-/// key, the rule:
-/// `{"ax": [x, y]}` on two literals, `{"1": o}` and `{"⊤": o}` on one
-/// occurrence, `{"⊗": [o, l, r]}` and `{"&": [o, l, r]}` with the indices
-/// of two premises, `{"mix": [l, r]}`, and `{"⅋": [o, p]}` with one, as
-/// `⊥`, `⊕₁`, `⊕₂`, `!`, `?`, `copy` and `wk` have it. An occurrence is
-/// an id of the sequent's [`Forest`], a premise a node's index: a proof of
-/// `A, B ⊢ A ⊗ B` is `[{"ax": [0, 3]}, {"ax": [1, 4]}, {"⊗": [2, 0, 1]}]`.
+/// With the feature `serialize`, a proof is `{"version": 1, "sequent": …,
+/// "nodes": […], "mode": …, "goal": […]}` ([`wire`](crate::wire)):
+///
+/// - `sequent` is the sequent in [`Sequent`]'s form, nested, without its
+///   own `version`;
+/// - `mode` and `goal` are the mode the proof is meant for and the goal it
+///   concludes, where the proof records them;
+/// - `nodes` lists the nodes, premises before conclusions and the root
+///   last.
+///
+/// A node is an object with one key, the rule's tag:
+///
+/// - `{"ax": [x, y]}` on two literals;
+/// - `{"1": o}` and `{"⊤": o}` on one occurrence;
+/// - `{"⊗": [o, l, r]}` and `{"&": [o, l, r]}` with two premises, and
+///   `{"cut": [a, l, r]}` with `a` the occurrence in the cut formula;
+/// - `{"mix": [l, r]}`;
+/// - `{"⅋": [o, p]}` with one premise, and the same for `⊥`, `⊕₁`, `⊕₂`,
+///   `!`, `?`, `copy` and `wk`.
+///
+/// An occurrence is an id of the sequent's [`Forest`], and a premise is a
+/// node's index. A proof of `A, B ⊢ A ⊗ B` is
+/// `[{"ax": [0, 3]}, {"ax": [1, 4]}, {"⊗": [2, 0, 1]}]`.
+///
+/// A proof of a first-order sequent adds the nodes `{"∀": [m, a, p]}` and
+/// `{"∃": [m, w, p]}` and the key `instances` ([`wire`](crate::wire)).
+///
 /// Reading rebuilds the forest within the limits and checks the indices
-/// and their order; whether the proof is one is [`Proof::check`]'s
-/// question, in the mode the caller names. The command's `check` reads
-/// this form, and the output of `prove --format json` holds it. A proof
-/// of a first-order sequent adds `{"∀": [m, a, p]}` and `{"∃": [m, w,
-/// p]}` and its `instances` ([`wire`](crate::wire)).
+/// and their order. It does not check the proof: call [`Proof::check`]
+/// in the mode you want. The command's `check` reads this form, and the
+/// output of `prove --format json` contains it.
 #[derive(Clone, Debug)]
 pub struct Proof {
     /// The forest of the sequent the proof is of.
@@ -405,19 +428,18 @@ pub struct Proof {
 }
 
 impl Proof {
-    /// Builds a proof from the nodes of an arena and its root, keeping the
-    /// nodes the root reaches in their order. Fails if a node the root
-    /// reaches names an occurrence outside the forest or a premise that does
-    /// not precede it, if the root lies outside the arena, or if it reaches
-    /// more nodes than a [`NodeId`] counts (2³² − 1).
+    /// Builds a proof from a list of nodes and its root. It keeps the nodes
+    /// the root reaches, in their order, and drops the rest. It does not
+    /// check the proof.
     ///
     /// # Errors
     ///
-    /// [`Error::IndexOutOfBounds`] for a root outside the arena or a node
-    /// naming an occurrence outside the forest, [`Error::NotTopological`] for
-    /// a premise that does not precede its node, and
-    /// [`Refusal::Index`](crate::Refusal::Index) for more nodes than a proof
-    /// holds.
+    /// - [`Error::IndexOutOfBounds`] for a root outside `nodes`, or a
+    ///   reached node that names an occurrence outside the forest;
+    /// - [`Error::NotTopological`] for a premise that does not come before
+    ///   its node;
+    /// - [`Refusal::Index`](crate::Refusal::Index) when the root reaches
+    ///   more nodes than a proof holds (2³² − 1).
     pub fn new(forest: Forest, nodes: Vec<Node>, root: NodeId) -> Result<Self, Error> {
         if forest.has_binders() {
             let instances = Instances::new(&forest);
@@ -426,23 +448,25 @@ impl Proof {
         Self::build(forest, nodes, root, &mut || false)
     }
 
-    /// Builds a proof as [`new`](Self::new) does, whose members past the
-    /// forest's length are those `instances` numbers: occurrences under
-    /// binders with the terms the binders were opened with. The table is
-    /// checked against the forest and kept canonical, so that equal
-    /// instances are one member: the nodes' members and witnesses are
-    /// renumbered into it, which changes no instance they name, and every
-    /// member a check derives from one a node names (a subformula's
-    /// instance, a binder's body under its eigenvariable or witness, a
-    /// cut's dual) is added to it.
+    /// Builds a proof as [`new`](Self::new) does, for a first-order
+    /// sequent. The members past the forest's length are those
+    /// `instances` numbers: occurrences under binders, with the terms the
+    /// binders were opened with.
+    ///
+    /// The table is checked against the forest and made canonical, so that
+    /// equal instances are one member. The nodes' members and witnesses
+    /// are renumbered into it; the instances they name stay the same. The
+    /// table also gets every member a check derives from one a node names:
+    /// a subformula's instance, a binder's body under its eigenvariable or
+    /// witness, a cut's dual.
     ///
     /// # Errors
     ///
-    /// As [`new`](Self::new) does, where a member is in range when the
-    /// table numbers it and a witness when it is a term of the sequent or
-    /// of the table; [`Error::Json`] (form `instance table`) for a table
-    /// made for another sequent or not well formed, or a witness with a
-    /// loose bound variable.
+    /// Those of [`new`](Self::new), where a member is in range when the
+    /// table numbers it, and a witness when it is a term of the sequent or
+    /// of the table. [`Error::Json`] (form `instance table`) for a table
+    /// made for another sequent or not well formed, or for a witness with
+    /// a loose bound variable.
     pub fn with_instances(
         forest: Forest,
         instances: Instances,
@@ -465,14 +489,14 @@ impl Proof {
         self.instances.as_deref()
     }
 
-    /// Builds a proof as [`new`](Self::new) does, in the nodes' own
-    /// vector, asking `stopped` every [`BUILD_POLL`] nodes of its two
-    /// passes: an engine's proof can have hundreds of millions of nodes.
+    /// Builds a proof as [`new`](Self::new) does, in place in `nodes`.
+    /// Both passes call `stopped` every [`BUILD_POLL`] nodes, since an
+    /// engine's proof can have hundreds of millions of nodes.
     ///
     /// # Errors
     ///
-    /// As `new`, and [`Refusal::Stopped`](crate::Refusal::Stopped) in the
-    /// search's phase once `stopped` answers true.
+    /// Those of `new`, and [`Refusal::Stopped`](crate::Refusal::Stopped) in
+    /// the search phase once `stopped` returns true.
     pub(crate) fn build(
         forest: Forest,
         nodes: Vec<Node>,
@@ -483,8 +507,8 @@ impl Proof {
         Self::reach(forest, nodes, root, members, stopped)
     }
 
-    /// Builds a proof as [`build`](Self::build) does, whose members are
-    /// in range below `members`.
+    /// Builds a proof as [`build`](Self::build) does, where a member is in
+    /// range below `members`.
     fn reach(
         forest: Forest,
         mut nodes: Vec<Node>,
@@ -506,11 +530,11 @@ impl Proof {
                 len: nodes.len(),
             });
         }
-        // A premise precedes its conclusion, so one pass from the root down
-        // visits every reachable node after the node that reaches it; a
-        // node reached has index 0 until the second pass gives it its new
-        // one. The root's index is below the length of a vector, so one
-        // more is a `usize`.
+        // A premise comes before its conclusion, so one pass from the root
+        // down visits every reached node after a node that reaches it. A
+        // reached node is marked 0 until the second pass gives it its new
+        // index. The root's index is below a vector's length, so adding one
+        // cannot overflow a `usize`.
         let mut index = vec![UNREACHED; root.index() + 1];
         index[root.index()] = 0;
         for i in (0..=root.index()).rev() {
@@ -540,9 +564,9 @@ impl Proof {
                 index[p.index()] = 0;
             }
         }
-        // The number of nodes is a `u32` too, which the checker's counts
-        // of a node's readers rely on; the root's index alone allows one
-        // node more.
+        // The number of nodes must fit a `u32`: the checker counts a node's
+        // readers in one. A root index of `u32::MAX` alone would allow 2³²
+        // nodes, one too many.
         let reached = index.iter().filter(|&&i| i != UNREACHED).count();
         if u32::try_from(reached).is_err() {
             return Err(Error::Refused(crate::limits::Refusal::Index {
@@ -551,8 +575,9 @@ impl Proof {
                 most: u64::from(u32::MAX),
             }));
         }
-        // The nodes kept move down in their order: a node is written at or
-        // below where it was read, after the premises it names.
+        // The kept nodes move down in their order. A node is written at or
+        // below the index it is read from, after the premises it names, so
+        // nothing is overwritten before it is read.
         let mut kept = 0;
         for i in 0..=root.index() {
             if i % BUILD_POLL == 0 && stopped() {
@@ -561,7 +586,8 @@ impl Proof {
             if index[i] == UNREACHED {
                 continue;
             }
-            // Fewer than `reached` nodes are kept so far.
+            // Fewer than `reached` nodes are kept so far, so this fits a
+            // `u32`.
             index[i] = kept as u32;
             nodes[kept] = nodes[i].map_premises(|p| NodeId::new(index[p.index()]));
             kept += 1;
@@ -576,11 +602,11 @@ impl Proof {
         })
     }
 
-    /// Builds a proof of `goal`, members of the forest that stand for the
-    /// sequent of those subformulas, as [`new`](Self::new) builds a proof
-    /// of the sequent; its root concludes the goal. The roots in any order
-    /// are the sequent itself, and the proof records no goal then. Fails as
-    /// `new` does, or for a member outside the forest.
+    /// Builds a proof of `goal` as [`new`](Self::new) builds a proof of the
+    /// sequent. `goal` is a list of members of the forest, read as the
+    /// sequent of those subformulas, and the root concludes it. A goal that
+    /// is the roots in any order is the sequent itself, and the proof then
+    /// records no goal.
     ///
     /// # Errors
     ///
@@ -600,7 +626,7 @@ impl Proof {
             });
         }
         // The roots in any order are the sequent itself, as `prove_goal`
-        // takes them.
+        // reads them too.
         let occurrences: Vec<OccId> = goal.iter().map(|m| m.occ()).collect();
         let roots = forest.is_roots(&occurrences);
         let mut proof = Self::new(forest, nodes, root)?;
@@ -618,14 +644,14 @@ impl Proof {
     }
 
     /// Returns the members the root concludes, or `None` for a proof of
-    /// the sequent, whose root concludes its root formulas.
+    /// the whole sequent.
     pub fn goal(&self) -> Option<&[Member]> {
         self.goal.as_deref()
     }
 
     /// Returns the mode the proof is meant for, as the search that found
-    /// it records: a claim, which [`check`](Self::check) tests in the mode
-    /// it is given.
+    /// it records it. This is a claim only: [`check`](Self::check) tests
+    /// the proof in the mode you pass it.
     pub fn mode(&self) -> Option<Mode> {
         self.mode
     }
@@ -638,12 +664,14 @@ impl Proof {
         }
     }
 
-    /// Returns the formula a member of the proof stands for: of a proof
-    /// that records an intuitionistic mode as the sequent's reading writes
-    /// it, two-sided (a pass over the forest each call), else as the
-    /// one-sided sequent writes it; an instance with the terms of its
-    /// frame for its loose bound variables, each cut after a few thousand
-    /// characters (a term of shared subterms can unfold past any memory).
+    /// Returns the formula a member of the proof stands for, as text.
+    ///
+    /// A proof that records an intuitionistic mode writes it as the
+    /// sequent's intuitionistic reading does, which costs a pass over the
+    /// forest on each call. Any other proof writes it one-sided. An
+    /// instance has the terms of its frame in place of its loose bound
+    /// variables. Each term is cut after a few thousand characters, since
+    /// a term with shared subterms can unfold past any memory.
     ///
     /// # Panics
     ///
@@ -685,21 +713,22 @@ impl Proof {
     }
 
     /// Returns the proof carried over to `goal`, members of `forest` whose
-    /// formulas are the proof's conclusions up to their order: each
-    /// conclusion is matched to a member of the goal that is the same
-    /// formula (the same connectives, units and literals, the atoms by
-    /// their names), and every occurrence below it renamed to the one in
-    /// the same place below that member. The proof then concludes the goal
-    /// and is what it was, rule for rule; whether it holds in a mode is the
-    /// checker's to say, as for any proof. Of equal formulas any may take
-    /// another's place, since they are alike.
+    /// formulas are the proof's conclusions in any order.
+    ///
+    /// Each conclusion is matched to a member of the goal with the same
+    /// formula: the same connectives, units and literals, with atoms
+    /// compared by name. Every occurrence below the conclusion is renamed
+    /// to the occurrence in the same place below that member. Where several
+    /// members have the same formula, any of them will do. The result has
+    /// the same rules as the proof and concludes the goal. It is not
+    /// checked: call [`check`](Self::check) as for any proof.
     ///
     /// # Errors
     ///
-    /// [`Error::SequentMismatch`], with the formulas only the proof
-    /// concludes and those only the goal holds, when the two differ beyond
-    /// their order; [`Error::IndexOutOfBounds`] for a member of the goal
-    /// outside `forest`, or a member a node names outside every conclusion.
+    /// - [`Error::SequentMismatch`] when the conclusions and the goal differ
+    ///   by more than their order, with the formulas only one of them has;
+    /// - [`Error::IndexOutOfBounds`] for a member of the goal outside
+    ///   `forest`, or a member a node names outside every conclusion.
     pub fn onto(&self, forest: Forest, goal: &[Member]) -> Result<Self, Error> {
         if let Some(m) = goal.iter().find(|m| m.occurrence(&forest).is_none()) {
             return Err(Error::IndexOutOfBounds {
@@ -716,12 +745,12 @@ impl Proof {
                     from.kind(a) == forest.kind(b) && name(from, a) == name(&forest, b)
                 })
         };
-        // Each conclusion takes the first free member of the goal alike to
-        // it, and each occurrence below it the one in its place there. The
-        // members wait in buckets by the formula as written, so that a
-        // conclusion compares with the members written as it is and not with
-        // every member, which on a goal of n formulas is n² comparisons;
-        // `alike` still decides.
+        // Each conclusion takes the first free goal member alike to it, and
+        // each occurrence below it the occurrence in the same place there.
+        // The members are grouped by their formula's text, so a conclusion
+        // is compared only with members written the same way: comparing
+        // with every member would cost n² on a goal of n formulas. `alike`
+        // still decides the match.
         let mut free: crate::hash::HashMap<String, std::collections::VecDeque<usize>> =
             crate::hash::HashMap::default();
         for (i, m) in goal.iter().enumerate() {
@@ -755,8 +784,8 @@ impl Proof {
             .map(|(m, _)| m.occ())
             .collect();
         if !only_proof.is_empty() || !only_goal.is_empty() {
-            // Written as the proof's mode reads each forest: two-sided in
-            // an intuitionistic one, where the forest has a reading.
+            // Write the formulas as the proof's mode reads each forest:
+            // intuitionistic where the mode is and the forest has a reading.
             let written = |f: &Forest, os: Vec<OccId>| -> Vec<String> {
                 let reading = self
                     .mode
@@ -796,7 +825,7 @@ impl Proof {
         Ok(carried)
     }
 
-    /// Returns the occurrences the root concludes: the goal's, or the
+    /// Returns the occurrences the root concludes: the goal's, or else the
     /// sequent's roots.
     pub(crate) fn conclusion(&self) -> Vec<OccId> {
         match &self.goal {
@@ -820,69 +849,81 @@ impl Proof {
         !self.nodes.iter().any(|node| matches!(node, Node::Cut(..)))
     }
 
-    /// Returns the arena: every node, premises before conclusions, the root
-    /// last.
+    /// Returns every node, premises before conclusions and the root last.
     pub fn nodes(&self) -> &[Node] {
         &self.nodes
     }
 
-    /// Returns the node at `id`, which must belong to this proof.
+    /// Returns the node at `id`.
     ///
     /// # Panics
     ///
-    /// For an id of another one, past its end.
+    /// For an id past this proof's last node.
     pub fn node(&self, id: NodeId) -> Node {
         self.nodes[id.index()]
     }
 
-    /// Returns every node id in arena order.
+    /// Returns every node id in order.
     pub fn ids(&self) -> impl DoubleEndedIterator<Item = NodeId> + ExactSizeIterator {
         // A proof has at least one node and fewer than 2³².
         (0..self.nodes.len() as u32).map(NodeId::new)
     }
 
-    /// Returns the root: the node that concludes the sequent, the last one.
+    /// Returns the root: the last node, which concludes the sequent or the
+    /// goal.
     pub fn root(&self) -> NodeId {
         // A proof has at least one node and fewer than 2³².
         NodeId::new(self.nodes.len() as u32 - 1)
     }
 
-    /// Checks that the proof proves its sequent under the rules the mode
-    /// allows, within the default [`Limits`]: every node
-    /// applies its rule to what its premises derive, the mode allows the
-    /// rule, and the root derives exactly the sequent's formulas with
-    /// nothing left in the unrestricted zone; in intuitionistic mode also
-    /// that the sequent has an intuitionistic reading and every sequent of
-    /// the proof one formula on the right of `⊢`. The error names the first
-    /// node that fails, in arena order, with what it needed.
+    /// Checks that the proof proves its sequent with the rules `mode`
+    /// allows, within the default [`Limits`].
+    ///
+    /// The check passes when:
+    ///
+    /// - every node applies its rule correctly to what its premises derive;
+    /// - the mode allows every rule used;
+    /// - the root derives exactly the sequent's formulas, or the goal's,
+    ///   with nothing left in the unrestricted zone;
+    /// - in intuitionistic mode, the sequent has an intuitionistic reading
+    ///   and every sequent of the proof has one formula right of `⊢`.
     ///
     /// # Errors
     ///
-    /// [`CheckError::Invalid`] naming the first node that fails, and
-    /// [`CheckError::Refused`] when the default memory bound refused the
-    /// pass.
+    /// - [`CheckError::Invalid`] naming the first node that fails, in
+    ///   order, with what it needed;
+    /// - [`CheckError::Refused`] when the check would pass the default
+    ///   memory bound. A refusal is no verdict: the proof is then neither
+    ///   valid nor invalid.
     pub fn check(&self, mode: Mode) -> Result<(), CheckError> {
         check::check(self, mode)
     }
 
-    /// Checks the proof as [`check`](Self::check) does, holding
-    /// `limits.memory_bytes` at most, doing `limits.work` units of work at
-    /// most, and asking `stop` every 4 096 nodes or 65 536 units, whichever
-    /// comes first. A unit is a node, or an entry of a premise's sequent
-    /// that its rule handles: a node that many others read, with a large
-    /// sequent, costs each of them that sequent, which a short file can
-    /// make quadratic in its length. A check that a bound or
-    /// the stop ends answers [`CheckError::Refused`]: the proof is then
-    /// neither valid nor invalid. What is counted is what the pass holds
-    /// beyond the proof and its forest: a count and a pointer for every node
-    /// (twelve bytes on a 64-bit target, eight on a 32-bit one), and
-    /// every sequent it keeps for a later node at the size of its tables
-    /// of members, a sequent that several nodes read once for each.
+    /// Checks the proof as [`check`](Self::check) does, within `limits`,
+    /// and stops when `stop` returns true.
+    ///
+    /// - Memory: the check holds at most `limits.memory_bytes`. It counts
+    ///   what it holds beyond the proof and its forest: a count and a
+    ///   pointer for every node (twelve bytes on a 64-bit target, eight on
+    ///   a 32-bit one), and every sequent it keeps for a later node, at the
+    ///   size of its tables. A sequent that several nodes read counts once
+    ///   for each of them.
+    /// - Work: the check does at most `limits.work` units. A unit is a
+    ///   node, or an entry of a premise's sequent that its rule handles. A
+    ///   node with a large sequent that many others read costs each of them
+    ///   that sequent, so a short file can make the work quadratic in its
+    ///   length.
+    /// - `stop` is called every 4 096 nodes or 65 536 units, whichever
+    ///   comes first.
+    ///
+    /// A check that a bound or `stop` ends returns
+    /// [`CheckError::Refused`]: the proof is then neither valid nor
+    /// invalid.
     ///
     /// # Errors
     ///
-    /// As [`check`](Self::check) does, [`CheckError::Refused`] also past
-    /// `limits.work` and when `stop` fired.
+    /// Those of [`check`](Self::check), with [`CheckError::Refused`] also
+    /// past `limits.work` and when `stop` returned true.
     pub fn check_within(
         &self,
         mode: Mode,
@@ -892,21 +933,19 @@ impl Proof {
         check::check_within(self, mode, limits, &mut stop)
     }
 
-    /// Unfolds the proof into the derivation of the standard sequent
-    /// calculus it stands for, within the default [`Limits`], or reports
-    /// why it is not a proof or why the derivation was not built; see
-    /// [`Derivation`], and [`derivation_within`](Self::derivation_within)
-    /// for other options. A proof meant for intuitionistic mode unfolds
-    /// two-sided.
+    /// Unfolds the proof into the [`Derivation`] of the standard sequent
+    /// calculus it stands for, within the default [`Limits`]. A proof meant
+    /// for intuitionistic mode unfolds two-sided.
+    /// [`derivation_within`](Self::derivation_within) takes other options.
     ///
     /// # Examples
     ///
     #[cfg_attr(feature = "parse", doc = "```")]
     #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
-    /// use deduxit::linear::{Mode, Options, Sequent, Verdict, prove};
+    /// use deduxit::linear::{IllSequent, Mode, Options, Verdict, prove};
     ///
-    /// let sequent: Sequent = "A, A -o B |- B".parse()?;
-    /// let outcome = prove(&sequent, Mode::INTUITIONISTIC, &Options::default())?;
+    /// let ill: IllSequent = "A, A -o B |- B".parse()?;
+    /// let outcome = prove(ill.sequent(), Mode::INTUITIONISTIC, &Options::default())?;
     /// let Verdict::Proved(proof) = &outcome.verdict else {
     ///     panic!("provable");
     /// };
@@ -922,24 +961,26 @@ impl Proof {
     ///
     /// # Errors
     ///
-    /// [`Error::Check`] for a term that is no proof in the mode the view
-    /// reads it in, [`Error::NotIntuitionistic`] for a two-sided view of a
-    /// sequent without a reading, and [`Error::Refused`] for a derivation past
-    /// the default bounds.
+    /// - [`Error::Check`] when the term is no proof in the mode the view
+    ///   reads it in;
+    /// - [`Error::NotIntuitionistic`] for a two-sided view of a sequent
+    ///   without an intuitionistic reading;
+    /// - [`Error::Refused`] for a derivation past the default bounds.
     pub fn derivation(&self) -> Result<Derivation<'_>, Error> {
         self.derivation_within(&ViewOptions::default(), &Limits::default(), |_| false)
     }
 
-    /// Unfolds the proof as [`derivation`](Self::derivation) does, shown
-    /// as `view` says, within `limits.derivation_bytes` and
-    /// `limits.memory_bytes`, and until `stop` returns true, which is
-    /// asked as [`check_within`](Self::check_within) asks it in the
-    /// checker's passes and once per node unfolded.
+    /// Unfolds the proof as [`derivation`](Self::derivation) does, shown as
+    /// `view` says, within `limits.derivation_bytes` and
+    /// `limits.memory_bytes`. It stops when `stop` returns true. `stop` is
+    /// called as [`check_within`](Self::check_within) calls it while the
+    /// proof is checked, then once per node unfolded.
     ///
     /// # Errors
     ///
-    /// As [`derivation`](Self::derivation) does within `limits`, and
-    /// [`Refusal::Stopped`](crate::Refusal::Stopped) when `stop` fired.
+    /// Those of [`derivation`](Self::derivation), within `limits`, and
+    /// [`Refusal::Stopped`](crate::Refusal::Stopped) when `stop` returned
+    /// true.
     pub fn derivation_within(
         &self,
         view: &ViewOptions,
@@ -953,8 +994,8 @@ impl Proof {
         }
     }
 
-    /// Returns the two-sided derivation within the default limits: the
-    /// tests' short form.
+    /// Returns the two-sided derivation within the default limits, for
+    /// tests.
     #[cfg(all(test, feature = "parse"))]
     pub(crate) fn two_sided(&self) -> Result<Derivation<'_>, Error> {
         let view = ViewOptions::default().with_sides(Sides::Two);
@@ -963,8 +1004,7 @@ impl Proof {
 }
 
 impl Node {
-    /// Returns the node with every premise index replaced by what `f` maps
-    /// it to.
+    /// Returns the node with every premise index passed through `f`.
     pub(crate) fn map_premises(self, mut f: impl FnMut(NodeId) -> NodeId) -> Self {
         use Node::*;
         match self {
@@ -990,8 +1030,9 @@ impl Node {
 mod tests {
     use super::*;
 
-    /// The name lists follow the variants: `NAMES` one each in order, and
-    /// `TAGS` every rule's name, in order, `Plus` twice.
+    /// The name lists follow the variants: `NAMES` has one name per
+    /// variant in order, and `TAGS` every rule's name in order, with `Plus`
+    /// twice.
     #[test]
     fn name_lists_follow_the_variants() {
         let (m, n) = (Member::new(0), NodeId::new(0));
@@ -1023,13 +1064,14 @@ mod tests {
         assert_eq!(tags, Node::TAGS);
     }
 
-    /// A goal is a sequent of the mode it is checked in: under the reading
-    /// one output, as every sequent of its derivation has; and the roots
-    /// in another order are the sequent itself.
+    /// A goal must be a sequent of the mode it is checked in: in
+    /// intuitionistic mode it needs one formula right of `⊢`, as every
+    /// sequent of its derivation does. A goal that is the roots in another
+    /// order is the sequent itself.
     #[cfg(feature = "parse")]
     #[test]
     fn a_goal_is_a_sequent_of_its_mode() {
-        // `0 ⊢ a`: the input `0`, one-sided `⊤`, is occurrence 0.
+        // `0 ⊢ a`: the hypothesis `0`, one-sided `⊤`, is occurrence 0.
         let sequent: Sequent = "0 |- a".parse().unwrap();
         let top = Member::new(0);
         let forest = Forest::new(&sequent).unwrap();

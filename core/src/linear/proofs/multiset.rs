@@ -4,8 +4,8 @@
 use crate::linear::occurrences::{Member, OccId};
 
 /// A multiset of occurrence ids or members, kept as an ascending list with
-/// repeats: the linear zone of a sequent, which holds an occurrence more
-/// than once after copies from the unrestricted zone.
+/// repeats. It holds the linear zone of a sequent, where copies from the
+/// unrestricted zone can repeat an occurrence.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct Multiset<T = OccId>(Vec<T>);
 
@@ -35,8 +35,8 @@ impl<T: Copy + Ord> Multiset<T> {
         &self.0
     }
 
-    /// Returns the members, ascending with repeats, as a sequent of an
-    /// inference holds them.
+    /// Returns the members, ascending with repeats, in the form an
+    /// inference's sequent holds them.
     pub(crate) fn into_members(self) -> Vec<Member>
     where
         T: Into<Member>,
@@ -84,7 +84,8 @@ impl<T: Copy + Ord> Multiset<T> {
         }
     }
 
-    /// Returns the multiset with, per id, `f` of the two counts many copies.
+    /// Returns the multiset that holds each id `f(a, b)` times, where `a`
+    /// and `b` are its counts here and in `other`.
     fn merge(&self, other: &Self, f: impl Fn(usize, usize) -> usize) -> Self {
         let (a, b) = (&self.0, &other.0);
         let mut out = Vec::with_capacity(a.len() + b.len());
@@ -116,8 +117,8 @@ impl<T: Copy + Ord> Multiset<T> {
         self.merge(other, usize::max)
     }
 
-    /// Returns the multiset difference: per id, this count less the other's,
-    /// if positive.
+    /// Returns the multiset difference: per id, this count minus the
+    /// other's, or zero if that is negative.
     pub(crate) fn difference(&self, other: &Self) -> Self {
         self.merge(other, usize::saturating_sub)
     }
@@ -137,7 +138,8 @@ mod tests {
         OccId::new(id)
     }
 
-    /// Members are kept sorted with repeats, and the operations count.
+    /// Members are kept sorted with repeats, and every operation counts
+    /// the copies of each id.
     #[test]
     fn counts() {
         let mut m = Multiset::of([o(5), o(2), o(5)]);

@@ -1,13 +1,14 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The text rendering of a derivation: a tree of sequents with a bar and
-//! the rule's name over each conclusion. The layout is computed in two
-//! passes over the inferences, sizes from the leaves down and positions
-//! from the root up, and written row by row, so that drawing a tree
-//! takes time proportional to its text and memory proportional to its
-//! inferences. The functions here draw any `Drawn` derivation: the
-//! linear ones and those of LK and LJ.
+//! The text form of a derivation: a tree of sequents, with a bar and the
+//! rule's name over each conclusion.
+//!
+//! The layout takes two passes over the inferences: sizes from the leaves
+//! down, then positions from the root up. The text is then written row by
+//! row. So drawing a tree takes time proportional to its text and memory
+//! proportional to its inferences. The functions here draw any `Drawn`
+//! derivation: the linear ones and those of LK and LJ.
 
 use super::derivation::{Derivation, InfId};
 use super::style::{Drawn, Labels, OpenGoal, RUN, plain};
@@ -17,16 +18,19 @@ use crate::linear::occurrences::{Forest, Member, Reading};
 use crate::linear::sequents::notation::TEXT;
 use std::fmt::{Display, Formatter, Result as FmtResult, Write};
 
-/// What a user may vary in the text tree of a derivation.
+/// The settings of a derivation's text tree.
+///
+/// Start from `TextOptions::default()` and change the fields you need with
+/// the `with_` methods. The type is non-exhaustive, so a field added later
+/// breaks no caller.
 ///
 /// # JSON
 ///
-/// With the feature `serialize` an object `{"labels": "upright", "open":
-/// "bare", "bar": "─", "gap": 3}` of the fields ([`Labels`] and
-/// [`OpenGoal`] say theirs); a key left out keeps its default, and an
-/// unknown one is refused, as for every options value.
-/// Made from its `default()` with the fields set that differ, since a
-/// later field breaks no caller that way.
+/// With the feature `serialize`, an object of the fields:
+/// `{"labels": "upright", "open": "bare", "bar": "─", "gap": 3}`
+/// ([`Labels`] and [`OpenGoal`] give their own forms). A key left out
+/// keeps its default, and an unknown key is refused, as for every options
+/// value.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -38,9 +42,9 @@ pub struct TextOptions {
     pub open: OpenGoal,
     /// The character of an inference's bar.
     pub bar: char,
-    /// The columns between two premises, at most 65 535: the gaps are
-    /// written as spaces, which the bound on a derivation's size does not
-    /// count.
+    /// The columns between two premises. A `u16` caps it at 65 535,
+    /// because the gaps are written as spaces, which the bound on a
+    /// derivation's size does not count.
     pub gap: u16,
 }
 
@@ -90,21 +94,21 @@ impl TextOptions {
     }
 }
 
-/// What the bar row of an inference holds: the bar's character, its
-/// label as text, and whether the bar is the one character of vertical
-/// dots over an open goal rather than as wide as the inference.
+/// The bar row of an inference: the bar's character, its label as text,
+/// and whether the bar is a single character of vertical dots over an
+/// open goal, rather than as wide as the inference.
 struct Bar {
     /// The character the bar is drawn with.
     line: char,
-    /// The label after the bar, empty for none.
+    /// The label after the bar, or empty for none.
     label: String,
-    /// Whether the bar is one character wide, centred.
+    /// Whether the bar is one centred character wide.
     dots: bool,
 }
 
-/// Returns the bar row of every rule of `T`, in its order, under the
-/// options, and then of every rule for a run of it ([`bar`]): `None` for
-/// an open goal drawn bare.
+/// Returns the bar row of every rule of `T` under the options, in the
+/// rules' order, then the bar row of every rule for a run of it
+/// ([`bar`] picks one). The row is `None` for an open goal drawn bare.
 fn bars<T: Drawn>(options: &TextOptions) -> Vec<Option<Bar>> {
     let runs = (0..T::RULES).map(|rule| {
         Some(Bar {
@@ -145,29 +149,29 @@ fn bar<'a, T: Drawn>(bars: &'a [Option<Bar>], tree: &T, id: InfId) -> &'a Option
     &bars[tree.rule(id) + run]
 }
 
-/// Where an inference and the subtree above it go, within the box that
-/// holds the subtree.
+/// Where an inference and the subtree above it go: the box that holds the
+/// subtree, and the inference's place in it.
 #[derive(Clone, Copy, Debug, Default)]
 struct Place {
-    /// The left end of the box: relative to the box of the inference
-    /// below after the first pass, in the whole drawing after the second.
+    /// The left end of the box: relative to the box of the inference below
+    /// after the first pass, and in the whole drawing after the second.
     x: usize,
     /// The width of the box in characters.
     width: usize,
-    /// The lines of the box.
+    /// The height of the box in lines.
     height: usize,
-    /// The inferences below it, down to the root.
+    /// The number of inferences below it, down to the root.
     depth: usize,
     /// The column of the box where the conclusion starts.
     left: usize,
-    /// The characters of the conclusion.
+    /// The length of the conclusion in characters.
     conclusion: usize,
     /// The column of the box where the bar starts and the bar's length, or
-    /// none for an open goal.
+    /// `None` for an open goal drawn bare.
     bar: Option<(usize, usize)>,
 }
 
-/// A piece of one row of the drawing: an inference's conclusion or its
+/// A piece of one row of the drawing: an inference's conclusion, or its
 /// bar with the rule's name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct Piece {
@@ -191,8 +195,8 @@ impl Write for Count {
     }
 }
 
-/// Writes `width` spaces, a run at a time: a width in a format string
-/// is at most 65 535, and a tree's columns are not.
+/// Writes `width` spaces, a run at a time. A width in a format string is
+/// at most 65 535, and a tree can be wider.
 fn spaces(out: &mut impl Write, width: usize) -> FmtResult {
     const RUN: &str = "                                                                ";
     let mut left = width;
@@ -204,8 +208,9 @@ fn spaces(out: &mut impl Write, width: usize) -> FmtResult {
     Ok(())
 }
 
-/// Writes a sequent: `⊢` and its formulas, comma-separated; two-sided
-/// under a reading, the hypotheses before `⊢` and the goal after it.
+/// Writes a sequent: `⊢` and its formulas, separated by commas. Under a
+/// reading it is two-sided, the hypotheses before `⊢` and the goal after
+/// it.
 pub(super) fn write_sequent(
     out: &mut impl Write,
     forest: &Forest,
@@ -216,11 +221,13 @@ pub(super) fn write_sequent(
     TEXT.sequent(out, forest, reading, framing, sequent, false, false)
 }
 
-/// Lays a tree out: the premises of an inference side by side,
-/// bottom-aligned and `gap` columns apart, a bar spanning their
-/// conclusions or the conclusion, whichever is wider, with the rule's
-/// label after it, and the conclusion centred under the bar. Returns
-/// every inference's place, its box positioned in the whole drawing.
+/// Lays a tree out and returns every inference's place, its box placed in
+/// the whole drawing.
+///
+/// The premises of an inference stand side by side, bottom-aligned and
+/// `gap` columns apart. The bar spans the premises' conclusions or the
+/// inference's conclusion, whichever is wider, with the rule's label
+/// after it. The conclusion is centred under the bar.
 fn layout<T: Drawn>(tree: &T, options: &TextOptions, bars: &[Option<Bar>]) -> Vec<Place> {
     let mut places = vec![Place::default(); tree.len()];
     // Sizes: an inference comes after its premises.
@@ -253,9 +260,10 @@ fn layout<T: Drawn>(tree: &T, options: &TextOptions, bars: &[Option<Bar>]) -> Ve
             row = place.x + place.width;
             height = height.max(place.height);
         }
-        // The bar covers the premises' conclusions and the conclusion,
-        // whichever is wider, centred on the other; a bar that would
-        // start left of the box moves the premises right instead.
+        // The bar is as wide as the premises' conclusions or the
+        // conclusion, whichever is wider, and centred on the other. Where
+        // the bar would start left of the box, the premises move right
+        // instead.
         let span = span_right - span_left;
         let bar_width = conclusion.max(span);
         let overhang = (bar_width - span) / 2;
@@ -306,9 +314,9 @@ pub(crate) fn text_size<T: Drawn>(tree: &T, options: &TextOptions) -> (usize, us
 }
 
 /// Writes a tree of sequents, one line per row, without a trailing
-/// newline, and asks `stop` before every piece of a row. The layout takes
-/// memory proportional to the inferences and the text is written as it is
-/// made.
+/// newline, and calls `stop` before every piece of a row. The layout
+/// takes memory proportional to the inferences, and the text is written
+/// as it is made.
 pub(crate) fn write_text<T: Drawn>(
     tree: &T,
     options: &TextOptions,
@@ -374,9 +382,9 @@ pub(crate) fn write_text<T: Drawn>(
     Ok(())
 }
 
-/// Writes a derivation as a numbered list of its inferences, one per
-/// line, premises before their conclusion and the conclusion last, and
-/// asks `stop` before every line: what [`Derivation::write_steps`] says.
+/// Writes a derivation as a numbered list of its inferences, as
+/// [`Derivation::write_steps`] describes, and calls `stop` before every
+/// line.
 pub(crate) fn write_steps<T: Drawn>(
     tree: &T,
     out: &mut impl Write,
@@ -425,14 +433,14 @@ impl Derivation<'_> {
     }
 
     /// Writes the derivation as a tree of sequents, one line per row,
-    /// without a trailing newline, and asks `stop` before every piece of
-    /// a row. The layout takes memory proportional to the inferences and
+    /// without a trailing newline. It calls `stop` before every piece of a
+    /// row. The layout takes memory proportional to the inferences, and
     /// the text is written as it is made.
     ///
     /// # Errors
     ///
-    /// [`Refusal::Stopped`](crate::Refusal::Stopped) when `stop` fired, and
-    /// [`Error::WriteFailed`] when `out` refused the text.
+    /// [`Refusal::Stopped`](crate::Refusal::Stopped) when `stop` returned
+    /// true, and [`Error::WriteFailed`] when `out` refused the text.
     pub fn write_text(
         &self,
         options: &TextOptions,
@@ -449,15 +457,16 @@ impl Derivation<'_> {
 
     /// Writes the derivation as a numbered list of its inferences, one per
     /// line, premises before their conclusion and the conclusion last:
-    /// `3. A, A ⊸ B ⊢ B, by ⊸L from 1 and 2.` An open goal is `open`, a
-    /// run of a structural rule `by ?w 3 times`.
-    /// This is the reading of a derivation for a screen reader, which
-    /// cannot follow a tree. Asks `stop` before every line.
+    /// `3. A, A ⊸ B ⊢ B, by ⊸L from 1 and 2.` An open goal ends in
+    /// `, open.`, and a run of a structural rule reads `by ?w 3 times`.
+    ///
+    /// Use it for a screen reader, which cannot follow a tree. It calls
+    /// `stop` before every line.
     ///
     /// # Errors
     ///
-    /// [`Refusal::Stopped`](crate::Refusal::Stopped) when `stop` fired, and
-    /// [`Error::WriteFailed`] when `out` refused the text.
+    /// [`Refusal::Stopped`](crate::Refusal::Stopped) when `stop` returned
+    /// true, and [`Error::WriteFailed`] when `out` refused the text.
     pub fn write_steps(
         &self,
         out: &mut impl Write,
@@ -484,8 +493,8 @@ impl Display for Derivation<'_> {
 mod tests {
     use crate::linear::{Mode, Options, Sequent, Verdict, prove};
 
-    /// A tree whose premises start beyond the widest column a format
-    /// string pads to is drawn.
+    /// A tree is drawn whole when its premises start past the widest
+    /// column a format string can pad to.
     #[test]
     fn wider_than_a_format_width() {
         let name = "a".repeat(70_000);
@@ -495,7 +504,7 @@ mod tests {
             panic!("provable");
         };
         let tree = proof.derivation().unwrap().to_string();
-        // The premises' bars, then their conclusions.
+        // Line 0 holds the premises' bars, line 1 their conclusions.
         let premises = tree.lines().nth(1).unwrap();
         assert!(premises.len() > 140_000, "{}", premises.len());
         assert!(

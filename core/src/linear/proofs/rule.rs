@@ -7,8 +7,8 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::str::FromStr;
 
 /// A rule of the one-sided standard sequent calculus of linear logic, as
-/// an inference of a derivation applies it. The type is closed: a new rule
-/// is a new release of the calculus.
+/// an inference of a derivation applies it. The enum is exhaustive, so
+/// adding a rule is a breaking change.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Rule {
     /// `ax`
@@ -53,7 +53,7 @@ pub enum Rule {
 }
 
 impl Rule {
-    /// Every rule, in the order of declaration.
+    /// Every rule, in declaration order.
     pub const ALL: [Self; 19] = {
         use Rule::*;
         [
@@ -106,7 +106,8 @@ impl Rule {
     }
 
     /// Returns whether the rule is structural: a weakening or a
-    /// contraction, which a compact view draws a run of as one inference.
+    /// contraction. A compact view draws a run of such a rule as one
+    /// inference.
     pub const fn is_structural(self) -> bool {
         matches!(
             self,
@@ -127,17 +128,17 @@ impl Rule {
         }
     }
 
-    /// Returns whether the rule acts on one formula of its conclusion,
-    /// its principal one: every rule but the axiom, Mix, the cut and an
-    /// open goal.
+    /// Returns whether the rule acts on one formula of its conclusion, its
+    /// principal formula. This holds for every rule but the axiom, Mix, the
+    /// cut and an open goal.
     pub const fn has_principal(self) -> bool {
         !matches!(self, Self::Ax | Self::Mix | Self::Cut | Self::Open)
     }
 
     /// Returns the rule as a two-sided derivation names it, applied to a
-    /// formula on `side` of `⊢`: `⊗` on a hypothesis is `⊸L`, on the goal
-    /// `⊗R`, and so on. The axiom, Mix, affine weakening, the cut and an
-    /// open goal keep their names, with no side.
+    /// formula on `side` of `⊢`. For example, `⊗` on a hypothesis is `⊸L`
+    /// and on the goal `⊗R`. The axiom, Mix, affine weakening, the cut and
+    /// an open goal keep their names, with no side.
     pub const fn on(self, side: Side) -> Named {
         Named::new(self, Some(side))
     }
@@ -151,27 +152,29 @@ impl Display for Rule {
 }
 
 /// A rule as a derivation names it: the one-sided rule and, in a
-/// two-sided derivation, the side of `⊢` its principal formula stands on
-/// (`⊸L` is `⊗` on the input side, `⊗R` on the output side).
+/// two-sided derivation, the side of `⊢` its principal formula stands on.
+/// For example, `⊸L` is `⊗` on the input side, and `⊗R` is `⊗` on the
+/// output side.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Named {
     /// The one-sided rule.
     pub rule: Rule,
     /// The side of `⊢` the principal formula stands on, in a two-sided
-    /// derivation; `None` one-sided, and for a rule whose name has no side
-    /// (the axiom, Mix, affine weakening, the cut, an open goal).
+    /// derivation. `None` in a one-sided derivation, and for a rule whose
+    /// name has no side (the axiom, Mix, affine weakening, the cut, an open
+    /// goal).
     pub side: Option<Side>,
-    /// In a two-sided derivation of the Lambek calculus, the division a
-    /// rule of an implication acts on (`\L`, `\R`, `/L`, `/R`); `None`
-    /// for every other rule and in every other derivation, where the
+    /// The division a rule of an implication acts on (`\L`, `\R`, `/L`,
+    /// `/R`), in a two-sided derivation of the Lambek calculus. `None` for
+    /// every other rule and in every other derivation, where the
     /// implication is `⊸`.
     pub division: Option<Division>,
 }
 
-/// One of the two divisions of the Lambek calculus, the implications of
+/// One of the two divisions of the Lambek calculus: the implications of
 /// its ordered reading ([`Reading::of_mode`](crate::linear::Reading::of_mode)).
-/// The type is closed, as the calculus is.
+/// The enum is exhaustive, as the calculus has no other division.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Division {
     /// `A \ B`, whose antecedent `A` is written first: `A, A \ B ⊢ B`.
@@ -182,7 +185,8 @@ pub enum Division {
 
 impl Named {
     /// Every named rule: the one-sided ones in the order of
-    /// [`Rule::ALL`], an open goal last, and the two-sided ones between.
+    /// [`Rule::ALL`] but an open goal, then the two-sided ones, then an
+    /// open goal last.
     pub const ALL: [Self; 41] = {
         use Rule::*;
         use Side::{Input, Output};
@@ -231,9 +235,9 @@ impl Named {
         ]
     };
 
-    /// Returns the rule named on `side`: one-sided for `None`, and for a
-    /// rule whose name has no side. `1`, `⊥` and the exponential rules have
-    /// one two-sided name each, which either side gives.
+    /// Returns the rule named on `side`. It is one-sided for `None` and for
+    /// a rule whose name has no side. `1`, `⊥` and the exponential rules
+    /// have one two-sided name each, which either side gives.
     pub const fn new(rule: Rule, side: Option<Side>) -> Self {
         use Rule::*;
         use Side::{Input, Output};
@@ -250,7 +254,7 @@ impl Named {
         }
     }
 
-    /// The rules of the two divisions, `\L`, `\R`, `/L` and `/R`, which
+    /// The rules of the two divisions, `\L`, `\R`, `/L` and `/R`. They
     /// follow [`ALL`](Self::ALL) in the label tables.
     pub(crate) const DIVISIONS: [Self; 4] = [
         divided(Rule::Tensor, Side::Input, Division::Under),
@@ -259,10 +263,10 @@ impl Named {
         divided(Rule::Par, Side::Output, Division::Over),
     ];
 
-    /// Returns the rule `rule` applied to `o` as a derivation under
-    /// `reading` names it, or one-sided without a reading: on the side
-    /// of `⊢` the formula stands on, and in the Lambek calculus's ordered
-    /// reading with the division it is.
+    /// Returns `rule` applied to `o`, named as a derivation under `reading`
+    /// names it: on the side of `⊢` the formula stands on, and in the
+    /// Lambek calculus's ordered reading with the division it is. Without
+    /// a reading the rule is named one-sided.
     pub(crate) fn applied(
         rule: Rule,
         reading: Option<&crate::linear::Reading<'_>>,
@@ -294,10 +298,10 @@ impl Named {
         }
     }
 
-    /// Returns the name: the rule's, or two-sided `⊸L`, `⊸R`, `⊗L`, `⊗R`,
-    /// `&L₁`, `&L₂`, `&R`, `⊕L`, `⊕R₁`, `⊕R₂`, `1L`, `1R`, `0L`, `⊤R`, `!L`,
-    /// `!R`, `!c` or `!w`, and in the Lambek calculus `\L`, `\R`, `/L` or
-    /// `/R`.
+    /// Returns the name: the one-sided rule's, or two-sided `⊸L`, `⊸R`,
+    /// `⊗L`, `⊗R`, `&L₁`, `&L₂`, `&R`, `⊕L`, `⊕R₁`, `⊕R₂`, `1L`, `1R`, `0L`,
+    /// `⊤R`, `!L`, `!R`, `!c`, `!w`, `∀R`, `∃L`, `∃R` or `∀L`, and in the
+    /// Lambek calculus `\L`, `\R`, `/L` or `/R`.
     pub const fn name(self) -> &'static str {
         use Rule::*;
         use Side::{Input, Output};
@@ -340,15 +344,15 @@ impl Named {
         self.rule.is_structural()
     }
 
-    /// Returns the rule's place in [`ALL`](Self::ALL), or after it among
-    /// the divisions, by which the label tables are indexed.
+    /// Returns the rule's index in [`ALL`](Self::ALL), or past its end
+    /// among the divisions: the index of the label tables.
     pub(crate) const fn index(self) -> usize {
         if let Some(division) = self.division {
             let left = matches!(self.rule, Rule::Tensor);
             return Self::ALL.len() + 2 * (division as usize) + if left { 0 } else { 1 };
         }
-        // The one-sided rules lead the list in their order, an open goal
-        // apart.
+        // The one-sided rules but an open goal open the list, in their
+        // declaration order.
         if self.side.is_none() && !matches!(self.rule, Rule::Open) {
             return self.rule as usize;
         }
@@ -360,8 +364,8 @@ impl Named {
             }
             i += 1;
         }
-        // Every value `new` makes is in the list; a literal with an unused
-        // side reads as the one-sided rule.
+        // Every value `new` makes is in the list. A value built by hand
+        // with a side the rule's name lacks reads as the one-sided rule.
         self.rule as usize
     }
 }
@@ -394,7 +398,7 @@ const fn divided(rule: Rule, side: Side, division: Division) -> Named {
     }
 }
 
-/// Returns whether two sides are equal, as a `const fn` can compare them.
+/// Returns whether two sides are equal, in a form a `const fn` can call.
 const fn same_side(a: Option<Side>, b: Option<Side>) -> bool {
     match (a, b) {
         (None, None) => true,
@@ -502,8 +506,8 @@ mod tests {
     use super::*;
 
     /// Every named rule reads back from its name, which [`NAMES`] lists in
-    /// the order of [`Named::ALL`], and sits at its index; `new` gives
-    /// every side of a rule a name of the list.
+    /// the order of [`Named::ALL`], and its index is its place there.
+    /// `new` gives every rule on every side a name of the list.
     #[test]
     fn names_round_trip() {
         for (i, named) in Named::ALL.into_iter().enumerate() {
