@@ -43,6 +43,9 @@ Options:
           
           [default: 50000000]
 
+  -f, --file <PATH>
+          Read the proof from this file, or `-` for standard input, as the argument PROOF does
+
   -i, --intuitionistic
           Intuitionistic linear logic: hypotheses left of ⊢ and one goal right of it, written in its own syntax (--ill-syntax), and two-sided derivations
 
