@@ -1,9 +1,9 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The cut in a proof in progress: the user names the cut formula, which
-//! joins the session's sequent as a cut formula with its dual, and the
-//! goal's two premises open as goals.
+//! The cut in a session. The caller names the cut formula; it joins the
+//! session's sequent with its dual, and the cut's two premises open as
+//! goals.
 
 use super::quantified::Quantified;
 use super::{GoalId, Interactive, StepError};
@@ -19,43 +19,47 @@ use crate::linear::proofs::derivation::{InfId, Inference};
 use crate::linear::proofs::multiset::Multiset;
 use crate::linear::sequents::Sequent;
 
-/// A cut formula as its author wrote it: the formula, one-sided, and what
-/// the syntax it was written in records of its occurrences, which a
-/// session keeps for the two occurrences a cut adds, the formula on the
-/// right of `⊢` in the cut's first premise and on the left in its
-/// second, so that every inference of the proof prints as written.
+/// A cut formula as it was written, for [`Interactive::cut`].
 ///
-/// Built from text by [`parse_within`](Self::parse_within) in the syntax
-/// of the session's mode, or from a value: an [`IllSequent`] `⊢ C` (its
-/// recorded sides), a [`ClassicalSequent`] `⊢ C` (how it was written) or
-/// a one-sided [`Sequent`] `⊢ C` (read as its one-sided syntax writes it).
+/// It holds the formula, one-sided, and what its syntax records of its
+/// occurrences. The cut adds the formula twice: right of `⊢` in the cut's
+/// first premise and left of it in the second. The session keeps the
+/// record for both, so that every inference of the proof prints the
+/// formula as written.
+///
+/// Read one from text with [`parse_within`](Self::parse_within), in the
+/// syntax of the session's mode, or convert a sequent `⊢ C`: an
+/// [`IllSequent`] (with its recorded sides), a [`ClassicalSequent`] (with
+/// how it was written) or a one-sided [`Sequent`] (written one-sided).
 ///
 /// Needs the cargo feature `interactive` (on by default).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CutFormula {
     /// The formula, as the one root of a sequent of its own.
     formula: Sequent,
-    /// The intuitionistic sides of its occurrences as written, the formula
-    /// in output position, where it was written so.
+    /// The intuitionistic sides of its occurrences, with the formula in
+    /// output position, when it was written intuitionistically.
     sides: Option<Box<[Side]>>,
-    /// How its occurrences were written, the formula right of `⊢`, where it
-    /// was written as classical text.
+    /// How its occurrences were written, with the formula right of `⊢`,
+    /// when it was written as classical text.
     writing: Option<Box<[Written]>>,
 }
 
 impl CutFormula {
-    /// Reads a cut formula written as text in the syntax of `mode`: in an
-    /// intuitionistic mode as an intuitionistic formula, strictly or
-    /// one-sided as `input` says (as a goal `⊢ C` is read), and else as a
-    /// classical formula, as written. A parse error points into `text`.
+    /// Reads a cut formula from text in the syntax of `mode`.
+    ///
+    /// In an intuitionistic mode the text is an intuitionistic formula,
+    /// read strictly or one-sided as `input` says, as the goal of `⊢ C`.
+    /// In any other mode it is a classical formula, kept as written. A
+    /// parse error points into `text`.
     ///
     /// Needs the cargo feature `parse` (on by default).
     ///
     /// # Errors
     ///
-    /// [`Error::Parse`] for text that is no formula,
-    /// [`Error::CutFormula`] for text of another number of formulas than
-    /// one, [`Error::NotIntuitionistic`] in an intuitionistic mode for a
+    /// [`Error::Parse`] for text that is not a formula,
+    /// [`Error::CutFormula`] for text with no formula or more than one,
+    /// [`Error::NotIntuitionistic`] in an intuitionistic mode for a
     /// formula that cannot be a goal, and [`Error::Refused`] past
     /// `limits.occurrences`.
     #[cfg(feature = "parse")]
@@ -65,7 +69,7 @@ impl CutFormula {
         input: &crate::linear::InputOptions,
         limits: &Limits,
     ) -> Result<Self, Error> {
-        /// What the text is read after: the formula as a goal.
+        /// What the text is read after, so that it is read as a goal.
         const TURNSTILE: &str = "|- ";
         let written = format!("{TURNSTILE}{text}");
         let shift = |e: Error| {
@@ -106,12 +110,13 @@ impl CutFormula {
         &self.formula
     }
 
-    /// Returns the formula with its constants `names` bound by a `∀`
-    /// each around it, the first outermost, its occurrences' records as
-    /// written with the binders' entries before them, which stand where
-    /// the formula does: read again from the one-sided text, which every
-    /// printer writes so that it reads back, a name that an inner binder
-    /// takes written apart.
+    /// Returns the formula with its constants `names` bound by one `∀`
+    /// each around it, the first outermost.
+    ///
+    /// The formula is read again from its one-sided text, which every
+    /// printer writes so that it reads back; a name that an inner binder
+    /// also takes is written apart. Its records of how it was written get
+    /// one entry per binder in front, on the formula's side.
     ///
     /// # Errors
     ///
@@ -125,7 +130,7 @@ impl CutFormula {
             forest.formula(forest.roots()[0])
         );
         let formula = Sequent::parse_within(&text, limits)?;
-        // The binders come first, each written where the formula is.
+        // The binders come first, each on the side the formula is on.
         let k = names.len();
         let sides = self.sides.as_ref().map(|sides| {
             let mut bound = vec![sides[0]; k];
@@ -144,8 +149,8 @@ impl CutFormula {
         })
     }
 
-    /// Returns the formula as it is: without a reader of text no name is
-    /// taken for an eigenvariable.
+    /// Returns the formula unchanged: without the text reader, no name is
+    /// taken for an eigenvariable, so there is nothing to bind.
     #[cfg(not(feature = "parse"))]
     fn bound(&self, _: &[&str], _: &Limits) -> Result<Self, Error> {
         Ok(self.clone())
@@ -153,8 +158,8 @@ impl CutFormula {
 }
 
 impl From<IllSequent> for CutFormula {
-    /// The cut formula of an intuitionistic sequent `⊢ C` and its sides
-    /// as written.
+    /// Returns the cut formula of an intuitionistic sequent `⊢ C`, with its
+    /// sides as written.
     fn from(sequent: IllSequent) -> Self {
         let reading = sequent.reading();
         let sides = sequent
@@ -171,7 +176,8 @@ impl From<IllSequent> for CutFormula {
 }
 
 impl From<ClassicalSequent> for CutFormula {
-    /// The cut formula of a classical sequent `⊢ C` as it was written.
+    /// Returns the cut formula of a classical sequent `⊢ C`, as it was
+    /// written.
     fn from(sequent: ClassicalSequent) -> Self {
         let writing = sequent.writing().into();
         Self {
@@ -183,8 +189,8 @@ impl From<ClassicalSequent> for CutFormula {
 }
 
 impl From<Sequent> for CutFormula {
-    /// The cut formula of a one-sided sequent `⊢ C`, read as the one-sided
-    /// syntax writes it.
+    /// Returns the cut formula of a one-sided sequent `⊢ C`, written
+    /// one-sided.
     fn from(formula: Sequent) -> Self {
         Self {
             formula,
@@ -195,37 +201,48 @@ impl From<Sequent> for CutFormula {
 }
 
 impl Interactive {
-    /// Cuts an open goal `Γ, Δ` on the formula `A` that `formula` names:
+    /// Cuts an open goal `Γ, Δ` on the formula `A` that `formula` names,
+    /// and returns the two goals the cut opens.
+    ///
+    /// The goals are the premises `Γ, A` and `Δ, A⊥`, in that order: the
+    /// formulas at the positions `left` go to the first, the others to the
+    /// second. Intuitionistically they are `Γ ⊢ A` and `Δ, A ⊢ C`, so the
+    /// goal's succedent `C` goes to the second premise.
+    ///
     /// `A` and its dual join the session's sequent as a cut formula
-    /// ([`Sequent::cuts`]), and the goal's premises `Γ, A` and `Δ, A⊥`
-    /// open as goals, in that order, the formulas at the positions `left`
-    /// going to the first, the others to the second. Intuitionistically
-    /// that is `Γ ⊢ A` and `Δ, A ⊢ C`: the goal's goal goes to the second
-    /// premise. The occurrences of `A` and `A⊥` are recorded as `formula`
-    /// was written, `A` right of `⊢` and `A⊥` left of it, so that the
-    /// two-sided views print them as written. [`undo`](Self::undo) takes
-    /// the cut back, its formula with it. A cut is refused in an ordered
-    /// mode, whose dual turns a formula round. In a session with
-    /// quantifiers `A` is a closed formula of the sequent's symbols, which
-    /// may have quantifiers of its own, and the goals' instances keep
-    /// their terms and eigenvariables; a cut formula with a quantifier
-    /// makes a session without one a session with quantifiers.
+    /// ([`Sequent::cuts`]). Their occurrences are recorded as `formula` was
+    /// written, `A` right of `⊢` and `A⊥` left of it, so that the two-sided
+    /// views print them as written. [`undo`](Self::undo) takes the cut
+    /// back, and its formula with it.
+    ///
+    /// An ordered mode has no cut, since there the dual of a formula turns
+    /// it round. In a session with quantifiers, `A` is a closed formula of
+    /// the sequent's symbols and the goal's eigenvariables, and may have
+    /// quantifiers of its own; the goals' instances keep their terms. A cut
+    /// formula with a quantifier makes a session without one a session with
+    /// quantifiers.
     ///
     /// # Errors
     ///
-    /// [`Error::Step`] with [`StepError::NoGoal`] for a goal that is not
-    /// open, [`StepError::Mode`] in an ordered mode, [`StepError::Split`]
-    /// for a position past the goal or named twice, and
-    /// [`StepError::Succedents`] in intuitionistic mode where a premise
-    /// would not have one goal (the formulas going left must all be
-    /// hypotheses), [`StepError::CutSymbol`] for a cut formula naming a
-    /// symbol the sequent has with another arity or role, or in a session
-    /// with quantifiers one it has not (an eigenvariable's letter among
-    /// them); [`Error::CutFormula`] for a formula of another number
-    /// of formulas than one; [`Error::NotIntuitionistic`] in
-    /// intuitionistic mode for a one-sided formula that cannot be a goal;
+    /// Nothing changes on an error. [`Error::Step`] with:
+    /// - [`StepError::NoGoal`] for a goal that is not open;
+    /// - [`StepError::Mode`] in an ordered mode;
+    /// - [`StepError::Split`] for a position past the goal or named twice;
+    /// - [`StepError::Succedents`] in intuitionistic mode where a premise
+    ///   would not have exactly one succedent (the formulas going left must
+    ///   all be hypotheses);
+    /// - [`StepError::CutSymbol`] for a cut formula naming a symbol the
+    ///   sequent has with another arity or role, or, in a session with
+    ///   quantifiers, one the sequent does not have and that is not an
+    ///   eigenvariable's letter used as a constant;
+    /// - [`StepError::Eigenvariable`] for an eigenvariable outside the
+    ///   goal's scope.
+    ///
+    /// Also [`Error::CutFormula`] for a cut formula with no formula or more
+    /// than one, [`Error::NotIntuitionistic`] in intuitionistic mode
+    /// for a one-sided formula that cannot be a goal, and
     /// [`Error::Refused`] when the sequent with the cut formula has more
-    /// occurrences than `limits.occurrences`. Nothing changes then.
+    /// occurrences than `limits.occurrences`.
     pub fn cut(
         &mut self,
         goal: GoalId,
@@ -252,8 +269,8 @@ impl Interactive {
         } else {
             Vec::new()
         };
-        // A cut formula naming eigenvariables is held closed, bound by a
-        // `∀` per eigenvariable, and cut on its body's instance.
+        // A cut formula naming eigenvariables stays closed: it is bound by
+        // one `∀` per eigenvariable, and the cut is on its body's instance.
         let bound;
         let formula = if named.is_empty() {
             formula
@@ -266,8 +283,8 @@ impl Interactive {
         let mut extended = self.forest.sequent().clone();
         extended.add_cut(formula.formula.clone())?;
         let forest = Forest::within(&extended, limits)?;
-        // The new trees follow every occurrence the session had, a forest
-        // of fewer than `u32::MAX`.
+        // The new trees follow every occurrence the session had. The cast
+        // is exact: a forest has fewer than `u32::MAX` occurrences.
         let a = OccId::new(self.forest.len() as u32);
         let size = forest.size(a) as usize;
         let dual = OccId::new(a.get() + forest.size(a));
@@ -299,7 +316,8 @@ impl Interactive {
             Some(writing) => Some({
                 let record = match &formula.writing {
                     Some(record) => record.clone(),
-                    // Of fewer occurrences than the forest just built.
+                    // Unbounded is safe: the formula has fewer occurrences
+                    // than the forest just built within the limits.
                     None => crate::linear::occurrences::written::one_sided(&Forest::within(
                         &formula.formula,
                         &Limits::UNBOUNDED,
@@ -307,7 +325,8 @@ impl Interactive {
                 };
                 let mut extended = writing.to_vec();
                 extended.extend_from_slice(&record);
-                // Written left of `⊢`, every occurrence takes the other side.
+                // The dual is written left of `⊢`, so each of its
+                // occurrences takes the other side.
                 extended.extend(
                     record
                         .iter()
@@ -329,8 +348,8 @@ impl Interactive {
         let premises = {
             let positions = reading.as_ref().map(|(p, _)| &**p);
             let shifted: Vec<Member> = sequent.iter().map(|&m| shift(m)).collect();
-            // An occurrence of the new forest, the cut formulas' among
-            // them, or a member moved past it.
+            // A member below `to` is an occurrence of the new forest, the
+            // cut formula's among them; one past it is a moved instance.
             let occurrence = |m: Member| {
                 if m.get() < to {
                     m.occ()
@@ -348,7 +367,7 @@ impl Interactive {
                 &used,
             )?
         };
-        // The bodies' occurrences and the instances the cut is on.
+        // Pairs of a body's occurrence and the instance the cut is on.
         let mut instances: Vec<(Member, Member)> = Vec::new();
         match self.fo.as_mut() {
             Some(q) => {
@@ -372,12 +391,14 @@ impl Interactive {
                         let o = OccId::new(o.get() + depth);
                         instances.push((Member::from(o), q.member(o, frame)));
                     }
-                    // Fewer steps than inferences, which an `InfId` numbers.
+                    // The cast is exact: there are fewer steps than
+                    // inferences, which an `InfId` numbers.
                     q.made(self.history.len() as u32, mark);
                 }
             }
             // A cut formula with a quantifier makes the session one with
-            // quantifiers; it had no member past its forest.
+            // quantifiers. It had no member past its forest, so nothing
+            // moves.
             None if forest.has_binders() => {
                 let mut q = Quantified::new(&forest);
                 q.limit = limits.terms;
@@ -429,11 +450,13 @@ impl Interactive {
         Ok(ids.map(GoalId::of))
     }
 
-    /// Returns the member a cut names and its dual's: a cut formula's root
-    /// and its dual's, or, for a cut on an instance, the member of the body
-    /// below a cut formula's `∀`s under a frame of as many terms and the
-    /// member of the dual's body under the same frame; `None` for any other
-    /// member.
+    /// Returns `cut` and its dual's member, or `None` when `cut` is not a
+    /// member a cut can be on.
+    ///
+    /// A plain cut is on a cut formula's root, whose dual is the root of
+    /// the dual formula. A cut on an instance is on the body below a cut
+    /// formula's `∀`s, under a frame of one term per `∀`; its dual is the
+    /// dual's body under the same frame.
     pub(super) fn cut_pair(&self, cut: Member) -> Option<(Member, Member)> {
         let (o, frame) = match &self.fo {
             Some(q) => q.instance(cut),
@@ -455,14 +478,16 @@ impl Interactive {
             .map(|d| (cut, d))
     }
 
-    /// Returns the eigenvariables a cut formula on `goal` names, by the
-    /// letters the session writes them with, each with its name, in the
-    /// order of the formula's symbols. Refuses one the goal is not in the
-    /// scope of, as a witness's; a symbol the sequent has with another
-    /// arity or role, which joining the two would rename apart; and in a
-    /// session with quantifiers any other symbol the sequent has not: the
-    /// eigenvariables take the letters no symbol takes, so a new symbol
-    /// could take one's letter.
+    /// Returns the eigenvariables a cut formula on `goal` names by their
+    /// letters, each with its name, in the order of the formula's symbols.
+    ///
+    /// It refuses:
+    /// - an eigenvariable outside the goal's scope, as for a witness;
+    /// - a symbol the sequent has with another arity or role, which
+    ///   joining the two sequents would rename apart;
+    /// - in a session with quantifiers, any other symbol the sequent does
+    ///   not have. The eigenvariables take the letters no symbol takes, so
+    ///   a new symbol could take an eigenvariable's letter.
     fn cut_symbols(
         &self,
         goal: GoalId,
@@ -471,8 +496,8 @@ impl Interactive {
         let ours: crate::hash::HashMap<&str, (u32, bool)> =
             symbol_roles(self.forest.sequent()).into_iter().collect();
         // An eigenvariable's letter reads as a constant: a nullary symbol
-        // that is no predicate. The text is read without the session, so
-        // only a reader of text has the letters.
+        // that is not a predicate. The text is read without the session,
+        // so the letters exist only with the text reader.
         let letters: crate::hash::HashMap<String, crate::linear::sequents::Eigen> = match &self.fo {
             Some(q) if cfg!(feature = "parse") => {
                 crate::linear::occurrences::instances::eigen_names(
@@ -513,16 +538,17 @@ impl Interactive {
     }
 
     /// Takes back the cut formula of the cut that [`undo`](Self::undo)
-    /// retracts: the last one added, since the steps after it were
-    /// retracted before it.
+    /// takes back. It is the last one added, since the steps after the cut
+    /// were taken back first.
     pub(super) fn uncut(&mut self) {
         let mut sequent = self.forest.sequent().clone();
-        // The arena keeps every term the table still names, and in a
-        // session with quantifiers every symbol: its cuts add none, and a
-        // symbol no atom uses still takes a letter from its eigenvariables.
+        // The arena keeps every term the table still names. A session with
+        // quantifiers also keeps every symbol: its cuts add none, and a
+        // symbol no atom uses still takes a letter from the eigenvariables.
         let reach = self.fo.as_ref().map_or(0, |q| q.arena_reach());
         sequent.pop_cut_keeping(reach, self.fo.is_some());
-        // A forest of fewer occurrences than the one it had.
+        // Unbounded is safe: the forest is smaller than the one the
+        // session had.
         let forest = Forest::within(&sequent, &Limits::UNBOUNDED).expect("a smaller forest");
         if !forest.has_binders() {
             self.fo = None;
@@ -557,9 +583,9 @@ impl Interactive {
         }
     }
 
-    /// Checks that a cut read back names the cut formula `a` of its own
-    /// pair and that its premises are what the cut yields on its sequent,
-    /// the split recovered from the first premise.
+    /// Checks a cut read back: it names a cut formula of the sequent, and
+    /// its premises are what the cut yields on its conclusion, with the
+    /// split recovered from the first premise.
     #[cfg(feature = "serialize")]
     pub(super) fn replay_cut(&self, id: InfId) -> Result<(), Error> {
         let inconsistent = |reason| Error::InconsistentSession { reason };
@@ -570,8 +596,8 @@ impl Interactive {
                 "a cut names no cut formula, nor the instance of one's body that a session cuts on",
             ));
         };
-        // A cut on an instance holds the goal's eigenvariables, as a
-        // given witness does.
+        // A cut on an instance holds only eigenvariables in the goal's
+        // scope, as a given witness does.
         if let Some(q) = self.fo.as_ref()
             && let (_, Some(frame)) = q.instance(a)
         {
@@ -596,8 +622,8 @@ impl Interactive {
         if !context.remove(a) {
             return Err(inconsistent("a cut's first premise lacks its cut formula"));
         }
-        // Both are sorted, so each member of the context is the next equal
-        // one of the sequent.
+        // Both are sorted, so each member of the context is matched with
+        // the next equal one of the sequent, in linear time.
         let mut used = vec![false; sequent.len()];
         let mut at = 0;
         for &o in context.as_slice() {
@@ -631,8 +657,8 @@ impl Interactive {
 }
 
 /// Returns every symbol of a sequent in the order of its table, with its
-/// arity and whether it is a predicate: of a sequent without first-order
-/// terms, its atoms as nullary predicates.
+/// arity and whether it is a predicate. A sequent without first-order
+/// atoms gives its atoms as nullary predicates.
 fn symbol_roles(sequent: &Sequent) -> Vec<(&str, (u32, bool))> {
     let fo = &sequent.fo;
     let mut roles: Vec<(&str, (u32, bool))> = fo
@@ -655,9 +681,10 @@ fn symbol_roles(sequent: &Sequent) -> Vec<(&str, (u32, bool))> {
 }
 
 /// Returns the premises of a cut on `a`, whose dual is `dual`, of the goal
-/// `sequent`, the formulas marked in `left` going to the first: in
-/// intuitionistic mode, under `positions` of each member's occurrence,
-/// each with one goal.
+/// `sequent`. The formulas marked in `left` go to the first premise.
+///
+/// In intuitionistic mode, `positions` gives the side of each member's
+/// occurrence, and each premise must have exactly one succedent.
 fn cut_premises(
     positions: Option<&[Side]>,
     sequent: &[Member],
@@ -691,13 +718,14 @@ fn cut_premises(
     Ok([first, second])
 }
 
-/// Returns proofs with cuts made of `proofs`: per proof of a commutative
-/// mode, its sequent's session cut on one of its formulas `C` (the others
-/// going to the premise that proves `C`, or intuitionistically `C ⊢ C`
-/// as the first premise where `C` is a hypothesis), then one of the two
-/// goals cut again on one of its formulas, every goal closed by the
-/// search; each with its mode. The second cut's formula may be the first
-/// cut's.
+/// Returns proofs with cuts, each with its mode, made from `proofs`.
+///
+/// For each proof in a commutative mode, a session of its sequent is cut
+/// on one of its formulas `C`. The other formulas go to the premise that
+/// proves `C`; intuitionistically, where `C` is a hypothesis, the first
+/// premise is `C ⊢ C`. Then one of the two goals is cut again on one of
+/// its formulas, which may be the first cut's, and the search closes every
+/// goal.
 #[cfg(all(test, feature = "parse"))]
 pub(crate) fn with_cuts(
     proofs: &[(crate::linear::Proof, Mode)],
@@ -771,12 +799,13 @@ mod tests {
     }
 
     /// A cut opens its two premises as goals, the cut formula right of `⊢`
-    /// in the first and left of it in the second, as typed; the finished
-    /// proof has the cut and checks, the two-sided view names it `cut`,
-    /// the session writes its formula as typed, a session started on its
-    /// sequent starts from the conclusion and the same cut made again
-    /// gives the same sequent, and `undo` takes the cut back with its
-    /// formula.
+    /// in the first and left of it in the second, as typed. Then:
+    /// - the finished proof has the cut and checks;
+    /// - the two-sided view names it `cut`;
+    /// - the session writes its formula as typed;
+    /// - a session started on its sequent starts from the conclusion, and
+    ///   the same cut made again gives the same sequent;
+    /// - `undo` takes the cut back with its formula.
     #[test]
     fn a_cut_opens_two_goals_and_undo_takes_it_back() {
         let limits = Limits::default();
@@ -861,9 +890,9 @@ mod tests {
 
     /// A cut is refused, and nothing changes, for a goal that is not
     /// open, in an ordered mode, for a split past the goal or naming a
-    /// formula twice, where a premise would have two goals or none, and
-    /// for text of another number of formulas than one; a parse error
-    /// points into the text typed.
+    /// formula twice, where a premise would have two succedents or none,
+    /// and for text with no formula or more than one. A parse error points
+    /// into the text typed.
     #[test]
     fn refusals() {
         let limits = Limits::default();
@@ -876,7 +905,8 @@ mod tests {
             Err(Error::Step(e)) => e,
             other => panic!("{other:?}"),
         };
-        // The goal A going left with the cut formula: ⊢ A, A has two goals.
+        // The succedent A going left with the cut formula: the first
+        // premise would have two succedents.
         assert_eq!(
             step(session.cut(root, &ill, &[1], &limits)),
             StepError::Succedents { count: 2 }

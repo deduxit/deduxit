@@ -1,8 +1,9 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! A session rebuilt from its parts: the derivation it held, replayed
-//! against the rules, as its JSON form is read back.
+//! A session rebuilt from its parts, as its JSON form is read back: the
+//! derivation it held is replayed against the rules, so a session read is
+//! as sound as one built step by step.
 
 use super::Interactive;
 use super::quantified::{Parts, Quantified, prefix_max};
@@ -16,17 +17,23 @@ use crate::linear::proofs::multiset::Multiset;
 use crate::linear::sequents::{Eigen, FoTerm};
 
 impl Interactive {
-    /// Rebuilds a state from its parts, as deserialization does, checking
-    /// that they are consistent: inference 0 concludes the sequent, every
-    /// other inference is the premise of exactly one earlier inference,
-    /// every closed inference's premises are what its rule on its sequent
-    /// yields, and the history names distinct closed inferences whose
-    /// premises were, in order, the last inferences added. A sequent with
-    /// quantifiers has its first-order part (`parts`): its table read and
-    /// its bindings replayed, every `∀` step's eigenvariable fresh and
-    /// introduced once, every `∃` step's witness an open witness of its
-    /// own or a term of the eigenvariables in its goal's scope, every
-    /// axiom's literals equal instances under the bindings.
+    /// Rebuilds a session from its parts, as deserialization does, and
+    /// checks that they are consistent:
+    /// - inference 0 concludes the sequent;
+    /// - every other inference is the premise of exactly one earlier
+    ///   inference;
+    /// - every closed inference's premises are what its rule yields on its
+    ///   sequent;
+    /// - the history names distinct closed inferences, and the inferences
+    ///   each step added were, in order, the last ones added;
+    /// - the cut formulas are those of the cuts, in the order made.
+    ///
+    /// A sequent with quantifiers has its first-order part (`parts`). Its
+    /// table is read and its bindings replayed. Every `∀` step's
+    /// eigenvariable must be fresh and introduced once, every `∃` step's
+    /// witness an open witness of its own or a term of the eigenvariables
+    /// in its goal's scope, and every axiom's literals equal instances
+    /// under the bindings.
     pub(crate) fn from_parts(
         forest: Forest,
         mode: Mode,
@@ -130,16 +137,17 @@ impl Interactive {
                 state.replay(reading.as_ref(), InfId::new(id as u32))?;
             }
         }
-        // Seen from the last step back, the inferences a step added are
-        // those of its subtree that exist at that point, and they are the
-        // suffix of the arena then.
+        // Walking from the last step back: the inferences a step added are
+        // those of its subtree that exist at that point, and they must be
+        // the end of the arena then.
         let mut len = n;
         let mut seen = vec![false; n];
         // Per step, the inferences it added: `start..len`.
         let mut added_by: Vec<(usize, usize)> = Vec::with_capacity(history.len());
         for &goal in history.iter().rev() {
-            // Below `len`, the arena as this step left it: an entry inside
-            // a later step's subtree would make `undo` index past it.
+            // The goal must lie below `len`, in the arena as this step left
+            // it: an entry inside a later step's subtree would make `undo`
+            // index past the arena.
             let closed = goal.index() < len
                 && state.inferences[goal.index()].rule.rule != Rule::Open
                 && !std::mem::replace(&mut seen[goal.index()], true);
@@ -163,8 +171,8 @@ impl Interactive {
                 walk.extend(state.inferences[id.index()].premises.iter().copied());
             }
             // Each inference is the premise of one other only, so the walk
-            // counts each once: `added` of them below `len` and none below
-            // `start` is exactly the suffix `start..len`.
+            // counts each once. `added` of them below `len`, none below
+            // `start`, are exactly the suffix `start..len`.
             let start = len - added;
             if lowest < start {
                 return Err(Error::InconsistentSession {
@@ -197,7 +205,7 @@ impl Interactive {
         if let (Some(q), Some(marks)) = (state.fo.as_mut(), marks) {
             q.read_marks(&marks, state.history.len())?;
             // The members past the forest that the inferences before each
-            // step name: what the step's mark must keep.
+            // step name, which the step's mark must keep.
             let occurrences = state.forest.len();
             let named = prefix_max(state.inferences.iter().map(|inference| {
                 inference
@@ -218,10 +226,18 @@ impl Interactive {
         Ok(state)
     }
 
-    /// Checks a first-order session's `∀` and `∃` steps: each `∀` step's
-    /// eigenvariable no constant and introduced by no other, each open
-    /// witness opened by one step only, each witness term given free of
-    /// open witnesses and of eigenvariables outside its goal's scope.
+    /// Checks a first-order session's `∀` and `∃` steps and its bindings.
+    ///
+    /// Each `∀` step's eigenvariable must not be a constant, nor be
+    /// introduced by another step. Each open witness must be opened by one
+    /// step only, and admit no eigenvariable made at its step or later.
+    /// Each witness term given must hold no open witness and no
+    /// eigenvariable outside its goal's scope. Each binding must be made by
+    /// a step that closes a goal.
+    ///
+    /// The scope is read by intervals of one walk of the tree: walking up
+    /// from each step instead takes quadratic time on a long chain of
+    /// steps.
     fn replay_binders(&self, added_by: &[(usize, usize)]) -> Result<(), Error> {
         let bad = |reason: &'static str| Error::InconsistentSession { reason };
         let q = self.fo.as_ref().expect("a first-order session");
@@ -235,8 +251,8 @@ impl Interactive {
                 *slot = Some(h);
             }
         }
-        // Each inference's place in the tree: entered and left in a walk
-        // from the root, so that an inference lies below another exactly
+        // Each inference's place in the tree, by when a walk from the root
+        // enters and leaves it: an inference lies below another exactly
         // when its interval holds the other's.
         let (mut enter, mut exit) = (vec![0usize; n], vec![0usize; n]);
         let mut clock = 0;
@@ -316,7 +332,8 @@ impl Interactive {
             }
         }
         // A binding is made by an axiom, a `1` or `⊤` closing its goal, or a
-        // graft of the search, never by a step that only opens goals.
+        // graft of the search, never by a step that only opens goals. Undo
+        // of such a step would leave a state no session reaches.
         for (_, _, step) in q.bindings() {
             let h = step as usize;
             let goal = &self.inferences[self.history[h].index()];
@@ -341,8 +358,8 @@ impl Interactive {
     }
 
     /// Checks that a closed inference names a principal formula exactly
-    /// when its rule has one and that its premises are what the rule
-    /// yields on its sequent, recovering the split of a `⊗` or Mix from
+    /// when its rule has one, and that its premises are what the rule
+    /// yields on its sequent. The split of a `⊗` or Mix is recovered from
     /// the left premise.
     pub(super) fn replay(&self, reading: Option<&Reading>, id: InfId) -> Result<(), Error> {
         let inference = &self.inferences[id.index()];
@@ -386,8 +403,9 @@ impl Interactive {
                     context.remove(Member::from(left));
                 }
             }
-            // Both are sorted, so each member of the context is the next
-            // equal one of the sequent, the principal formula skipped.
+            // Both are sorted, so each member of the context is matched with
+            // the next equal one of the sequent, skipping the principal
+            // formula, in linear time.
             let mut at = 0;
             for &o in context.as_slice() {
                 while at < members.len() && (members[at] < o || Some(at) == principal) {
@@ -404,9 +422,9 @@ impl Interactive {
         }
         let position = match principal {
             Some(p) => p,
-            // Mix: the first formula of the left premise stands for the
-            // position; the axiom has position 0, its sequent being the
-            // two literals.
+            // For Mix, the first formula of the left premise stands for the
+            // position. The axiom has position 0: its sequent is the two
+            // literals.
             None if classical == Rule::Mix => {
                 if left.is_empty() {
                     return Err(Error::InconsistentSession {
@@ -438,10 +456,11 @@ impl Interactive {
         }
     }
 
-    /// Checks a first-order session's closed inference, its checks on
-    /// occurrences passed: an axiom's literals equal instances under the
-    /// bindings, every other rule's premises the members it yields, a
-    /// binder's body opened under the principal formula's frame.
+    /// Checks a first-order session's closed inference, once its checks on
+    /// occurrences have passed. An axiom's literals must be equal instances
+    /// under the bindings. Every other rule's premises must be the members
+    /// it yields, and a binder's body must be opened under the principal
+    /// formula's frame.
     fn replay_framed(&self, id: InfId, position: usize, left: &[usize]) -> Result<(), Error> {
         let bad = |reason: &'static str| Error::InconsistentSession { reason };
         let q = self.fo.as_ref().expect("a first-order session");

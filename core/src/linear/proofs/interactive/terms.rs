@@ -13,11 +13,12 @@ use crate::linear::proofs::{Branch, Node, NodeId, Proof};
 use crate::linear::sequents::Kind;
 
 impl Interactive {
-    /// Returns the arena's inferences in postorder, premises before
-    /// conclusions, the order of [`derivation`](Self::derivation).
+    /// Returns the session's inferences in postorder, premises before
+    /// conclusions: the order of [`derivation`](Self::derivation).
     pub(super) fn postorder(&self) -> Vec<InfId> {
         let mut order = Vec::with_capacity(self.inferences.len());
-        // Postorder without recursion: a frame is an inference and whether
+        // Postorder without recursion, since a derivation may be higher
+        // than the call stack allows. An entry is an inference and whether
         // its premises were visited.
         let mut stack = vec![(InfId::new(0), false)];
         while let Some((id, visited)) = stack.pop() {
@@ -32,20 +33,20 @@ impl Interactive {
         order
     }
 
-    /// Translates the finished derivation into a proof term and checks it,
-    /// returning the proof; a witness still open is a fresh constant, an
-    /// eigenvariable no `∀` step introduces. Fails while goals are open
-    /// ([`Error::OpenGoals`]) or if the checker rejects the term
-    /// ([`Error::Check`]), which it never does for a derivation built
-    /// through this interface, or gives the check up within `limits` or
-    /// when `stop` fires ([`Error::Check`] with a
-    /// [`CheckError::Refused`](crate::linear::CheckError::Refused)).
+    /// Returns the proof of the finished derivation: its proof term, which
+    /// the checker has accepted in the session's mode.
+    ///
+    /// A witness still open becomes a fresh constant: an eigenvariable that
+    /// no `∀` step introduces. The checker always runs. It never rejects a
+    /// derivation built through this interface, but the session is not
+    /// trusted more than a search engine.
     ///
     /// # Errors
     ///
-    /// [`Error::OpenGoals`] while goals are open, and [`Error::Check`] for a
-    /// term the checker rejects or a check given up within `limits` or by
-    /// `stop`.
+    /// [`Error::OpenGoals`] while goals are open. [`Error::Check`] when the
+    /// checker rejects the term, or gives the check up within `limits` or
+    /// when `stop` fires (with
+    /// [`CheckError::Refused`](crate::linear::CheckError::Refused)).
     pub fn proof(
         &self,
         limits: &Limits,
@@ -76,12 +77,15 @@ impl Interactive {
     }
 }
 
-/// The translation of a finished derivation into a proof term, bottom-up
-/// over the tree: every rule is its node; a dereliction is a copy, a
-/// contraction and a `?w` are nothing, since a `?` formula lives in the
-/// unrestricted zone from the point where it enters the derivation, which
-/// is where its `?` node goes: below the rule that introduces it as a
-/// subformula, or below the root for a `?` formula of the sequent.
+/// The translation of a finished derivation into a proof term.
+///
+/// Every rule becomes its node, except for the `?` rules. A dereliction
+/// becomes a copy, and a contraction or `?w` becomes nothing. A `?` formula
+/// lives in the unrestricted zone from the point where it enters the
+/// derivation, and its `?` node goes there: below the rule that introduces
+/// it as a subformula, or below the root for a `?` formula of the sequent.
+/// So every copy sits above its `?` node, as the checker needs, and the
+/// linear zone holds no `?` formula above its entry, as a `!` needs.
 pub(super) struct Terms<'a> {
     /// The finished derivation.
     state: &'a Interactive,
@@ -96,19 +100,21 @@ impl Terms<'_> {
         NodeId::new(self.nodes.len() as u32 - 1)
     }
 
-    /// Builds the term of the subtree at `root`, without recursion: a
-    /// derivation read from a file can be as high as its formulas are
-    /// deep. The steps still to take wait on a stack and the terms of the
-    /// subtrees done on another, in the order a recursion would take
-    /// them, premises left to right and a rule after its premises.
+    /// Builds the term of the subtree at `root`, and returns its root node.
+    ///
+    /// It uses no recursion: a derivation read from a file can be as high
+    /// as its formulas are deep. The steps still to take wait on one stack
+    /// and the terms of the finished subtrees on another. They are taken in
+    /// the order a recursion would take them: premises left to right, and a
+    /// rule after its premises.
     pub(super) fn term(&mut self, root: InfId) -> NodeId {
         use Rule::*;
         /// What is left to do.
         enum Step {
             /// Build the term of the subtree at an inference.
             Visit(InfId),
-            /// Put the `?` nodes of the `?` formulas among these, which
-            /// the rule below introduced, on the term just built.
+            /// Put the `?` nodes of the `?` formulas among these, which the
+            /// rule below introduced, on top of the term just built.
             Quests([Option<Member>; 2]),
             /// Put an inference's own node on the terms of its premises.
             Build(InfId),
@@ -140,7 +146,8 @@ impl Terms<'_> {
                     .expect("every rule but ax and mix has one")]
             };
             let principal = || state.occurrence(o());
-            // A subformula's member, under the principal formula's frame.
+            // The member of a subformula of the principal formula, under
+            // its frame.
             let a = || {
                 state.child(
                     o(),
@@ -150,7 +157,8 @@ impl Terms<'_> {
             let b = || state.child(o(), f.right(principal()).expect("a binary connective"));
             let rule = inference.rule.rule;
             if matches!(step, Step::Visit(_)) {
-                // What each premise's sequent gains from the rule.
+                // The subformulas each premise's sequent gains from the
+                // rule.
                 let introduced: [[Option<Member>; 2]; 2] = match rule {
                     Forall | Exists => [[state.body(id), None], [None; 2]],
                     Ax | One | Top => {
@@ -167,7 +175,7 @@ impl Terms<'_> {
                         done.push(leaf);
                         continue;
                     }
-                    // Neither is a node: the subtree's term is the
+                    // Neither is a node: the subtree's term is its
                     // premise's.
                     Contraction | Weakening => {
                         steps.push(Step::Visit(premises[0]));

@@ -1,11 +1,12 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The invertible rules applied without being asked: a rule is invertible
-//! when its premises are provable whenever its conclusion is, so applying
-//! it never turns a provable goal into an unprovable one, and a session
-//! may take such steps by itself, as the asynchronous phase of a focused
-//! search does.
+//! The invertible rules, applied by the session itself.
+//!
+//! A rule is invertible when its premises are provable whenever its
+//! conclusion is. Applying it never turns a provable goal into an
+//! unprovable one, so a session may take such steps without being asked,
+//! as the asynchronous phase of a focused search does.
 
 use super::expand::formula_at;
 use super::{GoalId, Interactive, Step, StepError, Witness};
@@ -16,13 +17,13 @@ use crate::linear::proofs::multiset::Multiset;
 use crate::linear::proofs::{Named, Rule};
 use crate::linear::sequents::Kind;
 
-/// How a session takes steps of its own: one plain value a front end
-/// holds with its other settings.
+/// Whether a session takes steps of its own: a plain value a front end
+/// keeps with its other settings.
 ///
 /// # JSON
 ///
-/// With the feature `serialize` `{"invertible": false}`; a missing field
-/// takes its default and a misspelt one is refused.
+/// With the feature `serialize`, `{"invertible": false}`. A missing field
+/// takes its default, and a misspelt one is refused.
 ///
 /// Needs the cargo feature `interactive` (on by default).
 #[non_exhaustive]
@@ -40,8 +41,8 @@ pub struct Options {
 }
 
 impl Options {
-    /// Off: every step a newcomer sees is one they took, until they ask
-    /// for the invertible rules.
+    /// Off, so that every step a newcomer sees is one they took, until
+    /// they ask for the invertible rules.
     pub const DEFAULT_INVERTIBLE: bool = false;
 
     /// Returns the options with another [`invertible`](Self::invertible).
@@ -52,6 +53,7 @@ impl Options {
 }
 
 impl Default for Options {
+    /// Returns the options with
     /// [`DEFAULT_INVERTIBLE`](Self::DEFAULT_INVERTIBLE).
     fn default() -> Self {
         Self {
@@ -66,29 +68,32 @@ impl Default for Options {
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Inverted {
-    /// How many steps it took, each an ordinary step of the session, which
-    /// [`undo`](Interactive::undo) retracts one at a time, the last first.
+    /// How many steps it took. Each is an ordinary step of the session,
+    /// which [`undo`](Interactive::undo) takes back one at a time, the last
+    /// first.
     pub steps: usize,
-    /// The goals left open where it went: each goal it was given that it
-    /// took no step on, and each goal its steps opened that it took none
-    /// on, from left to right.
+    /// The goals it left open, from left to right: each goal it was given
+    /// and took no step on, and each goal its steps opened and it took no
+    /// step on.
     pub open: Vec<GoalId>,
     /// `Ok` when no invertible rule applies to any goal of
-    /// [`open`](Self::open); otherwise the refusal of the memory bound
-    /// that ended it, the steps taken standing.
+    /// [`open`](Self::open). Otherwise the memory bound stopped it, and the
+    /// steps it took stand.
     pub finished: Result<(), Refusal>,
 }
 
 impl Interactive {
-    /// Applies to an open goal, and then to every goal a step of it opens,
-    /// each rule invertible in the session's mode
-    /// ([`is_invertible`](Self::is_invertible)) until none applies: a
-    /// rule that closes a goal (`⊤`, the axiom, `1`) before one that opens
-    /// goals, and otherwise the first formula's. Each application is an
-    /// ordinary step. It ends, since every premise of these rules has fewer
-    /// connectives and formulas than its conclusion; the inferences it
-    /// adds are bounded by `limits.memory_bytes`, at which it stops, the
-    /// steps taken standing ([`Inverted::finished`]).
+    /// Applies the rules invertible in the session's mode
+    /// ([`is_invertible`](Self::is_invertible)) to an open goal, and then
+    /// to every goal those steps open, until none applies.
+    ///
+    /// On each goal it takes a rule that closes the goal (`⊤`, the axiom,
+    /// `1`) first, and otherwise the rule on the first formula that has
+    /// one. Each application is an ordinary step. It always ends, since
+    /// every premise of these rules has fewer connectives, units and
+    /// literals than its conclusion. The bytes of the inferences it adds
+    /// are bounded by `limits.memory_bytes`: at the bound it stops, and
+    /// the steps it took stand ([`Inverted::finished`]).
     ///
     /// # Errors
     ///
@@ -98,26 +103,28 @@ impl Interactive {
         Ok(self.invert_goals(vec![goal], limits))
     }
 
-    /// Applies the invertible rules to every open goal, in turn, as
-    /// [`invert`](Self::invert) does to one, all within one bound.
+    /// Applies the invertible rules to every open goal in turn, as
+    /// [`invert`](Self::invert) does to one, all within one memory bound.
     pub fn invert_all(&mut self, limits: &Limits) -> Inverted {
         let goals = self.goals().collect();
         self.invert_goals(goals, limits)
     }
 
     /// Returns whether a step on a sequent of this session's forest (an
-    /// open goal, an inference's conclusion) applies a rule invertible in
-    /// the session's mode and is a valid step there:
+    /// open goal, or an inference's conclusion) applies a rule invertible
+    /// in the session's mode, and is a valid step there.
+    ///
+    /// The invertible rules are:
     /// - in every mode `⅋`, `⊥`, `&` and `⊤`, under any name the
     ///   intuitionistic or the ordered reading gives them (`⊸R`, `⊗L`,
-    ///   `&R`, `⊕L`, `1L`, `⊤R`, `0L`, `\R`, `/R`);
+    ///   `&R`, `⊕L`, `1L`, `⊤R`, `0L`, `\R`, `/R`), and `∀` (`∀R`, `∃L`);
     /// - `!` when every other formula is a `?` formula (`!R` when every
     ///   hypothesis is a `!`);
     /// - `1` alone, the axiom on a literal and its dual alone, and `⊗`
     ///   alone, with no context to split.
     ///
     /// No `?` rule is among them: dereliction and weakening are not
-    /// invertible, and contraction is but never ends.
+    /// invertible, and contraction is, but applying it never ends.
     pub fn is_invertible(&self, sequent: &[Member], step: &Step) -> bool {
         let sequent: Vec<OccId> = sequent.iter().map(|&m| self.occurrence(m)).collect();
         let Ok(left) = step.left_positions(sequent.len()) else {
@@ -143,9 +150,9 @@ impl Interactive {
     fn invert_goals(&mut self, goals: Vec<GoalId>, limits: &Limits) -> Inverted {
         let mut todo: Vec<GoalId> = goals.into_iter().rev().collect();
         let (mut steps, mut open) = (0, Vec::new());
-        // The bytes of the inferences added, which a step adds at most
-        // a sequent's length to per premise: it saturates, and the bound
-        // stops it long before.
+        // The bytes of the inferences added: per premise, an inference
+        // and its sequent's members. The sum saturates, but the bound
+        // stops the run long before that.
         let mut held = 0u64;
         while let Some(goal) = todo.pop() {
             let Some((position, rule, premises)) = self.invertible_step(goal) else {
@@ -175,7 +182,8 @@ impl Interactive {
             let premises = if self.fo.is_some() {
                 match self.framed_premises(goal, position, rule.rule, &[], &Witness::Open) {
                     Ok(premises) => premises,
-                    // Past the eigenvariables a `u32` numbers.
+                    // Past the eigenvariables a `u32` numbers, or past
+                    // the session's bound on terms: the goal stays open.
                     Err(_) => {
                         open.push(goal);
                         continue;
@@ -196,8 +204,8 @@ impl Interactive {
     }
 
     /// Returns the invertible step to take on an open goal, with its
-    /// premises, or `None` when no invertible rule applies: one that
-    /// closes the goal first, else the first position's.
+    /// premises, or `None` when no invertible rule applies. A step that
+    /// closes the goal comes first, and otherwise the first position's.
     fn invertible_step(&self, goal: GoalId) -> Option<(usize, Named, Vec<Multiset>)> {
         let sequent = self.open(goal).ok()?;
         let reading = self.reading();
@@ -212,10 +220,8 @@ impl Interactive {
                     continue;
                 }
                 let named = Named::applied(rule, reading.as_ref(), sequent[position]);
-                // The reading may still refuse it: a premise without one
-                // formula on the right of ⊢, or without an antecedent.
-                // A first-order axiom closes equal instances only: binding an
-                // open witness is a choice, no invertible step.
+                // A first-order axiom closes equal instances only: binding
+                // an open witness is a choice, not an invertible step.
                 if rule == Rule::Ax
                     && let Some(q) = &self.fo
                     && let Ok(&[x, y]) = self.goal(goal)
@@ -223,6 +229,8 @@ impl Interactive {
                 {
                     continue;
                 }
+                // The reading may still refuse the step: a premise without
+                // one formula on the right of ⊢, or without an antecedent.
                 if let Ok(premises) = self.expand(reading.as_ref(), &sequent, position, named, &[])
                 {
                     return Some((position, named, premises));
@@ -232,7 +240,7 @@ impl Interactive {
         None
     }
 
-    /// Returns how many formulas of a sequent are no `?` formula.
+    /// Returns how many formulas of a sequent are not `?` formulas.
     fn non_quests(&self, sequent: &[OccId]) -> usize {
         (sequent.iter())
             .filter(|&&o| self.forest.kind(o) != Kind::Quest)
@@ -240,9 +248,9 @@ impl Interactive {
     }
 
     /// Returns the invertible rule that acts on the formula at a position
-    /// of a sequent, `non_quests` of whose formulas are no `?` formula,
-    /// under its condition, if any; whether the mode and the reading allow
-    /// the step is [`expand`](Self::expand)'s to say.
+    /// of a sequent when its condition holds, or `None`. `non_quests` of
+    /// the sequent's formulas are not `?` formulas. Whether the mode and
+    /// the reading allow the step is for [`expand`](Self::expand) to say.
     fn invertible_rule(
         &self,
         sequent: &[OccId],
@@ -257,7 +265,7 @@ impl Interactive {
             Kind::Bot => Some(Rule::Bot),
             Kind::With => Some(Rule::With),
             Kind::Top => Some(Rule::Top),
-            // The `!` itself is the one formula that is no `?`.
+            // The `!` itself is the only formula that is not a `?`.
             Kind::Bang => (non_quests == 1).then_some(Rule::Promotion),
             Kind::One => alone.then_some(Rule::One),
             Kind::Tensor => alone.then_some(Rule::Tensor),
@@ -294,9 +302,9 @@ mod tests {
             .collect()
     }
 
-    /// Each invertible rule applies under its condition and only then, a
+    /// Each invertible rule applies under its condition and only then. A
     /// rule that closes the goal goes first, each application is a step
-    /// that undo retracts, and the reading names the rules.
+    /// that undo takes back, and the reading names the rules.
     #[test]
     fn the_invertible_rules_under_their_conditions() {
         let classical = Mode::CLASSICAL;
@@ -376,11 +384,11 @@ mod tests {
         weight
     }
 
-    /// On generated provable sequents of every mode, the search proves
-    /// every goal the invertible rules leave, the steps end with every
-    /// premise lighter than its conclusion and no invertible rule left to
-    /// apply, and the search closing the rest makes a proof the checker
-    /// accepts.
+    /// On generated provable sequents of every mode:
+    /// - the search proves every goal the invertible rules leave;
+    /// - every premise is lighter than its conclusion, and at the end no
+    ///   invertible rule is left to apply;
+    /// - the search closing the rest makes a proof the checker accepts.
     #[test]
     fn inverting_keeps_every_proof_and_ends() {
         let mut cases: Vec<(String, Mode)> = Vec::new();
@@ -521,7 +529,7 @@ mod tests {
     }
 
     /// A run past the memory bound stops there, its steps ordinary ones
-    /// that undo retracts, and the same run without the bound ends.
+    /// that undo takes back, and the same run without the bound ends.
     #[test]
     fn inverting_stops_at_the_memory_bound() {
         let input = "|- a & a, a & a, a & a, a & a, a & a, a & a";

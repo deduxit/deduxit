@@ -1,16 +1,17 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The first-order part of a session: the instances its goals hold past
-//! the forest's occurrences, the eigenvariables its `∀` steps made, and
-//! the witnesses its `∃` steps left open as metavariables, with what the
-//! axioms and the search bound them to.
+//! The first-order part of a session. It holds:
+//! - the instances its goals hold past the forest's occurrences;
+//! - the eigenvariables its `∀` steps made;
+//! - the witnesses its `∃` steps left open, as metavariables, and what the
+//!   axioms and the search bound them to.
 //!
-//! An undone step takes back the bindings it made, which the trail
-//! records with the step's number, and drops the entries it made, from
-//! the mark it took before them. Equal instances, frames and closed terms
-//! are one entry each, so that a member stands for one instance and a
-//! step done again names the members it named before.
+//! Undoing a step takes back the bindings it made, which the trail records
+//! with the step's number. It also drops the entries the step made, back
+//! to the mark the step took before making them. Equal instances, frames
+//! and closed terms are one entry each, so that a member stands for one
+//! instance, and a step done again names the members it named before.
 
 use crate::hash::HashMap;
 use crate::linear::Instances;
@@ -23,13 +24,15 @@ use crate::linear::sequents::{Eigen, FoTerm, FoTermId, Symbol};
 pub(super) struct Meta {
     /// Its term in the table.
     pub(super) term: FoTermId,
-    /// How many eigenvariables were made before it, lowered by every
-    /// binding of a metavariable it occurs in to that one's: a binding may
-    /// name only eigenvariables numbered below, or constants. An
-    /// eigenvariable made later belongs to a `∀` step above the `∃` step
-    /// that made the metavariable, or on another branch, and in its
-    /// witness would stand in that `∀` step's conclusion or outside its
-    /// subtree.
+    /// How many eigenvariables were made before it. A binding may name only
+    /// eigenvariables numbered below its level, or constants. Binding
+    /// another metavariable to a term this one occurs in lowers this level
+    /// to that one's, when it is higher.
+    ///
+    /// The reason: an eigenvariable made later belongs to a `∀` step above
+    /// the `∃` step that made the metavariable, or on another branch. In
+    /// the witness it would stand in that `∀` step's conclusion, or outside
+    /// its subtree.
     pub(super) level: u32,
     /// Its level when it was made, before any binding lowered it.
     pub(super) made: u32,
@@ -37,12 +40,12 @@ pub(super) struct Meta {
     pub(super) bound: Option<FoTermId>,
 }
 
-/// What a step did that its undo takes back.
+/// A change a step made that its undo takes back.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Trailed {
     /// A metavariable was bound.
     Bound(u32),
-    /// A metavariable's level was lowered from the one given.
+    /// A metavariable's level was lowered from the level given.
     Lowered(u32, u32),
 }
 
@@ -72,9 +75,10 @@ pub(super) struct Quantified {
     /// among the terms.
     pub(super) table: Instances,
     /// The same instances with every bound metavariable replaced by what
-    /// it is bound to: what the views print and the proof is made of.
-    /// Members and frames keep their numbers. Made again ([`show`](Self::show))
-    /// after every change of the session, before anything reads it.
+    /// it is bound to. The views print it, and the proof is made of it.
+    /// Members and frames keep their numbers. It is made again
+    /// ([`show`](Self::show)) after every change of the session, before
+    /// anything reads it.
     pub(super) shown: Instances,
     /// Every member past the forest by its occurrence and frame.
     members: HashMap<(OccId, FrameId), Member>,
@@ -85,13 +89,14 @@ pub(super) struct Quantified {
     terms: HashMap<Key, FoTermId>,
     /// The metavariables, by number.
     pub(super) metas: Vec<Meta>,
-    /// How many eigenvariables were made: the next one's number. Each is
-    /// a term of the table, as is each metavariable, so both together are
-    /// fewer than the table's terms, which a `u32` numbers.
+    /// How many eigenvariables were made: the next one's number. Each
+    /// eigenvariable and each metavariable is a term of the table, so
+    /// together they are fewer than the table's terms, which a `u32`
+    /// numbers.
     pub(super) eigens: u32,
-    /// The eigenvariables that are constants: made by the search for a
-    /// witness nothing constrained, introduced by no `∀` step, and so
-    /// free to stand in any binding.
+    /// The eigenvariables that are constants. The search made them for a
+    /// witness nothing constrained; no `∀` step introduces them, so they
+    /// may stand in any binding.
     pub(super) constants: Vec<Eigen>,
     /// The bindings and lowerings made, in order, each with the number of
     /// the step that made it.
@@ -101,12 +106,14 @@ pub(super) struct Quantified {
     /// number: what its undo truncates to. A session's JSON carries them,
     /// so a session read back undoes as the one written would.
     marks: Vec<(u32, Mark)>,
-    /// The most terms a term of the session may unfold to: `limits.terms`
-    /// of the session's start.
+    /// The session's bound on terms, `limits.terms` when it started: the
+    /// most terms a shown term may unfold to, and the most entries the
+    /// table may hold.
     pub(super) limit: Option<u64>,
     /// The most terms a shown term unfolds to, or the table's entries
     /// (members, frames and terms) where they are more, as
-    /// [`show`](Self::show) last counted: what the reader bounds too.
+    /// [`show`](Self::show) last counted. The reader bounds the same
+    /// measure.
     pub(super) largest: u64,
 }
 
@@ -144,7 +151,8 @@ impl Quantified {
             if let FoTerm::App(f, args) = *term
                 && loose[n] == 0
             {
-                // The sequent's arena has fewer terms than a `u32` counts.
+                // The cast is exact: the sequent's arena has fewer terms
+                // than a `u32` counts.
                 let id = FoTermId::new(n as u32);
                 terms.insert(Key::App(f, fo.list(args).into()), id);
             }
@@ -180,9 +188,9 @@ impl Quantified {
         }
     }
 
-    /// Goes back to `mark`: what the trail holds past it taken back, and
-    /// every entry, metavariable, eigenvariable and constant made since
-    /// dropped, none of which a member, frame or term before it names.
+    /// Goes back to `mark`. It takes back the trail past the mark, and
+    /// drops every entry, metavariable, eigenvariable and constant made
+    /// since. No member, frame or term made before the mark names them.
     pub(super) fn back_to(&mut self, mark: Mark) {
         self.undo_to(mark.trail);
         let (occurrences, base) = (self.table.occurrences, self.table.base_terms);
@@ -202,21 +210,24 @@ impl Quantified {
             .retain(|_, t| t.get() < base || t.get() - base < mark.terms as u32);
     }
 
-    /// Moves the first-order part from `old` onto `new`, the session's
-    /// forest rebuilt with a cut formula added or taken back: `new`'s
-    /// occurrences are `old`'s and then the cut formulas', its arena holds
-    /// `old`'s terms (found again by what they are) and the cut formula's.
-    /// Every member past `old` moves past `new` (`shifted` maps a member
-    /// of the session), every term of the table is renumbered past `new`'s
-    /// arena, and the closed terms `new` adds are found where the table
-    /// has no equal one. The table's lengths stay, and so do the marks.
+    /// Moves the first-order part from `old` onto `new`: the session's
+    /// forest rebuilt with a cut formula added or taken back.
+    ///
+    /// One forest's occurrences are the other's and then the cut
+    /// formula's; one arena holds the other's terms, found again by what
+    /// they are, and the cut formula's. Every member past `old` moves past
+    /// `new`, every term of the table is renumbered past `new`'s arena, and
+    /// the closed terms `new` adds are registered where the table has no
+    /// equal one. The table's lengths stay, and so do the marks. The caller
+    /// moves the members its inferences name.
     pub(super) fn rebase(&mut self, old: &Forest, new: &Forest) {
         let (of, nf) = (&old.sequent().fo, &new.sequent().fo);
         let symbol: HashMap<&str, Symbol> = nf
             .symbols
             .iter()
             .enumerate()
-            // A sequent has fewer symbols than a `u32` numbers.
+            // The cast is exact: a sequent has fewer symbols than a `u32`
+            // numbers.
             .map(|(i, (name, _))| (name.as_str(), Symbol::new(i as u32)))
             .collect();
         let symbol_of = |f: Symbol| symbol[of.symbols[f.index()].0.as_str()];
@@ -230,11 +241,12 @@ impl Quantified {
                     unreachable!("a sequent's arena holds no eigenvariable or metavariable")
                 }
             };
-            // The arena has fewer terms than a `u32` numbers.
+            // The cast is exact: the arena has fewer terms than a `u32`
+            // numbers.
             found.entry(key).or_insert(FoTermId::new(n as u32));
         }
-        // Each old term in the new arena, or `None` for one of a cut
-        // formula taken back, which the table no longer names.
+        // Each old term in the new arena, or `None` for a term of a cut
+        // formula taken back, which the table does not name.
         let mut moved: Vec<Option<FoTermId>> = Vec::with_capacity(of.terms.len());
         for &term in &of.terms {
             let key = match term {
@@ -325,7 +337,7 @@ impl Quantified {
         self.show(new);
     }
 
-    /// Returns how many of the sequent's arena terms the table names: one
+    /// Returns how many of the sequent's arena terms the table needs: one
     /// past the last that a term's arguments, a frame or a binding names.
     pub(super) fn arena_reach(&self) -> usize {
         let base = self.table.base_terms;
@@ -342,16 +354,16 @@ impl Quantified {
         self.marks.push((step, mark));
     }
 
-    /// Returns the occurrence and frame a member stands for: no frame for
-    /// an occurrence of the forest.
+    /// Returns the occurrence and frame a member stands for, with no frame
+    /// for an occurrence of the forest.
     pub(super) fn instance(&self, m: Member) -> (OccId, Option<FrameId>) {
         self.table
             .instance(m)
             .map_or((m.occ(), None), |(o, f)| (o, Some(f)))
     }
 
-    /// Returns the member of occurrence `o` under `frame`: the occurrence
-    /// itself without one.
+    /// Returns the member of occurrence `o` under `frame`, made where it is
+    /// new; without a frame, the occurrence itself.
     pub(super) fn member(&mut self, o: OccId, frame: Option<FrameId>) -> Member {
         let Some(frame) = frame else {
             return Member::from(o);
@@ -364,8 +376,8 @@ impl Quantified {
         m
     }
 
-    /// Returns the member of occurrence `o` under `frame` where the table
-    /// has it: the occurrence itself without a frame.
+    /// Returns the member of occurrence `o` under `frame` if the table has
+    /// it; without a frame, the occurrence itself.
     pub(super) fn find(&self, o: OccId, frame: Option<FrameId>) -> Option<Member> {
         match frame {
             None => Some(Member::from(o)),
@@ -373,9 +385,10 @@ impl Quantified {
         }
     }
 
-    /// Returns the shown table with every open witness a fresh constant:
-    /// the metavariable `k` the eigenvariable numbered `eigens + k`, which
-    /// no `∀` step introduces. Refused past the numbers a `u32` holds.
+    /// Returns the shown table with every open witness made a fresh
+    /// constant: the metavariable `k` becomes the eigenvariable numbered
+    /// `eigens + k`, which no `∀` step introduces. Refused past the numbers
+    /// a `u32` holds.
     pub(super) fn closed_table(&self) -> Result<Instances, crate::Error> {
         let mut table = self.shown.clone();
         for term in &mut table.terms {
@@ -393,7 +406,8 @@ impl Quantified {
         Ok(table)
     }
 
-    /// Returns the frame that pushes `term` onto `parent`.
+    /// Returns the frame that pushes `term` onto `parent`, made where it is
+    /// new.
     pub(super) fn frame(&mut self, parent: Option<FrameId>, term: FoTermId) -> FrameId {
         if let Some(&f) = self.frames.get(&(parent, term)) {
             return f;
@@ -416,7 +430,7 @@ impl Quantified {
         t
     }
 
-    /// Returns the term of symbol `f` applied to `args`, closed terms.
+    /// Returns the term of symbol `f` applied to the closed terms `args`.
     pub(super) fn apply(&mut self, f: Symbol, args: &[FoTermId]) -> FoTermId {
         self.closed(Key::App(f, args.into()))
     }
@@ -437,7 +451,8 @@ impl Quantified {
     /// Makes a fresh metavariable at the level of the eigenvariables made
     /// so far and returns its term.
     pub(super) fn fresh_meta(&mut self) -> FoTermId {
-        // Fewer metavariables than the table's terms, which a `u32` numbers.
+        // The cast is exact: there are fewer metavariables than the
+        // table's terms, which a `u32` numbers.
         let k = self.metas.len() as u32;
         let term = self.table.push_term(FoTerm::Meta(k));
         self.metas.push(Meta {
@@ -457,8 +472,8 @@ impl Quantified {
         }
     }
 
-    /// Returns `t` with the bindings of the metavariables at its top
-    /// followed.
+    /// Returns `t` after following the bindings of the metavariables at its
+    /// top.
     pub(super) fn resolve(&self, forest: &Forest, mut t: FoTermId) -> FoTermId {
         let terms = self.terms(forest);
         while let FoTerm::Meta(k) = terms.term(t)
@@ -469,18 +484,19 @@ impl Quantified {
         t
     }
 
-    /// Returns the frame's terms, the innermost binder's first; none for no
-    /// frame.
+    /// Returns the frame's terms, the innermost binder's first, and none
+    /// for no frame.
     pub(super) fn frame_terms(&self, frame: Option<FrameId>) -> Vec<FoTermId> {
         frame.map_or_else(Vec::new, |f| self.table.frame_terms(f))
     }
 
-    /// Returns the term of the sequent's arena `t`, whose loose bound
-    /// variables the frame's terms (innermost first) close, as a closed
-    /// term of both arenas, made where it is not one already.
+    /// Returns the term `t` of the sequent's arena as a closed term, with
+    /// the frame's terms (innermost first) for its loose bound variables.
+    /// The closed term is made where it is new.
     pub(super) fn close(&mut self, forest: &Forest, t: FoTermId, frame: &[FoTermId]) -> FoTermId {
         let fo = &forest.sequent().fo;
-        // A walk with a stack of its own, children before their term.
+        // A walk with a stack of its own, children before their term, since
+        // a term may be deeper than the call stack allows.
         let mut done: HashMap<FoTermId, FoTermId> = HashMap::default();
         let mut stack = vec![(t, false)];
         while let Some((u, expanded)) = stack.pop() {
@@ -512,8 +528,8 @@ impl Quantified {
     }
 
     /// Returns the predicate and the closed arguments of the literal a
-    /// member stands for; `None` for a nullary atom of a sequent whose
-    /// atoms have no tables, whose identity is its atom.
+    /// member stands for. Returns `None` for an atom with no first-order
+    /// entry, which is identified by its atom alone.
     pub(super) fn literal(
         &mut self,
         forest: &Forest,
@@ -533,8 +549,8 @@ impl Quantified {
         ))
     }
 
-    /// Unifies the pairs of closed terms, binding metavariables with the
-    /// occurs check and the levels; the bindings are trailed under `step`.
+    /// Unifies the pairs of closed terms, binding metavariables under the
+    /// occurs check and the levels. The bindings are trailed under `step`.
     /// On a clash nothing is left bound.
     pub(super) fn unify(
         &mut self,
@@ -557,8 +573,9 @@ impl Quantified {
         mut pairs: Vec<(FoTermId, FoTermId)>,
         step: u32,
     ) -> Result<(), Clash> {
-        // A pair met before is unified already: shared terms are walked
-        // once, not once per path to them.
+        // A pair met before is unified already. So shared terms are walked
+        // once, not once per path to them, which would take exponential
+        // time on terms that share their halves.
         let mut met: std::collections::HashSet<(FoTermId, FoTermId)> = Default::default();
         while let Some((x, y)) = pairs.pop() {
             let (x, y) = (self.resolve(forest, x), self.resolve(forest, y));
@@ -586,10 +603,11 @@ impl Quantified {
         Ok(())
     }
 
-    /// Binds the unbound metavariable `k` to `t`, refusing a `t` that holds
-    /// `k` or an eigenvariable at or above `k`'s level that is no
-    /// constant, and lowering the levels of the metavariables `t` holds to
-    /// `k`'s.
+    /// Binds the unbound metavariable `k` to `t`, and lowers the levels of
+    /// the metavariables `t` holds to `k`'s.
+    ///
+    /// It refuses a `t` that holds `k` itself (the occurs check), or an
+    /// eigenvariable at or above `k`'s level that is not a constant.
     pub(super) fn bind(
         &mut self,
         forest: &Forest,
@@ -636,7 +654,7 @@ impl Quantified {
     }
 
     /// Takes back what the steps numbered `step` and later bound and
-    /// lowered, and drops what they made where their marks say.
+    /// lowered, and drops what they made, back to their marks.
     pub(super) fn undo(&mut self, step: u32) {
         let keep = self.trail.partition_point(|&(s, _)| s < step);
         self.undo_to(keep);
@@ -659,7 +677,7 @@ impl Quantified {
         }
     }
 
-    /// Returns the bindings in force in the order made, each the
+    /// Returns the bindings in force in the order made, each as the
     /// metavariable, its term and the step that made it.
     #[cfg(feature = "serialize")]
     pub(super) fn bindings(&self) -> impl Iterator<Item = (u32, FoTermId, u32)> + '_ {
@@ -678,14 +696,16 @@ impl Quantified {
     }
 
     /// Rebuilds the first-order part of a session over `forest` from its
-    /// written form: the table's members, frames and terms, the level
-    /// each metavariable was made at, the eigenvariables made and the
-    /// constants among them; and replays the bindings in the order made.
-    /// Refuses a table a session could not have made: an entry naming one
-    /// after it or out of range, a frame of another length than its
-    /// occurrence's binders, an entry made twice, a term of a predicate or
-    /// of the wrong arity, a binding the occurs check or the levels
-    /// refuse, a step out of order.
+    /// written form, and replays the bindings in the order made.
+    ///
+    /// The written form holds the table's members, frames and terms, the
+    /// level each metavariable was made at, the eigenvariables made and the
+    /// constants among them. It refuses a table no session could have
+    /// made: an entry naming one after it or out of range, a frame of
+    /// another length than its occurrence's binders, an entry made twice,
+    /// a term of a predicate or of the wrong arity, a binding the occurs
+    /// check or the levels refuse, a step out of order, and a table past
+    /// `limit`.
     #[cfg(feature = "serialize")]
     pub(super) fn from_parts(
         forest: &Forest,
@@ -721,8 +741,9 @@ impl Quantified {
                         return Err(bad("a term's argument is not a closed term before it"));
                     }
                     let args: Vec<FoTermId> = args.iter().map(|&a| FoTermId::new(a)).collect();
-                    // A term may equal one of the sequent's, which a cut
-                    // brought into the arena after the term was made.
+                    // A term may equal one of the sequent's: a cut may have
+                    // brought it into the arena after the term was made.
+                    // Only a term repeating another table term is refused.
                     if q.terms
                         .get(&Key::App(f, args.clone().into()))
                         .is_some_and(|t| t.get() >= q.table.base_terms)
@@ -803,8 +824,9 @@ impl Quantified {
         }
         let mut last = 0;
         for &(k, t, step) in &parts.bindings {
-            // A step binds a metavariable to a term whose top is no bound
-            // metavariable: unification follows the bindings first.
+            // A step binds a metavariable only to a term whose top is not a
+            // bound metavariable, since unification follows the bindings
+            // first. Refusing other bindings keeps reading linear.
             let ok = step >= last
                 && (step as usize) < steps
                 && q.metas.get(k as usize).is_some_and(|m| m.bound.is_none())
@@ -829,15 +851,17 @@ impl Quantified {
         Ok(q)
     }
 
-    /// Reads the marks of a session's written form, each step's with the
-    /// table's lengths before it, and derives what the table's order
-    /// fixes: its argument lists and metavariables, which every term
-    /// before the mark made, and the trail, the steps before it. Refuses
-    /// marks of steps out of order or past the history, lengths that fall
-    /// or pass the table's, and a mark that would drop what an entry
-    /// before it, a binding of an earlier step or a level names; the
-    /// inferences' members are [`marked_members`](Self::marked_members)'
-    /// to check.
+    /// Reads the marks of a session's written form: per step, the table's
+    /// lengths before it.
+    ///
+    /// It derives what the table's order fixes: the argument lists and
+    /// metavariables, which the terms before the mark made, and the trail,
+    /// which the steps before it made. It refuses marks of steps out of
+    /// order or past the history, lengths that fall or pass the table's,
+    /// and a mark that would drop what an entry before it, a binding of an
+    /// earlier step or a level names. Whether the inferences name only
+    /// members a mark keeps is for the caller to check, by
+    /// [`marked_members`](Self::marked_members).
     #[cfg(feature = "serialize")]
     pub(super) fn read_marks(
         &mut self,
@@ -848,14 +872,14 @@ impl Quantified {
             reason: "a mark is out of order, past the table, or drops what a step before it made",
         };
         let base = self.table.base_terms;
-        // How many of the table's terms a term reaches into: none for the
+        // How many of the table's terms a term needs: none for the
         // sequent's own.
         let reach = |t: FoTermId| t.get().checked_sub(base).map_or(0, |n| n as usize + 1);
         let frames = prefix_max(self.table.members.iter().map(|&(_, f)| f.index() + 1));
         let terms = prefix_max(self.table.frames.iter().map(|&(_, t)| reach(t)));
-        // Per prefix of the terms: the eigenvariables its terms and its
-        // metavariables' levels need made, its metavariables, arguments
-        // and lists.
+        // Per prefix of the terms: how many eigenvariables its terms and
+        // its metavariables' levels need made, and how many metavariables,
+        // arguments and lists it has.
         let (mut eigens, mut metas, mut args, mut lists) = (vec![0], vec![0], vec![0], vec![0]);
         let mut made = 0;
         for term in &self.table.terms {
@@ -883,9 +907,9 @@ impl Quantified {
             lists.push(l);
         }
         let constants = prefix_max(self.constants.iter().map(|a| a.get() as usize + 1));
-        // What a mark drops is made after it, so numbered from its
-        // eigenvariables on: per suffix, the least eigenvariable its terms
-        // and constants hold.
+        // What a mark drops was made after it, so its eigenvariables are
+        // numbered from the mark's count on. Per suffix: the least
+        // eigenvariable its terms and constants hold.
         let dropped_terms = suffix_min(self.table.terms.iter().map(|t| match *t {
             FoTerm::Eigen(e) => e.get() as usize,
             FoTerm::App(..) | FoTerm::Meta(_) | FoTerm::Bound(_) => usize::MAX,
@@ -950,8 +974,8 @@ impl Quantified {
         Ok(())
     }
 
-    /// Returns each mark's step with the members before it: what the
-    /// inferences before that step may name past the forest.
+    /// Returns each mark's step with the number of members before it: the
+    /// members past the forest that inferences before that step may name.
     #[cfg(feature = "serialize")]
     pub(super) fn marked_members(&self) -> impl Iterator<Item = (u32, usize)> + '_ {
         self.marks.iter().map(|&(step, mark)| (step, mark.members))
@@ -994,7 +1018,8 @@ impl Quantified {
                 .bindings()
                 .map(|(k, t, step)| (k, t.get(), step))
                 .collect(),
-            // The table's lengths fit a `u32`, as its ids do.
+            // The casts are exact: the table's lengths fit a `u32`, as its
+            // ids do.
             marks: self
                 .marks
                 .iter()
@@ -1013,9 +1038,11 @@ impl Quantified {
     }
 
     /// Returns whether two literals stand for the same atom under the
-    /// bindings, as instances: one predicate, equal arguments; read in the
-    /// shown table, where the bindings are followed already, building
-    /// nothing, binding nothing.
+    /// bindings: the same predicate, with equal arguments.
+    ///
+    /// It reads the shown table, where the bindings are followed already,
+    /// so no chain of bindings is walked per comparison. It builds nothing
+    /// and binds nothing.
     pub(super) fn same_atom(&self, forest: &Forest, x: Member, y: Member) -> bool {
         let fo = &forest.sequent().fo;
         let shown = |m: Member| {
@@ -1041,7 +1068,8 @@ impl Quantified {
             fo,
             table: &self.shown,
         };
-        // A term is the sequent's under its side's frame, or closed.
+        // A term is either the sequent's, read under its side's frame
+        // (`true`), or a closed term of the shown table (`false`).
         let side = |t: FoTermId, frame: &[FoTermId], open: bool| match fo.terms.get(t.index()) {
             Some(&FoTerm::Bound(i)) if open => (frame[i as usize], false),
             _ if open && loose[t.index()] == 0 => (t, false),
@@ -1067,7 +1095,7 @@ impl Quantified {
             .zip(fo.list(b))
             .map(|(&s, &t)| ((s, true), (t, true)))
             .collect();
-        // A pair met before is equal already: shared terms are compared
+        // A pair met before is equal already. So shared terms are compared
         // once, not once per path to them.
         let mut met: std::collections::HashSet<((FoTermId, bool), (FoTermId, bool))> =
             Default::default();
@@ -1111,20 +1139,22 @@ impl Quantified {
         (eigens, metas)
     }
 
-    /// Makes the shown table again from the table and the bindings in
-    /// force: every extension term with its bound metavariables replaced,
-    /// the frames over those terms, the members as they are.
+    /// Remakes the shown table from the table and the bindings in force,
+    /// and counts [`largest`](Self::largest) again.
+    ///
+    /// Every term of the table has its bound metavariables replaced, the
+    /// frames are over those terms, and the members stay as they are.
     pub(super) fn show(&mut self, forest: &Forest) {
         let base = self.table.base_terms;
         let mut shown = Instances::new(forest);
         let mut at: HashMap<FoTermId, FoTermId> = HashMap::default();
         let terms = self.terms(forest);
         for n in 0..self.table.terms.len() {
-            // The table's ids are below `u32::MAX`, as `Instances` makes
-            // them.
+            // The cast is exact: the table's ids are below `u32::MAX`, as
+            // `Instances` makes them.
             let t = FoTermId::new(base + n as u32);
-            // A walk with a stack of its own: a binding names terms made
-            // after the metavariable.
+            // A walk with a stack of its own, since a binding names terms
+            // made after the metavariable, so table order is not enough.
             let mut stack = vec![(t, false)];
             while let Some((u, expanded)) = stack.pop() {
                 if u.get() < base || at.contains_key(&u) {
@@ -1196,13 +1226,14 @@ impl Quantified {
         self.shown = shown;
     }
 
-    /// Returns whether a shown term unfolds past the session's limit.
+    /// Returns whether a shown term unfolds past the session's limit, or
+    /// the table holds more entries than it.
     pub(super) fn too_large(&self) -> bool {
         self.limit.is_some_and(|limit| self.largest > limit)
     }
 
     /// Returns the shown term of a term of either arena: the sequent's own
-    /// as it is, the table's by `at`.
+    /// unchanged, and the table's through `at`.
     fn mapped(&self, t: FoTermId, at: &HashMap<FoTermId, FoTermId>) -> FoTermId {
         if t.get() < self.table.base_terms {
             t
@@ -1212,7 +1243,7 @@ impl Quantified {
     }
 }
 
-/// A term of a session's table as its written form holds it.
+/// A term of a session's table, as its written form holds it.
 #[cfg(feature = "serialize")]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum PartTerm {
@@ -1247,8 +1278,8 @@ pub(crate) struct Parts {
     pub(crate) marks: Vec<(u32, u32, u32, u32, u32, u32)>,
 }
 
-/// Returns, for each suffix of `values`, the least of them: entry `i`
-/// for the values from `i` on, `usize::MAX` for none.
+/// Returns, for each suffix of `values`, the least value in it: entry `i`
+/// for the values from `i` on, and `usize::MAX` for the empty suffix.
 #[cfg(feature = "serialize")]
 fn suffix_min(values: impl DoubleEndedIterator<Item = usize> + ExactSizeIterator) -> Vec<usize> {
     let mut minima = vec![usize::MAX; values.len() + 1];
@@ -1258,8 +1289,8 @@ fn suffix_min(values: impl DoubleEndedIterator<Item = usize> + ExactSizeIterator
     minima
 }
 
-/// Returns, for each prefix of `reach`, the largest of its values: entry
-/// `i` for the first `i` values, `0` for none.
+/// Returns, for each prefix of `reach`, the largest value in it: entry `i`
+/// for the first `i` values, and `0` for the empty prefix.
 #[cfg(feature = "serialize")]
 pub(super) fn prefix_max(reach: impl Iterator<Item = usize>) -> Vec<usize> {
     let mut maxima = vec![0];

@@ -2,7 +2,7 @@
 // Licensed under the EUPL
 
 //! The witnesses of a session's `∃` steps: read from text, built into its
-//! table, and held to the eigenvariables a goal is in the scope of.
+//! table, and held to the eigenvariables in the goal's scope.
 
 use super::{GoalId, Interactive, StepError, TermNode, Witness};
 use crate::linear::occurrences::Member;
@@ -13,15 +13,19 @@ use crate::linear::proofs::multiset::Multiset;
 use crate::linear::sequents::{Eigen, FoTerm, FoTermId, Symbol};
 
 impl Interactive {
-    /// Reads a witness from text: a closed term of the sequent's function
-    /// symbols and constants and the session's eigenvariables by the
-    /// letters the session writes them with, `f(a, g(b))`. Whether the
-    /// goal is in the scope of its eigenvariables is what
-    /// [`apply`](Self::apply) decides.
+    /// Reads a witness from text, such as `f(a, g(b))`, for a [`Step`]'s
+    /// [`with_witness`](super::Step::with_witness).
+    ///
+    /// The text is a closed term of the sequent's function symbols and
+    /// constants, and of the session's eigenvariables by the letters the
+    /// session writes them with. Whether its eigenvariables are in the
+    /// goal's scope is for [`apply`](Self::apply) to decide.
+    ///
+    /// [`Step`]: super::Step
     ///
     /// # Errors
     ///
-    /// [`StepError::Witness`] for text that is no such term: an unknown
+    /// [`StepError::Witness`] for text that is not such a term: an unknown
     /// name, a predicate, a symbol given the wrong number of arguments, or
     /// a stray bracket or comma.
     pub fn witness(&self, text: &str) -> Result<Witness, StepError> {
@@ -48,8 +52,8 @@ impl Interactive {
                 name.push(c);
             }
         }
-        // A name is a node, applied to the terms in the brackets after it;
-        // the open applications wait on a stack with their arguments.
+        // A name is a node, applied to the terms in the brackets after it.
+        // The open applications wait on a stack with their arguments.
         let mut nodes: Vec<TermNode> = Vec::new();
         let mut open: Vec<(Symbol, Vec<u32>)> = Vec::new();
         let mut done: Option<u32> = None;
@@ -96,7 +100,8 @@ impl Interactive {
                     let Some(f) = fo.symbols.iter().position(|(s, _)| s == name) else {
                         return Err(fault(format!("{name} is no symbol of the sequent")));
                     };
-                    // Fewer symbols than a `u32` counts.
+                    // The cast is exact: a sequent has fewer symbols than a
+                    // `u32` counts.
                     let f = Symbol::new(f as u32);
                     if predicates.contains(&f) {
                         return Err(fault(format!("{name} is a predicate, not a term")));
@@ -124,9 +129,10 @@ impl Interactive {
         Ok(Witness::Term(nodes))
     }
 
-    /// Builds a witness given flat into the table for a step on `goal`,
-    /// holding it to the sequent's function symbols, to arities, and to
-    /// the eigenvariables the goal is in the scope of.
+    /// Builds a witness given flat into the table for a step on `goal`, and
+    /// returns its term. The witness may use only the sequent's function
+    /// symbols, with their arities, and the eigenvariables in the goal's
+    /// scope.
     pub(super) fn witness_term(
         &mut self,
         goal: GoalId,
@@ -186,8 +192,8 @@ impl Interactive {
         Ok(*built.last().expect("not empty"))
     }
 
-    /// Returns the eigenvariables a goal is in the scope of: those the
-    /// `∀` steps below it introduced, and the constants.
+    /// Returns the eigenvariables in a goal's scope: those the `∀` steps
+    /// below it introduced, and the constants.
     pub(super) fn scope(&self, goal: InfId) -> Vec<Eigen> {
         let mut parent = vec![None; self.inferences.len()];
         for (i, inference) in self.inferences.iter().enumerate() {
@@ -213,8 +219,8 @@ impl Interactive {
     }
 
     /// Returns the body member a closed `∀` or `∃` inference opened: the
-    /// one member its premise has that its conclusion less the principal
-    /// formula lacks.
+    /// member its premise has that its conclusion, without the principal
+    /// formula, lacks.
     pub(super) fn body(&self, id: InfId) -> Option<Member> {
         let inference = &self.inferences[id.index()];
         let premise = &self.inferences[inference.premises.first()?.index()].sequent;
@@ -228,12 +234,14 @@ impl Interactive {
     }
 
     /// Returns the term a closed `∀` or `∃` step on `goal` opened its
-    /// formula with, as the step took it and the session writes terms: a
-    /// `∀` step's eigenvariable by its letter, a `∃` step's witness given,
-    /// or `$1`, `$2`, … for one left open, whatever an axiom or the search
-    /// filled it with since. A given witness is what
-    /// [`witness`](Self::witness) reads back to take the step again.
-    /// `None` for a goal that no quantifier step closed.
+    /// formula with, as text, or `None` for a goal no quantifier step
+    /// closed.
+    ///
+    /// The term is written as the step took it: a `∀` step's eigenvariable
+    /// by its letter, an `∃` step's given witness, or `$1`, `$2`, … for a
+    /// witness left open, whatever an axiom or the search filled it with
+    /// later. [`witness`](Self::witness) reads a given witness back, to
+    /// take the step again.
     pub fn opened_term(&self, goal: GoalId) -> Option<String> {
         let id = goal.inf();
         if !matches!(
@@ -267,8 +275,8 @@ impl Interactive {
         Some(q.table.frame_parts(frame?).1)
     }
 
-    /// Returns the term a closed `∃` inference put for its bound variable
-    /// as the shown table numbers it, its bindings followed.
+    /// Returns the term a closed `∃` inference put for its bound variable,
+    /// as the shown table numbers it, with its bindings followed.
     pub(super) fn shown_witness(&self, id: InfId) -> Option<FoTermId> {
         let q = self.fo.as_ref()?;
         let (_, frame) = q.instance(self.body(id)?);
@@ -280,8 +288,9 @@ impl Interactive {
     ///
     /// # Panics
     ///
-    /// For a subformula whose instance the session never made, which no
-    /// premise of a step on `m` lacks.
+    /// For a subformula whose instance the session never made. A step on
+    /// `m` makes the instances its premises hold, so this never happens for
+    /// a subformula in a premise.
     pub(super) fn child(&self, m: Member, c: crate::linear::occurrences::OccId) -> Member {
         match &self.fo {
             Some(q) => q
@@ -301,8 +310,8 @@ impl Interactive {
     }
 }
 
-/// Appends a node and returns its index; a witness of more nodes than a
-/// `u32` counts is more text than any reader holds.
+/// Appends a node and returns its index. The index fits a `u32`: a witness
+/// of more nodes would be more text than any reader holds.
 fn push(nodes: &mut Vec<TermNode>, node: TermNode) -> u32 {
     nodes.push(node);
     u32::try_from(nodes.len() - 1).expect("fewer nodes than a u32 counts")

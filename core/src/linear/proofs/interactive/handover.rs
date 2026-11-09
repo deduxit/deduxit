@@ -6,18 +6,22 @@
 //! session's instances.
 //!
 //! The goal's members are instances whose frames hold the session's
-//! eigenvariables and open witnesses. The sequent the search gets is one
-//! formula: the goal's formulas joined by `⅋` (the hypotheses first, so
-//! that the intuitionistic reading takes each `⅋` as an implication and
-//! the goal last), its open witnesses bound by `∃` and the eigenvariables
-//! made after the first of them by `∀`, in the order they were made, so
-//! that the search's eigenvariable condition is the session's levels; the
-//! older eigenvariables and the constants are constants of their own. A
-//! proof of it opens that prefix and splits that spine before anything
-//! else, and those steps are left out when the derivation comes back: the
-//! prefix's witnesses bind the open witnesses, its eigenvariables are the
-//! session's, every other eigenvariable of the proof is a fresh one of
-//! the session's (a constant where no `∀` step introduces it).
+//! eigenvariables and open witnesses. The search gets one formula:
+//! - It joins the goal's formulas by `⅋`, the hypotheses first and the
+//!   succedent last, so that the intuitionistic reading takes each `⅋` as
+//!   an implication.
+//! - A prefix binds the open witnesses by `∃`, and the eigenvariables made
+//!   after the first of them by `∀`, in the order they were made. So the
+//!   search's eigenvariable condition matches the session's levels.
+//! - The older eigenvariables, and those that are constants, become
+//!   constant symbols of their own.
+//!
+//! A proof of that formula opens the prefix and splits the `⅋` spine
+//! before anything else. Those steps are left out when the derivation
+//! comes back. The prefix's witnesses bind the open witnesses, and its
+//! eigenvariables are the session's. Every other eigenvariable of the proof
+//! becomes a fresh one of the session (a constant where no `∀` step
+//! introduces it).
 
 use super::{Closed, GoalId, Interactive};
 use crate::Error;
@@ -45,9 +49,8 @@ enum Bound {
 struct Written {
     /// The sequent.
     sequent: Sequent,
-    /// The prefix: per binder outermost first, the open witness it
-    /// quantifies existentially or the eigenvariable it quantifies
-    /// universally.
+    /// The prefix, outermost binder first: the open witness an `∃` binds
+    /// (`Ok`), or the eigenvariable a `∀` binds (`Err`).
     prefix: Vec<Result<u32, Eigen>>,
     /// The constant symbols that stand for eigenvariables.
     constants: HashMap<Symbol, Eigen>,
@@ -67,9 +70,11 @@ enum Place {
 
 impl Interactive {
     /// Closes a goal of a first-order session by the search, as
-    /// [`close`](Self::close) does: the outcome is the search's on the goal
-    /// written as a sequent of its own, and a proof is carried back and
-    /// grafted as one step, which binds the open witnesses it filled.
+    /// [`close`](Self::close) does.
+    ///
+    /// The outcome is the search's on the goal written as a sequent of its
+    /// own. A proof is carried back and grafted as one step, which binds
+    /// the open witnesses the proof filled.
     pub(super) fn close_framed(
         &mut self,
         goal: GoalId,
@@ -100,7 +105,8 @@ impl Interactive {
         let forest = &self.forest;
         let fo = &forest.sequent().fo;
         // The goal's formulas, the hypotheses first in an intuitionistic
-        // mode, and the variables their frames hold under the bindings.
+        // mode, and the variables their frames hold once bindings are
+        // followed.
         let mut order: Vec<Member> = members.to_vec();
         if let Some(reading) = self.reading() {
             order.sort_by_key(|&m| {
@@ -119,10 +125,11 @@ impl Interactive {
         eigens.dedup();
         metas.sort_unstable_by_key(|&k| (q.metas[k as usize].level, k));
         metas.dedup();
-        // The prefix in the order the variables were made: an
-        // eigenvariable at or past the first open witness's level is
-        // bound by `∀` right before the first open witness of a higher
-        // level; one below it, and a constant, is a constant.
+        // The prefix, in the order the variables were made. An
+        // eigenvariable at or past the first open witness's level is bound
+        // by `∀` right before the first open witness of a higher level.
+        // An older eigenvariable, or one that is a constant, becomes a
+        // constant symbol.
         let first = metas.first().map(|&k| q.metas[k as usize].level);
         let mut prefix: Vec<Result<u32, Eigen>> = Vec::new();
         let mut placed: Vec<Eigen> = Vec::new();
@@ -150,7 +157,7 @@ impl Interactive {
             }
         }
         // The symbols: the sequent's, in their order and roles, then one
-        // constant per eigenvariable that is no binder of the prefix.
+        // constant per eigenvariable that the prefix does not bind.
         let predicates: Vec<Symbol> = fo.atoms.iter().map(|&(p, _)| p).collect();
         let mut interner = Interner::new();
         for (i, (name, arity)) in fo.symbols.iter().enumerate() {
@@ -197,8 +204,9 @@ impl Interactive {
             closed: HashMap::default(),
         };
         let mut formulas: Vec<TermId> = order.iter().map(|&m| copy.formula(m)).collect();
-        // The spine: the hypotheses' `⅋`, the goal's formula last; none
-        // for the empty goal of a classical mode, which holds no variable.
+        // The spine: the hypotheses joined by `⅋`, the succedent last.
+        // The empty goal of a classical mode has no formula, and so no
+        // variable to bind.
         let root = formulas.pop().map(|last| {
             let mut root = last;
             while let Some(f) = formulas.pop() {
@@ -238,10 +246,12 @@ impl Interactive {
         }
     }
 
-    /// Carries a proof of the written goal back onto the session: its
-    /// derivation, the prefix's and the spine's steps left out, every
-    /// member an instance of the session's, grafted onto the goal as one
-    /// step, and the open witnesses the prefix's `∃` steps filled bound.
+    /// Carries a proof of the written goal back onto the session.
+    ///
+    /// Its derivation, without the prefix's and the spine's steps and with
+    /// every member made an instance of the session's, is grafted onto the
+    /// goal as one step. The open witnesses that the prefix's `∃` steps
+    /// filled are bound. A graft that fails leaves the session as it was.
     #[expect(clippy::too_many_arguments, reason = "close's own, and what it wrote")]
     fn carry_back(
         &mut self,
@@ -253,7 +263,8 @@ impl Interactive {
         limits: &Limits,
         mut stop: impl FnMut(Progress) -> bool,
     ) -> Result<(), Error> {
-        // Fewer steps than inferences, which an `InfId` numbers.
+        // The cast is exact: there are fewer steps than inferences, which
+        // an `InfId` numbers.
         let step = self.history.len() as u32;
         let mark = self.fo.as_ref().expect("a first-order session").mark();
         let carried =
@@ -273,8 +284,8 @@ impl Interactive {
         }
     }
 
-    /// Carries the proof back as [`carry_back`](Self::carry_back) does,
-    /// leaving what it made where it fails.
+    /// Carries the proof back as [`carry_back`](Self::carry_back) does, but
+    /// leaves what it made in place when it fails.
     #[expect(clippy::too_many_arguments, reason = "close's own, and what it wrote")]
     fn carry_back_from(
         &mut self,
@@ -311,8 +322,9 @@ impl Interactive {
         }
         let places = places(found, written.prefix.len(), order.len());
         let depth = binders(found);
-        // The proof's eigenvariables: the prefix's are the session's, the
-        // others fresh ones, constants where no `∀` step introduces them.
+        // The proof's eigenvariables: the prefix's are the session's, and
+        // the others become fresh ones (constants where no `∀` step
+        // introduces them).
         let mut eigen_at: HashMap<Eigen, Eigen> = HashMap::default();
         let mut witnesses: Vec<(u32, FoTermId)> = Vec::new();
         let mut introduced: Vec<Eigen> = Vec::new();
@@ -332,13 +344,14 @@ impl Interactive {
                 witnesses.push((k, w));
             }
         }
-        // Unfolded as a graft of the propositional search is, two-sided in
-        // an intuitionistic mode, so that its steps are the ones `apply`
-        // and the reader take.
+        // Unfolded as the propositional `close` unfolds its graft,
+        // two-sided in an intuitionistic mode, so that its steps are the
+        // ones `apply` and the reader take. A one-sided unfolding puts
+        // structural steps where the reader refuses them.
         let roots: Vec<OccId> = found.roots().to_vec();
         let inferences = Derivation::of_goal(proof, &roots, self.mode, view, limits, stop)?;
-        // The reading by the fields, beside the first-order part borrowed
-        // for the carrying.
+        // The reading made from the fields directly, since the first-order
+        // part is borrowed mutably below.
         let reading = self.reading.as_ref().map(|(position, goal)| {
             crate::linear::Reading::of_parts(&self.forest, position, *goal, self.mode.is_ordered())
         });
@@ -352,8 +365,8 @@ impl Interactive {
             introduced,
             done: HashMap::default(),
         };
-        // Each of the proof's members as the session's: one instance, or
-        // for the prefix and the spine the goal's formulas they join.
+        // Each of the proof's members as the session's: one instance, or,
+        // for the prefix and the spine, the goal's formulas they join.
         let mut carried: Vec<Inference> = Vec::new();
         let mut at: Vec<Option<InfId>> = Vec::with_capacity(inferences.len());
         let mut members_of: HashMap<Member, Vec<Member>> = HashMap::default();
@@ -385,8 +398,8 @@ impl Interactive {
                 Ok(ms)
             };
             let principal = inference.principal.map(|p| inference.sequent[p]);
-            // The prefix's and the spine's steps are left out: the
-            // premise's carried inference stands for theirs.
+            // The prefix's and the spine's steps are left out: the carried
+            // inference of their premise stands for them.
             if let Some(p) = principal
                 && !matches!(places[proof_occ(proof, p).index()], Place::Inside(..))
             {
@@ -475,9 +488,9 @@ fn proof_occ(proof: &Proof, m: Member) -> OccId {
         .map_or(m.occ(), |(o, _)| o)
 }
 
-/// Returns, per occurrence of the written sequent, where it stands: the
-/// prefix's binders, the spine's `⅋`, and each formula's occurrences by
-/// their offset.
+/// Returns, per occurrence of the written sequent, where it stands: a
+/// binder of the prefix, a `⅋` of the spine, or inside a formula of the
+/// goal at an offset.
 fn places(forest: &Forest, prefix: usize, formulas: usize) -> Vec<Place> {
     let mut places = vec![Place::Prefix; forest.len()];
     let mut at = OccId::new(prefix as u32);
@@ -524,7 +537,8 @@ struct Copy<'a> {
     metas_at: HashMap<u32, u32>,
     /// How many binders the prefix has.
     depth: u32,
-    /// Every closed session term written under so many inner binders.
+    /// Every closed session term copied so far, by the term and the number
+    /// of inner binders it was copied under.
     closed: HashMap<(FoTermId, u32), FoTermId>,
 }
 
@@ -535,16 +549,17 @@ impl Copy<'_> {
         TermId::new(self.terms.len() as u32 - 1)
     }
 
-    /// Copies the formula a member stands for, its loose variables its
-    /// frame's terms.
+    /// Copies the formula a member stands for, with its frame's terms in
+    /// place of its loose variables.
     fn formula(&mut self, m: Member) -> TermId {
         let (o, frame) = self.q.instance(m);
         let frame = self.q.frame_terms(frame);
         let sequent = self.forest.sequent();
         let fo = &sequent.fo;
-        // A walk with a stack of its own: a formula term with how many of
-        // its own binders stand above it, and whether its children are
-        // copied.
+        // A walk with a stack of its own, since a formula may be deeper
+        // than the call stack allows. Each entry is a formula term, how
+        // many of the formula's binders stand above it, and whether its
+        // children are copied.
         let mut stack = vec![(self.forest.term(o), 0u32, false)];
         let mut done: Vec<TermId> = Vec::new();
         while let Some((t, inner, expanded)) = stack.pop() {
@@ -634,11 +649,12 @@ impl Copy<'_> {
     }
 
     /// Copies a term of the sequent's arena under `inner` binders of its
-    /// formula, its loose variables past them the frame's terms.
+    /// formula. Its variables bound past those binders become the frame's
+    /// terms.
     fn open(&mut self, t: FoTermId, inner: u32, frame: &[FoTermId]) -> FoTermId {
         let fo = &self.forest.sequent().fo;
         // A walk with a stack of its own, arguments first: an input's
-        // terms are as deep as its text.
+        // terms are as deep as its text, which a recursion may not fit.
         let mut done: HashMap<FoTermId, FoTermId> = HashMap::default();
         let mut stack = vec![(t, false)];
         while let Some((u, expanded)) = stack.pop() {
@@ -668,12 +684,12 @@ impl Copy<'_> {
     }
 
     /// Copies a closed term of the session under `inner` binders of its
-    /// formula, below the prefix: an eigenvariable or an open witness the
-    /// prefix binds is its bound variable, any other eigenvariable its
-    /// constant.
+    /// formula, below the prefix. An eigenvariable or open witness the
+    /// prefix binds becomes its bound variable; any other eigenvariable
+    /// becomes its constant.
     fn closed(&mut self, t: FoTermId, inner: u32) -> FoTermId {
         // A walk with a stack of its own, arguments first: a witness is as
-        // deep as its bindings go.
+        // deep as its bindings go, which a recursion may not fit.
         let mut stack = vec![(t, false)];
         while let Some((u, expanded)) = stack.pop() {
             let u = self.q.resolve(self.forest, u);
@@ -724,7 +740,7 @@ impl Copy<'_> {
     }
 }
 
-/// The carrying back of a proof's terms into the session's.
+/// What carries a proof's terms back into the session's.
 struct Back<'a> {
     /// The session's first-order part.
     q: &'a mut super::quantified::Quantified,
@@ -743,7 +759,8 @@ struct Back<'a> {
 impl Back<'_> {
     /// Returns the proof's closed term `t` as the session's.
     fn term(&mut self, forest: &Forest, t: FoTermId) -> Result<FoTermId, Error> {
-        // A walk with a stack of its own, arguments first.
+        // A walk with a stack of its own, arguments first, since a term
+        // may be deeper than the call stack allows.
         let mut stack = vec![(t, false)];
         while let Some((u, expanded)) = stack.pop() {
             if self.done.contains_key(&u) {

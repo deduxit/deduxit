@@ -1,26 +1,48 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Step-by-step proving: a derivation of the standard sequent calculus
-//! built top-down, with open goals as leaves, over the occurrence forest of
-//! a sequent. A client names a goal, a formula in it and a rule; the rule
-//! is validated against the formula, the mode and, in intuitionistic mode,
-//! the one-succedent condition, and the goals it leaves are returned. The
-//! search can close any goal, and a finished derivation translates back
-//! into a proof term that the checker validates, so this layer is trusted
-//! no more than an engine.
+//! Step-by-step proving: build a derivation from the sequent upwards, one
+//! rule at a time.
 //!
-//! The inferences are those of the derivation view, with the same sequent
-//! representation (occurrence ids in ascending order, with repeats) and
-//! the same rule names; an open goal is an inference with [`Rule::Open`]
-//! and no premises. The arena is top-down: the root is inference 0 and a
-//! step appends the goals it opens at the end, so a premise has a larger
-//! index than its conclusion, the reverse of a [`Derivation`], which
-//! [`Interactive::derivation`] renumbers.
+//! An [`Interactive`] session starts with the whole sequent as its one open
+//! goal (a sequent still to prove). You name a goal, a formula in it by its
+//! position and a rule ([`Step`]). The session checks that the rule applies
+//! there in its mode, and returns the goals the rule opens: its premises.
+//! The search can close any goal ([`Interactive::close`]), and
+//! [`Interactive::undo`] takes back the last step. When no goal is open,
+//! [`Interactive::proof`] turns the derivation into a proof term and runs
+//! the checker on it, so a session is trusted no more than a search engine.
+//!
+#![cfg_attr(feature = "parse", doc = "```")]
+#![cfg_attr(not(feature = "parse"), doc = "```ignore")]
+//! use deduxit::Limits;
+//! use deduxit::linear::{Interactive, Mode, Rule, Sequent, Step};
+//!
+//! let sequent: Sequent = "|- a par ~a".parse()?;
+//! let mut session = Interactive::new(&sequent, Mode::CLASSICAL)?;
+//! let root = session.goals().next().unwrap();
+//! // ⅋ on formula 0 opens one goal: ⊢ a, ~a.
+//! let opened = session.apply(root, &Step::new(0, Rule::Par))?;
+//! assert_eq!(session.goals().collect::<Vec<_>>(), opened);
+//! // The axiom on formula 0 closes it and opens none.
+//! assert_eq!(session.apply(opened[0], &Step::new(0, Rule::Ax))?, []);
+//! assert!(session.is_complete());
+//! // `|_| false` is a stop that never fires.
+//! let proof = session.proof(&Limits::default(), |_| false)?;
+//! # Ok::<(), deduxit::Error>(())
+//! ```
+//!
+//! The inferences are those of the derivation view, with its sequents
+//! (occurrence ids in ascending order, with repeats) and its rule names. An
+//! open goal is an inference with [`Rule::Open`] and no premises. The
+//! session stores its inferences top-down: the root is inference 0, and a
+//! step appends the goals it opens at the end. So a premise has a larger
+//! index than its conclusion, the reverse of a [`Derivation`];
+//! [`Interactive::derivation`] renumbers them.
 //!
 //! Needs the cargo feature `interactive` (on by default).
 
-// A rule a later step adds must not fall into an existing arm.
+// A rule added to `Rule` must not fall into an existing arm.
 #![deny(clippy::wildcard_enum_match_arm)]
 
 mod cut;
@@ -52,8 +74,8 @@ use crate::linear::sequents::{Eigen, Sequent, Symbol};
 use quantified::Quantified;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-/// Why a rule does not apply to a goal as asked. Positions are those in the
-/// goal's sequent, as the client named them.
+/// Why a step does not apply to a goal. Positions are those in the goal's
+/// sequent, as the caller gave them.
 ///
 /// Needs the cargo feature `interactive` (on by default).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -78,9 +100,9 @@ pub enum StepError {
         /// How many formulas the goal has.
         len: usize,
     },
-    /// The rule does not act on the formula at the position: its connective
-    /// is another, or in intuitionistic mode the rule is for the other
-    /// side of `⊢`.
+    /// The rule does not act on the formula at the position: the formula
+    /// has another connective, or in intuitionistic mode the rule is for
+    /// the other side of `⊢`.
     #[non_exhaustive]
     Rule {
         /// The rule asked for.
@@ -88,8 +110,9 @@ pub enum StepError {
         /// The position of the formula.
         position: usize,
     },
-    /// The rule is not available in the mode: weakening of a formula that
-    /// is not a `?` formula needs affine mode, Mix needs Mix.
+    /// The rule is not available in the mode. Weakening a formula that is
+    /// not a `?` formula needs affine mode, and Mix needs a mode with Mix.
+    /// An ordered mode has only the axiom, `⊗` and `⅋`.
     #[non_exhaustive]
     Mode {
         /// The rule asked for.
@@ -98,7 +121,7 @@ pub enum StepError {
         mode: Mode,
     },
     /// The rule needs the formula alone in the goal (`1`), or alone with its
-    /// dual (`ax`); in affine mode the other formulas can be weakened first.
+    /// dual (`ax`). In affine mode, weaken the other formulas first.
     #[non_exhaustive]
     NotAlone {
         /// The rule asked for.
@@ -107,7 +130,7 @@ pub enum StepError {
         position: usize,
     },
     /// The axiom needs the goal to be the literal and its dual, and the
-    /// other formula is not the dual.
+    /// other formula is not its dual.
     #[non_exhaustive]
     NoDual {
         /// The position of the literal.
@@ -117,14 +140,14 @@ pub enum StepError {
     /// at the position is not.
     #[non_exhaustive]
     NotQuest {
-        /// The position of the offending formula.
+        /// The position of a formula that is not a `?` formula.
         position: usize,
     },
     /// A position of the split is out of range, repeated, or the formula the
     /// rule acts on.
     #[non_exhaustive]
     Split {
-        /// The offending position.
+        /// The position at fault.
         position: usize,
     },
     /// A split was given to a rule that takes none.
@@ -133,8 +156,8 @@ pub enum StepError {
         /// The rule asked for.
         rule: Named,
     },
-    /// In intuitionistic mode, a premise would have this many formulas on
-    /// the right of `⊢` instead of one.
+    /// In intuitionistic mode, a premise would have `count` formulas on the
+    /// right of `⊢` instead of one.
     #[non_exhaustive]
     Succedents {
         /// How many formulas would stand right of `⊢`.
@@ -147,13 +170,13 @@ pub enum StepError {
         /// The position of the formula.
         position: usize,
     },
-    /// A Mix whose split leaves a premise without a formula: no rule
-    /// concludes the empty sequent, so nothing could close it.
+    /// A Mix whose split leaves a premise without a formula. No rule
+    /// concludes the empty sequent, so nothing could close that premise.
     EmptyPremise,
     /// In an ordered mode, the split is not the two arcs on either side of
-    /// the `⊗`: going round from it, the formulas going right must come
-    /// first and those going left after them, and any other split needs
-    /// an exchange.
+    /// the `⊗`. Going round from the `⊗`, the formulas going right must
+    /// come first and those going left after them. Any other split needs
+    /// an exchange, which an ordered mode does not have.
     #[non_exhaustive]
     Exchange {
         /// The position of a formula going left that comes before one
@@ -161,34 +184,37 @@ pub enum StepError {
         position: usize,
     },
     /// In the Lambek calculus without empty antecedents, a premise would
-    /// have no formula left of `⊢`, which no proof of the calculus has.
+    /// have no formula left of `⊢`, which no proof in that calculus has.
     EmptyAntecedent,
-    /// A witness was given to a rule that takes none: only `∃R` and `∀L`
-    /// (`∃` one-sided) take one.
+    /// A witness was given to a rule that takes none. Only `∃R` and `∀L`
+    /// take one (`∃` in a one-sided session).
     #[non_exhaustive]
     NoWitness {
         /// The rule asked for.
         rule: Named,
     },
-    /// The witness is no closed term of the sequent's function symbols and
-    /// the session's eigenvariables.
+    /// The witness is not a closed term built from the sequent's function
+    /// symbols and the session's eigenvariables, or the session would grow
+    /// past its bound on terms.
     #[non_exhaustive]
     Witness {
         /// What is wrong with it.
         reason: String,
     },
-    /// The eigenvariable condition: the step would put an eigenvariable
-    /// where the step that introduced it (a `∀`, or two-sided a `∀R` or an
-    /// `∃L`) does not reach, into a witness of a goal that no such step
-    /// below introduced it to, or into an open witness made before it.
+    /// The step breaks the eigenvariable condition. An eigenvariable (the
+    /// fresh name a `∀` step introduces; two-sided, a `∀R` or `∃L` step)
+    /// may stand only above the step that introduced it. This step would
+    /// put it elsewhere: into a witness of a goal with no such step below
+    /// it, or into an open witness made before the eigenvariable.
     #[non_exhaustive]
     Eigenvariable {
         /// The eigenvariable, as the session writes it.
         name: String,
     },
     /// A cut formula names a symbol that the sequent has with another
-    /// arity or role, or, in a session with quantifiers, one the sequent
-    /// has not and that is no eigenvariable's letter used as a term.
+    /// arity or role. Or, in a session with quantifiers, it names a symbol
+    /// the sequent does not have and that is not an eigenvariable's letter
+    /// used as a term.
     #[non_exhaustive]
     CutSymbol {
         /// The name, as written.
@@ -272,11 +298,12 @@ impl Display for StepError {
 impl std::error::Error for StepError {}
 
 /// The number of an inference of a session, in the session's own order:
-/// the root `0`, and every step's premises after it. It names the goals
-/// that [`Interactive::apply`], [`close`](Interactive::close) and
-/// [`undo`](Interactive::undo) take and return; a derivation of the
-/// session numbers its inferences otherwise ([`InfId`]), and
-/// [`Interactive::derivation_ids`] maps the one to the other.
+/// the root is `0`, and every step's premises come after it.
+///
+/// It names the goals that [`Interactive::apply`],
+/// [`close`](Interactive::close) and [`undo`](Interactive::undo) take and
+/// return. The session's [`Derivation`] numbers its inferences otherwise
+/// ([`InfId`]); [`Interactive::derivation_ids`] maps one to the other.
 ///
 /// Needs the cargo feature `interactive` (on by default).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -299,12 +326,12 @@ impl GoalId {
         self.0 as usize
     }
 
-    /// Returns the inference of the session's arena the goal is.
+    /// Returns the goal as the index of its inference in the session.
     const fn inf(self) -> InfId {
         InfId::new(self.0)
     }
 
-    /// Returns the goal an inference of the session's arena is.
+    /// Returns the goal that an inference of the session is.
     const fn of(id: InfId) -> Self {
         Self(id.get())
     }
@@ -329,8 +356,8 @@ pub struct Step {
 }
 
 impl Step {
-    /// Returns the step of `rule` on the formula at `position`, without a
-    /// split, its witness open.
+    /// Returns the step of `rule` on the formula at `position`, with no
+    /// split and an open witness.
     pub fn new(position: usize, rule: impl Into<Named>) -> Self {
         Self {
             position,
@@ -360,12 +387,14 @@ impl Step {
     }
 
     /// Returns the step with the context split at a cut point of the
-    /// goal's cyclic order, as an ordered mode reads it: going round from
-    /// the formula the step names, the formulas before `position` go to
-    /// the right premise and those from `position` on to the left one, so
-    /// that `position` is the first formula going left, and the step's own
-    /// position sends none left. In the cyclic mode these are the splits
-    /// of a `⊗`; in a commutative one it is a split as any other.
+    /// goal's cyclic order, as an ordered mode reads it.
+    ///
+    /// Going round from the formula the step names, the formulas before
+    /// `position` go to the right premise and those from `position` on to
+    /// the left one. So `position` is the first formula going left, and the
+    /// step's own position sends none left. In an ordered mode these are
+    /// the only splits a `⊗` allows; in a commutative mode this is a split
+    /// like any other.
     #[must_use]
     pub fn at(self, position: usize) -> Self {
         Self {
@@ -374,8 +403,8 @@ impl Step {
         }
     }
 
-    /// Returns the positions going left in a goal of `len` formulas, none
-    /// without a split, or the refusal of a cut point outside the goal.
+    /// Returns the positions going left in a goal of `len` formulas (none
+    /// without a split), or refuses a cut point outside the goal.
     fn left_positions(&self, len: usize) -> Result<Vec<usize>, StepError> {
         match &self.split {
             Split::None => Ok(Vec::new()),
@@ -415,22 +444,24 @@ pub enum Split {
     },
 }
 
-/// The witness an `∃R` or `∀L` step puts for the bound variable: open,
-/// a metavariable that a later axiom or [`Interactive::close`] binds, or a
+/// The term an `∃R` or `∀L` step puts for the bound variable: open, or a
 /// closed term given.
+///
+/// An open witness is a placeholder (a metavariable) that a later axiom or
+/// [`Interactive::close`] fills in.
 ///
 /// Needs the cargo feature `interactive` (on by default).
 #[non_exhaustive]
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum Witness {
-    /// Left open, as a metavariable that may name only the eigenvariables
-    /// made before it.
+    /// Left open, as a metavariable. It may be filled only with terms of
+    /// the eigenvariables made before it.
     #[default]
     Open,
-    /// A closed term, flat: each node a function symbol of the sequent
-    /// applied to nodes before it, or an eigenvariable the goal is in the
-    /// scope of; the last node is the term. [`Interactive::witness`]
-    /// reads one from text.
+    /// A closed term, given as a flat list of nodes. Each node is a
+    /// function symbol of the sequent applied to nodes before it, or an
+    /// eigenvariable in the goal's scope; the last node is the term.
+    /// [`Interactive::witness`] reads one from text.
     Term(Vec<TermNode>),
 }
 
@@ -440,8 +471,8 @@ pub enum Witness {
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TermNode {
-    /// A function symbol of the sequent applied to earlier nodes, by
-    /// their index in the list, as many as its arity; a constant to none.
+    /// A function symbol of the sequent applied to earlier nodes, named by
+    /// their index in the list, as many as its arity (none for a constant).
     App(Symbol, Vec<u32>),
     /// An eigenvariable of the session.
     Eigen(Eigen),
@@ -461,18 +492,18 @@ pub struct Applicable {
 }
 
 /// What [`Interactive::close`] did: the search's outcome, and whether the
-/// derivation of the proof it found, if any, was grafted onto the goal.
+/// derivation of the proof it found was grafted onto the goal.
 ///
 /// Needs the cargo feature `interactive` (on by default).
 #[non_exhaustive]
 #[derive(Clone, Debug)]
 pub struct Closed {
-    /// The search's outcome; a proof in it is the proof of the goal
-    /// alone, kept for export when its graft was refused.
+    /// The search's outcome. A proof in it proves the goal alone, and is
+    /// there to export even when its graft was refused.
     pub outcome: Outcome,
-    /// `Ok` when the proof was grafted or there was none to graft; the
-    /// refusal of the graft, by its size or the stop, otherwise, the goal
-    /// then still open.
+    /// `Ok` when the proof was grafted or there was none to graft.
+    /// Otherwise why the graft was refused (its size or the stop), and the
+    /// goal is still open.
     pub grafted: Result<(), Refusal>,
 }
 
@@ -486,17 +517,21 @@ pub enum Needs {
     Nothing,
     /// A split of the context between the two premises: `⊗` and Mix.
     Split,
-    /// A witness for the bound variable, or none for one left open:
-    /// `∃R` and `∀L`.
+    /// A witness for the bound variable, or none to leave it open: `∃R`
+    /// and `∀L`.
     Witness,
 }
 
-/// A proof in progress: the forest of a sequent, the mode, the inferences
-/// made so far and the goals still open. It starts from a sequent as one
-/// open goal; rules are applied to a formula of a goal by position, the
-/// search closes goals, [`undo`](Self::undo) retracts the last step (or
-/// the client keeps a clone), and once no goal is open
-/// [`proof`](Self::proof) gives the checked term.
+/// A proof in progress: a derivation built step by step from its
+/// conclusion, with the goals still open as its leaves.
+///
+/// A session starts with the sequent as its one open goal. Each step
+/// applies a rule to a formula of a goal, named by its position
+/// ([`apply`](Self::apply)); [`rules`](Self::rules) lists the rules that
+/// act on a formula. The search can close a goal
+/// ([`close`](Self::close)), and [`undo`](Self::undo) takes back the last
+/// step (or keep a clone). Once no goal is open, [`proof`](Self::proof)
+/// returns the proof, checked.
 ///
 /// # Examples
 ///
@@ -513,9 +548,11 @@ pub enum Needs {
 /// assert_eq!((rules[0].rule, rules[0].needs), (Named::from(Rule::Tensor), Needs::Split));
 /// // ⊗ on formula 1, with formula 0 going to the left premise.
 /// let goals = state.apply(root, &Step::new(1, Rule::Tensor).left(&[0]))?;
-/// assert_eq!(goals.len(), 2);
+/// // Two goals are open: ⊢ ~A, A and ⊢ ~B, B.
+/// assert_eq!(state.goals().collect::<Vec<_>>(), goals);
 /// state.apply(goals[0], &Step::new(0, Rule::Ax))?;
 /// state.apply(goals[1], &Step::new(0, Rule::Ax))?;
+/// assert!(state.is_complete());
 /// let proof = state.proof(&Limits::default(), |_| false)?;
 /// assert_eq!(proof.nodes().len(), 3);
 /// # Ok::<(), deduxit::Error>(())
@@ -523,21 +560,23 @@ pub enum Needs {
 ///
 /// # JSON
 ///
-/// With the feature `serialize` a session is `{"version": 1, "sequent":
-/// …, "mode": "intuitionistic", "inferences": […], "history": […]}`
-/// ([`wire`](crate::wire)), the mode by its name: the inferences in the
-/// state's own
-/// order, the conclusion first, each `{"sequent": [ids], "rule": name,
-/// "principal": position, "premises": [indices]}` with the rule's
-/// [`name`](Rule::name), an open goal as its sequent alone; and the
-/// history as the inferences the steps closed, in order. A session that
-/// keeps how its sequent was written ([`writing`](Self::writing)) has the
-/// key `"written": {"inputs": [ids], "implications": [ids]}` too: the
-/// occurrences written on the input side and those written as an
-/// implication, ascending. Reading it back
-/// replays every inference, so a state read is as sound as one built
-/// through [`apply`](Self::apply). It is what a front end keeps between
-/// requests, and what the command's session saves.
+/// With the feature `serialize`, a session is written as
+/// `{"version": 1, "sequent": …, "mode": "intuitionistic", "inferences":
+/// […], "history": […]}` ([`wire`](crate::wire)), the mode by its name.
+///
+/// - `inferences` are in the session's own order, the conclusion first.
+///   Each is `{"sequent": [ids], "rule": name, "principal": position,
+///   "premises": [indices]}`, with the rule's [`name`](Rule::name). An open
+///   goal is its sequent alone.
+/// - `history` lists the inferences the steps closed, in order.
+/// - A session that keeps how its sequent was written
+///   ([`writing`](Self::writing)) also has `"written": {"inputs": [ids],
+///   "implications": [ids]}`: the occurrences written on the input side
+///   and those written as an implication, ascending.
+///
+/// Reading a session back replays every inference, so a session read is
+/// as sound as one built through [`apply`](Self::apply). A front end keeps
+/// this between requests, and the command's session saves it.
 ///
 /// Needs the cargo feature `interactive` (on by default).
 #[derive(Clone, Debug)]
@@ -546,16 +585,17 @@ pub struct Interactive {
     forest: Forest,
     /// The mode.
     mode: Mode,
-    /// In intuitionistic mode, the reading's positions and goal, kept so
-    /// that [`reading`](Self::reading) costs nothing.
+    /// In intuitionistic mode, the reading's sides and goal, kept so that
+    /// [`reading`](Self::reading) takes constant time: computing it per
+    /// call costs time linear in the sequent.
     reading: Option<(Box<[Side]>, OccId)>,
     /// How the sequent was written, for a session started from a
     /// classical sequent as written.
     writing: Option<Box<[Written]>>,
     /// The inferences, top-down: the root first, then the goals each step
-    /// opened, in order; an open goal has [`Rule::Open`].
+    /// opened, in order. An open goal has [`Rule::Open`].
     inferences: Vec<Inference>,
-    /// The goals closed so far, in order, for undo.
+    /// The goals the steps closed, in order, for undo.
     history: Vec<InfId>,
     /// For a sequent with quantifiers, the instances, eigenvariables and
     /// open witnesses of the steps.
@@ -564,10 +604,11 @@ pub struct Interactive {
 
 impl Interactive {
     /// Starts a proof of the sequent in the mode, with the whole sequent as
-    /// the one open goal: of its conclusion, a sequent's cut formulas left
-    /// out, since a session's are those of its cuts, which add them as they
-    /// are made. Fails in intuitionistic mode for a sequent with no
-    /// intuitionistic reading or with Mix.
+    /// the one open goal.
+    ///
+    /// The sequent's cut formulas are left out: a session's cut formulas
+    /// are those of its own cuts ([`cut`](Self::cut)), added as they are
+    /// made.
     ///
     /// # Errors
     ///
@@ -582,9 +623,10 @@ impl Interactive {
         Self::within(sequent, mode, &Limits::default())
     }
 
-    /// Starts a proof as [`new`](Self::new) does, of a sequent that
-    /// unfolds to at most `limits.occurrences` occurrences
-    /// ([`Refusal::Occurrences`] otherwise).
+    /// Starts a proof as [`new`](Self::new) does, within the caller's
+    /// limits: the sequent may unfold to at most `limits.occurrences`
+    /// occurrences, and the terms of a session with quantifiers are
+    /// bounded by `limits.terms`.
     ///
     /// # Errors
     ///
@@ -641,11 +683,10 @@ impl Interactive {
         })
     }
 
-    /// Starts a proof as [`within`](Self::within) does of a classical
-    /// sequent as it was written, and keeps how it was written
+    /// Starts a proof as [`within`](Self::within) does, of a classical
+    /// sequent as it was written. The session keeps how it was written
     /// ([`writing`](Self::writing)), so that its derivation can be drawn
-    /// two-sided ([`TwoSided`](crate::linear::TwoSided)) at any point of the
-    /// proof.
+    /// two-sided ([`TwoSided`](crate::linear::TwoSided)) at any point.
     ///
     /// # Errors
     ///
@@ -667,14 +708,16 @@ impl Interactive {
     }
 
     /// Returns the formula a member stands for as the session's sequent was
-    /// written, its negation included (`A ⊸ B`, `~(A ⊗ B)`), a cut formula
-    /// as it was typed: for a session that keeps how its sequent was
-    /// written ([`writing`](Self::writing)), and `None` for one that does
-    /// not.
+    /// written, its negation included (`A ⊸ B`, `~(A ⊗ B)`), and a cut
+    /// formula as it was typed.
+    ///
+    /// Returns `None` for a session that does not keep how its sequent was
+    /// written ([`writing`](Self::writing)), and for an instance of a
+    /// formula under a binder.
     pub fn formula_as_written(&self, member: Member) -> Option<impl Display + '_> {
         use crate::linear::occurrences::written;
         let writing = self.writing.as_deref()?;
-        // An instance has no record of its own.
+        // An instance has no record of how it was written.
         let o = member.occurrence(&self.forest)?;
         Some(written::Shown {
             forest: &self.forest,
@@ -684,8 +727,8 @@ impl Interactive {
         })
     }
 
-    /// Keeps how the sequent was written, as a session read back carries
-    /// it.
+    /// Keeps how the sequent was written, from a session read back, after
+    /// checking that it fits the forest.
     #[cfg(feature = "serialize")]
     pub(crate) fn keep_writing(&mut self, writing: Box<[Written]>) -> Result<(), Error> {
         if let Some(reason) = crate::linear::occurrences::written::fault(&self.forest, &writing) {
@@ -700,8 +743,9 @@ impl Interactive {
         &self.forest
     }
 
-    /// Returns the occurrence a member of the session stands for: itself
-    /// below the forest's length, an instance's occurrence past it.
+    /// Returns the occurrence a member of the session stands for: the
+    /// member itself below the forest's length, and the instance's
+    /// occurrence past it.
     pub fn occurrence(&self, member: Member) -> OccId {
         match &self.fo {
             Some(fo) => fo.instance(member).0,
@@ -709,17 +753,18 @@ impl Interactive {
         }
     }
 
-    /// Returns the formula a member of the session stands for: in an
-    /// intuitionistic mode as the session's reading writes it, two-sided
-    /// (`A ⊸ B` for a hypothesis the one-sided sequent holds as `A ⊗
-    /// ~B`), else as the one-sided sequent writes it; an instance with
-    /// its frame's terms for its bound variables, an eigenvariable by its
-    /// letter and an open witness as `$1`, `$2`, ….
+    /// Returns the formula a member of the session stands for, as text.
+    ///
+    /// In an intuitionistic mode the formula is written two-sided, as the
+    /// session's reading has it (`A ⊸ B` for a hypothesis the one-sided
+    /// sequent holds as `A ⊗ ~B`); otherwise one-sided. An instance has
+    /// its terms in place of its bound variables, an eigenvariable is
+    /// written by its letter, and an open witness as `$1`, `$2`, ….
     ///
     /// # Panics
     ///
-    /// For a member past the forest that the session does not number,
-    /// which no goal of it holds.
+    /// For a member past the forest that the session does not number. No
+    /// goal of the session holds one.
     pub fn formula(&self, member: Member) -> impl Display + '_ {
         if let Some(fo) = &self.fo
             && member.index() >= self.forest.len()
@@ -758,8 +803,8 @@ impl Interactive {
     }
 
     /// Returns the intuitionistic reading of the sequent in intuitionistic
-    /// mode, which says on which side of `⊢` a client shows each formula,
-    /// and `None` in classical mode.
+    /// mode, and `None` in classical mode. The reading says on which side
+    /// of `⊢` to show each formula.
     pub fn reading(&self) -> Option<Reading<'_>> {
         let (position, goal) = self.reading.as_ref()?;
         Some(Reading::of_parts(
@@ -771,7 +816,7 @@ impl Interactive {
     }
 
     /// Returns every inference, the root first and then in the order the
-    /// steps opened them; an open goal is an inference with [`Rule::Open`].
+    /// steps opened them. An open goal is an inference with [`Rule::Open`].
     #[cfg(feature = "serialize")]
     pub(crate) fn inferences(&self) -> &[Inference] {
         &self.inferences
@@ -786,11 +831,12 @@ impl Interactive {
             .map(|(i, _)| GoalId(i as u32))
     }
 
-    /// Returns the sequent of an open goal.
+    /// Returns the sequent of an open goal: its members, in ascending
+    /// order. A step names a formula by its position here.
     ///
     /// # Errors
     ///
-    /// [`StepError::NoGoal`] if the id is no open goal.
+    /// [`StepError::NoGoal`] if the id is not an open goal.
     pub fn goal(&self, id: GoalId) -> Result<&[Member], StepError> {
         self.inferences
             .get(id.index())
@@ -804,8 +850,8 @@ impl Interactive {
         self.goals().next().is_none()
     }
 
-    /// Returns how many steps were taken: rules applied and goals closed by
-    /// the search, less those undone.
+    /// Returns how many steps were taken (rules applied, cuts made and
+    /// goals closed by the search), less those undone.
     pub fn steps(&self) -> usize {
         self.history.len()
     }
@@ -823,29 +869,32 @@ impl Interactive {
         self.fo.as_ref().map(|q| q.parts(&self.forest))
     }
 
-    /// Returns the derivation so far, with the open goals as leaves of
-    /// [`Rule::Open`], two-sided in intuitionistic mode; its inferences are
-    /// renumbered premises before conclusions, so its ids are not this
-    /// state's: [`derivation_ids`](Self::derivation_ids) maps them.
+    /// Returns the derivation so far, two-sided in intuitionistic mode, with
+    /// the open goals as leaves of [`Rule::Open`].
+    ///
+    /// The derivation numbers its inferences premises before conclusions,
+    /// so its ids are not the session's;
+    /// [`derivation_ids`](Self::derivation_ids) maps them.
     ///
     /// # Errors
     ///
-    /// [`Refusal::Output`] for a derivation past the
-    /// default [`Limits::derivation_bytes`].
+    /// [`Refusal::Output`] for a derivation past the default
+    /// [`Limits::derivation_bytes`].
     pub fn derivation(&self) -> Result<Derivation<'_>, Error> {
         self.derivation_within(&ViewOptions::default(), &Limits::default(), |_| false)
     }
 
     /// Returns the derivation so far as [`derivation`](Self::derivation)
-    /// does, refused past `limits.derivation_bytes` by its estimate, as a
-    /// proof's derivation is, and until `stop` fires. Its inferences are
-    /// the state's own, never compacted, whatever `view` says.
+    /// does, within the caller's limits and until `stop` fires.
+    ///
+    /// The size estimate decides, as for a proof's derivation, whether it
+    /// fits `limits.derivation_bytes`. Its inferences are the session's
+    /// own, never compacted, whatever `view` says.
     ///
     /// # Errors
     ///
-    /// [`Refusal::Output`] past
-    /// `limits.derivation_bytes`, and [`Refusal::Stopped`]
-    /// when `stop` fired.
+    /// [`Refusal::Output`] past `limits.derivation_bytes`, and
+    /// [`Refusal::Stopped`] when `stop` fired.
     pub fn derivation_within(
         &self,
         view: &ViewOptions,
@@ -853,8 +902,8 @@ impl Interactive {
         mut stop: impl FnMut(Progress) -> bool,
     ) -> Result<Derivation<'_>, Error> {
         let _ = view;
-        // What the derivation holds, by the size estimate's measure: its
-        // inferences and the characters of their sequents.
+        // The size estimate's measure: the inferences and the characters
+        // of their sequents.
         let weights =
             super::size::Weights::of_members(&self.forest, self.fo.as_ref().map(|q| &q.shown));
         let estimate = self.inferences.iter().fold(0u64, |sum, inference| {
@@ -910,9 +959,10 @@ impl Interactive {
     }
 
     /// Returns, for every inference of [`derivation`](Self::derivation) by
-    /// its id, the id of the same inference in this state: what turns the
-    /// inference `n` of a drawing (the SVG's `i<n>`) into the goal that
-    /// [`apply`](Self::apply) and [`close`](Self::close) take.
+    /// its id, the id of the same inference in this session.
+    ///
+    /// It turns the inference `n` of a drawing (the SVG's `i<n>`) into the
+    /// goal that [`apply`](Self::apply) and [`close`](Self::close) take.
     pub fn derivation_ids(&self) -> Vec<GoalId> {
         self.postorder().into_iter().map(GoalId::of).collect()
     }
@@ -934,7 +984,7 @@ mod tests {
         rules.into_iter().map(|a| a.rule).collect()
     }
 
-    /// Returns the rule a client names `name`.
+    /// Returns the rule named `name`.
     fn named(name: &str) -> Named {
         name.parse().unwrap()
     }
@@ -946,9 +996,9 @@ mod tests {
         (state, goal)
     }
 
-    /// A derivation forty thousand rules high is translated into its
-    /// proof term, and the term checked, on a stack that a recursion over
-    /// its height would overflow.
+    /// A derivation forty thousand rules high becomes a proof term, and the
+    /// term is checked, on a stack that a recursion over its height would
+    /// overflow.
     #[test]
     fn a_high_derivation_needs_no_stack() {
         const DEPTH: usize = 20_000;
@@ -1615,15 +1665,11 @@ mod tests {
         ));
     }
 
-    /// A goal is closed only by a proof over the session's sequent that
-    /// passes the checker in the session's mode: a proof of another
-    /// sequent, larger or smaller, and a weakening in a linear session are
-    /// refused, and the session stays as it was.
     /// A proof of an equal sequent made elsewhere fills a goal, its
-    /// conclusions in another order; one of other formulas is refused,
-    /// saying which on each side, one of another mode's rules is the
-    /// checker's to refuse, and a goal outside the forest is refused, each
-    /// leaving the goal open.
+    /// conclusions in another order. A proof of other formulas is refused,
+    /// saying which on each side; the checker refuses one of another mode's
+    /// rules; and a member outside the forest is refused. Each refusal
+    /// leaves the goal open.
     #[test]
     fn fill_carries_a_proof_of_an_equal_sequent() {
         let (view, limits) = (ViewOptions::default(), Limits::default());
@@ -1679,6 +1725,10 @@ mod tests {
         ));
     }
 
+    /// A goal is closed only by a proof over the session's sequent that
+    /// passes the checker in the session's mode. A proof of another
+    /// sequent, larger or smaller, a weakening in a linear session and a
+    /// proof of another goal are refused, and the session stays as it was.
     #[test]
     fn close_with_refuses_a_foreign_proof() {
         let view = ViewOptions::default();
@@ -1729,7 +1779,8 @@ mod tests {
         ));
     }
 
-    /// The split helper says which splits the counts refuse.
+    /// `split_passes` says which splits the focused engine's counts
+    /// refuse.
     #[test]
     fn split_helper() {
         let (s, g) = start("|- a * b, ~a, ~b", Mode::CLASSICAL);

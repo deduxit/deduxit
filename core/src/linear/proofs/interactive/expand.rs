@@ -1,7 +1,7 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The steps of a session: the rules a goal admits, a rule applied and
+//! The steps of a session: the rules a formula admits, a rule applied and
 //! expanded into its premises, undo, and a goal closed by the search.
 
 use super::quantified::Clash;
@@ -17,21 +17,22 @@ use crate::linear::search::{self, Options, Verdict, focus};
 use crate::linear::sequents::Kind;
 
 impl Interactive {
-    /// Returns the sequent of an open goal, or the refusal.
+    /// Returns the occurrences of an open goal's sequent, or the refusal.
     pub(super) fn open(&self, id: GoalId) -> Result<Vec<OccId>, StepError> {
         let goal = self.goal(id)?;
         Ok(goal.iter().map(|&m| self.occurrence(m)).collect())
     }
 
     /// Returns the rules that can act on the formula at `position` of the
-    /// open goal in this mode, by the formula's connective and the mode
-    /// alone: the axiom on a literal, `⊗ ⅋ 1 ⊥ & ⊕₁ ⊕₂ ⊤ !` on their
+    /// open goal, judged by the formula's connective and the mode alone.
+    ///
+    /// They are the axiom on a literal, `⊗ ⅋ 1 ⊥ & ⊕₁ ⊕₂ ⊤ ! ∀ ∃` on their
     /// connectives, `?d ?c ?w` on a `?` formula, `wk` on any other formula
-    /// in affine mode, and Mix on any formula when the mode has it; in
-    /// intuitionistic mode by their two-sided names. Nothing acts on `0`.
-    /// Whether the goal's context lets a rule apply (the axiom's dual, the
-    /// context of `1` and `!`, a valid split, one succedent) is what
-    /// [`apply`](Self::apply) decides.
+    /// in affine mode, and Mix on any formula when the mode has it. In
+    /// intuitionistic mode they carry their two-sided names. Nothing acts
+    /// on `0`. Whether the rest of the goal lets a rule apply (the axiom's
+    /// dual, the context of `1` and `!`, a valid split, one succedent) is
+    /// for [`apply`](Self::apply) to decide.
     ///
     /// # Errors
     ///
@@ -79,28 +80,32 @@ impl Interactive {
     }
 
     /// Applies a step to the open goal and returns the goals it opens, in
-    /// the rule's order of premises; a closed leaf opens none. The split
-    /// is what a `⊗` or Mix needs ([`Step::left`]), and no other rule takes
-    /// one. In intuitionistic mode the rule may be given by its classical
-    /// or its two-sided name and is recorded by the latter. Fails with what
-    /// the rule needed, and changes nothing then.
+    /// the order of the rule's premises. A rule that closes the goal (the
+    /// axiom, `1`, `⊤`) opens none.
     ///
-    /// With quantifiers, `∀R` and `∃L` (`∀` one-sided) open the body with
-    /// a fresh eigenvariable; `∃R` and `∀L` (`∃` one-sided) with the
-    /// step's witness, or with a metavariable where it is open, which a
-    /// later axiom or [`close`](Self::close) binds and [`undo`](Self::undo)
-    /// of that step unbinds; and the axiom unifies its two literals' terms,
-    /// binding open witnesses, with the occurs check and the eigenvariable
-    /// condition: an open witness never takes an eigenvariable made after
-    /// it.
+    /// Only `⊗` and Mix take a split ([`Step::left`]). In intuitionistic
+    /// mode the rule may be given by its classical or its two-sided name,
+    /// and the session records the two-sided one. A step that fails changes
+    /// nothing.
+    ///
+    /// With quantifiers:
+    /// - `∀R` and `∃L` (`∀` one-sided) open the body with a fresh
+    ///   eigenvariable.
+    /// - `∃R` and `∀L` (`∃` one-sided) open it with the step's witness, or
+    ///   with a metavariable when the witness is open. A later axiom or
+    ///   [`close`](Self::close) binds the metavariable, and
+    ///   [`undo`](Self::undo) of that step unbinds it.
+    /// - The axiom unifies its two literals' terms, binding open witnesses,
+    ///   with the occurs check and the eigenvariable condition: an open
+    ///   witness never takes an eigenvariable made after it.
     ///
     /// # Errors
     ///
-    /// A [`StepError`] that names what the rule needed: an open goal, a
+    /// A [`StepError`] that names what the step needed: an open goal, a
     /// formula at the position, a rule that acts on it in the mode, a split
-    /// that fits, the dual of an axiom, an empty context for `1` and `!`,
-    /// a witness only where the rule takes one, a term of the sequent's
-    /// symbols and eigenvariables in scope.
+    /// that fits, the dual of an axiom, a context of `?` formulas for `!`
+    /// and none for `1`, a witness only where the rule takes one, a term of
+    /// the sequent's symbols and the eigenvariables in scope.
     pub fn apply(&mut self, goal: GoalId, step: &Step) -> Result<Vec<GoalId>, StepError> {
         let sequent = self.open(goal)?;
         let (position, rule) = (step.position, step.rule);
@@ -136,11 +141,14 @@ impl Interactive {
     }
 
     /// Returns the premises of a rule on a goal of a first-order session
-    /// as members, the checks on occurrences passed: the children of the
-    /// principal formula under its frame, the body of a binder under its
-    /// frame pushed with a fresh eigenvariable, the witness given or a
-    /// fresh metavariable; and for the axiom none, its literals' terms
-    /// unified.
+    /// as members, once the checks on occurrences have passed.
+    ///
+    /// The premises hold the children of the principal formula under its
+    /// frame, and a binder's body under its frame extended by a fresh
+    /// eigenvariable, the witness given or a fresh metavariable. The axiom
+    /// has none and unifies its literals' terms. A step that fails, or
+    /// would take the session past its bound on terms, goes back to its
+    /// mark.
     pub(super) fn framed_premises(
         &mut self,
         goal: GoalId,
@@ -149,8 +157,8 @@ impl Interactive {
         left: &[usize],
         witness: &Witness,
     ) -> Result<Vec<Vec<Member>>, StepError> {
-        // The number the step will have: fewer steps than inferences,
-        // which an `InfId` numbers.
+        // The number the step will have. It fits a `u32`: there are fewer
+        // steps than inferences, which an `InfId` numbers.
         let step = self.history.len() as u32;
         let mark = self.fo.as_ref().expect("a first-order session").mark();
         let made = self
@@ -194,7 +202,8 @@ impl Interactive {
         let members = self.goal(goal)?.to_vec();
         let m = members[position];
         // The number the step will have, under which its bindings are
-        // trailed: fewer steps than inferences, which an `InfId` numbers.
+        // trailed. It fits a `u32`: there are fewer steps than inferences,
+        // which an `InfId` numbers.
         let step = self.history.len() as u32;
         if rule == Ax {
             let [x, y] = members[..] else {
@@ -267,10 +276,11 @@ impl Interactive {
     }
 
     /// Returns the premises of a rule on a first-order session's goal as
-    /// members, as the rule yields them from the goal's: the principal
-    /// formula's children under its frame, the binder's `body`; `None`
-    /// where an instance they name was never made. The checks on
-    /// occurrences are passed.
+    /// members: the goal's members with the principal formula's children
+    /// under its frame, or the binder's `body`, in its place.
+    ///
+    /// Returns `None` where an instance they name was never made. The
+    /// caller has passed the checks on occurrences.
     pub(super) fn mirror(
         &self,
         members: &[Member],
@@ -333,7 +343,7 @@ impl Interactive {
         Some(premises)
     }
 
-    /// Makes the shown instances of a first-order session again after a
+    /// Remakes the shown instances of a first-order session after a
     /// change.
     pub(super) fn show(&mut self) {
         if let Some(q) = self.fo.as_mut() {
@@ -341,9 +351,9 @@ impl Interactive {
         }
     }
 
-    /// Closes an open goal by a rule at a position with the premises
-    /// [`expand`](Self::expand) computed, opens the premises as goals, and
-    /// returns them.
+    /// Closes an open goal by a rule at a position, opens the premises
+    /// [`expand`](Self::expand) computed as goals, records the step, and
+    /// returns the new goals.
     pub(super) fn record(
         &mut self,
         goal: GoalId,
@@ -375,11 +385,15 @@ impl Interactive {
         ids.into_iter().map(GoalId::of).collect()
     }
 
-    /// Computes the premises of a rule on a sequent, in the rule's order, or
-    /// refuses: the rule must act on the formula's connective, be available
-    /// in the mode, find the context it needs, take a valid split, and in
-    /// intuitionistic mode leave one formula on the right of `⊢` in every
-    /// premise and never weaken that formula.
+    /// Returns the premises of a rule on a sequent, in the rule's order, or
+    /// refuses the rule.
+    ///
+    /// The rule must act on the formula's connective, be available in the
+    /// mode, find the context it needs and take a valid split. In
+    /// intuitionistic mode it must leave one formula on the right of `⊢` in
+    /// every premise and never weaken that formula. These checks are
+    /// complete for the checker: a derivation built only from steps that
+    /// pass them always translates into a term the checker accepts.
     pub(super) fn expand(
         &self,
         reading: Option<&Reading>,
@@ -396,7 +410,6 @@ impl Interactive {
         // The rule acts on the connective, and on the right side of ⊢.
         let acts = match classical {
             Ax => kind.is_literal(),
-            // A session holds no binder, so this is false.
             Forall => kind == Kind::Forall,
             Exists => kind == Kind::Exists,
             Tensor => kind == Kind::Tensor,
@@ -410,7 +423,7 @@ impl Interactive {
             Dereliction | Contraction | Weakening => kind == Kind::Quest,
             AffineWeakening => kind != Kind::Quest,
             Mix => true,
-            // A cut is no step on a formula of the goal: it is made by
+            // A cut is not a step on a formula of the goal: it is made by
             // naming its formula (`cut`).
             Cut | Open => false,
         };
@@ -437,7 +450,8 @@ impl Interactive {
         if !splits && !left.is_empty() {
             return Err(StepError::NoSplit { rule });
         }
-        // The context without the formula, and the part of it going left.
+        // The context without the principal formula, and the part of it
+        // going left.
         let mut rest = Multiset::of(sequent.iter().copied());
         rest.remove(o);
         let mut going_left = Multiset::new();
@@ -451,8 +465,9 @@ impl Interactive {
                 used[p] = true;
                 going_left.insert(sequent[p]);
             }
-            // Going round from the formula, the right premise's context
-            // first, then the left one's: an arc on either side.
+            // In an ordered mode each premise takes an arc: going round
+            // from the formula, the right premise's context comes first,
+            // then the left one's.
             if self.mode.is_ordered() {
                 let round = (position + 1..sequent.len()).chain(0..position);
                 let mut left_seen = None;
@@ -486,7 +501,8 @@ impl Interactive {
                 };
                 let other = if position == 0 { *y } else { *x };
                 // A first-order session's literals are instances, whose
-                // terms the step unifies: here only their signs are read.
+                // terms `make_premises` unifies: here only their signs
+                // are read.
                 let dual = if self.fo.is_some() {
                     f.kind(other).is_literal() && f.kind(other) != kind
                 } else {
@@ -560,11 +576,12 @@ impl Interactive {
         Ok(premises)
     }
 
-    /// Returns whether the split of a step of `⊗` (or a Mix, when the
-    /// formula at the step's position is not a `⊗`) passes the count
-    /// prunes of the focused engine, a cheap test that says "this split
-    /// cannot close" before a client tries it; a split that passes may
-    /// still fail. The step's rule is not read.
+    /// Returns whether the split of a `⊗` step passes the focused engine's
+    /// count prunes: `false` means that this split cannot be closed.
+    ///
+    /// It is a cheap test to run before trying a split; a split that
+    /// passes may still fail. The step's rule is not read: the step is a
+    /// `⊗` on a `⊗` formula, and a Mix on any other.
     ///
     /// # Errors
     ///
@@ -596,12 +613,14 @@ impl Interactive {
         ))
     }
 
-    /// Retracts the last step, a rule applied or a goal closed by the
-    /// search, and returns the goal it reopened, or `None` when no step is
-    /// left. The open witnesses the step bound are open again.
+    /// Takes back the last step (a rule applied, a cut, or a goal closed by
+    /// the search) and returns the goal it reopened, or `None` when there
+    /// is no step to take back. The open witnesses the step bound are open
+    /// again.
     pub fn undo(&mut self) -> Option<GoalId> {
         let goal = self.history.pop()?;
-        // The step's inferences are the suffix of the arena.
+        // Steps only append, so the last step's inferences are the end of
+        // the arena.
         let first = self.subtree(goal).into_iter().min();
         if let Some(first) = first {
             self.inferences.truncate(first.index());
@@ -612,14 +631,15 @@ impl Interactive {
         inference.principal = None;
         inference.premises.clear();
         inference.cut = None;
-        // The step's number, under which its bindings were trailed: fewer
-        // steps than inferences, which an `InfId` numbers.
+        // The step's number, under which its bindings were trailed. It
+        // fits a `u32`: there are fewer steps than inferences, which an
+        // `InfId` numbers.
         let step = self.history.len() as u32;
         if let Some(q) = self.fo.as_mut() {
             q.undo(step);
         }
-        // After the members a cut on an instance made are gone, so that no
-        // member left names the cut formula's trees.
+        // Only after the members a cut on an instance made are gone, so
+        // that no member left names the cut formula's trees.
         if cut {
             self.uncut();
         }
@@ -639,24 +659,26 @@ impl Interactive {
         ids
     }
 
-    /// Runs the search on an open goal with the options and the stop
-    /// condition, as [`prove_goal`](crate::linear::search::prove_goal) does, and
-    /// returns its outcome. When the goal is proved, the derivation of the
-    /// proof found is grafted onto the goal as one step, which
-    /// [`undo`](Self::undo) retracts whole; otherwise nothing changes. The
-    /// outcome's proof, if any, is the proof of the goal alone.
+    /// Runs the search on an open goal, as
+    /// [`prove_goal`](crate::linear::search::prove_goal) does, and returns
+    /// what it did.
     ///
-    /// The search runs within `limits`, and the derivation grafted is
-    /// within them too: a goal whose proof unfolds into a larger one, or
-    /// whose unfolding `stop` ends, stays open, and [`Closed::grafted`]
-    /// says why; its proof stays in the outcome. A proved goal is never
-    /// lost.
+    /// When the search proves the goal, the derivation of its proof is
+    /// grafted onto the goal as one step, which [`undo`](Self::undo) takes
+    /// back whole. Otherwise nothing changes. The outcome's proof, if any,
+    /// proves the goal alone.
+    ///
+    /// The search runs within `limits`, and the grafted derivation must fit
+    /// them too. When it does not, or `stop` ends its unfolding, the goal
+    /// stays open and [`Closed::grafted`] says why; the proof stays in the
+    /// outcome, so a proved goal is never lost.
     ///
     /// # Errors
     ///
     /// [`Error::Step`] for a goal that is not open, and the errors of the
-    /// search ([`prove_goal`](crate::linear::search::prove_goal)); a graft the limits
-    /// or `stop` refuse is no error but [`Closed::grafted`].
+    /// search ([`prove_goal`](crate::linear::search::prove_goal)). A graft
+    /// that the limits or `stop` refuse is no error: [`Closed::grafted`]
+    /// holds it.
     pub fn close(
         &mut self,
         goal: GoalId,
@@ -688,14 +710,15 @@ impl Interactive {
         Ok(Closed { outcome, grafted })
     }
 
-    /// Closes an open goal with a proof of it that a search found, as
-    /// [`close`](Self::close) does with its own: the proof must be over the
-    /// session's sequent ([`Error::ForeignProof`] otherwise), its root must
-    /// conclude the goal, as the proof of [`prove_goal`] on the goal's
-    /// occurrences ([`goal`](Self::goal)) does, and it must pass the
-    /// checker in the session's mode; its derivation is grafted within
-    /// `limits` as one step. A caller that runs the search itself,
-    /// several of them side by side for one, closes the goal with this.
+    /// Closes an open goal with a proof of it that the caller's own search
+    /// found, as [`close`](Self::close) does with the proof its search
+    /// finds. A caller that runs several searches side by side uses this.
+    ///
+    /// The proof must be over the session's sequent, and its root must
+    /// conclude the goal, as a proof from [`prove_goal`] on the goal's
+    /// members ([`goal`](Self::goal)) does. It must pass the checker in
+    /// the session's mode. Its derivation is grafted within `limits` as one
+    /// step.
     ///
     /// [`prove_goal`]: crate::linear::search::prove_goal
     ///
@@ -718,7 +741,7 @@ impl Interactive {
     ) -> Result<(), Error> {
         let sequent = self.open(goal)?;
         // The goal's ids name occurrences of the session's forest, which
-        // is a function of its sequent.
+        // the sequent determines, so an equal sequent means equal ids.
         if proof.sequent() != self.sequent() {
             return Err(Error::ForeignProof);
         }
@@ -734,18 +757,21 @@ impl Interactive {
     }
 
     /// Closes an open goal with a proof of an equal sequent made elsewhere,
-    /// another session's say: the proof is carried over to the goal
-    /// ([`Proof::onto`]), its conclusions matched to the goal's formulas up
-    /// to their order, and closes the goal as [`close_with`](Self::close_with)
-    /// does, checked in the session's mode, as one step.
+    /// such as another session's.
+    ///
+    /// The proof is carried over to the goal ([`Proof::onto`]), its
+    /// conclusions matched to the goal's formulas in any order. It then
+    /// closes the goal as [`close_with`](Self::close_with) does: checked in
+    /// the session's mode, as one step.
     ///
     /// # Errors
     ///
     /// [`Error::Step`] for a goal that is not open,
     /// [`Error::SequentMismatch`] for a proof whose conclusions are not the
-    /// goal's formulas, and [`close_with`](Self::close_with)'s: above all
-    /// [`Error::Check`] with [`CheckError::Invalid`] for a proof the
-    /// checker rejects in the session's mode, one of another mode's rules.
+    /// goal's formulas, and the errors of
+    /// [`close_with`](Self::close_with). Among them is [`Error::Check`]
+    /// with [`CheckError::Invalid`] for a proof the checker rejects in the
+    /// session's mode, such as one that uses another mode's rules.
     pub fn fill(
         &mut self,
         goal: GoalId,
@@ -760,9 +786,11 @@ impl Interactive {
     }
 
     /// Runs the search on every open goal in turn, as [`close`](Self::close)
-    /// does, and returns each goal with what closing it did; a goal the
-    /// search does not prove, or whose closing fails, stays open, and the
-    /// run goes on with the next. The limits bound each goal's search.
+    /// does, and returns each goal with what closing it did.
+    ///
+    /// A goal the search does not prove, or whose closing fails, stays
+    /// open, and the run goes on with the next. The limits bound each
+    /// goal's search on its own.
     pub fn close_all(
         &mut self,
         options: &Options,
@@ -784,8 +812,8 @@ impl Interactive {
     }
 
     /// Replaces the open goal by the root of a derivation given premises
-    /// before conclusions, appending the rest in reverse, so that every
-    /// premise keeps a larger index than its conclusion.
+    /// before conclusions, and appends the rest in reverse, so that every
+    /// premise has a larger index than its conclusion.
     pub(super) fn graft(&mut self, goal: InfId, mut found: Vec<Inference>) {
         let root = found.len() - 1;
         let base = self.inferences.len();
