@@ -32,8 +32,11 @@ if [[ ${1-} == --check ]]; then
 fi
 
 if ! sign || ! ssh_ok; then
-  echo "a key is locked: enter both passphrases first:" >&2
-  echo "  echo x | gpg --local-user $key --sign -o /dev/null; ssh -T git@github.com" >&2
+  # Unlocking the SSH key through gpg-agent unlocks the signing key with
+  # it (the same key's passphrase); unlocking the signing key alone
+  # leaves the SSH key locked.
+  echo "a key is locked: unlock it through SSH, which unlocks both:" >&2
+  echo "  ssh -T git@github.com" >&2
   exit 1
 fi
 systemctl --user stop step-gpg-warm 2>/dev/null || true
