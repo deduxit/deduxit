@@ -51,8 +51,8 @@ original text below is left as written.
   in NEXPTIME by Lincoln and Shankar ("Proof search in first-order linear
   logic and other cut-free sequent calculi", LICS 1994).
 - **Reachability for Horn programs** ("e.g., KReach"):
-  KReach is unmaintained since 2020; linlog decides these programs with
-  an engine of its own (`core/src/search/horn/`, `core-horn.md`):
+  KReach is unmaintained since 2020; deduxit decides these programs with
+  an engine of its own (`core/src/linear/search/horn/`, `core-horn.md`):
   reachability in linear mode, coverability in affine mode.
 
 - **MALL-Seq, immediate failure (a `0` in a stable sequent).** Not fatal
