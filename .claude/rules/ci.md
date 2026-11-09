@@ -132,13 +132,27 @@ releases a version tag `vX.Y.Z` (below).
   section headed `- unreleased` fails it), then `nix flake check`.
   `publish` (skipped for `v0.1.0`, which the author published by hand,
   since crates.io's Trusted Publishing works only for a crate that
-  exists): in the environment `crates-io`, which the trusted publisher
-  on crates.io names and whose protection rules may ask for the author's
-  approval, with `id-token: write`; it packages both crates first (the
-  token from `rust-lang/crates-io-auth-action`, pinned by commit, lives
-  briefly), then publishes `deduxit` and `deduxit-cli` in that order, each
-  unless its version is on crates.io already, so that rerunning the job
-  after a failure between the two finishes it. `release` (`contents:
+  exists): in the environment `crates-io`, which the trusted publishers
+  on crates.io name and whose protection rules ask for the author's
+  approval, with `id-token: write`. Its first step lists the crates
+  due: `deduxit` and `deduxit-cli` at the tag's version, then `linlog`
+  and `linlog-cli` at 0.3.0 (the old names' last release, `compat/`),
+  each skipped when crates.io has that version, so the old names
+  publish once and never again, and a rerun after a failure finishes
+  what is left. It packages the due crates before any token, then
+  publishes the crates crates.io lacks with the environment secret
+  `CRATES_IO_FIRST_PUBLISH_TOKEN` (scoped to `deduxit` and
+  `deduxit-cli` for their first version, removed once they have their
+  trusted publishers), and only if a crate crates.io has is due asks
+  `rust-lang/crates-io-auth-action` (pinned by commit; one token for
+  every crate whose trusted publisher names `deduxit`/`deduxit`,
+  `release.yml` and `crates-io`, revoked at the job's end) and publishes
+  those. New crates go first: they are the library and the command the
+  old names depend on. crates.io finds a trusted publisher by the
+  owner's and the repository's names (case-insensitive), then checks
+  the owner's id, the workflow and the environment, so a renamed
+  repository needs a new entry on every crate (the `linlog-prover`/`linlog`
+  entries matched nothing after the move). `release` (`contents:
   write`, after `publish` succeeded or was skipped, never after it
   failed): `gh release create` with the changelog's section as the notes
   (and a line naming the installation chapter), the two `.crate` files

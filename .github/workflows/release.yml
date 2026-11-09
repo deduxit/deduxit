@@ -2,13 +2,14 @@
 # Licensed under the EUPL
 
 # A tag `vX.Y.Z` releases version X.Y.Z: the flake's checks again, the
-# crates published to crates.io in their order through Trusted
-# Publishing, and a GitHub release with the changelog's section, the
-# crates' packages, the command's archives and Linux packages for every
-# system (`packages.yml`), their SHA-256 sums in `SHA256SUMS` and an
-# attestation of their build. The first version was published by hand,
-# since a crate must exist before a workflow may publish it; its tag only
-# makes the release.
+# crates published to crates.io in their order, and a GitHub release
+# with the changelog's section, the crates' packages, the command's
+# archives and Linux packages for every system (`packages.yml`), their
+# SHA-256 sums in `SHA256SUMS` and an attestation of their build. A crate
+# crates.io has is published through Trusted Publishing; one it lacks, by
+# the environment's token for first publications, since a trusted
+# publisher can be configured only for a crate that exists. linlog's
+# first version was published by hand; its tag only made the release.
 name: Release
 
 on:
@@ -80,29 +81,71 @@ jobs:
         with:
           name: linlog-prover
           skipPush: true
-      # The packages built and verified before the token is asked for,
-      # since it lives briefly; the publication reuses the build.
-      - run: nix develop --command cargo package --locked --package deduxit --package deduxit-cli
-      # A token for this job alone, revoked when it ends.
-      - uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
-        id: auth
-      # The library before the command, each unless its version is on
-      # crates.io already: publishing is not atomic, and a run again after
-      # a failure between the two finishes it.
-      - name: cargo publish
+      # Which crates this tag publishes: the library and the command at
+      # its version, then the last releases of their old names, linlog
+      # and linlog-cli, at 0.3.0. A version crates.io has is skipped, so
+      # the old names publish once and a rerun after a failure finishes
+      # what is left; a crate crates.io lacks is new.
+      - name: The crates to publish
+        id: due
         env:
-          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
           TAG: ${{ github.ref_name }}
         run: |
           version=${TAG#v}
-          for crate in deduxit deduxit-cli; do
-            if curl --silent --fail --output /dev/null \
-              --user-agent "deduxit release (github.com/deduxit/deduxit)" \
-              "https://crates.io/api/v1/crates/$crate/$version"; then
-              echo "$crate $version is on crates.io already"
+          new=()
+          existing=()
+          for entry in "deduxit $version" "deduxit-cli $version" "linlog 0.3.0" "linlog-cli 0.3.0"; do
+            read -r crate crate_version <<<"$entry"
+            api="https://crates.io/api/v1/crates/$crate"
+            agent="deduxit release (github.com/deduxit/deduxit)"
+            if curl --silent --fail --output /dev/null --user-agent "$agent" "$api/$crate_version"; then
+              echo "$crate $crate_version is on crates.io already"
+            elif curl --silent --fail --output /dev/null --user-agent "$agent" "$api"; then
+              existing+=("$crate")
             else
-              nix develop --command cargo publish --locked --package "$crate"
+              new+=("$crate")
             fi
+          done
+          echo "new=${new[*]}" >>"$GITHUB_OUTPUT"
+          echo "existing=${existing[*]}" >>"$GITHUB_OUTPUT"
+      # The packages built and verified before any token is used, since
+      # a token from Trusted Publishing lives briefly; the publication
+      # reuses the build.
+      - name: cargo package
+        if: steps.due.outputs.new != '' || steps.due.outputs.existing != ''
+        env:
+          CRATES: ${{ steps.due.outputs.new }} ${{ steps.due.outputs.existing }}
+        run: |
+          read -ra crates <<<"$CRATES"
+          nix develop --command cargo package --locked "${crates[@]/#/--package=}"
+      # The new crates first: they are the library and the command, which
+      # the old names depend on. The token is the environment's secret,
+      # scoped to them; once they have their trusted publisher it goes.
+      - name: cargo publish, the crates new to crates.io
+        if: steps.due.outputs.new != ''
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_FIRST_PUBLISH_TOKEN }}
+          CRATES: ${{ steps.due.outputs.new }}
+        run: |
+          read -ra crates <<<"$CRATES"
+          for crate in "${crates[@]}"; do
+            nix develop --command cargo publish --locked --package "$crate"
+          done
+      # A token for this job alone, revoked when it ends, for every crate
+      # whose trusted publisher names this repository, workflow and
+      # environment.
+      - uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
+        id: auth
+        if: steps.due.outputs.existing != ''
+      - name: cargo publish, the crates crates.io has
+        if: steps.due.outputs.existing != ''
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+          CRATES: ${{ steps.due.outputs.existing }}
+        run: |
+          read -ra crates <<<"$CRATES"
+          for crate in "${crates[@]}"; do
+            nix develop --command cargo publish --locked --package "$crate"
           done
 
   packages:
