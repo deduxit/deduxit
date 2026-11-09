@@ -822,6 +822,12 @@ The second could name the flag that gives a term (`-i`).
 
 ## 6. Questions for the author
 
+**Answered by the author on 2026-11-09, 17:30: every recommendation
+accepted**, Q1–Q12 and W1–W3, W5–W15 (W4 was answered earlier). Q7,
+W11, W12 and W13 keep things as they are, with the text changes they
+name. Q5 and Q12 are breaking and go into 0.4.0; Q11's second half (the
+default kernel) waits for rocq-deduxit in the opam archive.
+
 Each changes the library's API, the command's flags or behaviour, or
 the page's behaviour, so none is made in step 54w. Each has a
 recommendation of the idiomatic, current practice, what it costs other

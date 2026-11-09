@@ -5989,3 +5989,20 @@ move (D26).
   asked. Next on go: 54w-c beside 54w-d, then 54w-e3 onward (goal
   template `/tmp/linlog-handoff/goal-54w-e1.txt`); the author's answers
   to Q1–Q12 and W1–W15 wait.
+- 2026-11-09, 17:30: **The author accepted every recommendation of the
+  usability review** (`plan/notes/usability.md` §6): Q1–Q12, W1–W3 and
+  W5–W15.
+  - **Additive, any release:** Q1 (the command's stop in one call), Q2
+    (`Display` for terms, `to_string` for each export), Q3 (`Outcome`
+    readable), Q4 (errors that name the formula), Q6 (hints on errors,
+    `tex` for `latex`), Q8 (refutations by side, `-a` named), Q9
+    (`interact` lists its rules, warns at a lost split), Q10 (a short
+    `-h`), Q11's flake app.
+  - **For 0.4.0, breaking:** Q5 (`ordinary::decide(&s, &options)` beside
+    `decide_within`) and Q12 (one JSON shape for ordinary logic).
+  - **The page:** W1, W2, W3, W5, W6, W7, W8, W9, W10, W14, W15.
+  - **Kept as they are, with their text:** Q7, W11, W12, W13.
+  - **Next:** plan the sessions for these on go, beside 54w-c, 54w-d
+    and 54w-e3 onward, so that no two edit one file: the command's
+    messages (Q6, Q8, Q9, Q10) belong with or after 54w-d, and the
+    library's items (Q1–Q4) before the docs that show them.
