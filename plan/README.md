@@ -5834,3 +5834,27 @@ move (D26).
     - README gained the AI disclaimer;
     - the scripts' and modules' comments were left for later;
     - CITATION's abstract was left as 0.3.0's record.
+- 2026-11-09, 14:05: **54w-r's usability review is done**
+  (`plan/notes/usability.md`, pushed).
+  - Its reviewer reran its 43 command examples and its library program.
+  - **Waiting for the author:** 26 questions, each with a
+    recommendation, in its section 6:
+    - Q1–Q11: the library and the command;
+    - W1–W15: the page.
+
+    They are changes to an API, a flag or the page's behaviour, so the
+    standing rule says the author decides them.
+  - **Until the author answers:**
+    - the text sessions fix wrong facts and rewrite text, and change no
+      behaviour;
+    - 54w-a (the page's text and the rule hints) starts now;
+    - the accepted changes get a session of their own after the
+      answers.
+  - **Wrong facts the review found,** fixed by the text sessions without
+    waiting:
+    - the crate docs' recipe that claims to "decide what the command
+      decides" (it answers unknown where the command refutes);
+    - the manual's `opam install rocq-deduxit`, since the package is not
+      in opam;
+    - `introduction.md:66` on the other provers and the growing
+      families.
