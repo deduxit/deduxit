@@ -48,6 +48,67 @@ Today the embedding decides 108 of ILTP's 274 propositional problems at
 - What the engine copies from the linear engines (an arena, a memo, a
   stop) is recorded in the report for step 67 (D25), not factored out.
 
+## What steps 47 to 53 left you (added at the review of step 53, 2026-11-09)
+
+- **The name is deduxit.**
+  - The crate is `deduxit`, the command `deduxit` (package
+    `deduxit-cli`), the harness `deduxit-bench`, the guide
+    `skills/deduxit/`.
+  - The linear suite is `deduxit::linear`; ordinary logic stays
+    `deduxit::ordinary`, beside it at the root.
+  - The planning session is `deduxit-orchestrator`.
+  - 0.3.0 is prepared, with its tags waiting for the author. Nothing in
+    this step waits for the publication.
+- **Where ordinary logic stands:**
+  - step 49 gave it goal states (`deduxit::ordinary::interactive`), the
+    command's `interact --logic`, and the page's Ordinary tab;
+  - step 50 reads its LJ proofs back as typed lambda-terms
+    (`deduxit::lambda`);
+  - `ordinary::Derivation::check` is the checker your proofs must pass.
+- **The oracles:** the target sets `bench/targets/47.csv` and
+  `net-47.csv`, unchanged by 52 and 53, since no search changed. This
+  step adds a search, so it adds rows of its own and keeps the linear
+  rows' counters equal to 47's.
+- **The harness reads JSON** (51b): the reason is the outcome's
+  `reason.kind`.
+- **Timed runs:** ILTP at 2 s and the families are timed runs. Ask
+  deduxit-orchestrator for each slot (cores 2-3, under the machine
+  lock), as step 52 did. The counters are compared without a slot.
+- **Two client-side notes** for 54b, if it touches the page:
+  - the client builds Biome without its tests (`modules/biome.nix`);
+  - its CI check job has 180 minutes.
+
+## The sessions (added at the review of step 53)
+
+- **54a, the engine** (Opus 5.5 at high, the panel after it):
+  - G4ip's search in `deduxit::ordinary` for intuitionistic and
+    minimal propositional sequents, terminating by the calculus, within
+    `Limits`, the stop poll and the memory account;
+  - its proofs translated into LJ derivations that
+    `ordinary::Derivation::check` accepts. The translation follows a
+    cited source (Dyckhoff 1992, *Contraction-free sequent calculi for
+    intuitionistic logic*; Dyckhoff and Negri 2000 for the rules'
+    admissibility), or the checker gains the rules under the panel's
+    review;
+  - "not valid" stays the search's word, reported as the embedding's
+    `Exhausted` is;
+  - tests: every ILTP problem the embedding decides gets the same
+    verdict from the engine, and a planted wrong translation is
+    refused by the checker;
+  - the library's API, docs and rules (`core-ordinary.md`).
+
+  Not yet the command's default.
+- **54b, the default by measurement** (Opus 5.5 at high, after 54a):
+  - the harness's engine axis gains the LJT engine;
+  - ILTP's 274 problems at 2 s and the families are run, both builds,
+    as a timed run;
+  - the default for intuitionistic and minimal logic moves only where
+    it wins (D19), and the embedding stays for classical logic and as
+    an option;
+  - the command's option, the manual, the guide, the page's settings
+    if they name engines, and the report
+    `plan/reports/54-ljt-engine.md`.
+
 ## How the step runs
 
 Two sessions on Opus 5.5 at `high`; the panel of step 26's prompt for the
