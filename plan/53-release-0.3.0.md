@@ -29,6 +29,60 @@ later. In the meantime don't make another tag until I figure it out."**
 - If the name changes, 53b's question on the citation title is answered
   by it, and a session renaming the crates comes before 53b.
 
+**Settled (the author, 2026-11-09).**
+
+- **The name.** The name is **deduxit**. The organisation, repositories
+  and sites were renamed that night, and session 53n moved every address.
+- **The scope: the idiomatic recommendation.**
+  - one command `deduxit` with `--logic`;
+  - one crate `deduxit` with the linear suite under `deduxit::linear`;
+  - `deduxit-cli` and `deduxit-web`;
+  - final "renamed" releases of `linlog` and `linlog-cli`;
+  - the Rocq library as `rocq-deduxit` (logical path `Deduxit`, today's
+    content as `Deduxit.Linear`).
+
+  `plan/notes/cli-library.md` and `plan/notes/structure.md` hold the
+  reasons.
+- **The citation title.** The concept DOIs stay. From 0.3.0 the title
+  is the new name, "deduxit" and "rocq-deduxit".
+- **The mark.** The author prefers the macron ("dēdūxit", the long
+  marks as inference lines). Its variations of face and colour are
+  being drawn, and the author chooses among them.
+
+**The sessions, in order** (each Opus 5.5 at `high`, each prompt
+written by the planning session when it starts):
+
+1. **53n, the move of the addresses** (running when this was written).
+2. **53a, the small defects**, as below. It runs beside 53r, which is
+   in another repository.
+3. **53r, the Rocq library renamed**, in `../rocq-linlog`:
+   - the package `rocq-deduxit`;
+   - the logical path `Deduxit`, today's modules under `Deduxit.Linear`;
+   - the opam file, README, the citation and the flake;
+   - its own `nix flake check`.
+
+   The GitHub repository is renamed to `deduxit/rocq-deduxit` first,
+   with the author's yes.
+4. **53s, the crates and the command renamed**, after 53a:
+   - the packages `deduxit` (core), `deduxit-cli` (binary `deduxit`),
+     `deduxit-web` and `deduxit-bench`;
+   - the linear modules moved under `deduxit::linear`, with what
+     `ordinary` already shares at the root;
+   - the final shim crates `linlog` and `linlog-cli` 0.3.0, which
+     re-export or call the new crates;
+   - the exporter's preludes and `--kernel linlog` follow the renamed
+     library, and the lock moves to it;
+   - the manual, the guide for AI models, the behaviour lock (a commit
+     of its own), the release workflow's crate list, `.claude/` and
+     CLAUDE.md.
+
+   The target sets must equal 47's (a move of modules changes no
+   search) and the ratchet must hold. In the client, after linlog: the
+   bindings' new name and the lock.
+5. **53m's placement of the chosen mark.**
+6. **53b, the release prepared.** The author publishes the new crates
+   once with a token, then sets up their Trusted Publishing.
+
 ## Goal
 
 0.3.0 is "ordinary logic on the page": LK and LJ step by step in the

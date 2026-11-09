@@ -5338,3 +5338,49 @@ move (D26).
     - the first-order counts are certified too.
   - The panel's two scratch commits were abandoned (operation
     95bb30221c83).
+- 2026-11-09, 01:35: **the author settled the scope: "go with the
+  idiomatic recommendation"** (`plan/notes/structure.md`, and the
+  research of the night, kept as `plan/notes/cli-library.md`).
+  - **One command, `deduxit`.**
+    - Verbs come first, and `--logic` chooses the suite; linear is the
+      default through 0.x.
+    - No subcommand, binary or alias per suite. Plug-ins
+      (`deduxit-foo`) wait until a third party writes a suite.
+  - **One crate, `deduxit`, with a module per suite.**
+    - The linear suite moves under `deduxit::linear` in the rename's
+      release, so users break once. `deduxit::ordinary` and
+      `deduxit::lambda` stay as they are.
+    - No feature per suite.
+    - A facade over `deduxit-kernel` and per-suite crates comes only
+      when one of these happens:
+      - a second consumer needs part of the library;
+      - an independent suite exists (modal, step 65);
+      - a heavy dependency arrives;
+      - a suite needs its own release pace;
+      - the page needs a WebAssembly module per suite.
+  - **The other packages:** `deduxit-cli` (binary `deduxit`) and
+    `deduxit-web`.
+  - **"linlog" keeps only frozen pointers.** The crates `linlog` and
+    `linlog-cli` get a final 0.3.0 that says "renamed": `linlog`
+    re-exports `deduxit`, and the `linlog` binary runs as `deduxit`.
+    They are never deleted. The Zenodo concept DOI stays, with a new
+    title.
+  - **The Rocq library becomes `rocq-deduxit`** (logical path
+    `Deduxit`, today's content as `Deduxit.Linear`). This happens
+    before the opam pull request, since step 55 puts intuitionistic
+    metatheory into it.
+  - **The order, recorded in `plan/53-release-0.3.0.md`.** Step 52 and
+    53n land first. Then come, in this order:
+    - 53a (the small defects);
+    - beside it, in the Rocq repository, 53r (the library renamed);
+    - 53s (the crates, the command and the module move, the lock moved
+      to the renamed library);
+    - 53m's placement of the mark the author chooses (they prefer
+      Opus's macron, "dēdūxit"; variations are being drawn);
+    - 53b.
+  - **The checks done at the author's request:**
+    - both Zenodo v0.2.0 records point to `github.com/deduxit/…`;
+    - every old link of 0.1.0 and 0.2.0 lands on the `deduxit`
+      repositories;
+    - crates.io's Trusted Publishing was changed by the author (not
+      readable without their login).
