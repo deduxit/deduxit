@@ -5714,3 +5714,18 @@ move (D26).
   - `deduxit/deduxit.github.io` gained logic.
   - The placeholder now says "Moved: linlog is now deduxit, at
     deduxit.github.io".
+- 2026-11-09, 12:30: **0.3.0 tagged** (the author asked the planning
+  session to run `tag.sh`). Both tags are annotated, signed with the
+  author's key, and verified valid by GitHub:
+  - `rocq-deduxit` `v0.3.0` → 66905bcc (tag object 2cb9dd2b);
+  - `deduxit` `v0.3.0` → 8e2bbb18 (tag object 3b2dd37d).
+  - **The release workflows are running.** deduxit's publish job waits
+    for the author's approval in the environment `crates-io`.
+  - **Two snags, both handled:**
+    - `tag.sh` first required each release commit to be main, and
+      deduxit's main had moved ahead with plan commits. It now accepts
+      a commit in main's history (GitHub's compare API).
+    - A rerun made one more, unreferenced tag object for rocq-deduxit,
+      because the public API still served the new ref as 404 from its
+      cache. Creating the ref was refused ("already exists"), so the
+      real tag is untouched.
