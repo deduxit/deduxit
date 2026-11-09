@@ -476,22 +476,45 @@ fn names_a_file(name: &str) -> bool {
 /// Returns the file in `directory` for an entry named `name`: the name as
 /// a relative path (`..` written `__`, a root dropped) with the format's
 /// extension added, so that entries of the same file name in different
-/// directories, or of different kinds, get different files. Every name
+/// directories, or of different kinds, get different files; for a Rocq
+/// certificate each part of the path made a Rocq identifier
+/// ([`rocq_name`]), since Rocq names a file's module by it. Every name
 /// of an entry names a file (a path given, or `names_a_file`), so the
 /// file lies inside `directory`.
 fn file_for(directory: &Path, name: &str, format: Format) -> PathBuf {
     let mut path = directory.to_owned();
     for component in Path::new(name).components() {
-        match component {
-            Component::Normal(part) => path.push(part),
-            Component::ParentDir => path.push("__"),
-            _ => {}
+        let part = match component {
+            Component::Normal(part) => part,
+            Component::ParentDir => "__".as_ref(),
+            _ => continue,
+        };
+        if format == Format::Rocq {
+            path.push(rocq_name(&part.to_string_lossy()));
+        } else {
+            path.push(part);
         }
     }
     let mut file = path.into_os_string();
     file.push(".");
     file.push(format.extension());
     file.into()
+}
+
+/// Returns a part of an entry's name as a Rocq identifier, which a file's
+/// module name must be: every character but an ASCII letter, digit or `_`
+/// as `_`, and `entry_` before one that does not start with a letter
+/// (`modus ponens` is `modus_ponens`, `SYJ201+1.p` is `SYJ201_1_p`).
+fn rocq_name(part: &str) -> String {
+    let name: String = part
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect();
+    if name.starts_with(|c: char| c.is_ascii_alphabetic()) {
+        name
+    } else {
+        format!("entry_{name}")
+    }
 }
 
 /// Returns an entry's name as a line of text shows it: its control

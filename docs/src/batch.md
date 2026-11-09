@@ -42,7 +42,10 @@ command writes each proved sequent's derivation into the directory
 `--output` names, in the format asked for, named after the sequent with
 the format's extension (`drawings/identity.svg`; `ILL/01/X.p` becomes
 `DIR/ILL/01/X.p.svg`, so the LLTP library's translations of one problem
-do not overwrite each other). A file's kind
+do not overwrite each other); a Rocq certificate's name is made a Rocq
+identifier, which Rocq takes as the file's module name, every character
+but a letter, digit or `_` written `_` (`modus ponens` becomes
+`DIR/modus_ponens.v`, `ILL/01/X.p` `DIR/ILL/entry_01/X_p.v`). A file's kind
 is its extension's unless `--input-format` says otherwise: `.p` is a
 problem of the LLTP library, `.spec` a coverability problem in the format
 of the Mist tool, `.json` a sequent in JSON, anything else the text

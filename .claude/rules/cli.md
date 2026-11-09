@@ -404,7 +404,10 @@ binary `linlog` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   printed as its line, never an `error:` of the command. A drawn format
   needs `--output DIR`; a file per proved sequent is
   `file_for(DIR, name)`, the name's path with `..` as `__` and the
-  format's extension added; a line's name without a component but a root
+  format's extension added (for `--format rocq` each part of it a Rocq
+  identifier, `rocq_name`, since Rocq takes a file's name as its
+  module's and refuses `modus ponens.v`; every lemma stays
+  `certificate`, which the module qualifies); a line's name without a component but a root
   or `.` (empty, `.`, `/`) is no name (`names_a_file`), so the entry is
   named by its place and its file lies inside DIR (a `.` once wrote
   `DIR.json` beside it, over a file the user had there). Defaults: `--workers` the machine's threads,

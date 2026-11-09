@@ -1026,6 +1026,35 @@ fn an_eigenvariable_of_exists_left_is_refused_by_its_step() {
     );
 }
 
+/// A batch's Rocq certificates are named by Rocq identifiers, which a
+/// file's module name must be.
+#[test]
+fn a_batch_s_certificates_are_modules() {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("cli-certificates");
+    let _ = std::fs::remove_dir_all(&dir);
+    let entries = "{\"name\": \"modus ponens\", \"sequent\": \"A, A -o B |- B\"}\n\
+                   {\"name\": \"1+1.p\", \"sequent\": \"A |- A\"}\n";
+    let output = format!("{}/", dir.display());
+    let args = [
+        "prove",
+        "--input-format",
+        "jsonl",
+        "--format",
+        "rocq",
+        "--output",
+        &output,
+    ];
+    let (status, _, _) = linlog(&args, entries);
+    assert_eq!(status, 0);
+    let mut files: Vec<_> = std::fs::read_dir(&dir)
+        .unwrap()
+        .map(|f| f.unwrap().file_name())
+        .collect();
+    files.sort();
+    assert_eq!(files, ["entry_1_1_p.v", "modus_ponens.v"]);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
 /// `check` takes the mode a proof file states where no flag names one,
 /// and refuses a flag that names another.
 #[test]

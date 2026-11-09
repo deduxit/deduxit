@@ -757,8 +757,9 @@ Every sequent gets one line, `NAME: VERDICT`, in input order and as soon
 as it is decided, named by its path, its line's name, or `FILE:LINE`.
 With `--format json` each is a JSON line, `version` and `name` first and
 then the outcome's keys, or `"verdict": "error"` with a `message`. A
-drawn format writes a file per proved sequent into `--output DIR`. The
-exit status is the worst. On standard input the batch is a stream,
+drawn format writes a file per proved sequent into `--output DIR`
+(a Rocq certificate's file named by a Rocq identifier, `modus ponens`
+as `modus_ponens.v`). The exit status is the worst. On standard input the batch is a stream,
 answered line by line.
 
 ```console
