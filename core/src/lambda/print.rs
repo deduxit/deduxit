@@ -14,7 +14,7 @@
 use super::{Calculus, Node, Notation, Options, Term, TermId, Type, TypeId, VarId};
 use crate::Error;
 use crate::limits::{Limits, Phase, Progress, Refusal};
-use crate::sequents::notation::Atoms;
+use crate::linear::sequents::notation::Atoms;
 use std::fmt::Write;
 
 /// The spellings of a type's connectives in one calculus.

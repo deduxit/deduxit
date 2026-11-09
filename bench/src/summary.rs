@@ -155,7 +155,7 @@ pub(crate) fn configuration(row: &Row) -> String {
     }
     let forward = row.get("forward_copies");
     if !forward.is_empty()
-        && forward != deduxit::search::Options::DEFAULT_FORWARD_COPIES.to_string()
+        && forward != deduxit::linear::search::Options::DEFAULT_FORWARD_COPIES.to_string()
     {
         label.push_str(&format!(" forward {forward}"));
     }
@@ -175,7 +175,7 @@ pub(crate) fn configuration(row: &Row) -> String {
     match row.get("memo_limit") {
         "" => {}
         "0" => label.push_str(" memo off"),
-        memo if memo != deduxit::search::Options::DEFAULT_MEMO_LIMIT.to_string() => {
+        memo if memo != deduxit::linear::search::Options::DEFAULT_MEMO_LIMIT.to_string() => {
             label.push_str(&format!(" memo {memo}"));
         }
         _ => {}

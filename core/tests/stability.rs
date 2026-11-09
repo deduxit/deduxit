@@ -21,7 +21,8 @@
 
 use deduxit::wire::{self, Readable};
 use deduxit::{
-    Disproof, IllSequent, Interactive, Limits, MellStructure, Proof, ProofStructure, Sequent,
+    Limits,
+    linear::{Disproof, IllSequent, Interactive, MellStructure, Proof, ProofStructure, Sequent},
 };
 
 /// Reads one document of the form `T`.
@@ -160,7 +161,11 @@ fn the_sixth_level_reads() {
             "proof" => {
                 again::<Proof>(name, json);
                 let proof: Proof = read(name, json);
-                assert_eq!(proof.check(deduxit::Mode::CLASSICAL), Ok(()), "{name}");
+                assert_eq!(
+                    proof.check(deduxit::linear::Mode::CLASSICAL),
+                    Ok(()),
+                    "{name}"
+                );
                 assert_eq!(proof.sequent().cuts().len(), 1, "{name}");
             }
             "session" => {

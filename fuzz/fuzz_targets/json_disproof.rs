@@ -5,7 +5,7 @@
 //! deserializes writes back as a document that reads back as itself.
 #![no_main]
 
-use deduxit::Disproof;
+use deduxit::linear::Disproof;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {

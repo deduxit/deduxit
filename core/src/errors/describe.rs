@@ -2,12 +2,12 @@
 // Licensed under the EUPL
 
 use super::{Error, INVALID_PROOF};
-use crate::Mode;
-use crate::nets::{MellStructure, NetError, ProofStructure};
-use crate::occurrences::instances::Framing;
-use crate::occurrences::{Forest, Instances, Member, OccId, Reading, ShapeError};
-use crate::proofs::{CheckError, Derivation, Proof};
-use crate::sequents::notation::TEXT;
+use crate::linear::Mode;
+use crate::linear::nets::{MellStructure, NetError, ProofStructure};
+use crate::linear::occurrences::instances::Framing;
+use crate::linear::occurrences::{Forest, Instances, Member, OccId, Reading, ShapeError};
+use crate::linear::proofs::{CheckError, Derivation, Proof};
+use crate::linear::sequents::notation::TEXT;
 use std::fmt::{self, Display, Formatter, Write};
 
 /// The most characters a formula or a list of formulas of an error report
@@ -192,18 +192,18 @@ impl Owner for ProofStructure {
 }
 
 #[cfg(feature = "interactive")]
-impl crate::sealed::Owner for crate::Interactive {
+impl crate::sealed::Owner for crate::linear::Interactive {
     /// The session's mode.
     fn mode(&self) -> Option<Mode> {
-        Some(crate::Interactive::mode(self))
+        Some(crate::linear::Interactive::mode(self))
     }
 }
 
 #[cfg(feature = "interactive")]
-impl Owner for crate::Interactive {
+impl Owner for crate::linear::Interactive {
     /// The session's forest.
     fn forest(&self) -> &Forest {
-        crate::Interactive::forest(self)
+        crate::linear::Interactive::forest(self)
     }
 }
 

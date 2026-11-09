@@ -8,9 +8,12 @@
 //! bytes after it are a step: what to do, which goal, which formula.
 #![no_main]
 
-use deduxit::proofs::interactive::Needs;
-use deduxit::search::Options;
-use deduxit::{Interactive, Limits, Mode, Sequent, Step, ViewOptions};
+use deduxit::linear::proofs::interactive::Needs;
+use deduxit::linear::search::Options;
+use deduxit::{
+    Limits,
+    linear::{Interactive, Mode, Sequent, Step, ViewOptions},
+};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
@@ -83,7 +86,7 @@ fuzz_target!(|data: &[u8]| {
     {
         let check = proof.check_within(session.mode(), &limits, |_| false);
         assert!(
-            !matches!(check, Err(deduxit::CheckError::Invalid(_))),
+            !matches!(check, Err(deduxit::linear::CheckError::Invalid(_))),
             "a finished session's proof checks: {check:?}"
         );
     }

@@ -2,8 +2,8 @@
 // Licensed under the EUPL
 
 use crate::limits::{Limits, Refusal};
-use crate::sequents::fo::{Args, FirstOrder, FoTerm, FoTermId, Symbol};
-use crate::sequents::{Sequent as Seq, Term, TermId, name};
+use crate::linear::sequents::fo::{Args, FirstOrder, FoTerm, FoTermId, Symbol};
+use crate::linear::sequents::{Sequent as Seq, Term, TermId, name};
 use crate::wire::{self, Readable};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::borrow::Cow;
@@ -451,8 +451,8 @@ impl Expression {
         use Term as E;
         let t = TermId::new;
         match self {
-            Atom(a) => E::Atom(crate::sequents::Atom::new(a)),
-            DualAtom(a) => E::DualAtom(crate::sequents::Atom::new(a)),
+            Atom(a) => E::Atom(crate::linear::sequents::Atom::new(a)),
+            DualAtom(a) => E::DualAtom(crate::linear::sequents::Atom::new(a)),
             One => E::One,
             Bot => E::Bot,
             Top => E::Top,

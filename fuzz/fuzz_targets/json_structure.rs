@@ -6,7 +6,10 @@
 //! accepts.
 #![no_main]
 
-use deduxit::{Limits, Mode, ProofStructure};
+use deduxit::{
+    Limits,
+    linear::{Mode, ProofStructure},
+};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {

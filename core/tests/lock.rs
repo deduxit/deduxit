@@ -11,10 +11,13 @@
 //! input.
 #![cfg(all(feature = "parse", feature = "serialize", feature = "interactive"))]
 
-use deduxit::search::Engine;
+use deduxit::linear::search::Engine;
 use deduxit::{
-    Criterion, Forest, Interactive, Limits, Mode, Named, Options, ProofStructure, Sequent, Step,
-    VertexId, ViewOptions,
+    Limits,
+    linear::{
+        Criterion, Forest, Interactive, Mode, Named, Options, ProofStructure, Sequent, Step,
+        VertexId, ViewOptions,
+    },
 };
 use std::fmt::Write as _;
 
@@ -67,7 +70,7 @@ fn lines() -> String {
             classical,
         ),
     ] {
-        let outcome = deduxit::prove(&sequent(text), mode, &options).unwrap();
+        let outcome = deduxit::linear::prove(&sequent(text), mode, &options).unwrap();
         pin(name, json(&outcome));
     }
 
@@ -75,27 +78,28 @@ fn lines() -> String {
     let tiny = Limits::default().with_memory_bytes(Some(100));
     pin(
         "outcome-memory-limit",
-        json(&deduxit::prove_within(&hard, classical, &options, &tiny, |_| false).unwrap()),
+        json(&deduxit::linear::prove_within(&hard, classical, &options, &tiny, |_| false).unwrap()),
     );
     let stopped =
-        deduxit::prove_within(&hard, classical, &options, &Limits::default(), |_| true).unwrap();
+        deduxit::linear::prove_within(&hard, classical, &options, &Limits::default(), |_| true)
+            .unwrap();
     pin("outcome-stopped", json(&stopped));
     let bounded = options.clone().with_copies(Some(0));
     pin(
         "outcome-copy-bound",
-        json(&deduxit::prove(&hard, classical, &bounded).unwrap()),
+        json(&deduxit::linear::prove(&hard, classical, &bounded).unwrap()),
     );
     let forced = options.clone().with_engine(Some(Engine::Focus));
     pin(
         "outcome-forced-engine",
-        json(&deduxit::prove(&sequent("A * B |- B * A"), classical, &forced).unwrap()),
+        json(&deduxit::linear::prove(&sequent("A * B |- B * A"), classical, &forced).unwrap()),
     );
 
-    let proved = |text: &str, mode| match deduxit::prove(&sequent(text), mode, &options)
+    let proved = |text: &str, mode| match deduxit::linear::prove(&sequent(text), mode, &options)
         .unwrap()
         .verdict
     {
-        deduxit::Verdict::Proved(proof) => proof,
+        deduxit::linear::Verdict::Proved(proof) => proof,
         other => panic!("{text}: {other:?}"),
     };
     for (name, text, mode) in [
@@ -151,7 +155,7 @@ fn lines() -> String {
     // Level 2: the classical refutation.
     pin(
         "outcome-classical",
-        json(&deduxit::prove(&sequent("A + B |- A"), classical, &options).unwrap()),
+        json(&deduxit::linear::prove(&sequent("A + B |- A"), classical, &options).unwrap()),
     );
 
     out

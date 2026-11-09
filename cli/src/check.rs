@@ -12,7 +12,10 @@ use crate::show::{
 };
 use crate::{Status, exit_on_interrupt, interrupted};
 use anyhow::{Context, Result, anyhow, bail};
-use deduxit::{CheckError, Disproof, Error, ErrorKind, Forest, Limits, Mode, Proof, Reading};
+use deduxit::{
+    Error, ErrorKind, Limits,
+    linear::{CheckError, Disproof, Forest, Mode, Proof, Reading},
+};
 use std::time::Instant;
 
 /// Runs `check`: reads a proof, or a disproof, checks it in the mode the
@@ -245,7 +248,7 @@ fn check_disproof(
 
 /// Returns a sequent as `check` names it in a verdict: two-sided in an
 /// intuitionistic mode where it has the reading, one-sided otherwise.
-fn shown_sequent(sequent: &deduxit::Sequent, mode: Mode, show: &Show) -> String {
+fn shown_sequent(sequent: &deduxit::linear::Sequent, mode: Mode, show: &Show) -> String {
     let formulas = sequent.roots().len();
     match Forest::new(sequent)
         .ok()
@@ -345,7 +348,7 @@ fn check_into(
         Err(CheckError::Refused(_)) => Status::Unknown,
         Err(_) => Status::No,
     };
-    let report = |e: &deduxit::CheckError| {
+    let report = |e: &deduxit::linear::CheckError| {
         e.describe(proof)
             .in_mode(mode)
             .abbreviated(show.abbreviate)

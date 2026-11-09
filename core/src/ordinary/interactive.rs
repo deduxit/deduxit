@@ -19,8 +19,8 @@ use super::{Derivation, Formulas, Inference, Logic, Node, NodeId, Outcome, Rule,
 use super::{Translation, Verdict, bound, decide};
 use crate::Error;
 use crate::limits::{Limits, Phase, Progress, Refusal};
-use crate::proofs::{GoalId, InfId, Size, Structural, ViewOptions};
-use crate::search;
+use crate::linear::proofs::{GoalId, InfId, Size, Structural, ViewOptions};
+use crate::linear::search;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 /// Why a rule does not apply to a goal as asked. Positions are those of
@@ -1678,7 +1678,7 @@ impl Interactive {
 #[cfg(all(test, feature = "parse"))]
 mod tests {
     use super::*;
-    use crate::search::generate::Rng;
+    use crate::linear::search::generate::Rng;
     use Side::{Left, Right};
 
     /// Starts a proof of `text` in `logic` and returns it with its goal.

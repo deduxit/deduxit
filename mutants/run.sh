@@ -35,18 +35,18 @@ jobs=3
 
 # name | files (space-separated globs) | the tests that exercise them
 batches=(
-  "check|core/src/proofs/check/*.rs core/src/proofs/mod.rs|test(/^proofs::/) | binary_id(deduxit::serialize) | binary_id(deduxit-cli::cli)"
-  "parse|core/src/parse/mod.rs|binary_id(deduxit::parse) | binary_id(deduxit::depth) | test(/^(parse|sequents|fragment)::/)"
+  "check|core/src/linear/proofs/check/*.rs core/src/linear/proofs/mod.rs|test(/^linear::proofs::/) | binary_id(deduxit::serialize) | binary_id(deduxit-cli::cli)"
+  "parse|core/src/linear/parse/mod.rs|binary_id(deduxit::parse) | binary_id(deduxit::depth) | test(/^linear::(parse|sequents|fragment)::/)"
   "serialize|core/src/serialize/*.rs|binary_id(deduxit::serialize) | binary_id(deduxit::depth)"
-  "lltp|core/src/lltp.rs|test(/^lltp::/) | package(deduxit-bench)"
-  "mist|core/src/mist.rs|test(/^(mist|search::horn)::/) | package(deduxit-bench)"
+  "lltp|core/src/linear/lltp.rs|test(/^linear::lltp::/) | package(deduxit-bench)"
+  "mist|core/src/linear/mist.rs|test(/^linear::(mist|search::horn)::/) | package(deduxit-bench)"
   "ordinary-parse|core/src/ordinary/parse.rs|test(/^ordinary::/) | binary_id(deduxit::depth) | binary_id(deduxit-cli::cli)"
   "ordinary-derivation|core/src/ordinary/derivation.rs|test(/^ordinary::/) | binary_id(deduxit::depth) | binary_id(deduxit-cli::cli) | binary_id(deduxit-cli::readme)"
-  "search|core/src/search/mod.rs|test(/^search::/) | binary_id(deduxit::serialize) | binary_id(deduxit-cli::cli)"
-  "horn-mod|core/src/search/horn/mod.rs|test(/^(search::(horn|reference)|mist)::/)"
-  "horn-equation|core/src/search/horn/equation.rs|test(/^(search::(horn|reference)|mist)::/)"
-  "horn-cover|core/src/search/horn/cover.rs|test(/^(search::(horn|reference)|mist)::/)"
-  "horn-reach|core/src/search/horn/reach.rs|test(/^(search::(horn|reference)|mist)::/)"
+  "search|core/src/linear/search/mod.rs|test(/^linear::search::/) | binary_id(deduxit::serialize) | binary_id(deduxit-cli::cli)"
+  "horn-mod|core/src/linear/search/horn/mod.rs|test(/^linear::(search::(horn|reference)|mist)::/)"
+  "horn-equation|core/src/linear/search/horn/equation.rs|test(/^linear::(search::(horn|reference)|mist)::/)"
+  "horn-cover|core/src/linear/search/horn/cover.rs|test(/^linear::(search::(horn|reference)|mist)::/)"
+  "horn-reach|core/src/linear/search/horn/reach.rs|test(/^linear::(search::(horn|reference)|mist)::/)"
 )
 
 if [ "${1:-}" = --compare ]; then

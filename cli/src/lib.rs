@@ -76,13 +76,13 @@ impl Status {
     }
 }
 
-impl From<&deduxit::search::Verdict> for Status {
+impl From<&deduxit::linear::search::Verdict> for Status {
     /// Returns the status of a verdict: proved, unprovable or unknown.
-    fn from(verdict: &deduxit::search::Verdict) -> Self {
+    fn from(verdict: &deduxit::linear::search::Verdict) -> Self {
         match verdict {
-            deduxit::search::Verdict::Proved(_) => Self::Yes,
-            deduxit::search::Verdict::Unprovable(_) => Self::No,
-            deduxit::search::Verdict::Unknown(_) => Self::Unknown,
+            deduxit::linear::search::Verdict::Proved(_) => Self::Yes,
+            deduxit::linear::search::Verdict::Unprovable(_) => Self::No,
+            deduxit::linear::search::Verdict::Unknown(_) => Self::Unknown,
         }
     }
 }
@@ -309,7 +309,7 @@ pub fn main() -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::parse_error;
-    use deduxit::{Error, Sequent};
+    use deduxit::{Error, linear::Sequent};
 
     /// The parse error's message is written for every text the parser
     /// refuses, without a panic, with its caret: texts drawn from the

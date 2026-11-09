@@ -37,7 +37,7 @@
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
 //! use deduxit::export::typst;
-//! use deduxit::{Limits, Mode, Options, Sequent, Verdict, prove};
+//! use deduxit::{Limits, linear::{Mode, Options, Sequent, Verdict, prove}};
 //!
 //! let sequent: Sequent = "A, A -o B |- B".parse()?;
 //! let options = typst::Options::default();
@@ -67,11 +67,11 @@
 use super::notation::{Step, flush, walk};
 use super::{Drawable, Form};
 use crate::Error;
+use crate::linear::proofs::style::{Drawn, Part, parts};
+use crate::linear::proofs::{Labels, OpenGoal};
+use crate::linear::sequents::Sequent;
+use crate::linear::sequents::notation::{Atoms, Notation};
 use crate::ordinary::Symbols;
-use crate::proofs::style::{Drawn, Part, parts};
-use crate::proofs::{Labels, OpenGoal};
-use crate::sequents::Sequent;
-use crate::sequents::notation::{Atoms, Notation};
 use std::fmt::Write;
 
 /// The version of curryst a standalone document imports, the one the
@@ -445,10 +445,10 @@ const PER_OCCURRENCE: u64 = 32;
 /// and its longest atom name), before anything is laid out;
 /// [`Error::NotIntuitionistic`] in intuitionistic mode for one without an
 /// intuitionistic reading, and the refusal of
-/// [`Forest::within`](crate::Forest::within).
+/// [`Forest::within`](crate::linear::Forest::within).
 pub fn sequent(
     sequent: &Sequent,
-    mode: crate::Mode,
+    mode: crate::linear::Mode,
     options: &Options,
     limits: &crate::Limits,
 ) -> Result<String, Error> {
@@ -520,7 +520,7 @@ fn height<T: Drawn>(derivation: &T) -> usize {
     // Premises come before their conclusions, the root last.
     let mut heights = vec![0; derivation.len()];
     for i in 0..heights.len() {
-        let premises = derivation.premises(crate::InfId::new(i as u32));
+        let premises = derivation.premises(crate::linear::InfId::new(i as u32));
         let above = premises.iter().map(|p| heights[p.index()]);
         heights[i] = 1 + above.max().unwrap_or(0);
     }

@@ -1,0 +1,285 @@
+// linlog © Fabian Lukas Grubmüller 2026
+// Licensed under the EUPL
+
+//! The linear zone of a sequent inside the focused engine: a multiset of
+//! occurrence ids, kept as a bitset of the occurrences present plus a list
+//! of the extra copies, which is empty until a copy from the unrestricted
+//! zone repeats an occurrence, so that the common case costs a bitset and
+//! only a repeat allocates. The zone keeps the range of the bitset's words
+//! that may hold a member, so that clearing, copying and listing it cost
+//! that range and not the forest's width: on a net of a hundred thousand
+//! occurrences a stable sequent's members lie in a few of its words.
+
+use crate::linear::occurrences::{OccId, OccSet};
+
+/// A multiset of occurrence ids over one forest. Two zones are equal when
+/// they hold the same members, whatever their ranges.
+#[derive(Debug)]
+pub(crate) struct Context {
+    /// The occurrences present at least once.
+    set: OccSet,
+    /// Per occurrence present more than once, in ascending id order, how
+    /// many copies beyond the first it has.
+    extra: Vec<(OccId, u32)>,
+    /// The first word of `set` that may hold a member: every word before
+    /// it and from `hi` on is empty.
+    lo: usize,
+    /// One past the last word of `set` that may hold a member; `lo` when
+    /// none may.
+    hi: usize,
+}
+
+/// The most words of a zone that keeps every word in its range: on a
+/// forest of a few hundred occurrences the bookkeeping of a range costs
+/// more than it saves.
+const NARROW: usize = 8;
+
+impl Clone for Context {
+    /// Returns a copy of the zone.
+    fn clone(&self) -> Self {
+        Self {
+            set: self.set.clone(),
+            extra: self.extra.clone(),
+            lo: self.lo,
+            hi: self.hi,
+        }
+    }
+
+    /// Makes this zone a copy of `other`, a zone of the same forest,
+    /// reusing the buffers.
+    fn clone_from(&mut self, other: &Self) {
+        debug_assert_eq!(self.set.capacity(), other.set.capacity(), "one forest");
+        // One copy over both ranges: the words of `other` outside its own
+        // are empty, so they clear what this zone held there.
+        let (lo, hi) = if self.lo == self.hi {
+            (other.lo, other.hi)
+        } else if other.lo == other.hi {
+            (self.lo, self.hi)
+        } else {
+            (self.lo.min(other.lo), self.hi.max(other.hi))
+        };
+        self.set.copy_words(&other.set, lo, hi);
+        (self.lo, self.hi) = (other.lo, other.hi);
+        self.extra.clone_from(&other.extra);
+    }
+}
+
+impl PartialEq for Context {
+    fn eq(&self, other: &Self) -> bool {
+        self.set == other.set && self.extra == other.extra
+    }
+}
+
+impl Eq for Context {}
+
+impl Context {
+    /// Returns the empty zone over `len` occurrence ids.
+    pub(crate) fn empty(len: usize) -> Self {
+        let mut zone = Self {
+            set: OccSet::empty(len),
+            extra: Vec::new(),
+            lo: 0,
+            hi: 0,
+        };
+        zone.clear();
+        zone
+    }
+
+    /// Returns the extra copies: per occurrence present more than once, in
+    /// ascending id order, how many copies beyond the first it has.
+    #[cfg(test)]
+    pub(crate) fn extra(&self) -> &[(OccId, u32)] {
+        &self.extra
+    }
+
+    /// Where `o` is or would be in the extra list.
+    fn slot(&self, o: OccId) -> Result<usize, usize> {
+        self.extra.binary_search_by_key(&o, |&(x, _)| x)
+    }
+
+    /// Widens the range of words that may hold a member to `o`'s; a
+    /// narrow zone's range is all of them already.
+    #[inline]
+    fn reach(&mut self, o: OccId) {
+        if self.hi - self.lo == self.set.words().len() {
+            return;
+        }
+        let word = o.index() / 64;
+        if self.lo == self.hi {
+            (self.lo, self.hi) = (word, word + 1);
+        } else {
+            self.lo = self.lo.min(word);
+            self.hi = self.hi.max(word + 1);
+        }
+    }
+
+    /// Adds one copy of `o`.
+    pub(crate) fn insert(&mut self, o: OccId) {
+        if self.set.insert(o) {
+            self.reach(o);
+            return;
+        }
+        match self.slot(o) {
+            Ok(i) => self.extra[i].1 += 1,
+            Err(i) => self.extra.insert(i, (o, 1)),
+        }
+    }
+
+    /// Removes one copy of `o`, which must be a member.
+    pub(crate) fn remove(&mut self, o: OccId) {
+        debug_assert!(self.set.contains(o), "removing a member");
+        if let Ok(i) = self.slot(o) {
+            if self.extra[i].1 == 1 {
+                self.extra.remove(i);
+            } else {
+                self.extra[i].1 -= 1;
+            }
+        } else {
+            self.set.remove(o);
+        }
+    }
+
+    /// Returns whether `o` is a member.
+    pub(crate) fn contains(&self, o: OccId) -> bool {
+        self.set.contains(o)
+    }
+
+    /// Returns how many copies of `o` there are.
+    #[cfg(test)]
+    pub(crate) fn count(&self, o: OccId) -> u32 {
+        if !self.set.contains(o) {
+            return 0;
+        }
+        1 + self.slot(o).map_or(0, |i| self.extra[i].1)
+    }
+
+    /// Removes every member. A zone of a forest of at most
+    /// [`NARROW`] words keeps them all in range, which costs less than
+    /// keeping track.
+    pub(crate) fn clear(&mut self) {
+        self.set.clear_words(self.lo, self.hi);
+        let width = self.set.words().len();
+        (self.lo, self.hi) = if width <= NARROW { (0, width) } else { (0, 0) };
+        self.extra.clear();
+    }
+
+    /// Returns whether an occurrence of `set`, a set over the same
+    /// forest, is a member.
+    pub(crate) fn meets(&self, set: &OccSet) -> bool {
+        let (ours, theirs) = (self.set.words(), set.words());
+        ours[self.lo..self.hi]
+            .iter()
+            .zip(&theirs[self.lo..self.hi])
+            .any(|(a, b)| a & b != 0)
+    }
+
+    /// Returns whether the zone has no member.
+    pub(crate) fn is_empty(&self) -> bool {
+        self.set.words()[self.lo..self.hi].iter().all(|&w| w == 0)
+    }
+
+    /// Returns the number of members, copies counted.
+    #[cfg(test)]
+    pub(crate) fn len(&self) -> usize {
+        self.set.words()[self.lo..self.hi]
+            .iter()
+            .map(|w| w.count_ones() as usize)
+            .sum::<usize>()
+            + self.extra.iter().map(|&(_, n)| n as usize).sum::<usize>()
+    }
+
+    /// Returns the members in ascending order, an occurrence repeated as
+    /// often as it is present.
+    pub(crate) fn iter(&self) -> impl Iterator<Item = OccId> + '_ {
+        self.with_copies()
+            .flat_map(|(o, copies)| std::iter::repeat_n(o, copies as usize))
+    }
+
+    /// Returns each member once, in ascending order, with the number of
+    /// its copies.
+    fn with_copies(&self) -> impl Iterator<Item = (OccId, u32)> + '_ {
+        // The extra list is in ascending order, like the set.
+        let mut extra = self.extra.iter().peekable();
+        self.set.iter_words(self.lo, self.hi).map(move |o| {
+            let extras = extra.next_if(|&&(x, _)| x == o).map_or(0, |&(_, n)| n);
+            (o, 1 + extras)
+        })
+    }
+
+    /// Returns whether some member is present more than once.
+    pub(crate) fn repeats(&self) -> bool {
+        !self.extra.is_empty()
+    }
+
+    /// Appends the zone's words of a key of the memo to `list`
+    /// ([`Zones::members`](super::memo::Zones::members)): each member
+    /// once, in ascending order, one present more than once marked and
+    /// followed by its number of copies.
+    pub(crate) fn key_into(&self, list: &mut Vec<OccId>) {
+        use super::memo::REPEATED;
+        for (o, copies) in self.with_copies() {
+            debug_assert_eq!(o.get() & REPEATED, 0, "an occurrence below 2³¹");
+            if copies == 1 {
+                list.push(o);
+            } else {
+                list.extend([OccId::new(o.get() | REPEATED), OccId::new(copies)]);
+            }
+        }
+    }
+
+    /// Appends the members to `list` as [`iter`](Self::iter) returns
+    /// them, without the extra copies' bookkeeping where there are none,
+    /// which is the common case.
+    pub(crate) fn list_into(&self, list: &mut Vec<OccId>) {
+        if self.extra.is_empty() {
+            list.extend(self.set.iter_words(self.lo, self.hi));
+        } else {
+            list.extend(self.iter());
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Wraps a raw id.
+    const fn o(id: u32) -> OccId {
+        OccId::new(id)
+    }
+
+    /// Copies go in and out one at a time, the count and the length follow,
+    /// and the extra list appears only for repeats.
+    #[test]
+    fn copies() {
+        let mut c = Context::empty(70);
+        assert!(c.is_empty());
+        c.insert(o(65));
+        c.insert(o(3));
+        assert_eq!(c.extra(), []);
+        c.insert(o(3));
+        c.insert(o(3));
+        assert_eq!(c.extra(), [(o(3), 2)]);
+        assert_eq!(c.count(o(3)), 3);
+        assert_eq!(c.count(o(65)), 1);
+        assert_eq!(c.count(o(4)), 0);
+        assert_eq!(c.len(), 4);
+        assert_eq!(c.iter().collect::<Vec<_>>(), [o(3), o(3), o(3), o(65)]);
+        c.remove(o(3));
+        assert_eq!(c.extra(), [(o(3), 1)]);
+        c.remove(o(3));
+        assert_eq!(c.extra(), []);
+        assert!(c.contains(o(3)));
+        c.remove(o(3));
+        assert!(!c.contains(o(3)));
+        assert_eq!(c.iter().collect::<Vec<_>>(), [o(65)]);
+        let mut d = Context::empty(70);
+        d.clone_from(&c);
+        assert_eq!(c, d);
+        d.insert(o(65));
+        d.insert(o(4));
+        assert_eq!(d.iter().collect::<Vec<_>>(), [o(4), o(65), o(65)]);
+        c.clear();
+        assert!(c.is_empty());
+    }
+}

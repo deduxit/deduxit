@@ -33,7 +33,7 @@
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
 //! use deduxit::export::latex;
-//! use deduxit::{Limits, Mode, Options, Sequent, Verdict, prove};
+//! use deduxit::{Limits, linear::{Mode, Options, Sequent, Verdict, prove}};
 //!
 //! let sequent: Sequent = "A, A -o B |- B".parse()?;
 //! let options = latex::Options::default();
@@ -60,11 +60,11 @@
 use super::notation::{Step, flush, walk};
 use super::{Drawable, Form};
 use crate::Error;
+use crate::linear::proofs::style::{Drawn, Part, parts};
+use crate::linear::proofs::{Labels, OpenGoal};
+use crate::linear::sequents::Sequent;
+use crate::linear::sequents::notation::{Atoms, Notation};
 use crate::ordinary::Symbols;
-use crate::proofs::style::{Drawn, Part, parts};
-use crate::proofs::{Labels, OpenGoal};
-use crate::sequents::Sequent;
-use crate::sequents::notation::{Atoms, Notation};
 use std::fmt::Write;
 
 /// The LaTeX spelling of formulas and sequents.
@@ -396,10 +396,10 @@ const PER_OCCURRENCE: u64 = 32;
 /// and its longest atom name), before anything is laid out;
 /// [`Error::NotIntuitionistic`] in intuitionistic mode for one without an
 /// intuitionistic reading, and the refusal of
-/// [`Forest::within`](crate::Forest::within).
+/// [`Forest::within`](crate::linear::Forest::within).
 pub fn sequent(
     sequent: &Sequent,
-    mode: crate::Mode,
+    mode: crate::linear::Mode,
     options: &Options,
     limits: &crate::Limits,
 ) -> Result<String, Error> {

@@ -15,10 +15,13 @@
 //! family, else the file's stem.
 
 use anyhow::{Context, Result, anyhow, bail};
-use deduxit::families::{FAMILIES, find};
-use deduxit::lltp::{self, Status};
-use deduxit::mist::{self, Safety};
-use deduxit::{Limits, Mode, Sequent};
+use deduxit::linear::families::{FAMILIES, find};
+use deduxit::linear::lltp::{self, Status};
+use deduxit::linear::mist::{self, Safety};
+use deduxit::{
+    Limits,
+    linear::{Mode, Sequent},
+};
 use std::path::{Path, PathBuf};
 
 /// A problem as the parent names it.

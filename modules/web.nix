@@ -33,7 +33,7 @@
       # the size estimate, the memo and the memory account) on a 32-bit
       # target: libtest runs on WASI under wasmtime, which the web target
       # has no runner for, and the two share wasm32's data layout.
-      core32 = "proofs::check proofs::size search::focus::memo search::memory";
+      core32 = "linear::proofs::check linear::proofs::size linear::search::focus::memo linear::search::memory";
 
       args = workspace.argsOf [
         "core"

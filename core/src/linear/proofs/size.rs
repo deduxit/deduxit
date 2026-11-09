@@ -1,0 +1,1299 @@
+// linlog © Fabian Lukas Grubmüller 2026
+// Licensed under the EUPL
+
+//! The size of a derivation, computed from the proof term without building
+//! the derivation: one pass of the checker, with a handful of numbers kept
+//! per node. A term stores a subproof that several nodes share once and
+//! the derivation unfolds it at every use, so a derivation can be
+//! exponentially larger than its term; the numbers here are what says so
+//! before anything is built.
+//!
+//! All of them are `u64` and saturate: every sum and product here is a
+//! saturating one, and every difference too, so nothing wraps in any
+//! build, and on a 32-bit target as on a 64-bit one: a `usize` that
+//! enters a count (a length, a position) is widened to `u64` first. A number that reached `u64::MAX` stays there through every
+//! later sum, since nothing is ever taken away from a count of
+//! inferences, of characters or of a height on its way to the root; so a
+//! saturated count shows in the size returned, whose estimate in bytes is
+//! then over every bound.
+
+use super::check::{
+    self, Allowance, CheckError, Facts, Framed, Ground, Instancing, Observer, State,
+};
+use super::{Branch, Derivation, Node, NodeId, Proof, ViewOptions};
+use crate::limits::{Limits, Phase, Progress};
+use crate::linear::fragment::Mode;
+use crate::linear::occurrences::instances::{eigen_names, meta_name};
+use crate::linear::occurrences::{Forest, Member, OccId, Reading, Side};
+use crate::linear::sequents::{FoTerm, Kind, Term};
+use std::collections::{HashMap, HashSet};
+
+/// How large the derivation of a proof is, as
+/// [`Proof::derivation_size`] computes it. A count that passes `u64::MAX`
+/// is written as `u64::MAX`, meaning more than can be counted, and then
+/// `exact` is false. In JSON (feature `serialize`) an object of its
+/// fields.
+#[non_exhaustive]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+pub struct Size {
+    /// The inferences of the derivation, exact unless saturated.
+    pub inferences: u64,
+    /// The characters of every inference's sequent added up, each sequent
+    /// written one-sided with its formulas separated by a comma and a
+    /// space: what a renderer writes, up to its rule names, its layout and
+    /// its own spelling of the connectives. Exact when `exact` is set, and
+    /// never less than the sum otherwise.
+    pub characters: u64,
+    /// The inferences on the longest branch, exact unless saturated. The
+    /// text tree has two lines for each.
+    pub height: u64,
+    /// The characters of the widest sequent the pass saw, which the text
+    /// tree is at least as wide as: a lower bound of its width.
+    pub width: u64,
+    /// Whether every count is exact: false when one saturated, and when
+    /// `characters` is an upper bound because a `&` has several `?`
+    /// formulas that only one of its premises uses (the weakenings above
+    /// the other premise are then each counted with the sequent of the
+    /// last).
+    pub exact: bool,
+}
+
+impl Size {
+    /// What a derivation takes in memory and in most of its written forms
+    /// for every character of its sequents: the occurrence ids of the
+    /// sequents, the rule lines of the text tree, the markup of the
+    /// exports.
+    pub const BYTES_PER_CHARACTER: u64 = 8;
+
+    /// What a derivation takes for every inference beside its sequent.
+    pub const BYTES_PER_INFERENCE: u64 = 128;
+
+    /// Returns an estimate, good to the order of magnitude, of the bytes
+    /// the derivation takes to build and to write in any format:
+    /// [`BYTES_PER_CHARACTER`](Self::BYTES_PER_CHARACTER) for each
+    /// character of a sequent and
+    /// [`BYTES_PER_INFERENCE`](Self::BYTES_PER_INFERENCE) for each
+    /// inference. It is what
+    /// [`Limits::derivation_bytes`](crate::Limits::derivation_bytes)
+    /// bounds.
+    pub fn bytes(&self) -> u64 {
+        self.characters
+            .saturating_mul(Self::BYTES_PER_CHARACTER)
+            .saturating_add(self.inferences.saturating_mul(Self::BYTES_PER_INFERENCE))
+    }
+
+    /// Returns the lines of the text tree: two for every inference of the
+    /// longest branch.
+    pub fn lines(&self) -> u64 {
+        self.height.saturating_mul(2)
+    }
+}
+
+impl Proof {
+    /// Returns how large the derivation of the proof that `view` shows is,
+    /// one-sided or two-sided, without building it, or the checker's
+    /// complaint about the proof: the proof passes the checker once,
+    /// holding `limits.memory_bytes` at most and asking `stop` every 4 096
+    /// nodes (a pass that would hold more, or that `stop` ends, answers
+    /// [`CheckError::Refused`]), and a subproof that several nodes share is
+    /// counted at every use, as the derivation repeats it.
+    ///
+    /// # Errors
+    ///
+    /// [`CheckError::Invalid`] for a term that is no proof, and
+    /// [`CheckError::Refused`] when the memory bound or `stop` ended the
+    /// pass.
+    pub fn derivation_size(
+        &self,
+        view: &ViewOptions,
+        limits: &Limits,
+        mut stop: impl FnMut(Progress) -> bool,
+    ) -> Result<Size, CheckError> {
+        let mode = if view.two_sided(self) {
+            Derivation::two_sided_mode(self)
+        } else {
+            Derivation::ONE_SIDED
+        };
+        let reading = check::reading(self, mode)?;
+        let allowance = Allowance::new(limits, Phase::View, &mut stop);
+        measure(self, &self.conclusion(), mode, reading.as_ref(), allowance)
+    }
+
+    /// Returns the size of the derivation, two-sided with `two_sided`,
+    /// within the default limits: the tests' short form.
+    #[cfg(all(test, feature = "parse"))]
+    pub(crate) fn size_of(&self, two_sided: bool) -> Result<Size, CheckError> {
+        let sides = if two_sided {
+            super::Sides::Two
+        } else {
+            super::Sides::One
+        };
+        self.derivation_size(
+            &ViewOptions::default().with_sides(sides),
+            &Limits::default(),
+            |_| false,
+        )
+    }
+}
+
+/// What the pass keeps for a node: the size of the subtree it unfolds
+/// into, under the sequent it derives itself, and how that grows with
+/// what a `⊤` in it absorbs. Every number saturates.
+#[derive(Clone, Copy, Debug, Default)]
+struct Sub {
+    /// The inferences.
+    inferences: u64,
+    /// The characters of its sequents, with nothing absorbed.
+    characters: u64,
+    /// The inferences whose sequent holds a hypothesis the subtree absorbs
+    /// (any formula, one-sided).
+    reached: u64,
+    /// The inferences whose sequent holds the goal the subtree absorbs.
+    reached_goal: u64,
+    /// The inferences on its longest branch.
+    height: u64,
+    /// The characters of its widest sequent, with nothing absorbed.
+    width: u64,
+    /// The characters of the sequent it derives, or `u64::MAX` when they
+    /// are more ([`State::weight`]); the node's own characters are then
+    /// no fewer.
+    weight: u64,
+    /// Those of the formula in output position among them. Exact: one
+    /// zone's sum.
+    goal: u64,
+    /// Whether a `⊤` in it absorbs any context.
+    absorbs: bool,
+    /// Its inferences that are no weakening or contraction.
+    firm: Firm,
+}
+
+/// The inferences of a derivation that are no weakening or contraction,
+/// which a compact view draws as they are: what it holds at least.
+/// Both numbers saturate.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct Firm {
+    /// How many there are.
+    pub(crate) inferences: u64,
+    /// Their bytes by [`Size::bytes`], with nothing a `⊤` absorbs.
+    pub(crate) bytes: u64,
+}
+
+impl Firm {
+    /// Returns these and one more inference whose sequent has
+    /// `characters`.
+    fn and(self, characters: u64) -> Self {
+        Self {
+            inferences: self.inferences.saturating_add(1),
+            bytes: characters
+                .saturating_mul(Size::BYTES_PER_CHARACTER)
+                .saturating_add(Size::BYTES_PER_INFERENCE)
+                .saturating_add(self.bytes),
+        }
+    }
+
+    /// Returns these and `other`'s.
+    fn with(self, other: Self) -> Self {
+        Self {
+            inferences: self.inferences.saturating_add(other.inferences),
+            bytes: self.bytes.saturating_add(other.bytes),
+        }
+    }
+}
+
+/// The observer that adds up the sizes.
+struct Measure<'a, I> {
+    /// The proof.
+    proof: &'a Proof,
+    /// What is known of the proof's members.
+    inst: &'a I,
+    /// The reading, for a two-sided derivation.
+    reading: Option<&'a Reading<'a>>,
+    /// The characters of every member's formula, and two for its
+    /// separator, or `u32::MAX` when they are more.
+    weights: Weights,
+    /// What the pass found for each node so far.
+    subs: Vec<Sub>,
+    /// Whether every sum is exact so far.
+    exact: bool,
+}
+
+/// Returns, for every occurrence of a forest, the characters of its
+/// formula in one-sided notation plus two for the separator after it,
+/// saturating; under a binder, as the formula is written inside its
+/// root.
+pub(crate) fn weights(forest: &Forest) -> Vec<u32> {
+    let sequent = forest.sequent();
+    let names: Vec<u32> = sequent
+        .atom_names()
+        .iter()
+        .map(|name| u32::try_from(name.chars().count()).unwrap_or(u32::MAX))
+        .collect();
+    // Per term, the characters at the top of a formula and inside one,
+    // where a binary formula is bracketed; a subterm precedes its parents.
+    let mut top = Vec::<u32>::with_capacity(sequent.terms().len());
+    let mut inner = Vec::<u32>::with_capacity(sequent.terms().len());
+    for term in sequent.terms() {
+        use Term::*;
+        let (width, binary) = match *term {
+            Atom(a) => (names[a.index()], false),
+            DualAtom(a) => (names[a.index()].saturating_add(1), false),
+            One | Bot | Top | Zero => (1, false),
+            Tensor(k, l) | Par(k, l) | With(k, l) | Plus(k, l) => (
+                inner[k.index()]
+                    .saturating_add(3)
+                    .saturating_add(inner[l.index()]),
+                true,
+            ),
+            Bang(k) | Quest(k) => (inner[k.index()].saturating_add(1), false),
+            // A sequent with a binder is counted per occurrence; its
+            // terms are met here first, so a propositional one pays no
+            // scan of its own.
+            Forall(_) | Exists(_) => return weights_with_binders(forest, &names),
+        };
+        top.push(width);
+        inner.push(if binary {
+            width.saturating_add(2)
+        } else {
+            width
+        });
+    }
+    forest
+        .ids()
+        .map(|o| top[forest.term(o).index()].saturating_add(2))
+        .collect()
+}
+
+/// Per occurrence, the characters of the name a printer writes its
+/// binder's variable with inside its root, zero for an occurrence that is
+/// no binder: the binder's name (`x` where it has none), or with `_` and
+/// a number after it where a symbol or an enclosing binder's written name
+/// takes it, as the printers rename.
+fn printed_names(forest: &Forest) -> Vec<u32> {
+    let sequent = forest.sequent();
+    let symbols: HashSet<&str> = sequent.fo.symbols.iter().map(|(s, _)| s.as_str()).collect();
+    let mut open: HashMap<String, u32> = HashMap::new();
+    // The open binders' written names, each with the end of its subtree.
+    let mut scope: Vec<(usize, String)> = Vec::new();
+    let mut printed = vec![0u32; forest.len()];
+    for o in forest.ids() {
+        while let Some((end, _)) = scope.last()
+            && *end <= o.index()
+        {
+            let (_, name) = scope.pop().expect("just seen");
+            if let Some(count) = open.get_mut(&name) {
+                *count -= 1;
+                if *count == 0 {
+                    open.remove(&name);
+                }
+            }
+        }
+        if forest.kind(o).is_binder() {
+            let base = sequent.binder_name(forest.term(o)).unwrap_or("x");
+            let mut written = base.to_owned();
+            let mut n = 0u64;
+            while symbols.contains(written.as_str()) || open.contains_key(&written) {
+                n += 1;
+                written = format!("{base}_{n}");
+            }
+            printed[o.index()] = u32::try_from(written.chars().count()).unwrap_or(u32::MAX);
+            *open.entry(written.clone()).or_insert(0) += 1;
+            scope.push((o.index() + forest.size(o) as usize, written));
+        }
+    }
+    printed
+}
+
+/// The weights of a forest whose sequent has binders, per occurrence,
+/// since an atom's key writes a bound variable as `#i` and a printer
+/// writes the name of the binder that binds it there ([`printed_names`]),
+/// which differs between occurrences of one shared atom.
+fn weights_with_binders(forest: &Forest, names: &[u32]) -> Vec<u32> {
+    let sequent = forest.sequent();
+    let fo = &sequent.fo;
+    let printed = printed_names(forest);
+    // Per first-order term, its bound variables as (index, uses), sorted,
+    // and the characters their `#i` take in a key, unfolded; arguments
+    // precede their terms.
+    let mut held: Vec<(Vec<(u32, u64)>, u64)> = Vec::with_capacity(fo.terms.len());
+    let gather = |held: &[(Vec<(u32, u64)>, u64)], args: &[crate::linear::sequents::FoTermId]| {
+        let mut uses: Vec<(u32, u64)> = Vec::new();
+        let mut keyed = 0u64;
+        for t in args {
+            let (more, k) = &held[t.index()];
+            keyed = keyed.saturating_add(*k);
+            merge(&mut uses, more.iter().copied());
+        }
+        (uses, keyed)
+    };
+    for term in &fo.terms {
+        let entry = match *term {
+            FoTerm::Bound(i) => (
+                vec![(i, 1)],
+                1 + u64::from(i.checked_ilog10().unwrap_or(0) + 1),
+            ),
+            FoTerm::App(_, args) => gather(&held, fo.list(args)),
+            // A sequent's own arena holds no other term.
+            FoTerm::Eigen(_) | FoTerm::Meta(_) => (Vec::new(), 0),
+        };
+        held.push(entry);
+    }
+    let enclosing = enclosing_binders(forest);
+    let name_of = |b: OccId| printed[b.index()];
+    // Per occurrence, from the leaves up, the characters at the top of its
+    // formula and inside one, where a binary formula or a binder is
+    // bracketed.
+    let mut top = vec![0u32; forest.len()];
+    let mut inner = vec![0u32; forest.len()];
+    for o in forest.ids().rev() {
+        use Term::*;
+        let at = |c: Option<OccId>| inner[c.expect("a child").index()];
+        let (width, binary) = match sequent.terms()[forest.term(o).index()] {
+            // A saturated name stays saturated.
+            Atom(a) | DualAtom(a) if names[a.index()] == u32::MAX => (u32::MAX, false),
+            Atom(a) | DualAtom(a) => {
+                let mut width = u64::from(names[a.index()]);
+                if let Some((_, args)) = sequent.atom_predicate(a) {
+                    let (uses, keyed) = gather(&held, fo.list(args));
+                    width = width.saturating_sub(keyed);
+                    for (i, n) in uses {
+                        // The binder `i` levels up from the atom.
+                        let mut b = enclosing[o.index()];
+                        for _ in 0..i {
+                            b = b.and_then(|b| enclosing[b.index()]);
+                        }
+                        let name = b.map_or(1, name_of);
+                        width = width.saturating_add(n.saturating_mul(u64::from(name)));
+                    }
+                }
+                let dual = u64::from(matches!(forest.kind(o), Kind::DualAtom));
+                (
+                    u32::try_from(width.saturating_add(dual)).unwrap_or(u32::MAX),
+                    false,
+                )
+            }
+            One | Bot | Top | Zero => (1, false),
+            Tensor(..) | Par(..) | With(..) | Plus(..) => (
+                at(forest.left(o))
+                    .saturating_add(3)
+                    .saturating_add(at(forest.right(o))),
+                true,
+            ),
+            Bang(_) | Quest(_) => (at(forest.left(o)).saturating_add(1), false),
+            // `∀x. ` before the body: the symbol, the name, the dot and a
+            // space; bracketed inside another formula, as a binary one is,
+            // since its scope would run on.
+            Forall(_) | Exists(_) => (
+                at(forest.left(o)).saturating_add(name_of(o).saturating_add(3)),
+                true,
+            ),
+        };
+        top[o.index()] = width;
+        inner[o.index()] = if binary {
+            width.saturating_add(2)
+        } else {
+            width
+        };
+    }
+    top.iter().map(|w| w.saturating_add(2)).collect()
+}
+
+/// The characters of every member's formula and its separator, by member:
+/// an occurrence's as [`weights`] counts it, an instance's at most, its
+/// occurrence's characters with every bound variable it holds written as
+/// the widest term of its frame. Each saturates at `u32::MAX`.
+pub(crate) struct Weights(Vec<u32>);
+
+impl Weights {
+    /// Returns the weights of the members of `proof`.
+    pub(crate) fn of(proof: &Proof) -> Self {
+        Self::of_members(proof.forest(), proof.instances())
+    }
+
+    /// Returns the weights of the members of a proof over `forest` whose
+    /// table is `instances`, where it has one.
+    pub(crate) fn of_members(
+        forest: &Forest,
+        instances: Option<&crate::linear::Instances>,
+    ) -> Self {
+        let mut weights = weights(forest);
+        if let Some(table) = instances {
+            let instances = instance_weights(forest, table, &weights);
+            weights.extend(instances);
+        }
+        Self(weights)
+    }
+
+    /// Returns the weight of `m`.
+    pub(crate) fn get(&self, m: Member) -> u32 {
+        self.0[m.index()]
+    }
+
+    /// Returns whether a weight saturated.
+    fn saturated(&self) -> bool {
+        self.0.contains(&u32::MAX)
+    }
+}
+
+/// Returns, for every member of `table`, its occurrence's weight with
+/// every bound variable of the occurrence's atoms widened by the frame's
+/// widest term: what the instance is written in at most.
+fn instance_weights(
+    forest: &Forest,
+    table: &crate::linear::Instances,
+    weights: &[u32],
+) -> Vec<u32> {
+    let sequent = forest.sequent();
+    let fo = &sequent.fo;
+    let width = |n: usize| u64::try_from(n).unwrap_or(u64::MAX);
+    let names = eigen_names(fo, &table.eigenvariables());
+    let terms = crate::linear::occurrences::instances::Terms { fo, table };
+    // Per term of both arenas, its written width and its bound variables,
+    // unfolded; arguments precede their terms.
+    let mut written = Vec::<u64>::with_capacity(terms.len());
+    let mut bound = Vec::<u64>::with_capacity(terms.len());
+    for id in 0..terms.len() {
+        let (w, b) = match terms.term(crate::linear::sequents::FoTermId::new(id as u32)) {
+            FoTerm::Bound(_) => (1, 1),
+            FoTerm::Eigen(a) => (names.get(&a).map_or(1, |n| width(n.chars().count())), 0),
+            FoTerm::Meta(k) => (width(meta_name(k).chars().count()), 0),
+            FoTerm::App(f, args) => {
+                let list = terms.list(args);
+                let name = width(fo.symbols[f.index()].0.chars().count());
+                let (w, b) = list.iter().fold((0u64, 0u64), |(w, b), t| {
+                    (
+                        w.saturating_add(written[t.index()]),
+                        b.saturating_add(bound[t.index()]),
+                    )
+                });
+                let brackets = if list.is_empty() {
+                    0
+                } else {
+                    2 * width(list.len())
+                };
+                (name.saturating_add(w).saturating_add(brackets), b)
+            }
+        };
+        written.push(w);
+        bound.push(b);
+    }
+    // The occurrence's characters with each loose bound variable's name
+    // written as its frame's term: exactly the instance, but where a
+    // binder inside it takes a name an eigenvariable has, which its
+    // scope then renames, at most `rename` characters more per name it
+    // writes.
+    let printed = printed_names(forest);
+    let loose = loose_variables(forest);
+    let enclosing = enclosing_binders(forest);
+    let renamed = names.values().any(|e| {
+        fo.binders.iter().any(|(_, b)| {
+            e == b
+                || e.strip_prefix(b.as_str())
+                    .is_some_and(|rest| rest.starts_with('_'))
+        }) || e == "x"
+            || e.starts_with("x_")
+    });
+    let rename = renamed.then(|| {
+        let clashes = fo.symbols.len() + fo.binders.len() + names.len() + forest.len();
+        1 + u64::from(clashes.checked_ilog10().unwrap_or(0) + 1)
+    });
+    // Per occurrence, the names a renaming may lengthen in it: its
+    // binders and the bound variables its atoms hold.
+    let written_names = rename.map(|_| {
+        let mut counted = vec![0u64; forest.len()];
+        for o in forest.ids().rev() {
+            let mut here = u64::from(forest.kind(o).is_binder());
+            if let Some((_, args)) = forest.atom(o).and_then(|a| sequent.atom_predicate(a)) {
+                here = fo
+                    .list(args)
+                    .iter()
+                    .fold(here, |n, t| n.saturating_add(bound[t.index()]));
+            }
+            for c in forest.children(o) {
+                here = here.saturating_add(counted[c.index()]);
+            }
+            counted[o.index()] = here;
+        }
+        counted
+    });
+    table
+        .members
+        .iter()
+        .map(|&(o, frame)| {
+            let mut weight = u64::from(weights[o.index()]);
+            if weight == u64::from(u32::MAX) {
+                return u32::MAX;
+            }
+            let (mut binder, mut cell) = (enclosing[o.index()], Some(frame));
+            let mut level = 0;
+            for &(at, n) in &loose[o.index()] {
+                // Up to the binder and the frame's cell of that level.
+                while level < at {
+                    binder = binder.and_then(|b| enclosing[b.index()]);
+                    cell = cell.and_then(|c| table.frames[c.index()].0);
+                    level += 1;
+                }
+                let name = binder.map_or(1, |b| u64::from(printed[b.index()]));
+                let term = cell.map_or(1, |c| written[table.frames[c.index()].1.index()]);
+                weight = weight
+                    .saturating_sub(n.saturating_mul(name))
+                    .saturating_add(n.saturating_mul(term));
+            }
+            if let (Some(rename), Some(counted)) = (rename, &written_names) {
+                weight = weight.saturating_add(counted[o.index()].saturating_mul(rename));
+            }
+            u32::try_from(weight).unwrap_or(u32::MAX)
+        })
+        .collect()
+}
+
+/// The nearest binder above each occurrence of `forest`.
+fn enclosing_binders(forest: &Forest) -> Vec<Option<OccId>> {
+    let mut enclosing: Vec<Option<OccId>> = vec![None; forest.len()];
+    // A parent precedes its children.
+    for o in forest.ids() {
+        if let Some(p) = forest.parent(o) {
+            enclosing[o.index()] = if forest.kind(p).is_binder() {
+                Some(p)
+            } else {
+                enclosing[p.index()]
+            };
+        }
+    }
+    enclosing
+}
+
+/// Per occurrence, the bound variables its atoms hold that a binder above
+/// it binds, as (level, uses) sorted by level: level 0 is the nearest
+/// binder above the occurrence.
+fn loose_variables(forest: &Forest) -> Vec<Vec<(u32, u64)>> {
+    let sequent = forest.sequent();
+    let fo = &sequent.fo;
+    // Per first-order term, its bound variables by index, unfolded.
+    let mut held: Vec<Vec<(u32, u64)>> = Vec::with_capacity(fo.terms.len());
+    for term in &fo.terms {
+        let entry = match *term {
+            FoTerm::Bound(i) => vec![(i, 1)],
+            FoTerm::App(_, args) => {
+                let mut uses = Vec::new();
+                for t in fo.list(args) {
+                    merge(&mut uses, held[t.index()].iter().copied());
+                }
+                uses
+            }
+            FoTerm::Eigen(_) | FoTerm::Meta(_) => Vec::new(),
+        };
+        held.push(entry);
+    }
+    let mut loose: Vec<Vec<(u32, u64)>> = vec![Vec::new(); forest.len()];
+    // Children follow their parent, so a reverse walk meets them first.
+    for o in forest.ids().rev() {
+        let mut here = Vec::new();
+        if let Some((_, args)) = forest.atom(o).and_then(|a| sequent.atom_predicate(a)) {
+            for t in fo.list(args) {
+                merge(&mut here, held[t.index()].iter().copied());
+            }
+        }
+        for c in forest.children(o) {
+            if forest.kind(o).is_binder() {
+                // The binder binds level 0 of its body.
+                let shifted = loose[c.index()].iter().filter(|&&(i, _)| i > 0);
+                merge(&mut here, shifted.map(|&(i, n)| (i - 1, n)));
+            } else {
+                merge(&mut here, loose[c.index()].iter().copied());
+            }
+        }
+        loose[o.index()] = here;
+    }
+    loose
+}
+
+/// Adds `more` to the sorted list of (level, uses) `uses`.
+fn merge(uses: &mut Vec<(u32, u64)>, more: impl Iterator<Item = (u32, u64)>) {
+    for (i, n) in more {
+        match uses.binary_search_by_key(&i, |&(j, _)| j) {
+            Ok(at) => uses[at].1 = uses[at].1.saturating_add(n),
+            Err(at) => uses.insert(at, (i, n)),
+        }
+    }
+}
+
+impl<I: Instancing> Measure<'_, I> {
+    /// Returns the bytes of the two tables a measure of `proof` keeps: a
+    /// record for each of fewer than 2³² nodes, a weight for each of fewer
+    /// than 2³² occurrences and members of its table.
+    fn tables(proof: &Proof) -> u64 {
+        let members = proof.instances().map_or(0, |t| t.len() as u64);
+        proof.nodes().len() as u64 * size_of::<Sub>() as u64
+            + (proof.forest().len() as u64 + members) * size_of::<u32>() as u64
+    }
+
+    /// The characters of a member's formula and its separator.
+    fn characters(&self, m: Member) -> u64 {
+        u64::from(self.weights.get(m))
+    }
+
+    /// The characters of the `?` formula the unrestricted-zone member `a`
+    /// stands for.
+    fn quest(&self, a: Member) -> u64 {
+        let forest = self.proof.forest();
+        let q = forest.parent(self.inst.occ(a)).unwrap();
+        self.characters(self.inst.parent(a, q))
+    }
+
+    /// How many inferences of `sub` hold an absorbed copy of `o`: those
+    /// its goal reaches when `o` is in output position, those a hypothesis
+    /// reaches otherwise.
+    fn reach(&self, sub: &Sub, o: Member) -> u64 {
+        match self.reading {
+            Some(reading) if reading.position(self.inst.occ(o)) == Side::Output => sub.reached_goal,
+            _ => sub.reached,
+        }
+    }
+
+    /// The characters a premise's subtree gains from a subformula `o` its
+    /// sequent lacked, which a `⊤` in it absorbs.
+    fn absorbed(&self, sub: &Sub, o: Member, absent: bool) -> u64 {
+        if absent {
+            self.characters(o).saturating_mul(self.reach(sub, o))
+        } else {
+            0
+        }
+    }
+
+    /// The size of a node with one premise that unfolds into `own`
+    /// inferences below the premise's subtree, their sequents `extra`
+    /// characters over `own` times the node's own, and whose premise
+    /// absorbs `absorbed` characters more.
+    fn unary(sub: &Sub, premise: &Sub, own: u64, extra: u64, absorbed: u64) -> Sub {
+        Sub {
+            inferences: premise.inferences.saturating_add(own),
+            characters: premise
+                .characters
+                .saturating_add(own.saturating_mul(sub.weight))
+                .saturating_add(extra)
+                .saturating_add(absorbed),
+            reached: premise.reached.saturating_add(own),
+            reached_goal: premise.reached_goal.saturating_add(own),
+            height: premise.height.saturating_add(own),
+            width: premise.width.max(sub.weight.saturating_add(extra)),
+            ..*sub
+        }
+    }
+
+    /// What a premise of a `&` adds to it: its own subtree under the
+    /// conclusion's context, which holds `beyond` characters more than the
+    /// premise derives, `beyond_goal` of them the goal's, and `unused`
+    /// formulas `?A` that only the other premise uses, weakened above this
+    /// one unless a `⊤` absorbs them. Returns the inferences, the
+    /// characters and the height.
+    fn padded(
+        &mut self,
+        premise: &Sub,
+        beyond: u64,
+        beyond_goal: u64,
+        unused: u64,
+    ) -> (u64, u64, u64) {
+        if premise.absorbs {
+            let hypotheses = beyond.saturating_sub(beyond_goal);
+            let characters = premise
+                .characters
+                .saturating_add(hypotheses.saturating_mul(premise.reached))
+                .saturating_add(beyond_goal.saturating_mul(premise.reached_goal));
+            return (premise.inferences, characters, premise.height);
+        }
+        // Every weakening is counted with the sequent of the last, which
+        // is the sum itself when there is one at most.
+        self.exact &= unused <= 1;
+        let weakened = premise.weight.saturating_add(beyond);
+        (
+            premise.inferences.saturating_add(unused),
+            premise
+                .characters
+                .saturating_add(unused.saturating_mul(weakened)),
+            premise.height.saturating_add(unused),
+        )
+    }
+}
+
+impl<I: Instancing> Observer for Measure<'_, I> {
+    fn weight(&self, m: Member, _: OccId) -> u32 {
+        self.weights.get(m)
+    }
+
+    fn bytes(&self) -> u64 {
+        Self::tables(self.proof)
+    }
+
+    fn derived(&mut self, id: NodeId, state: &State, facts: &Facts<'_>) {
+        use Node::*;
+        let forest = self.proof.forest();
+        let inst = self.inst;
+        let (left, right) = (
+            |m: Member| inst.child(m, forest.left(inst.occ(m)).unwrap()),
+            |m: Member| inst.child(m, forest.right(inst.occ(m)).unwrap()),
+        );
+
+        let at = |p: NodeId| self.subs[p.index()];
+        let sub = Sub {
+            weight: state.weight(),
+            goal: state.goal_weight(),
+            absorbs: state.absorbs(),
+            ..Sub::default()
+        };
+        let sub = match self.proof.node(id) {
+            Ax(..) | One(_) | Top(_) => Sub {
+                inferences: 1,
+                characters: sub.weight,
+                reached: 1,
+                reached_goal: 1,
+                height: 1,
+                width: sub.weight,
+                ..sub
+            },
+            Bot(_, p) | Weaken(_, p) => Self::unary(&sub, &at(p), 1, 0, 0),
+            Par(o, p) => {
+                let premise = at(p);
+                let absorbed = self
+                    .absorbed(&premise, left(o), facts.absent[0])
+                    .saturating_add(self.absorbed(&premise, right(o), facts.absent[1]));
+                Self::unary(&sub, &premise, 1, 0, absorbed)
+            }
+            Plus(o, side, p) => {
+                let chosen = match side {
+                    Branch::Left => left(o),
+                    Branch::Right => right(o),
+                };
+                let premise = at(p);
+                let absorbed = self.absorbed(&premise, chosen, facts.absent[0]);
+                Self::unary(&sub, &premise, 1, 0, absorbed)
+            }
+            Bang(o, p) => {
+                let premise = at(p);
+                let absorbed = self.absorbed(&premise, left(o), facts.absent[0]);
+                Self::unary(&sub, &premise, 1, 0, absorbed)
+            }
+            // A `?` step whose formula is used above is no inference: the
+            // sequent is the premise's.
+            Quest(_, p) if facts.used => Sub { ..at(p) },
+            Quest(_, p) => Self::unary(&sub, &at(p), 1, 0, 0),
+            Copy(a, p) => {
+                let premise = at(p);
+                let absorbed = self.absorbed(&premise, a, facts.absent[0]);
+                if facts.used {
+                    // A dereliction, whose sequent holds the `?` formula
+                    // twice, and the contraction below it.
+                    Self::unary(&sub, &premise, 2, self.quest(a), absorbed)
+                } else {
+                    Self::unary(&sub, &premise, 1, 0, absorbed)
+                }
+            }
+            node @ (Tensor(_, l, r) | Mix(l, r) | Cut(_, l, r)) => {
+                let (pl, pr) = (at(l), at(r));
+                // The rule's sequent holds every shared `?` formula twice,
+                // and one contraction below it per formula takes the
+                // second away, in ascending order.
+                let mut shared: Vec<Member> = facts.shared.to_vec();
+                shared.sort_unstable();
+                // Distinct occurrences, fewer than 2³².
+                let own = shared.len() as u64 + 1;
+                let mut doubled: u64 = 0;
+                for (j, &a) in shared.iter().enumerate() {
+                    let q = self.quest(a);
+                    doubled = doubled.saturating_add(q.saturating_mul(j as u64 + 1));
+                }
+                let widest: u64 = shared
+                    .iter()
+                    .map(|&a| self.quest(a))
+                    .fold(sub.weight, u64::saturating_add);
+                let absorbed = match node {
+                    Tensor(o, ..) => self
+                        .absorbed(&pl, left(o), facts.absent[0])
+                        .saturating_add(self.absorbed(&pr, right(o), facts.absent[1])),
+                    Cut(a, ..) => {
+                        // A cut formula's occurrence has its dual.
+                        let dual = inst.dual(forest, a).unwrap();
+                        self.absorbed(&pl, a, facts.absent[0])
+                            .saturating_add(self.absorbed(&pr, dual, facts.absent[1]))
+                    }
+                    _ => 0,
+                };
+                // Two-sided, the premise that keeps the conclusion's goal:
+                // the right one of a `⊗` (below), and of a cut the one
+                // whose cut formula is no output there.
+                let goal_right = match node {
+                    Cut(a, ..) => self
+                        .reading
+                        .is_some_and(|reading| reading.position(inst.occ(a)) == Side::Output),
+                    _ => true,
+                };
+                // What the rule's conclusion absorbs goes to the left
+                // premise if it absorbs, else to the right one; two-sided,
+                // with both absorbing, the goal goes to the premise that
+                // has none, which is the right one: the left factor of a
+                // `⊗` is an antecedent or a part of the goal (the reading
+                // takes `⅋` only as `~A ⅋ B`), in output position either
+                // way, so the left premise has its goal.
+                let (reached, reached_goal) = if self.reading.is_some() && pl.absorbs && pr.absorbs
+                {
+                    (
+                        pl.reached,
+                        if goal_right {
+                            pr.reached_goal
+                        } else {
+                            pl.reached_goal
+                        },
+                    )
+                } else if pl.absorbs {
+                    (pl.reached, pl.reached_goal)
+                } else {
+                    (pr.reached, pr.reached_goal)
+                };
+                Sub {
+                    inferences: pl
+                        .inferences
+                        .saturating_add(pr.inferences)
+                        .saturating_add(own),
+                    characters: pl
+                        .characters
+                        .saturating_add(pr.characters)
+                        .saturating_add(own.saturating_mul(sub.weight))
+                        .saturating_add(doubled)
+                        .saturating_add(absorbed),
+                    reached: reached.saturating_add(own),
+                    reached_goal: reached_goal.saturating_add(own),
+                    height: pl.height.max(pr.height).saturating_add(own),
+                    width: pl.width.max(pr.width).max(widest),
+                    ..sub
+                }
+            }
+            Forall(_, _, p) | Exists(_, _, p) => {
+                let premise = at(p);
+                let absorbed = self.absorbed(&premise, inst.body(id), facts.absent[0]);
+                Self::unary(&sub, &premise, 1, 0, absorbed)
+            }
+            With(o, l, r) => {
+                let (pl, pr) = (at(l), at(r));
+                let needs = state.needs() as u64;
+                // What a premise's conclusion holds beyond what the
+                // premise derives: the conclusion's context with the
+                // premise's subformula in place of the `&`.
+                let output = self
+                    .reading
+                    .is_some_and(|reading| reading.position(inst.occ(o)) == Side::Output);
+                let beyond = |premise: &Sub, child: Member| {
+                    let (whole, part) = (self.characters(o), self.characters(child));
+                    let all = (sub.weight.saturating_add(part))
+                        .saturating_sub(whole.saturating_add(premise.weight));
+                    let goal = if output {
+                        sub.goal.saturating_add(part).saturating_sub(whole)
+                    } else {
+                        sub.goal
+                    };
+                    (all, goal.saturating_sub(premise.goal).min(all))
+                };
+                let ((all_l, goal_l), (all_r, goal_r)) =
+                    (beyond(&pl, left(o)), beyond(&pr, right(o)));
+                let (il, cl, hl) = self.padded(
+                    &pl,
+                    all_l,
+                    goal_l,
+                    needs.saturating_sub(facts.needs[0] as u64),
+                );
+                let (ir, cr, hr) = self.padded(
+                    &pr,
+                    all_r,
+                    goal_r,
+                    needs.saturating_sub(facts.needs[1] as u64),
+                );
+                Sub {
+                    inferences: il.saturating_add(ir).saturating_add(1),
+                    characters: cl.saturating_add(cr).saturating_add(sub.weight),
+                    reached: pl.reached.saturating_add(pr.reached).saturating_add(1),
+                    reached_goal: pl
+                        .reached_goal
+                        .saturating_add(pr.reached_goal)
+                        .saturating_add(1),
+                    height: hl.max(hr).saturating_add(1),
+                    width: pl.width.max(pr.width).max(sub.weight),
+                    ..sub
+                }
+            }
+        };
+        // A compact view draws every inference but the weakenings and
+        // contractions as the derivation does.
+        let firm = |p: NodeId| self.subs[p.index()].firm;
+        let firm = match self.proof.node(id) {
+            Ax(..) | One(_) | Top(_) => Firm::default().and(sub.weight),
+            Bot(_, p)
+            | Par(_, p)
+            | Plus(_, _, p)
+            | Bang(_, p)
+            | Forall(_, _, p)
+            | Exists(_, _, p) => firm(p).and(sub.weight),
+            Weaken(_, p) | Quest(_, p) => firm(p),
+            // The dereliction's sequent holds the formula twice.
+            Copy(a, p) if facts.used => firm(p).and(sub.weight.saturating_add(self.quest(a))),
+            Copy(_, p) => firm(p).and(sub.weight),
+            Tensor(_, l, r) | Mix(l, r) | Cut(_, l, r) => {
+                let doubled = facts
+                    .shared
+                    .iter()
+                    .map(|&a| self.quest(a))
+                    .fold(sub.weight, u64::saturating_add);
+                firm(l).with(firm(r)).and(doubled)
+            }
+            With(_, l, r) => firm(l).with(firm(r)).and(sub.weight),
+        };
+        self.subs[id.index()] = Sub { firm, ..sub };
+    }
+}
+
+/// Returns the size of the derivation that a proof concluding `goal`
+/// unfolds into, two-sided under a reading, or the checker's complaint
+/// about the proof in `mode`, or its refusal by the `allowance`.
+pub(crate) fn measure(
+    proof: &Proof,
+    goal: &[OccId],
+    mode: Mode,
+    reading: Option<&Reading>,
+    allowance: Allowance<'_>,
+) -> Result<Size, CheckError> {
+    measured(proof, goal, mode, reading, allowance).map(|(size, _)| size)
+}
+
+/// Returns the size as [`measure`] does, and what a compact view of the
+/// derivation holds at least.
+pub(crate) fn measured(
+    proof: &Proof,
+    goal: &[OccId],
+    mode: Mode,
+    reading: Option<&Reading>,
+    allowance: Allowance<'_>,
+) -> Result<(Size, Firm), CheckError> {
+    match proof.instances() {
+        None => measured_with(proof, &Ground, goal, mode, reading, allowance),
+        Some(table) => {
+            let inst = Framed::new(proof, table);
+            measured_with(proof, &inst, goal, mode, reading, allowance)
+        }
+    }
+}
+
+/// Returns the size as [`measured`] does, of a proof whose members `inst`
+/// knows.
+fn measured_with<I: Instancing>(
+    proof: &Proof,
+    inst: &I,
+    goal: &[OccId],
+    mode: Mode,
+    reading: Option<&Reading>,
+    allowance: Allowance<'_>,
+) -> Result<(Size, Firm), CheckError> {
+    // Before the tables are made: they are several times the proof.
+    check::afford(
+        proof,
+        Measure::<I>::tables(proof),
+        allowance.memory,
+        allowance.phase,
+    )?;
+    let mut measure = Measure {
+        proof,
+        inst,
+        reading,
+        weights: Weights::of(proof),
+        subs: vec![Sub::default(); proof.nodes().len()],
+        // An instance is counted at its width at most.
+        exact: proof
+            .instances()
+            .is_none_or(crate::linear::Instances::is_empty),
+    };
+    check::examine(proof, goal, mode, reading, allowance, &mut measure)?;
+    let root = measure.subs[proof.root().index()];
+    // What the conclusion holds beyond what the root derives, a `⊤`
+    // absorbs. A goal is a list of any length, so its sums saturate.
+    let characters = |output: bool| {
+        goal.iter()
+            .filter(|&&o| !output || reading.is_some_and(|r| r.position(o) == Side::Output))
+            .fold(0u64, |sum, &o| {
+                sum.saturating_add(measure.characters(Member::from(o)))
+            })
+    };
+    let (all, goal) = (characters(false), characters(true));
+    let beyond = all.saturating_sub(root.weight);
+    let beyond_goal = goal.saturating_sub(root.goal).min(beyond);
+    let characters = root
+        .characters
+        .saturating_add((beyond - beyond_goal).saturating_mul(root.reached))
+        .saturating_add(beyond_goal.saturating_mul(root.reached_goal));
+    // A formula of more characters than a weight holds was counted short
+    // wherever it stands, so the characters are not known: more than can
+    // be said, rather than a sum that is too low.
+    if measure.weights.saturated() {
+        let size = Size {
+            inferences: root.inferences,
+            characters: u64::MAX,
+            height: root.height,
+            width: u64::MAX,
+            exact: false,
+        };
+        return Ok((size, root.firm));
+    }
+    let saturated = [root.inferences, characters, root.height].contains(&u64::MAX);
+    let size = Size {
+        inferences: root.inferences,
+        characters,
+        height: root.height,
+        width: root.width.max(all),
+        exact: measure.exact && !saturated,
+    };
+    Ok((size, root.firm))
+}
+
+#[cfg(all(test, feature = "parse"))]
+mod tests {
+    use crate::linear::proofs::{Derivation, ViewOptions, oracle};
+    use crate::linear::search::{Options, Verdict, prove};
+    use crate::linear::{Member, Mode, Sequent};
+
+    /// The inferences, the characters of the sequents, the height and the
+    /// widest sequent of a derivation, counted on the derivation itself.
+    fn counted(derivation: &Derivation) -> (u64, u64, u64, u64) {
+        let mut heights = vec![0u64; derivation.inferences().len()];
+        let (mut characters, mut widest) = (0, 0);
+        for (i, inference) in derivation.inferences().iter().enumerate() {
+            let above = inference.premises.iter().map(|p| heights[p.index()]).max();
+            heights[i] = above.unwrap_or(0) + 1;
+            let width: u64 = inference
+                .sequent
+                .iter()
+                .map(|&o| written(derivation, o) + 2)
+                .sum();
+            characters += width;
+            widest = widest.max(width);
+        }
+        (
+            heights.len() as u64,
+            characters,
+            heights[derivation.root().index()],
+            widest,
+        )
+    }
+
+    /// The characters of a member of a derivation: an occurrence as the
+    /// one-sided sequent writes it, an instance of a first-order proof
+    /// with its frame's terms, as the derivation writes it.
+    fn written(derivation: &Derivation, member: Member) -> u64 {
+        let forest = derivation.forest();
+        let text = if member.index() < forest.len() {
+            forest.formula(member.occ()).to_string()
+        } else {
+            derivation.formula(member).to_string()
+        };
+        text.chars().count() as u64
+    }
+
+    /// The size computed from a proof is the size of the derivation built
+    /// from it, one-sided and two-sided: the inferences and the height
+    /// exactly, the characters exactly unless it says otherwise and never
+    /// fewer, and a width between the conclusion's and the widest
+    /// sequent's.
+    #[test]
+    fn is_the_size_of_the_derivation_built() {
+        let never = || false;
+        let mut bounds = 0;
+        let mut proofs = oracle::proofs();
+        // A `&` whose right premise alone uses two `?` formulas, weakened
+        // above the left one: the case the sum bounds.
+        let sequent: Sequent = "!A, !B |- (C -o C) & (A * B)".parse().unwrap();
+        let outcome = prove(&sequent, Mode::CLASSICAL, &Options::default()).unwrap();
+        let Verdict::Proved(proof) = outcome.verdict else {
+            panic!("provable");
+        };
+        proofs.push((*proof, Mode::CLASSICAL));
+        // Two-sided, a `⊸L` both of whose premises a `⊤` closes, and the
+        // goal absorbed in the one without a goal of its own, the larger
+        // or the smaller; a `⊕L` of
+        // two such premises over a hypothesis copied twice; and a
+        // generated sample whose goal a premise consumes before a `&`.
+        let affine = Mode::INTUITIONISTIC.with_affine();
+        for (input, mode) in [
+            ("0, 0 -o 0 * D |- C * C * C", Mode::INTUITIONISTIC),
+            ("0 -o 0 * D, 0 |- C * C * C", Mode::INTUITIONISTIC),
+            ("0, 0, (D * 0) -o 0 |- C * C * C", Mode::INTUITIONISTIC),
+            ("0 + 0, !A |- (A * A) * C", Mode::INTUITIONISTIC),
+            // A bound name longer than its index's `#0`, and a binder in
+            // brackets under `?`: exact, since no instance is written.
+            (
+                "|- top, ?(forall long. p(long, c)), exists v10. q(v10)",
+                Mode::CLASSICAL,
+            ),
+            (
+                "(c -o a), ((a -o a) -o (c -o c)), c, (c -o c) |- (a * ((b -o top) -o (((c -o \
+                 top) & (top + a)) -o ((c + (top -o a)) -o (((top * b) & b) + (((c * a) + (b & \
+                 top)) + (top & (top * top))))))))",
+                affine,
+            ),
+        ] {
+            let sequent: Sequent = input.parse().unwrap();
+            let outcome = prove(&sequent, mode, &Options::default()).unwrap();
+            let Verdict::Proved(proof) = outcome.verdict else {
+                panic!("{input} is provable");
+            };
+            proofs.push((*proof, mode));
+        }
+        // A `&` both of whose premises absorb, one having derived `~a`
+        // twice, by two axioms on the one subformula of `?~a`: the
+        // conclusion's zone is the larger of the two, `~a` counted twice.
+        {
+            use crate::linear::proofs::{Node::*, NodeId};
+            let sequent: Sequent = "|- ?~a, (a * (a * top)) & top".parse().unwrap();
+            // 0 `?~a`, 1 `~a`, 2 `&`, 3 `a ⊗ (a ⊗ ⊤)`, 4 `a`, 5 `a ⊗ ⊤`,
+            // 6 `a`, 7 `⊤`, 8 `⊤`.
+            let (o, n) = (crate::linear::occurrences::Member::new, NodeId::new);
+            let nodes = vec![
+                Ax(o(4), o(1)),
+                Ax(o(6), o(1)),
+                Top(o(7)),
+                Tensor(o(5), n(1), n(2)),
+                Tensor(o(3), n(0), n(3)),
+                Top(o(8)),
+                With(o(2), n(4), n(5)),
+                Copy(o(1), n(6)),
+                Copy(o(1), n(7)),
+                Quest(o(0), n(8)),
+            ];
+            let forest = crate::linear::Forest::new(&sequent).unwrap();
+            let proof = crate::linear::Proof::new(forest, nodes, n(9)).unwrap();
+            assert_eq!(proof.check(Mode::CLASSICAL), Ok(()));
+            proofs.push((proof, Mode::CLASSICAL));
+        }
+        for (proof, mode) in proofs {
+            let mut views = vec![(
+                false,
+                Derivation::new(
+                    &proof,
+                    &ViewOptions::default(),
+                    &crate::Limits::default().with_derivation_bytes(None),
+                    |_| never(),
+                )
+                .unwrap(),
+            )];
+            if mode.intuitionistic {
+                views.push((
+                    true,
+                    Derivation::two_sided(
+                        &proof,
+                        &ViewOptions::default(),
+                        &crate::Limits::default().with_derivation_bytes(None),
+                        |_| never(),
+                    )
+                    .unwrap(),
+                ));
+            }
+            for (two_sided, derivation) in views {
+                let size = proof.size_of(two_sided).unwrap();
+                let (inferences, characters, height, widest) = counted(&derivation);
+                let conclusion = counted_root(&derivation);
+                let context = format!("{} ({mode}, two-sided: {two_sided})", proof.sequent());
+                assert_eq!(size.inferences, inferences, "{context}");
+                assert_eq!(size.height, height, "{context}");
+                if size.exact {
+                    assert_eq!(size.characters, characters, "{context}");
+                } else {
+                    bounds += 1;
+                    assert!(size.characters >= characters, "{context}");
+                }
+                assert!(
+                    conclusion <= size.width && size.width <= widest,
+                    "{context}: {conclusion} <= {} <= {widest}",
+                    size.width
+                );
+            }
+        }
+        assert!(bounds > 0, "no sample whose sum is a bound");
+    }
+
+    /// Binders as the printer names them: one whose name an
+    /// eigenvariable takes, renamed inside its instance; two of one name
+    /// side by side, as a cut formula stands beside its dual; and one a
+    /// document gives no name, written `x`. The characters bound the
+    /// derivation's from above and the width from below.
+    #[cfg(feature = "serialize")]
+    #[test]
+    fn binder_names_are_counted_as_written() {
+        let mut sequents: Vec<Sequent> = [
+            "|- (forall z. exists a. ~p(a)), forall b. p(b)",
+            "|- exists x. p(x), forall x. ~p(x)",
+        ]
+        .iter()
+        .map(|text| text.parse().unwrap())
+        .collect();
+        sequents.push(
+            serde_json::from_str(r#"{"version":7,"terms":["1",{"∀":0}],"roots":[1],"atoms":[]}"#)
+                .unwrap(),
+        );
+        for sequent in sequents {
+            let outcome = prove(&sequent, Mode::CLASSICAL, &Options::default()).unwrap();
+            let Verdict::Proved(proof) = outcome.verdict else {
+                panic!("{sequent} is provable");
+            };
+            let derivation = Derivation::new(
+                &proof,
+                &ViewOptions::default(),
+                &crate::Limits::default().with_derivation_bytes(None),
+                |_| false,
+            )
+            .unwrap();
+            let size = proof.size_of(false).unwrap();
+            let (_, characters, _, widest) = counted(&derivation);
+            assert!(
+                size.characters >= characters && size.width <= widest,
+                "{sequent}: {size:?} against {characters} and {widest}"
+            );
+        }
+    }
+
+    /// A formula of more characters than a weight counts makes the sums
+    /// it enters too low, so the size says that it could not count them:
+    /// here a tree of 4 096 atoms whose name has a mebibyte of characters,
+    /// absorbed by a `⊤`. Nothing writes the formula out.
+    #[test]
+    fn a_formula_too_long_to_count_is_not_counted_short() {
+        use crate::linear::proofs::{Node, NodeId, Proof};
+        use crate::linear::sequents::{Atom, Term, TermId};
+        use crate::linear::{Forest, Member};
+        // Terms: 0 is ⊤, 1 the atom, 2 + j the tree of depth j + 1.
+        let mut terms = vec![Term::Top, Term::Atom(Atom::new(0))];
+        for j in 0..12 {
+            terms.push(Term::With(TermId::new(1 + j), TermId::new(1 + j)));
+        }
+        let sequent = Sequent {
+            terms,
+            roots: vec![TermId::new(0), TermId::new(13)],
+            atoms: vec!["a".repeat(1 << 20)],
+            antecedents: None,
+            cuts: vec![],
+            fo: Default::default(),
+        };
+        let forest = Forest::new(&sequent).unwrap();
+        assert_eq!(forest.len(), 1 + (1 << 13) - 1);
+        let nodes = vec![Node::Top(Member::new(0))];
+        let proof = Proof::new(forest, nodes, NodeId::new(0)).unwrap();
+        let size = proof.size_of(false).unwrap();
+        assert_eq!((size.inferences, size.height), (1, 1));
+        // The conclusion alone has over 2³² characters.
+        assert_eq!((size.characters, size.width), (u64::MAX, u64::MAX));
+        assert!(!size.exact);
+    }
+
+    /// The characters of a derivation's conclusion.
+    fn counted_root(derivation: &Derivation) -> u64 {
+        derivation
+            .inference(derivation.root())
+            .sequent
+            .iter()
+            .map(|&o| written(derivation, o) + 2)
+            .sum()
+    }
+}

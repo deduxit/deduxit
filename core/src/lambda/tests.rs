@@ -10,10 +10,10 @@
 
 use super::*;
 use crate::limits::{Limits, Progress};
-use crate::occurrences::Member;
+use crate::linear::occurrences::Member;
+use crate::linear::proofs::Proof;
+use crate::linear::{Mode, Options as SearchOptions, Sequent, ViewOptions, prove};
 use crate::ordinary::Logic;
-use crate::proofs::Proof;
-use crate::{Mode, Options as SearchOptions, Sequent, ViewOptions, prove};
 use std::collections::BTreeMap;
 
 /// A type of the checker, built from the term's types or from a sequent's
@@ -360,7 +360,7 @@ fn text(term: &Term, judgement: bool) -> String {
 
 /// Reads a proof back without the checker.
 fn read(proof: &Proof) -> Term {
-    let view = ViewOptions::default().with_sides(crate::proofs::Sides::Two);
+    let view = ViewOptions::default().with_sides(crate::linear::proofs::Sides::Two);
     let derivation = proof
         .derivation_within(&view, &Limits::default(), never)
         .unwrap();
@@ -370,7 +370,7 @@ fn read(proof: &Proof) -> Term {
 /// Reads a proof of intuitionistic linear logic back, checks its term
 /// against the sequent as the reading writes it, and returns the term.
 fn round_trip(proof: &Proof) -> Term {
-    let view = ViewOptions::default().with_sides(crate::proofs::Sides::Two);
+    let view = ViewOptions::default().with_sides(crate::linear::proofs::Sides::Two);
     let derivation = proof
         .derivation_within(&view, &Limits::default(), never)
         .unwrap();
@@ -381,7 +381,7 @@ fn round_trip(proof: &Proof) -> Term {
     let mut goal = None;
     for &m in root.sequent() {
         let o = m.occ();
-        let ty = if reading.position(o) == crate::occurrences::Side::Input {
+        let ty = if reading.position(o) == crate::linear::occurrences::Side::Input {
             let v = term.context[context.len()];
             let ty = of_type(&term, term.variables[v.index()].ty);
             context.push(ty.clone());
@@ -406,7 +406,7 @@ fn round_trip(proof: &Proof) -> Term {
 fn proved(text: &str, mode: Mode) -> Proof {
     let sequent: Sequent = text.parse().unwrap();
     let outcome = prove(&sequent, mode, &SearchOptions::default()).unwrap();
-    let crate::Verdict::Proved(proof) = outcome.verdict else {
+    let crate::linear::Verdict::Proved(proof) = outcome.verdict else {
         panic!("{text} is provable in {mode}");
     };
     *proof
@@ -493,14 +493,19 @@ fn a_cut_is_a_redex() {
 /// by the search.
 #[cfg(feature = "interactive")]
 fn cut_proof(text: &str, formula: &str, left: &[usize]) -> Proof {
-    use crate::proofs::{CutFormula, Interactive};
+    use crate::linear::proofs::{CutFormula, Interactive};
     let mode = Mode::INTUITIONISTIC;
     let limits = Limits::default();
     let sequent: Sequent = text.parse().unwrap();
     let mut session = Interactive::new(&sequent, mode).unwrap();
     let goal = session.goals().next().unwrap();
-    let formula =
-        CutFormula::parse_within(formula, mode, &crate::InputOptions::default(), &limits).unwrap();
+    let formula = CutFormula::parse_within(
+        formula,
+        mode,
+        &crate::linear::InputOptions::default(),
+        &limits,
+    )
+    .unwrap();
     session.cut(goal, &formula, left, &limits).unwrap();
     let closed = session.close_all(
         &SearchOptions::default(),
@@ -525,7 +530,7 @@ fn cut_proof(text: &str, formula: &str, left: &[usize]) -> Proof {
 #[cfg(feature = "interactive")]
 #[test]
 fn cut_elimination_keeps_the_normal_form() {
-    use crate::proofs::cut::{Options as CutOptions, eliminate};
+    use crate::linear::proofs::cut::{Options as CutOptions, eliminate};
     for (text, formula, left) in [
         ("a, a -o b |- b", "b", &[0, 1][..]),
         ("a, a -o b |- b", "a", &[0]),
@@ -798,7 +803,7 @@ fn simple(text: &str, logic: Logic) -> Term {
     let context: Vec<T> = left.iter().map(|&h| of_ordinary(f, h)).collect();
     let goal = right.first().map_or(T::Zero, |&c| of_ordinary(f, c));
     Checker { term: &term }.check(&context, &goal);
-    let shown = derivation.shown(crate::proofs::Structural::Admissible);
+    let shown = derivation.shown(crate::linear::proofs::Structural::Admissible);
     let admissible = shown.term(&Limits::default(), never).unwrap();
     Checker { term: &admissible }.check(&context, &goal);
     term
@@ -847,10 +852,14 @@ fn what_has_no_term_is_refused() {
         reason(&proved("|- a * b, ~b, ~a", Mode::CYCLIC)),
         NoTerm::Ordered
     );
-    let lambek =
-        Sequent::parse_ordered("a, a \\ b |- b", crate::Order::Cyclic, &Limits::default()).unwrap();
+    let lambek = Sequent::parse_ordered(
+        "a, a \\ b |- b",
+        crate::linear::Order::Cyclic,
+        &Limits::default(),
+    )
+    .unwrap();
     let outcome = prove(&lambek, Mode::LAMBEK, &SearchOptions::default()).unwrap();
-    let crate::Verdict::Proved(lambek) = outcome.verdict else {
+    let crate::linear::Verdict::Proved(lambek) = outcome.verdict else {
         panic!("provable");
     };
     assert_eq!(reason(&lambek), NoTerm::Ordered);
@@ -969,11 +978,11 @@ fn a_stopped_read_back_names_its_phase() {
 /// 120 000 inferences, one above the other, on a thread with 256 KiB.
 #[test]
 fn any_height_reads_back_on_a_small_stack() {
-    use crate::proofs::Node::{Bot, Copy, One, Quest};
-    use crate::proofs::NodeId;
-    use crate::sequents::{Term as Formula, TermId as FormulaId};
+    use crate::linear::proofs::Node::{Bot, Copy, One, Quest};
+    use crate::linear::proofs::NodeId;
+    use crate::linear::sequents::{Term as Formula, TermId as FormulaId};
     const ROUNDS: u32 = 40_000;
-    let o = |i| Member::from(crate::OccId::new(i));
+    let o = |i| Member::from(crate::linear::OccId::new(i));
     let n = NodeId::new;
     // `⊢ ?⊥, 1`, which reads `!1 ⊢ 1`: every round copies the `!1` out,
     // derelicts it and lets its `∗` go.
@@ -997,7 +1006,7 @@ fn any_height_reads_back_on_a_small_stack() {
     nodes.push(Quest(o(0), n(nodes.len() as u32 - 1)));
     let root = n(nodes.len() as u32 - 1);
     let build = move || {
-        let proof = Proof::new(crate::Forest::new(&sequent).unwrap(), nodes, root)
+        let proof = Proof::new(crate::linear::Forest::new(&sequent).unwrap(), nodes, root)
             .unwrap()
             .with_mode(Mode::INTUITIONISTIC);
         let term = read(&proof);

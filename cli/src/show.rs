@@ -9,11 +9,14 @@ use anyhow::{Context, Result, anyhow, bail};
 use deduxit::export::Styles;
 use deduxit::export::svg::MathFont;
 use deduxit::export::{Drawable, Form, latex, pdf, png, rocq, svg, typst};
-use deduxit::proofs::{Compact, Sides, TextOptions};
+use deduxit::linear::proofs::{Compact, Sides, TextOptions};
 use deduxit::{
-    CheckError, ClassicalSequent, ClassicalSides, Criterion, Derivation, Error, ErrorKind, Forest,
-    Limits, MellStructure, Mode, Order, Proof, ProofStructure, Reading, Refusal, Sequent, Size,
-    TwoSided, ViewOptions, Written as Writing,
+    Error, ErrorKind, Limits, Refusal,
+    linear::{
+        CheckError, ClassicalSequent, ClassicalSides, Criterion, Derivation, Forest, MellStructure,
+        Mode, Order, Proof, ProofStructure, Reading, Sequent, Size, TwoSided, ViewOptions,
+        Written as Writing,
+    },
 };
 use std::borrow::Cow;
 use std::fmt::{Display, Write};
@@ -504,7 +507,7 @@ pub(crate) fn over_memory(size: &Size, limit: u64) -> String {
 /// or says why there is none, a refutation that rests on the search
 /// among them, which leaves the verdict as it is.
 pub(crate) fn disproof_into(
-    disproof: &deduxit::Disproof,
+    disproof: &deduxit::linear::Disproof,
     image: Option<&deduxit::ordinary::Image>,
     show: &Show,
     prefix: Option<&str>,
@@ -551,7 +554,7 @@ pub(crate) fn derivation(
     if show.tree == Tree::Never {
         return Ok(Shown::Nothing);
     }
-    let invalid = |e: deduxit::CheckError| {
+    let invalid = |e: deduxit::linear::CheckError| {
         anyhow!(
             "the proof is invalid: {}",
             e.describe(proof).in_mode(mode).abbreviated(show.abbreviate)
@@ -1118,7 +1121,7 @@ impl Net<'_> {
     /// alike in every mode.
     pub(crate) fn step_drawing(
         &self,
-        step: Option<&deduxit::nets::cut::Step>,
+        step: Option<&deduxit::linear::nets::cut::Step>,
         show: &Show,
         stop: &dyn Fn() -> bool,
     ) -> std::result::Result<String, String> {
@@ -1146,7 +1149,7 @@ impl Net<'_> {
     }
 
     /// Returns the formula of a vertex as `mode` reads it.
-    pub(crate) fn formula(&self, v: deduxit::VertexId, mode: Mode) -> String {
+    pub(crate) fn formula(&self, v: deduxit::linear::VertexId, mode: Mode) -> String {
         let (forest, o) = match self {
             Self::Mll(net) => (net.forest(), net.occurrence(v)),
             Self::Mell(net) => (net.forest(), net.occurrence(v)),
@@ -1226,8 +1229,8 @@ pub(crate) fn net_of<'a>(
             Err(Error::Net(error))
                 if matches!(
                     *error,
-                    deduxit::NetError::Placement {
-                        fault: deduxit::Placement::Cut,
+                    deduxit::linear::NetError::Placement {
+                        fault: deduxit::linear::Placement::Cut,
                         ..
                     }
                 ) =>
@@ -1337,7 +1340,7 @@ pub(crate) fn nets_exist(sequent: &Sequent, mode: Mode) -> Result<()> {
     if fragment.has_exponentials() {
         return Ok(MellStructure::exist(fragment, mode)?);
     }
-    Ok(deduxit::nets::exist(fragment, mode)?)
+    Ok(deduxit::linear::nets::exist(fragment, mode)?)
 }
 
 /// Returns the lambda-term of a proof of linear logic, read back from its
@@ -1421,7 +1424,7 @@ mod tests {
     use crate::argument_parsing::{Cli, Command};
     use crate::settings::Given;
     use clap::Parser;
-    use deduxit::{Mode, Options, Sequent};
+    use deduxit::linear::{Mode, Options, Sequent};
 
     /// A derivation the stop ends while it is built is left out with the
     /// stop's reason, never as a check given up without a verdict.
@@ -1438,8 +1441,9 @@ mod tests {
         let duals: Vec<String> = atoms.iter().map(|a| format!("~{a}")).collect();
         let text = format!("|- {}, {}", atoms.join(" * "), duals.join(", "));
         let sequent: Sequent = text.parse().unwrap();
-        let outcome = deduxit::prove(&sequent, Mode::CLASSICAL, &Options::default()).unwrap();
-        let deduxit::search::Verdict::Proved(proof) = outcome.verdict else {
+        let outcome =
+            deduxit::linear::prove(&sequent, Mode::CLASSICAL, &Options::default()).unwrap();
+        let deduxit::linear::search::Verdict::Proved(proof) = outcome.verdict else {
             panic!("the sequent is provable")
         };
         let mut out = String::new();

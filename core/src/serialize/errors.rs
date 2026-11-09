@@ -3,10 +3,10 @@
 
 use super::proofs::Step;
 use crate::Error;
-use crate::nets::{NetError, VertexId};
-use crate::occurrences::ShapeError;
-use crate::proofs::{CheckError, Dyadic, Fault};
-use crate::search::NotTaken;
+use crate::linear::nets::{NetError, VertexId};
+use crate::linear::occurrences::ShapeError;
+use crate::linear::proofs::{CheckError, Dyadic, Fault};
+use crate::linear::search::NotTaken;
 use serde::ser::{Serialize, SerializeMap, Serializer};
 
 /// Writes a map of the given entries.
@@ -317,10 +317,10 @@ impl Serialize for NetError {
     }
 }
 
-impl Serialize for crate::nets::Placement {
+impl Serialize for crate::linear::nets::Placement {
     /// Writes the fault's name in snake case.
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        use crate::nets::Placement::*;
+        use crate::linear::nets::Placement::*;
         s.serialize_str(match self {
             Outside => "outside",
             Premise => "premise",

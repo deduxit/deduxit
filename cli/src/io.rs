@@ -6,8 +6,11 @@ use anyhow::{Context, Result, bail};
 use deduxit::ordinary::Image;
 use deduxit::wire::Within;
 use deduxit::{
-    ClassicalSequent, Forest, IllSequent, IllSyntax, InputOptions, Limits, Mode, Order, Sequent,
-    Written,
+    Limits,
+    linear::{
+        ClassicalSequent, Forest, IllSequent, IllSyntax, InputOptions, Mode, Order, Sequent,
+        Written,
+    },
 };
 use serde::de::DeserializeSeed;
 use std::fs;
@@ -267,8 +270,10 @@ pub(crate) fn sequent_in(
             sequent.context("not a sequent in JSON")
         }
         // The library's error says that the text is no LLTP problem.
-        InputFormat::Lltp => Ok(deduxit::lltp::read(text, &within).map_err(refused)?.sequent),
-        InputFormat::Spec => match deduxit::mist::read(text, &within) {
+        InputFormat::Lltp => Ok(deduxit::linear::lltp::read(text, &within)
+            .map_err(refused)?
+            .sequent),
+        InputFormat::Spec => match deduxit::linear::mist::read(text, &within) {
             Ok(problem) => Ok(problem.sequent),
             Err(
                 error @ deduxit::Error::Refused(deduxit::limits::Refusal::Occurrences {

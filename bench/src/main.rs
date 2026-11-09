@@ -364,7 +364,7 @@ fn main() -> ExitCode {
         },
         Command::Ranking { files } => ranking::ranking(&files),
         Command::Families => {
-            for family in deduxit::families::FAMILIES {
+            for family in deduxit::linear::families::FAMILIES {
                 let sizes: Vec<String> = family.sizes.iter().map(u32::to_string).collect();
                 println!("{} ({}): {}", family.name, sizes.join(","), family.summary);
                 if !family.growth.is_empty() {

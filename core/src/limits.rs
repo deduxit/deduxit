@@ -68,7 +68,7 @@ pub struct Limits {
     #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::exact"))]
     pub occurrences: Option<u64>,
     /// The most first-order terms a sequent's atoms may unfold to
-    /// ([`Sequent::fo_size`](crate::Sequent::fo_size)), and the most
+    /// ([`Sequent::fo_size`](crate::linear::Sequent::fo_size)), and the most
     /// entries a proof's instance table may hold, on every reader: a short
     /// document of shared terms can name an atom of exponential length.
     #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::exact"))]
@@ -80,7 +80,7 @@ pub struct Limits {
     /// The most units of work a call may do: the proof checker counts a
     /// node or an entry of a sequent its rules handle, the ordinary
     /// checker an inference, a search its engine's unit (each
-    /// [`Engine`](crate::search::Engine) variant says which; where the net
+    /// [`Engine`](crate::linear::search::Engine) variant says which; where the net
     /// engine takes a goal over at another engine's limit, both engines'
     /// units together). A search past
     /// it is unknown with `Reason::WorkLimit`, as is one whose proof's
@@ -460,8 +460,8 @@ pub enum Refusal {
     Elimination {
         /// The bound reached.
         what: Bound,
-        /// Its value, [`cut::Options::steps`](crate::proofs::cut::Options::steps)
-        /// or [`cut::Options::nodes`](crate::proofs::cut::Options::nodes).
+        /// Its value, [`cut::Options::steps`](crate::linear::proofs::cut::Options::steps)
+        /// or [`cut::Options::nodes`](crate::linear::proofs::cut::Options::nodes).
         limit: u64,
     },
     /// A count passes what a representation's indices can name, whatever

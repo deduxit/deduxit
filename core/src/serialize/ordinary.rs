@@ -4,13 +4,13 @@
 use super::search::Why;
 use crate::Error;
 use crate::limits::{Limits, Refusal, Space};
+use crate::linear::proofs::InfId;
 use crate::ordinary::{
     Derivation, Formulas, Inference, Logic, Node, NodeId, Outcome, Rule, Sequent, Side,
     Translation, Verdict, bound,
 };
 #[cfg(feature = "interactive")]
 use crate::ordinary::{Interactive, Parts};
-use crate::proofs::InfId;
 use crate::wire::{self, Readable};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -433,9 +433,9 @@ struct OutcomeForm {
     /// The translation the image was made by.
     translation: Translation,
     /// The engine that searched the image.
-    engine: crate::search::Engine,
+    engine: crate::linear::search::Engine,
     /// What the image's search cost.
-    statistics: crate::search::Statistics,
+    statistics: crate::linear::search::Statistics,
     /// The derivation, for `valid`.
     #[serde(skip_serializing_if = "Option::is_none")]
     derivation: Option<DerivationForm>,

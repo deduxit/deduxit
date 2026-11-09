@@ -4,15 +4,15 @@
 use super::translate::{Core, Image, pattern};
 use super::{Formulas, Logic, Node, NodeId, Translation};
 use crate::limits::{Limits, Phase, Progress, Refusal};
-use crate::occurrences::OccId;
-use crate::proofs::style::Drawn;
-use crate::proofs::{
+use crate::linear::occurrences::OccId;
+use crate::linear::proofs::style::Drawn;
+use crate::linear::proofs::{
     Compact, InfId, Labels, Rule as Linear, Sides, Structural, TextOptions, ViewOptions,
 };
 #[cfg(any(feature = "latex", feature = "typst", feature = "svg"))]
-use crate::sequents::notation::Notation;
-use crate::sequents::notation::TEXT;
-use crate::{Error, Proof};
+use crate::linear::sequents::notation::Notation;
+use crate::linear::sequents::notation::TEXT;
+use crate::{Error, linear::Proof};
 use std::borrow::Cow;
 use std::fmt::{Display, Formatter, Result as FmtResult, Write};
 
@@ -774,12 +774,12 @@ impl Derivation {
     /// that [`write_text`](Self::write_text) draws under the options,
     /// without drawing it.
     pub fn text_size(&self, options: &TextOptions) -> (usize, usize) {
-        crate::proofs::fmt::text_size(self, options)
+        crate::linear::proofs::fmt::text_size(self, options)
     }
 
     /// Writes the derivation as a tree of sequents `Γ ⊢ Δ`, one line per
     /// row, without a trailing newline, as
-    /// [`crate::Derivation::write_text`] draws a linear one, and asks
+    /// [`crate::linear::Derivation::write_text`] draws a linear one, and asks
     /// `stop` before every piece of a row. The labels are those of
     /// [`Rule`] (a label table of [`Labels::Table`] is keyed by the
     /// linear rules, so it leaves them upright).
@@ -794,7 +794,7 @@ impl Derivation {
         out: &mut impl Write,
         stop: impl FnMut(crate::limits::Progress) -> bool,
     ) -> Result<(), Error> {
-        crate::proofs::fmt::write_text(
+        crate::linear::proofs::fmt::write_text(
             self,
             options,
             out,
@@ -804,7 +804,7 @@ impl Derivation {
 
     /// Writes the derivation as a numbered list of its inferences, one per
     /// line, premises before their conclusion and the conclusion last, as
-    /// [`crate::Derivation::write_steps`] reads a linear one out: the
+    /// [`crate::linear::Derivation::write_steps`] reads a linear one out: the
     /// reading of a derivation for a screen reader. Asks `stop` before
     /// every line.
     ///
@@ -817,7 +817,7 @@ impl Derivation {
         out: &mut impl Write,
         stop: impl FnMut(crate::limits::Progress) -> bool,
     ) -> Result<(), Error> {
-        crate::proofs::fmt::write_steps(
+        crate::linear::proofs::fmt::write_steps(
             self,
             out,
             crate::limits::counting(stop, crate::limits::Phase::Write),
@@ -960,7 +960,7 @@ impl Image {
         proof: &'p Proof,
         limits: &Limits,
         stop: impl FnMut(Progress) -> bool,
-    ) -> Result<crate::Derivation<'p>, Error> {
+    ) -> Result<crate::linear::Derivation<'p>, Error> {
         let sides = if self.mode.intuitionistic {
             Sides::Two
         } else {
@@ -1299,7 +1299,7 @@ fn negations(
 mod tests {
     use super::super::{Sequent, translate};
     use super::*;
-    use crate::{Options, Verdict, prove};
+    use crate::linear::{Options, Verdict, prove};
 
     /// The text tree draws `Γ ⊢ Δ` with the rules of LJ, and its size is
     /// that of the text.
@@ -1333,7 +1333,7 @@ mod tests {
             \x20    a → b, b → c ⊢ a → c"
         );
         let width = tree.lines().map(|l| l.chars().count()).max();
-        let size = derivation.text_size(&crate::proofs::TextOptions::default());
+        let size = derivation.text_size(&crate::linear::proofs::TextOptions::default());
         assert_eq!(Some(size), width.map(|w| (w, tree.lines().count())));
         let root = derivation.inferences().last().unwrap();
         assert_eq!(root.rule(), Rule::ImpliesRight);
@@ -1405,7 +1405,7 @@ mod tests {
     /// in the order of `Rule::ALL`.
     #[test]
     fn labels_are_the_names() {
-        use crate::proofs::style::plain;
+        use crate::linear::proofs::style::plain;
         for (i, rule) in Rule::ALL.into_iter().enumerate() {
             assert_eq!(rule as usize, i, "{rule}");
             assert_eq!(plain(rule.markup(false)), rule.name(), "{rule}");
@@ -1444,12 +1444,15 @@ mod tests {
             &crate::Limits::default(),
         )
         .unwrap();
-        let forest = crate::Forest::new(image.sequent()).unwrap();
+        let forest = crate::linear::Forest::new(image.sequent()).unwrap();
         let roots = forest.roots();
-        let goal = [crate::Member::from(roots[0]), crate::Member::from(roots[2])];
+        let goal = [
+            crate::linear::Member::from(roots[0]),
+            crate::linear::Member::from(roots[2]),
+        ];
         let limits = crate::Limits::default();
-        let outcome = crate::search::prove_goal(
-            crate::search::Goal::new(&forest, &goal).unwrap(),
+        let outcome = crate::linear::search::prove_goal(
+            crate::linear::search::Goal::new(&forest, &goal).unwrap(),
             image.mode(),
             &Options::default(),
             &limits,

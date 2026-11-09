@@ -39,9 +39,9 @@ use super::{
 };
 use crate::export::svg::Marks;
 use crate::hash::HashMap;
-use crate::nets::{MellStructure, NetError, VertexId};
-use crate::occurrences::{OccId, Reading, Side};
-use crate::sequents::Kind;
+use crate::linear::nets::{MellStructure, NetError, VertexId};
+use crate::linear::occurrences::{OccId, Reading, Side};
+use crate::linear::sequents::Kind;
 use std::fmt::Write;
 
 /// No vertex: the box outside every box, or a root's parent.
@@ -1593,7 +1593,9 @@ pub(super) fn draw(
         false => under + cuts + margin,
     };
     let description = style.description.then(|| match reading {
-        Some(_) => net.written_in(crate::Mode::INTUITIONISTIC).to_string(),
+        Some(_) => net
+            .written_in(crate::linear::Mode::INTUITIONISTIC)
+            .to_string(),
         None => net.to_string(),
     });
     document(style, &title, description.as_deref(), (width, height), body)

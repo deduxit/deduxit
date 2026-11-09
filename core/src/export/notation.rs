@@ -6,8 +6,8 @@
 //! walk over a derivation that writes one inference at a time.
 
 use crate::Error;
-use crate::proofs::InfId;
-use crate::proofs::style::Drawn;
+use crate::linear::proofs::InfId;
+use crate::linear::proofs::style::Drawn;
 use std::fmt::Write;
 
 /// One step of the walk over a derivation.

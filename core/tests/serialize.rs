@@ -7,13 +7,16 @@
 
 #![cfg(all(feature = "parse", feature = "serialize"))]
 
-use deduxit::search::{Engine, Options, prove, prove_within};
+use deduxit::linear::search::{Engine, Options, prove, prove_within};
+use deduxit::linear::{CutFormula, InputOptions};
 use deduxit::{
-    Branch, Criterion, Forest, Fragment, GoalId, Interactive, Limits, MellStructure, Member, Mode,
-    Named, NetError, Node, NodeId, OccId, Order, Placement, Proof, ProofStructure, Rule, Sequent,
-    Step, VertexId, ViewOptions,
+    Limits,
+    linear::{
+        Branch, Criterion, Forest, Fragment, GoalId, Interactive, MellStructure, Member, Mode,
+        Named, NetError, Node, NodeId, OccId, Order, Placement, Proof, ProofStructure, Rule,
+        Sequent, Step, VertexId, ViewOptions,
+    },
 };
-use deduxit::{CutFormula, InputOptions};
 
 /// A sequent's JSON as another form nests it: without `version`.
 fn nested(s: &Sequent) -> String {
@@ -48,7 +51,10 @@ fn repeated_atom_name_is_one_atom() {
     let s: Sequent = serde_json::from_str(json).unwrap();
     assert_eq!(s, "A |- A".parse().unwrap());
     let outcome = prove(&s, Mode::CLASSICAL, &Options::default()).unwrap();
-    assert!(matches!(outcome.verdict, deduxit::Verdict::Proved(_)));
+    assert!(matches!(
+        outcome.verdict,
+        deduxit::linear::Verdict::Proved(_)
+    ));
 }
 
 /// An atom's name is a variable of the text syntax, so that the sequent
@@ -519,7 +525,7 @@ fn mell_structure_json_format_and_round_trip() {
 /// whole, and a record that cannot be the sequent's is refused.
 #[test]
 fn a_session_keeps_how_its_sequent_was_written() {
-    let written: deduxit::ClassicalSequent = "A -o B, A |- ~~B".parse().unwrap();
+    let written: deduxit::linear::ClassicalSequent = "A -o B, A |- ~~B".parse().unwrap();
     let state = Interactive::of_classical(&written, Mode::CLASSICAL, &Limits::default()).unwrap();
     let json = serde_json::to_string(&state).unwrap();
     assert!(json.starts_with(r#"{"version":1,"#), "{json}");
@@ -790,7 +796,7 @@ fn error_json_format() {
     ];
     let net = ProofStructure::from_links(Forest::new(&s).unwrap(), Criterion::MLL, &links).unwrap();
     let error = net.is_correct(|_| false).unwrap_err();
-    let deduxit::nets::NetError::SwitchingCycle { cycle, .. } = &error else {
+    let deduxit::linear::nets::NetError::SwitchingCycle { cycle, .. } = &error else {
         panic!("{error}");
     };
     let ids: Vec<u32> = cycle.iter().map(|v| v.get()).collect();
@@ -804,7 +810,7 @@ fn error_json_format() {
 /// `"auto"`, and no bound `null`.
 #[test]
 fn options_json_format() {
-    use deduxit::search::{Bias, Cadence, Jobs, Schedule};
+    use deduxit::linear::search::{Bias, Cadence, Jobs, Schedule};
     let defaults = serde_json::to_string(&Options::default()).unwrap();
     assert_eq!(
         defaults,
@@ -882,7 +888,11 @@ fn settings_json_format() {
 /// sequent lacks is refused.
 #[test]
 fn disproof_json_format_and_round_trip() {
-    use deduxit::{Disproof, Error, ErrorKind, Limits, Verdict, wire};
+    use deduxit::{
+        Error, ErrorKind, Limits,
+        linear::{Disproof, Verdict},
+        wire,
+    };
     let s: Sequent = "|- a, a".parse().unwrap();
     let outcome = prove(&s, Mode::CLASSICAL, &Options::default()).unwrap();
     let Verdict::Unprovable(disproof) = &outcome.verdict else {
@@ -1073,7 +1083,7 @@ fn first_order_round_trip() {
         serde_json::to_string(&s).unwrap(),
         r#"{"version":7,"terms":[{"V":0},{"D":1},{"⊗":[0,1]},{"∃":2},{"D":2},{"V":1},{"∃":5}],"roots":[3,4,6],"atoms":[{"P":[1,[0,1]]},{"P":[2,[0]]},{"P":[1,[2,1]]}],"symbols":[["c",0],["p",2],["q",1],["a",0]],"fo":[{"B":0},{"F":[0,[]]},{"F":[3,[]]}],"binders":["x","y"],"antecedents":2}"#
     );
-    let ill: deduxit::IllSequent = "forall x. p(x, c) -o q(x), p(a, c) |- exists y. q(y)"
+    let ill: deduxit::linear::IllSequent = "forall x. p(x, c) -o q(x), p(a, c) |- exists y. q(y)"
         .parse()
         .unwrap();
     let json = serde_json::to_string(&ill).unwrap();
@@ -1081,7 +1091,7 @@ fn first_order_round_trip() {
         json,
         r#"{"version":7,"terms":[{"V":0},{"V":1},{"⊸":[0,1]},{"∀":2},{"V":2},{"∃":1}],"atoms":[{"P":[1,[0,1]]},{"P":[2,[0]]},{"P":[1,[2,1]]}],"symbols":[["c",0],["p",2],["q",1],["a",0]],"fo":[{"B":0},{"F":[0,[]]},{"F":[3,[]]}],"binders":["x","y"],"hypotheses":[3,4],"goal":5}"#
     );
-    let back: deduxit::IllSequent = serde_json::from_str(&json).unwrap();
+    let back: deduxit::linear::IllSequent = serde_json::from_str(&json).unwrap();
     assert_eq!(back.to_string(), ill.to_string());
     assert_eq!(back.sequent().to_string(), ill.sequent().to_string());
     // A propositional sequent's bytes are those of level 1.

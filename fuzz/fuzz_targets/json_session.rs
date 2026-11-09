@@ -5,7 +5,7 @@
 //! complete session gives a proof the checker accepts.
 #![no_main]
 
-use deduxit::{Interactive, Limits};
+use deduxit::{Limits, linear::Interactive};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {

@@ -41,11 +41,11 @@ use super::{
 use crate::Error;
 use crate::export::Form;
 use crate::export::notation::{Step, flush, walk};
-use crate::occurrences::instances::Framing;
-use crate::occurrences::{Forest, FrameId, Member, OccId, Reading, Side, Sign};
-use crate::proofs::{Derivation, InfId, Rule};
-use crate::search::{Classical, Disproof, OneSidedSymbol, Refutation, UnbalancedSymbol};
-use crate::sequents::{Args, Atom, FoTerm, FoTermId, Stop, Stops, Symbol, Term};
+use crate::linear::occurrences::instances::Framing;
+use crate::linear::occurrences::{Forest, FrameId, Member, OccId, Reading, Side, Sign};
+use crate::linear::proofs::{Derivation, InfId, Rule};
+use crate::linear::search::{Classical, Disproof, OneSidedSymbol, Refutation, UnbalancedSymbol};
+use crate::linear::sequents::{Args, Atom, FoTerm, FoTermId, Stop, Stops, Symbol, Term};
 use std::fmt::Write;
 
 /// The optional rules of the one-sided calculus a certificate states, and
@@ -1154,8 +1154,9 @@ pub(super) fn disproof(
         }
         Refutation::Equation(_) => format!("{side}equation_refutation _"),
         Refutation::StateEquation(equation) => {
-            let deaths = crate::search::weighted::state_equation(&forest, &goal, mode, equation)
-                .expect("the check accepted the weights");
+            let deaths =
+                crate::linear::search::weighted::state_equation(&forest, &goal, mode, equation)
+                    .expect("the check accepted the weights");
             let negated = deaths.body == Sign::Dual;
             let weights: Vec<String> = equation
                 .atoms

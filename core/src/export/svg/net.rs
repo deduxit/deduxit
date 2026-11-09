@@ -33,9 +33,9 @@ use super::{
     Marks, NOTATION, NetDrawing, PLAIN, Premises, RAISED_BOT, Style, document, escaped, lay, run,
     text,
 };
-use crate::nets::{NetError, ProofStructure};
-use crate::occurrences::{OccId, Reading, Side};
-use crate::sequents::Kind;
+use crate::linear::nets::{NetError, ProofStructure};
+use crate::linear::occurrences::{OccId, Reading, Side};
+use crate::linear::sequents::Kind;
 use std::fmt::Write;
 
 /// The height of the middle of `⅋` above the baseline: unlike `⊗`, it
@@ -753,9 +753,9 @@ pub(super) fn draw(
     let description = style.description.then(|| match reading {
         Some(reading) => net
             .written_in(if reading.is_ordered() {
-                crate::Mode::LAMBEK
+                crate::linear::Mode::LAMBEK
             } else {
-                crate::Mode::INTUITIONISTIC
+                crate::linear::Mode::INTUITIONISTIC
             })
             .to_string(),
         None => net.to_string(),

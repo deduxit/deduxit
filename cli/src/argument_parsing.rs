@@ -5,9 +5,12 @@ use clap::builder::TypedValueParser;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use deduxit::export::rocq::Kernel;
 use deduxit::export::svg::MathFont;
-use deduxit::proofs::{Compact, cut};
-use deduxit::search::{Cadence, Engine, Options, Schedule};
-use deduxit::{Bias, Clock, Fragment, Limits, Mode};
+use deduxit::linear::proofs::{Compact, cut};
+use deduxit::linear::search::{Cadence, Engine, Options, Schedule};
+use deduxit::{
+    Clock, Limits,
+    linear::{Bias, Fragment, Mode},
+};
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -904,7 +907,7 @@ pub(crate) enum IllSyntaxArg {
     OneSided,
 }
 
-impl From<IllSyntaxArg> for deduxit::IllSyntax {
+impl From<IllSyntaxArg> for deduxit::linear::IllSyntax {
     /// The library's syntax of the flag's.
     fn from(syntax: IllSyntaxArg) -> Self {
         match syntax {
@@ -1236,7 +1239,7 @@ pub(crate) enum ClassicalSidesArg {
     Two,
 }
 
-impl From<ClassicalSidesArg> for deduxit::ClassicalSides {
+impl From<ClassicalSidesArg> for deduxit::linear::ClassicalSides {
     /// Returns the library's value of the switch.
     fn from(sides: ClassicalSidesArg) -> Self {
         match sides {
@@ -1304,7 +1307,7 @@ pub(crate) enum StructuralArg {
     Explicit,
 }
 
-impl From<StructuralArg> for deduxit::proofs::Structural {
+impl From<StructuralArg> for deduxit::linear::proofs::Structural {
     /// Returns the library's value of the switch.
     fn from(structural: StructuralArg) -> Self {
         match structural {

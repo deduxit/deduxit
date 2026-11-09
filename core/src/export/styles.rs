@@ -1,7 +1,7 @@
 // linlog © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-use crate::proofs::TextOptions;
+use crate::linear::proofs::TextOptions;
 
 /// The options of every output format in one value, which a front end
 /// keeps and changes key by key: the text tree's, LaTeX's, Typst's, the

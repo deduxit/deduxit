@@ -13,8 +13,8 @@ use anyhow::{Context, Result};
 use clap::ArgMatches;
 use clap::parser::ValueSource;
 use deduxit::Settings;
-use deduxit::search::batch::{self, Cores};
-use deduxit::search::{Jobs, Options, Schedule};
+use deduxit::linear::search::batch::{self, Cores};
+use deduxit::linear::search::{Jobs, Options, Schedule};
 use serde_json::Value;
 use std::collections::HashSet;
 use std::path::Path;
@@ -399,7 +399,7 @@ pub(crate) fn of_print(
     path: Option<&Path>,
     memory: Option<u64>,
     occurrences: Option<u64>,
-    syntax: deduxit::IllSyntax,
+    syntax: deduxit::linear::IllSyntax,
     given: &Given,
 ) -> Result<Settings> {
     let mut settings = read(path)?;
@@ -769,9 +769,9 @@ mod tests {
                 Command::Interact(args) => drop(args.settings(&given).unwrap()),
                 Command::Check(args) => drop(args.settings(&given).unwrap()),
                 Command::Eliminate(args) => drop(args.settings(&given).unwrap()),
-                Command::Seq { .. } => {
-                    drop(of_print(None, None, None, deduxit::IllSyntax::Strict, &given).unwrap())
-                }
+                Command::Seq { .. } => drop(
+                    of_print(None, None, None, deduxit::linear::IllSyntax::Strict, &given).unwrap(),
+                ),
             }
             let mut leaf = &cli;
             for word in &line[1..] {
@@ -796,11 +796,14 @@ mod tests {
         let file =
             std::env::temp_dir().join(format!("deduxit-settings-keys-{}.json", std::process::id()));
         let mut kept = Settings::default();
-        kept.batch.mode = deduxit::Mode::CLASSICAL.with_affine();
+        kept.batch.mode = deduxit::linear::Mode::CLASSICAL.with_affine();
         std::fs::write(&file, serde_json::to_string(&kept).unwrap()).unwrap();
         let mode = |args: &[&str]| prove_settings(Some(&file), args).batch.mode;
         assert_eq!(mode(&[]), kept.batch.mode);
-        assert_eq!(mode(&["--intuitionistic"]), deduxit::Mode::INTUITIONISTIC);
+        assert_eq!(
+            mode(&["--intuitionistic"]),
+            deduxit::linear::Mode::INTUITIONISTIC
+        );
         std::fs::remove_file(&file).unwrap();
         let error = read(Some(Path::new("-"))).unwrap_err().to_string();
         assert!(error.contains("standard input"), "{error}");

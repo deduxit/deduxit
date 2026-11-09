@@ -17,8 +17,8 @@ use crate::Error;
 use crate::export::Form;
 use crate::export::rocq::{CLASSICAL_PRELUDE, Options, Unsupported, identifiers};
 use crate::hash::HashMap;
-use crate::proofs::InfId;
-use crate::search::{Classical, Disproof, Refutation};
+use crate::linear::proofs::InfId;
+use crate::linear::search::{Classical, Disproof, Refutation};
 use std::fmt::Write;
 
 /// The names the terms use, which an atom never gets.

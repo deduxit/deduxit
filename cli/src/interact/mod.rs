@@ -12,11 +12,14 @@ use anyhow::{Context, Result, bail};
 use clap::ValueEnum;
 use deduxit::export::Styles;
 use deduxit::export::{latex, svg, typst};
-use deduxit::proofs::interactive::Needs;
-use deduxit::search::{Goal, Options, Outcome, Verdict};
+use deduxit::linear::proofs::interactive::Needs;
+use deduxit::linear::search::{Goal, Options, Outcome, Verdict};
 use deduxit::{
-    CutFormula, Error, GoalId, InputOptions, Interactive, Limits, Named, Reading, Refusal, Rule,
-    Side, Step, ViewOptions,
+    Error, Limits, Refusal,
+    linear::{
+        CutFormula, GoalId, InputOptions, Interactive, Named, Reading, Rule, Side, Step,
+        ViewOptions,
+    },
 };
 use std::fmt::Write as _;
 use std::io::{IsTerminal, Write};
@@ -562,7 +565,7 @@ impl Session {
                 // `--state` beside a sequent is.
                 // By their JSON forms: a first-order sequent read from JSON
                 // numbers its argument lists apart from the parsed one.
-                let written = |s: &deduxit::Sequent| serde_json::to_string(s).ok();
+                let written = |s: &deduxit::linear::Sequent| serde_json::to_string(s).ok();
                 if written(state.sequent()) != written(self.state.sequent()) {
                     bail!(
                         "{path} holds a session of another sequent; `load` resumes one of this \

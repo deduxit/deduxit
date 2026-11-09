@@ -5,7 +5,10 @@
 
 #![cfg(feature = "parse")]
 
-use deduxit::{Error, Limits, Order, Sequent};
+use deduxit::{
+    Error, Limits,
+    linear::{Order, Sequent},
+};
 
 /// Parses `input` as a sequent of classical linear logic and prints it back.
 fn pretty(input: &str) -> String {
@@ -411,9 +414,9 @@ fn quantifiers_and_predicates() {
     assert_eq!(ground.symbols().len(), 4);
     let open: Sequent = "|- forall x. p(x, a)".parse().unwrap();
     assert_eq!(open.atom_names(), ["p(#0, a)"]);
-    assert!(open.atom_is_open(deduxit::Atom::new(0)));
-    assert!(!ground.atom_is_open(deduxit::Atom::new(0)));
-    assert_eq!(open.binder_name(deduxit::TermId::new(1)), Some("x"));
+    assert!(open.atom_is_open(deduxit::linear::Atom::new(0)));
+    assert!(!ground.atom_is_open(deduxit::linear::Atom::new(0)));
+    assert_eq!(open.binder_name(deduxit::linear::TermId::new(1)), Some("x"));
 }
 
 /// What is no first-order sequent is refused at its place with a hint: a
@@ -485,7 +488,7 @@ fn first_order_errors() {
         }
     }
     // The strict intuitionistic syntax reads the same binders.
-    let ill: deduxit::IllSequent = "forall x. p(x) -o q(x), p(a) |- exists y. q(y)"
+    let ill: deduxit::linear::IllSequent = "forall x. p(x) -o q(x), p(a) |- exists y. q(y)"
         .parse()
         .unwrap();
     assert_eq!(ill.to_string(), "∀x. (p(x) ⊸ q(x)), p(a) ⊢ ∃y. q(y)");

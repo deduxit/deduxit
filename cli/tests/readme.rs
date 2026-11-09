@@ -911,10 +911,10 @@ fn guide_states_the_defaults() {
                 .nth(1)
                 .and_then(|rest| rest.split(|c: char| !c.is_ascii_digit()).next())
                 .and_then(|digits| digits.parse::<u32>().ok());
-            if number != deduxit::Options::default().copies {
+            if number != deduxit::linear::Options::default().copies {
                 failures.push(format!(
                     "{name}: the library's default copy bound is {:?}, not {number:?}",
-                    deduxit::Options::default().copies
+                    deduxit::linear::Options::default().copies
                 ));
             }
         }

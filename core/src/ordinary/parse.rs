@@ -10,7 +10,7 @@ use super::{Formulas, Node, NodeId, Sequent};
 use crate::Error;
 use crate::errors::ParseError;
 use crate::limits::{Limits, Refusal};
-use crate::lltp::{Status, clauses};
+use crate::linear::lltp::{Status, clauses};
 
 /// A binary connective as it is written.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -141,7 +141,7 @@ impl<'a> Parser<'a> {
     fn identifier(&mut self) -> Option<&'a str> {
         let rest = self.rest();
         let first = rest.chars().next()?;
-        if !crate::sequents::name::starts_identifier(first) {
+        if !crate::linear::sequents::name::starts_identifier(first) {
             return None;
         }
         let end = rest
@@ -422,7 +422,7 @@ pub struct Problem {
 /// `~|`, `~&`, `$true` and `$false`, which bind in that order from `~`,
 /// the tightest, to the equivalences (TPTP asks for parentheses where
 /// this matters, and reads `~` as tight as here). The file's statuses are
-/// read as [`lltp::read`](crate::lltp::read) reads them.
+/// read as [`lltp::read`](crate::linear::lltp::read) reads them.
 ///
 /// Every formula is read within `limits.occurrences`, as
 /// [`Sequent::parse_within`] reads them.

@@ -11,8 +11,8 @@ use super::font::{AXIS, DEPTH, HEIGHT};
 use super::{Escaping, NOTATION, PLAIN, Run, Style, backdrop, escaped, head, label, run, text};
 use crate::Error;
 use crate::export::notation::{Step, flush, walk};
-use crate::proofs::style::{Drawn, RUN};
-use crate::proofs::{InfId, OpenGoal, fmt};
+use crate::linear::proofs::style::{Drawn, RUN};
+use crate::linear::proofs::{InfId, OpenGoal, fmt};
 use std::fmt::Write;
 
 /// Where an inference and the subtree above it go, within the box that

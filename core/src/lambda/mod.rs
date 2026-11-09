@@ -7,7 +7,7 @@
 //! lambda calculus with products, sums, a unit and an empty type.
 //!
 //! The term is computed from a derivation the checker has accepted
-//! ([`Derivation::term`](crate::Derivation::term),
+//! ([`Derivation::term`](crate::linear::Derivation::term),
 //! [`ordinary::Derivation::term`](crate::ordinary::Derivation::term)),
 //! one construction per rule, and is printed, never trusted. The linear
 //! calculus is the sequent calculus term assignment of G. M. Bierman,

@@ -7,7 +7,7 @@
 //! under a named [`Translation`]
 //! ([`translate()`], an
 //! [`Image`] holding a linear
-//! [`Sequent`](crate::Sequent) and the mode to prove it in), and the
+//! [`Sequent`](crate::linear::Sequent) and the mode to prove it in), and the
 //! linear proof read back as a derivation of LK or LJ
 //! ([`Image::read_back`], a
 //! [`Derivation`] that
@@ -28,7 +28,7 @@
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
 //! use deduxit::ordinary::{self, Logic, Sequent, Translation, Verdict, translate};
-//! use deduxit::{Limits, Options};
+//! use deduxit::{Limits, linear::Options};
 //!
 //! let sequent: Sequent = "a -> b, b -> c |- a -> c".parse()?;
 //! let limits = Limits::default();
@@ -73,11 +73,11 @@ pub use parse::{Problem, read_tptp};
 pub use translate::{FALSE, Image, translate};
 
 use crate::Error;
-use crate::fragment::{Fragment, Mode};
 use crate::hash::HashMap;
 use crate::limits::{Refusal, Space};
-use crate::sequents::notation::TEXT;
-use crate::sequents::{Stop, Stops};
+use crate::linear::fragment::{Fragment, Mode};
+use crate::linear::sequents::notation::TEXT;
+use crate::linear::sequents::{Stop, Stops};
 use std::fmt::{Display, Formatter, Result as FmtResult, Write};
 
 /// An ordinary propositional logic.
@@ -505,11 +505,11 @@ impl Formulas {
     /// word reserved for a later version of the syntax (`forall`,
     /// `exists`), and [`Refusal::Index`] when the arena is full.
     pub fn atom(&mut self, name: &str) -> Result<NodeId, Error> {
-        let name = &*crate::sequents::name::normalized(name);
+        let name = &*crate::linear::sequents::name::normalized(name);
         let index = match self.names.get(name) {
             Some(&index) => index,
             None => {
-                crate::sequents::name::check_ordinary(name)?;
+                crate::linear::sequents::name::check_ordinary(name)?;
                 let index = self.atoms.len() as u32;
                 self.atoms.push(name.to_owned());
                 self.names.insert(name.to_owned(), index);
@@ -745,8 +745,8 @@ pub(crate) fn bound(
 #[cfg(all(test, feature = "parse"))]
 mod tests {
     use super::*;
-    use crate::search::generate::Rng;
-    use crate::{Options as Search, Verdict, prove};
+    use crate::linear::search::generate::Rng;
+    use crate::linear::{Options as Search, Verdict, prove};
 
     /// Decides `text` in `logic` by `translation` with a copy bound of
     /// eight, and returns whether it was proved, with the derivation read

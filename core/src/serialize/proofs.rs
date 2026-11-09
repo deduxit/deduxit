@@ -2,10 +2,10 @@
 // Licensed under the EUPL
 
 use super::sequents::{FoExpression, Sequent};
-use crate::fragment::Mode;
 use crate::limits::Limits;
-use crate::occurrences::{Forest, Member};
-use crate::proofs::{Branch, Named, Node, NodeId, Proof as Prf};
+use crate::linear::fragment::Mode;
+use crate::linear::occurrences::{Forest, Member};
+use crate::linear::proofs::{Branch, Named, Node, NodeId, Proof as Prf};
 use crate::wire::{self, Readable};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -85,9 +85,9 @@ pub(super) struct Instances {
 
 impl Instances {
     /// The form of the table of a proof over `forest`.
-    fn of(table: &crate::Instances, forest: &Forest) -> Self {
-        use crate::sequents::FoTerm;
-        let terms = crate::occurrences::instances::Terms {
+    fn of(table: &crate::linear::Instances, forest: &Forest) -> Self {
+        use crate::linear::sequents::FoTerm;
+        let terms = crate::linear::occurrences::instances::Terms {
             fo: &forest.sequent().fo,
             table,
         };
@@ -108,7 +108,7 @@ impl Instances {
             frames: table
                 .frames
                 .iter()
-                .map(|&(p, t)| (p.map(crate::FrameId::get), t.get()))
+                .map(|&(p, t)| (p.map(crate::linear::FrameId::get), t.get()))
                 .collect(),
             terms: table.terms().iter().map(fo).collect(),
         }
@@ -117,9 +117,13 @@ impl Instances {
     /// Returns the table of a proof over `forest` the form holds, within
     /// `limits.terms`; whether it is well formed is the proof's
     /// constructor's question.
-    fn within(self, forest: &Forest, limits: &Limits) -> Result<crate::Instances, crate::Error> {
-        use crate::occurrences::{FrameId, OccId};
-        use crate::sequents::{Eigen, FoTerm, FoTermId, Symbol};
+    fn within(
+        self,
+        forest: &Forest,
+        limits: &Limits,
+    ) -> Result<crate::linear::Instances, crate::Error> {
+        use crate::linear::occurrences::{FrameId, OccId};
+        use crate::linear::sequents::{Eigen, FoTerm, FoTermId, Symbol};
         let entries = (self.members.len() as u64)
             .saturating_add(self.frames.len() as u64)
             .saturating_add(self.terms.len() as u64);
@@ -131,7 +135,7 @@ impl Instances {
                 limit,
             }));
         }
-        let mut table = crate::Instances::new(forest);
+        let mut table = crate::linear::Instances::new(forest);
         for term in self.terms {
             match term {
                 FoExpression::Bound(i) => {
@@ -233,8 +237,8 @@ impl From<Step> for Node {
             Weaken(x, p) => N::Weaken(o(x), n(p)),
             Mix(l, r) => N::Mix(n(l), n(r)),
             Cut(a, l, r) => N::Cut(o(a), n(l), n(r)),
-            Forall(x, a, p) => N::Forall(o(x), crate::Eigen::new(a), n(p)),
-            Exists(x, w, p) => N::Exists(o(x), crate::sequents::FoTermId::new(w), n(p)),
+            Forall(x, a, p) => N::Forall(o(x), crate::linear::Eigen::new(a), n(p)),
+            Exists(x, w, p) => N::Exists(o(x), crate::linear::sequents::FoTermId::new(w), n(p)),
         }
     }
 }
@@ -265,7 +269,7 @@ impl Proof {
     /// Rebuilds the proof the form holds, its forest within `limits`; the
     /// bounds and the order of its nodes are checked, not the proof.
     fn within(self, limits: &Limits) -> Result<Prf, crate::Error> {
-        let sequent = crate::Sequent::try_from(self.sequent)?;
+        let sequent = crate::linear::Sequent::try_from(self.sequent)?;
         let forest = Forest::from_owned(sequent, limits)?;
         let nodes: Vec<Node> = self.nodes.into_iter().map(Node::from).collect();
         // The root is the last node, whose index must be a node id.
@@ -338,7 +342,7 @@ struct StepForm {
     /// The occurrence of the cut formula.
     formula: u32,
     /// The case.
-    case: crate::proofs::cut::Case,
+    case: crate::linear::proofs::cut::Case,
     /// The node the step acted at besides the cut.
     #[serde(skip_serializing_if = "Option::is_none")]
     above: Option<u32>,
@@ -360,11 +364,11 @@ struct EliminationForm<'a> {
     reason: Option<&'a crate::Error>,
 }
 
-impl serde::Serialize for crate::proofs::cut::Elimination {
+impl serde::Serialize for crate::linear::proofs::cut::Elimination {
     /// Serializes the elimination as a document: the proof reached, the
     /// steps and how it ended.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use crate::proofs::cut::End;
+        use crate::linear::proofs::cut::End;
         let reason = match &self.end {
             End::CutFree => None,
             End::Refused(refusal) => Some(crate::Error::Refused(refusal.clone())),

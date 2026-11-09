@@ -3,15 +3,15 @@
 
 use super::proofs::Proof;
 use super::sequents::Sequent as SequentForm;
-use crate::fragment::{Fragment, Mode};
 use crate::limits::{Limits, Space};
-use crate::occurrences::{Member, OccId, Sign};
-use crate::search::{
+use crate::linear::fragment::{Fragment, Mode};
+use crate::linear::occurrences::{Member, OccId, Sign};
+use crate::linear::search::{
     Bias, Cadence, Classical, Disproof, Engine, Equation, Jobs, OneSided, OneSidedSymbol,
     Outcome as Out, Reason, Refutation, Saturated, Stable, StateEquation, Statistics, Unbalanced,
     UnbalancedSymbol, Verdict,
 };
-use crate::sequents::{Atom, Symbol};
+use crate::linear::sequents::{Atom, Symbol};
 use crate::wire::{self, Readable};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 

@@ -2,12 +2,12 @@
 // Licensed under the EUPL
 
 use super::sequents::Sequent;
-use crate::fragment::Mode;
 use crate::limits::Limits;
-use crate::occurrences::{Forest, Member, Side, Written};
-use crate::proofs::interactive::Interactive as State;
-use crate::proofs::interactive::{PartTerm, Parts};
-use crate::proofs::{InfId, Inference, Named, Rule};
+use crate::linear::fragment::Mode;
+use crate::linear::occurrences::{Forest, Member, Side, Written};
+use crate::linear::proofs::interactive::Interactive as State;
+use crate::linear::proofs::interactive::{PartTerm, Parts};
+use crate::linear::proofs::{InfId, Inference, Named, Rule};
 use crate::wire::{self, Readable};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -247,7 +247,7 @@ impl Interactive {
     /// its rule yields.
     fn within(self, limits: &Limits) -> Result<State, crate::Error> {
         let proxy = self;
-        let sequent = crate::Sequent::try_from(proxy.sequent)?;
+        let sequent = crate::linear::Sequent::try_from(proxy.sequent)?;
         let forest = Forest::from_owned(sequent, limits)?;
         let inferences = proxy
             .inferences

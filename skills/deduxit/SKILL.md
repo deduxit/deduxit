@@ -85,7 +85,7 @@ valid proof (classical)
   ⊢ ~A, ~B, A ⊗ B
 ```
 
-**The library** is the Rust crate `deduxit`: `"…".parse::<deduxit::Sequent>()`, `deduxit::prove(&sequent, Mode::CLASSICAL, &Options::default())` and the `Outcome` it returns; its default bounds the copies at 3, where the command deepens under its time limit.
+**The library** is the Rust crate `deduxit`: `"…".parse::<deduxit::linear::Sequent>()`, `deduxit::linear::prove(&sequent, Mode::CLASSICAL, &Options::default())` and the `Outcome` it returns; its default bounds the copies at 3, where the command deepens under its time limit.
 
 ## Docs
 

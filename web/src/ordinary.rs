@@ -15,7 +15,7 @@ use deduxit::export::{latex, rocq, svg, typst};
 use deduxit::ordinary::{
     self, Applicable, Context, Interactive, Logic, Needs, NodeId, Rule, Sequent, Side, Step,
 };
-use deduxit::{GoalId, Progress, Settings, wire};
+use deduxit::{Progress, Settings, linear::GoalId, wire};
 use serde::{Deserialize, Serialize};
 
 /// The stop of every call: the page cancels by stopping the worker, so

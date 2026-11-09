@@ -126,7 +126,7 @@ refuted `qbf/20` instances 5 to 8 ms and now about 80 ms, with the same
 nodes, splits and units of work, so the cost lies after the search:
 since 0.1.0 a search that refutes by exhausting its space looks for a
 classical assignment for the disproof within the classical work bound
-(`core/src/search/mod.rs`), which on these instances finds none. That is
+(`core/src/linear/search/mod.rs`), which on these instances finds none. That is
 read from the code and the rows, not traced. The larger instances got
 faster (`qbf/48#1` 207 → 166 s); in the parallel stage the same fixed
 cost makes the median ratio of the decided QBF instances 3.2 to 3.7 on 2

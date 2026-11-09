@@ -26,7 +26,7 @@
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
 //! use deduxit::export::svg::{self, Style};
-//! use deduxit::{Limits, Mode, Sequent};
+//! use deduxit::{Limits, linear::{Mode, Sequent}};
 //!
 //! let sequent: Sequent = "A |- A".parse()?;
 //! let svg = svg::sequent(&sequent, Mode::CLASSICAL, &Style::default(), &Limits::default())?;
@@ -46,13 +46,13 @@ mod tree;
 
 use super::Drawable;
 use crate::Error;
-use crate::nets::{MellStructure, ProofStructure};
-use crate::occurrences::Reading;
+use crate::linear::nets::{MellStructure, ProofStructure};
+use crate::linear::occurrences::Reading;
+use crate::linear::proofs::style::{Part, parts};
+use crate::linear::proofs::{Labels, OpenGoal};
+use crate::linear::sequents::Sequent;
+use crate::linear::sequents::notation::{Atoms, Notation};
 use crate::ordinary::Symbols;
-use crate::proofs::style::{Part, parts};
-use crate::proofs::{Labels, OpenGoal};
-use crate::sequents::Sequent;
-use crate::sequents::notation::{Atoms, Notation};
 pub use font::{Advances, Font, MONOSPACE, MathFont};
 use font::{DEPTH, HEIGHT, LOWER, RAISE, SCRIPT};
 use std::fmt::Write;
@@ -1097,11 +1097,11 @@ const PER_OCCURRENCE: u64 = 128;
 /// and its longest atom name), before anything is laid out;
 /// [`Error::NotIntuitionistic`] in intuitionistic mode for one without an
 /// intuitionistic reading, the refusal of
-/// [`Forest::within`](crate::Forest::within), and
+/// [`Forest::within`](crate::linear::Forest::within), and
 /// [`Error::InvalidOption`] for a style [`Style::check`] refuses.
 pub fn sequent(
     sequent: &Sequent,
-    mode: crate::Mode,
+    mode: crate::linear::Mode,
     style: &Style,
     limits: &crate::Limits,
 ) -> Result<String, Error> {
@@ -1225,7 +1225,7 @@ pub fn write<'a>(
 /// their own (a switching keeps one of them); Mix leaves no trace. A
 /// structure with a switching cycle has the cycle's edges in the
 /// highlight colour, and one that falls into parts (those of
-/// [`NetError::Disconnected`](crate::nets::NetError::Disconnected)) has
+/// [`NetError::Disconnected`](crate::linear::nets::NetError::Disconnected)) has
 /// the edges, conclusions and links of every part but the first in it.
 /// Every occurrence's formula, or a compact net's circle of a connective,
 /// is the element with the id `o<n>` for occurrence `n`, and a link is
@@ -1266,7 +1266,7 @@ pub fn net(
 /// As [`net()`] fails.
 pub fn net_step(
     net: &ProofStructure,
-    step: &crate::nets::cut::Step,
+    step: &crate::linear::nets::cut::Step,
     style: &Style,
     limits: &crate::Limits,
     stop: impl FnMut(crate::limits::Progress) -> bool,
@@ -1304,7 +1304,7 @@ fn net_marked(
         Some(_) => net.is_essential(&mut stop),
         None => net.is_correct(&mut stop),
     };
-    if let Err(refused @ crate::nets::NetError::Refused { .. }) = verdict {
+    if let Err(refused @ crate::linear::nets::NetError::Refused { .. }) = verdict {
         return Err(refused.into());
     }
     Ok(net::draw(net, style, &verdict, reading.as_ref(), marks))
@@ -1356,7 +1356,7 @@ pub fn mell_net(
 /// As [`mell_net()`] fails.
 pub fn mell_net_step(
     net: &MellStructure,
-    step: &crate::nets::cut::Step,
+    step: &crate::linear::nets::cut::Step,
     style: &Style,
     limits: &crate::Limits,
     stop: impl FnMut(crate::limits::Progress) -> bool,
@@ -1386,7 +1386,7 @@ fn mell_net_marked(
         }
     }
     let verdict = net.is_correct(stop);
-    if let Err(refused @ crate::nets::NetError::Refused { .. }) = verdict {
+    if let Err(refused @ crate::linear::nets::NetError::Refused { .. }) = verdict {
         return Err(refused.into());
     }
     Ok(mell::draw(net, style, &verdict, reading.as_ref(), marks))
@@ -1408,24 +1408,24 @@ struct Marks {
 impl Marks {
     /// Returns the marks of a step on a proof structure: the cut link, and
     /// the axiom links at its ends or the premise edges of its ends.
-    fn of_mll(net: &ProofStructure, step: &crate::nets::cut::Step) -> Self {
+    fn of_mll(net: &ProofStructure, step: &crate::linear::nets::cut::Step) -> Self {
         let (x, y) = step.cut;
         let forest = net.forest();
         let mut pairs = Vec::new();
         for v in [x, y] {
             match step.case {
-                crate::proofs::cut::Case::TensorPar => {
+                crate::linear::proofs::cut::Case::TensorPar => {
                     pairs.extend(forest.children(v.occ()).map(|c| (v.get(), c.get())));
                 }
-                crate::proofs::cut::Case::Axiom
-                | crate::proofs::cut::Case::OneBot
-                | crate::proofs::cut::Case::WithPlus
-                | crate::proofs::cut::Case::Weakening
-                | crate::proofs::cut::Case::Dereliction
-                | crate::proofs::cut::Case::Contraction
-                | crate::proofs::cut::Case::BoxIntoBox
-                | crate::proofs::cut::Case::ForallExists
-                | crate::proofs::cut::Case::Commutative => {
+                crate::linear::proofs::cut::Case::Axiom
+                | crate::linear::proofs::cut::Case::OneBot
+                | crate::linear::proofs::cut::Case::WithPlus
+                | crate::linear::proofs::cut::Case::Weakening
+                | crate::linear::proofs::cut::Case::Dereliction
+                | crate::linear::proofs::cut::Case::Contraction
+                | crate::linear::proofs::cut::Case::BoxIntoBox
+                | crate::linear::proofs::cut::Case::ForallExists
+                | crate::linear::proofs::cut::Case::Commutative => {
                     pairs.extend(net.partner(v).map(|p| (v.get(), p.get())));
                 }
             }
@@ -1437,13 +1437,13 @@ impl Marks {
     /// link, and the axiom links at its ends, the premise edges of its
     /// ends, or the box of its `!` end with the box it enters or the edge
     /// to the copy it acts on.
-    fn of_mell(net: &MellStructure, step: &crate::nets::cut::Step) -> Self {
-        use crate::proofs::cut::Case;
+    fn of_mell(net: &MellStructure, step: &crate::linear::nets::cut::Step) -> Self {
+        use crate::linear::proofs::cut::Case;
         let (x, y) = step.cut;
         let (mut pairs, mut boxes) = (Vec::new(), Vec::new());
-        let bang = |v: crate::nets::VertexId| {
+        let bang = |v: crate::linear::nets::VertexId| {
             net.occurrence(v)
-                .is_some_and(|o| net.forest().kind(o) == crate::Kind::Bang)
+                .is_some_and(|o| net.forest().kind(o) == crate::linear::Kind::Bang)
         };
         let (b, q) = if bang(x) { (x, y) } else { (y, x) };
         match step.case {
@@ -1459,7 +1459,7 @@ impl Marks {
             }
             Case::BoxIntoBox => {
                 boxes.push(b.get());
-                boxes.extend(step.above.map(crate::nets::VertexId::get));
+                boxes.extend(step.above.map(crate::linear::nets::VertexId::get));
             }
             Case::Weakening
             | Case::Dereliction
@@ -1476,7 +1476,7 @@ impl Marks {
     }
 
     /// Returns the marks of a step with the given edges and boxes.
-    fn new(step: &crate::nets::cut::Step, pairs: Vec<(u32, u32)>, boxes: Vec<u32>) -> Self {
+    fn new(step: &crate::linear::nets::cut::Step, pairs: Vec<(u32, u32)>, boxes: Vec<u32>) -> Self {
         let mut pairs: Vec<(u32, u32)> = pairs
             .into_iter()
             .map(|(a, b)| (a.min(b), a.max(b)))
@@ -1541,7 +1541,7 @@ mod tests {
     fn styles_are_within_their_maxima() {
         let s: Sequent = "A * B |- B * A".parse().unwrap();
         let limits = crate::Limits::default();
-        let drawn = |style: &Style| sequent(&s, crate::Mode::CLASSICAL, style, &limits);
+        let drawn = |style: &Style| sequent(&s, crate::linear::Mode::CLASSICAL, style, &limits);
         let past = Style {
             font_size: Style::MOST_FONT_SIZE + 1,
             ..Style::default()

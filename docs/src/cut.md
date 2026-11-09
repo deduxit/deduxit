@@ -146,11 +146,11 @@ $ deduxit eliminate -i --net --format svg --output net.svg contraction.json
 cut-free proof net of !a ⊢ a ⊗ a (intuitionistic) after 5 steps
 ```
 
-The library's `proofs::cut::step` reduces a cut the caller names, or the
-strategy's, and says which cut and which case; `proofs::cut::eliminate`
+The library's `linear::proofs::cut::step` reduces a cut the caller names, or the
+strategy's, and says which cut and which case; `linear::proofs::cut::eliminate`
 runs to the end within `cut::Options`, its first step on a cut the
 caller names where one is given.
 
-The library's `nets::cut::step` and `nets::cut::eliminate` do the same
+The library's `linear::nets::cut::step` and `linear::nets::cut::eliminate` do the same
 on a `ProofStructure` or a `MellStructure`, and `svg::net_step` and
 `svg::mell_net_step` draw a step.

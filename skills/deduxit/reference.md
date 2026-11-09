@@ -929,7 +929,7 @@ of LK or LJ with its weakenings and contractions `explicit` or
 (`"impL".parse::<ordinary::Rule>()`), as the command's `apply` does.
 
 ```rust
-use deduxit::{Fragment, Mode, Options, Sequent, Verdict, prove};
+use deduxit::linear::{Fragment, Mode, Options, Sequent, Verdict, prove};
 
 // Two-sided input becomes one-sided: ⊢ ~A, A ⊗ ~B, B.
 let sequent: Sequent = "A, A -o B |- B".parse()?;
@@ -948,7 +948,7 @@ assert_eq!(
 );
 
 let json = serde_json::to_string(&proof)?;
-let back: deduxit::Proof = serde_json::from_str(&json)?;
+let back: deduxit::linear::Proof = serde_json::from_str(&json)?;
 back.check(Mode::CLASSICAL)?;
 ```
 

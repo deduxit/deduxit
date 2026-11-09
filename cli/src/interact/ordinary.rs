@@ -21,9 +21,12 @@ use crate::show::{Show, Shown, bytes_text};
 use crate::{Status, catch_interrupt, clear_interrupt, interrupted, io, style};
 use anyhow::{Context, Result, bail};
 use deduxit::export::{Styles, latex, svg, typst};
+use deduxit::linear::search::Options;
 use deduxit::ordinary::{Interactive, Needs, Rule, Side, Step, Translation};
-use deduxit::search::Options;
-use deduxit::{Error, GoalId, Limits, Refusal, Settings, ViewOptions};
+use deduxit::{
+    Error, Limits, Refusal, Settings,
+    linear::{GoalId, ViewOptions},
+};
 use std::path::Path;
 use std::time::{Duration, Instant};
 

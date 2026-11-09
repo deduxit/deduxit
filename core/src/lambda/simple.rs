@@ -17,8 +17,8 @@ use super::{Builder, Calculus, NoTerm, Node, Term, TermId, Type, TypeId, VarId, 
 use crate::Error;
 use crate::hash::HashMap;
 use crate::limits::{Limits, Phase, Progress};
+use crate::linear::proofs::InfId;
 use crate::ordinary::{Derivation, Logic, NodeId, Rule, Side};
-use crate::proofs::InfId;
 
 /// What the walk has yet to do.
 #[derive(Debug)]

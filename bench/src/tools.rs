@@ -16,7 +16,7 @@ use crate::problems::{self, Problem, Reference, mode_name};
 use crate::run::HEADER;
 use crate::translate;
 use anyhow::{Context, Result, anyhow, bail};
-use deduxit::{Fragment, Mode};
+use deduxit::linear::{Fragment, Mode};
 use std::collections::HashSet;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -222,8 +222,11 @@ fn deduxit_read(output: &str, status: i32, _: &Problem) -> Answer {
 fn refutation_checked(output: &str) -> String {
     let read = output.lines().find_map(|l| {
         let mut document = serde_json::Deserializer::from_str(l);
-        deduxit::wire::upgrade::<deduxit::Disproof, _>(&mut document, &deduxit::Limits::default())
-            .ok()
+        deduxit::wire::upgrade::<deduxit::linear::Disproof, _>(
+            &mut document,
+            &deduxit::Limits::default(),
+        )
+        .ok()
     });
     match read {
         Some(disproof) => crate::run::refutation_checked(&disproof),
@@ -1036,8 +1039,10 @@ mod tests {
     #[test]
     fn deduxit_s_refutations_are_checked() {
         let outcome = |input: &str, mode: Mode| {
-            let sequent: deduxit::Sequent = input.parse().unwrap();
-            let outcome = deduxit::prove(&sequent, mode, &deduxit::Options::default()).unwrap();
+            let sequent: deduxit::linear::Sequent = input.parse().unwrap();
+            let outcome =
+                deduxit::linear::prove(&sequent, mode, &deduxit::linear::Options::default())
+                    .unwrap();
             serde_json::to_string(&outcome).unwrap()
         };
         let counted = outcome("!d, !((c * d * d) -o 1) |- c * c", Mode::CLASSICAL);
@@ -1069,16 +1074,18 @@ mod tests {
             copies: None,
             witness_depth: None,
         };
-        let chain: deduxit::Sequent = "!(p0 -o p1 & p2), !(p1 -o p2 & p3), !(p2 -o p3 & p4), \
+        let chain: deduxit::linear::Sequent =
+            "!(p0 -o p1 & p2), !(p1 -o p2 & p3), !(p2 -o p3 & p4), \
                                       !(p3 -o p4 & p5), p0 |- p5"
-            .parse()
-            .unwrap();
-        let options = deduxit::Options::default()
+                .parse()
+                .unwrap();
+        let options = deduxit::linear::Options::default()
             .with_copies(None)
-            .with_engine(Some(deduxit::Engine::Focus));
+            .with_engine(Some(deduxit::linear::Engine::Focus));
         let limits = deduxit::Limits::default().with_recursion_depth(4);
         let outcome =
-            deduxit::prove_within(&chain, Mode::CLASSICAL, &options, &limits, |_| false).unwrap();
+            deduxit::linear::prove_within(&chain, Mode::CLASSICAL, &options, &limits, |_| false)
+                .unwrap();
         let json = serde_json::to_string(&outcome).unwrap();
         assert_eq!(
             deduxit_read(&json, 3, &problem).reason,

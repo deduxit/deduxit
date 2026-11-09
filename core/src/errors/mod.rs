@@ -12,13 +12,13 @@ pub use describe::{Described, Owner};
 #[cfg(feature = "parse")]
 pub use parse::ParseError;
 
-use crate::fragment::{Fragment, Mode};
 use crate::limits::{Refusal, Space};
-use crate::nets::NetError;
-use crate::occurrences::ShapeError;
-use crate::proofs::CheckError;
-use crate::search::{Engine, NotTaken};
-use crate::sequents::fo::SymbolFault;
+use crate::linear::fragment::{Fragment, Mode};
+use crate::linear::nets::NetError;
+use crate::linear::occurrences::ShapeError;
+use crate::linear::proofs::CheckError;
+use crate::linear::search::{Engine, NotTaken};
+use crate::linear::sequents::fo::SymbolFault;
 use thiserror::Error;
 
 /// Everything that can go wrong in a call of this crate, as one family:
@@ -211,7 +211,10 @@ pub enum Error {
     /// identifier of the text syntax, or is one of its keywords or a word
     /// reserved for a later version of it, so that the sequent written as
     /// text would not read back as itself.
-    #[error("the atom name {name:?} {}", crate::sequents::name::fault(name))]
+    #[error(
+        "the atom name {name:?} {}",
+        crate::linear::sequents::name::fault(name)
+    )]
     #[non_exhaustive]
     AtomName {
         /// The name.
@@ -261,9 +264,9 @@ pub enum Error {
     #[error("{}", check_message(.0))]
     Check(CheckError),
     /// A disproof's refutation does not hold, or rests on the search and
-    /// has no check ([`Disproof::check`](crate::Disproof::check)).
+    /// has no check ([`Disproof::check`](crate::linear::Disproof::check)).
     #[error("{0}")]
-    Refutation(crate::search::RefutationFault),
+    Refutation(crate::linear::search::RefutationFault),
     /// A list of links is not a proof structure, or a structure is not a
     /// proof net.
     #[error("not a proof net: {0}")]
@@ -273,7 +276,7 @@ pub enum Error {
     /// Needs the cargo feature `interactive`.
     #[cfg(feature = "interactive")]
     #[error(transparent)]
-    Step(#[from] crate::proofs::StepError),
+    Step(#[from] crate::linear::proofs::StepError),
     /// A step of a proof in progress of an ordinary sequent does not apply
     /// as asked.
     ///
@@ -314,7 +317,7 @@ pub enum Error {
     /// proof, only not one of the sequent.
     #[error("the proof concludes a goal, not the sequent")]
     GoalProof,
-    /// A proof carried over to a goal ([`Proof::onto`](crate::proofs::Proof::onto))
+    /// A proof carried over to a goal ([`Proof::onto`](crate::linear::proofs::Proof::onto))
     /// concludes other formulas than the goal holds, beyond their order.
     #[error(
         "the proof's conclusions are not the goal's formulas: {} only in the proof, {} only in the goal",
@@ -486,7 +489,7 @@ pub enum Error {
     Rejected(Box<CheckError>),
     /// A proof or a derivation has no lambda-term, for the reason given:
     /// a proof of classical logic, with Mix, of an ordered calculus, with
-    /// quantifiers or with open goals ([`Derivation::term`](crate::Derivation::term)).
+    /// quantifiers or with open goals ([`Derivation::term`](crate::linear::Derivation::term)).
     #[error("the proof has no lambda-term: {reason}")]
     #[non_exhaustive]
     NoTerm {
@@ -661,7 +664,9 @@ impl Error {
             Self::InconsistentSession { .. } => Malformed,
             Self::Check(CheckError::Invalid(_)) => Invalid,
             Self::Check(CheckError::Refused(refused)) => refusal_kind(&refused.refusal),
-            Self::Refutation(crate::search::RefutationFault::Uncertified { .. }) => Unsupported,
+            Self::Refutation(crate::linear::search::RefutationFault::Uncertified { .. }) => {
+                Unsupported
+            }
             Self::Refutation(_) => Invalid,
             Self::Net(error) => error.kind(),
             #[cfg(feature = "interactive")]
@@ -732,7 +737,9 @@ impl Error {
             Self::InconsistentSession { .. } => "inconsistent_session",
             Self::Check(CheckError::Invalid(_)) => "invalid_proof",
             Self::Check(CheckError::Refused(refused)) => refused.refusal.code(),
-            Self::Refutation(crate::search::RefutationFault::Uncertified { .. }) => "uncertified",
+            Self::Refutation(crate::linear::search::RefutationFault::Uncertified { .. }) => {
+                "uncertified"
+            }
             Self::Refutation(_) => "invalid_refutation",
             Self::Net(error) => error.code(),
             #[cfg(feature = "interactive")]
@@ -941,8 +948,8 @@ mod tests {
     /// gives.
     fn samples() -> Vec<Error> {
         use crate::limits::Phase;
-        use crate::occurrences::{Member, OccId};
-        use crate::proofs::{Fault, Invalid, Node, NodeId, Refused};
+        use crate::linear::occurrences::{Member, OccId};
+        use crate::linear::proofs::{Fault, Invalid, Node, NodeId, Refused};
         let refusals = [
             Refusal::Stopped {
                 phase: Phase::Search,
@@ -1034,8 +1041,10 @@ mod tests {
                 node: NodeId::new(0),
                 refusal: refusals[0].clone(),
             })),
-            Error::Refutation(crate::search::RefutationFault::Satisfied),
-            Error::Refutation(crate::search::RefutationFault::Uncertified { kind: "exhausted" }),
+            Error::Refutation(crate::linear::search::RefutationFault::Satisfied),
+            Error::Refutation(crate::linear::search::RefutationFault::Uncertified {
+                kind: "exhausted",
+            }),
             Error::GoalProof,
             Error::SequentMismatch {
                 proof: vec!["A ⊗ B".into()],
@@ -1080,7 +1089,7 @@ mod tests {
                 reason: message(),
             },
         ];
-        let vertex = crate::nets::VertexId::new(0);
+        let vertex = crate::linear::nets::VertexId::new(0);
         let nets = [
             NetError::NoVertex {
                 vertex: 1,
@@ -1125,7 +1134,7 @@ mod tests {
             },
             NetError::Placement {
                 vertex,
-                fault: crate::nets::Placement::Premise,
+                fault: crate::linear::nets::Placement::Premise,
             },
             NetError::Unattached { vertex },
             NetError::InBox {
@@ -1165,8 +1174,8 @@ mod tests {
         #[cfg(feature = "interactive")]
         samples.extend([
             Error::InconsistentSession { reason: "" },
-            Error::Step(crate::proofs::StepError::NoGoal {
-                goal: crate::proofs::interactive::GoalId::new(0),
+            Error::Step(crate::linear::proofs::StepError::NoGoal {
+                goal: crate::linear::proofs::interactive::GoalId::new(0),
             }),
             Error::OpenGoals { count: 1 },
             Error::ForeignProof,

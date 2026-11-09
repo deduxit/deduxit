@@ -9,12 +9,15 @@
 //! A ground first-order sequent is propositional and refused by none.
 #![cfg(all(feature = "parse", feature = "serialize", feature = "interactive"))]
 
-use deduxit::proofs::Fault;
-use deduxit::proofs::interactive::{GoalId, Needs, StepError, TermNode, Witness};
-use deduxit::search::Engine;
+use deduxit::linear::proofs::Fault;
+use deduxit::linear::proofs::interactive::{GoalId, Needs, StepError, TermNode, Witness};
+use deduxit::linear::search::Engine;
 use deduxit::{
-    CheckError, Criterion, CutFormula, Disproof, Eigen, Error, Forest, InputOptions, Interactive,
-    Limits, Member, Mode, Options, Proof, ProofStructure, Rule, Sequent, Step, Verdict,
+    Error, Limits,
+    linear::{
+        CheckError, Criterion, CutFormula, Disproof, Eigen, Forest, InputOptions, Interactive,
+        Member, Mode, Options, Proof, ProofStructure, Rule, Sequent, Step, Verdict,
+    },
 };
 
 /// The focused engine decides a quantified goal in the classical modes,
@@ -36,12 +39,12 @@ fn the_focused_engine_takes_a_quantified_goal_and_no_other() {
         } else {
             Engine::Focus
         };
-        let outcome = deduxit::prove(&sequent, mode, &Options::default()).unwrap();
+        let outcome = deduxit::linear::prove(&sequent, mode, &Options::default()).unwrap();
         assert!(matches!(outcome.verdict, Verdict::Proved(_)), "{mode}");
         assert_eq!(outcome.engine, focused);
         for &engine in Engine::ALL {
             let options = Options::default().with_engine(Some(engine));
-            match deduxit::prove(&sequent, mode, &options) {
+            match deduxit::linear::prove(&sequent, mode, &options) {
                 Ok(outcome) if engine == focused => {
                     assert!(matches!(outcome.verdict, Verdict::Proved(_)), "{mode}");
                 }
@@ -52,15 +55,16 @@ fn the_focused_engine_takes_a_quantified_goal_and_no_other() {
     }
     let cyclic = Sequent::parse_ordered(
         "forall x. p(x) |- p(a)",
-        deduxit::Order::Cyclic,
+        deduxit::linear::Order::Cyclic,
         &Limits::default(),
     )
     .unwrap();
-    let error = deduxit::prove(&cyclic, Mode::CYCLIC, &Options::default()).unwrap_err();
+    let error = deduxit::linear::prove(&cyclic, Mode::CYCLIC, &Options::default()).unwrap_err();
     assert!(matches!(error, Error::OrderedFragment { .. }), "{error}");
     // A ground sequent is propositional and proved.
     let ground: Sequent = "p(a), p(a) -o q(f(a)) |- q(f(a))".parse().unwrap();
-    let outcome = deduxit::prove(&ground, Mode::INTUITIONISTIC, &Options::default()).unwrap();
+    let outcome =
+        deduxit::linear::prove(&ground, Mode::INTUITIONISTIC, &Options::default()).unwrap();
     assert!(matches!(outcome.verdict, Verdict::Proved(_)));
     assert_eq!(outcome.fragment.to_string(), "MLL");
 }
@@ -154,9 +158,13 @@ fn adding_sequents_joins_their_tables() {
     t.add("|- q, p(a)".parse().unwrap());
     assert_eq!(t.atom_names(), ["q", "p(a)"]);
     // A cyclic net of a ground sequent is a level-7 document.
-    let cyclic =
-        Sequent::parse_ordered("p(a) |- p(a)", deduxit::Order::Cyclic, &Limits::default()).unwrap();
-    let outcome = deduxit::prove(&cyclic, Mode::CYCLIC, &Options::default()).unwrap();
+    let cyclic = Sequent::parse_ordered(
+        "p(a) |- p(a)",
+        deduxit::linear::Order::Cyclic,
+        &Limits::default(),
+    )
+    .unwrap();
+    let outcome = deduxit::linear::prove(&cyclic, Mode::CYCLIC, &Options::default()).unwrap();
     let net = outcome.net.expect("a net");
     assert!(
         serde_json::to_string(&net)
@@ -237,7 +245,7 @@ fn the_written_proofs_read_back_and_are_judged() {
 /// up its `∀` premise (`cut_deep`). The proof structures refuse them.
 #[test]
 fn the_written_cuts_are_eliminated() {
-    use deduxit::proofs::cut::{self, Case, End};
+    use deduxit::linear::proofs::cut::{self, Case, End};
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/first-order");
     let mut cases: Vec<Case> = Vec::new();
     for name in [
@@ -340,7 +348,7 @@ fn a_cut_formula_with_a_loose_variable_is_refused() {
 /// table, or `None` for unknown.
 fn decided(text: &str, mode: Mode, options: &Options) -> Option<bool> {
     let sequent: Sequent = text.parse().unwrap();
-    let outcome = deduxit::prove(&sequent, mode, options).unwrap();
+    let outcome = deduxit::linear::prove(&sequent, mode, options).unwrap();
     let engine = if mode.is_intuitionistic() {
         Engine::TwoSided
     } else {
@@ -372,12 +380,12 @@ fn the_memo_and_the_loop_check_key_first_order_sequents() {
     let options = Options::default().with_copies(Some(6));
     for text in looping {
         let outcome =
-            deduxit::prove(&text.parse().unwrap(), Mode::INTUITIONISTIC, &options).unwrap();
+            deduxit::linear::prove(&text.parse().unwrap(), Mode::INTUITIONISTIC, &options).unwrap();
         assert!(matches!(outcome.verdict, Verdict::Unprovable(_)), "{text}");
         assert!(outcome.statistics.memo_hits > 0, "{text}");
         let unkeyed = options.clone().with_memo_limit(0);
         let outcome =
-            deduxit::prove(&text.parse().unwrap(), Mode::INTUITIONISTIC, &unkeyed).unwrap();
+            deduxit::linear::prove(&text.parse().unwrap(), Mode::INTUITIONISTIC, &unkeyed).unwrap();
         assert!(matches!(outcome.verdict, Verdict::Unknown(_)), "{text}");
     }
     let proved = "!(forall x. (p(x) -o p(x))), !(forall x. (p(x) -o q(x))), p(e) |- q(e)";
@@ -613,7 +621,7 @@ fn the_first_order_families_have_their_verdicts() {
 fn a_first_order_search_counts_its_unifications() {
     let counted = |text: &str, mode: Mode| {
         let sequent: Sequent = text.parse().unwrap();
-        deduxit::prove(&sequent, mode, &Options::default())
+        deduxit::linear::prove(&sequent, mode, &Options::default())
             .unwrap()
             .statistics
     };
@@ -633,10 +641,10 @@ fn a_first_order_search_counts_its_unifications() {
 /// the witness depth, an instance past the bound on instances.
 #[test]
 fn the_first_order_bounds_stop_the_search() {
-    use deduxit::Reason;
+    use deduxit::linear::Reason;
     let deep = "|- exists x. p(x), ~p(f(f(f(a))))";
     let outcome = |text: &str, options: &Options| {
-        deduxit::prove(&text.parse().unwrap(), Mode::CLASSICAL, options)
+        deduxit::linear::prove(&text.parse().unwrap(), Mode::CLASSICAL, options)
             .unwrap()
             .verdict
     };
@@ -663,8 +671,10 @@ fn the_first_order_bounds_stop_the_search() {
     for mode in [Mode::CLASSICAL, Mode::INTUITIONISTIC] {
         let options = instances(1).with_copies(None);
         let outcome =
-            deduxit::prove_within(&cut.parse().unwrap(), mode, &options, &limits, |_| false)
-                .unwrap();
+            deduxit::linear::prove_within(&cut.parse().unwrap(), mode, &options, &limits, |_| {
+                false
+            })
+            .unwrap();
         assert!(matches!(outcome.verdict, Verdict::Unknown(_)), "{mode}");
     }
 }
@@ -677,10 +687,10 @@ fn the_first_order_bounds_stop_the_search() {
 /// no domain, gives nothing.
 #[test]
 fn the_counts_refute_first_order_sequents() {
-    use deduxit::Refutation;
+    use deduxit::linear::Refutation;
     let refuted = |text: &str| {
         let sequent: Sequent = text.parse().unwrap();
-        match deduxit::prove(&sequent, Mode::CLASSICAL, &Options::default())
+        match deduxit::linear::prove(&sequent, Mode::CLASSICAL, &Options::default())
             .unwrap()
             .verdict
         {
@@ -746,7 +756,7 @@ fn a_deep_witness_closes_without_recursion() {
 /// end between two polls.
 #[test]
 fn a_deep_unification_is_counted_work() {
-    use deduxit::Reason;
+    use deduxit::linear::Reason;
     let deep = format!("{}z{}", "f(".repeat(2000), ")".repeat(2000));
     let literals: Vec<String> = (0..6).map(|i| format!("~p(g{i}({deep}))")).collect();
     let text = format!(
@@ -756,7 +766,7 @@ fn a_deep_unification_is_counted_work() {
     let sequent: Sequent = text.parse().unwrap();
     let options = Options::default().with_witness_depth(u32::MAX);
     let limits = Limits::default().with_work(Some(20_000));
-    let outcome = deduxit::prove_within(
+    let outcome = deduxit::linear::prove_within(
         &sequent,
         Mode::CLASSICAL.with_affine(),
         &options,
@@ -778,7 +788,7 @@ fn a_deep_unification_is_counted_work() {
 /// tower of instances makes grow with its height.
 #[test]
 fn the_first_order_keys_are_charged_and_counted() {
-    use deduxit::Reason;
+    use deduxit::linear::Reason;
     let tower = |height: usize, inner: String| {
         (0..height).rev().fold(inner, |body, i| {
             format!("exists x{i}. (forall y{i}. {body})")
@@ -797,7 +807,7 @@ fn the_first_order_keys_are_charged_and_counted() {
     let limits = Limits::default()
         .with_memory_bytes(Some(2 << 20))
         .with_work(Some(500_000));
-    let outcome = deduxit::prove_within(
+    let outcome = deduxit::linear::prove_within(
         &wide.parse().unwrap(),
         Mode::CLASSICAL.with_mix(),
         &Options::default(),
@@ -821,7 +831,8 @@ fn the_first_order_keys_are_charged_and_counted() {
     );
     let work = |memo_limit| {
         let options = Options::default().with_memo_limit(memo_limit);
-        let outcome = deduxit::prove(&high.parse().unwrap(), Mode::CLASSICAL, &options).unwrap();
+        let outcome =
+            deduxit::linear::prove(&high.parse().unwrap(), Mode::CLASSICAL, &options).unwrap();
         assert!(matches!(outcome.verdict, Verdict::Unprovable(_)));
         outcome.statistics.work
     };
@@ -844,7 +855,7 @@ fn a_deep_witness_is_one_word_of_a_key() {
             .with_copies(Some(n))
             .with_witness_depth(n - 1)
             .with_memo_limit(memo_limit);
-        let outcome = deduxit::prove(&chain, Mode::CLASSICAL, &options).unwrap();
+        let outcome = deduxit::linear::prove(&chain, Mode::CLASSICAL, &options).unwrap();
         assert!(matches!(outcome.verdict, Verdict::Unknown(_)));
         outcome.statistics.work
     };
@@ -935,7 +946,10 @@ fn a_session_proves_with_the_quantifier_rules() {
     // An open witness's name reads back as nothing, in either surface.
     for text in ["|- r($1, a)", "|- $1", "r($1, a) |- r(b, a)"] {
         assert!(text.parse::<Sequent>().is_err(), "{text}");
-        assert!(text.parse::<deduxit::IllSequent>().is_err(), "{text}");
+        assert!(
+            text.parse::<deduxit::linear::IllSequent>().is_err(),
+            "{text}"
+        );
     }
     let json = serde_json::to_string(&state).unwrap();
     let back: Interactive = serde_json::from_str(&json).unwrap();
@@ -1021,7 +1035,7 @@ fn a_session_keeps_the_eigenvariable_condition() {
 fn the_search_closes_a_session_goal() {
     let (options, view, limits) = (
         Options::default(),
-        deduxit::ViewOptions::default(),
+        deduxit::linear::ViewOptions::default(),
         Limits::default(),
     );
     let mode = Mode::INTUITIONISTIC;
@@ -1114,7 +1128,7 @@ fn a_session_holds_deep_witnesses_and_bounds_its_table() {
             .iter()
             .position(|(n, _)| n == name)
             .unwrap();
-        deduxit::sequents::Symbol::new(u32::try_from(index).unwrap())
+        deduxit::linear::sequents::Symbol::new(u32::try_from(index).unwrap())
     };
     let mut nodes = vec![TermNode::App(symbol("c"), vec![])];
     for i in 0..100_000u32 {
@@ -1129,7 +1143,7 @@ fn a_session_holds_deep_witnesses_and_bounds_its_table() {
     // `p(`, a hundred thousand `f(`, `c` and as many brackets and one.
     assert_eq!(deep.len(), 2 + 200_000 + 1 + 100_001);
     assert!(deep.starts_with("p(f(f(") && deep.contains("f(f(c))"));
-    let view = deduxit::ViewOptions::default();
+    let view = deduxit::linear::ViewOptions::default();
     let closed = state
         .close(
             goals[0],
@@ -1165,7 +1179,7 @@ fn undo_drops_what_its_step_made() {
     let goal = state.goals().next().unwrap();
     let (options, view, limits) = (
         Options::default(),
-        deduxit::ViewOptions::default(),
+        deduxit::linear::ViewOptions::default(),
         Limits::default(),
     );
     for _ in 0..3 {
@@ -1465,7 +1479,7 @@ fn a_cut_formula_names_the_goals_eigenvariables() {
     assert_eq!(serde_json::to_string(&back).unwrap(), before);
     let (options, view, limits) = (
         Options::default(),
-        deduxit::ViewOptions::default(),
+        deduxit::linear::ViewOptions::default(),
         Limits::default(),
     );
     for goal in [first, second] {
@@ -1625,7 +1639,7 @@ fn a_session_refuses_what_no_step_could_make() {
             .iter()
             .position(|(n, _)| n == name)
             .unwrap();
-        deduxit::sequents::Symbol::new(u32::try_from(i).unwrap())
+        deduxit::linear::sequents::Symbol::new(u32::try_from(i).unwrap())
     };
     let mut nodes = vec![TermNode::App(index("c"), vec![])];
     for i in 0..40u32 {
@@ -1709,7 +1723,7 @@ fn a_session_refuses_what_no_step_could_make() {
         .close(
             opened[0],
             &Options::default(),
-            &deduxit::ViewOptions::default(),
+            &deduxit::linear::ViewOptions::default(),
             &Limits::default(),
             |_| false,
         )

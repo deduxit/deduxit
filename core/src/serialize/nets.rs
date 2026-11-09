@@ -2,10 +2,10 @@
 // Licensed under the EUPL
 
 use super::sequents::Sequent;
-use crate::fragment::Order;
 use crate::limits::Limits;
-use crate::nets::{Criterion, MellStructure, Parts, Placed, ProofStructure, VertexId};
-use crate::occurrences::{Forest, OccId};
+use crate::linear::fragment::Order;
+use crate::linear::nets::{Criterion, MellStructure, Parts, Placed, ProofStructure, VertexId};
+use crate::linear::occurrences::{Forest, OccId};
 use crate::wire::{self, Readable};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -118,7 +118,7 @@ impl Readable for ProofStructure {
             ));
         }
         let build = || {
-            let sequent = crate::Sequent::try_from(net.sequent)?;
+            let sequent = crate::linear::Sequent::try_from(net.sequent)?;
             let forest = Forest::from_owned(sequent, limits)?;
             let pair = |&(x, y): &(u32, u32)| (VertexId::new(x), VertexId::new(y));
             let links: Vec<(VertexId, VertexId)> = net.links.iter().map(pair).collect();
@@ -204,7 +204,7 @@ struct StepForm {
     /// The cut link reduced, from its end in a cut formula's tree.
     cut: (u32, u32),
     /// The case.
-    case: crate::proofs::cut::Case,
+    case: crate::linear::proofs::cut::Case,
     /// The vertex the step acted at besides the cut link.
     #[serde(skip_serializing_if = "Option::is_none")]
     above: Option<u32>,
@@ -232,10 +232,10 @@ fn record<S: Serializer, F: Serialize>(
     serializer: S,
     net: F,
     version: u32,
-    steps: &[crate::nets::cut::Step],
-    end: &crate::proofs::cut::End,
+    steps: &[crate::linear::nets::cut::Step],
+    end: &crate::linear::proofs::cut::End,
 ) -> Result<S::Ok, S::Error> {
-    use crate::proofs::cut::End;
+    use crate::linear::proofs::cut::End;
     let reason = match end {
         End::CutFree => None,
         End::Refused(refusal) => Some(crate::Error::Refused(refusal.clone())),
@@ -261,7 +261,7 @@ fn record<S: Serializer, F: Serialize>(
     .serialize(serializer)
 }
 
-impl Serialize for crate::nets::cut::Elimination<ProofStructure> {
+impl Serialize for crate::linear::nets::cut::Elimination<ProofStructure> {
     /// Serializes the elimination as a document: the net reached, at the
     /// level of its form, the steps and how it ended.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
@@ -271,7 +271,7 @@ impl Serialize for crate::nets::cut::Elimination<ProofStructure> {
     }
 }
 
-impl Serialize for crate::nets::cut::Elimination<MellStructure> {
+impl Serialize for crate::linear::nets::cut::Elimination<MellStructure> {
     /// Serializes the elimination as a document: the net reached, at the
     /// level of its form, the steps and how it ended.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
@@ -302,7 +302,7 @@ impl Readable for MellStructure {
     fn read<'de, D: Deserializer<'de>>(deserializer: D, limits: &Limits) -> Result<Self, D::Error> {
         let boxed = Boxed::deserialize(deserializer)?;
         let build = || {
-            let sequent = crate::Sequent::try_from(boxed.sequent)?;
+            let sequent = crate::linear::Sequent::try_from(boxed.sequent)?;
             let forest = Forest::from_owned(sequent, limits)?;
             let pair = |&(x, y): &(u32, u32)| (VertexId::new(x), VertexId::new(y));
             let parts = Parts {

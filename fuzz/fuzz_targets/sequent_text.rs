@@ -5,7 +5,7 @@
 //! parses prints as text that parses back to it.
 #![no_main]
 
-use deduxit::{Forest, Sequent};
+use deduxit::linear::{Forest, Sequent};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|text: &str| {

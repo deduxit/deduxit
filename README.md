@@ -13,8 +13,10 @@ propositional logic through its embeddings into linear logic, and read
 intuitionistic proofs back as lambda-terms.
 
 deduxit is a collection of logic suites, grown one suite at a time: the
-crates `deduxit` and `deduxit-cli` and the command `deduxit`, whose
-`--logic` chooses the suite. Up to 0.2.0 it was called linlog.
+crates `deduxit` and `deduxit-cli`, the command `deduxit`, whose
+`--logic` chooses the suite, and the library's modules `deduxit::linear`,
+`deduxit::ordinary` and `deduxit::lambda`. Up to 0.2.0 it was called
+linlog.
 
 Version 0.2.0 adds first-order linear logic, cut and its elimination on
 proofs and proof nets, MELL proof nets with boxes, intuitionistic

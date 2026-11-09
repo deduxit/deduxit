@@ -78,10 +78,10 @@
 //!
 //! - **Sequent**: `{"version": 1, "terms": [{"D": 0}, {"V": 0}, {"D": 1},
 //!   {"⊗": [1, 2]}, {"V": 1}], "roots": [0, 3, 4], "atoms": ["A", "B"],
-//!   "antecedents": 2}`, see [`Sequent`](crate::Sequent).
+//!   "antecedents": 2}`, see [`Sequent`](crate::linear::Sequent).
 //! - **Proof**: `{"version": 1, "sequent": {…}, "nodes": [{"ax": [0, 2]},
 //!   {"ax": [3, 4]}, {"⊗": [1, 0, 1]}], "mode": "classical"}`, with `goal`
-//!   for a proof of a goal off the roots, see [`Proof`](crate::Proof). A
+//!   for a proof of a goal off the roots, see [`Proof`](crate::linear::Proof). A
 //!   proof with cuts is written at level 6: its sequent holds `"cuts": […]`
 //!   and a cut node is `{"cut": [a, l, r]}`, `a` the occurrence of the cut
 //!   formula. A proof of a first-order sequent is written at level 7, as
@@ -92,14 +92,14 @@
 //!   […]}`, the members past the forest, the frames with the innermost
 //!   binder's term first and `null` past the outermost, and the proof's
 //!   terms numbered on from the sequent's `fo`, an eigenvariable `{"E":
-//!   k}`; see [`Instances`](crate::Instances).
+//!   k}`; see [`Instances`](crate::linear::Instances).
 //! - **Disproof**: `{"version": 1, "sequent": {…}, "mode": "classical",
 //!   "refutation": {"kind": "unbalanced", "atom": 0, "least": 2, "most":
 //!   2}}`, with `goal` for a goal off the roots, see
-//!   [`Disproof`](crate::Disproof).
+//!   [`Disproof`](crate::linear::Disproof).
 //! - **Proof structure**: `{"version": 1, "sequent": {…}, "mix": false,
 //!   "links": [[0, 2], [3, 4]]}`, see
-//!   [`ProofStructure`](crate::ProofStructure). A structure with cut
+//!   [`ProofStructure`](crate::linear::ProofStructure). A structure with cut
 //!   links is written at level 6, its sequent holding the cut formulas:
 //!   `"cuts": [[2, 5]]`, each cut link by its two vertices, a key written
 //!   only where there are cut links, as in a structure with boxes.
@@ -109,13 +109,13 @@
 //!   of `vertices` as `[occurrence, parent, box]`, `box` the `!` vertex of
 //!   its innermost box or `null`; `links` and `weakenings` (a `?` vertex
 //!   without copies and the literal it hangs on) name vertices; see
-//!   [`MellStructure`](crate::MellStructure). With cut links it is
+//!   [`MellStructure`](crate::linear::MellStructure). With cut links it is
 //!   written at level 6, an end of a cut link `[occurrence, null, box]`.
 //! - **Intuitionistic sequent**: `{"version": 5, "terms": [{"V": 0},
 //!   {"V": 1}, {"⊸": [0, 1]}], "atoms": ["A", "B"], "hypotheses": [2,
 //!   0], "goal": 1}` for `A ⊸ B, A ⊢ B`: the terms `V`, `1`, `0`, `⊤`,
 //!   `⊗`, `⊸` (the antecedent first), `&`, `⊕` and `!`, every operand
-//!   before its term; see [`IllSequent`](crate::IllSequent). With the
+//!   before its term; see [`IllSequent`](crate::linear::IllSequent). With the
 //!   quantifiers `∀` and `∃` and the first-order keys it is written at
 //!   level 7, as the one-sided sequent is.
 //! - **First-order sequent**: `{"version": 7, "terms": [{"D": 0}, {"∃":
@@ -164,13 +164,13 @@
 //! - **Cut elimination** (written only): `{"version": 6, "proof": {…},
 //!   "steps": [{"cut": 7, "formula": 9, "case": "tensor_par"}, …],
 //!   "end": "cut_free"}`, or `"end": "refused"` with the `reason` in an
-//!   error's form; see [`Elimination`](crate::proofs::cut::Elimination).
+//!   error's form; see [`Elimination`](crate::linear::proofs::cut::Elimination).
 //! - **Outcome** (written only): `{"version": 1, "deduxit": "0.1.0",
 //!   "verdict": "proved", "checked": true, "fragment": "MLL", "mode":
 //!   "classical", "engine": "net", "statistics": {…}, "sequent": {…},
 //!   "nodes": […]}`, a proof's keys for `proved` and a disproof's for
 //!   `unprovable`, so that it reads back as a proof or as a disproof; see
-//!   [`Outcome`](crate::Outcome).
+//!   [`Outcome`](crate::linear::Outcome).
 
 use crate::Error;
 use crate::limits::Limits;
@@ -257,7 +257,7 @@ impl<'de, T: Readable> DeserializeSeed<'de> for Within<'_, T> {
 ///
 #[cfg_attr(feature = "parse", doc = "```")]
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
-/// use deduxit::{Error, Limits, Sequent, wire};
+/// use deduxit::{Error, Limits, wire, linear::Sequent};
 ///
 /// let json = r#"{"version": 1, "terms": [{"V": 0}], "roots": [0], "atoms": ["A"]}"#;
 /// let mut document = serde_json::Deserializer::from_str(json);
@@ -334,7 +334,7 @@ pub(crate) const ORDINARY: u32 = 8;
 /// The level of a document that holds `sequent`: 7 where it is
 /// first-order, which level 7 added, 6 where it has cut formulas, which
 /// level 6 added, else 1.
-pub(crate) fn level_of_sequent(sequent: &crate::Sequent) -> u32 {
+pub(crate) fn level_of_sequent(sequent: &crate::linear::Sequent) -> u32 {
     if sequent.is_first_order() {
         TERMS
     } else if sequent.cuts().is_empty() {
@@ -346,7 +346,7 @@ pub(crate) fn level_of_sequent(sequent: &crate::Sequent) -> u32 {
 
 /// The level of a document of `mode`, or of no mode: 2 for an ordered
 /// mode, which level 2 added, else 1.
-pub(crate) const fn level_in(mode: Option<crate::Mode>) -> u32 {
+pub(crate) const fn level_in(mode: Option<crate::linear::Mode>) -> u32 {
     match mode {
         Some(mode) if mode.is_ordered() => 2,
         _ => BASE,
@@ -356,10 +356,13 @@ pub(crate) const fn level_in(mode: Option<crate::Mode>) -> u32 {
 /// The level of a disproof with `refutation` in `mode`: 3 for the
 /// saturated set, which level 3 added; 2 for the classical refutation and
 /// an ordered mode, which level 2 added; else 1.
-pub(crate) const fn level_of(refutation: &crate::search::Refutation, mode: crate::Mode) -> u32 {
+pub(crate) const fn level_of(
+    refutation: &crate::linear::search::Refutation,
+    mode: crate::linear::Mode,
+) -> u32 {
     match refutation {
-        crate::search::Refutation::Saturated(_) => 3,
-        crate::search::Refutation::Classical(_) => 2,
+        crate::linear::search::Refutation::Saturated(_) => 3,
+        crate::linear::search::Refutation::Classical(_) => 2,
         _ => level_in(Some(mode)),
     }
 }

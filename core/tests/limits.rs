@@ -15,10 +15,13 @@
 ))]
 
 use deduxit::export::{latex, rocq, svg, typst};
-use deduxit::proofs::TextOptions;
+use deduxit::linear::proofs::TextOptions;
 use deduxit::{
-    CheckError, Error, ErrorKind, Forest, Interactive, Limits, Mode, Options, Phase, Proof, Reason,
-    Refusal, Sequent, Verdict, ViewOptions, prove, prove_within,
+    Error, ErrorKind, Limits, Phase, Refusal,
+    linear::{
+        CheckError, Forest, Interactive, Mode, Options, Proof, Reason, Sequent, Verdict,
+        ViewOptions, prove, prove_within,
+    },
 };
 
 /// `⊢ ~a0 ⅋ … ⅋ ~a(n-1), a0 ⊗ … ⊗ a(n-1)`, whose proof has `3n − 2`

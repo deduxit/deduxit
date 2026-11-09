@@ -6,7 +6,10 @@
 //! first byte picks the mode, the rest is the JSON form.
 #![no_main]
 
-use deduxit::{Limits, Mode, Proof};
+use deduxit::{
+    Limits,
+    linear::{Mode, Proof},
+};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {

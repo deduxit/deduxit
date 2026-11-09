@@ -7,7 +7,7 @@
 
 use crate::failure::Failure;
 use deduxit::export::Styles;
-use deduxit::search::{Jobs, Options};
+use deduxit::linear::search::{Jobs, Options};
 use deduxit::{Clock, Limits, Settings};
 use serde_json::Value;
 
@@ -80,7 +80,7 @@ pub fn defaults() -> Settings {
         .with_pool_after_ms(None);
     let mut styles = Styles::default();
     styles.svg = styles.svg.with_ids(true).with_description(true);
-    let cut = deduxit::proofs::cut::Options::default().with_drawn_bytes(Some(DRAWN_BYTES));
+    let cut = deduxit::linear::proofs::cut::Options::default().with_drawn_bytes(Some(DRAWN_BYTES));
     Settings::default()
         .with_cut(cut)
         .with_clock(clock)

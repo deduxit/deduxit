@@ -23,15 +23,18 @@ use deduxit::export::svg::{
     self, Conclusions, MathFont, NetDrawing, NetLook, Premises, Style, WhyNot,
 };
 use deduxit::export::{Drawable, Form, latex, typst};
-use deduxit::proofs::{Compact, Sides};
-use deduxit::proofs::{Labels, OpenGoal};
-use deduxit::{
-    ClassicalSequent, Criterion, CutFormula, Derivation, Forest, GoalId, IllSequent, Inference,
-    InputOptions, Interactive, Limits, MellStructure, Mode, OccId, Options, Order, Parts, Placed,
-    Proof, ProofStructure, Step, TwoSided, VertexId, ViewOptions,
-};
+use deduxit::linear::proofs::{Compact, Sides};
+use deduxit::linear::proofs::{Labels, OpenGoal};
+use deduxit::linear::{Named, Rule, Sequent, Verdict, prove};
 use deduxit::{Error, Refusal};
-use deduxit::{Named, Rule, Sequent, Verdict, prove};
+use deduxit::{
+    Limits,
+    linear::{
+        ClassicalSequent, Criterion, CutFormula, Derivation, Forest, GoalId, IllSequent, Inference,
+        InputOptions, Interactive, MellStructure, Mode, OccId, Options, Order, Parts, Placed,
+        Proof, ProofStructure, Step, TwoSided, VertexId, ViewOptions,
+    },
+};
 use std::collections::BTreeSet;
 use std::path::Path;
 
@@ -937,8 +940,8 @@ fn outline(drawing: &str, b: u32) -> (i64, i64, i64, i64) {
 /// is pinned.
 #[test]
 fn cut_elimination_is_drawn() {
-    use deduxit::nets::cut::{self, Step};
-    use deduxit::proofs::cut::{Case, Options as Bounds};
+    use deduxit::linear::nets::cut::{self, Step};
+    use deduxit::linear::proofs::cut::{Case, Options as Bounds};
     let highlighted = |svg: &str| -> String {
         let colour = format!(r#"stroke="{}""#, Style::default().highlight);
         svg.split(&colour)
@@ -1049,8 +1052,9 @@ fn cut_elimination_is_drawn() {
         for (net, step) in &drawn {
             cases.insert(step.case.name());
             let (x, y) = step.cut;
-            let bang =
-                |v: VertexId| net.forest().kind(net.occurrence(v).unwrap()) == deduxit::Kind::Bang;
+            let bang = |v: VertexId| {
+                net.forest().kind(net.occurrence(v).unwrap()) == deduxit::linear::Kind::Bang
+            };
             let mut boxes = Vec::new();
             if matches!(
                 step.case,
@@ -1842,7 +1846,7 @@ fn render_bounds_come_first() {
 }
 
 /// Returns the disproof the default search gives `input` in `mode`.
-fn disproof(input: &str, mode: Mode) -> deduxit::Disproof {
+fn disproof(input: &str, mode: Mode) -> deduxit::linear::Disproof {
     let sequent: Sequent = input.parse().unwrap();
     match prove(&sequent, mode, &Options::default()).unwrap().verdict {
         Verdict::Unprovable(disproof) => *disproof,
@@ -1861,12 +1865,12 @@ fn disproof(input: &str, mode: Mode) -> deduxit::Disproof {
 #[test]
 fn disproof_certificates() {
     let options = rocq::Options::default().with_form(Form::Standalone);
-    let write = |disproof: &deduxit::Disproof, options: &rocq::Options| {
+    let write = |disproof: &deduxit::linear::Disproof, options: &rocq::Options| {
         let mut out = String::new();
         rocq::write_disproof(disproof, options, &mut out).map(|()| out)
     };
     let classical = Mode::CLASSICAL;
-    let equation: deduxit::Disproof = serde_json::from_str(
+    let equation: deduxit::linear::Disproof = serde_json::from_str(
         r#"{"version":1,"sequent":{"terms":[{"V":0},{"D":1},{"⊗":[0,1]}],"roots":[2,0],
         "atoms":["A","B"],"antecedents":1},"mode":"intuitionistic","refutation":{"kind":
         "equation","formulas":2,"needed":3,"tensors":1,"pars":0,"ones":0,"bottoms":0,
@@ -1974,7 +1978,7 @@ fn disproof_certificates() {
     let quantified = disproof("|- exists x. p(x) * ~p(x)", classical);
     assert!(matches!(
         quantified.refutation(),
-        deduxit::Refutation::Equation(_)
+        deduxit::linear::Refutation::Equation(_)
     ));
     assert!(matches!(
         write(&quantified, &options),
@@ -1982,7 +1986,7 @@ fn disproof_certificates() {
     ));
     // A disproof read from a file whose intuitionistic goal has no
     // conclusion holds, but has no two-sided statement.
-    let headless: deduxit::Disproof = serde_json::from_str(
+    let headless: deduxit::linear::Disproof = serde_json::from_str(
         r#"{"version":2,"sequent":{"terms":[{"D":0},{"V":1}],"roots":[0,1],"atoms":["a","b"],
         "antecedents":1},"mode":"intuitionistic","refutation":{"kind":"classical",
         "assignment":[true,false]},"goal":[0]}"#,
@@ -2024,8 +2028,8 @@ fn disproof_certificates() {
 /// in the highlight colour, in both drawings; the net reached too.
 #[test]
 fn an_intuitionistic_elimination_is_drawn_in_its_syntax() {
-    use deduxit::nets::cut;
-    use deduxit::proofs::cut::Options as Bounds;
+    use deduxit::linear::nets::cut;
+    use deduxit::linear::proofs::cut::Options as Bounds;
     const CLASSICAL: [&str; 4] = ["~", "⅋", "⊥", "?"];
     let classical = |svg: &str| {
         let body = svg.replace("<?xml", "").replace("?>", "");

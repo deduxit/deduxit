@@ -7,5 +7,5 @@
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|text: &str| {
-    let _ = deduxit::lltp::read(text, &deduxit::Limits::default());
+    let _ = deduxit::linear::lltp::read(text, &deduxit::Limits::default());
 });

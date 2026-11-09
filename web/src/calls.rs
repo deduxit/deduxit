@@ -10,14 +10,18 @@
 use crate::failure::Failure;
 use crate::tab;
 use deduxit::export::{Drawable, latex, pdf, png, rocq, svg, typst};
-use deduxit::proofs::Compact;
-use deduxit::proofs::interactive::{Applicable, Inverted, Needs, Split};
-use deduxit::proofs::{Sides, cut};
+use deduxit::linear::proofs::Compact;
+use deduxit::linear::proofs::interactive::{Applicable, Inverted, Needs, Split};
+use deduxit::linear::proofs::{Sides, cut};
 use deduxit::{
-    ClassicalRule, ClassicalSequent, ClassicalSides, Criterion, CutFormula, Disproof, Error,
-    Fragment, GoalId, IllSequent, IllSyntax, InfId, Inference, Interactive, MellStructure, Member,
-    Mode, Named, NetError, Node, NodeId, Outcome, Progress, Proof, ProofStructure, Reading, Rule,
-    Sequent, Settings, Side, Step, TwoSided, Verdict, VertexId, nets, wire,
+    Error, Progress, Settings,
+    linear::{
+        ClassicalRule, ClassicalSequent, ClassicalSides, Criterion, CutFormula, Disproof, Fragment,
+        GoalId, IllSequent, IllSyntax, InfId, Inference, Interactive, MellStructure, Member, Mode,
+        Named, NetError, Node, NodeId, Outcome, Proof, ProofStructure, Reading, Rule, Sequent,
+        Side, Step, TwoSided, Verdict, VertexId, nets,
+    },
+    wire,
 };
 use serde::{Deserialize, Serialize};
 
@@ -365,7 +369,7 @@ struct CutMade {
 /// Returns a session's cuts with their formulas as typed.
 fn cuts_made(state: &Interactive) -> Vec<CutMade> {
     let Ok(derivation) = state.derivation_within(
-        &deduxit::ViewOptions::default(),
+        &deduxit::linear::ViewOptions::default(),
         &deduxit::Limits::default().with_derivation_bytes(None),
         never,
     ) else {
@@ -391,7 +395,7 @@ fn cuts_made(state: &Interactive) -> Vec<CutMade> {
 /// closed: each closed inference whose rule, on its conclusion, is one.
 fn invertible_steps(state: &Interactive) -> Vec<GoalId> {
     let Ok(derivation) = state.derivation_within(
-        &deduxit::ViewOptions::default(),
+        &deduxit::linear::ViewOptions::default(),
         &deduxit::Limits::default().with_derivation_bytes(None),
         never,
     ) else {
@@ -943,8 +947,8 @@ pub fn hint(session: &str, goal: u32, settings: &str) -> Result<String, Failure>
     if state.forest().has_binders() {
         return first_order_hint(&state, GoalId::new(goal), &settings);
     }
-    let target = deduxit::Goal::new(state.forest(), members).map_err(Failure::from)?;
-    let outcome = deduxit::prove_goal(
+    let target = deduxit::linear::Goal::new(state.forest(), members).map_err(Failure::from)?;
+    let outcome = deduxit::linear::prove_goal(
         target,
         state.mode(),
         &settings.search,
@@ -1002,7 +1006,7 @@ fn first_order_hint(
                     let at = ids.iter().position(|&g| g == goal).map(|i| {
                         // A derivation numbers fewer inferences than a
                         // `u32` counts, as the session does.
-                        deduxit::proofs::derivation::InfId::new(i as u32)
+                        deduxit::linear::proofs::derivation::InfId::new(i as u32)
                     });
                     match at {
                         // A witness the search made a constant of reads
@@ -1032,7 +1036,7 @@ fn first_order_hint(
 /// when the bounds refuse its derivation.
 fn first_steps(
     state: &Interactive,
-    proof: &deduxit::Proof,
+    proof: &deduxit::linear::Proof,
     settings: &Settings,
 ) -> Result<Option<(Vec<StepForm>, bool)>, Failure> {
     let view = settings.view.with_compact(Compact::Never);
@@ -1051,9 +1055,9 @@ fn first_steps(
 /// on its left.
 fn read_steps(
     state: &Interactive,
-    derivation: &deduxit::Derivation<'_>,
-    from: deduxit::proofs::derivation::InfId,
-    witness: impl Fn(deduxit::proofs::derivation::InfId) -> Option<String>,
+    derivation: &deduxit::linear::Derivation<'_>,
+    from: deduxit::linear::proofs::derivation::InfId,
+    witness: impl Fn(deduxit::linear::proofs::derivation::InfId) -> Option<String>,
 ) -> Option<(Vec<StepForm>, bool)> {
     let mut steps = Vec::new();
     let mut at = from;
@@ -1125,7 +1129,7 @@ pub fn proof(session: &str, settings: &str) -> Result<String, Failure> {
 }
 
 /// Returns the lambda-term of a session's proof, the session's own
-/// derivation read back ([`Derivation::term`](deduxit::Derivation::term)):
+/// derivation read back ([`Derivation::term`](deduxit::linear::Derivation::term)):
 /// a finished proof of intuitionistic linear logic as a term of the
 /// linear lambda calculus, one of affine logic as a term of the affine
 /// one, a cut as a redex. The answer is the term's JSON with its `text`
@@ -1204,8 +1208,9 @@ pub fn prove(sequent: &str, mode: &str, settings: &str) -> Result<String, Failur
     let settings = tab::read(settings)?;
     let mode: Mode = mode.parse().map_err(Failure::from)?;
     let sequent = sequent_in(sequent, mode, &settings)?;
-    let outcome = deduxit::prove_within(&sequent, mode, &settings.search, &settings.limits, never)
-        .map_err(Failure::from)?;
+    let outcome =
+        deduxit::linear::prove_within(&sequent, mode, &settings.search, &settings.limits, never)
+            .map_err(Failure::from)?;
     written(&Decided {
         refutation_checked: refutation_checked(&outcome),
         outcome,
@@ -1656,7 +1661,11 @@ fn member_in(proof: &Proof, member: Member, mode: Mode) -> String {
 
 /// Returns the text of an occurrence as `mode` reads it: under the
 /// intuitionistic reading in an intuitionistic mode, else one-sided.
-fn formula_in(forest: &deduxit::Forest, occurrence: deduxit::OccId, mode: Mode) -> String {
+fn formula_in(
+    forest: &deduxit::linear::Forest,
+    occurrence: deduxit::linear::OccId,
+    mode: Mode,
+) -> String {
     match Reading::of_mode(forest, mode)
         .ok()
         .filter(|_| mode.is_intuitionistic())
@@ -2036,7 +2045,7 @@ impl Net {
                 if matches!(
                     *error,
                     NetError::Placement {
-                        fault: deduxit::Placement::Cut,
+                        fault: deduxit::linear::Placement::Cut,
                         ..
                     }
                 ) =>

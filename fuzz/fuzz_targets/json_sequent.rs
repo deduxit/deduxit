@@ -5,7 +5,7 @@
 //! deserializes serializes back to the same value.
 #![no_main]
 
-use deduxit::{Forest, Sequent};
+use deduxit::linear::{Forest, Sequent};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {

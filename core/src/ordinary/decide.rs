@@ -8,7 +8,7 @@
 use super::{Derivation, Logic, Options, Sequent, Translation, translate};
 use crate::Error;
 use crate::limits::{Limits, Progress};
-use crate::search::{self, Reason};
+use crate::linear::search::{self, Reason};
 
 /// What deciding an ordinary sequent found, with the linear search's own
 /// outcome on the image.
@@ -70,7 +70,7 @@ pub enum Verdict {
 ///
 /// let sequent: ordinary::Sequent = "|- ((a -> b) -> a) -> a".parse()?;
 /// let options = ordinary::Options::default().with_logic(Logic::Classical);
-/// let search = deduxit::Options::default();
+/// let search = deduxit::linear::Options::default();
 /// let outcome = ordinary::decide(&sequent, &options, &search, &Limits::default(), |_| false)?;
 /// let Verdict::Valid(derivation) = outcome.verdict else {
 ///     panic!("Peirce's law holds classically");

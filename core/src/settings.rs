@@ -7,11 +7,15 @@
 //! reads.
 
 use crate::export::Styles;
-use crate::proofs::cut;
+use crate::linear::proofs::cut;
 #[cfg(feature = "interactive")]
-use crate::proofs::interactive;
-use crate::search::{Jobs, Options, batch};
-use crate::{InputOptions, Limits, ViewOptions, ordinary};
+use crate::linear::proofs::interactive;
+use crate::linear::search::{Jobs, Options, batch};
+use crate::{
+    Limits,
+    linear::{InputOptions, ViewOptions},
+    ordinary,
+};
 
 /// What a front end with a clock applies through its stop, each counted in
 /// milliseconds from the front end's start; the library reads no clock.

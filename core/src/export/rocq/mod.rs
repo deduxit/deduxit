@@ -30,7 +30,7 @@
 //!
 //! The NanoYalla certificate is one of classical linear logic: a
 //! two-sided derivation is exported as the one-sided derivation behind it
-//! (the one-sided [`Rule`] of every [`Named`](crate::proofs::Named) rule), which proves the same
+//! (the one-sided [`Rule`] of every [`Named`](crate::linear::proofs::Named) rule), which proves the same
 //! sequent read one-sided.
 //! Mix, the weakening of affine mode, a cut and an open goal have no rule
 //! in the kernel, and a derivation with one is refused ([`Unsupported`]). A
@@ -58,7 +58,7 @@
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
 //! use deduxit::export::rocq::{self, Options};
-//! use deduxit::{Mode, Options as Search, Sequent, Verdict, prove};
+//! use deduxit::linear::{Mode, Options as Search, Sequent, Verdict, prove};
 //!
 //! let sequent: Sequent = "A, A -o B |- B".parse()?;
 //! let outcome = prove(&sequent, Mode::CLASSICAL, &Search::default())?;
@@ -86,10 +86,10 @@
 use super::notation::{Step, flush, walk};
 use super::{Drawable, Form};
 use crate::hash::{HashMap, HashSet};
-use crate::occurrences::{Forest, OccId};
-use crate::proofs::{Derivation, InfId, Rule};
-use crate::sequents::{Sequent, Stop, Stops, Term, TermId};
-use crate::{Error, Mode};
+use crate::linear::occurrences::{Forest, OccId};
+use crate::linear::proofs::{Derivation, InfId, Rule};
+use crate::linear::sequents::{Sequent, Stop, Stops, Term, TermId};
+use crate::{Error, linear::Mode};
 use std::fmt::Write;
 use thiserror::Error;
 
@@ -877,7 +877,7 @@ pub fn write<'a>(
 /// reaches declared dead in the bodies' sign. A sequent with a quantifier
 /// is stated over the first-order calculi, its counts proved by the
 /// first-order weighted theorem. Every refutation
-/// [`Disproof::check`](crate::Disproof::check) verifies has one but a
+/// [`Disproof::check`](crate::linear::Disproof::check) verifies has one but a
 /// saturated set and the count equation of a sequent with a quantifier,
 /// and the disproof is checked first. Standalone, the
 /// file starts with `options.prelude`, by default
@@ -899,7 +899,7 @@ pub fn write<'a>(
 /// reading, and
 /// [`Error::WriteFailed`] when `out` refused the text.
 pub fn write_disproof(
-    disproof: &crate::Disproof,
+    disproof: &crate::linear::Disproof,
     options: &Options,
     out: &mut impl Write,
 ) -> Result<(), Error> {
@@ -909,10 +909,10 @@ pub fn write_disproof(
     if disproof.mode().is_ordered() {
         return Err(Unsupported::Ordered.into());
     }
-    if let crate::search::Refutation::Saturated(_) = disproof.refutation() {
+    if let crate::linear::search::Refutation::Saturated(_) = disproof.refutation() {
         return Err(Unsupported::Saturated.into());
     }
-    if let crate::search::Refutation::Exhausted = disproof.refutation() {
+    if let crate::linear::search::Refutation::Exhausted = disproof.refutation() {
         return Err(Unsupported::Exhausted.into());
     }
     linlog::disproof(disproof, options, out)
@@ -935,7 +935,7 @@ pub fn write_disproof(
 /// and [`Error::WriteFailed`] when `out` refused the text.
 pub fn write_not_valid(
     image: &crate::ordinary::Image,
-    disproof: &crate::Disproof,
+    disproof: &crate::linear::Disproof,
     options: &Options,
     out: &mut impl Write,
 ) -> Result<(), Error> {

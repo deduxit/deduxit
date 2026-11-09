@@ -7,8 +7,11 @@
 //! view, the rest is the JSON form.
 #![no_main]
 
-use deduxit::proofs::{Compact, Sides, TextOptions};
-use deduxit::{Limits, Mode, Proof, ViewOptions};
+use deduxit::linear::proofs::{Compact, Sides, TextOptions};
+use deduxit::{
+    Limits,
+    linear::{Mode, Proof, ViewOptions},
+};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {

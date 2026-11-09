@@ -19,8 +19,8 @@ use super::{Builder, Calculus, NoTerm, Node, Term, TermId, Type, TypeId, VarId, 
 use crate::Error;
 use crate::hash::HashMap;
 use crate::limits::{Limits, Phase, Progress};
-use crate::occurrences::{IllConnective, Member, OccId, Reading, Side};
-use crate::proofs::{Derivation, InfId, Inference, Rule};
+use crate::linear::occurrences::{IllConnective, Member, OccId, Reading, Side};
+use crate::linear::proofs::{Derivation, InfId, Inference, Rule};
 
 /// What the walk has yet to do.
 #[derive(Debug)]
@@ -110,12 +110,12 @@ pub(crate) fn read(
     let refuse = |reason| Err(Error::NoTerm { reason });
     let inferences = derivation.inferences();
     let mode = derivation.mode();
-    if mode.is_some_and(crate::Mode::is_ordered)
+    if mode.is_some_and(crate::linear::Mode::is_ordered)
         || derivation.reading().is_some_and(Reading::is_ordered)
     {
         return refuse(NoTerm::Ordered);
     }
-    if mode.is_some_and(crate::Mode::has_mix)
+    if mode.is_some_and(crate::linear::Mode::has_mix)
         || inferences.iter().any(|i| i.rule().rule == Rule::Mix)
     {
         return refuse(NoTerm::Mix);

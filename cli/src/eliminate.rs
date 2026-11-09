@@ -13,9 +13,10 @@ use crate::show::{
 };
 use crate::{Status, exit_on_interrupt, interrupted};
 use anyhow::{Result, bail};
-use deduxit::proofs::cut::{self, Elimination, End};
+use deduxit::linear::proofs::cut::{self, Elimination, End};
 use deduxit::{
-    CheckError, Error, Forest, Member, Mode, Node, NodeId, Proof, Reading, Refusal, Settings,
+    Error, Refusal, Settings,
+    linear::{CheckError, Forest, Member, Mode, Node, NodeId, Proof, Reading},
 };
 use std::fmt::Write as _;
 use std::io::Write as _;
@@ -474,7 +475,7 @@ fn eliminate_net_into(
     if show.format == Format::Json {
         let status = match &net {
             Net::Mll(net) => {
-                let e = deduxit::nets::cut::eliminate(
+                let e = deduxit::linear::nets::cut::eliminate(
                     net.as_ref(),
                     &settings.cut,
                     &settings.limits,
@@ -485,7 +486,7 @@ fn eliminate_net_into(
                 status(&e.end, asked)
             }
             Net::Mell(net) => {
-                let e = deduxit::nets::cut::eliminate(
+                let e = deduxit::linear::nets::cut::eliminate(
                     net,
                     &settings.cut,
                     &settings.limits,
@@ -535,11 +536,11 @@ fn run<'n>(
     mode: Mode,
     settings: &Settings,
     over: &dyn Fn() -> bool,
-    mut each: impl FnMut(&Net<'_>, &deduxit::nets::cut::Step, String),
+    mut each: impl FnMut(&Net<'_>, &deduxit::linear::nets::cut::Step, String),
 ) -> Result<(Net<'n>, Vec<String>, End)> {
     use std::borrow::Cow;
     let mut lines = Vec::new();
-    let mut seen = |before: &Net<'_>, step: &deduxit::nets::cut::Step| {
+    let mut seen = |before: &Net<'_>, step: &deduxit::linear::nets::cut::Step| {
         let line = format!(
             "{}. {} on the cut of {}",
             lines.len() + 1,
@@ -551,7 +552,7 @@ fn run<'n>(
     };
     let (reached, end) = match net {
         Net::Mll(net) => {
-            let e = deduxit::nets::cut::eliminate(
+            let e = deduxit::linear::nets::cut::eliminate(
                 net.as_ref(),
                 &settings.cut,
                 &settings.limits,
@@ -561,7 +562,7 @@ fn run<'n>(
             (Net::Mll(Cow::Owned(e.net)), e.end)
         }
         Net::Mell(net) => {
-            let e = deduxit::nets::cut::eliminate(
+            let e = deduxit::linear::nets::cut::eliminate(
                 net,
                 &settings.cut,
                 &settings.limits,
@@ -781,19 +782,19 @@ mod tests {
         // nodes the first step passes.
         let limits = deduxit::Limits::default();
         let mode = Mode::CLASSICAL;
-        let sequent: deduxit::Sequent = "A, A -o B |- B".parse().unwrap();
-        let mut session = deduxit::Interactive::new(&sequent, mode).unwrap();
+        let sequent: deduxit::linear::Sequent = "A, A -o B |- B".parse().unwrap();
+        let mut session = deduxit::linear::Interactive::new(&sequent, mode).unwrap();
         let goal = session.goals().next().unwrap();
-        let formula = deduxit::CutFormula::parse_within(
+        let formula = deduxit::linear::CutFormula::parse_within(
             "A -o B",
             mode,
-            &deduxit::InputOptions::default(),
+            &deduxit::linear::InputOptions::default(),
             &limits,
         )
         .unwrap();
         session.cut(goal, &formula, &[1], &limits).unwrap();
-        let options = deduxit::Options::default();
-        let view = deduxit::ViewOptions::default();
+        let options = deduxit::linear::Options::default();
+        let view = deduxit::linear::ViewOptions::default();
         session.close_all(&options, &view, &limits, |_| false);
         let proof = session.proof(&limits, |_| false).unwrap();
         let end = |options: cut::Options| {

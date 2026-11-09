@@ -16,8 +16,11 @@ use crate::problems::{self, Reference, mode_name};
 use crate::{OneArgs, RunArgs};
 use anyhow::{Context, Result, anyhow};
 use clap::ValueEnum;
-use deduxit::search::{Engine, Options, Reason, Verdict, prove_within};
-use deduxit::{Atom, Bias, Error, Forest, Limits, Mode, Sign};
+use deduxit::linear::search::{Engine, Options, Reason, Verdict, prove_within};
+use deduxit::{
+    Error, Limits,
+    linear::{Atom, Bias, Forest, Mode, Sign},
+};
 use std::collections::HashSet;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::Path;
@@ -691,7 +694,7 @@ fn cause(stderr: &str) -> &str {
 /// Returns the `checked` column of a disproof: `ok` where
 /// `Disproof::check` accepts its refutation, `failed: …` where it does not
 /// hold, empty for an exhausted search, which has no check.
-pub(crate) fn refutation_checked(disproof: &deduxit::Disproof) -> String {
+pub(crate) fn refutation_checked(disproof: &deduxit::linear::Disproof) -> String {
     match disproof.check() {
         Ok(()) => "ok".to_owned(),
         Err(error) if error.kind() == deduxit::ErrorKind::Unsupported => String::new(),
@@ -903,7 +906,7 @@ fn tail(args: &OneArgs) -> String {
     let checked = match proof.check_within(mode, &limits, |_| false) {
         Ok(()) => "ok".to_owned(),
         // Given up within the run's memory bound: no verdict on the proof.
-        Err(deduxit::CheckError::Refused(_)) => "unchecked: memory limit".to_owned(),
+        Err(deduxit::linear::CheckError::Refused(_)) => "unchecked: memory limit".to_owned(),
         Err(error) => clean(&format!("failed: {error}")),
     };
     let check = start.elapsed().as_secs_f64() * 1000.0;
@@ -917,13 +920,13 @@ fn tail(args: &OneArgs) -> String {
 /// within one memory bound, as the command does by default. The outcome
 /// of two searches has the counters of both.
 fn decide(
-    sequent: &deduxit::Sequent,
-    mode: deduxit::Mode,
+    sequent: &deduxit::linear::Sequent,
+    mode: deduxit::linear::Mode,
     options: &Options,
     limits: &Limits,
     args: &OneArgs,
     expired: &AtomicBool,
-) -> Result<deduxit::search::Outcome, Error> {
+) -> Result<deduxit::linear::search::Outcome, Error> {
     // The refutation after the search is bounded by its own work and
     // answers a search the time limit ended, as the command's does.
     let stop = |progress: deduxit::Progress| {
@@ -935,8 +938,8 @@ fn decide(
     let forest = Forest::within(sequent, limits)?;
     let alone = Duration::from_secs_f64(alone);
     let start = Instant::now();
-    deduxit::search::race(
-        deduxit::Goal::conclusion(&forest),
+    deduxit::linear::search::race(
+        deduxit::linear::Goal::conclusion(&forest),
         mode,
         options,
         limits,

@@ -9,8 +9,8 @@
 //! the ordinary text.
 #![no_main]
 
+use deduxit::linear::search::Options;
 use deduxit::ordinary::{self, Logic, Sequent, Translation};
-use deduxit::search::Options;
 use deduxit::{ErrorKind, Limits};
 use libfuzzer_sys::fuzz_target;
 

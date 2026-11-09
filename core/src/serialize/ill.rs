@@ -4,8 +4,8 @@
 use super::sequents::{Atoms, FoExpression, Tables};
 use crate::hash::HashMap;
 use crate::limits::{Limits, Refusal};
-use crate::occurrences::{IllConnective, IllSequent, Side};
-use crate::sequents::{Atom, Sequent, Term, TermId, Visit};
+use crate::linear::occurrences::{IllConnective, IllSequent, Side};
+use crate::linear::sequents::{Atom, Sequent, Term, TermId, Visit};
 use crate::wire::{self, Readable};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 

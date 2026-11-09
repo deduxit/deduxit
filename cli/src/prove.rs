@@ -11,9 +11,12 @@ use crate::show::{
 };
 use crate::{Status, catch_interrupt, interrupted};
 use anyhow::{Context, Result, bail};
+use deduxit::linear::search::{Engine, Goal, Options, Outcome, Reason, Verdict, prove_goal, race};
 use deduxit::ordinary::Image;
-use deduxit::search::{Engine, Goal, Options, Outcome, Reason, Verdict, prove_goal, race};
-use deduxit::{CheckError, Error, Forest, Limits, Phase, Progress, Sequent};
+use deduxit::{
+    Error, Limits, Phase, Progress,
+    linear::{CheckError, Forest, Sequent},
+};
 use std::fmt::Write;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -48,7 +51,7 @@ pub(crate) fn on_large_stack<T: Send>(size: usize, f: impl FnOnce() -> T + Send)
 /// the calling thread, whose stack the caller sized.
 pub(crate) fn searched(
     goal: Goal<'_>,
-    mode: deduxit::Mode,
+    mode: deduxit::linear::Mode,
     options: &Options,
     limits: &deduxit::Limits,
     threads: Threads,
@@ -209,7 +212,7 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
     let (mode, read) = (args.mode.mode(), settings.input);
     let ordinary = crate::settings::ordinary(&settings, &args.logic);
     // How the sequent was written is kept for a derivation drawn so.
-    let keep = settings.view.classical == deduxit::ClassicalSides::Two;
+    let keep = settings.view.classical == deduxit::linear::ClassicalSides::Two;
     let loaded = deadline.within(move || match ordinary {
         Some(options) => input
             .image(&options, &limits)
@@ -272,11 +275,11 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
         let status = Status::from(&outcome.verdict);
         // The proof's lambda-term: of its LJ derivation under --logic, of
         // the linear proof otherwise.
-        let term_of = |proof: &deduxit::Proof, over: &dyn Fn() -> bool| match (&image, args.linear)
-        {
-            (Some(image), false) => crate::ordinary::term(image, proof, &show, over),
-            _ => linear_term(proof, mode, &show, over),
-        };
+        let term_of =
+            |proof: &deduxit::linear::Proof, over: &dyn Fn() -> bool| match (&image, args.linear) {
+                (Some(image), false) => crate::ordinary::term(image, proof, &show, over),
+                _ => linear_term(proof, mode, &show, over),
+            };
         let mut out = io::Output::open(args.output.output.as_deref(), format.is_binary())?;
         if format == Format::Json {
             let net = match &outcome.verdict {

@@ -8,8 +8,8 @@
 
 #![cfg(feature = "serialize")]
 
-use deduxit::sequents::Visit;
-use deduxit::{Forest, Fragment, Member, Mode, Node, NodeId, Proof, Reading, Sequent};
+use deduxit::linear::sequents::Visit;
+use deduxit::linear::{Forest, Fragment, Member, Mode, Node, NodeId, Proof, Reading, Sequent};
 
 /// How deep the formulas are nested: deep enough that the stack below
 /// holds about five bytes per level, less than a call frame even where

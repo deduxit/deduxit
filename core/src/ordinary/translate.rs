@@ -12,8 +12,8 @@
 
 use super::{Formulas, Logic, Node, NodeId, Sequent, Side, Translation};
 use crate::hash::HashMap;
-use crate::sequents::{Atom, Term, TermId};
-use crate::{Error, Mode};
+use crate::linear::sequents::{Atom, Term, TermId};
+use crate::{Error, linear::Mode};
 
 /// The linear connective at the top of an image, under its `!`s.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -235,13 +235,13 @@ pub(super) struct Root {
 }
 
 /// The image of an ordinary sequent under a translation: the linear
-/// sequent, one-sided as every [`Sequent`](crate::Sequent) is, the mode
+/// sequent, one-sided as every [`Sequent`](crate::linear::Sequent) is, the mode
 /// it is decided in, and what the read-back needs to map a proof of it
 /// back to the ordinary formulas.
 #[derive(Clone, Debug)]
 pub struct Image {
     /// The linear sequent.
-    pub(super) sequent: crate::Sequent,
+    pub(super) sequent: crate::linear::Sequent,
     /// Its mode: affine classical, or intuitionistic.
     pub(super) mode: Mode,
     /// The logic.
@@ -259,7 +259,7 @@ pub struct Image {
 
 impl Image {
     /// Returns the linear sequent.
-    pub fn sequent(&self) -> &crate::Sequent {
+    pub fn sequent(&self) -> &crate::linear::Sequent {
         &self.sequent
     }
 
@@ -463,13 +463,13 @@ pub fn translate(
     } else {
         ordinary.left.len() as u32
     };
-    let mut linear = crate::Sequent {
+    let mut linear = crate::linear::Sequent {
         terms: builder.terms,
         roots: terms,
         atoms: builder.atoms,
         antecedents: Some(antecedents),
         cuts: vec![],
-        fo: crate::sequents::fo::FirstOrder::new(),
+        fo: crate::linear::sequents::fo::FirstOrder::new(),
     };
     linear.optimize();
     let mode = if classical {
@@ -517,7 +517,7 @@ impl Builder {
         if let Some(&id) = self.ids.get(&term) {
             return Ok(id);
         }
-        let most = crate::Forest::MOST;
+        let most = crate::linear::Forest::MOST;
         if self.terms.len() as u64 >= most {
             return Err(Error::Refused(crate::limits::Refusal::Occurrences {
                 occurrences: most.saturating_add(1),

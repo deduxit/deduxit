@@ -10,10 +10,13 @@ use crate::io::{bound, refused};
 use crate::prove::{Ended, unknown};
 use crate::show::{Show, Shown, not_built};
 use anyhow::{Result, anyhow, bail};
+use deduxit::linear::proofs::{Sides, Structural};
+use deduxit::linear::search::{Outcome, Verdict};
 use deduxit::ordinary::{self, Derivation, Image, Logic, Translation};
-use deduxit::proofs::{Sides, Structural};
-use deduxit::search::{Outcome, Verdict};
-use deduxit::{Error, ErrorKind, Limits, Proof, Refusal, ViewOptions};
+use deduxit::{
+    Error, ErrorKind, Limits, Refusal,
+    linear::{Proof, ViewOptions},
+};
 use std::fmt::Write;
 
 /// Returns the ordinary sequent `text` holds in `format`: text in the
@@ -153,7 +156,7 @@ pub(crate) fn shown(d: Derivation, show: &Show) -> Derivation {
 /// derivation of LK).
 pub(crate) fn term(
     image: &Image,
-    proof: &deduxit::Proof,
+    proof: &deduxit::linear::Proof,
     show: &Show,
     halt: &dyn Fn() -> bool,
 ) -> Result<deduxit::lambda::Term, deduxit::Error> {
@@ -168,8 +171,8 @@ mod tests {
     use crate::settings::Given;
     use crate::show::{Show, Shown};
     use clap::Parser;
+    use deduxit::linear::search::{Options, Verdict};
     use deduxit::ordinary::{self, Logic, Translation};
-    use deduxit::search::{Options, Verdict};
 
     /// A read-back the stop ends, in the unfolding or in the checker's
     /// pass inside it, is left out with the stop's reason.
@@ -192,7 +195,8 @@ mod tests {
             &deduxit::Limits::default(),
         )
         .unwrap();
-        let outcome = deduxit::prove(image.sequent(), image.mode(), &Options::default()).unwrap();
+        let outcome =
+            deduxit::linear::prove(image.sequent(), image.mode(), &Options::default()).unwrap();
         let Verdict::Proved(proof) = outcome.verdict else {
             panic!("the image is provable")
         };

@@ -15,7 +15,7 @@
 //! one of LK or LJ, is written into any [`std::fmt::Write`] (a `String`
 //! among them) with a stop condition asked between two inferences, by one
 //! `write` per target of the same signature as the text tree's
-//! ([`Derivation::write_text`](crate::Derivation::write_text)). LaTeX,
+//! ([`Derivation::write_text`](crate::linear::Derivation::write_text)). LaTeX,
 //! Typst and Rocq come as a fragment to paste or as a standalone document
 //! ([`Form`]), and SVG is always a whole document.
 //! PNG ([`png`], feature `png`) and PDF
@@ -29,10 +29,10 @@
 //! order when the derivation has a reading.
 //! They write one inference at a time and keep their own stack, so the
 //! text grows with the derivation, not with its width, and a derivation of
-//! any height fits. Rules are labelled as [`Labels`](crate::proofs::Labels) says,
-//! an open goal is drawn as [`OpenGoal`](crate::proofs::OpenGoal) says, and an
+//! any height fits. Rules are labelled as [`Labels`](crate::linear::proofs::Labels) says,
+//! an open goal is drawn as [`OpenGoal`](crate::linear::proofs::OpenGoal) says, and an
 //! inference of a compact derivation that stands for a run of a
-//! structural rule ([`Compact`](crate::proofs::Compact)) has its label starred.
+//! structural rule ([`Compact`](crate::linear::proofs::Compact)) has its label starred.
 
 // A variant a later step adds must not fall into an existing arm.
 #![deny(clippy::wildcard_enum_match_arm)]
@@ -69,11 +69,11 @@ pub use styles::Styles;
 /// before anything is laid out.
 #[cfg(any(feature = "latex", feature = "typst", feature = "svg"))]
 pub(crate) fn printed(
-    sequent: &crate::Sequent,
-    mode: crate::Mode,
+    sequent: &crate::linear::Sequent,
+    mode: crate::linear::Mode,
     per_occurrence: u64,
     limits: &crate::Limits,
-) -> Result<Option<crate::Forest>, crate::Error> {
+) -> Result<Option<crate::linear::Forest>, crate::Error> {
     let name = sequent
         .atom_names()
         .iter()
@@ -96,7 +96,7 @@ pub(crate) fn printed(
     if !mode.is_intuitionistic() {
         return Ok(None);
     }
-    crate::Forest::within(sequent, limits).map(Some)
+    crate::linear::Forest::within(sequent, limits).map(Some)
 }
 
 /// Returns a sequent in math mode between `$`s in `notation`: one-sided,
@@ -104,17 +104,17 @@ pub(crate) fn printed(
 /// [`printed`]'s estimate.
 #[cfg(any(feature = "latex", feature = "typst"))]
 pub(crate) fn math(
-    sequent: &crate::Sequent,
-    mode: crate::Mode,
+    sequent: &crate::linear::Sequent,
+    mode: crate::linear::Mode,
     per_occurrence: u64,
     limits: &crate::Limits,
-    notation: &crate::sequents::notation::Notation,
+    notation: &crate::linear::sequents::notation::Notation,
 ) -> Result<String, crate::Error> {
     let mut out = String::from("$");
     match printed(sequent, mode, per_occurrence, limits)? {
         None => notation.one_sided(&mut out, sequent),
         Some(forest) => {
-            let reading = crate::occurrences::Reading::of_mode(&forest, mode)
+            let reading = crate::linear::occurrences::Reading::of_mode(&forest, mode)
                 .map_err(crate::Error::NotIntuitionistic)?;
             let roots = forest.root_members();
             notation.sequent(
@@ -169,24 +169,24 @@ pub(crate) fn judgement(
 #[derive(Clone, Copy, Debug)]
 pub enum Drawable<'a> {
     /// A derivation of linear logic.
-    Linear(&'a crate::Derivation<'a>),
+    Linear(&'a crate::linear::Derivation<'a>),
     /// A derivation of LK or LJ.
     Ordinary(&'a crate::ordinary::Derivation),
     /// The two-sided view of a classical derivation, as its sequent was
     /// written.
-    Classical(&'a crate::TwoSided<'a>),
+    Classical(&'a crate::linear::TwoSided<'a>),
 }
 
-impl<'a, 'p: 'a> From<&'a crate::Derivation<'p>> for Drawable<'a> {
+impl<'a, 'p: 'a> From<&'a crate::linear::Derivation<'p>> for Drawable<'a> {
     /// Draws a derivation of linear logic.
-    fn from(derivation: &'a crate::Derivation<'p>) -> Self {
+    fn from(derivation: &'a crate::linear::Derivation<'p>) -> Self {
         Self::Linear(derivation)
     }
 }
 
-impl<'a, 'p: 'a> From<&'a crate::TwoSided<'p>> for Drawable<'a> {
+impl<'a, 'p: 'a> From<&'a crate::linear::TwoSided<'p>> for Drawable<'a> {
     /// Draws the two-sided view of a classical derivation.
-    fn from(view: &'a crate::TwoSided<'p>) -> Self {
+    fn from(view: &'a crate::linear::TwoSided<'p>) -> Self {
         Self::Classical(view)
     }
 }

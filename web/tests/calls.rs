@@ -1221,7 +1221,7 @@ fn a_first_order_session_takes_the_quantifier_rules() {
 /// left memory.
 #[wasm_bindgen_test(unsupported = test)]
 fn undo_through_the_calls_keeps_a_live_session_s_letters() {
-    use deduxit::{Interactive, Mode, Rule, Sequent, Step};
+    use deduxit::linear::{Interactive, Mode, Rule, Sequent, Step};
     let text = "|- forall x. exists y. p(f(x), y) -o p(f(x), y)";
     let sequent: Sequent = text.parse().unwrap();
     let mut live = Interactive::new(&sequent, Mode::CLASSICAL).unwrap();
