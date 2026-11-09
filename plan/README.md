@@ -5448,3 +5448,28 @@ move (D26).
     (`plan/notes/cli-library.md` found no procedure), so a package
     under the old name would stay there stale. This is current
     practice for a package not yet published.
+- 2026-11-09, 02:40: **decided for 53p (departs from the design):** the
+  page's `--color-logo` is the approved lapis, and the client's
+  colour-vision check no longer pairs it with the colours of meaning.
+  - **Why the question came up:** 53p found that lapis fails the
+    pairwise check. It is too close to:
+    - the accent violet;
+    - the nets' Okabe-Ito blue;
+    - in the dark theme under simulated deficiencies, `ok` and `learn`.
+
+    No colour in the light theme clears every token: the designer
+    searched the whole space and found that only blues and plums pass
+    against the status colours.
+  - **Why exempt it:** the check exists so that colours that carry
+    meaning can be told apart. The mark carries none: it shows only in
+    the header band, never as a state. WCAG draws the same line: SC
+    1.4.3 exempts text in a logo or brand name, and SC 1.4.11's
+    Understanding note treats logotypes likewise.
+  - **Rejected:**
+    - a page-only variant of lapis, which gives the brand two colours;
+    - moving the nets' hues, which breaks their own design.
+  - **What 53p does:**
+    - the accent stays the page's violet, as a UI token apart from the
+      brand;
+    - the logo keeps a contrast test against the field;
+    - a new test keeps `--color-logo` to the header's mark.
