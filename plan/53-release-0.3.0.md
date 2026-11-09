@@ -62,7 +62,28 @@ written by the planning session when it starts):
    - its own `nix flake check`.
 
    The GitHub repository is renamed to `deduxit/rocq-deduxit` first,
-   with the author's yes.
+   with the author's yes (given 2026-11-09), after 53n has checked its
+   addresses.
+
+   The author's decision for the library's shape ("the idiomatic,
+   current best practice solution", 2026-11-09):
+   - **One logical root `Deduxit`, with a namespace per calculus.**
+     Today's files move to `Deduxit.Linear.*`. Later calculi get
+     `Deduxit.Intuitionistic` (step 55), `Deduxit.Modal` (step 66) and
+     natural deduction.
+   - **Each calculus keeps its own formulas and rules.** There is no
+     shared type for every calculus.
+   - **Theorems that connect calculi** (an embedding of LJ into
+     intuitionistic linear logic, say) go in a namespace of their own,
+     such as `Deduxit.Embeddings`.
+   - **`Deduxit.Base`** for list, multiset and permutation lemmas,
+     created only once two calculi share one.
+   - **One opam package, `rocq-deduxit`.** It splits into packages
+     under the same root, as Mathematical Components, Iris and std++
+     ship their parts, only when a calculus brings a heavy dependency or
+     a long build, or users want one part alone. Since the paths stay,
+     no `Require` breaks.
+   - Users write `From Deduxit.Linear Require Import Calculus.`
 4. **53s, the crates and the command renamed**, after 53a:
    - the packages `deduxit` (core), `deduxit-cli` (binary `deduxit`),
      `deduxit-web` and `deduxit-bench`;
