@@ -1,7 +1,7 @@
 # Step 63: the suites' written protocol, and Learn and Practice by suite
 
-You are working in linlog (`sequentium/sequentium`, the bindings in
-`web/`) and in the web client (`sequentium/sequentium.github.io`).
+You are working in linlog (`deduxit/deduxit`, the bindings in
+`web/`) and in the web client (`deduxit/deduxit.github.io`).
 CLAUDE.md applies throughout: jj only (never git), thematic commits as
 soon as a unit is done, doc comments on every item, the verification
 table, no pushing. This prompt was written on 2026-11-08 by step 46's

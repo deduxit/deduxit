@@ -1,7 +1,7 @@
 # Step 58: maintenance, and Kani on the checker's integers
 
-You are working in linlog (`sequentium/sequentium`) and, for the
-accessibility audit, in the web client (`sequentium/sequentium.github.io`,
+You are working in linlog (`deduxit/deduxit`) and, for the
+accessibility audit, in the web client (`deduxit/deduxit.github.io`,
 `../linlog-prover.github.io`). CLAUDE.md applies throughout: jj only
 (never git), thematic commits as soon as a unit is done, the
 verification table, no pushing. This prompt was written on 2026-11-08 by

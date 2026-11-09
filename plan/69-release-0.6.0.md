@@ -1,6 +1,6 @@
 # Step 69: the release of 0.6.0
 
-You are working in linlog (`sequentium/sequentium`) and the Rocq
+You are working in linlog (`deduxit/deduxit`) and the Rocq
 libraries step 66 changed. CLAUDE.md applies throughout; tagging and
 publishing are the author's acts. This prompt was written on 2026-11-08
 by step 46's second session and is finished at the review of step 68: it

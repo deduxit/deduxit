@@ -72,7 +72,7 @@ amended (see "Review protocol"). `notes/` holds research the prompts rely on.
 | 50 | Proofs read back as lambda-terms: ILL proofs as linear terms, LJ derivations as simply typed terms, printed, exported and on the page (two sessions, the second in the client) | `50-lambda-terms.md` (complete) | Opus 5.5; research on Sonnet 5.5; a fresh-context reviewer on Opus 5.5 | high (research `medium`) | 49 |
 | 51 | Decision 8's first step (D31): the one-sided and state-equation refutations checked by `Disproof::check` and certified by lemmas of the Rocq library, `linlog check` reading a disproof, the comparison crediting checked refutations (two sessions, the first in `rocq-linlog`) | `51-certified-refutations.md` (complete) | Opus 5.5 (Fable 5.1 at `xhigh` only if Opus visibly falls short on a proof); the panel's argument on Fable 5.1 | high, with the panel | 47, 48 |
 | 52 | Dispatch rows for the inverse method where it wins (`wide-m1`, classical `chain`, affine `pigeonhole`), earned by measurement (D19); the harness's reason read in the right order first (one session, by day) | `52-inverse-dispatch.md` (complete; 47's figures added at its review) | Opus 5.5; a fresh-context reviewer on Opus 5.5 | high | 47 |
-| 53 | The release of 0.3.0, the first from `sequentium`: 53m a mark for `sequentium` (the design on Fable 5.1, the author choosing, then its placement; added 2026-11-08), 53a the small defects of `later.md` a first user meets, 53b the release prepared, the tag, crates.io, the GitHub release and Zenodo the author's, the chain after the move proved (two sessions) | `53-release-0.3.0.md` (complete; what 47 to 52 leave added at their reviews) | Opus 5.5; Fable 5.1 with an Opus 5.5 partner for 53m's design | high | 47, 48, 49, 50, 51, 52 |
+| 53 | The release of 0.3.0, the first from `deduxit`: 53m a mark for the collection, drawn for `sequentium` (the design on Fable 5.1, the author choosing, then its placement; added 2026-11-08), 53a the small defects of `later.md` a first user meets, 53b the release prepared, the tag, crates.io, the GitHub release and Zenodo the author's, the chain after the move proved (two sessions) | `53-release-0.3.0.md` (complete; what 47 to 52 leave added at their reviews) | Opus 5.5; Fable 5.1 with an Opus 5.5 partner for 53m's design | high | 47, 48, 49, 50, 51, 52 |
 | | **Release 0.4.0: intuitionistic logic decided, with Kripke countermodels, tableaux and truth tables** (D27) | | | | |
 | 54 | A native engine on Dyckhoff's LJT for intuitionistic and minimal logic, always terminating, its proofs checked as LJ, the default where it wins (two sessions) | `54-ljt-engine.md` (finished at the review of 53) | Opus 5.5; the panel's argument on Fable 5.1 | high, with the panel | 53 |
 | 55 | Kripke countermodels as a shared, checked output kind, extracted from 54's search, drawn, on the page, and certified by a lemma of the Rocq library (three sessions) | `55-kripke-countermodels.md` (finished at the review of 54) | Opus 5.5 (Fable 5.1 at `xhigh` only if Opus visibly falls short on the proof); the panel's argument on Fable 5.1 | high, with the panel | 54 |
@@ -1019,7 +1019,7 @@ suite (`core/src/ordinary/`) is the second, made whole first.
 **D25. One repository and one workspace; the kernel crate only after
 a second non-embedded suite** (decision 2, and the answer "one shared
 repository for every suite"). Every suite lives in the one repository
-and Cargo workspace, `sequentium/sequentium` after the move (D26). A
+and Cargo workspace, `deduxit/deduxit` after the move (D26). A
 kernel crate of the generic parts is extracted only after a second
 non-embedded suite has shown what is shared (the modal suite, step 65;
 the extraction step 67 decides from what each suite recorded it
@@ -1029,8 +1029,8 @@ proof term stay in `linlog` (D17). A repository per suite stays open
 for a suite a third party writes. The Rocq library stays the linear
 library in its own repository.
 
-**D26. The organisation `sequentium`** (decision 3, and the answer on
-the name). The umbrella organisation is `sequentium` (Latinised from
+**D26. The organisation `sequentium`, now `deduxit`** (decision 3, and
+the answer on the name). The umbrella organisation is `sequentium` (Latinised from
 Gentzen's *Sequenz*, "of sequents"; created by the author on
 2026-11-08). The shared repository moves there and is renamed
 `sequentium/sequentium`; `rocq-linlog` moves with its name; the site's
@@ -1043,7 +1043,11 @@ move (step 48) comes before the Rocq library's opam pull request and
 before the next release. Creating, transferring, renaming and
 configuring the registries are the author's acts; sessions prepare.
 The Cachix cache keeps the name `linlog-prover`; crates.io gets no
-placeholder crate.
+placeholder crate. On 2026-11-09 the author renamed the organisation
+`deduxit` (Latin, "it has derived"), the shared repository
+`deduxit/deduxit` and the site's `deduxit.github.io`, `rocq-linlog`
+keeping its name; session 53n moved every address and the
+placeholder's redirects to them.
 
 **D27. The order of the releases** (decision 4). 0.3.0 ordinary logic
 on the page; 0.4.0 intuitionistic logic decided, with Kripke

@@ -1,7 +1,7 @@
-# Step 53: the release of 0.3.0, the first from `sequentium`
+# Step 53: the release of 0.3.0, the first from `deduxit`
 
-You are working in linlog (`sequentium/sequentium`) and, for its release,
-in the Rocq library (`../rocq-linlog`, `sequentium/rocq-linlog`).
+You are working in linlog (`deduxit/deduxit`) and, for its release,
+in the Rocq library (`../rocq-linlog`, `deduxit/rocq-linlog`).
 CLAUDE.md applies throughout: jj only (never git), thematic commits as
 soon as a unit is done, doc comments on every item, the verification
 table, no pushing. Tagging and publishing are the author's acts. The
@@ -21,8 +21,9 @@ entries named below.
 later. In the meantime don't make another tag until I figure it out."**
 
 - No tag until the author has chosen the name and the mark:
-  - the name: the rename to `sequentium` and its form, or none, as
-    weighed in `plan/notes/structure.md`;
+  - the name: the collection is `deduxit` (the author, 2026-11-09);
+    whether the crates and the command take it, in which form, or
+    none, as weighed for `sequentium` in `plan/notes/structure.md`;
   - the mark: one of 53m's three rounds.
 - 53m's placement and 53b wait for those choices.
 - 53a needs no tag and may run.
@@ -113,7 +114,7 @@ method's rows (52), all from the new home (48). It is a 0.y bump because
 new variants of closed enums are planned breaks (`core.md`,
 "Decisions"); the release says each break plainly. Its second purpose is
 to prove the chain after the move: crates.io's Trusted Publishing from
-`sequentium/sequentium`, the GitHub release, and Zenodo's version records
+`deduxit/deduxit`, the GitHub release, and Zenodo's version records
 joining (or not) the concept DOIs.
 
 ## Session 53m: a mark for `sequentium`, before 53a
@@ -229,7 +230,7 @@ can be renamed): what the release is called in citations. Zenodo titles
 a version from `CITATION.cff` (`title: linlog` after step 48), and
 crates.io renames no crate. So either the concept DOI stays "linlog",
 the linear suite, and the collection gets a record of its own later; or
-the title changes from 0.3.0 on, for example to "sequentium: logic
+the title changes from 0.3.0 on, for example to "deduxit: logic
 suites (linlog, …)", in `CITATION.cff` and on Zenodo. 0.2.0's records
 keep their title. Then the author tags and publishes.
 

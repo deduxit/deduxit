@@ -1,7 +1,7 @@
 # Step 56: classical tableaux and truth tables, the beginner's two methods
 
-You are working in linlog (`sequentium/sequentium`) and, for the page, in
-the web client (`../linlog-prover.github.io`, `sequentium/sequentium.github.io`).
+You are working in linlog (`deduxit/deduxit`) and, for the page, in
+the web client (`../linlog-prover.github.io`, `deduxit/deduxit.github.io`).
 CLAUDE.md applies throughout: jj only (never git), thematic commits as
 soon as a unit is done, doc comments on every item, the verification
 table, no pushing. This prompt was written on 2026-11-08 by step 46's

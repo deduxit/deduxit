@@ -1,7 +1,7 @@
 # Step 55: Kripke countermodels, checked and certified
 
-You are working in linlog (`sequentium/sequentium`) and in the Rocq
-library (`../rocq-linlog`, `sequentium/rocq-linlog`). CLAUDE.md applies
+You are working in linlog (`deduxit/deduxit`) and in the Rocq
+library (`../rocq-linlog`, `deduxit/rocq-linlog`). CLAUDE.md applies
 throughout: jj only (never git), thematic commits as soon as a unit is
 done, doc comments on every item, the verification table, no pushing; a
 change of the library is made, checked and pushed there first. This

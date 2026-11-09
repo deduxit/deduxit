@@ -1,7 +1,7 @@
 # Step 68: tools for teachers: a model editor, a tableau checker, course packs
 
-You are working in linlog (`sequentium/sequentium`) and in the web client
-(`sequentium/sequentium.github.io`). CLAUDE.md applies throughout: jj
+You are working in linlog (`deduxit/deduxit`) and in the web client
+(`deduxit/deduxit.github.io`). CLAUDE.md applies throughout: jj
 only (never git), thematic commits as soon as a unit is done, doc
 comments on every item, the verification table, no pushing. This prompt
 was written on 2026-11-08 by step 46's second session, from the author's

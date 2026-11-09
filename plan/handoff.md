@@ -2,7 +2,7 @@
 
 You are the planning session of the linlog repository, the orchestrator
 of its stepped plan. The author (Fabian, GitHub `flgrubm`, the
-repositories under `linlog-prover`) runs every step as Claude Code
+repositories under `deduxit`, before 2026-11-08 `linlog-prover`) runs every step as Claude Code
 sessions started from prompt files under `plan/`. You write and finish
 those prompts, start each step's sessions and supervise them, review
 each session before the next starts, stack and check their commits,
@@ -165,19 +165,17 @@ to D32), grouped by release. In brief:
 
 ## Open with the author
 
-- **The move to `sequentium`** (step 48): the organisation exists
-  (created 2026-11-08). The author's acts, in order, are in
-  `plan/48-sequentium.md` and, as a checklist, in 48a's report: the
-  organisation's settings; the transfers of `rocq-linlog`, of `linlog`
-  renamed `sequentium` and of the site renamed `sequentium.github.io`;
-  what did not move re-created; crates.io's Trusted Publishing for both
-  crates; Zenodo's integration and records; the placeholder repository
-  `linlog-prover/linlog-prover.github.io` with 48a's site. Never create
-  a repository named `linlog` or `rocq-linlog` under `linlog-prover`.
-- **A custom domain** for the site (`sequentium.org` and `.dev` were
-  free on 2026-11-08): to decide before 48a starts, since the new
-  addresses depend on it; without an answer 48a uses the `github.io`
-  addresses.
+- **The move is done**: step 48 moved everything to the organisation
+  `sequentium` on 2026-11-08; the author renamed it `deduxit` on
+  2026-11-09 (the repositories `deduxit/deduxit`,
+  `deduxit/rocq-linlog`, `deduxit/deduxit.github.io`), and session 53n
+  moved every address and the placeholder's redirects
+  (`plan/reports/53-release-0.3.0.md`). Never create a repository
+  named `linlog` or `rocq-linlog` under `linlog-prover`, nor take the
+  name `sequentium` back for an organisation: either ends GitHub's
+  redirects.
+- **A custom domain** for the site: open; without one the addresses are
+  the `github.io` ones.
 - **The opam pull request**, after 48b, from 45e's commit moved to the
   new addresses by 48a. The author:
   1. forks `rocq-prover/opam` on GitHub;
