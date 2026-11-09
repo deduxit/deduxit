@@ -21,9 +21,12 @@ refutation read and checked; in the command and as a method on the page.
 
 ## Fixed now
 
-- **Teaching scale, never a SAT solver** (the research's limit, kept
-  from the ordinary layer's): bounds on clauses and steps by default
-  (D16), "unknown" beyond them.
+- **Teaching scale for the method shown** (the research's limit):
+  bounds on clauses and steps by default (D16), "unknown" beyond them.
+  Since 2026-11-09 classical logic is decided by a CDCL engine with
+  checked LRAT proofs (step 54s, the author's word); this step shows
+  resolution and DPLL by hand and traced, and reuses 54s's LRAT checker
+  for the proofs of outside solvers.
 - **A checked refutation**: a resolution proof is checked step by step;
   a RUP or DRAT/LRAT proof from an outside solver is read and checked
   only if a crate with a licence `deny.toml` allows does it, or by a

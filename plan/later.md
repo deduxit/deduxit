@@ -167,7 +167,7 @@ may be taken by that step and closed here, said in its report.
 | education-9 | kept | resource puzzles need a Petri-net drawing |
 | education-11 | kept | with web-teaching-1 |
 | ordinary-sequents-4 | kept | a DAG read-back: seven classical proofs only, no user asked |
-| ordinary-sequents-5 | kept | not a SAT solver |
+| ordinary-sequents-5 | in plan | step 54s-b: classical logic by CDCL with checked LRAT proofs (the author, 2026-11-09) |
 | ordinary-sequents-6 | kept | needs logics-1; R is undecidable |
 | tableaux-4 | kept | the labelled calculus (66) covers the ground |
 | tableaux-5 | dropped | its note rejects it: the focused engines are stronger |
@@ -190,7 +190,7 @@ may be taken by that step and closed here, said in its report.
 | applications-7 | kept | documentation, no audience asked |
 | applications-8 | kept | as applications-7 |
 | applications-10 | kept | as applications-7 |
-| engines-1 | kept | a SAT-based intuitionistic engine: LJT first (54) |
+| engines-1 | done in plan | step 54s (2026-11-09), after LJT |
 | engines-4 | kept | with engines-1 |
 | engines-2 | kept | research |
 | engines-3 | kept | research |
@@ -276,7 +276,7 @@ assigned to.
 | Follow-ups: intuitionistic mode | what the default leaves to the time limit that the inverse method saturates at once | done in 52: step 37's turn decides it (137 ms), pinned by a test |
 | Follow-ups: ordinary logic | `interact --logic` | 49, as a native goal state (design b), not a session over the image |
 | Follow-ups: ordinary logic | the loop check | 54 |
-| Follow-ups: ordinary logic | classical logic through affine MALL (116 unknown) | kept: a limit, not a task (not a SAT solver) |
+| Follow-ups: ordinary logic | classical logic through affine MALL (116 unknown) | step 54s-b (the author lifted "not a SAT solver" for a checked engine, 2026-11-09) |
 | Follow-ups: ordinary logic | the DAG read-back | kept: ordinary-sequents-4 |
 | Follow-ups: interactive proving | the review findings of 41b to 42k on the command (`cut G C P…` as one word, `eliminate`'s names and flag, the eigenvariable message at `∃L`, the unused import) and the older entries assigned to steps 22, 28 and 34 | done in 53a, but the filtered `rules` list, kept (no client asked); `Error::Quantifiers` done (retired by step 45) |
 | Follow-ups: interactive proving | cut in a first-order interactive session | kept: no user asked; the step that next changes the session may take it |
@@ -2634,3 +2634,23 @@ from JSON (a binder over nullary atoms), join a formula or sequent to
 it (`push`, `join`), and see whether its atoms keep their names. If
 they do not, either the JSON reader refuses the table or the count
 uses `self.atoms.len() - other's` there too, with a test.
+
+## Coverability against the dedicated tools (2026-11-09)
+
+The Horn engine decides affine `!`-Horn goals as Petri-net coverability
+by the backward algorithm of Abdulla, Čerāns, Jonsson and Tsay (1996),
+with the state equation as a separate refuter (`core-horn.md`). It
+solves 162 of qcover's 176 problems in 10 s, but the dedicated
+coverability tools were never run beside it. Newer tools prune inside
+the backward search: QCover by continuous reachability (Blondin et al.,
+arXiv 1510.05724), ICover by that and preprocessing, about twice as fast
+(Geffroy, Leroux and Sutre, arXiv 1607.05956); BFC is strongest on
+coverable instances; FastForward's directed search (arXiv 2010.07912)
+beat ICover, LoLA and MIST in its authors' comparison.
+- **First, measure:** ICover, BFC and FastForward join the comparison's
+  tools (`modules/_provers/`, `bench/TOOLS.md`) on qcover's 176
+  problems and LLTP's Petri nets, as programs, licences permitting.
+- **Then, if they win:** try QCover's pruning inside `cover.rs`'s
+  backward search, and a directed forward search for coverable
+  instances, each kept only where the target sets show it wins.
+- After step 57, whose rule is that the search does not change.

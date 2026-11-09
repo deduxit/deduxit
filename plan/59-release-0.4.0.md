@@ -13,7 +13,8 @@ the reports of steps 54 to 58.
 ## Fixed now
 
 0.4.0 is "intuitionistic logic decided, with Kripke countermodels,
-tableaux and truth tables" (D27): steps 54 to 58. As 0.3.0's: `breaks
+tableaux and truth tables" (D27): steps 54 to 58, with 54s (the
+SAT-based engines), 54u (the usability changes) and 54w (the text). As 0.3.0's: `breaks
 0.3.0` and every break in the changelog, both repositories' versions,
 `status.md` true, the guide within its budget, `nix flake check` in
 both, the release workflow's dry run, the release notes drafted, the

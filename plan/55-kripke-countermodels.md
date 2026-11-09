@@ -25,6 +25,15 @@ antecedent and not the succedent, extracted from step 54's failed
 search, checked by computation, drawn, exported, and certified by a
 lemma of the Rocq library.
 
+Since 2026-11-09 the model's source is step 54s: the SAT-based engine
+(intuitR's algorithm) returns a Kripke model for every sequent it finds
+not valid. Where 54s's measurement makes it the default, the model
+comes from its search; where LJT stays the default, it is extracted
+from LJT's failed search (read Pinto and Dyckhoff, *Loop-free
+construction of counter-models for intuitionistic propositional logic*,
+1995, first). Classical logic's falsifying assignment, from 54s's CDCL
+engine or the embedding, is the model's one-world case.
+
 ## Fixed now
 
 - **A countermodel output kind shared by suites** (semantics-decision-11):

@@ -76,8 +76,9 @@ amended (see "Review protocol"). `notes/` holds research the prompts rely on.
 | | **Release 0.4.0: intuitionistic logic decided, with Kripke countermodels, tableaux and truth tables** (D27) | | | | |
 | 54 | A native engine on Dyckhoff's LJT for intuitionistic and minimal logic, always terminating, its proofs checked as LJ, the default where it wins (two sessions) | `54-ljt-engine.md` (finished at the review of 53) | Opus 5.5; the panel's argument on Fable 5.1 | high, with the panel | 53 |
 | 54w | Every text a person reads rewritten to the author's standing rules (`.claude/rules/writing.md`): a usability review first (its API changes asked of the author), then the web client and the Rocq library beside 54, then README, the manual, the help and the doc comments after 54b, each after the 54u session whose changes it documents | `54w-text.md` | Opus 5.5 | high, with a fresh reviewer per session | 53 |
+| 54s | SAT-based engines: intuitionistic and minimal logic by intuitR's algorithm (SAT modulo intuitionistic implications, with restarts), its Kripke models for step 55, "valid" a checked LJ derivation; classical logic by CDCL with LRAT proofs checked by deduxit's own checker; the defaults by measurement, intuitR and intuit run beside deduxit (three sessions; the author, 2026-11-09) | `54s-sat-engines.md` | Opus 5.5; the panel's argument on Fable 5.1 | high, with the panel | 54b |
 | 54u | The usability review's accepted changes (the author, 2026-11-09): the library's additions (Q1–Q4), the command's hints, refutations by side, `interact`'s guidance and a short `-h` (Q6, Q8–Q10), the page's prover and its Learn, Practice and Export (W1–W3, W5–W15), checking a certificate in one command (Q11) (five sessions, two in the client) | `54u-usability.md` | Opus 5.5 | high, with a fresh reviewer per session | 54b, 54w-a |
-| 55 | Kripke countermodels as a shared, checked output kind, extracted from 54's search, drawn, on the page, and certified by a lemma of the Rocq library; first, ordinary logic in one call and one JSON shape (Q5, Q12) (four sessions) | `55-kripke-countermodels.md` (finished at the review of 54) | Opus 5.5 (Fable 5.1 at `xhigh` only if Opus visibly falls short on the proof); the panel's argument on Fable 5.1 | high, with the panel | 54 |
+| 55 | Kripke countermodels as a shared, checked output kind, extracted from 54's search, drawn, on the page, and certified by a lemma of the Rocq library; first, ordinary logic in one call and one JSON shape (Q5, Q12) (four sessions) | `55-kripke-countermodels.md` (finished at the review of 54) | Opus 5.5 (Fable 5.1 at `xhigh` only if Opus visibly falls short on the proof); the panel's argument on Fable 5.1 | high, with the panel | 54, 54s |
 | 56 | Classical tableaux as a view of the LK read-back with countermodels from open branches, and truth tables, in the command and as methods on the page (two to three sessions) | `56-tableaux-truth-tables.md` (finished at the review of 55) | Opus 5.5; a fresh-context reviewer on Opus 5.5 | high | 49, 55 |
 | 57 | A checked basis for the Horn engine's non-coverability in affine mode (one to two sessions) | `57-basis-certificate.md` (finished at the review of 53) | Opus 5.5; the panel's argument on Fable 5.1 | high, with the panel | 53 |
 | 58 | Maintenance and decision 8's second step (D31): the MSRV and cadence policy, an advisory check, a wasm feature baseline, a budget, Clippy and tests on 32 bits for the bindings, Kani harnesses for the checker's integers, the client's accessibility audit (two sessions) | `58-maintenance.md` (finished at the review of 53) | Opus 5.5; a fresh-context reviewer on Opus 5.5 | high | 53 |
@@ -6028,3 +6029,27 @@ move (D26).
     submission.
   - **On go:** 54u-a, 54u-b, 54u-c and 54u-e, at most four step
     sessions at once; nothing starts before.
+- 2026-11-09, 18:10: **Engines against the state of the art** (the
+  author asked whether the engines follow the most efficient algorithms
+  known, then: "Go with what you recommend", and "IntuitR would also be
+  nice to have").
+  - **The linear engines** (focusing with a memo, the focused inverse
+    method, proof nets) use the methods the literature recommends and
+    lead every other linear logic prover by measurement; no change.
+  - **New step 54s** (`plan/54s-sat-engines.md`), before step 55's
+    model session: intuitionistic and minimal logic by intuitR's
+    algorithm (Claessen and Rosén 2015, Fiorentini 2021), whose Kripke
+    models step 55 then takes; classical logic by CDCL with LRAT proofs
+    checked by deduxit's own checker (the author lifted step 46's "not
+    a SAT solver" for a checked engine); the defaults by measurement;
+    intuitR and intuit run beside deduxit in the comparison. The SAT
+    solvers available in Rust are researched first
+    (`plan/notes/research/sat-rust.md`).
+  - **Step 70** keeps teaching scale for the method it shows and reuses
+    54s's LRAT checker. **Step 55** takes its models from 54s's search
+    where 54s is the default, else from LJT's failed search (Pinto and
+    Dyckhoff 1995).
+  - **Coverability:** ICover, BFC and FastForward to run beside the
+    Horn engine on qcover's suite, then QCover's pruning if they win:
+    `plan/later.md`, after step 57.
+  - **On go:** 54s-a, 54u-a, 54u-b and 54u-c; 54u-e when a slot frees.

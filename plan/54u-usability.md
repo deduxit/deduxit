@@ -170,8 +170,9 @@ once before its final message.
 
 ## The order
 
-- **On go:** 54u-a, 54u-b, 54u-c and 54u-e, at most four step sessions
-  at once. 54u-a and 54u-b both touch `core/` and the behaviour lock:
+- **On go:** 54u-a, 54u-b and 54u-c beside step 54s's first session
+  (`plan/54s-sat-engines.md`, on 0.4.0's longest path), at most four
+  step sessions at once; 54u-e when a slot frees. 54u-a and 54u-b both touch `core/` and the behaviour lock:
   the second to finish rebases onto the first and blesses the lock
   again.
 - **After 54u-c:** 54u-d.
