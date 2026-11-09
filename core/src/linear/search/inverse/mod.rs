@@ -1,23 +1,31 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The focused inverse method: a forward search that derives stable
-//! sequents from the axioms upward, by derived rules that are whole
-//! focusing phases, and keeps each sequent unless one kept already
-//! subsumes it, until a derived sequent proves a stable sequent of the
-//! goal's asynchronous phase, every one of them, or nothing new comes.
-//! Without exponentials every sequent of a proof holds each occurrence once
-//! at most, so the sequents are finitely many and the search decides; with
-//! them a sequent may hold copies, and the search proves what is provable
-//! (it takes the smallest sequent first, so every sequent is reached) and
-//! refutes only where the saturation ends.
+//! The focused inverse method: a forward search, which derives sequents
+//! from the axioms toward the goal instead of breaking the goal down.
 //!
-//! A derived sequent `Γ ; Θ` stands for exactly its linear zone `Γ` with
-//! any unrestricted zone that holds `Θ`, or, where a `⊤` above absorbs
-//! (`top`) or in affine mode, for any larger linear zone too, as the
-//! checker reads a proof's sequents. One sequent subsumes another when it
-//! stands for every sequent the other does: the same `Γ` and a smaller
-//! `Θ`, or, absorbing or weakening, a smaller `Γ` as well.
+//! The search derives stable sequents: sequents where no invertible rule
+//! applies, as between two phases of a focused proof. Its derived rules
+//! are whole focusing phases. It keeps each derived sequent unless one
+//! kept already subsumes it (stands for everything it stands for). It
+//! ends when every stable sequent of the goal's own phase (its holes) is
+//! proved by a derived sequent, or when nothing new comes: then the kept
+//! set is saturated, closed under the rules, and refutes the goal.
+//!
+//! Without exponentials every sequent of a proof holds each occurrence at
+//! most once, so there are finitely many sequents and the search decides.
+//! With exponentials a sequent may hold copies. The search then proves
+//! what is provable, since it takes the smallest sequent first and so
+//! reaches every sequent. It refutes only where the saturation ends.
+//!
+//! A derived sequent `Γ ; Θ` has a linear zone `Γ` (formulas used exactly
+//! once) and an unrestricted zone `Θ` (formulas under `?`, usable any
+//! number of times). It stands for exactly the linear zone `Γ` with any
+//! unrestricted zone that holds `Θ`. Where a `⊤` above absorbs (`top`), or
+//! in affine mode, it stands for any larger linear zone too. This is how
+//! the checker reads a proof's sequents. One sequent subsumes another
+//! when it stands for every sequent the other does: the same `Γ` and a
+//! smaller `Θ`, or, when it absorbs or weakens, a smaller `Γ` as well.
 
 /// The forward evaluation of a rule's term.
 mod eval;
@@ -49,10 +57,13 @@ pub(crate) struct Inverse;
 
 impl Decide for Inverse {
     /// Refuses a goal beyond full linear logic, the modes that keep the
-    /// order of the formulas, and a goal within the sequent two of whose
-    /// members no sequent of a proof can hold together: the search drops
-    /// every sequent that holds such a pair, which a proof of the sequent's
-    /// roots, or of any goal of a derivation of them, never needs.
+    /// order of the formulas, and a goal off the roots with two members
+    /// that no sequent of a proof can hold together.
+    ///
+    /// The search drops every sequent that holds such a pair. A proof of
+    /// the sequent's roots, or of any goal of a derivation of them, never
+    /// needs one. A goal off the roots may hold one, since any multiset of
+    /// occurrences can be a goal.
     fn admits(&self, task: &Task<'_>) -> Result<(), Error> {
         let because = if !Fragment::LL.contains(task.fragment) {
             NotTaken::Fragment {
@@ -72,7 +83,8 @@ impl Decide for Inverse {
         })
     }
 
-    /// Saturates on the calling thread, whatever [`Options::jobs`] says.
+    /// Decides the goal by saturation on the calling thread, whatever
+    /// [`Options::jobs`] says.
     fn decide(
         &self,
         task: &Task<'_>,
@@ -90,8 +102,8 @@ impl Decide for Inverse {
     }
 }
 
-/// Whether every two members of a goal can stand in one sequent of a proof
-/// of the sequent ([`rules::coherent`]).
+/// Whether every two members of a goal can stand in one sequent of a
+/// proof of the sequent ([`rules::coherent`]).
 fn coherent_goal(task: &Task<'_>) -> bool {
     let mut members = task.goal.to_vec();
     members.sort_unstable();
@@ -99,28 +111,30 @@ fn coherent_goal(task: &Task<'_>) -> bool {
 }
 
 /// How many rule applications the search makes between two polls of its
-/// stop, besides the poll at every sequent it takes up: some tens of
-/// microseconds.
+/// stop, besides the poll at every sequent it takes up. That is some tens
+/// of microseconds.
 const APPLICATIONS_PER_POLL: u64 = 1 << 10;
 
-/// How many units of work the search does between two polls of its stop
-/// at most, where the zones it handles are large: some milliseconds. A
-/// unit is a member of a zone copied, compared or indexed, so that the
-/// work a stop is told of grows with the time the search takes, whatever
-/// the size of its sequents.
+/// The most units of work the search does between two polls of its stop.
+/// Only large zones reach it, after some milliseconds.
+///
+/// A unit is a member of a zone copied, compared or indexed. So the work
+/// a stop is told of grows with the time the search takes, whatever the
+/// size of its sequents.
 const UNITS_PER_POLL: u64 = 1 << 20;
 
 /// How many kept sequents' terms the proof is written for between two
 /// polls of the stop.
 const BUILT_PER_POLL: usize = 1 << 12;
 
-/// The tag of a record of Mix, beside the records of rules, which are the
-/// rule's index.
+/// The tag of a record of Mix. A record of a rule has the rule's index
+/// as its tag.
 const MIX: u32 = u32::MAX;
 
-/// Runs the search on a task, on the calling thread. Where the
-/// saturation ends without proving the goal, returns the sequents it kept
-/// as the refutation.
+/// Runs the search on a task, on the calling thread.
+///
+/// Returns the search's outcome, and the sequents it kept as the
+/// refutation where the saturation ends without proving the goal.
 fn search(
     task: &Task<'_>,
     options: &Options,
@@ -185,6 +199,9 @@ fn search(
 /// A sequent kept: where its zones lie in the store, whether it absorbs,
 /// whether it was taken up (its rank among those taken up) or subsumed
 /// since, and where its record lies.
+///
+/// A record is how the sequent was derived: the rule with its premises
+/// and partners, or Mix with its two sequents.
 #[derive(Clone, Copy, Debug)]
 struct Kept {
     /// The start of its linear zone, then its unrestricted zone, in the
@@ -198,8 +215,9 @@ struct Kept {
     top: bool,
     /// The members of its linear zone in output position.
     outputs: u64,
-    /// Its rank among the sequents taken up, or `u32::MAX` while it waits:
-    /// below its id, which is below `u32::MAX` ([`Saturation::keep`]).
+    /// Its rank among the sequents taken up, or `u32::MAX` while it waits.
+    /// A rank is below the number of sequents kept, which is at most
+    /// `u32::MAX`, since every id is below it ([`Saturation::keep`]).
     rank: u32,
     /// Whether a sequent kept after it subsumes it.
     dead: bool,
@@ -209,15 +227,15 @@ struct Kept {
 }
 
 impl Kept {
-    /// The number of members of both zones: the order in which sequents
-    /// are taken up.
+    /// Returns the number of members of both zones, which orders the
+    /// sequents taken up.
     fn size(&self) -> u64 {
         u64::from(self.gamma) + u64::from(self.theta)
     }
 }
 
 /// The search's state: the sequents kept, their indices, the queue of
-/// those to take up, and the goal's stable sequents proved.
+/// those to take up, and the goal's holes proved.
 struct Saturation<'s, 'a> {
     /// The calculus the rules are read in.
     calculus: Calculus<'s, 'a>,
@@ -225,7 +243,8 @@ struct Saturation<'s, 'a> {
     shape: &'s Shape<'a>,
     /// The derived rules.
     rules: &'s Rules,
-    /// The goal's phase.
+    /// The goal's own phase, whose holes are the stable sequents to
+    /// prove.
     goal: &'s Rules,
     /// Whether Mix joins two sequents.
     mix: bool,
@@ -253,8 +272,8 @@ struct Saturation<'s, 'a> {
     filled: Vec<Option<u32>>,
     /// The goal's holes not yet proved.
     unfilled: usize,
-    /// The bytes of the lists in the tables, which their tables' own
-    /// capacity does not count.
+    /// The bytes of the lists in the tables. A table's own capacity does
+    /// not count them.
     lists: usize,
     /// The charge for everything the search holds.
     charged: Charged<'s>,
@@ -263,7 +282,7 @@ struct Saturation<'s, 'a> {
     /// A stack for evaluating a rule's term.
     stack: Vec<Zone>,
     /// The sequents taken up, applications and choices pruned since the
-    /// last poll, which set when the stop is polled.
+    /// last poll. They decide, with `weighed`, when the stop is polled.
     unpolled: u64,
     /// The units of work done since the last poll, which the stop is told.
     weighed: u64,
@@ -273,15 +292,15 @@ struct Saturation<'s, 'a> {
     stop: &'s mut dyn FnMut(u64) -> bool,
 }
 
-/// Pushes onto a list in a table, returning how many bytes its allocation
-/// grew by.
+/// Pushes onto a list in a table, and returns how many bytes its
+/// allocation grew by.
 fn grow(list: &mut Vec<u32>, id: u32) -> usize {
     let before = bytes_of(list);
     list.push(id);
     bytes_of(list) - before
 }
 
-/// The members of both zones of a sequent, as units of work.
+/// Returns the members of both zones of a sequent, as units of work.
 fn size(z: &Zone) -> u64 {
     (z.gamma.len() + z.theta.len()) as u64
 }
@@ -295,7 +314,7 @@ fn distinct(list: &[OccId]) -> impl Iterator<Item = OccId> + '_ {
 }
 
 impl<'s, 'a> Saturation<'s, 'a> {
-    /// A search with nothing kept.
+    /// Returns a search with nothing kept.
     fn new(
         shape: &'s Shape<'a>,
         rules: &'s Rules,
@@ -340,10 +359,12 @@ impl<'s, 'a> Saturation<'s, 'a> {
         }
     }
 
-    /// The sequents kept and not subsumed since, which a saturation that
-    /// ended leaves closed under the rules: every application to them was
-    /// made, and what it derived was kept or subsumed by a kept sequent,
-    /// which a kill leaves to one not killed.
+    /// Returns the sequents kept and not subsumed since.
+    ///
+    /// A saturation that ended leaves them closed under the rules. Every
+    /// application to them was made, and what it derived was kept or
+    /// subsumed by a kept sequent. A sequent killed as subsumed leaves one
+    /// alive that subsumes it.
     fn saturated(&self, positive: Vec<crate::linear::occurrences::Sign>) -> Saturated {
         let sequents = (0..self.kept.len() as u32)
             .filter(|&id| !self.kept[id as usize].dead)
@@ -363,20 +384,22 @@ impl<'s, 'a> Saturation<'s, 'a> {
         top || self.shape.affine
     }
 
-    /// The linear zone of a kept sequent.
+    /// Returns the linear zone of a kept sequent.
     fn gamma(&self, id: u32) -> &[OccId] {
         let k = &self.kept[id as usize];
         &self.store[k.start..k.start + k.gamma as usize]
     }
 
-    /// The unrestricted zone of a kept sequent, its globals left out.
+    /// Returns the unrestricted zone of a kept sequent, without its
+    /// globals.
     fn theta(&self, id: u32) -> &[OccId] {
         let k = &self.kept[id as usize];
         let at = k.start + k.gamma as usize;
         &self.store[at..at + k.theta as usize]
     }
 
-    /// The zone of a kept sequent, with the node proving it.
+    /// Writes the zone of a kept sequent into `into`, with the node
+    /// proving it.
     fn zone(&self, id: u32, node: Option<NodeId>, into: &mut Zone) {
         let k = self.kept[id as usize];
         into.gamma.clear();
@@ -388,7 +411,8 @@ impl<'s, 'a> Saturation<'s, 'a> {
         into.node = node;
     }
 
-    /// Charges what the tables hold, and answers the memory bound.
+    /// Charges what the tables hold. Fails with the memory limit when the
+    /// account is over its bound.
     fn settle(&mut self) -> Result<(), Reason> {
         /// The bytes a table's slot takes beside its entry.
         const CONTROL: usize = 1;
@@ -413,7 +437,7 @@ impl<'s, 'a> Saturation<'s, 'a> {
     }
 
     /// Counts `events` (sequents taken up, applications, choices pruned)
-    /// that weigh `units` of work, and polls the stop with the units once
+    /// that weigh `units` of work. Polls the stop with the units once
     /// enough of either has been done, or when `now`.
     fn work(&mut self, events: u64, units: u64, now: bool) -> Result<(), Reason> {
         self.unpolled += events;
@@ -427,8 +451,8 @@ impl<'s, 'a> Saturation<'s, 'a> {
         Ok(())
     }
 
-    /// Whether a kept sequent other than `except` subsumes the zone (its
-    /// globals left out).
+    /// Whether a kept sequent other than `except` subsumes the zone, whose
+    /// globals are left out.
     fn subsumed(&self, z: &Zone, except: Option<u32>) -> bool {
         let alive = |t: u32| Some(t) != except && !self.kept[t as usize].dead;
         (!self.weak(z.top) && self.exact.same_within(&z.gamma, &z.theta, alive))
@@ -436,18 +460,19 @@ impl<'s, 'a> Saturation<'s, 'a> {
     }
 
     /// Whether every two members of a zone can stand in one sequent of a
-    /// proof of the goal: those consecutive in the order of the forest
-    /// (whose common ancestors are every two members' common ancestors)
-    /// are coherent.
+    /// proof of the goal.
+    ///
+    /// It tests the members next to each other in the forest's order. Their
+    /// common ancestors are the common ancestors of every two members.
     fn coherent(&self, z: &Zone) -> bool {
         let mut all: Vec<OccId> = z.gamma.iter().chain(&z.theta).copied().collect();
         all.sort_unstable();
         rules::coherent_list(self.shape.forest, &all)
     }
 
-    /// Keeps a derived sequent unless a kept one subsumes it or it cannot
-    /// stand in a proof of the goal, with its record; fills the goal's
-    /// holes it proves.
+    /// Keeps a derived sequent with its record, unless a kept one subsumes
+    /// it or it cannot stand in a proof of the goal. Fills the goal's holes
+    /// it proves.
     fn keep(&mut self, mut z: Zone, record: &[u32]) -> Result<(), Reason> {
         z.theta
             .retain(|o| self.shape.globals.binary_search(o).is_err());
@@ -460,8 +485,8 @@ impl<'s, 'a> Saturation<'s, 'a> {
             self.statistics.memo_hits += 1;
             return Ok(());
         }
-        // Ids, ranks and the lengths of zones are `u32`s: a search without a
-        // memory bound that passes them ends here.
+        // Ids, ranks and the lengths of zones are `u32`s. A search without
+        // a memory bound that passes them ends here.
         let id = u32::try_from(self.kept.len())
             .ok()
             .filter(|&id| id < u32::MAX)
@@ -501,11 +526,13 @@ impl<'s, 'a> Saturation<'s, 'a> {
         self.settle()
     }
 
-    /// Fills the goal's holes the kept sequent proves: its linear zone
-    /// within the hole's members (all of them unless it absorbs or
-    /// weakens) and its unrestricted zone within the hole's. Returns the
-    /// work: one for each hole looked at and each member compared (a
-    /// goal's phase can have millions of holes).
+    /// Fills the goal's holes that the kept sequent proves.
+    ///
+    /// It proves a hole when its linear zone lies within the hole's
+    /// members (and is all of them unless it absorbs or weakens), and its
+    /// unrestricted zone within the hole's. Returns the work: one unit for
+    /// each hole looked at and each member compared, since a goal's phase
+    /// can have millions of holes.
     fn fill(&mut self, id: u32) -> u64 {
         let candidates: Vec<u32> = match self.gamma(id).first() {
             Some(o) => self.goal_index.get(o).cloned().unwrap_or_default(),
@@ -522,8 +549,8 @@ impl<'s, 'a> Saturation<'s, 'a> {
             units += leaves.len() as u64;
             let theta = &self.goal.leaves[hole.theta.start as usize..hole.theta.end as usize];
             let gamma = self.gamma(id);
-            // A member left out is absorbed, or weakened in where it is no
-            // output.
+            // A member left out is absorbed, or weakened in where it is
+            // not an output.
             let top = self.kept[id as usize].top;
             if within(gamma, leaves)
                 && (weak || gamma.len() == leaves.len())
@@ -547,8 +574,10 @@ impl<'s, 'a> Saturation<'s, 'a> {
     }
 
     /// Runs the search: the rules without premises first, then the
-    /// sequents kept, smallest first. Returns the sequents proving the
-    /// goal's holes, `None` when the saturation ended without them.
+    /// sequents kept, smallest first.
+    ///
+    /// Returns the sequents proving the goal's holes, or `None` when the
+    /// saturation ended without them.
     fn run(&mut self) -> Result<Option<Vec<u32>>, Reason> {
         let rules = self.rules;
         for r in 0..rules.all.len() as u32 {
@@ -584,9 +613,10 @@ impl<'s, 'a> Saturation<'s, 'a> {
         ))
     }
 
-    /// Takes a sequent up: indexes it among those taken up and applies
-    /// every rule with a premise it can be, the others taken up before it,
-    /// and Mix with every sequent taken up.
+    /// Takes a sequent up. It indexes the sequent among those taken up,
+    /// and applies every rule with a hole the sequent fits, the other
+    /// holes taking the sequents taken up so far, itself included. With
+    /// Mix, it also joins the sequent with every sequent taken up.
     fn activate(&mut self, id: u32) -> Result<(), Reason> {
         self.work(1, 1 + 2 * u64::from(self.kept[id as usize].gamma), true)?;
         self.statistics.nodes += 1;
@@ -646,12 +676,14 @@ impl<'s, 'a> Saturation<'s, 'a> {
         Ok(())
     }
 
-    /// The sequents taken up that can go into a hole of a rule beside the
-    /// sequent of rank `rank`: before it in the rule's holes, those taken
-    /// up before it; after it, it too. Returns them and the work of the
-    /// scan: one for each sequent of the lists looked at and each member
-    /// of the hole compared with it (most of them rejected, on a posting
-    /// list of thousands).
+    /// Returns the sequents taken up that can go into a hole of a rule
+    /// beside the sequent of rank `rank`, and the work of the scan.
+    ///
+    /// A hole before that sequent's in the rule takes the sequents taken
+    /// up before it, and a hole after it takes it too. The work is one
+    /// unit for each sequent of the lists looked at and each member of the
+    /// hole compared with it. Most of them are rejected, on a posting list
+    /// of thousands.
     fn candidates(&self, hole: u32, rank: u32, before: bool) -> (Vec<u32>, u64) {
         let hole = &self.rules.holes[hole as usize];
         let leaves = &self.rules.leaves[hole.leaves.start as usize..hole.leaves.end as usize];
@@ -684,11 +716,12 @@ impl<'s, 'a> Saturation<'s, 'a> {
         (out, scanned)
     }
 
-    /// Applies a rule: with `fixed`, the sequent given goes into the hole
-    /// at that place and the sequents taken up into the others; every
-    /// choice of premises and partners is evaluated and what it derives
-    /// kept. A choice of premises is given up as soon as its evaluation
-    /// must fail ([`Saturation::fits`]).
+    /// Applies a rule. With `fixed`, the sequent given goes into the hole
+    /// at that place, and the sequents taken up into the others.
+    ///
+    /// Every choice of premises and partners is evaluated, and what it
+    /// derives is kept. A choice of premises is given up as soon as its
+    /// evaluation must fail ([`Saturation::fits`]).
     fn apply(&mut self, r: u32, fixed: Option<(u32, u32)>) -> Result<(), Reason> {
         let rules = self.rules;
         let rule = &rules.all[r as usize];
@@ -702,7 +735,7 @@ impl<'s, 'a> Saturation<'s, 'a> {
                 None => unreachable!("a rule with holes is applied with a premise"),
             };
             self.work(0, scanned, false)?;
-            // Each candidate was looked at in a list and its zone compared
+            // Each candidate was looked at in a list, and its zone compared
             // with the hole's.
             let looked: u64 = ids
                 .iter()
@@ -732,8 +765,9 @@ impl<'s, 'a> Saturation<'s, 'a> {
                     *c = list[p].id;
                 }
                 loop {
-                    // Each step evaluated, and the members of the zone it
-                    // yields, which it copied or merged.
+                    // A unit for each step evaluated and each linear member
+                    // of the zone it yields, which the step copied or
+                    // merged.
                     let mut units = 0;
                     let mut stack = std::mem::take(&mut self.stack);
                     let derived = {
@@ -754,7 +788,7 @@ impl<'s, 'a> Saturation<'s, 'a> {
                     self.work(1, units, false)?;
                     if let Some(z) = derived {
                         // Its coherence and subsumption are tested on its
-                        // members.
+                        // members, a unit each.
                         self.work(0, size(&z), false)?;
                         record.clear();
                         record.push(r);
@@ -775,7 +809,8 @@ impl<'s, 'a> Saturation<'s, 'a> {
                 j = holes - 1;
                 at[j] += 1;
             }
-            // The next premise at place `j` that fits beside those before.
+            // Finds the next premise at place `j` that fits beside those
+            // before it.
             while at[j] < lists[j].len() && !self.fits(&lists, &groups, &at, j) {
                 self.work(1, 1, false)?;
                 at[j] += 1;
@@ -792,8 +827,9 @@ impl<'s, 'a> Saturation<'s, 'a> {
         }
     }
 
-    /// What a kept sequent brings into a hole: its context, the members the
-    /// hole's phase does not take, and how many of them are outputs.
+    /// Returns what a kept sequent brings into a hole: its context (the
+    /// members the hole's phase does not take) and how many of them are
+    /// outputs.
     fn premise(&self, hole: u32, id: u32) -> Premise {
         let hole = &self.rules.holes[hole as usize];
         let leaves = &self.rules.leaves[hole.leaves.start as usize..hole.leaves.end as usize];
@@ -808,11 +844,13 @@ impl<'s, 'a> Saturation<'s, 'a> {
     }
 
     /// Whether the premise chosen at place `j` can stand beside those at
-    /// the places before it: the contexts of one release's exact premises
-    /// are equal, since its `&` steps join them and nothing else changes
-    /// them (without weakening); and under a reading the releases bring
-    /// one output at most, since the conclusion holds every context and
-    /// takes the most outputs of each release's.
+    /// the places before it.
+    ///
+    /// Without weakening, the contexts of one release's exact premises
+    /// must be equal, since its `&` steps join them and nothing else
+    /// changes them. Under a reading, the releases together bring at most
+    /// one output, since the conclusion holds every context and takes the
+    /// most outputs of each release's premises.
     fn fits(&self, lists: &[Vec<Premise>], groups: &[u32], at: &[usize], j: usize) -> bool {
         let p = &lists[j][at[j]];
         if !self.shape.affine && p.exact {
@@ -839,9 +877,9 @@ impl<'s, 'a> Saturation<'s, 'a> {
         true
     }
 
-    /// Writes the proof: the kept sequents' terms the goal's holes rest on,
-    /// each once, then the goal's phase over them. Returns the root and the
-    /// arena.
+    /// Writes the proof: the terms of the kept sequents that the goal's
+    /// holes rest on, each once, then the goal's phase over them. Returns
+    /// the root and the arena.
     fn build(&mut self, premises: &[u32]) -> Result<(NodeId, Vec<Node>), Reason> {
         let mut nodes: Vec<Node> = Vec::new();
         let mut done: HashMap<u32, NodeId> = HashMap::default();
@@ -930,7 +968,8 @@ impl<'s, 'a> Saturation<'s, 'a> {
         let mut z = z;
         let goal = &self.shape.goal;
         if self.shape.affine && !z.top && within(&z.gamma, goal) {
-            // What the premises weakened away, weakened in below the root.
+            // The members that the premises weakened away are weakened in
+            // below the root.
             for o in eval::excess(goal, &z.gamma) {
                 let weakened = self.calculus.weaken_in(&mut z, o, &mut nodes);
                 debug_assert!(weakened, "only inputs go unused under a reading");
@@ -955,7 +994,7 @@ struct Premise {
 }
 
 /// Advances an odometer of choices, the first place fastest, each place
-/// below its bound; returns false after the last choice.
+/// below its bound. Returns false after the last choice.
 fn advance(places: &mut [u32], bound: impl Fn(usize) -> u32) -> bool {
     for (i, p) in places.iter_mut().enumerate() {
         *p += 1;

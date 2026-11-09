@@ -1,13 +1,22 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The derived rules of the forward search, compiled from the forest before
-//! it starts: one rule per formula a focus can begin on and per choice of
-//! the `⊕` sides under it. A rule is the proof term of one focusing phase,
-//! the focus and the asynchronous phases of what it releases, read forward:
-//! its steps in postorder, with a hole where a premise goes (a stable
-//! sequent derived before) and a slot where an axiom's partner, a negative
-//! literal, is chosen. The goal is compiled the same way into its
+//! The derived rules of the forward search, compiled from the forest
+//! before the search starts.
+//!
+//! A focused proof alternates two kinds of phases. A focus decomposes one
+//! positive formula (`⊗`, `1`, `⊕`, `0`, `!` and the literals the bias
+//! makes positive) as far as it stays positive. It then releases what is
+//! left to an asynchronous phase, which decomposes the negative formulas
+//! by invertible rules until the sequent is stable (no invertible rule
+//! applies).
+//!
+//! A derived rule is the proof term of one focus and the asynchronous
+//! phases of what it releases, read forward. There is one rule per
+//! formula a focus can begin on and per choice of the `⊕` sides under it.
+//! Its steps are in postorder. A hole is where a premise goes, a stable
+//! sequent derived before. A slot is where an axiom's partner, a negative
+//! literal, is chosen. The goal is compiled the same way into its own
 //! asynchronous phase, whose holes the search fills.
 
 use super::super::Reason;
@@ -18,7 +27,7 @@ use crate::linear::proofs::Branch;
 use crate::linear::sequents::Kind;
 use std::ops::Range;
 
-/// A step of a rule's term, in postorder: a step's operands are the
+/// A step of a rule's term, in postorder. A step's operands are the
 /// results of the steps before it, as on a stack.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Step {
@@ -49,9 +58,9 @@ pub(super) enum Step {
     Copy(OccId),
 }
 
-/// The partner of a positive literal in an axiom: a negative literal of the
-/// same atom, in the linear zone, or in the unrestricted one when it is the
-/// subformula of a `?` (a copy above the axiom).
+/// The partner of a positive literal in an axiom: a negative literal of
+/// the same atom. It is in the linear zone, or in the unrestricted one
+/// when it is the subformula of a `?` (a copy above the axiom).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct Partner {
     /// The negative literal.
@@ -60,7 +69,7 @@ pub(super) struct Partner {
     pub(super) theta: bool,
 }
 
-/// A rule: ranges of the steps, holes and slots of [`Rules`].
+/// A rule: its ranges of the steps, holes and slots of [`Rules`].
 #[derive(Clone, Debug)]
 pub(super) struct Rule {
     /// Its steps.
@@ -71,18 +80,21 @@ pub(super) struct Rule {
     pub(super) slots: Range<u32>,
 }
 
-/// A hole of a rule: the occurrences the term takes from the premise put
-/// there, which a premise must hold unless it may absorb or weaken them,
-/// and the subformulas of the `?` the phase met before it, which the
-/// premise's unrestricted zone may hold.
+/// A hole of a rule, where a premise goes.
+///
+/// It lists the occurrences the term takes from the premise put there,
+/// which the premise must hold unless it may absorb or weaken them. It
+/// also lists the subformulas of the `?` the phase met before it, which
+/// the premise's unrestricted zone may hold.
 #[derive(Clone, Debug)]
 pub(super) struct Hole {
     /// The rule it belongs to.
     pub(super) rule: u32,
     /// Its place among the rule's holes.
     pub(super) index: u32,
-    /// The release of the rule it belongs to: the holes of one release
-    /// share their context, the others' contexts are joined side by side.
+    /// The release of the rule it belongs to. The holes of one release
+    /// share their context, and the contexts of different releases are
+    /// joined side by side.
     pub(super) group: u32,
     /// The range of its members in [`Rules::leaves`], sorted.
     pub(super) leaves: Range<u32>,
@@ -90,8 +102,8 @@ pub(super) struct Hole {
     pub(super) theta: Range<u32>,
 }
 
-/// Every rule of the search, or the goal's phase, which is one rule whose
-/// holes the goal's stable sequents are.
+/// Every rule of the search, or the goal's phase: one rule whose holes
+/// are the goal's stable sequents.
 #[derive(Debug, Default)]
 pub(super) struct Rules {
     /// The rules.
@@ -106,8 +118,8 @@ pub(super) struct Rules {
     pub(super) slots: Vec<Range<u32>>,
     /// The partners of the slots.
     pub(super) partners: Vec<Partner>,
-    /// The range of [`Rules::partners`] each positive literal takes under a
-    /// focus on a formula, which every rule with that focus shares.
+    /// The range of [`Rules::partners`] each positive literal takes under
+    /// a focus on a formula. Every rule with that focus shares it.
     lists: HashMap<(OccId, OccId), Range<u32>>,
     /// The holes by their first member.
     pub(super) by_leaf: HashMap<OccId, Vec<u32>>,
@@ -115,9 +127,9 @@ pub(super) struct Rules {
     pub(super) open: Vec<u32>,
 }
 
-/// What a forest's occurrences are to the search: their polarity under the
-/// bias, the subformulas of `?` the goal's asynchronous phase puts into the
-/// unrestricted zone on every branch, and the reading.
+/// What a forest's occurrences are to the search: their polarity under
+/// the bias, the subformulas of `?` that the goal's asynchronous phase
+/// puts into the unrestricted zone on every branch, and the reading.
 pub(super) struct Shape<'a> {
     /// The forest.
     pub(super) forest: &'a Forest,
@@ -130,12 +142,13 @@ pub(super) struct Shape<'a> {
     /// The members of the goal, sorted.
     pub(super) goal: Vec<OccId>,
     /// The subformulas of the `?` that the goal reaches through `⅋` alone,
-    /// sorted: in the unrestricted zone of every sequent of a proof.
+    /// sorted. They are in the unrestricted zone of every sequent of a
+    /// proof.
     pub(super) globals: Vec<OccId>,
 }
 
 impl<'a> Shape<'a> {
-    /// The shape of a goal of the forest under the atoms' signs.
+    /// Returns the shape of a goal of the forest under the atoms' signs.
     pub(super) fn new(
         forest: &'a Forest,
         goal: &[OccId],
@@ -166,8 +179,8 @@ impl<'a> Shape<'a> {
         }
     }
 
-    /// Whether an occurrence is positive: `⊗ 1 ⊕ 0 !` and the literals the
-    /// bias makes positive.
+    /// Whether an occurrence is positive: `⊗ 1 ⊕ 0 !` (and `∃`), and the
+    /// literals the bias makes positive.
     pub(super) fn positive(&self, o: OccId) -> bool {
         match self.forest.kind(o) {
             Kind::Tensor | Kind::One | Kind::Plus | Kind::Zero | Kind::Bang | Kind::Exists => true,
@@ -179,8 +192,9 @@ impl<'a> Shape<'a> {
         }
     }
 
-    /// Whether an occurrence stays in a stable sequent's linear zone when an
-    /// asynchronous phase meets it: a positive formula or a negative literal.
+    /// Whether an occurrence stays in a stable sequent's linear zone when
+    /// an asynchronous phase meets it: a positive formula or a negative
+    /// literal.
     fn stable(&self, o: OccId) -> bool {
         self.positive(o) || self.forest.is_literal(o)
     }
@@ -211,16 +225,22 @@ fn copied(forest: &Forest, o: OccId) -> bool {
 }
 
 /// Whether two occurrences can stand in one sequent of a proof of a goal
-/// whose own members can: outside the subformulas of `?`, where nothing is
-/// repeated, two members of one sequent are distinct, neither lies below
-/// the other, and the connective that joins them is a `⅋`, since a rule
-/// decomposed it below them, and a `⊗`, `&` or `⊕` above both sends them to
-/// different premises or keeps one side. Two joined by a `?` formula (the
-/// formula twice, or it beside a member of its subformula, as a goal is
-/// after a contraction and a dereliction) are let through: no stable
-/// sequent holds a `?` formula, which a goal's phase decomposes first, and
-/// all below its subformula may repeat. A goal of the sequent's roots
-/// meets that, and so does every goal of a derivation of them.
+/// whose own members can.
+///
+/// Outside the subformulas of `?`, nothing is repeated. There two members
+/// of one sequent are distinct, and neither lies below the other. The
+/// connective that joins them is a `⅋`, which a rule decomposed below
+/// them. A `⊗`, `&` or `⊕` above both would send them to different
+/// premises or keep only one side.
+///
+/// Two occurrences joined by a `?` formula are let through: the formula
+/// twice, or the formula beside a member of its subformula, as in a goal
+/// after a contraction and a dereliction. No stable sequent holds a `?`
+/// formula, since a goal's phase decomposes it first, and everything below
+/// its subformula may repeat.
+///
+/// A goal of the sequent's roots has coherent members, and so does every
+/// goal of a derivation of them.
 pub(super) fn coherent(forest: &Forest, x: OccId, y: OccId) -> bool {
     let Some(w) = forest.lca(x, y) else {
         return true;
@@ -232,8 +252,10 @@ pub(super) fn coherent(forest: &Forest, x: OccId, y: OccId) -> bool {
 }
 
 /// Whether every two members of a list sorted in the forest's order can
-/// stand in one sequent of a proof: those consecutive are, the common
-/// ancestors of a list sorted in preorder being those of its neighbours.
+/// stand in one sequent of a proof.
+///
+/// It tests the neighbours only: in a list sorted in preorder, the common
+/// ancestors of any two members are those of some two neighbours.
 pub(super) fn coherent_list(forest: &Forest, sorted: &[OccId]) -> bool {
     sorted.windows(2).all(|w| coherent(forest, w[0], w[1]))
 }
@@ -249,8 +271,8 @@ enum Pending {
 }
 
 /// The state of an asynchronous phase: the negative formulas left to
-/// decompose, the stable members met, and the subformulas of `?` moved into
-/// the unrestricted zone.
+/// decompose, the stable members met, and the subformulas of `?` moved
+/// into the unrestricted zone.
 #[derive(Clone, Default)]
 struct Phase {
     /// A `⊤` met, which closes the phase.
@@ -263,13 +285,13 @@ struct Phase {
     leaves: Vec<OccId>,
     /// The subformulas of `?` met.
     theta: Vec<OccId>,
-    /// The release the phase belongs to, among the rule's: the premises of
+    /// The release the phase belongs to, among the rule's. The premises of
     /// one release share their context.
     group: u32,
 }
 
 impl Phase {
-    /// The bytes its lists hold.
+    /// Returns the bytes its lists hold.
     fn bytes(&self) -> usize {
         bytes_of(&self.unary)
             + bytes_of(&self.withs)
@@ -306,7 +328,7 @@ struct Writer<'s, 'a, 'c> {
     holes: Vec<(Vec<OccId>, Vec<OccId>, u32)>,
     /// Its slots, in reverse, as the positive literal and the root.
     slots: Vec<(OccId, OccId)>,
-    /// The charge for what is allocated, which holds the rules' tables as
+    /// The charge for what is allocated. It holds the rules' tables as
     /// long as the search runs.
     charged: &'s mut Charged<'c>,
     /// The bytes charged for the rules' tables.
@@ -315,11 +337,11 @@ struct Writer<'s, 'a, 'c> {
     unpolled: u64,
     /// The releases of the rule being written.
     groups: u32,
-    /// The bytes the rule being written holds beside its steps: its holes'
-    /// lists and the phases waiting on the stack.
+    /// The bytes the rule being written holds beside its steps: its
+    /// holes' lists and the phases waiting on the stack.
     pending: usize,
-    /// The bytes of the lists in [`Rules::by_leaf`], which the table's own
-    /// capacity does not count.
+    /// The bytes of the lists in [`Rules::by_leaf`]. The table's own
+    /// capacity does not count them.
     inner: usize,
 }
 
@@ -328,7 +350,8 @@ struct Writer<'s, 'a, 'c> {
 const STEPS_PER_POLL: u64 = 1 << 12;
 
 impl<'s, 'a, 'c> Writer<'s, 'a, 'c> {
-    /// Charges the tables' growth, and answers the memory bound.
+    /// Charges the tables' growth. Fails with the memory limit when the
+    /// account is over its bound.
     fn settle(&mut self) -> Result<(), Reason> {
         let r = &self.rules;
         let held = bytes_of(&r.all)
@@ -354,9 +377,9 @@ impl<'s, 'a, 'c> Writer<'s, 'a, 'c> {
         Ok(())
     }
 
-    /// Counts a step written, and every [`STEPS_PER_POLL`] steps charges
+    /// Counts a step written. Every [`STEPS_PER_POLL`] steps, it charges
     /// the tables and what the rule being written holds, and polls the
-    /// stop with them as work.
+    /// stop with the steps as work.
     fn tick(&mut self, stop: &mut dyn FnMut(u64) -> bool) -> Result<(), Reason> {
         self.tick_by(1, stop)
     }
@@ -377,9 +400,10 @@ impl<'s, 'a, 'c> Writer<'s, 'a, 'c> {
     }
 
     /// Writes the term below `root` under the choice of `⊕` sides given,
-    /// and records it as a rule unless a slot has no partner; `anchor` is
-    /// the formula the focus began on, which an axiom's partner must be
-    /// able to stand beside.
+    /// and records it as a rule unless a slot has no partner.
+    ///
+    /// `anchor` is the formula the focus began on. An axiom's partner must
+    /// be able to stand beside it.
     fn write(
         &mut self,
         root: Pending,
@@ -407,7 +431,8 @@ impl<'s, 'a, 'c> Writer<'s, 'a, 'c> {
                     Kind::Tensor => {
                         self.reversed.push(Step::Tensor(o));
                         let (l, r) = (forest.left(o).expect("⊗"), forest.right(o).expect("⊗"));
-                        // Reversed postorder: the right operand first.
+                        // The steps are written in reversed postorder, so
+                        // the right operand comes first.
                         let (l, r) = (self.under_focus(l), self.under_focus(r));
                         self.push(&mut stack, l);
                         self.push(&mut stack, r);
@@ -480,8 +505,9 @@ impl<'s, 'a, 'c> Writer<'s, 'a, 'c> {
                             let mut left = phase.clone();
                             left.place(self.shape, forest.left(o).expect("&"));
                             phase.place(self.shape, forest.right(o).expect("&"));
-                            // Reversed postorder: the right premise first,
-                            // the left one after everything it pushes.
+                            // In reversed postorder the right premise comes
+                            // first, and the left one after everything the
+                            // right one pushes.
                             self.push(&mut stack, Pending::Async(left));
                             self.tick(stop)?;
                             continue;
@@ -501,7 +527,7 @@ impl<'s, 'a, 'c> Writer<'s, 'a, 'c> {
         self.settle()
     }
 
-    /// Pushes a subtree to write, counting the lists of a phase among what
+    /// Pushes a subtree to write. The lists of a phase count among what
     /// the rule being written holds until it is popped.
     fn push(&mut self, stack: &mut Vec<Pending>, pending: Pending) {
         if let Pending::Async(phase) = &pending {
@@ -510,10 +536,10 @@ impl<'s, 'a, 'c> Writer<'s, 'a, 'c> {
         stack.push(pending);
     }
 
-    /// A phase of a release of its own.
+    /// Returns a new phase of a release of its own.
     fn release(&mut self) -> Phase {
-        // A rule of 2³² releases has as many steps, which `record` refuses
-        // before the numbers are read.
+        // A rule of 2³² releases has as many steps, and `record` refuses
+        // it before the numbers are read.
         self.groups = self.groups.wrapping_add(1);
         Phase {
             group: self.groups.wrapping_sub(1),
@@ -521,8 +547,9 @@ impl<'s, 'a, 'c> Writer<'s, 'a, 'c> {
         }
     }
 
-    /// The subtree of an operand of a positive connective under focus: the
-    /// focus goes on into a positive one, and a negative one is released.
+    /// Returns the subtree of an operand of a positive connective under
+    /// focus. The focus goes on into a positive operand, and a negative
+    /// one is released.
     fn under_focus(&mut self, o: OccId) -> Pending {
         if self.shape.positive(o) {
             Pending::Focus(o)
@@ -533,13 +560,15 @@ impl<'s, 'a, 'c> Writer<'s, 'a, 'c> {
         }
     }
 
-    /// Records the rule written, numbering its holes and slots in the order
-    /// of its steps, unless a slot has no partner; refuses a rule that
-    /// takes a table past what a `u32` indexes, which only a search without
-    /// a memory bound reaches.
+    /// Records the rule written, numbering its holes and slots in the
+    /// order of its steps, unless a slot has no partner.
+    ///
+    /// Fails with [`Reason::IndexLimit`] for a rule that takes a table past
+    /// what a `u32` indexes, which only a search without a memory bound
+    /// reaches.
     fn record(&mut self, stop: &mut dyn FnMut(u64) -> bool) -> Result<(), Reason> {
         let base_slot = self.rules.slots.len();
-        // Slots, in step order: the reverse of the written order. Rules
+        // The slots in step order, the reverse of the written order. Rules
         // that focus on the same formula under other `⊕` sides share their
         // literals' lists.
         let slots = std::mem::take(&mut self.slots);
@@ -568,7 +597,7 @@ impl<'s, 'a, 'c> Writer<'s, 'a, 'c> {
         let (holes, slots) = (self.holes.len() as u32, slots.len() as u32);
         let hole_base = self.rules.holes.len() as u32;
         // The holes leave the rule being written as they are copied into
-        // the tables, which are charged and polled as they grow: the goal's
+        // the tables, which are charged and polled as they grow. The goal's
         // phase can hold tens of millions of members.
         let written = std::mem::take(&mut self.holes);
         self.pending += bytes_of(&written);
@@ -615,7 +644,7 @@ impl<'s, 'a, 'c> Writer<'s, 'a, 'c> {
             slots: base_slot as u32..base_slot as u32 + slots,
         });
         // Every index into the tables is a `u32`, and every range over them
-        // was taken from their lengths: a table past `u32::MAX` would make
+        // was taken from their lengths. A table past `u32::MAX` would make
         // them wrap, so the rule that takes one there is refused before any
         // is read.
         let most = u32::MAX as usize;
@@ -637,11 +666,14 @@ impl<'s, 'a, 'c> Writer<'s, 'a, 'c> {
     }
 }
 
-/// The partners a positive literal under focus may take: the negative
-/// literals of its atom that can stand beside the formula the focus began
-/// on, from the unrestricted zone where they are the subformula of a `?`
-/// (and from the linear zone too where the goal holds them), with the
-/// opposite position under a reading; and the literals scanned, as work.
+/// Returns the partners a positive literal under focus may take, and the
+/// literals scanned, as work.
+///
+/// The partners are the negative literals of its atom that can stand
+/// beside the formula the focus began on, of the opposite position under
+/// a reading. One that is the subformula of a `?` comes from the
+/// unrestricted zone, and from the linear zone too where the goal holds
+/// it.
 fn partners(shape: &Shape<'_>, p: OccId, anchor: OccId) -> (Vec<Partner>, u64) {
     let forest = shape.forest;
     let (atom, sign) = (
@@ -669,11 +701,14 @@ fn partners(shape: &Shape<'_>, p: OccId, anchor: OccId) -> (Vec<Partner>, u64) {
     (found, forest.literals(atom, !sign).len() as u64)
 }
 
-/// Calls `each` with every way of choosing the `⊕` sides under a focus on
-/// `root`, a list of the `⊕` reached and the side taken, until it fails; a
-/// choice that reaches a `0` is left out, since no focus on it succeeds.
-/// `each` is called with `None` for every choice looked at, whole or not,
-/// as a unit of work: choices that a `0` ends can be exponentially many.
+/// Calls `each` with every way of choosing the `⊕` sides under a focus
+/// on `root`, until it fails. A way is a list of the `⊕` reached and the
+/// side taken.
+///
+/// A choice that reaches a `0` is left out, since no focus on it
+/// succeeds. `each` is also called with `None` for every choice looked
+/// at, whole or not, as a unit of work, since choices that a `0` ends can
+/// be exponentially many.
 fn plans(
     shape: &Shape<'_>,
     root: OccId,
@@ -716,12 +751,14 @@ fn plans(
     Ok(())
 }
 
-/// Compiles the rules of the search: a focus on every positive formula a
-/// stable sequent can hold, and a copy of every subformula of a `?` but the
-/// negative literals (which a partner takes from the unrestricted zone),
-/// each under every choice of its `⊕` sides. Charges the tables to
-/// `charged`, which holds them while the search runs, and counts a step as
-/// a unit of work for `stop`.
+/// Compiles the rules of the search.
+///
+/// The rules are a focus on every positive formula a stable sequent can
+/// hold, and a copy of every subformula of a `?` except the negative
+/// literals (which a partner takes from the unrestricted zone). Each comes
+/// under every choice of its `⊕` sides. Charges the tables to `charged`,
+/// which holds them while the search runs, and counts a step as a unit of
+/// work for `stop`.
 pub(super) fn compile(
     shape: &Shape<'_>,
     charged: &mut Charged<'_>,
@@ -771,8 +808,8 @@ pub(super) fn compile(
 }
 
 /// Compiles the goal's asynchronous phase as one rule without slots, whose
-/// holes are the stable sequents the goal decomposes into, charging it to
-/// `charged` and counting a step as a unit of work for `stop`.
+/// holes are the stable sequents the goal decomposes into. Charges it to
+/// `charged`, and counts a step as a unit of work for `stop`.
 pub(super) fn goal(
     shape: &Shape<'_>,
     charged: &mut Charged<'_>,

@@ -11,7 +11,8 @@ use crate::{
     linear::{Mode, Sequent},
 };
 
-/// Decides a sequent with the inverse method within `polls` polls.
+/// Decides a sequent with the inverse method within `polls` polls of its
+/// stop.
 fn decide(text: &str, mode: Mode, polls: u64) -> Verdict {
     let sequent: Sequent = text.parse().unwrap();
     let options = Options::default().with_engine(Some(Engine::Inverse));
@@ -25,7 +26,8 @@ fn decide(text: &str, mode: Mode, polls: u64) -> Verdict {
         .verdict
 }
 
-/// A few sequents of each fragment, proved and refuted.
+/// The inverse method proves and refutes a few sequents of each
+/// fragment.
 #[test]
 fn decides_small_sequents() {
     for (text, provable) in [
@@ -53,8 +55,9 @@ fn decides_small_sequents() {
     }
 }
 
-/// The polls of its stop the inverse method gets on a generated sequent:
-/// each a sequent taken up or a thousand rule applications.
+/// How many polls of its stop the inverse method gets on a generated
+/// sequent. A poll comes at each sequent taken up and after about a
+/// thousand rule applications.
 const POLLS: u64 = 1 << 10;
 
 /// Whether two verdicts contradict each other: a proof against a
@@ -75,10 +78,12 @@ fn against(verdict: &Verdict, reference: Answer) -> bool {
     }
 }
 
-/// Judges one generated sequent: the inverse method against the focused
-/// engine within the copies the generator gives and against the
-/// reference, and without exponentials decisive and equal to the
-/// reference where it decides. Returns whether the inverse method decided.
+/// Judges one generated sequent, and returns whether the inverse method
+/// decided it.
+///
+/// The inverse method must not contradict the focused engine, run within
+/// the copies the generator gives, nor the reference. Without
+/// exponentials it must decide.
 fn judge(text: &str, mode: Mode, copies: u32, reference: Answer, exponentials: bool) -> bool {
     let inverse = decide(text, mode, POLLS);
     let sequent: Sequent = text.parse().unwrap();
@@ -108,11 +113,13 @@ fn judge(text: &str, mode: Mode, copies: u32, reference: Answer, exponentials: b
     decided
 }
 
-/// Generated sequents and their mutants, classical in every rule set
-/// (linear and affine, with Mix where the rules use it) and intuitionistic
-/// in every rule set, linear and affine: the inverse method never
-/// contradicts the focused engine or the reference, decides every sequent
-/// without exponentials, and with them decides most.
+/// On generated sequents and their mutants, the inverse method never
+/// contradicts the focused engine or the reference. It decides every
+/// sequent without exponentials, and at least half of all of them.
+///
+/// The sequents are classical in every rule set (linear and affine, with
+/// Mix where the rules use it) and intuitionistic in every rule set
+/// (linear and affine).
 #[test]
 fn agrees_with_the_focused_engine_and_the_reference() {
     let (mut cases, mut decided) = (0, 0);
@@ -184,9 +191,9 @@ fn agrees_with_the_focused_engine_and_the_reference() {
     assert!(2 * decided >= cases, "decided {decided} of {cases}");
 }
 
-/// A goal within the sequent two of whose members no sequent of a proof
-/// holds together is refused, since the search drops every sequent that
-/// holds such a pair; a goal whose members can stand together is decided.
+/// A goal with two members that no sequent of a proof holds together is
+/// refused, since the search drops every sequent that holds such a pair.
+/// A goal whose members can stand together is decided.
 #[test]
 fn refuses_an_incoherent_goal() {
     let options = Options::default().with_engine(Some(Engine::Inverse));
@@ -200,7 +207,7 @@ fn refuses_an_incoherent_goal() {
         crate::linear::search::prove_goal(goal, mode, &options, &Limits::default(), |_| false)
             .map(|outcome| outcome.verdict)
     };
-    // The literals a ⊗ separates, and two of the same tensor's factors.
+    // The literals a `⊗` separates, and the two sides of a `&`.
     for (text, members) in [("|- a * ~a", &[1, 2][..]), ("|- a & ~a", &[1, 2])] {
         assert!(matches!(
             goal_of(text, members, Mode::CLASSICAL),
@@ -214,7 +221,7 @@ fn refuses_an_incoherent_goal() {
     let verdict = goal_of("|- a * b, ~a, ~b", &[1, 3], Mode::CLASSICAL).unwrap();
     assert!(matches!(verdict, Verdict::Proved(_)), "{verdict:?}");
     // A `?` formula twice, as after a contraction, and beside its own
-    // subformula, as after a dereliction: goals of a derivation.
+    // subformula, as after a dereliction. Both are goals of a derivation.
     for members in [&[0, 0, 2][..], &[0, 1, 2]] {
         let verdict = goal_of("|- ?~a, a * a", members, Mode::CLASSICAL).unwrap();
         assert!(
@@ -225,8 +232,8 @@ fn refuses_an_incoherent_goal() {
 }
 
 /// Choices of `⊕` sides that a `0` ends are work the stop is told of,
-/// however many there are: `0 ⊗ ((a₀ ⊕ b₀) ⊗ …)` has 2¹⁶ of them, none a
-/// rule.
+/// however many there are. `0 ⊗ ((a₀ ⊕ b₀) ⊗ …)` has 2¹⁶ of them, and
+/// none is a rule.
 #[test]
 fn choices_a_zero_ends_are_polled() {
     let mut factors = "(a0 + b0)".to_owned();

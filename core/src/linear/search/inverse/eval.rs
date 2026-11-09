@@ -1,15 +1,18 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! A rule applied forward: its term evaluated over the sequents in its
+//! A rule applied forward. Its term is evaluated over the sequents in its
 //! holes, step by step, to the sequent it derives, or to nothing where a
-//! step's side condition fails. A step derives what the checker derives of
-//! that rule: a member a step takes may be absent from a premise that a
-//! `⊤` lets absorb anything (the `any` flag of a sequent, here `top`), or,
-//! in affine mode, weakened in below the step. With a node arena given, the
-//! same evaluation writes the proof term, a node per step and a `Weaken`
-//! per member weakened in, so that the proof the search returns is the one
-//! it judged.
+//! step's side condition fails.
+//!
+//! A step derives what the checker derives of that rule. A member a step
+//! takes may be absent from a premise in two cases. A `⊤` above may let
+//! the premise absorb anything (the `any` flag of a sequent, here `top`).
+//! Or, in affine mode, the member is weakened in below the step.
+//!
+//! Given a node arena, the same evaluation writes the proof term: a node
+//! per step and a `Weaken` per member weakened in. So the proof the search
+//! returns is the one it judged.
 
 use super::rules::{Partner, Shape, Step};
 use crate::linear::occurrences::{Member, OccId};
@@ -19,6 +22,10 @@ use crate::linear::proofs::{Node, NodeId};
 /// repeats, the unrestricted zone sorted, whether a `⊤` above lets it
 /// absorb any further linear member, how many members are in output
 /// position, and the node proving it while a proof is written.
+///
+/// The linear zone holds the formulas used exactly once; the unrestricted
+/// zone holds the formulas under `?`, which may be used any number of
+/// times.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(super) struct Zone {
     /// The linear zone, sorted, with repeats.
@@ -27,9 +34,11 @@ pub(super) struct Zone {
     pub(super) theta: Vec<OccId>,
     /// Whether any further linear member is absorbed.
     pub(super) top: bool,
-    /// The members of `gamma` in output position: a `u64`, since it never
-    /// exceeds the occurrences the zones in memory hold together (each
-    /// four bytes), below 2⁶² on any target, so no sum of two wraps.
+    /// The members of `gamma` in output position.
+    ///
+    /// It never exceeds the occurrences that the zones in memory hold
+    /// together, at four bytes each. So in a `u64` it stays below 2⁶² on
+    /// any target, and no sum of two wraps.
     pub(super) outputs: u64,
     /// The node proving the sequent, while a proof is written.
     pub(super) node: Option<NodeId>,
@@ -41,7 +50,8 @@ pub(super) fn insert(list: &mut Vec<OccId>, o: OccId) {
     list.insert(at, o);
 }
 
-/// Removes one copy from a sorted list, returning whether there was one.
+/// Removes one copy from a sorted list, and returns whether there was
+/// one.
 fn remove(list: &mut Vec<OccId>, o: OccId) -> bool {
     match list.binary_search(&o) {
         Ok(at) => {
@@ -52,8 +62,8 @@ fn remove(list: &mut Vec<OccId>, o: OccId) -> bool {
     }
 }
 
-/// Merges `from` into `into`, both sorted, keeping repeats: the sum of two
-/// multisets.
+/// Merges `from` into `into`, both sorted, keeping repeats: the sum of
+/// two multisets.
 fn sum(into: &mut Vec<OccId>, from: &[OccId]) {
     if from.is_empty() {
         return;
@@ -83,8 +93,8 @@ fn union(into: &mut Vec<OccId>, from: &[OccId]) {
     }
 }
 
-/// Returns the members of `of` beyond those of `within`, with repeats: what
-/// `within` lacks to hold `of`, both sorted multisets.
+/// Returns the members of `of` beyond those of `within`, with repeats:
+/// what `within` lacks to hold `of`. Both are sorted multisets.
 pub(super) fn excess(of: &[OccId], within: &[OccId]) -> Vec<OccId> {
     let mut out = Vec::new();
     let mut j = 0;
@@ -123,8 +133,8 @@ pub(super) struct Calculus<'s, 'a> {
 }
 
 impl Calculus<'_, '_> {
-    /// Whether a zone is a sequent of the mode: under a reading, one
-    /// member in output position, or none where `⊤` absorbs one.
+    /// Whether a zone is a sequent of the mode. Under a reading, it has
+    /// one member in output position, or none where `⊤` absorbs one.
     fn shaped(&self, z: &Zone) -> bool {
         self.shape.reading.is_none() || z.outputs == 1 || (z.outputs == 0 && z.top)
     }
@@ -135,8 +145,9 @@ impl Calculus<'_, '_> {
         z.outputs += u64::from(self.shape.output(o));
     }
 
-    /// Weakens a member in below a premise's node: in affine mode, never
-    /// an output under a reading.
+    /// Weakens a member in below a premise's node, writing the `Weaken`
+    /// node while a proof is written. Returns false outside affine mode,
+    /// and for an output under a reading.
     fn weaken(&self, z: &mut Zone, o: OccId, nodes: &mut Option<&mut Vec<Node>>) -> bool {
         if !self.shape.affine || self.shape.output(o) {
             return false;
@@ -147,8 +158,8 @@ impl Calculus<'_, '_> {
         true
     }
 
-    /// Weakens a member into a zone, writing the `Weaken` node: in affine
-    /// mode, never an output under a reading.
+    /// Weakens a member into a zone, writing the `Weaken` node. Returns
+    /// false outside affine mode, and for an output under a reading.
     pub(super) fn weaken_in(&self, z: &mut Zone, o: OccId, nodes: &mut Vec<Node>) -> bool {
         if !self.weaken(z, o, &mut Some(nodes)) {
             return false;
@@ -157,9 +168,12 @@ impl Calculus<'_, '_> {
         true
     }
 
-    /// Takes a principal's subformula out of a premise's linear zone: it
-    /// is there, or the premise absorbs it (under a reading, an output only
-    /// when the premise has none), or it is weakened in.
+    /// Takes a principal formula's subformula out of a premise's linear
+    /// zone, and returns whether it could.
+    ///
+    /// The subformula is there, or the premise absorbs it, or it is
+    /// weakened in. Under a reading, a premise absorbs an output only when
+    /// it has none.
     fn take(&self, z: &mut Zone, o: OccId, nodes: &mut Option<&mut Vec<Node>>) -> bool {
         if remove(&mut z.gamma, o) {
             z.outputs -= u64::from(self.shape.output(o));
@@ -171,12 +185,14 @@ impl Calculus<'_, '_> {
         self.weaken(z, o, nodes)
     }
 
-    /// Joins the two premises of a `&`, their subformulas taken: equal
-    /// zones, or an absorbing zone within an exact one (the exact one
-    /// stays), or both absorbing (the larger count of each member); in
-    /// affine mode the exact sides are weakened to what both hold. Returns
+    /// Joins the two premises of a `&`, their subformulas taken. Returns
     /// the joined zone, and the two premises' nodes while a proof is
-    /// written.
+    /// written, or `None` when they do not join.
+    ///
+    /// They join when the zones are equal, when an absorbing zone lies
+    /// within an exact one (the exact one stays), or when both absorb (the
+    /// larger count of each member). In affine mode, the exact sides are
+    /// otherwise weakened up to the larger count of each member.
     fn join(
         &self,
         mut l: Zone,
@@ -217,13 +233,15 @@ impl Calculus<'_, '_> {
         Some((zone, l.node.zip(r.node)))
     }
 
-    /// Evaluates a rule's steps over the premises (`premise` gives the
-    /// zone of a hole) and the partners chosen (`partner` gives the
-    /// partner of a slot), and returns the sequent derived, or `None`
-    /// where a step's condition fails, adding to `units` one for each step
-    /// and each linear member of the zone it yields, which the step copied
-    /// or merged. With `nodes`, writes the proof term into it, the
-    /// premises' zones carrying their nodes.
+    /// Evaluates a rule's steps over the premises and the partners chosen.
+    /// Returns the sequent derived, or `None` where a step's condition
+    /// fails.
+    ///
+    /// `premise` gives the zone of a hole, and `partner` the partner of a
+    /// slot. It adds to `units` one for each step and each linear member of
+    /// the zone the step yields, which the step copied or merged. With
+    /// `nodes`, it writes the proof term there, the premises' zones
+    /// carrying their nodes.
     pub(super) fn derive(
         &self,
         steps: &[Step],
@@ -385,7 +403,7 @@ impl Calculus<'_, '_> {
         Some(z)
     }
 
-    /// Mix: the two sequents side by side.
+    /// Returns the Mix of two sequents: the two side by side.
     pub(super) fn mix(&self, l: &Zone, r: &Zone, nodes: Option<&mut Vec<Node>>) -> Option<Zone> {
         let mut z = l.clone();
         sum(&mut z.gamma, &r.gamma);
@@ -400,7 +418,7 @@ impl Calculus<'_, '_> {
     }
 }
 
-/// Pushes a node, returning its id.
+/// Pushes a node and returns its id.
 fn push(nodes: &mut Vec<Node>, node: Node) -> NodeId {
     let id = NodeId::new(u32::try_from(nodes.len()).expect("a proof has fewer than 2³² nodes"));
     nodes.push(node);
