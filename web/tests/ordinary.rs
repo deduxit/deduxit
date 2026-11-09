@@ -217,12 +217,15 @@ fn malformed_input_is_refused_with_its_reason() {
     let bad = [
         r#"{"side": "left", "position": 0}"#,
         r#"{"side": "left", "position": 0, "rule": "∧R", "left": [0]}"#,
-        r#"{"side": "left", "position": 0, "rule": "cut"}"#,
+        r#"{"side": "left", "position": 0, "rule": "mix"}"#,
         "[1, 2]",
     ];
     for step in bad {
         assert_eq!(code(ordinary::apply(&state, 0, step, "")), "json", "{step}");
     }
+    // LJ's cut is a rule, which no step takes.
+    let cut = r#"{"side": "left", "position": 0, "rule": "cut"}"#;
+    assert_eq!(code(ordinary::apply(&state, 0, cut, "")), "step");
     let refused = ordinary::apply(&state, 0, &step("left", 0, "∧R", None), "").unwrap_err();
     let refused = failure(&refused);
     assert_eq!(refused["code"], "step");

@@ -127,6 +127,21 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   and a classical derivation document in the other form made the Rocq
   writer panic before the checker refused it (the goal state's review). It has
   no counter that can wrap: it compares sorted vectors.
+- **LJ has Gentzen's cut** (`Rule::Cut`), for the derivations a native
+  engine translates: the cut formula is the one formula right of `⊢` in
+  the first premise, the second premise holds it left, and the context
+  is shared or split as for any binary rule (`binary` with the whole
+  conclusion as context, since a cut has no principal formula). LK
+  refuses it ("LK's derivations have no cut"): the embedding's read-back
+  makes none and the classical certificate has no term for one. The
+  certificate writes it `(let h : C := (first) in second)`, the
+  lambda read-back substitutes the first premise's term for the formula
+  (`Task::Applied` without a function), which may leave a redex. No step
+  of the goal state takes it, and `Rule::from_str` refuses `cut` as it
+  refuses `open` (`NAMES` is every rule but the last two). A derivation,
+  outcome or session that holds one is written at wire level 9
+  (`wire::ORDINARY_CUT`, `serialize::ordinary::level`), since a reader
+  of level 8 refuses the rule's name.
 - **The certificate** (`rocq.rs`) is a term, not a tactic script: an LJ
   sequent `Γ ⊢ C` is a term of type `C` (`False` for none), an LK sequent
   a term of `False` with a continuation `k : ~ D` per formula `D` right,

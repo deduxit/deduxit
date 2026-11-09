@@ -143,6 +143,7 @@ const fn target(rule: Rule) -> &'static str {
         FalseRight => "⊥ right of ⊢",
         TrueLeft => "⊤ left of ⊢",
         TrueRight => "⊤ right of ⊢",
+        Cut => "no formula: its cut formula is none of the goal's",
         Open => "no formula: it is the mark of an open goal",
     }
 }
@@ -598,7 +599,7 @@ impl Interactive {
         use Side::{Left, Right};
         let node = self.formulas.node(x);
         let fits = match rule {
-            Axiom | Open => false,
+            Axiom | Cut | Open => false,
             WeakenLeft | ContractLeft => side == Left,
             WeakenRight | ContractRight => side == Right,
             AndLeft | AndLeft1 | AndLeft2 => side == Left && matches!(node, Node::And(..)),
@@ -629,7 +630,7 @@ impl Interactive {
             FalseLeft => self.logic == Logic::Minimal,
             Axiom | WeakenLeft | ContractLeft | AndLeft | AndLeft1 | AndLeft2 | AndRight
             | OrLeft | OrRight1 | OrRight2 | ImpliesLeft | ImpliesRight | NotLeft | NotRight
-            | IffLeft | IffLeft1 | IffLeft2 | IffRight | TrueLeft | TrueRight | Open => false,
+            | IffLeft | IffLeft1 | IffLeft2 | IffRight | TrueLeft | TrueRight | Cut | Open => false,
         };
         if refused {
             return Err(StepError::Logic {

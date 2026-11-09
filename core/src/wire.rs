@@ -37,8 +37,9 @@
 //! sequent is first-order is written at level 7; level 8 adds the forms of
 //! ordinary logic, an ordinary sequent, a derivation of LK or LJ, the
 //! outcome of deciding an ordinary sequent and a proof in progress of
-//! one, each always written at level 8; every other document is
-//! written at level 1. A reader refuses a
+//! one, each written at level 8; level 9 adds LJ's cut (`"rule": "cut"`),
+//! so such a derivation, outcome or proof in progress that holds a cut is
+//! written at level 9; every other document is written at level 1. A reader refuses a
 //! document above its level by name ([`Error::Version`], code
 //! `unsupported_version`), before the other keys when `version` comes
 //! first, as the writer puts it; a document without `version` reads as
@@ -57,7 +58,7 @@
 //! through one step per level that changed a form (none so far: level 2
 //! only adds a kind of refutation and a mode, level 3 a kind of
 //! refutation, levels 4 and 5 a form each, level 6 a key and a tag, level
-//! 7 keys, tags and a shape of atom, level 8 forms), and
+//! 7 keys, tags and a shape of atom, level 8 forms, level 9 a rule), and
 //! counts every sequent's occurrences against `limits.occurrences` before
 //! anything unfolds. [`Within`] is the same as a serde seed, for a value
 //! nested in a document of the caller's; the plain `Deserialize` impls read
@@ -179,7 +180,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// The highest wire level this build reads and writes.
-pub const LEVEL: u32 = 8;
+pub const LEVEL: u32 = 9;
 
 /// The level of every document but a disproof (or an unprovable
 /// outcome) with a classical refutation, which is level 2, or with a
@@ -265,10 +266,10 @@ impl<'de, T: Readable> DeserializeSeed<'de> for Within<'_, T> {
 /// document.end().expect("one document and nothing after it");
 /// assert_eq!(sequent.to_string(), "⊢ A");
 ///
-/// let newer = r#"{"version": 9, "terms": []}"#;
+/// let newer = r#"{"version": 10, "terms": []}"#;
 /// let mut document = serde_json::Deserializer::from_str(newer);
 /// let error = wire::upgrade::<Sequent, _>(&mut document, &Limits::default()).unwrap_err();
-/// assert!(matches!(error, Error::Version { found: 9, .. }));
+/// assert!(matches!(error, Error::Version { found: 10, .. }));
 /// # Ok::<(), Error>(())
 /// ```
 pub fn upgrade<'de, T: Readable, D: Deserializer<'de>>(
@@ -330,6 +331,10 @@ pub(crate) const TERMS: u32 = 7;
 
 /// The level of the forms of ordinary logic, which level 8 added.
 pub(crate) const ORDINARY: u32 = 8;
+
+/// The level of a form of ordinary logic that holds LJ's cut, which
+/// level 9 added.
+pub(crate) const ORDINARY_CUT: u32 = 9;
 
 /// The level of a document that holds `sequent`: 7 where it is
 /// first-order, which level 7 added, 6 where it has cut formulas, which

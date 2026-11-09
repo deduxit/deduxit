@@ -324,6 +324,16 @@ impl Certificate<'_> {
                 tasks.extend(premise(1, vec![((consequent, Left), h2)]));
                 tasks.push(text(")".to_owned()));
             }
+            // The checker takes a cut in LJ only.
+            Cut => {
+                let cut = d.inference(premises[0]).right[0];
+                let h = self.name('h');
+                tasks.push(text(format!("(let {h} : {} := (", self.formula(cut))));
+                tasks.extend(premise(0, vec![]));
+                tasks.push(text(") in ".to_owned()));
+                tasks.extend(premise(1, vec![((cut, Left), h)]));
+                tasks.push(text(")".to_owned()));
+            }
         }
         tasks
     }

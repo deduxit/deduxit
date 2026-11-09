@@ -10,8 +10,9 @@
 //! of the arena, and in this calculus any variable of a type may stand
 //! for any other, so a contraction is a variable used twice and a
 //! weakening one left unused. A left rule binds the formula it adds to
-//! what it substitutes (`f M`, `fst(z)`), so that a derivation reads back
-//! as a term in normal form, as in the linear read-back.
+//! what it substitutes (`f M`, `fst(z)`), so that a cut-free derivation
+//! reads back as a term in normal form, as in the linear read-back; a cut
+//! binds its formula to its first premise's term, which may leave a redex.
 
 use super::{Builder, Calculus, NoTerm, Node, Term, TermId, Type, TypeId, VarId, stopped};
 use crate::Error;
@@ -30,14 +31,15 @@ enum Task {
     /// Take back the terms of the last `Bind` of these formulas.
     Unbind(Vec<NodeId>),
     /// Read a premise back with a formula bound to the application of a
-    /// function to the term read last (`→L`'s and `¬L`'s second premise).
+    /// function to the term read last (`→L`'s and `¬L`'s second premise),
+    /// or to that term itself (a cut's second premise).
     Applied {
         /// The premise.
         inference: InfId,
         /// The formula the application stands for.
         formula: NodeId,
-        /// The function.
-        function: TermId,
+        /// The function, `None` for the term itself.
+        function: Option<TermId>,
     },
     /// Make a node of the terms read last.
     Make(Make),
@@ -231,7 +233,10 @@ impl ReadBack<'_> {
                     function,
                 } => {
                     let argument = results.pop().expect("the first premise's term");
-                    let t = self.builder.node(Node::Apply { function, argument });
+                    let t = match function {
+                        Some(function) => self.builder.node(Node::Apply { function, argument }),
+                        None => argument,
+                    };
                     tasks.push(Task::Unbind(vec![formula]));
                     tasks.push(Task::Enter(inference));
                     tasks.push(Task::Bind(vec![(formula, t)]));
@@ -413,7 +418,15 @@ impl ReadBack<'_> {
                 tasks.push(Task::Applied {
                     inference: premises[1],
                     formula: consequent,
-                    function: z(),
+                    function: Some(z()),
+                });
+                tasks.push(Task::Enter(premises[0]));
+            }
+            Cut => {
+                tasks.push(Task::Applied {
+                    inference: premises[1],
+                    formula: d.inference(premises[0]).right()[0],
+                    function: None,
                 });
                 tasks.push(Task::Enter(premises[0]));
             }

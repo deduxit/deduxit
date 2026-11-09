@@ -52,7 +52,8 @@ impl Side {
 /// sequent has at most one formula right of `⊢`; minimal logic has no
 /// `⊥L` and exactly one formula right of `⊢` in every sequent (G1m), since
 /// an empty right side would be read as `⊥` by one rule and as anything
-/// by another.
+/// by another. LJ has Gentzen's cut besides, which LK's derivations here
+/// do without.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Rule {
     /// `ax`: `A ⊢ A`.
@@ -105,6 +106,11 @@ pub enum Rule {
     TrueLeft,
     /// `⊤R`
     TrueRight,
+    /// `cut`, in LJ only: `Γ ⊢ C` and `Δ, C ⊢ E` conclude `Γ, Δ ⊢ E`, or
+    /// both premises take the whole context, the cut formula `C` being the
+    /// one right of `⊢` in the first premise and no formula of the
+    /// conclusion, which has no principal formula.
+    Cut,
     /// An open goal of a proof in progress, which no derivation the
     /// checker accepts has.
     Open,
@@ -139,13 +145,14 @@ const LABELS: [(&str, &str); Rule::ALL.len()] = [
     ("⊥R", "⊥_R"),
     ("⊤L", "⊤_L"),
     ("⊤R", "⊤_R"),
+    ("cut", "cut"),
     ("open", "open"),
 ];
 
 impl Rule {
     /// Every rule, in the order of declaration, which is the order of
     /// `rule as usize`.
-    pub(crate) const ALL: [Self; 26] = {
+    pub(crate) const ALL: [Self; 27] = {
         use Rule::*;
         [
             Axiom,
@@ -173,6 +180,7 @@ impl Rule {
             FalseRight,
             TrueLeft,
             TrueRight,
+            Cut,
             Open,
         ]
     };
@@ -206,6 +214,7 @@ impl Rule {
             FalseRight => "⊥R",
             TrueLeft => "⊤L",
             TrueRight => "⊤R",
+            Cut => "cut",
             Open => "open",
         }
     }
@@ -278,10 +287,10 @@ const ASCII: [(&str, Rule); 36] = [
     ("trueR", Rule::TrueRight),
 ];
 
-/// The names of every rule a step takes, all but [`Rule::Open`], as an
-/// unknown name's error lists them.
-const NAMES: [&str; Rule::ALL.len() - 1] = {
-    let mut names = [""; Rule::ALL.len() - 1];
+/// The names of every rule a step takes, all but [`Rule::Cut`] and
+/// [`Rule::Open`], the last two, as an unknown name's error lists them.
+const NAMES: [&str; Rule::ALL.len() - 2] = {
+    let mut names = [""; Rule::ALL.len() - 2];
     let mut i = 0;
     while i < names.len() {
         names[i] = Rule::ALL[i].name();
@@ -297,8 +306,8 @@ impl std::str::FromStr for Rule {
     /// it: `/\R` or `andR` for `∧R`, `\/R1` or `orR1` for `∨R₁`, `->L` or
     /// `impL` for `→L`, `~R` or `notR` for `¬R`, `<->L2` or `iffL2` for
     /// `↔L₂`, `falseL` for `⊥L`, `trueR` for `⊤R`, and a subscript as a
-    /// digit after the Unicode connective too (`∧L1`). An open goal is no
-    /// rule a step takes, so `open` is refused.
+    /// digit after the Unicode connective too (`∧L1`). A cut and an open
+    /// goal are no rules a step takes, so `cut` and `open` are refused.
     fn from_str(text: &str) -> Result<Self, Error> {
         let digits = text.replace('1', "₁").replace('2', "₂");
         NAMES
@@ -650,20 +659,24 @@ pub(super) fn check_inference(
             _ => Err("not a sequent A ⊢ A".to_owned()),
         };
     }
-    let Some((side, at)) = inference.principal else {
-        return Err("no principal formula".to_owned());
+    // The principal formula and its position, `None` for a cut.
+    let principal = match inference.principal {
+        Some((side, at)) => {
+            let id = *inference
+                .side(side)
+                .get(at)
+                .ok_or("the principal position lies outside the sequent")?;
+            Some((side, at, id))
+        }
+        None => None,
     };
-    let principal = *inference
-        .side(side)
-        .get(at)
-        .ok_or("the principal position lies outside the sequent")?;
-    let node = f.node(principal);
     // The sequent without the principal formula.
     let mut context = (inference.left.clone(), inference.right.clone());
-    match side {
-        Left => context.0.remove(at),
-        Right => context.1.remove(at),
-    };
+    match principal {
+        Some((Left, at, _)) => drop(context.0.remove(at)),
+        Some((Right, at, _)) => drop(context.1.remove(at)),
+        None => {}
+    }
     let with = |added: &[(Side, NodeId)]| {
         let mut sequent = context.clone();
         for &(side, id) in added {
@@ -711,6 +724,27 @@ pub(super) fn check_inference(
         }
         Err("the premises do not share or split the context".to_owned())
     };
+    if inference.rule == Cut {
+        // LK's derivations are the embedding's read-backs, which have no
+        // cut, and its certificate has no term for one.
+        if logic == Logic::Classical {
+            return Err("LK's derivations have no cut".to_owned());
+        }
+        if principal.is_some() {
+            return Err("a cut has no principal formula".to_owned());
+        }
+        count(2)?;
+        // The cut formula is the one right of `⊢` in the first premise,
+        // which LJ's count above holds to at most one.
+        let Some(&cut) = premises[0].right.first() else {
+            return Err("the first premise has no cut formula".to_owned());
+        };
+        return binary(&[(Right, cut)], &[(Left, cut)]);
+    }
+    let Some((side, _, principal)) = principal else {
+        return Err("no principal formula".to_owned());
+    };
+    let node = f.node(principal);
     let leaf = || count(0);
     match (inference.rule, side, node) {
         (WeakenLeft, Left, _) | (WeakenRight, Right, _) => unary(&[]),
@@ -1414,17 +1448,18 @@ mod tests {
     }
 
     /// Every rule a step takes reads back from its name and from its
-    /// ASCII spelling, and an open goal or an unknown name is refused.
+    /// ASCII spelling, and a cut, an open goal or an unknown name is
+    /// refused.
     #[test]
     fn rules_read_from_their_names() {
-        for rule in &Rule::ALL[..Rule::ALL.len() - 1] {
+        for rule in &Rule::ALL[..Rule::ALL.len() - 2] {
             assert_eq!(rule.name().parse::<Rule>().unwrap(), *rule);
         }
         for (name, rule) in super::ASCII {
             assert_eq!(name.parse::<Rule>().unwrap(), rule, "{name}");
         }
         assert_eq!("∨R2".parse::<Rule>().unwrap(), Rule::OrRight2);
-        for refused in ["open", "⊗", "and", "-oL"] {
+        for refused in ["cut", "open", "⊗", "and", "-oL"] {
             assert!(matches!(
                 refused.parse::<Rule>(),
                 Err(Error::UnknownName { .. })
@@ -1466,6 +1501,65 @@ mod tests {
             image.read_back(proof, &limits, |_| false).unwrap_err(),
             Error::GoalProof
         );
+    }
+
+    /// A cut checks in LJ, sharing the context or splitting it, reads back
+    /// as a term and is written at the wire level that added it; LK, a
+    /// principal formula and a second premise without the cut formula are
+    /// refused.
+    #[test]
+    fn the_checker_takes_a_cut_in_lj() {
+        let sequent: Sequent = "a, b |- a".parse().unwrap();
+        let (a, b) = (sequent.left()[0], sequent.left()[1]);
+        let make = |left: Vec<NodeId>, right, rule, premises: &[u32]| Inference {
+            left,
+            right,
+            rule,
+            principal: None,
+            premises: premises.iter().map(|&p| InfId::new(p)).collect(),
+        };
+        // `a ⊢ a` and `a, b ⊢ a` (the latter `b` weakened onto `a ⊢ a`)
+        // cut on `a` into `a, b ⊢ a`.
+        let mut weakened = make(vec![a, b], vec![a], Rule::WeakenLeft, &[1]);
+        weakened.principal = Some((Side::Left, 1));
+        let cut = |logic, second: Inference| Derivation {
+            logic,
+            formulas: sequent.formulas().clone(),
+            left: vec![a, b],
+            right: vec![a],
+            inferences: vec![
+                make(vec![a], vec![a], Rule::Axiom, &[]),
+                make(vec![a], vec![a], Rule::Axiom, &[]),
+                second,
+                make(vec![a, b], vec![a], Rule::Cut, &[0, 2]),
+            ],
+        };
+        let unbounded = crate::Limits::default();
+        let split = cut(Logic::Minimal, weakened.clone());
+        assert_eq!(split.check(&unbounded, |_| false), Ok(()));
+        assert!(split.term(&unbounded, |_| false).is_ok());
+        #[cfg(feature = "serialize")]
+        {
+            let json = serde_json::to_value(&split).unwrap();
+            assert_eq!(json["version"], crate::wire::ORDINARY_CUT);
+        }
+        let reason = |d: &Derivation| match d.check(&unbounded, |_| false) {
+            Err(Error::ReadBack { reason, .. }) => reason,
+            other => panic!("{other:?}"),
+        };
+        assert!(
+            reason(&cut(Logic::Classical, weakened.clone()))
+                .contains("LK's derivations have no cut")
+        );
+        let mut principal = cut(Logic::Intuitionistic, weakened);
+        principal.inferences[3].principal = Some((Side::Left, 0));
+        assert!(reason(&principal).contains("a cut has no principal formula"));
+        // A cut on `b` whose second premise, `a ⊢ a`, has no `b`.
+        let mut other = principal;
+        other.inferences[3].principal = None;
+        other.inferences[0] = make(vec![b], vec![b], Rule::Axiom, &[]);
+        other.inferences[3].premises = vec![InfId::new(0), InfId::new(1)];
+        assert!(reason(&other).contains("do not share or split"));
     }
 
     /// Two lists are one multiset whatever their order, short or long,

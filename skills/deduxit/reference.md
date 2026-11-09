@@ -920,7 +920,8 @@ is at <https://deduxit.github.io/deduxit/deduxit/> for `main` and on
 docs.rs for the releases: the text syntax on `Sequent`, every JSON form
 on its type (`Sequent`, `Proof`, `Outcome`, `ProofStructure`,
 `Interactive`, and at wire level 8 ordinary logic's `ordinary::Sequent`,
-`ordinary::Derivation`, `ordinary::Outcome` and `ordinary::Interactive`),
+`ordinary::Derivation`, `ordinary::Outcome` and `ordinary::Interactive`,
+at level 9 where a derivation holds LJ's `cut`),
 each engine on `Engine`. `ordinary::Interactive` proves an LK or LJ
 sequent step by step in the library (`rules`, `apply`, `undo`, `close`
 and `hint` through `ordinary::decide`), and its finished derivation

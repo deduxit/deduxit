@@ -388,7 +388,7 @@ impl Serialize for Derivation {
     /// it.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut form = DerivationForm::from(self);
-        form.version = Some(wire::ORDINARY);
+        form.version = Some(level(self.inferences()));
         form.serialize(serializer)
     }
 }
@@ -445,13 +445,17 @@ impl Serialize for Outcome {
     /// Serializes the outcome as its verdict, with the reason of an
     /// unknown one and the derivation of a valid sequent.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let version = match &self.verdict {
+            Verdict::Valid(d) => level(d.inferences()),
+            Verdict::NotValid | Verdict::Unknown(_) => wire::ORDINARY,
+        };
         let (verdict, reason, derivation) = match &self.verdict {
             Verdict::Valid(d) => ("valid", None, Some(DerivationForm::from(&**d))),
             Verdict::NotValid => ("not_valid", None, None),
             Verdict::Unknown(r) => ("unknown", Some(Why::from(*r)), None),
         };
         OutcomeForm {
-            version: wire::ORDINARY,
+            version,
             deduxit: env!("CARGO_PKG_VERSION"),
             verdict,
             reason,
@@ -496,7 +500,7 @@ impl Serialize for Interactive {
         let (logic, formulas, inferences, history) = self.parts();
         let (left, right) = self.sequent();
         SessionForm {
-            version: Some(wire::ORDINARY),
+            version: Some(level(inferences)),
             logic,
             sequent: SequentForm::of(formulas, left, right),
             inferences: inferences
@@ -572,4 +576,14 @@ fn session(form: SessionForm, limits: &Limits) -> Result<Interactive, Error> {
         },
         limits,
     )
+}
+
+/// Returns the level of a form of ordinary logic whose inferences are
+/// given: the cut's where one is a cut, else the level of the forms.
+fn level(inferences: &[Inference]) -> u32 {
+    if inferences.iter().any(|i| i.rule() == Rule::Cut) {
+        wire::ORDINARY_CUT
+    } else {
+        wire::ORDINARY
+    }
 }
