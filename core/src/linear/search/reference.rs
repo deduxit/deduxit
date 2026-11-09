@@ -1,34 +1,41 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! A reference prover for the tests: it decides a small sequent by the
-//! plain rules of the unfocused sequent calculus, trying every rule on
-//! every formula, with nothing the engines rely on (no polarity, no focus,
-//! no invertible phase, no count prune, no interchangeable occurrences,
-//! no occurrence ids). The classical calculus is one-sided, the
-//! intuitionistic one two-sided, each linear or affine, the classical one
-//! with or without Mix. Contraction is the one rule that makes a sequent
-//! larger, so it is bounded: each branch may contract at most `copies`
-//! times, and a search that wanted one more says so, which keeps it from
-//! answering "unprovable". It shares no code with the engines: formulas
-//! are its own, read from the generator's trees or from a sequent's terms.
+//! A reference prover for the tests. It decides a small sequent by the
+//! plain rules of the unfocused sequent calculus, and tries every rule on
+//! every formula.
 //!
-//! Every rule but contraction makes the sequent smaller, and contraction
-//! spends the budget, so the search ends; a memo keyed by the sequent (a
-//! sorted multiset of formulas, and the goal two-sided) holds what each
-//! sequent was found to be at which budget. The budget deepens from zero,
-//! so that what the reference claims at every budget below the one it is
-//! given is answered too.
+//! The tests trust it because it is simple. It uses nothing the engines
+//! rely on: no polarity, no focus, no invertible phase, no count prune,
+//! no interchangeable occurrences, no occurrence ids. It shares no code
+//! with the engines either. Its formulas are its own, read from the
+//! generator's trees or from a sequent's terms. It judges an engine's
+//! "unprovable"; the checker judges an engine's proof.
 //!
-//! "Within the budget" counts contractions on a branch, which is one less
-//! than the engines' copies of a formula (every use of it), so the two
-//! bounds are not compared: only a proof and a refutation are. And the
-//! reference cuts every failing sequent with a `?` member (one-sided) or a
-//! `!` hypothesis (two-sided), at every budget, since it contracts down
-//! to an empty budget there; so with exponentials it refutes only where
-//! the failure lies on a premise without one (`⊢ 0 ⊗ ?a`), and answers
-//! any of the three verdicts, each sound. It judges an engine's
-//! "unprovable"; an engine's proof is the checker's to judge.
+//! The classical calculus is one-sided, the intuitionistic one
+//! two-sided. Each is linear or affine, and the classical one has Mix or
+//! not. Contraction is the one rule that makes a sequent larger, so it is
+//! bounded: each branch may contract at most `copies` times. A search
+//! that wanted one contraction more says so, and then the reference does
+//! not answer "unprovable".
+//!
+//! The search ends, since every rule but contraction makes the sequent
+//! smaller and contraction spends the budget. A memo keyed by the sequent
+//! (a sorted multiset of formulas, and two-sided the goal) holds what
+//! each sequent was found to be at which budget. The budget deepens from
+//! zero, so the reference also answers at every budget below the one it
+//! is given.
+//!
+//! The budget counts contractions on a branch. That is one less than the
+//! engines' copies of a formula, which count every use of it. So the two
+//! bounds are never compared, only a proof against a refutation.
+//!
+//! A failure is "cut" when more budget might undo it. The reference cuts
+//! every failing sequent with a `?` member (one-sided) or a `!`
+//! hypothesis (two-sided), at every budget, since there it contracts down
+//! to an empty budget. So with exponentials it refutes only where the
+//! failure lies on a premise without one (`⊢ 0 ⊗ ?a`). Each of its three
+//! answers is sound.
 
 use super::generate::Tree;
 use crate::linear::Sequent;
@@ -50,15 +57,19 @@ pub(crate) enum Answer {
 }
 
 /// The most sequents one decision computes, and context splits it tries,
-/// before it gives up, so that no test runs away on a sequent too large
-/// for an exhaustive search: a split of `n` formulas has `2ⁿ` ways, and
-/// under Mix every sequent searched has as many.
+/// before it gives up.
+///
+/// It keeps a test from running away on a sequent too large for an
+/// exhaustive search. A split of `n` formulas has `2ⁿ` ways, and under
+/// Mix every sequent searched has as many.
 pub(crate) const VISITS: usize = 1_000_000;
 
-/// Decides the one-sided classical sequent of `formulas` (atoms
-/// `Tree::Atom`, their negations `Tree::Dual`, no `Tree::Lolli`) under the
-/// mode (its `affine` and `mix`), with at most `copies` contractions per
+/// Decides the one-sided classical sequent of `formulas` under the mode
+/// (its `affine` and `mix`), with at most `copies` contractions per
 /// branch.
+///
+/// Atoms are `Tree::Atom`, their negations `Tree::Dual`. No formula holds
+/// a `Tree::Lolli`.
 pub(crate) fn classical(formulas: &[Tree], mode: Mode, copies: u32) -> Answer {
     assert!(!mode.intuitionistic, "a one-sided sequent is classical");
     let mut prover = Prover::new(mode);
@@ -134,9 +145,8 @@ enum F {
 enum Found {
     /// A proof.
     Proved,
-    /// No proof, and `cut` when some branch wanted a contraction beyond
-    /// its budget (or the search gave up), so that more budget might find
-    /// one.
+    /// No proof. It is cut when some branch wanted a contraction beyond
+    /// its budget, or the search gave up: then more budget might find one.
     Failed {
         /// Whether the failure may be the budget's.
         cut: bool,
@@ -146,13 +156,14 @@ enum Found {
 /// What the memo knows of a sequent, at every budget at once.
 #[derive(Clone, Copy, Debug, Default)]
 struct Known {
-    /// The least budget a proof was found at: one is found at any larger.
+    /// The least budget a proof was found at. Any larger budget finds one
+    /// too.
     proved: Option<u32>,
     /// Whether a search failed without a cut: no budget proves it.
     refuted: bool,
-    /// The largest budget a search failed at with a cut: no proof at that
-    /// budget or less, unless the search gave up, after which the
-    /// reference answers nothing but a proof.
+    /// The largest budget a search failed at with a cut. No proof exists
+    /// at that budget or less, unless the search gave up. Once it gave
+    /// up, the reference answers only with a proof or not at all.
     cut: Option<u32>,
 }
 
@@ -189,9 +200,9 @@ struct Prover {
     formulas: Vec<F>,
     /// Each formula's index.
     index: HashMap<F, u32>,
-    /// Weakening of any formula (two-sided: of any hypothesis).
+    /// Whether any formula may be weakened (two-sided: any hypothesis).
     affine: bool,
-    /// The Mix rule.
+    /// Whether the Mix rule applies.
     mix: bool,
     /// What is known of one-sided sequents.
     one_sided: HashMap<Vec<u32>, Known>,
@@ -218,11 +229,13 @@ impl Prover {
         }
     }
 
-    /// Decides the whole sequent at the budgets from 0 up to `copies`,
-    /// one after the other with the memo kept, until one proves it or
-    /// fails without a cut: so every budget's answer is the one given,
-    /// and a wrong refutation at a small budget is not hidden behind a
-    /// proof at a larger one.
+    /// Decides the whole sequent at each budget from 0 up to `copies`, and
+    /// stops at the first that proves it or fails without a cut.
+    ///
+    /// The memo is kept from one budget to the next. Since each budget is
+    /// asked in turn, the answer given holds at every budget below, and a
+    /// wrong refutation at a small budget cannot hide behind a proof at a
+    /// larger one.
     fn deepen(&mut self, copies: u32, mut search: impl FnMut(&mut Self, u32) -> Found) -> Answer {
         for budget in 0..=copies {
             if self.gave_up {
@@ -295,7 +308,7 @@ impl Prover {
         i
     }
 
-    /// Counts a sequent computed, and says whether the search must give
+    /// Counts a sequent computed, and returns whether the search must give
     /// up instead.
     fn visit(&mut self) -> bool {
         self.visits += 1;
@@ -394,8 +407,8 @@ impl Prover {
                     self.one_sided(&with(&rest, &[a]), budget)
                 }
                 F::Quest(a) => {
-                    // Dereliction, weakening, and contraction at a unit of
-                    // the budget.
+                    // Dereliction, then weakening, then contraction, which
+                    // spends one unit of the budget.
                     if tried(self.one_sided(&with(&rest, &[a]), budget))
                         || tried(self.one_sided(&rest, budget))
                     {
@@ -429,8 +442,9 @@ impl Prover {
         Found::Failed { cut }
     }
 
-    /// Both premises of a rule, each with the branch's whole budget: the
-    /// failure of the first that fails, or a proof.
+    /// Decides both premises of a rule, each with the branch's whole
+    /// budget. Returns a proof, or the failure of the first premise that
+    /// fails.
     fn both_one_sided(&mut self, first: &[u32], second: &[u32], budget: u32) -> Found {
         match self.one_sided(first, budget) {
             Found::Proved => self.one_sided(second, budget),
@@ -555,8 +569,8 @@ impl Prover {
                     found
                 }
                 F::Bang(a) => {
-                    // Dereliction, weakening, and contraction at a unit of
-                    // the budget.
+                    // Dereliction, then weakening, then contraction, which
+                    // spends one unit of the budget.
                     if tried(self.two_sided(&with(&rest, &[a]), goal, budget))
                         || tried(self.two_sided(&rest, goal, budget))
                     {
@@ -577,8 +591,9 @@ impl Prover {
         Found::Failed { cut }
     }
 
-    /// Both premises of a two-sided rule, each a pair of hypotheses and a
-    /// goal, each with the branch's whole budget.
+    /// Decides both premises of a two-sided rule, each a pair of
+    /// hypotheses and a goal, each with the branch's whole budget. Returns
+    /// a proof, or the failure of the first premise that fails.
     fn both_two_sided(
         &mut self,
         first: (&[u32], u32),
@@ -607,9 +622,9 @@ fn with(sequent: &[u32], added: &[u32]) -> Vec<u32> {
     larger
 }
 
-/// Every way to split a sorted multiset into two, each as a sorted
-/// multiset, one after the other: of every run of equal formulas, every
-/// number of them on the left.
+/// Every way to split a sorted multiset into two sorted multisets, given
+/// out one at a time. For each run of equal formulas, every number of
+/// them goes left once.
 fn splits(sequent: &[u32]) -> Splits {
     let mut runs: Vec<(u32, usize)> = Vec::new();
     for &f in sequent {
@@ -625,7 +640,7 @@ fn splits(sequent: &[u32]) -> Splits {
     }
 }
 
-/// The splits of a multiset not given out yet, as an odometer over how
+/// The splits of a multiset not given out yet. It is an odometer over how
 /// many of each run of equal formulas go left.
 struct Splits {
     /// The runs of equal formulas, each with its length.
@@ -648,8 +663,9 @@ impl Iterator for Splits {
             left.extend(std::iter::repeat_n(f, k));
             right.extend(std::iter::repeat_n(f, n - k));
         }
-        // The next count: the first run not full goes up by one, those
-        // before it back to none; past the last, every split was given.
+        // Turn the odometer: the first run not full goes up by one, and
+        // the runs before it go back to none. Past the last run, every
+        // split was given out.
         self.done = true;
         for (k, &(_, n)) in self.taken.iter_mut().zip(&self.runs) {
             if *k < n {
@@ -674,7 +690,7 @@ mod tests {
 
     /// The configurations of the engines that the reference judges: the
     /// dispatch, each engine forced, and the focused engines under each
-    /// bias; with the feature `parallel` also the dispatch on two
+    /// bias. With the feature `parallel`, also the dispatch on two
     /// threads. An engine that refuses a sequent is skipped on it.
     fn configurations(copies: u32) -> Vec<(String, Options)> {
         let base = Options::default().with_copies(Some(copies));
@@ -706,11 +722,14 @@ mod tests {
         all
     }
 
-    /// The polls of its stop the inverse method gets on a sequent: each is
-    /// a sequent taken up or some thousand rule applications. Its own
-    /// differential test gives it more and asserts that it decides every
-    /// sequent without exponentials; here a saturation that does not end
-    /// costs the comparison no more than the other engines do.
+    /// The polls of its stop that the inverse method gets on a sequent.
+    /// It polls at each sequent it takes up, or after some thousand rule
+    /// applications.
+    ///
+    /// Its saturation need not end. With this bound, one that does not end
+    /// costs the comparison no more than the other engines do. Its own
+    /// differential test gives it more polls and asserts that it decides
+    /// every sequent without exponentials.
     const INVERSE_POLLS: u64 = 1 << 8;
 
     /// What the cases of one comparison came to.
@@ -720,14 +739,14 @@ mod tests {
         cases: usize,
         /// Those the reference decided.
         decided: usize,
-        /// The engines' runs that answered beside a reference that decided.
+        /// The engines' runs that answered where the reference decided.
         judged: usize,
     }
 
     /// Runs every configuration on `text` under `mode` and asserts what
-    /// the contract allows: no proof where the reference refutes, no
-    /// refutation where the reference proves. Every proof of the roots is
-    /// checked by `prove` itself.
+    /// the contract allows: no proof where the reference refutes, and no
+    /// refutation where it proves. `prove_within` checks every proof of
+    /// the roots itself.
     fn judge(text: &str, mode: Mode, copies: u32, reference: Answer, tally: &mut Tally) {
         judge_within(text, mode, copies, reference, tally, u64::MAX);
     }
@@ -750,7 +769,7 @@ mod tests {
         for (name, options) in configurations(copies) {
             // The bound is for the Horn engine, forced or by the dispatch,
             // and for the inverse method, whose saturation need not end
-            // with exponentials; the focused engines end within their
+            // with exponentials. The focused engines end within their
             // copies.
             let mut left = match options.engine {
                 None | Some(Engine::Horn) => polls,
@@ -784,9 +803,10 @@ mod tests {
     }
 
     /// The reference agrees with every verdict a family knows by
-    /// construction, at the sizes it decides: it proves the provable
-    /// instances within their copies, refutes the unprovable ones without
-    /// exponentials, and proves none of the others.
+    /// construction, at the sizes it decides. It proves the provable
+    /// instances within their copies. It refutes the unprovable ones
+    /// without exponentials, and proves none of the unprovable ones with
+    /// exponentials.
     #[test]
     fn agrees_with_the_families() {
         for (name, sizes) in [
@@ -824,7 +844,9 @@ mod tests {
     }
 
     /// Generated classical sequents and their mutants, in every rule set,
-    /// linear and affine: no engine contradicts the reference.
+    /// linear and affine: no engine contradicts the reference. The
+    /// reference decides at least three quarters of them, so the test
+    /// judges enough.
     #[test]
     fn classical_engines_agree() {
         let mut tally = Tally::default();
@@ -866,12 +888,14 @@ mod tests {
         );
     }
 
-    /// Random Horn programs, Petri nets with a marking to reach or, in
-    /// affine mode, to cover, written two-sided for intuitionistic mode
-    /// and one-sided for the classical modes: no engine contradicts the
-    /// reference. Where a clause is
-    /// under `!` the reference proves within the copies or decides
-    /// nothing, and without one it refutes as well.
+    /// Random Horn programs: no engine contradicts the reference, which
+    /// decides at least half of them.
+    ///
+    /// A program is a Petri net with a marking to reach, or in affine mode
+    /// to cover. It is written two-sided for intuitionistic mode and
+    /// one-sided for the classical modes. Where a clause is under `!`, the
+    /// reference proves within the copies or decides nothing. Without one,
+    /// it refutes as well.
     #[test]
     fn engines_agree_on_horn_programs() {
         use Tree::{Atom, Bang, Bot, Dual, Lolli, One, Par, Quest, Tensor};
@@ -900,14 +924,16 @@ mod tests {
                 .collect()
         };
         let mut tally = Tally::default();
-        // 100 programs, every clause shape many times over in each mode.
-        // Those that reach their goal by construction cost nothing; the
-        // others take about a tenth of a second each in the release build,
-        // the reference at 3 copies and the engines up to their polls.
+        // 100 programs give every clause shape many times over in each
+        // mode. Those that reach their goal by construction cost nothing.
+        // The others take about a tenth of a second each in the release
+        // build, with the reference at 3 copies and the engines up to their
+        // polls.
         for case in 0..100 {
             let (mut hypotheses, mut formulas) = (Vec::new(), Vec::new());
-            // Every other program reaches its goal by construction: the
-            // marking after a few firings of its clauses under `!`.
+            // Every other program reaches its goal by construction. Its
+            // goal is the marking after a few firings of its clauses under
+            // `!`.
             let walk = case % 2 == 0;
             let mut clauses = Vec::new();
             for reusable in [true, true, false, false] {
@@ -959,7 +985,7 @@ mod tests {
             formulas.push(goal.clone());
             let copies = 3;
             // The Horn engine, forced or by the dispatch, searches a net
-            // whose markings grow without end until it is stopped.
+            // whose markings grow without end, until it is stopped.
             let polls = 5_000;
             let text = generate::two_sided(&hypotheses, &goal);
             for mode in [Mode::INTUITIONISTIC, Mode::INTUITIONISTIC.with_affine()] {
@@ -992,9 +1018,11 @@ mod tests {
     type TwoSided = (Vec<Tree>, Tree, u32);
 
     /// Sequents whose proofs need one or two contractions on a branch,
-    /// which the generators make seldom: the reference's answers at the
-    /// budgets below are where a fault of its bound shows. Each as text
-    /// for the parser and as trees for the reference, with its copies.
+    /// which the generators seldom make. A fault in the reference's bound
+    /// shows in its answers at the budgets below these.
+    ///
+    /// Each is given as trees, with its copies. The tests print the trees
+    /// as text for the parser.
     fn contractions() -> (Vec<OneSided>, Vec<TwoSided>) {
         use Tree::{Atom, Bang, Dual, Lolli, Quest, Tensor};
         let b = Box::new;
@@ -1031,8 +1059,8 @@ mod tests {
         (classical, intuitionistic)
     }
 
-    /// The sequents of [`contractions`], in every mode they have: no
-    /// engine contradicts the reference.
+    /// The sequents of [`contractions`], in every mode they have: the
+    /// reference proves each, and no engine contradicts it.
     #[test]
     fn engines_agree_where_contractions_are_needed() {
         let mut tally = Tally::default();
@@ -1060,7 +1088,9 @@ mod tests {
     }
 
     /// Generated intuitionistic sequents and their mutants, in every rule
-    /// set, linear and affine: no engine contradicts the reference.
+    /// set, linear and affine: no engine contradicts the reference. The
+    /// reference decides at least three quarters of them, so the test
+    /// judges enough.
     #[test]
     fn intuitionistic_engines_agree() {
         let mut tally = Tally::default();
@@ -1097,7 +1127,7 @@ mod tests {
     }
 
     /// A random formula of the additive fragment over three atoms, at most
-    /// `depth` connectives deep; with `negated` its atoms may be negated.
+    /// `depth` connectives deep. With `negated`, its atoms may be negated.
     fn additive(rng: &mut Rng, depth: usize, negated: bool) -> Tree {
         let pick = if depth == 0 {
             4 + rng.below(4)
@@ -1121,8 +1151,10 @@ mod tests {
         }
     }
 
-    /// Two additive formulas, the additive path's sequents, classical and
-    /// intuitionistic: no engine contradicts the reference.
+    /// Sequents of two additive formulas, which the additive path takes,
+    /// classical and intuitionistic: the reference decides every one, and
+    /// no engine contradicts it.
+
     #[test]
     fn additive_engines_agree() {
         let mut tally = Tally::default();

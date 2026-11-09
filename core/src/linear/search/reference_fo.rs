@@ -1,45 +1,64 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! A first-order reference prover for the tests: it decides a small
-//! sequent with quantifiers by the plain rules of the sequent calculus,
-//! sharing no code with the engines, one-sided in classical linear logic
-//! and two-sided in intuitionistic linear logic. Its formulas and terms
-//! are its own, read from a sequent's arenas (one-sided) or built by the
-//! tests directly (two-sided); a witness of `∃` (and two-sided of `∀` on
-//! the left) is an unknown that unification at the axioms binds, with the
-//! occurs check, and the eigenvariable condition is checked as the
-//! calculus states it, by freshness: once every goal is closed, the
-//! eigenvariable of each `∀` step (two-sided: `∀R` and `∃L`) must occur
-//! nowhere in that step's conclusion under the bindings made. A derivation
-//! that fails it is no proof, and the search goes on to the next one, so
-//! every derivation is tried.
+//! A first-order reference prover for the tests. It decides a small
+//! sequent with quantifiers by the plain rules of the sequent calculus:
+//! one-sided in classical linear logic, two-sided in intuitionistic
+//! linear logic.
 //!
-//! The goals still to prove are a stack, so a goal is proved under the
-//! bindings its siblings left and a failure later backtracks into any
-//! choice made before: the answers of a premise are all tried. The
-//! invertible rules are applied first, on the first formula that has one,
-//! which the inversion lemma of the calculus allows: one-sided `⅋`, `⊥`,
-//! `⊤`, `&`, `∀`; every other rule is tried on every formula: the axiom on
-//! two literals, `1` alone, every split of the rest for `⊗`, both sides of
-//! `⊕`, an unknown for `∃`, `!` where the rest is all `?` formulas, and
-//! for `?A` dereliction, weakening and, within the budget, contraction;
-//! in affine mode the weakening of any formula, and with Mix every split
-//! into two non-empty parts. Two-sided, the invertible rules are `⊸R`,
-//! `&R`, `⊤R`, `∀R`, `⊗L`, `1L`, `⊕L`, `∃L` and `0L` ([`Prover::invert`]
-//! says why each is), and the others are tried on the goal and on every
-//! hypothesis: the axiom on one atom against the goal, `1R` alone, every
-//! split for `⊗R` and `⊸L`, both sides of `⊕R` and `&L`, an unknown for
-//! `∃R` and `∀L`, `!R` where every hypothesis is a `!` formula, and for a
-//! `!` hypothesis dereliction, weakening and, within the budget,
-//! contraction; in affine mode the weakening of any hypothesis, never of
-//! the goal.
+//! The tests trust it because it is simple and shares no code with the
+//! engines. Its formulas and terms are its own, read from a sequent's
+//! arenas (one-sided) or built by the tests directly (two-sided). It
+//! judges an engine's "unprovable"; the checker judges an engine's proof.
+//!
+//! # Quantifiers
+//!
+//! A witness of `∃` is an unknown, which unification at the axioms binds,
+//! with the occurs check. Two-sided, so is the term of a `∀` on the left.
+//! The eigenvariable condition is checked as the calculus states it, by
+//! freshness. An eigenvariable is the fresh constant a `∀` step
+//! introduces (two-sided: a `∀R` or `∃L` step). Once every goal is
+//! closed, it must occur nowhere in its step's conclusion under the
+//! bindings made. A derivation that fails this is no proof, and the
+//! search goes on to the next one, so every derivation is tried.
+//!
+//! # The search
+//!
+//! The goals still to prove are a stack. So a goal is proved under the
+//! bindings its siblings left, and a failure later backtracks into any
+//! choice made before: every answer of a premise is tried.
+//!
+//! The invertible rules are applied first, on the first formula that has
+//! one, which the inversion lemma of the calculus allows. One-sided, they
+//! are `⅋`, `⊥`, `⊤`, `&` and `∀`. Every other rule is tried on every
+//! formula:
+//! - the axiom on two literals, and `1`, each alone in the sequent;
+//! - every split of the rest for `⊗`;
+//! - both sides of `⊕`;
+//! - an unknown for `∃`;
+//! - `!` where the rest is all `?` formulas;
+//! - for `?A`, dereliction, weakening and, within the budget, contraction;
+//! - in affine mode, the weakening of any formula;
+//! - with Mix, every split into two non-empty parts.
+//!
+//! Two-sided, the invertible rules are `⊸R`, `&R`, `⊤R`, `∀R`, `⊗L`,
+//! `1L`, `⊕L`, `∃L` and `0L` ([`Prover::invert`] says why each is). The
+//! others are tried on the goal and on every hypothesis:
+//! - the axiom on one atom against the goal, and `1R`, each alone;
+//! - every split for `⊗R` and `⊸L`;
+//! - both sides of `⊕R` and `&L`;
+//! - an unknown for `∃R` and `∀L`;
+//! - `!R` where every hypothesis is a `!` formula;
+//! - for a `!` hypothesis, dereliction, weakening and, within the budget,
+//!   contraction;
+//! - in affine mode, the weakening of any hypothesis, never of the goal.
+//!
+//! # Bounds
 //!
 //! Contraction is bounded per branch, as the propositional reference
-//! bounds it, and a goal with a `?` formula (two-sided: a `!` hypothesis)
+//! bounds it. A goal with a `?` formula (two-sided: a `!` hypothesis)
 //! that fails with its budget spent keeps the answer from "unprovable".
-//! The visits are bounded too. It judges an engine's "unprovable"; an
-//! engine's proof is the checker's to judge.
+//! The goals taken up are bounded too, by [`VISITS`].
 
 use super::reference::Answer;
 use crate::linear::Sequent;
@@ -64,7 +83,10 @@ enum T {
     Eigen(u32),
 }
 
-/// A formula of a one-sided sequent.
+/// A formula of either calculus.
+///
+/// `Lolli` occurs two-sided only. Two-sided, an atom is a `Lit` whose
+/// sign is ignored.
 #[derive(Clone, Debug)]
 enum F {
     /// A literal: whether it is the atom (not its negation), its
@@ -110,7 +132,7 @@ struct GaveUp;
 
 /// The state of a decision.
 struct Prover {
-    /// The mode: affine, Mix.
+    /// The mode. The prover reads its `affine` and `mix`.
     mode: Mode,
     /// What each unknown is bound to.
     bound: Vec<Option<T>>,
@@ -189,8 +211,9 @@ fn formula(sequent: &Sequent, t: TermId) -> F {
                         .map(|&arg| term(sequent, arg))
                         .collect(),
                 ),
-                // Predicates past every symbol: a sequent's atoms have
-                // fewer than 2³¹ names.
+                // A propositional atom becomes a predicate numbered past
+                // every symbol, with bit 31 set. No two collide, since a
+                // sequent's atoms have fewer than 2³¹ names.
                 None => F::Lit(positive, (1 << 31) | a.get(), Vec::new()),
             }
         }
@@ -227,8 +250,9 @@ fn term(sequent: &Sequent, t: FoTermId) -> T {
     }
 }
 
-/// The body of a quantifier with its variable replaced by `t`: the
-/// bound variable as many binders deep as it lies.
+/// Returns the body `f` of a quantifier with its variable replaced by
+/// `t`. Under `depth` binders inside the body, that variable is
+/// `Bound(depth)`.
 fn open(f: &F, t: &T, depth: u32) -> F {
     let sub = |g: &F| Box::new(open(g, t, depth));
     match f {
@@ -297,8 +321,9 @@ impl Prover {
         }
     }
 
-    /// Unifies two terms, binding unknowns; the bindings made stay on the
-    /// trail for the caller to undo on failure.
+    /// Unifies two terms by binding unknowns, with the occurs check, and
+    /// returns whether they unify. The bindings made stay on the trail,
+    /// on failure too: the caller undoes them.
     fn unify(&mut self, a: &T, b: &T) -> bool {
         let (a, b) = (self.walk(a), self.walk(b));
         match (&a, &b) {
@@ -344,14 +369,18 @@ impl Prover {
     }
 
     /// Whether every `∀` step's eigenvariable is absent from its
-    /// conclusion.
+    /// conclusion, under the bindings made: the eigenvariable condition.
+    ///
+    /// An eigenvariable named only in another branch passes. That is
+    /// sound, since that branch could rename it.
     fn fresh(&self) -> bool {
         self.foralls
             .iter()
             .all(|(e, conclusion)| !conclusion.iter().any(|f| self.names(f, *e)))
     }
 
-    /// Takes back the bindings and unknowns made since the marks.
+    /// Takes back the bindings, unknowns and eigenvariables made since the
+    /// marks.
     fn undo(&mut self, (trail, unknowns, eigens): (usize, usize, u32)) {
         while self.trail.len() > trail {
             let v = self.trail.pop().expect("longer than the mark");
@@ -362,7 +391,11 @@ impl Prover {
     }
 
     /// Proves every goal on the stack, the last first, under the bindings
-    /// as they stand; leaves the stack as it found it where it fails.
+    /// as they stand, and returns whether it did.
+    ///
+    /// Where it fails, it leaves the stack as it found it. Once the stack
+    /// is empty, the derivation is closed, and the eigenvariable condition
+    /// decides.
     fn solve(&mut self, stack: &mut Vec<Goal>) -> Result<bool, GaveUp> {
         let Some((sequent, budget)) = stack.pop() else {
             return Ok(self.fresh());
@@ -378,8 +411,10 @@ impl Prover {
         found
     }
 
-    /// Tries every rule on the goal `sequent`, the rest of the stack
-    /// after it.
+    /// Tries every rule on the goal `sequent`, and for each, proves its
+    /// premises and then the rest of the stack. Returns whether one rule
+    /// led to a proof of all of it. Where an invertible rule applies, it
+    /// is the only one tried.
     fn goal(&mut self, stack: &mut Vec<Goal>, sequent: &[F], budget: u32) -> Result<bool, GaveUp> {
         let rest = |i: usize| -> Vec<F> {
             sequent
@@ -424,8 +459,8 @@ impl Prover {
                 _ => unreachable!("an invertible formula"),
             };
         }
-        // The axiom joins two literals alone; in affine mode the others
-        // are weakened first, by the rule below.
+        // The axiom needs the two literals alone. In affine mode the rule
+        // below weakens the others first.
         if let [F::Lit(s, p, xs), F::Lit(t, q, ys)] = sequent
             && s != t
             && p == q
@@ -505,7 +540,8 @@ impl Prover {
             }
         }
         if self.mode.mix && sequent.len() > 1 {
-            // The first formula on the left, so each partition comes once.
+            // The first formula always goes left, so each partition comes
+            // once.
             for mask in 0..1u64 << (sequent.len() - 1) {
                 let (mut l, mut r) = (vec![sequent[0].clone()], Vec::new());
                 for (k, f) in sequent[1..].iter().enumerate() {
@@ -526,9 +562,9 @@ impl Prover {
         Ok(false)
     }
 
-    /// Pushes the premises of a rule, the first last, so it is proved
-    /// first, and proves the stack; on a failure takes them off again and
-    /// undoes what was bound since `mark`.
+    /// Pushes the premises of a rule and proves the stack. The first
+    /// premise goes on last, so it is proved first. On a failure, it takes
+    /// them off again and undoes what was bound since `mark`.
     fn premises(
         &mut self,
         stack: &mut Vec<Goal>,
@@ -548,8 +584,11 @@ impl Prover {
     // The two-sided calculus.
 
     /// Proves every two-sided goal on the stack, the last first, under
-    /// the bindings as they stand; leaves the stack as it found it where
-    /// it fails.
+    /// the bindings as they stand, and returns whether it did.
+    ///
+    /// Where it fails, it leaves the stack as it found it. Once the stack
+    /// is empty, the derivation is closed, and the eigenvariable condition
+    /// decides.
     fn solve_two_sided(&mut self, stack: &mut Vec<Judgement>) -> Result<bool, GaveUp> {
         let Some((hypotheses, goal, budget)) = stack.pop() else {
             return Ok(self.fresh());
@@ -565,11 +604,13 @@ impl Prover {
         found
     }
 
-    /// Introduces an eigenvariable for the step whose conclusion is
-    /// `hypotheses ⊢ goal` and whose premise is `premise` applied to it,
-    /// and proves the stack with that premise on it; the step stays on
-    /// record for the freshness check only while it is part of the
-    /// derivation.
+    /// Introduces an eigenvariable for a step, and proves the stack with
+    /// the step's premise on it. The step's conclusion is
+    /// `hypotheses ⊢ goal`, and its premise is `premise` applied to the
+    /// eigenvariable.
+    ///
+    /// The step stays on record for the freshness check only while it is
+    /// part of the derivation.
     fn eigen_step(
         &mut self,
         stack: &mut Vec<Judgement>,
@@ -590,15 +631,23 @@ impl Prover {
     }
 
     /// Applies the first invertible rule that `hypotheses ⊢ goal` has, if
-    /// any: `Some` with what proving its premises found, the only rule
-    /// tried then. Each is invertible in intuitionistic linear logic (its
-    /// premises follow from its conclusion by a cut with a provable
-    /// sequent, and the inversion keeps a cut-free derivation's height
-    /// and its contractions per branch, so it holds at every budget):
-    /// `⊸R` by `A ⊸ B, A ⊢ B`, `&R` by `A & B ⊢ A` and `A & B ⊢ B`, `∀R`
-    /// by `∀x.A ⊢ A[e/x]`, `⊗L` by `A, B ⊢ A ⊗ B`, `1L` by `⊢ 1`, `⊕L` by
-    /// `A ⊢ A ⊕ B` and `B ⊢ A ⊕ B`, `∃L` by `A[e/x] ⊢ ∃x.A`, and `⊤R` and
-    /// `0L` have no premise to lose.
+    /// any. Returns `Some` with what proving its premises found, and then
+    /// no other rule is tried. Returns `None` where no invertible rule
+    /// applies.
+    ///
+    /// A rule is invertible when its premises follow from its conclusion
+    /// by a cut with a provable sequent. The inversion keeps a cut-free
+    /// derivation's height and its contractions per branch, so it holds
+    /// at every budget. Each rule here is invertible in intuitionistic
+    /// linear logic:
+    /// - `⊸R` by `A ⊸ B, A ⊢ B`;
+    /// - `&R` by `A & B ⊢ A` and `A & B ⊢ B`;
+    /// - `∀R` by `∀x.A ⊢ A[e/x]`;
+    /// - `⊗L` by `A, B ⊢ A ⊗ B`;
+    /// - `1L` by `⊢ 1`;
+    /// - `⊕L` by `A ⊢ A ⊕ B` and `B ⊢ A ⊕ B`;
+    /// - `∃L` by `A[e/x] ⊢ ∃x.A`;
+    /// - `⊤R` and `0L` have no premise to lose.
     fn invert(
         &mut self,
         stack: &mut Vec<Judgement>,
@@ -657,8 +706,10 @@ impl Prover {
         Some(self.premises_two_sided(stack, premises, mark))
     }
 
-    /// Tries every rule on the goal `hypotheses ⊢ goal`, the rest of the
-    /// stack after it: the invertible one alone where there is one.
+    /// Tries every rule on the goal `hypotheses ⊢ goal`, and for each,
+    /// proves its premises and then the rest of the stack. Returns whether
+    /// one rule led to a proof of all of it. Where an invertible rule
+    /// applies, it is the only one tried.
     fn judgement(
         &mut self,
         stack: &mut Vec<Judgement>,
@@ -678,8 +729,8 @@ impl Prover {
                 .map(|(_, f)| f.clone())
                 .collect()
         };
-        // The axiom joins one atom to the goal alone; in affine mode the
-        // other hypotheses are weakened first, by the rule below.
+        // The axiom needs one atom alone against the goal. In affine mode
+        // the rule below weakens the other hypotheses first.
         if let ([F::Lit(_, p, xs)], F::Lit(_, q, ys)) = (hypotheses, goal)
             && p == q
             && xs.len() == ys.len()
@@ -783,9 +834,9 @@ impl Prover {
         Ok(false)
     }
 
-    /// Pushes the premises of a two-sided rule, the first last, so it is
-    /// proved first, and proves the stack; on a failure takes them off
-    /// again and undoes what was bound since `mark`.
+    /// Pushes the premises of a two-sided rule and proves the stack. The
+    /// first premise goes on last, so it is proved first. On a failure, it
+    /// takes them off again and undoes what was bound since `mark`.
     fn premises_two_sided(
         &mut self,
         stack: &mut Vec<Judgement>,
@@ -840,10 +891,11 @@ pub(crate) mod tests {
         sequent(&s, mode, copies)
     }
 
-    /// The reference proves what the calculus proves and refutes what it
-    /// does not, the eigenvariable condition included: the order of the
-    /// quantifiers, a witness that must be the same on both sides of a
-    /// `⊗`, a premise asked for its second answer, and the occurs check.
+    /// The one-sided reference proves the textbook sequents the calculus
+    /// proves, and refutes those it does not. The cases cover the
+    /// eigenvariable condition and the order of the quantifiers, a witness
+    /// that must be the same on both sides of a `⊗`, a premise asked for
+    /// its second answer, and the occurs check.
     #[test]
     fn decides_the_textbook_cases() {
         let classical = Mode::CLASSICAL;
@@ -899,8 +951,8 @@ pub(crate) mod tests {
     }
 
     /// A random formula of a one-sided sequent over the predicates `p`
-    /// (unary) and `q` (binary), of at most `depth` connectives deep,
-    /// with the units, additives and exponentials as `rules` allow.
+    /// (unary) and `q` (binary), at most `depth` connectives deep, with
+    /// the units, additives and exponentials as `rules` allow.
     fn random_formula(
         rng: &mut Rng,
         scope: &mut Vec<String>,
@@ -963,12 +1015,12 @@ pub(crate) mod tests {
     }
 
     /// A random one-sided sequent of two or three formulas, or a formula
-    /// against its own negation with one quantifier, constant or literal
-    /// changed, which keeps many of them provable.
+    /// against its own negation with at most one quantifier, constant or
+    /// predicate changed. The second kind keeps many of them provable.
     pub(crate) fn random_sequent(rng: &mut Rng, rules: [bool; 3]) -> String {
         if rng.one_in(2) {
             let f = random_formula(rng, &mut Vec::new(), 3, rules);
-            // A change of one character keeps the text well formed.
+            // Each change keeps the text well formed.
             let mut g = f.clone();
             match rng.below(5) {
                 0 => g = g.replacen("forall", "exists", 1),
@@ -986,9 +1038,13 @@ pub(crate) mod tests {
         format!("|- {}", formulas.join(", "))
     }
 
-    /// The engine on generated first-order sequents, in the classical
-    /// modes, with and without Mix, linear and affine, never contradicts
-    /// the reference, and the reference decides most of them.
+    /// The focused engine, by the dispatch and forced, never contradicts
+    /// the one-sided reference on generated first-order sequents. The
+    /// modes are classical linear, with Mix, and affine.
+    ///
+    /// The reference decides more than two thirds of them, and proves and
+    /// refutes each more than a tenth of the time, so the test judges both
+    /// answers.
     #[test]
     fn the_focused_engine_agrees() {
         const COPIES: u32 = 1;
@@ -1060,7 +1116,7 @@ pub(crate) mod tests {
             }
         }
         assert!(decided * 3 > cases * 2, "{decided} of {cases} decided");
-        // Both answers occur, and the engine proves what it is given.
+        // Both answers occur, and the engine proves some sequents.
         assert!(
             proved * 10 > decided && (decided - proved) * 10 > decided && engine_proved > 0,
             "{proved} of {decided} proved, {engine_proved} of {judged} by the engine"
@@ -1071,12 +1127,12 @@ pub(crate) mod tests {
     const PREDICATES: [(&str, usize); 3] = [("p", 1), ("q", 0), ("r", 2)];
 
     /// The function symbols of the two-sided tests, by number: name and
-    /// arity; the generator takes the first three.
+    /// arity. The generator takes the first three.
     const FUNCTIONS: [(&str, usize); 6] =
         [("a", 0), ("b", 0), ("f", 1), ("c", 0), ("s", 1), ("z", 0)];
 
     /// The names of the variables, by the number of binders outside
-    /// theirs: the generator nests two quantifiers at most.
+    /// theirs. The generator nests two quantifiers at most.
     const VARIABLES: [&str; 2] = ["x", "y"];
 
     /// A predicate (by its number) applied to terms.
@@ -1109,11 +1165,14 @@ pub(crate) mod tests {
         F::Exists(Box::new(a))
     }
 
-    /// The two-sided reference proves what intuitionistic first-order
-    /// linear logic proves and refutes what it does not: the quantifiers
-    /// shifted across `⊸` one way and not the other, their order, a
-    /// witness that both premises of `&R` share, a premise asked for its
-    /// second answer, the occurs check, a witness left open, copies of a
+    /// The two-sided reference proves the textbook sequents that
+    /// intuitionistic first-order linear logic proves, and refutes those
+    /// it does not.
+    ///
+    /// The cases cover the quantifiers shifted across `⊸` one way and not
+    /// the other, and their order. They cover a witness that both premises
+    /// of `&R` share, a premise asked for its second answer, the occurs
+    /// check and a witness left open. And they cover copies of a
     /// quantified hypothesis under `!`, and weakening of hypotheses alone
     /// in affine mode.
     #[test]
@@ -1187,7 +1246,8 @@ pub(crate) mod tests {
                 0,
                 Proved,
             ),
-            // The first answer of `p(a) & p(b) ⊢ p(x)`, `a`, fails `r(x, x)`.
+            // The first answer of `p(a) & p(b) ⊢ p(x)`, `x = a`, fails
+            // `r(x, x)`, so the second is needed.
             (
                 vec![with(p(&a), p(&b)), r(&b, &b)],
                 ex(tensor(p(&x), r(&x, &x))),
@@ -1314,8 +1374,8 @@ pub(crate) mod tests {
     }
 
     /// A random intuitionistic formula under `scope` binders, at most
-    /// `depth` connectives deep and two quantifiers nested, with the
-    /// additives (and `⊤`, `0`) and `!` as `rules` allow.
+    /// `depth` connectives deep with at most two quantifiers nested. It
+    /// has the additives (and `⊤`, `0`) and `!` as `rules` allow.
     fn random_ill(rng: &mut Rng, scope: usize, depth: u32, rules: [bool; 2]) -> F {
         let [additives, exponentials] = rules;
         let atom = |rng: &mut Rng| {
@@ -1350,9 +1410,11 @@ pub(crate) mod tests {
         }
     }
 
-    /// The formula with its first site of a kind changed, once `done` is
-    /// not yet set: a `∀` made `∃` (kind 0), an `∃` made `∀` (1), the
-    /// constant `a` made `b` (2), a `⊗` made `⊸` (3); any other kind
+    /// Returns the formula with its first site of the kind `kind` changed,
+    /// unless `done` is already set, and sets `done` when it changes one.
+    ///
+    /// The kinds are: a `∀` made `∃` (0), an `∃` made `∀` (1), the
+    /// constant `a` made `b` (2), a `⊗` made `⊸` (3). Any other kind
     /// changes nothing.
     fn changed(f: &F, kind: usize, done: &mut bool) -> F {
         if *done {
@@ -1399,7 +1461,8 @@ pub(crate) mod tests {
         }
     }
 
-    /// The term with its first `a` made `b`, once `done` is not yet set.
+    /// Returns the term with its first `a` made `b`, unless `done` is
+    /// already set, and sets `done` when it changes one.
     fn changed_term(t: &T, done: &mut bool) -> T {
         match t {
             T::App(0, args) if args.is_empty() && !*done => {
@@ -1411,10 +1474,6 @@ pub(crate) mod tests {
         }
     }
 
-    /// A random two-sided intuitionistic sequent: a formula against
-    /// itself with one site changed, `A, A ⊸ B ⊢ B` with one site of the
-    /// goal changed (both keep many of them provable), or one to three
-    /// random hypotheses and a random goal.
     /// A random two-sided sequent as [`random_ill_sequent`] makes one, in
     /// the text syntax.
     #[cfg(feature = "parallel")]
@@ -1423,6 +1482,11 @@ pub(crate) mod tests {
         ill_text(&hypotheses, &goal)
     }
 
+    /// A random two-sided intuitionistic sequent. It is one of three
+    /// kinds, each a third of the time: a formula against itself with at
+    /// most one site changed; `A, A ⊸ B ⊢ B` with at most one site of the
+    /// goal changed; or one to three random hypotheses and a random goal.
+    /// The first two kinds keep many of them provable.
     fn random_ill_sequent(rng: &mut Rng, rules: [bool; 2]) -> (Vec<F>, F) {
         match rng.below(3) {
             0 => {
@@ -1444,10 +1508,15 @@ pub(crate) mod tests {
         }
     }
 
-    /// The two-sided engine on generated first-order intuitionistic
-    /// sequents, linear and affine, by the dispatch and forced, never
-    /// contradicts the two-sided reference, every proof it returns passes
-    /// the checker, and the reference decides most of them.
+    /// The two-sided engine, by the dispatch and forced, never contradicts
+    /// the two-sided reference on generated first-order intuitionistic
+    /// sequents, linear and affine. Every proof it returns passes the
+    /// checker.
+    ///
+    /// The reference decides more than two thirds of them, and proves and
+    /// refutes each more than a tenth of the time. The engine proves some
+    /// and refutes some, so the test judges both answers.
+
     #[test]
     fn the_two_sided_engine_agrees() {
         const COPIES: u32 = 1;

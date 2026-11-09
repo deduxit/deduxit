@@ -1,12 +1,14 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Random provable sequents for testing the engines: a cut-free proof is
-//! built bottom-up by choosing rules at random, and only its conclusion is
-//! kept, as text for the parser. The engine under test must prove it. A
-//! mutant of such a sequent, with one literal's atom changed or the atoms
-//! of two literals of one sign swapped, is often unprovable and tests the
-//! negative side.
+//! Random provable sequents for testing the engines. A cut-free proof is
+//! built by choosing rules at random, and only its conclusion is kept,
+//! which the tests print as text for the parser. The engine under test
+//! must prove it.
+//!
+//! A mutant of such a sequent has one literal's atom changed, or the
+//! atoms of two literals of one sign swapped. It is often unprovable, so
+//! it tests the negative side.
 
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
@@ -78,11 +80,14 @@ impl Rules {
 }
 
 /// A generated provable sequent: its formulas, and the derelictions of the
-/// proof it was read off, which bound the copies a focused dyadic proof of
-/// it needs on any branch. (The most derelictions on one branch would
-/// not: a focused proof copies at a stable sequent whatever the positive
-/// phase above needs, on every branch of that phase, where the standard
-/// proof derelicts on each branch separately.)
+/// proof it was read off, all branches together.
+///
+/// That count bounds the copies a focused dyadic proof of it needs on any
+/// branch. (A dyadic sequent keeps its `?` formulas apart from the rest,
+/// and a copy is one use of one of them.) The most derelictions on one
+/// branch would not bound it. A focused proof copies, at a stable
+/// sequent, whatever the positive phase above it needs on every branch of
+/// that phase. The proof read off derelicts on each branch separately.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Provable {
     /// The formulas.
@@ -125,9 +130,10 @@ pub(crate) enum Tree {
 
 impl Tree {
     /// Returns every literal of the tree, for a mutation to pick from,
-    /// each with its sign in a context of sign `positive`: an atom has the
-    /// context's sign, a negated atom the other, and the left side of a
-    /// `⊸` flips it.
+    /// each with its sign in a context of sign `positive`.
+    ///
+    /// An atom has the context's sign, and a negated atom the other. The
+    /// left side of a `⊸` flips the sign.
     fn literals(&mut self, positive: bool) -> Vec<(&mut u8, bool)> {
         use Tree::*;
         match self {
@@ -148,9 +154,9 @@ impl Tree {
         }
     }
 
-    /// Returns how many `!` the formula holds: the derelictions of the
-    /// identity proof of it as a hypothesis, which promotes and derelicts
-    /// each.
+    /// Returns how many `!` the formula holds. That is the derelictions of
+    /// the identity proof of it as a hypothesis, which promotes and
+    /// derelicts each.
     fn bangs(&self) -> u32 {
         use Tree::*;
         match self {
@@ -223,8 +229,9 @@ pub(crate) struct IllRules {
     pub(crate) units: bool,
     /// `&`, `⊕` and `⊤`.
     pub(crate) additives: bool,
-    /// `0`, which makes classical linear logic non-conservative over the
-    /// intuitionistic one.
+    /// `0`. With `0`, classical linear logic is not conservative over the
+    /// intuitionistic one: it proves intuitionistic sequents that
+    /// intuitionistic linear logic does not.
     pub(crate) zero: bool,
     /// `!`: promotion, dereliction, contraction and weakening.
     pub(crate) exponentials: bool,
@@ -259,7 +266,7 @@ impl IllRules {
 }
 
 /// A generated provable intuitionistic sequent: its hypotheses, its goal,
-/// and the derelictions of the proof it was read off.
+/// and the derelictions and contractions of the proof it was read off.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Ill {
     /// The hypotheses.
@@ -272,10 +279,11 @@ pub(crate) struct Ill {
     pub(crate) contractions: u32,
 }
 
-/// Builds a random provable intuitionistic sequent: a cut-free two-sided
-/// proof of about `budget` rule applications over `atoms` atom names, using
-/// the rules allowed, and returns its conclusion with the derelictions of
-/// the proof.
+/// Builds a random provable intuitionistic sequent, and returns it with
+/// the derelictions and contractions of its proof.
+///
+/// The proof is cut-free and two-sided, of about `budget` rule
+/// applications over `atoms` atom names, with the rules allowed.
 pub(crate) fn ill(rng: &mut Rng, rules: IllRules, atoms: u8, budget: usize) -> Ill {
     let mut generator = IllGenerator {
         rng,
@@ -314,7 +322,8 @@ impl IllGenerator<'_> {
         }
         let (mut hypotheses, mut goal, mut copies) = self.proof(budget - 1);
         // Weighted choice among the rules the switches allow and the
-        // premise admits: the rules on a hypothesis need one, `⊗L` two.
+        // premise admits. A rule on a hypothesis needs one hypothesis, and
+        // `⊗L` needs two.
         let mut choices: Vec<u8> = vec![b'a', b't', b't'];
         if !hypotheses.is_empty() {
             choices.extend(*b"llLL");
@@ -397,8 +406,8 @@ impl IllGenerator<'_> {
                 });
             }
             b'o' => {
-                // Γ, A ⊢ C and Γ, T ⊢ C give Γ, A ⊕ T ⊢ C, with T a twin of
-                // A as a hypothesis: A itself, `0`, or A & anything.
+                // Γ, A ⊢ C and Γ, T ⊢ C give Γ, A ⊕ T ⊢ C. T is a twin of A
+                // as a hypothesis: A itself, `0`, or A & anything.
                 let a = self.take_hypothesis(&mut hypotheses);
                 let twin = match self.rng.below(3) {
                     0 if self.rules.zero => Zero,
@@ -418,8 +427,8 @@ impl IllGenerator<'_> {
                 copies += 1;
             }
             b'!' => {
-                // Promotion: !Γ ⊢ A gives !Γ ⊢ !A, once every hypothesis
-                // is a `!` formula, which dereliction arranges.
+                // Promotion: !Γ ⊢ A gives !Γ ⊢ !A. It needs every hypothesis
+                // to be a `!` formula, so dereliction makes them so first.
                 for h in &mut hypotheses {
                     if !h.is_bang() {
                         *h = Bang(boxed(std::mem::replace(h, One)));
@@ -429,8 +438,8 @@ impl IllGenerator<'_> {
                 goal = Bang(boxed(goal));
             }
             b'c' => {
-                // Contraction: Γ, !B ⊢ C and !B ⊢ B, by dereliction and
-                // the identity on B, give Γ, !B, !B ⊢ C ⊗ B by `⊗R`, which
+                // Contraction. Γ, !B ⊢ C, and !B ⊢ B by dereliction and the
+                // identity on B, give Γ, !B, !B ⊢ C ⊗ B by `⊗R`. That
                 // contracts to Γ, !B ⊢ C ⊗ B. The hypothesis picked is
                 // derelicted first unless it is a `!` formula.
                 let i = self.rng.below(hypotheses.len());
@@ -564,9 +573,11 @@ pub(crate) fn sequent(formulas: &[Tree]) -> String {
     text
 }
 
-/// Builds a random provable sequent: a cut-free proof of about `budget`
-/// rule applications over `atoms` atom names, using the rules allowed, and
-/// returns its conclusion with the derelictions of the proof.
+/// Builds a random provable sequent, and returns it with the derelictions
+/// of its proof.
+///
+/// The proof is cut-free, of about `budget` rule applications over
+/// `atoms` atom names, with the rules allowed.
 pub(crate) fn provable(rng: &mut Rng, rules: Rules, atoms: u8, budget: usize) -> Provable {
     let mut generator = Generator { rng, rules, atoms };
     let (formulas, copies) = generator.proof(budget);
@@ -574,8 +585,8 @@ pub(crate) fn provable(rng: &mut Rng, rules: Rules, atoms: u8, budget: usize) ->
 }
 
 /// Mutates a sequent by [`transpose`] or [`shift`], one or the other at
-/// random (a shift where no two literals admit a transposition), and
-/// returns whether there was a literal to mutate.
+/// random, and returns whether there was a literal to mutate. Where no
+/// two literals admit a transposition, it shifts.
 pub(crate) fn mutate(rng: &mut Rng, formulas: &mut [Tree], atoms: u8) -> bool {
     if rng.one_in(2)
         && transpose(
@@ -589,8 +600,8 @@ pub(crate) fn mutate(rng: &mut Rng, formulas: &mut [Tree], atoms: u8) -> bool {
     shift(rng, literals.map(|(atom, _)| atom).collect(), atoms)
 }
 
-/// Mutates an intuitionistic sequent as [`mutate`] does a one-sided one,
-/// with the hypotheses' literals of the sign opposite to the goal's.
+/// Mutates an intuitionistic sequent as [`mutate`] does a one-sided one.
+/// A hypothesis's literals count with the sign opposite to the goal's.
 pub(crate) fn mutate_two_sided(
     rng: &mut Rng,
     hypotheses: &mut [Tree],
@@ -615,10 +626,11 @@ pub(crate) fn mutate_two_sided(
 }
 
 /// Gives one of the literals another atom name, and returns whether there
-/// was a literal to change. The result is usually unprovable but passes
-/// many of the count checks; it is unbalanced in some atom, so the
-/// interval check refutes it where there are no additives and no
-/// exponentials.
+/// was a literal to change.
+///
+/// The result is usually unprovable, but passes many of the count checks.
+/// It is unbalanced in some atom, so the interval check refutes it where
+/// there are no additives and no exponentials.
 fn shift(rng: &mut Rng, mut literals: Vec<&mut u8>, atoms: u8) -> bool {
     if literals.is_empty() || atoms < 2 {
         return false;
@@ -630,10 +642,11 @@ fn shift(rng: &mut Rng, mut literals: Vec<&mut u8>, atoms: u8) -> bool {
     true
 }
 
-/// Swaps the atom names of two of the signed literals of the same sign
-/// whose atoms differ, picked at random, and returns whether there were
-/// two. The result keeps every atom's count, so the interval check
-/// passes it, and is provable or not.
+/// Swaps the atom names of two literals of the same sign whose atoms
+/// differ, picked at random, and returns whether there were two.
+///
+/// The result keeps every atom's count, so the interval check passes it.
+/// It may be provable or not.
 fn transpose(rng: &mut Rng, mut literals: Vec<(&mut u8, bool)>) -> bool {
     let pairs: Vec<(usize, usize)> = (0..literals.len())
         .flat_map(|j| (0..j).map(move |i| (i, j)))
@@ -693,8 +706,8 @@ impl Generator<'_> {
                 (left, lc + rc)
             }
             b'p' => {
-                // ⊢ Γ, A, B gives ⊢ Γ, A ⅋ B; with one formula only, `⊥`
-                // serves as the other when units are allowed.
+                // ⊢ Γ, A, B gives ⊢ Γ, A ⅋ B. Where the premise has one
+                // formula only, `⊥` is the other when units are allowed.
                 let (mut premise, copies) = self.proof(budget - 1);
                 if premise.len() < 2 {
                     if !self.rules.units {
@@ -714,8 +727,8 @@ impl Generator<'_> {
                 (premise, copies)
             }
             b'&' => {
-                // ⊢ Γ, A and ⊢ Γ, B give ⊢ Γ, A & B: B is a twin of A that
-                // the same context proves, by the same proof, whose
+                // ⊢ Γ, A and ⊢ Γ, B give ⊢ Γ, A & B. B is a twin of A that
+                // the same context proves by the same proof, so that proof's
                 // derelictions count twice.
                 let (mut premise, copies) = self.proof(budget - 1);
                 let a = premise.swap_remove(self.rng.below(premise.len()));
@@ -764,9 +777,11 @@ impl Generator<'_> {
                 (premise, copies)
             }
             b'c' => {
-                // Contraction, on a `?` formula both copies of a premise
-                // hold: ⊢ Γ, A twice gives ⊢ Γ, Γ, A ⊗ A by `⊗`, and each
-                // `?B` of Γ appears twice, which contracts to once.
+                // Contraction, on a `?` formula that both copies of a
+                // premise hold. ⊢ Γ, A twice gives ⊢ Γ, Γ, A ⊗ A by `⊗`.
+                // Each `?B` of Γ then appears twice, and contracts to once.
+                // A premise without a `?` formula gets a dereliction
+                // instead.
                 let (mut premise, copies) = self.proof(budget - 1);
                 if !premise.iter().any(Tree::is_quest) {
                     let i = self.rng.below(premise.len());
@@ -784,7 +799,7 @@ impl Generator<'_> {
                 (sequent, 2 * copies)
             }
             b'!' => {
-                // Promotion: ⊢ ?Γ, A gives ⊢ ?Γ, !A; whatever of Γ is not a
+                // Promotion: ⊢ ?Γ, A gives ⊢ ?Γ, !A. Whatever of Γ is not a
                 // `?` formula is derelicted first.
                 let (mut premise, copies) = self.proof(budget - 1);
                 let a = premise.swap_remove(self.rng.below(premise.len()));
@@ -813,8 +828,11 @@ impl Generator<'_> {
     }
 
     /// A formula that every context proving `a` proves as well, for the
-    /// other side of a `&`: `a` itself, `⊤`, `a` under a `⊕` with anything,
-    /// or, with units, `a ⅋ ⊥` or `a ⊗ 1`, nested at most `depth` deep.
+    /// other side of a `&`.
+    ///
+    /// It is `a` itself, `⊤`, a twin under a `⊕` with anything, or a `&`
+    /// of two twins. With units, it may also be a twin `⅋ ⊥` or `1 ⊗` a
+    /// twin. Twins nest at most `depth` deep.
     fn twin(&mut self, a: &Tree, depth: usize) -> Tree {
         let mut choices: Vec<u8> = vec![b'a', b'T', b'+', b'+'];
         if self.rules.units {
@@ -890,12 +908,14 @@ impl Generator<'_> {
     }
 }
 
-/// Builds a random sequent of unit-free MLL over `atoms` atom names with
-/// `pairs` dual pairs of literals that passes the count checks of the net
-/// engine, provable or not: exactly `pairs − 1` tensors without Mix and at
-/// most that many with it, any number of pars that leaves a conclusion,
-/// joined in random order. Most such sequents are unprovable, so they test
-/// the negative side beyond what the counts reject.
+/// Builds a random sequent of unit-free MLL that passes the count checks
+/// of the net engine, provable or not. It has `pairs` dual pairs of
+/// literals over `atoms` atom names.
+///
+/// The literals are joined in random order by exactly `pairs − 1`
+/// tensors without Mix, at most that many with it, and any number of
+/// pars that leaves a conclusion. Most such sequents are unprovable, so
+/// they test the negative side beyond what the counts reject.
 pub(crate) fn balanced(rng: &mut Rng, atoms: u8, pairs: usize, mix: bool) -> Vec<Tree> {
     let mut formulas: Vec<Tree> = Vec::with_capacity(2 * pairs);
     for _ in 0..pairs {
@@ -955,9 +975,11 @@ pub(crate) fn lambek_text(hypotheses: &[Lambek], goal: &Lambek) -> String {
     format!("{} |- {goal}", hypotheses.join(", "))
 }
 
-/// A random derivation of the Lambek calculus, with empty antecedents
-/// where `star` is set, of up to `budget` rules over `atoms` atoms:
-/// its hypotheses in order and its goal.
+/// Returns the conclusion of a random derivation of the Lambek calculus:
+/// its hypotheses in order, and its goal.
+///
+/// The derivation has up to `budget` rules over `atoms` atoms. With
+/// `star`, it allows empty antecedents.
 pub(crate) fn lambek(rng: &mut Rng, atoms: u8, budget: usize, star: bool) -> (Vec<Lambek>, Lambek) {
     use Lambek::*;
     let b = Box::new;
@@ -1018,12 +1040,16 @@ pub(crate) fn lambek(rng: &mut Rng, atoms: u8, budget: usize, star: bool) -> (Ve
 }
 
 /// Writes a sequent of classical linear logic whose one-sided lowering is
-/// `formulas`, with random writings: the first few formulas left of `|-`,
-/// a negation before a subformula here and there (an atom where its side
-/// demands one), a double negation now and then, which records nothing,
-/// and `-o` for a `⅋` on the right or a `⊗` on the left where a coin says
-/// so. Returns the text and, per occurrence in the forest's order, the
-/// record the parser must make of it.
+/// `formulas`, and returns the text with, per occurrence in the forest's
+/// order, the record the parser must make of it.
+///
+/// The writing is random:
+/// - the first few formulas go left of `|-`;
+/// - a negation goes before a subformula here and there, and before an
+///   atom where its side demands one;
+/// - a double negation goes in now and then, and records nothing;
+/// - `-o` stands for a `⅋` on the right or a `⊗` on the left where a coin
+///   says so.
 pub(crate) fn written(
     rng: &mut Rng,
     formulas: &[Tree],
@@ -1047,9 +1073,9 @@ pub(crate) fn written(
     (text, record)
 }
 
-/// Writes `formula`, a one-sided formula, so that read in `context` (left
-/// of `|-`, or under an odd number of flips, for `Input`) it lowers to
-/// itself, and records each occurrence in preorder.
+/// Writes `formula`, a one-sided formula, so that read in `context` it
+/// lowers to itself, and records each occurrence in preorder. The context
+/// is `Input` left of `|-`, or under an odd number of flips.
 fn write_at(
     rng: &mut Rng,
     formula: &Tree,
@@ -1128,11 +1154,10 @@ fn write_at(
 mod tests {
     use super::*;
 
-    /// The intuitionistic generator contracts a `!` hypothesis in a good
-    /// share of its proofs where `!` is allowed: its contraction once
-    /// needed two equal `!` hypotheses and changed nothing in 98.5 % of
-    /// its draws, so a `!` hypothesis used twice reached the engines in
-    /// hand cases alone.
+    /// The intuitionistic generator contracts a `!` hypothesis in at least
+    /// 8 of 40 proofs, in every rule set that allows `!`. Without it, the
+    /// engines would meet a `!` hypothesis used twice only in hand-written
+    /// cases.
     #[test]
     fn intuitionistic_proofs_contract() {
         for (n, rules) in IllRules::ALL.into_iter().enumerate() {
@@ -1146,17 +1171,18 @@ mod tests {
                     ill(&mut rng, rules, 3, budget).contractions > 0
                 })
                 .count();
-            // 10 to 17 of 40 when this was written.
+            // Measured with these seeds: 10 to 17 of 40.
             assert!(contracted >= 8, "{rules:?}: {contracted} of 40 contract");
         }
     }
 
-    /// Of the mutants of the rule sets without additives and
-    /// exponentials, where every literal meets its dual in an axiom, a
-    /// share passes the counts and reaches a search: a literal given
-    /// another atom unbalances two atoms, which the interval check
-    /// refutes at once, and two literals of one sign swapped keep every
-    /// atom's count.
+    /// At least one in twelve mutants passes the counts and reaches a
+    /// search, in the rule sets without additives and exponentials, where
+    /// every literal meets its dual in an axiom.
+    ///
+    /// A literal given another atom unbalances two atoms, which the
+    /// interval check refutes at once. Two literals of one sign swapped
+    /// keep every atom's count, so only those mutants reach a search.
     #[test]
     fn some_mutants_reach_a_search() {
         use crate::linear::search::{Options, Refutation, Verdict, prove};
@@ -1186,7 +1212,7 @@ mod tests {
                     reached += u32::from(searched(&sequent(&formulas), mode));
                 }
             }
-            // 11 to 20 % when this was written, none before the swap.
+            // Measured with these seeds: 11 to 20 %.
             assert!(reached * 12 >= mutants, "{rules:?}: {reached} of {mutants}");
         }
         for (n, rules) in IllRules::ALL.into_iter().enumerate() {
@@ -1208,7 +1234,8 @@ mod tests {
                     reached += u32::from(searched(&text, Mode::INTUITIONISTIC));
                 }
             }
-            // 25 to 30 % when this was written.
+            // Measured with these seeds: 25 to 30 %.
+
             assert!(reached * 12 >= mutants, "{rules:?}: {reached} of {mutants}");
         }
     }
