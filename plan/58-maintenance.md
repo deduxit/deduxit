@@ -1,6 +1,6 @@
 # Step 58: maintenance, and Kani on the checker's integers
 
-You are working in deduxit (`deduxit/deduxit`, the checkout `../linlog`) and, for the
+You are working in deduxit (`deduxit/deduxit`, the checkout `~/Projects/own/deduxit`) and, for the
 accessibility audit, in the web client (`deduxit/deduxit.github.io`,
 `../linlog-prover.github.io`). CLAUDE.md applies throughout: jj only
 (never git), thematic commits as soon as a unit is done, the

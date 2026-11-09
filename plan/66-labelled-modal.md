@@ -1,6 +1,6 @@
 # Step 66: the labelled modal calculus step by step, and its soundness in Rocq
 
-You are working in deduxit (`deduxit/deduxit`, the checkout `../linlog`) and in a Rocq
+You are working in deduxit (`deduxit/deduxit`, the checkout `~/Projects/own/deduxit`) and in a Rocq
 library (below). CLAUDE.md applies throughout: jj only (never git),
 thematic commits as soon as a unit is done, doc comments on every item,
 the verification table, no pushing. This prompt was written on

@@ -1,6 +1,6 @@
 # Step 73: the release of 0.7.0
 
-You are working in deduxit (`deduxit/deduxit`, the checkout `../linlog`) and the Rocq
+You are working in deduxit (`deduxit/deduxit`, the checkout `~/Projects/own/deduxit`) and the Rocq
 libraries that changed. CLAUDE.md applies throughout; tagging and
 publishing are the author's acts. This prompt was written on 2026-11-08
 by step 46's second session and is finished at the review of step 72: it

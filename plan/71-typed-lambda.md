@@ -1,6 +1,6 @@
 # Step 71: the simply typed lambda calculus: typing derivations and inhabitation
 
-You are working in deduxit (`deduxit/deduxit`, the checkout `../linlog`) and, for the page, in
+You are working in deduxit (`deduxit/deduxit`, the checkout `~/Projects/own/deduxit`) and, for the page, in
 the web client (`deduxit/deduxit.github.io`). CLAUDE.md applies
 throughout: jj only (never git), thematic commits as soon as a unit is
 done, doc comments on every item, the verification table, no pushing.

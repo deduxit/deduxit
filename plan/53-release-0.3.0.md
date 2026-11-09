@@ -1,6 +1,6 @@
 # Step 53: the release of 0.3.0, the first from `deduxit`
 
-You are working in deduxit (`deduxit/deduxit`, the checkout `../linlog`) and, for its release,
+You are working in deduxit (`deduxit/deduxit`, the checkout `~/Projects/own/deduxit`) and, for its release,
 in the Rocq library (`../rocq-linlog`, `deduxit/rocq-deduxit`).
 CLAUDE.md applies throughout: jj only (never git), thematic commits as
 soon as a unit is done, doc comments on every item, the verification

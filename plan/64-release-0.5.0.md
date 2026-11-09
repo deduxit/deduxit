@@ -1,6 +1,6 @@
 # Step 64: the release of 0.5.0
 
-You are working in deduxit (`deduxit/deduxit`, the checkout `../linlog`) and, if it changed,
+You are working in deduxit (`deduxit/deduxit`, the checkout `~/Projects/own/deduxit`) and, if it changed,
 the Rocq library (`deduxit/rocq-deduxit`). CLAUDE.md applies
 throughout; tagging and publishing are the author's acts. This prompt
 was written on 2026-11-08 by step 46's second session and is finished at

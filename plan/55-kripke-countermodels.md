@@ -1,6 +1,6 @@
 # Step 55: Kripke countermodels, checked and certified
 
-You are working in deduxit (`deduxit/deduxit`, the checkout `../linlog`) and in the Rocq
+You are working in deduxit (`deduxit/deduxit`, the checkout `~/Projects/own/deduxit`) and in the Rocq
 library (`../rocq-linlog`, `deduxit/rocq-deduxit`). CLAUDE.md applies
 throughout: jj only (never git), thematic commits as soon as a unit is
 done, doc comments on every item, the verification table, no pushing; a

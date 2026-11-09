@@ -1,6 +1,6 @@
 # Step 54: intuitionistic logic decided natively, by Dyckhoff's LJT
 
-You are working in deduxit (`deduxit/deduxit`, the checkout `../linlog`).
+You are working in deduxit (`deduxit/deduxit`, the checkout `~/Projects/own/deduxit`).
 CLAUDE.md applies throughout: jj only (never git), thematic commits as
 soon as a unit is done, doc comments on every item, the verification
 table, no pushing. This prompt was written on 2026-11-08 by step 46's

@@ -31,7 +31,7 @@ this file holds.
     account: it keeps `CLAUDE_CONFIG_DIR` (unset for `claude`). Every
     session on one account shares its five-hour window, the planner's
     included, and the author's other projects fill it too.
-- **How the author starts you**, in `/home/tux/Projects/own/linlog`, from
+- **How the author starts you**, in `/home/tux/Projects/own/deduxit` (`linlog` until 2026-11-09), from
   their shell, which is nushell (put `claude2` for `claude` on the second
   account):
   ```nu
