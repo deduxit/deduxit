@@ -3,9 +3,15 @@
 
 //! What the focused engine is generic over: the members of its zones, the
 //! zones themselves, and how the literals among the members meet their
-//! duals. [`Ground`] is the instance whose members are the forest's
-//! occurrences, the propositional search; its methods are the engine's
-//! own code, inlined into it.
+//! duals.
+//!
+//! A sequent in the engine has two zones. The linear zone `Γ` holds the
+//! formulas a proof uses exactly once. The unrestricted zone `Θ` holds the
+//! formulas under a `?`, which a proof may copy any number of times.
+//!
+//! [`Ground`] is the instance whose members are the forest's occurrences:
+//! the propositional search. Its methods are the engine's own code,
+//! inlined into it.
 
 use super::choices::Choices;
 use super::classes::Classes;
@@ -21,17 +27,23 @@ use crate::linear::sequents::{Eigen, FoTermId};
 use std::fmt::Debug;
 use std::hash::Hash;
 
-/// The members of the engine's zones and the seam where its literals meet:
-/// the initial rules, the forced splits' lookups of duals, the copy
+/// The members of the engine's zones, and the seam where its literals
+/// meet: the initial rules, the forced splits' lookups of duals, the copy
 /// heuristic, the classes, and what the memo and the loop check may key.
+///
+/// The memo is the table of stable sequents already decided. The loop
+/// check prunes a sequent equal to an ancestor on its branch.
+///
 /// The forest is passed to every call that reads it, since a pool's
 /// workers hold no borrow of their spawner's zone.
 pub(super) trait Zone: Sized + Send + Sync {
     /// Whether the members are instances of occurrences under binders,
-    /// with the terms the binders were opened with: the engine then runs
-    /// the quantifier rules, closes its identities by unification and
-    /// asks a premise for another answer where the next one fails. The
-    /// hooks below that only such a zone has are never called otherwise.
+    /// with the terms the binders were opened with.
+    ///
+    /// The engine then runs the quantifier rules, closes its identities
+    /// by unification, and asks a premise for another answer where the
+    /// next one fails. Otherwise it never calls the hooks below that only
+    /// such a zone has.
     const FIRST_ORDER: bool = false;
 
     /// A member of a zone, which names its occurrence.
@@ -56,17 +68,18 @@ pub(super) trait Zone: Sized + Send + Sync {
     fn share(&mut self) {}
 
     /// Whether the alternatives of a choice may run on workers of a pool,
-    /// each on a fork of this zone: where no rule around the choice may
-    /// ask it for another answer.
+    /// each on a fork of this zone. They may where no rule around the
+    /// choice may ask it for another answer.
     #[cfg(feature = "parallel")]
     fn divides(&self) -> bool {
         true
     }
 
-    /// Takes the zone of the worker whose alternative proved a choice,
-    /// forked from this one, which has not moved since: the instances,
-    /// variables and bindings its proof rests on. This zone's counters
-    /// and cut stay.
+    /// Takes over the zone of the worker whose alternative proved a
+    /// choice: the instances, variables and bindings its proof rests on.
+    ///
+    /// The worker's zone was forked from this one, which has not changed
+    /// since. This zone keeps its own counters and cut.
     #[cfg(feature = "parallel")]
     fn adopt(&mut self, _worker: Self) {}
 
@@ -93,9 +106,12 @@ pub(super) trait Zone: Sized + Send + Sync {
         within: &Self::Unrestricted,
     ) -> Option<Self::Member>;
 
-    /// The first member dual to `literal` in `rest`, the context of a
-    /// chain of forced splits, read on from where the chain's last lookup
-    /// of that literal ended.
+    /// The first member dual to `literal` in `rest`, read on from where
+    /// the chain's last lookup of that literal ended.
+    ///
+    /// `rest` is the context of a chain of forced splits. A split of the
+    /// context at a `⊗` is forced when a factor decides it, as a positive
+    /// literal takes exactly its dual.
     fn dual_from(
         &self,
         forest: &Forest,
@@ -104,9 +120,12 @@ pub(super) trait Zone: Sized + Send + Sync {
         cursors: &mut Cursors,
     ) -> Option<Self::Member>;
 
-    /// Marks the literals among the members of a stable sequent, under a
-    /// stamp of their own, with the first member of each, charging what
-    /// the marks allocate to `scratch`.
+    /// Marks the literals among the members of a stable sequent under a
+    /// new stamp, with the first member of each. Charges what the marks
+    /// allocate to `scratch`.
+    ///
+    /// A stable sequent is one with no rule left that applies without a
+    /// choice.
     fn mark_literals(&mut self, forest: &Forest, members: &[Self::Member], scratch: &mut Charged);
 
     /// Where the marks of the members dual to `literal` are, or `None`
@@ -117,7 +136,7 @@ pub(super) trait Zone: Sized + Send + Sync {
     fn marked(&self, duals: Self::Duals) -> Option<Self::Member>;
 
     /// Whether the duals are yet to be looked up in `Θ` under the last
-    /// marking; they count as looked up from then on.
+    /// marking. From this call on they count as looked up.
     fn first_lookup(&mut self, duals: Self::Duals) -> bool;
 
     /// Whether a formula of `Θ` has a literal below it whose dual the
@@ -139,8 +158,8 @@ pub(super) trait Zone: Sized + Send + Sync {
     /// The pool the words of the memo's keys are taken from.
     fn word_lists(pools: &mut Pools<Self>) -> &mut Vec<Pooled<OccId>>;
 
-    /// The members of a linear zone that is keyed by `words`, its members
-    /// each once ([`Context::list_into`]), when they are its words.
+    /// The members of a linear zone keyed by `words`, where the words are
+    /// its members, each once ([`Context::list_into`]).
     fn listed(words: &[OccId]) -> Option<&[Self::Member]>;
 
     /// Where the bindings, the instances and the eigenvariables stand,
@@ -155,8 +174,9 @@ pub(super) trait Zone: Sized + Send + Sync {
         unreachable!("a zone without binders binds nothing")
     }
 
-    /// Begins a level of the copy bound's deepening: no first-order
-    /// bound has cut it yet.
+    /// Begins a level of the deepening. The search runs level by level,
+    /// each with a copy budget one higher; no first-order bound has cut
+    /// the new level yet.
     fn begin_level(&mut self) {}
 
     /// The first-order bound that cut a branch of the level, if one did.
@@ -164,9 +184,10 @@ pub(super) trait Zone: Sized + Send + Sync {
         None
     }
 
-    /// The `∀` rule on the binder `binder`: its body's member under a
-    /// fresh eigenvariable, which [`Self::introduced`] hands back; `None`
-    /// where a bound cuts the branch.
+    /// Applies the `∀` rule on `binder`. Returns its body's member under a
+    /// fresh eigenvariable (a constant that nothing else names), which
+    /// [`Self::introduced`] hands back, or `None` where a bound cuts the
+    /// branch.
     ///
     /// # Errors
     ///
@@ -184,9 +205,10 @@ pub(super) trait Zone: Sized + Send + Sync {
         unreachable!("a zone without binders opens none")
     }
 
-    /// The `∃` rule on the binder `binder`: its body's member under a
-    /// fresh metavariable, with the metavariable's term as the witness;
-    /// `None` where a bound cuts the branch.
+    /// Applies the `∃` rule on `binder`. Returns its body's member under a
+    /// fresh metavariable (a variable that unification binds later), with
+    /// the metavariable's term as the witness, or `None` where a bound
+    /// cuts the branch.
     ///
     /// # Errors
     ///
@@ -206,18 +228,19 @@ pub(super) trait Zone: Sized + Send + Sync {
     }
 
     /// Unifies the terms of two opposite literals, binding
-    /// metavariables, and keeps the bindings where no answer excluded
+    /// metavariables. It keeps the bindings unless an answer excluded
     /// below fits them.
     fn unify(&mut self, _forest: &Forest, _p: Self::Member, _q: Self::Member) -> Unified {
         unreachable!("a zone without binders unifies nothing")
     }
 
-    /// Opens the answers of a rule's first premise, whose second premise
-    /// has the members given: `false` where they hold no unbound
-    /// metavariable, so that no binding of the first changes the second;
-    /// otherwise the answers found to fail are excluded while the first
-    /// premise is searched, from [`Self::record`] on, until
-    /// [`Self::close_answers`].
+    /// Opens the answers of a rule's first premise. `members` are the
+    /// members of the rule's second premise.
+    ///
+    /// Returns `false` where they hold no unbound metavariable, so that no
+    /// binding of the first premise changes the second. Otherwise the
+    /// answers found to fail are excluded while the first premise is
+    /// searched, from [`Self::record`] on until [`Self::close_answers`].
     fn open_answers(
         &mut self,
         _forest: &Forest,
@@ -233,16 +256,18 @@ pub(super) trait Zone: Sized + Send + Sync {
     }
 
     /// Records the answer the first premise gave last, under which the
-    /// second failed, to be excluded from then on, before [`Self::undo`]
-    /// takes it back; returns the bytes it holds, which the engine
-    /// charges until [`Self::close_answers`].
+    /// second failed, to be excluded from then on. Called before
+    /// [`Self::undo`] takes the answer back.
+    ///
+    /// Returns the bytes the record holds, which the engine charges until
+    /// [`Self::close_answers`].
     fn record(&mut self, _forest: &Forest) -> usize {
         unreachable!("a zone without binders has one answer")
     }
 
-    /// Whether the bindings as they stand, before the first premise once
-    /// [`Self::undo`] restored them, are excluded already: then every
-    /// answer would be, and none is left to search for.
+    /// Whether the bindings as they stood before the first premise, which
+    /// [`Self::undo`] restored, are excluded already. Then every answer
+    /// would be, and none is left to search for.
     fn exhausted(&mut self, _forest: &Forest) -> bool {
         unreachable!("a zone without binders has one answer")
     }
@@ -252,10 +277,11 @@ pub(super) trait Zone: Sized + Send + Sync {
         unreachable!("a zone without binders has one answer")
     }
 
-    /// Writes the keys of the stable sequent `⊢ Θ ; Γ` by instance: its
-    /// own, which names its variables as the search does, and its
-    /// canonical one, the same up to a renaming of them; false where the
-    /// sequent is to be decided without a key.
+    /// Writes the two keys of the stable sequent `⊢ Θ ; Γ` by instance.
+    /// Returns false where the sequent is to be decided without a key.
+    ///
+    /// The sequent's own key names its variables as the search does. Its
+    /// canonical key is the same up to a renaming of them.
     fn keys(
         &mut self,
         _forest: &Forest,
@@ -268,13 +294,13 @@ pub(super) trait Zone: Sized + Send + Sync {
     }
 
     /// Whether some answer is excluded while its first premise is
-    /// searched: a failure found then may rest on the exclusion, so it is
+    /// searched. A failure found then may rest on the exclusion, so it is
     /// no fact about its sequent.
     fn excluding(&self) -> bool {
         unreachable!("a zone without binders has one answer")
     }
 
-    /// The terms the zone's walks visited since this was last asked:
+    /// The terms the zone's walks visited since this was last asked. It is
     /// work that grows with the size of the terms, which the engine counts
     /// and polls its stop on.
     fn take_steps(&mut self) -> u64 {
@@ -293,9 +319,9 @@ pub(super) trait Zone: Sized + Send + Sync {
         unreachable!("a zone without binders holds no table")
     }
 
-    /// Closes the proof found, renaming its members and witnesses to an
-    /// instance table's, every metavariable left unbound a fresh
-    /// constant.
+    /// Closes the proof found and returns its instance table. Its members
+    /// and witnesses are renamed to the table's, and every metavariable
+    /// left unbound becomes a fresh constant.
     ///
     /// # Errors
     ///
@@ -447,9 +473,9 @@ impl Unrestricted<OccId> for OccSet {
 /// How far a chain of forced splits has read the forest's lists of the
 /// occurrences of each literal in its search for duals.
 pub(super) struct Cursors {
-    /// Per list, twice the atom plus the sign as the forest numbers them:
-    /// how many occurrences at its head are no longer in the chain's
-    /// context.
+    /// Per list (twice the atom plus the sign, as the forest numbers
+    /// them), how many occurrences at its head are no longer in the
+    /// chain's context.
     pub(super) passed: Vec<u32>,
     /// The lists whose entry is not zero.
     pub(super) moved: Vec<u32>,
@@ -468,12 +494,12 @@ struct Marks {
     tried: u64,
 }
 
-/// The zone whose members are the forest's occurrences: its literals meet
+/// The zone whose members are the forest's occurrences. Its literals meet
 /// through the forest's lists of each literal's occurrences, and the memo
 /// keys every sequent.
 pub(super) struct Ground {
-    /// Per list of a literal's occurrences, twice the atom plus the sign
-    /// as the forest numbers them: what the members marked last have on
+    /// Per list of a literal's occurrences (twice the atom plus the sign,
+    /// as the forest numbers them), what the members marked last have on
     /// it. Empty until the first marking.
     lists: Vec<Marks>,
     /// The stamp of the members marked last. A search that marks a
@@ -520,10 +546,12 @@ impl Zone for Ground {
         child
     }
 
-    /// Found through the forest's list of the dual literal's occurrences
-    /// rather than through the zone's members. Always inlined: called on
-    /// a set rather than a closure, it was left out of line once a second
-    /// zone shared the callers, a call per lookup on a chain of copies.
+    /// Found through the forest's list of the dual literal's occurrences,
+    /// not through the zone's members.
+    ///
+    /// Always inlined. It takes a set, not a closure, and two zones share
+    /// its callers, so the compiler would otherwise leave it out of line:
+    /// a call per lookup on a chain of copies.
     #[inline(always)]
     fn dual_in(&self, f: &Forest, literal: OccId, within: &OccSet) -> Option<OccId> {
         let (atom, sign) = (f.atom(literal)?, f.sign(literal)?);
@@ -534,11 +562,14 @@ impl Zone for Ground {
     }
 
     /// What [`Self::dual_in`] finds in `rest`, read from where the chain's
-    /// last lookup of that literal ended: the context of a chain only
-    /// loses members, so the occurrences passed over once are in it no
-    /// more. A chain's lookups of one literal together cost its list once
-    /// and not once each, which on a marking of thousands of equal tokens
-    /// was most of a search's time.
+    /// last lookup of that literal ended. The context of a chain only
+    /// loses members, so the occurrences passed over once are gone from
+    /// it.
+    ///
+    /// So a chain's lookups of one literal together cost its list once.
+    /// Read from the head each time, they are quadratic, and most of a
+    /// search's time on a Petri net's marking of thousands of equal
+    /// tokens.
     #[inline]
     fn dual_from(
         &self,
@@ -564,11 +595,11 @@ impl Zone for Ground {
         found.map(|at| duals[start + at])
     }
 
-    /// One pass over the members, so that ranking the copies costs the
-    /// members and the formulas of `Θ` once each and not their product,
-    /// which on a marking of thousands of tokens under clauses of
-    /// thousands of literals was a quarter of a second per stable
-    /// sequent.
+    /// One pass over the members. Ranking the copies then costs the
+    /// members and the formulas of `Θ` once each, not their product. The
+    /// product is a quarter of a second per stable sequent on a Petri
+    /// net's marking of thousands of tokens under clauses of thousands of
+    /// literals.
     #[inline]
     fn mark_literals(&mut self, f: &Forest, members: &[OccId], scratch: &mut Charged) {
         if self.lists.is_empty() {
@@ -618,7 +649,8 @@ impl Zone for Ground {
         true
     }
 
-    /// The copy heuristic's notion of a copy that can meet something.
+    /// The copy heuristic's test: a copy of a formula that meets a member
+    /// is tried first.
     #[inline]
     fn meets(&self, f: &Forest, a: OccId) -> bool {
         f.subtree(a).any(|l| match (f.atom(l), f.sign(l)) {

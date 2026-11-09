@@ -1,56 +1,59 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The zone of a first-order search: its members are occurrences under
-//! binders with the terms their binders were opened with, a fresh
-//! eigenvariable for a `∀` and a metavariable for the witness of an `∃`,
-//! and its identities join literals whose terms unify.
+//! The zone of a first-order search. Its members are occurrences under
+//! binders, with the terms their binders were opened with: a fresh
+//! eigenvariable for a `∀`, and a metavariable for the witness of an `∃`.
+//! An *eigenvariable* is a fresh constant that a `∀` step introduces. A
+//! *metavariable* is a placeholder for a term that unification fills in
+//! later. The zone's identities join literals whose terms unify.
 //!
 //! **Members.** An occurrence outside every binder is its own member. An
 //! instance of a binder's body is a *span* of member ids, one per
-//! occurrence of the body's subtree, with the body's frame: the binder's
-//! own frame and the new term. So a subformula's member is the member's
-//! id moved by as much as the occurrence is, and no table is looked up
-//! on the engine's paths but where an occurrence is read, which finds
-//! the span by its first id. A binder below another is never reached
-//! through its parent's span: the rules open it with a span of its own.
+//! occurrence of the body's subtree. The span has the body's *frame*: the
+//! binder's own frame and the new term. So a subformula's member is the
+//! member's id moved by as much as the occurrence is. The engine's paths
+//! look up no table except where an occurrence is read, which finds the
+//! span by its first id. A binder below another is never reached through
+//! its parent's span: the rules open it with a span of its own.
 //!
-//! **Terms** are shared, never built: a term is a term of the sequent's
-//! arena read under a frame, whose bound variables are the frame's terms,
-//! or a variable of the search, a metavariable that a binding may point
-//! at another term, or an eigenvariable. Unification binds metavariables
-//! to such terms with the occurs check, iteratively, each pair of terms
-//! once.
+//! **Terms** are shared, never built. A term is a term of the sequent's
+//! arena read under a frame, whose bound variables are the frame's terms.
+//! Or it is a variable of the search: a metavariable, which a binding may
+//! point at another term, or an eigenvariable. Unification binds
+//! metavariables to such terms with the occurs check, iteratively, each
+//! pair of terms once.
 //!
-//! **Levels** keep the eigenvariable condition. Eigenvariables are
-//! numbered in the order they are made, and an eigenvariable's level is
-//! its number plus one; a metavariable's level is the number of
-//! eigenvariables made before it. A metavariable is bound only to a term
-//! whose eigenvariables are below its level, and the metavariables of
-//! that term are lowered to its level, trailed. An eigenvariable made
-//! after a metavariable lies in the subtree of a `∀` above the `∃` that
-//! made the metavariable, or on another branch, where none of its
-//! terms ever meets the metavariable but through metavariables of lower
-//! levels; so a binding the levels allow puts no eigenvariable into the
-//! conclusion of its own `∀`, and the checker's condition holds.
+//! **Levels** keep the eigenvariable condition: an eigenvariable never
+//! occurs in the conclusion of its own `∀`. Eigenvariables are numbered in
+//! the order they are made, and an eigenvariable's level is its number
+//! plus one. A metavariable's level is the number of eigenvariables made
+//! before it. A metavariable is bound only to a term whose eigenvariables
+//! are below its level, and the metavariables of that term are lowered to
+//! its level, on the trail. An eigenvariable made after a metavariable
+//! lies in the subtree of a `∀` above the `∃` that made the metavariable,
+//! or on another branch. There none of its terms ever meets the
+//! metavariable except through metavariables of lower levels. So a binding
+//! the levels allow puts no eigenvariable into the conclusion of its own
+//! `∀`, and the checker's condition holds.
 //!
-//! **Undo.** Every binding and every lowering is on the trail, and the
-//! spans, frames and variables only grow; a mark is where each stands,
-//! and undoing to it pops the trail and truncates the rest. The engine
-//! undoes exactly where it releases pending nodes, and where a binder
-//! rule or an identity it tried failed.
+//! **Undo.** Every binding and every lowering is on the *trail*, and the
+//! spans, frames and variables only grow. A mark is where each stands, and
+//! undoing to it pops the trail and truncates the rest. The engine undoes
+//! exactly where it releases pending nodes, and where a binder rule or an
+//! identity it tried failed.
 //!
 //! **Answers.** A rule of two premises whose second premise shares an
 //! unbound metavariable with the first may need another answer of the
 //! first: one that binds it otherwise. The first premise's answer is the
-//! tuple of the shared metavariables' terms; when the second fails under
-//! it, it fails under every instance of it (with metavariables no more
-//! free and no eigenvariable of a higher level), so the answer is
-//! recorded as a pattern and the first premise searched again with every
-//! binding that makes the tuple an instance of a recorded pattern
-//! refused. Bindings only make the tuple more specific, so the refusal at
-//! the binding prunes exactly the proofs whose answer is such an
-//! instance, and the search of the first premise finds every other
+//! tuple of the shared metavariables' terms. When the second premise fails
+//! under an answer, it fails under every instance of it (with
+//! metavariables no more free and no eigenvariable of a higher level). So
+//! the answer is recorded as a pattern, and the first premise is searched
+//! again with every binding refused that makes the tuple an instance of a
+//! recorded pattern. Bindings only make the tuple more specific. So the
+//! refusal at the binding prunes exactly the proofs whose answer is such
+//! an instance, and the search of the first premise finds every other
 //! answer. It ends when the bindings before the first premise are an
 //! instance themselves, or when the first premise has no proof left.
 
@@ -78,15 +81,15 @@ const NONE: u32 = u32::MAX;
 
 #[cfg(test)]
 thread_local! {
-    /// The first member id a test's search may not give, below the
-    /// default's: the bound on members is reached only by a search far
-    /// larger than a test runs.
+    /// The first member id a test's search may not give, lowered below the
+    /// default's. Only a search far larger than a test runs reaches the
+    /// default.
     pub(super) static MEMBER_LIMIT: std::cell::Cell<u32> = const { std::cell::Cell::new(u32::MAX) };
 }
 
-/// The first member id a search may not give: `u32::MAX`, which stands
-/// for no frame among the frames' parents, or in a test what its thread
-/// set.
+/// Returns the first member id a search may not give: `u32::MAX`, which
+/// stands for no frame among the frames' parents. In a test it is what
+/// the test's thread set.
 fn member_limit() -> u32 {
     #[cfg(test)]
     {
@@ -98,8 +101,8 @@ fn member_limit() -> u32 {
     }
 }
 
-/// A member of a first-order search: an occurrence of the forest below
-/// its length, an occurrence of a span past it.
+/// A member of a first-order search. An id below the forest's length is
+/// an occurrence of the forest; an id past it is an occurrence in a span.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(super) struct FMember(u32);
 
@@ -109,9 +112,9 @@ impl From<FMember> for Member {
     }
 }
 
-/// A term of a search: a term of the sequent's arena under a frame (an
-/// id below the arena's length), or a variable of the search (the id past
-/// it by the variable's index), whose frame is [`NONE`], as a closed
+/// A term of a search. An id below the arena's length is a term of the
+/// sequent's arena under a frame. An id past it, by the variable's index,
+/// is a variable of the search, whose frame is [`NONE`], as a closed
 /// term's is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 struct TRef {
@@ -124,9 +127,9 @@ struct TRef {
 /// A variable of the search.
 #[derive(Clone, Copy, Debug)]
 enum Var {
-    /// The witness of an `∃` step: unbound, or bound to a term, and its
-    /// level, below which every eigenvariable of a term it is bound to
-    /// lies.
+    /// The witness of an `∃` step, unbound or bound to a term, with its
+    /// level. Every eigenvariable of a term it is bound to lies below the
+    /// level.
     Meta {
         /// What it is bound to.
         binding: Option<TRef>,
@@ -157,8 +160,8 @@ enum Named {
     Unknown,
     /// The ground term of this id.
     Ground(u32),
-    /// A term that holds the variable of this index, unbound or an
-    /// eigenvariable: so while that variable stays unbound.
+    /// A term that holds the variable of this index, an unbound metavariable
+    /// or an eigenvariable. The name holds while that variable stays unbound.
     Open(u32),
 }
 
@@ -174,8 +177,8 @@ enum Head {
 }
 
 /// The table of ground terms: a zone's own, or the one every engine of a
-/// search on a pool shares, so that a ground term has one id in all their
-/// keys and their memo is one.
+/// search on a pool shares. Shared, it gives a ground term one id in all
+/// their keys, so that their memo is one.
 #[derive(Clone, Debug)]
 enum Grounds {
     /// The zone's own.
@@ -185,9 +188,9 @@ enum Grounds {
     Shared(Arc<SharedGrounds>),
 }
 
-/// The table of ground terms a pool's engines share, and its slots,
-/// which every engine's account reads at each poll: an atomic, so that
-/// the poll takes no lock.
+/// The table of ground terms a pool's engines share, and its slots. Every
+/// engine's account reads the slots at each poll, so they are an atomic,
+/// and the poll takes no lock.
 #[cfg(feature = "parallel")]
 #[derive(Debug)]
 struct SharedGrounds {
@@ -198,7 +201,7 @@ struct SharedGrounds {
 }
 
 impl Grounds {
-    /// The name of the application of `symbol` to terms of the names
+    /// Returns the name of the application of `symbol` to terms of the names
     /// `args`, as [`Framed::apply`] gives it.
     fn apply(&mut self, symbol: Symbol, args: &[Name]) -> Name {
         match self {
@@ -213,8 +216,9 @@ impl Grounds {
         }
     }
 
-    /// The slots of the table. A shared one is counted by every engine
-    /// that reads it, more than it holds, which the memory bound errs on.
+    /// Returns the slots of the table. Every engine that reads a shared table
+    /// counts it, so the count is more than the table holds; the memory bound
+    /// errs on that side.
     fn capacity(&self) -> usize {
         match self {
             Self::Own(table) => table.capacity(),
@@ -244,7 +248,7 @@ enum Name {
     Ground(u32),
     /// A term holding the variable of this index.
     Open(u32),
-    /// A ground term whose id would pass a key word's value.
+    /// A ground term whose id would be too large for a word of a key.
     Past,
 }
 
@@ -324,8 +328,8 @@ struct Answers {
     metas: Vec<u32>,
     /// The answers under which the second premise failed.
     patterns: Vec<Pattern>,
-    /// Whether the first premise is being searched, when the patterns
-    /// are excluded.
+    /// Whether the first premise is being searched. The patterns are excluded
+    /// only then.
     first: bool,
 }
 
@@ -337,7 +341,7 @@ pub(super) struct Framed {
     occurrences: u32,
     /// The sequent's terms: the first id of a variable.
     base: u32,
-    /// The spans, one per instance held: the forest's occurrences are
+    /// The spans, one per instance held. The forest's occurrences are the
     /// members below them.
     spans: Vec<Span>,
     /// Per frame, its parent ([`NONE`] for none) and its term.
@@ -372,10 +376,10 @@ pub(super) struct Framed {
     marks: Vec<u64>,
     /// The stamp of the last marking.
     stamp: u64,
-    /// The terms the walks visited since the engine last took them: the
-    /// work a unification, a pattern or a match does, which grows with the
-    /// terms' size and not with the search's steps. Atomic, so that the
-    /// walks that read the zone count too; one thread uses it.
+    /// The terms the walks visited since the engine last took them. That is
+    /// the work a unification, a pattern or a match does, which grows with
+    /// the terms' size and not with the search's steps. Atomic, so that the
+    /// walks that only read the zone count too; one thread uses it.
     steps: AtomicU64,
     /// The unifications of two literals tried.
     unifications: u64,
@@ -398,8 +402,8 @@ pub(super) struct Framed {
     /// each term met gets one id for the whole search, so equal ids are
     /// equal terms however they were reached.
     ground: Grounds,
-    /// Per term of the sequent's arena, its id in `ground` if it is
-    /// closed and its id below a key word's value, else [`NONE`].
+    /// Per term of the sequent's arena, its id in `ground` if the term is
+    /// closed and the id fits a word of a key, else [`NONE`].
     arena: Arc<[u32]>,
     /// Per variable, what it was found to stand for, on the trail.
     named: Vec<Named>,
@@ -432,9 +436,9 @@ impl Framed {
         self.frames[frame as usize].1
     }
 
-    /// The term `t` stands for: its bound variables read in its frame,
-    /// its metavariables' bindings followed; a closed term without its
-    /// frame.
+    /// Returns the term `t` stands for: its bound variables read in its
+    /// frame, and its metavariables' bindings followed. A closed term comes
+    /// back without its frame.
     fn deref(&self, fo: &FirstOrder, mut t: TRef) -> TRef {
         loop {
             if t.id < self.base {
@@ -514,8 +518,8 @@ impl Framed {
         Ok(FMember(base))
     }
 
-    /// Whether the search holds as many instances as it may: the next
-    /// binder step cuts its branch.
+    /// Returns whether the search holds as many instances as it may. Then the
+    /// next binder step cuts its branch.
     fn full(&mut self) -> bool {
         if self.spans.len() >= self.instances as usize {
             self.cut = Some(Reason::Instances {
@@ -526,10 +530,10 @@ impl Framed {
         false
     }
 
-    /// Binds the metavariable `x` to `t`: refused where `x` occurs in
-    /// `t` or `t` holds an eigenvariable at or past `x`'s level, cut where
-    /// `t` is deeper than the witness depth; the metavariables of `t`
-    /// above `x`'s level are lowered to it.
+    /// Binds the metavariable `x` to `t`, and lowers the metavariables of `t`
+    /// above `x`'s level to it. Refuses where `x` occurs in `t` (the occurs
+    /// check), or where `t` holds an eigenvariable at or past `x`'s level.
+    /// Cuts the branch where `t` is deeper than the witness depth.
     fn bind(&mut self, fo: &FirstOrder, x: u32, t: TRef) -> Unified {
         let level = self.level(x);
         self.depths.clear();
@@ -706,8 +710,8 @@ impl Framed {
     }
 
     /// Whether every variable of `t` is below `level`, or at it for a
-    /// metavariable: what a metavariable of that level could be bound
-    /// to, and be read as.
+    /// metavariable. Such a term is what a metavariable of that level could be
+    /// bound to, and be read as.
     fn fits(&self, fo: &FirstOrder, t: TRef, level: u32) -> bool {
         let mut walk = vec![t];
         let mut met = HashSet::default();
@@ -885,32 +889,35 @@ impl Framed {
 // loop check read.
 //
 // A member is written as its occurrence followed by the terms of its
-// frame, innermost first, each in prefix order as the bindings resolve
-// it: a ground term by its id in the search's table of ground terms
-// (the arena's closed terms and every ground term a binding built, each
-// once, so equal ids are equal terms however they were reached, and a
-// witness built over many bindings is one word, not its length), an
-// application holding a variable by its symbol followed by its
-// arguments, a metavariable or an eigenvariable by a number. The
-// occurrence fixes how many binders lie above it, and a symbol its
-// arity, so the words of a member end where its last term does.
+// frame, innermost first. Each term is written in prefix order, as the
+// bindings resolve it:
+// - a ground term by its id in the search's table of ground terms;
+// - an application holding a variable by its symbol, followed by its
+//   arguments;
+// - a metavariable or an eigenvariable by a number.
+// The table of ground terms holds the arena's closed terms and every
+// ground term a binding built, each once. So equal ids are equal terms
+// however they were reached, and a witness built over many bindings is
+// one word, not its length. The occurrence fixes how many binders lie
+// above it, and a symbol its arity, so the words of a member end where
+// its last term does.
 //
 // **The instance's own key** names every variable as the search does,
-// and every metavariable's level beside it: two stable sequents share it
-// exactly when they are the same instance, the same members over the
-// same unbound metavariables and eigenvariables. The loop check compares
-// it: a sequent equal to an ancestor whose metavariables are still
-// unbound is that ancestor, and a smallest proof of the ancestor never
-// passes through it. A failure cut by a bound is recorded under it, as
+// with every metavariable's level beside it. Two stable sequents share it
+// exactly when they are the same instance: the same members over the same
+// unbound metavariables and eigenvariables. The loop check compares it. A
+// sequent equal to an ancestor whose metavariables are still unbound is
+// that ancestor, and a smallest proof of the ancestor never passes
+// through it. A failure cut by a bound is recorded under the own key, as
 // the propositional engine records one under the sequent's own key.
 //
 // **The canonical key** is the same sequent up to a renaming of its
-// variables: the members sorted with every metavariable alike, the
-// metavariables then numbered as they first appear, the eigenvariables
-// ranked by number, and every metavariable's level written as how many
-// of the sequent's eigenvariables lie below it, which is all of its
-// level a search of the sequent reads: a binding there only ever meets
-// the sequent's own eigenvariables and younger ones, which no
+// variables. The members are sorted with every metavariable alike. The
+// metavariables are then numbered as they first appear, and the
+// eigenvariables ranked by number. Every metavariable's level is written
+// as how many of the sequent's eigenvariables lie below it. That is all
+// of its level a search of the sequent reads: a binding there only ever
+// meets the sequent's own eigenvariables and younger ones, which no
 // metavariable of the sequent may take. Two sequents with one canonical
 // key are one sequent up to a renaming that keeps the levels' order, so
 // a complete failure of either is one of the other.
@@ -929,10 +936,10 @@ const META: u32 = 3 << 30;
 /// refused: such a sequent is decided without a key.
 const VALUE: u32 = !TAG;
 
-/// The most words the members of a key may take: a sequent whose terms,
-/// written out, pass it (a witness shared many times over is written as
-/// often as it is reached) is decided without the memo and the loop
-/// check, which would spend more on its key than on most searches.
+/// The most words the members of a key may take. A sequent whose terms,
+/// written out, pass it is decided without the memo and the loop check,
+/// which would spend more on its key than on most searches. A witness
+/// shared many times over is written as often as it is reached.
 const KEY_WORDS: usize = 1 << 16;
 
 /// The buffers the keys are written with, kept between stable sequents.
@@ -957,8 +964,8 @@ struct KeyScratch {
 }
 
 impl KeyScratch {
-    /// The bytes its buffers hold; a hash table's entries as its slots
-    /// and a control byte each.
+    /// Returns the bytes its buffers hold, a hash table's as its slots with a
+    /// control byte each.
     fn bytes(&self) -> usize {
         bytes_of(&self.words)
             + bytes_of(&self.starts)
@@ -1013,9 +1020,10 @@ impl KeyScratch {
 
 impl Framed {
     /// Writes the keys of the stable sequent `⊢ Θ ; Γ`: its own and its
-    /// canonical one, as said above [`KeyScratch`]. False where a variable, a term
-    /// or a symbol passes a word's value or the words pass
-    /// [`KEY_WORDS`]: the sequent is then decided without a key.
+    /// canonical one, as the comment above [`KeyScratch`] says. Returns false
+    /// where a variable, a term or a symbol is too large for a word's value,
+    /// or the words pass [`KEY_WORDS`]. The sequent is then decided without a
+    /// key.
     fn write_keys(
         &mut self,
         forest: &Forest,
@@ -1030,9 +1038,9 @@ impl Framed {
         s.starts.clear();
         s.copies.clear();
         s.eigens.clear();
-        // A member present more than once is written once, with its number
-        // of copies: a clause copied a hundred times leaves a hundred
-        // copies of one instance, which written out made every key as long.
+        // A member present more than once is written once, with its number of
+        // copies. A clause copied a hundred times leaves a hundred copies of one
+        // instance, which written out would make every key as long.
         let written = gamma
             .0
             .chunk_by(|x, y| x == y)
@@ -1108,13 +1116,15 @@ impl Framed {
         true
     }
 
-    /// The name of the term `t` stands for: its id where it is ground, a
-    /// variable it holds where it is not, or past a word's value. Every
-    /// bound metavariable the walk passes keeps its name, on the trail,
-    /// so a key names a witness built over many bindings in one step:
-    /// a name rests only on bindings made before it, which an undo takes
-    /// back after it, and an open name is asked again once its variable
-    /// is bound.
+    /// Returns the name of the term `t` stands for: its id where it is
+    /// ground, a variable it holds where it is not, or `Name::Past` where the
+    /// id is too large for a word.
+    ///
+    /// Every bound metavariable the walk passes keeps its name, on the trail.
+    /// So a key names a witness built over many bindings in one step. A name
+    /// rests only on bindings made before it, which an undo takes back only
+    /// after the name. An open name is asked again once its variable is
+    /// bound.
     fn name(&mut self, fo: &FirstOrder, t: TRef) -> Name {
         // A frame's term is a variable: an unbound one, an eigenvariable
         // or a kept name needs no walk.
@@ -1212,11 +1222,11 @@ impl Framed {
         }
     }
 
-    /// The name of the application of `symbol` to terms of the names
-    /// `args`: where all are ground, the id of the term in `ground`, a
-    /// new one for a new term, the arguments taken one at a time (a
-    /// constant applied to none, [`NONE`]); else the first open one, or
-    /// past.
+    /// Returns the name of the application of `symbol` to terms of the names
+    /// `args`. Where all are ground, it is the id of the term in `ground`, a
+    /// new one for a new term. The table takes the arguments one at a time,
+    /// and a constant as applied to [`NONE`]. Otherwise it is the first open
+    /// name, or past.
     fn apply(ground: &mut HashMap<(Head, u32), u32>, symbol: Symbol, args: &[Name]) -> Name {
         let mut past = false;
         for &arg in args {
@@ -1257,11 +1267,11 @@ impl Framed {
         }
     }
 
-    /// The instance's own key: the members of `Γ` (the first `n`, each
-    /// once) and of `Θ`, each zone's sorted by their words, each member
-    /// after its number of copies and each zone after its number of
-    /// members, then the level of every metavariable in the order they
-    /// appear.
+    /// Writes the instance's own key into `key`. It holds the members of `Γ`
+    /// (the first `n`, each once) and of `Θ`, each zone's sorted by their
+    /// words. Each member comes after its number of copies, and each zone
+    /// after its number of members. Then comes the level of every
+    /// metavariable, in the order they appear.
     fn own_key(&self, s: &mut KeyScratch, n: usize, key: &mut Vec<OccId>) {
         let total = s.starts.len();
         s.order.clear();
@@ -1292,11 +1302,12 @@ impl Framed {
         s.order = order;
     }
 
-    /// The canonical key: the members of `Γ` (the first `n`, each once,
-    /// after its number of copies) and of `Θ`, each zone's sorted with every metavariable alike and every
-    /// eigenvariable by its rank, the metavariables numbered as they
-    /// first appear in that order, then per metavariable how many of the
-    /// sequent's eigenvariables lie below its level.
+    /// Writes the canonical key into `key`. It holds the members of `Γ` (the
+    /// first `n`, each once, after its number of copies) and of `Θ`. Each
+    /// zone's members are sorted with every metavariable alike and every
+    /// eigenvariable by its rank. The metavariables are numbered as they
+    /// first appear in that order. Then comes, per metavariable, how many of
+    /// the sequent's eigenvariables lie below its level.
     fn canonical_key(&self, s: &mut KeyScratch, n: usize, key: &mut Vec<OccId>) {
         let mut order = std::mem::take(&mut s.order);
         order[..n].sort_by(|&x, &y| s.abstract_order(x, y));
@@ -1423,13 +1434,12 @@ impl Zone for Framed {
         }
     }
 
-    /// A copy of the spans, frames, variables, bindings and trail, with
-    /// the sequent's tables and the table of ground terms the pool shares
-    /// ([`Zone::share`]), so
-    /// that the worker's keys name what every engine's do; the counters
-    /// at zero and the scratch empty. No rule
-    /// is open that asks for another answer ([`Zone::divides`]), so there
-    /// is no answer and no choice to log.
+    /// Returns a copy of the spans, frames, variables, bindings and trail,
+    /// with the sequent's tables and the table of ground terms the pool
+    /// shares ([`Zone::share`]), so that the worker's keys name terms as every
+    /// engine's do. The counters are at zero and the scratch is empty. No
+    /// rule is open that asks for another answer ([`Zone::divides`]), so
+    /// there is no answer and no choice to log.
     #[cfg(feature = "parallel")]
     fn fork(&self) -> Self {
         Self {
@@ -1479,8 +1489,8 @@ impl Zone for Framed {
     }
 
     /// While a rule may ask a premise for another answer, its choices are
-    /// logged and replayed in order, and a failure may rest on an answer
-    /// excluded: only a choice outside every such rule is divided.
+    /// logged and replayed in order, and a failure may rest on an excluded
+    /// answer. So only a choice outside every such rule is divided.
     #[cfg(feature = "parallel")]
     fn divides(&self) -> bool {
         self.answers.is_empty()
@@ -1518,8 +1528,9 @@ impl Zone for Framed {
         FMember(m.0 + (child.get() - self.occurrence(m).get()))
     }
 
-    /// A literal of a predicate whose atoms are all closed, so that its
-    /// dual is its atom's.
+    /// Finds the dual of a literal in `within`: a member with the literal's
+    /// atom and the other sign. The literal's predicate has only closed
+    /// atoms, so its dual has the same atom.
     fn dual_in(&self, forest: &Forest, literal: FMember, within: &Set) -> Option<FMember> {
         let o = self.occurrence(literal);
         let (atom, sign) = (forest.atom(o)?, forest.sign(o)?);
@@ -1545,7 +1556,7 @@ impl Zone for Framed {
         })
     }
 
-    /// The predicates and signs of the members' literals.
+    /// Marks the predicates and signs of the members' literals.
     fn mark_literals(&mut self, forest: &Forest, members: &[FMember], scratch: &mut Charged) {
         if self.marks.is_empty() {
             let fo = &forest.sequent().fo;
@@ -1582,7 +1593,8 @@ impl Zone for Framed {
             .any(|key| self.marks[key] == self.stamp)
     }
 
-    /// An occurrence's class; an instance is its own.
+    /// Returns a member's class: an occurrence's class, or, for a member in a
+    /// span, the member itself.
     fn class(&self, classes: &Classes, m: FMember) -> FMember {
         if m.0 < self.occurrences {
             FMember(classes.of(OccId::new(m.0)).get())
@@ -1605,7 +1617,7 @@ impl Zone for Framed {
         false
     }
 
-    /// A pool of its own: the members are no words.
+    /// A pool of its own, since the members are not words.
     fn word_lists(pools: &mut Pools<Self>) -> &mut Vec<Pooled<OccId>> {
         &mut pools.words
     }
@@ -1859,8 +1871,9 @@ impl Zone for Framed {
         (self.unifications, self.bindings)
     }
 
-    /// The tables and the walks' buffers by their capacities; a hash
-    /// table's entries as its slots and a control byte each.
+    /// Returns what the zone was charged when last asked, and what it holds
+    /// now: the tables and the walks' buffers by their capacities, a hash
+    /// table's as its slots with a control byte each.
     fn held(&mut self) -> (usize, usize) {
         let entries = |slots: usize, size: usize| slots * (size + 1);
         let held = bytes_of(&self.spans)
@@ -1935,7 +1948,7 @@ struct Closing<'a> {
 }
 
 impl Closing<'_> {
-    /// The table's term for a term as the search's bindings left it.
+    /// Returns the table's term for a term, as the search's bindings left it.
     fn term(&mut self, t: TRef) -> FoTermId {
         let framed = self.framed;
         let mut walk = vec![(t, false)];
@@ -1948,9 +1961,10 @@ impl Closing<'_> {
                 let eigen = match framed.vars[v as usize] {
                     Var::Eigen(number) => Eigen::new(number),
                     Var::Meta { .. } => {
-                        // A constant outside the signature that no `∀`
-                        // step introduces: the eigenvariables past every
-                        // one the search made.
+                        // An unbound metavariable becomes a constant outside
+                        // the signature that no `∀` step introduces: an
+                        // eigenvariable numbered past every one the search
+                        // made.
                         let next = framed.eigens.saturating_add(self.fresh.len() as u32);
                         *self.fresh.entry(v).or_insert(Eigen::new(next))
                     }

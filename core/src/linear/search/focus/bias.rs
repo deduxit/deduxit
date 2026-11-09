@@ -1,9 +1,12 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The atom bias: which literal of every atom the engine takes for
-//! positive, under each rule of [`Bias`](crate::linear::Bias). A function of the sequent alone,
-//! so a run stays deterministic.
+//! The atom bias: which literal of each atom, `a` or `~a`, the engine
+//! treats as positive, under each rule of [`Bias`](crate::linear::Bias).
+//!
+//! Focusing finds a proof under any choice of polarities, so the bias
+//! changes the search's speed, never what it proves. It is a function of
+//! the sequent alone, so a run stays deterministic.
 
 use super::counts::Predicates;
 use crate::linear::occurrences::{Forest, Sign};
@@ -17,9 +20,9 @@ use std::cmp::Ordering;
 pub(crate) fn signs(forest: &Forest, rule: Bias) -> Box<[Sign]> {
     let num_atoms = forest.sequent().atom_names().len();
     // A `⊗` with a positive literal for a factor has its split forced, so
-    // the literal that is more often such a factor is the positive one; an
-    // occurrence counts half for every additive choice above it, of which
-    // a proof takes one side.
+    // the literal that is more often such a factor is the positive one.
+    // An occurrence counts half for every additive choice above it, since
+    // a proof takes only one side of a choice.
     let by_factors = match rule {
         Bias::Auto => !forest
             .ids()
@@ -47,11 +50,12 @@ pub(crate) fn signs(forest: &Forest, rule: Bias) -> Box<[Sign]> {
             }
         }
     }
-    // Of a predicate with an open atom, whose literals may all meet, the
-    // literals are weighed together under the atom the counts take for
-    // it, which every atom of the predicate then follows: a literal and
-    // an instance of an open one that it unifies with must have opposite
-    // polarities, or no focused proof joins them.
+    // The literals of a predicate with an open atom (one with a variable)
+    // may all meet. So they are weighed together, under the atom the
+    // counts take for the predicate, and every atom of the predicate
+    // takes that atom's sign. A literal and an instance of an open one
+    // that it unifies with must have opposite polarities, or no focused
+    // proof joins them.
     let predicates = Predicates::of(forest.sequent());
     let mut literals = |a: usize| {
         let atom = Atom::new(a as u32);

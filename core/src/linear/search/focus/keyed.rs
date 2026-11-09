@@ -1,20 +1,30 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The memo and the loop check of a first-order search, which key a
-//! stable sequent by its instance (`framed/key.rs` has the keys).
+//! The memo and the loop check of a first-order search. The memo is the
+//! table of sequents already decided; the loop check prunes a sequent
+//! equal to one of its ancestors on the branch. Both key a stable
+//! sequent (one with no rule left that applies without a choice) by its
+//! instance: its members with their terms. `framed.rs` writes the keys.
 //!
-//! Only failures are recorded: a proof's members name spans and
-//! metavariables that an undo of a rule around it takes back, so a proof
-//! kept for later would name what is gone. A failure is a fact about its
-//! sequent where its search ran with no answer excluded (an excluded
-//! answer may be all that failed it), rested on no prune of an ancestor
-//! (the dependency the propositional engine lets wait is dropped here),
-//! and bound only what the sequent's own terms reach: its metavariables
-//! and the ones its search made. A complete failure then holds for every
-//! sequent with its canonical key; one cut by a bound only for the
-//! instance itself, at its own budget, as the propositional engine keeps
-//! such failures under the sequent's own key so that deepening closes.
+//! Only failures are recorded. A proof's members name spans and
+//! metavariables (the variables a later unification binds) that an undo
+//! of a rule around it takes back, so a proof kept for later would name
+//! what is gone.
+//!
+//! A failure is a fact about its sequent when three things hold:
+//! - its search ran with no answer excluded, since an excluded answer
+//!   may be all that failed it;
+//! - it rested on no prune of an ancestor (the propositional engine
+//!   lets such a failure wait; here it is dropped);
+//! - it bound only what the sequent's own terms reach: its metavariables
+//!   and the ones its search made.
+//!
+//! A complete failure then holds for every sequent with its canonical
+//! key, which names the variables up to renaming. A failure cut by a
+//! bound holds only for the instance itself, at its own budget. The
+//! propositional engine keeps such failures under the sequent's own key
+//! too, so that the deepening of the copy bound ends.
 
 use super::memo::{Entry, Failure, Key, Zones};
 use super::zone::{Linear as _, Zone};
@@ -23,11 +33,13 @@ use crate::linear::occurrences::OccId;
 use crate::linear::search::Reason;
 
 impl<Z: Zone> Run<'_, Z> {
-    /// The decision of a first-order stable sequent under its keys: a
-    /// complete failure recorded for its canonical key or one cut at its
-    /// own key answers it, a repeat of an ancestor is pruned, else it is
-    /// decided and a failure recorded as the module says. `None` where it
-    /// has no keys.
+    /// Decides a first-order stable sequent with the memo and the loop
+    /// check. Returns `None` where the sequent has no keys.
+    ///
+    /// A complete failure recorded under its canonical key answers it, and
+    /// so does a failure cut by a bound under its own key. A repeat of an
+    /// ancestor is pruned. Otherwise the sequent is decided, and a failure
+    /// is recorded as the module doc says.
     pub(super) fn prove_keyed(
         &mut self,
         theta: &Unrestricted<Z>,
@@ -41,8 +53,8 @@ impl<Z: Zone> Run<'_, Z> {
             .zone
             .keys(forest, &theta.set, gamma, &mut own, &mut canonical);
         // The keys live while the sequent's subtree is searched, one pair
-        // per stable sequent on the branch: charged before it, and their
-        // writing counted as work.
+        // per stable sequent on the branch. So they are charged to the
+        // account before the search, and writing them counts as work.
         own.settle(&mut self.scratch);
         canonical.settle(&mut self.scratch);
         let decided = match self.poll_terms() {
@@ -62,7 +74,8 @@ impl<Z: Zone> Run<'_, Z> {
         (own, canonical): (&[OccId], &[OccId]),
         budget: u32,
     ) -> Result<(Found, bool), Reason> {
-        // The unrestricted zone is among the members' words.
+        // The unrestricted zone is written among the members' words, so
+        // its id is unused.
         let own = Zones {
             theta: 0,
             members: own,
@@ -80,8 +93,8 @@ impl<Z: Zone> Run<'_, Z> {
         if self.problem.rules.stack
             && let Some(depth) = self.repeated(own, own_hash)
         {
-            // A depth of the branch, which is as deep as the recursion
-            // limit allows.
+            // A depth of the branch fits a `u32`: the recursion limit
+            // bounds it.
             return Ok((Found::failed(Cuts::repeat(depth as u32)), false));
         }
         if cut {
@@ -108,7 +121,7 @@ impl<Z: Zone> Run<'_, Z> {
         };
         self.nodes.release(nodes);
         self.zone.undo(zone);
-        // A prune of this very sequent is settled with it.
+        // A prune that rested on this very sequent is settled here.
         let dependency = if cuts.dependency >= own_depth {
             NO_DEPENDENCY
         } else {

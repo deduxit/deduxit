@@ -1,10 +1,18 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The rules a first-order zone adds to the engine: the identities by
-//! unification, the `∃` rule in focus, and the rules of two premises that
-//! ask the first for another answer where the second fails under the
-//! one it gave (`framed.rs` has the argument).
+//! The rules that a first-order zone adds to the engine. A first-order
+//! zone holds the members of a sequent with quantifiers: instances of
+//! formulas whose variables unification binds (`framed.rs`).
+//!
+//! The rules are:
+//! - the identities (axioms), which join two opposite literals whose
+//!   terms unify;
+//! - the `∃` rule in focus;
+//! - the rules of two premises. The first premise's answer is the
+//!   bindings it made. Where the second premise fails under that answer,
+//!   the rule asks the first premise for another one. `framed.rs` has the
+//!   argument.
 
 use super::choices::Site;
 use super::framed::Unified;
@@ -13,20 +21,26 @@ use super::{Cuts, FORCED_PER_POLL, Found, Run, Step, Unrestricted};
 use crate::linear::proofs::{Node, NodeId};
 use crate::linear::search::Reason;
 
-/// How many terms the zone's walks visit for a unit of work: a visit is a
-/// lookup in a table of the terms met and a few comparisons, some sixteenth
-/// of what a stable sequent's unit stands for.
+/// How many terms the zone's walks visit for a unit of work. A visit is a
+/// lookup in a table of the terms met and a few comparisons, about a
+/// sixteenth of what a stable sequent's unit stands for.
 const TERMS_PER_WORK: u64 = 16;
 
 impl<Z: Zone> Run<'_, Z> {
-    /// The initial rules of a first-order zone on a stable sequent, or on
-    /// a positive literal in focus with its context: an axiom on two
-    /// opposite literals whose terms unify, in linear mode exactly those
-    /// two, or on a literal and a copy of an opposite one of `Θ`, which
-    /// counts against the budget; with anything else weakened in affine
-    /// mode. Each pair is an alternative, tried in the members' order,
-    /// the first that unifies taken: another binding is the answer the
-    /// rule around asks for where it needs one.
+    /// Tries the initial rules of a first-order zone on a stable sequent
+    /// (one with no rule left that applies without a choice), or on a
+    /// positive literal in focus with its context.
+    ///
+    /// An axiom joins two opposite literals whose terms unify. It may also
+    /// join a literal with a copy of an opposite literal of `Θ`, the
+    /// unrestricted zone; the copy counts against the copy budget, the
+    /// copies the branch may still make. In linear mode the two literals,
+    /// or the one literal joined with a copy, must be the whole linear
+    /// zone. In affine mode every other member is weakened.
+    ///
+    /// Each pair is an alternative, tried in the members' order, and the
+    /// first that unifies is taken. A rule around it that needs another
+    /// binding asks for one as another answer.
     pub(super) fn initial_framed(
         &mut self,
         theta: &Unrestricted<Z>,
@@ -48,8 +62,8 @@ impl<Z: Zone> Run<'_, Z> {
         }
         let mut cuts = choice.cuts;
         let mut tried = 0u32;
-        // The next pair's number, `None` past the log's numbers, where the
-        // rest are cut, never refuted.
+        // The next pair's number. Past the log's numbers it is `None`, and
+        // the rest are cut, never refuted.
         let mut next = |cuts: &mut Cuts| {
             let i = tried;
             match tried.checked_add(1).filter(|&n| n < u32::MAX) {
@@ -136,11 +150,14 @@ impl<Z: Zone> Run<'_, Z> {
         Ok(Found::failed(cuts))
     }
 
-    /// Charges what the zone's tables and buffers grew or shrank by to the
-    /// account, which the next stable sequent asks, and counts the terms
-    /// the zone's walks visited as work, a unit per
-    /// [`TERMS_PER_WORK`], and polls the stop condition once every
-    /// [`FORCED_PER_POLL`] of them: a unification of deep terms is work
+    /// Counts the zone's own work, and polls the stop condition. Returns
+    /// [`Reason::Stopped`] when the stop fired.
+    ///
+    /// It charges the account what the zone's tables and buffers grew or
+    /// shrank by; the next stable sequent asks the account. It counts the
+    /// terms the zone's walks visited as work, a unit per
+    /// [`TERMS_PER_WORK`], and polls the stop once every
+    /// [`FORCED_PER_POLL`] of them. A unification of deep terms is work
     /// that no step of the search counts, and a split search polls only
     /// every [`SPLITS_PER_POLL`](super::SPLITS_PER_POLL) of its steps.
     pub(super) fn poll_terms(&mut self) -> Result<(), Reason> {
@@ -160,9 +177,9 @@ impl<Z: Zone> Run<'_, Z> {
         }
     }
 
-    /// The proof of a leaf that used the members `used` of `gamma`:
-    /// itself in linear mode, where they are all of it, and with the
-    /// others weakened below it in affine mode.
+    /// Returns the proof of a leaf that used the members `used` of
+    /// `gamma`. In linear mode that is the leaf, since `used` is all of
+    /// `gamma`. In affine mode the other members are weakened below it.
     fn leftovers(&mut self, gamma: &Z::Linear, used: &[Z::Member], leaf: NodeId) -> NodeId {
         if !self.problem.rules.affine {
             return leaf;
@@ -178,8 +195,12 @@ impl<Z: Zone> Run<'_, Z> {
         node
     }
 
-    /// The `∃` rule in focus on `f`: its body under a fresh metavariable,
-    /// still in focus, which the identities above bind.
+    /// Applies the `∃` rule in focus on `f`. Its body stays in focus, with
+    /// a fresh metavariable for the witness: a variable that the
+    /// identities above bind by unification.
+    ///
+    /// Where a first-order bound refuses the new instance, the branch is
+    /// cut, as by the copy budget.
     pub(super) fn exists(
         &mut self,
         theta: &Unrestricted<Z>,
@@ -204,9 +225,9 @@ impl<Z: Zone> Run<'_, Z> {
         }
     }
 
-    /// The `&` rule of a first-order zone: both premises on copies of the
-    /// state, the left one asked for another answer where the right one
-    /// fails under the one it gave.
+    /// Applies the `&` rule in a first-order zone. Each premise is
+    /// searched on a copy of the state. Where the right premise fails under
+    /// the answer the left one gave, the left one is asked for another.
     pub(super) fn with_framed(
         &mut self,
         theta: &Unrestricted<Z>,
@@ -229,18 +250,23 @@ impl<Z: Zone> Run<'_, Z> {
         )
     }
 
-    /// A rule of two premises in a first-order zone: `first` searches the
-    /// first, `second` the second once the first is proved, `join` makes
-    /// the rule's node. Where the second premise, whose members `shared`
-    /// lists, has an unbound metavariable, a failure of the second asks
-    /// the first for another answer: the one it gave is excluded, and the
+    /// Applies a rule of two premises in a first-order zone. `first`
+    /// searches the first premise, `second` the second once the first is
+    /// proved, and `join` makes the rule's node.
+    ///
+    /// `shared` lists the members of the second premise. Where they hold
+    /// an unbound metavariable, a failure of the second premise asks the
+    /// first for another answer. The answer it gave is excluded, and the
     /// first premise's search is resumed at its last choice point
-    /// (`choices.rs`), or searched again from the bindings it started
-    /// from where the replay diverged, until the second is proved, the
-    /// first fails, or every answer left is excluded. The rule's rounds
-    /// are a choice point of their own, so that a replay of a search
-    /// around it restores what its rounds before cut. The failure rests
-    /// on the cuts of every search run and every one given up.
+    /// (`choices.rs`). Where that replay diverged, the first premise is
+    /// searched again from the bindings it started from. This goes on
+    /// until the second premise is proved, the first fails, or every
+    /// answer left is excluded.
+    ///
+    /// The rule's rounds are a choice point of their own, so that a replay
+    /// of a search around it restores the cuts of its earlier rounds. A
+    /// failure rests on the cuts of every search run and every one given
+    /// up.
     pub(super) fn answers(
         &mut self,
         shared: &mut dyn Iterator<Item = Z::Member>,
@@ -251,8 +277,8 @@ impl<Z: Zone> Run<'_, Z> {
         let forest = self.problem.forest;
         let choice = self.zone.choices().enter(Site::Answers);
         if choice.start == u32::MAX || choice.resumed {
-            // Failed before, or resumed here: its premises took no
-            // alternative after its last round, so no answer is left.
+            // The rule failed before, or is resumed here. Its premises took
+            // no alternative after its last round, so no answer is left.
             self.zone.choices().fail(&choice, choice.cuts);
             return Ok(Found::failed(choice.cuts));
         }
@@ -313,15 +339,16 @@ impl<Z: Zone> Run<'_, Z> {
             if let Err(reason) = self.poll_terms() {
                 break Err(reason);
             }
-            // The rounds are fewer than the answers recorded, each held
-            // in memory; past the log's numbers the rule is cut.
+            // The rounds are fewer than the answers recorded, and each
+            // answer is held in memory. Past the log's numbers the rule is
+            // cut.
             let Some(next) = round.checked_add(1).filter(|&n| n < u32::MAX) else {
                 break Ok(Found::failed(cuts.and(Cuts::BUDGET)));
             };
             round = next;
             self.zone.choices().next_round(&choice, round, cuts);
             if let Err(given_up) = self.zone.choices().resume(start, end) {
-                // The first premise took no alternative: its answer was
+                // The first premise took no alternative, so its answer was
                 // its only one.
                 break Ok(Found::failed(cuts.and(given_up)));
             }
@@ -338,8 +365,8 @@ impl<Z: Zone> Run<'_, Z> {
         found
     }
 
-    /// Searches a rule's first premise, with its excluded answers read
-    /// while it runs where the rule has any.
+    /// Searches a rule's first premise. Where the rule has excluded
+    /// answers, the search refuses them while it runs.
     fn first_premise(&mut self, open: bool, first: &mut impl FnMut(&mut Self) -> Step) -> Step {
         if open {
             self.zone.searching_first(true);

@@ -1,14 +1,20 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The linear zone of a sequent inside the focused engine: a multiset of
-//! occurrence ids, kept as a bitset of the occurrences present plus a list
-//! of the extra copies, which is empty until a copy from the unrestricted
-//! zone repeats an occurrence, so that the common case costs a bitset and
-//! only a repeat allocates. The zone keeps the range of the bitset's words
-//! that may hold a member, so that clearing, copying and listing it cost
-//! that range and not the forest's width: on a net of a hundred thousand
-//! occurrences a stable sequent's members lie in a few of its words.
+//! The linear zone of a sequent inside the focused engine: the formulas
+//! that a proof uses exactly once, as a multiset of occurrence ids.
+//!
+//! The zone is a bitset of the occurrences present plus a list of the
+//! extra copies. The list stays empty until a copy from the unrestricted
+//! zone (the formulas under `?`, which may be used any number of times)
+//! repeats an occurrence. So the common case costs a bitset, and only a
+//! repeat allocates.
+//!
+//! The zone keeps the range of the bitset's words that may hold a member.
+//! Clearing, copying and listing it then cost that range, not the
+//! forest's width. On a net of a hundred thousand occurrences, the
+//! members of a stable sequent (one with no rule left that applies
+//! without a choice) lie in a few of its words.
 
 use crate::linear::occurrences::{OccId, OccSet};
 
@@ -49,8 +55,8 @@ impl Clone for Context {
     /// reusing the buffers.
     fn clone_from(&mut self, other: &Self) {
         debug_assert_eq!(self.set.capacity(), other.set.capacity(), "one forest");
-        // One copy over both ranges: the words of `other` outside its own
-        // are empty, so they clear what this zone held there.
+        // One copy over both ranges. The words of `other` outside its own
+        // range are empty, so they clear what this zone held there.
         let (lo, hi) = if self.lo == self.hi {
             (other.lo, other.hi)
         } else if other.lo == other.hi {
@@ -153,9 +159,10 @@ impl Context {
         1 + self.slot(o).map_or(0, |i| self.extra[i].1)
     }
 
-    /// Removes every member. A zone of a forest of at most
-    /// [`NARROW`] words keeps them all in range, which costs less than
-    /// keeping track.
+    /// Removes every member.
+    ///
+    /// A zone of a forest of at most [`NARROW`] words keeps all its words
+    /// in range, which costs less than keeping track.
     pub(crate) fn clear(&mut self) {
         self.set.clear_words(self.lo, self.hi);
         let width = self.set.words().len();
@@ -211,10 +218,13 @@ impl Context {
         !self.extra.is_empty()
     }
 
-    /// Appends the zone's words of a key of the memo to `list`
-    /// ([`Zones::members`](super::memo::Zones::members)): each member
-    /// once, in ascending order, one present more than once marked and
-    /// followed by its number of copies.
+    /// Appends the zone's part of a memo key to `list`
+    /// ([`Zones::members`](super::memo::Zones::members)). The memo is the
+    /// table of sequents already decided, and the key is what it stores a
+    /// sequent under.
+    ///
+    /// Each member is listed once, in ascending order. A member present
+    /// more than once is marked and followed by its number of copies.
     pub(crate) fn key_into(&self, list: &mut Vec<OccId>) {
         use super::memo::REPEATED;
         for (o, copies) in self.with_copies() {
@@ -228,8 +238,8 @@ impl Context {
     }
 
     /// Appends the members to `list` as [`iter`](Self::iter) returns
-    /// them, without the extra copies' bookkeeping where there are none,
-    /// which is the common case.
+    /// them. Where no member repeats, the common case, it skips the
+    /// bookkeeping of the extra copies.
     pub(crate) fn list_into(&self, list: &mut Vec<OccId>) {
         if self.extra.is_empty() {
             list.extend(self.set.iter_words(self.lo, self.hi));

@@ -3,7 +3,8 @@
 
 //! The proof arena of a run: the nodes of the branch being searched,
 //! pending on the engine's own stack, and the nodes kept for the memo's
-//! entries and the final proof.
+//! entries and the final proof. The memo is the table of the sequents the
+//! search has decided.
 
 use crate::linear::proofs::{Node, NodeId};
 use crate::linear::search::Reason;
@@ -11,7 +12,7 @@ use crate::linear::search::memory::{Account, Charged, bytes_of};
 use std::sync::Mutex;
 
 /// Where the nodes of a run's proofs are kept: the engine's own arena in
-/// a sequential search, the one arena of a parallel search behind its
+/// a sequential search, or the one arena of a parallel search behind its
 /// lock.
 pub(crate) enum Kept<'a> {
     /// The engine's own arena.
@@ -31,26 +32,30 @@ pub(super) const PENDING: u32 = 1 << 31;
 /// stop: some tenths of a millisecond.
 const ROOT_POLL: usize = 1 << 16;
 
-/// The proof arena of a run, in two parts. A node is first *pending*: it
-/// belongs to the branch being searched, lives in the engine's own
-/// buffer, a stack, and vanishes when the branch fails
-/// ([`release`](Self::release)). Once the stable sequent it helps to prove
-/// is proved, its nodes are *kept* ([`keep`](Self::keep)): moved to the
-/// arena the memo's entries and the final proof refer to, where a node's
-/// id is its position and a premise precedes its conclusion. So the nodes
-/// of failed branches never reach the kept arena, and a refutation's
-/// memory is bounded by what the memo holds, however many branches it
-/// tried. A pending node's id carries the [`PENDING`] flag and is only
-/// valid until its branch is released or kept; in a parallel search no
-/// pending id leaves its worker.
+/// The proof arena of a run, in two parts.
+///
+/// A node is first *pending*. It belongs to the branch being searched and
+/// lives on a stack in the engine's own buffer. It goes when the branch
+/// fails ([`release`](Self::release)). A pending node's id carries the
+/// [`PENDING`] flag and is valid only until its branch is released or
+/// kept. In a parallel search no pending id leaves its worker.
+///
+/// Once the stable sequent a node helps to prove is proved, its nodes are
+/// *kept* ([`keep`](Self::keep)). (A stable sequent is one with no rule
+/// left that applies without a choice; the memo holds only those.) They
+/// move to the arena that the memo's entries and the final proof refer
+/// to, where a node's id is its position and a premise precedes its
+/// conclusion. So the nodes of failed branches never reach the kept
+/// arena, and a refutation's memory is bounded by what the memo holds,
+/// however many branches it tried.
 ///
 /// When an engine's own memo is emptied, the kept nodes that only its
-/// entries referred to are dropped and the others move up
-/// ([`collect`](Self::collect)). What still refers to a kept node then
-/// is a pending node, or a rule that holds the proof of one premise while
-/// it searches the other: such an id is *held* ([`hold`](Self::hold))
-/// for the time of that search and read back afterwards, since it may
-/// have moved.
+/// entries referred to are dropped, and the others move up
+/// ([`collect`](Self::collect)). What still refers to a kept node then is
+/// a pending node, or a rule that holds the proof of one premise while it
+/// searches the other. Such a rule *holds* the id ([`hold`](Self::hold))
+/// for the time of that search, and reads it back afterwards, since it
+/// may have moved.
 pub(crate) struct Arena<'a> {
     /// The nodes kept.
     pub(super) kept: Kept<'a>,
@@ -59,10 +64,10 @@ pub(crate) struct Arena<'a> {
     /// The ids that rules of the branch hold across a search: the proof
     /// of a first premise while the second is searched.
     held: Vec<NodeId>,
-    /// The most nodes either part may hold, at most [`PENDING`]: ids
+    /// The most nodes either part may hold, at most [`PENDING`]. An id
     /// beyond would read as the flag.
     most: usize,
-    /// Whether a node was pushed that the pending part had no id for: no
+    /// Whether a node was pushed that the pending part had no id for. No
     /// proof resting on it is kept.
     overflowed: bool,
     /// Who is charged the memory of the kept part.
@@ -85,10 +90,11 @@ impl<'a> Arena<'a> {
         }
     }
 
-    /// Appends a pending node and returns its id. When the pending part
-    /// is full the node is dropped and the arena remembers it: the id
-    /// returned is no node's, and [`keep`](Self::keep) refuses whatever
-    /// would rest on it.
+    /// Appends a pending node and returns its id.
+    ///
+    /// When the pending part is full, the node is dropped and the arena
+    /// remembers it. The id returned is then no node's, and
+    /// [`keep`](Self::keep) refuses whatever would rest on it.
     pub(super) fn push(&mut self, node: Node) -> NodeId {
         if self.pending.len() >= self.most {
             self.overflowed = true;
@@ -108,7 +114,7 @@ impl<'a> Arena<'a> {
         self.pending.len()
     }
 
-    /// Drops the nodes pending since the mark: their branch failed.
+    /// Drops the nodes pending since the mark, since their branch failed.
     pub(super) fn release(&mut self, mark: usize) {
         self.pending.truncate(mark);
     }
@@ -128,11 +134,14 @@ impl<'a> Arena<'a> {
         node
     }
 
-    /// Keeps the nodes pending since the mark, which must hold everything
-    /// pending that `node` rests on, and returns the id `node` has from now
-    /// on; a node that was kept already keeps its id. Fails when the kept
-    /// part would outgrow its ids, or a node of the branch was dropped
-    /// because the pending part had.
+    /// Keeps the nodes pending since the mark, and returns the id `node`
+    /// has from now on. The nodes since the mark must hold everything
+    /// pending that `node` rests on. A node that was kept already keeps
+    /// its id.
+    ///
+    /// Fails with [`Reason::IndexLimit`] when the kept part would outgrow
+    /// its ids, or when a node of the branch was dropped because the
+    /// pending part had outgrown them.
     pub(super) fn keep(&mut self, mark: usize, node: NodeId) -> Result<NodeId, Reason> {
         if self.overflowed {
             return Err(Reason::IndexLimit);
@@ -147,14 +156,17 @@ impl<'a> Arena<'a> {
         }
     }
 
-    /// Keeps every pending node, which `node` rests on, as the proof of
-    /// the root is kept once the search ends, and returns the id `node`
-    /// has from then on. Where nothing is kept yet the pending nodes become
-    /// the kept ones in place, their premises renamed in one pass that
-    /// asks `stopped` every [`ROOT_POLL`] nodes, so a proof of hundreds of
-    /// millions of nodes is neither copied nor kept from the stop; else as
-    /// [`keep`](Self::keep). Fails as `keep` does, or with
-    /// [`Reason::Stopped`].
+    /// Keeps every pending node, all of which `node` rests on, and returns
+    /// the id `node` has from then on. This keeps the root's proof once
+    /// the search ends.
+    ///
+    /// Where nothing is kept yet, the pending nodes become the kept ones in
+    /// place. Their premises are renamed in one pass that asks `stopped`
+    /// every [`ROOT_POLL`] nodes, so a proof of hundreds of millions of
+    /// nodes is not copied, and does not hold off the stop. Otherwise it
+    /// works as [`keep`](Self::keep) does.
+    ///
+    /// Fails as `keep` does, or with [`Reason::Stopped`].
     pub(super) fn keep_all(
         &mut self,
         node: NodeId,
@@ -181,8 +193,8 @@ impl<'a> Arena<'a> {
     }
 
     /// Moves the nodes pending since the mark to the end of the kept ones,
-    /// their premises renamed, and returns the new id of `node`, unless
-    /// that would make more than `most` kept nodes.
+    /// with their premises renamed, and returns the new id of `node`.
+    /// Fails where that would make more than `most` kept nodes.
     fn append(
         kept: &mut Vec<Node>,
         pending: &mut Vec<Node>,
@@ -212,16 +224,20 @@ impl<'a> Arena<'a> {
     }
 
     /// Drops every kept node that nothing refers to any more, once the
-    /// engine's own memo is emptied: what stays is what the pending nodes,
-    /// the ids held and `root` rest on. The nodes that stay move up in
-    /// their order, so a premise still precedes its conclusion; the
-    /// pending nodes and the ids held are renamed in place, and the new
-    /// id of `root` is returned. The memory freed is given back when it
-    /// is three quarters of the allocation, down to twice what stays, so
-    /// that the nodes to come have room and a collection never costs a
-    /// reallocation at the next node; with `tight`, all of it. The arena
-    /// of a parallel search is left alone: its workers hold ids that
-    /// nobody could rename.
+    /// engine's own memo is emptied, and returns the new id of `root`.
+    ///
+    /// What stays is what the pending nodes, the ids held and `root` rest
+    /// on. The nodes that stay move up in their order, so a premise still
+    /// precedes its conclusion. The pending nodes and the ids held are
+    /// renamed in place.
+    ///
+    /// The memory freed is given back when it is three quarters of the
+    /// allocation, down to twice what stays. So the nodes to come have
+    /// room, and a collection never costs a reallocation at the next node.
+    /// With `tight`, all of it is given back.
+    ///
+    /// The arena of a parallel search is left alone: its workers hold ids
+    /// that nobody could rename.
     pub(super) fn collect(&mut self, root: Option<NodeId>, tight: bool) -> Option<NodeId> {
         /// A node that goes.
         const DEAD: u32 = u32::MAX;
@@ -231,8 +247,8 @@ impl<'a> Arena<'a> {
             return root;
         };
         let before = bytes_of(kept);
-        // Where each kept node moves to: four bytes a node for the time
-        // of the collection, which the account does not see.
+        // Where each kept node moves to. This is four bytes a node for the
+        // time of the collection, which the account does not see.
         let mut moved = vec![DEAD; kept.len()];
         let is_kept = |id: &NodeId| id.get() & PENDING == 0;
         for id in self
@@ -245,7 +261,8 @@ impl<'a> Arena<'a> {
         {
             moved[id.index()] = LIVE;
         }
-        // A premise has a smaller id than its conclusion.
+        // A premise has a smaller id than its conclusion, so one pass
+        // down marks everything the live nodes rest on.
         for i in (0..kept.len()).rev() {
             if moved[i] == LIVE {
                 for premise in kept[i].premises() {
@@ -324,8 +341,8 @@ mod tests {
     }
 
     /// A collection drops the kept nodes that neither a pending node, nor
-    /// an id held, nor the root given rests on; the others move up in
-    /// their order and whoever refers to them is renamed, and the memory
+    /// an id held, nor the root given rests on. The others move up in
+    /// their order, whoever refers to them is renamed, and the memory
     /// freed is no longer charged.
     #[test]
     fn collection() {
@@ -368,7 +385,7 @@ mod tests {
 
     /// An arena whose kept part is full refuses to keep more, and one
     /// whose pending part is full refuses whatever rests on the node it
-    /// had no id for: an answer, where there was a panic.
+    /// had no id for. Both answer [`Reason::IndexLimit`] and do not panic.
     #[test]
     fn full_arena() {
         let o = Member::new;

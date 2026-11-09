@@ -1,9 +1,16 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The `⊗` rule and Mix: the splits a factor forces, in a loop along a
-//! chain of them, and the search for the free splits whose two sides
-//! pass the counts.
+//! The `⊗` rule and Mix, and the splits they need.
+//!
+//! A proof of `⊢ Γ, A ⊗ B` divides `Γ` between its two premises, `⊢ Γ₁, A`
+//! and `⊢ Γ₂, B`: that division is the *split*. A Mix divides a sequent
+//! into two parts the same way. A split is *forced* when a factor
+//! decides it, as a positive literal takes exactly its dual. Forced splits
+//! run in a loop along a chain of them. Every other split is *free*, and
+//! is searched: only the splits whose two sides pass the counts are
+//! tried. The counts are tests every provable sequent passes, such as the
+//! balance of each atom's literals.
 
 use super::choices::Site;
 use super::counts::{Split, Tally};
@@ -20,8 +27,10 @@ use crate::linear::sequents::Kind;
 
 impl<Z: Zone> Run<'_, Z> {
     /// What a factor of a `⊗` forces on its side of the split
-    /// ([`Counts::forced`](super::counts::Counts::forced)). With weakening
-    /// nothing but `0` forces anything, since every leaf takes any context.
+    /// ([`Counts::forced`](super::counts::Counts::forced)).
+    ///
+    /// With weakening nothing but `0` forces anything, since every leaf
+    /// takes any context.
     pub(super) fn forced_side(&self, factor: OccId) -> Option<Forced> {
         let forced = self.problem.counts.forced(factor);
         if self.problem.rules.affine && forced != Some(Forced::Nothing) {
@@ -31,12 +40,15 @@ impl<Z: Zone> Run<'_, Z> {
         }
     }
 
-    /// The factor of `F = A ⊗ B` that forces its split, with what it
-    /// forces, the other factor, and which of the two the forcing one is.
-    /// When both force, one that is closed in place (a literal, a unit)
-    /// before a tensor of literals, which takes a focus of its own: a
+    /// Returns the factor of `F = A ⊗ B` that forces its split, with what
+    /// it forces, the other factor, and which of the two the forcing one
+    /// is.
+    ///
+    /// When both force, it prefers one that is closed in place (a literal,
+    /// a unit) to a tensor of literals, which takes a focus of its own: a
     /// tensor of a thousand literals, nested to the left as it is read,
-    /// must not pay a level of recursion per link; otherwise the left one.
+    /// must not pay a level of recursion per link. Otherwise it takes the
+    /// left one.
     fn forced_factor(&self, f: Z::Member) -> Option<Forcing<Z::Member>> {
         let (a, b) = (self.left(f), self.right(f));
         let left = |forced| {
@@ -64,9 +76,9 @@ impl<Z: Zone> Run<'_, Z> {
         }
     }
 
-    /// The `⊗` rule on `F = A ⊗ B` with context `Γ`: the forced split when
-    /// a factor allows only one, else a search over the members of `Γ` for
-    /// the splits whose two sides pass the counts.
+    /// Applies the `⊗` rule on `F = A ⊗ B` with context `Γ`. It takes the
+    /// forced split when a factor allows only one. Otherwise it searches
+    /// the members of `Γ` for the splits whose two sides pass the counts.
     pub(super) fn split(
         &mut self,
         theta: &Unrestricted<Z>,
@@ -79,7 +91,7 @@ impl<Z: Zone> Run<'_, Z> {
         };
         let mark = self.nodes.mark();
         // A `!` factor's promotion may open binders even where no atom
-        // is open, which a failure takes back with its nodes.
+        // is open. A failure takes them back with its nodes.
         let zone = Z::FIRST_ORDER.then(|| self.zone.mark());
         let mut rest = self.take_context_from(gamma);
         let mut links = self.take_links();
@@ -118,18 +130,24 @@ impl<Z: Zone> Run<'_, Z> {
         result
     }
 
-    /// The forced splits of `F`, given with its forcing factor as
-    /// [`forced_factor`](Self::forced_factor) found it, and, as long as
-    /// the factor they leave is a `⊗` with a forced split again, of that
-    /// factor, in a loop: a tensor of a thousand literals costs one level
-    /// of recursion and one copy of the context, not a thousand. `rest`
-    /// is the context, from which every forcing factor takes its own;
-    /// `links` gets every `⊗` with the proof of its forcing factor and
-    /// whether that is the left one, and `cursors` remembers where the
-    /// chain's lookups of duals ended. Returns the proof of the factor
-    /// left at the end with what remains of the context. The chain visits
-    /// no stable sequent, so it polls the stop condition itself, once
-    /// every [`FORCED_PER_POLL`] splits and literals closed.
+    /// Makes the forced splits of `F`, given with its forcing factor as
+    /// [`forced_factor`](Self::forced_factor) found it. Returns the proof
+    /// of the factor left at the end, with what remains of the context.
+    ///
+    /// As long as the factor left is a `⊗` with a forced split again, it
+    /// makes that factor's split too, in a loop. So a tensor of a thousand
+    /// literals costs one level of recursion and one copy of the context,
+    /// not a thousand.
+    ///
+    /// `rest` is the context, from which every forcing factor takes its
+    /// own. `links` gets every `⊗` with the proof of its forcing factor
+    /// and whether that is the left one. `cursors` remembers where the
+    /// chain's lookups of duals ended.
+    ///
+    /// The chain visits no stable sequent (one with no rule left that
+    /// applies without a choice), where the stop condition is polled
+    /// otherwise. So it polls the condition itself, once every
+    /// [`FORCED_PER_POLL`] splits and literals closed.
     fn forced_splits(
         &mut self,
         theta: &Unrestricted<Z>,
@@ -167,13 +185,15 @@ impl<Z: Zone> Run<'_, Z> {
                         }
                     }
                 }
-                // The dual in `Γ` when there is one, and the axiom on the
-                // two; otherwise the side stays empty and the initial rule
-                // looks in `Θ`, at the price of a copy. Taking the copy
-                // from `Γ` first loses nothing: the copies are the same
-                // formula, so a proof that leaves this one for elsewhere
-                // and copies from `Θ` here is a proof with the roles
-                // swapped.
+                // Take the dual from `Γ` when there is one, with the axiom
+                // on the two. Otherwise the side stays empty, and the
+                // initial rule looks in `Θ`, at the price of a copy.
+                // Taking the dual from `Γ` first loses no proof: the
+                // copies are the same formula, so a proof that leaves this
+                // one for elsewhere and copies from `Θ` here is a proof
+                // with the roles swapped. The swap may move a copy to
+                // another branch, so a sequent may need a copy bound one
+                // higher than its best proof's copies per branch.
                 Forced::Dual => {
                     let forest = self.problem.forest;
                     if let Some(dual) = self.zone.dual_from(forest, x, rest, cursors) {
@@ -191,9 +211,9 @@ impl<Z: Zone> Run<'_, Z> {
                         None
                     }
                 }
-                // One dual per literal, each the first left in `Γ`: every
-                // literal is proved by exactly its dual, and no dual lies in
-                // `Θ`, so no other context proves the factor.
+                // One dual per literal, each the first left in `Γ`. Every
+                // literal is proved by exactly its dual, and no dual lies
+                // in `Θ`, so no other context proves the factor.
                 Forced::Duals => self.literal_tensor(x, rest, cursors)?,
             };
             let Some(x_node) = x_node else {
@@ -208,12 +228,13 @@ impl<Z: Zone> Run<'_, Z> {
         }
     }
 
-    /// The proof of a tensor of positive literals from one dual per
-    /// literal, each the first left in `rest`, which loses them; `None`
-    /// when a dual is missing. Built in place, the axioms and the `⊗`
-    /// nodes from the last occurrence back, so a tensor of any depth costs
-    /// no recursion; the stop condition is polled as in the chain around
-    /// it.
+    /// Returns the proof of a tensor of positive literals from one dual
+    /// per literal, each the first left in `rest`, which loses them.
+    /// Returns `None` when a dual is missing.
+    ///
+    /// The proof is built in place, the axioms and the `⊗` nodes from the
+    /// last occurrence back, so a tensor of any depth costs no recursion.
+    /// The stop condition is polled as in the chain around it.
     fn literal_tensor(
         &mut self,
         x: Z::Member,
@@ -235,8 +256,8 @@ impl<Z: Zone> Run<'_, Z> {
             rest.remove(dual);
             duals.push(dual);
         }
-        // An occurrence's subtree follows it, so in reverse a `⊗` comes
-        // after both its subformulas, the left one's proof on top.
+        // An occurrence's subtree follows it. So in reverse a `⊗` comes
+        // after both its subformulas, with the left one's proof on top.
         let mut built = self.take_links();
         for o in forest.subtree(self.occ(x)).rev() {
             let m = self.zone.child(x, o);
@@ -259,9 +280,11 @@ impl<Z: Zone> Run<'_, Z> {
 
     /// Counts a forced split, a literal of a tensor closed in place or an
     /// `&` rule, and polls the stop condition once every
-    /// [`FORCED_PER_POLL`] of them. No work is passed: the units two alternating searches count
-    /// their slices in are what they are without this poll, and so is
-    /// where each gives way.
+    /// [`FORCED_PER_POLL`] of them.
+    ///
+    /// The poll passes no work. So the units in which two alternating
+    /// searches count their slices, and where each gives way, do not
+    /// depend on this poll.
     #[inline]
     pub(super) fn poll_forced(&mut self) -> Result<(), Reason> {
         self.forced += 1;
@@ -272,7 +295,7 @@ impl<Z: Zone> Run<'_, Z> {
         self.poll_now()
     }
 
-    /// Polls the stop condition, passing no work: the rare branch of
+    /// Polls the stop condition, passing no work. It is the rare branch of
     /// [`Self::poll_forced`], kept out of the chain's loop.
     #[cold]
     fn poll_now(&mut self) -> Result<(), Reason> {
@@ -283,10 +306,11 @@ impl<Z: Zone> Run<'_, Z> {
         }
     }
 
-    /// The `⊗` rule on a formula no factor of which forces its split: a
-    /// search over the members of `Γ` for the splits whose two sides pass
-    /// the counts. A left factor whose split is free again continues the
-    /// search as a chain ([`Self::chain`]), in the same order.
+    /// Applies the `⊗` rule on a formula none of whose factors forces its
+    /// split. It searches the members of `Γ` for the splits whose two
+    /// sides pass the counts. A left factor whose split is free again
+    /// continues the search as a chain ([`Self::chain`]), in the same
+    /// order.
     #[inline(always)]
     fn free_split(
         &mut self,
@@ -313,8 +337,8 @@ impl<Z: Zone> Run<'_, Z> {
         if self.chains_on(opened.a) {
             return self.chain(theta, opened, budget);
         }
-        // The parts given back one by one: moving the whole search on a
-        // free split of every clause body was a tenth of a net's time.
+        // Give the parts back one by one: moving the whole search on a
+        // free split of every clause body costs a tenth of a net's time.
         let Opened {
             a,
             b,
@@ -340,10 +364,12 @@ impl<Z: Zone> Run<'_, Z> {
         result
     }
 
-    /// The search for the free splits of `F = A ⊗ B` over `Γ`, before its
-    /// first step: the members in the order they are assigned and open in
-    /// the counts, every member on the right, and, two-sided, on a
-    /// hypothesis `A ⊸ B`, the goal on the consequent's side.
+    /// Opens the search for the free splits of `F = A ⊗ B` over `Γ`, and
+    /// returns it before its first step.
+    ///
+    /// The members are in the order they are assigned, and open in the
+    /// counts. Every member is on the right. Two-sided, on a hypothesis
+    /// `A ⊸ B`, the goal is on the consequent's side.
     #[inline(always)]
     fn open_split(&mut self, gamma: &Z::Linear, f: Z::Member) -> Opened<Z> {
         let (a, b) = (self.left(f), self.right(f));
@@ -396,11 +422,13 @@ impl<Z: Zone> Run<'_, Z> {
     }
 
     /// Whether a focus on `a`, the left factor of a `⊗` whose split is
-    /// searched on this thread, continues the search as a chain: a `⊗`
-    /// that no factor forces, large enough to be a long one. A chain of a
-    /// few links, a clause's body, recurses: the frames' bookkeeping cost
-    /// a seventh of the stable sequents per second on Petri nets whose
-    /// clauses have such bodies.
+    /// searched on this thread, continues the search as a chain. It does
+    /// where `a` is a `⊗` that no factor forces, large enough to be a long
+    /// chain.
+    ///
+    /// A chain of a few links, such as a clause's body, recurses. On Petri
+    /// nets whose clauses have such bodies, the frames' bookkeeping costs
+    /// a seventh of the stable sequents per second.
     fn chains_on(&self, a: Z::Member) -> bool {
         // A chain's frames would never ask a left premise for another
         // answer.
@@ -416,16 +444,19 @@ impl<Z: Zone> Run<'_, Z> {
             && self.forced_factor(a).is_none()
     }
 
-    /// The free splits of a chain of `⊗`, each the left factor of the one
-    /// before, in a loop: each link's search is a frame on a list, the
-    /// focus on the left factor of a split that the search reaches is the
-    /// frame of the next link, and its result is given back to the frame
-    /// below, which then searches the right premise and goes on as
-    /// [`Self::search_splits`] does. The order of the steps, the nodes and
-    /// the counters are those of the recursion through [`Self::focus`];
-    /// only the levels of recursion are not taken, one per link, which a
-    /// tensor of thousands of factors whose splits are searched used to
-    /// run out of.
+    /// Searches the free splits of a chain of `⊗`, each the left factor of
+    /// the one before, in a loop.
+    ///
+    /// Each link's search is a frame on a list. The focus on the left
+    /// factor of a split that the search reaches is the frame of the next
+    /// link. Its result is given back to the frame below, which then
+    /// searches the right premise and goes on as [`Self::search_splits`]
+    /// does.
+    ///
+    /// The order of the steps, the nodes and the counters are those of the
+    /// recursion through [`Self::focus`]. Only the levels of recursion, one
+    /// per link, are not taken: a tensor of thousands of factors whose
+    /// splits are searched would run out of them.
     fn chain(&mut self, theta: &Unrestricted<Z>, first: Opened<Z>, budget: u32) -> Step {
         let mut frames = self.take_frames();
         let walk = self.walk(first.members.len(), (0, 0));
@@ -450,8 +481,8 @@ impl<Z: Zone> Run<'_, Z> {
         frames: &mut Vec<Frame<Z>>,
         budget: u32,
     ) -> Step {
-        // What the left premise of the frame on top was found to be, once
-        // the frame has asked for it.
+        // The result of the left premise of the frame on top, once the
+        // frame has asked for it.
         let mut given: Option<Found> = None;
         loop {
             let frame = frames.last_mut().expect("a frame until the first returns");
@@ -523,12 +554,14 @@ impl<Z: Zone> Run<'_, Z> {
     }
 
     /// Puts the members a split search assigns in the order it decides
-    /// them in and opens them in the split's counts: those that bear on
-    /// more atoms first, then by the first atom of their rows, so that the
-    /// members that bear on an atom are decided one after the other and
-    /// its counts are settled early (those without a row last);
-    /// interchangeable members next to each other, the lowest id last.
-    /// `placed` are the members that have their side already.
+    /// them in, and opens them in the split's counts. `placed` are the
+    /// members that have their side already.
+    ///
+    /// The members that bear on more atoms come first. Then they are
+    /// ordered by the first atom of their rows, so that the members that
+    /// bear on an atom are decided one after the other and its counts are
+    /// settled early; those without a row come last. Interchangeable
+    /// members are next to each other, the lowest id last.
     fn open(&self, members: &mut [Z::Member], split: &mut Split, placed: &[Z::Member]) {
         members.sort_unstable_by_key(|&m| {
             (
@@ -538,10 +571,10 @@ impl<Z: Zone> Run<'_, Z> {
                 std::cmp::Reverse(m),
             )
         });
-        // Without the equation, a split can only fail the counts through a
-        // member whose own interval of some atom excludes zero: with none,
-        // every sum of intervals contains zero and every split passes, and
-        // the counts need not know the members at all.
+        // Without the equation, a split can fail the counts only through a
+        // member whose own interval of some atom excludes zero. With no
+        // such member, every sum of intervals contains zero, every split
+        // passes, and the counts need not know the members at all.
         let tight = |o: &Z::Member| self.problem.counts.tight(self.occ(*o));
         let inert = !self.problem.rules.equation
             && (!self.problem.rules.intervals || !placed.iter().chain(members.iter()).any(tight));
@@ -555,18 +588,21 @@ impl<Z: Zone> Run<'_, Z> {
 
     /// Searches the splits of a context into two sides that pass the
     /// counts: the premises of a `⊗` or the parts of a Mix, as `join`
-    /// says. The members from `start` on are assigned one by one, in their
-    /// order, each to the right first and then to the left, and a partial
+    /// says. Returns the node of the first split whose two sides are
+    /// proved.
+    ///
+    /// The members from `start` on are assigned one by one, in their
+    /// order, each to the right first and then to the left. A partial
     /// assignment is given up as soon as the counts show that no way of
-    /// assigning the rest lets both sides pass. Of interchangeable members
-    /// the left side takes those with the lowest ids, so that only their
-    /// number varies: any other choice of as many gives the same two
-    /// sequents up to a renaming. So every such split that passes the
-    /// counts is reached, each once, and none that fails them. `left` and
-    /// `right` are the sides and `split` their counts, with the members
-    /// before `start` assigned as the bits of `prefix` say (one for the
-    /// left) and the others on the right and open. Returns the node of the
-    /// first split whose two sides are proved.
+    /// assigning the rest lets both sides pass. Of interchangeable
+    /// members, the left side takes those with the lowest ids, so that
+    /// only their number varies: any other choice of as many gives the
+    /// same two sequents up to a renaming. So every such split that passes
+    /// the counts is reached, each once, and none that fails them.
+    ///
+    /// `left` and `right` are the sides and `split` their counts. The
+    /// members before `start` are assigned as the bits of `prefix` say
+    /// (one for the left), and the others are on the right and open.
     #[allow(clippy::too_many_arguments)]
     pub(super) fn search_splits(
         &mut self,
@@ -618,7 +654,7 @@ impl<Z: Zone> Run<'_, Z> {
         })
     }
 
-    /// [`Self::search_splits`] in a first-order zone: the splits are the
+    /// [`Self::search_splits`] in a first-order zone. The splits are the
     /// alternatives of a choice point that logs which one it tries, so
     /// that a premise's search can be resumed at it (`choices.rs`).
     #[allow(clippy::too_many_arguments)]
@@ -680,8 +716,8 @@ impl<Z: Zone> Run<'_, Z> {
     }
 
     /// [`Self::parts_fail`] in a first-order zone, as a choice point that
-    /// logs its answer: a replay reads it rather than searching the parts
-    /// again (`choices.rs`).
+    /// logs its answer. A replay reads the answer instead of searching the
+    /// parts again (`choices.rs`).
     fn parts_fail_logged(
         &mut self,
         theta: &Unrestricted<Z>,
@@ -701,9 +737,9 @@ impl<Z: Zone> Run<'_, Z> {
         Ok(fail)
     }
 
-    /// The walk of a split search over `len` members before its first
-    /// step, the members before `start` assigned as the bits of `prefix`
-    /// say (one for the left), the others on the right.
+    /// Returns the walk of a split search over `len` members before its
+    /// first step. The members before `start` are assigned as the bits of
+    /// `prefix` say (one for the left), and the others are on the right.
     fn walk(&mut self, len: usize, (start, prefix): (usize, u64)) -> Walk {
         let mut trail = self.take_trail();
         trail.extend((0..len).map(|i| {
@@ -721,13 +757,14 @@ impl<Z: Zone> Run<'_, Z> {
         }
     }
 
-    /// Takes a split search to its next split whose two sides pass the
-    /// counts, from the one it stopped at, and returns whether there is
-    /// one. The members are assigned one by one, in their order, each to
-    /// the right first and then to the left, and a partial assignment is
-    /// given up as soon as the counts show that no way of assigning the
-    /// rest lets both sides pass; of interchangeable members the left side
-    /// takes those with the lowest ids, so that only their number varies.
+    /// Takes a split search from the split it stopped at to its next split
+    /// whose two sides pass the counts. Returns whether there is one.
+    ///
+    /// The members are assigned one by one, in their order, each to the
+    /// right first and then to the left. A partial assignment is given up
+    /// as soon as the counts show that no way of assigning the rest lets
+    /// both sides pass. Of interchangeable members, the left side takes
+    /// those with the lowest ids, so that only their number varies.
     #[inline(always)]
     fn next_split(
         &mut self,
@@ -737,8 +774,8 @@ impl<Z: Zone> Run<'_, Z> {
         split: &mut Split,
     ) -> Result<bool, Reason> {
         let rules = self.problem.rules;
-        // The walk's place in locals while it moves, written back where it
-        // stops.
+        // Keep the walk's place in locals while it moves, and write it back
+        // where it stops.
         let (start, mut next) = (walk.start, walk.next);
         let trail = &mut walk.trail[..];
         // From a split already given, back to the last member assigned to
@@ -755,7 +792,8 @@ impl<Z: Zone> Run<'_, Z> {
                     if next < members.len() {
                         let m = members[next];
                         // On the left at once when the member before it is
-                        // interchangeable and went left: the lowest ids do.
+                        // interchangeable and went left, since the lowest
+                        // ids go left.
                         let side = if next > 0
                             && trail[next - 1] == Branch::Left
                             && self.zone.same(self.problem.classes, members[next - 1], m)
@@ -802,10 +840,12 @@ impl<Z: Zone> Run<'_, Z> {
     }
 
     /// Polls the stop condition once every [`SPLITS_PER_POLL`] steps of
-    /// the split searches: a search whose splits fail in focus visits no
-    /// stable sequent, where the condition is polled otherwise, and may
-    /// run for minutes. Inlined into the split loop, which calls it per
-    /// step; the poll itself is the cold branch.
+    /// the split searches.
+    ///
+    /// A search whose splits fail in focus visits no stable sequent, where
+    /// the condition is polled otherwise, and may run for minutes. This is
+    /// inlined into the split loop, which calls it per step; the poll
+    /// itself is the cold branch.
     #[inline(always)]
     fn poll_splits(&mut self) -> Result<(), Reason> {
         self.steps += 1;
@@ -815,8 +855,8 @@ impl<Z: Zone> Run<'_, Z> {
         self.poll_splits_now()
     }
 
-    /// Polls the stop condition, passing the work since the last poll:
-    /// the rare branch of [`Self::poll_splits`], kept out of the split
+    /// Polls the stop condition, passing the work since the last poll. It
+    /// is the rare branch of [`Self::poll_splits`], kept out of the split
     /// loop.
     #[cold]
     fn poll_splits_now(&mut self) -> Result<(), Reason> {
@@ -829,11 +869,12 @@ impl<Z: Zone> Run<'_, Z> {
         }
     }
 
-    /// Both premises of `F = A ⊗ B` for one split of the context, and the
-    /// `⊗` node if both succeed. A function of its own, as
-    /// [`parts`](Self::parts) is: inlined into the split search, both
-    /// rules' locals would sit in its frame in a debug build, half a KiB
-    /// more per level of the recursion.
+    /// Searches both premises of `F = A ⊗ B` for one split of the
+    /// context, and returns the `⊗` node if both succeed.
+    ///
+    /// It is a function of its own, as [`parts`](Self::parts) is. Inlined
+    /// into the split search, both rules' locals would sit in its frame in
+    /// a debug build: half a KiB more per level of the recursion.
     #[expect(
         clippy::too_many_arguments,
         reason = "the split search's state, passed through to the two focuses"
@@ -864,18 +905,23 @@ impl<Z: Zone> Run<'_, Z> {
         )
     }
 
-    /// The Mix rule on a stable sequent no focus proves: a split into two
-    /// non-empty provable parts, searched over the members after the
-    /// first, which stays on the left, so that each unordered partition
-    /// comes up once. In the multiplicative fragments only when the count
-    /// equation admits a Mix. First, with a memo, the parts with one
-    /// member less: when each of them fails hereditarily and completely,
-    /// no part of this sequent's is provable, so no partition is searched
-    /// and the failure is hereditary (the flag beside the result). A
-    /// sequent of `n` members whose parts all fail then costs its `2ⁿ`
-    /// parts `n` lookups each, where the partitions of every part cost
-    /// `3ⁿ`; without a memo every part is searched again at every level,
-    /// and the partitions are cheaper.
+    /// Applies the Mix rule on a stable sequent that no focus proves: it
+    /// searches for a split into two non-empty provable parts. The flag
+    /// beside the result says whether the failure is hereditary.
+    ///
+    /// The search runs over the members after the first, which stays on
+    /// the left, so that each unordered partition comes up once. In the
+    /// multiplicative fragments it runs only when the count equation
+    /// admits a Mix.
+    ///
+    /// First, with a memo (the table of sequents decided), it tries the
+    /// parts with one member less. When each of them fails hereditarily
+    /// and completely, no part of this sequent is provable. So no
+    /// partition is searched, and the failure is hereditary. A sequent of
+    /// `n` members whose parts all fail then costs its `2ⁿ` parts `n`
+    /// lookups each, where the partitions of every part cost `3ⁿ`. Without
+    /// a memo every part is searched again at every level, and the
+    /// partitions are cheaper.
     pub(super) fn mix(
         &mut self,
         theta: &Unrestricted<Z>,
@@ -922,16 +968,21 @@ impl<Z: Zone> Run<'_, Z> {
     }
 
     /// Whether every part of `Γ` with one member less fails hereditarily
-    /// and completely, at any budget and on any branch: then, as the
-    /// sequent itself failed without Mix, no non-empty part of it is
-    /// provable, since every proper part lies in one of them and a Mix of
-    /// the whole would be of two proper parts. False at the first part
-    /// that is proved, may have a provable part, or failed only within
-    /// the budget or the branch: such a part, which the partitions would
-    /// not all visit, must not qualify the sequent's failure (one cut by
-    /// the budget kept `⊢ a, !?(s ⅋ a)` under Mix at its copy bound where
-    /// the partitions refute it). Of members that are interchangeable or
-    /// repeated one is left out, since the others leave a relative.
+    /// and completely, at any budget and on any branch.
+    ///
+    /// Then, as the sequent itself failed without Mix, no non-empty part
+    /// of it is provable: every proper part lies in one of them, and a Mix
+    /// of the whole would be of two proper parts.
+    ///
+    /// Returns false at the first part that is proved, that may have a
+    /// provable part, or that failed only within the budget or the branch.
+    /// The partitions would not visit every such part, so it must not
+    /// qualify the sequent's failure. A part cut by the budget would keep
+    /// `⊢ a, !?(s ⅋ a)` under Mix at its copy bound, where the partitions
+    /// refute it.
+    ///
+    /// Of members that are interchangeable or repeated, only one is left
+    /// out, since leaving out another gives a relative.
     fn parts_fail(
         &mut self,
         theta: &Unrestricted<Z>,
@@ -946,9 +997,9 @@ impl<Z: Zone> Run<'_, Z> {
         for i in 0..left_out.len() {
             let mut part = self.take_context_from(gamma);
             part.remove(left_out[i]);
-            // A part is only asked whether it is provable: in a first-order
-            // zone a proof's bindings are taken back, which the search of
-            // the partitions must not see.
+            // A part is only asked whether it is provable. So in a
+            // first-order zone a proof's bindings are taken back: the search
+            // of the partitions must not see them.
             let marks = Z::FIRST_ORDER.then(|| (self.nodes.mark(), self.zone.mark()));
             let found = self.prove_part(theta, &part, budget);
             if let Some((nodes, zone)) = marks
@@ -974,7 +1025,8 @@ impl<Z: Zone> Run<'_, Z> {
         Ok(fail)
     }
 
-    /// Both parts of a Mix, and the Mix node if both are provable.
+    /// Searches both parts of a Mix, and returns the Mix node if both are
+    /// provable.
     fn parts(
         &mut self,
         theta: &Unrestricted<Z>,
@@ -1042,9 +1094,9 @@ pub(super) enum Forced {
 }
 
 /// The occurrences a left factor of a `⊗` must have for its free split
-/// to run as the next link of a loop and not recursively: a chain of
-/// tensors of that size has some dozens of links, far below the
-/// recursion limit, and recursing through it is cheaper.
+/// to run as the next link of a loop, not recursively. A chain of tensors
+/// of that size has some dozens of links, far below the recursion limit,
+/// and recursing through it is cheaper.
 const CHAIN_SIZE: u32 = 256;
 
 /// A search for the free splits of a `⊗` over its context, opened: the
@@ -1067,12 +1119,12 @@ pub(super) struct Opened<Z: Zone> {
 }
 
 /// Where a split search stands: the side of every member, how many are
-/// assigned, from which member on it searches, and whether it stands at
-/// a split it has given.
+/// assigned, the member it searches from, and whether it stands at a
+/// split it has returned.
 pub(super) struct Walk {
     /// Per member, its side, as far as it is assigned.
     trail: Pooled<Branch>,
-    /// The members before it are assigned.
+    /// How many members are assigned: those before this index.
     next: usize,
     /// The first member the search assigns.
     start: usize,
@@ -1081,7 +1133,7 @@ pub(super) struct Walk {
 }
 
 /// A link of a chain of free splits: its split search, what the splits
-/// it tried cut, and the arena's mark when its last split's premises
+/// it tried cut, and the arena's mark where its last split's premises
 /// began.
 pub(super) struct Frame<Z: Zone> {
     /// The split search.
@@ -1090,6 +1142,7 @@ pub(super) struct Frame<Z: Zone> {
     walk: Walk,
     /// What the premises of the splits tried cut.
     cuts: Cuts,
-    /// The pending nodes from here on are the last split's premises'.
+    /// The mark from which the pending nodes are the last split's
+    /// premises'.
     mark: usize,
 }

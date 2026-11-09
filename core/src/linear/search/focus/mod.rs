@@ -1,45 +1,58 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The focused sequent engine: backward search over dyadic sequents of
-//! occurrence ids with a memo of stable sequents, as the `MALL-Seq` and
-//! `MELL-Seq` specifications state it.
+//! The focused sequent engine. It searches backward for a proof, over
+//! dyadic sequents of occurrence ids, and keeps a memo of the stable
+//! sequents it has decided. It follows the `MALL-Seq` and `MELL-Seq`
+//! specifications.
 //!
-//! A sequent inside the search is `⊢ Θ ; Γ`: the *unrestricted zone* `Θ`, a
-//! set of the formulas that arrived under a `?` and may be copied any number
-//! of times, and the *linear zone* `Γ`, a multiset of occurrences each of
-//! which is used exactly once. The *asynchronous phase* decomposes the
-//! negative formulas of a sequent without choice (`⅋` opens, `⊥` drops, `⊤`
-//! closes, `&` branches into two premises with the same context, `?` moves
-//! its subformula into `Θ`) until a *stable* sequent remains: `Γ` holds
-//! positive formulas and negative literals only. `prove` decides a stable
-//! sequent by looking it up in the memo, by the immediate tests (a `0`, an
-//! unbalanced atom, a dual pair, a literal whose dual lies in `Θ`), and
-//! otherwise by choosing a positive formula to *focus* on: one of `Γ`, which
-//! it consumes, or one of `Θ`, which stays there (a *copy*, the one step
-//! that can repeat, bounded per branch). `focus` applies the positive rules
-//! along that formula: `⊕` picks a side, `⊗` splits `Γ`, `1` needs it empty,
-//! `!` needs it empty and continues with its subformula, a positive literal
-//! needs exactly its dual, in `Γ` or in `Θ`; and when the formula turns
-//! negative it is *released* into the asynchronous phase. Every stable
-//! sequent proved or refuted goes into the memo, so a `&` that duplicates
-//! the context, or a split that revisits a part, never pays twice. With
-//! Mix, a stable sequent no focus proves is split into two provable parts.
-//! In affine mode a leaf weakens whatever is left over.
+//! A sequent inside the search is `⊢ Θ ; Γ`. It is *dyadic*: it has two
+//! zones. The *unrestricted zone* `Θ` is a set of the formulas that arrived
+//! under a `?`, and each may be copied any number of times. The *linear
+//! zone* `Γ` is a multiset of occurrences, each used exactly once.
 //!
-//! The copies are bounded per branch and the bound deepens iteratively:
-//! `Unprovable` is answered only after a level that never hit its bound.
+//! The *asynchronous phase* applies the rules that need no choice to the
+//! negative formulas: `⅋` opens, `⊥` drops, `⊤` closes, `&` branches into
+//! two premises with the same context, and `?` moves its subformula into
+//! `Θ`. What remains is a *stable* sequent: its `Γ` holds positive formulas
+//! and negative literals only.
 //!
-//! The same engine searches intuitionistic linear logic two-sided, given
-//! the sequent's intuitionistic reading: every rule of the two-sided
-//! focused calculus is a rule of this one on the one-sided sequent, and
-//! the one-succedent condition holds on every branch by itself except at
-//! the split of a hypothesis `A ⊸ B` (a `⊗` in input position), where the
-//! goal must stay on the consequent's side; that is the one place the
-//! reading is consulted.
-//! The counts of `counts.rs` prune: a stable sequent or a side of a split
-//! whose intervals exclude zero for some atom is refuted without search,
-//! and in the multiplicative fragments the count equation as well.
+//! `prove` decides a stable sequent. It first looks the sequent up in the
+//! memo, then runs the immediate tests: a `0`, an unbalanced atom, a dual
+//! pair, a literal whose dual lies in `Θ`. Otherwise it chooses a positive
+//! formula to *focus* on. That is a member of `Γ`, which the focus
+//! consumes, or a member of `Θ`, which stays there. A focus on a member of
+//! `Θ` is a *copy*. It is the one step that can repeat, so the copies on
+//! each branch are bounded.
+//!
+//! `focus` applies the positive rules along the focused formula (the
+//! *synchronous phase*): `⊕` picks a side, `⊗` splits `Γ`, `1` needs `Γ`
+//! empty, `!` needs `Γ` empty and goes on with its subformula, and a
+//! positive literal needs exactly its dual, in `Γ` or in `Θ`. When the
+//! formula turns negative, it is *released* into the asynchronous phase.
+//!
+//! Every stable sequent proved or refuted goes into the memo. So a `&` that
+//! duplicates the context, or a split that comes back to a part, never
+//! pays twice. With Mix, a stable sequent that no focus proves is split
+//! into two parts, each proved on its own. In affine mode a leaf weakens
+//! whatever is left over.
+//!
+//! The *copy bound* limits the copies on each branch. The search deepens
+//! it level by level, and answers `Unprovable` only after a level that
+//! never hit its bound.
+//!
+//! Given the sequent's intuitionistic reading, the same engine searches
+//! intuitionistic linear logic two-sided. Every rule of the two-sided
+//! focused calculus is a rule of this engine on the one-sided sequent.
+//! Every branch keeps exactly one output formula by itself, except at the
+//! split of a hypothesis `A ⊸ B` (a `⊗` in input position). There the goal
+//! must stay on the consequent's side. That is the one place the engine
+//! reads the reading.
+//!
+//! The counts of `counts.rs` prune. A stable sequent, or a side of a split,
+//! whose count intervals exclude zero for some atom is refuted without
+//! search. In the multiplicative fragments the count equation prunes as
+//! well.
 
 /// The proof arena: pending and kept nodes.
 mod arena;
@@ -112,26 +125,27 @@ const SPLITS_PER_POLL: u64 = 4096;
 /// `&` rules the engine takes between two polls of the stop condition.
 const FORCED_PER_POLL: u64 = 4096;
 
-/// The work of a stable sequent in steps of a split search, the unit a
-/// turn is counted in, before what depends on its size: the bookkeeping
-/// of a visit costs some ten times a step, which moves one member and
-/// tests its row.
+/// The work of a stable sequent before what depends on its size, in steps
+/// of a split search (the unit a turn is counted in). A step moves one
+/// member and tests its row; the bookkeeping of a visit costs some ten
+/// times as much.
 const NODE_WORK: u64 = 16;
 
-/// How many occurrences of the forest make a unit of a stable sequent's
-/// work: what a key of both zones as bitsets of the forest's width cost,
-/// kept since the key is sparse so that the default bias's two searches
-/// take the slices, and count what, they did.
+/// How many occurrences of the forest make one unit of a stable sequent's
+/// work. This charges a stable sequent what a key of both zones as bitsets
+/// of the forest's width would cost. The key is sparse, but the charge
+/// stays: the default bias's two searches take their slices by it, and
+/// their counts of work depend on it.
 const OCCURRENCES_PER_WORK: usize = 128;
 
 /// How many comparisons of a member of `Γ` with a literal of a formula of
-/// `Θ` make a unit of work: the copies are ranked by whether they meet a
-/// member, which on a Petri net with its hundreds of transitions and
-/// tokens is most of what a stable sequent costs.
+/// `Θ` make one unit of work. The copies are ranked by whether they meet a
+/// member. On a Petri net, with its hundreds of transitions and tokens,
+/// that ranking is most of what a stable sequent costs.
 const MEETS_PER_WORK: usize = 16;
 
-/// How many occurrences of the forest make a unit of the work of a split
-/// whose premises are tried: its two sides are built as zones of the
+/// How many occurrences of the forest make one unit of the work of a split
+/// whose premises are tried. Its two sides are built as zones of the
 /// forest's width.
 const OCCURRENCES_PER_LEAF: usize = 512;
 
@@ -148,8 +162,8 @@ pub(crate) const ONE_SIDED: Focused = Focused { two_sided: false };
 pub(crate) const TWO_SIDED: Focused = Focused { two_sided: true };
 
 impl Decide for Focused {
-    /// Refuses a goal beyond `LL1`, the one-sided engine in
-    /// intuitionistic mode and the two-sided one in classical mode.
+    /// Refuses a goal beyond `LL1`. Also refuses the one-sided engine in
+    /// intuitionistic mode, and the two-sided one in classical mode.
     fn admits(&self, task: &Task<'_>) -> Result<(), Error> {
         let decides = Fragment::LL1;
         let because = if !decides.contains(task.fragment) {
@@ -200,15 +214,18 @@ impl Decide for Focused {
     }
 }
 
-/// Runs the focused engine from a goal: a multiset of occurrences of the
-/// forest, the sequent's roots for a search of the sequent itself, or any
-/// other with an empty unrestricted zone, as an interactive prover hands
-/// over an open goal (with exactly one occurrence in output position when
-/// a reading is given). Returns the node proving the goal (`None` when it
-/// is unprovable, or the reason the search gave up), the arena the node
-/// lives in, and the statistics. What the search allocates is charged to
-/// `account`; two searches that decide the goal together have half its
-/// bound each.
+/// Runs the focused engine on a goal. Returns the node that proves it
+/// (`None` when it is unprovable, or the reason the search gave up), the
+/// arena the node lives in, and the statistics.
+///
+/// The goal is a multiset of occurrences of the forest, with an empty
+/// unrestricted zone. It is the sequent's roots for a search of the
+/// sequent itself, or an open goal that an interactive prover hands over.
+/// When a reading is given, exactly one of its occurrences is in output
+/// position.
+///
+/// What the search allocates is charged to `account`. Where two searches
+/// decide the goal together, each has half its bound.
 fn search_goal<Z: Zone>(
     task: &Task<'_>,
     options: &Options,
@@ -258,10 +275,11 @@ fn search_goal<Z: Zone>(
         (first, &first_counts, &accounts[0]),
         (second, &second_counts, &accounts[1]),
     ];
-    // With threads the two searches alternate in slices and none starts
-    // again; without them, when a thread cannot start, or where the
-    // options ask for it, they take turns from their start, on this
-    // thread, whose stop adds the work.
+    // With threads, the two searches alternate in slices, and neither starts
+    // over. Otherwise they take turns on this thread, each turn from its
+    // start, and this thread's stop adds up the work. That is the case
+    // without the feature, when a thread cannot start, or when the options
+    // ask for it.
     #[cfg(not(feature = "parallel"))]
     let _ = work;
     #[cfg(feature = "parallel")]
@@ -287,9 +305,9 @@ struct SetUp<'a> {
     limits: &'a Limits,
 }
 
-/// The passes before any search of the goal, on one thread or a pool:
-/// the forest's classes and the plan of its searches, each followed by a
-/// poll on a large forest. `None` when the stop fired at one.
+/// Makes what every search of the goal needs first, on one thread or a
+/// pool: the forest's classes and the plan of its searches. Polls after
+/// each on a large forest. Returns `None` when the stop fired at a poll.
 fn prepare(
     task: &Task<'_>,
     options: &Options,
@@ -356,17 +374,19 @@ impl Switches {
 /// unprovable, or the reason the search stopped.
 pub(crate) type Searched = Result<Option<NodeId>, Reason>;
 
-/// What a failure below a step rests on besides the sequents it searched:
-/// a branch cut by the copy budget, or a prune by the loop check, which
-/// is a fact about the branch and not about the sequent.
+/// What a failure below a step rests on, besides the sequents it searched:
+/// a branch cut by the copy budget (the copies a branch may still make),
+/// or a prune by the loop check (which prunes a sequent equal to one of
+/// its ancestors). A prune is a fact about the branch, not about the
+/// sequent.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Cuts {
-    /// Whether some branch failed because its copy budget was spent: a
-    /// level whose search failed with this is not `Unprovable`.
+    /// Whether some branch failed because its copy budget was spent. A level
+    /// whose search failed with this set does not answer `Unprovable`.
     exhausted: bool,
     /// The shallowest stack depth of an ancestor that a pruned sequent
-    /// repeated, or [`NO_DEPENDENCY`]: a failure that rests on such a
-    /// prune is not memoized.
+    /// repeated, or [`NO_DEPENDENCY`]. A failure that rests on such a prune
+    /// is not memoized.
     dependency: u32,
 }
 
@@ -401,14 +421,15 @@ impl Cuts {
     }
 }
 
-/// What a step of the search found: a proof of its sequent, or that
-/// there is none with the cuts of every step it ran. A failure rests on
-/// the failures below it and on nothing else, so a step that runs others
-/// adds the cuts of those that failed to its own; a proof is a fact that
-/// rests on nothing, so it carries no cuts, and a failure of a rule whose
-/// other premise was proved rests on its own premise's cuts alone. A
-/// stable sequent reads off its decision's result what its memo entry may
-/// say.
+/// What a step of the search found: a proof of its sequent, or no proof, with
+/// the cuts of every step it ran.
+///
+/// A failure rests on the failures below it and on nothing else. So a step that
+/// runs others adds the cuts of those that failed to its own. A proof is a fact
+/// that rests on nothing, so it carries no cuts. When a rule proves one premise
+/// and fails on the other, the failure rests on the failed premise's cuts
+/// alone. A stable sequent reads off its decision's result what its memo entry
+/// may say.
 #[derive(Clone, Copy, Debug)]
 enum Found {
     /// A proof, by this node.
@@ -461,8 +482,8 @@ impl Found {
 /// whole search stops.
 type Step = Result<Found, Reason>;
 
-/// An alternative of a choice: what one thread tries in its order and a
-/// pool's search runs as a task of its own.
+/// One alternative of a choice. One thread tries the alternatives in its
+/// order; a pool's search runs each as a task of its own.
 enum Alternative<'m, Z: Zone> {
     /// A focus on a member of `Γ`, which leaves the context.
     Focus(Z::Member),
@@ -470,9 +491,10 @@ enum Alternative<'m, Z: Zone> {
     Copy(Z::Member),
     /// A side of a `⊕` in focus, with the subformula on that side.
     Branch(Z::Member, Branch, Z::Member),
-    /// The free splits of a `⊗` that assign the first `fixed` members as
-    /// the bits of `pattern` say, one for the left premise, from the sides
-    /// and counts before any member moved.
+    /// The free splits of a `⊗` (the splits of the context it searches) that
+    /// assign the first `fixed` members as the bits of `pattern` say, a set
+    /// bit for the left premise. They start from the sides and counts before
+    /// any member moved.
     #[cfg_attr(
         not(feature = "parallel"),
         expect(dead_code, reason = "only a pool hands out the splits of a tensor")
@@ -488,7 +510,7 @@ enum Alternative<'m, Z: Zone> {
         pattern: u64,
         /// The sides before any member moved.
         sides: (&'m Z::Linear, &'m Z::Linear),
-        /// Their counts, the members open.
+        /// Their counts, with the members not yet assigned.
         split: &'m Split,
     },
 }
@@ -519,9 +541,10 @@ struct Problem<'a> {
     /// The search's account, which the memo, the arena and the buffers are
     /// charged to.
     account: &'a Account,
-    /// Whether the memo takes entries: a proof it refers to is kept.
+    /// Whether the memo takes entries. A proof that an entry refers to is
+    /// kept.
     memoizes: bool,
-    /// The most failures that may wait on an open ancestor at once: the
+    /// The most failures that may wait on an open ancestor at once. It is the
     /// memo's own bound in entries.
     waits: usize,
     /// The deepest nesting allowed.
@@ -556,7 +579,7 @@ impl<'a> Problem<'a> {
 struct Unrestricted<Z: Zone> {
     /// The zone.
     set: Z::Unrestricted,
-    /// Its id: another for another zone.
+    /// Its id. Two different zones never have the same id.
     id: u64,
 }
 
@@ -592,9 +615,9 @@ struct Run<'a, Z: Zone> {
     /// The forced splits, and the literals of the tensors they closed in
     /// place, since the stop condition was last polled in a chain of them.
     forced: u64,
-    /// The work done since the stop condition was last polled, as far as
-    /// it grows with the size of the sequents and is no step of a split
-    /// search: the unit of a turn.
+    /// The work done since the stop condition was last polled: the part that
+    /// grows with the size of the sequents and is not a step of a split
+    /// search. It is counted in the unit of a turn.
     work: u64,
     /// The nesting of engine calls right now.
     depth: u32,
@@ -608,7 +631,8 @@ struct Run<'a, Z: Zone> {
     #[cfg(feature = "parallel")]
     divided: bool,
     /// How many choices among alternatives on this branch ran on several
-    /// threads: the levels of cube-and-conquer above the current sequent.
+    /// threads: the levels of cube-and-conquer (a choice's alternatives
+    /// divided among threads) above the current sequent.
     #[cfg_attr(
         not(feature = "parallel"),
         expect(dead_code, reason = "only a pool runs alternatives on several threads")
@@ -629,8 +653,8 @@ struct Run<'a, Z: Zone> {
     /// The failures that rest on a prune of the loop check and wait on an
     /// open ancestor of the branch.
     waiting: Waiting,
-    /// The stable sequents of the branch above the stack, the root end
-    /// first, with their hashes: the parts of the branch stacks of the
+    /// The stable sequents of the branch above the stack, the root end first,
+    /// with their hashes. They are the parts of the branch stacks of the
     /// engines this worker of a pool was spawned from, read in place. The
     /// depth of an entry of `stack` counts these first.
     ancestors: Vec<(&'a [Key], &'a [u64])>,
@@ -642,9 +666,9 @@ struct Run<'a, Z: Zone> {
 }
 
 impl<'a, Z: Zone> Run<'a, Z> {
-    /// Prepares a run on the problem with the stop condition, the memo,
-    /// the arena and the zone to use, at the root of its branch; a pool's
-    /// worker is one that is then given the branch it continues.
+    /// Prepares a run at the root of its branch, on the problem, with the
+    /// stop condition, the memo, the arena and the zone to use. A pool's
+    /// worker is such a run, then given the branch it continues.
     fn new(
         problem: Problem<'a>,
         stop: Stop<'a>,
@@ -683,8 +707,9 @@ impl<'a, Z: Zone> Run<'a, Z> {
         }
     }
 
-    /// Searches the goal ([`Run::run`]) and keeps the proof found: the
-    /// kept node, `None` for an exhaustive search, or why it stopped.
+    /// Searches the goal ([`Run::run`]) and keeps the proof found. Returns
+    /// the kept node, `None` when the goal is unprovable, or why the search
+    /// stopped.
     fn run_kept(&mut self, goal: &[OccId]) -> Result<Option<NodeId>, Reason> {
         let Some(root) = self.run(goal)? else {
             return Ok(None);
@@ -740,9 +765,9 @@ impl<'a, Z: Zone> Run<'a, Z> {
         statistics
     }
 
-    /// The counters a worker hands the engine that spawned it: its own
-    /// and its zone's, the memo's left out, which a pool's engines share
-    /// or each read off its own.
+    /// The counters a worker hands the engine that spawned it: its own and
+    /// its zone's. The memo's are left out: a pool's engines share the memo,
+    /// or each reads its own.
     #[cfg(feature = "parallel")]
     fn report(&self) -> Statistics {
         let mut statistics = self.statistics;
@@ -754,10 +779,10 @@ impl<'a, Z: Zone> Run<'a, Z> {
         statistics
     }
 
-    /// Searches the goal with an empty unrestricted zone: the asynchronous
-    /// phase on its formulas, once per copy bound from zero up to the
-    /// configured one, until a level proves it or fails without ever
-    /// spending its budget. Without exponentials there is one level.
+    /// Searches the goal with an empty unrestricted zone. Runs the
+    /// asynchronous phase on its formulas once per copy bound, from zero up
+    /// to the configured one, until a level proves the goal or fails without
+    /// ever spending its budget. Without exponentials there is one level.
     fn run(&mut self, goal: &[OccId]) -> Searched {
         let levels = if self.problem.rules.exponentials {
             self.problem.copies
@@ -769,10 +794,10 @@ impl<'a, Z: Zone> Run<'a, Z> {
             id: self.memo.intern(set.ground(), self.problem.account),
             set,
         };
-        // The failures cut by the budget that the levels read, a generation
-        // being every level since the last that ended cut without a
-        // stable sequent new to the memo, or with a part of the memo
-        // emptied ([`Table::begin`]).
+        // The generation whose failures cut by the budget the levels read
+        // ([`Table::begin`]). A generation is every level since the last one
+        // that ended cut without a stable sequent new to the memo, or with a
+        // part of the memo emptied.
         let mut generation = 0;
         self.memo.begin(generation);
         // Up to `u32::MAX` inclusive without a wrap; that bound stands for
@@ -781,8 +806,9 @@ impl<'a, Z: Zone> Run<'a, Z> {
             self.statistics.copies = budget;
             self.waiting.clear();
             if Z::FIRST_ORDER {
-                // A level a first-order bound cuts at once reaches no stable
-                // sequent, where the stop is polled: each level is work.
+                // A level that a first-order bound cuts at once reaches no
+                // stable sequent, which is where the stop is polled. So each
+                // level counts as work and polls here.
                 if let Err(reason) = self.poll_with() {
                     self.give_set(theta.set);
                     return Err(reason);
@@ -809,11 +835,12 @@ impl<'a, Z: Zone> Run<'a, Z> {
             self.give_list(list);
             match result {
                 Ok(Found::Failed(cuts)) if cuts.exhausted => {
-                    // The level met no stable sequent it had not met
-                    // before, so the next one would read the same cuts
-                    // again; or a part of the memo was emptied, and the
-                    // keys met again count as new for ever. The next
-                    // level reads only the facts and its own cuts.
+                    // Either the level met no stable sequent it had not met
+                    // before, so the next one would read the same cuts again.
+                    // Or a part of the memo was emptied, so the keys met again
+                    // would count as new for ever. Either way a new generation
+                    // starts: the next level reads only the facts and its own
+                    // cuts.
                     if self.memo.added() == added || self.memo.emptied() != emptied {
                         generation += 1;
                         self.memo.begin(generation);
@@ -826,7 +853,7 @@ impl<'a, Z: Zone> Run<'a, Z> {
             }
         }
         self.give_set(theta.set);
-        // A level cut by a first-order bound, the last one, is undecided
+        // When a first-order bound cut the last level, the goal is undecided
         // for that bound, which a larger copy bound alone may not lift.
         if Z::FIRST_ORDER
             && let Some(reason) = self.zone.cut()
@@ -836,14 +863,16 @@ impl<'a, Z: Zone> Run<'a, Z> {
         Err(Reason::CopyBound { copies: levels })
     }
 
-    /// The last level of a first-order search on a pool, once more on
-    /// this thread where it divided a choice and ended cut: a worker may
-    /// have searched a sequent cut by its budget while a sibling was still
-    /// finding it unprovable, where one thread reads the sibling's failure
-    /// and decides. The level searched again reads every failure the
-    /// workers recorded in the memo and none of their cuts (a new
-    /// generation), so the pool answers "unknown" only where one thread
-    /// with those facts does. Returns the level's result.
+    /// Searches the last level of a first-order search on a pool once more,
+    /// on this thread, where the level divided a choice and ended cut.
+    /// Returns the level's result.
+    ///
+    /// A worker may have searched a sequent cut by its budget while a sibling
+    /// was still finding it unprovable. One thread would have read the
+    /// sibling's failure and decided. The level searched again reads every
+    /// failure the workers recorded in the memo and none of their cuts (a new
+    /// generation). So the pool answers "unknown" only where one thread with
+    /// those facts does.
     #[cfg(feature = "parallel")]
     fn again_alone(
         &mut self,
@@ -872,9 +901,10 @@ impl<'a, Z: Zone> Run<'a, Z> {
 
     // The phases.
 
-    /// The asynchronous phase on `⊢ Θ ; Γ ⇑ L`: decomposes the negative
-    /// formulas of the list until the sequent is stable, then proves it.
-    /// The list is a stack; the order does not matter for completeness.
+    /// The asynchronous phase on `⊢ Θ ; Γ ⇑ L`, where `L` is the list of
+    /// formulas still to decompose. Decomposes the negative formulas of the
+    /// list until the sequent is stable, then proves it. The list is a stack;
+    /// the order does not matter for completeness.
     fn asynchronous(
         &mut self,
         theta: &Unrestricted<Z>,
@@ -939,9 +969,10 @@ impl<'a, Z: Zone> Run<'a, Z> {
                     }
                     applied.push(o);
                 }
-                // A fresh eigenvariable for the body, which the `∀` node
-                // takes back as it is built. Inside the last arm, so that
-                // the match of a zone without binders is what it was.
+                // A fresh eigenvariable for the body, which the `∀` node takes
+                // back as it is built. The arm is the last one, so that for a
+                // zone without binders the match compiles as if it were not
+                // there.
                 kind if Z::FIRST_ORDER && kind == Kind::Forall => {
                     match self.zone.forall(self.problem.forest, o) {
                         Ok(Some(body)) => {
@@ -993,9 +1024,9 @@ impl<'a, Z: Zone> Run<'a, Z> {
         })
     }
 
-    /// The `&` rule: both premises with the same context, each keeping the
-    /// whole copy budget; the right one is searched only once the left one
-    /// is proved. On several threads both are searched at once.
+    /// The `&` rule. Both premises have the same context, and each keeps the
+    /// whole copy budget. The right one is searched only once the left one is
+    /// proved. On several threads both are searched at once.
     fn with(
         &mut self,
         theta: &Unrestricted<Z>,
@@ -1004,9 +1035,9 @@ impl<'a, Z: Zone> Run<'a, Z> {
         o: Z::Member,
         budget: u32,
     ) -> Step {
-        // A proof of `&` rules closed by `⊤` reaches no stable sequent,
-        // where the search polls and asks the memory bound, and can be
-        // exponential in the sequent.
+        // A proof of `&` rules closed by `⊤` reaches no stable sequent, which is
+        // where the search polls and checks the memory bound. And such a proof
+        // can be exponential in the sequent. So the rule polls and checks here.
         self.poll_with()?;
         if self.problem.account.over() {
             self.relieve()?;
@@ -1031,11 +1062,11 @@ impl<'a, Z: Zone> Run<'a, Z> {
         Ok(self.both(o, left_node, right?, mark))
     }
 
-    /// Counts the work of an `&` rule, a step and the copy of a zone of
-    /// the forest's width, and polls the stop every [`FORCED_PER_POLL`]
-    /// of them and of the forced splits, telling it the work done since
-    /// its last poll: an `&` rule is work, which the default bias's two
-    /// searches share and `Limits::work` bounds.
+    /// Counts the work of an `&` rule: a step, and the copy of a zone of the
+    /// forest's width. Polls the stop every [`FORCED_PER_POLL`] `&` rules and
+    /// forced splits, and tells it the work done since its last poll. An `&`
+    /// rule is work, which the default bias's two searches share and
+    /// `Limits::work` bounds.
     fn poll_with(&mut self) -> Result<(), Reason> {
         self.work += 1 + (self.problem.forest.len() / OCCURRENCES_PER_WORK) as u64;
         self.forced += 1;
@@ -1070,13 +1101,14 @@ impl<'a, Z: Zone> Run<'a, Z> {
         result
     }
 
-    /// Runs `second`, the search of a rule's second premise, with the
-    /// proof of its first held ([`Arena::hold`]), since a collection of
-    /// the arena in between may move it, and returns that proof where it
-    /// is now with what `second` returned. Every rule that keeps a proof
-    /// across a call that can reach [`prove_stable`](Self::prove_stable)
-    /// or [`with`](Self::with), both of which may relieve the memory
-    /// and collect the arena, goes through it.
+    /// Runs `second`, the search of a rule's second premise, with the proof
+    /// of its first premise held ([`Arena::hold`]). Returns that proof where
+    /// it is now, and what `second` returned.
+    ///
+    /// A collection of the arena in between may move the proof, hence the
+    /// hold. Every rule that keeps a proof across a call that can reach
+    /// [`prove_stable`](Self::prove_stable) or [`with`](Self::with) goes
+    /// through it, since both may relieve the memory and collect the arena.
     #[inline(always)]
     fn holding<T>(&mut self, first: NodeId, second: impl FnOnce(&mut Self) -> T) -> (NodeId, T) {
         let held = self.nodes.hold(first);
@@ -1084,11 +1116,11 @@ impl<'a, Z: Zone> Run<'a, Z> {
         (self.nodes.unhold(held), found)
     }
 
-    /// A rule of two premises: `first` searches the first, `second` the
-    /// second once the first is proved, with its proof held across, and
-    /// `join` makes the rule's node from the two proofs. The failure of
-    /// either premise otherwise, with the nodes pushed since the first
-    /// began released when it is the second's.
+    /// A rule of two premises. `first` searches the first premise. Once it is
+    /// proved, `second` searches the second, with the first's proof held
+    /// across. `join` makes the rule's node from the two proofs. Otherwise
+    /// returns the failure of either premise. When the second fails, the nodes
+    /// pushed since the first began are released.
     #[inline(always)]
     fn two_premises(
         &mut self,
@@ -1110,9 +1142,9 @@ impl<'a, Z: Zone> Run<'a, Z> {
         Ok(Found::proved(self.push(join(l_node, r_node))))
     }
 
-    /// The `&` node on `o` from the proof of its left premise and what the
-    /// search of the right one found; the right one's failure, with the
-    /// nodes pending since `mark` released, when it failed.
+    /// The `&` node on `o`, from the proof of its left premise and what the
+    /// search of the right one found. When the right one failed, returns its
+    /// failure, with the nodes pending since `mark` released.
     fn both(&mut self, o: Z::Member, left: NodeId, right: Found, mark: usize) -> Found {
         let Found::Proved(right) = right else {
             self.nodes.release(mark);
@@ -1121,9 +1153,9 @@ impl<'a, Z: Zone> Run<'a, Z> {
         Found::proved(self.push(Node::With(o.into(), left, right)))
     }
 
-    /// `prove(Θ ; Γ)` for a stable `Γ`: the memo, the loop check, the
-    /// immediate tests, then a focus on each positive
-    /// formula in turn, first from `Γ`, then copied from `Θ`, then Mix.
+    /// Decides `⊢ Θ ; Γ` for a stable `Γ`. Tries the memo, the loop check
+    /// and the immediate tests, then a focus on each positive formula in
+    /// turn: first from `Γ`, then copied from `Θ`, then Mix.
     fn prove(&mut self, theta: &Unrestricted<Z>, gamma: &Z::Linear, budget: u32) -> Step {
         Ok(self.prove_part(theta, gamma, budget)?.0)
     }
@@ -1180,9 +1212,9 @@ impl<'a, Z: Zone> Run<'a, Z> {
         result
     }
 
-    /// The decision of a stable sequent that the memo and the loop check
-    /// may not key by its occurrences: a first-order one by its instance
-    /// where the memo is on and the sequent has keys.
+    /// Decides a stable sequent that the memo and the loop check may not key
+    /// by its occurrences. Where the memo is on and the sequent has keys, a
+    /// first-order sequent is keyed by its instance instead (`prove_keyed`).
     #[cold]
     fn prove_unkeyed(
         &mut self,
@@ -1211,10 +1243,10 @@ impl<'a, Z: Zone> Run<'a, Z> {
         result
     }
 
-    /// The memo and the branch stack around the decision of a stable
-    /// sequent whose linear zone has the words of a key given
-    /// ([`Zones::members`]), which are its members where none repeats,
-    /// with a buffer for its canonical key.
+    /// Decides a stable sequent through the memo and the branch stack. Its
+    /// linear zone comes as the words of its key ([`Zones::members`]), which
+    /// are its members where none repeats. `canonical` is a buffer for its
+    /// canonical key.
     fn prove_listed(
         &mut self,
         theta: &Unrestricted<Z>,
@@ -1234,8 +1266,9 @@ impl<'a, Z: Zone> Run<'a, Z> {
         } else {
             0
         };
-        // Complete failures are recorded up to interchangeable members:
-        // under the canonical key, where it differs from the sequent's own.
+        // Complete failures are recorded up to interchangeable members, under
+        // the canonical key: the key with every member of `Γ` replaced by its
+        // class. It is built only where it differs from the sequent's own key.
         let renamed = self.problem.classes.renames(gamma.ground());
         if renamed {
             self.problem.classes.canonical(words, repeats, canonical);
@@ -1253,9 +1286,9 @@ impl<'a, Z: Zone> Run<'a, Z> {
         } else {
             0
         };
-        // A proof or a complete failure from the memo settles it; a
-        // failure cut by the budget waits for the loop check, which may
-        // give the stronger answer that the branch is redundant.
+        // A proof or a complete failure from the memo settles the sequent. A
+        // failure cut by the budget waits for the loop check, which may give the
+        // stronger answer that the branch is redundant.
         let refuted = if renamed {
             self.memo.refuted(canonical_key, canonical_hash)
         } else {
@@ -1272,25 +1305,26 @@ impl<'a, Z: Zone> Run<'a, Z> {
             }
             Some(Entry::Failed(Failure::Exhausted(_))) | None => {}
         }
-        // A sequent that repeats an ancestor on its branch is pruned: a
-        // smallest proof of the ancestor never passes through it. The
-        // failure this causes above is a fact about the branch, so it
-        // carries a dependency on the ancestor's depth, which keeps the
-        // sequents between them out of the memo, until the ancestor itself
-        // is decided. (A sequent that merely contains an ancestor is not
-        // redundant, with or without weakening: a proof of the larger
-        // sequent proves nothing about the smaller one, and ⊢ ?(a ⅋ ~a) is
-        // proved only through ⊢ a ⅋ ~a ; a, ~a.)
+        // A sequent that repeats an ancestor on its branch is pruned, since a
+        // smallest proof of the ancestor never passes through it. The failure
+        // this causes above is a fact about the branch. So it carries a
+        // dependency on the ancestor's depth, which keeps the sequents between
+        // them out of the memo until the ancestor itself is decided.
+        //
+        // A sequent that merely contains an ancestor is not redundant, with or
+        // without weakening. A proof of the larger sequent proves nothing about
+        // the smaller one: ⊢ ?(a ⅋ ~a) is proved only through
+        // ⊢ a ⅋ ~a ; a, ~a.
         if self.problem.rules.stack
             && let Some(depth) = self.repeated(key, hash)
         {
-            // A depth of the branch, which is as deep as the recursion
-            // limit allows.
+            // A depth of the branch, which the recursion limit bounds, so it fits a
+            // `u32`.
             return Ok((Found::failed(Cuts::repeat(depth as u32)), false));
         }
-        // A failure that waits on an open ancestor answers for the
-        // sequent while that ancestor is open; one not cut by the budget
-        // before the memo's that is.
+        // A failure that waits on an open ancestor answers for the sequent while
+        // that ancestor is open. One not cut by the budget answers before the
+        // memo's entry cut by the budget; one cut by it answers after.
         if !self.waiting.is_empty()
             && let Some(reused) = self.waiting.find(key, hash, budget, entry.is_some())
         {
@@ -1392,8 +1426,9 @@ impl<'a, Z: Zone> Run<'a, Z> {
                 self.nodes.release(mark);
                 let mut recorded = Ok(None);
                 if cuts.dependency == NO_DEPENDENCY {
-                    // A complete failure answers for every relative; one
-                    // cut by the budget stays the sequent's own.
+                    // A complete failure answers for every relative (a sequent
+                    // equal up to interchangeable members). One cut by the
+                    // budget stays under the sequent's own key.
                     let complete = if hereditary {
                         Failure::Hereditary
                     } else {
@@ -1418,13 +1453,13 @@ impl<'a, Z: Zone> Run<'a, Z> {
         })
     }
 
-    /// Settles the failures that wait on an ancestor and were decided
-    /// below the stable sequent `key` just closed, those from `waited`
-    /// on, by what it closed with (`waiting.rs` has the argument): a proof
-    /// drops them; a failure cut by the budget makes them so; a failure
-    /// with no dependency records those it leads, or that a deeper
-    /// ancestor led, in the memo; one with a dependency hands them on to
-    /// its leader, and waits there itself.
+    /// Settles the failures that wait on an ancestor and were decided below
+    /// the stable sequent `key` just closed, those from `waited` on.
+    /// `waiting.rs` has the argument. They are settled by what `key` closed
+    /// with. A proof drops them. A failure cut by the budget makes them cut
+    /// by it too. A failure with no dependency records in the memo those it
+    /// leads, or that a deeper ancestor led. A failure with a dependency hands
+    /// them on to its leader, and waits there itself.
     fn close(
         &mut self,
         key: Zones<'_>,
@@ -1518,9 +1553,9 @@ impl<'a, Z: Zone> Run<'a, Z> {
         recorded.map(|_| ())
     }
 
-    /// The depth of the stable sequent of the branch that `key`, of hash
-    /// `hash`, repeats, if any: the ancestors spawning engines hold first,
-    /// then the stack's live entries.
+    /// Returns the depth of the stable sequent of the branch that `key` (of
+    /// hash `hash`) repeats, if any. The depth counts first the ancestors that
+    /// spawning engines hold, then the stack's live entries.
     fn repeated(&self, key: Zones<'_>, hash: u64) -> Option<usize> {
         let own = (
             &self.stack[..self.stack_len],
@@ -1539,12 +1574,14 @@ impl<'a, Z: Zone> Run<'a, Z> {
         self.ancestors.iter().map(|(keys, _)| keys.len()).sum()
     }
 
-    /// Records what the search found out about a stable sequent. A memo
-    /// of the engine's own that has no room is emptied first, and the
-    /// kept proofs that only its entries referred to go with it; the
-    /// entry comes back as recorded, a proof's node under the id it has
-    /// after that. Fails when even the emptied memo has no room: the
-    /// search's memory is at its bound without it.
+    /// Records what the search found out about a stable sequent, and returns
+    /// the entry as recorded.
+    ///
+    /// A memo of the engine's own that has no room is emptied first, and the
+    /// kept proofs that only its entries referred to go with it. A proof's
+    /// node then comes back under the id it has after that. Fails when even
+    /// the emptied memo has no room: the search's memory is at its bound
+    /// without it.
     fn remember(&mut self, key: Zones<'_>, hash: u64, entry: Entry) -> Result<Entry, Reason> {
         if self.memo.insert(key, hash, entry, self.problem.account) == Inserted::Done {
             return Ok(entry);
@@ -1564,8 +1601,8 @@ impl<'a, Z: Zone> Run<'a, Z> {
         if self.memo.insert(key, hash, entry, self.problem.account) == Inserted::Done {
             return Ok(entry);
         }
-        // Not even the first entry fits: what the proofs dropped leave
-        // free is the last memory there is.
+        // Not even the first entry fits. The memory the dropped proofs leave
+        // free is the last there is, so all of it is given back.
         let entry = match entry {
             Entry::Proved(node) => Entry::Proved(
                 self.nodes
@@ -1585,13 +1622,14 @@ impl<'a, Z: Zone> Run<'a, Z> {
         }
     }
 
-    /// Makes room when the search holds more than its bound: the memo is
-    /// emptied, and the kept proofs that only its entries referred to are
-    /// dropped; if that is not enough, the memo's own memory is given
-    /// back, which it takes again as far as the rest leaves room. Fails
-    /// when what is left, the branch's own buffers and proofs as they are
-    /// allocated, is still over the bound: squeezing those would be undone
-    /// by the next node.
+    /// Makes room when the search holds more than its bound. Empties the memo
+    /// and drops the kept proofs that only its entries referred to. If that
+    /// is not enough, gives the memo's own memory back; the memo takes it
+    /// again as far as the rest leaves room.
+    ///
+    /// Fails when what is left is still over the bound: the branch's own
+    /// buffers and proofs, as they are allocated. Squeezing those would be
+    /// undone by the next node.
     fn relieve(&mut self) -> Result<(), Reason> {
         let charged = self.waiting.release();
         self.scratch.resize(charged, 0);
@@ -1619,10 +1657,10 @@ impl<'a, Z: Zone> Run<'a, Z> {
         self.problem.forest.len().div_ceil(64) * size_of::<u64>()
     }
 
-    /// Decides a stable sequent the memo does not know, and says whether
-    /// a failure is hereditary: under Mix, no non-empty part of `Γ` is
-    /// provable either, as `Γ` has one member, or Mix found each part with
-    /// one member less hereditarily failed.
+    /// Decides a stable sequent the memo does not know, and says whether a
+    /// failure is hereditary. Under Mix, a failure is hereditary when no
+    /// non-empty part of `Γ` is provable either: `Γ` has one member, or Mix
+    /// found that each part with one member less failed hereditarily.
     fn decide(
         &mut self,
         theta: &Unrestricted<Z>,
@@ -1670,10 +1708,10 @@ impl<'a, Z: Zone> Run<'a, Z> {
     ) -> Result<(Found, bool), Reason> {
         let affine = self.problem.rules.affine;
         // One pass over the members: the counts, a `0`, and the positive
-        // formulas worth focusing on. `1` and `!` only when alone, since
-        // they need an empty context (any context, with weakening); a
-        // literal never, since a focus on it succeeds only in the initial
-        // cases tested below.
+        // formulas worth focusing on. `1` and `!` are worth it only when alone,
+        // since they need an empty context (any context, with weakening). A
+        // literal never is: a focus on it succeeds only in the initial cases
+        // tested below.
         self.work += members.len() as u64;
         let mut zero = false;
         for &o in members {
@@ -1687,11 +1725,11 @@ impl<'a, Z: Zone> Run<'a, Z> {
                 kind => unreachable!("{kind:?} in a stable sequent"),
             }
         }
-        // A `0` has no rule, so only a `⊤` below some member of `Γ`, or
-        // below a member of `Θ` that a copy can bring in, can prove the
-        // sequent: ⊢ 0, ⊤ ⊕ b is provable. (The spec calls a `0` in a
-        // stable sequent fatal, which overlooks this.) With weakening the
-        // `0` is discarded at a leaf like anything else.
+        // A `0` has no rule. So only a `⊤` below some member of `Γ`, or below a
+        // member of `Θ` that a copy can bring in, can prove the sequent:
+        // ⊢ 0, ⊤ ⊕ b is provable. A `0` in a stable sequent is fatal only
+        // without such a `⊤`. With weakening the `0` is discarded at a leaf like
+        // anything else.
         if zero
             && !affine
             && !tally.absorbs()
@@ -1719,9 +1757,9 @@ impl<'a, Z: Zone> Run<'a, Z> {
         // Forced splits first, then `⊕`, then the free splits; by id within
         // a class, so that the run is deterministic.
         candidates.sort_by_key(|&o| (self.focus_class(o), o));
-        // After them the copies from `Θ`, a formula with an unconsumed copy
-        // in `Γ` skipped (a second copy cannot help before the first is
-        // used), those that can meet a literal of `Γ` first, then by id.
+        // After them come the copies from `Θ`. A formula with an unconsumed copy
+        // in `Γ` is skipped: a second copy cannot help before the first is used.
+        // Those that can meet a literal of `Γ` come first, then the rest by id.
         if self.problem.rules.exponentials {
             let unconsumed = self.one_of_each_copy(theta, gamma, copies);
             // Each is looked up in `Γ`, compared with its class and sorted.
@@ -1768,10 +1806,10 @@ impl<'a, Z: Zone> Run<'a, Z> {
         Ok((found.after(cuts), hereditary))
     }
 
-    /// Decides a choice among alternatives: in their order on this thread,
-    /// the first that proves the sequent ending it, or within the first
-    /// levels of a pool's search on its threads. The cuts are those of
-    /// the alternatives searched.
+    /// Decides a choice among alternatives. On this thread they are tried in
+    /// their order, and the first that proves the sequent ends the choice.
+    /// Within the first levels of a pool's search they run on its threads. A
+    /// failure carries the cuts of the alternatives searched.
     fn choose<'m>(
         &mut self,
         theta: &Unrestricted<Z>,
@@ -1885,13 +1923,15 @@ impl<'a, Z: Zone> Run<'a, Z> {
         }
     }
 
-    /// Lists in `copies`, of the members of `Θ` without a copy in `Γ`, one
-    /// of each class, the lowest id, in the order of their classes, which
-    /// is [`Self::one_of_each`] on them; returns how many members `Θ` has
-    /// without a copy in `Γ`. `Θ`'s members by class are kept from the
-    /// stable sequent before when it had the same `Θ`, as along a branch
-    /// it mostly has: sorting them anew for every stable sequent was most
-    /// of what one cost on a net of thousands of transitions.
+    /// Lists in `copies` one member of each class among the members of `Θ`
+    /// without a copy in `Γ`: the lowest id, in the order of the classes.
+    /// That is [`Self::one_of_each`] on them. Returns how many members `Θ`
+    /// has without a copy in `Γ`.
+    ///
+    /// `Θ`'s members by class are kept from the stable sequent before when it
+    /// had the same `Θ`, as it mostly has along a branch. Sorting them anew
+    /// for every stable sequent is most of what one costs on a net of
+    /// thousands of transitions.
     fn one_of_each_copy(
         &mut self,
         theta: &Unrestricted<Z>,
@@ -1933,9 +1973,9 @@ impl<'a, Z: Zone> Run<'a, Z> {
         occurrences.dedup_by_key(|o| self.class(*o));
     }
 
-    /// What is tried on a stable sequent after every focus failed: Mix,
-    /// when the rules have it, which says whether it failed hereditarily,
-    /// because no part of `Γ` is provable.
+    /// Tries what is left on a stable sequent after every focus failed: Mix,
+    /// when the rules have it. Says whether the failure is hereditary, which
+    /// it is when no part of `Γ` is provable.
     fn last_resort(
         &mut self,
         theta: &Unrestricted<Z>,
@@ -1950,15 +1990,17 @@ impl<'a, Z: Zone> Run<'a, Z> {
         Ok((Found::NOTHING, false))
     }
 
-    /// The initial rules on a stable sequent: a dual pair in `Γ`, or a
-    /// literal of `Γ` whose dual lies in `Θ`, which is copied and counts
-    /// against the budget; exactly that in linear mode, with anything else
-    /// in `Γ` weakened away in affine mode. The first literal of the
-    /// members, in their order, with a dual among them pairs with the first
-    /// such dual, else the first with a dual in `Θ` is copied. One pass
-    /// marks the lists of the members' literals, so that the test is
-    /// linear in the members: comparing every pair was quadratic under
-    /// weakening, where any number of members may close a sequent.
+    /// The initial rules on a stable sequent: a dual pair in `Γ`, or a literal
+    /// of `Γ` whose dual lies in `Θ`. That dual is copied, and the copy counts
+    /// against the budget. In linear mode `Γ` must be exactly the pair or the
+    /// literal; in affine mode anything else in `Γ` is weakened away.
+    ///
+    /// The first literal of the members, in their order, that has a dual among
+    /// them pairs with the first such dual. Otherwise the first literal with a
+    /// dual in `Θ` is copied. One pass marks the lists of the members'
+    /// literals, so that the test is linear in the members. Comparing every
+    /// pair would be quadratic under weakening, where any number of members
+    /// may close a sequent.
     fn initial(
         &mut self,
         theta: &Unrestricted<Z>,
@@ -2046,9 +2088,9 @@ impl<'a, Z: Zone> Run<'a, Z> {
         }
     }
 
-    /// `focus(Θ ; Γ ⇓ F)` with `F` taken out of `Γ` (or copied from `Θ`):
-    /// the positive rules along `F`, and a release into the asynchronous
-    /// phase once `F` is negative.
+    /// The synchronous phase on `⊢ Θ ; Γ ⇓ F`, with `F` taken out of `Γ` or
+    /// copied from `Θ`. Applies the positive rules along `F`, and releases
+    /// `F` into the asynchronous phase once it is negative.
     fn focus(
         &mut self,
         theta: &Unrestricted<Z>,

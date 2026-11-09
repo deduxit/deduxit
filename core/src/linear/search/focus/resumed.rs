@@ -1,9 +1,12 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The alternatives of a stable sequent, and of a `⊕` in focus, in a
-//! first-order zone: a choice point that logs which alternative it tries,
-//! so that a premise's search can be resumed at it (`choices.rs`).
+//! The choice among the alternatives of a stable sequent, or of a `⊕` in
+//! focus, when the sequent has quantifiers (the first-order zone).
+//!
+//! A stable sequent is one with no rule left that can be applied without
+//! a choice. The choice logs which alternative it tries, so that the
+//! search of a premise can later be resumed at it (`choices.rs`).
 
 use super::choices::Site;
 use super::zone::Zone;

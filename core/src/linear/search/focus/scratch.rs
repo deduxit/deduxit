@@ -1,9 +1,13 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The engine's pools of scratch buffers: a step takes what it needs
-//! from a pool and gives it back, so that no step allocates once the
-//! pools are warm.
+//! The engine's pools of scratch buffers. A step takes the buffers it
+//! needs from a pool and gives them back, so that once the pools are warm
+//! no step allocates them.
+//!
+//! Among the buffers are the two zones of a sequent: the linear zone,
+//! whose formulas a proof uses exactly once, and the unrestricted zone
+//! (a set), whose formulas under a `?` it may copy any number of times.
 
 use super::Run;
 use super::counts::{Split, Tally};
@@ -14,7 +18,7 @@ use crate::linear::proofs::{Branch, NodeId};
 use crate::linear::search::memory::{Charged, bytes_of};
 
 impl<Z: Zone> Run<'_, Z> {
-    /// Takes an empty set from the pool.
+    /// Takes an empty unrestricted zone from the pool.
     pub(super) fn take_set(&mut self) -> Z::Unrestricted {
         match self.pools.sets.pop() {
             Some(mut set) => {
@@ -28,7 +32,7 @@ impl<Z: Zone> Run<'_, Z> {
         }
     }
 
-    /// Returns a set to the pool.
+    /// Returns an unrestricted zone to the pool.
     pub(super) fn give_set(&mut self, set: Z::Unrestricted) {
         self.pools.sets.push(set);
     }
@@ -48,7 +52,7 @@ impl<Z: Zone> Run<'_, Z> {
     }
 
     /// Takes a linear zone from the pool with any contents, for a caller
-    /// that overwrites it whole: clearing it first would write the
+    /// that overwrites it whole. Clearing it first would write the
     /// forest's width once more.
     pub(super) fn take_context_any(&mut self) -> Z::Linear {
         self.pools.contexts.pop().unwrap_or_else(|| {
@@ -82,7 +86,8 @@ impl<Z: Zone> Run<'_, Z> {
         self.pools.lists.push(list);
     }
 
-    /// Takes an empty list of the words of a memo's key from the pool.
+    /// Takes an empty list of the words of a memo's key from the pool. The
+    /// memo is the table of sequents already decided.
     pub(super) fn take_words(&mut self) -> Pooled<OccId> {
         let mut words = Z::word_lists(&mut self.pools).pop().unwrap_or_default();
         words.clear();
@@ -206,9 +211,10 @@ pub(super) struct Pools<Z: Zone> {
     pub(super) lists: Vec<Pooled<Z::Member>>,
     /// Spare tallies, a column per atom that has rows.
     tallies: Vec<Tally>,
-    /// Spare counts of splits, boxed so that a split search holds a
-    /// pointer on the stack and not the counts: a level of recursion
-    /// through a searched split took 1.5 KiB with them in the frame.
+    /// Spare counts of splits. They are boxed so that a split search
+    /// holds a pointer on the stack, not the counts: with the counts in
+    /// the frame, a level of recursion through a searched split takes
+    /// 1.5 KiB.
     #[allow(clippy::vec_box)]
     splits: Vec<Box<Split>>,
     /// Spare trails of split searches.
@@ -242,10 +248,11 @@ impl<Z: Zone> Default for Pools<Z> {
 }
 
 /// A list from one of the engine's pools, which knows how much of its
-/// allocation the search's account was charged: a list grows while a rule
-/// uses it, and the growth is charged when the rule gives it back, so the
-/// lists a branch has taken count as far as they had grown when they
-/// were last returned.
+/// allocation the search's account was charged.
+///
+/// A list grows while a rule uses it, and the growth is charged when the
+/// rule gives it back. So the lists a branch has taken count at the size
+/// they had when they were last given back.
 #[derive(Debug)]
 pub(super) struct Pooled<T> {
     /// The list.

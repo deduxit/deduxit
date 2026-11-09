@@ -1,69 +1,83 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The failures that wait on an open ancestor. A stable sequent whose
-//! failure rests on a prune of the loop check is no fact about the
-//! sequent: it holds only while the ancestor it repeated is on the
-//! branch, and the memo never takes it. Searched again, such a sequent
-//! was searched to the end every time; under Mix, where a part of a
-//! sequent below a copy is often an ancestor, that was nearly every
-//! failure (`|- ?((((!~a par c) + c) par a) par ~c) par ?((~c * ~c) * c)`
-//! at a copy bound of 3: 5.8 million decisions of 603 sequents). So such
-//! a failure waits here instead, under its *leader*, the shallowest
-//! ancestor it rests on, which is open: it answers for its sequent while
-//! the leader stays open, and goes into the memo as a fact once the
-//! leader fails without a dependency of its own.
+//! The failures that wait on an open ancestor.
 //!
-//! The argument, which every rule below keeps. A failure of `S` at
-//! budget `b` with dependency `d` says: every proof of `S` (within `b`
-//! where the failure was cut by the budget, at any budget where it was
-//! not) contains, strictly above its root, a proof of a member of a set
-//! `W(S)` of stable sequents, within that member's budget where it is a
-//! failure cut by the budget: an ancestor at depth `d` or deeper whose
-//! repeat was pruned, or a sequent whose failure with a dependency the
-//! search of `S` rested on (a premise searched, or a failure reused from
-//! here). Budgets only shrink along a branch, and a failure cut by the
-//! budget is reused only within its budget, which is why the members'
-//! budgets hold. The close of a stable sequent `Y` keeps the failures
-//! that wait true, in whatever branch they are reused:
+//! The loop check prunes a stable sequent (one with no rule left that
+//! applies without a choice) that repeats an ancestor on the branch. A
+//! failure that rests on such a prune is no fact about its sequent. It
+//! holds only while the ancestor it repeated is on the branch, so the
+//! memo, the table of sequents decided, never takes it. Without this
+//! module such a sequent is searched to the end at every visit. Under
+//! Mix, where a part of a sequent below a copy is often an ancestor, that
+//! is nearly every failure: `|- ?((((!~a par c) + c) par a) par ~c) par
+//! ?((~c * ~c) * c)` at a copy bound of 3 makes 5.8 million decisions of
+//! 603 sequents.
+//!
+//! So such a failure waits here instead, under its *leader*: the
+//! shallowest ancestor it rests on, which is open. It answers for its
+//! sequent while the leader stays open. It goes into the memo as a fact
+//! once the leader fails without a dependency of its own: a failure's
+//! dependency is the shallowest ancestor whose prune it rests on.
+//!
+//! **The argument**, which every rule below keeps. A failure of `S` at
+//! budget `b` (the copies the branch may still make) with dependency `d`
+//! says this. Every proof of `S` contains, strictly above its root, a
+//! proof of a member of a set `W(S)` of stable sequents. That holds for
+//! every proof within `b` where the failure was cut by the budget, and at
+//! any budget where it was not. Where the member is a failure cut by the
+//! budget, its proof is within the member's budget. A member of `W(S)` is
+//! either:
+//! - an ancestor at depth `d` or deeper whose repeat was pruned; or
+//! - a sequent that failed with a dependency, where the search of `S`
+//!   rested on that failure: a premise searched, or a failure reused from
+//!   here.
+//!
+//! Budgets only shrink along a branch, and a failure cut by the budget is
+//! reused only within its budget, so the members' budgets hold. The close
+//! of a stable sequent `Y` keeps the failures that wait true, in whatever
+//! branch they are reused:
 //!
 //! - `Y` proved: every failure decided below `Y` is dropped, since it may
 //!   rest on a prune of `Y`.
 //! - `Y` failed with a cut by the budget: every failure below it becomes
-//!   one cut by the budget at its own budget, since it may rest on a
-//!   prune of `Y`, whose failure says nothing beyond `Y`'s budget.
+//!   one cut by the budget at its own budget. It may rest on a prune of
+//!   `Y`, whose failure says nothing beyond `Y`'s budget.
 //! - `Y` failed with a dependency `d` above it: every failure below it
-//!   that waits on a leader deeper than `d` waits on `d`, since it may
-//!   rest on `Y`, which rests on `d`; on a worker of a pool whose `d`
+//!   that waits on a leader deeper than `d` waits on `d` instead, since it
+//!   may rest on `Y`, which rests on `d`. On a worker of a pool whose `d`
 //!   lies in the spawning engine's branch, they are dropped instead.
 //! - `Y` failed with no dependency: the failures below it whose leader is
-//!   `Y` or deeper go into the memo as facts. Take every failure decided
-//!   below `Y` with a dependency on `Y` or deeper, after the rules above,
-//!   and below no stable sequent that was proved, whether it waits here
-//!   or not (one the cap kept out is among them: the rules above ran on
-//!   the failures below it all the same); each of their `W` members is
-//!   `Y`, one of them, or a failure the memo holds as a fact (a member
-//!   below a proved sequent would have dropped them). Of these failures
-//!   take the one with the smallest proof that it denies, if any had one:
-//!   that proof contains a proof of a member within the member's budget,
-//!   which is `Y` (unprovable), a fact, or one of them with a smaller
-//!   proof. So none had one.
+//!   `Y` or deeper go into the memo as facts. Why: take every failure
+//!   decided below `Y` with a dependency on `Y` or deeper, after the rules
+//!   above, and below no stable sequent that was proved, whether it waits
+//!   here or not. (One that the list's cap kept out is among them: the
+//!   rules above ran on the failures below it all the same.) Each member
+//!   of their `W` is `Y`, one of them, or a failure the memo holds as a
+//!   fact; a member below a proved sequent would have dropped them. Of
+//!   these failures, take the one with the smallest proof that it denies,
+//!   if any had one. That proof contains a proof of a member within the
+//!   member's budget, which is `Y` (unprovable), a fact, or one of them
+//!   with a smaller proof. So none had one.
 //!
-//! The leader of every failure here is open, so it is an ancestor of
+//! The leader of every failure here is open. So it is an ancestor of
 //! every sequent the search visits until it closes, and so is every
-//! member of `W` still open; a member closed since failed, and its own
-//! statement rests on members at the leader's depth or deeper (its
-//! dependency moved the leader up), open or closed with a failure in
-//! turn. So a proof that a reuse in another branch below the leader
-//! denies would contain one of an open ancestor at that depth or deeper,
-//! which the reuse's dependency, the leader's depth, says; the search
-//! settles it no earlier than at the leader. The marks hold this up: a
-//! close settles the failures from its stable sequent's mark on, and
-//! `Run::relieve`, which drops every failure, sets the marks of the
-//! branch to the start, since what waits after it was decided below all
-//! of them. Below one leader each sequent is then decided about once per
-//! budget: that sequent's search visited 17 179 stable sequents at the
-//! copy bound of 3 instead of 76.5 million.
+//! member of `W` still open. A member closed since then failed, and its
+//! own statement rests on members at the leader's depth or deeper (its
+//! dependency moved the leader up), each open, or closed with a failure
+//! in turn. So a proof that a reuse in another branch below the leader
+//! denies would contain a proof of an open ancestor at that depth or
+//! deeper. That is what the reuse's dependency, the leader's depth, says,
+//! and the search settles it no earlier than at the leader.
+//!
+//! The marks hold this up. A stable sequent's mark is the length of the
+//! list when it was pushed on the branch. A close settles the failures
+//! from its stable sequent's mark on. `Run::relieve`, which drops every
+//! failure, sets the marks of the branch to the start, since what waits
+//! after it was decided below all of them. Below one leader each sequent
+//! is then decided about once per budget: the sequent above visits 17 179
+//! stable sequents at a copy bound of 3, against 76.5 million without
+//! the waiting failures.
 
 use crate::linear::search::focus::memo::{Key, Zones};
 
@@ -81,9 +95,10 @@ pub(super) struct Waited {
     pub(super) budget: u32,
     /// Whether some branch below it was cut by the copy budget.
     pub(super) exhausted: bool,
-    /// Whether no part of its linear zone is provable either, as
-    /// [`Failure::Hereditary`](super::memo::Failure::Hereditary) says;
-    /// never with `exhausted`.
+    /// Whether no part of its linear zone (the formulas used exactly once)
+    /// is provable either, as
+    /// [`Failure::Hereditary`](super::memo::Failure::Hereditary) says.
+    /// Never set together with `exhausted`.
     pub(super) hereditary: bool,
     /// The depth of the shallowest ancestor it rests on, on the branch.
     pub(super) leader: u32,
@@ -102,9 +117,11 @@ pub(super) struct Reused {
     pub(super) leader: u32,
 }
 
-/// The failures that wait on an open ancestor, in the order they failed,
-/// so that those decided below a stable sequent are the entries from the
-/// length the list had when it was pushed on the branch.
+/// The failures that wait on an open ancestor, in the order they failed.
+///
+/// So the failures decided below a stable sequent are the entries from
+/// its mark on: the length the list had when the sequent was pushed on
+/// the branch.
 #[derive(Debug, Default)]
 pub(super) struct Waiting {
     /// The failures.
@@ -121,7 +138,8 @@ pub(super) struct Waiting {
 }
 
 impl Waiting {
-    /// How many failures wait: the mark of a stable sequent pushed now.
+    /// How many failures wait. It is the mark of a stable sequent pushed
+    /// now.
     pub(super) fn len(&self) -> usize {
         self.entries.len()
     }
@@ -131,10 +149,13 @@ impl Waiting {
         self.entries.is_empty()
     }
 
-    /// What a failure of the stable sequent that waits says with `budget`
-    /// copies left: one not cut by the budget whatever the budget, else
-    /// one cut by it within its budget, unless the memo holds such a
-    /// failure (`cut_known`), which rests on no ancestor.
+    /// Returns what a waiting failure of the stable sequent says with
+    /// `budget` copies left, if one says anything.
+    ///
+    /// A failure not cut by the budget answers whatever the budget. One
+    /// cut by the budget answers only within its own budget, and not
+    /// where the memo holds such a failure (`cut_known`), which rests on
+    /// no ancestor.
     pub(super) fn find(
         &self,
         key: Zones<'_>,
@@ -212,7 +233,7 @@ impl Waiting {
         Some(entry)
     }
 
-    /// Drops every entry from `mark` on: they were decided below a stable
+    /// Drops every entry from `mark` on. They were decided below a stable
     /// sequent that is proved, or that rests on what this engine cannot
     /// settle.
     pub(super) fn drop_from(&mut self, mark: usize) {
@@ -222,8 +243,8 @@ impl Waiting {
         }
     }
 
-    /// Makes every entry from `mark` on a failure cut by the budget at its
-    /// own budget: they may rest on a prune of a stable sequent whose
+    /// Makes every entry from `mark` on a failure cut by the budget, at
+    /// its own budget. They may rest on a prune of a stable sequent whose
     /// failure was cut by the budget.
     pub(super) fn exhaust_from(&mut self, mark: usize) {
         for entry in self.entries.iter_mut().skip(mark) {
@@ -233,7 +254,7 @@ impl Waiting {
     }
 
     /// Lets every entry from `mark` on whose leader lies deeper than
-    /// `leader` wait on `leader`: they may rest on a stable sequent that
+    /// `leader` wait on `leader`. They may rest on a stable sequent that
     /// failed with that dependency.
     pub(super) fn lead_from(&mut self, mark: usize, leader: u32) {
         for entry in self.entries.iter_mut().skip(mark) {
@@ -242,8 +263,9 @@ impl Waiting {
     }
 
     /// Takes the entries from `mark` on whose leader lies at `depth` or
-    /// deeper, the last first, for the caller to record and give back;
-    /// the others wait on. Call [`Waiting::settled`] once it has.
+    /// deeper, one per call and the last first, for the caller to record
+    /// and give back. The others wait on. Call [`Waiting::settled`] once
+    /// this returns `None`.
     pub(super) fn take_settled(&mut self, mark: usize, depth: u32) -> Option<Waited> {
         while self.entries.len() > mark {
             let entry = self.pop().expect("an entry above the mark");
@@ -273,13 +295,17 @@ impl Waiting {
     }
 
     /// Returns by how many bytes the lists' capacity grew since the last
-    /// call, for the caller to charge: the entries, those a close keeps,
-    /// the index's buckets (a power of two, eight for every seven entries
-    /// it can hold, of a slot and a control byte each, and a group of
-    /// control bytes after them) and the places of the spare keys,
-    /// whose buffers the caller charges itself. The vectors' capacities
-    /// only grow until [`Waiting::release`]; the index's can shrink by a
-    /// removal, so what was handed out is the most it ever counted.
+    /// call, for the caller to charge.
+    ///
+    /// The lists are the entries, those a close keeps, the index's
+    /// buckets and the places of the spare keys. The keys' buffers the
+    /// caller charges itself. The index has a power of two of buckets,
+    /// eight for every seven entries it can hold, each a slot and a
+    /// control byte, and a group of control bytes after them.
+    ///
+    /// The vectors' capacities only grow until [`Waiting::release`]. The
+    /// index's can shrink by a removal, so what was handed out is the most
+    /// it ever counted.
     pub(super) fn grown(&mut self) -> usize {
         /// The control bytes a table has after its buckets.
         const GROUP: usize = 16;
@@ -297,8 +323,8 @@ impl Waiting {
         grown
     }
 
-    /// Drops every entry and every spare key with the lists' memory, and
-    /// returns the bytes the keys' buffers were charged and
+    /// Drops every entry and every spare key with the lists' memory.
+    /// Returns the bytes the keys' buffers were charged and
     /// [`Waiting::grown`] handed out, whose charges the caller releases.
     pub(super) fn release(&mut self) -> usize {
         self.clear();
@@ -319,17 +345,20 @@ mod tests {
 
     /// Every rule by which a close settles the failures that wait, and
     /// the reuse of one, pinned by sequents whose verdict or counters
-    /// change when that rule goes: a proof drops what was decided below
-    /// it, a failure cut by the budget makes what is below it cut, one
-    /// with a dependency moves the leaders below it up, one without
-    /// records only what it or a deeper ancestor leads, and a reuse keeps
-    /// within its budget and keeps a cut. Each rule dropped in turn
-    /// changed hundreds of counters on 58 000 generated cases and the
-    /// verdicts of a few, none of them to a wrong one; so what is pinned
-    /// is the verdict, the stable sequents visited, the memo's hits (a
-    /// reuse of a failure that waits is one) and its most entries, as the
-    /// target sets pin counters, and a change of the search that moves
-    /// them pins them again.
+    /// change when that rule goes.
+    ///
+    /// The rules: a proof drops what was decided below it; a failure cut
+    /// by the budget makes what is below it cut; one with a dependency
+    /// moves the leaders below it up; one without records only what it or
+    /// a deeper ancestor leads; a reuse keeps within its budget and keeps
+    /// a cut.
+    ///
+    /// Dropping each rule in turn changes hundreds of counters on 58 000
+    /// generated cases and the verdicts of a few, none of them to a wrong
+    /// one. So the test pins the verdict, the stable sequents visited, the
+    /// memo's hits (a reuse of a failure that waits is one) and its most
+    /// entries, as the target sets pin counters. A change of the search
+    /// that moves them pins them again.
     #[test]
     fn a_close_settles_by_every_rule() {
         let mix = Mode::CLASSICAL.with_mix();
@@ -448,9 +477,9 @@ mod tests {
         }
     }
 
-    /// The lists' memory is handed out to be charged as it grows, at least
-    /// an entry and an index slot for each failure that waited at once and
-    /// a place for each spare key, and given back whole by `release`, with
+    /// The lists' memory is handed out to be charged as it grows: at least
+    /// an entry and an index slot for each failure that waited at once,
+    /// and a place for each spare key. `release` gives it back whole, with
     /// what the keys' buffers were charged.
     #[test]
     fn the_lists_are_charged_as_they_grow() {
@@ -482,11 +511,12 @@ mod tests {
     }
 
     /// A search that relieves its memory while failures wait keeps the
-    /// marks of the branch true: under a bound of a few kibibytes the memo
-    /// is emptied over and over in this Mix search, where nearly every
-    /// failure waits, and a mark left past the list's end once let a
-    /// failure decided after it outlive its leader (the debug assertion in
-    /// the close).
+    /// marks of the branch true.
+    ///
+    /// Under a bound of a few kibibytes the memo is emptied over and over
+    /// in this Mix search, where nearly every failure waits. A mark left
+    /// past the list's end would let a failure decided after it outlive
+    /// its leader, which the debug assertion in the close catches.
     #[test]
     fn a_relieved_search_settles_what_waits() {
         let s: Sequent = "|- ?((((!~a par c) + c) par a) par ~c) par ?((~c * ~c) * c)"

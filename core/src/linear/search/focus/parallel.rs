@@ -1,26 +1,31 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The focused engine on several threads: cube-and-conquer over the
-//! choices near the root, and-parallel `&` premises, and one memo and one
-//! proof arena shared by every worker.
+//! The focused engine on several threads. It splits the search at the
+//! choices near the root into tasks (cube-and-conquer), searches the two
+//! premises of a `&` at once, and shares one memo (the table of sequents
+//! decided) and one proof arena among all its workers.
 //!
-//! A choice among alternatives (the focus on a stable sequent, the side
-//! of a `⊕`, the splits of a `⊗`) within the first [`LEVELS`] such
-//! choices of a branch runs its alternatives as tasks of the pool: the
-//! engine that meets the choice spawns a worker for each alternative but
-//! the first, which reads the branch in place (its stack of keys, the
-//! nesting depth, the budget) and has pools of its own, the per-worker
-//! scratch, and runs the first alternative on one more worker
-//! on its own thread; the first alternative to succeed raises the
-//! choice's flag, which every worker of the choice polls, and the others
-//! stop at their next stable sequent. Below those levels every worker runs the sequential
-//! engine, so the tasks are few and large. The `&` rule within the same
-//! levels runs its two premises the same way, the first to fail
-//! cancelling the other. The levels of the copy bound never overlap:
-//! `run` deepens on the root engine, which is alone until its first
-//! choice, and every task of a level has ended when the level's answer is
-//! read.
+//! A choice among alternatives is the focus on a stable sequent (one with
+//! no rule left that applies without a choice), the side of a `⊕`, or the
+//! splits of a `⊗`. Within the first [`LEVELS`] such choices of a branch,
+//! a choice runs its alternatives as tasks of the pool. The engine that
+//! meets the choice spawns a worker for each alternative but the first,
+//! and runs the first alternative on one more worker on its own thread. A
+//! worker reads the branch in place (its stack of keys, the nesting
+//! depth, the copy budget, which is the copies the branch may still
+//! make) and has pools of scratch buffers of its own.
+//! The first alternative to succeed raises the choice's flag, which every
+//! worker of the choice polls, and the others stop at their next poll.
+//!
+//! Below those levels every worker runs the sequential engine, so the
+//! tasks are few and large. The `&` rule within the same levels runs its
+//! two premises the same way, and the first to fail cancels the other.
+//!
+//! The levels of the copy bound never overlap. (The search runs level by
+//! level, each with a copy bound one higher.) `run` deepens the bound on
+//! the root engine, which is alone until its first choice, and every task
+//! of a level has ended when the level's answer is read.
 
 use super::arena::{Arena, Kept, PENDING};
 use super::counts::{Counts, Split};
@@ -43,17 +48,21 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// several threads.
 const LEVELS: u32 = 2;
 
-/// The most members of a context whose assignment a split fixes per
-/// task when the splits run on several threads: 2⁶ tasks at most.
+/// The most members of a context whose side a task fixes, when the
+/// splits of a `⊗` run on several threads. So there are 2⁶ tasks at
+/// most.
 const MAX_FIXED: usize = 6;
 
 /// Runs the focused engine on `Options::jobs` threads from a goal, as
-/// [`super::search_goal`] does on one thread, polling `stop` on the
-/// calling thread while the threads search. Returns the node proving the
-/// goal, the arena it lives in and the statistics of every worker
-/// together. Where the default bias takes two searches they run side by
-/// side, each on a pool of its own with half the threads, the first to
-/// decide stopping the other.
+/// [`super::search_goal`] does on one thread. Returns the node proving the
+/// goal, the arena it lives in, and the statistics of every worker
+/// together.
+///
+/// It polls `stop` on the calling thread while the threads search. Where
+/// the default bias (the choice of which literal of each atom is
+/// positive) takes two searches, they run side by side, each on a pool of
+/// its own with half the threads, and the first to decide stops the
+/// other.
 ///
 /// # Errors
 ///
@@ -66,7 +75,8 @@ pub(super) fn search_goal<Z: Zone>(
     work: &Work,
     stop: &mut dyn FnMut(u64) -> bool,
 ) -> Result<Finished, Error> {
-    // From the pool's start the driver polls.
+    // The set-up polls `stop` here; once the pool starts, the driver
+    // polls it.
     let Some((classes, first, second)) = super::prepare(task, options, stop) else {
         return Ok(Finished::gave_up(Reason::Stopped));
     };
@@ -90,7 +100,8 @@ pub(super) fn search_goal<Z: Zone>(
         });
     };
     // Two pools, so that no thread of one search is ever busy with a task
-    // of the other when its own search has decided.
+    // of the other when its own search has decided. (A pool thread that
+    // waits at a scope runs stolen tasks.)
     let threads = options.threads() / 2;
     let runtimes = (
         Lent::take(options.pool.as_ref(), threads, stack)?,
@@ -112,10 +123,12 @@ pub(super) fn search_goal<Z: Zone>(
 }
 
 impl Plan {
-    /// Runs the search of this plan on a pool, from one of its threads,
-    /// with a memo and an arena of its own that its workers share, stopped
-    /// by the flags; on a pool of one thread it is the sequential engine.
+    /// Runs the search of this plan on a pool, from one of its threads.
     /// Returns what [`Plan::search`] does.
+    ///
+    /// The search has a memo and an arena of its own, which its workers
+    /// share, and the flags stop it. On a pool of one thread it is the
+    /// sequential engine.
     fn search_on<Z: Zone>(
         self,
         set_up: SetUp<'_>,
@@ -132,11 +145,11 @@ impl Plan {
                 Err(reason) => return Finished::gave_up(reason),
             };
         let entries = set_up.options.memo_entries();
-        // A first-order search keeps no unrestricted zone in its table and
+        // A first-order search keeps no unrestricted zone in its table, and
         // gives each a new id, which the copies' order by class needs.
         let memo = Shared::new(entries, if Z::FIRST_ORDER { 0 } else { entries });
         // A first-order proof rests on the zone of the engine that found
-        // it, so every engine keeps its own arena, the root's for the
+        // it. So every engine keeps its own arena, and the root's holds the
         // proof of the goal.
         let shared = (!Z::FIRST_ORDER).then(|| Mutex::new(Vec::new()));
         let kept = shared.as_ref().map_or(Kept::Own(Vec::new()), Kept::Shared);
@@ -172,8 +185,9 @@ impl Plan {
 }
 
 /// What a worker starts from: the problem of the engine that spawns it at
-/// a parallel choice, the shared parts and the branch by reference, the
-/// branch read in place while the spawning engine waits at the scope.
+/// a parallel choice, and the shared parts and the branch by reference.
+/// The workers read the branch in place while the spawning engine waits
+/// at the scope.
 struct Spawn<'s, Z: Zone> {
     /// The problem.
     problem: Problem<'s>,
@@ -181,15 +195,16 @@ struct Spawn<'s, Z: Zone> {
     zone: &'s Z,
     /// The shared memo.
     memo: &'s Shared,
-    /// The shared arena; none where every engine keeps its own, as a
-    /// first-order search's do.
+    /// The shared arena. It is `None` where every engine keeps its own,
+    /// as the engines of a first-order search do.
     arena: Option<&'s Mutex<Vec<Node>>>,
     /// The runtime.
     runtime: &'s Runtime,
-    /// The spawning engine's stop flags, which the worker's chain to.
+    /// The spawning engine's stop flags, to which the worker's flags
+    /// chain.
     flags: Flags<'s>,
-    /// The branch at the choice: the spawning engine's ancestors and its
-    /// live stack, with their hashes, read in place.
+    /// The branch at the choice, read in place: the spawning engine's
+    /// ancestors and its live stack, with their hashes.
     branch: Vec<(&'s [Key], &'s [u64])>,
     /// The nesting of engine calls at the choice.
     depth: u32,
@@ -199,7 +214,7 @@ struct Spawn<'s, Z: Zone> {
 
 impl<'s, Z: Zone> Spawn<'s, Z> {
     /// Starts a worker: a fresh engine on the spawn's problem that
-    /// continues its branch, stopped by the spawn's flags or by `cancel`.
+    /// continues its branch. The spawn's flags or `cancel` stop it.
     fn worker<'w>(&'w self, cancel: &'w AtomicBool) -> Run<'w, Z> {
         let kept = self.arena.map_or(Kept::Own(Vec::new()), Kept::Shared);
         let mut worker = Run::new(
@@ -210,8 +225,8 @@ impl<'s, Z: Zone> Spawn<'s, Z> {
             self.zone.fork(),
         );
         worker.runtime = Some(self.runtime);
-        // A task stolen by a thread that waits at a scope runs on that
-        // scope's frames: its recursion counts on top of them.
+        // A task stolen by a thread that waits at a scope runs on top of
+        // that scope's frames, so its recursion counts on top of them.
         worker.depth = self.depth.max(self.runtime.depth_here());
         worker.or_depth = self.or_depth;
         worker.ancestors = self.branch.clone();
@@ -223,13 +238,13 @@ impl<'s, Z: Zone> Spawn<'s, Z> {
 struct Collected<Z: Zone> {
     /// The first proof found.
     proof: Option<NodeId>,
-    /// Where every engine keeps its own arena: the zone of the worker
+    /// Where every engine keeps its own arena, the zone of the worker
     /// that found the proof, and the arena the proof lies in.
     won: Option<(Z, Vec<Node>)>,
     /// The first bound that cut a worker's branch.
     cut: Option<Reason>,
-    /// The first error, a stop that a cancellation caused excepted, a
-    /// stop giving way to any other reason.
+    /// The first error, other than a stop that a cancellation caused. A
+    /// stop gives way to any other reason.
     error: Option<Reason>,
     /// What the failed alternatives cut.
     cuts: Cuts,
@@ -250,10 +265,11 @@ impl<Z: Zone> Collected<Z> {
         }
     }
 
-    /// Takes a worker's result: a proof or an error settles the choice
-    /// and raises its flag, a failure adds its cuts. The first proof's
-    /// worker gives up its zone and arena where they are its own; any
-    /// other's arena gives its charge back.
+    /// Takes a worker's result. A proof or an error settles the choice
+    /// and raises its flag; a failure adds its cuts.
+    ///
+    /// The worker of the first proof gives up its zone and arena where
+    /// they are its own. Any other worker's arena gives its charge back.
     fn take(&mut self, result: Step, worker: Run<'_, Z>, cancel: &AtomicBool) {
         self.statistics.add_run(&worker.report());
         if self.cut.is_none() {
@@ -270,7 +286,8 @@ impl<Z: Zone> Collected<Z> {
             if won {
                 self.won = Some((zone, kept));
             } else {
-                // Charged to the account as kept nodes, and dropped.
+                // The nodes were charged to the account as kept nodes, and
+                // are dropped.
                 problem.account.resize(bytes_of(&kept), 0);
             }
         }
@@ -289,10 +306,13 @@ impl<Z: Zone> Collected<Z> {
     }
 
     /// Takes an alternative that was never started because a flag of its
-    /// chain was raised: the choice's own, which is raised only once a
-    /// proof or an error is recorded (a skip's stop included), or an
-    /// ancestor's, a stop that the choice records as its error, since
-    /// what was never searched cannot have failed.
+    /// chain was raised.
+    ///
+    /// The flag is the choice's own, or an ancestor's. The choice's own is
+    /// raised only once a proof or an error is recorded (a skip's stop
+    /// among them), so nothing is recorded. An ancestor's flag is a stop,
+    /// which the choice records as its error: what was never searched
+    /// cannot have failed.
     fn skip(&mut self, cancel: &AtomicBool) {
         if cancel.load(Ordering::Relaxed) {
             return;
@@ -328,9 +348,9 @@ impl<'a, Z: Zone> Run<'a, Z> {
         self.runtime.is_some() && self.or_depth < LEVELS && self.zone.divides()
     }
 
-    /// The state a worker starts from, with `or_depth` levels of
+    /// Returns the state a worker starts from, with `or_depth` levels of
     /// cube-and-conquer above it. The branch is read in place, so the
-    /// engine's own stack stays as it is while the workers run.
+    /// engine's own stack must stay as it is while the workers run.
     fn spawn<'s>(&'s self, or_depth: u32) -> Spawn<'s, Z>
     where
         'a: 's,
@@ -365,8 +385,9 @@ impl<'a, Z: Zone> Run<'a, Z> {
         }
     }
 
-    /// A result as it leaves this engine for another: the proof's pending
-    /// nodes kept, since a pending id means nothing outside its engine.
+    /// Returns a result as it leaves this engine for another, with the
+    /// proof's pending nodes kept: a pending id means nothing outside its
+    /// engine.
     fn exported(&mut self, result: Step) -> Step {
         match result? {
             Found::Proved(node) => Ok(Found::proved(self.nodes.keep(0, node)?)),
@@ -391,13 +412,15 @@ impl<'a, Z: Zone> Run<'a, Z> {
         self.exported(result)
     }
 
-    /// Decides a choice among alternatives on the pool: a worker per
-    /// alternative, the first one on this thread, and the first to
-    /// succeed or to fail with an error cancels the rest. Returns the
-    /// proof, or nothing when every alternative failed, with their cuts,
-    /// or the first error (a stop a cancellation caused is none). A proof
-    /// found by any alternative wins over an error of another, so the
-    /// pool may decide where one thread gives up.
+    /// Decides a choice among alternatives on the pool. Returns the proof;
+    /// or, when every alternative failed, a failure with their cuts; or
+    /// the first error, where a stop that a cancellation caused is no
+    /// error.
+    ///
+    /// Each alternative runs on a worker, the first one on this thread.
+    /// The first to succeed or to fail with an error cancels the rest. A
+    /// proof found by any alternative wins over an error of another, so
+    /// the pool may decide where one thread gives up.
     pub(super) fn choose_parallel(
         &mut self,
         theta: &Unrestricted<Z>,
@@ -417,13 +440,14 @@ impl<'a, Z: Zone> Run<'a, Z> {
             for &alternative in rest {
                 let (spawn, cancel, collected) = (&spawn, &cancel, &collected);
                 scope.spawn(move |_| {
-                    // A task the pool reaches after its choice was settled
-                    // or a flag above it was raised (the caller's stop, a
-                    // proof at an enclosing choice, the other premise of
-                    // a `&`) ends before it builds a worker: a stable
-                    // sequent of a Petri net queues a task per transition,
-                    // and each worker takes its pools, its branch's slices
-                    // and a stolen task's start on a busy thread.
+                    // A task ends before it builds a worker where the pool
+                    // reaches it after its choice was settled, or after a
+                    // flag above it was raised (the caller's stop, a proof
+                    // at an enclosing choice, the other premise of a `&`).
+                    // A stable sequent of a Petri net queues a task per
+                    // transition, and each worker costs its pools, its
+                    // branch's slices and a stolen task's start on a busy
+                    // thread.
                     if spawn.flags.child(cancel).raised() {
                         lock(collected).skip(cancel);
                         return;
@@ -434,9 +458,9 @@ impl<'a, Z: Zone> Run<'a, Z> {
                     lock(collected).take(result, worker, cancel);
                 });
             }
-            // The first alternative on this thread, on a worker of its
-            // own so that it polls the choice's flag like the others; a
-            // panic in any alternative cancels the rest.
+            // The first alternative runs on this thread, on a worker of
+            // its own, so that it polls the choice's flag like the others.
+            // A panic in any alternative cancels the rest.
             let _cancel = RaiseOnPanic(&cancel);
             let mut worker = spawn.worker(&cancel);
             let result = worker.run_alternative(theta, gamma, first, budget);
@@ -458,31 +482,37 @@ impl<'a, Z: Zone> Run<'a, Z> {
         }
     }
 
-    /// A worker's proof of an alternative with the zone it rests on: the
-    /// zone takes the place of this engine's, which has not moved since
-    /// the worker forked it, and the worker's arena goes onto this
-    /// engine's pending nodes, which the proof's id is renamed into.
+    /// Takes over a worker's proof of an alternative, with the zone it
+    /// rests on, and returns the proof's id in this engine.
+    ///
+    /// The zone takes the place of this engine's, which has not changed
+    /// since the worker forked it. The worker's arena goes onto this
+    /// engine's pending nodes, and the proof's id is renamed into them.
     fn adopted(&mut self, zone: Z, kept: Vec<Node>, node: NodeId) -> Step {
         self.zone.adopt(zone);
         let base = self.nodes.mark();
         if base + kept.len() > PENDING as usize {
             return Err(Reason::IndexLimit);
         }
-        // Below the flag: checked above.
+        // The ids stay below the flag, as checked above.
         let renamed = |id: NodeId| NodeId::new(PENDING | (base + id.index()) as u32);
         for n in &kept {
             self.nodes.push(n.map_premises(renamed));
         }
-        // Charged to the account as kept nodes, and pending now.
+        // The nodes were charged to the account as kept nodes, and are
+        // pending now.
         self.problem.account.resize(bytes_of(&kept), 0);
         Ok(Found::proved(renamed(node)))
     }
 
-    /// The free splits of `F = A ⊗ B` on the pool: the assignments of the
-    /// first few members of the context, as many as give the pool twice
-    /// its threads in tasks (at most [`MAX_FIXED`]), as alternatives, each
-    /// searching the assignments of the rest. The sides and counts given
-    /// are the state before any member moved.
+    /// Searches the free splits of `F = A ⊗ B` on the pool. A free split
+    /// is one that no factor decides, so its sides are searched.
+    ///
+    /// Each alternative fixes the sides of the first few members of the
+    /// context and searches the sides of the rest. It fixes as many
+    /// members as give the pool twice its threads in tasks, at most
+    /// [`MAX_FIXED`]. The sides and counts given are the state before any
+    /// member moved.
     pub(super) fn split_parallel(
         &mut self,
         theta: &Unrestricted<Z>,
@@ -495,8 +525,8 @@ impl<'a, Z: Zone> Run<'a, Z> {
         let threads = self.runtime.map_or(1, Runtime::threads);
         let bits = (2 * threads).next_power_of_two().trailing_zeros() as usize;
         let fixed = bits.clamp(1, MAX_FIXED).min(members.len());
-        // Of interchangeable members the lowest ids go left, and they come
-        // last among their like: a pattern that sends one left and the
+        // Of interchangeable members, the lowest ids go left, and they come
+        // last among their like. So a pattern that sends one left and the
         // next one right is none of the splits searched.
         let canonical = |pattern: u64| {
             (1..fixed).all(|i| {
@@ -521,12 +551,14 @@ impl<'a, Z: Zone> Run<'a, Z> {
         self.choose_parallel(theta, sides.1, &alternatives, budget)
     }
 
-    /// The `&` rule on the pool: the left premise on a worker on this
-    /// thread, the right one on a worker of the pool, the first to fail
-    /// cancelling the other, and the left one that gives up the right; a
-    /// failure of either is the rule's, else a premise's reason for giving
-    /// up, a stop giving way to any other.
-    /// An engine that is stopped already starts neither.
+    /// Applies the `&` rule on the pool. The left premise runs on a worker
+    /// on this thread, the right one on a worker of the pool.
+    ///
+    /// The first premise to fail cancels the other, and a left premise
+    /// that gives up cancels the right one. A failure of either is the
+    /// rule's failure. Otherwise the rule gives up with a premise's
+    /// reason, a stop giving way to any other. An engine that is stopped
+    /// already starts neither premise.
     pub(super) fn with_parallel(
         &mut self,
         theta: &Unrestricted<Z>,
@@ -536,9 +568,10 @@ impl<'a, Z: Zone> Run<'a, Z> {
         budget: u32,
     ) -> Step {
         // The asynchronous phase polls nowhere else before its stable
-        // sequents: without this poll a premise that is stopped already
-        // would still start both premises of every `&` below it, two to
-        // the number of them before the first stable sequent ends one.
+        // sequents. Without this poll, a premise that is stopped already
+        // would still start both premises of every `&` below it: two to
+        // the power of their number, before the first stable sequent ends
+        // one.
         if self.stop.fired(0) {
             return Err(Reason::Stopped);
         }
@@ -547,10 +580,11 @@ impl<'a, Z: Zone> Run<'a, Z> {
         let premise: Mutex<Option<Premise>> = Mutex::new(None);
         let (left_sub, right_sub) = (self.left(o), self.right(o));
         // A premise on a worker, which cancels the other when it fails:
-        // the rule fails then, whatever the other finds. A left premise
-        // that gives up cancels the right one too, which one thread never
-        // starts then; a right one that gives up leaves the left to run,
-        // since its failure still decides the rule, as on one thread.
+        // the rule then fails, whatever the other finds. A left premise
+        // that gives up cancels the right one too, which one thread would
+        // never start. A right premise that gives up leaves the left to
+        // run, since the left's failure still decides the rule, as on one
+        // thread.
         let search = |worker: &mut Run<'_, Z>, sub: Z::Member, left: bool| {
             // A premise that panics cancels the other.
             let _cancel = RaiseOnPanic(&cancel);
@@ -598,9 +632,9 @@ mod tests {
     use crate::linear::search::{Engine, Options, Reason, Verdict, prove, prove_within};
     use crate::linear::sequents::Sequent;
 
-    /// The verdict of `input` under `mode` with `options` as a three-way
-    /// value: provable, unprovable, or undecided within the copy bound;
-    /// every proof checked.
+    /// Returns the verdict of `input` under `mode` with `options` as a
+    /// three-way value: provable, unprovable, or undecided within the copy
+    /// bound. Every proof is checked.
     fn decided(input: &str, mode: Mode, options: &Options) -> Option<bool> {
         let sequent: Sequent = input.parse().unwrap();
         let outcome = prove(&sequent, mode, options).unwrap();
@@ -615,11 +649,11 @@ mod tests {
         }
     }
 
-    /// The verdicts on two and four threads never contradict the
-    /// sequential one: a pool searches the same levels of the copy bound
-    /// to their end, so what one proves the other does not refute. Which
-    /// of the two decides within the bound may differ either way, as it
-    /// does with the memo's contents.
+    /// Asserts that the verdicts on two and four threads never contradict
+    /// the sequential one. A pool searches the same levels of the copy
+    /// bound to their end, so what one proves the other does not refute.
+    /// Which of the two decides within the bound may differ either way, as
+    /// it does with the memo's contents.
     fn agree(text: &str, mode: Mode, options: &Options) {
         let sequential = decided(text, mode, options);
         for jobs in [2, 4] {
@@ -697,9 +731,9 @@ mod tests {
         }
     }
 
-    /// The verdict of a first-order goal on `jobs` threads as a three-way
-    /// value: provable, unprovable, or undecided at a bound; every proof
-    /// checked.
+    /// Returns the verdict of a first-order goal on `jobs` threads as a
+    /// three-way value: provable, unprovable, or undecided at a bound.
+    /// Every proof is checked.
     fn first_order(sequent: &Sequent, mode: Mode, options: &Options, jobs: usize) -> Option<bool> {
         let options = options.clone().with_jobs(jobs);
         let limits = crate::Limits::default().with_work(Some(1 << 22));
@@ -720,9 +754,9 @@ mod tests {
         }
     }
 
-    /// First-order goals on two and four threads: the families' verdicts
-    /// equal one thread's, and on generated sequents, one- and two-sided,
-    /// with Mix and weakening, no verdict contradicts one thread's.
+    /// First-order goals on two and four threads. The families' verdicts
+    /// equal one thread's. On generated sequents, one- and two-sided, with
+    /// Mix and weakening, no verdict contradicts one thread's.
     #[test]
     fn first_order_verdicts_agree() {
         use crate::linear::families::FAMILIES;
@@ -786,7 +820,7 @@ mod tests {
         }
     }
 
-    /// Eleven tensor pairs under Mix, whose refutation takes minutes: the
+    /// Eleven tensor pairs under Mix, whose refutation takes minutes. The
     /// caller's stop condition, polled on the calling thread, stops every
     /// worker, inside a search for splits too.
     #[test]
@@ -838,11 +872,13 @@ mod tests {
     }
 
     /// A premise of a `&` that ends at the recursion limit cancels
-    /// nothing: the other premise's refutation decides the rule, as on one
-    /// thread, which searches the left premise first, and the answer is
-    /// neither the limit nor a stop nobody asked for. The right premise's
-    /// chain of `⊕` is forty deep under a limit of 24, while the left
-    /// one's refutation under Mix takes a hundred times as long.
+    /// nothing. The other premise's refutation decides the rule, as on one
+    /// thread, which searches the left premise first. The answer is
+    /// neither the limit nor a stop nobody asked for.
+    ///
+    /// The right premise's chain of `⊕` is forty deep under a limit of 24,
+    /// while the left one's refutation under Mix takes a hundred times as
+    /// long.
     #[test]
     fn a_premise_that_gives_up_cancels_no_other() {
         let chain = format!("{}0{}", "(0 + ".repeat(40), ")".repeat(40));
@@ -865,11 +901,11 @@ mod tests {
         }
     }
 
-    /// Premises that give up cancel no more than one thread skips: below
+    /// Premises that give up cancel no more than one thread skips. Below
     /// sixteen `&`, one after the other in the asynchronous phase, every
-    /// leaf reaches the recursion limit on a chain of `⊕` forty deep, and
-    /// premises that cancelled nothing when they gave up searched every one
-    /// of the 2¹⁶ leaves.
+    /// leaf reaches the recursion limit on a chain of `⊕` forty deep.
+    /// Premises that cancelled nothing when they gave up would search every
+    /// one of the 2¹⁶ leaves.
     #[test]
     fn nested_premises_that_give_up_search_no_tree() {
         let chain = format!("{}0{}", "(0 + ".repeat(40), ")".repeat(40));
@@ -898,8 +934,8 @@ mod tests {
     }
 
     /// Forty `&` in one asynchronous phase, whose first stable sequent
-    /// fails: the failed premise cancels the other one of every `&`, and
-    /// a cancelled premise starts none of the 2⁴⁰ below it.
+    /// fails. The failed premise cancels the other one of every `&`, and a
+    /// cancelled premise starts none of the 2⁴⁰ below it.
     #[test]
     fn a_cancelled_premise_starts_no_other() {
         let roots: Vec<String> = (0..40).map(|i| format!("a{i} & b{i}")).collect();
@@ -917,8 +953,8 @@ mod tests {
     }
 
     /// Under a raised recursion limit the pool's threads hold the recursion
-    /// the limit allows: two copies of a tower of 2 900 nested `&`, at a
-    /// limit of 3 000 on two threads, overflowed a worker's stack when
+    /// the limit allows. Two copies of a tower of 2 900 nested `&`, at a
+    /// limit of 3 000 on two threads, would overflow a worker's stack if
     /// every `&` of the tower forked on the pool.
     #[test]
     fn a_raised_limit_holds_on_the_pool() {
@@ -948,10 +984,10 @@ mod tests {
         );
     }
 
-    /// A stop condition that panics ends the search on the pool at once:
-    /// the panic raises the root flag, so the workers stop at their next
-    /// poll and the scope that waits for them lets the panic go on, where
-    /// they ran a search of minutes to its end before.
+    /// A stop condition that panics ends the search on the pool at once.
+    /// The panic raises the root flag, so the workers stop at their next
+    /// poll, and the scope that waits for them lets the panic go on.
+    /// Without the flag they would run a search of minutes to its end.
     #[test]
     fn a_panicking_stop_ends_every_worker() {
         let (sender, ended) = std::sync::mpsc::channel();
@@ -979,7 +1015,7 @@ mod tests {
     }
 
     /// An alternative that a choice skips because an ancestor's flag was
-    /// raised is a stop, never a failure: the choice cannot answer that
+    /// raised is a stop, never a failure. So the choice cannot answer that
     /// every alternative failed, and its siblings are cancelled.
     #[test]
     fn a_skipped_alternative_is_no_failure() {

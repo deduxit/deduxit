@@ -1,38 +1,48 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The memo of stable sequents. A proved sequent is a fact about its two
-//! zones that holds regardless of how the search reached it; a failed one
-//! is a fact only relative to the copy budget that was left when it failed,
-//! unless the search space below it was explored without ever hitting the
-//! budget. A complete failure holds as well for every sequent that differs
-//! in interchangeable members of the linear zone only, so it is kept under
-//! a key with every such member replaced by the first of its class (the
-//! *canonical* key). A proof names its occurrences and stays under the
-//! sequent's own key, and so does a failure cut by the budget: shared, it
+//! The memo of stable sequents: what the search found out about each
+//! stable sequent it decided, under a key of the sequent.
+//!
+//! A proved sequent is a fact about its two zones, however the search
+//! reached it. A failed one is a fact only relative to the copy budget
+//! that was left when it failed. The exception is a *complete* failure:
+//! the search space below it was explored without ever hitting the
+//! budget.
+//!
+//! A complete failure holds as well for every sequent that differs from
+//! it only in interchangeable members of the linear zone. So it is kept
+//! under a key with every such member replaced by the first of its class:
+//! the *canonical* key. A proof names its occurrences, so it stays under
+//! the sequent's own key. So does a failure cut by the budget. Shared, it
 //! would answer for a relative that the search of the sequent itself
 //! leads to, level after level, and keep both from ever being complete.
-//! One table holds all three: a key that is not canonical holds a proof
-//! or a cut failure, a canonical one may also hold a complete failure,
-//! which is all a relative reads there. A failure cut by the budget is
-//! read only within its generation
-//! ([`Memo::begin`](crate::linear::search::focus::memo::Memo::begin)): deepening levels
-//! that each met a stable sequent new to the table, and the first that
-//! did not; a cut carried on beyond them can keep every later level cut
-//! on a finite space. The table has a cap in entries
-//! and takes its memory from the search's account; when the search runs on
-//! several threads it is one shard of a sharded map, [`Shared`](crate::linear::search::focus::memo::Shared), whose
-//! merge under the shard's lock keeps the same invariant: an entry's
-//! validity only ever grows.
 //!
-//! A key is sparse: the unrestricted zone by the id an
-//! [`Interner`](crate::linear::search::focus::memo::Interner) gave
-//! it, and the linear zone by its members. A stable sequent's linear zone
-//! has a few members on a forest of tens of thousands of occurrences, and
-//! its unrestricted zone, which only grows along a branch, is shared by
-//! every stable sequent above the next `?` rule; with both zones as
-//! bitsets of the forest's width, hashing and comparing the keys was up to
-//! two fifths of a search.
+//! One table holds all three. A key that is not canonical holds a proof
+//! or a cut failure. A canonical key may also hold a complete failure,
+//! which is all a relative reads there.
+//!
+//! A failure cut by the budget is read only within its *generation*
+//! ([`Memo::begin`](crate::linear::search::focus::memo::Memo::begin)): a
+//! run of deepening levels that each met a stable sequent new to the
+//! table, and the first level that did not. A cut carried on beyond them
+//! can keep every later level cut on a finite space.
+//!
+//! The table has a cap in entries and takes its memory from the search's
+//! account. When the search runs on several threads, the table is one
+//! shard of a sharded map,
+//! [`Shared`](crate::linear::search::focus::memo::Shared). Its merge under
+//! the shard's lock keeps the same invariant: an entry's validity only
+//! ever grows.
+//!
+//! A key is sparse. It names the unrestricted zone by the id an
+//! [`Interner`](crate::linear::search::focus::memo::Interner) gave it, and
+//! the linear zone by its members. On a forest of tens of thousands of
+//! occurrences, a stable sequent's linear zone has a few members. Its
+//! unrestricted zone only grows along a branch, and every stable sequent
+//! above the next `?` rule shares it. With both zones as bitsets of the
+//! forest's width, hashing and comparing the keys would be up to two
+//! fifths of a search.
 
 use super::scratch::Pooled;
 use crate::linear::occurrences::{OccId, OccSet};
@@ -41,8 +51,8 @@ use crate::linear::search::memory::{Account, bytes_of};
 use std::hash::{BuildHasher as _, Hasher as _};
 use std::sync::Mutex;
 
-/// A stable sequent as the memo keys it, held: the unrestricted zone by
-/// its id, the linear zone by its members.
+/// A stable sequent as the memo keys it, in a buffer of its own: the
+/// unrestricted zone by its id, the linear zone by its members.
 #[derive(Debug, Default)]
 pub(super) struct Key {
     /// The id of the unrestricted zone ([`Interner::intern`]).
@@ -77,20 +87,22 @@ impl Key {
 pub(super) struct Zones<'a> {
     /// The id of the unrestricted zone ([`Interner::intern`]).
     pub(super) theta: u64,
-    /// The members of the linear zone in ascending order, each once: one
-    /// present more than once with [`REPEATED`] set, followed by its
+    /// The members of the linear zone in ascending order, each once. A member
+    /// present more than once has [`REPEATED`] set and is followed by its
     /// number of copies
     /// ([`Context::key_into`](super::context::Context::key_into),
     /// [`decoded`]).
     pub(super) members: &'a [OccId],
 }
 
-/// The bit of a key's word that marks a member present more than once,
-/// whose number of copies is the next word: a marking of a thousand
-/// tokens on one place is then two words, as it was one entry of the
-/// zone's list of extra copies. No occurrence has the bit of its own: a
-/// forest the focused engine searches has fewer than 2³¹ occurrences,
-/// since its counts refuse a larger one.
+/// The bit of a key's word that marks a member present more than once.
+/// The next word is its number of copies. So a marking of a thousand
+/// tokens on one place of a Petri net is two words, as it is one entry of
+/// the zone's list of extra copies.
+///
+/// No occurrence id has this bit set: a forest the focused engine
+/// searches has fewer than 2³¹ occurrences, since its counts refuse a
+/// larger one.
 pub(super) const REPEATED: u32 = 1 << 31;
 
 /// Returns the members a key's words list, each with its number of
@@ -109,11 +121,12 @@ pub(super) fn decoded(members: &[OccId]) -> impl Iterator<Item = (OccId, u32)> +
 }
 
 impl Zones<'_> {
-    /// The hash of the sequent: the members folded two to a word by one
-    /// multiplication each (rustc-hash's step, a bijection of the fold for
-    /// each word), and the fold, the id and the count mixed by the crate's
-    /// hasher. Hashing them one by one cost five times as much on a zone
-    /// of a few dozen members, more than the bitsets of a narrow forest.
+    /// Returns the hash of the sequent. The members are folded two to a word,
+    /// by one multiplication each (rustc-hash's step, a bijection of the fold
+    /// for each word). Then the crate's hasher mixes the fold, the id and the
+    /// count. Hashing the members one by one costs five times as much on a
+    /// zone of a few dozen members, more than hashing the bitsets of a narrow
+    /// forest.
     pub(super) fn hash(self) -> u64 {
         /// rustc-hash's multiplier.
         const K: u64 = 0xf135_7aea_2e62_a9c5;
@@ -142,21 +155,23 @@ impl Zones<'_> {
     }
 }
 
-/// The unrestricted zones a search has met, each under an id of its own,
-/// by which a key names its zone in one word. Two zones have the same id
-/// only if they are equal, since an id is never given twice: emptying the
-/// table, when it is full or to give its memory back, only gives a zone
-/// met again a new id, under which the memo finds nothing it recorded
-/// under the old one. Equal zones on one branch still share their id:
-/// the unrestricted zone only grows along a branch, so an equal one is the
-/// same value, interned once. A search without a memo keeps no zone and
-/// gives each a new id, which is all its loop check needs.
+/// The unrestricted zones a search has met, each under an id of its own.
+/// A key names its zone by the id, in one word.
+///
+/// Two zones have the same id only if they are equal, since an id is
+/// never given twice. Emptying the table, when it is full or to give its
+/// memory back, only gives a zone met again a new id. Under the new id
+/// the memo finds nothing it recorded under the old one. Equal zones on
+/// one branch still share their id: the unrestricted zone only grows
+/// along a branch, so an equal one is the same value, interned once. A
+/// search without a memo keeps no zone and gives each a new id, which is
+/// all its loop check needs.
 #[derive(Debug, Default)]
 pub(super) struct Interner {
     /// The zones held, with their ids.
     ids: crate::hash::HashMap<OccSet, u64>,
-    /// The id the next zone gets. One per zone interned, each a rule of
-    /// the search that hashed a zone: no search reaches 2⁶⁴ of them.
+    /// The id the next zone gets. Each zone interned takes one, at a rule of
+    /// the search that hashed a zone, so no search reaches 2⁶⁴ of them.
     next: u64,
     /// The most zones held; zero keeps none.
     limit: usize,
@@ -177,10 +192,10 @@ impl Interner {
         }
     }
 
-    /// Returns the id of the zone: the one it has if the table holds it,
-    /// else a new one, kept with the zone if the table has the room. A
-    /// full table is emptied first; one the account cannot spare the
-    /// memory for keeps nothing more.
+    /// Returns the id of the zone: the one it has if the table holds it, else
+    /// a new one, kept with the zone if the table has the room. A full table
+    /// is emptied first. Once the account cannot spare the memory, the table
+    /// keeps no more zones.
     pub(super) fn intern(&mut self, zone: &OccSet, account: &Account) -> u64 {
         if self.limit != 0
             && let Some(&id) = self.ids.get(zone)
@@ -196,10 +211,10 @@ impl Interner {
             self.release(account);
         }
         let set = size_of_val(zone.words());
-        // A full table doubles its buckets: asked for before, as the
-        // memo's index is. The products and sums count bytes of zones and
-        // buckets that are in memory or about to be, so on a 32-bit
-        // target too they stay below the address space, and `usize::MAX`.
+        // A full table doubles its buckets, and the memory is asked for before,
+        // as for the memo's index. The products and sums count bytes of zones
+        // and buckets that are in memory or about to be. So on a 32-bit target
+        // too they stay below the address space, and below `usize::MAX`.
         let capacity = self.ids.capacity();
         let buckets = if self.ids.len() < capacity {
             0
@@ -215,15 +230,15 @@ impl Interner {
         id
     }
 
-    /// The bytes of the table's buckets where it holds `capacity` zones:
-    /// a power of two of them, four for up to three zones, eight for up
-    /// to seven, else eight for every seven, of a slot and a control byte
-    /// each, and a group of control bytes after them; none for an empty
-    /// table.
+    /// Returns the bytes of the table's buckets where it holds `capacity`
+    /// zones; none for an empty table. The buckets are a power of two in
+    /// number: four for up to three zones, eight for up to seven, else eight
+    /// for every seven. Each has a slot and a control byte, and a group of
+    /// control bytes follows them.
     fn buckets(capacity: usize) -> usize {
-        /// The control bytes a table has after its buckets: SSE2's group,
-        /// eight more than wasm32's and aarch64's, where the count is that
-        /// much above what the table takes.
+        /// The control bytes a table has after its buckets: SSE2's group. That is
+        /// eight more than wasm32's and aarch64's, where the count is that much
+        /// above what the table takes.
         const GROUP: usize = 16;
         let buckets = match capacity {
             0 => return 0,
@@ -269,10 +284,11 @@ pub(super) enum Failure {
 }
 
 impl Entry {
-    /// The entry as one word of a record, recorded in the generation of
-    /// stamp `stamp`: the node of a proof, or a tag in the two bits above
-    /// the low half with the budget of a cut failure in the low half and
-    /// the stamp above the tag.
+    /// Encodes the entry, recorded in the generation of stamp `stamp`, as the
+    /// number a record's two entry words hold. A proof is its node. A failure
+    /// is a tag in the two bits above the low half. A failure cut by the
+    /// budget also has its budget in the low half and the stamp above the
+    /// tag.
     fn code(self, stamp: u32) -> u64 {
         match self {
             Self::Proved(node) => u64::from(node.get()),
@@ -284,7 +300,7 @@ impl Entry {
         }
     }
 
-    /// The entry a record's word stands for.
+    /// Returns the entry that a record's entry words stand for.
     fn of(code: u64) -> Self {
         match (code >> 32) & 3 {
             0 => Self::Proved(NodeId::new(code as u32)),
@@ -295,10 +311,10 @@ impl Entry {
     }
 }
 
-/// The stamp of a generation of failures cut by the budget
+/// Returns the stamp of a generation of failures cut by the budget
 /// ([`Memo::begin`]): its number in the bits a record's entry has left
 /// above its tag ([`Entry::code`]). Two generations `2³⁰` apart would
-/// share one, so a memo is emptied when the stamp comes round to zero
+/// share a stamp. So a memo is emptied when the stamp comes round to zero
 /// again, and a failure cut by the budget is only ever read in the
 /// generation that recorded it.
 fn stamp(generation: u64) -> u32 {
@@ -310,7 +326,7 @@ fn stamp(generation: u64) -> u32 {
 pub(super) enum Inserted {
     /// The entry is recorded, or the memo is switched off.
     Done,
-    /// The table is full, by its entries or by the memory left: emptied,
+    /// The table is full, by its entries or by the memory left. Once emptied,
     /// it takes the entry.
     Full,
     /// The table is empty and the memory left has no room for its first
@@ -368,27 +384,27 @@ fn place(slots: &mut [u64], at: u64, hash: u64) {
 /// costs time: every entry is a fact the search can find again.
 ///
 /// An entry is a record of 32-bit words: its key's hash, the entry, the
-/// id of the unrestricted zone, the number of the linear zone's words and
-/// the words ([`Zones::members`]). Records lie one after another in chunks of a fixed
-/// size (a record longer than a chunk has a chunk to itself), so the
-/// memo's memory is the chunks it has asked for, an entry costs no
-/// allocation of its own, emptying the table is resetting a count and
-/// zeroing its index, and dropping it frees a few hundred blocks: a full
-/// memo of a gibibyte went in half a second when every key was two
-/// allocations. The index is open addressing over the places where
-/// records start, which a search only ever looks up or adds to.
+/// id of the unrestricted zone, the number of the linear zone's words,
+/// and the words ([`Zones::members`]). Records lie one after another in
+/// chunks of a fixed size; a record longer than a chunk has a chunk to
+/// itself. So the memo's memory is the chunks it has asked for, and an
+/// entry costs no allocation of its own. Emptying the table resets a
+/// count and zeroes its index, and dropping it frees a few hundred
+/// blocks. If every key were two allocations, a full memo of a gibibyte
+/// would take half a second to drop. The index is open addressing over the places
+/// where records start, which a search only ever looks up or adds to.
 #[derive(Debug)]
 pub(super) struct Memo {
-    /// Per slot, where a record starts plus one (the chunk in the high
-    /// half, the word in the low), or zero: linear probing from the hash's
-    /// low bits. A power of two in length, at least twice the records, or
-    /// empty.
+    /// Per slot, where a record starts plus one (the chunk in the high half,
+    /// the word in the low), or zero for a free slot. A lookup probes
+    /// linearly from the hash's low bits. The length is a power of two, at
+    /// least twice the records, or zero.
     slots: Vec<u64>,
-    /// The chunks, each allocated whole and filled record by record:
-    /// records are only ever added, in order, and a record is read only
-    /// once it is written, so a chunk is never zeroed first. A record's
-    /// words are at most `u32::MAX`, so a chunk is too, and a word's
-    /// place in its chunk fits the low half of a slot.
+    /// The chunks, each allocated whole and filled record by record. Records
+    /// are only ever added, in order, and a record is read only once it is
+    /// written, so a chunk is never zeroed first. A record has at most
+    /// `u32::MAX` words, and so has a chunk, so a word's place in its chunk
+    /// fits the low half of a slot.
     chunks: Vec<Vec<u32>>,
     /// The chunk records are added to; those after it are empty.
     current: usize,
@@ -397,8 +413,8 @@ pub(super) struct Memo {
     chunk: usize,
     /// The words a chunk is to have at most.
     most: usize,
-    /// The number of records. Below `u32::MAX`, which bounds the index;
-    /// on a 32-bit target `limit` keeps it below `usize::MAX` alike.
+    /// The number of records. It stays below `u32::MAX`, which bounds the
+    /// index. On a 32-bit target `limit` keeps it below `usize::MAX` alike.
     len: usize,
     /// The number of entries the table holds at most; zero switches the memo
     /// off.
@@ -407,13 +423,13 @@ pub(super) struct Memo {
     peak: usize,
     /// How many lookups found an entry that applied.
     hits: u64,
-    /// The stamp of the generation of failures cut by the budget that
-    /// applies now ([`stamp`]): a failure cut by the budget with another
-    /// stamp is as if not recorded.
+    /// The stamp of the generation of failures cut by the budget that applies
+    /// now ([`stamp`]). A failure cut by the budget with another stamp is as
+    /// if not recorded.
     stamp: u32,
-    /// How many records were ever added, each a key new to the table
-    /// since it was last emptied: one per stable sequent decided, which
-    /// no search makes `2⁶⁴` of.
+    /// How many records were ever added, each a key new to the table since it
+    /// was last emptied. That is at most one per stable sequent decided, and
+    /// no search decides `2⁶⁴` of them.
     added: u64,
     /// How many times the table was emptied while it held a record: at
     /// most `added`.
@@ -445,15 +461,16 @@ impl Memo {
         }
     }
 
-    /// Starts the generation `generation` of failures cut by the budget:
-    /// from now on those recorded in an earlier one no longer apply. A
-    /// cut is a fact about the branch it was met in as much as about the
-    /// sequent, since a search of the same sequent below other ancestors
-    /// may prune as a repeat what was cut there; read at the next
-    /// deepening level it can answer as cut a sequent whose own search
-    /// there ends in repeats, and so carry a cut from level to level for
-    /// ever, even where every branch of the sequents reachable ends in a
-    /// repeat or a fact within the budget.
+    /// Starts the generation `generation` of failures cut by the budget. From
+    /// now on, those recorded in an earlier generation do not apply.
+    ///
+    /// A cut is a fact about the branch it was met in as much as about the
+    /// sequent: a search of the same sequent below other ancestors may prune
+    /// as a repeat what was cut there. Read at the next deepening level, a cut
+    /// can answer "cut" for a sequent whose own search there ends in repeats.
+    /// So it would carry a cut from level to level for ever, even where every
+    /// branch of the reachable sequents ends in a repeat or a fact within the
+    /// budget.
     pub(super) fn begin(&mut self, generation: u64) {
         self.stamp = stamp(generation);
         if self.stamp == 0 && generation != 0 {
@@ -526,11 +543,12 @@ impl Memo {
         (code >> 32) & 3 == 2 && (code >> 34) as u32 != self.stamp
     }
 
-    /// Returns what is known about a stable sequent, whose hash is given,
-    /// that applies with `remaining` copies left: a proof or a complete
-    /// failure always, a failure cut by the budget only in the generation
-    /// that recorded it ([`Memo::begin`]) and when at most as many copies
-    /// are left now as were then, since a larger budget could prove more.
+    /// Returns what is known about a stable sequent (whose hash is given)
+    /// that applies with `remaining` copies left. A proof or a complete
+    /// failure always applies. A failure cut by the budget applies only in
+    /// the generation that recorded it ([`Memo::begin`]), and only when at
+    /// most as many copies are left now as were then, since a larger budget
+    /// could prove more.
     fn get_hashed(&mut self, key: Zones<'_>, hash: u64, remaining: u32) -> Option<Entry> {
         let at = self.find(key, hash)?;
         let entry = self.entry(at);
@@ -563,17 +581,18 @@ impl Memo {
         refuted
     }
 
-    /// Records what the search found out about a stable sequent, unless
-    /// the table has no room for a new key: then it says so and the caller
-    /// empties it ([`clear`](Self::clear)) and inserts again. A proof or a
-    /// complete failure replaces anything; a failure cut by the budget
-    /// only raises the budget an earlier such failure of the same
-    /// generation recorded, and replaces one of an earlier generation. The memory
-    /// a new chunk or a larger index takes is charged to `account`, and
-    /// only taken while it leaves an eighth of the bound to what the
-    /// search cannot empty ([`Account::spares`]). The key's hash is given.
-    /// A key of more members than a record can count is never recorded,
-    /// as if the memory were short.
+    /// Records what the search found out about a stable sequent, whose hash is
+    /// given. When the table has no room for a new key, says so instead; the
+    /// caller then empties it ([`clear`](Self::clear)) and inserts again.
+    ///
+    /// A proof or a complete failure replaces any weaker entry. A failure cut
+    /// by the budget only raises the budget that an earlier such failure of
+    /// the same generation recorded, and replaces one of an earlier
+    /// generation. The memory a new chunk or a larger index takes is charged
+    /// to `account`. It is taken only while it leaves an eighth of the bound
+    /// to what the search cannot empty ([`Account::spares`]). A key of more
+    /// members than a record can count is never recorded, as if the memory
+    /// were short.
     fn insert_hashed(
         &mut self,
         key: Zones<'_>,
@@ -643,16 +662,17 @@ impl Memo {
         Inserted::Done
     }
 
-    /// Makes room for one more record of `words` words: an index of twice
-    /// the size when half its slots are taken, and a chunk with the room,
-    /// the current one or the next, made or grown where it has not, each
-    /// only if the account has the memory. Returns whether there is room.
+    /// Makes room for one more record of `words` words, and returns whether
+    /// there is room. When half the index's slots are taken, the index
+    /// doubles. The record needs a chunk with the room: the current one or
+    /// the next, made or grown where it has none. Each is done only if the
+    /// account has the memory.
     ///
-    /// No product here passes `usize::MAX` on a 32-bit target: an index
-    /// whose doubling counts 2³² bytes has 2²⁸ slots, so at least 2²⁷
-    /// records of seven words and more, which with the index are more than
-    /// the 4 GiB such a target addresses; and a record of `words` words is
-    /// a key already in memory, so its bytes are below the address space.
+    /// No product here passes `usize::MAX` on a 32-bit target. An index whose
+    /// doubling counts 2³² bytes has 2²⁸ slots, so at least 2²⁷ records of
+    /// seven words or more. With the index, those are more than the 4 GiB
+    /// such a target addresses. And a record of `words` words is a key
+    /// already in memory, so its bytes are below the address space.
     fn reserve(&mut self, words: usize, account: &Account) -> bool {
         if self.chunk == 0 {
             // Under a small bound the chunks are small: a sixteenth of
@@ -758,15 +778,16 @@ impl Memo {
 /// How many shards a shared memo has: a key's top hash bits pick one.
 const SHARDS: usize = 64;
 
-/// The memo shared by the workers of a parallel search: [`SHARDS`] memos
-/// behind one lock each, a key's top hash bits choosing the shard, and
-/// one table of the unrestricted zones behind a lock of its own, so that
-/// every worker names a zone by the same id. A lookup or an insertion
-/// holds one lock for the time of one map operation, so the merge of
-/// `insert` is atomic per key and two workers that decide the same
-/// sequent at once cost duplicated work, never a weaker entry. The cap is
-/// per shard, and a shard that is full, by its entries or by the memory
-/// left, is emptied by itself.
+/// The memo shared by the workers of a parallel search. It has [`SHARDS`]
+/// memos behind one lock each, and a key's top hash bits choose the
+/// shard. One table of the unrestricted zones has a lock of its own, so
+/// that every worker names a zone by the same id.
+///
+/// A lookup or an insertion holds one lock for the time of one map
+/// operation. So the merge of `insert` is atomic per key: two workers
+/// that decide the same sequent at once cost duplicated work, never a
+/// weaker entry. The cap is per shard. A shard that is full, by its
+/// entries or by the memory left, is emptied by itself.
 #[derive(Debug)]
 pub(super) struct Shared {
     /// The shards.
@@ -836,9 +857,9 @@ impl Shared {
     }
 
     /// [`Memo::insert_hashed`] on the key's shard, which is emptied first
-    /// when it is full. An entry that even the empty shard has no memory
-    /// for is dropped: the other shards hold it, and the search says so
-    /// when it finds itself over its bound.
+    /// when it is full. An entry that even the empty shard has no memory for
+    /// is dropped. The other shards hold the memory, and the search answers
+    /// the memory bound when it finds itself over it.
     pub(super) fn insert(&self, key: Zones<'_>, hash: u64, entry: Entry, account: &Account) {
         let mut shard = self.shard(hash);
         if shard.insert_hashed(key, hash, entry, account) == Inserted::Full {
@@ -966,9 +987,9 @@ impl Table<'_> {
     }
 
     /// [`Memo::clear`] on an engine's own memo; a shared memo empties its
-    /// shards itself. The table of zones stays: emptied, it would give a
-    /// zone met again a new id, under which neither the failures that
-    /// wait nor the entries recorded after the clear are found.
+    /// shards itself. The table of zones stays. Emptied, it would give a zone
+    /// met again a new id, and under that id neither the failures that wait
+    /// nor the entries recorded after the clear would be found.
     pub(super) fn clear(&mut self) {
         if let Self::Own(memo, _) = self {
             memo.clear();
@@ -1048,9 +1069,9 @@ mod tests {
     }
 
     /// A failure cut by the budget applies only in the generation that
-    /// recorded it, where a later entry of a lower budget does not weaken
-    /// it; one of an earlier generation is replaced, and a generation
-    /// whose stamp comes round to zero again empties the memo.
+    /// recorded it, and there a later entry of a lower budget does not weaken
+    /// it. One of an earlier generation is replaced. A generation whose stamp
+    /// comes round to zero again empties the memo.
     #[test]
     fn cuts_hold_in_their_generation() {
         let account = Account::new(None);
@@ -1074,9 +1095,9 @@ mod tests {
         assert_eq!(memo.get(&one, 0), Some(Entry::Failed(Failure::Complete)));
     }
 
-    /// A failure cut by the budget is a hit only with at most as many
-    /// copies left, a complete failure and a proof always; a later entry
-    /// only strengthens what is known.
+    /// A failure cut by the budget is a hit only with at most as many copies
+    /// left; a complete failure and a proof always are. A later entry only
+    /// strengthens what is known.
     #[test]
     fn bounded_failures() {
         let account = Account::new(None);
@@ -1122,10 +1143,10 @@ mod tests {
         assert_eq!(memo.peak(), 2);
     }
 
-    /// A table full by its entries says so and takes the entry once it is
-    /// emptied, keeping its memory; one whose next chunk the account has
-    /// no room for is full in the same way, and an empty one that cannot
-    /// have its first chunk has no room; a release gives everything back.
+    /// A table full by its entries says so, and takes the entry once it is
+    /// emptied, keeping its memory. A table whose next chunk the account has
+    /// no room for is full in the same way. An empty one that cannot have its
+    /// first chunk has no room. A release gives everything back.
     #[test]
     fn full_and_emptied() {
         let entry = Entry::Failed(Failure::Complete);
@@ -1144,9 +1165,9 @@ mod tests {
         assert_eq!(account.used(), 0);
         assert!(!memo.refuted(&key(0, &[3])));
 
-        // Under a bound the table grows in chunks of a sixteenth of the
-        // room, here 64 words, eight records of eight, until no more fit:
-        // here its index is what no longer does.
+        // Under a bound the table grows in chunks of a sixteenth of the room
+        // (here 64 words, eight records of eight) until no more fit. Here the
+        // index is what does not fit.
         let account = Account::new(Some(4096));
         let mut memo = Memo::new(1000);
         let fitted = (0..1000)
@@ -1174,11 +1195,11 @@ mod tests {
         );
     }
 
-    /// Records of every length lie in the chunks one after another, a
-    /// record longer than a chunk in one of its own, and each is found
-    /// again, also after the index grew and after the table was emptied
-    /// and filled anew; keys that differ in the unrestricted zone, a
-    /// member or a copy of one are other keys.
+    /// Records of every length lie in the chunks one after another, and a
+    /// record longer than a chunk lies in one of its own. Each is found
+    /// again, also after the index grew, and after the table was emptied and
+    /// filled anew. Keys that differ in the unrestricted zone, a member or a
+    /// copy of one are other keys.
     #[test]
     fn records() {
         let account = Account::new(None);

@@ -10,10 +10,12 @@ use crate::linear::search::{Bias, Goal, Verdict, prove_goal};
 use crate::{Limits, Progress};
 
 /// Runs the focused engine on the roots of the forest in the fragment
-/// and the mode given, two-sided in intuitionistic mode (the reading is
-/// the forest's, which the front door reads itself), polling `stop`, and
-/// returns the verdict with the statistics; the proof unchecked, as the
-/// tests check it themselves.
+/// and the mode given, polling `stop`, and returns the verdict with the
+/// statistics. In intuitionistic mode it runs the two-sided engine.
+///
+/// `reading` is given exactly in intuitionistic mode. It is the forest's
+/// own, which the front door reads again itself. The proof is not
+/// checked: the tests check it themselves.
 fn search(
     forest: &Forest,
     fragment: Fragment,
@@ -150,9 +152,11 @@ fn classic_sequents() {
     }
 }
 
-/// The `&` rule polls the stop: `⊢ a₁ & b₁, …, aₙ & bₙ, ⊤` with `⊤`
-/// taken last has a proof of `2ⁿ` branches that reaches no stable
-/// sequent, where the search polls otherwise.
+/// The `&` rule polls the stop.
+///
+/// With `⊤` taken last, `⊢ a₁ & b₁, …, aₙ & bₙ, ⊤` has a proof of `2ⁿ`
+/// branches that reaches no stable sequent (one where no invertible rule
+/// applies). The search polls at stable sequents otherwise.
 #[test]
 fn with_rules_poll_the_stop() {
     let withs: Vec<String> = (0..24).map(|i| format!("a{i} & b{i}")).collect();
@@ -167,8 +171,8 @@ fn with_rules_poll_the_stop() {
         &options,
         &Limits::default(),
         |progress| {
-            // Only the search's own polls count: the check of a proof
-            // found polls too.
+            // Only the search's own polls count, since the check of a
+            // proof found polls too.
             polls += u32::from(progress.phase == crate::limits::Phase::Search);
             polls > 1
         },
@@ -187,9 +191,9 @@ fn with_rules_closed_by_top() -> Sequent {
     format!("|- {}, top", withs.join(", ")).parse().unwrap()
 }
 
-/// That proof is made within the memory bound: its two mebibytes of
-/// nodes pass a bound of one, which the search answers before it has a
-/// proof (it once made the proof and left the bound to the check).
+/// That proof is made within the memory bound. Its two mebibytes of nodes
+/// pass a bound of one mebibyte, and the search itself answers the bound,
+/// before it has a proof.
 #[test]
 fn a_proof_of_with_rules_keeps_to_the_memory_bound() {
     let options = Options::default()
@@ -214,11 +218,13 @@ fn a_proof_of_with_rules_keeps_to_the_memory_bound() {
     );
 }
 
-/// The `&` rules are work, which `Limits::work` bounds, and that proof
-/// is kept and built under the stop: after the search's last poll that
-/// tells work come the polls of the root's keep and of the proof's two
-/// passes, one per 2¹⁶ nodes each and no more (a second passed without
-/// one on 24 pairs).
+/// The `&` rules are work, which `Limits::work` bounds, and that proof is
+/// kept and built under the stop.
+///
+/// After the search's last poll that reports work come the polls of the
+/// root's keep and of the proof's two passes: each polls once per 2¹⁶
+/// nodes, and no more. Without these polls, a proof of 24 pairs takes a
+/// second without one.
 #[test]
 fn with_rules_are_work_and_their_proof_is_polled() {
     let options = Options::default()
@@ -259,12 +265,14 @@ fn with_rules_are_work_and_their_proof_is_polled() {
 }
 
 /// An atom whose literals below an exponential all have one sign keeps
-/// its count, unbounded that way alone: copies of `a` cannot pair with
-/// the `a` outside (`|- ?a, a`, and one branch of `|- ?a, a & ~a`), while
-/// copies of `~a` can (`|- ?~a, a * a`); and a mutant whose goal needs an
-/// `a` that only the `!` of a hypothesis holds, which no copy bound
-/// decides without these counts, is refuted classically and
-/// intuitionistically.
+/// its count: copies can move it toward that sign alone.
+///
+/// So copies of `a` cannot pair with the `a` outside (`|- ?a, a`, and one
+/// branch of `|- ?a, a & ~a`), while copies of `~a` can
+/// (`|- ?~a, a * a`). A mutant whose goal needs an `a` that only the `!`
+/// of a hypothesis holds is refuted classically and intuitionistically.
+/// No copy bound decides it without these counts. The refutation of
+/// `|- ?a, a` names the count.
 #[test]
 fn copies_of_one_sign_bound_the_count_one_way() {
     let mutant = "b, b, (!!!c * !b), (((b -o !b) -o (b -o (b * b))) -o !((b -o c) * (a -o c))) \
@@ -304,8 +312,8 @@ fn copies_of_one_sign_bound_the_count_one_way() {
     );
 }
 
-/// The units behave as the spec's checks say, and `⊤` closes any
-/// context while `0` closes none.
+/// The units follow their rules: `1` is proved only in an empty context,
+/// `⊥` is dropped, `⊤` closes any context, and `0` closes none.
 #[test]
 fn units() {
     let m = Mode::CLASSICAL;
@@ -370,10 +378,10 @@ fn memo_and_statistics() {
     assert_eq!(statistics.memo_entries, 1);
     assert_eq!(statistics.splits, 0);
 
-    // ⊢ ~a ⊕ ~b, ~a ⊕ ~b, a ⊗ b, (x ⅋ ~x) ⊗ (y ⊗ ~y) is unprovable,
-    // and the two orders of choosing the `⊕` sides reach the stable
-    // sequent ⊢ ~a, ~b, a ⊗ b, (x ⅋ ~x) ⊗ (y ⊗ ~y), whose refutation
-    // takes a few stable sequents; the memo answers it the second time.
+    // ⊢ ~a ⊕ ~b, ~a ⊕ ~b, a ⊗ b, (x ⅋ ~x) ⊗ (y ⊗ ~y) is unprovable. The
+    // two orders of choosing the `⊕` sides reach the stable sequent
+    // ⊢ ~a, ~b, a ⊗ b, (x ⅋ ~x) ⊗ (y ⊗ ~y), whose refutation takes a few
+    // stable sequents. The memo answers it the second time.
     let input = "|- ~a + ~b, ~a + ~b, a * b, (x par ~x) * (y * ~y)";
     let with_memo = run(input, Mode::CLASSICAL, &Options::default());
     let without = run(
@@ -439,10 +447,10 @@ fn limits() {
     let (verdict, _) = run(&many, Mode::CLASSICAL, &Options::default());
     assert!(verdict.proof().is_some());
 
-    // Nor does a link of a tensor of literals, nested to the left as
-    // it is read: every split is forced by the literal on the right.
-    // On a thread with the stack a front end gives the search, since
-    // the parser and the checker recurse to the formula's depth.
+    // Nor does a link of a tensor of literals, nested to the left as it
+    // is read: the literal on the right forces every split. This runs on
+    // a thread with the stack a front end gives the search, since the
+    // parser and the checker recurse to the formula's depth.
     let literals = format!(
         "|- {}, {}",
         vec!["a"; 2500].join(" * "),
@@ -468,9 +476,9 @@ fn limits() {
         .unwrap();
     assert!(proved);
 
-    // A free split over 126 formulas, in MALL so that the count
-    // equation does not refute it first: no width is too much, and the
-    // counts of `b` refute every split at once.
+    // A free split over 126 formulas, in MALL so that the count equation
+    // does not refute it first. No width is too much: the counts of `b`
+    // refute every split at once.
     let wide = format!(
         "|- ((a & a) par b) * (~a par ~b), {}",
         (0..63).map(|_| "~a, a").collect::<Vec<_>>().join(", ")
@@ -479,10 +487,10 @@ fn limits() {
     assert!(matches!(verdict, Verdict::Unprovable(_)));
 }
 
-/// A sequent whose search comes back to it with other occurrences of
-/// the same formulas is refuted, not left at the copy bound by its own
-/// failure of the level before: a failure cut by the budget answers
-/// for its own sequent alone.
+/// A sequent whose search comes back to it, with other occurrences of
+/// the same formulas, is refuted. Its own failure at the level before,
+/// cut by the budget, does not leave it at the copy bound: such a failure
+/// answers for its own sequent alone.
 #[test]
 fn repeats_up_to_equal_members() {
     for input in [
@@ -497,9 +505,11 @@ fn repeats_up_to_equal_members() {
 }
 
 /// The bias never changes what is provable, only what a copy bound
-/// allows: the counter with eight tokens is proved within three copies
-/// a branch chaining backward, and needs seven chaining forward, where
-/// it visits a fraction of the stable sequents; the default finds the
+/// allows.
+///
+/// Chaining backward, the counter with eight tokens is proved within
+/// three copies a branch. Chaining forward, it needs seven, but visits
+/// less than a quarter of the stable sequents. The default bias finds the
 /// forward proof.
 #[test]
 fn bias_option() {
@@ -531,8 +541,8 @@ fn bias_option() {
     let proof = verdict.proof().expect("seven steps on one branch");
     assert_eq!(proof.check(Mode::CLASSICAL), Ok(()));
     assert!(fast.nodes * 4 < slow.nodes, "{fast:?} against {slow:?}");
-    // The default runs both: the clauses are Horn, so the forward
-    // search has its own bound and its proof comes first, at its cost.
+    // The default runs both. The clauses are Horn, so the forward search
+    // has its own bound, and its proof comes first, at its cost.
     let (verdict, default) = run(&Options::default().with_copies(Some(copies)));
     assert_eq!(verdict.proof().unwrap().check(Mode::CLASSICAL), Ok(()));
     // The forward search decided, at the level the explicit one did.
@@ -546,8 +556,8 @@ fn bias_option() {
     );
 }
 
-/// Without a copy bound the search goes on to the next level until it
-/// decides, and says which level that was; with one it ends there.
+/// Without a copy bound, the search goes on to the next level until it
+/// decides, and says which level that was. With a bound, it ends there.
 #[test]
 fn an_unbounded_search_deepens() {
     let (sequent, _) = crate::linear::families::counter(8, false);
@@ -569,15 +579,20 @@ fn an_unbounded_search_deepens() {
     assert_eq!(statistics.copies, 7);
 }
 
-/// Without a copy bound a level closes once its budget outlasts every
-/// branch that ends in a repeat: these intuitionistic non-theorems
-/// (images of propositional formulas, whose stable sequents are a few
-/// dozen) are refuted within thirty thousand units of work at a level
-/// below twenty. A failure cut by the budget, read as a cut in every
-/// later level, carried the cut on from level to level instead, and each
-/// passed a million levels without a verdict. So on a pool of two whose
-/// memo of 64 entries, one a shard, overflows within every level, where
-/// the keys met again once looked new at every level.
+/// Without a copy bound, a level closes once its budget outlasts every
+/// branch that ends in a repeat.
+///
+/// These intuitionistic non-theorems are images of propositional
+/// formulas, with a few dozen stable sequents each. They are refuted
+/// within thirty thousand units of work, at a level below twenty. That
+/// needs a failure cut by the budget to count at its own level only.
+/// Read as a cut in every later level, it would carry the cut on from
+/// level to level, and each would pass a million levels without a
+/// verdict.
+///
+/// They are refuted too on a pool of two whose memo of 64 entries, one
+/// per shard, overflows within every level. There a key met again must
+/// not look new at every level.
 #[test]
 fn deepening_closes_on_a_finite_space() {
     let limits = Limits::default().with_work(Some(1_000_000));
@@ -605,15 +620,16 @@ fn deepening_closes_on_a_finite_space() {
     }
 }
 
-/// The two searches of the default bias on one core. In turns from
-/// their start, on work that grows: here the backward search decides,
-/// after the forward one used up turns and then its bound. And, with
-/// threads, alternating in slices, where each search is the one it is
-/// alone and none starts again.
+/// The default bias runs two searches, and here they share one core.
+///
+/// In turns, each starts again from the beginning with more work each
+/// turn. Here the backward search decides, after the forward one used up
+/// turns and then its bound. With threads, they alternate in slices
+/// instead: each search runs as it does alone, and none starts again.
 #[test]
 fn default_bias_takes_turns() {
     // The counter with eight tokens takes seven steps forward, more than
-    // the forward bound here; the clauses that move a token between
+    // the forward bound here. The clauses that move a token between
     // places give the forward search markings to visit until then.
     let (mut clauses, marking, goal) = counter(8);
     for (body, head) in [
@@ -685,10 +701,9 @@ fn default_bias_takes_turns() {
         statistics
     };
     let both = in_turns();
-    // What the turns cut short cost: less than a third of the turn
-    // the forward search ends in for itself, and at most that turn and
-    // the ones before it for the backward search, which then runs
-    // alone.
+    // What the turns cut short cost. For the forward search, it is less
+    // than a third of the turn it ends in. For the backward search, which
+    // then runs alone, it is at most that turn and the ones before it.
     let cut = both.nodes - forward.nodes - backward.nodes;
     assert!(
         0 < cut && cut < 7 * forward.nodes,
@@ -715,10 +730,10 @@ fn default_bias_takes_turns() {
     }
 }
 
-/// Under a memory bound that the memo does not fit, the memo is
-/// emptied whenever it reaches the bound and the search still decides,
-/// in more stable sequents; under a bound that leaves the memo no room
-/// the search gives up and names the bound.
+/// Under a memory bound that the memo does not fit, the memo is emptied
+/// whenever it reaches the bound, and the search still decides, in more
+/// stable sequents. Under a bound that leaves the memo no room, the
+/// search gives up and names the bound.
 #[test]
 fn memory_bound() {
     let (sequent, copies) = crate::linear::families::counter(16, false);
@@ -745,13 +760,14 @@ fn memory_bound() {
     ));
 }
 
-/// A memo of a few entries is emptied at nearly every insertion, and
-/// the kept proofs are collected as often: whatever such a search
-/// proves is a proof the checker accepts (an id that a collection
-/// moved and no one renamed would make it none), and its verdict never
-/// contradicts the one a memo of the default size gives. A search is
-/// given up after so many polls: with a memo this small some take
-/// minutes.
+/// A memo of a few entries is emptied at nearly every insertion, and the
+/// kept proofs are collected as often. Whatever such a search proves is a
+/// proof the checker accepts, and its verdict never contradicts the one a
+/// memo of the default size gives.
+///
+/// A collection moves ids, so an id it moved and no one renamed would
+/// break the proof. A search is given up after 20 000 polls, since with a
+/// memo this small some take minutes.
 #[test]
 fn proofs_survive_collections() {
     let mut proved = 0;
@@ -835,10 +851,10 @@ fn proofs_survive_collections() {
 fn default_bias_decides_what_either_rule_does() {
     let (mut compared, mut over) = (0, 0);
     let mut check = |text: &str, mode: Mode, options: &Options| {
-        // Each bias alone within the mutants' work; the default bias,
-        // whose contract holds where no stop fires, runs unbounded and
-        // only where one of them decided, since there is nothing to
-        // compare otherwise.
+        // Each bias runs alone within the mutants' work. The default bias
+        // runs unbounded, since its contract holds where no stop fires.
+        // It runs only where one of them decided, since there is nothing
+        // to compare otherwise.
         let ones = [Bias::Rarer, Bias::Factors]
             .map(|bias| (bias, bounded(text, mode, &options.clone().with_bias(bias))));
         over += ones
@@ -909,9 +925,10 @@ fn default_bias_decides_what_either_rule_does() {
 }
 
 /// A split search whose splits all fail in focus visits no stable
-/// sequent and still stops when asked: with weakening no count cuts
-/// the 2⁴² splits of this context, and each fails at once, since no
-/// member is the `~p` its left side wants.
+/// sequent, and still stops when asked.
+///
+/// With weakening, no count cuts the 2⁴² splits of this context. Each
+/// fails at once, since no member is the `~p` its left side wants.
 #[test]
 fn stops_inside_a_split_search() {
     let input = format!(
@@ -937,11 +954,13 @@ fn stops_inside_a_split_search() {
     assert!(statistics.splits <= 4 * SPLITS_PER_POLL, "{statistics:?}");
 }
 
-/// A chain of forced splits visits no stable sequent and still stops
-/// when asked, whether its factors are literals, one split each, or
-/// tensors of literals closed in place: each tensor of 5 000 factors
-/// is one chain from the first stable sequent, whose poll is the
-/// first, and the second comes inside the chain.
+/// A chain of forced splits visits no stable sequent, and still stops
+/// when asked. Its factors are literals, one split each, or tensors of
+/// literals closed in place.
+///
+/// Each tensor of 5 000 factors is one chain from the first stable
+/// sequent. That sequent's poll is the first, and the second comes
+/// inside the chain.
 #[test]
 fn stops_inside_a_forced_chain() {
     let chains = [
@@ -984,10 +1003,11 @@ fn stops_inside_a_forced_chain() {
     }
 }
 
-/// Intuitionistic mode: the textbook sequents of ILL, the pitfalls of
-/// the spec (`0` on the left proves anything, `⊤` on the left is inert,
-/// promotion needs an empty linear context) and the sequent classical
-/// linear logic proves but intuitionistic linear logic does not.
+/// Intuitionistic mode gets the textbook sequents of ILL right. It gets
+/// right the cases that are easy to get wrong: `0` on the left proves
+/// anything, `⊤` on the left is inert, and promotion needs an empty
+/// linear context. And it refutes the sequent that classical linear
+/// logic proves but intuitionistic linear logic does not.
 #[test]
 fn intuitionistic() {
     let i = Mode::INTUITIONISTIC;
@@ -1047,7 +1067,7 @@ fn intuitionistic() {
     ] {
         assert_eq!(provable(input, i), expected, "{input:?}");
     }
-    // Classical linear logic is not conservative over ILL with `0`: the
+    // Classical linear logic is not conservative over ILL with `0`. The
     // classical proof splits the `⊸L` with the goal on the antecedent's
     // side, which the two-sided search never does.
     let schellinx = "((a * top) & (b * top)) -o 0 |- (a -o c) + (b -o c)";
@@ -1109,7 +1129,7 @@ fn classic_exponentials() {
         assert_eq!(provable(input, m), expected, "{input:?}");
     }
     // Unprovable, but every copy grows the context, so no level of the
-    // bound finishes: the honest answer is unknown.
+    // bound finishes, and the answer is unknown.
     for input in ["!(a * b) |- !a * !b", "!(a + b) |- !a + !b"] {
         assert!(
             matches!(
@@ -1142,8 +1162,9 @@ fn full_ll() {
     ] {
         assert_eq!(provable(input, Mode::CLASSICAL), expected, "{input:?}");
     }
-    // The opponent chooses the side of the `&`: unprovable, and the
-    // context grows with every copy, so undecided within the bound.
+    // The opponent chooses the side of the `&`, so it is unprovable. The
+    // context grows with every copy, so it stays undecided within the
+    // bound.
     assert!(matches!(
         run(
             "!a, !(a -o b + c) |- b * c",
@@ -1194,7 +1215,7 @@ fn affine() {
         assert_eq!(provable(input, affine), weakened, "{input:?} affinely");
     }
     // The context grows with every copy, so both modes give up at the
-    // bound: a sequent that contains an ancestor is not redundant, and
+    // bound. A sequent that contains an ancestor is not redundant, and
     // affine mode is bounded like linear mode.
     let growing = "!(a -o a * a), a |- ?b";
     for mode in [Mode::CLASSICAL, affine] {
@@ -1222,15 +1243,15 @@ fn affine() {
     assert!(matches!(proof.node(below), Node::Bang(..)));
 }
 
-/// The copy bound of one search, the backward one here: a level that
-/// hit its bound never answers `Unprovable`, a level that did not
-/// answers it, a failure recorded at a smaller remaining budget is not
-/// reused at a larger one, and the bound is per branch.
+/// The copy bound of one search, the backward one here. A level that hit
+/// its bound never answers `Unprovable`, and a level that did not answers
+/// it. A failure recorded at a smaller remaining budget is not reused at
+/// a larger one. The bound is per branch.
 #[test]
 fn copy_bound() {
     let m = Mode::CLASSICAL;
-    // The search alone: the classical refuter would decide what the
-    // bound leaves undecided.
+    // The search alone, since the classical refuter would decide what
+    // the bound leaves undecided.
     let with = |copies| {
         Options::default()
             .with_bias(Bias::Rarer)
@@ -1246,8 +1267,8 @@ fn copy_bound() {
     // ⊢ ?~a, a ⊗ a: the stable sequent ⊢ ~a ; a fails at level 0 for
     // lack of budget and must be searched again at level 1.
     assert!(run("!a |- a * a", m, &with(1)).0.proof().is_some());
-    // The clause and one `~a` are copied on every branch to an `a`:
-    // bound 2, however many branches there are; and the two branches
+    // The clause and one `~a` are copied on every branch to an `a`. So
+    // the bound is 2, however many branches there are. The two branches
     // of ⊢ ?~a, (a ⊗ a) ⊗ a take one copy each.
     assert!(matches!(
         run("!a, !(a -o a -o a -o b) |- b", m, &with(1)).0,
@@ -1267,8 +1288,8 @@ fn copy_bound() {
         run("!a |- b", m, &with(0)).0,
         Verdict::Unprovable(_)
     ));
-    // ⊢ ?~a, ?b: level 0 can copy nothing; at level 1 each copy leaves
-    // a literal that the copies to come, all of its own sign, cannot
+    // ⊢ ?~a, ?b: level 0 can copy nothing. At level 1, each copy leaves a
+    // literal that the copies to come, all of its own sign, cannot
     // balance, so the counts refute both.
     assert!(matches!(
         run("!a |- ?b", m, &with(0)).0,
@@ -1400,15 +1421,16 @@ fn decided(input: &str, mode: Mode, options: &Options) -> Option<bool> {
 }
 
 /// The work a generated mutant's search gets in the tests that compare
-/// verdicts on mutants: the most a decided one took when this was
-/// written is 3.2 million units, the most nearly all of them 0.4
-/// million, and the few that no copy bound decides took up to 166
-/// million, some seconds each in a debug build, where a comparison of
-/// two undecided verdicts says nothing.
+/// verdicts on mutants.
+///
+/// Measured on the tests' seeds, a decided mutant took 3.2 million units
+/// at most, and nearly all took 0.4 million at most. The few that no copy
+/// bound decides took up to 166 million, some seconds each in a debug
+/// build, and comparing two undecided verdicts says nothing.
 const MUTANT_WORK: u64 = 5_000_000;
 
-/// Decides `input` as [`decided`] does within [`MUTANT_WORK`], and says
-/// whether the work ran out.
+/// Decides `input` as [`decided`] does within [`MUTANT_WORK`], and also
+/// returns whether the work ran out.
 fn bounded(input: &str, mode: Mode, options: &Options) -> (Option<bool>, bool) {
     let limits = Limits::default().with_work(Some(MUTANT_WORK));
     match run_within(input, mode, options, &limits).0 {
@@ -1421,12 +1443,14 @@ fn bounded(input: &str, mode: Mode, options: &Options) -> (Option<bool>, bool) {
 }
 
 /// Proves `samples` generated sequents of up to `budget` rules per rule
-/// set with or without exponentials, each within the derelictions of
-/// its proof, and decides one mutant of each with and without the memo,
-/// within [`MUTANT_WORK`]. Returns how many sequents and mutants were
-/// decided, how many mutants were provable, how many the memo's search
-/// left undecided within the copy bound, how many a search ran past the
-/// work, and the most stable sequents one search visited.
+/// set, with or without exponentials, each within the derelictions of
+/// its proof. Decides one mutant of each with and without the memo,
+/// within [`MUTANT_WORK`].
+///
+/// Returns, in order: how many sequents and how many mutants were
+/// decided; how many mutants were provable; how many the memo's search
+/// left undecided within the copy bound; how many a search ran past the
+/// work; and the most stable sequents one search visited.
 fn generated(samples: u64, budget: usize, exponentials: bool) -> (u64, u64, u64, u64, u64, u64) {
     let (mut sequents, mut mutants, mut provable_mutants, mut undecided, mut over, mut most_nodes) =
         (0, 0, 0, 0, 0, 0);
@@ -1465,11 +1489,11 @@ fn generated(samples: u64, budget: usize, exponentials: bool) -> (u64, u64, u64,
                 let (with_memo, out) = bounded(&text, mode, &Options::default());
                 let (without, too) = bounded(&text, mode, &Options::default().with_memo_limit(0));
                 over += u64::from(out || too);
-                // The memo never contradicts the memo-free search; it
+                // The memo never contradicts the memo-free search. Either
                 // may decide where the other is undecided within the
-                // bound and the other way round, since an entry cut by
-                // the budget is a fact about the sequent alone while
-                // the loop check is a fact about the branch.
+                // bound, since an entry cut by the budget is a fact about
+                // the sequent alone, while the loop check is a fact about
+                // the branch.
                 assert!(
                     with_memo.is_none() || without.is_none() || with_memo == without,
                     "{text:?} in {mode} mode: {with_memo:?} with the memo, {without:?} without"
@@ -1490,10 +1514,14 @@ fn generated(samples: u64, budget: usize, exponentials: bool) -> (u64, u64, u64,
     )
 }
 
-/// Every generated provable sequent is proved with a checked proof
-/// within the derelictions of its proof, in every fragment with and
-/// without Mix, and its mutant is decided the same way with and
-/// without the memo.
+/// Every generated provable sequent is proved with a checked proof within
+/// the derelictions of its proof, in every fragment, with and without
+/// Mix. Its mutant gets no contradicting verdicts with and without the
+/// memo.
+///
+/// Without exponentials, the memo's search leaves no mutant undecided
+/// within the copy bound. With them, it leaves fewer than a quarter. Fewer
+/// than one mutant in fifty has a search run past [`MUTANT_WORK`].
 #[test]
 fn generated_sequents() {
     let (sequents, mutants, _, undecided, over, _) = generated(40, 10, false);
@@ -1513,13 +1541,17 @@ fn generated_sequents() {
 
 /// Proves `samples` generated intuitionistic sequents of up to `budget`
 /// rules per rule set, each within the derelictions of its proof, in
-/// linear and affine mode; compares the two-sided verdict on each with
-/// the classical engine's on the same one-sided sequent, which must
-/// agree without `0`; and on a mutant of each, within [`MUTANT_WORK`].
-/// Returns how many sequents and mutants were compared, how many mutants
-/// the classical engine proved that the two-sided one refuted, which
-/// only `0` allows, and how many mutants an engine searched past the
-/// work.
+/// linear and affine mode.
+///
+/// It also decides each sequent with the classical engine, on the same
+/// one-sided sequent, and a mutant of each with both engines within
+/// [`MUTANT_WORK`]. The verdicts must agree, except where `0` lets
+/// classical linear logic prove more.
+///
+/// Returns, in order: how many sequents and how many mutants were
+/// compared; how many mutants the classical engine proved that the
+/// two-sided one refuted, which only `0` allows; and how many mutants an
+/// engine searched past the work.
 fn generated_ill(samples: u64, budget: usize) -> (u64, u64, u64, u64) {
     use crate::linear::search::generate::IllRules;
     let i = Mode::INTUITIONISTIC;
@@ -1574,8 +1606,8 @@ fn generated_ill(samples: u64, budget: usize) -> (u64, u64, u64, u64) {
 
 /// Every generated intuitionistic sequent is proved two-sided with a
 /// checked proof within the derelictions of its proof, in every
-/// intuitionistic fragment, and the classical engine agrees on the
-/// mutants except where `0` makes classical linear logic prove more.
+/// intuitionistic fragment. The classical engine agrees on the mutants,
+/// except where `0` makes classical linear logic prove more.
 #[test]
 fn generated_intuitionistic_sequents() {
     let (sequents, mutants, non_conservative, over) = generated_ill(40, 10);
@@ -1589,19 +1621,21 @@ fn generated_intuitionistic_sequents() {
 }
 
 /// The counts of an atom whose literals below the exponentials all have
-/// one sign refute nothing that has a proof: of the mutants of generated
-/// sequents with exponentials, classical with and without Mix and
-/// intuitionistic, none that a search with those counts refutes at a
-/// copy bound of 3 is proved by the search without them at a bound of 4,
-/// within [`MUTANT_WORK`] each; and the counts reach some of them, at
-/// the root of the sequent and where the search without them is left
-/// undecided.
+/// one sign refute nothing that has a proof.
+///
+/// The test takes mutants of generated sequents with exponentials:
+/// classical with and without Mix, and intuitionistic. None that a search
+/// with those counts refutes at a copy bound of 3 is proved by the search
+/// without them at a bound of 4, within [`MUTANT_WORK`] each. And the
+/// counts do some work: they refute some mutants at the root of the
+/// sequent, and some that the search without them leaves undecided.
 #[test]
 fn the_count_of_one_sign_refutes_nothing_provable() {
     use crate::linear::search::Refutation;
     use crate::linear::search::generate::IllRules;
     let limits = Limits::default().with_work(Some(MUTANT_WORK));
-    // One search on this thread, which the counts' switch is local to.
+    // One search on this thread, since the switch that turns the counts
+    // off is local to the thread.
     let decide = |text: &str, mode: Mode, bias: Bias, copies: u32| {
         let options = Options::default()
             .with_bias(bias)
@@ -1664,15 +1698,15 @@ fn the_count_of_one_sign_refutes_nothing_provable() {
         "{mutants} mutants, {refuted} refutations, {at_the_root} at the root, {gained} \
          undecided without the counts of one sign"
     );
-    // When this was written: 1 227 mutants, 1 352 refutations, 30 at the
-    // root and 64 left undecided without them.
+    // Measured with these seeds: 1 227 mutants, 1 352 refutations, 30 at
+    // the root and 64 left undecided without the counts.
     assert!(at_the_root >= 10 && gained >= 30, "{numbers}");
 }
 
 /// Encodes a Horn program with reusable clauses, as the ILLTP library
-/// states Petri-net reachability: every clause `body ⊸ head` (products
-/// of atoms) under a `!`, the initial marking as hypotheses, the goal
-/// marking as the conclusion.
+/// states Petri-net reachability. Every clause `body ⊸ head` (products of
+/// atoms) is under a `!`. The initial marking is the hypotheses, and the
+/// goal marking the conclusion.
 fn horn(clauses: &[(&str, &str)], marking: &[&str], goal: &[&str]) -> String {
     let mut hypotheses: Vec<String> = clauses
         .iter()
@@ -1698,13 +1732,15 @@ fn counter(n: usize) -> (Vec<(String, String)>, Vec<&'static str>, &'static str)
     (clauses, vec!["a"; n], names[levels])
 }
 
-/// Horn problems over reusable clauses: a chain of implications takes
-/// one copy per clause on one branch, the counter program reaches its
-/// goal within the copies its firings take and not below, an
-/// unreachable marking is refuted by the counts where an atom is only
-/// a body's or only a head's below the `!`, else by the forward search
-/// alone, and is undecided within the bound in affine mode, which
-/// reaches a goal that leaves a token over.
+/// Horn problems over reusable clauses:
+/// - a chain of implications takes one copy per clause on one branch;
+/// - the counter program reaches its goal within the copies its firings
+///   take, and not below;
+/// - an unreachable marking is refuted by the counts where an atom is
+///   only a body's or only a head's below the `!`, and else by the
+///   forward search alone;
+/// - in affine mode, which reaches a goal that leaves a token over, an
+///   unreachable marking is undecided within the bound.
 #[test]
 fn horn_programs() {
     let m = Mode::CLASSICAL;
@@ -1719,7 +1755,7 @@ fn horn_programs() {
             .proof()
             .is_some()
     );
-    // Five copies are too few for either search alone; the default's
+    // Five copies are too few for either search alone. The default's
     // forward search has a bound of its own on Horn clauses.
     for bias in [Bias::Rarer, Bias::Factors] {
         assert!(matches!(
@@ -1761,9 +1797,9 @@ fn horn_programs() {
         run(&horn(&clauses, &marking, &[goal, "a"]), m, &rarer).0,
         Verdict::Unprovable(_)
     ));
-    // With a clause from `c` back to `a` both are heads and bodies, and
-    // the counts say nothing of them: the backward search is cut at its
-    // bound, the forward one runs out of markings within its own.
+    // With a clause from `c` back to `a`, both are heads and bodies, and
+    // the counts say nothing of them. The backward search is cut at its
+    // bound, and the forward one runs out of markings within its own.
     let mut back = clauses.clone();
     back.push(("c", "a"));
     let unreachable = horn(&back, &marking, &[goal, "a"]);
@@ -1801,10 +1837,12 @@ fn three_partition_solved() {
     assert!(provable(&yes, Mode::CLASSICAL), "{yes}");
 }
 
-/// The Horn test reads the goal, not the forest's roots: a goal of the
-/// clause, the marking and the goal of a program is one, inside a sequent
-/// whose other hypothesis, a `&`, is none, so the forward search gets
-/// its own bound there and not on the whole sequent.
+/// The Horn test reads the goal, not the forest's roots.
+///
+/// Here the goal holds the clause, the marking and the goal of a program,
+/// so it is a Horn program. The sequent around it is not, since its other
+/// hypothesis is a `&`. So the forward search gets its own bound on that
+/// goal, and not on the whole sequent.
 #[test]
 fn the_horn_test_reads_the_goal() {
     let sequent: Sequent = "!(a -o b), a, c & d |- b".parse().unwrap();
@@ -1828,7 +1866,7 @@ fn the_horn_test_reads_the_goal() {
     assert_eq!(forward(&program), 30);
 
     // A clause that a dereliction left in the linear zone, used once, is
-    // a step of the program too: the goal it leaves to close is proved
+    // a step of the program too. The goal it leaves to close is proved
     // within the forward bound, as the sequent is.
     let sequent: Sequent =
         "!(a -o b), !(b -o c), !(c -o d), !(d -o e), !(e -o f), !(f -o g), a |- g"
@@ -1856,9 +1894,11 @@ fn the_horn_test_reads_the_goal() {
 }
 
 /// Under Mix, a sequent none of whose parts is provable is refuted by its
-/// parts with one member less: the twelve members of `mix(6)` cost at
-/// most `12 · 2¹²` stable sequents, where searching the partitions of
-/// every part visited 175 100, a third of `3¹²`.
+/// parts with one member less.
+///
+/// The twelve members of `mix(6)` cost at most `12 · 2¹²` stable
+/// sequents. Searching the partitions of every part instead would visit
+/// 175 100, a third of `3¹²`.
 #[test]
 fn unprovable_parts_cost_no_partitions() {
     let sequent = crate::linear::families::mix(6);
@@ -1876,8 +1916,8 @@ fn unprovable_parts_cost_no_partitions() {
 }
 
 /// A tensor of three hundred factors whose splits are searched is one
-/// chain, in a loop and not a level of recursion per link: it is proved
-/// under a recursion limit of a hundred.
+/// chain, searched in a loop with no level of recursion per link. So it
+/// is proved under a recursion limit of a hundred.
 #[test]
 fn a_chain_of_free_splits_costs_one_level() {
     let sequent = crate::linear::families::wide(300, 1);
@@ -1894,11 +1934,13 @@ fn a_chain_of_free_splits_costs_one_level() {
     assert_eq!(proof.check(Mode::CLASSICAL), Ok(()));
 }
 
-/// The parts of a Mix decide a sequent only where they are complete
-/// facts and a memo keeps them: a part cut by the copy budget, which the
-/// partitions never visit, left `⊢ a, !?(s ⅋ a)` at its copy bound where
-/// the partitions refute it; and without a memo, searching the parts
-/// again at every level took two more levels of recursion than the
+/// The parts of a Mix decide a sequent only where they are complete facts
+/// and a memo keeps them.
+///
+/// A part cut by the copy budget, which the partitions never visit, must
+/// not decide: it would leave `⊢ a, !?(s ⅋ a)` at its copy bound, where
+/// the partitions refute it. Without a memo, searching the parts again at
+/// every level would take two more levels of recursion than the
 /// partitions to prove `⊢ ~b, ~c, b, ⊥ ⊕ ~b, ?(c ⊗ b)`.
 #[test]
 fn the_parts_of_a_mix_decide_only_as_facts() {
@@ -1916,10 +1958,11 @@ fn the_parts_of_a_mix_decide_only_as_facts() {
     assert!(verdict.proof().is_some(), "{verdict:?}");
 }
 
-/// With weakening Mix proves nothing new, so the engine leaves it out:
-/// affine mode with Mix searches exactly what affine mode does, and
-/// refutes the four pairs of the Mix family in 32 265 stable sequents
-/// where trying Mix as well took 46 537.
+/// With weakening, Mix proves nothing new, so the engine leaves it out.
+///
+/// Affine mode with Mix searches exactly what affine mode does. It
+/// refutes the four pairs of the Mix family in 32 265 stable sequents,
+/// where trying Mix as well would take 46 537.
 #[test]
 fn affine_mode_leaves_mix_out() {
     let sequent = crate::linear::families::mix(4);
@@ -1941,10 +1984,11 @@ fn affine_mode_leaves_mix_out() {
     assert_eq!(with_statistics, without_statistics);
 }
 
-/// Interchangeable members share a memo entry: the three copies of one
-/// `⊕` are chosen in every order, and the refutation of the stable
-/// sequent they reach is looked up under its canonical key, which a
-/// search without it would not find.
+/// Interchangeable members share a memo entry.
+///
+/// The three copies of one `⊕` are chosen in every order. The refutation
+/// of the stable sequent they reach is looked up under its canonical
+/// key. A search without that key would not find it.
 #[test]
 fn interchangeable_members_share_an_entry() {
     let input = "|- ~a + ~b, ~a + ~b, ~a + ~b, a * b * b, (x par ~x) * (y * ~y)";
@@ -1961,8 +2005,9 @@ fn interchangeable_members_share_an_entry() {
 }
 
 /// A `⊗` of `⊗`s of positive literals whose duals lie in the linear zone
-/// forces its split down the whole tree: one split per `⊗` where weakening
-/// is off (classical, Mix), and a search over the contexts where it is on.
+/// forces its split down the whole tree. That is one split per `⊗` where
+/// weakening is off (classical, Mix), and a search over the contexts
+/// where it is on.
 #[test]
 fn nested_tensors_of_literals_force_their_splits() {
     let input = "|- (a * b) * (c * d), ~a, ~b, ~c, ~d";
@@ -1977,11 +2022,16 @@ fn nested_tensors_of_literals_force_their_splits() {
     assert!(statistics.splits > 30, "{} splits", statistics.splits);
 }
 
-/// The default bias's two searches answer as one: a verdict of either
-/// (the second's with its arena), else the stop, else the backward
-/// search's reason as the options and limits name it, whatever the
-/// forward search's; the level under the copy bound is the deciding
-/// search's, else the backward one's, and the forward one's apart.
+/// The default bias's two searches answer as one.
+///
+/// The answer is, in order of preference:
+/// - a verdict of either (the second's with its arena);
+/// - else the stop;
+/// - else the backward search's reason, as the options and limits name
+///   it, whatever the forward search's is.
+///
+/// The level under the copy bound is the deciding search's, else the
+/// backward one's. The forward one's is kept apart.
 #[cfg(feature = "parallel")]
 #[test]
 fn the_pair_answers_by_the_backward_search() {
@@ -2076,11 +2126,13 @@ fn the_pair_answers_by_the_backward_search() {
 }
 
 /// A worker of a pool drops a failure that rests on a stable sequent of
-/// the spawning engine's branch, whose close the worker never sees, and
-/// lets nothing wait on it. Here one ancestor stands for that branch:
-/// the stable sequent `⊢ e ; c, ~c` that the goal's one way on reaches
-/// again, so the loop check prunes it and the goal's failure rests on
-/// depth 0, above the worker's own stack.
+/// the spawning engine's branch, and lets nothing wait on it. The worker
+/// never sees that sequent's search close.
+///
+/// Here one ancestor stands for that branch: the stable sequent
+/// `⊢ e ; c, ~c`. The goal's one way on reaches it again, so the loop
+/// check prunes it, and the goal's failure rests on depth 0, above the
+/// worker's own stack.
 #[test]
 fn a_worker_drops_what_rests_on_the_spawning_branch() {
     let sequent: Sequent = "|- (c par ~c) + 0, ?e".parse().unwrap();
@@ -2141,10 +2193,13 @@ fn a_worker_drops_what_rests_on_the_spawning_branch() {
     assert!(worker.waiting.is_empty(), "{:?}", worker.waiting.len());
 }
 
-/// A first-order search whose members would pass the ids it may give
-/// stops with `Reason::IndexLimit` before it makes one: here the second
-/// instance's span, under a bound a test lowers to the forest's length
-/// and the first instance.
+/// A first-order search stops with `Reason::IndexLimit` before it makes a
+/// member past the ids it may give.
+///
+/// Here the test lowers the bound to one short of the forest's length
+/// and both instances' spans, so the second instance's span passes it.
+/// One more id lets the search prove the sequent.
+
 #[test]
 fn a_first_order_search_past_its_member_ids_stops() {
     let sequent: Sequent = "|- exists x. exists y. (p(x) * p(y)), ~p(a), ~p(b)"

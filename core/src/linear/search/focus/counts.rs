@@ -1,10 +1,11 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The count invariants proof search prunes with: per occurrence, an
-//! interval of the balance every atom can reach below it, and the weight
-//! the `MLL` count equation sums. Both are necessary conditions on a
-//! provable sequent, computed once per forest and summed per sequent.
+//! The count invariants that proof search prunes with. Per occurrence,
+//! they are an interval of the balance every atom can reach below it, and
+//! the weight that the `MLL` count equation sums. Both are necessary
+//! conditions on a provable sequent, computed once per forest and summed
+//! per sequent.
 
 use super::Switches;
 use super::split::Forced;
@@ -22,7 +23,7 @@ use crate::linear::sequents::{Atom, Kind};
 #[cfg(test)]
 thread_local! {
     /// Whether an atom whose literals below a `!` or `?` all have one sign
-    /// keeps its rows, on this thread: off only where a test compares the
+    /// keeps its rows, on this thread. Off only where a test compares the
     /// counts with and without them.
     static ONE_SIDED: std::cell::Cell<bool> = const { std::cell::Cell::new(true) };
 }
@@ -52,63 +53,72 @@ pub(crate) const fn intervals_run(mode: Mode, absorbs_from_copies: bool) -> bool
 }
 
 /// What a formula occurrence can contribute to the per-atom balance of a
-/// sequent, and to the `MLL` count equation, precomputed for every
+/// sequent, and to the `MLL` count equation, computed beforehand for every
 /// occurrence of a forest.
 ///
-/// **Intervals.** For an atom `a`, the balance of a sequent is the number of
-/// `a` literals minus the number of `~a` literals it decomposes into; every
-/// axiom consumes one of each, so a provable sequent has balance zero for
-/// every atom. Under `&` and `⊕` only one side of the connective is
-/// decomposed, so a formula's contribution is an interval `lo ..= hi`:
-/// a literal is `±1`, `⊗` and `⅋` sum their sides, `&` and `⊕` take the
+/// **Intervals.** For an atom `a`, the balance of a sequent is the number
+/// of `a` literals minus the number of `~a` literals it decomposes into.
+/// Every axiom consumes one of each, so a provable sequent has balance
+/// zero for every atom. Under `&` and `⊕` only one side of the connective
+/// is decomposed, so a formula's contribution is an interval `lo ..= hi`.
+/// A literal is `±1`, `⊗` and `⅋` sum their sides, `&` and `⊕` take the
 /// hull of theirs, and units contribute nothing. A sequent whose summed
 /// interval excludes zero for some atom is unprovable. `⊤` proves any
-/// sequent it appears in, so an occurrence with a `⊤` below it *absorbs*:
-/// its row is meaningless and any sequent containing it passes. Rows are
+/// sequent it appears in. So an occurrence with a `⊤` below it *absorbs*:
+/// its row is meaningless, and any sequent containing it passes. Rows are
 /// sparse, over the atoms that occur below the occurrence.
 ///
 /// A literal below a `?` or `!` can be copied any number of times, none
 /// included. An atom with literals of both signs there gets no entry in
-/// any row: copies can balance it either way. Where the interval check
-/// runs ([`intervals_run`]: in linear mode, with no `⊤` below an
-/// exponential), an atom whose literals there all have one sign keeps its
-/// entries, each literal's, while the rows of a `!` or `?` stay empty, and
-/// a set is ruled out by one bound alone ([`excluded`](Self::excluded)).
-/// The invariant, for every provable dyadic sequent `Θ ; Γ`, whatever `Θ`
-/// holds, unless a member of `Γ` absorbs: for an atom with every literal
-/// below an exponential positive, the least balance of `Γ`'s rows is at
-/// most zero (negative: the greatest at least zero; none below one: zero
-/// lies between them). By induction on the proof: an axiom's `Γ` is a
-/// literal and its dual, and the initial rule from `Θ` leaves a lone
-/// literal whose dual, a copy, has the copied sign; `⊗`, `⅋` and Mix add
-/// their premises' rows, `&` and `⊕` take hulls, which hold the premise's
-/// least; `1`, `⊥`, a promotion's `!A` (with `Γ` empty above it) and a
-/// weakening of a `?` formula count nothing; `?A` moves `A` into `Θ`,
-/// which no row counts, and its own row is empty; a copy from `Θ` adds a
-/// member whose entries all have the copied sign, so its least is at
-/// least zero and `Γ`'s least was at most the premise's. A `⊤` below a `?`
-/// or `!` makes the check useless altogether, since a copy of it absorbs
-/// any imbalance; [`absorbs_from_copies`](Self::absorbs_from_copies) says
-/// so.
+/// any row, since copies can balance it either way. The interval check
+/// runs in linear mode with no `⊤` below an exponential
+/// ([`intervals_run`]). There an atom whose literals below an exponential
+/// all have one sign keeps its entries, each literal's. The rows of a `!`
+/// or `?` stay empty, and one bound alone rules a set out
+/// ([`excluded`](Self::excluded)).
 ///
-/// **Weight.** In the multiplicative fragment with units, every cut-free
-/// proof of a sequent of `c` formulas with `t` tensors, `p` pars, `u` ones
-/// and `b` bottoms below them satisfies `c = t − p − u + b + 2`, or `≥` with
-/// Mix, because every leaf is an axiom or a `1` and every `⊗` or Mix joins
-/// two subproofs. The weight of an occurrence is `t − p − u + b` over its
-/// subtree, so the equation is a sum over the members of a sequent. It is
-/// unsound as soon as additives or exponentials appear: `⊢ a ⊕ b, ~a` is
-/// provable with `b` unbalanced, and a `⊤` closes any sequent.
+/// The invariant holds for every provable dyadic sequent `Θ ; Γ`,
+/// whatever `Θ` holds, unless a member of `Γ` absorbs. For an atom with
+/// every literal below an exponential positive, the least balance of
+/// `Γ`'s rows is at most zero. For one with every such literal negative,
+/// the greatest is at least zero. For one with no literal below an
+/// exponential, zero lies between them. The proof is by induction on the
+/// proof of the sequent:
+/// - an axiom's `Γ` is a literal and its dual, and the initial rule from
+///   `Θ` leaves a lone literal whose dual, a copy, has the copied sign;
+/// - `⊗`, `⅋` and Mix add their premises' rows, and `&` and `⊕` take
+///   hulls, which hold the premise's least;
+/// - `1`, `⊥`, a promotion's `!A` (with `Γ` empty above it) and a
+///   weakening of a `?` formula count nothing;
+/// - `?A` moves `A` into `Θ`, which no row counts, and its own row is
+///   empty;
+/// - a copy from `Θ` adds a member whose entries all have the copied sign,
+///   so its least is at least zero, and `Γ`'s least is at most the
+///   premise's.
+///
+/// A `⊤` below a `?` or `!` makes the check useless altogether, since a
+/// copy of it absorbs any imbalance;
+/// [`absorbs_from_copies`](Self::absorbs_from_copies) says so.
+///
+/// **Weight.** In the multiplicative fragment with units, take a sequent
+/// of `c` formulas with `t` tensors, `p` pars, `u` ones and `b` bottoms
+/// below them. Every cut-free proof of it satisfies
+/// `c = t − p − u + b + 2` (`≥` with Mix), because every leaf is an axiom
+/// or a `1` and every `⊗` or Mix joins two subproofs. The weight of an
+/// occurrence is `t − p − u + b` over its subtree, so the equation is a
+/// sum over the members of a sequent. It is unsound as soon as additives
+/// or exponentials appear: `⊢ a ⊕ b, ~a` is provable with `b` unbalanced,
+/// and a `⊤` closes any sequent.
 #[derive(Clone, Debug)]
 pub(crate) struct Counts {
     /// Where the rows end in the entry arrays, in the order the rows were
-    /// computed, the last occurrence's first: the row of occurrence `o` of
-    /// `n` lies between the entries `n − 1 − o` and `n − o`. Every bound
+    /// computed, the last occurrence's first. Of `n` occurrences, the row of
+    /// `o` lies between `bound[n − 1 − o]` and `bound[n − o]`. Every bound
     /// fits a `u32`: a set-up whose rows have more entries is refused.
     bound: Box<[u32]>,
-    /// The row entries, one after another. A balance is a sum of ±1 over
-    /// the literals below an occurrence, of which a forest that gets counts
-    /// has fewer than 2³¹: within an `i32`.
+    /// The row entries, one after another. A balance is a sum of ±1 over the
+    /// literals below an occurrence. A forest that gets counts has fewer than
+    /// 2³¹ of them, so a balance fits an `i32`.
     entries: Box<[RowEntry]>,
     /// Per occurrence, whether a `⊤` lies at or below it.
     absorbs: Box<[bool]>,
@@ -121,14 +131,13 @@ pub(crate) struct Counts {
     row_atoms: usize,
     /// The atoms that have rows, by their rank.
     ranked: Box<[Atom]>,
-    /// Per rank, the sign of the atom's literals below a `!` or `?`, all
-    /// of which have it: copies can add any number of them, so the
-    /// atom's balance can grow without bound that way, and only the other
-    /// way excludes it. `None` for an atom with no literal there.
+    /// Per rank, the one sign of the atom's literals below a `!` or `?`, or
+    /// `None` for an atom with no literal there. Copies can add any number of
+    /// such literals, so the atom's balance can grow without bound that way,
+    /// and only a balance the other way excludes it.
     copied: Box<[Option<Sign>]>,
-    /// Whether some atom has copies of one sign (`copied`): without one,
-    /// the loops over a row test a balance against zero alone and read no
-    /// sign.
+    /// Whether some atom has copies of one sign (`copied`). Without one, the
+    /// loops over a row test a balance against zero alone and read no sign.
     one_sided: bool,
     /// Whether a `⊤` lies below a `?` or `!` somewhere in the problem, so
     /// that a copy can absorb any imbalance and the intervals prune
@@ -229,14 +238,16 @@ impl Rows {
     }
 }
 
-/// How the counts of a first-order sequent group its atoms: an atom of a
-/// predicate whose atoms are all closed is counted alone, as a closed
-/// literal meets only its own dual; the atoms of a predicate one of
-/// whose atoms has a bound variable are counted together, as the
-/// predicate's first atom, since an instance of the open atom may be any
-/// of them (`∀x. p(x) ⊢ p(a)` is provable, and a count of `p(a)` alone
-/// refutes it). Counting together adds up per-atom balances, so every
-/// test that a provable sequent passes per atom it passes per predicate.
+/// How the counts of a first-order sequent group its atoms.
+///
+/// An atom of a predicate whose atoms are all closed is counted alone,
+/// since a closed literal meets only its own dual. Where one atom of a
+/// predicate has a bound variable (an *open* atom), all the predicate's
+/// atoms are counted together, as its first atom. An instance of the open
+/// atom may be any of them: `∀x. p(x) ⊢ p(a)` is provable, and a count of
+/// `p(a)` alone refutes it. Counting together adds up per-atom balances,
+/// so every test that a provable sequent passes per atom, it passes per
+/// predicate.
 pub(crate) struct Predicates {
     /// Per atom, the atom it is counted as.
     counted: Box<[Atom]>,
@@ -244,8 +255,9 @@ pub(crate) struct Predicates {
     open: Box<[bool]>,
 }
 
-/// The atom the counts take a literal's for: its own, or its group's.
-/// Inlined, so that the pass over a propositional forest is what it was.
+/// Returns the atom the counts take a literal's atom for: its own, or its
+/// group's. Inlined, so that the pass over a propositional forest
+/// compiles as if there were no groups.
 #[inline(always)]
 fn counted_atom(forest: &Forest, predicates: Option<&Predicates>, o: OccId) -> Option<Atom> {
     let atom = forest.atom(o)?;
@@ -314,9 +326,9 @@ impl Predicates {
 }
 
 impl Counts {
-    /// Computes the rows and weights of every occurrence of a forest, and
-    /// the literals that are positive under the bias given: those of a
-    /// linear mode, which differ from an affine mode's only in rows the
+    /// Computes the rows and weights of every occurrence of a forest, and the
+    /// literals that are positive under the bias given. The counts are a
+    /// linear mode's. An affine mode's differ from them only in rows the
     /// interval check does not read there.
     #[cfg(any(all(test, feature = "parse"), feature = "interactive"))]
     pub(crate) fn new(forest: &Forest, bias: Bias) -> Self {
@@ -330,16 +342,17 @@ impl Counts {
         .expect("nothing stops it")
     }
 
-    /// Computes the rows and weights of every occurrence of a forest, and
-    /// the literals that are positive under the bias given, polling `stop`
-    /// on a large forest once every so many occurrences and row entries
-    /// visited, as the passes around it are polled between them: this one
-    /// is several, and the longest of a search's set-up. The rows together
-    /// can be quadratic in the forest (a nest of `⊗` and `⅋` over distinct
-    /// atoms has a row as long as its subtree at every level), so their
-    /// memory is charged to `account` as it grows. Returns the reason the
-    /// set-up gave up: the condition fired, the account is over its bound,
-    /// or the forest or the rows are more than the counts can index.
+    /// Computes the rows and weights of every occurrence of a forest, and the
+    /// literals that are positive under the bias given. Returns the reason the
+    /// set-up gave up: the stop fired, the account is over its bound, or the
+    /// forest or the rows are more than the counts can index.
+    ///
+    /// On a large forest it polls `stop` once every so many occurrences and
+    /// row entries visited. The passes around it are polled between them, but
+    /// this one makes several passes and is the longest part of a search's
+    /// set-up. The rows together can be quadratic in the forest: a nest of `⊗`
+    /// and `⅋` over distinct atoms has a row as long as its subtree at every
+    /// level. So their memory is charged to `account` as it grows.
     pub(crate) fn new_until(
         forest: &Forest,
         bias: Bias,
@@ -370,11 +383,11 @@ impl Counts {
         let predicates = predicates.as_ref();
         let atom_of = |o: OccId| counted_atom(forest, predicates, o);
         let open = |o: OccId| open_atom(forest, predicates, o);
-        // A literal below a `?` or `!` anywhere in the problem can be
-        // copied or discarded any number of times: an atom with both signs
-        // there can be balanced whatever its other literals, and gets no
-        // row entries at all, and an atom with one sign there only lets
-        // copies push its balance that way (`copied`).
+        // A literal below a `?` or `!` anywhere in the problem can be copied or
+        // discarded any number of times. An atom with both signs there can be
+        // balanced whatever its other literals, so it gets no row entries at
+        // all. An atom with one sign there only lets copies push its balance
+        // that way (`copied`).
         let num_atoms = forest.sequent().atom_names().len();
         let fixed = n * (size_of::<u32>() + size_of::<i32>() + 2 * size_of::<bool>())
             + num_atoms
@@ -391,10 +404,10 @@ impl Counts {
         // Per atom and sign, whether a literal of it lies below a `!` or `?`.
         let mut exponential = vec![[false; 2]; num_atoms];
         let mut absorbs_from_copies = false;
-        // An occurrence's subtree is the ids that follow it, so one pass
-        // that remembers where the outermost `!` or `?` it is inside ends
-        // knows of every occurrence whether it lies below one: a walk of
-        // each one's subtree was quadratic in a nest of them.
+        // An occurrence's subtree is the ids that follow it. So one pass that
+        // remembers where the outermost enclosing `!` or `?` ends knows, of every
+        // occurrence, whether it lies below one. A walk of each one's subtree
+        // would be quadratic in a nest of them.
         let mut inside = 0;
         for o in forest.ids() {
             if o.index() < inside {
@@ -410,9 +423,9 @@ impl Counts {
                 return Err(Reason::Stopped);
             }
         }
-        // Copies of one sign bound a balance only where the interval check
-        // runs. Elsewhere such an atom gets no rows, which would only
-        // reorder the split search, which sorts members by their rows.
+        // Copies of one sign bound a balance only where the interval check runs.
+        // Elsewhere such an atom gets no rows: its rows would only reorder the
+        // split search, which sorts members by their rows.
         let one_sided = intervals_run(mode, absorbs_from_copies);
         #[cfg(test)]
         let one_sided = one_sided && ONE_SIDED.get();
@@ -423,10 +436,10 @@ impl Counts {
                 }
             }
         }
-        // The atoms that have rows, numbered in their own order: a tally
-        // is as wide as they are many, and a Petri net has tens of
-        // thousands of atoms, nearly all of both signs below a `!`, which
-        // have none: copies can move their balance either way.
+        // The atoms that have rows, numbered in their own order. A tally is as
+        // wide as they are many. A Petri net has tens of thousands of atoms,
+        // nearly all with both signs below a `!`, and those have no rows: copies
+        // can move their balance either way.
         let mut rank = vec![0u32; num_atoms];
         let mut ranked = Vec::new();
         let mut copied = Vec::new();
@@ -454,8 +467,9 @@ impl Counts {
                 unrestricted[atom.index()][sign as usize] = true;
             }
         }
-        // A positive literal whose dual only ever lies in the linear zone,
-        // and is its atom: of an open predicate, any literal of it unifies.
+        // Whether a literal is positive, its dual only ever lies in the linear
+        // zone, and its atom is not open. A literal of an open predicate unifies
+        // with any literal of it.
         let linear = |o: OccId| match (atom_of(o), forest.sign(o)) {
             (Some(atom), Some(sign)) => {
                 sign == positive[atom.index()]
@@ -544,10 +558,9 @@ impl Counts {
             forced[o.index()] = match kind {
                 Zero => Some(Forced::Nothing),
                 One => Some(Forced::Empty),
-                // A promotion may bind a metavariable that the other
-                // factor holds, which a forced split would never ask for
-                // another answer: where an atom is open, `!` forces
-                // nothing.
+                // A promotion may bind a metavariable that the other factor
+                // holds, and a forced split would never ask it for another
+                // answer. So where an atom is open, `!` forces nothing.
                 Bang if predicates.is_none() => Some(Forced::Empty),
                 Atom | DualAtom
                     if forest.sign(o) == Some(positive[forest.atom(o).unwrap().index()])
@@ -610,13 +623,13 @@ impl Counts {
         }
     }
 
-    /// Returns what the occurrence forces on its side of a split as a
-    /// factor of a `⊗`, without weakening: nothing at all for `0`, the
-    /// empty context for `1` and `!`, the dual literal alone for a positive
-    /// literal, and one dual per literal for a tensor of positive literals
-    /// none of whose duals can lie in the unrestricted zone (none is
-    /// directly under a `?`), which in focus is proved by exactly one dual
-    /// per literal, each from the linear zone.
+    /// Returns what the occurrence, as a factor of a `⊗`, forces on its side
+    /// of a split, without weakening. With `0` no split works. `1` and `!`
+    /// force the empty context. A positive literal forces its dual alone. A
+    /// tensor of positive literals none of whose duals can lie in the
+    /// unrestricted zone (none is directly under a `?`) forces one dual per
+    /// literal: in focus it is proved by exactly one dual per literal, each
+    /// from the linear zone.
     pub(super) fn forced(&self, o: OccId) -> Option<Forced> {
         self.forced[o.index()]
     }
@@ -697,11 +710,11 @@ impl Counts {
             .any(|e| self.excluded(e.rank.index(), e.lo, e.hi))
     }
 
-    /// Returns whether the balance of the atom of rank `rank`, between
-    /// `lo` and `hi` over a set's rows, rules a proof of the set out: zero
-    /// lies outside it, and the copies of the atom's literals below an
-    /// exponential, which only add literals of their one sign, cannot
-    /// bring it there.
+    /// Returns whether the balance of the atom of rank `rank`, between `lo`
+    /// and `hi` over a set's rows, rules a proof of the set out. It does when
+    /// zero lies outside it, and the copies of the atom's literals below an
+    /// exponential cannot bring it there: they only add literals of their one
+    /// sign.
     pub(crate) fn excluded(&self, rank: usize, lo: i32, hi: i32) -> bool {
         match self.copied[rank] {
             None => lo > 0 || hi < 0,
@@ -710,9 +723,9 @@ impl Counts {
         }
     }
 
-    /// Returns what [`excluded`](Self::excluded) does, `PLAIN` saying that
-    /// no atom has copies of one sign, so that a loop over a row decides
-    /// once whether to read their signs at all.
+    /// Returns what [`excluded`](Self::excluded) does. `PLAIN` says that no
+    /// atom has copies of one sign, so a loop over a row decides once whether
+    /// to read their signs at all.
     #[inline(always)]
     fn excluded_as<const PLAIN: bool>(&self, rank: usize, lo: i32, hi: i32) -> bool {
         if PLAIN {
@@ -744,10 +757,10 @@ pub(crate) struct Tally {
     /// Per atom, the summed interval.
     sums: Vec<Sum>,
     /// The atoms whose sums a row found at zero since the tally was last
-    /// cleared: the only atoms whose sums can be other than zero, each
-    /// listed again only after a row left its sums at zero. An atom listed
-    /// at every row would make the list grow, uncharged, with the copies
-    /// of a formula in the linear zone, a branch's worth of them.
+    /// cleared. Only these atoms can have sums other than zero. An atom is
+    /// listed again only after a row left its sums at zero. Listed at every
+    /// row, an atom would make the list grow, uncharged, with the copies of a
+    /// formula in the linear zone, a branch's worth of them.
     touched: Vec<u32>,
     /// The number of atoms whose summed interval excludes zero.
     bad: u32,
@@ -876,14 +889,16 @@ impl Tally {
 }
 
 /// The counts of a split of a context in the making: the sums of the
-/// members each side has so far, and what the members not yet assigned to
-/// a side can still add to either. A side whose sums no assignment of the
-/// open members can bring to pass the interval check or the count equation
-/// makes the partial split infeasible, so a search over the members cuts
-/// it there; with no member open, [`feasible`](Self::feasible) is the test
-/// of a whole split: both sides pass the interval check and the equation.
+/// members each side has so far, and what the *open* members (those not
+/// yet assigned to a side) can still add to either.
 ///
-/// The bounds are per atom and per side, each on its own: an open member
+/// A side may be unable to pass the interval check or the count equation,
+/// whatever the open members do. Then the partial split is infeasible,
+/// and a search over the members cuts it there. With no member open,
+/// [`feasible`](Self::feasible) is the test of a whole split: both sides
+/// pass the interval check and the equation.
+///
+/// The bounds are per atom and per side, each on its own. An open member
 /// can lower a side's least balance of an atom by the negative part of its
 /// own, and raise the greatest by the positive part of its own. They are
 /// necessary conditions, never sufficient.
@@ -910,8 +925,8 @@ pub(crate) struct Split {
     /// the counts need not follow the search.
     inert: bool,
     /// The atoms whose sums the row of a member placed or opened found at
-    /// zero since the counts were last cleared: the only atoms whose sums
-    /// can be other than zero, listed as the tally's are.
+    /// zero since the counts were last cleared. Only these atoms can have
+    /// sums other than zero. They are listed as the tally's are.
     touched: Vec<u32>,
 }
 
@@ -986,18 +1001,18 @@ impl Split {
         self.inert = false;
     }
 
-    /// Says, once every member is placed or open, whether no prune in
-    /// force can cut any assignment of them: [`feasible`](Self::feasible)
-    /// then answers yes without the counts, which stop following the
-    /// members' moves.
+    /// Says, once every member is placed or open, whether no prune in force
+    /// can cut any assignment of them. If so, [`feasible`](Self::feasible)
+    /// answers yes without the counts, which stop following the members'
+    /// moves.
     pub(crate) fn set_inert(&mut self, inert: bool) {
         self.inert = inert;
     }
 
     /// Moves a member between the open ones and a side, or adds it to
-    /// either, in one pass over its row: `side` gains it `settled` times
-    /// (1, 0 or −1) and the open members gain it `opened` times, and the
-    /// sides' counts of excluded atoms are brought up to date.
+    /// either, in one pass over its row. `side` gains it `settled` times (1, 0
+    /// or −1), the open members gain it `opened` times, and the sides' counts
+    /// of excluded atoms are brought up to date.
     fn shift(&mut self, counts: &Counts, o: OccId, side: Branch, settled: i32, opened: i32) {
         if counts.one_sided {
             self.shift_as::<false>(counts, o, side, settled, opened);
@@ -1113,11 +1128,11 @@ impl Split {
         }
     }
 
-    /// Returns whether some assignment of the open members may still pass
-    /// the prunes in force on both sides: the interval check (a side
-    /// passes with an absorbing member, which each open one can give to
-    /// one side only) and the count equation, `≥` with Mix. With no open
-    /// member, whether the split passes them.
+    /// Returns whether some assignment of the open members may still pass the
+    /// prunes in force on both sides. The prunes are the interval check and
+    /// the count equation (`≥` with Mix). A side passes the interval check
+    /// with an absorbing member, and each open absorbing member can go to one
+    /// side only. With no open member, returns whether the split passes them.
     pub(crate) fn feasible(&self, intervals: bool, equation: bool, mix: bool) -> bool {
         if self.inert {
             return true;
@@ -1138,14 +1153,17 @@ impl Split {
 }
 
 /// Returns why a goal that the search refuted is unprovable, as far as its
-/// counts tell: an atom whose literals cannot pair up, or the count
-/// equation that fails, each under the rules the engine searched the
-/// fragment and the mode with; else that the search was exhaustive. The
-/// asynchronous phase keeps the sums of the goal's members (a `⅋` or `⊥`
-/// keeps the count equation, a premise of `&` lies within its hull), so
-/// a goal that fails a test makes every stable sequent above it fail it,
-/// where the engine checks it. Counting is a pass over the forest under
-/// the search's limits; a pass given up says only what the verdict does.
+/// counts tell. That is an atom whose literals cannot pair up, or the
+/// count equation that fails, each under the rules the engine searched the
+/// fragment and the mode with. Otherwise it is that the search was
+/// exhaustive.
+///
+/// The asynchronous phase keeps the sums of the goal's members: a `⅋` or
+/// `⊥` keeps the count equation, and a premise of `&` lies within its
+/// hull. So a goal that fails a test makes every stable sequent above it
+/// fail it, which is where the engine checks it. Counting is a pass over
+/// the forest under the search's limits. A pass given up says only what
+/// the verdict does.
 pub(crate) fn refutation(
     forest: &Forest,
     goal: &[OccId],
@@ -1219,11 +1237,12 @@ pub(crate) fn refutation(
     Refutation::Exhausted
 }
 
-/// Whether a split of a goal into the two premises of a `⊗`, each given
-/// with its subformula of the `⊗`, or of a Mix passes the count prunes the
-/// engine applies to every split: the interval check per atom and, in the
-/// multiplicative fragments, the count equation. A split that fails cannot
-/// close; one that passes may still fail. `fragment` is the goal's.
+/// Returns whether a split of a goal passes the count prunes the engine
+/// applies to every split. The split is into the two premises of a `⊗`,
+/// each given with its subformula of the `⊗`, or into those of a Mix. The
+/// prunes are the interval check per atom and, in the multiplicative
+/// fragments, the count equation. A split that fails cannot close; one
+/// that passes may still fail. `fragment` is the goal's.
 #[cfg(feature = "interactive")]
 pub(crate) fn split_passes(
     forest: &Forest,
@@ -1365,8 +1384,8 @@ mod tests {
         }
     }
 
-    /// The `MLL` equation accepts exactly the spec's unit checks, as an
-    /// equality without Mix and as an inequality with it.
+    /// The `MLL` equation decides these small cases rightly: as an equality
+    /// without Mix, and as an inequality with it.
     #[test]
     fn equation() {
         for (input, holds, holds_with_mix) in [

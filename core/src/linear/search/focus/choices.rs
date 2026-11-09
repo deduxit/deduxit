@@ -1,41 +1,51 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The choices a first-order search makes while a rule of two premises
-//! may ask its first premise for another answer, kept so that the next
-//! answer is found by resuming the first premise's search where it
-//! stopped rather than by searching it again.
+//! The log of the choices a first-order search makes while a rule of two
+//! premises may ask its first premise for another answer. An answer is
+//! the bindings the first premise's proof made to the variables the two
+//! premises share. With the log, the next answer is found by resuming the
+//! first premise's search where it stopped, without searching it again
+//! from the start.
 //!
-//! **The log.** While such a rule is open every choice point appends an
-//! entry when it is entered (the alternatives of a stable sequent, the
-//! identities tried, the splits of a context, the rule's own rounds, the
-//! parts a Mix tried): the alternative it is trying, with the cuts of the
-//! alternatives it tried before, or that it failed with the cuts of all
-//! of them, or the value it settled on without alternatives. Trying an
-//! alternative drops what the one before it appended, so when the first
-//! premise is proved the log lists, in the order they were entered, the
-//! choice points of its proof's search and the failed searches that
-//! search kept going past.
+//! **The log.** While such a rule is open, every choice point appends an
+//! entry when it is entered. The choice points are the alternatives of a
+//! stable sequent, the identities tried, the splits of a context, the
+//! rule's own rounds and the parts a Mix tried. An entry holds one of:
+//! - the alternative the choice point is trying, with the cuts of the
+//!   alternatives it tried before;
+//! - that it failed, with the cuts of all of them;
+//! - the value it settled on, where it had no alternatives.
 //!
-//! **Resuming.** The first premise's next answer is that of chronological
-//! backtracking: its last choice point that took an alternative goes on
-//! with the next one, and every choice point before it keeps the one it
-//! took. The search is replayed from the bindings it started from: each
-//! choice point takes its logged alternative at once (the ones before it
-//! failed under the same bindings, their cuts restored from the log), a
-//! failed one fails at once with its cuts, a settled one answers its
-//! value, until the last one, which goes on past its alternative; from
-//! there the search runs as usual, its alternatives of every choice point
-//! still open. The alternatives after the last one, and every failure
-//! logged after it, are given up with the answer: their cuts are added to
-//! its, since an answer they hid with more budget is one more answer the
-//! failure must not deny.
+//! A cut records that a search was cut short: by the copy budget (the
+//! copies a branch may still make) or another bound, or by a loop-check
+//! prune, which rests on an ancestor. Trying an alternative drops what
+//! the one before it appended. So when the first premise is proved, the
+//! log lists, in the order they were entered, the choice points of its
+//! proof's search and the failed searches that search went on past.
+//!
+//! **Resuming.** The first premise's next answer is the one chronological
+//! backtracking finds. Its last choice point that took an alternative
+//! goes on with the next one, and every choice point before it keeps the
+//! one it took. The search is replayed from the bindings it started from:
+//! - each choice point takes its logged alternative at once (the ones
+//!   before it failed under the same bindings, and their cuts are
+//!   restored from the log);
+//! - a failed one fails at once with its cuts;
+//! - a settled one answers its value;
+//! - the last open one goes on past its alternative.
+//!
+//! From there the search runs as usual, with the alternatives of every
+//! choice point still open. The alternatives after the last one, and
+//! every failure logged after it, are given up with the answer. Their
+//! cuts are added to the last one's: an answer they hid, which more
+//! budget would find, is one more answer the failure must not deny.
 //!
 //! **Divergence.** A replay is the same search only while what it reads
-//! is what the first one read: the bindings and the zone are restored by
-//! the undo, but a memo of failures may have learnt or forgotten entries
-//! meanwhile. A replay that meets another choice point than the log's,
-//! fails before the last one, or ends before it has diverged: every
+//! is what the first search read. The undo restores the bindings and the
+//! zone, but a memo of failures may have learnt or forgotten entries
+//! meanwhile. A replay has diverged when it meets another choice point
+//! than the log's, fails before the last one, or ends before it. Every
 //! choice point then fails at once, cut, and the rule searches its first
 //! premise again with the failed answers excluded.
 
@@ -84,8 +94,8 @@ struct Entry {
 pub(super) struct Choice {
     /// Its entry's place in the log.
     slot: Option<usize>,
-    /// The first alternative to try: past every one where it fails at
-    /// once.
+    /// The first alternative to try. It is past every alternative where
+    /// the choice point fails at once.
     pub(super) start: u32,
     /// The cuts of the alternatives before it.
     pub(super) cuts: Cuts,
@@ -96,7 +106,8 @@ pub(super) struct Choice {
 }
 
 impl Choice {
-    /// A choice point that fails at once, cut: a diverged replay's.
+    /// A choice point that fails at once, cut, as every choice point of a
+    /// diverged replay does.
     const FAILED: Self = Self {
         slot: None,
         start: u32::MAX,
@@ -174,8 +185,9 @@ impl Choices {
         }
     }
 
-    /// The choice point is about to try alternative `i`, those before it
-    /// having cut `cuts`. In a replay, only the logged one.
+    /// Logs that the choice point is about to try alternative `i`, and
+    /// that those before it cut `cuts`. In a replay it may try only the
+    /// logged one.
     pub(super) fn take(&mut self, choice: &Choice, i: u32, cuts: Cuts) {
         let Some(slot) = choice.slot else {
             return;
@@ -192,9 +204,9 @@ impl Choices {
         };
     }
 
-    /// A rule that asks its first premise for answers begins round `i`,
-    /// those before it having cut `cuts`; its premises' choices stay
-    /// logged, for the resumption that begins the round.
+    /// Logs that a rule that asks its first premise for answers begins
+    /// round `i`, and that the rounds before it cut `cuts`. Its premises'
+    /// choices stay logged, for the resumption that begins the round.
     pub(super) fn next_round(&mut self, choice: &Choice, i: u32, cuts: Cuts) {
         if let Some(slot) = choice.slot {
             self.log[slot] = Entry {
@@ -205,8 +217,9 @@ impl Choices {
         }
     }
 
-    /// The choice point failed, with the cuts of every alternative. In a
-    /// replay, only one the log says failed.
+    /// Logs that the choice point failed, with the cuts of every
+    /// alternative. In a replay only one that the log says failed may
+    /// fail.
     pub(super) fn fail(&mut self, choice: &Choice, cuts: Cuts) {
         let Some(slot) = choice.slot else {
             return;
@@ -223,7 +236,8 @@ impl Choices {
         };
     }
 
-    /// The choice point answered `value` and has nothing to resume.
+    /// Logs that the choice point answered `value` and has nothing to
+    /// resume.
     pub(super) fn settle(&mut self, choice: &Choice, value: u32) {
         let Some(slot) = choice.slot else {
             return;
@@ -236,13 +250,13 @@ impl Choices {
         };
     }
 
-    /// A rule that may ask its first premise for another answer opens:
-    /// the log is kept while one is open.
+    /// Opens a rule that may ask its first premise for another answer.
+    /// The log is kept while one is open.
     pub(super) fn open(&mut self) {
         self.open += 1;
     }
 
-    /// The rule opened last closes.
+    /// Closes the rule opened last. The log is cleared when none is open.
     pub(super) fn close(&mut self) {
         self.open -= 1;
         if self.open == 0 {
@@ -261,11 +275,12 @@ impl Choices {
     }
 
     /// Resumes the search whose choice points the log lists from `start`
-    /// to `end`, as the module says: the log is cut back to `start` and
-    /// the replay set. Returns the cuts of every logged choice point
-    /// instead where none took an alternative, so that no other answer
-    /// is left; and fails, cut, during a replay, which never resumes
-    /// another.
+    /// to `end`, as the module doc says. The log is cut back to `start`,
+    /// and the replay is set up.
+    ///
+    /// Returns the cuts of every logged choice point as an error where
+    /// none took an alternative, so that no other answer is left. During a
+    /// replay, which never resumes another, it fails with a cut.
     pub(super) fn resume(&mut self, start: usize, end: usize) -> Result<(), Cuts> {
         if self.replaying || self.diverged {
             self.diverge();
@@ -292,15 +307,15 @@ impl Choices {
         Ok(())
     }
 
-    /// Whether a replay follows the script: the answers excluded are not
+    /// Whether a replay follows the script. The excluded answers are not
     /// read until it resumes, since the search it replays met none.
     pub(super) fn replaying(&self) -> bool {
         self.replaying
     }
 
-    /// Ends the replay of the first premise just searched: true where it
-    /// diverged, or ended before it resumed, so that its result stands
-    /// for nothing.
+    /// Ends the replay of the first premise just searched. Returns true
+    /// where it diverged, or ended before it resumed: its result then
+    /// stands for nothing.
     pub(super) fn end_replay(&mut self) -> bool {
         let diverged = self.diverged || self.replaying;
         self.diverged = false;
@@ -314,7 +329,7 @@ impl Choices {
         (self.log.capacity() + self.script.capacity()) * size_of::<Entry>()
     }
 
-    /// The replay met what the script did not say.
+    /// Marks the replay as diverged: it met what the script did not say.
     fn diverge(&mut self) {
         self.diverged = true;
         self.replaying = false;
@@ -385,8 +400,9 @@ mod tests {
         assert!(choices.end_replay());
     }
 
-    /// Where no choice point took an alternative the answer was the only
-    /// one: no replay, and the cuts of every failure logged.
+    /// Where no choice point took an alternative, the answer was the only
+    /// one. There is no replay, and the result has the cuts of every
+    /// failure logged.
     #[test]
     fn no_open_choice_leaves_no_answer() {
         let mut choices = Choices::default();

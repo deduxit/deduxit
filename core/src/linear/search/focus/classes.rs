@@ -3,22 +3,24 @@
 
 //! Interchangeable occurrences. Two occurrences of the same formula are
 //! distinct members of a sequent, but nothing a proof does tells them
-//! apart: every rule looks at an occurrence's connective, its subformulas
-//! and, two-sided, its position, and all of these are the same for both.
-//! So a sequent stays as provable, by a proof of the same shape, when a
-//! member is replaced by another occurrence of the same formula in the
-//! same position, and the search need only try one of each kind.
+//! apart. Every rule looks at an occurrence's connective, its subformulas
+//! and, two-sided, its position, and these are the same for both. So a
+//! sequent stays as provable, by a proof of the same shape, when a member
+//! is replaced by another occurrence of the same formula in the same
+//! position. The search then needs to try only one of each kind.
 
 use super::context::Context;
 use super::memo::{REPEATED, decoded};
 use crate::linear::occurrences::{Forest, OccId, OccSet, Reading, Side};
 
-/// The class of every occurrence of a forest: the occurrences of the same
-/// term, and under an intuitionistic reading in the same position, are
-/// *interchangeable* and share a class, which is named by its first
-/// occurrence. A position below an occurrence is determined by the
-/// occurrence's term and position, so the subformulas of two
-/// interchangeable occurrences are interchangeable pairwise.
+/// The class of every occurrence of a forest. Occurrences of the same
+/// term are *interchangeable* and share a class; under an intuitionistic
+/// reading they must also have the same position. A class is named by its
+/// first occurrence.
+///
+/// The position below an occurrence is a function of the occurrence's
+/// term and position. So the subformulas of two interchangeable
+/// occurrences are pairwise interchangeable.
 #[derive(Clone, Debug)]
 pub(crate) struct Classes {
     /// Per occurrence, the first occurrence of its class.
@@ -97,16 +99,20 @@ impl Classes {
         !self.distinct && decoded(key).any(|(o, _)| self.renamed.contains(o))
     }
 
-    /// Makes `canonical` the key's words ([`decoded`]) with each member
-    /// replaced by the first occurrence of its class, the copies of a
-    /// class added up: the same for two keys exactly when one is the
-    /// other up to interchangeable members. `repeats` says whether a
-    /// member of the key is marked as present more than once.
+    /// Writes into `canonical` the canonical form of a key's words: each
+    /// member replaced by the first occurrence of its class, and the
+    /// copies of a class added up. Two keys have the same canonical form
+    /// exactly when one is the other up to interchangeable members.
+    ///
+    /// A key is the list of a zone's members under which the memo, the
+    /// table of sequents already decided, stores a sequent ([`decoded`]
+    /// reads it). `repeats` says whether a member of the
+    /// key is marked as present more than once.
     pub(crate) fn canonical(&self, key: &[OccId], repeats: bool, canonical: &mut Vec<OccId>) {
         canonical.clear();
         if !repeats {
-            // Each member once: the classes sorted, and a run of one
-            // class written as the class marked and its length.
+            // Each member is listed once. Sort the classes, and write a
+            // run of one class as the class marked and the run's length.
             canonical.extend(key.iter().map(|&o| self.of(o)));
             canonical.sort_unstable();
             let words = canonical.as_mut_slice();
@@ -130,8 +136,8 @@ impl Classes {
             .as_chunks_mut::<2>()
             .0
             .sort_unstable_by_key(|[class, _]| *class);
-        // Merged and written in place, a class in one word or two, never
-        // past the pairs still to read.
+        // Merge the pairs in place. A class takes one word or two, so the
+        // writing never overtakes the pairs still to read.
         let pairs = canonical.len() / 2;
         let words = canonical.as_mut_slice();
         let (mut written, mut at) = (0, 0);

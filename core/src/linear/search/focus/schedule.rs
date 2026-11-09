@@ -1,11 +1,22 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The two searches of the default bias and how they share the cores:
-//! which searches decide a goal ([`plan`]), one search on its own
-//! ([`Plan::search`](self::Plan::search)), and the two ways they share one core, in turns
-//! from their start without threads ([`turns`]) and alternating in
-//! slices on two threads ([`alternate`](crate::linear::search::focus::schedule::alternate)).
+//! The two searches of the default bias, and how they share the cores.
+//!
+//! The bias says which literal of each atom the engine treats as
+//! positive. It changes the speed of the search, never what it proves. On
+//! a goal with exponentials the default bias runs two searches: the
+//! *forward* one under the factor rule, and the *backward* one under the
+//! rarer-literal rule ([`Bias`](crate::linear::search::Bias)). The first
+//! to decide answers.
+//!
+//! This module has:
+//! - which searches decide a goal ([`plan`]);
+//! - one search on its own ([`Plan::search`](self::Plan::search));
+//! - two ways for the searches to share one core: in turns, each from
+//!   its start, without threads ([`turns`]), or alternating in slices
+//!   on two threads
+//!   ([`alternate`](crate::linear::search::focus::schedule::alternate)).
 
 use super::arena::{Arena, Kept};
 use super::counts::Counts;
@@ -27,12 +38,15 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 #[cfg(feature = "parallel")]
 use std::sync::{Condvar, Mutex};
 
-/// Decides a goal by two searches that take turns on one thread, each
-/// from its start with a memo and an arena of its own, on an amount of
-/// work that grows from round to round, until one decides; a search that
-/// ended without deciding takes no further turn, and the other then runs
-/// to its own end. The counters are those of every turn together, the
-/// memo's entries the most of one turn.
+/// Decides a goal by two searches that take turns on one thread, until
+/// one decides.
+///
+/// Each turn starts its search from the beginning, with a memo (the table
+/// of sequents decided) and an arena of its own. The work a turn gets
+/// grows from round to round.
+/// A search that ended without deciding takes no further turn, and the
+/// other then runs to its own end. The counters are those of every turn
+/// together; the memo's entries are the most of one turn.
 pub(super) fn turns<Z: Zone>(
     set_up: SetUp<'_>,
     searches: [(Plan, &Counts, &Account); 2],
@@ -113,17 +127,20 @@ pub(super) fn turns<Z: Zone>(
     }
 }
 
-/// The work each of the two searches of the default bias gets in the
-/// first round of their turns, in steps of a split search, a stable
-/// sequent counting [`NODE_WORK`](super::NODE_WORK) of them and more with its size: some
-/// thousand stable sequents of a small problem.
+/// The work the forward search of the default bias gets in the first
+/// round of turns; the backward one gets [`BACKWARD_SHARE`] times as
+/// much. That is some thousand stable sequents of a small problem.
+///
+/// Work is counted in steps of a split search. A stable sequent counts
+/// [`NODE_WORK`](super::NODE_WORK) of them, and more with its size.
 const FIRST_TURN: u64 = 1 << 16;
 
 /// How much work the backward search of the default bias gets for each
-/// unit of the forward one: it is the search the default ran alone
-/// before, so under a time limit what it decides alone in two thirds of
-/// the limit is still decided, and what the forward search decides in a
-/// third.
+/// unit of the forward one.
+///
+/// So under a time limit the default decides everything the backward
+/// search decides alone in two thirds of the limit, and what the forward
+/// search decides in a third.
 const BACKWARD_SHARE: u64 = 2;
 
 /// The factor by which the turns of the two searches grow from round to
@@ -143,9 +160,10 @@ pub(crate) struct Plan {
 
 impl Plan {
     /// Runs the search of this plan alone, with a memo and an arena of its
-    /// own, until it ends or the stop condition fires. Returns what
-    /// [`search_goal`](super::search_goal) does, and whether it was a turn that ran out of
-    /// its work.
+    /// own, until it ends or the stop condition fires.
+    ///
+    /// Returns what [`search_goal`](super::search_goal) does, and whether
+    /// the search was a turn that ran out of its work.
     pub(super) fn search<'a, Z: Zone>(
         self,
         set_up: SetUp<'a>,
@@ -154,9 +172,9 @@ impl Plan {
         stop: Stop<'a>,
     ) -> (Finished, bool) {
         let problem = Problem::new(set_up, counts, self.copies, account);
-        // A first-order search keys its sequents by instance: its table of
-        // zones keeps none and gives every zone a new id without reading
-        // it, which the copies' order by class needs.
+        // A first-order search keys its sequents by instance. So its table
+        // of zones keeps none, and gives every zone a new id without
+        // reading it, which the copies' order by class needs.
         let memo = if Z::FIRST_ORDER {
             Table::Own(Memo::new(set_up.options.memo_entries()), Interner::new(0))
         } else {
@@ -189,10 +207,12 @@ impl Plan {
     }
 }
 
-/// The instance table of a first-order search's proof, written by its
-/// zone over the arena the proof lies in; where it cannot be written, the
-/// reason is the search's result. `None` for a propositional search or
-/// where there is no proof.
+/// Returns the instance table of a first-order search's proof, written by
+/// its zone over the arena the proof lies in. Returns `None` for a
+/// propositional search or where there is no proof.
+///
+/// Where the table cannot be written, the reason becomes the search's
+/// result.
 pub(super) fn closed<Z: Zone>(
     zone: &Z,
     forest: &Forest,
@@ -211,22 +231,28 @@ pub(super) fn closed<Z: Zone>(
     }
 }
 
-/// The searches that decide a goal under the options: one, under the bias
-/// they name, where `Auto` is the factor rule without an exponential in
-/// the sequent and the rarer literal with one or under weakening (nothing
-/// forces a split there, so the factors have nothing to say). Or two, for
-/// `Auto` on a goal with exponentials in linear mode: the forward search
-/// first, under the factor rule, and the backward search, under the rarer
-/// literal within [`Options::copies`], which is the one `Auto` ran alone
-/// before; they share nothing, and the first to decide answers. The
-/// forward search runs within `Options::copies` too, and where the
-/// goal is a Horn program ([`chains`]) within the larger of that and
+/// Returns the searches that decide a goal under the options.
+///
+/// One search, under the bias the options name, in most cases. There
+/// `Auto` is the factor rule without an exponential in the sequent. With
+/// one, or under weakening, it is the rarer-literal rule: under weakening
+/// nothing forces a split, so the factors have nothing to say.
+///
+/// Two searches for `Auto` on a goal with exponentials in linear mode:
+/// the forward search first, under the factor rule, and the backward
+/// search, under the rarer-literal rule within [`Options::copies`], which
+/// is `Bias::Rarer`'s search under the same options. They share nothing,
+/// and the first to decide answers.
+///
+/// The forward search runs within `Options::copies` too. Where the goal
+/// is a Horn program ([`chains`]), it runs within the larger of that and
 /// [`Options::forward_copies`]: there a copy is a step of a forward
-/// chain, of which one branch takes as many as the chain is long.
-/// Not under Mix, where every sequent of a chain that grows is tried in
-/// every partition.
-/// When the two rules give every atom the same literal the forward search
-/// is the backward one continued, and runs alone.
+/// chain, and one branch takes as many copies as the chain is long. This
+/// does not apply under Mix, where every sequent of a chain that grows is
+/// tried in every partition.
+///
+/// When the two rules give every atom the same literal, the forward
+/// search is the backward one continued, and runs alone.
 pub(crate) fn plan(
     forest: &Forest,
     goal: &[OccId],
@@ -263,18 +289,23 @@ pub(crate) fn plan(
     (forward, (!same).then_some(backward))
 }
 
-/// Whether a goal is a Horn program: every member under a `?` a clause,
-/// every other member a marking, a goal or a clause used once, as a
-/// clause is in the linear zone that an interactive dereliction leaves. With the atoms of the
-/// bodies written `a` (or all of them `~a`), a clause is a tensor of body
-/// literals of which at most one factor is a head instead, a literal of
-/// the other sign or a `⅋` of such, which is what `!(a ⊗ b ⊸ c ⊗ d)` is
-/// on the right of `⊢`; a marking is a `⅋` of head literals, a goal a
-/// tensor of body literals; `1` stands for an empty body or goal and `⊥`
-/// for an empty head. A Petri net with a marking to reach is such a
-/// program. There a copy of a clause rewrites the linear zone, so a
-/// search within `n` copies visits the markings within `n` steps and
-/// nothing else, which is what makes a bound of its own affordable.
+/// Whether a goal is a Horn program.
+///
+/// In a Horn program every member under a `?` is a clause. Every other
+/// member is a marking, a goal, or a clause used once, as a clause is in
+/// the linear zone that an interactive dereliction leaves. With the atoms
+/// of the bodies written `a` (or all of them `~a`):
+/// - a clause is a tensor of body literals of which at most one factor is
+///   a head instead: a literal of the other sign, or a `⅋` of such. That
+///   is what `!(a ⊗ b ⊸ c ⊗ d)` is on the right of `⊢`;
+/// - a marking is a `⅋` of head literals;
+/// - a goal is a tensor of body literals;
+/// - `1` stands for an empty body or goal, and `⊥` for an empty head.
+///
+/// A Petri net with a marking to reach is such a program. There a copy of
+/// a clause rewrites the linear zone, so a search within `n` copies
+/// visits the markings within `n` steps and nothing else. That is what
+/// makes a copy bound of its own affordable.
 pub(super) fn chains(forest: &Forest, goal: &[OccId]) -> bool {
     use crate::linear::occurrences::Sign;
     use crate::linear::search::horn::{clause_head, is_head};
@@ -291,10 +322,9 @@ pub(super) fn chains(forest: &Forest, goal: &[OccId]) -> bool {
 }
 
 #[cfg(feature = "parallel")]
-/// The work a search does between two points at which it gives way to
-/// the other, when two alternate on one core: about a thousand stable
-/// sequents of a small problem, against which a change of threads costs
-/// little.
+/// The work a search does before it gives way to the other, when two
+/// alternate on one core. It is about a thousand stable sequents of a
+/// small problem, against which a change of threads costs little.
 const SLICE: u64 = 1 << 16;
 
 #[cfg(feature = "parallel")]
@@ -312,11 +342,11 @@ struct Baton {
     /// Signalled whenever the state changes.
     changed: Condvar,
     /// The polls of the second search that the caller's stop condition
-    /// has not been told of yet: it lives on the calling thread, which
-    /// polls it once for each of them.
+    /// has not been told of yet. The condition lives on the calling
+    /// thread, which polls it once for each of them.
     polls: AtomicU64,
-    /// Whether both must stop, for the second search to read at every
-    /// poll without the lock.
+    /// Whether both must stop. The second search reads it at every poll,
+    /// without the lock.
     halt: AtomicBool,
 }
 
@@ -328,14 +358,14 @@ struct Turns {
     holder: usize,
     /// Whether each search has ended.
     ended: [bool; 2],
-    /// Whether both must stop: one decided, the caller's stop condition
-    /// fired, or a thread panicked.
+    /// Whether both must stop, because one decided, the caller's stop
+    /// condition fired, or a thread panicked.
     stop: bool,
 }
 
 #[cfg(feature = "parallel")]
 impl Baton {
-    /// Locks the state; it is plain data, so a panic of the other thread
+    /// Locks the state. It is plain data, so a panic of the other thread
     /// leaves it usable.
     fn lock(&self) -> std::sync::MutexGuard<'_, Turns> {
         crate::linear::search::lock(&self.state)
@@ -369,12 +399,13 @@ impl Baton {
     }
 
     /// Gives way to the second search from the first, which runs on the
-    /// calling thread, and waits for its turn to come again, unless the
-    /// second has ended. While it waits it wakes once every [`POLL`] and
-    /// polls the caller's stop condition for the polls the second search
-    /// made meanwhile, so that a slice of the second search, which in
-    /// seconds may be long, does not keep the condition waiting. Returns
-    /// whether both must stop.
+    /// calling thread, and waits for the first's turn to come again,
+    /// unless the second has ended. Returns whether both must stop.
+    ///
+    /// While it waits, it wakes once every [`POLL`] and polls the caller's
+    /// stop condition for the polls the second search made meanwhile. A
+    /// slice of the second search may take seconds, and the condition
+    /// must not wait that long.
     fn pass_polling(&self, stop: &mut dyn FnMut(u64) -> bool) -> bool {
         {
             let mut turns = self.lock();
@@ -413,9 +444,10 @@ impl Baton {
     }
 
     /// Polls the caller's stop condition once for every poll the second
-    /// search made since it was last done, so that a condition that
-    /// counts its polls, or looks at a clock every so many, sees the two
-    /// searches as it sees one. Returns whether it fired.
+    /// search made since this was last done. Returns whether it fired.
+    ///
+    /// So a condition that counts its polls, or reads a clock every so
+    /// many, sees the two searches as it sees one.
     fn caught_up(&self, stop: &mut dyn FnMut(u64) -> bool) -> bool {
         // The other search added its work at its polls.
         (0..self.polls.swap(0, Ordering::Relaxed)).any(|_| stop(0))
@@ -460,19 +492,23 @@ impl Drop for Ended<'_> {
 }
 
 #[cfg(feature = "parallel")]
-/// Decides a goal by two searches that alternate on one core: the first
-/// on the calling thread, the second on a thread of its own, one of them
-/// running at a time for a slice of work ([`SLICE`], the second search
-/// [`BACKWARD_SHARE`] of them), so that each is the
-/// search it would be alone, none starts again, and the run is a function
-/// of the input. The first to decide stops the other at the end of its
-/// slice; a search that ended without deciding leaves the other to run
-/// on. The caller's stop condition is polled by the first search at its
-/// own polls, and once for every poll of the second, within a millisecond
-/// of it: the calling thread wakes that often while the second search
-/// has its turn or runs on alone. Returns what
-/// [`search_goal`](super::search_goal) does, the counters of both searches together,
-/// or `None` when the thread cannot start.
+/// Decides a goal by two searches that alternate on one core. Returns
+/// what [`search_goal`](super::search_goal) does, with the counters of
+/// both searches together, or `None` when the thread cannot start.
+///
+/// The first search runs on the calling thread and the second on a
+/// thread of its own. One of them runs at a time, for a slice of work:
+/// [`SLICE`] for the first, [`BACKWARD_SHARE`] slices for the second. So
+/// each is the search it would be alone, none starts again, and the run
+/// is a function of the input.
+///
+/// The first to decide stops the other at the end of its slice. A search
+/// that ended without deciding leaves the other to run on.
+///
+/// The first search polls the caller's stop condition at its own polls.
+/// The condition is also polled once for every poll of the second search,
+/// within a millisecond of it: the calling thread wakes that often while
+/// the second search has its turn or runs on alone.
 pub(super) fn alternate<Z: Zone>(
     set_up: SetUp<'_>,
     [
@@ -495,7 +531,7 @@ pub(super) fn alternate<Z: Zone>(
                     return Finished::gave_up(Reason::Stopped);
                 }
                 // The caller's stop lives on the calling thread, which asks
-                // it for this search's polls; the work is counted here.
+                // it for this search's polls. The work is counted here.
                 let mut counted = crate::linear::search::Counted::new(work);
                 let mut give_way = |units: u64, passed: bool| {
                     counted.add(units);
@@ -555,9 +591,11 @@ pub(super) fn alternate<Z: Zone>(
 }
 
 #[cfg(feature = "parallel")]
-/// The answer of two searches of one goal that ran together, from what
-/// each returned: a verdict of either; else the stop, which without a
-/// verdict is the caller's; else the second search's reason. The counters
+/// Returns the answer of two searches of one goal that ran together, from
+/// what each returned.
+///
+/// The answer is a verdict of either. Without one, it is the stop, which
+/// is then the caller's; else the second search's reason. The counters
 /// are both searches' together.
 pub(super) fn merged(
     first: Finished,
@@ -570,7 +608,7 @@ pub(super) fn merged(
     statistics.add_run(&second.statistics);
     statistics.memo_hits += second.statistics.memo_hits;
     statistics.memo_entries += second.statistics.memo_entries;
-    // The first is the forward search, the second the backward one; the
+    // The first is the forward search, the second the backward one. The
     // level under the copy bound is the deciding search's, else the
     // backward one's.
     statistics.forward_copies = first.statistics.copies;
