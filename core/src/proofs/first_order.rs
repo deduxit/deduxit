@@ -762,9 +762,16 @@ mod tests {
                     steps.push(reduction.step);
                     current = reduction.proof;
                 }
-                let elimination =
-                    cut::eliminate(&case.proof, mode, &options, &limits, |_| false, |_, _| {})
-                        .unwrap();
+                let elimination = cut::eliminate(
+                    &case.proof,
+                    mode,
+                    None,
+                    &options,
+                    &limits,
+                    |_| false,
+                    |_, _| {},
+                )
+                .unwrap();
                 assert_eq!(elimination.end, End::CutFree, "{}", case.name);
                 assert_eq!(elimination.steps, steps, "{} in {mode:?}", case.name);
                 elimination.proof.check(mode).unwrap();
@@ -880,11 +887,16 @@ mod tests {
         proof.check(mode).unwrap();
         let unbounded = cut::Options::default().with_nodes(None);
         let mut largest = proof.nodes().len();
-        let elimination =
-            cut::eliminate(&proof, mode, &unbounded, &Limits::default(), |_| false, {
-                |before, _| largest = largest.max(before.nodes().len())
-            })
-            .unwrap();
+        let elimination = cut::eliminate(
+            &proof,
+            mode,
+            None,
+            &unbounded,
+            &Limits::default(),
+            |_| false,
+            |before, _| largest = largest.max(before.nodes().len()),
+        )
+        .unwrap();
         assert_eq!(elimination.end, End::CutFree);
         assert!(
             largest >= proof.nodes().len() + 40,
@@ -894,7 +906,7 @@ mod tests {
         let bound = (proof.nodes().len() + largest) / 2;
         let at_bound = |options: &cut::Options, limits: &Limits| {
             let ended =
-                cut::eliminate(&proof, mode, options, limits, |_| false, |_, _| {}).unwrap();
+                cut::eliminate(&proof, mode, None, options, limits, |_| false, |_, _| {}).unwrap();
             ended.proof.check(mode).unwrap();
             assert!(!ended.proof.is_cut_free());
             let cut = Strategy::Topmost.pick(&ended.proof).unwrap();

@@ -360,8 +360,9 @@ pub fn step(
     }
 }
 
-/// Eliminates the cuts of `proof` by the strategy of `options`, step by
-/// step, until none is left or a bound of `options` or `limits` or the
+/// Eliminates the cuts of `proof`, the first step on the cut at `at` where
+/// one is given and every step by the strategy of `options` otherwise,
+/// step by step, until none is left or a bound of `options` or `limits` or the
 /// stop ends it: the proof reached is then returned with its cuts and the
 /// refusal that ended it. Every proof reached is checked in `mode` before
 /// the next step is taken on it, and the last before it is returned;
@@ -373,11 +374,13 @@ pub fn step(
 /// # Errors
 ///
 /// The checker's error for a proof that is not one in `mode`, or its
-/// refusal of the first check; [`Error::Reduction`] where the checker
-/// refuses a proof a step made, a defect of this crate.
+/// refusal of the first check; [`Error::NoCut`] for an `at` that is no
+/// cut; [`Error::Reduction`] where the checker refuses a proof a step
+/// made, a defect of this crate.
 pub fn eliminate(
     proof: &Proof,
     mode: Mode,
+    at: Option<NodeId>,
     options: &Options,
     limits: &Limits,
     mut stop: impl FnMut(Progress) -> bool,
@@ -411,7 +414,16 @@ pub fn eliminate(
         if let (Some(before), Some(last)) = (&checked, steps.last()) {
             each(before, last);
         }
-        let Some(cut) = options.strategy.pick(&current) else {
+        let cut = match at.filter(|_| steps.is_empty()) {
+            Some(at) if matches!(current.nodes().get(at.index()), Some(Node::Cut(..))) => Some(at),
+            Some(at) => {
+                return Err(Error::NoCut {
+                    node: Some(at.get()),
+                });
+            }
+            None => options.strategy.pick(&current),
+        };
+        let Some(cut) = cut else {
             return Ok(Elimination {
                 proof: current,
                 steps,

@@ -657,8 +657,9 @@ no goal is open: `proof` checks the proof
 ```
 
 `linlog eliminate FILE` eliminates the cuts of a proof file step by
-step: it checks the proof in the flags' mode (`check`'s flags and
-formats), reduces the cut with no cut above it, prints each step's case
+step: it checks the proof in its file's mode (`check`'s flags and
+formats), reduces the cut with no cut above it (`--at NODE` takes the
+first step on the cut at that index of the file's `nodes` instead), prints each step's case
 (`the axiom case`, `the key case of ⊗ and ⅋`, `of 1 and ⊥`, `of & and
 ⊕`, `of ∀ and ∃`, `a commutative case`, `weakening`, `dereliction`,
 `contraction`, `a box entering a box`) and cut formula, checks every
@@ -957,8 +958,9 @@ Every error is `linlog::Error`, whose `code()` is the stable reason.
 `proofs::cut::step(&proof, mode, at, &options, &limits, stop)` reduces
 one cut (the node `at`, or the strategy's with `None`) and returns the
 checked proof and the `Step` (`cut`, `formula`, `case`);
-`proofs::cut::eliminate(&proof, mode, &options, &limits, stop, each)`
-runs to the end within `cut::Options` (`each` sees every step and the
+`proofs::cut::eliminate(&proof, mode, at, &options, &limits, stop, each)`
+runs to the end within `cut::Options`, its first step on the node `at`
+where one is given, (`each` sees every step and the
 proof it was taken on) and returns the proof reached, the steps and the
 `End`; at first order a `Step`'s `formula` is a member of the proof the
 step was taken on, whose `Proof::formula` writes it as the instance it

@@ -1932,6 +1932,7 @@ pub fn eliminate(session: &str, proof: &str, settings: &str) -> Result<String, F
     let elimination = cut::eliminate(
         &proof,
         mode,
+        None,
         &settings.cut,
         &settings.limits,
         never,

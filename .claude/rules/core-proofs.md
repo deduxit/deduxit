@@ -490,6 +490,9 @@ that cannot repeat the engine's mistakes. Engines only call `Proof::check`.
   premise of `⊗`, Mix and cut; that pass is also the check of the proof
   the previous step made, so `eliminate` checks every proof it reaches
   at no extra pass, and the last one by the pass that finds no cut.
+- **`eliminate`'s `at`** names the first step's cut only, as `step`'s
+  does (the command's `--at`); every later step is the strategy's, and an
+  `at` that is no cut is `Error::NoCut` after the first check passed.
 - **`eliminate`'s callback** (`each`) sees a step once the proof it made
   passed that pass, with the proof it was taken on, as the net
   elimination's does: a step that ends refused (the pass refuses the

@@ -723,6 +723,11 @@ pub(crate) struct EliminateArgs {
     /// reached.
     #[arg(long, value_name = "SIZE", value_parser = parse_bytes, default_value_t = Bytes(Some(cut::Options::DEFAULT_DRAWN_BYTES)))]
     pub(crate) drawings_limit: Bytes,
+    /// Take the first step on the cut at this node of the proof, its
+    /// index in the file's `nodes` (as the checker's messages and the
+    /// record's `cut` number nodes), and the others by the strategy
+    #[arg(long, value_name = "NODE", conflicts_with = "net")]
+    pub(crate) at: Option<u32>,
     /// The bounds, the mode and the output, as `check` takes them.
     #[command(flatten)]
     pub(crate) check: CheckArgs,

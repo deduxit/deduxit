@@ -259,6 +259,7 @@ fn the_written_cuts_are_eliminated() {
         let elimination = cut::eliminate(
             &proof,
             mode,
+            None,
             &cut::Options::default(),
             &Limits::default(),
             |_| false,

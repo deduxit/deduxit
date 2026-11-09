@@ -215,7 +215,10 @@ binary `linlog` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `eliminate` still refuses an outcome without a proof);
   `eliminate.rs` is `eliminate` (`EliminateArgs` flattens `CheckArgs`, so
   its bounds, mode and output are `check`'s, plus `--steps` and
-  `--node-limit` for `cut.steps` and `cut.nodes`): the verdict is a line
+  `--node-limit` for `cut.steps` and `cut.nodes`, and `--at NODE`, the
+  first step's cut, `cut::eliminate`'s `at`: an input of the call like
+  the file, so no settings key, and refused beside `--net`, whose cut
+  links are no proof nodes): the verdict is a line
   per step and the end, as one multi-line note so that every format
   comments each line; exit 0 at `CutFree` or at a steps bound the user
   set (`--steps`, or a settings file's `cut.steps` other than the

@@ -14,7 +14,9 @@ use crate::show::{
 use crate::{Status, exit_on_interrupt, interrupted};
 use anyhow::{Result, bail};
 use linlog::proofs::cut::{self, Elimination, End};
-use linlog::{CheckError, Error, Forest, Member, Mode, Node, Proof, Reading, Refusal, Settings};
+use linlog::{
+    CheckError, Error, Forest, Member, Mode, Node, NodeId, Proof, Reading, Refusal, Settings,
+};
 use std::fmt::Write as _;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
@@ -97,8 +99,9 @@ pub(crate) fn eliminate(args: &EliminateArgs, given: &Given) -> Result<Status> {
     on_large_stack(settings.limits.stack_bytes(), move || {
         let mut out = io::Output::open(path.as_deref(), show.format.is_binary())?;
         let quiet = args.check.output.quiet;
+        let at = args.at.map(NodeId::new);
         let (status, keep) = eliminate_into(
-            &proof, mode, &settings, &show, quiet, asked, &deadline, &mut out,
+            &proof, mode, at, &settings, &show, quiet, asked, &deadline, &mut out,
         )?;
         if keep {
             out.finish()?;
@@ -129,10 +132,10 @@ fn status(end: &End, asked: bool) -> Status {
     }
 }
 
-/// Eliminates the cuts of the proof, writes the steps, the end and the
-/// derivation reached into `out`, and returns the status and whether the
-/// output is to be finished; `asked` says whether the bound on steps is
-/// the user's.
+/// Eliminates the cuts of the proof, the first step on the cut at `at`
+/// where one is given, writes the steps, the end and the derivation
+/// reached into `out`, and returns the status and whether the output is
+/// to be finished; `asked` says whether the bound on steps is the user's.
 #[expect(
     clippy::too_many_arguments,
     reason = "the command's state, as `check_into` takes it, and the elimination's"
@@ -140,6 +143,7 @@ fn status(end: &End, asked: bool) -> Status {
 fn eliminate_into(
     proof: &Proof,
     mode: Mode,
+    at: Option<NodeId>,
     settings: &Settings,
     show: &Show,
     quiet: bool,
@@ -157,6 +161,7 @@ fn eliminate_into(
     let result = cut::eliminate(
         proof,
         mode,
+        at,
         &settings.cut,
         &settings.limits,
         |_| over(),
@@ -792,7 +797,7 @@ mod tests {
         session.close_all(&options, &view, &limits, |_| false);
         let proof = session.proof(&limits, |_| false).unwrap();
         let end = |options: cut::Options| {
-            cut::eliminate(&proof, mode, &options, &limits, |_| false, |_, _| {})
+            cut::eliminate(&proof, mode, None, &options, &limits, |_| false, |_, _| {})
                 .unwrap()
                 .end
         };

@@ -49,6 +49,24 @@ were taken, 1 for a proof that is not valid, 3 when the default bound
 on steps, another bound or the time limit stopped it with cuts left,
 and 2 for an error.
 
+`--at NODE` takes the first step on the cut at that node of the proof,
+its index in the file's `nodes` (as the checker's messages and the
+record's `cut` number nodes), and the others as before; a node that is
+no cut is an error. Here the proof has a cut on `a` (node 6) below a
+cut on `b` (node 5):
+
+```console
+$ printf 'cut 0 a 0\ncut 2 b 0 2\nclose\nproof two.json\n' | linlog interact -i "a, a -o b |- b" > /dev/null
+$ linlog eliminate -q two.json
+1. the axiom case on the cut of b
+2. the axiom case on the cut of a
+cut-free proof of a, a ⊸ b ⊢ b (intuitionistic) after 2 steps
+$ linlog eliminate -q --at 6 two.json
+1. the axiom case on the cut of a
+2. the axiom case on the cut of b
+cut-free proof of a, a ⊸ b ⊢ b (intuitionistic) after 2 steps
+```
+
 With `--net` the cuts are eliminated on the proof's net instead, for the
 sequents `--net` takes (MLL without units, and nets with boxes of MELL
 without units, classical with or without `--mix` or intuitionistic): the
@@ -130,7 +148,8 @@ cut-free proof net of !a ⊢ a ⊗ a (intuitionistic) after 5 steps
 
 The library's `proofs::cut::step` reduces a cut the caller names, or the
 strategy's, and says which cut and which case; `proofs::cut::eliminate`
-runs to the end within `cut::Options`.
+runs to the end within `cut::Options`, its first step on a cut the
+caller names where one is given.
 
 The library's `nets::cut::step` and `nets::cut::eliminate` do the same
 on a `ProofStructure` or a `MellStructure`, and `svg::net_step` and

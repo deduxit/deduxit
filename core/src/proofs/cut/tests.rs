@@ -137,6 +137,7 @@ fn every_step_keeps_the_conclusion() {
         let elimination = eliminate(
             proof,
             *mode,
+            None,
             &Options::default(),
             &Limits::default(),
             never,
@@ -208,6 +209,44 @@ fn any_cut_may_be_reduced() {
     }
 }
 
+/// An elimination given a cut takes its first step on that cut and the
+/// others by the strategy, to a cut-free proof; a node that is no cut is
+/// refused.
+#[test]
+fn an_elimination_starts_at_the_cut_given() {
+    for (proof, mode) in proofs() {
+        let last = proof
+            .ids()
+            .rfind(|&id| matches!(proof.node(id), Node::Cut(..)));
+        let ended = eliminate(
+            &proof,
+            mode,
+            last,
+            &Options::default(),
+            &Limits::default(),
+            never,
+            |_, _| {},
+        )
+        .unwrap();
+        assert_eq!(ended.steps.first().map(|s| s.cut), last);
+        assert_eq!(ended.end, End::CutFree);
+    }
+    let (proof, mode) = proofs().swap_remove(0);
+    let free = proof
+        .ids()
+        .find(|&id| !matches!(proof.node(id), Node::Cut(..)));
+    let error = eliminate(
+        &proof,
+        mode,
+        free,
+        &Options::default(),
+        &Limits::default(),
+        never,
+        |_, _| {},
+    );
+    assert!(matches!(error, Err(Error::NoCut { .. })));
+}
+
 /// In affine mode a weakened cut formula erases the other premise; where
 /// that premise absorbs the context through a `⊤` and the place the cut is
 /// read at gives it more than the checker derived, each place gets the
@@ -269,7 +308,7 @@ fn a_bound_stops_with_a_proof() {
     let proof = cut_proof("!a |- a * a", mode, "!a", &[0]);
     let limits = Limits::default();
     let one = Options::default().with_steps(Some(1));
-    let ended = eliminate(&proof, mode, &one, &limits, never, |_, _| {}).unwrap();
+    let ended = eliminate(&proof, mode, None, &one, &limits, never, |_, _| {}).unwrap();
     assert_eq!(
         ended.end,
         End::Refused(Refusal::Elimination {
@@ -292,7 +331,7 @@ fn a_bound_stops_with_a_proof() {
     }
     let size = largest - 1;
     let small = Options::default().with_nodes(Some(size));
-    let ended = eliminate(&proof, mode, &small, &limits, never, |_, _| {}).unwrap();
+    let ended = eliminate(&proof, mode, None, &small, &limits, never, |_, _| {}).unwrap();
     let End::Refused(Refusal::Elimination {
         what: crate::limits::Bound::Nodes,
         limit,
@@ -316,6 +355,7 @@ fn a_bound_stops_with_a_proof() {
         let stopped = eliminate(
             &proof,
             mode,
+            None,
             &Options::default(),
             &limits,
             |_| {
@@ -402,6 +442,7 @@ fn the_axiom_case_renames_one_premise_of_a_shared_pair() {
         let ended = eliminate(
             &proof,
             mode,
+            None,
             &Options::default(),
             &Limits::default(),
             never,
@@ -431,6 +472,7 @@ fn the_axiom_case_renames_one_premise_of_a_shared_pair() {
             let ended = eliminate(
                 &proof,
                 mode,
+                None,
                 &Options::default(),
                 &Limits::default(),
                 never,
@@ -793,6 +835,7 @@ fn first_order_cuts_are_eliminated() {
         let elimination = eliminate(
             proof,
             *mode,
+            None,
             &Options::default(),
             &Limits::default(),
             never,

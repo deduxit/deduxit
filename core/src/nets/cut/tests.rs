@@ -279,6 +279,7 @@ fn every_step_keeps_the_criterion_and_the_conclusion() {
         let normal = terms::eliminate(
             &proof,
             mode,
+            None,
             &terms::Options::default(),
             &Limits::default(),
             never,

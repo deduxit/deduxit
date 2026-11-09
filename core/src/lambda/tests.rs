@@ -543,6 +543,7 @@ fn cut_elimination_keeps_the_normal_form() {
         let eliminated = eliminate(
             &proof,
             Mode::INTUITIONISTIC,
+            None,
             &CutOptions::default(),
             &Limits::default(),
             never,
