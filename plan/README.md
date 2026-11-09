@@ -6053,3 +6053,18 @@ move (D26).
     Horn engine on qcover's suite, then QCover's pruning if they win:
     `plan/later.md`, after step 57.
   - **On go:** 54s-a, 54u-a, 54u-b and 54u-c; 54u-e when a slot frees.
+- 2026-11-09, 18:55: **SAT solvers in Rust researched**
+  (`plan/notes/research/sat-rust.md`, the author's request).
+  - **The choice for both of 54s's engines: `batsat` 0.6.0**, used
+    directly behind a small trait of deduxit's own. It is MIT and pure
+    Rust, and has MiniSat's incremental calls, which intuit and intuitR
+    are built on. A stop is polled at every decision, and its wasm build
+    has no imports. Not `rustsat-batsat`, which reads a clock per solve
+    and has no stop.
+  - **Classical proofs:** a DRUP proof recorded from batsat's clause
+    callbacks, checked by deduxit's own RUP checker (the usual practice:
+    Lean, ACL2, cake_lpr); LRAT hints by the checker, or a small fork.
+  - **Excluded by licence:** splr, pindakaas (MPL-2.0), otter_sat
+    (AGPL), saguaro (GPL); C and C++ solvers do not build for the page.
+  - **Fallbacks:** a fork of varisat (no stop today), or a CDCL of
+    deduxit's own. CaDiCaL as a native tier is in `plan/later.md`.

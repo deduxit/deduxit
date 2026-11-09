@@ -63,13 +63,27 @@ prompt for the engine and its check (the argument on Fable 5.1 at
    - Read the three papers above first, and intuitR's sources only if
      their licence allows reading them for an EUPL-1.2 project; write
      the engine from the papers, never by copying code.
-   - The SAT solver is a dependency (`new-tool` skill): pure Rust,
-     incremental (assumptions and clause addition between calls), a
-     licence `deny.toml` allows (MPL-2.0 is not: `splr` is out), built
-     for `wasm32-unknown-unknown` without threads or a clock, and
-     bounded by deduxit's stop, work and memory. Step 46's research
-     names RustSAT with Batsat (MIT) as the candidate; confirm it at
-     the version the lock would pin.
+   - **The SAT solver is `batsat`** (0.6.0, MIT, pure Rust, MiniSat 2.2's
+     calls), used directly, never through `rustsat-batsat` (which reads
+     a clock on every solve and exposes no stop), adopted with the
+     `new-tool` skill (`plan/notes/research/sat-rust.md`, section 4):
+     - behind a small trait of deduxit's own (new variable, add clause,
+       solve under assumptions, value, failed assumptions, stop), so
+       that a fork or another solver replaces it in one place;
+     - in the `deduxit` crate only, behind the feature of the engines
+       that use it;
+     - deduxit's stop and work bound go through `Callbacks::stop`
+       (polled at every decision) and a conflict count, and the clause
+       sizes into the memory account;
+     - it builds for `wasm32-unknown-unknown` with no imports (the
+       research verified it); the bindings' tests under Node show it;
+     - its maintenance is thin (one release in five years): if a bug
+       or a stall shows, vendor or fork it (about 4 900 lines, MIT);
+       the fallbacks are a fork of `varisat` (no stop today) or a CDCL
+       of deduxit's own (section 4.3).
+     intuit and intuitR are built on MiniSat's incremental calls, which
+     batsat has (solve under assumptions, clauses added between calls,
+     the failed assumptions as `unsat_core`).
    - The algorithm: intuit's loop over a SAT solver with implication
      clauses, with intuitR's restarts. Minimal logic is intuitionistic
      logic with `⊥` read as an atom.
@@ -86,12 +100,20 @@ prompt for the engine and its check (the argument on Fable 5.1 at
    - It is a method of `ordinary` beside `embedding` and `ljt`
      (`ordinary::Method`), with its statistics.
 2. **54s-b, classical logic by CDCL.**
-   - The same SAT dependency if it gives proofs, else the one the
-     research note names for proofs; a classical sequent becomes the
-     clauses of its negation (Tseitin), decided by CDCL.
+   - The same `batsat`: a classical sequent becomes the clauses of its
+     negation by deduxit's own Tseitin encoder, decided by CDCL.
+   - **The proof:** batsat reports every learnt and deleted clause
+     (`on_new_clause`, `on_delete_clause`), from which deduxit records
+     a DRUP proof in memory. batsat gives no LRAT hints: the checker
+     finds them by unit propagation, or a small fork of batsat logs
+     the reason clauses in `analyze` (CaDiCaL's experience: about 5 %
+     to produce). MiniSat-style learning derives only RUP clauses, so
+     the checker needs RUP steps alone. Test the recorded stream
+     against a DRAT checker first: the research read it from the code
+     and did not run it (section 5).
    - **"Not valid"** is the falsifying assignment, the one-world case
      of step 55's countermodel, checked by evaluation as today.
-   - **"Valid"** comes with an LRAT proof checked by a small checker
+   - **"Valid"** comes with that proof checked by a small checker
      of deduxit's own (`linear::search::refutation`'s style: integers
      that cannot wrap, said at their declarations; the panel reviews
      it), and with the LK derivation where the existing read-back

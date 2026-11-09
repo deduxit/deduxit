@@ -2654,3 +2654,15 @@ beat ICover, LoLA and MIST in its authors' comparison.
   backward search, and a directed forward search for coverable
   instances, each kept only where the target sets show it wins.
 - After step 57, whose rule is that the search does not change.
+
+## A native SAT tier: CaDiCaL behind a feature (2026-11-09)
+
+Step 54s uses `batsat` (pure Rust, MiniSat's class) so that the engines
+build for the web page. On SAT Competition instances it is much slower
+than CaDiCaL (3 of 6 against 5 in 100 s); on intuit-shaped incremental
+runs about 1.5 times CaDiCaL 1.9.5 (`plan/notes/research/sat-rust.md`).
+If 54s's measurement shows classical or intuitionistic problems that
+users bring stopping at the solver, CaDiCaL (MIT, LRAT natively, a
+terminator and limits) can join behind a feature never on for wasm,
+through `cadical-sys` (no libclang) behind 54s's solver trait. Its costs:
+a C++ build in the flake, one maintainer, and two code paths to test.
