@@ -5562,3 +5562,6 @@ move (D26).
     ask about each time; that guard stays as it is. The planning session
     makes them in a background agent, so that their prompts wait for
     the author without stopping the night's other work.
+- 2026-11-09, 08:03: **unattended again**, under the same rules as at
+  02:12. The keys were unlocked afresh at 08:02, so they hold until
+  about 20:00; the warming loop runs.
