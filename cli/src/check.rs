@@ -1,7 +1,7 @@
 // linlog © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-use crate::argument_parsing::{CheckArgs, Format};
+use crate::argument_parsing::{CheckArgs, Format, ModeArgs};
 use crate::io;
 use crate::limit::Deadline;
 use crate::prove::{Stop, on_large_stack, stopped};
@@ -16,14 +16,15 @@ use linlog::{CheckError, Disproof, Error, ErrorKind, Forest, Limits, Mode, Proof
 use std::time::Instant;
 
 /// Runs `check`: reads a proof, or a disproof, checks it in the mode the
-/// flags give (a disproof in the mode it states) under the time limit and
-/// the bounds, and prints the verdict and the proof's derivation, or the
-/// verdict as JSON.
+/// file states, or the flags give where it states none, under the time
+/// limit and the bounds, and prints the verdict and the proof's
+/// derivation, or the verdict as JSON.
 ///
 /// # Errors
 ///
-/// A file that is no proof in JSON, a proof of a goal, a disproof of
-/// another mode than the flags name, or an output that cannot be made; an invalid proof is a verdict, and a check given up at
+/// A file that is no proof in JSON, a proof of a goal, a proof or
+/// disproof of another mode than the flags name, or an output that
+/// cannot be made; an invalid proof is a verdict, and a check given up at
 /// a limit is unknown, neither an error.
 pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
     let start = Instant::now();
@@ -92,6 +93,7 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
     if proof.goal().is_some() {
         return Err(Error::GoalProof.into());
     }
+    let mode = proof_mode(&proof, &args.mode)?;
     on_large_stack(settings.limits.stack_bytes(), move || {
         let mut out = io::Output::open(path.as_deref(), show.format.is_binary())?;
         let (status, keep) = check_into(&proof, mode, &show, quiet, &deadline, &mut out)?;
@@ -100,6 +102,24 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
         }
         anyhow::Ok(status)
     })?
+}
+
+/// Returns the mode a proof is checked in: the one its file states, or
+/// the flags' where it states none.
+///
+/// # Errors
+///
+/// A file that states another mode than the flags name.
+pub(crate) fn proof_mode(proof: &Proof, flags: &ModeArgs) -> Result<Mode> {
+    let asked = flags.mode();
+    match proof.mode() {
+        Some(stated) if flags.given() && stated != asked => bail!(
+            "the proof is of {stated} and the flags ask for {asked}: pass the flags it was found \
+             with, or none"
+        ),
+        Some(stated) => Ok(stated),
+        None => Ok(asked),
+    }
 }
 
 /// What `check` reads: a proof, or a disproof, which an unprovable

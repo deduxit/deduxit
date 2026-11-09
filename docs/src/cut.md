@@ -28,7 +28,8 @@ A ⊢ A      B ⊢ B      B ⊢ B      C ⊢ C
 ```
 
 `linlog eliminate` reads a proof file, as `proof FILE` or `prove
---format json` writes it, checks it in the mode the flags give, and
+--format json` writes it, checks it in the mode the file states (or
+the flags give, where it states none), and
 eliminates its cuts one step at a time: each step reduces the cut that
 comes first in the proof, the one with no cut above it, and is printed
 with its case (the axiom case, the key case of a connective and its

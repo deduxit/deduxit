@@ -2,7 +2,7 @@
 // Licensed under the EUPL
 
 use crate::argument_parsing::{EliminateArgs, Format};
-use crate::check::{CHECKED_LEVEL, Checked, read_proof};
+use crate::check::{CHECKED_LEVEL, Checked, proof_mode, read_proof};
 use crate::io;
 use crate::limit::Deadline;
 use crate::prove::{Stop, on_large_stack, stopped};
@@ -21,13 +21,14 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 /// Runs `eliminate`: reads a proof, eliminates its cuts in the mode the
-/// flags give under the time limit and the bounds, and prints the steps,
+/// file states, or the flags give where it states none, under the time limit and the bounds, and prints the steps,
 /// how the elimination ended and the derivation of the proof reached, or
 /// the elimination's record as JSON.
 ///
 /// # Errors
 ///
-/// A file that is no proof in JSON, a proof of a goal, a step the checker
+/// A file that is no proof in JSON or states
+/// another mode than the flags name, a proof of a goal, a step the checker
 /// refuses (a defect of the library), or an output that cannot be made;
 /// an invalid proof is a verdict, and an elimination a bound stopped
 /// prints the proof it reached.
@@ -76,6 +77,7 @@ pub(crate) fn eliminate(args: &EliminateArgs, given: &Given) -> Result<Status> {
     if proof.goal().is_some() {
         return Err(Error::GoalProof.into());
     }
+    let mode = proof_mode(&proof, &check.mode)?;
     if show.net {
         let quiet = args.check.output.quiet;
         return on_large_stack(settings.limits.stack_bytes(), move || {

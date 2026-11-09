@@ -493,10 +493,10 @@ that lifts the bound that refused the call, where one did.
 ## 9. Checking a proof: `check`
 
 `linlog check FILE` (or standard input) reads a proof as `prove --format
-json` writes it and checks it independently of the search. The mode
-comes from the flags, never from the file: pass the flags the proof was
-found with. Without `-i`, a proof that `prove -i` found is checked as a
-proof of its classical one-sided sequent, which it also is. `--format json` writes `{"version", "verdict", "mode"}`,
+json` writes it and checks it independently of the search, in the mode
+the file's `"mode"` states (the flags' mode for a file that states none);
+a mode flag that names another mode is an error naming both, exit 2.
+`--format json` writes `{"version", "verdict", "mode"}`,
 the verdict `valid`, `invalid` or `unknown`, with the library's `error`
 for the last two. Its time limit is `--timeout 2s` by default, and `--work-limit`
 and `--memory-limit` bound it too; a check a limit gives up is unknown,
@@ -715,7 +715,7 @@ $ linlog eliminate -q -i --net c.json
 4. dereliction on the cut of !a
 5. the axiom case on the cut of a
 cut-free proof net of !a ⊢ a ⊗ a (intuitionistic) after 5 steps
-$ echo '{"version":7,"sequent":{"terms":[{"D":0},{"∃":0},{"V":1},{"V":0},{"∀":3}],"roots":[1,2],"atoms":[{"P":[0,[0]]},{"P":[0,[1]]}],"symbols":[["p",1],["a",0]],"fo":[{"B":0},{"F":[1,[]]}],"binders":["x","x"],"antecedents":1,"cuts":[4]},"nodes":[{"ax":[7,8]},{"∃":[0,2,0]},{"∀":[3,0,1]},{"ax":[9,2]},{"∃":[5,1,3]},{"cut":[3,2,4]}],"mode":"classical","instances":{"members":[[1,0],[4,0],[6,1]],"frames":[[null,2],[null,1]],"terms":[{"E":0}]}}' > cut.json
+$ echo '{"version":7,"sequent":{"terms":[{"D":0},{"∃":0},{"V":1},{"V":0},{"∀":3}],"roots":[1,2],"atoms":[{"P":[0,[0]]},{"P":[0,[1]]}],"symbols":[["p",1],["a",0]],"fo":[{"B":0},{"F":[1,[]]}],"binders":["x","x"],"antecedents":1,"cuts":[4]},"nodes":[{"ax":[7,8]},{"∃":[0,2,0]},{"∀":[3,0,1]},{"ax":[9,2]},{"∃":[5,1,3]},{"cut":[3,2,4]}],"instances":{"members":[[1,0],[4,0],[6,1]],"frames":[[null,2],[null,1]],"terms":[{"E":0}]}}' > cut.json
 $ linlog eliminate -q -i cut.json
 1. the key case of ∀ and ∃ on the cut of ∀x. p(x)
 2. the axiom case on the cut of p(a)

@@ -675,8 +675,8 @@ a parse error far into a long line is shown with the part of the line
 around it.
 
 `--format json` writes the outcome as one JSON object, which is also a proof
-file that `linlog check` verifies independently of the search (pass the same
-logic flags):
+file that `linlog check` verifies independently of the search, in the mode
+the file states (a mode flag that names another mode is an error):
 
 ```console
 $ linlog prove --format json "A |- A"

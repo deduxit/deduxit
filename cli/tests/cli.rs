@@ -27,6 +27,14 @@ fn linlog(args: &[&str], stdin: &str) -> (i32, String, String) {
     (status, out, err)
 }
 
+/// Returns a proof file without the mode it states, so that `check` takes
+/// the flags' mode.
+fn without_mode(json: &str) -> String {
+    let mut proof: serde_json::Value = serde_json::from_str(json).unwrap();
+    proof.as_object_mut().unwrap().remove("mode");
+    proof.to_string()
+}
+
 /// Runs `linlog` as [`linlog`] does, and returns its standard error as
 /// it is.
 fn linlog_as_is(args: &[&str], stdin: &str) -> (i32, String, String) {
@@ -612,7 +620,7 @@ fn intuitionistic_mode() {
     let schellinx = "((A * top) & (B * top)) -o 0 |- (A -o C) + (B -o C)";
     let (status, json, _) = linlog(&["prove", "--format", "json", schellinx], "");
     assert_eq!(status, 0);
-    let (status, out, _) = linlog(&["check", "-i", "-q"], &json);
+    let (status, out, _) = linlog(&["check", "-i", "-q"], &without_mode(&json));
     assert_eq!(status, 1);
     assert!(
         out.contains("a sequent of the rule has 2 formulas on the right of ⊢ instead of one"),
@@ -960,11 +968,32 @@ fn check_reads_what_prove_writes() {
         (status, out.as_str()),
         (0, "valid proof of ⊢ A ⅋ B, ~A, ~B (classical with Mix)\n")
     );
-    let (status, out, _) = linlog(&["check"], &json);
+    let (status, out, _) = linlog(&["check"], &without_mode(&json));
     assert_eq!(status, 1);
     assert!(
         out.starts_with("invalid proof of ⊢ A ⅋ B, ~A, ~B (classical): node 2 (mix from 0, 1)"),
         "{out}"
+    );
+}
+
+/// `check` takes the mode a proof file states where no flag names one,
+/// and refuses a flag that names another.
+#[test]
+fn check_takes_the_file_s_mode() {
+    let (_, json, _) = linlog(&["prove", "-i", "--format", "json", "a, b |- a * b"], "");
+    let (status, out, _) = linlog(&["check", "-q"], &json);
+    assert_eq!(
+        (status, out.as_str()),
+        (0, "valid proof of a, b ⊢ a ⊗ b (intuitionistic)\n")
+    );
+    let (status, _, err) = linlog(&["check", "--mix"], &json);
+    assert_eq!(
+        (status, err.as_str()),
+        (
+            2,
+            "error: the proof is of intuitionistic and the flags ask for classical with Mix: \
+             pass the flags it was found with, or none\n"
+        )
     );
 }
 
@@ -995,7 +1024,7 @@ fn check_keeps_the_lambek_calculus_s_antecedents() {
         )
     );
     for flags in [&["check", "--lambek"][..], &["check", "--lambek", "--net"]] {
-        let (status, out, _) = linlog(flags, &json);
+        let (status, out, _) = linlog(flags, &without_mode(&json));
         assert_eq!(status, 1, "{flags:?}");
         assert!(
             out.starts_with("invalid proof of e ⊢ e ⊗ (a \\ a) (Lambek): ")
@@ -2127,6 +2156,7 @@ fn check_s_verdicts() {
         "{out}"
     );
     let (_, classical, _) = linlog(&["prove", "--format", "json", "|- a, ~a"], "");
+    let classical = without_mode(&classical);
     let (status, out, _) = linlog(&["check", "-i", "--format", "json"], &classical);
     let checked: serde_json::Value = serde_json::from_str(&out).unwrap();
     assert_eq!((status, &checked["verdict"]), (1, &"invalid".into()));
