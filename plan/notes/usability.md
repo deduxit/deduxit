@@ -992,6 +992,30 @@ leaving them to `--help`?
 - *Docs either way:* the help says at its end "`--help` shows every
   option"; headings are 54w-d's work whatever the answer.
 
+**Q12. One JSON shape for ordinary logic?** (Added by the planning
+session after 54b, 2026-11-09.) `prove --logic L --format json` writes
+two shapes today: under LJT, the default for intuitionistic and minimal
+logic, the ordinary outcome (`engine: "ljt"`, LJT's statistics, the LJ
+derivation); under the embedding (classical logic, `--method
+embedding`, `--translation`, `--linear`), the linear image's outcome. A
+script tells them apart by `engine`. Should every ordinary run write the
+ordinary outcome?
+- *Recommendation:* yes. One versioned document per command, with a tag
+  that says which variant follows, is what serde's internally tagged
+  enums and JSON Schema's discriminators give, and what scripts expect.
+  The library already has the shape: `ordinary::Outcome` with `search`
+  (`Embedding { translation, linear }` or `Ljt(stats)`). The JSON would
+  be that outcome in every case, the image's outcome nested under the
+  embedding's variant.
+- *Cost:* a break for scripts that read the image's outcome at the top
+  under the embedding (a new wire version, the behaviour lock's JSON
+  lines re-blessed, the manual's JSON examples); `check` would read the
+  ordinary outcome, which it does not yet (54b's follow-up in
+  `plan/later.md`).
+- *Docs either way:* the ordinary-logic chapter shows the JSON of one
+  LJT run and one embedding run; with Q12, one shape and its two
+  variants.
+
 ### The logician
 
 **Q11. Checking certificates without a scavenger hunt.** Should

@@ -5839,7 +5839,7 @@ move (D26).
   - Its reviewer reran its 43 command examples and its library program.
   - **Waiting for the author:** 26 questions, each with a
     recommendation, in its section 6:
-    - Q1–Q11: the library and the command;
+    - Q1–Q11 (Q12 added after 54b): the library and the command;
     - W1–W15: the page.
 
     They are changes to an API, a flag or the page's behaviour, so the
@@ -5948,3 +5948,44 @@ move (D26).
     - a possible fault in `Sequent::join_first_order` for a table with
       binders and no atoms, which only JSON may reach: recorded in
       `plan/later.md` to confirm (uyusoupk).
+- 2026-11-09, 17:20: **54b reviewed and pushed: LJT is the default for
+  intuitionistic and minimal logic** (18 commits, tnunknxk to
+  qwrxkpqs).
+  - **What changed:** `ordinary::Method` and `Options::method`; the
+    command's `--method embedding|ljt` (key `ordinary.method`), with
+    `--translation` or `--linear` alone choosing the embedding. The
+    default runs LJT and gives way to the embedding where a bound other
+    than the time limit stops it. `ordinary::Outcome`'s fields became
+    `search` (a break for 0.4.0, in the changelog).
+  - **The measurement** (two timed runs, ILTP's 274 problems at 2 s,
+    both logics): decided per logic, the embedding 188, LJT 200, the
+    default 202; no verdict differs; the default is never slower than
+    the embedding by more than 20 % and 0.5 ms. LJT alone loses
+    SYJ201+1.004 and .005 (derivations past 64 MiB), which is why the
+    default gives way rather than being LJT alone (a departure,
+    accepted: D19 asks that the default win).
+  - **The panel and the reviewer:** one refutation (LJT polled the stop
+    too rarely: 11.8 s past a 1 s limit on a chain of 100 000
+    implications), fixed; the rest no refutation; four false texts
+    fixed.
+  - **The ratchet:** ordinary-pigeons rose to +3.46 % over its ceiling
+    in the flake's build, all of it in glibc's allocator after a
+    harness-only commit, every deduxit function equal or lower, and
+    pinned time 0.985 of main's. The planning session decided to raise
+    the ceiling (nkttvuln), as bench.md asks for a move of the
+    allocator with the code the same.
+  - **The planning session's probe**, the release build: twelve
+    textbook formulas in each logic give their known answers (excluded
+    middle, Peirce, double negation, ex falso, disjunctive syllogism,
+    contraposition both ways, De Morgan both ways); `--method`,
+    `--translation` and the refusals behave as documented; a chain of
+    100 000 implications ends "unknown" at `--timeout 1s`; SYJ201+1.004
+    is valid by the default and by the embedding, and LJT alone refuses
+    it at the derivation limit with a message naming the flags.
+  - **For the author:** Q12 in `plan/notes/usability.md` (one JSON
+    shape for ordinary logic); `check` reading LJ derivations and the
+    verdict line saying that LJT gave way are in `plan/later.md`.
+- 2026-11-09, 17:20: **Paused after 54b and 54w-e1**, as the author
+  asked. Next on go: 54w-c beside 54w-d, then 54w-e3 onward (goal
+  template `/tmp/linlog-handoff/goal-54w-e1.txt`); the author's answers
+  to Q1–Q12 and W1–W15 wait.
