@@ -1,25 +1,32 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Proof-net search for unit-free MLL, with or without Mix. A cut-free
-//! proof of MLL is determined by its axiom linking, so the search
-//! enumerates linkings over a [`ProofStructure`] by backtracking and keeps
-//! the first one the correctness criterion accepts.
+//! Proof-net search for unit-free MLL, with or without Mix.
 //!
-//! Before any link, the count equation `c = t − p + 2` (`c` conclusions,
-//! `t` tensor and `p` par occurrences; `≥` with Mix) and the balance of
-//! every atom reject most unprovable sequents at once. Then each step
-//! chooses the unlinked literal with the fewest admissible partners and
-//! tries them in order. A partner is admissible when it is unlinked and
-//! dual, when the two literals do not hang under a common `⊗` of one
-//! conclusion, when the `⅋`-free skeleton does not join them already, and
-//! when the partners of interchangeable literals and subformulas (equal
-//! conclusions, equal leaves of one tree of `⊗` alone or of `⅋` alone)
-//! stay in the order of their ids, which breaks those symmetries. The exact acyclicity test runs
-//! after every link on a small structure and after every fourth link on a
-//! large one, and on every complete linking, which is then a proof net: the
-//! count equation is the connectedness equation of a complete acyclic
-//! linking. The net is sequentialized into the proof term returned.
+//! A cut-free proof of MLL is fixed by its axiom linking: which dual
+//! literals are paired. So the search enumerates linkings over a
+//! [`ProofStructure`] by backtracking, and keeps the first one the
+//! correctness criterion accepts.
+//!
+//! Before any link, two counts reject most unprovable sequents at once:
+//! the count equation `c = t − p + 2` (`c` conclusions, `t` tensor and `p`
+//! par occurrences; `≥` with Mix), and the balance of every atom (as many
+//! `a` as `~a`). Then each step chooses the unlinked literal with the
+//! fewest admissible partners, and tries those in order. A partner is
+//! admissible when:
+//! - it is unlinked and dual;
+//! - the two literals do not hang under a common `⊗` of one conclusion;
+//! - the `⅋`-free skeleton does not join them already;
+//! - the partners of interchangeable literals and subformulas stay in the
+//!   order of their ids. These are equal conclusions, and equal leaves of
+//!   one tree of `⊗` alone or of `⅋` alone. The order breaks their
+//!   symmetry.
+//!
+//! The exact acyclicity test runs after every link on a small structure,
+//! after every fourth link on a large one, and on every complete linking.
+//! A complete linking that passes is a proof net, since the count
+//! equation is the connectedness equation of a complete acyclic linking.
+//! The net is sequentialized into the proof term returned.
 
 use super::memory::Account;
 use super::planar::Planar;
@@ -43,10 +50,11 @@ pub(crate) struct Nets;
 
 impl Decide for Nets {
     /// Refuses a fragment beyond unit-free MLL, affine mode, the Lambek
-    /// calculus and, in a commutative mode, a goal other than the roots: a structure's
-    /// conclusions are the forest's roots. In an ordered mode a goal of
-    /// distinct formulas none of which lies inside another is searched as
-    /// a sequent of its own ([`goal`]).
+    /// calculus, and a forest too large for a structure. In a commutative
+    /// mode it also refuses a goal other than the roots, since a
+    /// structure's conclusions are the forest's roots. In an ordered mode
+    /// it takes a goal of distinct formulas, none inside another, and
+    /// searches it as a sequent of its own ([`goal`]).
     fn admits(&self, task: &Task<'_>) -> Result<(), Error> {
         let refused = |because| Error::EngineRefused {
             engine: Engine::Net,
@@ -60,8 +68,9 @@ impl Decide for Nets {
             NetError::Mode { mode } => refused(NotTaken::Mode { mode }),
             other => other.into(),
         })?;
-        // The Lambek calculus's nets are the essential engine's: a planar
-        // net of the switchings may need an empty antecedent.
+        // The Lambek calculus is the essential engine's: a planar net of
+        // the switchings may need an empty antecedent, which the calculus
+        // forbids.
         if task.mode.is_ordered() && task.mode.is_intuitionistic() {
             return Err(refused(NotTaken::Mode { mode: task.mode }));
         }
@@ -110,8 +119,8 @@ impl Decide for Nets {
     }
 }
 
-/// Whether the occurrences are distinct and none lies inside another's
-/// subtree: the formulas of a sequent.
+/// Returns whether the occurrences are distinct and none lies inside
+/// another's subtree, so that they can be the formulas of a sequent.
 pub(super) fn apart(forest: &Forest, goal: &[OccId]) -> bool {
     let mut sorted = goal.to_vec();
     sorted.sort_unstable();
@@ -121,12 +130,14 @@ pub(super) fn apart(forest: &Forest, goal: &[OccId]) -> bool {
         .all(|w| u64::from(w[0].get()) + u64::from(forest.size(w[0])) <= u64::from(w[1].get()))
 }
 
-/// Decides a goal off the roots, in an ordered mode, by `run` on a
-/// forest of its own: the goal's formulas, in the forest's order, which
-/// is the goal's cyclic order, as the roots of a sequent of their own,
-/// whose forest numbers each formula's occurrences as the goal's forest
-/// does, shifted; the proof found is carried back by the shift, and the
-/// answer has no net, its structure being over the other forest.
+/// Decides a goal off the roots, in an ordered mode, by `run` on a forest
+/// of its own.
+///
+/// That forest is the forest of a sequent whose roots are the goal's
+/// formulas, in the forest's order, which is the goal's cyclic order. It
+/// numbers each formula's occurrences as the goal's forest does, shifted.
+/// The proof found is carried back by the shift. The answer has no net,
+/// since its structure is over the other forest.
 pub(super) fn goal(
     task: &Task<'_>,
     limits: &Limits,
@@ -146,8 +157,8 @@ pub(super) fn goal(
     };
     let own = Forest::within(&own, limits)?;
     let mut answer = run(&own)?;
-    // The occurrence of the goal's forest that one of the own forest's is:
-    // its formula's member, plus how far into the formula it lies.
+    // Maps an occurrence of the own forest to the goal's forest: its
+    // formula's member, plus how far into the formula it lies.
     let lift = |m: crate::linear::Member| {
         let o = m.occ();
         let root = own.root(o);
@@ -176,9 +187,9 @@ pub(super) fn goal(
 }
 
 /// Runs the proof-net engine on the forest of a sequent of unit-free MLL
-/// under `mode`, polling `stop` once per literal chosen, and returns its
-/// answer, with the proof net the proof was read off for a proved
-/// sequent.
+/// under `mode`, and returns its answer. For a proved sequent the answer
+/// holds the proof net the proof was read off. `stop` is polled once per
+/// literal chosen and once per exact test that fails.
 pub(crate) fn search(
     forest: &Forest,
     mode: Mode,
@@ -204,10 +215,11 @@ pub(crate) fn search(
     answer(result, statistics, net, limits, stop)
 }
 
-/// The answer of a search that linked the roots (`Ok(true)`, with the net
-/// found), found that no linking is a proof net (`Ok(false)`), or stopped:
-/// the net sequentialized into the proof it is, within `limits` and until
-/// `stop` fires, either of which makes the answer unknown.
+/// Returns the answer of a search from its result: `Ok(true)` with the
+/// net found when it linked the roots, `Ok(false)` when no linking is a
+/// proof net, or the reason it stopped. A net found is sequentialized into
+/// the proof it is, within `limits` and until `stop` fires; reaching
+/// either makes the answer unknown.
 pub(super) fn answer(
     result: Result<bool, Reason>,
     statistics: Statistics,
@@ -246,7 +258,7 @@ pub(super) fn answer(
 /// Returns whether the counts admit a proof: `c = t − p + 2` for `c`
 /// conclusions, `t` tensor and `p` par occurrences (`c ≥ t − p + 2` with
 /// Mix), and as many `a` as `~a` for every atom. Both are necessary for a
-/// proof net to exist, and the first is the connectedness equation of a
+/// proof net to exist. The first is also the connectedness equation of a
 /// complete acyclic linking.
 pub(super) fn counts_admit(forest: &Forest, mix: bool) -> bool {
     let (mut tensors, mut pars) = (0i64, 0i64);
@@ -275,9 +287,11 @@ fn atoms(forest: &Forest) -> impl Iterator<Item = Atom> {
     (0..forest.sequent().atom_names().len()).map(|a| Atom::new(a as u32))
 }
 
-/// The prunes of the search beyond the rejections every link passes;
-/// a search applies all of them, and the tests switch each off to show
-/// what it cuts.
+/// The prunes of the search beyond the rejections every link passes.
+///
+/// A commutative search applies all of them ([`ALL`](Self::ALL)), the
+/// planar search the balance alone ([`PLANAR`](Self::PLANAR)). The tests
+/// switch each off to show what it cuts.
 #[derive(Clone, Copy, Debug)]
 pub(super) struct Prunes {
     /// Break the symmetry of equal literals that are conclusions.
@@ -300,12 +314,14 @@ impl Prunes {
         balance: true,
     };
 
-    /// The prunes of the planar search: the balance, which a planar proof
-    /// net keeps as every proof net does. The symmetry breaks rest on
-    /// exchanging the partners of equal literals or subformulas,
-    /// conclusions or under one tree, which moves a link to another place
-    /// in the cyclic order and can make two links cross, so the one
-    /// linking of an orbit they keep may be the one that is not planar.
+    /// The prunes of the planar search: the balance alone, which a planar
+    /// proof net keeps as every proof net does.
+    ///
+    /// The symmetry breaks are off. They rest on exchanging the partners of
+    /// equal literals or subformulas, conclusions or under one tree. That
+    /// moves a link to another place in the cyclic order and can make two
+    /// links cross, so the one linking of an orbit they keep may be one
+    /// that is not planar.
     pub(super) const PLANAR: Self = Self {
         conclusions: false,
         leaves: false,
@@ -317,36 +333,44 @@ impl Prunes {
 /// The symmetries of a sequent that the search breaks, as chains in id
 /// order along which the partners must not descend.
 ///
-/// Two kinds of exchange map proof nets to proof nets, and to linkings
-/// that are not nets the linkings that are not. Exchanging the partners
-/// of two equal literals that are conclusions, or leaves of one maximal
-/// tree of `⊗` alone or of `⅋` alone (a literal class): the leaves of a
-/// `⊗` tree hang from one vertex once the tree is contracted, which
-/// keeps the cyclomatic number and the components of every switching,
-/// and every switching of a `⅋` tree joins its root to one leaf and
-/// leaves the others as paths, so its switchings join the root to each
-/// leaf in turn. And exchanging two equal compound subformulas that are
-/// conclusions or leaves of one such tree (a compound class), by the
-/// same argument for whole subtrees. Among the linkings that differ by
-/// such exchanges, one has ascending partners along every literal class
-/// and keys that do not descend along every compound class whose copies
-/// have a key literal: sort the copies of each compound class by key,
-/// outer classes first, then take the lexicographically least linking
-/// that exchanges within literal classes reach. A key literal is in no
-/// literal class of two or more and inside no copy of a smaller broken
-/// class, so neither later step moves it, and a partner's key, the
-/// first literal of its class or none inside a broken copy, is the
-/// same for every partner those exchanges move it to. Sorting one class
-/// leaves every other class's keys in their order: it moves only
-/// literals inside its own copies, all keyed none, and carries the
-/// classes inside a copy along with the copy, which is why the outer
-/// classes go first. An exchange of linkings is the original linking on
-/// the tree reshaped, and copies have one shape, so the key literal's
-/// offset in the first copy is its offset in every copy. Every link of
-/// the canonical net passes these orders and the balance at every stage
-/// of the search, so pruning partial linkings by them loses no net; a
-/// chain whose comparisons can only be between keys of none is dropped,
-/// since none of them rejects.
+/// Two kinds of exchange map proof nets to proof nets, and linkings that
+/// are not nets to linkings that are not.
+///
+/// The first exchanges the partners of two equal literals of one *literal
+/// class*: both conclusions, or both leaves of one maximal tree of `⊗`
+/// alone or of `⅋` alone. Once a `⊗` tree is contracted, its leaves hang
+/// from one vertex, so the exchange keeps the cyclomatic number and the
+/// components of every switching. Every switching of a `⅋` tree joins its
+/// root to one leaf and leaves the others as paths, so the switchings
+/// join the root to each leaf in turn.
+///
+/// The second exchanges two equal compound subformulas of one *compound
+/// class*: both conclusions, or both leaves of one such tree. The same
+/// argument holds for whole subtrees.
+///
+/// Among the linkings that differ by such exchanges, one has ascending
+/// partners along every literal class, and keys that do not descend along
+/// every compound class whose copies have a key literal. To reach it,
+/// sort the copies of each compound class by key, outer classes first,
+/// then take the lexicographically least linking that exchanges within
+/// literal classes reach. This rests on four facts:
+/// - a key literal is in no literal class of two or more and inside no
+///   copy of a smaller broken class, so neither step moves it;
+/// - a partner's key is the first literal of its class, or none inside a
+///   broken copy, so it is the same for every partner those exchanges
+///   move it to;
+/// - sorting one class leaves every other class's keys in their order:
+///   it moves only literals inside its own copies, all keyed none, and
+///   carries the classes inside a copy along with the copy, which is why
+///   the outer classes go first;
+/// - an exchange of linkings is the original linking on the tree
+///   reshaped, and copies have one shape, so the key literal's offset in
+///   the first copy is its offset in every copy.
+///
+/// Every link of this canonical net passes these orders and the balance
+/// at every stage of the search, so pruning partial linkings by them
+/// loses no net. A chain whose comparisons can only be between keys of
+/// none is dropped, since none of them rejects.
 #[derive(Clone, Debug)]
 struct Symmetry {
     /// Per occurrence, its neighbours along the chains.
@@ -383,13 +407,14 @@ impl Chains {
 }
 
 impl Symmetry {
-    /// Finds the classes of a forest of unit-free MLL: the literal
-    /// classes of leaves only with `prunes.leaves`, and the compound
-    /// classes only with `prunes.compounds`. The forest is one a
-    /// [`ProofStructure`] holds, of fewer than `u32::MAX / 3` occurrences,
-    /// so its ids, the roots' anchor `n`, the shapes (one per occurrence
-    /// at most) and a copy's id plus an offset inside it all stay below
-    /// `NONE`.
+    /// Finds the classes of a forest of unit-free MLL. The literal classes
+    /// of conclusions need `prunes.conclusions`, those of leaves
+    /// `prunes.leaves`, and the compound classes `prunes.compounds`.
+    ///
+    /// The forest is one a [`ProofStructure`] holds, of fewer than
+    /// `u32::MAX / 3` occurrences. So its ids, the roots' anchor `n`, the
+    /// shapes (at most one per occurrence) and a copy's id plus an offset
+    /// inside it all stay below `NONE`.
     fn new(forest: &Forest, prunes: Prunes) -> Self {
         let n = forest.len();
         // The anchor of an occurrence: the top of the maximal tree of its
@@ -433,8 +458,9 @@ impl Symmetry {
                 }
             }
         }
-        // Compound classes: equal formulas with one anchor, of which no
-        // ancestor below the anchor has the anchor's connective.
+        // Compound classes: equal compound formulas with one anchor, each a
+        // conclusion or a leaf of its anchor's tree, whose connective
+        // differs from its parent's.
         let mut shape = vec![0u32; n];
         let mut shapes = HashMap::<(Kind, u32, u32), u32>::default();
         let mut compounds = Vec::new();
@@ -530,38 +556,40 @@ impl Symmetry {
 /// and the test it runs at the search's cadence and on every complete
 /// linking.
 pub(super) trait Correctness {
-    /// The forest whose literals are linked.
+    /// Returns the forest whose literals are linked.
     fn forest(&self) -> &Forest;
 
-    /// The literal a literal is linked to, or `None`.
+    /// Returns the literal a literal is linked to, or `None`.
     fn mate(&self, x: OccId) -> Option<OccId>;
 
-    /// The links made, in the order they were made.
+    /// Returns the links made, in the order they were made.
     fn links(&self) -> &[(VertexId, VertexId)];
 
-    /// Whether every literal is linked.
+    /// Returns whether every literal is linked.
     fn is_complete(&self) -> bool;
 
-    /// Whether linking the unlinked dual literals `x` and `y` passes the
-    /// criterion's constant-time rejections, each sound for every
-    /// partial linking: a link it rejects is in no correct completion.
+    /// Returns whether linking the unlinked dual literals `x` and `y`
+    /// passes the criterion's constant-time rejections. Each is sound for
+    /// every partial linking: a link it rejects is in no correct
+    /// completion.
     fn admits(&self, x: OccId, y: OccId) -> bool;
 
-    /// Links two unlinked dual literals, or says why the search must stop
-    /// (a bound on what the criterion holds), the structure then as it
-    /// was.
+    /// Links two unlinked dual literals. Fails with the reason the search
+    /// must stop when a bound on what the criterion holds refuses the
+    /// link, and leaves the structure as it was.
     fn link(&mut self, x: OccId, y: OccId) -> Result<(), Reason>;
 
     /// Takes back the last link and returns the literal it was made from.
     fn unlink(&mut self) -> OccId;
 
-    /// The test of the search's cadence: false when no completion of the
-    /// links is correct; on a complete linking, whether it is correct.
+    /// Runs the test of the search's cadence. On a partial linking it
+    /// returns false only when no completion of the links is correct; on a
+    /// complete linking, whether it is correct.
     fn test(&mut self) -> bool;
 
-    /// Whether no component of the `⅋`-free skeleton holds more unlinked
-    /// literals of `atom` than its `remaining` pairs, counting in
-    /// `tally` (zero per vertex between two calls); true where the
+    /// Returns whether no component of the `⅋`-free skeleton holds more
+    /// unlinked literals of `atom` than its `remaining` pairs, counting in
+    /// `tally` (zero per vertex between two calls). True where the
     /// criterion keeps no skeleton.
     fn balanced(&self, atom: Atom, remaining: u32, tally: &mut [u32]) -> bool;
 }
@@ -576,8 +604,8 @@ pub(super) struct Switching {
 }
 
 impl Switching {
-    /// The structure of a forest of unit-free MLL without a link, under
-    /// the criterion of `mode`.
+    /// Returns the criterion over the structure of a forest of unit-free
+    /// MLL, without a link, under the criterion of `mode`.
     pub(super) fn new(forest: &Forest, mode: Mode) -> Self {
         let net = ProofStructure::new(
             forest.clone(),
@@ -610,11 +638,11 @@ impl Correctness for Switching {
     }
 
     /// Rejects two literals that hang under a common `⊗` of one
-    /// conclusion (the tree path and the link would be a cycle that the
-    /// switchings keeping the path's `⅋` premises keep, and it stays one
-    /// whatever is linked later), and two that the `⅋`-free skeleton joins
-    /// already (the path and the link would be a cycle every switching
-    /// keeps).
+    /// conclusion: the tree path and the link would be a cycle, kept by
+    /// the switchings that keep the path's `⅋` premises, whatever is linked
+    /// later. Rejects two literals that the `⅋`-free skeleton joins
+    /// already: the path and the link would be a cycle every switching
+    /// keeps.
     fn admits(&self, x: OccId, y: OccId) -> bool {
         let forest = self.net.forest();
         if let Some(a) = forest.lca(x, y)
@@ -635,17 +663,21 @@ impl Correctness for Switching {
         x.occ()
     }
 
-    /// The exact acyclicity test; on a complete linking the count
-    /// equation, checked before the search, makes an acyclic one a net.
+    /// Runs the exact acyclicity test. On a complete linking, the count
+    /// equation, checked before the search, makes an acyclic linking a
+    /// net.
     fn test(&mut self) -> bool {
         self.net.is_acyclic(&mut self.scratch)
     }
 
-    /// No literal links into its own component (that closes a cycle
-    /// every switching keeps), so each `a` of a component needs a `~a` of
-    /// its own outside the component, and each `~a` an `a`: the
-    /// component's `a` are at most the atom's unlinked `~a` less the
-    /// component's, which is the bound. A count is at most the atom's
+    /// Returns whether every component of the skeleton holds at most
+    /// `remaining` unlinked literals of `atom`.
+    ///
+    /// No literal links into its own component, since that closes a cycle
+    /// every switching keeps. So each `a` of a component needs its own `~a`
+    /// outside the component, and each `~a` its own `a`. A component's
+    /// unlinked `a` are thus at most the atom's unlinked `~a` less the
+    /// component's own, which is the bound. A count is at most the atom's
     /// literals, below the forest's length.
     fn balanced(&self, atom: Atom, remaining: u32, tally: &mut [u32]) -> bool {
         let net = &self.net;
@@ -778,22 +810,26 @@ impl<'a, C: Correctness> Linker<'a, C> {
         self.explore(None, &mut Vec::new())
     }
 
-    /// The search, and the enumeration of its cubes: with a `limit`, a
-    /// branch that reaches that many choices (links of literals that had
-    /// more than one admissible partner; a forced link is none) is
-    /// recorded in `cubes` as the links made, and taken back instead of
-    /// followed, so that the cubes are the branches of the first `limit`
-    /// choices that the tests do not reject; a proof net found within the
-    /// limit ends the search as usual. Without a limit this is the whole
-    /// search. The stop condition is polled at every literal chosen and
-    /// at every exact test that fails, so a run of failures, which
-    /// chooses no literal, is polled too.
+    /// Runs the search, or enumerates its cubes, and returns whether a
+    /// proof net was found, or the reason the search stopped.
+    ///
+    /// Without a `limit` this is the whole search. With one, a branch that
+    /// reaches `limit` choices is recorded in `cubes` as the links made,
+    /// and taken back instead of followed. A choice is the link of a
+    /// literal that had more than one admissible partner; a forced link is
+    /// none. So the cubes are the branches of the first `limit` choices
+    /// that the tests do not reject. A proof net found within the limit
+    /// ends the search as usual.
+    ///
+    /// The stop condition is polled at every literal chosen and at every
+    /// exact test that fails. So a run of failures, which chooses no
+    /// literal, is polled too.
     fn explore(
         &mut self,
         limit: Option<usize>,
         cubes: &mut Vec<Vec<(VertexId, VertexId)>>,
     ) -> Result<bool, Reason> {
-        // A dead end before any link is a refutation; a complete structure
+        // A dead end before any link is a refutation. A complete structure
         // without a link would have no literal, which the counts exclude.
         let Choice::Literal(first, forced) = self.decide()? else {
             return Ok(false);
@@ -888,13 +924,14 @@ impl<'a, C: Correctness> Linker<'a, C> {
         }
     }
 
-    /// Chooses the unlinked literal with the fewest admissible partners,
-    /// the first in atom order, `a` before `~a`, then id order among
-    /// equals; or reports that some literal has none, or that every
-    /// literal is linked. Every unlinked literal is looked at, so a dead
-    /// end anywhere is found now rather than after more links; so is an
-    /// atom unbalanced over the skeleton's components, where the exact
-    /// test runs.
+    /// Chooses the unlinked literal with the fewest admissible partners;
+    /// among equals, the first in atom order, `a` before `~a`, then by id.
+    /// Or reports that some literal has none, or that every literal is
+    /// linked.
+    ///
+    /// Every unlinked literal is looked at, so a dead end anywhere is found
+    /// now, not after more links. So is an atom unbalanced over the
+    /// skeleton's components, at the nodes where the exact test runs.
     fn choose(&mut self) -> Choice {
         let balance =
             self.balance && (self.criterion.links().len() as u32).is_multiple_of(self.period);
@@ -1001,7 +1038,7 @@ impl<'a, C: Correctness> Linker<'a, C> {
     }
 
     /// Makes a link between two unlinked dual literals and keeps the counts
-    /// current, or says why the criterion cannot hold it.
+    /// current. Fails with the reason when the criterion cannot hold it.
     fn link(&mut self, x: OccId, y: OccId) -> Result<(), Reason> {
         self.criterion.link(x, y)?;
         let atom = self.criterion.forest().atom(x).unwrap();
@@ -1146,7 +1183,8 @@ pub(super) mod tests {
         assert_eq!(statistics.nodes, k as u64);
         assert_eq!(statistics.links, k as u64);
         assert_eq!(statistics.tests, k as u64);
-        // A larger structure is tested every fourth link and at the end.
+        // With a period of 7 the test runs every seventh link and at the
+        // end. A larger structure is tested every fourth link by default.
         let (verdict, statistics) = run(
             &input,
             Mode::CLASSICAL,
@@ -1215,7 +1253,7 @@ pub(super) mod tests {
         assert_eq!(answer.statistics.links, 1);
     }
 
-    /// Decides `input` with the focused engine.
+    /// Decides `s` with the focused engine.
     fn focus_verdict(s: &Sequent, mode: Mode) -> bool {
         let options = Options::default().with_engine(Some(Engine::Focus));
         match prove(s, mode, &options).unwrap().verdict {
@@ -1228,7 +1266,7 @@ pub(super) mod tests {
         }
     }
 
-    /// Decides `input` with the net engine, checking as `run` does.
+    /// Decides `text` with the net engine, checking as `run` does.
     fn net_verdict(text: &str, mode: Mode, options: &Options) -> bool {
         match run(text, mode, options).0 {
             Verdict::Proved(_) => true,
@@ -1511,8 +1549,9 @@ pub(super) mod tests {
     }
 }
 
-/// The net engine on several threads: cube-and-conquer over the first
-/// links.
+/// The net engine on several threads, by cube-and-conquer: the search is
+/// split into cubes, the branches below its first choices, which the
+/// threads search in parallel.
 #[cfg(feature = "parallel")]
 pub(crate) mod parallel {
     use super::{Linker, counts_admit};
@@ -1538,8 +1577,8 @@ pub(crate) mod parallel {
     struct Collected {
         /// The first proof net found.
         net: Option<ProofStructure>,
-        /// The first error, a stop that a cancellation caused excepted,
-        /// a stop giving way to any other reason.
+        /// The first error, except a stop that a cancellation caused. A
+        /// later reason of another kind takes the place of a stop.
         error: Option<Reason>,
         /// The counters of every engine that ran.
         statistics: Statistics,
@@ -1547,19 +1586,22 @@ pub(crate) mod parallel {
 
     /// Runs the net engine on the runtime's pool, as [`super::search`]
     /// does on one thread, polling `stop` on the calling thread while the
-    /// pool searches. The root engine splits the search into cubes: it
-    /// starts from the one cube without a link and, pass by pass over the
-    /// cubes in the order of the search, replaces every cube by the
-    /// branches of its next choice, the links that choice forces
-    /// included, until a pass leaves [`CUBES_PER_THREAD`] cubes per thread
-    /// or the splitting decided the sequent by itself. A cube is never searched twice,
-    /// where every link is forced the first cube's one branch is the
-    /// whole sequential search, and the cubes stay in the order in which
-    /// one thread would reach them. Then every worker takes cubes from a
-    /// shared counter in that order, one engine of its own reset per
-    /// cube, until a proof net is found, which stops the others, or the
-    /// cubes run out. `Unprovable` needs every cube to have been searched
-    /// to its end.
+    /// pool searches.
+    ///
+    /// First the root engine splits the search into cubes. It starts from
+    /// the one cube without a link. Each pass goes over the cubes in the
+    /// order of the search and replaces every cube by the branches of its
+    /// next choice, with the links that choice forces. The passes go on
+    /// until there are at least [`CUBES_PER_THREAD`] cubes per thread, or
+    /// the splitting decided the sequent by itself. So no cube is searched
+    /// twice. Where every link is forced, the first cube's one branch is
+    /// the whole sequential search. The cubes stay in the order in which
+    /// one thread would reach them.
+    ///
+    /// Then every worker takes cubes from a shared counter in that order,
+    /// with one engine of its own, reset per cube. This goes on until a
+    /// proof net is found, which stops the others, or the cubes run out.
+    /// `Unprovable` needs every cube to have been searched to its end.
     pub(crate) fn search(
         forest: &Forest,
         mode: Mode,
@@ -1575,9 +1617,9 @@ pub(crate) mod parallel {
         let threads = runtime.threads();
         let (result, statistics, net) = runtime.drive(stop, work, |flags| {
             let mut root = Linker::new(forest, mode, options, Stop::flags(flags));
-            // The cubes are what is left of the search at every moment,
-            // each a branch nobody has followed yet, in the order of the
-            // search: the branches of a cube take its place.
+            // The cubes are what is left of the search at every moment, in
+            // the order of the search. Each is a branch nobody has followed
+            // yet, and the branches of a cube take its place.
             let mut cubes = vec![Cube::new()];
             while cubes.len() < CUBES_PER_THREAD * threads {
                 let mut split = Vec::new();

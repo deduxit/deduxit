@@ -2,33 +2,45 @@
 // Licensed under the EUPL
 
 //! Essential-net search for unit-free IMLL: the net engine's linking
-//! search under the directed criterion of essential nets instead of the
-//! switchings. The sequent's reading orients every edge
-//! ([`ProofStructure::is_essential`] says how), and the search keeps the
-//! reflexive transitive closure of the directed graph as a bit matrix,
-//! row `u` the occurrences `u` reaches, which every link widens and an
-//! undo log narrows again when the link is taken back.
+//! search under the directed criterion of essential nets, in place of the
+//! switchings.
+//!
+//! The sequent's reading orients every edge
+//! ([`ProofStructure::is_essential`] says how). The search keeps the
+//! reflexive transitive closure of the directed graph as a bit matrix:
+//! row `u` holds the occurrences `u` reaches. Every link widens it, and an
+//! undo log narrows it again when the link is taken back.
 //!
 //! A candidate link from an input literal `x` to an output literal `y` is
-//! rejected when `y` reaches `x` (the link would close a directed cycle,
-//! which every completion keeps), and when `x` lies in the antecedent of
-//! an implication `l` by input premises alone, `y` reaches the goal and
-//! does not reach `l` (the antecedent would reach the goal around `l`
-//! along the link, in every completion). At the cadence of the net
-//! engine's exact test, and on every complete linking, the dominator
-//! condition is tested for each implication `l` in output position but
-//! the goal, with antecedent `s`: it fails when `s` does not reach `l` but
-//! reaches the goal or an occurrence `l` reaches, or when, for some input
-//! `⅋` `p` (the one vertex with two edges out) that `s` reaches and that
-//! reaches `l`, a premise `q` of `p` does not reach `l` but reaches the
-//! goal or an occurrence `l` reaches. Each such failure is a path from
-//! `s` around `l` to an occurrence that can never reach `l` again without
-//! a cycle, so no completion is correct; on a complete acyclic linking,
-//! where every occurrence reaches the goal, it is exactly the dominator
-//! condition (a path that leaves the occurrences reaching `l` leaves them
-//! at an input `⅋`, or at `s`). A complete linking that passes is an
-//! essential net, which for an intuitionistic sequent is a proof net, and
-//! is sequentialized like the net engine's.
+//! rejected in two cases:
+//! - `y` reaches `x`. The link would close a directed cycle, which every
+//!   completion keeps.
+//! - `x` lies in the antecedent of an implication `l` by input premises
+//!   alone, `y` reaches the goal, and `y` does not reach `l`. Along the
+//!   link the antecedent would reach the goal around `l`, in every
+//!   completion.
+//!
+//! At the cadence of the net engine's exact test, and on every complete
+//! linking, the search tests the *dominator condition*: every path from
+//! an implication's antecedent to the goal passes through the
+//! implication. It tests it for each implication `l` in output position
+//! other than the goal, with antecedent `s`. The test fails in two cases:
+//! - `s` does not reach `l`, but reaches the goal or an occurrence `l`
+//!   reaches;
+//! - some input `⅋` `p` (the one kind of vertex with two edges out) is
+//!   reached by `s` and reaches `l`, and a premise `q` of `p` does not
+//!   reach `l`, but reaches the goal or an occurrence `l` reaches.
+//!
+//! Each such failure is a path from `s` around `l` to an occurrence that
+//! can never reach `l` again without a cycle, so no completion is
+//! correct. On a complete acyclic linking every occurrence reaches the
+//! goal, and the test is exactly the dominator condition: a path that
+//! leaves the occurrences reaching `l` leaves them at an input `⅋`, or at
+//! `s`.
+//!
+//! A complete linking that passes is an essential net. For an
+//! intuitionistic sequent that is a proof net, and it is sequentialized
+//! as the net engine's is.
 
 use super::memory::{Account, Charged, bytes_of};
 use super::net::{self, Correctness, Linker, Prunes};
@@ -46,18 +58,18 @@ use crate::linear::sequents::{Atom, Kind};
 const NONE: u32 = u32::MAX;
 
 /// The bytes per occurrence of the criterion's tables beside the closure:
-/// its partner and binder (four each), an implication with its
-/// antecedent at most (eight), and its share of the links and their marks,
-/// one each per two literals (four each); the bits of the branching
+/// 4 each for its partner and binder, at most 8 for an implication with
+/// its antecedent, and 4 each for its share of the links and their marks,
+/// of which there is one per two literals. The bits of the branching
 /// connectives come on top, a word per 64 occurrences.
 const LINEAR_BYTES: usize = 24;
 
 /// The bytes per occurrence of the test against empty antecedents, in the
-/// Lambek calculus without them: an implication's body and antecedent,
-/// and a source with its binder, four bytes each.
+/// Lambek calculus without them: 4 each for an implication's body and
+/// antecedent, and for a source and its binder.
 const NONEMPTY_BYTES: usize = 16;
 
-/// The rows of the closure's set-up between two polls of the stop: a row
+/// The rows of the closure's set-up between two polls of the stop. A row
 /// costs a word per 64 occurrences, so a sequent of a hundred thousand
 /// occurrences is polled every few milliseconds.
 const SETUP_ROWS: usize = 1024;
@@ -66,12 +78,13 @@ const SETUP_ROWS: usize = 1024;
 pub(crate) struct Essentials;
 
 impl Decide for Essentials {
-    /// Refuses classical and affine mode, a fragment beyond unit-free
-    /// MLL, which in intuitionistic mode is unit-free IMLL, and in a
-    /// commutative mode a goal other than the roots: an essential net's
-    /// conclusions are the forest's roots. In the Lambek calculus a goal
-    /// of distinct formulas none of which lies inside another is searched
-    /// as a sequent of its own, as the net engine does in the cyclic mode.
+    /// Refuses classical and affine mode, a fragment beyond unit-free MLL
+    /// (in intuitionistic mode, unit-free IMLL), and a forest too large for
+    /// a structure. In a commutative mode it also refuses a goal other than
+    /// the roots, since an essential net's conclusions are the forest's
+    /// roots. In the Lambek calculus it takes a goal of distinct formulas,
+    /// none inside another, and searches it as a sequent of its own, as the
+    /// net engine does in the cyclic mode.
     fn admits(&self, task: &Task<'_>) -> Result<(), Error> {
         let refused = |because| Error::EngineRefused {
             engine: Engine::Essential,
@@ -138,11 +151,13 @@ impl Decide for Essentials {
 }
 
 /// Runs the essential-net engine on the forest of a sequent of unit-free
-/// IMLL read by `reading` in `mode`, charging its closure to `account`
-/// and polling `stop` once per literal chosen, and returns its answer,
-/// with the proof net the proof was read off for a proved sequent. In
-/// the Lambek calculus the links are planar ([`Planar`]), under the
-/// prunes of a planar search.
+/// IMLL read by `reading` in `mode`, and returns its answer. For a proved
+/// sequent the answer holds the proof net the proof was read off.
+///
+/// The closure is charged to `account`. `stop` is polled during the
+/// closure's set-up, once per literal chosen and once per exact test that
+/// fails. In the Lambek calculus the links are planar ([`Planar`]), under
+/// the prunes of a planar search.
 pub(crate) fn search(
     forest: &Forest,
     reading: &Reading<'_>,
@@ -221,8 +236,8 @@ pub(super) struct Essential<'a> {
     /// its antecedent.
     implications: Box<[(u32, u32)]>,
     /// Per occurrence in input position, the implication whose antecedent
-    /// it lies in by input premises alone, or `NONE` for a hypothesis's
-    /// or the goal's antecedent.
+    /// it lies in by input premises alone. `NONE` inside a hypothesis or
+    /// the goal's antecedent.
     binder: Box<[u32]>,
     /// The goal.
     goal: u32,
@@ -236,34 +251,37 @@ pub(super) struct Essential<'a> {
 }
 
 /// What the test against empty antecedents reads: every implication but
-/// the goal with its consequent, and every occurrence a hypothesis enters
-/// at, with the implication that binds it.
+/// the goal, with its consequent and antecedent, and every *source*, with
+/// the implication that binds it.
 ///
-/// In an essential net the term at an output occurrence is what reaches
-/// it, and its free hypotheses are the sources that reach it (the
-/// hypotheses of the sequent, and the antecedents of its implications,
-/// none of which has an edge in) but those bound inside, whose
-/// implication reaches it too. A proof of the Lambek calculus keeps a
-/// hypothesis in every sequent exactly when every subterm has a free
-/// one, which holds exactly when the body of every implication but the
-/// goal has a free hypothesis besides the one its implication binds; the
-/// goal's body has the sequent's hypotheses, of which the reading asks
-/// one.
+/// A source is an occurrence with no edge in: a hypothesis of the
+/// sequent, or the antecedent of an implication, which binds it. In an
+/// essential net the term at an output occurrence is what reaches it. Its
+/// free hypotheses are the sources that reach it, less those bound inside
+/// it, whose implication reaches it too. A proof of the Lambek calculus
+/// keeps a hypothesis in every sequent exactly when every subterm has a
+/// free one. That holds exactly when the body of every implication but
+/// the goal has a free hypothesis besides the one its implication binds.
+/// The goal's body has the sequent's hypotheses, and the reading asks for
+/// at least one.
 struct Nonempty {
-    /// Each implication but the goal, its consequent and its antecedent.
+    /// For each implication but the goal, its consequent and its
+    /// antecedent.
     bodies: Box<[(u32, u32)]>,
-    /// Each source, with the implication whose antecedent it is, or
-    /// `NONE` for a hypothesis.
+    /// Each source, with the implication whose antecedent it is, or `NONE`
+    /// for a hypothesis.
     sources: Box<[(u32, u32)]>,
 }
 
 impl<'a> Essential<'a> {
-    /// The criterion over a forest of unit-free IMLL without a link, its
-    /// closure that of the edges every structure has, or
-    /// [`Reason::MemoryLimit`] when the account cannot hold the closure,
-    /// which is charged before it is allocated, or the allocator cannot
-    /// give it; [`Reason::Stopped`] when `stop`, polled every
-    /// [`SETUP_ROWS`] rows of the closure's set-up, fires.
+    /// Returns the criterion over a forest of unit-free IMLL without a
+    /// link, its closure that of the edges every structure has. The
+    /// closure is charged before it is allocated.
+    ///
+    /// Fails with [`Reason::MemoryLimit`] when the account cannot hold the
+    /// closure or the allocator cannot give it, and with
+    /// [`Reason::Stopped`] when `stop` fires. `stop` is polled every
+    /// [`SETUP_ROWS`] rows of the set-up.
     fn new(
         forest: &'a Forest,
         reading: &Reading<'_>,
@@ -273,11 +291,11 @@ impl<'a> Essential<'a> {
     ) -> Result<Self, Reason> {
         let n = forest.len();
         let words = n.div_ceil(64);
-        // In `u64` first, since a matrix of more than 4 GB does not fit a
-        // 32-bit `usize`: the forest has fewer than 2³² occurrences, so the
-        // product is below 2⁵⁹, and once the whole fits `usize` so does
-        // every row index `u · words + w` below it. Every step is checked,
-        // and a charge that does not fit is the memory limit.
+        // Count in `u64` first: a matrix of more than 4 GB does not fit a
+        // 32-bit `usize`. The forest has fewer than 2³² occurrences, so the
+        // product is below 2⁵⁹. Once the whole fits a `usize`, so does every
+        // row index `u · words + w` below it. Every step is checked, and a
+        // charge that does not fit is the memory limit.
         let cells = n as u64 * words as u64;
         let limit = Reason::MemoryLimit {
             limit_bytes: account.limit(),
@@ -296,9 +314,9 @@ impl<'a> Essential<'a> {
             .ok_or(limit)?;
         let mut charged = Charged::new(account);
         charged.charge(held);
-        // `cells` fits `usize`, since `held` does. Without a bound the
-        // charge always fits, and a matrix the allocator cannot give is
-        // the memory limit too, never an abort.
+        // `cells` fits a `usize`, since `held` does. Without a bound the
+        // charge always fits, so a matrix the allocator cannot give is the
+        // memory limit too, never an abort.
         let mut reach = Vec::new();
         reach.try_reserve_exact(cells as usize).map_err(|_| limit)?;
         reach.resize(cells as usize, 0u64);
@@ -313,8 +331,9 @@ impl<'a> Essential<'a> {
         let set = |row: &mut [u64], v: usize| row[v / 64] |= 1 << (v % 64);
         // The fixed edges go from an input connective to its input
         // premises, which come after it, and from an output occurrence to
-        // its parent, which comes before it: the inputs from the last
-        // up, then the outputs from the first down.
+        // its parent, which comes before it. So the rows are filled for the
+        // inputs from the last up, then for the outputs from the first
+        // down, each from rows already complete.
         for o in forest.ids().rev().filter(|&o| position(o) == Side::Input) {
             if poll(stop) {
                 return Err(Reason::Stopped);
@@ -433,14 +452,15 @@ impl<'a> Essential<'a> {
     }
 
     /// Returns whether `q`, which does not reach `l`, reaches the goal or
-    /// an occurrence that `l` reaches: a path from `q` that never comes
-    /// back to `l` in any acyclic completion, where it ends at the goal.
+    /// an occurrence that `l` reaches. Such a path from `q` never comes
+    /// back to `l` in an acyclic completion, where it ends at the goal.
     fn escapes(&self, q: u32, l: u32) -> bool {
         self.reaches(q, self.goal) || self.row(q).iter().zip(self.row(l)).any(|(a, b)| a & b != 0)
     }
 
     /// Returns whether no path from the antecedent `s` of the implication
-    /// `l` is known to pass around it: see the module's documentation.
+    /// `l` is known to pass around `l`, by the test the module's
+    /// documentation describes.
     fn dominated(&self, l: u32, s: u32) -> bool {
         if !self.reaches(s, l) {
             return !self.escapes(s, l);
@@ -474,8 +494,9 @@ impl<'a> Essential<'a> {
         }
     }
 
-    /// Records the log's growth past its capacity on the account, or
-    /// refuses it with [`Reason::MemoryLimit`].
+    /// Makes room for one more change in the log, charging any growth to
+    /// the account. Fails with [`Reason::MemoryLimit`] when the account or
+    /// the allocator refuses it.
     fn reserve(&mut self) -> Result<(), Reason> {
         if self.log.len() < self.log.capacity() {
             return Ok(());
@@ -534,10 +555,10 @@ impl Correctness for Essential<'_> {
         2 * self.links.len() == self.forest.all_literals().len()
     }
 
-    /// Rejects a link whose output literal reaches its input literal (a
-    /// directed cycle), and one whose input literal lies in the
-    /// antecedent of an implication by input premises alone while its
-    /// output literal reaches the goal and not the implication.
+    /// Rejects a link whose output literal reaches its input literal: it
+    /// would close a directed cycle. Rejects one whose input literal lies
+    /// in the antecedent of an implication by input premises alone, while
+    /// its output literal reaches the goal and not the implication.
     fn admits(&self, x: OccId, y: OccId) -> bool {
         let (i, o) = self.oriented(x, y);
         if self.reaches(o, i) {
@@ -547,10 +568,10 @@ impl Correctness for Essential<'_> {
         l == NONE || self.reaches(o, l) || !self.reaches(o, self.goal)
     }
 
-    /// Adds the edge from the input literal to the output literal, and to
-    /// every row that reaches the input literal the output literal's row.
-    /// No row reaches both ways, since the link closes no cycle, so the
-    /// row read is never one written.
+    /// Adds the edge from the input literal to the output literal: ORs the
+    /// output literal's row into every row that reaches the input literal.
+    /// The link closes no cycle, so the output literal's row does not reach
+    /// the input literal, and the row read is never one written.
     fn link(&mut self, x: OccId, y: OccId) -> Result<(), Reason> {
         let (i, o) = self.oriented(x, y);
         debug_assert!(!self.reaches(o, i), "a link closes no cycle");
@@ -608,10 +629,10 @@ impl Correctness for Essential<'_> {
         x.occ()
     }
 
-    /// The dominator condition of every implication but the goal; the
-    /// closure keeps the graph acyclic by itself. In the Lambek calculus
-    /// without empty antecedents, on a complete linking, a free hypothesis
-    /// in the body of each implication besides.
+    /// Tests the dominator condition of every implication but the goal.
+    /// The closure keeps the graph acyclic by itself. In the Lambek
+    /// calculus without empty antecedents, a complete linking must also
+    /// have a free hypothesis in the body of each implication.
     fn test(&mut self) -> bool {
         self.implications.iter().all(|&(l, s)| self.dominated(l, s))
             && (self.nonempty.is_none() || !self.is_complete() || {
@@ -620,7 +641,7 @@ impl Correctness for Essential<'_> {
             })
     }
 
-    /// The criterion keeps no skeleton.
+    /// Returns true: the criterion keeps no skeleton.
     fn balanced(&self, _atom: Atom, _remaining: u32, _tally: &mut [u32]) -> bool {
         true
     }
@@ -712,9 +733,9 @@ mod tests {
 
     /// On generated intuitionistic sequents and their mutants with no
     /// literal more than three times, the essential-net engine gives the
-    /// verdict of the two-sided engine, and of the net engine on the
-    /// embedding where none is there more than twice, every
-    /// proof passes the checker, and the net it returns is the net of
+    /// verdict of the two-sided engine. Where no literal is there more than
+    /// twice, it also gives the verdict of the net engine on the embedding.
+    /// Every proof passes the checker, and the net it returns is the net of
     /// its proof.
     #[test]
     fn agrees_with_the_two_sided_engine() {
@@ -884,12 +905,12 @@ mod tests {
         ));
     }
 
-    /// The review's witnesses: a sequent whose only linking takes a
-    /// hypothesis's tensor apart around an implication, which a dominator
-    /// test without the input `⅋`s would call a net, is unprovable; and a
-    /// sequent whose links run into an implication's body from inside its
-    /// antecedent, which a binder rejection without its last condition
-    /// would refute, is provable.
+    /// Two sequents that weaker rejections would get wrong. The first is
+    /// unprovable: its only linking takes a hypothesis's tensor apart
+    /// around an implication, which a dominator test without the input
+    /// `⅋`s would call a net. The second is provable: its links run into an
+    /// implication's body from inside its antecedent, which a binder
+    /// rejection without its last condition would refute.
     #[test]
     fn the_review_s_witnesses() {
         let i = Mode::INTUITIONISTIC;

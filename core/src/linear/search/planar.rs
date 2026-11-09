@@ -1,32 +1,35 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The planar criterion of the linking searches, for the ordered modes:
-//! the criterion it wraps, and no two links crossing in the cyclic order
-//! of the literals, which is the order of their occurrence ids. A
-//! structure of unit-free MLL is a proof net of cyclic MLL exactly when it
-//! is a planar proof net ([`ProofStructure::is_planar`]), so the search
-//! keeps planarity as a rejection of every candidate link and leaves the
-//! rest to the criterion it wraps: the Danos–Regnier one of the classical
-//! search for cyclic MLL, the essential net's for the Lambek calculus
-//! (Lamarche and Retoré's planar essential nets).
+//! The planar criterion of the linking searches, for the ordered modes: a
+//! wrapped criterion, plus no two links crossing in the cyclic order of
+//! the literals, which is the order of their occurrence ids.
 //!
-//! Between two links that do not cross, the literals form regions: a
-//! literal's region is the innermost link around it in the linear order
-//! of the literals, or none. A link crosses no link exactly when its two
-//! literals lie in one region (one of them inside a link the other is
-//! outside of makes that link cross it, and a link that crosses it has one
-//! literal inside it, whose region then differs from the region of the
-//! literal outside). The search keeps every literal's region, which a link
-//! rewrites inside its span and an unlink restores.
+//! A structure of unit-free MLL is a proof net of cyclic MLL exactly when
+//! it is a planar proof net ([`ProofStructure::is_planar`]). So the search
+//! rejects every candidate link that would cross a link made, and leaves
+//! the rest to the criterion it wraps. That is the Danos–Regnier criterion
+//! of the classical search for cyclic MLL, and the essential nets'
+//! criterion for the Lambek calculus (Lamarche and Retoré's planar
+//! essential nets).
+//!
+//! Links that do not cross split the literals into regions. A literal's
+//! region is the innermost link around it in the linear order of the
+//! literals, or none. A new link crosses no link exactly when its two
+//! literals lie in one region. If one of them lies inside a made link and
+//! the other outside it, that link crosses the new one. If a made link
+//! crosses the new one, one of the new link's literals lies inside it and
+//! the other outside, so their regions differ. The search keeps every
+//! literal's region: a link rewrites the regions inside its span, and an
+//! unlink restores them.
 //!
 //! A link also leaves the literals strictly between its two ends to be
 //! linked among themselves, since a link from inside to outside would
-//! cross it; so every atom must have as many `a` as `~a` there, the linked
-//! ones being pairs already. That is a function of the two ends alone,
-//! compared through prefix sums of a hash of the signed atoms: equal
+//! cross it. So every atom must have as many `a` as `~a` there; the linked
+//! ones are pairs already. That depends on the two ends alone, and is
+//! compared through prefix sums of a hash of the signed atoms. Equal
 //! counts give equal sums, so the comparison never rejects a link a net
-//! could hold, and two unequal counts that happen to give equal sums let
+//! could hold. Two unequal counts that happen to give equal sums let
 //! through a link that the search finds dead later.
 
 use super::Reason;
@@ -51,10 +54,10 @@ pub(super) struct Planar<C> {
     /// Per place, its region: the place of the left end of the innermost
     /// link around it, or `NONE`.
     region: Box<[u32]>,
-    /// Per place `i`, the sum over the literals at places before `i` of
-    /// their atom's weight, added for `a` and taken for `~a`, wrapping:
-    /// a hash of the signed counts, compared and never read otherwise,
-    /// so that a wrap costs no soundness.
+    /// Per place `i`, the sum of the atom weights of the literals at places
+    /// before `i`: added for `a`, subtracted for `~a`, wrapping. It is a
+    /// hash of the signed counts and is only ever compared, so a wrap costs
+    /// no soundness.
     prefix: Box<[u64]>,
     /// The links made, as the places of their two ends, the left one
     /// first, with the region the left end was in.
@@ -62,8 +65,8 @@ pub(super) struct Planar<C> {
 }
 
 impl<C: Correctness> Planar<C> {
-    /// The criterion `inner` with planarity, over its forest of unit-free
-    /// MLL without a link.
+    /// Returns the criterion `inner` with planarity. `inner` is over a
+    /// forest of unit-free MLL and has no link yet.
     pub(super) fn new(inner: C) -> Self {
         let forest = inner.forest();
         debug_assert!(inner.links().is_empty(), "no link is made yet");
@@ -102,9 +105,9 @@ impl<C: Correctness> Planar<C> {
         &self.inner
     }
 
-    /// Whether no two of the links the wrapped criterion holds cross: in
-    /// the order of the literals, each closing end closes the innermost
-    /// link open.
+    /// Returns whether no two of the links the wrapped criterion holds
+    /// cross: in the order of the literals, each closing end closes the
+    /// innermost link open.
     fn is_planar(&self) -> bool {
         let mut ends: Vec<(u32, u32)> = self
             .inner
@@ -127,15 +130,16 @@ impl<C: Correctness> Planar<C> {
         })
     }
 
-    /// The places of two literals, the smaller first.
+    /// Returns the places of two literals, the smaller first.
     fn ends(&self, x: OccId, y: OccId) -> (u32, u32) {
         let (p, q) = (self.place[x.index()], self.place[y.index()]);
         (p.min(q), p.max(q))
     }
 }
 
-/// The weight of an atom in the prefix sums: a mix of its index, odd, so
-/// that different atoms' weights are unlikely to cancel.
+/// Returns the weight of an atom in the prefix sums: a hash of its index
+/// (the SplitMix64 finalizer), made odd, so that the weights of different
+/// atoms are unlikely to cancel.
 fn weight(atom: Atom) -> u64 {
     let mut z = u64::from(atom.get()).wrapping_add(0x9e37_79b9_7f4a_7c15);
     z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
@@ -160,10 +164,10 @@ impl<C: Correctness> Correctness for Planar<C> {
         self.inner.is_complete()
     }
 
-    /// Rejects a link whose two literals lie in different regions (it
-    /// would cross a link made, in every completion), or between which
-    /// some atom has more `a` than `~a` or fewer (those would have to
-    /// link across it), then asks the criterion wrapped.
+    /// Rejects a link whose two literals lie in different regions: it
+    /// would cross a link made, in every completion. Rejects one between
+    /// whose ends some atom has more `a` than `~a`, or fewer: those would
+    /// have to link across it. Then asks the criterion wrapped.
     fn admits(&self, x: OccId, y: OccId) -> bool {
         let (left, right) = self.ends(x, y);
         self.region[left as usize] == self.region[right as usize]
@@ -171,8 +175,8 @@ impl<C: Correctness> Correctness for Planar<C> {
             && self.inner.admits(x, y)
     }
 
-    /// Links the literals and moves the places between them that were in
-    /// their region into the link's own.
+    /// Links the literals, and moves the places between them that were in
+    /// their region into the link's own region.
     fn link(&mut self, x: OccId, y: OccId) -> Result<(), Reason> {
         let (left, right) = self.ends(x, y);
         // The wrapped criterion first: a refusal leaves both as they were.
@@ -187,7 +191,8 @@ impl<C: Correctness> Correctness for Planar<C> {
         Ok(())
     }
 
-    /// Takes the last link back, and with it its region.
+    /// Takes the last link back, and with it its region, and returns the
+    /// literal it was made from.
     fn unlink(&mut self) -> OccId {
         let (left, right, outer) = self.made.pop().expect("a link to take back");
         for region in &mut self.region[left as usize + 1..right as usize] {
@@ -198,8 +203,8 @@ impl<C: Correctness> Correctness for Planar<C> {
         self.inner.unlink()
     }
 
-    /// The wrapped criterion's exact test: every link made crosses no
-    /// other, so a complete linking that passes is a planar net of that
+    /// Runs the wrapped criterion's exact test. No link made crosses
+    /// another, so a complete linking that passes is a planar net of that
     /// criterion.
     fn test(&mut self) -> bool {
         let correct = self.inner.test();
@@ -210,7 +215,7 @@ impl<C: Correctness> Correctness for Planar<C> {
         correct
     }
 
-    /// The wrapped criterion's balance: a planar net is a net, so a
+    /// Returns the wrapped criterion's balance. A planar net is a net, so a
     /// component that holds more literals of an atom than the atom has
     /// pairs left has no planar completion either.
     fn balanced(&self, atom: Atom, remaining: u32, tally: &mut [u32]) -> bool {
