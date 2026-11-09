@@ -996,6 +996,18 @@ fn eliminate_names_a_cut_by_its_instance() {
     );
 }
 
+/// `interact`'s `cut` with a formula of blanks left unquoted says to quote
+/// it.
+#[test]
+fn an_unquoted_cut_formula_is_explained() {
+    let (_, out, _) = linlog(&["interact", "a & b |- b & a"], "cut 0 b & a 0\n");
+    assert_eq!(
+        out,
+        "error: quote a cut formula that has blanks, as in cut 0 \"A * B\" 1: \"&\" is not a \
+         position: invalid digit found in string\n"
+    );
+}
+
 /// `check` takes the mode a proof file states where no flag names one,
 /// and refuses a flag that names another.
 #[test]

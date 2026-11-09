@@ -394,10 +394,12 @@ impl Session {
                 let formula =
                     CutFormula::parse_within(text, self.state.mode(), &self.input, &self.limits)
                         .context("cannot read the cut formula")?;
+                // A formula with blanks, unquoted, leaves its second word
+                // where a position is read.
+                let positions = positions(2)
+                    .context("quote a cut formula that has blanks, as in cut 0 \"A * B\" 1")?;
                 let before = self.state.steps();
-                let opened = self
-                    .state
-                    .cut(goal, &formula, &positions(2)?, &self.limits)?;
+                let opened = self.state.cut(goal, &formula, &positions, &self.limits)?;
                 self.stepped(before, opened.to_vec())?
             }
             "undo" => {
