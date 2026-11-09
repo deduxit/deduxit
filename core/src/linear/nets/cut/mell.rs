@@ -9,9 +9,9 @@ use crate::linear::occurrences::OccId;
 use crate::linear::proofs::cut::{Case, Options};
 use crate::linear::sequents::Kind;
 
-/// A structure with boxes taken apart for a step: its vertices, each
-/// with its occurrence, parent and box, those the step erased marked, and
-/// its cut links, links and weakenings, all by raw vertex ids.
+/// A structure with boxes taken apart for a step, all by raw vertex ids:
+/// per vertex its occurrence, its parent, its box and whether the step
+/// erased it, and the structure's cut links, links and weakenings.
 struct Work {
     /// Per vertex, its occurrence.
     occurrence: Vec<OccId>,
@@ -55,10 +55,11 @@ impl Work {
     }
 
     /// Returns the box of the `!` vertex `b`: `b` and every vertex inside
-    /// it, at any depth, in vertex order. One pass over the vertices lists
-    /// each box's own, then a walk down the boxes inside gathers them, so
-    /// that it takes time linear in the structure however deep the boxes
-    /// nest.
+    /// it, at any depth, in vertex order.
+    ///
+    /// One pass over the vertices lists each box's own vertices, then a
+    /// walk down the boxes inside gathers them. So it takes time linear in
+    /// the structure, however deep the boxes nest.
     fn contents(&self, b: u32) -> Vec<u32> {
         let n = self.parent.len();
         let mut own: Vec<Vec<u32>> = vec![Vec::new(); n];

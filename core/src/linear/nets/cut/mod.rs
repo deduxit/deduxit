@@ -1,47 +1,55 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Cut elimination on proof nets: a step reduces one cut link, the
-//! caller's or the strategy's, and says which and by which case;
-//! [`eliminate`](crate::linear::nets::cut::eliminate) takes steps by the strategy until no cut link is left or
-//! a bound is reached.
+//! Cut elimination on proof nets. A step reduces one cut link, the
+//! caller's or the strategy's, and says which and by which case.
+//! [`eliminate`] takes steps by the
+//! strategy until no cut link is left or a bound is reached.
 //!
-//! A step rewrites the net around its cut link, as the literature does
-//! (Girard, *Linear logic*, TCS 50, 1987; for the generalised `?` node,
-//! Accattoli, arXiv:1303.7326 §7):
+//! A cut link joins an occurrence of a cut formula's tree to its dual: it
+//! is the net's form of the cut rule. A step rewrites the net around its cut link, as the
+//! literature does (Girard, *Linear logic*, TCS 50, 1987; for the
+//! generalised `?` node, Accattoli, arXiv:1303.7326 §7). In a net of MELL
+//! a `!` vertex is the door of a *box*, the sub-net that proves its
+//! premise, and a `?` vertex has any number of *copies* of its
+//! subformula as premises. The cases are these ([`Case`]):
 //!
-//! - **axiom**: a cut link between two literals, each linked by an axiom
-//!   link to another literal: the two axiom links and the cut become one
-//!   axiom link between those two literals;
-//! - **`⊗` against `⅋`** (`tensor_par`): the cut link and the two links
-//!   become two cut links, between the left premises and between the
-//!   right ones;
-//! - a box `!A` against a `?A⊥` vertex, by its copies: none, **weakening**:
-//!   the box and the `?` vertex are erased, and every `?` vertex outside
-//!   whose copies were all in the box, and every weakening that hung in
-//!   it, hangs on the axiom link the erased `?` vertex hung on; one copy
-//!   at the cut's depth, **dereliction**: the box is opened and its
-//!   premise cut against the copy; one copy inside a box at the cut's
-//!   depth, **box_into_box**: the box and the `?` vertex enter that box,
-//!   the cut with them; several copies, **contraction**: the box is
-//!   duplicated, and a copy gets a `?` vertex of its own cut against the
-//!   duplicate, so that the next step on it is one of the two before.
+//! - [`Case::Axiom`]: a cut link between two literals, each linked by an
+//!   axiom link to another literal. The two axiom links and the cut
+//!   become one axiom link between those two literals.
+//! - [`Case::TensorPar`], `⊗` against `⅋`: the cut link, the `⊗` and the
+//!   `⅋` become two cut links, one between the left premises and one
+//!   between the right ones.
+//! - A box `!A` against a `?A⊥` vertex goes by the `?` vertex's copies.
+//!   - [`Case::Weakening`], no copy: the box and the `?` vertex are
+//!     erased. Every `?` vertex outside whose copies were all in the box,
+//!     and every weakening that hung in it, hangs on the axiom link the
+//!     erased `?` vertex hung on.
+//!   - [`Case::Dereliction`], one copy at the cut's depth: the box is
+//!     opened, and its premise is cut against the copy.
+//!   - [`Case::BoxIntoBox`], one copy inside a box at the cut's depth: the
+//!     box and the `?` vertex enter that box, the cut with them.
+//!   - [`Case::Contraction`], several copies: the box is duplicated, and a
+//!     copy gets a `?` vertex of its own, cut against the duplicate. So
+//!     the next step on it is one of the two before.
 //!
-//! Nets have no commutative case: the rules a term's commutative cases
-//! move a cut across are no part of a net.
+//! Nets have no commutative case: the rules a proof term's commutative
+//! cases move a cut across are no part of a net.
 //!
-//! In MLL a step makes no vertex: it takes two out of the structure, whose
-//! vertices are the forest's occurrences, so the net reached keeps the
-//! ids of the net given. In MELL a contraction duplicates a box, whose
-//! copies are new instances of the same occurrences, so every step
+//! In MLL a step makes no vertex. It takes two out of the structure,
+//! whose vertices are the forest's occurrences, so the net reached keeps
+//! the ids of the net given. In MELL a contraction duplicates a box,
+//! whose copies are new instances of the same occurrences. So every step
 //! renumbers the vertices: the roots first, then every root's tree and
 //! every cut link's two trees, depth first.
 //!
-//! A step is checked, not trusted: [`step`](crate::linear::nets::cut::step) returns a net the criterion
-//! accepts, and [`eliminate`](crate::linear::nets::cut::eliminate) checks every net it reaches before its next
-//! step and the last one before it returns. Every net made is a proof net
-//! of the same conclusion over the same forest, and sequentializes into a
-//! proof the checker accepts, which the tests show on every step.
+//! A step is checked, not trusted. [`step`]
+//! returns a net the criterion accepts.
+//! [`eliminate`] checks every net it
+//! reaches before its next step, and the last one before it returns.
+//! Every net made is a proof net of the same conclusion over the same
+//! forest, and sequentializes into a proof the checker accepts; the tests
+//! show it on every step.
 
 /// The reductions of a structure with boxes.
 mod mell;
@@ -54,17 +62,21 @@ use crate::limits::{Bound, Limits, Phase, Progress, Refusal};
 use crate::linear::proofs::cut::{Case, End, Options, Strategy};
 use crate::linear::sequents::Kind;
 
-/// A proof structure whose cuts can be eliminated: [`ProofStructure`]
-/// and [`MellStructure`](super::MellStructure).
+/// A proof structure whose cut links can be eliminated: [`ProofStructure`]
+/// or [`MellStructure`](super::MellStructure).
+///
+/// The trait is sealed: no other type implements it.
 pub trait Net: Clone + crate::sealed::Net {}
 
 impl Net for ProofStructure {}
 
 impl Net for super::MellStructure {}
 
-/// One step of an elimination on a net: which cut link it reduced and
-/// how, in vertices of the net the step was taken on, which a drawing of
-/// that net marks.
+/// One step of an elimination on a net: which cut link it reduced, and
+/// how.
+///
+/// The vertices are those of the net the step was taken on, so that a
+/// drawing of that net can mark them.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Step {
@@ -74,9 +86,10 @@ pub struct Step {
     /// [`Case::Weakening`], [`Case::Dereliction`], [`Case::Contraction`]
     /// or [`Case::BoxIntoBox`].
     pub case: Case,
-    /// Where the step acted besides the cut link, if anywhere: the copy a
-    /// dereliction cut the box's premise against or a contraction gave a
-    /// `?` vertex of its own, the `!` vertex of the box a box entered.
+    /// Where the step acted besides the cut link, if anywhere. For a
+    /// dereliction, the copy the box's premise was cut against; for a
+    /// contraction, the copy that got a `?` vertex of its own; for a box
+    /// entering a box, the `!` vertex of the box it entered.
     pub above: Option<VertexId>,
 }
 
@@ -92,12 +105,12 @@ pub struct Reduction<N> {
 }
 
 /// The outcome of an elimination on a net: the last net it reached, the
-/// steps that led there and why it ended.
+/// steps that led there, and why it ended.
 #[non_exhaustive]
 #[derive(Clone, Debug)]
 pub struct Elimination<N> {
-    /// The last net reached, which the criterion accepted: without cut
-    /// links when the elimination ended at [`End::CutFree`].
+    /// The last net reached, which the criterion accepted. It has no cut
+    /// link when the elimination ended at [`End::CutFree`].
     pub net: N,
     /// The steps taken, in order, each on the net the step before made.
     pub steps: Vec<Step>,
@@ -105,11 +118,13 @@ pub struct Elimination<N> {
     pub end: End,
 }
 
-/// Returns the cut link of `net` a step reduces: the one at the vertex
-/// `at`, either end, or the one the strategy picks, the first of the
-/// net's list. A step puts the cut links it makes in the place of the one
-/// it reduced, so the strategy reduces the first cut formula's cut links
-/// to the end before it turns to the next one's.
+/// Returns the cut link of `net` a step reduces: the one with an end at
+/// the vertex `at`, or else the one the strategy picks, the first of the
+/// net's list.
+///
+/// A step puts the cut links it makes in the place of the one it reduced.
+/// So the strategy reduces the first cut formula's cut links to the end
+/// before it turns to the next one's.
 fn pick<N: Net>(
     net: &N,
     at: Option<VertexId>,
@@ -156,11 +171,14 @@ fn refusal(error: &Error) -> Option<&Refusal> {
     None
 }
 
-/// Reduces one cut link of `net`, the one at the vertex `at` (either of
-/// its ends), or the one the strategy of `options` picks: checks that
-/// `net` is a proof net, takes the step and checks the net it made, each
-/// check asking `stop`. A step is bounded by `options.nodes`, which
-/// counts a net's vertices, and by `limits.memory_bytes`.
+/// Reduces one cut link of `net` and returns the net it made: the cut
+/// link with an end at the vertex `at`, or the one the strategy of
+/// `options` picks.
+///
+/// It checks that `net` is a proof net, takes the step, and checks the
+/// net it made. Each check asks `stop`. A step is bounded by
+/// `options.nodes`, which counts a net's vertices, and by
+/// `limits.memory_bytes`.
 ///
 /// # Errors
 ///
@@ -185,26 +203,59 @@ pub fn step<N: Net>(
 }
 
 /// Eliminates the cut links of `net` by the strategy of `options`, step by
-/// step, until none is left or a bound of `options` or `limits` or the
-/// stop ends it: the net reached is then returned with its cut links and
-/// the refusal that ended it. Every net reached is checked before the
-/// next step is taken on it, and the last before it is returned; `each`
-/// is given every step once the net it made has passed its check, with
-/// the net it was taken on, which is how a caller draws every step. The
-/// stop is asked between steps and by the checks.
+/// step, until none is left or a bound or the stop ends it.
 ///
-/// Every strategy ends: in MLL a step takes two vertices out of the net,
+/// When a bound of `options` or `limits`, or the stop, ends the
+/// elimination, the net reached is returned with its cut links and the
+/// refusal that ended it ([`End::Refused`]). Every net reached is checked
+/// before the next step is taken on it, and the last one before it is
+/// returned. `each` gets every step, with the net it was taken on, once
+/// the net it made has passed its check: that is how a caller draws every
+/// step. The stop is asked between steps and by the checks.
+///
+/// Every strategy ends. In MLL a step takes two vertices out of the net,
 /// and cut elimination on typed nets with boxes is strongly normalising
 /// (Girard, *Linear logic*, TCS 50, 1987; Danos's thesis, 1990; Pagani
 /// and Tortora de Falco, TCS 411, 2010; as recalled by de Carvalho and
-/// Tortora de Falco, arXiv:1304.6762, §1), so the bound on steps bounds
-/// time, not termination.
+/// Tortora de Falco, arXiv:1304.6762, §1). So the bound on steps bounds
+/// the time, not whether it ends.
 ///
 /// # Errors
 ///
 /// The criterion's [`NetError`] for a structure that is no proof net, or
 /// its refusal of the first check; [`NetError::Reduction`] where the
 /// criterion refuses a net a step made, a defect of this crate.
+///
+/// # Examples
+///
+#[cfg_attr(feature = "parse", doc = "```")]
+#[cfg_attr(not(feature = "parse"), doc = "```ignore")]
+/// use deduxit::Limits;
+/// use deduxit::linear::nets::cut::eliminate;
+/// use deduxit::linear::proofs::cut::{End, Options};
+/// use deduxit::linear::{Criterion, Forest, ProofStructure, Sequent, VertexId};
+///
+/// // ⊢ a, ~a with a cut on a ⅋ ~a. The vertices are 0: a, 1: ~a, then
+/// // the cut formula 2: a ⅋ ~a, 3: a, 4: ~a, and its dual 5: ~a ⊗ a,
+/// // 6: ~a, 7: a.
+/// let mut sequent: Sequent = "|- a, ~a".parse()?;
+/// sequent.add_cut("|- a par ~a".parse()?)?;
+/// let v = VertexId::new;
+/// let net = ProofStructure::with_cuts(
+///     Forest::new(&sequent)?,
+///     Criterion::MLL,
+///     &[(v(2), v(5))],
+///     &[(v(3), v(4)), (v(0), v(6)), (v(1), v(7))],
+/// )?;
+///
+/// // The ⊗ against the ⅋ gives two cut links, and each goes by an axiom
+/// // step.
+/// let normal = eliminate(&net, &Options::default(), &Limits::default(), |_| false, |_, _| {})?;
+/// assert_eq!(normal.end, End::CutFree);
+/// assert_eq!(normal.steps.len(), 3);
+/// assert_eq!(normal.net.links(), [(v(0), v(1))]);
+/// # Ok::<(), deduxit::Error>(())
+/// ```
 pub fn eliminate<N: Net>(
     net: &N,
     options: &Options,
@@ -315,8 +366,9 @@ impl crate::sealed::Net for ProofStructure {
         let mut links = self.links().to_vec();
         let case = match forest.kind(x.occ()) {
             Kind::Atom | Kind::DualAtom => {
-                // A proof net links every literal, and never a cut's two
-                // ends to each other.
+                // A proof net links every literal, and never links a cut's
+                // two ends to each other.
+
                 let (px, py) = (
                     self.partner(x).expect("a proof net links every literal"),
                     self.partner(y).expect("a proof net links every literal"),

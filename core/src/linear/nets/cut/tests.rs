@@ -136,9 +136,10 @@ fn proofs() -> Vec<(Proof, Mode)> {
         }
     }
     let mut proofs = crate::linear::proofs::interactive::with_cuts(&plain, &mut rng);
-    // Two copies of the box's formula: a contraction, then a dereliction;
-    // a box's content using it: a box entering a box; a formula the
-    // premise never uses: weakening.
+    // The exponential cases: two copies of the box's formula give a
+    // contraction, then a dereliction; a box whose content uses it gives
+    // a box entering a box; a formula the premise never uses gives a
+    // weakening.
     for text in [
         "!a |- a * a",
         "!a |- !a",
@@ -247,19 +248,21 @@ fn eliminated<N: Tested>(proof: &Proof, mode: Mode, seen: &mut Seen) -> N {
     current
 }
 
-/// Every proof with cuts has a net with its cut links, which the
-/// criterion accepts and which sequentializes into a proof with as many
-/// cuts that the checker accepts in the proof's mode; every step of its
-/// elimination makes such a net of the same conclusion, the elimination
-/// ends without cut links as `eliminate` does in the same steps, and
-/// every case of nets is met. Where the theory says the two eliminations
-/// agree, the normal form is the net of the term elimination's: in MLL,
-/// with or without Mix, the same links, since cut-free MLL nets are the
-/// canonical form of proofs up to rule permutations; with boxes, the
-/// same net up to the order of copies and the links the weakenings hang
-/// on, where no occurrence has two vertices, the only nets the reading of
-/// a term determines (two vertices of one occurrence leave open which a
-/// rule of the term acts on).
+/// Every proof with cuts has a net with its cut links. The criterion
+/// accepts it, and it sequentializes into a proof with as many cuts that
+/// the checker accepts in the proof's mode. Every step of its elimination
+/// makes such a net of the same conclusion. The elimination ends without
+/// cut links, as `eliminate` does in the same steps, and every case of
+/// nets is met.
+///
+/// Where the theory says the two eliminations agree, the normal form is
+/// the net of the term elimination's. In MLL, with or without Mix, it has
+/// the same links, since cut-free MLL nets are the canonical form of
+/// proofs up to rule permutations. With boxes it is the same net up to
+/// the order of copies and the links the weakenings hang on, where no
+/// occurrence has two vertices. Those are the only nets the reading of a
+/// term determines: two vertices of one occurrence leave open which one a
+/// rule of the term acts on.
 #[test]
 fn every_step_keeps_the_criterion_and_the_conclusion() {
     let mut seen = Seen::default();
@@ -494,10 +497,11 @@ fn a_bound_stops_with_a_net() {
     assert!(stopped_with_cuts > 3, "{stopped_with_cuts}");
 }
 
-/// A cut link joins an occurrence of a cut formula's tree to its dual,
-/// below which lies no other cut link, and nothing else; the vertices
-/// above no cut link are none of the structure, and a cut against an
-/// axiom between its own two ends is a switching cycle.
+/// A cut link joins an occurrence of a cut formula's tree to its dual and
+/// nothing else, and no cut link lies in the tree above another. The
+/// occurrences above no cut link's end are no vertices of the structure.
+/// A cut link and an axiom link between the same two literals are a
+/// switching cycle.
 #[test]
 fn cut_links_are_checked() {
     let mut sequent: Sequent = "|- a, ~a".parse().unwrap();
@@ -542,10 +546,12 @@ fn cut_links_are_checked() {
 }
 
 /// A proof the checker accepts may cut one occurrence in two branches, or
-/// an occurrence in one and its subformula in another: its net needs two
-/// vertices of one occurrence, which a `ProofStructure` refuses
-/// (`Placement::Cut`) and a `MellStructure` has; that net eliminates to
-/// the end, every step's net sequentializing into a proof that checks.
+/// an occurrence in one and its subformula in another. Its net needs two
+/// vertices of one occurrence. A `ProofStructure` refuses it
+/// (`Placement::Cut`), and a `MellStructure` has it. That net eliminates
+/// to the end, and every step's net sequentializes into a proof that
+/// checks.
+
 #[test]
 fn a_cut_occurrence_twice_needs_a_structure_with_boxes() {
     use crate::linear::occurrences::{Member, OccId};

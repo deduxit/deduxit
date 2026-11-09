@@ -1,29 +1,57 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Proof nets for unit-free MLL, with or without Mix: proof structures over
-//! the occurrence forest, the correctness criterion, and the conversions
-//! to and from proof terms.
+//! Proof nets for unit-free MLL, with or without Mix: build a proof
+//! structure, test whether it is a proof net, turn it into a proof, read
+//! it off a proof, and eliminate its cuts.
 //!
-//! A [`ProofStructure`] is the sequent's formula trees, which the forest
-//! already holds, plus axiom links between dual literal occurrences. It is
-//! complete when every literal is linked. A complete structure is a proof
-//! net when it passes the Danos–Regnier criterion, which
-//! [`is_correct`](ProofStructure::is_correct) decides independently of any
-//! search and of the proof checker: no switching cycle, and without Mix
-//! exactly one connected component under every switching. A proof net
-//! sequentializes into a proof term that the checker accepts, and a proof
-//! term of MLL desequentializes into the net of its axiom links; two
-//! derivations that differ only by the order of their rules give the same
-//! net. The structure of an intuitionistic sequent is also an essential
-//! net or not, which [`is_essential`](ProofStructure::is_essential)
-//! decides by a directed criterion with the same verdict.
+//! A [`ProofStructure`] is a sequent's formula trees plus axiom links. The
+//! formula trees are the sequent's occurrence [`Forest`], whose
+//! occurrences are the vertices. A `⊗` vertex (a *tensor link*) or a `⅋`
+//! vertex (a *par link*) has an edge to each of its two premises, its
+//! immediate subformulas. An *axiom link* joins two dual literals, `a`
+//! and `~a` of one atom; it is the net's form of the axiom rule
+//! `⊢ a, ~a`. The structure is *complete* when every literal is linked.
+//!
+//! A *switching* keeps one of the two premise edges of every par link and
+//! drops the other. A complete structure is a *proof net* when it passes
+//! the Danos–Regnier criterion: no switching leaves a cycle, and, unless
+//! Mix is allowed, every switching leaves the graph connected.
+//! [`is_correct`](ProofStructure::is_correct) decides it, independently
+//! of any search and of the proof checker, and names a witness when it
+//! fails ([`NetError`]).
+//!
+//! What a caller does with one:
+//!
+//! - build it over the sequent's forest with
+//!   [`from_links`](ProofStructure::from_links), or with
+//!   [`new`](ProofStructure::new) and then [`link`](ProofStructure::link)
+//!   for each link; the [`Criterion`] says whether Mix is allowed and
+//!   which order of formulas the calculus keeps;
+//! - test it with [`is_correct`](ProofStructure::is_correct);
+//! - turn a proof net into a proof that the checker accepts with
+//!   [`sequentialize`](ProofStructure::sequentialize);
+//! - read the net off a proof of MLL with
+//!   [`from_proof`](ProofStructure::from_proof): two derivations that
+//!   differ only in the order of their rules give the same net;
+//! - eliminate the cut links of a net step by step with [`cut`].
+//!
+//! The net engine ([`Engine::Net`](crate::linear::Engine::Net)) returns
+//! the net it found in the `net` field of its
+//! [`Outcome`](crate::linear::Outcome).
+//!
+//! The structure of an intuitionistic sequent is also an essential net or
+//! not. [`is_essential`](ProofStructure::is_essential) decides that by a
+//! directed criterion with the same verdict. In the cyclic order a proof
+//! net is also planar ([`is_planar`](ProofStructure::is_planar)).
+//! Proof nets of MELL, with `!`-boxes, are [`MellStructure`]s.
 
-// A variant a later step adds must not fall into an existing arm.
+// A new variant of the calculus's enums must be decided at every match,
+// never fall into an existing arm.
 #![deny(clippy::wildcard_enum_match_arm)]
 
-/// Essential nets: the directed criterion of intuitionistic structures.
 pub mod cut;
+/// Essential nets: the directed criterion of intuitionistic structures.
 pub(crate) mod essential;
 /// The coloured structure graph and the criterion's tests on it.
 mod graph;
@@ -52,14 +80,19 @@ use std::fmt::{Display, Formatter, Result as FmtResult, Write};
 /// The raw index that stands for "no vertex".
 const NONE: u32 = u32::MAX;
 
-/// The most vertices a structure has: a vertex has up to three slots in
-/// the graph (its parent, its children or its link), whose offsets are
-/// `u32`, and the last offset is the total.
+/// The most vertices a structure may have.
+///
+/// A vertex has at most three slots in the graph, one per edge: to its
+/// parent, to its premises, or across its axiom link. The slots' offsets
+/// are `u32`, and the last offset is the total number of slots, so three
+/// slots per vertex must fit.
 const MOST: u64 = (u32::MAX / 3 - 1) as u64;
 
-/// Refuses a forest of more occurrences than a structure has room for
-/// vertices ([`MOST`]), which the engines that build a structure check
-/// before they search: a structure is made with no vertex past it.
+/// Refuses a forest with more occurrences than a structure can hold as
+/// vertices ([`MOST`]).
+///
+/// The engines that build a structure call it before they search, so no
+/// structure is made past the bound.
 ///
 /// # Errors
 ///
@@ -76,16 +109,27 @@ pub(crate) const fn fits(occurrences: usize) -> Result<(), Error> {
     }
 }
 
-/// Checks that proof structures exist for a sequent of `fragment` in
-/// `mode`: unit-free MLL, in a linear mode, with or without Mix. A front
-/// end asks it before it offers a net, and gets the refusal
-/// [`ProofStructure::new`] and [`Criterion::of`] give; the net engine
-/// answers the same as its own refusal.
+/// Checks that proof nets exist for a sequent of `fragment` in `mode`:
+/// unit-free MLL, in a mode that is not affine, with or without Mix.
+///
+/// A front end asks it before it offers a net. It fails with the error
+/// that [`ProofStructure::new`] and [`Criterion::of`] give. The net engine
+/// refuses the same sequents, with an error of its own.
 ///
 /// # Errors
 ///
-/// [`NetError::Fragment`] for a larger fragment and [`NetError::Mode`] in
-/// affine mode.
+/// [`NetError::Fragment`] for a larger fragment, and [`NetError::Mode`] in
+/// affine mode and in an ordered mode with Mix.
+///
+/// # Examples
+///
+/// ```
+/// use deduxit::linear::{Fragment, Mode, nets};
+///
+/// assert!(nets::exist(Fragment::MLL, Mode::CLASSICAL.with_mix()).is_ok());
+/// assert!(nets::exist(Fragment::MLL, Mode::CLASSICAL.with_affine()).is_err());
+/// assert!(nets::exist(Fragment::MALL, Mode::CLASSICAL).is_err());
+/// ```
 pub fn exist(fragment: Fragment, mode: Mode) -> Result<(), NetError> {
     has_nets(fragment)?;
     Criterion::of(mode).map(|_| ())
@@ -117,8 +161,10 @@ const SCRATCH_BYTES: u64 = 3 + 16 + 1 + 8 + 1;
 /// proved (8).
 const SEQUENTIALIZE_BYTES: u64 = 25 + 16 + SCRATCH_BYTES + 8;
 
-/// A vertex of a proof structure: in MLL the occurrence of the same
-/// number, so vertex `i` of a structure is occurrence `i` of its forest.
+/// A vertex of a proof structure, by its number.
+///
+/// In a [`ProofStructure`] vertex `i` is occurrence `i` of its forest. A
+/// [`MellStructure`] numbers its vertices itself.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct VertexId(u32);
 
@@ -150,9 +196,10 @@ impl VertexId {
 }
 
 /// The rules a proof structure is checked under: whether Mix is allowed,
-/// in which case a proof net need not be connected, and the order the
-/// calculus keeps, in which no two links of a proof net of the cyclic
-/// order cross ([`ProofStructure::is_planar`]).
+/// and the order of formulas the calculus keeps.
+///
+/// With Mix a proof net need not be connected. In the cyclic order no two
+/// links of a proof net cross ([`ProofStructure::is_planar`]).
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Criterion {
@@ -182,17 +229,18 @@ impl Criterion {
         Self { mix: true, ..self }
     }
 
-    /// Returns the criterion of a mode: Mix and the order as the mode has
-    /// them. Fails with [`NetError::Mode`] in affine mode, which has no
-    /// proof nets, and in an ordered mode that [`Mode::check`] refuses; in
-    /// intuitionistic mode the net is the one of the one-sided sequent, in
-    /// the Lambek calculus a planar one (a proof net of the calculus
-    /// without empty antecedents asks more of it, which the essential
-    /// engine's search tests).
+    /// Returns the criterion of a mode, with Mix and the order as the mode
+    /// has them.
+    ///
+    /// In intuitionistic mode the net is the one of the one-sided sequent.
+    /// In the Lambek calculus it is a planar one. A proof net of the
+    /// calculus without empty antecedents must meet one more condition,
+    /// which the essential engine's search tests.
     ///
     /// # Errors
     ///
-    /// [`NetError::Mode`] in affine mode and in an ordered mode with Mix.
+    /// [`NetError::Mode`] in affine mode, which has no proof nets, and in
+    /// an ordered mode with Mix, which [`Mode::check`] refuses.
     pub fn of(mode: Mode) -> Result<Self, NetError> {
         if mode.is_affine() || (mode.is_ordered() && mode.check().is_err()) {
             return Err(NetError::Mode { mode });
@@ -215,8 +263,10 @@ impl Criterion {
 }
 
 /// Why a proof structure is not a proof net, why a list of links is not a
-/// proof structure, or why there is no structure. Vertices print as ids;
-/// [`describe`](Self::describe) prints them as formulas.
+/// proof structure, or why there is no structure.
+///
+/// `Display` prints each vertex as its id;
+/// [`describe`](Self::describe) prints it as its formula.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NetError {
@@ -387,10 +437,13 @@ pub enum NetError {
 }
 
 impl NetError {
-    /// Returns what sort of failure this is: a list of links that is no
-    /// structure is malformed, a structure that is no net invalid, a
-    /// sequent, a mode or a rule without nets unsupported, a refusal no
-    /// verdict.
+    /// Returns what sort of failure this is.
+    ///
+    /// A list of links that is no structure is malformed, and a structure
+    /// that is no net is invalid. A sequent, a mode or a rule without nets
+    /// is unsupported, and so is a step of cut elimination asked of no cut
+    /// link. A refusal is no verdict and has its refusal's kind. A net that
+    /// a step made and the criterion refuses is a defect.
     pub fn kind(&self) -> crate::ErrorKind {
         use crate::ErrorKind::*;
         match self {
@@ -419,10 +472,13 @@ impl NetError {
         }
     }
 
-    /// Returns the stable code of the error: `no_nets` where no structure
-    /// exists, `not_intuitionistic` where no essential net does, `no_cut`
-    /// for a step asked of no cut link, `reduction_rejected` for a step's
-    /// net the criterion refuses, the refusal's, or `invalid_net`.
+    /// Returns the stable code of the error.
+    ///
+    /// The code is `no_nets` where no structure exists,
+    /// `not_intuitionistic` where no essential net does, `no_cut` for a
+    /// step asked of no cut link, and `reduction_rejected` for a step's
+    /// net the criterion refuses. A refusal has its refusal's code. Every
+    /// other error is `invalid_net`.
     pub fn code(&self) -> &'static str {
         match self {
             Self::Fragment { .. }
@@ -641,25 +697,31 @@ const STOPPED: NetError = NetError::Refused {
     refusal: Refusal::Stopped { phase: Phase::Net },
 };
 
-/// A proof structure of unit-free MLL over the occurrence forest of its
-/// sequent: the formula trees, which the forest holds, plus axiom links
-/// between dual literal vertices, and the [`Criterion`] that decides what
-/// [`is_correct`](Self::is_correct) requires. Vertex `i` is occurrence `i`
-/// of the forest ([`vertex`](Self::vertex), [`occurrence`](Self::occurrence)).
+/// A proof structure of unit-free MLL: the formula trees of a sequent
+/// plus axiom links between dual literals, checked under a [`Criterion`].
+///
+/// The formula trees are the sequent's occurrence forest, and vertex `i`
+/// is occurrence `i` of it ([`vertex`](Self::vertex),
+/// [`occurrence`](Self::occurrence)). An axiom link joins two literals
+/// `a` and `~a` of one atom. A *switching* keeps one of the two premise
+/// edges of every `⅋` vertex and drops the other. The structure is a proof
+/// net when every literal is linked and the switchings pass the
+/// criterion, which [`is_correct`](Self::is_correct) decides.
 ///
 /// Over a sequent with cut formulas, a structure may have *cut links*
-/// ([`with_cuts`](Self::with_cuts)), each joining an occurrence of a cut
-/// formula's tree to its dual, the cut of a proof; its vertices are then
-/// the conclusions' trees and the trees above the cut links' ends, and the
-/// occurrences of the cut formulas' trees above every cut link are none.
-/// For the criterion a cut link is an edge every switching keeps, and
-/// [`cut`] eliminates them.
+/// ([`with_cuts`](Self::with_cuts)). A cut link joins an occurrence of a
+/// cut formula's tree to its dual; it is the cut rule of a proof. The
+/// vertices are then the conclusions' trees and the trees above the cut
+/// links' ends: the ends and their subformulas. The occurrences of the
+/// cut formulas' trees above no cut link's end are no vertices. For the
+/// criterion a cut link is an edge every switching keeps. [`cut`]
+/// eliminates the cut links.
 ///
-/// Links are added with [`link`](Self::link), which refuses what is not a
-/// link, and taken back in the reverse order with [`unlink`](Self::unlink),
-/// both in constant time, so that a search can try linkings by
-/// backtracking. The structure keeps the `⅋`-free skeleton (the premise
-/// edges of `⊗` nodes and the links) as a union-find, so that
+/// [`link`](Self::link) adds a link and refuses what is not one.
+/// [`unlink`](Self::unlink) takes back the last link made. So a search
+/// can try linkings by backtracking. The structure keeps its `⅋`-free
+/// skeleton (the premise edges of `⊗` vertices, the cut links and the
+/// axiom links) as a union-find. So
 /// [`same_component`](Self::same_component) answers in logarithmic time
 /// whether a candidate link would close a cycle that no switching breaks.
 ///
@@ -684,14 +746,16 @@ const STOPPED: NetError = NetError::Refused {
 /// # JSON
 ///
 /// With the feature `serialize` a structure is `{"version": 1, "sequent":
-/// …, "mix": …, "links": [[x, y], …]}` ([`wire`](crate::wire)): its
-/// sequent in [`Sequent`]'s form, the
-/// criterion's fields (whether Mix is allowed, and `"order": "cyclic"`
-/// at level 2 for the cyclic order), its cut links as `"cuts": [[x, y],
-/// …]` at level 6 where it has some, and its axiom links as pairs of
-/// vertex ids in the order they were made. Reading validates the cut
-/// links and links as [`with_cuts`](Self::with_cuts) does and takes a partial or
-/// incorrect structure, since whether it is a net is
+/// …, "mix": …, "links": [[x, y], …]}` ([`wire`](crate::wire)).
+/// `sequent` is in [`Sequent`]'s form. The criterion's fields follow:
+/// whether Mix is allowed, and `"order": "cyclic"` at level 2 for the
+/// cyclic order. The cut links are `"cuts": [[x, y], …]`, at level 6,
+/// where the structure has some. `links` holds the axiom links as pairs
+/// of vertex ids, in the order they were made.
+///
+/// Reading validates the cut links and links as
+/// [`with_cuts`](Self::with_cuts) does. It takes a partial or incorrect
+/// structure, since whether it is a net is
 /// [`is_correct`](Self::is_correct)'s question.
 #[derive(Clone, Debug)]
 pub struct ProofStructure {
@@ -709,7 +773,7 @@ pub struct ProofStructure {
     cuts: Vec<(VertexId, VertexId)>,
     /// Over a forest with cut formulas, the vertices of the structure:
     /// the conclusions' trees and the trees above the ends of every cut
-    /// link; `None` over a forest without, where every occurrence is one.
+    /// link. `None` over a forest without, where every occurrence is one.
     live: Option<OccSet>,
     /// The literals among the vertices.
     literals: usize,
@@ -720,33 +784,32 @@ pub struct ProofStructure {
 }
 
 impl ProofStructure {
-    /// Returns the structure over the forest with no link yet. Fails with
-    /// [`NetError::Fragment`] if the sequent lies outside unit-free MLL,
-    /// where there are no proof nets, and with [`Refusal::Index`] past
-    /// 1 431 655 763 vertices. Over a forest with cut formulas the
-    /// structure has no cut link, so their trees are none of its vertices:
-    /// [`with_cuts`](Self::with_cuts) gives it some.
+    /// Returns the structure over the forest, with no link yet.
+    ///
+    /// Over a forest with cut formulas the structure has no cut link, so
+    /// the cut formulas' trees hold none of its vertices.
+    /// [`with_cuts`](Self::with_cuts) makes one with cut links.
     ///
     /// # Errors
     ///
-    /// [`NetError::Fragment`] for a sequent outside unit-free MLL,
-    /// [`NetError::Mode`] for a criterion of the cyclic order with Mix,
-    /// which no calculus has, and [`Refusal::Index`] for a forest past the
-    /// vertices a structure holds.
+    /// [`NetError::Fragment`] for a sequent outside unit-free MLL, which
+    /// has no proof nets; [`NetError::Mode`] for a criterion of the cyclic
+    /// order with Mix, which no calculus has; [`Refusal::Index`] for a
+    /// forest of more than 1 431 655 764 occurrences, more vertices than a
+    /// structure holds.
     pub fn new(forest: Forest, criterion: Criterion) -> Result<Self, Error> {
         Self::build(forest, criterion, &[])
     }
 
-    /// Returns the structure with the given links. Fails as
-    /// [`new`](Self::new) does, and with the [`NetError`] of
-    /// [`link`](Self::link) if a link names a vertex outside the
-    /// structure, does not join two dual literals or links a literal
-    /// twice.
+    /// Returns the structure with the given axiom links, made in the order
+    /// given.
     ///
     /// # Errors
     ///
     /// As [`new`](Self::new) does, and the [`NetError`] of
-    /// [`link`](Self::link) for a link that is none.
+    /// [`link`](Self::link) for a pair that is no link: a vertex outside
+    /// the structure, two literals that are not dual, or a literal linked
+    /// twice.
     pub fn from_links(
         forest: Forest,
         criterion: Criterion,
@@ -755,13 +818,13 @@ impl ProofStructure {
         Self::with_cuts(forest, criterion, &[], links)
     }
 
-    /// Returns the structure with the given cut links and links. A cut
-    /// link joins an occurrence of a cut formula's tree to its dual,
-    /// [`Forest::dual`], in either order; the vertices of the structure
-    /// are then the conclusions' trees and the trees above the ends of
-    /// every cut link, which may lie above no other one. Fails as
-    /// [`from_links`](Self::from_links) does, and with
-    /// [`NetError::Placement`] for a cut link that is none.
+    /// Returns the structure with the given cut links and axiom links.
+    ///
+    /// A cut link joins an occurrence of a cut formula's tree to its dual
+    /// ([`Forest::dual`]), given in either order. The vertices of the
+    /// structure are then the conclusions' trees and the trees above the
+    /// ends of every cut link. No cut link may lie in the tree above
+    /// another.
     ///
     /// # Errors
     ///
@@ -793,7 +856,7 @@ impl ProofStructure {
         cuts: &[(VertexId, VertexId)],
     ) -> Result<Self, Error> {
         has_nets(forest.sequent().fragment())?;
-        // No calculus keeps the order with Mix, nor has it a cut.
+        // No calculus of the cyclic order has Mix or a cut.
         if criterion.order != Order::Commutative && (criterion.mix || !cuts.is_empty()) {
             let mode = if criterion.mix {
                 Mode::CYCLIC.with_mix()
@@ -880,31 +943,53 @@ impl ProofStructure {
         }
         Ok((placed, Some(live)))
     }
-    /// Desequentializes a proof of MLL: reads the axiom links off its `Ax`
-    /// nodes and the cut links off its `Cut` nodes, and builds their
-    /// structure over a copy of the proof's
-    /// forest, within `limits.memory_bytes` (the structure and the
-    /// criterion's working memory, estimated before anything is made) and
-    /// until `stop` returns true, which is asked once per node and per
-    /// round of the criterion. Every proof the checker accepts gives a
-    /// proof net; two proofs that differ only in the order of their rules
-    /// give the same one. The checker is not run: the net of a term the
-    /// checker would reject can still be a proof net, and is returned as
-    /// one.
+    /// Returns the proof net of a proof of MLL, the net's axiom links read
+    /// off the proof's `Ax` nodes and its cut links off its `Cut` nodes.
+    /// This is desequentialization, the converse of
+    /// [`sequentialize`](Self::sequentialize).
+    ///
+    /// The structure is built over a copy of the proof's forest. Every
+    /// proof the checker accepts gives a proof net, and two proofs that
+    /// differ only in the order of their rules give the same one. The
+    /// checker is not run: the net of a proof the checker would reject can
+    /// still be a proof net, and is returned as one.
+    ///
+    /// The call holds within `limits.memory_bytes`: it estimates the
+    /// structure and the criterion's working memory before it makes
+    /// anything. It asks `stop` once per node and once per round of the
+    /// criterion, and gives up when `stop` returns true.
     ///
     /// # Errors
     ///
-    /// [`Error::GoalProof`] for a proof of a goal other than the sequent;
-    /// [`NetError::Rule`] for a node a net has no place for (any but `ax`,
-    /// `⊗`, `⅋`, Mix and the cut); otherwise as [`from_links`](Self::from_links)
-    /// does, and with the criterion's error if the links are not a proof
-    /// net, which happens only for a proof the checker rejects or one that
-    /// uses Mix where the criterion forbids it; [`NetError::Placement`]
-    /// with [`Placement::Cut`] for a proof that cuts one occurrence in two
-    /// branches, or an occurrence in one and a subformula of it in
-    /// another, whose net needs two vertices of one occurrence: the
-    /// checker accepts it, and [`MellStructure::from_proof`] makes its net; [`NetError::Refused`] when
-    /// the bound or the stop ended it.
+    /// - [`Error::GoalProof`] for a proof of a goal other than the sequent.
+    /// - [`NetError::Rule`] for a node a net has no place for: any but
+    ///   `ax`, `⊗`, `⅋`, Mix and the cut.
+    /// - The errors of [`from_links`](Self::from_links), and the
+    ///   criterion's error if the links are not a proof net. That happens
+    ///   only for a proof the checker rejects, or one that uses Mix where
+    ///   the criterion forbids it.
+    /// - [`NetError::Placement`] with [`Placement::Cut`] for a proof that
+    ///   cuts one occurrence in two branches, or an occurrence in one
+    ///   branch and a subformula of it in another. Its net needs two
+    ///   vertices of one occurrence. The checker accepts such a proof, and
+    ///   [`MellStructure::from_proof`] makes its net.
+    /// - [`NetError::Refused`] when the bound or the stop ended the call.
+    ///
+    /// # Examples
+    ///
+    #[cfg_attr(feature = "parse", doc = "```")]
+    #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
+    /// use deduxit::Limits;
+    /// use deduxit::linear::{Criterion, Mode, Options, ProofStructure, Sequent, prove};
+    ///
+    /// let sequent: Sequent = "A, A -o B |- B".parse()?;
+    /// let outcome = prove(&sequent, Mode::CLASSICAL, &Options::default())?;
+    /// let proof = outcome.verdict.proof().expect("provable");
+    /// let net = ProofStructure::from_proof(proof, Criterion::MLL, &Limits::default(), |_| false)?;
+    /// assert!(net.is_complete());
+    /// assert_eq!(net.links().len(), 2);
+    /// # Ok::<(), deduxit::Error>(())
+    /// ```
     pub fn from_proof(
         proof: &Proof,
         criterion: Criterion,
@@ -1032,9 +1117,9 @@ impl ProofStructure {
         self.live.as_ref().is_none_or(|live| live.contains(o))
     }
 
-    /// Returns the vertex of an occurrence of the forest, `None` for an
-    /// id outside it and for an occurrence of a cut formula's tree above
-    /// every cut link.
+    /// Returns the vertex of an occurrence of the forest. `None` for an
+    /// id outside it, and for an occurrence of a cut formula's tree above
+    /// no cut link's end.
     pub fn vertex(&self, o: OccId) -> Option<VertexId> {
         (o.index() < self.forest.len() && self.is_vertex(o)).then_some(VertexId::of(o))
     }
@@ -1046,7 +1131,7 @@ impl ProofStructure {
     }
 
     /// Returns the vertices, in order: every occurrence of the forest but
-    /// those of cut formulas above every cut link.
+    /// those of cut formulas' trees above no cut link's end.
     pub fn vertices(&self) -> impl Iterator<Item = VertexId> + '_ {
         self.forest
             .ids()
@@ -1085,8 +1170,9 @@ impl ProofStructure {
     }
 
     /// Returns [`partner`](Self::partner) of a vertex the caller knows to
-    /// be the structure's, as a search does of its candidates: one
-    /// comparison, which the search makes for every candidate link.
+    /// be the structure's, as a search knows its candidates.
+    ///
+    /// It makes one comparison. A search asks it for every candidate link.
     pub(crate) fn mate(&self, v: VertexId) -> Option<VertexId> {
         match self.partner[v.index()] {
             NONE => None,
@@ -1114,13 +1200,16 @@ impl ProofStructure {
             .map(|&l| VertexId::of(l))
     }
 
-    /// Links two unlinked dual literals, in constant time.
+    /// Links two unlinked dual literals, in time logarithmic in the
+    /// structure.
     ///
     /// # Errors
     ///
     /// Fails, and leaves the structure as it is, if one of the two is no
-    /// vertex of the structure ([`NetError::NoVertex`]) or no literal
-    /// ([`NetError::NotLiteral`]), if they are not dual
+    /// vertex of the structure ([`NetError::NoVertex`]), no literal
+    /// ([`NetError::NotLiteral`]) or a literal of a cut formula's tree
+    /// above no cut link's end ([`NetError::Placement`] with
+    /// [`Placement::Uncut`]), if they are not dual
     /// ([`NetError::NotDual`]), or if one has a link already
     /// ([`NetError::LinkedTwice`]).
     pub fn link(&mut self, x: VertexId, y: VertexId) -> Result<(), NetError> {
@@ -1130,8 +1219,10 @@ impl ProofStructure {
     }
 
     /// Links two literals that the caller knows to be unlinked dual
-    /// literals of the structure, as a search does of the candidates it
-    /// enumerates; a debug build checks. Anything else corrupts the
+    /// literals of the structure, as a search knows the candidates it
+    /// enumerates.
+    ///
+    /// Only a debug build checks them. Any other pair corrupts the
     /// structure.
     pub(crate) fn link_unchecked(&mut self, x: VertexId, y: VertexId) {
         debug_assert!(
@@ -1145,9 +1236,11 @@ impl ProofStructure {
         self.graph.link(x.get(), y.get());
     }
 
-    /// Takes back the last link made and returns it, or `None` if there is
-    /// no link. Links are undone in the reverse order of their making, as a
-    /// backtracking search does.
+    /// Takes back the last link made, in constant time, and returns it.
+    /// `None` if there is no link.
+    ///
+    /// Links are undone in the reverse order of their making, as a
+    /// backtracking search undoes them.
     pub fn unlink(&mut self) -> Option<(VertexId, VertexId)> {
         let (x, y) = self.links.pop()?;
         self.partner[x.index()] = NONE;
@@ -1158,18 +1251,23 @@ impl ProofStructure {
     }
 
     /// Returns whether two vertices are joined by a path that uses no
-    /// premise edge of a `⅋`: `⊗` premise edges and links only. Linking two
-    /// such literals closes a cycle that every switching keeps. A vertex
-    /// outside the structure is joined to nothing.
+    /// premise edge of a `⅋`: only `⊗` premise edges, cut links and axiom
+    /// links.
+    ///
+    /// Linking two such literals closes a cycle that every switching
+    /// keeps. A vertex outside the structure is joined to nothing. It takes
+    /// time logarithmic in the structure.
     pub fn same_component(&self, x: VertexId, y: VertexId) -> bool {
         let n = self.forest.len();
         x.index() < n && y.index() < n && self.joined(x, y)
     }
 
     /// Returns [`same_component`](Self::same_component) of two vertices
-    /// the caller knows to be the structure's, as a search does of its
-    /// candidates, without comparing them with its length: the search
-    /// asks it for every candidate link.
+    /// the caller knows to be the structure's, as a search knows its
+    /// candidates.
+    ///
+    /// It skips the comparison of the ids with the structure's length,
+    /// since a search asks it for every candidate link.
     pub(crate) fn joined(&self, x: VertexId, y: VertexId) -> bool {
         self.skeleton.same(x.get(), y.get())
     }
@@ -1182,19 +1280,25 @@ impl ProofStructure {
     }
 
     /// Returns working memory for the tests of the criterion, sized for
-    /// this structure; one serves any number of calls.
+    /// this structure. One serves any number of calls.
     pub fn scratch(&self) -> Scratch {
         self.graph.scratch()
     }
 
-    /// Returns whether no cycle survives any switching, by the deletion
-    /// procedure of Yeo's theorem: a vertex that every part of the graph
-    /// without it meets in edges of one colour only lies on no switching
-    /// cycle and goes; when none is left to delete, what remains carries a
-    /// switching cycle, or nothing remains. Meaningful on a partial
-    /// structure too: an unlinked literal lies on no cycle. Allocates
-    /// nothing with a scratch from [`scratch`](Self::scratch); a scratch
+    /// Returns whether no cycle survives any switching.
+    ///
+    /// The answer means the same on a partial structure, since an unlinked
+    /// literal lies on no cycle. With a scratch from
+    /// [`scratch`](Self::scratch) the call allocates nothing. A scratch
     /// sized for another structure is replaced by one for this one.
+    ///
+    /// It runs the deletion procedure of Yeo's theorem on the graph whose
+    /// edges are the premise edges, the cut links and the axiom links. The
+    /// two premise edges of a `⅋` share a colour, and every other edge has
+    /// a colour of its own. A vertex that every part of the graph without
+    /// it meets in edges of one colour only lies on no switching cycle, and
+    /// is deleted. When no vertex is left to delete, either nothing
+    /// remains or what remains carries a switching cycle.
     pub fn is_acyclic(&self, scratch: &mut Scratch) -> bool {
         if !self.cuts.is_empty() && self.looped().is_some() {
             return false;
@@ -1208,22 +1312,57 @@ impl ProofStructure {
             .unwrap_or(false)
     }
 
-    /// Decides whether the structure is a proof net, independently of any
-    /// search and of the proof checker: every literal is linked, no cycle
-    /// survives any switching, and, unless the criterion allows Mix, every
-    /// switching is connected, which given acyclicity is the count of
-    /// edges a switching keeps being one less than the number of vertices.
-    /// A cut link is an edge every switching keeps, as a `⊗` without a
-    /// conclusion would be (Girard, *Linear logic*, 1987).
-    /// It holds working memory linear in the structure and asks `stop`
-    /// once per round of the deletion procedure, of which a witness for a
-    /// cycle runs one per edge.
+    /// Decides whether the structure is a proof net by the Danos–Regnier
+    /// criterion, independently of any search and of the proof checker.
+    ///
+    /// A proof net has every literal linked, and no cycle survives any
+    /// switching. Unless the criterion allows Mix, every switching is also
+    /// connected. Once no switching has a cycle, connectedness is a count:
+    /// the edges a switching keeps are one fewer than the vertices. A cut link
+    /// is an edge every switching keeps, as a `⊗` without a conclusion
+    /// would be (Girard, *Linear logic*, 1987). Under a criterion of the
+    /// cyclic order the links must also be planar
+    /// ([`is_planar`](Self::is_planar)).
+    ///
+    /// The call holds working memory linear in the structure. It asks
+    /// `stop` once per round of the deletion procedure
+    /// ([`is_acyclic`](Self::is_acyclic)). The witness of a cycle runs
+    /// that procedure once per edge.
     ///
     /// # Errors
     ///
     /// [`NetError::Empty`], [`NetError::Unlinked`],
     /// [`NetError::SwitchingCycle`] or [`NetError::Disconnected`] with a
-    /// witness; [`NetError::Refused`] when `stop` ended it.
+    /// witness; [`NetError::Crossing`] under a criterion of the cyclic
+    /// order; [`NetError::Refused`] when `stop` ended it.
+    ///
+    /// # Examples
+    ///
+    #[cfg_attr(feature = "parse", doc = "```")]
+    #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
+    /// use deduxit::linear::{Criterion, Forest, NetError, ProofStructure, Sequent, VertexId};
+    ///
+    /// // ⊢ A ⅋ B, ~A, ~B, with the vertices 0: A ⅋ B, 1: A, 2: B, 3: ~A,
+    /// // 4: ~B.
+    /// let sequent: Sequent = "|- A par B, ~A, ~B".parse()?;
+    /// let forest = Forest::new(&sequent)?;
+    /// let v = VertexId::new;
+    /// let links = [(v(1), v(3)), (v(2), v(4))];
+    ///
+    /// // Every switching falls into two parts: the one that keeps A
+    /// // leaves B and ~B apart.
+    /// let net = ProofStructure::from_links(forest.clone(), Criterion::MLL, &links)?;
+    /// assert!(matches!(
+    ///     net.is_correct(|_| false),
+    ///     Err(NetError::Disconnected { .. })
+    /// ));
+    ///
+    /// // With Mix a proof net need not be connected.
+    /// let mix = Criterion::MLL.with_mix();
+    /// let net = ProofStructure::from_links(forest, mix, &links)?;
+    /// assert_eq!(net.is_correct(|_| false), Ok(()));
+    /// # Ok::<(), deduxit::Error>(())
+    /// ```
     pub fn is_correct(&self, mut stop: impl FnMut(Progress) -> bool) -> Result<(), NetError> {
         if self.forest.is_empty() {
             return Err(NetError::Empty);
@@ -1278,24 +1417,26 @@ impl ProofStructure {
             .find(|&(x, y)| self.partner(x) == Some(y))
     }
 
-    /// Decides whether the links are planar, independently of any search
-    /// and of the criterion's other conditions: no two of them cross in
-    /// the cyclic order of the literals, which is the order of their
-    /// occurrence ids (the order the formulas are written in, a formula's
-    /// left operand before its right one). Two links cross when their
-    /// four literals alternate between them going round, which is the
-    /// same in the cyclic order as in the linear one, whatever the
-    /// rotation; a partial structure is planar when the links it has are.
-    /// One pass over the vertices with a stack of the links whose first
-    /// literal has been passed and whose second has not: in a planar
-    /// structure the second literal reached always closes the link on top.
+    /// Decides whether the links are planar: no two of them cross in the
+    /// cyclic order of the literals. The answer is independent of any
+    /// search and of the criterion's other conditions.
+    ///
+    /// The cyclic order is the order of the occurrence ids: the order the
+    /// formulas are written in, a formula's left operand before its right
+    /// one. Two links cross when their four literals alternate between
+    /// them going round. That is the same in the cyclic order as in the
+    /// linear one, whatever the rotation. A partial structure is planar
+    /// when the links it has are. The test is one pass over the vertices,
+    /// with a stack of the links whose first literal has been passed and
+    /// whose second has not. In a planar structure the second literal
+    /// reached always closes the link on top.
     ///
     /// A structure of unit-free MLL is a proof net of cyclic MLL exactly
-    /// when it is a proof net and planar: every derivation of the cyclic
-    /// calculus joins its premises' planar nets side by side at a `⊗`,
-    /// and every sequentialization of a planar net splits each `⊗` into
-    /// the two arcs on either side of it, since the parts that removing
-    /// it leaves are connected and drawn without crossing.
+    /// when it is a proof net and planar. Every derivation of the cyclic
+    /// calculus joins its premises' planar nets side by side at a `⊗`. And
+    /// every sequentialization of a planar net splits each `⊗` into the
+    /// two arcs on either side of it, since the parts that removing it
+    /// leaves are connected and drawn without crossing.
     ///
     /// # Errors
     ///
@@ -1332,23 +1473,25 @@ impl ProofStructure {
 }
 
 impl Display for ProofStructure {
-    /// Writes the sequent, then one line per cut link as `cut A ⊗ B[5] —
-    /// A⊥ ⅋ B⊥[8]` in their order, then one line per link as `~A[0] —
-    /// A[2]`, each literal with its vertex id, the links ordered by their
-    /// first id,
-    /// then the verdict of the criterion: `proof net`, `proof net with
-    /// Mix`, `planar proof net` in the cyclic order, or `not a proof net:
-    /// ` and the reason with formulas. No trailing newline.
+    /// Writes the sequent, then one line per cut link, in their order, as
+    /// `cut A ⊗ B[5] — ~A ⅋ ~B[8]`. Then one line per axiom link as
+    /// `~A[0] — A[2]`, each literal with its vertex id, the smaller id
+    /// first and the links ordered by it. Last comes the verdict of the
+    /// criterion: `proof net`, `proof net with Mix`, `planar proof net` in
+    /// the cyclic order, or `not a proof net: ` and the reason with
+    /// formulas. No trailing newline.
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         self.write(f, None)
     }
 }
 
 impl ProofStructure {
-    /// Returns the structure for display as `mode` reads it: as
-    /// [`Display`] writes it, and in an intuitionistic mode, where the
-    /// sequent has a reading, with the sequent two-sided and every
-    /// formula as the reading writes it (`A[0] — A[2]`, `A ⊸ B, A ⊢ B`).
+    /// Returns the structure for display as `mode` reads it.
+    ///
+    /// That is what [`Display`] writes, except in an intuitionistic mode
+    /// where the sequent has a reading. There the sequent is two-sided,
+    /// and every formula is written as the reading writes it
+    /// (`A ⊸ B, A ⊢ B`, `A[0] — A[2]`).
     pub fn written_in(&self, mode: crate::linear::Mode) -> impl Display + '_ {
         In {
             structure: self,
@@ -1451,9 +1594,9 @@ mod tests {
     }
 
     /// A forest of one occurrence more than a structure has vertices is
-    /// refused, as the net engines refuse it before they search, rather
-    /// than panic where a search makes its structure; no forest that large
-    /// is built here, at some 25 bytes an occurrence.
+    /// refused. The net engines refuse it so before they search, and never
+    /// panic where a search makes its structure. The test builds no forest
+    /// that large, at some 25 bytes an occurrence.
     #[test]
     fn a_forest_past_the_vertices_is_refused() {
         let most = usize::try_from(MOST).unwrap();
@@ -1585,8 +1728,8 @@ mod tests {
             ProofStructure::from_proof(&with_mix, criterion(false), &Limits::default(), |_| false),
             Err(Error::Net(e)) if matches!(*e, NetError::Disconnected { .. })
         ));
-        // Outside MLL there is no net, and no node a net has no place for
-        // is passed over.
+        // Outside MLL there is no net, and a node a net has no place for
+        // is refused, never skipped.
         let f = forest("|- A & A, ~A");
         let additive = Proof::new(
             f,
@@ -1966,8 +2109,9 @@ mod tests {
             false
         })
         .unwrap();
-        // Each poll says what the call holds by its estimate, the
-        // criterion's alone its working memory.
+        // Each poll says what the call holds by its estimate. When the
+        // criterion runs alone, that is its working memory.
+
         assert!(!held.is_empty() && held.iter().all(|&bytes| bytes > 0));
         let mut scratch = Vec::new();
         net.is_correct(|p| {

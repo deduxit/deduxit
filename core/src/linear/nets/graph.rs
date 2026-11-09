@@ -7,26 +7,30 @@
 //! The vertices are the occurrences. The edges are the premise edges of
 //! every `⊗` and `⅋`, the cut links and the axiom links. A cut link takes
 //! the place of the parent edge at both its ends, whose parents are no
-//! vertices; an occurrence that is no vertex of the structure (a cut
-//! formula's above every cut link) has no slot at all. The colouring: the two premise
-//! edges of a `⅋` share a colour of their own, and every other edge has a
-//! colour of its own, so a cycle is *properly coloured* (no two consecutive
-//! edges alike) exactly when it enters and leaves no `⅋` through its two
-//! premises, that is, when some switching keeps it. A switching cycle is a
-//! properly coloured cycle. Unlinked literals are leaves and lie on no
-//! cycle, so the test means the same on a partial structure.
+//! vertices. An occurrence that is no vertex of the structure (one of a
+//! cut formula's tree above no cut link's end) has no slot at all.
 //!
-//! By Yeo's theorem, a graph without properly coloured cycle has a vertex
-//! that every component of the graph without it meets in edges of one
-//! colour only, and deleting such a vertex, which lies on no properly
-//! coloured cycle, keeps the property. Repeating the deletion until it
-//! stops decides the question exactly: everything goes, or a properly
-//! coloured cycle is left. With this colouring the deletion condition needs
-//! no colours: a vertex that is not a `⅋` has an edge of its own colour to
-//! every neighbour, so it is deletable when every incident edge is a
-//! bridge; a `⅋` is deletable when its parent edge is a bridge, or absent,
-//! since its premise edges share a colour. Bridges come from one
-//! depth-first search per round.
+//! The colouring: the two premise edges of a `⅋` share a colour of their
+//! own, and every other edge has a colour of its own. So a cycle is
+//! *properly coloured* (no two consecutive edges alike) exactly when it
+//! never enters and leaves a `⅋` through its two premises, that is, when
+//! some switching keeps it. A switching cycle is a properly coloured
+//! cycle. Unlinked literals are leaves and lie on no cycle, so the test
+//! means the same on a partial structure.
+//!
+//! By Yeo's theorem, a graph without a properly coloured cycle has a
+//! vertex that every component of the graph without it meets in edges of
+//! one colour only. Such a vertex lies on no properly coloured cycle, and
+//! deleting it keeps the property. Repeating the deletion until it stops
+//! decides the question exactly: everything goes, or a properly coloured
+//! cycle is left.
+//!
+//! With this colouring the deletion condition needs no colours. A vertex
+//! that is not a `⅋` has an edge of its own colour to every neighbour, so
+//! it is deletable when every incident edge is a bridge, an edge whose
+//! removal disconnects its two ends. A `⅋` is deletable when its parent
+//! edge is a bridge or absent, since its premise edges share a colour.
+//! One depth-first search per round finds the bridges.
 
 use super::{NONE, VertexId};
 use crate::linear::occurrences::{Forest, OccId, OccSet};
@@ -48,15 +52,18 @@ pub(super) struct Graph {
     /// per cut link.
     switched_tree_edges: usize,
     /// The vertices with slots: every occurrence but those of a cut
-    /// formula above every cut link.
+    /// formula's tree above no cut link's end.
     vertices: usize,
 }
 
 /// Working memory for the correctness tests, sized for one structure, so
-/// that running a test allocates nothing; [`ProofStructure::scratch`] makes
-/// one.
+/// that a test allocates nothing.
+///
+/// [`ProofStructure::scratch`] makes one, and
+/// [`ProofStructure::is_acyclic`] takes it.
 ///
 /// [`ProofStructure::scratch`]: super::ProofStructure::scratch
+/// [`ProofStructure::is_acyclic`]: super::ProofStructure::is_acyclic
 #[derive(Clone, Debug)]
 pub struct Scratch {
     /// The vertices the deletion procedure has removed.
@@ -266,11 +273,13 @@ impl Graph {
     }
 
     /// Searches depth-first from each of `roots` in turn, over the vertices
-    /// not deleted and the edges not removed, computing for every vertex
-    /// reached its discovery time, its search-tree parent, the root that
-    /// reached it, and whether its parent edge is a bridge. Returns the
-    /// number of roots that reached something new, which is the number of
-    /// connected components among the vertices reached.
+    /// not deleted and the edges not removed. Returns the number of roots
+    /// that reached something new, which is the number of connected
+    /// components among the vertices reached.
+    ///
+    /// For every vertex reached, the search records its discovery time,
+    /// its search-tree parent, the root that reached it, and whether its
+    /// edge to that parent is a bridge.
     pub(super) fn search(
         &self,
         scratch: &mut Scratch,
@@ -352,13 +361,16 @@ impl Graph {
     }
 
     /// Runs the deletion procedure on the vertices not yet deleted: in
-    /// rounds, deletes every deletable vertex until none is, asking `stop`
-    /// before each round (a `dyn`, asked once a round: generic, the
-    /// function would be made in its caller's codegen unit, where `search`
-    /// and `deletable`, which run per vertex, cannot be inlined into it). Returns whether every vertex went, which means
-    /// the graph has no switching cycle; otherwise the vertices left in
-    /// place are those the procedure got stuck on, and a switching cycle
-    /// runs among them. `None` when `stop` fired.
+    /// rounds, deletes every deletable vertex until none is. Returns
+    /// whether every vertex went, which means the graph has no switching
+    /// cycle. Otherwise the vertices left in place are those the procedure
+    /// got stuck on, and a switching cycle runs among them. `None` when
+    /// `stop` fired.
+    ///
+    /// It asks `stop` before each round. `stop` is a `dyn`, asked once a
+    /// round. A generic function would be made in its caller's codegen
+    /// unit, where `search` and `deletable`, which run per vertex, cannot
+    /// be inlined into it.
     pub(super) fn acyclic(
         &self,
         forest: &Forest,
@@ -386,13 +398,14 @@ impl Graph {
         Some(true)
     }
 
-    /// Isolates one switching cycle among the vertices [`acyclic`](Self::acyclic)
-    /// got stuck on, which it must have just done, and returns its vertices
-    /// in order along the cycle. Every edge among those vertices is taken
-    /// out in turn and kept out when a switching cycle survives without it;
-    /// an edge found necessary stays necessary as edges go, so one pass
-    /// leaves exactly one cycle. `None` when `stop`, which every deletion
-    /// procedure asks, fired.
+    /// Isolates one switching cycle among the vertices that
+    /// [`acyclic`](Self::acyclic) got stuck on, in the call just before,
+    /// and returns its vertices in order along the cycle. `None` when
+    /// `stop`, which every deletion procedure asks, fired.
+    ///
+    /// Every edge among those vertices is taken out in turn, and kept out
+    /// when a switching cycle survives without it. An edge found necessary
+    /// stays necessary as edges go, so one pass leaves exactly one cycle.
     pub(super) fn cycle(
         &self,
         forest: &Forest,
@@ -457,10 +470,11 @@ impl Graph {
     }
 
     /// Returns the connected components of the switching that keeps the
-    /// left premise of every `⅋`, each as the vertices in it that have no
-    /// parent edge there: the roots, the right premises of `⅋` nodes, and
-    /// of each cut link its end in a cut formula's tree.
-    /// Components come in the order of their smallest vertex.
+    /// left premise of every `⅋`, in the order of their smallest vertex.
+    ///
+    /// Each component is given as the vertices in it that have no parent
+    /// edge there: the roots, the right premises of `⅋` nodes, and of each
+    /// cut link its end in a cut formula's tree.
     pub(super) fn parts(&self, forest: &Forest, scratch: &mut Scratch) -> Vec<Vec<VertexId>> {
         let n = self.len();
         scratch.restore();
@@ -651,8 +665,10 @@ mod tests {
             net("|- A par B, ~A, ~B", true, &[(1, 3), (2, 4)]).is_correct(|_| false),
             Ok(())
         );
-        // ⊢ (A ⅋ ~A) ⅋ (B ⅋ ~B): 0 ⅋, 1 ⅋, 2 A, 3 ~A, 4 ⅋, 5 B, 6 ~B: the
-        // right part hangs off a cut premise.
+        // ⊢ (A ⅋ ~A) ⅋ (B ⅋ ~B): 0 ⅋, 1 ⅋, 2 A, 3 ~A, 4 ⅋, 5 B, 6 ~B. The
+        // switching that keeps every left premise drops the edge from 0 to
+        // 4, which leaves 4, 5 and 6 apart.
+
         assert_eq!(
             net("|- (A par ~A) par (B par ~B)", false, &[(2, 3), (5, 6)]).is_correct(|_| false),
             Err(NetError::Disconnected {

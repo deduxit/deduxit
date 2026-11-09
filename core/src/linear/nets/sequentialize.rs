@@ -2,18 +2,23 @@
 // Licensed under the EUPL
 
 //! Sequentialization: from a proof net to a proof term, by the splitting
-//! tensor lemma. A sub-net is given by its conclusions. While one is a `⅋`,
-//! it is replaced by its premises and a `⅋` rule is emitted below whatever
-//! proves the rest. With Mix allowed, a sub-net that falls into several
-//! parts, as the plain graph of its formula trees and links, is proved
-//! part by part and joined with Mix. Two literals alone are an axiom.
-//! Otherwise some `⊗` conclusion is splitting: the net without it is two
-//! nets, one holding each premise, which is the case exactly when its edge
-//! to a premise is a bridge of the plain graph; a cut link is such a `⊗`
-//! without a conclusion, splitting when it is a bridge, and its rule is
-//! the cut. A depth-first search per
-//! stage finds the parts and the bridges at once, so the whole
-//! sequentialization costs the square of the net's size at most.
+//! tensor lemma.
+//!
+//! A sub-net is given by its conclusions. While one of them is a `⅋`, it
+//! is replaced by its premises, and a `⅋` rule goes below whatever proves
+//! the rest. The *plain graph* of a sub-net is its formula trees and
+//! links, with no switching. With Mix allowed, a sub-net whose plain
+//! graph falls into several parts is proved part by part, and the parts
+//! are joined with Mix. Two literals alone are an axiom.
+//!
+//! Otherwise some `⊗` conclusion is *splitting*: the net without it is
+//! two nets, one holding each premise. That is the case exactly when its
+//! edge to a premise is a bridge of the plain graph, an edge whose
+//! removal disconnects its two ends. A cut link is such a `⊗` without a
+//! conclusion: it is splitting when it is a bridge, and its rule is the
+//! cut. One depth-first search per stage finds the parts and the bridges
+//! at once, so the whole sequentialization costs at most the square of
+//! the net's size.
 
 use super::{ProofStructure, SEQUENTIALIZE_BYTES, STOPPED, Scratch, VertexId, afford};
 use crate::Error;
@@ -24,18 +29,50 @@ use crate::linear::sequents::Kind;
 
 impl ProofStructure {
     /// Turns a proof net into a proof term of its sequent, which the proof
-    /// checker accepts: `⅋`, `⊗`, axiom, a cut for each cut link and,
-    /// where the structure falls apart, Mix nodes, recorded as meant for classical mode, with Mix
-    /// where the criterion allows it. It takes time quadratic in the
-    /// structure at most, holds within `limits.memory_bytes` (estimated
-    /// before anything is made) and asks `stop` as
-    /// [`is_correct`](Self::is_correct) does and once per stage, each a
-    /// search of the sub-net left.
+    /// checker accepts.
+    ///
+    /// The proof has `⅋`, `⊗` and axiom nodes, a cut for each cut link,
+    /// and Mix nodes where the structure falls apart. It records the mode
+    /// it is meant for: classical, with Mix where the criterion allows it,
+    /// or the cyclic mode under a criterion of the cyclic order.
+    ///
+    /// The call takes time quadratic in the structure at most. It holds
+    /// within `limits.memory_bytes`, which it compares with an estimate
+    /// before it makes anything. It asks `stop` as
+    /// [`is_correct`](Self::is_correct) does, and once per stage, each
+    /// stage a search of the sub-net left.
     ///
     /// # Errors
     ///
     /// The criterion's [`NetError`](super::NetError) if the structure is
-    /// not a proof net; [`NetError::Refused`](super::NetError::Refused) when the bound or the stop ended it.
+    /// not a proof net; [`NetError::Refused`](super::NetError::Refused)
+    /// when the bound or the stop ended it.
+    ///
+    /// # Examples
+    ///
+    #[cfg_attr(feature = "parse", doc = "```")]
+    #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
+    /// use deduxit::Limits;
+    /// use deduxit::linear::{Criterion, Forest, Mode, ProofStructure, Sequent, VertexId};
+    ///
+    /// // ⊢ ~A, A ⊗ ~B, B, with the vertices 0: ~A, 1: A ⊗ ~B, 2: A,
+    /// // 3: ~B, 4: B.
+    /// let sequent: Sequent = "A, A -o B |- B".parse()?;
+    /// let v = VertexId::new;
+    /// let links = [(v(0), v(2)), (v(3), v(4))];
+    /// let net = ProofStructure::from_links(Forest::new(&sequent)?, Criterion::MLL, &links)?;
+    ///
+    /// // Two axioms and the ⊗.
+    /// let limits = Limits::default();
+    /// let proof = net.sequentialize(&limits, |_| false)?;
+    /// assert_eq!(proof.nodes().len(), 3);
+    /// assert_eq!(proof.check(Mode::CLASSICAL), Ok(()));
+    ///
+    /// // The proof's net is the net it came from.
+    /// let back = ProofStructure::from_proof(&proof, Criterion::MLL, &limits, |_| false)?;
+    /// assert_eq!(back.links(), net.links());
+    /// # Ok::<(), deduxit::Error>(())
+    /// ```
     #[expect(
         clippy::missing_panics_doc,
         reason = "the expect states that a sequentialization keeps premises before conclusions, which the stages establish"
@@ -181,12 +218,14 @@ impl Sequentialization<'_> {
         Some(self.premise())
     }
 
-    /// One stage, on the sub-net with the given conclusions and cut links
-    /// (each named by its end in a cut formula's tree): proves it by an
-    /// axiom, or leaves the steps that prove it, which are its parts with
-    /// a Mix after each but the first, or the two sides of its splitting
-    /// `⊗` or cut link and the `⊗` or cut after them; the `⅋` conclusions
-    /// it opened come after either.
+    /// Runs one stage on the sub-net with the given conclusions and cut
+    /// links, each cut link named by its end in a cut formula's tree.
+    ///
+    /// The stage proves the sub-net by an axiom, or leaves the steps that
+    /// prove it. Those are its parts with a Mix after each but the first,
+    /// or the two sides of its splitting `⊗` or cut link with the `⊗` or
+    /// cut after them. The rules of the `⅋` conclusions it opened come
+    /// after either.
     fn stage(&mut self, mut gamma: Vec<OccId>, cuts: Vec<OccId>) {
         let f = self.net.forest();
         let graph = &self.net.graph;

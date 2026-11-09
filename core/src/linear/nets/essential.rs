@@ -6,23 +6,27 @@
 //! directed acyclicity and the dominator condition (Lamarche; Murawski
 //! and Ong), independently of the switchings.
 //!
-//! Every occurrence is input or output by the sequent's
-//! [`Reading`]. The
-//! edges run from an output occurrence to its parent, from an input
-//! connective to each of its input premises, and along every link from its
-//! input literal (`~a`) to its output literal (`a`). The one premise with
-//! no edge is the antecedent of an implication in output position,
-//! `A ⊸ B`, stored as `A⊥ ⅋ B`: its input premise `A⊥` is where the
-//! hypothesis `A` enters, and nothing leads into it. So every path runs
-//! from the hypotheses and the antecedents toward the goal, the one
-//! occurrence without an edge out once every literal is linked.
+//! The sequent's [`Reading`](crate::linear::occurrences::Reading) puts
+//! every occurrence on one side of `⊢`: *input*, the side of the
+//! hypotheses, or *output*, the side of the goal. The edges run from an
+//! output occurrence to its parent, from an input connective to each of
+//! its input premises, and along every link from its input literal (`~a`)
+//! to its output literal (`a`).
+//!
+//! The one premise that nothing leads into is the antecedent of an
+//! implication in output position. `A ⊸ B` is stored as `A⊥ ⅋ B`, and its
+//! input premise `A⊥` is where the hypothesis `A` enters. So every path
+//! runs from the hypotheses and the antecedents toward the goal. Once
+//! every literal is linked, the goal is the one occurrence without an
+//! edge out.
 //!
 //! A linking is an essential net when the graph has no directed cycle and
 //! every implication in output position, other than the goal itself,
-//! dominates its antecedent: every path from the antecedent to the goal
-//! passes through the implication, so the hypothesis it binds is used
-//! inside its body only. For the structure of an intuitionistic sequent
-//! this is the same verdict as the Danos–Regnier criterion without Mix.
+//! dominates its antecedent. That is, every path from the antecedent to
+//! the goal passes through the implication, so the hypothesis it binds is
+//! used inside its body only. For the structure of an intuitionistic
+//! sequent this is the same verdict as the Danos–Regnier criterion
+//! without Mix.
 
 use super::{NetError, ProofStructure, STOPPED, VertexId};
 use crate::limits::{Phase, Progress};
@@ -66,7 +70,9 @@ pub(crate) fn is_implication(forest: &Forest, reading: &Reading<'_>, o: OccId) -
 impl ProofStructure {
     /// Returns the intuitionistic reading of the structure's sequent: the
     /// side of `⊢` every vertex stands on, which orients its essential
-    /// net; under a criterion of the cyclic order, the ordered reading of
+    /// net.
+    ///
+    /// Under a criterion of the cyclic order it is the ordered reading of
     /// the Lambek calculus ([`Reading::of_mode`]), with empty antecedents
     /// allowed. It is recomputed on each call, in time linear in the
     /// forest.
@@ -81,18 +87,24 @@ impl ProofStructure {
         }
     }
 
-    /// Decides whether the structure is an essential net of its
-    /// sequent's intuitionistic reading, independently of any search and
-    /// of the proof checker: every literal is linked, the directed graph
-    /// of the essential net has no cycle, and every implication in output
-    /// position but the goal dominates its antecedent. For a structure of
-    /// an intuitionistic sequent the verdict is that of
+    /// Decides whether the structure is an essential net of its sequent's
+    /// intuitionistic reading, independently of any search and of the
+    /// proof checker.
+    ///
+    /// An essential net has every literal linked, and its directed graph
+    /// has no cycle. Every implication in output position (on the goal's
+    /// side of `⊢` in the [`reading`](Self::reading)) but the goal
+    /// dominates its antecedent: every path from the antecedent to the
+    /// goal passes through it. For a structure of an
+    /// intuitionistic sequent the verdict is that of
     /// [`is_correct`](Self::is_correct) without Mix, whatever the
-    /// structure's criterion. It holds working memory linear in the
-    /// structure, takes time linear in it for the cycle and for each
-    /// implication, and asks `stop` once per implication. A structure with
-    /// cut links has no essential net here: its verdict is that of
-    /// [`is_correct`](Self::is_correct) without Mix.
+    /// structure's criterion. A structure with cut links has no essential
+    /// net here: its verdict is that of [`is_correct`](Self::is_correct)
+    /// without Mix.
+    ///
+    /// The call holds working memory linear in the structure. It takes
+    /// time linear in it for the cycle and for each implication. It asks
+    /// `stop` once after the search for a cycle and once per implication.
     ///
     /// # Errors
     ///
@@ -100,6 +112,22 @@ impl ProofStructure {
     /// [`NetError::NotIntuitionistic`] for a sequent without a reading,
     /// [`NetError::DirectedCycle`] or [`NetError::NoDominator`] with a
     /// witness; [`NetError::Refused`] when `stop` ended it.
+    ///
+    /// # Examples
+    ///
+    #[cfg_attr(feature = "parse", doc = "```")]
+    #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
+    /// use deduxit::linear::{Criterion, Forest, ProofStructure, Sequent, VertexId};
+    ///
+    /// // a ⊸ b, a ⊢ b is ⊢ a ⊗ ~b, ~a, b, with the vertices 0: a ⊗ ~b,
+    /// // 1: a, 2: ~b, 3: ~a, 4: b.
+    /// let sequent: Sequent = "a -o b, a |- b".parse()?;
+    /// let v = VertexId::new;
+    /// let links = [(v(1), v(3)), (v(2), v(4))];
+    /// let net = ProofStructure::from_links(Forest::new(&sequent)?, Criterion::MLL, &links)?;
+    /// assert_eq!(net.is_essential(|_| false), Ok(()));
+    /// # Ok::<(), deduxit::Error>(())
+    /// ```
     pub fn is_essential(&self, mut stop: impl FnMut(Progress) -> bool) -> Result<(), NetError> {
         let forest = &self.forest;
         if forest.is_empty() {
@@ -140,10 +168,12 @@ impl ProofStructure {
             })
         };
 
-        // A depth-first search over every vertex, its stack the path from
-        // where it started: an edge back into the stack closes a cycle.
-        // Per vertex, `UNSEEN`, `NONE` once its search is done, or its
-        // place on the stack, which is below the vertices' count.
+        // A depth-first search from every vertex not yet seen. Its stack
+        // is the path from where it started, so an edge back into the
+        // stack closes a cycle. `state` holds per vertex `UNSEEN`, `NONE`
+        // once its search is done, or its place on the stack, which is
+        // below the vertices' count.
+
         const UNSEEN: u32 = NONE - 1;
         let mut state = vec![UNSEEN; n];
         let mut stack: Vec<(u32, usize)> = Vec::new();

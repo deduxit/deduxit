@@ -1,12 +1,14 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The `⅋`-free skeleton of a proof structure: the occurrences joined by the
-//! premise edges of `⊗` nodes and by the axiom links, as a union-find. A
-//! cycle in the skeleton avoids every `⅋` and so survives every switching,
-//! which is why a link between two literals of one component is never
-//! admissible. The union-find has an undo log so that the last link can be
-//! taken back in constant time.
+//! The `⅋`-free skeleton of a proof structure: the occurrences joined by
+//! the premise edges of `⊗` nodes, the cut links and the axiom links, as a
+//! union-find.
+//!
+//! A cycle in the skeleton avoids every `⅋`, so it survives every
+//! switching. A link between two literals of one component would close
+//! such a cycle, so it is never admissible. The union-find has an undo log,
+//! so that the last link can be taken back in constant time.
 
 /// The raw index that stands for "no vertex".
 const NONE: u32 = u32::MAX;
