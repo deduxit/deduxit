@@ -929,6 +929,11 @@ passes `Derivation::check`; `ViewOptions::structural` draws a derivation
 of LK or LJ with its weakenings and contractions `explicit` or
 `admissible`. `ordinary::Rule` reads from its name or an ASCII spelling
 (`"impL".parse::<ordinary::Rule>()`), as the command's `apply` does.
+`ordinary::ljt::decide(&sequent, logic, &limits, stop)` decides an
+intuitionistic or minimal sequent by Dyckhoff's LJT, whose search always
+ends (no copy bound, so no `unknown` but at a bound or the stop); its
+derivation is LJ's with cuts, checked like any other. The command does
+not use it yet.
 
 ```rust
 use deduxit::linear::{Fragment, Mode, Options, Sequent, Verdict, prove};

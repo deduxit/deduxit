@@ -298,7 +298,11 @@ Built:
   they are admissible, and a certificate over `Prop` for Rocq; and
   proved step by step in LK and LJ, in the command and the bindings, by
   a goal state of ordinary sequents whose finished derivation that
-  checker validates.
+  checker validates. In the library, intuitionistic and minimal logic
+  are also decided natively by Dyckhoff's contraction-free calculus LJT
+  (`ordinary::ljt`), whose search always ends: its proofs become
+  derivations of LJ with cuts, which the same checker validates. The
+  command does not use it yet.
 - [Proofs as programs](terms.md): every intuitionistic proof read back as
   its lambda-term, a proof of intuitionistic linear logic as a term of
   the linear lambda calculus of Benton, Bierman, de Paiva and Hyland
@@ -344,8 +348,8 @@ Built:
 Planned, release by release, as the collection of logic suites grows
 by a suite at a time:
 
-- 0.4.0: intuitionistic logic decided by an engine of its own, with
-  Kripke countermodels for what is not provable, checked, drawn and
+- 0.4.0: intuitionistic logic decided by its own engine in the command
+  and on the page, with Kripke countermodels for what is not provable, checked, drawn and
   certified in Rocq; classical tableaux and truth tables; a checked
   certificate for the affine refutations of the Horn engine.
 - 0.5.0: custom rules, a calculus given as data and derivations in it
