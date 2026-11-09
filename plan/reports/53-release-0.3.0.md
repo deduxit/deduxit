@@ -1997,6 +1997,51 @@ match; the target sets' comparison. Its build directory, inside the
 workspace, was snapshotted into `@` and removed by it; `@` was empty
 again.
 
+### The Rocq library and the client
+
+- **The Rocq library** (`../rocq-linlog-53s`): `yrxqynvu` heads every
+  source file `deduxit ©` (its conventions check looks for it), and
+  `rqtyouoz` makes its CLAUDE.md and `rocq.md` name deduxit's side as
+  this session left it (the input `rocq-deduxit`, its two checks, the
+  kernel `deduxit`, `DEDUXIT`, `core/tests/snapshots/deduxit/`). Its
+  `nix flake check` passed at each (exit 0, "all checks passed!"), and
+  the planning session pushed both. linlog's lock pins `yrxqynvu`
+  (`678dbaab`); `rqtyouoz` changes the library's notes alone, so the
+  lock did not move for it.
+- **The client** (`../linlog-prover.github.io-53s`), prepared by a
+  sub-agent (Opus 5.5 at high) against this workspace with
+  `--override-input`, then rebased by this session onto the client's
+  `main` (`yqxvotmu`) and locked after linlog's push:
+  - `rrqonrzs` takes deduxit's bindings: the input `deduxit`
+    (`github:deduxit/deduxit`), `modules/deduxit.nix` with
+    `deduxitWeb`, `deduxitFonts` and `deduxitCli` (the packages
+    `deduxit-web` and `deduxit-cli`, the command `deduxit` of the
+    `problems` check), the aliases and links `deduxit-web` and
+    `deduxit-fonts`, the worker `deduxit.worker.ts` importing
+    `deduxit_web.js`, the version key `deduxit`;
+  - `rylptywl` names the program deduxit in the page, its texts, its
+    tests and its notes (the buttons "Ask deduxit about …", the region "A
+    step deduxit refuses", the net look `deduxit`); the suite tab
+    "Linear" and the dictionary line stay;
+  - `xsmmsvqx` heads every source file `deduxit ©` with the check that
+    looks for it (`modules/biome.nix`, new on `main`, folded in after the
+    rebase);
+  - `rvqnpusm` paints an essential net's input side by `#0072b2`, the
+    blue the prover writes for it since 53a (`qyqouupl`): the page
+    matched the old green and its e2e test failed at any lock past that
+    commit (departs from the design: not in the brief, but no check
+    passes without it);
+  - `uqpnuosq` "flake.lock: Update", the input `deduxit` at linlog's
+    pushed `main` (`ac9b8f06`).
+  - Kept named linlog, on purpose: the browser's keys
+    (`linlog-settings`, `linlog-theme`, `linlog-practice`,
+    `linlog-proofs:…`, `linlog-proofs-previous`) and the service
+    worker's cache prefix `linlog-site-`, since new names would lose
+    every visitor's saved settings, proofs and progress and leave the
+    old caches behind; the client's `web.md` says so.
+  - Its `nix flake check` at `uqpnuosq`, without overrides: exit 0,
+    "all checks passed!"; "client ready" sent after it.
+
 ### What the next sessions must know
 
 - **For 53b, the publication order**: `deduxit`, then `deduxit-cli`
@@ -2048,6 +2093,10 @@ linlog, on `main` (`zpmnrkkq`), oldest first:
 - `qqztoolq` Keep the old names where a dated record states what ran
 - `kymrtkwn` Report session 53s: renamed deduxit
 - `xqwqwrrn` flake.lock: Update (the input `rocq-deduxit` to `678dbaab`)
-- this report's update
+- `rxlqptkn` Report session 53s: the library's pin after its header commit
+- this report's last update (the library, the client, the pushes)
 
-The Rocq library, on its `main` (`nxmkmupx`): `yrxqynvu` Head every source file deduxit ©, and check that header.
+The planning session pushed linlog's chain up to `rxlqptkn` (`ac9b8f06`),
+rebased without conflict onto `main`'s newer plan commits.
+
+The Rocq library, on its `main` (`nxmkmupx`): `yrxqynvu` Head every source file deduxit ©, and check that header; `rqtyouoz` Name deduxit's input, checks, kernel and constant as its rename left them.
