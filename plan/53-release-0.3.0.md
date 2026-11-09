@@ -102,6 +102,25 @@ written by the planning session when it starts):
    search) and the ratchet must hold. In the client, after linlog: the
    bindings' new name and the lock.
 5. **53m's placement of the chosen mark.**
+   - **The mark:** the final files in
+     `~/Projects/own/sequentium-mark/deduxit/final/`:
+     - the word mark and the "dē" square, light, dark and mono;
+     - `site/` under the client's names (favicons, apple-touch,
+       maskable and "any" icons, `og.png`, `wordmark-band.svg`);
+     - `github/` (the avatar, the social preview);
+     - their README with the colours and measures.
+   - **The macrons are `<rect>` elements.** The client's band styling
+     paints `path:not([stroke])` with ink and `path[stroke]` with the
+     logo colour, so it needs a rule for `rect` (lapis).
+   - **The colour token:** `--color-logo` becomes lapis (#2456c9
+     light, #7aa7ff dark) under the client's colour-vision check.
+   - **The licence of the mark:** the author's to pick. The lollipop's
+     was CC BY 4.0.
+   - **The dictionary line** goes under the logo in each README
+     (deduxit, rocq-deduxit, the client), as the author approved it on
+     2026-11-09, in classical Latin with the IPA:
+
+     > **dēdūxit** [deːˈduːk.sɪt] *Latin, verb*: "it has derived", the perfect of *dēdūcō*, to lead down, derive.
 6. **53b, the release prepared.** The author publishes the new crates
    once with a token, then sets up their Trusted Publishing.
 
