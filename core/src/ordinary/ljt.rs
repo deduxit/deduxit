@@ -37,7 +37,7 @@
 
 use super::{Derivation, Formulas, Inference, Logic, Node, NodeId, Rule, Sequent, Side, Verdict};
 use crate::Error;
-use crate::hash::HashMap;
+use crate::hash::{HashMap, HashSet};
 use crate::limits::{Limits, Phase, Progress, Refusal, Space};
 use crate::linear::proofs::InfId;
 use crate::linear::search::Reason;
@@ -430,10 +430,16 @@ impl Search {
 
     /// Adds to `heads` the atoms (and `⊥`) a proof of `x` as the goal
     /// ends in: `x` itself for an atom, the heads of `C` for `A → C`, and
-    /// of both operands of `∧`, `∨` and `↔`; with a stack of its own.
+    /// of both operands of `∧`, `∨` and `↔`; with a stack of its own,
+    /// each node once, so that a formula whose operands share nodes costs
+    /// its nodes and not the tree it unfolds to.
     fn heads(&self, x: NodeId, heads: &mut Vec<NodeId>) {
+        let mut seen: HashSet<NodeId> = HashSet::default();
         let mut stack = vec![x];
         while let Some(x) = stack.pop() {
+            if !seen.insert(x) {
+                continue;
+            }
             match self.formulas.node(x) {
                 Node::Atom(_) | Node::False => heads.push(x),
                 Node::True => {}
@@ -1346,10 +1352,37 @@ mod tests {
             let answer = match outcome.verdict {
                 Verdict::Valid(_) => Some(true),
                 Verdict::NotValid => Some(false),
-                _ => None,
+                Verdict::Unknown(_) => None,
             };
             assert_eq!(answer, Some(valid), "{text}: {:?}", outcome.statistics);
         }
+    }
+
+    /// A consequent whose operands share nodes, `W₀ = p`, `Wₖ₊₁ = Wₖ ∧ Wₖ`
+    /// at `k = 40`, is ranked by its nodes, not by the tree of 2⁴⁰
+    /// leaves it unfolds to.
+    #[test]
+    fn shared_formulas_cost_their_nodes() {
+        let mut f = Formulas::default();
+        let mut w = f.atom("p").unwrap();
+        for _ in 0..40 {
+            w = f.add(Node::And(w, w)).unwrap();
+        }
+        let mut left = Vec::new();
+        for (a, b) in [("a0", "b0"), ("a1", "b1")] {
+            let (a, b) = (f.atom(a).unwrap(), f.atom(b).unwrap());
+            let ab = f.add(Node::Implies(a, b)).unwrap();
+            left.push(f.add(Node::Implies(ab, w)).unwrap());
+        }
+        let goal = f.atom("g").unwrap();
+        let sequent = Sequent::new(f, left, vec![goal]).unwrap();
+        let work = Limits::default().with_work(Some(1_000));
+        let outcome = decide(&sequent, Logic::Intuitionistic, &work, |_| false).unwrap();
+        assert!(
+            matches!(outcome.verdict, Verdict::NotValid),
+            "{:?}",
+            outcome.verdict
+        );
     }
 
     /// Each fault planted in the translation is refused by the checker,
