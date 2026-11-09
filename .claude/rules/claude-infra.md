@@ -294,6 +294,12 @@ goal, permission-modes, auto-mode-config, sub-agents, hooks, workflows),
     again (the launcher does).
   - A machine restart stops every job. An idle job with no terminal
     attached stops after about an hour.
+  - **jj:** a job the launcher starts works in the checkout itself, with
+    no worktree (checked 2026-11-09: no `.claude/worktrees/`, no
+    `../linlog-wt-*`). A step session moves to its own jj workspace, as
+    its brief says. If Claude Code ever isolates a job, the
+    `WorktreeCreate` hook above makes it a jj workspace, so no git
+    worktree jj cannot see arises.
   - Before 2026-11-09 the sessions ran in zellij panes, and the planning
     session typed `/goal` and keys into them, which no documented
     interface covers.
