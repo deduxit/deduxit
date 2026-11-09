@@ -439,6 +439,12 @@ impl Derivation {
     ///
     /// [`Error::NoTerm`] for a derivation of LK or one with open goals;
     /// [`Refusal::Stopped`] when `stop` fired.
+    ///
+    /// # Panics
+    ///
+    /// For a derivation that [`check`](Self::check) refuses and that is no
+    /// view of one it accepts, such as a derivation read from JSON and not
+    /// checked: check such a derivation first.
     pub fn term(
         &self,
         limits: &crate::Limits,
