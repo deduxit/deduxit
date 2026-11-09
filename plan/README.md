@@ -5742,3 +5742,28 @@ move (D26).
     about an hour). They are deferred past the author's stop at 11:30.
   - **deduxit's release workflow** still runs, its publish job waiting
     for the author.
+- 2026-11-09, 12:20: **0.3.0 is published** (the author approved the
+  publish job).
+  - **Published:**
+    - on crates.io, `deduxit`, `deduxit-cli`, `linlog` and `linlog-cli`
+      0.3.0, all naming `github.com/deduxit/deduxit`;
+    - the GitHub release v0.3.0, with 15 assets;
+    - docs.rs for `deduxit` 0.3.0;
+    - Zenodo: both new version records sit under their concept DOIs
+      ("deduxit v0.3.0" under 10.5281/zenodo.23448588, "rocq-deduxit
+      v0.3.0" under 10.5281/zenodo.23899109), so the author's Zenodo
+      check is answered.
+  - **Left to the author:**
+    - Trusted Publishing for `deduxit` and `deduxit-cli`;
+    - deleting the secret `CRATES_IO_FIRST_PUBLISH_TOKEN` and revoking
+      the token;
+    - the opam pull request, after the planning session's installs per
+      Rocq version.
+  - **The author renamed the checkout** to `~/Projects/own/deduxit`.
+    - The two live jj workspaces' links (`.jj/repo`, `.git`) were
+      repointed;
+    - the future prompts and the handoff name the new path;
+    - the planning session's memory was copied to the project's new
+      memory directory.
+  - **The resume waits** for the review of the Claude Code setup that
+    the author asked for first.
