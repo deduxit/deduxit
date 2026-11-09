@@ -76,7 +76,8 @@ pub struct Statistics {
     pub subsumed: u64,
 }
 
-/// How many sequents the search expands between two polls of its stop.
+/// How many sequents the search expands between two polls of its stop at
+/// most, and how many hypotheses those sequents hold at most.
 pub const POLL: u64 = 1 << 8;
 
 /// How many of the latest failures of a goal a new sequent of that goal
@@ -84,7 +85,8 @@ pub const POLL: u64 = 1 << 8;
 const SUBSUMING: usize = 1 << 10;
 
 /// Decides an intuitionistic or minimal sequent by LJT within `limits`,
-/// asking `stop` every [`POLL`] sequents: the search counts a sequent
+/// asking `stop` every [`POLL`] sequents expanded, and sooner where they
+/// hold [`POLL`] hypotheses together: the search counts a sequent
 /// expanded as a unit of `limits.work` and charges what it holds to
 /// `limits.memory_bytes`; a proof is translated into a derivation of LJ
 /// within `limits.derivation_bytes` and `limits.memory_bytes`, asking
@@ -139,6 +141,8 @@ fn run(
         steps: Vec::new(),
         statistics: Statistics::default(),
         work: limits.work.unwrap_or(u64::MAX),
+        unpolled: 0,
+        asked: 0,
     };
     let found = search.prove((set(sequent.left()), goal), &mut stop);
     search.statistics.memo_entries = search.memo.len() as u64;
@@ -281,6 +285,11 @@ struct Search {
     statistics: Statistics,
     /// The most sequents to expand.
     work: u64,
+    /// The hypotheses of the sequents expanded since the stop was last
+    /// asked.
+    unpolled: u64,
+    /// The sequents expanded when the stop was last asked.
+    asked: u64,
 }
 
 /// The bytes a sequent of `len` hypotheses is charged at where it is
@@ -669,8 +678,19 @@ impl Search {
         if done >= self.work {
             return Err(Reason::WorkLimit { limit: self.work });
         }
-        if done.is_multiple_of(POLL) && stop(Progress::new(Phase::Search, POLL.min(done), done)) {
-            return Err(Reason::Stopped);
+        // An expansion costs about the size of its sequent, so the stop is
+        // also asked once the sequents expanded since the last ask hold
+        // `POLL` hypotheses: a large sequent is never `POLL` expansions
+        // from an ask. Saturating: a sum of lengths of slices in memory.
+        self.unpolled = self.unpolled.saturating_add(key.0.len() as u64);
+        if done.is_multiple_of(POLL) || self.unpolled >= POLL {
+            self.unpolled = 0;
+            // At most `done`, the count at the last ask.
+            let since = done - self.asked;
+            self.asked = done;
+            if stop(Progress::new(Phase::Search, since, done)) {
+                return Err(Reason::Stopped);
+            }
         }
         // Below the work bound, or below 2⁶⁴ expansions: it cannot wrap.
         self.statistics.sequents += 1;
@@ -1251,6 +1271,29 @@ mod tests {
             Verdict::NotValid => false,
             Verdict::Unknown(reason) => panic!("unknown: {reason:?}"),
         }
+    }
+
+    /// The stop is asked at every expansion of a sequent of `POLL`
+    /// hypotheses or more, so that a large sequent overshoots the time
+    /// limit by one expansion, not by `POLL` of them.
+    #[test]
+    fn a_large_sequent_asks_the_stop_at_each_expansion() {
+        let n = POLL as usize + 8;
+        let chain: Vec<String> = (0..n).map(|i| format!("a{i} -> a{}", i + 1)).collect();
+        let text = format!("a0, {} |- a{n}", chain.join(", "));
+        let sequent: Sequent = text.parse().unwrap();
+        let mut asked = Vec::new();
+        let outcome = decide(&sequent, Logic::Intuitionistic, &Limits::default(), |p| {
+            if p.phase == Phase::Search {
+                asked.push(p.done);
+            }
+            false
+        })
+        .unwrap();
+        assert!(matches!(outcome.verdict, Verdict::Valid(_)));
+        let expanded = outcome.statistics.sequents;
+        assert!(expanded > 2, "{expanded}");
+        assert_eq!(asked, (0..expanded).collect::<Vec<_>>());
     }
 
     /// A derivation's root names the hypotheses in the order the sequent

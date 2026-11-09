@@ -167,7 +167,7 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   logic, chosen by the ILTP run of `plan/reports/54-ljt-engine.md`
   (`bench/defaults/ljt-iltp.csv`). With no method given, LJT gives way
   to the embedding where `gives_way` says so: an unknown at a bound
-  other than `Reason::Stopped`, or a refusal other than the stop (the
+  other than `Reason::Stopped`, or an `Error::Refused` other than the stop, never an unsupported input (the
   derivation past `derivation_bytes`, which SYJ201+1.004 and .005 reach
   in milliseconds and the embedding decides at 2 s). The outcome's
   `search` (`Search::Embedding` with the translation and the image's
@@ -253,8 +253,12 @@ its search and translation are untrusted, the checker is the trust.
   `Plant` plants a fault per gadget in tests, and
   `a_planted_wrong_translation_is_refused` shows the checker refuses each.
 - **Bounds**: a sequent expanded is a unit of `limits.work`; the stop is
-  asked every `POLL` expansions (the first included) and once per
-  inference of the translation; the search charges its frames, memo
+  asked every `POLL` expansions (the first included), and at any
+  expansion once those since the last ask held `POLL` hypotheses
+  (`unpolled`): an expansion costs about its sequent's size, and a chain
+  of 100 000 implications overshot a 1 s limit by 11 s at every 256th
+  (the integers panel of 54b, `a_large_sequent_asks_the_stop_at_each_expansion`);
+  and once per inference of the translation; the search charges its frames, memo
   entries, steps and the formulas it adds to an `Account` and answers
   `Reason::MemoryLimit` past it; the translation charges its own and
   refuses with `Refusal::Memory` or `Refusal::Output`. Classical logic is
