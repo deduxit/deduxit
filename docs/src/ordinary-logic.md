@@ -4,9 +4,9 @@
 sequent of ordinary propositional logic instead, written with `->`/`→`,
 `/\`/`∧`, `\/`/`∨`, `~`/`¬`, `<->`/`↔`, `true`/`⊤` and `false`/`⊥`
 (`~` binds tightest, then `/\`, `\/`, `->`, and last `<->`; `->` and
-`<->` group to the right). It is decided by its translation into linear
-logic, and the proof is read back as a derivation of LK or LJ, which is
-checked by the rules of the logic before it is shown:
+`<->` group to the right). `prove` decides it and draws the proof as a
+derivation of LK or LJ, which is checked by the rules of the logic
+before it is shown:
 
 ```console
 $ deduxit prove --logic classical '((a -> b) -> a) -> a'
@@ -20,7 +20,7 @@ valid (classical logic by the affine translation into affine MALL, focus engine)
  ─────────────────── →R
  ⊢ ((a → b) → a) → a
 $ deduxit prove --logic intuitionistic 'a \/ b -> b \/ a'
-valid (intuitionistic logic by the cbn translation into ILL, two-sided engine)
+valid (intuitionistic logic by LJT)
   ───── ax        ───── ax
   a ⊢ a           b ⊢ b
 ───────── ∨R₂   ───────── ∨R₁
@@ -30,8 +30,49 @@ a ⊢ b ∨ a       b ⊢ b ∨ a
    ─────────────────── →R
    ⊢ (a ∨ b) → (b ∨ a)
 $ deduxit prove --logic intuitionistic '~~a -> a'
-not valid (intuitionistic logic by the cbn translation into ILL, two-sided engine): the image is unprovable: the search was exhaustive
+not valid (intuitionistic logic by LJT): the search was exhaustive
 ```
+
+## How a sequent is decided
+
+`--method` chooses how (the key `ordinary.method`):
+
+- `ljt` is Dyckhoff's calculus LJT, for intuitionistic and minimal logic.
+  Its search always ends, so every such sequent is answered `valid` or
+  `not valid` unless the time limit or the memory runs out first. It is
+  the default for both logics.
+- `embedding` translates the sequent into linear logic, searches the
+  image there and reads the proof back. It decides all three logics and
+  is the default for classical logic.
+
+On the ILTP library's 274 problems, with 2 seconds each, LJT decides 200
+in intuitionistic logic and 200 in minimal logic, the embedding 188 in
+each, and LJT is the faster on all but two of the problems both decide,
+which take under a millisecond either way. A derivation
+from LJT can be far larger than the search behind it. Where LJT stops at
+a bound other than the time limit, such as a derivation past
+`--derivation-limit`, the default hands the sequent to the embedding,
+and the verdict line names the translation. `--method ljt` reports the
+bound instead. `--translation` and `--linear` name the embedding, so
+either of them alone chooses it:
+
+```console
+$ deduxit prove --logic intuitionistic --method embedding -q '~~a -> a'
+not valid (intuitionistic logic by the cbn translation into ILL, two-sided engine): the image is unprovable: the search was exhaustive
+$ deduxit prove --logic minimal --stats -q 'a, a -> b |- b'
+valid (minimal logic by LJT)
+sequents expanded: 2
+memo hits: 0
+memo entries: 2
+refuted by an earlier failure: 0
+time: …
+```
+
+LJT's derivation of LJ uses Gentzen's cut for four of its rules, so its
+lambda-term may hold a redex and its certificate a `let`. With
+`--format json` the output is the outcome of the ordinary sequent: its
+`verdict` (`valid`, `not_valid` or `unknown` with a `reason`), its
+`logic`, the `engine` `ljt`, its `statistics` and the `derivation`.
 
 The derivation is checked with every weakening and contraction as an
 inference of its own, and drawn with each of them left out where it is
@@ -55,15 +96,15 @@ valid (classical logic by the affine translation into affine MALL, focus engine)
  ⊢ ((a → b) → a) → a
 ```
 
-Classical logic goes into affine MALL without exponentials (negation
-normal form, `∧` as `&`, `∨` as `⅋`), where the search needs no copy
-bound. Intuitionistic logic goes into ILL by `--translation cbn`
-(Girard's call-by-name translation, the default), `cbv` (his call-by-value
-one) or `01` (Liang and Miller's 0/1 translation); minimal logic is the
-same with false an atom. There the search deepens its copy bound under
-the time limit, so an intuitionistic formula may be answered unknown
-(exit status 3). `seq print` shows the image, and `--linear` the linear
-proof of it:
+Through the embedding, classical logic goes into affine MALL without
+exponentials (negation normal form, `∧` as `&`, `∨` as `⅋`), where the
+search needs no copy bound. Intuitionistic logic goes into ILL by
+`--translation cbn` (Girard's call-by-name translation, the default),
+`cbv` (his call-by-value one) or `01` (Liang and Miller's 0/1
+translation); minimal logic is the same with false an atom. There the
+search deepens its copy bound under the time limit, so an intuitionistic
+formula may be answered unknown (exit status 3). `seq print` shows the
+image, and `--linear` the linear proof of it:
 
 ```console
 $ deduxit seq print --logic intuitionistic --translation cbv 'a, a -> b |- b'
@@ -97,7 +138,7 @@ propositions, proved by instantiating the atoms with `True` and `False`:
 ```console
 $ echo 'fof(pel1, conjecture, (p => q) <=> (~ q => ~ p)).' > pel1.p
 $ deduxit prove --logic intuitionistic --quiet --file pel1.p
-not valid (intuitionistic logic by the cbn translation into ILL, two-sided engine): the image is unprovable: the search was exhaustive
+not valid (intuitionistic logic by LJT): the search was exhaustive
 $ deduxit prove --logic classical --quiet --file pel1.p
 valid (classical logic by the affine translation into affine MALL, focus engine)
 $ deduxit prove --logic classical --format rocq 'a \/ ~a'
@@ -128,8 +169,9 @@ a goal that has its formula on both sides, whatever else it holds. A rule
 with two premises gives both the whole context, as LJ's `→L` does in G3,
 unless the formulas named after the rule go to the first premise and
 the rest to the second (`apply 1 L1 ->L L0` sends `L0` to the first).
-`close` decides a goal through the translation (`--translation` chooses
-it) and grafts the derivation found, which `undo` takes back whole:
+`close` decides a goal through the embedding, whose derivations have no
+cut, by the translation `--translation` chooses, and grafts the
+derivation found, which `undo` takes back whole:
 
 ```console
 $ deduxit interact --logic intuitionistic 'a -> b, b -> c |- a -> c'

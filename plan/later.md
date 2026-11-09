@@ -1856,6 +1856,36 @@ stop for `Image::read_back` and `Derivation::check`, went to step 28.
 - **`cargo test -p linlog` without `parallel` warns** in
   `search/focus/tests.rs` and `search/reference_fo.rs` (49a); the
   workspace run, with the feature unified, does not.
+
+Left by step 54 (`plan/reports/54-ljt-engine.md`, session 54b):
+
+- **LJT's derivations outgrow its search.** On ILTP at 2 s LJT finds a
+  proof in milliseconds for 17 sizes of SYJ201, 8 of SYJ206 and one of
+  SYJ202, in either logic, whose
+  derivation of LJ passes the default 64 MiB (`derivation_limit` rows of
+  `bench/defaults/ljt-iltp.csv`); the default then gives way to the
+  embedding, which decides SYJ201+1.004 and .005 only. The search
+  shares steps; the translation unfolds them into a tree, with
+  contractions below every split. A derivation with shared
+  subderivations and a checker that checks each once (the DAG read-back
+  above, for LJ) would make those verdicts checked. A change to the
+  checker: the panel's.
+- **`interact --logic`'s `close` and `hint` decide through the
+  embedding**: LJT's derivations hold cuts, which no step of the goal
+  state takes and the hint could not name. A goal the embedding leaves
+  unknown and LJT decides stays open. Either the goal state gains a cut
+  step, or LJT's derivation is made cut-free for a hint (cut
+  elimination on LJ, with its blow-up). The page's `ordinary_close` is
+  the same call.
+- **The verdict line does not say that LJT gave way**: where the
+  default hands a sequent to the embedding, the line names the
+  translation as `--method embedding` would. A note on why (the
+  derivation limit) would tell the user what `--derivation-limit` buys.
+- **`Derivation::term` checks nothing** (54a's follow-up): checking first
+  would refuse the admissible view, which `term` reads too, and the
+  derivation of a session with open goals. Its doc says so (`# Panics`).
+  A read-back that refuses instead of panicking needs each of its
+  `expect`s turned into an error.
 ## The web front end: a two-sided presentation of classical derivations
 
 *Assigned to step 40's second session (2026-10-23); done there: `TwoSided`, `--classical-sides`, `view.classical` and the client's switch (`plan/reports/40-ill-surface.md`, session 40b).*

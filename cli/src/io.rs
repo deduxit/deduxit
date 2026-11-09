@@ -528,12 +528,7 @@ impl SequentInput {
         options: &deduxit::ordinary::Options,
         limits: &Limits,
     ) -> Result<(Forest, Image)> {
-        let most = Most::of(limits);
-        let (text, format) = self.text(true, limits.memory_bytes)?;
-        let ordinary = crate::ordinary::sequent_in(&text, format, most)?;
-        let image = crate::ordinary::image(options, &ordinary, most)?;
-        let sequent = admit(image.sequent().clone(), most)?;
-        Ok((Forest::from_owned(sequent, &bound(most))?, image))
+        crate::ordinary::translated(options, &self.ordinary(limits)?, limits)
     }
 
     /// Reads the input as an ordinary sequent, as [`image`](Self::image)

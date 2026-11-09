@@ -298,7 +298,10 @@ fn lambda_terms() {
     pin_term("term-cut", &cut.derivation().unwrap());
     use deduxit::ordinary::{self, Logic};
     let sequent: ordinary::Sequent = "a \\/ b, ~a |- b /\\ true".parse().unwrap();
-    let options = ordinary::Options::default().with_logic(Logic::Intuitionistic);
+    // The embedding's derivation, which the snapshots pin.
+    let options = ordinary::Options::default()
+        .with_logic(Logic::Intuitionistic)
+        .with_method(Some(ordinary::Method::Embedding));
     let outcome = ordinary::decide(
         &sequent,
         &options,

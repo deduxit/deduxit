@@ -3,19 +3,20 @@
 
 //! The child's run of a problem of ordinary logic in one logic: through
 //! the embedding, whose image is searched as a linear problem is and
-//! whose proof is read back and checked as the check, or by LJT, which
-//! checks its own derivation inside the time measured.
+//! whose proof is read back and checked as the check, by LJT, which
+//! checks its own derivation inside the time measured, or by the logic's
+//! default, the library's whole call with its checks timed.
 
 use crate::OneArgs;
 use crate::problems;
 use crate::run::{
-    Clock, EngineChoice, LOADED, Searched, clean, forward_copies, memo_column, memory_column,
-    memory_limit, name, pool_column, row, say,
+    Bound, Clock, EngineChoice, LOADED, Searched, clean, forward_copies, memo_column,
+    memory_column, memory_limit, name, pool_column, row, say, search_options,
 };
 use deduxit::linear::lltp::Status;
-use deduxit::linear::search::Reason;
+use deduxit::linear::search::{Options, Reason};
 use deduxit::ordinary::{self, Logic, Method, Translation, Verdict, ljt};
-use deduxit::{Error, Limits, Refusal};
+use deduxit::{Error, Limits, Phase, Refusal};
 use std::sync::atomic::Ordering;
 
 /// Runs a TPTP problem in `logic` by the method the engine asked for
@@ -35,7 +36,7 @@ pub fn tail(args: &OneArgs, logic: Logic) -> String {
     let method = match args.engine {
         EngineChoice::Ordinary(method) => method,
         EngineChoice::Linear(_) => Method::Embedding,
-        EngineChoice::Auto => ordinary::Options::default().with_logic(logic).method(),
+        EngineChoice::Auto => return by_default(args, logic, &problem.sequent, expected),
     };
     if !method.decides(logic) {
         return row(&[
@@ -167,17 +168,137 @@ fn by_ljt(args: &OneArgs, logic: Logic, sequent: &ordinary::Sequent, expected: &
         // A proof found, but a bound refused its derivation: no checked
         // verdict.
         Err(Error::Refused(refusal)) => {
-            let reason = match refusal {
-                Refusal::Stopped { .. } => "timeout",
-                Refusal::Output { .. } => "derivation_limit",
-                Refusal::Memory { .. } => "memory_limit",
-                Refusal::Work { .. } => "work_limit",
-                _ => {
-                    message = clean(&refusal.to_string());
-                    &message
+            message = refused(refusal);
+            fields.extend([("verdict", "unknown"), ("reason", message.as_str())]);
+        }
+        Err(error) => {
+            message = clean(&error.to_string());
+            fields.extend([("verdict", "error"), ("reason", message.as_str())]);
+        }
+    }
+    row(&fields)
+}
+
+/// The `reason` of a row whose proof's derivation a bound refused, or
+/// whose derivation the time limit stopped.
+fn refused(refusal: &Refusal) -> String {
+    match refusal {
+        Refusal::Stopped { .. } => "timeout".to_owned(),
+        Refusal::Output { .. } => "derivation_limit".to_owned(),
+        Refusal::Memory { .. } => "memory_limit".to_owned(),
+        Refusal::Work { .. } => "work_limit".to_owned(),
+        refusal => clean(&refusal.to_string()),
+    }
+}
+
+/// Decides the sequent as the library does by default
+/// ([`ordinary::decide`] with the logic's default method and the run's
+/// search options), the read-back and check of the embedding's proofs
+/// inside the time measured, and returns the tail of its row.
+fn by_default(args: &OneArgs, logic: Logic, sequent: &ordinary::Sequent, expected: &str) -> String {
+    let copies = match args.copies {
+        Some(Bound(bound)) => bound,
+        None => Some(Options::DEFAULT_COPIES),
+    };
+    let bound = Bound(copies).to_string();
+    let recursion = args
+        .recursion_limit
+        .unwrap_or(Limits::DEFAULT_RECURSION_DEPTH);
+    let search = search_options(args, copies, None);
+    let limits = Limits::default()
+        .with_memory_bytes(memory_limit(args.memory_limit))
+        .with_recursion_depth(recursion);
+    let options = ordinary::Options::default().with_logic(logic);
+    let (bias, forward, recursion) = (
+        name(&args.bias),
+        forward_copies(args.forward_copies).to_string(),
+        recursion.to_string(),
+    );
+    let (memory, pool, memo) = (
+        memory_column(args.memory_limit),
+        pool_column(args.pool_after),
+        memo_column(args.memo_limit),
+    );
+    say(LOADED);
+    let clock = Clock::start(args.timeout);
+    let outcome = ordinary::decide(sequent, &options, &search, &limits, |progress| {
+        progress.phase != Phase::Refute && clock.expired.load(Ordering::Relaxed)
+    });
+    let (time, cpu, wait) = clock.read();
+    let time = format!("{time:.3}");
+    let mut fields = vec![
+        ("copies", bound.as_str()),
+        ("expected", expected),
+        ("time_ms", &time),
+        ("cpu_ms", &cpu),
+        ("wait_ms", &wait),
+        ("recursion_limit", &recursion),
+        ("bias", &bias),
+        ("forward_copies", &forward),
+        ("memory_limit", &memory),
+        ("pool_after", &pool),
+        ("memo_limit", &memo),
+    ];
+    let message;
+    let counters: [String; 6];
+    match &outcome {
+        Ok(outcome) => {
+            let (engine, fragment, [nodes, hits, entries, work]) = match &outcome.search {
+                ordinary::Search::Ljt(s) => (
+                    Method::Ljt.name().to_owned(),
+                    "LJT".to_owned(),
+                    [s.sequents, s.memo_hits, s.memo_entries, s.sequents],
+                ),
+                ordinary::Search::Embedding {
+                    translation,
+                    linear,
+                } => {
+                    let s = &linear.statistics;
+                    (
+                        linear.engine.to_string(),
+                        linear
+                            .fragment
+                            .name_in(translation.target().mode)
+                            .to_owned(),
+                        [s.nodes, s.memo_hits, s.memo_entries, s.work],
+                    )
                 }
+                _ => (String::new(), String::new(), [0; 4]),
             };
-            fields.extend([("verdict", "unknown"), ("reason", reason)]);
+            counters = [
+                engine,
+                fragment,
+                nodes.to_string(),
+                hits.to_string(),
+                entries.to_string(),
+                work.to_string(),
+            ];
+            fields.extend([
+                ("engine", counters[0].as_str()),
+                ("fragment", counters[1].as_str()),
+                ("nodes", counters[2].as_str()),
+                ("memo_hits", counters[3].as_str()),
+                ("memo_entries", counters[4].as_str()),
+                ("work", counters[5].as_str()),
+            ]);
+            let unknown = |reason: Reason| match reason {
+                Reason::Stopped => "timeout",
+                reason => reason.name(),
+            };
+            fields.extend(match &outcome.verdict {
+                // Checked inside the time measured.
+                Verdict::Valid(_) => [("verdict", "proved"), ("checked", "ok")],
+                Verdict::NotValid => [("verdict", "unprovable"), ("checked", "")],
+                Verdict::Unknown(reason) => [("verdict", "unknown"), ("reason", unknown(*reason))],
+                _ => [
+                    ("verdict", "error"),
+                    ("reason", "a verdict the harness does not know"),
+                ],
+            });
+        }
+        Err(Error::Refused(refusal)) => {
+            message = refused(refusal);
+            fields.extend([("verdict", "unknown"), ("reason", message.as_str())]);
         }
         Err(error) => {
             message = clean(&error.to_string());

@@ -31,6 +31,28 @@ serde_json, which the CLI and the core's tests already have.
   is the first line's `#expected result`, which 12 of qcover's 176 files
   state (`unsafe` provable). A problem file's line is `name; mode;
   expected; copies; sequent`; the name's part before `/` is the family.
+- **TPTP problems of ordinary logic** (`--tptp PATH`, source `tptp`,
+  `problems::tptp`): each runs in every logic of `--logics` (default
+  intuitionistic) in place of `--modes`, the `mode` column holding the
+  logic's name, and a problem of a generated ILTP family
+  (`SYJ201+1.005.p`) is in that family (`SYJ201`) at its size, so that
+  `summary`'s tables are per family; the rest keep their directory.
+  ILTP's statuses are intuitionistic (`Status (intuit.)`), so the
+  expected verdict is a theorem's in intuitionistic and classical logic
+  and a non-theorem's in intuitionistic and minimal logic; a file whose
+  header states only a classical status would be misread, so `--tptp`
+  takes ILTP's problems. The engine axis takes the methods too
+  (`EngineChoice::{Auto, Linear, Ordinary}`): `embedding` (and a linear
+  engine's name, which forces the image's engine) searches the image of
+  the default translation as a linear row is searched, checking the
+  read-back LJ derivation outside the time as its `checked`; `ljt` times
+  `ljt::decide`, its own check inside, `nodes` and `work` its sequents,
+  a refused derivation `unknown` with the reason `derivation_limit`
+  (`memory_limit`, `work_limit`), `fragment` `LJT`; `auto` times the
+  library's whole default call (`ordinary::decide`, read-back and checks
+  inside), so its rows compare with the other two by verdict, and by
+  time only where that is said. A method on a linear problem, and LJT on
+  classical logic, is `refused`. `src/ordinary.rs` is that child.
 - `src/run.rs`: the parent (`run`) and the child (`one`). One child
   process per run: the child loads the problem, builds the forest (for
   `occurrences` and `multiplicity`), prints the line `loaded`, times
@@ -71,7 +93,11 @@ serde_json, which the CLI and the core's tests already have.
   `--strict` fails after the tables on a verdict against the known one,
   an `error` row, a crash or a kill, or no rows (`Runs::failed`), which
   is the `bench` flake check's test.
-  `refused` rows (a forced engine that does not apply) are dropped. The
+  `refused` rows (a forced engine that does not apply) are dropped.
+  "Verdicts that disagree" lists every problem two configurations decide
+  differently in one mode (or logic), late verdicts included, and
+  `--strict` fails on one: the cross-check of two engines or methods on
+  the same problems, which is a bug in one of them. The
   CSV file's name is part of the configuration's label, since each file
   of the baseline is one `run` with options of its own (a copy bound, a
   recursion limit, a longer time limit) that the columns alone do not
@@ -832,6 +858,13 @@ serde_json, which the CLI and the core's tests already have.
   default (`--copies none --jobs all --pool-after 0.1 --timeout 2`),
   16 minutes in the third baseline, where 389 problems waited the whole
   limit (the latest stop 2 138 ms).
+- **`defaults/ljt-iltp.csv`** is the run that made LJT the default of
+  intuitionistic and minimal logic: ILTP's 274 problems at 2 s with
+  `--engines embedding,ljt --copies none --repeat 3 --repeat-under 1`,
+  both logics, two shards pinned to cores 2 and 3, one build;
+  `defaults/ljt-default.csv` the same with `auto` (the default's
+  dispatch) beside them. The tables and the comparison script are in
+  step 54's report.
 - **`defaults/`** holds the rows that chose the command's defaults (the
   report of that work has the tables): the default that restarted the
   search on the pool (`restart-copies-10.csv`, the 1 003 problems of the

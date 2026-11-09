@@ -10,6 +10,34 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ## [Unreleased]
 
+### What breaks, and what to do instead
+
+- **`prove --logic intuitionistic` and `minimal` decide by LJT by
+  default**, Dyckhoff's calculus, whose search always ends: the verdict
+  line reads `valid (intuitionistic logic by LJT)`, `--stats` prints
+  LJT's counters, and `--format json` writes the outcome of the ordinary
+  sequent (`verdict` `valid`, `not_valid` or `unknown`, `engine` `ljt`)
+  instead of the image's. Where a bound other than the time limit stops
+  LJT, the embedding decides as before. `--method embedding`, or
+  `--translation`, gives the old behaviour.
+- **`ordinary::Outcome` says how the sequent was searched** in `search`
+  (`ordinary::Search::Embedding { translation, linear }` or
+  `ordinary::Search::Ljt`), in place of its fields `translation` and
+  `linear`; `ordinary::decide` decides intuitionistic and minimal logic
+  by LJT unless `ordinary::Options` names a translation or the method.
+
+### Added
+
+- **LJT**: `ordinary::ljt::decide` decides intuitionistic and minimal
+  logic by Dyckhoff's contraction-free calculus, its proofs translated
+  into derivations of LJ with Gentzen's cut, which `Derivation::check`
+  accepts; `ordinary::Method`, `ordinary::Options::method` and
+  `ordinary::gives_way` choose between it and the embedding, and the
+  command's `--method embedding|ljt` (the key `ordinary.method`).
+- **The harness runs ordinary logic**: `deduxit-bench run --tptp PATH
+  --logics …` with the engines `embedding`, `ljt` and `auto`, and
+  `summary` lists the problems two configurations decide differently.
+
 ## [0.3.0] - 2026-11-09
 
 The third release, the first under the name deduxit: a collection of

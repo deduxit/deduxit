@@ -224,6 +224,9 @@ impl ProveArgs {
         if apply.set("structural") {
             settings.view.structural = self.structural.structural.into();
         }
+        if apply.set("method") {
+            settings.ordinary.method = self.method.map(Into::into);
+        }
         // The mode flags together are the batch's mode; each is asked, so
         // that one given overrides the file's.
         if ["intuitionistic", "affine", "mix"]
@@ -465,15 +468,22 @@ impl Threads {
 }
 
 /// Returns the options of the ordinary logic `--logic` names, if it names
-/// one, with the translation `--translation` names, else the settings'.
+/// one, with the translation `--translation` names, else the settings';
+/// `linear`, the linear proof of the image asked for, names the
+/// embedding where no method is given.
 pub(crate) fn ordinary(
     settings: &Settings,
     logic: &LogicArgs,
+    linear: bool,
 ) -> Option<deduxit::ordinary::Options> {
     let options = settings.ordinary.with_logic(logic.logic?.into());
-    Some(match logic.translation {
+    let options = match logic.translation {
         Some(translation) => options.with_translation(Some(translation.into())),
         None => options,
+    };
+    Some(match options.method {
+        None if linear => options.with_method(Some(deduxit::ordinary::Method::Embedding)),
+        _ => options,
     })
 }
 
@@ -616,7 +626,8 @@ mod tests {
             --ill-syntax one-sided  /input/intuitionistic      "strict"          "one-sided"
             --batch-timeout 2s      /clock/batch_time_limit_ms 1000              2000
             --lambda-notation ascii /lambda/notation           "unicode"         "ascii"
-            --lambda-types          /lambda/types              false             true"#;
+            --lambda-types          /lambda/types              false             true
+            --logic minimal --method ljt /ordinary/method      "embedding"       "ljt""#;
         const CHECK: &str = r#"
             --memory-limit 2MiB     /limits/memory_bytes       1048576           2097152
             --timeout 3s            /clock/time_limit_ms       5000              3000
@@ -735,7 +746,7 @@ mod tests {
                 unreachable!("a prove command")
             };
             let settings = prove.settings(&Given::of(&matches)).unwrap();
-            ordinary(&settings, &prove.logic).map(|o| (o.logic, o.translation))
+            ordinary(&settings, &prove.logic, prove.linear).map(|o| (o.logic, o.translation))
         };
         assert_eq!(ordinary_of(&[]), None);
         assert_eq!(

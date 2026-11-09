@@ -287,8 +287,10 @@ Built:
   per sequent in input order, with a time limit per sequent and for the
   batch, a memory bound for the batch, and a child process per sequent
   on request.
-- Ordinary classical, intuitionistic and minimal propositional logic
-  decided through their embeddings into linear logic: a syntax of its
+- Ordinary classical, intuitionistic and minimal propositional logic,
+  intuitionistic and minimal logic decided by Dyckhoff's
+  contraction-free calculus LJT, whose search always ends, and all three
+  through their embeddings into linear logic: a syntax of its
   own and a reader for TPTP problems, the translations by name (classical
   logic into affine MALL, Girard's call-by-name and call-by-value
   translations and the 0/1 translation into ILL, minimal logic with false
@@ -298,11 +300,10 @@ Built:
   they are admissible, and a certificate over `Prop` for Rocq; and
   proved step by step in LK and LJ, in the command and the bindings, by
   a goal state of ordinary sequents whose finished derivation that
-  checker validates. In the library, intuitionistic and minimal logic
-  are also decided natively by Dyckhoff's contraction-free calculus LJT
-  (`ordinary::ljt`), whose search always ends: its proofs become
-  derivations of LJ with cuts, which the same checker validates. The
-  command does not use it yet.
+  checker validates. LJT's proofs become derivations of LJ with cuts,
+  which the same checker validates; it is the default for intuitionistic
+  and minimal logic, chosen by a run of the ILTP library, and gives way
+  to the embedding where a bound other than the time limit stops it.
 - [Proofs as programs](terms.md): every intuitionistic proof read back as
   its lambda-term, a proof of intuitionistic linear logic as a term of
   the linear lambda calculus of Benton, Bierman, de Paiva and Hyland
@@ -348,8 +349,8 @@ Built:
 Planned, release by release, as the collection of logic suites grows
 by a suite at a time:
 
-- 0.4.0: intuitionistic logic decided by its own engine in the command
-  and on the page, with Kripke countermodels for what is not provable, checked, drawn and
+- 0.4.0: intuitionistic logic decided by its own engine on the page
+  and in a session's `close`, with Kripke countermodels for what is not provable, checked, drawn and
   certified in Rocq; classical tableaux and truth tables; a checked
   certificate for the affine refutations of the Horn engine.
 - 0.5.0: custom rules, a calculus given as data and derivations in it

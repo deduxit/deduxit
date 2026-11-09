@@ -9,7 +9,8 @@ program and a Rust library that parse, print and decide sequents of classical an
 intuitionistic linear logic and their fragments, keep the proofs in a
 checkable form and show them as derivation trees or proof nets, prove
 step by step, export to LaTeX, Typst, SVG and Rocq, decide ordinary
-propositional logic through its embeddings into linear logic, and read
+propositional logic, intuitionistic logic by Dyckhoff's LJT and all of
+it through its embeddings into linear logic, and read
 intuitionistic proofs back as lambda-terms.
 
 deduxit is a collection of logic suites, grown one suite at a time: the

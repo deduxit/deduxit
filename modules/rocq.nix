@@ -67,8 +67,14 @@
             # excluded middle, intuitionistic with no axiom.
             deduxit prove --logic classical --format rocq --standalone --output cli_lk.v \
               '(a <-> b) -> ~(a /\ ~b) /\ (((a -> c) -> a) -> a)'
-            deduxit prove --logic intuitionistic --copies 8 --format rocq --standalone --output cli_lj.v \
+            deduxit prove --logic intuitionistic --format rocq --standalone --output cli_lj.v \
               'a \/ b, ~a, (b -> c) /\ true |- ~~c'
+            # LJT's derivations hold cuts, which a certificate writes as lets;
+            # the embedding's hold none.
+            deduxit prove --logic intuitionistic --method embedding --copies 8 --format rocq \
+              --standalone --output cli_lj_embedding.v 'a \/ b, ~a, (b -> c) /\ true |- ~~c'
+            deduxit prove --logic minimal --format rocq --standalone --output cli_lm.v \
+              '(a \/ b) -> c, (a <-> b) -> d, (a -> b) -> e |- (a -> c) /\ ((b -> a) -> (a -> b) -> d) /\ (b -> e)'
             # Without atoms or hypotheses, a certificate binds nothing.
             deduxit prove --logic classical --format rocq --standalone --output cli_lk_true.v 'true'
             deduxit prove --logic intuitionistic --format rocq --standalone --output cli_lj_true.v 'true'

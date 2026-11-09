@@ -191,6 +191,19 @@ pub(crate) struct ProveArgs {
     /// The ordinary logic the input is in, if any.
     #[command(flatten)]
     pub(crate) logic: LogicArgs,
+    /// With --logic, how to decide the sequent: through its embedding
+    /// into linear logic, or by LJT, Dyckhoff's calculus for
+    /// intuitionistic and minimal logic, which always comes to a verdict
+    /// (ordinary.method)
+    ///
+    /// By default classical logic goes through the embedding and
+    /// intuitionistic and minimal logic by LJT. --translation and --linear
+    /// name the embedding, so either of them alone decides through it.
+    /// LJT's statistics are the sequents it expanded, its memo and the
+    /// sequents refuted by an earlier failure; its JSON output is the
+    /// outcome of the ordinary sequent, with the engine "ljt".
+    #[arg(long, value_enum, value_name = "METHOD", requires = "logic")]
+    pub(crate) method: Option<MethodArg>,
     /// With --logic, show the linear proof of the image instead of the
     /// proof read back as LK or LJ
     #[arg(long, requires = "logic")]
@@ -981,20 +994,21 @@ impl InputFormat {
 /// it.
 #[derive(Args, Clone, Debug)]
 pub(crate) struct LogicArgs {
-    /// Read the input as ordinary logic, through its translation into
-    /// linear logic
+    /// Read the input as ordinary logic
     ///
     /// The input is a formula or a sequent of propositional logic in the
     /// syntax below (a `.p` file a TPTP problem, as the ILTP library writes
-    /// them). `prove` decides its image and reads a proof back as a
-    /// derivation of LK (classical) or LJ (intuitionistic, minimal), which
-    /// is checked by the rules of the logic before it is shown; classical
-    /// logic is decided in affine MALL, with no copy bound, intuitionistic
-    /// and minimal logic in ILL, under the time limit, so they may be
-    /// answered unknown, and the JSON output is the search's outcome on the
-    /// image. `seq print` prints the image. `interact` proves the sequent
-    /// step by step by the rules of LK or LJ, its `close` deciding a goal
-    /// through the translation.
+    /// them). `prove` decides it and shows the proof as a derivation of LK
+    /// (classical) or LJ (intuitionistic, minimal), which is checked by
+    /// the rules of the logic before it is shown. Intuitionistic and
+    /// minimal logic are decided by LJT, whose search always ends;
+    /// classical logic through its translation into affine MALL, with no
+    /// copy bound (--method chooses). Through the translation into ILL
+    /// (--method embedding) intuitionistic and minimal logic may be
+    /// answered unknown at the time limit, and the JSON output is the
+    /// search's outcome on the image. `seq print` prints the image.
+    /// `interact` proves the sequent step by step by the rules of LK or
+    /// LJ, its `close` deciding a goal through the translation.
     #[arg(long, value_enum, value_name = "LOGIC")]
     pub(crate) logic: Option<LogicArg>,
     /// The translation into linear logic: affine for classical logic, cbn
@@ -1021,6 +1035,26 @@ impl From<LogicArg> for deduxit::ordinary::Logic {
             LogicArg::Classical => Self::Classical,
             LogicArg::Intuitionistic => Self::Intuitionistic,
             LogicArg::Minimal => Self::Minimal,
+        }
+    }
+}
+
+/// How a sequent of ordinary logic is decided.
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum MethodArg {
+    /// Through its translation into linear logic, the proof read back as
+    /// LK or LJ
+    Embedding,
+    /// By Dyckhoff's calculus LJT, whose search always ends: intuitionistic
+    /// and minimal logic
+    Ljt,
+}
+
+impl From<MethodArg> for deduxit::ordinary::Method {
+    fn from(method: MethodArg) -> Self {
+        match method {
+            MethodArg::Embedding => Self::Embedding,
+            MethodArg::Ljt => Self::Ljt,
         }
     }
 }

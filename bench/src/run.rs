@@ -887,21 +887,8 @@ impl Searched<'_> {
             Ok(forest) => (forest.len(), multiplicity(&forest)),
             Err(_) => (0, 0),
         };
-        let options = Options::default()
-            .with_engine(args.engine.engine())
-            .with_jobs(args.jobs)
-            .with_copies(copies)
-            .with_witness_depth(witness_depth.unwrap_or(Options::DEFAULT_WITNESS_DEPTH))
-            .with_bias(args.bias.bias())
-            .with_forward_copies(forward_copies(args.forward_copies))
-            .with_test_period(args.test_period)
-            .with_memo_limit(args.memo_limit.unwrap_or(Options::DEFAULT_MEMO_LIMIT))
-            .with_classical_work(
-                args.classical_work
-                    .unwrap_or(Options::DEFAULT_CLASSICAL_WORK),
-            )
-            // The check is the child's own, outside the time measured.
-            .with_check(false);
+        // The check is the child's own, outside the time measured.
+        let options = search_options(args, copies, witness_depth).with_check(false);
         let limits = Limits::default()
             .with_memory_bytes(memory_limit(args.memory_limit))
             .with_recursion_depth(recursion);
@@ -1010,6 +997,28 @@ impl Searched<'_> {
         let check = start.elapsed().as_secs_f64() * 1000.0;
         tail(&checked, &format!("{check:.3}"))
     }
+}
+
+/// Returns the search's options a run asks for, with the copy bound and
+/// witness depth given.
+pub(crate) fn search_options(
+    args: &OneArgs,
+    copies: Option<u32>,
+    witness_depth: Option<u32>,
+) -> Options {
+    Options::default()
+        .with_engine(args.engine.engine())
+        .with_jobs(args.jobs)
+        .with_copies(copies)
+        .with_witness_depth(witness_depth.unwrap_or(Options::DEFAULT_WITNESS_DEPTH))
+        .with_bias(args.bias.bias())
+        .with_forward_copies(forward_copies(args.forward_copies))
+        .with_test_period(args.test_period)
+        .with_memo_limit(args.memo_limit.unwrap_or(Options::DEFAULT_MEMO_LIMIT))
+        .with_classical_work(
+            args.classical_work
+                .unwrap_or(Options::DEFAULT_CLASSICAL_WORK),
+        )
 }
 
 /// The clock of a run: the flag a thread of its own raises at the time

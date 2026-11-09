@@ -19,7 +19,7 @@ use crate::{Status, catch_interrupt, interrupted};
 use anyhow::{Context, Result, anyhow, bail};
 use deduxit::linear::search::batch::{self, Cores};
 use deduxit::linear::search::{Goal, Outcome, Pool, Verdict, prove_goal};
-use deduxit::ordinary::Image;
+use deduxit::ordinary::{self as ordinary_logic, Image, Method, ljt};
 use deduxit::{
     Settings,
     linear::{Forest, InputOptions, Mode},
@@ -439,6 +439,15 @@ struct Done {
     status: Status,
 }
 
+/// An entry as it was read: an ordinary sequent under `--logic`, or a
+/// linear one laid out as a forest, with how it was written.
+enum Loaded {
+    /// A sequent of ordinary logic.
+    Ordinary(ordinary_logic::Sequent),
+    /// A linear sequent's forest, and how its formulas were written.
+    Linear(Box<Forest>, Option<Box<[deduxit::linear::Written]>>),
+}
+
 /// What every worker shares.
 struct Shared {
     /// The arguments.
@@ -685,34 +694,23 @@ impl Shared {
         let logic = self.ordinary;
         // How a sequent was written is kept for a derivation drawn so.
         let keep = self.show.view.classical == deduxit::linear::ClassicalSides::Two;
-        type Loaded = (
-            Forest,
-            Option<Image>,
-            Option<Box<[deduxit::linear::Written]>>,
-        );
         let loaded = deadline.within(move || -> Result<Loaded> {
             let (text, format) = match source {
                 Source::Bad(why) => return Err(anyhow!(why)),
                 Source::Text(text, format) => (text, format),
                 Source::File(path, format) => (io::read(Some(&path), "sequent", memory)?, format),
             };
-            let (sequent, image, writing) = if let Some(options) = logic {
-                let sequent = ordinary::sequent_in(&text, format, most)?;
-                let image = ordinary::image(&options, &sequent, most)?;
-                (image.sequent().clone(), Some(image), None)
+            if logic.is_some() {
+                Ok(Loaded::Ordinary(ordinary::sequent_in(&text, format, most)?))
             } else if format == InputFormat::Tptp {
                 bail!("--input-format tptp holds ordinary logic, which --logic reads");
             } else {
                 let (sequent, writing) = written_in(&text, format, most, mode, &read, keep)?;
-                (sequent, None, writing)
-            };
-            Ok((
-                Forest::from_owned(admit(sequent, most)?, &io::bound(most))?,
-                image,
-                writing,
-            ))
+                let forest = Forest::from_owned(admit(sequent, most)?, &io::bound(most))?;
+                Ok(Loaded::Linear(Box::new(forest), writing))
+            }
         })?;
-        let Some(forest) = loaded else {
+        let Some(read) = loaded else {
             let limit = deadline.limit().expect("only a limit passes");
             let line = crate::prove::unread(limit);
             return Ok(Done {
@@ -720,7 +718,20 @@ impl Shared {
                 status: Status::Unknown,
             });
         };
-        let (forest, image, writing) = forest?;
+        let (forest, image, writing) = match (read?, logic) {
+            (Loaded::Ordinary(sequent), Some(options)) => {
+                if options.method() == Method::Ljt
+                    && let Some(done) =
+                        self.by_ljt(&entry.name, &options, &sequent, plan, &deadline)?
+                {
+                    return Ok(done);
+                }
+                let (forest, image) = ordinary::translated(&options, &sequent, limits)?;
+                (forest, Some(image), None)
+            }
+            (Loaded::Linear(forest, writing), _) => (*forest, None, writing),
+            (Loaded::Ordinary(_), None) => unreachable!("ordinary logic is read under --logic"),
+        };
         let sequent = forest.sequent();
         let mode = match &image {
             Some(image) => image.mode(),
@@ -791,6 +802,137 @@ impl Shared {
             }
         }
         Ok(Done { text, status })
+    }
+
+    /// Decides an entry of ordinary logic by LJT and returns what is
+    /// written for it, its derivation or outcome written into its file in
+    /// the directory; `None` where the logic's default gives way to the
+    /// embedding (LJT ended at a bound other than the time limit, or a
+    /// bound refused its proof's derivation).
+    fn by_ljt(
+        &self,
+        name: &str,
+        options: &deduxit::ordinary::Options,
+        sequent: &deduxit::ordinary::Sequent,
+        plan: &batch::Plan,
+        deadline: &Deadline,
+    ) -> Result<Option<Done>> {
+        if self.show.net {
+            bail!("--net draws the proof net of a linear proof, and LJT makes none");
+        }
+        let gives_way = options.method.is_none();
+        let start = Instant::now();
+        let halt = || interrupted() || deadline.passed() || self.batch.passed();
+        let decided = ljt::decide(sequent, options.logic, &plan.limits, |_| halt());
+        let ended = Ended {
+            stop: self.stopped(deadline),
+            elapsed: start.elapsed(),
+        };
+        if gives_way && ordinary_logic::gives_way(&decided) {
+            return Ok(None);
+        }
+        let outcome = match decided {
+            Ok(outcome) => ordinary_logic::Outcome::from(outcome),
+            Err(deduxit::Error::Refused(deduxit::Refusal::Stopped { .. })) => {
+                let line = format!(
+                    "unknown ({} logic by LJT): a proof was found, but {} before its derivation \
+                     was checked",
+                    options.logic,
+                    Stop::why(ended.stop)
+                );
+                return Ok(Some(Done {
+                    text: self.unknown(name, &line),
+                    status: Status::Unknown,
+                }));
+            }
+            Err(error) => return Err(error.into()),
+        };
+        let status = match &outcome.verdict {
+            ordinary_logic::Verdict::Valid(_) => Status::Yes,
+            ordinary_logic::Verdict::NotValid => Status::No,
+            _ => Status::Unknown,
+        };
+        let line = ordinary::ljt_verdict_line(&outcome, &ended);
+        let mut text = if self.json_lines() {
+            let mut body = serde_json::to_string(&outcome)?;
+            if self.args.stats {
+                body.pop();
+                body.push_str(&format!(",\"seconds\":{}}}", ended.elapsed.as_secs_f64()));
+            }
+            record_json(name, &body)
+        } else {
+            format!("{}: {line}", shown(name))
+        };
+        if let Some(directory) = &self.directory
+            && let Some(note) = self.write_ljt(name, directory, &outcome, &line, deadline)?
+        {
+            text.push_str(&format!("\n  {note}"));
+        }
+        if self.args.stats && !self.json_lines() {
+            for counter in ordinary::ljt_statistics(&outcome, ended.elapsed).lines() {
+                text.push_str(&format!("\n  {counter}"));
+            }
+        }
+        Ok(Some(Done { text, status }))
+    }
+
+    /// Writes an outcome of LJT, or its derivation of LJ, into its file in
+    /// `directory`, as [`write`](Self::write) does for the image's.
+    fn write_ljt(
+        &self,
+        name: &str,
+        directory: &Path,
+        outcome: &ordinary_logic::Outcome,
+        line: &str,
+        deadline: &Deadline,
+    ) -> Result<Option<String>> {
+        let show = &self.show;
+        let path = file_for(directory, name, show.format);
+        let open = || -> Result<io::Output> {
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent)
+                    .with_context(|| format!("cannot make {}", parent.display()))?;
+            }
+            io::Output::open(Some(&path), show.format.is_binary())
+        };
+        if show.format == Format::Json {
+            let mut out = open()?;
+            serde_json::to_writer(out.stream(), outcome)?;
+            out.finish()?;
+            return Ok(None);
+        }
+        let (ordinary_logic::Verdict::Valid(d), false) = (&outcome.verdict, self.args.output.quiet)
+        else {
+            return Ok(None);
+        };
+        if show.tree == crate::argument_parsing::Tree::Never {
+            return Ok(None);
+        }
+        let mut out = open()?;
+        let over = || interrupted() || deadline.passed() || self.batch.passed() || io::closed();
+        let prefix = (show.verdict && !show.format.is_binary())
+            .then(|| format!("{}\n", crate::show::note(show.format, line)));
+        let why = || Stop::why(self.stopped(deadline));
+        let shown = crate::show::shown(
+            ordinary::shown((**d).clone(), show),
+            None,
+            show,
+            every_steps(&over),
+            why,
+            prefix.as_deref(),
+            &mut out,
+        )?;
+        match shown {
+            Shown::Written => out.finish()?,
+            Shown::Rendered(bytes) => {
+                out.stream().write_all(&bytes)?;
+                out.finish()?;
+            }
+            Shown::LeftOut(reason) => return Ok(Some(reason)),
+            Shown::Cut(reason) => return Ok(Some(format!("{reason}; no file is written"))),
+            Shown::Nothing => {}
+        }
+        Ok(None)
     }
 
     /// Writes the outcome, or the proof's derivation or net, into its file
@@ -1100,6 +1242,9 @@ pub(crate) fn run(args: &ProveArgs, settings: &Settings, start: Instant) -> Resu
         );
     }
     crate::prove::ordinary_mode(args)?;
+    if let Some(options) = crate::settings::ordinary(settings, &args.logic, args.linear) {
+        ordinary::method_given(args, &options)?;
+    }
     let format = args.output.format();
     let directory = args.output.output.clone();
     if directory.is_none() && !matches!(format, Format::Text | Format::Json) {
@@ -1170,7 +1315,7 @@ pub(crate) fn run(args: &ProveArgs, settings: &Settings, start: Instant) -> Resu
             start,
         )?,
         timeout: time_limit(settings),
-        ordinary: crate::settings::ordinary(settings, &args.logic),
+        ordinary: crate::settings::ordinary(settings, &args.logic, args.linear),
         most: io::Most::of(&settings.limits),
         read: settings.input,
         mode: settings.batch.mode,
@@ -1235,7 +1380,7 @@ fn one(
         show,
         batch: Deadline::start(None, Instant::now())?,
         timeout: time_limit(settings),
-        ordinary: crate::settings::ordinary(settings, &args.logic),
+        ordinary: crate::settings::ordinary(settings, &args.logic, args.linear),
         most: io::Most::of(&settings.limits),
         read: settings.input,
         mode: settings.batch.mode,

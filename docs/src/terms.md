@@ -127,13 +127,13 @@ pair of both implications:
 
 ```console
 $ deduxit prove --logic intuitionistic --lambda --tree never '|- (a -> b) -> (b -> c) -> a -> c'
-valid (intuitionistic logic by the cbn translation into ILL, two-sided engine)
+valid (intuitionistic logic by LJT)
 lambda-term: ⊢ λf. λg. λx. g (f x) : (a → b) → ((b → c) → (a → c))
 $ deduxit prove --logic intuitionistic --lambda --tree never '~(a \/ b) |- ~a /\ ~b'
-valid (intuitionistic logic by the cbn translation into ILL, two-sided engine)
+valid (intuitionistic logic by LJT)
 lambda-term: f : (a ∨ b) → ⊥ ⊢ ⟨λx. f inl(x), λy. f inr(y)⟩ : (a → ⊥) ∧ (b → ⊥)
 $ deduxit prove --logic minimal --lambda --tree never '|- a -> ~~a'
-valid (minimal logic by the cbn translation into ILL, two-sided engine)
+valid (minimal logic by LJT)
 lambda-term: ⊢ λx. λf. f x : a → ((a → ⊥) → ⊥)
 ```
 

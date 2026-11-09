@@ -160,14 +160,28 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   of minimal logic proves the intuitionistic statement only (minimality
   rests on the checker).
 - **Deciding** is `decide(&sequent, &ordinary::Options, &search::Options,
-  &limits, stop)`, which the ordinary journey runs; the command still
-  runs the steps itself (its race and its output), with its defaults
+  &limits, stop)`, which the ordinary journey runs, by
+  `Options::method()`: the method given, else the embedding when a
+  translation is given, else `Method::default_for(logic)`, LJT for
+  intuitionistic and minimal logic and the embedding for classical
+  logic, chosen by the ILTP run of `plan/reports/54-ljt-engine.md`
+  (`bench/defaults/ljt-iltp.csv`). With no method given, LJT gives way
+  to the embedding where `gives_way` says so: an unknown at a bound
+  other than `Reason::Stopped`, or a refusal other than the stop (the
+  derivation past `derivation_bytes`, which SYJ201+1.004 and .005 reach
+  in milliseconds and the embedding decides at 2 s). The outcome's
+  `search` (`Search::Embedding` with the translation and the image's
+  outcome, or `Search::Ljt` with LJT's statistics) says which decided,
+  and its JSON writes `engine` `ljt` and no `translation` for LJT. The
+  command still runs the steps itself (its race and its output, the
+  dispatch by `gives_way` in `cli/src/ordinary.rs`), with its defaults
   (no copy bound, the time limit), affine classical mode for `Affine`,
   intuitionistic mode otherwise. A proof whose read-back a bound or the
   stop refuses is that refusal from `decide`, never a verdict. The
   default translation for intuitionistic and minimal logic is
   `Translation::DEFAULT_INTUITIONISTIC`, chosen by the ILTP run
-  (`plan/reports/25-ordinary-logic.md`).
+  (`plan/reports/25-ordinary-logic.md`). The goal state's `close` and
+  `hint` pass `Method::Embedding`: its steps take no cut.
 - **Where quantifiers go**: `Node` gains `Forall`/`Exists` with a bound
   variable and `Atom` gains terms; the pattern table gets their rows
   (Girard: `∀` as `∀`, `∃` as `∃!`), and the read-back's tags carry no
@@ -176,9 +190,9 @@ translating into linear logic, and the linear proof read back as LK or LJ.
 ## The native engine (`ljt.rs`)
 
 Dyckhoff's LJT (G4ip) for intuitionistic and minimal logic, public as
-`ordinary::ljt::decide`, beside the embedding and not yet the command's
-default. Its sources are cited in the module's docs; its search and
-translation are untrusted, the checker is the trust.
+`ordinary::ljt::decide`, beside the embedding and the default method of
+both logics (`Method::Ljt`). Its sources are cited in the module's docs;
+its search and translation are untrusted, the checker is the trust.
 
 - **Terminates by the calculus**: every rule's premises are lighter than
   its conclusion in the multiset ordering of Dyckhoff's weights (`∧`
@@ -190,7 +204,13 @@ translation are untrusted, the checker is the trust.
 - **Hypotheses are a set** (`set`): contraction is admissible in G4ip
   (Dyckhoff and Negri 2000), so a sequent and its set are provable
   together; the translation weakens back the copies a rule's premise
-  has (`Lj::weaken_to`) and the root weakens to the sequent as written.
+  has (`Lj::weaken_to`) and the root weakens to the sequent as written,
+  its hypotheses then rewritten in the written order (`Lj::in_order`,
+  the principal found again by formula): the checker reads them as a
+  multiset, but `Derivation::term` takes its context, the certificate
+  its statement and the drawings their root from the root's order, and
+  a root in the set's order gave a term whose context did not match the
+  sequent (`the_root_keeps_the_written_order`).
 - **Invertible first**: a leaf rule (the goal among the hypotheses, `⊥`
   outside minimal logic, `⊤` the goal) or an invertible rule is the only
   move tried; only `∨R₁`, `∨R₂` and `→→L` are alternatives. LJT's rule
@@ -239,6 +259,10 @@ translation are untrusted, the checker is the trust.
   `Reason::MemoryLimit` past it; the translation charges its own and
   refuses with `Refusal::Memory` or `Refusal::Output`. Classical logic is
   `Error::Logic`.
+- **`Derivation::term` assumes a checked derivation or a view of one**
+  (its `# Panics`): checking first would refuse the admissible view,
+  which `term` reads too, and a session's derivation with open goals; a
+  derivation read from JSON is checked before its term is read.
 - **What it copied from the linear engines** (for the kernel crate): the
   memo keyed by the sequent, the arena of proof steps, the stop's poll
   cadence and the memory account (`linear::search::memory::Account`,

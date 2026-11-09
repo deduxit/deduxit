@@ -5,19 +5,24 @@
 //! intuitionistic or minimal logic read under `--logic`, translated into
 //! linear logic, decided there, and its proof read back as LK or LJ.
 
-use crate::argument_parsing::{Format, InputFormat, Tree};
-use crate::io::{bound, refused};
-use crate::prove::{Ended, unknown};
-use crate::show::{Show, Shown, not_built};
+use crate::argument_parsing::{Format, InputFormat, ProveArgs, Tree};
+use crate::io::{self, Most, admit, bound, refused};
+use crate::limit::{Deadline, Notice};
+use crate::prove::{
+    Ended, NOTICE_AFTER, Stop, advice, notice_line, on_large_stack, stopped, unknown,
+};
+use crate::show::{Show, Shown, every_steps, lambda_json, lambda_line, not_built};
+use crate::{Status, catch_interrupt, interrupted};
 use anyhow::{Result, anyhow, bail};
 use deduxit::linear::proofs::{Sides, Structural};
 use deduxit::linear::search::{Outcome, Verdict};
-use deduxit::ordinary::{self, Derivation, Image, Logic, Translation};
+use deduxit::ordinary::{self, Derivation, Image, Logic, Method, Translation, ljt};
 use deduxit::{
-    Error, ErrorKind, Limits, Refusal,
-    linear::{Proof, ViewOptions},
+    Error, ErrorKind, Limits, Refusal, Settings,
+    linear::{Forest, Proof, ViewOptions},
 };
 use std::fmt::Write;
+use std::time::{Duration, Instant};
 
 /// Returns the ordinary sequent `text` holds in `format`: text in the
 /// syntax of ordinary logic (a parse error points into `text`), or a TPTP
@@ -65,6 +70,199 @@ pub(crate) fn image(
 ) -> Result<Image> {
     ordinary::translate(sequent, options.logic, options.translation(), &bound(most))
         .map_err(|e| refused(e, most))
+}
+
+/// Returns the image of an ordinary sequent under the translation
+/// `options` choose, with the image's forest, refused past
+/// `limits.occurrences`.
+///
+/// # Errors
+///
+/// As [`image`], and an image past the bound.
+pub(crate) fn translated(
+    options: &ordinary::Options,
+    sequent: &ordinary::Sequent,
+    limits: &Limits,
+) -> Result<(Forest, Image)> {
+    let most = Most::of(limits);
+    let image = image(options, sequent, most)?;
+    let sequent = admit(image.sequent().clone(), most)?;
+    Ok((Forest::from_owned(sequent, &bound(most))?, image))
+}
+
+/// Refuses `--translation` and `--linear`, which name the embedding,
+/// beside a choice of LJT.
+///
+/// # Errors
+///
+/// Either flag beside `--method ljt`, or beside a settings file's
+/// `ordinary.method` of `ljt`.
+pub(crate) fn method_given(args: &ProveArgs, options: &ordinary::Options) -> Result<()> {
+    if options.method == Some(Method::Ljt) && (args.logic.translation.is_some() || args.linear) {
+        bail!(
+            "--translation and --linear name the embedding, and LJT decides without one: leave \
+             them out, or give --method embedding"
+        );
+    }
+    Ok(())
+}
+
+/// Decides an ordinary sequent by LJT and writes what `prove` writes for
+/// it: the verdict line, the checked derivation of LJ, its lambda-term
+/// and the statistics, or the outcome as JSON. Returns `None`, having
+/// written nothing, where the logic's default method gives way to the
+/// embedding: LJT ended at a bound other than the time limit or Ctrl-C,
+/// or a bound refused the derivation of the proof it found.
+///
+/// # Errors
+///
+/// `--net`, which draws a linear proof; a bound that refused the
+/// derivation of a proof under `--method ljt`; an output that cannot be
+/// written.
+pub(crate) fn by_ljt(
+    args: &ProveArgs,
+    settings: &Settings,
+    options: &ordinary::Options,
+    sequent: &ordinary::Sequent,
+    deadline: &Deadline,
+) -> Result<Option<Status>> {
+    if args.output.net {
+        bail!(
+            "--net draws the proof net of a linear proof, and LJT makes none: add --method embedding"
+        );
+    }
+    let limits = settings.limits;
+    let format = args.output.format();
+    let show = Show::new(&args.output, settings)?;
+    // The logic's default, which the embedding takes over from.
+    let gives_way = options.method.is_none();
+    catch_interrupt();
+    on_large_stack(limits.stack_bytes(), || {
+        let start = Instant::now();
+        let notice = Notice::start(NOTICE_AFTER, notice_line(deadline.limit(), false));
+        let halt = || interrupted() || deadline.passed();
+        let decided = ljt::decide(sequent, options.logic, &limits, |_| halt());
+        drop(notice);
+        let ended = Ended {
+            stop: stopped(deadline),
+            elapsed: start.elapsed(),
+        };
+        if gives_way && ordinary::gives_way(&decided) {
+            return Ok(None);
+        }
+        let outcome = match decided {
+            Ok(outcome) => ordinary::Outcome::from(outcome),
+            Err(Error::Refused(Refusal::Stopped { .. })) => {
+                let line = format!(
+                    "unknown ({} logic by LJT): a proof was found, but {} before its derivation \
+                     was checked",
+                    options.logic,
+                    Stop::why(ended.stop)
+                );
+                match (format, &args.output.output) {
+                    (Format::Text, None) => io::write(None, &format!("{line}\n"))?,
+                    _ => eprintln!("{line}"),
+                }
+                return Ok(Some(Status::Unknown));
+            }
+            Err(error) if error.is_refusal() => bail!(
+                "LJT found a proof, but its derivation was not checked: {error}; raise the limit \
+                 (--derivation-limit, --memory-limit), or decide through the embedding with \
+                 --method embedding"
+            ),
+            Err(error) => return Err(error.into()),
+        };
+        let status = match &outcome.verdict {
+            ordinary::Verdict::Valid(_) => Status::Yes,
+            ordinary::Verdict::NotValid => Status::No,
+            _ => Status::Unknown,
+        };
+        let over = || interrupted() || deadline.passed() || crate::io::closed();
+        let mut out = io::Output::open(args.output.output.as_deref(), format.is_binary())?;
+        if format == Format::Json {
+            match &outcome.verdict {
+                ordinary::Verdict::Valid(d) if show.lambda.is_some() => {
+                    let term = d.term(&show.limits, |_| over());
+                    let mut value = serde_json::to_value(&outcome)?;
+                    if let Some(object) = value.as_object_mut() {
+                        object.insert("lambda".into(), lambda_json(term, &show, over)?);
+                    }
+                    serde_json::to_writer(out.stream(), &value)?;
+                }
+                _ => serde_json::to_writer(out.stream(), &outcome)?,
+            }
+            out.finish()?;
+            return Ok(Some(status));
+        }
+        let line = show.verdict.then(|| ljt_verdict_line(&outcome, &ended));
+        let prefix = show.open(&mut out, line.as_deref())?;
+        let why = || Stop::why(stopped(deadline));
+        let shown = match (&outcome.verdict, args.output.quiet) {
+            (ordinary::Verdict::Valid(_), false) if show.tree == Tree::Never => Shown::Nothing,
+            (ordinary::Verdict::Valid(_), false) if over() => {
+                Shown::LeftOut(format!("the derivation is not written: {}", why()))
+            }
+            (ordinary::Verdict::Valid(d), false) => crate::show::shown(
+                shown((**d).clone(), &show),
+                show.fit(),
+                &show,
+                every_steps(&over),
+                why,
+                prefix.as_deref(),
+                &mut out,
+            )?,
+            _ => Shown::Nothing,
+        };
+        let drawn = matches!(shown, Shown::Written | Shown::Rendered(_));
+        let keep = show.close(&mut out, shown, line.as_deref())?;
+        if let (ordinary::Verdict::Valid(d), Format::Text, Some(_)) =
+            (&outcome.verdict, format, show.lambda)
+        {
+            let term = d.term(&show.limits, |_| over());
+            show.after(&mut out, &lambda_line(term, &show, over), drawn)?;
+        }
+        if args.stats {
+            show.after(&mut out, &ljt_statistics(&outcome, ended.elapsed), drawn)?;
+        }
+        if keep {
+            out.finish()?;
+        }
+        anyhow::Ok(Some(status))
+    })?
+}
+
+/// Returns the verdict line of an ordinary sequent decided by LJT: the
+/// verdict, the logic and LJT, and for an undecided sequent why.
+pub(crate) fn ljt_verdict_line(outcome: &ordinary::Outcome, ended: &Ended) -> String {
+    let context = format!("{} logic by LJT", outcome.logic);
+    match &outcome.verdict {
+        ordinary::Verdict::Valid(_) => format!("valid ({context})"),
+        ordinary::Verdict::NotValid => {
+            format!("not valid ({context}): the search was exhaustive")
+        }
+        ordinary::Verdict::Unknown(reason) => {
+            format!("unknown ({context}): {}", advice(*reason, "", ended))
+        }
+        _ => format!("unknown ({context})"),
+    }
+}
+
+/// Returns the lines `--stats` prints for LJT: its counters, a line each,
+/// and the time.
+pub(crate) fn ljt_statistics(outcome: &ordinary::Outcome, elapsed: Duration) -> String {
+    let mut lines = String::new();
+    if let ordinary::Search::Ljt(s) = &outcome.search {
+        for (label, value) in [
+            ("sequents expanded", s.sequents),
+            ("memo hits", s.memo_hits),
+            ("memo entries", s.memo_entries),
+            ("refuted by an earlier failure", s.subsumed),
+        ] {
+            writeln!(lines, "{label}: {value}").expect("a string takes it");
+        }
+    }
+    write!(lines, "time: {elapsed:.2?}").expect("a string takes it");
+    lines
 }
 
 /// Returns the first line of the text output for an ordinary sequent

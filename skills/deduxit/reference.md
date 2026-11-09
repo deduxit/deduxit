@@ -297,7 +297,7 @@ $ deduxit prove -i --lambda --tree never "|- a -o b -o a * b"
 provable (IMLL, intuitionistic, two-sided engine)
 lambda-term: ⊢ λx. λy. x ⊗ y : a ⊸ (b ⊸ (a ⊗ b))
 $ deduxit prove --logic intuitionistic --lambda --tree never "|- (a -> b) -> (b -> c) -> a -> c"
-valid (intuitionistic logic by the cbn translation into ILL, two-sided engine)
+valid (intuitionistic logic by LJT)
 lambda-term: ⊢ λf. λg. λx. g (f x) : (a → b) → ((b → c) → (a → c))
 $ deduxit prove -i --lambda --tree never "a & b |- b & a"
 provable (IALL, intuitionistic, additive engine)
@@ -788,17 +788,39 @@ pass with `--cores within`.
 sequent of propositional logic: `->`/`→`, `/\`/`∧`, `\/`/`∨`, `~`/`¬`,
 `<->`/`↔`, `true`/`⊤`, `false`/`⊥` (`~` binds tightest, then `/\`, `\/`,
 `->`, and last `<->`; `->` and `<->` group to the right). The verdict is
-`valid`, `not valid` or `unknown`, and the proof is read back as a
-derivation of LK or LJ, checked before it is shown. Classical logic goes
-into affine MALL (no copy bound); intuitionistic and minimal logic into
-ILL by `--translation cbn` (the default), `cbv` or `01`, under the time
-limit, so they may be answered unknown. `--linear` shows the linear
-proof of the image, and `seq print --logic` the image. A `.p` file is a
-TPTP problem.
+`valid`, `not valid` or `unknown`, and the proof is drawn as a
+derivation of LK or LJ, checked before it is shown.
+
+`--method` (`ordinary.method`) chooses how a sequent is decided:
+
+- `ljt`, Dyckhoff's calculus LJT, the default for intuitionistic and
+  minimal logic: its search always ends, so it answers `unknown` only at
+  the time limit or a bound. Where a bound other than the time limit
+  stops it (a derivation past `--derivation-limit`, the memory), the
+  default hands the sequent to the embedding and the verdict line names
+  the translation. Under `--method ljt` the bound is reported instead
+  (exit 2 for a derivation it could not check). Classical logic is refused (exit 2).
+  `--stats` prints `sequents expanded`, `memo hits`, `memo entries` and
+  `refuted by an earlier failure`. Its derivations use LJ's cut, so
+  their JSON is at wire level 9, their lambda-terms may hold redexes and
+  their certificates `let`s.
+- `embedding`, the default for classical logic: the sequent's image in
+  linear logic is searched and the proof read back. Classical logic goes
+  into affine MALL (no copy bound); intuitionistic and minimal logic into
+  ILL by `--translation cbn` (the default), `cbv` or `01`, under the time
+  limit, so they may be answered unknown. `--translation` and `--linear`
+  (the linear proof of the image) choose it on their own.
+
+`--format json` writes, under LJT, the outcome of the ordinary sequent:
+`{"version": 8, "deduxit": …, "verdict": "valid"|"not_valid"|"unknown",
+"reason": …, "logic": …, "engine": "ljt", "statistics": {"sequents",
+"memo_hits", "memo_entries", "subsumed"}, "derivation": …}`; through the
+embedding, the image's outcome as without `--logic`. `seq print --logic`
+prints the image. A `.p` file is a TPTP problem.
 
 ```console
 $ deduxit prove --logic intuitionistic 'a \/ b -> b \/ a'
-valid (intuitionistic logic by the cbn translation into ILL, two-sided engine)
+valid (intuitionistic logic by LJT)
   ───── ax        ───── ax
   a ⊢ a           b ⊢ b
 ───────── ∨R₂   ───────── ∨R₁
@@ -811,6 +833,8 @@ $ deduxit prove --logic classical -q '((a -> b) -> a) -> a'
 valid (classical logic by the affine translation into affine MALL, focus engine)
 $ deduxit seq print --logic intuitionistic --translation cbv 'a, a -> b |- b'
 !a, !(!a ⊸ !b) ⊢ !b
+$ deduxit prove --logic minimal --method embedding -q 'a, a -> b |- b'
+valid (minimal logic by the cbn translation into ILL, two-sided engine)
 ```
 
 `-i`, `-a` and `--mix` are refused beside `--logic`: the translation
@@ -835,7 +859,8 @@ after the rule go to the first premise (`apply G L1 ->L L0`). In
 intuitionistic and minimal logic every goal keeps exactly one formula
 right of `⊢` (`Γ ⊢` starts as `Γ ⊢ ⊥`; `WR`, `CR`, `⊥R` and `∨R` are
 refused), and minimal logic has no `⊥L`. `close [G]` decides a goal
-through the translation and grafts the derivation; one it cannot decide
+through the embedding (whose derivations have no cut) and grafts the
+derivation; one it cannot decide
 stays open with the reason. `proof` writes the checked derivation in
 any format of `prove`; `save FILE` writes the session, which
 `--state FILE` resumes. Exit 0 for a finished derivation, 1 otherwise.
@@ -929,11 +954,17 @@ passes `Derivation::check`; `ViewOptions::structural` draws a derivation
 of LK or LJ with its weakenings and contractions `explicit` or
 `admissible`. `ordinary::Rule` reads from its name or an ASCII spelling
 (`"impL".parse::<ordinary::Rule>()`), as the command's `apply` does.
-`ordinary::ljt::decide(&sequent, logic, &limits, stop)` decides an
-intuitionistic or minimal sequent by Dyckhoff's LJT, whose search always
-ends (no copy bound, so no `unknown` but at a bound or the stop); its
-derivation is LJ's with cuts, checked like any other. The command does
-not use it yet.
+`ordinary::decide(&sequent, &options, &search, &limits, stop)` decides
+by `options.method()`: `ordinary::Options::method` is `None` by default,
+LJT (`ordinary::Method::Ljt`) for intuitionistic and minimal logic, the
+embedding where a translation is given or LJT gives way
+(`ordinary::gives_way`), and its `ordinary::Outcome` says which in
+`search` (`ordinary::Search::Embedding` with the image's outcome, or
+`ordinary::Search::Ljt` with LJT's statistics).
+`ordinary::ljt::decide(&sequent, logic, &limits, stop)` is LJT alone,
+whose search always ends (no copy bound, so no `unknown` but at a bound
+or the stop); its derivation is LJ's with cuts, checked like any other.
+`Derivation::term` reads a checked derivation, or a view of one.
 
 ```rust
 use deduxit::linear::{Fragment, Mode, Options, Sequent, Verdict, prove};

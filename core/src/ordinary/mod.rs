@@ -63,7 +63,7 @@ pub(crate) mod rocq;
 /// The translations into linear logic.
 mod translate;
 
-pub use decide::{Outcome, Search, Verdict, decide};
+pub use decide::{Outcome, Search, Verdict, decide, gives_way};
 pub use derivation::{Derivation, Inference, Rule, Side};
 #[cfg(all(feature = "interactive", feature = "serialize"))]
 pub(crate) use interactive::Parts;
@@ -329,10 +329,15 @@ impl Method {
         }
     }
 
-    /// Returns the method the logic is decided with by default.
+    /// Returns the method the logic is decided with by default, chosen by
+    /// a run of the ILTP library's propositional problems: the embedding
+    /// for classical logic, LJT for intuitionistic and minimal logic,
+    /// which by default gives way to the embedding where a bound stops it
+    /// ([`gives_way`]).
     pub const fn default_for(logic: Logic) -> Self {
         match logic {
-            Logic::Classical | Logic::Intuitionistic | Logic::Minimal => Self::Embedding,
+            Logic::Classical => Self::Embedding,
+            Logic::Intuitionistic | Logic::Minimal => Self::Ljt,
         }
     }
 

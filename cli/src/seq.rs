@@ -55,7 +55,7 @@ pub(crate) fn run(command: &SeqCommand, given: &Given) -> Result<Status> {
                     "the logic decides how its image is printed: leave out --intuitionistic, --cyclic and --lambek"
                 );
             }
-            let (sequent, mode) = match settings::ordinary(&settings, logic) {
+            let (sequent, mode) = match settings::ordinary(&settings, logic, false) {
                 Some(options) => {
                     let image = input.image(&options, &settings.limits)?.1;
                     let mode = image.mode();

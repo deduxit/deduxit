@@ -99,6 +99,30 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   prints the image (two-sided for ILL). In a batch the logic applies to
   every entry, `lines` being ordinary sequents, and JSON and LLTP inputs
   refused per entry.
+  **The method** (`--method embedding|ljt`, `ordinary.method`, on
+  `prove` only; `settings::ordinary` sets the embedding where `--linear`
+  is given and no method, and `method_given` refuses `--translation` or
+  `--linear` beside an explicit LJT, exit 2): `prove` reads the
+  ordinary sequent first (`io::ordinary`), and where
+  `Options::method()` is LJT `by_ljt` decides it on the large stack
+  under the deadline and Ctrl-C and writes the verdict line
+  (`ljt_verdict_line`: `valid (L logic by LJT)`, `not valid (…): the
+  search was exhaustive`, an unknown with `prove::advice`), the checked
+  derivation through `show::shown` (none under `--tree never` or `-q`),
+  `--lambda` from `Derivation::term`, `--stats` (`ljt_statistics`) or
+  the ordinary outcome as JSON (version first: through a `Value` only
+  with `--lambda`), and refuses `--net`. With no method given it returns
+  `None` where `ordinary::gives_way` says so, writing nothing, and the
+  image path runs with the time left (`ordinary::translated`, the
+  sequent read once, since standard input cannot be read twice); under
+  `--method ljt` a refused derivation is exit 2 naming the limits and
+  `--method embedding`, and a stop during its check is an unknown line
+  (on standard error where the output is JSON or a file: JSON has no
+  form for it, as for `unread`). The batch has the same in
+  `Shared::by_ljt` and `write_ljt` (an entry is `Loaded::Ordinary` or
+  `Loaded::Linear`, the forest boxed). `interact --logic`'s `close` stays
+  the embedding (its steps take no cut), so its outcome is always
+  `Search::Embedding`.
 - `interact/ordinary.rs`: `interact --logic`, a session of LK or LJ over
   `ordinary::Interactive`, started from an ordinary sequent (read as
   `prove --logic` reads one, `SequentInput::ordinary`) or from a saved

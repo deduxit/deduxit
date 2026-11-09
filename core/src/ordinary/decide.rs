@@ -7,9 +7,9 @@
 //! checked) or by LJT.
 
 use super::{Derivation, Logic, Method, Options, Sequent, Translation, ljt, translate};
-use crate::Error;
 use crate::limits::{Limits, Progress};
 use crate::linear::search::{self, Reason};
+use crate::{Error, Refusal};
 
 /// What deciding an ordinary sequent found, with what the method's
 /// search found and cost.
@@ -85,12 +85,29 @@ pub enum Verdict {
     Unknown(Reason),
 }
 
+/// Returns whether LJT's answer leaves the sequent to the embedding when
+/// the method is the logic's default: LJT stopped at a bound other than
+/// the caller's stop (the memory, the work), or a bound refused the
+/// derivation of the proof it found (its size, the memory), so that it
+/// gave no verdict where the embedding may give one.
+pub fn gives_way(decided: &Result<ljt::Outcome, Error>) -> bool {
+    match decided {
+        Ok(outcome) => {
+            matches!(outcome.verdict, Verdict::Unknown(reason) if reason != Reason::Stopped)
+        }
+        Err(Error::Refused(Refusal::Stopped { .. })) => false,
+        Err(error) => error.is_refusal(),
+    }
+}
+
 /// Decides an ordinary sequent as `options` say, within `limits` and
 /// until `stop` fires. By the embedding it translates the sequent,
 /// searches the image in its mode under `search`, and for a proof reads
 /// the derivation of LK or LJ back and checks it, under the same limits
 /// and stop; by LJT it is [`ljt::decide`], which reads no `search`
-/// option.
+/// option. When the method is the logic's default (no method and no
+/// translation given) and LJT [`gives_way`], the embedding decides the
+/// sequent in its place.
 ///
 /// # Errors
 ///
@@ -130,7 +147,10 @@ pub fn decide(
 ) -> Result<Outcome, Error> {
     let (logic, translation) = (options.logic, options.translation());
     if options.method() == Method::Ljt {
-        return ljt::decide(sequent, logic, limits, stop).map(Outcome::from);
+        let decided = ljt::decide(sequent, logic, limits, &mut stop);
+        if options.method.is_some() || !gives_way(&decided) {
+            return decided.map(Outcome::from);
+        }
     }
     let image = translate(sequent, logic, translation, limits)?;
     let linear = search::prove_within(image.sequent(), image.mode(), search, limits, &mut stop)?;

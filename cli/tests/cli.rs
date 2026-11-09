@@ -2429,11 +2429,13 @@ fn a_batch_s_records_names_and_files() {
     );
 }
 
-/// `--logic` decides ordinary logic through the translation it names:
-/// the exit statuses are the verdicts', the derivation is read back as LK
-/// or LJ, `--linear` shows the image's proof instead, a `.p` file is a
-/// TPTP problem, `seq print` prints the image, and the linear connectives
-/// and a translation into the wrong logic are refused.
+/// `--logic` decides ordinary logic, intuitionistic and minimal logic by
+/// LJT and through the translation `--translation` or `--method
+/// embedding` names: the exit statuses are the verdicts', the derivation
+/// is read back as LK or LJ, `--linear` shows the image's proof instead,
+/// a `.p` file is a TPTP problem, `seq print` prints the image, and the
+/// linear connectives, a translation into the wrong logic, LJT for
+/// classical logic and LJT beside a translation are refused.
 #[test]
 fn ordinary_logic() {
     let decide = |args: &[&str]| {
@@ -2447,7 +2449,25 @@ fn ordinary_logic() {
     assert!(out.contains("¬R") && out.contains("→R"), "{out}");
     let (status, out, _) = decide(&["--logic", "intuitionistic", "~~a -> a"]);
     assert_eq!(status, 1);
+    assert!(
+        out.starts_with("not valid (intuitionistic logic by LJT)"),
+        "{out}"
+    );
+    let (status, out, _) = decide(&[
+        "--logic",
+        "intuitionistic",
+        "--method",
+        "embedding",
+        "~~a -> a",
+    ]);
+    assert_eq!(status, 1);
     assert!(out.starts_with("not valid (intuitionistic logic by the cbn translation into ILL"));
+    let (status, out, _) = decide(&["--logic", "minimal", "--stats", "a, a -> b |- b"]);
+    assert_eq!(status, 0);
+    assert!(
+        out.starts_with("valid (minimal logic by LJT)") && out.contains("sequents expanded: "),
+        "{out}"
+    );
     let (status, _, _) = decide(&["--logic", "intuitionistic", "--quiet", "a |- b"]);
     assert_eq!(status, 1);
     let (status, out, _) = decide(&[
@@ -2490,6 +2510,17 @@ fn ordinary_logic() {
         &["--logic", "classical", "--translation", "cbn", "a"],
         &["--logic", "intuitionistic", "|- a, b"],
         &["--logic", "intuitionistic", "-i", "a"],
+        &["--logic", "classical", "--method", "ljt", "a -> a"],
+        &[
+            "--logic",
+            "minimal",
+            "--method",
+            "ljt",
+            "--translation",
+            "cbn",
+            "a",
+        ],
+        &["--logic", "minimal", "--method", "ljt", "--linear", "a"],
     ] {
         assert_eq!(decide(refused).0, 2, "{refused:?}");
     }

@@ -12,7 +12,7 @@ use crate::show::{
 use crate::{Status, catch_interrupt, interrupted};
 use anyhow::{Context, Result, bail};
 use deduxit::linear::search::{Engine, Goal, Options, Outcome, Reason, Verdict, prove_goal, race};
-use deduxit::ordinary::Image;
+use deduxit::ordinary::{Image, Method};
 use deduxit::{
     Error, Limits, Phase, Progress,
     linear::{CheckError, Forest, Sequent},
@@ -210,12 +210,36 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
     let input = args.input.clone();
     let limits = settings.limits;
     let (mode, read) = (args.mode.mode(), settings.input);
-    let ordinary = crate::settings::ordinary(&settings, &args.logic);
+    let ordinary = crate::settings::ordinary(&settings, &args.logic, args.linear);
+    let format = args.output.format();
+    // Ordinary logic is read first: LJT decides it, or by default hands
+    // it to the embedding where a bound stopped it.
+    let ordinary = match ordinary {
+        Some(options) => {
+            crate::ordinary::method_given(args, &options)?;
+            let read = deadline.within(move || input.ordinary(&limits))?;
+            let Some(sequent) = read else {
+                let limit = deadline.limit().expect("only a limit passes");
+                return unread_into(args, limit);
+            };
+            let sequent = sequent?;
+            if options.method() == Method::Ljt {
+                output_can_be_made(args, format)?;
+                if let Some(status) =
+                    crate::ordinary::by_ljt(args, &settings, &options, &sequent, &deadline)?
+                {
+                    return Ok(status);
+                }
+            }
+            Some((options, sequent))
+        }
+        None => None,
+    };
+    let input = args.input.clone();
     // How the sequent was written is kept for a derivation drawn so.
     let keep = settings.view.classical == deduxit::linear::ClassicalSides::Two;
     let loaded = deadline.within(move || match ordinary {
-        Some(options) => input
-            .image(&options, &limits)
+        Some((options, sequent)) => crate::ordinary::translated(&options, &sequent, &limits)
             .map(|(forest, image)| (forest, Some(image), None)),
         None => input
             .forest(&limits, &read, mode, keep)
@@ -237,22 +261,9 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
     let limits = settings.limits;
     let threads = Threads::of(&settings);
     let deepens = options.copies.is_none() && sequent.fragment().has_exponentials();
-    let format = args.output.format();
     let quiet = args.output.quiet;
     let show = Show::new(&args.output, &settings)?;
-    // An output file that cannot be made is found before the search, which
-    // it would lose: an output dropped unfinished leaves no file, and the
-    // file at the path stays as it was. Only a file, or a path that does
-    // not exist yet: a pipe opened and closed would send its reader the end.
-    if let Some(path) = &args.output.output {
-        match std::fs::metadata(path) {
-            Ok(meta) if meta.is_dir() => {
-                bail!("cannot write {}: it is a directory", path.display())
-            }
-            Ok(meta) if !meta.is_file() => {}
-            _ => drop(io::Output::open(Some(path), format.is_binary())?),
-        }
-    }
+    output_can_be_made(args, format)?;
     catch_interrupt();
 
     let status = on_large_stack(limits.stack_bytes(), || {
@@ -385,6 +396,27 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
     Ok(status)
 }
 
+/// Finds an output file that cannot be made before the search, which it
+/// would lose: an output dropped unfinished leaves no file, and the file
+/// at the path stays as it was. Only a file, or a path that does not
+/// exist yet: a pipe opened and closed would send its reader the end.
+///
+/// # Errors
+///
+/// A path that is a directory, or a file that cannot be made.
+pub(crate) fn output_can_be_made(args: &ProveArgs, format: Format) -> Result<()> {
+    if let Some(path) = &args.output.output {
+        match std::fs::metadata(path) {
+            Ok(meta) if meta.is_dir() => {
+                bail!("cannot write {}: it is a directory", path.display())
+            }
+            Ok(meta) if !meta.is_file() => {}
+            _ => drop(io::Output::open(Some(path), format.is_binary())?),
+        }
+    }
+    Ok(())
+}
+
 /// Refuses a mode flag beside `--logic`, whose translation decides the
 /// mode.
 pub(crate) fn ordinary_mode(args: &ProveArgs) -> Result<()> {
@@ -433,6 +465,12 @@ pub(crate) fn unknown(reason: Reason, outcome: &Outcome, ended: &Ended) -> Strin
     } else {
         String::new()
     };
+    advice(reason, &at, ended)
+}
+
+/// Says why a search ended without a verdict, as [`unknown`] does, with
+/// `at` after where it ended (the copy bound reached, or nothing).
+pub(crate) fn advice(reason: Reason, at: &str, ended: &Ended) -> String {
     let after = format!("after {:.2?}", ended.elapsed);
     match (reason, ended.stop) {
         (Reason::Stopped, Some(Stop::Timeout(t))) => {

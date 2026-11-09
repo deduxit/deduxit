@@ -15,7 +15,7 @@ compatibility: Needs the `deduxit` command, from `cargo install --locked deduxit
 
 **Syntax.** Quote the sequent for the shell: `"A, A -o B |- B"` (`⊢` also works; either side may be empty). Connectives: `*` (⊗), `par` or `|` (⅋), `&`, `+` (⊕), `-o` (⊸), `~A` or `A^` (negation), `!A`, `?A`; units `1`, `bot`, `top`, `0`. Binding, tightest first: `~ ! ?`, then `*`, `|`, `&`, `+`, and `-o`, which groups to the right. Atoms are identifiers, or predicates over terms, `p(x, f(a))`; `forall x. A` and `exists x. A` bind loosest; `prove` decides a sequent with them in classical mode (with `--mix` and `--affine` too) and with `-i` (affine too).
 
-**The logic** is classical linear logic unless a flag says otherwise: `-i` intuitionistic (hypotheses left of `|-`, exactly one formula right of it, and no `~`, `par`, `|`, `?` or `bot`: write `A -o B`), `-a` affine (a hypothesis may go unused), `--mix`, `--cyclic` (order kept up to rotation), `--lambek` (with `A \ B` and `B / A`). `--logic classical|intuitionistic|minimal` reads ordinary logic instead, with `->`, `/\`, `\/`, `~`, `<->`, `true` and `false`, and answers `valid` or `not valid`.
+**The logic** is classical linear logic unless a flag says otherwise: `-i` intuitionistic (hypotheses left of `|-`, exactly one formula right of it, and no `~`, `par`, `|`, `?` or `bot`: write `A -o B`), `-a` affine (a hypothesis may go unused), `--mix`, `--cyclic` (order kept up to rotation), `--lambek` (with `A \ B` and `B / A`). `--logic classical|intuitionistic|minimal` reads ordinary logic instead, with `->`, `/\`, `\/`, `~`, `<->`, `true` and `false`, and answers `valid` or `not valid`; LJT decides intuitionistic and minimal logic (`--method embedding` goes through linear logic).
 
 **The answer.** The first line is the verdict, then the fragment, the mode and the engine in parentheses, and after a colon the reason. The exit status says the same:
 
@@ -43,7 +43,7 @@ $ deduxit prove --engine net "A & B |- A"; echo "exit $?"
 error: proof nets exist for MLL without units only, not for ALL
 exit 2
 $ deduxit prove --logic intuitionistic -q "~~a -> a"
-not valid (intuitionistic logic by the cbn translation into ILL, two-sided engine): the image is unprovable: the search was exhaustive
+not valid (intuitionistic logic by LJT): the search was exhaustive
 ```
 
 The derivation is one-sided (`Γ ⊢ Δ` read as `⊢ ~Γ, Δ`); `-i` and `--logic` draw two-sided ones, and `--classical-sides two` a classical one as written.
