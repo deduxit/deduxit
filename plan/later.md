@@ -258,13 +258,13 @@ assigned to.
 | Follow-ups: the web bindings | the ordinary JSON forms | 49 |
 | Follow-ups: the web bindings | Clippy for wasm32; the unit suite on 32 bits | 58 |
 | Follow-ups: the web bindings | a turn's set-up kept across restarts; the first steps of a goal's proof and `Step`, `Applicable` as wire forms | kept: the page has not asked |
-| Follow-ups: the net engine after the cyclic mode | the vertex bound's panic past `nets::MOST`; the symmetry break; the quadratic `choose` | the panic to 53a (a refusal with its test); the other two kept (no row asks) |
+| Follow-ups: the net engine after the cyclic mode | the vertex bound's panic past `nets::MOST`; the symmetry break; the quadratic `choose` | the panic done in 53a (`yyzmqlzr`, a refusal with its test); the other two kept (no row asks) |
 | Kept as built: the web client's choices | the list for the author to revisit; the Safari pinch | open with the author (`handoff.md`) |
 | Follow-ups: the web client | the client's phone goal bar wrapping, the tour's 39-px flake, the replayed classical session's one-sided cut, compact net edges below the literal | done in 49c (the edges in 39) |
 | Follow-ups: the web client | the parser reading `a⊥`; the stray comma | the stray comma closed (42e); `a⊥` stays unassigned as written there |
 | Follow-ups: the web client | the inverse method's turns in a tab; the bindings' call for engines over `search::engine_for` | 52 decides the rows; the call kept until the page asks |
 | Follow-ups: the web client | judgement calls of step 38's sweep | open with the author |
-| Follow-ups: the focused engine | every open entry (the gap study's probes A2 to A4, the fixed cost per call, the memo leftovers, `Θ`'s sort, the hand-over at the recursion limit, Mix's costs, the default bias's unit of work, deepening from the root, the five LLTP problems at copy bound 3, the pool's arena and memory, the checker on a hostile file, the forward search's stop on GPPP nets, the one-sign count's tightening, and the rest of the list) | kept: no step of the roadmap changes the focused engine; each waits for a measurement that asks (D19), and the step after 73 or a performance step the author chooses takes them; the debug-build stack overflow of `a_raised_limit_holds_on_the_pool` to 53a |
+| Follow-ups: the focused engine | every open entry (the gap study's probes A2 to A4, the fixed cost per call, the memo leftovers, `Θ`'s sort, the hand-over at the recursion limit, Mix's costs, the default bias's unit of work, deepening from the root, the five LLTP problems at copy bound 3, the pool's arena and memory, the checker on a hostile file, the forward search's stop on GPPP nets, the one-sign count's tightening, and the rest of the list) | kept: no step of the roadmap changes the focused engine; each waits for a measurement that asks (D19), and the step after 73 or a performance step the author chooses takes them; the debug-build stack overflow of `a_raised_limit_holds_on_the_pool` found already done by 53a |
 | Follow-ups: the Horn engine | the undecided nets, refutations no engine reaches, the simplex's limits, memory at tight bounds, the shares, forward coverability, the frontier's duplicates, constant factors, a shortest firing sequence | kept: no step changes the Horn engine but 57, which adds a certificate only |
 | Follow-ups: intuitionistic mode | the written succedent of `⊤`/`0`-only formulas; the additive path on more roots | kept: verdicts are unaffected |
 | Follow-ups: intuitionistic mode | what the default leaves to the time limit that the inverse method saturates at once | done in 52: step 37's turn decides it (137 ms), pinned by a test |
@@ -272,15 +272,15 @@ assigned to.
 | Follow-ups: ordinary logic | the loop check | 54 |
 | Follow-ups: ordinary logic | classical logic through affine MALL (116 unknown) | kept: a limit, not a task (not a SAT solver) |
 | Follow-ups: ordinary logic | the DAG read-back | kept: ordinary-sequents-4 |
-| Follow-ups: interactive proving | the review findings of 41b to 42k on the command (`cut G C P…` as one word, `eliminate`'s names and flag, the eigenvariable message at `∃L`, the unused import) and the older entries assigned to steps 22, 28 and 34 | 53a; `Error::Quantifiers` done (retired by step 45) |
+| Follow-ups: interactive proving | the review findings of 41b to 42k on the command (`cut G C P…` as one word, `eliminate`'s names and flag, the eigenvariable message at `∃L`, the unused import) and the older entries assigned to steps 22, 28 and 34 | done in 53a, but the filtered `rules` list, kept (no client asked); `Error::Quantifiers` done (retired by step 45) |
 | Follow-ups: interactive proving | cut in a first-order interactive session | kept: no user asked; the step that next changes the session may take it |
 | Follow-ups: interactive proving | the net engine on a sub-forest; the two-sided rule names on reading a state | kept, as written there |
 | Follow-ups: interactive proving | the ratchet's `derivation-chain-64` margin | a rule for whichever step next changes that path (it wins back first) |
 | Follow-ups: interactive proving | the size estimate's shadowing case; `chain-fo/512` at the recursion limit; the pool's cost on `chain-fo`; the pool's memory account of the ground-term table | kept: with engines-13 and -14 |
 | Follow-ups: interactive proving | the phone dock wrapping the export button | done in 49c |
-| Follow-ups: the exports | the essential net's green input side; the division by zero; `check -i --mix --net`; the essential drawing with cut links; `eliminate --net --output` without `--format`; the older lists of steps 11 and 22 | 53a (the last two checked against the code and closed or kept) |
+| Follow-ups: the exports | the essential net's green input side; the division by zero; `check -i --mix --net`; the essential drawing with cut links; `eliminate --net --output` without `--format`; the older lists of steps 11 and 22 | done in 53a, the essential drawing with cut links and `--output` found done; kept from step 11's list: Greek as mathematical italic in the SVG and a smaller row height without a raised `⊥` |
 | Follow-ups: the exports | term against net normal forms compared only without doubled vertices | kept: a test's reach, no defect found |
-| Follow-ups: the command's output | `check FILE` ignoring the file's mode; the records' constant wire level; the older lists of steps 18 and 20; the derivation builder's recursion | 53a |
+| Follow-ups: the command's output | `check FILE` ignoring the file's mode; the records' constant wire level; the older lists of steps 18 and 20; the derivation builder's recursion | done in 53a (the mode); the rest found done |
 | Follow-ups: parallel search | every open entry (late cancellation at `&`, the short cube list, speculative work, the per-worker arena, a runtime kept across calls, duplicated exploration, the pool's memory on SYJ, a thread sanitizer) | kept: no measurement asks; no step changes the runtime |
 | Follow-ups: the benchmarks | the inverse method's wins without a row | done in 52 for `wide-m1` (a handover); `chain` and `pigeonhole` measured and kept below |
 | Follow-ups: the benchmarks | a turn bounded in time: the case of `chain`, the classical readings and `pigeonhole` | unassigned, found by 52 |
@@ -291,7 +291,7 @@ assigned to.
 | Follow-ups: certified refutations | the comparison counting checked refutations; the one-sided and state-equation refutations; `linlog check` reading a disproof | 51 |
 | Follow-ups: the release's licences | the command's notices file | 53b checks it is in the packages, or adds it |
 | For the author, later: a Zenodo community | | open with the author |
-| Follow-ups: a first user's obstacles | the style table; `check --file`; the library's front page; the Rocq entries (a refused certificate, batch file names, a lemma on a two-sided goal) | 53a (each checked against today's code first) |
+| Follow-ups: a first user's obstacles | the style table; `check --file`; the library's front page; the Rocq entries (a refused certificate, batch file names, a lemma on a two-sided goal) | done in 53a (the fonts' licences in README found done) |
 | Follow-ups: a first user's obstacles | the "unknown" verdict's wording | kept: needs measurements on LLTP |
 | Follow-ups: a first user's obstacles | nets on the command line | dropped with MALL nets, as written there |
 | For the author: an MCP server for linlog | | kept: llm-agents-1, when a client without a shell asks |
@@ -1056,6 +1056,9 @@ open":
   of being refused, in every mode. The default limit shields every call
   that keeps it; a check of the forest's length in `Nets::admits`
   refuses it.
+  *Done in session 53a (2026-11-09, `yyzmqlzr`):* `nets::fits` refuses it in both net
+  engines' `admits` and in `ProofStructure`'s constructor, its test at
+  `MOST + 1`.
 - **A conditional symmetry break for the planar search** (unassigned):
   35a's three breaks are off in the cyclic mode, since exchanging equal
   literals can break planarity; a break that keeps the cyclic order
@@ -1407,6 +1410,10 @@ there:
   threads, so the depth is in the set-up on the calling thread. Found
   by `step-28j`'s panel; why the gate's `cargo test --workspace` passes
   it was not looked into.
+  *Found already done in session 53a (2026-11-09):* the test passes in a
+  debug build on one test thread (`cargo test -p linlog --features
+  parallel --lib a_raised_limit -- --test-threads=1`), with no
+  `RUST_MIN_STACK` set; the change that fixed it was not looked for.
 - **The canonical key** is built for every stable sequent of a forest
   with two equal formulas (38 % of `HypercubeGrid_hc3k4p4b12_5_1`).
   *Done in step 28's area 3.3 (F150):* only where a member of the zone
@@ -1852,6 +1859,14 @@ its own, after step 34.
 recomputed per operation, a filtered `rules` list, a budget per goal for
 `close_all`, a map from a drawing's inferences to the session's goals:
 steps 22 and 34. The net engine on a sub-forest: deferred.
+*Checked in session 53a (2026-11-09):* all done but the filtered
+`rules` list, which stays by connective and mode (a fully filtered list
+tries each rule on a clone, and no client asked): a one-sided Mix that
+leaves a premise empty is `StepError::EmptyPremise`; `close_all` returns
+every goal's outcome and names each goal's polls by `Progress::item`, so a
+caller budgets per goal; the state keeps the reading's parts
+(`Interactive::reading`); `Interactive::derivation_ids` maps a drawing's
+inferences to the session's goals.
 
 
 Left open by step 9, none a correctness issue. The net engine works on a
@@ -1881,6 +1896,10 @@ After a `cut` the second goal's line has a stray comma (`opened goal 2:,
 it reduces (the library's `at` does), and its exit status differs
 between the default `--steps` (3 with cuts left) and the same number
 given (0), as documented.
+*Done in session 53a (2026-11-09):* a quoted cut formula was read by
+then; an unquoted one with blanks now says to quote it (`nmkvymwl`).
+`eliminate --at NODE` and `cut::eliminate`'s `at` name the first step's
+cut (`rwkmollk`). The exit statuses stay as documented.
 
 Found at the review of 42e (2026-10-30): a cut is refused in a
 first-order interactive session (the cut rebuilds the session's forest,
@@ -1895,9 +1914,13 @@ says first-order input is "read, printed and written as JSON, and
 nothing else". The stray comma of 41a's goal lines is fixed (42e).
 `cargo clippy -p linlog` alone warns of an unused `Member` import in
 `search/focus/tests.rs` without `parallel` (on `main` before 42e).
+*Done in session 53a (2026-11-09, `xptmksmv`), with `random_ill_text`,
+dead in the same build.* The eigenvariable refusal names `∃L` among the
+steps (`tmpkptpr`).
 Found at the review of 42f (2026-10-30): `linlog eliminate` names an
 instance in its refusal by its raw id (`cut on #8`, `#9`) where `linlog
 check` writes it (`cut on p(a)`), on `core/tests/first-order/cut_frame.json`.
+*Done in session 53a (2026-11-09, `wrlkwtvy`).*
 Found at the review of 42h (2026-10-30): the ratchet's
 `derivation-chain-64` stands at +1.99 % of its 2 % margin, the sum of
 42a to 42h's small costs on the derivation's propositional path (42b's
@@ -1936,14 +1959,19 @@ now, for step 45 to retire.
   a checked proof (D26), but `svg::Style`'s default `input` colour, which
   the command's exports use, is still green; the default to follow the
   page, the snapshots that change regenerated.
+  *Done in session 53a (2026-11-09, `qyqouupl`):* `#0072b2`, `#56b4e9` in the dark style.
 - **A division by zero in the rules look's label narrowing** (unassigned,
   step 39c's integers panel, F2): a font whose advance table gives a
   zero width divides by zero where 38i narrows a `?d`/`?c` label; a
   zero-width advance to be refused where the table is read, or the
   narrowing to skip it.
+  *Done in session 53a (2026-11-09, `mwmllwtk`):* the room is never below zero, so a
+  label narrowed has a width to divide by.
 - **`check -i --mix --net` prints "proof net with Mix"** (the command,
   unassigned, step 39c's argument panelist, note A): `check` takes the
   mode without `Mode::check`, as for IMLL; the mode to be checked first.
+  *Done in session 53a (2026-11-09, `qomlvkkz`):* `check` and `eliminate` refuse a
+  mode no calculus has, exit 2.
 
 *Assigned (2026-10-03).* All of it is step 22's. Reporting the curryst
 limit upstream is done by others (issue 19, closed as not planned); the
@@ -1962,6 +1990,10 @@ if users name atoms that way. `interact`'s `proof` could take a format
 with a spelling that does not collide with its file argument (`proof
 --latex`). The rule-label convention (upright `L`/`R`, subscript `1`/`2`,
 `?d`) is one table per target for a user who wants another.
+*Checked in session 53a (2026-11-09): all done*: Typst's `layout`
+(`linlog` above nine inferences), Greek letters in LaTeX
+(`export::latex`'s `greek`), `proof --rocq|--latex …` in a session, and
+`Labels::Table`.
 
 From step 11 (`plan/reports/11-svg.md`, "Open questions"), for the web
 front end above all: a `<g>` per formula of a goal's sequent with the
@@ -1975,6 +2007,13 @@ inner arc poke through its outer one); colouring a disconnection
 letters as mathematical italic code points to match Typst; and a smaller
 row height for trees without a raised `⊥` (`Style::line_height` is the
 knob).
+*Checked in session 53a (2026-11-09):* done but two: a goal's formulas
+are `<g id="i<n>-<position>">`, an edge meets a negated literal at its
+atom, the link cap keeps nested arcs apart, and a disconnection is
+coloured. Kept: Greek as mathematical italic in the SVG (`svg::italic`
+maps Latin letters only, and the five fonts' advance tables would need
+those code points), and a smaller row height without a raised `⊥`
+(`Style::line_height` sets it; no client asked).
 
 Found at the review of 41c (2026-10-28): the essential drawing is off
 for nets with cut links; the term and net eliminations' normal forms
@@ -1983,6 +2022,12 @@ why); `eliminate --net --output FILE` without `--format svg|png|pdf`
 writes nothing to the file, and `-q` with `--output` writes no drawing
 at all (`-q` drops the derivation, which the file would hold, as for
 `prove`), which surprises when the steps are what is wanted.
+*Checked in session 53a (2026-11-09):* the essential drawing of a net
+with cut links was done the same day (`pvuwrssq`); `eliminate --net
+--output FILE` writes the steps, the end and the net to FILE in every
+form of FILE tried (`n.svg` gives `n-1.svg` and `n.svg`, `n.txt` and
+`netout` the text), so nothing is left of it; `-q` stays as documented,
+the same for every command.
 
 ## Follow-ups: the command's output
 
@@ -1993,11 +2038,16 @@ the file's own `"mode"`: a proof that `interact -i` wrote with `proof
 ~B, A ⊗ B (classical)" unless `-i` is given, at 0.1.0 as now. Either
 take the file's mode when no flag names one, or refuse a file whose mode
 differs from the flags'.
+*Done in session 53a (2026-11-09, `uvtwltrn`):* both, as a refutation
+already was, for `check` and `eliminate`.
 
 *Found by step 30's release review (2026-10-17, finding 15; unassigned).*
 The batch's and `check`'s records write `wire::LEVEL` as a constant,
 which is right at level 1 and wrong once a level 2 exists: they should
 write the level of what they contain.
+*Found already done in session 53a (2026-11-09):* `check`'s records
+write `CHECKED_LEVEL`, their own level (since `uzsqzswr`, 2026-10-18),
+and the batch's `record_json` the level of the body it wraps.
 
 *Assigned (2026-10-03).* Step 18, as the author decided: on a terminal a
 tree is shown only if it fits; into a file or a pipe it is written
@@ -2020,6 +2070,15 @@ a shared node, the other integers of the pass, the verdict lost when
 `--derivation-limit none` meets a derivation larger than memory.
 For the web front end: the derivation builder recurses to the
 derivation's height, which `Size::height` tells beforehand.
+*Checked in session 53a (2026-11-09): all done.* Step 22 made every
+export write into a `fmt::Write` with a stop, the SVG tree lay out each
+conclusion again rather than keep it, and the command stream its output;
+`--screens` and the text style's `gap` are options, a verdict's
+sequent is abbreviated (`--abbreviate`). Step 20 kept every integer of
+the pass within a bound or a refusal and made `--derivation-limit none`
+end within the memory limit with the verdict; the last reader of a
+shared state takes it in place. The builder walks a stack of its own
+(`rpponnqlrkvn`, `any_height_on_a_small_stack`).
 
 
 **A proof tree that does not fit is not printed** (the author,
@@ -2389,6 +2448,12 @@ left for later; the fixes it made are in the step's report.
   shows how to compile a certificate but not how to apply its lemma to a
   two-sided goal in another file. All belong with the Rocq library of
   linlog's own (above).
+  *Done in session 53a (2026-11-09):* a refused certificate leaves the verdict and its
+  exit status, the reason on standard error (`xqrpzsuu`); a batch's
+  certificate files are Rocq identifiers (`lutlkvyz`), every lemma still
+  `certificate`, which its module qualifies; the Rocq chapter applies a
+  certificate's lemma from another file, which the `rocq-linlog` check
+  compiles (`lpqmtrtl`).
 - **Nets on the command line.** `check` reads proofs only: a
   `ProofStructure` in JSON, as `wire` documents it, has no command that
   reads or writes it (`prove --net --format json` is refused). A `check
@@ -2398,8 +2463,10 @@ left for later; the fixes it made are in the step's report.
   yet set fails with "labels is not an object", and no help lists the
   rule keys; a dotted path that makes the table, and the keys on
   `labels`' line, are the fix.
+  *Done in session 53a (2026-11-09, `mroovkzs`, the lock `wwyxvpky`).*
 - **`check --file`.** Every other command reads its input with `--file`;
   `check` takes the proof as its argument (or standard input).
+  *Done in session 53a (2026-11-09, `ymysuzpp`, the lock `qprzosys`).*
 - **The library's front page.** The examples of a stop all read
   `Instant`, which a browser lacks, though the page says the crate reads
   no clock; one example whose stop counts `Progress::work` against a
@@ -2408,6 +2475,8 @@ left for later; the fixes it made are in the step's report.
   developer and a front end copy rather than derive. The Euler Math
   font's source and licence are named in the command's tree
   (`cli/fonts/`), not where a reader of README looks.
+  *Done in session 53a (2026-11-09, `slmqnpmt`):* both examples; README's licence
+  section has named the fonts and their licences since 2026-10-22.
 
 ## For the author: an MCP server for linlog (asked by step 44, not built)
 
