@@ -148,11 +148,11 @@ Options:
           Write every binder of a lambda-term with its variable's type, λx:A. M, and false and abort with their goal's (lambda.types)
 
       --kernel <KERNEL>
-          The Rocq kernel a certificate of linear logic is written for; by default the mode's: nanoyalla for classical linear logic, linlog for Mix, affine and intuitionistic logic and for a sequent with a quantifier (styles.rocq.kernel)
+          The Rocq kernel a certificate of linear logic is written for; by default the mode's: nanoyalla for classical linear logic, deduxit for Mix, affine and intuitionistic logic and for a sequent with a quantifier (styles.rocq.kernel)
 
           Possible values:
           - nanoyalla: NanoYalla 1.1.3, the kernel of Click & coLLecT: classical linear logic one-sided, a proof script checked rule by rule
-          - linlog:    linlog's own Rocq library (the package rocq-linlog, from github.com/deduxit/rocq-linlog): every mode in its own calculus, intuitionistic logic two-sided, a proof term checked by the library's checker
+          - deduxit:   deduxit's own Rocq library (the package rocq-deduxit, from github.com/deduxit/rocq-deduxit): every mode in its own calculus, intuitionistic logic two-sided, a proof term checked by the library's checker
 
       --lemma <NAME>
           The name of the lemma of a Rocq certificate (styles.rocq.lemma)
