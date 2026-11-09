@@ -5697,3 +5697,13 @@ move (D26).
   - **Also pending:** the GitHub descriptions and topics, in a
     background agent whose `gh` prompts wait for the author. The rest
     of the author's checklist is in `plan/notes/release-0.3.0.md`.
+- 2026-11-09, 12:00: **after 53.**
+  - **The client's lock** moved to 0.3.0's release commit (8e2bbb18,
+    with rocq-deduxit 66905bcc). Its flake check passed; pushed as
+    vpkkppkk.
+  - **Step 54's prompt is finished** ("What steps 47 to 53 left you",
+    and the sessions 54a and 54b).
+  - **54a started:** the LJT engine in `deduxit::ordinary`, its proofs
+    checked as LJ, with the panel.
+  - **0.4.0's steps go on while 0.3.0 waits** for the author's tag
+    command and the publish approval.
