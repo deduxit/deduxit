@@ -5707,3 +5707,10 @@ move (D26).
     checked as LJ, with the panel.
   - **0.4.0's steps go on while 0.3.0 waits** for the author's tag
     command and the publish approval.
+- 2026-11-09, 12:15: **the GitHub descriptions, homepages and topics
+  are set** (B16–B19), the gh calls approved.
+  - `deduxit/deduxit` gained the topics logic, intuitionistic-logic,
+    classical-logic and lambda-calculus.
+  - `deduxit/deduxit.github.io` gained logic.
+  - The placeholder now says "Moved: linlog is now deduxit, at
+    deduxit.github.io".
