@@ -1797,3 +1797,254 @@ On `main` (`kstwysqo`), oldest first:
 - `qwwzxnoq` Record both target sets after session 53a
 - `syloztmu` Carry the proof of eliminate's naming test inline
 - this report
+
+## Session 53s: renamed deduxit
+
+Opus 5.5 at high, started by the planning session (`linlog-orchestrator`,
+renamed `deduxit-orchestrator` during the session) from
+`/tmp/linlog-handoff/start-53s.md`, 2026-11-09, in the jj workspaces
+`../linlog-step53s` (linlog), `../rocq-linlog-53s` (the Rocq library) and
+`../linlog-prover.github.io-53s` (the client).
+
+### Outcome
+
+The crates, the command and the library are deduxit: the packages
+`deduxit` (library `deduxit`), `deduxit-cli` (library `deduxit_cli`,
+binary `deduxit`, `doc = false` kept), `deduxit-web` and `deduxit-bench`,
+the directories unchanged. The linear suite is the module
+`deduxit::linear`. The Rocq kernel is `deduxit` and writes for
+`rocq-deduxit` (`From Deduxit.Linear Require …`), the flake input
+`rocq-deduxit` locked to the library's pushed `main` (`62d02be1`). The
+last releases of the old names, `linlog` 0.3.0 and `linlog-cli` 0.3.0,
+live under `compat/` and point to deduxit. Every source file is headed
+`deduxit ©`, in linlog, the Rocq library and the client, each by a
+commit of its own. Both target sets equal 47's on every verdict and
+every counter.
+
+### The checks
+
+Every build and test in a capped scope on cores 4-9, every `nix` command
+under `flock -o /tmp/linlog-machine.lock` with `--max-jobs 4 --cores 8`.
+
+- **Each stage** passed `cargo clippy --workspace --all-targets --
+  --deny warnings` and `cargo test --workspace` before its commit, the
+  lock's tests failing only where the bless that followed changed the
+  names (both blesses change names alone, which the reviewer checked
+  line by line); the module move also passed `cargo doc` of both crates
+  with private items and `--deny warnings`, `cargo hack check
+  --each-feature -p deduxit` and the fuzz workspace's `cargo check`.
+- **The target sets** (the planning session's go, cores 2-3 and 2):
+  `bench/targets.sh 53s` and `bench/net-targets.sh 53s` at the module
+  move, then `deduxit-bench summary --against bench/targets/47.csv
+  bench/targets/53s.csv --counters` and the same for `net-47`: no
+  verdict differs; of the 145 (focused) and 64 (net) problems both
+  decide alike, 0 differ in `nodes`, `splits`, `memo_hits`,
+  `memo_entries`, `links` or `tests`. The rows are `uwuvpqzp`.
+- **The Rocq checks** at the kernel's commit: `nix build
+  .#checks.x86_64-linux.rocq-deduxit
+  .#checks.x86_64-linux.rocq-deduxit-library`, exit 0.
+- **The gate** at `orplklqo` (before the review's fixes), exit 0, "gate:
+  passed" (the ratchet's cache model reported misses moved on
+  `search-qbf-20-2` and `check-qbf-20-2`, never a failure, as at 53a).
+- **The Rocq library's header commit** (`yrxqynvu`): its `nix flake
+  check`, exit 0, "all checks passed!".
+- **The final gate and `nix flake check`** without overrides ran at this
+  report's commit; the message to the planning session gives their exit
+  statuses, and the command run as `deduxit prove` from the built
+  package.
+
+### The module split, and why
+
+- **Under `deduxit::linear`**: `sequents`, `parse` (private), `fragment`,
+  `occurrences`, `proofs`, `search`, `nets`, `lltp`, `mist` and
+  `families`, with every re-export 0.2.0 had at the root of their items
+  (`Sequent`, `Mode`, `Options`, `prove`, `Proof`, `Forest`, …) now in
+  `linear/mod.rs`. They are the calculus of linear logic, its proofs, its
+  engines and its inputs.
+- **At the root**: `errors` (`Error`, `ErrorKind`, `Described`, `Owner`,
+  `ParseError`), `limits` (`Limits`, `Phase`, `Progress`, `Refusal`),
+  `settings` (`Settings`, `Clock`), `export`, `wire`, and the private
+  `serialize` and `hash`; beside them the suites `ordinary` and
+  `lambda`. The criterion, read from the code (every `crate::` path in
+  `core/src/ordinary/` and `core/src/lambda/`): what those suites use
+  besides the linear calculus itself. `ordinary` returns `Error`, counts
+  against `Limits` and reports `Progress`, is held by `Settings` for the
+  front ends, is drawn and certified by `export` (`export::rocq`,
+  `export::Form`), and its forms have a wire level in `wire`; `serialize`
+  holds the serde code of the ordinary forms beside the linear ones, and
+  `hash` is the crate's one hash table. What they use of the calculus
+  (`Mode`, `Proof`, `Options`, `prove`, the occurrences and proof nodes
+  a lambda-term reads) is the linear suite's, and they name it as
+  `crate::linear::…`: they embed into it, they do not share it.
+- **Not moved although `ordinary` reads it**: `lltp`, whose TPTP clause
+  splitter (`clauses`) and `Status` the ordinary TPTP reader uses. It
+  stays under `linear` because it is the reader of the LLTP library, as
+  structure.md's option (C) step 2 lists it; `ordinary` names it by path
+  (`crate::linear::lltp`). If a second suite comes to read TPTP, the
+  splitter and `Status` move to the root then.
+- **What the move changed**: paths only. 134 files of `core/src` had
+  their `crate::` paths rewritten, 73 files of the other crates, tests,
+  the guide and the manual their `deduxit::` paths, mechanically (a
+  script that splits each `use` tree into its root and its `linear`
+  items); `.claude/rules/` load for `core/src/linear/…`; the mutation
+  batches (`mutants/run.sh`) and the wasm32 test filter (`modules/web.nix`)
+  name the new paths, since a test's path now starts with `linear::`.
+- **The front page** (`core/src/lib.rs`) shows `deduxit::linear::{…}` in
+  its examples and links the moved items through `linear::`.
+
+### Decisions
+
+- **The values named after the program were renamed too** (departs from
+  the design: the brief named the kernel; the others follow its "every
+  place the product is named"): the outcome's version key `"deduxit"`,
+  the Typst layout `deduxit` (`typst::Layout::Deduxit`), the net look
+  `deduxit` (`svg::NetPreset::Deduxit`, `NetLook::DEDUXIT`), the race
+  pool's thread name, the wire form's error text, the user units the
+  scripts start (`deduxit-targets`, `deduxit-net-targets`,
+  `deduxit-baseline`, `deduxit-mutants`, `deduxit.slice`), the harness's
+  tools `deduxit` and `deduxit-default` with `DEDUXIT_COMMIT` and
+  `DEDUXIT_COMPARISON_TOOLS`, and the manual's theme files.
+- **What 0.2.0 wrote is still read** (the planning session's decision,
+  2026-11-09): the settings values `linlog` of `rocq.kernel`,
+  `typst.layout` and `svg.net_look` are serde aliases of `deduxit`; the
+  outcome's `"linlog"` key needs no alias, since no reader reads the key
+  and every data form ignores the keys it does not need. The test
+  `what_0_2_0_wrote_is_read` (`cli/tests/cli.rs`) checks a proof file and
+  a refutation file as 0.2.0 wrote them and loads a 0.2.0 settings file
+  with all three values. The flags take the new names only. The
+  changelog lists them as "written under the new name, the old still
+  read".
+- **History keeps its name.** "linlog" stays in `plan/`, the changelog's
+  past sections, the dated data (`bench/results/`, `bench/comparison/`,
+  `bench/growing/`, `bench/targets/*.csv`, the mutation result lists),
+  the wire fixtures of old documents (`core/tests/wire/`), the spec
+  (`proof-search-specifications.md`), the behaviour lock's input written
+  by 0.1.0, and the old crates. The manual's dated results chapters,
+  which `bench/tests/manual.rs` checks against the current harness, name
+  the harness and the program by their new names; `bench/plots.py` reads
+  the old tool names of recorded rows as the new ones (`RENAMED`), so
+  the figures drawn from them say deduxit.
+- **Names that stay for other reasons**: the Cachix cache
+  `linlog-prover`; the machine lock `/tmp/linlog-machine.lock`; the
+  local directories (`../linlog`, `../rocq-linlog`, `../linlog-wt-NAME`)
+  and the zellij sessions `linlog-NAME` that `plan/start-session.sh`
+  starts; the plan's own files keep their headers (the conventions
+  check leaves `plan/` out).
+- **`breaks VERSION`** fetches the crate `linlog` for a version up to
+  0.2.0, names its package deduxit, and compares with
+  `--baseline-root`; `breaks 0.2.0` is therefore 53b's tool as before.
+- **The compat crates**: `linlog` re-exports `deduxit::*` and
+  `deduxit::linear::*` (beyond the brief's `pub use deduxit::*;`: with the
+  linear suite moved, the second keeps 0.2.0's paths such as
+  `linlog::prove` and `linlog::search::…`, which its doctest checks), and
+  forwards 0.2.0's ten features; `linlog-cli`'s binary `linlog` prints
+  `linlog is now deduxit: this runs the command deduxit (cargo install
+  --locked deduxit-cli)` on standard error and calls `deduxit_cli::main`.
+  Both are `version = "0.3.0"`, workspace members with the workspace's
+  lints, and have the flake checks `clippy-compat`, `test-compat` and
+  `test-debug-assertions-compat`.
+- **The installation chapter names 0.3.0's files** (`deduxit-0.3.0-…`,
+  `v0.3.0`), the first release whose files carry the new name, as the
+  Rocq chapter names `rocq-deduxit` 0.3.0; 0.2.0's attestation keeps the
+  repository's name of then. The install workflow skips `cargo install
+  deduxit-cli` until crates.io has it and the release downloads for a
+  latest release up to 0.2.0, each saying so, as its release job already
+  skipped a release without files; otherwise a push of this chain would
+  fail those jobs until 53b publishes.
+- **No flake alias `linlog-cli`** for installed profiles (the research
+  note's suggestion): the brief asked for no current mention of the old
+  names outside the old crates, and `nix profile upgrade` of such a
+  profile fails with a message naming the attribute.
+
+### Departures from the design
+
+- The release workflow's crate list is unchanged (`deduxit`,
+  `deduxit-cli`): adding `linlog` and `linlog-cli` to its loop would make
+  every later release try to publish them at its own version. Their one
+  publication is 53b's, with the publication logic it changes anyway.
+- The renamed values beyond the kernel, and their aliases (above).
+- The compat `linlog` re-exports `deduxit::linear::*` beside `deduxit::*`.
+- The install workflow's guards (above).
+- The behaviour lock's input `PROOF` (`cli/tests/lock.rs`) keeps
+  `"linlog":"0.1.0"`, the document 0.1.0 wrote.
+
+### The reviewer
+
+A fresh-context reviewer on Opus 5.5 at high read the chain
+`uuyomupr..orplklqo` once, against the brief's eight requirements, and
+ran `cargo check` and clippy with every feature, the readme test, the
+compat doctest and `what_0_2_0_wrote_is_read` (capped, cores 10-11).
+It found every requirement met but for three history rewrites, all of
+which held and are fixed in `qqztoolq`:
+
+1. `docs/src/results/first-order-2026-10-30.md` named the run's command
+   and its `env.json` key with the new names, which the recorded files do
+   not have: restored to `linlog-bench run --tools linlog,…` and
+   `linlog_commit`, with a clause that the harness and the command were
+   named linlog then.
+2. `bench/targets/pinned-42c.csv`, a dated record, had its comment
+   renamed: restored.
+3. `bench/RESULTS.md` said the 2026-11-02 baseline journalled as
+   `deduxit-baseline`: restored to `linlog-baseline`. Its line telling
+   the reader to reprint the tables keeps `deduxit-bench`, the current
+   harness.
+
+It also confirmed: every 0.2.0 root module and re-export is reachable at
+`deduxit::linear` or the root; both lock blesses change names alone; the
+header commit changes header lines alone; the rules' `paths:` globs all
+match; the target sets' comparison. Its build directory, inside the
+workspace, was snapshotted into `@` and removed by it; `@` was empty
+again.
+
+### What the next sessions must know
+
+- **For 53b, the publication order**: `deduxit`, then `deduxit-cli`
+  (the first publication, by the scoped token), then `linlog` and
+  `linlog-cli` 0.3.0 (Trusted Publishing, as before). `linlog` depends
+  on `deduxit` and `linlog-cli` on `deduxit-cli` through
+  `[workspace.dependencies]`, so both must be on crates.io before the
+  old names publish. The compat crates' own version is a literal
+  `0.3.0`, never the workspace's: raising the workspace to 0.3.0 raises
+  their dependency requirement (`deduxit = "0.3.0"`, `deduxit-cli =
+  "0.3.0"`) and leaves their version. After 0.3.0 the release loop must
+  not publish them again; leaving `compat/` out of the workspace after
+  0.3.0 is the simplest way.
+- **For 53b, the changelog**: the `[Unreleased]` section lists the
+  rename's breaks (crates, command, `deduxit::linear`, the renamed values
+  still read under their old names, the Rocq library and kernel,
+  `cut::eliminate`'s `at`); 53b turns it into 0.3.0's section with the
+  rest of the release's breaks (`breaks 0.2.0` compares against the crate
+  `linlog` 0.2.0, so it lists every moved item; the rename's entry covers
+  them).
+- **For 53b, the versions**: `CITATION.cff`'s version and date, the
+  workspace's version and `[workspace.dependencies]`' requirements. The
+  installation chapter and the Rocq chapter already name 0.3.0.
+- **The client** takes the input `deduxit` and the files `deduxit_web.js`
+  and `deduxit_web_bg.wasm`; its storage keys `linlog-settings` and
+  `linlog-proofs:` stay, so that users keep their settings and proofs.
+- **A new suite is a module beside `linear`** (`.claude/rules/core.md`):
+  it takes from the root what it shares and names the linear suite by
+  path; an item moves to the root once a second suite shares it without
+  being linear logic.
+- **`core/tests/wire/` holds documents as old versions wrote them**,
+  `"linlog"` key and all; never rename it there.
+
+### Commits
+
+linlog, on `main` (`zpmnrkkq`), oldest first:
+
+- `uuyomupr` Rename the packages deduxit, deduxit-cli, deduxit-web and deduxit-bench
+- `mtwupvry` Rename the command deduxit
+- `pstspnpo` Bless the behaviour lock: the command and its outcome's version key are deduxit
+- `rpnwlyvu` Move the linear suite under deduxit::linear
+- `uwuvpqzp` Record both target sets after the move under deduxit::linear
+- `luxntlxv` Write the Rocq certificates for rocq-deduxit, and read the names 0.2.0 wrote
+- `nwsovpvn` Bless the behaviour lock: the help names the Rocq kernel deduxit
+- `lwosvlrr` Add the last releases of linlog and linlog-cli, which point to deduxit
+- `qvqpkqus` Name deduxit in CLAUDE.md, the rules, the citation and the changelog
+- `kmwzmors` Head every source file deduxit ©, and check that header
+- `orplklqo` Name 0.3.0's files in the installation chapter, and wait for them in its workflow
+- `qqztoolq` Keep the old names where a dated record states what ran
+- this report
+
+The Rocq library, on its `main` (`nxmkmupx`): `yrxqynvu` Head every source file deduxit ©, and check that header.
