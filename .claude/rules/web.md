@@ -4,7 +4,7 @@ paths:
   - "modules/web.nix"
 ---
 
-# linlog-web: the WebAssembly bindings
+# deduxit-web: the WebAssembly bindings
 
 Loaded when a file of the bindings (`web/`) or their flake module is read
 or changed. The plan of the web front end is `plan/web/README.md`; the
@@ -157,11 +157,11 @@ for `THIRD-PARTY-NOTICES.txt`.
   `styles.svg.essential` an intuitionistic one as its essential net with
   boxes, the same ids); an affine one is refused with `no_nets`.
 - **A net's look is `styles.svg.net_look`**, read over the tab's like
-  every setting: the name `"textbook"` or `"linlog"` (a string, which the
+  every setting: the name `"textbook"` or `"deduxit"` (a string, which the
   overlay lets through where the tab has an object, as for the font), or
   an object of `premises`, `conclusions` and `why_not`, each left out
-  keeping linlog's (`a_proof_with_exponentials_draws_its_net_with_boxes`
-  checks both forms). The tab's default is linlog's look; nothing in
+  keeping deduxit's (`a_proof_with_exponentials_draws_its_net_with_boxes`
+  checks both forms). The tab's default is deduxit's look; nothing in
   `tab::defaults` sets it. Under the rules a compact `?` vertex whose
   one premise is a wire has no circle, so no element carries its id.
 
@@ -304,9 +304,9 @@ for `THIRD-PARTY-NOTICES.txt`.
   aborts the run: a failing test there is found by running each alone.
 - Locally: `nix develop` has the CLI, `wasm-opt`, Node and wasmtime;
   `CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=wasm-bindgen-test-runner
-  cargo test -p linlog-web --target wasm32-unknown-unknown` and
+  cargo test -p deduxit-web --target wasm32-unknown-unknown` and
   `CARGO_TARGET_WASM32_WASIP1_RUNNER="wasmtime run --" cargo test -p
-  linlog --lib --target wasm32-wasip1 -- proofs::check` run the two.
+  deduxit --lib --target wasm32-wasip1 -- proofs::check` run the two.
 
 ## Extension points
 

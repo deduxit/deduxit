@@ -24,7 +24,7 @@ browser or a stranger's file would.
   commit that says why.
 - Two passes per batch: the mutants against the tests that exercise the
   file (a nextest filterset over test paths and binary ids such as
-  `deduxit::serialize` or `linlog-cli::cli`), then only the survivors
+  `deduxit::serialize` or `deduxit-cli::cli`), then only the survivors
   against the whole workspace (`--iterate` skips what the first pass
   caught). The whole suite for every mutant would cost hours more and
   tell little more.
@@ -64,7 +64,7 @@ browser or a stranger's file would.
   lines; a test that fails there, and passes unmutated, catches it.
 - **`--re` and `exclude_re` do not filter cargo-mutants' field
   deletions** (27.1.0: `cargo mutants --list --file
-  core/src/search/mod.rs --re 'zzzz'` still lists the eleven `delete
+  core/src/linear/search/mod.rs --re 'zzzz'` still lists the eleven `delete
   field … in Options::with_*`), so a rerun of a few mutants by `--re`
   also runs every "delete field" mutant of the file; count only the
   mutants the regex names. A test helper's field deletions are not

@@ -1,11 +1,11 @@
 ---
 paths:
-  - "core/src/search/parallel.rs"
-  - "core/src/search/focus/parallel.rs"
-  - "core/src/search/net.rs"
+  - "core/src/linear/search/parallel.rs"
+  - "core/src/linear/search/focus/parallel.rs"
+  - "core/src/linear/search/net.rs"
 ---
 
-# linlog core: the parallel runtime
+# deduxit core: the parallel runtime
 
 Loaded, beside `core.md`, when the runtime or one of the two engines on
 it is read or changed (`net::parallel` is inside `search/net.rs`).
@@ -36,7 +36,7 @@ has no or-choices worth sharing out). What the code relies on:
   options' own bound `MAX_JOBS` is all there is), and one thread left
   is the sequential path. So the tests' `jobs(4)` is two threads on a
   machine of two, and a harness row never names more threads than its
-  process may run (`linlog-bench run` refuses the count). Never touch rayon's
+  process may run (`deduxit-bench run` refuses the count). Never touch rayon's
   global pool: a library must not size or seed it, and `RAYON_NUM_THREADS`
   is read only when a builder's thread count is zero, which ours never
   is.

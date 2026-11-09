@@ -1,8 +1,8 @@
 ---
 paths:
-  - "core/src/sequents/**"
-  - "core/src/parse/**"
-  - "core/src/fragment.rs"
+  - "core/src/linear/sequents/**"
+  - "core/src/linear/parse/**"
+  - "core/src/linear/fragment.rs"
   - "core/src/serialize/**"
   - "core/tests/parse.rs"
   - "core/tests/first_order.rs"
@@ -10,14 +10,14 @@ paths:
   - "core/tests/lock.rs"
 ---
 
-# linlog core: sequents, parsing and serialization
+# deduxit core: sequents, parsing and serialization
 
 Loaded, beside `core.md`, when a file of the sequents, the fragments,
 the parser or the serialization is read or changed.
 
 ## Sequents are arena-allocated DAGs
 
-`Sequent` (`core/src/sequents/mod.rs`) has six fields, all `pub(crate)`:
+`Sequent` (`core/src/linear/sequents/mod.rs`) has six fields, all `pub(crate)`:
 - `terms: Vec<Term>`: every subformula. Children are referenced by arena
   index (`TermId`, a `u32` newtype), never by pointer.
 - `roots: Vec<TermId>`: the root formulas that make up the sequent, in the
@@ -175,7 +175,7 @@ read back by `Reading` (below); there is no second data model.
 
 ## Parsing
 
-`core/src/parse/mod.rs` is a precedence parser written by hand: one loop
+`core/src/linear/parse/mod.rs` is a precedence parser written by hand: one loop
 over the characters in two states (`operand`, what a formula starts with,
 and `operator`, what follows an operand) with one explicit stack
 (`Parser::pending`: the open parentheses, the prefix operators, and the
@@ -442,7 +442,15 @@ same test file:
   it came from.
 - `Mode` is its name (`Mode::NAMES`: `"classical"`, `"affine-mix"`,
   …), an unknown one refused naming the known ones.
-- `Outcome` serializes only (it is output): `version`, `linlog` (the
+- **An outcome names its writer's version under `deduxit`; up to 0.2.0
+  the key was `linlog`.** Nothing reads the key, so a document of 0.2.0
+  reads as before (a data form ignores the keys it does not need), which
+  `what_0_2_0_wrote_is_read` in `cli/tests/cli.rs` pins with a proof and
+  a refutation file as 0.2.0 wrote them; a reader that comes to use the
+  key reads `linlog` as its alias. `core/tests/wire/` keeps documents as
+  the old versions wrote them, `linlog` key and all: never rename it
+  there.
+- `Outcome` serializes only (it is output): `version`, `deduxit` (the
   crate's version; the command's lock and README's test read it as `…`),
   `verdict` (`proved`, `unprovable`, `unknown`), `checked` for `proved`
   (`Outcome::checked`), `reason` for `unknown` (tagged by `kind`:
@@ -451,8 +459,8 @@ same test file:
   `statistics`, and for `proved` the proof's own `sequent`, `nodes` and
   `goal` keys (`Proof::keys`, no `version` and no `mode` of their own:
   the outcome's are the proof's), flattened, so that the whole outcome
-  reads as a `Proof` (a data form ignores the other keys) and `linlog
-  check` reads the output of `linlog prove --format json`; for
+  reads as a `Proof` (a data form ignores the other keys) and `deduxit
+  check` reads the output of `deduxit prove --format json`; for
   `unprovable` the `Disproof`'s keys beside `mode`: `refutation` (tagged
   by `kind`: `exhausted`, `unbalanced {atom, least, most}`, `one_sided
   {atom, least, most, copied}` (`copied` the literal `"atom"` or

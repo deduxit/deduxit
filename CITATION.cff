@@ -6,7 +6,8 @@ message: "If you use deduxit in your work, please cite it as below."
 type: software
 title: deduxit
 abstract: >-
-  A linear logic suite: a Rust library and a command line program that
+  Logic suites, linear logic first: a Rust library and a command line
+  program that
   decide, check, prove step by step and export sequents of classical and
   intuitionistic linear logic and their fragments, keep proofs in a form
   an independent checker validates, show them as derivation trees or
@@ -18,9 +19,9 @@ abstract: >-
   model that wrote it: every proof it returns is validated by an
   independent proof checker, classical proofs can be exported as
   certificates that the Rocq proof assistant checks, and proofs of every
-  mode as certificates against linlog's own Rocq library, rocq-linlog,
+  mode as certificates against deduxit's own Rocq library, rocq-deduxit,
   kept in its own repository
-  (https://github.com/deduxit/rocq-linlog), the tests are
+  (https://github.com/deduxit/rocq-deduxit), the tests are
   measured by mutation testing and fuzzing, and its verdicts on
   published problem libraries are compared with their known status and
   with those of eight other provers.
@@ -36,16 +37,17 @@ repository-code: "https://github.com/deduxit/deduxit"
 url: "https://deduxit.github.io/deduxit/"
 references:
   - type: software
-    title: rocq-linlog
+    title: rocq-deduxit
     abstract: >-
-      The Rocq library of linlog: linear logic's sequent calculi, linlog's
-      proof terms, their checkers and soundness theorems, against which
-      the certificates linlog writes for its kernel linlog are proved.
+      The Rocq library of deduxit: linear logic's sequent calculi,
+      deduxit's proof terms, their checkers and soundness theorems,
+      against which the certificates deduxit writes for its kernel deduxit
+      are proved.
     authors:
       - given-names: Fabian Lukas
         family-names: Grubmüller
     license: EUPL-1.2
-    repository-code: "https://github.com/deduxit/rocq-linlog"
+    repository-code: "https://github.com/deduxit/rocq-deduxit"
 keywords:
   - linear logic
   - intuitionistic linear logic

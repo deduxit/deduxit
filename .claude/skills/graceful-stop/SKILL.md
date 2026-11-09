@@ -74,7 +74,7 @@ its commit and checklist. So:
 1. **Take stock**: the sessions you run (`ListAgents`, `zellij
    list-sessions`), your sub-agents and workflows, your background
    tasks and monitors, your crons, and the units:
-   `systemctl --user list-units 'step*' 'linlog-*' --no-pager`.
+   `systemctl --user list-units 'step*' 'deduxit-*' 'linlog-*' --no-pager`.
 2. **Clear each worker's goal first.** A session started with a
    `/goal` has a fresh model check the goal after every turn and start
    the next turn while it is unmet, which undoes a pause; a goal cannot

@@ -20,7 +20,7 @@
 //! have one output, those of the sign the bodies' literals have, and a
 //! formula without an output may be dropped, contributing zero.
 //!
-//! This is the test `overweight` of linlog's Rocq library (`Weights.v`,
+//! This is the test `overweight` of deduxit's Rocq library (`Weights.v`,
 //! `overweight_affine` with weakening, and `FirstOrderWeights.v` for a
 //! goal with a quantifier, whose rule changes no literal's weight), which
 //! proves it sound for any weights, dead atoms and sign: [`overweight`](crate::linear::search::weighted::overweight)

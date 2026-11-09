@@ -1,12 +1,12 @@
 ---
 paths:
-  - "core/src/proofs/mod.rs"
-  - "core/src/proofs/check/**"
-  - "core/src/proofs/oracle.rs"
-  - "core/src/proofs/cut/**"
+  - "core/src/linear/proofs/mod.rs"
+  - "core/src/linear/proofs/check/**"
+  - "core/src/linear/proofs/oracle.rs"
+  - "core/src/linear/proofs/cut/**"
 ---
 
-# linlog core: proof terms and the checker
+# deduxit core: proof terms and the checker
 
 Loaded, beside `core.md`, when the proof terms or the checker are read or changed.
 The derivation view, the size estimate and interactive proving, which
@@ -54,7 +54,7 @@ serve intuitionistic mode. Invariants:
   (`Fault::Succedents` at the root otherwise, `a_goal_is_a_sequent_of_its_mode`). Where a proof of the sequent is needed a goal
   proof is `Error::GoalProof` (kind unsupported: no wrong proof):
   `ProofStructure::from_proof`, the Rocq writer (through
-  `Derivation::is_of_goal`) and `linlog check`; `Interactive::close_with`
+  `Derivation::is_of_goal`) and `deduxit check`; `Interactive::close_with`
   refuses a proof of another goal with `Error::GoalMismatch`. Both keys
   are on the wire (`goal`, `mode`).
 - Occurrence ids are those of the proof's own forest; a proof is meaningful
@@ -624,7 +624,7 @@ the commit that lands it rewrites that bullet.
 
 - **A proof records its conclusion and its claimed mode** (`goal`,
   `mode`), and the checker checks a term against its own conclusion. A
-  goal proof is then never taken for a proof of the sequent. `linlog
+  goal proof is then never taken for a proof of the sequent. `deduxit
   check`, `from_proof` and the Rocq writer require a proof of the sequent
   (`GoalProof`, kind unsupported, otherwise).
 - **`Rule` is a one-sided rule, and `Named` adds the side of `⊢`**: a

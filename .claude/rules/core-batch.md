@@ -1,12 +1,12 @@
 ---
 paths:
-  - "core/src/search/batch.rs"
+  - "core/src/linear/search/batch.rs"
 ---
 
-# linlog core: the batch
+# deduxit core: the batch
 
 Loaded, beside `core.md`, when `search/batch.rs` is read or changed: many sequents
-in one call, the library's side of `linlog prove`'s batch.
+in one call, the library's side of `deduxit prove`'s batch.
 
 - **Problems in, results out, as iterators** (`run`, and `prove` over
   `Problem`s for a wrapper that needs no stop of its own). `run` takes a

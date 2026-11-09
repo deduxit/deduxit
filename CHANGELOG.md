@@ -1,11 +1,57 @@
 # Changelog
 
-Every release of the crates `linlog` (the library) and `linlog-cli` (the
-`linlog` command), newest first. The form is that of
+Every release of the crates `deduxit` (the library) and `deduxit-cli`
+(the `deduxit` command), called `linlog` and `linlog-cli` (the `linlog`
+command) up to 0.2.0, newest first. The form is that of
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the
 versions follow [Semantic Versioning](https://semver.org/) as Cargo reads
 it for versions below 1.0: a change that breaks a caller raises the
 second number (0.1.x to 0.2.0), anything else the third.
+
+## [Unreleased]
+
+### What breaks, and what to do instead
+
+- **The crates, the command and the library are renamed deduxit.** The
+  library is the crate `deduxit` (was `linlog`) and the command the
+  package `deduxit-cli` with the binary `deduxit` (was `linlog-cli` and
+  `linlog`), with the same verbs and flags. Depend on `deduxit = "0.3"`
+  and install `cargo install --locked deduxit-cli`; the flake's package
+  is `deduxit-cli`, its default program `deduxit`. The last releases of
+  the old names, `linlog` 0.3.0 and `linlog-cli` 0.3.0, point here:
+  `linlog` re-exports `deduxit` (its root and `deduxit::linear`, so
+  0.2.0's paths still name their items), and `linlog-cli`'s binary
+  `linlog` says once on standard error that it is now `deduxit` and runs
+  it. Neither is released again.
+- **The linear suite is the module `deduxit::linear`.** The items 0.2.0
+  had at the root and its modules `sequents`, `occurrences`, `fragment`,
+  `proofs`, `nets`, `search`, `lltp`, `mist` and `families` are under
+  `deduxit::linear` (`deduxit::linear::{Sequent, Mode, Options, prove}`,
+  `deduxit::linear::search::…`); the error family, the limits and
+  progress, the settings, the exports and the wire forms stay at the
+  root (`deduxit::{Error, Limits, Progress, Settings}`,
+  `deduxit::export`, `deduxit::wire`), beside `deduxit::ordinary` and
+  `deduxit::lambda`.
+- **Written under the new name, the old still read**:
+  - an outcome names its writer's version under `"deduxit"` (was
+    `"linlog"`); a file 0.2.0 wrote reads and checks as before;
+  - the settings values `deduxit` of `rocq.kernel`, `typst.layout` and
+    `svg.net_look` (was `linlog`: deduxit's Rocq library, its own Typst
+    layout and its own look of a net); a settings file that says
+    `linlog` still loads. The flags `--kernel` and `--style` take the
+    new name only.
+- **The Rocq library is `rocq-deduxit`**, logical root `Deduxit` with
+  linear logic under `Deduxit.Linear` (was `rocq-linlog`, `Linlog`): a
+  certificate for the kernel `deduxit` (`--kernel deduxit`, was
+  `--kernel linlog`) imports `From Deduxit.Linear Require …`, and
+  compiles against `rocq-deduxit` 0.3.0. `export::rocq::Kernel::Deduxit`
+  and the constants `export::rocq::DEDUXIT` and `DEDUXIT_*_PRELUDE` were
+  `Kernel::Linlog`, `LINLOG` and `LINLOG_*_PRELUDE`; `typst::Layout::Deduxit`,
+  `svg::NetPreset::Deduxit` and `svg::NetLook::DEDUXIT` were `Linlog`
+  and `LINLOG`.
+- **`linear::proofs::cut::eliminate` takes the first step's cut**, `at`, an
+  `Option<NodeId>` after the mode (`None` the strategy's, as before), as
+  `cut::step` does; `deduxit eliminate --at NODE` sets it.
 
 ## [0.2.0] - 2026-11-02
 

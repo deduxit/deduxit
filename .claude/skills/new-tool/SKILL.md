@@ -1,7 +1,7 @@
 ---
 name: new-tool
 description: >-
-  Get to know a tool from the version linlog's lock files pin, not from memory
+  Get to know a tool from the version deduxit's lock files pin, not from memory
   or the web, then wire it into the flake the dendritic way, record what is
   not obvious where the next session finds it, verify and commit. A tool is a
   crate dependency, a devshell program or cargo subcommand, a formatter, a
@@ -40,7 +40,7 @@ first (never edit Cargo.lock by hand), then read what the lock chose.
 
 - **Crate**: delegate to the `crate-source-explorer` agent. It reads the locked
   source in the cargo registry: signatures, `examples/`, the changelog, and
-  which features linlog turns on. `cargo deny check licenses` tells whether
+  which features deduxit turns on. `cargo deny check licenses` tells whether
   its license is allowed.
 - **nixpkgs program**: `nix build --no-link --print-out-paths --inputs-from .
   nixpkgs#<pkg>` gives its `bin/`, `share/doc` and `share/man`; `<pkg>.src`
@@ -57,7 +57,7 @@ something is a finding to report. A tool that brings Claude Code components
 ## 3. Wire it in
 
 - **Crate**: chosen and scoped by the dependency convention in CLAUDE.md, then
-  `cargo add` with only the features linlog needs. A license missing
+  `cargo add` with only the features deduxit needs. A license missing
   from `deny.toml`'s allow list goes to the user; it is theirs to allow.
 - **Program**: into the module of the aspect that uses it: `devshell.nix`
   for a general tool, or a new `modules/<tool>.nix` when it contributes to

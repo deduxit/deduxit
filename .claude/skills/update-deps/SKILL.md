@@ -1,7 +1,7 @@
 ---
 name: update-deps
 description: >-
-  Update every dependency of linlog and of its web client: Cargo.lock
+  Update every dependency of deduxit and of its web client: Cargo.lock
   (`cargo update`), the semver-incompatible crate releases and the exact pins
   (a `Cargo.toml` change, with the code it forces), flake.lock (`nix flake
   update`, which also moves the Rust toolchain), the fuzz workspace's lock and
@@ -37,7 +37,7 @@ workspace still builds, tests, lints and counts clean with it, and what moved.
   a check's tolerance waits for the author's word.
 - **jj only.** Commits are signed by jj itself.
 - **Pushing is not part of this** unless the author says so; the client's
-  lock may only name a linlog commit on GitHub (below), so its update waits
+  lock may only name a deduxit commit on GitHub (below), so its update waits
   for that push.
 
 `$S` below is the session's scratchpad directory: outside the tree, and it
@@ -79,8 +79,8 @@ failure and the crate that caused it.
 The toolchain is `stable` of the locked rust-overlay (`rust-toolchain.toml`,
 `modules/toolchain.nix`), so it moves with flake.lock; `nanoyalla` is pinned
 to a commit in `flake.nix` (compare it with its upstream head). The Rocq
-library's input `rocq-linlog` moves to its repository's `main`, and the check
-`rocq-linlog` then compiles the exporter's certificates against that library;
+library's input `rocq-deduxit` moves to its repository's `main`, and the check
+`rocq-deduxit` then compiles the exporter's certificates against that library;
 its own `yalla` is pinned in its `flake.nix` and moves with its own lock
 there (`../rocq-linlog`, "flake.lock: Update", verified by its `nix flake
 check`).
@@ -100,13 +100,13 @@ What a new toolchain breaks, and how each was met (2026-10-22, 1.98 → 1.99):
   rustdoc warning without a span: `cargo doc --message-format=json` names
   the item whose docs it is in (the first line of its outer docs).
 - **The ratchet** (`bench/ceilings.csv`): codegen moves the journeys' counts
-  both ways. Find what moved before touching a ceiling: build `linlog-bench`
+  both ways. Find what moved before touching a ceiling: build `deduxit-bench`
   at the commit before the bump in a workspace of its own (`jj workspace add
   ../linlog-deps-old -r REV`) and after it, `ratchet --jobs 1 --keep DIR` in
   each, then compare callgrind's self counts per function (`callgrind_annotate`
   on both files), and time the journeys that moved, pinned to one core,
   alternating the two binaries (`journey NAME --repeat N`). A clean change of
-  linlog's code that wins the counts back is a commit of its own, verified as
+  deduxit's code that wins the counts back is a commit of its own, verified as
   its area demands (a search's layout: the target sets equal to the latest
   label, `bench/TARGETS.md`); a ceiling raised for what no clean change wins
   back is a commit of its own, on the author's word, giving the functions and
@@ -153,9 +153,9 @@ that changed.
 when a session works there. Its CLAUDE.md and `.claude/rules/flake.md` hold
 its procedure: every ecosystem at its latest release at least fourteen days
 old (`.npmrc`'s `min-release-age=14`), each lock a commit of its own,
-verified by its `nix flake check`. Its nixpkgs follows linlog's, and its lock
-names only a linlog commit on GitHub, so its flake update comes after
-linlog's update is pushed and moves Node.js and Playwright with it.
+verified by its `nix flake check`. Its nixpkgs follows deduxit's, and its lock
+names only a deduxit commit on GitHub, so its flake update comes after
+deduxit's update is pushed and moves Node.js and Playwright with it.
 `@playwright/test` must equal nixpkgs' `playwright-driver`: a version
 younger than the gate passes it only with the author's word, noted in its
 rules. Its other deliberate holds (TypeScript 6, solid-js 1.x) stay.
@@ -163,7 +163,7 @@ rules. Its other deliberate holds (TypeScript 6, solid-js 1.x) stay.
 ## 7. Report
 
 - per change: committed or backed out, and the change id
-- what moved, as `name old -> new`, crates linlog depends on directly first
+- what moved, as `name old -> new`, crates deduxit depends on directly first
 - what was held back and why: major releases, actions younger than the gate,
   the client's holds
 - the rustc version before → after, and every count or time a bump moved

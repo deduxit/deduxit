@@ -17,12 +17,17 @@ and exports sequents of classical and intuitionistic linear logic and
 of cyclic MLL (the order of the formulas kept), and
 decides ordinary propositional logic through its embeddings (the
 manual's "What exists and what is planned", `docs/src/status.md`). It is written in Rust with
-WebAssembly in mind for a planned `deduxit-web` crate: the library reads
+WebAssembly in mind for the `deduxit-web` crate: the library reads
 no clock and uses threads only behind a feature. Performance is a stated
 goal: the data structures are compact and cache-friendly.
 
 Workspace crates:
-- `core/` is package **`deduxit`**: all logic. It has seven optional
+- `core/` is package **`deduxit`**: all logic. The linear suite is the
+  module `deduxit::linear` (sequents, the forest, proofs and the checker,
+  nets, the search, the readers and families); `ordinary` and `lambda`
+  are suites beside it, and what they share with it stays at the root
+  (the errors, the limits, the settings, the exports, the wire forms).
+  It has seven optional
   default features, `parse` (the text parser, the LLTP reader and the
   generated families),
   `serialize` (serde), `interactive` (step-by-step proving), and
@@ -50,6 +55,11 @@ Workspace crates:
   the benchmark harness, the baselines under `bench/results/DAY/`
   (`bench/RESULTS.md`, `bench/COMPARISON.md`) and the focused engine's
   target set (`bench/targets.sh`, `bench/TARGETS.md`).
+- `compat/linlog/` and `compat/linlog-cli/` are the last releases under
+  the names the crates had up to 0.2.0, both 0.3.0 and never released
+  again: `linlog` re-exports `deduxit` (its root and `deduxit::linear`),
+  and `linlog-cli`'s binary `linlog` says once on standard error that it
+  is now `deduxit` and runs `deduxit_cli::main`.
 - `web/` is package **`deduxit-web`** (not published): the WebAssembly
   bindings of a web page, the library for `wasm32-unknown-unknown`
   without `parallel` behind calls of JSON in and JSON, SVG or bytes out,
@@ -57,26 +67,26 @@ Workspace crates:
   `deduxit-web` (wasm-bindgen's CLI at the lock's version, `wasm-opt`,
   cargo-about's notices) that the client's repository takes, and runs
   the tests under Node. `plan/web/README.md` is the web front end's plan.
-- The Rocq library **`rocq-linlog`** (logical path `Linlog`) lives in its
-  own repository, `github.com/deduxit/rocq-linlog` (`../rocq-linlog`
-  beside this checkout, with its own CLAUDE.md and rules; under `rocq/`
+- The Rocq library **`rocq-deduxit`** (logical root `Deduxit`, its
+  linear logic under `Deduxit.Linear`) lives in its own repository,
+  `github.com/deduxit/rocq-deduxit` (`../rocq-linlog` beside this checkout, with its own CLAUDE.md and rules; under `rocq/`
   here until 2026-11-02): the one-sided calculus of linear logic with Mix and
   weakening as parameters and the two-sided calculus of intuitionistic
   linear logic and its affine variant as inductives, deduxit's proof
   terms as datatypes, checkers as functions and the theorems that a term
   they accept proves its sequent, which the certificates of the
-  exporter's second kernel (`--kernel linlog`) rest on, and the
+  exporter's second kernel (`--kernel deduxit`) rest on, and the
   invariants every derivation keeps (the classical reading, an atom's
   balance, the count equation) that its certificates of
   non-derivability rest on, and the
   reduction of Mix to `?(⊥⊗⊥)`, with its tests and its bridges to
-  NanoYalla and Yalla. This flake takes it as the input `rocq-linlog`,
+  NanoYalla and Yalla. This flake takes it as the input `rocq-deduxit`,
   pinned by flake.lock to a commit of its `main` and following this
-  flake's nixpkgs (one Rocq for both), and `modules/rocq-linlog.nix`
+  flake's nixpkgs (one Rocq for both), and `modules/rocq-deduxit.nix`
   compiles the exporter's certificates for it against that package; a
   change of the library is made, checked and pushed there first, then
-  the lock moves here (`nix flake update rocq-linlog`, which moves that input alone), or
-  a local build tries it with `--override-input rocq-linlog
+  the lock moves here (`nix flake update rocq-deduxit`, which moves that input alone), or
+  a local build tries it with `--override-input rocq-deduxit
   path:../rocq-linlog`.
 
 `plan/README.md` is the proof-search plan the code follows, `plan/reports/`
@@ -126,14 +136,14 @@ cargo run --release -p deduxit-bench -- run --family partition-no=3,4 --engines 
 nix build .#lltp -o bench/lltp   # the LLTP library (1.1 GB, GPL-3.0, fetched at a pinned commit)
 nix build .#iltp -o bench/iltp   # the ILTP library's 274 propositional problems (no licence stated, fetched at v1.1.2)
 nix build .#qcover -o bench/qcover   # the qcover coverability suite's 176 .spec problems (Apache-2.0, the licence of its repository, fetched at a pinned commit); deduxit-bench run --spec
-nix build .#checks.x86_64-linux.rocq-linlog   # the exporter's certificates for --kernel linlog against the pinned Rocq library (the input rocq-linlog)
-nix build .#checks.x86_64-linux.rocq-linlog-library   # that library's own check: its tests, its theorems' assumptions closed
+nix build .#checks.x86_64-linux.rocq-deduxit   # the exporter's certificates for --kernel deduxit against the pinned Rocq library (the input rocq-deduxit)
+nix build .#checks.x86_64-linux.rocq-deduxit-library   # that library's own check: its tests, its theorems' assumptions closed
 bench/targets.sh LABEL            # the focused engine's target set into bench/targets/LABEL.csv (two cores, about 15 s at 0.2.0, detached)
 bench/net-targets.sh LABEL        # the net engine's target set into bench/targets/net-LABEL.csv (one core, about 10 s at 0.2.0, detached)
 python3 bench/pinned-time.py run BASE LIFT RUNS.csv   # two builds' pinned CPU time side by side on cores 2 and 3, resumable (in a user unit under the machine lock; `summary RUNS.csv OUT.csv` after)
 bench/baseline.sh --detach --fresh   # the whole baseline in a user unit, started when the author gives the machine (about 3 h; --arm waits for the night slot): bench/results/DAY/, bench/RESULTS.md
 
-nix flake check   # build, clippy-CRATE, test-CRATE, test-debug-assertions-CRATE (the tests with debug_assert! on, which the release profile drops; CRATE is core, cli, bench or web, each from its own crate's sources), doc, doc-private (the docs of private items, whose links must resolve), manual (the manual built, its figures drawn), manual-links (every link of the manual and README into the repository or the site resolves, offline), wasm (the library built for wasm32 with every feature but parallel), web-package, web-wasm-tests (the bindings' tests under Node), web-core-wasm32 (the checker's, size estimate's, memo's and memory account's tests on wasm32-wasip1), web-bindgen (the CLI's version against Cargo.lock's), deny, features (cargo-hack), package (both crates packaged and built as crates.io gets them), msrv (the workspace on the `rust-version` toolchain), export (the LaTeX and Typst output compiles, the SVG renders), rocq (NanoYalla checks the certificates), rocq-linlog (the exporter's certificates against the pinned Rocq library), rocq-linlog-library (the pinned library's own check, re-exported: its tests compiled, its theorems' assumptions closed under the global context), bench (the harness on the smallest problems), ratchet (the journeys' instruction counts against their ceilings), deadnix, actionlint, treefmt, claude-hooks, conventions (licence headers, no comment, README line or line of the manual naming the plan), typos (spelling, typos.toml), shear (no unused dependency)
+nix flake check   # build, clippy-CRATE, test-CRATE, test-debug-assertions-CRATE (the tests with debug_assert! on, which the release profile drops; CRATE is core, cli, bench, web or compat, each from its own crate's sources), doc, doc-private (the docs of private items, whose links must resolve), manual (the manual built, its figures drawn), manual-links (every link of the manual and README into the repository or the site resolves, offline), wasm (the library built for wasm32 with every feature but parallel), web-package, web-wasm-tests (the bindings' tests under Node), web-core-wasm32 (the checker's, size estimate's, memo's and memory account's tests on wasm32-wasip1), web-bindgen (the CLI's version against Cargo.lock's), deny, features (cargo-hack), package (both crates packaged and built as crates.io gets them), msrv (the workspace on the `rust-version` toolchain), export (the LaTeX and Typst output compiles, the SVG renders), rocq (NanoYalla checks the certificates), rocq-deduxit (the exporter's certificates against the pinned Rocq library), rocq-deduxit-library (the pinned library's own check, re-exported: its tests compiled, its theorems' assumptions closed under the global context), bench (the harness on the smallest problems), ratchet (the journeys' instruction counts against their ceilings), deadnix, actionlint, treefmt, claude-hooks, conventions (licence headers, no comment, README line or line of the manual naming the plan), typos (spelling, typos.toml), shear (no unused dependency)
 nix build .#checks.x86_64-linux.rocq   # the certificates alone: Rocq is a 1.2 GB closure from the binary cache
 gate              # what every commit that touches code passes: clippy, the tests (the behaviour lock among them), both cargo hack runs, the ratchet (about 4 min on four cores)
 breaks 0.1.0      # what breaks a user of the library since that release: cargo-semver-checks, then cargo-public-api's diff (core.md says how to read them)
@@ -163,7 +173,7 @@ Verify as much as the change needs:
 | touches `docs/`, `bench/plots.py` or a CSV a figure reads | `nix build .#checks.x86_64-linux.manual .#checks.x86_64-linux.manual-links`; the harness's chapters' names are `cargo test -p deduxit-bench --test manual` |
 | changes a feature the guide for AI models describes (a command, flag, format, JSON form, exit status, verdict or library entry point) | change `skills/deduxit/` in the same commit, as the manual; `cargo test -p deduxit-cli --test readme` runs its examples, checks every command, flag, session command and settings key it names, and holds the summary to its budget |
 | touches `search/parallel.rs`, `focus/parallel.rs` or `net::parallel` | `cargo test --workspace` covers them (the CLI depends on `parallel`, and cargo unifies features across a workspace run); `cargo test -p deduxit` alone needs `--features parallel` |
-| changes the `--kernel linlog` certificates, or moves the input `rocq-linlog` | `nix build .#checks.x86_64-linux.rocq-linlog .#checks.x86_64-linux.rocq-linlog-library` (the exporter's certificates against the pinned library, and the library's own check with its theorems' assumptions), under the machine lock while a timed run may hold it; a change of the library itself is checked in its own repository (`nix flake check` there) |
+| changes the `--kernel deduxit` certificates, or moves the input `rocq-deduxit` | `nix build .#checks.x86_64-linux.rocq-deduxit .#checks.x86_64-linux.rocq-deduxit-library` (the exporter's certificates against the pinned library, and the library's own check with its theorems' assumptions), under the machine lock while a timed run may hold it; a change of the library itself is checked in its own repository (`nix flake check` there) |
 | adds or changes a dependency | add `cargo deny check`. New deps must use a license `deny.toml` allows: EUPL-1.2, MIT, Apache-2.0 (± LLVM-exception), Unicode-3.0, Zlib, BSD-2-Clause or BSD-3-Clause |
 | touches `web/` | add the bindings' tests under Node (`nix build .#checks.x86_64-linux.web-wasm-tests`, or the command above in the devshell) |
 | touches the checker's, the size estimate's or the memo's integers | add `nix build .#checks.x86_64-linux.web-core-wasm32` (their tests on a 32-bit target) |

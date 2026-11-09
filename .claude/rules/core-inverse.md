@@ -1,10 +1,10 @@
 ---
 paths:
-  - "core/src/search/inverse/**"
-  - "core/src/search/saturated.rs"
+  - "core/src/linear/search/inverse/**"
+  - "core/src/linear/search/saturated.rs"
 ---
 
-# linlog core: the inverse method
+# deduxit core: the inverse method
 
 Loaded, beside `core.md`, when the forward engine (`Engine::Inverse`,
 `search/inverse/`) is read or changed. Its place among the engines and

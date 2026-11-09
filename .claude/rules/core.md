@@ -3,7 +3,7 @@ paths:
   - "core/**"
 ---
 
-# linlog core: the crate, and where its rules are
+# deduxit core: the crate, and where its rules are
 
 Loaded when any file under `core/` is read or changed. This file holds what is
 true of the whole crate; the invariants of each module are in a file of
@@ -33,7 +33,31 @@ it; only what holds for the whole crate goes here.
 
 ## Layout
 
-`sequents` (the arena, its terms, the formula walk `fmt`, the one
+The root holds what every suite shares: `errors`, `limits`, `settings`,
+`wire`, `export`, `serialize` and `hash`, and the suites beside each
+other: `linear` (`core/src/linear/`), `ordinary` and `lambda`. The
+linear suite is `linear` with `sequents`, `parse`, `fragment`,
+`occurrences`, `proofs`, `search`, `nets`, `lltp`, `mist` and
+`families`; `linear/mod.rs` re-exports its public types, the root
+re-exports `Error`, `ErrorKind`, `Described`, `Owner`, `ParseError`,
+`Limits`, `Phase`, `Progress`, `Refusal`, `Settings` and `Clock`.
+
+- **What goes to the root is what `ordinary` or `lambda` uses besides
+  the linear suite and is no part of the linear calculus**: the error
+  family every call returns, the limits and progress every long call
+  takes, the settings a front end holds for every suite, the exports
+  (which draw an ordinary derivation as they draw a linear one), the
+  wire forms (whose level counts the ordinary forms too) and the
+  crate's serde and hash tables. What `ordinary` and `lambda` use of the
+  calculus itself (`Mode`, `Proof`, the search they decide through, the
+  occurrences a lambda-term reads) is the linear suite's, and they name
+  it as `crate::linear::…`.
+- **A new suite is a module beside `linear`**, which takes from the
+  root what it shares and names the linear suite by path where it
+  embeds into it; an item that a second suite comes to share without
+  being linear logic moves to the root then, not before.
+
+The modules: `sequents` (the arena, its terms, the formula walk `fmt`, the one
 printer `notation` and the check of atom names `name`), `parse`,
 `serialize`, `fragment`, `errors` (the one `Error`, `describe` and the
 parse error), `limits` (`Limits`, `Progress`, `Refusal`), `settings`
@@ -63,9 +87,10 @@ of those names),
 feature of that name, `translate`, `derivation` with the read-back and
 its checker, `rocq` behind that feature, `interactive` behind that
 feature), and `lltp`, `mist` and
-`families` behind `parse`. `lib.rs` re-exports the
-public types, so users write `deduxit::Sequent`, `deduxit::Proof`,
-`deduxit::prove`, and so on. `hash` is crate-private.
+`families` behind `parse`. Users write `deduxit::linear::Sequent`,
+`deduxit::linear::Proof`, `deduxit::linear::prove`, `deduxit::Error`,
+`deduxit::Limits`, and so on. `hash` and `serialize` are crate-private,
+as is `linear::parse`.
 
 ## The public API at a glance
 
@@ -121,7 +146,7 @@ html_favicon_url)]` at the top of `lib.rs`, the site's
 the Rocq library's README (in its repository, `deduxit/rocq-deduxit`)
 show the word mark dēdūxit: the files are the web client's
 (CC BY 4.0, its `src/logo/`), never committed here, and their paths there
-must stay stable. linlog has no mark of its own since the lollipop
+must stay stable. deduxit has no mark of its own since the lollipop
 retired (2026-11-09).
 
 **The dictionary line** of the name, approved by the author word for
@@ -143,7 +168,7 @@ docs, and "Needs the cargo feature" on every feature-gated public module
 and item (`doc(cfg)` is unstable on the pinned toolchain). A change to
 any of these changes those docs in the same commit. No public module is
 left without public items, and `RUSTFLAGS="-W unreachable_pub -W
-unnameable_types" cargo check -p linlog --all-features` stays clean: a
+unnameable_types" cargo check -p deduxit --all-features` stays clean: a
 `pub` item is reachable from the root, and a type in a public signature
 can be named.
 
@@ -256,7 +281,7 @@ length is one (`Rule::ALL`). The diff shows an impl whose derive's
 "Added" before calling it a break. Every line of both is a bullet of
 the changelog's breaking list or is explained as none in the release's
 report. cargo-semver-checks' own JSON documents private items and its
-baseline's build overwrites the head's `target/doc/linlog.json`, so the
+baseline's build overwrites the head's `target/doc/deduxit.json`, so the
 command builds both APIs afresh. The two lists of types below are
 checked the same way: every public enum and every struct with a public
 field of the head's JSON, by its `non_exhaustive` attribute, against the

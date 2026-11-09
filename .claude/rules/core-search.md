@@ -1,16 +1,16 @@
 ---
 paths:
-  - "core/src/search/mod.rs"
-  - "core/src/search/memory.rs"
-  - "core/src/search/work.rs"
-  - "core/src/search/additive.rs"
-  - "core/src/search/reference.rs"
-  - "core/src/search/reference_fo.rs"
-  - "core/src/search/refutation.rs"
-  - "core/src/search/weighted.rs"
+  - "core/src/linear/search/mod.rs"
+  - "core/src/linear/search/memory.rs"
+  - "core/src/linear/search/work.rs"
+  - "core/src/linear/search/additive.rs"
+  - "core/src/linear/search/reference.rs"
+  - "core/src/linear/search/reference_fo.rs"
+  - "core/src/linear/search/refutation.rs"
+  - "core/src/linear/search/weighted.rs"
 ---
 
-# linlog core: proof search, its front door, its memory bound, the additive path and the reference prover
+# deduxit core: proof search, its front door, its memory bound, the additive path and the reference prover
 
 Loaded, beside `core.md`, when the search's front door, its memory
 account, the additive path or the reference prover is read or changed. The engines have files of their
@@ -732,7 +732,7 @@ not by what is in use. `prove_goal` makes one per search.
   refutation after a search, which get what the bound leaves
   (`Account::left`; a refused check names the option's bound). **Why
   the input** (departs from the design, which left the forest and the
-  sequent to the caller): the comparison gave linlog a
+  sequent to the caller): the comparison gave deduxit a
   `--memory-limit` equal to its cgroup's, and the default's race on
   `SYJ206+1.020` and `SYJ212+1.020` was killed there although its
   account stayed within the bound, since the process held the input
@@ -903,7 +903,7 @@ allows: never a proof against a refutation, either way.
   derivation that fails it is backtracked. An unknown left unbound stands
   for any closed term (domains are not empty, so `∀x.p(x) ⊢ ∃y.p(y)`).
   An eigenvariable named in a sibling branch passes, which is sound
-  (rename it), though linlog's checker would refuse such a proof.
+  (rename it), though deduxit's checker would refuse such a proof.
 - **Two-sided, the invertible rules are applied first and alone**: `⊸R`,
   `&R`, `⊤R`, `∀R`, `⊗L`, `1L`, `⊕L`, `∃L`, `0L` (`Prover::invert` says
   why each is). Their inversion keeps a cut-free derivation's height and
@@ -921,7 +921,7 @@ allows: never a proof against a refutation, either way.
 - **The two-sided generator builds the trees, and prints them for the
   engine** (`random_ill_sequent`, `ill_text`, every binary connective and
   quantifier bracketed); the reference never reads the text back through
-  linlog's parser, so a reading of the text the engine makes is judged,
+  deduxit's parser, so a reading of the text the engine makes is judged,
   not shared. Its signature is fixed (`p`/1, `q`/0, `r`/2, `a`, `b`,
   `f`/1; the hand-made cases add `c`, `s`, `z`), two quantifiers nested
   at most, and a few printed texts were read back by `seq print -i` to

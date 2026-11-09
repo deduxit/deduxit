@@ -3,10 +3,10 @@ paths:
   - "bench/**"
 ---
 
-# linlog-bench: the benchmark harness
+# deduxit-bench: the benchmark harness
 
-Loaded when a file under `bench/` is read or changed. The package is `linlog-bench`,
-the binary `linlog-bench` (`doc = false`: a command, not an API). It
+Loaded when a file under `bench/` is read or changed. The package is `deduxit-bench`,
+the binary `deduxit-bench` (`doc = false`: a command, not an API). It
 depends on core with `parse`, `parallel`, `serialize`, `latex`, `typst`
 and `svg` (the last four for the journeys), and on clap, anyhow and
 serde_json, which the CLI and the core's tests already have.
@@ -129,11 +129,11 @@ serde_json, which the CLI and the core's tests already have.
   focused engine's performance pass, into `targets/LABEL.csv` (below).
 - `footprint.py`: the workspace's footprint as text tables, its header
   the commands. `wasm TWIGGY.csv` gives the web module's bytes by group,
-  crate and linlog module from twiggy's CSV of a module built again with
+  crate and deduxit module from twiggy's CSV of a module built again with
   its names (the package strips them; `wasm-opt -O3 -g` of the same
   build is within 0.3 % of the package's size once stripped); an item
   counts for the crate its name names first, so `core`'s generics
-  instantiated for linlog count as `core`'s. `timings REPORT.html…`
+  instantiated for deduxit count as `core`'s. `timings REPORT.html…`
   gives each crate's summed unit time and share from `cargo build
   --timings` reports. Neither tool is in the devshell: `nix shell
   --inputs-from . nixpkgs#twiggy nixpkgs#brotli` takes them from the
@@ -209,12 +209,12 @@ serde_json, which the CLI and the core's tests already have.
 - **`baseline.sh`** is meant to run as `bench/baseline.sh --arm
   --fresh` in the slot the machine is the benchmark's (`slot`, 20:00 to
   07:00, `--slot=HH:MM-HH:MM` for another). `--arm` sets two transient
-  user timers: `linlog-baseline.timer` starts the unit at the slot's
-  start, or at once inside it, and `linlog-baseline-stop.timer` stops
+  user timers: `deduxit-baseline.timer` starts the unit at the slot's
+  start, or at once inside it, and `deduxit-baseline-stop.timer` stops
   it at the slot's end whatever its state (`ExecStopPost` then gives the
   cores back and starts again the user timers the unit stopped for the
   run, such as `obsidian-snapshot`, listed in
-  `$XDG_RUNTIME_DIR/linlog-baseline-timers`; the inhibitor dies with the
+  `$XDG_RUNTIME_DIR/deduxit-baseline-timers`; the inhibitor dies with the
   unit). The timers do not survive a reboot or the end of the user's
   session manager: arm after the last reboot, and look at `systemctl
   --user list-timers` before leaving the machine. System timers and
@@ -234,7 +234,7 @@ serde_json, which the CLI and the core's tests already have.
   minute), where the estimate from the second's file times said 8 h 45
   min: an estimate from an earlier baseline's times is an upper bound
   once the engines decide what that baseline waited out. The unit,
-  `linlog-baseline`, runs the script with `--force` (40 GiB and no swap,
+  `deduxit-baseline`, runs the script with `--force` (40 GiB and no swap,
   `OOMPolicy=continue` so the kernel kills a runaway child alone, no core
   dumps, its own target directory `target/baseline`), because a session
   that dies takes its terminal's processes with it (a reviewer's scratch
@@ -286,7 +286,7 @@ serde_json, which the CLI and the core's tests already have.
   pass and in the forward pass, 3 under `--bias rarer`, 13 in
   `lltp-recursion`), which the first baseline ended at the recursion or
   width limit within milliseconds. The search now proves each in 50 ms
-  to 2 s within 250 MB (`linlog prove --quiet --stats` on the sequent),
+  to 2 s within 250 MB (`deduxit prove --quiet --stats` on the sequent),
   and the child's check of the proof (in the checker's first
   implementation, `proofs::oracle` now, which kept what every node
   derives, on a sequent of 65 000 `!` clauses a list of that length per
@@ -403,7 +403,7 @@ serde_json, which the CLI and the core's tests already have.
   with 300 s for a family or file problem and 5 s for an LLTP one, runs
   under 10 s three times.
 - **It runs by day**: two streams, each pinned to a performance core
-  (`cores`, 2 and 3), as the user unit `linlog-targets` with 8 GiB and no
+  (`cores`, 2 and 3), as the user unit `deduxit-targets` with 8 GiB and no
   swap for all of it and 6 GiB of address space per process, on a copy of
   the binary (`target/targets/LABEL/`), so that builds meanwhile do not
   touch it. About 35 minutes at the engines of the first baseline, about
@@ -433,7 +433,7 @@ serde_json, which the CLI and the core's tests already have.
   then", says how it descends from these and from `after-efficiency`,
   the oracle before it): a later change that must not alter the search
   runs the script under a label of its own and compares with it, by
-  `linlog-bench summary --against bench/targets/47.csv
+  `deduxit-bench summary --against bench/targets/47.csv
   bench/targets/LABEL.csv --counters` (the script names no `--bias`, so
   its runs take the default); trial labels `scratch-*` are ignored by
   jj. `baseline-2026-10-02`
@@ -484,12 +484,12 @@ serde_json, which the CLI and the core's tests already have.
 ## The comparison of tools
 
 - **`run --tools NAMES`** (`src/tools.rs`) runs every problem listed with
-  each tool of `DRIVERS` instead of an engine in a child: `linlog` (the
-  command, `--deterministic`), `linlog-default` (the command as a user
+  each tool of `DRIVERS` instead of an engine in a child: `deduxit` (the
+  command, `--deterministic`), `deduxit-default` (the command as a user
   runs it), and the other provers (`maude-ill`, `maude-cll`,
   `click-and-collect`, `llprover-cll`, `llprover-ill`, `lintap`,
   `linearone`, `sympli`, `lolli`, `apll-ll`, `apll-ill`). A `Driver` is the tool's name, its
-  program on the path, `covers(fragment, mode)`, its input (linlog reads
+  program on the path, `covers(fragment, mode)`, its input (deduxit reads
   an LLTP or `.spec` file itself and the rest as the sequent's JSON;
   every other tool a file its translator writes), its arguments, its
   verdict reader, its `jobs` column and whether it checks its proofs. A
@@ -498,16 +498,16 @@ serde_json, which the CLI and the core's tests already have.
 - **Every run is measured by BenchExec's `runexec`** (`--no-container`,
   a wall-time limit of the time limit and a second, the memory limit as
   the cgroup's): `time_ms` is its wall time of the whole process (start,
-  parse and, for linlog, the proof's check included), `cpu_ms` its CPU
+  parse and, for deduxit, the proof's check included), `cpu_ms` its CPU
   time with children, `peak_bytes` the cgroup's peak, `translate_ms` the
   harness's translation, outside the measured run. Its cgroup comes from
   the user's systemd; the cpuset controller is not delegated here, so
   the streams are pinned with `taskset` and `runexec --cores` is not used.
   A run past its limit is `unknown`/`timeout`; one the cgroup ended for
-  memory `unknown`/`out_of_memory`, linlog's included (its account leaves
+  memory `unknown`/`out_of_memory`, deduxit's included (its account leaves
   out the proof of a `&` search closed by `⊤`, which can be exponential,
   and until 2026-10-17 left out the input, which gave the night's three
-  such rows; linlog gets the cgroup's bound as its own, which now counts it).
+  such rows; deduxit gets the cgroup's bound as its own, which now counts it).
 - **Each tool in its own documented configuration**: APLL's backward
   search under its default bound 3 (`-` is `unknown`/`bound`), the Maude prover's
   ILL search under the copy bound 5 of its own LLTP script (a `false`
@@ -526,14 +526,14 @@ serde_json, which the CLI and the core's tests already have.
   empty sequent is `0.` for linTAP, `[] --> []` for llprover): it runs
   in the parent, and a panic there ends the whole run and every resume.
 - **The columns** `tool`, `tool_version` (from the flake's record,
-  `LINLOG_COMPARISON_TOOLS`), `translate_ms`, `peak_bytes` and `raw` (the
+  `DEDUXIT_COMPARISON_TOOLS`), `translate_ms`, `peak_bytes` and `raw` (the
   tool's last line of output) came at the end of `HEADER`; `run` without
   `--tools` leaves them empty. `--resume` of a tools file keys on source,
   family, problem, mode and tool. `run --tools` writes `NAME.env.json`
   beside its CSV: the command line, the limits, every tool's version and
-  source, `LINLOG_COMMIT`, the processor, the CPUs it may use, the
+  source, `DEDUXIT_COMMIT`, the processor, the CPUs it may use, the
   memory and the kernel.
-- **First-order sequents go to linlog and LinearOne alone**: every
+- **First-order sequents go to deduxit and LinearOne alone**: every
   other driver's `covers` asks `propositional(fragment)`, since their
   translators write an atom by its index, which would drop a first-order
   atom's arguments (a ground first-order sequent has no quantifier bit
@@ -545,7 +545,7 @@ serde_json, which the CLI and the core's tests already have.
   linearone.pl`) prints the verdict and the time alone: printing the
   proof's λ-term failed in SWI-Prolog at 256 formulas
   (`portray_nesting`), an error row for a proof LinearOne had found.
-  The verdicts against linlog's on the first-order families are in
+  The verdicts against deduxit's on the first-order families are in
   `comparison/first-order/` (not a timed run: core 2 of a machine in
   use); `run --tools` ignores `--repeat`, so a timed comparison is one
   run per problem, as `comparison.sh` makes.
@@ -555,10 +555,10 @@ serde_json, which the CLI and the core's tests already have.
   into `count` streams as shards `i·n + k` of `count·n`, which together
   are the job's shard whatever the count, so the sequential streams and
   the default's take the same problems.
-- **`linlog-bench ranking FILES`** (`src/ranking.rs`) is the comparison's
+- **`deduxit-bench ranking FILES`** (`src/ranking.rs`) is the comparison's
   Markdown: problems solved within the limit per tool, how the rest
   ended, per group (LLTP intuitionistic, its Petri nets, classical,
-  qcover, families), linlog against each tool on the problems both
+  qcover, families), deduxit against each tool on the problems both
   cover with what the other alone solves, translation and peak memory,
   every answer that came after the limit and before the kill (a second
   later, so it shows only what a slightly longer limit would add),
@@ -585,22 +585,22 @@ serde_json, which the CLI and the core's tests already have.
   from 24, Petri nets with 63 tokens); the judge already counts each as
   wrong. A hand-written `⊢ p ⊗ ⋯ ⊗ p, p⊥, …` of 63 factors reproduces
   it; the manual's `results/provers-2026-11-03.md` has the probe.
-- **linlog's comparison driver reads its outcome as JSON**
-  (`linlog_arguments` passes `--format json --quiet`, `linlog_read`):
+- **deduxit's comparison driver reads its outcome as JSON**
+  (`deduxit_arguments` passes `--format json --quiet`, `deduxit_read`):
   the engine and an unknown verdict's reason come from the outcome's
   keys (`stopped` written `timeout`), and an unprovable outcome is read
   back as its disproof and checked (`tools::refutation_checked`, the
   harness's `run::refutation_checked`), so the `checked` column credits
-  linlog's checked refutations as it does its proofs. The JSON of a
+  deduxit's checked refutations as it does its proofs. The JSON of a
   proof holds its nodes, which the timed run now serialises (small
   beside the proof check it already includes); a comparison before
   step 51 printed the verdict line only.
-- **linlog in the comparison gets no copy bound** (`linlog_arguments`
+- **deduxit in the comparison gets no copy bound** (`deduxit_arguments`
   passes the sequent, `--timeout`, `--memory-limit` and the output
   format alone), like
   every other tool, so a family whose engines' rows rest on its stated
   copy bound (`chain-fo`) decides less here; its `--memory-limit` is the
-  cgroup's 4 GiB, which the cgroup can reach before linlog's account
+  cgroup's 4 GiB, which the cgroup can reach before deduxit's account
   does (`wide-m1` at 8 192).
 - **`bench/plots.py` draws every figure of the manual too**, from the
   rows alone, in the light or the dark scheme (`--theme`, the manual's
@@ -647,7 +647,7 @@ serde_json, which the CLI and the core's tests already have.
   comparison pass is the mechanism a claim names switched off;
   `plots.py growth` draws it dashed in its engine's colour. The other
   provers: `bench/comparison.sh --growing` (whole shapes per stream;
-  `--quick` the first two sizes of each set, read from `linlog-bench
+  `--quick` the first two sizes of each set, read from `deduxit-bench
   families`). `plots.py growth` writes `growth.txt` beside `growth.svg` (a Markdown table the chapter includes with mdBook's `{{#include}}`; not `.md`, which the manual's test would take for an unlisted chapter after a local `manual`):
   per line the sizes solved over 1 ms (`FLOOR`) and the better fit by
   least squares in the logarithm of the time, `n^d` or `b^n`, or "fewer
@@ -655,7 +655,7 @@ serde_json, which the CLI and the core's tests already have.
 - **Rerunning a few published rows** (done once, on the author's word,
   for the default's six runs of `SYJ206+1.020` and `SYJ212+1.020`,
   2026-10-17): `run --tools TOOL --lltp FILE…` with the comparison's
-  limits and cores and `PATH` and `LINLOG_COMPARISON_TOOLS` from
+  limits and cores and `PATH` and `DEDUXIT_COMPARISON_TOOLS` from
   `.#comparison`, as `comparison.sh` sets them; a file given alone has
   an empty `family`, so it is set (`ILL/ILLTP-SYJ-01`) before the rows
   replace theirs in `runs.csv` by family, problem and tool; then
@@ -683,7 +683,7 @@ serde_json, which the CLI and the core's tests already have.
   readers, the checker, a derivation, the three text renderers, a batch,
   ordinary logic end to end), each preparing its input and then doing
   the work it measures inside `measured`, which callgrind's
-  `--toggle-collect=*journeys::measured*` counts alone. `linlog-bench
+  `--toggle-collect=*journeys::measured*` counts alone. `deduxit-bench
   journeys` lists them, `journey NAME` runs one, `journey NAME --repeat
   N` prints the measured part's wall-clock time of each run.
 - **`batch-families` batches the propositional families' smallest
@@ -875,10 +875,10 @@ nixpkgs, which is not in the devshell (its closure is a gigabyte of Qt
 for a viewer nobody here uses):
 
 ```sh
-CARGO_PROFILE_RELEASE_DEBUG=true cargo build --release --locked -p linlog-bench --target-dir target/symbols
+CARGO_PROFILE_RELEASE_DEBUG=true cargo build --release --locked -p deduxit-bench --target-dir target/symbols
 H=$(nix build --no-link --print-out-paths --inputs-from . nixpkgs#heaptrack)/bin
 systemd-run --user --scope -p MemoryMax=8G -p MemorySwapMax=0 taskset -c 5 \
-  $H/heaptrack --record-only -o OUT target/symbols/release/linlog-bench one \
+  $H/heaptrack --record-only -o OUT target/symbols/release/deduxit-bench one \
   --problem family:qbf:48:0 --mode given --engine auto --jobs 1 --timeout 20
 $H/heaptrack_print -f OUT.zst -a 0 -T 0 -n 8 -s 1        # the summary and the peaks
 $H/heaptrack_print -f OUT.zst -t 0 -p 0 -a 0 -T 0 --flamegraph-cost-type peak -F stacks.txt
@@ -889,7 +889,7 @@ $H/heaptrack_print -f OUT.zst -t 0 -p 0 -a 0 -T 0 --flamegraph-cost-type peak -F
 - The merged backtraces of `heaptrack_print` end in the allocator's own
   frames; what says which structure a byte belongs to is the collapsed
   stack file (`-F`, one line per stack, root first, the cost last; cost
-  types `peak` and `allocations`), summed by its innermost `linlog`
+  types `peak` and `allocations`), summed by its innermost `deduxit`
   frame with a few lines of awk. `-t 0` keeps the type names, without
   which every method reads `<>::insert`. A file of a run that
   allocates per node has millions of lines and takes minutes to sum.
@@ -903,11 +903,11 @@ What the search spends its time on is read with perf from the flake's
 nixpkgs, as text (`perf report`), never as a drawing:
 
 ```sh
-CARGO_PROFILE_RELEASE_DEBUG=true cargo build --release --locked -p linlog-bench --target-dir target/symbols
+CARGO_PROFILE_RELEASE_DEBUG=true cargo build --release --locked -p deduxit-bench --target-dir target/symbols
 P=$(nix build --no-link --print-out-paths --inputs-from . nixpkgs#perf)/bin
 systemd-run --user --scope -p MemoryMax=8G -p MemorySwapMax=0 taskset -c 10 \
   $P/perf record -e cpu_atom/cycles/u -F 999 --call-graph lbr -o OUT.data \
-  target/symbols/release/linlog-bench one --problem P --mode given --engine auto --jobs 1 --timeout 5
+  target/symbols/release/deduxit-bench one --problem P --mode given --engine auto --jobs 1 --timeout 5
 $P/perf report -i OUT.data --no-children --sort symbol --stdio   # self time
 ```
 
@@ -922,7 +922,7 @@ $P/perf report -i OUT.data --no-children --sort symbol --stdio   # self time
   space only (`:u`).
 - Two perf sessions at once exceed the per-user `perf_event_mlock_kb`:
   give each `-m 32`.
-- `linlog-bench one` runs the problem in-process; under the default
+- `deduxit-bench one` runs the problem in-process; under the default
   bias with exponentials it is two threads taking turns, which perf
   samples both of.
 - The step that changes the engine takes the same rows with the same
@@ -940,7 +940,7 @@ with symbols, one row per core:
 V=$(nix build --no-link --print-out-paths --inputs-from . nixpkgs#valgrind.out)/bin
 systemd-run --user --scope -p MemoryMax=8G -p MemorySwapMax=0 taskset -c 9 \
   $V/valgrind --tool=callgrind --callgrind-out-file=OUT --toggle-collect='*Engine*run*' \
-  target/symbols/release/linlog-bench one --problem P --mode given --engine auto --jobs 1 \
+  target/symbols/release/deduxit-bench one --problem P --mode given --engine auto --jobs 1 \
   --timeout 900 --copies 3 --bias factors
 $V/callgrind_annotate OUT | head -40   # by function; "Collected" in the log is the total
 ```

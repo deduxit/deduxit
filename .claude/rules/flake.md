@@ -16,7 +16,7 @@ Modules share values through `_module.args`:
 arguments, `workspace.nix`). `checks.nix`, `devshell.nix`, `treefmt.nix`
 and `systems.nix` are what their names say.
 
-- **`dist.nix`: what a release ships for Linux.** `linlog-static` is
+- **`dist.nix`: what a release ships for Linux.** `deduxit-static` is
   the command linked statically against musl (crane's musl example: the
   toolchain of rust-toolchain.toml with the musl target added,
   `CARGO_BUILD_TARGET` and `+crt-static`), with `pkgs.pkgsStatic`'s C
@@ -27,7 +27,7 @@ and `systems.nix` are what their names say.
   `arm64`), which it maps to each format's; `notices` is cargo-about's
   `THIRD-PARTY-NOTICES.txt` for `cli/about.toml`'s targets, built once
   (crane's vendored sources, `--frozen`) and installed by both
-  `linlog-cli` and `linlog-static`. The release workflow builds `dist`
+  `deduxit-cli` and `deduxit-static`. The release workflow builds `dist`
   on an x86_64 and an aarch64 runner (`packages.yml`); nothing checks it
   in `nix flake check`, the install workflow installs what it makes.
 - **Each check reads only its crate's parts.** `workspace.nix` cuts the
@@ -44,8 +44,10 @@ and `systems.nix` are what their names say.
   a manifest goes into that list. A file no part names is in no Rust
   check: `plan/`, the benchmark data, the scripts, `fuzz/`.
 - `checks.nix`'s `clippy-CRATE`, `test-CRATE` and
-  `test-debug-assertions-CRATE` (CRATE `core`, `cli`, `bench`, `web`;
-  the bindings' natively, from `core`, `web`, `web-tests`) are one
+  `test-debug-assertions-CRATE` (CRATE `core`, `cli`, `bench`, `web`,
+  `compat`; the bindings' natively, from `core`, `web`, `web-tests`;
+  the last releases of `linlog` and `linlog-cli` from `core`, `cli` and
+  `compat`, whose part holds both crates' manifests and sources) are one
   check per crate from `perCrate`: the core crate's from `core` and
   `core-tests` with `--all-features` (the set the command enables, so
   that `parallel`, `png` and `pdf` are tested; `cargo test --workspace`
@@ -58,7 +60,7 @@ and `systems.nix` are what their names say.
   build (`cargoArtifactsDebugAssertions`), since the flags are in every
   artifact. Checks install no build tree (`doInstallCargoArtifacts =
   false`): the cache holds only that they passed. The packages
-  (`linlog-cli` from `core` and `cli`, `linlog-bench` from `core` and
+  (`deduxit-cli` from `core` and `cli`, `deduxit-bench` from `core` and
   `bench`) leave out the tests, so a test's edit reruns neither `export`,
   `rocq`, `bench` nor `ratchet`; `doc`, `doc-private` read `core` and
   `cli`, `wasm` and `features` `core` alone, `deny` and `shear` every
@@ -93,9 +95,9 @@ rustdoc's warnings denied, so a link in a private item's doc resolves too
 (a split of a module once left four such links pointing nowhere). `claude-hooks.nix` is the check that pins the
 `.claude/hooks` guards (`claude-infra.md`). `export.nix` is the `export`
 check, which compiles the snapshots (the fragments inside a document of
-its own; `core/tests/snapshots/linlog/`, the Rocq library's
+its own; `core/tests/snapshots/deduxit/`, the Rocq library's
 certificates, is left out of its fileset, since it copies the files at
-the top and `rocq-linlog` compiles those), the command's default fragments (LaTeX and Typst, wrapped the
+the top and `rocq-deduxit` compiles those), the command's default fragments (LaTeX and Typst, wrapped the
 same way) and a CLI proof with pdfLaTeX and with Typst and the curryst of
 nixpkgs (the version `export::typst::CURRYST` names, read from the source
 at evaluation, so the package and the import line it writes cannot
@@ -114,36 +116,36 @@ evaluation) with nixpkgs' Rocq and standard library and compiles the
 `.v` snapshots and six CLI certificates against it (four of them over
 `Prop`, of ordinary logic, classical and intuitionistic, two of `true`,
 which bind nothing; the intuitionistic linear one names `--kernel
-nanoyalla`, since the mode alone would choose linlog's library),
-requiring Rocq to print nothing; `rocq-linlog.nix` is the check
-`rocq-linlog`, which compiles, in a directory of their own, the
-exporter's snapshots for linlog's own Rocq library
-(`core/tests/snapshots/linlog/`) and the certificates the CLI writes for
+nanoyalla`, since the mode alone would choose deduxit's library),
+requiring Rocq to print nothing; `rocq-deduxit.nix` is the check
+`rocq-deduxit`, which compiles, in a directory of their own, the
+exporter's snapshots for deduxit's own Rocq library
+(`core/tests/snapshots/deduxit/`) and the certificates the CLI writes for
 it (Mix, affine, intuitionistic, intuitionistic affine, a `⊤`/`0` goal,
-classical with `--kernel linlog`, four refutations, five first-order
+classical with `--kernel deduxit`, four refutations, five first-order
 ones, one of them from a session's open witness), against the package
-`rocq-linlog` of the flake input `rocq-linlog`
-(`github:deduxit/rocq-linlog`, pinned by the lock; `ROCQPATH`
+`rocq-deduxit` of the flake input `rocq-deduxit`
+(`github:deduxit/rocq-deduxit`, pinned by the lock; `ROCQPATH`
 names its `user-contrib` and the standard library's), requires silence
 from each and that a first-order certificate with a wrong witness
 planted by `sed` be refused, and compiles a file that requires an
 intuitionistic certificate as a module and applies its lemma to the
 two-sided goal (the Rocq chapter's example, `-R . Proofs`, kept equal to
 it by hand); an assertion at evaluation compares
-`export::rocq::LINLOG` with the pinned package's `version` (its opam
+`export::rocq::DEDUXIT` with the pinned package's `version` (its opam
 file's). The input follows this flake's `nixpkgs`, `flake-parts`,
 `import-tree`, `treefmt-nix` and `nanoyalla`, so the library is built by
 the Rocq the `rocq` check uses (the same derivation as when the library
 was under `rocq/`); its own `yalla` stays in the lock for its bridges,
-which this flake never evaluates. The check `rocq-linlog-library` is
-the input's own `checks.SYSTEM.rocq-linlog`, re-exported, since the
+which this flake never evaluates. The check `rocq-deduxit-library` is
+the input's own `checks.SYSTEM.rocq-deduxit`, re-exported, since the
 certificates rest on the library's theorems: it compiles the library's
 tests and requires `Print Assumptions` of every theorem to answer
 `Closed under the global context` (counted per line), so every pin is
 verified here as well; with the inputs followed it is the same
 derivation as the library's repository builds, so a pin checked there
 costs nothing here. The bridges are that repository's check alone
-(they need its `yalla`, and no certificate rests on them); `bench.nix` is the `linlog-bench` package, the `bench`
+(they need its `yalla`, and no certificate rests on them); `bench.nix` is the `deduxit-bench` package, the `bench`
 check (the harness on the smallest instance of every family, the
 problem file, and an LLTP and a `.spec` file of the command's lock
 inputs, failing through `summary --strict` on a verdict against a known
@@ -160,7 +162,7 @@ commit (2021-03-03), 442 MB, whose 176 coverability problems under
 bug tracking 41) the harness reads with `--spec`; the repository is
 Apache-2.0, the problem files state nothing of their own, so they are
 fetched, not committed (`nix build .#qcover -o bench/qcover`).
-`bench.nix` also has the `ratchet` check: `linlog-bench ratchet --check`
+`bench.nix` also has the `ratchet` check: `deduxit-bench ratchet --check`
 under nixpkgs' valgrind (`valgrind.out`, since the package's first output
 is its manual) against `bench/ceilings.csv` (`bench.md`).
 `conventions.nix` holds three checks over the tracked tree but `plan/`
@@ -190,7 +192,7 @@ artifacts: the rule that the library stays fit for a browser was held by
 convention alone before it.
 `checks.nix`'s `package` packages both crates as `cargo publish`
 uploads them and builds each from its package: `cargo package
---registry crates-io --package linlog` (which verifies the library's
+--registry crates-io --package deduxit` (which verifies the library's
 package by building it), then the command's package without
 verification and without a lock, both unpacked outside the source tree
 (whose manifest would claim them as members) and the command built in
@@ -205,9 +207,9 @@ five of at most 20 ASCII characters; categories from its list, an
 unknown one only warned about; the licence's SPDX expression) no local
 command checks, so a change of those fields is checked by hand. Its source is the whole
 workspace with the licence files (`LICENSE` and the links
-`core/LICENSE`, `cli/LICENSE`). The `linlog-cli` package installs
+`core/LICENSE`, `cli/LICENSE`). The `deduxit-cli` package installs
 `LICENSE` and every font's licence (`cli/fonts/*.txt`) under
-`share/doc/linlog-cli/`, since a copy of the binary (the public cache
+`share/doc/deduxit-cli/`, since a copy of the binary (the public cache
 holds one) must carry the EUPL's text and the embedded fonts' licences;
 for the same reason no check keeps its target directory
 (`doInstallCargoArtifacts = false`, the `test-*` checks too: crane keeps
@@ -251,11 +253,11 @@ cannot prove), Sympli on MLton with a patch of no-op functions for the
 newer SML/NJ `PP_DEVICE`, lolli with its `cargoHash`, APLL native with
 OCaml 4.14 (it was written for 4.06). Each carries
 `passthru.source` (url, revision, date, licence), which `comparison`'s
-`share/linlog-comparison/tools.json` records per `--tools` name.
-`comparison` joins linlog's command and harness, BenchExec, the provers
+`share/deduxit-comparison/tools.json` records per `--tools` name.
+`comparison` joins deduxit's command and harness, BenchExec, the provers
 and Python with matplotlib; no check builds it.
 - `web.nix` is the bindings for a browser (`web.md` has the details):
-  the package `linlog-web` (the module built for wasm32 by the
+  the package `deduxit-web` (the module built for wasm32 by the
   `wasm-bindgen` CLI that nixpkgs has for the crate's version in
   `Cargo.lock`, `wasm-opt`, and cargo-about's notices), with its own
   dependencies' build for wasm32 (`wasmArtifacts`); the checks

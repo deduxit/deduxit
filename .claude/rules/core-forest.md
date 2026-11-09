@@ -1,11 +1,11 @@
 ---
 paths:
-  - "core/src/occurrences/**"
+  - "core/src/linear/occurrences/**"
 ---
 
-# linlog core: the occurrence forest and its intuitionistic reading
+# deduxit core: the occurrence forest and its intuitionistic reading
 
-Loaded, beside `core.md`, when a file under `core/src/occurrences/` is
+Loaded, beside `core.md`, when a file under `core/src/linear/occurrences/` is
 read or changed.
 
 ## The occurrence forest

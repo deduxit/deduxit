@@ -1,10 +1,10 @@
 ---
 paths:
-  - "core/src/search/focus/**"
-  - "core/src/search/generate.rs"
+  - "core/src/linear/search/focus/**"
+  - "core/src/linear/search/generate.rs"
 ---
 
-# linlog core: the focused engine
+# deduxit core: the focused engine
 
 Loaded, beside `core.md`, when a file of the focused engine or the
 test-only generator is read or changed. Where it polls its stop and what its

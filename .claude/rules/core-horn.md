@@ -1,9 +1,9 @@
 ---
 paths:
-  - "core/src/search/horn/**"
+  - "core/src/linear/search/horn/**"
 ---
 
-# linlog core: the Horn engine
+# deduxit core: the Horn engine
 
 Loaded, beside `core.md`, when a file of `search/horn/` is read or changed. The
 front door, the dispatch and the memory account it plugs into are in

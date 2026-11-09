@@ -3,7 +3,7 @@ paths:
   - "core/src/lambda/**"
 ---
 
-# linlog core: proofs read back as lambda-terms
+# deduxit core: proofs read back as lambda-terms
 
 Loaded, beside `core.md`, when a file of `core/src/lambda/` is read or
 changed: the read-back of a two-sided ILL derivation as a term of the

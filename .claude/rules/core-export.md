@@ -1,12 +1,12 @@
 ---
 paths:
   - "core/src/export/**"
-  - "core/src/proofs/style.rs"
+  - "core/src/linear/proofs/style.rs"
   - "core/tests/export.rs"
   - "core/tests/snapshots/**"
 ---
 
-# linlog core: the exports
+# deduxit core: the exports
 
 Loaded, beside `core.md`, when a file of the exports, the rule labels
 or the export snapshots is read or changed. The text tree is the derivation
@@ -180,7 +180,7 @@ for NanoYalla. What the code relies on:
   Typst 0.15.1 refuses a formula nested 255 brackets deep ("maximum
   parsing depth exceeded": a chain of 256 atoms under `⅋`, every binary
   subformula being bracketed; 255 atoms compile), in either layout.
-- **linlog's own Typst layout** (`typst::Layout`, `Auto` by default:
+- **deduxit's own Typst layout** (`typst::Layout`, `Auto` by default:
   curryst up to `CURRYST_HEIGHT`, the own layout above; `LAYOUT`): the
   output lists the inferences in preorder as `(premises, label,
   conclusion)` (`none` premises for an open goal, drawn as `open` says)
@@ -498,7 +498,7 @@ for NanoYalla. What the code relies on:
   `Premises::Dashed`). The estimate counts per vertex (an occurrence under a `?` may
   have none or many), per door and per box, and the text form.
 - **A net's look is `Style::net_look`** (`svg::NetLook`, three fields,
-  each a closed enum; `NetLook::LINLOG` the default, unchanged from
+  each a closed enum; `NetLook::DEDUXIT` the default, unchanged from
   before it existed, and `NetLook::TEXTBOOK` the preset, both constants
   of the type and `NetPreset` their names, which JSON reads in place of
   the fields as `Font` reads a `MathFont`'s). Each choice follows a figure
@@ -508,14 +508,14 @@ for NanoYalla. What the code relies on:
   Manara, Pellissier, Tortora de Falco and Vaux Auclair, TLLA 2021,
   Figs. 1 to 4; Chouquet and Vaux Auclair, LMCS 17:4, Fig. 1):
   - `premises`: `Dashed` (the edges into a `⅋` or `?` and the wires in
-    the `par` colour and dashed) is linlog's own, no source does it;
+    the `par` colour and dashed) is deduxit's own, no source does it;
     `Plain` draws them as every other edge, as all four do (Laurent 42
     and 43, Straßburger Fig. 10, TLLA Figs. 1 and 2, Chouquet Fig. 1).
     Plain drops the dashed group altogether, so a plain drawing has no
     `stroke-dasharray` (a highlighted switched edge is not dashed
     either).
   - `conclusions`: `Raised` (a `!` with auxiliary doors written under its
-    door, a row above the `?` nodes its wires reach) is linlog's own;
+    door, a row above the `?` nodes its wires reach) is deduxit's own;
     `Bottom` writes it on the bottom row under an edge down from its door,
     as Chouquet Fig. 1 (the `!` on the border, its wire down beside the
     `?`s' to one line), Laurent 43 (`!A` level with `?Γ`) and Straßburger
@@ -658,25 +658,32 @@ for NanoYalla. What the code relies on:
   `font::DEPTH` (a comma) below every baseline; the layouts reserve
   them for every line, and the structural test in `core/tests/export.rs`
   checks every element against the view box with the same bounds.
+- **The values named after the program are `deduxit`, read from
+  `linlog` too**: `Kernel::Deduxit`, `typst::Layout::Deduxit` and
+  `svg::NetPreset::Deduxit` serialize as `"deduxit"` and take
+  `"linlog"`, their name up to 0.2.0, as a serde `alias`, so a settings
+  file of 0.2.0 still loads (`what_0_2_0_wrote_is_read`). The command's
+  flags take the new names only. Keep the aliases: settings files of
+  0.2.0 are in users' hands and in Zenodo's archive.
 - **Rocq's two kernels** (`export/rocq/mod.rs`, `rocq::Kernel`):
   `Options::kernel` names one, `None` (the default) lets the mode
   choose in `linear`: a recorded mode that is intuitionistic, affine or
-  Mix goes to linlog's library (`Linlog`), a classical one to NanoYalla
+  Mix goes to deduxit's library (`Deduxit`), a classical one to NanoYalla
   unless the derivation uses Mix or affine `wk` (a proof checked in
   another mode than it claims), and a proof that records no mode
   (`Derivation::mode`, set from `Proof::mode` and by `Interactive`) goes
-  to linlog's library when its derivation is two-sided or uses those
-  rules; a derivation with a cut goes to linlog's library whatever its
+  to deduxit's library when its derivation is two-sided or uses those
+  rules; a derivation with a cut goes to deduxit's library whatever its
   mode, and an explicit `NanoYalla` refuses it (`Unsupported::Cut`:
   NanoYalla's cut is an axiom or Yalla's theorem, no rule of its
   kernel). So a classical proof with no kernel named is written for
   NanoYalla exactly as before, which the NanoYalla snapshots pin (they
   name the kernel, since by default `ill.v` and `labels_ill.v` would go
   to the library), and an explicit `NanoYalla` keeps every refusal.
-- **linlog's kernel** (`export/rocq/linlog.rs`, the library
-  `rocq-linlog` in its own repository, `deduxit/rocq-linlog`, whose
+- **deduxit's kernel** (`export/rocq/deduxit.rs`, the library
+  `rocq-deduxit` in its own repository, `deduxit/rocq-deduxit`, whose
   rules `rocq.md` hold its invariants, taken as the pinned flake input
-  `rocq-linlog`): a one-sided derivation is written as the library's dyadic
+  `rocq-deduxit`): a one-sided derivation is written as the library's dyadic
   `proof`, a two-sided one as its `iproof`, under a lemma over `ll` or
   `ill` with `(atom := string)` and the atoms as Rocq strings (`"`
   doubled), so no atom is renamed. The one-sided term moves every `?`
@@ -707,17 +714,17 @@ for NanoYalla. What the code relies on:
   reading's goal (by id for roots built from `⊤` and `0` alone). Open
   goals and compact runs are refused as for NanoYalla; nothing else is.
   The core tests pin this kernel's certificates in
-  `core/tests/snapshots/linlog/`, which the flake's `rocq-linlog` check
-  compiles against the pinned library, and `rocq::LINLOG` is asserted
+  `core/tests/snapshots/deduxit/`, which the flake's `rocq-deduxit` check
+  compiles against the pinned library, and `rocq::DEDUXIT` is asserted
   equal to the pinned package's version (its opam file's); the check
-  `rocq-linlog-library` (the library's own check, re-exported) verifies
+  `rocq-deduxit-library` (the library's own check, re-exported) verifies
   at every pin that the theorems the certificates rest on are closed
   under the global context. A change of
   the library's statements or terms is made and pushed in its repository
-  first; then `nix flake update rocq-linlog` moves the pin here, with the
+  first; then `nix flake update rocq-deduxit` moves the pin here, with the
   exporter's change in the same commit.
 - **Certificates of non-derivability** (`rocq::write_disproof`,
-  `deduxit::disproof`): for linlog's library whatever the mode
+  `deduxit::disproof`): for deduxit's library whatever the mode
   (`Unsupported::Disproof` where the options name NanoYalla), the lemma
   `~ ll (atom := string) R [Γ]`, or `~ ill … R [Γ] C` in intuitionistic
   mode with the reading's goal as for proofs, `R` the mode's rules alone
@@ -737,7 +744,7 @@ for NanoYalla. What the code relies on:
   check's own reading (the ticket weights and the dropped clauses are
   not written: the test sums each clause's own literals). A sequent
   with a quantifier is stated over the first-order calculi (`Fo`, no
-  framing) with `LINLOG_FIRST_ORDER_REFUTATION_PRELUDE`, and its counts
+  framing) with `DEDUXIT_FIRST_ORDER_REFUTATION_PRELUDE`, and its counts
   (`Unbalanced`, `OneSided`, the `_symbol` kinds) are
   `FirstOrderWeights.weighted_refutation FIXED TABLE WEIGHT _`: `FIXED`
   the predicates none of whose atoms is open (`Fo::fixed`), a count of
@@ -764,8 +771,8 @@ for NanoYalla. What the code relies on:
   unprovable verdict and on `check` of a refutation that holds
   (`disproof_into` in `cli/src/show.rs`), and a line `no certificate:
   …` on standard error where there is none, the verdict unchanged.
-  Snapshots `core/tests/snapshots/linlog/refuted_*.v` (twenty); the
-  `rocq-linlog` check compiles them and nine the command writes, and
+  Snapshots `core/tests/snapshots/deduxit/refuted_*.v` (twenty); the
+  `rocq-deduxit` check compiles them and nine the command writes, and
   refuses one with a planted wrong weight.
 - **Not valid over `Prop`** (`rocq::write_not_valid`,
   `ordinary::rocq::not_valid`): from an ordinary sequent's image and its
@@ -869,13 +876,13 @@ for NanoYalla. What the code relies on:
   tables (`ClassicalRule`, core-derivations.md); `every_label` pins them
   in the snapshots `first_order_classical.*` (`pin` takes anything that
   is a `Drawable`).
-- **The Rocq export of first-order proofs** (`export/rocq/linlog.rs`,
-  `Fo`): a forest with a binder goes to linlog's library (the default
+- **The Rocq export of first-order proofs** (`export/rocq/deduxit.rs`,
+  `Fo`): a forest with a binder goes to deduxit's library (the default
   kernel; an explicit NanoYalla answers `Unsupported::Quantifiers`, as
   the disproof writer does for the count equation of a sequent with a
   binder), stated over
   the first-order development (`rocq.md`) with
-  `LINLOG_FIRST_ORDER_PRELUDE` or `LINLOG_FIRST_ORDER_TWO_SIDED_PRELUDE`,
+  `DEDUXIT_FIRST_ORDER_PRELUDE` or `DEDUXIT_FIRST_ORDER_TWO_SIDED_PRELUDE`,
   `(symbol := string)` and the optional rules by module
   (`Calculus.classical`, `qualified`'s record, `Intuitionistic.affine`).
   A forest without a binder, a ground first-order one included, keeps
@@ -899,5 +906,5 @@ for NanoYalla. What the code relies on:
   `⊤R` and `0L`, the quests).
 - `first_order_certificates` (`core/tests/export.rs`) pins a certificate
   of every committed first-order proof the checker accepts as
-  `linlog/first_order_*.v`, which the `rocq-linlog` check compiles.
+  `deduxit/first_order_*.v`, which the `rocq-deduxit` check compiles.
 

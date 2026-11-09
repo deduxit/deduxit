@@ -3,10 +3,10 @@ paths:
   - "cli/**"
 ---
 
-# linlog-cli: the `linlog` command
+# deduxit-cli: the `deduxit` command
 
-Loaded when a file under `cli/` is read or changed. The package is `linlog-cli`, the
-binary `linlog` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
+Loaded when a file under `cli/` is read or changed. The package is `deduxit-cli`, the
+binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
 `modules/workspace.nix` so that `nix run` finds it).
 
 ## Layout
@@ -28,7 +28,7 @@ binary `linlog` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   cut, and then the character's number in the line, as the line's number
   when the input has several; the caret's indent is written as spaces,
   never as a format width, which panics above 65 535). `main.rs` is
-  one call into it and is `doc = false`: the binary is named `linlog` like
+  one call into it and is `doc = false`: the binary is named `deduxit` like
   the core crate, and documenting it would overwrite the library's docs.
 - `io.rs`: input from the argument, `--file` (`-` is standard input) or
   standard input, refused when standard input is a terminal; output to
@@ -64,7 +64,7 @@ binary `linlog` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   without `sequent` was read as a bare sequent in the flags' mode and a
   repeated key silently took the last value. Each entry is decided by `Shared::answer` on a worker of the
   library's `search::batch::run`, which keeps the order; the main thread
-  writes and flushes each result. `--isolate` runs `linlog` itself per
+  writes and flushes each result. `--isolate` runs `deduxit` itself per
   entry with the command's whole command line and, right after the
   subcommand, the hidden `--entry-name`, `--entry-mode`,
   `--entry-format` and `--entry-file` (standard input when absent), as a
@@ -448,7 +448,7 @@ binary `linlog` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   heuristic needs a terminal), `skip, why` nothing. A file a command
   writes must exist and be of the kind its extension names
   (`not_of_its_kind`), never compared byte for byte. Programs other than
-  `linlog`, `cat` and `echo` are skipped by name (`OTHER_PROGRAMS`: the
+  `deduxit`, `cat` and `echo` are skipped by name (`OTHER_PROGRAMS`: the
   harness, pdfLaTeX, Rocq, which flake checks of their own cover); an
   unknown one fails the test. A file an example reads and the README
   does not make is written by `fixtures`. A change of output is a
@@ -471,24 +471,24 @@ binary `linlog` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   (`settings_know`: the command, given a file with the key set to
   `null`, does not call it an unknown field), where the guide's key
   must be in a flag's help. In `HARNESS_CHAPTERS` (`benchmarks.md`,
-  `results/`) only the calls of `linlog` are checked here; the
+  `results/`) only the calls of `deduxit` are checked here; the
   harness's subcommands and flags and its scripts' flags are checked by
-  `bench/tests/manual.rs` against `linlog-bench`'s help and the scripts'
+  `bench/tests/manual.rs` against `deduxit-bench`'s help and the scripts'
   text. A command, flag or format a step adds goes into its chapter with
   a real invocation, as it went into README's usage section.
-- **The guide for AI models is a test too** (`skills/linlog/`, in
+- **The guide for AI models is a test too** (`skills/deduxit/`, in
   `cli/tests/readme.rs`): `guide_examples` runs the `console` blocks of
   `SKILL.md` and `reference.md` as README's (`printf` beside `cat` and
   `echo`, for a session's script on a pipe);
   `guide_names_what_exists` reads every command line and inline code
-  span and fails on a flag after `linlog COMMAND` that the command's
+  span and fails on a flag after `deduxit COMMAND` that the command's
   `--help` lacks, any other `--flag` or `-x` that no command's help or a
   session's `help` names (quoted text, a sequent or a script, left out;
   a span starting with `cargo`, `nix` or `rocq`, `TOOLS`, is another
-  program's), a `linlog` subcommand that does not exist, a session
+  program's), a `deduxit` subcommand that does not exist, a session
   command (the first column of the table under `| session command`, the
   spans of the summary's `**Step by step.**` paragraph, where a span
-  may also name a command of `linlog`; a rule's name or an output goes
+  may also name a command of `deduxit`; a rule's name or an output goes
   in another paragraph) that `help` does not list, and a settings key (`search.copies`) no help names;
   `guide_states_the_defaults` holds every default the guide states to
   the flag's own section of a command's `--help` (`[default: V]`,
@@ -520,7 +520,7 @@ binary `linlog` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   one file per call under `cli/tests/lock/out`. A call whose output
   carries counters names `--deterministic`; times are `…`. A change of
   behaviour is a commit of its own that says why and reblesses with
-  `BLESS=1 cargo test -p linlog-cli --test lock`; a new command, format
+  `BLESS=1 cargo test -p deduxit-cli --test lock`; a new command, format
   or flag adds its calls. The crane source keeps the directory
   (`modules/workspace.nix`).
 - **The search runs on its own thread** (`on_large_stack`) with the stack

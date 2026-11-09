@@ -1,11 +1,11 @@
 ---
 paths:
-  - "core/src/lltp.rs"
-  - "core/src/mist.rs"
-  - "core/src/families.rs"
+  - "core/src/linear/lltp.rs"
+  - "core/src/linear/mist.rs"
+  - "core/src/linear/families.rs"
 ---
 
-# linlog core: the benchmark inputs
+# deduxit core: the benchmark inputs
 
 Loaded, beside `core.md`, when the LLTP reader, the `.spec` reader or
 the generated families are read or changed; the harness that runs them is

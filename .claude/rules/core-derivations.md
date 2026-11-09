@@ -1,13 +1,13 @@
 ---
 paths:
-  - "core/src/proofs/derivation/**"
-  - "core/src/proofs/size.rs"
-  - "core/src/proofs/fmt.rs"
-  - "core/src/proofs/multiset.rs"
-  - "core/src/proofs/interactive/**"
+  - "core/src/linear/proofs/derivation/**"
+  - "core/src/linear/proofs/size.rs"
+  - "core/src/linear/proofs/fmt.rs"
+  - "core/src/linear/proofs/multiset.rs"
+  - "core/src/linear/proofs/interactive/**"
 ---
 
-# linlog core: the derivation view and interactive proving
+# deduxit core: the derivation view and interactive proving
 
 Loaded, beside `core.md`, when the derivation view, its size estimate,
 the text tree or interactive proving is read or changed. What a derivation knows of

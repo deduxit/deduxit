@@ -1,12 +1,12 @@
 ---
 paths:
-  - "core/src/nets/**"
-  - "core/src/search/net.rs"
-  - "core/src/search/essential.rs"
-  - "core/src/search/planar.rs"
+  - "core/src/linear/nets/**"
+  - "core/src/linear/search/net.rs"
+  - "core/src/linear/search/essential.rs"
+  - "core/src/linear/search/planar.rs"
 ---
 
-# linlog core: proof nets, essential nets and the net engines
+# deduxit core: proof nets, essential nets and the net engines
 
 Loaded, beside `core.md`, when a file of the proof nets (MLL, and MELL
 with boxes) or the net engine is read or changed. The net engine's cubes on a pool are in
@@ -352,7 +352,7 @@ engine. What the code relies on:
   structure and inductively on every box's content), Guerrini and
   Masini Definition 4 (switchings over every set of boxes collapsed; our
   per-depth form is the box-by-box reading of it, derived, not quoted).
-  Soundness and completeness for linlog's calculus are the two
+  Soundness and completeness for deduxit's calculus are the two
   conversions: every checked term's net passes (the induction on the
   term, each rule keeping every depth correct), and every net that
   passes sequentializes into a term the checker accepts.
@@ -467,7 +467,7 @@ engine. What the code relies on:
   and inputs, one output per provable sequent). Lamarche's own criterion
   for IMELL (Theorem 1: balanced trails, box edges as links, weakening a
   ξ-pointer to an output link) and Laurent's polarized criterion (LLP,
-  thesis 2002, Def. 5.10) are other criteria not taken: linlog's
+  thesis 2002, Def. 5.10) are other criteria not taken: deduxit's
   structure already has boxes and hangs its weakenings, which is the
   repair Accattoli names (arXiv 1303.7326 §6: no criterion for IMELL
   without boxes or jumps, because weakenings break connectedness).

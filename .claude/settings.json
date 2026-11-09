@@ -21,7 +21,7 @@
       "Bash(cargo hack check *)",
       "Bash(cargo deny check *)",
       "Bash(cargo update --dry-run *)",
-      "Bash(cargo run -p linlog-cli *)",
+      "Bash(cargo run -p deduxit-cli *)",
       "Bash(nix build *)",
       "Bash(nix eval *)",
       "Bash(nix fmt *)",

@@ -73,7 +73,7 @@ releases a version tag `vX.Y.Z` (below).
   925 MiB upload, 2026-10-17), and the toolchain's `minimal` profile
   leaves out the manual `rust-docs` (81 MiB). The rest of that upload:
   the unpacked toolchain about 350 MiB, the dependencies' two builds
-  (plain and with debug assertions) 323 MiB, linlog's own 14 MiB. A
+  (plain and with debug assertions) 323 MiB, deduxit's own 14 MiB. A
   push of code adds about the last; a lock or toolchain bump adds a new
   set of the others, and Cachix evicts the least recently used paths
   past the plan's storage.
@@ -87,7 +87,7 @@ releases a version tag `vX.Y.Z` (below).
   this workflow, which only builds.
 - **Comparison** (`comparison.yml`, `workflow_dispatch` only, inputs
   `timeout` and `quick`) runs `bench/comparison.sh` in ten shards, one
-  job each (two sequential streams on cores 0 and 1, linlog's default on
+  job each (two sequential streams on cores 0 and 1, deduxit's default on
   2–3), uploads each shard's rows and records, and a last job joins
   them, writes `ranking.md` and the figures, puts the ranking in the
   run's summary and uploads it all as the artifact `comparison`; it
@@ -136,7 +136,7 @@ releases a version tag `vX.Y.Z` (below).
   on crates.io names and whose protection rules may ask for the author's
   approval, with `id-token: write`; it packages both crates first (the
   token from `rust-lang/crates-io-auth-action`, pinned by commit, lives
-  briefly), then publishes `linlog` and `linlog-cli` in that order, each
+  briefly), then publishes `deduxit` and `deduxit-cli` in that order, each
   unless its version is on crates.io already, so that rerunning the job
   after a failure between the two finishes it. `release` (`contents:
   write`, after `publish` succeeded or was skipped, never after it
