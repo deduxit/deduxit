@@ -5411,3 +5411,20 @@ move (D26).
     The final files are being drawn into `final/` for 53m's placement.
   - **Still the author's:** the mark's licence (the lollipop's was CC BY
     4.0).
+- 2026-11-09, 02:12: **unattended from now** (the author: "Don't wait
+  for my approvals unless it is absolutely necessary. If any decisions
+  come up, please do some factual research and go with whatever is the
+  most idiomatic and currently best practice.").
+  - The planning session makes the release tags itself, signed and
+    annotated through GitHub's API (step 53b's section).
+  - It does not wait on the `crates-io` publish job's approval, which the
+    author gives on return. Step 54 and the next ones start after the
+    tags.
+  - The signing and SSH keys were unlocked afresh at 02:11, so they hold
+    until about 14:10; the warming loop runs.
+  - Waiting for the author on return:
+    - approving the publish job;
+    - Trusted Publishing for `deduxit` and `deduxit-cli`;
+    - deleting the secret and revoking the token;
+    - the Zenodo check;
+    - the opam pull request.
