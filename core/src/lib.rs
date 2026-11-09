@@ -73,19 +73,23 @@
 //! search with their defaults, [`Limits`] the resources a call may use
 //! (the [`limits`] module lists every long call with its bounds and how
 //! often it asks its stop), and [`prove_within`] takes a stop condition
-//! for a time limit or an interruption, since this crate has no clock:
+//! for a time limit or an interruption, since this crate has no clock.
+//! Each time it asks the stop it tells it the [`Progress`] made, whose
+//! `work` a budget can count where there is no clock, as in a browser:
 //!
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
 //! use linlog::{Fragment, Limits, Mode, Options, Verdict, prove_within};
-//! use std::time::{Duration, Instant};
 //!
 //! let mode = Mode::CLASSICAL.with_mix();
 //! let options = Options::default().with_fragment(Some(Fragment::MALL));
 //! let limits = Limits::default().with_memory_bytes(Some(64 << 20));
-//! let deadline = Instant::now() + Duration::from_secs(10);
+//! let mut budget: u64 = 10_000_000;
 //! let sequent = "|- A par B, ~A, ~B".parse()?;
-//! let outcome = prove_within(&sequent, mode, &options, &limits, |_| Instant::now() > deadline)?;
+//! let outcome = prove_within(&sequent, mode, &options, &limits, |progress| {
+//!     budget = budget.saturating_sub(progress.work);
+//!     budget == 0
+//! })?;
 //! assert!(matches!(outcome.verdict, Verdict::Proved(_)));
 //! assert_eq!(outcome.fragment, Fragment::MALL);
 //! # Ok::<(), linlog::Error>(())
@@ -99,7 +103,24 @@
 //! thread beside the first. [`Settings::default()`](Settings) is that
 //! behaviour as data: to decide what the command decides, search with its
 //! `search` options (no copy bound) and stop at its `clock`'s time limit,
-//! on one thread for the command's `--deterministic` answer.
+//! on one thread for the command's `--deterministic` answer:
+//!
+#![cfg_attr(feature = "parse", doc = "```")]
+#![cfg_attr(not(feature = "parse"), doc = "```ignore")]
+//! use linlog::{Mode, Settings, Verdict, prove_within};
+//! use std::time::{Duration, Instant};
+//!
+//! let settings = Settings::default();
+//! let limit = settings.clock.time_limit_ms.map(Duration::from_millis);
+//! let search = settings.search.clone().with_jobs(1);
+//! let start = Instant::now();
+//! let sequent = "!A |- !A * !A".parse()?;
+//! let outcome = prove_within(&sequent, Mode::CLASSICAL, &search, &settings.limits, |_| {
+//!     limit.is_some_and(|limit| start.elapsed() > limit)
+//! })?;
+//! assert!(matches!(outcome.verdict, Verdict::Proved(_)));
+//! # Ok::<(), linlog::Error>(())
+//! ```
 //!
 //! Errors are one family, [`Error`]: its [`kind`](Error::kind) says what
 //! sort of failure it is, so that a call a bound or a stop refused
