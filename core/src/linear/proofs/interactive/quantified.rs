@@ -826,7 +826,7 @@ impl Quantified {
         for &(k, t, step) in &parts.bindings {
             // A step binds a metavariable only to a term whose top is not a
             // bound metavariable, since unification follows the bindings
-            // first. Refusing other bindings keeps reading linear.
+            // first.
             let ok = step >= last
                 && (step as usize) < steps
                 && q.metas.get(k as usize).is_some_and(|m| m.bound.is_none())

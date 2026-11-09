@@ -23,9 +23,12 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 /// [`sequent`](Self::sequent) in
 /// [`Mode::INTUITIONISTIC`](crate::linear::Mode::INTUITIONISTIC). A
 /// classical symbol in the text is then refused with a hint of what to
-/// write instead. The same text parsed as a [`Sequent`] is refused only
-/// when it is proved, with the number of a subformula that has no
-/// intuitionistic reading.
+/// write instead. The same text parsed as a [`Sequent`] is read
+/// intuitionistically only when it is proved. If its one-sided form has an
+/// intuitionistic reading, it is proved as that reading: `~(A * ~B), A |-
+/// B` is `A ⊸ B, A ⊢ B`. If it has none, the proof is refused with a
+/// [`ShapeError`](crate::linear::ShapeError), which may name a subformula
+/// only by its number.
 ///
 /// There are three ways to make one:
 /// - from text, with [`parse_within`](Self::parse_within) (or
