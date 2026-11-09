@@ -396,6 +396,13 @@ pub enum Error {
         /// The logic.
         logic: crate::ordinary::Logic,
     },
+    /// The engine decides intuitionistic and minimal logic only.
+    #[error("LJT decides intuitionistic and minimal logic, not {logic} logic")]
+    #[non_exhaustive]
+    Logic {
+        /// The logic asked for.
+        logic: crate::ordinary::Logic,
+    },
     /// No engine handles the fragment in the mode yet.
     #[error("no engine for {fragment} in {mode} mode yet")]
     #[non_exhaustive]
@@ -613,6 +620,7 @@ impl Error {
         "succedents",
         "fragment_mismatch",
         "translation",
+        "logic",
         "no_engine",
         "engine_refused",
         "no_certificate",
@@ -685,6 +693,7 @@ impl Error {
             | Self::Succedents { .. }
             | Self::FragmentMismatch { .. }
             | Self::Translation { .. }
+            | Self::Logic { .. }
             | Self::NoEngine { .. }
             | Self::EngineRefused { .. } => Unsupported,
             #[cfg(feature = "rocq")]
@@ -760,6 +769,7 @@ impl Error {
             Self::Succedents { .. } => "succedents",
             Self::FragmentMismatch { .. } => "fragment_mismatch",
             Self::Translation { .. } => "translation",
+            Self::Logic { .. } => "logic",
             Self::NoEngine { .. } => "no_engine",
             Self::EngineRefused { .. } => "engine_refused",
             #[cfg(feature = "rocq")]
@@ -1069,6 +1079,9 @@ mod tests {
                 translation: crate::ordinary::Translation::Affine,
                 logic: crate::ordinary::Logic::Intuitionistic,
             },
+            Error::Logic {
+                logic: crate::ordinary::Logic::Classical,
+            },
             Error::NoEngine {
                 fragment: Fragment::LL,
                 mode: Mode::CLASSICAL,
@@ -1274,6 +1287,7 @@ mod tests {
             | Error::Succedents { .. }
             | Error::FragmentMismatch { .. }
             | Error::Translation { .. }
+            | Error::Logic { .. }
             | Error::NoEngine { .. }
             | Error::EngineRefused { .. }
             | Error::WriteFailed

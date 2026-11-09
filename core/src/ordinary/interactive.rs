@@ -1515,31 +1515,10 @@ fn axiom(goal: &Inference, side: Side, position: usize, partner: usize) -> Vec<I
 /// written, each formula with two for its separator, every binary
 /// subformula in brackets; saturating.
 fn estimate(formulas: &Formulas, inferences: &[Inference]) -> u64 {
-    // Every subformula precedes the formulas built from it.
-    let mut weight: Vec<u64> = Vec::with_capacity(formulas.len());
-    for node in &formulas.nodes {
-        let of = |k: NodeId| weight[k.index()];
-        let w = match *node {
-            Node::Atom(a) => formulas.atom_name(a).chars().count() as u64,
-            Node::True | Node::False => 1,
-            Node::Not(a) => of(a).saturating_add(1),
-            // ` ∧ ` and the brackets.
-            Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
-                of(a).saturating_add(of(b)).saturating_add(5)
-            }
-        };
-        weight.push(w);
-    }
+    let widths = super::derivation::widths(formulas);
     inferences.iter().fold(0u64, |sum, inference| {
-        let characters = inference
-            .left
-            .iter()
-            .chain(&inference.right)
-            .fold(2u64, |sum, k| {
-                sum.saturating_add(weight[k.index()]).saturating_add(2)
-            });
-        sum.saturating_add(Size::BYTES_PER_INFERENCE)
-            .saturating_add(characters.saturating_mul(Size::BYTES_PER_CHARACTER))
+        let bytes = super::derivation::inference_bytes(&widths, &inference.left, &inference.right);
+        sum.saturating_add(bytes)
     })
 }
 

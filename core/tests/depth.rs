@@ -205,8 +205,9 @@ fn deep_formulas_need_no_stack() {
 }
 
 /// Prints an ordinary formula nested `DEPTH` deep, which reads back as
-/// the text it was parsed from with Unicode symbols, and translates it with
-/// every translation, each in a logic it decides.
+/// the text it was parsed from with Unicode symbols, translates it with
+/// every translation, each in a logic it decides, and decides it by LJT
+/// within a bound on its work, a proof translated into LJ and checked.
 #[cfg(feature = "parse")]
 fn ordinary(text: &str, unicode: &str) {
     use deduxit::ordinary::{Logic, Translation, translate};
@@ -220,6 +221,13 @@ fn ordinary(text: &str, unicode: &str) {
         let image = translate(&sequent, logic, translation, &deduxit::Limits::default()).unwrap();
         assert!(image.sequent().to_string().starts_with('⊢'));
     }
+    // Each formula is written with tens of thousands of characters, so
+    // the derivation's estimate passes the default bound on its size.
+    let work = deduxit::Limits::default()
+        .with_work(Some(4 * DEPTH as u64))
+        .with_derivation_bytes(None);
+    let outcome = deduxit::ordinary::ljt::decide(&sequent, Logic::Intuitionistic, &work, |_| false);
+    assert!(outcome.is_ok(), "{outcome:?}");
 }
 
 /// Ordinary formulas nested 50 000 deep, a tower of negations and

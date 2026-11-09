@@ -7,7 +7,7 @@ use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::occurrences::OccId;
 use crate::linear::proofs::style::Drawn;
 use crate::linear::proofs::{
-    Compact, InfId, Labels, Rule as Linear, Sides, Structural, TextOptions, ViewOptions,
+    Compact, InfId, Labels, Rule as Linear, Sides, Size, Structural, TextOptions, ViewOptions,
 };
 #[cfg(any(feature = "latex", feature = "typst", feature = "svg"))]
 use crate::linear::sequents::notation::Notation;
@@ -465,7 +465,6 @@ impl Derivation {
     /// `left ⊢ right` with `inferences`, which have its shape: premises
     /// before conclusions, the root last, at least one. Nothing is
     /// checked: [`check`](Self::check) judges it.
-    #[cfg(any(feature = "interactive", feature = "serialize"))]
     pub(crate) fn from_parts(
         logic: Logic,
         formulas: Formulas,
@@ -956,6 +955,39 @@ pub(super) fn same(a: &[NodeId], b: &[NodeId]) -> bool {
     a.sort_unstable();
     b.sort_unstable();
     a == b
+}
+
+/// Returns the characters every formula of the arena is written with,
+/// every binary subformula in brackets, saturating: the size estimate's
+/// measure of a formula.
+pub(super) fn widths(formulas: &Formulas) -> Vec<u64> {
+    // Every subformula precedes the formulas built from it.
+    let mut weight: Vec<u64> = Vec::with_capacity(formulas.len());
+    for node in &formulas.nodes {
+        let of = |k: NodeId| weight[k.index()];
+        let w = match *node {
+            Node::Atom(a) => formulas.atom_name(a).chars().count() as u64,
+            Node::True | Node::False => 1,
+            Node::Not(a) => of(a).saturating_add(1),
+            // ` ∧ ` and the brackets.
+            Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
+                of(a).saturating_add(of(b)).saturating_add(5)
+            }
+        };
+        weight.push(w);
+    }
+    weight
+}
+
+/// Returns the bytes an inference concluding `left ⊢ right` is estimated
+/// at by the measure of [`Size::bytes`]: [`Size::BYTES_PER_INFERENCE`],
+/// and [`Size::BYTES_PER_CHARACTER`] per character of its sequent
+/// written, each formula with two for its separator; saturating.
+pub(super) fn inference_bytes(widths: &[u64], left: &[NodeId], right: &[NodeId]) -> u64 {
+    let characters = left.iter().chain(right).fold(2u64, |sum, k| {
+        sum.saturating_add(widths[k.index()]).saturating_add(2)
+    });
+    Size::BYTES_PER_INFERENCE.saturating_add(characters.saturating_mul(Size::BYTES_PER_CHARACTER))
 }
 
 /// Returns whether an inference concludes the sequent given, as multisets.

@@ -170,6 +170,58 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   (Girard: `∀` as `∀`, `∃` as `∃!`), and the read-back's tags carry no
   more than the node.
 
+## The native engine (`ljt.rs`)
+
+Dyckhoff's LJT (G4ip) for intuitionistic and minimal logic, public as
+`ordinary::ljt::decide`, beside the embedding and not yet the command's
+default. Its sources are cited in the module's docs; its search and
+translation are untrusted, the checker is the trust.
+
+- **Terminates by the calculus**: every rule's premises are lighter than
+  its conclusion in the multiset ordering of Dyckhoff's weights (`∧`
+  adds 2, `∨` and `→` 1; `¬A` as `A → ⊥`, `↔` as the conjunction of its
+  implications on the left and in an antecedent), so the search has no
+  loop check and no copy bound. It is depth first with a stack of its
+  own (`Search::prove`, `Frame`), never a recursion: a frame's depth is
+  bounded by the weight, but a formula may be as deep as it is long.
+- **Hypotheses are a set** (`set`): contraction is admissible in G4ip
+  (Dyckhoff and Negri 2000), so a sequent and its set are provable
+  together; the translation weakens back the copies a rule's premise
+  has (`Lj::weaken_to`) and the root weakens to the sequent as written.
+- **Invertible first**: a leaf rule (the goal among the hypotheses, `⊥`
+  outside minimal logic, `⊤` the goal) or an invertible rule is the only
+  move tried; only `∨R₁`, `∨R₂` and `→→L` are alternatives. LJT's rule
+  for an atom is taken for any antecedent among the hypotheses
+  (`ModusPonens`), and the axiom for any formula: both shorten proofs and
+  stay invertible and lighter. Minimal logic is the same with `⊥` an
+  atom: no `⊥L`, and `⊥ → C` acts only where `⊥` is a hypothesis.
+- **The memo is the verdict of every sequent closed**, proved (with its
+  step) or failed: the search has no history, so a sequent's verdict
+  does not depend on the branch. Proofs are steps in an arena, premises
+  first, shared between branches; the translation unfolds them into a
+  tree, so its size is bounded by `derivation_bytes` (the size
+  estimate's measure, `derivation::inference_bytes`) and the memory
+  account, never assumed linear.
+- **The translation into LJ** (`Lj::step`) is one fixed derivation per
+  rule. LJT's `∧→L`, `↔→L`, `∨→L` and `→→L` are derivable in LJ only
+  with a cut: each cuts the formula the rule makes, derived from the
+  implication taken apart (`P ⊢ A → (B → C)`, `P ⊢ A → C`, `P ⊢ B → C`,
+  `P ⊢ B → C` for `P = (A → B) → C`); `→L` is split, so the hypotheses
+  both premises need are contracted below it (`Lj::contract_to`).
+  `Plant` plants a fault per gadget in tests, and
+  `a_planted_wrong_translation_is_refused` shows the checker refuses each.
+- **Bounds**: a sequent expanded is a unit of `limits.work`; the stop is
+  asked every `POLL` expansions (the first included) and once per
+  inference of the translation; the search charges its frames, memo
+  entries, steps and the formulas it adds to an `Account` and answers
+  `Reason::MemoryLimit` past it; the translation charges its own and
+  refuses with `Refusal::Memory` or `Refusal::Output`. Classical logic is
+  `Error::Logic`.
+- **What it copied from the linear engines** (for the kernel crate): the
+  memo keyed by the sequent, the arena of proof steps, the stop's poll
+  cadence and the memory account (`linear::search::memory::Account`,
+  used as is).
+
 ## The goal state (`interactive.rs`)
 
 A native state of ordinary sequents, not a session over the image: the

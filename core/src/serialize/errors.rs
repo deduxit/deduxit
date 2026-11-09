@@ -114,6 +114,7 @@ impl Serialize for Details<'_> {
             Translation { translation, logic } => {
                 entries!(s; "translation" => translation; "logic" => logic)
             }
+            Logic { logic } => entries!(s; "logic" => logic),
             NoEngine { fragment, mode } | OrderedFragment { fragment, mode } => {
                 entries!(s; "fragment" => fragment; "mode" => mode)
             }

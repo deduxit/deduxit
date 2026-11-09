@@ -54,6 +54,7 @@ mod derivation;
 /// Step-by-step proving in LK and LJ.
 #[cfg(feature = "interactive")]
 mod interactive;
+pub mod ljt;
 #[cfg(feature = "parse")]
 mod parse;
 /// The certificates over `Prop`.
