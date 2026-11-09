@@ -69,7 +69,7 @@ Options:
 
           Possible values:
           - text:  The verdict on one line, then the derivation as a text tree
-          - json:  JSON: prove's outcome (verdict, fragment, mode, engine, statistics, and the proof, which `check` reads), one record a line in a batch; check's verdict and error
+          - json:  JSON: prove's outcome (verdict, fragment, mode, engine, statistics, and the proof, which `check` reads; under --logic decided by LJT, the ordinary outcome with its derivation of LJ), one record a line in a batch; check's verdict and error
           - latex: The verdict as a comment, then the derivation as a LaTeX proof tree of the ebproof package, with the connectives of cmll and amssymb
           - typst: The verdict as a comment, then the derivation as a Typst proof tree: with the curryst package for a low tree, in deduxit's own layout for a high one (`--style typst.layout`)
           - svg:   The verdict as an XML comment, then the derivation drawn as an SVG document, set in the Euler Math font unless `--font` names another
