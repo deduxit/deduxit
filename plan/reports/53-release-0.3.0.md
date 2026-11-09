@@ -845,3 +845,193 @@ A diligence check, not a legal opinion (`checks/diligence-cc.md`).
   private; the same page `round3/page.html`.
 - linlog: `../linlog-step53m` on `main` (`kzropsto`), this section's
   commit; nothing pushed; the client untouched.
+
+## Session 53p: the mark placed
+
+The brief (`/tmp/linlog-handoff/start-53p.md`, from the planning
+session `linlog-orchestrator`): deduxit's final mark (dēdūxit in Gentium
+ExtraBold, its long marks lapis inference lines, the square dē, CC BY
+4.0) in the client and linlog in place of the retired lollipop, the
+author's dictionary line everywhere it fits, a hover and focus card on
+the page's mark, and the Rocq library's old address forwarded. Opus 5.5
+at high, in the workspaces `../linlog-prover.github.io-53p` and
+`../linlog-step53p`; linlog-orchestrator pushes.
+
+### The checklist
+
+| item | state | evidence |
+|---|---|---|
+| The client's logo files, icons, manifest, header band (macrons lapis), `--color-logo` | done | client `rxxmnzut`; the nine rasters equal `final/site` and `final/github` pixel for pixel |
+| The colour-vision check passing with the lapis | done, by a decision that departs from the design | below; `colours.test.ts` 6 passed |
+| The hover and focus card, its e2e tests | done | `BandMark` in `src/islands/Logo.tsx`; two e2e tests in `tests/page.spec.ts` |
+| `/rocq-linlog/` forwarding to `/rocq-deduxit/`, its test | done | client `ntlwovor`; `pages-paths` and an e2e test |
+| The client's `nix flake check` | passed | exit 0, "all checks passed!", e2e 143 passed, Vitest 570 |
+| linlog's README head, manual introduction, crate docs, guide reference with the dictionary line | done | linlog's commit below |
+| Every lollipop mention changed or kept with a reason | done | below |
+| linlog's checks | passed | "The checks" below |
+| This section committed, `jj st` clean in every workspace | done | linlog's commits below |
+
+### The checks
+
+Every build and test in a capped scope on cores 10-15, every `nix`
+command under `flock -o /tmp/linlog-machine.lock` with `--max-jobs 4
+--cores 8`.
+
+- The client: `nix flake check` exit 0, "all checks passed!": Vitest 570
+  passed (16 files; `colours.test.ts` 6 passed, the two of the mark's
+  lapis among them), `astro check` 0 errors, Biome clean, e2e 143 passed
+  (the word mark in lapis on the band and the 404 page, the card by hover
+  and by keyboard and click, About's line and licence, the icons at their
+  sizes, the forward), `pages-paths` "nothing is at /deduxit or
+  /rocq-deduxit, and /rocq-linlog/ forwards", `licences` "the 14 images
+  are the logo's under CC BY 4.0", `csp` on all 4 pages.
+- The rasters: `nix build .#logo` against the workshop's files,
+  `magick compare -metric AE` 0 for each of the nine.
+- linlog: `cargo test --workspace` exit 0 (the readme test's
+  `readme_examples` and `readme_names_what_exists` among them);
+  `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps` exit 0,
+  the line rendered with its brackets in `linlog/index.html`; `nix build
+  .#checks.x86_64-linux.manual .#checks.x86_64-linux.manual-links` exit
+  0 (949 links OK, 0 errors); `nix flake check` exit 0, "all checks
+  passed!".
+
+### Outcome
+
+The client serves deduxit's mark at the same paths
+(`/logo/wordmark-{light,dark}.svg`, `/logo/square-dark.svg`,
+`/logo/favicon-32.png`), so linlog's README, rustdoc and manual show it
+without a change of address; one file is new, `/logo/wordmark-band.svg`
+(the word mark without margin at the band's 30 pixels), which the page
+draws inline. `modules/_logo/derive.py` derives the rasters as before:
+the icons from the dark square (unscaled for the maskable ones, whose ink
+lies inside the safe circle), the banners from the light word mark on the
+light field, which reproduces `make.py`'s rasters exactly
+(`magick compare -metric AE` 0 for all nine, GitHub's two among them).
+The manifest gains `icon-maskable-192.png`; the page's title, `og`
+metadata and manifest name say deduxit, and `/logo/LICENSE.txt` puts the
+mark under CC BY 4.0, naming Gentium's OFL. The prover keeps the name
+linlog in the page's prose until 53s.
+
+The band's mark is a button (Biome's `noNoninteractiveTabindex` refused
+a focusable image, rightly): its card shows the dictionary line on hover,
+on the keyboard's focus and on a click or a tap (kept until the focus
+leaves); the line is the button's `aria-describedby`, the card is
+hoverable across the gap, and Escape dismisses it (WCAG 2.2 SC 1.4.13).
+The drawing's `<title>` is removed there so the browser's own tooltip
+never doubles the card. About repeats the line under its mark.
+
+### Where the dictionary line went
+
+> **dēdūxit** [deːˈduːk.sɪt] *Latin, verb*: "it has derived", the perfect of *dēdūcō*, to lead down, derive.
+
+- The client: the band's mark's card (`BandMark`, `Dictionary` in
+  `src/islands/Logo.tsx`), About under its mark, README under the mark
+  at its head.
+- linlog: README under the mark, the manual's introduction where the
+  collection is first named, the crate docs' second paragraph (the one
+  that names the collection; the first stays the crate's one-line
+  summary, which rustdoc and crates.io show in lists), and the guide's
+  reference at its head. `SKILL.md` has none: its body is 7 977 bytes of
+  the 8 000 its test allows, so the 120-byte line does not fit, and the
+  name is no help to a model using the command.
+- The Rocq library's README is 53r's, in its own repository.
+
+### Every lollipop mention
+
+- Changed: README's head (`alt`), its licence note (deduxit's mark,
+  deduxit's site), the client's notices and texts, `.claude/rules/core.md`
+  (deduxit's mark, the repository `rocq-deduxit`, and a bullet on the
+  dictionary line).
+- Kept, with the reason:
+  - `core/src/lib.rs`'s `html_logo_url` and `html_favicon_url`: the
+    paths stayed, and the files behind them are the new mark.
+  - `docs/theme/linlog.css`, `linlog.js`, `docs/book.toml`: they fetch
+    the mark by URL and name "the logo" generically; the violet they set
+    is the page's accent, which stays violet (only the mark moved to
+    lapis).
+  - CHANGELOG's 0.2.0 entries and README's sentence on 0.2.0: they
+    record that release, whose logo was the lollipop.
+  - Every `lollipop` in code (`Lollipop`, `lollipop:` in the notations,
+    the lessons' `rule-ill-lollipop-l`): the connective ⊸, not the mark.
+  - `plan/` and the reports: history.
+
+### Decisions
+
+- **The lapis leaves the colour-vision check's groups** (departs from
+  the design). The approved lapis failed the client's check: 9.3 and 8.8
+  from the violet accent (the exemption covered only an equal colour),
+  11.6 and 8.4 in full colour and 7.4 and 7.2 under tritanopia from the
+  nets' Okabe-Ito blue, and in the dark scheme 4.7 from `--ok` under
+  tritanopia and 2.6 from Learn's frame under protanopia. No blue of the
+  nets' hue (±3°) at 4.5:1 on the field clears it in either scheme, so no
+  change of the tokens alone could pass. The planning session decided
+  (2026-11-09, unattended, for the author's review): keep the approved
+  lapis, take `--color-logo` out of the pairwise groups (the mark is
+  identity, not a meaning; WCAG's SC 1.4.3 exempts logotypes and the
+  Understanding document of SC 1.4.11 treats them alike), keep the
+  accent violet as a token apart and drop the equal-colour exemption,
+  and hold the lapis instead to 3:1 on the band and the field in both
+  schemes and to the `.logo` rule alone (a test reads `app.css`, the
+  tokens and every component). The alternatives it weighed: a page-only
+  lapis that passes (#2685fe, #2668fc, visibly another blue, and two
+  brand colours), or moving the nets off Okabe-Ito's hues.
+- **The band's mark is a button**, not a focusable image: a click or a
+  tap opens the card too, which a touch screen needs.
+- **The forward is a refresh page**, `/rocq-linlog/index.html` with
+  `<meta http-equiv="refresh" content="0; url=/rocq-deduxit/">`, a
+  canonical link and `noindex`: Pages has no redirects and no headers.
+  A deeper old path (`/rocq-linlog/Linlog.Calculus.html`) still gets the
+  404 page; 53r renames the modules, so no old page name survives to
+  forward to. `/rocq-deduxit` is reserved as `/deduxit` is.
+- **The derived set stays the client's**, plus the maskable 192: the
+  workshop's `favicon-16.png`, `favicon-48.png` and `favicon.svg` are
+  not served, since the page links the 32-pixel PNG and the SVG square.
+
+### Departures from the brief
+
+- The colour-vision check changed as above (the brief asked for the
+  lapis "under the client's colour-vision check"; as the check stood,
+  that was impossible, and the planning session decided the change).
+- The crate docs' line is in the second paragraph, not the opening one:
+  the opening one does not name the collection and is the crate's
+  summary in lists.
+- `SKILL.md` has no line (its budget).
+
+### The author's browser steps
+
+None are left. On 2026-11-09 the author set GitHub's organisation avatar
+and the three repositories' social previews from `final/github/`; the
+client's derived `github/avatar.png` and `social-preview.png` equal those
+files pixel for pixel, so nothing needs uploading again.
+
+### What the next sessions must know
+
+- **53s keeps the dictionary line word for word** when it renames: in
+  linlog's README, `docs/src/introduction.md`, `core/src/lib.rs`'s crate
+  docs (brackets escaped for rustdoc, `\[deːˈduːk.sɪt\]`) and
+  `skills/linlog/reference.md`; in the client's `Dictionary` component
+  (`src/islands/Logo.tsx`), About and README; and the two e2e tests and
+  About's test that hold its text. `.claude/rules/core.md` and the
+  client's `web.md` say so.
+- **The page's prose still calls the prover linlog** (About, privacy,
+  the noscript line names deduxit), as the crates do; 53s moves the rest.
+- **`--color-logo` is the mark's alone**: a new rule that paints with it
+  fails `colours.test.ts`; a colour of meaning is not checked against it.
+- **The served paths** under `/logo/` are those of 0.2.0 plus
+  `wordmark-band.svg`; keep them.
+- **53b's changelog** says that the mark changed (deduxit's dēdūxit in
+  place of the lollipop, CC BY 4.0) and that the manual and rustdoc show
+  it; no entry was written here, since the 0.3.0 entry is 53b's.
+- **A repository renamed later** is forwarded like `rocq-linlog`: a page
+  under `src/pages/<old>/`, its target reserved in `pages-paths`, the
+  service worker and the test server.
+
+### Repositories and workspaces
+
+- The client, `../linlog-prover.github.io-53p` on its `main`:
+  `rxxmnzut` (the mark, its card, the lapis) and `ntlwovor` (the
+  forward).
+- linlog, `../linlog-step53p` on `main`: `roklssqp` (the docs) and this
+  section's commit.
+- The mark's files: `~/Projects/own/sequentium-mark/deduxit/final/`,
+  untouched.
