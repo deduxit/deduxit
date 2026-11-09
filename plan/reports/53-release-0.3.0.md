@@ -1042,7 +1042,8 @@ files pixel for pixel, so nothing needs uploading again.
 
 Every address and every current mention of the name moved from
 `sequentium` to `deduxit` in four repositories, and each was pushed by
-`linlog-orchestrator` after this session's message, in the brief's
+`linlog-orchestrator` (renamed `deduxit-orchestrator` during the
+session) after this session's message, in the brief's
 order:
 
 | repository | commits | check before "ready" | pushed head |
@@ -1050,7 +1051,7 @@ order:
 | the placeholder `linlog-prover/linlog-prover.github.io` (`../linlog-prover-placeholder`, worked in place: one workspace) | `stzvzunu` "Redirect linlog-prover.github.io to deduxit.github.io" | its two redirect scripts run under Node on eleven old paths, each sent to `deduxit.github.io` | `stzvzunu` (`8027e193a9d7`) |
 | the Rocq library `deduxit/rocq-linlog` (`../rocq-linlog-53n`) | `krsouzly` "Move the library's addresses to the organisation deduxit" (CITATION.cff, the opam file's four fields, README, the Nix package's homepage, CLAUDE.md) | `nix flake check`: "all checks passed!", exit 0 | `krsouzly` (`ea6602c4b050`) |
 | linlog `deduxit/deduxit` (`../linlog-step53n`) | `trtzxwzw` (`--kernel`'s help and the behaviour lock's three help outputs, a commit of its own), `vpwklown` (every other address, 39 files), `rrnwunnn` (the live plan), `wykzywly` "flake.lock: Update" (`rocq-linlog` to `github:deduxit/rocq-linlog/ea6602c4`) | the gate, "gate: passed", exit 0; `nix flake check` without overrides, "all checks passed!", exit 0; both twice, before and after rebasing onto `main@origin` | `wykzywly` (`b5bab11d5a56`) |
-| the web client `deduxit/deduxit.github.io` (`../linlog-prover.github.io-53n`) | `unnmopyq` "Move the site to deduxit.github.io", `vumtzlyo` "flake.lock: Update" (`linlog` to `github:deduxit/deduxit/b5bab11d`, `linlog/rocq-linlog` to `github:deduxit/rocq-linlog/ea6602c4`) | `nix flake check`: "all checks passed!", exit 0 (569 unit tests, 140 end-to-end, typecheck 0 errors) | `vumtzlyo` (`37e60835e6c1`) |
+| the web client `deduxit/deduxit.github.io` (`../linlog-prover.github.io-53n`) | `unnmopyq` "Move the site to deduxit.github.io", `vumtzlyo` "flake.lock: Update" (`linlog` to `github:deduxit/deduxit/b5bab11d`, `linlog/rocq-linlog` to `github:deduxit/rocq-linlog/ea6602c4`) | `nix flake check`: "all checks passed!", exit 0 (569 unit tests, 140 end-to-end, typecheck 0 errors); again at each of the two CI fixes, `qrmxktrk` and `yqxvotmu` ("What failed") | `vumtzlyo` (`37e60835e6c1`); then `qrmxktrk` (`b1c788bd2d6b`) and `yqxvotmu` (`ebf3abf6f837`), deployed by CI run 40 |
 
 Each `nix flake check` ran in a capped user unit on cores 4 to 9
 under `flock -o /tmp/linlog-machine.lock` with `--max-jobs 4 --cores
@@ -1059,10 +1060,10 @@ The gate ran in the same unit before the check. `nix run
 github:deduxit/deduxit -- --version` from `env -i` (only `HOME`, `USER`
 and the system's `PATH`) in an empty directory printed `linlog-cli
 0.2.0`, exit 0. Every commit is signed. Every address answers as the
-table below says, but for the client's own site: its Pages deploy is
-stopped by a CI timeout that predates this session, so
-`deduxit.github.io` still serves the build of 2026-11-08 ("What failed
-or stayed unchecked").
+table below says. The client's site deployed only after two more
+commits of this session fixed its CI, which had failed since before
+the session (Biome built from source, "What failed or stayed
+unchecked"): run 40 passed and deployed it at 08:52 UTC.
 
 ### What changed, and what stayed
 
@@ -1141,29 +1142,61 @@ as `linlog-orchestrator` asked.
 | | `deduxit.github.io/deduxit/`, `/deduxit/linlog/`, `/deduxit/manual/`, `/deduxit/manual/commands.html`, `/deduxit/llms.txt`, `/deduxit/llms-full.txt`, `/deduxit/reference.md` | 200 each; the introduction links `github.com/deduxit/deduxit`, and the guide names `deduxit.github.io/` and `deduxit.github.io/deduxit/…` |
 | | `deduxit.github.io/rocq-linlog/` | 200 (the library's documentation) before the rename; since, `deduxit.github.io/rocq-deduxit/` answers 200 and `/rocq-linlog/` 404 (moved after 53n) |
 | | `deduxit.github.io/logo/square-dark.svg`, `/privacy/` | 200 |
-| | `deduxit.github.io/`, `/llms.txt`, `/sw.js`, `/privacy/`, `/logo/og.png` (the client) | 200 each, **but the old build**: `last-modified: Sun, 08 Nov 2026 16:03:36 GMT`, its `/llms.txt` naming `sequentium.github.io/sequentium/…` and `sequentium.github.io/privacy/`, its worker reserving `/sequentium`; the client's Pages deploy has not run since (next section) |
+| | `deduxit.github.io/`, `/llms.txt`, `/sw.js`, `/privacy/`, `/logo/og.png`, `/logo/square-dark.svg` (the client) | 200 each, fetched after CI run 40's deploy (`last-modified: Mon, 09 Nov 2026 08:52:49 GMT`): no `sequentium` in the page, `/llms.txt`, `/sw.js` or `/privacy/`; `/llms.txt` names `deduxit.github.io/deduxit/llms.txt`, `…/llms-full.txt`, `…/deduxit/linlog/` and `deduxit.github.io/privacy/`; the worker reserves `"/deduxit"` (and 53p's `"/rocq-deduxit"`); `og:image` is `https://deduxit.github.io/logo/og.png`. Before run 40 it served the build of 2026-11-08 16:03:36 GMT, which named `sequentium.github.io` (next section) |
 
 ### What failed or stayed unchecked
 
-One thing failed, and it was not this session's change:
+One thing failed, before this session's change, and two commits of
+this session fixed it:
 
-- **The client's site is not deployed.** CI runs 34 to 36 of
+- **The client's site was not deployed.** CI runs 34 to 36 of
   `deduxit/deduxit.github.io`, on its heads before this session's
   commits (from "Let Biome read biome.json itself in the formatter" to
-  `oxrxlqto`), all failed. Run 36's check job ended with "Process
-  completed with exit code 143": the job's `timeout-minutes: 60` killed
-  `nix flake check` while it built biome from source. The local check
-  passed in about 40 minutes, most of them in biome's build. The deploy
-  needs the check, so `deduxit.github.io` still serves the build of
-  2026-11-08 16:03 UTC. Its `/llms.txt` and `og:image` name the dead
-  `sequentium.github.io`. Its worker reserves `/sequentium`, not
-  `/deduxit`, so a returning visitor's worker may answer the
-  navigations to the manual itself until the new build deploys. Run 37,
-  for this session's "flake.lock: Update", was running when this was
-  written. Ways out, all the author's or `linlog-orchestrator`'s: push
-  the biome built here to the `linlog-prover` cache, raise the job's
-  timeout, or have the formatter's biome come from nixpkgs' cache. The
-  client's rows above must be fetched again after the first deploy.
+  `oxrxlqto`), all failed: the check job ended "Process completed with
+  exit code 143" after 47 to 48 minutes, the runner killing
+  `nix flake check`. Run 37, for this session's "flake.lock: Update",
+  hit the job's `timeout-minutes: 60` ("The job has exceeded the
+  maximum execution time of 1h0m0s"). The deploy needs the check, so
+  `deduxit.github.io` served the build of 2026-11-08 16:03 UTC, whose
+  `/llms.txt` and `og:image` name the dead `sequentium.github.io` and
+  whose worker reserves `/sequentium`, not `/deduxit` (a returning
+  visitor's worker could answer the navigations to the manual itself).
+- **The cause.** Run 34 is the first run whose lock has nixpkgs
+  `4fe25e12`, the newest nixpkgs-unstable channel release, and
+  cache.nixos.org has no build of its `biome` 2.6.5 (`hf8lcyx…`,
+  narinfo 404; Hydra built it only for later evaluations, `085af13c`
+  and `f6bf1059`, that no channel release has reached). So every run
+  built `biome` from source, and the Actions cache saves the store only
+  after a passing run. nixpkgs' own `biome` says what kills the job: its
+  test phase "builds the lib, bin and integration test targets with fat
+  LTO in parallel, each taking ~8-10G of RAM", two at a time, on a
+  runner of 16 GB. The release binary's single fat-LTO link before it
+  peaks at 11.76 GiB in one `rustc` (measured here by sampling a
+  rebuild), and fit: the runs died after it.
+- **The fix, in two commits of the client.** `qrmxktrk` "Give the check
+  job three hours, room for an uncached tool's build" raised
+  `timeout-minutes` from 60 to 180, with a comment and a bullet in its
+  `.claude/rules/ci.md`: a build of `biome` takes 40 minutes or more on
+  the runner, so the hour stopped run 37 by itself. Run 38, at
+  `qrmxktrk`, died like 34 to 36 (exit 143 after 49 minutes), which
+  showed the memory. `yqxvotmu` "Build Biome without its test suite,
+  whose links ran CI out of memory" makes the formatter, `lint` and the
+  dev shell take `config.biome` (`modules/biome.nix`), nixpkgs' `biome`
+  with `doCheck = false`, by `deduxit-orchestrator`'s decision: those
+  tests are nixpkgs' tests of a third-party tool, and no check of the
+  client changes. The module and the client's `.claude/rules/flake.md`
+  say to drop the override once the locked nixpkgs has `biome` on
+  cache.nixos.org (`nix path-info --store https://cache.nixos.org
+  --inputs-from . nixpkgs#biome` prints a path), and linlog's
+  `plan/later.md` holds it under "Follow-ups: the web client"
+  (`xqvzpsws`). At each commit the client's `nix flake check`: "all
+  checks passed!", exit 0 (actionlint included at `qrmxktrk`; `biome`
+  built without its test phase in 18 minutes at `yqxvotmu`). Both were
+  sent as "client ready" and pushed by `deduxit-orchestrator`. Run 39
+  (53p's head, without the override) died like 38 at 08:07 UTC; run 40,
+  at `yqxvotmu`, passed `nix flake check` in 44 minutes, saved the
+  store with `biome` to the Actions cache and deployed at 08:52 UTC,
+  the rows above.
 
 Not checked, or not checkable:
 
@@ -1209,6 +1242,15 @@ Not checked, or not checkable:
   tree; both runs passed.
 - **The placeholder was worked on in place**, as the brief allows for a
   repository with one workspace.
+- **Two commits beyond the addresses, in the client's CI** (the brief
+  asked for none, but the goal holds a failing check to be fixed at its
+  cause, and the deploy needed it): `qrmxktrk` raises the check job's
+  `timeout-minutes` from 60 to 180, and `yqxvotmu` builds `biome`
+  without its test suite, `deduxit-orchestrator`'s decision, with the
+  override's drop in linlog's `plan/later.md` (`xqvzpsws`). No check of
+  the client changed. This session's first diagnosis, the hour alone, was wrong
+  for runs 34 to 36: their exit 143 at 48 minutes was the runner
+  killing the job, which run 38 showed.
 
 ### What the next sessions must know
 
@@ -1234,6 +1276,14 @@ Not checked, or not checkable:
 - **The placeholder** maps `/linlog/…` to `/deduxit/…`, and
   `/rocq-linlog/…` to itself on `deduxit.github.io`, which since the
   rename gives 404: session 53r updates that mapping.
+- **The client builds `biome` itself** (`config.biome`, without its
+  tests) while the locked nixpkgs `4fe25e12` lacks it on
+  cache.nixos.org; the Actions cache holds the build from run 40. The
+  first client `flake.lock` update whose nixpkgs has `biome` cached
+  drops the override (`plan/later.md`). If a run dies with exit 143
+  again, the step decided ahead is to build
+  `.#checks.x86_64-linux.lint` (`biome` alone) before `nix flake
+  check`.
 - **Never give the name `sequentium` meaning again** in a current
   text: its addresses are dead, and only history (the Status log, the
   reports, step 48) names them.
@@ -1245,8 +1295,8 @@ Not checked, or not checkable:
 - The Rocq library: `../rocq-linlog-53n`, `krsouzly` pushed.
 - linlog: `../linlog-step53n`, the four commits pushed, then this
   section's commit on `main`.
-- The client: `../linlog-prover.github.io-53n`, `unnmopyq` and
-  `vumtzlyo` pushed.
+- The client: `../linlog-prover.github.io-53n`, `unnmopyq`,
+  `vumtzlyo`, `qrmxktrk` and `yqxvotmu` pushed.
 - The opam submission: `~/Projects/own/rocq-opam`, `tznmymqy`, not
   pushed (the author's pull request).
 
