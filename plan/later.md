@@ -1897,7 +1897,8 @@ it reduces (the library's `at` does), and its exit status differs
 between the default `--steps` (3 with cuts left) and the same number
 given (0), as documented.
 *Done in session 53a (2026-11-09):* a quoted cut formula was read by
-then; an unquoted one with blanks now says to quote it (`nmkvymwl`).
+then; an unquoted one with blanks now says to quote it, where the words
+after it make a formula with it (`nmkvymwl`, `znyvknpr`).
 `eliminate --at NODE` and `cut::eliminate`'s `at` name the first step's
 cut (`rwkmollk`). The exit statuses stay as documented.
 
@@ -2038,8 +2039,9 @@ the file's own `"mode"`: a proof that `interact -i` wrote with `proof
 ~B, A ⊗ B (classical)" unless `-i` is given, at 0.1.0 as now. Either
 take the file's mode when no flag names one, or refuse a file whose mode
 differs from the flags'.
-*Done in session 53a (2026-11-09, `uvtwltrn`):* both, as a refutation
-already was, for `check` and `eliminate`.
+*Done in session 53a (2026-11-09, `uvtwltrn`, the help and the guide's
+pitfalls `pwtlxlvw`):* both, as a refutation already was, for `check`
+and `eliminate`.
 
 *Found by step 30's release review (2026-10-17, finding 15; unassigned).*
 The batch's and `check`'s records write `wire::LEVEL` as a constant,
@@ -2449,7 +2451,8 @@ left for later; the fixes it made are in the step's report.
   two-sided goal in another file. All belong with the Rocq library of
   linlog's own (above).
   *Done in session 53a (2026-11-09):* a refused certificate leaves the verdict and its
-  exit status, the reason on standard error (`xqrpzsuu`); a batch's
+  exit status, the reason on standard error (`xqrpzsuu`; a session's
+  `proof FILE.v` then makes no file, `kpvuuxvl`); a batch's
   certificate files are Rocq identifiers (`lutlkvyz`), every lemma still
   `certificate`, which its module qualifies; the Rocq chapter applies a
   certificate's lemma from another file, which the `rocq-linlog` check
