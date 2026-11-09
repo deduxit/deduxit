@@ -249,6 +249,11 @@ jobs:
         run: |
           set -eux
           export PATH="$HOME/.cargo/bin:$PATH"
+          # The command is on crates.io under this name from 0.3.0 on.
+          if ! cargo search --limit 1 deduxit-cli | grep '^deduxit-cli = ' >/dev/null; then
+            echo "deduxit-cli is not on crates.io yet"
+            exit 0
+          fi
           cargo install --locked deduxit-cli
           deduxit --version
           cargo uninstall deduxit-cli
@@ -268,6 +273,11 @@ jobs:
     steps:
       - run: |
           set -eux
+          # The command is on crates.io under this name from 0.3.0 on.
+          if ! cargo search --limit 1 deduxit-cli | grep '^deduxit-cli = ' >/dev/null; then
+            echo "deduxit-cli is not on crates.io yet"
+            exit 0
+          fi
           cargo install --locked deduxit-cli
           deduxit --version
           cargo uninstall deduxit-cli
@@ -294,6 +304,12 @@ jobs:
           tag=$(curl -sSf https://api.github.com/repos/deduxit/deduxit/releases/latest |
             sed -n 's/.*"tag_name": *"\(v[^"]*\)".*/\1/p')
           version=${tag#v}
+          # Up to 0.2.0 the files carry the name the command had, linlog.
+          case $version in 0.1.* | 0.2.*)
+            echo "$tag's files are named linlog"
+            exit 0
+            ;;
+          esac
           base="https://github.com/deduxit/deduxit/releases/download/$tag"
           if ! curl -sSfLO "$base/SHA256SUMS"; then
             echo "$tag has no prebuilt files"

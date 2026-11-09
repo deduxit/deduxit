@@ -18,7 +18,7 @@ Nix. Pick your system:
 | Windows | the release's `.zip` | nothing |
 | any system | `cargo install --locked deduxit-cli` | Rust 1.92 or later |
 
-The files below are those of version 0.2.0; a later release names its
+The files below are those of version 0.3.0; a later release names its
 own.
 
 **Which to prefer.** The release's Linux files hold one binary linked
@@ -33,14 +33,14 @@ and carries an attestation of where they were built, which
 `gh attestation verify FILE --repo deduxit/deduxit` checks with the
 GitHub command; the files of 0.2.0 and earlier were attested under the
 repository's former name, so for them it is
-`gh attestation verify FILE --repo linlog-prover/deduxit`. The packages and binaries are not signed: what that
+`gh attestation verify FILE --repo linlog-prover/linlog`. The packages and binaries are not signed: what that
 means on each system is said in its section.
 
 ## Debian and Ubuntu
 
 ```sh
-curl -LO https://github.com/deduxit/deduxit/releases/download/v0.2.0/deduxit_0.2.0-1_amd64.deb
-sudo apt install ./deduxit_0.2.0-1_amd64.deb
+curl -LO https://github.com/deduxit/deduxit/releases/download/v0.3.0/deduxit_0.3.0-1_amd64.deb
+sudo apt install ./deduxit_0.3.0-1_amd64.deb
 deduxit --version
 ```
 
@@ -52,7 +52,7 @@ next release's `.deb` the same way; to remove, `sudo apt remove deduxit`.
 ## Fedora
 
 ```sh
-sudo dnf install https://github.com/deduxit/deduxit/releases/download/v0.2.0/deduxit-0.2.0-1.x86_64.rpm
+sudo dnf install https://github.com/deduxit/deduxit/releases/download/v0.3.0/deduxit-0.3.0-1.x86_64.rpm
 deduxit --version
 ```
 
@@ -64,8 +64,8 @@ deduxit`.
 ## Arch Linux
 
 ```sh
-curl -LO https://github.com/deduxit/deduxit/releases/download/v0.2.0/deduxit-0.2.0-1-x86_64.pkg.tar.zst
-sudo pacman -U ./deduxit-0.2.0-1-x86_64.pkg.tar.zst
+curl -LO https://github.com/deduxit/deduxit/releases/download/v0.3.0/deduxit-0.3.0-1-x86_64.pkg.tar.zst
+sudo pacman -U ./deduxit-0.3.0-1-x86_64.pkg.tar.zst
 deduxit --version
 ```
 
@@ -80,11 +80,11 @@ The archive holds one statically linked binary, which runs on any
 distribution, with README and the licences:
 
 ```sh
-curl -LO https://github.com/deduxit/deduxit/releases/download/v0.2.0/deduxit-0.2.0-x86_64-unknown-linux-musl.tar.gz
-curl -LO https://github.com/deduxit/deduxit/releases/download/v0.2.0/SHA256SUMS
+curl -LO https://github.com/deduxit/deduxit/releases/download/v0.3.0/deduxit-0.3.0-x86_64-unknown-linux-musl.tar.gz
+curl -LO https://github.com/deduxit/deduxit/releases/download/v0.3.0/SHA256SUMS
 sha256sum --check --ignore-missing SHA256SUMS
-tar -xzf deduxit-0.2.0-x86_64-unknown-linux-musl.tar.gz
-install -D deduxit-0.2.0-x86_64-unknown-linux-musl/deduxit ~/.local/bin/deduxit
+tar -xzf deduxit-0.3.0-x86_64-unknown-linux-musl.tar.gz
+install -D deduxit-0.3.0-x86_64-unknown-linux-musl/deduxit ~/.local/bin/deduxit
 deduxit --version
 ```
 
@@ -101,7 +101,7 @@ once.
 
 ```sh
 nix run github:deduxit/deduxit -- --help                   # run it once, without installing
-nix profile add github:deduxit/deduxit/v0.2.0#deduxit-cli   # install a release into your profile
+nix profile add github:deduxit/deduxit/v0.3.0#deduxit-cli   # install a release into your profile
 nix profile remove deduxit-cli                                    # and to remove it
 ```
 
@@ -121,7 +121,7 @@ it as an input:
 ```nix
 {
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-  inputs.deduxit.url = "github:deduxit/deduxit/v0.2.0";
+  inputs.deduxit.url = "github:deduxit/deduxit/v0.3.0";
 
   outputs = { nixpkgs, deduxit, ... }: {
     nixosConfigurations.HOST = nixpkgs.lib.nixosSystem {
@@ -147,12 +147,12 @@ x86_64-linux and saves that, once it is trusted.
 ## macOS
 
 ```sh
-curl -LO https://github.com/deduxit/deduxit/releases/download/v0.2.0/deduxit-0.2.0-aarch64-apple-darwin.tar.gz
-curl -LO https://github.com/deduxit/deduxit/releases/download/v0.2.0/SHA256SUMS
+curl -LO https://github.com/deduxit/deduxit/releases/download/v0.3.0/deduxit-0.3.0-aarch64-apple-darwin.tar.gz
+curl -LO https://github.com/deduxit/deduxit/releases/download/v0.3.0/SHA256SUMS
 shasum -a 256 --check --ignore-missing SHA256SUMS
-tar -xzf deduxit-0.2.0-aarch64-apple-darwin.tar.gz
+tar -xzf deduxit-0.3.0-aarch64-apple-darwin.tar.gz
 mkdir -p ~/.local/bin
-cp deduxit-0.2.0-aarch64-apple-darwin/deduxit ~/.local/bin/
+cp deduxit-0.3.0-aarch64-apple-darwin/deduxit ~/.local/bin/
 ~/.local/bin/deduxit --version
 ```
 
@@ -171,10 +171,10 @@ same with the next release; to remove, `rm ~/.local/bin/deduxit`.
 In PowerShell:
 
 ```powershell
-Invoke-WebRequest -OutFile deduxit.zip https://github.com/deduxit/deduxit/releases/download/v0.2.0/deduxit-0.2.0-x86_64-pc-windows-msvc.zip
+Invoke-WebRequest -OutFile deduxit.zip https://github.com/deduxit/deduxit/releases/download/v0.3.0/deduxit-0.3.0-x86_64-pc-windows-msvc.zip
 (Get-FileHash deduxit.zip -Algorithm SHA256).Hash    # compare with the line of SHA256SUMS
 Expand-Archive deduxit.zip -DestinationPath "$env:LOCALAPPDATA\Programs"
-Rename-Item "$env:LOCALAPPDATA\Programs\deduxit-0.2.0-x86_64-pc-windows-msvc" deduxit
+Rename-Item "$env:LOCALAPPDATA\Programs\deduxit-0.3.0-x86_64-pc-windows-msvc" deduxit
 $bin = "$env:LOCALAPPDATA\Programs\deduxit"
 [Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$bin", "User")
 & "$bin\deduxit.exe" --version
