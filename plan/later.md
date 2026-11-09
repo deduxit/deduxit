@@ -2575,3 +2575,17 @@ the tree's root or leave `--config-path` out when the tree has a
   - At the release chosen: redo the file for that version, run
     `scripts/opam-install.sh` for each admitted Rocq, then the author's
     pull request (`plan/handoff.md`, "The opam pull request").
+
+## To confirm: a first-order table with binders and no atoms
+
+Found by 54w-e1 (2026-11-09), not confirmed. `Sequent::join_first_order`
+(`core/src/linear/sequents/mod.rs`) counts the sequent's own atoms as
+`self.fo.atoms.len()` whenever `self.fo` is not empty. A table with
+binder names but no atom entries is not empty (`FirstOrder::is_empty`
+tests both), so the count is 0 although the sequent has atoms, and its
+atoms would be read with the other side's tables. The parser seems
+never to build such a table; a JSON sequent might. To do: build one
+from JSON (a binder over nullary atoms), join a formula or sequent to
+it (`push`, `join`), and see whether its atoms keep their names. If
+they do not, either the JSON reader refuses the table or the count
+uses `self.atoms.len() - other's` there too, with a test.
