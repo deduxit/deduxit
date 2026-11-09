@@ -521,3 +521,296 @@ writing rules and the notes (read only, nothing run). Eight findings:
   (name `54w-a`), the chain above.
 - deduxit: the workspace `../linlog-step54w-a` (name `step54w-a`) on
   `main` (`uwvntrmx`), this section only.
+
+## Session 54w-e2: the comments of core/src/linear/search and core/src/linear/nets
+
+Session 6 of `plan/54w-text.md` ("54w-e and on") for the proof search
+and the proof nets (Opus 5.5 at `high`, background job, 2026-11-09), in
+the jj workspace `../linlog-step54w-e2` (name `step54w-e2`), started on
+`main` at `lytrpkmw` (`d5443cc4`) and rebased onto `main@origin`,
+`ntmtoowo` (`106f56fc`, "Keep sessions out of EnterWorktree, which asks
+the author"). Nothing was pushed by the session.
+
+### Outcome
+
+Every doc comment and comment of the 59 files under
+`core/src/linear/search` and `core/src/linear/nets` is rewritten to
+`.claude/rules/writing.md`: 10 323 comment lines before, 12 311 after
+(7 565 lines added, 5 540 removed). No code changed: no item,
+signature, type, attribute, string literal or behaviour (the method is
+under "The checks"). The text was written by eight writers (Opus 5.5 at
+`high`, sub-agents), each over a disjoint group of files, briefed with
+the writing rules, the module's rules files and a calibration example
+(`search/work.rs`, rewritten first by the session); none of them ran a
+build. The session then checked every claim a writer said it had
+changed, fixed what the checks found, and had the `fresh-reviewer`
+review the chain.
+
+What a reader gets:
+- A doc comment opens with what the item is or does for its caller; the
+  long sentences of colons, semicolons and nested parentheses are split
+  into sentences, paragraphs and lists; a focusing, Petri-net,
+  inverse-method or proof-net term (stable sequent, zone, copy bound,
+  marking, firing sequence, subsumption, switching, axiom link, …) is
+  said plainly at its first use in a file.
+- Every invariant, bound and soundness argument is kept; a measurement
+  that is the reason for a choice stays, said as the reason.
+- Nothing refers to how the code came to be: "the spec", "used to",
+  "when this was written", "a panel found", "before the swap" and the
+  like are gone (the conventions pattern finds nothing in the two
+  modules).
+- Doc examples where a caller wants one, each run by the doc tests:
+  `prove_within` (three stops: never, a deadline, and a deadline for the
+  search alone that lets the refuters and the check run, which is the
+  command's behaviour), `engine_for`, `Options` (a longer builder
+  chain), `Outcome`, `Verdict` (matching all three verdicts, printing a
+  disproof with `{d}`), `Disproof`, `Disproof::check` (a disproof read
+  back from JSON, and a tampered one refused with
+  `invalid_refutation`), `batch::run`, `search::Pool`, `nets::exist`,
+  `ProofStructure::from_proof`, `is_correct`, `is_essential`,
+  `sequentialize`, `nets::cut::eliminate`, `MellStructure`,
+  `MellStructure::exist` and `MellStructure::from_proof`; and a "JSON"
+  section on `MellStructure`, checked against `serialize/nets.rs`.
+
+### The commits
+
+Oldest first, change ids (the commit ids are those after the last
+rebase; the signing hook gives new ones at each rewrite):
+
+| change | what |
+|---|---|
+| `xwqtolqt` | the search's front door: `search/mod.rs`, `memory.rs`, `work.rs`, `additive.rs` |
+| `lykupswp` | the refutations and their checks: `refutation.rs`, `weighted.rs`, `classical.rs`, `saturated.rs` |
+| `xporutvm` | the batch and the pool: `batch.rs`, `parallel.rs` |
+| `upqqmwwy` | the focused engine: `search/focus/` |
+| `puvywxxl` | the Horn engine: `search/horn/` |
+| `rvnwxnup` | the inverse method: `search/inverse/` |
+| `orukmxqk` | the reference provers and the generator: `reference.rs`, `reference_fo.rs`, `generate.rs` |
+| `uppkywsr` | the proof nets and their cuts: `nets/mod.rs`, `graph.rs`, `essential.rs`, `sequentialize.rs`, `skeleton.rs`, `nets/cut/` |
+| `nspoklmu` | the MELL nets: `nets/mell/` |
+| `tootqqym` | the net engines: `search/net.rs`, `search/essential.rs`, `search/planar.rs` |
+| (this section) | the report |
+
+### Wrong claims fixed
+
+Each was checked against the code by the session or the reviewer.
+
+The search's front door and its memory:
+- `memory.rs`'s module doc measured against "the bound of the options";
+  the bound is `Limits::memory_bytes`.
+- `Stop::flags`: a worker's count adds its units in batches of
+  `Work::BATCH` with `parallel` and the rest when it drops, not only
+  "when the worker ends".
+- `answer_goal`: a comment about allocations sat above the clamp of the
+  threads and `held = account.used()`; it now says what those lines do.
+- `Statistics::work` said only the net engine's handover adds its
+  units; it is `work.done()`, every engine's, the inverse method's turns
+  and handovers included.
+- `Engine`'s doc on the inverse method's turns: no turn comes again
+  after one that met the memory bound "or an index limit".
+- The docs of the tests `dispatch`, `dispatch_intuitionistic` and
+  `embedding_agrees_with_the_two_sided_engine` described the dispatch
+  from before the net engine lost its row; they now say what each test
+  asserts (`Focus` and `TwoSided`, `Additive`, a forced `Net`).
+- `additive.rs`'s `memoized`: "fewer pairs than there are subformula
+  pairs" is "at most as many" (`<= 255 * 255`).
+
+The refutations:
+- `RefutationFault::NotApplicable`'s `invariant` named two values; the
+  code uses seven, so the doc gives examples.
+- `saturated.rs`: `Calculus::positive`'s list lacked `∃`;
+  `Calculus::outputs` returns a count, not the members.
+- `classical.rs`: the work bound is checked before each evaluation, so
+  the count never passes it (not "by at most one evaluation").
+
+The focused engine:
+- `memo.rs`: `Entry::code` is the number a record's two entry words
+  hold, not "one word"; `insert_hashed` replaces a weaker entry, not
+  "anything" (an old `Proved` stays against any failure, an old
+  `Hereditary` against a new `Complete`).
+- `keyed.rs` named a file `framed/key.rs` that does not exist; the keys
+  are written in `framed.rs`.
+- `schedule.rs`'s `FIRST_TURN`: the forward search gets it, the
+  backward one `BACKWARD_SHARE` times as much, not "each of the two".
+- `focus/parallel.rs`: the other workers stop at their next poll, not
+  "at their next stable sequent".
+- `split.rs`'s `Forced::Dual` comment gained the caveat
+  `core-focus.md` records (the swap may move a copy to another branch).
+
+The Horn engine and the inverse method:
+- `horn/cover.rs`: `Cover`'s index is a trie over every place, not "by
+  their first place"; its `work` counts the index's nodes and lookups
+  too; `search` also polls at every marking computed.
+- `horn/equation.rs`: `fraction` gives the last convergent within the
+  bound (a semiconvergent can be nearer), not "the nearest fraction";
+  `integers` returns `None` for a weight that is not finite or when all
+  are near zero; `State::Yielded` also covers a tableau never built for
+  lack of room.
+- `inverse/mod.rs`: `Kept::rank` is below the number of sequents kept,
+  not "below its id"; the units of `apply` count the linear members.
+- `inverse/index.rs`: `Trie::insert` returning false leaves the nodes it
+  made before.
+- `inverse/tests.rs`: a comment named "two of the same tensor's factors"
+  for `|- a & ~a`, the two sides of a `&`.
+
+The reference provers and the generator (test-only):
+- `reference.rs`: `contractions` returns trees only, not text as well;
+  `judge` checks through `prove_within`, not `prove`.
+- `reference_fo.rs`: `F` holds both calculi, not "a one-sided sequent";
+  the doc of `random_ill_sequent` sat on `random_ill_text` (moved);
+  both random sequents change "at most one" site, a word, not "a
+  character", and change a predicate, not "a literal";
+  `the_focused_engine_agrees` asserts that the engine proves some, not
+  "what it is given"; `undo` also resets the eigenvariable counter.
+- `generate.rs`: the conclusion is kept as trees, not as text; a twin is
+  `1 ⊗ a`, not `a ⊗ 1`, and may be a `&` of two twins; `Ill` and `ill`
+  also return the contractions.
+
+The proof nets:
+- `nets/mod.rs`: the doc "Essential nets: …" sat on `pub mod cut`, so
+  the public `cut` page opened with it; it is on `essential` now.
+- `ProofStructure::new` refuses more than 1 431 655 764 occurrences
+  (`MOST`), not "past 1 431 655 763 vertices".
+- `link` is logarithmic (two `find`s on a union-find by rank without
+  path compression), not constant; `unlink` is constant.
+- The errors of `link` lacked `Placement::Uncut`, those of `is_correct`
+  `Crossing` (cyclic criterion), those of `exist` `Mode` in an ordered
+  mode with Mix.
+- A cut formula's occurrences that are no vertices lie "above no cut
+  link's end", not "above every cut link" (five places, and
+  `Placement::Uncut`'s doc in `nets/mell/mod.rs`).
+- The skeleton joins the cut links too (`skeleton.rs`, `nets/mod.rs`).
+- `sequentialize`'s proof is in the cyclic mode under a criterion of the
+  cyclic order; `is_essential` asks the stop after the search for a
+  cycle as well.
+- The `Display` docs' samples (`A⊥ ⅋ B⊥`, `A⊥[3] — A[2]`) are not what
+  the code writes (`~A ⅋ ~B`, the smaller id first).
+
+The MELL nets and the net engines:
+- `nets/mell/mod.rs`: `MOST` counts a slot per edge plus one where the
+  parent edge is absent, and refuses at `u32::MAX` slots; a root lies
+  outside every box (it has no parent); `exist` refuses the ordered
+  modes.
+- `nets/mell/sequentialize.rs` and `graph.rs`: the term's nodes include
+  cut; `search` starts from the given roots and returns the number of
+  trees; `an_unfolding_past_the_vertices_is_refused` builds 100 nodes,
+  not "a few dozen".
+- `search/net.rs`: `Prunes::PLANAR` applies the balance alone; the
+  search also polls per failed exact test (and the essential engine in
+  its closure's set-up); `Symmetry::new` reads `prunes.conclusions`;
+  both engines' `admits` refuse a forest past the vertex bound; two test
+  helpers' docs named parameters that do not exist; a comment said
+  "every fourth link" above a run with a test period of 7.
+- `search/essential.rs`: `reserve` makes room for one change and fails
+  on the account or the allocator.
+
+### The checks
+
+| check | result |
+|---|---|
+| No code change: each of the 59 files and its version at `d5443cc4` with every comment and every doc attribute (`#[doc = "…"]`, `#[cfg_attr(…, doc = "…")]`, the examples' fences) removed and whitespace outside literals collapsed, compared | `checked 59 files against d5443cc4ec69, 0 with a code difference`, at every commit of the chain's last state |
+| `cargo clippy --workspace --all-targets -- --deny warnings` (capped, cores 10–15) | exit 0 |
+| `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features` | exit 0 |
+| the same with `--document-private-items`, with every feature and with the defaults (`-p deduxit -p deduxit-cli`, as the flake's `doc-private`) | exit 0, exit 0 |
+| `cargo test --doc -p deduxit --all-features` | 53 passed, among them every new example |
+| `cargo test --doc -p deduxit --no-default-features` | 1 failure, `sequents/fmt.rs`'s `Sequent::walk` example (not fenced on `parse`), a file this session does not touch: on `main` already |
+| `nix fmt` on the 59 files | 0 changed |
+| `gate` (capped, cores 10–15), at the report's commit, the chain's last | exit 0 |
+| `nix flake check --max-jobs 4 --cores 8`, under the machine lock, at the same commit | exit 0 |
+
+The first clippy and rustdoc runs found what the writers could not see
+without a build: three doc comments followed by a blank line before
+their item (`empty_line_after_doc_comments`), six explicit link targets
+that rustdoc denies as redundant, and two module docs (`//!`) whose
+short links did not resolve in the private docs (`Reading` in
+`nets/essential.rs`, `Bias` in `focus/schedule.rs`, now full paths).
+Each fix went into its file's commit.
+
+### The review
+
+The `fresh-reviewer` agent read the chain against the brief, the
+writing rules and the code, checked every claim in the writers' lists
+of fixes, sampled the public docs and the soundness arguments, and ran
+the no-code check and judged its method. One finding, and one question:
+
+1. `weighted.rs`'s module doc: "`!A` nothing" had become "nothing below
+   zero", listed as a fix. The old claim was right: `!A` contributes
+   exactly zero (the Rocq library's `out_oc`, and the code's
+   `Low::From(0)` is the bound of that set). Fixed: "`!A` zero".
+2. The question: the test comments' "when this was written" figures had
+   become present-tense claims ("These seeds give 10 to 17 of 40")
+   without a run. Answered by marking them as measurements ("Measured
+   with these seeds: …", "would visit", "would take") in
+   `generate.rs` and `focus/tests.rs`, which claims what the old text
+   claimed.
+
+Its verdict otherwise: no code change (the method sound for these
+files: no `cfg_attr` mixes `doc =` with another attribute, no fence
+changed, no doc-test line removed), no reference to history left but
+the identifier below, every listed fix true.
+
+### Departures from the prompt
+
+- **The proof-net verdict's `Display` text** (`"proof net"`, `"proof net
+  with Mix"`, …, in `nets/mod.rs` and `nets/mell/mod.rs`), which
+  `plan/notes/usability.md` §7 gives to this session (FR2), is a string
+  the command prints: left for 54w-d, which changes it with the manual's
+  examples and the behaviour lock, as deduxit-orchestrator agreed.
+- **Strings and identifiers are code**, so these stay as they are,
+  although wrong or about history:
+  - `Placement::clause()` for `Uncut` (`nets/mell/mod.rs`, near line
+    189) says "lies in a cut formula above every cut link, and is
+    linked"; it should say above no cut link's end. It is the error
+    text of `NetError::Placement` (for 54w-d, or a follow-up).
+  - The test `the_review_s_witnesses` (`search/essential.rs`) is named
+    after a review.
+- **The rules files were not changed** (the session touches no file
+  outside the two modules). One note there looks wrong:
+  `core-focus.md`, "Every proof passes the checker", says the generator
+  reports "the most derelictions on one branch"; the code sums every
+  branch (a `⊗` gives `lc + rc`, a `&` `2 * copies`), as the doc of
+  `Provable` explains.
+- **Five measured figures** in test comments ("when this was written")
+  were not measured again; they are marked as measurements.
+- The crate root's wrong claim on deciding what the command decides
+  (`core/src/lib.rs`, usability L3) is the root session's; the
+  `prove_within` example here shows the stop that does it.
+
+### What the next sessions must know
+
+- **The no-code check** used here: a lexer that drops `//` and nested
+  `/* */` comments outside string, raw-string and char literals, drops
+  the doc attributes (`#[doc = "…"]` and `#[cfg_attr(CFG, doc = "…")]`,
+  CFG nested two deep), collapses whitespace, and compares each file
+  with its base version (`jj file show -r BASE`). It stays in the job's
+  scratch directory and goes with it; the method is all there is to it.
+  A new doc example's fences are doc attributes, so a check that keeps
+  attributes reports them.
+- **Writers that edit by script bypass the formatter hook**; run `nix
+  fmt` on the changed files before committing (it changed nothing
+  here). Give each sub-agent a scratch directory of its own: two writers
+  shared `/tmp/e2scripts/apply.py`, one overwrote it, and a third's
+  replacements ran into the new version (it raised an error, and the
+  writer redid them).
+- **What only a build shows** in a comment-only change, and the writers
+  missed: a blank line between a doc comment and its item, a link
+  target the label already resolves to, and a short link in a `//!` of
+  a private module, which may not resolve even where the name is
+  imported. Run clippy and both rustdoc builds (public with every
+  feature, private with the defaults) before the review.
+- **The dispatch table** in `Engine`'s doc (`search/mod.rs`, "Which
+  engine decides a goal") is parsed by
+  `the_documented_dispatch_is_the_dispatch`: reword around it, never
+  its rows.
+- **Doubts left for whoever reads these areas next**, none shown wrong:
+  `Statistics::memo_entries` sums the default bias's pair while
+  `Statistics::add` takes the larger (both right in their case);
+  `Answer::of_arena`'s comment maps any error of
+  `Proof::with_instances` to an index limit; `random_sequent` says its
+  texts stay well formed while `the_focused_engine_agrees` skips those
+  that do not parse; `engines_agree_on_horn_programs`' doc says more
+  than its asserts; the split cost "a seventh" (`split.rs`) against "up
+  to a fifth" (`core-focus.md`).
+- **The `doc tests without default features` failure** in
+  `sequents/fmt.rs` (`Sequent::walk`'s example parses without the
+  `parse` fence) is the sequents session's to fence.
