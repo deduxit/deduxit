@@ -52,6 +52,14 @@
           ];
           selection = workspace.selections.web;
         };
+        compat = {
+          parts = [
+            "core"
+            "cli"
+            "compat"
+          ];
+          selection = workspace.selections.compat;
+        };
       };
 
       # The checks of every crate, `NAME-CRATE' for each of the checks given.

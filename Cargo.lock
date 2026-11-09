@@ -620,6 +620,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "linlog"
+version = "0.3.0"
+dependencies = [
+ "deduxit",
+]
+
+[[package]]
+name = "linlog-cli"
+version = "0.3.0"
+dependencies = [
+ "deduxit-cli",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

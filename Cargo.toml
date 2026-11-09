@@ -3,7 +3,7 @@
 
 [workspace]
 resolver = "3"
-members = ["bench", "cli", "core", "web"]
+members = ["bench", "cli", "compat/linlog", "compat/linlog-cli", "core", "web"]
 
 [workspace.metadata.crane]
 name = "deduxit-workspace"
@@ -24,6 +24,8 @@ repository = "https://github.com/deduxit/deduxit"
 # names the features it uses, the defaults included.
 [workspace.dependencies]
 deduxit = { version = "0.2.0", path = "core", default-features = false }
+# The command's library, which the last release of linlog-cli runs.
+deduxit-cli = { version = "0.2.0", path = "cli" }
 
 # Every item gets a doc comment (CLAUDE.md, Conventions): rustc checks the
 # public ones, clippy the private ones.

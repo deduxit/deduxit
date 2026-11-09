@@ -76,6 +76,13 @@
           ../web/tests
           ../cli/fonts
         ];
+        # The last releases under the old names, linlog and linlog-cli.
+        compat = fileset.unions [
+          ../compat/linlog/Cargo.toml
+          ../compat/linlog-cli/Cargo.toml
+          (craneLib.fileset.commonCargoSources ../compat/linlog/src)
+          (craneLib.fileset.commonCargoSources ../compat/linlog-cli/src)
+        ];
       };
 
       # cargo loads every member of the workspace, so every source keeps
@@ -92,6 +99,8 @@
             ../cli/Cargo.toml
             ../bench/Cargo.toml
             ../web/Cargo.toml
+            ../compat/linlog/Cargo.toml
+            ../compat/linlog-cli/Cargo.toml
           ]
           ++ map (name: parts.${name}) names
         );
@@ -104,7 +113,8 @@
       everything = builtins.attrNames parts;
 
       stubMembers = ''
-        for target in cli/src/lib.rs cli/src/main.rs bench/src/main.rs web/src/lib.rs; do
+        for target in cli/src/lib.rs cli/src/main.rs bench/src/main.rs web/src/lib.rs \
+          compat/linlog/src/lib.rs compat/linlog-cli/src/main.rs; do
           if [ ! -e "$target" ]; then
             mkdir -p "$(dirname "$target")"
             touch "$target"
@@ -140,6 +150,7 @@
         cli = "--package deduxit-cli";
         bench = "--package deduxit-bench";
         web = "--package deduxit-web";
+        compat = "--package linlog --package linlog-cli";
       };
 
       # The dependencies of every crate as its checks and packages select
