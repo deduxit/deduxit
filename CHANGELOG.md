@@ -10,7 +10,27 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-09
+
+The third release, the first under the name deduxit: a collection of
+logic suites, linear logic first, its linear suite now the module
+`deduxit::linear`. Ordinary logic is proved step by step in LK and LJ,
+intuitionistic proofs read back as lambda-terms, the one-sided count
+and the state equation are checked without the search and certified in
+Rocq, the inverse method takes over wide multiplicative sequents where
+the focused engine runs out of memory, and the mark dēdūxit replaces
+linlog's logo.
+
 ### What breaks, and what to do instead
+
+Found by tools, not by memory: `cargo semver-checks` against the
+published `linlog` 0.2.0 and `cargo public-api`'s diff of the two public
+APIs with every feature (the devshell's `breaks 0.2.0`, which names the
+old package deduxit to compare it), and, for the command, the help and
+outputs the behaviour lock pins at 0.2.0's tag and now. Of the diff's
+items, all but `cut::eliminate` and `ordinary::Rule::Open` below are
+the rename and the move under `deduxit::linear`; every other change is
+an addition.
 
 - **The crates, the command and the library are renamed deduxit.** The
   library is the crate `deduxit` (was `linlog`) and the command the
@@ -38,7 +58,8 @@ second number (0.1.x to 0.2.0), anything else the third.
   - the settings values `deduxit` of `rocq.kernel`, `typst.layout` and
     `svg.net_look` (was `linlog`: deduxit's Rocq library, its own Typst
     layout and its own look of a net); a settings file that says
-    `linlog` still loads. The flags `--kernel` and `--style` take the
+    `linlog` still loads, and so does `--style KEY=linlog`, which reads
+    its value as the settings file does; the flag `--kernel` takes the
     new name only.
 - **The Rocq library is `rocq-deduxit`**, logical root `Deduxit` with
   linear logic under `Deduxit.Linear` (was `rocq-linlog`, `Linlog`): a
@@ -52,6 +73,117 @@ second number (0.1.x to 0.2.0), anything else the third.
 - **`linear::proofs::cut::eliminate` takes the first step's cut**, `at`, an
   `Option<NodeId>` after the mode (`None` the strategy's, as before), as
   `cut::step` does; `deduxit eliminate --at NODE` sets it.
+- **`ordinary::Rule` has the variant `Open`**, the rule of an open goal
+  in a proof in progress (`ordinary::Interactive`); `ordinary::Rule` is
+  a closed enum, so a `match` on it needs an arm for `Open`, which no
+  finished derivation contains.
+- **The command, where a script may see it**:
+  - `check` and `eliminate` check a proof in the mode its file states;
+    a mode flag that names another is an error (exit status 2) where
+    0.2.0 checked in the flags' mode: drop the flag, or remove the
+    file's `"mode"` to choose one;
+  - a proof whose Rocq certificate is refused keeps its verdict and its
+    exit status, with `no certificate: …` on standard error, where 0.2.0
+    exited 2; a session's `proof FILE.v` then makes no file;
+  - a batch names each Rocq certificate's file by Rocq identifiers
+    (`modus_ponens.v`, `entry_1_1_p.v`), and every lemma is
+    `certificate`, which the module qualifies;
+  - `prove --logic` draws a derivation of LK or LJ with each weakening
+    and contraction left out where it is admissible (`--structural
+    admissible`, the default): `--structural explicit` draws every one,
+    as 0.2.0 did; a certificate names every structural rule either way.
+
+Not breaks, since their types are `#[non_exhaustive]`, but new: the
+variants `Error::NoTerm` and `Error::OrdinaryStep`,
+`export::rocq::Unsupported::Exhausted` (after the others, so no
+discriminant moved), and the fields `ViewOptions::structural`,
+`Settings::lambda` and `lambda` of `latex::Options`, `typst::Options`
+and `svg::Style`.
+
+### Added
+
+- **Ordinary logic step by step**: `ordinary::Interactive` (feature
+  `interactive`), a goal state of two-sided ordinary sequents whose
+  rules are the checker's, with `goals`, `rules`, `apply` (a `Step`, and
+  for a rule of two premises a split of the context), `undo`, `close`
+  (the goal decided through `ordinary::decide` and the derivation
+  grafted), `hint` and `finished`, the derivation the checker of LK and
+  LJ validates; `FromStr` for `ordinary::Rule`. The command's `interact
+  --logic classical|intuitionistic|minimal SEQUENT`, with the linear
+  session's commands where they mean the same and a formula named by
+  side and position (`L0`, `R1`); the bindings' `ordinary_*` calls.
+- **Weakening and contraction shown or left out**:
+  `ViewOptions::structural` (`Structural::Admissible`, the default, or
+  `Explicit`), the flag `--structural` and the settings key
+  `view.structural`.
+- **Proofs as programs**: `Derivation::term` reads a two-sided proof of
+  intuitionistic linear logic back as a term of the linear lambda
+  calculus of Benton, Bierman, de Paiva and Hyland (the affine one in
+  affine mode, a cut the redex `(λx:A. N) M`), and
+  `ordinary::Derivation::term` an LJ derivation as a simply typed term;
+  `lambda::Term` with its JSON form (written only), printed under
+  `lambda::Options` (`notation`, Unicode or ASCII, and `types`); the
+  flags `--lambda`, `--lambda-notation` and `--lambda-types`, the
+  settings key `lambda`, the session command `lambda`, the key `lambda`
+  of an outcome's JSON, and the term under the conclusion in LaTeX,
+  Typst, SVG, PNG and PDF. What has no term is refused with
+  `Error::NoTerm` and its reason (`lambda::NoTerm`). The manual's
+  chapter "Proofs as programs" states the calculus with its sources.
+- **Refutations checked and certified**: `Disproof::check` accepts a
+  one-sided count (`OneSided`, `OneSidedSymbol`) and a state equation
+  (`StateEquation`) by the Rocq library's own weighted test, and the
+  second kernel writes their certificates, the first-order counts
+  included, against `rocq-deduxit` 0.3.0's weighted refutations;
+  `deduxit check` reads an unprovable outcome and checks its
+  refutation, with a proof's exit statuses.
+- **The inverse method where the focused engine runs out of memory**:
+  on a unit-free MLL sequent whose atoms occur once with each sign, in
+  classical mode without Mix, the inverse method takes over before the
+  net engine (`wide-m1` with 8 192 pairs proved in 3.05 s against
+  9.48 s).
+- **The command**: `check -f, --file PATH` beside the argument;
+  `eliminate --at NODE` names the cut taken first; `--style`'s help
+  lists the rules of a label table, and a dotted key such as
+  `labels.table.RULE=LABEL` makes the table it names.
+- **The last releases of the old names**: `linlog` 0.3.0 re-exports
+  `deduxit` (its root and `deduxit::linear`, so 0.2.0's paths still name
+  their items) and `linlog-cli` 0.3.0's binary `linlog` runs `deduxit`
+  after a line on standard error.
+
+### Wire forms
+
+- Level 8 adds the forms of ordinary logic: an ordinary sequent, a
+  derivation of LK or LJ, the outcome of deciding an ordinary sequent
+  and a proof in progress of one, each always written at level 8;
+  every other document is written as before. An
+  outcome's version key is `"deduxit"`; a document of 0.2.0, whose key
+  is `"linlog"`, reads as before.
+
+### Changed
+
+- **The mark**: the word dēdūxit with lapis long marks (CC BY 4.0,
+  served at deduxit.github.io/logo/), in README, the manual and the
+  rustdoc, replaces linlog's logo, the lollipop.
+- **The addresses**: the repository is `deduxit/deduxit`, the manual
+  and the API at deduxit.github.io/deduxit/, the web page at
+  deduxit.github.io and the Rocq library at `deduxit/rocq-deduxit`;
+  the old ones redirect.
+- An essential net's input side is drawn in the blue of `⅋` (`#0072b2`,
+  `#56b4e9` dark) by default, as the web page draws it, where it was
+  green.
+- `eliminate` names a cut of an invalid proof by its instance, as
+  `check` does, where it named the raw id (`cut on #8`); `interact`'s
+  `cut` explains an unquoted formula with blanks and says to quote it;
+  the eigenvariable refusal names `∃L` among the steps that introduce
+  one.
+
+### Fixed
+
+- A rule node's label in the rules look divided by zero when the node
+  had no room.
+- A forest past a proof structure's vertex bound (`nets::MOST`) made the
+  net engines panic; it is refused in their `admits` and in
+  `ProofStructure`'s constructor.
 
 ## [0.2.0] - 2026-11-02
 
@@ -1115,5 +1247,6 @@ The first release.
   for proved or valid, 1 for unprovable or invalid, 2 for an error, 3
   for unknown and 130 at a second Ctrl-C.
 
+[0.3.0]: https://github.com/deduxit/deduxit/releases/tag/v0.3.0
 [0.2.0]: https://github.com/linlog-prover/linlog/releases/tag/v0.2.0
 [0.1.0]: https://github.com/linlog-prover/linlog/releases/tag/v0.1.0
