@@ -18,11 +18,12 @@ crates `deduxit` and `deduxit-cli`, the command `deduxit`, whose
 `deduxit::ordinary` and `deduxit::lambda`. Up to 0.2.0 it was called
 linlog.
 
-Version 0.2.0 adds first-order linear logic, cut and its elimination on
-proofs and proof nets, MELL proof nets with boxes, intuitionistic
-sequents written two-sided, the inverse method, the logo, and deduxit's
-Rocq library in a repository of its own; the
-[changelog](CHANGELOG.md) says what changed and what breaks since 0.1.0.
+Version 0.3.0 is the first under the name deduxit: the linear suite is
+the module `deduxit::linear`, ordinary logic is proved step by step in
+LK and LJ, intuitionistic proofs read back as lambda-terms, the
+one-sided count and the state equation are checked without the search
+and certified in Rocq, and the mark dēdūxit replaces linlog's logo; the
+[changelog](CHANGELOG.md) says what changed and what breaks since 0.2.0.
 
 deduxit's manual, [deduxit.github.io/deduxit/manual](https://deduxit.github.io/deduxit/manual/),
 describes every command, format and engine with real output, and the

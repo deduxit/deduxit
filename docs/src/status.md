@@ -321,8 +321,9 @@ Built:
   each line.
 - Performance work on the focused engine, measured by four baselines,
   one before it, one after it and one at each release, 0.1.0 and 0.2.0.
-- Releases: the crates `deduxit` and `deduxit-cli` on crates.io, with a
-  changelog that states what each version promises and what it breaks,
+- Releases: the crates `deduxit` and `deduxit-cli` on crates.io (up to
+  0.2.0 `linlog` and `linlog-cli`, whose last release, 0.3.0, points
+  here), with a changelog that states what each version promises and what it breaks,
   and a workflow that publishes a version tag with the command built
   for Linux (an archive, a `.deb`, an `.rpm` and an Arch Linux package),
   macOS and Windows, their checksums and a provenance attestation.
@@ -336,15 +337,13 @@ Built:
   the module and its JavaScript, and tested under Node; the library's
   checker and memo are tested on a 32-bit target there too.
 - A web page for proving step by step in the browser on those bindings,
-  [deduxit.github.io](https://deduxit.github.io/), with
-  lessons, in a repository of its own.
+  [deduxit.github.io](https://deduxit.github.io/), in linear logic and
+  in ordinary logic (LK and LJ), with each intuitionistic proof's
+  lambda-term and lessons, in a repository of its own.
 
 Planned, release by release, as the collection of logic suites grows
 by a suite at a time:
 
-- 0.3.0: ordinary logic on the web page, proved step by step in LK and
-  LJ; the lambda-term of a proof on the web page; the inverse method
-  chosen by default wherever else a measurement shows it faster.
 - 0.4.0: intuitionistic logic decided by an engine of its own, with
   Kripke countermodels for what is not provable, checked, drawn and
   certified in Rocq; classical tableaux and truth tables; a checked
