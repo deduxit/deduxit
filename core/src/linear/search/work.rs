@@ -1,30 +1,34 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! A search's count of its work, which every thread of it adds to, the
-//! bound on it, and the helpers that take what its threads share.
+//! How much work a search has done, and the bound on it. Every thread
+//! of a search adds to one count. Also the helpers that take what the
+//! threads share.
 
 #[cfg(doc)]
 use crate::limits::Limits;
 
-/// The work a search has done, in its engine's units, shared by every
-/// thread of it, and the bound on it ([`Limits::work`]). Each thread
-/// counts its own units through a [`Counted`], which adds them in batches
-/// of `BATCH` with `parallel` (and all at once when it ends without): an
-/// atomic addition at every poll cost the additive path 5 % of its
-/// instructions, and would contend on a pool.
+/// The work a search has done, in its engine's units, and the bound on
+/// it ([`Limits::work`]). Every thread of the search shares it.
+///
+/// Each thread counts its own units through a [`Counted`]. With
+/// `parallel`, that adds them in batches of `BATCH`; without, all at
+/// once when the thread ends. An atomic addition at every poll cost the
+/// additive path 5 % of its instructions, and threads on a pool would
+/// contend for it.
 #[derive(Debug)]
 pub(crate) struct Work {
     /// The units done.
     done: std::sync::atomic::AtomicU64,
-    /// The most units allowed; `u64::MAX` for no bound, which no search
-    /// reaches (a unit takes a nanosecond at the least).
+    /// The most units allowed. `u64::MAX` means no bound: no search
+    /// reaches it, since a unit takes at least a nanosecond.
     limit: u64,
 }
 
 impl Work {
-    /// How many units a thread counts before it adds them: what the total
-    /// and the bound see of it is late by at most this much per thread.
+    /// How many units a thread counts before it adds them. So the total,
+    /// and the check against the bound, lag by at most this much per
+    /// thread.
     #[cfg(feature = "parallel")]
     pub(crate) const BATCH: u64 = 1 << 12;
 
@@ -62,17 +66,17 @@ impl Work {
     }
 }
 
-/// Locks what a search's threads share. A panic in one of them leaves
-/// it whole, since each change is one assignment or one push, so a
-/// poisoned lock is taken as it is.
+/// Locks what a search's threads share, and takes a poisoned lock as it
+/// is. A panic in one thread cannot leave the value half changed, since
+/// each change is one assignment or one push.
 pub(crate) fn lock<T>(shared: &std::sync::Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     shared
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
-/// Returns what the threads shared, once they ended, poisoned or not, as
-/// [`lock`] takes it.
+/// Returns what the threads shared, once they have ended, poisoned or
+/// not, as [`lock`] does.
 #[cfg(feature = "parallel")]
 pub(crate) fn taken<T>(shared: std::sync::Mutex<T>) -> T {
     shared
@@ -80,10 +84,11 @@ pub(crate) fn taken<T>(shared: std::sync::Mutex<T>) -> T {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
-/// A thread's count of the work it does: its units not yet added to the
-/// search's [`Work`], which it adds in batches of [`Work::BATCH`] (with
-/// `parallel`, where other threads read the count) and the rest when it
-/// drops. Every thread of a search counts through one.
+/// One thread's count of the units it has not yet added to the search's
+/// [`Work`]. Every thread of a search counts through one.
+///
+/// With `parallel`, where other threads read the total, it adds its
+/// units in batches of [`Work::BATCH`]. It adds the rest when it drops.
 pub(crate) struct Counted<'a> {
     /// The search's work.
     work: &'a Work,
@@ -123,7 +128,7 @@ impl<'a> Counted<'a> {
 }
 
 impl Drop for Counted<'_> {
-    /// Adds the units not yet added.
+    /// Adds the units not yet added to the search's count.
     fn drop(&mut self) {
         self.work.add(self.pending);
     }

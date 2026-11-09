@@ -1,18 +1,25 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Proof search: the front door `prove` with its options and outcome, the
-//! dispatch on fragment and mode, the engines, which [`Engine`] lists and
-//! describes (proof-net search for unit-free MLL, the focused sequent
-//! engine for everything else, one-sided in classical mode and two-sided
-//! in intuitionistic mode, and the additive fast path for two
-//! additive-only formulas), and the [`batch`] of
-//! many sequents.
+//! Proof search: decide whether a sequent is provable, and get its proof
+//! or the reason it has none.
+//!
+//! [`prove`] decides a sequent, [`prove_within`] does so under
+//! [`Limits`] and a stop condition, and [`prove_goal`] decides a
+//! [`Goal`], any multiset of a forest's occurrences. Each returns an
+//! [`Outcome`], whose [`Verdict`] is a checked proof, a [`Disproof`], or
+//! the [`Reason`] the search gave up. [`Options`] picks the engine and
+//! tunes the search.
+//!
+//! The library picks an engine by the sequent's fragment and the mode.
+//! [`Engine`] lists the engines, and its documentation says which one
+//! decides which sequents. [`batch`] decides many sequents in one call.
 
 /// The additive fast path.
 pub(crate) mod additive;
 pub mod batch;
-/// The classical refuter: an assignment that falsifies the reading.
+/// The classical refuter: it looks for an assignment of truth values
+/// that makes the goal's classical reading false.
 mod classical;
 /// Essential-net search for unit-free IMLL.
 mod essential;
@@ -23,7 +30,7 @@ pub(crate) mod focus;
 pub(crate) mod generate;
 /// The Horn engine: reachability of markings.
 pub(crate) mod horn;
-/// The focused inverse method, a forward search.
+/// The focused inverse method, a search forward from the axioms.
 mod inverse;
 /// The count of the bytes a search holds.
 pub(crate) mod memory;
@@ -74,20 +81,23 @@ use std::sync::OnceLock;
 pub(crate) use work::taken;
 pub(crate) use work::{Counted, Work, lock};
 
-/// An engine's stop condition: the caller's in a sequential search, the
-/// chain of stop flags of a worker in a parallel one. Each poll is told
-/// the units of work done since the last.
+/// An engine's stop condition: the caller's in a sequential search, a
+/// worker's chain of stop flags in a parallel one. Each poll is told the
+/// units of work done since the last.
 pub(crate) enum Stop<'a> {
     /// The caller's condition.
     Closure(&'a mut dyn FnMut(u64) -> bool),
-    /// The caller's condition, and an amount of work after which the
-    /// search stops as well: one turn of a search that takes turns with
-    /// another.
+    /// The caller's condition, and the work left in this turn, after
+    /// which the search stops too. It is one turn of a search that takes
+    /// turns with another.
     Turn(&'a mut dyn FnMut(u64) -> bool, u64),
-    /// A condition that is told, at every poll, the work since the last
-    /// and whether a slice of work (the last field) has passed since it
-    /// was last told so: one of two searches that alternate, which gives
-    /// way to the other there.
+    /// A condition told at every poll the work since the last, and
+    /// whether a slice of work has passed since it was last told so. The
+    /// fields are the condition, the work left in the slice, and the
+    /// slice.
+    ///
+    /// It is one of two searches that alternate: it gives way to the
+    /// other at the end of each slice.
     #[cfg_attr(
         not(feature = "parallel"),
         expect(
@@ -102,8 +112,8 @@ pub(crate) enum Stop<'a> {
 }
 
 impl<'a> Stop<'a> {
-    /// Polls the condition after `work` more units of work, in the unit
-    /// the engine that polls counts its turns in.
+    /// Polls the condition after `work` more units of work, in the
+    /// polling engine's unit. Returns whether the search must stop.
     pub(crate) fn fired(&mut self, work: u64) -> bool {
         match self {
             Self::Closure(stop) => stop(work),
@@ -127,8 +137,9 @@ impl<'a> Stop<'a> {
         }
     }
 
-    /// A worker's stop: its flags, and a count of its own of the search's
-    /// work, whose units it adds when the worker ends.
+    /// A worker's stop: its flags, and its own count of the search's work.
+    /// The count adds its units to the search's in batches, and the rest
+    /// when the worker ends.
     #[cfg(feature = "parallel")]
     pub(crate) fn flags(flags: parallel::Flags<'a>) -> Self {
         Self::Flags(flags, flags.counted())
@@ -136,43 +147,58 @@ impl<'a> Stop<'a> {
 }
 
 /// The occurrences a forest must have for a search to poll the stop
-/// condition between the passes that set it up: a pass over fewer takes
-/// under a millisecond, and a condition that counts its polls then sees
-/// the engine's own and no others.
+/// condition between the passes that set it up.
+///
+/// A pass over fewer takes under a millisecond. Below it, a condition
+/// that counts its polls sees the engine's own polls and no others.
 const SET_UP_POLL: usize = 1 << 16;
 
-/// Polls the caller's stop condition between two passes over a forest
-/// that set a search up, when the forest is large enough for a pass to
-/// take time ([`SET_UP_POLL`]): on millions of occurrences the set-up
-/// takes a second, and the engine's first poll comes after it.
+/// Polls the caller's stop condition between two passes that set a
+/// search up, when the forest has at least [`SET_UP_POLL`] occurrences.
+/// Returns whether to stop.
+///
+/// On millions of occurrences the set-up takes a second, and the
+/// engine's first poll comes after it.
 pub(crate) fn set_up_stopped(forest: &Forest, stop: &mut dyn FnMut(u64) -> bool) -> bool {
     forest.len() >= SET_UP_POLL && stop(0)
 }
 
-/// Decides a sequent under a mode with the engine its fragment calls for,
-/// and returns the outcome: the verdict with a proof if there is one, the
-/// fragment detected, the engine used and the statistics of the run. The
-/// search runs to completion; [`prove_within`] takes a stop condition.
+/// Decides a sequent in a mode, and returns the outcome.
+///
+/// The outcome holds the verdict (with the proof, if there is one), the
+/// fragment detected, the engine that ran and the statistics of the run.
+/// The engine is the one the sequent's fragment and the mode call for,
+/// unless the options force one. The search runs under the default
+/// [`Limits`] and never stops early; [`prove_within`] takes limits and a
+/// stop condition.
+///
+/// Every proof returned has passed the checker, unless [`Options::check`]
+/// is off.
 ///
 /// # Errors
 ///
-/// A sequent outside the fragment the options assert is refused
-/// ([`Error::FragmentMismatch`]); in intuitionistic mode a sequent with no
-/// intuitionistic reading ([`Error::NotIntuitionistic`]) and Mix
-/// ([`Error::IntuitionisticMix`]); an engine the options force where it
-/// does not search ([`Error::EngineRefused`], with the [`NotTaken`] that
-/// says why: the net engine outside unit-free MLL and in affine mode, the
-/// focus engine in intuitionistic mode and the two-sided engine in
-/// classical mode, the additive engine on anything but two additive-only
-/// formulas, the Horn engine on anything but a Horn program); and a sequent
-/// that unfolds to more subformula occurrences than
-/// `limits.occurrences` allows ([`Refusal::Occurrences`]). A proof that the checker rejects is
-/// [`Error::Rejected`], a defect and no verdict; one whose check would
-/// hold more than `limits.memory_bytes` makes the verdict
-/// [`Reason::Unchecked`], one that `limits.work` or the stop gave up
-/// [`Reason::WorkLimit`] or [`Reason::Stopped`]: every proof returned has
-/// passed the checker, unless [`Options::check`] says otherwise. On
-/// several threads, [`Error::ThreadPool`] when they cannot start.
+/// - [`Error::FragmentMismatch`]: the sequent is outside the fragment the
+///   options assert.
+/// - [`Error::NotIntuitionistic`]: in intuitionistic mode, the sequent
+///   has no intuitionistic reading.
+/// - [`Error::IntuitionisticMix`]: intuitionistic mode with Mix.
+/// - [`Error::EngineRefused`]: the options force an engine that does not
+///   search this sequent, with the [`NotTaken`] that says why. The net
+///   engine takes unit-free MLL only, and not in affine mode. The focused
+///   engine is refused in intuitionistic mode, the two-sided engine in
+///   classical mode. The additive engine takes two additive-only formulas
+///   only, the Horn engine a Horn program only.
+/// - [`Refusal::Occurrences`]: the sequent unfolds to more subformula
+///   occurrences than `limits.occurrences` allows.
+/// - [`Error::Rejected`]: the checker rejects a proof an engine found.
+///   This is a defect of the library, not a verdict.
+/// - [`Error::ThreadPool`]: on several threads, they cannot start.
+///
+/// A check of the proof that a bound or the stop gives up is no error.
+/// The verdict is then [`Verdict::Unknown`]: with [`Reason::Unchecked`]
+/// when the check would hold more than `limits.memory_bytes`, and with
+/// [`Reason::WorkLimit`] or [`Reason::Stopped`] when `limits.work` or the
+/// stop ends it.
 ///
 /// # Examples
 ///
@@ -210,23 +236,35 @@ pub fn prove(sequent: &Sequent, mode: Mode, options: &Options) -> Result<Outcome
     prove_within(sequent, mode, options, &Limits::default(), |_| false)
 }
 
-/// Decides a sequent as [`prove`] does, within `limits` (its forest within
-/// `limits.occurrences`, the search's structures and the check of its
-/// proof within `limits.memory_bytes`, its recursion within
-/// `limits.recursion_depth`, its work and that of the check each within
-/// `limits.work`), polling `stop` and giving up with
-/// [`Reason::Stopped`] once it returns true. The condition is the
-/// caller's: a deadline on a clock the caller has, a flag an interrupt
-/// handler sets; this crate has no clock of its own. The engines poll at
-/// every stable sequent or literal chosen and inside every loop that can
-/// run long between two of them, and on a forest of tens of thousands of
-/// occurrences also between the passes that set the search up; the check
-/// of a proof found polls every 4 096 nodes. What is not polled is the
-/// building of the forest before the search and single passes over the
-/// forest, each linear in it. A condition that is cheap to ask is asked
-/// often enough: one that reads a clock only every so many polls is late
-/// by that many polls, and on a large sequent a poll can be many
-/// milliseconds from the last.
+/// Decides a sequent as [`prove`] does, within `limits`, and gives up
+/// with [`Reason::Stopped`] once `stop` returns true.
+///
+/// The limits bound:
+/// - the sequent's forest, by `limits.occurrences`;
+/// - the search's structures and the check of its proof, by
+///   `limits.memory_bytes`;
+/// - the search's recursion, by `limits.recursion_depth`;
+/// - the search's work, and the check's, each by `limits.work`.
+///
+/// The stop condition is the caller's: a deadline on the caller's clock,
+/// or a flag an interrupt handler sets. This crate has no clock of its
+/// own. `|_| false` never stops. The condition is told the [`Progress`]
+/// at every poll: [`Phase::Search`] during the
+/// search, [`Phase::Refute`] while a refuter looks
+/// for a disproof after it, and [`Phase::Check`]
+/// while what it found is checked.
+///
+/// Where it is polled: the engines poll at every stable sequent or
+/// literal chosen, and inside every loop that can run long between two of
+/// them. On a forest of tens of thousands of occurrences, they also poll
+/// between the passes that set the search up. The check of a proof found
+/// polls every 4 096 nodes. The building of the forest before the search
+/// is not polled, nor are single passes over the forest, each linear in
+/// it.
+///
+/// Make the condition cheap to ask, and ask it at every poll. One that
+/// reads a clock only every so many polls is late by that many polls, and
+/// on a large sequent a poll can come many milliseconds after the last.
 ///
 /// # Errors
 ///
@@ -237,14 +275,27 @@ pub fn prove(sequent: &Sequent, mode: Mode, options: &Options) -> Result<Outcome
 #[cfg_attr(feature = "parse", doc = "```")]
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
 /// use deduxit::linear::search::{Options, Reason, Verdict, prove_within};
-/// use deduxit::{Limits, linear::{Mode, Sequent}};
+/// use deduxit::{Limits, Phase, Progress, linear::{Mode, Sequent}};
 /// use std::time::{Duration, Instant};
 ///
 /// let sequent: Sequent = "|- (a & b) + (a & c), ~a par (~b & ~c)".parse()?;
+/// let (options, limits) = (Options::default(), Limits::default());
+///
+/// // `|_| false` never stops: the search ends at a verdict or a bound.
+/// let outcome = prove_within(&sequent, Mode::CLASSICAL, &options, &limits, |_| false)?;
+/// assert!(!matches!(outcome.verdict, Verdict::Unknown(_)));
+///
+/// // A deadline on the caller's clock.
 /// let deadline = Instant::now() + Duration::from_secs(10);
-/// let limits = Limits::default();
-/// let outcome = prove_within(&sequent, Mode::CLASSICAL, &Options::default(), &limits, |_| {
+/// let outcome = prove_within(&sequent, Mode::CLASSICAL, &options, &limits, |_| {
 ///     Instant::now() >= deadline
+/// })?;
+/// assert!(!matches!(outcome.verdict, Verdict::Unknown(Reason::Stopped)));
+///
+/// // A deadline for the search alone. What runs after the search (the
+/// // refuters, the check) runs on within its own bounds.
+/// let outcome = prove_within(&sequent, Mode::CLASSICAL, &options, &limits, |p: Progress| {
+///     p.phase == Phase::Search && Instant::now() >= deadline
 /// })?;
 /// assert!(!matches!(outcome.verdict, Verdict::Unknown(Reason::Stopped)));
 /// # Ok::<(), deduxit::Error>(())
@@ -261,12 +312,15 @@ pub fn prove_within(
 }
 
 /// Decides a goal of a forest with cut formulas by `run` on a forest of
-/// its own, so that no engine sees a cut formula: the goal's formulas as
-/// the roots of a cut-free sequent over the same arena (intuitionistically
-/// its hypotheses first, written left of `⊢`, then its goal), whose
-/// forest numbers each formula's occurrences as the goal's forest does,
-/// shifted. A proof found is carried back by the shift, as a proof of the
-/// goal, and checked there when it was checked; a disproof is the own
+/// its own, so that no engine sees a cut formula.
+///
+/// The own forest is that of a cut-free sequent over the same arena,
+/// whose roots are the goal's formulas. Intuitionistically, the
+/// hypotheses come first, left of `⊢`, then the goal's output. It
+/// numbers each formula's occurrences as the goal's forest does, shifted.
+///
+/// A proof found is carried back by the shift, as a proof of the goal.
+/// It is checked again there when it was checked. A disproof is the own
 /// sequent's, whose formulas are the goal's.
 fn on_own_forest(
     goal: Goal<'_>,
@@ -303,8 +357,8 @@ fn on_own_forest(
     let Verdict::Proved(proof) = &outcome.verdict else {
         return Ok(outcome);
     };
-    // The occurrence of the goal's forest that one of the own forest's is:
-    // its formula's member, plus how far into the formula it lies.
+    // An occurrence of the own forest, in the goal's forest: its formula's
+    // member, plus how far into the formula it lies.
     let lift = |m: Member| {
         let o = m.occ();
         let root = own.root(o);
@@ -340,9 +394,12 @@ fn on_own_forest(
     Ok(outcome)
 }
 
-/// Members of a forest that a search decides: its conclusion, the roots,
-/// or a goal a session left open, any multiset of its occurrences. The
-/// roots in any order are the conclusion.
+/// What a search decides: a multiset of a forest's occurrences, read as
+/// the sequent of those subformulas.
+///
+/// It is the forest's conclusion (its roots, in any order) or any other
+/// multiset of its occurrences, such as a goal an interactive proof left
+/// open. [`prove_goal`] decides it.
 #[derive(Clone, Copy, Debug)]
 pub struct Goal<'a> {
     /// The forest.
@@ -354,7 +411,7 @@ pub struct Goal<'a> {
 }
 
 impl<'a> Goal<'a> {
-    /// The forest's conclusion: the sequent itself.
+    /// Returns the forest's conclusion, the sequent itself, as a goal.
     pub fn conclusion(forest: &'a Forest) -> Self {
         Self {
             forest,
@@ -363,7 +420,8 @@ impl<'a> Goal<'a> {
         }
     }
 
-    /// The goal of the members given, in any order and with repeats.
+    /// Returns the goal of the members given, in any order and with
+    /// repeats. The roots in any order are the conclusion.
     ///
     /// # Errors
     ///
@@ -405,18 +463,22 @@ impl<'a> Goal<'a> {
     }
 }
 
-/// Decides a [`Goal`]: a multiset of occurrences of a forest, given in
-/// any order, which stands for the sequent of those subformulas, within
-/// `limits` and until `stop` fires, as [`prove_within`] does. The roots are
-/// the sequent itself, and [`prove_within`] is this function on them; any
-/// other goal is what an interactive proof leaves open, and the engine that
-/// decides it is the one its own fragment calls for, except that the net
-/// engine works on the roots only. The proof of a goal other than the
-/// roots is a [`Proof`] whose root concludes the goal, which it records
-/// ([`Proof::goal`]) and [`Proof::check`] checks it against; it is meant
-/// to be grafted onto the goal, as the interactive state does, and is
-/// refused where a proof of the sequent is needed ([`Error::GoalProof`]).
-/// Every proof records the mode it was found in ([`Proof::mode`]).
+/// Decides a [`Goal`] within `limits` and until `stop` returns true, as
+/// [`prove_within`] does.
+///
+/// A goal is a multiset of a forest's occurrences, given in any order,
+/// read as the sequent of those subformulas. The roots are the sequent
+/// itself, and [`prove_within`] is this function on them. Any other goal
+/// is one an interactive proof leaves open. The engine is the one the
+/// goal's own fragment calls for, except that the net engine works on the
+/// roots only.
+///
+/// The proof of a goal other than the roots is a [`Proof`] whose root
+/// concludes the goal. It records the goal ([`Proof::goal`]), and
+/// [`Proof::check`] checks it against that goal. It is meant to be
+/// grafted onto the goal, as the interactive state does. Where a proof of
+/// the sequent is needed, it is refused ([`Error::GoalProof`]). Every
+/// proof records the mode it was found in ([`Proof::mode`]).
 ///
 /// # Errors
 ///
@@ -432,8 +494,9 @@ impl<'a> Goal<'a> {
 /// use deduxit::linear::search::{Goal, Options, Verdict, prove_goal};
 /// use deduxit::{Limits, linear::{Forest, Member, Mode, Sequent}};
 ///
-/// // ⊢ ~A, A ⊗ ~B, B, with the occurrences 0: ~A, 1: A ⊗ ~B, 2: A,
-/// // 3: ~B, 4: B. The goal ⊢ ~A, A is the left premise of the ⊗.
+/// // The sequent is ⊢ ~A, A ⊗ ~B, B, with the occurrences 0: ~A,
+/// // 1: A ⊗ ~B, 2: A, 3: ~B, 4: B. The goal ⊢ ~A, A is the left premise
+/// // of the ⊗.
 /// let sequent: Sequent = "A, A -o B |- B".parse()?;
 /// let forest = Forest::new(&sequent)?;
 /// let members = [Member::new(0), Member::new(2)];
@@ -455,26 +518,32 @@ pub fn prove_goal(
             prove_goal(Goal::conclusion(own), mode, options, limits, stop)
         });
     }
-    // The input is held for the search: the bound is on all of it.
+    // The search holds the input as long as it runs, so the bound counts
+    // the input too.
     let account = memory::Account::holding(limits.memory_bytes, goal.forest.held_bytes() as u64);
     let work = Work::new(limits.work);
     decide_goal(goal, mode, options, limits, &account, &work, &mut stop)
 }
 
 /// Decides a goal as [`prove_goal`] does, on at most `threads` threads,
-/// the calling one counted. From three: one thread first and, once
-/// `add_pool` says so at one of its polls, a pool of the other
-/// `threads − 1` beside it, which starts the search afresh; the first to
-/// decide answers and stops the other, and both draw on one memory bound
-/// and one bound on work. The single search goes on beside the pool, since
-/// a pool may search worse than one thread. With two threads a pool of two
-/// from the start, with one the calling thread alone, and so on an engine
-/// that searches on one thread ([`Engine::parallel`]) and in an ordered
-/// mode; `add_pool` is then
-/// never asked. The single search runs on the calling thread, whose stack
-/// must hold the recursion ([`Limits::stack_bytes`]). `add_pool` is asked
-/// with the single search's progress, so a front end decides with its own
-/// clock; `stop` is asked by both searches, from two threads. The outcome
+/// the calling one counted.
+///
+/// From three threads, one search starts on the calling thread. Once
+/// `add_pool` returns true at one of its polls, a pool of the other
+/// `threads − 1` threads starts the search afresh beside it. The first to
+/// decide answers and stops the other. Both draw on one memory bound and
+/// one bound on work. The single search goes on beside the pool, since a
+/// pool may search worse than one thread.
+///
+/// Below three threads, in an ordered mode, or for an engine that
+/// searches on one thread ([`Engine::parallel`]), it runs one search on
+/// `threads` threads, and `add_pool` is never asked. With two threads,
+/// that is a pool of two from the start.
+///
+/// The single search runs on the calling thread, whose stack must hold
+/// the recursion ([`Limits::stack_bytes`]). `add_pool` is told the single
+/// search's progress, so a front end decides with its own clock when to
+/// add the pool. Both searches ask `stop`, from two threads. The outcome
 /// is the deciding search's, with both searches' counters
 /// ([`Statistics::add`]).
 ///
@@ -584,8 +653,8 @@ pub fn race(
             .join()
             .unwrap_or_else(|panic| std::panic::resume_unwind(panic));
         // A decision of either side answers, whatever the other ended
-        // with (a pool that could not start its threads, say); else an
-        // error of either.
+        // with (a pool that could not start its threads, say). Without
+        // one, an error of either side answers.
         let (mut answered, other) = match (first, second) {
             (first, second) if settled(&first) => (first?, second.ok()),
             (first, second) if settled(&second) => (second?, first.ok()),
@@ -619,7 +688,8 @@ fn decide_goal(
 }
 
 /// What a search of a goal answered, before the verdict is made of it:
-/// the engine's answer, and the goal's occurrences, fragment and engine.
+/// the engine's answer, and the goal's occurrences, fragment, mode and
+/// engine.
 struct Answered<'a> {
     /// The engine's answer, with the counters.
     answer: Answer,
@@ -634,8 +704,8 @@ struct Answered<'a> {
 }
 
 impl Answered<'_> {
-    /// Makes the verdict of the answer ([`conclude`]), whose check or
-    /// refutation draws on `account` too, and returns the outcome.
+    /// Makes the verdict of the answer ([`conclude`]) and returns the
+    /// outcome. The verdict's check or refutation draws on `account` too.
     fn concluded(
         self,
         goal: Goal<'_>,
@@ -681,8 +751,9 @@ impl Answered<'_> {
 }
 
 /// Searches a goal as [`decide_goal`] does, and returns what the engine
-/// answered without making the verdict of it: a race makes it once both
-/// of its searches have ended.
+/// answered without making the verdict of it.
+///
+/// A race makes the verdict once both of its searches have ended.
 fn answer_goal<'a>(
     goal: Goal<'a>,
     mode: Mode,
@@ -707,8 +778,8 @@ fn answer_goal<'a>(
         reading.as_ref(),
     )?;
     let implementation = engine.implementation();
-    // The inverse method's turns beside the engine, and the work of the
-    // search, the turns' included, at which the next is due.
+    // The inverse method's turns beside the engine. `due` is the search's
+    // work, the turns' included, at which the next turn is due.
     let (head_start, share) = turn_bounds();
     let mut due = head_start;
     let turns = std::cell::RefCell::new(Turns {
@@ -717,16 +788,16 @@ fn answer_goal<'a>(
         share,
         answer: None,
     });
-    // Every poll on this thread counts its units of work, and tells the
-    // caller's stop those and the units of every thread of the search;
-    // past the bound on work the search ends. With other threads, which
+    // Every poll on this thread counts its units of work. It tells the
+    // caller's stop those units and the units of every thread of the
+    // search. Past the bound on work, the search ends. Where other threads
     // read the shared count, this one adds its units to it in batches.
     let mut mine = Counted::new(work);
     // The fragment, the reading and the dispatch were passes over the
-    // forest: the caller's condition is asked before the engine's own.
+    // forest, so the caller's condition is asked before the engine polls.
     if set_up_stopped(forest, &mut |units| poll(&mut mine, &mut *stop, units).0) {
-        // This thread has done no work yet: another thread's passed the
-        // bound, or the caller stopped.
+        // This thread has done no work yet. So either another thread's
+        // work passed the bound, or the caller stopped.
         let reason = if work.passed() {
             Reason::WorkLimit {
                 limit: work.limit(),
@@ -747,17 +818,18 @@ fn answer_goal<'a>(
             engine,
         });
     }
-    // What the search allocates is counted against the bound.
+    // No more threads than the machine runs at once. `held` is what the
+    // account holds before the engine runs, which a handover rewinds to.
     #[cfg(feature = "parallel")]
     let options = &options
         .clone()
         .with_jobs(parallel::threads(options.threads()));
     let held = account.used();
     let mut answer = if probes(&task, options) {
-        // A turn comes at a poll of the engine's own work on this thread:
-        // where a second thread of the default bias has its turn, this one
-        // polls without units and waits. A search whose row gives no turn
-        // polls without the comparison: on every poll it cost some
+        // A turn comes only at a poll of the engine's own work on this
+        // thread. While a second thread of the default bias has its turn,
+        // this one polls without units and waits. A search whose row gives
+        // no turn polls without the comparison: on every poll it costs some
         // instructions, a quarter of a percent of a focused search.
         implementation.decide(&task, options, limits, account, work, &mut |units| {
             let (stopped, done) = poll(&mut mine, &mut *stop, units);
@@ -785,7 +857,8 @@ fn answer_goal<'a>(
     let probe = turns.borrow_mut().answer.take();
     let engine = if let Some(probe) = probe {
         // The engine stopped at the poll at which the inverse method
-        // decided; its counters go with it, as at a handover.
+        // decided. The turn's answer and counters replace the engine's, as
+        // at a handover.
         drop(answer);
         answer = probe?;
         Engine::Inverse
@@ -841,9 +914,10 @@ fn answer_goal<'a>(
     })
 }
 
-/// Counts a poll's units in `mine` and asks the caller's `stop`, which is
-/// told the poll that passes the bound on work too; returns whether the
-/// search ends and the search's units in all.
+/// Counts a poll's units in `mine` and asks the caller's `stop`. Returns
+/// whether the search ends, and the search's units in all.
+///
+/// The caller is told the poll that passes the bound on work too.
 fn poll(
     mine: &mut Counted<'_>,
     stop: &mut impl FnMut(Progress) -> bool,
@@ -854,24 +928,30 @@ fn poll(
     (stopped || mine.passed(), done)
 }
 
-/// Whether another engine takes over a goal the dispatch gave a focused
-/// engine: one of unit-free MLL, the roots, in a mode without weakening,
-/// whose linking is forced ([`one_linking`]), on which that engine ended
-/// at its recursion limit or memory bound. The focused engines recurse
-/// once per stable sequent and keep a memo, and a long chain of links
-/// reaches the recursion limit, a wide enough sequent the memory bound.
-/// After the recursion limit the net engine takes over, which recurses
-/// not at all and on a chain is twice as fast as the inverse method; after
-/// the memory bound in classical mode without Mix the inverse method,
-/// which is three to four times as fast as the net engine on a wide
-/// sequent there, and the net engine after it where it meets a bound of
-/// its own; elsewhere the net engine (under Mix the inverse method ran
-/// past a minute where the net engine proved the same wide sequent).
-/// What a search before left charged goes first, so that the proof is
-/// checked under the bound as if its engine had run alone. The last
-/// answer replaces the ones before, whose counters it drops (in a race
-/// the other search's are added, as ever); the work counted is every
-/// search's, each in its engine's unit.
+/// Returns whether another engine takes over a goal on which the
+/// dispatch's engine ended at its recursion limit or memory bound.
+///
+/// It does when no engine is forced, and the goal is unit-free MLL, the
+/// roots, in a mode without weakening, with a forced linking
+/// ([`one_linking`]). The focused engines recurse once per stable
+/// sequent and keep a memo. So a long chain of links reaches the
+/// recursion limit, and a wide enough sequent the memory bound.
+///
+/// Which engine takes over:
+/// - after the recursion limit, the net engine. It does not recurse, and
+///   on a chain it is twice as fast as the inverse method;
+/// - after the memory bound in classical mode without Mix, the inverse
+///   method. It is three to four times as fast as the net engine on a
+///   wide sequent there. Where it meets a bound of its own, the net
+///   engine takes over after it;
+/// - elsewhere, the net engine. Under Mix, the inverse method ran past a
+///   minute where the net engine proved the same wide sequent.
+///
+/// What the searches before left charged is given back first, so the
+/// proof is checked under the bound as if its engine had run alone. The
+/// last answer replaces the ones before, and drops their counters (in a
+/// race the other search's are added, as always). The work counted is
+/// every search's, each in its engine's unit.
 fn handed_over(options: &Options, task: &Task<'_>, answer: &Answer) -> bool {
     options.engine.is_none()
         && matches!(
@@ -882,12 +962,14 @@ fn handed_over(options: &Options, task: &Task<'_>, answer: &Answer) -> bool {
         && one_linking(task.forest)
 }
 
-/// Whether every atom of the forest occurs once with each sign, so that
-/// its axiom linking is the only one: the net engine's search then makes
-/// one link per pair and backtracks over none, at the cost of a scan of
-/// the atoms and a test of the criterion per link, quadratic in all. On equal literals its search is exponential,
-/// and taking over a goal on which a focused engine met its limit would
-/// trade a quick "unknown" for a search without end.
+/// Returns whether every atom of the forest occurs at most once with each
+/// sign, so that its axiom linking is the only one.
+///
+/// The net engine's search then makes one link per pair and backtracks
+/// over none. Each link costs a scan of the atoms and a test of the
+/// criterion, so the search is quadratic in all. On equal literals its
+/// search is exponential: taking over a goal on which a focused engine
+/// met its limit would trade a quick "unknown" for a search without end.
 fn one_linking(forest: &Forest) -> bool {
     use crate::linear::occurrences::Sign;
     (0..forest.sequent().atom_names().len() as u32).all(|a| {
@@ -910,18 +992,25 @@ struct Concluding<'a> {
     roots: bool,
 }
 
-/// Returns the verdict of an engine's answer, the one place it is made:
-/// a proof that passed the checker and records the goal it concludes and
-/// the mode, an exhausted search with the engine's refutation or the
-/// counts', or why the search stopped. No engine is trusted with its own
-/// proof: the checker has the last word on every proof, of the sequent or
-/// of a goal, in every build, and a check that a bound or the stop gave up
-/// is no verdict on the proof, so no proof is returned unchecked, unless
-/// [`Options::check`] is off: the proof is then the engine's word, and
-/// `Outcome::checked` says so. The check of a proof and the refutation
-/// hold their memory on `account`, beside what it holds, within the same
-/// bound as the search; the check of a saturated set holds its own
-/// outside it, of the order of the set, which the search held within it.
+/// Returns the verdict of an engine's answer. This is the one place a
+/// verdict is made.
+///
+/// The verdict is one of:
+/// - a proof that passed the checker, which records the goal it
+///   concludes and the mode;
+/// - an exhausted search, with the engine's refutation or the counts';
+/// - why the search stopped.
+///
+/// No engine is trusted with its own proof. The checker has the last word
+/// on every proof, of the sequent or of a goal, in every build. A check
+/// that a bound or the stop gave up is no verdict on the proof, so no
+/// proof is returned unchecked. The exception is [`Options::check`] off:
+/// the proof is then the engine's word, and `Outcome::checked` says so.
+///
+/// The check of a proof and the refutation hold their memory on
+/// `account`, beside what it holds, within the same bound as the search.
+/// The check of a saturated set holds its own memory outside it. That is
+/// of the order of the set, which the search held within the bound.
 ///
 /// # Errors
 ///
@@ -955,9 +1044,10 @@ fn conclude(
                 Some(Refutation::Saturated(set)) => (None, Some(set)),
                 refutation => (refutation, None),
             };
-            // What the counts of the goal rule out, under the same bound as
-            // the search, where the engine has no refutation of its own,
-            // and else a classical assignment where one is found.
+            // Where the engine has no refutation of its own: what the
+            // counts of the goal rule out, under the same bound as the
+            // search. Failing that, a classical assignment, where one is
+            // found.
             let refutation = refutation.unwrap_or_else(|| {
                 let mut polled = |_| stop(Progress::new(Phase::Refute, 0, 0));
                 focus::counts::refutation(
@@ -976,8 +1066,8 @@ fn conclude(
             };
             let refutation = match (refutation, saturated) {
                 (Refutation::Exhausted, Some(set)) => {
-                    // The set is checked as a proof is, apart from the
-                    // engine that saturated, unless the check is off.
+                    // The set is checked as a proof is, by code apart from
+                    // the engine that saturated it, unless the check is off.
                     if options.check {
                         // Within a work bound of its own, as a proof's
                         // check is.
@@ -1007,8 +1097,9 @@ fn conclude(
             };
             unprovable(forest, mode, refutation, &goal, members)
         }
-        // A search that did not decide is unprovable where the classical
-        // reading is falsified, and stays as it ended otherwise.
+        // A search that did not decide is unprovable where an assignment
+        // makes the classical reading false. Otherwise it stays as it
+        // ended.
         Err(reason) => match classical(&goal, options, account, stop) {
             Some(assignment) => unprovable(
                 forest,
@@ -1027,7 +1118,8 @@ fn conclude(
         debug_assert_eq!(proof.check(mode), Ok(()), "an engine's proof");
         return Ok(verdict);
     }
-    // What the bound leaves beside the input; a refusal names the bound.
+    // The check gets what the bound leaves beside the input. A refusal
+    // names the option's bound.
     let left = (*limits).with_memory_bytes(account.left());
     match proof.check_within(mode, &left, stop) {
         Ok(()) => Ok(verdict),
@@ -1054,9 +1146,11 @@ fn unprovable(
     }))
 }
 
-/// Returns an assignment that falsifies the classical reading of the goal,
-/// found within [`Options::classical_work`] and what the memory bound
-/// leaves, its polls asking `stop`; `None` where none is found.
+/// Returns an assignment that makes the classical reading of the goal
+/// false, or `None` where none is found.
+///
+/// The search for it runs within [`Options::classical_work`] and what the
+/// memory bound leaves, and its polls ask `stop`.
 fn classical(
     goal: &Concluding<'_>,
     options: &Options,
@@ -1074,7 +1168,11 @@ fn classical(
 
 /// Returns why a search whose proof's check was given up is unknown: the
 /// stop, the work bound, or the memory bound of `limits` the check would
-/// have passed; a refusal no check makes stays the error it is.
+/// have passed.
+///
+/// # Errors
+///
+/// A refusal that no check makes stays the error it is.
 fn unchecked(refusal: Refusal, limits: &Limits) -> Result<Reason, Error> {
     match refusal {
         Refusal::Stopped { .. } => Ok(Reason::Stopped),
@@ -1087,18 +1185,34 @@ fn unchecked(refusal: Refusal, limits: &Limits) -> Result<Reason, Error> {
 }
 
 /// Returns the engine [`prove_goal`] runs on a goal under the options:
-/// the one they force, or the one the dispatch picks, or the error the
-/// search would answer before it starts. It costs what `prove_goal` does
-/// before it searches: a pass over the goal for its fragment, in
-/// intuitionistic mode the reading of the forest, and the dispatch's
-/// test of the goal's shape. `race` (feature `parallel`) asks it before it adds a pool beside
-/// a single thread, since an engine that runs on one thread
-/// ([`Engine::parallel`]) would only search again; a front end asks it to
-/// say which engine will run.
+/// the one they force, or the one the dispatch picks.
+///
+/// It costs what `prove_goal` does before it searches: a pass over the
+/// goal for its fragment, in intuitionistic mode the reading of the
+/// forest, and the dispatch's test of the goal's shape. A front end asks
+/// it to say which engine will run. `race` (feature `parallel`) asks it
+/// before it adds a pool beside a single thread, since an engine that
+/// runs on one thread ([`Engine::parallel`]) would only search again.
 ///
 /// # Errors
 ///
 /// Those of [`prove_goal`] that come before the search.
+///
+/// # Examples
+///
+#[cfg_attr(feature = "parse", doc = "```")]
+#[cfg_attr(not(feature = "parse"), doc = "```ignore")]
+/// use deduxit::linear::search::{Engine, Goal, Options, engine_for};
+/// use deduxit::linear::{Forest, Mode, Sequent};
+///
+/// let sequent: Sequent = "A, A -o B |- B".parse()?;
+/// let forest = Forest::new(&sequent)?;
+/// let goal = Goal::conclusion(&forest);
+/// let options = Options::default();
+/// assert_eq!(engine_for(goal, Mode::CLASSICAL, &options)?, Engine::Focus);
+/// assert_eq!(engine_for(goal, Mode::INTUITIONISTIC, &options)?, Engine::TwoSided);
+/// # Ok::<(), deduxit::Error>(())
+/// ```
 pub fn engine_for(goal: Goal<'_>, mode: Mode, options: &Options) -> Result<Engine, Error> {
     let occurrences = goal.occurrences();
     let fragment = fragment_of(goal.forest, &occurrences, options)?;
@@ -1114,7 +1228,13 @@ pub fn engine_for(goal: Goal<'_>, mode: Mode, options: &Options) -> Result<Engin
     .map(|(_, engine)| engine)
 }
 
-/// The fragment a goal is searched in, the options' or its own.
+/// Returns the fragment a goal is searched in: the one the options
+/// assert, or else the goal's own.
+///
+/// # Errors
+///
+/// [`Error::FragmentMismatch`] when the goal is outside the asserted
+/// fragment.
 fn fragment_of(forest: &Forest, goal: &[OccId], options: &Options) -> Result<Fragment, Error> {
     let detected = goal_fragment(forest, goal);
     match options.fragment {
@@ -1126,8 +1246,13 @@ fn fragment_of(forest: &Forest, goal: &[OccId], options: &Options) -> Result<Fra
     }
 }
 
-/// The forest's intuitionistic reading in intuitionistic mode, of a mode
-/// that [`Mode::check`] lets through.
+/// Returns the forest's intuitionistic reading in intuitionistic mode,
+/// and `None` in classical mode.
+///
+/// # Errors
+///
+/// The mode's own error from [`Mode::check`], and
+/// [`Error::NotIntuitionistic`] for a forest with no reading.
 fn read(forest: &Forest, mode: Mode) -> Result<Option<Reading<'_>>, Error> {
     mode.check()?;
     if !mode.intuitionistic {
@@ -1138,9 +1263,16 @@ fn read(forest: &Forest, mode: Mode) -> Result<Option<Reading<'_>>, Error> {
         .map_err(Error::NotIntuitionistic)
 }
 
-/// The task of a goal searched in `fragment` and the engine that decides
-/// it, which admits it; in intuitionistic mode the goal has one output
-/// under the reading given.
+/// Returns the task of a goal searched in `fragment`, and the engine that
+/// decides it, which admits it.
+///
+/// # Errors
+///
+/// [`Error::GoalOutputs`] for an intuitionistic goal without exactly one
+/// output under the reading given, [`Error::OrderedFragment`] for an
+/// ordered mode beyond unit-free MLL, and [`Error::EngineRefused`] for an
+/// engine that does not take the goal. The dispatch's own error where no
+/// engine does.
 fn prepare<'a>(
     goal: Goal<'a>,
     occurrences: &'a [OccId],
@@ -1191,14 +1323,14 @@ fn prepare<'a>(
     Ok((task, engine))
 }
 
-/// A goal as the engines are handed it: the occurrences of the forest it
-/// consists of, the fragment and the mode it is searched in, and in
-/// intuitionistic mode the forest's reading.
+/// A goal as the engines are handed it: its occurrences of the forest,
+/// the fragment and the mode it is searched in, and in intuitionistic
+/// mode the forest's reading.
 pub(crate) struct Task<'a> {
     /// The forest.
     pub(crate) forest: &'a Forest,
-    /// The goal's occurrences; the roots in the forest's order when the
-    /// goal is the sequent itself.
+    /// The goal's occurrences. When the goal is the sequent itself, they
+    /// are the roots in the forest's order.
     pub(crate) goal: &'a [OccId],
     /// The fragment searched in: the goal's own, or the one the options
     /// assert.
@@ -1209,15 +1341,16 @@ pub(crate) struct Task<'a> {
     pub(crate) reading: Option<&'a Reading<'a>>,
     /// Whether the goal is the sequent's roots.
     pub(crate) roots: bool,
-    /// The Horn program the goal is, or `None`, read by the first that
-    /// asks (the dispatch's feature, the Horn engine's `admits` or its
-    /// search), so that a goal is read once.
+    /// The Horn program the goal is, or `None` when it is none.
+    ///
+    /// The first to ask reads it: the dispatch's feature, the Horn
+    /// engine's `admits` or its search. So a goal is read once.
     program: OnceLock<Option<horn::Program>>,
 }
 
-/// What a search that keeps its proofs in an arena ended with: the node
-/// proving the goal, `None` when the search was exhaustive, or the reason
-/// it stopped; the arena; and the counters.
+/// What a search that keeps its proofs in an arena ended with: the
+/// result, the arena, the counters and, for a first-order proof, its
+/// instance table.
 pub(crate) struct Finished {
     /// The node proving the goal, `None` for an unprovable goal, or why
     /// the search stopped.
@@ -1232,7 +1365,8 @@ pub(crate) struct Finished {
 }
 
 impl Finished {
-    /// A search that gave up for `reason` before it found anything.
+    /// Returns the end of a search that gave up for `reason` before it
+    /// found anything.
     pub(crate) fn gave_up(reason: Reason) -> Self {
         Self {
             result: Err(reason),
@@ -1243,9 +1377,9 @@ impl Finished {
     }
 }
 
-/// What an engine's search ended with: a proof of the goal, `None` when
-/// the search was exhaustive, or the reason it stopped; its counters; and
-/// the proof net the net engine read its proof off.
+/// What an engine's search ended with: the result, its counters, the
+/// proof net the net engine read its proof off, and the engine's own
+/// refutation.
 pub(crate) struct Answer {
     /// The proof, `None` for an unprovable goal, or why the search
     /// stopped.
@@ -1254,16 +1388,18 @@ pub(crate) struct Answer {
     pub(crate) statistics: Statistics,
     /// The net found, from the net engine.
     pub(crate) net: Option<ProofStructure>,
-    /// For an unprovable goal, why, where the engine knows more than that
-    /// its search was exhaustive.
+    /// For an unprovable goal, why it is unprovable, where the engine
+    /// knows more than that its search was exhaustive.
     pub(crate) refutation: Option<Refutation>,
 }
 
 impl Answer {
-    /// The answer of an engine that keeps its proofs as nodes of an arena:
-    /// the result as a node, the arena and the counters. The proof is
-    /// built in the arena's own vector, asking `stop` as it goes, which
-    /// ends it as a stop of the search.
+    /// Returns the answer of an engine that keeps its proofs as nodes of
+    /// an arena.
+    ///
+    /// The proof is built in the arena's own vector. The build asks
+    /// `stop` as it goes, and a stop there ends it as a stop of the
+    /// search does.
     pub(crate) fn of_arena(
         forest: &Forest,
         Finished {
@@ -1276,8 +1412,8 @@ impl Answer {
     ) -> Self {
         let result = result.and_then(|root| {
             root.map(|root| match instances {
-                // A table the proof's ids no longer number is past its
-                // indices.
+                // A table that the proof's ids no longer number has run
+                // past its indices.
                 Some(table) => Proof::with_instances(forest.clone(), *table, nodes, root)
                     .map_err(|_| Reason::IndexLimit),
                 None => {
@@ -1301,17 +1437,25 @@ impl Answer {
 }
 
 /// What every engine implements: which goals it takes, and how it decides
-/// one. An engine reads the options its variant of [`Engine`] names and
-/// no others.
+/// one.
+///
+/// An engine reads the options its variant of [`Engine`] names, and no
+/// others.
 pub(crate) trait Decide {
-    /// Refuses a goal the engine does not decide, with the error the
-    /// options get when they force it there.
+    /// Refuses a goal the engine does not decide.
+    ///
+    /// # Errors
+    ///
+    /// The error the options get when they force the engine there:
+    /// [`Error::EngineRefused`] with the [`NotTaken`] that says why.
     fn admits(&self, task: &Task<'_>) -> Result<(), Error>;
 
-    /// Decides the goal under the options, polling `stop` with the units
-    /// of work done since the last poll (which `work` adds up for every
-    /// thread of the search), and charges what the search holds to
-    /// `account`.
+    /// Decides the goal under the options, and returns the engine's
+    /// answer.
+    ///
+    /// It polls `stop` with the units of work done since the last poll,
+    /// which `work` adds up for every thread of the search. It charges
+    /// what the search holds to `account`.
     ///
     /// # Errors
     ///
@@ -1328,9 +1472,13 @@ pub(crate) trait Decide {
     ) -> Result<Answer, Error>;
 }
 
-/// The engine the dispatch picks for a goal: that of the first row of
-/// [`DISPATCH`] that takes it, or [`Error::NoEngine`] when none does,
-/// which a mode or a fragment no row names would meet.
+/// Returns the engine the dispatch picks for a goal: that of the first
+/// row of [`DISPATCH`] that takes it.
+///
+/// # Errors
+///
+/// [`Error::NoEngine`] when no row takes the goal, which only a mode or a
+/// fragment that no row names would meet.
 fn dispatch(task: &Task<'_>) -> Result<Engine, Error> {
     DISPATCH
         .iter()
@@ -1342,10 +1490,12 @@ fn dispatch(task: &Task<'_>) -> Result<Engine, Error> {
         })
 }
 
-/// Whether the inverse method takes a turn beside the engine of a search:
-/// the dispatch's row says so ([`Row::probe`]), no engine is forced, the
-/// search runs on one thread (a race's pool searches without one), and the
-/// inverse method admits the goal.
+/// Returns whether the inverse method takes turns beside the engine of a
+/// search.
+///
+/// It does when the dispatch's row says so ([`Row::probe`]), no engine is
+/// forced, the search runs on one thread, and the inverse method admits
+/// the goal. So a race's pool searches without turns.
 fn probes(task: &Task<'_>, options: &Options) -> bool {
     #[cfg(feature = "parallel")]
     let alone = options.threads() == 1;
@@ -1360,10 +1510,11 @@ fn probes(task: &Task<'_>, options: &Options) -> bool {
         && Engine::Inverse.implementation().admits(task).is_ok()
 }
 
-/// The dispatch, read from the first row down: for each fragment, mode and
-/// feature of a goal, the engine a measurement shows fastest there, as the
-/// documentation of [`Engine`] tabulates with the measurements. The last
-/// two rows take every goal, each in its own modes.
+/// The dispatch, read from the first row down. For each fragment, mode
+/// and feature of a goal, it names the engine a measurement shows fastest
+/// there. The documentation of [`Engine`] tabulates the rows with the
+/// measurements. The last two rows take every goal, each in its own
+/// modes.
 const DISPATCH: [Row; 8] = [
     Row {
         fragment: Fragment::MLL,
@@ -1424,25 +1575,29 @@ const DISPATCH: [Row; 8] = [
 ];
 
 /// The work a row's engine does alone before the inverse method takes its
-/// first turn beside it, where the row has one ([`Row::probe`]): in the
-/// dispatched engine's units, every thread of the search counted but the
-/// turns, some hundredths of a second on the intuitionistic rows
-/// measured. A goal decided within it is decided as without the turns.
+/// first turn beside it, where the row gives turns ([`Row::probe`]).
+///
+/// It is in the dispatched engine's units, with every thread of the
+/// search counted but the turns. On the intuitionistic rows measured, it
+/// is some hundredths of a second. A goal decided within it is decided as
+/// without the turns.
 const PROBE_AFTER: u64 = 1 << 24;
 
 /// The share of the engine's own work that a turn of the inverse method
-/// may do, in the inverse method's units: a turn comes each time the
-/// engine's work has doubled, starting afresh, so the turns together do
-/// at most a sixteenth of the engine's work. A sixteenth made the
-/// turns an eighth, which took a row the engine proved in 54 s of a
-/// 60 s limit past it.
+/// may do: a turn does at most the engine's work over this, in the
+/// inverse method's units.
+///
+/// A turn comes each time the engine's work has doubled, and starts
+/// afresh. So the turns together do at most a sixteenth of the engine's
+/// work. A share of 16 makes the turns an eighth, which takes a row the
+/// engine proves in 54 s of a 60 s limit past the limit.
 const TURN_SHARE: u64 = 32;
 
 #[cfg(test)]
 thread_local! {
-    /// The head start and the turns' share on a test's thread, which a test
-    /// may set other than [`PROBE_AFTER`] and [`TURN_SHARE`] to see turns
-    /// on small goals; a share of 0 lets a turn run to its end.
+    /// The head start and the turns' share on a test's thread. A test may
+    /// set them other than [`PROBE_AFTER`] and [`TURN_SHARE`], to see
+    /// turns on small goals. A share of 0 lets a turn run to its end.
     static TURN: std::cell::Cell<(u64, u64)> = const { std::cell::Cell::new((PROBE_AFTER, TURN_SHARE)) };
 }
 
@@ -1460,10 +1615,11 @@ fn turn_bounds() -> (u64, u64) {
     }
 }
 
-/// The inverse method's turns beside an engine's search
-/// ([`Row::probe`]): a turn each time the engine's own work has doubled
-/// past the head start, from the inverse method's start, of at most a
-/// share of that work, so that the turns together do at most twice the
+/// The inverse method's turns beside an engine's search ([`Row::probe`]).
+///
+/// A turn comes each time the engine's own work has doubled past the head
+/// start. Each turn runs the inverse method from its start, and does at
+/// most a share of that work. So the turns together do at most twice the
 /// last one's share.
 struct Turns {
     /// The work the turns did.
@@ -1473,21 +1629,28 @@ struct Turns {
     /// The share of the engine's work a turn may do: [`TURN_SHARE`], or a
     /// test's (0 lets a turn run to its end).
     share: u64,
-    /// What the turn that decided answered.
+    /// What the turn that decided answered, or `None` while none has.
     answer: Option<Result<Answer, Error>>,
 }
 
 impl Turns {
     /// Takes the turn due when the search has done `done` units, the
-    /// turns' included: asks the row first, then runs the inverse method
-    /// on the task within its share, counting its work in `mine` and
-    /// asking `stop` and the bound on work at its polls. Returns whether
-    /// the engine must stop (the turn decided, which it keeps, or the
-    /// caller's stop or the bound fired) and the work at which the next
-    /// turn is due, `u64::MAX` for none: the row gives none, or the turn
-    /// met the memory bound or an index limit, which a longer one meets
-    /// sooner. Kept apart from the poll, which it leaves one comparison:
-    /// inlined there, it made every poll some seven instructions dearer.
+    /// turns' included.
+    ///
+    /// On the first turn it asks whether the row gives turns. Then it runs
+    /// the inverse method on the task within its share. It counts the
+    /// turn's work in `mine`, and asks `stop` and the bound on work at the
+    /// turn's polls.
+    ///
+    /// Returns whether the engine must stop, and the work at which the
+    /// next turn is due. The engine must stop when the turn decided (the
+    /// turn's answer is kept), or the caller's stop or the bound on work
+    /// fired. No turn is due (`u64::MAX`) when the row gives none, or when
+    /// the turn met the memory bound or an index limit, which a longer
+    /// turn would meet sooner.
+    ///
+    /// It is kept apart from the poll, which it leaves one comparison.
+    /// Inlined there, it makes every poll some seven instructions dearer.
     #[cold]
     #[inline(never)]
     #[expect(
@@ -1529,9 +1692,9 @@ impl Turns {
             },
         );
         self.spent = self.spent.saturating_add(turn);
-        // A decision answers; so does an error, and the caller's stop or
-        // the bound on work ends the engine too. Else what the turn kept
-        // goes, and the engine goes on.
+        // A decision answers, and so does an error. The caller's stop or
+        // the bound on work ends the engine too. Otherwise what the turn
+        // kept goes, and the engine goes on.
         let decided = !matches!(answer, Ok(Answer { result: Err(_), .. }));
         let over = matches!(
             answer,
@@ -1552,7 +1715,7 @@ impl Turns {
     }
 }
 
-/// A row of the dispatch: a goal whose fragment lies within `fragment`,
+/// A row of the dispatch. A goal whose fragment lies within `fragment`,
 /// searched in one of `modes`, with `feature`, goes to `engine`.
 #[derive(Clone, Copy, Debug)]
 struct Row {
@@ -1564,18 +1727,19 @@ struct Row {
     feature: Feature,
     /// The engine its goals go to.
     engine: Engine,
-    /// Whether the inverse method takes turns beside the engine: once the
-    /// engine has done [`PROBE_AFTER`] units of work without deciding, and
-    /// again each time its work has doubled, a turn of at most a
-    /// [`TURN_SHARE`]th of that work in the inverse method's units, from
-    /// its start, on the thread that polls, after which the engine goes on
-    /// where it stopped. Where a turn decides first, its answer is the
-    /// search's.
+    /// Whether the inverse method takes turns beside the engine.
+    ///
+    /// The first turn comes once the engine has done [`PROBE_AFTER`] units
+    /// of work without deciding, and another each time its work has
+    /// doubled. Each turn runs the inverse method from its start, on the
+    /// thread that polls. It does at most a [`TURN_SHARE`]th of that work,
+    /// in the inverse method's units. Then the engine goes on where it
+    /// stopped. Where a turn decides first, its answer is the search's.
     probe: bool,
 }
 
 impl Row {
-    /// Whether the row takes the goal.
+    /// Returns whether the row takes the goal.
     fn takes(&self, task: &Task<'_>) -> bool {
         self.fragment.contains(task.fragment) && self.modes.take(task.mode) && self.feature.of(task)
     }
@@ -1600,7 +1764,7 @@ enum Modes {
 }
 
 impl Modes {
-    /// Whether a mode is one of these.
+    /// Returns whether a mode is one of these.
     fn take(self, mode: Mode) -> bool {
         #[expect(
             clippy::unneeded_field_pattern,
@@ -1641,20 +1805,21 @@ enum Feature {
 }
 
 impl Feature {
-    /// Whether the goal has the feature.
+    /// Returns whether the goal has the feature.
     fn of(self, task: &Task<'_>) -> bool {
         match self {
             Feature::Any => true,
             Feature::TwoFormulas => task.goal.len() == 2 && !task.fragment.is_empty(),
-            // The fragment, which the options may assert larger than the
-            // goal's, only spares a non-Horn goal the reading.
+            // The options may assert a fragment larger than the goal's, so
+            // the fragment test only spares a goal that is no Horn program
+            // the reading.
             Feature::PetriNet => task.fragment.has_exponentials() && horn::is_net(task),
             Feature::Exponentials => task.fragment.has_exponentials(),
         }
     }
 }
 
-/// Returns the smallest fragment the goal's subformulas live in: the
+/// Returns the smallest fragment the goal's subformulas lie in: the
 /// sequent's own fragment for the roots, and possibly a smaller one for an
 /// open goal deeper in the forest.
 pub(crate) fn goal_fragment(forest: &Forest, goal: &[OccId]) -> Fragment {
@@ -1667,282 +1832,354 @@ pub(crate) fn goal_fragment(forest: &Forest, goal: &[OccId]) -> Fragment {
     fragment
 }
 
-/// The engines, by which an outcome names the one that ran and the options
-/// force one.
+/// The proof-search engines. An [`Outcome`] names the one that ran, and
+/// [`Options::engine`] forces one.
+///
+/// Each variant describes its engine: how it searches, which options it
+/// reads, and its unit of work.
 ///
 /// # Which engine decides a goal
 ///
 /// Unless [`Options::engine`] forces one, a goal goes to the engine of the
-/// first row it fits, by the fragment it lies in (detected, or asserted by
-/// [`Options::fragment`]), its mode and one more feature; each row is the
-/// engine that measured fastest there, or the one that decides there at
-/// all:
+/// first row of this table that it fits. A row asks for a fragment the
+/// goal lies in (detected, or asserted by [`Options::fragment`]), a mode,
+/// and sometimes one more feature. Each row's engine is the one that
+/// measured fastest there, or the only one that decides there at all.
 ///
 /// | fragment | mode | feature | engine | measured (one thread) |
 /// |---|---|---|---|---|
 /// | unit-free MLL | Lambek, with or without empty antecedents | | [`Essential`](Engine::Essential) | the one engine of the Lambek calculus, by planar essential nets: chains `a₀, a₀ \ a₁, … ⊢ aₙ` of 1 024 and 4 096 links in 59 ms and 2.8 s, written with `/` in 23 and 393 ms, products of 4 096 atoms entailing themselves in 0.66 s, the exchanged and reversed forms refuted in 88 and 159 ms; 20 random derivations of the calculus over two atoms all proved in at most 4.7 ms (9.8 ms in all) and their exchanged forms decided in at most 0.4 ms, where the classical net search on the same one-sided sequents ran past 60 s on 8 of 20 and the focused engine took up to 3.5 s; without empty antecedents the products `x ⊢ x ⊗ ((a₀ \ a₀) ⊗ …)` of 16 to 256 factors refuted in 14 to 81 ms, with them proved in under 3 ms (`bench/problems/lambek.txt`) |
 /// | unit-free MLL | cyclic | | [`Net`](Engine::Net) | the one engine that keeps the order, by planar linkings: chains `a₀, a₀ ⊸ a₁, … ⊢ aₙ` of 4 096 links in 0.46 s and products of 4 096 atoms entailing themselves in 0.89 s, as fast as the classical net search on the same sequents, which links them alike; their exchanged forms refuted in 0.08 and 0.16 s; random derivations of the cyclic calculus over two atoms decided in 23 µs to 0.4 ms, where the classical net search on the same sequents ran past 60 s on 2 of 20 (`bench/problems/cyclic.txt`) |
 /// | additives only | any | two formulas, an additive connective or unit among them | [`Additive`](Engine::Additive) | `A ⊢ A` for `A` a complete tree of `&` and `⊕`: depth 8 in 0.5 ms against 1.4 ms on the focused engine, depth 14 in 0.1 to 0.2 s against 2.7 s, depth 16 in 0.3 s against over 20 s, in either mode |
-/// | MELL | any, classical or intuitionistic, with or without Mix | a Horn program with a clause under `!`: a Petri net | [`Horn`](Engine::Horn) | in affine mode, the 176 coverability problems of the qcover suite at 5 s, intuitionistic: decides 162 (59 provable, 103 not, 155 within a second) where the default before it, the two-sided engine, decides 8, no verdict against another and every proof checked; 10 464 random affine Horn programs of one to four atoms and clauses, classical and intuitionistic: decides all, at most 0.2 ms each, where the focused engines leave 886 undecided at 1 s and are slower by more than a millisecond on 467. In linear mode, the library's 3 137 Petri nets at 5 s, intuitionistic, against the forward focused search (the factor bias within 30 copies, the better of the focused engine's two searches there): decides 3 026 nets against 1 628 (1 400 only by the Horn engine, 2 only by the forward search, no verdict against the other), in 0.23 ms against 1.2 ms in the median of the 1 626 both decide, faster on 1 013 of them; 2 670 within 10 ms against 1 103; the counter with 64 tokens proved in 0.07 ms and with the unreachable goal refuted in 0.6 ms, where the focused engine reaches its limit after 10 s; with the state equation, the dead transitions dropped and the backward search beside it, 3 071 of the nets; and of 7 000 random programs near the Horn shape it decides 4 303 of the 4 318 each linear mode sends it at 1 s, every one the focused engines decide and 548 to 580 more. Horn programs without `!` stay with the focused engines, whose counts decide the Partition encodings up to a hundred times faster (12 items: 15 ms against 2.0 s) |
-/// | any, quantifiers too | intuitionistic | an exponential | [`TwoSided`](Engine::TwoSided), and a turn of [`Inverse`](Engine::Inverse) beside it | the inverse method refuses quantifiers, so a first-order goal is the two-sided engine's alone; where the two-sided engine alone ends at the time limit: on the library's intuitionistic problems at 60 s, one thread (the held-out sets, the rows no tool decided at 10 s, Sympli's ten proofs and six refutations; 1 113 rows), the turns decide 102 rows the two-sided engine alone does not and lose none, all ten proofs in 0.17 to 0.29 s and the six refutations in 0.15 to 22.8 s, with no verdict against another; after over before is 1.00 in the median at every speed of the engine alone, at worst 1.24 from 10 ms to 1 s, 1.11 from 1 to 10 s and 1.42 over 10 s. The inverse method alone, which loses 20 rows the two-sided engine decides (the pigeonhole formulas `SYJ201` and `SYJ206`, `SYJ207`, `SYJ212`), gets no row of its own |
+/// | MELL | any, classical or intuitionistic, with or without Mix | a Horn program with a clause under `!`: a Petri net | [`Horn`](Engine::Horn) | in affine mode, the 176 coverability problems of the qcover suite at 5 s, intuitionistic: decides 162 (59 provable, 103 not, 155 within a second) where the two-sided engine decides 8, no verdict against another and every proof checked; 10 464 random affine Horn programs of one to four atoms and clauses, classical and intuitionistic: decides all, at most 0.2 ms each, where the focused engines leave 886 undecided at 1 s and are slower by more than a millisecond on 467. In linear mode, the library's 3 137 Petri nets at 5 s, intuitionistic, against the forward focused search (the factor bias within 30 copies, the better of the focused engine's two searches there): decides 3 026 nets against 1 628 (1 400 only by the Horn engine, 2 only by the forward search, no verdict against the other), in 0.23 ms against 1.2 ms in the median of the 1 626 both decide, faster on 1 013 of them; 2 670 within 10 ms against 1 103; the counter with 64 tokens proved in 0.07 ms and with the unreachable goal refuted in 0.6 ms, where the focused engine reaches its limit after 10 s; with the state equation, the dead transitions dropped and the backward search beside it, 3 071 of the nets; and of 7 000 random programs near the Horn shape it decides 4 303 of the 4 318 each linear mode sends it at 1 s, every one the focused engines decide and 548 to 580 more. Horn programs without `!` stay with the focused engines, whose counts decide the Partition encodings up to a hundred times faster (12 items: 15 ms against 2.0 s) |
+/// | any, quantifiers too | intuitionistic | an exponential | [`TwoSided`](Engine::TwoSided), and a turn of [`Inverse`](Engine::Inverse) beside it | the inverse method refuses quantifiers, so a first-order goal is the two-sided engine's alone; where the two-sided engine alone ends at the time limit: on the library's intuitionistic problems at 60 s, one thread (the held-out sets, the rows no tool decided at 10 s, Sympli's ten proofs and six refutations; 1 113 rows), the turns decide 102 rows the two-sided engine alone does not and lose none, all ten proofs in 0.17 to 0.29 s and the six refutations in 0.15 to 22.8 s, with no verdict against another; the time with the turns over the time without is 1.00 in the median at every speed of the engine alone, at worst 1.24 from 10 ms to 1 s, 1.11 from 1 to 10 s and 1.42 over 10 s. The inverse method alone, which loses 20 rows the two-sided engine decides (the pigeonhole formulas `SYJ201` and `SYJ206`, `SYJ207`, `SYJ212`), gets no row of its own |
 /// | any, quantifiers too | intuitionistic | | [`TwoSided`](Engine::TwoSided) | the general engine, and the one engine of intuitionistic first-order linear logic, by unification, on one thread or a pool; on unit-free IMLL faster than the net engine wherever both decide: wide (`a₀ ⊗ b₀, … ⊢ (bₙ ⊗ aₙ) ⊗ …`) and curried (`(a₀ ⊗ … ⊗ aₙ) ⊸ c ⊢ a₀ ⊸ (… ⊸ c)`) sequents of 1 024 and 4 096 atoms in 5 to 83 ms against 0.05 to 2.2 s, the Horn encodings of Partition 10 to 10⁴ times faster |
-/// | any, quantifiers too | Mix, classical without weakening | | [`Focus`](Engine::Focus), and a turn of [`Inverse`](Engine::Inverse) beside it | the inverse method refuses quantifiers, so a first-order goal is the focused engine's alone; on the family `mix` the inverse method alone refutes every size measured (4 to 11) in at most 0.06 ms, where the focused engine takes 0.46 ms to 9.5 s and leaves sizes 10 and 11 to the classical refuter after 60 s; with the turns, sizes 8 to 11 are refuted in 0.42 to 0.47 s and 4 and 6 within the head start as before. No other Mix sequent was measured, and some that the inverse method leaves undecided for seconds the focused engine decides in milliseconds, within the head start |
+/// | any, quantifiers too | Mix, classical without weakening | | [`Focus`](Engine::Focus), and a turn of [`Inverse`](Engine::Inverse) beside it | the inverse method refuses quantifiers, so a first-order goal is the focused engine's alone; on the family `mix` the inverse method alone refutes every size measured (4 to 11) in at most 0.06 ms, where the focused engine takes 0.46 ms to 9.5 s and leaves sizes 10 and 11 to the classical refuter after 60 s; with the turns, sizes 8 to 11 are refuted in 0.42 to 0.47 s, and 4 and 6 within the head start, as without them. No other Mix sequent was measured, and some that the inverse method leaves undecided for seconds the focused engine decides in milliseconds, within the head start |
 /// | any, quantifiers too | classical | | [`Focus`](Engine::Focus) | the general engine, the same on the one-sided sequent, and the one engine of first-order linear logic, by unification, on one thread or a pool; on unit-free MLL, with or without Mix, faster than the net engine wherever both decide: `wide` sequents of 8 to 4 096 literals, each once to four times, 1.07 to 3.6 times faster (`wide-m4` with 2 048: 166 ms against 594 ms), the Horn encodings of Partition and 3-Partition 1.6 to 32 000 times faster (`3-partition-mll-no/8` 37 µs against 2.8 ms) |
-///
-/// Where the focused engines end at their recursion limit or memory bound
-/// on a unit-free MLL sequent in a mode without weakening whose atoms occur
-/// once with each sign, another engine takes it over: they recurse once
-/// per stable sequent and keep a memo, and on such a sequent the linking
-/// is forced. After the recursion limit the net engine takes it, which
-/// keeps neither and ends within one pass: the chain `a₀, a₀ ⊸ a₁, … ⊢ aₙ`
-/// of 1 024 and 4 096 links, where the two-sided engine meets the
-/// recursion limit after 11 and 46 ms, proved by the net engine in 26 ms
-/// and 0.43 s more, where the inverse method took 51 ms and 1.0 s. After
-/// the memory bound in classical mode without Mix the inverse method takes
-/// it, and the net engine after it where the inverse method meets a bound
-/// of its own: `wide-m1` with 4 096, 8 192 and 16 384 literals proved in
-/// 1.48, 3.05 and 11.8 s against 3.09, 9.48 and 37.4 s by the net engine,
-/// and 32 768 in 49.3 s, where the net engine passes 60 s; and wide
-/// sequents shuffled or of triples that reach the memory bound in 0.017
-/// to 0.33 of the net engine's time. Under Mix and in
-/// intuitionistic mode the net engine takes it: under Mix the inverse
-/// method ran past 60 s on `wide-m1` with 4 096 and 8 192 literals, which
-/// the net engine proved. Everywhere else the focused engines decided first.
-/// Which goals reach a limit depends on the limits, which the dispatch's
-/// features (fragment, mode, the roots, the shape of a Horn program) do
-/// not see.
-///
-/// Where a row names the inverse method beside its engine, the engine
-/// searches alone until it has done 2²⁴ units of its work (every thread
-/// counted), some hundredths of a second, which a goal it decides within
-/// never sees; then, and each time the engine's work has doubled, the
-/// inverse method takes a turn on the same thread, from its start, of at
-/// most a thirty-second of that work in its own units, and the engine goes
-/// on where it stopped. So the turns together do at most a sixteenth of the
-/// engine's work, and a goal the inverse method decides in `w` of its
-/// units is decided once the engine has done some thirty-two times `w`. A
-/// decision of a turn answers, its proof checked and its refutation
-/// checked too ([`Refutation::Saturated`]), and the outcome names
-/// [`Inverse`](Engine::Inverse) and carries its counters; else the turn's
-/// sequents go and the engine's answer is the search's, the turns' work
-/// counted in [`Statistics::work`] beside the engine's. After a turn that
-/// met the memory bound no turn comes again. Turns come only to a search
-/// on one thread with no engine forced (a race's pool searches beside the
-/// thread that takes them), at a poll of the engine's own work: where the
-/// default bias's second search runs alone after the first ended, no turn
-/// comes. A turn's share is counted in the inverse method's units, whose
-/// time can differ much from the engine's. Where the dispatch gives no
-/// turn, the inverse method decided none the engines did not, or its
-/// turns would slow or lose a goal the engine decides: on intuitionistic
-/// linear sequents without exponentials (`euler`, slower at every size);
-/// on classical ones without exponentials or Mix (the generated
-/// families); in intuitionistic affine mode, where turns decided
-/// `pigeonhole` #0 from 5 holes (2.1 s to 0.54 s, and 6 holes in 18 s
-/// where the two-sided engine passes a minute) but made #1 with 7 holes,
-/// which the two-sided engine refutes in 1 s, 1.27 times slower, and a
-/// share small enough to spare it would have left 6 holes past the
-/// minute; and on classical goals with an exponential, where turns
-/// decided the family `chain` from 256 clauses on and 100 classical
-/// readings of the library's problems that the command leaves at its
-/// 2 s limit, but where the inverse method's units ran some fifteen
-/// times slower than the focused engine's they took up to 2.8 times the
-/// engine's time, and on one thread they lost `SYJ212+1.015`, which the
-/// focused engine refutes in 1.9 s, to the 2 s limit.
 ///
 /// The bias of the focused engines, [`Bias::Auto`], is chosen per goal as
 /// well, by the measurements its documentation names. Engines are ordered
 /// as [`ALL`](Self::ALL) lists them.
+///
+/// # When another engine takes over
+///
+/// The focused engines recurse once per stable sequent and keep a memo.
+/// So they may end at their recursion limit or memory bound. When that
+/// happens on a unit-free MLL sequent in a mode without weakening, whose
+/// atoms each occur once with each sign, the linking is forced, and
+/// another engine takes the sequent over:
+/// - After the recursion limit, the net engine. It keeps neither a
+///   recursion nor a memo, and ends within one pass. On the chain
+///   `a₀, a₀ ⊸ a₁, … ⊢ aₙ` of 1 024 and 4 096 links, the two-sided engine
+///   meets the recursion limit after 11 and 46 ms. The net engine then
+///   proves the chain in 26 ms and 0.43 s more, where the inverse method
+///   took 51 ms and 1.0 s.
+/// - After the memory bound in classical mode without Mix, the inverse
+///   method, and the net engine after it where the inverse method meets a
+///   bound of its own. The inverse method proves `wide-m1` with 4 096,
+///   8 192 and 16 384 literals in 1.48, 3.05 and 11.8 s, against 3.09,
+///   9.48 and 37.4 s by the net engine, and with 32 768 in 49.3 s, where
+///   the net engine passes 60 s. Wide sequents shuffled or of triples that
+///   reach the memory bound take it 0.017 to 0.33 of the net engine's
+///   time.
+/// - Under Mix and in intuitionistic mode, the net engine. Under Mix, the
+///   inverse method ran past 60 s on `wide-m1` with 4 096 and 8 192
+///   literals, which the net engine proved.
+///
+/// On every other goal measured, the focused engines decided first. Which
+/// goals reach a limit depends on the limits, which the dispatch's
+/// features (fragment, mode, the roots, the shape of a Horn program) do
+/// not see.
+///
+/// # The inverse method's turns
+///
+/// Where a row names the inverse method beside its engine, the engine
+/// first searches alone until it has done 2²⁴ units of its work (every
+/// thread counted), some hundredths of a second. A goal it decides within
+/// that never sees a turn. Then, and each time the engine's work has
+/// doubled, the inverse method takes a turn on the same thread. Each turn
+/// starts the inverse method afresh and does at most a thirty-second of
+/// the engine's work, in the inverse method's own units. Then the engine
+/// goes on where it stopped. So the turns together do at most a sixteenth
+/// of the engine's work. A goal the inverse method decides in `w` of its
+/// units is decided once the engine has done some thirty-two times `w`.
+///
+/// When a turn decides, its answer is the search's. Its proof is checked,
+/// and so is its refutation ([`Refutation::Saturated`]). The outcome then
+/// names [`Inverse`](Engine::Inverse) and carries its counters. Otherwise
+/// the turn's sequents go, and the engine's answer is the search's.
+/// [`Statistics::work`] counts the turns' work beside the engine's. After
+/// a turn that met the memory bound or an index limit, no turn comes
+/// again.
+///
+/// Turns come only to a search on one thread with no engine forced (a
+/// race's pool searches beside the thread that takes them), and only at a
+/// poll of the engine's own work. So where the default bias's second
+/// search runs alone after the first ended, no turn comes. A turn's share
+/// is counted in the inverse method's units, whose time can differ much
+/// from the engine's.
+///
+/// Where the dispatch gives no turn, either the inverse method decided no
+/// goal the engines did not, or its turns would slow or lose a goal the
+/// engine decides:
+/// - intuitionistic linear sequents without exponentials (`euler`, slower
+///   at every size);
+/// - classical sequents without exponentials or Mix (the generated
+///   families);
+/// - intuitionistic affine mode. There the turns decided `pigeonhole` #0
+///   from 5 holes (2.1 s to 0.54 s, and 6 holes in 18 s where the
+///   two-sided engine passes a minute). But they made #1 with 7 holes,
+///   which the two-sided engine refutes in 1 s, 1.27 times slower. A share
+///   small enough to spare it would have left 6 holes past the minute.
+/// - classical goals with an exponential. There the turns decided the
+///   family `chain` from 256 clauses on, and 100 classical readings of the
+///   library's problems that the command leaves at its 2 s limit. But
+///   where the inverse method's units ran some fifteen times slower than
+///   the focused engine's, the turns took up to 2.8 times the engine's
+///   time. On one thread they lost `SYJ212+1.015`, which the focused
+///   engine refutes in 1.9 s, to the 2 s limit.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[non_exhaustive]
 pub enum Engine {
     /// The focused sequent engine, one-sided: classical mode, every
-    /// fragment. It searches backward over dyadic sequents `⊢ Θ ; Γ`, `Θ`
-    /// the formulas that came under a `?` and may be copied, `Γ` the
-    /// formulas each used once. The asynchronous phase decomposes the
-    /// negative formulas without a choice until a stable sequent remains,
-    /// which a memo of stable sequents decides, or the counts of each
-    /// atom's literals refute without a search, or a focus on a positive
-    /// formula of `Γ`, or on a copy from `Θ`, proves. The copies are bounded
-    /// per branch and the bound deepens: `Unprovable` comes only from a
-    /// level that never met its bound. With Mix a stable sequent may be
-    /// split in two, and in affine mode a leaf weakens what is left. It
-    /// reads every option but [`Options::test_period`], the net engine's.
-    /// Its unit of work ([`Progress::work`], [`Limits::work`]) is a stable
-    /// sequent, weighed by the size of its zones, members and copies, and
-    /// a step of a split search; forced splits count none.
+    /// fragment.
+    ///
+    /// It searches backward over dyadic sequents `⊢ Θ ; Γ`. `Θ` holds the
+    /// formulas that came under a `?` and may be copied, `Γ` the formulas
+    /// each used once. The asynchronous phase decomposes the negative
+    /// formulas, whose rules need no choice, until a stable sequent
+    /// remains, one with no negative formula left. The memo of stable
+    /// sequents may decide it. Otherwise the counts of each atom's
+    /// literals may refute it without a search, or a focus proves it: the
+    /// rules of a positive formula of `Γ`, or of a copy from `Θ`, applied
+    /// in one go.
+    ///
+    /// The copies are bounded per branch, and the bound deepens.
+    /// `Unprovable` comes only from a level that never met its bound. With
+    /// Mix, a stable sequent may be split in two. In affine mode, a leaf
+    /// weakens what is left.
+    ///
+    /// It reads every option but [`Options::test_period`], which is the
+    /// net engine's. Its unit of work ([`Progress::work`],
+    /// [`Limits::work`]) is a stable sequent, weighed by the size of its
+    /// zones, members and copies, and a step of a split search. Forced
+    /// splits count none.
     Focus,
-    /// The proof-net engine, for unit-free MLL with or without Mix; in
-    /// intuitionistic mode it decides IMLL through the embedding into MLL,
-    /// and in the cyclic mode cyclic MLL, the one engine that does.
-    /// In the commutative modes the dispatch gives it a goal only where
-    /// the focused engines end at their recursion limit or memory bound
-    /// ("Which engine decides a goal", above); forced, it decides any goal
-    /// it admits. In the cyclic mode it keeps the linking planar: a link
-    /// is admitted only when it crosses no link made and the literals
-    /// between its ends are balanced in every atom, and the symmetry
-    /// breaks are off, since an exchange of equal literals can make two
-    /// links cross; it runs on one thread there.
-    /// A cut-free proof of MLL is its axiom linking, so the engine links
-    /// dual literals by backtracking over a [`ProofStructure`] and keeps
-    /// the first linking the correctness criterion accepts; the count
+    /// The proof-net engine, for unit-free MLL with or without Mix.
+    ///
+    /// In intuitionistic mode it decides IMLL through the embedding into
+    /// MLL. In the cyclic mode it decides cyclic MLL, the only engine that
+    /// does. In the commutative modes, the dispatch gives it a goal only
+    /// where the focused engines end at their recursion limit or memory
+    /// bound ("When another engine takes over", above). Forced, it decides
+    /// any goal it admits.
+    ///
+    /// A cut-free proof of MLL is its axiom linking. So the engine links
+    /// dual literals by backtracking over a [`ProofStructure`], and keeps
+    /// the first linking the correctness criterion accepts. The count
     /// equation and each atom's balance refuse most unprovable sequents
-    /// before any link, and the net found is sequentialized into the proof
-    /// returned. Of the options it reads [`Options::jobs`] and the pool,
+    /// before any link. The net found is sequentialized into the proof
+    /// returned.
+    ///
+    /// In the cyclic mode it keeps the linking planar. A link is admitted
+    /// only when it crosses no link made and the literals between its ends
+    /// are balanced in every atom. The symmetry breaks are off there,
+    /// since an exchange of equal literals can make two links cross, and
+    /// it runs on one thread.
+    ///
+    /// Of the options it reads [`Options::jobs`] and the pool,
     /// [`Options::test_period`], [`Options::check`] and the occurrence
-    /// limit: a unit-free MLL sequent has no copies to bound, and the
-    /// engine keeps no memo and no recursion, so the copy bounds, the
+    /// limit. A unit-free MLL sequent has no copies to bound, and the
+    /// engine keeps no memo and does not recurse. So the copy bounds, the
     /// bias, the memo limit and the recursion limit have nothing to bound
-    /// here, and its structure, scratch and tables of interchangeable
-    /// literals, linear in the forest, are not counted under
+    /// here. Its structure, scratch and tables of interchangeable literals
+    /// are linear in the forest, and are not counted under
     /// [`Limits::memory_bytes`](crate::Limits::memory_bytes).
+    ///
     /// Its unit of work is a literal chosen and an exact test that fails.
     Net,
-    /// The focused sequent engine two-sided: intuitionistic mode. It is
-    /// the search of `Focus` on the one-sided sequent, which keeps one goal
-    /// on every branch by itself except at the split of a hypothesis
-    /// `A ⊸ B`, where the goal must go with `B`: the one place it reads the
-    /// sequent's [`Reading`]. It reads the options `Focus` does, and
-    /// counts its work as `Focus` does.
+    /// The focused sequent engine, two-sided: intuitionistic mode.
+    ///
+    /// It is the search of `Focus` on the one-sided sequent. That search
+    /// keeps one goal on every branch by itself, except at the split of a
+    /// hypothesis `A ⊸ B`, where the goal must go with `B`. That split is
+    /// the one place it reads the sequent's [`Reading`]. It reads the
+    /// options `Focus` does, and counts its work as `Focus` does.
     TwoSided,
     /// The fast path for a sequent of two additive-only formulas, in every
-    /// mode: a recursion on pairs of subformula occurrences, one below each
-    /// root, memoized on the pair, in time proportional to the product of
-    /// the two formulas' sizes. It reads [`Options::memo_limit`] and
-    /// [`Options::check`], and the limits' recursion depth and memory
-    /// bound, and runs on the calling thread whatever
-    /// [`Options::jobs`] says; two additive formulas have no copies and no
-    /// atoms to bias. Its unit of work is a pair decided, which it counts
-    /// at its polls, every 1 024 pairs.
+    /// mode.
+    ///
+    /// It is a recursion on pairs of subformula occurrences, one below
+    /// each root, memoized on the pair. It takes time proportional to the
+    /// product of the two formulas' sizes.
+    ///
+    /// It reads [`Options::memo_limit`] and [`Options::check`], and the
+    /// limits' recursion depth and memory bound. It runs on the calling
+    /// thread whatever [`Options::jobs`] says. Two additive formulas have
+    /// no copies and no atoms to bias. Its unit of work is a pair decided,
+    /// which it counts at its polls, every 1 024 pairs.
     Additive,
-    /// The engine for Horn programs: clauses under `!` that may be used
-    /// any number of times, implications used once, atoms, and one goal
-    /// that is a tensor of atoms, which is a Petri net with a marking to
-    /// reach (`!(a ⊗ b ⊸ c), a, b ⊢ c`: the clause is a transition, the
-    /// atoms on the left the tokens, the goal the marking). It searches
-    /// the markings instead of sequents: each reached once, kept as a
-    /// count of tokens per atom, and expanded nearest to the goal first,
-    /// the distance being the tokens by which the two differ; an
-    /// implication used once is a transition that takes a token of its
-    /// own. A firing sequence that reaches the goal is the proof: every
-    /// firing a copy of its clause, whose body takes its tokens by axioms
-    /// and whose head adds its atoms to the context. Every marking
-    /// reached having been expanded without reaching the goal is
+    /// The engine for Horn programs, which it reads as Petri nets.
+    ///
+    /// A Horn program here has clauses under `!` that may be used any
+    /// number of times, implications used once, atoms, and one goal that
+    /// is a tensor of atoms. It is a Petri net with a marking to reach. In
+    /// `!(a ⊗ b ⊸ c), a, b ⊢ c`, the clause is a transition, the atoms on
+    /// the left are the tokens, and the goal is the marking.
+    ///
+    /// It searches the markings instead of sequents. Each marking is
+    /// reached once, and kept as a count of tokens per atom. The marking
+    /// nearest to the goal is expanded first; the distance is the number of
+    /// tokens by which the two differ. An implication used once is a
+    /// transition that takes a token of its own.
+    ///
+    /// A firing sequence that reaches the goal is the proof. Every firing
+    /// is a copy of its clause, whose body takes its tokens by axioms and
+    /// whose head adds its atoms to the context. Once every marking reached
+    /// has been expanded without reaching the goal, the goal is
     /// `Unprovable`, since a proof of a Horn program is a firing sequence
-    /// read upward; so is, before any search, a goal whose atom counts
-    /// cannot balance, as for every engine. Beside the search, a slice at
-    /// a time and never more work than the search has done, a simplex
-    /// solves the net's state equation, whether the goal's tokens are the
-    /// start's plus some number of firings of each clause: where it has no
-    /// solution, Farkas' lemma gives each atom a weight under which no
-    /// clause raises the weighted count of the tokens while the goal asks
-    /// it raised, which an exact check in integers confirms, and the goal
-    /// is `Unprovable` with that [`Refutation::StateEquation`], however
-    /// many markings the net has. A net whose markings grow without end
-    /// and whose equation has a solution is searched until the stop or
-    /// [`Limits::memory_bytes`](crate::Limits::memory_bytes), which counts the markings kept and the
-    /// simplex's basis. Two more refutations reach such nets: a clause
-    /// with an atom that no reachable marking holds never fires and is
-    /// left out, and once the search has done some work, the same search
-    /// runs backward from the goal beside it, a quarter of the work, whose
-    /// exhausting its markings refutes and whose firing sequence, read
-    /// backward, proves. In affine mode, where the tokens and the clauses
-    /// a firing sequence leaves are weakened, the question is whether a
-    /// marking that covers the goal is reachable, and the engine decides
-    /// it backward: from the goal, the least markings from which a firing
-    /// leads to one that covers it, each kept unless a smaller one is,
-    /// until one lies below the start (the proof) or no new one comes
-    /// (`Unprovable`), which Dickson's lemma says happens; the state
-    /// equation runs beside it as in linear mode. Classical or
-    /// intuitionistic, with or without Mix (which no proof of such a goal
-    /// can use). It reads
-    /// [`Options::check`] and the limits' memory bound, runs on the
-    /// calling thread whatever [`Options::jobs`] says, and needs no copy
-    /// bound, memo limit or recursion limit: it keeps every marking once
-    /// and recurses nowhere. Its unit of work is a marking taken from the
-    /// frontier or an element from the queue, a marking computed backward,
-    /// and a pivot of the state equation.
+    /// read upward. So is, before any search, a goal whose atom counts
+    /// cannot balance, as for every engine.
+    ///
+    /// Beside the search, a simplex solves the net's state equation: are
+    /// the goal's tokens the start's plus some number of firings of each
+    /// clause? It runs a slice at a time, and never does more work than the
+    /// search has done. Where the equation has no solution, Farkas' lemma
+    /// gives each atom a weight under which no clause raises the weighted
+    /// count of the tokens, while the goal asks it raised. An exact check
+    /// in integers confirms the weights. The goal is then `Unprovable` with
+    /// that [`Refutation::StateEquation`], however many markings the net
+    /// has.
+    ///
+    /// A net whose markings grow without end and whose equation has a
+    /// solution is searched until the stop or
+    /// [`Limits::memory_bytes`](crate::Limits::memory_bytes), which counts
+    /// the markings kept and the simplex's basis. Two more refutations
+    /// reach such nets:
+    /// - a clause with an atom that no reachable marking holds never
+    ///   fires, and is left out;
+    /// - once the search has done some work, the same search runs backward
+    ///   from the goal beside it, with a quarter of the work. If it
+    ///   exhausts its markings, the goal is refuted. Its firing sequence,
+    ///   read backward, is a proof.
+    ///
+    /// In affine mode, the tokens and the clauses a firing sequence leaves
+    /// are weakened. So the question is whether a marking that covers the
+    /// goal is reachable, and the engine decides it backward. From the
+    /// goal, it computes the least markings from which a firing leads to
+    /// one that covers it, and keeps each unless a smaller one is kept. It
+    /// ends when one lies below the start (the proof), or when no new one
+    /// comes (`Unprovable`), which Dickson's lemma says happens. The state
+    /// equation runs beside it as in linear mode.
+    ///
+    /// It searches classical or intuitionistic, with or without Mix, which
+    /// no proof of such a goal can use. It reads [`Options::check`] and the
+    /// limits' memory bound, and runs on the calling thread whatever
+    /// [`Options::jobs`] says. It needs no copy bound, memo limit or
+    /// recursion limit: it keeps every marking once and does not recurse.
+    /// Its unit of work is a marking taken from the frontier or an element
+    /// from the queue, a marking computed backward, and a pivot of the
+    /// state equation.
     Horn,
     /// The essential-net engine, for unit-free IMLL: intuitionistic mode
-    /// without weakening, and the Lambek calculus. In the commutative
-    /// modes the dispatch gives it no goal; forced, it decides any goal
-    /// it admits. In the Lambek calculus it is the default and the one
-    /// engine: the criterion is that of planar essential nets (Lamarche
-    /// and Retoré), a link admitted only when it crosses no link made and
-    /// the literals between its ends are balanced, the symmetry breaks
-    /// off, as the net engine keeps a cyclic linking; without empty
-    /// antecedents a complete linking is a proof besides only when the
-    /// body of every implication but the goal has a free hypothesis other
-    /// than the one it binds, so that no sequent of the proof is without
-    /// one; and a goal off the roots is searched as a sequent of its own. It is the net engine's search over
-    /// the sequent's polarized structure, Lamarche's essential net, whose
-    /// edges the [`Reading`] directs from the hypotheses toward the goal:
-    /// a linking is a proof net when the directed graph has no cycle and
-    /// every implication `A ⊸ B` of output position dominates its
-    /// antecedent, every path from `A` to the goal passing through it
-    /// ([`ProofStructure::is_essential`]). It keeps the reflexive
-    /// transitive closure of the graph as a bit matrix, quadratic in the
-    /// sequent's size and counted under
-    /// [`Limits::memory_bytes`](crate::Limits::memory_bytes) with its undo
-    /// log: a link that would close a cycle, or lead an antecedent's
-    /// literal to the goal around its implication, is rejected at once,
-    /// and the dominator condition is tested where the net engine runs its
-    /// exact test. It counts, breaks symmetries and chooses literals as the
-    /// net engine does, and sequentializes the net found into the proof
-    /// returned. Of the options it reads [`Options::test_period`] and
-    /// [`Options::check`], and runs on the calling thread whatever
-    /// [`Options::jobs`] says. Measured on one thread on the
-    /// intuitionistic rows that placed the net engine, it is slower than
-    /// the two-sided engine on all of them but the chain of 64 links
-    /// (0.18 ms against 0.22 ms): wide and curried sequents of 64 to 4 096
-    /// atoms 2.3 to 25 times, the Horn encodings of Partition 1.3 to 4.5
-    /// times and out of time at 60 s where the two-sided engine takes 13
-    /// and 75 ms; and on the chains of 1 024 and 4 096 links, where the
-    /// two-sided engine meets its recursion limit, 2.2 and 6 times slower
-    /// than the net engine, which takes those over. It is faster than the
-    /// net engine on the Partition encodings (16 to 660 times) and on wide
-    /// and curried sequents up to 1 024 atoms. So the dispatch gives it no
-    /// goal. Its unit of work is a literal chosen and a test that fails.
+    /// without weakening, and the Lambek calculus.
+    ///
+    /// In the commutative modes the dispatch gives it no goal; forced, it
+    /// decides any goal it admits. In the Lambek calculus it is the
+    /// default and the only engine. There the criterion is that of planar
+    /// essential nets (Lamarche and Retoré). A link is admitted only when
+    /// it crosses no link made and the literals between its ends are
+    /// balanced, and the symmetry breaks are off, as for the net engine's
+    /// cyclic linking. Without empty antecedents, a complete linking is a
+    /// proof only when, besides, the body of every implication but the
+    /// goal has a free hypothesis other than the one it binds, so that no
+    /// sequent of the proof is without one. A goal off the roots is
+    /// searched as a sequent of its own.
+    ///
+    /// It is the net engine's search over the sequent's polarized
+    /// structure, Lamarche's essential net, whose edges the [`Reading`]
+    /// directs from the hypotheses toward the goal. A linking is a proof
+    /// net when the directed graph has no cycle, and every implication
+    /// `A ⊸ B` of output position dominates its antecedent: every path
+    /// from `A` to the goal passes through it
+    /// ([`ProofStructure::is_essential`]).
+    ///
+    /// It keeps the reflexive transitive closure of the graph as a bit
+    /// matrix, quadratic in the sequent's size. The matrix and its undo
+    /// log are counted under
+    /// [`Limits::memory_bytes`](crate::Limits::memory_bytes). A link that
+    /// would close a cycle, or lead an antecedent's literal to the goal
+    /// around its implication, is rejected at once. The dominator
+    /// condition is tested where the net engine runs its exact test. It
+    /// counts, breaks symmetries and chooses literals as the net engine
+    /// does, and sequentializes the net found into the proof returned.
+    ///
+    /// Of the options it reads [`Options::test_period`] and
+    /// [`Options::check`]. It runs on the calling thread whatever
+    /// [`Options::jobs`] says. Its unit of work is a literal chosen and a
+    /// test that fails.
+    ///
+    /// Measured on one thread on the intuitionistic sequents the net
+    /// engine was measured on, it is slower than the two-sided engine on
+    /// all of them but the chain of 64 links (0.18 ms against 0.22 ms).
+    /// Wide and curried sequents of 64 to 4 096 atoms take it 2.3 to 25
+    /// times as long. The Horn encodings of Partition take it 1.3 to 4.5
+    /// times as long, or run out of time at 60 s where the two-sided
+    /// engine takes 13 and 75 ms. On the chains of 1 024 and 4 096 links,
+    /// where the two-sided engine meets its recursion limit, it is 2.2 and
+    /// 6 times slower than the net engine, which takes those over. It is
+    /// faster than the net engine on the Partition encodings (16 to 660
+    /// times) and on wide and curried sequents up to 1 024 atoms. So the
+    /// dispatch gives it no goal.
     Essential,
-    /// The focused inverse method, in every commutative mode and fragment:
-    /// a forward search, which derives stable sequents from the axioms
-    /// upward instead of decomposing the goal. Its rules are whole focusing
-    /// phases, compiled from the sequent before the search: a focus on a
-    /// positive formula, or on a copy of a `?` formula's subformula, with
-    /// the asynchronous phases of what it releases, one rule for each
-    /// choice of `⊕` sides, whose premises are stable sequents derived
-    /// before and whose axioms take a negative literal for each positive
-    /// one. A derived sequent stands for itself, or with a `⊤` above it or
-    /// in affine mode for every larger one, and is kept unless one kept
+    /// The focused inverse method, in every commutative mode and fragment.
+    ///
+    /// It is a forward search: it derives stable sequents from the axioms
+    /// upward, instead of decomposing the goal. Its rules are whole
+    /// focusing phases, compiled from the sequent before the search. A
+    /// rule is a focus on a positive formula, or on a copy of a `?`
+    /// formula's subformula, with the asynchronous phases of what it
+    /// releases. There is one rule for each choice of `⊕` sides. A rule's
+    /// premises are stable sequents derived before, and its axioms take a
+    /// negative literal for each positive one.
+    ///
+    /// A derived sequent stands for itself, or, with a `⊤` above it or in
+    /// affine mode, for every larger one. It is kept unless one kept
     /// already stands for all it does (subsumption, found through an index
-    /// of the kept sequents by their members), or it cannot stand in a
-    /// proof of the goal: a member twice, or two members a `⊗`, `&` or
-    /// `⊕` separates, outside the subformulas of a `?`; or, under the
-    /// intuitionistic reading, other than one goal. The smallest sequent
-    /// is taken up first, applied to every rule beside those taken up
-    /// before it, and with Mix joined to each; the goal is proved once
-    /// every stable sequent of its own asynchronous phase is, and the
-    /// proof is written from the record each sequent keeps of its rule
-    /// and premises. Without exponentials the sequents are finitely many
-    /// and the search decides; with them it proves every provable goal
-    /// given time, needs no copy bound, and answers `Unprovable` only
-    /// where nothing new comes. It reads [`Options::bias`], which atoms'
-    /// literals are positive, and [`Options::check`], and runs on the
-    /// calling thread whatever [`Options::jobs`] says; the copy bounds,
-    /// the memo limit and the recursion limit have nothing to bound here.
-    /// Its rules, the sequents kept, their indices and records and the
-    /// queue are counted under
-    /// [`Limits::memory_bytes`](crate::Limits::memory_bytes), and over it
-    /// the search answers `Unknown`, since the sequents kept cannot be
-    /// given back without losing what was derived. It refuses a goal
-    /// within the sequent two of whose members no sequent of a proof holds
-    /// together (one twice or below another, or two a `⊗`, `&` or `⊕`
-    /// separates, outside a `?`), which no derivation of the sequent has.
-    /// Its unit of work is a step of a rule written, a choice of `⊕` sides
-    /// looked at, a literal looked at for an axiom's partner and a member
+    /// of the kept sequents by their members). It is also dropped when it
+    /// cannot stand in a proof of the goal: when it has a member twice, or
+    /// two members a `⊗`, `&` or `⊕` separates, outside the subformulas of
+    /// a `?`, or, under the intuitionistic reading, other than one goal.
+    ///
+    /// The smallest sequent is taken up first. It is applied to every rule
+    /// beside those taken up before it, and with Mix joined to each. The
+    /// goal is proved once every stable sequent of its own asynchronous
+    /// phase is. The proof is written from the record each sequent keeps
+    /// of its rule and premises. Without exponentials the sequents are
+    /// finitely many, and the search decides. With them, it proves every
+    /// provable goal given time, needs no copy bound, and answers
+    /// `Unprovable` only where nothing new comes.
+    ///
+    /// It reads [`Options::bias`], which says which atoms' literals are
+    /// positive, and [`Options::check`]. It runs on the calling thread
+    /// whatever [`Options::jobs`] says. The copy bounds, the memo limit and
+    /// the recursion limit have nothing to bound here. Its rules, the
+    /// sequents kept, their indices and records and the queue are counted
+    /// under [`Limits::memory_bytes`](crate::Limits::memory_bytes). Over
+    /// it, the search answers `Unknown`, since the sequents kept cannot be
+    /// given back without losing what was derived.
+    ///
+    /// It refuses a goal within the sequent two of whose members no
+    /// sequent of a proof holds together: one twice or below another, or
+    /// two a `⊗`, `&` or `⊕` separates, outside a `?`. No derivation of the
+    /// sequent has such a goal.
+    ///
+    /// Its units of work: a step of a rule written, a choice of `⊕` sides
+    /// looked at, a literal looked at for an axiom's partner, and a member
     /// copied into the rules' tables; in the saturation, a member of a
     /// linear zone copied, compared or indexed, an entry looked up in the
     /// index of the kept sequents, and an application of a rule or Mix or
-    /// a choice of premises given up, so that its work grows with its time
+    /// a choice of premises given up. So its work grows with its time,
     /// whatever the size of its sequents.
     Inverse,
 }
@@ -1972,8 +2209,8 @@ pub struct Counter {
 }
 
 impl Counter {
-    /// A counter of the key, the label in every mode and the meaning
-    /// given.
+    /// Returns a counter with the key, the label (in every mode) and the
+    /// meaning given.
     const fn new(key: &'static str, label: &'static str, meaning: &'static str) -> Self {
         Self {
             key,
@@ -1983,7 +2220,7 @@ impl Counter {
         }
     }
 
-    /// The counter with another label in affine mode.
+    /// Returns the counter with another label in affine mode.
     const fn affine(self, affine_label: &'static str) -> Self {
         Self {
             affine_label,
@@ -2002,9 +2239,11 @@ impl Counter {
     }
 }
 
-/// Why an engine the options force does not take a goal, which each
-/// engine checks in this order: the largest fragment it decides, its
-/// modes, whether the goal is the sequent itself, and the goal's shape.
+/// Why an engine the options force does not take a goal.
+///
+/// Each engine checks, in this order: the largest fragment it decides,
+/// its modes, whether the goal is the sequent itself, and the goal's
+/// shape.
 ///
 /// In JSON (feature `serialize`), as the `because` of an
 /// `engine_refused` error's `details` beside its `engine`, tagged by
@@ -2030,9 +2269,10 @@ pub enum NotTaken {
     },
     /// The goal is not the sequent itself, the only goal the engine takes.
     Goal,
-    /// The goal is not of the engine's shape: two additive-only formulas,
-    /// a Horn program, or for the inverse method a goal within the sequent
-    /// whose members can stand together in one sequent of a proof.
+    /// The goal is not of the engine's shape: two additive-only formulas
+    /// for the additive engine, a Horn program for the Horn engine, and
+    /// for the inverse method a goal within the sequent whose members can
+    /// stand together in one sequent of a proof.
     Shape,
 }
 
@@ -2112,45 +2352,50 @@ impl Display for Explained {
 }
 
 /// How the focused engine chooses the positive literal of every atom.
-/// Focusing is complete for every choice, so the rules differ in speed
-/// and, with exponentials, in the copies a branch of the proofs they lead
-/// to needs: never in what is provable.
+///
+/// Focusing is complete for every choice, so no rule changes what is
+/// provable. The rules differ in speed and, with exponentials, in the
+/// copies a branch of the proofs they lead to needs.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum Bias {
-    /// [`Factors`](Self::Factors) for a sequent without exponentials and
-    /// [`Rarer`](Self::Rarer) for a search with weakening. For a sequent
-    /// with a `!` or a `?` in linear mode the search runs a search under
-    /// each rule and answers with the first that decides, so it decides
-    /// whatever either does: the backward one within the copy bound, the
-    /// forward one within a bound of its own where the goal is a Horn
-    /// program. Each choice is what measured best there: without
-    /// exponentials the factor rule visits up to a third of the stable
-    /// sequents of the rarer one (unsolvable 3-Partition with bins of
-    /// five 971 against 3 373, a random QBF of 20 variables 60 883
-    /// against 105 667); under weakening nothing forces a split, and the
-    /// factor rule visited up to 700 times the stable sequents of the
-    /// rarer one on random affine sequents; with exponentials neither
-    /// rule wins (of the Petri nets of the LLTP library within 5 s, the
-    /// pair decides 1 520, the backward search run alone 442 and the
-    /// forward one run alone 1 576, since under a time limit each of the
-    /// pair has its share of the time, and the pair costs 1.3 times the
-    /// backward search and 1.6 times the forward one where each decides).
-    /// That the pair decides whatever either does holds without a stop.
+    /// The rule chosen per sequent:
+    /// - [`Factors`](Self::Factors) for a sequent without exponentials;
+    /// - [`Rarer`](Self::Rarer) for a search with weakening;
+    /// - for a sequent with a `!` or a `?` in linear mode, a search under
+    ///   each rule. It answers with the first that decides, so it decides
+    ///   whatever either does: the backward search within the copy bound,
+    ///   the forward one within a bound of its own where the goal is a
+    ///   Horn program. This holds without a stop; under a time limit, each
+    ///   search has its share of the time.
+    ///
+    /// Each choice is what measured best there:
+    /// - without exponentials, the factor rule visits up to a third of the
+    ///   stable sequents of the rarer one (unsolvable 3-Partition with bins
+    ///   of five: 971 against 3 373; a random QBF of 20 variables: 60 883
+    ///   against 105 667);
+    /// - under weakening nothing forces a split, and the factor rule
+    ///   visited up to 700 times the stable sequents of the rarer one on
+    ///   random affine sequents;
+    /// - with exponentials neither rule wins. Of the Petri nets of the
+    ///   LLTP library within 5 s, the pair decides 1 520, the backward
+    ///   search run alone 442 and the forward one run alone 1 576. Where
+    ///   each decides, the pair costs 1.3 times the backward search and
+    ///   1.6 times the forward one.
     #[default]
     Auto,
-    /// The literal with fewer occurrences in the sequent is positive, `Atom`
-    /// when both have the same number. With Horn-like hypotheses this
-    /// mostly chains backward from the goal, which keeps the copies per
-    /// branch low.
+    /// The literal with fewer occurrences in the sequent is positive, and
+    /// `Atom` when both have the same number. With Horn-like hypotheses
+    /// this mostly chains backward from the goal, which keeps the copies
+    /// per branch low.
     Rarer,
     /// The literal that is more often a direct factor of a `⊗` is
     /// positive, an occurrence counting half for every `&` or `⊕` above
-    /// it; the rarer literal on a tie. A `⊗` with a positive literal for a
-    /// factor takes exactly the dual literal for it, so its split needs no
-    /// search. With Horn-like hypotheses this chains forward from the
-    /// facts, one copy per step on a single branch: fast, and in need of a
-    /// copy bound as large as the number of steps.
+    /// it. On a tie, the rarer literal is. A `⊗` with a positive literal
+    /// for a factor takes exactly the dual literal for it, so its split
+    /// needs no search. With Horn-like hypotheses this chains forward from
+    /// the facts, one copy per step on a single branch. That is fast, but
+    /// needs a copy bound as large as the number of steps.
     Factors,
 }
 
@@ -2180,7 +2425,8 @@ impl Engine {
 
     /// Returns the counters of [`Statistics`] the engine fills, each with
     /// its key in the statistics' JSON form, a label and what it counts
-    /// for this engine; the others stay zero. A front end shows these.
+    /// for this engine. The other counters stay zero. A front end shows
+    /// these.
     pub const fn counters(self) -> &'static [Counter] {
         /// The unit of work, which every engine counts.
         const WORK: Counter = Counter::new("work", "units of work", "the engine's unit of work");
@@ -2325,11 +2571,12 @@ impl Engine {
         }
     }
 
-    /// Whether the engine searches on several threads when
-    /// [`Options::jobs`] asks for them: the focused engines and the net
-    /// engine do, the latter in a commutative mode only; the additive, the
-    /// Horn, the essential-net and the inverse engine run on the calling
-    /// thread whatever it says.
+    /// Returns whether the engine searches on several threads when
+    /// [`Options::jobs`] asks for them.
+    ///
+    /// The focused engines do, and so does the net engine in a commutative
+    /// mode. The additive, Horn, essential-net and inverse engines run on
+    /// the calling thread whatever `jobs` says.
     pub const fn parallel(self) -> bool {
         match self {
             Engine::Focus | Engine::Net | Engine::TwoSided => true,
@@ -2337,7 +2584,7 @@ impl Engine {
         }
     }
 
-    /// The implementation of the engine.
+    /// Returns the implementation of the engine.
     fn implementation(self) -> &'static dyn Decide {
         match self {
             Engine::Focus => &focus::ONE_SIDED,
@@ -2410,16 +2657,17 @@ impl FromStr for Bias {
     }
 }
 
-/// How many threads a search may use: written `"auto"` or the number.
+/// How many threads a search may use. In JSON it is `"auto"` or the
+/// number.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Jobs {
-    /// Every thread the machine runs at once, as the platform tells, or one
-    /// where it does not; a front end resolves it once to the count it
-    /// shows.
+    /// Every thread the machine runs at once, as the platform tells, or
+    /// one where it does not tell. A front end resolves it once to the
+    /// count it shows.
     Auto,
     /// This many. One runs the sequential engines, whose proof is a
-    /// function of the input; zero counts as one, and more than
+    /// function of the input. Zero counts as one, and more than
     /// [`Options::MAX_JOBS`] as that many.
     Count(usize),
 }
@@ -2451,13 +2699,13 @@ impl Jobs {
     }
 }
 
-/// How often the net engines run their test: written `"auto"` or the
-/// number of links between two tests.
+/// How often the net engines run their test. In JSON it is `"auto"` or
+/// the number of links between two tests.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum Cadence {
     /// After every link on a structure of at most
-    /// [`AUTO_SMALL`](Self::AUTO_SMALL) occurrences, every
+    /// [`AUTO_SMALL`](Self::AUTO_SMALL) occurrences, and after every
     /// [`AUTO_PERIOD`](Self::AUTO_PERIOD)th link on a larger one.
     #[default]
     Auto,
@@ -2489,8 +2737,8 @@ impl From<Option<u32>> for Cadence {
     }
 }
 
-/// How the two searches of the default bias share one thread: written
-/// `"auto"` or `"turns"`.
+/// How the two searches of the default bias share one thread. In JSON
+/// it is `"auto"` or `"turns"`.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(
@@ -2499,45 +2747,56 @@ impl From<Option<u32>> for Cadence {
     serde(rename_all = "snake_case")
 )]
 pub enum Schedule {
-    /// In slices on two threads, where the feature `parallel` starts a
+    /// In slices on two threads where the feature `parallel` starts a
     /// second one, and in turns otherwise.
     #[default]
     Auto,
-    /// In turns on the calling thread, each turn from the search's start:
-    /// the same polls and the same answer on every build, the web's
-    /// included.
+    /// In turns on the calling thread, each turn from the search's start.
+    /// So the polls and the answer are the same on every build, the
+    /// WebAssembly build included.
     Turns,
 }
 
-/// The knobs of a search: how much to remember, how deep to go, and which
-/// fragment and engine to use instead of the detected ones. The defaults
-/// suit a sequent of a few hundred occurrences on a thread with the usual
-/// stack; the bounds on memory, occurrences, recursion and work are the
-/// [`Limits`] a search is given; those on memory and work bind the check
-/// of the proof found as well.
+/// The knobs of a search: which engine and fragment to use instead of the
+/// detected ones, how many copies to allow, how much to remember, and how
+/// many threads to use.
 ///
-/// Every field has a builder, so that the options chain from the default.
+/// The defaults suit a sequent of a few hundred occurrences on a thread
+/// with the usual stack. The bounds on memory, occurrences, recursion and
+/// work are not options: they are the [`Limits`] a search is given. The
+/// bounds on memory and work bind the check of the proof found as well.
+///
+/// Every field has a builder, so the options chain from the default.
 ///
 /// # JSON
 ///
-/// With the feature `serialize` the options are an object of the fields
-/// below, a missing one taking its default and a misspelt one refused:
-/// `"engine"` and `"fragment"` a name or `"auto"`, `"bias"` and
-/// `"schedule"` a name, `"copies"` a number or `null` for no bound,
-/// `"forward_copies"`, `"memo_limit"`, `"classical_work"`,
-/// `"witness_depth"` and `"instances"` numbers,
-/// `"test_period"` and `"jobs"` a number or `"auto"`, `"check"` a
-/// boolean. The pool is never written.
+/// With the feature `serialize`, the options are an object of the fields
+/// below. A missing field takes its default, and a misspelt one is
+/// refused.
+/// - `"engine"` and `"fragment"`: a name or `"auto"`;
+/// - `"bias"` and `"schedule"`: a name;
+/// - `"copies"`: a number, or `null` for no bound;
+/// - `"forward_copies"`, `"memo_limit"`, `"classical_work"`,
+///   `"witness_depth"` and `"instances"`: numbers;
+/// - `"test_period"` and `"jobs"`: a number or `"auto"`;
+/// - `"check"`: a boolean.
+///
+/// The pool is never written.
 ///
 /// # Examples
 ///
 /// ```
 /// use deduxit::linear::Fragment;
-/// use deduxit::linear::search::Options;
+/// use deduxit::linear::search::{Bias, Options};
 ///
+/// // Search in MALL with a smaller memo, the rarer bias and no copy bound.
 /// let options = Options::default()
 ///     .with_memo_limit(1 << 16)
-///     .with_fragment(Some(Fragment::MALL));
+///     .with_fragment(Some(Fragment::MALL))
+///     .with_bias(Bias::Rarer)
+///     .with_copies(None);
+/// assert_eq!(options.copies, None);
+/// assert_eq!(options.bias, Bias::Rarer);
 /// ```
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -2551,133 +2810,162 @@ pub struct Options {
     /// the mode call for.
     #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::auto"))]
     pub engine: Option<Engine>,
-    /// The fragment to search in, or `None` for the detected one. A
-    /// sequent outside it is refused; a fragment larger than the detected
-    /// one switches off the prunes that only hold in the smaller one.
+    /// The fragment to search in, or `None` for the detected one.
+    ///
+    /// A sequent outside it is refused. A fragment larger than the
+    /// detected one switches off the prunes that only hold in the smaller
+    /// one.
     #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::auto"))]
     pub fragment: Option<Fragment>,
     /// How the focused engine picks the positive literal of every atom.
-    /// No choice changes what is provable. [`Bias::Rarer`] mostly chains
-    /// backward from the goal and [`Bias::Factors`] forward from the
-    /// hypotheses; on a sequent with exponentials whose hypotheses are
-    /// Horn clauses, a Petri net for one, the forward search often decides
-    /// in milliseconds what the backward one does not decide at all, but
-    /// its proofs take one copy per step on a single branch. The default,
-    /// [`Bias::Auto`], is `Factors` without exponentials and `Rarer` under
-    /// weakening; on a sequent with exponentials in linear mode it runs
-    /// both searches, the backward one within [`copies`](Self::copies) and
-    /// the forward one within [`forward_copies`](Self::forward_copies),
-    /// and answers with the first that decides. Either of the two named
-    /// explicitly is that search alone, within `copies`. Only the focused
-    /// engine reads it.
+    /// No choice changes what is provable.
+    ///
+    /// [`Bias::Rarer`] mostly chains backward from the goal, and
+    /// [`Bias::Factors`] forward from the hypotheses. Take a sequent with
+    /// exponentials whose hypotheses are Horn clauses, such as a Petri
+    /// net. The forward search often decides it in milliseconds where the
+    /// backward one does not decide at all. But its proofs take one copy
+    /// per step on a single branch.
+    ///
+    /// The default, [`Bias::Auto`], is `Factors` without exponentials and
+    /// `Rarer` under weakening. On a sequent with exponentials in linear
+    /// mode it runs both searches, the backward one within
+    /// [`copies`](Self::copies) and the forward one within
+    /// [`forward_copies`](Self::forward_copies), and answers with the first
+    /// that decides. Either rule named explicitly is that search alone,
+    /// within `copies`. Only the focused engine reads it.
     pub bias: Bias,
     /// The most copies of `?` formulas one branch of a proof may take, or
-    /// `None` for no bound. The search deepens the bound from zero, one
-    /// level after another; a sequent that has no proof within the bound
-    /// is [`Reason::CopyBound`], unless some level finished without ever
-    /// reaching its bound, which makes the sequent [`Verdict::Unprovable`].
-    /// Without a bound the search goes on to the next level until it
-    /// decides, its stop condition fires or a limit binds, and
-    /// [`Statistics::copies`] says how far it got: the choice of a caller
-    /// with a time limit, as the command is, since no bound is too small
-    /// for some provable sequent and full linear logic is undecidable.
+    /// `None` for no bound.
+    ///
+    /// The search deepens the bound from zero, one level after another. A
+    /// sequent that has no proof within the bound is [`Reason::CopyBound`].
+    /// The exception is a level that finished without ever reaching its
+    /// bound: that makes the sequent [`Verdict::Unprovable`].
+    ///
+    /// Without a bound, the search goes on to the next level until it
+    /// decides, its stop condition fires or a limit binds.
+    /// [`Statistics::copies`] then says how far it got. That is the choice
+    /// of a caller with a time limit, such as the command: some provable
+    /// sequent needs more copies than any given bound, and full linear
+    /// logic is undecidable.
+    ///
     /// Without exponentials the bound has no effect. A proof found at some
     /// level may reuse a memoized subproof found with more copies left, so
     /// the bound limits the search, not the proof returned. Only the
-    /// focused engine reads it: the net and the additive engine's goals
-    /// have no exponentials, and the Horn engine keeps every marking once
-    /// and needs no bound.
+    /// focused engine reads it: the net and additive engines' goals have no
+    /// exponentials, and the Horn engine keeps every marking once and
+    /// needs no bound.
     pub copies: Option<u32>,
     /// The most copies of `?` formulas one branch may take in the forward
     /// search that [`Bias::Auto`] runs beside the backward one on a Horn
-    /// program: clauses `!(a ⊗ b ⊸ c ⊗ d)` (or one used once), a marking
-    /// and a goal of atoms, as a Petri net is. A forward chain takes a
-    /// copy per step, all on one branch, so it wants a larger bound than
-    /// [`copies`](Self::copies), which this is when it is the larger of
-    /// the two; the forward search never runs within less than `copies`.
-    /// On any other goal, under another bias, under Mix, under weakening
-    /// and without a copy bound it has no effect: unbounded, the forward
+    /// program.
+    ///
+    /// A Horn program here is clauses `!(a ⊗ b ⊸ c ⊗ d)` (or such a clause
+    /// used once), a marking and a goal of atoms, as a Petri net is. A
+    /// forward chain takes a copy per step, all on one branch, so it wants
+    /// a larger bound than [`copies`](Self::copies). The forward search
+    /// runs within the larger of the two, never within less than `copies`.
+    ///
+    /// It has no effect on any other goal, under another bias, under Mix,
+    /// under weakening, or without a copy bound: unbounded, the forward
     /// search deepens as far as its share of the work takes it. Only the
     /// focused engine reads it.
     pub forward_copies: u32,
-    /// The most stable sequents the memo holds at once; when the memo is
-    /// full it is emptied, which costs time but not correctness. Zero
-    /// switches the memo off. The two searches that [`Bias::Auto`] runs on
-    /// a sequent with exponentials hold a memo of this size each. This is
-    /// the finer knob beside the memory bound
+    /// The most stable sequents the memo holds at once. Zero switches the
+    /// memo off.
+    ///
+    /// A full memo is emptied, which costs time but not correctness. The
+    /// two searches that [`Bias::Auto`] runs on a sequent with
+    /// exponentials hold a memo of this size each. This is the finer knob
+    /// beside the memory bound
     /// ([`Limits::memory_bytes`](crate::Limits::memory_bytes)), which
     /// bounds the memo in bytes: a table that fits the processor's cache
     /// can be faster than one that fits the memory. The focused engine and
     /// the additive path read it; the net engine keeps no memo.
     pub memo_limit: u32,
     /// How often the net engine runs its exact acyclicity test, and the
-    /// essential-net engine its test of the dominator condition: the test
-    /// also runs on every complete linking, so the cadence trades time per
-    /// link against how long a doomed branch is followed. Only those two
-    /// engines read it.
+    /// essential-net engine its test of the dominator condition.
+    ///
+    /// The test also runs on every complete linking. So the cadence trades
+    /// time per link against how long a doomed branch is followed. Only
+    /// those two engines read it.
     pub test_period: Cadence,
-    /// How many threads the search may use. One, the default, runs the
-    /// sequential engines, whose proof is a function of the input. More
-    /// than one, with the `parallel` feature, runs the focused engine and
-    /// the net engine on that many threads of a pool of their own, which
-    /// may find a different proof but never contradict the sequential
-    /// verdict: one of the two may decide where the other stops at the
-    /// copy bound or the recursion limit, and which one depends on how the
-    /// threads interleave; without the feature, or for the additive path
-    /// and the Horn engine, the search stays sequential. A search starts no
-    /// more threads than the machine runs at once
-    /// ([`std::thread::available_parallelism`], where the platform tells):
-    /// threads beyond that only take turns on the same processors.
+    /// How many threads the search may use.
+    ///
+    /// One, the default, runs the sequential engines, whose proof is a
+    /// function of the input. More than one, with the `parallel` feature,
+    /// runs the focused engine and the net engine on that many threads of
+    /// a pool of their own. The pool may find a different proof, but never
+    /// contradicts the sequential verdict. One of the two may decide where
+    /// the other stops at the copy bound or the recursion limit, and which
+    /// one depends on how the threads interleave. Without the feature, or
+    /// for the engines that are not [`Engine::parallel`], the search stays
+    /// sequential.
+    ///
+    /// A search starts no more threads than the machine runs at once
+    /// ([`std::thread::available_parallelism`], where the platform tells).
+    /// Threads beyond that only take turns on the same processors.
     pub jobs: Jobs,
     /// How the two searches of the default bias share one thread.
     pub schedule: Schedule,
-    /// Whether a proof of the sequent passes the checker
-    /// ([`Proof::check`], which shares no code with the engines) before
-    /// the search returns it; one that does not is [`Error::Rejected`],
-    /// never a verdict. Without the check the proof is the engine's word,
-    /// which a caller that checks it itself, or times the search alone,
-    /// may prefer. A proof of a goal is checked against the goal.
+    /// Whether a proof passes the checker ([`Proof::check`], which shares
+    /// no code with the engines) before the search returns it.
+    ///
+    /// A proof that does not pass is [`Error::Rejected`], never a verdict.
+    /// A proof of a goal is checked against the goal. Without the check,
+    /// the proof is the engine's word. A caller that checks it itself, or
+    /// times the search alone, may prefer that.
     pub check: bool,
     /// The most work the classical refuter may do after a search that did
-    /// not prove the goal, in terms evaluated, zero for none. It looks for
-    /// an assignment of truth values to the atoms under which the goal's
-    /// classical reading is false (`!` and `?` erased, `⊗` and `&` as
-    /// "and", `⅋` and `⊕` as "or", `1` and `⊤` true, `⊥` and `0` false),
-    /// which no provable sequent has in any mode: it makes an undecided
-    /// search [`Verdict::Unprovable`] with [`Refutation::Classical`], and
-    /// gives an exhausted search that certificate where the counts give
-    /// none. It never changes a verdict the search gave, nor its counters.
-    /// It runs under the caller's stop and the memory bound, on the
-    /// calling thread, whatever engine searched.
+    /// not prove the goal, in terms evaluated. Zero switches it off.
+    ///
+    /// The refuter looks for an assignment of truth values to the atoms
+    /// under which the goal's classical reading is false. That reading
+    /// erases `!` and `?`, reads `⊗` and `&` as "and", `⅋` and `⊕` as "or",
+    /// `1` and `⊤` as true, and `⊥` and `0` as false. No provable sequent
+    /// has such an assignment, in any mode. So an assignment makes an
+    /// undecided search [`Verdict::Unprovable`] with
+    /// [`Refutation::Classical`]. It also gives an exhausted search that
+    /// certificate, where the counts give none.
+    ///
+    /// It never changes a verdict the search gave, nor its counters. It
+    /// runs under the caller's stop and the memory bound, on the calling
+    /// thread, whatever engine searched.
     pub classical_work: u64,
     /// The deepest term a metavariable of a first-order search may be
-    /// bound to, a constant's depth being 0 and an application's one
-    /// more than its deepest argument's, measured as the binding is
-    /// made: the focused engine searches a first-order sequent with a
-    /// metavariable for every witness of an `∃` and binds it where an
-    /// axiom unifies two atoms. A branch whose binding would be deeper is
-    /// cut there, and a search that cut one is not
-    /// [`Verdict::Unprovable`] but [`Reason::WitnessDepth`]. A sequent
-    /// without exponentials needs no witness deeper than its terms
-    /// together, so the bound matters where copies of a `∀` hypothesis
-    /// build a term step by step. Only the focused engine reads it, on
-    /// first-order sequents.
+    /// bound to.
+    ///
+    /// A constant's depth is 0, and an application's is one more than its
+    /// deepest argument's, measured as the binding is made. The focused
+    /// engine searches a first-order sequent with a metavariable for every
+    /// witness of an `∃`, and binds it where an axiom unifies two atoms. A
+    /// branch whose binding would be deeper is cut there. A search that
+    /// cut one is not [`Verdict::Unprovable`] but [`Reason::WitnessDepth`].
+    ///
+    /// A sequent without exponentials needs no witness deeper than its
+    /// terms together. So the bound matters where copies of a `∀`
+    /// hypothesis build a term step by step. Only the focused engine reads
+    /// it, on first-order sequents.
     pub witness_depth: u32,
-    /// The most instances of quantified formulas a first-order search
-    /// may hold at once: every `∀` and `∃` step on the branches of the
-    /// proof in the making opens one, and a step past the bound cuts its
-    /// branch, so that a search that cut one is not
-    /// [`Verdict::Unprovable`] but [`Reason::Instances`]. It bounds what
-    /// the instances hold, which the copies of quantified hypotheses
-    /// multiply. Only the focused engine reads it, on first-order
-    /// sequents.
+    /// The most instances of quantified formulas a first-order search may
+    /// hold at once.
+    ///
+    /// Every `∀` and `∃` step on the branches of the proof in the making
+    /// opens one. A step past the bound cuts its branch, and a search that
+    /// cut one is not [`Verdict::Unprovable`] but [`Reason::Instances`].
+    /// It bounds what the instances hold, which the copies of quantified
+    /// hypotheses multiply. Only the focused engine reads it, on
+    /// first-order sequents.
     pub instances: u32,
     /// The thread pools a parallel search borrows instead of starting
-    /// threads of its own, or `None`, the default, for a pool built for
-    /// the search and dropped with it. A pool changes nothing a search
-    /// does or finds, only that its threads are started once for many
-    /// searches. Options are equal only if they name clones of the same
-    /// pool or both name none. Never written.
+    /// threads of its own. `None`, the default, is a pool built for the
+    /// search and dropped with it.
+    ///
+    /// A pool changes nothing a search does or finds. It only starts its
+    /// threads once for many searches. Options are equal only if they name
+    /// clones of the same pool, or both name none. The pool is never
+    /// written.
     ///
     /// Needs the cargo feature `parallel` (off by default).
     #[cfg(feature = "parallel")]
@@ -2686,16 +2974,21 @@ pub struct Options {
 }
 
 impl Default for Options {
-    /// The engine and fragment chosen by detection, the default bias, a
-    /// copy bound of [`DEFAULT_COPIES`](Self::DEFAULT_COPIES), one of
-    /// [`DEFAULT_FORWARD_COPIES`](Self::DEFAULT_FORWARD_COPIES) for the
-    /// forward search of the default bias, a memo of at most
-    /// [`DEFAULT_MEMO_LIMIT`](Self::DEFAULT_MEMO_LIMIT) stable sequents,
-    /// the net engine's exact test at its default cadence, one thread, the
-    /// default schedule, every proof checked
-    /// ([`DEFAULT_CHECK`](Self::DEFAULT_CHECK)), and the first-order
-    /// bounds [`DEFAULT_WITNESS_DEPTH`](Self::DEFAULT_WITNESS_DEPTH) and
-    /// [`DEFAULT_INSTANCES`](Self::DEFAULT_INSTANCES).
+    /// Returns the default options:
+    /// - the engine and fragment chosen by detection, and the default bias;
+    /// - a copy bound of [`DEFAULT_COPIES`](Self::DEFAULT_COPIES), and one
+    ///   of [`DEFAULT_FORWARD_COPIES`](Self::DEFAULT_FORWARD_COPIES) for the
+    ///   forward search of the default bias;
+    /// - a memo of at most [`DEFAULT_MEMO_LIMIT`](Self::DEFAULT_MEMO_LIMIT)
+    ///   stable sequents;
+    /// - the net engine's exact test at its default cadence;
+    /// - one thread, and the default schedule;
+    /// - every proof checked ([`DEFAULT_CHECK`](Self::DEFAULT_CHECK));
+    /// - the classical refuter's bound
+    ///   [`DEFAULT_CLASSICAL_WORK`](Self::DEFAULT_CLASSICAL_WORK);
+    /// - the first-order bounds
+    ///   [`DEFAULT_WITNESS_DEPTH`](Self::DEFAULT_WITNESS_DEPTH) and
+    ///   [`DEFAULT_INSTANCES`](Self::DEFAULT_INSTANCES).
     fn default() -> Self {
         Self {
             engine: None,
@@ -2722,18 +3015,22 @@ impl Options {
     pub const DEFAULT_MEMO_LIMIT: u32 = 1 << 20;
 
     /// The copy bound of the default options: three copies per branch, the
-    /// bound llprover searches with by default. The default options keep a
-    /// bound because a search without one ends only when it decides or its
-    /// stop condition fires, and [`prove`] has none; a front end with a
-    /// clock lifts it ([`copies`](Self::copies)).
+    /// bound llprover searches with by default.
+    ///
+    /// The default options keep a bound because a search without one ends
+    /// only when it decides, its stop condition fires or a limit binds,
+    /// and [`prove`] has no stop condition. A front end with a clock lifts
+    /// it ([`copies`](Self::copies)).
     pub const DEFAULT_COPIES: u32 = 3;
 
     /// The forward search's copy bound of the default options: thirty
-    /// steps of a forward chain. A deeper bound decided nothing more
-    /// within seconds on Petri nets from practice, and the price of the
-    /// bound is what an undecided search to that depth costs: mostly
-    /// milliseconds on a small Horn program, a second and more on one
-    /// whose markings grow in several places at once.
+    /// steps of a forward chain.
+    ///
+    /// A deeper bound decided nothing more within seconds on Petri nets
+    /// from practice. The price of the bound is what an undecided search to
+    /// that depth costs: mostly milliseconds on a small Horn program, a
+    /// second and more on one whose markings grow in several places at
+    /// once.
     pub const DEFAULT_FORWARD_COPIES: u32 = 30;
 
     /// Whether the default options check a proof before returning it: they
@@ -2742,14 +3039,14 @@ impl Options {
     pub const DEFAULT_CHECK: bool = true;
 
     /// The classical refuter's bound of the default options: 2²⁶ terms
-    /// evaluated, enough to try every assignment of a goal of 18 atoms
-    /// and 256 terms, and far more where a partial assignment decides the
-    /// reading.
+    /// evaluated. That is enough to try every assignment of a goal of 18
+    /// atoms and 256 terms, and far more where a partial assignment decides
+    /// the reading.
     pub const DEFAULT_CLASSICAL_WORK: u64 = 1 << 26;
 
     /// The witness depth of the default options: terms 64 applications
-    /// deep, far past any a sequent written by hand asks for, and short
-    /// of what a branch that builds a term forever takes long to reach.
+    /// deep. That is far past any depth a sequent written by hand asks
+    /// for, and a branch that builds a term forever reaches it quickly.
     pub const DEFAULT_WITNESS_DEPTH: u32 = 64;
 
     /// The instances of the default options: 2¹⁶ instances of quantified
@@ -2757,9 +3054,10 @@ impl Options {
     pub const DEFAULT_INSTANCES: u32 = 1 << 16;
 
     /// The most threads the options name: more are taken as this many.
-    /// A pool beyond it has found no use, and a count without a bound
-    /// starts whatever it is given (ten thousand threads on `A ⊢ A` cost
-    /// three minutes of processor time).
+    ///
+    /// A pool beyond it has no known use, and a count without a bound
+    /// starts whatever it is given: ten thousand threads on `A ⊢ A` cost
+    /// three minutes of processor time.
     pub const MAX_JOBS: usize = 256;
 
     /// Returns the options with another bound on the classical refuter's
@@ -2830,7 +3128,7 @@ impl Options {
         Self { memo_limit, ..self }
     }
 
-    /// Returns the options with another cadence of the net engine's test
+    /// Returns the options with another cadence of the net engines' test
     /// ([`test_period`](Self::test_period)).
     #[must_use]
     pub fn with_test_period(self, test_period: impl Into<Cadence>) -> Self {
@@ -2872,8 +3170,8 @@ impl Options {
         Self { pool, ..self }
     }
 
-    /// Returns the copy bound as the engines count it: no bound is the
-    /// largest, which no search reaches, since every level visits a stable
+    /// Returns the copy bound as the engines count it. No bound is the
+    /// largest, which no search reaches: every level visits a stable
     /// sequent and polls at it, and four billion levels take hours at the
     /// least.
     pub(crate) fn copy_bound(&self) -> u32 {
@@ -2896,18 +3194,39 @@ impl Options {
 ///
 /// # JSON
 ///
-/// With the feature `serialize` an outcome is written, never read, as one
-/// object ([`wire`](crate::wire)): `version`, `deduxit` (the crate's
-/// version, which wrote it), `verdict` (`"proved"`, `"unprovable"` or
-/// `"unknown"`), with `checked` for a proved sequent, `refutation` for an
-/// unprovable one (in the form [`Refutation`] gives) and `reason` for an
-/// unknown one (in the form [`Reason`] gives, tagged by `kind`),
-/// `fragment` (its name in the mode, as [`Fragment::name_in`] gives it),
-/// `mode` (its name), `engine`, `statistics`, for a proved sequent the
-/// proof's own keys `sequent`, `nodes` and `goal`, so that the outcome
-/// reads back as a [`Proof`], and for an unprovable one the
-/// [`Disproof`]'s `sequent` and `goal`. The command's `prove --format
-/// json` writes it.
+/// With the feature `serialize`, an outcome is written as one object
+/// ([`wire`](crate::wire)), and never read. Its keys:
+/// - `version`, and `deduxit`, the version of the crate that wrote it;
+/// - `verdict`: `"proved"`, `"unprovable"` or `"unknown"`;
+/// - `checked`, for a proved sequent;
+/// - `refutation`, for an unprovable one, in the form [`Refutation`]
+///   gives;
+/// - `reason`, for an unknown one, in the form [`Reason`] gives, tagged
+///   by `kind`;
+/// - `fragment`, its name in the mode, as [`Fragment::name_in`] gives it;
+/// - `mode`, its name;
+/// - `engine` and `statistics`;
+/// - for a proved sequent, the proof's own keys `sequent`, `nodes` and
+///   `goal`, so that the outcome reads back as a [`Proof`];
+/// - for an unprovable one, the [`Disproof`]'s `sequent` and `goal`.
+///
+/// The command's `prove --format json` writes it.
+///
+/// # Examples
+///
+#[cfg_attr(feature = "parse", doc = "```")]
+#[cfg_attr(not(feature = "parse"), doc = "```ignore")]
+/// use deduxit::linear::search::{Engine, Options, prove};
+/// use deduxit::linear::{Mode, Sequent};
+///
+/// let sequent: Sequent = "|- a, ~a".parse()?;
+/// let outcome = prove(&sequent, Mode::CLASSICAL, &Options::default())?;
+/// assert_eq!(outcome.verdict.name(), "proved");
+/// assert!(outcome.checked);
+/// assert_eq!(outcome.engine, Engine::Focus);
+/// println!("{} units of work", outcome.statistics.work);
+/// # Ok::<(), deduxit::Error>(())
+/// ```
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct Outcome {
@@ -2923,23 +3242,43 @@ pub struct Outcome {
     /// What the search cost.
     pub statistics: Statistics,
     /// The proof net the proof was read off, when the net engine found
-    /// one; `None` for the other engines and for any other verdict.
+    /// one. `None` for the other engines and for any other verdict.
     pub net: Option<Box<ProofStructure>>,
-    /// Whether the proof passed the checker before it was returned:
-    /// false only where [`Options::check`] switched the check off, and
-    /// for every verdict but a proof.
+    /// Whether the proof passed the checker before it was returned. It is
+    /// false only where [`Options::check`] switched the check off, and for
+    /// every verdict but a proof.
     pub checked: bool,
 }
 
 /// What a search found: a proof, that there is none, or that it could not
 /// tell.
+///
+/// # Examples
+///
+#[cfg_attr(feature = "parse", doc = "```")]
+#[cfg_attr(not(feature = "parse"), doc = "```ignore")]
+/// use deduxit::linear::search::{Options, Verdict, prove};
+/// use deduxit::linear::{Mode, Sequent};
+///
+/// let sequent: Sequent = "|- a, a".parse()?;
+/// let outcome = prove(&sequent, Mode::CLASSICAL, &Options::default())?;
+/// match &outcome.verdict {
+///     Verdict::Proved(proof) => println!("{}", proof.derivation()?),
+///     // The disproof prints why the sequent has no proof.
+///     Verdict::Unprovable(d) => println!("{d}"),
+///     Verdict::Unknown(reason) => println!("unknown: {reason}"),
+/// }
+/// assert!(matches!(outcome.verdict, Verdict::Unprovable(_)));
+/// # Ok::<(), deduxit::Error>(())
+/// ```
 #[derive(Clone, Debug)]
 pub enum Verdict {
-    /// The sequent is provable, and here is a proof, boxed because a proof
+    /// The sequent is provable, with a proof. It is boxed because a proof
     /// carries its forest.
     Proved(Box<Proof>),
-    /// The sequent is not provable: the search was exhaustive, and here is
-    /// what can be said of why, boxed as a proof is.
+    /// The sequent is not provable, with what can be said of why. The
+    /// search was exhaustive, or a refuter found a refutation. It is boxed
+    /// as a proof is.
     Unprovable(Box<Disproof>),
     /// The search stopped before it could decide, for the reason given.
     Unknown(Reason),
@@ -2970,20 +3309,20 @@ impl Verdict {
 
 /// Why a search stopped without deciding.
 ///
-/// In JSON (feature `serialize`) a reason is tagged by `kind`:
+/// In JSON (feature `serialize`), a reason is tagged by `kind`:
 /// `{"kind": "stopped"}`, `{"kind": "recursion_limit", "depth": 2048}`,
 /// `{"kind": "copy_bound", "copies": 3}`, `{"kind": "memory_limit",
 /// "limit_bytes": 1073741824}`, `{"kind": "index_limit"}`, `{"kind":
 /// "work_limit", "limit": 1000000}`, `{"kind": "unchecked",
 /// "limit_bytes": 1073741824}`, `{"kind": "witness_depth", "depth": 64}`
-/// or `{"kind": "instances", "instances": 65536}`; a reader refuses a
+/// or `{"kind": "instances", "instances": 65536}`. A reader refuses a
 /// kind it does not know.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Reason {
     /// The caller's stop condition fired: a time limit or an interruption.
     Stopped,
-    /// The nesting of engine calls reached
+    /// The engine's recursion reached
     /// [`Limits::recursion_depth`](crate::Limits::recursion_depth).
     #[non_exhaustive]
     RecursionLimit {
@@ -2991,7 +3330,7 @@ pub enum Reason {
         depth: u32,
     },
     /// Every level up to the bound [`Options::copies`] set hit its bound
-    /// on some branch, so a proof with more copies of a `?` formula per
+    /// on some branch. So a proof with more copies of a `?` formula per
     /// branch may exist.
     #[non_exhaustive]
     CopyBound {
@@ -2999,22 +3338,25 @@ pub enum Reason {
         copies: u32,
     },
     /// The search would have held more than
-    /// [`Limits::memory_bytes`](crate::Limits::memory_bytes): with its memo
-    /// emptied, where it keeps one, or with no room left for a memo, the
-    /// Horn engine's markings or a proof's nodes.
+    /// [`Limits::memory_bytes`](crate::Limits::memory_bytes).
+    ///
+    /// That is with its memo emptied, where it keeps one. Or there was no
+    /// room left for a memo, the Horn engine's markings, or a proof's
+    /// nodes.
     #[non_exhaustive]
     MemoryLimit {
-        /// The memory bound, in bytes; `u64::MAX` where there was none and
-        /// the allocator refused what the search asked for.
+        /// The memory bound, in bytes. It is `u64::MAX` where there was no
+        /// bound and the allocator refused what the search asked for.
         limit_bytes: u64,
     },
-    /// A structure of the search outgrew what its indices address: the
-    /// proof arena at 2³¹ nodes, the additive path's at 2³² nodes, the
-    /// count invariants at 2³² row entries, the Horn engine's markings at
-    /// 2³² or a count of its tokens at 2³².
-    /// Only a search without a memory bound gets this far, but for the
-    /// tokens, which a clause that adds thousands of them at each firing
-    /// can pass in a few hundred thousand markings.
+    /// A structure of the search outgrew what its indices address.
+    ///
+    /// The limits: the proof arena at 2³¹ nodes, the additive path's at
+    /// 2³² nodes, the count invariants at 2³² row entries, the Horn
+    /// engine's markings at 2³², and a count of its tokens at 2³². Only a
+    /// search without a memory bound gets this far, except for the tokens:
+    /// a clause that adds thousands of them at each firing can pass the
+    /// limit in a few hundred thousand markings.
     IndexLimit,
     /// The search did the most work [`Limits::work`](crate::Limits::work)
     /// allows, or the check of the proof it found would have done more.
@@ -3024,7 +3366,7 @@ pub enum Reason {
         limit: u64,
     },
     /// The search found a proof whose check would have held more than
-    /// [`Limits::memory_bytes`](crate::Limits::memory_bytes): no proof is
+    /// [`Limits::memory_bytes`](crate::Limits::memory_bytes). No proof is
     /// returned that has not passed the checker.
     #[non_exhaustive]
     Unchecked {
@@ -3079,10 +3421,12 @@ impl Reason {
         }
     }
 
-    /// The reason a search of the options gives up with, given the reason
-    /// one of its searches did: a copy bound is [`Options::copies`], the
-    /// bound every search ran within at the least, and a memory limit is
-    /// [`Limits::memory_bytes`], of which a search may have had a part.
+    /// Returns the reason a search under the options gives up with, given
+    /// the reason one of its searches gave.
+    ///
+    /// A copy bound is [`Options::copies`], the least bound every search
+    /// ran within. A memory limit is [`Limits::memory_bytes`], of which a
+    /// search may have had a part.
     pub(crate) fn as_set(self, options: &Options, limits: &Limits) -> Self {
         match self {
             Self::CopyBound { .. } => Self::CopyBound {
@@ -3096,9 +3440,10 @@ impl Reason {
     }
 
     /// Returns the settings key whose bound the search reached, which a
-    /// caller raises to search further; `None` for the stop, the indices
-    /// and the allocator's refusal where there was no memory bound, which
-    /// no setting lifts.
+    /// caller raises to search further.
+    ///
+    /// It is `None` for what no setting lifts: the stop, the indices, and
+    /// the allocator's refusal where there was no memory bound.
     pub const fn setting(&self) -> Option<&'static str> {
         match self {
             Self::Stopped
@@ -3151,68 +3496,81 @@ impl Display for Reason {
     }
 }
 
-/// What a search cost. Which counters an engine fills, and what each
-/// counts for it, is [`Engine::counters`]; every engine counts `work`, and
-/// the counters an engine does not list stay zero.
+/// What a search cost.
 ///
-/// In JSON (feature `serialize`) an object of the counters by name, read
-/// back with a missing one as zero; the first-order counters are written
-/// only where they are not zero, so a propositional search's object is
-/// what it was before them.
+/// [`Engine::counters`] says which counters an engine fills, and what
+/// each counts for it. Every engine counts `work`. The counters an engine
+/// does not list stay zero.
+///
+/// In JSON (feature `serialize`), it is an object of the counters by
+/// name. A missing one reads back as zero. The first-order counters are
+/// written only where they are not zero, so a propositional search's
+/// object has no first-order keys.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", serde(default))]
 #[non_exhaustive]
 pub struct Statistics {
-    /// The nodes of the search: the stable sequents the focused engine
-    /// visited, memo hits included, the literals the net engine chose a
-    /// partner for, the pairs of subformulas the additive path decided, or
-    /// the markings the Horn engine reached, the initial one included, with
-    /// those its backward search reached from the goal (in affine mode the
-    /// elements it computed backward).
+    /// The nodes of the search. They are, by engine:
+    /// - the focused engines: the stable sequents visited, memo hits
+    ///   included;
+    /// - the net engine: the literals it chose a partner for;
+    /// - the additive path: the pairs of subformulas it decided;
+    /// - the Horn engine: the markings it reached, the initial one
+    ///   included, with those its backward search reached from the goal
+    ///   (in affine mode, the elements it computed backward).
+    ///
+    /// [`Engine::counters`] lists every engine's.
     pub nodes: u64,
-    /// The visits answered from the memo (of the focused engines, by a
-    /// failure that waits on an open ancestor too); of the Horn engine,
-    /// the markings it had kept already, in either direction, and in
-    /// affine mode the elements an element kept already covers.
+    /// The visits answered from the memo. For the focused engines, a
+    /// failure that waits on an open ancestor answers some too. For the
+    /// Horn engine, the markings it had kept already, in either direction,
+    /// and in affine mode the elements an element kept already covers.
     pub memo_hits: u64,
-    /// The most stable sequents the memo held at once; on a pool, whose
-    /// memo is shards each emptied by itself, the sum of the shards'
-    /// peaks, which bounds it from above; of two searches that ran
-    /// together, the two memos' together, and of two that took turns from
-    /// their start, the most of one turn; of the additive path, the pairs
-    /// of subformulas its memo held at once; of the Horn engine, the
-    /// markings it kept in either direction, or in affine mode the
-    /// elements. A
-    /// `u64` on every target, as every counter is.
+    /// The most stable sequents the memo held at once.
+    ///
+    /// - On a pool, whose memo is shards each emptied by itself, it is the
+    ///   sum of the shards' peaks, which bounds it from above.
+    /// - Of the default bias's two searches, where they ran together, it
+    ///   is the two memos' together. Where they took turns from their
+    ///   start, it is the most of one turn.
+    /// - For the additive path, it is the pairs of subformulas its memo
+    ///   held at once.
+    /// - For the Horn engine, it is the markings it kept in either
+    ///   direction, or in affine mode the elements.
+    ///
+    /// It is a `u64` on every target, as every counter is.
     pub memo_entries: u64,
-    /// The context splits examined for `⊗` and Mix, most of them rejected by
-    /// the counts.
+    /// The context splits examined for `⊗` and Mix. The counts reject most
+    /// of them.
     pub splits: u64,
-    /// The axiom links the net engine tried: each was made, and taken back
+    /// The axiom links the net engine tried. Each was made, and taken back
     /// again unless it is part of the net found.
     pub links: u64,
     /// The exact acyclicity tests the net engine ran.
     pub tests: u64,
     /// The copy bound the last level of the focused engine's deepening
-    /// began under: of the search that decided, else of the one under
-    /// [`Options::copies`] (the backward one of the default bias's two),
-    /// so how far a search without a bound got before it was stopped.
-    /// Zero without exponentials and for the other engines.
+    /// began under. So it says how far a search without a bound got before
+    /// it was stopped.
+    ///
+    /// It is that of the search that decided, else of the one under
+    /// [`Options::copies`] (the backward one of the default bias's two).
+    /// It is zero without exponentials and for the other engines.
     pub copies: u32,
     /// The copy bound the last level of the forward search of
-    /// [`Bias::Auto`] began under, which runs within
-    /// [`Options::forward_copies`] on a Horn program; zero where it did
-    /// not run.
+    /// [`Bias::Auto`] began under. That search runs within
+    /// [`Options::forward_copies`] on a Horn program. It is zero where the
+    /// forward search did not run.
     pub forward_copies: u32,
-    /// The units of work the search did, in its engine's unit, and where
-    /// the net engine took a goal over at a limit, the first engine's
-    /// units and its own together (each
-    /// [`Engine`] variant says which): where every search runs on the
-    /// calling thread (one thread, and the default bias's two searches
-    /// in [`Schedule::Turns`]), what the [`Progress::work`] of its polls
-    /// add up to; other threads' units come into [`Progress::done`]
-    /// only.
+    /// The units of work the search did, in its engine's unit (each
+    /// [`Engine`] variant says which).
+    ///
+    /// Where another engine took the goal over at a limit, or the inverse
+    /// method took turns beside the engine, it is every engine's units
+    /// together. Where every search runs on the calling thread (one
+    /// thread, and the default bias's two searches in
+    /// [`Schedule::Turns`]), it is what the [`Progress::work`] of the polls
+    /// adds up to. Other threads' units come into [`Progress::done`] only.
     pub work: u64,
     /// The unifications of two literals the focused engines tried on a
     /// first-order sequent, at an identity or against a copy of the
@@ -3220,13 +3578,13 @@ pub struct Statistics {
     #[cfg_attr(feature = "serialize", serde(skip_serializing_if = "is_zero"))]
     pub unifications: u64,
     /// The bindings of a metavariable the focused engines made on a
-    /// first-order sequent: one that an undo took back and the search
-    /// made again counts again.
+    /// first-order sequent. A binding that an undo took back and the
+    /// search made again counts again.
     #[cfg_attr(feature = "serialize", serde(skip_serializing_if = "is_zero"))]
     pub bindings: u64,
 }
 
-/// Whether a counter is zero, which its JSON then leaves out.
+/// Returns whether a counter is zero, which its JSON then leaves out.
 #[cfg(feature = "serialize")]
 #[expect(
     clippy::trivially_copy_pass_by_ref,
@@ -3238,9 +3596,11 @@ fn is_zero(n: &u64) -> bool {
 
 impl Statistics {
     /// Adds the counters of another search, one that ran beside this one
-    /// or after it, to these: the work done adds up, and the memo's peak
-    /// and the copy bound reached are the larger of the two, since each
-    /// search had a memo and a deepening of its own.
+    /// or after it, to these.
+    ///
+    /// The work done adds up. The memo's peak and the copy bounds reached
+    /// are the larger of the two, since each search had a memo and a
+    /// deepening of its own.
     pub fn add(&mut self, other: &Statistics) {
         self.add_run(other);
         self.memo_hits += other.memo_hits;
@@ -3249,7 +3609,7 @@ impl Statistics {
         self.work += other.work;
     }
 
-    /// Adds another engine's counters to these, the memo's excepted: they
+    /// Adds another engine's counters to these, except the memo's. Those
     /// describe a table, not a run, and a parallel search reads them off
     /// the one table its workers share.
     pub(crate) fn add_run(&mut self, other: &Statistics) {
@@ -3269,10 +3629,10 @@ mod tests {
     use crate::linear::sequents::Atom;
 
     /// A forest with cut formulas is searched on a cut-free forest of the
-    /// goal's formulas, by every engine that takes the goal: no engine
-    /// sees a cut formula, every proof found is cut-free and checks
-    /// against the goal, which may hold occurrences of the cut formulas,
-    /// and a sequent with cut formulas is proved as its conclusion.
+    /// goal's formulas, by every engine that takes the goal. No engine
+    /// sees a cut formula. Every proof found is cut-free, and checks
+    /// against the goal, which may hold occurrences of the cut formulas.
+    /// A sequent with cut formulas is proved as its conclusion.
     #[cfg(feature = "parse")]
     #[test]
     fn a_forest_with_cuts_is_searched_without_them() {
@@ -3321,7 +3681,7 @@ mod tests {
     }
 
     /// An outcome is checked exactly when it is a proof and the options
-    /// ask for the check; a cadence of links is a number.
+    /// ask for the check. A cadence of links converts from a number.
     #[test]
     fn checked_when_proved_and_asked() {
         let tautology = sequent("|- a, ~a");
@@ -3343,8 +3703,8 @@ mod tests {
     #[cfg(feature = "serialize")]
     #[test]
     fn counters_are_fields() {
-        // Every counter not zero, since the first-order ones are written
-        // only then.
+        // Every counter is set, since the first-order ones are written only
+        // when they are not zero.
         let written = serde_json::to_value(Statistics {
             unifications: 1,
             bindings: 1,
@@ -3364,7 +3724,8 @@ mod tests {
     }
 
     /// Every reason has its word, listed in `NAMES` in its order, and in
-    /// JSON its `kind` is that word; the verdicts' words likewise.
+    /// JSON its `kind` is that word. The same holds for the verdicts'
+    /// words.
     #[test]
     fn reasons_and_verdicts_are_named() {
         let reasons = [
@@ -3496,8 +3857,8 @@ mod tests {
     #[test]
     fn names_are_listed() {
         // Every variant has an arm, with no wildcard, and its place in the
-        // list: a new variant fails to compile here until it has one, and
-        // the lengths until it is listed.
+        // list. A new variant fails to compile here until it has an arm,
+        // and the lengths differ until it is listed.
         let engine_at = |engine| match engine {
             Engine::Focus => 0,
             Engine::Net => 1,
@@ -3533,8 +3894,8 @@ mod tests {
     }
 
     /// An engine's proof that the checker rejects is a defect, never a
-    /// verdict: a weakening in classical mode, as an affine search would
-    /// leave it.
+    /// verdict. The proof here has a weakening in classical mode, as an
+    /// affine search would leave it.
     #[test]
     fn a_rejected_proof_is_an_error() {
         let s = sequent("|- a, b, ~a");
@@ -3562,9 +3923,9 @@ mod tests {
         assert!(matches!(verdict, Err(Error::Rejected(_))), "{verdict:?}");
     }
 
-    /// A proof whose check a bound gives up is no proof returned: the
-    /// verdict is unknown, by the bound that refused the check, the
-    /// memory bound as the limits set it, of which the check had what the
+    /// A proof whose check a bound gives up is not returned. The verdict
+    /// is unknown, by the bound that refused the check. For memory that is
+    /// the bound as the limits set it, of which the check had what the
     /// input left.
     #[test]
     fn a_refused_check_is_unknown() {
@@ -3589,8 +3950,8 @@ mod tests {
                 Reason::WorkLimit { limit: 1 }
             ]
         );
-        // The check counts its work, the search's proof found within one
-        // unit of it is unknown.
+        // The check counts its work too, so a proof the search finds within
+        // a bound of one unit is unknown.
         let work = Limits::default().with_work(Some(1));
         let outcome = prove_within(
             &sequent("a, b |- a * b"),
@@ -3611,13 +3972,15 @@ mod tests {
         assert!(!outcome.checked);
     }
 
-    /// A proof the search finds within the memory bound but whose check
-    /// would need more is unknown by that bound, neither a proof nor an
-    /// error. The Horn engine holds a counter's firing sequence of 3 000
-    /// tokens in less memory than the check of its proof holds (a state
-    /// per firing, each waiting for its reader), so the first bound,
-    /// upwards from 512 KiB, at which the search no longer ends at the
-    /// bound is one that the check passes.
+    /// A proof the search finds within the memory bound, but whose check
+    /// would need more, is unknown by that bound: neither a proof nor an
+    /// error.
+    ///
+    /// The Horn engine holds a counter's firing sequence of 3 000 tokens in
+    /// less memory than the check of its proof holds (a state per firing,
+    /// each waiting for its reader). So the first bound, upwards from
+    /// 512 KiB, at which the search no longer ends at the bound is one
+    /// that the check passes.
     #[test]
     fn a_check_past_the_memory_bound_is_unknown() {
         let counter = sequent(&format!(
@@ -3649,14 +4012,15 @@ mod tests {
         );
     }
 
-    /// The memory bound is on the input too, the forest with its sequent:
-    /// `⊢ a, ~a` with an atom's name of a mebibyte, which the search
-    /// itself never copies, ends at a bound one byte short of the input at
-    /// its first stable sequent, through the front door and through the
-    /// race of the command's default alike, where the input once went
-    /// uncounted beside a search of a few kibibytes; with half the input
-    /// more it proves, so the input is counted once, and the proof's
-    /// check has the room beside it.
+    /// The memory bound counts the input too: the forest with its
+    /// sequent.
+    ///
+    /// `⊢ a, ~a` with an atom's name of a mebibyte, which the search itself
+    /// never copies, ends at a bound one byte short of the input, at its
+    /// first stable sequent. That holds through the front door and through
+    /// the race of the command's default alike. With half the input more,
+    /// it proves. So the input is counted once, and the proof's check has
+    /// the room beside it.
     #[test]
     fn the_memory_bound_holds_the_input() {
         let name = "a".repeat(1 << 20);
@@ -3700,7 +4064,7 @@ mod tests {
     }
 
     /// Every poll tells the stop the work done since the last and in all,
-    /// in the engine's units, and the bound on work ends a search there:
+    /// in the engine's units. The bound on work ends a search there, with
     /// an unknown verdict that names the bound.
     #[test]
     fn the_search_counts_its_work() {
@@ -3752,8 +4116,8 @@ mod tests {
         }
     }
 
-    /// A turn tells the caller the units of every poll, the one that ends
-    /// it too.
+    /// A turn tells the caller the units of every poll, including the one
+    /// that ends it.
     #[test]
     fn a_turn_tells_the_caller_every_poll() {
         let mut told = 0;
@@ -3770,9 +4134,9 @@ mod tests {
     }
 
     /// Beside the default bias's second search, which reads the shared
-    /// count, the bound on work is late by a few batches at most: the
-    /// calling thread adds its units in batches too, where it kept them
-    /// to the end and the second search ran a whole slice past the bound.
+    /// count, the bound on work is late by a few batches at most. The
+    /// calling thread adds its units in batches too. If it kept them to
+    /// the end, the second search would run a whole slice past the bound.
     #[cfg(feature = "parallel")]
     #[test]
     fn the_work_bound_holds_beside_the_second_search() {
@@ -3801,9 +4165,9 @@ mod tests {
         );
     }
 
-    /// The race answers with the side that decided, whichever it is: the
+    /// The race answers with the side that decided, whichever it is. The
     /// caller's stop ends one side at its first poll (the pool's thread is
-    /// named), and the other proves the sequent.
+    /// told by its name), and the other side proves the sequent.
     #[cfg(feature = "parallel")]
     #[test]
     fn the_race_answers_with_the_side_that_decided() {
@@ -3829,17 +4193,18 @@ mod tests {
         }
     }
 
-    /// Where the engine of a row with a turn runs past its head start, the
-    /// inverse method takes its turn and its decision answers; where the
+    /// Where the engine of a row with turns runs past its head start, the
+    /// inverse method takes its turn, and its decision answers. Where the
     /// turn does not decide, the engine answers as it does alone, with its
-    /// own counters, the turn's work added. The head start and the turn
-    /// are set low on this thread, so that small goals reach them: under
-    /// Mix the focused engine searches the partitions of `mix(8)`'s context
-    /// for a second, and the two-sided engine takes some hundred units on
-    /// the intuitionistic goal; the inverse method refutes both at once.
-    /// At the head start and share of every
-    /// search it refutes a goal that the two-sided engine, deepening its
-    /// copy bound, would leave to the time limit.
+    /// own counters and the turn's work added.
+    ///
+    /// The head start and the turn are set low on this thread, so that
+    /// small goals reach them. Under Mix, the focused engine searches the
+    /// partitions of `mix(8)`'s context for a second, and the two-sided
+    /// engine takes some hundred units on the intuitionistic goal. The
+    /// inverse method refutes both at once. At the head start and share of
+    /// every search, it refutes a goal that the two-sided engine, deepening
+    /// its copy bound, would leave to the time limit.
     #[test]
     fn the_inverse_method_takes_its_turn() {
         let options = Options::default().with_jobs(1);
@@ -3871,10 +4236,10 @@ mod tests {
         let counters = |s: &Statistics| (s.nodes, s.splits, s.memo_hits, s.memo_entries);
         assert_eq!(counters(&turned.statistics), counters(&alone.statistics));
         assert!(turned.statistics.work > alone.statistics.work);
-        // With the head start and share of every search, a goal the
-        // two-sided engine, deepening without a copy bound as the command
-        // does, leaves to the time limit is refuted in a turn once its
-        // work passes the head start.
+        // With the head start and share of every search: the two-sided
+        // engine, deepening without a copy bound as the command does,
+        // leaves this goal to the time limit. A turn refutes it once the
+        // engine's work passes the head start.
         let saturating = sequent("!(a -o a * a * a), !(a -o a), a |- a * (a + 0)");
         let deepening = options.clone().with_copies(None);
         let outcome = prove(&saturating, Mode::INTUITIONISTIC, &deepening).unwrap();
@@ -3883,7 +4248,7 @@ mod tests {
     }
 
     /// The caller's stop ends both sides of the race, whether or not the
-    /// other has decided: asked from the pool too, it stops a search that
+    /// other has decided. Asked from the pool too, it stops a search that
     /// would prove the sequent, and the race answers unknown.
     #[cfg(feature = "parallel")]
     #[test]
@@ -3908,8 +4273,8 @@ mod tests {
     }
 
     /// A panic on one side of the race stops the other side, and then
-    /// goes on to the caller: the pool's stop panics here, and the
-    /// single search of minutes ends at its next poll.
+    /// reaches the caller. Here the pool's stop panics, and the single
+    /// search, which would take minutes, ends at its next poll.
     #[cfg(feature = "parallel")]
     #[test]
     fn a_panic_on_one_side_of_the_race_stops_the_other() {
@@ -3939,8 +4304,8 @@ mod tests {
         assert_eq!(panicked, Ok(true));
     }
 
-    /// The race counts every thread: below three it asks nothing and
-    /// searches as one call with that many threads would; from three it
+    /// The race counts every thread. Below three, it asks nothing and
+    /// searches as one call with that many threads would. From three, it
     /// starts the pool once, when asked to, and answers as one thread
     /// does.
     #[cfg(feature = "parallel")]
@@ -3983,12 +4348,14 @@ mod tests {
         assert_eq!(raced.engine, alone.engine);
     }
 
-    /// The front door's plain parts: a sequent past the bound on
-    /// occurrences is refused before anything unfolds, the engines that
-    /// search on a pool are the focused and the net engine, the default
-    /// options are their documented constants, and each refutation says
-    /// its counts in words, with the singular, a range, the minus sign and
-    /// Mix's inequality where they apply.
+    /// The front door's plain parts:
+    /// - a sequent past the bound on occurrences is refused before
+    ///   anything unfolds;
+    /// - the engines that search on a pool are the focused engines and the
+    ///   net engine;
+    /// - the default options are their documented constants;
+    /// - each refutation says its counts in words, with the singular, a
+    ///   range, the minus sign and Mix's inequality where they apply.
     #[test]
     fn the_front_door_s_plain_parts() {
         let tight = Limits::default().with_occurrences(Some(2));
@@ -4054,8 +4421,8 @@ mod tests {
                  sequent, and every literal of the atom below one, which copies add, is #0, so",
             ),
             (
-                // The copies' literal as the fields name it, even where a
-                // form read from JSON contradicts the counts.
+                // The copies' literal is written as the fields name it, even
+                // where a form read from JSON contradicts the counts.
                 Refutation::OneSided(OneSided {
                     atom,
                     least: -2,
@@ -4147,8 +4514,8 @@ mod tests {
         }
     }
 
-    /// Two searches' counters add up, but the memo's peak and the copy
-    /// bound reached, which are the larger of the two.
+    /// Two searches' counters add up, except the memo's peak and the copy
+    /// bounds reached, which are the larger of the two.
     #[test]
     fn statistics_add_up() {
         let mut first = Statistics {
@@ -4196,10 +4563,10 @@ mod tests {
         );
     }
 
-    /// Unit-free MLL reaches the net engine unless a literal occurs more
-    /// than twice, every other classical input without exponentials the
-    /// focused engine, and the outcome says which fragment it was searched
-    /// in.
+    /// Classical inputs without exponentials go to the focused engine,
+    /// unit-free MLL included, and two formulas with an additive
+    /// connective or unit to the additive path. The outcome says which
+    /// fragment it was searched in.
     #[test]
     fn dispatch() {
         for (input, fragment, engine) in [
@@ -4220,12 +4587,13 @@ mod tests {
         }
     }
 
-    /// Where the focused engine the dispatch picked ends at its recursion
-    /// limit on unit-free MLL whose linking is forced, the net engine
-    /// decides the sequent, in classical and intuitionistic mode, and
-    /// where it meets its memory bound in classical mode without Mix the
-    /// inverse method, or the net engine after it; not where an engine is forced, not on equal
-    /// literals, nor outside unit-free MLL.
+    /// Another engine takes over where the focused engine the dispatch
+    /// picked ends at a limit on unit-free MLL whose linking is forced.
+    /// After the recursion limit, the net engine decides the sequent, in
+    /// classical and intuitionistic mode. After the memory bound in
+    /// classical mode without Mix, the inverse method does, or the net
+    /// engine after it. No engine takes over where an engine is forced, on
+    /// equal literals, or outside unit-free MLL.
     #[test]
     fn another_engine_takes_over_at_a_limit() {
         let limits = Limits::default().with_recursion_depth(8);
@@ -4246,12 +4614,12 @@ mod tests {
             outcome.verdict,
             Verdict::Unknown(Reason::RecursionLimit { .. })
         ));
-        // The focused engine's set-up meets a bound of 1 MiB on `wide`
-        // with 256 pairs, and the inverse method takes over; under 64 KiB
-        // on 64 pairs the inverse method meets it too, and the net engine
-        // proves the sequent. What each search charged goes before the
-        // next one's proof is checked under the same bound.
-        // Under Mix the net engine takes over at once.
+        // The focused engine's set-up meets a bound of 1 MiB on `wide` with
+        // 256 pairs, and the inverse method takes over. Under 64 KiB on 64
+        // pairs, the inverse method meets the bound too, and the net engine
+        // proves the sequent. What each search charged is given back before
+        // the next one's proof is checked under the same bound. Under Mix
+        // the net engine takes over at once.
         for (pairs, bytes, mode, engine) in [
             (256, 1 << 20, Mode::CLASSICAL, Engine::Inverse),
             (64, 1 << 16, Mode::CLASSICAL, Engine::Net),
@@ -4264,8 +4632,9 @@ mod tests {
             assert_eq!(outcome.engine, engine, "{pairs} {mode}");
             assert!(outcome.verdict.proof().is_some(), "{:?}", outcome.verdict);
         }
-        // Equal literals: the net engine's search could take without end
-        // what the focused engine gave up quickly, so it stays given up.
+        // Equal literals: the net engine's search could run without end
+        // where the focused engine gave up quickly, so the goal stays given
+        // up.
         let equal = "a, a, a -o (a -o b0), b0 -o b1, b1 -o b2, b2 -o b3, b3 -o b4, \
                      b4 -o b5, b5 -o b6, b6 -o b7, b7 -o b8, b8 -o b9 |- b9";
         let outcome = decide(equal, Mode::INTUITIONISTIC, &Options::default());
@@ -4279,9 +4648,10 @@ mod tests {
         assert_eq!(outcome.engine, Engine::Focus);
     }
 
-    /// An unprovable sequent says why where its counts tell: an atom whose
-    /// literals cannot pair up, also across additive alternatives, or the
-    /// count equation; else that the search was exhaustive.
+    /// An unprovable sequent says why, where its counts tell: an atom
+    /// whose literals cannot pair up, also across additive alternatives,
+    /// or the count equation. Otherwise it says that the search was
+    /// exhaustive.
     #[test]
     fn refutations() {
         let refuted = |input: &str, mode: Mode| {
@@ -4333,8 +4703,9 @@ mod tests {
             "the count equation fails: a provable one-sided sequent of MLL has exactly #⊗ − #⅋ − \
              #1 + #⊥ + 2 formulas, here 0 − 1 − 0 + 0 + 2 = 1, and this one has 3"
         );
-        // Where the counts rule out nothing, a falsifying assignment
-        // certifies, and a tautology leaves the search's word.
+        // Where the counts rule out nothing, an assignment that makes the
+        // classical reading false certifies the verdict. A tautology leaves
+        // only the search's word.
         assert_eq!(
             refuted("|- a par ~a, b * ~b", classical).refutation(),
             &Refutation::Exhausted
@@ -4354,7 +4725,7 @@ mod tests {
         );
     }
 
-    /// A goal is a multiset: the roots in another order are the sequent
+    /// A goal is a multiset. The roots in another order are the sequent
     /// itself, which the net engine takes, forced or by default.
     #[test]
     fn goal_in_any_order() {
@@ -4391,9 +4762,9 @@ mod tests {
         assert!(outcome.verdict.proof().is_some());
     }
 
-    /// `Options::engine` forces an engine: the focused engine on MLL, the
-    /// net engine on MLL with Mix, and the net engine outside MLL is an
-    /// error.
+    /// `Options::engine` forces an engine: the focused engine on MLL, and
+    /// the net engine on MLL with Mix. The net engine forced outside MLL
+    /// is an error.
     #[test]
     fn engine_override() {
         let s = sequent("|- a * b, ~a par ~b");
@@ -4437,8 +4808,8 @@ mod tests {
         );
     }
 
-    /// The asserted fragment must contain the sequent's, and is what the
-    /// search runs in, which also picks the engine.
+    /// The asserted fragment must contain the sequent's. The search runs
+    /// in it, and it picks the engine.
     #[test]
     fn fragment_override() {
         let s = sequent("|- a * b, ~a, ~b");
@@ -4471,10 +4842,10 @@ mod tests {
     }
 
     /// The table "Which engine decides a goal" of `Engine`'s
-    /// documentation lists the rows of `DISPATCH` in their order: each
-    /// row's fragment, its modes by the cell's first word, a feature
-    /// exactly where the row asks one, its engine, and the inverse method
-    /// beside it exactly where the row gives it a turn.
+    /// documentation lists the rows of `DISPATCH` in their order. Each line
+    /// has the row's fragment, its modes by the cell's first word, a
+    /// feature exactly where the row asks one, its engine, and the inverse
+    /// method beside it exactly where the row gives it turns.
     #[test]
     fn the_documented_dispatch_is_the_dispatch() {
         let section = include_str!("mod.rs")
@@ -4529,9 +4900,9 @@ mod tests {
     }
 
     /// A Horn program with a clause under `!` goes to the Horn engine in
-    /// every mode, with Mix and in affine mode too; the other sequents
-    /// with exponentials to the focused engine; and the net engine is
-    /// refused in affine mode.
+    /// every mode, with Mix and in affine mode too. The other sequents with
+    /// exponentials go to the focused engine. The net engine is refused in
+    /// affine mode.
     #[test]
     fn dispatch_by_mode() {
         for (input, mode, fragment, engine) in [
@@ -4598,11 +4969,12 @@ mod tests {
         );
     }
 
-    /// Intuitionistic mode: IMLL without units goes to the net engine by
-    /// the embedding, a Horn program with a clause under `!` to the Horn
-    /// engine, everything else to the two-sided engine; a sequent
-    /// with no intuitionistic reading, Mix, and an engine forced for the
-    /// other mode are errors.
+    /// Intuitionistic mode: two formulas with an additive connective or
+    /// unit go to the additive path, and a Horn program with a clause
+    /// under `!` to the Horn engine. Everything else, unit-free IMLL
+    /// included, goes to the two-sided engine. A sequent with no
+    /// intuitionistic reading, Mix, and an engine forced for the other
+    /// mode are errors.
     #[test]
     fn dispatch_intuitionistic() {
         let i = Mode::INTUITIONISTIC;
@@ -4676,12 +5048,11 @@ mod tests {
         );
     }
 
-    /// IMLL by embedding: on generated intuitionistic sequents over `⊗` and
-    /// `⊸` and their mutants, where the dispatch picks the net engine on the
-    /// one-sided sequent, the two-sided engine gives the same verdict, and
-    /// every net-engine proof passes the intuitionistic checker (every
-    /// sequent of a cut-free MLL proof of an intuitionistic sequent has one
-    /// goal).
+    /// IMLL by embedding. On generated intuitionistic sequents over `⊗`
+    /// and `⊸`, and their mutants, the net engine forced on the one-sided
+    /// sequent gives the two-sided engine's verdict. Every net-engine proof
+    /// passes the intuitionistic checker, since every sequent of a cut-free
+    /// MLL proof of an intuitionistic sequent has one goal.
     #[test]
     fn embedding_agrees_with_the_two_sided_engine() {
         use crate::linear::search::generate::{self, IllRules, Rng};
@@ -4707,8 +5078,8 @@ mod tests {
                 }
                 let text = generate::two_sided(&hypotheses, &goal);
                 let s = sequent(&text);
-                // No literal more than twice: the sample the embedding was
-                // first compared on, which a debug build decides quickly.
+                // No literal more than twice, so that a debug build decides
+                // the sample quickly.
                 let forest = Forest::new(&s).unwrap();
                 if forest
                     .all_literals()
@@ -4746,10 +5117,11 @@ mod tests {
         );
     }
 
-    /// A goal below the roots is decided in its own fragment by the focused
-    /// engine, two additive-only occurrences by the additive path, and the
-    /// two-sided engine in intuitionistic mode; the net engine is refused
-    /// off the roots, and an intuitionistic goal must have one output.
+    /// A goal below the roots is decided in its own fragment: by the
+    /// focused engine, two additive-only occurrences by the additive path,
+    /// and in intuitionistic mode by the two-sided engine. The net engine
+    /// is refused off the roots, and an intuitionistic goal must have one
+    /// output.
     #[test]
     fn goals() {
         let o = |ids: &[u32]| ids.iter().map(|&i| Member::new(i)).collect::<Vec<_>>();
@@ -4830,7 +5202,7 @@ mod tests {
         );
 
         // 0: (~a & ~b) ⅋ (a & b), 1: ~a & ~b, 2: ~a, 3: ~b, 4: a & b, 5: a,
-        // 6: b: the additive path on the pair below the ⅋.
+        // 6: b. The additive path decides the pair below the ⅋.
         let s = sequent("|- (~a & ~b) par (a & b)");
         let forest = Forest::new(&s).unwrap();
         let outcome = prove_goal(
@@ -4854,9 +5226,9 @@ mod tests {
         assert_eq!(outcome.engine, Engine::Focus);
         assert!(outcome.verdict.proof().is_some());
 
-        // 0: ~a, 1: a ⊗ ~b, 2: a, 3: ~b, 4: b, read as a, a ⊸ b ⊢ b: the
-        // goal ⊢ ~a, a is a ⊢ a two-sided; ⊢ ~a alone has no output and
-        // ⊢ a, b two.
+        // 0: ~a, 1: a ⊗ ~b, 2: a, 3: ~b, 4: b, read as a, a ⊸ b ⊢ b. The
+        // goal ⊢ ~a, a is a ⊢ a two-sided. ⊢ ~a alone has no output, and
+        // ⊢ a, b has two.
         let s = sequent("a, a -o b |- b");
         let forest = Forest::new(&s).unwrap();
         let i = Mode::INTUITIONISTIC;

@@ -2,13 +2,16 @@
 // Licensed under the EUPL
 
 //! The memory a search may hold: a count of the bytes its growing
-//! structures have allocated, against the bound of the options. What
-//! grows charges it where it allocates (the memo, the proof arena, the
-//! counts, the buffers a level of recursion takes), by the capacity
-//! allocated and not by what is in use, so the count follows the memory
-//! the process holds; what was freed releases it. The count is atomic
-//! because the workers of a parallel search share one account; one thread
-//! pays an uncontended addition per allocation, which is rare by design.
+//! structures have allocated, against `Limits::memory_bytes`.
+//!
+//! Whatever grows charges the count where it allocates: the memo, the
+//! proof arena, the counts, the buffers a level of recursion takes. It
+//! charges the capacity allocated, not what is in use, so the count
+//! follows the memory the process holds. What is freed is released.
+//!
+//! The count is atomic because the workers of a parallel search share
+//! one account. A single thread pays an uncontended addition per
+//! allocation, and allocations are rare by design.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -18,19 +21,22 @@ use std::sync::atomic::{AtomicU64, Ordering};
 pub(crate) struct Account {
     /// The bound, or `u64::MAX` for none.
     limit: u64,
-    /// The bytes charged and not released. A sum of sizes of live
-    /// allocations, each below `isize::MAX`, of which an address space
-    /// holds fewer than 2⁶⁴ bytes' worth: it cannot wrap.
+    /// The bytes charged and not released.
+    ///
+    /// It cannot wrap: it is a sum of the sizes of live allocations, and
+    /// an address space holds fewer than 2⁶⁴ bytes of them.
     used: AtomicU64,
-    /// The account of the race this one is a part of, which every charge
-    /// counts in too and which no part passes: the two searches of a race
-    /// draw on one bound. `None` outside a race.
+    /// The account of the race this one is a part of, or `None` outside
+    /// a race.
+    ///
+    /// Every charge counts in it too, and no part may pass its bound, so
+    /// the two searches of a race draw on one bound.
     whole: Option<Arc<Account>>,
-    /// What this account held in the whole when it began: a fork starts
-    /// from what its original holds, which the whole counts already.
+    /// What this account held when it began, which the whole counts
+    /// already. A fork starts from what its original holds.
     base: u64,
-    /// What it holds for its whole life from the start, the input of the
-    /// searches it bounds, which its parts leave room for.
+    /// The input of the searches it bounds, which it holds from its
+    /// start to its end. Its parts leave room for it.
     #[cfg_attr(
         not(feature = "parallel"),
         expect(dead_code, reason = "only a race's parts read it")
@@ -45,9 +51,11 @@ impl Account {
         Self::holding(limit, 0)
     }
 
-    /// An account with the bound given that holds `input` bytes from the
-    /// start to its end: what the searches it bounds read, which they
-    /// hold as long as they run.
+    /// An account with the bound given that holds `input` bytes from its
+    /// start to its end.
+    ///
+    /// The input is what the searches it bounds read, which they hold as
+    /// long as they run.
     pub(crate) fn holding(limit: Option<u64>, input: u64) -> Self {
         Self {
             limit: limit.unwrap_or(u64::MAX),
@@ -58,9 +66,9 @@ impl Account {
         }
     }
 
-    /// An account for one search of a race, with the whole's bound less
-    /// its input, whose charges count in the whole: what one search
-    /// holds the other may not.
+    /// An account for one search of a race. Its bound is the whole's
+    /// less the whole's input, and its charges count in the whole, so
+    /// what one search holds the other may not.
     #[cfg(feature = "parallel")]
     pub(crate) fn part_of(whole: &Arc<Account>) -> Self {
         Self {
@@ -76,10 +84,12 @@ impl Account {
         }
     }
 
-    /// An account for one of `parts` searches that run side by side: what
-    /// the bound leaves beside what this account holds (its input, or a
-    /// reading) divided evenly, so that neither search's memory decides
-    /// what the other may keep; within a race, a part of its whole too.
+    /// An account for one of `parts` searches that run side by side.
+    ///
+    /// Its bound is what this account's bound leaves beside what it holds
+    /// (its input, or a reading), divided evenly. So neither search's
+    /// memory decides what the other may keep. Within a race, it is a
+    /// part of the race's whole too.
     pub(crate) fn share(&self, parts: u64) -> Self {
         Self {
             limit: if self.limit == u64::MAX {
@@ -95,8 +105,10 @@ impl Account {
     }
 
     /// An account with the same bound that starts from what this one
-    /// holds now: for a search that starts afresh beside what was set up
-    /// for it, and whose own memory goes when it ends.
+    /// holds now.
+    ///
+    /// It is for a search that starts afresh beside what was set up for
+    /// it, and whose own memory goes when it ends.
     pub(crate) fn fork(&self) -> Self {
         Self {
             limit: self.limit,
@@ -128,10 +140,11 @@ impl Account {
         }
     }
 
-    /// Gives back everything charged since the account held `held` bytes:
-    /// what a search that has ended left charged (tables of its set-up and
-    /// a memo's reserve, which it never releases), which it no longer
-    /// holds.
+    /// Gives back everything charged since the account held `held` bytes.
+    ///
+    /// A search that has ended leaves charges it never releases: the
+    /// tables of its set-up and a memo's reserve. It no longer holds
+    /// them, so the next search may have them.
     pub(crate) fn rewind(&self, held: u64) {
         let since = self.used().saturating_sub(held);
         self.used.fetch_sub(since, Ordering::Relaxed);
@@ -174,10 +187,12 @@ impl Account {
     }
 
     /// Returns whether `bytes` more would leave an eighth of the bound
-    /// free. The memo asks this before it grows: it would take whatever
-    /// is left, and what cannot be emptied (the proofs kept, the buffers
-    /// of the recursion) would then pass the bound with every node, each
-    /// time at the price of the whole memo.
+    /// free.
+    ///
+    /// The memo asks this before it grows. Without it, the memo would
+    /// take whatever is left. Then what cannot be emptied (the proofs
+    /// kept, the buffers of the recursion) would pass the bound at every
+    /// node, and each time the whole memo would go.
     pub(crate) fn spares(&self, bytes: usize) -> bool {
         self.used()
             .saturating_add(bytes as u64)
@@ -204,9 +219,11 @@ impl Drop for Account {
     }
 }
 
-/// What one engine charged an account for buffers of its own, which go
-/// when the engine does: dropping this releases them. The workers of a
-/// parallel search come and go by the thousand, each with its buffers.
+/// What one engine charged an account for its own buffers. Dropping it
+/// releases them.
+///
+/// The workers of a parallel search come and go by the thousand, each
+/// with its buffers, so these charges go when the engine does.
 #[derive(Debug)]
 pub(crate) struct Charged<'a> {
     /// The account.

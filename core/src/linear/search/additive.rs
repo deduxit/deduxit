@@ -1,25 +1,33 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The additive fast path: a sequent of two additive-only formulas,
-//! `⊢ A, B` classically or `A ⊢ B` intuitionistically, is decided by a
-//! recursion on pairs of subformula occurrences, memoized on the pair, in
-//! time proportional to the product of the two sizes as long as the memo
-//! holds every pair; it is emptied when it reaches the limit of the
-//! options, which costs time and never an answer.
+//! The additive fast path: it decides a sequent of two additive-only
+//! formulas, `⊢ A, B` classically or `A ⊢ B` intuitionistically.
 //!
-//! Every rule of the additive fragment replaces one formula of a two-formula
-//! sequent by a subformula, so every sequent of a proof is a pair of
-//! occurrences, one below each root: a `⊤` closes, a `&` needs both
-//! subformulas against the other side, a `⊕` one of them, two dual literals
-//! are an axiom, and nothing else proves anything (`0` in particular). `&`
-//! is invertible and decomposed first; which `⊕` to decompose is a real
-//! choice (a `&` below the other formula's `⊕` may need both sides of this
-//! one), so both are tried, and a pair reached along two orders is decided
-//! once through the memo. The rules are the same two-sided: `&` on a
-//! hypothesis is `⊕L` on the one-sided sequent and so on, every sequent
-//! has one goal by itself, and neither weakening nor Mix can help a
-//! sequent of two formulas, so the procedure is the same in every mode.
+//! It is a recursion on pairs of subformula occurrences, memoized on the
+//! pair. While the memo holds every pair, it takes time proportional to
+//! the product of the two formulas' sizes. The memo is emptied when it
+//! reaches the options' `memo_limit`, which costs time and never an
+//! answer.
+//!
+//! Every rule of the additive fragment replaces one formula of a
+//! two-formula sequent by a subformula. So every sequent of a proof is a
+//! pair of occurrences, one below each root. The rules on a pair:
+//! - a `⊤` closes it;
+//! - a `&` needs both its subformulas against the other side;
+//! - a `⊕` needs one of its subformulas;
+//! - two dual literals are an axiom;
+//! - nothing else proves anything, `0` in particular.
+//!
+//! `&` is invertible, so it is decomposed first. Which `⊕` to decompose
+//! is a real choice: a `&` below the other formula's `⊕` may need both
+//! sides of this one. So both are tried, and the memo decides a pair
+//! reached along two orders once.
+//!
+//! The procedure is the same in every mode. Two-sided, the rules are the
+//! same: `&` on a hypothesis is `⊕` on the one-sided sequent, and so on.
+//! Every sequent keeps one goal by itself. Neither weakening nor Mix can
+//! help a sequent of two formulas.
 
 use super::memory::{Account, bytes_of};
 use super::{Answer, Decide, Engine, Finished, NotTaken, Options, Reason, Statistics, Task, Work};
@@ -31,7 +39,7 @@ use crate::linear::occurrences::{Forest, Member, OccId};
 use crate::linear::proofs::{Branch, Node, NodeId};
 use crate::linear::sequents::Kind;
 
-/// The additive fast path as the front door calls it.
+/// The additive fast path, as the front door calls it.
 pub(crate) struct Additive;
 
 impl Decide for Additive {
@@ -69,14 +77,17 @@ impl Decide for Additive {
     }
 }
 
-/// Runs the additive fast path on a goal of exactly two additive-only
-/// occurrences of the forest, the roots or any other pair, polling `stop`
-/// every [`PAIRS_PER_POLL`] pairs of occurrences. Returns the node proving the goal (`None`
-/// when it is unprovable, or the reason the search gave up), the arena the
-/// node lives in, and the statistics. The mode plays no part: the additive
-/// rules keep one goal by themselves, and neither weakening nor Mix can
-/// help a sequent of two formulas. The memo and the arena are charged to
-/// `account`.
+/// Decides a goal of exactly two additive-only occurrences of the
+/// forest, the roots or any other pair.
+///
+/// Returns the node proving the goal (`None` when it is unprovable, or
+/// the reason the search gave up), the arena the node lives in, and the
+/// statistics. It polls `stop` every [`PAIRS_PER_POLL`] pairs of
+/// occurrences, and charges the memo and the arena to `account`.
+///
+/// The mode plays no part: the additive rules keep one goal by
+/// themselves, and neither weakening nor Mix can help a sequent of two
+/// formulas.
 pub(crate) fn search_goal(
     forest: &Forest,
     goal: &[OccId],
@@ -102,8 +113,8 @@ pub(crate) fn search_goal(
         stop,
     };
     let result = engine.pair(*x, *y).map_err(|r| r.as_set(options, limits));
-    // The pairs since the last poll are work too: the stop is told them,
-    // and its answer comes after the search.
+    // The pairs since the last poll are work too, so the stop is told
+    // them. Its answer is ignored: the search has ended.
     let _ = (engine.stop)(engine.statistics.nodes % PAIRS_PER_POLL);
     let statistics = Statistics {
         memo_entries: engine.memo_peak as u64,
@@ -117,8 +128,8 @@ pub(crate) fn search_goal(
     }
 }
 
-/// How many pairs the search decides between two polls of its stop: some
-/// microseconds.
+/// How many pairs the search decides between two polls of its stop,
+/// some microseconds of work.
 const PAIRS_PER_POLL: u64 = 1 << 10;
 
 /// The state of one run: the problem, the memo of pairs, the proof arena
@@ -126,7 +137,8 @@ const PAIRS_PER_POLL: u64 = 1 << 10;
 struct Pairs<'a> {
     /// The problem.
     forest: &'a Forest,
-    /// The pairs decided: the node proving the pair, or `None`.
+    /// The pairs decided, each with the node proving it, or `None` when
+    /// it is unprovable.
     memo: HashMap<(OccId, OccId), Option<NodeId>>,
     /// The most pairs the memo holds; zero switches it off.
     memo_limit: usize,
@@ -136,25 +148,26 @@ struct Pairs<'a> {
     nodes: Vec<Node>,
     /// The counters: `nodes` is the pairs visited, memo hits included.
     statistics: Statistics,
-    /// The nesting of pairs right now.
+    /// How deep the recursion on pairs is now.
     depth: u32,
     /// The deepest nesting allowed.
     recursion_limit: u32,
-    /// Who is charged the memo and the arena.
+    /// The account the memo and the arena are charged to.
     account: &'a Account,
-    /// The bytes of the memo and the arena that were charged.
+    /// The bytes of the memo and the arena charged so far.
     charged: usize,
     /// The caller's stop condition.
     stop: &'a mut dyn FnMut(u64) -> bool,
 }
 
 impl Pairs<'_> {
-    /// Decides the sequent of the two occurrences: the node proving it,
-    /// `None` when it is unprovable, or the reason the search stops.
+    /// Decides the sequent of the two occurrences. Returns the node
+    /// proving it, `None` when it is unprovable, or the reason the search
+    /// stops.
     fn pair(&mut self, x: OccId, y: OccId) -> Result<Option<NodeId>, Reason> {
         self.statistics.nodes += 1;
-        // A pair is the unit of work, which the stop is told in batches:
-        // asked at every pair, it cost a twentieth of the search.
+        // A pair is the unit of work. The stop is told them in batches:
+        // asking it at every pair costs a twentieth of the search.
         if self.statistics.nodes.is_multiple_of(PAIRS_PER_POLL) && (self.stop)(PAIRS_PER_POLL) {
             return Err(Reason::Stopped);
         }
@@ -173,7 +186,7 @@ impl Pairs<'_> {
         self.depth -= 1;
         let node = result?;
         if self.memo_limit != 0 {
-            // A full memo is emptied: every entry is a fact the search can
+            // A full memo is emptied. Every entry is a fact the search can
             // find again, and the arena keeps the nodes of the proofs.
             if self.memo.len() >= self.memo_limit {
                 self.memo.clear();
@@ -184,8 +197,9 @@ impl Pairs<'_> {
         Ok(node)
     }
 
-    /// The rules on the pair: `⊤` first, then the invertible `&` on either
-    /// side, then the axiom, then a `⊕` on either side, one side at a time.
+    /// Applies the rules to the pair and returns the node proving it, or
+    /// `None`. The order: `⊤`, then the invertible `&` on either side,
+    /// then the axiom, then a `⊕` on either side, one side at a time.
     fn decide(&mut self, x: OccId, y: OccId) -> Result<Option<NodeId>, Reason> {
         let f = self.forest;
         let (kx, ky) = (f.kind(x), f.kind(y));
@@ -233,8 +247,8 @@ impl Pairs<'_> {
     }
 
     /// Decides the pair of a subformula `sub` of one side and the other
-    /// formula, keeping the memo's order: the occurrence below the first
-    /// root first.
+    /// formula. It keeps the memo's order: the occurrence below the first
+    /// root comes first.
     fn ordered(
         &mut self,
         sub: OccId,
@@ -248,10 +262,12 @@ impl Pairs<'_> {
         }
     }
 
-    /// Charges the account what the memo and the arena grew by, and makes
-    /// room when that passes the bound: the memo goes first. Fails when
-    /// the arena alone is over the bound, or holds as many nodes as an id
-    /// can name; a pair adds one node at most.
+    /// Charges the account what the memo and the arena grew by. When that
+    /// passes the bound, it drops the memo to make room.
+    ///
+    /// Fails when the arena alone is over the bound, or holds as many
+    /// nodes as an id can name. A pair adds one node at most, so the
+    /// check before each pair suffices.
     fn settle(&mut self) -> Result<(), Reason> {
         /// The bytes of a slot of the memo: a pair, a node, a control byte.
         const SLOT: usize = size_of::<((OccId, OccId), Option<NodeId>)>() + 1;
@@ -472,9 +488,10 @@ mod tests {
         );
     }
 
-    /// The memo bounds the work by the product of the sizes: two deep `⊕`
-    /// towers over atoms that never match are refuted with fewer pairs
-    /// than there are subformula pairs, not one per order of choices.
+    /// The memo bounds the work by the product of the sizes. Two deep `⊕`
+    /// towers over atoms that never match are refuted with at most as
+    /// many pairs decided as there are subformula pairs, not one per
+    /// order of choices.
     #[test]
     fn memoized() {
         let mut left = String::from("a");
