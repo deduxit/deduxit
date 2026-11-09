@@ -10,7 +10,7 @@ not a proof net: a switching cycle runs through (a ⊸ b) ⊗ (b ⊸ a)[0], a �
 <path d="M2323 4599L3207 3577"/>
 <path d="M2741 3942L2703 4160L2914 4091"/>
 </g>
-<g fill="none" stroke="#009e73" stroke-width="40">
+<g fill="none" stroke="#0072b2" stroke-width="40">
 </g>
 <g fill="none" stroke="#cc79a7" stroke-width="40">
 <path d="M6669 4599L5785 3577" stroke-dasharray="40 80"/>
@@ -32,10 +32,10 @@ not a proof net: a switching cycle runs through (a ⊸ b) ⊗ (b ⊸ a)[0], a �
 <text x="4229" y="8067" textLength="534" lengthAdjust="spacing" font-size="800">⊗</text>
 <text x="628" y="6347" textLength="2873" lengthAdjust="spacing" id="o1">𝑎 ⊸ 𝑏</text>
 <text x="1671" y="5087" textLength="808" lengthAdjust="spacing" font-size="800">⊸</text>
-<text x="628" y="3367" textLength="609" lengthAdjust="spacing" id="o2" fill="#009e73">𝑎</text>
+<text x="628" y="3367" textLength="609" lengthAdjust="spacing" id="o2" fill="#0072b2">𝑎</text>
 <text x="2913" y="3367" textLength="588" lengthAdjust="spacing" id="o3">𝑏</text>
 <text x="5491" y="6347" textLength="2873" lengthAdjust="spacing" id="o4">𝑏 ⊸ 𝑎</text>
 <text x="6513" y="5087" textLength="808" lengthAdjust="spacing" font-size="800">⊸</text>
-<text x="5491" y="3367" textLength="588" lengthAdjust="spacing" id="o5" fill="#009e73">𝑏</text>
+<text x="5491" y="3367" textLength="588" lengthAdjust="spacing" id="o5" fill="#0072b2">𝑏</text>
 <text x="7755" y="3367" textLength="609" lengthAdjust="spacing" id="o6">𝑎</text>
 </svg>

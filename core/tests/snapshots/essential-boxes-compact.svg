@@ -22,7 +22,7 @@ proof net</desc>
 <path d="M15395 3972L15371 4192L15577 4109"/>
 <path id="b2" d="M8896 6318H11355M12115 6318H14531M15291 6318H16400V340H7028V6318H8136"/>
 </g>
-<g fill="none" stroke="#009e73" stroke-width="40">
+<g fill="none" stroke="#0072b2" stroke-width="40">
 <circle id="o0" cx="752" cy="7838" r="380"/>
 <path d="M752 8598L752 8218"/>
 <path d="M866 8503L752 8313L638 8503"/>
@@ -55,20 +55,20 @@ proof net</desc>
 <path id="l4-10" d="M9321 2638A3197 1918 0 0 1 15715 2638"/>
 <path d="M12423 834L12613 720L12423 606"/>
 </g>
-<text x="300" y="9488" textLength="904" lengthAdjust="spacing" fill="#009e73">!𝑎</text>
-<text x="634" y="8113" textLength="236" lengthAdjust="spacing" font-size="800" fill="#009e73">!</text>
-<text x="2204" y="9488" textLength="3824" lengthAdjust="spacing" fill="#009e73">!(𝑎 ⊸ 𝑏)</text>
-<text x="3998" y="8113" textLength="236" lengthAdjust="spacing" font-size="800" fill="#009e73">!</text>
+<text x="300" y="9488" textLength="904" lengthAdjust="spacing" fill="#0072b2">!𝑎</text>
+<text x="634" y="8113" textLength="236" lengthAdjust="spacing" font-size="800" fill="#0072b2">!</text>
+<text x="2204" y="9488" textLength="3824" lengthAdjust="spacing" fill="#0072b2">!(𝑎 ⊸ 𝑏)</text>
+<text x="3998" y="8113" textLength="236" lengthAdjust="spacing" font-size="800" fill="#0072b2">!</text>
 <text x="13170" y="9488" textLength="3482" lengthAdjust="spacing">!(𝑏 ⊗ 𝑎)</text>
 <text x="14793" y="6593" textLength="236" lengthAdjust="spacing" font-size="800">!</text>
-<text x="7408" y="3528" textLength="609" lengthAdjust="spacing" id="v3" fill="#009e73">𝑎</text>
-<text x="9017" y="3528" textLength="609" lengthAdjust="spacing" id="v4" fill="#009e73">𝑎</text>
-<text x="11331" y="4998" textLength="808" lengthAdjust="spacing" font-size="800" fill="#009e73">⊸</text>
+<text x="7408" y="3528" textLength="609" lengthAdjust="spacing" id="v3" fill="#0072b2">𝑎</text>
+<text x="9017" y="3528" textLength="609" lengthAdjust="spacing" id="v4" fill="#0072b2">𝑎</text>
+<text x="11331" y="4998" textLength="808" lengthAdjust="spacing" font-size="800" fill="#0072b2">⊸</text>
 <text x="10626" y="3528" textLength="609" lengthAdjust="spacing" id="o4">𝑎</text>
-<text x="12235" y="3528" textLength="588" lengthAdjust="spacing" id="o5" fill="#009e73">𝑏</text>
+<text x="12235" y="3528" textLength="588" lengthAdjust="spacing" id="o5" fill="#0072b2">𝑏</text>
 <text x="14644" y="4998" textLength="534" lengthAdjust="spacing" font-size="800">⊗</text>
 <text x="13823" y="3528" textLength="588" lengthAdjust="spacing" id="o8">𝑏</text>
 <text x="15411" y="3528" textLength="609" lengthAdjust="spacing" id="o9">𝑎</text>
-<text x="8398" y="6593" textLength="236" lengthAdjust="spacing" font-size="800" fill="#009e73">!</text>
-<text x="11617" y="6593" textLength="236" lengthAdjust="spacing" font-size="800" fill="#009e73">!</text>
+<text x="8398" y="6593" textLength="236" lengthAdjust="spacing" font-size="800" fill="#0072b2">!</text>
+<text x="11617" y="6593" textLength="236" lengthAdjust="spacing" font-size="800" fill="#0072b2">!</text>
 </svg>

@@ -286,7 +286,7 @@ fn a_proof_with_exponentials_draws_its_net_with_boxes() {
     assert!(drawing.contains(r#"<path id="b"#), "{drawing}");
     let essential = settings(&json!({"styles": {"svg": {"essential": true}}}));
     let read = calls::draw_net(&state, &essential).unwrap();
-    assert!(read.contains(r##"stroke="#009e73""##), "{read}");
+    assert!(read.contains(r##"stroke="#0072b2""##), "{read}");
     let started = calls::start("!a |- !a", "intuitionistic-affine", "").unwrap();
     let state = session(&calls::close_all(&session(&started), "").unwrap());
     let view = value(&calls::view(&state, "").unwrap());

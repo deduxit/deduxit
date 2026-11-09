@@ -13,7 +13,7 @@ proof net</desc>
 <path d="M9612 4743L10451 3726"/>
 <path d="M10004 4088L9971 4307L10180 4233"/>
 </g>
-<g fill="none" stroke="#009e73" stroke-width="40">
+<g fill="none" stroke="#0072b2" stroke-width="40">
 <path d="M1995 4748L2879 3726"/>
 <path d="M2461 4383L2499 4165L2288 4234"/>
 <path d="M5841 4743L6680 3726"/>
@@ -30,16 +30,16 @@ proof net</desc>
 <path id="l1-7" d="M604 2626A3811 2286 0 0 1 8227 2626"/>
 <path d="M4510 226L4320 340L4510 454"/>
 </g>
-<text x="300" y="6496" textLength="2873" lengthAdjust="spacing" id="o0" fill="#009e73">𝑎 ⊸ 𝑏</text>
-<text x="1343" y="5236" textLength="808" lengthAdjust="spacing" font-size="800" fill="#009e73">⊸</text>
+<text x="300" y="6496" textLength="2873" lengthAdjust="spacing" id="o0" fill="#0072b2">𝑎 ⊸ 𝑏</text>
+<text x="1343" y="5236" textLength="808" lengthAdjust="spacing" font-size="800" fill="#0072b2">⊸</text>
 <text x="300" y="3516" textLength="609" lengthAdjust="spacing" id="o1">𝑎</text>
-<text x="2585" y="3516" textLength="588" lengthAdjust="spacing" id="o2" fill="#009e73">𝑏</text>
-<text x="4173" y="6496" textLength="2750" lengthAdjust="spacing" id="o3" fill="#009e73">𝑏 ⊸ 𝑐</text>
-<text x="5195" y="5236" textLength="808" lengthAdjust="spacing" font-size="800" fill="#009e73">⊸</text>
+<text x="2585" y="3516" textLength="588" lengthAdjust="spacing" id="o2" fill="#0072b2">𝑏</text>
+<text x="4173" y="6496" textLength="2750" lengthAdjust="spacing" id="o3" fill="#0072b2">𝑏 ⊸ 𝑐</text>
+<text x="5195" y="5236" textLength="808" lengthAdjust="spacing" font-size="800" fill="#0072b2">⊸</text>
 <text x="4173" y="3516" textLength="588" lengthAdjust="spacing" id="o4">𝑏</text>
-<text x="6437" y="3516" textLength="486" lengthAdjust="spacing" id="o5" fill="#009e73">𝑐</text>
+<text x="6437" y="3516" textLength="486" lengthAdjust="spacing" id="o5" fill="#0072b2">𝑐</text>
 <text x="7923" y="6496" textLength="2771" lengthAdjust="spacing" id="o6">𝑎 ⊸ 𝑐</text>
 <text x="8966" y="5236" textLength="808" lengthAdjust="spacing" font-size="800">⊸</text>
-<text x="7923" y="3516" textLength="609" lengthAdjust="spacing" id="o7" fill="#009e73">𝑎</text>
+<text x="7923" y="3516" textLength="609" lengthAdjust="spacing" id="o7" fill="#0072b2">𝑎</text>
 <text x="10208" y="3516" textLength="486" lengthAdjust="spacing" id="o8">𝑐</text>
 </svg>

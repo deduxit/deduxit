@@ -15,7 +15,7 @@ proof net</desc>
 <path d="M14020 4830L14114 5031L14247 4854"/>
 <path id="b7" d="M10377 7271H12347M13107 7271H13504M14264 7271H15000V340H8170V7271H9617"/>
 </g>
-<g fill="none" stroke="#009e73" stroke-width="40">
+<g fill="none" stroke="#0072b2" stroke-width="40">
 <path d="M10245 4003L11129 2981"/>
 <path d="M10711 3638L10749 3420L10538 3489"/>
 <path d="M9997 6891L9997 5961"/>
@@ -36,20 +36,20 @@ proof net</desc>
 <path id="l4-8" d="M11129 1881A1598 958 0 0 1 14326 1881"/>
 <path d="M12632 1037L12822 923L12632 809"/>
 </g>
-<text x="533" y="14691" textLength="3824" lengthAdjust="spacing" id="o0" fill="#009e73">!(𝑎 ⊸ 𝑏)</text>
-<text x="562" y="13506" textLength="236" lengthAdjust="spacing" font-size="800" fill="#009e73">!</text>
+<text x="533" y="14691" textLength="3824" lengthAdjust="spacing" id="o0" fill="#0072b2">!(𝑎 ⊸ 𝑏)</text>
+<text x="562" y="13506" textLength="236" lengthAdjust="spacing" font-size="800" fill="#0072b2">!</text>
 <text x="5590" y="14691" textLength="3463" lengthAdjust="spacing" id="o4">!𝑎 ⊸ !𝑏</text>
 <text x="6928" y="13431" textLength="808" lengthAdjust="spacing" font-size="800">⊸</text>
-<text x="8550" y="5751" textLength="2873" lengthAdjust="spacing" id="o1" fill="#009e73">𝑎 ⊸ 𝑏</text>
-<text x="9593" y="4491" textLength="808" lengthAdjust="spacing" font-size="800" fill="#009e73">⊸</text>
+<text x="8550" y="5751" textLength="2873" lengthAdjust="spacing" id="o1" fill="#0072b2">𝑎 ⊸ 𝑏</text>
+<text x="9593" y="4491" textLength="808" lengthAdjust="spacing" font-size="800" fill="#0072b2">⊸</text>
 <text x="8550" y="2771" textLength="609" lengthAdjust="spacing" id="o2">𝑎</text>
-<text x="10835" y="2771" textLength="588" lengthAdjust="spacing" id="o3" fill="#009e73">𝑏</text>
-<text x="5590" y="11711" textLength="904" lengthAdjust="spacing" id="o5" fill="#009e73">!𝑎</text>
-<text x="5619" y="10526" textLength="236" lengthAdjust="spacing" font-size="800" fill="#009e73">!</text>
-<text x="12423" y="2771" textLength="609" lengthAdjust="spacing" id="o6" fill="#009e73">𝑎</text>
+<text x="10835" y="2771" textLength="588" lengthAdjust="spacing" id="o3" fill="#0072b2">𝑏</text>
+<text x="5590" y="11711" textLength="904" lengthAdjust="spacing" id="o5" fill="#0072b2">!𝑎</text>
+<text x="5619" y="10526" textLength="236" lengthAdjust="spacing" font-size="800" fill="#0072b2">!</text>
+<text x="12423" y="2771" textLength="609" lengthAdjust="spacing" id="o6" fill="#0072b2">𝑎</text>
 <text x="13737" y="8731" textLength="883" lengthAdjust="spacing" id="o7">!𝑏</text>
 <text x="13766" y="7546" textLength="236" lengthAdjust="spacing" font-size="800">!</text>
 <text x="14032" y="2771" textLength="588" lengthAdjust="spacing" id="o8">𝑏</text>
-<text x="9879" y="7546" textLength="236" lengthAdjust="spacing" font-size="800" fill="#009e73">!</text>
-<text x="12609" y="7546" textLength="236" lengthAdjust="spacing" font-size="800" fill="#009e73">!</text>
+<text x="9879" y="7546" textLength="236" lengthAdjust="spacing" font-size="800" fill="#0072b2">!</text>
+<text x="12609" y="7546" textLength="236" lengthAdjust="spacing" font-size="800" fill="#0072b2">!</text>
 </svg>

@@ -113,7 +113,7 @@ XML comment. `--style svg.essential=true` draws the net of an
 intuitionistic sequent as its essential net: every formula written as
 the reading reads it (a hypothesis `A ⊸ B`, a literal as its atom), every
 edge an arrow from the hypotheses toward the goal, the input side in
-green (`svg.input`), the links as `⊸` and `⊗`, each implication of the
+blue (`svg.input`), the links as `⊸` and `⊗`, each implication of the
 goal's side joined to its antecedent by a dotted line (`svg.dominator`),
 and a directed cycle or a path around an implication highlighted. A net
 with boxes is drawn the same way, every `!`-box a rectangle around what
@@ -123,7 +123,7 @@ wires from the copies, dashed and blue like a `⅋`'s premise edges since a
 switching keeps one wire of a `?`, leave the box through its doors; with
 `svg.essential=true` an intuitionistic net with boxes is drawn as its
 essential net too, a hypothesis `!A` (the conclusion `?~A`) and its
-wires in green and led up into its copies, its rules those of `!`, and a
+wires in blue and led up into its copies, its rules those of `!`, and a
 switching cycle highlighted, which is what decides it.
 `--style svg.net_look=textbook` draws a net as the textbooks do instead:
 every edge plain, every conclusion on the bottom row, a `!` with

@@ -11,7 +11,7 @@ planar proof net</desc>
 <path d="M6981 4106L6097 3084"/>
 <path d="M6390 3598L6601 3667L6563 3449"/>
 </g>
-<g fill="none" stroke="#009e73" stroke-width="40">
+<g fill="none" stroke="#0072b2" stroke-width="40">
 <path d="M1499 4106L615 3084"/>
 <path d="M1206 3592L995 3523L1033 3741"/>
 <path d="M7471 4101L8310 3084"/>
@@ -27,14 +27,14 @@ planar proof net</desc>
 <path id="l2-3" d="M2889 1984A804 482 0 0 1 4498 1984V4964"/>
 <path d="M3788 1388L3598 1502L3788 1616"/>
 </g>
-<text x="300" y="5854" textLength="2364" lengthAdjust="spacing" id="o0" fill="#009e73">𝑎 \ 𝑏</text>
-<text x="1343" y="4594" textLength="808" lengthAdjust="spacing" font-size="800" fill="#009e73">⊸</text>
-<text x="321" y="2874" textLength="588" lengthAdjust="spacing" id="o1" fill="#009e73">𝑏</text>
+<text x="300" y="5854" textLength="2364" lengthAdjust="spacing" id="o0" fill="#0072b2">𝑎 \ 𝑏</text>
+<text x="1343" y="4594" textLength="808" lengthAdjust="spacing" font-size="800" fill="#0072b2">⊸</text>
+<text x="321" y="2874" textLength="588" lengthAdjust="spacing" id="o1" fill="#0072b2">𝑏</text>
 <text x="2585" y="2874" textLength="609" lengthAdjust="spacing" id="o2">𝑎</text>
-<text x="4194" y="5854" textLength="609" lengthAdjust="spacing" id="o3" fill="#009e73">𝑎</text>
-<text x="5905" y="5854" textLength="2241" lengthAdjust="spacing" id="o4" fill="#009e73">𝑐 / 𝑏</text>
-<text x="6825" y="4594" textLength="808" lengthAdjust="spacing" font-size="800" fill="#009e73">⊸</text>
+<text x="4194" y="5854" textLength="609" lengthAdjust="spacing" id="o3" fill="#0072b2">𝑎</text>
+<text x="5905" y="5854" textLength="2241" lengthAdjust="spacing" id="o4" fill="#0072b2">𝑐 / 𝑏</text>
+<text x="6825" y="4594" textLength="808" lengthAdjust="spacing" font-size="800" fill="#0072b2">⊸</text>
 <text x="5803" y="2874" textLength="588" lengthAdjust="spacing" id="o5">𝑏</text>
-<text x="8067" y="2874" textLength="486" lengthAdjust="spacing" id="o6" fill="#009e73">𝑐</text>
+<text x="8067" y="2874" textLength="486" lengthAdjust="spacing" id="o6" fill="#0072b2">𝑐</text>
 <text x="9553" y="5854" textLength="486" lengthAdjust="spacing" id="o7">𝑐</text>
 </svg>

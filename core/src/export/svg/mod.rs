@@ -150,7 +150,8 @@ pub struct Style {
     /// How a proof net's switched edges, conclusions and `?` nodes look.
     pub net_look: NetLook,
     /// The colour of the input occurrences of an essential net, their
-    /// edges and the edges below the hypotheses.
+    /// edges and the edges below the hypotheses; by default the blue of
+    /// [`par`](Self::par), green being a checked proof's colour.
     pub input: String,
     /// The colour of the dotted line of an essential net from an
     /// implication to its antecedent, which no edge joins: the
@@ -196,7 +197,7 @@ impl Default for Style {
             highlight: "#d55e00".into(),
             background: None,
             essential: false,
-            input: "#009e73".into(),
+            input: "#0072b2".into(),
             dominator: "#cc79a7".into(),
             net: NetDrawing::Formulas,
             net_look: NetLook::LINLOG,
@@ -626,7 +627,7 @@ impl Style {
             link: "#e6e6e6".into(),
             highlight: "#e69f00".into(),
             background: Some("#1e1e1e".into()),
-            input: "#009e73".into(),
+            input: "#56b4e9".into(),
             dominator: "#cc79a7".into(),
             ..Self::default()
         }
