@@ -1035,3 +1035,217 @@ files pixel for pixel, so nothing needs uploading again.
   section's commit.
 - The mark's files: `~/Projects/own/sequentium-mark/deduxit/final/`,
   untouched.
+
+## Session 53n: the move to deduxit
+
+### Outcome
+
+Every address and every current mention of the name moved from
+`sequentium` to `deduxit` in four repositories, and each was pushed by
+`linlog-orchestrator` after this session's message, in the brief's
+order:
+
+| repository | commits | check before "ready" | pushed head |
+|---|---|---|---|
+| the placeholder `linlog-prover/linlog-prover.github.io` (`../linlog-prover-placeholder`, worked in place: one workspace) | `stzvzunu` "Redirect linlog-prover.github.io to deduxit.github.io" | its two redirect scripts run under Node on eleven old paths, each sent to `deduxit.github.io` | `stzvzunu` (`8027e193a9d7`) |
+| the Rocq library `deduxit/rocq-linlog` (`../rocq-linlog-53n`) | `krsouzly` "Move the library's addresses to the organisation deduxit" (CITATION.cff, the opam file's four fields, README, the Nix package's homepage, CLAUDE.md) | `nix flake check`: "all checks passed!", exit 0 | `krsouzly` (`ea6602c4b050`) |
+| linlog `deduxit/deduxit` (`../linlog-step53n`) | `trtzxwzw` (`--kernel`'s help and the behaviour lock's three help outputs, a commit of its own), `vpwklown` (every other address, 39 files), `rrnwunnn` (the live plan), `wykzywly` "flake.lock: Update" (`rocq-linlog` to `github:deduxit/rocq-linlog/ea6602c4`) | the gate, "gate: passed", exit 0; `nix flake check` without overrides, "all checks passed!", exit 0; both twice, before and after rebasing onto `main@origin` | `wykzywly` (`b5bab11d5a56`) |
+| the web client `deduxit/deduxit.github.io` (`../linlog-prover.github.io-53n`) | `unnmopyq` "Move the site to deduxit.github.io", `vumtzlyo` "flake.lock: Update" (`linlog` to `github:deduxit/deduxit/b5bab11d`, `linlog/rocq-linlog` to `github:deduxit/rocq-linlog/ea6602c4`) | `nix flake check`: "all checks passed!", exit 0 (569 unit tests, 140 end-to-end, typecheck 0 errors) | `vumtzlyo` (`37e60835e6c1`) |
+
+Each `nix flake check` ran in a capped user unit on cores 4 to 9
+under `flock -o /tmp/linlog-machine.lock` with `--max-jobs 4 --cores
+8`, after `linlog-orchestrator` said step 52's timed run had ended.
+The gate ran in the same unit before the check. `nix run
+github:deduxit/deduxit -- --version` from `env -i` (only `HOME`, `USER`
+and the system's `PATH`) in an empty directory printed `linlog-cli
+0.2.0`, exit 0. Every commit is signed. Every address answers as the
+table below says, but for the client's own site: its Pages deploy is
+stopped by a CI timeout that predates this session, so
+`deduxit.github.io` still serves the build of 2026-11-08 ("What failed
+or stayed unchecked").
+
+### What changed, and what stayed
+
+- **Mapping**: one substitution, `sequentium` to `deduxit`, is right
+  for every address, since the organisation, the shared repository
+  and its Pages path all had the name `sequentium` and now all have
+  `deduxit`: `github.com/sequentium/sequentium` became
+  `github.com/deduxit/deduxit`, `sequentium.github.io/sequentium/` became
+  `deduxit.github.io/deduxit/`, and `sequentium.github.io` became
+  `deduxit.github.io`. The placeholder's `404.html` maps `/linlog` to
+  `/deduxit` and every other path to itself on `https://deduxit.github.io`.
+- **Hand-written exceptions**: the placeholder's README says the
+  organisation was named `sequentium` for its first day. In
+  `.claude/rules/ci.md` the cache note says the cache kept its name
+  "when the repositories moved to `sequentium` and it became `deduxit`".
+  D26 in `plan/README.md` keeps its wording and gains a sentence on the
+  rename. Step 53's hold names `deduxit` as the collection's name.
+- **The client's reserved path**, the Pages site of linlog's repository
+  on the same origin, moved from `/sequentium` to `/deduxit` in the
+  worker, the build's guard, the `pages-paths` check, the test server
+  and the tests, as 48a moved it from `/linlog`. Left as it was, the
+  worker would answer the manual's navigations as its own.
+- **The page's displayed name** is "linlog" (title, `og:site_name`);
+  no title or heading said "sequentium", so none changed. The
+  canonical URL and Open Graph image follow `astro.config.ts`'s `site`.
+- **Live plan**: D25 and D26, row 53 of the table, the handoff
+  (who owns the repositories, the move done, the custom domain open),
+  and the prompts of the steps not yet run (53, outside session 53m's
+  finished section, and 54 to 73).
+- **History, kept as written**: the Status log, the reports, the
+  prompts of steps 48 to 52 (run), step 48's row in the table, the
+  dated research notes (`plan/notes/structure.md`,
+  `plan/notes/research/next/name-and-organisation.md`), session 53m's
+  section of step 53's prompt (the mark was drawn for `sequentium`),
+  and `plan/later.md`'s done row. CHANGELOG names no `sequentium`
+  address (its unreleased section is 0.3.0's to write).
+- **Unchanged** as the brief says: the crate names, the command, the
+  bindings, the Rocq library's name and logical path, the Cachix cache
+  `linlog-prover`, the local checkouts' paths.
+
+### The search (requirement: no current old address left)
+
+`grep -rIEc 'github\.com/sequentium|sequentium\.github\.io|github:sequentium'`
+over each repository (without `.jj`, `node_modules`, `target` and the
+client's `.git` pointer), after the commits: the placeholder 0 files,
+the library 0, the client 0, linlog six files, every one history:
+`plan/README.md` (step 48's row, D26's original sentence, and the Status
+log from line 1097), `plan/48-sequentium.md`,
+`plan/reports/48-sequentium.md`, `plan/reports/46-research-next.md`,
+`plan/49-ordinary-interactive.md` (a run step) and
+`plan/notes/structure.md` (the research of 2026-11-08). Both
+`flake.lock` files name `sequentium` no more.
+
+### The table of addresses, fetched after the pushes
+
+Each with `curl -sSL` once (no loop against GitHub's API), after the
+pushes; the Rocq library's rows before its rename to `rocq-deduxit`,
+as `linlog-orchestrator` asked.
+
+| old | new | fetched |
+|---|---|---|
+| `github.com/linlog-prover/linlog`, `…/releases/tag/v0.2.0` | `github.com/deduxit/deduxit/…` | 200 after one redirect, on `deduxit/deduxit` |
+| `github.com/sequentium/sequentium` | `github.com/deduxit/deduxit` | 200 after one redirect |
+| `github.com/linlog-prover/rocq-linlog`, `github.com/sequentium/rocq-linlog`, `…/releases/tag/v0.2.0` | `github.com/deduxit/rocq-linlog` | 200 after one redirect each; the archive of `v0.2.0` lands on `codeload.github.com/deduxit/rocq-linlog`; git's `info/refs` at the `sequentium` name lists `refs/tags/v0.2.0`. Moved after 53n to `deduxit/rocq-deduxit` |
+| `github.com/linlog-prover/linlog-prover.github.io` | (the placeholder's repository) | 200, no redirect |
+| `github.com/sequentium/sequentium.github.io` | `github.com/deduxit/deduxit.github.io` | 200 after one redirect |
+| `github:linlog-prover/linlog`, `github:sequentium/sequentium` (Nix) | `github:deduxit/deduxit` | `nix run … -- --version` from a clean shell: `linlog-cli 0.2.0`, exit 0, both |
+| `github:deduxit/deduxit` | | `linlog-cli 0.2.0`, exit 0 |
+| `linlog-prover.github.io/` (with `?proof=abc#s1`) | `https://deduxit.github.io/?proof=abc#s1` | 200, the placeholder's page; its live script sends it there |
+| `linlog-prover.github.io/linlog`, `/linlog/`, `/linlog/manual/commands.html#prove`, `/linlog/linlog/index.html?search=x`, `/linlogx/`, `/privacy/` | `https://deduxit.github.io/deduxit`, `…/deduxit/`, `…/deduxit/manual/commands.html#prove`, `…/deduxit/linlog/index.html?search=x`, `…/linlogx/`, `…/privacy/` | 404 with the placeholder's `404.html`, whose live script, run under Node with a stubbed `location`, sends each where the left column says |
+| `linlog-prover.github.io/rocq-linlog/` | `https://deduxit.github.io/rocq-linlog/` at 53n's push; moved after 53n | 404 with the placeholder's page, its script sending to `/rocq-linlog/` on deduxit.github.io; since the rename that path is a 404 until session 53p adds a forward in the client and 53r updates the placeholder's mapping |
+| `linlog-prover.github.io/linlog/llms.txt`, `…/llms-full.txt`, `…/reference.md`, `/llms.txt` | `deduxit.github.io/deduxit/…`, `deduxit.github.io/llms.txt` | 200, each first line "This file moved to" its deduxit address |
+| `linlog-prover.github.io/sw.js`, `/logo/square-dark.svg`, `/logo/favicon-32.png`, `/logo/LICENSE.txt` | | 200 (JavaScript, SVG, PNG, text) |
+| `sequentium.github.io/`, `/sequentium/manual/`, `/rocq-linlog/` | `deduxit.github.io/…` | 404: GitHub serves nothing there and nothing can (below) |
+| | `deduxit.github.io/deduxit` | 301 to `/deduxit/`, 200 |
+| | `deduxit.github.io/deduxit/`, `/deduxit/linlog/`, `/deduxit/manual/`, `/deduxit/manual/commands.html`, `/deduxit/llms.txt`, `/deduxit/llms-full.txt`, `/deduxit/reference.md` | 200 each; the introduction links `github.com/deduxit/deduxit`, and the guide names `deduxit.github.io/` and `deduxit.github.io/deduxit/…` |
+| | `deduxit.github.io/rocq-linlog/` | 200 (the library's documentation) before the rename; since, `deduxit.github.io/rocq-deduxit/` answers 200 and `/rocq-linlog/` 404 (moved after 53n) |
+| | `deduxit.github.io/logo/square-dark.svg`, `/privacy/` | 200 |
+| | `deduxit.github.io/`, `/llms.txt`, `/sw.js`, `/privacy/`, `/logo/og.png` (the client) | 200 each, **but the old build**: `last-modified: Sun, 08 Nov 2026 16:03:36 GMT`, its `/llms.txt` naming `sequentium.github.io/sequentium/…` and `sequentium.github.io/privacy/`, its worker reserving `/sequentium`; the client's Pages deploy has not run since (next section) |
+
+### What failed or stayed unchecked
+
+One thing failed, and it was not this session's change:
+
+- **The client's site is not deployed.** CI runs 34 to 36 of
+  `deduxit/deduxit.github.io`, on its heads before this session's
+  commits (from "Let Biome read biome.json itself in the formatter" to
+  `oxrxlqto`), all failed. Run 36's check job ended with "Process
+  completed with exit code 143": the job's `timeout-minutes: 60` killed
+  `nix flake check` while it built biome from source. The local check
+  passed in about 40 minutes, most of them in biome's build. The deploy
+  needs the check, so `deduxit.github.io` still serves the build of
+  2026-11-08 16:03 UTC. Its `/llms.txt` and `og:image` name the dead
+  `sequentium.github.io`. Its worker reserves `/sequentium`, not
+  `/deduxit`, so a returning visitor's worker may answer the
+  navigations to the manual itself until the new build deploys. Run 37,
+  for this session's "flake.lock: Update", was running when this was
+  written. Ways out, all the author's or `linlog-orchestrator`'s: push
+  the biome built here to the `linlog-prover` cache, raise the job's
+  timeout, or have the formatter's biome come from nixpkgs' cache. The
+  client's rows above must be fetched again after the first deploy.
+
+Not checked, or not checkable:
+
+- **`sequentium.github.io` answers nothing, and nothing can answer
+  there.** The site lived for under a day (2026-11-08 to 2026-11-09);
+  its Pages addresses went with the organisation's name, and only an
+  organisation named `sequentium` could serve them again. The author
+  chose not to hold the name (`linlog-orchestrator`, 2026-11-09): the
+  placeholder and Zenodo point straight at `deduxit`, so no old link
+  depends on a redirect from `sequentium`. A visitor of
+  `sequentium.github.io` during that day has its service worker, which
+  answers the page from its cache; whether a browser drops a worker
+  whose script gives 404 at its update check was not checked, and no
+  replacement `sw.js` can be served there.
+- **GitHub's redirects from `sequentium/…`** (repositories, git, Nix)
+  hold only while nobody creates an organisation or repository at the
+  old name; the author let the name go, so they may stop. Every current
+  text names `deduxit`.
+- **The redirects in a browser**: the placeholder's scripts ran under
+  Node, not in a browser, as in 48b.
+- **`actionlint`** was not run on the placeholder's workflow: the only
+  change there is a comment, and the command is not on this machine's
+  `PATH` outside linlog's devshell.
+- **The attestations, crates.io's Trusted Publishing and Zenodo** for
+  `deduxit/deduxit` are the author's acts, provable only by 0.3.0's
+  release (53b).
+
+### Departures from the brief
+
+- **The opam submission moved too** (not in the brief's four
+  repositories): `~/Projects/own/rocq-opam`, the new change `tznmymqy`
+  (`396d6fca8c18`) "Move rocq-linlog.0.2.0 to the organisation deduxit"
+  on top of 48a's `ywqlpnru`, the five addresses (`homepage`,
+  `bug-reports`, `dev-repo`, `doc` and the `url`'s `src`), unpushed,
+  for the author to squash. The archive at
+  `github.com/deduxit/rocq-linlog/archive/refs/tags/v0.2.0.tar.gz`
+  hashes to the file's SHA-512 (equal). The Rocq library's rename to
+  `rocq-deduxit` after this session moves these addresses again, and
+  maybe the package's name: that is for the session that renames it.
+- **linlog's gate and flake check ran twice**: `main` moved under the
+  chain (two plan commits of `linlog-orchestrator`), so the chain was
+  rebased without a conflict and both checks run again on the rebased
+  tree; both runs passed.
+- **The placeholder was worked on in place**, as the brief allows for a
+  repository with one workspace.
+
+### What the next sessions must know
+
+- **The addresses** are: the repositories `github.com/deduxit/deduxit`
+  (`github:deduxit/deduxit`), `github.com/deduxit/deduxit.github.io`,
+  and the Rocq library, `github.com/deduxit/rocq-linlog` at this
+  session, renamed `deduxit/rocq-deduxit` right after it; the page
+  `https://deduxit.github.io/`; the rustdoc
+  `https://deduxit.github.io/deduxit/` (the crate at `…/deduxit/linlog/`),
+  the manual `…/deduxit/manual/`, the guide `…/deduxit/llms.txt` and
+  `…/llms-full.txt`; the logos `https://deduxit.github.io/logo/`. The
+  Cachix cache stays `linlog-prover`; the local checkouts keep their
+  paths.
+- **Both locks name `deduxit`**: linlog's input `rocq-linlog` is
+  `github:deduxit/rocq-linlog/ea6602c4`, and the client's `linlog` is
+  `github:deduxit/deduxit/b5bab11d`. The library's rename moves
+  linlog's input again (`flake.nix`'s URL, then `nix flake update
+  rocq-linlog`).
+- **The client reserves `/deduxit`** on its origin (the worker, the
+  build's guard, `pages-paths`, the test server). It does not reserve
+  the library's path (`/rocq-linlog`, now `/rocq-deduxit`), whose
+  forward is session 53p's.
+- **The placeholder** maps `/linlog/…` to `/deduxit/…`, and
+  `/rocq-linlog/…` to itself on `deduxit.github.io`, which since the
+  rename gives 404: session 53r updates that mapping.
+- **Never give the name `sequentium` meaning again** in a current
+  text: its addresses are dead, and only history (the Status log, the
+  reports, step 48) names them.
+
+### Repositories and workspaces
+
+- The placeholder: `../linlog-prover-placeholder` (its only
+  workspace), `stzvzunu` pushed.
+- The Rocq library: `../rocq-linlog-53n`, `krsouzly` pushed.
+- linlog: `../linlog-step53n`, the four commits pushed, then this
+  section's commit on `main`.
+- The client: `../linlog-prover.github.io-53n`, `unnmopyq` and
+  `vumtzlyo` pushed.
+- The opam submission: `~/Projects/own/rocq-opam`, `tznmymqy`, not
+  pushed (the author's pull request).
