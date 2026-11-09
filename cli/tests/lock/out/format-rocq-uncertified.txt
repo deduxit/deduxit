@@ -1,4 +1,4 @@
-$ linlog prove --format rocq 'A & B |- A * B'
+$ deduxit prove --format rocq 'A & B |- A * B'
 --- status 1
 --- stdout
 (* unprovable (MALL, classical, focus engine): the search was exhaustive *)

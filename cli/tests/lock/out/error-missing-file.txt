@@ -1,4 +1,4 @@
-$ linlog prove --file missing.p
+$ deduxit prove --file missing.p
 --- status 2
 --- stdout
 --- stderr

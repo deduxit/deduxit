@@ -1,4 +1,4 @@
-$ linlog prove --deterministic --stats '!(A & B) |- !A * ?B'
+$ deduxit prove --deterministic --stats '!(A & B) |- !A * ?B'
 --- status 0
 --- stdout
 provable (LL, classical, focus engine)

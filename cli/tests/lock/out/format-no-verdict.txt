@@ -1,4 +1,4 @@
-$ linlog prove --no-verdict 'A |- A'
+$ deduxit prove --no-verdict 'A |- A'
 --- status 0
 --- stdout
 ─────── ax

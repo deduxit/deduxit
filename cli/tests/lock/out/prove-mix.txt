@@ -1,4 +1,4 @@
-$ linlog prove --mix 'A, B |- A, B'
+$ deduxit prove --mix 'A, B |- A, B'
 --- status 0
 --- stdout
 provable (MLL, classical with Mix, focus engine)

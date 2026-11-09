@@ -1,4 +1,4 @@
-$ linlog interact 'A |- A'
+$ deduxit interact 'A |- A'
 --- stdin
 help
 

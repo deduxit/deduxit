@@ -1,4 +1,4 @@
-$ linlog interact 'A |- A'
+$ deduxit interact 'A |- A'
 --- stdin
 apply 9 0 ax
 rules 0 7

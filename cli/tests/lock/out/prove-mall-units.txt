@@ -1,4 +1,4 @@
-$ linlog prove '|- T, 0 + 1'
+$ deduxit prove '|- T, 0 + 1'
 --- status 1
 --- stdout
 unprovable (MALL, classical, focus engine): T occurs 1 more time than ~T in the one-sided sequent, so they cannot all meet in axioms

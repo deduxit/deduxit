@@ -1,4 +1,4 @@
-$ linlog prove --input-format json
+$ deduxit prove --input-format json
 --- stdin
 {"version":1,"terms":[{"D":0},{"V":0}],"roots":[0,1],"atoms":["A"]}
 

@@ -1,4 +1,4 @@
-$ linlog interact 'A * B |- B * A'
+$ deduxit interact 'A * B |- B * A'
 --- stdin
 goals
 rules 0 0

@@ -1,4 +1,4 @@
-$ linlog prove '!A |- A * !A'
+$ deduxit prove '!A |- A * !A'
 --- status 0
 --- stdout
 provable (MELL, classical, focus engine)

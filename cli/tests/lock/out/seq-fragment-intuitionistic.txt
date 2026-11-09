@@ -1,4 +1,4 @@
-$ linlog seq fragment -i 'A & B |- A'
+$ deduxit seq fragment -i 'A & B |- A'
 --- status 0
 --- stdout
 IALL

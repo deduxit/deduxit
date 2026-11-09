@@ -1,4 +1,4 @@
-$ linlog prove -i --format rocq 'A + B |- A'
+$ deduxit prove -i --format rocq 'A + B |- A'
 --- status 1
 --- stdout
 (* unprovable (IALL, intuitionistic, additive engine): the classical reading is false where B is true and every other atom false (! erased, ⊗ and & as and, ⊕ as or, ⊸ as implies, 1 and ⊤ true, 0 false), and every provable sequent reads as a tautology *)

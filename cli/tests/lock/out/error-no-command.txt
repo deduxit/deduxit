@@ -1,10 +1,10 @@
-$ linlog
+$ deduxit
 --- status 2
 --- stdout
 --- stderr
 Decide, check, prove step by step and export sequents of linear logic, and ordinary logic through its translations
 
-Usage: linlog <COMMAND>
+Usage: deduxit <COMMAND>
 
 Commands:
   prove      Decide whether a sequent is provable, and print a proof if it is

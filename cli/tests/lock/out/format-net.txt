@@ -1,4 +1,4 @@
-$ linlog prove --net 'A * B |- B * A'
+$ deduxit prove --net 'A * B |- B * A'
 --- status 0
 --- stdout
 provable (MLL, classical, focus engine)

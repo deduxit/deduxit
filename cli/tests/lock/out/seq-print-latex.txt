@@ -1,4 +1,4 @@
-$ linlog seq print -i --format latex 'A * B -o C |- A -o B -o C'
+$ deduxit seq print -i --format latex 'A * B -o C |- A -o B -o C'
 --- status 0
 --- stdout
 $(A \otimes B) \multimap C \vdash A \multimap (B \multimap C)$

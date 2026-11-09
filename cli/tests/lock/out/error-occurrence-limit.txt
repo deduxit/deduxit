@@ -1,4 +1,4 @@
-$ linlog prove --occurrence-limit 2 'A * B |- B * A'
+$ deduxit prove --occurrence-limit 2 'A * B |- B * A'
 --- status 2
 --- stdout
 --- stderr

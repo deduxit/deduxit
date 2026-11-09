@@ -1,4 +1,4 @@
-$ linlog prove --logic classical 'a /\'
+$ deduxit prove --logic classical 'a /\'
 --- status 2
 --- stdout
 --- stderr

@@ -1,4 +1,4 @@
-$ linlog prove -i --format latex --standalone 'A, A -o B |- B'
+$ deduxit prove -i --format latex --standalone 'A, A -o B |- B'
 --- status 0
 --- stdout
 % provable (IMLL, intuitionistic, two-sided engine)

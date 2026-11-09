@@ -1,4 +1,4 @@
-$ linlog prove --logic minimal 'a, a -> b |- b'
+$ deduxit prove --logic minimal 'a, a -> b |- b'
 --- status 0
 --- stdout
 valid (minimal logic by the cbn translation into ILL, two-sided engine)

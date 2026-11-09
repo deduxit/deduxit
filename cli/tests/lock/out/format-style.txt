@@ -1,4 +1,4 @@
-$ linlog prove --format latex --style labels=subscript --style align=false 'A, A -o B |- B'
+$ deduxit prove --format latex --style labels=subscript --style align=false 'A, A -o B |- B'
 --- status 0
 --- stdout
 % provable (MLL, classical, focus engine)

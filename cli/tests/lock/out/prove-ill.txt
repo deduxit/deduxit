@@ -1,4 +1,4 @@
-$ linlog prove -i 'A & !B |- !B + A'
+$ deduxit prove -i 'A & !B |- !B + A'
 --- status 0
 --- stdout
 provable (ILL, intuitionistic, two-sided engine)

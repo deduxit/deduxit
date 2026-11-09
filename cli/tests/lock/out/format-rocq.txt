@@ -1,4 +1,4 @@
-$ linlog prove --format rocq 'A * B |- B * A'
+$ deduxit prove --format rocq 'A * B |- B * A'
 --- status 0
 --- stdout
 (* provable (MLL, classical, focus engine) *)

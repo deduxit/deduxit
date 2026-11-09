@@ -1,4 +1,4 @@
-$ linlog prove --engine net 'A & B |- A'
+$ deduxit prove --engine net 'A & B |- A'
 --- status 2
 --- stdout
 --- stderr

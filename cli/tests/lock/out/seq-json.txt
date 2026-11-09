@@ -1,4 +1,4 @@
-$ linlog seq json 'A, A -o B |- B'
+$ deduxit seq json 'A, A -o B |- B'
 --- status 0
 --- stdout
 {"version":1,"terms":[{"D":0},{"V":0},{"D":1},{"⊗":[1,2]},{"V":1}],"roots":[0,3,4],"atoms":["A","B"],"antecedents":2}

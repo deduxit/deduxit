@@ -1,4 +1,4 @@
-$ linlog prove 'A & B |- A + B'
+$ deduxit prove 'A & B |- A + B'
 --- status 0
 --- stdout
 provable (ALL, classical, additive engine)

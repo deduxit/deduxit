@@ -1,4 +1,4 @@
-$ linlog seq print --format svg 'A -o B |- B'
+$ deduxit seq print --format svg 'A -o B |- B'
 --- status 0
 --- stdout
 <svg xmlns="http://www.w3.org/2000/svg" role="img" width="100.256" height="27.2" viewBox="0 0 6266 1700" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">

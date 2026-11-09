@@ -1,4 +1,4 @@
-$ linlog prove --format rocq --standalone --lemma swap '!A |- A * !A'
+$ deduxit prove --format rocq --standalone --lemma swap '!A |- A * !A'
 --- status 0
 --- stdout
 (* provable (MELL, classical, focus engine) *)

@@ -1,4 +1,4 @@
-$ linlog prove --file double.p
+$ deduxit prove --file double.p
 --- status 0
 --- stdout
 provable (MLL, classical, focus engine)

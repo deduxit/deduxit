@@ -1,4 +1,4 @@
-$ linlog prove -a 'A, B |- A'
+$ deduxit prove -a 'A, B |- A'
 --- status 0
 --- stdout
 provable (MLL, classical affine, focus engine)
