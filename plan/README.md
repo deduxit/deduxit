@@ -5384,3 +5384,26 @@ move (D26).
       repositories;
     - crates.io's Trusted Publishing was changed by the author (not
       readable without their login).
+- 2026-11-09, 01:55: **the mark chosen.** The author chose the macron,
+  "dēdūxit", with its two long marks drawn as inference lines.
+  - **The face:** Gentium ExtraBold (SIL; OFL 1.1, Reserved Font Names
+    "Gentium" and "SIL", which do not reach a logo made of outlines).
+  - **The square:** "dē".
+  - **The colour:** the author left it to the planning session, which
+    chose **lapis** (#2456c9 light, #7aa7ff dark) over rubric red:
+    - lapis was the ultramarine of medieval manuscripts, so the Latin
+      voice holds;
+    - it is the furthest of all colours from the page's red, green and
+      yellow status colours. Rubric clears the error red only by the
+      page's minimum and nears "ok" and "warn" under red-green colour
+      blindness, beside the proof tabs where verdicts show;
+    - its closeness to the retired violet goes when the lollipop
+      leaves.
+  - **The one-colour version** is the ink-only drawing.
+  - **The pages:** the four designers' sets at
+    https://claude.ai/artifact/TiMExJA9S5GSUuQUhCpUBm, and the macron's
+    variations at https://claude.ai/artifact/NrRwivNkRQWesNdYtg4k1Q.
+  - **The design repository:** `~/Projects/own/sequentium-mark/deduxit/`.
+    The final files are being drawn into `final/` for 53m's placement.
+  - **Still the author's:** the mark's licence (the lollipop's was CC BY
+    4.0).
