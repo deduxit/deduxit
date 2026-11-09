@@ -827,6 +827,11 @@ accepted**, Q1–Q12 and W1–W3, W5–W15 (W4 was answered earlier). Q7,
 W11, W12 and W13 keep things as they are, with the text changes they
 name. Q5 and Q12 are breaking and go into 0.4.0; Q11's second half (the
 default kernel) waits for rocq-deduxit in the opam archive.
+Allocated the same day: the library's, the command's, the page's and
+the certificates' changes are step 54u (`plan/54u-usability.md`); Q5
+and Q12 are step 55's first session; Q11's second half is in
+`plan/later.md` with the opam submission; the text of Q7, W11, W12 and
+W13 goes to 54w-c and 54u-d.
 
 Each changes the library's API, the command's flags or behaviour, or
 the page's behaviour, so none is made in step 54w. Each has a

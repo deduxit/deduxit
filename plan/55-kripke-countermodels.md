@@ -64,10 +64,39 @@ lemma of the Rocq library.
   an infinite fan needs a finite presentation and stays out unless one
   is standard. The report says which was built and why.
 
+## First: ordinary logic's shape (the author, 2026-11-09)
+
+The author accepted two breaking changes from the usability review
+(`plan/notes/usability.md` §6, Q5 and Q12). They come first, in a
+session of their own, so that the countermodel joins the new shape and
+the JSON forms move to one new wire level, not two.
+- **Q5, ordinary logic in one call.** `ordinary::decide(&sequent,
+  &options)` beside `ordinary::decide_within(&sequent, &options,
+  &search, &limits, stop)`, the linear suite's shape (`prove` and
+  `prove_within`). The module doc's example shrinks to three lines.
+- **Q12, one JSON shape for ordinary logic.** Since step 54b,
+  `prove --logic L --format json` writes the ordinary outcome under LJT
+  and the linear image's outcome under the embedding, told apart by
+  `engine`. Every ordinary run writes the ordinary outcome:
+  `ordinary::Outcome` with its `search` tagged (`Embedding {
+  translation, linear }`, the image's outcome nested, or `Ljt`). The
+  wire level rises; earlier documents stay readable. 54u-a makes the
+  linear `Outcome` readable (Q3); the ordinary outcome gets the same
+  here.
+- **`check` reads the ordinary outcome**, LJ derivations included
+  (54b's follow-up in `plan/later.md`), so that every file `prove`
+  writes, `check` reads.
+- The bindings (`web/`) and the client follow the shape in the same
+  step: the page reads the ordinary results through them.
+- Both are in the changelog's breaks for 0.4.0, with the behaviour
+  lock's JSON lines blessed again in a commit of their own.
+
 ## How the step runs
 
-Three sessions on Opus 5.5 at `high`: the model, its extraction and
-check; the library's lemma and the exporter (Fable 5.1 at `xhigh` only
-if Opus visibly falls short); the drawing and the page. The panel for
-the check. Deliverables: the commits in the three repositories,
+Four sessions on Opus 5.5 at `high`: first, ordinary logic's shape
+(above, with the bindings; the client's part may join the fourth
+session); then the model, its extraction and check; the library's lemma
+and the exporter (Fable 5.1 at `xhigh` only if Opus visibly falls
+short); the drawing and the page. The panel for the check.
+Deliverables: the commits in the three repositories,
 `plan/reports/55-kripke-countermodels.md` with what step 65 must reuse.

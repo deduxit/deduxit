@@ -2614,6 +2614,12 @@ the tree's root or leave `--config-path` out when the tree has a
   - At the release chosen: redo the file for that version, run
     `scripts/opam-install.sh` for each admitted Rocq, then the author's
     pull request (`plan/handoff.md`, "The opam pull request").
+- **Then `--kernel deduxit` becomes the default in every mode** (the
+  author's answer to Q11, 2026-11-09, `plan/notes/usability.md` §6),
+  so that one library checks every certificate; NanoYalla stays a flag
+  for Click & coLLecT's users. It changes every classical certificate
+  in the manual and the behaviour lock. The first half, `nix run
+  …#check-certificate`, is 54u-e.
 
 ## To confirm: a first-order table with binders and no atoms
 

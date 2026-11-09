@@ -20,6 +20,13 @@ both, the release workflow's dry run, the release notes drafted, the
 author's checklist. A baseline night is the author's to give if they
 want the engines' times recorded for the release (the LJT engine is new);
 otherwise the target sets and the harness's ILTP run stand.
+The breaks the changelog must list include `ordinary::Outcome`'s
+`search` (54b), ordinary logic's shape and its one JSON shape (55's
+first session, Q5 and Q12 of `plan/notes/usability.md`), and anything
+54u's report names. 54u's additions (Q1 to Q4, Q6, Q8 to Q10, Q11's
+`check-certificate`) are in the release notes as what a user can do
+now. `--kernel deduxit` as the default (Q11's second half) is not in
+0.4.0 unless rocq-deduxit is in the opam archive by then.
 One session on Opus 5.5 at `high`. Deliverable:
 `plan/reports/59-release-0.4.0.md`.
 

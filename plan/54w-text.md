@@ -85,38 +85,61 @@ once before its final message.
    rewrites the README, the docs pages and the comments, keeping the
    theorems and their names. It runs its own `nix flake check`.
 4. **54w-c, README, the manual, the changelog's Unreleased section and
-   the guide for AI models**, after 54b.
+   the guide for AI models**, after 54b, 54u-a, 54u-b and 54u-e (it
+   documents their calls, messages and the certificate command).
    - Rewrite them in the tutorial, how-to, reference and explanation
      split the rules file asks for. A newcomer finds the shortest path
      to each common task, from 54w-r's notes.
+   - The author's answers (2026-11-09) settle each "docs either way"
+     of `plan/notes/usability.md` §6 on the "with" side: Q1's one-line
+     stop in the recipes, Q2's `to_string` and `{}` without `|_|
+     false`, Q3's `Outcome` read back, Q6's hints in the "mistakes to
+     avoid" how-to, Q8's refutations read without the explanation of
+     the counts, Q9's warning in the interactive chapter, Q10's "`--help`
+     shows every option", Q11's `nix run …#check-certificate` first in
+     the Rocq chapter. Q7 keeps the one-sided default: the first proof
+     says in one line that `⊢ ~A, A` is the axiom `A ⊢ A` and shows
+     `--classical-sides two`.
    - The console examples stay real: `cli/tests/readme.rs` runs them.
    - Keep the guide's summary within its budget.
 5. **54w-d, the command's help, messages and errors** (`cli/`), after
-   54b. The help is the doc comments of `cli/src/argument_parsing.rs`,
-   so `--help` reads as plain how-to text. Each error says what went
-   wrong and what to do. The behaviour lock's changed lines are a commit
-   of their own.
+   54b and 54u-b (it rewrites the hints, refutation reasons and help
+   groups 54u-b adds). The help is the doc comments of
+   `cli/src/argument_parsing.rs`, so `--help` reads as plain how-to
+   text. Each error says what went wrong and what to do. The behaviour
+   lock's changed lines are a commit of their own. It also takes what
+   54w-e1 and 54w-e2 handed on: the proof-net verdict's `Display`,
+   `NetError::Placement`'s wrong text for `Uncut` ("above every cut
+   link"), and the `Display` of `ShapeError`, `CheckError`,
+   `StepError` and the canonical and replay errors.
 6. **54w-e and on, the crate's doc comments and comments** (`core/`,
-   `web/`, `bench/`, `compat/`), after 54b, one session per group of
-   modules so that no two edit one file:
-   - `linear::sequents`, `parse`, the forest;
-   - `linear::proofs` and the checker;
-   - `linear::search` and its engines;
-   - `linear::nets`;
-   - `export`;
-   - `ordinary` and `lambda`;
-   - the root, `web/`, `bench/`, `compat/`.
+   `web/`, `bench/`, `compat/`), one session per group of modules so
+   that no two edit one file:
+   - 54w-e1 (done): `linear::sequents`, `parse`, the forest,
+     `linear::proofs` and the checker;
+   - 54w-e2 (done): `linear::search` and its engines, `linear::nets`;
+   - 54w-e3: `export`, after 54u-a (Q2's `to_string`);
+   - 54w-e4: `ordinary` and `lambda`, after 54u-a (Q2's `Display`);
+   - 54w-e5: the root, `web/`, `bench/`, `compat/`, after 54u-a (the
+     crate root's recipe becomes Q1's one line); it also renames the
+     test names that refer to how the code was made
+     (`the_review_s_witnesses` in `search/essential.rs`, and the two
+     that say "first implementation", named in 54w-e1's report);
+   - 54w-e6: linear's `lltp`, `mist` and families, on go.
 
    Doc comments say what an item is or does for a caller, with an
    example where a caller would want one. Comments say why. Nothing
    refers to how the code came to be. The rustdoc builds with
-   `-D warnings`, and the doc tests run.
+   `-D warnings`, and the doc tests run with every feature and with
+   none (`cargo test --doc -p deduxit --no-default-features`).
 
 ## Rules for every session
 
 - **Text only.** A change to behaviour, the API, a flag or the page is
-  out of scope. If one would help users, it goes to 54w-r's list, to be
-  asked of the author.
+  out of scope. If one would help users, it goes to the report, to be
+  asked of the author. The changes the author accepted from 54w-r's
+  list are step 54u (`plan/54u-usability.md`), and the text sessions
+  that document them wait for it.
 - **Facts stay true.** Rewriting must not change what a sentence claims.
   Where a claim is wrong, fix the claim and say so in the report.
 - **What stays for history:** the changelog's released sections, the

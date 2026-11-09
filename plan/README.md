@@ -75,8 +75,9 @@ amended (see "Review protocol"). `notes/` holds research the prompts rely on.
 | 53 | The release of 0.3.0, the first from `deduxit`: 53m a mark for the collection, drawn for `sequentium` (the design on Fable 5.1, the author choosing, then its placement; added 2026-11-08), 53a the small defects of `later.md` a first user meets, 53b the release prepared, the tag, crates.io, the GitHub release and Zenodo the author's, the chain after the move proved (two sessions) | `53-release-0.3.0.md` (complete; what 47 to 52 leave added at their reviews) | Opus 5.5; Fable 5.1 with an Opus 5.5 partner for 53m's design | high | 47, 48, 49, 50, 51, 52 |
 | | **Release 0.4.0: intuitionistic logic decided, with Kripke countermodels, tableaux and truth tables** (D27) | | | | |
 | 54 | A native engine on Dyckhoff's LJT for intuitionistic and minimal logic, always terminating, its proofs checked as LJ, the default where it wins (two sessions) | `54-ljt-engine.md` (finished at the review of 53) | Opus 5.5; the panel's argument on Fable 5.1 | high, with the panel | 53 |
-| 54w | Every text a person reads rewritten to the author's standing rules (`.claude/rules/writing.md`): a usability review first (its API changes asked of the author), then the web client and the Rocq library beside 54, then README, the manual, the help and the doc comments after 54b | `54w-text.md` | Opus 5.5 | high, with a fresh reviewer per session | 53 |
-| 55 | Kripke countermodels as a shared, checked output kind, extracted from 54's search, drawn, on the page, and certified by a lemma of the Rocq library (three sessions) | `55-kripke-countermodels.md` (finished at the review of 54) | Opus 5.5 (Fable 5.1 at `xhigh` only if Opus visibly falls short on the proof); the panel's argument on Fable 5.1 | high, with the panel | 54 |
+| 54w | Every text a person reads rewritten to the author's standing rules (`.claude/rules/writing.md`): a usability review first (its API changes asked of the author), then the web client and the Rocq library beside 54, then README, the manual, the help and the doc comments after 54b, each after the 54u session whose changes it documents | `54w-text.md` | Opus 5.5 | high, with a fresh reviewer per session | 53 |
+| 54u | The usability review's accepted changes (the author, 2026-11-09): the library's additions (Q1–Q4), the command's hints, refutations by side, `interact`'s guidance and a short `-h` (Q6, Q8–Q10), the page's prover and its Learn, Practice and Export (W1–W3, W5–W15), checking a certificate in one command (Q11) (five sessions, two in the client) | `54u-usability.md` | Opus 5.5 | high, with a fresh reviewer per session | 54b, 54w-a |
+| 55 | Kripke countermodels as a shared, checked output kind, extracted from 54's search, drawn, on the page, and certified by a lemma of the Rocq library; first, ordinary logic in one call and one JSON shape (Q5, Q12) (four sessions) | `55-kripke-countermodels.md` (finished at the review of 54) | Opus 5.5 (Fable 5.1 at `xhigh` only if Opus visibly falls short on the proof); the panel's argument on Fable 5.1 | high, with the panel | 54 |
 | 56 | Classical tableaux as a view of the LK read-back with countermodels from open branches, and truth tables, in the command and as methods on the page (two to three sessions) | `56-tableaux-truth-tables.md` (finished at the review of 55) | Opus 5.5; a fresh-context reviewer on Opus 5.5 | high | 49, 55 |
 | 57 | A checked basis for the Horn engine's non-coverability in affine mode (one to two sessions) | `57-basis-certificate.md` (finished at the review of 53) | Opus 5.5; the panel's argument on Fable 5.1 | high, with the panel | 53 |
 | 58 | Maintenance and decision 8's second step (D31): the MSRV and cadence policy, an advisory check, a wasm feature baseline, a budget, Clippy and tests on 32 bits for the bindings, Kani harnesses for the checker's integers, the client's accessibility audit (two sessions) | `58-maintenance.md` (finished at the review of 53) | Opus 5.5; a fresh-context reviewer on Opus 5.5 | high | 53 |
@@ -6006,3 +6007,24 @@ move (D26).
     and 54w-e3 onward, so that no two edit one file: the command's
     messages (Q6, Q8, Q9, Q10) belong with or after 54w-d, and the
     library's items (Q1–Q4) before the docs that show them.
+- 2026-11-09, 17:45: **The accepted changes allocated** (the author:
+  "Allocate the plans accordingly … but don't start any new steps").
+  - **New step 54u** (`plan/54u-usability.md`), five sessions: 54u-a the
+    library (Q1–Q4), 54u-b the command (Q6, Q8, Q9, Q10), 54u-c the
+    page's prover (W1, W2, W3, W9, W10, W15), 54u-d the page's Learn,
+    Practice and Export (W5–W8, W11–W14), 54u-e `nix run
+    …#check-certificate` (Q11's first half).
+  - **Step 55** gains a first session: ordinary logic in one call (Q5)
+    and one JSON shape (Q12), with `check` reading the ordinary outcome
+    and the bindings following, so that the countermodel joins the new
+    shape at one wire level.
+  - **Step 54w:** 54w-c waits for 54u-a, 54u-b and 54u-e; 54w-d for
+    54u-b (and takes the error texts 54w-e1 and 54w-e2 handed on);
+    54w-e3 to e5 for 54u-a; 54w-e6 (lltp, mist, families) may start on
+    go. 54w-e5 renames the test names that refer to how the code was
+    made.
+  - **Step 59** lists the breaks and the additions; **`plan/later.md`**
+    holds Q11's second half (the default kernel) with the opam
+    submission.
+  - **On go:** 54u-a, 54u-b, 54u-c and 54u-e, at most four step
+    sessions at once; nothing starts before.
