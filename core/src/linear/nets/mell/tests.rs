@@ -49,9 +49,10 @@ fn build(
 }
 
 /// Checks that a structure is a net, sequentializes into a proof the
-/// checker accepts, and desequentializes back into a net, the same up to
-/// the links its weakenings hang on where no occurrence has two vertices:
-/// otherwise the term does not say which instance a rule acts on.
+/// checker accepts, and desequentializes back into a net. Where no
+/// occurrence has two vertices, that net is the same up to the links its
+/// weakenings hang on; otherwise the term does not say which instance a
+/// rule acts on. Returns the proof.
 fn round_trip(net: &MellStructure) -> Proof {
     assert_eq!(net.is_correct(|_| false), Ok(()));
     let proof = net.sequentialize(&Limits::default(), |_| false).unwrap();
@@ -88,9 +89,9 @@ enum Pending {
 
 /// Returns whether two structures over one forest are the same up to the
 /// order of each `?` vertex's copies, the numbering of the vertices and the
-/// links the weakenings hang on: a bijection that keeps occurrences,
-/// premises, boxes and links. A search over the copies' orders, for small
-/// structures.
+/// links the weakenings hang on: whether a bijection keeps occurrences,
+/// premises, boxes and links. It searches over the copies' orders, so it
+/// is for small structures.
 pub(in crate::linear::nets) fn isomorphic(a: &MellStructure, b: &MellStructure) -> bool {
     if a.len() != b.len() || a.links().len() != b.links().len() {
         return false;
@@ -162,10 +163,10 @@ fn matches(
     true
 }
 
-/// Proves a sequent within `copies` copies and a bound of polls of its
-/// stop, which keeps a debug build's search on a large generated sequent
-/// short, with the focused engine, or in intuitionistic mode the engine
-/// the dispatch gives; `None` unless it found a proof.
+/// Proves a sequent with the focused engine, or in intuitionistic mode
+/// with the engine the dispatch picks. The search is bounded to `copies`
+/// copies and 20 000 polls of its stop, which keeps a debug build short on
+/// a large generated sequent. `None` unless it found a proof.
 fn proof_of(sequent: &Sequent, mode: Mode, copies: u32) -> Option<Proof> {
     let engine = (!mode.is_intuitionistic()).then_some(Engine::Focus);
     let options = Options::default()
@@ -782,9 +783,9 @@ fn mutate(net: &MellStructure, parts: &mut Parts, rng: &mut Rng) {
     }
 }
 
-/// A term of a few dozen nodes that unfolds into more vertices than a
-/// structure holds is refused before anything is made: each level uses
-/// the one below twice, so the 48th makes 3 · 2⁴⁸ vertices.
+/// A term of 100 nodes that unfolds into more vertices than a structure
+/// holds is refused before anything is made. Each level uses the one below
+/// twice, so the 48th makes 3 · 2⁴⁸ vertices.
 #[test]
 fn an_unfolding_past_the_vertices_is_refused() {
     // ⊢ ?(a ⅋ ~a): 0 ?, 1 ⅋, 2 a, 3 ~a.

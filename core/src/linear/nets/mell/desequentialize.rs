@@ -2,22 +2,27 @@
 // Licensed under the EUPL
 
 //! Desequentialization: from a proof term of unit-free MELL to its
-//! structure with boxes. The term is unfolded as a tree, a node that
-//! several others share once per use, and read from the leaves: every
-//! rule makes the vertex of the formula it introduces from the vertices
-//! its premises left open, so the vertices of a formula are instances of
-//! its occurrence. An axiom makes two literals and links them; a promotion
-//! closes the box around everything its premise made; a cut joins the
-//! instances of its formula and its dual its two premises left open with a
-//! cut link; a copy moves an
-//! instance from the linear zone to the unrestricted one; a `?` rule
-//! takes every copy of its subformula its premise made and no `?` rule
-//! above took, as the checker reads the unrestricted zone, and without
-//! any it is a weakening that hangs on the first link above it.
+//! structure with boxes.
 //!
-//! A term names occurrences, not instances, so where a sequent holds two
-//! instances of one occurrence the rule acting on it takes the last one
-//! made: any choice is a sequent proof, and its net a proof net.
+//! The term is unfolded into a tree: a node that several others share is
+//! read once per use. The tree is read from the leaves. Every rule makes
+//! the vertex of the formula it introduces from the vertices its premises
+//! left open, so the vertices of a formula are instances of its
+//! occurrence:
+//! - an axiom makes two literals and links them;
+//! - a promotion closes the box around everything its premise made;
+//! - a cut joins with a cut link the instances of its formula and of its
+//!   dual that its two premises left open;
+//! - a copy moves an instance from the linear zone to the unrestricted
+//!   one;
+//! - a `?` rule takes every copy of its subformula that its premise made
+//!   and no `?` rule above took, as the checker reads the unrestricted
+//!   zone. A `?` rule without copies is a weakening, and hangs on the
+//!   first link its premise made.
+//!
+//! A term names occurrences, not instances. So where a sequent holds two
+//! instances of one occurrence, the rule acting on it takes the last one
+//! made. Any choice gives a sequent proof, and its net is a proof net.
 
 use super::{BUILD_BYTES, MOST, MellStructure, Parts, Placed, VERTEX_BYTES};
 use crate::Error;
@@ -27,27 +32,32 @@ use crate::linear::nets::{Criterion, NONE, NetError, STOPPED, VertexId, afford};
 use crate::linear::occurrences::OccId;
 use crate::linear::proofs::{Node, NodeId, Proof};
 
-/// The bytes the unfolding holds per vertex beside the structure: its
-/// occurrence and box (8), its list of premises and the entry it takes in
-/// its parent's (28), an entry in a list of open or waiting instances (8),
-/// the renumbering's three arrays (12) and its vertex of the parts (16).
+/// The bytes the unfolding holds per vertex beside the structure: 8 for
+/// its occurrence and box, 28 for its list of premises and its entry in
+/// its parent's, 8 for an entry in a list of open or waiting instances, 12
+/// for the renumbering's three arrays, and 16 for its vertex of the parts.
 const UNFOLD_BYTES: u64 = 8 + 28 + 8 + 12 + 16;
 
 impl MellStructure {
-    /// Desequentializes a proof of unit-free MELL in classical mode, with
-    /// Mix where the criterion allows it, or in intuitionistic mode, whose
-    /// every proof is a classical one of the one-sided sequent: checks it
-    /// in classical mode, unfolds it into its
-    /// structure with boxes over a copy of the proof's forest, within
-    /// `limits` (the check's bounds, and the unfolded vertices, counted
-    /// before anything is made, within `limits.memory_bytes`) and until
-    /// `stop` returns true, which the check asks and the unfolding asks per
-    /// node. The vertices are numbered from the roots, then each root's
-    /// formula tree depth first, a `?` vertex's copies in the order they
-    /// were made. Every proof gives a proof net; two proofs that differ in
-    /// the order of their rules give the same one up to the axiom links the
+    /// Returns the proof net of a proof of unit-free MELL: its structure
+    /// with boxes, over a copy of the proof's forest.
+    ///
+    /// The proof may be classical, with Mix where the criterion allows it,
+    /// or intuitionistic, since every intuitionistic proof is a classical
+    /// proof of the one-sided sequent. It is checked in classical mode,
+    /// then unfolded into its structure. Both stay within `limits`: the
+    /// check within its bounds, and the unfolded vertices, counted before
+    /// anything is made, within `limits.memory_bytes`. `stop` is asked by
+    /// the check, once per node of the unfolding, and as
+    /// [`is_correct`](Self::is_correct) asks it; the call ends when it
+    /// returns true.
+    ///
+    /// The vertices are numbered from the roots, then each root's formula
+    /// tree depth first, a `?` vertex's copies in the order they were made.
+    /// Every proof gives a proof net. Two proofs that differ in the order
+    /// of their rules give the same net, up to the axiom links the
     /// weakenings hang on and, where a sequent holds two instances of one
-    /// occurrence, up to the instance a rule takes (the last made).
+    /// occurrence, up to the instance a rule takes (the last one made).
     ///
     /// # Errors
     ///
@@ -57,6 +67,33 @@ impl MellStructure {
     /// that is no proof; [`Refusal::Index`] for more vertices than a
     /// structure holds; [`NetError::Refused`] when the bound or the stop
     /// ended it.
+    ///
+    /// # Examples
+    ///
+    /// The net of a proof the search found: `!b` is weakened, so its `?~b`
+    /// has no copy and hangs on the axiom link.
+    ///
+    #[cfg_attr(feature = "parse", doc = "```")]
+    #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
+    /// use deduxit::Limits;
+    /// use deduxit::linear::{Criterion, MellStructure, Mode, Options, Sequent, Verdict, prove};
+    ///
+    /// let sequent: Sequent = "!a, !b |- !a".parse()?;
+    /// let outcome = prove(&sequent, Mode::CLASSICAL, &Options::default())?;
+    /// let Verdict::Proved(proof) = &outcome.verdict else {
+    ///     panic!("the sequent is provable");
+    /// };
+    /// let net = MellStructure::from_proof(proof, Criterion::MLL, &Limits::default(), |_| false)?;
+    /// assert_eq!(
+    ///     net.to_string(),
+    ///     "⊢ ?~a, ?~b, !a\n\
+    ///      ?~a[0]: ~a[3] in !a[2]\n\
+    ///      ?~b[1]: no copy, hangs on a[4]\n\
+    ///      ~a[3] — a[4]\n\
+    ///      proof net"
+    /// );
+    /// # Ok::<(), deduxit::Error>(())
+    /// ```
     pub fn from_proof(
         proof: &Proof,
         criterion: Criterion,
@@ -102,7 +139,7 @@ impl MellStructure {
     }
 }
 
-/// Returns the vertices the unfolded term makes: the uses of every node,
+/// Returns how many vertices the unfolded term makes: each node's uses,
 /// counted from the root down and saturating, times the vertices its rule
 /// makes.
 fn unfolded(proof: &Proof) -> u64 {
@@ -136,8 +173,9 @@ fn unfolded(proof: &Proof) -> u64 {
     total
 }
 
-/// A node of the unfolded term being read: its premises are read first,
-/// each into the vertices from `start` and `middle` on.
+/// A node of the unfolded term being read. Its premises are read first:
+/// the first into the vertices from `start` on, the second into those from
+/// `middle` on.
 struct Frame {
     /// The node.
     node: NodeId,
@@ -145,8 +183,8 @@ struct Frame {
     read: u8,
     /// The vertex count when the node was entered.
     start: u32,
-    /// The vertex count when its first premise was read; for a `?` rule
-    /// the copies of its subformula waiting when it was entered.
+    /// The vertex count once its first premise was read. For a `?` rule,
+    /// the number of copies of its subformula waiting when it was entered.
     middle: u32,
     /// The link count when the node was entered.
     links: u32,
@@ -208,9 +246,9 @@ impl<'a> Unfolding<'a> {
         v
     }
 
-    /// Takes the last instance of `o` made from vertex `from` on and before
-    /// vertex `to` out of the linear zone: one a checked proof's premise
-    /// holds.
+    /// Takes the last instance of `o` among the vertices `from..to` out of
+    /// the linear zone, and returns it. A checked proof's premise holds
+    /// one.
     fn take(&mut self, o: OccId, from: u32, to: u32) -> u32 {
         let list = &mut self.open[o.index()];
         let i = list.partition_point(|&v| v < to);
@@ -221,8 +259,8 @@ impl<'a> Unfolding<'a> {
         list.remove(i - 1)
     }
 
-    /// Reads the whole term, asking `stop` with the nodes read so far
-    /// before each.
+    /// Reads the whole term, asking `stop` before each node with the
+    /// number of nodes read so far.
     fn run(&mut self, stop: &mut dyn FnMut(u64) -> bool) -> Result<(), NetError> {
         let nodes = self.proof.nodes();
         let mut frames = vec![self.enter(self.proof.root())];
@@ -296,7 +334,7 @@ impl<'a> Unfolding<'a> {
     }
 
     /// Reads a node whose premises are read: makes the vertex of the
-    /// formula it introduces.
+    /// formula it introduces, or for a cut its cut link.
     fn exit(&mut self, node: Node, frame: &Frame) {
         let f = self.proof.forest();
         let end = self.occurrence.len() as u32;
@@ -385,8 +423,8 @@ impl<'a> Unfolding<'a> {
             new[r as usize] = order.len() as u32;
             order.push(r);
         }
-        // The cut links' ends come after the roots' trees, each tree with
-        // its vertices.
+        // The cut links' ends and the trees above them come after the
+        // roots' trees.
         let mut stack = Vec::new();
         let ends: Vec<u32> = self.cuts.iter().flat_map(|&(x, y)| [x, y]).collect();
         for &r in roots.iter().chain(&ends) {

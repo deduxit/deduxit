@@ -1,36 +1,48 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The structure graph of a structure with boxes: the graphs of every box
-//! depth side by side, each with the boxes inside it contracted to their
-//! `!` vertex and the `?` vertices outside it replaced by its auxiliary
-//! doors, and the correctness criterion's tests on it.
+//! The graph the criterion of a structure with boxes runs on, and the
+//! criterion's tests on it.
 //!
-//! The vertices are the structure's, each at the depth of its innermost
-//! box, one *door vertex* for each `?` vertex and each box inside its
-//! own that a wire of it enters: inside that box the door stands for the
-//! `?` vertex, and after the doors one *cut vertex* per cut link, a `⊗`
-//! without a conclusion whose premises are the link's two ends, so that
-//! the graph stays simple where a wire of a `?` end enters the box of the
-//! `!` end. A box's `!` vertex lies at the depth around the box and
-//! takes the box's place there, so a wire entering the box ends at it.
-//! The edges, each between two vertices of one depth: a `⊗` or `⅋` to its
-//! premises; a `?` vertex or a door to each copy at its depth, to each
-//! weakening literal there and to the `!` vertex of each box a wire
-//! enters (once, however many wires do); a cut vertex to its two ends; and
-//! the links. Slot 0 of every vertex is its *parent edge*, to the vertex
-//! below it at its depth (a cut link's end to its cut vertex), or `NONE`
-//! for a conclusion of its depth (a root, a box's premise, a door, a cut
-//! vertex).
+//! The graph holds the graphs of every box depth side by side, with no
+//! edge between depths. At a depth, each box inside it is contracted to
+//! its `!` vertex, and each `?` vertex outside it is replaced by an
+//! auxiliary door.
 //!
-//! The colouring is the one of the multiplicative graph, with `?` vertices
-//! and doors switched like a `⅋` of any arity: their wires share a colour
-//! of their own, every other edge has its own. Two wires of one vertex to
-//! one other are one edge: they share a colour, so no properly coloured
-//! cycle uses both, and a switching keeps one of them as it keeps either.
-//! That leaves the graph simple, and the deletion condition of Yeo's
-//! theorem the multiplicative one: a switched vertex is deletable when its
-//! parent edge is absent or a bridge, any other when all its edges are.
+//! The vertices come in three runs:
+//! - the structure's vertices, each at the depth of its innermost box. A
+//!   box's `!` vertex lies at the depth around the box and takes the
+//!   box's place there, so a wire entering the box ends at it;
+//! - one *door vertex* for each `?` vertex and each box inside its own
+//!   that a wire of it enters. Inside that box the door stands for the `?`
+//!   vertex;
+//! - one *cut vertex* per cut link: a `⊗` without a conclusion whose
+//!   premises are the link's two ends. It keeps the graph simple where a
+//!   wire of a `?` end enters the box of the `!` end.
+//!
+//! The edges each join two vertices of one depth:
+//! - a `⊗` or `⅋` to its premises;
+//! - a `?` vertex or a door to each copy at its depth, to each weakening's
+//!   literal there, and to the `!` vertex of each box a wire enters (once,
+//!   however many wires do);
+//! - a cut vertex to its two ends;
+//! - the links.
+//!
+//! Slot 0 of every vertex is its *parent edge*, to the vertex below it at
+//! its depth (for a cut link's end, its cut vertex). It is `NONE` for a
+//! conclusion of its depth: a root, a box's premise, a door or a cut
+//! vertex.
+//!
+//! The colouring is the multiplicative graph's, with `?` vertices and
+//! doors switched like a `⅋` of any arity: their wires share a colour of
+//! their own, and every other edge has its own colour. Two wires of one
+//! vertex to one other vertex are one edge. They would share a colour, so
+//! no properly coloured cycle could use both, and a switching that keeps
+//! one of them is as good as one that keeps the other. So the graph stays
+//! simple, and the deletion condition of Yeo's theorem is the
+//! multiplicative one: a switched vertex may be deleted when its parent
+//! edge is absent or a bridge, any other vertex when all its edges are
+//! bridges.
 
 use super::{DOOR_BYTES, MOST, MellStructure, Nesting};
 use crate::Error;
@@ -41,8 +53,8 @@ use crate::linear::sequents::Kind;
 /// The graph of every box depth.
 #[derive(Clone, Debug, Default)]
 pub(super) struct Graph {
-    /// Per vertex, where its slots start in `to`; one more entry holds the
-    /// total, which the construction keeps below `u32::MAX`.
+    /// Per vertex, where its slots start in `to`, and one more entry for
+    /// the total, which the construction keeps below `u32::MAX`.
     start: Box<[u32]>,
     /// Per slot, the other end of the edge, or `NONE` for a parent edge
     /// that is absent.
@@ -58,9 +70,9 @@ pub(super) struct Graph {
     /// Per cut vertex, which follow the doors, its two ends, the one in a
     /// cut formula's tree first.
     cut_of: Box<[(u32, u32)]>,
-    /// The depths in the order the criterion checks them, outside every
-    /// box first, then each box by its `!` vertex, with the vertices and
-    /// the edges a switching keeps there.
+    /// The depths, each with its vertices and the edges a switching keeps
+    /// there. They come in the order the criterion checks them: outside
+    /// every box first, then each box, by its `!` vertex.
     depths: Box<[Depth]>,
 }
 
@@ -81,12 +93,13 @@ struct Builder<'a> {
     s: &'a MellStructure,
     /// Per vertex, the other end of its parent edge, or `NONE`.
     parent: Vec<u32>,
-    /// Every edge but the parent edges, by its two ends; a parent edge
-    /// adds its lower end's slot here.
+    /// Every edge but the parent edges, by its two ends. At the end of the
+    /// construction each parent edge is added too, for the slot it takes
+    /// at its lower end.
     extra: Vec<(u32, u32)>,
     /// Per door, its depth and its `?` vertex.
     doors: Vec<(u32, u32)>,
-    /// Per box, the `?` vertex whose door it holds last, and that door.
+    /// Per box, the last `?` vertex that got a door in it, and that door.
     stamp: Vec<(u32, u32)>,
     /// The caller's bounds.
     limits: &'a Limits,
@@ -94,7 +107,7 @@ struct Builder<'a> {
 
 impl Builder<'_> {
     /// Returns the door vertex of the `?` vertex `q` inside box `b`, and
-    /// whether it is new. Wires are added a `?` vertex at a time, so a
+    /// whether it is new. Wires are added a `?` vertex at a time, so the
     /// box's stamp says whether its door for `q` exists.
     fn door(&mut self, q: u32, b: u32) -> Result<(u32, bool), Error> {
         let (stamped, door) = self.stamp[b as usize];
@@ -118,10 +131,10 @@ impl Builder<'_> {
     }
 
     /// Adds the wire of the `?` vertex `q` to `end`, a copy of it or the
-    /// literal it hangs on: an edge at the end's depth from `q` or from its
-    /// door there, and up the boxes around the end to `q`'s depth, an edge
-    /// from the door or `q` itself to the `!` vertex of each box entered,
-    /// unless it is there already.
+    /// literal it hangs on. At the end's depth the wire is an edge from `q`
+    /// or from its door there. Then, up the boxes around the end to `q`'s
+    /// depth, it is an edge from `q` or its door to the `!` vertex of each
+    /// box the wire enters, unless that edge is there already.
     fn wire(&mut self, q: u32, end: u32, copy: bool, boxes: &Nesting) -> Result<(), Error> {
         let home = self.s.inside[q as usize];
         let mut current = boxes.of(VertexId::new(end));
@@ -325,8 +338,9 @@ impl Graph {
                 dropped[d] += class.saturating_sub(1);
             }
         }
-        // Each edge has two ends, and the classes of the switched vertices
-        // are disjoint sets of edges, so fewer are dropped than there are.
+        // Each edge has two ends. The classes of the switched vertices are
+        // disjoint sets of edges, so fewer edges are dropped than there
+        // are, and the difference cannot go below zero.
         let kept = |d: usize| ends[d] / 2 - dropped[d];
         let mut depths = vec![Depth {
             level: NONE,
@@ -394,7 +408,7 @@ impl Graph {
         self.start[v as usize] as usize..self.start[v as usize + 1] as usize
     }
 
-    /// Returns the `?` vertices with a door in the box of `bang`.
+    /// Returns the `?` vertices with a door in the box of `bang`, sorted.
     pub(super) fn doors(&self, bang: VertexId) -> Vec<VertexId> {
         let n = self.n as usize;
         let mut doors: Vec<VertexId> = (n..self.first_cut() as usize)
@@ -431,9 +445,9 @@ impl Graph {
     }
 
     /// Decides the criterion on a complete structure: no switching cycle
-    /// at any depth, and with `mix` false every depth connected under every
-    /// switching, which given acyclicity is its kept edges being one fewer
-    /// than its vertices.
+    /// at any depth and, with `mix` false, every depth connected under
+    /// every switching. Where no switching has a cycle, a depth is
+    /// connected when its kept edges are one fewer than its vertices.
     pub(super) fn correct(
         &self,
         mix: bool,
@@ -480,10 +494,11 @@ impl Graph {
         Ok(())
     }
 
-    /// Searches depth-first from every vertex not deleted, over the edges
-    /// not removed, computing for every vertex its discovery time, its
-    /// search-tree parent, the root that reached it, and whether its
-    /// parent edge is a bridge.
+    /// Searches depth-first, over the edges not removed, from each of
+    /// `roots` that is not deleted and not yet reached. Records for every
+    /// vertex reached its discovery time, its search-tree parent, the root
+    /// that reached it, and whether the edge to its search-tree parent is
+    /// a bridge. Returns the number of search trees.
     pub(super) fn search(
         &self,
         scratch: &mut Scratch,
@@ -558,10 +573,10 @@ impl Graph {
         slots.all(|i| !self.present(scratch, i) || scratch.is_bridge(v, self.to[i]))
     }
 
-    /// Runs the deletion procedure on the vertices not yet deleted, asking
-    /// `stop` before each round. Returns whether every vertex went;
-    /// otherwise a switching cycle runs among those left. `None` when
-    /// `stop` fired.
+    /// Runs the deletion procedure of Yeo's theorem on the vertices not
+    /// yet deleted: each round deletes every deletable vertex. Asks `stop`
+    /// before each round. Returns whether every vertex went; if not, a
+    /// switching cycle runs among those left. `None` when `stop` fired.
     fn acyclic(&self, scratch: &mut Scratch, stop: &mut dyn FnMut(u64) -> bool) -> Option<bool> {
         let n = self.len();
         let mut remaining = scratch.deleted.iter().filter(|&&d| !d).count();
@@ -591,11 +606,11 @@ impl Graph {
             .expect("the edge exists at both ends")
     }
 
-    /// Isolates one switching cycle among the vertices
-    /// [`acyclic`](Self::acyclic) got stuck on, which it must have just
-    /// done, and returns its vertices in order along it: every edge among
-    /// them is taken out in turn and kept out when a cycle survives
-    /// without it, which leaves exactly one. `None` when `stop` fired.
+    /// Returns the vertices of one switching cycle, in order along it.
+    /// [`acyclic`](Self::acyclic) must just have got stuck, and the cycle
+    /// lies among the vertices it left. Each edge among them is taken out
+    /// in turn, and stays out when a cycle survives without it; that leaves
+    /// exactly one cycle. `None` when `stop` fired.
     fn cycle(&self, scratch: &mut Scratch, stop: &mut dyn FnMut(u64) -> bool) -> Option<Vec<u32>> {
         let n = self.len();
         scratch.stuck.clone_from(&scratch.deleted);
@@ -647,11 +662,11 @@ impl Graph {
     }
 
     /// Returns the connected components of one depth under the switching
-    /// that keeps the first wire or premise edge of every switched vertex,
-    /// each as the vertices in it without a parent edge there: the
-    /// depth's conclusions and the wires and premises the switching drops,
-    /// doors as their `?` vertex. Components come in the order of their
-    /// smallest vertex.
+    /// that keeps the first wire or premise edge of every switched vertex.
+    /// Each component is given as its vertices without a parent edge in
+    /// that switching: the depth's conclusions, and the premises and copies
+    /// whose edge the switching drops. A door is named by its `?` vertex.
+    /// The components come in the order of their smallest vertex.
     fn parts(&self, scratch: &mut Scratch, level: u32) -> Vec<Vec<VertexId>> {
         let n = self.len();
         scratch.deleted.fill(false);

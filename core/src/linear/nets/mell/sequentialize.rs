@@ -2,24 +2,32 @@
 // Licensed under the EUPL
 
 //! Sequentialization: from a proof net with boxes to a proof term of the
-//! dyadic calculus, by the splitting tensor lemma at every box depth. A
-//! sub-net is given by its conclusions, all at one depth. While one is a
-//! `⅋`, it is replaced by its premises and a `⅋` rule goes below the rest;
-//! while one is a `?` vertex, a `?` rule moves its subformula into the
-//! unrestricted zone and its copies at its depth become conclusions, each
-//! brought into the linear zone by a copy rule above it, so that the
-//! copies inside boxes are in reach when their box is proved; inside a box
-//! the doors are such conclusions from the start, their `?` rules lying
-//! below the promotion. With Mix allowed, a sub-net in several parts is
-//! proved part by part. Two literals alone are an axiom, a `!` vertex alone
-//! the promotion of its box's contents. Otherwise some `⊗` conclusion or
-//! cut link (a `⊗` without a conclusion, whose rule is the cut) is
-//! splitting, which the bridge of its premise edge in the plain graph
-//! says, as in the multiplicative case: the depth's graph is a
-//! multiplicative structure in which a `?` vertex or a door is a `⅋` of
-//! any arity, a `!` vertex with its box a hypothesis whose conclusions are
-//! the `!` formula and its wires, and a link with the weakenings that hang
-//! on it an axiom with more conclusions.
+//! dyadic calculus, by the splitting tensor lemma at every box depth.
+//!
+//! A sub-net is given by its conclusions, all at one depth. A stage first
+//! opens what needs no choice:
+//! - a `⅋` conclusion is replaced by its premises, and a `⅋` rule goes
+//!   below the rest;
+//! - a `?` vertex conclusion gets a `?` rule, which moves its subformula
+//!   into the unrestricted zone. Its copies at its depth become
+//!   conclusions, each brought into the linear zone by a copy rule above
+//!   the `?` rule. The subformula stays in the unrestricted zone, so the
+//!   copies inside boxes are in reach when their box is proved;
+//! - inside a box, the doors are such conclusions from the start, with
+//!   their `?` rules below the promotion.
+//!
+//! Then the stage proves what is left. With Mix allowed, a sub-net in
+//! several parts is proved part by part. Two literals alone are an axiom,
+//! and a `!` vertex alone is the promotion of its box's contents.
+//! Otherwise some `⊗` conclusion or cut link is splitting: taking it away
+//! leaves its two premises in two separate parts. A cut link counts as a
+//! `⊗` without a conclusion, whose rule is the cut. As in the
+//! multiplicative case, its premise edge is a bridge of the plain graph,
+//! the graph with every edge. For this the depth's graph is a
+//! multiplicative structure: a `?` vertex or a door is a `⅋` of any arity,
+//! a `!` vertex with its box is a hypothesis whose conclusions are the `!`
+//! formula and its wires, and a link with the weakenings that hang on it
+//! is an axiom with more conclusions.
 
 use super::graph::Scratch;
 use super::{MellStructure, SCRATCH_BYTES, VERTEX_BYTES};
@@ -61,18 +69,22 @@ enum Step {
 }
 
 impl MellStructure {
-    /// Turns a proof net with boxes into a proof term of its sequent, which
-    /// the proof checker accepts in classical mode, with Mix where the
-    /// criterion allows it, the mode the proof records, and, without Mix,
-    /// in intuitionistic mode too where the sequent has an intuitionistic
-    /// reading: every sequent of the term then holds one formula in
-    /// output position, as a classical proof of such a sequent always
-    /// does. Its nodes are `⅋`, `⊗`, axiom,
-    /// promotion, `?`, copy and, where the structure falls apart, Mix
-    /// nodes, a weakening a `?` rule without copies. It takes time
-    /// quadratic in the graph at most, holds within `limits.memory_bytes`
-    /// (estimated before anything is made) and asks `stop` as
-    /// [`is_correct`](Self::is_correct) does and once per stage.
+    /// Turns a proof net with boxes into a proof term of its sequent.
+    ///
+    /// The checker accepts the term in classical mode, with Mix where the
+    /// criterion allows it, and that is the mode the proof records.
+    /// Without Mix, where the sequent has an intuitionistic reading, the
+    /// checker accepts it in intuitionistic mode too: every sequent of the
+    /// term then holds one formula in output position, as every sequent of
+    /// a classical proof of such a sequent does.
+    ///
+    /// The term's nodes are `⅋`, `⊗`, axiom, promotion, `?`, copy, a cut
+    /// for each cut link, and Mix where the structure falls apart. A
+    /// weakening is a `?` rule without copies.
+    ///
+    /// It takes time at most quadratic in the graph. It holds within
+    /// `limits.memory_bytes`, estimated before anything is made, and asks
+    /// `stop` as [`is_correct`](Self::is_correct) does and once per stage.
     ///
     /// # Errors
     ///
@@ -139,8 +151,8 @@ impl MellStructure {
 struct Sequentialization<'a> {
     /// The proof net.
     net: &'a MellStructure,
-    /// Working memory for the searches; conclusions handled are deleted
-    /// in it, so a sub-net is what its conclusions reach.
+    /// Working memory for the searches. The conclusions handled are
+    /// deleted in it, so a sub-net is what its conclusions reach.
     scratch: Scratch,
     /// The proof's arena so far.
     nodes: Vec<Node>,
@@ -170,7 +182,7 @@ impl Sequentialization<'_> {
     }
 
     /// Proves the sub-net with the given conclusions and returns the node
-    /// concluding it, asking `stop` before each stage; `None` when it
+    /// concluding it, asking `stop` before each stage. `None` when `stop`
     /// fired.
     fn sequentialize(
         &mut self,
@@ -224,7 +236,7 @@ impl Sequentialization<'_> {
     }
 
     /// Opens the copies of a `?` vertex or door at its depth: each becomes
-    /// a conclusion, brought in by a copy rule.
+    /// a conclusion, brought into the linear zone by a copy rule.
     fn copies(&self, source: u32, gamma: &mut Vec<u32>, rules: &mut Vec<Open>) {
         let graph = &self.net.graph;
         for w in graph.wires(source) {
@@ -235,19 +247,21 @@ impl Sequentialization<'_> {
         }
     }
 
-    /// One stage, on the sub-net with the given conclusions: opens its
-    /// `⅋` and `?` conclusions and its doors, then proves it by an axiom,
-    /// or leaves the steps that prove it: its parts with a Mix after each
-    /// but the first, the contents of its box and the promotion, or the two
-    /// sides of its splitting `⊗` and the `⊗` after them.
+    /// Runs one stage on the sub-net with the given conclusions. It opens
+    /// the `⅋` and `?` conclusions and the doors. Then it proves the
+    /// sub-net by an axiom, or pushes the steps that prove it: its parts
+    /// with a Mix after each but the first; the contents of its box and the
+    /// promotion; or the two sides of its splitting `⊗` or cut link, and
+    /// the rule after them.
     fn stage(&mut self, mut gamma: Vec<u32>) {
         let net = self.net;
         let graph = &net.graph;
         let n = graph.vertex_offset();
         let first_cut = graph.first_cut();
         let mut rules = Vec::new();
-        // A conclusion opened without a premise in its place is marked
-        // `NONE` and dropped at the end, so that each costs constant time.
+        // A conclusion opened without a premise to take its place is
+        // marked `NONE` and dropped at the end, so that each costs constant
+        // time.
         let mut i = 0;
         while i < gamma.len() {
             let c = gamma[i];
@@ -300,8 +314,8 @@ impl Sequentialization<'_> {
         let parts = graph.search(&mut self.scratch, gamma.iter().copied());
         if parts > 1 {
             debug_assert!(net.criterion.mix, "a proof net without Mix is connected");
-            // The parts in the order of their first conclusion, by a sort of
-            // the labels, so that a stage of many parts stays near linear.
+            // The parts in the order of their first conclusion. Sorting the
+            // labels keeps a stage of many parts near linear.
             let mut first: Vec<(u32, usize)> = gamma
                 .iter()
                 .enumerate()
@@ -347,10 +361,10 @@ impl Sequentialization<'_> {
             self.steps.push(Step::Bang(net.occurrence[bang as usize]));
             self.steps.push(Step::Prove(contents));
         } else {
-            // The splitting ⊗ conclusion with the smallest id, one whose
-            // premise edge is a bridge, or else the splitting cut vertex
-            // with the smallest id, whose edge to its end in a cut
-            // formula's tree is a bridge.
+            // The splitting ⊗ conclusion with the smallest id: one whose
+            // premise edge is a bridge. Else the splitting cut vertex with
+            // the smallest id: one whose edge to its end in a cut formula's
+            // tree is a bridge.
             let tensor = gamma
                 .iter()
                 .copied()

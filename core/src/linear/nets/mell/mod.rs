@@ -1,27 +1,30 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Proof nets of unit-free MELL with `!`-boxes: proof structures whose
-//! vertices are instances of the forest's occurrences, the correctness
-//! criterion, and the conversions to and from proof terms.
+//! Proof nets of unit-free MELL with `!`-boxes: the proof structure, its
+//! correctness criterion, and the conversions to and from proof terms.
 //!
-//! A [`MellStructure`] holds a vertex for every root formula and below
-//! each `⊗`, `⅋` and `!` vertex one for each premise, as the forest's
-//! trees do; below a `?` vertex it holds any number of *copies* of its
-//! subformula, the generalised `?` node, which stands for dereliction
-//! (one copy), contraction (several) and weakening (none) at once and
-//! keeps neither their order nor the boxes they happen in. Each `!` vertex
-//! opens a box: its premise and everything above it, up to the copies of
-//! `?` vertices outside, lies in it, and a copy may lie in any box inside
-//! its `?` vertex's own, the wire to it crossing each box border on the
-//! way as an auxiliary door. A `?` vertex without copies hangs on an axiom
-//! link inside its box, as a weakening formula is a conclusion of an axiom
-//! (Guerrini and Masini, *Parsing MELL proof nets*, TCS 254, 2001): that
-//! keeps every proof net connected, so that the Danos–Regnier criterion
-//! decides it, which the count of components cannot when weakenings hang
-//! free.
+//! A [`MellStructure`] has a vertex for every root formula. For each
+//! `⊗`, `⅋` and `!` vertex it has one vertex per premise, as the forest's
+//! trees do. So a vertex is an instance of an occurrence of the forest.
+//!
+//! For a `?` vertex it has any number of *copies* of the subformula.
+//! This is the generalised `?` node: one copy is a dereliction, several
+//! are a contraction, none is a weakening. It records neither the order
+//! of these rules nor the boxes they happen in.
+//!
+//! Each `!` vertex opens a box. Its premise and everything above it lie
+//! in the box, up to the copies of `?` vertices outside. A copy may lie in
+//! any box inside its `?` vertex's own box. The wire to it then crosses
+//! each box border on the way, at an auxiliary door.
+//!
+//! A `?` vertex without copies hangs on an axiom link inside its box, as a
+//! weakening formula is a conclusion of an axiom (Guerrini and Masini,
+//! *Parsing MELL proof nets*, TCS 254, 2001). That keeps every proof net
+//! connected, so the Danos–Regnier criterion decides it. Where weakenings
+//! hang free, counting components does not decide it.
 
-// A variant a later step adds must not fall into an existing arm.
+// A new variant must not fall into an existing arm.
 #![deny(clippy::wildcard_enum_match_arm)]
 
 /// From a proof term to its structure.
@@ -42,38 +45,41 @@ use crate::linear::occurrences::{Forest, OccId, Reading, ShapeError};
 use crate::linear::sequents::Kind;
 use graph::Graph;
 
-/// The most vertices a structure has, the door vertices of its graph
-/// included: a vertex has at most as many slots in the graph as it has
-/// edges, every edge two, and the slots' offsets are `u32`, so the
-/// structure refuses a graph past `u32::MAX` slots too.
+/// The most vertices a structure has, counting the door vertices of its
+/// graph. A vertex has one slot in the graph per edge, and one more where
+/// its parent edge is absent; every edge has two ends. The slots' offsets
+/// are `u32`, so the structure also refuses a graph of `u32::MAX` slots or
+/// more.
 const MOST: u64 = (u32::MAX / 2 - 1) as u64;
 
-/// The bytes a structure holds per vertex beside its forest: the
-/// occurrence, the parent, the box, the partner and the hanging (20), the
-/// children's offset and slot (8), and the graph's level, offset, two
-/// slots and flags (16).
+/// The bytes a structure holds per vertex beside its forest: 20 for the
+/// occurrence, the parent, the box, the partner and the hanging; 8 for
+/// the premises' offset and slot; 16 for the graph's level, offset, two
+/// slots and flags.
 const VERTEX_BYTES: u64 = 20 + 8 + 16;
 
 /// The bytes the construction holds per vertex while it builds the
-/// structure, beside it: the premises' counts, offsets and fill (16), the
-/// box nesting's depths, children and intervals (40), and the graph's
-/// builder: a parent, a stamp, a degree, a fill and two edges (40).
+/// structure, beside the structure: 16 for the premises' counts, offsets
+/// and fill; 40 for the box nesting's depths, children and intervals; 40
+/// for the graph's builder (a parent, a stamp, a degree, a fill and two
+/// edges).
 const BUILD_BYTES: u64 = 16 + 40 + 40;
 
-/// The bytes a door vertex of the graph holds: its level, its `?` vertex,
-/// its offset and slots (16).
+/// The bytes a door vertex of the graph holds: 16 for its level, its `?`
+/// vertex, its offset and its slots.
 const DOOR_BYTES: u64 = 16;
 
 /// The bytes the criterion's working memory takes per vertex of the
-/// graph: the search's four arrays (16), its bridge flag and the deleted
-/// sets (2), a removed flag per slot (2) and the stack (8).
+/// graph: 16 for the search's four arrays, 2 for its bridge flag and the
+/// deleted sets, 2 for a removed flag per slot, and 8 for the stack.
 const SCRATCH_BYTES: u64 = 16 + 2 + 2 + 8;
 
 /// A vertex of a [`MellStructure`] other than a root, as
-/// [`MellStructure::from_parts`] takes it: the occurrence it stands for,
-/// the vertex it is a premise of, or none for an end of a cut link, and
-/// the `!` vertex of the innermost box it lies in, or `None` outside every
-/// box.
+/// [`MellStructure::from_parts`] takes it.
+///
+/// It names the occurrence the vertex stands for, the vertex it is a
+/// premise of (none for an end of a cut link), and the `!` vertex of the
+/// innermost box it lies in (`None` outside every box).
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Placed {
@@ -81,8 +87,8 @@ pub struct Placed {
     pub occurrence: OccId,
     /// The vertex it is a premise of: a `⊗` or `⅋` vertex for its left or
     /// right subformula, a `!` vertex for its subformula, or a `?` vertex
-    /// for a copy of its subformula; `None` for an end of a cut link, an
-    /// occurrence of a cut formula's tree or its dual.
+    /// for a copy of its subformula. `None` for an end of a cut link, which
+    /// is an occurrence of a cut formula's tree or of its dual.
     pub parent: Option<VertexId>,
     /// The `!` vertex whose box is the innermost one around the vertex, or
     /// `None` outside every box.
@@ -90,8 +96,8 @@ pub struct Placed {
 }
 
 impl Placed {
-    /// Returns the vertex of `occurrence` above `parent`, inside the box
-    /// of `inside`.
+    /// Returns the vertex of `occurrence` that is a premise of `parent`,
+    /// in the box of the `!` vertex `inside` (`None` outside every box).
     pub const fn new(occurrence: OccId, parent: VertexId, inside: Option<VertexId>) -> Self {
         Self {
             occurrence,
@@ -100,8 +106,8 @@ impl Placed {
         }
     }
 
-    /// Returns the vertex of `occurrence` at an end of a cut link, inside
-    /// the box of `inside`.
+    /// Returns the vertex of `occurrence` at an end of a cut link, in the
+    /// box of the `!` vertex `inside` (`None` outside every box).
     pub const fn cut(occurrence: OccId, inside: Option<VertexId>) -> Self {
         Self {
             occurrence,
@@ -112,28 +118,33 @@ impl Placed {
 }
 
 /// The parts of a [`MellStructure`] beside its forest and criterion, as
-/// [`MellStructure::from_parts`] takes them and
-/// [`MellStructure::parts`] returns them. The root formulas are vertices
-/// `0` to `r − 1`, in the forest's order; `vertices[i]` is vertex `r + i`.
+/// [`MellStructure::from_parts`] takes them and [`MellStructure::parts`]
+/// returns them.
+///
+/// The root formulas are vertices `0` to `r − 1`, in the forest's order;
+/// `vertices[i]` is vertex `r + i`.
 #[non_exhaustive]
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Parts {
     /// The vertices after the roots.
     pub vertices: Vec<Placed>,
-    /// The cut links, each between two vertices without a parent in one
-    /// box, an occurrence of a cut formula's tree and its dual.
+    /// The cut links. Each joins two vertices without a parent in one box:
+    /// an occurrence of a cut formula's tree and its dual.
     pub cuts: Vec<(VertexId, VertexId)>,
     /// The axiom links, each between two dual literal vertices of one box.
     pub links: Vec<(VertexId, VertexId)>,
-    /// The weakenings: a `?` vertex without copies and a literal vertex
-    /// in its box or a box inside it, on whose axiom link it hangs.
+    /// The weakenings, each a `?` vertex without copies and the literal on
+    /// whose axiom link it hangs. The literal lies in the `?` vertex's box
+    /// or in a box inside it.
     pub weakenings: Vec<(VertexId, VertexId)>,
 }
 
-/// Why a list of vertices, cut links, links and weakenings is not a
-/// structure with boxes over its forest, or a list of cut links and links
-/// no proof structure over its forest, which [`NetError::Placement`]
-/// names with the vertex at fault.
+/// Why parts are no structure over their forest, as
+/// [`NetError::Placement`] reports it with the vertex at fault.
+///
+/// It covers the vertices, cut links, links and weakenings of a structure
+/// with boxes, and the cut links and links of a proof structure without
+/// boxes.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Placement {
@@ -146,26 +157,27 @@ pub enum Placement {
     Premise,
     /// The vertex, a `⊗`, `⅋` or `!`, has a premise missing or twice.
     Premises,
-    /// The vertex lies in another box than its parent allows: a root or a
-    /// premise of a `⊗` or `⅋` lies where its parent does, the premise of a
-    /// `!` in its box, a copy in its `?` vertex's box or one inside it; or
-    /// the box it names is no `!` vertex's.
+    /// The vertex lies in another box than its place allows, or the box it
+    /// names is no `!` vertex's. A root lies outside every box. A premise
+    /// of a `⊗` or `⅋` lies in its parent's box, the premise of a `!` in
+    /// the `!`'s own box, and a copy in its `?` vertex's box or in one
+    /// inside it.
     Box,
-    /// The boxes the vertex's box lies in come round to it again.
+    /// The boxes around the vertex's box nest in a cycle.
     Nesting,
     /// The link from this literal leaves its box.
     Link,
-    /// The weakening of this vertex is none: the vertex is no `?` without
-    /// copies, or hangs twice, or its literal is none, or lies outside its
-    /// box.
+    /// The vertex is no weakening: it is no `?` without copies, or it hangs
+    /// twice, or what it hangs on is no literal of its box or of a box
+    /// inside it.
     Weakening,
-    /// The cut link at this vertex is none: it does not join an occurrence
-    /// of a cut formula's tree to its dual, below neither of which lies a
-    /// premise, in one box; or the vertex is the end of two cut links, or
-    /// of none where it is no premise.
+    /// The cut link at this vertex is none. Either the link does not join,
+    /// in one box, an occurrence of a cut formula's tree to its dual,
+    /// neither of them a premise of another vertex; or the vertex ends two
+    /// cut links; or it is no premise and no root, and ends no cut link.
     Cut,
-    /// The vertex lies in a cut formula's tree above no cut link, so it is
-    /// no vertex of the structure, and a link names it.
+    /// A link names an occurrence of a cut formula's tree that lies above
+    /// no cut link's end, so it is no vertex of the structure.
     Uncut,
 }
 
@@ -191,28 +203,97 @@ impl Placement {
     }
 }
 
-/// A proof structure of unit-free MELL over the occurrence forest of its
-/// sequent, with `!`-boxes and generalised `?` vertices (the module's
-/// documentation says what they are), and the [`Criterion`] that decides
-/// what [`is_correct`](Self::is_correct) requires. Vertices are numbered
-/// from the root formulas, `0` to `r − 1` in the forest's order; vertex
-/// `v` stands for occurrence [`occurrence(v)`](Self::occurrence), and a
-/// box is named by its `!` vertex. Over a sequent with cut formulas, the
-/// vertices without a parent but the roots are the ends of *cut links*,
-/// each joining an instance of a cut formula's occurrence to one of its
-/// dual in one box, which the criterion takes as a `⊗` without a
-/// conclusion and [`cut`](crate::linear::nets::cut) eliminates. A structure of an
-/// MLL sequent has one
-/// vertex per occurrence and no box.
+/// A proof structure of unit-free MELL with `!`-boxes, over the occurrence
+/// forest of its sequent, and the [`Criterion`] that
+/// [`is_correct`](Self::is_correct) checks it under.
 ///
-/// The structure is built whole, from its [`Parts`] or from a proof term,
-/// and stays as it is. A term names occurrences, not vertices, so it fixes
-/// a net only up to which axiom link a weakening hangs on and, where a
+/// Every vertex stands for an occurrence of the forest,
+/// [`occurrence(v)`](Self::occurrence). The vertices are numbered from the
+/// root formulas, `0` to `r − 1` in the forest's order. Each `⊗`, `⅋` and
+/// `!` vertex has one vertex per premise. A `?` vertex has any number of
+/// *copies* of its subformula as premises: one copy is a dereliction,
+/// several are a contraction, none is a weakening. So an occurrence under
+/// a `?` can have several vertices.
+///
+/// A box is named by its `!` vertex. The `!` vertex's premise and
+/// everything above it lie in the box, up to the copies of `?` vertices
+/// outside it. A copy may lie in any box inside its `?` vertex's own box;
+/// its wire then crosses each box border at an auxiliary door
+/// ([`auxiliary_doors`](Self::auxiliary_doors)). A `?` vertex without
+/// copies hangs on an axiom link of its box or of a box inside it
+/// ([`hangs_on`](Self::hangs_on)), so that every proof net is connected.
+///
+/// Over a sequent with cut formulas, the vertices without a parent other
+/// than the roots are the ends of *cut links*. A cut link joins an
+/// instance of a cut formula's occurrence to an instance of its dual, in
+/// one box. The criterion takes it as a `⊗` without a conclusion, and
+/// [`cut`](crate::linear::nets::cut) eliminates it. A structure of an MLL
+/// sequent has one vertex per occurrence and no box.
+///
+/// The structure is built whole and does not change: from its [`Parts`]
+/// with [`from_parts`](Self::from_parts), or from a proof term with
+/// [`from_proof`](Self::from_proof). [`sequentialize`](Self::sequentialize)
+/// turns a proof net back into a term.
+///
+/// A term names occurrences, not vertices. So it fixes a net only up to
+/// two choices: which axiom link a weakening hangs on, and, where a
 /// sequent of the term holds two instances of one occurrence, which of
 /// them a rule acts on (and so which of two `?` vertices of one occurrence
-/// a copy belongs to): reading a term back may give another proof net of
-/// the same sequent than the one it came from, and gives the same one up
-/// to the weakenings' links when no occurrence has two vertices.
+/// a copy belongs to). Reading a term back may therefore give another
+/// proof net of the same sequent than the one it came from. Where no
+/// occurrence has two vertices, it gives the same net up to the
+/// weakenings' links.
+///
+/// # Examples
+///
+/// The net of `⊢ ?~a, !a`: a box around `a`, and the `?~a` outside it
+/// with one copy `~a` inside the box, linked to `a`.
+///
+#[cfg_attr(feature = "parse", doc = "```")]
+#[cfg_attr(not(feature = "parse"), doc = "```ignore")]
+/// use deduxit::Limits;
+/// use deduxit::linear::{
+///     Criterion, Forest, MellStructure, Mode, OccId, Parts, Placed, Sequent, VertexId,
+/// };
+///
+/// // The occurrences are 0: ?~a, 1: ~a, 2: !a, 3: a. The roots are the
+/// // vertices 0: ?~a and 1: !a. Vertex 2 is a, in the box of 1, and
+/// // vertex 3 is the copy ~a of 0, in that box too.
+/// let sequent: Sequent = "|- ?~a, !a".parse()?;
+/// let (o, v) = (OccId::new, VertexId::new);
+/// let mut parts = Parts::default();
+/// parts.vertices = vec![
+///     Placed::new(o(3), v(1), Some(v(1))),
+///     Placed::new(o(1), v(0), Some(v(1))),
+/// ];
+/// parts.links = vec![(v(2), v(3))];
+/// let limits = Limits::default();
+/// let forest = Forest::new(&sequent)?;
+/// let net = MellStructure::from_parts(forest, Criterion::MLL, &parts, &limits)?;
+/// assert_eq!(net.auxiliary_doors(v(1)), [v(0)]);
+/// assert_eq!(net.is_correct(|_| false), Ok(()));
+///
+/// // A proof net sequentializes into a proof the checker accepts, and the
+/// // net of that proof is a proof net again.
+/// let proof = net.sequentialize(&limits, |_| false)?;
+/// assert_eq!(proof.check(Mode::CLASSICAL), Ok(()));
+/// let back = MellStructure::from_proof(&proof, Criterion::MLL, &limits, |_| false)?;
+/// assert_eq!(back.len(), 4);
+/// # Ok::<(), deduxit::Error>(())
+/// ```
+///
+/// # JSON
+///
+/// With the feature `serialize` a structure is `{"version": 4, "sequent":
+/// …, "mix": …, "vertices": [[occurrence, parent, box], …], "links":
+/// [[x, y], …], "weakenings": [[q, l], …]}` ([`wire`](crate::wire)). The
+/// vertices are those after the roots, as in [`Parts`]: `parent` is `null`
+/// for an end of a cut link, and `box` is the `!` vertex of the innermost
+/// box around the vertex, or `null` outside every box. A structure with
+/// cut links has them as `"cuts": [[x, y], …]`, at level 6. Reading
+/// validates the parts as [`from_parts`](Self::from_parts) does and takes
+/// a structure that is no proof net, since whether it is one is
+/// [`is_correct`](Self::is_correct)'s question.
 #[derive(Clone, Debug)]
 pub struct MellStructure {
     /// The forest of the sequent.
@@ -225,8 +306,8 @@ pub struct MellStructure {
     parent: Box<[u32]>,
     /// Per vertex, the `!` vertex of its innermost box, or `NONE`.
     inside: Box<[u32]>,
-    /// Per vertex, where its premises start in `premises`; one more entry
-    /// holds the total, below the vertex count.
+    /// Per vertex, where its premises start in `premises`, and one more
+    /// entry for the total, which is below the vertex count.
     start: Box<[u32]>,
     /// The premises of every vertex: of a `⊗` or `⅋` the left one first,
     /// of a `?` its copies in the order they were given.
@@ -246,17 +327,32 @@ pub struct MellStructure {
 
 impl MellStructure {
     /// Checks that structures with boxes exist for a sequent of `fragment`
-    /// in `mode`: unit-free MELL in classical mode, with or without Mix,
-    /// and in intuitionistic mode, where the net is the one of the
-    /// one-sided sequent and the criterion without Mix decides it (every
-    /// sequent of a classical proof of an intuitionistic sequent without
-    /// units holds one formula in output position). Affine modes are left
-    /// out: a proof there weakens formulas that are no `?`, which a
-    /// structure has no vertex for.
+    /// in `mode`. They exist for unit-free MELL in classical mode, with or
+    /// without Mix, and in intuitionistic mode.
+    ///
+    /// In intuitionistic mode the net is the net of the one-sided sequent,
+    /// and the criterion without Mix decides it: every sequent of a
+    /// classical proof of an intuitionistic sequent without units holds one
+    /// formula in output position. The affine modes have no structures: a
+    /// proof there weakens formulas that are no `?`, and a structure has no
+    /// vertex for that. The ordered modes have none either, since they
+    /// refuse exponentials.
     ///
     /// # Errors
     ///
     /// [`NetError::NotMell`] for any other fragment or mode.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use deduxit::linear::{Fragment, MellStructure, Mode};
+    ///
+    /// let unit_free = Fragment::MLL.union(Fragment::EXPONENTIALS);
+    /// assert!(MellStructure::exist(unit_free, Mode::INTUITIONISTIC).is_ok());
+    /// // `Fragment::MELL` has the units `1` and `⊥`, which a structure has
+    /// // no vertex for.
+    /// assert!(MellStructure::exist(Fragment::MELL, Mode::CLASSICAL).is_err());
+    /// ```
     pub fn exist(fragment: Fragment, mode: Mode) -> Result<(), NetError> {
         let unit_free = Fragment::MLL.union(Fragment::EXPONENTIALS);
         if unit_free.contains(fragment) && !mode.is_affine() && !mode.is_ordered() {
@@ -266,15 +362,18 @@ impl MellStructure {
         }
     }
 
-    /// Returns the structure of `parts` over the forest, validated: every
-    /// vertex in its place in the formula trees and the boxes, every
-    /// vertex without a parent but the roots at one end of one cut link,
-    /// which joins an occurrence of a cut formula's tree to its dual in one
-    /// box, every link
-    /// between two dual literals of one box, every weakening a `?` vertex
-    /// without copies on a literal of its box or one inside it. Its graph is
-    /// held within `limits.memory_bytes`. Whether it is a proof net is
-    /// [`is_correct`](Self::is_correct)'s question; a literal without a
+    /// Returns the structure of `parts` over the forest, validated.
+    ///
+    /// Every vertex must be in its place in the formula trees and the
+    /// boxes. Every vertex without a parent other than the roots must end
+    /// one cut link, which joins an occurrence of a cut formula's tree to
+    /// its dual in one box. Every link must join two dual literals of one
+    /// box. Every weakening must be a `?` vertex without copies, on a
+    /// literal of its box or of a box inside it. The structure's graph is
+    /// held within `limits.memory_bytes`.
+    ///
+    /// Whether the structure is a proof net is
+    /// [`is_correct`](Self::is_correct)'s question, so a literal without a
     /// link and a weakening that hangs on nothing are allowed here.
     ///
     /// # Errors
@@ -488,17 +587,17 @@ impl MellStructure {
         some(*self.inside.get(v.index())?)
     }
 
-    /// Returns the `!` vertices, each the principal door of its box, in
-    /// order.
+    /// Returns the `!` vertices in order, each the principal door of its
+    /// box.
     pub fn boxes(&self) -> impl Iterator<Item = VertexId> + '_ {
         self.vertices()
             .filter(|&v| self.forest.kind(self.occurrence[v.index()]) == Kind::Bang)
     }
 
-    /// Returns the `?` vertices outside the box of the `!` vertex `door`
-    /// with a copy or a weakening inside it, each of which has an
-    /// auxiliary door on its border, in order; none for a vertex that is
-    /// no `!`.
+    /// Returns, in order, the `?` vertices outside the box of the `!`
+    /// vertex `door` that have a copy, or a weakening's literal, inside it.
+    /// Each has an auxiliary door on the box's border. Empty for a vertex
+    /// that is no `!`.
     pub fn auxiliary_doors(&self, door: VertexId) -> Vec<VertexId> {
         self.graph.doors(door)
     }
@@ -569,16 +668,19 @@ impl MellStructure {
     }
 
     /// Decides whether the structure is a proof net, independently of any
-    /// search and of the proof checker: every literal is linked, every
-    /// weakening hangs on a link, and at every box depth (outside every
-    /// box, and inside each box), with the boxes inside contracted to
-    /// their `!` vertex and the `?` vertices outside it to their auxiliary
-    /// doors, no cycle survives any switching and, unless the criterion
-    /// allows Mix, every switching is connected. A switching keeps one
-    /// premise edge of every `⅋`, one wire of every `?` vertex and door.
-    /// It holds working memory linear in the graph and asks `stop` once
-    /// per round of the deletion procedure, of which a witness for a cycle
-    /// runs one per edge.
+    /// search and of the proof checker.
+    ///
+    /// A proof net has every literal linked and every weakening hung on a
+    /// link. The criterion then looks at every box depth: outside every
+    /// box, and inside each box. At a depth, each box inside it counts as
+    /// its `!` vertex, and each `?` vertex outside it as its auxiliary
+    /// door. A switching keeps one premise edge of every `⅋` and one wire
+    /// of every `?` vertex and door. No switching may have a cycle and,
+    /// unless the criterion allows Mix, every switching must be connected.
+    ///
+    /// It holds working memory linear in the graph. It asks `stop` once per
+    /// round of its test for cycles; finding the witness of a cycle runs
+    /// that test once per edge.
     ///
     /// # Errors
     ///
@@ -608,26 +710,31 @@ impl MellStructure {
 }
 
 impl std::fmt::Display for MellStructure {
-    /// Writes the sequent, then a line per `?` vertex with its copies
-    /// (`?A⊥[0]: A⊥[3] in !A[1], A⊥[5]`, a copy's box named where it is
-    /// another than the `?` vertex's, by its `!` vertex), or `no copy` and
-    /// the literal it hangs on, then one line per cut link as `cut !A[4] —
-    /// ?A⊥[7]` in their order, then one line per link as `A⊥[3] — A[2]`,
-    /// the links ordered by their first id, then the verdict of the
-    /// criterion: `proof net`, `proof net with Mix`, or `not a proof net: `
-    /// and the reason with formulas. Every vertex is written as its
-    /// formula with its id. No trailing newline.
+    /// Writes the structure as text, each vertex as its formula with its
+    /// id (`~a[3]`), in this order:
+    /// - the sequent;
+    /// - a line per `?` vertex with its copies, each followed by the box it
+    ///   lies in where that is not the `?` vertex's own
+    ///   (`?~a[0]: ~a[3] in !a[1], ~a[5]`), or with `no copy` and the
+    ///   literal it hangs on (`?~b[1]: no copy, hangs on a[4]`);
+    /// - a line per cut link, in their order (`cut !a[4] — ?~a[7]`);
+    /// - a line per link, each with its smaller id first and ordered by it
+    ///   (`a[2] — ~a[3]`);
+    /// - the criterion's verdict: `proof net`, `proof net with Mix`, or
+    ///   `not a proof net: ` and the reason with formulas.
+    ///
+    /// No trailing newline.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.write(f, None)
     }
 }
 
 impl MellStructure {
-    /// Returns the structure for display as `mode` reads it: as
-    /// [`Display`](std::fmt::Display) writes it, and in an intuitionistic
-    /// mode, where the sequent has a reading, with the sequent two-sided
-    /// and every formula as the reading writes it (`!A[0]: A[3] in
-    /// !A[1]`).
+    /// Returns the structure for display as `mode` reads it. That is the
+    /// [`Display`](std::fmt::Display) text, except in an intuitionistic
+    /// mode where the sequent has a reading: there the sequent is two-sided
+    /// and every formula is written as the reading writes it
+    /// (`!A[0]: A[3] in !A[1]`).
     pub fn written_in(&self, mode: crate::linear::Mode) -> impl std::fmt::Display + '_ {
         crate::linear::nets::In {
             structure: self,
@@ -635,9 +742,8 @@ impl MellStructure {
         }
     }
 
-    /// Writes the structure as its `Display` does, or as `mode` reads
-    /// it: in an intuitionistic mode every formula as the reading writes
-    /// it, where the sequent has one.
+    /// Writes the structure as its `Display` does or, given a `mode`, as
+    /// [`written_in`](Self::written_in) does.
     pub(crate) fn write(
         &self,
         f: &mut std::fmt::Formatter<'_>,
@@ -719,7 +825,7 @@ fn some(raw: u32) -> Option<VertexId> {
     (raw != NONE).then_some(VertexId::new(raw))
 }
 
-/// The error of a vertex out of place.
+/// Returns the error of a vertex out of place.
 fn misplaced(vertex: VertexId, fault: Placement) -> Error {
     NetError::Placement { vertex, fault }.into()
 }
@@ -728,10 +834,11 @@ fn misplaced(vertex: VertexId, fault: Placement) -> Error {
 type Csr = (Box<[u32]>, Box<[u32]>);
 
 /// Checks that every vertex stands for a premise of its parent's
-/// occurrence and that every `⊗`, `⅋` and `!` has each premise once, and
-/// returns the premises in CSR layout. A parent's occurrence is the parent
-/// of its premise's, one level nearer the root, so parents never go round
-/// in a cycle.
+/// occurrence, and that every `⊗`, `⅋` and `!` has each premise once.
+/// Returns the premises in CSR layout: offsets per vertex into one list.
+///
+/// A parent's occurrence is the parent of its premise's occurrence, one
+/// level nearer the root, so parents cannot form a cycle.
 fn premises(forest: &Forest, occurrence: &[OccId], parent: &[u32]) -> Result<Csr, Error> {
     let n = occurrence.len();
     let mut count = vec![0u32; n + 1];
@@ -745,7 +852,7 @@ fn premises(forest: &Forest, occurrence: &[OccId], parent: &[u32]) -> Result<Csr
         }
         count[p as usize] += 1;
     }
-    // Offsets: a vertex's premises are fewer than the vertices.
+    // The offsets fit a `u32`: there are fewer premises than vertices.
     let mut start = Vec::with_capacity(n + 1);
     let mut total = 0;
     for &c in &count[..n] {
@@ -796,10 +903,12 @@ fn premises(forest: &Forest, occurrence: &[OccId], parent: &[u32]) -> Result<Csr
     Ok((start.into_boxed_slice(), list.into_boxed_slice()))
 }
 
-/// Checks that the cut links join, in one box, vertices without a parent
-/// that are no roots, an occurrence of a cut formula's tree and its dual,
-/// that each such vertex is the end of one, and returns them each from its
-/// end in a cut formula's tree.
+/// Checks the cut links and returns them, each from its end in a cut
+/// formula's tree.
+///
+/// A cut link joins, in one box, two vertices without a parent that are no
+/// roots: an occurrence of a cut formula's tree and its dual. Each such
+/// vertex ends exactly one cut link.
 fn place_cuts(
     forest: &Forest,
     occurrence: &[OccId],
@@ -835,7 +944,8 @@ fn place_cuts(
     Ok(placed)
 }
 
-/// The depth of a box whose chain of enclosing boxes is being walked.
+/// The mark, in place of a depth, of a box on the chain of enclosing
+/// boxes being walked.
 const VISITING: u32 = NONE - 1;
 
 /// Checks that every vertex lies in the box its parent allows and that
@@ -852,7 +962,7 @@ fn check_boxes(
     for v in 0..n {
         let (p, b) = (parent[v], inside[v]);
         let fits = match p {
-            // The roots lie outside every box, a cut link in any.
+            // The roots lie outside every box, a cut link's end in any.
             NONE if v < roots => b == NONE,
             NONE => is_bang(b),
             p => match forest.kind(occurrence[p as usize]) {
@@ -876,8 +986,8 @@ fn check_boxes(
             return Err(misplaced(VertexId::new(v as u32), Placement::Box));
         }
     }
-    // Every box's chain of enclosing boxes ends: a walk from each `!`
-    // vertex, marking the boxes on the way, and the depth of those behind.
+    // Every box's chain of enclosing boxes must end. Walk it from each `!`
+    // vertex, marking the boxes on the way, then give them their depths.
     let mut depth = vec![NONE; n];
     let mut path = Vec::new();
     for d in 0..n as u32 {
@@ -904,7 +1014,7 @@ fn check_boxes(
 
 /// The boxes of a structure as a tree, each with the interval of its
 /// subtree in a depth-first order, so that whether one box lies inside
-/// another is two comparisons. The box outside every box is `NONE`.
+/// another takes two comparisons. The box outside every box is `NONE`.
 pub(super) struct Nesting {
     /// Per vertex, the `!` vertex of its innermost box, or `NONE`.
     inside: Box<[u32]>,
@@ -913,7 +1023,8 @@ pub(super) struct Nesting {
 }
 
 impl Nesting {
-    /// Returns the nesting of a structure whose boxes nest.
+    /// Returns the nesting of a structure whose boxes nest without a
+    /// cycle.
     fn new(s: &MellStructure) -> Self {
         let n = s.len();
         let mut children = vec![Vec::new(); n + 1];
@@ -964,8 +1075,8 @@ impl Nesting {
 }
 
 impl MellStructure {
-    /// Checks the copies' boxes, which [`check_boxes`] leaves for when
-    /// the boxes are known to nest.
+    /// Checks that every copy lies in its `?` vertex's box or in one inside
+    /// it. [`check_boxes`] leaves this until the boxes are known to nest.
     fn check_copies(&self, boxes: &Nesting) -> Result<(), Error> {
         for v in self.vertices() {
             let p = self.parent[v.index()];
