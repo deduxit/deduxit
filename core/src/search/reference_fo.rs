@@ -1417,6 +1417,7 @@ pub(crate) mod tests {
     /// random hypotheses and a random goal.
     /// A random two-sided sequent as [`random_ill_sequent`] makes one, in
     /// the text syntax.
+    #[cfg(feature = "parallel")]
     pub(crate) fn random_ill_text(rng: &mut Rng, rules: [bool; 2]) -> String {
         let (hypotheses, goal) = random_ill_sequent(rng, rules);
         ill_text(&hypotheses, &goal)

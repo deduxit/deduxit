@@ -5,7 +5,6 @@
 
 use super::*;
 use crate::Sequent;
-use crate::occurrences::Member;
 use crate::search::generate::{self, Rng, Rules};
 use crate::search::{Bias, Goal, Verdict, prove_goal};
 use crate::{Limits, Progress};
@@ -1983,6 +1982,7 @@ fn nested_tensors_of_literals_force_their_splits() {
 #[test]
 fn the_pair_answers_by_the_backward_search() {
     use super::schedule::merged;
+    use crate::occurrences::Member;
     use crate::search::{Finished, Reason, Statistics};
     let options = Options::default().with_copies(Some(3));
     let limits = Limits::default().with_memory_bytes(Some(1 << 20));
