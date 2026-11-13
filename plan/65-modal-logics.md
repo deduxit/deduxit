@@ -51,7 +51,7 @@ and as a suite of the page.
 ## How the step runs
 
 Three to four sessions: the first (the arena, the systems, the
-procedure's design) on Fable 5.1 at `high`, the rest on Opus 5.5 at
+procedure's design) on Fable 5.2 at `high`, the rest on Opus 5.5 at
 `high`; the panel of step 26's prompt for the search and the countermodel
 check; the page in the client's repository as a suite of the registry.
 Deliverables: the commits, the client's commits,

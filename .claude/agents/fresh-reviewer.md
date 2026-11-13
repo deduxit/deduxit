@@ -1,9 +1,9 @@
 ---
 name: fresh-reviewer
-description: A fresh-context reviewer of a step session's work before its final message. It reads the chain's diff, the brief or prompt the session worked from, and the code. It does not read the session's reasoning. It reports only what breaks correctness or a stated requirement, each finding with its witness. Use it once per session, as plan/conduct.md asks, after the checks pass and before the final message; brief it with the commits, the brief's path and the criteria to judge against. It never edits.
+description: A fresh-context reviewer of a step session's work before its final message. It reads the chain's diff, the brief or prompt the session worked from, and the code. It does not read the session's reasoning. It reports only what breaks correctness or a stated requirement, each finding with its witness. Use it once per session, as plan/conduct.md asks, after the checks pass and before the final message; brief it with the commits, the brief's path and the criteria to judge against. It runs on Fable 5.2 at medium, another model than an Opus session's; a session on Fable calls it with model "opus" and effort "high", so that the reviewer is never the writer's model. It never edits.
 tools: Read, Grep, Glob, Bash
-model: opus
-effort: high
+model: fable
+effort: medium
 color: orange
 ---
 
@@ -20,7 +20,9 @@ Your brief names:
 - the criteria to judge against.
 
 Read them, read `CLAUDE.md` and the `.claude/rules/` files of the areas
-the diff touches, then read the diff and the code around it.
+the diff touches, then read the diff and the code around it. Go through
+every file the diff touches before you report: a review that ends at its
+first finding misses the rest.
 
 Report **only** what breaks correctness or a stated requirement:
 - a wrong result;

@@ -40,6 +40,6 @@ command and on the page as a method of the ordinary suite.
 Four to six sessions on Opus 5.5 at `high` (the rule sets and the
 checker's use; the interactive builder; the drawings and exports; the
 page's list view and the tab, with the `frontend-design` plugin), each
-reviewed by the planning session; a fresh-context reviewer on Opus 5.5
-at `high` on the discharge and scope handling. Deliverables: the
+reviewed by the planning session; the `fresh-reviewer` agent (Fable 5.2
+at `medium`) on the discharge and scope handling. Deliverables: the
 commits, the client's commits, `plan/reports/62-natural-deduction.md`.

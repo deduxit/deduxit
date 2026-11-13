@@ -58,8 +58,8 @@ of them.
 
 Two to three sessions. The first, which settles the rule language and
 the derivation type (decisions every later method builds on), on Fable
-5.1 at `high` ("Why these models and efforts": a design session); the
+5.2 at `high` ("Why these models and efforts": a design session); the
 rest on Opus 5.5 at `high`. The checker is reviewed by the panel of step
-26's prompt (argument on Fable 5.1 at `high`). Deliverables: the
+26's prompt (argument on Fable 5.2 at `high`). Deliverables: the
 commits, the manual's chapter, the guide's lines, the JSON Schema of the
 rule language, `plan/reports/60-rule-schemas.md`.

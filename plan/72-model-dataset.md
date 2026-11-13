@@ -26,7 +26,7 @@ proof or refutation and answers with the exit statuses.
 - **Only sources whose licences allow it**: the generated families and
   ILTP's problems; LLTP (GPL-3.0) stays out.
 - The dataset's format and its card follow current practice, read by a
-  research sub-agent on Sonnet 5.5 at `medium` with links; nothing is
+  research sub-agent on Sonnet 5.5 at `high` with links; nothing is
   uploaded to a hub without the author's act.
 
 ## How the step runs

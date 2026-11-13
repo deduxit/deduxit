@@ -53,7 +53,7 @@ met (a counter that wrapped, `conduct.md`).
 ## How the step runs
 
 Two sessions on Opus 5.5 at `high` (the repository's policies, Kani and
-the wasm checks; the client's audit); a fresh-context reviewer on Opus
-5.5 at `high` checks that each harness states a fact the checker relies
+the wasm checks; the client's audit); the `fresh-reviewer` agent (Fable
+5.2 at `medium`) checks that each harness states a fact the checker relies
 on and that its bound is said. Deliverables: the commits,
 `plan/reports/58-maintenance.md`.

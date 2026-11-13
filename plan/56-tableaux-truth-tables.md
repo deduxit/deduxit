@@ -43,7 +43,7 @@ parameters).
 
 Two to three sessions on Opus 5.5 at `high` (the library and the command;
 the page in the client's repository, with the `frontend-design`
-plugin); a fresh-context reviewer on Opus 5.5 at `high` checks that a
+plugin); the `fresh-reviewer` agent (Fable 5.2 at `medium`) checks that a
 closed tableau corresponds to a checked LK derivation and an open branch
 to a checked assignment. Deliverables: the commits, the client's commits,
 `plan/reports/56-tableaux-truth-tables.md`.

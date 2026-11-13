@@ -37,7 +37,7 @@ formula, an inhabitant a proof read back).
 
 ## How the step runs
 
-Three to four sessions: the first (the term model) on Fable 5.1 at
+Three to four sessions: the first (the term model) on Fable 5.2 at
 `high`, the rest on Opus 5.5 at `high`; the panel for the type checker.
 Deliverables: the commits, the client's commits,
 `plan/reports/71-typed-lambda.md`.

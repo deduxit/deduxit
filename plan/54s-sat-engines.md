@@ -56,7 +56,7 @@ itself.
 
 Each on Opus 5.5 at `high`, with its own brief and goal from the
 planning session, its own jj workspace, and the panel of step 26's
-prompt for the engine and its check (the argument on Fable 5.1 at
+prompt for the engine and its check (the argument on Fable 5.2 at
 `high`).
 
 1. **54s-a, the engine.**

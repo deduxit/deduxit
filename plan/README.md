@@ -76,29 +76,29 @@ amended (see "Review protocol"). `notes/` holds research the prompts rely on.
 | | **Release 0.4.0: intuitionistic logic decided, with Kripke countermodels, tableaux and truth tables** (D27) | | | | |
 | 54 | A native engine on Dyckhoff's LJT for intuitionistic and minimal logic, always terminating, its proofs checked as LJ, the default where it wins (two sessions) | `54-ljt-engine.md` (finished at the review of 53) | Opus 5.5; the panel's argument on Fable 5.1 | high, with the panel | 53 |
 | 54w | Every text a person reads rewritten to the author's standing rules (`.claude/rules/writing.md`): a usability review first (its API changes asked of the author), then the web client and the Rocq library beside 54, then README, the manual, the help and the doc comments after 54b, each after the 54u session whose changes it documents | `54w-text.md` | Opus 5.5 | high, with a fresh reviewer per session | 53 |
-| 54s | SAT-based engines: intuitionistic and minimal logic by intuitR's algorithm (SAT modulo intuitionistic implications, with restarts), its Kripke models for step 55, "valid" a checked LJ derivation; classical logic by CDCL with LRAT proofs checked by deduxit's own checker; the defaults by measurement, intuitR and intuit run beside deduxit (three sessions; the author, 2026-11-09) | `54s-sat-engines.md` | Opus 5.5; the panel's argument on Fable 5.1 | high, with the panel | 54b |
+| 54s | SAT-based engines: intuitionistic and minimal logic by intuitR's algorithm (SAT modulo intuitionistic implications, with restarts), its Kripke models for step 55, "valid" a checked LJ derivation; classical logic by CDCL with LRAT proofs checked by deduxit's own checker; the defaults by measurement, intuitR and intuit run beside deduxit (three sessions; the author, 2026-11-09) | `54s-sat-engines.md` | Opus 5.5; the panel's argument on Fable 5.2 | high, with the panel | 54b |
 | 54u | The usability review's accepted changes (the author, 2026-11-09): the library's additions (Q1–Q4), the command's hints, refutations by side, `interact`'s guidance and a short `-h` (Q6, Q8–Q10), the page's prover and its Learn, Practice and Export (W1–W3, W5–W15), checking a certificate in one command (Q11) (five sessions, two in the client) | `54u-usability.md` | Opus 5.5 | high, with a fresh reviewer per session | 54b, 54w-a |
-| 55 | Kripke countermodels as a shared, checked output kind, extracted from 54's search, drawn, on the page, and certified by a lemma of the Rocq library; first, ordinary logic in one call and one JSON shape (Q5, Q12) (four sessions) | `55-kripke-countermodels.md` (finished at the review of 54) | Opus 5.5 (Fable 5.1 at `xhigh` only if Opus visibly falls short on the proof); the panel's argument on Fable 5.1 | high, with the panel | 54, 54s |
-| 56 | Classical tableaux as a view of the LK read-back with countermodels from open branches, and truth tables, in the command and as methods on the page (two to three sessions) | `56-tableaux-truth-tables.md` (finished at the review of 55) | Opus 5.5; a fresh-context reviewer on Opus 5.5 | high | 49, 55 |
-| 57 | A checked basis for the Horn engine's non-coverability in affine mode (one to two sessions) | `57-basis-certificate.md` (finished at the review of 53) | Opus 5.5; the panel's argument on Fable 5.1 | high, with the panel | 53 |
-| 58 | Maintenance and decision 8's second step (D31): the MSRV and cadence policy, an advisory check, a wasm feature baseline, a budget, Clippy and tests on 32 bits for the bindings, Kani harnesses for the checker's integers, the client's accessibility audit (two sessions) | `58-maintenance.md` (finished at the review of 53) | Opus 5.5; a fresh-context reviewer on Opus 5.5 | high | 53 |
+| 55 | Kripke countermodels as a shared, checked output kind, extracted from 54's search, drawn, on the page, and certified by a lemma of the Rocq library; first, ordinary logic in one call and one JSON shape (Q5, Q12) (four sessions) | `55-kripke-countermodels.md` (finished at the review of 54) | Opus 5.5 (Fable 5.2 at `high` only if Opus visibly falls short on the proof); the panel's argument on Fable 5.2 | high, with the panel | 54, 54s |
+| 56 | Classical tableaux as a view of the LK read-back with countermodels from open branches, and truth tables, in the command and as methods on the page (two to three sessions) | `56-tableaux-truth-tables.md` (finished at the review of 55) | Opus 5.5; a fresh-context reviewer on Fable 5.2 | high (the reviewer `medium`) | 49, 55 |
+| 57 | A checked basis for the Horn engine's non-coverability in affine mode (one to two sessions) | `57-basis-certificate.md` (finished at the review of 53) | Opus 5.5; the panel's argument on Fable 5.2 | high, with the panel | 53 |
+| 58 | Maintenance and decision 8's second step (D31): the MSRV and cadence policy, an advisory check, a wasm feature baseline, a budget, Clippy and tests on 32 bits for the bindings, Kani harnesses for the checker's integers, the client's accessibility audit (two sessions) | `58-maintenance.md` (finished at the review of 53) | Opus 5.5; a fresh-context reviewer on Fable 5.2 | high (the reviewer `medium`) | 53 |
 | 59 | The release of 0.4.0 (one session) | `59-release-0.4.0.md` (finished at the review of 58) | Opus 5.5 | high | 54, 55, 56, 57, 58 |
 | | **Release 0.5.0: custom rules and natural deduction** (D27) | | | | |
-| 60 | Rules as data, a generic derivation carrying discharge links, scope trees, literal closure and labels, and its checker by matching; LK, LJ and the linear calculus as rule files (two to three sessions) | `60-rule-schemas.md` (finished at the review of 59) | Fable 5.1 for the first session (the rule language and the derivation type), Opus 5.5 for the rest; the panel's argument on Fable 5.1 | high, with the panel | 59 |
-| 61 | Building derivations with custom rules in the command and on the page, every verdict "valid in the calculus given"; the manual's chapter on theories as hypotheses (two to three sessions) | `61-custom-rules-interactive.md` (finished at the review of 60) | Opus 5.5; a fresh-context reviewer on Opus 5.5 | high | 60 |
-| 62 | Natural deduction for ordinary logic in Gentzen's and Fitch's styles, on the generic derivation, rule sets as files, the Fitch view on the page (four to six sessions) | `62-natural-deduction.md` (finished at the review of 61) | Opus 5.5; a fresh-context reviewer on Opus 5.5 | high | 61 |
+| 60 | Rules as data, a generic derivation carrying discharge links, scope trees, literal closure and labels, and its checker by matching; LK, LJ and the linear calculus as rule files (two to three sessions) | `60-rule-schemas.md` (finished at the review of 59) | Fable 5.2 for the first session (the rule language and the derivation type), Opus 5.5 for the rest; the panel's argument on Fable 5.2 | high, with the panel | 59 |
+| 61 | Building derivations with custom rules in the command and on the page, every verdict "valid in the calculus given"; the manual's chapter on theories as hypotheses (two to three sessions) | `61-custom-rules-interactive.md` (finished at the review of 60) | Opus 5.5; a fresh-context reviewer on Fable 5.2 | high (the reviewer `medium`) | 60 |
+| 62 | Natural deduction for ordinary logic in Gentzen's and Fitch's styles, on the generic derivation, rule sets as files, the Fitch view on the page (four to six sessions) | `62-natural-deduction.md` (finished at the review of 61) | Opus 5.5; a fresh-context reviewer on Fable 5.2 | high (the reviewer `medium`) | 61 |
 | 63 | The suites' written protocol with a JSON Schema, the module question against 47's figures, Learn and Practice keyed by suite with the ordinary suite's content (two to three sessions) | `63-suite-protocol.md` (finished at the review of 62) | Opus 5.5; a fresh-context reviewer per content session | high | 47, 62 |
 | 64 | The release of 0.5.0 (one session) | `64-release-0.5.0.md` (finished at the review of 63) | Opus 5.5 | high | 60, 61, 62, 63 |
 | | **Release 0.6.0: modal logics K to S5** (D27) | | | | |
-| 65 | Modal logics K, T, K4, S4 and S5 decided, every "not valid" a checked Kripke countermodel against the frame conditions, drawn, on the page; the second non-embedded suite (three to four sessions) | `65-modal-logics.md` (finished at the review of 64) | Fable 5.1 for the first session (the modal arena and systems), Opus 5.5 for the rest; the panel's argument on Fable 5.1 | high, with the panel | 55, 64 |
-| 66 | The labelled modal calculus step by step on the generic derivation, and its soundness proved in Rocq (five sessions) | `66-labelled-modal.md` (finished at the review of 65) | Opus 5.5 (Fable 5.1 at `xhigh` only if Opus visibly falls short on the proof); a fresh-context reviewer on Opus 5.5 | high | 60, 61, 65 |
-| 67 | The kernel crate, extracted only from what at least two suites copied, unpublished at 0.0.0, deduxit's paths kept (D25; three to five sessions, or one that ends at the gate) | `67-kernel-crate.md` (finished at the review of 66) | Fable 5.1 for the first session (the inventory and the boundary), Opus 5.5 for the extraction | high | 47, 65, 66 |
+| 65 | Modal logics K, T, K4, S4 and S5 decided, every "not valid" a checked Kripke countermodel against the frame conditions, drawn, on the page; the second non-embedded suite (three to four sessions) | `65-modal-logics.md` (finished at the review of 64) | Fable 5.2 for the first session (the modal arena and systems), Opus 5.5 for the rest; the panel's argument on Fable 5.2 | high, with the panel | 55, 64 |
+| 66 | The labelled modal calculus step by step on the generic derivation, and its soundness proved in Rocq (five sessions) | `66-labelled-modal.md` (finished at the review of 65) | Opus 5.5; Fable 5.2 for the Rocq proof; a fresh-context reviewer on Fable 5.2 (on Opus 5.5 for the proof's sessions) | high (the reviewer `medium`) | 60, 61, 65 |
+| 67 | The kernel crate, extracted only from what at least two suites copied, unpublished at 0.0.0, deduxit's paths kept (D25; three to five sessions, or one that ends at the gate) | `67-kernel-crate.md` (finished at the review of 66) | Fable 5.2 for the first session (the inventory and the boundary), Opus 5.5 for the extraction | high | 47, 65, 66 |
 | 68 | Tools for teachers: a Kripke model editor, a checker for students' tableaux, course packs with a checkable handed-in link, a print stylesheet (three sessions) | `68-teaching-tools.md` (finished at the review of 67) | Opus 5.5; a fresh-context reviewer per client session | high | 56, 63, 65, 67 |
 | 69 | The release of 0.6.0 (one session) | `69-release-0.6.0.md` (finished at the review of 68) | Opus 5.5 | high | 65, 66, 67, 68 |
 | | **Release 0.7.0: resolution and the simply typed lambda calculus** (D27) | | | | |
-| 70 | Propositional resolution at teaching scale: CNF, refutations drawn as graphs, DPLL traced, a refutation checker, an outside proof read only through an allowed licence (three to four sessions) | `70-resolution.md` (finished at the review of 69) | Opus 5.5; the panel's argument on Fable 5.1 | high, with the panel | 63, 69 |
-| 71 | The simply typed lambda calculus: typing derivations checked and built, the linear terms of 50 checked, inhabitation enumerated and counted within a bound (three to four sessions) | `71-typed-lambda.md` (finished at the review of 69) | Fable 5.1 for the first session (the term model), Opus 5.5 for the rest; the panel's argument on Fable 5.1 | high, with the panel | 50, 69 |
-| 72 | Problems with verified answers for evaluating models, and a one-call grading mode (one to two sessions) | `72-model-dataset.md` (finished at the review of 69) | Opus 5.5; research on Sonnet 5.5 | high (research `medium`) | 69 |
+| 70 | Propositional resolution at teaching scale: CNF, refutations drawn as graphs, DPLL traced, a refutation checker, an outside proof read only through an allowed licence (three to four sessions) | `70-resolution.md` (finished at the review of 69) | Opus 5.5; the panel's argument on Fable 5.2 | high, with the panel | 63, 69 |
+| 71 | The simply typed lambda calculus: typing derivations checked and built, the linear terms of 50 checked, inhabitation enumerated and counted within a bound (three to four sessions) | `71-typed-lambda.md` (finished at the review of 69) | Fable 5.2 for the first session (the term model), Opus 5.5 for the rest; the panel's argument on Fable 5.2 | high, with the panel | 50, 69 |
+| 72 | Problems with verified answers for evaluating models, and a one-call grading mode (one to two sessions) | `72-model-dataset.md` (finished at the review of 69) | Opus 5.5; research on Sonnet 5.5 | high (research `high`) | 69 |
 | 73 | The release of 0.7.0, its report the state of every item kept for after it (one session) | `73-release-0.7.0.md` (finished at the review of 72) | Opus 5.5 | high | 70, 71, 72 |
 
 A step has a whole number, one prompt file named after it, one report
@@ -475,6 +475,181 @@ every new search, checker or certificate check (51, 54, 55, 57, 60, 65,
 on Opus 5.5 at `high` elsewhere; research sub-agents on Sonnet 5.5 at
 `medium`. No `max`, no Haiku for a session.
 
+Re-evaluated on 2026-11-13, at the author's request, four days after
+Claude Fable 5.2 was released. It covers every role of the orchestration
+and the steps left (54s, 54u, 54w, 55 to 73), for a planning session other
+than the one that wrote it. The table below replaces the one of
+2026-10-18 and is the standing choice until the next re-evaluation. Read
+that day:
+- Anthropic's "What's new in Claude Fable 5.2", "Prompting Claude Fable
+  5.2", "Choosing a model", the effort page and "Optimizing for cost and
+  intelligence" (platform.claude.com/docs/en/…, read as Markdown, its
+  tables first-hand);
+- the announcement (anthropic.com/news/claude-fable-and-mythos-5-2,
+  2026-11-09) and the help article "Claude Fable models on your plan";
+- Claude Code's model-config, sub-agents, workflows, agent-view, goal,
+  costs and advisor pages (code.claude.com/docs/en/…), and its changelog
+  to 2.1.325;
+- Artificial Analysis's Intelligence Index v5 for each effort, Vals.ai's
+  page on Fable 5.2 (2026-11-09) and Matt Shumer's review (2026-11-09).
+
+No independent study of Fable 5.2 on code review, Rocq or Lean existed
+yet, and METR had published no time horizon for it. What the sources
+say:
+- **The lineup and the plan.**
+  - Fable 5.2 costs $8/$40 per MTok, down from Fable 5.1's $10/$50. That
+    is twice Opus 5.5 per token.
+  - Claude Code 2.1.321 resolves `fable` to Fable 5.2. It defaults Fable
+    5.2, Opus 5.5, Sonnet 5.5 and Haiku 5.5 to `medium`; the API
+    defaults Fable to `high`.
+  - On Max and Ultra plans, Fable may use at most half of the weekly
+    limit. It uses the limit faster than the other models, and no ratio
+    is published. Past that half, Fable needs usage credits, which the
+    author does not buy.
+- **Opus 5.5 stays the default for coding.**
+  - The announcement: "For most coding and knowledge tasks, we recommend
+    that users start with Claude Opus 5.5". The docs: move to Fable 5.2
+    where Opus at a higher effort still falls short.
+  - On Anthropic's SWE-bench Pro subset, Opus 5.5 solves 92.8 % at
+    `medium`. At `high` it solves 95.3 % for 1.4 times the cost of
+    `medium`, and at `xhigh` 96.7 % for 2.5 times the cost of `high`.
+  - On 463 of the subset's 478 problems, Fable 5.2 solves 96.3 % at
+    `high`, for $1.39 per solved task. There Opus 5.5 solves 95.5 % at
+    `high` for $0.30, and 96.5 % at `xhigh`, level with Fable for a
+    little over half the cost.
+  - On Anthropic's internal agentic-coding benchmark, Fable 5.2 at
+    `medium` scores 2.3 points above Opus 5.5 at `medium`, for 1.6 times
+    the cost.
+  - On Terminal-Bench 4.0 the two are close. At `high`, Artificial
+    Analysis has Fable 5.2 at 59.6 % and Opus 5.5 at 56.6 %, three tasks
+    of 99. Vals has Fable 5.2 at 65.15 %.
+- **Fable 5.2 leads where reasoning decides.**
+  - Artificial Analysis's index: Fable 5.2 scores 54 at `low`, 56 at
+    `medium`, 62 at `high` and `xhigh`, and 65 at `max`. Opus 5.5 scores
+    48 at `medium`, 52 at `high`, 57 at `xhigh` and 59 at `max`. So
+    Fable 5.2 at `high` is above Opus at `max`, for less.
+  - Anthropic's defect-search benchmark: Fable 5.2 alone scores 1.6 to
+    5.9 points above Opus 5.5 at `high` (from Fable's `low` to its
+    `high`), for 1.5 to 2.4 times the cost.
+  - On the same benchmark Fable 5.2 loses only 4.3 points from `high`
+    to `low`. Opus 5.5 loses 34 from `medium` to `low`.
+  - The announcement reports that Fable 5.2, with 1,000 agents,
+    formalised the proof of Fermat's Last Theorem in 30 hours. Opus 5.5
+    in the same setup "barely made any more progress after 30" hours. It
+    is the vendor's own result, not reproduced.
+- **Effort.**
+  - For Fable 5.2 the advice is to start at `high`, and to use `xhigh`
+    only where a gain is measured. Artificial Analysis has 62 at both,
+    with `xhigh` at 1.6 times the cost.
+  - At `low` and `medium`, Fable 5.2 is more likely to stop before the
+    work is done.
+  - Claude Code calls `max` "prone to overthinking".
+- **Combining models**, all of it measured by Anthropic.
+  - On work larger than one context (the defect search, split into
+    parts), Opus 5.5 directing Sonnet 5.5 sub-agents cost a third less
+    than Opus alone, for the same score. Fable 5.2 as the orchestrator
+    in Opus 5.5's place cost 19 % more, for about the same score.
+  - Delegation paid only for routine work with a long tail of cost, and
+    for work larger than one context. Where the work was one dependent
+    chain, the orchestrator's model alone at a lower effort won.
+  - An advisor bought about what more effort buys. Opus 5.5 at `high`
+    with a Fable advisor scored 1.7 points more, for 2.1 times the cost.
+    Claude Code offers one (`--advisor`). On a Max plan a Fable advisor
+    draws on Fable's half of the weekly limit.
+  - On research (DeepResearch Bench II), Fable 5.2 cost 4.3 times Sonnet
+    5.5 for no measurable gain. Opus 5.5 gained 2.4 points for 1.5
+    times.
+  - Haiku 5.5 sub-agents on coding did no better than lowering effort.
+  - Shumer reviewed Fable 5.2 by hand: it "works best on its own".
+- **Behaviour.**
+  - Fable 5.2 delegates readily where prompts invite it. At `xhigh` and
+    `max` it starts sub-agents to review its own work.
+  - Claude Code picks a sub-agent's model from the call's `model`, then
+    the agent's frontmatter, then `CLAUDE_CODE_SUBAGENT_MODEL`, then the
+    parent's model. Without the first three, a helper of a Fable session
+    runs on Fable and bills at its rate.
+  - The built-in Explore and Plan agents ignore
+    `CLAUDE_CODE_SUBAGENT_MODEL`. Plan runs on the parent's model, and
+    Explore too, except that under a Fable parent on a subscription it
+    runs on the model `opus` resolves to.
+  - A sub-agent on another model than its parent's, with no effort
+    named, does not take the parent's effort.
+  - Fable 5.2 follows cautions carried in notes, memory and other
+    agents' messages closely, and reads "never" as absolute.
+
+The roles, from 2026-11-13:
+
+| role | model and effort | why |
+|---|---|---|
+| the planning session (orchestration, prompts, reviews) | Opus 5.5 at `high` | days of procedure and breadth. Fable 5.2 in an orchestrator's place measured 19 % dearer for the same score, and the handoff's many rules are cautions it would follow too closely |
+| a step session that writes code, documents or the client | Opus 5.5 at `high` | the coding measurements above, and steps 26 to 54. `medium` loses 2.5 points; `xhigh` gains 1.4 for 2.5 times the cost |
+| a design session whose decisions every later session builds on (the first session of 60, 65, 67 and 71) | Fable 5.2 at `high` | the hardest reasoning, a small output, mistakes that propagate |
+| a Rocq proof of a calculus's metatheory (66's soundness proof) | Fable 5.2 at `high` | 31a's reason: the kernel checks the result, and a stuck session costs most |
+| a Rocq lemma over finite objects (55's) | Opus 5.5 at `high`; Fable 5.2 at `high` only if Opus visibly stalls | as 31b to 31d and 51 ran |
+| `fresh-reviewer` of a session on Opus | Fable 5.2 at `medium` (its frontmatter) | another model is the cheapest independence. On defect search Fable 5.2 beats Opus at `high` at every effort and loses little going down |
+| `fresh-reviewer` of a session on Fable | Opus 5.5 at `high` (the call passes `model: "opus"`, `effort: "high"`) | the same reason, the other way. Opus drops far on defect search below `medium` |
+| the panel's argument | Fable 5.2 at `high` | unchanged. It refuted two arguments in step 37 |
+| the panel's counterexamples | Opus 5.5 at `high` | writing and running generators is coding |
+| the panel's integers | Sonnet 5.5 at `high` | a third model, cheap |
+| research that a decision rests on | Sonnet 5.5 at `high` | the research measurements above |
+| reading, searching files, a dependency's API (`crate-source-explorer`) | Sonnet 5.5 at `medium` | well-specified lookups |
+| a mechanical extraction | Haiku 5.5 at `medium`, or no agent | at `low` it skips checks |
+| `/goal`'s judge | Claude Code's small fast model (Haiku 5.5) | not set per session |
+| a session that is visibly stuck | resumed once on Fable 5.2 at `high` (`start-session.sh --resume … claude-fable-5-2 high`) | Fable 5.2 reads Opus 5.5's thinking. More effort on Opus buys less |
+
+The standing rules that follow:
+- **No `max`, no `ultracode`, no fast mode, no advisor.**
+  - `ultracode` has Claude orchestrate workflows on its own, and its
+    tokens draw on the limits; as `--effort ultracode` it also asks for
+    `xhigh`.
+  - Fast mode bills to usage credits only.
+  - The advisor costs about what more effort costs, and a Fable advisor
+    spends Fable's half of the limit.
+  - `xhigh` only for a measured gain.
+- **Every model and effort is named.**
+  - Every `Agent` call, workflow stage and session start names its
+    model and its effort. The author's user settings run Opus 5.5 at
+    `xhigh` and Fable 5.2 at `high` wherever no effort is named.
+  - `.claude/settings.json` sets `CLAUDE_CODE_SUBAGENT_MODEL` to Sonnet
+    5.5. A general-purpose, custom or workflow agent that names no model
+    then runs Sonnet 5.5 at its default, `medium`, and not its parent's
+    model.
+  - The built-in Explore and Plan agents keep the parent's model (Explore
+    under Fable runs Opus 5.5). A call to them for plain reading names
+    `model: "sonnet"`.
+  - It pins the `fable` and `opus` aliases to Fable 5.2 and Opus 5.5
+    (`ANTHROPIC_DEFAULT_FABLE_MODEL`, `ANTHROPIC_DEFAULT_OPUS_MODEL`), as
+    it pins `sonnet`. A new release then changes nothing until it is
+    re-evaluated here.
+- **Fable's half of the weekly limit is for the Fable roles above.**
+  - When it is spent, the reviewer and the panel's argument run on Opus
+    5.5 at `high`, and a Fable session waits or runs on Opus 5.5 at
+    `high`, each noted in the Status log. Nothing bills to usage
+    credits.
+  - The second account (Max 5x) has the same roles, with one step
+    session at a time.
+- **Sessions and agents on Fable get prompts written for it.**
+  - A Fable session's brief invites a sub-agent only for reading that
+    would fill its context, or for an independent review, and says what
+    one costs.
+  - A caution carried into a Fable session or agent states its scope and
+    its reason. "Never" is kept for the true absolutes (git, the lock
+    files, `max`).
+  - Instructions to think less are left out: Fable 5.2 ignores them at
+    `medium` and above.
+
+Not adopted, with the reason:
+- **Fable 5.2 for step sessions.** Opus 5.5 is cheaper per solved coding
+  task and close on Terminal-Bench, and Fable's half of the limit would
+  not last.
+- **Fable 5.2 as the planning session**: measured no better, and 19 %
+  dearer.
+- **The advisor**: the reason is above.
+- **Haiku for sessions or for coding sub-agents.**
+- **`medium` for step sessions.** The measurement owed since 2026-10-18
+  is answered by Anthropic's: 2.5 points lost, and on a session of hours
+  a failure costs a redo and a review.
+
 ### How the prompts are written
 
 Following Anthropic's prompting guidance for Fable 5.1 and Opus 5.5 (the
@@ -637,18 +812,18 @@ claude --model claude-opus-5-5 --effort high --name step-56 ((open --raw plan/56
 claude --model claude-opus-5-5 --effort high --name step-57 ((open --raw plan/57-basis-certificate.md) + "\n" + (open --raw plan/conduct.md))
 claude --model claude-opus-5-5 --effort high --name step-58 ((open --raw plan/58-maintenance.md) + "\n" + (open --raw plan/conduct.md))
 claude --model claude-opus-5-5 --effort high --name step-59 ((open --raw plan/59-release-0.4.0.md) + "\n" + (open --raw plan/conduct.md))
-claude --model claude-fable-5-1 --effort high --name step-60 ((open --raw plan/60-rule-schemas.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-fable-5-2 --effort high --name step-60 ((open --raw plan/60-rule-schemas.md) + "\n" + (open --raw plan/conduct.md))
 claude --model claude-opus-5-5 --effort high --name step-61 ((open --raw plan/61-custom-rules-interactive.md) + "\n" + (open --raw plan/conduct.md))
 claude --model claude-opus-5-5 --effort high --name step-62 ((open --raw plan/62-natural-deduction.md) + "\n" + (open --raw plan/conduct.md))
 claude --model claude-opus-5-5 --effort high --name step-63 ((open --raw plan/63-suite-protocol.md) + "\n" + (open --raw plan/conduct.md))
 claude --model claude-opus-5-5 --effort high --name step-64 ((open --raw plan/64-release-0.5.0.md) + "\n" + (open --raw plan/conduct.md))
-claude --model claude-fable-5-1 --effort high --name step-65 ((open --raw plan/65-modal-logics.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-fable-5-2 --effort high --name step-65 ((open --raw plan/65-modal-logics.md) + "\n" + (open --raw plan/conduct.md))
 claude --model claude-opus-5-5 --effort high --name step-66 ((open --raw plan/66-labelled-modal.md) + "\n" + (open --raw plan/conduct.md))
-claude --model claude-fable-5-1 --effort high --name step-67 ((open --raw plan/67-kernel-crate.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-fable-5-2 --effort high --name step-67 ((open --raw plan/67-kernel-crate.md) + "\n" + (open --raw plan/conduct.md))
 claude --model claude-opus-5-5 --effort high --name step-68 ((open --raw plan/68-teaching-tools.md) + "\n" + (open --raw plan/conduct.md))
 claude --model claude-opus-5-5 --effort high --name step-69 ((open --raw plan/69-release-0.6.0.md) + "\n" + (open --raw plan/conduct.md))
 claude --model claude-opus-5-5 --effort high --name step-70 ((open --raw plan/70-resolution.md) + "\n" + (open --raw plan/conduct.md))
-claude --model claude-fable-5-1 --effort high --name step-71 ((open --raw plan/71-typed-lambda.md) + "\n" + (open --raw plan/conduct.md))
+claude --model claude-fable-5-2 --effort high --name step-71 ((open --raw plan/71-typed-lambda.md) + "\n" + (open --raw plan/conduct.md))
 claude --model claude-opus-5-5 --effort high --name step-72 ((open --raw plan/72-model-dataset.md) + "\n" + (open --raw plan/conduct.md))
 claude --model claude-opus-5-5 --effort high --name step-73 ((open --raw plan/73-release-0.7.0.md) + "\n" + (open --raw plan/conduct.md))
 ```
@@ -662,9 +837,12 @@ sessions at `--effort xhigh`, all started by the planning session with
 "Unattended, supervised"); step 22's second session at `--effort high`;
 step 31's sessions after the checker's proof with `--model
 claude-opus-5-5 --effort high`; steps 60, 65, 67 and 71 likewise
-after their first session, which the command above starts on Fable);
-a session picks up from the step's report. The aliases `fable` and `opus` also
-work for `--model`. A session the author leaves to run at night adds
+after their first session, which the command above starts on Fable;
+step 66's Rocq proof sessions with `--model claude-fable-5-2 --effort
+high`); a session picks up from the step's report. The planning session
+starts each session with `plan/start-session.sh`, which takes the same
+model and effort. The aliases `fable` and `opus` also work for
+`--model`, pinned by `.claude/settings.json` to Fable 5.2 and Opus 5.5. A session the author leaves to run at night adds
 `--permission-mode auto`, and its prompt a section like step 23's
 "Tonight: unattended" (decide instead of asking, keep the passphrase's
 cache warm, commit unsigned once it is gone). The flags are

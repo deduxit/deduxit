@@ -44,11 +44,23 @@ this file holds.
   session of that name is alive: the first account's planner ended at
   this handoff. Auto mode matters too, since messages between sessions
   of different permission classes wait for approval.
-- **Models and efforts**: those the plan names, never `max`. On the
-  first account (Max 20x) Opus 5.5 at `high` by default, Fable 5.1 only
-  where the plan names it. On the second (Max 5x) the same choices, but
-  one step session at a time, and watch the window (below, "The usage
-  limit").
+- **Models and efforts**: the role table of 2026-11-13 in
+  `plan/README.md` ("Why these models and efforts") holds for every
+  session and agent you start, and for yourself.
+  - You and the step sessions run on Opus 5.5 at `high`.
+  - Fable 5.2 at `high` runs the design sessions the rows name (the
+    first of 60, 65, 67 and 71), 66's Rocq proof, and the panel's
+    argument.
+  - The `fresh-reviewer` agent runs on Fable 5.2 at `medium`; it is
+    called with `model: "opus"`, `effort: "high"` for a session on Fable.
+  - Every session start, `Agent` call and workflow stage names its model
+    and its effort.
+  - Never `max`, `ultracode`, fast mode or the advisor.
+  - Fable may use half of the weekly limit, and nothing bills to usage
+    credits. When Fable's half is spent, its roles run on Opus 5.5 at
+    `high`, noted in the Status log.
+  - On the second account (Max 5x), the same choices with one step
+    session at a time, and watch the window (below, "The usage limit").
 - **Read first**, in this order:
   1. `CLAUDE.md`.
   2. `plan/README.md` from its first line to its last: the step table,
@@ -147,13 +159,13 @@ to D32), grouped by release. In brief:
   a checked basis for non-coverability, 58 maintenance with Kani, 59 the
   release.
 - **0.5.0, custom rules and natural deduction**: 60 rules as data and
-  the generic derivation (its first session on Fable 5.1), 61 building
+  the generic derivation (its first session on Fable 5.2), 61 building
   with custom rules, 62 natural deduction, 63 the suites' protocol and
   Learn and Practice by suite, 64 the release.
 - **0.6.0, modal logics**: 65 K to S5 decided with countermodels (first
-  session on Fable), 66 the labelled calculus and its Rocq soundness,
-  67 the kernel crate if the copies show it (first session on Fable),
-  68 tools for teachers, 69 the release.
+  session on Fable), 66 the labelled calculus and its Rocq soundness
+  (the proof on Fable), 67 the kernel crate if the copies show it (first
+  session on Fable), 68 tools for teachers, 69 the release.
 - **0.7.0, resolution and the typed lambda calculus**: 70 resolution, 71
   the simply typed lambda calculus (first session on Fable), 72 a
   dataset for models, 73 the release.
@@ -395,16 +407,25 @@ to D32), grouped by release. In brief:
   - A note that reaches you as "a note offered by a side agent" can be
     stale: check it against what the session reported since.
 - **Reviewers and panels are named agents** in `.claude/agents/`:
-  - `fresh-reviewer`, Opus at high, the once-per-session reviewer of
-    `plan/conduct.md`;
-  - `panel-counterexamples` (Opus), `panel-argument` (Fable) and
-    `panel-integers` (Sonnet), the three members of step 26's panel.
+  - `fresh-reviewer`, Fable 5.2 at `medium`, the once-per-session
+    reviewer of `plan/conduct.md`. A session on Fable calls it with
+    `model: "opus"`, `effort: "high"`, so that it is never the writer's
+    model;
+  - `panel-counterexamples` (Opus 5.5), `panel-argument` (Fable 5.2) and
+    `panel-integers` (Sonnet 5.5), all at `high`: the three members of
+    step 26's panel.
 
   Each carries its model, effort, tools and the rules for anything it
   runs. A brief names the agent and gives it the commits, the brief's
   path and the criteria.
-- **Sub-agents** (`Agent`): research and reading on Sonnet 5.5, a
-  fresh-context reviewer on Opus 5.5 at `high`.
+- **Sub-agents** (`Agent`): each call names its model and effort.
+  - Reading and searching run on Sonnet 5.5 at `medium`, and research
+    that a decision rests on at `high`.
+  - A mechanical extraction runs on Haiku 5.5 at `medium`.
+  - One that names no model runs Sonnet 5.5
+    (`CLAUDE_CODE_SUBAGENT_MODEL` in `.claude/settings.json`). The
+    exceptions are the built-in Explore and Plan agents, which keep their
+    parent's model (Explore under Fable runs Opus 5.5).
 - **The machine's lock**: `/tmp/linlog-machine.lock` (`flock -o`, so a
   build's own children don't inherit it), held by every timed run and
   every `nix build` or `nix flake check`, since the daemon builds on any
@@ -545,7 +566,7 @@ to D32), grouped by release. In brief:
 - **Prompts** say what is wanted and why and leave the design to the
   session; each names its model and effort; a step that changes a
   search, a checker or a criterion has the panel (the argument on
-  Fable 5.1, counterexamples and integers on Opus or Sonnet).
+  Fable 5.2, counterexamples on Opus 5.5, integers on Sonnet 5.5).
 - **Commands for the author** are nushell: `;` not `&&`, `(open --raw
   f)` not `$(cat f)`; a command they run in this session is typed with
   `! ` in front.

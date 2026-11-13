@@ -103,12 +103,16 @@ Current contents:
   change to a guard belongs in both.
 - `agents/crate-source-explorer.md`: read-only, answers dependency-API questions
   against the Cargo.lock-pinned sources in `~/.cargo/registry`, never the web.
-- `agents/fresh-reviewer.md` (Opus, high): the once-per-session reviewer
-  `plan/conduct.md` asks for. It reads the diff, the brief and the code,
+- `agents/fresh-reviewer.md` (Fable 5.2, medium): the once-per-session
+  reviewer `plan/conduct.md` asks for. A session on Fable calls it with
+  `model: "opus"`, `effort: "high"` (the `Agent` call's own parameters,
+  which take precedence over the frontmatter), so that it is never the
+  writer's model. It reads the diff, the brief and the code,
   not the session's reasoning, and reports only what breaks correctness
   or a stated requirement, each finding with its witness.
-- `agents/panel-counterexamples.md` (Opus), `agents/panel-argument.md`
-  (Fable) and `agents/panel-integers.md` (Sonnet): the three members of
+- `agents/panel-counterexamples.md` (Opus 5.5), `agents/panel-argument.md`
+  (Fable 5.2) and `agents/panel-integers.md` (Sonnet 5.5), all at
+  `high`: the three members of
   the panel step 26's prompt defines for a soundness-critical change.
   - Counterexamples: the references, the generators and a second
     reference of its own.
@@ -177,13 +181,25 @@ Current contents:
   HEAD. `env` also raises `CLAUDE_CODE_MAX_OUTPUT_TOKENS` to 128000, the
   most a current model produces in one reply: the default of 64000 counts
   thinking and text together, and a session that designs a whole module in
-  one turn can exceed it, which discards the turn. And it maps the `sonnet`
-  alias to `claude-sonnet-5-5` (`ANTHROPIC_DEFAULT_SONNET_MODEL`), so that
-  a workflow agent or a sub-agent that names `sonnet` (the panels'
-  integers reviewer, `crate-source-explorer`) runs Sonnet 5.5 whatever
-  the installed Claude Code resolves the alias to; one that predates
-  Sonnet 5.5 warns that the id is not in its catalog. The pin is a model
-  id, so it moves by hand when a newer Sonnet ships. It also enables the
+  one turn can exceed it, which discards the turn. It pins the aliases
+  `fable`, `opus` and `sonnet` to `claude-fable-5-2`, `claude-opus-5-5`
+  and `claude-sonnet-5-5` (`ANTHROPIC_DEFAULT_FABLE_MODEL`, `…_OPUS_…`,
+  `…_SONNET_…`). An agent, a workflow stage or a `--model` that names an
+  alias then runs the model `plan/README.md`'s role table chose,
+  whatever the installed Claude Code resolves it to. The pins move by
+  hand, at a re-evaluation of the models there, when a newer model
+  ships. `CLAUDE_CODE_SUBAGENT_MODEL` is `claude-sonnet-5-5`: a sub-agent
+  or workflow agent that names no model, and whose definition names
+  none, runs Sonnet 5.5 at its default effort (`medium`) instead of its
+  parent's model, which in a Fable session would bill at Fable's rate.
+  The variable does not reach the built-in Explore and Plan agents
+  (code.claude.com/docs/en/sub-agents). They keep the parent's model,
+  and Explore under Fable on a subscription runs the model `opus`
+  resolves to. A call to them for plain reading names `model:
+  "sonnet"`. Only `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` would move them,
+  and it would also override the named agents' own models.
+  `haiku` is left unpinned: its pin would also move `/goal`'s judge,
+  session titles and background tasks. The settings also enable the
   `rust-analyzer-lsp` plugin (code intelligence;
   needs `rust-analyzer` on PATH, which the devshell provides).
   `attribution.sessionUrl` is `false` (the author, 2026-11-03, for
@@ -330,6 +346,22 @@ goal, permission-modes, auto-mode-config, sub-agents, hooks, workflows),
     repository. So whether it may make a release tag or a public
     repository unattended is the author's user-level setting, made in
     their NixOS flake, not here.
+- **Models and efforts** are `plan/README.md`'s role table of
+  2026-11-13 ("Why these models and efforts"), checked against Claude
+  Code 2.1.321 to 2.1.325.
+  - Claude Code picks a sub-agent's model from the call's `model`, the
+    definition's `model`, `CLAUDE_CODE_SUBAGENT_MODEL` and the parent's
+    model, in that order. Its effort comes from the call's `effort`, then
+    the definition's.
+  - Without either, a sub-agent on its parent's model runs at the
+    parent's effort. On another model it does not, and may take the
+    author's per-model setting from `~/.claude/settings.json`
+    (`modelSettings`: Opus 5.5 at `xhigh`). So every call names both.
+  - A session's effort comes from `CLAUDE_CODE_EFFORT_LEVEL`, then a
+    level picked in the session, then `--effort`, then the saved
+    settings, then the model's default, which is `medium` for Fable 5.2,
+    Opus 5.5, Sonnet 5.5 and Haiku 5.5.
+  - The launcher therefore always passes `--effort`.
 - **Panels** are the Workflow tool's kind of work: fan-out within one
   session, which step 26's prompt chose for them. The named agents above
   carry each member's model and method. Supervising sessions is not

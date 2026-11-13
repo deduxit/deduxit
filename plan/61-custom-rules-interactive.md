@@ -41,7 +41,7 @@ marked "valid in the calculus given".
 
 Two to three sessions on Opus 5.5 at `high` (the library and the
 command; the bindings and the page, with the `frontend-design` plugin);
-a fresh-context reviewer on Opus 5.5 at `high` on the session's state
+the `fresh-reviewer` agent (Fable 5.2 at `medium`) on the session's state
 (no operation yields a state the checker rejects). Deliverables: the
 commits, the client's commits, the manual and guide,
 `plan/reports/61-custom-rules-interactive.md`.

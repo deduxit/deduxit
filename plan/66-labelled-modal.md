@@ -37,7 +37,7 @@ exported as a certificate is checked by the library.
 ## How the step runs
 
 Three sessions on Opus 5.5 at `high` for the calculus and the page, two
-for the Rocq proof (Fable 5.1 at `xhigh` only if Opus visibly falls
-short); a fresh-context reviewer on the rule files against the note's
+for the Rocq proof on Fable 5.2 at `high` (the proof of a calculus's
+metatheory); a fresh-context reviewer on the rule files against the note's
 sources. Deliverables: the commits in the repositories,
 `plan/reports/66-labelled-modal.md`.

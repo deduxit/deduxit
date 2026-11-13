@@ -105,7 +105,7 @@ the JSON forms move to one new wire level, not two.
 Four sessions on Opus 5.5 at `high`: first, ordinary logic's shape
 (above, with the bindings; the client's part may join the fourth
 session); then the model, its extraction and check; the library's lemma
-and the exporter (Fable 5.1 at `xhigh` only if Opus visibly falls
+and the exporter (Fable 5.2 at `high` only if Opus visibly falls
 short); the drawing and the page. The panel for the check.
 Deliverables: the commits in the three repositories,
 `plan/reports/55-kripke-countermodels.md` with what step 65 must reuse.

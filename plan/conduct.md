@@ -94,10 +94,28 @@ brief does not name is asked for through you. One sub-agent, told only
 about memory, probed the command with `--jobs 100000` and loaded every
 core for five minutes.
 
-Pick each sub-agent's model for its job: Sonnet 5.5 at `medium` for
-research and reading, Haiku 5.5 or no agent at all for a mechanical
-extraction, Opus 5.5 at `high` for a reviewer, as `plan/README.md` ("Why
-these models and efforts") lists them. Brief a reviewer with the
+Pick each sub-agent's model and effort for its job, and name both on
+every `Agent` call and workflow stage, as `plan/README.md` ("Why these
+models and efforts", the table of 2026-11-13) lists them:
+- Sonnet 5.5 at `medium` for reading and searching, and at `high` for
+  research that a decision rests on;
+- Haiku 5.5 at `medium`, or no agent at all, for a mechanical extraction;
+- the named agents (`crate-source-explorer`, `fresh-reviewer`, the
+  panel's three) carry their own model and effort.
+
+A sub-agent that names no model runs Sonnet 5.5, the repository's default
+for sub-agents. The exceptions are the built-in Explore and Plan agents,
+which keep your model, so a call to them for plain reading names
+`model: "sonnet"`. One that names a model but no effort may run at the
+author's own setting for that model, `xhigh` for Opus. The
+`fresh-reviewer` agent runs on Fable 5.2 at `medium`, another model than
+an Opus session's. A session on Fable calls it with `model: "opus"` and
+`effort: "high"`, so that the reviewer is never the writer's model.
+
+A sub-agent's context and tokens add to what the session costs.
+Delegate reading that would fill your own context, an independent
+review, and questions about a dependency. Keep a dependent chain of work
+and your own design in your own context. Brief a reviewer with the
 criteria it judges against and tell it to report only what breaks
 correctness or a stated requirement: a reviewer asked for gaps reports
 some even when the work is sound. Answer each finding in the report, and

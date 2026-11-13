@@ -45,7 +45,7 @@ the crate `linlog` 0.3.0 under `compat/linlog`, and the linear suite is
 ## How the step runs
 
 Three to five sessions: the first (the inventory and the boundary,
-judged against the records) on Fable 5.1 at `high`, the extraction on
+judged against the records) on Fable 5.2 at `high`, the extraction on
 Opus 5.5 at `high`, each session's D17 check. Deliverables: the commits,
 CLAUDE.md and `.claude/rules/` for the new layout,
 `plan/reports/67-kernel-crate.md`.
