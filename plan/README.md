@@ -6349,3 +6349,17 @@ move (D26).
     - A message or a cron ends that chain. The next piece then waits for
       the author's go, or for a click on a card.
     - Fable sessions are switched after start, which may ask the author.
+- 2026-11-14: **A new planning session started in the Claude app**
+  (`deduxit-orchestrator`, Opus 5.5 at `high`), from `plan/handoff.md`.
+  - **Where things stood:** nothing running, no step session open, no
+    unit; every repository's `main` pushed, with only the default
+    workspaces.
+  - **Housekeeping:** the review probes `ulktsrrq` (2026-10-23) and
+    `zyqyunxy` (2026-10-30) abandoned, as the handoff calls them probes
+    (operation 3589b1277952). `uworquvp` reaches a week on 2026-11-15.
+  - **The keys** are unlocked; the warm loop `step-gpg-warm` runs.
+  - **The briefs for the go** are written in `/tmp/linlog-handoff/`:
+    `start-common-54.md` (the rules the sessions share, cores 4-15 split
+    three each, cores 2-3 kept free), `start-54s-a.md`, `start-54u-a.md`,
+    `start-54u-b.md`, `start-54u-c.md` and `start-54u-e.md`.
+  - **Waiting for the author's go**, and whether they will be present.
