@@ -242,6 +242,20 @@ copies they had are gone (F103, F104).
   caller's stop. No counter of the search moves (its work is not in
   `Statistics::work`), and a decided verdict never changes; only an
   exhausted search's refutation and an undecided search's verdict do.
+- **A disproof's phrase speaks of the sides the sequent was written
+  with** (`Disproof`'s `Display`, `Sides`): intuitionistic in an
+  intuitionistic mode; two-sided for a classical sequent with
+  `antecedents() > 0` refuted as a whole (`goal` none), where the count
+  refutations (`Unbalanced`, `OneSided` and their symbol kinds) say "a
+  on the left has no a on the right to meet in an axiom" where the side
+  with fewer literals has none (`placed`, a pass over the arena, a byte a
+  term, roots only) and else count the excess left and right, adding
+  "(a negated formula or an implication's antecedent counts on the other
+  side)" where a literal counts on the other side than its root; one-sided
+  otherwise (`⊢ Γ`, a goal of a session, `Refutation`'s own `Display`).
+  A positive literal counts right of `⊢`. The JSON form, the check and
+  the certificates do not change with it; the count equation's phrase
+  stays one-sided (MLL's equation counts connectives one-sided).
 - **`Disproof::check`** (`refutation.rs`) verifies `Classical`,
   `Unbalanced`, `Equation`, `OneSided`, `StateEquation` and their kin
   (below) against the sequent, sharing no code with

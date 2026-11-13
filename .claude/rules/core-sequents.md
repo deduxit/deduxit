@@ -297,6 +297,10 @@ time and memory linear in the text. What the code relies on:
   the classical tokens, so the parser and its journey are unchanged
   (`core-forest.md`). `ParseError::hint` (absent from the JSON when
   `None`) says what to write instead; `Display` puts it after the place.
+  `->` in a linear sequent has the hint `ARROW` (ordinary logic's arrow,
+  write `-o`), in both parsers since they share the `-` branch; the
+  command adds the flag `--logic classical` after it where the command
+  takes it, matching the hint's first words (`cli.md`, `hint::parse`).
 - **An error is one `ParseError`**: the byte span of the first character
   that cannot go on a sequent, and that character, or the end of the
   input; the same place in UTF-16 code units (what an editor in

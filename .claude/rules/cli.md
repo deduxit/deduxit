@@ -17,6 +17,40 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `SYNTAX` string shown after the help of every command that reads a
   sequent. `Cli::command().debug_assert()` in its tests catches
   inconsistent definitions.
+- **Help headings and `-h`** (`argument_parsing.rs`): every flag of
+  `prove`, `interact`, `check` and `eliminate` names one of the heading
+  constants (`LOGIC`, `INPUT`, `OUTPUT`, `SEARCH`, `LIMITS`, `BATCH`) in
+  its `#[arg(help_heading = …)]`; a flag without one lands under
+  "Options" at the top. clap (4.6) orders the headings by the first
+  argument that names each, in declaration order, so `ProveArgs` declares
+  the mode and logic before the input, and the input's own size limits
+  (`--occurrence-limit`, `--term-limit`) are under Input, which keeps
+  Limits after Search. The expert flags are `hide_short_help` (the
+  search's tuning, the limits past `--timeout` and `--memory-limit`, the
+  batch's flags for large runs), and each command that hides one ends
+  `-h` with `every_option!()` ("--help shows every option.") through an
+  `after_help`/`after_long_help` pair; `cli.rs`'s
+  `short_help_keeps_to_the_common_flags` pins it. `readme.rs` checks the
+  guide's flags against `--help`, so a flag hidden from `-h` still passes.
+- `hint.rs`: the hints on a newcomer's first errors, outside the
+  library's messages. `command_line` adds a clap `tip:` (`ContextKind::
+  Suggested`): for an unknown subcommand with no similar one, `deduxit
+  prove WORDS`; for an argument a command with a `sequent` does not take
+  (not starting with `-`), the sequent quoted: the command line is
+  parsed again without each refused word (bounded by the words), and the
+  sequent is then the words of the command line as written from the
+  first refused word or the sequent, whichever comes first, up to a flag
+  (`-o` is the implication, which a re-parse reads as `--output`).
+  `sequent_at` finds the word clap reads as the sequent by putting a
+  mark in its place, since an equal word may stand before it.
+  `parse` runs after a command failed with a parse error: a sequent
+  argument whose text ended early while words follow it is shown quoted
+  the same way, behind `|- ` where it has no turnstile and is linear;
+  `prove` reading `NAME: SEQUENT` lines from a file or standard input as
+  one sequent (an unexpected `:`, or a word at the start of a line past
+  the first) names `--input-format lines`. Quoting is POSIX shell's:
+  single quotes around `!` and the other characters special in double
+  quotes.
 - `lib.rs`: the package's library `deduxit_cli`, which holds everything
   behind one public `main` (the modules and their items are crate-private:
   the library is the binary's, not an API, and the published rustdoc shows
@@ -27,7 +61,14 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   line the `CONTEXT` characters on either side, with `…` where it is
   cut, and then the character's number in the line, as the line's number
   when the input has several; the caret's indent is written as spaces,
-  never as a format width, which panics above 65 535). `main.rs` is
+  never as a format width, which panics above 65 535; a library hint is
+  followed by the flag that reads the other syntax, matched by the
+  hint's first words: `--ill-syntax one-sided` after "intuitionistic
+  linear logic has no" here, `--logic classical` after "-> is ordinary
+  logic's arrow" in `hint::parse`, where the command and its mode flags
+  are known (`Command::takes_logic`), so a reworded hint in core changes
+  the match too). `main` parses the OS strings (a path need not be
+  UTF-8) and gives the hints a lossy copy. `main.rs` is
   one call into it and is `doc = false`: the binary is named `deduxit` like
   the core crate, and documenting it would overwrite the library's docs.
 - `io.rs`: input from the argument, `--file` (`-` is standard input) or
@@ -162,7 +203,17 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   never reads as a file name, and a FILE without one is written in the
   format its extension names, else JSON for `proof` and text for `show`),
   every command's output or `error: …` goes to standard output and the
-  session goes on,
+  session goes on, an unknown rule's error lists the session's own rules
+  ASCII spelling first (`linear_rules` by mode and binders,
+  `LINEAR_ASCII`; `ordinary::ordinary_rules` and `ordinary::ASCII` for
+  LK and LJ, without the rules `shape` refuses in the logic), which
+  `listed_rules_read_back` ties to the library's `FromStr` (a new rule
+  or mode is added to these lists; it reads each shown spelling through
+  the session's word splitter, which takes `\` as an escape, so the
+  divisions' rules are shown as typed, `\\L`), a `⊗` at a `⊗` formula
+  or a Mix at another formula whose split `Interactive::split_passes`
+  refutes is applied with a warning line (the test reads a `⊗` formula's
+  split as the `⊗`'s whatever the step's rule),
   and the whole loop runs inside `on_large_stack` so that `close` and the
   derivation drawing have the stack `prove` has. `goal_line` prints a goal
   with the position of every formula, two-sided under the reading.
@@ -966,7 +1017,15 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `MemoryLimit` name the flag to raise); the default arm prints
   `Reason`'s `Display` with the time, as for `IndexLimit`, which no flag
   raises. A new `Refutation` needs nothing here: its disproof's `Display` is the
-  line.
+  line, followed by `affine_note` (`prove.rs`) for `Unbalanced` and
+  `UnbalancedSymbol` alone: "with -a (affine), an unused hypothesis is
+  allowed" where the sequent was refuted as a whole outside affine and
+  ordered modes, a hypothesis is the atom (or an atom of the predicate)
+  left over, and no atom is in excess right of `⊢` (`right_surplus`, a
+  walk of the roots, both sides of an additive counted). Without that
+  last test the front page's `A |- B` named `-a`, which does not prove
+  it; the note can still name `-a` where weakening is not enough
+  (`A par B |- A`): it says what `-a` allows, not that it proves.
 - Stay out of `core`'s way: no clap types or exit statuses in `core`, and
   the CLI never re-implements what `core` computes (fragment names, the
   mode's words, the JSON form).
