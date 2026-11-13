@@ -159,17 +159,40 @@ Current contents:
   "worktree"`, `--worktree`, a background session, a workflow agent): in
   this colocated repository a git worktree under `.claude/worktrees/` is
   one jj does not know, and a jj command there acts on the main
-  workspace. It makes a jj workspace `wt-NAME` in `../linlog-wt-NAME` on
-  `@-` of the session's workspace (committed work only, as git's HEAD),
-  copies what `.worktreeinclude` names, and prints the directory; on
-  removal it deletes only a workspace it made whose `@` is empty, and
-  exits 1 otherwise, since Claude Code's check for uncommitted work reads
-  git and sees nothing in a workspace this hook made. Claude Code keeps
-  the workspaces of sub-agents and workflow agents and never asks to
-  remove them: once their commits are taken, `.claude/hooks/jj-worktree.py
-  prune` removes every empty one. The `claude-worktree-hook` check
-  (`modules/claude-worktree-hook-test.py`) runs it against a throwaway
-  colocated repository.
+  workspace.
+  - **Creation.** It makes a jj workspace `wt-NAME` beside the
+    workspace the session runs in: `../deduxit-wt-NAME` from the
+    checkout, `<that directory>-wt-NAME` from a hook workspace. It sits
+    on that workspace's `@-` (committed work only, as git's HEAD). The
+    hook copies what `.worktreeinclude` names, and prints the real path,
+    which Claude Code 2.1.325 requires.
+  - **A git worktree too.** Since jj 0.46, `jj workspace add` in a
+    colocated repository makes each workspace a git worktree as well
+    (`git.colocate`). nix therefore sees its files, and Claude Code
+    accepts it as a checkout of its own: its isolation check refuses a
+    directory whose git metadata resolves into the main checkout.
+  - **Reopening.** A second creation of the same name reopens the
+    workspace. The launcher's resume relies on this.
+  - **Removal.** It deletes only a workspace it made whose `@` is empty,
+    and exits 1 otherwise. Claude Code's check for uncommitted work reads
+    git and cannot judge a jj working copy.
+  - **What Claude Code leaves behind.** It keeps the workspaces of
+    sub-agents and workflow agents, never runs the removal for them, and
+    its periodic sweep skips hook-made ones. `.claude/hooks/jj-worktree.py
+    prune` removes every empty one, nested ones included.
+    - It finds each by the root jj records, since jj 0.47 has `jj
+      workspace root --name` and `root` in templates.
+    - It never takes a step session's (`wt-step-`), whose working copy is
+      empty after each commit; those go by name at the session's clean-up.
+    - It forgets nothing: jj does not follow a workspace moved by hand.
+    - A sub-agent's new workspace is empty too, so it runs only when no
+      session runs.
+
+    `plan/housekeeping.py` lists them, with the job working in each, and
+    the planning session's housekeeping (`plan/handoff.md`) runs both.
+  - **Tests.** The `claude-worktree-hook` check
+    (`modules/claude-worktree-hook-test.py`) runs the hook against a
+    throwaway colocated repository.
 - `settings.json`: allow rules for the build/check commands and jj's read-only
   ones, `ask` on `jj git push` and on every `gh` command (the GitHub CLI is
   logged in with the author's rights over the organization and beyond; see
@@ -299,9 +322,9 @@ goal, permission-modes, auto-mode-config, sub-agents, hooks, workflows),
 2026-11-09, Claude Code 2.1.318.
 
 - **Step sessions are background jobs.** `plan/start-session.sh` runs
-  `claude --bg --name NAME --model … --effort … --permission-mode auto
-  "<the goal file>"`, and a `/goal …` launch prompt is taken as the
-  goal.
+  `claude --bg --worktree WT --name NAME --model … --effort …
+  --permission-mode auto "<the goal file>"`, and a `/goal …` launch
+  prompt is taken as the goal.
   - `claude agents --json` lists the jobs: id, name, `sessionId`,
     `state`.
   - `claude logs NAME` prints a job's recent screen, with ANSI codes, so
@@ -310,21 +333,45 @@ goal, permission-modes, auto-mode-config, sub-agents, hooks, workflows),
   - `--resume SESSION_ID` restarts a stopped job under a new session
     id, with its goal, and keeps the name only when `--name` is given
     again (the launcher does).
+  - `claude rm JOB` refuses a job whose workspace sits on commits not on
+    origin ("push them first"), since it reads the workspace's git
+    metadata. The planning session never passes `--discard-unpushed`; it
+    removes the workspace with jj instead.
   - A machine restart stops every job. An idle job with no terminal
     attached stops after about an hour.
   - **Never `EnterWorktree` into a jj workspace.** Moving the session
     into a directory outside `.claude/worktrees/` is a "permission-root
     relocation", and it asks the user every time. On 2026-11-09 it
     blocked 54w-e1 while the author was away; a stop and a resume
-    cleared it. A step session works in its workspace through absolute
-    paths: `cd /…/linlog-stepNN && …` inside each Bash call, and
-    absolute paths for Read, Edit and Write. Its sub-agents do the same.
-  - **jj:** a job the launcher starts works in the checkout itself, with
-    no worktree (checked 2026-11-09: no `.claude/worktrees/`, no
-    `../linlog-wt-*`). A step session moves to its own jj workspace, as
-    its brief says. If Claude Code ever isolates a job, the
-    `WorktreeCreate` hook above makes it a jj workspace, so no git
-    worktree jj cannot see arises.
+    cleared it.
+  - **Each step session starts in a jj workspace of its own**, through
+    `--worktree` and the hook above: `../deduxit-wt-WT`, on the checkout's
+    `@-`.
+    - Probed on 2026-11-13 with Claude Code 2.1.321 and jj 0.47.1: no
+      prompt; the session's `pwd` and `jj workspace root` were the
+      workspace.
+    - A resume without `--worktree` brought the session back in the
+      shared checkout. With the flag, the hook reopened the workspace and
+      the conversation went on there. The launcher passes it to both.
+  - **Isolation is enforced.** Inside the workspace, Claude Code refuses
+    the session's edits in the shared checkout and its commands whose
+    working directory is the shared checkout (code.claude.com/docs/en/worktrees,
+    "How Claude Code enforces isolation"). Its sub-agents inherit both
+    the workspace and the rule.
+  - **A session that edits the shared checkout moves itself.** A
+    background session that edits a file in the shared checkout first
+    moves itself into a hook workspace, by default (`worktree.bgIsolation`).
+    Starting it in its workspace makes that move unnecessary.
+    - Before 2026-11-13 the sessions started in the checkout and worked
+      in their workspaces through `cd /…/linlog-stepNN && …` and
+      absolute paths. A sub-agent's isolated workspace was then based on
+      the planner's `@-`, not on the step's chain.
+  - **No push.** For a session in a worktree it entered, Claude Code
+    adds an instruction to commit and push its branch. CLAUDE.md
+    ("Pushing … only when asked"), the goals ("Nothing is pushed") and
+    `plan/conduct.md` take precedence, as the agent-view page says such
+    instructions do. A session commits with jj in its workspace; the
+    planning session stacks and pushes.
   - Before 2026-11-09 the sessions ran in zellij panes, and the planning
     session typed `/goal` and keys into them, which no documented
     interface covers.

@@ -133,14 +133,19 @@ this file holds.
   deduxit's, and there is no unit, not even the warm loop
   `step-gpg-warm`. Both keys were unlocked on 2026-11-13: start the loop
   with `plan/keys-warm.sh`.
-- **Left beside the checkout** by earlier sessions: directories that are
-  no longer jj workspaces.
-  - They are `../linlog-step54a`, `../rocq-linlog-53b`, `-53n`, `-53r`,
-    `-53s` and `-54w-b`, `../linlog-step41b-*`, and the `*-screenshots`
-    directories.
-  - Before deleting one, look for untracked results that a report
-    cites.
-- **Off `main`, never meant for it**; leave them:
+- **The first housekeeping pass** ("Housekeeping") was taken on
+  2026-11-13.
+  - It removed nine forgotten workspaces: `../linlog-step41b-*`,
+    `../linlog-step54a`, and `../rocq-linlog-53b` to `-54w-b`.
+  - Each file in them was in its repository's history, apart from three
+    kinds:
+    - Rocq's build output;
+    - a panel's scratch witness that step 41's report records;
+    - an older form of `core/tests/iltp.rs`.
+  - Left for the author: the 13 `*-screenshots` directories, about
+    140 MB, which the reports of 38 to 43 cite as their review evidence.
+  - Left for you: the two changes off `main` below.
+- **Off `main`, never meant for it** (the housekeeping takes them):
   - `ulktsrrq` (2026-10-23), an earlier planner's review probe of MELL
     nets;
   - `zyqyunxy` (2026-10-30), a review probe of 42f's cut elimination;
@@ -254,10 +259,16 @@ to D32), grouped by release. In brief:
 2. **Write each session's brief and goal** in `/tmp/linlog-handoff/`.
    - `start-NNx.md` says where the session starts and what it reads,
      its review, the machine's cores, "nothing that asks for the
-     author's permission", how it ends, "Pause" and signing. It also
-     names its workspaces: `jj workspace add --name stepNNx
-     ../linlog-stepNNx -r REV`, and for the client `jj workspace add
-     --name stepNNx ../linlog-prover.github.io-NNx -r CREV`.
+     author's permission", how it ends, "Pause" and signing.
+   - The brief names the session's base and its other workspaces:
+     - The launcher starts the session in a jj workspace of its own,
+       `../deduxit-wt-step-NNx` (jj name `wt-step-NNx`), on your `@-`.
+     - The brief has it run `jj new REV` there first when its base is
+       another revision.
+     - For the client or the Rocq library, the brief names `jj -R
+       ../linlog-prover.github.io workspace add --name stepNNx
+       ../linlog-prover.github.io-NNx -r CREV` (likewise
+       `../rocq-linlog`).
    - `goal-NNx.txt` is one `/goal` line of numbered items, each proved
      "by a command's own output" (the judge sees only the conversation).
      It ends with: "Nothing is pushed. A failing check is fixed at its
@@ -272,8 +283,12 @@ to D32), grouped by release. In brief:
      linlog's checkout.
 3. **Start it**: `taskset -c CORES plan/start-session.sh deduxit-step-NNx
    MODEL EFFORT /tmp/linlog-handoff/goal-NNx.txt`.
-   - It starts a background job (`claude --bg`) and prints the job's id
-     and the session's id: note both, since the session id resumes it.
+   - It starts a background job (`claude --bg --worktree`) in the
+     session's own workspace, and prints the job's id and the session's
+     id. Note both, since the session id resumes it.
+   - A resume through the launcher goes back into that workspace.
+   - Claude Code then refuses the session's edits and commands in this
+     checkout.
    - The `taskset` keeps the session's own process, and what it starts,
      off the cores a timed run needs.
    - The goal file is the launch prompt, so the goal is set at once.
@@ -283,8 +298,9 @@ to D32), grouped by release. In brief:
    - Keep two crons:
      - a supervision check (`17 */2 * * *`): its commits, its checklist,
        its screen (`claude logs`) and the notifications log (below) for a
-       waiting prompt or a heads-up box, the units, the load, and
-       `claude agents --json` for a job that stopped. Nudge only an idle
+       waiting prompt or a heads-up box, the units, the load,
+       `claude agents --json` for a job that stopped, and
+       `plan/housekeeping.py` (below, "Housekeeping"). Nudge only an idle
        session with work open, twice at most, and say nothing when all
        is well;
      - while unattended, a wake-up every 20 minutes (below).
@@ -324,17 +340,77 @@ to D32), grouped by release. In brief:
    - Never push any other way: any `jj git push …`, even with `--help`,
      matches the settings' `ask` rule, and an unattended run must not
      ask.
-8. **Clean up**:
-   - close the session: `claude stop JOB` (its conversation is kept;
-     `claude rm JOB` deletes it, for probes only);
-   - check `jj st` clean in its workspaces, and that no result it cites
-     lives only there (untracked lists, CSVs, logs);
-   - `jj workspace forget stepNNx` (by its jj name, in each repository),
-     then `rm -rf` the directories, a session's helper workspaces too;
+8. **Clean up**, once its chain is on `main@origin`:
+   - Close the session: `claude stop JOB`. Its conversation is kept;
+     `claude rm JOB` deletes it, and is for probes only.
+   - Check that no result it cites lives only in its workspaces
+     (untracked lists, CSVs, logs, screenshots). Copy one that matters
+     into the repository.
+   - Remove its workspaces:
+     - `jj workspace remove wt-step-NNx` here;
+     - `jj -R ../linlog-prover.github.io workspace remove stepNNx`, or
+       the same in `../rocq-linlog`, for the others.
+
+     `jj workspace remove` snapshots what is left into a commit, then
+     deletes the directory and its git worktree.
+   - Once no session of the step runs, `.claude/hooks/jj-worktree.py
+     prune` removes the empty workspaces its sub-agents left. It never
+     takes a `wt-step-` one.
    - `systemctl --user reset-failed 'linlog-stepNNx-*' 'stepNNx-*'`.
+   - `plan/housekeeping.py`: nothing of the session's is left in it.
 9. **Report** to the author: the outcome first, then what you checked,
    then what needs them, in short plain sentences. When you give the
    next step, say what it does and every model and effort it starts.
+
+## Housekeeping
+
+The author asked on 2026-11-13 for the repositories to be cleaned up
+regularly.
+
+`plan/housekeeping.py` lists what may go. It removes nothing and writes
+no commit. Run it:
+- at every session's clean-up (above);
+- in every supervision check;
+- before you start a step's sessions;
+- before a release.
+
+Act on each line, and note what you removed in the Status log, one line
+for each kind:
+- **A workspace whose session has ended, with its work on
+  `main@origin` and an empty working copy.**
+  - Remove it by name with `jj -R REPO workspace remove NAME`.
+  - `.claude/hooks/jj-worktree.py prune` removes every empty `wt-` one
+    except the step sessions' (`wt-step-`). Run it only when no session
+    and no sub-agent of yours runs: a sub-agent's new workspace is empty
+    too.
+  - A workspace stays while its session runs. The report says which job
+    works in it.
+- **A workspace whose session has ended, that holds work or whose work
+  is not on `main@origin`.**
+  - Look at what it holds. Take it into the session's chain, or put it
+    to the author.
+  - Never remove it unread.
+- **A directory no repository lists, or session output (`*-stepNN*`).**
+  - Look for a file a report or the Status log cites, and copy one that
+    matters into the repository first. Then delete the directory with
+    `rm -rf`.
+  - Directories the report does not list stay: the design and release
+    directories, and other projects'.
+- **A change off `main@origin` untouched for a week.**
+  - Abandon it (`jj abandon`, which `jj op log` keeps recoverable) when
+    this file or the Status log calls it a probe or a draft, and say so
+    in the Status log.
+  - Otherwise ask the author.
+- **A failed unit.** Read its journal (`journalctl --user -u UNIT`), keep
+  what a report needs, then run `systemctl --user reset-failed UNIT`.
+- **A background job whose chain is pushed.** It was stopped at its
+  clean-up, and `claude rm` is for probes.
+  - `claude rm` refuses a job whose workspace sits on commits not on
+    origin ("push them first").
+  - Never pass it `--discard-unpushed`. Remove the workspace by jj
+    instead.
+
+`/tmp/linlog-handoff/` and the scratch directories age out on their own.
 
 ## Mechanisms, and what each is for
 
@@ -345,7 +421,8 @@ to D32), grouped by release. In brief:
   sub-agents so too. (Before 2026-11-09 the prefix was `linlog`, and some
   of that night's sessions were plain `step-NNx`.)
 - **A step session**: a background Claude Code session (`claude --bg`,
-  started by `plan/start-session.sh`), one writer per coupled change,
+  started by `plan/start-session.sh` in a jj workspace of its own), one
+  writer per coupled change,
   its goal in its launch prompt. Not agent teams, which are experimental
   and make teammates children of one lead. Not the Workflow tool for
   supervision either: it is for fan-out within a session, such as a
@@ -395,9 +472,9 @@ to D32), grouped by release. In brief:
     itself needs `claude attach`, which is the author's.
 - **A session that uses `EnterWorktree`** to move into its jj workspace
   waits on a prompt (moving outside `.claude/worktrees/` always asks).
-  Briefs say "absolute paths and `cd` in Bash, never EnterWorktree". If
-  one is stuck there anyway: `claude stop JOB`, then resume it with that
-  instruction.
+  The launcher starts each session in its workspace, so a brief says only
+  "never EnterWorktree". If one is stuck there anyway: `claude stop JOB`,
+  then resume it with that instruction.
 - **Your own turn waiting on a prompt** blocks everything you supervise:
   on 2026-11-09 a raw `jj git push` held it for two hours.
   - Run nothing in your own turn that an `ask` rule matches while the

@@ -5,14 +5,22 @@
 # start-session.sh NAME MODEL EFFORT PROMPT_FILE...
 # start-session.sh --resume SESSION_ID NAME MODEL EFFORT [MESSAGE]
 #
-# Starts a background Claude Code session (`claude --bg`) named NAME in the
-# repository, in auto mode, with the files concatenated as its prompt (a
-# step's `/goal …` text). Or it resumes the session SESSION_ID in the
-# background, after a pause (`claude stop`) or a reboot, with MESSAGE
-# ("Resume" by default) as its next prompt; a goal the session had when it
-# stopped comes back with it. Prints the background job's id and the
-# session's id. The planning session runs this to start a step's sessions
-# itself.
+# Starts a background Claude Code session (`claude --bg`) named NAME, in
+# auto mode, with the files concatenated as its prompt (a step's `/goal …`
+# text). Or it resumes the session SESSION_ID in the background, after a
+# pause (`claude stop`) or a reboot, with MESSAGE ("Resume" by default) as
+# its next prompt; a goal the session had when it stopped comes back with it.
+# Prints the background job's id and the session's id. The planning session
+# runs this to start a step's sessions itself.
+#
+# The session works in a jj workspace of its own, `../deduxit-wt-WT` (jj
+# name `wt-WT`, WT being NAME without its `deduxit-`), which `--worktree`
+# has .claude/hooks/jj-worktree.py make on `@-` of the checkout's workspace;
+# a brief that wants another base has the session run `jj new REV` there
+# first. Claude Code then refuses the session's edits and commands in the
+# shared checkout. A resume passes `--worktree` again, and the hook reopens
+# the same workspace: without it the session would come back in the shared
+# checkout (probed with Claude Code 2.1.321).
 #
 # `claude agents --json` lists the jobs, `claude logs NAME` prints a job's
 # recent terminal output, `claude stop JOB` stops one (its conversation is
@@ -37,6 +45,7 @@ elif (($# < 4)); then
 fi
 name=$1 model=$2 effort=$3
 shift 3
+worktree=${name#deduxit-}
 
 # A session started from another one inherits markers (CLAUDECODE,
 # CLAUDE_CODE_CHILD_SESSION, its messaging socket, …) that make the new
@@ -63,8 +72,9 @@ if ((! ${#resume[@]})); then
 fi
 
 cd "$(dirname "$0")/.."
-out=$(claude --bg "${resume[@]}" --name "$name" --model "$model" \
-  --effort "$effort" --permission-mode auto "${prompt[@]}" 2>&1) || {
+out=$(claude --bg "${resume[@]}" --worktree "$worktree" --name "$name" \
+  --model "$model" --effort "$effort" --permission-mode auto \
+  "${prompt[@]}" 2>&1) || {
   printf '%s\n' "$out" >&2
   exit 1
 }

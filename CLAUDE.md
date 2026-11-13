@@ -221,12 +221,21 @@ even to read.** Every operation goes through `jj`, including lock updates:
   rather than assuming `@` and `@-` from the session's start.
 - nix sees only files in the git tree, which any jj command updates: run
   `jj st` after creating a file, before a `nix` command that must see it.
+- Every step session works in a jj workspace of its own
+  (`../deduxit-wt-…`, made by `.claude/hooks/jj-worktree.py`), which is a
+  git worktree too, so nix sees it. `plan/housekeeping.py` lists stale
+  workspaces, leftover directories and old changes off `main`, and the
+  planning session cleans them up regularly (`plan/handoff.md`,
+  "Housekeeping").
 - A workspace whose commit another workspace rewrote updates itself on its
-  next jj command (the machine's jj config). Two sessions rewriting one
-  change at once leave it divergent (`X/0`, `X/1` in `jj log`): try
-  `jj converge --no-interactive -r 'change_id(X)'`; when it cannot decide
-  (different descriptions), compare them (`jj interdiff --from X/0 --to
-  X/1`) and `jj abandon` the one to drop.
+  next jj command (the machine's jj config).
+- Two sessions rewriting one change at once leave it divergent (`X/0`,
+  `X/1` in `jj log`):
+  - Try `jj converge --no-interactive -r 'change_id(X)'`, then check in
+    `jj log` that `X/0` is gone: when the command cannot decide, it only
+    warns.
+  - When it cannot decide (different descriptions), compare them (`jj
+    interdiff --from X/0 --to X/1`) and `jj abandon` the one to drop.
 - Subjects are short, imperative and capitalised, with no type prefix
   ("Fix bug in reachability analysis for exponentials"). Add a body only when
   the why is not obvious. jj writes commits unsigned (the machine's jj
@@ -319,8 +328,9 @@ even to read.** Every operation goes through `jj`, including lock updates:
 `.claude/` is checked in: the hooks (the git and `jj new -m` guards, the
 formatter, a SessionStart note on the jj working copy, and jj workspaces
 in place of Claude Code's git worktrees for isolated agents and sessions,
-`../linlog-wt-NAME`, whose empty leftovers `.claude/hooks/jj-worktree.py
-prune` removes), permission rules,
+`../deduxit-wt-NAME`, in which `plan/start-session.sh` starts each step
+session and whose empty leftovers `.claude/hooks/jj-worktree.py prune`
+removes), permission rules,
 the `crate-source-explorer` agent (use it before guessing at a
 dependency's API), the reviewers `fresh-reviewer` and the panel's
 `panel-counterexamples`, `panel-argument` and `panel-integers`, a

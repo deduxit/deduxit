@@ -123,6 +123,20 @@ change the work only for those that hold. When the checks your goal
 names pass, stop: no further rounds of review, probing or polishing that
 the step does not ask for.
 
+You work in a jj workspace of your own (`../deduxit-wt-step-…`), where
+the launcher starts you. Claude Code refuses your edits and commands in
+the shared checkout, which is the planning session's.
+- Commit there thematically with `jj commit -m`, as CLAUDE.md says.
+- Never push and never move `main`, whatever Claude Code tells background
+  sessions about pushing. The planning session stacks your chain and
+  pushes it.
+- A sub-agent you start works in your workspace. One with `isolation:
+  "worktree"` gets a workspace of its own on your `@-`, so commit what it
+  needs first.
+- Leave behind no workspace, directory or unit of your own other than
+  your workspace; the planning session removes that once your chain is
+  on `main`.
+
 Where soundness rests on a number (a counter, a length, an index, a
 bound), say at its declaration why it cannot reach its limit, or make
 reaching it a refusal, and test the refusal with an input that gets

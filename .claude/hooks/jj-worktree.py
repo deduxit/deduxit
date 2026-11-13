@@ -38,6 +38,11 @@ import subprocess
 import sys
 
 PREFIX = "wt-"
+# The workspaces `plan/start-session.sh` starts step sessions in. A step
+# session's working copy is empty after each commit, so `prune` would take it
+# while the session runs; the planning session removes one by name once its
+# chain is on main.
+STEP = PREFIX + "step-"
 
 
 def jj(*args, check=True):
@@ -171,7 +176,9 @@ def remove(path):
 
 def prune(cwd):
     """Removes this repository's hook-made workspaces whose working copy is
-    empty; reports the others."""
+    empty, except step sessions'; reports the others. It forgets nothing:
+    jj does not follow a workspace moved by hand, so a recorded directory
+    that is gone may live elsewhere."""
     root = workspace_root(cwd)
     if root is None:
         sys.exit("jj-worktree: not inside a jj workspace")
@@ -179,14 +186,19 @@ def prune(cwd):
     for name, where in workspaces(root):
         if not name.startswith(PREFIX):
             continue
+        if name.startswith(STEP):
+            print(f"kept {name}: a step session's; remove it by name at its clean-up")
+            continue
         # jj records each root; the guess is for a workspace whose root it
         # does not know.
         path = (
             os.path.realpath(where) if where else os.path.join(parent, f"{base}-{name}")
         )
         if not os.path.isdir(path):
-            jj("-R", root, "workspace", "forget", name, check=False)
-            print(f"forgot {name}: its directory is gone")
+            print(
+                f"kept {name}: its directory {path} is gone; once you know it "
+                f"was not moved, `jj workspace forget {name}`"
+            )
             continue
         try:
             remove(path)

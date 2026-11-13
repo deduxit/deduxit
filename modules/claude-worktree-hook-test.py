@@ -7,8 +7,8 @@
 It pins where a workspace goes and on which commit, from the checkout and from
 a workspace the hook made, that a second creation of the same name reopens
 it, that `.worktreeinclude` files are copied, that removal deletes only an
-empty workspace the hook made, and what `prune` removes and keeps, nested
-workspaces included.
+empty workspace the hook made, and what `prune` removes and keeps: nested
+workspaces included, step sessions' and moved ones kept.
 
     python3 modules/claude-worktree-hook-test.py .claude/hooks/jj-worktree.py
 """
@@ -161,6 +161,11 @@ def main():
 
     code, last, _ = create("idle")
     idle = last[0]
+    code, last, _ = create("step-01a")
+    step = last[0]
+    code, last, _ = create("gone")
+    gone = last[0]
+    os.rename(gone, os.path.join(tmp, "moved"))
     code, _, out = run("", "prune")
     check(
         "prune: removes the empty one",
@@ -178,6 +183,16 @@ def main():
         "prune: keeps the one with work", os.path.isdir(busy) and "wt-busy" in out, out
     )
     check("prune: leaves the default workspace", "default" in workspaces())
+    check(
+        "prune: keeps a step session's workspace, empty as it is",
+        os.path.isdir(step) and "wt-step-01a" in workspaces(),
+        out,
+    )
+    check(
+        "prune: forgets no workspace whose directory is not where jj says",
+        "wt-gone" in workspaces() and os.path.isdir(os.path.join(tmp, "moved")),
+        out,
+    )
 
     if failures:
         sys.exit(f"{len(failures)} case(s) failed: {', '.join(failures)}")

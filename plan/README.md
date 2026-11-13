@@ -6246,3 +6246,50 @@ move (D26).
     (AGPL), saguaro (GPL); C and C++ solvers do not build for the page.
   - **Fallbacks:** a fork of varisat (no stop today), or a CDCL of
     deduxit's own. CaDiCaL as a native tier is in `plan/later.md`.
+- 2026-11-13, 23:10: **Models, jj and housekeeping reviewed** (the
+  author, in a session that is not the planning session).
+  - **Models:** re-evaluated after Claude Fable 5.2's release. The table
+    of 2026-11-13 under "Why these models and efforts" replaces that of
+    2026-10-18.
+    - The planning session and the step sessions stay on Opus 5.5 at
+      `high`.
+    - Fable 5.2 at `high` runs the design sessions, 66's Rocq proof and
+      the panel's argument.
+    - `fresh-reviewer` runs on Fable 5.2 at `medium`, and on Opus for a
+      session on Fable.
+    - `.claude/settings.json` pins `fable` and `opus` and makes Sonnet
+      5.5 the default for a sub-agent that names no model.
+    - A review by `fresh-reviewer` on Fable 5.2 found three false claims,
+      fixed before the commit (`qxqzqtqx`).
+  - **The handoff** is brought up to date for a new planning session
+    (`nyyootso`). Both are pushed: the first after `nix flake check`,
+    the second, a plan file alone, after the text checks.
+  - **jj:** each step session now starts in a jj workspace of its own.
+    `plan/start-session.sh` passes `--worktree` at the start and at a
+    resume, and the WorktreeCreate hook makes `../deduxit-wt-WT`.
+    - Probed with Claude Code 2.1.321 and jj 0.47.1: the session starts
+      there with no prompt. A resume without the flag comes back in the
+      shared checkout; with it, the session returns to its workspace.
+    - Claude Code now refuses a session's edits in the shared checkout.
+    - The hook's `prune` finds workspaces by the root jj records (it
+      forgot a nested one before), never takes a step session's, and
+      forgets none whose directory is missing.
+    - A `fresh-reviewer` on Fable 5.2 found the last two, fixed and
+      pinned in `modules/claude-worktree-hook-test.py`.
+  - **Housekeeping** (the author: "regularly clean up the repo"):
+    `plan/housekeeping.py` lists what may go, and `plan/handoff.md`
+    ("Housekeeping") says when to run it and what to do.
+    - **First pass:** nine forgotten workspaces beside the checkout were
+      removed (`../linlog-step41b-*`, `../linlog-step54a`,
+      `../rocq-linlog-53b` to `-54w-b`, about 330 MB). Each file's
+      content was found in its repository's git objects by its blob
+      hash, apart from three kinds:
+      - Rocq's build output;
+      - 41b's scratch witness of the shared-premise rename, which
+        `reports/41-cut.md` records;
+      - an older form of `core/tests/iltp.rs`.
+    - **For the author:** the 13 `../linlog-step*-screenshots`
+      directories (about 140 MB), which reports 38 to 43 cite as their
+      review evidence.
+    - **Kept for the planning session:** the probes `ulktsrrq` and
+      `zyqyunxy`.
