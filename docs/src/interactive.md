@@ -47,6 +47,23 @@ A ⊢ A      B ⊢ B
   A, A ⊸ B ⊢ B
 ```
 
+A rule is named by its usual name or its ASCII spelling, and an unknown
+name's error lists the rules of the session, ASCII spelling first. A
+split that leaves a premise without a proof, as the counts of its atoms
+show, is made with a warning, and `undo` takes it back:
+
+```console
+$ deduxit interact "A, B |- A * B"
+> apply 0 2 tensor 1
+error: unknown rule `tensor`; the rules here are ax, * (⊗), par (⅋), 1, bot (⊥), &, +1 (⊕₁), +2 (⊕₂), top (⊤), !, ?d, ?c and ?w
+> apply 0 2 * 1
+opened goal 1: ⊢ 0: ~B, 1: A
+opened goal 2: ⊢ 0: ~A, 1: B
+warning: one premise has no proof, so this split cannot be closed; `undo` takes it back
+> undo
+reopened goal 0: ⊢ 0: ~A, 1: ~B, 2: A ⊗ B
+```
+
 With `--invertible`, or after the command `invertible on`, the session
 applies by itself every rule that is invertible in its mode, whose
 premises are provable whenever its conclusion is, so that applying it

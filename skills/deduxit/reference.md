@@ -592,7 +592,10 @@ A RULE is its usual name or its ASCII spelling: `ax`, `1`, `bot`, `top`,
 intuitionistic mode `-oL`, `-oR`, `*L`, `*R`, `&L1`, `&L2`, `&R`, `+L`,
 `+R1`, `+R2`, `1L`, `1R`, `0L`, `topR`, `!L`, `!R`, `!c`, `!w`, and for
 the quantifiers `forall`, `exists` (one-sided) and `forallR`, `existsL`,
-`existsR`, `forallL`; `rules` prints the names it applies. `--state
+`existsR`, `forallL`; `rules` prints the names it applies, and an unknown
+name's error lists the session's rules, ASCII spelling first. A split
+that leaves a premise without a proof, as the atoms' counts show, is
+made with a warning that `undo` takes it back. `--state
 FILE` resumes a saved session (the mode is the file's), `--invertible`
 applies the invertible rules from the start, and the search flags of
 `prove` apply to `close`.

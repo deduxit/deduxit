@@ -22,7 +22,7 @@ use crate::{Status, catch_interrupt, clear_interrupt, interrupted, io, style};
 use anyhow::{Context, Result, bail};
 use deduxit::export::{Styles, latex, svg, typst};
 use deduxit::linear::search::Options;
-use deduxit::ordinary::{self, Interactive, Needs, Rule, Side, Step, Translation};
+use deduxit::ordinary::{self, Interactive, Logic, Needs, Rule, Side, Step, Translation};
 use deduxit::{
     Error, Limits, Refusal, Settings,
     linear::{GoalId, ViewOptions},
@@ -180,7 +180,14 @@ impl Commands for Session {
             }
             "apply" => {
                 let (goal, (side, position)) = (goal(0)?, formula(1)?);
-                let rule: Rule = rest.get(2).context("which rule? see `rules`")?.parse()?;
+                let word = rest.get(2).context("which rule? see `rules`")?;
+                let rule: Rule = word.parse().map_err(|error| match error {
+                    Error::UnknownName { .. } => anyhow::anyhow!(
+                        "{}",
+                        super::unknown_rule(word, &ordinary_rules(self.state.logic()), ASCII)
+                    ),
+                    error => error.into(),
+                })?;
                 let mut step = Step::new(side, position, rule);
                 if rest.len() > 3 {
                     let (mut left, mut right) = (Vec::new(), Vec::new());
@@ -464,6 +471,49 @@ fn sequent_text(state: &Interactive) -> String {
             .join(", ")
     };
     format!("{} ⊢ {}", side(left), side(right))
+}
+
+/// The ASCII spellings of the rules of LK and LJ that have one, each
+/// beside the rule's name: the words, since the command's word splitter
+/// takes `\` as an escape, and `->` and `~` as the parser reads them.
+pub(super) const ASCII: &[(&str, &str)] = &[
+    ("∧L", "andL"),
+    ("∧L₁", "andL1"),
+    ("∧L₂", "andL2"),
+    ("∧R", "andR"),
+    ("∨L", "orL"),
+    ("∨R", "orR"),
+    ("∨R₁", "orR1"),
+    ("∨R₂", "orR2"),
+    ("→L", "->L"),
+    ("→R", "->R"),
+    ("¬L", "~L"),
+    ("¬R", "~R"),
+    ("↔L", "iffL"),
+    ("↔L₁", "iffL1"),
+    ("↔L₂", "iffL2"),
+    ("↔R", "iffR"),
+    ("⊥L", "falseL"),
+    ("⊥R", "falseR"),
+    ("⊤L", "trueL"),
+    ("⊤R", "trueR"),
+];
+
+/// Returns the names of the rules a step takes in `logic`: every rule of
+/// LK but a cut, and in LJ and minimal logic none that would leave other
+/// than one formula right of `⊢` (nor `⊥L` in minimal logic).
+pub(super) fn ordinary_rules(logic: Logic) -> Vec<&'static str> {
+    const LK: [&str; 25] = [
+        "ax", "WL", "WR", "CL", "CR", "∧L", "∧L₁", "∧L₂", "∧R", "∨L", "∨R", "∨R₁", "∨R₂", "→L",
+        "→R", "¬L", "¬R", "↔L", "↔L₁", "↔L₂", "↔R", "⊥L", "⊥R", "⊤L", "⊤R",
+    ];
+    LK.into_iter()
+        .filter(|&name| match name {
+            "WR" | "CR" | "⊥R" | "∨R" => logic == Logic::Classical,
+            "⊥L" => logic != Logic::Minimal,
+            _ => true,
+        })
+        .collect()
 }
 
 #[cfg(test)]

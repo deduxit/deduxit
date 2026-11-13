@@ -3150,3 +3150,42 @@ fn an_unused_hypothesis_names_affine_mode() {
     let (status, _, _) = deduxit(&["prove", "-q", "-a", "A, B |- A"], "");
     assert_eq!(status, 0);
 }
+
+/// A session's unknown rule lists the session's own rules, ASCII
+/// spelling first, and a split whose premise the counts refute is made
+/// with a warning that `undo` takes it back; a split that can close has
+/// none.
+#[test]
+fn a_session_lists_its_rules_and_warns_at_a_lost_split() {
+    let (_, out, _) = deduxit(
+        &["interact", "A, B |- A * B"],
+        "apply 0 2 tensor 1\napply 0 2 * 1\nundo\napply 0 2 * 0\n",
+    );
+    assert_eq!(
+        out,
+        "error: unknown rule `tensor`; the rules here are ax, * (⊗), par (⅋), 1, bot (⊥), &, +1 \
+         (⊕₁), +2 (⊕₂), top (⊤), !, ?d, ?c and ?w\n\
+         opened goal 1: ⊢ 0: ~B, 1: A\n\
+         opened goal 2: ⊢ 0: ~A, 1: B\n\
+         warning: one premise has no proof, so this split cannot be closed; `undo` takes it \
+         back\n\
+         reopened goal 0: ⊢ 0: ~A, 1: ~B, 2: A ⊗ B\n\
+         opened goal 1: ⊢ 0: ~A, 1: A\n\
+         opened goal 2: ⊢ 0: ~B, 1: B\n"
+    );
+    // A Mix at a `⊗` formula is no `⊗` split; the Lambek calculus's
+    // divisions are typed with the backslash doubled.
+    let (_, out, _) = deduxit(
+        &["interact", "--mix", "|- A * B, ~A, ~B, C, ~C"],
+        "apply 0 0 mix 1 2\n",
+    );
+    assert!(!out.contains("warning"), "{out}");
+    let (_, out, _) = deduxit(&["interact", "--lambek", "A |- A"], "apply 0 1 foo\n");
+    assert!(out.contains(", \\\\L (\\L), "), "{out}");
+    let (_, out, _) = deduxit(&["interact", "-i", "-a", "A |- A"], "apply 0 1 tensor\n");
+    assert!(
+        out.contains("the rules here are ax, -oL (⊸L), -oR (⊸R), *L (⊗L),")
+            && out.ends_with("!c, !w and wk\n"),
+        "{out}"
+    );
+}

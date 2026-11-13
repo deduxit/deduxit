@@ -17,8 +17,8 @@ use deduxit::linear::search::{Goal, Options, Outcome, Verdict};
 use deduxit::{
     Error, Limits, Refusal,
     linear::{
-        CutFormula, GoalId, InputOptions, Interactive, Named, Reading, Rule, Side, Step,
-        ViewOptions,
+        CutFormula, GoalId, InputOptions, Interactive, Kind, Mode, Named, Reading, Rule, Side,
+        Step, ViewOptions,
     },
 };
 use std::fmt::Write as _;
@@ -375,7 +375,17 @@ impl Session {
             "apply" => {
                 let (goal, position) = (goal(0)?, position(1)?);
                 let word = rest.get(2).context("which rule? see `rules`")?;
-                let rule: Named = word.parse()?;
+                let rule: Named = word.parse().map_err(|error| match error {
+                    Error::UnknownName { .. } => anyhow::anyhow!(
+                        "{}",
+                        unknown_rule(
+                            word,
+                            &linear_rules(self.state.mode(), self.state.forest().has_binders()),
+                            LINEAR_ASCII
+                        )
+                    ),
+                    error => error.into(),
+                })?;
                 let step = if rule.rule == Rule::Exists {
                     let step = Step::new(position, rule);
                     match rest.get(3..).filter(|words| !words.is_empty()) {
@@ -385,9 +395,29 @@ impl Session {
                 } else {
                     Step::new(position, rule).left(&positions(3)?)
                 };
+                // The counts tell a split that cannot be closed before it
+                // is made.
+                // The test reads a `⊗` formula's split as the `⊗`'s, so a Mix
+                // is judged only at another formula.
+                let at_tensor = self.state.goal(goal).ok().and_then(|members| {
+                    let member = *members.get(position)?;
+                    Some(self.state.forest().kind(self.state.occurrence(member)) == Kind::Tensor)
+                });
+                let splits = matches!(
+                    (step.rule.rule, at_tensor),
+                    (Rule::Tensor, Some(true)) | (Rule::Mix, Some(false))
+                );
+                let lost = splits && !self.state.split_passes(goal, &step).unwrap_or(true);
                 let before = self.state.steps();
                 let opened = self.state.apply(goal, &step)?;
-                self.stepped(before, opened)?
+                let mut text = self.stepped(before, opened)?;
+                if lost {
+                    text.push_str(
+                        "\nwarning: one premise has no proof, so this split cannot be closed; \
+                         `undo` takes it back",
+                    );
+                }
+                text
             }
             "cut" => {
                 let goal = goal(0)?;
@@ -761,6 +791,87 @@ impl Session {
     }
 }
 
+/// The ASCII spellings of the rules of linear logic that have one, each
+/// beside the rule's name.
+const LINEAR_ASCII: &[(&str, &str)] = &[
+    ("⊗", "*"),
+    ("⅋", "par"),
+    ("⊥", "bot"),
+    ("⊕₁", "+1"),
+    ("⊕₂", "+2"),
+    ("⊤", "top"),
+    ("∀", "forall"),
+    ("∃", "exists"),
+    ("⊸L", "-oL"),
+    ("⊸R", "-oR"),
+    ("⊗L", "*L"),
+    ("⊗R", "*R"),
+    ("&L₁", "&L1"),
+    ("&L₂", "&L2"),
+    ("⊕L", "+L"),
+    ("⊕R₁", "+R1"),
+    ("⊕R₂", "+R2"),
+    ("⊤R", "topR"),
+    ("∀R", "forallR"),
+    ("∃L", "existsL"),
+    ("∃R", "existsR"),
+    ("∀L", "forallL"),
+    // A session's words take `\` as an escape, so a division's rule is
+    // typed with two.
+    ("\\L", "\\\\L"),
+    ("\\R", "\\\\R"),
+];
+
+/// Returns the names of the rules `apply` takes in a session: those of
+/// its mode (one-sided classical, two-sided intuitionistic, or the
+/// ordered ones' multiplicatives), Mix and weakening where the mode has
+/// them, and the quantifiers' where the sequent has a binder.
+fn linear_rules(mode: Mode, binders: bool) -> Vec<&'static str> {
+    let mut names: Vec<&str> = match (mode.is_ordered(), mode.is_intuitionistic()) {
+        (true, true) => vec!["ax", "⊗L", "⊗R", "\\L", "\\R", "/L", "/R"],
+        (true, false) => vec!["ax", "⊗", "⅋"],
+        (false, true) => vec![
+            "ax", "⊸L", "⊸R", "⊗L", "⊗R", "&L₁", "&L₂", "&R", "⊕L", "⊕R₁", "⊕R₂", "1L", "1R", "0L",
+            "⊤R", "!L", "!R", "!c", "!w",
+        ],
+        (false, false) => vec![
+            "ax", "⊗", "⅋", "1", "⊥", "&", "⊕₁", "⊕₂", "⊤", "!", "?d", "?c", "?w",
+        ],
+    };
+    if mode.has_mix() {
+        names.push("mix");
+    }
+    if mode.is_affine() {
+        names.push("wk");
+    }
+    if binders {
+        if mode.is_intuitionistic() {
+            names.extend(["∀R", "∃L", "∃R", "∀L"]);
+        } else {
+            names.extend(["∀", "∃"]);
+        }
+    }
+    names
+}
+
+/// Returns the error for a rule `word` that no rule is called: the rules
+/// of the session, `names`, each by its ASCII spelling from `ascii` first
+/// where it has one.
+fn unknown_rule(word: &str, names: &[&str], ascii: &[(&str, &str)]) -> String {
+    let spelled: Vec<String> = names
+        .iter()
+        .map(|&name| match ascii.iter().find(|&&(n, _)| n == name) {
+            Some(&(_, spelling)) => format!("{spelling} ({name})"),
+            None => name.to_owned(),
+        })
+        .collect();
+    let (last, rest) = spelled.split_last().expect("a session has rules");
+    format!(
+        "unknown rule `{word}`; the rules here are {} and {last}",
+        rest.join(", ")
+    )
+}
+
 /// Reads the words after `show`: the format a word with dashes names,
 /// else the one the FILE's extension names, else text, and the FILE if
 /// given.
@@ -970,6 +1081,48 @@ fn lambda_line(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Every rule a session lists reads back as typed: its ASCII spelling,
+    /// or its name where it has none, read through the session's word
+    /// splitter, is the rule the library reads from its name. The lists
+    /// are the command's, the spellings the library's.
+    #[test]
+    fn listed_rules_read_back() {
+        let typed = |word: &str| words(word).ok().and_then(|w| w.into_iter().next());
+        let shown = |name: &str, ascii: &[(&str, &str)]| {
+            ascii
+                .iter()
+                .find(|&&(n, _)| n == name)
+                .map_or(name.to_owned(), |&(_, spelling)| spelling.to_owned())
+        };
+        let linear = |word: &str| word.parse::<Named>().map(|r| format!("{r:?}")).ok();
+        let lk = |word: &str| {
+            word.parse::<deduxit::ordinary::Rule>()
+                .map(|r| format!("{r:?}"))
+                .ok()
+        };
+        let mut names: Vec<&str> = LINEAR_ASCII.iter().map(|&(name, _)| name).collect();
+        for mode in [
+            Mode::CLASSICAL.with_mix().with_affine(),
+            Mode::INTUITIONISTIC.with_affine(),
+            Mode::CYCLIC,
+            Mode::LAMBEK,
+        ] {
+            names.extend(linear_rules(mode, true));
+        }
+        for name in names {
+            let as_typed = typed(&shown(name, LINEAR_ASCII)).and_then(|word| linear(&word));
+            assert!(linear(name).is_some() && as_typed == linear(name), "{name}");
+        }
+        let mut names: Vec<&str> = ordinary::ASCII.iter().map(|&(name, _)| name).collect();
+        for &logic in deduxit::ordinary::Logic::ALL {
+            names.extend(ordinary::ordinary_rules(logic));
+        }
+        for name in names {
+            let as_typed = typed(&shown(name, ordinary::ASCII)).and_then(|word| lk(&word));
+            assert!(lk(name).is_some() && as_typed == lk(name), "{name}");
+        }
+    }
 
     /// A format's name alone is no file of `show` or `proof`, whose
     /// format is a word with dashes; a path that only looks like one is.
