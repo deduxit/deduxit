@@ -1143,4 +1143,7 @@ nothing for a certificate it accepts.
 - A derivation is one-sided by default: `⊢ ~A, A` is the axiom
   `A ⊢ A`.
 - Quote the sequent; `*`, `|`, `&`, `!` and `?` mean something to the
-  shell.
+  shell. Unquoted, `-o` reads as `--output`; the error then shows the
+  sequent quoted.
+- A file of `NAME: SEQUENT` lines needs `--input-format lines`; without
+  it the file is one sequent, and the error says so.

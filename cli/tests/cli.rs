@@ -3069,3 +3069,63 @@ fn what_0_2_0_wrote_is_read() {
     let (status, _, err) = deduxit(&["prove", "--settings", settings, "--net", "A |- A"], "");
     assert_eq!(status, 0, "{err}");
 }
+
+/// The errors a newcomer meets first say what to write: a sequent with
+/// no command before it, a sequent the shell split into words (`-o` read
+/// as `--output`, or a word left over), `->` in a linear sequent, and
+/// `NAME: SEQUENT` lines read as one sequent. `--format tex` is LaTeX.
+#[test]
+fn newcomer_errors_say_what_to_write() {
+    for (args, stdin, hint) in [
+        (
+            &["A |- A"][..],
+            "",
+            "tip: to decide a sequent, run deduxit prove \"A |- A\"",
+        ),
+        (
+            &["prove", "A", "-o", "B"],
+            "",
+            "\n  quote the sequent: deduxit prove \"|- A -o B\"\n",
+        ),
+        (
+            &["prove", "!A,", "B"],
+            "",
+            "tip: quote the sequent: deduxit prove '|- !A, B'",
+        ),
+        (
+            &["prove", "A", "+", "B", "+", "C"],
+            "",
+            "tip: quote the sequent: deduxit prove \"|- A + B + C\"",
+        ),
+        (
+            &["prove", "A,", "B", "-o", "C"],
+            "",
+            "tip: quote the sequent: deduxit prove \"|- A, B -o C\"",
+        ),
+        (
+            &["prove", "A -> B |- A"],
+            "",
+            "-> is ordinary logic's arrow: write -o, or add --logic classical\n",
+        ),
+        (
+            &["prove"],
+            "id: A |- A\nmp: A, A -o B |- B\n",
+            "\n  to read one sequent per line, add --input-format lines\n",
+        ),
+    ] {
+        let (status, _, err) = deduxit(args, stdin);
+        assert_eq!(status, 2, "{args:?}");
+        assert!(err.contains(hint), "{args:?}: {err}");
+    }
+    // `seq json` has no --logic, and one sequent over two lines is no
+    // file of lines.
+    let (_, _, err) = deduxit(&["seq", "json", "A -> B |- B"], "");
+    assert!(err.ends_with("write -o\n"), "{err}");
+    let (_, _, err) = deduxit(&["prove"], "A, B\n|- A * B *\n");
+    assert!(!err.contains("--input-format"), "{err}");
+    let (status, out, _) = deduxit(&["prove", "-q", "--format", "tex", "A |- A"], "");
+    assert_eq!(
+        (status, out.as_str()),
+        (0, "% provable (MLL, classical, focus engine)\n")
+    );
+}

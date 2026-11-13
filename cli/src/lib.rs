@@ -14,6 +14,8 @@ mod batch;
 mod check;
 /// The `eliminate` command.
 mod eliminate;
+/// Hints on the errors a newcomer meets first, each saying what to write.
+mod hint;
 /// The `interact` command.
 mod interact;
 /// Reading input and writing output.
@@ -295,11 +297,21 @@ fn run(cli: &Cli, given: &settings::Given) -> Result<Status> {
 /// Parses the command line arguments, runs the command, and returns the
 /// exit status of its verdict, or 2 after printing an error.
 pub fn main() -> ExitCode {
-    let matches = Cli::command().get_matches();
+    let os_args: Vec<std::ffi::OsString> = std::env::args_os().collect();
+    // The hints read the words as text; the command reads them as they are,
+    // so that a path need not be UTF-8.
+    let args: Vec<String> = os_args
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    let matches = Cli::command()
+        .try_get_matches_from(&os_args)
+        .unwrap_or_else(|e| hint::command_line(e, &args).exit());
     let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
     match run(&cli, &settings::Given::of(&matches)) {
         Ok(status) => status.into(),
         Err(e) => {
+            let e = hint::parse(e, &cli, &args);
             eprintln!("error: {e:#}");
             ExitCode::from(ERROR)
         }

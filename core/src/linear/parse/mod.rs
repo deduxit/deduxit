@@ -38,6 +38,8 @@ const ROLE: &str = "a name is a predicate or a function symbol, not both";
 /// The hint for a keyword where a variable, constant or function symbol
 /// should stand.
 const KEYWORD: &str = "a keyword names no variable, constant or function symbol";
+/// The hint for `->`, the arrow of ordinary logic, in a linear sequent.
+const ARROW: &str = "-> is ordinary logic's arrow: write -o";
 
 /// A binary connective as it is written.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -785,6 +787,11 @@ impl<'a> Parser<'a> {
             '-' => {
                 // Only `-o` starts with `-`, so what is wrong is the
                 // character after it.
+                if self.peek() == Some('>') {
+                    return Err(ParseError::new(self.input, self.at, &["the `o` of `-o`"])
+                        .with_hint(ARROW)
+                        .into());
+                }
                 if self.peek() != Some('o') {
                     return Err(self.unexpected(self.at, &["the `o` of `-o`"]));
                 }

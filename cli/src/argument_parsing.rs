@@ -179,6 +179,52 @@ pub(crate) enum Command {
     },
 }
 
+impl Command {
+    /// Returns, for a command that reads one sequent, the words that name
+    /// it, where its sequent comes from, and whether it reads ordinary
+    /// logic.
+    pub(crate) fn sequent_input(&self) -> Option<(&'static [&'static str], &SequentInput, bool)> {
+        match self {
+            Command::Prove(args) => Some((&["prove"], &args.input, args.logic.logic.is_some())),
+            Command::Interact(args) => {
+                Some((&["interact"], &args.input, args.logic.logic.is_some()))
+            }
+            Command::Seq {
+                command: SeqCommand::Print { input, logic, .. },
+            } => Some((&["seq", "print"], input, logic.logic.is_some())),
+            Command::Seq {
+                command: SeqCommand::Json { input, .. },
+            } => Some((&["seq", "json"], input, false)),
+            Command::Seq {
+                command: SeqCommand::Fragment { input, .. },
+            } => Some((&["seq", "fragment"], input, false)),
+            Command::Check(_) | Command::Eliminate(_) => None,
+        }
+    }
+
+    /// Returns whether the command would take `--logic` as it was called:
+    /// it has the flag, and no mode flag that the flag refuses is given.
+    pub(crate) fn takes_logic(&self) -> bool {
+        let plain = |mode: &ModeArgs| {
+            !(mode.intuitionistic || mode.affine || mode.mix || mode.cyclic || mode.lambek)
+        };
+        match self {
+            Command::Prove(args) => plain(&args.mode),
+            Command::Interact(args) => plain(&args.mode),
+            Command::Seq {
+                command:
+                    SeqCommand::Print {
+                        intuitionistic,
+                        cyclic,
+                        lambek,
+                        ..
+                    },
+            } => !(*intuitionistic || *cyclic || *lambek),
+            Command::Seq { .. } | Command::Check(_) | Command::Eliminate(_) => false,
+        }
+    }
+}
+
 /// The arguments of `prove`.
 #[derive(Args, Clone, Debug)]
 pub(crate) struct ProveArgs {
@@ -1624,6 +1670,7 @@ pub(crate) enum Format {
     Json,
     /// The verdict as a comment, then the derivation as a LaTeX proof tree
     /// of the ebproof package, with the connectives of cmll and amssymb
+    #[value(alias = "tex")]
     Latex,
     /// The verdict as a comment, then the derivation as a Typst proof tree:
     /// with the curryst package for a low tree, in deduxit's own layout for
@@ -1735,6 +1782,7 @@ pub(crate) enum SequentFormat {
     /// Unicode text
     Text,
     /// LaTeX math, with the connectives of cmll and amssymb
+    #[value(alias = "tex")]
     Latex,
     /// Typst math
     Typst,
