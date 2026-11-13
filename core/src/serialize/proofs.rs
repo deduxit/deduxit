@@ -257,6 +257,24 @@ impl Proof {
         }
     }
 
+    /// The proof an outcome's keys hold, with the outcome's mode.
+    pub(super) const fn of_keys(
+        sequent: Sequent,
+        nodes: Vec<Step>,
+        mode: Mode,
+        goal: Option<Vec<u32>>,
+        instances: Option<Instances>,
+    ) -> Proof {
+        Proof {
+            version: None,
+            sequent,
+            nodes,
+            mode: Some(mode),
+            goal,
+            instances,
+        }
+    }
+
     /// The proof as a document: its level, its keys and its mode.
     fn document(p: &Prf) -> Proof {
         Proof {
@@ -268,7 +286,7 @@ impl Proof {
 
     /// Rebuilds the proof the form holds, its forest within `limits`; the
     /// bounds and the order of its nodes are checked, not the proof.
-    fn within(self, limits: &Limits) -> Result<Prf, crate::Error> {
+    pub(super) fn within(self, limits: &Limits) -> Result<Prf, crate::Error> {
         let sequent = crate::linear::Sequent::try_from(self.sequent)?;
         let forest = Forest::from_owned(sequent, limits)?;
         let nodes: Vec<Node> = self.nodes.into_iter().map(Node::from).collect();

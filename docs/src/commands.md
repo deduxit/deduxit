@@ -692,6 +692,11 @@ $ deduxit prove --format json "A |- A" | deduxit check --format json
 {"version":1,"verdict":"valid","mode":"classical"}
 ```
 
+A program reads the outcome back with the library: `let outcome:
+Outcome = serde_json::from_str(&text)?;` gives the verdict with its
+proof or disproof, the mode, the engine and the statistics. An engine a
+later version names reads as `Engine::Unknown`.
+
 `check` reads the proof from standard input, from its argument, or from
 `--file`, as the other commands read their input:
 

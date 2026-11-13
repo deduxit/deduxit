@@ -1003,7 +1003,9 @@ clock), and `Settings::default()` is the command's behaviour as data.
 search. `prove_within` with `settings.search`, `settings.limits` and
 that stop decides what the command decides.
 Every error is `deduxit::Error`, whose `code()` is the stable reason.
-A
+An `Outcome` reads back from the JSON `prove --format json` writes
+(`serde_json::from_str::<Outcome>`), its proof or disproof with it; an
+engine name a later version writes reads as `Engine::Unknown`. A
 `lambda::Term` prints with `Display` in the default notation, and
 `export::latex::to_string(&derivation, &options)` returns a derivation
 as LaTeX in one string, as `typst::to_string`, `svg::to_string` and

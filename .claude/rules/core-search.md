@@ -332,6 +332,14 @@ copies they had are gone (F103, F104).
   command cannot drift apart; it takes the elapsed time from the caller
   (`Fn`, so a race's shared stop is `Sync` when the clock is) and reads
   it only where it can fire.
+- **`Engine::Unknown` is an engine a later version ran**, read from an
+  outcome's document (serde's `#[serde(other)]` idiom, by hand in
+  `EngineRead`): an unknown name is read, never refused, so a new engine
+  needs no new wire level. Forced through `Options::engine` it is
+  `Error::UnknownName` in `prepare`, before `implementation`, whose arm
+  for it is unreachable; it is not in `ALL` or `NAMES`, lists no
+  counters, and `Engine`'s own `Deserialize` (an options value) still
+  refuses an unknown name.
 - **One interface every engine implements** (`Decide`, crate-private):
   `admits(&task)` refuses a goal with the error a forced engine answers,
   `Error::EngineRefused { engine, because: NotTaken }`, checking in this

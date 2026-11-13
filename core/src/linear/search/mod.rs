@@ -1302,6 +1302,13 @@ fn prepare<'a>(
         return Err(Error::OrderedFragment { fragment, mode });
     }
     let engine = match options.engine {
+        Some(Engine::Unknown) => {
+            return Err(Error::UnknownName {
+                what: "engine",
+                name: Engine::Unknown.name().into(),
+                known: Engine::NAMES,
+            });
+        }
         Some(engine) => engine,
         None => dispatch(&task)?,
     };
@@ -2182,6 +2189,12 @@ pub enum Engine {
     /// a choice of premises given up. So its work grows with its time,
     /// whatever the size of its sequents.
     Inverse,
+    /// An engine this version of the crate does not know: one a later
+    /// version ran, named in an outcome read from its document. No search
+    /// runs it, so forced through [`Options::engine`] it is refused
+    /// ([`Error::UnknownName`]); it lists no counters, is not in
+    /// [`ALL`](Self::ALL), and its name is `unknown`.
+    Unknown,
 }
 
 impl Display for Engine {
@@ -2554,11 +2567,13 @@ impl Engine {
             Self::Additive => ADDITIVE,
             Self::Horn => HORN,
             Self::Inverse => INVERSE,
+            Self::Unknown => &[],
         }
     }
 
     /// Returns the engine's name: `focus`, `net`, `two-sided`, `additive`,
-    /// `horn`, `essential` or `inverse`.
+    /// `horn`, `essential` or `inverse`, and `unknown` for
+    /// [`Unknown`](Self::Unknown).
     pub const fn name(self) -> &'static str {
         match self {
             Self::Focus => "focus",
@@ -2568,6 +2583,7 @@ impl Engine {
             Self::Horn => "horn",
             Self::Essential => "essential",
             Self::Inverse => "inverse",
+            Self::Unknown => "unknown",
         }
     }
 
@@ -2580,7 +2596,11 @@ impl Engine {
     pub const fn parallel(self) -> bool {
         match self {
             Engine::Focus | Engine::Net | Engine::TwoSided => true,
-            Engine::Additive | Engine::Horn | Engine::Essential | Engine::Inverse => false,
+            Engine::Additive
+            | Engine::Horn
+            | Engine::Essential
+            | Engine::Inverse
+            | Engine::Unknown => false,
         }
     }
 
@@ -2594,6 +2614,7 @@ impl Engine {
             Engine::Horn => &horn::Horn,
             Engine::Essential => &essential::Essentials,
             Engine::Inverse => &inverse::Inverse,
+            Engine::Unknown => unreachable!("the front door refuses an engine it does not know"),
         }
     }
 }
@@ -3195,7 +3216,7 @@ impl Options {
 /// # JSON
 ///
 /// With the feature `serialize`, an outcome is written as one object
-/// ([`wire`](crate::wire)), and never read. Its keys:
+/// ([`wire`](crate::wire)) and read back from it. Its keys:
 /// - `version`, and `deduxit`, the version of the crate that wrote it;
 /// - `verdict`: `"proved"`, `"unprovable"` or `"unknown"`;
 /// - `checked`, for a proved sequent;
@@ -3210,7 +3231,25 @@ impl Options {
 ///   `goal`, so that the outcome reads back as a [`Proof`];
 /// - for an unprovable one, the [`Disproof`]'s `sequent` and `goal`.
 ///
-/// The command's `prove --format json` writes it.
+/// The command's `prove --format json` writes it. Reading checks every
+/// index the proof or the disproof names, not the proof or the
+/// refutation: [`Proof::check`] and [`Disproof::check`] do that. An engine
+/// name this version does not know reads as [`Engine::Unknown`], the
+/// `deduxit` key is not read, `checked` is false where it is missing, and
+/// [`net`](Self::net) is `None`.
+///
+#[cfg_attr(all(feature = "parse", feature = "serialize"), doc = "```")]
+#[cfg_attr(not(all(feature = "parse", feature = "serialize")), doc = "```ignore")]
+/// use deduxit::linear::{Mode, Outcome, Sequent, prove, search::Options};
+///
+/// let sequent: Sequent = "A |- A".parse()?;
+/// let text = serde_json::to_string(&prove(&sequent, Mode::CLASSICAL, &Options::default())?)?;
+/// let outcome: Outcome = serde_json::from_str(&text)?;
+/// if let Some(proof) = outcome.verdict.proof() {
+///     proof.check(outcome.mode)?;
+/// }
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 ///
 /// # Examples
 ///
@@ -3246,7 +3285,8 @@ pub struct Outcome {
     pub net: Option<Box<ProofStructure>>,
     /// Whether the proof passed the checker before it was returned. It is
     /// false only where [`Options::check`] switched the check off, and for
-    /// every verdict but a proof.
+    /// every verdict but a proof. In an outcome read from a document it is
+    /// what the document says: [`Proof::check`] checks the proof.
     pub checked: bool,
 }
 
@@ -3867,6 +3907,8 @@ mod tests {
             Engine::Horn => 4,
             Engine::Essential => 5,
             Engine::Inverse => 6,
+            // Not listed: no search runs it.
+            Engine::Unknown => usize::MAX,
         };
         let bias_at = |bias| match bias {
             Bias::Auto => 0,

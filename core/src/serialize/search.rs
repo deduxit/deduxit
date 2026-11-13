@@ -1,7 +1,7 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-use super::proofs::Proof;
+use super::proofs::{Instances, Proof, Step};
 use super::sequents::Sequent as SequentForm;
 use crate::limits::{Limits, Space};
 use crate::linear::fragment::{Fragment, Mode};
@@ -693,6 +693,138 @@ impl Serialize for Out {
             disproof,
         }
         .serialize(serializer)
+    }
+}
+
+/// The verdict of an outcome read, by its word.
+#[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum VerdictWord {
+    /// `proved`.
+    Proved,
+    /// `unprovable`.
+    Unprovable,
+    /// `unknown`.
+    Unknown,
+}
+
+/// An engine's name in an outcome read: an engine of this build, or
+/// [`Engine::Unknown`] for a name a later version wrote.
+struct EngineRead(Engine);
+
+impl<'a> Deserialize<'a> for EngineRead {
+    /// Reads a name, never refusing one this build does not know.
+    fn deserialize<D: Deserializer<'a>>(deserializer: D) -> Result<Self, D::Error> {
+        let name = <std::borrow::Cow<'a, str>>::deserialize(deserializer)?;
+        Ok(Self(name.parse().unwrap_or(Engine::Unknown)))
+    }
+}
+
+/// The keys an outcome is read from: those [`Outcome`] writes, the proof's
+/// and the disproof's together, each present for its verdict. Other keys
+/// (`deduxit`, the writer's version) are ignored, as a data form ignores
+/// them.
+#[derive(Deserialize)]
+struct OutcomeForm {
+    /// The wire level.
+    #[serde(default, deserialize_with = "wire::version")]
+    #[expect(dead_code, reason = "read for its check of the level alone")]
+    version: Option<u32>,
+    /// `proved`, `unprovable` or `unknown`.
+    verdict: VerdictWord,
+    /// Whether the proof passed the checker, for `proved`.
+    #[serde(default)]
+    checked: Option<bool>,
+    /// Why the search could not decide, for `unknown`.
+    #[serde(default)]
+    reason: Option<Why>,
+    /// Why the sequent is unprovable, for `unprovable`.
+    #[serde(default)]
+    refutation: Option<WhyNot>,
+    /// The fragment searched in.
+    fragment: Fragment,
+    /// The mode searched in.
+    mode: Mode,
+    /// The engine that ran.
+    engine: EngineRead,
+    /// What the search cost.
+    statistics: Statistics,
+    /// The sequent of the proof or the disproof.
+    #[serde(default)]
+    sequent: Option<SequentForm>,
+    /// The proof's nodes.
+    #[serde(default)]
+    nodes: Option<Vec<Step>>,
+    /// The goal off the roots, of the proof or the disproof.
+    #[serde(default)]
+    goal: Option<Vec<u32>>,
+    /// The proof's instance table.
+    #[serde(default)]
+    instances: Option<Instances>,
+}
+
+impl OutcomeForm {
+    /// Rebuilds the outcome the form holds: its proof or disproof as
+    /// [`Proof`]'s and [`Disproof`]'s readers rebuild them, within
+    /// `limits`.
+    fn within(self, limits: &Limits) -> Result<Out, crate::Error> {
+        let missing = |key: &str| crate::Error::Json {
+            form: "outcome",
+            message: format!("missing field `{key}`"),
+        };
+        let verdict = match self.verdict {
+            VerdictWord::Proved => {
+                let sequent = self.sequent.ok_or_else(|| missing("sequent"))?;
+                let nodes = self.nodes.ok_or_else(|| missing("nodes"))?;
+                let proof = Proof::of_keys(sequent, nodes, self.mode, self.goal, self.instances);
+                Verdict::Proved(Box::new(proof.within(limits)?))
+            }
+            VerdictWord::Unprovable => {
+                let disproof = DisproofForm {
+                    version: None,
+                    sequent: self.sequent.ok_or_else(|| missing("sequent"))?,
+                    mode: self.mode,
+                    refutation: self.refutation.ok_or_else(|| missing("refutation"))?,
+                    goal: self.goal,
+                };
+                Verdict::Unprovable(Box::new(disproof.within(limits)?))
+            }
+            VerdictWord::Unknown => {
+                Verdict::Unknown(self.reason.ok_or_else(|| missing("reason"))?.into())
+            }
+        };
+        let checked = matches!(verdict, Verdict::Proved(_)) && self.checked.unwrap_or(false);
+        Ok(Out {
+            verdict,
+            fragment: self.fragment,
+            mode: self.mode,
+            engine: self.engine.0,
+            statistics: self.statistics,
+            net: None,
+            checked,
+        })
+    }
+}
+
+impl<'a> Deserialize<'a> for Out {
+    /// Deserializes an outcome within the default limits, as
+    /// [`wire::upgrade`] does.
+    fn deserialize<D: Deserializer<'a>>(deserializer: D) -> Result<Self, D::Error> {
+        Self::read(deserializer, &Limits::default())
+    }
+}
+
+impl crate::sealed::Readable for Out {}
+
+impl Readable for Out {
+    const FORM: &'static str = "outcome";
+
+    /// Reads an outcome: its proof or disproof as their own readers read
+    /// them, every index checked, neither the proof nor the refutation.
+    fn read<'de, D: Deserializer<'de>>(deserializer: D, limits: &Limits) -> Result<Self, D::Error> {
+        OutcomeForm::deserialize(deserializer)?
+            .within(limits)
+            .map_err(wire::fail)
     }
 }
 

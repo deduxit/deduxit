@@ -22,7 +22,10 @@
 use deduxit::wire::{self, Readable};
 use deduxit::{
     Limits,
-    linear::{Disproof, IllSequent, Interactive, MellStructure, Proof, ProofStructure, Sequent},
+    linear::{
+        Disproof, Engine, IllSequent, Interactive, MellStructure, Outcome, Proof, ProofStructure,
+        Sequent,
+    },
 };
 
 /// Reads one document of the form `T`.
@@ -62,7 +65,8 @@ fn the_first_release_reads() {
             "outcome" if verdict("unprovable") => {
                 let _: Disproof = read(name, json);
             }
-            // An unknown outcome is written only.
+            // An unknown outcome holds no proof or disproof;
+            // `outcomes_read_back` reads it as an outcome.
             "outcome" => continue,
             other => panic!("{name}: no form {other}"),
         }
@@ -229,4 +233,40 @@ fn the_eighth_level_reads() {
         }
     }
     assert_eq!(lines.lines().count(), 3);
+}
+
+/// Every outcome the JSON lock holds (each verdict, refutation and reason,
+/// at levels 1 and 2) reads as an `Outcome` and writes the same bytes
+/// again; one the first release wrote reads too, as does an engine this
+/// build does not know.
+#[test]
+fn outcomes_read_back() {
+    let mut levels = std::collections::BTreeSet::new();
+    for line in include_str!("lock/json.txt").lines() {
+        let (name, json) = line.split_once(": ").unwrap();
+        if name.starts_with("outcome-") {
+            again::<Outcome>(name, json);
+            let level: serde_json::Value = serde_json::from_str(json).unwrap();
+            levels.insert(level["version"].as_u64().unwrap());
+        }
+    }
+    assert_eq!(levels.into_iter().collect::<Vec<_>>(), [1, 2]);
+    for line in include_str!("wire/level-1.txt").lines() {
+        let (name, json) = line.split_once(": ").unwrap();
+        if name.starts_with("outcome-") {
+            let _: Outcome = read(name, json);
+        }
+    }
+
+    let (name, json) = include_str!("lock/json.txt")
+        .lines()
+        .find_map(|line| {
+            line.split_once(": ")
+                .filter(|(name, _)| *name == "outcome-mll")
+        })
+        .unwrap();
+    let later = json.replace(r#""engine":"focus""#, r#""engine":"sat""#);
+    assert_ne!(later, json);
+    let outcome: Outcome = read(name, &later);
+    assert_eq!(outcome.engine, Engine::Unknown);
 }

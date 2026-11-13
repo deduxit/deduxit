@@ -166,7 +166,7 @@
 //!   "steps": [{"cut": 7, "formula": 9, "case": "tensor_par"}, …],
 //!   "end": "cut_free"}`, or `"end": "refused"` with the `reason` in an
 //!   error's form; see [`Elimination`](crate::linear::proofs::cut::Elimination).
-//! - **Outcome** (written only): `{"version": 1, "deduxit": "0.1.0",
+//! - **Outcome**: `{"version": 1, "deduxit": "0.1.0",
 //!   "verdict": "proved", "checked": true, "fragment": "MLL", "mode":
 //!   "classical", "engine": "net", "statistics": {…}, "sequent": {…},
 //!   "nodes": […]}`, a proof's keys for `proved` and a disproof's for

@@ -451,7 +451,14 @@ same test file:
   key reads `linlog` as its alias. `core/tests/wire/` keeps documents as
   the old versions wrote them, `linlog` key and all: never rename it
   there.
-- `Outcome` serializes only (it is output): `version`, `deduxit` (the
+- `Outcome` is written and read back (`OutcomeForm`, a `wire::Readable`
+  of form `outcome`): the proof through `Proof`'s reader (`of_keys`, the
+  outcome's mode recorded), the disproof through `DisproofForm`'s, the
+  reason through `Why`; the engine by name, an unknown one as
+  `Engine::Unknown`; `deduxit` is not read, `checked` is false where it
+  is missing, `net` is `None`. `outcomes_read_back` in
+  `core/tests/stability.rs` writes every outcome of the lock back byte
+  for byte. The written keys: `version`, `deduxit` (the
   crate's version; the command's lock and README's test read it as `…`),
   `verdict` (`proved`, `unprovable`, `unknown`), `checked` for `proved`
   (`Outcome::checked`), `reason` for `unknown` (tagged by `kind`:
