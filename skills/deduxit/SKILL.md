@@ -34,7 +34,7 @@ provable (MLL, classical, focus engine)
   ──────────────── ⅋
   ⊢ ~A ⅋ ~B, B ⊗ A
 $ deduxit prove -q "A |- B"; echo "exit $?"
-unprovable (MLL, classical, focus engine): ~A occurs 1 more time than A in the one-sided sequent, so they cannot all meet in axioms
+unprovable (MLL, classical, focus engine): A on the left has no A on the right to meet in an axiom
 exit 1
 $ deduxit prove -q --copies 1 "!(A & B) |- A * B"; echo "exit $?"
 unknown (LL, classical, focus engine): the copy bound of 1 was reached after 3.56ms; raise it with --copies N, or lift it with --copies none to deepen it while the time limit lasts

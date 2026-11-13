@@ -11,11 +11,13 @@ use crate::show::{
 };
 use crate::{Status, catch_interrupt, interrupted};
 use anyhow::{Context, Result, bail};
-use deduxit::linear::search::{Engine, Goal, Options, Outcome, Reason, Verdict, prove_goal, race};
+use deduxit::linear::search::{
+    Disproof, Engine, Goal, Options, Outcome, Reason, Refutation, Verdict, prove_goal, race,
+};
 use deduxit::ordinary::{Image, Method};
 use deduxit::{
     Clock, Error, Limits, Progress, Settings,
-    linear::{CheckError, Forest, Sequent},
+    linear::{Atom, CheckError, Forest, Sequent, Term, sequents::Visit},
 };
 use std::fmt::Write;
 use std::thread;
@@ -461,10 +463,85 @@ pub(crate) fn verdict_line(outcome: &Outcome, asserted: bool, ended: &Ended) -> 
     );
     match &outcome.verdict {
         Verdict::Proved(_) => format!("provable ({context})"),
-        Verdict::Unprovable(refutation) => format!("unprovable ({context}): {refutation}"),
+        Verdict::Unprovable(disproof) => {
+            format!(
+                "unprovable ({context}): {disproof}{}",
+                affine_note(disproof)
+            )
+        }
         Verdict::Unknown(reason) => {
             format!("unknown ({context}): {}", unknown(*reason, outcome, ended))
         }
+    }
+}
+
+/// Returns whether an atom of `sequent` occurs more often right of `⊢`
+/// than left of it, which no unused hypothesis explains: counted over the
+/// roots as written, both sides of an additive counted, a positive
+/// literal right of `⊢` and a negative one left of it, the atoms
+/// `together` picks counted as one.
+fn right_surplus(sequent: &Sequent, together: &dyn Fn(Atom) -> bool) -> bool {
+    let atoms = sequent.atom_names().len();
+    // One excess per atom, and the last for the atoms counted together;
+    // each is at most the occurrences, which an `i64` holds.
+    let mut excess = vec![0_i64; atoms + 1];
+    for &root in sequent.roots() {
+        for visit in sequent.walk(root) {
+            let Visit::Enter(t) = visit else { continue };
+            let (atom, sign) = match sequent.term(t) {
+                Term::Atom(a) => (a, 1),
+                Term::DualAtom(a) => (a, -1),
+                _ => continue,
+            };
+            excess[if together(atom) { atoms } else { atom.index() }] += sign;
+        }
+    }
+    excess.iter().any(|&e| e > 0)
+}
+
+/// Returns what follows a refutation that weakening answers: where a
+/// sequent written with hypotheses is refuted as a whole outside affine
+/// mode, because an atom occurs more often left of `⊢` than right of it
+/// and a hypothesis is that atom, that `-a` lets a hypothesis go unused.
+fn affine_note(disproof: &Disproof) -> &'static str {
+    let (mode, sequent) = (disproof.mode(), disproof.sequent());
+    let hypotheses = sequent.antecedents().map_or(0, |n| n as usize);
+    let hypotheses = &sequent.roots()[..hypotheses.min(sequent.roots().len())];
+    // A hypothesis is held negated, so the hypothesis `a` is `~a`.
+    let is_hypothesis = |counted: &dyn Fn(Atom) -> bool| {
+        hypotheses
+            .iter()
+            .any(|&root| matches!(sequent.term(root), Term::DualAtom(a) if counted(a)))
+    };
+    // The excess is of positive over negative literals, and a negative
+    // one counts left of `⊢`.
+    let surplus = match disproof.refutation() {
+        Refutation::Unbalanced(unbalanced) => {
+            unbalanced.most < 0 && is_hypothesis(&|a| a == unbalanced.atom)
+        }
+        Refutation::UnbalancedSymbol(unbalanced) => {
+            unbalanced.most < 0
+                && is_hypothesis(&|a| {
+                    sequent
+                        .atom_predicate(a)
+                        .is_some_and(|(symbol, _)| symbol == unbalanced.symbol)
+                })
+        }
+        _ => false,
+    };
+    let unfixed = || match disproof.refutation() {
+        Refutation::UnbalancedSymbol(unbalanced) => right_surplus(sequent, &|a| {
+            sequent
+                .atom_predicate(a)
+                .is_some_and(|(symbol, _)| symbol == unbalanced.symbol)
+        }),
+        _ => right_surplus(sequent, &|_| false),
+    };
+    if surplus && disproof.goal().is_none() && !mode.is_affine() && !mode.is_ordered() && !unfixed()
+    {
+        "; with -a (affine), an unused hypothesis is allowed"
+    } else {
+        ""
     }
 }
 

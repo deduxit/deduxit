@@ -7,7 +7,7 @@
 
 use crate::linear::fragment::Mode;
 use crate::linear::occurrences::{Member, OccId, Sign};
-use crate::linear::sequents::{Atom, Sequent, Symbol};
+use crate::linear::sequents::{Atom, Sequent, Symbol, Term};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 /// Why a sequent is unprovable.
@@ -23,7 +23,10 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 /// (`#0`); a disproof's writes them by name. For a goal other than the
 /// sequent's roots, the "one-sided sequent" a count speaks of is the goal.
 /// Its members are counted as written, even where they lie below an
-/// exponential of the sequent.
+/// exponential of the sequent. A disproof of a classical sequent written
+/// with formulas left of `⊢` speaks of its sides instead: `a` counts
+/// right of `⊢` and `~a` left of it, as in `a on the left has no a on the
+/// right to meet in an axiom`.
 ///
 /// In JSON (feature `serialize`), a refutation is tagged by `kind`. It is
 /// the `refutation` of an unprovable outcome and of a disproof:
@@ -320,15 +323,24 @@ impl Refutation {
 
     /// Writes the refutation as a phrase. Each atom and predicate is
     /// written by its name in `sequent`, or by its number where there is
-    /// no sequent. An `intuitionistic` sequent is described in its
-    /// two-sided terms: an atom's occurrences are positive right of `⊢`
-    /// and negative left of it.
-    fn write(
-        &self,
-        f: &mut Formatter<'_>,
-        sequent: Option<&Sequent>,
-        intuitionistic: bool,
-    ) -> FmtResult {
+    /// no sequent. The literals of a count are spoken of in the `sides`
+    /// the sequent is read with.
+    fn write(&self, f: &mut Formatter<'_>, sequent: Option<&Sequent>, sides: Sides) -> FmtResult {
+        let intuitionistic = sides == Sides::Intuitionistic;
+        // The wording of a count: two-sided where the sequent was written
+        // with hypotheses, with where the counted literals lie.
+        let words = |counted: &dyn Fn(Atom) -> bool, least: i32| match (sides, sequent) {
+            (Sides::Two, Some(sequent)) => Words::Two(placed(sequent, counted, least > 0)),
+            (Sides::Intuitionistic, _) => Words::Intuitionistic,
+            (Sides::One | Sides::Two, _) => Words::One,
+        };
+        let of_symbol = |symbol: Symbol| {
+            move |a: Atom| {
+                sequent
+                    .and_then(|s| s.atom_predicate(a))
+                    .is_some_and(|(s, _)| s == symbol)
+            }
+        };
         let names = sequent.map(Sequent::atom_names);
         let name = |atom: Atom| match names.and_then(|names| names.get(atom.index())) {
             Some(name) => name.clone(),
@@ -352,7 +364,7 @@ impl Refutation {
                 *least,
                 *most,
                 (None, true),
-                intuitionistic,
+                words(&of_symbol(*symbol), *least),
             ),
             Refutation::OneSidedSymbol(OneSidedSymbol {
                 symbol,
@@ -365,7 +377,7 @@ impl Refutation {
                 *least,
                 *most,
                 (Some(*copied), true),
-                intuitionistic,
+                words(&of_symbol(*symbol), *least),
             ),
             Refutation::Exhausted => f.write_str("the search was exhaustive"),
             Refutation::Unbalanced(Unbalanced { atom, least, most }) => write_unbalanced(
@@ -374,7 +386,7 @@ impl Refutation {
                 *least,
                 *most,
                 (None, false),
-                intuitionistic,
+                words(&|a| a == *atom, *least),
             ),
             Refutation::OneSided(OneSided {
                 atom,
@@ -387,7 +399,7 @@ impl Refutation {
                 *least,
                 *most,
                 (Some(*copied), false),
-                intuitionistic,
+                words(&|a| a == *atom, *least),
             ),
             Refutation::Equation(Equation {
                 formulas,
@@ -508,20 +520,107 @@ fn list(names: &[String]) -> String {
     }
 }
 
+/// How a refutation's phrase speaks of the sides of `⊢`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Sides {
+    /// Of the one-sided sequent: an atom and its negation.
+    One,
+    /// Of a classical sequent written with formulas left of `⊢`: an atom
+    /// left and right of it.
+    Two,
+    /// Of an intuitionistic sequent: an atom's positive and negative
+    /// occurrences.
+    Intuitionistic,
+}
+
+/// The wording of a count of literals, as [`Sides`] picks it.
+#[derive(Clone, Copy, Debug)]
+enum Words {
+    /// One-sided.
+    One,
+    /// Two-sided, with where the counted literals lie.
+    Two(Placed),
+    /// Intuitionistic.
+    Intuitionistic,
+}
+
+/// Where the literals of a count lie in a classical sequent written with
+/// formulas left of `⊢`, a positive literal counting as right of it and a
+/// negative one as left.
+#[derive(Clone, Copy, Debug)]
+struct Placed {
+    /// The side with fewer of them has none.
+    fewer_absent: bool,
+    /// One counts on the other side than the formula it stands in: it is
+    /// negated, or an implication's antecedent.
+    crossed: bool,
+}
+
+/// Returns where the literals of the atoms `counted` picks lie among the
+/// roots of `sequent`, the positive ones being the more where
+/// `more_right` is set.
+fn placed(sequent: &Sequent, counted: &dyn Fn(Atom) -> bool, more_right: bool) -> Placed {
+    /// A positive literal below a term: right of `⊢`.
+    const RIGHT: u8 = 1;
+    /// A negative literal below a term: left of `⊢`.
+    const LEFT: u8 = 2;
+    // A pass over the arena, whose terms refer only to terms before them:
+    // the sides of the counted literals below each term.
+    let mut below: Vec<u8> = Vec::with_capacity(sequent.terms().len());
+    for term in sequent.terms() {
+        let bits = match *term {
+            Term::Atom(a) => {
+                if counted(a) {
+                    RIGHT
+                } else {
+                    0
+                }
+            }
+            Term::DualAtom(a) => {
+                if counted(a) {
+                    LEFT
+                } else {
+                    0
+                }
+            }
+            Term::One | Term::Bot | Term::Top | Term::Zero => 0,
+            Term::Tensor(a, b) | Term::Par(a, b) | Term::With(a, b) | Term::Plus(a, b) => {
+                below[a.index()] | below[b.index()]
+            }
+            Term::Bang(a) | Term::Quest(a) | Term::Forall(a) | Term::Exists(a) => below[a.index()],
+        };
+        below.push(bits);
+    }
+    let antecedents = sequent.antecedents().map_or(0, |n| n as usize);
+    let (mut all, mut crossed) = (0, false);
+    for (i, root) in sequent.roots().iter().enumerate() {
+        let bits = below[root.index()];
+        all |= bits;
+        // A hypothesis is held negated, so a literal of its own side is
+        // negative; a positive one below it was negated or an antecedent.
+        crossed |= bits & if i < antecedents { RIGHT } else { LEFT } != 0;
+    }
+    Placed {
+        fewer_absent: all & if more_right { LEFT } else { RIGHT } == 0,
+        crossed,
+    }
+}
+
 /// Writes why the literals of the atom `name` cannot all meet in axioms:
 /// one literal outnumbers the other between `least` and `most` times.
 /// Where `copied` is given, the count is outside the exponentials, and
 /// every literal below one has that sign. Where `predicate` is set, the
-/// count is over every atom of a predicate. An `intuitionistic` sequent
-/// is described by its positive and negative occurrences, its atoms right
-/// and left of `⊢`.
+/// count is over every atom of a predicate. The `words` say how: of the
+/// one-sided sequent; of a two-sided classical one, with the atom left and
+/// right of `⊢`; or of an intuitionistic one, by its positive and
+/// negative occurrences, its atoms right and left of `⊢`.
 fn write_unbalanced(
     f: &mut Formatter<'_>,
     name: &str,
     least: i32,
     most: i32,
     (copied, predicate): (Option<Sign>, bool),
-    intuitionistic: bool,
+    words: Words,
 ) -> FmtResult {
     let over = if predicate {
         ", every atom of the predicate counted, since one has a bound variable"
@@ -541,7 +640,44 @@ fn write_unbalanced(
     } else {
         ", whichever additive alternatives a proof takes"
     };
-    if intuitionistic {
+    if let Words::Two(placed) = words {
+        // A positive literal counts as right of `⊢`.
+        let (more, fewer) = if least > 0 {
+            ("right", "left")
+        } else {
+            ("left", "right")
+        };
+        let crossed = if placed.crossed {
+            " (a negated formula or an implication's antecedent counts on the other side)"
+        } else {
+            ""
+        };
+        if copied.is_none() && placed.fewer_absent {
+            return write!(
+                f,
+                "{name} on the {more} has no {name} on the {fewer} to meet in an axiom{over}{crossed}"
+            );
+        }
+        let (place, copies) = match copied {
+            Some(sign) => (
+                " outside the exponentials",
+                format!(
+                    ", and every occurrence of it below one, which copies add, is on the {}",
+                    match sign {
+                        Sign::Atom => "right",
+                        Sign::Dual => "left",
+                    }
+                ),
+            ),
+            None => ("", String::new()),
+        };
+        return write!(
+            f,
+            "{name} occurs {excess} more {times} on the {more} than on the {fewer}{place}\
+             {alternatives}{copies}{over}, so they cannot all meet in axioms{crossed}",
+        );
+    }
+    if matches!(words, Words::Intuitionistic) {
         // An atom in output position is the positive literal.
         let (more, fewer) = if least > 0 {
             ("positively", "negatively")
@@ -602,7 +738,7 @@ impl Display for Refutation {
     /// Writes the refutation as a phrase, such as `the search was
     /// exhaustive`, with every atom by its number, as in `#0`.
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        self.write(f, None, false)
+        self.write(f, None, Sides::One)
     }
 }
 
@@ -701,10 +837,18 @@ impl Disproof {
 
 impl Display for Disproof {
     /// Writes the refutation as a phrase, with every atom by its name. In
-    /// an intuitionistic mode it uses the sequent's two-sided terms.
+    /// an intuitionistic mode it uses the sequent's two-sided terms, and
+    /// so does a count of a classical sequent written with formulas left
+    /// of `⊢`, refuted as a whole: an atom left and right of `⊢`.
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        self.refutation
-            .write(f, Some(&self.sequent), self.mode.is_intuitionistic())
+        let sides = if self.mode.is_intuitionistic() {
+            Sides::Intuitionistic
+        } else if self.goal.is_none() && self.sequent.antecedents().is_some_and(|n| n > 0) {
+            Sides::Two
+        } else {
+            Sides::One
+        };
+        self.refutation.write(f, Some(&self.sequent), sides)
     }
 }
 
@@ -1709,5 +1853,40 @@ mod tests {
                 "{input}"
             );
         }
+    }
+
+    /// A classical disproof of a sequent written with formulas left of
+    /// `⊢` speaks of its sides: an atom with no partner on the other side,
+    /// an excess counted left and right, and a note where a literal counts
+    /// on the other side than its formula. One written `⊢ Γ`, a goal
+    /// within the sequent and the JSON form keep the one-sided wording.
+    #[test]
+    fn a_two_sided_sequent_is_refuted_by_its_sides() {
+        let classical = Mode::CLASSICAL;
+        for (input, phrase) in [
+            (
+                "a |- b",
+                "a on the left has no a on the right to meet in an axiom",
+            ),
+            (
+                "a, a, a |- a",
+                "a occurs 2 more times on the left than on the right, so they cannot all meet in \
+                 axioms",
+            ),
+            (
+                "b, ~a |- b",
+                "a on the right has no a on the left to meet in an axiom (a negated formula or an \
+                 implication's antecedent counts on the other side)",
+            ),
+            (
+                "|- ~a, b",
+                "~a occurs 1 more time than a in the one-sided sequent, so they cannot all meet in \
+                 axioms",
+            ),
+        ] {
+            assert_eq!(refuted(input, classical).to_string(), phrase, "{input}");
+        }
+        let goal = refuted("a |- b", classical).of_goal(Box::new([]));
+        assert!(goal.to_string().contains("one-sided"), "{goal}");
     }
 }

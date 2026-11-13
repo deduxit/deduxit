@@ -73,7 +73,7 @@ provable (MLL, classical, focus engine)
 ──────────────────── ⊗
   ⊢ ~A, A ⊗ ~B, B
 $ deduxit prove "A |- B"
-unprovable (MLL, classical, focus engine): ~A occurs 1 more time than A in the one-sided sequent, so they cannot all meet in axioms
+unprovable (MLL, classical, focus engine): A on the left has no A on the right to meet in an axiom
 ```
 
 The verdict, the fragment the sequent lives in and the engine that

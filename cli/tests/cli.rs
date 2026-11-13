@@ -1912,8 +1912,8 @@ fn batch_inputs_and_exit_status() {
     assert_eq!(
         out,
         format!(
-            "{d}/a.json: unprovable (MLL, classical, focus engine): ~A occurs 1 more time than A \
-             in the one-sided sequent, so they cannot all meet in axioms\n\
+            "{d}/a.json: unprovable (MLL, classical, focus engine): A on the left has no A on \
+             the right to meet in an axiom\n\
              {d}/b/x.p: provable (MLL, classical, focus engine)\n"
         )
     );
@@ -2291,8 +2291,8 @@ fn check_s_verdicts() {
         (status, out.as_str()),
         (
             0,
-            "valid refutation of ⊢ ~a, b (classical): ~a occurs 1 more time than a in the \
-             one-sided sequent, so they cannot all meet in axioms\n"
+            "valid refutation of a ⊢ b (classical): a on the left has no a on the right to \
+             meet in an axiom\n"
         )
     );
     let wrong = outcome.replace(r#""least":-1,"most":-1"#, r#""least":-1,"most":0"#);
@@ -3128,4 +3128,25 @@ fn newcomer_errors_say_what_to_write() {
         (status, out.as_str()),
         (0, "% provable (MLL, classical, focus engine)\n")
     );
+}
+
+/// A refutation names `-a` where an unused hypothesis explains it: a
+/// hypothesis is the atom left over and no atom is missing right of `⊢`.
+/// `A |- B` lacks a `B` that weakening cannot give, `|- ~B, A, ~A` has
+/// no hypothesis, and affine mode needs no note.
+#[test]
+fn an_unused_hypothesis_names_affine_mode() {
+    let note = "; with -a (affine), an unused hypothesis is allowed\n";
+    for (args, named) in [
+        (&["prove", "-q", "A, B |- A"][..], true),
+        (&["prove", "-q", "-i", "A, B |- A"], true),
+        (&["prove", "-q", "A |- B"], false),
+        (&["prove", "-q", "|- ~B, A, ~A"], false),
+        (&["prove", "-q", "-a", "A |- B"], false),
+    ] {
+        let (status, out, _) = deduxit(args, "");
+        assert_eq!((status, out.ends_with(note)), (1, named), "{args:?}: {out}");
+    }
+    let (status, _, _) = deduxit(&["prove", "-q", "-a", "A, B |- A"], "");
+    assert_eq!(status, 0);
 }

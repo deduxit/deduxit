@@ -141,7 +141,7 @@ deduxit's library ([Rocq certificates](rocq.md)). The verdicts and the bounds:
 <!-- readme-check: machine -->
 ```console
 $ deduxit prove "forall x. p(x), p(a) |- p(b)"; echo "exit $?"
-unprovable (MLL1, classical, focus engine): ~p(…) occurs 1 more time than p(…) in the one-sided sequent, every atom of the predicate counted, since one has a bound variable, so they cannot all meet in axioms
+unprovable (MLL1, classical, focus engine): p(…) occurs 1 more time on the left than on the right, every atom of the predicate counted, since one has a bound variable, so they cannot all meet in axioms; with -a (affine), an unused hypothesis is allowed
 exit 1
 $ deduxit prove --copies 2 "p(z), !forall x. (p(x) -o p(s(x))) |- p(s(s(z)))" | head -1
 provable (MELL1, classical, focus engine)

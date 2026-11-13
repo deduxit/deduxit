@@ -21,14 +21,14 @@ $ cat > sequents.txt
 $ deduxit prove --input-format lines --file sequents.txt
 identity: provable (MLL, classical, focus engine)
 modus ponens: provable (MLL, classical, focus engine)
-sequents.txt:4: unprovable (MLL, classical, focus engine): ~A occurs 1 more time than A in the one-sided sequent, so they cannot all meet in axioms
+sequents.txt:4: unprovable (MLL, classical, focus engine): A on the left has no A on the right to meet in an axiom
 broken: error: cannot parse the sequent
    A |- (
          ^ unexpected end of input, expected a formula
 $ deduxit prove --input-format lines --file sequents.txt --format svg --output drawings
 identity: provable (MLL, classical, focus engine)
 modus ponens: provable (MLL, classical, focus engine)
-sequents.txt:4: unprovable (MLL, classical, focus engine): ~A occurs 1 more time than A in the one-sided sequent, so they cannot all meet in axioms
+sequents.txt:4: unprovable (MLL, classical, focus engine): A on the left has no A on the right to meet in an axiom
 broken: error: cannot parse the sequent
    A |- (
          ^ unexpected end of input, expected a formula

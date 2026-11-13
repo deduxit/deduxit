@@ -14,7 +14,7 @@ use crate::{Status, exit_on_interrupt, interrupted};
 use anyhow::{Context, Result, anyhow, bail};
 use deduxit::{
     Error, ErrorKind, Limits,
-    linear::{CheckError, Disproof, Forest, Mode, Proof, Reading},
+    linear::{CheckError, ClassicalSequent, Disproof, Forest, Mode, Proof, Reading},
 };
 use std::time::Instant;
 
@@ -201,7 +201,19 @@ fn check_disproof(
         Some(Err(error)) if error.kind() == ErrorKind::Invalid => Status::No,
         Some(Err(_)) | None => Status::Unknown,
     };
-    let sequent = shown_sequent(disproof.sequent(), mode, show);
+    // A classical sequent written with hypotheses is shown so, as the
+    // disproof's phrase speaks of its sides.
+    let two_sided = !mode.is_intuitionistic()
+        && disproof.sequent().antecedents().is_some_and(|n| n > 0)
+        && disproof.goal().is_none();
+    let sequent = match two_sided
+        .then(|| ClassicalSequent::read_one_sided(disproof.sequent().clone(), &Limits::default()))
+    {
+        Some(Ok(written)) => {
+            abbreviated(&written, show.abbreviate, disproof.sequent().roots().len())
+        }
+        _ => shown_sequent(disproof.sequent(), mode, show),
+    };
     let line = match &result {
         Some(Ok(())) => format!("valid refutation of {sequent} ({mode}): {disproof}"),
         Some(Err(error)) if status == Status::No => {

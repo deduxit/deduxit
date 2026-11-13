@@ -32,9 +32,11 @@ provable (ALL, classical, additive engine)
 $ deduxit prove "|- A par B, ~A, ~B"
 unprovable (MLL, classical, focus engine): the count equation fails: a provable one-sided sequent of MLL has exactly #⊗ − #⅋ − #1 + #⊥ + 2 formulas, here 0 − 1 − 0 + 0 + 2 = 1, and this one has 3
 $ deduxit prove "A |- B"
-unprovable (MLL, classical, focus engine): ~A occurs 1 more time than A in the one-sided sequent, so they cannot all meet in axioms
+unprovable (MLL, classical, focus engine): A on the left has no A on the right to meet in an axiom
 $ deduxit prove "!A, A |- 1"
-unprovable (MELL, classical, horn engine): ~A occurs 1 more time than A outside the exponentials of the one-sided sequent, and every literal of the atom below one, which copies add, is ~A, so they cannot all meet in axioms
+unprovable (MELL, classical, horn engine): A occurs 1 more time on the left than on the right outside the exponentials, and every occurrence of it below one, which copies add, is on the left, so they cannot all meet in axioms
+$ deduxit prove "A, B |- A"
+unprovable (MLL, classical, focus engine): B on the left has no B on the right to meet in an axiom; with -a (affine), an unused hypothesis is allowed
 ```
 
 An unprovable verdict says why where the counts of the sequent tell: an
@@ -44,8 +46,13 @@ additive alternatives a proof takes, and however often a formula under
 sign), or the count equation of the multiplicatives; from the inverse
 method below, the sequents its saturation ended in, closed under the
 rules, which are checked apart from the search as a proof is; otherwise
-it says that the search was exhaustive. The
-JSON output carries the same as `refutation`.
+it says that the search was exhaustive. Of a sequent written with
+formulas left of `⊢`, the counts speak of its two sides, `A` right of
+`⊢` meeting `A` left of it (a negated formula or an implication's
+antecedent counts on the other side); where a hypothesis is the atom
+left over and nothing is missing on the right, the line adds that `-a`
+lets a hypothesis go unused. The
+JSON output carries the same as `refutation`, one-sided.
 
 Four engines serve classical logic: for two additive-only formulas the
 *additive engine* recurses on pairs of subformulas; for a Horn program
@@ -733,7 +740,7 @@ for, or at the time limit:
 $ deduxit prove -i --format json "a, a -o b, !(b -o b * c), !(b -o d) |- b * d" | deduxit check
 valid refutation of a, a ⊸ b, !(b ⊸ (b ⊗ c)), !(b ⊸ d) ⊢ b ⊗ d (intuitionistic): the state equation of the Petri net has no solution, so no firing of its clauses yields the goal's atoms: weighting each a by 2, b by 1, d by 1 and the clauses used once by weights of their own, no clause that can fire raises the weighted count of the atoms, and the goal asks it raised
 $ deduxit prove --format json "A & B |- A * B" | deduxit check; echo "exit $?"
-unknown: the refutation of ⊢ ~A ⊕ ~B, A ⊗ B (classical) is not checked: a refutation of kind `exhausted` rests on the search and has no check
+unknown: the refutation of A & B ⊢ A ⊗ B (classical) is not checked: a refutation of kind `exhausted` rests on the search and has no check
 exit 3
 ```
 

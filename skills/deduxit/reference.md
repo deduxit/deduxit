@@ -320,7 +320,15 @@ same, tagged by `kind`:
 | `saturated` | the inverse method's saturated set, closed under the rules, lacks the goal |
 | `exhausted` | the search was exhaustive |
 
+Of a sequent written with formulas left of `⊢` the counts speak of its
+sides (a negated formula or an implication's antecedent counting on the
+other side), and where a hypothesis is the atom left over and nothing
+is missing on the right, the line adds that `-a` lets a hypothesis go
+unused.
+
 ```console
+$ deduxit prove -q "A, B |- A"
+unprovable (MLL, classical, focus engine): B on the left has no B on the right to meet in an axiom; with -a (affine), an unused hypothesis is allowed
 $ deduxit prove "|- A par B, ~A, ~B"
 unprovable (MLL, classical, focus engine): the count equation fails: a provable one-sided sequent of MLL has exactly #⊗ − #⅋ − #1 + #⊥ + 2 formulas, here 0 − 1 − 0 + 0 + 2 = 1, and this one has 3
 $ deduxit prove -q "!(A -o A * A), !(A -o B), !(B * B -o C), A |- C * ?D"
@@ -523,7 +531,7 @@ refutation that holds is written as its certificate (section 18).
 $ deduxit prove -i --format json "a, a -o b, !(b -o b * c), !(b -o d) |- b * d" | deduxit check --format json
 {"version":1,"verdict":"valid","mode":"intuitionistic"}
 $ deduxit prove --format json "A & B |- A * B" | deduxit check; echo "exit $?"
-unknown: the refutation of ⊢ ~A ⊕ ~B, A ⊗ B (classical) is not checked: a refutation of kind `exhausted` rests on the search and has no check
+unknown: the refutation of A & B ⊢ A ⊗ B (classical) is not checked: a refutation of kind `exhausted` rests on the search and has no check
 exit 3
 ```
 
@@ -768,7 +776,7 @@ $ printf 'identity: A |- A\nmp: A, A -o B |- B\nA |- B\n' > sequents.txt
 $ deduxit prove --input-format lines --file sequents.txt
 identity: provable (MLL, classical, focus engine)
 mp: provable (MLL, classical, focus engine)
-sequents.txt:3: unprovable (MLL, classical, focus engine): ~A occurs 1 more time than A in the one-sided sequent, so they cannot all meet in axioms
+sequents.txt:3: unprovable (MLL, classical, focus engine): A on the left has no A on the right to meet in an axiom
 $ echo '{"name": "pair", "mode": "intuitionistic", "sequent": "A, B |- A * B"}' | deduxit prove --input-format jsonl --format json
 {"version":1,"name":"pair","deduxit":"…","verdict":"proved","checked":true,"fragment":"IMLL","mode":"intuitionistic","engine":"two-sided","statistics":{"nodes":1,"memo_hits":0,"memo_entries":1,"splits":1,"links":0,"tests":0,"copies":0,"forward_copies":0,"work":16},"sequent":{"terms":[{"D":0},{"D":1},{"V":0},{"V":1},{"⊗":[2,3]}],"roots":[0,1,4],"atoms":["A","B"],"antecedents":2},"nodes":[{"ax":[3,0]},{"ax":[4,1]},{"⊗":[2,0,1]}]}
 ```

@@ -707,7 +707,7 @@ fn the_counts_refute_first_order_sequents() {
     assert!(
         symbol
             .to_string()
-            .contains("~p(…) occurs 1 more time than p(…)"),
+            .contains("p(…) occurs 1 more time on the left than on the right"),
         "{symbol}"
     );
     let json = serde_json::to_string(&symbol).unwrap();
