@@ -103,22 +103,21 @@
 //! seconds, and after a tenth of a second it adds a pool of every other
 //! thread beside the first. [`Settings::default()`](Settings) is that
 //! behaviour as data: to decide what the command decides, search with its
-//! `search` options (no copy bound) and stop at its `clock`'s time limit,
-//! on one thread for the command's `--deterministic` answer:
+//! `search` options (no copy bound) and its stop,
+//! [`Settings::stop`], which fires at its `clock`'s time limit, on one
+//! thread for the command's `--deterministic` answer:
 //!
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
 //! use deduxit::{Settings, linear::{Mode, Verdict, prove_within}};
-//! use std::time::{Duration, Instant};
+//! use std::time::Instant;
 //!
 //! let settings = Settings::default();
-//! let limit = settings.clock.time_limit_ms.map(Duration::from_millis);
 //! let search = settings.search.clone().with_jobs(1);
 //! let start = Instant::now();
 //! let sequent = "!A |- !A * !A".parse()?;
-//! let outcome = prove_within(&sequent, Mode::CLASSICAL, &search, &settings.limits, |_| {
-//!     limit.is_some_and(|limit| start.elapsed() > limit)
-//! })?;
+//! let stop = settings.stop(|| start.elapsed());
+//! let outcome = prove_within(&sequent, Mode::CLASSICAL, &search, &settings.limits, stop)?;
 //! assert!(matches!(outcome.verdict, Verdict::Proved(_)));
 //! # Ok::<(), deduxit::Error>(())
 //! ```

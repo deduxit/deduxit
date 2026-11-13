@@ -558,11 +558,14 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
 - **The time limit is a flag, and it counts from the start of the
   command** (`limit.rs`: `Deadline`). `Deadline::start(limit, start)`
   starts a thread that sleeps until the limit has passed and raises an
-  `AtomicBool`; the stop closure of `prove` and of a session's `close`
-  is `interrupted() || deadline.passed()`, two loads, asked at every
-  poll, but for the refutation after the search (`halting`, which
-  `searched` and the batch wrap it in): a `Phase::Refute` poll asks
-  `interrupted()` alone, so the classical refutation answers a search
+  `AtomicBool`; the stop of a search (`halting`, which `searched` and
+  the batch call) is `interrupted()` or the library's
+  `Settings::stop` under the deadline's limit, its elapsed time read off
+  the flag (none before, `Duration::MAX` after; the limit in
+  milliseconds rounded up, so one below a millisecond is not zero): two
+  loads at every poll, but for the refutation after the search, which
+  `Settings::stop` lets run and asks `interrupted()` alone, so the
+  classical refutation answers a search
   the time limit ended, past it by at most its bound of work
   (`--classical-work`, `search.classical_work`). No poll looks at a clock: a closure that looked every 1 024
   polls on one thread would be exact where the engine polls millions of

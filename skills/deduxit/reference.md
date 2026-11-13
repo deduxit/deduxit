@@ -997,6 +997,11 @@ library call without a stop must end; the command deepens without a
 bound under its time limit. `prove_within(&sequent, mode, &options,
 &limits, stop)` takes `Limits` and a stop closure (the crate reads no
 clock), and `Settings::default()` is the command's behaviour as data.
+`settings.stop(|| start.elapsed())` is the command's stop
+(`Settings::stop`, given the time since the caller started): it fires at
+`clock.time_limit_ms` in every phase but the refutation after the
+search. `prove_within` with `settings.search`, `settings.limits` and
+that stop decides what the command decides.
 Every error is `deduxit::Error`, whose `code()` is the stable reason.
 `proofs::cut::step(&proof, mode, at, &options, &limits, stop)` reduces
 one cut (the node `at`, or the strategy's with `None`) and returns the

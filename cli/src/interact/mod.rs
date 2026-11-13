@@ -614,13 +614,14 @@ impl Session {
         } else {
             let (forest, mode) = (self.state.forest(), self.state.mode());
             let target = Goal::new(forest, self.state.goal(goal)?)?;
+            let passed = || deadline.passed();
             let searched = searched(
                 target,
                 mode,
                 &self.options,
                 &self.limits,
                 self.threads,
-                &halt,
+                (deadline.limit(), &passed),
             );
             searched.and_then(|outcome| {
                 if let Verdict::Proved(proof) = &outcome.verdict {

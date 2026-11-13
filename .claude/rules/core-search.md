@@ -324,9 +324,14 @@ copies they had are gone (F103, F104).
   certifies a quantified disproof's counts by the first-order weighted
   count and refuses its count equation (`Unsupported::Quantifiers`).
 - **The command lets the refutation run past its deadline**
-  (`cli/src/prove.rs`, `halting`): its stop answers a `Phase::Refute`
-  poll with Ctrl-C alone, so a search the time limit ended is still
-  refuted, within the work bound; the harness's child does the same.
+  (`Settings::stop`, which `cli/src/prove.rs`'s `halting` calls): the
+  stop fires at `clock.time_limit_ms` in every phase but
+  `Phase::Refute`, so a search the time limit ended is still refuted,
+  within the work bound; the harness's child does the same. The rule
+  lives once, in `Settings::stop`, so the library's callers and the
+  command cannot drift apart; it takes the elapsed time from the caller
+  (`Fn`, so a race's shared stop is `Sync` when the clock is) and reads
+  it only where it can fire.
 - **One interface every engine implements** (`Decide`, crate-private):
   `admits(&task)` refuses a goal with the error a forced engine answers,
   `Error::EngineRefused { engine, because: NotTaken }`, checking in this

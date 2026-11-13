@@ -14,7 +14,7 @@ use anyhow::{Context, Result, bail};
 use deduxit::linear::search::{Engine, Goal, Options, Outcome, Reason, Verdict, prove_goal, race};
 use deduxit::ordinary::{Image, Method};
 use deduxit::{
-    Error, Limits, Phase, Progress,
+    Clock, Error, Limits, Progress, Settings,
     linear::{CheckError, Forest, Sequent},
 };
 use std::fmt::Write;
@@ -46,18 +46,19 @@ pub(crate) fn on_large_stack<T: Send>(size: usize, f: impl FnOnce() -> T + Send)
 /// the start, or the library's race, one thread first and, once
 /// `threads.alone` has passed, a pool of the others beside it, the first
 /// of the two to decide answering, both within one memory bound
-/// (`search::race`). `halt` is the command's stop condition, but for the
-/// refutation after the search ([`halting`]). The single search runs on
-/// the calling thread, whose stack the caller sized.
+/// (`search::race`). The search stops at Ctrl-C and, but for the
+/// refutation after it, once `passed` says that the time limit `limit`
+/// has passed ([`halting`]). The single search runs on the calling
+/// thread, whose stack the caller sized.
 pub(crate) fn searched(
     goal: Goal<'_>,
     mode: deduxit::linear::Mode,
     options: &Options,
     limits: &deduxit::Limits,
     threads: Threads,
-    halt: &(dyn Fn() -> bool + Sync),
+    (limit, passed): (Option<Duration>, &(dyn Fn() -> bool + Sync)),
 ) -> Result<Outcome, deduxit::Error> {
-    let halt = halting(halt);
+    let halt = halting(limit, passed);
     match threads.alone {
         None => prove_goal(
             goal,
@@ -81,17 +82,30 @@ pub(crate) fn searched(
     }
 }
 
-/// Returns the stop condition of a search from the command's, `halt`:
-/// asked by the refutation after the search, Ctrl-C alone, since that
-/// refutation is bounded by its work and answers a search that ran to the
-/// time limit.
+/// Returns the stop condition of a search: Ctrl-C in every phase, and the
+/// time limit `limit` as [`Settings::stop`] applies it, in every phase but
+/// the refutation after the search, which is bounded by its work and
+/// answers a search that ran to the limit. `passed` says whether the limit
+/// has passed: it is a flag a timer raises (a [`Deadline`]), so that a
+/// poll reads no clock, and the elapsed time the settings' stop compares
+/// is read off it, none before and all of it after.
 pub(crate) fn halting(
-    halt: &(dyn Fn() -> bool + Sync),
-) -> impl Fn(Progress) -> bool + Sync + Copy + '_ {
-    move |progress: Progress| match progress.phase {
-        Phase::Refute => interrupted(),
-        _ => halt(),
-    }
+    limit: Option<Duration>,
+    passed: &(dyn Fn() -> bool + Sync),
+) -> impl Fn(Progress) -> bool + Sync + '_ {
+    // Rounded up, so that a limit below a millisecond is not one of zero,
+    // which would fire before the flag is raised.
+    let ms =
+        limit.map(|limit| u64::try_from(limit.as_nanos().div_ceil(1_000_000)).unwrap_or(u64::MAX));
+    let settings = Settings::default().with_clock(Clock::default().with_time_limit_ms(ms));
+    let timed = settings.stop(move || {
+        if passed() {
+            Duration::MAX
+        } else {
+            Duration::ZERO
+        }
+    });
+    move |progress: Progress| interrupted() || timed(progress)
 }
 
 /// How long a search runs before a line on standard error says that it
@@ -270,14 +284,14 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
         let start = Instant::now();
         let notice = Notice::start(NOTICE_AFTER, notice_line(deadline.limit(), deepens));
         // Both conditions are flags, so every poll asks both.
-        let halt = || interrupted() || deadline.passed();
+        let passed = || deadline.passed();
         let outcome = searched(
             Goal::conclusion(&forest),
             mode,
             options,
             &limits,
             threads,
-            &halt,
+            (deadline.limit(), &passed),
         )
         .map_err(|e| describe(e, sequent))?;
         let stop = stopped(&deadline);

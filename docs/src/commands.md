@@ -355,6 +355,11 @@ The second sequent is the largest problem of the LLTP library, a file of
 86 MB that takes twelve seconds to parse; both commands
 end with exit status 3 a second after they started.
 
+A program that uses the library stops a search as the command does with
+`Settings::stop`, given the time since it started:
+`settings.stop(|| start.elapsed())` fires at `clock.time_limit_ms` and
+lets the classical refutation run past it.
+
 By default the search runs on one thread first, and if that has not
 decided within a tenth of a second (`--pool-after`), a pool of the
 machine's other cores searches beside it, the first to decide answering

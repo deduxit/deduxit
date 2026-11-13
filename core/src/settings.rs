@@ -12,10 +12,11 @@ use crate::linear::proofs::cut;
 use crate::linear::proofs::interactive;
 use crate::linear::search::{Jobs, Options, batch};
 use crate::{
-    Limits,
+    Limits, Phase, Progress,
     linear::{InputOptions, ViewOptions},
     ordinary,
 };
+use std::time::Duration;
 
 /// What a front end with a clock applies through its stop, each counted in
 /// milliseconds from the front end's start; the library reads no clock.
@@ -227,5 +228,71 @@ impl Settings {
             interactive,
             ..self
         }
+    }
+
+    /// Returns the stop the command applies: it fires once `elapsed()`
+    /// reaches the clock's [`time_limit_ms`](Clock::time_limit_ms), in
+    /// every phase but [`Phase::Refute`], and never without a time limit.
+    ///
+    /// The refutation after a search is bounded by its work, so it runs
+    /// past the time limit: a search the limit ended can still be refuted,
+    /// as the command's is. The crate reads no clock, so `elapsed` gives
+    /// the time since the caller started; it is not called in the refuting
+    /// phase or without a limit. A stop shared by threads (a race, a pool)
+    /// needs an `elapsed` that is `Sync`, and is then `Sync` itself.
+    ///
+    /// # Examples
+    ///
+    #[cfg_attr(feature = "parse", doc = "```")]
+    #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
+    /// use deduxit::{Settings, linear::{Mode, Verdict, prove_within}};
+    /// use std::time::Instant;
+    ///
+    /// let settings = Settings::default();
+    /// let sequent = "!A |- !A * !A".parse()?;
+    /// let start = Instant::now();
+    /// let stop = settings.stop(|| start.elapsed());
+    /// let outcome = prove_within(&sequent, Mode::CLASSICAL, &settings.search, &settings.limits, stop)?;
+    /// assert!(matches!(outcome.verdict, Verdict::Proved(_)));
+    /// # Ok::<(), deduxit::Error>(())
+    /// ```
+    pub fn stop<E: Fn() -> Duration>(&self, elapsed: E) -> impl Fn(Progress) -> bool + use<E> {
+        let limit = self.clock.time_limit_ms.map(Duration::from_millis);
+        move |progress: Progress| {
+            !matches!(progress.phase, Phase::Refute)
+                && limit.is_some_and(|limit| elapsed() >= limit)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::Cell;
+
+    /// The stop fires at the time limit in every phase but the refutation,
+    /// asks for the time only where it can fire, and never fires without a
+    /// limit.
+    #[test]
+    fn the_stop_lets_the_refutation_run_past_the_limit() {
+        let now = Cell::new(Duration::from_millis(1999));
+        let asked = Cell::new(0);
+        let elapsed = || {
+            asked.set(asked.get() + 1);
+            now.get()
+        };
+        let settings = Settings::default();
+        let stop = settings.stop(elapsed);
+        let at = |phase| Progress::new(phase, 0, 0);
+        assert!(!stop(at(Phase::Search)));
+        now.set(Duration::from_millis(2000));
+        assert!(stop(at(Phase::Search)));
+        assert!(stop(at(Phase::Check)));
+        let before = asked.get();
+        assert!(!stop(at(Phase::Refute)));
+        assert_eq!(asked.get(), before);
+
+        let unlimited = settings.with_clock(Clock::default().with_time_limit_ms(None));
+        assert!(!unlimited.stop(|| Duration::MAX)(at(Phase::Search)));
     }
 }

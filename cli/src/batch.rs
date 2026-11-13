@@ -744,7 +744,11 @@ impl Shared {
             nets_exist(sequent, mode)?;
         }
         let start = Instant::now();
-        let halt = || interrupted() || deadline.passed() || self.batch.passed();
+        // The entry's limit, or the batch's where the entry has none: the
+        // flags say which passed.
+        let passed = || deadline.passed() || self.batch.passed();
+        let passed: &(dyn Fn() -> bool + Sync) = &passed;
+        let limit = (self.timeout.or(self.batch.limit()), passed);
         let outcome = if search.jobs.count() > 1 {
             searched(
                 Goal::conclusion(&forest),
@@ -752,7 +756,7 @@ impl Shared {
                 search,
                 limits,
                 self.threads,
-                &halt,
+                limit,
             )
         } else {
             prove_goal(
@@ -760,7 +764,7 @@ impl Shared {
                 mode,
                 search,
                 limits,
-                halting(&halt),
+                halting(limit.0, limit.1),
             )
         }
         .map_err(|e| describe(e, sequent))?;
