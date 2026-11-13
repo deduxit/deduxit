@@ -5049,8 +5049,9 @@ mod tests {
         assert!(matches!(error, Error::NotIntuitionistic(_)));
         assert_eq!(
             error.to_string(),
-            "not an intuitionistic sequent: subformula 0 is neither an intuitionistic formula nor \
-             the negation of one (⅋ only as A ⊸ B, that is ~A ⅋ B, and ? only under a negation)"
+            "not an intuitionistic sequent: the subformula a ⅋ b is neither an intuitionistic \
+             formula nor the negation of one (⅋ only as A ⊸ B, that is ~A ⅋ B, and ? only under a \
+             negation)"
         );
         let error = prove(&sequent("a |- a"), i.with_mix(), &Options::default()).unwrap_err();
         assert_eq!(

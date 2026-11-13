@@ -131,7 +131,14 @@ the checker, the two-sided derivation and the future essential nets read.
   both, an atom output only, an implication only with its left factor as
   the antecedent, and so on); the first occurrence with neither, in
   descending id order, is `ShapeError::Formula` (a minimal offending
-  subformula), so `b ⅋ ~a` has no reading in output position. With the
+  subformula), so `b ⅋ ~a` has no reading in output position. The
+  reading has the forest, so the error carries the subformula's text
+  (`formula`, cut at 4 096 characters with `…`: a shared subformula of a
+  short JSON sequent can unfold past any memory), which `Display` writes
+  in place of the id; `describe` still writes it from the forest, with
+  its root, and an error made without the text (none of the crate's but
+  a test's) prints the id. The written error's `details` keep the
+  occurrence alone. With the
   sides known (`Sequent::antecedents`) the roots after the first
   `antecedents` are the succedents: anything but one is
   `ShapeError::Succedents` (whose message says to write the hypotheses

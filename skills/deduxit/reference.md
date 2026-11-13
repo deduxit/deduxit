@@ -1002,7 +1002,9 @@ clock), and `Settings::default()` is the command's behaviour as data.
 `clock.time_limit_ms` in every phase but the refutation after the
 search. `prove_within` with `settings.search`, `settings.limits` and
 that stop decides what the command decides.
-Every error is `deduxit::Error`, whose `code()` is the stable reason.
+Every error is `deduxit::Error`, whose `code()` is the stable reason;
+in an intuitionistic mode, a sequent with no intuitionistic reading is
+`Error::NotIntuitionistic`, whose `Display` names the subformula.
 An `Outcome` reads back from the JSON `prove --format json` writes
 (`serde_json::from_str::<Outcome>`), its proof or disproof with it; an
 engine name a later version writes reads as `Engine::Unknown`. A

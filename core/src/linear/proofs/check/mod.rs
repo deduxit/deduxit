@@ -600,6 +600,7 @@ mod tests {
                 0,
                 Shape(crate::linear::occurrences::ShapeError::Formula {
                     occurrence: o(0).occ(),
+                    formula: Some("A ⅋ B".into()),
                 }),
             ),
         ] {

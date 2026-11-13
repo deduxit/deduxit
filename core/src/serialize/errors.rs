@@ -237,7 +237,7 @@ impl Serialize for ShapeError {
             Self::NoGoal => entries!(s; "kind" => "no_goal"),
             Self::SeveralGoals { first, second } => entries!(s;
                 "kind" => "several_goals"; "first" => &first.get(); "second" => &second.get()),
-            Self::Formula { occurrence } => {
+            Self::Formula { occurrence, .. } => {
                 entries!(s; "kind" => "formula"; "occurrence" => &occurrence.get())
             }
             Self::Succedents { count } => entries!(s; "kind" => "succedents"; "count" => count),

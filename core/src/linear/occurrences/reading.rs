@@ -76,6 +76,11 @@ pub enum ShapeError {
     Formula {
         /// The subformula.
         occurrence: OccId,
+        /// The subformula as text, cut after 4 096 characters with `…`,
+        /// which `Display` writes in place of its id.
+        /// The reading fills it in, since it has the forest; `None` where
+        /// the error was made without one.
+        formula: Option<Box<str>>,
     },
     /// The sequent does not have exactly one formula right of `⊢`.
     #[non_exhaustive]
@@ -194,13 +199,21 @@ impl ShapeError {
                 occurrence(f, *o)?;
                 f.write_str(" is no intuitionistic formula")
             }
-            ShapeError::Formula { occurrence: o } => {
-                f.write_str(if forest.is_some() {
-                    "the subformula "
-                } else {
-                    "subformula "
-                })?;
-                occurrence(f, *o)?;
+            ShapeError::Formula {
+                occurrence: o,
+                formula,
+            } => {
+                match (forest, formula) {
+                    (None, Some(formula)) => write!(f, "the subformula {formula}")?,
+                    (None, None) => {
+                        f.write_str("subformula ")?;
+                        occurrence(f, *o)?;
+                    }
+                    (Some(_), _) => {
+                        f.write_str("the subformula ")?;
+                        occurrence(f, *o)?;
+                    }
+                }
                 if let Some(forest) = forest
                     && forest.root(*o) != *o
                 {
@@ -215,6 +228,30 @@ impl ShapeError {
 }
 
 impl std::error::Error for ShapeError {}
+
+impl ShapeError {
+    /// The most characters of a formula a [`Formula`](Self::Formula) error
+    /// carries: a subformula shared in a short JSON sequent can unfold to
+    /// more text than any memory holds.
+    const SHOWN: usize = 1 << 12;
+
+    /// Returns the error for a subformula of `forest` that can stand in no
+    /// position, with its text.
+    fn formula(forest: &Forest, o: OccId) -> Self {
+        let mut text = String::new();
+        let names = Names {
+            forest,
+            reading: None,
+            framing: None,
+        };
+        // A `String` takes any text, and the budget ends in `…`.
+        let _ = cut(&mut text, Some(names), o.into(), Some(Self::SHOWN));
+        Self::Formula {
+            occurrence: o,
+            formula: Some(text.into_boxed_str()),
+        }
+    }
+}
 
 /// The bit for input position in a set of possible positions.
 const IN: u8 = 1;
@@ -377,7 +414,7 @@ impl<'a> Reading<'a> {
                 Par => both(l_in && r_in, l_in && r_out || ordered && l_out && r_in),
             };
             if can[o.index()] == 0 {
-                return Err(ShapeError::Formula { occurrence: o });
+                return Err(ShapeError::formula(forest, o));
             }
         }
 
@@ -882,10 +919,24 @@ mod tests {
                 "{input:?}"
             );
         }
+        // The reading has the forest, so the error carries the formula and
+        // prints it without one; an error made without it names the id.
         let s: Sequent = "|- A par B".parse().unwrap();
         let forest = Forest::new(&s).unwrap();
+        let error = Reading::new(&forest).unwrap_err();
         assert_eq!(
-            Reading::new(&forest).unwrap_err().to_string(),
+            error.to_string(),
+            "the subformula A ⅋ B is neither an intuitionistic formula nor the negation of one (⅋ only as A ⊸ B, that is ~A ⅋ B, and ? only under a negation)"
+        );
+        let ShapeError::Formula { occurrence, .. } = error else {
+            panic!("{error:?}");
+        };
+        let unnamed = ShapeError::Formula {
+            occurrence,
+            formula: None,
+        };
+        assert_eq!(
+            unnamed.to_string(),
             "subformula 0 is neither an intuitionistic formula nor the negation of one (⅋ only as A ⊸ B, that is ~A ⅋ B, and ? only under a negation)"
         );
     }

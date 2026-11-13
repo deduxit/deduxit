@@ -472,6 +472,11 @@ $ deduxit prove -i "A |- B, C"
 error: not an intuitionistic sequent: an intuitionistic sequent has exactly one formula right of ⊢, not 2: write the hypotheses left of ⊢
 ```
 
+The library's error names the formula too: `prove` in an intuitionistic
+mode, given a sequent with no intuitionistic reading, returns an
+`Error::NotIntuitionistic` whose `Display` writes the subformula as
+above.
+
 Classical linear logic proves more than intuitionistic linear logic once
 `0` is around, and the two-sided search knows the difference:
 
