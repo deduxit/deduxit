@@ -328,15 +328,15 @@ even to read.** Every operation goes through `jj`, including lock updates:
 `.claude/` is checked in: the hooks (the git and `jj new -m` guards, the
 formatter, a SessionStart note on the jj working copy, and jj workspaces
 in place of Claude Code's git worktrees for isolated agents and sessions,
-`../deduxit-wt-NAME`, in which `plan/start-session.sh` starts each step
-session and whose empty leftovers `.claude/hooks/jj-worktree.py prune`
-removes), permission rules,
+`../deduxit-wt-NAME`, in which the planning session starts each step
+session from the Claude app and whose empty leftovers
+`.claude/hooks/jj-worktree.py prune` removes), permission rules,
 the `crate-source-explorer` agent (use it before guessing at a
 dependency's API), the reviewers `fresh-reviewer` and the panel's
 `panel-counterexamples`, `panel-argument` and `panel-integers`, a
 `Notification` hook that logs a session waiting on a prompt for the
-planning session (`plan/start-session.sh` starts step sessions as
-background jobs, `claude --bg`), the `update-deps` and `new-tool` skills (the latter
+planning session (it runs in the Claude app and starts step sessions
+there; `plan/handoff.md` says how), the `update-deps` and `new-tool` skills (the latter
 whenever a crate or tool is added or adopted), the `graceful-stop`
 skill (whenever the author says "stop", or a supervisor sends "Pause")
 and the rules above.

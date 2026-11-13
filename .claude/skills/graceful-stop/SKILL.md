@@ -26,8 +26,9 @@ for a stop by then, and `resume` for a resume.
 
 The author wants the machine free at `HH:MM` and the work going until
 shortly before. The pause itself takes about ten minutes: the worker's
-message read at its next step, its units stopped, its commit and
-checklist, then its job stopped. So:
+message read (at its next step, or only when its turn ends: a message to
+a busy session in the app may wait for that), its units stopped, its
+commit and checklist, then its turn ended. So:
 
 1. **Read the deadline** `D` as today's `HH:MM`. If `D` is less than
    fifteen minutes away, or already past, stop now (the sections below)
@@ -43,9 +44,9 @@ checklist, then its job stopped. So:
    - at `D − 12 min`: the supervisor's steps 2 to 4 below (send
      "Pause", pause your own work and delete the recurring crons, noting
      them for the resume);
-   - at `D − 4 min`: step 5 at once (stop each worker's job, stop
-     every leftover unit by name, tell the worker which, check the
-     load), then step 6 (tell the author).
+   - at `D − 4 min`: steps 3 and 5 at once (interrupt each worker still
+     in a turn, stop every leftover unit by name, tell the worker which,
+     check the load), then step 6 (tell the author).
 
    A cron fires only while this session is idle, so keep turns short
    from `D − 15 min` on, and run nothing long in the foreground.
@@ -71,32 +72,32 @@ checklist, then its job stopped. So:
 
 ## As a supervisor (you started other sessions)
 
-Step sessions run as background jobs (`claude --bg`, started by
-`plan/start-session.sh`). `claude agents --json` lists them with their
-job id, name, session id and state; `claude logs NAME` prints a job's
-recent screen.
+Step sessions are sessions in the Claude app that you started
+(`start_session`). `list_sessions` with `linked: true` lists them with
+their state, and `list_events` reads a session's transcript.
 
 1. **Take stock**:
-   - the jobs you run (`claude agents --json`, `ListAgents`);
+   - the sessions you started (`list_sessions` with `linked: true`,
+     `ListAgents`);
    - your sub-agents and workflows;
    - your background tasks and monitors;
    - your crons;
    - the units: `systemctl --user list-units 'step*' 'deduxit-*'
      'linlog-*' --no-pager`.
 
-   Note each worker's name, model, effort and session id: they resume
-   it.
-2. **Pause each worker by message**: `SendMessage` "Pause" with
-   `notify_when_idle`. A worker whose brief does not mention this skill
+   Note each worker's name, model, effort and session id (`local_…`):
+   the resume messages it by that id.
+2. **Pause each worker by message**: `SendMessage` "Pause" to its id,
+   with `notify_when_idle` (a session you started with `wake_when_done`
+   brings its note anyway). A worker whose brief does not mention this skill
    gets "Pause: run the graceful-stop skill as a worker". It finishes or
    cuts its task, stops its units, commits and writes its checklist,
    then ends its turn.
-3. **Stop each worker's job** once its idle notice has come:
-   `claude stop JOB`. That ends its turns, its goal's included: a goal
-   cannot be paused, and a stopped job takes no more turns. The goal is
-   kept with the conversation and comes back on resume, so it is not
-   cleared. A worker that does not answer within the deadline is stopped
-   all the same; its checklist then says less.
+3. **Interrupt a worker that is still in a turn** at the deadline:
+   `stop_session`. An idle session in the app takes no turn until a
+   message comes, so a worker that ended its turn needs nothing more; the
+   app keeps it with its conversation. A worker interrupted this way has
+   a checklist that says less.
 4. **Pause your own work**:
    - tell your sub-agents to stop at a resumable point, then `TaskStop`
      them;
@@ -148,19 +149,12 @@ recent screen.
      git@github.com`, which unlocks the signing key too), and restart
      the warm loop (`plan/keys-warm.sh`).
   2. Restart your own units and recreate your crons.
-  3. Resume each stopped worker:
-     `plan/start-session.sh --resume SESSION_ID NAME MODEL EFFORT
-     "Resume"`.
-     - The job comes back in the background with its conversation, and
-       with the goal it had, whose turn count and timer start afresh.
-     - "Resume" is its next prompt, and the work is kept.
-     - The launcher prints the new job and session ids: a resumed
-       session gets a new session id, so note that one for the next
-       resume.
-- **After a reboot**, every background job has stopped. Resume each as
-  above. A session started before 2026-11-09 ran in a zellij pane, not
-  as a job: resume it the same way, from its session id. Its transcript
-  must be under the account's projects directory for this checkout's
-  path; copy it there if the checkout was renamed since.
+  3. Resume each paused worker: `SendMessage` "Resume" to its `local_…`
+     id. An idle session in the app takes it as a new turn, with its
+     conversation and in its workspace. A session the app archived in
+     the meantime (after 7 idle days) is unarchived first
+     (`unarchive_session`).
+- **After a reboot**, the author reopens the app, and you with it. The
+  sessions are still there: resume each as above.
 - **A worker**: read your checklist, rerun the commands it records, and
   carry on from there.

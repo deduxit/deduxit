@@ -420,7 +420,10 @@ self-preference studies cited above. What they say, and what follows:
   cores split and one lock), and the planning session stacks and checks
   their chains, which caught two semantic conflicts on 2026-10-18 that
   each chain's checks could not.
-- **Which Claude Code mechanism for what.** Agent teams are experimental,
+- **Which Claude Code mechanism for what** (superseded on 2026-11-14:
+  step sessions are now sessions in the Claude app, without `/goal`,
+  idle subscriptions or supervision crons; `plan/handoff.md` says how).
+  Agent teams are experimental,
   one per session and not restored on resume, and a workflow is one run
   with no input midway: neither fits a step of hours to days. So the
   structure stays: the planning session starts each step session as a
@@ -594,8 +597,8 @@ The roles, from 2026-11-13:
 | research that a decision rests on | Sonnet 5.5 at `high` | the research measurements above |
 | reading, searching files, a dependency's API (`crate-source-explorer`) | Sonnet 5.5 at `medium` | well-specified lookups |
 | a mechanical extraction | Haiku 5.5 at `medium`, or no agent | at `low` it skips checks |
-| `/goal`'s judge | Claude Code's small fast model (Haiku 5.5) | not set per session |
-| a session that is visibly stuck | resumed once on Fable 5.2 at `high` (`start-session.sh --resume … claude-fable-5-2 high`) | Fable 5.2 reads Opus 5.5's thinking. More effort on Opus buys less |
+| `/goal`'s judge, where the author sets a goal | Claude Code's small fast model (Haiku 5.5) | not set per session; a started session gets none |
+| a session that is visibly stuck | switched once to Fable 5.2 at `high` (`set_session_model`, `set_session_effort`) | Fable 5.2 reads Opus 5.5's thinking. More effort on Opus buys less |
 
 The standing rules that follow:
 - **No `max`, no `ultracode`, no fast mode, no advisor.**
@@ -626,8 +629,8 @@ The standing rules that follow:
     5.5 at `high`, and a Fable session waits or runs on Opus 5.5 at
     `high`, each noted in the Status log. Nothing bills to usage
     credits.
-  - The second account (Max 5x) has the same roles, with one step
-    session at a time.
+  - The second account (Max 5x) had the same roles, with one step
+    session at a time, until it went with the CLI on 2026-11-13.
 - **Sessions and agents on Fable get prompts written for it.**
   - A Fable session's brief invites a sub-agent only for reading that
     would fill its context, or for an independent review, and says what
@@ -839,10 +842,13 @@ step 31's sessions after the checker's proof with `--model
 claude-opus-5-5 --effort high`; steps 60, 65, 67 and 71 likewise
 after their first session, which the command above starts on Fable;
 step 66's Rocq proof sessions with `--model claude-fable-5-2 --effort
-high`); a session picks up from the step's report. The planning session
-starts each session with `plan/start-session.sh`, which takes the same
-model and effort. The aliases `fable` and `opus` also work for
-`--model`, pinned by `.claude/settings.json` to Fable 5.2 and Opus 5.5. A session the author leaves to run at night adds
+high`); a session picks up from the step's report. Since 2026-11-13 the
+planning session starts each session from the Claude app instead
+(`start_session`, `plan/handoff.md` "How a step runs"), with the same
+model and effort; the commands above record how the earlier steps were
+started from a terminal, and the CLI is uninstalled. The aliases `fable`
+and `opus` are pinned by `.claude/settings.json` to Fable 5.2 and Opus
+5.5. A session the author leaves to run at night adds
 `--permission-mode auto`, and its prompt a section like step 23's
 "Tonight: unattended" (decide instead of asking, keep the passphrase's
 cache warm, commit unsigned once it is gone). The flags are
@@ -854,9 +860,9 @@ documented at code.claude.com/docs/en/cli-reference.
    `plan/reports/NN-<name>.md` (what was done, decisions, deviations from the
    spec or this plan, open questions, what later steps must know). It does
    not push and does not edit the other prompt files.
-2. The planning session (the one that wrote this file; `claude --resume` and
-   pick it, or start a fresh one from `plan/handoff.md`, which says what
-   that session does and what it must know)
+2. The planning session (the one that wrote this file; reopen it from the
+   Claude app's sidebar, or start a fresh one from `plan/handoff.md`, which
+   says what that session does and what it must know)
    reads the report and the changes (`jj log`, `jj diff -r`), runs the checks,
    judges whether the result fits the plan, and amends the later prompts and
    the decisions below. It records the outcome in "Status" and commits the plan
@@ -6312,3 +6318,34 @@ move (D26).
     pinned by a case of the hook's test.
   - `plan/handoff.md` has the app's way to start the planner and a
     section "In the Claude app".
+- 2026-11-14, 00:30: **Step sessions now run as sessions in the Claude
+  app.** The author uninstalled the Claude Code CLI (`claude` and
+  `claude2`) and chose app sessions only.
+  - **Sources:** the docs (desktop "Work across sessions", agents,
+    claude-projects, goal, cross-session-messaging, scheduled-tasks). Two
+    probes, Haiku sessions at `low` started from an app session with
+    `start_session`, showed:
+    - a session started with `use_worktree` goes through the WorktreeCreate
+      hook into a jj workspace;
+    - its name follows `branch_name` (`step-probe` gave
+      `wt-step-probe-b8ff7e`);
+    - a `/goal` in the start prompt is plain text, since the app puts the
+      background first;
+    - archiving a session left its workspace in place.
+  - **Not adopted:** Projects run threads in the cloud, where the
+    repository's hooks and permission rules don't apply. The docs send
+    "work where every task needs your machine" to local sessions.
+  - **What changed:**
+    - `plan/start-session.sh` is gone.
+    - `plan/handoff.md` ("How a step runs" item 3, "Sessions in the Claude
+      app", "Mechanisms"), `.claude/rules/claude-infra.md`, the
+      `graceful-stop` skill, `plan/conduct.md` and CLAUDE.md describe app
+      sessions.
+    - `plan/housekeeping.py` no longer calls `claude`. It crashed without
+      it.
+  - **What the author should know:**
+    - The planner can start a session only in a turn the author started,
+      or in the chain of "session finished" turns after it.
+    - A message or a cron ends that chain. The next piece then waits for
+      the author's go, or for a click on a card.
+    - Fable sessions are switched after start, which may ask the author.

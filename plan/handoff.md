@@ -10,53 +10,46 @@ each session before the next starts, stack and check their commits,
 push `main`, keep `plan/README.md` true, and report to the author in
 plain words. This file was rewritten on 2026-11-03 by the planning
 session of the first account, which ran 42e to 45f from 2026-10-30 to
-2026-11-03, and brought up to date on 2026-11-13 ("Read first", "Where
-things stand", the models). It is for a planner on **either** account, `claude` or
-`claude2`. Neither account shares the other's memory notes, so this
-file is self-contained: where a memory note of yours says otherwise,
-this file holds.
+2026-11-03, and brought up to date on 2026-11-13. That update covers
+"Read first", "Where things stand", the models, and the move to the
+Claude app. Since that day you and every step session run in the app, and
+the Claude Code CLI is uninstalled, with the second account's wrapper
+`claude2`. This file is self-contained: where a memory note of yours says
+otherwise, this file holds.
 
 ## Starting
 
-- **The two accounts**:
-  - `claude`: the first account, config `~/.claude`, Max 20x. Its memory
-    notes are at
-    `/home/tux/.claude/projects/-home-tux-Projects-own-linlog/memory/`
+- **The account**: the author's first account (Max 20x, shown as Ultra
+  in the app), signed in to the Claude app. You and every step session
+  run on it.
+  - Its memory notes are at
+    `/home/tux/.claude/projects/-home-tux-Projects-own-deduxit/memory/`
     (`MEMORY.md` the index).
-  - `claude2`: the second account, a wrapper that sets
-    `CLAUDE_CONFIG_DIR=/home/tux/.claude-2` and runs the same Claude Code,
-    Max 5x. Its notes are at
-    `/home/tux/.claude-2/projects/-home-tux-Projects-own-linlog/memory/`,
-    last written for this project on 2026-10-29.
-  - The sessions you start with `plan/start-session.sh` run on your own
-    account: it keeps `CLAUDE_CONFIG_DIR` (unset for `claude`). Every
-    session on one account shares its five-hour window, the planner's
-    included, and the author's other projects fill it too.
-- **How the author starts you**, in `/home/tux/Projects/own/deduxit` (`linlog` until 2026-11-09), in
-  one of two ways.
-  - **From their shell**, which is nushell (put `claude2` for `claude` on
-    the second account):
-    ```nu
-    claude --name deduxit-orchestrator --model claude-opus-5-5 --effort high --permission-mode auto (open --raw plan/handoff.md)
-    ```
-  - **In the Claude app** (the Code tab; the author's usual way since
-    2026-11-13):
-    - a new session in this folder, on Opus 5.5 at effort High, in
-      permission mode Auto;
-    - as its first message: "Read `plan/handoff.md` from its first line
-      to its last and act on it: you are the planning session.";
-    - then `/rename deduxit-orchestrator`.
+  - Every session shares its five-hour window, yours included, and the
+    author's other projects fill it too.
+  - The second account (`claude2`, Max 5x) was a CLI wrapper and went
+    with the CLI.
+- **How the author starts you**, in the Claude app (the Code tab):
+  - a new session in `/home/tux/Projects/own/deduxit` (`linlog` until
+    2026-11-09);
+  - model Opus 5.5 and effort **High**, both picked explicitly. The app
+    otherwise takes the author's user settings, which run Opus 5.5 at
+    `xhigh`;
+  - permission mode Auto;
+  - as its first message: "Read `plan/handoff.md` from its first line to
+    its last and act on it: you are the planning session.";
+  - then `/rename deduxit-orchestrator`.
 
-    The app runs you on its own sign-in, and you stay alive only while
-    the app is open. "In the Claude app" below says what else differs.
+  You stay alive only while the app is open. "Sessions in the Claude app"
+  below says what that means for your work.
 
-  The name matters: every brief and goal names `deduxit-orchestrator`
-  (`linlog-orchestrator` until 2026-11-09, when the author renamed the
-  session with `/rename`) as the recipient of its messages, and the other project's session
-  (below) writes to that name. Check with `ListAgents` that no other
-  session of that name is alive: the first account's planner ended at
-  this handoff. Auto mode matters too, since messages between sessions
-  of different permission classes wait for approval.
+  The name matters: every brief names `deduxit-orchestrator`
+  (`linlog-orchestrator` until 2026-11-09) as the recipient of a session's
+  messages, and the other project's session (below) writes to that name.
+  Check with `ListAgents` that no other session of that name is alive.
+  Auto mode matters too: a session you start can't run in a higher mode
+  than yours, and messages between sessions of different permission
+  classes wait for approval.
 - **Models and efforts**: the role table of 2026-11-13 in
   `plan/README.md` ("Why these models and efforts") holds for every
   session and agent you start, and for yourself.
@@ -72,8 +65,6 @@ this file holds.
   - Fable may use half of the weekly limit, and nothing bills to usage
     credits. When Fable's half is spent, its roles run on Opus 5.5 at
     `high`, noted in the Status log.
-  - On the second account (Max 5x), the same choices with one step
-    session at a time, and watch the window (below, "The usage limit").
 - **Read first**, in this order:
   1. `CLAUDE.md`.
   2. `plan/README.md` up to its Status log: the step table, "Why these
@@ -92,15 +83,11 @@ this file holds.
 - **Then find out where things stand** before you act:
   - `jj log -r 'main@origin..'` and `jj workspace list`, in linlog and in
     `../rocq-linlog`;
-  - `ListAgents`, and `claude agents --json` for step sessions running or
-    stopped;
+  - `ListAgents`, and the app's `list_sessions` for the step sessions
+    (titles `deduxit-step-…`) and their state;
   - `systemctl --user list-units 'step*' 'deduxit-*' 'linlog-*'`;
   - the notifications log, `$XDG_RUNTIME_DIR/deduxit-sessions/notifications.log`;
-  - `plan/keys-warm.sh --check`;
-  - `claude auth status`, whose `loginExpiresAt` is when the CLI's
-    sign-in lapses. Every step session runs on that sign-in, wherever
-    you run. Ask the author to run `claude auth login` before a run
-    would cross that time, above all before an unattended night.
+  - `plan/keys-warm.sh --check`.
   `gh` asks the author's permission (a settings rule), so read CI's state
   only when the author is there, or from the repositories' pages, the
   crates.io API and Zenodo's records. GitHub's unauthenticated API
@@ -145,8 +132,8 @@ this file holds.
   - The web client's `main` (`../linlog-prover.github.io`, the
     repository `deduxit/deduxit.github.io`): `qyxnytmo` (223ba9ef).
   - rocq-deduxit's `main` (`../rocq-linlog`): `qlxkqlrx` (df4b15ec).
-- **Nothing runs.** `claude agents --json` lists no session of
-  deduxit's, and there is no unit, not even the warm loop
+- **Nothing runs.** No step session is open in the app (the earlier ones
+  are archived), and there is no unit, not even the warm loop
   `step-gpg-warm`. Both keys were unlocked on 2026-11-13: start the loop
   with `plan/keys-warm.sh`.
 - **The first housekeeping pass** ("Housekeeping") was taken on
@@ -277,53 +264,75 @@ to D32), grouped by release. In brief:
      its review, the machine's cores, "nothing that asks for the
      author's permission", how it ends, "Pause" and signing.
    - The brief names the session's base and its other workspaces:
-     - The launcher starts the session in a jj workspace of its own,
-       `../deduxit-wt-step-NNx` (jj name `wt-step-NNx`), on your `@-`.
+     - You start the session in a jj workspace of its own (item 3):
+       `../deduxit-wt-step-NNx-<suffix>`, jj name `wt-step-NNx-<suffix>`,
+       on your `@-`.
      - The brief has it run `jj new REV` there first when its base is
        another revision.
      - For the client or the Rocq library, the brief names `jj -R
        ../linlog-prover.github.io workspace add --name stepNNx
        ../linlog-prover.github.io-NNx -r CREV` (likewise
        `../rocq-linlog`).
-   - `goal-NNx.txt` is one `/goal` line of numbered items, each proved
-     "by a command's own output" (the judge sees only the conversation).
-     It ends with: "Nothing is pushed. A failing check is fixed at its
-     cause; never weaken, delete or loosen a test, a check or a
+   - The session's checklist is a list of numbered items, each proved
+     "by a command's own output". It goes into the start prompt (item 3).
+     A `/goal` can't: the app puts the background before the prompt, and
+     a `/goal` that does not start a message is plain text. The
+     checklist ends with: "Nothing is pushed. A failing check is fixed at
+     its cause; never weaken, delete or loosen a test, a check or a
      tolerance to make it pass. If a requirement turns out impossible,
-     say why in the report and in the message to deduxit-orchestrator."
+     say why in the report and in your final message. Send no message
+     to deduxit-orchestrator at the end: your final message reaches it."
    - A session that touches both repositories sends "linlog ready" after
      its linlog part; you review and push that part, then answer with
      linlog's commit and the client's revision to base on.
    - Briefs forbid entering the client's dev shell from linlog's
      directory: it once left `node_modules` and `.cache` symlinks in
      linlog's checkout.
-3. **Start it**: `taskset -c CORES plan/start-session.sh deduxit-step-NNx
-   MODEL EFFORT /tmp/linlog-handoff/goal-NNx.txt`.
-   - It starts a background job (`claude --bg --worktree`) in the
-     session's own workspace, and prints the job's id and the session's
-     id. Note both, since the session id resumes it.
-   - A resume through the launcher goes back into that workspace.
-   - Claude Code then refuses the session's edits and commands in this
-     checkout.
-   - The `taskset` keeps the session's own process, and what it starts,
-     off the cores a timed run needs.
-   - The goal file is the launch prompt, so the goal is set at once.
-     `claude logs deduxit-step-NNx` prints its recent screen: check that
-     it shows `◎ /goal active`.
-   - `SendMessage` to it with `notify_when_idle: true` and no message.
-   - Keep two crons:
-     - a supervision check (`17 */2 * * *`): its commits, its checklist,
-       its screen (`claude logs`) and the notifications log (below) for a
-       waiting prompt or a heads-up box, the units, the load,
-       `claude agents --json` for a job that stopped, and
-       `plan/housekeeping.py` (below, "Housekeeping"). Nudge only an idle
-       session with work open, twice at most, and say nothing when all
-       is well;
-     - while unattended, a wake-up every 20 minutes (below).
-   - Re-subscribe after each idle notice, but not to a session already
-     idle (it fires at once).
-4. **Review it** when it reports (its last message to
-   `deduxit-orchestrator`):
+3. **Start it** with the app's `start_session`, in a turn the author
+   started or in the chain of "session finished" turns right after one
+   ("Sessions in the Claude app" says why):
+   - `initiation` "user_asked" (the author's go asked for it), `context`
+     "fresh", `title` "deduxit-step-NNx: what it does", `name`
+     "step-NNx";
+   - `use_worktree` true and `branch_name` "step-NNx". The WorktreeCreate
+     hook then makes its jj workspace `../deduxit-wt-step-NNx-<suffix>`
+     on your `@-` (probed 2026-11-13), and the hook's `prune` and removal
+     never take a `wt-step-` one;
+   - `model` "claude-opus-5-5", `effort` "high", `permission_mode`
+     "auto", `wake_when_done` true. Name the model and effort, as every
+     start does;
+   - `prompt`: the checklist (item 2) and the path of its brief;
+     `background`: what the step is for, in a few sentences.
+
+   Then:
+   - **A session on Fable 5.2** (the rows that name it). A session you
+     start runs on your model or a cheaper one, so:
+     1. Start it on Opus with a one-line prompt: "Your brief follows in a
+        message; reply "ready" and wait".
+     2. Wait for the note that its turn ended. A brief sent earlier would
+        be read inside that turn, on Opus.
+     3. Then `set_session_model` to `claude-fable-5-2` (the app may ask
+        the author, since Fable costs more than you).
+     4. Then send the checklist and the brief with `SendMessage`.
+
+     Only its first, short turn runs on Opus.
+   - Note its session id (`local_…`): you message it by that id.
+   - Its own process can't be pinned to cores. The capped scopes its
+     brief names keep its builds and runs off a timed run's cores.
+   - **Supervision.** The app tells you when a session you started
+     finishes a turn: a note, then a "session finished" turn. No cron or
+     idle subscription is needed for that. At each note:
+     - read its last report (`list_events`), its commits, its checklist
+       and the notifications log (below);
+     - nudge a session that stopped with work open, twice at most;
+     - say nothing when all is well.
+
+     `plan/housekeeping.py` runs at each step's close and before its
+     sessions start.
+   - **Crons.** A cron is only for what sends no note, such as a CI run
+     or a unit. Keep few: a turn a cron starts can't start a session, and
+     it breaks the chain of "session finished" turns.
+4. **Review it** when it reports (its finish note and final message):
    - read its report section and the diff (`jj diff -r 'BASE..HEAD'
      --stat`, every soundness-relevant file in full: the checker's arm,
      the Rocq trusted definitions);
@@ -357,13 +366,15 @@ to D32), grouped by release. In brief:
      matches the settings' `ask` rule, and an unattended run must not
      ask.
 8. **Clean up**, once its chain is on `main@origin`:
-   - Close the session: `claude stop JOB`. Its conversation is kept;
-     `claude rm JOB` deletes it, and is for probes only.
+   - Leave the session itself alone: the app archives it after 7 idle
+     days (the author's setting). Archive it sooner only when the author
+     asks.
    - Check that no result it cites lives only in its workspaces
      (untracked lists, CSVs, logs, screenshots). Copy one that matters
      into the repository.
    - Remove its workspaces:
-     - `jj workspace remove wt-step-NNx` here;
+     - `jj workspace remove wt-step-NNx-<suffix>` here (`jj workspace
+       list` names it);
      - `jj -R ../linlog-prover.github.io workspace remove stepNNx`, or
        the same in `../rocq-linlog`, for the others.
 
@@ -386,7 +397,6 @@ regularly.
 `plan/housekeeping.py` lists what may go. It removes nothing and writes
 no commit. Run it:
 - at every session's clean-up (above);
-- in every supervision check;
 - before you start a step's sessions;
 - before a release.
 
@@ -399,8 +409,8 @@ for each kind:
     except the step sessions' (`wt-step-`). Run it only when no session
     and no sub-agent of yours runs: a sub-agent's new workspace is empty
     too.
-  - A workspace stays while its session runs. The report says which job
-    works in it.
+  - A workspace stays while its session runs. The app says which session
+    works in it: `list_sessions`, and `get_session`'s `worktreePath`.
 - **A workspace whose session has ended, that holds work or whose work
   is not on `main@origin`.**
   - Look at what it holds. Take it into the session's chain, or put it
@@ -419,12 +429,8 @@ for each kind:
   - Otherwise ask the author.
 - **A failed unit.** Read its journal (`journalctl --user -u UNIT`), keep
   what a report needs, then run `systemctl --user reset-failed UNIT`.
-- **A background job whose chain is pushed.** It was stopped at its
-  clean-up, and `claude rm` is for probes.
-  - `claude rm` refuses a job whose workspace sits on commits not on
-    origin ("push them first").
-  - Never pass it `--discard-unpushed`. Remove the workspace by jj
-    instead.
+- **A step session of a finished step** stays in the sidebar until the
+  app archives it after 7 idle days.
 
 `/tmp/linlog-handoff/` and the scratch directories age out on their own.
 
@@ -432,50 +438,61 @@ for each kind:
 
 - **Names** (the author, 2026-10-29, with the project's name since
   2026-11-09): every session and agent the planning session starts is
-  named with the prefix `deduxit`: step sessions `deduxit-step-NNx`,
-  sub-agents `deduxit-…`. The briefs ask step sessions to name their own
+  named with the prefix `deduxit`: step sessions titled `deduxit-step-NNx`
+  (handle `step-NNx`), sub-agents `deduxit-…`. The briefs ask step sessions to name their own
   sub-agents so too. (Before 2026-11-09 the prefix was `linlog`, and some
   of that night's sessions were plain `step-NNx`.)
-- **A step session**: a background Claude Code session (`claude --bg`,
-  started by `plan/start-session.sh` in a jj workspace of its own), one
-  writer per coupled change,
-  its goal in its launch prompt. Not agent teams, which are experimental
-  and make teammates children of one lead. Not the Workflow tool for
-  supervision either: it is for fan-out within a session, such as a
-  step's panel, which the author chose a workflow for (step 26).
-  - **Background jobs are the documented interface**
-    (code.claude.com/docs/en/agent-view, checked 2026-11-09):
-    - `claude agents --json` lists each job's id, name, session id and
-      state;
-    - `claude logs NAME` prints its recent screen;
-    - `claude stop JOB` stops it (by job id, not name), keeping its
-      conversation;
-    - `claude --bg --resume SESSION_ID …` brings it back, through the
-      launcher's `--resume`, under a new session id.
-  - **What stops a job:** a machine restart stops every job, and an idle
-    job that no terminal is attached to is stopped after about an hour.
-    Resume it.
-  - **Until 2026-11-09** sessions ran in detached zellij panes, and the
-    planning session typed into them, an interface no document covers.
-    Nothing needs that now.
-- **`/goal`**: its judge sees only the conversation and has no turn cap,
-  and the goal's last sentence lets it answer "impossible".
-  - A goal cannot be paused, and a message cannot set or clear one: a
-    command inside a message does not run.
-  - So a pause is a "Pause" message, then `claude stop JOB` once the
-    session is idle. The goal stays with the conversation and comes back
-    when `--resume` restores it, its turn count and timer afresh.
-- **Messages wake an idle session.** Code.claude.com/docs/en/
-  cross-session-messaging says an idle receiver takes a message as a
-  new turn, and a background probe confirmed it on 2026-11-09; a busy
-  one reads it between tool calls.
+- **A step session** is a session in the Claude app that you start with
+  `start_session` (item 3), in a jj workspace of its own. There is one
+  writer per coupled change. What it is not:
+  - not agent teams, which are experimental and make teammates children
+    of one lead;
+  - not Projects, whose threads run in the cloud: a local thread needs
+    Remote Control, and the docs send "work where every task needs your
+    machine" to local sessions;
+  - not the Workflow tool for supervision. That is for fan-out within a
+    session, such as a step's panel, which the author chose a workflow
+    for (step 26).
+
+  More about step sessions:
+  - **The app's session tools** (`mcp__ccd_session_mgmt__…`, checked
+    2026-11-13):
+    - `list_sessions`, which with `linked: true` lists the ones you
+      started;
+    - `get_session`, for state, model, effort and workspace;
+    - `list_events`, for its transcript;
+    - `SendMessage`, with `to` set to its `local_…` id;
+    - `stop_session`, which interrupts its turn;
+    - `set_session_model` and `set_session_effort`, which apply from its
+      next turn;
+    - `archive_session` and `unarchive_session`.
+  - **What stops one:** quitting the app, which stops you too. App
+    sessions persist: after a restart the author reopens you, and an idle
+    step session takes a message as a new turn.
+  - **Before 2026-11-13** step sessions were CLI background jobs
+    (`claude --bg`, `plan/start-session.sh`). Before 2026-11-09 they were
+    zellij panes.
+- **No `/goal`**: a step session gets no goal judge (item 2 says why).
+  - Your notes and nudges do its work. A session that stops early with
+    work open gets a short message naming the open items, twice at most,
+    before the author hears of it.
+  - A pause is a "Pause" message, then `stop_session` if a turn still
+    runs. A resume is a "Resume" message.
+- **Messages wake an idle session.** An idle receiver takes a message as
+  a new turn (probed).
+  - A busy receiver reads a `SendMessage` between tool calls, by the
+    cross-session messaging docs.
+  - The app's own message surface instead holds a message until the
+    receiver's turn ends, by the desktop docs ("Work across sessions").
+  - Delivery to a busy app session is not probed. So a "Pause" may only
+    take effect when the turn ends, and a deadline rests on
+    `stop_session`.
   - A message can be held instead: across permission-mode classes
     (bypass against the rest), or when a session is set to hold or
     refuse. All of ours run in auto mode, one class, so none is held.
-  - While unattended, keep a cron every 20 minutes (`*/20 * * * *`) for
-    what sends no message: a CI run, a unit, a job that stopped. Crons
-    fire only while you are idle, so keep turns short, and rewrite the
-    cron's prompt when the work moves on.
+  - While a chain the author asked for runs, keep no cron. Its turn would
+    break the chain, and the finish notes wake you anyway. Check a CI run
+    at the next note.
 - **A session waiting on a prompt**: a session in auto mode still stops
   at a command a settings `ask` rule matches; on 2026-11-03, 45e stopped
   at `jj git push --help`.
@@ -485,12 +502,12 @@ for each kind:
     with its `cwd`. Read the log in every check.
   - Never approve on the author's behalf, and tell the session another
     way (here, the forms `plan/push-main.sh` uses). Answering the prompt
-    itself needs `claude attach`, which is the author's.
+    itself is the author's, in that session in the app.
 - **A session that uses `EnterWorktree`** to move into its jj workspace
   waits on a prompt (moving outside `.claude/worktrees/` always asks).
-  The launcher starts each session in its workspace, so a brief says only
-  "never EnterWorktree". If one is stuck there anyway: `claude stop JOB`,
-  then resume it with that instruction.
+  Each session starts in its workspace (item 3), so a brief says only
+  "never EnterWorktree". If one is stuck there anyway, run
+  `stop_session`, then send a message with that instruction.
 - **Your own turn waiting on a prompt** blocks everything you supervise:
   on 2026-11-09 a raw `jj git push` held it for two hours.
   - Run nothing in your own turn that an `ask` rule matches while the
@@ -504,8 +521,8 @@ for each kind:
 - **Heads-up boxes in a session's screen** (Claude Code's built-in
   plugin `cc-plugin-you-should-know`: "Heads up · …"). Each carries a
   finding about that session's work, often a real one.
-  - Read its text in `claude logs NAME`, and act on it, usually with a
-    short message to the session.
+  - Read its text in the session's transcript (`list_events`) or in the
+    app, and act on it, usually with a short message to the session.
   - A box doesn't block the session, so it needs no dismissing.
   - A note that reaches you as "a note offered by a side agent" can be
     stale: check it against what the session reported since.
@@ -534,40 +551,62 @@ for each kind:
   every `nix build` or `nix flake check`, since the daemon builds on any
   core. Several checks queue on it: a `flock` waiting is normal.
 
-## In the Claude app
+## Sessions in the Claude app
 
-What differs when the author starts you in the Claude app rather than in a
-terminal (probed on 2026-11-13 with Claude Code 2.1.321):
-- **Two sign-ins.**
-  - You run on the app's sign-in.
-  - The step sessions you start with `plan/start-session.sh` run in the
-    CLI's background service, on the CLI's sign-in
-    (`~/.claude/.credentials.json`). So `claude auth status` belongs in
-    your checks ("Starting").
-- **The same sessions.**
-  - The launcher works from the app. A step session it starts runs in
-    its own jj workspace and shows in the app's sidebar beside you.
-  - `claude agents --json` and `claude logs` read it as before.
+Since 2026-11-13 you and every step session run in the Claude app, and
+the CLI is uninstalled. Sources: the docs (code.claude.com/docs/en/
+desktop, …/agents, …/claude-projects, …/goal,
+…/cross-session-messaging), the app's own descriptions of its session
+tools (which every app session is given), and probes that day (Claude
+Code 2.1.321). What follows from them:
+- **Starting sessions is bounded.**
+  - The app refuses `start_session` in a turn that a session's message,
+    a cron or another automated event started.
+  - It allows one in a turn the author started, and in the chain of
+    "session finished" turns right after it.
+  - So the author's go names what to run and in which order. Start each
+    piece as the previous one finishes, from those turns.
+  - Keep the chain unbroken: no cron while it runs, and briefs ask
+    sessions not to message you at their end (the note reports them).
+  - A mid-step message (such as "linlog ready") is fine for that piece,
+    but it ends the chain. Start the next piece at the author's next go,
+    or propose it as a card (`own_initiative`) for the author to start
+    with a click. The app's own instructions for starting sessions say to
+    propose where a start is refused.
+  - A turn that a background wait wakes (the usage limit, below) is an
+    automated turn too: propose the next piece then, or wait for the
+    author.
+- **Models and efforts at start.** A session you start runs on your model
+  or a cheaper one, at your effort or lower. A Fable session is switched
+  after start (item 3).
+- **No `/goal`** in a started session. The app puts the background before
+  the prompt.
+- **Workspaces.**
+  - `use_worktree` goes through the WorktreeCreate hook, so a session
+    works in a jj workspace named after `branch_name`, with a suffix.
+  - Archiving a session left its workspace in place (probed).
+  - `prune` removes leftovers, never a `wt-step-` one.
 - **Messages work both ways.**
-  - A step session's `SendMessage` to `deduxit-orchestrator` reaches you.
-  - Your `SendMessage` with `notify_when_idle: true` brings its idle
-    notice.
-  - A message you send to another session in the app gets no delivery
-    notice, so never count silence as agreement.
-- **Scheduled checks work.** `CronCreate` fires as in a terminal, while
-  you are idle; a one-shot fired on time. Every cron lives only as long as
-  this session, and a recurring one expires after 7 days, so recreate the
-  supervision check each week.
-- **Keep the app open.**
-  - You end when the app quits, and your crons go with you. The step
-    sessions go on in the background service.
-  - After a restart, the author reopens you from the sidebar. Recreate
-    your crons and find out where things stand ("Starting").
-- **The app archives sessions idle for 7 days** (the author's setting).
-  - A pause longer than that archives you and the stopped step sessions.
-  - Reopen yourself from the Archived list.
-  - Resume a step session with the launcher as usual. Archiving leaves
-    its workspace in place, since the hook keeps every `wt-step-` one.
+  - App sessions reach each other by `local_…` id or by name, and a step
+    session's `SendMessage` to `deduxit-orchestrator` reaches you.
+  - A message to another app session gets no delivery notice, so never
+    count silence as agreement.
+- **Crons work.** `CronCreate` fires while you are idle. But each cron
+  lives only as long as this session, a recurring one expires after 7
+  days, and a cron's turn can't start a session.
+- **Keep the app open.** You and the step sessions end when the app
+  quits. After a restart the author reopens you from the sidebar. Find
+  out where things stand ("Starting"), then send each step session that
+  was working a "Resume".
+- **The app archives sessions idle for 7 days** (the author's setting). A
+  pause longer than that archives you and the step sessions.
+  - The author reopens you from the Archived list.
+  - You unarchive a step session (`unarchive_session`) before messaging
+    it. Its workspace is still there.
+- **Shared notes.** The app gives the sessions you start a notes folder,
+  `~/.config/Claude/side-session-notes/<your session id>`, named in their
+  first message. Briefs and hand-over notes may go there: it survives a
+  reboot, where `/tmp/linlog-handoff/` ages out.
 - **Commands for the author** go in the app's Terminal panel (nushell),
   or after `! ` in your message box.
 
@@ -608,9 +647,8 @@ terminal (probed on 2026-11-13 with Claude Code 2.1.321):
     on 2026-11-02): look at `ListAgents` before each timed run and tell
     each.
 - **After a reboot**:
-  - every step session's background job has stopped:
-    `plan/start-session.sh --resume SESSION_ID NAME MODEL EFFORT
-    "Resume"` brings each back with its context and its goal;
+  - the author reopens the app and you. Send each step session that was
+    working a "Resume", and it goes on with its context;
   - signing and SSH are locked: ask the author to unlock through SSH
     (`ssh -T git@github.com`, which unlocks the signing key too; signing
     alone leaves SSH locked), then run `plan/keys-warm.sh`;
@@ -624,8 +662,8 @@ terminal (probed on 2026-11-13 with Claude Code 2.1.321):
 - **Night jobs** (the baseline) start detached when ready
   (`bench/baseline.sh --detach --fresh`), on the night the author gives.
 - **"Stop" or "Pause" from the author**: the `graceful-stop` skill
-  (`HH:MM` for a stop by then, `resume` for the resume). It records each
-  session's goal file for the resume.
+  (`HH:MM` for a stop by then, `resume` for the resume). It records where
+  each session stood, for the resume.
 
 ## What the author has asked for, standing
 
@@ -716,19 +754,18 @@ terminal (probed on 2026-11-13 with Claude Code 2.1.321):
 
 ## The usage limit
 
-- **Both accounts stop at their five-hour limit**, the planner too. A
-  step session shows "Goal paused · usage limit reached" and does not go
-  on by itself; its running sub-agents die with an API error.
+- **The account stops at its five-hour limit**, the planner too. A step
+  session stops where it is, and its running sub-agents die with an API
+  error.
 - Claude Code continues a session by itself at the reset, but only for a
   turn that a person's prompt or a peer's message started; a turn that a
   cron, an idle notice or a task notification started does not.
 - So keep a background wall-clock wait ending a few minutes after the
-  reset the pane names (`while [ "$(date +%s)" -lt TARGET ]; do sleep 30;
+  reset the app names (`while [ "$(date +%s)" -lt TARGET ]; do sleep 30;
   done`, `run_in_background`), and at the wake message the session to go
   on and restart any sub-agent that died. A plain `sleep` counts no
   suspended time, and the laptop suspends on lid close.
-- On the second account (Max 5x) this comes often; on the first (Max
-  20x) rarely.
+- On this account (Max 20x) it comes rarely.
 
 ## Things that bit earlier sessions
 

@@ -14,8 +14,10 @@ workspace the session runs in, in a directory `<that one's directory>-wt-NAME`
 workspace this script made), on `@-` of that workspace (git's HEAD, so
 committed work only, as Claude Code's worktrees take). jj makes it a git
 worktree too, so nix sees its files, and Claude Code accepts it as a checkout
-of its own. A second creation of the same name reopens it, which is how
-`plan/start-session.sh` resumes a step session in its workspace.
+of its own. A second creation of the same name reopens it. The Claude app
+names a session's worktree after the branch name it is started with plus a
+suffix, so a step session started with `step-NNx` works in
+`../deduxit-wt-step-NNx-<suffix>`.
 
 On removal it deletes only a workspace it made, and only when its working
 copy holds nothing; otherwise it exits 1 and the workspace stays, since
@@ -38,8 +40,9 @@ import subprocess
 import sys
 
 PREFIX = "wt-"
-# The workspaces `plan/start-session.sh` starts step sessions in. A step
-# session's working copy is empty after each commit, so `prune` would take it
+# The workspaces step sessions run in: the planning session starts them with
+# the branch name `step-NNx`. A step session's working copy is empty after
+# each commit, so `prune` would take it
 # while the session runs, and Claude Code removes it when the session is
 # archived; neither touches one. The planning session removes one by name once
 # its chain is on main.

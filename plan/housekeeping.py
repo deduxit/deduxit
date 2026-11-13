@@ -7,20 +7,20 @@
 
 It covers deduxit and the repositories beside it that sessions work in (the
 web client, the Rocq library), and lists:
-- every workspace but the default, with whether its working copy is empty,
-  whether its work is on `main@origin`, and which background job works in it;
+- every workspace but the default, with whether its working copy is empty
+  and whether its work is on `main@origin`;
 - the directories beside the checkouts left by earlier sessions: forgotten jj
   workspaces, and session output such as screenshots (`*-stepNN*`);
 - changes off `main@origin` not touched for a week;
-- the background jobs of deduxit's sessions, with their state;
 - failed user units of the runs.
 
-`plan/handoff.md` ("Housekeeping") says what to do with each. It reads with
+`plan/handoff.md` ("Housekeeping") says what to do with each; which session
+works in a workspace is for the Claude app to say (`list_sessions`,
+`get_session`). It reads with
 `--ignore-working-copy`, so it snapshots no workspace and writes no commit.
 """
 
 import datetime
-import json
 import os
 import re
 import subprocess
@@ -41,8 +41,13 @@ STALE_AFTER = datetime.timedelta(days=7)
 
 
 def run(*args):
-    """Runs a command; its standard output, or "" when it fails."""
-    r = subprocess.run(args, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+    """Runs a command; its standard output, or "" when it fails or is missing."""
+    try:
+        r = subprocess.run(
+            args, capture_output=True, text=True, stdin=subprocess.DEVNULL
+        )
+    except OSError:
+        return ""
     return r.stdout if r.returncode == 0 else ""
 
 
@@ -75,30 +80,9 @@ def workspaces(repo):
     ]
 
 
-def jobs():
-    """The background jobs `claude agents` lists, as dictionaries."""
-    try:
-        data = json.loads(run("claude", "agents", "--json") or "[]")
-    except json.JSONDecodeError:
-        return []
-    return data if isinstance(data, list) else data.get("agents", [])
-
-
-def users(root, rows):
-    """The jobs whose working directory is in the workspace at `root`."""
-    real = os.path.realpath(root)
-    return [
-        row
-        for row in rows
-        if row.get("cwd")
-        and (os.path.realpath(row["cwd"]) + os.sep).startswith(real + os.sep)
-    ]
-
-
 def main():
     """Prints the report."""
     repos = [r for r in REPOS if os.path.isdir(os.path.join(r, ".jj"))]
-    rows = jobs()
     roots = set()
     lines = []
     for repo in repos:
@@ -122,14 +106,8 @@ def main():
                 if merged
                 else "its work is not on main@origin"
             )
-            using = ", ".join(
-                f"{row.get('name')} ({row.get('state')})"
-                for row in users(root, rows)
-                if root
-            )
-            in_use = f", in use by {using}" if using else ""
             lines.append(
-                f"{os.path.basename(repo)}: {name} at {root or '?'}, {state}, {on_main}{in_use}"
+                f"{os.path.basename(repo)}: {name} at {root or '?'}, {state}, {on_main}"
             )
     section("Workspaces", lines)
 
@@ -177,14 +155,6 @@ def main():
                     f"{os.path.basename(repo)}: {change} ({day}) {subject or '(no description)'}"
                 )
     section("Changes off main@origin, untouched for a week", lines)
-
-    lines = []
-    for row in rows:
-        if str(row.get("name", "")).startswith("deduxit-"):
-            lines.append(
-                f"{row.get('name')}: job {row.get('id')}, {row.get('state')}, in {row.get('cwd', '?')}"
-            )
-    section("Background jobs of deduxit's sessions", lines)
 
     out = run(
         "systemctl",

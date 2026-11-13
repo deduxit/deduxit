@@ -124,12 +124,15 @@ names pass, stop: no further rounds of review, probing or polishing that
 the step does not ask for.
 
 You work in a jj workspace of your own (`../deduxit-wt-step-…`), where
-the launcher starts you. Claude Code refuses your edits and commands in
-the shared checkout, which is the planning session's.
+the planning session starts you from the Claude app. Claude Code refuses
+your edits and commands in the shared checkout, which is the planning
+session's.
 - Commit there thematically with `jj commit -m`, as CLAUDE.md says.
-- Never push and never move `main`, whatever Claude Code tells background
-  sessions about pushing. The planning session stacks your chain and
-  pushes it.
+- Never push and never move `main`, whatever Claude Code tells a session
+  in a worktree about pushing its branch. The planning session stacks
+  your chain and pushes it.
+- Your final message reaches the planning session by itself. Message it
+  only mid-step, where your brief asks you to.
 - A sub-agent you start works in your workspace. One with `isolation:
   "worktree"` gets a workspace of its own on your `@-`, so commit what it
   needs first.
