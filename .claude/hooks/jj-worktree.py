@@ -8,10 +8,14 @@ background session and a workflow agent in a git worktree under
 .claude/worktrees/ by default. In this colocated jj repository that checkout
 is invisible to jj: a jj command there finds the main workspace's .jj/ and acts
 on its working copy. Registered for both events, this script replaces that
-logic with `jj workspace add`: a workspace beside the repository, named
-`wt-NAME` in a directory `<repository>-wt-NAME`, on `@-` of the workspace the
-session runs in (git's HEAD, so committed work only, as Claude Code's
-worktrees take). jj makes it a git worktree too, so nix sees its files.
+logic with `jj workspace add`: a workspace named `wt-NAME`, beside the
+workspace the session runs in, in a directory `<that one's directory>-wt-NAME`
+(so `../deduxit-wt-NAME` from the checkout, and `<that>-wt-NAME` from a
+workspace this script made), on `@-` of that workspace (git's HEAD, so
+committed work only, as Claude Code's worktrees take). jj makes it a git
+worktree too, so nix sees its files, and Claude Code accepts it as a checkout
+of its own. A second creation of the same name reopens it, which is how
+`plan/start-session.sh` resumes a step session in its workspace.
 
 On removal it deletes only a workspace it made, and only when its working
 copy holds nothing; otherwise it exits 1 and the workspace stays, since
@@ -19,7 +23,8 @@ Claude Code's own check for uncommitted work does not apply to a workspace
 this hook made. Commits made in a workspace stay in the repository after it
 goes. Claude Code keeps the workspaces of sub-agents and workflow agents and
 never asks to remove them; `jj-worktree.py prune`, run by hand from the
-repository, removes every such workspace whose working copy is empty.
+repository, removes every such workspace whose working copy is empty, nested
+ones included, finding each by the root jj recorded for it.
 
 Unlike the guards, it does not fail open: a creation that goes wrong exits 1,
 and Claude Code then makes no worktree at all, which is the safe outcome.
@@ -103,13 +108,34 @@ def create(payload):
     print(target)
 
 
+def workspaces(root):
+    """Every workspace of the repository as (name, root path), the path as jj
+    recorded it, or "" where jj has none."""
+    out = jj(
+        "-R",
+        root,
+        "--ignore-working-copy",
+        "workspace",
+        "list",
+        "-T",
+        'name ++ "\\t" ++ if(root, root, "") ++ "\\n"',
+    ).stdout
+    return [tuple(line.split("\t", 1)) for line in out.splitlines() if "\t" in line]
+
+
 def made_here(path):
-    """The workspace name if `path` is a workspace this script made."""
-    base = os.path.basename(path)
-    match = re.search(rf"-{PREFIX}([A-Za-z0-9._-]+)$", base)
-    if not match or workspace_root(path) != path:
+    """The workspace name if `path` is a workspace this script made. The name
+    comes from jj, not from the directory: a workspace made from another one
+    this script made sits at `<that one>-wt-NAME`, whose name ends the path."""
+    if workspace_root(path) != path:
         return None
-    return PREFIX + match.group(1)
+    base = os.path.basename(path)
+    for name, where in workspaces(path):
+        if not name.startswith(PREFIX) or not base.endswith(f"-{name}"):
+            continue
+        if not where or os.path.realpath(where) == path:
+            return name
+    return None
 
 
 def remove(path):
@@ -149,14 +175,15 @@ def prune(cwd):
     root = workspace_root(cwd)
     if root is None:
         sys.exit("jj-worktree: not inside a jj workspace")
-    listing = jj(
-        "-R", root, "--ignore-working-copy", "workspace", "list", "-T", 'name ++ "\\n"'
-    ).stdout.split()
     parent, base = os.path.split(os.path.realpath(root))
-    for name in listing:
+    for name, where in workspaces(root):
         if not name.startswith(PREFIX):
             continue
-        path = os.path.join(parent, f"{base}-{name}")
+        # jj records each root; the guess is for a workspace whose root it
+        # does not know.
+        path = (
+            os.path.realpath(where) if where else os.path.join(parent, f"{base}-{name}")
+        )
         if not os.path.isdir(path):
             jj("-R", root, "workspace", "forget", name, check=False)
             print(f"forgot {name}: its directory is gone")

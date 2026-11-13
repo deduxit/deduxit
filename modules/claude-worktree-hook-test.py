@@ -4,10 +4,11 @@
 """Behavioural test of .claude/hooks/jj-worktree.py, run by the
 `claude-worktree-hook` check against a throwaway colocated jj repository.
 
-It pins where a workspace goes and on which commit, that a second creation of
-the same name reopens it, that `.worktreeinclude` files are copied, that
-removal deletes only an empty workspace the hook made, and what `prune`
-removes and keeps.
+It pins where a workspace goes and on which commit, from the checkout and from
+a workspace the hook made, that a second creation of the same name reopens
+it, that `.worktreeinclude` files are copied, that removal deletes only an
+empty workspace the hook made, and what `prune` removes and keeps, nested
+workspaces included.
 
     python3 modules/claude-worktree-hook-test.py .claude/hooks/jj-worktree.py
 """
@@ -145,12 +146,32 @@ def main():
         os.path.isdir(os.path.join(repo, ".jj")),
     )
 
+    code, last, _ = create("nest", cwd=busy)
+    nest = os.path.join(tmp, "repo-wt-busy-wt-nest")
+    check(
+        "create from a hook's workspace: beside it, named after it",
+        code == 0 and last == [nest],
+        last,
+    )
+    check(
+        "create from a hook's workspace: on that workspace's @-",
+        jj("log", "--no-graph", "-r", "@-", "-T", "commit_id", cwd=nest)
+        == jj("log", "--no-graph", "-r", "@-", "-T", "commit_id", cwd=busy),
+    )
+
     code, last, _ = create("idle")
     idle = last[0]
     code, _, out = run("", "prune")
     check(
         "prune: removes the empty one",
         not os.path.exists(idle) and "removed wt-idle" in out,
+        out,
+    )
+    check(
+        "prune: removes an empty nested one by its recorded root",
+        not os.path.exists(nest)
+        and "removed wt-nest" in out
+        and "wt-nest" not in workspaces(),
         out,
     )
     check(
