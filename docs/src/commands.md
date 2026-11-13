@@ -3,7 +3,8 @@
 The command line program is `deduxit` (`cargo install --locked deduxit-cli`, `nix run
 github:deduxit/deduxit -- …`, or `cargo run -p deduxit-cli -- …` in a
 checkout). `deduxit --help` and `deduxit <command> --help` document every
-option.
+option; `deduxit <command> -h` lists the common ones, grouped by what
+they set (the logic, the input, the output, the search, the limits).
 
 `deduxit prove` decides a sequent, written as below (`-o` is ⊸, `*` ⊗,
 `par` ⅋, `~` negation; the whole syntax is in [The syntax](syntax.md),

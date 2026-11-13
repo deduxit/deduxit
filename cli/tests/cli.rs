@@ -3189,3 +3189,30 @@ fn a_session_lists_its_rules_and_warns_at_a_lost_split() {
         "{out}"
     );
 }
+
+/// `prove -h` shows the common flags under headings and leaves the
+/// expert ones to `--help`, which its last line names.
+#[test]
+fn short_help_keeps_to_the_common_flags() {
+    let (_, short, _) = deduxit(&["prove", "-h"], "");
+    let (_, long, _) = deduxit(&["prove", "--help"], "");
+    for heading in ["Logic", "Input", "Output", "Search", "Limits"] {
+        assert!(short.contains(&format!("\n\n{heading}:\n")), "{heading}");
+    }
+    for expert in [
+        "--bias",
+        "--forward-copies",
+        "--memo-limit",
+        "--pool-after",
+        "--recursion-limit",
+        "--work-limit",
+        "--files-from",
+    ] {
+        assert!(!short.contains(expert) && long.contains(expert), "{expert}");
+    }
+    assert!(
+        short.ends_with("\n\n--help shows every option.\n"),
+        "{short}"
+    );
+    assert!(!long.contains("--help shows every option"));
+}
