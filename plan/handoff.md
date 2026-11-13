@@ -10,7 +10,8 @@ each session before the next starts, stack and check their commits,
 push `main`, keep `plan/README.md` true, and report to the author in
 plain words. This file was rewritten on 2026-11-03 by the planning
 session of the first account, which ran 42e to 45f from 2026-10-30 to
-2026-11-03. It is for a planner on **either** account, `claude` or
+2026-11-03, and brought up to date on 2026-11-13 ("Read first", "Where
+things stand", the models). It is for a planner on **either** account, `claude` or
 `claude2`. Neither account shares the other's memory notes, so this
 file is self-contained: where a memory note of yours says otherwise,
 this file holds.
@@ -63,14 +64,18 @@ this file holds.
     session at a time, and watch the window (below, "The usage limit").
 - **Read first**, in this order:
   1. `CLAUDE.md`.
-  2. `plan/README.md` from its first line to its last: the step table,
-     "Why these models and efforts", "How the prompts are written", "The
-     commands (nushell)", "Review protocol", the decisions, and the
-     Status log from 2026-10-30 on, in full.
+  2. `plan/README.md` up to its Status log: the step table, "Why these
+     models and efforts" (its table of 2026-11-13 holds), "How the
+     prompts are written", "The commands (nushell)", "Review protocol"
+     and the decisions. Then the Status log from 2026-11-08 on, in
+     full; read an earlier entry when a prompt or report points at it.
   3. `plan/conduct.md`, which every step prompt ends with.
-  4. `plan/45-release-0.2.0.md` and `plan/reports/45-release-0.2.0.md`:
-     45a to 45f, and every "What the next sessions must know".
-  5. `plan/46-research-next.md`, the next step.
+  4. The steps under way: `plan/54-ljt-engine.md`,
+     `plan/54s-sat-engines.md`, `plan/54u-usability.md` and
+     `plan/54w-text.md`; the reports `plan/reports/54-ljt-engine.md` and
+     `plan/reports/54w-text.md`; and `plan/notes/usability.md` §6, the
+     changes the author accepted.
+  5. `plan/55-kripke-countermodels.md`, the step after them.
   6. `plan/later.md`'s section heads.
 - **Then find out where things stand** before you act:
   - `jj log -r 'main@origin..'` and `jj workspace list`, in linlog and in
@@ -85,59 +90,68 @@ this file holds.
   crates.io API and Zenodo's records. GitHub's unauthenticated API
   allows 60 calls an hour, so never poll it in a loop.
 
-## Where things stand (2026-11-03, about 11:00)
+## Where things stand (2026-11-13)
 
-- **0.2.0 is released**, in both repositories:
-  - linlog: the tag `v0.2.0` (`1f4f986a`, made by the author), `linlog`
-    and `linlog-cli` 0.2.0 on crates.io, and the GitHub release with
-    fifteen files;
-  - rocq-linlog: the tag `v0.2.0` (`b895ecd1`), its documentation at
-    `linlog-prover.github.io/rocq-linlog/`;
-  - Zenodo: linlog 0.2.0 is 10.5281/zenodo.23899551 (concept
-    10.5281/zenodo.23448588), rocq-linlog 0.2.0 is 10.5281/zenodo.23899110
-    (concept 10.5281/zenodo.23899109, now cited in the library's README
-    and `CITATION.cff`).
-- **Step 45 is done**: 45a to 45f, each reviewed and pushed.
-  - 45e prepared the Rocq library's opam submission. The fork, the push
-    and the pull request are the author's: see "Open with the author".
-  - 45f wrote up the other provers' run on the growing sets (2026-11-03,
-    by day). Its finding: Click & coLLecT's and APLL's wrong refutations
-    are an integer overflow in their shared search (2⁶³ wraps at 63
-    formulas beside a ⊗), not our harness.
-- **Step 46 is done** (2026-11-08: 46a's research, the author's
-  decisions, 46b's roadmap and prompts); step 47 and step 48's first
-  session are next, at the author's go (below, "The steps left").
-- **The heads**:
-  - linlog's `main`: the commit with this file, on `okvwpozo`
-    (`8fdfe7b4`, "Plan: review session 45f"), pushed;
-  - the web client's `main` (`linlog-prover.github.io`): `tmzuyqsq`
-    (`629bc52d`), on linlog v0.2.0, pushed;
-  - rocq-linlog's `main`: `qlxtsvqv` (`2bc4b36b`), the DOI citation,
-    pushed.
-  Only the default workspaces exist. `zellij list-sessions` still shows
-  exited sessions of steps 30 to 44 from earlier planners: harmless,
-  and they hold no work.
-- **Nothing runs**: no step session, and no unit but the warm loop
-  `step-gpg-warm`. The author unlocked signing at about 09:15 on
-  2026-11-03, so it lapses about 21:15.
-- **Two stray changes** are off `main` and never meant for it; leave
-  them:
-  - `ulktsrrq` (2026-10-23): an earlier planner's review probe of MELL
-    nets (`core/src/nets/mell/review.rs`);
-  - `zyqyunxy` (2026-10-30): a review probe of 42f's first-order cut
-    elimination (`scratch_fuzz.rs`, `scratch_hand.rs`), on top of
-    42f's commit.
-- **The opam clone**: `~/Projects/own/rocq-opam`, a jj clone of
-  `rocq-prover/opam` with the commit `40954aee` ("Add
-  rocq-linlog.0.2.0"), copied out of `/tmp` for the author's
-  submission. 45e's own scratch directory
-  (`/tmp/claude-1000/-home-tux-Projects-own-linlog/2e75f3b2-37e3-4af6-a93a-6dbd202461ad/scratchpad/`,
-  3.8 GB: its six opam switches and the original clone) is no longer
-  needed; `/tmp` ages it out.
-- **The briefs and goals** of every session are in `/tmp/linlog-handoff/`
-  (`start-NNx.md`, `goal-NNx.txt`). `start-45f.md` and `goal-45f.txt` are
-  recent models. `/tmp` survives a reboot here, but its files age out
-  after about ten days; the patterns below suffice.
+- **0.3.0 is released** (2026-11-09):
+  - the tags `v0.3.0` of deduxit (8e2bbb18) and rocq-deduxit (66905bcc),
+    signed with the author's key;
+  - `deduxit`, `deduxit-cli`, `linlog` and `linlog-cli` 0.3.0 on
+    crates.io, with Trusted Publishing set;
+  - the GitHub release, docs.rs, and Zenodo's records under both concept
+    DOIs.
+
+  The opam submission waits until there are more features (the author).
+  It is prepared in `~/Projects/own/rocq-opam` (`mmsqlyzk`) and is redone
+  for the release current then.
+- **Done**: steps 47 to 53, and these sessions of step 54, each reviewed
+  and pushed:
+  - 54a and 54b: LJT, now the default for intuitionistic and minimal
+    logic where it wins;
+  - 54w-r: the usability review, `plan/notes/usability.md`;
+  - 54w-a: the page's text;
+  - 54w-b: the Rocq library's text;
+  - 54w-e1 and 54w-e2: the comments.
+- **Paused since 2026-11-09, 17:20**, at the author's word. No session
+  starts before the author's go. Then, by the Status log of 2026-11-09
+  (17:45 and 18:10):
+  - On go: 54s-a, 54u-a, 54u-b and 54u-c, at most four step sessions
+    at once. 54u-e starts when a slot frees, and 54w-e6 may start too.
+  - 54w-c follows 54u-a, 54u-b and 54u-e. 54w-d follows 54u-b, and
+    54w-e3 to e5 follow 54u-a.
+  - After 54s, step 55 opens with its new first session (Q5, Q12).
+  - Ask at the go whether the author will be away (unattended) or
+    present.
+- **The models** are the table of 2026-11-13 in `plan/README.md`. The
+  prompts of 54s to 73 name it, and every brief you write follows it.
+- **The heads**, all pushed. Only the default workspaces exist in the
+  three repositories.
+  - deduxit's `main`: the commit with this file.
+  - The web client's `main` (`../linlog-prover.github.io`, the
+    repository `deduxit/deduxit.github.io`): `qyxnytmo` (223ba9ef).
+  - rocq-deduxit's `main` (`../rocq-linlog`): `qlxkqlrx` (df4b15ec).
+- **Nothing runs.** `claude agents --json` lists no session of
+  deduxit's, and there is no unit, not even the warm loop
+  `step-gpg-warm`. Both keys were unlocked on 2026-11-13: start the loop
+  with `plan/keys-warm.sh`.
+- **Left beside the checkout** by earlier sessions: directories that are
+  no longer jj workspaces.
+  - They are `../linlog-step54a`, `../rocq-linlog-53b`, `-53n`, `-53r`,
+    `-53s` and `-54w-b`, `../linlog-step41b-*`, and the `*-screenshots`
+    directories.
+  - Before deleting one, look for untracked results that a report
+    cites.
+- **Off `main`, never meant for it**; leave them:
+  - `ulktsrrq` (2026-10-23), an earlier planner's review probe of MELL
+    nets;
+  - `zyqyunxy` (2026-10-30), a review probe of 42f's cut elimination;
+  - `uworquvp` (2026-11-08), a change to 53's report.
+- **The briefs and goals** of every session are in
+  `/tmp/linlog-handoff/`.
+  - `goal-54a.txt`, `goal-54b.txt` and `goal-54w-*.txt` are the recent
+    models for goals.
+  - 54's `start-*.md` briefs were not kept: write them by "How a step
+    runs", item 2.
+  - `/tmp` ages files out after about ten days.
 
 ## The steps left
 
@@ -145,16 +159,12 @@ The table in `plan/README.md` is the authority; its steps from 47 are
 the roadmap step 46 set on 2026-11-08 from the author's decisions (D24
 to D32), grouped by release. In brief:
 
-- **0.3.0, ordinary logic on the page**: 47 the measurement (may run
-  beside 48); 48 the move to `sequentium` (48a prepares, the author
-  acts, 48b checks; then the author's opam pull request); 49 ordinary
-  logic step by step in the library, the command and on the page, with
-  the client's suite registry; 50 proofs as lambda-terms; 51 the
-  one-sided and state-equation refutations checked and certified; 52
-  the inverse method's dispatch rows; 53 the small defects and the
-  release. Prompts 47 to 53 are complete: finish each with what the
-  steps before it left, at their reviews, as the rows say.
-- **0.4.0, intuitionistic logic decided**: 54 the LJT engine, 55 Kripke
+- **0.3.0, ordinary logic on the page**: steps 47 to 53, done and
+  released on 2026-11-09.
+- **0.4.0, intuitionistic logic decided**: 54 the LJT engine (54a and
+  54b done), 54s the SAT-based engines, 54u the usability review's
+  accepted changes, 54w every text rewritten to `.claude/rules/writing.md`
+  (under way, "Where things stand"), 55 Kripke
   countermodels with their Rocq lemma, 56 tableaux and truth tables, 57
   a checked basis for non-coverability, 58 maintenance with Kani, 59 the
   release.
