@@ -210,3 +210,335 @@ a per-sequent limit; every `implementation()` call against
   in one place.
 - The chain's commits are unsigned: the signing hook found the key
   locked; the push signs them.
+
+## Session 54u-b: the command
+
+Item 2 of `plan/54u-usability.md` (Opus 5.5 at `high`, 2026-11-14, cores
+10-12, jj workspace `deduxit-wt-step-54u-b-3b6b81`), the author away:
+every decision below was taken by research and the code's own idiom,
+each with its reason.
+
+### Outcome
+
+Q6, Q8, Q9 and Q10 are built, each with focused tests, and shown
+working by capped calls of the command. The chain on `main`
+(`povyqwuq`, which is `main@origin`), oldest first:
+
+| change | what |
+|---|---|
+| `kmokzrnw` | Q6: hints on a newcomer's first errors, `--format tex` |
+| `rwuvpows` | Q8: classical refutations by the sides written, the `-a` note |
+| `lpnqrkvr` | Q9: `interact`'s rule list and the warning at a lost split |
+| `zonptzos` | Q10: `-h` grouped, the expert flags left to `--help` |
+| `qxoqulyv` | the behaviour lock's changed lines, alone |
+| `rvxklplz` | the rules files |
+| (this section) | the report |
+
+Nothing is pushed. The commits are thematic, each builds (`cargo check
+--workspace --all-targets` at every one); the lock fails between
+`kmokzrnw` and `qxoqulyv` by design, since its blessing is the commit
+of its own the step asks for.
+
+### What was built
+
+**Q6, hints that say what to write** (`cli/src/hint.rs`, new; `lib.rs`;
+the parser's hint in `core/src/linear/parse/mod.rs`):
+
+```console
+$ deduxit "A |- A"
+error: unrecognized subcommand 'A |- A'
+
+  tip: to decide a sequent, run deduxit prove "A |- A"
+…
+$ deduxit prove A -o B
+error: cannot parse the sequent
+  A
+   ^ unexpected end of input, expected a connective, `,` or `|-`
+  quote the sequent: deduxit prove "|- A -o B"
+$ deduxit prove '!A,' B
+error: unexpected argument 'B' found
+
+  tip: quote the sequent: deduxit prove '|- !A, B'
+…
+$ deduxit prove "A -> B |- A"
+error: cannot parse the sequent
+  A -> B |- A
+     ^ unexpected ">", expected the `o` of `-o`
+  -> is ordinary logic's arrow: write -o, or add --logic classical
+$ deduxit prove --file s.txt        # id: A |- A, mp: … one per line
+error: cannot parse the sequent
+  id: A |- A
+    ^ unexpected ":" at line 1, character 3, expected a connective, `,` or `|-`
+  to read one sequent per line, add --input-format lines
+$ deduxit prove -q --format tex "A |- A"
+% provable (MLL, classical, focus engine)
+```
+
+Decisions:
+- The subcommand and unquoted-argument cases are clap's own errors, so
+  the hint is clap's `tip:` line (`clap::Error::insert` with
+  `ContextKind::Suggested`, read in clap_builder 4.6.7's
+  `error/format.rs`), as git's and cargo's are. The subcommand tip comes
+  only where clap found no similar subcommand (`deduxit prov` keeps
+  clap's "a similar subcommand exists").
+- The item names the parse that ends early (`-o B` taken as `--output
+  B`); the same mistake also reaches clap as an argument the command does
+  not take (`deduxit prove A, B`), which a shell makes of every unquoted
+  sequent with a comma. Both get the hint (departs from the design only
+  in covering the second form of the same mistake). The command line is
+  parsed again without each refused word, at most once per word, until
+  the command reads a sequent; the hint then quotes the words of the
+  command line as written, from the first of them up to a flag (`-o`
+  is the implication), the same words the `parse` path quotes.
+- An unquoted linear sequent never has `|-` (the shell reads `|` as a
+  pipe), so the hint puts `|- ` before a sequent that has no turnstile,
+  so that the command it shows runs. Under `--logic` it does not: an
+  ordinary formula stands alone.
+- Quoting is POSIX shell's: double quotes, single quotes where the text
+  has `!` (history expansion in bash and zsh), `"`, `\`, `$` or `` ` ``.
+- The `->` hint is the library's (`ParseError::hint`, `ARROW`, in both
+  parsers), so the page shows it too; the command adds `, or add
+  --logic classical` where the command takes that flag as it was called
+  (not `seq json`, not with `-i`), as it adds `--ill-syntax one-sided`
+  after the intuitionistic hints.
+- The lines hint: `prove`, text read from a file or standard input, a
+  parse error at a `:` or past the first line. `--input-format lines` is
+  `prove`'s alone (a batch), so `interact` and `seq` do not get it.
+- `--format tex` is `#[value(alias = "tex")]` on `Format::Latex` and on
+  `seq print`'s `SequentFormat::Latex`, hidden from the list of values
+  as an alias is.
+
+**Q8, refutations in the sequent's terms** (`core/src/linear/search/refutation.rs`,
+`cli/src/prove.rs`):
+
+```console
+$ deduxit prove "A |- B"
+unprovable (MLL, classical, focus engine): A on the left has no A on the right to meet in an axiom
+$ deduxit prove "A, B |- A"
+unprovable (MLL, classical, focus engine): B on the left has no B on the right to meet in an axiom; with -a (affine), an unused hypothesis is allowed
+$ deduxit prove "B, ~A |- B"
+unprovable (MLL, classical, focus engine): A on the right has no A on the left to meet in an axiom (a negated formula or an implication's antecedent counts on the other side)
+$ deduxit prove "!A, A |- 1"
+unprovable (MELL, classical, horn engine): A occurs 1 more time on the left than on the right outside the exponentials, and every occurrence of it below one, which copies add, is on the left, so they cannot all meet in axioms
+$ deduxit prove -i "A, B |- A"
+unprovable (IMLL, intuitionistic, two-sided engine): B occurs negatively 1 more time than positively (…), so they cannot all meet in axioms; with -a (affine), an unused hypothesis is allowed
+```
+
+Decisions:
+- "Where the input was two-sided" is read as a classical sequent whose
+  `antecedents()` is above zero, refuted as a whole. `⊢ Γ`, a JSON
+  sequent without sides and a goal of a session keep the one-sided
+  phrase; a session prints its goals one-sided, so its refutations stay
+  in those terms.
+- The phrase is the library's `Disproof` `Display`, so every front end
+  gets it (the batch, `check`, a session's `close`, the page). The JSON
+  `refutation`, the check and the certificates are unchanged. `check`
+  names such a sequent as written (`valid refutation of a ⊢ b
+  (classical): …`), so that the phrase and the sequent agree.
+- "A on the left has no A on the right" is said only where the side with
+  fewer literals has none in the roots (`placed`, one pass over the
+  arena in index order, a byte a term, as the crate's rule against
+  recursion asks); otherwise the excess is counted left and right. The
+  note in brackets comes where a literal counts on the other side than
+  the formula it stands in, which is how a reader matches `B, ~A |- B`
+  to "A on the right".
+- The `-a` note names a flag, so it is the command's, not the library's
+  (cli.md: no flags in core). It needs four things: a count of an atom
+  (or predicate) in excess left of `⊢`, a hypothesis that is that atom,
+  no atom in excess right of `⊢` (`right_surplus`), and neither affine
+  nor an ordered mode, the sequent refuted whole. The third test is
+  mine: without it README's `A |- B` named `-a`, which does not prove
+  it. The note says what `-a` allows, not that it proves the sequent;
+  `A par B |- A` still gets it and stays unprovable under `-a`.
+- Intuitionistic refutations kept their wording; their rewrite is
+  54w-d's text work. The count equation's phrase stays one-sided: its
+  formula counts one-sided connectives.
+
+**Q9, `interact` that guides** (`cli/src/interact/mod.rs`, `ordinary.rs`):
+
+```console
+$ deduxit interact "A, B |- A * B"
+> apply 0 2 tensor 1
+error: unknown rule `tensor`; the rules here are ax, * (⊗), par (⅋), 1, bot (⊥), &, +1 (⊕₁), +2 (⊕₂), top (⊤), !, ?d, ?c and ?w
+> apply 0 2 * 1
+opened goal 1: ⊢ 0: ~B, 1: A
+opened goal 2: ⊢ 0: ~A, 1: B
+warning: one premise has no proof, so this split cannot be closed; `undo` takes it back
+> undo
+reopened goal 0: ⊢ 0: ~A, 1: ~B, 2: A ⊗ B
+```
+
+Decisions:
+- The session's rules are its mode's: classical one-sided, intuitionistic
+  two-sided (`-oL (⊸L)` …), the cyclic mode's `ax, ⊗, ⅋`, the Lambek
+  calculus's `ax, ⊗L, ⊗R, \L, \R, /L, /R`, with `mix` and `wk` where the
+  mode has them and the quantifiers' rules where the sequent has a
+  binder. `cut` and `open` are not listed: `apply` refuses both (`cut`
+  is a command of its own). Each is written `ASCII (name)`; a rule
+  whose name is ASCII is written once.
+- The ASCII spellings live in the command (`LINEAR_ASCII`, and
+  `ordinary::ASCII` for LK and LJ), since the library has no public
+  table of them and adding one is an API change; `listed_rules_read_back`
+  holds every listed name and spelling to the library's `FromStr`, so
+  the two cannot drift.
+- A session of LK or LJ gets the same list, with the rules its logic
+  refuses left out (`WR`, `CR`, `⊥R`, `∨R` outside LK, `⊥L` in minimal
+  logic, as `core-ordinary.md`'s `shape` says).
+- The warning is `Interactive::split_passes`, the test the page calls
+  at a split ("Cannot close"), asked before `apply` for a `⊗` or Mix
+  step and printed after the goals the step opened, with `undo` named
+  (C7's friction: `close` did not suggest it). The page's tip reads "One
+  premise cannot be proved however the rest goes"; the line says the
+  same in the session's words.
+
+**Q10, a short `-h`** (`cli/src/argument_parsing.rs`): `prove -h` lists
+45 options (the review's count, `grep -cE '^\s+(-[a-zA-Z], )?--'`; 65
+in one block before, 66 in `--help`), `--settings` and `--help` first,
+then under Logic, Input, Output, Search and Limits, and ends with
+"--help shows every option."; `--help` lists every one under the same
+headings.
+
+Decisions:
+- The headings are per flag (`help_heading = LOGIC`, …) on the shared
+  argument structs, so `interact`, `check`, `eliminate` and `seq print`
+  get them too. clap orders headings by the first flag that names each
+  (clap_builder 4.6.7, `help_template.rs`, `write_all_args`), so
+  `ProveArgs` declares the logic before the input, and the input's size
+  limits sit under Input.
+- Hidden from `-h` (`hide_short_help`): the prompt's list (`--bias`,
+  `--forward-copies`, `--memo-limit`, `--pool-after`, the limits past
+  `--timeout` and `--memory-limit`: `--occurrence-limit`, `--term-limit`,
+  `--classical-work`, `--witness-depth`, `--instances`,
+  `--recursion-limit`, `--work-limit`, `--derivation-limit`), and two
+  more of the same search tuning, `--test-period` and `--schedule`
+  (departs from the design: not named, but of the same kind as
+  `--bias`). "The benchmark inputs" names no flag; I read it as the
+  batch's flags for large runs (`--files-from`, `--null`, `--workers`,
+  `--cores`, `--batch-memory`, `--batch-timeout`, `--isolate`), which is
+  why `-h` has no Batch heading. `--input-format lines` stays visible, so
+  a batch is still found from `-h`.
+- `check` and `eliminate` hide `--work-limit`, `--occurrence-limit`,
+  `--term-limit` and `--derivation-limit` through the shared structs, so
+  their `-h` ends with the same line.
+
+### Tests, one per behaviour
+
+- `core`: `a_two_sided_sequent_is_refuted_by_its_sides` (the wording,
+  the crossed note, the one-sided cases).
+- `cli/tests/cli.rs`: `newcomer_errors_say_what_to_write` (Q6, every
+  hint and `tex`), `an_unused_hypothesis_names_affine_mode` (the `-a`
+  note and where it is left out, with `-a` proving `A, B |- A`),
+  `a_session_lists_its_rules_and_warns_at_a_lost_split` (Q9),
+  `short_help_keeps_to_the_common_flags` (Q10).
+- `cli/src/hint.rs`: `quoting_keeps_a_sequent_one_word`;
+  `cli/src/interact/mod.rs`: `listed_rules_read_back`.
+- Two pinned lines of `batch_inputs_and_exit_status` and
+  `check_s_verdicts` changed with Q8 (the behaviour meant to change).
+
+### Checks
+
+Each run capped (`systemd-run --user --scope -p MemoryMax=8G -p
+MemorySwapMax=0 taskset -c 10-12`, three build jobs and test threads);
+the flake check under `flock -o /tmp/linlog-machine.lock` with
+`--max-jobs 4 --cores 8`.
+
+- `cargo clippy --workspace --all-targets -- --deny warnings`: clean.
+- `cargo test --workspace`: passed, the lock and README's, the
+  manual's and the guide's examples among them (`cargo test -p
+  deduxit-cli --test readme`: 7 passed; `--test lock`: passed after the
+  blessing). The first gate found a pinned phrase in
+  `core/tests/first_order.rs` I had not run, now in the Q8 commit.
+- `gate` at the final chain: "gate: passed" (the ratchet within its
+  ceilings; its note on `search-qbf-20-2`'s cache misses is a question
+  for a timed run, not a failure, and no journey runs code this chain
+  changed but the parser's one comparison on `-`).
+- `nix flake check`: the first run failed only `treefmt` (files I had
+  changed from the shell after `nix fmt`); after `nix fmt`, folded into
+  the commits they belong to, "all checks passed!" (`--keep-going`).
+- Each commit of the chain builds alone (`cargo check --workspace
+  --all-targets` at `kmokzrnw`, `rwuvpows` and `lpnqrkvr` after the
+  review's fixes; `zonptzos` is the final code).
+- Capped calls of the command for each item at the final binary, as
+  shown above.
+
+### The reviewer
+
+`fresh-reviewer` (Fable 5.2 at `medium`, its own definition; it read
+the chain, the brief and the prompt, not this session's reasoning, and
+probed the built binary on core 12) reported eight points. Seven held
+and were fixed in the commit they belong to, each with a case added to
+that item's test; one was a borderline it did not count.
+
+- **F1, words out of order in the split tip** (`deduxit prove A + B + C`
+  suggested `"|- A C B + +"`): `split` removed the last copy of a
+  repeated word. Fixed by taking the sequent's words from the command
+  line as written, from the first refused word or the sequent, whichever
+  is first; `sequent_at` finds the word clap reads as the sequent by
+  marking it.
+- **F2, `-o C` dropped from the split tip** (`deduxit prove A, B -o C`
+  suggested `"|- A, B"`): the re-parse read `-o C` as `--output C`.
+  Fixed by the same reading of the command line, which keeps `-o` as
+  the implication as the `parse` path did.
+- **F3, `--logic classical` named where the command refuses it** (`seq
+  json`, `prove -i`): the flag is now added by `hint::parse`, only where
+  the command takes `--logic` and no mode flag that it refuses is given
+  (`Command::takes_logic`); `parse_error` keeps the library's hint alone.
+- **F4, a path that is not UTF-8 stopped working** (`--file f\377.txt`):
+  `main` passed lossy strings to clap. It now parses the OS strings and
+  gives the hints a lossy copy. A regression of this session, verified
+  by hand (no test: the command line is built of `&str` in the tests).
+- **F5, the lines hint on one sequent over two lines**: the hint now
+  needs an unexpected `:` or an unexpected word at the start of a line
+  past the first; the test has the reviewer's input.
+- **F6, `check` showed `⊢ ~a, b` beside a phrase about sides**: a
+  classical disproof of a sequent written with hypotheses now names the
+  sequent as written, `valid refutation of a ⊢ b (classical): …`
+  (`ClassicalSequent::read_one_sided`, the library's own reading of a
+  one-sided sequent with its sides), and so does `check`'s line for an
+  unchecked one; the manual's and the guide's example of that line
+  changed with it. This also settles what I had listed as a proposal.
+- **F7, a warning for a Mix at a `⊗` formula**: `split_passes` judges a
+  `⊗` formula's split as the `⊗`'s whatever the rule, so the warning now
+  comes only for a `⊗` at a `⊗` formula or a Mix at another.
+- **F8, the Lambek calculus's `\L` and `\R` listed as they cannot be
+  typed** (the session's word splitter takes `\` as an escape): they are
+  listed as `\\L (\L)`, and `listed_rules_read_back` now reads every
+  shown spelling through the splitter, so a spelling that cannot be
+  typed fails it.
+- **Not counted by the reviewer:** `prove "A |- "` names `-a`, which
+  does not prove it. The note says what `-a` allows; making it exact is
+  the proposal below.
+
+### Proposals beyond the items, for the author
+
+- The count equation of a two-sided classical sequent could be phrased
+  by sides as the intuitionistic one is (`#⊗ᵣ + #⊸ₗ …`).
+- `-h` still has 21 Output flags. Hiding the styling ones (`--style-file`,
+  `--font`, `--lambda-notation`, `--lambda-types`, `--kernel`,
+  `--lemma`, `--prelude`, `--compact`, `--screens`, `--abbreviate`)
+  would bring it near 30. `--settings` stands first, under "Options".
+- The `-a` note could be exact by an affine search within a small work
+  bound; it is a heuristic now (see Q8).
+
+### What the next sessions must know
+
+- **54w-d (the command's help and messages)**: the new texts are in
+  `cli/src/hint.rs` (the tips and hints), `cli/src/prove.rs`
+  (`affine_note`), `cli/src/interact/mod.rs` (`unknown_rule`, the split
+  warning), `cli/src/argument_parsing.rs` (`every_option!`, the heading
+  constants) and the library's `refutation.rs` (`write_unbalanced`'s
+  two-sided arm) and parser (`ARROW`). `parse_error` (`lib.rs`) appends a
+  flag after a library hint by matching the hint's first words; reword
+  `ARROW` or the intuitionistic hints and the match moves with them.
+  The headings and the hidden flags are in place, so FC8's layout is
+  done; the ordering rule is in `cli.md`.
+- **54w-c (README, the manual, the guide)**: README's, the commands
+  chapter's, the Rocq, first-order and batch chapters' and the guide's
+  refutation lines changed; the commands chapter shows the `-a` note,
+  the interactive chapter and the guide's §10 the rule list and the
+  warning, the guide's §19 the two new mistakes. The page shows the new
+  two-sided phrase once the client takes this library (its e2e tests
+  may assert the old one: 54u-c and 54u-d).
+- **The behaviour lock**: 54u-a changes it too. The second to land
+  rebases onto the first and blesses again (`BLESS=1 cargo test -p
+  deduxit-cli --test lock`), in a commit of its own.
