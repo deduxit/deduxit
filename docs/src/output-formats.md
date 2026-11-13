@@ -56,6 +56,12 @@ $ deduxit seq print --format typst "A * B -o C |- A -o B -o C"
 $⊢ (A ⊗ B) ⊗ C^⊥, A^⊥ ⅋ (B^⊥ ⅋ C)$
 ```
 
+In the library, `export::latex::to_string(&derivation, &options)`
+returns the derivation as LaTeX in one string, and `typst::to_string`,
+`svg::to_string` and `rocq::to_string` do the same for the other
+formats. Each format's `write` writes into any `fmt::Write` and asks a
+stop between inferences.
+
 `--standalone` writes a document that compiles on its own instead, cropped
 to the tree. Neither form chooses a font: the output takes the fonts of
 the document it goes into. `pdflatex` needs the ebproof, cmll, amsfonts

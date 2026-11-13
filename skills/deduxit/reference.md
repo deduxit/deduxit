@@ -1003,6 +1003,12 @@ clock), and `Settings::default()` is the command's behaviour as data.
 search. `prove_within` with `settings.search`, `settings.limits` and
 that stop decides what the command decides.
 Every error is `deduxit::Error`, whose `code()` is the stable reason.
+A
+`lambda::Term` prints with `Display` in the default notation, and
+`export::latex::to_string(&derivation, &options)` returns a derivation
+as LaTeX in one string, as `typst::to_string`, `svg::to_string` and
+`rocq::to_string` do for theirs, beside each `write`, which takes any
+`fmt::Write` and a stop.
 `proofs::cut::step(&proof, mode, at, &options, &limits, stop)` reduces
 one cut (the node `at`, or the strategy's with `None`) and returns the
 checked proof and the `Step` (`cut`, `formula`, `case`);

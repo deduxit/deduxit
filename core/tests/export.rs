@@ -2107,3 +2107,31 @@ fn an_intuitionistic_elimination_is_drawn_in_its_syntax() {
         "{steps} steps, {drawn} drawings"
     );
 }
+
+/// Each target's `to_string` is its `write` into a `String` with a stop
+/// that never fires.
+#[test]
+fn to_string_is_write_into_a_string() {
+    let proof = proof("a -o b, a |- b", Mode::INTUITIONISTIC);
+    let derivation = proof.derivation().unwrap();
+    let latex = latex::Options::default();
+    assert_eq!(
+        latex::to_string(&derivation, &latex).unwrap(),
+        written(|out| latex::write(&derivation, &latex, out, |_| false)),
+    );
+    let typst = typst::Options::default();
+    assert_eq!(
+        typst::to_string(&derivation, &typst).unwrap(),
+        written(|out| typst::write(&derivation, &typst, out, |_| false)),
+    );
+    let style = Style::default();
+    assert_eq!(
+        svg::to_string(&derivation, &style).unwrap(),
+        written(|out| svg::write(&derivation, &style, out, |_| false)),
+    );
+    let rocq = rocq::Options::default();
+    assert_eq!(
+        rocq::to_string(&derivation, &rocq).unwrap(),
+        certificate(|out| rocq::write(&derivation, &rocq, out, |_| false)).unwrap(),
+    );
+}

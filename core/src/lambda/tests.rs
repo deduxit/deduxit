@@ -1023,3 +1023,27 @@ fn any_height_reads_back_on_a_small_stack() {
         .join()
         .unwrap();
 }
+
+/// `Display` writes the term under the default options, and a term past
+/// the default bound as the refusal's message, without failing (which
+/// would make `to_string` panic).
+#[test]
+fn a_term_displays_as_written() {
+    let term = round_trip(&proved("a -o b, a |- b", Mode::INTUITIONISTIC));
+    assert_eq!(term.to_string(), text(&term, false));
+
+    // `x ⊗ x` nested 64 deep: 2⁶⁴ copies of `x` in 129 nodes.
+    let mut builder = Builder::new();
+    let atom = builder.atom("a");
+    let a = builder.ty(Type::Atom { atom });
+    let (x, mut root) = builder.variable(a);
+    for _ in 0..64 {
+        root = builder.node(Node::Tensor {
+            left: root,
+            right: root,
+        });
+    }
+    let long = builder.finish(Calculus::Linear, vec![x], a, root);
+    let shown = long.to_string();
+    assert!(shown.starts_with("<the term is estimated at "), "{shown}");
+}

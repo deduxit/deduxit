@@ -442,6 +442,25 @@ pub fn write<'a>(
     }
 }
 
+/// Returns a derivation as [`write()`] writes it, whole, with a stop that
+/// never fires. The text is linear in the derivation, which was made
+/// within its own limits ([`Proof::derivation`](crate::linear::Proof::derivation)
+/// uses the default ones), and a lambda-term written under it is bounded
+/// by the default [`Limits`](crate::Limits).
+///
+/// # Errors
+///
+/// As [`write()`] answers, but [`Refusal::Stopped`](crate::Refusal::Stopped) and
+/// [`Error::WriteFailed`], which a `String` never gives.
+pub fn to_string<'a>(
+    derivation: impl Into<Drawable<'a>>,
+    options: &Options,
+) -> Result<String, Error> {
+    let mut out = String::new();
+    write(derivation, options, &mut out, |_| false)?;
+    Ok(out)
+}
+
 /// Writes any derivation as [`write()`] does, and under its conclusion the
 /// judgement given.
 fn tree<T: Drawn>(

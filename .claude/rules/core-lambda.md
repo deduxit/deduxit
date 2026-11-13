@@ -70,6 +70,11 @@ the term's data, its printer, and the tests' own type checker.
   writing; the exports use the default limits, since their `write` takes
   none. `Builder::finish` drops the nodes the root does not reach (a
   weakened variable's).
+- **`Display` for `Term` never fails**: it writes under the default
+  `Options` and `Limits`, and a term past the bound writes the refusal's
+  message in angle brackets (refused before anything is written), since
+  a `Display` that returned `fmt::Error` would make `to_string` panic
+  (`a_term_displays_as_written`, a tensor of a tensor 64 deep).
 - **The types are a DAG too**: equal types are one id, so a type's
   text is not bounded by the arena (the simple calculus's `A ↔ B` is `(A
   → B) ∧ (B → A)` with `A` and `B` shared, and nested `k` deep writes

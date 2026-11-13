@@ -171,6 +171,10 @@ provable (IMLL, intuitionistic, two-sided engine)
 lambda-term: |- \x:a. \y:b. x * y : a -o (b -o (a * b))
 ```
 
+In the library a `lambda::Term` prints with `Display`: `term.to_string()`
+is the term alone, in the default notation. `Term::write` and
+`Term::write_judgement` take the options.
+
 `check --lambda` prints the term of a proof read from a file, and the
 session command `lambda` of `interact` that of the finished proof or
 derivation:

@@ -871,3 +871,20 @@ impl Term {
         Printer::new(self, spelling, types).write(out, judgement, limits, stop)
     }
 }
+
+impl std::fmt::Display for Term {
+    /// Writes the term under the default [`Options`] within the default
+    /// [`Limits`], as [`write`](Term::write) does. A term whose text would
+    /// pass `Limits::derivation_bytes` (a pair under a left rule doubles it,
+    /// so a small term can stand for a long text) is not written: the text
+    /// is then the refusal's message between angle brackets, and
+    /// [`write`](Term::write) with larger limits writes the term.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.write(f, &Options::default(), &Limits::default(), |_| false) {
+            Ok(()) => Ok(()),
+            // Refused before anything is written.
+            Err(Error::Refused(refusal)) => write!(f, "<{refusal}>"),
+            Err(_) => Err(std::fmt::Error),
+        }
+    }
+}

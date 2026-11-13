@@ -120,7 +120,8 @@ Each entry point is described in the file of its module:
   `sequentialize(&limits, stop)`, `from_proof(&proof, criterion,
   &limits, stop)` (`core-nets.md`);
 - `export::latex`, `typst`, `svg`, `png`, `pdf`, `rocq`, each with one
-  options value and `write(&derivation, &options, out, stop)`
+  options value and `write(&derivation, &options, out, stop)`, and
+  `to_string(&derivation, &options)` beside it but for PNG and PDF
   (`core-export.md`);
 - `search::batch::run` and `prove`, many sequents under one options
   value (`core-batch.md`);
@@ -363,7 +364,10 @@ the commit that lands it rewrites that bullet.
   bool`**, with no `Stop` trait; a closure that ignores the progress is
   `|_| false`. One rule serves every long call, and a front end without
   a clock reads its deadline from the work done; a trait's wrapper for
-  progress closures does not infer.
+  progress closures does not infer. The author's answers of 2026-11-09
+  add printers without either, bounded by the default `Limits`: the
+  exports' `to_string`, `Display` for `lambda::Term`; and
+  `Settings::stop(elapsed)`, the command's stop as a closure.
 - **Owned values, borrowed views**: `Sequent`, `Forest`, `Proof`,
   `Disproof`, `ProofStructure` and `Interactive` own their data;
   `Derivation`, `Reading` and `Goal` borrow; no `Arc` in a public type.

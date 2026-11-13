@@ -40,9 +40,13 @@ for NanoYalla. What the code relies on:
   with `Options::prelude`, for a linear derivation NanoYalla's script,
   refusing an open goal, Mix, affine weakening and a compact derivation
   with `Unsupported`, and for one of LK or LJ the term over `Prop`;
-  `png::from_svg` and `pdf::from_svg` render a drawing. There are no
-  `derivation(…) -> String` twins and no per-type `ordinary` functions:
-  a `String` is an `fmt::Write` (F36).
+  `png::from_svg` and `pdf::from_svg` render a drawing. Beside each
+  `write`, `latex`, `typst`, `svg` and `rocq` have `to_string(derivation,
+  &options) -> Result<String, Error>`, the `write` into a `String` with a
+  stop that never fires (the author's answer to the usability review: a
+  printer without a stop, bounded as `Proof::derivation()` is, since the
+  text is linear in a derivation made within its limits); no per-type
+  `ordinary` functions: one `Drawable` takes either.
 - **`export::Styles` holds every format's options in one value** (the
   command's `--style` keys and `Settings::styles` address it): a field per
   format, and for a format the build lacks a private `Absent` that reads

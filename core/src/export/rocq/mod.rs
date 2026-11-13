@@ -865,6 +865,25 @@ pub fn write<'a>(
     }
 }
 
+/// Returns the certificate of a derivation as [`write()`] writes it,
+/// whole, with a stop that never fires. The text is linear in the
+/// derivation, which was made within its own limits
+/// ([`Proof::derivation`](crate::linear::Proof::derivation) uses the
+/// default ones).
+///
+/// # Errors
+///
+/// As [`write()`] answers, but [`Refusal::Stopped`](crate::Refusal::Stopped) and
+/// [`Error::WriteFailed`], which a `String` never gives.
+pub fn to_string<'a>(
+    derivation: impl Into<Drawable<'a>>,
+    options: &Options,
+) -> Result<String, Error> {
+    let mut out = String::new();
+    write(derivation, options, &mut out, |_| false)?;
+    Ok(out)
+}
+
 /// Writes the certificate that a disproof's goal has no derivation, for
 /// deduxit's library ([`Kernel::Deduxit`], whatever the mode): the lemma
 /// `options.lemma` stating that the mode's calculus does not derive the
