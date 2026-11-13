@@ -1,5 +1,5 @@
 $ deduxit prove 'A |- A * A'
 --- status 1
 --- stdout
-unprovable (MLL, classical, focus engine): A occurs 1 more time than ~A in the one-sided sequent, so they cannot all meet in axioms
+unprovable (MLL, classical, focus engine): A occurs 1 more time on the right than on the left, so they cannot all meet in axioms
 --- stderr

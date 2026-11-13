@@ -1,5 +1,5 @@
 $ deduxit prove --quiet 'A |- B'
 --- status 1
 --- stdout
-unprovable (MLL, classical, focus engine): ~A occurs 1 more time than A in the one-sided sequent, so they cannot all meet in axioms
+unprovable (MLL, classical, focus engine): A on the left has no A on the right to meet in an axiom
 --- stderr

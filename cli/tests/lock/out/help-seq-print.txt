@@ -12,6 +12,46 @@ Arguments:
           The sequent, such as "A, A -o B |- B"; read from --file when absent, or from standard input by every command but `interact`
 
 Options:
+  -i, --intuitionistic
+          Print the sequent two-sided, as intuitionistic linear logic reads it
+
+      --cyclic
+          Read the text as cyclic linear logic does: the dual of a product reversed, ~(A * B) as ~B par ~A, and the formulas left of ⊢ in the reverse order
+
+      --lambek
+          Read the text as --cyclic does and print the sequent two-sided, as the Lambek calculus reads it: with its divisions A \ B and B / A and its hypotheses in their order
+
+      --format <FORMAT>
+          The output format
+
+          Possible values:
+          - text:  Unicode text
+          - latex: LaTeX math, with the connectives of cmll and amssymb
+          - typst: Typst math
+          - svg:   An SVG document of one line, set in the Euler Math font
+          - png:   A PNG image of the SVG document's line
+          - pdf:   A PDF document of the SVG document's line
+          
+          [default: text]
+
+      --standalone
+          Write a document that compiles on its own instead of a fragment to paste (latex and typst)
+
+  -o, --output <PATH>
+          Write to this file instead of standard output
+
+      --memory-limit <SIZE>
+          The most memory a png or pdf render may take, by its estimate: a number of bytes with a unit such as 512MiB or 4GiB, or `none` for no limit; see `prove --memory-limit`
+          
+          [default: 1GiB]
+
+      --settings <PATH>
+          Read the settings from a JSON file, before the flags, which override it: an object with any of the keys `clock`, `limits`, `search`, `view`, `styles`, `batch`, `ordinary` and `input`, each an object of the fields the flags name in parentheses (`{"search": {"copies": 3}, "limits": {"memory_bytes": null}}`); a field left out keeps the command's default, and a misspelt one is an error; `ordinary` applies under --logic, which names the logic
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Input:
   -f, --file <PATH>
           Read the sequent from this file, or `-` for standard input (but in `interact`, whose commands come from there)
           
@@ -60,15 +100,7 @@ Options:
           
           [default: strict]
 
-  -i, --intuitionistic
-          Print the sequent two-sided, as intuitionistic linear logic reads it
-
-      --cyclic
-          Read the text as cyclic linear logic does: the dual of a product reversed, ~(A * B) as ~B par ~A, and the formulas left of ⊢ in the reverse order
-
-      --lambek
-          Read the text as --cyclic does and print the sequent two-sided, as the Lambek calculus reads it: with its divisions A \ B and B / A and its hypotheses in their order
-
+Logic:
       --logic <LOGIC>
           Read the input as ordinary logic
           
@@ -88,25 +120,7 @@ Options:
           - cbv:    Girard's call-by-value translation into ILL: atoms as !a, A → B as !(A ⊸ B), ∧ as ⊗
           - 01:     Liang and Miller's 0/1 translation into ILL, as the LLTP library states it
 
-      --format <FORMAT>
-          The output format
-
-          Possible values:
-          - text:  Unicode text
-          - latex: LaTeX math, with the connectives of cmll and amssymb
-          - typst: Typst math
-          - svg:   An SVG document of one line, set in the Euler Math font
-          - png:   A PNG image of the SVG document's line
-          - pdf:   A PDF document of the SVG document's line
-          
-          [default: text]
-
-      --standalone
-          Write a document that compiles on its own instead of a fragment to paste (latex and typst)
-
-  -o, --output <PATH>
-          Write to this file instead of standard output
-
+Output:
       --style <KEY=VALUE>
           Set an option of an output format, such as `labels=subscript`, `latex.open=bare` or `svg.font.family=monospace` (repeatable) (styles.FORMAT.KEY)
           
@@ -124,17 +138,6 @@ Options:
           - garamond:            Garamond-Math 2022-01-03, matching EB Garamond
           - asana:               Asana Math 0.962, in the style of Palatino
           - new-computer-modern: New Computer Modern Math 7.1.1 (Book), the Computer Modern of TeX
-
-      --memory-limit <SIZE>
-          The most memory a png or pdf render may take, by its estimate: a number of bytes with a unit such as 512MiB or 4GiB, or `none` for no limit; see `prove --memory-limit`
-          
-          [default: 1GiB]
-
-      --settings <PATH>
-          Read the settings from a JSON file, before the flags, which override it: an object with any of the keys `clock`, `limits`, `search`, `view`, `styles`, `batch`, `ordinary` and `input`, each an object of the fields the flags name in parentheses (`{"search": {"copies": 3}, "limits": {"memory_bytes": null}}`); a field left out keeps the command's default, and a misspelt one is an error; `ordinary` applies under --logic, which names the logic
-
-  -h, --help
-          Print help (see a summary with '-h')
 
 Sequent syntax: `A, B |- C, D` (or `⊢`), either side may be empty.
   tensor  A * B, A ⊗ B        par   A | B, A par B, A ⅋ B

@@ -12,6 +12,16 @@ Arguments:
           The proof file, or standard input when absent or `-`
 
 Options:
+  -f, --file <PATH>
+          Read the proof from this file, or `-` for standard input, as the argument PROOF does
+
+      --settings <PATH>
+          Read the settings from a JSON file, before the flags, which override it: an object with any of the keys `clock`, `limits`, `search`, `view`, `styles`, `batch`, `ordinary`, `lambda` and `input`, each an object of the fields the flags name in parentheses (`{"search": {"copies": 3}, "limits": {"memory_bytes": null}}`); a field left out keeps the command's default, and a misspelt one is an error; `ordinary` applies under --logic, which names the logic
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Limits:
       --memory-limit <SIZE>
           The most memory the check may hold: a number of bytes with a unit such as 512MiB or 4GiB, or `none` for no limit
           
@@ -33,6 +43,14 @@ Options:
           
           [default: none]
 
+      --derivation-limit <SIZE>
+          The largest derivation to build, by its estimated size: a number of bytes with a unit such as 64MiB or 2GiB, or `none` for no limit (limits.derivation_bytes)
+          
+          A derivation writes out the whole sequent at every inference and repeats every subproof that the proof shares, so it can be larger than the proof by any factor. A derivation estimated above the limit is not built, in any format: the verdict is reported without it, with a line that says how large it is, and the exit status is the verdict's. `--format json` writes the proof itself at any size. The drawing of a proof net (`--net`) is estimated before it is drawn and left out above the same limit.
+          
+          [default: 64MiB]
+
+Input:
       --occurrence-limit <N>
           The most subformula occurrences the proof's sequent may have, or `none` (limits.occurrences); see `prove --occurrence-limit`
           
@@ -43,9 +61,7 @@ Options:
           
           [default: 50000000]
 
-  -f, --file <PATH>
-          Read the proof from this file, or `-` for standard input, as the argument PROOF does
-
+Logic:
   -i, --intuitionistic
           Intuitionistic linear logic: hypotheses left of ⊢ and one goal right of it, written in its own syntax (--ill-syntax), and two-sided derivations
 
@@ -64,6 +80,7 @@ Options:
       --empty-antecedents
           With --lambek, allow sequents with no formula left of ⊢ (the calculus L*)
 
+Output:
       --format <FORMAT>
           The output format; by default the one the extension of the `--output` file names (.txt, .json, .tex, .typ, .svg, .png, .pdf, .v), and text otherwise
 
@@ -160,13 +177,6 @@ Options:
       --prelude <TEXT>
           The lines a standalone Rocq file starts with, before the lemma, in place of the certificate's own import (styles.rocq.prelude)
 
-      --derivation-limit <SIZE>
-          The largest derivation to build, by its estimated size: a number of bytes with a unit such as 64MiB or 2GiB, or `none` for no limit (limits.derivation_bytes)
-          
-          A derivation writes out the whole sequent at every inference and repeats every subproof that the proof shares, so it can be larger than the proof by any factor. A derivation estimated above the limit is not built, in any format: the verdict is reported without it, with a line that says how large it is, and the exit status is the verdict's. `--format json` writes the proof itself at any size. The drawing of a proof net (`--net`) is estimated before it is drawn and left out above the same limit.
-          
-          [default: 64MiB]
-
       --compact <WHEN>
           When a run of one structural rule, such as the weakenings of every unused `?` formula, is drawn as one inference labelled with a star (`?w*`), in every format but rocq (view.compact)
 
@@ -187,10 +197,4 @@ Options:
           - two: Two-sided, as the sequent was written
           
           [default: one]
-
-      --settings <PATH>
-          Read the settings from a JSON file, before the flags, which override it: an object with any of the keys `clock`, `limits`, `search`, `view`, `styles`, `batch`, `ordinary`, `lambda` and `input`, each an object of the fields the flags name in parentheses (`{"search": {"copies": 3}, "limits": {"memory_bytes": null}}`); a field left out keeps the command's default, and a misspelt one is an error; `ordinary` applies under --logic, which names the logic
-
-  -h, --help
-          Print help (see a summary with '-h')
 --- stderr

@@ -14,6 +14,60 @@ Arguments:
           The sequent, such as "A, A -o B |- B"; read from --file when absent, or from standard input by every command but `interact`
 
 Options:
+      --settings <PATH>
+          Read the settings from a JSON file, before the flags, which override it: an object with any of the keys `clock`, `limits`, `search`, `view`, `styles`, `batch`, `ordinary`, `lambda` and `input`, each an object of the fields the flags name in parentheses (`{"search": {"copies": 3}, "limits": {"memory_bytes": null}}`); a field left out keeps the command's default, and a misspelt one is an error; `ordinary` applies under --logic, which names the logic, and `batch.mode` is a batch's mode unless a mode flag is given (one sequent's mode is the flags')
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Logic:
+  -i, --intuitionistic
+          Intuitionistic linear logic: hypotheses left of ⊢ and one goal right of it, written in its own syntax (--ill-syntax), and two-sided derivations
+
+  -a, --affine
+          Affine logic: a hypothesis may go unused (weakening)
+
+      --mix
+          Allow the Mix rule, which proves ⊢ Γ, Δ from ⊢ Γ and ⊢ Δ
+
+      --cyclic
+          Cyclic linear logic: the order of the formulas counts, up to rotation, with no exchange (unit-free MLL); the sequent's text is read with the dual of a product reversed, ~(A * B) as ~B par ~A, and the formulas left of ⊢ in the reverse order
+
+      --lambek
+          The Lambek calculus: intuitionistic and in the order written, with the divisions A \ B and B / A beside A * B (unit-free), every sequent with a formula left of ⊢; the text is read as --cyclic reads it
+
+      --empty-antecedents
+          With --lambek, allow sequents with no formula left of ⊢ (the calculus L*)
+
+      --logic <LOGIC>
+          Read the input as ordinary logic
+          
+          The input is a formula or a sequent of propositional logic in the syntax below (a `.p` file a TPTP problem, as the ILTP library writes them). `prove` decides it and shows the proof as a derivation of LK (classical) or LJ (intuitionistic, minimal), which is checked by the rules of the logic before it is shown. Intuitionistic and minimal logic are decided by LJT, whose search always ends; classical logic through its translation into affine MALL, with no copy bound (--method chooses). Through the translation into ILL (--method embedding) intuitionistic and minimal logic may be answered unknown at the time limit, and the JSON output is the search's outcome on the image. `seq print` prints the image. `interact` proves the sequent step by step by the rules of LK or LJ, its `close` deciding a goal through the translation.
+
+          Possible values:
+          - classical:      Classical propositional logic, derivations in LK
+          - intuitionistic: Intuitionistic propositional logic, derivations in LJ
+          - minimal:        Minimal logic: intuitionistic without ex falso, false an atom
+
+      --translation <TRANSLATION>
+          The translation into linear logic: affine for classical logic, cbn (by default), cbv or 01 for intuitionistic and minimal logic (ordinary.translation)
+
+          Possible values:
+          - affine: Classical logic into affine MALL: negation normal form, ∧ as &, ∨ as ⅋
+          - cbn:    Girard's call-by-name translation into ILL: A → B as !A ⊸ B, A ∨ B as !A ⊕ !B, hypotheses under !
+          - cbv:    Girard's call-by-value translation into ILL: atoms as !a, A → B as !(A ⊸ B), ∧ as ⊗
+          - 01:     Liang and Miller's 0/1 translation into ILL, as the LLTP library states it
+
+      --method <METHOD>
+          With --logic, how to decide the sequent: through its embedding into linear logic, or by LJT, Dyckhoff's calculus for intuitionistic and minimal logic, whose search always ends (ordinary.method)
+          
+          By default classical logic goes through the embedding and intuitionistic and minimal logic by LJT. --translation and --linear name the embedding, so either of them alone decides through it. LJT's statistics are the sequents it expanded, its memo and the sequents refuted by an earlier failure; its JSON output is the outcome of the ordinary sequent, with the engine "ljt".
+
+          Possible values:
+          - embedding: Through its translation into linear logic, the proof read back as LK or LJ
+          - ljt:       By Dyckhoff's calculus LJT, whose search always ends: intuitionistic and minimal logic
+
+Input:
   -f, --file <PATH>
           Read the sequent from this file, or `-` for standard input (but in `interact`, whose commands come from there)
           
@@ -62,52 +116,7 @@ Options:
           
           [default: strict]
 
-  -i, --intuitionistic
-          Intuitionistic linear logic: hypotheses left of ⊢ and one goal right of it, written in its own syntax (--ill-syntax), and two-sided derivations
-
-  -a, --affine
-          Affine logic: a hypothesis may go unused (weakening)
-
-      --mix
-          Allow the Mix rule, which proves ⊢ Γ, Δ from ⊢ Γ and ⊢ Δ
-
-      --cyclic
-          Cyclic linear logic: the order of the formulas counts, up to rotation, with no exchange (unit-free MLL); the sequent's text is read with the dual of a product reversed, ~(A * B) as ~B par ~A, and the formulas left of ⊢ in the reverse order
-
-      --lambek
-          The Lambek calculus: intuitionistic and in the order written, with the divisions A \ B and B / A beside A * B (unit-free), every sequent with a formula left of ⊢; the text is read as --cyclic reads it
-
-      --empty-antecedents
-          With --lambek, allow sequents with no formula left of ⊢ (the calculus L*)
-
-      --logic <LOGIC>
-          Read the input as ordinary logic
-          
-          The input is a formula or a sequent of propositional logic in the syntax below (a `.p` file a TPTP problem, as the ILTP library writes them). `prove` decides it and shows the proof as a derivation of LK (classical) or LJ (intuitionistic, minimal), which is checked by the rules of the logic before it is shown. Intuitionistic and minimal logic are decided by LJT, whose search always ends; classical logic through its translation into affine MALL, with no copy bound (--method chooses). Through the translation into ILL (--method embedding) intuitionistic and minimal logic may be answered unknown at the time limit, and the JSON output is the search's outcome on the image. `seq print` prints the image. `interact` proves the sequent step by step by the rules of LK or LJ, its `close` deciding a goal through the translation.
-
-          Possible values:
-          - classical:      Classical propositional logic, derivations in LK
-          - intuitionistic: Intuitionistic propositional logic, derivations in LJ
-          - minimal:        Minimal logic: intuitionistic without ex falso, false an atom
-
-      --translation <TRANSLATION>
-          The translation into linear logic: affine for classical logic, cbn (by default), cbv or 01 for intuitionistic and minimal logic (ordinary.translation)
-
-          Possible values:
-          - affine: Classical logic into affine MALL: negation normal form, ∧ as &, ∨ as ⅋
-          - cbn:    Girard's call-by-name translation into ILL: A → B as !A ⊸ B, A ∨ B as !A ⊕ !B, hypotheses under !
-          - cbv:    Girard's call-by-value translation into ILL: atoms as !a, A → B as !(A ⊸ B), ∧ as ⊗
-          - 01:     Liang and Miller's 0/1 translation into ILL, as the LLTP library states it
-
-      --method <METHOD>
-          With --logic, how to decide the sequent: through its embedding into linear logic, or by LJT, Dyckhoff's calculus for intuitionistic and minimal logic, whose search always ends (ordinary.method)
-          
-          By default classical logic goes through the embedding and intuitionistic and minimal logic by LJT. --translation and --linear name the embedding, so either of them alone decides through it. LJT's statistics are the sequents it expanded, its memo and the sequents refuted by an earlier failure; its JSON output is the outcome of the ordinary sequent, with the engine "ljt".
-
-          Possible values:
-          - embedding: Through its translation into linear logic, the proof read back as LK or LJ
-          - ljt:       By Dyckhoff's calculus LJT, whose search always ends: intuitionistic and minimal logic
-
+Output:
       --linear
           With --logic, show the linear proof of the image instead of the proof read back as LK or LJ
 
@@ -121,145 +130,6 @@ Options:
           - explicit:   Every weakening and contraction drawn
           
           [default: admissible]
-
-      --fragment <FRAGMENT>
-          Search in this fragment instead of the detected one (search.fragment)
-          
-          A sequent outside it is an error. A larger fragment than the detected one switches off the prunes that only hold in the smaller one, which is a way to compare them.
-
-          Possible values:
-          - mll:       Multiplicatives: ⊗ ⅋
-          - mll-units: Multiplicatives and their units: ⊗ ⅋ 1 ⊥
-          - all:       Additives only: & ⊕ ⊤ 0
-          - mall:      Multiplicatives and additives with units
-          - mell:      Multiplicatives and exponentials with units
-          - ll:        Every connective
-
-      --engine <ENGINE>
-          The engine to search with, or `auto` for the one the fragment and the mode call for (search.engine)
-          
-          `focus` is focused sequent search, for every classical fragment, with or without units, Mix, exponentials and weakening; `two-sided` the same for every intuitionistic fragment; `net` proof-net search, for MLL without units, with or without Mix, and in intuitionistic mode for IMLL without units by its embedding; `additive` the fast path for two additive-only formulas, in every mode; `horn` the markings of a Petri net, for Horn programs (atoms, implications between tensors of atoms, such implications under !, and one goal that is a tensor of atoms): reachability in linear mode, coverability in affine mode; `essential` proof-net search over essential nets, directed by the intuitionistic reading, for IMLL without units; `inverse` the focused inverse method, a forward search from the axioms in every mode but the ordered ones, which decides without exponentials and with them needs no copy bound, and runs only when named here.
-          
-          [default: auto]
-          [possible values: auto, focus, net, two-sided, additive, horn, essential, inverse]
-
-      --bias <BIAS>
-          How the focused engines pick the positive literal of every atom (search.bias)
-          
-          No choice changes what is provable. `rarer` mostly chains backward from the goal, `factors` forward from the hypotheses, which on Horn clauses under `!`, such as a Petri net, is often much faster but takes one copy per step on a single branch. `auto` takes `rarer` in affine mode, `factors` in linear mode without exponentials, and in linear mode with exponentials runs both searches and answers with the first that decides: alternating on one core, side by side on several.
-
-          Possible values:
-          - auto:    `rarer` in affine mode, `factors` in linear mode without exponentials, and in linear mode with exponentials both, each in a search of its own
-          - rarer:   The literal with fewer occurrences is positive
-          - factors: The literal that is more often a direct factor of a tensor is positive, so that more splits are forced
-          
-          [default: auto]
-
-      --copies <N>
-          How often `?` formulas may be copied on one branch of the proof, or `none` for no bound (search.copies)
-          
-          The search tries the bounds 0, 1, … in turn. By default it goes on to the next bound until it decides or the time limit passes, and an unknown verdict says which bound it reached. With a bound, a sequent with exponentials that has no proof within it is unknown (exit status 3) unless a smaller bound already exhausted the search space, in which case it is unprovable. Sequents without exponentials are not affected.
-          
-          [default: none]
-
-      --forward-copies <N>
-          How often `?` formulas may be copied on one branch of the forward search that `--bias auto` runs (search.forward_copies)
-          
-          It applies to a Horn program: clauses such as `!(a * b -o c * d)`, a marking and a goal of atoms, as a Petri net is. There a copy is one step of a chain, and a chain of n steps needs n of them. The forward search never runs within less than `--copies`; on any other sequent, and under Mix, it runs within `--copies`. Without a bound from `--copies` it has no effect: both searches deepen while the time limit lasts.
-          
-          [default: 30]
-
-      --timeout <DURATION>
-          Give up after this long, such as 500ms, 10s, 2m or 1h, or `none` for no limit (clock.time_limit_ms)
-          
-          The verdict is then unknown (exit status 3). The time counts from the start of the command, so it covers reading and parsing the sequent as well as the search: a sequent that is not read in time is given up on like one that is not decided. Without the limit, the search runs until it decides or is interrupted with Ctrl-C, which with exponentials and no `--copies` bound can be forever. In a session it is each `close`'s limit.
-          
-          [default: 2s]
-
-      --memo-limit <N>
-          The most decided sequents the search remembers at once (search.memo_limit)
-          
-          When the memo is full it is emptied, which costs time but not correctness. Zero switches the memo off. `--memory-limit` bounds the memo in bytes; this is the finer knob beside it.
-          
-          [default: 1048576]
-
-      --classical-work <N>
-          The most work the classical refutation may do after a search that did not prove the sequent, in formulas evaluated, or 0 for none (search.classical_work)
-          
-          It looks for truth values of the atoms that make the sequent false read classically (`!` and `?` erased, `*` and `&` as "and", `|` and `+` as "or", `1` and `top` true, `bot` and `0` false), which no provable sequent allows: a search that was unknown is then unprovable (exit status 1), and an exhausted one gets the values as its reason. It runs after the search, past the time limit within this bound (Ctrl-C stops it), and never changes a verdict the search gave.
-          
-          [default: 67108864]
-
-      --witness-depth <N>
-          The deepest term a variable of a first-order search may be bound to (search.witness_depth)
-          
-          The focused engine searches a sequent with quantifiers by leaving the witness of each `exists` open and filling it in where an axiom matches two atoms. A constant has depth 0, `f(t)` one more than `t`. A branch that would bind a deeper term is cut, and a search that cut one is unknown (exit status 3) rather than unprovable.
-          
-          [default: 64]
-
-      --instances <N>
-          The most instances of quantified formulas a first-order search may hold at once (search.instances)
-          
-          Each `forall` and `exists` the search steps through opens one, and copies of quantified hypotheses under `!` multiply them. A branch that would hold more is cut, and a search that cut one is unknown (exit status 3) rather than unprovable.
-          
-          [default: 65536]
-
-      --memory-limit <SIZE>
-          The most memory the search may hold: a number of bytes with a unit such as 512MiB or 4GiB, or `none` for no limit (limits.memory_bytes)
-          
-          Counted is the sequent as the search holds it, about 25 bytes for each subformula occurrence, and what grows with the search: what it remembers, the proofs it keeps and what every level of its recursion takes. A memo that no longer fits is emptied first, as at `--memo-limit`; when that is not enough the verdict is unknown (exit status 3). The check of the proof and the derivation built from it are under the same limit: a derivation estimated above it is left out even with `--derivation-limit none`. By default one thread and, after `--pool-after`, a pool beside it search at once, both together within the limit. A png or pdf render is estimated before it starts, its time counted as the memory the renderer fills in it, and left out above the limit (the default is a few seconds of rendering).
-          
-          [default: 1GiB]
-
-      --recursion-limit <N>
-          The deepest nesting of rules on one branch before the search gives up (limits.recursion_depth)
-          
-          Raise it for sequents with thousands of connectives; the search runs on a thread whose stack grows with the limit.
-          
-          [default: 2048]
-
-      --work-limit <N>
-          The most units of work the search may do, or `none` (limits.work)
-          
-          A unit is what each engine counts at its polls (a stable sequent or a split for the focused engine, a literal or a failed test for the net engines, a pair for the additive one, a marking for the Horn engine), so a limit gives the same verdict on every machine where a time limit does not; past it the verdict is unknown (exit status 3). `--stats` prints the units a search did.
-          
-          [default: none]
-
-  -j, --jobs <N>
-          How many threads the search may use (search.jobs)
-          
-          By default one thread searches first, for the time `--pool-after` gives, and then the machine's other threads join it: a small sequent is decided at once and always the same way, a hard one gets every core. A number given here is used from the start, unless `--pool-after` is given too; a number above the machine's parallelism is taken as that, with a note on standard error. More than one runs the focused engine and the net engine on that many threads; the proof found may then differ from run to run, the verdict never does.
-
-      --pool-after <DURATION>
-          How long one thread searches before the other threads join it, such as 100ms; 0 starts them at once (clock.pool_after_ms)
-          
-          The default is 100ms when `--jobs` is not given, and 0 when it is. The single thread goes on searching beside a pool of the other threads, which starts the search afresh, and the first to decide answers; both together hold at most `--memory-limit`. Below three threads there is no single thread: two search on a pool from the start. The additive, the Horn, the essential-net and the inverse engine run on one thread and get no pool.
-
-      --deterministic
-          Run the sequential engines, whose proof is a function of the input
-          
-          The same as `--jobs 1 --schedule turns`, and takes precedence over `--jobs`, `--pool-after` and `--schedule`.
-
-      --test-period <N>
-          How often the net engine runs its exact test of correctness, and the essential-net engine its test of the dominator condition: after this many links, or `auto` (search.test_period)
-          
-          `auto` tests after every link on a small structure and every few links on a large one. The verdict never depends on it.
-          
-          [default: auto]
-
-      --schedule <SCHEDULE>
-          How the two searches of `--bias auto` share one thread (search.schedule)
-
-          Possible values:
-          - auto:  In slices on two threads
-          - turns: In turns on the calling thread, each turn from the search's start: the same answer and the same counts on every machine
-          
-          [default: auto]
-
-      --no-check
-          Report the proof the search found without checking it (search.check)
-          
-          By default every proof passes the proof checker, which shares no code with the search, before anything is reported; a proof it rejects is an error (exit status 2), not a verdict.
 
       --format <FORMAT>
           The output format; by default the one the extension of the `--output` file names (.txt, .json, .tex, .typ, .svg, .png, .pdf, .v), and text otherwise
@@ -357,13 +227,6 @@ Options:
       --prelude <TEXT>
           The lines a standalone Rocq file starts with, before the lemma, in place of the certificate's own import (styles.rocq.prelude)
 
-      --derivation-limit <SIZE>
-          The largest derivation to build, by its estimated size: a number of bytes with a unit such as 64MiB or 2GiB, or `none` for no limit (limits.derivation_bytes)
-          
-          A derivation writes out the whole sequent at every inference and repeats every subproof that the proof shares, so it can be larger than the proof by any factor. A derivation estimated above the limit is not built, in any format: the verdict is reported without it, with a line that says how large it is, and the exit status is the verdict's. `--format json` writes the proof itself at any size. The drawing of a proof net (`--net`) is estimated before it is drawn and left out above the same limit.
-          
-          [default: 64MiB]
-
       --compact <WHEN>
           When a run of one structural rule, such as the weakenings of every unused `?` formula, is drawn as one inference labelled with a star (`?w*`), in every format but rocq (view.compact)
 
@@ -390,9 +253,155 @@ Options:
           
           The focused engines count stable sequents, memo use, splits and the copy bound reached, the net engine literals chosen, links tried and exact tests run, the essential-net engine the same with tests of the dominator condition, the additive one pairs of subformulas, the Horn engine markings, the inverse method the derived sequents taken up, subsumed and kept; every engine its units of work. JSON output always carries the counts; the time is printed only as text, and in a batch's JSON records as `seconds`.
 
-      --settings <PATH>
-          Read the settings from a JSON file, before the flags, which override it: an object with any of the keys `clock`, `limits`, `search`, `view`, `styles`, `batch`, `ordinary`, `lambda` and `input`, each an object of the fields the flags name in parentheses (`{"search": {"copies": 3}, "limits": {"memory_bytes": null}}`); a field left out keeps the command's default, and a misspelt one is an error; `ordinary` applies under --logic, which names the logic, and `batch.mode` is a batch's mode unless a mode flag is given (one sequent's mode is the flags')
+Search:
+      --fragment <FRAGMENT>
+          Search in this fragment instead of the detected one (search.fragment)
+          
+          A sequent outside it is an error. A larger fragment than the detected one switches off the prunes that only hold in the smaller one, which is a way to compare them.
 
+          Possible values:
+          - mll:       Multiplicatives: ⊗ ⅋
+          - mll-units: Multiplicatives and their units: ⊗ ⅋ 1 ⊥
+          - all:       Additives only: & ⊕ ⊤ 0
+          - mall:      Multiplicatives and additives with units
+          - mell:      Multiplicatives and exponentials with units
+          - ll:        Every connective
+
+      --engine <ENGINE>
+          The engine to search with, or `auto` for the one the fragment and the mode call for (search.engine)
+          
+          `focus` is focused sequent search, for every classical fragment, with or without units, Mix, exponentials and weakening; `two-sided` the same for every intuitionistic fragment; `net` proof-net search, for MLL without units, with or without Mix, and in intuitionistic mode for IMLL without units by its embedding; `additive` the fast path for two additive-only formulas, in every mode; `horn` the markings of a Petri net, for Horn programs (atoms, implications between tensors of atoms, such implications under !, and one goal that is a tensor of atoms): reachability in linear mode, coverability in affine mode; `essential` proof-net search over essential nets, directed by the intuitionistic reading, for IMLL without units; `inverse` the focused inverse method, a forward search from the axioms in every mode but the ordered ones, which decides without exponentials and with them needs no copy bound, and runs only when named here.
+          
+          [default: auto]
+          [possible values: auto, focus, net, two-sided, additive, horn, essential, inverse]
+
+      --bias <BIAS>
+          How the focused engines pick the positive literal of every atom (search.bias)
+          
+          No choice changes what is provable. `rarer` mostly chains backward from the goal, `factors` forward from the hypotheses, which on Horn clauses under `!`, such as a Petri net, is often much faster but takes one copy per step on a single branch. `auto` takes `rarer` in affine mode, `factors` in linear mode without exponentials, and in linear mode with exponentials runs both searches and answers with the first that decides: alternating on one core, side by side on several.
+
+          Possible values:
+          - auto:    `rarer` in affine mode, `factors` in linear mode without exponentials, and in linear mode with exponentials both, each in a search of its own
+          - rarer:   The literal with fewer occurrences is positive
+          - factors: The literal that is more often a direct factor of a tensor is positive, so that more splits are forced
+          
+          [default: auto]
+
+      --copies <N>
+          How often `?` formulas may be copied on one branch of the proof, or `none` for no bound (search.copies)
+          
+          The search tries the bounds 0, 1, … in turn. By default it goes on to the next bound until it decides or the time limit passes, and an unknown verdict says which bound it reached. With a bound, a sequent with exponentials that has no proof within it is unknown (exit status 3) unless a smaller bound already exhausted the search space, in which case it is unprovable. Sequents without exponentials are not affected.
+          
+          [default: none]
+
+      --forward-copies <N>
+          How often `?` formulas may be copied on one branch of the forward search that `--bias auto` runs (search.forward_copies)
+          
+          It applies to a Horn program: clauses such as `!(a * b -o c * d)`, a marking and a goal of atoms, as a Petri net is. There a copy is one step of a chain, and a chain of n steps needs n of them. The forward search never runs within less than `--copies`; on any other sequent, and under Mix, it runs within `--copies`. Without a bound from `--copies` it has no effect: both searches deepen while the time limit lasts.
+          
+          [default: 30]
+
+      --memo-limit <N>
+          The most decided sequents the search remembers at once (search.memo_limit)
+          
+          When the memo is full it is emptied, which costs time but not correctness. Zero switches the memo off. `--memory-limit` bounds the memo in bytes; this is the finer knob beside it.
+          
+          [default: 1048576]
+
+  -j, --jobs <N>
+          How many threads the search may use (search.jobs)
+          
+          By default one thread searches first, for the time `--pool-after` gives, and then the machine's other threads join it: a small sequent is decided at once and always the same way, a hard one gets every core. A number given here is used from the start, unless `--pool-after` is given too; a number above the machine's parallelism is taken as that, with a note on standard error. More than one runs the focused engine and the net engine on that many threads; the proof found may then differ from run to run, the verdict never does.
+
+      --pool-after <DURATION>
+          How long one thread searches before the other threads join it, such as 100ms; 0 starts them at once (clock.pool_after_ms)
+          
+          The default is 100ms when `--jobs` is not given, and 0 when it is. The single thread goes on searching beside a pool of the other threads, which starts the search afresh, and the first to decide answers; both together hold at most `--memory-limit`. Below three threads there is no single thread: two search on a pool from the start. The additive, the Horn, the essential-net and the inverse engine run on one thread and get no pool.
+
+      --deterministic
+          Run the sequential engines, whose proof is a function of the input
+          
+          The same as `--jobs 1 --schedule turns`, and takes precedence over `--jobs`, `--pool-after` and `--schedule`.
+
+      --test-period <N>
+          How often the net engine runs its exact test of correctness, and the essential-net engine its test of the dominator condition: after this many links, or `auto` (search.test_period)
+          
+          `auto` tests after every link on a small structure and every few links on a large one. The verdict never depends on it.
+          
+          [default: auto]
+
+      --schedule <SCHEDULE>
+          How the two searches of `--bias auto` share one thread (search.schedule)
+
+          Possible values:
+          - auto:  In slices on two threads
+          - turns: In turns on the calling thread, each turn from the search's start: the same answer and the same counts on every machine
+          
+          [default: auto]
+
+      --no-check
+          Report the proof the search found without checking it (search.check)
+          
+          By default every proof passes the proof checker, which shares no code with the search, before anything is reported; a proof it rejects is an error (exit status 2), not a verdict.
+
+Limits:
+      --timeout <DURATION>
+          Give up after this long, such as 500ms, 10s, 2m or 1h, or `none` for no limit (clock.time_limit_ms)
+          
+          The verdict is then unknown (exit status 3). The time counts from the start of the command, so it covers reading and parsing the sequent as well as the search: a sequent that is not read in time is given up on like one that is not decided. Without the limit, the search runs until it decides or is interrupted with Ctrl-C, which with exponentials and no `--copies` bound can be forever. In a session it is each `close`'s limit.
+          
+          [default: 2s]
+
+      --classical-work <N>
+          The most work the classical refutation may do after a search that did not prove the sequent, in formulas evaluated, or 0 for none (search.classical_work)
+          
+          It looks for truth values of the atoms that make the sequent false read classically (`!` and `?` erased, `*` and `&` as "and", `|` and `+` as "or", `1` and `top` true, `bot` and `0` false), which no provable sequent allows: a search that was unknown is then unprovable (exit status 1), and an exhausted one gets the values as its reason. It runs after the search, past the time limit within this bound (Ctrl-C stops it), and never changes a verdict the search gave.
+          
+          [default: 67108864]
+
+      --witness-depth <N>
+          The deepest term a variable of a first-order search may be bound to (search.witness_depth)
+          
+          The focused engine searches a sequent with quantifiers by leaving the witness of each `exists` open and filling it in where an axiom matches two atoms. A constant has depth 0, `f(t)` one more than `t`. A branch that would bind a deeper term is cut, and a search that cut one is unknown (exit status 3) rather than unprovable.
+          
+          [default: 64]
+
+      --instances <N>
+          The most instances of quantified formulas a first-order search may hold at once (search.instances)
+          
+          Each `forall` and `exists` the search steps through opens one, and copies of quantified hypotheses under `!` multiply them. A branch that would hold more is cut, and a search that cut one is unknown (exit status 3) rather than unprovable.
+          
+          [default: 65536]
+
+      --memory-limit <SIZE>
+          The most memory the search may hold: a number of bytes with a unit such as 512MiB or 4GiB, or `none` for no limit (limits.memory_bytes)
+          
+          Counted is the sequent as the search holds it, about 25 bytes for each subformula occurrence, and what grows with the search: what it remembers, the proofs it keeps and what every level of its recursion takes. A memo that no longer fits is emptied first, as at `--memo-limit`; when that is not enough the verdict is unknown (exit status 3). The check of the proof and the derivation built from it are under the same limit: a derivation estimated above it is left out even with `--derivation-limit none`. By default one thread and, after `--pool-after`, a pool beside it search at once, both together within the limit. A png or pdf render is estimated before it starts, its time counted as the memory the renderer fills in it, and left out above the limit (the default is a few seconds of rendering).
+          
+          [default: 1GiB]
+
+      --recursion-limit <N>
+          The deepest nesting of rules on one branch before the search gives up (limits.recursion_depth)
+          
+          Raise it for sequents with thousands of connectives; the search runs on a thread whose stack grows with the limit.
+          
+          [default: 2048]
+
+      --work-limit <N>
+          The most units of work the search may do, or `none` (limits.work)
+          
+          A unit is what each engine counts at its polls (a stable sequent or a split for the focused engine, a literal or a failed test for the net engines, a pair for the additive one, a marking for the Horn engine), so a limit gives the same verdict on every machine where a time limit does not; past it the verdict is unknown (exit status 3). `--stats` prints the units a search did.
+          
+          [default: none]
+
+      --derivation-limit <SIZE>
+          The largest derivation to build, by its estimated size: a number of bytes with a unit such as 64MiB or 2GiB, or `none` for no limit (limits.derivation_bytes)
+          
+          A derivation writes out the whole sequent at every inference and repeats every subproof that the proof shares, so it can be larger than the proof by any factor. A derivation estimated above the limit is not built, in any format: the verdict is reported without it, with a line that says how large it is, and the exit status is the verdict's. `--format json` writes the proof itself at any size. The drawing of a proof net (`--net`) is estimated before it is drawn and left out above the same limit.
+          
+          [default: 64MiB]
+
+Batch:
       --files-from <LIST>
           Read the paths of the inputs from this file, one per line, or `-` for standard input, read as it streams
 
@@ -428,9 +437,6 @@ Options:
 
       --isolate
           Decide each sequent of a batch in a child process of its own, so that one that exhausts the memory or the stack ends only itself
-
-  -h, --help
-          Print help (see a summary with '-h')
 
 Sequent syntax: `A, B |- C, D` (or `⊢`), either side may be empty.
   tensor  A * B, A ⊗ B        par   A | B, A par B, A ⅋ B
