@@ -513,6 +513,14 @@ pub enum Error {
         /// What is wrong, and at which inference.
         reason: String,
     },
+    /// A Kripke model does not refute the sequent it was found for, for
+    /// the reason given: a defect of this crate's engine that found it.
+    #[error("the Kripke model does not refute the sequent: {reason}")]
+    #[non_exhaustive]
+    Countermodel {
+        /// What fails, and at which world.
+        reason: String,
+    },
 }
 
 /// What sort of failure an [`Error`](enum@Error) is.
@@ -640,6 +648,7 @@ impl Error {
         "no_date",
         "rejected",
         "read_back",
+        "countermodel",
         "no_term",
         "no_cut",
         "reduction_rejected",
@@ -708,7 +717,10 @@ impl Error {
             Self::RenderFailed { .. } => Failed,
             #[cfg(feature = "pdf")]
             Self::NoDate => Malformed,
-            Self::Rejected(_) | Self::ReadBack { .. } | Self::Reduction(_) => Defect,
+            Self::Rejected(_)
+            | Self::ReadBack { .. }
+            | Self::Countermodel { .. }
+            | Self::Reduction(_) => Defect,
             Self::NoCut { .. } => Unsupported,
             Self::NoTerm { .. } => Unsupported,
         }
@@ -786,6 +798,7 @@ impl Error {
             Self::NoDate => "no_date",
             Self::Rejected(_) => "rejected",
             Self::ReadBack { .. } => "read_back",
+            Self::Countermodel { .. } => "countermodel",
             Self::NoCut { .. } => "no_cut",
             Self::NoTerm { .. } => "no_term",
             Self::Reduction(_) => "reduction_rejected",
@@ -1101,6 +1114,7 @@ mod tests {
                 calculus: "LK",
                 reason: message(),
             },
+            Error::Countermodel { reason: message() },
         ];
         let vertex = crate::linear::nets::VertexId::new(0);
         let nets = [
@@ -1293,6 +1307,7 @@ mod tests {
             | Error::WriteFailed
             | Error::Rejected(_)
             | Error::ReadBack { .. }
+            | Error::Countermodel { .. }
             | Error::NoCut { .. }
             | Error::NoTerm { .. }
             | Error::Reduction(_) => {}

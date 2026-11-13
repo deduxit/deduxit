@@ -85,7 +85,7 @@ of those names),
 `simple`, the printer `print`),
 `ordinary` (the arena and syntax in `mod.rs`, `parse` behind the
 feature of that name, `translate`, `derivation` with the read-back and
-its checker, the native engine `ljt`, `rocq` behind that feature, `interactive` behind that
+its checker, the native engine `ljt`, the SAT engine `sat` behind that feature, `rocq` behind that feature, `interactive` behind that
 feature), and `lltp`, `mist` and
 `families` behind `parse`. Users write `deduxit::linear::Sequent`,
 `deduxit::linear::Proof`, `deduxit::linear::prove`, `deduxit::Error`,
@@ -132,7 +132,8 @@ Each entry point is described in the file of its module:
   `Image::read_back(&proof, &limits, stop)` to a `Derivation` of LK or
   LJ, `Derivation::check(&limits, stop)`, `ordinary::decide` all of it
   in one call, `ordinary::ljt::decide(&sequent, logic, &limits, stop)`
-  the native engine, `export::rocq::ordinary`, and the goal state
+  the native engine, `ordinary::sat::decide` (feature `sat`) the SAT
+  engine with its checked `Model`, `export::rocq::ordinary`, and the goal state
   `ordinary::Interactive` (`within`, `rules`, `apply`, `undo`, `close`,
   `hint`, `derivation_within`, `finished`) (`core-ordinary.md`);
 - `lambda`: `Derivation::term(&limits, stop)` and
@@ -342,7 +343,8 @@ the commit that lands it rewrites that bullet.
   `occurrences::IllConnective`; `lambda::{Calculus, Notation, NoTerm,
   Options}` (added at step 50); `ordinary::{Logic, Options, Outcome,
   Problem, Target, Translation, Verdict}`; `ordinary::ljt::{Outcome,
-  Statistics}` (added at step 54); `proofs::{ClassicalRule,
+  Statistics}` (added at step 54); `ordinary::sat::{Model, Outcome,
+  Statistics, World}` (added at step 54s); `proofs::{ClassicalRule,
   ClassicalSides, Compact, Dyadic, Fault, Invalid, Labels, OpenGoal,
   Refused, Sides, TextOptions}`;
   `proofs::interactive::{Applicable, Closed, Inverted, Needs, Options,

@@ -29,6 +29,7 @@ all-features = true
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
+batsat = { version = "0.6.0", default-features = false, optional = true }
 foldhash = "0.2.0"
 krilla = { version = "0.8.2", optional = true }
 krilla-svg = { version = "0.8.1", optional = true }
@@ -43,11 +44,21 @@ unicode-ident = "1.0.26"
 unicode-normalization = { version = "0.1.25", default-features = false }
 
 [features]
-default = ["interactive", "latex", "parse", "rocq", "serialize", "svg", "typst"]
+default = [
+  "interactive",
+  "latex",
+  "parse",
+  "rocq",
+  "sat",
+  "serialize",
+  "svg",
+  "typst",
+]
 interactive = []
 latex = []
 parse = []
 rocq = []
+sat = ["dep:batsat"]
 serialize = ["dep:serde"]
 svg = []
 typst = []

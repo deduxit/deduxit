@@ -48,6 +48,10 @@ pub enum Search {
     },
     /// By LJT, and what its search cost.
     Ljt(ljt::Statistics),
+    /// By the SAT solver, and what its search cost. Needs the cargo
+    /// feature `sat`.
+    #[cfg(feature = "sat")]
+    Sat(super::sat::Statistics),
 }
 
 impl Outcome {
@@ -56,6 +60,21 @@ impl Outcome {
         match self.search {
             Search::Embedding { .. } => Method::Embedding,
             Search::Ljt(_) => Method::Ljt,
+            #[cfg(feature = "sat")]
+            Search::Sat(_) => Method::Sat,
+        }
+    }
+}
+
+#[cfg(feature = "sat")]
+impl From<super::sat::Outcome> for Outcome {
+    /// The outcome of the SAT solver as an outcome of deciding an ordinary
+    /// sequent, without its model.
+    fn from(outcome: super::sat::Outcome) -> Self {
+        Self {
+            verdict: outcome.verdict,
+            logic: outcome.logic,
+            search: Search::Sat(outcome.statistics),
         }
     }
 }
@@ -103,8 +122,8 @@ pub fn gives_way(decided: &Result<ljt::Outcome, Error>) -> bool {
 /// until `stop` fires. By the embedding it translates the sequent,
 /// searches the image in its mode under `search`, and for a proof reads
 /// the derivation of LK or LJ back and checks it, under the same limits
-/// and stop; by LJT it is [`ljt::decide`], which reads no `search`
-/// option. When the method is the logic's default (no method and no
+/// and stop; by LJT it is [`ljt::decide`] and by the SAT solver
+/// `sat::decide`, which read no `search` option. When the method is the logic's default (no method and no
 /// translation given) and LJT [`gives_way`], the embedding decides the
 /// sequent in its place.
 ///
@@ -145,6 +164,10 @@ pub fn decide(
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
     let (logic, translation) = (options.logic, options.translation());
+    #[cfg(feature = "sat")]
+    if options.method() == Method::Sat {
+        return super::sat::decide(sequent, logic, limits, &mut stop).map(Outcome::from);
+    }
     if options.method() == Method::Ljt {
         let decided = ljt::decide(sequent, logic, limits, &mut stop);
         if options.method.is_some() || !gives_way(&decided) {

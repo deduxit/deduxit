@@ -450,6 +450,9 @@ enum StatisticsForm<'a> {
     Linear(&'a crate::linear::search::Statistics),
     /// LJT's.
     Ljt(&'a ljt::Statistics),
+    /// The SAT solver's.
+    #[cfg(feature = "sat")]
+    Sat(&'a crate::ordinary::sat::Statistics),
 }
 
 impl Serialize for Outcome {
@@ -475,6 +478,8 @@ impl Serialize for Outcome {
                 StatisticsForm::Linear(&linear.statistics),
             ),
             Search::Ljt(statistics) => (None, Method::Ljt.name(), StatisticsForm::Ljt(statistics)),
+            #[cfg(feature = "sat")]
+            Search::Sat(statistics) => (None, Method::Sat.name(), StatisticsForm::Sat(statistics)),
         };
         OutcomeForm {
             version,

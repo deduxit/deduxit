@@ -170,7 +170,7 @@
             buildPhaseCargoCommand = ''
               cargo check --locked --target wasm32-unknown-unknown --package deduxit \
                 --no-default-features \
-                --features parse,serialize,interactive,latex,typst,svg,rocq,png,pdf
+                --features parse,serialize,interactive,latex,typst,svg,rocq,sat,png,pdf
             '';
             doInstallCargoArtifacts = false;
           }

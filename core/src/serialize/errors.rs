@@ -142,6 +142,7 @@ impl Serialize for Details<'_> {
             ReadBack { calculus, reason } => {
                 entries!(s; "calculus" => calculus; "reason" => reason)
             }
+            Countermodel { reason } => entries!(s; "reason" => reason),
             #[cfg(feature = "interactive")]
             ForeignProof | GoalMismatch => entries!(s),
             GoalProof => entries!(s),

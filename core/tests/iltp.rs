@@ -96,3 +96,78 @@ fn ljt_agrees_with_the_embedding_on_iltp() {
     }
     println!("{agreed} verdicts of the embedding agreed");
 }
+
+/// The most units of work LJT and the SAT solver may each spend on one
+/// problem in [`sat_agrees_with_ljt_on_iltp`]: what a test run affords,
+/// a few seconds a problem at most.
+#[cfg(feature = "sat")]
+const AFFORDED: u64 = 2_000_000;
+
+/// The SAT solver against LJT on every propositional problem of the
+/// library, in intuitionistic and minimal logic: where LJT decides within
+/// [`AFFORDED`] sequents, the SAT solver gives the same verdict, every
+/// derivation it returns passes the checker and every model refutes its
+/// sequent.
+#[cfg(feature = "sat")]
+#[test]
+#[ignore = "needs the ILTP library, which is not in the repository: nix build .#iltp -o bench/iltp"]
+fn sat_agrees_with_ljt_on_iltp() {
+    use deduxit::ordinary::sat;
+    let library = library();
+    let limits = Limits::default()
+        .with_work(Some(AFFORDED))
+        .with_derivation_bytes(None)
+        .with_memory_bytes(Some(MEMORY));
+    let mut problems: Vec<PathBuf> = Vec::new();
+    let mut directories = vec![library.clone()];
+    while let Some(directory) = directories.pop() {
+        for entry in std::fs::read_dir(&directory).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                directories.push(path);
+            } else if path.extension().is_some_and(|e| e == "p") {
+                problems.push(path);
+            }
+        }
+    }
+    problems.sort();
+    assert_eq!(problems.len(), 274);
+    let (mut agreed, mut undecided) = (0, Vec::new());
+    for path in &problems {
+        let name = path.strip_prefix(&library).unwrap().display();
+        let text = std::fs::read_to_string(path).unwrap();
+        let sequent = read_tptp(&text, &Limits::default()).unwrap().sequent;
+        for logic in [Logic::Intuitionistic, Logic::Minimal] {
+            let decided = |verdict: &Verdict| match verdict {
+                Verdict::Valid(_) => Some(true),
+                Verdict::NotValid => Some(false),
+                _ => None,
+            };
+            let by_ljt = ljt::decide(&sequent, logic, &limits, |_| false)
+                .ok()
+                .and_then(|o| decided(&o.verdict));
+            let Some(expected) = by_ljt else { continue };
+            let outcome = sat::decide(&sequent, logic, &limits, |_| false)
+                .unwrap_or_else(|e| panic!("{name} in {logic} logic: {e}"));
+            match (&outcome.verdict, &outcome.model) {
+                // `decide` checked both; checked again here.
+                (Verdict::Valid(derivation), None) => derivation.check(&limits, |_| false).unwrap(),
+                (Verdict::NotValid, Some(model)) => {
+                    model.refutes(&sequent, logic, |_| false).unwrap()
+                }
+                (Verdict::Unknown(_), None) => {
+                    undecided.push(format!("{name} ({logic})"));
+                    continue;
+                }
+                other => panic!("{name} in {logic} logic: {other:?}"),
+            }
+            assert_eq!(
+                decided(&outcome.verdict),
+                Some(expected),
+                "{name} in {logic} logic"
+            );
+            agreed += 1;
+        }
+    }
+    println!("{agreed} verdicts of LJT agreed; undecided by the SAT solver: {undecided:?}");
+}

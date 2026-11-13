@@ -60,6 +60,8 @@ mod parse;
 /// The certificates over `Prop`.
 #[cfg(feature = "rocq")]
 pub(crate) mod rocq;
+#[cfg(feature = "sat")]
+pub mod sat;
 /// The translations into linear logic.
 mod translate;
 
@@ -310,22 +312,39 @@ pub enum Method {
     /// Dyckhoff's calculus LJT ([`ljt::decide`]), whose search always
     /// ends: intuitionistic and minimal logic only.
     Ljt,
+    /// A SAT solver with clauses for the implications ([`sat::decide`]),
+    /// whose search always ends, with a Kripke model for a sequent that is
+    /// not valid: intuitionistic and minimal logic only. Needs the cargo
+    /// feature `sat`.
+    #[cfg(feature = "sat")]
+    Sat,
 }
 
 impl Method {
     /// Every method, in the order of [`NAMES`](Self::NAMES).
+    #[cfg(feature = "sat")]
+    pub const ALL: &'static [Self] = &[Self::Embedding, Self::Ljt, Self::Sat];
+    /// Every method, in the order of [`NAMES`](Self::NAMES).
+    #[cfg(not(feature = "sat"))]
     pub const ALL: &'static [Self] = &[Self::Embedding, Self::Ljt];
 
     /// The methods' names, which [`name`](Self::name) writes and `FromStr`
     /// reads.
+    #[cfg(feature = "sat")]
+    pub const NAMES: &'static [&'static str] = &["embedding", "ljt", "sat"];
+    /// The methods' names, which [`name`](Self::name) writes and `FromStr`
+    /// reads.
+    #[cfg(not(feature = "sat"))]
     pub const NAMES: &'static [&'static str] = &["embedding", "ljt"];
 
-    /// Returns the method's name: `embedding` or `ljt`, as the command and
-    /// the JSON spell it.
+    /// Returns the method's name: `embedding`, `ljt` or `sat`, as the
+    /// command and the JSON spell it.
     pub const fn name(self) -> &'static str {
         match self {
             Self::Embedding => "embedding",
             Self::Ljt => "ljt",
+            #[cfg(feature = "sat")]
+            Self::Sat => "sat",
         }
     }
 
@@ -342,11 +361,13 @@ impl Method {
     }
 
     /// Returns whether the method decides the logic: the embedding every
-    /// logic, LJT intuitionistic and minimal logic.
+    /// logic, LJT and the SAT solver intuitionistic and minimal logic.
     pub const fn decides(self, logic: Logic) -> bool {
         match self {
             Self::Embedding => true,
             Self::Ljt => !matches!(logic, Logic::Classical),
+            #[cfg(feature = "sat")]
+            Self::Sat => !matches!(logic, Logic::Classical),
         }
     }
 }

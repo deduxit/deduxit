@@ -272,6 +272,75 @@ its search and translation are untrusted, the checker is the trust.
   cadence and the memory account (`linear::search::memory::Account`,
   used as is).
 
+## The SAT engine (`sat/`, behind `sat`)
+
+intuit's search (Claessen and Rosén, LPAR 2015) with intuitR's restarts
+(Fiorentini, CADE 2021), public as `ordinary::sat::decide` and
+`Method::Sat` (`sat`), intuitionistic and minimal logic. `mod.rs` the
+clauses and the loop, `solver.rs` the trait over batsat, `read_back.rs`
+the derivation, `model.rs` the Kripke model and its check. Its search,
+read-back and model are untrusted: the checker and `Model::refutes` are
+the trust.
+
+- **The solver is behind `solver::Solver`** (new variable, add clause,
+  solve under assumptions, value, failed assumptions, calls,
+  conflicts); `Batsat` is the one implementation, a fork or another
+  solver replaces it there. batsat's `unsat_core` is MiniSat's final
+  conflict, the negations of the failed assumptions: `failed` negates
+  it back. Its `Callbacks::stop` is polled at every decision and holds
+  the caller's stop in a `RefCell` (batsat polls through `&self`); a
+  conflict (a learnt clause) and a call of `solve` are each a unit of
+  `limits.work`; learnt clauses are charged to the account and released
+  when `reduce_db` deletes them (it reports learnt clauses alone).
+  `MOST_VARIABLES` is batsat's index bound; past it `Reason::IndexLimit`
+  (the test lowers it through `run`'s `most`).
+- **A variable is a formula of the arena**, not a fresh atom, so every
+  clause is a formula's own rule and the read-back needs no
+  definitions. Polarity (`polarities`, one pass from the last formula
+  down, as intuit's one-directional definitions): a negative formula
+  gets its left rule as clauses, a positive one its right rule, and a
+  positive implication or negation its implication clause; an
+  equivalence gives both polarities to its parts. `translate`'s extra
+  nodes (`⊥`, both implications of every `↔`) are added first. The
+  countermodel is a model of every formula by this reading because
+  each formula forced is its variable true where negative and the
+  converse where positive (the induction of intuit's completeness).
+- **The loop is intuitR's `proveR`**: worlds are the solver's models;
+  a pair (world, implication `(a → b) → c`) is realised when `a`, `b` or
+  `c` holds there or a world above has `a` and not `b`; an unrealised
+  pair calls the solver under the world and `a`, `¬b`; a model is a new
+  world, a refutation learns `failed \ {a} → c` and restarts with no
+  worlds. Realisation is monotone in the worlds, so one cursor walks the
+  pairs. The worlds of the last round, ordered by inclusion (sorted by
+  size, edges the covering pairs), are the Kripke model.
+- **The derivation is read off the learnt clauses** (TABLEAUX 2019's
+  correspondence): each lemma `B → c` becomes the formula
+  `b₁ → (… → c)` derived by `→R` from a tableau of `Γ, earlier lemmas,
+  B, a ⊢ b`, and cut below the tableau of `Γ, lemmas ⊢ C`. A tableau
+  saturates by the rules the clauses stand for (left rules on negative
+  formulas and lemma formulas, right rules on positive ones, the latter
+  cut) and splits on a negative disjunction only where none applies;
+  since the clauses entail the goal classically, every branch closes, and
+  a branch that does not is `Error::ReadBack`, a defect. Derivations
+  keep only the hypotheses they use (`tidy` contracts), a step whose
+  made formulas are unused is left out, and a split whose first branch
+  ignores its disjunct keeps that branch alone. Facts derived are the
+  read-back's unit of `limits.work`.
+- **LJT where a bound refuses the read-back** (not the stop): its
+  derivation and statistics (`Statistics::ljt`); where LJT gives none,
+  the read-back's refusal. LJT refuting a sequent the search proved is
+  `Error::ReadBack`.
+- **The model is data** (`Model`, `World`: atoms by index, `⊥` forced in
+  minimal logic only, edges to later worlds), kept on `sat::Outcome`,
+  not on `ordinary::Outcome`. `refutes` computes forcing for every
+  formula of the arena at every world, the last first, an implication
+  from its local value and the worlds directly above; `¬A` is `A → ⊥`,
+  so in minimal logic a world forcing `⊥` forces `¬A` too (the first
+  check read it as intuitionistic negation and refused minimal models).
+  Its cost is `MOST_CELLS` (worlds and edges times formulas), refused
+  past it as memory. A model that fails is `Error::Countermodel`, a
+  defect; a model a user gives would need an `invalid` kind.
+
 ## The goal state (`interactive.rs`)
 
 A native state of ordinary sequents, not a session over the image: the

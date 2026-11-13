@@ -27,14 +27,15 @@ Workspace crates:
   nets, the search, the readers and families); `ordinary` and `lambda`
   are suites beside it, and what they share with it stays at the root
   (the errors, the limits, the settings, the exports, the wire forms).
-  It has seven optional
+  It has eight optional
   default features, `parse` (the text parser, the LLTP reader and the
   generated families),
-  `serialize` (serde), `interactive` (step-by-step proving), and
-  `latex`, `typst`, `svg` and `rocq` (the exports), and three off by
+  `serialize` (serde), `interactive` (step-by-step proving),
+  `latex`, `typst`, `svg` and `rocq` (the exports), and `sat` (batsat:
+  the SAT-based engine `ordinary::sat`), and three off by
   default, `parallel` (rayon: the search on a thread pool, off for
   wasm), `png` (resvg) and `pdf` (krilla), which render the SVG with
-  fonts the caller gives; the CLI enables the last eight.
+  fonts the caller gives; the CLI enables the last nine.
 - `cli/` is package **`deduxit-cli`**, library **`deduxit_cli`** and binary
   **`deduxit`** (one call into the library; `doc = false` because it shares
   the core crate's name): `prove` (one sequent, or a batch of many),
