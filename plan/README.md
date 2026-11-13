@@ -6363,3 +6363,17 @@ move (D26).
     three each, cores 2-3 kept free), `start-54s-a.md`, `start-54u-a.md`,
     `start-54u-b.md`, `start-54u-c.md` and `start-54u-e.md`.
   - **Waiting for the author's go**, and whether they will be present.
+- 2026-11-14: **The author's go, unattended** ("Go, unattended"). Decided
+  by research and current idiom, each decision with its reason here;
+  tags, publication, the night baseline and `gh` administration stay
+  the author's. Started in the Claude app, each on Opus 5.5 at `high`
+  in a jj workspace of its own, by the briefs of the entry above:
+  - 54s-a, the SAT-based intuitionistic engine (`local_e3fd349f`, cores
+    4-6, the panel);
+  - 54u-a, the library's additions Q1-Q4 (`local_f3cc8f3d`, cores 7-9);
+  - 54u-b, the command's Q6, Q8, Q9, Q10 (`local_3d2fb744`, cores 10-12);
+  - 54u-c, the page's prover W1-W3, W9, W10, W15 (`local_18e9ad6c`,
+    cores 13-15, in the client).
+
+  Next, from the chain of their finish notes: 54u-e when a slot frees,
+  54s-b after 54s-a's dependency, 54u-d after 54u-c.
