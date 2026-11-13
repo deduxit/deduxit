@@ -6293,3 +6293,22 @@ move (D26).
       review evidence.
     - **Kept for the planning session:** the probes `ulktsrrq` and
       `zyqyunxy`.
+- 2026-11-13, 23:40: **The orchestration checked for the Claude app** (the
+  author starts the planning session there).
+  - **Probed from a session in the app:**
+    - `plan/start-session.sh` started a background session in its own jj
+      workspace;
+    - that session's `SendMessage` reached the app session by name;
+    - `notify_when_idle` brought its idle notice back;
+    - a one-shot `CronCreate` fired on time while the app session was
+      idle.
+  - **What differs:** the step sessions run on the CLI's sign-in, and the
+    app session on the app's. `claude auth status` is now one of the
+    checks at a planner's start; the CLI's sign-in lapses on 2026-11-15
+    at 02:47 unless renewed.
+  - **The app now archives sessions idle for 7 days** (the author's
+    setting; this day's cleanup archived the earlier ones). The
+    `WorktreeRemove` hook therefore keeps every `wt-step-` workspace,
+    pinned by a case of the hook's test.
+  - `plan/handoff.md` has the app's way to start the planner and a
+    section "In the Claude app".

@@ -32,12 +32,24 @@ this file holds.
     account: it keeps `CLAUDE_CONFIG_DIR` (unset for `claude`). Every
     session on one account shares its five-hour window, the planner's
     included, and the author's other projects fill it too.
-- **How the author starts you**, in `/home/tux/Projects/own/deduxit` (`linlog` until 2026-11-09), from
-  their shell, which is nushell (put `claude2` for `claude` on the second
-  account):
-  ```nu
-  claude --name deduxit-orchestrator --model claude-opus-5-5 --effort high --permission-mode auto (open --raw plan/handoff.md)
-  ```
+- **How the author starts you**, in `/home/tux/Projects/own/deduxit` (`linlog` until 2026-11-09), in
+  one of two ways.
+  - **From their shell**, which is nushell (put `claude2` for `claude` on
+    the second account):
+    ```nu
+    claude --name deduxit-orchestrator --model claude-opus-5-5 --effort high --permission-mode auto (open --raw plan/handoff.md)
+    ```
+  - **In the Claude app** (the Code tab; the author's usual way since
+    2026-11-13):
+    - a new session in this folder, on Opus 5.5 at effort High, in
+      permission mode Auto;
+    - as its first message: "Read `plan/handoff.md` from its first line
+      to its last and act on it: you are the planning session.";
+    - then `/rename deduxit-orchestrator`.
+
+    The app runs you on its own sign-in, and you stay alive only while
+    the app is open. "In the Claude app" below says what else differs.
+
   The name matters: every brief and goal names `deduxit-orchestrator`
   (`linlog-orchestrator` until 2026-11-09, when the author renamed the
   session with `/rename`) as the recipient of its messages, and the other project's session
@@ -84,7 +96,11 @@ this file holds.
     stopped;
   - `systemctl --user list-units 'step*' 'deduxit-*' 'linlog-*'`;
   - the notifications log, `$XDG_RUNTIME_DIR/deduxit-sessions/notifications.log`;
-  - `plan/keys-warm.sh --check`.
+  - `plan/keys-warm.sh --check`;
+  - `claude auth status`, whose `loginExpiresAt` is when the CLI's
+    sign-in lapses. Every step session runs on that sign-in, wherever
+    you run. Ask the author to run `claude auth login` before a run
+    would cross that time, above all before an unattended night.
   `gh` asks the author's permission (a settings rule), so read CI's state
   only when the author is there, or from the repositories' pages, the
   crates.io API and Zenodo's records. GitHub's unauthenticated API
@@ -517,6 +533,43 @@ for each kind:
   build's own children don't inherit it), held by every timed run and
   every `nix build` or `nix flake check`, since the daemon builds on any
   core. Several checks queue on it: a `flock` waiting is normal.
+
+## In the Claude app
+
+What differs when the author starts you in the Claude app rather than in a
+terminal (probed on 2026-11-13 with Claude Code 2.1.321):
+- **Two sign-ins.**
+  - You run on the app's sign-in.
+  - The step sessions you start with `plan/start-session.sh` run in the
+    CLI's background service, on the CLI's sign-in
+    (`~/.claude/.credentials.json`). So `claude auth status` belongs in
+    your checks ("Starting").
+- **The same sessions.**
+  - The launcher works from the app. A step session it starts runs in
+    its own jj workspace and shows in the app's sidebar beside you.
+  - `claude agents --json` and `claude logs` read it as before.
+- **Messages work both ways.**
+  - A step session's `SendMessage` to `deduxit-orchestrator` reaches you.
+  - Your `SendMessage` with `notify_when_idle: true` brings its idle
+    notice.
+  - A message you send to another session in the app gets no delivery
+    notice, so never count silence as agreement.
+- **Scheduled checks work.** `CronCreate` fires as in a terminal, while
+  you are idle; a one-shot fired on time. Every cron lives only as long as
+  this session, and a recurring one expires after 7 days, so recreate the
+  supervision check each week.
+- **Keep the app open.**
+  - You end when the app quits, and your crons go with you. The step
+    sessions go on in the background service.
+  - After a restart, the author reopens you from the sidebar. Recreate
+    your crons and find out where things stand ("Starting").
+- **The app archives sessions idle for 7 days** (the author's setting).
+  - A pause longer than that archives you and the stopped step sessions.
+  - Reopen yourself from the Archived list.
+  - Resume a step session with the launcher as usual. Archiving leaves
+    its workspace in place, since the hook keeps every `wt-step-` one.
+- **Commands for the author** go in the app's Terminal panel (nushell),
+  or after `! ` in your message box.
 
 ## The machine
 

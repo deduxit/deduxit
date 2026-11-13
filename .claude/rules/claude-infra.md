@@ -409,6 +409,21 @@ goal, permission-modes, auto-mode-config, sub-agents, hooks, workflows),
     settings, then the model's default, which is `medium` for Fable 5.2,
     Opus 5.5, Sonnet 5.5 and Haiku 5.5.
   - The launcher therefore always passes `--effort`.
+- **The planning session may run in the Claude app** (the Code tab).
+  Probed on 2026-11-13 from a session in the app, with Claude Code 2.1.321:
+  - the launcher started a background session there, in its own jj
+    workspace;
+  - its `SendMessage` reached the app session by name;
+  - the app session's `notify_when_idle` brought its idle notice;
+  - a one-shot `CronCreate` fired on time.
+
+  An app session runs on the app's sign-in; `claude --bg` sessions run on
+  the CLI's (`~/.claude/.credentials.json`, `claude auth status`).
+  `plan/handoff.md` ("In the Claude app") says what else differs.
+- **The app archives idle sessions** (the author's setting, 7 days).
+  Archiving a session removes its worktree through the `WorktreeRemove`
+  hook, which therefore keeps every `wt-step-` workspace. A paused step
+  session resumed later still finds its chain.
 - **Panels** are the Workflow tool's kind of work: fan-out within one
   session, which step 26's prompt chose for them. The named agents above
   carry each member's model and method. Supervising sessions is not

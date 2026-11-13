@@ -40,8 +40,9 @@ import sys
 PREFIX = "wt-"
 # The workspaces `plan/start-session.sh` starts step sessions in. A step
 # session's working copy is empty after each commit, so `prune` would take it
-# while the session runs; the planning session removes one by name once its
-# chain is on main.
+# while the session runs, and Claude Code removes it when the session is
+# archived; neither touches one. The planning session removes one by name once
+# its chain is on main.
 STEP = PREFIX + "step-"
 
 
@@ -216,7 +217,18 @@ def main():
     if event == "WorktreeCreate":
         create(payload)
     elif event == "WorktreeRemove":
-        remove(payload["worktree_path"])
+        path = os.path.realpath(payload["worktree_path"])
+        name = made_here(path)
+        if name is not None and name.startswith(STEP):
+            # Claude Code removes a session's worktree when the session is
+            # deleted or archived, the app's archiving of idle sessions
+            # included; a paused step session resumed later would then get
+            # a new workspace on the checkout's `@-`, not on its chain.
+            sys.exit(
+                f"jj-worktree: {name} is a step session's workspace; kept. "
+                f"The planning session removes it by name."
+            )
+        remove(path)
     else:
         sys.exit(f"jj-worktree: unexpected event {event!r}")
 

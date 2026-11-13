@@ -188,6 +188,11 @@ def main():
         os.path.isdir(step) and "wt-step-01a" in workspaces(),
         out,
     )
+    code, _, _ = remove(step)
+    check(
+        "remove a step session's workspace: exit 1, it stays",
+        code == 1 and os.path.isdir(step) and "wt-step-01a" in workspaces(),
+    )
     check(
         "prune: forgets no workspace whose directory is not where jj says",
         "wt-gone" in workspaces() and os.path.isdir(os.path.join(tmp, "moved")),
