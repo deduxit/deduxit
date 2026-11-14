@@ -1,5 +1,5 @@
 $ deduxit prove --deterministic --logic classical --format json '~~a -> a'
 --- status 0
 --- stdout
-{"version":1,"deduxit":"…","verdict":"proved","checked":true,"fragment":"MLL","mode":"affine","engine":"focus","statistics":{"nodes":1,"memo_hits":0,"memo_entries":1,"splits":0,"links":0,"tests":0,"copies":0,"forward_copies":0,"work":16},"sequent":{"terms":[{"V":0},{"D":0},{"⅋":[1,0]}],"roots":[2],"atoms":["a"],"antecedents":0},"nodes":[{"ax":[1,2]},{"⅋":[0,0]}]}
+{"version":12,"deduxit":"…","verdict":"valid","logic":"classical","search":{"method":"embedding","translation":"affine","image":{"verdict":"proved","checked":true,"fragment":"MLL","mode":"affine","engine":"focus","statistics":{"nodes":1,"memo_hits":0,"memo_entries":1,"splits":0,"links":0,"tests":0,"copies":0,"forward_copies":0,"work":16},"sequent":{"terms":[{"V":0},{"D":0},{"⅋":[1,0]}],"roots":[2],"atoms":["a"],"antecedents":0},"nodes":[{"ax":[1,2]},{"⅋":[0,0]}]}},"derivation":{"logic":"classical","sequent":{"formulas":[{"V":0},{"¬":0},{"¬":1},{"→":[2,0]},"⊥"],"atoms":["a"],"left":[],"right":[3]},"inferences":[{"left":[0],"right":[0],"rule":"ax"},{"left":[],"right":[1,0],"rule":"¬R","principal":["right",0],"premises":[0]},{"left":[2],"right":[0],"rule":"¬L","principal":["left",0],"premises":[1]},{"left":[],"right":[3],"rule":"→R","principal":["right",0],"premises":[2]}]}}
 --- stderr

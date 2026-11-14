@@ -1,5 +1,5 @@
 $ deduxit prove --logic classical --method sat --format json 'a -> b, b |- a'
 --- status 1
 --- stdout
-{"version":8,"deduxit":"…","verdict":"not_valid","logic":"classical","engine":"sat","statistics":{"calls":1,"conflicts":0,"lemmas":0,"worlds":1,"facts":0,"clauses":4,"proof_steps":0,"ljt":null}}
+{"version":12,"deduxit":"…","verdict":"not_valid","logic":"classical","search":{"method":"sat","statistics":{"calls":1,"conflicts":0,"lemmas":0,"worlds":1,"facts":0,"clauses":4,"proof_steps":0,"ljt":null}}}
 --- stderr
