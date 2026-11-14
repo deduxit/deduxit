@@ -207,7 +207,7 @@ error: cannot parse the sequent
      ^ unexpected "~"
   intuitionistic linear logic has no negation: write a negated formula on the other side of |- (A |- B, not |- ~A, B), and ~A par B as A -o B; --ill-syntax one-sided reads the classical syntax
 $ deduxit prove -i -q --ill-syntax one-sided "|- ~A par B"
-unprovable (IMLL, intuitionistic, two-sided engine): A occurs 1 more time on the left than on the right, so they cannot all meet in axioms (an implication's antecedent counts on the other side)
+unprovable (IMLL, intuitionistic, two-sided engine): A on the left has no A on the right to meet in an axiom (an implication's antecedent counts on the other side)
 $ deduxit prove -i --ill-syntax one-sided "|- A par B"
 error: not an intuitionistic sequent: the subformula A ⅋ B is neither an intuitionistic formula nor the negation of one: intuitionistic linear logic has ⅋ only in A ⊸ B (~A ⅋ B), and ? only under a negation
 $ deduxit prove -i "A |- B, C"

@@ -57,7 +57,9 @@ unchanged.
 - **The intuitionistic count refutation** counts by sides too, without
   "positively" and "negatively": `A occurs 1 more time on the right than
   on the left, so they cannot all meet in axioms (an implication's
-  antecedent counts on the other side)`.
+  antecedent counts on the other side)`. Where one side has no `A`, it
+  says so: `A on the right has no A on the left to meet in an axiom (an
+  implication's antecedent counts on the other side)`.
 - **Ordinary logic's "not valid"** through the embedding says `the
   translated sequent is unprovable` in place of "the image".
 - **The help and the messages are rewritten** to say what went wrong and

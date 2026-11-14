@@ -326,12 +326,17 @@ impl Refutation {
     /// no sequent. The literals of a count are spoken of in the `sides`
     /// the sequent is read with.
     fn write(&self, f: &mut Formatter<'_>, sequent: Option<&Sequent>, sides: Sides) -> FmtResult {
-        let intuitionistic = sides == Sides::Intuitionistic;
+        let intuitionistic = matches!(sides, Sides::Intuitionistic { .. });
         // The wording of a count: two-sided where the sequent was written
         // with hypotheses, with where the counted literals lie.
         let words = |counted: &dyn Fn(Atom) -> bool, least: i32| match (sides, sequent) {
             (Sides::Two, Some(sequent)) => Words::Two(placed(sequent, counted, least > 0)),
-            (Sides::Intuitionistic, _) => Words::Intuitionistic,
+            // Under the reading an atom in output position is the
+            // positive literal, so the literals' signs are their sides.
+            (Sides::Intuitionistic { whole }, sequent) => Words::Intuitionistic {
+                fewer_absent: whole
+                    && sequent.is_some_and(|s| placed(s, counted, least > 0).fewer_absent),
+            },
             (Sides::One | Sides::Two, _) => Words::One,
         };
         let of_symbol = |symbol: Symbol| {
@@ -530,7 +535,11 @@ enum Sides {
     Two,
     /// Of an intuitionistic sequent: an atom's positive and negative
     /// occurrences.
-    Intuitionistic,
+    Intuitionistic {
+        /// Whether the sequent is refuted as a whole, not a goal within
+        /// it, so that its literals are the counted ones.
+        whole: bool,
+    },
 }
 
 /// The wording of a count of literals, as [`Sides`] picks it.
@@ -540,8 +549,12 @@ enum Words {
     One,
     /// Two-sided, with where the counted literals lie.
     Two(Placed),
-    /// Intuitionistic.
-    Intuitionistic,
+    /// Intuitionistic, with whether the side with fewer of the counted
+    /// literals has none.
+    Intuitionistic {
+        /// The side with fewer of them has none.
+        fewer_absent: bool,
+    },
 }
 
 /// Where the literals of a count lie in a classical sequent written with
@@ -677,7 +690,7 @@ fn write_unbalanced(
              {alternatives}{copies}{over}, so they cannot all meet in axioms{crossed}",
         );
     }
-    if matches!(words, Words::Intuitionistic) {
+    if let Words::Intuitionistic { fewer_absent } = words {
         // An atom in output position is the positive literal, which
         // counts as right of `⊢`.
         let (more, fewer) = if least > 0 {
@@ -685,6 +698,13 @@ fn write_unbalanced(
         } else {
             ("left", "right")
         };
+        if copied.is_none() && fewer_absent {
+            return write!(
+                f,
+                "{name} on the {more} has no {name} on the {fewer} to meet in an axiom{over} (an \
+                 implication's antecedent counts on the other side)"
+            );
+        }
         let (place, copies) = match copied {
             Some(sign) => (
                 " outside the exponentials",
@@ -843,7 +863,9 @@ impl Display for Disproof {
     /// of `⊢`, refuted as a whole: an atom left and right of `⊢`.
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         let sides = if self.mode.is_intuitionistic() {
-            Sides::Intuitionistic
+            Sides::Intuitionistic {
+                whole: self.goal.is_none(),
+            }
         } else if self.goal.is_none() && self.sequent.antecedents().is_some_and(|n| n > 0) {
             Sides::Two
         } else {
@@ -1889,5 +1911,31 @@ mod tests {
         }
         let goal = refuted("a |- b", classical).of_goal(Box::new([]));
         assert!(goal.to_string().contains("one-sided"), "{goal}");
+    }
+
+    /// An intuitionistic count names the side that has none of the atom,
+    /// as the two-sided classical one does, and counts the excess where
+    /// both sides have some.
+    #[test]
+    fn an_intuitionistic_count_names_the_empty_side() {
+        let intuitionistic = Mode::INTUITIONISTIC;
+        for (input, phrase) in [
+            (
+                "a -o b |- b -o a",
+                "a on the right has no a on the left to meet in an axiom (an implication's \
+                 antecedent counts on the other side)",
+            ),
+            (
+                "a |- a * a",
+                "a occurs 1 more time on the right than on the left, so they cannot all meet in \
+                 axioms (an implication's antecedent counts on the other side)",
+            ),
+        ] {
+            assert_eq!(
+                refuted(input, intuitionistic).to_string(),
+                phrase,
+                "{input}"
+            );
+        }
     }
 }

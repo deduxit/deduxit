@@ -256,7 +256,11 @@ copies they had are gone (F103, F104).
   A positive literal counts right of `⊢`; the intuitionistic phrase says
   so in the same words as the two-sided one ("on the left", "on the
   right", "an implication's antecedent counts on the other side"), with
-  no "positively", since its excess is the same count. The JSON form, the check and
+  no "positively", since its excess is the same count, and names the side
+  with none by `placed` too (under the reading an atom in output
+  position is the positive literal, so signs are sides), for a sequent
+  refuted as a whole only (`Sides::Intuitionistic { whole }`): a goal's
+  members are not the sequent's roots. The JSON form, the check and
   the certificates do not change with it; the count equation's phrase
   stays one-sided (MLL's equation counts connectives one-sided).
 - **`Disproof::check`** (`refutation.rs`) verifies `Classical`,
