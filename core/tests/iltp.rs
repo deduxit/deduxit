@@ -162,3 +162,91 @@ fn sat_agrees_with_ljt_on_iltp() {
     }
     println!("{agreed} verdicts of LJT agreed; undecided: {undecided:#?}");
 }
+
+/// The most work the embedding and the SAT solver may do on one problem
+/// in [`sat_agrees_with_the_embedding_in_classical_logic`]: what a test
+/// run affords.
+#[cfg(feature = "sat")]
+const CLASSICAL_WORK: u64 = 2_000_000;
+
+/// The SAT solver against the embedding in classical logic: every
+/// problem of the library that the embedding decides within
+/// [`CLASSICAL_WORK`] gets the same verdict from the SAT solver within
+/// the same limits, its clausal proof or its assignment checked; the
+/// problems only the SAT solver decides, those it proves without the
+/// embedding's derivation and those where it stops are printed.
+#[cfg(feature = "sat")]
+#[test]
+#[ignore = "needs the ILTP library, which is not in the repository: nix build .#iltp -o bench/iltp"]
+fn sat_agrees_with_the_embedding_in_classical_logic() {
+    use deduxit::ordinary::{Options, decide, sat};
+    use std::collections::BTreeSet;
+    let library = library();
+    let limits = Limits::default()
+        .with_work(Some(CLASSICAL_WORK))
+        .with_memory_bytes(Some(2 << 30));
+    // Every problem of the library has rows in the embedding's verdicts.
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/iltp/embedding.csv");
+    let problems: BTreeSet<String> = std::fs::read_to_string(&path)
+        .unwrap()
+        .lines()
+        .skip(1)
+        .map(|line| line.split(',').next().unwrap().to_owned())
+        .collect();
+    assert_eq!(problems.len(), 274);
+    let options = Options::default().with_logic(Logic::Classical);
+    let search = deduxit::linear::Options::default();
+    let (mut agreed, mut only_sat, mut proved_alone, mut stopped) =
+        (0, Vec::new(), Vec::new(), Vec::new());
+    for problem in &problems {
+        let text = std::fs::read_to_string(library.join(problem)).unwrap();
+        let sequent = read_tptp(&text, &Limits::default()).unwrap().sequent;
+        let embedded = match decide(&sequent, &options, &search, &limits, |_| false) {
+            Ok(outcome) => match outcome.verdict {
+                Verdict::Valid(_) => Some(true),
+                Verdict::NotValid => Some(false),
+                _ => None,
+            },
+            Err(deduxit::Error::Refused(_)) => None,
+            Err(error) => panic!("{problem}: {error}"),
+        };
+        let solved = match sat::decide(&sequent, Logic::Classical, &limits, |_| false) {
+            Ok(outcome) => match (&outcome.verdict, &outcome.model) {
+                (Verdict::Valid(derivation), None) => {
+                    derivation.check(&limits, |_| false).unwrap();
+                    Some(true)
+                }
+                (Verdict::NotValid, Some(model)) => {
+                    model.refutes(&sequent, Logic::Classical, |_| false).unwrap();
+                    Some(false)
+                }
+                (Verdict::Unknown(reason), None) => {
+                    stopped.push(format!("{problem}: {reason}"));
+                    None
+                }
+                other => panic!("{problem}: {other:?}"),
+            },
+            // The clausal proof passed; the embedding's derivation did not
+            // come within the limits.
+            Err(deduxit::Error::Refused(_)) => {
+                proved_alone.push(problem.clone());
+                None
+            }
+            Err(error) => panic!("{problem}: {error}"),
+        };
+        match (embedded, solved) {
+            (Some(e), Some(s)) => {
+                assert_eq!(e, s, "{problem}");
+                agreed += 1;
+            }
+            (Some(e), None) => assert!(e, "{problem}: refuted by the embedding alone"),
+            (None, Some(s)) => only_sat.push((problem.clone(), s)),
+            (None, None) => {}
+        }
+    }
+    println!(
+        "{agreed} verdicts of the embedding agreed; decided by the solver alone: {only_sat:?}; \
+         proved by a checked clausal proof without the embedding's derivation: {proved_alone:?}; \
+         the solver stopped: {stopped:#?}"
+    );
+}
