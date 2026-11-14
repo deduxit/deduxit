@@ -25,8 +25,8 @@ Sequent syntax: `A, B |- C, D` (or `⊢`), either side may be empty.
   negation  ~A, A^            exponentials  !A, ?A
   units  1, bot, ⊥, top, ⊤, 0
   quantifiers  forall x. A, ∀x. A, exists x. A, ∃x. A, forall x y. A
-  predicates  p(x, f(a)): a name a quantifier binds is its variable, any
-    other a constant, or a function symbol before a bracket
+  predicates  p(x, f(a)): a name bound by a quantifier is a variable, any
+    other name a constant, or a function symbol before a bracket
 Binding, tightest first: A^, then ~ ! ?, then *, |, &, +, then -o, which
 groups to the right, and last a quantifier, which reaches right as far as
 it can."
@@ -108,111 +108,131 @@ pub(crate) struct Cli {
 pub(crate) enum Command {
     /// Decide whether a sequent is provable, and print a proof if it is
     ///
-    /// The fragment of the sequent (MLL, MALL, …) is detected and picks the
-    /// engine; the first line of the output names both. The exit status is 0
-    /// for provable, 1 for unprovable, 3 when the search stopped before
-    /// deciding, and 2 for an error.
+    /// The command finds the sequent's fragment (MLL, MALL, …) and picks
+    /// the engine for it; the first line of the output names both. The exit
+    /// status is 0 for provable, 1 for unprovable, 3 for unknown (the
+    /// search stopped before it decided) and 2 for an error.
     ///
-    /// Given several times `--file`, a directory, `--files-from`, or an
-    /// input format of many sequents (`lines`, `jsonl`, `problems`; on
-    /// standard input a stream, answered line by line), `prove` decides a
-    /// batch. Paths are taken literally, with no glob or `~`; a directory
-    /// is walked in sorted order, links followed, for the files of the
-    /// input format's extension (`.p` and `.json` for `auto`). Each sequent
-    /// is named by its path as given, or by its line's name or
-    /// `FILE:LINE`, and gets one line in input order, `NAME: VERDICT`, as
-    /// soon as it is decided; with `--format json` a JSON Lines record of
-    /// `version` and `name` and the outcome's keys, or with the verdict
-    /// `error` and a `message` (and the library's `error` where it caused
-    /// it) for an entry that could not be decided. A drawn format writes a file per proved sequent into
-    /// `--output DIR`. The mode is the flags', or a problem file's column or
-    /// a record's. The exit status is the worst: an error (2) before
-    /// unknown (3) before unprovable (1) before proved (0); a batch that
-    /// holds no sequent is an error, and one interrupted with Ctrl-C, which
-    /// ends its input, is unknown at best.
+    /// To decide many sequents in one call (a batch), give `--file` several
+    /// times, a directory, `--files-from`, or an input format of many
+    /// sequents: `lines`, `jsonl` or `problems`. On standard input such a
+    /// format is a stream, answered line by line. Paths are taken
+    /// literally, with no glob or `~`. A directory is walked in sorted
+    /// order, following links, for the files with the input format's
+    /// extension (`.p` and `.json` for `auto`).
+    ///
+    /// Each sequent is named by its path as given, by its line's name, or
+    /// by `FILE:LINE`. It gets one line, `NAME: VERDICT`, in input order,
+    /// as soon as it is decided. With `--format json` the line is a JSON
+    /// Lines record of `version`, `name` and the outcome's keys. An entry
+    /// that could not be decided has the verdict `error` and a `message`,
+    /// and the library's `error` where the library caused it. A drawn
+    /// format writes a file per proved sequent into `--output DIR`. The
+    /// mode is the flags', or a problem file's column or a record's.
+    ///
+    /// A batch's exit status is the worst of its entries: an error (2)
+    /// before unknown (3) before unprovable (1) before proved (0). A batch
+    /// with no sequent is an error. Ctrl-C ends a batch's input, and its
+    /// status is then unknown at best.
     #[command(after_help = ORDINARY_SHORT, after_long_help = ORDINARY)]
     Prove(ProveArgs),
     /// Check a proof read from JSON, as `prove --format json` writes it, or
     /// the refutation of an unprovable outcome
     ///
     /// The mode is the one the file states, or the flags' where it states
-    /// none; a mode flag that names another is an error. The exit status is
-    /// 0 for a valid proof, 1 for an invalid one, 3 when the check was given
-    /// up at a limit (neither valid nor invalid), and 2 for an error. A
-    /// refutation is checked without the search in the mode its file
-    /// states, a claim about that mode alone, with the same statuses: 0 where it holds, 1 where it does not, 3 for an
-    /// exhausted search, which has no check.
+    /// none. A mode flag that names another mode is an error. The exit
+    /// status is 0 for a valid proof, 1 for an invalid one, 3 for unknown
+    /// (a limit stopped the check, so the proof is neither valid nor
+    /// invalid) and 2 for an error.
+    ///
+    /// A refutation is checked without a search, in the mode its file
+    /// states; it says nothing about other modes. The exit status is 0
+    /// where it holds and 1 where it does not. An outcome refuted only by
+    /// an exhausted search has nothing to check, and gets 3.
+    ///
     /// With `--format json` the verdict is `{"version", "verdict",
-    /// "mode"}`, the verdict `valid`, `invalid` or `unknown`, with the
-    /// library's `error` object and its `message` with formulas for the
-    /// last two.
+    /// "mode"}`, the verdict being `valid`, `invalid` or `unknown`. The
+    /// last two add the library's `error` object and its `message`, with
+    /// formulas.
     #[command(after_help = EVERY_OPTION, after_long_help = "")]
     Check(CheckArgs),
     /// Eliminate the cuts of a proof read from JSON, step by step
     ///
-    /// The proof is checked in the mode its file states (the flags' where
-    /// it states none, as for `check`), then its cuts are
-    /// reduced one step at a time, each step on the cut that comes first in
-    /// the proof (no cut above it), until no cut is left or a bound is
-    /// reached: `--steps=1` takes a single one. Each step is printed with its
-    /// case (the axiom case, a key case such as that of ⊗ and ⅋, a
-    /// commutative case, weakening, dereliction, contraction, a box
-    /// entering a box) and the cut formula, then the proof reached, drawn
-    /// as `check` draws it; every proof reached is checked. The exit
-    /// status is 0 when the elimination ended cut-free or after the steps
-    /// asked for with `--steps`, 1 for a proof that is not valid, 3 when
-    /// the default bound on steps, another bound or the time limit stopped
-    /// it with cuts left (the proof reached is still printed), and 2 for an
-    /// error. With `--format json` the record `{"version",
-    /// "proof", "steps", "end"}`: the proof reached, each step's `cut`
-    /// (the node of the proof it was taken on), `formula` (the occurrence
-    /// cut) and `case`, and `end`, `cut_free` or `refused` with the
-    /// `reason`.
+    /// The proof is first checked in the mode its file states, or the
+    /// flags' where it states none, as `check` does. Then its cuts are
+    /// reduced one step at a time until no cut is left or a bound is
+    /// reached. Each step takes the first cut in the proof, one with no cut
+    /// above it. `--steps=1` takes a single step.
     ///
-    /// With `--net` the cuts are eliminated on the proof's net instead,
-    /// for the sequents `--net` takes: each step reduces the first cut
-    /// link (the axiom case, the key case of ⊗ and ⅋, and on boxes
-    /// weakening, dereliction, contraction and a box entering a box), and
-    /// the net reached is printed as text; `--format svg`, `png` or `pdf`
-    /// with `--output FILE` draws every net into a file of its own, FILE-k
-    /// (net-1.svg for net.svg) the net step k was taken on, with its cut
-    /// link and what it acts on highlighted, and FILE the net reached (each
-    /// written as it is drawn, within --derivation-limit, the steps' files
-    /// within --drawings-limit together), and
-    /// `--format json` writes the record `{"version", "net", "steps",
-    /// "end"}`, each step's `cut` the two vertices of its cut link.
+    /// Each step is printed with its case and the cut formula, then the
+    /// proof reached, drawn as `check` draws it. The cases are the axiom
+    /// case, a key case such as ⊗ against ⅋, a commutative case,
+    /// weakening, dereliction, contraction, and a box entering a box. Every
+    /// proof reached is checked.
+    ///
+    /// The exit status is 0 when the proof ends cut-free or after the steps
+    /// `--steps` asked for, 1 for a proof that is not valid, and 2 for an
+    /// error. It is 3 when the default bound on steps, another bound or the
+    /// time limit stopped the elimination with cuts left; the proof reached
+    /// is still printed. With `--format json` the output is the record
+    /// `{"version", "proof", "steps", "end"}`: the proof reached; each
+    /// step's `cut` (the node it was taken on), `formula` (the occurrence
+    /// cut) and `case`; and `end`, which is `cut_free`, or `refused` with
+    /// the `reason`.
+    ///
+    /// With `--net`, for the sequents `--net` takes, the cuts are
+    /// eliminated on the proof's net instead. Each step reduces the first
+    /// cut link: the axiom case, the key case of ⊗ against ⅋, and on boxes
+    /// weakening, dereliction, contraction and a box entering a box. The
+    /// net reached is printed as text. `--format svg`, `png` or `pdf` with
+    /// `--output FILE` draws every net into a file of its own: FILE-k
+    /// (net-1.svg for net.svg) is the net step k was taken on, with its cut
+    /// link and what it acts on highlighted, and FILE is the net reached.
+    /// Each file is written as soon as it is drawn. Each drawing is held
+    /// to --derivation-limit, and the steps' files together to
+    /// --drawings-limit. `--format json` writes the record `{"version",
+    /// "net", "steps", "end"}`, each step's `cut` being the two vertices of
+    /// its cut link.
     #[command(after_help = EVERY_OPTION, after_long_help = "")]
     Eliminate(EliminateArgs),
     /// Prove a sequent step by step, reading commands from standard input
     ///
-    /// The session starts with the whole sequent as the one open goal; the
-    /// sequent is an argument or `--file`, since standard input carries the
-    /// commands. Commands, one per line, their words split as a shell
-    /// splits them (quotes keep a name with blanks one word): `goals` lists
-    /// the open goals with the positions of their formulas; `rules G P`
-    /// lists the rules that act on formula P of goal G; `apply G P RULE
-    /// [P…]` applies a rule, the further positions being the formulas that
-    /// go to the left premise of a ⊗ or Mix; `cut G C [P…]` cuts goal G on
-    /// the formula C, written as the mode writes formulas (quoted if it
-    /// has blanks), the formulas at the positions P going to the first
+    /// The session starts with the whole sequent as its one open goal.
+    /// Give the sequent as an argument or with `--file`: standard input
+    /// carries the commands. Write one command per line. Its words are
+    /// split as a shell splits them, so quotes keep a name with blanks one
+    /// word.
+    ///
+    /// `goals` lists the open goals, with the position of each formula.
+    /// `rules G P` lists the rules that act on formula P of goal G. `apply
+    /// G P RULE [P…]` applies a rule; for a ⊗ or Mix, the further positions
+    /// are the formulas that go to the left premise. `cut G C [P…]` cuts
+    /// goal G on the formula C, written as the mode writes formulas (quoted
+    /// if it has blanks). The formulas at the positions P go to the first
     /// premise, which proves C, and the others to the second, which uses
-    /// it; `undo` retracts the last step;
-    /// `close [G]` lets the search close goal G, or every open goal; `show
-    /// [--FORMAT] [FILE]` draws the derivation so far, open goals included,
-    /// as text, or --latex, --typst, --svg, --png or --pdf; `proof
-    /// [--FORMAT] [FILE]` checks the finished proof and prints or writes it,
-    /// as JSON for `check` with a FILE and no format, or --rocq for a
-    /// certificate; `save FILE` and `load FILE` keep and resume the session
-    /// as JSON (`load` takes a session of the same sequent and mode);
-    /// `help`; `quit`. A RULE is a rule's usual name or its ASCII spelling:
-    /// ax, 1, bot, top, *, par, &, +1, +2, ?d, ?c, ?w, !, mix, wk (affine
-    /// weakening), and in intuitionistic mode the two-sided names (-oL,
+    /// it. `undo` takes back the last step. `invertible on|off` turns on or
+    /// off applying every invertible rule by itself. `close [G]` lets the
+    /// search close goal G, or every open goal. `show [--FORMAT] [FILE]`
+    /// draws the derivation so far, open goals included, as text, or
+    /// --latex, --typst, --svg, --png or --pdf. `proof [--FORMAT] [FILE]`
+    /// checks the finished proof and prints or writes it, as a certificate
+    /// with --rocq. Given a FILE and no format, both write the format the
+    /// file's extension names; where it names none, `show` writes text and
+    /// `proof` writes JSON for `check`. `lambda` prints the finished proof's
+    /// lambda-term. `save FILE` keeps the session as JSON, and `load FILE`
+    /// resumes a session of the same sequent and mode. `help` lists the
+    /// commands, and `quit` ends the session.
+    ///
+    /// A RULE is a rule's usual name or its ASCII spelling: ax, 1, bot,
+    /// top, *, par, &, +1, +2, ?d, ?c, ?w, !, mix, and wk (affine
+    /// weakening). In intuitionistic mode the rules are two-sided: -oL,
     /// -oR, *L, *R, &L1, &L2, &R, +L, +R1, +R2, 1L, 1R, 0L, topR, !L, !R,
-    /// !c, !w); `rules` prints the names it applies. The exit status is 0
-    /// when the session ends with a finished proof that checks and 1
-    /// otherwise; a command's error is printed as `error: …` on standard
-    /// output and the session goes on; 2 when the session cannot start or
-    /// read its input.
+    /// !c, !w. `rules` prints the names it applies.
+    ///
+    /// The exit status is 0 when the session ends with a finished proof
+    /// that checks, 1 otherwise, and 2 when the session cannot start or
+    /// read its input. A command that fails prints `error: …` on standard
+    /// output, and the session goes on.
     #[command(after_help = SYNTAX_SHORT, after_long_help = SYNTAX)]
     Interact(InteractArgs),
     /// Print a sequent, convert it to JSON, or name its fragment
@@ -278,16 +298,15 @@ pub(crate) struct ProveArgs {
     /// The ordinary logic the input is in, if any.
     #[command(flatten)]
     pub(crate) logic: LogicArgs,
-    /// With --logic, how to decide the sequent: through its embedding
-    /// into linear logic, or by LJT, Dyckhoff's calculus for
-    /// intuitionistic and minimal logic, whose search always ends
-    /// (ordinary.method)
+    /// With --logic, how to decide the sequent: through its embedding into
+    /// linear logic, or by LJT, whose search always ends (ordinary.method)
     ///
-    /// By default classical logic goes through the embedding and
+    /// LJT is Dyckhoff's calculus for intuitionistic and minimal logic. By
+    /// default classical logic goes through the embedding, and
     /// intuitionistic and minimal logic by LJT. --translation and --linear
     /// name the embedding, so either of them alone decides through it.
-    /// LJT's statistics are the sequents it expanded, its memo and the
-    /// sequents refuted by an earlier failure; its JSON output is the
+    /// Under LJT, --stats counts the sequents it expanded, its memo and the
+    /// sequents an earlier failure refuted, and --format json writes the
     /// outcome of the ordinary sequent, with the engine "ljt".
     #[arg(help_heading = LOGIC, long, value_enum, value_name = "METHOD", requires = "logic")]
     pub(crate) method: Option<MethodArg>,
@@ -301,30 +320,31 @@ pub(crate) struct ProveArgs {
     /// How a derivation of LK or LJ shows its structural rules.
     #[command(flatten)]
     pub(crate) structural: StructuralArgs,
-    /// Search in this fragment instead of the detected one (search.fragment)
+    /// Search in this fragment instead of the sequent's own
+    /// (search.fragment)
     ///
-    /// A sequent outside it is an error. A larger fragment than the detected
-    /// one switches off the prunes that only hold in the smaller one, which
-    /// is a way to compare them.
+    /// A sequent outside it is an error. A fragment larger than the
+    /// sequent's switches off the prunes that hold only in the smaller one,
+    /// which lets you compare the searches with and without them.
     #[arg(help_heading = SEARCH, long, value_enum, value_name = "FRAGMENT")]
     pub(crate) fragment: Option<FragmentArg>,
     /// The engine to search with, or `auto` for the one the fragment and
     /// the mode call for (search.engine)
     ///
     /// `focus` is focused sequent search, for every classical fragment,
-    /// with or without units, Mix, exponentials and weakening;
-    /// `two-sided` the same for every intuitionistic fragment; `net`
-    /// proof-net search, for MLL without units, with or without Mix, and
-    /// in intuitionistic mode for IMLL without units by its embedding;
-    /// `additive` the fast path for two additive-only formulas, in every
-    /// mode; `horn` the markings of a Petri net, for Horn programs (atoms,
-    /// implications between tensors of atoms, such implications under !,
-    /// and one goal that is a tensor of atoms): reachability in linear
-    /// mode, coverability in affine mode; `essential` proof-net search over
-    /// essential nets, directed by the intuitionistic reading, for IMLL
-    /// without units; `inverse` the focused inverse method, a forward
-    /// search from the axioms in every mode but the ordered ones, which
-    /// decides without exponentials and with them needs no copy bound, and
+    /// with or without units, Mix, exponentials and weakening. `two-sided`
+    /// is the same for every intuitionistic fragment. `net` is proof-net
+    /// search, for MLL without units, with or without Mix, and in
+    /// intuitionistic mode for IMLL without units by its embedding.
+    /// `additive` is the fast path for two additive-only formulas, in every
+    /// mode. `horn` explores the markings of a Petri net, for Horn programs
+    /// (atoms, implications between tensors of atoms, such implications
+    /// under !, and one goal that is a tensor of atoms): reachability in
+    /// linear mode, coverability in affine mode. `essential` is proof-net
+    /// search over essential nets, directed by the intuitionistic reading,
+    /// for IMLL without units. `inverse` is the focused inverse method, a
+    /// forward search from the axioms, in every mode but the ordered ones;
+    /// it decides without exponentials, needs no copy bound with them, and
     /// runs only when named here.
     #[arg(help_heading = SEARCH, long, value_name = "ENGINE", value_parser = engine_name(), default_value = "auto")]
     pub(crate) engine: Forced,
@@ -333,8 +353,8 @@ pub(crate) struct ProveArgs {
     pub(crate) search: SearchArgs,
     /// Report the proof the search found without checking it (search.check)
     ///
-    /// By default every proof passes the proof checker, which shares no
-    /// code with the search, before anything is reported; a proof it
+    /// By default every proof passes the proof checker before anything is
+    /// reported. The checker shares no code with the search. A proof it
     /// rejects is an error (exit status 2), not a verdict.
     #[arg(help_heading = SEARCH, long)]
     pub(crate) no_check: bool,
@@ -345,24 +365,26 @@ pub(crate) struct ProveArgs {
     /// ran, a line each, and the time
     ///
     /// The focused engines count stable sequents, memo use, splits and the
-    /// copy bound reached, the net engine literals chosen, links tried and
-    /// exact tests run, the essential-net engine the same with tests of the
-    /// dominator condition, the additive one pairs of subformulas, the Horn
-    /// engine markings, the inverse method the derived sequents taken up,
-    /// subsumed and kept; every engine its units of work. JSON output always
-    /// carries the counts; the time is printed only as text, and in a
-    /// batch's JSON records as `seconds`.
+    /// copy bound reached. The net engine counts literals chosen, links
+    /// tried and exact tests run, and the essential-net engine the same
+    /// with tests of the dominator condition. The additive engine counts
+    /// pairs of subformulas, the Horn engine markings, and the inverse
+    /// method the derived sequents taken up, subsumed and kept. Every
+    /// engine counts its units of work. JSON output always has the counts.
+    /// The time is printed only as text, and as `seconds` in a batch's JSON
+    /// records.
     #[arg(help_heading = OUTPUT, long)]
     pub(crate) stats: bool,
-    /// Read the settings from a JSON file, before the flags, which
-    /// override it: an object with any of the keys `clock`, `limits`,
-    /// `search`, `view`, `styles`, `batch`, `ordinary`, `lambda` and `input`, each an
-    /// object of the fields the flags name in parentheses (`{"search":
-    /// {"copies": 3}, "limits": {"memory_bytes": null}}`); a field left
-    /// out keeps the command's default, and a misspelt one is an error;
-    /// `ordinary` applies under --logic, which names the logic, and
-    /// `batch.mode` is a batch's mode unless a mode flag is given (one
-    /// sequent's mode is the flags')
+    /// Read the settings from a JSON file; the flags override it
+    ///
+    /// The file is an object with any of the keys `clock`, `limits`, `search`, `view`, `styles`, `batch`, `ordinary`,
+    /// `lambda` and `input`. Each holds the
+    /// fields that the flags name in parentheses, such as `{"search":
+    /// {"copies": 3}, "limits": {"memory_bytes": null}}`. A field left out
+    /// keeps the command's default, and a misspelt one is an error.
+    /// `ordinary` applies under --logic, which names the logic.
+    /// `batch.mode` is a batch's mode unless a mode flag is given; one
+    /// sequent's mode is the flags'.
     #[arg(long, value_name = "PATH")]
     pub(crate) settings: Option<PathBuf>,
     /// How a batch of many sequents runs.
@@ -378,13 +400,13 @@ pub(crate) struct SearchArgs {
     /// (search.bias)
     ///
     /// No choice changes what is provable. `rarer` mostly chains backward
-    /// from the goal, `factors` forward from the hypotheses, which on Horn
-    /// clauses under `!`, such as a Petri net, is often much faster but
-    /// takes one copy per step on a single branch. `auto` takes `rarer`
-    /// in affine mode, `factors` in linear mode without exponentials, and
-    /// in linear mode with exponentials runs both searches and answers
-    /// with the first that decides: alternating on one core, side by side
-    /// on several.
+    /// from the goal. `factors` mostly chains forward from the hypotheses:
+    /// on Horn clauses under `!`, such as a Petri net, that is often much
+    /// faster, but it takes one copy per step on a single branch. `auto`
+    /// takes `rarer` in affine mode and `factors` in linear mode without
+    /// exponentials. In linear mode with exponentials it runs both searches
+    /// and answers with the first that decides: in turns on one core, side
+    /// by side on several.
     #[arg(help_heading = SEARCH, hide_short_help = true, long, value_enum, value_name = "BIAS", default_value_t = BiasArg::Auto)]
     pub(crate) bias: BiasArg,
     /// How often `?` formulas may be copied on one branch of the proof, or
@@ -394,21 +416,21 @@ pub(crate) struct SearchArgs {
     /// to the next bound until it decides or the time limit passes, and an
     /// unknown verdict says which bound it reached. With a bound, a sequent
     /// with exponentials that has no proof within it is unknown (exit
-    /// status 3) unless a smaller bound already exhausted the search
-    /// space, in which case it is unprovable. Sequents without exponentials
-    /// are not affected.
+    /// status 3), unless a smaller bound already exhausted the search; it
+    /// is then unprovable. The bound does not affect sequents without
+    /// exponentials.
     #[arg(help_heading = SEARCH, long, value_name = "N", value_parser = parse_count::<u32>, default_value_t = Count(None))]
     pub(crate) copies: Count<u32>,
     /// How often `?` formulas may be copied on one branch of the forward
     /// search that `--bias auto` runs (search.forward_copies)
     ///
     /// It applies to a Horn program: clauses such as `!(a * b -o c * d)`,
-    /// a marking and a goal of atoms, as a Petri net is. There a copy is
-    /// one step of a chain, and a chain of n steps needs n of them. The
-    /// forward search never runs within less than `--copies`; on any other
-    /// sequent, and under Mix, it runs within `--copies`. Without a bound
-    /// from `--copies` it has no effect: both searches deepen while the
-    /// time limit lasts.
+    /// a marking and a goal of atoms, as in a Petri net. There a copy is
+    /// one step of a chain, and a chain of n steps needs n copies. On a
+    /// Horn program the forward search's bound is this or `--copies`,
+    /// whichever is larger; on any other sequent, and under Mix, it is
+    /// `--copies`. Without a `--copies` bound this flag has no effect: both
+    /// searches deepen while the time limit lasts.
     #[arg(help_heading = SEARCH, hide_short_help = true, long, value_name = "N", default_value_t = Options::DEFAULT_FORWARD_COPIES)]
     pub(crate) forward_copies: u32,
     /// Give up after this long, such as 500ms, 10s, 2m or 1h, or `none`
@@ -417,18 +439,18 @@ pub(crate) struct SearchArgs {
     /// The verdict is then unknown (exit status 3). The time counts from
     /// the start of the command, so it covers reading and parsing the
     /// sequent as well as the search: a sequent that is not read in time
-    /// is given up on like one that is not decided. Without the limit, the
-    /// search runs until it decides or is interrupted with Ctrl-C, which
-    /// with exponentials and no `--copies` bound can be forever. In a
-    /// session it is each `close`'s limit.
+    /// is given up on like one that is not decided. Without a limit, the
+    /// search runs until it decides or you press Ctrl-C; with exponentials
+    /// and no `--copies` bound, that can be forever. In a session the limit
+    /// is each `close`'s.
     #[arg(help_heading = LIMITS, long, value_name = "DURATION", value_parser = parse_time, default_value_t = Time(Some(DEFAULT_TIMEOUT)))]
     pub(crate) timeout: Time,
     /// The most decided sequents the search remembers at once
     /// (search.memo_limit)
     ///
-    /// When the memo is full it is emptied, which costs time but not
-    /// correctness. Zero switches the memo off. `--memory-limit` bounds
-    /// the memo in bytes; this is the finer knob beside it.
+    /// When the memo is full it is emptied, which costs time but never
+    /// changes a verdict. Zero switches the memo off. `--memory-limit`
+    /// bounds the memo in bytes; this flag bounds it more finely.
     #[arg(help_heading = SEARCH, hide_short_help = true, long, value_name = "N", default_value_t = Options::DEFAULT_MEMO_LIMIT)]
     pub(crate) memo_limit: u32,
     /// The most work the classical refutation may do after a search that
@@ -436,23 +458,23 @@ pub(crate) struct SearchArgs {
     /// (search.classical_work)
     ///
     /// It looks for truth values of the atoms that make the sequent false
-    /// read classically (`!` and `?` erased, `*` and `&` as "and", `|` and
-    /// `+` as "or", `1` and `top` true, `bot` and `0` false), which no
-    /// provable sequent allows: a search that was unknown is then
-    /// unprovable (exit status 1), and an exhausted one gets the values as
-    /// its reason. It runs after the search, past the time limit within
-    /// this bound (Ctrl-C stops it), and never changes a verdict the
-    /// search gave.
+    /// read classically: `!` and `?` erased, `*` and `&` as "and", `|` and
+    /// `+` as "or", `1` and `top` true, `bot` and `0` false. No provable
+    /// sequent has such values. When it finds them, a search that was
+    /// unknown becomes unprovable (exit status 1), and an exhausted one
+    /// gets the values as its reason. It runs after the search, past the
+    /// time limit but within this bound, and Ctrl-C stops it. It never
+    /// changes a verdict the search gave.
     #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", default_value_t = Options::DEFAULT_CLASSICAL_WORK)]
     pub(crate) classical_work: u64,
     /// The deepest term a variable of a first-order search may be bound
     /// to (search.witness_depth)
     ///
     /// The focused engine searches a sequent with quantifiers by leaving
-    /// the witness of each `exists` open and filling it in where an axiom
-    /// matches two atoms. A constant has depth 0, `f(t)` one more than
+    /// the witness of each `exists` open, and filling it in where an axiom
+    /// matches two atoms. A constant has depth 0, and `f(t)` one more than
     /// `t`. A branch that would bind a deeper term is cut, and a search
-    /// that cut one is unknown (exit status 3) rather than unprovable.
+    /// that cut one is unknown (exit status 3), not unprovable.
     #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", default_value_t = Options::DEFAULT_WITNESS_DEPTH)]
     pub(crate) witness_depth: u32,
     /// The most instances of quantified formulas a first-order search
@@ -461,55 +483,54 @@ pub(crate) struct SearchArgs {
     /// Each `forall` and `exists` the search steps through opens one, and
     /// copies of quantified hypotheses under `!` multiply them. A branch
     /// that would hold more is cut, and a search that cut one is unknown
-    /// (exit status 3) rather than unprovable.
+    /// (exit status 3), not unprovable.
     #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", default_value_t = Options::DEFAULT_INSTANCES)]
     pub(crate) instances: u32,
     /// The most memory the search may hold: a number of bytes with a unit
     /// such as 512MiB or 4GiB, or `none` for no limit (limits.memory_bytes)
     ///
-    /// Counted is the sequent as the search holds it, about 25 bytes for
-    /// each subformula occurrence, and what grows with the search: what
+    /// The limit counts the sequent as the search holds it, about 25 bytes
+    /// for each subformula occurrence, and what grows with the search: what
     /// it remembers, the proofs it keeps and what every level of its
-    /// recursion takes. A memo that no longer fits is emptied first,
-    /// as at `--memo-limit`; when that is not enough the verdict is
-    /// unknown (exit status 3). The check of the proof and the derivation
-    /// built from it are under the same limit: a derivation estimated
-    /// above it is left out even with `--derivation-limit none`. By
-    /// default one thread and, after `--pool-after`, a pool beside it
-    /// search at once, both together within the limit. A png or pdf
-    /// render is estimated before it starts, its time counted as the
-    /// memory the renderer fills in it, and left out above the limit (the
-    /// default is a few seconds of rendering).
+    /// recursion takes. A memo that no longer fits is emptied first, as at
+    /// `--memo-limit`; when that is not enough, the verdict is unknown
+    /// (exit status 3). The proof's check and the derivation built from it
+    /// are under the same limit: a derivation estimated above it is left
+    /// out even with `--derivation-limit none`. By default one thread and,
+    /// after `--pool-after`, a pool beside it search at once, both together
+    /// within the limit. A png or pdf render is estimated before it starts,
+    /// its time counted as the memory the renderer fills in it, and left
+    /// out above the limit; the default allows a few seconds of rendering.
     #[arg(help_heading = LIMITS, long, value_name = "SIZE", value_parser = parse_bytes, default_value_t = Bytes(Some(Limits::DEFAULT_MEMORY_BYTES)))]
     pub(crate) memory_limit: Bytes,
     /// The deepest nesting of rules on one branch before the search gives
     /// up (limits.recursion_depth)
     ///
-    /// Raise it for sequents with thousands of connectives; the search runs on
-    /// a thread whose stack grows with the limit.
+    /// Raise it for sequents with thousands of connectives. The search runs
+    /// on a thread whose stack grows with the limit.
     #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", default_value_t = Limits::DEFAULT_RECURSION_DEPTH)]
     pub(crate) recursion_limit: u32,
     /// The most units of work the search may do, or `none` (limits.work)
     ///
-    /// A unit is what each engine counts at its polls (a stable sequent
-    /// or a split for the focused engine, a literal or a failed test for
-    /// the net engines, a pair for the additive one, a marking for the
-    /// Horn engine), so a limit gives the same verdict on every machine
-    /// where a time limit does not; past it the verdict is unknown (exit
-    /// status 3). `--stats` prints the units a search did.
+    /// A unit is what each engine counts as it goes: a stable sequent or a
+    /// split for the focused engine, a literal or a failed test for the net
+    /// engines, a pair for the additive one, a marking for the Horn engine.
+    /// So this limit gives the same verdict on every machine, which a time
+    /// limit does not. Past it the verdict is unknown (exit status 3).
+    /// `--stats` prints the units a search did.
     #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(None))]
     pub(crate) work_limit: Count<u64>,
     /// How many threads the search may use (search.jobs)
     ///
     /// By default one thread searches first, for the time `--pool-after`
-    /// gives, and then the machine's other threads join it: a small
-    /// sequent is decided at once and always the same way, a hard one
-    /// gets every core. A number given here is used from the
-    /// start, unless `--pool-after` is given too; a number above the
-    /// machine's parallelism is taken as that, with a note on standard
-    /// error. More than one runs the focused engine and the net engine on
-    /// that many threads; the proof found may then differ from run to run,
-    /// the verdict never does.
+    /// gives, and then the machine's other threads join it. So a small
+    /// sequent is decided at once and always the same way, and a hard one
+    /// gets every core. A number given here is used from the start,
+    /// unless `--pool-after` is given too. A number above the machine's
+    /// parallelism is taken as that, with a note on standard error. With
+    /// more than one thread the focused engine and the net engine search in
+    /// parallel; the proof found may then differ from run to run, but the
+    /// verdict never does.
     #[arg(help_heading = SEARCH, short, long, value_name = "N")]
     pub(crate) jobs: Option<usize>,
     /// How long one thread searches before the other threads join it,
@@ -518,15 +539,16 @@ pub(crate) struct SearchArgs {
     /// The default is 100ms when `--jobs` is not given, and 0 when it is.
     /// The single thread goes on searching beside a pool of the other
     /// threads, which starts the search afresh, and the first to decide
-    /// answers; both together hold at most `--memory-limit`. Below three
+    /// answers. Both together hold at most `--memory-limit`. Below three
     /// threads there is no single thread: two search on a pool from the
-    /// start. The additive, the Horn, the essential-net and the inverse
-    /// engine run on one thread and get no pool.
+    /// start. The additive, Horn, essential-net and inverse engines run on
+    /// one thread and get no pool.
     #[arg(help_heading = SEARCH, hide_short_help = true, long, value_name = "DURATION", value_parser = parse_duration)]
     pub(crate) pool_after: Option<Duration>,
-    /// Run the sequential engines, whose proof is a function of the input
+    /// Search on one thread, so that the same input always gives the same
+    /// proof and the same counts
     ///
-    /// The same as `--jobs 1 --schedule turns`, and takes precedence over
+    /// The same as `--jobs 1 --schedule turns`. It takes precedence over
     /// `--jobs`, `--pool-after` and `--schedule`.
     #[arg(help_heading = SEARCH, long)]
     pub(crate) deterministic: bool,
@@ -534,7 +556,7 @@ pub(crate) struct SearchArgs {
     /// the essential-net engine its test of the dominator condition: after
     /// this many links, or `auto` (search.test_period)
     ///
-    /// `auto` tests after every link on a small structure and every few
+    /// `auto` tests after every link on a small structure, and every few
     /// links on a large one. The verdict never depends on it.
     #[arg(help_heading = SEARCH, hide_short_help = true, long, value_name = "N", value_parser = parse_cadence, default_value = "auto")]
     pub(crate) test_period: Cadence,
@@ -549,8 +571,8 @@ pub(crate) struct SearchArgs {
 pub(crate) enum ScheduleArg {
     /// In slices on two threads
     Auto,
-    /// In turns on the calling thread, each turn from the search's start:
-    /// the same answer and the same counts on every machine
+    /// In turns on the calling thread, each turn from the search's start,
+    /// which gives the same answer and the same counts on every machine
     Turns,
 }
 
@@ -578,47 +600,49 @@ fn parse_cadence(text: &str) -> Result<Cadence, String> {
 /// when a call is a batch and what it writes).
 #[derive(Args, Clone, Debug)]
 pub(crate) struct BatchArgs {
-    /// Read the paths of the inputs from this file, one per line, or
-    /// `-` for standard input, read as it streams
+    /// Read the input paths from this file, one per line, or from standard
+    /// input with `-`, as it streams
     #[arg(help_heading = BATCH, hide_short_help = true, long, value_name = "LIST")]
     pub(crate) files_from: Option<PathBuf>,
-    /// The paths of --files-from are separated by NUL, as `find -print0`
-    /// writes them
+    /// Take the paths of --files-from as separated by NUL characters, as
+    /// `find -print0` writes them
     #[arg(help_heading = BATCH, hide_short_help = true, long)]
     pub(crate) null: bool,
-    /// How many sequents of a batch are decided at once, across the
-    /// cores; by default as many as the machine runs threads, fewer when
-    /// --batch-memory does not hold that many searches at
-    /// --memory-limit each (batch.workers)
+    /// How many sequents of a batch to decide at once, across the cores
+    /// (batch.workers)
+    ///
+    /// By default as many as the machine runs threads, or fewer when
+    /// --batch-memory cannot hold that many searches of --memory-limit
+    /// each.
     #[arg(help_heading = BATCH, hide_short_help = true, long, value_name = "N")]
     pub(crate) workers: Option<usize>,
     /// Where a batch's threads go (batch.cores)
     ///
-    /// Across the sequents, each gets one thread for its --timeout, as with
-    /// --deterministic, which answers the most sequents in a given time and
-    /// gives every answer as a function of its input; a sequent that needs
-    /// the pool a single call races beside one thread, or more time on one
-    /// thread, stays unknown there. Within, each sequent gets the race on
-    /// every thread, as a single call does. To decide what a batch across
-    /// left unknown, run those sequents again with --cores within or a
-    /// longer --timeout.
+    /// `across` gives each sequent one thread for its --timeout, as
+    /// --deterministic does. It answers the most sequents in a given time,
+    /// and every answer depends on its input alone. A sequent that needs
+    /// more time on one thread, or the pool that a single call races beside
+    /// one thread, stays unknown there. `within` gives each sequent the race
+    /// on every thread, as a single call does. To decide what a batch left
+    /// unknown across the cores, run those sequents again with --cores
+    /// within or a longer --timeout.
     #[arg(help_heading = BATCH, hide_short_help = true, long, value_enum, value_name = "WHERE", default_value_t = CoresArg::Auto)]
     pub(crate) cores: CoresArg,
     /// The most memory all the searches of a batch hold together: a size
-    /// such as 8GiB, or `none`; by default half the memory the process may
-    /// use (the machine's, or its control group's limit where one is set)
-    /// (batch.total_memory_bytes)
+    /// such as 8GiB, or `none` (batch.total_memory_bytes)
     ///
-    /// Each search holds at most --memory-limit, and as many run at once
-    /// as this holds; within one sequent the race of one thread and a
-    /// pool is two searches, which share it.
+    /// By default half the memory the process may use: the machine's, or
+    /// its control group's limit where one is set. Each search holds at
+    /// most --memory-limit, and as many run at once as this holds. Within
+    /// one sequent, the race of one thread and a pool is two searches,
+    /// which share it.
     #[arg(help_heading = BATCH, hide_short_help = true, long, value_name = "SIZE", value_parser = parse_bytes)]
     pub(crate) batch_memory: Option<Bytes>,
     /// Give up on the rest of a batch after this long, or `none`
     /// (clock.batch_time_limit_ms)
     ///
-    /// The sequents still searched are stopped and those not begun are
-    /// unknown; --timeout is each sequent's own limit.
+    /// The searches still running are stopped, and the sequents not begun
+    /// are unknown. --timeout is each sequent's own limit.
     #[arg(help_heading = BATCH, hide_short_help = true, long, value_name = "DURATION", value_parser = parse_time, default_value_t = Time(None))]
     pub(crate) batch_timeout: Time,
     /// Decide each sequent of a batch in a child process of its own, so
@@ -655,12 +679,11 @@ pub(crate) struct BatchArgs {
 /// Where a batch's threads go.
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum CoresArg {
-    /// Across the sequents when the batch has at least as many as
-    /// --workers, else within; within on a stream from standard input,
-    /// whose next question may wait for an answer
+    /// Across when the batch has at least as many sequents as --workers,
+    /// else within; within on a stream from standard input, whose next
+    /// sequent may wait for an answer
     Auto,
-    /// One sequent per worker, each on one thread: the sequential
-    /// engines, as with --deterministic
+    /// One sequent per worker, each on one thread, as with --deterministic
     Across,
     /// One sequent at a time, with the threads --jobs gives
     Within,
@@ -673,9 +696,8 @@ pub(crate) struct InteractArgs {
     /// carries the commands.
     #[command(flatten)]
     pub(crate) input: SequentInput,
-    /// Resume a session saved with `save` instead of starting from a
-    /// sequent; the mode or the logic is the file's, so the mode flags and
-    /// --logic are refused
+    /// Resume a session saved with `save`; the file gives the mode or the
+    /// logic, so the mode flags and --logic are refused
     #[arg(
         help_heading = INPUT,
         long,
@@ -699,11 +721,12 @@ pub(crate) struct InteractArgs {
     /// The search's options, bounds and threads, for a `close`.
     #[command(flatten)]
     pub(crate) search: SearchArgs,
-    /// Apply every invertible rule by itself, to the sequent at the start
-    /// and to the goals each step opens: ⅋, ⊥, & and ⊤, ! when every other
-    /// formula is a ?, 1, ⊗ and the axiom when their formulas are the whole
-    /// goal (interactive.invertible); the command `invertible on|off`
-    /// turns it on or off within the session
+    /// Apply every invertible rule by itself, at the start and to the goals
+    /// each step opens (interactive.invertible)
+    ///
+    /// The invertible rules are ⅋, ⊥, & and ⊤; ! when every other formula
+    /// is a ?; and 1, ⊗ and the axiom when their formulas are the whole
+    /// goal. The session command `invertible on|off` turns this on or off.
     #[arg(long)]
     pub(crate) invertible: bool,
     /// The largest derivation `close` grafts, by its estimated size; see
@@ -717,13 +740,14 @@ pub(crate) struct InteractArgs {
     /// The Rocq certificate's lemma and prelude, for `proof --rocq`.
     #[command(flatten)]
     pub(crate) rocq: RocqArgs,
-    /// Read the settings from a JSON file, before the flags, which
-    /// override it: an object with any of the keys `clock`, `limits`,
-    /// `search`, `view`, `styles`, `batch`, `ordinary`, `interactive`,
-    /// `lambda` and `input`, each an object of the fields the flags name in parentheses
-    /// (`{"search": {"copies": 3}, "limits": {"memory_bytes": null}}`); a
-    /// field left out keeps the command's default, and a misspelt one is
-    /// an error; `ordinary` applies under --logic, which names the logic
+    /// Read the settings from a JSON file; the flags override it
+    ///
+    /// The file is an object with any of the keys `clock`, `limits`, `search`, `view`, `styles`, `batch`, `ordinary`,
+    /// `interactive`, `lambda` and `input`. Each holds the
+    /// fields that the flags name in parentheses, such as `{"search":
+    /// {"copies": 3}, "limits": {"memory_bytes": null}}`. A field left out
+    /// keeps the command's default, and a misspelt one is an error.
+    /// `ordinary` applies under --logic, which names the logic.
     #[arg(long, value_name = "PATH")]
     pub(crate) settings: Option<PathBuf>,
 }
@@ -742,25 +766,26 @@ pub(crate) struct CheckArgs {
     /// The most memory the check may hold: a number of bytes with a unit
     /// such as 512MiB or 4GiB, or `none` for no limit
     ///
-    /// A proof whose check would pass it is neither valid nor invalid:
-    /// the verdict is unknown (exit status 3). A derivation estimated above
-    /// it is left out, as past `--derivation-limit`, and so is a png or pdf
-    /// render; see `prove --memory-limit` (limits.memory_bytes).
+    /// A check that would pass it stops, and the verdict is unknown (exit
+    /// status 3): the proof is neither valid nor invalid. A derivation, or a
+    /// png or pdf render, estimated above it is left out, as past
+    /// `--derivation-limit`. See `prove --memory-limit`
+    /// (limits.memory_bytes).
     #[arg(help_heading = LIMITS, long, value_name = "SIZE", value_parser = parse_bytes, default_value_t = Bytes(Some(Limits::DEFAULT_MEMORY_BYTES)))]
     pub(crate) memory_limit: Bytes,
     /// Give up after this long, such as 500ms, 10s, 2m or 1h, or `none`
     /// (clock.time_limit_ms)
     ///
-    /// A proof file can make its check quadratic (a large shared subproof
-    /// read by many nodes); the verdict is then unknown (exit status 3).
-    /// The time counts from the start of the command and covers the
-    /// derivation drawn after the check.
+    /// A proof file can make its check quadratic, with a large shared
+    /// subproof read by many nodes. When the time runs out, the verdict is
+    /// unknown (exit status 3). The time counts from the start of the
+    /// command, and covers the derivation drawn after the check.
     #[arg(help_heading = LIMITS, long, value_name = "DURATION", value_parser = parse_time, default_value_t = Time(Some(DEFAULT_TIMEOUT)))]
     pub(crate) timeout: Time,
     /// The most units of work the check may do, or `none` (limits.work)
     ///
-    /// A unit is a node of the proof or an entry of a sequent a node is
-    /// handed; past the limit the verdict is unknown (exit status 3).
+    /// A unit is a node of the proof, or an entry of a sequent handed to a
+    /// node. Past the limit the verdict is unknown (exit status 3).
     #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(None))]
     pub(crate) work_limit: Count<u64>,
     /// The most subformula occurrences the proof's sequent may have, or
@@ -785,13 +810,14 @@ pub(crate) struct CheckArgs {
     /// Where to write the result.
     #[command(flatten)]
     pub(crate) output: OutputArgs,
-    /// Read the settings from a JSON file, before the flags, which
-    /// override it: an object with any of the keys `clock`, `limits`,
-    /// `search`, `view`, `styles`, `batch`, `ordinary`, `lambda` and `input`, each an
-    /// object of the fields the flags name in parentheses (`{"search":
-    /// {"copies": 3}, "limits": {"memory_bytes": null}}`); a field left
-    /// out keeps the command's default, and a misspelt one is an error;
-    /// `ordinary` applies under --logic, which names the logic
+    /// Read the settings from a JSON file; the flags override it
+    ///
+    /// The file is an object with any of the keys `clock`, `limits`, `search`, `view`, `styles`, `batch`, `ordinary`,
+    /// `lambda` and `input`. Each holds the
+    /// fields that the flags name in parentheses, such as `{"search":
+    /// {"copies": 3}, "limits": {"memory_bytes": null}}`. A field left out
+    /// keeps the command's default, and a misspelt one is an error.
+    /// `ordinary` applies under --logic, which names the logic.
     #[arg(long, value_name = "PATH")]
     pub(crate) settings: Option<PathBuf>,
 }
@@ -809,30 +835,32 @@ impl CheckArgs {
 pub(crate) struct EliminateArgs {
     /// The most steps to take, or `none` (cut.steps)
     ///
-    /// Past it the proof reached is printed with the cuts it still has;
-    /// the exit status is 0 at a bound given here or in a settings file,
-    /// 3 at the default, which only keeps the call bounded.
+    /// Past it, the proof reached is printed with the cuts it still has.
+    /// The exit status is then 0 for a bound given here or in a settings
+    /// file, and 3 for the default, which only keeps the call bounded.
     #[arg(long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(Some(cut::Options::DEFAULT_STEPS)))]
     pub(crate) steps: Count<u64>,
-    /// The most nodes a proof a step makes may have, or with --net the most
-    /// vertices of a net, or `none` (cut.nodes)
+    /// The most nodes the proof a step makes may have (with --net, the
+    /// vertices of the net), or `none` (cut.nodes)
     ///
-    /// The exponentials can make a proof grow beyond any practical size;
-    /// a step that would pass the limit is not taken, and the proof
-    /// reached is printed (exit status 3).
+    /// The exponentials can make a proof grow beyond any practical size. A
+    /// step that would pass the limit is not taken, and the proof reached
+    /// is printed (exit status 3).
     #[arg(long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(Some(cut::Options::DEFAULT_NODES)))]
     pub(crate) node_limit: Count<u64>,
-    /// The most bytes the drawings of the steps take together with --net
-    /// and a drawing format, or `none` (cut.drawn_bytes)
+    /// With --net and a drawing format, the most bytes the steps' drawings
+    /// take together, or `none` (cut.drawn_bytes)
     ///
-    /// Past it the steps are taken and printed undrawn, a line on standard
-    /// error says from which step on, and FILE still holds the net
-    /// reached.
+    /// Past it the steps are still taken and printed, but not drawn, and a
+    /// line on standard error says from which step. FILE still holds the
+    /// net reached.
     #[arg(long, value_name = "SIZE", value_parser = parse_bytes, default_value_t = Bytes(Some(cut::Options::DEFAULT_DRAWN_BYTES)))]
     pub(crate) drawings_limit: Bytes,
-    /// Take the first step on the cut at this node of the proof, its
-    /// index in the file's `nodes` (as the checker's messages and the
-    /// record's `cut` number nodes), and the others by the strategy
+    /// Take the first step on the cut at this node, its index in the file's
+    /// `nodes`, and the other steps as usual
+    ///
+    /// The checker's messages and the record's `cut` number the nodes the
+    /// same way.
     #[arg(long, value_name = "NODE", conflicts_with = "net")]
     pub(crate) at: Option<u32>,
     /// The bounds, the mode and the output, as `check` takes them.
@@ -885,18 +913,20 @@ pub(crate) enum SeqCommand {
         /// How the output looks.
         #[command(flatten)]
         style: StyleArgs,
-        /// The most memory a png or pdf render may take, by its estimate:
-        /// a number of bytes with a unit such as 512MiB or 4GiB, or `none`
-        /// for no limit; see `prove --memory-limit`
+        /// The most memory a png or pdf render may take, by its estimate: a
+        /// number of bytes with a unit, such as 512MiB or 4GiB, or `none` for
+        /// no limit; see `prove --memory-limit`
         #[arg(long, value_name = "SIZE", value_parser = parse_bytes, default_value_t = Bytes(Some(Limits::DEFAULT_MEMORY_BYTES)))]
         memory_limit: Bytes,
-        /// Read the settings from a JSON file, before the flags, which
-        /// override it: an object with any of the keys `clock`, `limits`,
-        /// `search`, `view`, `styles`, `batch`, `ordinary` and `input`, each
-        /// an object of the fields the flags name in parentheses (`{"search":
-        /// {"copies": 3}, "limits": {"memory_bytes": null}}`); a field left
-        /// out keeps the command's default, and a misspelt one is an error;
-        /// `ordinary` applies under --logic, which names the logic
+        /// Read the settings from a JSON file; the flags override it
+        ///
+        /// The file is an object with any of the keys `clock`, `limits`,
+        /// `search`, `view`, `styles`, `batch`, `ordinary` and `input`. Each
+        /// holds the fields that the flags name in parentheses, such as
+        /// `{"search": {"copies": 3}, "limits": {"memory_bytes": null}}`. A
+        /// field left out keeps the command's default, and a misspelt one
+        /// is an error. `ordinary` applies under --logic, which names the
+        /// logic.
         #[arg(long, value_name = "PATH")]
         settings: Option<PathBuf>,
     },
@@ -915,9 +945,9 @@ pub(crate) enum SeqCommand {
         /// of ⊢ in the reverse order
         #[arg(long)]
         cyclic: bool,
-        /// Print the intuitionistic sequent's own form: its formulas with
-        /// the connectives of intuitionistic linear logic, its hypotheses
-        /// and its goal, which --intuitionistic reads too
+        /// Print the intuitionistic form: the connectives of intuitionistic
+        /// linear logic, the hypotheses and the goal, which --intuitionistic
+        /// also reads
         #[arg(short, long, conflicts_with_all = ["cyclic", "optimize"])]
         intuitionistic: bool,
         /// Write to this file instead of standard output
@@ -928,9 +958,9 @@ pub(crate) enum SeqCommand {
         #[arg(long, value_name = "SIZE", value_parser = parse_bytes, default_value_t = Bytes(Some(Limits::DEFAULT_MEMORY_BYTES)))]
         memory_limit: Bytes,
     },
-    /// Print the smallest fragment a sequent lives in: MLL, MLL with units,
-    /// ALL, MALL, MELL or LL, or with --intuitionistic IMLL, IMLL with
-    /// units, IALL, IMALL, IMELL or ILL
+    /// Print the smallest fragment that holds a sequent: MLL, MLL with
+    /// units, ALL, MALL, MELL or LL, or with --intuitionistic IMLL, IMLL
+    /// with units, IALL, IMALL, IMELL or ILL
     #[command(after_help = SYNTAX)]
     Fragment {
         /// The sequent.
@@ -949,22 +979,22 @@ pub(crate) enum SeqCommand {
 /// Where a sequent comes from.
 #[derive(Args, Clone, Debug)]
 pub(crate) struct SequentInput {
-    /// The sequent, such as "A, A -o B |- B"; read from --file when absent,
-    /// or from standard input by every command but `interact`
+    /// The sequent, such as "A, A -o B |- B"; without it, the sequent is
+    /// read from --file, or from standard input (but not by `interact`)
     #[arg(value_name = "SEQUENT", conflicts_with = "file")]
     pub(crate) sequent: Option<String>,
-    /// Read the sequent from this file, or `-` for standard input (but in
-    /// `interact`, whose commands come from there)
+    /// Read the sequent from this file, or from standard input with `-`
+    /// (not in `interact`, whose commands come from there)
     ///
-    /// The file's kind is its extension's unless --input-format says
-    /// otherwise: `.p` an LLTP problem (under --logic, where a command
-    /// takes it, a TPTP problem of ordinary logic), `.spec` a
-    /// coverability problem, `.json` a JSON sequent, anything else the
-    /// text syntax, which may span lines. `prove` takes the flag more than
-    /// once, and a directory, as a batch.
+    /// The file's extension gives its kind unless --input-format says
+    /// otherwise. `.p` is an LLTP problem, or under --logic, where a
+    /// command takes it, a TPTP problem of ordinary logic. `.spec` is a
+    /// coverability problem and `.json` a JSON sequent. Anything else is
+    /// the text syntax, which may span lines. `prove` takes the flag more
+    /// than once, and a directory, as a batch.
     #[arg(help_heading = INPUT, short, long, value_name = "PATH", action = clap::ArgAction::Append)]
     pub(crate) file: Vec<PathBuf>,
-    /// How to read the input, rather than by the file's extension
+    /// How to read the input, in place of the file's extension
     ///
     /// `lines`, `jsonl` and `problems` hold many sequents, which `prove`
     /// decides as a batch.
@@ -973,19 +1003,19 @@ pub(crate) struct SequentInput {
     /// The most subformula occurrences the sequent may have, or `none`
     /// (limits.occurrences)
     ///
-    /// A sequent in JSON can share subformulas, so a small file may stand
-    /// for a sequent of any size; one beyond the limit is refused before
-    /// it is unfolded. Occurrences cost some 25 bytes each before any
-    /// search, and no limit lets through more than about four billion. A
-    /// text nested deeper than the limit (more `(` or `~` open at once) is
-    /// refused the same way.
+    /// A sequent in JSON can share subformulas, so a small file can stand
+    /// for a sequent of any size. A sequent past the limit is refused
+    /// before it is unfolded. Each occurrence costs about 25 bytes before
+    /// any search, and even `none` lets through at most about four billion.
+    /// A text nested deeper than the limit, with more `(` or `~` open at
+    /// once, is refused the same way.
     #[arg(help_heading = INPUT, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(Some(Limits::DEFAULT_OCCURRENCES)))]
     pub(crate) occurrence_limit: Count<u64>,
     /// The most first-order terms the atoms' arguments may unfold to, or
     /// `none` (limits.terms)
     ///
     /// A first-order sequent in JSON can share its terms, so a small file
-    /// may name an atom of any length; one beyond the limit is refused
+    /// can name an atom of any length. A sequent past the limit is refused
     /// before it is unfolded, and so is a proof whose instance table has
     /// more entries.
     #[arg(help_heading = INPUT, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(Some(Limits::DEFAULT_TERMS)))]
@@ -993,11 +1023,12 @@ pub(crate) struct SequentInput {
     /// How the text of an intuitionistic sequent is read: in its own
     /// syntax alone, or in the classical one (input.intuitionistic)
     ///
-    /// With --intuitionistic a sequent is written in the syntax of
-    /// intuitionistic linear logic, A -o B, A |- B, and a symbol of the
-    /// classical one (~, ^, par, |, ?, bot) is refused with what to write
-    /// instead; `one-sided` reads the classical syntax as the one-sided
-    /// sequent it stands for, ~(A * ~B), A |- B as A ⊸ B, A ⊢ B.
+    /// With --intuitionistic, write a sequent in the syntax of
+    /// intuitionistic linear logic: A -o B, A |- B. A symbol of the
+    /// classical syntax (~, ^, par, |, ?, bot) is refused, and the error
+    /// says what to write instead. `one-sided` reads the classical syntax
+    /// as the one-sided sequent it stands for: ~(A * ~B), A |- B as A ⊸ B,
+    /// A ⊢ B.
     #[arg(help_heading = INPUT, long, value_enum, value_name = "SYNTAX", default_value_t = IllSyntaxArg::Strict)]
     pub(crate) ill_syntax: IllSyntaxArg,
 }
@@ -1035,8 +1066,8 @@ pub(crate) enum InputFormat {
     /// does not say whether it is intuitionistic, the flags do
     Lltp,
     /// A coverability problem in the .spec format of the Mist tool: its
-    /// rules under !, its initial marking ⊢ its target, a question of
-    /// affine mode, in which it is decided without --affine
+    /// rules under !, its initial marking ⊢ its target; it is decided in
+    /// affine mode, with or without --affine
     Spec,
     /// One sequent per line in the text syntax, as `NAME: SEQUENT` or
     /// `SEQUENT`; blank lines and everything from `#` on are skipped
@@ -1087,19 +1118,20 @@ impl InputFormat {
 pub(crate) struct LogicArgs {
     /// Read the input as ordinary logic
     ///
-    /// The input is a formula or a sequent of propositional logic in the
-    /// syntax below (a `.p` file a TPTP problem, as the ILTP library writes
-    /// them). `prove` decides it and shows the proof as a derivation of LK
-    /// (classical) or LJ (intuitionistic, minimal), which is checked by
-    /// the rules of the logic before it is shown. Intuitionistic and
-    /// minimal logic are decided by LJT, whose search always ends;
+    /// The input is a formula or a sequent of propositional logic, in the
+    /// syntax below; a `.p` file is a TPTP problem, as the ILTP library
+    /// writes them. `prove` decides it and shows the proof as a derivation
+    /// of LK (classical) or LJ (intuitionistic, minimal), checked by the
+    /// rules of the logic before it is shown. By default intuitionistic and
+    /// minimal logic are decided by LJT, whose search always ends, and
     /// classical logic through its translation into affine MALL, with no
-    /// copy bound (--method chooses). Through the translation into ILL
-    /// (--method embedding) intuitionistic and minimal logic may be
-    /// answered unknown at the time limit, and the JSON output is the
-    /// search's outcome on the image. `seq print` prints the image.
-    /// `interact` proves the sequent step by step by the rules of LK or
-    /// LJ, its `close` deciding a goal through the translation.
+    /// copy bound; --method chooses. The translated sequent is called the
+    /// image. Through the translation into ILL (--method embedding),
+    /// intuitionistic and minimal logic may be answered unknown at the time
+    /// limit, and the JSON output is the search's outcome on the image.
+    /// `seq print` prints the image. `interact` proves the sequent step by
+    /// step by the rules of LK or LJ, and its `close` decides a goal
+    /// through the translation.
     #[arg(help_heading = LOGIC, long, value_enum, value_name = "LOGIC")]
     pub(crate) logic: Option<LogicArg>,
     /// The translation into linear logic: affine for classical logic, cbn
@@ -1116,7 +1148,8 @@ pub(crate) enum LogicArg {
     Classical,
     /// Intuitionistic propositional logic, derivations in LJ
     Intuitionistic,
-    /// Minimal logic: intuitionistic without ex falso, false an atom
+    /// Minimal logic: intuitionistic logic without ex falso, where false is
+    /// an atom
     Minimal,
 }
 
@@ -1136,8 +1169,8 @@ pub(crate) enum MethodArg {
     /// Through its translation into linear logic, the proof read back as
     /// LK or LJ
     Embedding,
-    /// By Dyckhoff's calculus LJT, whose search always ends: intuitionistic
-    /// and minimal logic
+    /// By Dyckhoff's calculus LJT, whose search always ends, for
+    /// intuitionistic and minimal logic
     Ljt,
 }
 
@@ -1194,14 +1227,18 @@ pub(crate) struct ModeArgs {
     #[arg(help_heading = LOGIC, long)]
     pub(crate) mix: bool,
     /// Cyclic linear logic: the order of the formulas counts, up to
-    /// rotation, with no exchange (unit-free MLL); the sequent's text is
-    /// read with the dual of a product reversed, ~(A * B) as ~B par ~A,
-    /// and the formulas left of ⊢ in the reverse order
+    /// rotation (unit-free MLL)
+    ///
+    /// There is no exchange rule. The text is read with the dual of a
+    /// product reversed, ~(A * B) as ~B par ~A, and the formulas left of ⊢
+    /// in the reverse order.
     #[arg(help_heading = LOGIC, long, conflicts_with = "intuitionistic")]
     pub(crate) cyclic: bool,
-    /// The Lambek calculus: intuitionistic and in the order written, with
-    /// the divisions A \ B and B / A beside A * B (unit-free), every sequent
-    /// with a formula left of ⊢; the text is read as --cyclic reads it
+    /// The Lambek calculus: intuitionistic, in the order written, with the
+    /// divisions A \ B and B / A beside A * B (unit-free)
+    ///
+    /// Every sequent has a formula left of ⊢, unless --empty-antecedents
+    /// is given. The text is read as --cyclic reads it.
     #[arg(help_heading = LOGIC, long, conflicts_with_all = ["intuitionistic", "cyclic"])]
     pub(crate) lambek: bool,
     /// With --lambek, allow sequents with no formula left of ⊢ (the
@@ -1248,25 +1285,28 @@ impl ModeArgs {
 /// Where and how a command writes its result.
 #[derive(Args, Clone, Debug)]
 pub(crate) struct OutputArgs {
-    /// The output format; by default the one the extension of the
-    /// `--output` file names (.txt, .json, .tex, .typ, .svg, .png, .pdf,
-    /// .v), and text otherwise
+    /// The output format; by default the one the `--output` file's
+    /// extension names (.txt, .json, .tex, .typ, .svg, .png, .pdf, .v), else
+    /// text
     #[arg(help_heading = OUTPUT, long, value_enum, value_name = "FORMAT")]
     pub(crate) format: Option<Format>,
-    /// Write to this file instead of standard output; the file is made
-    /// only with a derivation or a net in it (or in JSON, always), and
-    /// otherwise the verdict goes to standard error
+    /// Write to this file instead of standard output
+    ///
+    /// The file is made only when it holds a derivation or a net, and
+    /// always in JSON. Otherwise the verdict goes to standard error.
     #[arg(help_heading = OUTPUT, short, long, value_name = "PATH")]
     pub(crate) output: Option<PathBuf>,
     /// Write the proof net of the proof instead of its derivation, for MLL
-    /// without units, with or without Mix, and with boxes for MELL without
-    /// units, classical with or without Mix or intuitionistic (the net of
-    /// the one-sided sequent): as text (the sequent, the
-    /// copies of every ?, its axiom links as pairs of literals with their
-    /// vertex numbers, and the verdict of the correctness criterion), as
-    /// json (the net's document in place of the outcome), or drawn as svg,
-    /// png or pdf (the formula trees with the axiom links as arcs over the
-    /// literals, every !-box a rectangle around its contents)
+    /// and MELL without units
+    ///
+    /// MLL may have Mix. MELL's net has boxes, classical with or without
+    /// Mix, or intuitionistic (the net of the one-sided sequent). As text
+    /// the net is the sequent, the copies of every ?, the axiom links as
+    /// pairs of literals with their vertex numbers, and the verdict of the
+    /// correctness criterion. As json it is the net's document, in place of
+    /// the outcome. As svg, png or pdf it is drawn: the formula trees, the
+    /// axiom links as arcs over the literals, and every !-box a rectangle
+    /// around its contents.
     #[arg(help_heading = OUTPUT, long)]
     pub(crate) net: bool,
     /// Print only the verdict line, not the derivation; with --output,
@@ -1303,16 +1343,18 @@ pub(crate) struct OutputArgs {
     /// How the output looks.
     #[command(flatten)]
     pub(crate) style: StyleArgs,
-    /// Print the lambda-term of the proof, an intuitionistic proof read
-    /// back as a program: a proof of intuitionistic linear logic (-i, or
-    /// --linear under --logic) as a term of the linear lambda calculus of
-    /// Benton, Bierman, de Paiva and Hyland, the affine one under
-    /// --affine, a derivation of LJ (--logic intuitionistic or minimal) as
-    /// a simply typed term; as its typing judgement on a line after the
-    /// derivation, under the conclusion in latex, typst, svg, png and pdf,
-    /// and under the key lambda in json. A proof without one (classical,
-    /// with Mix, cyclic or Lambek, with quantifiers) gets a line saying
-    /// why instead
+    /// Print the proof's lambda-term: an intuitionistic proof read back as
+    /// a program
+    ///
+    /// A proof of intuitionistic linear logic (-i, or --linear under
+    /// --logic) gives a term of the linear lambda calculus of Benton,
+    /// Bierman, de Paiva and Hyland, or of its affine variant under
+    /// --affine. A derivation of LJ (--logic intuitionistic or minimal)
+    /// gives a simply typed term. The term is printed as its typing
+    /// judgement: on a line after the derivation, under the conclusion in
+    /// latex, typst, svg, png and pdf, and under the key lambda in json. A
+    /// proof that has none (classical, with Mix, cyclic or Lambek, with
+    /// quantifiers) gets a line saying why.
     #[arg(help_heading = OUTPUT, long)]
     pub(crate) lambda: bool,
     /// How the lambda-term is printed.
@@ -1325,32 +1367,32 @@ pub(crate) struct OutputArgs {
     /// of bytes with a unit such as 64MiB or 2GiB, or `none` for no limit
     /// (limits.derivation_bytes)
     ///
-    /// A derivation writes out the whole sequent at every inference and
+    /// A derivation writes out the whole sequent at every inference, and
     /// repeats every subproof that the proof shares, so it can be larger
-    /// than the proof by any factor. A derivation estimated above the
-    /// limit is not built, in any format: the verdict is reported without
-    /// it, with a line that says how large it is, and the exit status is
-    /// the verdict's. `--format json` writes the proof itself at any size.
-    /// The drawing of a proof net (`--net`) is estimated before it is
-    /// drawn and left out above the same limit.
+    /// than the proof by any factor. A derivation estimated above the limit
+    /// is not built, in any format. The verdict is reported without it,
+    /// with a line that says how large it is, and the exit status is the
+    /// verdict's. `--format json` writes the proof itself at any size. The
+    /// drawing of a proof net (`--net`) is estimated before it is drawn,
+    /// and left out above the same limit.
     #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "SIZE", value_parser = parse_bytes, default_value_t = Bytes(Some(Limits::DEFAULT_DERIVATION_BYTES)))]
     pub(crate) derivation_limit: Bytes,
-    /// When a run of one structural rule, such as the weakenings of every
-    /// unused `?` formula, is drawn as one inference labelled with a
-    /// star (`?w*`), in every format but rocq (view.compact)
+    /// When to draw a run of one structural rule, such as the weakenings of
+    /// every unused `?` formula, as one inference labelled with a star
+    /// (`?w*`); never in rocq (view.compact)
     #[arg(help_heading = OUTPUT, long, value_enum, value_name = "WHEN", default_value_t = CompactArg::Auto)]
     pub(crate) compact: CompactArg,
-    /// How a derivation of classical linear logic is drawn: one-sided, or
-    /// two-sided as the sequent was written, in every format but rocq
+    /// How to draw a derivation of classical linear logic: one-sided, or
+    /// two-sided as the sequent was written; rocq is always one-sided
     /// (view.classical)
     ///
     /// Two-sided, every sequent has its formulas on the sides of `⊢` they
-    /// were written on, the rules are named by side (`⊗L`, `⅋R`, `⊸L`,
-    /// …), and where a negation was written a step `~L` or `~R` moves the
+    /// were written on, and the rules are named by side (`⊗L`, `⅋R`, `⊸L`,
+    /// …). Where a negation was written, a step `~L` or `~R` moves the
     /// formula across `⊢`. A sequent given as JSON, LLTP or .spec is
     /// written one-sided, its antecedents on the left. Derivations of
-    /// intuitionistic linear logic are two-sided always, and those of the
-    /// cyclic mode one-sided.
+    /// intuitionistic linear logic are always two-sided, and those of the
+    /// cyclic mode always one-sided.
     #[arg(help_heading = OUTPUT, long, value_enum, value_name = "SIDES", default_value_t = ClassicalSidesArg::One)]
     pub(crate) classical_sides: ClassicalSidesArg,
 }
@@ -1378,14 +1420,14 @@ impl From<ClassicalSidesArg> for deduxit::linear::ClassicalSides {
 #[derive(Args, Clone, Debug)]
 pub(crate) struct StructuralArgs {
     /// How a derivation of LK or LJ (--logic) shows its weakenings and
-    /// contractions: each left out where it is admissible, so that the
-    /// derivation reads as G3's, whose axiom takes a context and whose
-    /// rules contract what they use twice, or every one drawn as the
-    /// checker has it, in every format but rocq (view.structural)
+    /// contractions; rocq always shows them all (view.structural)
     ///
-    /// The derivation is the same either way, and its explicit form is the
-    /// one checked; a certificate (--format rocq) names every structural
-    /// rule.
+    /// `admissible` leaves each one out where it is admissible, so that the
+    /// derivation reads as G3's, whose axiom takes a context and whose
+    /// rules contract what they use twice. `explicit` draws every one, as
+    /// the checker has it. The derivation is the same either way, and its
+    /// explicit form is the one checked. A certificate (--format rocq)
+    /// names every structural rule.
     #[arg(help_heading = OUTPUT, long, value_enum, value_name = "RULES", default_value_t = StructuralArg::Admissible)]
     pub(crate) structural: StructuralArg,
 }
@@ -1492,52 +1534,59 @@ pub(crate) struct StyleArgs {
     /// `latex.open=bare` or `svg.font.family=monospace` (repeatable)
     /// (styles.FORMAT.KEY)
     ///
-    /// KEY is a field of the format's options, dotted into nested ones,
-    /// as `--style-file` holds them; without a prefix `text.`, `latex.`,
-    /// `typst.`, `svg.`, `png.`, `pdf.` or `rocq.` it names the format
-    /// `--format` gives.
-    /// VALUE is JSON, or else a string: `gap=5`, `ids=true`,
-    /// `open={"mark":"?"}`, `labels.table.⊸L=⊸_L`. The fields:
-    /// text: labels, open, bar, gap; latex: form, labels, open, align,
-    /// ebproof, preamble, lambda (the lambda-term under the conclusion,
-    /// null or {"notation","types"}, which --lambda sets); typst: form,
-    /// labels, open, import, page,
-    /// layout (auto, curryst or deduxit: curryst for a tree up to nine
-    /// inferences high, deduxit's own code above), premise_gap, label_gap,
-    /// band, stroke (lengths for deduxit's own layout: a number and pt,
-    /// mm, cm, in or em), lambda; svg:
-    /// font (family, advances), labels, open, ids, description, font_size,
-    /// label_size, line_height, premise_gap, literal_gap, label_gap,
-    /// margin, stroke_width, link_height, link_cap, node_radius, text,
-    /// line, par, link, highlight, background, essential, input,
-    /// dominator, lambda, net (formulas: a proof net with every subformula
-    /// written, or compact: only its literals and conclusions written,
-    /// its inner links circles), net_look (a net's look: textbook or
-    /// deduxit, the default, or its fields premises: dashed or plain,
-    /// the edges into a ⅋ or ? node; conclusions: raised or bottom, a !
-    /// with auxiliary doors written a row above the ? nodes or on the
-    /// bottom row; why_not: node or rules, a ? node one node or the
-    /// rules' dereliction, contraction and weakening nodes); png: scale, pixels; pdf:
-    /// embed_text, compatible, accessible, title, language, date; rocq:
-    /// form, lemma, prelude, kernel (where the command writes Rocq). `null` lifts a
-    /// bound (`pixels=null`). Labels
-    /// are upright, subscript, off or {"table":{RULE:LABEL}}, which
-    /// `labels.table.RULE=LABEL` sets one rule of, the others upright; RULE
-    /// is ax, ⊗, ⅋, 1, ⊥, &, ⊕₁, ⊕₂, ⊤, !, ?d, ?c, ?w, mix, wk, cut, ∀, ∃,
-    /// ⊸L, ⊸R, ⊗L, ⊗R, &L₁, &L₂, &R, ⊕L, ⊕R₁, ⊕R₂, 1L, 1R, 0L, ⊤R, !L, !R,
-    /// !c, !w, ∀R, ∃L, ∃R, ∀L, \L, \R, /L or /R. An open goal is dots, bare,
-    /// dashed or {"mark":TEXT}
+    /// KEY is a field of the format's options, dotted into nested ones, as
+    /// `--style-file` holds them. Without a prefix (`text.`, `latex.`,
+    /// `typst.`, `svg.`, `png.`, `pdf.` or `rocq.`) it names a field of the
+    /// format `--format` gives. VALUE is JSON, or else a string: `gap=5`,
+    /// `ids=true`, `open={"mark":"?"}`, `labels.table.⊸L=⊸_L`. `null` lifts
+    /// a bound (`pixels=null`).
+    ///
+    /// text: labels, open, bar, gap.
+    ///
+    /// latex: form, labels, open, align, ebproof, preamble, lambda. lambda
+    /// is the lambda-term under the conclusion, null or
+    /// {"notation","types"}, which --lambda sets.
+    ///
+    /// typst: form, labels, open, import, page, layout, premise_gap,
+    /// label_gap, band, stroke, lambda. layout is auto, curryst or deduxit:
+    /// curryst for a tree up to nine inferences high, deduxit's own code
+    /// above. premise_gap, label_gap, band and stroke are lengths of
+    /// deduxit's own layout: a number and pt, mm, cm, in or em.
+    ///
+    /// svg: font (family, advances), labels, open, ids, description,
+    /// font_size, label_size, line_height, premise_gap, literal_gap,
+    /// label_gap, margin, stroke_width, link_height, link_cap, node_radius,
+    /// text, line, par, link, highlight, background, essential, input,
+    /// dominator, lambda, net, net_look. net is formulas, a proof net with
+    /// every subformula written, or compact, with only its literals and
+    /// conclusions written and its inner links drawn as circles. net_look
+    /// is a net's look: textbook, or deduxit (the default), or its fields.
+    /// Its field premises is dashed or plain, for the edges into a ⅋ or ?
+    /// node. conclusions is raised or bottom: a ! with auxiliary doors
+    /// written a row above the ? nodes, or on the bottom row. why_not is
+    /// node or rules: a ? node drawn as one node, or as the rules'
+    /// dereliction, contraction and weakening nodes.
+    ///
+    /// png: scale, pixels. pdf: embed_text, compatible, accessible, title,
+    /// language, date. rocq: form, lemma, prelude, kernel, where the
+    /// command writes Rocq.
+    ///
+    /// labels is upright, subscript, off or {"table":{RULE:LABEL}}.
+    /// `labels.table.RULE=LABEL` sets one rule's label and leaves the
+    /// others upright. RULE is ax, ⊗, ⅋, 1, ⊥, &, ⊕₁, ⊕₂, ⊤, !, ?d, ?c, ?w,
+    /// mix, wk, cut, ∀, ∃, ⊸L, ⊸R, ⊗L, ⊗R, &L₁, &L₂, &R, ⊕L, ⊕R₁, ⊕R₂, 1L,
+    /// 1R, 0L, ⊤R, !L, !R, !c, !w, ∀R, ∃L, ∃R, ∀L, \L, \R, /L or /R. open,
+    /// the mark of an open goal, is dots, bare, dashed or {"mark":TEXT}.
     #[arg(help_heading = OUTPUT, long = "style", value_name = "KEY=VALUE")]
     pub(crate) style: Vec<String>,
-    /// Read the options of the output formats from a JSON file: an object
-    /// with a key per format (text, latex, typst, svg, png, pdf, and rocq
-    /// where the command writes Rocq), each holding the fields `--style` names; a field left out keeps its
-    /// default (styles)
+    /// Read the output formats' options from a JSON file (styles)
+    ///
+    /// The file is an object with a key per format: text, latex, typst,
+    /// svg, png, pdf, and rocq where the command writes Rocq. Each holds the
+    /// fields `--style` names. A field left out keeps its default.
     #[arg(help_heading = OUTPUT, long, value_name = "PATH")]
     pub(crate) style_file: Option<PathBuf>,
-    /// The math font a drawing (SVG, PNG, PDF) is set and laid out in:
-    /// euler, stix-two, garamond, asana or new-computer-modern; by default
-    /// Euler Math
+    /// The math font of a drawing (SVG, PNG, PDF); by default Euler Math
     /// (styles.svg.font)
     #[arg(help_heading = OUTPUT, long, value_enum, value_name = "FONT")]
     pub(crate) font: Option<FontArg>,
@@ -1574,10 +1623,10 @@ impl From<FontArg> for MathFont {
 /// The Rocq certificate's flags, on the commands that write one.
 #[derive(Args, Clone, Debug, Default)]
 pub(crate) struct RocqArgs {
-    /// The Rocq kernel a certificate of linear logic is written for; by
-    /// default the mode's: nanoyalla for classical linear logic, deduxit
-    /// for Mix, affine and intuitionistic logic and for a sequent with a
-    /// quantifier (styles.rocq.kernel)
+    /// The Rocq kernel to write a certificate of linear logic for; by
+    /// default nanoyalla for classical linear logic, and deduxit for Mix,
+    /// affine and intuitionistic logic and a sequent with a quantifier
+    /// (styles.rocq.kernel)
     #[arg(help_heading = OUTPUT, long, value_enum, value_name = "KERNEL")]
     pub(crate) kernel: Option<KernelArg>,
     /// The name of the lemma of a Rocq certificate (styles.rocq.lemma)
@@ -1708,10 +1757,10 @@ fn parse_bytes(text: &str) -> Result<Bytes, String> {
 pub(crate) enum Format {
     /// The verdict on one line, then the derivation as a text tree
     Text,
-    /// JSON: prove's outcome (verdict, fragment, mode, engine, statistics,
-    /// and the proof, which `check` reads; under --logic decided by LJT,
-    /// the ordinary outcome with its derivation of LJ), one record a line
-    /// in a batch; check's verdict and error
+    /// JSON: for `prove` the outcome (verdict, fragment, mode, engine,
+    /// statistics, and the proof, which `check` reads), one record per line
+    /// in a batch, and under --logic decided by LJT the ordinary outcome
+    /// with its derivation of LJ; for `check` the verdict and error
     Json,
     /// The verdict as a comment, then the derivation as a LaTeX proof tree
     /// of the ebproof package, with the connectives of cmll and amssymb
@@ -1731,16 +1780,16 @@ pub(crate) enum Format {
     /// verdict on standard error; written to a file or a pipe, never to a
     /// terminal
     Pdf,
-    /// The verdict as a comment, then the derivation as a Rocq
-    /// certificate for the kernel `--kernel` names or the mode chooses:
-    /// for NanoYalla 1.1.3, the kernel of Click & coLLecT (the nanoyalla
-    /// directory of github.com/ComputerAidedLL/click-and-collect, built
-    /// with Rocq 9 and its standard library, no Yalla needed), a lemma
-    /// stating the sequent one-sided, proved rule by rule, which refuses
-    /// Mix and the weakening of affine mode; for deduxit's own library, a
+    /// The verdict as a comment, then the derivation as a Rocq certificate
+    /// for the kernel `--kernel` names or the mode chooses. For NanoYalla
+    /// 1.1.3, the kernel of Click & coLLecT (the nanoyalla directory of
+    /// github.com/ComputerAidedLL/click-and-collect, built with Rocq 9 and
+    /// its standard library, no Yalla needed), it is a lemma stating the
+    /// sequent one-sided, proved rule by rule; this kernel refuses Mix and
+    /// the weakening of affine mode. For deduxit's own library, it is a
     /// lemma stating the sequent in the mode's calculus, two-sided for
     /// intuitionistic logic, proved from the proof term by the library's
-    /// checker; closed by Qed, `--standalone` adds the imports
+    /// checker. The lemma ends with Qed; `--standalone` adds the imports
     /// (`--prelude`), and `--lemma` names the lemma
     Rocq,
 }
