@@ -7,13 +7,13 @@ compatibility: Needs the `deduxit` command, from `cargo install --locked deduxit
 
 # deduxit
 
-> `deduxit` decides sequents of linear logic and of ordinary propositional logic. A proof it prints has passed an independent checker; an unprovable verdict says why where it can; an unknown verdict names the limit that ended the search and the flag that raises it.
+> `deduxit` decides sequents of linear logic and of ordinary propositional logic. A proof it prints has passed an independent checker; an unprovable verdict says why where it can; an unknown verdict names the limit that ended the search and the flag to raise.
 
 [reference.md](reference.md) beside this file has every command, flag, format and JSON form with examples; `deduxit COMMAND --help` documents every flag.
 
 **Commands.** `deduxit prove SEQUENT` decides a sequent and prints a proof; `deduxit check FILE` checks a proof that `prove --format json` wrote; `deduxit eliminate FILE` eliminates its cuts step by step; `deduxit interact SEQUENT` applies proof steps read from standard input; `deduxit seq print|json|fragment SEQUENT` prints the sequent, writes its JSON or names its fragment (MLL, MALL, MELL, LL, …).
 
-**Syntax.** Quote the sequent for the shell: `"A, A -o B |- B"` (`⊢` also works; either side may be empty). Connectives: `*` (⊗), `par` or `|` (⅋), `&`, `+` (⊕), `-o` (⊸), `~A` or `A^` (negation), `!A`, `?A`; units `1`, `bot`, `top`, `0`. Binding, tightest first: `~ ! ?`, then `*`, `|`, `&`, `+`, and `-o`, which groups to the right. Atoms are identifiers, or predicates over terms, `p(x, f(a))`; `forall x. A` and `exists x. A` bind loosest; `prove` decides a sequent with them in classical mode (with `--mix` and `--affine` too) and with `-i` (affine too).
+**Syntax.** Quote the sequent for the shell: `"A, A -o B |- B"` (`⊢` also works; either side may be empty). The command's tips say what to write after a common mistake; reference.md, section 19, lists them. Connectives: `*` (⊗), `par` or `|` (⅋), `&`, `+` (⊕), `-o` (⊸), `~A` or `A^` (negation), `!A`, `?A`; units `1`, `bot`, `top`, `0`. Binding, tightest first: `~ ! ?`, then `*`, `|`, `&`, `+`, and `-o`, which groups to the right. Atoms are identifiers, or predicates over terms, `p(x, f(a))`; `forall x. A` and `exists x. A` bind loosest; `prove` decides a sequent with them in classical mode (with `--mix` and `--affine` too) and with `-i` (affine too).
 
 **The logic** is classical linear logic unless a flag says otherwise: `-i` intuitionistic (hypotheses left of `|-`, exactly one formula right of it, and no `~`, `par`, `|`, `?` or `bot`: write `A -o B`), `-a` affine (a hypothesis may go unused), `--mix`, `--cyclic` (order kept up to rotation), `--lambek` (with `A \ B` and `B / A`). `--logic classical|intuitionistic|minimal` reads ordinary logic instead, with `->`, `/\`, `\/`, `~`, `<->`, `true` and `false`, and answers `valid` or `not valid`; LJT decides intuitionistic and minimal logic (`--method embedding` goes through linear logic).
 
@@ -22,7 +22,7 @@ compatibility: Needs the `deduxit` command, from `cargo install --locked deduxit
 - 0: provable (`valid` under `--logic`, `valid proof` for `check`);
 - 1: unprovable (`not valid`, an invalid proof);
 - 2: an error, such as a parse error, a flag that does not apply, or `-i` given a classical symbol;
-- 3: unknown: a limit ended the search first. That is not unprovable; the line names the flag to raise.
+- 3: unknown: a limit ended the search first, which is not unprovable.
 
 ```console
 $ deduxit prove "A * B |- B * A"
@@ -46,11 +46,11 @@ $ deduxit prove --logic intuitionistic -q "~~a -> a"
 not valid (intuitionistic logic by LJT): the search was exhaustive
 ```
 
-The derivation is one-sided (`Γ ⊢ Δ` read as `⊢ ~Γ, Δ`); `-i` and `--logic` draw two-sided ones, and `--classical-sides two` a classical one as written.
+The derivation is one-sided (`Γ ⊢ Δ` read as `⊢ ~Γ, Δ`); `-i` and `--logic` draw two-sided ones, `--classical-sides two` a classical one as written.
 
-**Limits.** By default a search stops after `--timeout 2s` (`none` for no limit, counted from the command's start) and within `--memory-limit 1GiB`; with `!` or `?` it deepens how often a `?` formula may be copied until it decides, and `--copies N` caps that. `--work-limit N` gives the same answer on every machine; `--deterministic` makes the proof and `--stats` reproducible.
+**Limits.** By default a search stops after `--timeout 2s` (from the command's start; `none` for no limit) and within `--memory-limit 1GiB`; with `!` or `?` it deepens how often a `?` formula may be copied, and `--copies N` caps that. For the same verdict on every machine, bound the search with `--work-limit N` or `--copies N` and lift the time limit with `--timeout none`. `--deterministic` also makes the proof and `--stats` the same on every run.
 
-**Output.** `-q` prints the verdict line alone. `--format json` writes one JSON object: `verdict` (`proved`, `unprovable` or `unknown`), `refutation` or `reason`, `fragment`, `mode`, `engine`, `statistics` and the proof, which `check` reads back. `check` takes the logic the file's `"mode"` states, so a proof of `prove -i` needs no flag; a mode flag that names another logic is an error (exit 2). `--format latex|typst|svg|png|pdf|rocq` or `--output FILE` with that extension exports the derivation; `--net` gives the proof net instead (MLL and MELL without units); `--stats` adds the search's counters.
+**Output.** `-q` prints the verdict line alone. `--format json` writes one JSON object: `verdict` (`proved`, `unprovable` or `unknown`), `refutation` or `reason`, `fragment`, `mode`, `engine`, `statistics` and the proof, which `check` reads back. `check` takes the logic from the file's `"mode"`; a mode flag that names another logic is an error (exit 2). `--format latex|typst|svg|png|pdf|rocq` or `--output FILE` with that extension exports the derivation; `--net` gives the proof net instead (MLL and MELL without units); `--stats` adds the search's counters.
 
 ```console
 $ deduxit prove --format json "A |- A" > proof.json
@@ -67,9 +67,9 @@ $ deduxit prove --format latex "A, A -o B |- B"
 
 **Many sequents.** `--input-format lines` reads `NAME: SEQUENT` or `SEQUENT` per line (from `--file` or standard input; blank lines and `#` comments skipped) and answers `NAME: VERDICT` per line in input order; the exit status is the worst: an error (2) before unknown (3) before unprovable (1) before proved (0). `--format json` makes each answer a JSON line.
 
-**Step by step.** `interact` reads one command per line: `goals`, `rules G P`, `apply G P RULE [P…]` (goal G, the formula at position P; for `*` the positions of G's other formulas that go to the left premise follow, and no other rule takes more positions), `cut G C [P…]` (a cut on the formula C, the positions P going to the premise that proves it), `undo`, `close [G]` (the search closes a goal), `show`, `proof [FILE]` (checks the finished proof; a FILE gets the proof's JSON, which `check` reads), `save FILE` and `load FILE` (the session's own JSON, for `load` only), `quit`.
+**Step by step.** `interact` reads one command per line: `goals`, `rules G P`, `apply G P RULE [P…]` (goal G, the formula at position P; for `*` the positions of G's other formulas that go to the left premise follow), `cut G C [P…]` (a cut on the formula C, the positions P going to the premise that proves it), `undo`, `close [G]` (the search closes a goal), `show`, `proof [FILE]` (checks the finished proof; a FILE gets its JSON, for `check`), `save FILE` and `load FILE` (the session's own JSON, for `load` only), `quit`.
 
-The session starts with goal 0; a step closes its goal and opens new ones with new numbers (`opened goal 1: ⊢ 0: ~A, 1: A`), each goal's formulas numbered from 0, so read the numbers from the output (or `goals`) before the next step. A RULE is `ax` (on either literal), `*`, `par`, `&`, `+1`, `+2`, `1`, `bot`, `top`, `?d`, `?c`, `?w`, `!`, `mix` or `wk`, and with `-i` the two-sided names (`-oL`, `-oR`, `*L`, `*R`, …, in reference.md). It exits 0 when the session ends with a checked proof, 1 otherwise. With `--logic`, LK's or LJ's rules (`andR`, `->L`) on formulas named `L0`, `R1` (reference.md, section 13).
+The session starts with goal 0; a step closes its goal and opens new ones, newly numbered (`opened goal 1: ⊢ 0: ~A, 1: A`), each goal's formulas numbered from 0: read the numbers from the output before the next step. A RULE is `ax` (on either literal), `*`, `par`, `&`, `+1`, `+2`, `1`, `bot`, `top`, `?d`, `?c`, `?w`, `!`, `mix` or `wk`, and with `-i` the two-sided names (`-oL`, `-oR`, `*L`, `*R`, …, in reference.md). It exits 0 when the session ends with a checked proof, 1 otherwise. With `--logic`, LK's or LJ's rules (`andR`, `->L`) on formulas named `L0`, `R1` (reference.md, section 13).
 
 ```console
 $ printf 'apply 0 2 * 0\nclose\nproof\n' | deduxit interact "A, B |- A * B"
@@ -85,15 +85,15 @@ valid proof (classical)
   ⊢ ~A, ~B, A ⊗ B
 ```
 
-**The library** is the Rust crate `deduxit`: `"…".parse::<deduxit::linear::Sequent>()`, `deduxit::linear::prove(&sequent, Mode::CLASSICAL, &Options::default())` and the `Outcome` it returns; its default bounds the copies at 3, where the command deepens under its time limit.
+**The library** is the Rust crate `deduxit`: `"…".parse::<deduxit::linear::Sequent>()`, `deduxit::linear::prove(&sequent, Mode::CLASSICAL, &Options::default())` and the `Outcome` it returns. `Options::default()` bounds the copies at 3; the command's own stop is `settings.stop(|| start.elapsed())` (reference.md, section 16).
 
 ## Docs
 
 - [Reference](reference.md): every command, flag, format and JSON form, with examples
-- [Manual](https://deduxit.github.io/deduxit/manual/): every command, format and engine with its output, and the benchmarks
-- [Library API](https://deduxit.github.io/deduxit/deduxit/): the Rust crate's documentation, with the text syntax and every JSON form
+- [Manual](https://deduxit.github.io/deduxit/manual/): a tour, a guide per task, the reference, how the search works
+- [Library API](https://deduxit.github.io/deduxit/deduxit/): the Rust crate's documentation, the text syntax and the JSON forms
 
 ## Optional
 
-- [Web page](https://deduxit.github.io/): the prover in a browser, step by step, for people
+- [Web page](https://deduxit.github.io/): proving step by step in a browser, for people
 - [Rocq library](https://github.com/deduxit/rocq-deduxit): the calculi and checkers the `--kernel deduxit` certificates are proved with
