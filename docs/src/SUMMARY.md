@@ -36,6 +36,7 @@
 # Results
 
 - [Benchmarks and the comparison](benchmarks.md)
+  - [Ordinary logic on ILTP, 2026-11-14](results/iltp-2026-11-14.md)
   - [The baseline of 2026-11-02](results/baseline-2026-11-02.md)
   - [Families that grow, 2026-11-02](results/growing-2026-11-02.md)
   - [The other provers on the growing sets, 2026-11-03](results/provers-2026-11-03.md)

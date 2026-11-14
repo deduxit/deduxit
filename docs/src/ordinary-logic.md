@@ -104,11 +104,11 @@ exit 1
 ```
 
 On the ILTP library's 274 problems, with 2 seconds each, the SAT solver
-decides 252 in intuitionistic logic and 252 in minimal logic, LJT 200 and
+decides 252 in intuitionistic logic and 253 in minimal logic, LJT 200 and
 the embedding 188 in each. In classical logic the SAT solver decides 254
 and the embedding 157. The SAT solver decides every problem the others
 decide. The 186 problems all three decide in intuitionistic logic take
-it 26 ms in all, LJT 318 ms and the embedding 11.7 s ([the
+it 26 ms in all, LJT 313 ms and the embedding 11.6 s ([the
 measurement](results/iltp-2026-11-14.md)).
 
 Where the SAT solver stops at a bound other than the time limit, such

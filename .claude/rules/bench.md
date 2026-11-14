@@ -888,7 +888,12 @@ serde_json, which the CLI and the core's tests already have.
   both logics, two shards pinned to cores 2 and 3, one build;
   `defaults/ljt-default.csv` the same with `auto` (the default's
   dispatch) beside them. The tables and the comparison script are in
-  step 54's report.
+  step 54's report. `defaults/sat-iltp.csv` is the run that made the
+  SAT solver the default of intuitionistic and minimal logic: the same
+  problems, limit and cores with `--engines embedding,ljt,sat`, all
+  three logics (8 minutes); `defaults/sat-default.csv` the same with
+  `auto` beside them, the new default's dispatch, in one build. The
+  tables are in step 54s's report.
 - **`defaults/`** holds the rows that chose the command's defaults (the
   report of that work has the tables): the default that restarted the
   search on the pool (`restart-copies-10.csv`, the 1 003 problems of the
