@@ -352,7 +352,7 @@ the commit that lands it rewrites that bullet.
   Split, TermNode, Witness}`;
   `proofs::cut::{Case, Elimination, End, Options, Reduction, Step,
   Strategy}`;
-  `search::{Cadence, Classical, Equation, Jobs, OneSided,
+  `search::{Basis, Cadence, Classical, Equation, Jobs, Marking, OneSided,
   OneSidedSymbol, RefutationFault, Saturated, Schedule, Stable,
   StateEquation, Unbalanced, UnbalancedSymbol}`; `search::batch::{Answer,
   Cores, Options, Plan, Problem}`; `sequents::fo::SymbolFault`. A new public type joins one of the two lists in its commit.

@@ -77,7 +77,8 @@ in use.
   that decides there. The library's documentation of `Engine` has the
   table with the measurements.
 - "Unprovable" comes from an exhaustive search, a saturated set of the
-  inverse method, a count (an atom whose literals cannot pair up, the
+  inverse method, the basis of the Horn engine's backward search in
+  affine mode, a count (an atom whose literals cannot pair up, the
   count equation that fails), a Petri net's state equation, or an
   assignment that makes the sequent false read classically. Each
   refutation is checked apart from the search. A classical refutation of

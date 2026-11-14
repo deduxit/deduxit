@@ -7,9 +7,9 @@ use crate::limits::{Limits, Space};
 use crate::linear::fragment::{Fragment, Mode};
 use crate::linear::occurrences::{Member, OccId, Sign};
 use crate::linear::search::{
-    Bias, Cadence, Classical, Disproof, Engine, Equation, Jobs, OneSided, OneSidedSymbol,
-    Outcome as Out, Reason, Refutation, Saturated, Stable, StateEquation, Statistics, Unbalanced,
-    UnbalancedSymbol, Verdict,
+    Basis, Bias, Cadence, Classical, Disproof, Engine, Equation, Jobs, Marking, OneSided,
+    OneSidedSymbol, Outcome as Out, Reason, Refutation, Saturated, Stable, StateEquation,
+    Statistics, Unbalanced, UnbalancedSymbol, Verdict,
 };
 use crate::linear::sequents::{Atom, Symbol};
 use crate::wire::{self, Readable};
@@ -268,6 +268,26 @@ enum WhyNot {
         /// exponential.
         copied: Literal,
     },
+    /// A backward search from a Horn program's target saturated, and no
+    /// marking of the basis it kept is at most the initial one.
+    Basis {
+        /// The sign of the bodies' literals.
+        body: Literal,
+        /// The classes of clauses used once, by occurrence.
+        classes: Vec<Vec<u32>>,
+        /// The markings of the basis.
+        markings: Vec<MarkingForm>,
+    },
+}
+
+/// The serialized form of a marking of a basis: atoms and classes by
+/// index, each with its count.
+#[derive(Serialize, Deserialize)]
+struct MarkingForm {
+    /// The atoms with tokens.
+    atoms: Vec<(u32, u32)>,
+    /// The classes with tickets.
+    tickets: Vec<(u32, u32)>,
 }
 
 /// The serialized form of a stable sequent of a saturated set: its zones
@@ -339,6 +359,24 @@ impl From<&Refutation> for WhyNot {
                         linear: s.linear.iter().map(|o| o.get()).collect(),
                         unrestricted: s.unrestricted.iter().map(|o| o.get()).collect(),
                         absorbs: s.absorbs,
+                    })
+                    .collect(),
+            },
+            Refutation::Basis(Basis {
+                body,
+                classes,
+                markings,
+            }) => WhyNot::Basis {
+                body: (*body).into(),
+                classes: classes
+                    .iter()
+                    .map(|class| class.iter().map(|o| o.get()).collect())
+                    .collect(),
+                markings: markings
+                    .iter()
+                    .map(|m| MarkingForm {
+                        atoms: m.atoms.iter().map(|&(a, n)| (a.get(), n)).collect(),
+                        tickets: m.tickets.clone(),
                     })
                     .collect(),
             },
@@ -439,6 +477,29 @@ impl From<WhyNot> for Refutation {
                 most,
                 copied: copied.into(),
             }),
+            WhyNot::Basis {
+                body,
+                classes,
+                markings,
+            } => Refutation::Basis(Basis::new(
+                body.into(),
+                classes
+                    .into_iter()
+                    .map(|class| class.into_iter().map(OccId::new).collect())
+                    .collect(),
+                markings
+                    .into_iter()
+                    .map(|m| {
+                        Marking::new(
+                            m.atoms
+                                .into_iter()
+                                .map(|(a, n)| (Atom::new(a), n))
+                                .collect(),
+                            m.tickets,
+                        )
+                    })
+                    .collect(),
+            )),
             WhyNot::Saturated { positive, sequents } => Refutation::Saturated(Saturated::new(
                 positive.into_iter().map(Sign::from).collect(),
                 sequents
@@ -549,6 +610,16 @@ impl DisproofForm {
                 for s in &saturated.sequents {
                     for o in s.linear.iter().chain(&s.unrestricted) {
                         occurrence(o.index())?;
+                    }
+                }
+            }
+            Refutation::Basis(basis) => {
+                for o in basis.classes.iter().flatten() {
+                    occurrence(o.index())?;
+                }
+                for m in &basis.markings {
+                    for &(a, _) in &m.atoms {
+                        atom(a)?;
                     }
                 }
             }

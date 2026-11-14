@@ -9,7 +9,8 @@
 //! `wire/level-3.txt` those level 3 added, `wire/level-4.txt` those
 //! level 4 added, `wire/level-5.txt` those level 5 added,
 //! `wire/level-6.txt` those level 6 added, `wire/level-7.txt` those
-//! level 7 added, `wire/level-8.txt` those level 8 added; none is ever
+//! level 7 added, `wire/level-8.txt` those level 8 added,
+//! `wire/level-11.txt` those level 11 added; none is ever
 //! rewritten: where
 //! the lock moves on, these files stay. Every
 //! line of a form that is read back reads through
@@ -233,6 +234,31 @@ fn the_eighth_level_reads() {
         }
     }
     assert_eq!(lines.lines().count(), 3);
+}
+
+/// The forms level 11 added, as the release that made it wrote them: the
+/// refutation by the basis of a backward search, of a disproof and of an
+/// unprovable outcome, which still checks. Never rewritten, as
+/// `wire/level-1.txt` is not.
+#[test]
+fn the_eleventh_level_reads() {
+    let lines = include_str!("wire/level-11.txt");
+    for line in lines.lines() {
+        let (name, json) = line.split_once(": ").unwrap();
+        match name.split('-').next().unwrap() {
+            "disproof" => {
+                again::<Disproof>(name, json);
+                let disproof: Disproof = read(name, json);
+                assert_eq!(disproof.check(), Ok(()), "{name}");
+            }
+            "outcome" => {
+                let disproof: Disproof = read(name, json);
+                assert_eq!(disproof.check(), Ok(()), "{name}");
+            }
+            other => panic!("{name}: no form {other}"),
+        }
+    }
+    assert_eq!(lines.lines().count(), 2);
 }
 
 /// Every outcome the JSON lock holds (each verdict, refutation and reason,

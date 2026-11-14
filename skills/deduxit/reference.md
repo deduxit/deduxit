@@ -373,6 +373,7 @@ same, tagged by `kind`:
 | `state_equation` | a Horn program's state equation has no solution: weights for the atoms that no clause raises and the goal needs raised |
 | `classical` | the sequent is false read classically, with the atoms' values: no provable sequent is |
 | `saturated` | the inverse method's saturated set, closed under the rules, lacks the goal |
+| `basis` | in affine mode, the Horn engine's backward search saturated: no marking of its basis (`"markings"`, atoms and classes of clauses used once with counts) is at most the initial one |
 | `exhausted` | the search was exhaustive |
 
 For a sequent written with formulas left of `⊢`, the counts speak of its
@@ -1452,8 +1453,8 @@ eigenvariable, and a `∃` step its witness.
 ### Unprovable sequents
 
 An unprovable sequent gets a certificate that the calculus does not
-derive it, for every refutation kind but `exhausted`, `saturated` and,
-with a quantifier, `equation`. The library's weighted count
+derive it, for every refutation kind but `exhausted`, `saturated`,
+`basis` and, with a quantifier, `equation`. The library's weighted count
 (`weighted_refutation`, `affine_refutation`: weights per atom, the
 atoms that no firing reaches declared dead) proves `one_sided`, the
 `_symbol` kinds and `state_equation`. The other kinds have theorems of

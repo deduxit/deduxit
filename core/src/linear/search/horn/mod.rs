@@ -32,8 +32,8 @@ mod tests;
 
 use super::memory::{Account, Charged};
 use super::{
-    Answer, Decide, Engine, Finished, NotTaken, Options, Reason, Refutation, StateEquation,
-    Statistics, Task, Work,
+    Answer, Basis, Decide, Engine, Finished, Marking, NotTaken, Options, Reason, Refutation,
+    StateEquation, Statistics, Task, Work,
 };
 use crate::Error;
 use crate::hash::HashMap;
@@ -116,10 +116,11 @@ impl Decide for Horn {
         let affine = task.mode.affine;
         let mut equation = Equation::new(affine, account);
         let most = reach::MOST_MARKINGS;
-        let (mut found, statistics) = if affine {
+        let (mut found, statistics, saturated) = if affine {
             cover::search(program, account, most, &mut equation, stop)
         } else {
-            reach::search(program, account, most, &mut equation, stop)
+            let (found, statistics) = reach::search(program, account, most, &mut equation, stop);
+            (found, statistics, None)
         };
         // A search that ran out of room has given its memory back. The
         // state equation may still refute, with the rest of the time.
@@ -160,9 +161,13 @@ impl Decide for Horn {
             },
             stop,
         );
+        // The state equation's weights, else the basis a saturated backward
+        // search kept, which the front door takes only where nothing
+        // smaller refutes.
         answer.refutation = equation
             .certificate()
-            .map(|weights| program.refutation(weights));
+            .map(|weights| program.refutation(weights))
+            .or_else(|| saturated.map(|elements| program.basis(&elements)));
         Ok(answer)
     }
 }
@@ -249,6 +254,39 @@ impl Program {
         (0..self.places)
             .map(|p| if raised[p] { u32::MAX } else { self.initial[p] })
             .collect()
+    }
+
+    /// Returns the refutation by the basis a saturated backward search
+    /// kept: each element's places read back as the atoms and the classes
+    /// of clauses used once they are.
+    fn basis(&self, elements: &cover::Elements) -> Refutation {
+        let classes = self.once.len();
+        let atom_places = self.places - classes;
+        let mut atom_of = vec![0u32; atom_places];
+        for (a, &p) in self.place_of.iter().enumerate() {
+            if p != u32::MAX {
+                atom_of[p as usize] = a as u32;
+            }
+        }
+        let mut start = 0;
+        let markings = elements
+            .ends
+            .iter()
+            .map(|&end| {
+                let (mut atoms, mut tickets) = (Vec::new(), Vec::new());
+                for &(p, count) in &elements.entries[start..end] {
+                    match (p as usize).checked_sub(atom_places) {
+                        None => atoms.push((Atom::new(atom_of[p as usize]), count)),
+                        Some(class) => tickets.push((class as u32, count)),
+                    }
+                }
+                start = end;
+                // The atoms' places are numbered as the goal names them.
+                atoms.sort_unstable();
+                Marking::new(atoms, tickets)
+            })
+            .collect();
+        Refutation::Basis(Basis::new(self.body, self.once.clone(), markings))
     }
 
     /// Returns the refutation that weights for the places give, each

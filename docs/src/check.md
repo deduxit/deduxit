@@ -32,7 +32,8 @@ the verdict line gives. `check` verifies it without the search, in the
 mode the file states, since a refutation is a claim about that mode
 alone. Each kind of refutation has a check: an unbalanced atom, a count
 with copies of one sign, the count equation, a Horn program's state
-equation, a classical assignment and a saturated set. The exit status is
+equation, a classical assignment, a saturated set and the basis of a
+backward search over a Horn program's markings. The exit status is
 0 for a refutation that holds and 1 for one that does not. "The search
 was exhaustive" rests on the search alone and has no check, so it exits
 with 3, as does a check stopped by the time limit:
@@ -40,6 +41,8 @@ with 3, as does a check stopped by the time limit:
 ```console
 $ deduxit prove -i --format json "a, a -o b, !(b -o b * c), !(b -o d) |- b * d" | deduxit check
 valid refutation of a, a ⊸ b, !(b ⊸ (b ⊗ c)), !(b ⊸ d) ⊢ b ⊗ d (intuitionistic): the state equation of the Petri net has no solution, so no firing of its clauses yields the goal's atoms: weighting each a by 2, b by 1, d by 1 and the clauses used once by weights of their own, no clause that can fire raises the weighted count of the atoms, and the goal asks it raised
+$ deduxit prove --affine --format json "!(a * a -o b * b * b), a, a, a |- b * b * b * b" | deduxit check
+valid refutation of !((~a ⅋ ~a) ⅋ ((b ⊗ b) ⊗ b)), a, a, a ⊢ ((b ⊗ b) ⊗ b) ⊗ b (classical affine): read as a Petri net, the goal's target cannot be covered: a backward search from it saturated, and none of the 3 markings it kept is at most the initial marking
 $ deduxit prove --format json "A & B |- A * B" | deduxit check; echo "exit $?"
 unknown: the refutation of A & B ⊢ A ⊗ B (classical) is not checked: a refutation of kind `exhausted` rests on the search and has no check
 exit 3

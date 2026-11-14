@@ -484,7 +484,11 @@ same test file:
   weight]], clauses: [[occurrence, weight]], dropped: [occurrence]}`,
   `saturated {positive: ["atom" | "dual"], sequents: [{linear,
   unrestricted, absorbs}]}` with occurrences of the forest, wire level
-  3, `wire::level_of`),
+  3, `wire::level_of`; `basis {body: "atom" | "dual", classes:
+  [[occurrence]], markings: [{atoms: [[atom, count]], tickets: [[class,
+  count]]}]}`, wire level 11, `wire::BASIS`, the reader checking the
+  atoms and occurrences and the check the rest), `core/tests/wire/level-11.txt`
+  a disproof and an outcome of it,
   `sequent` after `statistics`, and `goal` for a goal off the roots,
   so that an unprovable outcome reads back as a `Disproof`, whose own
   document is `{version, sequent, mode, refutation, goal}`

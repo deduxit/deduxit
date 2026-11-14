@@ -286,6 +286,31 @@ copies they had are gone (F103, F104).
   repeats), which the integers review found (2 491 bytes past 100 s). The
   search's own check of a set runs under its stop and within
   `Limits::work` (its units counted apart, as a proof's check's are).
+  `Basis` is checked by `search/basis.rs`, which shares no code with
+  the Horn engine: it reads the goal as a net again under the stated
+  bodies' sign (a member under `?` a clause with a head, any other a
+  marking, a clause used once or the one goal), requires the classes to
+  be exactly the clauses used once (a member the goal names twice
+  twice) with equal arcs in each, a marking at
+  most the target (`Missed`), none at most the initial marking
+  (`Reached`), and for each marking and each clause that can fire (the
+  least set of places from the initial marking) with an output on its
+  places a marking at most `max(m − out, 0) + in` (`Open`). Its argument:
+  every marking of a lossy firing sequence a proof gives lies in the
+  basis's upward closure, read from the end, since a drop leads down
+  and the closure is upward. The firing sequence comes from a cut-free
+  proof by the weight of `core-horn.md` (no Mix, no goal weakened),
+  rechecked on the check's own reading; ordered and intuitionistic
+  proofs are classical ones, Mix is admissible with weakening, and
+  classical, affine and Mix linear logic have cut elimination, so the
+  check does not read the mode. Its shape tests follow
+  `Program::read_with` arm for arm (the panel's note): a misreading of
+  the shape both share would pass; the independent part is the closure
+  test. Counts are `u64` (a marking's below
+  2³² plus a clause's weight below 2³²), sums saturate (a filter only),
+  the places `atoms + classes` checked against `usize`. Quadratic in the
+  basis times the clauses; the same stop and work bound as the set's
+  inside the search, none in `Disproof::check`.
   `OneSided` and `OneSidedSymbol` (`check_copies`) are recomputed as
   `Unbalanced` is, outside the goal's exponentials (a `!` or `?` counts
   `(0, 0)` unless a `⊤` lies below it), with the signs of the counted

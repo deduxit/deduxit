@@ -161,6 +161,13 @@ unchanged.
   lemma that rests on an axiom, such as a proof left `Admitted`. The
   package of the same name installs it (`nix profile install
   github:deduxit/deduxit#check-certificate`).
+- **A checked refutation for the Horn engine's backward search**: in
+  affine mode, where only that search refutes a Petri net, the
+  unprovable verdict carries the markings it kept
+  (`Refutation::Basis`, with `Basis` and `Marking`), checked before the
+  verdict and by `Disproof::check` and `deduxit check` without the
+  search. It was "the search was exhaustive" before. `--format rocq`
+  has no certificate for it yet (`Unsupported::Basis`).
 
 ### Wire forms
 
@@ -168,6 +175,9 @@ unchanged.
   `"clausal_proof": {"variables", "clauses", "steps"}` in place of
   `derivation`, written at level 10; every other document is written as
   before.
+- Level 11 adds the refutation by a basis, `{"kind": "basis", "body",
+  "classes", "markings"}`, in a disproof or an unprovable outcome that
+  holds one.
 
 ## [0.3.0] - 2026-11-09
 

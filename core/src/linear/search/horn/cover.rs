@@ -41,7 +41,9 @@ use std::collections::BinaryHeap;
 /// Returns the transitions of a firing sequence from the initial marking
 /// to one that covers the target, `None` when no reachable marking covers
 /// it or the state equation refutes, or the reason the search stopped.
-/// Also returns the counters:
+/// Where the search saturated, it also returns every element it kept,
+/// as [`Elements`]: the basis that shows the target uncoverable. And it
+/// returns the counters:
 /// - `nodes`: the markings computed;
 /// - `memo_hits`: those kept out by an element at most them;
 /// - `memo_entries`: the elements kept.
@@ -55,7 +57,11 @@ pub(super) fn search(
     most: usize,
     equation: &mut Equation<'_>,
     stop: &mut dyn FnMut(u64) -> bool,
-) -> (Result<Option<Vec<u32>>, Reason>, Statistics) {
+) -> (
+    Result<Option<Vec<u32>>, Reason>,
+    Statistics,
+    Option<Elements>,
+) {
     let mut search = Cover::new(program, account);
     let result = search.run(most, equation, stop);
     let statistics = Statistics {
@@ -64,7 +70,20 @@ pub(super) fn search(
         memo_entries: search.parents.len() as u64,
         ..Statistics::default()
     };
-    (result, statistics)
+    let basis = search.saturated.then(|| Elements {
+        entries: std::mem::take(&mut search.entries),
+        ends: std::mem::take(&mut search.ends),
+    });
+    (result, statistics, basis)
+}
+
+/// The elements a search kept: each its places in increasing order with
+/// their counts, all above zero, one after the other.
+pub(super) struct Elements {
+    /// The places and counts of every element.
+    pub(super) entries: Vec<(u32, u32)>,
+    /// Where each element's entries end.
+    pub(super) ends: Vec<usize>,
 }
 
 /// The state of a search: the elements kept, their index (a trie of
@@ -131,6 +150,9 @@ struct Cover<'a> {
     /// The work done: transitions tried, elements compared, and the
     /// index's nodes and lookups.
     work: u64,
+    /// Whether the search took every element and found nothing more to
+    /// keep, so that the elements are closed backward.
+    saturated: bool,
 }
 
 impl<'a> Cover<'a> {
@@ -179,6 +201,7 @@ impl<'a> Cover<'a> {
             computed: 0,
             covered: 0,
             work: 0,
+            saturated: false,
         }
     }
 
@@ -265,6 +288,7 @@ impl<'a> Cover<'a> {
                 }
             }
         }
+        self.saturated = true;
         Ok(None)
     }
 

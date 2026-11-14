@@ -285,6 +285,24 @@ front door, the dispatch and the memory account it plugs into are in
   (a refusal at `u32::MAX`); the table of edges is charged at its
   capacity, a slot and a control byte each.
 - **Order: fewest tokens first**, ties by age; it changes no verdict.
+- **Its refutation is its basis** (`Refutation::Basis`): where the queue
+  empties, `search` hands back every element it kept (`Elements`, the
+  entries and ends moved out, not copied), and `decide` gives
+  `Program::basis` of them as the engine's refutation unless the state
+  equation refuted: each element's places read back as atoms (sorted by
+  atom, since places are numbered as the goal names atoms) and as
+  classes of `Program::once` (all classes, dead ones included, since the
+  initial marking has their tickets). The elements a smaller one made
+  redundant stay: their predecessors are covered by the smaller one's,
+  so the whole kept set is closed backward too. The front door takes it
+  only where the counts and the classical refuter find nothing
+  (`conclude`'s last resort, as for the inverse method's set) and checks
+  it first. `search/basis.rs` checks it with a reading of the goal of
+  its own (`core-search.md`); its liveness must be the engine's `live`
+  (the least set of places from the initial marking), or a check of a
+  sound basis fails on a clause the engine dropped. The search and its
+  counters are unchanged; the conversion happens after it, at about the
+  memory the elements took during it.
 - **Counts** grow backward by a transition's inputs, checked
   (`before`): passing `u32::MAX` is `IndexLimit`, tested with inputs of
   almost 2³²; the elements kept are at most `MOST_MARKINGS` (their

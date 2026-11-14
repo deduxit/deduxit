@@ -465,6 +465,13 @@ pub enum Unsupported {
         "deduxit's library has no theorem for a saturated set, so a refutation by one has no certificate in Rocq"
     )]
     Saturated,
+    /// The disproof's refutation is the basis of a backward search, for
+    /// which the library has no theorem yet. Its certificate is the basis
+    /// itself, which the disproof's check verifies.
+    #[error(
+        "deduxit's library has no theorem for the basis of a backward search, so a refutation by one has no certificate in Rocq"
+    )]
+    Basis,
     /// The sequent has a quantifier, which NanoYalla's kernel and the
     /// library's theorem of the count equation lack.
     #[error(
@@ -1022,6 +1029,7 @@ pub fn to_string<'a>(
 /// - [`Error::Unsupported`] with [`Unsupported::Disproof`] where the
 ///   options name NanoYalla, [`Unsupported::Ordered`] in the cyclic mode,
 ///   [`Unsupported::Saturated`] for a refutation by a saturated set,
+///   [`Unsupported::Basis`] for one by the basis of a backward search,
 ///   [`Unsupported::Exhausted`] for an exhausted search, and
 ///   [`Unsupported::Quantifiers`] for the count equation of a sequent
 ///   with a quantifier.
@@ -1042,6 +1050,9 @@ pub fn write_disproof(
     }
     if let crate::linear::search::Refutation::Saturated(_) = disproof.refutation() {
         return Err(Unsupported::Saturated.into());
+    }
+    if let crate::linear::search::Refutation::Basis(_) = disproof.refutation() {
+        return Err(Unsupported::Basis.into());
     }
     if let crate::linear::search::Refutation::Exhausted = disproof.refutation() {
         return Err(Unsupported::Exhausted.into());

@@ -1207,6 +1207,7 @@ pub(super) fn disproof(
         }
         Refutation::Exhausted => unreachable!("the check certifies no exhausted search"),
         Refutation::Saturated(_) => unreachable!("the writer refuses a saturated set first"),
+        Refutation::Basis(_) => unreachable!("the writer refuses a basis first"),
     };
     write!(
         text,

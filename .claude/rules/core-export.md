@@ -769,9 +769,10 @@ for NanoYalla. What the code relies on:
   import `ZArith` for `%Z`, the first-order one `Bool` for `&&`; the
   propositional one imports `Weights`, which exports `Refutations`, so
   every refutation certificate needs the library at 0.3.0. A saturated
-  set (`Unsupported::Saturated`) and an exhausted search
+  set (`Unsupported::Saturated`), the basis of a backward search
+  (`Unsupported::Basis`, its lemma in `later.md`) and an exhausted search
   (`Unsupported::Exhausted`) are refused first: no theorem states
-  either. Then it runs `Disproof::check` and returns its error, so a
+  them. Then it runs `Disproof::check` and returns its error, so a
   refutation that does not hold has no certificate: the library's tests
   and the Rust check accept the same refutations under the same
   conditions (the weighted arms run the library's own test), and a

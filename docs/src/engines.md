@@ -227,12 +227,23 @@ markings kept: 1
 units of work: 2
 time: 268.07µs
 $ deduxit prove -q --affine "!(a * a -o b * b * b), a, a, a |- b * b * b * b"
-unprovable (MELL, classical affine, horn engine): the search was exhaustive
+unprovable (MELL, classical affine, horn engine): read as a Petri net, the goal's target cannot be covered: a backward search from it saturated, and none of the 3 markings it kept is at most the initial marking
 ```
 
 The last goal's state equation has a solution, one and a third firings
 of the clause, so only the search refutes it. The `a` left over in the
 proof before it is weakened.
+
+Such a refutation carries the markings the backward search kept: every
+marking from which the target can be covered is at least one of them,
+and the initial marking is none of these. A check of its own verifies
+them before the verdict, without the search: one of them is at most the
+target, none is at most the initial marking, and every clause that can
+fire, fired backward from any of them, needs a marking at least one of
+them. `--format json` writes them, and `deduxit check` checks them
+again (the chapter on checking); the Rocq export has no certificate for
+them yet. Where the counts or an assignment refute too, those are
+reported instead, being smaller.
 
 ## The inverse method
 
@@ -356,7 +367,8 @@ refutation](check.md)):
   search runs after the proof search, past the time limit, within
   `--classical-work N` formulas evaluated (2²⁶ by default; `0` turns it
   off), and never changes a verdict the proof search gave.
-- **A saturated set** of the inverse method, above.
+- **A saturated set** of the inverse method, and **the basis** of the
+  Horn engine's backward search in affine mode, above.
 - **"The search was exhaustive"**: the search tried everything within
   its bounds and none of the above applies. Only the search vouches for
   it, so `check` cannot verify it.

@@ -26,6 +26,7 @@
 //! | 8 | the forms of ordinary logic: a sequent, a derivation of LK or LJ, the outcome of deciding a sequent, a proof in progress | each of those |
 //! | 9 | LJ's cut, `"rule": "cut"` | an ordinary derivation, outcome or proof in progress that holds a cut |
 //! | 10 | a sequent valid by a clausal proof, `"clausal_proof": {…}` in place of the derivation | an ordinary outcome that holds one |
+//! | 11 | the refutation by the basis of a backward search, `{"kind": "basis", "body": …, "classes": […], "markings": […]}` | a disproof or unprovable outcome that holds one |
 //!
 //! A reader refuses a document above its level by name ([`Error::Version`],
 //! code `unsupported_version`). It does so before reading the other keys
@@ -171,7 +172,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// The highest wire level this build reads and writes.
-pub const LEVEL: u32 = 10;
+pub const LEVEL: u32 = 11;
 
 /// The level of every document that no later level's feature raises.
 pub(crate) const BASE: u32 = 1;
@@ -256,10 +257,10 @@ impl<'de, T: Readable> DeserializeSeed<'de> for Within<'_, T> {
 /// document.end().expect("one document and nothing after it");
 /// assert_eq!(sequent.to_string(), "⊢ A");
 ///
-/// let newer = r#"{"version": 11, "terms": []}"#;
+/// let newer = r#"{"version": 12, "terms": []}"#;
 /// let mut document = serde_json::Deserializer::from_str(newer);
 /// let error = wire::upgrade::<Sequent, _>(&mut document, &Limits::default()).unwrap_err();
-/// assert!(matches!(error, Error::Version { found: 11, .. }));
+/// assert!(matches!(error, Error::Version { found: 12, .. }));
 /// # Ok::<(), Error>(())
 /// ```
 pub fn upgrade<'de, T: Readable, D: Deserializer<'de>>(
@@ -330,6 +331,10 @@ pub(crate) const ORDINARY_CUT: u32 = 9;
 #[cfg(feature = "sat")]
 pub(crate) const CLAUSAL: u32 = 10;
 
+/// The level of a disproof or an outcome refuted by the basis of a
+/// backward search.
+pub(crate) const BASIS: u32 = 11;
+
 /// The level of a document that holds `sequent`: 7 where it is
 /// first-order, 6 where it has cut formulas, else 1.
 pub(crate) fn level_of_sequent(sequent: &crate::linear::Sequent) -> u32 {
@@ -351,14 +356,15 @@ pub(crate) const fn level_in(mode: Option<crate::linear::Mode>) -> u32 {
     }
 }
 
-/// The level of a disproof with `refutation` in `mode`: 3 for a
-/// saturated set, 2 for a classical refutation or an ordered mode, else
-/// 1.
+/// The level of a disproof with `refutation` in `mode`: 11 for a basis,
+/// 3 for a saturated set, 2 for a classical refutation or an ordered
+/// mode, else 1.
 pub(crate) const fn level_of(
     refutation: &crate::linear::search::Refutation,
     mode: crate::linear::Mode,
 ) -> u32 {
     match refutation {
+        crate::linear::search::Refutation::Basis(_) => BASIS,
         crate::linear::search::Refutation::Saturated(_) => 3,
         crate::linear::search::Refutation::Classical(_) => 2,
         _ => level_in(Some(mode)),

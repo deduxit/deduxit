@@ -17,6 +17,9 @@
 
 /// The additive fast path.
 pub(crate) mod additive;
+/// The check of a refutation by the basis of a backward search, apart
+/// from the search.
+mod basis;
 pub mod batch;
 /// The classical refuter: it looks for an assignment of truth values
 /// that makes the goal's classical reading false.
@@ -61,8 +64,8 @@ mod work;
 #[cfg(feature = "parallel")]
 pub use parallel::Pool;
 pub use refutation::{
-    Classical, Disproof, Equation, OneSided, OneSidedSymbol, Refutation, RefutationFault,
-    Saturated, Stable, StateEquation, Unbalanced, UnbalancedSymbol,
+    Basis, Classical, Disproof, Equation, Marking, OneSided, OneSidedSymbol, Refutation,
+    RefutationFault, Saturated, Stable, StateEquation, Unbalanced, UnbalancedSymbol,
 };
 
 use crate::Error;
@@ -1009,13 +1012,15 @@ struct Concluding<'a> {
 ///
 /// The check of a proof and the refutation hold their memory on
 /// `account`, beside what it holds, within the same bound as the search.
-/// The check of a saturated set holds its own memory outside it. That is
-/// of the order of the set, which the search held within the bound.
+/// The check of a saturated set or a basis holds its own memory outside
+/// it. That is of the order of the set, which the search held within the
+/// bound.
 ///
 /// # Errors
 ///
 /// [`Error::Rejected`] for a proof the checker rejects, and
-/// [`Error::Refutation`] for a saturated set its check refuses: defects.
+/// [`Error::Refutation`] for a saturated set or a basis its check
+/// refuses: defects.
 #[expect(
     clippy::too_many_arguments,
     reason = "the answer, the goal, and the settings of the search it came from"
@@ -1037,11 +1042,13 @@ fn conclude(
             Verdict::Proved(Box::new(proof.concluding(goal.occurrences).with_mode(mode)))
         }
         Ok(None) => {
-            // A saturated set is the refutation of last resort: the counts'
-            // and the classical one are smaller and rest on simpler
-            // invariants.
-            let (refutation, saturated) = match refutation {
-                Some(Refutation::Saturated(set)) => (None, Some(set)),
+            // A saturated set and a basis are the refutations of last
+            // resort: the counts' and the classical one are smaller and rest
+            // on simpler invariants.
+            let (refutation, last) = match refutation {
+                Some(last @ (Refutation::Saturated(_) | Refutation::Basis(_))) => {
+                    (None, Some(last))
+                }
                 refutation => (refutation, None),
             };
             // Where the engine has no refutation of its own: what the
@@ -1064,34 +1071,49 @@ fn conclude(
                     .map_or(Refutation::Exhausted, Refutation::Classical),
                 refutation => refutation,
             };
-            let refutation = match (refutation, saturated) {
-                (Refutation::Exhausted, Some(set)) => {
-                    // The set is checked as a proof is, by code apart from
-                    // the engine that saturated it, unless the check is off.
+            let refutation = match (refutation, last) {
+                (Refutation::Exhausted, Some(last)) => {
+                    // The set or the basis is checked as a proof is, by code
+                    // apart from the engine that found it, unless the check
+                    // is off, within a work bound of its own, as a proof's
+                    // check is.
                     if options.check {
-                        // Within a work bound of its own, as a proof's
-                        // check is.
                         let mut done = 0u64;
-                        let checked =
-                            saturated::check(forest, goal.occurrences, mode, &set, &mut |units| {
-                                done = done.saturating_add(units);
-                                stop(Progress::new(Phase::Check, units, done))
-                                    || limits.work.is_some_and(|limit| done > limit)
-                            });
+                        let mut polled = |units: u64| {
+                            done = done.saturating_add(units);
+                            stop(Progress::new(Phase::Check, units, done))
+                                || limits.work.is_some_and(|limit| done > limit)
+                        };
+                        let checked = match &last {
+                            Refutation::Saturated(set) => {
+                                saturated::check(forest, goal.occurrences, mode, set, &mut polled)
+                                    .map_err(|failed| match failed {
+                                        saturated::Failed::Stopped => None,
+                                        saturated::Failed::Fault(fault) => Some(fault),
+                                    })
+                            }
+                            Refutation::Basis(basis) => {
+                                basis::check(forest, goal.occurrences, basis, &mut polled).map_err(
+                                    |failed| match failed {
+                                        basis::Failed::Stopped => None,
+                                        basis::Failed::Fault(fault) => Some(fault),
+                                    },
+                                )
+                            }
+                            _ => unreachable!("only a set or a basis is kept for last"),
+                        };
                         match checked {
                             Ok(()) => {}
-                            Err(saturated::Failed::Stopped) => {
+                            Err(None) => {
                                 return Ok(Verdict::Unknown(match limits.work {
                                     Some(limit) if done > limit => Reason::WorkLimit { limit },
                                     _ => Reason::Stopped,
                                 }));
                             }
-                            Err(saturated::Failed::Fault(fault)) => {
-                                return Err(Error::Refutation(fault));
-                            }
+                            Err(Some(fault)) => return Err(Error::Refutation(fault)),
                         }
                     }
-                    Refutation::Saturated(set)
+                    last
                 }
                 (refutation, _) => refutation,
             };
@@ -3871,6 +3893,11 @@ mod tests {
                 most: 1,
                 copied: crate::linear::occurrences::Sign::Atom,
             }),
+            Refutation::Basis(Basis::new(
+                crate::linear::occurrences::Sign::Atom,
+                Vec::new(),
+                Vec::new(),
+            )),
         ];
         let refutation_at = |refutation: &Refutation| match refutation {
             Refutation::Exhausted => 0,
@@ -3882,6 +3909,7 @@ mod tests {
             Refutation::Saturated(_) => 6,
             Refutation::UnbalancedSymbol(_) => 7,
             Refutation::OneSidedSymbol(_) => 8,
+            Refutation::Basis(_) => 9,
         };
         assert_eq!(refutations.len(), Refutation::NAMES.len());
         for (i, refutation) in refutations.iter().enumerate() {

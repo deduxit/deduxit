@@ -47,7 +47,10 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 ///   "absorbs": false}, …]}`;
 /// - `{"kind": "unbalanced_symbol", "symbol", "least", "most"}` and
 ///   `{"kind": "one_sided_symbol", "symbol", "least", "most", "copied"}`,
-///   the predicate by its index into the sequent's symbols.
+///   the predicate by its index into the sequent's symbols;
+/// - `{"kind": "basis", "body": "atom" | "dual", "classes": [[occurrence,
+///   …], …], "markings": [{"atoms": [[atom, count], …], "tickets":
+///   [[class, count], …]}, …]}`.
 ///
 /// It reads back the same way. A reader refuses a kind it does not know:
 /// read as another kind, it would claim a certificate it does not hold.
@@ -76,6 +79,11 @@ pub enum Refutation {
     /// The literals of a predicate cannot all meet their duals in axioms,
     /// even though copies may add some, all of one sign.
     OneSidedSymbol(OneSidedSymbol),
+    /// The goal is a Horn program, and a backward search from its target
+    /// saturated: the markings from which a firing sequence covers the
+    /// target are those at least one of a finite basis, and the initial
+    /// marking is not one of them.
+    Basis(Basis),
 }
 
 /// The literals of a predicate, which cannot all meet their duals in
@@ -291,6 +299,71 @@ impl Saturated {
     }
 }
 
+/// The basis of the markings from which a Horn program's target can be
+/// covered, as a backward search left it, which shows the goal
+/// unprovable.
+///
+/// The goal is read as a Petri net. A place is an atom, or a class of
+/// interchangeable clauses used once, which holds a ticket per unused
+/// clause. A clause is a transition: it takes its body's literals (and a
+/// ticket of its class, when it is used once) and gives its head's. The
+/// initial marking is the goal's markings with every ticket; the target
+/// is the goal's own body. A proof of the goal fires a sequence of
+/// clauses from the initial marking to a marking at least the target, in
+/// every mode: weakening only drops tokens.
+///
+/// The markings at least one of the basis hold every marking at least the
+/// target, and with a marking `m` every marking from which a clause leads
+/// to `m`. So they hold every marking of such a sequence, the initial one
+/// included, unless none is at most it. The basis is all the backward
+/// search kept, smaller markings and the ones they made redundant.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct Basis {
+    /// The sign of the bodies' literals and the goal's: [`Sign::Atom`]
+    /// where they are atoms, [`Sign::Dual`] where they are negated. Heads
+    /// and markings have the other.
+    pub body: Sign,
+    /// The goal's clauses used once, by occurrence, in classes of clauses
+    /// with the same body and head. A marking counts each class's
+    /// tickets.
+    pub classes: Vec<Vec<OccId>>,
+    /// The markings of the basis.
+    pub markings: Vec<Marking>,
+}
+
+/// A marking of a [`Basis`]: tokens on atoms and tickets of classes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct Marking {
+    /// The atoms with tokens, by increasing index, each with its count,
+    /// above zero.
+    pub atoms: Vec<(Atom, u32)>,
+    /// The classes with tickets, by increasing index into
+    /// [`Basis::classes`], each with its count, above zero.
+    pub tickets: Vec<(u32, u32)>,
+}
+
+impl Basis {
+    /// Returns the basis of `markings`, over the clauses used once in
+    /// `classes`, for bodies of the sign `body`.
+    pub fn new(body: Sign, classes: Vec<Vec<OccId>>, markings: Vec<Marking>) -> Self {
+        Self {
+            body,
+            classes,
+            markings,
+        }
+    }
+}
+
+impl Marking {
+    /// Returns the marking of the tokens `atoms` and the tickets
+    /// `tickets`.
+    pub fn new(atoms: Vec<(Atom, u32)>, tickets: Vec<(u32, u32)>) -> Self {
+        Self { atoms, tickets }
+    }
+}
+
 impl Refutation {
     /// The words of the refutations, as [`Refutation::name`] gives them and
     /// the JSON form's `kind` writes them.
@@ -304,6 +377,7 @@ impl Refutation {
         "saturated",
         "unbalanced_symbol",
         "one_sided_symbol",
+        "basis",
     ];
 
     /// Returns the refutation's word, its `kind` in the JSON form.
@@ -318,6 +392,7 @@ impl Refutation {
             Refutation::Saturated(_) => "saturated",
             Refutation::UnbalancedSymbol(_) => "unbalanced_symbol",
             Refutation::OneSidedSymbol(_) => "one_sided_symbol",
+            Refutation::Basis(_) => "basis",
         }
     }
 
@@ -510,6 +585,17 @@ impl Refutation {
                     "it does not yield"
                 } else {
                     "none of them yields"
+                },
+            ),
+            Refutation::Basis(Basis { markings, .. }) => write!(
+                f,
+                "read as a Petri net, the goal's target cannot be covered: a backward search \
+                 from it saturated, and none of the {} {} it kept is at most the initial marking",
+                markings.len(),
+                if markings.len() == 1 {
+                    "marking"
+                } else {
+                    "markings"
                 },
             ),
         }
@@ -933,6 +1019,18 @@ pub enum RefutationFault {
     /// the goal's asynchronous phase, so they do not rule a proof out.
     #[error("the saturated set gives every stable sequent the goal needs")]
     Filled,
+    /// A clause fired backward from a marking of a basis needs a marking
+    /// that no marking of the basis is at most.
+    #[error("the basis is not closed under the clauses fired backward")]
+    Open,
+    /// A marking of a basis is at most the initial marking, so the basis
+    /// does not rule a firing sequence out.
+    #[error("a marking of the basis is at most the initial marking")]
+    Reached,
+    /// No marking of a basis is at most the target, so the basis says
+    /// nothing of the target.
+    #[error("no marking of the basis is at most the target")]
+    Missed,
 }
 
 impl RefutationFault {
@@ -948,6 +1046,9 @@ impl RefutationFault {
             Self::Unshaped => "unshaped",
             Self::NotClosed => "not_closed",
             Self::Filled => "filled",
+            Self::Open => "open",
+            Self::Reached => "reached",
+            Self::Missed => "missed",
         }
     }
 }
@@ -991,6 +1092,14 @@ impl Disproof {
     ///   program with positive bodies, else negative ones (the weights
     ///   negated). The atoms that no firing reaches are declared dead. In
     ///   affine mode the test counts the formulas with one output.
+    /// - A basis ([`Refutation::Basis`]): the goal is read as a Petri net
+    ///   again, with the bodies' sign stated. The classes must be its
+    ///   clauses used once, each class of one body and head. Some marking
+    ///   of the basis must be at most the target, none at most the initial
+    ///   marking, and for every marking `m` and every clause that can ever
+    ///   fire with a head on `m`'s places, some marking must be at most
+    ///   `max(m − head, 0) + body`, the least marking from which the clause
+    ///   leads to one at least `m`.
     ///
     /// The predicate forms, [`Refutation::UnbalancedSymbol`] and
     /// [`Refutation::OneSidedSymbol`], are checked as their atom forms,
@@ -1001,14 +1110,18 @@ impl Disproof {
     /// contribution to the weighted count of its literals must be above
     /// zero, a `?` formula's copies included.
     ///
-    /// These six kinds are certificates. Every derivation keeps the
-    /// invariant that each of the five others breaks, and the set holds a
-    /// sequent for every stable one of every proof.
+    /// These seven kinds are certificates. Every derivation keeps the
+    /// invariant that each of the five others breaks, the set holds a
+    /// sequent for every stable one of every proof, and the basis's upward
+    /// closure every marking of every firing sequence a proof gives.
     ///
     /// # Cost
     ///
     /// Time and memory are linear in the goal's occurrences, a member
-    /// repeated counted each time, for every kind but the saturated set.
+    /// repeated counted each time, for every kind but the saturated set
+    /// and the basis. A basis's check compares, for every marking and
+    /// clause, a marking with the basis's markings: quadratic in the basis
+    /// times the clauses, over the markings' places.
     /// The set's check applies every rule to every choice of its sequents.
     /// For a set a search gave, that takes at most as long as the search
     /// that saturated. The check has no stop, though. For a set read from
@@ -1062,7 +1175,7 @@ impl Disproof {
         if forest.has_binders()
             && matches!(
                 self.refutation,
-                Refutation::Classical(_) | Refutation::Saturated(_)
+                Refutation::Classical(_) | Refutation::Saturated(_) | Refutation::Basis(_)
             )
         {
             return Err(fault(RefutationFault::NotApplicable {
@@ -1107,6 +1220,15 @@ impl Disproof {
             }
             Refutation::StateEquation(equation) => {
                 super::weighted::state_equation(&forest, &goal, self.mode, equation).map(|_| ())
+            }
+            Refutation::Basis(basis) => {
+                match super::basis::check(&forest, &goal, basis, &mut |_| false) {
+                    Ok(()) => Ok(()),
+                    Err(super::basis::Failed::Fault(fault)) => Err(fault),
+                    Err(super::basis::Failed::Stopped) => {
+                        unreachable!("a check without a stop runs to its end")
+                    }
+                }
             }
             refutation @ Refutation::Exhausted => Err(RefutationFault::Uncertified {
                 kind: refutation.name(),

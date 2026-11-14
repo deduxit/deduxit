@@ -142,7 +142,8 @@ Qed.
 ## Certificates of unprovability
 
 An unprovable sequent gets a certificate too, where its refutation is
-one that `check` verifies, a saturated set excepted. It is a lemma that
+one that `check` verifies, a saturated set and the basis of a backward
+search excepted. It is a lemma that
 the mode's calculus does not derive the sequent, proved by the
 library's theorem of the refutation's invariant, which the library's
 test accepts by computation. These certificates are always for

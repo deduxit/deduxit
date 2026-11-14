@@ -299,7 +299,7 @@ fn refuses_at_its_limits() {
     let built = proof::build(&forest, &counter, &firings, false, &account, 3);
     assert_eq!(built.err(), Some(Reason::IndexLimit));
     let affine = || Equation::new(true, &account);
-    let (found, _) = cover::search(&counter, &account, 1, &mut affine(), &mut |_| false);
+    let (found, _, _) = cover::search(&counter, &account, 1, &mut affine(), &mut |_| false);
     assert_eq!(found, Err(Reason::IndexLimit));
 
     // A clause that adds almost 2³² tokens passes the count's bound at
@@ -332,7 +332,7 @@ fn refuses_at_its_limits() {
         let inputs = taking.transitions[t].inputs as usize;
         taking.arcs[inputs].1 = u32::MAX - 1;
     }
-    let (found, _) = cover::search(
+    let (found, _, _) = cover::search(
         &taking,
         &account,
         reach::MOST_MARKINGS,
@@ -581,7 +581,18 @@ fn charges_what_it_grows() {
         let within = |bytes| {
             let account = Account::new(Some(bytes));
             let mut equation = Equation::new(affine, &no_room);
-            let search = if affine { cover::search } else { reach::search };
+            let search = |net: &Program,
+                          account: &Account,
+                          most: usize,
+                          equation: &mut Equation<'_>,
+                          stop: &mut dyn FnMut(u64) -> bool| {
+                if affine {
+                    let (found, statistics, _) = cover::search(net, account, most, equation, stop);
+                    (found, statistics)
+                } else {
+                    reach::search(net, account, most, equation, stop)
+                }
+            };
             search(
                 &net,
                 &account,
@@ -648,7 +659,18 @@ fn counts_its_work() {
             work += units;
             false
         };
-        let search = if affine { cover::search } else { reach::search };
+        let search = |net: &Program,
+                      account: &Account,
+                      most: usize,
+                      equation: &mut Equation<'_>,
+                      stop: &mut dyn FnMut(u64) -> bool| {
+            if affine {
+                let (found, statistics, _) = cover::search(net, account, most, equation, stop);
+                (found, statistics)
+            } else {
+                reach::search(net, account, most, equation, stop)
+            }
+        };
         let (found, statistics) = search(
             &net,
             &account,
