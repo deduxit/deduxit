@@ -229,12 +229,19 @@ fn run(
                     needed_bytes: Some(cells / 8),
                 }));
             }
-            match kripke(&formulas, logic, falsity, &nodes, worlds, &mut stop) {
-                Some(model) => {
+            match kripke(
+                &formulas,
+                logic,
+                (falsity, &nodes),
+                worlds,
+                &account,
+                &mut stop,
+            ) {
+                Ok(model) => {
                     model.refutes(sequent, logic, &mut stop)?;
                     (Verdict::NotValid, Some(model))
                 }
-                None => (Verdict::Unknown(Reason::Stopped), None),
+                Err(reason) => (Verdict::Unknown(reason), None),
             }
         }
         Ok((Found::Valid, lemmas, _)) => {
@@ -565,11 +572,14 @@ impl<'a, S: Solver> Search<'a, S> {
             let mut held = worlds[0].bytes();
             account.charge(held);
             let learnt = self.realise(&mut worlds, account, &mut held);
-            account.release(held);
             match learnt {
-                Ok(true) => {}
+                Ok(true) => account.release(held),
+                // The worlds stay charged while the model is made of them.
                 Ok(false) => return Ok(Found::Worlds(worlds)),
-                Err(reason) => return Err(reason),
+                Err(reason) => {
+                    account.release(held);
+                    return Err(reason);
+                }
             }
         }
     }
@@ -688,45 +698,70 @@ fn unrealised(worlds: &[Bits], w: usize, [a, b, c]: [u32; 3]) -> bool {
 
 /// Returns the Kripke model of the worlds: ordered by inclusion, the
 /// least first, each with the atoms of its variables, and `⊥` in minimal
-/// logic; `None` where the stop, asked once per world, fired.
+/// logic. The order is found as a bit per pair of worlds, charged to the
+/// account; past its bound, or when the stop fires (asked every `POLL`
+/// comparisons of worlds), the reason.
 fn kripke(
     formulas: &Formulas,
     logic: Logic,
-    falsity: NodeId,
-    nodes: &[NodeId],
+    (falsity, nodes): (NodeId, &[NodeId]),
     mut worlds: Vec<Bits>,
+    account: &Account,
     stop: &mut impl FnMut(Progress) -> bool,
-) -> Option<Model> {
+) -> Result<Model, Reason> {
     // A world strictly above another has more variables.
     worlds.sort_by_key(|w| w.members().count());
     let n = worlds.len();
-    // Every world strictly below each, as bits over the worlds.
-    let mut below: Vec<Bits> = Vec::with_capacity(n);
-    for j in 0..n {
-        if stop(Progress::new(crate::limits::Phase::Search, 1, j as u64 + 1)) {
-            return None;
+    let bytes = n.saturating_mul(Bits::new(n).bytes());
+    account.charge(bytes);
+    if account.over() {
+        account.release(bytes);
+        return Err(Reason::MemoryLimit {
+            limit_bytes: account.limit(),
+        });
+    }
+    let mut compared = 0u64;
+    let mut poll = |by: usize| {
+        let before = compared;
+        compared = compared.saturating_add(by as u64);
+        if before / POLL != compared / POLL
+            && stop(Progress::new(crate::limits::Phase::Search, POLL, compared))
+        {
+            return Err(Reason::Stopped);
         }
-        let mut set = Bits::new(n);
-        for i in 0..j {
-            if worlds[i] != worlds[j] && worlds[i].within(&worlds[j]) {
-                set.insert(i as u32);
+        Ok(())
+    };
+    let found = (|| -> Result<Vec<Vec<u32>>, Reason> {
+        // Every world strictly below each, as bits over the worlds.
+        let mut below: Vec<Bits> = Vec::with_capacity(n);
+        for j in 0..n {
+            let mut set = Bits::new(n);
+            for i in 0..j {
+                poll(1)?;
+                if worlds[i] != worlds[j] && worlds[i].within(&worlds[j]) {
+                    set.insert(i as u32);
+                }
+            }
+            below.push(set);
+        }
+        // The worlds directly below: below, and below no world below.
+        let mut above = vec![Vec::new(); n];
+        for (j, set) in below.iter().enumerate() {
+            let mut direct = set.clone();
+            for i in set.members() {
+                poll(1)?;
+                for (word, under) in direct.0.iter_mut().zip(&below[i as usize].0) {
+                    *word &= !under;
+                }
+            }
+            for i in direct.members() {
+                above[i as usize].push(j as u32);
             }
         }
-        below.push(set);
-    }
-    // The worlds directly below: below, and below no world below.
-    let mut above = vec![Vec::new(); n];
-    for j in 0..n {
-        let mut direct = below[j].clone();
-        for i in below[j].members() {
-            for (word, under) in direct.0.iter_mut().zip(&below[i as usize].0) {
-                *word &= !under;
-            }
-        }
-        for i in direct.members() {
-            above[i as usize].push(j as u32);
-        }
-    }
+        Ok(above)
+    })();
+    account.release(bytes);
+    let above = found?;
     let models = worlds.iter().zip(above).map(|(world, above)| {
         let mut atoms = Vec::new();
         let mut forces_falsity = false;
@@ -751,7 +786,7 @@ fn kripke(
             above,
         }
     });
-    Some(Model {
+    Ok(Model {
         worlds: models.collect(),
     })
 }
@@ -1003,6 +1038,56 @@ mod tests {
         })
         .unwrap();
         assert!(matches!(outcome.verdict, Verdict::Unknown(Reason::Stopped)));
+    }
+
+    /// The order of a model's worlds is found within the memory bound and
+    /// until the stop fires: a chain of worlds, each a variable more.
+    #[test]
+    fn the_model_s_order_keeps_to_its_bounds() {
+        let sequent: Sequent = "|- a".parse().unwrap();
+        let formulas = sequent.formulas();
+        let n = 1000;
+        let chain = || {
+            (0..n)
+                .map(|k| {
+                    let mut world = Bits::new(n);
+                    (0..k).for_each(|v| world.insert(v as u32));
+                    world
+                })
+                .collect::<Vec<_>>()
+        };
+        let nodes = vec![NodeId(0); n];
+        let free = Account::holding(None, 0);
+        let model = kripke(
+            formulas,
+            Logic::Intuitionistic,
+            (NodeId(0), &nodes),
+            chain(),
+            &free,
+            &mut |_| false,
+        );
+        let model = model.unwrap();
+        assert_eq!(model.worlds[0].above, vec![1]);
+        assert_eq!(free.used(), 0);
+        let small = Account::holding(Some(n as u64 * 8), 0);
+        let refused = kripke(
+            formulas,
+            Logic::Intuitionistic,
+            (NodeId(0), &nodes),
+            chain(),
+            &small,
+            &mut |_| false,
+        );
+        assert!(matches!(refused, Err(Reason::MemoryLimit { .. })));
+        let stopped = kripke(
+            formulas,
+            Logic::Intuitionistic,
+            (NodeId(0), &nodes),
+            chain(),
+            &free,
+            &mut |_| true,
+        );
+        assert!(matches!(stopped, Err(Reason::Stopped)));
     }
 
     /// Where a bound refuses the derivation read off the search, LJT
