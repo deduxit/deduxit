@@ -1,4 +1,4 @@
-$ deduxit prove --logic intuitionistic --format rocq '(a /\ b) -> c |- a -> b -> c'
+$ deduxit prove --method ljt --logic intuitionistic --format rocq '(a /\ b) -> c |- a -> b -> c'
 --- status 0
 --- stdout
 (* valid (intuitionistic logic by LJT) *)

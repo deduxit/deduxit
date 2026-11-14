@@ -831,8 +831,7 @@ impl Shared {
         let gives_way = options.method.is_none();
         let start = Instant::now();
         let halt = || interrupted() || deadline.passed() || self.batch.passed();
-        let decided =
-            ordinary::decide_natively(method, sequent, options.logic, &plan.limits, |_| halt());
+        let decided = ordinary::decide_natively(options, sequent, &plan.limits, |_| halt());
         let ended = Ended {
             stop: self.stopped(deadline),
             elapsed: start.elapsed(),

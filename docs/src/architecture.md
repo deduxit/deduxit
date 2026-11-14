@@ -79,11 +79,12 @@ work done.
 
 Ordinary logic has an arena and a syntax of its own. It decides
 intuitionistic and minimal logic by LJT, a calculus whose search always
-ends, and every logic through an embedding: it translates the sequent
+ends, and by a SAT-based engine (behind the feature `sat`, the default),
+and every logic through an embedding: it translates the sequent
 into a linear one, searches that, and reads the linear proof back as a
 derivation of LK or LJ. A checker of its own checks that derivation by
-the rules of the logic. Behind the feature `sat`, a SAT-based engine
-decides classical, intuitionistic and minimal logic too. In classical
+the rules of the logic. The SAT-based engine decides classical logic
+too. In classical
 logic its evidence for a valid sequent is a clausal proof, which a
 checker of its own accepts: every step follows from the clauses before
 it by unit propagation, and the last is the empty clause.

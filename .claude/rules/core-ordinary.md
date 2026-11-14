@@ -162,17 +162,30 @@ translating into linear logic, and the linear proof read back as LK or LJ.
 - **Deciding** is `decide(&sequent, &ordinary::Options, &search::Options,
   &limits, stop)`, which the ordinary journey runs, by
   `Options::method()`: the method given, else the embedding when a
-  translation is given, else `Method::default_for(logic)`, LJT for
-  intuitionistic and minimal logic and the embedding for classical
-  logic, chosen by the ILTP run of `plan/reports/54-ljt-engine.md`
-  (`bench/defaults/ljt-iltp.csv`). With no method given, LJT gives way
-  to the embedding where `gives_way` says so: an unknown at a bound
+  translation is given, else `Method::default_for(logic)`: the SAT
+  solver for intuitionistic and minimal logic (LJT without the feature
+  `sat`) and the embedding for classical logic, chosen by the ILTP runs
+  of `plan/reports/54s-sat-engines.md` (`bench/defaults/sat-iltp.csv`,
+  `sat-default.csv`; before them LJT, `ljt-iltp.csv`). The classical
+  default stays the embedding although the solver decides 254 of 274
+  problems to its 157: the solver's "valid" has no derivation of LK and
+  its "not valid" no certificate, which the default's output draws (the
+  author's question). The default's SAT solver is
+  `sat::decide_preferring_ljt`: the search's verdict, LJT's derivation
+  where LJT gives one (smaller, its terms with fewer redexes), else the
+  one read off; LJT never runs past the derivation it was asked for, and
+  where it is stopped the derivation read off stands, so no verdict is
+  lost (on ILTP LJT gave one or was refused at the derivation bound
+  within 0.3 s on every valid problem). With no method given, the
+  method gives way to the embedding where `gives_way` (on any method's
+  `Outcome`) says so: an unknown at a bound
   other than `Reason::Stopped`, or an `Error::Refused` other than the stop, never an unsupported input (the
-  derivation past `derivation_bytes`, which SYJ201+1.004 and .005 reach
-  in milliseconds and the embedding decides at 2 s). The outcome's
+  derivation past `derivation_bytes`). The outcome's
   `search` (`Search::Embedding` with the translation and the image's
-  outcome, or `Search::Ljt` with LJT's statistics) says which decided,
-  and its JSON writes `engine` `ljt` and no `translation` for LJT. The
+  outcome, `Search::Ljt` with LJT's statistics, `Search::Sat` with the
+  solver's, LJT's among them where it gave the derivation) says which
+  decided, and its JSON writes `engine` `ljt` or `sat` and no
+  `translation` for them. The
   command still runs the steps itself (its race and its output, the
   dispatch by `gives_way` in `cli/src/ordinary.rs`), with its defaults
   (no copy bound, the time limit), affine classical mode for `Affine`,

@@ -159,9 +159,10 @@ pub fn gives_way(decided: &Result<Outcome, Error>) -> bool {
 /// the derivation of LK or LJ back and checks it, under the same limits
 /// and stop; by LJT it is [`ljt::decide`] and by the SAT solver
 /// `sat::decide`, which read no `search` option. When the method is the
-/// logic's default (no method and no translation given) and it
-/// [`gives_way`], the embedding decides the
-/// sequent in its place.
+/// logic's default (no method and no translation given), the SAT solver
+/// takes LJT's derivation where LJT gives one
+/// (`sat::decide_preferring_ljt`), and where the method [`gives_way`]
+/// the embedding decides the sequent in its place.
 ///
 /// # Errors
 ///
@@ -203,6 +204,12 @@ pub fn decide(
     let decided = match options.method() {
         Method::Embedding => None,
         Method::Ljt => Some(ljt::decide(sequent, logic, limits, &mut stop).map(Outcome::from)),
+        // The default prefers LJT's derivation, the method named the one
+        // read off the search.
+        #[cfg(feature = "sat")]
+        Method::Sat if options.method.is_none() => Some(
+            super::sat::decide_preferring_ljt(sequent, logic, limits, &mut stop).map(Outcome::from),
+        ),
         #[cfg(feature = "sat")]
         Method::Sat => {
             Some(super::sat::decide(sequent, logic, limits, &mut stop).map(Outcome::from))

@@ -12,21 +12,23 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### What breaks, and what to do instead
 
-- **`prove --logic intuitionistic` and `--logic minimal` decide by LJT
-  by default**, Dyckhoff's calculus, whose search always ends. The
-  verdict line reads `valid (intuitionistic logic by LJT)`, `--stats`
-  prints LJT's counters, and `--format json` writes the outcome of the
+- **`prove --logic intuitionistic` and `--logic minimal` decide by a
+  SAT solver by default**, whose search always ends, with the derivation
+  of LJ that Dyckhoff's calculus LJT gives where it gives one. The
+  verdict line reads `valid (intuitionistic logic by the SAT solver)` or
+  `not valid (…): a checked countermodel refutes it`, `--stats` prints
+  the solver's counters, and `--format json` writes the outcome of the
   ordinary sequent (`verdict` `valid`, `not_valid` or `unknown`, `engine`
-  `ljt`) in place of the translated sequent's. Where a bound other than
-  the time limit stops LJT, the embedding decides as before. For the old
-  behaviour, give `--method embedding` or `--translation`.
+  `sat`) in place of the translated sequent's. Where a bound other than
+  the time limit stops the solver, the embedding decides as before. For
+  the old behaviour, give `--method embedding` or `--translation`.
 - **`ordinary::Outcome` says how the sequent was searched**, in its new
   field `search` (`ordinary::Search::Embedding { translation, linear }`,
   `ordinary::Search::Ljt` or, with the feature `sat`,
   `ordinary::Search::Sat`), which replaces the fields `translation`
   and `linear`. `ordinary::decide` decides intuitionistic and minimal
-  logic by LJT unless `ordinary::Options` names a translation or a
-  method.
+  logic by the SAT solver (LJT without the feature `sat`) unless
+  `ordinary::Options` names a translation or a method.
 - **`ordinary::Verdict::Valid` holds the evidence**, an
   `ordinary::Evidence`: `Evidence::Derivation` with the checked
   derivation of LK or LJ, as before, or, with the feature `sat`,
@@ -111,7 +113,12 @@ unchanged.
   valid" comes with a model that `Model::refutes` checks: a finite
   Kripke model (`sat::Model`), of one world in classical logic. The
   command offers it as `--method sat` (the key `ordinary.method`), with
-  its counters under `--stats`, and the harness as the engine `sat`.
+  its counters under `--stats`, and the harness as the engine `sat`. It
+  is the default for intuitionistic and minimal logic, where on the ILTP
+  library's 274 problems at 2 s it decides 252 in each logic, LJT 200,
+  and takes LJT's derivation where LJT gives one
+  (`ordinary::sat::decide_preferring_ljt`). The embedding stays the
+  default for classical logic, for its derivations and certificates.
 - **The harness runs ordinary logic**: `deduxit-bench run --tptp PATH
   --logics …` with the engines `embedding`, `ljt` and `auto`, and
   `summary` lists the problems two configurations decide differently.

@@ -119,16 +119,20 @@ pub(crate) const fn by(method: Method) -> &'static str {
     }
 }
 
-/// Decides an ordinary sequent by LJT or the SAT solver, as `method`
-/// says, under `stop`.
+/// Decides an ordinary sequent by LJT or the SAT solver, as the options'
+/// method says, under `stop`. With no method given, the SAT solver takes
+/// LJT's derivation where LJT gives one, as the library's default does.
 pub(crate) fn decide_natively(
-    method: Method,
+    options: &ordinary::Options,
     sequent: &ordinary::Sequent,
-    logic: Logic,
     limits: &deduxit::Limits,
     stop: impl FnMut(deduxit::Progress) -> bool,
 ) -> Result<ordinary::Outcome, Error> {
-    match method {
+    let logic = options.logic;
+    match options.method() {
+        Method::Sat if options.method.is_none() => {
+            sat::decide_preferring_ljt(sequent, logic, limits, stop).map(ordinary::Outcome::from)
+        }
         Method::Sat => sat::decide(sequent, logic, limits, stop).map(ordinary::Outcome::from),
         _ => ljt::decide(sequent, logic, limits, stop).map(ordinary::Outcome::from),
     }
@@ -172,7 +176,7 @@ pub(crate) fn by_native(
         let start = Instant::now();
         let notice = Notice::start(NOTICE_AFTER, notice_line(deadline.limit(), false));
         let halt = || interrupted() || deadline.passed();
-        let decided = decide_natively(method, sequent, options.logic, &limits, |_| halt());
+        let decided = decide_natively(options, sequent, &limits, |_| halt());
         drop(notice);
         let ended = Ended {
             stop: stopped(deadline),
@@ -319,6 +323,11 @@ pub(crate) fn native_statistics(outcome: &ordinary::Outcome, elapsed: Duration) 
     };
     for (label, value) in counters {
         writeln!(lines, "{label}: {value}").expect("a string takes it");
+    }
+    // LJT's search, where it gave the SAT solver's derivation.
+    if let ordinary::Search::Sat(sat::Statistics { ljt: Some(s), .. }) = &outcome.search {
+        writeln!(lines, "derivation by LJT: {} sequents expanded", s.sequents)
+            .expect("a string takes it");
     }
     write!(lines, "time: {elapsed:.2?}").expect("a string takes it");
     lines

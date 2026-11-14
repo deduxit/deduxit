@@ -327,16 +327,24 @@ pub(crate) fn read_proof(text: &str, limits: &Limits) -> Result<Proof> {
                 verdict: Option<String>,
                 /// The ordinary logic of an ordinary sequent's outcome.
                 logic: Option<String>,
+                /// The engine, `ljt` or `sat` for an ordinary sequent not
+                /// decided through its image.
+                engine: Option<String>,
             }
             let outcome = serde_json::from_str::<Outcome>(text).ok();
             if let Some(Outcome {
                 verdict,
                 logic: Some(logic),
+                engine,
             }) = &outcome
             {
+                let by = match engine.as_deref() {
+                    Some("sat") => "the SAT solver",
+                    _ => "LJT",
+                };
                 match verdict.as_deref() {
                     Some("valid") => bail!(
-                        "the file is the outcome of a sequent of {logic} logic decided by LJT, \
+                        "the file is the outcome of a sequent of {logic} logic decided by {by}, \
                          and check reads proofs of linear logic: `prove --logic {logic} --method \
                          embedding --format json` writes one, the proof of its image"
                     ),

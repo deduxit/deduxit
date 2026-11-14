@@ -352,12 +352,17 @@ impl Method {
 
     /// Returns the method the logic is decided with by default, chosen by
     /// a run of the ILTP library's propositional problems: the embedding
-    /// for classical logic, LJT for intuitionistic and minimal logic,
-    /// which by default gives way to the embedding where a bound stops it
+    /// for classical logic, whose derivations of LK and certificates the
+    /// SAT solver does not give, and the SAT solver for intuitionistic and
+    /// minimal logic (LJT without the cargo feature `sat`), which by
+    /// default gives way to the embedding where a bound stops it
     /// ([`gives_way`]).
     pub const fn default_for(logic: Logic) -> Self {
         match logic {
             Logic::Classical => Self::Embedding,
+            #[cfg(feature = "sat")]
+            Logic::Intuitionistic | Logic::Minimal => Self::Sat,
+            #[cfg(not(feature = "sat"))]
             Logic::Intuitionistic | Logic::Minimal => Self::Ljt,
         }
     }

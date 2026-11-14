@@ -1,7 +1,7 @@
 $ deduxit prove --logic minimal 'a, a -> b |- b'
 --- status 0
 --- stdout
-valid (minimal logic by LJT)
+valid (minimal logic by the SAT solver)
 ───── ax   ──────── ax
 a ⊢ a      b, a ⊢ b
 ─────────────────── →L

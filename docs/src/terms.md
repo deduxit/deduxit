@@ -140,13 +140,13 @@ pair of both implications:
 
 ```console
 $ deduxit prove --logic intuitionistic --lambda --tree never '|- (a -> b) -> (b -> c) -> a -> c'
-valid (intuitionistic logic by LJT)
+valid (intuitionistic logic by the SAT solver)
 lambda-term: ⊢ λf. λg. λx. g (f x) : (a → b) → ((b → c) → (a → c))
 $ deduxit prove --logic intuitionistic --lambda --tree never '~(a \/ b) |- ~a /\ ~b'
-valid (intuitionistic logic by LJT)
+valid (intuitionistic logic by the SAT solver)
 lambda-term: f : (a ∨ b) → ⊥ ⊢ ⟨λx. f inl(x), λy. f inr(y)⟩ : (a → ⊥) ∧ (b → ⊥)
 $ deduxit prove --logic minimal --lambda --tree never '|- a -> ~~a'
-valid (minimal logic by LJT)
+valid (minimal logic by the SAT solver)
 lambda-term: ⊢ λx. λf. f x : a → ((a → ⊥) → ⊥)
 ```
 

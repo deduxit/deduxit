@@ -299,15 +299,18 @@ pub(crate) struct ProveArgs {
     #[command(flatten)]
     pub(crate) logic: LogicArgs,
     /// With --logic, how to decide the sequent: through its embedding into
-    /// linear logic, or by LJT, whose search always ends (ordinary.method)
+    /// linear logic, by LJT or by a SAT solver (ordinary.method)
     ///
-    /// LJT is Dyckhoff's calculus for intuitionistic and minimal logic. By
-    /// default classical logic goes through the embedding, and
-    /// intuitionistic and minimal logic by LJT. --translation and --linear
+    /// By default classical logic goes through the embedding, which gives
+    /// derivations of LK and certificates, and intuitionistic and minimal
+    /// logic by the SAT solver, with LJT's derivation where LJT gives one.
+    /// LJT is Dyckhoff's calculus for intuitionistic and minimal logic. The
+    /// SAT solver decides every logic; a valid classical sequent gets a
+    /// checked clausal proof and no derivation. --translation and --linear
     /// name the embedding, so either of them alone decides through it.
-    /// Under LJT, --stats counts the sequents it expanded, its memo and the
-    /// sequents an earlier failure refuted, and --format json writes the
-    /// outcome of the ordinary sequent, with the engine "ljt".
+    /// Under LJT or the SAT solver, --stats prints the method's counters and
+    /// --format json writes the outcome of the ordinary sequent, with the
+    /// engine "ljt" or "sat".
     #[arg(help_heading = LOGIC, long, value_enum, value_name = "METHOD", requires = "logic")]
     pub(crate) method: Option<MethodArg>,
     /// The sequent.
@@ -1123,7 +1126,7 @@ pub(crate) struct LogicArgs {
     /// writes them. `prove` decides it and shows the proof as a derivation
     /// of LK (classical) or LJ (intuitionistic, minimal), checked by the
     /// rules of the logic before it is shown. By default intuitionistic and
-    /// minimal logic are decided by LJT, whose search always ends, and
+    /// minimal logic are decided by a SAT solver, whose search always ends, and
     /// classical logic through its translation into affine MALL, with no
     /// copy bound; --method chooses. The translated sequent is called the
     /// image. Through the translation into ILL (--method embedding),

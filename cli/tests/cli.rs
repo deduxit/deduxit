@@ -2440,8 +2440,8 @@ fn a_batch_s_records_names_and_files() {
 }
 
 /// `--logic` decides ordinary logic, intuitionistic and minimal logic by
-/// LJT and through the translation `--translation` or `--method
-/// embedding` names: the exit statuses are the verdicts', the derivation
+/// the SAT solver and through the translation `--translation` or
+/// `--method embedding` names: the exit statuses are the verdicts', the derivation
 /// is read back as LK or LJ, `--linear` shows the image's proof instead,
 /// a `.p` file is a TPTP problem, `seq print` prints the image, and the
 /// linear connectives, a translation into the wrong logic, LJT for
@@ -2461,7 +2461,7 @@ fn ordinary_logic() {
     let (status, out, _) = decide(&["--logic", "intuitionistic", "~~a -> a"]);
     assert_eq!(status, 1);
     assert!(
-        out.starts_with("not valid (intuitionistic logic by LJT)"),
+        out.starts_with("not valid (intuitionistic logic by the SAT solver)"),
         "{out}"
     );
     let (status, out, _) = decide(&[
@@ -2473,16 +2473,18 @@ fn ordinary_logic() {
     ]);
     assert_eq!(status, 1);
     assert!(out.starts_with("not valid (intuitionistic logic by the cbn translation into ILL"));
-    // `check` reads proofs of linear logic, and says so of LJT's outcome.
+    // `check` reads proofs of linear logic, and says so of the SAT
+    // solver's outcome.
     let (_, json, _) = decide(&["--logic", "intuitionistic", "--format", "json", "a |- a"]);
     let (status, _, err) = deduxit(&["check"], &json);
     assert_eq!(status, 2);
-    assert!(err.contains("decided by LJT"), "{err}");
+    assert!(err.contains("decided by the SAT solver"), "{err}");
     let (_, json, _) = decide(&["--logic", "intuitionistic", "--format", "json", "a |- b"]);
     let (status, _, err) = deduxit(&["check"], &json);
     assert_eq!(status, 2);
     assert!(err.contains("found not_valid: it holds no proof"), "{err}");
-    // By default LJT gives way to the embedding where a bound stops it.
+    // By default the SAT solver gives way to the embedding where a bound
+    // stops it.
     let (status, out, _) = decide(&[
         "--logic",
         "intuitionistic",
@@ -2499,7 +2501,8 @@ fn ordinary_logic() {
     let (status, out, _) = decide(&["--logic", "minimal", "--stats", "a, a -> b |- b"]);
     assert_eq!(status, 0);
     assert!(
-        out.starts_with("valid (minimal logic by LJT)") && out.contains("sequents expanded: "),
+        out.starts_with("valid (minimal logic by the SAT solver)")
+            && out.contains("derivation by LJT: "),
         "{out}"
     );
     let (status, _, _) = decide(&["--logic", "intuitionistic", "--quiet", "a |- b"]);

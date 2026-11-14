@@ -1,4 +1,4 @@
-$ deduxit prove --logic minimal --stats '(a /\ b) -> c |- a -> b -> c'
+$ deduxit prove --method ljt --logic minimal --stats '(a /\ b) -> c |- a -> b -> c'
 --- status 0
 --- stdout
 valid (minimal logic by LJT)

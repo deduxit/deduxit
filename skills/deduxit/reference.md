@@ -200,7 +200,7 @@ unfold to at most `--term-limit 50000000` first-order terms.
 | `--mix` | the Mix rule, which proves `⊢ Γ, Δ` from `⊢ Γ` and `⊢ Δ` |
 | `--cyclic` | cyclic linear logic, unit-free MLL in a fixed order (section 14) |
 | `--lambek` | the Lambek calculus, `--empty-antecedents` for L* (section 14) |
-| `--logic classical\|intuitionistic\|minimal` | ordinary propositional logic, by LJT for intuitionistic and minimal logic and through a translation into linear logic for classical logic (section 13) |
+| `--logic classical\|intuitionistic\|minimal` | ordinary propositional logic, by a SAT solver for intuitionistic and minimal logic and through a translation into linear logic for classical logic (section 13) |
 
 deduxit detects the fragment (MLL, MLL with units, ALL, MALL, MELL, LL,
 and IMLL to ILL in intuitionistic mode), and the fragment picks the
@@ -350,7 +350,7 @@ $ deduxit prove -i --lambda --tree never "|- a -o b -o a * b"
 provable (IMLL, intuitionistic, two-sided engine)
 lambda-term: ⊢ λx. λy. x ⊗ y : a ⊸ (b ⊸ (a ⊗ b))
 $ deduxit prove --logic intuitionistic --lambda --tree never "|- (a -> b) -> (b -> c) -> a -> c"
-valid (intuitionistic logic by LJT)
+valid (intuitionistic logic by the SAT solver)
 lambda-term: ⊢ λf. λg. λx. g (f x) : (a → b) → ((b → c) → (a → c))
 $ deduxit prove -i --lambda --tree never "a & b |- b & a"
 provable (IALL, intuitionistic, additive engine)
@@ -989,17 +989,18 @@ before it is shown.
 
 `--method` (`ordinary.method`) chooses how a sequent is decided.
 
-`ljt` is Dyckhoff's calculus LJT, the default for intuitionistic and
-minimal logic:
+The default for intuitionistic and minimal logic is `sat`, the SAT
+solver below, with LJT's derivation where LJT gives one (`--stats` then
+ends with `derivation by LJT: N sequents expanded`). Where another bound
+than the time limit stops it (a derivation past `--derivation-limit`,
+the memory), the default hands the sequent to the embedding, and the
+verdict line names the translation. A method named reports that bound
+instead (exit status 2 for a derivation it could not check).
+
+`ljt` is Dyckhoff's calculus LJT:
 
 - Its search always ends, so it answers `unknown` only at the time limit
-  or at a bound.
-- Where another bound stops it (a derivation past `--derivation-limit`,
-  the memory), the default hands the sequent to the embedding, and the
-  verdict line names the translation.
-- Named as `--method ljt`, it reports that bound instead (exit status 2
-  for a derivation it could not check). It refuses classical logic (exit
-  status 2).
+  or at a bound. It refuses classical logic (exit status 2).
 - `--stats` prints `sequents expanded`, `memo hits`, `memo entries` and
   `refuted by an earlier failure`.
 - Its derivations use LJ's cut, so their JSON is at wire level 9, their
@@ -1018,6 +1019,8 @@ proof back.
 - `seq print --logic` prints the image.
 
 `sat` is a SAT solver, for all three logics; its search always ends.
+Named, it reads its derivation of LJ off its search, which holds more
+cuts than LJT's.
 
 - `not valid` comes with a checked countermodel: a Kripke model in
   intuitionistic and minimal logic, an assignment in classical logic.
@@ -1050,7 +1053,7 @@ image's outcome, as without `--logic`, and `check` reads it.
 
 ```console
 $ deduxit prove --logic intuitionistic 'a \/ b -> b \/ a'
-valid (intuitionistic logic by LJT)
+valid (intuitionistic logic by the SAT solver)
   ───── ax        ───── ax
   a ⊢ a           b ⊢ b
 ───────── ∨R₂   ───────── ∨R₁
@@ -1301,12 +1304,15 @@ occurrences by id, and `describe(&forest)` names them by formula.
 
 - `ordinary::decide(&sequent, &options, &search, &limits, stop)` decides
   by `options.method()`. `ordinary::Options::method` is `None` by
-  default, which means LJT (`ordinary::Method::Ljt`) for intuitionistic
-  and minimal logic, and the embedding where a translation is given or
-  where LJT gives way (`ordinary::gives_way`).
+  default, which means the SAT solver (`ordinary::Method::Sat`, through
+  `ordinary::sat::decide_preferring_ljt`) for intuitionistic and minimal
+  logic and the embedding for classical logic, and the embedding where
+  a translation is given or where the SAT solver gives way
+  (`ordinary::gives_way`).
 - The `ordinary::Outcome` says which method ran, in `search`:
-  `ordinary::Search::Embedding` with the image's outcome, or
-  `ordinary::Search::Ljt` with LJT's statistics.
+  `ordinary::Search::Embedding` with the image's outcome,
+  `ordinary::Search::Ljt` with LJT's statistics, or
+  `ordinary::Search::Sat` with the solver's.
 - `ordinary::ljt::decide(&sequent, logic, &limits, stop)` is LJT alone.
   Its search always ends: it has no copy bound, so it answers `unknown`
   only at a bound or the stop. Its derivation is LJ's with cuts, checked

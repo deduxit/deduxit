@@ -156,11 +156,12 @@ in use.
 - [Ordinary logic](ordinary-logic.md) is classical, intuitionistic and
   minimal propositional logic, in a syntax of its own or read from TPTP
   problems.
-- By default intuitionistic and minimal logic are decided by LJT,
-  Dyckhoff's contraction-free calculus, whose search always ends. A run
-  of the ILTP library chose this default. Where a bound other than the
-  time limit stops LJT, the embedding below decides instead. LJT's proofs
-  become derivations of LJ with cuts.
+- By default intuitionistic and minimal logic are decided by a SAT
+  solver, below, with the derivation of LJT, Dyckhoff's contraction-free
+  calculus, where LJT gives one. Runs of the ILTP library chose this
+  default. Where a bound other than the time limit stops the solver,
+  the embedding below decides instead. LJT alone is `--method ljt`; its
+  proofs become derivations of LJ with cuts.
 - All three logics are decided through their embeddings into linear
   logic: classical logic into affine MALL; intuitionistic logic into ILL
   by Girard's call-by-name and call-by-value translations or the 0/1
@@ -180,8 +181,8 @@ in use.
   checked. A valid sequent comes with a checked derivation of LJ in
   intuitionistic and minimal logic, and in classical logic with the
   solver's clausal proof, which a checker of deduxit's own accepts; the
-  embedding gives its derivation of LK. The command offers it as
-  `--method sat`.
+  embedding, still the default of classical logic, gives its
+  derivation of LK. The command offers it as `--method sat`.
 
 ## Proofs as programs
 

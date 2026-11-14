@@ -329,6 +329,8 @@ const CASES: &[Case] = &[
         "ordinary-ljt-json",
         &[
             "prove",
+            "--method",
+            "ljt",
             "--logic",
             "intuitionistic",
             "--format",
@@ -340,6 +342,8 @@ const CASES: &[Case] = &[
         "ordinary-ljt-stats",
         &[
             "prove",
+            "--method",
+            "ljt",
             "--logic",
             "minimal",
             "--stats",
@@ -350,6 +354,8 @@ const CASES: &[Case] = &[
         "ordinary-ljt-rocq",
         &[
             "prove",
+            "--method",
+            "ljt",
             "--logic",
             "intuitionistic",
             "--format",
@@ -380,6 +386,16 @@ const CASES: &[Case] = &[
             "--format",
             "json",
             "a -> b, b |- a",
+        ],
+    ),
+    call(
+        "ordinary-default-stats",
+        &[
+            "prove",
+            "--logic",
+            "intuitionistic",
+            "--stats",
+            "a /\\ b -> b /\\ a",
         ],
     ),
     call(

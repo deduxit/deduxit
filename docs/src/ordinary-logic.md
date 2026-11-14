@@ -22,7 +22,7 @@ valid (classical logic by the affine translation into affine MALL, focus engine)
  ─────────────────── →R
  ⊢ ((a → b) → a) → a
 $ deduxit prove --logic intuitionistic 'a \/ b -> b \/ a'
-valid (intuitionistic logic by LJT)
+valid (intuitionistic logic by the SAT solver)
   ───── ax        ───── ax
   a ⊢ a           b ⊢ b
 ───────── ∨R₂   ───────── ∨R₁
@@ -32,7 +32,7 @@ a ⊢ b ∨ a       b ⊢ b ∨ a
    ─────────────────── →R
    ⊢ (a ∨ b) → (b ∨ a)
 $ deduxit prove --logic intuitionistic '~~a -> a'
-not valid (intuitionistic logic by LJT): the search was exhaustive
+not valid (intuitionistic logic by the SAT solver): a checked countermodel refutes it
 ```
 
 ## Read the answer
@@ -74,24 +74,26 @@ sequent with nothing on the left.
 ## How a sequent is decided
 
 `--method` chooses how (the settings key `ordinary.method`):
-- `ljt` is Dyckhoff's calculus LJT, for intuitionistic and minimal logic.
-  Its search always ends, so every such sequent is answered `valid` or
-  `not valid` unless the time limit or the memory runs out first. It is
-  the default for both logics.
+- `sat` is a SAT solver, for all three logics, and the default for
+  intuitionistic and minimal logic. Its search always ends. A sequent
+  that is not valid comes with a countermodel, which is checked: a
+  Kripke model in intuitionistic and minimal logic, an assignment of the
+  atoms in classical logic. A valid sequent comes with a derivation of
+  LJ in intuitionistic and minimal logic. By default that derivation is
+  LJT's, which is smaller, and where LJT gives none, the one read off
+  the solver's search; `--method sat` always reads it off the search.
+  In classical logic a valid sequent comes with the solver's clausal
+  proof: every step follows from the clauses of the sequent's negation
+  and the steps before it by unit propagation, and the last step is the
+  empty clause. A checker of deduxit's own accepts it before the verdict
+  is given. A clausal proof is no derivation, so nothing is drawn.
 - `embedding` translates the sequent into linear logic, searches the
   image there and reads the proof back as one of LK or LJ. It decides
-  all three logics and is the default for classical logic.
-- `sat` is a SAT solver, for all three logics. Its search always ends.
-  A sequent that is not valid comes with a countermodel, which is
-  checked: a Kripke model in intuitionistic and minimal logic, an
-  assignment of the atoms in classical logic. A valid sequent comes with
-  a derivation of LJ in intuitionistic and minimal logic. In classical
-  logic it comes with the solver's clausal proof: every step follows
-  from the clauses of the sequent's negation and the steps before it by
-  unit propagation, and the last step is the empty clause. A checker of
-  deduxit's own accepts it before the verdict is given. A clausal proof
-  is no derivation, so nothing is drawn; `--method embedding` gives the
-  derivation of LK.
+  all three logics and is the default for classical logic, where it
+  gives the derivation of LK and the certificates that the SAT solver
+  does not give.
+- `ljt` is Dyckhoff's calculus LJT, for intuitionistic and minimal logic.
+  Its search always ends too.
 
 ```console
 $ deduxit prove --logic classical --method sat -q '((a -> b) -> a) -> a'
@@ -101,28 +103,35 @@ not valid (intuitionistic logic by the SAT solver): a checked countermodel refut
 exit 1
 ```
 
-On the ILTP library's 274 problems, with 2 seconds each, LJT decides 200
-in intuitionistic logic and 200 in minimal logic, the embedding 188 in
-each. LJT is the faster on all but two of the problems both decide,
-which take under a millisecond either way.
+On the ILTP library's 274 problems, with 2 seconds each, the SAT solver
+decides 252 in intuitionistic logic and 252 in minimal logic, LJT 200 and
+the embedding 188 in each. In classical logic the SAT solver decides 254
+and the embedding 157. The SAT solver decides every problem the others
+decide. The 186 problems all three decide in intuitionistic logic take
+it 26 ms in all, LJT 318 ms and the embedding 11.7 s ([the
+measurement](results/iltp-2026-11-14.md)).
 
-A derivation from LJT can be far larger than the search behind it. Where
-LJT stops at a bound other than the time limit, such as a derivation
-past `--derivation-limit`, the default hands the sequent to the
-embedding, and the verdict line names the translation. `--method ljt`
-reports the bound instead. `--translation` and `--linear` name the
-embedding, so either of them alone chooses it. Through the embedding, a
-`not valid` says that the translated sequent is unprovable:
+Where the SAT solver stops at a bound other than the time limit, such
+as a derivation past `--derivation-limit`, the default hands the
+sequent to the embedding, and the verdict line names the translation.
+`--method sat` reports the bound instead. `--translation` and `--linear`
+name the embedding, so either of them alone chooses it. Through the
+embedding, a `not valid` says that the translated sequent is
+unprovable:
 
 ```console
 $ deduxit prove --logic intuitionistic --method embedding -q '~~a -> a'
 not valid (intuitionistic logic by the cbn translation into ILL, two-sided engine): the translated sequent is unprovable: the search was exhaustive
 $ deduxit prove --logic minimal --stats -q 'a, a -> b |- b'
-valid (minimal logic by LJT)
-sequents expanded: 2
-memo hits: 0
-memo entries: 2
-refuted by an earlier failure: 0
+valid (minimal logic by the SAT solver)
+solver calls: 1
+conflicts: 0
+lemmas: 0
+worlds: 0
+facts derived: 3
+clauses: 0
+proof steps: 0
+derivation by LJT: 2 sequents expanded
 time: …
 ```
 
@@ -222,7 +231,7 @@ directory of them.
 ```console
 $ echo 'fof(pel1, conjecture, (p => q) <=> (~ q => ~ p)).' > pel1.p
 $ deduxit prove --logic intuitionistic --quiet --file pel1.p
-not valid (intuitionistic logic by LJT): the search was exhaustive
+not valid (intuitionistic logic by the SAT solver): a checked countermodel refutes it
 $ deduxit prove --logic classical --quiet --file pel1.p
 valid (classical logic by the affine translation into affine MALL, focus engine)
 ```
@@ -236,7 +245,7 @@ valid sequent, the `derivation`:
 
 ```console
 $ deduxit prove --logic intuitionistic --format json '~~a -> a'
-{"version":8,"deduxit":"0.3.0","verdict":"not_valid","logic":"intuitionistic","engine":"ljt","statistics":{"sequents":5,"memo_hits":0,"memo_entries":5,"subsumed":0}}
+{"version":8,"deduxit":"0.3.0","verdict":"not_valid","logic":"intuitionistic","engine":"sat","statistics":{"calls":4,"conflicts":0,"lemmas":0,"worlds":4,"facts":0,"clauses":0,"proof_steps":0,"ljt":null}}
 ```
 
 With `--method sat` the `engine` is `sat` and the `statistics` are the

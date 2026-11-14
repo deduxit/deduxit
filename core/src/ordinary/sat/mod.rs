@@ -116,8 +116,9 @@ pub struct Statistics {
     /// clauses have no model, which the checker accepted: the clauses the
     /// solver learnt and deleted, and the empty clause.
     pub proof_steps: u64,
-    /// LJT's statistics where its search gave the derivation, the
-    /// read-back having been refused by a bound.
+    /// LJT's statistics where its search gave the derivation: the
+    /// read-back was refused by a bound, or the logic's default prefers
+    /// LJT's derivation ([`decide_preferring_ljt`]).
     pub ljt: Option<ljt::Statistics>,
 }
 
@@ -180,19 +181,66 @@ pub fn decide(
     limits: &Limits,
     stop: impl FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
-    run(sequent, logic, limits, stop, MOST_VARIABLES, true)
+    run(
+        sequent,
+        logic,
+        limits,
+        stop,
+        MOST_VARIABLES,
+        Derive::ReadOff,
+    )
+}
+
+/// Decides a sequent as [`decide`] does, but takes a valid sequent's
+/// derivation of LJ from [`ljt::decide`] where LJT gives one within the
+/// limits and before the stop, and otherwise the one read off the search.
+/// LJT's derivations are smaller, and their lambda-terms have fewer
+/// redexes; the verdict is the search's either way. This is how the
+/// logic's default decides intuitionistic and minimal logic
+/// ([`decide`](super::decide()) with no method given); in classical logic
+/// it is [`decide`].
+///
+/// # Errors
+///
+/// As [`decide`], and [`Error::ReadBack`] where LJT refutes a sequent the
+/// search proved, a defect.
+pub fn decide_preferring_ljt(
+    sequent: &Sequent,
+    logic: Logic,
+    limits: &Limits,
+    stop: impl FnMut(Progress) -> bool,
+) -> Result<Outcome, Error> {
+    run(
+        sequent,
+        logic,
+        limits,
+        stop,
+        MOST_VARIABLES,
+        Derive::PreferLjt,
+    )
+}
+
+/// Where the derivation of a valid sequent comes from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Derive {
+    /// Read off the search, and by LJT where a bound refuses that.
+    ReadOff,
+    /// By LJT alone, which the tests ask for.
+    #[cfg(test)]
+    Ljt,
+    /// By LJT, and read off the search where LJT gives none.
+    PreferLjt,
 }
 
 /// [`decide`] with at most `most` variables, which the tests lower, and
-/// the derivation read off the search only if `read_off`, else by LJT,
-/// which the tests ask for.
+/// the derivation from where `derive` says.
 fn run(
     sequent: &Sequent,
     logic: Logic,
     limits: &Limits,
     mut stop: impl FnMut(Progress) -> bool,
     most: u32,
-    read_off: bool,
+    derive: Derive,
 ) -> Result<Outcome, Error> {
     if logic == Logic::Classical {
         return classical::decide(sequent, limits, stop, most);
@@ -278,7 +326,7 @@ fn run(
                 limit_bytes: 0,
                 least_bytes: None,
             });
-            let read = if read_off {
+            let read = if matches!(derive, Derive::ReadOff | Derive::PreferLjt) {
                 read_back::derivation(
                     formulas,
                     logic,
@@ -306,6 +354,18 @@ fn run(
                 Err(error) => return Err(error),
             };
             derivation.check(limits, &mut stop)?;
+            let derivation = if derive == Derive::PreferLjt && statistics.ljt.is_none() {
+                prefer_ljt(
+                    sequent,
+                    logic,
+                    limits,
+                    &mut stop,
+                    derivation,
+                    &mut statistics,
+                )?
+            } else {
+                derivation
+            };
             (
                 Verdict::Valid(Evidence::Derivation(Box::new(derivation))),
                 None,
@@ -318,6 +378,36 @@ fn run(
         statistics,
         model,
     })
+}
+
+/// Returns LJT's derivation of a sequent the search proved and whose
+/// `derivation` it read off and checked, with LJT's statistics in
+/// `statistics`, or that derivation where LJT gives none within the
+/// limits and before the stop.
+fn prefer_ljt(
+    sequent: &Sequent,
+    logic: Logic,
+    limits: &Limits,
+    stop: &mut impl FnMut(Progress) -> bool,
+    derivation: Derivation,
+    statistics: &mut Statistics,
+) -> Result<Derivation, Error> {
+    let Ok(outcome) = ljt::decide(sequent, logic, limits, &mut *stop) else {
+        return Ok(derivation);
+    };
+    match outcome.verdict {
+        Verdict::Valid(Evidence::Derivation(ljt)) => {
+            statistics.ljt = Some(outcome.statistics);
+            Ok(*ljt)
+        }
+        Verdict::NotValid => Err(Error::ReadBack {
+            calculus: logic.calculus(),
+            reason: "LJT refutes a sequent the SAT search proved".to_owned(),
+        }),
+        // LJT gives a derivation; a bound or the stop leaves the one read
+        // off the search.
+        Verdict::Valid(Evidence::Clausal(_)) | Verdict::Unknown(_) => Ok(derivation),
+    }
 }
 
 /// Returns LJT's derivation of a sequent the search proved, and its
@@ -1021,15 +1111,30 @@ mod tests {
             Verdict::Unknown(Reason::MemoryLimit { .. })
         ));
         // Five formulas and `⊥` need six variables.
-        let outcome = run(&sequent, logic, &Limits::default(), |_| false, 5, true).unwrap();
+        let outcome = run(
+            &sequent,
+            logic,
+            &Limits::default(),
+            |_| false,
+            5,
+            Derive::ReadOff,
+        )
+        .unwrap();
         assert!(matches!(
             outcome.verdict,
             Verdict::Unknown(Reason::IndexLimit)
         ));
         assert!(matches!(
-            run(&sequent, logic, &Limits::default(), |_| false, 6, true)
-                .unwrap()
-                .verdict,
+            run(
+                &sequent,
+                logic,
+                &Limits::default(),
+                |_| false,
+                6,
+                Derive::ReadOff
+            )
+            .unwrap()
+            .verdict,
             Verdict::NotValid
         ));
         let sequent: Sequent = "a, b, c |- a /\\ (b /\\ c)".parse().unwrap();
@@ -1140,7 +1245,7 @@ mod tests {
             &Limits::default(),
             |_| false,
             MOST_VARIABLES,
-            false,
+            Derive::Ljt,
         );
         let outcome = outcome.unwrap();
         assert!(matches!(outcome.verdict, Verdict::Valid(_)), "{outcome:?}");
@@ -1159,7 +1264,7 @@ mod tests {
             &Limits::default(),
             counted,
             MOST_VARIABLES,
-            true,
+            Derive::ReadOff,
         )
         .unwrap();
         let mut asked = 0;
@@ -1173,7 +1278,7 @@ mod tests {
             &Limits::default(),
             ljt,
             MOST_VARIABLES,
-            false,
+            Derive::Ljt,
         );
         assert!(
             matches!(stopped, Err(Error::Refused(Refusal::Stopped { .. }))),

@@ -146,7 +146,9 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `--linear` beside an explicit LJT or SAT solver, exit 2): `prove` reads the
   ordinary sequent first (`io::ordinary`), and where
   `Options::method()` is not the embedding `by_native` decides it by
-  `decide_natively` (LJT or the SAT solver) on the large stack
+  `decide_natively` (LJT, the SAT solver, or with no method given the
+  library's `sat::decide_preferring_ljt`, as `ordinary::decide`'s
+  default) on the large stack
   under the deadline and Ctrl-C and writes the verdict line
   (`native_verdict_line`, the method named by `by`: `valid (L logic by
   LJT)`, `not valid (…): the search was exhaustive`, for the SAT solver

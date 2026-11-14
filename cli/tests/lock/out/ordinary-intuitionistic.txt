@@ -1,5 +1,5 @@
 $ deduxit prove --logic intuitionistic 'a \/ ~a'
 --- status 1
 --- stdout
-not valid (intuitionistic logic by LJT): the search was exhaustive
+not valid (intuitionistic logic by the SAT solver): a checked countermodel refutes it
 --- stderr
