@@ -751,6 +751,12 @@ impl Style {
     pub fn with_net_look(self, net_look: NetLook) -> Self {
         Self { net_look, ..self }
     }
+
+    /// Returns the style with another [`lambda`](Self::lambda).
+    #[must_use]
+    pub fn with_lambda(self, lambda: Option<crate::lambda::Options>) -> Self {
+        Self { lambda, ..self }
+    }
 }
 
 impl Style {

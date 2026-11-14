@@ -96,6 +96,8 @@ unchanged.
   returns the new `Error::FamilyIndex` (code `family_index`), where it
   returned an instance whose expected verdict could be wrong. `deduxit-bench
   one --problem family:NAME:SIZE:INDEX` refuses it too.
+- **`with_lambda`** on `export::latex::Options`, `export::typst::Options`
+  and `export::svg::Style`, as every other field has its `with_*`.
 - **Errors show the formula**: `ShapeError::Formula` carries the
   formula's text, so `prove` in an intuitionistic mode names the
   subformula that has no intuitionistic reading.

@@ -432,6 +432,12 @@ impl Options {
     pub fn with_stroke(self, stroke: Length) -> Self {
         Self { stroke, ..self }
     }
+
+    /// Returns the options with another [`lambda`](Self::lambda).
+    #[must_use]
+    pub fn with_lambda(self, lambda: Option<crate::lambda::Options>) -> Self {
+        Self { lambda, ..self }
+    }
 }
 
 /// Writes a rule label's markup in math mode: symbols as their

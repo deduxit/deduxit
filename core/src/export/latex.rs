@@ -364,6 +364,12 @@ impl Options {
     pub fn with_preamble(self, preamble: Option<String>) -> Self {
         Self { preamble, ..self }
     }
+
+    /// Returns the options with another [`lambda`](Self::lambda).
+    #[must_use]
+    pub fn with_lambda(self, lambda: Option<crate::lambda::Options>) -> Self {
+        Self { lambda, ..self }
+    }
 }
 
 /// Writes a rule label's markup in math mode: symbols as the
