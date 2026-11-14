@@ -892,8 +892,11 @@ serde_json, which the CLI and the core's tests already have.
   SAT solver the default of intuitionistic and minimal logic: the same
   problems, limit and cores with `--engines embedding,ljt,sat`, all
   three logics (8 minutes); `defaults/sat-default.csv` the same with
-  `auto` beside them, the new default's dispatch, in one build. The
-  tables are in step 54s's report.
+  `auto` beside them, the new default's dispatch, in one build;
+  `defaults/sat-classical.csv` classical logic alone with `--engines
+  embedding,sat,auto` (3 minutes), the run that made the SAT solver the
+  classical default with the embedding's evidence kept. The tables are
+  in step 54s's report.
 - **`defaults/`** holds the rows that chose the command's defaults (the
   report of that work has the tables): the default that restarted the
   search on the pool (`restart-copies-10.csv`, the 1 003 problems of the

@@ -106,7 +106,9 @@ On the ILTP library's 274 problems, with 2 seconds each, the SAT solver
 decides 252 in intuitionistic logic and 253 in minimal logic, LJT 200 and
 the embedding 188 in each. In classical logic the SAT solver decides 254
 and the embedding 157. The SAT solver decides every problem the others
-decide. The 186 problems all three decide in intuitionistic logic take
+decide. The classical default decides the same 254, and gives the
+embedding's derivation of LK for the 124 whose derivation the embedding
+builds within 2 seconds. The 186 problems all three decide in intuitionistic logic take
 it 26 ms in all, LJT 313 ms and the embedding 11.6 s ([the
 measurement](results/iltp-2026-11-14.md)).
 
