@@ -4,6 +4,7 @@
 use crate::argument_parsing::{Format, ProveArgs};
 use crate::io;
 use crate::limit::{Deadline, Notice};
+use crate::ordinary::{Embedded, Native};
 use crate::settings::{Given, Threads, time_limit};
 use crate::show::{
     Show, Shown, derivation, disproof_into, every_steps, lambda_json, lambda_line, linear_term,
@@ -170,6 +171,22 @@ pub(crate) fn unread(limit: Duration) -> String {
     format!("unknown: the time limit of {limit:?} was reached while the sequent was read")
 }
 
+/// Returns the line of an ordinary sequent the time limit passed on while
+/// the embedding translated it into linear logic, after the method that
+/// gave way to the embedding, where one did, said why.
+pub(crate) fn untranslated(limit: Duration, gave_way: Option<&str>) -> String {
+    match gave_way {
+        Some(why) => format!(
+            "unknown: {why}; the embedding took over, and the time limit of {limit:?} was \
+             reached while it translated the sequent"
+        ),
+        None => format!(
+            "unknown: the time limit of {limit:?} was reached while the sequent was translated \
+             into linear logic"
+        ),
+    }
+}
+
 /// Returns a search error with formulas where the library's message has
 /// occurrence ids.
 pub(crate) fn describe(error: Error, sequent: &Sequent) -> anyhow::Error {
@@ -190,13 +207,12 @@ pub(crate) fn describe(error: Error, sequent: &Sequent) -> anyhow::Error {
 /// engine, since nothing is known of the sequent. The line is the output,
 /// as a comment of the format; JSON has no form for it, so there it goes
 /// to standard error.
-fn unread_into(args: &ProveArgs, limit: Duration) -> Result<Status> {
-    let line = unread(limit);
+fn unread_into(args: &ProveArgs, line: &str) -> Result<Status> {
     // A file holds a derivation or nothing, and JSON has no form for this.
     match (args.output.format(), &args.output.output) {
         (Format::Json, _) | (_, Some(_)) => eprintln!("{line}"),
         (format, None) if format.is_binary() => eprintln!("{line}"),
-        (format, None) => io::write(None, &note(format, &line))?,
+        (format, None) => io::write(None, &note(format, line))?,
     }
     Ok(Status::Unknown)
 }
@@ -230,26 +246,37 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
     let format = args.output.format();
     // Ordinary logic is read first: LJT or the SAT solver decides it, or
     // by default hands it to the embedding where a bound stopped it.
+    let (mut gave_way, mut solved) = (None, None);
     let ordinary = match ordinary {
         Some(options) => {
             crate::ordinary::method_given(args, &options)?;
             let read = deadline.within(move || input.ordinary(&limits))?;
             let Some(sequent) = read else {
                 let limit = deadline.limit().expect("only a limit passes");
-                return unread_into(args, limit);
+                return unread_into(args, &unread(limit));
             };
             let sequent = sequent?;
             if options.method() != Method::Embedding {
                 output_can_be_made(args, format)?;
-                if let Some(status) =
-                    crate::ordinary::by_native(args, &settings, &options, &sequent, &deadline)?
-                {
-                    return Ok(status);
+                match crate::ordinary::by_native(args, &settings, &options, &sequent, &deadline)? {
+                    Native::Answered(status) => return Ok(status),
+                    Native::GivesWay(why) => gave_way = why,
+                    Native::Solved(outcome, start) => solved = Some((outcome, start)),
                 }
             }
             Some((options, sequent))
         }
         None => None,
+    };
+    let translates = ordinary.is_some();
+    // The classical default's answer, written where the embedding gives no
+    // evidence for it.
+    let write_solved = |outcome: &deduxit::ordinary::Outcome, start: Instant| {
+        let ended = Ended {
+            stop: stopped(&deadline),
+            elapsed: start.elapsed(),
+        };
+        crate::ordinary::write_native(args, &settings, outcome, &ended, &deadline)
     };
     let input = args.input.clone();
     // How the sequent was written is kept for a derivation drawn so.
@@ -263,9 +290,17 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
     })?;
     let Some(forest) = loaded else {
         let limit = deadline.limit().expect("only a limit passes");
-        return unread_into(args, limit);
+        return match (&solved, translates) {
+            (Some((outcome, start)), _) => write_solved(outcome, *start),
+            (None, true) => unread_into(args, &untranslated(limit, gave_way.as_deref())),
+            (None, false) => unread_into(args, &unread(limit)),
+        };
     };
-    let (forest, image, writing) = forest?;
+    let (forest, image, writing) = match (forest, &solved) {
+        (Ok(loaded), _) => loaded,
+        (Err(_), Some((outcome, start))) => return write_solved(outcome, *start),
+        (Err(error), None) => return Err(error),
+    };
     let sequent = forest.sequent();
     let mode = image
         .as_ref()
@@ -283,21 +318,43 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
     catch_interrupt();
 
     let status = on_large_stack(limits.stack_bytes(), || {
-        let start = Instant::now();
+        let start = solved
+            .as_ref()
+            .map_or_else(Instant::now, |(_, start)| *start);
         let notice = Notice::start(NOTICE_AFTER, notice_line(deadline.limit(), deepens));
         // Both conditions are flags, so every poll asks both.
         let passed = || deadline.passed();
+        // The classical default's evidence is searched for within a bound.
+        let within = match &solved {
+            Some(_) => crate::ordinary::bounded(&limits),
+            None => limits,
+        };
         let outcome = searched(
             Goal::conclusion(&forest),
             mode,
             options,
-            &limits,
+            &within,
             threads,
             (deadline.limit(), &passed),
-        )
-        .map_err(|e| describe(e, sequent))?;
-        let stop = stopped(&deadline);
+        );
         drop(notice);
+        let outcome = match (outcome, &solved) {
+            (Ok(outcome), _) => outcome,
+            (Err(_), Some((solved, start))) => return write_solved(solved, *start),
+            (Err(error), None) => return Err(describe(error, sequent)),
+        };
+        // A derivation read back to decide whether the embedding gives the
+        // evidence, drawn as it is.
+        let mut read = None;
+        if let (Some((solved, start)), Some(image)) = (&solved, &image) {
+            let halt = || interrupted() || deadline.passed();
+            match crate::ordinary::evidence(&outcome, image, solved, &limits, halt)? {
+                Embedded::Derivation(derivation) => read = Some(*derivation),
+                Embedded::Refutation => {}
+                Embedded::Nothing => return write_solved(solved, *start),
+            }
+        }
+        let stop = stopped(&deadline);
         let elapsed = start.elapsed();
         let status = Status::from(&outcome.verdict);
         // The proof's lambda-term: of its LJ derivation under --logic, of
@@ -370,6 +427,7 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
                 (Some(image), false) => crate::ordinary::derivation(
                     image,
                     proof,
+                    read.take(),
                     &show,
                     halt,
                     why,

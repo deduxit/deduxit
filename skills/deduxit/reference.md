@@ -200,7 +200,7 @@ unfold to at most `--term-limit 50000000` first-order terms.
 | `--mix` | the Mix rule, which proves `⊢ Γ, Δ` from `⊢ Γ` and `⊢ Δ` |
 | `--cyclic` | cyclic linear logic, unit-free MLL in a fixed order (section 14) |
 | `--lambek` | the Lambek calculus, `--empty-antecedents` for L* (section 14) |
-| `--logic classical\|intuitionistic\|minimal` | ordinary propositional logic, by a SAT solver for intuitionistic and minimal logic and through a translation into linear logic for classical logic (section 13) |
+| `--logic classical\|intuitionistic\|minimal` | ordinary propositional logic, by a SAT solver (section 13) |
 
 deduxit detects the fragment (MLL, MLL with units, ALL, MALL, MELL, LL,
 and IMLL to ILL in intuitionistic mode), and the fragment picks the
@@ -989,9 +989,13 @@ before it is shown.
 
 `--method` (`ordinary.method`) chooses how a sequent is decided.
 
-The default for intuitionistic and minimal logic is `sat`, the SAT
-solver below, with LJT's derivation where LJT gives one (`--stats` then
-ends with `derivation by LJT: N sequents expanded`). Where another bound
+The default is `sat`, the SAT solver below, for every logic. In
+intuitionistic and minimal logic it takes LJT's derivation where LJT
+gives one (`--stats` then ends with `derivation by LJT: N sequents
+expanded`). In classical logic the embedding then searches for at most
+2²⁰ units of work (about 20 ms): where it decides, the output is the
+embedding's, with its derivation of LK, refutation and certificate;
+otherwise the solver's answer stands. Where another bound
 than the time limit stops it (a derivation past `--derivation-limit`,
 the memory), the default hands the sequent to the embedding, and the
 verdict line names the translation. A method named reports that bound
@@ -1006,8 +1010,7 @@ instead (exit status 2 for a derivation it could not check).
 - Its derivations use LJ's cut, so their JSON is at wire level 9, their
   lambda-terms may hold redexes and their certificates `let`s.
 
-`embedding` is the default for classical logic. It searches the
-sequent's image in linear logic (the translated sequent) and reads the
+`embedding` searches the sequent's image in linear logic (the translated sequent) and reads the
 proof back.
 
 - Classical logic goes into affine MALL, with no copy bound.
@@ -1303,11 +1306,12 @@ occurrences by id, and `describe(&forest)` names them by formula.
 
 - `ordinary::decide(&sequent, &options, &search, &limits, stop)` decides
   by `options.method()`. `ordinary::Options::method` is `None` by
-  default, which means the SAT solver (`ordinary::Method::Sat`, through
-  `ordinary::sat::decide_preferring_ljt`) for intuitionistic and minimal
-  logic and the embedding for classical logic, and the embedding where
-  a translation is given or where the SAT solver gives way
-  (`ordinary::gives_way`).
+  default, which means the SAT solver (`ordinary::Method::Sat`): through
+  `ordinary::sat::decide_preferring_ljt` for intuitionistic and minimal
+  logic, and in classical logic followed by the embedding within
+  `ordinary::EVIDENCE_WORK` units of work, whose outcome replaces the
+  solver's where it decides. The embedding decides where a translation
+  is given or where the SAT solver gives way (`ordinary::gives_way`).
 - The `ordinary::Outcome` says which method ran, in `search`:
   `ordinary::Search::Embedding` with the image's outcome,
   `ordinary::Search::Ljt` with LJT's statistics, or
@@ -1327,7 +1331,7 @@ occurrences by id, and `describe(&forest)` names them by formula.
   logic a valid sequent's evidence is the solver's clausal proof
   (`ordinary::sat::ClausalProof`: its variables, clauses and steps),
   which deduxit's own checker accepted; it has no derivation, which the
-  embedding, the default of classical logic, gives. In JSON it is
+  embedding gives. In JSON it is
   `"clausal_proof": {"variables", "clauses", "steps"}` in place of
   `derivation`. A sequent that is not valid comes with a checked model
   (`outcome.model`).

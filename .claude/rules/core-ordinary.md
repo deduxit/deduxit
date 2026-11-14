@@ -163,14 +163,23 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   &limits, stop)`, which the ordinary journey runs, by
   `Options::method()`: the method given, else the embedding when a
   translation is given, else `Method::default_for(logic)`: the SAT
-  solver for intuitionistic and minimal logic (LJT without the feature
-  `sat`) and the embedding for classical logic, chosen by the ILTP runs
-  of `plan/reports/54s-sat-engines.md` (`bench/defaults/sat-iltp.csv`,
-  `sat-default.csv`; before them LJT, `ljt-iltp.csv`). The classical
-  default stays the embedding although the solver decides 254 of 274
-  problems to its 157: the solver's "valid" has no derivation of LK and
-  its "not valid" no certificate, which the default's output draws (the
-  author's question). The default's SAT solver is
+  solver for every logic (without the feature `sat` LJT, and the
+  embedding for classical logic), chosen by the ILTP runs of
+  `plan/reports/54s-sat-engines.md` (`bench/defaults/sat-iltp.csv`,
+  `sat-default.csv`, `sat-classical.csv`; before them LJT,
+  `ljt-iltp.csv`). **The classical default keeps the embedding's
+  evidence** (`with_evidence`, decided while the author was away,
+  2026-11-14): once the solver decided, the embedding searches within
+  `EVIDENCE_WORK` (2²⁰, or the caller's lower `limits.work`), and its
+  outcome, `Search::Embedding` with the derivation read back and checked
+  under the caller's limits or `NotValid`, replaces the solver's; where
+  it gives no verdict, a bound refuses the derivation or the stop fires,
+  the solver's stands, so the stop never costs a verdict the solver
+  gave. A verdict of the embedding that contradicts the solver's is
+  `Error::ReadBack`, a defect. The bound covers the 124 ILTP problems
+  whose derivation the old default gave at 2 s (177 136 units at most)
+  and ends a hopeless search in about 20 ms. The command does the same
+  with its own search (`cli.md`). The intuitionistic default's SAT solver is
   `sat::decide_preferring_ljt`: the search's verdict, LJT's derivation
   where LJT gives one (smaller, its terms with fewer redexes), else the
   one read off; LJT never runs past the derivation it was asked for, and

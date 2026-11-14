@@ -398,6 +398,23 @@ const CASES: &[Case] = &[
             "a /\\ b -> b /\\ a",
         ],
     ),
+    // Four pigeons in three holes, past the embedding's bound for its
+    // evidence: the classical default answers with the solver's proof.
+    call(
+        "ordinary-classical-default-clausal",
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--stats",
+            "--deterministic",
+            "p00 \\/ p01 \\/ p02, p10 \\/ p11 \\/ p12, p20 \\/ p21 \\/ p22, p30 \\/ p31 \\/ p32 |- \
+             (p00 /\\ p10) \\/ (p00 /\\ p20) \\/ (p00 /\\ p30) \\/ (p10 /\\ p20) \\/ (p10 /\\ p30) \
+             \\/ (p20 /\\ p30) \\/ (p01 /\\ p11) \\/ (p01 /\\ p21) \\/ (p01 /\\ p31) \\/ (p11 /\\ \
+             p21) \\/ (p11 /\\ p31) \\/ (p21 /\\ p31) \\/ (p02 /\\ p12) \\/ (p02 /\\ p22) \\/ (p02 \
+             /\\ p32) \\/ (p12 /\\ p22) \\/ (p12 /\\ p32) \\/ (p22 /\\ p32)",
+        ],
+    ),
     call(
         "ordinary-sat-intuitionistic",
         &[

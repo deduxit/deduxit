@@ -180,9 +180,11 @@ in use.
   solver. A sequent that is not valid comes with a model, which is
   checked. A valid sequent comes with a checked derivation of LJ in
   intuitionistic and minimal logic, and in classical logic with the
-  solver's clausal proof, which a checker of deduxit's own accepts; the
-  embedding, still the default of classical logic, gives its
-  derivation of LK. The command offers it as `--method sat`.
+  solver's clausal proof, which a checker of deduxit's own accepts. It
+  is the default of every logic; in classical logic the default keeps
+  the embedding's derivation of LK, refutation and certificate wherever
+  the embedding gives them within 2²⁰ units of work. The command offers
+  it as `--method sat`.
 
 ## Proofs as programs
 

@@ -75,7 +75,7 @@ sequent with nothing on the left.
 
 `--method` chooses how (the settings key `ordinary.method`):
 - `sat` is a SAT solver, for all three logics, and the default for
-  intuitionistic and minimal logic. Its search always ends. A sequent
+  each. Its search always ends. A sequent
   that is not valid comes with a countermodel, which is checked: a
   Kripke model in intuitionistic and minimal logic, an assignment of the
   atoms in classical logic. A valid sequent comes with a derivation of
@@ -89,9 +89,8 @@ sequent with nothing on the left.
   is given. A clausal proof is no derivation, so nothing is drawn.
 - `embedding` translates the sequent into linear logic, searches the
   image there and reads the proof back as one of LK or LJ. It decides
-  all three logics and is the default for classical logic, where it
-  gives the derivation of LK and the certificates that the SAT solver
-  does not give.
+  all three logics, and gives the derivation of LK, the refutation and
+  the certificates that the SAT solver does not give.
 - `ljt` is Dyckhoff's calculus LJT, for intuitionistic and minimal logic.
   Its search always ends too.
 
@@ -110,6 +109,15 @@ and the embedding 157. The SAT solver decides every problem the others
 decide. The 186 problems all three decide in intuitionistic logic take
 it 26 ms in all, LJT 313 ms and the embedding 11.6 s ([the
 measurement](results/iltp-2026-11-14.md)).
+
+In classical logic the default keeps the embedding's output where the
+embedding gives it quickly. Once the SAT solver has decided, the
+embedding searches for at most 2²⁰ units of work, about 20 ms. Where it
+proves the sequent, you get its verdict line, its derivation of LK and
+its certificate, as `--method embedding` gives them; where it refutes
+the sequent, its refutation. Otherwise the solver's clausal proof or
+countermodel stands. A larger `--work-limit` does not raise this bound;
+`--method embedding` gives the embedding the whole time limit.
 
 Where the SAT solver stops at a bound other than the time limit, such
 as a derivation past `--derivation-limit`, the default hands the
@@ -238,18 +246,17 @@ valid (classical logic by the affine translation into affine MALL, focus engine)
 
 ## JSON output
 
-With `--format json` and LJT, the output is the outcome of the ordinary
-sequent: its `verdict` (`valid`, `not_valid`, or `unknown` with a
-`reason`), its `logic`, the `engine` `ljt`, its `statistics` and, for a
-valid sequent, the `derivation`:
+With `--format json`, LJT and the SAT solver write the outcome of the
+ordinary sequent: its `verdict` (`valid`, `not_valid`, or `unknown` with
+a `reason`), its `logic`, the `engine` (`ljt` or `sat`), its
+`statistics` and, for a valid sequent, the `derivation`:
 
 ```console
 $ deduxit prove --logic intuitionistic --format json '~~a -> a'
 {"version":8,"deduxit":"0.3.0","verdict":"not_valid","logic":"intuitionistic","engine":"sat","statistics":{"calls":4,"conflicts":0,"lemmas":0,"worlds":4,"facts":0,"clauses":0,"proof_steps":0,"ljt":null}}
 ```
 
-With `--method sat` the `engine` is `sat` and the `statistics` are the
-solver's. A sequent valid by a clausal proof has `clausal_proof` in place
+A sequent valid by a clausal proof has `clausal_proof` in place
 of `derivation`, with the counts of its variables, clauses and steps:
 
 ```console
@@ -258,7 +265,8 @@ $ deduxit prove --logic classical --method sat --format json 'a \/ ~a'
 ```
 
 Through the embedding, the output is the outcome of the search on the
-image, as `prove` writes it without `--logic`. `check` reads proofs of
+image, as `prove` writes it without `--logic`. So is the classical
+default's wherever the embedding decided. `check` reads proofs of
 linear logic, so it takes the embedding's outcome and refuses LJT's.
 
 ## Step by step

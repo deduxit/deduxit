@@ -66,7 +66,7 @@ pub mod sat;
 /// The translations into linear logic.
 mod translate;
 
-pub use decide::{Evidence, Outcome, Search, Verdict, decide, gives_way};
+pub use decide::{EVIDENCE_WORK, Evidence, Outcome, Search, Verdict, decide, gives_way};
 pub use derivation::{Derivation, Inference, Rule, Side};
 #[cfg(all(feature = "interactive", feature = "serialize"))]
 pub(crate) use interactive::Parts;
@@ -351,17 +351,20 @@ impl Method {
     }
 
     /// Returns the method the logic is decided with by default, chosen by
-    /// a run of the ILTP library's propositional problems: the embedding
-    /// for classical logic, whose derivations of LK and certificates the
-    /// SAT solver does not give, and the SAT solver for intuitionistic and
-    /// minimal logic (LJT without the cargo feature `sat`), which by
-    /// default gives way to the embedding where a bound stops it
-    /// ([`gives_way`]).
+    /// a run of the ILTP library's propositional problems: the SAT solver
+    /// (the embedding for classical logic and LJT otherwise without the
+    /// cargo feature `sat`). By default the SAT solver keeps the evidence
+    /// of the method the logic had before: in classical logic the
+    /// embedding's derivation of LK or refutation, asked for within
+    /// [`EVIDENCE_WORK`], and otherwise LJT's
+    /// derivation; and it gives way to the embedding where a bound stops
+    /// it ([`gives_way`]).
     pub const fn default_for(logic: Logic) -> Self {
         match logic {
-            Logic::Classical => Self::Embedding,
             #[cfg(feature = "sat")]
-            Logic::Intuitionistic | Logic::Minimal => Self::Sat,
+            Logic::Classical | Logic::Intuitionistic | Logic::Minimal => Self::Sat,
+            #[cfg(not(feature = "sat"))]
+            Logic::Classical => Self::Embedding,
             #[cfg(not(feature = "sat"))]
             Logic::Intuitionistic | Logic::Minimal => Self::Ljt,
         }

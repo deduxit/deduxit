@@ -138,28 +138,121 @@ pub(crate) fn decide_natively(
     }
 }
 
+/// What deciding an ordinary sequent by LJT or the SAT solver leaves to
+/// its caller.
+pub(crate) enum Native<T> {
+    /// The answer, written: `prove`'s exit status, or a batch's entry.
+    Answered(T),
+    /// The logic's default ended at a bound, and the embedding decides in
+    /// its place.
+    GivesWay(GaveWay),
+    /// The SAT solver decided a classical sequent by default, and the
+    /// embedding is asked for its evidence within [`bounded`]; where it
+    /// gives none, this outcome is written. The instant is the search's
+    /// start.
+    Solved(Box<ordinary::Outcome>, Instant),
+}
+
+/// Why the logic's default gave way to the embedding: the method and its
+/// reason, or nothing where it did not run.
+pub(crate) type GaveWay = Option<String>;
+
+/// Returns whether the options' method is the classical default, the SAT
+/// solver that keeps the embedding's evidence where the embedding gives
+/// it within [`bounded`].
+pub(crate) fn keeps_evidence(options: &ordinary::Options) -> bool {
+    options.method.is_none() && options.method() == Method::Sat && options.logic == Logic::Classical
+}
+
+/// Returns the limits of the embedding's search for the evidence of a
+/// sequent the SAT solver decided: the work bound
+/// [`ordinary::EVIDENCE_WORK`], or the caller's where it is lower.
+pub(crate) fn bounded(limits: &Limits) -> Limits {
+    let most = ordinary::EVIDENCE_WORK;
+    limits.with_work(Some(limits.work.map_or(most, |w| w.min(most))))
+}
+
+/// What the embedding gives for a sequent the SAT solver decided.
+pub(crate) enum Embedded {
+    /// No evidence: no verdict, or a proof whose derivation of LK a bound
+    /// or the stop refused. The solver's outcome is written.
+    Nothing,
+    /// The derivation of LK of its proof, read back and checked.
+    Derivation(Box<Derivation>),
+    /// A refutation of the image.
+    Refutation,
+}
+
+/// Returns what the embedding's `outcome` on the image gives for a
+/// sequent the SAT solver `solved`, as the library's default asks.
+pub(crate) fn evidence(
+    outcome: &Outcome,
+    image: &Image,
+    solved: &ordinary::Outcome,
+    limits: &Limits,
+    halt: impl Fn() -> bool,
+) -> Result<Embedded> {
+    match (&outcome.verdict, &solved.verdict) {
+        (Verdict::Proved(proof), ordinary::Verdict::Valid(_)) => {
+            let derivation = match image.read_back(proof, limits, |_| halt()) {
+                Ok(derivation) => derivation,
+                Err(error @ Error::ReadBack { .. }) => return Err(error.into()),
+                Err(_) => return Ok(Embedded::Nothing),
+            };
+            match derivation.check(limits, |_| halt()) {
+                Ok(()) => Ok(Embedded::Derivation(Box::new(derivation))),
+                Err(error @ Error::ReadBack { .. }) => Err(error.into()),
+                Err(_) => Ok(Embedded::Nothing),
+            }
+        }
+        (Verdict::Unprovable(_), ordinary::Verdict::NotValid) => Ok(Embedded::Refutation),
+        (Verdict::Unknown(_), _) => Ok(Embedded::Nothing),
+        (Verdict::Proved(_) | Verdict::Unprovable(_), _) => {
+            bail!("the embedding contradicts the SAT solver's verdict; this is a defect")
+        }
+    }
+}
+
+/// Returns why a method's answer gave way to the embedding: the method,
+/// and the bound it ended at.
+fn gave_way(method: Method, decided: &Result<ordinary::Outcome, Error>) -> GaveWay {
+    let why = match decided {
+        Ok(outcome) => match &outcome.verdict {
+            ordinary::Verdict::Unknown(reason) => reason.to_string(),
+            _ => return None,
+        },
+        Err(error) => error.to_string(),
+    };
+    Some(format!("{} gave no verdict: {why}", by(method)))
+}
+
 /// Decides an ordinary sequent by LJT or the SAT solver, as the options'
-/// method says, and writes what `prove` writes for it: the verdict line,
-/// the checked derivation of LJ or LK, its lambda-term and the
-/// statistics, or the outcome as JSON. Returns `None`, having written
-/// nothing, where the logic's default method gives way to the embedding:
-/// it ended at a bound other than the time limit or Ctrl-C, or a bound
-/// refused the derivation of the proof it found.
+/// method says, and writes what `prove` writes for it ([`write_native`]).
+/// Writes nothing where the logic's default gives way to the embedding
+/// (it ended at a bound other than the time limit or Ctrl-C, or a bound
+/// refused the derivation of the proof it found), or where the classical
+/// default decided and the embedding is asked for its evidence; with
+/// `--net`, the classical default leaves the sequent to the embedding at
+/// once.
 ///
 /// # Errors
 ///
-/// `--net`, which draws a linear proof; a bound that refused the
-/// derivation of a proof under `--method ljt` or `sat`; an output that
-/// cannot be written.
+/// `--net` beside any other method, which draws a linear proof; a bound
+/// that refused the derivation of a proof under `--method ljt` or `sat`;
+/// an output that cannot be written.
 pub(crate) fn by_native(
     args: &ProveArgs,
     settings: &Settings,
     options: &ordinary::Options,
     sequent: &ordinary::Sequent,
     deadline: &Deadline,
-) -> Result<Option<Status>> {
+) -> Result<Native<Status>> {
     let method = options.method();
+    let keeps = keeps_evidence(options);
     if args.output.net {
+        if keeps {
+            return Ok(Native::GivesWay(None));
+        }
         bail!(
             "--net draws the proof net of a linear proof, and {} makes none: add --method \
              embedding",
@@ -167,8 +260,6 @@ pub(crate) fn by_native(
         );
     }
     let limits = settings.limits;
-    let format = args.output.format();
-    let show = Show::new(&args.output, settings)?;
     // The logic's default, which the embedding takes over from.
     let gives_way = options.method.is_none();
     catch_interrupt();
@@ -178,13 +269,22 @@ pub(crate) fn by_native(
         let halt = || interrupted() || deadline.passed();
         let decided = decide_natively(options, sequent, &limits, |_| halt());
         drop(notice);
+        if gives_way && ordinary::gives_way(&decided) {
+            return Ok(Native::GivesWay(gave_way(method, &decided)));
+        }
+        if keeps
+            && let Ok(solved) = &decided
+            && matches!(
+                solved.verdict,
+                ordinary::Verdict::Valid(_) | ordinary::Verdict::NotValid
+            )
+        {
+            return Ok(Native::Solved(Box::new(solved.clone()), start));
+        }
         let ended = Ended {
             stop: stopped(deadline),
             elapsed: start.elapsed(),
         };
-        if gives_way && ordinary::gives_way(&decided) {
-            return Ok(None);
-        }
         let outcome = match decided {
             Ok(outcome) => outcome,
             Err(Error::Refused(Refusal::Stopped { .. })) => {
@@ -195,11 +295,11 @@ pub(crate) fn by_native(
                     by(method),
                     Stop::why(ended.stop)
                 );
-                match (format, &args.output.output) {
+                match (args.output.format(), &args.output.output) {
                     (Format::Text, None) => io::write(None, &format!("{line}\n"))?,
                     _ => eprintln!("{line}"),
                 }
-                return Ok(Some(Status::Unknown));
+                return Ok(Native::Answered(Status::Unknown));
             }
             Err(error @ Error::Refused(_)) => bail!(
                 "{} gave no verdict: {error}; raise the limit (--derivation-limit, \
@@ -209,71 +309,91 @@ pub(crate) fn by_native(
             ),
             Err(error) => return Err(error.into()),
         };
-        let status = match &outcome.verdict {
-            ordinary::Verdict::Valid(_) => Status::Yes,
-            ordinary::Verdict::NotValid => Status::No,
-            _ => Status::Unknown,
-        };
-        let over = || interrupted() || deadline.passed() || crate::io::closed();
-        let mut out = io::Output::open(args.output.output.as_deref(), format.is_binary())?;
-        if format == Format::Json {
-            match &outcome.verdict {
-                ordinary::Verdict::Valid(evidence) if show.lambda.is_some() => {
-                    let term = evidence
-                        .derivation()
-                        .and_then(|d| d.term(&show.limits, |_| over()));
-                    let mut value = serde_json::to_value(&outcome)?;
-                    if let Some(object) = value.as_object_mut() {
-                        object.insert("lambda".into(), lambda_json(term, &show, over)?);
-                    }
-                    serde_json::to_writer(out.stream(), &value)?;
-                }
-                _ => serde_json::to_writer(out.stream(), &outcome)?,
-            }
-            out.finish()?;
-            return Ok(Some(status));
-        }
-        let line = show.verdict.then(|| native_verdict_line(&outcome, &ended));
-        let prefix = show.open(&mut out, line.as_deref())?;
-        let why = || Stop::why(stopped(deadline));
-        let shown = match (&outcome.verdict, args.output.quiet) {
-            (ordinary::Verdict::Valid(_), false) if show.tree == Tree::Never => Shown::Nothing,
-            (ordinary::Verdict::Valid(_), false) if over() => {
-                Shown::LeftOut(format!("the derivation is not written: {}", why()))
-            }
-            (ordinary::Verdict::Valid(evidence), false) => match evidence.derivation() {
-                Ok(d) => crate::show::shown(
-                    shown(d.clone(), &show),
-                    show.fit(),
-                    &show,
-                    every_steps(&over),
-                    why,
-                    prefix.as_deref(),
-                    &mut out,
-                )?,
-                // A clausal proof, which the verdict line names.
-                Err(error) => Shown::LeftOut(error.to_string()),
-            },
-            _ => Shown::Nothing,
-        };
-        let drawn = matches!(shown, Shown::Written | Shown::Rendered(_));
-        let keep = show.close(&mut out, shown, line.as_deref())?;
-        if let (ordinary::Verdict::Valid(evidence), Format::Text, Some(_)) =
-            (&outcome.verdict, format, show.lambda)
-        {
-            let term = evidence
-                .derivation()
-                .and_then(|d| d.term(&show.limits, |_| over()));
-            show.after(&mut out, &lambda_line(term, &show, over), drawn)?;
-        }
-        if args.stats {
-            show.after(&mut out, &native_statistics(&outcome, ended.elapsed), drawn)?;
-        }
-        if keep {
-            out.finish()?;
-        }
-        anyhow::Ok(Some(status))
+        write_native(args, settings, &outcome, &ended, deadline).map(Native::Answered)
     })?
+}
+
+/// Writes what `prove` writes for an ordinary sequent LJT or the SAT
+/// solver decided: the verdict line, the checked derivation of LJ or LK,
+/// its lambda-term and the statistics, or the outcome as JSON. Returns
+/// the exit status.
+///
+/// # Errors
+///
+/// An output that cannot be written.
+pub(crate) fn write_native(
+    args: &ProveArgs,
+    settings: &Settings,
+    outcome: &ordinary::Outcome,
+    ended: &Ended,
+    deadline: &Deadline,
+) -> Result<Status> {
+    let format = args.output.format();
+    let show = Show::new(&args.output, settings)?;
+    let status = match &outcome.verdict {
+        ordinary::Verdict::Valid(_) => Status::Yes,
+        ordinary::Verdict::NotValid => Status::No,
+        _ => Status::Unknown,
+    };
+    let over = || interrupted() || deadline.passed() || crate::io::closed();
+    let mut out = io::Output::open(args.output.output.as_deref(), format.is_binary())?;
+    if format == Format::Json {
+        match &outcome.verdict {
+            ordinary::Verdict::Valid(evidence) if show.lambda.is_some() => {
+                let term = evidence
+                    .derivation()
+                    .and_then(|d| d.term(&show.limits, |_| over()));
+                let mut value = serde_json::to_value(outcome)?;
+                if let Some(object) = value.as_object_mut() {
+                    object.insert("lambda".into(), lambda_json(term, &show, over)?);
+                }
+                serde_json::to_writer(out.stream(), &value)?;
+            }
+            _ => serde_json::to_writer(out.stream(), outcome)?,
+        }
+        out.finish()?;
+        return Ok(status);
+    }
+    let line = show.verdict.then(|| native_verdict_line(outcome, ended));
+    let prefix = show.open(&mut out, line.as_deref())?;
+    let why = || Stop::why(stopped(deadline));
+    let shown = match (&outcome.verdict, args.output.quiet) {
+        (ordinary::Verdict::Valid(_), false) if show.tree == Tree::Never => Shown::Nothing,
+        (ordinary::Verdict::Valid(_), false) if over() => {
+            Shown::LeftOut(format!("the derivation is not written: {}", why()))
+        }
+        (ordinary::Verdict::Valid(evidence), false) => match evidence.derivation() {
+            Ok(d) => crate::show::shown(
+                shown(d.clone(), &show),
+                show.fit(),
+                &show,
+                every_steps(&over),
+                why,
+                prefix.as_deref(),
+                &mut out,
+            )?,
+            // A clausal proof, which the verdict line names.
+            Err(error) => Shown::LeftOut(error.to_string()),
+        },
+        _ => Shown::Nothing,
+    };
+    let drawn = matches!(shown, Shown::Written | Shown::Rendered(_));
+    let keep = show.close(&mut out, shown, line.as_deref())?;
+    if let (ordinary::Verdict::Valid(evidence), Format::Text, Some(_)) =
+        (&outcome.verdict, format, show.lambda)
+    {
+        let term = evidence
+            .derivation()
+            .and_then(|d| d.term(&show.limits, |_| over()));
+        show.after(&mut out, &lambda_line(term, &show, over), drawn)?;
+    }
+    if args.stats {
+        show.after(&mut out, &native_statistics(outcome, ended.elapsed), drawn)?;
+    }
+    if keep {
+        out.finish()?;
+    }
+    Ok(status)
 }
 
 /// Returns the verdict line of an ordinary sequent decided by LJT or the
@@ -365,10 +485,16 @@ pub(crate) fn verdict_line(
 /// [`derivation`](crate::show::derivation) does for a linear one: within
 /// the view's bounds, the time limit and Ctrl-C, fitted to a terminal.
 /// The read-back is checked before it is written; one that fails the
-/// check is an error, a defect to report.
+/// check is an error, a defect to report. A derivation `read` back and
+/// checked already is written as it is.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the output's parts, as show::derivation takes them"
+)]
 pub(crate) fn derivation(
     image: &Image,
     proof: &Proof,
+    read: Option<Derivation>,
     show: &Show,
     mut halt: impl FnMut() -> bool,
     why: impl Fn() -> String,
@@ -379,6 +505,9 @@ pub(crate) fn derivation(
         return Ok(Shown::Nothing);
     }
     let stopped = || Shown::LeftOut(format!("the derivation is not written: {}", why()));
+    if let Some(d) = read {
+        return crate::show::shown(shown(d, show), show.fit(), show, halt, why, prefix, out);
+    }
     let d = match image.read_back(proof, &show.limits, |_| halt()) {
         Ok(d) => d,
         // The stop, whether the unfolding or the checker's pass in it
@@ -471,6 +600,7 @@ mod tests {
         let shown = derivation(
             &image,
             &proof,
+            None,
             &show,
             || true,
             || "the time limit of 1s was reached".to_owned(),

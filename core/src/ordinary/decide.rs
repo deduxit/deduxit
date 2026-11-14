@@ -109,8 +109,9 @@ pub enum Verdict {
 ///
 /// Every method but the SAT solver in classical logic gives a derivation.
 /// The SAT solver gives a clausal proof there, which has no derivation to
-/// draw, export or read as a lambda-term; [`Method::Embedding`], the
-/// default of classical logic, gives the derivation of LK.
+/// draw, export or read as a lambda-term; [`Method::Embedding`] gives the
+/// derivation of LK, and so does the default wherever the embedding
+/// gives it within [`EVIDENCE_WORK`].
 #[non_exhaustive]
 #[derive(Clone, Debug)]
 pub enum Evidence {
@@ -151,6 +152,79 @@ pub fn gives_way(decided: &Result<Outcome, Error>) -> bool {
         }
         Err(error) => matches!(error, Error::Refused(r) if !matches!(r, Refusal::Stopped { .. })),
     }
+}
+
+/// The most units of work the embedding's search may do, by default in
+/// classical logic, for the evidence of a sequent the SAT solver decided:
+/// a derivation of LK, or a refutation of the image. The 124 problems of
+/// ILTP whose derivation the embedding gives within 2 s need at most
+/// 177 136; at this bound a search that ends without a verdict takes
+/// about 20 ms.
+pub const EVIDENCE_WORK: u64 = 1 << 20;
+
+/// Returns the outcome of a classical sequent the SAT solver decided,
+/// with the embedding's evidence where the embedding gives it: its
+/// search within [`EVIDENCE_WORK`] units of work (or the caller's lower
+/// bound), and for a proof the derivation of LK read back and checked
+/// within the caller's limits. Where the embedding ends without a
+/// verdict, a bound refuses its derivation or `stop` fires, the solver's
+/// outcome stands.
+///
+/// # Errors
+///
+/// [`Error::ReadBack`] where the embedding contradicts the solver, or
+/// where its derivation fails the check, a defect.
+#[cfg(feature = "sat")]
+fn with_evidence(
+    solved: Outcome,
+    sequent: &Sequent,
+    translation: Translation,
+    search: &search::Options,
+    limits: &Limits,
+    mut stop: impl FnMut(Progress) -> bool,
+) -> Result<Outcome, Error> {
+    let logic = solved.logic;
+    let work = limits.work.map_or(EVIDENCE_WORK, |w| w.min(EVIDENCE_WORK));
+    let Ok(image) = translate(sequent, logic, translation, limits) else {
+        return Ok(solved);
+    };
+    let bounded = limits.with_work(Some(work));
+    let Ok(linear) =
+        search::prove_within(image.sequent(), image.mode(), search, &bounded, &mut stop)
+    else {
+        return Ok(solved);
+    };
+    let contradiction = || Error::ReadBack {
+        calculus: logic.calculus(),
+        reason: "the embedding contradicts the SAT solver".to_owned(),
+    };
+    let verdict = match (&linear.verdict, &solved.verdict) {
+        (search::Verdict::Proved(proof), Verdict::Valid(_)) => {
+            let derivation = match image.read_back(proof, limits, &mut stop) {
+                Ok(derivation) => derivation,
+                Err(error @ Error::ReadBack { .. }) => return Err(error),
+                Err(_) => return Ok(solved),
+            };
+            match derivation.check(limits, &mut stop) {
+                Ok(()) => Verdict::Valid(Evidence::Derivation(Box::new(derivation))),
+                Err(error @ Error::ReadBack { .. }) => return Err(error),
+                Err(_) => return Ok(solved),
+            }
+        }
+        (search::Verdict::Unprovable(_), Verdict::NotValid) => Verdict::NotValid,
+        (search::Verdict::Proved(_), _) | (search::Verdict::Unprovable(_), _) => {
+            return Err(contradiction());
+        }
+        (search::Verdict::Unknown(_), _) => return Ok(solved),
+    };
+    Ok(Outcome {
+        verdict,
+        logic,
+        search: Search::Embedding {
+            translation,
+            linear: Box::new(linear),
+        },
+    })
 }
 
 /// Decides an ordinary sequent as `options` say, within `limits` and
@@ -204,6 +278,23 @@ pub fn decide(
     let decided = match options.method() {
         Method::Embedding => None,
         Method::Ljt => Some(ljt::decide(sequent, logic, limits, &mut stop).map(Outcome::from)),
+        // The default of classical logic keeps the embedding's evidence
+        // where the embedding gives it within its bound.
+        #[cfg(feature = "sat")]
+        Method::Sat if options.method.is_none() && logic == Logic::Classical => {
+            let decided = super::sat::decide(sequent, logic, limits, &mut stop).map(Outcome::from);
+            match decided {
+                Ok(
+                    solved @ Outcome {
+                        verdict: Verdict::Valid(_) | Verdict::NotValid,
+                        ..
+                    },
+                ) => {
+                    return with_evidence(solved, sequent, translation, search, limits, stop);
+                }
+                decided => Some(decided),
+            }
+        }
         // The default prefers LJT's derivation, the method named the one
         // read off the search.
         #[cfg(feature = "sat")]
@@ -290,5 +381,46 @@ mod tests {
         assert!(!super::gives_way(&stopped.map(Into::into)), "the stop");
         let classical = super::ljt::decide(&sequent, Logic::Classical, &limits, |_| false);
         assert!(!super::gives_way(&classical.map(Into::into)), "the logic");
+    }
+
+    /// By default the SAT solver decides a classical sequent and the
+    /// embedding gives its evidence; where the embedding ends without it,
+    /// here by the stop right after the solver's answer, the solver's
+    /// clausal proof stands.
+    #[cfg(feature = "sat")]
+    #[test]
+    fn the_classical_default_keeps_the_embedding_s_evidence() {
+        use super::Evidence;
+        let options = Options::default().with_logic(Logic::Classical);
+        let (search, limits) = (search::Options::default(), Limits::default());
+        let sequent: Sequent = "|- ((a -> b) -> a) -> a".parse().unwrap();
+        let outcome = decide(&sequent, &options, &search, &limits, |_| false).unwrap();
+        assert!(matches!(
+            outcome.verdict,
+            Verdict::Valid(Evidence::Derivation(_))
+        ));
+        assert_eq!(outcome.method(), Method::Embedding);
+        let refuted: Sequent = "a |- b".parse().unwrap();
+        let outcome = decide(&refuted, &options, &search, &limits, |_| false).unwrap();
+        assert!(matches!(outcome.verdict, Verdict::NotValid));
+        assert_eq!(outcome.method(), Method::Embedding);
+
+        let mut polls = 0_usize;
+        let solved = super::super::sat::decide(&sequent, Logic::Classical, &limits, |_| {
+            polls += 1;
+            false
+        });
+        assert!(solved.is_ok());
+        let mut asked = 0_usize;
+        let outcome = decide(&sequent, &options, &search, &limits, |_| {
+            asked += 1;
+            asked > polls
+        })
+        .unwrap();
+        assert!(matches!(
+            outcome.verdict,
+            Verdict::Valid(Evidence::Clausal(_))
+        ));
+        assert_eq!(outcome.method(), Method::Sat);
     }
 }

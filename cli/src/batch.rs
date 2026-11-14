@@ -10,6 +10,7 @@ use crate::argument_parsing::{Format, InputFormat, ProveArgs};
 use crate::io::{self, admit, written_in};
 use crate::limit::Deadline;
 use crate::ordinary;
+use crate::ordinary::{Embedded, Native};
 use crate::prove::{
     Ended, Stop, describe, halting, on_large_stack, searched, statistics, stopped, verdict_line,
 };
@@ -718,16 +719,25 @@ impl Shared {
                 status: Status::Unknown,
             });
         };
+        // The classical default's answer, written where the embedding gives
+        // no evidence for it.
+        let mut solved = None;
         let (forest, image, writing) = match (read?, logic) {
             (Loaded::Ordinary(sequent), Some(options)) => {
-                if options.method() != Method::Embedding
-                    && let Some(done) =
-                        self.by_native(&entry.name, &options, &sequent, plan, &deadline)?
-                {
-                    return Ok(done);
+                if options.method() != Method::Embedding {
+                    match self.by_native(&entry.name, &options, &sequent, plan, &deadline)? {
+                        Native::Answered(done) => return Ok(done),
+                        Native::GivesWay(_) => {}
+                        Native::Solved(outcome, start) => solved = Some((outcome, start)),
+                    }
                 }
-                let (forest, image) = ordinary::translated(&options, &sequent, limits)?;
-                (forest, Some(image), None)
+                match (ordinary::translated(&options, &sequent, limits), &solved) {
+                    (Ok((forest, image)), _) => (forest, Some(image), None),
+                    (Err(_), Some((outcome, start))) => {
+                        return self.native_done(&entry.name, outcome, *start, &deadline);
+                    }
+                    (Err(error), None) => return Err(error),
+                }
             }
             (Loaded::Linear(forest, writing), _) => (*forest, None, writing),
             (Loaded::Ordinary(_), None) => unreachable!("ordinary logic is read under --logic"),
@@ -749,12 +759,17 @@ impl Shared {
         let passed = || deadline.passed() || self.batch.passed();
         let passed: &(dyn Fn() -> bool + Sync) = &passed;
         let limit = (self.timeout.or(self.batch.limit()), passed);
+        // The classical default's evidence is searched for within a bound.
+        let within = match &solved {
+            Some(_) => ordinary::bounded(limits),
+            None => *limits,
+        };
         let outcome = if search.jobs.count() > 1 {
             searched(
                 Goal::conclusion(&forest),
                 mode,
                 search,
-                limits,
+                &within,
                 self.threads,
                 limit,
             )
@@ -763,11 +778,31 @@ impl Shared {
                 Goal::conclusion(&forest),
                 mode,
                 search,
-                limits,
+                &within,
                 halting(limit.0, limit.1),
             )
+        };
+        let outcome = match (outcome, &solved) {
+            (Ok(outcome), _) => outcome,
+            (Err(_), Some((solved, start))) => {
+                return self.native_done(&entry.name, solved, *start, &deadline);
+            }
+            (Err(error), None) => return Err(describe(error, sequent)),
+        };
+        // A derivation read back to decide whether the embedding gives the
+        // evidence, drawn as it is.
+        let mut read = None;
+        if let (Some((solved, begun)), Some(image)) = (&solved, &image) {
+            let halt = || interrupted() || deadline.passed() || self.batch.passed();
+            match ordinary::evidence(&outcome, image, solved, limits, halt)? {
+                Embedded::Derivation(derivation) => read = Some(*derivation),
+                Embedded::Refutation => {}
+                Embedded::Nothing => {
+                    return self.native_done(&entry.name, solved, *begun, &deadline);
+                }
+            }
         }
-        .map_err(|e| describe(e, sequent))?;
+        let start = solved.as_ref().map_or(start, |(_, begun)| *begun);
         let elapsed = start.elapsed();
         let stop = self.stopped(&deadline);
         let status = Status::from(&outcome.verdict);
@@ -793,7 +828,7 @@ impl Shared {
                 &entry.name,
                 directory,
                 &outcome,
-                (mode, image.as_ref(), writing.as_deref()),
+                (mode, image.as_ref(), writing.as_deref(), read),
                 &line,
                 &deadline,
             )?
@@ -809,10 +844,12 @@ impl Shared {
     }
 
     /// Decides an entry of ordinary logic by LJT or the SAT solver and
-    /// returns what is written for it, its derivation or outcome written
-    /// into its file in the directory; `None` where the logic's default
-    /// gives way to the embedding (it ended at a bound other than the time
-    /// limit, or a bound refused its proof's derivation).
+    /// answers it ([`native_done`](Self::native_done)); hands it to the
+    /// embedding where the logic's default gives way (it ended at a bound
+    /// other than the time limit, or a bound refused its proof's
+    /// derivation), and where the classical default decided, for the
+    /// embedding's evidence. With `--net` the classical default leaves the
+    /// entry to the embedding at once.
     fn by_native(
         &self,
         name: &str,
@@ -820,9 +857,13 @@ impl Shared {
         sequent: &deduxit::ordinary::Sequent,
         plan: &batch::Plan,
         deadline: &Deadline,
-    ) -> Result<Option<Done>> {
+    ) -> Result<Native<Done>> {
         let method = options.method();
+        let keeps = ordinary::keeps_evidence(options);
         if self.show.net {
+            if keeps {
+                return Ok(Native::GivesWay(None));
+            }
             bail!(
                 "--net draws the proof net of a linear proof, and {} makes none",
                 ordinary::by(method)
@@ -832,14 +873,19 @@ impl Shared {
         let start = Instant::now();
         let halt = || interrupted() || deadline.passed() || self.batch.passed();
         let decided = ordinary::decide_natively(options, sequent, &plan.limits, |_| halt());
-        let ended = Ended {
-            stop: self.stopped(deadline),
-            elapsed: start.elapsed(),
-        };
         if gives_way && ordinary_logic::gives_way(&decided) {
-            return Ok(None);
+            return Ok(Native::GivesWay(None));
         }
         let outcome = match decided {
+            Ok(outcome)
+                if keeps
+                    && matches!(
+                        outcome.verdict,
+                        ordinary_logic::Verdict::Valid(_) | ordinary_logic::Verdict::NotValid
+                    ) =>
+            {
+                return Ok(Native::Solved(Box::new(outcome), start));
+            }
             Ok(outcome) => outcome,
             Err(deduxit::Error::Refused(deduxit::Refusal::Stopped { .. })) => {
                 let line = format!(
@@ -847,23 +893,41 @@ impl Shared {
                      was checked",
                     options.logic,
                     ordinary::by(method),
-                    Stop::why(ended.stop)
+                    Stop::why(self.stopped(deadline))
                 );
-                return Ok(Some(Done {
+                return Ok(Native::Answered(Done {
                     text: self.unknown(name, &line),
                     status: Status::Unknown,
                 }));
             }
             Err(error) => return Err(error.into()),
         };
+        self.native_done(name, &outcome, start, deadline)
+            .map(Native::Answered)
+    }
+
+    /// Returns what is written for an entry LJT or the SAT solver decided
+    /// in a search begun at `start`, its derivation or outcome written into
+    /// its file in the directory.
+    fn native_done(
+        &self,
+        name: &str,
+        outcome: &ordinary_logic::Outcome,
+        start: Instant,
+        deadline: &Deadline,
+    ) -> Result<Done> {
+        let ended = Ended {
+            stop: self.stopped(deadline),
+            elapsed: start.elapsed(),
+        };
         let status = match &outcome.verdict {
             ordinary_logic::Verdict::Valid(_) => Status::Yes,
             ordinary_logic::Verdict::NotValid => Status::No,
             _ => Status::Unknown,
         };
-        let line = ordinary::native_verdict_line(&outcome, &ended);
+        let line = ordinary::native_verdict_line(outcome, &ended);
         let mut text = if self.json_lines() {
-            let mut body = serde_json::to_string(&outcome)?;
+            let mut body = serde_json::to_string(outcome)?;
             if self.args.stats {
                 body.pop();
                 body.push_str(&format!(",\"seconds\":{}}}", ended.elapsed.as_secs_f64()));
@@ -873,16 +937,16 @@ impl Shared {
             format!("{}: {line}", shown(name))
         };
         if let Some(directory) = &self.directory
-            && let Some(note) = self.write_native(name, directory, &outcome, &line, deadline)?
+            && let Some(note) = self.write_native(name, directory, outcome, &line, deadline)?
         {
             text.push_str(&format!("\n  {note}"));
         }
         if self.args.stats && !self.json_lines() {
-            for counter in ordinary::native_statistics(&outcome, ended.elapsed).lines() {
+            for counter in ordinary::native_statistics(outcome, ended.elapsed).lines() {
                 text.push_str(&format!("\n  {counter}"));
             }
         }
-        Ok(Some(Done { text, status }))
+        Ok(Done { text, status })
     }
 
     /// Writes an outcome of LJT or the SAT solver, or its derivation, into
@@ -959,7 +1023,12 @@ impl Shared {
         name: &str,
         directory: &Path,
         outcome: &Outcome,
-        (mode, image, writing): (Mode, Option<&Image>, Option<&[deduxit::linear::Written]>),
+        (mode, image, writing, read): (
+            Mode,
+            Option<&Image>,
+            Option<&[deduxit::linear::Written]>,
+            Option<deduxit::ordinary::Derivation>,
+        ),
         line: &str,
         deadline: &Deadline,
     ) -> Result<Option<String>> {
@@ -1004,6 +1073,7 @@ impl Shared {
                 (Some(image), false) => crate::ordinary::derivation(
                     image,
                     proof,
+                    read,
                     show,
                     halt,
                     why,

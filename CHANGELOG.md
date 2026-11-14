@@ -22,13 +22,24 @@ second number (0.1.x to 0.2.0), anything else the third.
   `sat`) in place of the translated sequent's. Where a bound other than
   the time limit stops the solver, the embedding decides as before. For
   the old behaviour, give `--method embedding` or `--translation`.
+- **`prove --logic classical` decides by the SAT solver by default**,
+  and keeps the embedding's output wherever the embedding decides
+  within 2²⁰ units of work (`ordinary::EVIDENCE_WORK`, about 20 ms): its
+  verdict line, derivation of LK, refutation and certificate, as
+  before. Otherwise the solver's answer stands: `valid (classical logic
+  by the SAT solver): a checked clausal proof of …`, with no derivation,
+  or `not valid (…): a checked countermodel refutes it`. On the ILTP
+  library at 2 s the default decides 254 problems where it decided 124.
+  For the old behaviour, give `--method embedding`.
 - **`ordinary::Outcome` says how the sequent was searched**, in its new
   field `search` (`ordinary::Search::Embedding { translation, linear }`,
   `ordinary::Search::Ljt` or, with the feature `sat`,
   `ordinary::Search::Sat`), which replaces the fields `translation`
-  and `linear`. `ordinary::decide` decides intuitionistic and minimal
-  logic by the SAT solver (LJT without the feature `sat`) unless
-  `ordinary::Options` names a translation or a method.
+  and `linear`. `ordinary::decide` decides every logic by the SAT
+  solver (LJT and the embedding without the feature `sat`) unless
+  `ordinary::Options` names a translation or a method; in classical
+  logic it then asks the embedding for its evidence within
+  `ordinary::EVIDENCE_WORK`.
 - **`ordinary::Verdict::Valid` holds the evidence**, an
   `ordinary::Evidence`: `Evidence::Derivation` with the checked
   derivation of LK or LJ, as before, or, with the feature `sat`,
@@ -136,8 +147,10 @@ unchanged.
   is the default for intuitionistic and minimal logic, where on the ILTP
   library's 274 problems at 2 s it decides 252 in intuitionistic and 253
   in minimal logic, LJT 200, and takes LJT's derivation where LJT gives
-  one (`ordinary::sat::decide_preferring_ljt`). The embedding stays the
-  default for classical logic, for its derivations and certificates.
+  one (`ordinary::sat::decide_preferring_ljt`), and for classical logic,
+  where it keeps the embedding's derivation, refutation and
+  certificate wherever the embedding gives them within
+  `ordinary::EVIDENCE_WORK`.
 - **The harness runs ordinary logic**: `deduxit-bench run --tptp PATH
   --logics …` with the engines `embedding`, `ljt` and `auto`, and
   `summary` lists the problems two configurations decide differently.

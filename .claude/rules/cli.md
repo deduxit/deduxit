@@ -143,7 +143,9 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   **The method** (`--method embedding|ljt|sat`, `ordinary.method`, on
   `prove` only; `settings::ordinary` sets the embedding where `--linear`
   is given and no method, and `method_given` refuses `--translation` or
-  `--linear` beside an explicit LJT or SAT solver, exit 2): `prove` reads the
+  `--linear` beside an explicit LJT or SAT solver, exit 2; the classical
+  default is the SAT solver keeping the embedding's evidence,
+  `keeps_evidence`, below): `prove` reads the
   ordinary sequent first (`io::ordinary`), and where
   `Options::method()` is not the embedding `by_native` decides it by
   `decide_natively` (LJT, the SAT solver, or with no method given the
@@ -167,9 +169,26 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   of the derivation, the library's `NoDerivation` message as a left-out
   line (in a batch's directory, no file and that note); the lambda-term
   says the same. With no method given it returns
-  `None` where `ordinary::gives_way` says so, writing nothing, and the
-  image path runs with the time left (`ordinary::translated`, the
-  sequent read once, since standard input cannot be read twice); under
+  `Native::GivesWay` where `ordinary::gives_way` says so, writing
+  nothing, and the image path runs with the time left
+  (`ordinary::translated`, the sequent read once, since standard input
+  cannot be read twice). **The classical default** (`keeps_evidence`):
+  `by_native` returns `Native::Solved` with the solver's decided
+  outcome, unwritten; `prove` (and the batch's `decide`) then run the
+  image path as before with the search's limits `bounded`
+  (`ordinary::EVIDENCE_WORK`, or a lower `--work-limit`), and
+  `ordinary::evidence` decides as the library's default does: a proof
+  whose derivation reads back and checks under the settings' limits
+  (drawn from that derivation, `derivation`'s `read`, not read back
+  twice), or a refutation, keeps the embedding's output whole (verdict
+  line, drawing, certificate, the image's JSON, `--stats` with the time
+  since the solver began); a translation refused or stopped, a search
+  error or unknown, or a refused read-back writes the solver's answer
+  through `write_native` (`native_done` in the batch). `--net` skips the
+  solver (`GivesWay`), since only the embedding draws a net. Where the
+  default gave way and the time limit passes during the translation,
+  the line is `untranslated`'s (the solver's reason, then that the
+  embedding took over), not `unread`'s. Under
   `--method ljt` a refused derivation is exit 2 naming the limits and
   `--method embedding`, and a stop during its check is an unknown line
   (on standard error where the output is JSON or a file: JSON has no

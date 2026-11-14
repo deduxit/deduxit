@@ -1,0 +1,14 @@
+$ deduxit prove --logic classical --stats --deterministic 'p00 \/ p01 \/ p02, p10 \/ p11 \/ p12, p20 \/ p21 \/ p22, p30 \/ p31 \/ p32 |- (p00 /\ p10) \/ (p00 /\ p20) \/ (p00 /\ p30) \/ (p10 /\ p20) \/ (p10 /\ p30) \/ (p20 /\ p30) \/ (p01 /\ p11) \/ (p01 /\ p21) \/ (p01 /\ p31) \/ (p11 /\ p21) \/ (p11 /\ p31) \/ (p21 /\ p31) \/ (p02 /\ p12) \/ (p02 /\ p22) \/ (p02 /\ p32) \/ (p12 /\ p22) \/ (p12 /\ p32) \/ (p22 /\ p32)'
+--- status 0
+--- stdout
+valid (classical logic by the SAT solver): a checked clausal proof of 7 steps against the 65 clauses of the sequent's negation
+solver calls: 1
+conflicts: 7
+lemmas: 0
+worlds: 0
+facts derived: 0
+clauses: 65
+proof steps: 7
+time: …
+--- stderr
+the sequent is valid by a checked clausal proof, which is no derivation; the method embedding gives the derivation of LK
