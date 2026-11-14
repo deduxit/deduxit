@@ -18,7 +18,8 @@ serde_json, which the CLI and the core's tests already have.
   are the `--help` text, as in the CLI. `--engines` and `--engine` take
   the library's names (`EngineChoice::parser`, from `Engine::NAMES`, and
   `auto`).
-- `src/problems.rs`: the four sources. The parent lists `Reference`s
+- `src/problems.rs`: the five sources (families, LLTP, `.spec`,
+  problem files, TPTP). The parent lists `Reference`s
   (family and size, an LLTP path, a `.spec` path, a problem file and
   line) and never parses a problem file's formulas; the child `load`s
   the one its `id` names. An LLTP problem is intuitionistic when a
@@ -61,7 +62,7 @@ serde_json, which the CLI and the core's tests already have.
   every 64 polls was seconds late on the large nets, where a poll comes
   many milliseconds after the last)
   and with the library's own check off (`Options::check(false)`), prints
-  the 34-field tail of the CSV row (`TAIL`, whose fields are named by
+  the 35-field tail of the CSV row (`TAIL`, whose fields are named by
   `HEADER` and set through `column(name)`, never by position) with the
   search's verdict, and for a
   proof checks it outside the timed part and prints the tail once more
@@ -543,7 +544,7 @@ serde_json, which the CLI and the core's tests already have.
   without end, Click & coLLecT's limit of CPU time set to the run's
   (patched from its fixed 3 s). A problem outside a tool's fragment or
   mode is a row with verdict `refused`, reason `fragment`, not run; a
-  translation that cannot be written (linTAP and a positive `!`, lolli
+  translation that cannot be written (linTAP and any `!`, lolli
   and a sequent longer than an argument) is `refused` with the reason.
   SWI-Prolog caps its stacks at 1 GiB unless told otherwise, so the
   three Prolog provers' commands take the run's memory limit as their
@@ -715,7 +716,7 @@ serde_json, which the CLI and the core's tests already have.
 - **`batch-families` batches the propositional families' smallest
   instances**: the first-order families (`is_first_order`) are left out,
   so that adding them kept the journey's input, and its ceiling, what
-  they were; a first-order journey is a journey of its own.
+  they were; no journey searches a first-order sequent.
 - **Every journey is deterministic**: one thread, and the rarer
   literal's search alone where the sequent has exponentials, since the
   default bias runs two searches in turns whose waiting thread wakes on
@@ -828,7 +829,7 @@ serde_json, which the CLI and the core's tests already have.
   search's level is apart; until then the larger of the two) and
   `pool_after` (`--pool-after SECONDS`: the child searches on one thread
   that long and then with a pool of `--jobs` − 1 threads (at least two)
-  beside it, the first to decide answering, each within the memory bound,
+  beside it, the first to decide answering, both within one memory bound,
   adding the counters of both, as the command does by default; empty for
   threads from the start, which is what a file from before the column
   ran). Last come two counters, empty on a row without an outcome:
