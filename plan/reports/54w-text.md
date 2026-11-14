@@ -148,6 +148,35 @@ four points and the answers:
    W13. Its side remark that Q11's "docs either way" covered only the
    case without the change is fixed too.
 
+### The review
+
+The `fresh-reviewer` agent (Fable 5.2 at `medium`) read the chain up to
+`uyykmyvq` against the brief, the 58b report and the client's rules,
+and drove the built page on cores 13-15 (the four touched specs, 75
+passed; a scratch spec comparing every label's name with its `<desc>`
+line in linear one- and two-sided drawings with MELL and subscripted
+additives and in LK, no mismatch; label boxes on eight proofs at 412
+pixels, no overlap, every label covered).
+
+1. **The exception's comment and `web.md` said a label a drawn button
+   covers is never excepted, but axe returns before it collects the
+   covering elements for a target under 24 pixels**
+   (`targetSizeEvaluate`, `axe.js` 29962-29967), so the filter could
+   not see such an overlap; `targets.spec.ts` was what held it. Upheld:
+   the spec now measures each label's overlap with the drawing's other
+   buttons in the page and never excepts one that overlaps
+   (`wztuunnm`). With `spread` switched off it fails all four states
+   again; with the chain, 48 passed.
+
+The reviewer found the rest sound: `balance` against deduxit's
+`write_unbalanced`, the step numbers against `write_steps` and the SVG's
+ids, `spread`'s cover and separation, the `targets.spec.ts` change an
+honest trade (it adds an overlap failure the old buttons would have
+tripped), the render effect under Solid 1.9.17's `runUserEffects`, the
+link test's cause and fix (24 of 24), and every text against the code it
+describes. It did not probe an LJ drawing (its scratch sequent timed
+out), which uses the same writer as LK.
+
 ### Departures from the design
 
 None. The page was run against the live site rather than the client's
@@ -2054,3 +2083,235 @@ tests, and confirmed no code changed by its own method. It did not run
   nothing checks the index (now in `core-inputs.md`).
 - The readers' error texts (`Error::Lltp`, `Error::Spec` messages) read
   well and are unchanged; no behaviour-lock line moved.
+
+## Session 54w-f: the page's new texts and the audit's proposals
+
+The brief is `/tmp/linlog-handoff/start-54w-f.md` (Opus 5.5 at `high`,
+2026-11-14, cores 13-15, paused once for the app's restart), in the
+client's workspace `../deduxit.github.io-58b` (workspace `step58b`) on the
+client's `main@origin` (`wptvvnrm`). Nothing is pushed. This deduxit
+workspace holds only this section.
+
+### Outcome
+
+Every audit proposal the brief gives this session is built, each with
+its test, and the 54u-d texts and lesson 2's second paragraph are
+reworked. No new control or state came with them, so `tests/states.ts`
+gains no step; the existing walks cover every change (the labels in the
+proof, menus, Learn and cut walks, the dock in `phone.spec.ts`).
+
+| change | what |
+|---|---|
+| `ssyvkuoo` | the atom-balance reason names the literal that is ahead |
+| `ztuwrpyx` | the drawing's rule labels named by their step |
+| `yslwxkpn` | the labels' buttons share the gaps; the axe exception narrowed; `targets.spec.ts` holds labels to the floor or a shared gap |
+| `koknlnrm` | the dock follows the goal in the same event during a drag |
+| `lxxtrmso` | the link test's broken link opened as a load of its own |
+| `uyykmyvq` | the text pass |
+| `wztuunnm` | the review's finding: the axe spec measures a label's overlap itself |
+
+The chain stands on the client's `main@origin` (`wptvvnrm`), which did
+not move (fetched at the end); `jj st` is clean in both workspaces.
+
+### The proposals and their tests
+
+- **The atom-balance reason** (`words.ts`, `balance`): deduxit's
+  `least` and `most` bound the excess of `A` over `A⊥`, so a negative
+  interval means the dual is ahead. The sentence now reads "`A` and `A⊥`
+  do not pair off: every derivation pairs each atom with its dual, and
+  here A⊥ occurs 2 more times than A" (or "1 to 2 more times" for an
+  interval, "1 more time" for one). It was "A is ahead by -2".
+  `words.test.ts` runs four sequents through the real module, both signs
+  and both forms.
+- **Rule labels named by their step**: "Rule ⊗, step 3". The SVG's
+  `g#i<n>` is the view's inference id, and `write_steps` numbers line
+  n + 1 for it; linear and ordinary drawings share that writer.
+  `hints.spec.ts` holds each label's name to its line of the `<desc>`
+  ("3. …, by ⊗ from 1 and 2."); the three tests that named a label
+  exactly match "Rule X, step N" now.
+- **The labels' targets on a phone** (`src/lib/gap.ts`, `spread`): each
+  label's button grows to a control's size, centred, but stops at a
+  formula's or a cut's button, then at the middle of the gap to the next
+  label; pairs are taken nearest first and only while their buttons
+  still meet, since cutting against a diagonal neighbour before a nearer
+  one cut the other axis left buttons narrower than needed (two labels
+  at 42 pixels in lesson 9's elimination, found by `targets.spec.ts`).
+  How a drawing fits is unchanged.
+  - Without the exception, axe found the labels overlapping each other
+    and the cut buttons in four states (the elimination, lesson 9's
+    elimination, lesson 10's refusal, More's sheet). With `spread`, no
+    label's button meets another drawn button. What remains is (a)
+    labels under 24 pixels because their rows lie closer than that in a
+    drawing fitted to a phone (axe: "insufficient size (44px by 22.5px)
+    … space … 22.6px"), and (b) labels partly under the stage's view
+    controls or More's sheet, which lie over the drawing as it pans.
+  - The exception (`accessibility.spec.ts`, `excepted`) now passes only
+    a `target-size` violation of a label whose button overlaps no other
+    button over the drawing, measured in the page (`crowding`; axe names
+    no covering element for a target under 24 pixels, the review's
+    finding);
+    its comment says why (a) and (b) remain and keeps the Reference's
+    "equivalent" argument for the linear rules. With `spread` switched
+    off the narrowed filter fails all four states again.
+  - `gap.test.ts`: a lone label, two labels one above the other, a label
+    beside a formula's button, and a fast-check property (any marks and
+    laid buttons: every button covers its mark, overlaps no laid button
+    and no other label's button where the marks do not overlap, and is
+    never larger than a control).
+  - `targets.spec.ts` now fails any two drawn buttons that overlap, and
+    lets a label be under the floor on an axis only where it reaches a
+    neighbour's button on that axis. (departs from the design: the
+    design's 44 pixels for every control on a phone; a label's rows lie
+    closer than 44 pixels in a fitted drawing, and the old 44 × 44
+    buttons met it only by overlapping, each hiding part of the other's
+    taps.)
+- **The dock during a drag**: the world's transform and the dock's
+  placement were both effects of `camera()`. Solid 1.x runs a change's
+  effects in the order of the signal's readers and puts an effect that
+  ran last among them, so after the transform's first run the dock's
+  effect came first and read the old transform. The transform is now a
+  `createRenderEffect`, which runs before every effect. `phone.spec.ts`
+  checks after each of five drag moves that the dock lies right above or
+  right below the goal (as the dock effect measures the goal, its
+  formulas' buttons included). On the stage before the fix, which is
+  `main`'s code there, it failed every time from the third move: "268
+  for 34 or 258", the dock 10 pixels, one move, behind. After it, 3 of 3
+  runs of the whole phone spec passed.
+- **`prover.spec.ts`'s broken link**: the step went to the link with
+  `&d=AAAA` by `goto` (a change of the fragment alone, so the same
+  document) and reloaded. The page writes its link 400 ms after each
+  change of the shown proof (`replaceState`, `App.tsx`) and reads the
+  fragment only at a load, so a write still pending from the reload put
+  the good link back before the reload. A probe that left the checks
+  between the two out saw the broken fragment rewritten 3 of 3 times
+  within 600 ms; in the test the checks usually outlast the timer, hence
+  about 1 in 24. The broken link now opens in a page of its own. 24 of 24
+  passed (`--repeat-each=24`). `web.md` says so beside the link.
+
+### The text pass
+
+`writing.md`'s four rules throughout; for the lessons
+`cognitive-load-analyser` (lesson 2's paragraph repeated lesson 1's
+rewrite, a redundancy, and is cut to what is new) and
+`ai-feedback-design-principles` (Practice's rule says which steps count,
+so the feedback "proved" is predictable). Claims changed: lesson 1's
+rewrite said "You typed `A ⊢ A`", but the lesson opens that sequent;
+Practice's "Hint may help" did not say that Hint's steps count.
+
+Lessons, before and after:
+- Lesson 1's `rewrite`: "You typed `A ⊢ A`, and the stage shows `⊢ A⊥,
+  A`: a hypothesis left of `⊢` moves to the right as its dual." → "The
+  sequent is typed `A ⊢ A`, and the stage shows `⊢ A⊥, A`. The
+  hypothesis `A`, left of `⊢`, moves to the right as its dual."
+  Its switch line: "Two-sided is on: the stage shows the sequent as you
+  typed it. Lessons 1 to 5 use the one-sided form; lesson 6 comes back to
+  two sides." → "Two-sided is on: the stage draws the sequent as it was
+  typed. Lessons 1 to 5 use the one-sided form, and lesson 6 returns to
+  two sides."
+- Lesson 2, second paragraph: "`A |- A` is typed for `⊢ A⊥, A`: in
+  classical mode each formula left of `⊢` moves to the right as its
+  dual. The dual of a compound formula follows De Morgan's laws, `(A ⊗
+  B)⊥ = A⊥ ⅋ B⊥`, and `A⊥⊥` is `A` again." → "The hypothesis `A ⊗ B`
+  moves to the right as its dual, as in lesson 1. The dual of a compound
+  formula follows De Morgan's laws: `(A ⊗ B)⊥` is `A⊥ ⅋ B⊥`. And `A⊥⊥`
+  is `A` again."
+- Lesson 7, below the worked proof: "Unknown: the search stopped at a
+  bound, its budget of work or of copies, before it decided." →
+  "Unknown: the search reached its budget of work or of copies before it
+  decided." The rest kept.
+- Lesson 8, below: "…or in MELL, the multiplicatives with `!` and `?`;
+  each promotion `!` draws a box. In intuitionistic mode it draws
+  Lamarche's essential net…" → "…or in MELL, the multiplicatives with
+  `!` and `?`. Each promotion, the rule that makes a `!`, draws a box
+  around the net of its premise. In intuitionistic mode the tab draws
+  Lamarche's essential net…". The switching condition's paragraph kept.
+- Lesson 9, below: "…every proof with cuts has one without (cut
+  elimination), so a cut never proves what has no proof. It can make a
+  proof shorter, though rarely without `!`… A lemma under `!` is proved
+  once and copied for each use, where the cut-free proof derives it
+  again every time." → "…every proof with cuts has one without, which
+  cut elimination finds. So a cut never proves what has no proof. It can
+  make a proof shorter, but rarely without `!`… A lemma under `!` is
+  proved once and used many times, where the cut-free proof derives it
+  again at each use." ("Copied" stays for the elimination, the next
+  sentence, where the lemma's proof is copied.)
+- Lesson 10, below: "`∀` is like `&` over every term, `∃` like `⊕`
+  choosing one. And as everywhere in linear logic, a hypothesis `∀x. A`
+  gives one instance, once; under `!` it gives as many as needed." →
+  "`∀` behaves like `&` over every term, and `∃` like `⊕` that picks
+  one. As everywhere in linear logic, a hypothesis `∀x. A` gives one
+  instance, used once. Under `!` it gives as many instances as needed."
+- The parts above the breaks were read and kept: each holds one idea the
+  worked proof needs.
+
+Other texts:
+- Practice: "A problem counts as proved when you close every goal
+  yourself; Hint may help." → "A problem counts as proved when your
+  steps close every goal. Steps that Hint applies count as yours; a goal
+  that Close goal or Close all closes does not." (the rule as
+  `createPractice` applies it).
+- Export details, one idea a sentence: LaTeX's whole document "…compiles
+  alone, cropped to the derivation. It needs ebproof, cmll and amssymb
+  installed"; Typst's fragment "…to paste into a Typst document. It uses
+  the package curryst, or plain Typst when the derivation is tall";
+  Typst's whole document "…compiles alone, on a page the size of the
+  derivation. Typst downloads curryst itself"; the Rocq files "…, its
+  import first. It needs …" and "…over Prop. It needs no library".
+- The share group: "The sequent" now "A link to the sequent alone, with
+  no step taken: an exercise to send"; "This proof" kept.
+- Read and kept: the practice feedback ("Right" or "Not quite", then
+  "It has a proof." or "It has no proof.", the explanation, Watch: task
+  feedback with the reason, as the skill asks), and "Try … yourself".
+
+### The checks
+
+| check | result |
+|---|---|
+| Vitest in the dev shell (`--maxWorkers=3`, cores 13-15) | 592 passed (587 on `main`: one in `words.test.ts`, four in `gap.test.ts`) |
+| `biome lint --error-on-warnings`, `astro check`, `tsc --noEmit` | 0 errors |
+| axe spec without the exception, on `main`'s labels | 6 of 48 failed (`target-size` on labels in four states) |
+| axe spec, narrowed exception, `spread` switched off | 3 of 12 phone tests failed (every label state) |
+| axe spec, `targets.spec.ts`, `hints.spec.ts` with the chain | 67 passed |
+| the dock check on the stage before the fix | failed, 3 of 3 |
+| `phone.spec.ts` after the fix, `--repeat-each=3` | 24 passed |
+| the link test, `--repeat-each=24` | 24 passed |
+| the whole e2e suite in the dev shell (`--workers=3`), after the text pass | 213 passed (212 on `main`), none flaky |
+| the axe spec after the review's fix | 48 passed; with `spread` switched off, 3 of 12 phone tests failed again |
+| the client's `nix flake check --keep-going --max-jobs 4 --cores 8`, under the machine lock, at `wztuunnm`, the chain's last commit | exit 0, "all checks passed!": 592 unit tests, 213 e2e tests passed, none flaky |
+
+### Departures from the design
+
+- A rule label's button on a phone may be under 44 pixels where its
+  neighbours are nearer (above). (departs from the design)
+- The axe exception stays, narrowed: labels under 24 pixels for want of
+  room, and labels partly under the stage's controls or a sheet. For the
+  rules the Reference lacks it is a violation that still waits for the
+  author's decision on how a drawing fits a phone. (departs from the
+  design)
+
+### Proposals for the author
+
+- A link pasted into the address bar of an open page, differing only in
+  its fragment, opens nothing until a reload, and the page's own link may
+  replace it first: the page could read the fragment on `hashchange`
+  (a change of the page's behaviour, so asked).
+- The labels' spacing on a phone (24 pixels between rows) needs a zoom
+  floor for a fitted finished drawing, as `floor` gives the active goal's
+  formulas; that changes how a drawing fits, the author's call.
+
+### What the next sessions must know
+
+- A drawing's label button is "Rule X, step N", N the line of the
+  drawing's `<desc>` (`g#i<n>` is step n + 1); a test finds a label by
+  `/^Rule ⊗, step \d+$/`.
+- Label buttons come from `spread` (`src/lib/gap.ts`): no two buttons of
+  the drawing overlap, and `targets.spec.ts` fails one that does. A new
+  kind of button over the drawing goes into the `taken` list
+  `labelTargets` passes.
+- `.lb` is also the bottom band's label class: a test of the drawing's
+  labels says `.hits .lb`.
+- The world's transform is a render effect; an effect that reads the
+  drawing's place on the screen needs nothing more to see it moved.
+- A test opens a link as a load of its own; `goto` to another fragment
+  of the loaded page keeps the document, and the page's own link may
+  replace it.
