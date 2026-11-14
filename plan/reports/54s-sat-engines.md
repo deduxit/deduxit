@@ -1530,65 +1530,204 @@ says.
 
 Opus 5.5 at `high`, the worker of 54s-c2 (same conversation and
 workspace), from the brief `start-54s-c3.md`, on 2026-11-14, cores 4 to
-6. **Paused** at the planning session's "Pause" (the author restarting
-the app); the checklist below is where it stands.
+6 for builds and tests, cores 2 and 3 for the timed window
+deduxit-orchestrator gave. Paused once for the app's restart (the
+checklist then stood here) and resumed after the reboot.
 
-### Checklist at the pause
+### Outcome
 
-- [x] Base `ympppsxt` (`jj new ympppsxt`).
-- [x] **The classical default**, committed as `zzrpukpu` (4bf8e680):
-  `Method::default_for` is the SAT solver for every logic (with `sat`);
-  `ordinary::decide`'s `with_evidence` runs the embedding within
-  `ordinary::EVIDENCE_WORK` = 2²⁰ units after the solver decided, its
-  outcome replacing the solver's where it proves (derivation read back
-  and checked) or refutes; the command's `prove` and batch do the same
-  (`Native::Solved`, `ordinary::bounded`, `ordinary::evidence`,
-  `write_native`); `--net` skips the solver. Tests: one library test
-  (`the_classical_default_keeps_the_embedding_s_evidence`), one lock
-  call (`ordinary-classical-default-clausal`, four pigeons in three
-  holes). The manual, guide, changelog, status page and rules are
-  changed. `cargo test --workspace` passed before the commit (27
-  suites); clippy clean. The bound's choice: the 124 ILTP problems
-  whose derivation the old default gave at 2 s need at most 177 136
-  units (from `sat-default.csv`'s embedding rows; 2.3 ms of search);
-  the 33 more the embedding proves only past the derivation limit need
-  up to 51 million.
-- [x] **Item 1**, in the same commit: `prove::untranslated`, the line
-  when the time limit passes while the embedding translates after the
-  default gave way (the solver's reason, then that the embedding took
-  over).
-- [ ] **Item 2**, uncommitted in `@`: `nets/cut/mod.rs`'s tests gated on
-  `interactive` too (they use `Interactive` since `xzwvqqtv`,
-  2026-10-28, "Add cut links to proof nets and cut elimination on
-  them"), and the seven warnings of `cargo test -p deduxit
-  --no-default-features --features parse --no-run` fixed by gating
-  test-only items (`ill.rs`, `derivation/classical.rs`,
-  `lambda/tests.rs`). That build is clean; `--no-default-features`
-  alone was clean before. Still to run: `cargo clippy -p deduxit
-  --all-targets -- --deny warnings` (default features) and the core
-  tests, then commit "Build the library's tests with parse alone, without
-  warnings".
-- [ ] **Item 3**: found, written into `plan/later.md` (uncommitted in
-  `@`): SYJ202's intuitionistic "valid" takes the solver 27 conflicts at
-  size 4, but the derivation of LJ read off it passes the 64 MiB
-  derivation limit in 37 ms, LJT's too, so the default gives way. Still
-  to do: measure the derivation's size with `--derivation-limit none`
-  (`deduxit prove --logic intuitionistic --method sat --stats -q
-  --derivation-limit none bench/iltp/Problems/SYJ/SYJ202+1.004.p`) to
-  confirm the later.md entry's reading, then commit later.md with this
-  report. The entry for `comparison.sh`'s ILTP pass is in the same
-  file.
-- [ ] **The classical timed run**: script ready
-  (`timed3.sh` in the session's scratchpad: ILTP at 2 s, classical,
-  `--engines embedding,sat,auto`, two shards on cores 2 and 3). Build
-  `deduxit-bench` in release, copy it into the run's directory, send
-  "54s-c3: timed run ready, about 5 minutes on cores 2-3", wait for "go
-  ahead", run under `flock -o /tmp/linlog-machine.lock`, send "54s-c3:
-  timed run done". Then commit the rows as
-  `bench/defaults/sat-classical.csv` (named in `core-ordinary.md`), and
-  check the changelog's "254 problems where it decided 124" and the
-  results chapter against them.
-- [ ] The gate, every family at 5 s, the target sets against 47's,
-  `fresh-reviewer` once, `nix flake check` under the lock, this
-  section's full text (bound and numbers, the classical table, the
-  three items, the reviewer), rebase onto `main@origin`.
+- **Classical logic decides by the SAT solver by default, and keeps the
+  embedding's evidence wherever the embedding gives it** (decided by the
+  planning session while the author was away, 2026-11-14, on 54s-c2's
+  question). Once the solver has decided, the embedding searches within
+  `ordinary::EVIDENCE_WORK` = 2²⁰ units of work (or a lower
+  `limits.work`). A proof whose derivation of LK reads back and checks
+  under the caller's limits, or a refutation, gives the output exactly as
+  `--method embedding` gives it (verdict line, drawing, exports, Rocq
+  certificate, the image's JSON, `--stats`). Otherwise the solver's
+  checked clausal proof or countermodel stands. A stop, a bound, an
+  error or a refused derivation in the attempt leaves the solver's
+  answer; a verdict of the embedding against the solver's is a defect
+  (`Error::ReadBack` in the library, an error in the command). `--net`
+  skips the solver: only the embedding draws a net. The library
+  (`ordinary::decide`'s `with_evidence`), `prove` and the batch take the
+  embedding's outcome under the same conditions.
+- **On ILTP at 2 s the default decides 254 classical problems, the same
+  254 as the SAT method, where it decided 124**, and it gives the
+  embedding's evidence again for all 124 (123 derivations of LK and one
+  refutation, SYN916+1). No verdict differs between the methods or from
+  ILTP's status.
+- **Item 1**: where the default gives way and the time limit passes
+  while the embedding translates the sequent, the line is now "unknown:
+  the SAT solver gave no verdict: <its reason>; the embedding took over,
+  and the time limit of <limit> was reached while it translated the
+  sequent" (`prove::untranslated`), and without a solver before it "…
+  while the sequent was translated into linear logic".
+- **Item 2**: `cargo test -p deduxit --no-default-features --features
+  parse --no-run` failed since `xzwvqqtv` (2026-10-28, "Add cut links to
+  proof nets and cut elimination on them"): `nets/cut/tests.rs` uses the
+  interactive session, gated on `parse` alone. Now gated on
+  `interactive` too, as the proof terms' cut tests are; that build then
+  had seven warnings of test-only items, now gated on the features their
+  tests need. It builds clean; `--no-default-features` alone was clean
+  before.
+- **Item 3, SYJ202**: the solver is not what fails. At size 4 it finds
+  "valid" in 27 conflicts, and its derivation of LJ has 14 036
+  inferences (0.9 MB as JSON; 164 903 at size 5, 2 017 284 at size 6,
+  about twelve times per size), built and checked in 2.8 ms with
+  `--derivation-limit none` (28 ms at size 5). The derivation limit is an
+  estimate of the drawn text, and every inference repeats the sequent's
+  twenty-odd hypotheses, so it passes 64 MiB; LJT's too, and the default
+  gives way to the embedding, which decides nothing from size 4. Not
+  small to fix: two ways for the author in `plan/later.md` (bound what is
+  built and checked by inferences or memory and keep `derivation_bytes`
+  for what is drawn; or shared subderivations with a checker that checks
+  each once, the panel's).
+
+The commits on `ympppsxt`: `zzrpukpu` (the default and item 1),
+`ytqzzpzs` (the pause's checklist), `nzrknypv` (item 2), `lklkmovv`
+(later.md: SYJ202 and `comparison.sh`'s ILTP pass), `tlzzxkmx` (the
+timed rows and the manual's table), `vzwvsplt` (later.md: the focused
+engine's late first poll), `nymvzvxn` (the reviewer's findings: the help,
+the count), `roryzrzy` (the lock's help files), `wrnltouo` (the
+`read-json` ceiling), and this report's.
+
+### The bound, with its numbers
+
+From `bench/defaults/sat-default.csv` (54s-c2's run 2): the 124
+problems whose evidence the old default gave within 2 s need at most
+177 136 units of the embedding's work (SYJ204+1.008 and SYJ210+1.008,
+2.3 ms of search). The 33 more the embedding proves only past the
+derivation limit need up to 51 million (SYJ204+1.013, 1 s). 2²⁰
+(1 048 576) is six times the first and ends far below the second.
+
+### The classical timed run
+
+`bench/defaults/sat-classical.csv`, one release build, 21:17:33 to
+21:20:24: `deduxit-bench run --tptp bench/iltp/Problems --logics
+classical --engines embedding,sat,auto --jobs 1 --copies none --timeout
+2 --repeat 3 --repeat-under 1`, two shards on cores 2 and 3 under the
+machine lock.
+
+| classical, 2 s | the embedding | the SAT solver | the default |
+|---|--:|--:|--:|
+| decided | 157 | 254 | 254 |
+| with the embedding's evidence | 124 | – | 124 |
+| time on the 124 | – | – | 347.8 ms (old default 346.1 ms) |
+| time on the 157 all decide | 9 209 ms | 7.0 ms | 828 ms |
+
+- The default decides exactly the problems the SAT method decides, and
+  the 124 it answers with the embedding's output are exactly the old
+  default's.
+- On the 130 the solver answers, asking the embedding first costs a
+  median of 16 ms, more than 100 ms on 18 problems, more than 500 ms on
+  two (SYJ206+1.020 694 ms, SYJ212+1.020 680 ms), none more than 1 s.
+  Where it costs most, the focused engine's first node on the affine
+  image does 4 915 215 units of work before it asks the work bound
+  (`--work-limit 1` still ends after 0.46 s): a later.md entry for the
+  focused engine.
+- The slowest default answer is SYJ208+1.010 at 1.43 s, the solver's
+  own 1.31 s plus 0.11 s; in the command `--method sat` takes 1.99 s on
+  it (the solver's check at the edge of the limit), so that problem is
+  near the limit by either.
+- `summary --strict` fails only on the embedding's known `error` rows
+  for SYN007+1.014 (past the occurrence limit).
+- **What else ran beside the window**: 54w-f's browser tests on cores
+  13 to 15 (finishing) and step 57's runs on cores 7 to 9 (after their
+  pause, a run may still have gone), as the planning session said; 58a's
+  wasm tests and a panel's release build were running when it began. My
+  gate, started on cores 4 to 6 while the lock was held, was stopped
+  before the window and rerun after it.
+
+### Decisions, each with its reason
+
+- **The bound counts the embedding's search alone**; the read-back and
+  check of its derivation run under the caller's limits, as the
+  embedding's own do: the derivation is bounded by `derivation_bytes`,
+  and a bound on its work would refuse derivations the old default gave.
+- **The command decides as the library does**, reading the derivation
+  back to know whether the embedding gives it (also under `-q` and
+  JSON), and draws from that derivation rather than reading it back
+  twice (`ordinary::derivation`'s `read`).
+- **The embedding's outcome is taken only with a derivation of LK or a
+  refutation**, as the decision words it. The reviewer's second finding:
+  on 8 problems (SYJ201+1.003, SYJ204+1.009, SYJ205+1.010 and +1.011,
+  SYJ207+1.003, SYJ210+1.009, SYJ211+1.011 and +1.012) the embedding
+  proves the image within the bound but its LK derivation passes the
+  derivation limit; there `--format json` now writes the solver's
+  checked clausal proof where the old default wrote the image's checked
+  linear proof. Text, Rocq and the other formats lose nothing (the old
+  output was "the derivation is not written"). Kept: both are checked
+  evidence of validity, the library and the command agree, and the
+  library's outcome cannot express a valid verdict without one of the
+  two (its `Evidence`).
+- **`read-json`'s ceiling raised** in a commit of its own: the journey
+  reads a linear sequent's JSON through serde, which the change does not
+  touch; at the base it was 12 997 351 (1.54 % over), at the head
+  13 059 079 (2.03 %).
+- **The rows are 0.37 MB** (no snapshot option needed).
+
+### The checks
+
+- `cargo test --workspace` before the first commit: 27 suites, none
+  failed; clippy with `--deny warnings` clean on core and the command.
+- The gate at `wrnltouo` (cores 4 to 6): passed. The first gate, at
+  `vzwvsplt`, failed on `read-json` alone (2.03 % over its ceiling),
+  which the ceiling's commit answers; both noted moved misses on
+  `search-qbf-20-2`, a note and no failure, as at 54s-c2.
+- Item 2: `cargo test -p deduxit --no-default-features --features
+  parse --no-run` builds without a warning; `--no-default-features`
+  alone too.
+- Every family at 5 s (`run --all-families --timeout 5`): 195 runs,
+  `summary --strict` passes, no mismatch.
+- The target sets (`bench/targets/54s-c3.csv`, `net-54s-c3.csv`)
+  against 47's: no verdict differs; of the 145 focused and 64 net
+  problems decided alike, none differs in a counter.
+- The timed run's `summary --strict`: fails only on SYN007+1.014's known
+  `error` rows of the embedding.
+- `nix flake check` under the machine lock at this report's commit:
+  "all checks passed!" (the ratchet with the new ceiling among them).
+
+### The reviewer
+
+`fresh-reviewer` (Fable 5.2 at medium) on `zzrpukpu`, `nzrknypv` and
+`tlzzxkmx`, against the decision, the three items and the writing rules:
+- *The help of `--method` and `--logic` still said the old classical
+  default*: true; fixed in `nymvzvxn`, the lock's help files reblessed
+  in `roryzrzy`.
+- *JSON loses the image's linear proof on 8 problems*: answered under
+  Decisions; kept, for the reasons given.
+- *"124 derivations" is 123 derivations and one refutation*: true;
+  fixed in the manual, the results chapter, `EVIDENCE_WORK`'s doc and the
+  rules.
+- Holding by its check: the default's output byte for byte the
+  embedding's on Peirce's law and `a |- b` in text, JSON, Rocq, `-q`,
+  `--net` and `--stats`; the solver's answer past the bound; the batch
+  as single calls; every path of the attempt keeping the solver's
+  answer; `--net`; item 1's line; item 2 by reading.
+- In fixing its third finding I found "about 20 ms" wrong in four
+  places (the late first poll); corrected to the measured median and
+  maximum.
+
+### Departures from the brief
+
+- The bound covers the embedding's search only (Decisions), and its
+  cost on the hardest ILTP problems is 0.7 s, not the 20 ms a work bound
+  of that size suggests, because of the focused engine's first poll.
+- On 8 problems JSON carries the clausal proof where it carried the
+  image's linear proof (Decisions).
+
+### What the next sessions must know (step 55)
+
+- The default's outcome in classical logic is `Search::Embedding` where
+  the embedding gave its evidence and `Search::Sat` otherwise; a reader
+  matches the search, never the logic, to know which.
+- The countermodel of a "not valid" is on `sat::Outcome::model`, which
+  `ordinary::Outcome` drops; showing it in the command needs it kept
+  there (54s-c2's note stands).
+- `ordinary::EVIDENCE_WORK` is public and the command's `bounded` takes
+  the lower of it and `--work-limit`; a settings key for it would be an
+  API change for the author.
+- Open: the pigeonhole derivations (later.md, two ways); the focused
+  engine's first poll on a large classical image (later.md);
+  `comparison.sh` has no ILTP pass (later.md).
