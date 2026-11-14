@@ -145,6 +145,11 @@ the generated families are read or changed; the harness that runs them is
   nested clause uses; size 1 is a loop).
 - **The wide families start at one pair**: `wide(0, _)` is the empty
   sequent, unprovable without Mix, which `least: 0` had marked provable.
+- **`Family::instance` does not check the index**: past `instances` a
+  generator still answers, and its `provable` may be wrong
+  (`contraction` at index 2 is #0's provable sequent marked
+  unprovable). Callers iterate `0..instances`, and the doc says so; a
+  generator that gains a shape raises `instances` with it.
 - **`batch-families`'s input is a list of names** (`BATCHED` in
   `bench/src/journeys.rs`): a family added later stays out of the
   journey, so that its ceiling keeps measuring the same batch.
