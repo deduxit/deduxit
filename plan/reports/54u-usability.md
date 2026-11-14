@@ -943,3 +943,228 @@ which exits 0 as it should.
 - `packages.check-certificate` beside the app would let `nix shell` and
   `nix profile install` take the checker. The item asks for the app
   alone.
+
+## Session 54u-d: Learn, Practice and Export
+
+Item 4 of `plan/54u-usability.md` (Opus 5.5 at `high`, 2026-11-14), in
+the web client's jj workspace `../deduxit.github.io-54u-d` (workspace
+`step54u-d`), its chain rebased onto the client's `main@origin`
+(`wxxpuxrx`, which moved during the session). Nothing was pushed. This
+deduxit workspace holds only this section.
+
+### Outcome
+
+W5, W6, W7, W8, W11, W12, W13 and W14 are built in the client, each with
+its e2e test, and W13 and W14 with a unit test as well.
+The client's `nix flake check` passed at the chain's last commit,
+`runpsyxs`: 586 unit tests and 162 e2e tests passed, one more e2e test
+passed on its retry (a test this chain does not touch; see "The
+checks"). The fresh reviewer found two gaps, both fixed.
+
+- **W5, a wrong check answer offers its problem.** When the chosen
+  option names a store problem (`problem` in the lesson's hinge), the
+  feedback offers "Try ⊢ A, A yourself" first, as the primary button. It
+  opens the problem the way a practice row's Prove does. "Try the faded
+  proof again" follows it.
+- **W6, answer buttons on Learn's practice rows.** Each row has "Has a
+  proof" and "No proof" (a group named "Does <title> have a proof?",
+  each button `aria-pressed`) beside Prove. A press answers at once, as
+  a status: "Right" or "Not quite", then "It has a proof." or "It has no
+  proof.", the problem's explanation and Watch. The "Answer" disclosure
+  is gone; the answer stays while the lesson is open and may be changed.
+- **W7, exports that compile alone.** The export settings now carry
+  deduxit's `Form`: LaTeX and Typst stay fragments (`fragment`), and each
+  is followed by an indented "Whole document" item (`standalone`). Every
+  Rocq file, the proof's and the refutation's ("Not derivable"), is
+  `standalone`, so it starts with its `Require` line. Each detail names
+  what the file needs: ebproof, cmll and amssymb for LaTeX, installed
+  for the whole document; curryst for Typst, which Typst downloads; for
+  Rocq, NanoYalla or rocq-deduxit as before, or no library over `Prop`
+  for an ordinary proof.
+- **W8, a link to the bare sequent.** The menu's link item is now a
+  group "Share a link" with two items: "This proof" ("A link to this
+  proof as it stands") and "The sequent" ("A link to the sequent alone,
+  with no step taken, as an exercise"). The second writes the link
+  without its session.
+- **W11.** Practice's text says "A problem counts as proved when you
+  close every goal yourself; Hint may help." The rule itself is
+  unchanged (steps Hint applied count, the search's closes do not).
+- **W12, lesson 1's rewrite.** Lesson 1 has a new optional part,
+  `rewrite`, one sentence shown in the worked proof's section: "You typed
+  `A ⊢ A`, and the stage shows `⊢ A⊥, A`: a hypothesis left of `⊢` moves
+  to the right as its dual." A button turns the Two-sided switch on (the
+  stage redraws `A ⊢ A`), a line says lessons 1 to 5 use the one-sided
+  form, and "Turn it off" turns it off. The lesson's change holds for
+  the visit alone and is never stored. If the lesson turned it on, its
+  next step and leaving the lesson turn it off again, so the step
+  reasons, written one-sided, match the drawing. Lessons 1 to 5 stay
+  one-sided.
+- **W13, openings below the worked proof.** An opening may now hold one
+  thematic break (`***`). The part before it stands above the worked
+  proof, the part after it right below the worked proof (`Written`'s
+  `part`). See "Decisions" for which lessons moved and why.
+- **W14, the storage keys.** `linlog-settings`, `linlog-theme`,
+  `linlog-practice`, `linlog-proofs:<visit>` and
+  `linlog-proofs-previous` are now `deduxit-…`. `migrate`
+  (`src/lib/storage.ts`), the first statement of the island, moves each
+  old key's value to its new key and deletes the old key; a value
+  already under the new key wins. The pre-paint theme script reads
+  `deduxit-theme`, else `linlog-theme`, so the first paint after the
+  release keeps a pinned theme. The service worker's cache prefix is
+  `deduxit-site-`, and its activation also deletes every `linlog-site-`
+  cache. The privacy page lists the new keys. Kept for one release, as
+  the item says; the client's `web.md` says to remove the three together.
+
+### The client's commits
+
+On the client's `main@origin` (`wxxpuxrx`), oldest first, by change id:
+
+| change | what |
+|---|---|
+| `vmoymwou` | W14: `storage.ts` and its unit test, the keys renamed, the pre-paint fallback, the worker's old caches, the privacy page; the e2e tests that name the keys changed with them, one e2e test that loads old keys, one that the worker deletes an old cache |
+| `zovprrmr` | W7 and W8: the export forms and the share group; the export e2e test downloads both whole documents and checks every file's form and both links; README and `web.md` |
+| `tmrkuzyu` | W11: Practice's text; an e2e test that a proof with a step Hint applied is marked proved and that the text says the rule |
+| `ywrxouqs` | W5 and W6: the check's "Try … yourself", the practice rows' answer buttons and feedback; the e2e tests that opened "Answer" changed with it |
+| `vwwmmymn` | W12 and W13: the lesson schema's `rewrite`, lesson 1's sentence and buttons, the split openings of lessons 7 to 10; a unit test of the split, e2e tests of both |
+| `krukxxuu` | the whole-document rows' label indented, their detail kept in the column (seen in the browser) |
+| `ylvtprxt` | a pre-existing race in the link test fixed at its cause (below) |
+| `twqsytno` | the lint fix: the share group and a practice row's answers are fieldsets, Practice's heading's `font` first |
+| `wuvloosz` | the review's finding 1: Learn's answers and lesson 1's rewrite measured at both widths |
+| `runpsyxs` | the review's finding 2: the switch lesson 1 turns on holds for the visit alone |
+
+### Decisions
+
+- **W13: four openings moved, in part.** Each lesson's opening was read
+  against what its worked proof shows (the steps and their reasons).
+  An opening moved only where a part of it holds more than that, and
+  only that part, so that what the worked proof needs to be read stays
+  above it (the cut of `plan/notes/usability.md`'s W13: Sweller and
+  Cooper 1985, Renkl 2014, as the review cites them; no rewording):
+  - Lesson 7: the worked proof (and the attempt before it) shows that a
+    stuck attempt proves nothing, which stays above. The three answers
+    (Proved, Unprovable, Unknown) and "No proof needs a reason", with
+    its list, are what the gallery and the Unknown part show, so they
+    moved below.
+  - Lesson 8: the worked proof shows a derivation and offers its net;
+    paragraph 1 (what a net is) stays. The switching condition and the
+    Net tab's reach (MLL, MELL's boxes, essential nets) are what the
+    gallery and the check use, so they moved.
+  - Lesson 9: the cut stays; cut elimination and its price are what the
+    Eliminate part right below the worked proof shows, so they moved.
+  - Lesson 10: the syntax and the rules stay, since the worked proof
+    needs them; "∀ is like &, ∃ like ⊕" and `!` over `∀` are more than
+    the proof shows, so they moved.
+  - Kept: lessons 1, 3, 4 and 5 (short, every sentence shown by the
+    proof), 2 (its second paragraph explains `A⊥ ⅋ B⊥`, the worked
+    proof's first goal), 6 (the intuitionistic reading is needed to read
+    the worked sequent) and 11 (the translation is needed to read the
+    image proved).
+- **W13's mechanism is a thematic break in the Markdown.** The opening
+  stays one text in one file, rendered once; `Written` splits the
+  clone at its first `<hr>`. `---` would end the frontmatter in the
+  tests' reader, so the break is `***`.
+- **W12 restores the switch the lesson turned on.** The switch is a
+  stored setting of the page. The lesson's change is for the visit
+  alone (`setSettings(change, true)`, after the review), and the lesson
+  turns it off at its next step and when it closes, but only if it
+  turned it on itself, so a visitor who keeps Two-sided on keeps it.
+- **W6's answer is not stored.** Nothing asks to keep it across visits,
+  and Practice's stored progress is for proofs, not guesses.
+- **W8's labels.** The group is named "Share a link", its items "This
+  proof" and "The sequent", their details "A link to this proof …" and
+  "A link to the sequent …": the item's names, laid out so that the
+  label column (96 pixels) holds them on one line.
+- **W7's whole documents follow their fragments as sub-rows** with
+  "Whole document" as the label; the detail says which format, so a
+  screen reader hears "Whole document, A LaTeX file …".
+- **W14's migration runs in the island's body,** before `createProver`
+  reads the settings and Practice its progress; the pre-paint script
+  only reads the old theme key, since it runs on every page and its
+  hash is in the policy.
+- **The link test's race.** `prover.spec.ts`'s "the link in the fragment
+  restores the proof" failed one run in three at the chain's head and
+  at `main@origin` alike (`--repeat-each=3`). Its `toHaveURL(/&d=/)`
+  already matched the link written for the sequent before the step, so
+  the copied URL could hold no step. The test now waits for the URL to
+  change after the step; it passed six of six. 54u-c's report saw the
+  same test fail once "under load".
+
+### The checks
+
+| check | result |
+|---|---|
+| Vitest in the dev shell (`--maxWorkers=3`, cores 13-15) | 586 passed (584 before: `storage.test.ts` and the openings' split in `lessons.test.ts` are new) |
+| the whole e2e suite in the dev shell (`--workers=3`, cores 13-15), before the review | 160 passed, 1 failed: the link test, a race present on `main@origin` too (below), fixed in `ylvtprxt` |
+| the client's `nix flake check --keep-going --max-jobs 4 --cores 8`, under the machine lock, at `ylvtprxt` | exit 1: `lint` failed on three Biome errors (two `div role="group"` that `useSemanticElements` wants as fieldsets, and a `font` shorthand after `line-height` in a rule this chain merged; my own lint run in the dev shell had been misread); unit 586 and e2e 161 passed. Fixed in `twqsytno` |
+| the same at `twqsytno` | exit 0: 586 unit, 160 e2e passed, 1 flaky |
+| the same at `runpsyxs`, after the review's fixes | exit 1: the new phone measure of Learn's answers measured the stage before its two-sided redraw (a 31-pixel button, on both tries). The test now waits for the drawing (`wuvloosz`); 10 of 10 with `CI=1` locally |
+| the same at `runpsyxs` again, the chain's last commit | exit 0, "all checks passed!": 162 e2e tests passed and 1 flaky; the unit check's sources were unchanged since `twqsytno`, so its result (586 passed) came from the store |
+| `biome lint --error-on-warnings`, `astro check` | 0 errors at the last commit |
+
+The flaky test both times was `ordinary.spec.ts`'s "the structural
+switch with a goal open marks and buttons that goal in the new drawing",
+which this chain does not touch; it passed 6 of 6 in the dev shell
+(`--repeat-each=6`). It is left as a follow-up.
+
+### The review
+
+The `fresh-reviewer` agent (Fable 5.2 at `medium`) read the chain up to
+`ylvtprxt` against the brief, the prompt and the notes, and drove the
+built page with scratch Playwright scripts on cores 13-15 (old keys
+migrated with a real shelf, every export downloaded in three logics,
+both links, lesson 4's check, the split openings).
+
+1. **The target-size walk had no step for the new states** (lesson 1's
+   rewrite buttons, "Try … yourself", a practice row answered), which
+   the client's `web.md` asks for every new control. Upheld, though
+   the reviewer measured them all at or above 44 and 24 pixels. They are
+   measured now in a test of their own at both widths, as 54u-c did to
+   keep the walk under its timeout (`wuvloosz`). The flake check then
+   caught a race in that test (above), not a small control.
+2. **A switch the lesson turned on stayed on after a reload,** since
+   the setting is stored and the lesson's memory of turning it on is
+   not. Upheld. `setSettings` takes a `visitOnly` flag: the lesson's
+   change holds for the visit, and the value before it is what is
+   stored until the visitor sets the switch themselves (`runpsyxs`);
+   the W12 e2e test checks the stored settings.
+
+The reviewer found W5, W6, W7, W8, W11, W13 and W14 sound, and every
+changed assertion following a moved text, none weakened.
+
+### Departures from the brief
+
+- W8's items are labelled "This proof" and "The sequent" under the
+  group "Share a link", their details "A link to this proof …" and "A
+  link to the sequent …", rather than items named "Link to this proof"
+  and "Link to the sequent" (the 96-pixel label column). (departs from
+  the design)
+- Three commits outside the items: the link test's race (`ylvtprxt`),
+  found failing on `main@origin` as well, and the lint fix
+  (`twqsytno`) and the visit-only setting (`runpsyxs`) that the checks
+  and the review asked for.
+
+### Proposals beyond the items
+
+- Lesson 2's second paragraph introduces the classical rewrite (`A |- A`
+  is typed for `⊢ A⊥, A`) as if new; lesson 1 now shows it. 54w-c could
+  shorten it to De Morgan and the double dual.
+- Learn's practice answer could be kept per lesson for the visit, as the
+  hinge's choice is not either; nothing asks for it today.
+
+### What the next sessions must know
+
+- For 54w-c, the page's texts this session added or moved, each in the
+  writing rules' form and open to its rework: the export details
+  (`BottomBand.tsx`'s `items`), the share group, lesson 1's `rewrite`
+  and the switch's line (`Learn.tsx`), the practice feedback ("Right",
+  "Not quite", "It has a proof."), Practice's text, and the four split
+  openings.
+- A test that finds a lesson's practice card's status must name it
+  (`getByRole("status").filter(…)`): a card answered has two.
+- A formula's button keeps its one-sided name while Two-sided is on;
+  a test reads the drawing's sequent from `.drawing svg title`.
+- Text rendered from Markdown has curly apostrophes (`deduxit’s`): a
+  test finds it by a regular expression without the apostrophe.
+- The `linlog-*` migration (`src/lib/storage.ts`, the `OLD_THEME_KEY`
+  fallback in `theme.ts`, `OLD_PREFIX` in `sw.js`) is removed after one
+  release, all three together.
