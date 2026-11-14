@@ -93,12 +93,15 @@ unchanged.
   `ordinary::Options::method` and `ordinary::gives_way` choose between it
   and the embedding, and the command has `--method embedding|ljt` (the
   key `ordinary.method`).
-- **A SAT-based engine for intuitionistic and minimal logic**, in the
-  library: `ordinary::sat::decide` (`ordinary::Method::Sat`, behind the
-  new default feature `sat`, the SAT solver batsat). Every "valid" comes
-  with a derivation of LJ that the checker accepts, and every "not
-  valid" with a finite Kripke model (`sat::Model`) that `Model::refutes`
-  checks. The command does not offer it yet.
+- **A SAT-based engine for classical, intuitionistic and minimal
+  logic**, in the library: `ordinary::sat::decide`
+  (`ordinary::Method::Sat`, behind the new default feature `sat`, the
+  SAT solver batsat). Every "valid" comes with a derivation of LK or LJ
+  that the checker accepts; in classical logic the solver's clausal
+  proof is checked first, by a checker of deduxit's own. Every "not
+  valid" comes with a model that `Model::refutes` checks: a finite
+  Kripke model (`sat::Model`), of one world in classical logic. The
+  command does not offer it yet.
 - **The harness runs ordinary logic**: `deduxit-bench run --tptp PATH
   --logics …` with the engines `embedding`, `ljt` and `auto`, and
   `summary` lists the problems two configurations decide differently.

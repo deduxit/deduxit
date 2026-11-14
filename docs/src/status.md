@@ -175,10 +175,11 @@ in use.
 - Sequents are proved step by step in LK and LJ, in the command and in
   the web bindings.
 - In the library, behind the default feature `sat`, `ordinary::sat`
-  decides intuitionistic and minimal logic with a SAT solver. A valid
-  sequent comes with a derivation of LJ, and one that is not valid with
-  a Kripke model, which is checked. The command does not offer this
-  engine yet.
+  decides classical, intuitionistic and minimal logic with a SAT
+  solver. A valid sequent comes with a derivation of LK or LJ, and one
+  that is not valid with a model, which is checked. In classical logic
+  the solver's clausal proof is checked too. The command does not offer
+  this engine yet.
 
 ## Proofs as programs
 
