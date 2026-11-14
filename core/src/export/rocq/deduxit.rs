@@ -1,37 +1,47 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The certificates for deduxit's own Rocq library: a lemma stating the
-//! sequent over the library's calculus, proved by its soundness theorem
-//! from the derivation written as a proof term, which the library's
-//! checker accepts by computation.
+//! The certificates for deduxit's own Rocq library.
 //!
-//! A one-sided derivation becomes a term of the dyadic calculus the
-//! checker runs (the library's `proof`): every rule is its constructor,
-//! but the exponentials, whose `?` formulas the term keeps in an
-//! unrestricted zone. A `Quest` moves a `?` formula there where it first
-//! appears, at the root, as a subformula of the rule below or as a cut
-//! formula or its dual in a cut's premise, so that a dereliction is a
-//! `Copy` from the zone, and a contraction and the weakening of a `?`
-//! formula are implicit in it; a promotion then finds its `?` context in
-//! the zone, as the checker's `Bang` requires. A two-sided derivation
-//! becomes a two-sided term (the library's `iproof`), one constructor per
-//! two-sided rule, with the context of a `⊤` on the right and of a `0` on
-//! the left written out.
+//! A certificate is a lemma that states the sequent over the library's
+//! calculus. Its proof applies the library's soundness theorem to the
+//! derivation written as a proof term, and the library's checker accepts
+//! that term by computation.
 //!
-//! The library names the calculi without cut; a derivation with a cut
-//! states its calculus as a record literal with the cut, proved by the
-//! one-sided theorem for every calculus or by the two-sided one.
+//! A one-sided derivation becomes a term of the library's `proof`, the
+//! dyadic calculus its checker runs: a sequent there has its linear
+//! formulas and, apart, an unrestricted zone of `?` formulas. Every rule
+//! is its constructor, except the exponentials:
+//! - a `Quest` moves a `?` formula into the zone where it first appears:
+//!   at the root, as a subformula of the rule below, or as a cut formula
+//!   or its dual in a cut's premise;
+//! - a dereliction is then a `Copy` from the zone;
+//! - a contraction, the weakening of a `?` formula and the affine
+//!   weakening of one write nothing, since the zone holds the formula
+//!   already;
+//! - a promotion finds its `?` context in the zone, as the checker's
+//!   `Bang` requires.
+//!
+//! A two-sided derivation becomes a term of the library's `iproof`, one
+//! constructor per two-sided rule. The context of a `⊤` on the right and
+//! of a `0` on the left is written out.
+//!
+//! The library names its calculi without cut. A derivation with a cut
+//! states its calculus as a record literal with `cut := true`, proved by
+//! the general one-sided theorem or by the two-sided one.
 //!
 //! Atoms are Rocq strings, which take any name, so no atom is renamed.
 //!
 //! A derivation of a sequent with a quantifier is written for the
-//! library's first-order development: the same terms over first-order
-//! formulas, a predicate with its arguments as terms, a bound variable a
-//! de Bruijn index and an eigenvariable by its number, every instance
-//! with the terms of its frame substituted for its loose bound
-//! variables; a `∀` step names its body and its eigenvariable, an `∃`
-//! step its body and its witness.
+//! library's first-order development, with the same terms over
+//! first-order formulas:
+//! - a predicate has its arguments as terms;
+//! - a bound variable is a de Bruijn index (`bound i`);
+//! - an eigenvariable is written by its number;
+//! - every instance has the terms of its frame put in for its loose
+//!   bound variables;
+//! - a `∀` step names its body and its eigenvariable, an `∃` step its
+//!   body and its witness.
 
 use super::{
     DEDUXIT_FIRST_ORDER_PRELUDE, DEDUXIT_FIRST_ORDER_REFUTATION_PRELUDE,
@@ -973,18 +983,27 @@ fn iformula(forest: &Forest, reading: &Reading, out: &mut String, o: OccId, argu
 }
 
 /// Writes the certificate of a disproof for deduxit's library: the lemma
-/// that the calculus of the disproof's mode does not derive its goal,
-/// one-sided over `ll` or, in intuitionistic mode, two-sided over `ill`,
-/// proved by the theorem of the refutation's invariant from the atom, the
-/// assignment or the weights, which the library's test of the invariant
-/// accepts by computation. A one-sided count and a state equation are
-/// weighted counts (`Weights.v`): the weight `±1` on the atom, or the
-/// state equation's weights with the atoms no firing reaches dead in the
-/// bodies' sign, and with weakening the count of the formulas with one
-/// output. A sequent with a quantifier is stated over the first-order
-/// calculus, and its counts are the first-order weighted count
-/// (`FirstOrderWeights.v`), a predicate weighed whole where one of its
-/// atoms has a bound variable and its closed atoms one by one otherwise.
+/// that the calculus of the disproof's mode does not derive its goal.
+///
+/// The lemma is one-sided over `ll`, or in intuitionistic mode two-sided
+/// over `ill`. Its proof applies the theorem of the refutation's
+/// invariant to the atom, the assignment or the weights, and the
+/// library's test of the invariant accepts them by computation.
+///
+/// A one-sided count and a state equation are weighted counts
+/// (`Weights.v`):
+/// - a one-sided count puts the weight `±1` on its atom;
+/// - a state equation writes its own weights, and declares dead, in the
+///   bodies' sign, the atoms no firing reaches. In affine mode its
+///   theorem is `affine_refutation`: the formulas hold one output in
+///   all, and the count is positive whether or not a weakening drops the
+///   formulas without an output.
+///
+/// A sequent with a quantifier is stated over the first-order calculus,
+/// and its counts are the first-order weighted count
+/// (`FirstOrderWeights.v`): a predicate is weighed whole where one of its
+/// atoms has a bound variable, and its closed atoms one by one otherwise.
+///
 /// The disproof is checked first, so only a refutation that holds is
 /// written.
 pub(super) fn disproof(

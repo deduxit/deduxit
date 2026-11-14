@@ -1,74 +1,44 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Rocq: a derivation as a certificate for one of two kernels
-//! ([`Kernel`]): a proof script that the NanoYalla kernel checks, version
-//! [`NANOYALLA`], the kernel of Click & coLLecT, or a proof term that
-//! deduxit's own Rocq library checks ([`DEDUXIT`]). Where the options name
-//! no kernel, the derivation's mode chooses: classical linear logic goes
-//! to NanoYalla, Mix, affine and intuitionistic logic to deduxit's
-//! library, which states each in its own calculus; so does a sequent with
-//! a quantifier, which the library's first-order development states and
-//! NanoYalla's formulas cannot.
+//! Writes a proof as a Rocq certificate: a lemma that states the sequent,
+//! with a proof that Rocq checks.
 //!
-//! For NanoYalla the script is a
-//! `Lemma` whose statement is the sequent as a list of the kernel's
-//! formulas, `ll [dual A; tens A (dual B); B]`, over the atoms as
-//! variables of type `formula`, and whose proof applies one derived rule
-//! of the kernel's `macroll` module per inference, conclusion first:
-//! `tens_r_ext`, `parr_r_ext`, `oc_r_ext`, `co_r_ext` and so on, the
-//! axiom as `ax_expansion`. `Qed` closes it, so Rocq accepts the file only
-//! if the kernel accepts the proof.
+//! A certificate lets you trust a proof without trusting deduxit: Rocq
+//! compiles the file only if the proof is correct.
 //!
-//! The kernel's sequents are lists and its rules act on a formula at a
-//! given position, so the script keeps the list of every goal: the lemma
-//! states the conclusion in occurrence order, each rule takes the prefix
-//! before its principal formula, and a `⊗` alone, whose left premise must
-//! hold what precedes the `⊗` and whose right premise what follows it,
-//! gets an exchange `ex_perm_r` before it when the goal is not already in
-//! that order.
+//! | to get | call |
+//! |---|---|
+//! | the certificate of a proof | [`to_string`] |
+//! | the same, written into your own buffer, with a stop | [`write()`] |
+//! | a certificate that a sequent has no proof | [`write_disproof`] |
+//! | a certificate that an ordinary sequent is not valid | [`write_not_valid`] |
 //!
-//! The NanoYalla certificate is one of classical linear logic: a
-//! two-sided derivation is exported as the one-sided derivation behind it
-//! (the one-sided [`Rule`] of every [`Named`](crate::linear::proofs::Named) rule), which proves the same
-//! sequent read one-sided.
-//! Mix, the weakening of affine mode, a cut and an open goal have no rule
-//! in the kernel, and a derivation with one is refused ([`Unsupported`]). A
-//! fragment is the lemma alone, for a file that imports `macroll`; a
-//! standalone file starts with [`Options::prelude`].
-//!
-//! For deduxit's library the certificate is a lemma stating the sequent
-//! over the library's own calculus, `ll` one-sided with the rules the
-//! mode allows or `ill` two-sided for a two-sided derivation, with cut
-//! where the derivation uses one, proved by
-//! the library's soundness theorem applied to the derivation as a proof
-//! term, which Rocq's `vm_compute` checks: atoms are strings, every rule
-//! has a term, and nothing is refused but an open goal and a compact run.
-//!
-//! An atom's name becomes a Rocq identifier: letters, digits, `_` and `'`
-//! stay, any other character becomes its code point in hexadecimal between
-//! underscores, a leading digit or `'` gets an underscore before it, and a
-//! name that would clash with a keyword, a name of the kernel, the lemma's
-//! name or another atom gets `'` appended until it is free.
+//! Each takes an [`Options`]: start from its `default()` and set the
+//! fields you want to change. By default a certificate is the lemma
+//! `certificate` alone ([`Form::Fragment`]), for a file that has the
+//! imports already. [`Form::Standalone`] writes a whole file, which starts
+//! with the imports its kernel needs ([`Options::prelude`]).
 //!
 //! Needs the cargo feature `rocq` (on by default).
 //!
 //! # Examples
 //!
+//! A proof of classical linear logic, certified for NanoYalla:
+//!
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
-//! use deduxit::export::rocq::{self, Options};
-//! use deduxit::linear::{Mode, Options as Search, Sequent, Verdict, prove};
+//! use deduxit::export::{Form, rocq};
+//! use deduxit::linear::{Mode, Options, Sequent, Verdict, prove};
 //!
 //! let sequent: Sequent = "A, A -o B |- B".parse()?;
-//! let outcome = prove(&sequent, Mode::CLASSICAL, &Search::default())?;
+//! let outcome = prove(&sequent, Mode::CLASSICAL, &Options::default())?;
 //! let Verdict::Proved(proof) = &outcome.verdict else {
 //!     panic!("provable");
 //! };
-//! let mut written = String::new();
-//! rocq::write(&proof.derivation()?, &Options::default(), &mut written, |_| false)?;
+//! let certificate = rocq::to_string(&proof.derivation()?, &rocq::Options::default())?;
 //! assert_eq!(
-//!     written,
+//!     certificate,
 //!     "Lemma certificate (A B : formula) : ll [dual A; tens A (dual B); B].
 //! Proof.
 //! apply (tens_r_ext [dual A]); cbn_sequent.
@@ -80,8 +50,106 @@
 //! }
 //! Qed."
 //! );
+//!
+//! // An intuitionistic proof goes to deduxit's library. As a whole file, it
+//! // starts with the library's imports.
+//! let outcome = prove(&sequent, Mode::INTUITIONISTIC, &Options::default())?;
+//! let Verdict::Proved(proof) = &outcome.verdict else {
+//!     panic!("provable");
+//! };
+//! let options = rocq::Options::default().with_form(Form::Standalone);
+//! let file = rocq::to_string(&proof.derivation()?, &options)?;
+//! assert!(file.starts_with("From Stdlib Require Import List String.\nFrom Deduxit.Linear"));
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
+//!
+//! # Which kernel a certificate needs
+//!
+//! A certificate of linear logic is written for one of two kernels, the
+//! Rocq libraries that define the calculus ([`Kernel`]):
+//! - NanoYalla, version [`NANOYALLA`], the kernel of the Click & coLLecT
+//!   prover: classical linear logic, one-sided, without cut. A whole file
+//!   imports it with `From NanoYalla Require Import macroll.`
+//! - deduxit's own Rocq library `rocq-deduxit`, version [`DEDUXIT`]
+//!   (<https://github.com/deduxit/rocq-deduxit>): linear logic one-sided,
+//!   with Mix and weakening where the mode allows them, and
+//!   intuitionistic linear logic two-sided, each with cut and quantifiers.
+//!   A whole file imports it with lines that start `From Deduxit.Linear`.
+//!
+//! [`Options::kernel`] names the kernel. Without it, the proof decides:
+//! - deduxit's library takes a proof of an intuitionistic, affine or Mix
+//!   mode, a proof that uses Mix, affine weakening, a cut or a quantifier,
+//!   and a two-sided proof that records no mode;
+//! - NanoYalla takes every other proof, one of classical linear logic.
+//!
+//! A certificate that a sequent has no proof always needs deduxit's
+//! library. A certificate of ordinary logic (LK or LJ) is stated over
+//! Rocq's `Prop` and needs no kernel; a classical one uses the excluded
+//! middle of Rocq's standard library.
+//!
+//! Neither kernel takes an open goal, a compact derivation (one inference
+//! for a run of a structural rule), or a proof of the cyclic mode, since
+//! their sequents are unordered. Such a proof has no certificate
+//! ([`Unsupported`]).
+//!
+//! # Checking a certificate
+//!
+//! Write the certificate as a whole file and run deduxit's app for it,
+//! which needs only Nix with flakes:
+//!
+//! ```text
+//! nix run github:deduxit/deduxit#check-certificate -- proof.v
+//! ```
+//!
+//! It loads Rocq's standard library and both kernels, and the file's own
+//! import lines pick the kernel. It exits with 0 when every lemma is
+//! proved without an axiom (a classical certificate over `Prop` may use
+//! the excluded middle), 1 when Rocq refuses the file or a lemma rests on
+//! another axiom, and 2 when the file cannot be read.
+//!
+//! Without Nix, compile the whole file with Rocq 9 and its standard
+//! library, with the kernel's library on Rocq's load path.
+//!
+//! # NanoYalla's script
+//!
+//! The lemma states the sequent as a list of the kernel's formulas, over
+//! the atoms as variables of type `formula`:
+//! `ll [dual A; tens A (dual B); B]`. Its proof applies one derived rule
+//! of the kernel's `macroll` module per inference, conclusion first:
+//! `tens_r_ext`, `parr_r_ext`, `oc_r_ext`, `co_r_ext` and so on, and
+//! `ax_expansion` for an axiom. `Qed` closes it, so Rocq accepts the file
+//! only if the kernel accepts the proof.
+//!
+//! The kernel's sequents are lists, and its rules act on the formula at a
+//! given position. So the script keeps the list of every goal. The lemma
+//! states the conclusion in occurrence order, and each rule takes the
+//! formulas before its principal formula. Only a `⊗` needs its goal in a
+//! given order: its left premise's formulas before the `⊗` and its right
+//! premise's after it. Where the goal is not in that order, an exchange
+//! `ex_perm_r` comes first.
+//!
+//! The certificate is one of classical linear logic. A two-sided
+//! derivation is written as the one-sided derivation behind it (the
+//! one-sided [`Rule`] of every [`Named`](crate::linear::proofs::Named)
+//! rule), which proves the same sequent read one-sided. The kernel has no
+//! rule for Mix, the weakening of affine mode, a cut or a quantifier, so
+//! [`Options::kernel`] set to NanoYalla refuses a derivation with one.
+//!
+//! An atom's name becomes a Rocq identifier. Letters, digits, `_` and `'`
+//! stay. Any other character becomes its code point in hexadecimal between
+//! underscores, and a leading digit or `'` gets a `_` before it. A name
+//! that clashes with a keyword, a name of the kernel, the lemma's name or
+//! another atom gets `'` appended; later clashes of the same identifier
+//! get `'2`, `'3` and so on.
+//!
+//! # deduxit's proof term
+//!
+//! The lemma states the sequent over the library's own calculus: `ll`
+//! one-sided, or `ill` two-sided for a two-sided derivation, with the
+//! rules the mode allows and the proof uses. Its proof applies the
+//! library's soundness theorem to the derivation written as a proof term,
+//! and Rocq's `vm_compute` runs the library's checker on that term. Atoms
+//! are Rocq strings, so no atom is renamed. Every rule has a term.
 
 use super::notation::{Step, flush, walk};
 use super::{Drawable, Form};
@@ -95,13 +163,14 @@ use thiserror::Error;
 
 mod deduxit;
 
-/// The version of NanoYalla the scripts are written for: the `nanoyalla`
-/// directory of Click & coLLecT, whose `macroll` module defines the
-/// derived rules the scripts apply. It builds on Rocq 9 with the standard
-/// library, without Yalla.
+/// The version of NanoYalla the scripts are written for. NanoYalla is the
+/// `nanoyalla` directory of Click & coLLecT, whose `macroll` module
+/// defines the derived rules the scripts apply. It builds with Rocq 9 and
+/// its standard library, without Yalla.
 pub const NANOYALLA: &str = "1.1.3";
 
-/// What a user may vary in a certificate.
+/// The options of a certificate. Start from `default()` and set the
+/// fields that differ.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -112,20 +181,23 @@ pub struct Options {
     /// The name of the lemma.
     pub lemma: Identifier,
     /// The lines a standalone file starts with, before the lemma, or
-    /// `None` for the target's own: the import of NanoYalla's `macroll`
-    /// for a linear certificate ([`NANOYALLA_PRELUDE`]), of deduxit's
-    /// library for one of its kernel ([`DEDUXIT_PRELUDE`],
-    /// [`DEDUXIT_TWO_SIDED_PRELUDE`], and for a sequent with a quantifier
-    /// [`DEDUXIT_FIRST_ORDER_PRELUDE`] and
-    /// [`DEDUXIT_FIRST_ORDER_TWO_SIDED_PRELUDE`]), of the standard library's excluded
-    /// middle for a classical one over `Prop` ([`CLASSICAL_PRELUDE`]),
-    /// nothing for one of LJ.
+    /// `None` for each certificate's own imports:
+    /// - for NanoYalla, its `macroll` module ([`NANOYALLA_PRELUDE`]);
+    /// - for deduxit's library, [`DEDUXIT_PRELUDE`] or
+    ///   [`DEDUXIT_TWO_SIDED_PRELUDE`], for a sequent with a quantifier
+    ///   [`DEDUXIT_FIRST_ORDER_PRELUDE`] or
+    ///   [`DEDUXIT_FIRST_ORDER_TWO_SIDED_PRELUDE`], and for a certificate
+    ///   that a sequent has no proof [`DEDUXIT_REFUTATION_PRELUDE`] or
+    ///   [`DEDUXIT_FIRST_ORDER_REFUTATION_PRELUDE`];
+    /// - for a classical certificate over `Prop`, the standard library's
+    ///   excluded middle ([`CLASSICAL_PRELUDE`]);
+    /// - for one of LJ, nothing.
     pub prelude: Option<String>,
-    /// The kernel a linear certificate is written for, or `None` for the
-    /// one the derivation's mode chooses: NanoYalla for classical linear
-    /// logic, deduxit's library for Mix, affine and intuitionistic logic
-    /// and for a sequent with a quantifier.
-    /// A certificate of ordinary logic needs no kernel and ignores it.
+    /// The kernel a certificate of linear logic is written for, or `None`
+    /// for the one the proof chooses, as the
+    /// [module docs](crate::export::rocq) say: in short, NanoYalla for
+    /// classical linear logic, deduxit's library for the rest. A
+    /// certificate of ordinary logic needs no kernel and ignores it.
     pub kernel: Option<Kernel>,
 }
 
@@ -177,27 +249,28 @@ impl Options {
 #[cfg_attr(feature = "serialize", serde(rename_all = "lowercase"))]
 pub enum Kernel {
     /// NanoYalla [`NANOYALLA`], the kernel of Click & coLLecT: classical
-    /// linear logic one-sided, without Mix, cut or the weakening of
-    /// affine mode, checked rule by rule by a proof script.
+    /// linear logic, one-sided, without Mix, cut, quantifiers or the
+    /// weakening of affine mode. A proof script checks the proof rule by
+    /// rule.
     NanoYalla,
     /// deduxit's own Rocq library [`DEDUXIT`]: one-sided linear logic with
     /// Mix and weakening where the mode allows them, and two-sided
     /// intuitionistic linear logic and its affine variant, each with cut
-    /// where the proof uses one, checked by the library's checker on a
-    /// proof term. Read from `"linlog"` too, its name up to 0.2.0.
+    /// where the proof uses one. The library's checker checks the proof
+    /// as a term. Read from `"linlog"` too, its name up to 0.2.0.
     #[cfg_attr(feature = "serialize", serde(alias = "linlog"))]
     Deduxit,
 }
 
 /// The version of deduxit's Rocq library the certificates of its kernel
-/// are written for: the package `rocq-deduxit` of the repository
-/// <https://github.com/deduxit/rocq-deduxit>, logical root `Deduxit`, its
-/// linear logic under `Deduxit.Linear`, built with Rocq 9 and its standard
-/// library.
+/// are written for. The library is the package `rocq-deduxit` of the
+/// repository <https://github.com/deduxit/rocq-deduxit>, logical root
+/// `Deduxit`, its linear logic under `Deduxit.Linear`. It builds with
+/// Rocq 9 and its standard library.
 pub const DEDUXIT: &str = "0.3.0";
 
 /// The prelude of a one-sided certificate for deduxit's library: the
-/// imports of its soundness theorems, of lists and of strings, whose
+/// imports of its soundness theorems, and of lists and strings, whose
 /// notations the lemma uses.
 pub const DEDUXIT_PRELUDE: &str = "From Stdlib Require Import List String.
 From Deduxit.Linear Require Import Soundness.
@@ -213,8 +286,8 @@ Open Scope string_scope.";
 
 /// The prelude of a certificate of a first-order derivation for deduxit's
 /// library: as [`DEDUXIT_PRELUDE`], with the first-order calculus and its
-/// theorems, and the propositional calculus's module, whose optional
-/// rules the statement names.
+/// theorems. It also requires the propositional calculus's module, whose
+/// optional rules the statement names.
 pub const DEDUXIT_FIRST_ORDER_PRELUDE: &str = "From Stdlib Require Import List String.
 From Deduxit.Linear Require Calculus.
 From Deduxit.Linear Require Import FirstOrderSoundness.
@@ -230,17 +303,18 @@ From Deduxit.Linear Require Import FirstOrderIntuitionisticCheck.
 Import ListNotations.
 Open Scope string_scope.";
 
-/// The prelude of a certificate of non-derivability for deduxit's library:
-/// the imports of its refutation theorems (`Weights`, which exports the
-/// others), of lists, strings and integers, whose notations the lemma uses.
+/// The prelude of a certificate that a sequent has no proof, for deduxit's
+/// library: the imports of its refutation theorems (`Weights`, which
+/// exports the others), and of lists, strings and integers, whose
+/// notations the lemma uses.
 pub const DEDUXIT_REFUTATION_PRELUDE: &str = "From Stdlib Require Import List String ZArith.
 From Deduxit.Linear Require Import Weights.
 Import ListNotations.
 Open Scope string_scope.";
 
-/// The prelude of a certificate of non-derivability of a sequent with a
-/// quantifier for deduxit's library: as [`DEDUXIT_REFUTATION_PRELUDE`], with
-/// the first-order calculi, the first-order weighted count, Booleans and
+/// The prelude of a certificate that a sequent with a quantifier has no
+/// proof, for deduxit's library: as [`DEDUXIT_REFUTATION_PRELUDE`], with
+/// the first-order calculi, the first-order weighted count, Booleans, and
 /// the modules whose names the statement and the weights use.
 pub const DEDUXIT_FIRST_ORDER_REFUTATION_PRELUDE: &str =
     "From Stdlib Require Import Bool List String ZArith.
@@ -249,9 +323,9 @@ From Deduxit.Linear Require Import FirstOrderCalculus FirstOrderIntuitionistic F
 Import ListNotations.
 Open Scope string_scope.";
 
-/// The prelude of a linear certificate: the import of NanoYalla's
-/// `macroll`, which brings the kernel's `ll`, its formulas and its derived
-/// rules into scope.
+/// The prelude of a certificate for NanoYalla: the import of its
+/// `macroll` module, which brings the kernel's `ll`, its formulas and its
+/// derived rules into scope.
 pub const NANOYALLA_PRELUDE: &str = "From NanoYalla Require Import macroll.";
 
 /// The prelude of a classical certificate over `Prop`: the import of the
@@ -259,9 +333,11 @@ pub const NANOYALLA_PRELUDE: &str = "From NanoYalla Require Import macroll.";
 pub const CLASSICAL_PRELUDE: &str = "From Stdlib Require Import Classical_Prop.";
 
 /// A Rocq identifier, which a lemma's name must be: an ASCII letter or
-/// `_` and then letters, digits, `_` and `'`, and no keyword of Rocq.
-/// The names a kernel uses are its writer's to avoid, so a name stays an
-/// identifier whatever kernel a later release adds.
+/// `_`, then letters, digits, `_` and `'`, and no keyword of Rocq.
+///
+/// A name the kernel uses is allowed: the atoms are renamed around it
+/// instead. So a valid name stays valid whatever kernel a later release
+/// adds.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Identifier(Box<str>);
 
@@ -331,7 +407,7 @@ impl<'a> serde::Deserialize<'a> for Identifier {
     }
 }
 
-/// Why a derivation has no certificate: it uses a rule the kernel lacks.
+/// Why a proof, or a refutation, has no certificate.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(
@@ -343,16 +419,17 @@ pub enum Unsupported {
     /// The derivation has an open goal: it is a proof in progress.
     #[error("the proof is not finished: an open goal has no certificate")]
     Open,
-    /// The derivation uses Mix.
+    /// The derivation uses Mix, which NanoYalla lacks.
     #[error("NanoYalla has no Mix rule, so a proof with Mix has no certificate")]
     Mix,
-    /// The derivation uses a cut, which NanoYalla's kernel has as an
-    /// axiom or as a theorem of the Yalla library only.
+    /// The derivation uses a cut, which NanoYalla's kernel lacks: there a
+    /// cut is an axiom, or a theorem of the Yalla library.
     #[error(
         "NanoYalla's kernel has no cut rule, so a proof with a cut has its certificate in deduxit's library"
     )]
     Cut,
-    /// The derivation weakens a formula that is not a `?` formula.
+    /// The derivation weakens a formula that is not a `?` formula, which
+    /// NanoYalla cannot.
     #[error(
         "NanoYalla weakens ? formulas only, so a proof with the weakening of affine mode has no certificate"
     )]
@@ -363,7 +440,7 @@ pub enum Unsupported {
         "a compact derivation names one formula of a run of structural rules, so it has no certificate: build the derivation with every rule"
     )]
     Compact,
-    /// A disproof was to be written for NanoYalla, which states
+    /// The options name NanoYalla for a disproof, but NanoYalla states
     /// derivations only.
     #[error(
         "NanoYalla's kernel states derivations only, so a refutation has its certificate in deduxit's library"
@@ -381,9 +458,9 @@ pub enum Unsupported {
         "the Rocq calculi are commutative, so a derivation or a disproof of the cyclic mode has no certificate"
     )]
     Ordered,
-    /// The disproof's refutation is a saturated set, which the library's
-    /// calculi have no theorem for: its certificate is the set itself,
-    /// which the disproof's check verifies.
+    /// The disproof's refutation is a saturated set, for which the
+    /// library has no theorem. Its certificate is the set itself, which
+    /// the disproof's check verifies.
     #[error(
         "deduxit's library has no theorem for a saturated set, so a refutation by one has no certificate in Rocq"
     )]
@@ -522,13 +599,14 @@ fn identifier(name: &str) -> String {
 /// ones `'2`, `'3` and so on.
 pub(crate) fn identifiers(atoms: &[String], lemma: &str) -> Vec<String> {
     let mut names: Vec<String> = Vec::with_capacity(atoms.len());
-    // The names taken so far, so that a clash costs a lookup: comparing
-    // with every earlier name was quadratic in the atoms, seconds before
-    // the first poll on a dictionary of a hundred thousand.
+    // The names taken so far, so that a clash costs one lookup. Comparing
+    // with every earlier name is quadratic in the atoms: seconds before
+    // the first poll for a hundred thousand atoms.
     let mut taken: HashSet<String> = HashSet::default();
-    // Per identifier, the suffixes given to its clashes so far: names
-    // that all map to one identifier (`ä` and `_e4_`) each took a prime
-    // more than the last, quadratic in their number.
+    // Per identifier, the last suffix given to one of its clashes, so
+    // that the next clash starts after it. Names that all map to one
+    // identifier (`ä` and `_e4_`) would otherwise each try every suffix
+    // before theirs, quadratic in their number.
     let mut clashes: HashMap<String, u32> = HashMap::default();
     for name in atoms {
         let base = identifier(name);
@@ -824,30 +902,36 @@ impl Script<'_> {
 }
 
 /// Writes the certificate of a derivation into `out`, in the options'
-/// form, one inference at a time, and asks `stop` after each; a
+/// form, one inference at a time, and asks `stop` after each.
+///
+/// [`to_string`] returns the same text as a `String`. Use `write` to
+/// write into your own buffer, or to stop a large certificate. A
 /// derivation without a certificate is refused before anything is
-/// written. A linear derivation is a lemma for the kernel the options
-/// name or the mode chooses ([`Options::kernel`]): with its proof script
-/// for NanoYalla, checked one-sided, or proved from its proof term by
-/// deduxit's library, one-sided or, for a two-sided derivation, two-sided.
-/// One of LK or LJ, which must have passed
-/// [`check`](crate::ordinary::Derivation::check), is the lemma
-/// `options.lemma` stating the ordinary sequent over `Prop`, every atom a
-/// proposition bound by `forall`, the hypotheses as premises and the
-/// formulas right of `⊢` as their disjunction (`False` for none), proved
-/// by a term made rule by rule; it needs no library, but a classical one
-/// uses the excluded middle of the standard library (`NNPP`), which a
-/// standalone file imports through `options.prelude`, by default
-/// [`CLASSICAL_PRELUDE`]. A `String` takes the whole.
+/// written.
+///
+/// What the certificate states depends on the derivation:
+/// - A linear derivation is a lemma for the kernel that
+///   [`Options::kernel`] names or the proof chooses. For NanoYalla its
+///   proof is a script, checked one-sided. For deduxit's library it is a
+///   proof term, one-sided, or two-sided for a two-sided derivation.
+/// - A derivation of LK or LJ, which must have passed
+///   [`check`](crate::ordinary::Derivation::check), is the lemma
+///   `options.lemma` that states the ordinary sequent over `Prop`. Every
+///   atom is a proposition bound by `forall`, the hypotheses are premises,
+///   and the formulas right of `⊢` are their disjunction (`False` for
+///   none). The proof is a term made rule by rule. It needs no library,
+///   but a classical one uses the excluded middle of the standard library
+///   (`NNPP`), which a standalone file imports through `options.prelude`,
+///   by default [`CLASSICAL_PRELUDE`].
 ///
 /// # Errors
 ///
-/// [`Error::Unsupported`] for a derivation without a certificate (an
-/// open goal, a compact run, a proof of the cyclic mode, and for
-/// NanoYalla Mix and affine weakening), [`Error::GoalProof`]
-/// for one of a goal off the roots, [`Refusal::Stopped`](crate::Refusal::Stopped)
-/// when `stop` fired and [`Error::WriteFailed`] when `out` refused the
-/// text.
+/// - [`Error::Unsupported`] for a derivation without a certificate: an
+///   open goal, a compact run or a proof of the cyclic mode, and for
+///   NanoYalla Mix, affine weakening, a cut or a quantifier.
+/// - [`Error::GoalProof`] for a proof of a goal, not of the sequent.
+/// - [`Refusal::Stopped`](crate::Refusal::Stopped) when `stop` fired.
+/// - [`Error::WriteFailed`] when `out` refused the text.
 pub fn write<'a>(
     derivation: impl Into<Drawable<'a>>,
     options: &Options,
@@ -865,16 +949,17 @@ pub fn write<'a>(
     }
 }
 
-/// Returns the certificate of a derivation as [`write()`] writes it,
-/// whole, with a stop that never fires. The text is linear in the
-/// derivation, which was made within its own limits
+/// Returns the certificate of a derivation, as [`write()`] writes it.
+///
+/// It has no stop and no limits of its own: the text grows linearly with
+/// the derivation, which was made within its own limits
 /// ([`Proof::derivation`](crate::linear::Proof::derivation) uses the
-/// default ones).
+/// default ones). The [module docs](crate::export::rocq) have an example.
 ///
 /// # Errors
 ///
-/// As [`write()`] answers, but [`Refusal::Stopped`](crate::Refusal::Stopped) and
-/// [`Error::WriteFailed`], which a `String` never gives.
+/// As [`write()`], except [`Refusal::Stopped`](crate::Refusal::Stopped)
+/// and [`Error::WriteFailed`], which a `String` never gives.
 pub fn to_string<'a>(
     derivation: impl Into<Drawable<'a>>,
     options: &Options,
@@ -884,41 +969,66 @@ pub fn to_string<'a>(
     Ok(out)
 }
 
-/// Writes the certificate that a disproof's goal has no derivation, for
-/// deduxit's library ([`Kernel::Deduxit`], whatever the mode): the lemma
-/// `options.lemma` stating that the mode's calculus does not derive the
-/// goal, `~ ll R Γ` one-sided or, in intuitionistic mode, `~ ill R Γ C`
-/// two-sided, with `R` the mode's rules, proved by the library's theorem
-/// of the refutation's invariant (`classical_refutation`,
-/// `unbalanced_refutation`, `equation_refutation`, `weighted_refutation`
-/// and `affine_refutation`, or their two-sided forms) from the
-/// assignment's true atoms, the unbalanced atom or the weights, which
-/// Rocq's `vm_compute` checks: a one-sided count weighs its atom `±1`, a
-/// state equation its atoms as the refutation does, the atoms no firing
-/// reaches declared dead in the bodies' sign. A sequent with a quantifier
-/// is stated over the first-order calculi, its counts proved by the
-/// first-order weighted theorem. Every refutation
-/// [`Disproof::check`](crate::linear::Disproof::check) verifies has one but a
-/// saturated set and the count equation of a sequent with a quantifier,
-/// and the disproof is checked first. Standalone, the
-/// file starts with `options.prelude`, by default
-/// [`DEDUXIT_REFUTATION_PRELUDE`], or [`DEDUXIT_FIRST_ORDER_REFUTATION_PRELUDE`]
-/// for a sequent with a quantifier.
+/// Writes the certificate that a disproof's goal has no derivation into
+/// `out`, for deduxit's library ([`Kernel::Deduxit`]) whatever the mode.
+///
+/// The certificate is the lemma `options.lemma` that the mode's calculus
+/// does not derive the goal: `~ ll R Γ` one-sided or, in intuitionistic
+/// mode, `~ ill R Γ C` two-sided, `R` being the mode's rules. Its proof
+/// applies the library's theorem of the refutation's invariant
+/// (`classical_refutation`, `unbalanced_refutation`,
+/// `equation_refutation`, `weighted_refutation` or `affine_refutation`,
+/// or their two-sided forms) to the refutation's data, and Rocq's
+/// `vm_compute` checks it. The data are the assignment's true atoms, the
+/// unbalanced atom or the weights:
+/// - a one-sided count weighs its atom `±1`;
+/// - a state equation weighs its atoms as the refutation does, and
+///   declares dead, in the bodies' sign, the atoms no firing reaches.
+///
+/// A sequent with a quantifier is stated over the first-order calculi,
+/// and its counts are proved by the first-order weighted theorem.
+///
+/// Every refutation that [`Disproof::check`](crate::linear::Disproof::check)
+/// accepts has a certificate, except a saturated set and the count
+/// equation of a sequent with a quantifier. The disproof is checked
+/// first. A standalone file starts with `options.prelude`, by default
+/// [`DEDUXIT_REFUTATION_PRELUDE`], or
+/// [`DEDUXIT_FIRST_ORDER_REFUTATION_PRELUDE`] for a sequent with a
+/// quantifier.
+///
+/// # Examples
+///
+#[cfg_attr(feature = "parse", doc = "```")]
+#[cfg_attr(not(feature = "parse"), doc = "```ignore")]
+/// use deduxit::export::rocq::{self, Options};
+/// use deduxit::linear::{Mode, Options as Search, Sequent, Verdict, prove};
+///
+/// let sequent: Sequent = "A |- A * A".parse()?;
+/// let outcome = prove(&sequent, Mode::CLASSICAL, &Search::default())?;
+/// let Verdict::Unprovable(disproof) = &outcome.verdict else {
+///     panic!("unprovable");
+/// };
+/// let mut certificate = String::new();
+/// rocq::write_disproof(disproof, &Options::default(), &mut certificate)?;
+/// assert!(certificate.starts_with(
+///     r#"Lemma certificate : ~ ll (atom := string) classical [covar "A"; tens (var "A") (var "A")]."#
+/// ));
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 ///
 /// # Errors
 ///
-/// [`Error::Refutation`] for a refutation the check does not accept,
-/// [`Error::Unsupported`]
-/// with [`Unsupported::Disproof`] where the options name NanoYalla,
-/// [`Unsupported::Ordered`] in the cyclic mode,
-/// [`Unsupported::Saturated`] for a refutation by a saturated set,
-/// [`Unsupported::Exhausted`] for an exhausted search and
-/// [`Unsupported::Quantifiers`] for the count equation of a sequent with
-/// a quantifier,
-/// [`Error::GoalOutputs`] for an intuitionistic goal without exactly one
-/// conclusion, the errors of [`Forest::new`] and of the intuitionistic
-/// reading, and
-/// [`Error::WriteFailed`] when `out` refused the text.
+/// - [`Error::Refutation`] for a refutation the check does not accept.
+/// - [`Error::Unsupported`] with [`Unsupported::Disproof`] where the
+///   options name NanoYalla, [`Unsupported::Ordered`] in the cyclic mode,
+///   [`Unsupported::Saturated`] for a refutation by a saturated set,
+///   [`Unsupported::Exhausted`] for an exhausted search, and
+///   [`Unsupported::Quantifiers`] for the count equation of a sequent
+///   with a quantifier.
+/// - [`Error::GoalOutputs`] for an intuitionistic goal without exactly
+///   one conclusion.
+/// - The errors of [`Forest::new`] and of the intuitionistic reading.
+/// - [`Error::WriteFailed`] when `out` refused the text.
 pub fn write_disproof(
     disproof: &crate::linear::Disproof,
     options: &Options,
