@@ -2,8 +2,8 @@
 
 You are working in deduxit (`deduxit/deduxit`, the checkout
 `~/Projects/own/deduxit`), and for some sessions in the web client
-(`../linlog-prover.github.io`, `deduxit/deduxit.github.io`) or the Rocq
-library (`../rocq-linlog`, `deduxit/rocq-deduxit`). CLAUDE.md applies
+(`../deduxit.github.io`, `deduxit/deduxit.github.io`) or the Rocq
+library (`../rocq-deduxit`, `deduxit/rocq-deduxit`). CLAUDE.md applies
 throughout:
 - jj only, never git;
 - thematic commits;
@@ -53,7 +53,7 @@ once before its final message.
      page are questions for the author, each with a recommendation of
      the most idiomatic current practice, collected for the planning
      session. Nothing is changed in this session.
-2. **54w-a, the web client** (`../linlog-prover.github.io`), beside step
+2. **54w-a, the web client** (`../deduxit.github.io`), beside step
    54. It rewrites:
    - the page's labels, messages and errors;
    - the Learn and Practice material, using the education skills the
@@ -81,7 +81,7 @@ once before its final message.
 
    Then it runs the e2e tests and `nix flake check`. Behaviour does not
    change: an e2e test that asserts an old text changes with it.
-3. **54w-b, the Rocq library** (`../rocq-linlog`), beside step 54. It
+3. **54w-b, the Rocq library** (`../rocq-deduxit`), beside step 54. It
    rewrites the README, the docs pages and the comments, keeping the
    theorems and their names. It runs its own `nix flake check`.
 4. **54w-c, README, the manual, the changelog's Unreleased section and

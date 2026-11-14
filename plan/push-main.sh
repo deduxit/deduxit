@@ -8,9 +8,9 @@
 # waiting on a passphrase prompt when the SSH key is locked, and checks
 # that `main@origin` is REV afterwards (a push once failed silently).
 # With --client, in the web client's repository beside this one
-# (../linlog-prover.github.io), which the planning session pushes the
+# (../deduxit.github.io), which the planning session pushes the
 # same way; with --rocq, in the Rocq library's repository beside it
-# (../rocq-linlog), whose first push creates `main` on the remote; with
+# (../rocq-deduxit), whose first push creates `main` on the remote; with
 # --placeholder, in the old organisation's redirect site
 # (../linlog-prover-placeholder). Exit status 0 pushed, 1 the key is
 # locked or the push failed.
@@ -18,10 +18,10 @@ set -euo pipefail
 
 repo="$(dirname "$0")/.."
 if [[ ${1-} == --client ]]; then
-  repo="$repo/../linlog-prover.github.io"
+  repo="$repo/../deduxit.github.io"
   shift
 elif [[ ${1-} == --rocq ]]; then
-  repo="$repo/../rocq-linlog"
+  repo="$repo/../rocq-deduxit"
   shift
 elif [[ ${1-} == --placeholder ]]; then
   repo="$repo/../linlog-prover-placeholder"

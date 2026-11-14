@@ -2,7 +2,7 @@
 
 You are working in deduxit (`deduxit/deduxit`, the checkout `~/Projects/own/deduxit`) and, for the
 accessibility audit, in the web client (`deduxit/deduxit.github.io`,
-`../linlog-prover.github.io`). CLAUDE.md applies throughout: jj only
+`../deduxit.github.io`). CLAUDE.md applies throughout: jj only
 (never git), thematic commits as soon as a unit is done, the
 verification table, no pushing. This prompt was written on 2026-11-08 by
 step 46's second session, from the author's decisions of that day, and

@@ -2,7 +2,7 @@
 
 You are working in deduxit (`deduxit/deduxit`, the checkout
 `~/Projects/own/deduxit`), and for some sessions in the web client
-(`../linlog-prover.github.io`, `deduxit/deduxit.github.io`). CLAUDE.md
+(`../deduxit.github.io`, `deduxit/deduxit.github.io`). CLAUDE.md
 applies throughout:
 - jj only, never git;
 - thematic commits as soon as a unit is done;

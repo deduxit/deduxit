@@ -6,7 +6,7 @@ description: >-
   (a `Cargo.toml` change, with the code it forces), flake.lock (`nix flake
   update`, which also moves the Rust toolchain), the fuzz workspace's lock and
   nightly, the GitHub Actions' SHA pins, and in the client
-  (`linlog-prover.github.io`) npm, its flake inputs and its actions. Verifies
+  (`deduxit.github.io`) npm, its flake inputs and its actions. Verifies
   each with `nix flake check` before committing, commits each as a change of
   its own ("Cargo update", "flake.lock: Update" with nix's summary), and
   reports what it held back and why. Use when asked to update or bump
@@ -82,7 +82,7 @@ to a commit in `flake.nix` (compare it with its upstream head). The Rocq
 library's input `rocq-deduxit` moves to its repository's `main`, and the check
 `rocq-deduxit` then compiles the exporter's certificates against that library;
 its own `yalla` is pinned in its `flake.nix` and moves with its own lock
-there (`../rocq-linlog`, "flake.lock: Update", verified by its `nix flake
+there (`../rocq-deduxit`, "flake.lock: Update", verified by its `nix flake
 check`).
 
 ```sh
@@ -149,7 +149,7 @@ that changed.
 
 ## 6. The web client
 
-`/home/tux/Projects/own/linlog-prover.github.io`, in a jj workspace of its own
+`/home/tux/Projects/own/deduxit.github.io`, in a jj workspace of its own
 when a session works there. Its CLAUDE.md and `.claude/rules/flake.md` hold
 its procedure: every ecosystem at its latest release at least fourteen days
 old (`.npmrc`'s `min-release-age=14`), each lock a commit of its own,

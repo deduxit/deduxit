@@ -70,7 +70,7 @@ Workspace crates:
   the tests under Node. `plan/web/README.md` is the web front end's plan.
 - The Rocq library **`rocq-deduxit`** (logical root `Deduxit`, its
   linear logic under `Deduxit.Linear`) lives in its own repository,
-  `github.com/deduxit/rocq-deduxit` (`../rocq-linlog` beside this checkout, with its own CLAUDE.md and rules; under `rocq/`
+  `github.com/deduxit/rocq-deduxit` (`../rocq-deduxit` beside this checkout, with its own CLAUDE.md and rules; under `rocq/`
   here until 2026-11-02): the one-sided calculus of linear logic with Mix and
   weakening as parameters and the two-sided calculus of intuitionistic
   linear logic and its affine variant as inductives, deduxit's proof
@@ -88,7 +88,7 @@ Workspace crates:
   change of the library is made, checked and pushed there first, then
   the lock moves here (`nix flake update rocq-deduxit`, which moves that input alone), or
   a local build tries it with `--override-input rocq-deduxit
-  path:../rocq-linlog`.
+  path:../rocq-deduxit`.
 
 `plan/README.md` is the proof-search plan the code follows, `plan/reports/`
 what each step of it did. `proof-search-specifications.md` is the brief

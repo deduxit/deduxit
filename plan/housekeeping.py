@@ -29,14 +29,14 @@ CHECKOUT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 PARENT = os.path.dirname(CHECKOUT)
 REPOS = [
     CHECKOUT,
-    os.path.join(PARENT, "linlog-prover.github.io"),
-    os.path.join(PARENT, "rocq-linlog"),
+    os.path.join(PARENT, "deduxit.github.io"),
+    os.path.join(PARENT, "rocq-deduxit"),
 ]
 # The names of this project's directories beside the checkouts; other
 # projects' share the parent directory.
-OURS = ("deduxit-", "linlog-", "rocq-linlog-")
+OURS = ("deduxit-", "deduxit.github.io-", "linlog-", "rocq-deduxit-")
 # Directories of session output: a step's number after `-step`.
-SESSION_OUTPUT = re.compile(r"^(deduxit|linlog|rocq-linlog)-step\d")
+SESSION_OUTPUT = re.compile(r"^(deduxit|linlog|rocq-deduxit)-step\d")
 STALE_AFTER = datetime.timedelta(days=7)
 
 

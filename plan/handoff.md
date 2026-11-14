@@ -82,7 +82,7 @@ otherwise, this file holds.
   6. `plan/later.md`'s section heads.
 - **Then find out where things stand** before you act:
   - `jj log -r 'main@origin..'` and `jj workspace list`, in linlog and in
-    `../rocq-linlog`;
+    `../rocq-deduxit`;
   - `ListAgents`, and the app's `list_sessions` for the step sessions
     (titles `deduxit-step-…`) and their state;
   - `systemctl --user list-units 'step*' 'deduxit-*' 'linlog-*'`;
@@ -129,9 +129,9 @@ otherwise, this file holds.
 - **The heads**, all pushed. Only the default workspaces exist in the
   three repositories.
   - deduxit's `main`: the commit with this file.
-  - The web client's `main` (`../linlog-prover.github.io`, the
+  - The web client's `main` (`../deduxit.github.io`, the
     repository `deduxit/deduxit.github.io`): `qyxnytmo` (223ba9ef).
-  - rocq-deduxit's `main` (`../rocq-linlog`): `qlxkqlrx` (df4b15ec).
+  - rocq-deduxit's `main` (`../rocq-deduxit`): `qlxkqlrx` (df4b15ec).
 - **Nothing runs.** No step session is open in the app (the earlier ones
   are archived), and there is no unit, not even the warm loop
   `keys-warm`. Both keys were unlocked on 2026-11-13: start the loop
@@ -270,9 +270,9 @@ to D32), grouped by release. In brief:
      - The brief has it run `jj new REV` there first when its base is
        another revision.
      - For the client or the Rocq library, the brief names `jj -R
-       ../linlog-prover.github.io workspace add --name stepNNx
-       ../linlog-prover.github.io-NNx -r CREV` (likewise
-       `../rocq-linlog`).
+       ../deduxit.github.io workspace add --name stepNNx
+       ../deduxit.github.io-NNx -r CREV` (likewise
+       `../rocq-deduxit`).
    - The session's checklist is a list of numbered items, each proved
      "by a command's own output". It goes into the start prompt (item 3).
      A `/goal` can't: the app puts the background before the prompt, and
@@ -375,8 +375,8 @@ to D32), grouped by release. In brief:
    - Remove its workspaces:
      - `jj workspace remove wt-step-NNx-<suffix>` here (`jj workspace
        list` names it);
-     - `jj -R ../linlog-prover.github.io workspace remove stepNNx`, or
-       the same in `../rocq-linlog`, for the others.
+     - `jj -R ../deduxit.github.io workspace remove stepNNx`, or
+       the same in `../rocq-deduxit`, for the others.
 
      `jj workspace remove` snapshots what is left into a commit, then
      deletes the directory and its git worktree.

@@ -50,7 +50,7 @@
     # this flake's nixpkgs, so that the library and the certificates are
     # compiled by one Rocq, and its NanoYalla, which its bridges import.
     # While a change of the library is under way, `--override-input
-    # rocq-deduxit path:../rocq-linlog' points a build at a local checkout.
+    # rocq-deduxit path:../rocq-deduxit' points a build at a local checkout.
     rocq-deduxit = {
       url = "github:deduxit/rocq-deduxit";
       inputs = {
