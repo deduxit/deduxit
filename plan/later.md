@@ -2493,6 +2493,16 @@ certified refutations"; unassigned).*
   invariant stated, checked without the search, and proved.
 - **`deduxit check` reads proofs only.** A disproof's JSON could be
   read and checked the same way, with the exit statuses of a proof.
+- **The basis of a backward search has a check and no Rocq lemma**
+  (step 57, 2026-11-14; unassigned, ranked after step 55's work as
+  semantics-decision-1 has it). `Refutation::Basis` is checked by
+  `search/basis.rs` without the search, and `--format rocq` refuses it
+  (`Unsupported::Basis`). The lemma needs, in the library, the converse
+  of `core-horn.md`'s induction (a derivation of a Horn goal gives a
+  lossy firing sequence of its net), a reading of the goal as a net
+  there, and a decision procedure for "the basis is closed backward and
+  misses the initial marking" that `vm_compute` runs: comparisons of
+  count vectors, quadratic in the basis.
 
 ## Follow-ups: the release's licences
 
