@@ -32,7 +32,7 @@ impl<'a> Deserialize<'a> for Rule {
     }
 }
 
-/// The serialized form of an ordinary formula, by its connective, its
+/// The serialized form of an ordinary formula: its connective, with its
 /// operands as indices of formulas before it. Its tags are part of the
 /// interchange format.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
@@ -64,8 +64,7 @@ enum FormulaForm {
 }
 
 impl From<Node> for FormulaForm {
-    /// Writes a node as its form, the arena's ids being the form's
-    /// indices.
+    /// Writes a node as its form. The arena's ids are the form's indices.
     fn from(node: Node) -> Self {
         let i = |k: NodeId| k.index() as u32;
         match node {
@@ -119,9 +118,9 @@ impl SequentForm {
         }
     }
 
-    /// Returns the formulas the form holds, every formula of it within
-    /// `limits.occurrences` and the sequent too, with the id in them of
-    /// every index of the form and the two sides.
+    /// Returns the formulas the form holds, the id among them of every
+    /// index of the form, and the two sides. Both the form's formulas and
+    /// the sequent's unfolding must be within `limits.occurrences`.
     fn within(self, limits: &Limits) -> Result<(Read, Vec<NodeId>, Vec<NodeId>), Error> {
         if let Some(limit) = limits.occurrences
             && self.formulas.len() as u64 > limit
@@ -196,7 +195,8 @@ impl Read {
 }
 
 impl Serialize for Sequent {
-    /// Serializes the sequent as a document at the level that added it.
+    /// Serializes the sequent as a document at level 8, the level of
+    /// ordinary logic.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut form = SequentForm::of(self.formulas(), self.left(), self.right());
         form.version = Some(wire::ORDINARY);
@@ -231,8 +231,9 @@ fn sequent(form: SequentForm, limits: &Limits) -> Result<Sequent, Error> {
 }
 
 /// The serialized form of an inference: its two sides as indices of
-/// formulas, its rule, the side and position of its principal formula
-/// and its premises; an open goal of a proof in progress its sides alone.
+/// formulas, its rule, the side and position of its principal formula,
+/// and its premises. An open goal of a proof in progress is its sides
+/// alone.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct InferenceForm {
     /// The hypotheses.
@@ -252,8 +253,8 @@ struct InferenceForm {
 }
 
 impl InferenceForm {
-    /// Returns the form of an inference, an open goal without its rule
-    /// where `open` says so.
+    /// Returns the form of an inference. Where `open` is set, an open goal
+    /// is written without its rule.
     fn of(inference: &Inference, open: bool) -> Self {
         let ids = |list: &[NodeId]| list.iter().map(|k| k.index() as u32).collect();
         Self {
@@ -265,9 +266,9 @@ impl InferenceForm {
         }
     }
 
-    /// Returns the inference the form holds, its formulas' ids those the
-    /// read gives, and its premises below `len` and its principal within
-    /// its sides.
+    /// Returns the inference the form holds, its formulas by the ids that
+    /// `read` gives. Refuses a premise at `len` or past it, and a
+    /// principal position past its side.
     fn read(self, read: &Read, len: usize) -> Result<Inference, Error> {
         let premises = self
             .premises
@@ -302,8 +303,8 @@ impl InferenceForm {
 }
 
 /// The serialized form of a derivation of LK or LJ: the logic, the
-/// sequent with every formula the inferences name, and the inferences,
-/// premises before conclusions, the root last.
+/// sequent with every formula the inferences name, and the inferences.
+/// Premises come before their conclusions, and the root is last.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct DerivationForm {
     /// The wire level, written only at the top of a document.
@@ -340,10 +341,14 @@ impl From<&Derivation> for DerivationForm {
 
 impl DerivationForm {
     /// Returns the derivation the form holds, its sequent within the
-    /// limits, in the shape every derivation has: an inference at least,
-    /// every premise before its conclusion and the premise of exactly one
-    /// inference, the root last. Whether it is a derivation of its logic
-    /// is [`Derivation::check`]'s to say.
+    /// limits. Refuses a form without the shape every derivation has:
+    /// - at least one inference;
+    /// - every premise before its conclusion, and the premise of exactly
+    ///   one inference;
+    /// - the root last.
+    ///
+    /// Whether it is a derivation of its logic is for
+    /// [`Derivation::check`] to say.
     fn within(self, limits: &Limits) -> Result<Derivation, Error> {
         let (read, left, right) = self.sequent.within(limits)?;
         let len = self.inferences.len();
@@ -351,7 +356,8 @@ impl DerivationForm {
         let mut inferences = Vec::with_capacity(len);
         for (n, form) in self.inferences.into_iter().enumerate() {
             let inference = form.read(&read, n)?;
-            // An open goal is a leaf, which the drawings draw bare.
+            // An open goal is a leaf with no principal formula, as the
+            // drawings draw it.
             if inference.rule == Rule::Open
                 && (inference.principal.is_some() || !inference.premises.is_empty())
             {
@@ -384,8 +390,8 @@ impl DerivationForm {
 }
 
 impl Serialize for Derivation {
-    /// Serializes the derivation as a document at the level that added
-    /// it.
+    /// Serializes the derivation as a document: at level 9 where an
+    /// inference is a cut, else at level 8.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut form = DerivationForm::from(self);
         form.version = Some(level(self.inferences()));
@@ -406,8 +412,8 @@ impl crate::sealed::Readable for Derivation {}
 impl Readable for Derivation {
     const FORM: &'static str = "ordinary derivation";
 
-    /// Reads a derivation in the shape every derivation has, its sequent
-    /// within the limits.
+    /// Reads a derivation that has the shape every derivation has, its
+    /// sequent within the limits.
     fn read<'de, D: Deserializer<'de>>(deserializer: D, limits: &Limits) -> Result<Self, D::Error> {
         let form = DerivationForm::deserialize(deserializer)?;
         form.within(limits).map_err(wire::fail)
@@ -415,8 +421,9 @@ impl Readable for Derivation {
 }
 
 /// The serialized form of the outcome of deciding an ordinary sequent:
-/// the verdict, the logic, the translation and the image's search, or
-/// LJT's, and the derivation of a valid sequent.
+/// the verdict, the logic, the search that decided it, and the derivation
+/// of a valid sequent. The search is the linear search of the image with
+/// its translation, LJT's or the SAT solver's.
 #[derive(Serialize)]
 struct OutcomeForm<'a> {
     /// The wire level.
@@ -433,7 +440,7 @@ struct OutcomeForm<'a> {
     /// The translation the image was made by, for the embedding.
     #[serde(skip_serializing_if = "Option::is_none")]
     translation: Option<Translation>,
-    /// The engine that searched the image, or `ljt`.
+    /// The engine that searched the image, or `ljt` or `sat`.
     engine: &'static str,
     /// What the search cost.
     statistics: StatisticsForm<'a>,
@@ -442,22 +449,25 @@ struct OutcomeForm<'a> {
     derivation: Option<DerivationForm>,
 }
 
-/// What the search of an outcome cost: the image's, or LJT's.
+/// What the search of an outcome cost, written as the search's own
+/// statistics.
 #[derive(Serialize)]
 #[serde(untagged)]
 enum StatisticsForm<'a> {
-    /// The linear search's on the image.
+    /// What the linear search of the image cost.
     Linear(&'a crate::linear::search::Statistics),
-    /// LJT's.
+    /// What LJT cost.
     Ljt(&'a ljt::Statistics),
-    /// The SAT solver's.
+    /// What the SAT solver cost.
     #[cfg(feature = "sat")]
     Sat(&'a crate::ordinary::sat::Statistics),
 }
 
 impl Serialize for Outcome {
-    /// Serializes the outcome as its verdict, with the reason of an
-    /// unknown one and the derivation of a valid sequent.
+    /// Serializes the outcome as a document: its verdict, with the reason
+    /// of an unknown one and the derivation of a valid sequent, and the
+    /// search that decided it. Its level is 9 for a derivation with a cut,
+    /// else 8.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let version = match &self.verdict {
             Verdict::Valid(d) => level(d.inferences()),
@@ -498,7 +508,7 @@ impl Serialize for Outcome {
 
 /// The serialized form of a proof in progress of an ordinary sequent: the
 /// logic, the sequent with every formula the inferences name, the
-/// inferences with the root first, and the goals the steps closed.
+/// inferences with the root first, and the inferences the steps closed.
 #[cfg(feature = "interactive")]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct SessionForm {
@@ -521,8 +531,8 @@ struct SessionForm {
 
 #[cfg(feature = "interactive")]
 impl Serialize for Interactive {
-    /// Serializes the proof in progress as a document at the level that
-    /// added it.
+    /// Serializes the proof in progress as a document: at level 9 where an
+    /// inference is a cut, else at level 8.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let (logic, formulas, inferences, history) = self.parts();
         let (left, right) = self.sequent();
@@ -556,8 +566,8 @@ impl crate::sealed::Readable for Interactive {}
 impl Readable for Interactive {
     const FORM: &'static str = "ordinary session";
 
-    /// Reads a proof in progress and checks it as one built step by step,
-    /// its sequent within the limits.
+    /// Reads a proof in progress, its sequent within the limits, and
+    /// checks it as one built step by step is checked.
     fn read<'de, D: Deserializer<'de>>(deserializer: D, limits: &Limits) -> Result<Self, D::Error> {
         let form = SessionForm::deserialize(deserializer)?;
         session(form, limits).map_err(wire::fail)
@@ -605,8 +615,8 @@ fn session(form: SessionForm, limits: &Limits) -> Result<Interactive, Error> {
     )
 }
 
-/// Returns the level of a form of ordinary logic whose inferences are
-/// given: the cut's where one is a cut, else the level of the forms.
+/// Returns the level of a form of ordinary logic with these inferences:
+/// 9 where one is a cut, else 8, the level of ordinary logic.
 fn level(inferences: &[Inference]) -> u32 {
     if inferences.iter().any(|i| i.rule() == Rule::Cut) {
         wire::ORDINARY_CUT

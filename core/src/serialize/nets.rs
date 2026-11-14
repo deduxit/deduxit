@@ -10,9 +10,10 @@ use crate::wire::{self, Readable};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// The serialized form of a proof structure: its level, its sequent, the
-/// criterion's fields (whether Mix is allowed), its cut links as pairs of
-/// vertex ids where it has some, and its links as pairs of vertex ids in
-/// the order they were made.
+/// criterion's fields, its cut links where it has some, and its axiom
+/// links in the order they were made. The criterion's fields are whether
+/// Mix is allowed, and the order where it is not the commutative one. A
+/// link is a pair of vertex ids.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct Net {
     /// The wire level.
@@ -35,8 +36,9 @@ struct Net {
     cuts: Vec<(u32, u32)>,
     /// The axiom links.
     links: Vec<(u32, u32)>,
-    /// The vertices of a structure with boxes, which this form does not
-    /// read: its links name those vertices, not occurrences.
+    /// The vertices of a structure with boxes. This form refuses them,
+    /// since the links of such a structure name its vertices, not
+    /// occurrences.
     #[serde(default, skip_serializing)]
     vertices: Option<serde::de::IgnoredAny>,
 }
@@ -52,7 +54,7 @@ enum OrderForm {
 }
 
 impl From<OrderForm> for Order {
-    /// The order the name names.
+    /// Returns the order the name names.
     fn from(form: OrderForm) -> Self {
         match form {
             OrderForm::Commutative => Order::Commutative,
@@ -77,8 +79,8 @@ fn form(net: &ProofStructure) -> Net {
     };
     let pair = |&(x, y): &(VertexId, VertexId)| (x.get(), y.get());
     Net {
-        // The cyclic order is level 2's, the cut formulas level 6's and a
-        // first-order sequent level 7's.
+        // The cyclic order needs level 2. The sequent's own level is 6
+        // with cut formulas and 7 when it is first-order.
         version: Some(if order.is_some() {
             wire::level_of_sequent(net.sequent()).max(2)
         } else {
@@ -106,10 +108,10 @@ impl crate::sealed::Readable for ProofStructure {}
 impl Readable for ProofStructure {
     const FORM: &'static str = "proof structure";
 
-    /// Reads a structure, rebuilding the forest of its sequent within the
-    /// limits and validating the cut links and links as
-    /// [`ProofStructure::with_cuts`] does; whether it is a proof net is for
-    /// [`ProofStructure::is_correct`].
+    /// Reads a structure. Builds the forest of its sequent within the
+    /// limits, and validates the cut links and links as
+    /// [`ProofStructure::with_cuts`] does. Whether it is a proof net is
+    /// for [`ProofStructure::is_correct`] to say.
     fn read<'de, D: Deserializer<'de>>(deserializer: D, limits: &Limits) -> Result<Self, D::Error> {
         let net = Net::deserialize(deserializer)?;
         if net.vertices.is_some() {
@@ -133,14 +135,20 @@ impl Readable for ProofStructure {
     }
 }
 
-/// The serialized form of a proof structure with boxes: its level, its
-/// sequent, whether Mix is allowed, the vertices after the roots as
-/// `[occurrence, parent, box]` (`parent` `null` for an end of a cut link,
-/// `box` the `!` vertex of the innermost box around the vertex, or `null`
-/// outside every box), the cut links where there are some, the axiom
-/// links and
-/// the weakenings (a `?` vertex without copies and the literal it hangs
-/// on), as vertex ids.
+/// The serialized form of a proof structure with boxes. Its keys:
+/// - `version`, its level;
+/// - `sequent`;
+/// - `mix`, whether Mix is allowed;
+/// - `vertices`, the vertices after the roots, each `[occurrence, parent,
+///   box]`. `parent` is `null` for an end of a cut link. `box` is the `!`
+///   vertex of the innermost box around the vertex, or `null` outside
+///   every box;
+/// - `cuts`, the cut links, where there are some;
+/// - `links`, the axiom links;
+/// - `weakenings`, each a `?` vertex without copies and the literal it
+///   hangs on.
+///
+/// Links and weakenings are pairs of vertex ids.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct Boxed {
     /// The wire level.
@@ -167,7 +175,7 @@ struct Boxed {
 
 impl Serialize for MellStructure {
     /// Serializes the structure as a document: its level, sequent,
-    /// criterion, vertices, cut links, links and weakenings.
+    /// whether Mix is allowed, vertices, cut links, links and weakenings.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         boxed(self).serialize(serializer)
     }
@@ -198,7 +206,7 @@ fn boxed(net: &MellStructure) -> Boxed {
     }
 }
 
-/// A step of an elimination on a net as its record writes it.
+/// A step of a cut elimination on a net, as its record writes it.
 #[derive(Serialize)]
 struct StepForm {
     /// The cut link reduced, from its end in a cut formula's tree.
@@ -210,7 +218,7 @@ struct StepForm {
     above: Option<u32>,
 }
 
-/// An elimination on a net as its record writes it.
+/// A cut elimination on a net, as its record writes it.
 #[derive(Serialize)]
 struct EliminationForm<'a, F> {
     /// The wire level.
@@ -226,8 +234,8 @@ struct EliminationForm<'a, F> {
     reason: Option<&'a crate::Error>,
 }
 
-/// Writes the record of an elimination on a net whose form, with its
-/// level, is `net`.
+/// Writes the record of a cut elimination. `net` is the form of the net
+/// it reached, without its level, which is `version`.
 fn record<S: Serializer, F: Serialize>(
     serializer: S,
     net: F,
@@ -294,11 +302,11 @@ impl crate::sealed::Readable for MellStructure {}
 impl Readable for MellStructure {
     const FORM: &'static str = "proof structure with boxes";
 
-    /// Reads a structure, rebuilding the forest of its sequent within the
-    /// limits and validating its vertices, links and weakenings as
+    /// Reads a structure. Builds the forest of its sequent within the
+    /// limits, and validates its vertices, links and weakenings as
     /// [`MellStructure::from_parts`] does, its graph within
-    /// `limits.memory_bytes`; whether it is a proof net is for
-    /// [`MellStructure::is_correct`].
+    /// `limits.memory_bytes`. Whether it is a proof net is for
+    /// [`MellStructure::is_correct`] to say.
     fn read<'de, D: Deserializer<'de>>(deserializer: D, limits: &Limits) -> Result<Self, D::Error> {
         let boxed = Boxed::deserialize(deserializer)?;
         let build = || {

@@ -20,22 +20,23 @@ pub(super) enum FoExpression {
     /// index in `fo`, each before this one.
     #[serde(rename = "F")]
     App(u32, Vec<u32>),
-    /// An eigenvariable by its number: only in a proof's extension of the
-    /// arena, never in a sequent's.
+    /// An eigenvariable, by its number. It stands only in the terms a
+    /// proof adds to the arena, never in a sequent's.
     #[serde(rename = "E")]
     Eigen(u32),
 }
 
-/// The serialized form of an atom: its name alone in a propositional
-/// sequent, or in a first-order one its predicate symbol by index in
-/// `symbols` applied to terms by their index in `fo`.
+/// The serialized form of an atom. A propositional sequent writes its
+/// name alone. A first-order one writes its predicate symbol, by index in
+/// `symbols`, applied to terms, by their index in `fo`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]
 #[serde(untagged)]
 pub(super) enum AtomForm {
-    /// A nullary atom of a propositional sequent, by name.
+    /// A nullary atom, by name. In a first-order document a reader takes
+    /// it as the nullary predicate of that name.
     Name(String),
-    /// A predicate applied to its arguments, boxed so that a list of
-    /// names stays a list of strings in size.
+    /// A predicate applied to its arguments. It is boxed so that a list of
+    /// atoms takes no more room than a list of names.
     Predicate(Box<Predicate>),
 }
 
@@ -79,7 +80,8 @@ pub(super) enum Predicate {
 }
 
 /// The atoms of a form: names alone, as a propositional sequent writes
-/// them and reads them as it did before terms, or atoms of both shapes.
+/// them, or atoms of both shapes. A list of names alone reads as plain
+/// strings, so a propositional sequent pays nothing for predicates.
 #[derive(Clone, Debug)]
 pub(super) enum Atoms {
     /// Every atom by name.
@@ -89,7 +91,7 @@ pub(super) enum Atoms {
 }
 
 impl Serialize for Atoms {
-    /// Writes the atoms as the sequence they are.
+    /// Writes the atoms as a list.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         match self {
             Atoms::Names(names) => names.serialize(serializer),
@@ -99,8 +101,8 @@ impl Serialize for Atoms {
 }
 
 impl<'de> Deserialize<'de> for Atoms {
-    /// Reads the atoms as names while every one is a name, as predicates
-    /// from the first predicate on.
+    /// Reads the atoms as names while every one is a name, and as atoms
+    /// of both shapes from the first predicate on.
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         /// The sequence of atoms.
         struct Visitor;
@@ -120,8 +122,8 @@ impl<'de> Deserialize<'de> for Atoms {
                 Ok(atoms)
             }
         }
-        /// Reads one atom into the list, which turns mixed at the first
-        /// predicate.
+        /// Reads one atom into the list. The list turns mixed at the
+        /// first predicate.
         struct Push<'a>(&'a mut Atoms);
         impl<'de> serde::de::DeserializeSeed<'de> for Push<'_> {
             type Value = ();
@@ -175,7 +177,8 @@ impl<'de> Deserialize<'de> for Atoms {
 }
 
 /// The first-order tables of a form, as its `symbols`, `fo` and `atoms`
-/// keys hold them, and what builds them from a sequent's.
+/// keys hold them. It builds them from a sequent's tables, and the
+/// sequent's tables from them.
 pub(super) struct Tables {
     /// The symbols, each a name with its arity.
     pub(super) symbols: Vec<(String, u32)>,
@@ -187,7 +190,7 @@ pub(super) struct Tables {
 
 impl Tables {
     /// Returns the forms of `sequent`'s tables: the atoms by name where
-    /// none is a predicate, else every one as a predicate.
+    /// none is a predicate, else every atom as a predicate.
     pub(super) fn of(sequent: &Seq) -> Self {
         let fo = &sequent.fo;
         if fo.atoms.is_empty() {
@@ -221,15 +224,18 @@ impl Tables {
         }
     }
 
-    /// Returns the tables the forms hold and the atoms' names: a name's
-    /// in NFC, a predicate's its canonical text. A name in a sequent with
-    /// a symbol, a term or a predicate is the nullary symbol of that
-    /// name, added where the table lacks it; a document of names alone
-    /// keeps them as names, whatever its binders. The tables are checked
-    /// (`FirstOrder::check`) before a key is built, and the terms every
-    /// atom unfolds to are counted against `limits.occurrences` first:
-    /// the terms are shared, so a short document could name a key of
-    /// exponential length.
+    /// Returns the tables the forms hold and the atoms' names. An atom
+    /// given by name keeps that name, checked and in NFC. A predicate's
+    /// atom is named by its canonical text.
+    ///
+    /// In a sequent with a symbol, a term or a predicate, a plain name is
+    /// the nullary symbol of that name, added where the table lacks it. A
+    /// document of names alone keeps them as names, whatever its binders.
+    ///
+    /// The tables are checked (`FirstOrder::check`) before a key is built,
+    /// and the terms every atom unfolds to are counted against
+    /// `limits.terms` first. The terms are shared, so a short document
+    /// could name a key of exponential length.
     pub(super) fn read(self, limits: &Limits) -> Result<(FirstOrder, Vec<String>), crate::Error> {
         let mut tables = FirstOrder::new();
         let first_order = !self.symbols.is_empty() || !self.fo.is_empty();
@@ -301,7 +307,7 @@ impl Tables {
             };
             tables.atoms.push((symbol, args));
         }
-        // The keys, once every index the key reads is known to exist and
+        // The keys are built only once every index they read exists and
         // their unfolded size is within the limit.
         tables.check(tables.atoms.len())?;
         let unfolded = tables.unfolded();
@@ -333,16 +339,17 @@ fn normalized(name: String) -> Result<String, crate::Error> {
     Ok(name)
 }
 
-/// The serialized form of an arena term. Its tags are part of the interchange
-/// format, so renaming one breaks it. A binder's variable is named in the
-/// form's `binders`, beside the terms, so that a term stays three words.
+/// The serialized form of an arena term. Its tags are part of the
+/// interchange format, so renaming one breaks it. A binder's variable is
+/// named in the form's `binders`, beside the terms, so that a term stays
+/// `Copy` and three words.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[serde(rename = "E")]
 enum Expression {
-    /// A variable, by dictionary index.
+    /// An atom, by its index among the atoms.
     #[serde(rename = "V")]
     Atom(u32),
-    /// A negated variable, by dictionary index.
+    /// A negated atom, by its index among the atoms.
     #[serde(rename = "D")]
     DualAtom(u32),
     /// `1`
@@ -375,16 +382,16 @@ enum Expression {
     /// `?A`
     #[serde(rename = "?")]
     Quest(u32),
-    /// `∀x.A`: the body; the variable's name stands in `binders`.
+    /// `∀x.A`, by its body. The variable's name is in `binders`.
     #[serde(rename = "∀")]
     Forall(u32),
-    /// `∃x.A`: the body; the variable's name stands in `binders`.
+    /// `∃x.A`, by its body. The variable's name is in `binders`.
     #[serde(rename = "∃")]
     Exists(u32),
 }
 
-/// The serialized form of a sequent: with `version` at the top of a
-/// document, without it nested in another form.
+/// The serialized form of a sequent. It has `version` at the top of a
+/// document, and none when nested in another form.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(super) struct Sequent {
     /// The wire level, written only at the top of a document.
@@ -400,24 +407,25 @@ pub(super) struct Sequent {
     roots: Vec<u32>,
     /// The atoms: names, or predicates in a first-order sequent.
     atoms: Atoms,
-    /// The symbols of a first-order sequent, each a name with its arity;
-    /// absent in a propositional one.
+    /// The symbols of a first-order sequent, each a name with its arity.
+    /// Absent in a propositional one.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     symbols: Vec<(String, u32)>,
-    /// The first-order terms; absent in a propositional sequent.
+    /// The first-order terms. Absent in a propositional sequent.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     fo: Vec<FoExpression>,
-    /// The names of the binders' variables, one per `∀` or `∃` term in
-    /// the order of the terms, for printing; absent without binders, and
-    /// `x` where a name is missing.
+    /// The names of the binders' variables, for printing: one per `∀` or
+    /// `∃` term, in the order of the terms. Absent without binders. A
+    /// reader names `x` a binder whose name is missing.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     binders: Vec<String>,
-    /// How many of the root formulas, the first, stand left of `⊢`;
-    /// absent where the sides are not known.
+    /// How many of the root formulas, the first ones, stand left of `⊢`.
+    /// Absent where the sides are not known.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     antecedents: Option<u32>,
-    /// The cut formulas, as arena indices, in the order they were added;
-    /// absent where there are none. Each one's dual is built on reading.
+    /// The cut formulas, as arena indices, in the order they were added.
+    /// Absent where there are none. On reading, each one's dual is found
+    /// in the arena or added to it.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     cuts: Vec<u32>,
 }
@@ -470,7 +478,8 @@ impl Expression {
 }
 
 impl From<&Seq> for Sequent {
-    /// Converts a sequent into its serialized form nested in another.
+    /// Converts a sequent into its serialized form without `version`, as
+    /// another form nests it.
     fn from(s: &Seq) -> Sequent {
         let tables = Tables::of(s);
         Sequent {
@@ -488,8 +497,9 @@ impl From<&Seq> for Sequent {
 }
 
 impl Sequent {
-    /// Returns the sequent the form holds, checked, within
-    /// `limits.occurrences`.
+    /// Returns the sequent the form holds, checked. It must unfold to no
+    /// more than `limits.occurrences`, and its atoms' terms to no more
+    /// than `limits.terms`.
     pub(super) fn within(self, limits: &Limits) -> Result<Seq, crate::Error> {
         let sequent = Seq::read_within(self, limits)?;
         let occurrences = sequent.occurrences();
@@ -508,10 +518,10 @@ impl Sequent {
 impl TryFrom<Sequent> for Seq {
     type Error = crate::Error;
 
-    /// Converts a deserialized sequent back, failing if its arena breaks the
-    /// invariants or an atom's name is none the text syntax reads as that
-    /// atom. A name the dictionary repeats, in NFC, is one atom, as it is
-    /// in a parsed sequent.
+    /// Converts a deserialized sequent back. Fails if its arena breaks the
+    /// invariants, or if an atom's name would not read back as that atom
+    /// in the text syntax. Names equal in NFC are one atom, as in a parsed
+    /// sequent.
     fn try_from(s: Sequent) -> Result<Seq, Self::Error> {
         Self::read_within(s, &Limits::default())
     }
@@ -519,7 +529,7 @@ impl TryFrom<Sequent> for Seq {
 
 impl Seq {
     /// Converts a deserialized sequent back as `TryFrom` does, the terms
-    /// of its atoms counted against `limits.occurrences`.
+    /// of its atoms counted against `limits.terms`.
     fn read_within(s: Sequent, limits: &Limits) -> Result<Seq, crate::Error> {
         let (mut fo, atoms) = Tables {
             symbols: s.symbols,
@@ -557,8 +567,8 @@ impl Seq {
         }
         let cuts: Vec<TermId> = cuts.into_iter().map(TermId::new).collect();
         s.push_cuts(&cuts);
-        // A cut formula is closed as a root is, which the check sees only
-        // once the cuts are the sequent's.
+        // A cut formula must be closed, as a root must. The check sees the
+        // cut formulas only once they are the sequent's.
         if !cuts.is_empty() && !s.fo.is_empty() {
             s.check()?;
         }
@@ -568,8 +578,9 @@ impl Seq {
 }
 
 impl serde::Serialize for Seq {
-    /// Serializes the sequent as a document: its level, arena, root term
-    /// indices and atom names.
+    /// Serializes the sequent as a document: its level, arena, roots and
+    /// atoms, and where it has them, its first-order tables, binders'
+    /// names, sides and cut formulas.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut proxy = Sequent::from(self);
         proxy.version = Some(wire::level_of_sequent(self));
@@ -590,8 +601,9 @@ impl crate::sealed::Readable for Seq {}
 impl Readable for Seq {
     const FORM: &'static str = "sequent";
 
-    /// Reads a sequent and checks that its arena keeps the invariants and
-    /// that it unfolds to no more occurrences than the limits allow.
+    /// Reads a sequent and checks that its arena keeps the invariants. It
+    /// must unfold to no more occurrences, and its atoms to no more terms,
+    /// than the limits allow.
     fn read<'de, D: Deserializer<'de>>(deserializer: D, limits: &Limits) -> Result<Self, D::Error> {
         let proxy = Sequent::deserialize(deserializer)?;
         proxy.within(limits).map_err(wire::fail)

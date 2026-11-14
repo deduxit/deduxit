@@ -9,9 +9,10 @@ use crate::linear::sequents::{Atom, Sequent, Term, TermId, Visit};
 use crate::wire::{self, Readable};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-/// The serialized form of an intuitionistic formula: the connectives of
-/// intuitionistic linear logic alone, so that a classical tag is refused
-/// as an unknown variant. Its tags are part of the interchange format.
+/// The serialized form of an intuitionistic formula. It has the
+/// connectives of intuitionistic linear logic alone, so a classical tag is
+/// refused as an unknown variant. Its tags are part of the interchange
+/// format.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename = "I")]
 enum Expression {
@@ -42,17 +43,17 @@ enum Expression {
     /// `!A`
     #[serde(rename = "!")]
     Bang(u32),
-    /// `∀x.A`: the body; the variable's name stands in `binders`.
+    /// `∀x.A`, by its body. The variable's name is in `binders`.
     #[serde(rename = "∀")]
     Forall(u32),
-    /// `∃x.A`: the body; the variable's name stands in `binders`.
+    /// `∃x.A`, by its body. The variable's name is in `binders`.
     #[serde(rename = "∃")]
     Exists(u32),
 }
 
 impl Expression {
-    /// Returns the term of the same shape, whose bounds are the
-    /// expression's: its operands and its atom.
+    /// Returns a one-sided term with the expression's operands and atom,
+    /// for the check of their bounds and order.
     fn shape(self) -> Term {
         let t = TermId::new;
         match self {
@@ -74,7 +75,8 @@ impl Expression {
     }
 
     /// Returns the operands, each with the side it stands on when the
-    /// expression stands on `side`: the antecedent of `⊸` on the other.
+    /// expression stands on `side`. The antecedent of `⊸` stands on the
+    /// other side.
     fn operands(self, side: Side) -> [Option<(u32, Side)>; 2] {
         match self {
             Expression::Atom(_) | Expression::One | Expression::Zero | Expression::Top => {
@@ -135,15 +137,15 @@ struct Ill {
     terms: Vec<Expression>,
     /// The atoms: names, or predicates in a first-order sequent.
     atoms: Atoms,
-    /// The symbols of a first-order sequent, each a name with its arity;
-    /// absent in a propositional one.
+    /// The symbols of a first-order sequent, each a name with its arity.
+    /// Absent in a propositional one.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     symbols: Vec<(String, u32)>,
-    /// The first-order terms; absent in a propositional sequent.
+    /// The first-order terms. Absent in a propositional sequent.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     fo: Vec<FoExpression>,
     /// The names of the binders' variables, one per `∀` or `∃` term in
-    /// the order of the terms; absent without binders.
+    /// the order of the terms. Absent without binders.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     binders: Vec<String>,
     /// The hypotheses, as arena indices, in the order written.
@@ -153,8 +155,9 @@ struct Ill {
 }
 
 impl From<&IllSequent> for Ill {
-    /// Writes the sequent's formulas as its reading reads them, each
-    /// formula of a one-sided term on one side once.
+    /// Writes the sequent's formulas as its intuitionistic reading reads
+    /// them. A one-sided term is written once per side it stands on, and
+    /// equal formulas are written once.
     fn from(sequent: &IllSequent) -> Self {
         let reading = sequent.reading();
         let forest = sequent.forest();
@@ -223,8 +226,9 @@ impl From<&IllSequent> for Ill {
 }
 
 impl Ill {
-    /// Returns the sequent the form holds, lowered within the limits:
-    /// every formula on the side it stands on, each term on a side once.
+    /// Returns the sequent the form holds, lowered to one-sided terms
+    /// within the limits. Each term is lowered once for each side it is
+    /// needed on.
     fn within(self, limits: &Limits) -> Result<IllSequent, crate::Error> {
         let (mut fo, atoms) = Tables {
             symbols: self.symbols,
@@ -233,7 +237,7 @@ impl Ill {
         }
         .read(limits)?;
         let len = self.terms.len();
-        // Each term lowers to two at most, numbered by a `u32`.
+        // Each term lowers to at most two terms, and a `u32` numbers them.
         let most = u64::from(u32::MAX / 2);
         if len as u64 > most {
             return Err(crate::Error::Refused(Refusal::Index {
@@ -330,8 +334,7 @@ impl Ill {
 
 impl Serialize for IllSequent {
     /// Serializes the sequent as a document: its level, its arena of
-    /// intuitionistic formulas, the atom names, the hypotheses and the
-    /// goal.
+    /// intuitionistic formulas, the atoms, the hypotheses and the goal.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut proxy = Ill::from(self);
         proxy.version = Some(wire::ILL.max(wire::level_of_sequent(self.sequent())));
@@ -352,8 +355,8 @@ impl crate::sealed::Readable for IllSequent {}
 impl Readable for IllSequent {
     const FORM: &'static str = "intuitionistic sequent";
 
-    /// Reads a sequent, checks its arena's bounds and order and the atom
-    /// names, and lowers it within the limits.
+    /// Reads a sequent, checks the atom names and the bounds and order of
+    /// its arena, and lowers it within the limits.
     fn read<'de, D: Deserializer<'de>>(deserializer: D, limits: &Limits) -> Result<Self, D::Error> {
         let proxy = Ill::deserialize(deserializer)?;
         proxy.within(limits).map_err(wire::fail)

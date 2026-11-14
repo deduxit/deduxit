@@ -23,8 +23,8 @@ impl Serialize for Fragment {
 }
 
 impl<'a> Deserialize<'a> for Fragment {
-    /// Deserializes a fragment from its name, giving the named fragment,
-    /// which contains every fragment of that name.
+    /// Deserializes a fragment from its name. It returns the named
+    /// fragment, which contains every fragment of that name.
     fn deserialize<D: Deserializer<'a>>(deserializer: D) -> Result<Self, D::Error> {
         let name = String::deserialize(deserializer)?;
         name.parse().map_err(serde::de::Error::custom)
@@ -39,17 +39,17 @@ impl Serialize for Mode {
 }
 
 impl<'a> Deserialize<'a> for Mode {
-    /// Deserializes a mode from its name, refusing an unknown one by
-    /// naming the known ones.
+    /// Deserializes a mode from its name. An unknown name is refused with
+    /// a list of the known ones.
     fn deserialize<D: Deserializer<'a>>(deserializer: D) -> Result<Self, D::Error> {
         let name = <std::borrow::Cow<'a, str>>::deserialize(deserializer)?;
         name.parse().map_err(serde::de::Error::custom)
     }
 }
 
-/// The serialized form of a reason: its `kind`, with the bound for the
-/// copy bound and for the memory limit. A kind it does not know is no
-/// reason, never one of these.
+/// The serialized form of a reason: its `kind`, with the bound that
+/// stopped the search where there is one. A kind it does not know is
+/// refused, never read as another.
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub(super) enum Why {
@@ -60,19 +60,20 @@ pub(super) enum Why {
         /// The depth the limits allowed.
         depth: u32,
     },
-    /// Every level up to this copy bound hit it.
+    /// Every level up to the copy bound hit its bound on some branch.
     CopyBound {
         /// The bound.
         copies: u32,
     },
-    /// The search held this many bytes with its memo emptied.
+    /// The search would have held more than the memory bound.
     MemoryLimit {
         /// The bound.
         limit_bytes: u64,
     },
     /// A structure of the search outgrew its indices.
     IndexLimit,
-    /// The work limit was reached.
+    /// The work limit was reached, by the search or by the check of its
+    /// proof.
     WorkLimit {
         /// The bound.
         limit: u64,
@@ -82,12 +83,14 @@ pub(super) enum Why {
         /// The bound.
         limit_bytes: u64,
     },
-    /// A binding would have passed the witness depth.
+    /// A binding would have passed the witness depth, and no proof was
+    /// found.
     WitnessDepth {
         /// The bound.
         depth: u32,
     },
-    /// An instance would have passed the bound on instances.
+    /// An instance would have passed the bound on instances, and no proof
+    /// was found.
     Instances {
         /// The bound.
         instances: u32,
@@ -155,7 +158,7 @@ enum Literal {
 }
 
 impl From<Sign> for Literal {
-    /// The literal of the sign.
+    /// Returns the literal of the sign.
     fn from(sign: Sign) -> Self {
         match sign {
             Sign::Atom => Literal::Atom,
@@ -165,7 +168,7 @@ impl From<Sign> for Literal {
 }
 
 impl From<Literal> for Sign {
-    /// The sign of the literal.
+    /// Returns the sign of the literal.
     fn from(literal: Literal) -> Self {
         match literal {
             Literal::Atom => Sign::Atom,
@@ -174,9 +177,9 @@ impl From<Literal> for Sign {
     }
 }
 
-/// The serialized form of a refutation: its `kind`, with the counts or
-/// the weights that rule a proof out. A kind it does not know is no
-/// refutation, never one of these.
+/// The serialized form of a refutation: its `kind`, with the counts,
+/// weights, assignment or set that rule a proof out. A kind it does not
+/// know is refused, never read as another.
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 enum WhyNot {
@@ -188,7 +191,7 @@ enum WhyNot {
         atom: u32,
         /// The least excess of positive over negative literals.
         least: i32,
-        /// The greatest.
+        /// The greatest excess.
         most: i32,
     },
     /// An atom's literals cannot pair up, though copies may add one sign.
@@ -197,29 +200,30 @@ enum WhyNot {
         atom: u32,
         /// The least excess outside the exponentials.
         least: i32,
-        /// The greatest.
+        /// The greatest excess.
         most: i32,
-        /// The literal every one of the atom below an exponential is.
+        /// The sign of every literal of the atom below an exponential.
         copied: Literal,
     },
     /// The count equation fails.
     Equation {
-        /// The formulas.
+        /// How many formulas the sequent has.
         formulas: u64,
-        /// The formulas the equation asks for.
+        /// How many formulas the equation asks for.
         needed: i64,
-        /// The `⊗`.
+        /// How many `⊗` the sequent has.
         tensors: u64,
-        /// The `⅋`.
+        /// How many `⅋` it has.
         pars: u64,
-        /// The `1`.
+        /// How many `1` it has.
         ones: u64,
-        /// The `⊥`.
+        /// How many `⊥` it has.
         bottoms: u64,
         /// Whether Mix was allowed.
         mix: bool,
     },
-    /// The state equation of the Petri net has no solution.
+    /// The state equation of the Petri net that the Horn engine reads the
+    /// sequent as has no solution.
     StateEquation {
         /// The atoms that weigh something, by index, with their weights.
         atoms: Vec<(u32, i64)>,
@@ -234,7 +238,8 @@ enum WhyNot {
         /// The value of each atom, by index.
         assignment: Vec<bool>,
     },
-    /// A forward search saturated.
+    /// A forward search saturated: its set of stable sequents is closed
+    /// under the rules and leaves the goal underived.
     Saturated {
         /// The positive literal of each atom, by index.
         positive: Vec<Literal>,
@@ -247,7 +252,7 @@ enum WhyNot {
         symbol: u32,
         /// The least excess of positive over negative literals.
         least: i32,
-        /// The greatest.
+        /// The greatest excess.
         most: i32,
     },
     /// A predicate's literals cannot pair up, though copies may add one
@@ -257,10 +262,10 @@ enum WhyNot {
         symbol: u32,
         /// The least excess outside the exponentials.
         least: i32,
-        /// The greatest.
+        /// The greatest excess.
         most: i32,
-        /// The literal every one of the predicate below an exponential
-        /// is.
+        /// The sign of every literal of the predicate below an
+        /// exponential.
         copied: Literal,
     },
 }
@@ -271,7 +276,7 @@ enum WhyNot {
 struct StableForm {
     /// The linear zone, sorted, with repeats.
     linear: Vec<u32>,
-    /// The unrestricted zone, sorted.
+    /// The unrestricted zone, sorted, without repeats.
     unrestricted: Vec<u32>,
     /// Whether a `⊤` above absorbs any further linear member.
     absorbs: bool,
@@ -363,8 +368,8 @@ impl From<&Refutation> for WhyNot {
 }
 
 impl From<WhyNot> for Refutation {
-    /// Converts a refutation's serialized form back; its indices are the
-    /// disproof's to check against its sequent.
+    /// Converts a refutation's serialized form back. The disproof's reader
+    /// checks its indices against the sequent.
     fn from(w: WhyNot) -> Self {
         match w {
             WhyNot::Exhausted => Refutation::Exhausted,
@@ -467,7 +472,7 @@ impl<'a> Deserialize<'a> for Refutation {
 }
 
 /// The serialized form of a disproof: its level at the top of a
-/// document, the sequent, the mode, the refutation and the goal where it
+/// document, the sequent, the mode, the refutation, and the goal where it
 /// is not the roots. An unprovable outcome holds the same keys, so it
 /// reads back as its disproof.
 #[derive(Serialize, Deserialize)]
@@ -491,9 +496,9 @@ struct DisproofForm {
 }
 
 impl DisproofForm {
-    /// Rebuilds the disproof the form holds, its sequent within `limits`,
-    /// every atom and occurrence it names checked against the sequent; the
-    /// refutation itself is not checked.
+    /// Returns the disproof the form holds, its sequent within `limits`.
+    /// Every atom, symbol and occurrence it names is checked against the
+    /// sequent. The refutation itself is not checked.
     fn within(self, limits: &Limits) -> Result<Disproof, crate::Error> {
         let sequent = self.sequent.within(limits)?;
         let atoms = sequent.atom_names().len();
@@ -563,7 +568,8 @@ impl DisproofForm {
 }
 
 impl Serialize for Disproof {
-    /// Serializes the disproof as a document.
+    /// Serializes the disproof as a document, at the larger of the level
+    /// its refutation and mode need and its sequent's.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         DisproofForm {
             version: Some(
@@ -594,7 +600,7 @@ impl crate::sealed::Readable for Disproof {}
 impl Readable for Disproof {
     const FORM: &'static str = "disproof";
 
-    /// Reads a disproof: rebuilds its sequent within the limits and checks
+    /// Reads a disproof. Builds its sequent within the limits and checks
     /// every index of its refutation and goal, not the refutation.
     fn read<'de, D: Deserializer<'de>>(deserializer: D, limits: &Limits) -> Result<Self, D::Error> {
         DisproofForm::deserialize(deserializer)?
@@ -615,10 +621,11 @@ struct DisproofKeys<'a> {
     goal: Option<&'a [Member]>,
 }
 
-/// The serialized form of an outcome: the verdict as a word, the reason for
-/// `unknown`, how the search ran, and for `proved` the proof's sequent and
-/// nodes as keys of the outcome itself, so that the outcome reads as a
-/// proof file too.
+/// The serialized form of an outcome: the verdict as a word, the reason
+/// for `unknown`, the refutation for `unprovable`, and how the search ran.
+/// The proof's keys for `proved`, and the disproof's for `unprovable`, are
+/// keys of the outcome itself. So the outcome reads as a proof file or a
+/// disproof file too.
 #[derive(Serialize)]
 struct Outcome<'a> {
     /// The wire level.
@@ -653,8 +660,9 @@ struct Outcome<'a> {
 }
 
 impl Serialize for Out {
-    /// Serializes the outcome as its verdict, the fragment, mode and engine
-    /// of the search, the statistics, and the proof if there is one.
+    /// Serializes the outcome as a document: its verdict with its reason,
+    /// its proof or its disproof, and the fragment, mode, engine
+    /// and statistics of the search.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let verdict = self.verdict.name();
         let (reason, refutation, proof, disproof) = match &self.verdict {
@@ -709,7 +717,8 @@ enum VerdictWord {
 }
 
 /// An engine's name in an outcome read: an engine of this build, or
-/// [`Engine::Unknown`] for a name a later version wrote.
+/// [`Engine::Unknown`] for a name this build does not know, such as one
+/// a later version wrote.
 struct EngineRead(Engine);
 
 impl<'a> Deserialize<'a> for EngineRead {
@@ -722,11 +731,10 @@ impl<'a> Deserialize<'a> for EngineRead {
 
 /// The keys an outcome is read from: those [`Outcome`] writes, the proof's
 /// and the disproof's together, each present for its verdict. Other keys
-/// (`deduxit`, the writer's version) are ignored, as a data form ignores
-/// them.
+/// are ignored, among them `deduxit`, the writer's version.
 #[derive(Deserialize)]
 struct OutcomeForm {
-    /// The wire level.
+    /// The wire level, read only to refuse one above this build's.
     #[serde(default, deserialize_with = "wire::version")]
     #[expect(dead_code, reason = "read for its check of the level alone")]
     version: Option<u32>,
@@ -764,9 +772,11 @@ struct OutcomeForm {
 }
 
 impl OutcomeForm {
-    /// Rebuilds the outcome the form holds: its proof or disproof as
-    /// [`Proof`]'s and [`Disproof`]'s readers rebuild them, within
-    /// `limits`.
+    /// Returns the outcome the form holds. Its proof or disproof is read
+    /// within `limits`, as [`Proof`]'s and [`Disproof`]'s readers read
+    /// them. A key its verdict needs and the form lacks is an error.
+    /// `checked` is false where the key is missing, and the outcome has no
+    /// net.
     fn within(self, limits: &Limits) -> Result<Out, crate::Error> {
         let missing = |key: &str| crate::Error::Json {
             form: "outcome",
@@ -819,8 +829,9 @@ impl crate::sealed::Readable for Out {}
 impl Readable for Out {
     const FORM: &'static str = "outcome";
 
-    /// Reads an outcome: its proof or disproof as their own readers read
-    /// them, every index checked, neither the proof nor the refutation.
+    /// Reads an outcome. Its proof or disproof is read as their own readers
+    /// read them: every index is checked, but neither the proof nor the
+    /// refutation.
     fn read<'de, D: Deserializer<'de>>(deserializer: D, limits: &Limits) -> Result<Self, D::Error> {
         OutcomeForm::deserialize(deserializer)?
             .within(limits)
@@ -845,14 +856,14 @@ impl<'a> Deserialize<'a> for Engine {
 }
 
 impl Serialize for Bias {
-    /// Serializes the rule as its name, such as `"rarer"`.
+    /// Serializes the bias rule as its name, such as `"rarer"`.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.collect_str(self)
     }
 }
 
 impl<'a> Deserialize<'a> for Bias {
-    /// Deserializes a rule from its name.
+    /// Deserializes a bias rule from its name.
     fn deserialize<D: Deserializer<'a>>(deserializer: D) -> Result<Self, D::Error> {
         String::deserialize(deserializer)?
             .parse()
@@ -871,8 +882,8 @@ enum AutoOrNumber {
 }
 
 impl AutoOrNumber {
-    /// Returns the number, or `None` for `"auto"`, or the error for any
-    /// other word.
+    /// Returns the number, or `None` for `"auto"`. Any other word is an
+    /// error.
     fn number<E: serde::de::Error>(self) -> Result<Option<u64>, E> {
         match self {
             Self::Number(n) => Ok(Some(n)),

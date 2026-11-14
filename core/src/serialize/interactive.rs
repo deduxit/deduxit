@@ -11,12 +11,14 @@ use crate::linear::proofs::{InfId, Inference, Named, Rule};
 use crate::wire::{self, Readable};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-/// The serialized form of one inference: its sequent as occurrence ids,
-/// and for a closed one the rule's name, the principal position and the
-/// premises' indices; an open goal is its sequent alone.
+/// The serialized form of one inference: its sequent as member ids, and
+/// for a closed one the rule's name, the principal position, the
+/// premises' indices and a cut's formula. An open goal is its sequent
+/// alone.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct Step {
-    /// The sequent, as occurrence ids in ascending order.
+    /// The sequent, as member ids in ascending order: the forest's
+    /// occurrences, and in a first-order session the members past them.
     sequent: Vec<u32>,
     /// The rule, absent for an open goal.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -34,8 +36,8 @@ struct Step {
 }
 
 /// The serialized form of a proof in progress: the sequent, the mode, the
-/// inferences with the root first, and the goals the steps closed, in
-/// order.
+/// inferences with the root first, and the inferences the steps closed,
+/// in order.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(super) struct Interactive {
     /// The wire level.
@@ -62,16 +64,23 @@ pub(super) struct Interactive {
     instances: Option<InstancesForm>,
 }
 
-/// The serialized form of a session's first-order part: the members past
-/// the sequent's occurrences as `[occurrence, frame]`, the frames as
-/// `[parent, term]` (`null` for an outermost binder's), the terms past
-/// the sequent's own (`{"F": [symbol, [terms]]}`, an eigenvariable `{"E":
-/// n}`, an open witness `{"M": k}`), the level each metavariable was made
-/// at, how many eigenvariables were made, those that are constants, and
-/// the bindings in force in the order made, each `[metavariable, term,
-/// step]`, and where the table stood before each step that made entries,
-/// each `[step, members, frames, terms, eigenvariables, constants]`,
-/// which that step's undo truncates to.
+/// The serialized form of a session's first-order part. Its keys:
+/// - `members`: the members past the sequent's occurrences, each
+///   `[occurrence, frame]`;
+/// - `frames`: each `[parent, term]`, the parent `null` for an outermost
+///   binder's frame;
+/// - `terms`: the terms past the sequent's own, each `{"F": [symbol,
+///   [terms]]}`, an eigenvariable `{"E": n}` or an open witness `{"M": k}`;
+/// - `metas`: the level each metavariable was made at;
+/// - `eigens`: how many eigenvariables were made;
+/// - `constants`: the eigenvariables that are constants;
+/// - `bindings`: the bindings in force in the order made, each
+///   `[metavariable, term, step]`;
+/// - `marks`: where the table stood before each step that made entries,
+///   each `[step, members, frames, terms, eigenvariables, constants]`.
+///   Undoing that step truncates the table to it.
+///
+/// `metas`, `constants`, `bindings` and `marks` are left out when empty.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct InstancesForm {
     /// The members past the forest.
@@ -112,7 +121,7 @@ enum TermForm {
 }
 
 impl From<Parts> for InstancesForm {
-    /// Converts the written form into its serialized one.
+    /// Converts the table's parts into their serialized form.
     fn from(parts: Parts) -> Self {
         Self {
             members: parts.members,
@@ -136,7 +145,7 @@ impl From<Parts> for InstancesForm {
 }
 
 impl From<InstancesForm> for Parts {
-    /// Converts the serialized form into the written one.
+    /// Converts the serialized form back into the table's parts.
     fn from(form: InstancesForm) -> Self {
         Self {
             members: form.members,
@@ -170,11 +179,11 @@ struct WrittenForm {
 }
 
 impl WrittenForm {
-    /// Returns the form of a record.
+    /// Returns the form of a record of how a sequent was written.
     fn of(writing: &[Written]) -> Self {
         let ids = |keep: fn(Written) -> bool| {
-            // A record has one entry per occurrence, of which a forest has
-            // fewer than `u32::MAX`.
+            // A record has one entry per occurrence, and a forest has fewer
+            // than `u32::MAX` occurrences.
             (0..writing.len() as u32)
                 .filter(|&o| keep(writing[o as usize]))
                 .collect()
@@ -185,8 +194,8 @@ impl WrittenForm {
         }
     }
 
-    /// Returns the record over a forest of `len` occurrences, refusing an
-    /// id past it and a list out of order.
+    /// Returns the record over a forest of `len` occurrences. Refuses an
+    /// id past the forest and a list that is not ascending.
     fn record(&self, len: usize) -> Result<Box<[Written]>, crate::Error> {
         let mut writing = vec![Written::new(Side::Output, false); len];
         for (list, implication) in [(&self.inputs, false), (&self.implications, true)] {
@@ -215,7 +224,7 @@ impl WrittenForm {
 }
 
 impl From<&State> for Interactive {
-    /// Converts a state into its serialized form.
+    /// Converts a session into its serialized form, with its level.
     fn from(state: &State) -> Self {
         Self {
             version: Some(
@@ -242,9 +251,9 @@ impl From<&State> for Interactive {
 }
 
 impl Interactive {
-    /// Rebuilds the forest within `limits` and the state over it, checking
-    /// that the inferences fit together and that every closed one is what
-    /// its rule yields.
+    /// Returns the session the form holds, its forest built within
+    /// `limits`. Refuses inferences that do not fit together, and a closed
+    /// one that its rule does not yield.
     fn within(self, limits: &Limits) -> Result<State, crate::Error> {
         let proxy = self;
         let sequent = crate::linear::Sequent::try_from(proxy.sequent)?;
@@ -265,7 +274,8 @@ impl Interactive {
         let history = proxy.history.into_iter().map(InfId::new).collect();
         let len = forest.len();
         if let Some(instances) = &proxy.instances {
-            // The table is held whole, as a proof's is: bounded alike.
+            // The table is held whole, as a proof's is, so the same bound
+            // applies.
             let entries = (instances.members.len() as u64)
                 .saturating_add(instances.frames.len() as u64)
                 .saturating_add(instances.terms.len() as u64);
@@ -288,14 +298,16 @@ impl Interactive {
 }
 
 impl Serialize for State {
-    /// Serializes the state as its sequent, mode, inferences and steps.
+    /// Serializes the session as a document: its sequent, mode,
+    /// inferences and steps, and where it has them, how the sequent was
+    /// written and the first-order table.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         Interactive::from(self).serialize(serializer)
     }
 }
 
 impl<'a> Deserialize<'a> for State {
-    /// Deserializes a state within the default limits, as
+    /// Deserializes a session within the default limits, as
     /// [`wire::upgrade`] does.
     fn deserialize<D: Deserializer<'a>>(deserializer: D) -> Result<Self, D::Error> {
         Self::read(deserializer, &Limits::default())
@@ -307,8 +319,8 @@ impl crate::sealed::Readable for State {}
 impl Readable for State {
     const FORM: &'static str = "session";
 
-    /// Reads a state and checks that it is consistent; see
-    /// [`Interactive`](State).
+    /// Reads a session and checks that it is consistent, as
+    /// [`Interactive`](State) describes.
     fn read<'de, D: Deserializer<'de>>(deserializer: D, limits: &Limits) -> Result<Self, D::Error> {
         Interactive::deserialize(deserializer)?
             .within(limits)

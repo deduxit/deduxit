@@ -9,9 +9,9 @@ use crate::linear::proofs::{Branch, Named, Node, NodeId, Proof as Prf};
 use crate::wire::{self, Readable};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-/// The serialized form of a proof node: the rule's tag with its occurrence
-/// ids and premise node indices. The tags are part of the interchange
-/// format, so renaming one breaks it.
+/// The serialized form of a proof node: the rule's tag with the member ids
+/// it names and its premises' node indices. The tags are part of the
+/// interchange format, so renaming one breaks it.
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename = "N")]
 pub(super) enum Step {
@@ -68,10 +68,13 @@ pub(super) enum Step {
     Exists(u32, u32, u32),
 }
 
-/// The serialized form of a proof's instance table: per member past the
-/// forest its occurrence and frame, per frame its parent (`null` for an
-/// outermost binder's) and term, and the proof's terms, numbered on from
-/// the sequent's `fo` terms, an eigenvariable `{"E": k}`.
+/// The serialized form of a proof's instance table. Its keys:
+/// - `members`: for each member past the forest, its occurrence and
+///   frame;
+/// - `frames`: for each frame, its parent (`null` for an outermost
+///   binder's frame) and its term;
+/// - `terms`: the proof's terms, numbered on from the sequent's `fo`
+///   terms, an eigenvariable written `{"E": k}`.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Instances {
@@ -84,7 +87,7 @@ pub(super) struct Instances {
 }
 
 impl Instances {
-    /// The form of the table of a proof over `forest`.
+    /// Returns the form of a proof's table over `forest`.
     fn of(table: &crate::linear::Instances, forest: &Forest) -> Self {
         use crate::linear::sequents::FoTerm;
         let terms = crate::linear::occurrences::instances::Terms {
@@ -114,9 +117,9 @@ impl Instances {
         }
     }
 
-    /// Returns the table of a proof over `forest` the form holds, within
-    /// `limits.terms`; whether it is well formed is the proof's
-    /// constructor's question.
+    /// Returns the table over `forest` that the form holds, its entries
+    /// within `limits.terms`. Whether it is well formed is for the proof's
+    /// constructor to check.
     fn within(
         self,
         forest: &Forest,
@@ -161,8 +164,9 @@ impl Instances {
 }
 
 /// The serialized form of a proof: its level at the top of a document,
-/// its sequent and its nodes, premises before conclusions, the root last,
-/// the mode it is meant for and the goal it concludes, where recorded.
+/// its sequent and its nodes, and where the proof has them, the mode it
+/// is meant for, the goal it concludes and its instance table. Premises come
+/// before their conclusions, and the root is last.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(super) struct Proof {
     /// The wire level, written only at the top of a document.
@@ -244,8 +248,9 @@ impl From<Step> for Node {
 }
 
 impl Proof {
-    /// The proof's keys as an outcome holds them, the outcome's `version`
-    /// and `mode` its own: the sequent, the nodes and the goal.
+    /// Returns the proof's keys as an outcome holds them: the sequent, the
+    /// nodes, the goal and the instance table. The outcome writes its own
+    /// `version` and `mode`.
     pub(super) fn keys(p: &Prf) -> Proof {
         Proof {
             version: None,
@@ -257,7 +262,8 @@ impl Proof {
         }
     }
 
-    /// The proof an outcome's keys hold, with the outcome's mode.
+    /// Returns the proof that an outcome's keys hold, with the outcome's
+    /// mode.
     pub(super) const fn of_keys(
         sequent: Sequent,
         nodes: Vec<Step>,
@@ -275,7 +281,7 @@ impl Proof {
         }
     }
 
-    /// The proof as a document: its level, its keys and its mode.
+    /// Returns the proof as a document: its level, its keys and its mode.
     fn document(p: &Prf) -> Proof {
         Proof {
             version: Some(wire::level_in(p.mode()).max(wire::level_of_sequent(p.sequent()))),
@@ -284,8 +290,9 @@ impl Proof {
         }
     }
 
-    /// Rebuilds the proof the form holds, its forest within `limits`; the
-    /// bounds and the order of its nodes are checked, not the proof.
+    /// Returns the proof the form holds, its forest built within `limits`.
+    /// It checks the bounds and the order of the nodes, not the proof, and
+    /// refuses an instance table beside a goal off the roots.
     pub(super) fn within(self, limits: &Limits) -> Result<Prf, crate::Error> {
         let sequent = crate::linear::Sequent::try_from(self.sequent)?;
         let forest = Forest::from_owned(sequent, limits)?;
@@ -343,7 +350,7 @@ impl crate::sealed::Readable for Prf {}
 impl Readable for Prf {
     const FORM: &'static str = "proof";
 
-    /// Reads a proof: rebuilds its forest within the limits and checks the
+    /// Reads a proof. Builds its forest within the limits and checks the
     /// bounds and the order of its nodes, not the proof.
     fn read<'de, D: Deserializer<'de>>(deserializer: D, limits: &Limits) -> Result<Self, D::Error> {
         Proof::deserialize(deserializer)?
@@ -352,7 +359,7 @@ impl Readable for Prf {
     }
 }
 
-/// A step of an elimination as its record writes it.
+/// A step of a cut elimination on a proof, as its record writes it.
 #[derive(Serialize)]
 struct StepForm {
     /// The cut reduced, a node of the proof the step was taken on.
@@ -366,7 +373,7 @@ struct StepForm {
     above: Option<u32>,
 }
 
-/// An elimination as its record writes it.
+/// A cut elimination on a proof, as its record writes it.
 #[derive(Serialize)]
 struct EliminationForm<'a> {
     /// The wire level.

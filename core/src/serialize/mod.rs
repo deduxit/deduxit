@@ -1,7 +1,7 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-// A variant a later step adds must get its form, not fall into another's.
+// A new variant must get a form of its own and never fall into another's.
 #![deny(clippy::wildcard_enum_match_arm)]
 
 /// The written form of errors.
@@ -9,8 +9,8 @@ mod errors;
 
 pub(crate) use errors::envelope;
 
-/// Serde for an optional choice, written `"auto"` for `None` and as the
-/// value's name otherwise.
+/// Serde for an optional choice: `"auto"` for `None`, else the value's
+/// name.
 pub(crate) mod auto {
     use serde::{Deserialize, Deserializer, Serializer};
     use std::fmt::Display;
@@ -40,9 +40,10 @@ pub(crate) mod auto {
         name.parse().map(Some).map_err(serde::de::Error::custom)
     }
 }
-/// Serde for an optional bound, read back exactly by JavaScript: a bound
-/// past 2⁵³ is written `null`, no bound, which it is in effect, and read
-/// as an error that says `null` lifts it.
+/// Serde for an optional bound that JavaScript reads back exactly.
+///
+/// A bound past 2⁵³ is written `null`, no bound, which it is in effect.
+/// Reading one is an error that says `null` lifts the bound.
 pub(crate) mod exact {
     use serde::{Deserialize, Deserializer, Serializer};
 
@@ -72,21 +73,22 @@ pub(crate) mod exact {
         }
     }
 }
-/// Serde support for `IllSequent`: an arena of intuitionistic formulas,
-/// the hypotheses and the goal.
+/// Serde for `IllSequent`: an arena of intuitionistic formulas, the
+/// hypotheses and the goal.
 mod ill;
-/// Serde support for `Interactive`: the sequent, the mode, the inferences
-/// and the steps.
+/// Serde for `Interactive`: the sequent, the mode, the inferences and the
+/// steps.
 #[cfg(feature = "interactive")]
 mod interactive;
-/// Serde support for `ProofStructure`: the sequent and the links.
+/// Serde for `ProofStructure` and `MellStructure`: the sequent and the
+/// links.
 mod nets;
-/// Serde support for ordinary logic: the sequent, the derivation, the
-/// outcome of deciding and a proof in progress.
+/// Serde for ordinary logic: the sequent, the derivation, the outcome of
+/// deciding and a proof in progress.
 mod ordinary;
-/// Serde support for `Proof`, through a proxy with short tags.
+/// Serde for `Proof`, through a proxy with short tags.
 mod proofs;
-/// Serde support for `Fragment`, `Mode` and the outcome of a search.
+/// Serde for `Fragment`, `Mode`, the outcome of a search and its parts.
 mod search;
-/// Serde support for `Sequent`, through a proxy with short tags.
+/// Serde for `Sequent`, through a proxy with short tags.
 mod sequents;

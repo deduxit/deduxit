@@ -22,10 +22,13 @@ macro_rules! entries {
 }
 
 impl Serialize for Error {
-    /// Writes the error as a client reads it: `code`, what a program
-    /// branches on; `kind`, what it shows; `message`, the English text;
-    /// `setting`, the key of the bound that refused the call, where one
-    /// did; and `details`, the variant's fields.
+    /// Writes the error as a client reads it. The keys:
+    /// - `code`, what a program branches on;
+    /// - `kind`, what it shows;
+    /// - `message`, the English text;
+    /// - `setting`, the key of the bound that refused the call, where one
+    ///   did;
+    /// - `details`, the variant's fields.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         envelope(self, &self.to_string(), serializer)
     }
@@ -156,8 +159,8 @@ impl Serialize for Details<'_> {
 
 impl Serialize for NotTaken {
     /// Writes the reason tagged by its `kind`: `fragment` with the
-    /// engine's largest and the goal's, `mode` with the mode, `goal`, or
-    /// `shape`.
+    /// engine's largest fragment and the goal's, `mode` with the mode,
+    /// `goal`, or `shape`.
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         match self {
             NotTaken::Fragment { decides, goal } => {
@@ -171,9 +174,9 @@ impl Serialize for NotTaken {
 }
 
 impl Serialize for CheckError {
-    /// Writes the node at fault, its rule as the proof's form writes it,
-    /// the sequents derived for its premises and the fault; or, for a
-    /// check given up, the node it had come to and the refusal.
+    /// Writes a fault as the node at fault, its rule as the proof's form
+    /// writes it, the sequents derived for its premises and the fault. A
+    /// check given up is the node it had come to and the refusal.
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         match self {
             Self::Invalid(e) => entries!(s;
@@ -187,7 +190,8 @@ impl Serialize for CheckError {
 }
 
 impl Serialize for Dyadic {
-    /// Writes the two zones as ids and whether more is allowed.
+    /// Writes the two zones as member ids, and whether a `⊤` above lets
+    /// the linear zone hold more.
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         entries!(s; "theta" => &self.theta; "gamma" => &self.gamma; "any" => &self.any)
     }
@@ -337,7 +341,7 @@ impl Serialize for crate::linear::nets::Placement {
     }
 }
 
-/// The raw ids of a list of vertices.
+/// Returns the raw ids of the vertices.
 fn vertices(vs: &[VertexId]) -> Vec<u32> {
     vs.iter().map(|v| v.get()).collect()
 }
