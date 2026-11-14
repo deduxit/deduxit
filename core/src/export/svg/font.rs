@@ -1,33 +1,48 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! What the layout knows of the font: the advance of every character the
-//! drawings set, from the tables of five math fonts (Euler Math 0.75 by
-//! default, STIX Two Math 2.12, Garamond-Math 2022-01-03, Asana Math 0.962
-//! and New Computer Modern Math 7.1.1 in its Book weight, each 1000 units
-//! per em), and the vertical metrics of a line,
-//! which are Euler Math's for every font. The advances were read from
-//! each font's `hmtx` table once; nothing is measured at run time.
+//! What the layout knows of the font: the advance (the width a character
+//! takes on its line) of every character the drawings set, and the
+//! vertical metrics of a line.
+//!
+//! The advances come from tables of five math fonts, each 1000 units per
+//! em:
+//! - Euler Math 0.75, the default;
+//! - STIX Two Math 2.12;
+//! - Garamond-Math 2022-01-03;
+//! - Asana Math 0.962;
+//! - New Computer Modern Math 7.1.1, in its Book weight.
+//!
+//! Each table is the font file's `hmtx` advances, committed with the
+//! code, so nothing is measured at run time. A test reads each file and
+//! checks its table. The vertical metrics are Euler Math's for every
+//! font: measured against each file, every font's raised `⊥` and comma
+//! fit within them.
 
 use std::collections::BTreeMap;
 
-/// The font a drawing asks for and the advances its layout gives the
-/// characters. In JSON (feature `serialize`) the family and the advances,
-/// or the name of a [`MathFont`] alone (`"stix-two"`), which reads as
-/// that font's [`MathFont::font`].
+/// The font a drawing asks for, and the advances its layout gives the
+/// characters. [`Font::euler`] is the default, [`MathFont::font`] gives
+/// each math font, and [`Font::monospace`] suits a viewer without a math
+/// font.
+///
+/// In JSON (feature `serialize`) the family and the advances, or the name
+/// of a [`MathFont`] alone, such as `"stix-two"`, which reads as that
+/// font's [`MathFont::font`].
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize))]
 pub struct Font {
-    /// The font families the document asks for, as CSS lists them.
+    /// The font families the document asks for, as a CSS `font-family`
+    /// lists them, such as `'Euler Math', 'Neo Euler', serif`.
     pub family: String,
     /// The advance of every character.
     pub advances: Advances,
 }
 
 impl Font {
-    /// Euler Math, with Neo Euler and any serif font after it, and its
-    /// own advances.
+    /// Returns Euler Math, with Neo Euler and any serif font after it, and
+    /// Euler Math's advances.
     pub fn euler() -> Self {
         Self {
             family: "'Euler Math', 'Neo Euler', serif".to_owned(),
@@ -35,8 +50,8 @@ impl Font {
         }
     }
 
-    /// Any monospace font, every character [`MONOSPACE`] thousandths of
-    /// an em wide: for a viewer without a math font.
+    /// Returns any monospace font, every character [`MONOSPACE`]
+    /// thousandths of an em wide: for a viewer without a math font.
     pub fn monospace() -> Self {
         Self {
             family: "monospace".to_owned(),
@@ -115,10 +130,12 @@ impl<'de> serde::Deserialize<'de> for Font {
     }
 }
 
-/// A math font whose advances the layout knows, read from its file. In
-/// JSON (feature `serialize`) `"euler"`, `"stix-two"`, `"garamond"`,
-/// `"asana"` or `"new-computer-modern"`. Each sets every character the drawings set; a renderer
-/// needs the font's file under its [`family`](Self::family) name.
+/// A math font whose advances the layout knows, read from its file. Each
+/// has a glyph for every character the drawings set. A renderer needs the
+/// font's file, which it finds by the [`family`](Self::family) name.
+///
+/// In JSON (feature `serialize`) `"euler"`, `"stix-two"`, `"garamond"`,
+/// `"asana"` or `"new-computer-modern"`.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -206,7 +223,14 @@ impl MathFont {
 /// an em: what most monospace fonts have.
 pub const MONOSPACE: u32 = 600;
 
-/// The advance widths a layout gives characters, in thousandths of an em.
+/// The advance widths a layout gives characters, in thousandths of an em:
+/// a math font's committed table, one width for every character, or a
+/// table of your own.
+///
+/// In JSON (feature `serialize`) a committed table by its name
+/// (`"euler"`, `"stix-two"`, `"garamond"`, `"asana"`,
+/// `"new-computer-modern"`), `{"fixed": 600}`, or
+/// `{"table": {"table": {"a": 500}, "fallback": 650}}`.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -224,7 +248,7 @@ pub enum Advances {
     /// The committed table of New Computer Modern Math (Book), with the
     /// same fallback.
     NewComputerModern,
-    /// One advance for every character.
+    /// One advance for every character, as [`Font::monospace`] has.
     Fixed(u32),
     /// A table of the user's, and the advance of a character outside it.
     #[non_exhaustive]
@@ -243,14 +267,17 @@ impl Advances {
         Self::Table { table, fallback }
     }
 
-    /// Returns how far below the baseline the lowest character of the
-    /// table reaches, in thousandths of an em, where an edge under a
-    /// written formula may begin: [`DEPTH`] for Euler Math and a font of
-    /// the caller's, so that their drawings stay as they were (Euler
-    /// Math's `q` reaches 243), and for the other math fonts their deepest
-    /// descender, measured in each file (fontTools' bounds of every glyph
-    /// of the table): STIX Two Math's `g` 235, Garamond-Math's `g` 290,
-    /// Asana Math's `μ` 286, New Computer Modern Math's `/` 250.
+    /// Returns how far below the baseline an edge under a written formula
+    /// of a net begins, in thousandths of an em, so that no edge runs into
+    /// a descender such as the tail of a `g`.
+    ///
+    /// For four of the math fonts, this is the deepest descender of the
+    /// table, measured in each file (fontTools' bounds of every glyph of
+    /// the table): STIX Two Math's `g` 235, Garamond-Math's `g` 290, Asana
+    /// Math's `μ` 286, New Computer Modern Math's `/` 250. Euler Math and a
+    /// font of the caller's take [`DEPTH`], the depth every line is laid
+    /// out with, which keeps their drawings as they are; Euler Math's `q`
+    /// reaches 243, a little below it.
     pub(super) const fn depth(&self) -> i64 {
         match self {
             Self::StixTwo => 235,
@@ -277,8 +304,9 @@ impl Advances {
 
 /// Every character the drawings set, sorted: printable ASCII, the
 /// mathematical italic Latin letters, Greek, and the connectives, units,
-/// turnstile and vertical dots. Kept apart from the advances, so that the
-/// binary search reads the characters alone.
+/// turnstile and vertical dots. They are kept apart from the advances, so
+/// that the binary search walks the characters alone, not rows that also
+/// carry five advances each.
 const CHARACTERS: [char; 208] = [
     ' ', '!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '-', '.', '/', '0', '1', '2',
     '3', '4', '5', '6', '7', '8', '9', ':', ';', '<', '=', '>', '?', '@', 'A', 'B', 'C', 'D', 'E',
@@ -295,7 +323,8 @@ const CHARACTERS: [char; 208] = [
 
 /// The advance width of each of the [`CHARACTERS`], in thousandths of an
 /// em, in the same order: one table per [`MathFont`], in the order of
-/// [`MathFont::ALL`].
+/// [`MathFont::ALL`]. Each entry is the font file's `hmtx` advance, which
+/// `every_table_is_its_font_s` checks against the file.
 #[rustfmt::skip]
 const ADVANCES: [[u16; 208]; 5] = [
     [
@@ -400,9 +429,10 @@ const ADVANCES: [[u16; 208]; 5] = [
     ],
 ];
 
-/// The advance of a character outside the table, in thousandths of an em:
-/// a viewer sets it in some other font, and `textLength` makes the line
-/// fit whatever that font's width is.
+/// The advance of a character outside the table, in every font, in
+/// thousandths of an em. A viewer sets such a character in some other
+/// font, and `textLength` makes the line fit whatever that font's width
+/// is.
 const FALLBACK: u32 = 650;
 
 /// How far the highest character of a line reaches above the baseline, a
@@ -413,8 +443,9 @@ pub(super) const HEIGHT: i64 = 890;
 /// comma, in thousandths of an em.
 pub(super) const DEPTH: i64 = 210;
 
-/// The height of the math axis above the baseline, where `⊗`, `⊸` and
-/// the inference lines sit, in thousandths of an em.
+/// The height of the math axis above the baseline, where `⊗` and `⊸`
+/// sit, in thousandths of an em. A rule's name stands with its axis on
+/// the inference line.
 pub(super) const AXIS: i64 = 250;
 
 /// The size of a superscript or subscript, in thousandths of the size of
@@ -443,7 +474,8 @@ mod tests {
     use super::*;
     use skrifa::prelude::{FontRef, LocationRef, MetadataProvider, Size};
 
-    /// The table is sorted, so that the binary search finds every entry.
+    /// The characters are sorted, so that the binary search finds every
+    /// entry, and each font's column is where [`MathFont::ALL`] puts it.
     #[test]
     fn advances_are_sorted() {
         assert!(CHARACTERS.windows(2).all(|w| w[0] < w[1]));
@@ -457,8 +489,8 @@ mod tests {
         );
     }
 
-    /// Each font's column is the advances of its file, the command's copy
-    /// in `cli/fonts`, and the file has a glyph for every character of
+    /// Each font's column is the advances of its file (the command's copy
+    /// in `cli/fonts`), and the file has a glyph for every character of
     /// the table, so no character a drawing sets falls back to another
     /// font.
     #[test]

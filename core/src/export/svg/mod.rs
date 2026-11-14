@@ -1,27 +1,61 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! SVG: a sequent as one line of text, and a whole SVG document for each
-//! drawing.
+//! Draws proofs, sequents and proof nets as SVG documents.
 //!
-//! The layout is computed here, not by the viewer: every width is the sum
-//! of the advances of the style's [`Font`], by default the Euler Math
-//! font's, or another [`MathFont`]'s, from a table committed with the
-//! code, so the output is
-//! deterministic and needs no font at run time. The document asks for the
-//! font's families (`"Euler Math", "Neo Euler", serif`) and does not embed
-//! the font; every `<text>` carries its computed width as `textLength`, so
-//! a viewer that sets it in another font still fits the layout. Letters of
-//! atom names are the mathematical italic characters, which a math font
-//! sets as math italic, and rule names stay upright; the `⊥` of a negated
-//! atom is a superscript, the `₁` and `₂` of a rule name are subscripts.
-//! All coordinates are integers in thousandths of an em of formula text
-//! ([`Style::font_size`] pixels), so the text is selectable and the
-//! drawing scales without loss.
+//! Every call returns a whole SVG document, drawn under a [`Style`]:
+//!
+//! | to draw | call |
+//! |---|---|
+//! | a proof, as a proof tree | [`to_string`] of its [`Proof::derivation`](crate::linear::Proof::derivation) |
+//! | the same, written into your own buffer, with a stop | [`write()`] |
+//! | a sequent alone, as one line of text | [`sequent`] |
+//! | a proof net, or any proof structure | [`net()`] |
+//! | a step of cut elimination on a proof net | [`net_step`] |
+//! | a proof structure with `!`-boxes, or a step on one | [`mell_net`], [`mell_net_step`] |
+//!
+//! `Style::default()` draws black on a transparent background in the
+//! Euler Math font, and [`Style::dark()`] light on dark. `export::png` and
+//! `export::pdf` render a drawing to an image or a PDF.
 //!
 //! Needs the cargo feature `svg` (on by default).
 //!
 //! # Examples
+//!
+//! A proof as a proof tree:
+//!
+#![cfg_attr(feature = "parse", doc = "```")]
+#![cfg_attr(not(feature = "parse"), doc = "```ignore")]
+//! use deduxit::export::svg::{self, Style};
+//! use deduxit::linear::{Mode, Options, Sequent, prove};
+//!
+//! let sequent: Sequent = "A, A -o B |- B".parse()?;
+//! let outcome = prove(&sequent, Mode::INTUITIONISTIC, &Options::default())?;
+//! let proof = outcome.verdict.proof().expect("provable");
+//! let svg = svg::to_string(&proof.derivation()?, &Style::default())?;
+//! assert!(svg.starts_with("<svg xmlns=\"http://www.w3.org/2000/svg\""));
+//! assert!(svg.contains("<title>A, A ⊸ B ⊢ B</title>"));
+//! # Ok::<(), deduxit::Error>(())
+//! ```
+//!
+//! The proof net of a proof:
+//!
+#![cfg_attr(feature = "parse", doc = "```")]
+#![cfg_attr(not(feature = "parse"), doc = "```ignore")]
+//! use deduxit::Limits;
+//! use deduxit::export::svg::{self, Style};
+//! use deduxit::linear::{Criterion, Mode, Options, ProofStructure, Sequent, prove};
+//!
+//! let sequent: Sequent = "A * B |- B * A".parse()?;
+//! let outcome = prove(&sequent, Mode::CLASSICAL, &Options::default())?;
+//! let proof = outcome.verdict.proof().expect("provable");
+//! let net = ProofStructure::from_proof(proof, Criterion::MLL, &Limits::default(), |_| false)?;
+//! let svg = svg::net(&net, &Style::default(), &Limits::default(), |_| false)?;
+//! assert!(svg.contains("<title>⊢ A⊥ ⅋ B⊥, B ⊗ A</title>"));
+//! # Ok::<(), deduxit::Error>(())
+//! ```
+//!
+//! A sequent alone:
 //!
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
@@ -34,8 +68,31 @@
 //! assert!(svg.contains("<title>⊢ A⊥, A</title>"));
 //! # Ok::<(), deduxit::Error>(())
 //! ```
+//!
+//! # How a drawing is laid out
+//!
+//! deduxit computes the layout, not the viewer. So the output is the same
+//! bytes on every machine, and needs no font file at run time.
+//! - Every width is the sum of the advances of the style's [`Font`]: by
+//!   default Euler Math's, or another [`MathFont`]'s, from tables committed
+//!   with the code.
+//! - The document names the font's families (`'Euler Math', 'Neo Euler',
+//!   serif` by default) and does not embed the font. Every `<text>` carries
+//!   its computed width as `textLength`, so a viewer that sets it in
+//!   another font still fits the layout.
+//! - The letters of atom names are mathematical italic characters, which a
+//!   math font sets as math italic. Rule names stay upright. The `⊥` of a
+//!   negated atom is a superscript, and the `₁` and `₂` of a rule name are
+//!   subscripts.
+//! - All coordinates are integers in thousandths of an em of formula text,
+//!   which is [`Style::font_size`] pixels. Text stays text, which a reader
+//!   can select, and the drawing scales without loss.
+//!
+//! A drawing is an accessible image: the root has `role="img"`, the
+//! `<title>` names the drawing by its sequent in plain text, and with
+//! [`Style::description`] a `<desc>` reads it out in order.
 
-/// The metrics of the font.
+/// The fonts a drawing can ask for, and their metrics.
 mod font;
 /// Proof structures with `!`-boxes, drawn as the multiplicative ones are.
 mod mell;
@@ -57,121 +114,191 @@ pub use font::{Advances, Font, MONOSPACE, MathFont};
 use font::{DEPTH, HEIGHT, LOWER, RAISE, SCRIPT};
 use std::fmt::Write;
 
-/// The sizes, distances and colours of a drawing. Lengths are in
-/// thousandths of an em of formula text, whose size in pixels is
-/// [`font_size`](Self::font_size); colours are CSS colours.
-/// Made from its `default()` with the fields set that differ, since a
-/// later field breaks no caller that way.
+/// How a drawing looks: its font, rule labels, sizes, distances and
+/// colours. Every drawing of this module takes one.
+///
+/// Start from `Style::default()`, [`Style::dark()`] or
+/// [`Style::monospace()`], and change the fields you need, by assignment
+/// or with the `with_*` methods. A struct literal is refused outside the
+/// crate, so that a field added later breaks no caller. Each field below
+/// gives its default.
+///
+/// - Lengths are in thousandths of an em of formula text: 1000 is the size
+///   of formula text, which is [`font_size`](Self::font_size) pixels.
+/// - Colours are CSS colours, such as `"black"` or `"#0072b2"`.
+/// - Every number has a maximum. A drawing checks its style first
+///   ([`check`](Self::check)) and refuses one past it.
+///
+/// In JSON (feature `serialize`) each field is under its own name. A
+/// field left out keeps its default, and an unknown field is an error.
+///
+/// # Examples
+///
+/// ```
+/// use deduxit::export::svg::{MathFont, Style};
+///
+/// let style = Style::dark()
+///     .with_font(MathFont::StixTwo.font())
+///     .with_font_size(20);
+/// assert_eq!(style.font.family, "'STIX Two Math', serif");
+/// assert!(style.check().is_ok());
+/// ```
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", serde(default, deny_unknown_fields))]
 pub struct Style {
-    /// The font the drawing asks for and the advances it is laid out with.
+    /// The font the document asks for, and the advances its layout gives
+    /// the characters. Default: Euler Math ([`Font::euler`]).
+    /// [`MathFont::font`] gives the other math fonts.
     pub font: Font,
-    /// The labels of the rules.
+    /// How the rules are labelled. Default: [`Labels::Upright`].
     pub labels: Labels,
-    /// How an open goal is drawn.
+    /// How an open goal of a proof in progress is drawn. Default: its
+    /// sequent under vertical dots ([`OpenGoal::Dots`]).
     pub open: OpenGoal,
-    /// Whether every formula of a conclusion is a group of its own, with
-    /// the id `i<n>-<p>` for position `p` of the sequent of inference `n`.
+    /// Whether each formula of an inference's conclusion in a derivation
+    /// is a group of its own, with the id `i<n>-<p>`: `p` is the
+    /// formula's position in the sequent of inference `n`, hypotheses
+    /// first. Default: `false`.
     pub ids: bool,
-    /// Whether a drawing of a derivation or a net carries a `<desc>` that
-    /// reads it in order, which a screen reader reads out: the numbered
-    /// inferences of the derivation, or the net's links as
-    /// its text form gives them.
+    /// Whether a drawing of a derivation or a net has a `<desc>`, which a
+    /// screen reader reads out: the derivation's numbered inferences,
+    /// premises first, or the net's links in its text form. A sequent
+    /// drawn alone has none. Default: `true`.
     pub description: bool,
-    /// The size of formula text in pixels, which scales the whole drawing.
+    /// The size of formula text in pixels. It scales the whole drawing:
+    /// the document is this many pixels wide per 1000 units of its view
+    /// box. Default: 16.
     pub font_size: u32,
-    /// The size of rule names and of the connectives in a proof net's
-    /// nodes, in thousandths of the size of formula text.
+    /// The size of rule names, and of the connectives in a proof net's
+    /// nodes, in thousandths of the size of formula text. Default: 800.
     pub label_size: u32,
-    /// The distance from the baseline of a conclusion to the baseline of
-    /// its premises and from one layer of a compact proof net to the next;
-    /// in a proof net drawn with its formulas, the space between the text
-    /// of one layer and the text of the next, besides the
-    /// [`node_radius`](Self::node_radius) the joints take.
+    /// The vertical distance between rows. Default: 1500.
+    ///
+    /// - In a derivation, from the baseline of a conclusion to the
+    ///   baseline of its premises.
+    /// - In a compact proof net, from one layer of nodes to the next.
+    /// - In a proof net drawn with its formulas, the space between the
+    ///   text of one layer and the text of the next, besides the
+    ///   [`node_radius`](Self::node_radius) the joints take.
+    ///
+    /// A net with boxes may set its rows further apart, so that the wires
+    /// that share a row stay apart.
     pub line_height: u32,
-    /// The space between two premises side by side.
+    /// The horizontal space between two premises side by side in a
+    /// derivation. Default: 1500.
     pub premise_gap: u32,
-    /// The space between two literals of a proof net.
+    /// The horizontal space between the formula trees of two conclusions
+    /// side by side in a proof net. In a compact net it is also the space
+    /// between the two premises' subtrees of a `⊗` or `⅋`, so between two
+    /// neighbouring literals. Default: 1000.
     pub literal_gap: u32,
-    /// The space between an inference line and its rule name.
+    /// The horizontal space between the right end of an inference line
+    /// and its rule name. Default: 200.
     pub label_gap: u32,
-    /// The empty border around the drawing.
+    /// The empty border around the drawing. Default: 300.
     pub margin: u32,
-    /// The thickness of every line.
+    /// The thickness of every line. Default: 40.
     pub stroke_width: u32,
     /// The height of an axiom link's arc, in thousandths of half its
-    /// width, so that the arc over a pair of literals nested between two
-    /// others stays below theirs.
+    /// width: at 600, an arc 2000 wide is 600 high. Arcs of one shape
+    /// nest, so the arc over two literals between two others stays below
+    /// theirs. Default: 600.
     pub link_height: u32,
-    /// The half-width of an axiom link beyond which its arc grows only
-    /// with the square root of its half-width, so that a wide link stays
-    /// low and the arcs of nested links still never cross; `None` for
-    /// arcs that grow with their width however wide.
+    /// The half-width past which an axiom link's arc grows only with the
+    /// square root of its half-width, so that a wide link stays low. The
+    /// arcs of nested links still never cross. `None` lets every arc grow
+    /// in proportion to its width. Default: `Some(8000)`.
     pub link_cap: Option<u32>,
-    /// The radius of the circle of a `⊗` or `⅋` node of a compact proof
-    /// net, and how far the edges of a proof net drawn with its formulas
-    /// stay from the connective at the joint of a link.
+    /// The radius of a `⊗` or `⅋` node's circle in a compact proof net,
+    /// and, in a net drawn with its formulas, how far the edges stop from
+    /// the connective at a link's joint. Other parts of a net are sized by
+    /// it: a cut link's bar stands twice the radius under its formulas, an
+    /// arrowhead is half the radius long, and a box's outline is the
+    /// radius away from its contents. Default: 380.
     pub node_radius: u32,
-    /// The colour of text.
+    /// The colour of text. Default: `"black"`.
     pub text: String,
-    /// The colour of inference lines, of a proof net's nodes, of the
-    /// premise edges of its `⊗` nodes and of its conclusions.
+    /// The colour of inference lines, and of a proof net's edges, nodes,
+    /// boxes and cut links where no other colour of the style applies.
+    /// Default: `"black"`.
     pub line: String,
-    /// The colour of the premise edges of a `⅋` node, which are also
-    /// dashed: a switching keeps one of the two.
+    /// The colour of the edges into a `⅋` or `?` node and of a `?` node's
+    /// wires, which are also dashed: a switching keeps one premise of a
+    /// `⅋`. This holds under [`Premises::Dashed`], the default of
+    /// [`net_look`](Self::net_look). Under [`Premises::Plain`], and in an
+    /// essential net, they are drawn as the other edges. Default:
+    /// `"#0072b2"`, a blue.
     pub par: String,
-    /// The colour of axiom links.
+    /// The colour of axiom links. Default: `"black"`.
     pub link: String,
-    /// The colour of the edges of a switching cycle, when a proof
-    /// structure has one, and of the edges and links of every part but
-    /// the first when it falls into several.
+    /// The colour of what a drawing of a net points out. Default:
+    /// `"#d55e00"`, an orange.
+    ///
+    /// - The edges of a switching cycle, or in an essential net those of a
+    ///   directed cycle or of a path around an implication.
+    /// - In a net without boxes that falls into several parts, the edges,
+    ///   conclusions and links of every part but the first.
+    /// - What a step of cut elimination acts on ([`net_step`],
+    ///   [`mell_net_step`]).
     pub highlight: String,
-    /// The colour the drawing is filled with, or none for a transparent
-    /// background.
+    /// The colour the drawing is filled with, or `None` for a transparent
+    /// background. Default: `None`.
     pub background: Option<String>,
-    /// Whether a proof structure of a sequent with an intuitionistic
-    /// reading is drawn as its essential net: every edge an arrow in the
-    /// direction of the net, from the hypotheses toward the goal, the
-    /// input occurrences in the [`input`](Self::input) colour, every
-    /// formula written as the reading reads it (a literal as its atom),
-    /// the links as the connectives of the reading (`⊸` and `⊗`), each implication of output position joined to its
-    /// antecedent by a dotted line in the [`dominator`](Self::dominator)
-    /// colour, and a directed cycle or a path around an implication in
-    /// the highlight colour. A structure without the reading is drawn as
-    /// without this.
+    /// Whether a proof structure is drawn as its essential net, when its
+    /// sequent has an intuitionistic reading (which formulas are
+    /// hypotheses and which is the goal). Default: `false`.
+    ///
+    /// An essential net is the proof net with the reading drawn in:
+    /// - every edge is an arrow, from the hypotheses toward the goal;
+    /// - the input occurrences are in the [`input`](Self::input) colour;
+    /// - every formula is written as the reading reads it, a literal as its
+    ///   atom;
+    /// - the links are the reading's connectives, `⊸` and `⊗`;
+    /// - each implication in output position is joined to its antecedent
+    ///   by a dotted line in the [`dominator`](Self::dominator) colour;
+    /// - a directed cycle, or a path around an implication, is in the
+    ///   [`highlight`](Self::highlight) colour.
+    ///
+    /// A structure without an intuitionistic reading is drawn as if this
+    /// were `false`, so one style serves classical and intuitionistic
+    /// nets. A net with boxes highlights its switching cycle, which
+    /// decides it.
     pub essential: bool,
-    /// How a proof net is drawn: every formula occurrence written as a
-    /// node, or compact, with only the literals and the conclusions
-    /// written.
+    /// How a proof net is drawn: every subformula written
+    /// ([`NetDrawing::Formulas`], the default), or only the literals and
+    /// the conclusions ([`NetDrawing::Compact`]).
     pub net: NetDrawing,
     /// How a proof net's switched edges, conclusions and `?` nodes look.
+    /// Default: [`NetLook::DEDUXIT`].
     pub net_look: NetLook,
-    /// The colour of the input occurrences of an essential net, their
-    /// edges and the edges below the hypotheses; by default the blue of
-    /// [`par`](Self::par), green being a checked proof's colour.
+    /// The colour of the input occurrences of an essential net, of their
+    /// edges and of the edges below the hypotheses. Default: `"#0072b2"`,
+    /// the blue of [`par`](Self::par); green is the colour of a checked
+    /// proof.
     pub input: String,
-    /// The colour of the dotted line of an essential net from an
-    /// implication to its antecedent, which no edge joins: the
-    /// implication must dominate it.
+    /// The colour of the dotted line in an essential net from an
+    /// implication to its antecedent, which no edge joins: the implication
+    /// must dominate it. Default: `"#cc79a7"`, a pink.
     pub dominator: String,
-    /// Whether the derivation's lambda-term is written under its
-    /// conclusion, as its typing judgement ([`lambda`](crate::lambda)),
-    /// with these options, their notation being the target's own; `None`
-    /// by default. A derivation without a term is refused
-    /// ([`Error::NoTerm`]), and a term whose text would pass the default
-    /// output bound ([`Limits::DEFAULT_DERIVATION_BYTES`](crate::Limits::DEFAULT_DERIVATION_BYTES))
-    /// is refused before anything is written.
+    /// The options of the derivation's lambda-term, written under its
+    /// conclusion as its typing judgement ([`lambda`](crate::lambda)) in
+    /// the drawing's own notation. Default: `None`, which writes no term.
+    ///
+    /// A derivation without a term is refused ([`Error::NoTerm`]). So is a
+    /// term whose text would pass the default output bound
+    /// ([`Limits::DEFAULT_DERIVATION_BYTES`](crate::Limits::DEFAULT_DERIVATION_BYTES)),
+    /// before anything is written.
     pub lambda: Option<crate::lambda::Options>,
 }
 
 impl Default for Style {
-    /// Returns Euler Math, upright labels, an open goal under vertical
-    /// dots, no ids per formula, a description, and black lines and text at 16 pixels to
-    /// the em on a transparent background, with `⅋` edges blue and a
-    /// switching cycle orange.
+    /// Returns the default style: Euler Math, upright labels, an open
+    /// goal under vertical dots, no ids per formula, and a description.
+    /// Lines and text are black at 16 pixels to the em on a transparent
+    /// background, `⅋` edges blue and a switching cycle orange. Each field
+    /// of [`Style`] gives its own default.
     fn default() -> Self {
         Self {
             font: Font::euler(),
@@ -213,26 +340,29 @@ impl Default for Style {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", serde(rename_all = "lowercase"))]
 pub enum NetDrawing {
-    /// Every subformula occurrence of the conclusions a node written as
-    /// its formula, where it stands in its conclusion: the literals along
-    /// the top under the axiom links' arcs, each link of a `⊗` or `⅋`
-    /// joining its two premises to its conclusion written below them,
-    /// with the connective small at the joint, and the conclusions in the
-    /// sequent's order at the bottom.
+    /// Every subformula of the conclusions written as its formula, where
+    /// it stands in its conclusion's text. The literals stand along the
+    /// top under the axiom links' arcs. Each link of a `⊗` or `⅋` joins
+    /// its two premises to its conclusion written below them, with the
+    /// connective small at the joint. The conclusions stand at the bottom
+    /// in the sequent's order.
     #[default]
     Formulas,
-    /// Only the literals and the conclusions written: the literals along
-    /// the top, every inner `⊗` and `⅋` a small circle, and the
-    /// conclusions in the sequent's order at the bottom, for nets too wide
-    /// to write every subformula.
+    /// Only the literals and the conclusions written, for nets too wide to
+    /// write every subformula. The literals stand along the top, every
+    /// inner `⊗` and `⅋` is a small circle, and the conclusions stand at
+    /// the bottom in the sequent's order.
     Compact,
 }
 
 /// How the nodes and edges of a proof net look, in either
-/// [`NetDrawing`]: deduxit's own look by default ([`NetLook::DEDUXIT`]), or
-/// the textbooks' ([`NetLook::TEXTBOOK`]). In JSON (feature `serialize`)
-/// the three fields, or the name of a [`NetPreset`] alone
-/// (`"textbook"`), which reads as that preset's [`NetPreset::look`].
+/// [`NetDrawing`]: deduxit's own look ([`NetLook::DEDUXIT`], the default),
+/// or the look the textbooks share ([`NetLook::TEXTBOOK`]). Each field can
+/// be set apart from the others.
+///
+/// In JSON (feature `serialize`) the three fields, or the name of a
+/// [`NetPreset`] alone, such as `"textbook"`, which reads as that preset's
+/// [`NetPreset::look`].
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize))]
@@ -249,7 +379,8 @@ pub struct NetLook {
 impl NetLook {
     /// deduxit's own look, the default: switched edges dashed, a `!`
     /// conclusion with auxiliary doors a row above its `?` nodes, and one
-    /// `?` node with any number of premises.
+    /// `?` node with any number of premises. An auxiliary door is where a
+    /// wire leaves a box for a `?` node outside it.
     pub const DEDUXIT: Self = Self {
         premises: Premises::Dashed,
         conclusions: Conclusions::Raised,
@@ -406,8 +537,8 @@ pub enum Premises {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", serde(rename_all = "lowercase"))]
 pub enum Conclusions {
-    /// On the bottom row, but for a `!` with auxiliary doors, written
-    /// under its door a row above the `?` nodes its wires go to.
+    /// On the bottom row, except a `!` with auxiliary doors: it is written
+    /// under its door, a row above the `?` nodes its wires go to.
     #[default]
     Raised,
     /// Every one on the bottom row, a `!` with auxiliary doors reached by
@@ -422,15 +553,18 @@ pub enum Conclusions {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", serde(rename_all = "lowercase"))]
 pub enum WhyNot {
-    /// One node with every copy of its subformula and every wire from a
-    /// box as a premise, and a weakening one without premises.
+    /// One node whose premises are every copy of its subformula and every
+    /// wire from a box. A weakening `?` is a node without premises.
     #[default]
     Node,
-    /// The nodes of the rules: a dereliction `?d` under every copy (in
-    /// the copy's box), each copy's wire leaving every box through a door
-    /// of its own, binary contractions `?c` joining them at the `?`'s
-    /// depth, the nearest first, and a weakening `?w`; a lone wire is the
-    /// conclusion itself.
+    /// The nodes of the sequent calculus's rules:
+    /// - a dereliction `?d` under every copy, in the copy's box;
+    /// - each copy's wire leaving every box through a door of its own;
+    /// - binary contractions `?c` joining them at the `?`'s depth, the
+    ///   nearest first;
+    /// - a weakening `?w`.
+    ///
+    /// A lone wire is the conclusion itself, with no node.
     Rules,
 }
 
@@ -645,10 +779,11 @@ impl Style {
     }
 
     /// The most a length may be, in thousandths of an em: a thousand ems.
-    /// Under these maxima an element or a character of a drawing adds at
-    /// most a million thousandths of an em to a coordinate, so a drawing
-    /// passes `i64` only past 9·10¹² elements, far beyond the memory; the
-    /// products with a size are taken in `i128`.
+    ///
+    /// Under these maxima, an element or a character of a drawing adds at
+    /// most a million thousandths of an em to a coordinate. So a drawing
+    /// passes `i64` only past 9·10¹² elements, far beyond what memory
+    /// holds. The products with a size are taken in `i128`.
     pub const MOST_LENGTH: u32 = 1_000_000;
 
     /// The most `label_size` and an advance may be, in thousandths of an
@@ -658,12 +793,15 @@ impl Style {
     /// The most `font_size` may be, in pixels.
     pub const MOST_FONT_SIZE: u32 = 10_000;
 
-    /// Checks that every number of the style is within its maximum
-    /// ([`MOST_LENGTH`](Self::MOST_LENGTH) for the lengths and
-    /// `link_height`, [`MOST_SIZE`](Self::MOST_SIZE) for `label_size` and
-    /// the font's advances, [`MOST_FONT_SIZE`](Self::MOST_FONT_SIZE)), so
-    /// that no position of a drawing the memory can hold leaves the
+    /// Checks that every number of the style is within its maximum, so
+    /// that no position of a drawing that memory can hold leaves the
     /// integers it is laid out in. Every drawing checks its style first.
+    ///
+    /// - [`MOST_LENGTH`](Self::MOST_LENGTH) bounds the lengths,
+    ///   `link_height` and `link_cap`.
+    /// - [`MOST_SIZE`](Self::MOST_SIZE) bounds `label_size` and the font's
+    ///   advances.
+    /// - [`MOST_FONT_SIZE`](Self::MOST_FONT_SIZE) bounds `font_size`.
     ///
     /// # Errors
     ///
@@ -789,10 +927,11 @@ pub(crate) fn italic<W: Write + ?Sized>(out: &mut W, name: &str) -> std::fmt::Re
     Ok(())
 }
 
-/// Writes a character escaped for XML text and attribute values, and one
-/// that XML 1.0 cannot carry (a control character other than tab, line
-/// feed and carriage return, U+FFFE, U+FFFF) as `�`: the one place text
-/// enters a drawing, whatever a style's strings hold.
+/// Writes a character escaped for XML text and attribute values. A
+/// character that XML 1.0 cannot carry (a control character other than
+/// tab, line feed and carriage return, U+FFFE, U+FFFF) becomes `�`. This
+/// is the one place text enters a drawing, so no string of a style or a
+/// label table can make the document invalid XML.
 fn escape(out: &mut String, c: char) {
     match c {
         '&' => out.push_str("&amp;"),
@@ -852,11 +991,13 @@ fn run(text: &str, size: i64, font: &Font) -> Run {
 }
 
 /// Lays out a line the notation or a rule's label wrote, at `size`
-/// thousandths of an em in the font, hands `emit` its pieces from left to
-/// right and returns its width: [`RAISED_BOT`] becomes a superscript `⊥`,
-/// what stands between the [`SUBSCRIPT`] marks a subscript, and what
-/// stands between the [`FORMULA`] marks pieces of that formula. Spaces
-/// separate pieces rather than start or end one.
+/// thousandths of an em in the font. Hands `emit` its pieces from left to
+/// right, and returns its width.
+///
+/// [`RAISED_BOT`] becomes a superscript `⊥`, the text between the
+/// [`SUBSCRIPT`] marks a subscript, and the text between the [`FORMULA`]
+/// marks pieces of that formula. A space separates two pieces and never
+/// starts or ends one.
 fn lay(text: &str, size: i64, font: &Font, mut emit: impl FnMut(Piece)) -> i64 {
     // Widths in millionths of an em of `size`, which `scale` turns into
     // thousandths of an em of formula text; the product of a long line's
@@ -926,11 +1067,11 @@ fn lay(text: &str, size: i64, font: &Font, mut emit: impl FnMut(Piece)) -> i64 {
 }
 
 /// Writes a line of text with its left end at `x` and its baseline at
-/// `y`, every piece a `<text>` stretched or squeezed to the width the
-/// layout gave it; `attributes` go into the start tag of the one `<text>`
-/// or of the group of several, as they are. With `ids`, the id of an
+/// `y`. Every piece is a `<text>`, stretched or squeezed to the width the
+/// layout gave it. `attributes` go as they are into the start tag of the
+/// one `<text>`, or of the group of several. With `ids` (the id of an
 /// inference's conclusion and the positions of its formulas in the order
-/// written, the line is a group and every formula a group in it.
+/// written), the line is a group and every formula a group in it.
 fn text(
     out: &mut String,
     x: i64,
@@ -994,8 +1135,8 @@ fn decimal(thousandths: i128) -> String {
 
 /// Writes the start of an SVG document of `width` by `height`
 /// thousandths of an em with the given title, in the style's font and
-/// colours, up to where its description goes: one image, whose title is
-/// its accessible name.
+/// colours, up to where its description goes. The document is one image
+/// (`role="img"`), and its title is its accessible name.
 fn head(out: &mut impl Write, style: &Style, title: &str, size: (i64, i64)) -> std::fmt::Result {
     let (width, height) = size;
     let px = |length: i64| decimal(i128::from(length) * i128::from(style.font_size));
@@ -1038,8 +1179,8 @@ fn backdrop(out: &mut impl Write, style: &Style, size: (i64, i64)) -> std::fmt::
 
 /// Returns an SVG document of `width` by `height` thousandths of an em
 /// with the given title and description, in the style's font and
-/// colours, whose body `body` writes into it: no body is held apart and
-/// copied.
+/// colours. `body` writes the body into the document itself, so that no
+/// body is held apart and copied.
 fn document(
     style: &Style,
     title: &str,
@@ -1061,10 +1202,11 @@ fn document(
 /// Returns a document that shows one line of text, the notation's `content`,
 /// titled `title`.
 ///
-/// The line is laid out twice, for its width, which the head needs, and
-/// to write its pieces into the document one by one, so that no list of
-/// them is held: a line of millions of occurrences takes the document
-/// and its text, as [`text`] would write it.
+/// The line is laid out twice: once for its width, which the head needs,
+/// and once to write its pieces into the document one by one. So no list
+/// of pieces is held, and a line of millions of occurrences takes the
+/// memory of the document and its text alone. The pieces are written as
+/// [`text`] writes them.
 fn line(style: &Style, title: &str, content: &str) -> String {
     let margin = i64::from(style.margin);
     let mut pieces = 0usize;
@@ -1084,23 +1226,25 @@ fn line(style: &Style, title: &str, content: &str) -> String {
     })
 }
 
-/// The bytes a sequent's text is estimated at per occurrence, besides
-/// its longest atom name: at least what any connective, its brackets and
+/// The bytes a sequent's drawing is estimated at per occurrence, besides
+/// the longest atom name: at least what any connective, its brackets and
 /// its separator take.
 const PER_OCCURRENCE: u64 = 128;
 
-/// Returns a sequent in the options' form: one-sided, or in
-/// intuitionistic mode two-sided by its reading.
+/// Returns a sequent as an SVG document of one line of text, titled with
+/// the sequent in plain text. The sequent is one-sided, `⊢ A⊥, A`, or in
+/// an intuitionistic mode two-sided by its reading, `A ⊢ A`.
 ///
 /// # Errors
 ///
-/// [`Refusal::Output`](crate::Refusal::Output) for a sequent whose text is
-/// estimated past `limits.derivation_bytes` (`128` bytes an occurrence
-/// and its longest atom name), before anything is laid out;
-/// [`Error::NotIntuitionistic`] in intuitionistic mode for one without an
-/// intuitionistic reading, the refusal of
-/// [`Forest::within`](crate::linear::Forest::within), and
-/// [`Error::InvalidOption`] for a style [`Style::check`] refuses.
+/// - [`Refusal::Output`](crate::Refusal::Output) for a sequent whose text
+///   is estimated past `limits.derivation_bytes`, before anything is laid
+///   out. The estimate is, per occurrence, 128 bytes plus the length of
+///   the longest atom name.
+/// - In an intuitionistic mode, [`Error::NotIntuitionistic`] for a sequent
+///   without an intuitionistic reading, and the refusal of
+///   [`Forest::within`](crate::linear::Forest::within).
+/// - [`Error::InvalidOption`] for a style [`Style::check`] refuses.
 pub fn sequent(
     sequent: &Sequent,
     mode: crate::linear::Mode,
@@ -1160,32 +1304,45 @@ fn two_sided(reading: &Reading, style: &Style) -> String {
 }
 
 /// Writes a derivation into `out` as an SVG document of its proof tree,
-/// titled with its conclusion in plain text, the elements of one
-/// inference at a time, and asks `stop` after each; what it holds besides
-/// is a few numbers per inference. A `String` takes the whole.
+/// titled with its conclusion in plain text. Use it to write into your
+/// own buffer, or to stop a large drawing; [`to_string`] returns the
+/// document whole.
 ///
-/// The tree grows upwards from its conclusion: the premises of an
-/// inference stand side by side, their conclusions centred over its own,
-/// under an inference line that spans both with the rule's name to its
-/// right. An open goal of a proof in progress is its sequent under
-/// vertical dots, with no inference line, unless the style says
-/// otherwise. The conclusion of inference `n` is the `<text>` or the group
-/// with the id `i<n>`, and with [`Style::ids`] its formula at position `p`
-/// the group `i<n>-<p>`, hypotheses first. The layout is one pass up and
-/// one down the tree, each with a stack of its own, so a derivation of any
-/// height fits and drawing it again after every step of an interactive
-/// proof stays cheap. A linear derivation is two-sided if it is; one of
-/// LK or LJ is two-sided, its connectives and constants their Unicode
-/// characters `¬ ∧ ∨ → ↔ ⊤ ⊥`, its labels those of [`ordinary::Rule`](crate::ordinary::Rule) (a
-/// label table of [`Labels::Table`] is keyed by the linear rules, so it
-/// leaves them upright), and its `<desc>` its numbered inferences.
+/// It writes the elements of one inference at a time and asks `stop`
+/// after each. Besides that, it holds a few numbers per inference.
+///
+/// The tree grows upwards from its conclusion:
+/// - The premises of an inference stand side by side, their conclusions
+///   centred over its own, under an inference line that spans both, with
+///   the rule's name to its right.
+/// - An open goal of a proof in progress is its sequent under vertical
+///   dots, with no inference line, unless [`Style::open`] says otherwise.
+/// - The conclusion of inference `n` is the `<text>` or the group with the
+///   id `i<n>`. With [`Style::ids`], its formula at position `p` is the
+///   group `i<n>-<p>`, hypotheses first.
+///
+/// The layout is one pass up the tree and one down, each with a stack of
+/// its own. So a derivation of any height fits, and drawing it again
+/// after every step of an interactive proof stays cheap.
+///
+/// A linear derivation is drawn two-sided if it is two-sided. A
+/// derivation of LK or LJ is drawn two-sided:
+/// - its connectives and constants are the Unicode characters
+///   `¬ ∧ ∨ → ↔ ⊤ ⊥`;
+/// - its labels are those of [`ordinary::Rule`](crate::ordinary::Rule),
+///   and stay upright under a [`Labels::Table`], which is keyed by the
+///   linear rules;
+/// - its `<desc>` lists its numbered inferences.
 ///
 /// # Errors
 ///
-/// [`Refusal::Stopped`](crate::Refusal::Stopped) when `stop` fired,
-/// [`Error::WriteFailed`] when `out` refused the text, and
-/// [`Error::InvalidOption`] for a style [`Style::check`] refuses, before
-/// anything is written.
+/// - [`Refusal::Stopped`](crate::Refusal::Stopped) when `stop` fired.
+/// - [`Error::WriteFailed`] when `out` refused the text.
+/// - [`Error::InvalidOption`] for a style [`Style::check`] refuses, before
+///   anything is written.
+/// - With [`Style::lambda`], [`Error::NoTerm`] for a derivation without a
+///   term, and the refusal of a term past the output bound, before
+///   anything is written.
 pub fn write<'a>(
     derivation: impl Into<Drawable<'a>>,
     style: &Style,
@@ -1210,61 +1367,78 @@ pub fn write<'a>(
     }
 }
 
-/// Returns a derivation as [`write()`] writes it, whole, with a stop that
-/// never fires. The text is linear in the derivation, which was made
-/// within its own limits ([`Proof::derivation`](crate::linear::Proof::derivation)
-/// uses the default ones), and a lambda-term written under it is bounded
-/// by the default [`Limits`](crate::Limits).
+/// Returns a derivation as an SVG document of its proof tree, drawn as
+/// [`write()`] draws it. This is the common way to draw a proof: pass it
+/// [`Proof::derivation`](crate::linear::Proof::derivation).
+///
+/// It takes no stop and no limits. The text grows linearly with the
+/// derivation, which was made within its own limits
+/// ([`Proof::derivation`](crate::linear::Proof::derivation) uses the
+/// default ones), and a lambda-term written under it is bounded by the
+/// default [`Limits`](crate::Limits).
 ///
 /// # Errors
 ///
-/// As [`write()`] answers, but [`Refusal::Stopped`](crate::Refusal::Stopped) and
-/// [`Error::WriteFailed`], which a `String` never gives.
+/// As [`write()`] answers, except
+/// [`Refusal::Stopped`](crate::Refusal::Stopped) and
+/// [`Error::WriteFailed`], which a `String` and a stop that never fires
+/// never give.
 pub fn to_string<'a>(derivation: impl Into<Drawable<'a>>, style: &Style) -> Result<String, Error> {
     let mut out = String::new();
     write(derivation, style, &mut out, |_| false)?;
     Ok(out)
 }
 
-/// Returns a proof structure, a proof net or not, complete or not, as an
-/// SVG document, titled with its sequent in plain text.
+/// Returns a proof structure as an SVG document, titled with its sequent
+/// in plain text. The structure may be a proof net or not, complete or
+/// not; [`ProofStructure::from_proof`] makes the net of a proof.
 ///
-/// The conclusions are written in a row at the bottom, in the sequent's
-/// order, and the formula trees grow upwards from them to the literals,
-/// which stand side by side along the top, each axiom link an arc over
-/// the two it joins (a literal that is a conclusion stands at the bottom,
-/// its link's arc reaching down to it). By default ([`NetDrawing::Formulas`])
-/// every subformula occurrence is written as its formula, where it stands
-/// in its conclusion's text, and the link of a `⊗` or `⅋` joins its two
-/// premises to it with the connective small at the joint; with
-/// [`NetDrawing::Compact`] only the literals and the conclusions are
-/// written and every inner `⊗` and `⅋` is a small labelled circle. The
-/// edges to the two premises of a `⅋` are dashed and share a colour of
-/// their own (a switching keeps one of them); Mix leaves no trace. A
-/// structure with a switching cycle has the cycle's edges in the
-/// highlight colour, and one that falls into parts (those of
-/// [`NetError::Disconnected`](crate::linear::nets::NetError::Disconnected)) has
-/// the edges, conclusions and links of every part but the first in it.
-/// Every occurrence's formula, or a compact net's circle of a connective,
-/// is the element with the id `o<n>` for occurrence `n`, and a link is
-/// `l<m>-<n>`. A cut link, as the literature draws one, is a bar under
-/// its two formulas, which stand at the bottom after the conclusions,
-/// with the id `c<x>-<y>`, its end in a cut formula's tree first.
+/// The conclusions stand in a row at the bottom, in the sequent's order.
+/// The formula trees grow upwards from them to the literals, which stand
+/// side by side along the top, each axiom link an arc over the two it
+/// joins. A literal that is a conclusion stands at the bottom, its link's
+/// arc reaching down to it. [`Style::net`] says how much is written:
+/// - [`NetDrawing::Formulas`], the default: every subformula is written as
+///   its formula, where it stands in its conclusion's text, and the link
+///   of a `⊗` or `⅋` joins its two premises to it, with the connective
+///   small at the joint.
+/// - [`NetDrawing::Compact`]: only the literals and the conclusions are
+///   written, and every inner `⊗` and `⅋` is a small labelled circle.
+///
+/// Under the default look, the edges to the two premises of a `⅋` are
+/// dashed and have a colour of their own, since a switching keeps one of
+/// them ([`Style::par`]). Mix leaves no trace. A cut link is a bar under
+/// its two formulas, as the literature draws one; the two stand at the
+/// bottom after the conclusions.
+///
+/// The drawing shows what the correctness criterion finds, in the
+/// [`highlight`](Style::highlight) colour: the edges of a switching
+/// cycle, or, for a structure that falls into parts (those of
+/// [`NetError::Disconnected`](crate::linear::nets::NetError::Disconnected)),
+/// the edges, conclusions and links of every part but the first.
+///
 /// With [`Style::essential`], a structure of an intuitionistic sequent is
 /// drawn as its essential net instead, which the field describes, its
 /// highlights those of [`ProofStructure::is_essential`].
 ///
+/// The ids, for a page that styles or points to parts of the drawing:
+/// - `o<n>`: the formula of occurrence `n`, or its circle in a compact
+///   net;
+/// - `l<m>-<n>`: the axiom link between occurrences `m` and `n`;
+/// - `c<x>-<y>`: a cut link, its end in a cut formula's tree first.
+///
 /// A drawing estimated past `limits.derivation_bytes` is not drawn, as a
-/// derivation past it is not built: the estimate counts every literal,
-/// connective, conclusion and link from the structure, at least what the
-/// drawing has. The criterion that decides the highlights asks `stop` as
-/// [`ProofStructure::is_correct`] does.
+/// derivation past it is not built. The estimate counts every literal,
+/// connective, conclusion and link from the structure, and is at least
+/// the size of the drawing. The criterion that decides the highlights
+/// asks `stop` as [`ProofStructure::is_correct`] does.
 ///
 /// # Errors
 ///
-/// [`Refusal::Output`](crate::Refusal::Output) past the bound, before
-/// anything is drawn, the criterion's refusal when `stop` fired, and
-/// [`Error::InvalidOption`] for a style [`Style::check`] refuses.
+/// - [`Refusal::Output`](crate::Refusal::Output) past the bound, before
+///   anything is drawn.
+/// - The criterion's refusal when `stop` fired.
+/// - [`Error::InvalidOption`] for a style [`Style::check`] refuses.
 pub fn net(
     net: &ProofStructure,
     style: &Style,
@@ -1275,9 +1449,9 @@ pub fn net(
 }
 
 /// Returns a proof net as [`net()`] draws it, with what a step of cut
-/// elimination taken on it acted on in the highlight colour: the cut link
-/// reduced and, by its case, the two axiom links at its ends or the
-/// premise edges of its `⊗` and `⅋`.
+/// elimination taken on it acts on in the highlight colour. That is the
+/// cut link it reduces and, by the step's case, the two axiom links at
+/// the cut's ends or the premise edges of its `⊗` and `⅋`.
 ///
 /// # Errors
 ///
@@ -1328,32 +1502,42 @@ fn net_marked(
     Ok(net::draw(net, style, &verdict, reading.as_ref(), marks))
 }
 
-/// Returns a proof structure with boxes as an SVG document, drawn as
-/// [`net()`] draws a proof structure, every subformula written or, with
-/// [`Style::net`] [`NetDrawing::Compact`], the literals and conclusions:
-/// every `!`-box a rectangle around its contents, nested boxes nested, its
-/// `!` vertex and an auxiliary door for every `?` vertex outside it with a
-/// copy inside on its bottom border, the wires of a `?` vertex dashed as a
-/// `⅋`'s premise edges are. A formula has the id `o<n>` when it is the only
-/// vertex of occurrence `n` and `v<k>` (its vertex) when its occurrence has
-/// several; a link `l<x>-<y>` (its vertices) and a box `b<k>` (its `!`
-/// vertex), and a cut link `c<x>-<y>`, a bar under its two formulas,
-/// its end in a cut formula's tree first, at the bottom after the
-/// conclusions or, inside a box, in it beside the box's premise. A
-/// switching cycle is in the highlight colour. With
-/// [`Style::essential`], a structure of an intuitionistic sequent is drawn
-/// as its essential net, as [`net()`] draws one, with its boxes, the wires
-/// of a hypothesis `!A` led up into its copies; its highlight is still the
-/// switching cycle, which decides it. Refused past
-/// `limits.derivation_bytes` before anything is drawn, as [`net()`] is; the
-/// criterion that decides the highlight asks `stop` as
+/// Returns a proof structure with `!`-boxes as an SVG document, drawn as
+/// [`net()`] draws a proof structure: every subformula written, or with
+/// [`NetDrawing::Compact`] the literals and the conclusions alone.
+///
+/// Every `!`-box is a rectangle around its contents, and nested boxes are
+/// nested. On its bottom border stand its `!` vertex and its auxiliary
+/// doors, where wires leave the box: a door for every `?` vertex outside
+/// the box with a copy inside it, or under [`WhyNot::Rules`] a door for
+/// every copy. Under the default look, the wires of a `?` vertex are
+/// dashed as a `⅋`'s premise edges are. A cut link is a bar under its two
+/// formulas, at the bottom after the conclusions or, inside a box, in it
+/// beside the box's premise. A switching cycle is in the highlight colour.
+///
+/// With [`Style::essential`], a structure of an intuitionistic sequent is
+/// drawn as its essential net, as [`net()`] draws one, with its boxes and
+/// the wires of a hypothesis `!A` led up into its copies. Its highlight is
+/// still the switching cycle, which decides it.
+///
+/// The ids:
+/// - `o<n>`: the formula of occurrence `n`, when it is the occurrence's
+///   only vertex;
+/// - `v<k>`: the formula of vertex `k`, when its occurrence has several;
+/// - `l<x>-<y>`: a link, by its vertices;
+/// - `b<k>`: the outline of a box, by its `!` vertex;
+/// - `c<x>-<y>`: a cut link, its end in a cut formula's tree first.
+///
+/// A drawing estimated past `limits.derivation_bytes` is not drawn, as
+/// with [`net()`]. The criterion that decides the highlight asks `stop` as
 /// [`MellStructure::is_correct`] does.
 ///
 /// # Errors
 ///
-/// [`Refusal::Output`](crate::Refusal::Output) past the bound, the
-/// criterion's refusal when `stop` fired, and [`Error::InvalidOption`] for
-/// a style [`Style::check`] refuses.
+/// - [`Refusal::Output`](crate::Refusal::Output) past the bound, before
+///   anything is drawn.
+/// - The criterion's refusal when `stop` fired.
+/// - [`Error::InvalidOption`] for a style [`Style::check`] refuses.
 pub fn mell_net(
     net: &MellStructure,
     style: &Style,
@@ -1364,10 +1548,12 @@ pub fn mell_net(
 }
 
 /// Returns a proof net with boxes as [`mell_net()`] draws it, with what a
-/// step of cut elimination taken on it acted on in the highlight colour:
-/// the cut link reduced and, by its case, the two axiom links at its
-/// ends, the premise edges of its `⊗` and `⅋`, or the box of its `!` end,
-/// with the box it enters or the edge to the copy it cuts against.
+/// step of cut elimination taken on it acts on in the highlight colour.
+/// That is the cut link it reduces and, by the step's case, one of:
+/// - the two axiom links at the cut's ends;
+/// - the premise edges of its `⊗` and `⅋`;
+/// - the box of its `!` end, with the box it enters or the edge to the
+///   copy it cuts against.
 ///
 /// # Errors
 ///
@@ -1552,8 +1738,9 @@ mod tests {
     }
 
     /// A style past a maximum is refused before anything is drawn, and
-    /// one at every maximum draws in exact numbers: its width once went
-    /// negative, `-96823495355.-824`.
+    /// one at every maximum draws in exact numbers. Without the maxima, a
+    /// style of huge numbers overflows, and in a release build writes a
+    /// negative width such as `-96823495355.-824`.
     #[cfg(feature = "parse")]
     #[test]
     fn styles_are_within_their_maxima() {

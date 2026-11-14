@@ -1,11 +1,14 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Derivations as proof trees, laid out bottom-up by subtree width: the
-//! premises of an inference side by side, their conclusions centred over
-//! its conclusion, an inference line spanning both with the rule's name to
-//! its right, and the root at the bottom. Every row is one line height
-//! above the row below it.
+//! Derivations as proof trees, with the root at the bottom. The premises
+//! of an inference stand side by side, their conclusions centred over its
+//! conclusion, under an inference line that spans both, with the rule's
+//! name to its right. Every row is one line height above the row below it.
+//!
+//! The layout takes two passes over the tree, each with a stack of its
+//! own: first the width of every subtree, each premise before its
+//! conclusion, then every position, each conclusion before its premises.
 
 use super::font::{AXIS, DEPTH, HEIGHT};
 use super::{Escaping, NOTATION, PLAIN, Run, Style, backdrop, escaped, head, label, run, text};
@@ -16,8 +19,8 @@ use crate::linear::proofs::{InfId, OpenGoal, fmt};
 use std::fmt::Write;
 
 /// Where an inference and the subtree above it go, within the box that
-/// holds the subtree and the rule names in it. A conclusion is laid out
-/// again when it is written, so that the layout holds a few numbers per
+/// holds the subtree and its rule names. A conclusion is laid out again
+/// when it is written, so that the layout holds a few numbers per
 /// inference and no text.
 #[derive(Clone, Copy, Debug, Default)]
 struct Place {
@@ -36,9 +39,9 @@ struct Place {
 }
 
 /// Writes a derivation as an SVG document of its proof tree into `out`,
-/// titled with its conclusion in plain text, with the judgement given on
-/// a row of its own under the conclusion, and asks `stop` after laying
-/// out each inference and after writing its elements.
+/// titled with its conclusion in plain text. A `judgement` stands on a
+/// row of its own under the conclusion. Asks `stop` after laying out each
+/// inference, and again after writing its elements.
 pub(super) fn draw<T: Drawn>(
     derivation: &T,
     style: &Style,
@@ -58,8 +61,8 @@ pub(super) fn draw<T: Drawn>(
     let rise = (line_height + HEIGHT - DEPTH) / 2;
     let dots = run("⋮", 1000, font);
     let dots_rise = line_height - DEPTH;
-    // The label of every rule, and of an open goal its mark, laid out
-    // once; then the label of every rule for a run of it.
+    // Every rule's label laid out ahead, an open goal's being its mark
+    // under `OpenGoal::Mark`; then every rule's label for a run of it.
     let runs =
         (0..T::RULES).map(|rule| T::markup(rule, &style.labels).map(|m| format!("{m}{RUN}")));
     let labels: Vec<Option<Run>> = (0..T::RULES)
@@ -90,8 +93,8 @@ pub(super) fn draw<T: Drawn>(
         run(sequent, 1000, font)
     };
 
-    // Up the tree: sizes, the premises' offsets, and the highest point of
-    // the drawing relative to the root's baseline.
+    // From the leaves to the root: sizes, the premises' offsets, and the
+    // highest point of the drawing relative to the root's baseline.
     let mut places = vec![Place::default(); derivation.len()];
     let mut top = -HEIGHT;
     let mut sequent = String::new();
@@ -176,7 +179,7 @@ pub(super) fn draw<T: Drawn>(
         None => (0, 0),
     };
 
-    // Down the tree: every box at its place.
+    // From the root to the leaves: every box at its place.
     let mut xs = vec![0; places.len()];
     xs[derivation.root().index()] = margin + shift;
     walk(derivation, |step| {
