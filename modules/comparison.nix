@@ -24,6 +24,8 @@
         sympli = pkgs.callPackage ./_provers/sympli.nix { };
         lolli = pkgs.callPackage ./_provers/lolli.nix { };
         apll = pkgs.callPackage ./_provers/apll.nix { };
+        intuit = pkgs.callPackage ./_provers/intuit.nix { };
+        intuitr = pkgs.callPackage ./_provers/intuitr.nix { };
       }
       // pkgs.callPackages ./_provers/prolog.nix { };
       deduxit = config.packages.deduxit-cli;
@@ -42,6 +44,8 @@
         lolli = provers.lolli;
         apll-ll = provers.apll;
         apll-ill = provers.apll;
+        intuit = provers.intuit;
+        intuitr = provers.intuitr;
       };
       record = pkgs.writeTextDir "share/deduxit-comparison/tools.json" (
         builtins.toJSON (
