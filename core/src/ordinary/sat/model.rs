@@ -138,7 +138,9 @@ impl Model {
             }
         }
         let width = formulas.len();
-        let mut forced = vec![false; worlds * width];
+        // A bit per world and formula; below `MOST_CELLS` the index fits.
+        let mut table = vec![0u64; (worlds * width).div_ceil(64)];
+        let get = |table: &[u64], cell: usize| table[cell / 64] >> (cell % 64) & 1 == 1;
         for n in (0..worlds).rev() {
             if stop(Progress::new(Phase::Check, 1, (worlds - n) as u64)) {
                 return Err(Error::Refused(Refusal::Stopped {
@@ -147,37 +149,40 @@ impl Model {
             }
             let world = &self.worlds[n];
             for id in 0..width {
-                let at = |m: usize, k: NodeId| forced[m * width + k.index()];
+                let at = |table: &[u64], k: NodeId| get(table, n * width + k.index());
                 // An implication holds where it holds locally and at every
                 // world directly above, which holds it at every world above.
-                let above = |forced: &[bool]| {
+                let above = |table: &[u64]| {
                     world
                         .above
                         .iter()
-                        .all(|&up| forced[up as usize * width + id])
+                        .all(|&up| get(table, up as usize * width + id))
                 };
                 let node = formulas.node(NodeId(id as u32));
+                let t = &table[..];
                 let value = match node {
                     Node::Atom(a) => world.atoms.binary_search(&a).is_ok(),
                     Node::True => true,
                     Node::False => world.falsity,
-                    Node::And(a, b) => at(n, a) && at(n, b),
-                    Node::Or(a, b) => at(n, a) || at(n, b),
-                    Node::Not(a) => (!at(n, a) || world.falsity) && above(&forced),
-                    Node::Implies(a, b) => (!at(n, a) || at(n, b)) && above(&forced),
-                    Node::Iff(a, b) => at(n, a) == at(n, b) && above(&forced),
+                    Node::And(a, b) => at(t, a) && at(t, b),
+                    Node::Or(a, b) => at(t, a) || at(t, b),
+                    Node::Not(a) => (!at(t, a) || world.falsity) && above(t),
+                    Node::Implies(a, b) => (!at(t, a) || at(t, b)) && above(t),
+                    Node::Iff(a, b) => at(t, a) == at(t, b) && above(t),
                 };
-                forced[n * width + id] = value;
+                let cell = n * width + id;
+                table[cell / 64] |= u64::from(value) << (cell % 64);
             }
         }
-        if let Some(&h) = sequent.left().iter().find(|h| !forced[h.index()]) {
+        let forced = |k: NodeId| get(&table, k.index());
+        if let Some(&h) = sequent.left().iter().find(|&&h| !forced(h)) {
             return Err(flaw(format!(
                 "the root does not force the hypothesis {}",
                 formulas.formula(h)
             )));
         }
         match sequent.right().first() {
-            Some(&c) if forced[c.index()] => Err(flaw(format!(
+            Some(&c) if forced(c) => Err(flaw(format!(
                 "the root forces the conclusion {}",
                 formulas.formula(c)
             ))),

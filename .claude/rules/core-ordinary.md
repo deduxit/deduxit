@@ -302,17 +302,30 @@ the trust.
   positive implication or negation its implication clause; an
   equivalence gives both polarities to its parts. `translate`'s extra
   nodes (`⊥`, both implications of every `↔`) are added first. The
-  countermodel is a model of every formula by this reading because
-  each formula forced is its variable true where negative and the
-  converse where positive (the induction of intuit's completeness).
+  countermodel refutes the sequent because at every world a negative
+  formula whose variable is true is forced and a positive formula that
+  is forced has its variable true (the induction of intuit's
+  completeness), which is all the root's hypotheses and goal need.
 - **The loop is intuitR's `proveR`**: worlds are the solver's models;
   a pair (world, implication `(a → b) → c`) is realised when `a`, `b` or
   `c` holds there or a world above has `a` and not `b`; an unrealised
   pair calls the solver under the world and `a`, `¬b`; a model is a new
   world, a refutation learns `failed \ {a} → c` and restarts with no
-  worlds. Realisation is monotone in the worlds, so one cursor walks the
-  pairs. The worlds of the last round, ordered by inclusion (sorted by
-  size, edges the covering pairs), are the Kripke model.
+  worlds. Realisation is monotone in the worlds, so each world keeps a
+  cursor over the implications; the oldest world is examined first (the
+  newest first left SYJ212+1.020 undecided). The call assumes `a` and
+  `¬b` before the world: the solver blames a conflict on the first
+  assumptions that imply it, and with the world first the clauses learnt
+  carried the world's arbitrary choices, so SYJ205 learnt one per subset
+  (41 at size 3 against 4, 32 890 at size 13 against a few hundred). The
+  scan polls the stop every `POLL` pairs (`Solver::poll`, `Progress::work`
+  `POLL`): the last round's scan makes no call and was cubic in the
+  worlds without a poll. Setup charges each variable (`VARIABLE_BYTES`)
+  and clause as it is made and refuses once over the bound (a goal of
+  millions of conjuncts once built gigabytes before the first poll). The
+  worlds of the last round, ordered by inclusion (sorted by size, edges
+  the covering pairs), are the Kripke model; building it polls the stop
+  once per world.
 - **The derivation is read off the learnt clauses** (TABLEAUX 2019's
   correspondence): each lemma `B → c` becomes the formula
   `b₁ → (… → c)` derived by `→R` from a tableau of `Γ, earlier lemmas,

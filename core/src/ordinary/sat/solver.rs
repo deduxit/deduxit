@@ -83,6 +83,10 @@ pub(crate) trait Solver {
     /// Returns the assumptions of the last unsatisfiable answer that
     /// make the clauses unsatisfiable by themselves.
     fn failed(&self) -> Vec<Lit>;
+    /// Asks the stop, the work bound and the memory bound between calls,
+    /// with `work` units of progress since the last ask, returning why
+    /// the solver must stop, if it must.
+    fn poll(&mut self, work: u64) -> Option<Reason>;
     /// Returns the calls of [`solve`](Self::solve) so far.
     fn calls(&self) -> u64;
     /// Returns the conflicts met so far.
@@ -95,8 +99,13 @@ const fn clause_bytes(len: usize) -> usize {
     len * size_of::<BatLit>() + 32
 }
 
-/// The callbacks batsat calls: they count the conflicts against the work
-/// bound, charge the learnt clauses to the memory account and ask the
+/// How a variable is charged to the memory account: what the solver
+/// keeps per variable (its value, reason, level, activity, polarity,
+/// heap entry, the model's copy and two watch lists' headers).
+const VARIABLE_BYTES: usize = 128;
+
+/// The callbacks batsat calls: they count the clauses learnt against the
+/// work bound, charge the learnt clauses to the memory account and ask the
 /// caller's stop, which batsat polls at every decision.
 pub(crate) struct Bridge<'s> {
     /// The caller's stop, asked at every decision; a `RefCell` since
@@ -106,9 +115,9 @@ pub(crate) struct Bridge<'s> {
     account: &'s Account,
     /// The calls of `solve` so far.
     calls: Cell<u64>,
-    /// The conflicts so far; a conflict is a clause learnt.
-    conflicts: Cell<u64>,
-    /// The work done: a unit per conflict and per call of `solve`.
+    /// The work done: a unit per clause learnt (at a conflict, or at the
+    /// end of a call that refutes the assumptions) and per call of
+    /// `solve`.
     done: Cell<u64>,
     /// The most work the bound allows.
     work: u64,
@@ -118,7 +127,6 @@ pub(crate) struct Bridge<'s> {
 
 impl Callbacks for Bridge<'_> {
     fn on_new_clause(&mut self, clause: &[BatLit], _kind: ClauseKind) {
-        self.conflicts.set(self.conflicts.get().saturating_add(1));
         self.done.set(self.done.get().saturating_add(1));
         self.account.charge(clause_bytes(clause.len()));
     }
@@ -128,6 +136,15 @@ impl Callbacks for Bridge<'_> {
     }
 
     fn stop(&self) -> bool {
+        self.ask(1)
+    }
+}
+
+impl Bridge<'_> {
+    /// Returns whether the solver must stop: past the work bound, past the
+    /// memory bound, or at the caller's stop, asked with `work` units of
+    /// progress since the last ask; records why.
+    fn ask(&self, work: u64) -> bool {
         if self.why.get().is_some() {
             return true;
         }
@@ -138,7 +155,7 @@ impl Callbacks for Bridge<'_> {
             Some(Reason::MemoryLimit {
                 limit_bytes: self.account.limit(),
             })
-        } else if (self.stop.borrow_mut())(Progress::new(Phase::Search, 1, done)) {
+        } else if (self.stop.borrow_mut())(Progress::new(Phase::Search, work, done)) {
             Some(Reason::Stopped)
         } else {
             None
@@ -167,7 +184,6 @@ impl<'s> Batsat<'s> {
             stop: RefCell::new(stop),
             account,
             calls: Cell::new(0),
-            conflicts: Cell::new(0),
             done: Cell::new(0),
             work,
             why: Cell::new(None),
@@ -190,6 +206,7 @@ pub(crate) const MOST_VARIABLES: u32 = u32::MAX / 2 - 1;
 
 impl Solver for Batsat<'_> {
     fn new_var(&mut self) -> u32 {
+        self.solver.cb().account.charge(VARIABLE_BYTES);
         self.solver.new_var_default().idx()
     }
 
@@ -216,10 +233,21 @@ impl Solver for Batsat<'_> {
         if answer == lbool::TRUE {
             Answer::Satisfiable
         } else if answer == lbool::FALSE {
+            // A refutation of the assumptions reports its final conflict as
+            // a clause learnt, which the solver does not keep: it is the
+            // core, and given back here.
+            let core = self.solver.unsat_core().len();
+            if core > 0 {
+                self.solver.cb().account.release(clause_bytes(core));
+            }
             Answer::Unsatisfiable
         } else {
             Answer::Stopped(self.why())
         }
+    }
+
+    fn poll(&mut self, work: u64) -> Option<Reason> {
+        self.solver.cb().ask(work).then(|| self.why())
     }
 
     fn value(&self, literal: Lit) -> bool {
@@ -244,7 +272,7 @@ impl Solver for Batsat<'_> {
     }
 
     fn conflicts(&self) -> u64 {
-        self.solver.cb().conflicts.get()
+        self.solver.num_conflicts()
     }
 }
 

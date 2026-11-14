@@ -101,6 +101,10 @@ pub struct Statistics {
     pub ljt: Option<ljt::Statistics>,
 }
 
+/// How many pairs of a world and an implication the search examines
+/// between two polls of the stop.
+const POLL: u64 = 1 << 8;
+
 /// The polarity of a formula that the search's clauses take apart, as a
 /// hypothesis does.
 const NEGATIVE: u8 = 1;
@@ -190,13 +194,20 @@ fn run(
     let found = {
         let work = limits.work.unwrap_or(u64::MAX);
         let mut solver = Batsat::new(work, &account, &mut stop);
-        let found = Search::new(&mut solver, &formulas, &polarity, logic, falsity, most).and_then(
-            |mut search| {
-                let found = search.run(sequent.left(), goal, &account);
-                statistics.lemmas = search.lemmas.len() as u64;
-                found.map(|found| (found, search.lemmas, search.nodes))
-            },
-        );
+        let found = Search::new(
+            &mut solver,
+            &formulas,
+            &polarity,
+            logic,
+            falsity,
+            most,
+            &account,
+        )
+        .and_then(|mut search| {
+            let found = search.run(sequent.left(), goal, &account);
+            statistics.lemmas = search.lemmas.len() as u64;
+            found.map(|found| (found, search.lemmas, search.nodes))
+        });
         statistics.calls = solver.calls();
         statistics.conflicts = solver.conflicts();
         found
@@ -218,9 +229,13 @@ fn run(
                     needed_bytes: Some(cells / 8),
                 }));
             }
-            let model = kripke(&formulas, logic, falsity, &nodes, worlds);
-            model.refutes(sequent, logic, &mut stop)?;
-            (Verdict::NotValid, Some(model))
+            match kripke(&formulas, logic, falsity, &nodes, worlds, &mut stop) {
+                Some(model) => {
+                    model.refutes(sequent, logic, &mut stop)?;
+                    (Verdict::NotValid, Some(model))
+                }
+                None => (Verdict::Unknown(Reason::Stopped), None),
+            }
         }
         Ok((Found::Valid, lemmas, _)) => {
             let refused = Error::Refused(Refusal::Output {
@@ -406,7 +421,8 @@ struct Search<'a, S> {
 
 impl<'a, S: Solver> Search<'a, S> {
     /// The solver given the clauses of the formulas `polarity` names,
-    /// at most `most` variables.
+    /// at most `most` variables, each variable and clause charged to the
+    /// account as it is made and the setup refused once that is over.
     fn new(
         solver: &'a mut S,
         formulas: &Formulas,
@@ -414,7 +430,13 @@ impl<'a, S: Solver> Search<'a, S> {
         logic: Logic,
         falsity: NodeId,
         most: u32,
+        account: &Account,
     ) -> Result<Self, Reason> {
+        let over = || {
+            account.over().then(|| Reason::MemoryLimit {
+                limit_bytes: account.limit(),
+            })
+        };
         let mut vars = vec![None; formulas.len()];
         let mut nodes = Vec::new();
         for (id, var) in vars.iter_mut().enumerate() {
@@ -424,23 +446,30 @@ impl<'a, S: Solver> Search<'a, S> {
                 }
                 *var = Some(solver.new_var());
                 nodes.push(NodeId(id as u32));
+                if let Some(reason) = over() {
+                    return Err(reason);
+                }
             }
         }
-        let mut search = Self {
-            solver,
-            nodes,
-            vars,
-            implications: Vec::new(),
-            lemmas: Vec::new(),
-        };
-        let var = |x: NodeId| search.vars[x.index()].unwrap_or_else(|| unreachable!("a name"));
+        let var = |x: NodeId| vars[x.index()].unwrap_or_else(|| unreachable!("a name"));
         let (pos, neg) = (|x| Lit::positive(var(x)), |x| Lit::negative(var(x)));
         let mut clauses: Vec<Vec<Lit>> = Vec::new();
         let mut implications = Vec::new();
+        // The clauses of one formula at a time go to the solver, so that
+        // nothing beside it holds them all.
+        let mut flush = |clauses: &mut Vec<Vec<Lit>>| {
+            for clause in clauses.drain(..) {
+                solver.add_clause(&clause);
+            }
+            over()
+        };
         if logic == Logic::Intuitionistic {
             clauses.push(vec![neg(falsity)]);
         }
         for (id, &p) in polarity.iter().enumerate() {
+            if let Some(reason) = flush(&mut clauses) {
+                return Err(reason);
+            }
             if p == 0 {
                 continue;
             }
@@ -505,11 +534,16 @@ impl<'a, S: Solver> Search<'a, S> {
                 }
             }
         }
-        for clause in &clauses {
-            search.solver.add_clause(clause);
+        if let Some(reason) = flush(&mut clauses) {
+            return Err(reason);
         }
-        search.implications = implications;
-        Ok(search)
+        Ok(Self {
+            solver,
+            nodes,
+            vars,
+            implications,
+            lemmas: Vec::new(),
+        })
     }
 
     /// Runs intuitR's loop on `left ⊢ goal`, charging the worlds to the
@@ -550,35 +584,51 @@ impl<'a, S: Solver> Search<'a, S> {
         held: &mut usize,
     ) -> Result<bool, Reason> {
         // A pair passed over is realised, and stays so as worlds are
-        // added, so one cursor walks the pairs.
-        let (mut w, mut k) = (0, 0);
+        // added, so each world keeps a cursor over the implications. The
+        // oldest world is examined first: on ILTP the newest first left
+        // SYJ212+1.020 undecided after 20 s, which this order refutes in
+        // 130 calls.
+        let mut next: Vec<usize> = vec![0; worlds.len()];
+        let mut scanned = 0u64;
         loop {
-            if k == self.implications.len() {
-                (w, k) = (w + 1, 0);
+            let mut pair = None;
+            'scan: for (w, at) in next.iter_mut().enumerate() {
+                while let Some(&[a, b, c]) = self.implications.get(*at) {
+                    scanned += 1;
+                    if scanned.is_multiple_of(POLL)
+                        && let Some(reason) = self.solver.poll(POLL)
+                    {
+                        return Err(reason);
+                    }
+                    if unrealised(worlds, w, [a, b, c]) {
+                        pair = Some((w, [a, b, c]));
+                        break 'scan;
+                    }
+                    *at += 1;
+                }
             }
-            if w == worlds.len() {
+            let Some((w, [a, b, c])) = pair else {
                 return Ok(false);
-            }
-            let [a, b, c] = self.implications[k];
-            if !unrealised(worlds, w, [a, b, c]) {
-                k += 1;
-                continue;
-            }
-            let mut assumptions: Vec<Lit> = worlds[w].members().map(Lit::positive).collect();
-            assumptions.push(Lit::positive(a));
-            assumptions.push(Lit::negative(b));
+            };
+            // `a` and `¬b` first: the solver blames a conflict on the first
+            // assumptions that imply it, so what `a` implies is not blamed
+            // on the world, whose variables would make the clause learnt
+            // as narrow as the world.
+            let mut assumptions = vec![Lit::positive(a), Lit::negative(b)];
+            assumptions.extend(worlds[w].members().map(Lit::positive));
             match self.solver.solve(&assumptions) {
                 Answer::Satisfiable => {
                     let world = self.world();
                     *held += world.bytes();
                     account.charge(world.bytes());
                     worlds.push(world);
+                    next.push(0);
                     if account.over() {
                         return Err(Reason::MemoryLimit {
                             limit_bytes: account.limit(),
                         });
                     }
-                    k += 1;
+                    next[w] += 1;
                 }
                 Answer::Unsatisfiable => {
                     let mut body: Vec<u32> = self
@@ -638,20 +688,24 @@ fn unrealised(worlds: &[Bits], w: usize, [a, b, c]: [u32; 3]) -> bool {
 
 /// Returns the Kripke model of the worlds: ordered by inclusion, the
 /// least first, each with the atoms of its variables, and `⊥` in minimal
-/// logic.
+/// logic; `None` where the stop, asked once per world, fired.
 fn kripke(
     formulas: &Formulas,
     logic: Logic,
     falsity: NodeId,
     nodes: &[NodeId],
     mut worlds: Vec<Bits>,
-) -> Model {
+    stop: &mut impl FnMut(Progress) -> bool,
+) -> Option<Model> {
     // A world strictly above another has more variables.
     worlds.sort_by_key(|w| w.members().count());
     let n = worlds.len();
     // Every world strictly below each, as bits over the worlds.
     let mut below: Vec<Bits> = Vec::with_capacity(n);
     for j in 0..n {
+        if stop(Progress::new(crate::limits::Phase::Search, 1, j as u64 + 1)) {
+            return None;
+        }
         let mut set = Bits::new(n);
         for i in 0..j {
             if worlds[i] != worlds[j] && worlds[i].within(&worlds[j]) {
@@ -697,9 +751,9 @@ fn kripke(
             above,
         }
     });
-    Model {
+    Some(Model {
         worlds: models.collect(),
-    }
+    })
 }
 
 #[cfg(all(test, feature = "parse"))]
@@ -922,6 +976,33 @@ mod tests {
             model.refutes(&sequent, logic, |_| false),
             Err(Error::Refused(Refusal::Memory { .. }))
         ));
+    }
+
+    /// The stop is asked while the worlds are scanned for an unrealised
+    /// pair, which takes no call of the solver: a goal of `k` implications
+    /// in a disjunction is refuted by `k + 1` worlds, whose last scan
+    /// examines every pair.
+    #[test]
+    fn the_scan_of_the_worlds_asks_the_stop() {
+        let k = 64;
+        let chain: Vec<String> = (0..k).map(|i| format!("(a{i} -> a{})", i + 1)).collect();
+        let sequent: Sequent = format!("|- {}", chain.join(" \\/ ")).parse().unwrap();
+        let logic = Logic::Intuitionistic;
+        let mut scans = 0;
+        let free = decide(&sequent, logic, &Limits::default(), |p| {
+            scans += u64::from(p.work == POLL);
+            false
+        })
+        .unwrap();
+        assert_eq!(free.statistics.worlds, k + 1);
+        assert!(scans >= k * k / POLL, "{scans}");
+        let mut asked = 0;
+        let outcome = decide(&sequent, logic, &Limits::default(), |p| {
+            asked += u64::from(p.work == POLL);
+            asked == scans
+        })
+        .unwrap();
+        assert!(matches!(outcome.verdict, Verdict::Unknown(Reason::Stopped)));
     }
 
     /// Where a bound refuses the derivation read off the search, LJT
