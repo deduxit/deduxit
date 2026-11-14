@@ -18,7 +18,7 @@ use deduxit::{
     Error, Limits, Refusal,
     linear::{
         CutFormula, GoalId, InputOptions, Interactive, Kind, Mode, Named, Reading, Rule, Side,
-        Step, ViewOptions,
+        Step, StepError, ViewOptions,
     },
 };
 use std::fmt::Write as _;
@@ -409,7 +409,20 @@ impl Session {
                 );
                 let lost = splits && !self.state.split_passes(goal, &step).unwrap_or(true);
                 let before = self.state.steps();
-                let opened = self.state.apply(goal, &step)?;
+                let opened = self.state.apply(goal, &step).map_err(|error| {
+                    // The library's refusal names a position; the session
+                    // can name the formula and the command that helps.
+                    let at = self.state.goal(goal).ok().and_then(|m| m.get(position));
+                    match (&error, at) {
+                        (StepError::Rule { rule, .. }, Some(&member)) => anyhow::anyhow!(
+                            "the rule {rule} does not act on formula {position}, {}; `rules {} \
+                             {position}` lists the rules that do",
+                            self.state.formula(member),
+                            goal.get()
+                        ),
+                        _ => error.into(),
+                    }
+                })?;
                 let mut text = self.stepped(before, opened)?;
                 if lost {
                     text.push_str(

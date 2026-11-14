@@ -197,7 +197,7 @@ pub(crate) fn parse_error(input: &str, error: Error) -> anyhow::Error {
     let errors = std::slice::from_ref(parsed.as_ref());
     if input.trim().is_empty() {
         return Explained::error(
-            "the input is empty; the empty sequent is written |-".to_owned(),
+            "the input is empty; write |- for the empty sequent".to_owned(),
             error,
         );
     }

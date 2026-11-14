@@ -50,7 +50,7 @@ pub(crate) fn sequent_in(
             })
         }
         _ => bail!(
-            "--logic reads formulas as text, a line each with --input-format lines, or TPTP problems"
+            "--logic reads text (one sequent, or one per line with --input-format lines) or TPTP problems"
         ),
     }
 }
@@ -283,7 +283,7 @@ pub(crate) fn verdict_line(
     match &outcome.verdict {
         Verdict::Proved(_) => format!("valid ({context})"),
         Verdict::Unprovable(refutation) => {
-            format!("not valid ({context}): the image is unprovable: {refutation}")
+            format!("not valid ({context}): the translated sequent is unprovable: {refutation}")
         }
         Verdict::Unknown(reason) => {
             format!("unknown ({context}): {}", unknown(*reason, outcome, ended))

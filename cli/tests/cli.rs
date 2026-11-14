@@ -736,7 +736,8 @@ fn interactive_session() {
         format!(
             "goal 0: ⊢ 0: ~A, 1: A ⊗ ~B, 2: B\n\
              ⊗ (with a split)\n\
-             error: the rule ⅋ does not act on formula 1\n\
+             error: the rule ⅋ does not act on formula 1, A ⊗ ~B; `rules 0 1` lists the rules \
+             that do\n\
              opened goal 1: ⊢ 0: ~A, 1: A\n\
              opened goal 2: ⊢ 0: ~B, 1: B\n\
              closed\n\

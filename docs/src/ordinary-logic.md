@@ -58,7 +58,7 @@ either of them alone chooses it:
 
 ```console
 $ deduxit prove --logic intuitionistic --method embedding -q '~~a -> a'
-not valid (intuitionistic logic by the cbn translation into ILL, two-sided engine): the image is unprovable: the search was exhaustive
+not valid (intuitionistic logic by the cbn translation into ILL, two-sided engine): the translated sequent is unprovable: the search was exhaustive
 $ deduxit prove --logic minimal --stats -q 'a, a -> b |- b'
 valid (minimal logic by LJT)
 sequents expanded: 2
@@ -150,7 +150,7 @@ Proof.
   exact (fun (a : Prop) => NNPP (a \/ ~ a) (fun k'1 : ~ (a \/ ~ a) => (let k'2 : ~ a := fun x' => k'1 (or_introl x') in let k'3 : ~ (~ a) := fun x' => k'1 (or_intror x') in (k'3 (fun h'4 : a => (k'2 h'4)))))).
 Qed.
 $ deduxit prove --logic classical --format rocq 'a -> b, b |- a'
-(* not valid (classical logic by the affine translation into affine MALL, focus engine): the image is unprovable: the classical reading is false where b is true and every other atom false (! and ? erased, ⊗ and & as and, ⅋ and ⊕ as or, 1 and ⊤ true, ⊥ and 0 false), and every provable sequent reads as a tautology *)
+(* not valid (classical logic by the affine translation into affine MALL, focus engine): the translated sequent is unprovable: the classical reading is false where b is true and every other atom false (! and ? erased, ⊗ and & as and, ⅋ and ⊕ as or, 1 and ⊤ true, ⊥ and 0 false), and every provable sequent reads as a tautology *)
 Lemma certificate : ~ (forall a b : Prop, (a -> b) -> b -> a).
 Proof.
   intro H. specialize (H False True). tauto.

@@ -203,7 +203,10 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   never reads as a file name, and a FILE without one is written in the
   format its extension names, else JSON for `proof` and text for `show`),
   every command's output or `error: …` goes to standard output and the
-  session goes on, an unknown rule's error lists the session's own rules
+  session goes on, a rule that does not act on the formula named is said
+  with the formula and `rules G P` (the library's `StepError::Rule` names
+  a position only; `apply` adds the rest, since the session has the
+  goal), an unknown rule's error lists the session's own rules
   ASCII spelling first (`linear_rules` by mode and binders,
   `LINEAR_ASCII`; `ordinary::ordinary_rules` and `ordinary::ASCII` for
   LK and LJ, without the rules `shape` refuses in the logic), which

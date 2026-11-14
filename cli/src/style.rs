@@ -63,8 +63,8 @@ pub(crate) fn read(
         let parsed = serde_json::from_str(text).unwrap_or_else(|_| Value::String(text.to_owned()));
         set(&mut value, &path, parsed);
     }
-    let mut styles: Styles =
-        serde_json::from_value(value).context("the style is not one deduxit knows")?;
+    let mut styles: Styles = serde_json::from_value(value)
+        .context("the styles hold an option no format has, or a value of the wrong kind")?;
     if let Some(lemma) = rocq.and_then(|r| r.lemma.as_ref()) {
         styles.rocq.lemma = lemma.parse()?;
     }

@@ -104,7 +104,7 @@ pub(crate) fn read(path: Option<&Path>, what: &str, memory: Option<u64>) -> Resu
 /// `-`, and a file that cannot be read or is too long.
 pub(crate) fn read_configuration(path: &Path, what: &str) -> Result<String> {
     if path == Path::new("-") {
-        bail!("the {what} is read from a file: standard input carries the input");
+        bail!("the {what} must be a file, not -: standard input carries the input");
     }
     let file = fs::File::open(path).with_context(|| format!("cannot read {}", path.display()))?;
     capped(
@@ -496,7 +496,7 @@ impl SequentInput {
         let most = Most::of(limits);
         let (text, format) = self.text(false, limits.memory_bytes)?;
         if format == InputFormat::Tptp {
-            bail!("--input-format tptp holds ordinary logic, which --logic reads");
+            bail!("--input-format tptp holds ordinary logic: add --logic to read it");
         }
         let (sequent, writing) = written_in(&text, format, most, mode, read, keep)?;
         let sequent = admit(sequent, most)?;
