@@ -1,15 +1,26 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Coverability problems in the `.spec` format of the Mist tool
-//! (`github.com/pierreganty/mist`), in which the coverability suites of
-//! software verification are written (the `qcover` collection's, for
-//! one): counters, rules that test and change them, an initial marking,
-//! and the markings to cover. A problem is a Petri net, and is read as a
-//! Horn program to decide in affine mode, where weakening lets a marking
-//! that covers the goal stand for it: each counter an atom, each rule a
-//! clause under `!` from the tokens it needs to those it leaves, the
-//! initial marking's tokens on the left of `⊢`, and the target the goal.
+//! Reads coverability problems in the `.spec` format of the Mist tool
+//! (`github.com/pierreganty/mist`).
+//!
+//! The coverability suites of software verification, such as `qcover`,
+//! are written in this format. A problem is a Petri net: counters, rules
+//! that test and change them, an initial marking, and the markings to
+//! cover. It asks whether a marking reachable from the initial one covers
+//! the target: has on each counter at least the tokens the target asks
+//! for.
+//!
+//! [`read`] turns a problem into a Horn program to prove in an affine
+//! mode, where weakening lets a marking that covers the target stand for
+//! it:
+//! - each counter is an atom, and each of its tokens an occurrence of it;
+//! - each rule is a clause under `!`, from the tokens it takes to the
+//!   tokens it gives;
+//! - the initial marking's tokens stand left of `⊢`, the target right of
+//!   it.
+//!
+//! The problem
 //!
 //! ```text
 //! vars    x y
@@ -18,16 +29,21 @@
 //! target  y >= 2
 //! ```
 //!
-//! is `!(x -o y * y), !y, x ⊢ y * y`: an initial count written `x >= k`
-//! is `k` tokens and any number more, `!x`. A target of several lines is
-//! covered when one of them is: each line is a clause `!(… -o goal)` to a
-//! fresh atom, the goal.
+//! is `!(x ⊸ y ⊗ y), !y, x ⊢ y ⊗ y`. An initial count written `x >= k` is
+//! `k` tokens and `!x`, any number more. A target of several lines is
+//! covered when one of them is: each line becomes a clause `!(line ⊸
+//! goal)` to a fresh atom, the goal.
 //!
 //! # Examples
 //!
+//! Read that problem and prove it in intuitionistic affine mode, as the
+//! benchmark harness does:
+//!
 //! ```
 //! use deduxit::Limits;
+//! use deduxit::linear::Mode;
 //! use deduxit::linear::mist::{Safety, read};
+//! use deduxit::linear::search::{Options, prove};
 //!
 //! let text = "#expected result: unsafe\n\
 //!             vars x y\n\
@@ -36,7 +52,14 @@
 //!             target y >= 2\n";
 //! let problem = read(text, &Limits::default())?;
 //! assert_eq!(problem.expected, Some(Safety::Unsafe));
+//! // `Display` writes the one-sided form: `!(x ⊸ y ⊗ y)` is `?(x ⊗ (~y ⅋ ~y))`,
+//! // and a token `x` left of `⊢` is `~x`.
 //! assert_eq!(problem.sequent.to_string(), "⊢ ?(x ⊗ (~y ⅋ ~y)), ?~y, ~x, y ⊗ y");
+//!
+//! // Unsafe: a reachable marking covers the target, so the sequent is provable.
+//! let mode = Mode::INTUITIONISTIC.with_affine();
+//! let outcome = prove(&problem.sequent, mode, &Options::default())?;
+//! assert!(outcome.verdict.proof().is_some());
 //! # Ok::<(), deduxit::Error>(())
 //! ```
 //!
@@ -48,19 +71,19 @@ use crate::linear::occurrences::Forest;
 use crate::linear::sequents::{Atom, Term, TermId};
 use crate::{Error, linear::Sequent};
 
-/// A problem read from a `.spec` file.
+/// A problem read from a `.spec` file by [`read`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct Problem {
-    /// The problem as a Horn program, for affine mode: the rules under
-    /// `!`, the initial marking left of `⊢`, the target right of it.
+    /// The problem as a Horn program for an affine mode: the rules under
+    /// `!` and the initial marking left of `⊢`, the target right of it.
     pub sequent: Sequent,
-    /// The result the file's first line states, `#expected result: safe`
-    /// or `unsafe`, if it states one.
+    /// The answer the file's first line states (`#expected result: safe`
+    /// or `unsafe`), or `None` if it states none.
     pub expected: Option<Safety>,
 }
 
-/// The result of a coverability problem.
+/// The answer to a coverability problem.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Safety {
@@ -72,31 +95,43 @@ pub enum Safety {
     Unsafe,
 }
 
-/// Reads a `.spec` problem: the sections `vars` (the counters' names),
-/// `rules` (each `guards -> updates;`, a guard `x >= k`, an update
-/// `x' = x + k` or `x' = x - k`), `init` (`x = k` or `x >= k`, a counter
-/// not named starting at zero) and `target` (lines of `x >= k`, a line a
-/// conjunction, the lines a disjunction), in that order, and an
-/// `invariants` section after them, which is skipped; from `#` to the end
-/// of a line is a comment. A rule takes from each counter the most of its
-/// guard and its decrement, and gives back that less the decrement plus
-/// the increment.
+/// Reads the text of a `.spec` file into a Horn program.
 ///
-/// The sequent is built as an arena, every token of a counter one shared
-/// literal: a count of `k` is `k` occurrences of the counter's atom
-/// however long its name, and a few bytes can ask for billions, so a
-/// problem whose tokens pass `limits.occurrences` is refused before its
-/// sequent is built, as its forest would be.
+/// The file has four sections, in this order:
+/// - `vars`: the counters' names;
+/// - `rules`: each `guards -> updates;`, a guard `x >= k`, an update
+///   `x' = x + k` or `x' = x - k`;
+/// - `init`: `x = k` or `x >= k`; a counter not named starts at zero;
+/// - `target`: lines of `x >= k`. The target is covered when every
+///   condition of one of its lines holds.
+///
+/// A comma at the end of a line or at the start of the next joins the two
+/// lines. An `invariants` section may follow the target; the reader skips
+/// it, though its characters must be ones the format uses. From `#` to
+/// the end of a line is a comment.
+///
+/// A rule takes from each counter the larger of its guard and its
+/// decrement, since a counter does not go below zero. It gives back what
+/// it took less the decrement plus the increment.
+///
+/// Every token is an occurrence of its counter's atom, so a few bytes
+/// (`x = 4000000000`) can ask for billions of occurrences. The reader adds
+/// up the tokens first and refuses a problem past `limits.occurrences`
+/// before it builds anything of that size, as [`Forest::within`] would
+/// refuse the sequent.
 ///
 /// # Errors
 ///
-/// [`Error::Spec`] for text that is not such a problem: a section missing
-/// or out of order, a counter not declared, a counter updated twice by one
-/// rule or from another counter, a counter given twice in `init`, a count
-/// that is no number below 2³²; [`Error::AtomName`] for a counter named
-/// by a keyword of the text syntax (`top` and `bot` are its units) or a
-/// word reserved for a later version of it; [`Refusal::Occurrences`] for
-/// more tokens than the bound.
+/// - [`Error::Spec`] for text that is not such a problem: a character the
+///   format does not use, a section missing or out of order, no target, a
+///   counter not declared, a counter updated twice by one rule or from
+///   another counter, a counter given twice in `init`, a count that is no
+///   number below 2³², or a rule that gives 2³² tokens or more;
+/// - [`Error::AtomName`] for a counter named by a keyword of the text
+///   syntax: `par`, `top`, `bot`, `forall` or `exists`;
+/// - [`Error::Refused`] with [`Refusal::Occurrences`] for more tokens
+///   than `limits.occurrences`, or with [`Refusal::Index`] for more than
+///   a forest can number.
 #[expect(
     clippy::missing_panics_doc,
     reason = "the expects state facts of the problem the reader has checked"
@@ -174,7 +209,7 @@ pub fn read(text: &str, limits: &Limits) -> Result<Problem, Error> {
         return Err(error("no target".to_owned()));
     }
 
-    // Every token is an occurrence of its atom.
+    // Every token is an occurrence of its atom: count them before building.
     let total = |counts: &[(usize, u32)]| counts.iter().map(|&(_, k)| u64::from(k)).sum::<u64>();
     let tokens_written = tokens
         .iter()
@@ -198,7 +233,8 @@ pub fn read(text: &str, limits: &Limits) -> Result<Problem, Error> {
         }));
     }
     // One-sided, as the parser would read `rules, params, tokens |- goal`:
-    // a rule `!(in -o out)` is `?(in ⊗ ~out)`, a token `x` is `~x`.
+    // a rule `!(in ⊸ out)` is `?(in ⊗ ~out)`, a token `x` is `~x`. Every
+    // token of a counter is one shared literal of the arena.
     let mut arena = Arena::new(&names);
     let mut roots = Vec::new();
     for (inputs, outputs) in &clauses {
@@ -239,31 +275,33 @@ pub fn read(text: &str, limits: &Limits) -> Result<Problem, Error> {
         }
     }
     roots.push(goal);
-    // Shared as the parser leaves a sequent; everything but the goal stands
-    // left of `⊢`, and there are fewer roots than tokens and terms, which
-    // the limit keeps below `u32::MAX`.
+    // Everything but the goal stands left of `⊢`. The cast is exact while
+    // the roots number below `u32::MAX`: the tokens, at most
+    // `Forest::MOST` by the check above, and one root per rule, target
+    // line and parameter. `optimize` merges equal terms, as the parser
+    // does with what it reads.
     let antecedents = Some(roots.len() as u32 - 1);
     let mut sequent = Sequent::from_parts(arena.terms, roots, arena.atoms, antecedents);
     sequent.optimize();
     Ok(Problem { sequent, expected })
 }
 
-/// The arena of a problem's sequent being built: its terms, its atoms by
-/// name, and each counter's atom and its literals once made, which every
-/// occurrence shares.
+/// The arena of a problem's sequent while it is built: its terms, its
+/// atoms' names, and each counter's atom and two literals, made on first
+/// use and shared by every occurrence after.
 struct Arena<'a> {
     /// The counters' names.
     names: &'a [&'a str],
     /// The terms.
     terms: Vec<Term>,
-    /// The atoms' names, in the order they were met.
+    /// The atoms' names, in the order they were made.
     atoms: Vec<String>,
     /// Each counter's atom, its literal and its negation, once made.
     made: Vec<(Option<Atom>, Option<TermId>, Option<TermId>)>,
 }
 
 impl<'a> Arena<'a> {
-    /// An empty arena over the counters.
+    /// Returns an empty arena over the counters.
     fn new(names: &'a [&'a str]) -> Self {
         Self {
             names,
@@ -279,13 +317,13 @@ impl<'a> Arena<'a> {
         TermId::new(self.terms.len() as u32 - 1)
     }
 
-    /// A new atom of the name.
+    /// Adds an atom of that name and returns it.
     fn fresh(&mut self, name: String) -> Atom {
         self.atoms.push(name);
         Atom::new(self.atoms.len() as u32 - 1)
     }
 
-    /// The atom of counter `x`.
+    /// Returns counter `x`'s atom, made on first use.
     fn atom(&mut self, x: usize) -> Atom {
         if let Some(atom) = self.made[x].0 {
             return atom;
@@ -295,7 +333,7 @@ impl<'a> Arena<'a> {
         atom
     }
 
-    /// The literal of counter `x`.
+    /// Returns counter `x`'s literal, made on first use.
     fn var(&mut self, x: usize) -> TermId {
         if let Some(var) = self.made[x].1 {
             return var;
@@ -306,7 +344,7 @@ impl<'a> Arena<'a> {
         var
     }
 
-    /// The negated literal of counter `x`.
+    /// Returns counter `x`'s negated literal, made on first use.
     fn dual(&mut self, x: usize) -> TermId {
         if let Some(dual) = self.made[x].2 {
             return dual;
@@ -317,8 +355,8 @@ impl<'a> Arena<'a> {
         dual
     }
 
-    /// The tensor of the counters' tokens, grouped to the left, `1` for
-    /// none.
+    /// Returns the tensor of the tokens `counts` names, grouped to the
+    /// left, or `1` for none.
     fn tensor(&mut self, counts: &[(usize, u32)]) -> TermId {
         let mut tensor = None;
         for &(x, k) in counts {
@@ -333,8 +371,8 @@ impl<'a> Arena<'a> {
         tensor.unwrap_or_else(|| self.push(Term::One))
     }
 
-    /// The `⅋` of the counters' negated tokens, the negation of their
-    /// [`tensor`](Self::tensor), `⊥` for none.
+    /// Returns the `⅋` of the negated tokens `counts` names, the negation
+    /// of their [`tensor`](Self::tensor), or `⊥` for none.
     fn par_of_duals(&mut self, counts: &[(usize, u32)]) -> TermId {
         let mut par = None;
         for &(x, k) in counts {
@@ -350,18 +388,18 @@ impl<'a> Arena<'a> {
     }
 }
 
-/// The error of a text that is no `.spec` problem.
+/// Returns the error of a text that is no `.spec` problem.
 fn error(message: String) -> Error {
     Error::Spec { message }
 }
 
-/// Counts of some counters, each a counter's index and its count, sorted
-/// by counter: a rule names a few of the tens of thousands of counters a
-/// file may declare.
+/// Some counters' counts, each a counter's index and its count, sorted by
+/// counter. Sparse, since a rule names a few of the tens of thousands of
+/// counters a file may declare.
 type Counts = Vec<(usize, u32)>;
 
-/// Sorts counts by counter, a counter named twice keeping its larger
-/// count, and drops zeros.
+/// Returns the counts sorted by counter and without zeros; a counter
+/// named twice keeps its larger count.
 fn merged(mut counts: Counts) -> Counts {
     counts.sort_unstable();
     let mut merged: Counts = Vec::with_capacity(counts.len());
@@ -394,9 +432,10 @@ impl std::fmt::Display for Token<'_> {
     }
 }
 
-/// Splits a file into names (letters, digits and `_`), numbers, the
-/// operators `>=`, `->`, `=`, `'`, `+`, `-`, `,` and `;`, and ends of
-/// lines, comments dropped.
+/// Returns a file's tokens without its comments: words of ASCII letters,
+/// digits and `_` (names and numbers), the operators `>=`, `->`, `=`,
+/// `'`, `+`, `-`, `,` and `;`, and the ends of lines. Any other character
+/// outside white space is an error.
 fn tokens(text: &str) -> Result<Vec<Token<'_>>, Error> {
     let mut tokens = Vec::new();
     for line in text.lines() {
@@ -426,7 +465,7 @@ fn tokens(text: &str) -> Result<Vec<Token<'_>>, Error> {
     Ok(tokens)
 }
 
-/// What reads the tokens: the tokens and the next one's index.
+/// Reads a file's tokens in order.
 struct Reader<'a> {
     /// The tokens.
     tokens: Vec<Token<'a>>,
@@ -442,8 +481,8 @@ impl<'a> Reader<'a> {
         }
     }
 
-    /// The next word, ends of lines skipped, or the error of a file that
-    /// ends.
+    /// Reads the next word after any ends of lines, or fails where the
+    /// file ends.
     fn next(&mut self) -> Result<Token<'a>, Error> {
         self.skip_lines();
         let token = *self
@@ -454,13 +493,14 @@ impl<'a> Reader<'a> {
         Ok(token)
     }
 
-    /// Whether the next word, ends of lines skipped, is `keyword`.
+    /// Skips any ends of lines and returns whether the next word is
+    /// `keyword`.
     fn at_keyword(&mut self, keyword: &str) -> bool {
         self.skip_lines();
         self.tokens.get(self.at) == Some(&Token::Word(keyword))
     }
 
-    /// Reads the word `word`.
+    /// Reads the word `word`, or fails naming what stands there instead.
     fn word(&mut self, word: &str) -> Result<(), Error> {
         match self.next()? {
             Token::Word(w) if w == word => Ok(()),
@@ -468,13 +508,14 @@ impl<'a> Reader<'a> {
         }
     }
 
-    /// Reads the section's keyword `keyword`.
+    /// Reads the keyword `keyword` that starts a section, or fails naming
+    /// that section.
     fn keyword(&mut self, keyword: &str) -> Result<(), Error> {
         self.word(keyword)
             .map_err(|_| error(format!("expected the section `{keyword}`")))
     }
 
-    /// Reads a name.
+    /// Reads a name: a word that starts with an ASCII letter or `_`.
     fn name(&mut self) -> Result<&'a str, Error> {
         match self.next()? {
             Token::Word(w) if w.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_') => Ok(w),
@@ -493,9 +534,9 @@ impl<'a> Reader<'a> {
     }
 
     /// Reads a comma if one comes next, on this line or first on a later
-    /// one, and returns whether one did or the line goes on: a comma at the
-    /// end of a line or at the start of the next joins the two, as
-    /// qcover's files write long initial markings.
+    /// one. Returns whether one did or the current line goes on, so that a
+    /// comma at the end of a line or at the start of the next joins the
+    /// two, as qcover's files write long initial markings.
     fn comma_or_line(&mut self) -> bool {
         let mut at = self.at;
         while self.tokens.get(at) == Some(&Token::Line) {
@@ -605,7 +646,7 @@ impl<'a> Reader<'a> {
         Ok((inputs, outputs))
     }
 
-    /// The next word, ends of lines skipped, without reading it.
+    /// Returns the next word after any ends of lines, without reading it.
     fn peek(&mut self) -> Result<Token<'a>, Error> {
         let token = self.next()?;
         self.at -= 1;
