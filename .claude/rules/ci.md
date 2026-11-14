@@ -9,7 +9,12 @@ Loaded when a file under `.github/` is read or changed.
 
 GitHub Actions runs `.github/workflows/ci.yml` on every push to `main`, on
 every pull request and weekly: `nix flake check`, and the online
-`cargo deny check advisories` in the devshell. A workflow installs nothing
+`cargo deny check advisories` in the devshell, against `Cargo.lock` and
+the fuzz workspace's `fuzz/Cargo.lock` (whose crates the root's check
+never reads; the root's `deny.toml` serves both, and the ignores it lists
+for the renderers match nothing there, which cargo-deny only notes). The
+weekly run is the advisory check between `update-deps` runs; what an
+advisory asks of a session is that skill's "When". A workflow installs nothing
 but Nix, so CI checks with exactly the tools flake.lock pins.
 `.github/workflows/docs.yml` publishes the flake's `doc` package, the rustdoc
 of `main` with the manual under `manual/`, to GitHub Pages on every push to `main`. `.github/workflows/release.yml`

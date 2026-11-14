@@ -22,7 +22,8 @@ version = "0.3.0"
 edition = "2024"
 # The oldest toolchain that builds every crate with every feature: krilla,
 # behind `pdf', needs 1.92. The `msrv' check holds it; it rises only with
-# a new 0.y version.
+# a new 0.y version, to what a dependency or the code needs, and never to
+# a Rust less than six months old.
 rust-version = "1.92"
 license = "EUPL-1.2"
 repository = "https://github.com/deduxit/deduxit"

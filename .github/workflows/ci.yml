@@ -63,3 +63,5 @@ jobs:
           skipPush: ${{ github.ref != 'refs/heads/main' }}
           pushFilter: '\.tar\.xz$'
       - run: nix develop --command cargo deny check advisories
+      # The fuzz targets are a workspace of their own, with their own lock.
+      - run: nix develop --command cargo deny --manifest-path fuzz/Cargo.toml check advisories

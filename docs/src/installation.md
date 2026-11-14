@@ -198,7 +198,8 @@ cargo uninstall deduxit-cli             # and to remove it
 ```
 
 It needs Rust 1.92 or later (a release raises that only with its second
-number, 0.2 to 0.3) and a C compiler, which links the program. Not every
+number, 0.2 to 0.3, and never to a Rust less than six months old) and a
+C compiler, which links the program. Not every
 distribution's own Rust reaches 1.92: Fedora's (`sudo dnf install cargo
 gcc`), Arch's (`sudo pacman -S rust gcc`), Ubuntu 26.04's (`sudo apt
 install cargo build-essential`) and Homebrew's (`brew install rust`) do;

@@ -25,6 +25,35 @@ not only what `cargo update` takes.
 A version moving is not the interesting part. What matters is whether the
 workspace still builds, tests, lints and counts clean with it, and what moved.
 
+## When
+
+- **Once per Rust stable release** (every six weeks; the Rust blog's
+  releases page has the dates), in the week after it, and before every
+  release of the crates. The planning session schedules it.
+- **Between runs nothing moves by itself.** CI's weekly run checks the
+  RustSec advisories against `Cargo.lock` and the fuzz workspace's lock
+  (`ci.yml`, job `advisories`), and Dependabot proposes the actions'
+  bumps weekly. An advisory against a locked crate is met at once, not at
+  the next run: `cargo update -p CRATE` to a fixed version, verified as
+  step 1 is, or, where no fix exists, an ignore in `deny.toml` whose
+  reason says what deduxit uses of the crate and when the ignore goes.
+- **The MSRV** (`rust-version` in `[workspace.package]`) is the oldest
+  stable that builds every crate with every feature, which the `msrv`
+  check holds. It rises only with a new 0.y version, and then only to
+  what a dependency or the code needs, and never to a Rust less than
+  six months old. A raise past the Rust
+  of a distribution that the installation chapter lists as enough moves
+  that distribution to its list of those that are not, in the same
+  commit, and `install.yml` with it. Resolver
+  3, the workspace's, prefers dependency versions that build on it
+  (`incompatible-rust-versions = "fallback"`): a crate it holds back
+  shows in step 1's `Unchanged x (available: y)`, and a raise is then
+  planned for the next 0.y version, with the changelog's line and the
+  installation chapter's numbers. It is a preference: where no version
+  that builds on it fits a requirement, it takes a newer one, and the
+  `msrv` check fails; that crate is held back by hand (`cargo update
+  --precise`) until the raise.
+
 ## Invariants
 
 - **Nothing unverified enters history.** Update, verify, then commit. Never
@@ -115,6 +144,10 @@ What a new toolchain breaks, and how each was met (2026-10-22, 1.98 → 1.99):
   `wasm-bindgen-cli_X_Y_Z` the locked nixpkgs has (`modules/web.nix` fails at
   evaluation otherwise); after the flake update, list them and move the pin
   and `wasm-bindgen-test`'s with it.
+- **Kani** is pinned by its release tag in `flake.nix` (`nix flake update`
+  keeps it): move the tag to the latest release when nixpkgs has the CBMC
+  its `kani-dependencies` names (`modules/kani.nix` asserts it), then
+  `nix flake lock` and `nix build .#checks.x86_64-linux.kani`.
 
 ## 3. Major releases
 

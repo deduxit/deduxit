@@ -233,7 +233,10 @@ package's `.cargo_vcs_info.json`.
 `1.92.0`), its dependencies built with it too, nothing shared with the
 other checks. A `cargo update` that takes a dependency past that
 version, or code that needs a newer compiler, fails it; raising
-`rust-version` is a new 0.y version and a line of the changelog.
+`rust-version` is a new 0.y version and a line of the changelog. When it
+rises and how far is the `update-deps` skill's "When" (never to a Rust
+less than six months old; resolver 3 prefers dependency versions that
+build on it, and takes a newer one only where none fits).
 `checks.nix`'s `features` (cargo-hack, each feature and every pair) and
 the gate's two `cargo hack` runs deny warnings (`RUSTFLAGS="-D
 warnings"`; the gate's in `target/hack`, since the flags are part of
