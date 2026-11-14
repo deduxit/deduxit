@@ -6648,3 +6648,25 @@ move (D26).
     per lesson (nothing asks for it); the page's new texts go to the
     client's next text session.
   - **Started** 54x on Opus 5.5 at `high`, cores 10-12.
+- 2026-11-14: **54s-c1 reviewed; 58a and 58b started; workers reused
+  from now on.**
+  - **54s-c1** (`ymvzmynz` … `ykylxvkt`): intuit (koengit, 2020-09-21,
+    no licence stated) and intuitR (cfiorentini, 2026-10-27,
+    BSD-3-Clause) built from pinned commits, run as programs through the
+    harness on ILTP's files as they are; the smoke run's 60 verdicts all
+    equal ILTP's status. Departure accepted: a table of their own in
+    `bench/TOOLS.md`, since the linear table's rows mean nothing for
+    intuitionistic logic. intuit's missing licence matters only if a
+    check ever builds `.#comparison`; none does, so nothing of it reaches
+    the public cache. Stacked on `nurzxpmp`; `nix flake check` passed
+    there.
+  - **Started** in the author's turn, as the plan lets 57 and 58 run
+    beside 54 to 56: 58a, the policies, Kani and the wasm checks (cores
+    7-9), and 58b, the client's accessibility audit (cores 13-15). 54x
+    started at the author's word (cores 10-12), after the app's
+    classifier had refused the first start.
+  - **Workers reused** (the author: manage every session, interact only
+    with the planning session): new sessions no longer connect to Remote
+    Control, and the next piece for a freed slot goes to the finished
+    worker by `clear_session` and a message (`plan/handoff.md`, "Reuse
+    finished workers"). 54s-c1's worker is the first, for 54s-c2.

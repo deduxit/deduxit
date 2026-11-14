@@ -558,6 +558,22 @@ desktop, …/agents, …/claude-projects, …/goal,
 …/cross-session-messaging), the app's own descriptions of its session
 tools (which every app session is given), and probes that day (Claude
 Code 2.1.321). What follows from them:
+- **Reuse finished workers, so the author never clicks** (the author,
+  2026-11-14: "I would like to only ever interact with you as the
+  orchestrator, and all the other background sessions are managed by
+  you").
+  - New sessions do not connect to Remote Control (the setting
+    `connect_new_sessions_to_remote_control` off, the author's yes);
+    `clear_session` refuses a session that serves Remote Control, so a
+    worker started earlier gets `set_remote_control(false)` once.
+  - At a finish note: review, stack, push, and keep the worker's
+    workspace directory (its folder) while it may be reused.
+  - The next piece for that slot goes to the idle worker in any turn:
+    `clear_session`, then `SendMessage` with the start prompt (brief
+    path, cores) and a first command `jj new main@origin` in its own
+    workspace; `set_session_title` names the new step.
+  - `start_session` still serves in a turn the author started, when no
+    idle worker fits; a refused clear falls back to a card.
 - **Starting sessions is bounded.**
   - The app refuses `start_session` in a turn that a session's message,
     a cron or another automated event started.
