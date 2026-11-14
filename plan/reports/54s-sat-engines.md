@@ -702,3 +702,229 @@ item 2 of the prompt: one finding, reproduced, and two questions.
   hold the encoder's soundness argument, the checker's invariants
   (including the watch invariant soundness rests on) and what batsat
   does not log.
+
+## Session 54s-c1: intuitR and intuit
+
+Opus 5.5 at `high`, in the jj workspace `../deduxit-wt-step-54s-c1-161790`,
+from `plan/54s-sat-engines.md` (item 3, the bullet "intuitR and intuit
+beside deduxit", up to the timed run) and the brief `start-54s-c1.md`, on
+2026-11-14, cores 7 to 9.
+
+### Outcome
+
+- Both provers are built from their sources at pinned commits
+  (`modules/_provers/intuit.nix`, `intuitr.nix`, the packages
+  `prover-intuit` and `prover-intuitr`, in `.#comparison` and its
+  `tools.json` as `intuit` and `intuitr`), run as programs, never linked.
+- `run --tools` now takes TPTP problems: each runs in every logic of
+  `--logics` with the tools that read TPTP, deduxit's two columns in all
+  three logics, intuit and intuitR in intuitionistic logic. Every tool
+  reads the ILTP file as it is; no translator was needed.
+- The smoke run: 15 ILTP problems, four tools, 60 runs, every verdict
+  equal to the file's `Status (intuit.)` (below). No timed run.
+- `bench/TOOLS.md` has a section of its own for the two provers beside
+  deduxit's ordinary logic, `.claude/rules/bench.md` and `flake.md` the
+  rest.
+
+### The sources and pins
+
+| | intuit | intuitR |
+|---|---|---|
+| repository | github.com/koengit/intuit | github.com/cfiorentini/intuitR |
+| commit | `dd965ce7c5ebfa22983bba98ced77be7fc1f0aa5` (2020-09-21, the last of 47) | `0cbf0fd078567e12808ee006015d15a3deacab63` (2026-10-27, "small changes"; six commits since 2026-10-21 fixed its build: imports, the cabal file, `->` and `<->` in its syntax) |
+| hash | `sha256-gf+5DG7oSKNyeFSfGFh1xVvW4lMUHX492G7JYzGbeWo=` | `sha256-5oTZAwfnasDcp6b0GjqMDsnGdL/9IcpxGpBJX2kSgk4=` |
+| licence | none stated: `LICENSE` is an empty file, `intuit.cabal`'s `license` field is commented out | BSD-3-Clause (`LICENSE`, Camillo Fiorentini 2021; `intuitR.cabal` says BSD3) |
+| build | `haskellPackages.mkDerivation` with GHC 9.10.3 and `minisat` 0.1.4; the pragma `MonadFailDesugaring` removed from `ParseProblem.hs` and `Parsek.hs` (GHC 9.10 refuses the name; the behaviour is the only one since 8.8) | the same, with `partial-order` 0.2.0.0 `markUnbroken` and `dontCheck` (nixpkgs marks it broken for a failed build of its tests, hydra 2025-09-19); `intuitT/`, the traced variant in the same repository, is not built |
+| closure | 72.8 MiB | 73.8 MiB |
+
+The Haskell package `minisat` (BSD-3-Clause) bundles MiniSat; the
+research note's open point (which MiniSat version) was not looked into.
+Both derivations are written out, not `callCabal2nix`, so the flake has
+no import from a derivation.
+
+**The licence question.** intuit states no licence, like the Maude
+prover and APLL before it. The brief's stop is a licence that forbids
+putting the built program in the public Cachix cache; no build of a
+prover reaches it: `nix flake check` builds none of them (`.#comparison`
+is no check), CI pushes only what the checks build, and the Comparison
+workflow has no Cachix step. So no message was sent, and nothing of
+intuit is published. Should a check ever build `.#comparison`, intuit's
+missing licence is the question to ask the author first.
+
+### How each reads ILTP's problems
+
+ILTP's 274 problems use the roles `axiom` (2 093) and `conjecture` (274,
+one per file) and the connectives `~ & | => <=>`, with one `$true`
+(SYN915+1) and one `$false` (SYN916+1); no `include`, no `<=`, `<~>`,
+`~|` or `~&`. Both tools' own TPTP readers take that much:
+- intuit's `ParseProblem.hs`: every TPTP binary connective, `$true`,
+  `$false`, roles axiom and conjecture (and more), the formula `(∧
+  axioms) ⇒ conjecture`, exactly one conjecture or an error;
+- intuitR's `ParserTPTP.hs` (parsec): `fof` with the roles axiom and
+  conjecture only, `~ & | => <=> -> <->`, `$true`, `$false`, `&` and `|`
+  at one level of precedence (ILTP parenthesises every mix, as TPTP
+  requires).
+
+So each gets the file as it is (`one_ordinary`), and the harness's
+translators are not used. Both print `+++ RESULT: Valid
+(intuitionistically)` or `+++ RESULT: CounterSatisfiable
+(intuitionistically)` and exit 0 either way. A parse error prints no
+result line: intuit writes `*** PARSE ERROR` and its parser's
+`Unexpected`/`Expected` lines and exits 0, intuitR `user error (parse
+error)` and exits 1 (both tried on `p & & q`). So the reader takes the
+result line whatever the status, and anything else is an `error` row
+named by the last line.
+Neither has a time limit or a memory limit of its own: runexec ends
+them about two seconds past the limit (`unknown`/`timeout`) or at the
+cgroup's memory (`unknown`/`out_of_memory`). intuitR runs with its
+default, weak clausification (`-w`); its `-s`, strong, is not a
+configuration of the harness.
+
+deduxit's columns call `prove --file F --input-format tptp --logic L
+--timeout T --memory-limit M --format json --quiet` (and
+`--deterministic` for the one-thread column). The exit status is the
+verdict (0 valid, 1 not valid, 3 unknown, 2 an error); the JSON gives
+the `engine` (`ljt`, or the embedding's linear engine) and an unknown's
+`reason.kind` (`stopped` written `timeout`), the same reader as for
+linear problems less the linear refutation's check. A proof's `checked`
+is `ok`, since the command checks every derivation it reports; a "not
+valid" has nothing the harness checks today.
+
+The expected verdict is the child's (`bench/src/ordinary.rs`'s
+`expected`, made `pub(crate)`): ILTP's intuitionistic status, a Theorem
+also classical, a Non-Theorem also minimal.
+
+### The smoke run
+
+`deduxit-bench run --tools deduxit,deduxit-default,intuit,intuitr` on the
+12 smallest files by size (SYJ101+1 to SYJ104+1, SYJ105+1.002 to .004,
+SYJ206+1.001 and .002, SYJ212+1.001 to .003) and SYN915+1, SYN916+1
+(`$true`, `$false`) and SYN001+1 (a Non-Theorem with negations),
+`--logics intuitionistic`, 10 s, the debug build of the harness and CLI
+with the built provers and BenchExec 3.35's runexec on PATH, one core
+(7):
+
+| tool | proved | unprovable | against the status | other |
+|---|---|---|---|---|
+| deduxit | 10 | 5 | 0 | 0 |
+| deduxit-default | 10 | 5 | 0 | 0 |
+| intuit | 10 | 5 | 0 | 0 |
+| intuitr | 10 | 5 | 0 | 0 |
+
+10 Theorems and 5 Non-Theorems, every row as the file says; each run
+took 7 to 12 ms of wall time (process start included). `ranking` reads
+the rows as the group "ILTP (ordinary logic)". SYJ212+1.001 in
+`--logics classical,minimal`: deduxit proved it classically and refuted
+it in minimal logic, intuit and intuitR `refused`/`fragment`.
+The same 15 problems again with the release build, `nix build
+.#comparison`'s `bin` on PATH and its `tools.json` as
+`DEDUXIT_COMPARISON_TOOLS` (as `comparison.sh` runs), `--tptp
+bench/iltp/Problems --only …`, 10 s, core 7: the same 60 verdicts, each
+equal to the file's status, 4.6 to 7.7 ms of wall time per run, and the
+rows' `tool_version` from the record (`2020-09-21`, `2026-10-27`, deduxit
+`0.3.0`).
+
+### Decisions, each with its reason
+
+- **The file as it is, not a translation.** Both tools read every
+  construct ILTP uses, and their own reader is the configuration their
+  authors measured; a translation through deduxit's reader would add a
+  step that could differ from the problem.
+- **An `Ordinary` part of the driver, not a second table of drivers.**
+  deduxit's two columns run both kinds of problem, so one name in
+  `--tools` stays one driver; the linear fields of intuit and intuitR are
+  stubs that `covers` (`nothing`) never lets run. The other way, a type
+  for a run that is linear or ordinary passed to every function pointer,
+  would have changed every driver's signature.
+- **A table of its own in `bench/TOOLS.md`** (departs from the design:
+  the brief says the file's table includes both). That table compares
+  provers of linear logic in rows (fragments, modes, proof nets, LLTP
+  input) that mean nothing for intuitionistic propositional logic; the
+  new section has the rows that do, with deduxit's ordinary logic as
+  the third column.
+- **No flake check runs the tools**: none existed to extend (the brief:
+  "if it runs the tools on the smallest problems"), and adding one would
+  build intuit in CI and push it to the cache.
+- **`bench/src/ordinary.rs`'s `expected` made `pub(crate)`**, one word in
+  54s-b2's file, so that the tools' rows and the child's agree by
+  construction. Conflicts there are that line alone.
+
+### The checks
+
+- `nix build .#prover-intuit .#prover-intuitr` under the machine lock:
+  both built (after intuit's pragma was removed), and `nix build
+  .#comparison`: built, its `tools.json` recording both.
+- `cargo clippy -p deduxit-bench --all-targets -- --deny warnings` and
+  `cargo test -p deduxit-bench` (cores 7 to 9): clean, the tests pass,
+  the new `intuit_s_result_lines_are_read` among them.
+- The gate (`systemd-run … taskset -c 7-9 nix develop -c gate`): passed.
+  Its cache model named search-qbf-20-2 and search-chain-128 for misses
+  moved over 5 %, a note and no failure; this chain changes nothing the
+  journeys run (`bench/src/journeys.rs` and the library are untouched).
+- The smoke runs above, debug and release.
+- `nix flake check` at the report's commit, under the machine lock:
+  "all checks passed!" (x86_64-linux).
+
+### The reviewer
+
+`fresh-reviewer` (Fable 5.2 at `medium`) on the three commits against
+the brief: the builds pinned, the licences recorded, the verdicts read
+right, the harness right for linear and TPTP rows. Nothing blocks. It
+checked the pins and the built outputs, every claim of the new
+`TOOLS.md` section against the sources (the licences, the line numbers,
+the options), that all 274 ILTP files use only `axiom`, one
+`conjecture` and operators both readers take, the expected column on
+Theorem, Non-Theorem and Unsolved files, a timeout read as
+`unknown`/`timeout` for all four tools, a parse error of each tool read
+as `error`, `--resume --append` with two more logics (9 rows skipped, 18
+run, the counts to 27/27), and a linear row unchanged (`--tools
+deduxit,intuit --family partition-no=3`, intuit `refused`). Two minor
+findings, both reproduced:
+
+1. "`runexec` ends them a second after the run's" was off by a second:
+   at `--timeout 1` intuit's and intuitR's undecided rows took 3.01 s.
+   Answered: `TOOLS.md`, the rules and this report now say about two
+   seconds past the limit (runexec's wall-time limit is the limit plus
+   `GRACE` rounded up, and it ends the process about a second after
+   that).
+2. A TPTP file that deduxit's reader refuses gets an `error` row for
+   every tool, intuit and intuitR included, though they did not run.
+   Answered: left as it is. The linear path does the same, the row is
+   never a verdict, and every ILTP file loads: step 54's
+   `bench/defaults/ljt-iltp.csv` has rows for all 274, and its six
+   `error` rows are the embedding's size bound, not the reader.
+   Recorded here for 54s-c2.
+
+### What the next sessions must know
+
+- **For 54s-c2 (the timed run).** The command, from a checkout with
+  `nix build .#comparison`'s `bin` on PATH and
+  `DEDUXIT_COMPARISON_TOOLS` its `share/deduxit-comparison/tools.json`,
+  as `bench/comparison.sh` sets them:
+  `taskset -c 2 deduxit-bench run --tools deduxit,deduxit-default,intuit,intuitr --tptp bench/iltp/Problems --logics intuitionistic --timeout 2 --output iltp-tools.csv`
+  (`--shard 1/2` and `2/2` on cores 2 and 3). Pass a directory, not
+  files: a file given alone has an empty `family`. The family is the
+  directory relative to the parent of the path given, so `--tptp
+  bench/iltp/Problems` names `Problems/SYN` and `Problems/LCL`, while
+  a generated ILTP family is its own name (`SYJ212`). `comparison.sh` has no
+  ILTP pass; adding one is a stream with `--tptp`.
+- intuit and intuitR stop only when runexec ends them: its wall-time
+  limit is the limit plus `GRACE` (1 s) rounded up, and it ends the
+  process about a second after that (the reviewer measured 3.01 s at
+  `--timeout 1`); so their undecided rows' `time_ms` is about 4 s at a
+  2 s limit, deduxit's about 2 s. The ranking
+  counts both as not solved; a figure draws both at the limit.
+- intuit's GHC runtime has no heap limit: a run that grows meets the
+  cgroup's 4 GiB and reads `out_of_memory`.
+- intuitR prints its own times after the result (`Clausification time`,
+  `Prover time`, `Total time`, CPU time from `getCPUTime`), so its `raw`
+  column is `Total time: …`. Its own `Benchmarks/` holds the 1 200
+  problems of its paper (ILTP's among them) and `timings/` its results at
+  600 s.
+- deduxit's `checked` on an ordinary row is `ok` for a valid one and
+  empty for a not valid one: the harness checks no countermodel. Step
+  55's countermodels can give the reader something to check.
+- In classical logic deduxit's embedding refuses `SYN007+1.014` with
+  `the sequent has more subformula occurrences than the limit of
+  50000000` (exit 2, an `error` row), seen by hand while probing the
+  command; 54s-b's classical engine may answer it.
