@@ -1237,3 +1237,219 @@ flags, defaults, values and headings, and the lock's diff.
 - **`cli/src/interact/mod.rs` builds FC6's message** from the library's
   `StepError::Rule`; reword the library's phrase and the command's
   stays as it is (it does not match on it).
+
+## Session 54w-e3: the comments of export
+
+Item 6 of `plan/54w-text.md` for the module `export` (Opus 5.5 at
+`high`, 2026-11-14, cores 7-9), in the jj workspace
+`../deduxit-wt-step-54w-e3-5faac9`, started on `llmypmxy` (the reviewed
+chains not yet pushed) and rebased onto `main@origin` at the end.
+Nothing was pushed.
+
+### Outcome
+
+Every doc comment and comment of the 14 files under `core/src/export/`
+is rewritten to `.claude/rules/writing.md`: 2 247 comment lines before,
+3 002 after (1 952 lines in, 1 179 out). No code changed (the method is
+under "How no code changed"). I wrote the module docs of `export`,
+`notation.rs` and `styles.rs` first, as the calibration; four writers
+(Opus 5.5 at `high`, sub-agents, no builds) took the rest in disjoint
+groups of files. I checked each writer's list of fixed claims against
+the code, ran every check, and had the `fresh-reviewer` read the chain.
+
+What a caller gets:
+- `export`'s module doc opens with a table: what to get (a LaTeX or
+  Typst proof tree, an SVG drawing, a net, a PNG, a PDF, a Rocq
+  certificate), the one call that gives it, and its cargo feature, then
+  an example with `latex::to_string`, a section on `write` (writing as
+  you go, with a stop) and a list of what every format shares.
+- Each format's module doc opens with a table of its own calls,
+  `to_string` first, and its example calls it: LaTeX, Typst and SVG
+  (with a proof, a sequent and a proof net), Rocq (a NanoYalla
+  certificate, and a whole file for deduxit's library), PNG and PDF
+  (`no_run`: they read a font file).
+- Rocq's module doc says which kernel a certificate needs and when the
+  proof picks deduxit's library, what neither kernel takes, and how to
+  check a certificate (`nix run github:deduxit/deduxit#check-certificate
+  -- proof.v`, with its exit statuses).
+- `svg::Style`'s doc is the reference: how to build one, the units, the
+  maxima, the JSON form, an example; each field gives its meaning, unit
+  and default (checked against `impl Default`).
+- Measurements that are a reason stay, said as measurements ("Measured:
+  …"); history is gone ("hid what followed it" is now what would happen
+  without the code).
+
+The chain, oldest first (change ids):
+
+| change | what |
+|---|---|
+| `nwylqpqx` | `export`'s module doc (the table of calls), its private items (the render's measure and costs), `notation.rs`, `styles.rs` (an example on `Styles`) |
+| `qsuzoxvr` | LaTeX and Typst; examples on both `Options` and on `typst::Length` |
+| `zppnoowp` | the proof-net layouts, `svg/net.rs` and `svg/mell.rs` |
+| `swnmomot` | Rocq, `rocq/mod.rs` and `rocq/deduxit.rs`; an example on `write_disproof` |
+| `yppqxozx` | PNG and PDF; an example on `pdf::Date::from_unix` |
+| `yquskzuw` | SVG, `svg/mod.rs`, `font.rs`, `tree.rs`; examples of a proof and a net drawn, and on `Style` |
+| `qqprxssl` | `core-export.md`: the docs lead with the table of calls |
+| (this section) | the report |
+
+### Claims found wrong, and fixed
+
+The module and its errors:
+- `export`'s module doc said Rocq certificates are for NanoYalla; there
+  are two kernels. `Drawable`'s doc left out the two-sided view of a
+  classical derivation (`Drawable::Classical`).
+- `write`'s errors (LaTeX, Typst, SVG) named only `Stopped` and
+  `WriteFailed`. With the `lambda` option set, `write` also answers
+  `Error::NoTerm` and the term's `Refusal::Output`, before anything is
+  written (`export::judgement`), so `to_string`'s "as `write`, but never
+  stopped" left it with no error at all.
+- `sequent` (LaTeX, Typst) refuses through `Forest::within` only in an
+  intuitionistic mode (`printed` returns before it otherwise). SVG's
+  `sequent` gave its estimate as "128 bytes an occurrence and its longest
+  atom name": it is 128 bytes plus the name's length, per occurrence.
+
+LaTeX and Typst:
+- `greek` maps the lowercase omicron to `o` too, not only capitals.
+- Typst's open goal is drawn under dots by default only (`OpenGoal`); a
+  standalone sequent and deduxit's own layout write no import line.
+- `LAYOUT`: the strut stands before a sequent, not above it; an open goal
+  under `OpenGoal::Mark` has `0` premises and the mark as label, not
+  `none`.
+
+SVG:
+- `AXIS` said the inference lines sit on the math axis; they sit at
+  `(line_height + HEIGHT − DEPTH) / 2` above the baseline, and only a
+  rule name's axis is put on the line (`tree.rs`).
+- The font family is written `'Euler Math', 'Neo Euler', serif`.
+- `Style::par`, `net` and `mell_net` said the `⅋` edges and the wires are
+  always dashed; only under `Premises::Dashed` (the default look) and
+  without a reading. `mell_net` said one door per `?`: under
+  `WhyNot::Rules` it is one per copy.
+- `Style::literal_gap` is also the gap between the conclusions' trees;
+  `Style::highlight` also marks a cut-elimination step and an essential
+  net's directed cycle; `Style::line` also draws boxes and cut links;
+  `Style::check` also bounds `link_cap`.
+- `net.rs`: `ARROW` is an arrowhead's bytes alone (the colours are
+  counted per text piece, the two groups by `DOCUMENT`); the dead
+  occurrences are those of a cut formula above no cut link's end (as
+  `ProofStructure::vertex` says), not "above every cut link".
+- `mell.rs`: `Doors` holds the sorted pairs only; the copies of a `?`
+  stand on the row above it only when it has several at its depth, or
+  under the rules; the lowered `!` conclusion's arrow always points down,
+  since a `!` vertex is always an output; `room_beside` is what the legs
+  cannot use, not the room left for them.
+
+Rocq, PNG and PDF:
+- The kernel is not chosen by the mode alone: a classical proof that
+  uses Mix, affine weakening, a cut or a quantifier also goes to
+  deduxit's library, and so does a two-sided proof that records no mode.
+- Both kernels refuse a proof of the cyclic mode
+  (`Unsupported::Ordered`), not only an open goal and a compact run.
+- Atom names are renamed for NanoYalla only (deduxit's library writes
+  them as strings), and a clash gets `'`, then `'2`, `'3`, not primes
+  until free.
+- `write`'s errors left out NanoYalla's refusal of a cut and of a
+  quantifier; `Unsupported`'s doc said every variant is a missing rule
+  (`Disproof`, `NotValid`, `Ordered`, `Saturated` and `Exhausted` are
+  not).
+- `deduxit.rs`'s `disproof`: `affine_refutation` serves a state equation
+  in affine mode only; a one-sided count is `weighted_refutation` in
+  every mode.
+- `png::from_svg` also answers `Error::RenderFailed` when the encoder
+  fails; its link to `Style::background` pointed at the struct.
+
+### How no code changed
+
+A lexer (in the session's scratch directory, gone with it) reads each
+file into tokens: it drops `//` comments and nested `/* */` comments
+outside string, raw-string, byte-string and char literals, keeps every
+literal whole, then drops the doc attributes (`#[doc = …]`,
+`#![doc = …]`, and `cfg_attr(…, doc = …)` whose last argument is the
+doc). It compares the tokens of each file with its version at
+`llmypmxy` (`jj file show`). Shown to catch a planted `depth + 1` →
+`depth + 2` beside the comment edits. Result at the chain's last commit:
+`checked 14 files against llmypmxy, 0 with a code difference`. The only
+attributes added are doc-test fences.
+
+### The checks
+
+| check | result |
+|---|---|
+| the no-code check above, all 14 files | 0 with a code difference |
+| `cargo test --doc -p deduxit --all-features` | 78 passed |
+| `cargo test --doc -p deduxit --no-default-features` | 5 passed, 48 ignored |
+| `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features` | exit 0 |
+| `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --document-private-items -p deduxit -p deduxit-cli` (the flake's `doc-private`) | exit 0 |
+| `cargo clippy --workspace --all-targets -- --deny warnings` | exit 0 |
+| `rustfmt --check --edition 2024` on the 14 files | clean |
+| no comment naming history (`F12`-style numbers, review, panel, step, `plan/`) | none |
+| the gate (capped, cores 7-9), at `qqprxssl` before the reviewer's four prose fixes | `gate: passed`, the journeys within their ceilings |
+| `nix flake check --max-jobs 4 --cores 8` under the machine lock, at this section's commit on `main@origin` (with the placeholder of this row) | "all checks passed!", exit 0 |
+
+All capped on cores 7-9 (`systemd-run --user --scope -p MemoryMax=8G
+-p MemorySwapMax=0 taskset -c 7-9`, three jobs and test threads); the
+flake check under `/tmp/linlog-machine.lock` with `--max-jobs 4 --cores
+8`.
+
+### The review
+
+The `fresh-reviewer` agent (Fable 5.2 at `medium`) read the chain
+against the brief, the writing rules and the code. It found no code
+changed (a lexer of its own: equal token streams in all 14 files, the
+fences the only attribute differences), the writing rules met, and the
+fixed claims true; it checked `Style`'s stated defaults, the kernel
+choice, the renaming, the exit statuses, `Advances`' JSON form and the
+tables of calls. Two findings and two questions, all answered in the
+commits they belong to:
+
+1. LaTeX's atom names listed `\` among the characters that take a
+   backslash and among those written as text; `escape` writes it as
+   `\mbox{\textbackslash}`. The base had the same sentence. Fixed
+   (`qsuzoxvr`).
+2. `svg::sequent` listed the refusal of `Forest::within` without "in an
+   intuitionistic mode", as LaTeX's and Typst's now say. Fixed
+   (`yquskzuw`).
+3. The question: `affine_refutation` "counts the outputs alone" was
+   looser than the library's `overweight_affine` (one output in all, the
+   count positive whether or not the formulas without an output are
+   dropped). Reworded to the theorem's condition (`swnmomot`).
+4. The question: "Every feature but `png` and `pdf` is on by default"
+   read as a claim on the crate, where `parallel` is off too. Now "Of
+   these features" (`nwylqpqx`).
+
+The four fixes are prose; the no-code check holds after them.
+
+### Proposals for the author
+
+- `latex::Options`, `typst::Options` and `svg::Style` have no
+  `with_lambda`, although `core-export.md` says every field has its
+  `with_*`. I recommend adding the three (`#[must_use]`, additive), as
+  for every other field.
+
+### What the next sessions must know
+
+- **Parallel writers and the formatter hook**: the four writers here
+  edited in parallel with the Edit tool before the shared rules gained
+  "one Edit at a time"; `jj log` showed no divergent change afterwards
+  and every writer's claimed edit is in the files, but the safe way is
+  writers that edit one at a time, or that edit by script in their own
+  scratch directory and leave the formatting to the session (`nix fmt`
+  or `rustfmt --check` before the commit).
+- Strings and names that read oddly and are code, left as they are:
+  `typst::Length::new`'s message "`…` is no Typst length: digits, a
+  fraction or not, and one of …"; the test name
+  `every_table_is_its_font_s`. The serde alias `"linlog"` on
+  `Kernel::Deduxit`, `typst::Layout::Deduxit` and `svg::NetPreset::Deduxit`
+  stays on purpose (settings files of 0.2.0).
+- `core-export.md` still words several points as history ("the review's
+  finding", "the integers panel's witness", "before, two wires … read as
+  one", F-numbers); rules files are working notes for sessions, outside
+  the writing rules, so they stay.
+- `ordinary::Derivation::term` panics on a derivation its `check`
+  refuses (its `# Panics`, a choice `core-ordinary.md` explains), so an
+  export with the `lambda` option of an unchecked derivation of LK or LJ
+  read from JSON panics; the exports' `write` docs do not say so. For
+  54w-e4 (`ordinary`), to say on the read-from-JSON path.
+- The PNG and PDF examples are `no_run`: they read `Euler-Math.otf` from
+  the working directory (TeX Live's `euler-math` package has it; the
+  command embeds it from `cli/fonts/`).
