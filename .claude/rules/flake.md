@@ -184,11 +184,15 @@ devshell once failed to evaluate there). The crates inherit `version` and
 `edition` from `[workspace.package]`, so crane's package versions come
 from the root `Cargo.toml` (`crateNameFromCargoToml` on a member's falls
 back to 0.0.1).
-`checks.nix`'s `wasm` builds the core crate for
+`checks.nix`'s `wasm` runs Clippy on the core crate and its tests for
 `wasm32-unknown-unknown` (the target `rust-toolchain.toml` names) with
-every feature but `parallel`, a `cargo check` without the host's
+every feature but `parallel`, warnings denied, without the host's
 artifacts: the rule that the library stays fit for a browser was held by
-convention alone before it.
+convention alone before it, and a lint can fire on one width alone (a
+boxed `State` is small on 32 bits, a `u64` by reference is no longer
+trivially copied there, a comparison with `u32::MAX as usize` is one
+with `usize::MAX`). Such a site takes `#[cfg_attr(target_pointer_width
+= "32"|"64", expect(…))]`, never an `allow`.
 `checks.nix`'s `package` packages both crates as `cargo publish`
 uploads them and builds each from its package: `cargo package
 --registry crates-io --package deduxit` (which verifies the library's
@@ -309,6 +313,11 @@ and Python with matplotlib; no check builds it.
   wasm32-wasip1 under wasmtime, from `core` and `core-tests` alone) and
   `web-bindgen` (the CLI's version against the lock's); and the
   devshell's CLI, `wasm-opt`, Node and wasmtime, added from this module.
+  `web-core-wasm32` runs the library's whole unit suite on wasm32-wasip1
+  but the nine tests `core32Skipped` names (each with why), preopening
+  the source tree for the tests that read files by the path cargo
+  compiled in; `web-clippy-wasm32` is Clippy on the bindings and their
+  tests for the browser's target.
 - **`kani.nix`: Kani and the check `kani`.** nixpkgs has no Kani, so the
   package `kani` builds it from the input `kani` (the repository at a
   release tag, `flake = false`) with the nightly of its own

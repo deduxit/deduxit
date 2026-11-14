@@ -29,11 +29,25 @@
 
       target = "wasm32-unknown-unknown";
 
-      # The library's tests that hold its integers' arguments (the checker,
-      # the size estimate, the memo and the memory account) on a 32-bit
-      # target: libtest runs on WASI under wasmtime, which the web target
-      # has no runner for, and the two share wasm32's data layout.
-      core32 = "linear::proofs::check linear::proofs::size linear::search::focus::memo linear::search::memory";
+      # The library's unit tests on a 32-bit target: libtest runs on WASI
+      # under wasmtime, which the web target has no runner for, and the two
+      # share wasm32's data layout. Left out: the tests that start a thread
+      # (a search on a thread of its own stack, a batch's workers), which
+      # WASI cannot, and two that pin byte counts of 64-bit layouts: the
+      # Horn engine's least memory for a search, and the bound at which a
+      # proof's check, not its search, runs out of memory (on 32 bits the
+      # check fits).
+      core32Skipped = [
+        "lambda::tests::any_height_reads_back_on_a_small_stack"
+        "linear::nets::sequentialize::tests::a_high_derivation_needs_no_stack"
+        "linear::proofs::derivation::tests::any_height_on_a_small_stack"
+        "linear::proofs::interactive::tests::a_high_derivation_needs_no_stack"
+        "linear::search::batch::tests::a_panic_ends_the_batch_at_its_place"
+        "linear::search::focus::tests::limits"
+        "linear::search::focus::tests::stops_inside_a_forced_chain"
+        "linear::search::horn::tests::charges_what_it_grows"
+        "linear::search::tests::a_check_past_the_memory_bound_is_unknown"
+      ];
 
       args = workspace.argsOf [
         "core"
@@ -84,10 +98,13 @@
           pnameSuffix = "-core-wasm32";
           cargoArtifacts = null;
           nativeBuildInputs = [ pkgs.wasmtime ];
-          CARGO_TARGET_WASM32_WASIP1_RUNNER = "wasmtime run --";
+          # Some tests read files of the source tree (the fonts, the pinned
+          # proofs) by the absolute path cargo compiled in.
           buildPhaseCargoCommand = ''
             export HOME=$TMPDIR
-            cargo test --locked --target wasm32-wasip1 --package deduxit --lib -- ${core32}
+            export CARGO_TARGET_WASM32_WASIP1_RUNNER="wasmtime run --dir=$PWD::$PWD --"
+            cargo test --locked --target wasm32-wasip1 --package deduxit --lib -- \
+              ${lib.concatMapStringsSep " " (name: "--skip ${name}") core32Skipped}
           '';
           doInstallCargoArtifacts = false;
         }
@@ -125,6 +142,20 @@
         web-package = config.packages.deduxit-web;
         web-wasm-tests = wasmTests;
         web-core-wasm32 = core32Tests;
+        # Clippy on the bindings and their tests for the browser's target,
+        # where a lint can fire that the native build never sees.
+        web-clippy-wasm32 = craneLib.mkCargoDerivation (
+          args
+          // {
+            pnameSuffix = "-web-clippy-wasm32";
+            cargoArtifacts = wasmArtifacts;
+            buildPhaseCargoCommand = ''
+              cargo clippy --locked --target ${target} --package deduxit-web --all-targets \
+                -- --deny warnings
+            '';
+            doInstallCargoArtifacts = false;
+          }
+        );
         # The CLI the package is built with speaks the crate's version.
         web-bindgen = pkgs.runCommand "check-web-bindgen" { nativeBuildInputs = [ wasm-bindgen-cli ]; } ''
           test "$(wasm-bindgen --version)" = "wasm-bindgen ${bindgenVersion}"

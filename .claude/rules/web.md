@@ -298,15 +298,25 @@ for `THIRD-PARTY-NOTICES.txt`.
 - `web-wasm-tests` runs `cargo test --target wasm32-unknown-unknown`
   with `wasm-bindgen-test-runner` in Node, which only finds
   `#[wasm_bindgen_test]` functions; `web-core-wasm32` runs the library's
-  own unit tests of the checker, the size estimate, the memo and the
-  memory account on `wasm32-wasip1` under wasmtime, since plain
-  `#[test]` functions have no runner on the web target. On WASI a panic
-  aborts the run: a failing test there is found by running each alone.
+  whole unit suite on `wasm32-wasip1` under wasmtime, since plain
+  `#[test]` functions have no runner on the web target, but the nine
+  `core32Skipped` names: seven start a thread, which WASI cannot, and
+  two pin byte counts of 64-bit layouts (the Horn engine's least memory
+  for a search; the bound where a proof's check, not its search, runs
+  out, which on 32 bits the check fits). A new test that starts a
+  thread or pins a 64-bit size joins that list with its reason. On WASI
+  a panic aborts the run: a failing test there is found by running each
+  alone (`--exact NAME`), about 3 minutes for the 403 in a debug build.
+- **Clippy for wasm32**: `wasm` (`checks.nix`) on the library and its
+  tests, `web-clippy-wasm32` on the bindings and theirs, warnings
+  denied: a lint that fires on one width only takes a `cfg_attr` on
+  `target_pointer_width` (`flake.md`).
 - Locally: `nix develop` has the CLI, `wasm-opt`, Node and wasmtime;
   `CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=wasm-bindgen-test-runner
   cargo test -p deduxit-web --target wasm32-unknown-unknown` and
-  `CARGO_TARGET_WASM32_WASIP1_RUNNER="wasmtime run --" cargo test -p
-  deduxit --lib --target wasm32-wasip1 -- proofs::check` run the two.
+  `CARGO_TARGET_WASM32_WASIP1_RUNNER="wasmtime run --dir=$PWD::$PWD --"
+  cargo test -p deduxit --lib --target wasm32-wasip1 -- proofs::check`
+  run the two.
 
 ## Extension points
 

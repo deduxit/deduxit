@@ -581,6 +581,13 @@ impl Formulas {
     /// this arena (an id of another one) or an atom that is not one of its
     /// names, and [`Refusal::Index`] when the arena
     /// is full.
+    #[cfg_attr(
+        target_pointer_width = "32",
+        expect(
+            clippy::absurd_extreme_comparisons,
+            reason = "`MOST` is `usize::MAX` on 32 bits, where the test still holds"
+        )
+    )]
     pub fn add(&mut self, node: Node) -> Result<NodeId, Error> {
         if let Some(&id) = self.ids.get(&node) {
             return Ok(id);

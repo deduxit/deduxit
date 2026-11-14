@@ -161,16 +161,22 @@
         # The library as a browser will run it: built for wasm32 with every
         # feature but `parallel', whose thread pool a browser does not give.
         # The library reads no clock and starts threads only behind that
-        # feature; this check keeps it so.
+        # feature; this check keeps it so. Clippy, with its tests, since a
+        # lint can fire on one width alone (a `usize` that is a `u32`, a
+        # pointer of four bytes).
         wasm = craneLib.mkCargoDerivation (
-          workspace.argsOf [ "core" ]
+          workspace.argsOf [
+            "core"
+            "core-tests"
+          ]
           // {
             pnameSuffix = "-wasm";
             cargoArtifacts = null;
             buildPhaseCargoCommand = ''
-              cargo check --locked --target wasm32-unknown-unknown --package deduxit \
-                --no-default-features \
-                --features parse,serialize,interactive,latex,typst,svg,rocq,sat,png,pdf
+              cargo clippy --locked --target wasm32-unknown-unknown --package deduxit \
+                --all-targets --no-default-features \
+                --features parse,serialize,interactive,latex,typst,svg,rocq,sat,png,pdf \
+                -- --deny warnings
             '';
             doInstallCargoArtifacts = false;
           }

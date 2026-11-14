@@ -754,6 +754,13 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
 
     /// Returns the sequent with only the given members in its linear zone,
     /// absorbing when `any` is set.
+    #[cfg_attr(
+        target_pointer_width = "32",
+        expect(
+            clippy::unnecessary_box_returns,
+            reason = "a sequent is small on 32 bits, and the pass keeps every one boxed"
+        )
+    )]
     fn just(&self, ids: impl IntoIterator<Item = Member>, any: bool) -> Box<State> {
         let mut d = Box::new(State {
             theta: Zone::default(),
@@ -790,6 +797,13 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
     /// Returns the sequent both premises of a two-premise rule give
     /// together: the unrestricted zones united, the linear zones summed,
     /// absorbing if either is.
+    #[cfg_attr(
+        target_pointer_width = "32",
+        expect(
+            clippy::unnecessary_box_returns,
+            reason = "a sequent is small on 32 bits, and the pass keeps every one boxed"
+        )
+    )]
     fn join(&mut self, mut l: Box<State>, mut r: Box<State>) -> Box<State> {
         self.unite(&mut l, &mut r);
         l.add_linear(&mut r);
@@ -1079,6 +1093,13 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
     /// Returns the conclusion of a `&` whose linear zone is that of
     /// `keep`: its sequent with the unrestricted zone of `other` united
     /// into it.
+    #[cfg_attr(
+        target_pointer_width = "32",
+        expect(
+            clippy::unnecessary_box_returns,
+            reason = "a sequent is small on 32 bits, and the pass keeps every one boxed"
+        )
+    )]
     fn over(&mut self, mut keep: Box<State>, mut other: Box<State>) -> Box<State> {
         self.unite(&mut keep, &mut other);
         keep

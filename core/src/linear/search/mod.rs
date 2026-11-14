@@ -3626,9 +3626,12 @@ pub struct Statistics {
 
 /// Returns whether a counter is zero, which its JSON then leaves out.
 #[cfg(feature = "serialize")]
-#[expect(
-    clippy::trivially_copy_pass_by_ref,
-    reason = "serde's skip_serializing_if passes a reference"
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "serde's skip_serializing_if passes a reference"
+    )
 )]
 fn is_zero(n: &u64) -> bool {
     *n == 0

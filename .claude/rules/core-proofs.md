@@ -233,10 +233,10 @@ that cannot repeat the engine's mistakes. Engines only call `Proof::check`.
   layout: a pointer is four bytes, so the pass's tables are eight bytes
   a node, and hashbrown's control group is eight bytes, so `table_bytes`
   counts eight above a table; a test reads `tables` and `table_bytes`,
-  never a number. The flake check `web-core-wasm32` runs this module's,
-  the size estimate's, the memo's and the memory account's tests on
-  wasm32-wasip1 under wasmtime, where a failing test aborts the run (a
-  panic aborts on WASI): run each test alone to find which.
+  never a number. The flake check `web-core-wasm32` runs the library's
+  unit tests, this module's among them, on wasm32-wasip1 under wasmtime,
+  where a failing test aborts the run (a panic aborts on WASI): run each
+  test alone to find which.
 - **Kani checks the integer facts above within bounds**
   (`check/harnesses.rs`, `#[cfg(kani)]`, the flake check `kani`;
   `flake.md` has the tool). Each harness states one fact and its bound:
