@@ -707,6 +707,15 @@ Code 2.1.321). What follows from them:
     anything outward stay theirs.
   - The author has been present since 2026-11-02 and gives the go for
     each step: ask at the next go whether it is unattended again.
+  - **API and design questions too** (the author, 2026-11-14: "in the
+    future, if I say you're unattended, please take these kinds of
+    decisions yourself and just let me know afterwards"). While
+    unattended, a question a session's report puts to the author (an API
+    change, a verdict's form, a departure) is decided by the planning
+    session by research and current idiom, written into the plan, and
+    started at once. The Status entry names it under "Decided for the
+    author", with the reason, so the author reads it afterwards.
+    Present (not unattended), such a question still goes to the author.
 - **Timed runs need no yes**, only coordination (the author, 2026-10-30,
   and again on 2026-11-03: "feel free to do some benchmarks now.
   Coordinate with the other Claude code sessions on resource usage").
