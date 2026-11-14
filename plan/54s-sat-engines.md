@@ -120,7 +120,19 @@ prompt for the engine and its check (the argument on Fable 5.2 at
      reaches it within the limits. Step 70 later reuses this checker
      for outside solvers' proofs.
    - A method of `ordinary` beside the embedding for classical logic.
-3. **54s-c, the measurement and the default** (D19).
+2b. **54s-b2, "valid" by a checked clausal proof** (the author,
+   2026-11-14, on 54s-b's recommendation). `ordinary::Verdict::Valid`
+   carries a checked derivation or a checked clausal proof; `Method::Sat`
+   answers "valid" in classical logic once `drup::check` accepts the
+   proof; every reader of a verdict (the JSON form at its wire level,
+   the exports, the command's output, the bindings, the harness) takes
+   it, and an export that needs a derivation refuses a clausal proof by
+   name. `panel-argument` on the invariant that "valid" is built only
+   from checked evidence.
+3. **54s-c, the measurement and the default** (D19), in two sessions:
+   54s-c1 packages intuitR and intuit as comparison tools (beside
+   54s-b2); 54s-c2 makes the timed run, moves the default, wires
+   `--method` and runs BenchExec, after both.
    - ILTP's 274 problems at 2 s, in the three logics, as a timed run on
      cores 2 and 3 under the machine lock: the new engines, LJT, the
      embedding and the dispatch, in one build.

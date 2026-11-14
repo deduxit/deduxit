@@ -6608,3 +6608,17 @@ move (D26).
     "the command does not offer it yet" once `--method sat` is wired.
   - **Next:** 54w-e6 (its card waits for the author); 54s-c after the
     author's answer; step 55's first session after 54s; 54w-e4 after it.
+- 2026-11-14: **The author's answer: "valid" may rest on a checked
+  clausal proof** ("Go with your recommendation", to the question of
+  the entry above). Item 2b, 54s-b2, added to `plan/54s-sat-engines.md`:
+  `Verdict::Valid` carries a checked derivation or a checked clausal
+  proof, every reader takes it. 54s-c is split: 54s-c1 packages intuitR
+  and intuit as comparison tools beside 54s-b2 (disjoint files); 54s-c2
+  measures, moves the default, wires `--method sat` and runs BenchExec
+  after both, since it measures what 54s-b2 builds.
+  - **Started**, each on Opus 5.5 at `high` in a jj workspace on `main`:
+    54s-b2 (cores 4-6, `panel-argument` on the invariant), 54s-c1
+    (cores 7-9). 54w-e6 runs on cores 10-12 (started 2026-11-14 from its
+    card, in the author's turn).
+  - **Next:** 54s-c2 after 54s-b2 and 54s-c1; step 55's first session
+    after 54s; 54w-e4 after it.
