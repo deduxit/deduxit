@@ -292,6 +292,13 @@ fn arcs(forest: &Forest, o: OccId, left: &Bag, right: &Bag, occ: impl Fn(Member)
     }
 }
 
+/// Returns the most members the linear zone of a node may have when its
+/// proof concludes `goal` formulas and `later` nodes come after it:
+/// `goal + 2 · later`, and never more than [`Bag::MOST`].
+pub(super) fn room(goal: usize, later: usize) -> usize {
+    goal.saturating_add(later.saturating_mul(2)).min(Bag::MOST)
+}
+
 /// The refusal of a pass at `node` that would hold more than `limit`
 /// bytes.
 pub(super) fn memory_refused(node: NodeId, limit: u64, phase: Phase) -> CheckError {
@@ -659,13 +666,7 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
     /// Adds one copy of `m` to the linear zone of `d`.
     fn put(&self, d: &mut State, m: Member) {
         let o = self.inst.occ(m);
-        d.gamma.insert(m);
-        let weight = u64::from(self.observer.weight(m, o));
-        d.linear = d.linear.saturating_add(weight);
-        if self.is_output(o) {
-            d.outputs = d.outputs.saturating_add(1);
-            d.goal = d.goal.saturating_add(weight);
-        }
+        d.put(m, u64::from(self.observer.weight(m, o)), self.is_output(o));
     }
 
     /// Consumes one copy of `m` from the linear zone of `d`, the derived
@@ -674,15 +675,10 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
     /// goal.
     fn take(&self, d: &mut State, m: Member, premise: usize) -> Result<bool, Halt> {
         let o = self.inst.occ(m);
-        if d.gamma.remove(m) {
-            // The premise's sums are exact and count `m`, which was a
-            // member, so no subtraction goes below zero.
-            let weight = u64::from(self.observer.weight(m, o));
-            d.linear -= weight;
-            if self.is_output(o) {
-                d.outputs -= 1;
-                d.goal -= weight;
-            }
+        // The premise passed `within`, so its sums are exact.
+        if d.remove(m, || {
+            (u64::from(self.observer.weight(m, o)), self.is_output(o))
+        }) {
             return Ok(false);
         }
         if !d.any {
@@ -721,11 +717,7 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
     fn within(&self, id: NodeId, d: Box<State>) -> Result<Box<State>, Halt> {
         // A node's index is below the number of nodes.
         let later = self.proof.nodes().len() - 1 - id.index();
-        let room = self
-            .goal
-            .saturating_add(later.saturating_mul(2))
-            .min(Bag::MOST);
-        if d.gamma.len > room {
+        if d.gamma.len > room(self.goal, later) {
             return Err(Halt::Fault(Fault::Surplus));
         }
         Ok(d)
@@ -800,11 +792,7 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
     /// absorbing if either is.
     fn join(&mut self, mut l: Box<State>, mut r: Box<State>) -> Box<State> {
         self.unite(&mut l, &mut r);
-        l.gamma.add(std::mem::take(&mut r.gamma));
-        l.outputs = l.outputs.saturating_add(r.outputs);
-        l.linear = l.linear.saturating_add(r.linear);
-        l.goal = l.goal.saturating_add(r.goal);
-        l.any |= r.any;
+        l.add_linear(&mut r);
         l
     }
 
@@ -1099,17 +1087,9 @@ impl<'a, 's, O: Observer, I: Instancing> Pass<'a, 's, O, I> {
     /// Counts the outputs and the weights of the linear zone of `d` anew,
     /// after the zone was replaced.
     fn recount(&self, d: &mut State) {
-        let (mut outputs, mut linear, mut goal) = (0usize, 0u64, 0u64);
-        for (o, n) in d.gamma.counts() {
-            // Two factors below 2³², so the product fits a `u64`.
-            let occ = self.inst.occ(o);
-            let weight = u64::from(self.observer.weight(o, occ)) * u64::from(n);
-            linear = linear.saturating_add(weight);
-            if self.is_output(occ) {
-                outputs = outputs.saturating_add(n as usize);
-                goal = goal.saturating_add(weight);
-            }
-        }
-        (d.outputs, d.linear, d.goal) = (outputs, linear, goal);
+        d.recount(|m| {
+            let o = self.inst.occ(m);
+            (self.observer.weight(m, o), self.is_output(o))
+        });
     }
 }

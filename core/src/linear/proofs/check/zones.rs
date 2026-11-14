@@ -324,6 +324,69 @@ impl State {
         self.theta.len() as u64 + self.gamma.counts.len() as u64
     }
 
+    /// Adds one copy of `m` to the linear zone, with its weight, and
+    /// counts it as a goal when it is in output position.
+    #[inline]
+    pub(super) fn put(&mut self, m: Member, weight: u64, output: bool) {
+        self.gamma.insert(m);
+        self.linear = self.linear.saturating_add(weight);
+        if output {
+            self.outputs = self.outputs.saturating_add(1);
+            self.goal = self.goal.saturating_add(weight);
+        }
+    }
+
+    /// Removes one copy of `m` from the linear zone, with its weight, and
+    /// returns whether there was one. `of` gives what [`put`](Self::put)
+    /// was given for `m`, its weight and whether it is an output; it is
+    /// asked only when there was a copy.
+    ///
+    /// The sequent's sums must be exact, as they are for one that passed
+    /// [`Pass::within`](super::pass::Pass::within). They count `m`, which
+    /// was a member, so no subtraction goes below zero.
+    #[inline]
+    pub(super) fn remove(&mut self, m: Member, of: impl FnOnce() -> (u64, bool)) -> bool {
+        if !self.gamma.remove(m) {
+            return false;
+        }
+        let (weight, output) = of();
+        self.linear -= weight;
+        if output {
+            self.outputs -= 1;
+            self.goal -= weight;
+        }
+        true
+    }
+
+    /// Adds the linear zone of `other` and its sums, and absorbs when
+    /// either does. The unrestricted zones are left as they are.
+    #[inline]
+    pub(super) fn add_linear(&mut self, other: &mut Self) {
+        self.gamma.add(std::mem::take(&mut other.gamma));
+        self.outputs = self.outputs.saturating_add(other.outputs);
+        self.linear = self.linear.saturating_add(other.linear);
+        self.goal = self.goal.saturating_add(other.goal);
+        self.any |= other.any;
+    }
+
+    /// Counts the outputs and the weights of the linear zone anew, after
+    /// the zone was replaced. `of` gives a member's weight and whether it
+    /// is in output position.
+    pub(super) fn recount(&mut self, of: impl Fn(Member) -> (u32, bool)) {
+        let (mut outputs, mut linear, mut goal) = (0usize, 0u64, 0u64);
+        for (m, n) in self.gamma.counts() {
+            let (weight, output) = of(m);
+            // Two factors below 2³², so the product fits a `u64`.
+            let weight = u64::from(weight) * u64::from(n);
+            linear = linear.saturating_add(weight);
+            if output {
+                outputs = outputs.saturating_add(n as usize);
+                goal = goal.saturating_add(weight);
+            }
+        }
+        (self.outputs, self.linear, self.goal) = (outputs, linear, goal);
+    }
+
     /// Returns the sequent as ids for an error report.
     pub(super) fn to_dyadic(&self) -> Dyadic {
         let mut theta: Vec<Member> = self.theta.iter().collect();
