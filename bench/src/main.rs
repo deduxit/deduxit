@@ -1,14 +1,15 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! `deduxit-bench`, the benchmark harness: runs the generated families, the
-//! problems of the LLTP library, coverability problems in Mist's `.spec`
-//! format, problem files of its own and TPTP problems of ordinary logic
-//! (the ILTP library) through deduxit's engines, one
-//! child process per run with a time limit, writes one CSV row per run,
-//! and summarises or compares CSV files as Markdown tables; and counts the
-//! instructions of the library's hot paths against committed ceilings
-//! (the ratchet).
+//! `deduxit-bench`, the benchmark harness of deduxit.
+//!
+//! It runs problems through deduxit's engines: the generated families,
+//! the LLTP library, coverability problems in Mist's `.spec` format, its
+//! own problem files, and TPTP problems of ordinary logic (the ILTP
+//! library). Each run is a child process with a time limit and writes one
+//! CSV row. The harness prints CSV files as Markdown tables, or compares
+//! them. It also counts the instructions of the library's hot paths and
+//! compares them with committed ceilings (the ratchet).
 
 /// Two sets of rows compared problem by problem.
 mod compare;
@@ -34,7 +35,8 @@ mod ratchet;
 mod run;
 /// Markdown tables from the CSV rows.
 mod summary;
-/// Other provers beside deduxit's command, each run by BenchExec.
+/// The comparison's runs: deduxit's command and other provers, each
+/// process measured by BenchExec.
 mod tools;
 /// Problems written in other provers' syntax.
 mod translate;
@@ -45,8 +47,8 @@ use std::process::ExitCode;
 
 /// Benchmark deduxit's engines on generated families, the LLTP library,
 /// `.spec` coverability problems, problem files and TPTP problems of
-/// ordinary logic, and count the hot
-/// paths' instructions against their ceilings
+/// ordinary logic, and count the instructions of the library's hot paths
+/// against their ceilings
 #[derive(Parser, Debug)]
 #[command(name = "deduxit-bench", version)]
 struct Cli {
@@ -68,27 +70,28 @@ enum Command {
         /// The CSV files
         #[arg(required = true)]
         files: Vec<PathBuf>,
-        /// Compare every file with the file of the same name in this
-        /// directory, an earlier baseline, problem by problem, instead;
-        /// given again, for each earlier baseline, oldest first, every
-        /// baseline side by side too, and the files against the last
+        /// Instead, compare every file, problem by problem, with the file
+        /// of the same name in this directory (an earlier baseline). Given
+        /// more than once, oldest first: print every baseline side by side
+        /// too, and compare the files with the last
         #[arg(long, value_name = "DIR", conflicts_with = "against")]
         before: Vec<PathBuf>,
-        /// Compare every other file with this one, problem by problem
-        /// whatever the files' names, instead (the passes under one atom
-        /// bias against the default)
+        /// Instead, compare every other file with this one, problem by
+        /// problem, whatever the files' names (such as the passes under one
+        /// atom bias against the default)
         #[arg(long, value_name = "FILE")]
         against: Option<PathBuf>,
         /// With --against, list every problem both decide alike on one
         /// thread whose engine counters (nodes, splits, memo hits and
-        /// entries, links, tests) differ: a change that must not alter the
-        /// search, checked against the target set's committed file
+        /// entries, links, tests) differ. A change that must not alter the
+        /// search is checked this way against the target set's committed
+        /// file
         #[arg(long, requires = "against")]
         counters: bool,
-        /// Fail, after the tables, when a run's verdict contradicts the
-        /// known one, two configurations decide a problem differently in
-        /// one mode, a run ended in an error, a crash or a kill, or the
-        /// files hold no run: what the flake's `bench` check asks
+        /// Fail after the tables when a run's verdict contradicts the known
+        /// one, two configurations decide a problem differently in one
+        /// mode, a run ended in an error, a crash or a kill, or the files
+        /// hold no run. The flake's `bench` check runs with it
         #[arg(long, conflicts_with_all = ["before", "against"])]
         strict: bool,
     },
@@ -104,15 +107,15 @@ enum Command {
     },
     /// List the generated families with their default sizes
     Families,
-    /// Run one problem and print its result as the tail of a CSV row: what
-    /// `run` starts for every run
+    /// Run one problem and print its result as the tail of a CSV row; `run`
+    /// starts one for every run
     #[command(hide = true)]
     One(OneArgs),
     /// List the journeys: small deterministic runs of the library's hot
     /// paths whose instruction counts the ratchet keeps
     Journeys,
-    /// Run one journey: once, as callgrind counts it, or `--repeat` times
-    /// printing each measured part's wall-clock time in nanoseconds
+    /// Run one journey once, as callgrind counts it, or `--repeat` times,
+    /// printing the wall-clock time of each measured part in nanoseconds
     Journey {
         /// The journey
         name: String,
@@ -128,14 +131,14 @@ enum Command {
         #[arg(long, conflicts_with = "lower")]
         check: bool,
         /// Write the counts that went down, and those of new journeys, as
-        /// their ceilings; a ceiling is never raised
+        /// their ceilings. A ceiling is never raised
         #[arg(long)]
         lower: bool,
         /// The ceilings' file
         #[arg(long, value_name = "FILE", default_value = ratchet::CEILINGS)]
         ceilings: PathBuf,
-        /// The recorded misses' file, which the misses of the caches' model
-        /// are compared with (never a failure)
+        /// The file of recorded cache misses, which the misses of the cache
+        /// model are compared with (a difference never fails)
         #[arg(long, value_name = "FILE", default_value = ratchet::MISSES)]
         misses: PathBuf,
         /// Write the misses counted as the new record
@@ -168,63 +171,62 @@ pub struct RunArgs {
     #[arg(long)]
     all_families: bool,
     /// Every family that has a growing set, at its growth sizes
-    /// (`families` lists them with their claims); a configuration whose
-    /// run on a size is refused or not decided within the time limit or
-    /// the memory skips that shape's larger sizes
+    /// (`families` lists them with their claims). A configuration whose
+    /// run of a shape is refused, or not decided within the time limit or
+    /// the memory bound, skips that shape's larger sizes
     #[arg(long)]
     growing: bool,
-    /// An LLTP problem file, or a directory searched for `*.p` files; a
+    /// An LLTP problem file, or a directory searched for `*.p` files. A
     /// problem under a directory named `ILL` is intuitionistic, any other
-    /// classical; repeatable
+    /// classical. Repeatable
     #[arg(long, value_name = "PATH")]
     lltp: Vec<PathBuf>,
     /// A coverability problem in Mist's `.spec` format, or a directory
-    /// searched for `*.spec` files, run in intuitionistic affine mode;
-    /// repeatable
+    /// searched for `*.spec` files, run in intuitionistic affine mode.
+    /// Repeatable
     #[arg(long, value_name = "PATH")]
     spec: Vec<PathBuf>,
     /// A problem file of lines `name; mode; expected; copies; sequent` (see
-    /// `bench/problems/`); repeatable
+    /// `bench/problems/`). Repeatable
     #[arg(long, value_name = "FILE")]
     problems: Vec<PathBuf>,
-    /// A TPTP problem of ordinary propositional logic, as the ILTP
-    /// library has them, or a directory searched for `*.p` files, run in
-    /// each of `--logics`; repeatable
+    /// A TPTP problem of ordinary propositional logic, as in the ILTP
+    /// library, or a directory searched for `*.p` files. Each runs in
+    /// every logic of `--logics`. Repeatable
     #[arg(long, value_name = "PATH")]
     tptp: Vec<PathBuf>,
     /// The logics to run every TPTP problem in: `classical`,
     /// `intuitionistic` or `minimal`
     #[arg(long, value_delimiter = ',', default_value = "intuitionistic")]
     logics: Vec<deduxit::ordinary::Logic>,
-    /// Run only the problems whose family and name, `FAMILY/NAME` (as
-    /// `ILL/KLE-cbn/KLE017+1.p`), contain one of these
+    /// Run only the problems whose `FAMILY/NAME` (such as
+    /// `ILL/KLE-cbn/KLE017+1.p`) contains one of these texts
     #[arg(long, value_delimiter = ',', value_name = "TEXT")]
     only: Vec<String>,
-    /// Run the problems in the reverse of their order: two runs over one
-    /// library, one of them reversed, then meet its largest problems at
-    /// different times
+    /// Run the problems in reverse order. Two runs over one library, one of
+    /// them reversed, then reach its largest problems at different times
     #[arg(long)]
     reverse: bool,
     /// The modes to run every problem in: `given` (the problem's own),
     /// `classical` or `intuitionistic`
     #[arg(long, value_delimiter = ',', default_value = "given")]
     modes: Vec<run::ModeChoice>,
-    /// The engines to run every problem with: `auto` (the one the fragment
-    /// calls for), `focus`, `net`, `two-sided`, `additive`, `horn`,
-    /// `essential` or `inverse`; a forced engine that does not apply to a
-    /// problem gives a `refused` row. A TPTP problem takes the methods of
-    /// ordinary logic too: `embedding` (its image searched by the engine
-    /// the fragment calls for, as a linear engine's name forces one) or
-    /// `ljt`, and `auto` is the logic's default method
+    /// The engines to run every problem with: `auto` (the one the library
+    /// picks for the problem's fragment and mode), `focus`, `net`,
+    /// `two-sided`, `additive`, `horn`, `essential` or `inverse`. A forced
+    /// engine that does not apply to a problem gives a `refused` row. A
+    /// TPTP problem also takes the methods of ordinary logic: `embedding`
+    /// (its image searched by the engine the library picks, or by the
+    /// linear engine named) or `ljt`. On a TPTP problem, `auto` is the
+    /// logic's default method
     #[arg(long, value_delimiter = ',', default_value = "auto", value_parser = run::EngineChoice::parser())]
     engines: Vec<run::EngineChoice>,
     /// The thread counts to run every problem with; `all` is every core
     #[arg(long, value_delimiter = ',', default_value = "1")]
     jobs: Vec<String>,
-    /// The copy bound, overriding the one a generated problem names, or
-    /// `none` for a search that deepens until it decides or its time
-    /// limit passes, as the command's default does (default: the
-    /// problem's, else 3)
+    /// The copy bound, overriding the one a problem names. `none` is a
+    /// search that deepens until it decides or its time limit passes, as
+    /// the command's default does (default: the problem's, else 3)
     #[arg(long, value_name = "N")]
     copies: Option<run::Bound>,
     /// How the focused engines pick the positive literal of every atom:
@@ -251,10 +253,10 @@ pub struct RunArgs {
     /// library's Petri nets with long markings reach
     #[arg(long)]
     recursion_limit: Option<u32>,
-    /// Seconds one thread searches before a pool of the other `--jobs`
-    /// threads (at least two) searches beside it, the first to decide
-    /// answering, as the command does by default (default: the threads
-    /// from the start)
+    /// Seconds one thread searches alone before a pool of the other
+    /// `--jobs` threads searches beside it. The first to decide answers, as
+    /// in the command's default. It takes effect from `--jobs 3` (default:
+    /// every thread from the start)
     #[arg(value_parser = seconds, long, value_name = "SECONDS")]
     pool_after: Option<f64>,
     /// The most decided sequents the search's memo holds at once, 0 for
@@ -264,40 +266,41 @@ pub struct RunArgs {
     /// The time limit per run, in seconds
     #[arg(value_parser = seconds, long, default_value_t = 60.0)]
     timeout: f64,
-    /// The seconds a child may run past its time limit, counted from the
-    /// end of its load, before it is killed: for the pool's teardown and
-    /// the proof check
-    /// (default: a tenth of the limit and five seconds)
+    /// Seconds a child may run past its time limit before it is killed,
+    /// for the pool's teardown and the proof check. The limit and the grace
+    /// count from the end of its load (default: a tenth of the limit plus
+    /// five seconds)
     #[arg(value_parser = seconds, long, value_name = "SECONDS")]
     grace: Option<f64>,
-    /// Seconds a child may take to load its problem before its search
-    /// starts and the time limit counts; a child that takes longer is
+    /// Seconds a child may take to load its problem, before its search
+    /// starts and the time limit counts. A child that takes longer is
     /// killed
     #[arg(value_parser = seconds, long, value_name = "SECONDS", default_value_t = DEFAULT_LOAD_LIMIT)]
     load_limit: f64,
     /// How often to run a problem whose first run took less than
-    /// `--repeat-under` seconds; the summary takes the median
+    /// `--repeat-under` seconds. The summary takes the median
     #[arg(long, default_value_t = 1)]
     repeat: u32,
     /// Repeat only runs faster than this many seconds
     #[arg(long, default_value_t = 1.0)]
     repeat_under: f64,
-    /// Write the CSV here instead of to standard output
+    /// Write the CSV here instead of to standard output (with --tools, to
+    /// `tools.csv` by default)
     #[arg(long, short)]
     output: Option<PathBuf>,
     /// Append to the output file, writing the header only if it is empty
     #[arg(long, requires = "output")]
     append: bool,
     /// Skip every problem and configuration the output file already has a
-    /// row for: finishes an interrupted run
+    /// row for, to finish an interrupted run
     #[arg(long, requires = "append")]
     resume: bool,
     /// Run every problem with each of these provers instead of deduxit's
     /// engines in a child: `deduxit` (the command on one thread),
     /// `deduxit-default` (the command as a user runs it) and the other
-    /// provers' drivers, each process measured by BenchExec's `runexec`
-    /// under the same --timeout and --memory-limit (by default 4 GiB);
-    /// the options of deduxit's engines are refused beside it
+    /// provers' drivers. BenchExec's `runexec` measures each process under
+    /// --timeout and --memory-limit (default 4 GiB). The options of
+    /// deduxit's engines are refused beside it
     #[arg(
         long,
         value_delimiter = ',',
@@ -307,13 +310,14 @@ pub struct RunArgs {
             "repeat"]
     )]
     tools: Vec<String>,
-    /// Run only the K-th of N shards of the problems (from 1): every N-th
-    /// problem in the order they are listed, so that the N shards
-    /// partition them and each runs every tool of a problem on one machine
+    /// Run only the K-th of N shards of the problems, K from 1: every N-th
+    /// problem in the order they are listed, so the N shards partition
+    /// them. A shard runs every tool of its problems, and with --growing
+    /// every size of its shapes
     #[arg(long, value_name = "K/N")]
     shard: Option<run::Shard>,
-    /// With --tools, where each run's input and log are written and removed
-    /// after it (default: a directory beside the output file)
+    /// With --tools, the directory of each run's input and log, which are
+    /// removed after the run (default: one beside the output file)
     #[arg(long, value_name = "DIR", requires = "tools")]
     work: Option<PathBuf>,
 }
@@ -334,13 +338,13 @@ pub struct OneArgs {
     /// The engine to run
     #[arg(long, value_parser = run::EngineChoice::parser())]
     engine: run::EngineChoice,
-    /// The threads
+    /// The number of threads
     #[arg(long)]
     jobs: usize,
     /// The copy bound, overriding the problem's, or `none`
     #[arg(long)]
     copies: Option<run::Bound>,
-    /// The bias
+    /// How the focused engines pick the positive literal of every atom
     #[arg(long, default_value = "auto")]
     bias: run::BiasChoice,
     /// The forward search's copy bound
@@ -358,10 +362,10 @@ pub struct OneArgs {
     /// The recursion limit
     #[arg(long)]
     recursion_limit: Option<u32>,
-    /// Seconds one thread searches before the pool takes over
+    /// Seconds one thread searches alone before the pool searches beside it
     #[arg(value_parser = seconds, long)]
     pool_after: Option<f64>,
-    /// The memo's entries, 0 for none
+    /// The most entries of the memo, 0 for no memo
     #[arg(long)]
     memo_limit: Option<u32>,
     /// The time limit, in seconds

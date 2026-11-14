@@ -1,15 +1,19 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Markdown tables from the rows `run` wrote. A configuration is a CSV
-//! file's name with its rows' mode, engine, threads and test period
-//! (`base`), the portfolio of a file from before that column was removed,
-//! and every option a row names that is not the default (`configuration`),
-//! since every file of a baseline is one run of `run` with its own
-//! options. A problem counts once per configuration: its first run gives
-//! the verdict, the median over its runs the time. Rows of a forced engine
-//! that does not apply (`refused`) are left out. `--strict` fails on a
-//! row that a check must not pass (`Runs::failed`).
+//! Markdown tables from the rows `run` wrote.
+//!
+//! A configuration is a CSV file's name with its rows' mode, engine,
+//! threads and test period (`base`), the `portfolio` column of older
+//! files, and every option a row names that is not the default
+//! (`configuration`). The file's name is part of it, since every file of a
+//! baseline is one call of `run` with options of its own.
+//!
+//! A problem counts once per configuration: its first run gives the
+//! verdict, the median over its runs the time. Rows of a forced engine
+//! that does not apply (`refused`) are left out. `--strict` fails on a run
+//! that a check must not pass (`Runs::failed`), on two configurations that
+//! decide a problem differently in one mode, and on files without a run.
 
 use anyhow::{Context, Result, bail};
 use std::collections::{BTreeMap, HashMap};
@@ -37,14 +41,15 @@ pub(crate) struct Runs<'a> {
     /// The time of every run, in milliseconds.
     pub(crate) times: Vec<f64>,
     /// Whether a sequential run waited for a CPU for more than a hundredth
-    /// of its time and a millisecond: another process slowed it down.
+    /// of its time and more than a millisecond: another process slowed it
+    /// down.
     pub(crate) disturbed: bool,
 }
 
 /// Where a run without a decided verdict ended, as the tables count it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum Ending {
-    /// The time limit, or killed past it.
+    /// The time limit (`timeout`).
     Time,
     /// The copy bound.
     Bound,
@@ -54,13 +59,14 @@ pub(crate) enum Ending {
     Memory,
     /// An index past its width.
     Index,
-    /// A context too wide to split, a reason of older files.
+    /// A context too wide to split, a reason only older files have.
     Wide,
     /// Killed past the time limit and its grace, or while loading.
     Killed,
     /// The child crashed.
     Crash,
-    /// An error, or a reason added since.
+    /// An error, or a reason without a variant of its own (such as
+    /// `work_limit`).
     Error,
 }
 
@@ -109,8 +115,8 @@ impl Ending {
     }
 }
 
-/// The counters of the engines, which a decided run on one thread has as
-/// a function of its input.
+/// The counters of the engines. On a decided run on one thread they are a
+/// function of the input.
 pub(crate) const COUNTERS: [&str; 6] = [
     "nodes",
     "splits",
@@ -120,9 +126,9 @@ pub(crate) const COUNTERS: [&str; 6] = [
     "tests",
 ];
 
-/// Returns the part of a row's configuration that a comparison of
-/// passes under other options keeps: its mode, requested engine or tool
-/// and threads, a portfolio and a test period.
+/// Returns the part of a row's configuration that a comparison of passes
+/// under other options keeps: its mode, requested engine or tool,
+/// threads, portfolio and test period.
 pub(crate) fn base(row: &Row) -> String {
     // A row of another prover, or of deduxit's command, names its tool.
     let mut label = match row.get("tool") {
@@ -143,11 +149,11 @@ pub(crate) fn base(row: &Row) -> String {
     label
 }
 
-/// Returns a row's configuration: its mode, requested engine and threads,
-/// and every option its file names that is not the default (a portfolio,
-/// a test period, a bias, a forward copy bound, a memory limit, a pool
-/// started after a while), as a label; `summary` puts the file's name
-/// before it and `--before` the file and family.
+/// Returns a row's configuration as a label: its mode, requested engine
+/// and threads, and every option it names that is not the default (a
+/// portfolio, a test period, a bias, a forward copy bound, a memory
+/// limit, a delay before the pool, a memo limit). `summary` puts the
+/// file's name before it, and `--before` the file and family.
 pub(crate) fn configuration(row: &Row) -> String {
     let mut label = base(row);
     if !matches!(row.get("bias"), "" | "auto") {
@@ -159,19 +165,20 @@ pub(crate) fn configuration(row: &Row) -> String {
     {
         label.push_str(&format!(" forward {forward}"));
     }
-    // A file from before the bound has no such column, and ran without
-    // one.
+    // An empty field comes from a file without the column, whose runs had
+    // no memory bound. The label leaves it out.
     let memory = row.get("memory_limit");
     if memory == "0" {
         label.push_str(" memory none");
     } else if !memory.is_empty() && memory != deduxit::Limits::DEFAULT_MEMORY_BYTES.to_string() {
         label.push_str(&format!(" memory {memory}"));
     }
-    // A file from before the column ran every pool from its start.
+    // An empty field is every thread from the start, the default.
     if !row.get("pool_after").is_empty() {
         label.push_str(&format!(" pool after {}s", row.get("pool_after")));
     }
-    // A file from before the column ran the default memo.
+    // An empty field comes from a file without the column, whose runs had
+    // the default memo.
     match row.get("memo_limit") {
         "" => {}
         "0" => label.push_str(" memo off"),
@@ -184,7 +191,7 @@ pub(crate) fn configuration(row: &Row) -> String {
 }
 
 impl Runs<'_> {
-    /// The median of the times.
+    /// Returns the median of the times.
     pub(crate) fn median(&self) -> f64 {
         let mut times = self.times.clone();
         times.sort_by(f64::total_cmp);
@@ -222,17 +229,17 @@ impl Runs<'_> {
             || (verdict == "unprovable" && expected == "provable")
     }
 
-    /// Whether the run is a finding rather than a configuration's
-    /// result: a verdict against the known one, an error, a crash or a
-    /// kill.
+    /// Whether the run is a finding, not a configuration's result: a
+    /// verdict against the known one, a proof that failed its check, an
+    /// error, or a crash or kill before a verdict.
     pub(crate) fn failed(&self) -> bool {
         self.wrong()
             || self.first.get("verdict") == "error"
             || matches!(Ending::of(self.first), Ending::Crash | Ending::Killed) && !self.decided()
     }
 
-    /// The cell of a scaling table: the median time and a mark for the
-    /// verdict.
+    /// Returns the cell of a scaling table: the median time and a mark for
+    /// the verdict.
     pub(crate) fn cell(&self) -> String {
         let row = self.first;
         let mark = match (row.get("verdict"), Ending::of(row)) {
@@ -264,8 +271,8 @@ struct Group<'a> {
 }
 
 /// Returns a line for every problem that two configurations decided
-/// differently in one mode (or logic), which one of them got wrong: the
-/// problem, the mode, and the configurations behind each verdict.
+/// differently in one mode (or logic), so that one of them got it wrong:
+/// the problem, the mode, and the configurations behind each verdict.
 fn disagreements(groups: &[Group]) -> Vec<String> {
     // Per source, family, problem and mode, the configurations behind
     // each verdict.
@@ -297,7 +304,7 @@ fn disagreements(groups: &[Group]) -> Vec<String> {
         .collect()
 }
 
-/// Prints the tables for the CSV files; with `strict`, fails after them
+/// Prints the tables for the CSV files. With `strict`, it fails after them
 /// when a verdict contradicts the known one, two configurations decide a
 /// problem differently in one mode, a run ended in an error, a crash or a
 /// kill, or there is no run.
@@ -511,17 +518,17 @@ pub fn summary(files: &[PathBuf], strict: bool) -> Result<()> {
     Ok(())
 }
 
-/// The rows of the CSV files, each with its file's name in the column
-/// `file`, without those of a forced engine that does not apply.
+/// Returns the rows of the CSV files, each with its file's name in the
+/// column `file`, without those of a forced engine that does not apply.
 pub(crate) fn read(files: &[PathBuf]) -> Result<Vec<Row>> {
     let mut rows = read_all(files)?;
     rows.retain(|row| row.get("verdict") != "refused");
     Ok(rows)
 }
 
-/// The rows of the CSV files, each with its file's name in the column
-/// `file`, the refused ones included and the skipped sizes of a growing
-/// set left out, which are no runs.
+/// Returns the rows of the CSV files, each with its file's name in the
+/// column `file`. The refused rows are kept. The skipped sizes of a
+/// growing set are left out, since they are no runs.
 pub(crate) fn read_all(files: &[PathBuf]) -> Result<Vec<Row>> {
     let mut rows = Vec::new();
     for file in files {
@@ -555,8 +562,8 @@ pub(crate) fn read_all(files: &[PathBuf]) -> Result<Vec<Row>> {
     Ok(rows)
 }
 
-/// Formats milliseconds for a table: microseconds below one millisecond,
-/// milliseconds below a second, seconds above.
+/// Returns milliseconds as a table writes them: in microseconds below one
+/// millisecond, in milliseconds below a second, in seconds above.
 pub(crate) fn time(ms: f64) -> String {
     if ms < 1.0 {
         format!("{:.0} µs", ms * 1000.0)
@@ -567,7 +574,8 @@ pub(crate) fn time(ms: f64) -> String {
     }
 }
 
-/// Formats a timeout in seconds, as the CSV holds it.
+/// Returns a timeout from the CSV, which holds seconds, as a table writes
+/// it.
 fn seconds(value: &str) -> String {
     format!("{} s", value.parse::<f64>().unwrap_or(0.0))
 }
@@ -596,10 +604,6 @@ pub(crate) mod tests {
         }
     }
 
-    /// A problem's verdict is its first run's and its time the median of
-    /// its runs'; one decided after its time limit is decided but late,
-    /// not solved; a verdict against the known one, a failed check, an
-    /// error and a crash are failures, a run stopped at its limit is not.
     /// `--strict` fails after the tables on a run against its known
     /// verdict, on files without a run and on a problem two configurations
     /// decide differently in one mode, and passes the others.
@@ -637,6 +641,11 @@ pub(crate) mod tests {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
+    /// A problem's verdict is its first run's and its time the median of
+    /// its runs'. One decided after its time limit is decided but late,
+    /// not solved. A verdict against the known one, a failed check, an
+    /// error, a kill and a crash are failures; a run stopped at a limit or
+    /// a check its bound gave up is not.
     #[test]
     fn runs_verdicts_and_endings() {
         let timed = |verdict: &str, ms: &str| {

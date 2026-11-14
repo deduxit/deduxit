@@ -2,14 +2,17 @@
 // Licensed under the EUPL
 
 //! Running problems. The parent (`run`) starts this program again as a
-//! child (`one`) for every run, so that a crash, a stack overflow or a run
-//! that ignores its time limit costs that run only; the child times the
-//! search alone, not its start or the parsing, and prints the tail of the
-//! run's CSV row: once with the search's verdict, before it checks a
-//! proof, and once more with the check's result. A child that takes too
-//! long to load its problem, or outlives its time limit by more than the
-//! grace period counted from the end of the load, is killed; one that
-//! dies in its check leaves the row its verdict.
+//! child (`one`) for every run. So a crash, a stack overflow or a run that
+//! ignores its time limit costs that run only.
+//!
+//! The child times the search alone, not its start or the parsing. It
+//! prints the tail of the run's CSV row: once with the search's verdict,
+//! before it checks a proof, and once more with the check's result.
+//!
+//! The parent kills a child that takes too long to load its problem, or
+//! that outlives its time limit by more than the grace period, counted
+//! from the end of the load. A child that dies in its check leaves the row
+//! its verdict.
 
 use crate::growth::{ENGINE_SERIES, Ended, SKIPPED};
 use crate::problems::{self, Reference, mode_name};
@@ -31,9 +34,9 @@ use std::sync::{Arc, mpsc};
 use std::thread;
 use std::time::{Duration, Instant};
 
-/// The columns the parent writes, then those the child prints. Files
-/// from before the portfolio of worker orders was removed have a column
-/// `portfolio` after `jobs`, which the summaries still read.
+/// The columns the parent writes, then those the child prints. Older
+/// files have a column `portfolio` after `jobs`, which the summaries
+/// read.
 pub const HEADER: &str = "source,family,size,index,problem,mode,engine_requested,jobs,\
                           test_period,timeout_s,run,copies,expected,verdict,reason,checked,engine,\
                           fragment,occurrences,multiplicity,time_ms,nodes,memo_hits,memo_entries,\
@@ -42,7 +45,7 @@ pub const HEADER: &str = "source,family,size,index,problem,mode,engine_requested
                           tool,tool_version,translate_ms,peak_bytes,raw,unifications,bindings,\
                           memo_limit";
 
-/// The columns the child prints.
+/// The number of columns the child prints, the last of [`HEADER`].
 const TAIL: usize = 35;
 
 /// The line the child prints when its problem is loaded and its search
@@ -114,8 +117,8 @@ impl BiasChoice {
     }
 }
 
-/// One of N shards of the problems: the K-th takes the problems at the
-/// places K − 1, K − 1 + N, K − 1 + 2N, … of the list.
+/// One of N shards of the problems. The K-th takes the problems at the
+/// places K − 1, K − 1 + N, K − 1 + 2N, … of the list, counted from 0.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Shard {
     /// Which shard, from 1.
@@ -147,8 +150,8 @@ impl Shard {
     }
 
     /// Returns this shard's groups of the list, in their order: every
-    /// N-th group from the K-th, the groups numbered by where their first
-    /// problem stands, each group's problems whole.
+    /// N-th group from the K-th, each with all its problems. The groups
+    /// are numbered in the order of their first problems.
     pub fn of_groups<T, K: Eq + std::hash::Hash>(
         self,
         list: Vec<T>,
@@ -165,8 +168,8 @@ impl Shard {
     }
 }
 
-/// The memory bound of a run in bytes: the one asked for, none for 0, or
-/// the library's default.
+/// Returns the memory bound of a run in bytes: the one asked for, none
+/// for 0, or the library's default.
 pub(crate) fn memory_limit(asked: Option<u64>) -> Option<u64> {
     match asked {
         None => Some(Limits::DEFAULT_MEMORY_BYTES),
@@ -175,8 +178,8 @@ pub(crate) fn memory_limit(asked: Option<u64>) -> Option<u64> {
     }
 }
 
-/// The memory bound of a run as its column has it: the bytes, or 0 for
-/// none.
+/// Returns the `memory_limit` column of a run: the bytes, or 0 for no
+/// bound.
 pub(crate) fn memory_column(asked: Option<u64>) -> String {
     memory_limit(asked).unwrap_or(0).to_string()
 }
@@ -211,27 +214,29 @@ impl std::fmt::Display for Bound {
     }
 }
 
-/// The `memo_limit` column of a row: the memo's entries the search may
-/// hold, the one asked for or the library's default; 0 is no memo.
+/// Returns the `memo_limit` column of a run: the most entries the
+/// search's memo may hold, as asked for or the library's default. 0 is no
+/// memo.
 pub(crate) fn memo_column(asked: Option<u32>) -> String {
     asked.unwrap_or(Options::DEFAULT_MEMO_LIMIT).to_string()
 }
 
-/// The column of how long one thread searched before the pool: the
-/// seconds, or empty for a pool from the start.
+/// Returns the `pool_after` column of a run: the seconds one thread
+/// searched alone before the pool, or empty for every thread from the
+/// start.
 pub(crate) fn pool_column(asked: Option<f64>) -> String {
     asked.map_or(String::new(), |t| t.to_string())
 }
 
-/// The forward search's copy bound of a run: the one asked for, or the
-/// library's default.
+/// Returns the forward search's copy bound of a run: the one asked for,
+/// or the library's default.
 pub(crate) fn forward_copies(asked: Option<u32>) -> u32 {
     asked.unwrap_or(Options::DEFAULT_FORWARD_COPIES)
 }
 
-/// Which engine to run: the one the fragment and the mode call for (on a
-/// problem of ordinary logic, the logic's default method), one the
-/// library names, or a method of ordinary logic.
+/// Which engine to run: the one the library picks for the fragment and
+/// the mode (on a problem of ordinary logic, the logic's default method),
+/// a linear engine by name, or a method of ordinary logic.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EngineChoice {
     /// The automatic choice.
@@ -297,7 +302,7 @@ impl Setting {
     }
 }
 
-/// The name of a value as its argument spells it.
+/// Returns the name of a value as its argument spells it.
 pub(crate) fn name(value: &impl ValueEnum) -> String {
     value
         .to_possible_value()
@@ -318,8 +323,8 @@ pub fn run(args: &RunArgs) -> Result<()> {
         });
     }
     if let Some(shard) = args.shard {
-        // A growing set's series stays in one shard, so that the run that
-        // ends it ends it there.
+        // A growing set's series stays in one shard, so the shard that runs
+        // its end skips its larger sizes.
         references = if args.growing {
             shard.of_groups(references, |r| {
                 (
@@ -414,8 +419,8 @@ pub fn run(args: &RunArgs) -> Result<()> {
         * args.engines.len()
         * jobs.len();
     let mut done = 0;
-    // The configurations run by this invocation, for the estimate of the
-    // time left: those a resumed run skips cost nothing.
+    // The configurations this invocation ran, for the estimate of the time
+    // left. Those a resumed run skips cost nothing, so they do not count.
     let (start, mut ran) = (Instant::now(), 0);
     for reference in &references {
         for setting in settings(reference) {
@@ -515,7 +520,8 @@ pub fn run(args: &RunArgs) -> Result<()> {
                             );
                         }
                         if run == 0 {
-                            // The configurations left at this run's mean.
+                            // Minutes left: the configurations left, at the
+                            // mean time of those run so far.
                             let left = start.elapsed().as_secs_f64() / f64::from(ran)
                                 * (total - done) as f64
                                 / 60.0;
@@ -539,14 +545,16 @@ pub fn run(args: &RunArgs) -> Result<()> {
     Ok(())
 }
 
-/// The problems and configurations a CSV file has a row for, each as its
-/// source, family, problem, mode, requested engine, jobs, test period,
-/// bias and forward copy bound joined by commas; a file from before
-/// the bias had a column ran them all with `auto`, and one from before the
-/// forward bound had one ran the default bias as one search, which no
-/// bound names, so every row of it is run again. A file with other
-/// columns than [`HEADER`] is refused: the rows this run appends would
-/// not fit it.
+/// Returns the problems and configurations a CSV file has a row for, none
+/// for a file that does not exist. Each is a key of the row's source,
+/// family, problem, mode, requested engine, jobs, test period, bias,
+/// forward copy bound, memory limit, pool delay and memo limit, joined by
+/// commas, as `run` builds it.
+///
+/// An empty bias reads as `auto`, an empty memory limit as no bound (`0`),
+/// and an empty memo limit as the library's default. A file with other
+/// columns than [`HEADER`] is refused, since the rows this run appends
+/// would not fit it.
 fn finished(path: &Path) -> Result<HashSet<String>> {
     let Ok(text) = std::fs::read_to_string(path) else {
         return Ok(HashSet::new());
@@ -576,11 +584,11 @@ fn finished(path: &Path) -> Result<HashSet<String>> {
     };
     let bias = at("bias");
     let forward = at("forward_copies");
-    // A file from before the bound ran without one.
+    // An empty field reads as no bound.
     let memory = at("memory_limit");
-    // A file from before the column ran every pool from its start.
+    // An empty field is every thread from the start, as `pool_column` writes it.
     let pool = at("pool_after");
-    // A file from before the column ran the default memo.
+    // An empty field reads as the default memo.
     let memo = at("memo_limit");
     let default_memo = memo_column(None);
     Ok(lines
@@ -708,8 +716,8 @@ fn child(
     let stderr = stderr.join().map_err(|_| anyhow!("reading a child"))?;
     let row = rows.iter().rev().find(|row| row.split(',').count() == TAIL);
     // A child that died after it printed its verdict died in the check of
-    // its proof: the row keeps the verdict and says what became of the
-    // check. One that died before leaves a row of its own.
+    // its proof. Its row keeps the verdict and says what became of the
+    // check. A child that died before gets a row of the parent's.
     let died = |reason: String| match row {
         Some(row) => {
             let mut fields: Vec<&str> = row.split(',').collect();
@@ -736,8 +744,8 @@ fn child(
         (None, _) if searching.is_none() => died("killed while loading".to_owned()),
         (None, _) => died("killed".to_owned()),
         (Some(status), _) => {
-            // The row keeps the line that says why; the log gets all of
-            // the error output, a panic's place and backtrace with it.
+            // The row keeps the line that says why. The log gets all of
+            // the error output, with a panic's place and backtrace.
             eprintln!(
                 "{} crashed ({status}); its error output:\n{}",
                 reference.name,
@@ -749,8 +757,8 @@ fn child(
 }
 
 /// Returns the line of a dead child's error output that says why it died:
-/// the last one that is neither empty nor a note, such as the hint about
-/// backtraces that follows a panic's message.
+/// the last one that is neither empty nor a note. A note is such as the
+/// hint about backtraces that follows a panic's message.
 fn cause(stderr: &str) -> &str {
     stderr
         .lines()
@@ -761,8 +769,9 @@ fn cause(stderr: &str) -> &str {
 }
 
 /// Returns the `checked` column of a disproof: `ok` where
-/// `Disproof::check` accepts its refutation, `failed: …` where it does not
-/// hold, empty for an exhausted search, which has no check.
+/// `Disproof::check` accepts its refutation, `failed: …` where the
+/// refutation does not hold, and empty for an exhausted search, which has
+/// nothing to check.
 pub(crate) fn refutation_checked(disproof: &deduxit::linear::Disproof) -> String {
     match disproof.check() {
         Ok(()) => "ok".to_owned(),
@@ -771,14 +780,15 @@ pub(crate) fn refutation_checked(disproof: &deduxit::linear::Disproof) -> String
     }
 }
 
-/// Makes text a CSV field: no commas, no line breaks.
+/// Returns text as a CSV field: commas become `;` and line breaks spaces,
+/// since the files are split on commas without quoting.
 pub(crate) fn clean(text: &str) -> String {
     text.replace(',', ";").replace(['\n', '\r'], " ")
 }
 
-/// Runs one problem and prints the tail of its row, on a thread with a
-/// stack large enough for the search at its recursion limit and for the
-/// parser on a huge input.
+/// Runs one problem and prints the tail of its row. It runs on a thread
+/// whose stack holds the search at its recursion limit and the parser on
+/// a huge input.
 pub fn one(args: OneArgs) -> Result<()> {
     let stack = Limits::default().stack_bytes().max(1 << 30);
     let line = thread::Builder::new()
@@ -797,9 +807,9 @@ pub(crate) fn say(line: &str) {
     let _ = out.flush();
 }
 
-/// Loads and runs one problem and returns the tail of its row; on the
-/// way it says when the problem is loaded, and prints the tail of a
-/// proved problem once before the proof is checked.
+/// Loads and runs one problem and returns the tail of its row. On the way
+/// it says when the problem is loaded, and prints the tail of a proved
+/// problem once before the proof is checked.
 fn tail(args: &OneArgs) -> String {
     if let Some(logic) = args.logic {
         return crate::ordinary::tail(args, logic);
@@ -820,7 +830,7 @@ fn tail(args: &OneArgs) -> String {
         ]);
     }
     let mode = args.mode.apply(problem.mode);
-    // A known verdict holds in the problem's own mode only: classical
+    // A known verdict holds in the problem's own mode only. Classical
     // linear logic proves more than intuitionistic, affine more than linear.
     let expected = match problem.expected.filter(|_| mode == problem.mode) {
         Some(true) => "provable",
@@ -837,7 +847,7 @@ fn tail(args: &OneArgs) -> String {
     searched.run(args, |proof, limits| {
         match proof.check_within(mode, limits, |_| false) {
             Ok(()) => "ok".to_owned(),
-            // Given up within the run's memory bound: no verdict on the proof.
+            // The check reached the run's memory bound: no verdict on the proof.
             Err(deduxit::linear::CheckError::Refused(_)) => "unchecked: memory limit".to_owned(),
             Err(error) => clean(&format!("failed: {error}")),
         }
@@ -859,10 +869,10 @@ pub(crate) struct Searched<'a> {
 }
 
 impl Searched<'_> {
-    /// Searches the sequent as `args` say and returns the tail of its row;
-    /// on the way it says when the search starts, and prints the tail of a
-    /// proved sequent once before `check` checks the proof (within the
-    /// run's limits) and names the `checked` column.
+    /// Searches the sequent as `args` say and returns the tail of its row.
+    /// On the way it says when the search starts, and prints the tail of a
+    /// proved sequent once before the proof is checked. `check` checks it
+    /// within the run's limits and returns the `checked` column.
     pub(crate) fn run(
         &self,
         args: &OneArgs,
@@ -894,10 +904,10 @@ impl Searched<'_> {
             .with_recursion_depth(recursion);
         say(LOADED);
 
-        // The limit is a flag that a thread of its own raises, so that a poll
-        // costs one load whatever the engine's cadence: a clock read every so
-        // many polls is late by that many, which on a large net, where a poll
-        // comes many milliseconds after the last, was seconds.
+        // The time limit is a flag that a thread of its own raises, so a poll
+        // costs one load whatever the engine's cadence. A clock read only
+        // every so many polls is late by that many polls. On a large net,
+        // where polls come many milliseconds apart, that came to seconds.
         let clock = Clock::start(args.timeout);
         let outcome = decide(sequent, mode, &options, &limits, args, &clock.expired);
         let (time, cpu, wait) = clock.read();
@@ -985,12 +995,13 @@ impl Searched<'_> {
         };
         let proof = match &outcome.verdict {
             Verdict::Proved(proof) => proof,
-            // A refutation with a certificate is checked as a proof is; one
-            // that rests on the search has nothing to check.
+            // A refutation with a certificate is checked, as a proof is. One
+            // that rests on the search alone has nothing to check.
             Verdict::Unprovable(disproof) => return tail(&refutation_checked(disproof), ""),
             Verdict::Unknown(_) => return tail("", ""),
         };
-        // The verdict is out before the check, which a proof can outgrow.
+        // The verdict goes out before the check, so that it stands when the
+        // check of a large proof runs out of memory or is killed.
         say(&tail("", ""));
         let start = Instant::now();
         let checked = check(proof, &limits);
@@ -1021,9 +1032,9 @@ pub(crate) fn search_options(
         )
 }
 
-/// The clock of a run: the flag a thread of its own raises at the time
-/// limit, and the wall-clock time, the CPU time and the time waited for a
-/// CPU from the start.
+/// The clock of a run. A thread of its own raises a flag at the time
+/// limit. The clock reads the wall-clock time, the CPU time and the time
+/// waited for a CPU since the start.
 pub(crate) struct Clock {
     /// Raised when the time limit has passed.
     pub(crate) expired: Arc<AtomicBool>,
@@ -1058,9 +1069,10 @@ impl Clock {
     }
 
     /// Returns the `time_ms`, `cpu_ms` and `wait_ms` columns since the
-    /// start: the time the run took on the CPUs, and the time its thread
-    /// was ready but waited for one, which a run another process slowed
-    /// down has well above zero.
+    /// start: the wall-clock time, the CPU time of the process's threads,
+    /// and the time the calling thread was ready but waited for a CPU. The
+    /// last is well above zero when another process slowed the run down.
+    /// The last two are empty where `/proc` cannot tell.
     pub(crate) fn read(&self) -> (f64, String, String) {
         let time = self.start.elapsed().as_secs_f64() * 1000.0;
         let since = |after: Option<f64>, before: Option<f64>| {
@@ -1072,12 +1084,14 @@ impl Clock {
     }
 }
 
-/// Decides a problem under the options until the flag is raised: with
-/// the options' threads from the start, or with `--pool-after` the
-/// library's race, one thread first and, once the time has passed, a pool
-/// of the other threads beside it, the first to decide answering, both
-/// within one memory bound, as the command does by default. The outcome
-/// of two searches has the counters of both.
+/// Decides a problem under the options until the flag is raised.
+///
+/// Without `--pool-after`, or on one thread, the options' threads search
+/// from the start. With it, the library's race runs, as in the command's
+/// default: one thread searches alone, and once the delay has passed a
+/// pool of the other threads searches beside it. The first to decide
+/// answers. Both draw on one memory bound, and the outcome has the
+/// counters of both.
 fn decide(
     sequent: &deduxit::linear::Sequent,
     mode: deduxit::linear::Mode,
@@ -1086,8 +1100,9 @@ fn decide(
     args: &OneArgs,
     expired: &AtomicBool,
 ) -> Result<deduxit::linear::search::Outcome, Error> {
-    // The refutation after the search is bounded by its own work and
-    // answers a search the time limit ended, as the command's does.
+    // The refutation after the search is bounded by its own work, not by
+    // the time limit, so it still answers a search the limit ended, as in
+    // the command.
     let stop = |progress: deduxit::Progress| {
         progress.phase != deduxit::Phase::Refute && expired.load(Ordering::Relaxed)
     };
@@ -1108,7 +1123,7 @@ fn decide(
     )
 }
 
-/// A tail with the given fields filled in and the others empty.
+/// Returns a tail with the given columns filled in and the others empty.
 pub(crate) fn row(filled: &[(&str, &str)]) -> String {
     let mut fields = vec![""; TAIL];
     for &(name, value) in filled {
@@ -1117,9 +1132,10 @@ pub(crate) fn row(filled: &[(&str, &str)]) -> String {
     fields.join(",")
 }
 
-/// The CPU time of the process so far, in milliseconds: the user and system
-/// time of all its threads, dead ones included, from `/proc/self/stat`, in
-/// the kernel's ticks of 10 ms; `None` where there is no such file.
+/// Returns the CPU time of the process so far, in milliseconds: the user
+/// and system time of all its threads, ended ones included, from
+/// `/proc/self/stat`. It counts in the kernel's ticks of 10 ms. `None`
+/// where there is no such file.
 pub(crate) fn cpu_ms() -> Option<f64> {
     let stat = std::fs::read_to_string("/proc/self/stat").ok()?;
     // After the command in parentheses, utime and stime are the 12th and
@@ -1130,17 +1146,17 @@ pub(crate) fn cpu_ms() -> Option<f64> {
     Some((user + system) * 10.0)
 }
 
-/// How long the calling thread has been ready to run but waiting for a CPU,
-/// in milliseconds, from `/proc/thread-self/schedstat`; `None` where there
-/// is no such file.
+/// Returns how long the calling thread has been ready to run but waiting
+/// for a CPU, in milliseconds, from `/proc/thread-self/schedstat`. `None`
+/// where there is no such file.
 pub(crate) fn wait_ms() -> Option<f64> {
     let stat = std::fs::read_to_string("/proc/thread-self/schedstat").ok()?;
     let nanoseconds: f64 = stat.split_whitespace().nth(1)?.parse().ok()?;
     Some(nanoseconds / 1e6)
 }
 
-/// The most occurrences of one literal, `a` or `~a`, in the forest: what
-/// the dispatch compares with its threshold for the net engine.
+/// Returns the most occurrences of one literal, `a` or `~a`, in the
+/// forest: the `multiplicity` column.
 fn multiplicity(forest: &Forest) -> usize {
     (0..forest.sequent().atom_names().len() as u32)
         .map(|a| {
@@ -1158,8 +1174,9 @@ fn multiplicity(forest: &Forest) -> usize {
 mod tests {
     use super::{HEADER, Options, Shard, finished};
 
-    /// Every shard of a list, joined, is the list, each problem once, and
-    /// each keeps the list's order; a shard outside 1 to N is refused.
+    /// The N shards of a list take every problem once, each shard in the
+    /// list's order, and by groups every group whole. A shard outside 1 to
+    /// N is refused.
     #[test]
     fn shards_partition_the_problems_in_order() {
         let problems: Vec<u32> = (0..23).collect();
@@ -1199,9 +1216,9 @@ mod tests {
         }
     }
 
-    /// `--resume` takes no file of other columns, and a run's key from a
-    /// file of its own: what it ran and the options a later column added,
-    /// at their defaults where empty.
+    /// `--resume` refuses a file of other columns. From a file of its own
+    /// it reads each row's key: what the row ran and its options, an empty
+    /// option read as `finished` reads it.
     #[test]
     fn resume_reads_its_own_files_only() {
         let dir = std::env::temp_dir().join(format!("deduxit-resume-{}", std::process::id()));

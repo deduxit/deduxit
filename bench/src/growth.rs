@@ -5,9 +5,8 @@ use anyhow::{Result, bail};
 use std::collections::HashMap;
 use std::path::Path;
 
-/// The verdict of a size a growing set's configuration did not run, past
-/// the limit its series met at a smaller size: no run, which every reader
-/// of the rows drops.
+/// The verdict of a row for a size that was not run, since its series
+/// ended at a smaller size. Such a row is no run: the summaries drop it.
 pub const SKIPPED: &str = "skipped";
 
 /// The columns of `run`'s rows that name a series: one shape of a family
@@ -19,17 +18,18 @@ pub const ENGINE_SERIES: [&str; 5] = ["family", "index", "mode", "engine_request
 pub const TOOL_SERIES: [&str; 4] = ["family", "index", "mode", "tool"];
 
 /// The series of the growing sets that a run has ended, each with the
-/// reason of the skipped rows of its larger sizes: the shape's larger
-/// sizes are not run in that configuration, since every growing set is a
-/// constructed family whose larger instance of a shape is no easier, and
+/// reason its larger sizes are skipped.
+///
+/// A skipped size is not run in that configuration. Every growing set is
+/// a constructed family whose larger instance of a shape is no easier, and
 /// a configuration that refuses a shape refuses it at every size.
 #[derive(Debug, Default)]
 pub struct Ended(HashMap<String, String>);
 
 impl Ended {
-    /// The series that the rows of a CSV file ended, read by the columns'
-    /// names, so that a resumed run skips what the first run would have;
-    /// none for a file that does not exist yet.
+    /// Returns the series that the family rows of a CSV file ended, read
+    /// by the columns' names, so a resumed run skips what the first run
+    /// would have. None for a file that does not exist yet.
     pub fn read(path: &Path, series: &[&str]) -> Result<Self> {
         let Ok(text) = std::fs::read_to_string(path) else {
             return Ok(Self::default());
@@ -80,18 +80,23 @@ impl Ended {
         Ok(ended)
     }
 
-    /// The reason of a skipped row of the series, if a run ended it: the
-    /// size it was refused at, or past its limit at.
+    /// Returns the reason for the skipped rows of a series that a run
+    /// ended: the size the series was refused at, or went past its limit
+    /// at. `None` while the series goes on.
     pub fn skipped(&self, series: &[&str]) -> Option<String> {
         self.0.get(&series.join(",")).cloned()
     }
 
-    /// Ends the series if the run ended it: refused (the engine or tool
-    /// does not take the shape at any size), or not decided within its
-    /// time limit, at the memory bound, killed or crashed. A run that ended
-    /// at a bound of the search's own (copies, recursion, witness depth)
-    /// ends nothing: such a run is fast, and a family whose unprovable
-    /// shape is searched to a bound ends there at every size.
+    /// Ends the series if the run ended it. The first run that ends a
+    /// series names the reason.
+    ///
+    /// A run ends its series when it is refused (the engine or tool does
+    /// not take the shape at any size), or not decided within its time
+    /// limit: decided late, or ended at the time limit or the memory bound,
+    /// killed or crashed.
+    /// A run that ended at a bound of the search's own (copies, recursion,
+    /// witness depth) ends nothing. Such a run is fast, and a family whose
+    /// unprovable shape is searched to a bound ends there at every size.
     pub fn record(
         &mut self,
         series: &[&str],

@@ -1,14 +1,16 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The journeys: small, deterministic runs of the library's hot paths
-//! (searches of the target set's rows and of the families, the readers,
-//! the checker, a derivation, the renderers, a batch, ordinary logic),
-//! whose instruction counts under callgrind the ratchet compares with
-//! committed ceilings. Each journey prepares its input first and does the
-//! work it measures inside [`measured`], which callgrind's
-//! `--toggle-collect` counts alone. Every search runs on one thread, so a
-//! count is a function of the build and the input.
+//! The journeys: small, deterministic runs of the library's hot paths.
+//! They cover searches of the target set's rows and of the families, the
+//! readers, the checker, a derivation, the renderers, a batch and
+//! ordinary logic. The ratchet counts their instructions under callgrind
+//! and compares the counts with committed ceilings.
+//!
+//! Each journey prepares its input first, then does the work it measures
+//! inside [`measured`], which callgrind's `--toggle-collect` counts alone.
+//! Every search runs on one thread, so a count is a function of the build
+//! and the input.
 
 use anyhow::{Context, Result, bail};
 use deduxit::export::{latex, svg, typst};
@@ -24,7 +26,7 @@ use std::hint::black_box;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
-/// One journey: its name, what it runs, and the run.
+/// One journey.
 pub struct Journey {
     /// The name the ratchet's file and the command use.
     pub name: &'static str,
@@ -138,8 +140,9 @@ pub static JOURNEYS: &[Journey] = &[
     },
 ];
 
-/// Runs `work` and returns its result: the part of a journey callgrind
-/// counts. Never inlined, so that callgrind sees it by name.
+/// Runs `work` and returns its result. This is the part of a journey that
+/// callgrind counts, and it records the part's wall-clock time. It is
+/// never inlined, so that callgrind sees it by name.
 #[inline(never)]
 pub fn measured<R>(work: impl FnOnce() -> R) -> R {
     let start = Instant::now();
@@ -172,11 +175,13 @@ pub fn run(name: &str, repeat: Option<u32>) -> Result<()> {
     }
 }
 
-/// The options of a search of the target set: one thread, the problem's
-/// copy bound or the default, no check (a journey of its own). With
-/// exponentials the default bias runs two searches in turns, whose waiting
-/// thread wakes on a clock, so a count would depend on the time: such a
-/// journey names the rarer literal's search alone.
+/// Returns the options of a search of the target set: one thread, the
+/// problem's copy bound or the default, and no check (the checker has
+/// journeys of its own).
+///
+/// With exponentials the default bias runs two searches in turns, whose
+/// waiting thread wakes on a clock, so a count would depend on the time.
+/// Such a journey runs the rarer literal's search alone.
 fn options(sequent: &Sequent, copies: Option<u32>) -> Options {
     let bias = if sequent.fragment().has_exponentials() {
         Bias::Rarer
@@ -190,7 +195,7 @@ fn options(sequent: &Sequent, copies: Option<u32>) -> Options {
         .with_check(false)
 }
 
-/// An instance of a family.
+/// Returns an instance of a family.
 fn instance(family: &str, size: u32, index: u32) -> Result<deduxit::linear::families::Instance> {
     let family =
         deduxit::linear::families::find(family).with_context(|| format!("no family {family}"))?;
@@ -205,8 +210,9 @@ fn search_family(family: &str, size: u32, index: u32) -> Result<()> {
     decided(&outcome.verdict, problem.provable)
 }
 
-/// Decides an instance of a family on the net engine, which the dispatch
-/// gives only what the focused engines stop on.
+/// Decides an instance of a family on the net engine. The journey forces
+/// it, since the library gives a classical sequent to the net engine only
+/// after the focused engines stop on it.
 fn search_net(family: &str, size: u32) -> Result<()> {
     let problem = instance(family, size, 0)?;
     let options = options(&problem.sequent, problem.copies).with_engine(Some(Engine::Net));
@@ -229,8 +235,8 @@ fn search_intuitionistic(family: &str, size: u32) -> Result<()> {
     decided(&outcome.verdict, problem.provable)
 }
 
-/// Fails unless the verdict is the one expected: a journey that stops
-/// deciding measures something else.
+/// Fails unless the verdict is the one expected, since a journey that
+/// stops deciding measures something else.
 fn decided(verdict: &Verdict, provable: bool) -> Result<()> {
     match verdict {
         Verdict::Proved(_) if provable => Ok(()),
@@ -242,12 +248,13 @@ fn decided(verdict: &Verdict, provable: bool) -> Result<()> {
     }
 }
 
-/// A proof of a provable instance of a family.
+/// Returns a proof of a provable instance of a family.
 fn proof(family: &str, size: u32, index: u32) -> Result<Proof> {
     proof_by(family, size, index, None)
 }
 
-/// The proof of an instance by `engine`, or by the dispatch's engine.
+/// Returns the proof of an instance by `engine`, or by the engine the
+/// library picks.
 fn proof_by(family: &str, size: u32, index: u32, engine: Option<Engine>) -> Result<Proof> {
     let problem = instance(family, size, index)?;
     match deduxit::linear::prove(
@@ -262,7 +269,7 @@ fn proof_by(family: &str, size: u32, index: u32, engine: Option<Engine>) -> Resu
     }
 }
 
-/// The sequent the readers' text and JSON journeys read.
+/// Returns the sequent the text and JSON readers' journeys read.
 fn wide() -> Result<Sequent> {
     Ok(instance("wide-m1", 2048, 0)?.sequent)
 }
@@ -313,8 +320,8 @@ fn read_tptp() -> Result<()> {
     Ok(())
 }
 
-/// A coverability problem of a chain of transitions, each moving the one
-/// token on: the last place is reachable.
+/// Returns a coverability problem of a chain of transitions, each moving
+/// the one token on, so the last place is reachable.
 fn spec() -> Result<String> {
     let mut text = String::from("vars\n");
     for i in 0..=LINES {
@@ -344,8 +351,8 @@ fn read_spec() -> Result<()> {
     Ok(())
 }
 
-/// Decides a coverability problem as the harness does, intuitionistic
-/// affine.
+/// Decides a coverability problem as the harness does, in intuitionistic
+/// affine mode.
 fn search_spec() -> Result<()> {
     let problem = deduxit::linear::mist::read(&spec()?, &Limits::default())?;
     let mode = Mode::INTUITIONISTIC.with_affine();
@@ -355,7 +362,7 @@ fn search_spec() -> Result<()> {
 }
 
 /// Checks the proof of a provable instance of a family, found by `engine`
-/// or by the dispatch's engine.
+/// or by the engine the library picks.
 fn check(family: &str, size: u32, index: u32, engine: Option<Engine>) -> Result<()> {
     let proof = proof_by(family, size, index, engine)?;
     measured(|| proof.check(Mode::CLASSICAL))?;
@@ -385,7 +392,7 @@ enum Render {
     Svg,
 }
 
-/// What a target's `write` makes of a derivation, as a string.
+/// Returns what a renderer's `write` makes of a derivation.
 fn written(write: impl FnOnce(&mut String) -> Result<(), deduxit::Error>) -> String {
     let mut out = String::new();
     write(&mut out).expect("a string takes any text and nothing stops");
@@ -413,11 +420,11 @@ fn render(format: Render) -> Result<()> {
     Ok(())
 }
 
-/// Decides the smallest instance of every family as one batch.
+/// Decides the smallest instance of each family of [`BATCHED`] as one
+/// batch.
 fn batch() -> Result<()> {
-    // The propositional families the journey was set on: the first-order
-    // ones have searches of their own, and a family added since stays out,
-    // so that the count measures the same batch.
+    // A fixed list of propositional families: a family added to the
+    // library stays out, so that the count measures the same batch.
     let mut problems: Vec<batch::Problem> = Vec::new();
     for family in deduxit::linear::families::FAMILIES {
         let problem = family.instance(family.sizes[0], 0)?;
@@ -430,8 +437,8 @@ fn batch() -> Result<()> {
         }
     }
     let options = batch::Options::default().with_cores(batch::Cores::Across);
-    // The rarer literal's search alone, as `options` takes it with
-    // exponentials, for every problem.
+    // The rarer literal's search alone for every problem, as `options`
+    // picks it with exponentials.
     let search = Options::default()
         .with_jobs(1)
         .with_bias(Bias::Rarer)
@@ -483,7 +490,8 @@ fn ordinary() -> Result<()> {
     }
     text.push_str(&clashes.join(" \\/ "));
     let sequent: ordinary::Sequent = text.parse()?;
-    // The search's options as for the image, which `decide` makes again.
+    // The image's search options, from a translation outside the measured
+    // part. `decide` translates again inside it.
     let image = ordinary::translate(
         &sequent,
         Logic::Classical,
