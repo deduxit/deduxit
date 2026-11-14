@@ -8,6 +8,8 @@
 //!   check;
 //! - LJT, a terminating sequent calculus for intuitionistic and minimal
 //!   logic, which checks its own derivation inside the time measured;
+//! - the SAT solver, which checks its derivation, its clausal proof or
+//!   its countermodel inside the time measured;
 //! - the logic's default: the library's whole call, its checks timed.
 
 use crate::OneArgs;
@@ -18,7 +20,7 @@ use crate::run::{
 };
 use deduxit::linear::lltp::Status;
 use deduxit::linear::search::{Options, Reason};
-use deduxit::ordinary::{self, Logic, Method, Translation, Verdict, ljt};
+use deduxit::ordinary::{self, Logic, Method, Translation, Verdict, ljt, sat};
 use deduxit::{Error, Limits, Phase, Refusal};
 use std::sync::atomic::Ordering;
 
@@ -51,7 +53,7 @@ pub fn tail(args: &OneArgs, logic: Logic) -> String {
     }
     match method {
         Method::Embedding => embedded(args, logic, &problem.sequent, expected),
-        Method::Ljt => by_ljt(args, logic, &problem.sequent, expected),
+        Method::Ljt | Method::Sat => native(args, logic, &problem.sequent, expected, method),
         other => row(&[
             ("verdict", "error"),
             ("reason", &format!("the harness does not run {other}")),
@@ -106,12 +108,22 @@ fn embedded(args: &OneArgs, logic: Logic, sequent: &ordinary::Sequent, expected:
     })
 }
 
-/// Decides the sequent by LJT within the run's memory bound and time
-/// limit, and returns the tail of its row. The derivation is checked
-/// inside the time measured. A proof whose derivation a bound refuses is
-/// `unknown`, with the bound as the reason (`derivation_limit` for its
-/// size).
-fn by_ljt(args: &OneArgs, logic: Logic, sequent: &ordinary::Sequent, expected: &str) -> String {
+/// Decides the sequent by LJT or the SAT solver within the run's memory
+/// bound and time limit, and returns the tail of its row. The evidence is
+/// checked inside the time measured. A proof whose derivation a bound
+/// refuses is `unknown`, with the bound as the reason (`derivation_limit`
+/// for its size).
+///
+/// LJT's `nodes` and `work` are its sequents expanded; the SAT solver's
+/// `nodes` are its conflicts and `work` its calls and conflicts, the
+/// units its work bound counts.
+fn native(
+    args: &OneArgs,
+    logic: Logic,
+    sequent: &ordinary::Sequent,
+    expected: &str,
+    method: Method,
+) -> String {
     let limits = Limits::default().with_memory_bytes(memory_limit(args.memory_limit));
     let (bias, forward) = (
         name(&args.bias),
@@ -124,15 +136,41 @@ fn by_ljt(args: &OneArgs, logic: Logic, sequent: &ordinary::Sequent, expected: &
     );
     say(LOADED);
     let clock = Clock::start(args.timeout);
-    let outcome = ljt::decide(sequent, logic, &limits, |_| {
-        clock.expired.load(Ordering::Relaxed)
-    });
+    let stop = |_| clock.expired.load(Ordering::Relaxed);
+    // The verdict and the counters `nodes`, `memo_hits`, `memo_entries`
+    // and `work`, empty where the method has none.
+    let outcome = if method == Method::Sat {
+        sat::decide(sequent, logic, &limits, stop).map(|outcome| {
+            let s = outcome.statistics;
+            let work = s.calls.saturating_add(s.conflicts);
+            (
+                outcome.verdict,
+                [
+                    s.conflicts.to_string(),
+                    String::new(),
+                    String::new(),
+                    work.to_string(),
+                ],
+            )
+        })
+    } else {
+        ljt::decide(sequent, logic, &limits, stop).map(|outcome| {
+            let s = outcome.statistics;
+            (
+                outcome.verdict,
+                [s.sequents, s.memo_hits, s.memo_entries, s.sequents].map(|n| n.to_string()),
+            )
+        })
+    };
     let (time, cpu, wait) = clock.read();
     let time = format!("{time:.3}");
     let mut fields = vec![
         ("expected", expected),
-        ("engine", Method::Ljt.name()),
-        ("fragment", "LJT"),
+        ("engine", method.name()),
+        (
+            "fragment",
+            if method == Method::Sat { "SAT" } else { "LJT" },
+        ),
         ("time_ms", &time),
         ("cpu_ms", &cpu),
         ("wait_ms", &wait),
@@ -147,22 +185,15 @@ fn by_ljt(args: &OneArgs, logic: Logic, sequent: &ordinary::Sequent, expected: &
         reason => reason.name(),
     };
     let message;
-    let (sequents, hits, entries);
     match &outcome {
-        Ok(outcome) => {
-            let s = outcome.statistics;
-            (sequents, hits, entries) = (
-                s.sequents.to_string(),
-                s.memo_hits.to_string(),
-                s.memo_entries.to_string(),
-            );
+        Ok((verdict, counters)) => {
             fields.extend([
-                ("nodes", sequents.as_str()),
-                ("memo_hits", hits.as_str()),
-                ("memo_entries", entries.as_str()),
-                ("work", sequents.as_str()),
+                ("nodes", counters[0].as_str()),
+                ("memo_hits", counters[1].as_str()),
+                ("memo_entries", counters[2].as_str()),
+                ("work", counters[3].as_str()),
             ]);
-            fields.extend(match &outcome.verdict {
+            fields.extend(match verdict {
                 // Checked inside the search's time.
                 Verdict::Valid(_) => [("verdict", "proved"), ("checked", "ok")],
                 Verdict::NotValid => [("verdict", "unprovable"), ("checked", "")],
@@ -271,6 +302,11 @@ fn by_default(args: &OneArgs, logic: Logic, sequent: &ordinary::Sequent, expecte
                         [s.nodes, s.memo_hits, s.memo_entries, s.work],
                     )
                 }
+                ordinary::Search::Sat(s) => (
+                    Method::Sat.name().to_owned(),
+                    "SAT".to_owned(),
+                    [s.conflicts, 0, 0, s.calls.saturating_add(s.conflicts)],
+                ),
                 _ => (String::new(), String::new(), [0; 4]),
             };
             counters = [

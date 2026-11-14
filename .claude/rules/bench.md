@@ -49,7 +49,11 @@ serde_json, which the CLI and the core's tests already have.
   read-back LJ derivation outside the time as its `checked`; `ljt` times
   `ljt::decide`, its own check inside, `nodes` and `work` its sequents,
   a refused derivation `unknown` with the reason `derivation_limit`
-  (`memory_limit`, `work_limit`), `fragment` `LJT`; `auto` times the
+  (`memory_limit`, `work_limit`), `fragment` `LJT`; `sat` times
+  `sat::decide` in all three logics the same way (its derivation, clausal
+  proof or model checked inside), `fragment` `SAT`, `nodes` its conflicts,
+  `work` its calls and conflicts (the units of its work bound), the memo
+  columns empty; `auto` times the
   library's whole default call (`ordinary::decide`, read-back and checks
   inside), so its rows compare with the other two by verdict, and by
   time only where that is said. A method on a linear problem, and LJT on

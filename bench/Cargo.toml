@@ -24,6 +24,7 @@ deduxit = { workspace = true, features = [
   "latex",
   "parallel",
   "parse",
+  "sat",
   "serialize",
   "svg",
   "typst",
