@@ -299,8 +299,10 @@ pub struct RunArgs {
     /// engines in a child: `deduxit` (the command on one thread),
     /// `deduxit-default` (the command as a user runs it) and the other
     /// provers' drivers. BenchExec's `runexec` measures each process under
-    /// --timeout and --memory-limit (default 4 GiB). The options of
-    /// deduxit's engines are refused beside it
+    /// --timeout and --memory-limit (default 4 GiB). A TPTP problem runs in
+    /// each logic of --logics, with the tools that read TPTP (deduxit's
+    /// two, `intuit` and `intuitr`, the last two in intuitionistic logic
+    /// alone). The options of deduxit's engines are refused beside it
     #[arg(
         long,
         value_delimiter = ',',

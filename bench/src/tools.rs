@@ -13,6 +13,10 @@
 //! fragment and mode, how the problem is written for it, its command line,
 //! and how its verdict is read. A problem outside a tool's fragment is not
 //! run: its row has the verdict `refused` and the reason `fragment`.
+//!
+//! A TPTP problem of ordinary logic runs in each logic asked for, with the
+//! tools whose driver has an [`Ordinary`] part that decides the logic. Each
+//! reads the problem's file as it is.
 
 use crate::growth::{Ended, SKIPPED, TOOL_SERIES};
 use crate::problems::{self, Problem, Reference, mode_name};
@@ -20,6 +24,7 @@ use crate::run::HEADER;
 use crate::translate;
 use anyhow::{Context, Result, anyhow, bail};
 use deduxit::linear::{Fragment, Mode};
+use deduxit::ordinary::{self, Logic};
 use std::collections::HashSet;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -61,6 +66,21 @@ pub struct Driver {
     pub jobs: &'static str,
     /// Whether the tool checks a proof before it reports it.
     pub checks: bool,
+    /// How the tool decides a TPTP problem of ordinary logic, if it reads
+    /// one.
+    pub ordinary: Option<Ordinary>,
+}
+
+/// How a tool decides a TPTP problem of ordinary logic. It reads the
+/// problem's file as it is.
+pub struct Ordinary {
+    /// Whether it decides a problem in this logic.
+    pub decides: fn(Logic) -> bool,
+    /// The arguments after the program, given the file, the logic, the time
+    /// limit in seconds and the memory limit in bytes.
+    pub arguments: fn(&Path, Logic, f64, u64) -> Vec<String>,
+    /// The verdict and its reason, from the tool's output and exit status.
+    pub read: fn(&str, i32) -> Answer,
 }
 
 /// A tool's answer on one problem.
@@ -109,6 +129,17 @@ const fn propositional(fragment: Fragment) -> bool {
 
 /// Returns true: deduxit covers every problem the harness has.
 const fn everything(_: Fragment, _: Mode) -> bool {
+    true
+}
+
+/// Returns false: intuit and intuitR read no problem of linear logic, so
+/// the linear parts of their drivers are never called.
+const fn nothing(_: Fragment, _: Mode) -> bool {
+    false
+}
+
+/// Returns true: deduxit decides every logic.
+const fn every_logic(_: Logic) -> bool {
     true
 }
 
@@ -164,11 +195,65 @@ fn deduxit_one(file: &Path, problem: &Problem, timeout: f64, memory: u64) -> Vec
     arguments
 }
 
-/// Reads deduxit's answer from its exit status (0 proved, 1 unprovable, 3
-/// unknown, 2 an error) and its outcome in JSON. The outcome gives the
-/// engine, an unknown verdict's reason, and an unprovable verdict's
-/// refutation, which `Disproof::check` checks ([`refutation_checked`]).
+/// Returns the arguments of `deduxit prove` on a TPTP problem in a logic,
+/// with the limits and JSON output of [`deduxit_arguments`].
+fn deduxit_ordinary(file: &Path, logic: Logic, timeout: f64, memory: u64) -> Vec<String> {
+    [
+        "prove",
+        "--file",
+        &file.display().to_string(),
+        "--input-format",
+        "tptp",
+        "--logic",
+        logic.name(),
+        "--timeout",
+        &format!("{timeout}s"),
+        "--memory-limit",
+        &format!("{memory}B"),
+        "--format",
+        "json",
+        "--quiet",
+    ]
+    .map(String::from)
+    .to_vec()
+}
+
+/// Returns the arguments of deduxit on one thread on a TPTP problem.
+fn deduxit_ordinary_one(file: &Path, logic: Logic, timeout: f64, memory: u64) -> Vec<String> {
+    let mut arguments = deduxit_ordinary(file, logic, timeout, memory);
+    arguments.push("--deterministic".into());
+    arguments
+}
+
+/// Reads intuit's or intuitR's verdict line, `+++ RESULT: Valid` or
+/// `+++ RESULT: CounterSatisfiable`. Anything else is an error, named by
+/// the output's last line, which holds a parse error's message.
+fn intuit_read(output: &str, _: i32) -> Answer {
+    if output.contains("+++ RESULT: Valid") {
+        Answer::plain("proved", "")
+    } else if output.contains("+++ RESULT: CounterSatisfiable") {
+        Answer::plain("unprovable", "")
+    } else {
+        let last = output.lines().rev().find(|l| !l.trim().is_empty());
+        Answer::plain("error", last.unwrap_or(""))
+    }
+}
+
+/// Reads deduxit's answer from its exit status and its outcome in JSON,
+/// as [`deduxit_answer`] does, and checks an unprovable verdict's
+/// refutation with `Disproof::check` ([`refutation_checked`]).
 fn deduxit_read(output: &str, status: i32, _: &Problem) -> Answer {
+    let mut answer = deduxit_answer(output, status);
+    if answer.verdict == "unprovable" {
+        answer.checked = Some(refutation_checked(output));
+    }
+    answer
+}
+
+/// Reads deduxit's answer from its exit status (0 proved, 1 unprovable, 3
+/// unknown, 2 an error) and its outcome in JSON, which gives the engine and
+/// an unknown verdict's reason.
+fn deduxit_answer(output: &str, status: i32) -> Answer {
     let line = output.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
     let outcome = output
         .lines()
@@ -176,13 +261,9 @@ fn deduxit_read(output: &str, status: i32, _: &Problem) -> Answer {
         .unwrap_or_default();
     let text = |value: &serde_json::Value| value.as_str().unwrap_or("").to_owned();
     let engine = text(&outcome["engine"]);
-    let (verdict, reason, checked) = match status {
-        0 => ("proved", String::new(), None),
-        1 => (
-            "unprovable",
-            String::new(),
-            Some(refutation_checked(output)),
-        ),
+    let (verdict, reason) = match status {
+        0 => ("proved", String::new()),
+        1 => ("unprovable", String::new()),
         3 => {
             // The reason is the bound that stopped the search, and its stop
             // is the time limit here. Without an outcome, the verdict line
@@ -208,15 +289,15 @@ fn deduxit_read(output: &str, status: i32, _: &Problem) -> Answer {
                 }
                 kind => kind.to_owned(),
             };
-            ("unknown", reason, None)
+            ("unknown", reason)
         }
-        _ => ("error", line.to_owned(), None),
+        _ => ("error", line.to_owned()),
     };
     Answer {
         verdict,
         reason,
         engine,
-        checked,
+        checked: None,
     }
 }
 
@@ -253,6 +334,11 @@ pub const DRIVERS: &[Driver] = &[
         read: deduxit_read,
         jobs: "1",
         checks: true,
+        ordinary: Some(Ordinary {
+            decides: every_logic,
+            arguments: deduxit_ordinary_one,
+            read: deduxit_answer,
+        }),
     },
     Driver {
         name: "deduxit-default",
@@ -265,6 +351,11 @@ pub const DRIVERS: &[Driver] = &[
         read: deduxit_read,
         jobs: "all",
         checks: true,
+        ordinary: Some(Ordinary {
+            decides: every_logic,
+            arguments: deduxit_ordinary,
+            read: deduxit_answer,
+        }),
     },
     Driver {
         name: "click-and-collect",
@@ -289,6 +380,7 @@ pub const DRIVERS: &[Driver] = &[
         },
         jobs: "1",
         checks: false,
+        ordinary: None,
     },
     Driver {
         name: "maude-ill",
@@ -316,6 +408,7 @@ pub const DRIVERS: &[Driver] = &[
         },
         jobs: "1",
         checks: false,
+        ordinary: None,
     },
     Driver {
         name: "maude-cll",
@@ -337,6 +430,7 @@ pub const DRIVERS: &[Driver] = &[
         },
         jobs: "1",
         checks: false,
+        ordinary: None,
     },
     Driver {
         name: "llprover-cll",
@@ -350,6 +444,7 @@ pub const DRIVERS: &[Driver] = &[
         read: llprover_read,
         jobs: "1",
         checks: false,
+        ordinary: None,
     },
     Driver {
         name: "llprover-ill",
@@ -363,6 +458,7 @@ pub const DRIVERS: &[Driver] = &[
         read: llprover_read,
         jobs: "1",
         checks: false,
+        ordinary: None,
     },
     Driver {
         name: "lintap",
@@ -386,6 +482,7 @@ pub const DRIVERS: &[Driver] = &[
         },
         jobs: "1",
         checks: false,
+        ordinary: None,
     },
     Driver {
         name: "linearone",
@@ -404,6 +501,7 @@ pub const DRIVERS: &[Driver] = &[
         },
         jobs: "1",
         checks: false,
+        ordinary: None,
     },
     Driver {
         name: "sympli",
@@ -426,6 +524,7 @@ pub const DRIVERS: &[Driver] = &[
         },
         jobs: "1",
         checks: true,
+        ordinary: None,
     },
     Driver {
         name: "lolli",
@@ -446,6 +545,7 @@ pub const DRIVERS: &[Driver] = &[
         },
         jobs: "1",
         checks: false,
+        ordinary: None,
     },
     Driver {
         name: "apll-ll",
@@ -459,6 +559,7 @@ pub const DRIVERS: &[Driver] = &[
         read: apll_read,
         jobs: "1",
         checks: false,
+        ordinary: None,
     },
     Driver {
         name: "apll-ill",
@@ -472,6 +573,43 @@ pub const DRIVERS: &[Driver] = &[
         read: apll_read,
         jobs: "1",
         checks: false,
+        ordinary: None,
+    },
+    Driver {
+        name: "intuit",
+        program: "intuit",
+        summary: "intuit (Claessen and Rosén): intuitionistic propositional logic by a SAT \
+                  solver and intuitionistic implications, on the TPTP file as it is",
+        covers: nothing,
+        input: Input::Translated("p"),
+        translate: untranslated,
+        arguments: |_, _, _, _| Vec::new(),
+        read: |_, _, _| Answer::plain("error", "no problem of linear logic"),
+        jobs: "1",
+        checks: false,
+        ordinary: Some(Ordinary {
+            decides: |logic| logic == Logic::Intuitionistic,
+            arguments: |file, _, _, _| vec![file.display().to_string()],
+            read: intuit_read,
+        }),
+    },
+    Driver {
+        name: "intuitr",
+        program: "intuitR",
+        summary: "intuitR (Fiorentini): intuit with restarts, its default weak \
+                  clausification, on the TPTP file as it is",
+        covers: nothing,
+        input: Input::Translated("p"),
+        translate: untranslated,
+        arguments: |_, _, _, _| Vec::new(),
+        read: |_, _, _| Answer::plain("error", "no problem of linear logic"),
+        jobs: "1",
+        checks: false,
+        ordinary: Some(Ordinary {
+            decides: |logic| logic == Logic::Intuitionistic,
+            arguments: |file, _, _, _| vec![file.display().to_string()],
+            read: intuit_read,
+        }),
     },
 ];
 
@@ -592,6 +730,8 @@ fn tool_output(log: &str) -> &str {
 pub struct Settings<'a> {
     /// The tools, in the order each problem runs them.
     pub drivers: Vec<&'static Driver>,
+    /// The logics a TPTP problem of ordinary logic runs in.
+    pub logics: Vec<Logic>,
     /// The time limit in seconds, the same for every tool.
     pub timeout: f64,
     /// The memory limit in bytes, the same for every tool.
@@ -619,22 +759,49 @@ pub fn run(
     out: &mut dyn Write,
 ) -> Result<()> {
     std::fs::create_dir_all(settings.work)?;
-    let total = references.len() * settings.drivers.len();
+    let total = references
+        .iter()
+        .map(|r| {
+            if r.is_ordinary() {
+                settings.logics.len()
+            } else {
+                1
+            }
+        })
+        .sum::<usize>()
+        * settings.drivers.len();
     let start = Instant::now();
     let (mut count, mut ran) = (0, 0);
     for reference in references {
-        let key = |tool: &str| {
+        // What the problem runs in: its mode, or each logic for a problem of
+        // ordinary logic. The `mode` column holds the name.
+        let runs: Vec<(&str, Option<Logic>)> = if reference.is_ordinary() {
+            settings
+                .logics
+                .iter()
+                .map(|&logic| (logic.name(), Some(logic)))
+                .collect()
+        } else {
+            vec![(mode_name(reference.mode), None)]
+        };
+        let key = |mode: &str, tool: &str| {
             [
                 reference.source,
                 &reference.family,
                 &reference.name,
-                mode_name(reference.mode),
+                mode,
                 tool,
             ]
             .join(",")
         };
-        if settings.drivers.iter().all(|d| done.contains(&key(d.name))) {
-            count += settings.drivers.len();
+        let pairs = runs.len() * settings.drivers.len();
+        if runs.iter().all(|&(mode, _)| {
+            settings
+                .drivers
+                .iter()
+                .all(|d| done.contains(&key(mode, d.name)))
+        }) {
+            count += pairs;
             continue;
         }
         let index = reference.index.map_or(String::new(), |i| i.to_string());
@@ -652,61 +819,86 @@ pub fn run(
                 .filter(|_| reference.source == "family")
                 .and_then(|e| e.skipped(&series(tool.to_owned()).each_ref().map(String::as_str)))
         };
-        let problem = problems::load(&reference.id);
-        for driver in &settings.drivers {
-            count += 1;
-            if done.contains(&key(driver.name)) {
-                continue;
-            }
-            if let Some(reason) = skipped(&growing, driver.name) {
-                let filled = [("verdict", SKIPPED.to_owned()), ("reason", reason)];
-                writeln!(out, "{}", full_row(reference, driver, settings, &filled))?;
-                continue;
-            }
-            ran += 1;
-            let row = match &problem {
-                Ok(problem) => one(reference, problem, driver, settings)?,
-                Err(error) => vec![
-                    ("verdict", "error".into()),
-                    ("reason", crate::run::clean(&format!("{error:#}"))),
-                ],
-            };
-            let line = full_row(reference, driver, settings, &row);
-            writeln!(out, "{line}")?;
-            out.flush()?;
-            let get = |name: &str| {
-                row.iter()
-                    .find(|(n, _)| *n == name)
-                    .map_or("", |(_, v)| v.as_str())
-            };
-            if let Some(growing) = &mut growing
-                && reference.source == "family"
-            {
-                growing.record(
-                    &series(driver.name.to_owned())
-                        .each_ref()
-                        .map(String::as_str),
-                    &reference.size.map_or(String::new(), |s| s.to_string()),
+        let problem = if reference.is_ordinary() {
+            problems::load_ordinary(&reference.id).map(Loaded::Ordinary)
+        } else {
+            problems::load(&reference.id).map(Loaded::Linear)
+        };
+        for &(mode, logic) in &runs {
+            for driver in &settings.drivers {
+                count += 1;
+                if done.contains(&key(mode, driver.name)) {
+                    continue;
+                }
+                if let Some(reason) = skipped(&growing, driver.name) {
+                    let filled = [("verdict", SKIPPED.to_owned()), ("reason", reason)];
+                    writeln!(
+                        out,
+                        "{}",
+                        full_row(reference, mode, driver, settings, &filled)
+                    )?;
+                    continue;
+                }
+                ran += 1;
+                let row = match (&problem, logic) {
+                    (Ok(Loaded::Linear(problem)), _) => one(reference, problem, driver, settings)?,
+                    (Ok(Loaded::Ordinary(problem)), Some(logic)) => {
+                        one_ordinary(reference, problem, logic, driver, settings)?
+                    }
+                    (Ok(Loaded::Ordinary(_)), None) => {
+                        bail!("{} is ordinary logic, which runs in a logic", reference.id)
+                    }
+                    (Err(error), _) => vec![
+                        ("verdict", "error".into()),
+                        ("reason", crate::run::clean(&format!("{error:#}"))),
+                    ],
+                };
+                let line = full_row(reference, mode, driver, settings, &row);
+                writeln!(out, "{line}")?;
+                out.flush()?;
+                let get = |name: &str| {
+                    row.iter()
+                        .find(|(n, _)| *n == name)
+                        .map_or("", |(_, v)| v.as_str())
+                };
+                if let Some(growing) = &mut growing
+                    && reference.source == "family"
+                {
+                    growing.record(
+                        &series(driver.name.to_owned())
+                            .each_ref()
+                            .map(String::as_str),
+                        &reference.size.map_or(String::new(), |s| s.to_string()),
+                        get("verdict"),
+                        get("reason"),
+                        get("time_ms").parse().unwrap_or(0.0),
+                        settings.timeout,
+                    );
+                }
+                let left = start.elapsed().as_secs_f64() / f64::from(ran) * (total - count) as f64;
+                eprintln!(
+                    "[{count}/{total}] {}/{} ({mode}) {}: {} {} {} ms, about {:.0} min left",
+                    reference.family,
+                    reference.name,
+                    driver.name,
                     get("verdict"),
                     get("reason"),
-                    get("time_ms").parse().unwrap_or(0.0),
-                    settings.timeout,
+                    get("time_ms"),
+                    left / 60.0,
                 );
             }
-            let left = start.elapsed().as_secs_f64() / f64::from(ran) * (total - count) as f64;
-            eprintln!(
-                "[{count}/{total}] {}/{} {}: {} {} {} ms, about {:.0} min left",
-                reference.family,
-                reference.name,
-                driver.name,
-                get("verdict"),
-                get("reason"),
-                get("time_ms"),
-                left / 60.0,
-            );
         }
     }
     Ok(())
+}
+
+/// A problem as loaded for the tools: linear, or a TPTP problem of
+/// ordinary logic.
+enum Loaded {
+    /// A problem of linear logic.
+    Linear(Problem),
+    /// A TPTP problem of ordinary logic.
+    Ordinary(ordinary::Problem),
 }
 
 /// Runs one problem with one tool and returns the row's fields that
@@ -732,11 +924,7 @@ fn one(
         row.extend([("verdict", "refused".into()), ("reason", "fragment".into())]);
         return Ok(row);
     }
-    let dir = settings.work.join(driver.name);
-    if dir.exists() {
-        std::fs::remove_dir_all(&dir)?;
-    }
-    std::fs::create_dir_all(&dir)?;
+    let dir = work_dir(settings, driver)?;
     let started = Instant::now();
     let input = match driver.input {
         Input::Deduxit if matches!(reference.source, "lltp" | "spec") => {
@@ -768,6 +956,66 @@ fn one(
     let translate_ms = started.elapsed().as_secs_f64() * 1000.0;
     let input = std::path::absolute(&input)?;
     let arguments = (driver.arguments)(&input, problem, settings.timeout, settings.memory);
+    execute(
+        reference,
+        driver,
+        settings,
+        &arguments,
+        translate_ms,
+        row,
+        |output, status| (driver.read)(output, status, problem),
+    )
+}
+
+/// Runs a TPTP problem of ordinary logic in a logic with one tool and
+/// returns the row's fields that depend on the run. The tool reads the
+/// problem's file as it is.
+fn one_ordinary(
+    reference: &Reference,
+    problem: &ordinary::Problem,
+    logic: Logic,
+    driver: &Driver,
+    settings: &Settings,
+) -> Result<Vec<(&'static str, String)>> {
+    let row = vec![(
+        "expected",
+        crate::ordinary::expected(problem.status, logic).to_owned(),
+    )];
+    let Some(tool) = driver.ordinary.as_ref().filter(|o| (o.decides)(logic)) else {
+        let mut row = row;
+        row.extend([("verdict", "refused".into()), ("reason", "fragment".into())]);
+        return Ok(row);
+    };
+    let path = reference.id.split_once(':').map_or("", |(_, path)| path);
+    let input = std::path::absolute(path)?;
+    work_dir(settings, driver)?;
+    let arguments = (tool.arguments)(&input, logic, settings.timeout, settings.memory);
+    execute(reference, driver, settings, &arguments, 0.0, row, tool.read)
+}
+
+/// Returns the empty directory of a tool's run, made afresh.
+fn work_dir(settings: &Settings, driver: &Driver) -> Result<PathBuf> {
+    let dir = settings.work.join(driver.name);
+    if dir.exists() {
+        std::fs::remove_dir_all(&dir)?;
+    }
+    std::fs::create_dir_all(&dir)?;
+    Ok(dir)
+}
+
+/// Runs the tool under `runexec` with the arguments in its work directory,
+/// reads its answer with `read`, and returns `row` with the run's fields
+/// added. The directory is removed after the run.
+fn execute(
+    reference: &Reference,
+    driver: &Driver,
+    settings: &Settings,
+    arguments: &[String],
+    translate_ms: f64,
+    mut row: Vec<(&'static str, String)>,
+    read: impl Fn(&str, i32) -> Answer,
+) -> Result<Vec<(&'static str, String)>> {
+    let dir = settings.work.join(driver.name);
     let log = dir.join("output.log");
     let result = Command::new("runexec")
         .args(["--no-container", "--quiet", "--walltimelimit"])
@@ -780,7 +1028,7 @@ fn one(
         .arg(&dir)
         .arg("--")
         .arg(driver.program)
-        .args(&arguments)
+        .args(arguments)
         .output()
         .context("starting runexec, which BenchExec provides")?;
     let m = measured(&String::from_utf8_lossy(&result.stdout));
@@ -794,7 +1042,7 @@ fn one(
         );
     }
     let answer = match m.terminated.as_str() {
-        "" => (driver.read)(tool_output(&log), m.status, problem),
+        "" => read(tool_output(&log), m.status),
         "memory" => Answer::plain("unknown", "out_of_memory"),
         "walltime" | "cputime" => Answer::plain("unknown", "timeout"),
         other => Answer::plain("unknown", other),
@@ -828,10 +1076,11 @@ fn one(
     Ok(row)
 }
 
-/// Returns the whole CSV row of one run: the problem's columns, the
-/// driver's, the settings' and the run's.
+/// Returns the whole CSV row of one run: the problem's columns, the mode
+/// or logic it ran in, the driver's, the settings' and the run's.
 fn full_row(
     reference: &Reference,
+    mode: &str,
     driver: &Driver,
     settings: &Settings,
     filled: &[(&str, String)],
@@ -848,7 +1097,7 @@ fn full_row(
             reference.index.map_or(String::new(), |i| i.to_string()),
         ),
         ("problem", reference.name.clone()),
-        ("mode", mode_name(reference.mode).to_owned()),
+        ("mode", mode.to_owned()),
         ("jobs", driver.jobs.to_owned()),
         ("timeout_s", settings.timeout.to_string()),
         ("run", "0".into()),
@@ -920,6 +1169,7 @@ pub fn main(args: &crate::RunArgs, references: Vec<Reference>) -> Result<()> {
         .unwrap_or_else(|| output.with_extension("work"));
     let settings = Settings {
         drivers,
+        logics: args.logics.clone(),
         timeout: args.timeout,
         memory: args
             .memory_limit
@@ -1076,6 +1326,25 @@ mod tests {
         assert_eq!(refutation_checked(&net), "ok");
         let exhausted = outcome("A & B |- A * B", Mode::CLASSICAL);
         assert_eq!(refutation_checked(&exhausted), "");
+    }
+
+    /// intuit's and intuitR's result lines are read as verdicts, and an
+    /// output without one is an error named by its last line.
+    #[test]
+    fn intuit_s_result_lines_are_read() {
+        let valid = "+++ Proving.\n+++ RESULT: Valid (intuitionistically)\n";
+        assert_eq!(intuit_read(valid, 0), Answer::plain("proved", ""));
+        let countermodel = "+++ RESULT: CounterSatisfiable (intuitionistically)\n\
+                            Prover time:         0.000 sec\n";
+        assert_eq!(
+            intuit_read(countermodel, 0),
+            Answer::plain("unprovable", "")
+        );
+        let parse = "+++ Reading file 'p.p'...\nintuitR: user error (parse error)\n\n";
+        assert_eq!(
+            intuit_read(parse, 1),
+            Answer::plain("error", "intuitR: user error (parse error)")
+        );
     }
 
     /// The reason is the bound that stopped the search. From an outcome it

@@ -63,7 +63,7 @@ pub fn tail(args: &OneArgs, logic: Logic) -> String {
 /// are intuitionistic. An intuitionistic theorem is a classical one too,
 /// and a non-theorem is not a theorem of minimal logic either. Other
 /// pairs have no known verdict.
-fn expected(status: Option<Status>, logic: Logic) -> &'static str {
+pub(crate) fn expected(status: Option<Status>, logic: Logic) -> &'static str {
     match (status, logic) {
         (Some(Status::Theorem), Logic::Intuitionistic | Logic::Classical) => "provable",
         (Some(Status::NonTheorem), Logic::Intuitionistic | Logic::Minimal) => "unprovable",

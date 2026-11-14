@@ -338,9 +338,6 @@ pub fn run(args: &RunArgs) -> Result<()> {
         };
     }
     if !args.tools.is_empty() {
-        if references.iter().any(Reference::is_ordinary) {
-            anyhow::bail!("--tools runs problems of linear logic, not TPTP problems");
-        }
         return crate::tools::main(args, references);
     }
     let jobs = args

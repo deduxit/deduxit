@@ -67,6 +67,7 @@ fn group(row: &Row) -> &'static str {
         "lltp" if row.get("mode").starts_with("intuitionistic") => "LLTP intuitionistic",
         "lltp" => "LLTP classical",
         "spec" => "coverability (qcover)",
+        "tptp" => "ILTP (ordinary logic)",
         "family" => "generated families",
         _ => "problem files",
     }
