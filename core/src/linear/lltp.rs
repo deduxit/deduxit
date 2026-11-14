@@ -1,31 +1,42 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Problems of the LLTP library (`github.com/meta-logic/lltp`), the
-//! benchmark collection of linear logic provers: TPTP-style files of
-//! `fof(name, role, formula).` clauses whose axioms are the hypotheses and
-//! whose conjecture is the goal. The formulas are written as this crate's
-//! parser reads them (`*`, `|`, `&`, `+`, `-o`, `!`, `?`, postfix `^`,
-//! `1`, `0`, `bot`, `top`), with the same precedences, so a problem is
-//! read by assembling `axioms |- conjecture` and parsing that.
+//! Reads the problems of the LLTP library (`github.com/meta-logic/lltp`),
+//! the benchmark collection of linear logic provers.
 //!
-//! The file says nothing about the mode: the library keeps its
-//! intuitionistic problems under `ILL/` and its classical ones under
-//! `CLL/`, and the caller picks the mode by that.
+//! An LLTP file is a list of TPTP-style clauses `fof(name, role,
+//! formula).`. [`read`] turns it into the sequent `axioms ⊢ conjecture`
+//! and the provability the file's header claims ([`Status`]). The
+//! formulas use this crate's text syntax (`*`, `|`, `&`, `+`, `-o`, `!`,
+//! `?`, postfix `^`, `1`, `0`, `bot`, `top`) with the same precedences,
+//! so the reader joins them into one sequent and parses that.
+//!
+//! The file does not say whether its problem is classical or
+//! intuitionistic. The library keeps its intuitionistic problems under
+//! `ILL/` and its classical ones under `CLL/`: pick the
+//! [`Mode`](crate::linear::Mode) by that.
 //!
 //! # Examples
 //!
+//! Read a problem from `ILL/` and prove it:
+//!
 //! ```
 //! use deduxit::Limits;
+//! use deduxit::linear::Mode;
 //! use deduxit::linear::lltp::{Status, read};
+//! use deduxit::linear::search::{Options, prove};
 //!
+//! // A file's text, as `std::fs::read_to_string` returns it.
 //! let text = "% Status (intuit.) : Theorem\n\
 //!             fof(ax1, axiom, !(a -o b)).\n\
 //!             fof(ax2, axiom, a).\n\
 //!             fof(con, conjecture, b * 1).\n";
 //! let problem = read(text, &Limits::default())?;
-//! assert_eq!(problem.status, Some(Status::Theorem));
 //! assert_eq!(problem.sequent, "!(a -o b), a |- b * 1".parse()?);
+//! assert_eq!(problem.status, Some(Status::Theorem));
+//!
+//! let outcome = prove(&problem.sequent, Mode::INTUITIONISTIC, &Options::default())?;
+//! assert!(outcome.verdict.proof().is_some());
 //! # Ok::<(), deduxit::Error>(())
 //! ```
 //!
@@ -35,31 +46,35 @@ use crate::Limits;
 use crate::errors::ParseError;
 use crate::{Error, linear::Sequent};
 
-/// What stands for a `-` inside an atom name, as the library's Petri nets
-/// write them (`P-start_1_1`): this crate's names cannot hold a `-`, which
-/// starts the operator `-o`, and `‿` is a character that joins words in a
-/// Unicode identifier.
+/// The character [`read`] puts for a `-` inside an atom name.
+///
+/// The library's Petri nets name places like `P-start_1_1`. This crate's
+/// names cannot hold a `-`, which starts the operator `-o`. `‿` joins
+/// words in a Unicode identifier, so `P‿start_1_1` is a name.
 pub const HYPHEN: char = '‿';
 
-/// What stands for a `.` inside an atom name, as some of the library's
-/// Petri nets write them (`merge.s00001061.input`): a `.` ends a clause in
-/// the file and is no name character here, and `·` is one in a Unicode
-/// identifier.
+/// The character [`read`] puts for a `.` inside an atom name.
+///
+/// Some of the library's Petri nets name places like
+/// `merge.s00001061.input`. In the file a `.` ends a clause, and this
+/// crate's names cannot hold one. `·` can stand in a Unicode identifier,
+/// so `merge·s00001061·input` is a name.
 pub const DOT: char = '·';
 
-/// A problem read from an LLTP file.
+/// A problem read from an LLTP file by [`read`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct Problem {
-    /// The sequent of the problem: the axioms, in the order of the file,
-    /// left of `⊢`, the conjecture right of it.
+    /// The problem's sequent: the axioms and hypotheses left of `⊢`, in
+    /// the order of the file, and the conjecture right of it.
     pub sequent: Sequent,
-    /// The provability the file's header claims, if it has a `Status`
-    /// line this reader understands.
+    /// The provability the file's header claims, or `None` if it has no
+    /// `Status` line this reader understands. It is the library's claim,
+    /// not a checked fact.
     pub status: Option<Status>,
 }
 
-/// The provability an LLTP header claims.
+/// The provability an LLTP file's header claims.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Status {
@@ -69,27 +84,38 @@ pub enum Status {
     NonTheorem,
 }
 
-/// Reads an LLTP problem. Every `fof` clause with the role `axiom` or
-/// `hypothesis` is a hypothesis and the one with the role `conjecture`
-/// the formula on the right of `⊢`; lines from `%` on are comments. The
-/// status is the first `Status (intuit.)` or `Status (linear)` comment's,
-/// else the first plain `Status` comment's: the library's translations of
-/// intuitionistic problems keep the classical source's status first. A
-/// `-` inside an atom name becomes [`HYPHEN`], a `.` [`DOT`], unless the
-/// `-` starts `-o` with a space or the end of the name after it: `a-o b`
-/// is `a ⊸ b`, and `a-ob`, which is both, is refused.
+/// Reads the text of an LLTP file into its sequent and the status its
+/// header claims.
+///
+/// - Every clause with the role `axiom` or `hypothesis` is a formula left
+///   of `⊢`, in the order of the file. The one clause with the role
+///   `conjecture` is the formula right of it.
+/// - From `%` to the end of a line is a comment.
+/// - The status is the first `Status (intuit.)` or `Status (linear)`
+///   comment's, else the first plain `Status` comment's. The library's
+///   translations of intuitionistic problems carry the classical source's
+///   status first.
+/// - A `-` or `.` between two name characters (ASCII letters, digits and
+///   `_`) is part of the name, and becomes [`HYPHEN`] or [`DOT`]. A `-o`
+///   there is the connective when the character after it cannot be in a
+///   name: `a-o b` is `a ⊸ b`. `a-ob` reads both ways and is refused.
+///
+/// The sequent is bounded by `limits` as [`Sequent::parse_within`] bounds
+/// it.
 ///
 /// # Errors
 ///
-/// [`Error::Lltp`] for text that is not a sequence of `fof(name, role,
-/// formula).` clauses (an annotation after the formula or an empty
-/// formula included), a clause with another role or `-o` between two
-/// characters of a name,
-/// [`Error::SeveralConjectures`] for a file with more than one conjecture,
-/// whose meaning in linear logic no convention fixes, and
-/// [`Error::Parse`] for a formula this crate's parser rejects, its place
-/// that in the file, and the parser's refusal of a sequent past
-/// `limits.occurrences`.
+/// - [`Error::Lltp`] for text that is not a list of `fof(name, role,
+///   formula).` clauses: an annotation after a formula, an empty
+///   formula, a role other than `axiom`, `hypothesis` or `conjecture`, no
+///   conjecture, or `-o` between two characters of a name;
+/// - [`Error::SeveralConjectures`] for a second conjecture, which it
+///   names: no convention fixes what several conjectures mean in linear
+///   logic;
+/// - [`Error::Parse`] for a formula this crate's parser refuses, placed
+///   at its line and column in the file;
+/// - [`Error::Refused`] for a sequent past `limits`, as
+///   [`Sequent::parse_within`] refuses it.
 pub fn read(text: &str, limits: &Limits) -> Result<Problem, Error> {
     let clauses = clauses(text, |message| Error::Lltp { message })?;
     // The sequent as text, and where each formula of the file starts in it.
@@ -111,8 +137,9 @@ pub fn read(text: &str, limits: &Limits) -> Result<Problem, Error> {
     }
     let sequent = Sequent::parse_within(&sequent, limits).map_err(|error| match error {
         Error::Parse(error) => {
-            // The formula a byte of the sequent belongs to, and where in
-            // the file's text: past a formula's end is that end.
+            // Maps a byte of the sequent to its byte in the clauses' text,
+            // and says whether it lies at or past its formula's end; a byte
+            // past the end maps to the end.
             let at = |byte: usize| {
                 let (start, range) = pieces
                     .iter()
@@ -132,10 +159,11 @@ pub fn read(text: &str, limits: &Limits) -> Result<Problem, Error> {
     })
 }
 
-/// The clauses of a TPTP-style file: its text with names made readable,
-/// the ranges of its formulas in that text by role, and its status.
+/// The clauses of a TPTP-style file: its text with the names made
+/// readable, where each formula stands in that text, by role, and the
+/// status its header claims.
 pub(crate) struct Clauses {
-    /// The file's text without comments, a `-` inside a name as
+    /// The file's text without comments, a `-` inside a name written as
     /// [`HYPHEN`] and a `.` as [`DOT`].
     code: String,
     /// The formulas of the clauses with the role `axiom` or `hypothesis`.
@@ -152,8 +180,8 @@ impl Clauses {
         self.hypotheses.iter().map(|r| &self.code[r.clone()])
     }
 
-    /// Returns the text of the clauses: the file's without comments,
-    /// with the names made readable.
+    /// Returns the clauses' text: the file's without comments, with the
+    /// names made readable.
     pub(crate) fn code(&self) -> &str {
         &self.code
     }
@@ -164,9 +192,10 @@ impl Clauses {
     }
 
     /// Returns the byte of `file`, the text these clauses were read from,
-    /// where byte `at` of their text stands. The text keeps the file's
-    /// lines and puts one character for each, up to a comment, so the
-    /// line and the character in it are the file's.
+    /// that byte `at` of the clauses' text stands for. The clauses' text
+    /// keeps the file's lines, and one character for each of the file's
+    /// up to a comment, so a line and a character's place in it carry
+    /// over.
     fn in_file(&self, file: &str, at: usize) -> usize {
         let before = &self.code[..at];
         let line = before.matches('\n').count();
@@ -182,11 +211,13 @@ impl Clauses {
                 .map_or(rest.len(), |(i, _)| i)
     }
 
-    /// Returns a parse error of the clauses' formulas with its place in
-    /// `file`, the text they were read from, `at` mapping a byte of the
-    /// parsed text to a byte of theirs and whether it lies at a formula's
-    /// end or past it: such an error is at the next character of the file
-    /// that is no white space, where the formula should have gone on.
+    /// Returns `error`, a parse error in text assembled from the clauses'
+    /// formulas, placed in `file`, the text the clauses were read from.
+    ///
+    /// `at` maps a byte of the parsed text to a byte of the clauses' text,
+    /// and says whether it lies at or past a formula's end. An error
+    /// there is placed at the file's next character that is not white
+    /// space, where the formula should have gone on.
     pub(crate) fn located(
         &self,
         file: &str,
@@ -213,10 +244,15 @@ impl Clauses {
 }
 
 /// Splits a file of `fof(name, role, formula).` clauses as [`read`]
-/// describes, with every error of the file's form made by `error`: every
-/// formula is not empty, and there is exactly one conjecture.
+/// describes, and checks that no formula is empty and that there is
+/// exactly one conjecture.
+///
+/// `error` makes the error for a file of the wrong form from its message;
+/// a second conjecture is [`Error::SeveralConjectures`] whatever `error`
+/// makes.
 pub(crate) fn clauses(text: &str, error: fn(String) -> Error) -> Result<Clauses, Error> {
-    // The status of a line for the logic of the problem, and of a plain one.
+    // The first status for the problem's logic, `(intuit.)` or `(linear)`,
+    // and the first plain one.
     let (mut status, mut plain) = (None, None);
     let mut code = String::with_capacity(text.len());
     for line in text.lines() {
@@ -250,8 +286,8 @@ pub(crate) fn clauses(text: &str, error: fn(String) -> Error) -> Result<Clauses,
                     .is_some_and(|&c| c.is_ascii_alphanumeric() || c == '_')
             };
             // A `-` or `.` between two characters of a name belongs to the
-            // name, unless the `-` starts the operator `-o`; between two
-            // names `-o` is both, and refused.
+            // name, unless the `-` starts the operator `-o`. A `-o` with a
+            // name character on both sides reads both ways and is refused.
             let inner = i > 0 && name(i - 1) && name(i + 1);
             code.push(match c {
                 '-' if inner && !(chars[i + 1] == 'o' && !name(i + 2)) => {
@@ -340,9 +376,9 @@ pub(crate) fn clauses(text: &str, error: fn(String) -> Error) -> Result<Clauses,
     })
 }
 
-/// Returns the message for `-o` at `at` of a line's `chars` between two
-/// characters of a name, which reads both as one name and as the
-/// connective between two.
+/// Returns the message for a `-o` at `at` of a line's `chars` with a name
+/// character on both sides, which reads both as one name and as two
+/// names joined by the connective.
 #[cold]
 fn glued(chars: &[char], at: usize) -> String {
     let name = |c: &char| c.is_ascii_alphanumeric() || *c == '_';
@@ -361,7 +397,8 @@ fn glued(chars: &[char], at: usize) -> String {
     )
 }
 
-/// Returns the start of `text`'s first line, for an error message.
+/// Returns the first line of `text`, cut after 24 characters, for an
+/// error message.
 fn excerpt(text: &str) -> &str {
     let line = text.lines().next().unwrap_or_default();
     let end = line.char_indices().nth(24).map_or(line.len(), |(i, _)| i);
@@ -372,11 +409,11 @@ fn excerpt(text: &str) -> &str {
 mod tests {
     use super::*;
 
-    /// Clauses over several lines, comments between and after them, a
-    /// `hypothesis` role, uppercase atoms, names with `-` and `.`, postfix
-    /// negation and every unit read into the sequent the parser gives for
-    /// the same formulas; the intuitionistic status wins over the plain
-    /// one before it, and malformed files are refused.
+    /// A file with clauses over several lines, comments between and after
+    /// them, a `hypothesis` role, uppercase atoms, names with `-` and `.`,
+    /// postfix negation and every unit reads into the sequent the parser
+    /// gives for the same formulas. The intuitionistic status wins over
+    /// the plain one before it, and malformed files are refused.
     #[test]
     fn reads_problems() {
         let text = "%---\n% Status   : Theorem\n% Status (intuit.) : Non-Theorem\n%---\n\
