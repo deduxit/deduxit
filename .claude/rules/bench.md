@@ -515,13 +515,32 @@ serde_json, which the CLI and the core's tests already have.
   command, `--deterministic`), `deduxit-default` (the command as a user
   runs it), and the other provers (`maude-ill`, `maude-cll`,
   `click-and-collect`, `llprover-cll`, `llprover-ill`, `lintap`,
-  `linearone`, `sympli`, `lolli`, `apll-ll`, `apll-ill`). A `Driver` is the tool's name, its
+  `linearone`, `sympli`, `lolli`, `apll-ll`, `apll-ill`, and for
+  ordinary logic `intuit` and `intuitr`). A `Driver` is the tool's name, its
   program on the path, `covers(fragment, mode)`, its input (deduxit reads
   an LLTP or `.spec` file itself and the rest as the sequent's JSON;
   every other tool a file its translator writes), its arguments, its
   verdict reader, its `jobs` column and whether it checks its proofs. A
   new prover is an entry there, a translator in `src/translate.rs` and a
   derivation in `modules/_provers/` (`flake.md`).
+- **TPTP problems run with the tools too** (`--tptp` beside `--tools`):
+  each in every logic of `--logics`, the `mode` column holding the
+  logic, with the drivers whose `ordinary` part (`tools::Ordinary`: the
+  logics it decides, its arguments, its reader) decides that logic; the
+  others' rows are `refused`/`fragment`. Every such tool reads the ILTP
+  file as it is (`one_ordinary`): deduxit's two columns (`prove
+  --input-format tptp --logic L`, read by `deduxit_answer`: the exit
+  status and the JSON's `engine` and `reason.kind`, no refutation to
+  check, a proof `ok` since the command checks every derivation), and
+  intuit and intuitR in intuitionistic logic (`intuit_read`: `+++
+  RESULT: Valid` or `CounterSatisfiable`, anything else an error named by
+  the last line; neither has a time limit of its own, so runexec ends
+  them, at its wall-time limit (the limit plus `GRACE`, rounded up) and
+  about a second more: 3 s at `--timeout 1`). The expected verdict is
+  `ordinary::expected`'s, as the child's. intuit and intuitR have no
+  linear part: `covers` is `nothing`, and their linear fields are never
+  called. The ranking files the rows as the group "ILTP (ordinary
+  logic)". `bench/comparison.sh` does not run ILTP yet.
 - **Every run is measured by BenchExec's `runexec`** (`--no-container`,
   a wall-time limit of the time limit and a second, the memory limit as
   the cgroup's): `time_ms` is its wall time of the whole process (start,

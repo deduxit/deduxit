@@ -78,6 +78,59 @@ Not provers in this sense: Celf, LolliMon and Lolli (logic programming
 over fragments of ILL), Grail (categorial parsing), Yalla and the Lean
 and Isabelle formalisations (no automation).
 
+## Provers of intuitionistic propositional logic
+
+deduxit also decides ordinary propositional logic (`prove --logic`). Two
+provers of intuitionistic propositional logic run beside it on the ILTP
+library's 274 propositional problems. Both use a SAT solver.
+
+| | deduxit | intuit | intuitR |
+|---|---|---|---|
+| authors | this repository | Claessen, Rosén | Fiorentini |
+| logics | classical, intuitionistic, minimal | intuitionistic | intuitionistic |
+| method | LJT (Dyckhoff's calculus), or the embedding into linear logic | MiniSat, with the implications as a theory of their own | intuit with restarts |
+| proofs output | ✓ (LJ and LK derivations) | ✗ (valid or not) | a derivation or a Kripke countermodel, with `-t`, as LaTeX and Graphviz |
+| checker | ✓ (every derivation) | ✗ | ✗ |
+| input | text, TPTP | TPTP: `fof` axioms and one conjecture | TPTP, and its own syntax of formulas |
+| licence | EUPL-1.2 | none stated (an empty `LICENSE` file) | BSD-3-Clause |
+| last activity | 2026-11 | 2020-09-21 | 2026-10-27 |
+| runs here in batch | ✓ | ✓ (GHC 9.10) | ✓ (GHC 9.10) |
+
+Sources, all read on 2026-11-14:
+
+- **intuit**: github.com/koengit/intuit at `dd965ce` (README;
+  `intuit.cabal`, whose `license` field is commented out; `LICENSE`,
+  empty; `Intuit.hs` lines 21–25 and 114–115, the result lines;
+  `ParseProblem.hs`, the TPTP reader). Koen Claessen and Dan Rosén, "SAT
+  modulo intuitionistic implications", LPAR 2015, LNCS 9450.
+- **intuitR**: github.com/cfiorentini/intuitR at `0cbf0fd` (`LICENSE`,
+  README, `intuitR.cabal`, `src/IntuitR.hs` for the options, weak
+  clausification the default, `src/ProverPlain.hs` lines 81–84 for the
+  result lines, `src/ParserTPTP.hs`). Camillo Fiorentini, "Efficient
+  SAT-based proof search in intuitionistic propositional logic", CADE
+  2021, LNCS 12699.
+- Both are built from these commits with the GHC of the flake's nixpkgs
+  (9.10) and its Haskell package `minisat` 0.1.4 (BSD-3-Clause), which
+  bundles MiniSat. intuit's sources lose the pragma
+  `MonadFailDesugaring`, which GHC no longer knows (its behaviour is the
+  only one since GHC 8.8). intuitR needs `partial-order`, which nixpkgs
+  marks broken for its tests; it is built without them. No check builds
+  either prover, so neither binary is in the public cache.
+
+How they run: `run --tools deduxit,deduxit-default,intuit,intuitr
+--tptp DIR` gives each tool the ILTP file as it is, in each logic of
+`--logics`. intuit and intuitR decide intuitionistic logic alone, so
+their rows in the other logics are `refused`. Their verdict is the line
+`+++ RESULT: Valid` (proved) or `+++ RESULT: CounterSatisfiable`
+(unprovable); they take no time limit, so `runexec` ends them, about
+two seconds after the run's limit (3 s at a limit of 1 s). The known verdict is the file's `Status (intuit.)`.
+
+A first run, 2026-11-14, of the 12 smallest problems and SYN915+1,
+SYN916+1 (the two with `$true` and `$false`) and SYN001+1 at 10 s, all
+four tools on one core: every verdict agrees with the file's status (10
+theorems, 5 non-theorems). It checks the drivers, not the times; the
+comparison of times on all 274 problems is not made yet.
+
 ## How the comparison is made
 
 - **The problems**: the LLTP library's intuitionistic problems (`ILL/`,

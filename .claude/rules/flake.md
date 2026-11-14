@@ -250,7 +250,11 @@ environment, llprover, linTAP and LinearOne on SWI-Prolog with drivers of
 our own for the last two (linTAP's `prove/1` never ends on a formula it
 cannot prove), Sympli on MLton with a patch of no-op functions for the
 newer SML/NJ `PP_DEVICE`, lolli with its `cargoHash`, APLL native with
-OCaml 4.14 (it was written for 4.06). Each carries
+OCaml 4.14 (it was written for 4.06), intuit and intuitR with the GHC of
+nixpkgs and its Haskell package `minisat` (`haskellPackages.mkDerivation`
+written out, no import from a derivation; intuit with its pragma
+`MonadFailDesugaring` removed, which GHC 9.10 refuses, intuitR with
+`partial-order` built unbroken and without its tests). Each carries
 `passthru.source` (url, revision, date, licence), which `comparison`'s
 `share/deduxit-comparison/tools.json` records per `--tools` name.
 `comparison` joins deduxit's command and harness, BenchExec, the provers
