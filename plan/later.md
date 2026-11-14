@@ -1723,6 +1723,16 @@ meets first on a large problem, and come before any new engine:
   signs could look at the literals below a `?` only; the counts treat
   `!` as `?`, as they did before. Sound either way; to measure first.
 
+- **The first node of a large classical image passes the work bound
+  before it is asked** (seen by step 54s, session 54s-c3): on ILTP's
+  SYJ206+1.020 in classical logic (the affine image), `prove --method
+  embedding --work-limit 1 --deterministic` reports 4 915 215 units of
+  work and one stable sequent visited, and ends after 0.46 s. So the
+  classical default's evidence search, bounded at 2²⁰ units, costs up
+  to 0.7 s on SYJ206 and SYJ212 at sizes 19 and 20 where the solver
+  answers in 0.5 ms. A poll inside the first node's long pass (wherever
+  those units are counted) would end it at the bound.
+
 ## Follow-ups: the Horn engine
 
 Left by step 27's first session (`plan/reports/27-horn.md`):
