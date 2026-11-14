@@ -89,10 +89,18 @@ fn polarities(formulas: &Formulas, left: &[NodeId], right: &[NodeId]) -> Vec<u8>
     polarity
 }
 
+/// How many formulas the encoder takes, or clauses the solver is given,
+/// between two polls of the stop.
+const POLL: usize = 1 << 12;
+
+/// How a clause of the encoding is charged to the memory account besides
+/// its literals: its vector and the header of its allocation.
+const CLAUSE_BYTES: usize = size_of::<Vec<Lit>>() + 16;
+
 /// Returns the clauses of the negation of `left ⊢ right`, a variable for
 /// every formula the sequent holds, at most `most` variables, each clause
-/// charged to the account; refuses once the account is over or past
-/// `most`.
+/// charged to the account; refuses once the account is over, past
+/// `most`, or when the stop, asked every [`POLL`] formulas, fires.
 ///
 /// Every clause holds when each variable takes its formula's value under
 /// an assignment of the atoms, except the unit clauses of the sequent's
@@ -105,6 +113,7 @@ pub(super) fn encode(
     right: &[NodeId],
     most: u32,
     account: &Account,
+    stop: &mut impl FnMut(Progress) -> bool,
 ) -> Result<Encoding, Reason> {
     let over = || {
         account.over().then(|| Reason::MemoryLimit {
@@ -127,7 +136,7 @@ pub(super) fn encode(
     let (t, f) = (|x| Lit::positive(var(x)), |x| Lit::negative(var(x)));
     let mut clauses: Vec<Vec<Lit>> = Vec::new();
     let mut add = |clause: Vec<Lit>| {
-        account.charge(clause.len() * size_of::<Lit>() + size_of::<Vec<Lit>>());
+        account.charge(clause.len() * size_of::<Lit>() + CLAUSE_BYTES);
         clauses.push(clause);
         over()
     };
@@ -138,6 +147,9 @@ pub(super) fn encode(
         add(vec![f(*c)]).map_or(Ok(()), Err)?;
     }
     for (id, &p) in polarity.iter().enumerate() {
+        if id % POLL == 0 && stop(Progress::new(Phase::Search, POLL as u64, 0)) {
+            return Err(Reason::Stopped);
+        }
         if p == 0 {
             continue;
         }
@@ -226,16 +238,30 @@ pub(super) fn decide(
     let formulas = sequent.formulas();
     let account = Account::holding(limits.memory_bytes, 0);
     let mut statistics = Statistics::default();
-    let found =
-        encode(formulas, sequent.left(), sequent.right(), most, &account).and_then(|clauses| {
+    let encoded = encode(
+        formulas,
+        sequent.left(),
+        sequent.right(),
+        most,
+        &account,
+        &mut stop,
+    );
+    let found = encoded.and_then(|clauses| {
             statistics.clauses = clauses.clauses.len() as u64;
             let work = limits.work.unwrap_or(u64::MAX);
             let mut solver = Batsat::recording(work, &account, &mut stop);
             for _ in 0..clauses.variables {
                 solver.new_var();
             }
-            for clause in &clauses.clauses {
+            // The solver copies the clauses: it is charged for them, and
+            // refused once over, before it holds them all.
+            for (n, clause) in clauses.clauses.iter().enumerate() {
                 solver.add_clause(clause);
+                if n % POLL == 0
+                    && let Some(reason) = solver.poll(POLL as u64)
+                {
+                    return Err(reason);
+                }
             }
             let answer = solver.solve(&[]);
             statistics.calls = solver.calls();
@@ -427,6 +453,7 @@ mod tests {
             sequent.right(),
             MOST_VARIABLES,
             &account,
+            &mut |_| false,
         )
         .unwrap();
         let mut stop = |_| false;
@@ -602,6 +629,27 @@ mod tests {
             decide(&sequent, &at(adds), |_| false, MOST_VARIABLES),
             Err(Error::Refused(Refusal::Work { limit })) if limit == adds
         ));
+    }
+
+    /// A sequent of many formulas asks the stop while it is encoded,
+    /// before the solver is called.
+    #[test]
+    fn the_encoder_asks_the_stop() {
+        let atoms: Vec<String> = (0..3 * POLL).map(|i| format!("a{i}")).collect();
+        let sequent: Sequent = format!("{} |-", atoms.join(" /\\ ")).parse().unwrap();
+        let mut asked = 0;
+        let outcome = decide(
+            &sequent,
+            &Limits::default(),
+            |_| {
+                asked += 1;
+                asked > 1
+            },
+            MOST_VARIABLES,
+        )
+        .unwrap();
+        assert!(matches!(outcome.verdict, Verdict::Unknown(Reason::Stopped)));
+        assert_eq!(outcome.statistics.calls, 0);
     }
 
     /// The proof of the pigeonhole sequent of eight pigeons, written as

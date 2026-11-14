@@ -89,9 +89,17 @@ pub(crate) enum Rejection {
     Refused(Refusal),
 }
 
-/// How many steps and visits of a clause the checker makes between two
-/// polls of the stop.
+/// How many units of the checker's work (a step, a clause of the formula
+/// kept, a unit clause assigned, a literal propagated, a visit of a
+/// clause) lie between two polls of the stop.
 const POLL: u64 = 1 << 12;
+
+/// How a clause kept is charged to the memory account besides 8 bytes per
+/// literal (its literals in the clause and in the index's key): the clause,
+/// the index's entry (its key, its vector of indices, a slot of the
+/// table), two watches with the slack of their vectors, and the headers of
+/// three allocations.
+const CLAUSE_BYTES: usize = 224;
 
 /// A clause the checker keeps.
 struct Clause {
@@ -146,7 +154,7 @@ struct Checker<'a> {
 /// proof's clauses kept before it, and an empty clause is added. A step
 /// is a unit of `limits.work`; the clauses kept are charged to `account`,
 /// which refuses past `limits.memory_bytes`; the stop is asked every
-/// [`POLL`] steps and visits of a clause.
+/// [`POLL`] units of the checker's work.
 pub(crate) fn check(
     variables: u32,
     formula: &[Vec<Lit>],
@@ -156,7 +164,12 @@ pub(crate) fn check(
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<(), Rejection> {
     let codes = 2 * variables as usize;
-    account.charge(codes * (size_of::<Vec<usize>>() + size_of::<bool>()));
+    // Saturating, the charge refuses on a 32-bit target before the
+    // vectors are made, never wraps.
+    account.charge(codes.saturating_mul(size_of::<Vec<usize>>() + size_of::<bool>()));
+    if account.over() {
+        return Err(over(account));
+    }
     let mut checker = Checker {
         clauses: Vec::new(),
         index: HashMap::default(),
@@ -171,6 +184,7 @@ pub(crate) fn check(
         steps: 0,
     };
     for clause in formula {
+        checker.tick(1, &mut stop)?;
         let literals = checker
             .normal(clause)
             .ok_or(Rejection::Flaw(Flaw::Variable { step: None }))?;
@@ -183,7 +197,7 @@ pub(crate) fn check(
                 limit: limits.work.unwrap_or(u64::MAX),
             }));
         }
-        checker.tick(&mut stop)?;
+        checker.tick(1, &mut stop)?;
         let (Step::Add(clause) | Step::Delete(clause)) = step;
         let literals = checker
             .normal(clause)
@@ -231,12 +245,8 @@ impl Checker<'_> {
             return Ok(());
         };
         let id = self.clauses.len();
-        self.account.charge(
-            2 * literals.len() * size_of::<u32>()
-                + 2 * size_of::<usize>()
-                + size_of::<Clause>()
-                + 32,
-        );
+        self.account
+            .charge(2 * literals.len() * size_of::<u32>() + CLAUSE_BYTES);
         match literals.len() {
             0 => self.empty += 1,
             1 => self.units.push(id),
@@ -251,11 +261,7 @@ impl Checker<'_> {
             live: true,
         });
         if self.account.over() {
-            return Err(Rejection::Refused(Refusal::Memory {
-                phase: Phase::Check,
-                limit_bytes: self.account.limit(),
-                needed_bytes: None,
-            }));
+            return Err(over(self.account));
         }
         Ok(())
     }
@@ -281,10 +287,11 @@ impl Checker<'_> {
         }
     }
 
-    /// Counts a step or a visit of a clause, asking the stop every
-    /// [`POLL`] of them.
-    fn tick(&mut self, stop: &mut impl FnMut(Progress) -> bool) -> Result<(), Rejection> {
-        self.ticks += 1;
+    /// Counts `n` units of work, asking the stop once [`POLL`] of them
+    /// have passed since it was last asked.
+    fn tick(&mut self, n: u64, stop: &mut impl FnMut(Progress) -> bool) -> Result<(), Rejection> {
+        // At most `POLL` before and a vector's length added: no wrap.
+        self.ticks += n;
         if self.ticks >= POLL {
             let ticks = std::mem::take(&mut self.ticks);
             if stop(Progress::new(Phase::Check, ticks, self.steps)) {
@@ -343,20 +350,25 @@ impl Checker<'_> {
         // Deleted unit clauses leave the list here.
         let mut units = std::mem::take(&mut self.units);
         units.retain(|&id| self.clauses[id].live);
-        let mut conflict = false;
+        let mut conflict = Ok(false);
         for &id in &units {
+            if let Err(refused) = self.tick(1, stop) {
+                conflict = Err(refused);
+                break;
+            }
             if !self.assign(self.clauses[id].literals[0]) {
-                conflict = true;
+                conflict = Ok(true);
                 break;
             }
         }
         self.units = units;
-        if conflict {
-            return Ok(true);
+        if conflict != Ok(false) {
+            return conflict;
         }
         let mut head = 0;
         while let Some(&holds) = self.trail.get(head) {
             head += 1;
+            self.tick(1, stop)?;
             let falsified = holds ^ 1;
             let mut watching = std::mem::take(&mut self.watches[falsified as usize]);
             let mut kept = 0;
@@ -365,7 +377,7 @@ impl Checker<'_> {
             while at < watching.len() {
                 let id = watching[at];
                 at += 1;
-                if let Err(refused) = self.tick(stop) {
+                if let Err(refused) = self.tick(1, stop) {
                     // Keep the watches whole before giving up.
                     watching.drain(kept..at - 1);
                     self.watches[falsified as usize] = watching;
@@ -409,6 +421,15 @@ impl Checker<'_> {
         }
         Ok(false)
     }
+}
+
+/// The refusal of a check past the memory account's bound.
+fn over(account: &Account) -> Rejection {
+    Rejection::Refused(Refusal::Memory {
+        phase: Phase::Check,
+        limit_bytes: account.limit(),
+        needed_bytes: None,
+    })
 }
 
 /// Writes the formula in DIMACS's CNF format and the proof in DRUP's text
@@ -575,5 +596,20 @@ mod tests {
             }))
         );
         assert_eq!(run(n as u32, &chain, &[add(&[])]), Ok(()));
+        // Many unit clauses, `x₁` last: each check assigns them all before
+        // the conflict, and asks the stop at least once on the way.
+        let n = super::POLL as i32;
+        let mut units: Vec<Vec<i32>> = (2..=n).map(|i| vec![i]).collect();
+        units.push(vec![1]);
+        let units: Vec<&[i32]> = units.iter().map(Vec::as_slice).collect();
+        let steps = 8;
+        let proof: Vec<Step> = (0..steps).map(|_| add(&[1, n + 1])).collect();
+        let mut asked = 0;
+        let result = check(n as u32 + 1, &clauses(&units), &proof, &limits, &account, |_| {
+            asked += 1;
+            false
+        });
+        assert_eq!(result, Err(Rejection::Flaw(Flaw::NoEmptyClause)));
+        assert!(asked >= steps, "{asked} polls for {steps} checks");
     }
 }

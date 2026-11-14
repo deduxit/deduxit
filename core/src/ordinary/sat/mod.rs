@@ -156,7 +156,8 @@ struct Lemma {
 ///
 /// In classical logic a valid sequent's clausal proof is checked within
 /// the same limits, a step of it a unit of `limits.work`, and its
-/// derivation of LK is the embedding's, found within them
+/// derivation of LK is the embedding's, found within them: the solver,
+/// the check and the embedding each have the whole bound on work
 /// ([`decide`](super::decide()) with [`Method::Embedding`](super::Method::Embedding));
 /// a sequent that is not valid gets a model of one world, checked.
 ///

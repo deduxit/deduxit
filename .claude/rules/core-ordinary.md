@@ -393,8 +393,10 @@ clausal proof's checker are the trust for "valid"; `Model::refutes` for
   both silently; `add_clause_reuse` drops level-0-false literals and
   duplicates. So a later deletion of a trimmed clause matches nothing
   kept, which the checker ignores (drat-trim warns "deleted clause …
-  does not occur"), and the longer clause stays, which RUP tolerates:
-  the level-0 units it lacks are propagated again in each check. The
+  does not occur"), or another kept clause of the same literals, which
+  it deletes (sound: a deletion only weakens), and the longer clause
+  stays, which RUP tolerates: the level-0 units it lacks are propagated
+  again in each check. The
   account's release of a trimmed clause is short of its charge
   (conservative).
 - **The checker** (`drup::check`) keeps the formula's and the proof's
@@ -406,18 +408,34 @@ clausal proof's checker are the trust for "valid"; `Model::refutes` for
   fault of DRUP checkers that keep the top-level trail). Clauses are
   sorted and deduplicated when kept; a tautology is never kept; a
   deletion of a clause not kept is ignored; a literal past the formula's
-  variables is a flaw. Its soundness needs only that propagation assigns
-  a clause's last literal when the others are false and calls a conflict
-  only on a clause all false; completeness of the watches only avoids
-  false refusals.
+  variables is a flaw. Its soundness needs that propagation assigns a
+  clause's last literal when the others are false and calls a conflict
+  only on a clause all false, and for that the watch invariant: a clause
+  in the list of literal `l` has `l` among its first two literals, since
+  `propagate` takes the second to be the literal just falsified without
+  testing it (kept by `keep`, the move to a new watch and both `drain`s).
+  Completeness of the watches only avoids false refusals.
 - **Its bounds**: a step is a unit of `limits.work` (a check costs at
-  most the literals kept), the clauses, watches and index are charged
-  and refused as `Refusal::Memory` past the bound, the stop is asked
-  every `POLL` steps and clause visits. Clause indices are `usize`
+  most the literals kept, and repeats the unit clauses' propagation, so
+  the whole check is quadratic in the worst case), the clauses, watches
+  and index are charged (`CLAUSE_BYTES` beside 8 bytes a literal; the
+  first estimate was 2.4 times short, the integers panel measured) and
+  refused as `Refusal::Memory` past the bound, the stop is asked every
+  `POLL` units of the checker's work: a step, a clause of the formula
+  kept, a unit clause assigned, a literal propagated, a clause visited
+  (a check of a million unit clauses once ran seconds between polls
+  when only steps and visits counted). Clause indices are `usize`
   bounded by the vector's length; literal codes `2·var + sign` fit a
   `u32` since `var < MOST_VARIABLES`. A failed check is
   `Error::ReadBack` (calculus LK), a defect: the stream is the engine's
   own. Step 70's outside proofs will need an error of kind `invalid`.
+- **The setup polls too**: the encoder asks the stop every `POLL`
+  formulas, and the solver is asked (`Solver::poll`: stop, work, memory)
+  every `POLL` clauses it is given, since it copies them and
+  `add_clause` only charges; a goal of millions of conjuncts once ran
+  1.7 s before the first poll and held 2.5 times the memory bound. The
+  solver, the check and the embedding each get the whole of
+  `limits.work` in turn.
 - **"Valid" then asks the embedding for the derivation of LK**
   (`by_embedding`, `ordinary::decide` with `Method::Embedding` within the
   same limits, the stop passed as a trait object since `decide` reaches
