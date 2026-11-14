@@ -1204,3 +1204,324 @@ to leave no requirement unmet. Two observations, neither of this chain:
   `"clausal_proof": {"variables", "clauses", "steps"}`, which the page
   shows as text (`ClausalProof`'s `Display` is the command's wording)
   and cannot draw.
+
+## Session 54s-c2: the measurement and the default
+
+Opus 5.5 at `high`, in the jj workspace `../deduxit-wt-step-54s-c1-161790`
+(a reused worker), from item 3 of `plan/54s-sat-engines.md` and the brief
+`start-54s-c2.md`, on 2026-11-14, cores 4 to 6 for builds and tests,
+cores 2 and 3 for the two timed windows deduxit-orchestrator gave.
+
+### Outcome
+
+- **The SAT solver is the default of intuitionistic and minimal logic**
+  (`Method::default_for`, with the feature `sat`; LJT without it). On
+  ILTP's 274 problems at 2 s it decides 252 problems per logic (253 in
+  minimal logic in the second run), LJT 200 and the embedding 188; it
+  decides every problem either of them decides, and no verdict differs
+  between the methods, from ILTP's status or from 54a's oracle
+  (`core/tests/iltp/embedding.csv`, 1 150 rows compared). The default
+  takes LJT's derivation where LJT gives one and the derivation read off
+  the search otherwise (`ordinary::sat::decide_preferring_ljt`), so the
+  manual's drawings and lambda-terms stay LJT's; where the solver stops
+  at a bound other than the stop, it gives way to the embedding
+  (`gives_way`, now on any method's `Outcome`).
+- **Classical logic keeps the embedding as its default** (departs from
+  the design). The solver decides 254 classical problems to the
+  embedding's 157 (124 with the derivation of LK built and checked), but
+  its "valid" carries a clausal proof and its "not valid" no
+  certificate, so the default's output would lose the derivation drawn
+  in every format, the Rocq certificates of both verdicts and the
+  explanation of a "not valid", which the manual's first examples show.
+  A question for the author, below.
+- **`--method sat`** (the key `ordinary.method`) in `prove` and the
+  batch, its help, `--stats` (the solver's seven counters, and `derivation
+  by LJT: N sequents expanded` where LJT gave the default's derivation),
+  the verdict line `not valid (L logic by the SAT solver): a checked
+  countermodel refutes it`, `check`'s refusal naming the method, the
+  manual, the guide, the changelog, `status.md`, `architecture.md`, the
+  rules (`core-ordinary.md`, `cli.md`, `bench.md`) and four new calls of
+  the behaviour lock. The lines "the command does not offer it yet" are
+  gone.
+- **The harness runs `sat`** (`--engines sat`, `bench/src/ordinary.rs`'s
+  `native`, which LJT shares), its checks inside the time.
+- **BenchExec**: deduxit's default solves 254 of ILTP's problems at
+  10 s, intuit and intuitR 263 each; no contradiction. The manual has the
+  chapter `results/iltp-2026-11-14.md`.
+- **The target sets equal 47's**: the focused engine's 145 problems
+  decided alike and the net engine's 64 differ in no verdict and no
+  counter (`bench/targets/54s-c2.csv`, `net-54s-c2.csv`).
+
+The commits: `uzmwmupr` (the harness), `ltmlxvpq` (`--method sat`,
+`gives_way` on any outcome), `zurrvuwo` (the default), `lvqsvmmp` (the
+rows, the target sets, the chapter), `smuytqrv` (the reviewer's
+finding), and this report's, `tzuzrunt`.
+
+### The timed runs
+
+Both on cores 2 and 3 under `/tmp/linlog-machine.lock`, in windows
+deduxit-orchestrator gave, each one release build of `deduxit-bench`,
+two shards of ILTP v1.1.2 pinned one to each core, one thread per
+problem, `--copies none --timeout 2 --repeat 3 --repeat-under 1`, the
+three logics:
+- `bench/defaults/sat-iltp.csv`: `--engines embedding,ljt,sat`, 17:40
+  to 17:47, at `uzmwmupr`; it chose the default.
+- `bench/defaults/sat-default.csv`: `--engines embedding,ljt,sat,auto`,
+  18:13 to 18:24, at `zurrvuwo`, `auto` the new default (the library's
+  `ordinary::decide` with no method), all four from one build. The
+  table below is this run's.
+
+Every method's time includes its checks (the SAT solver's derivation,
+clausal proof or model; LJT's derivation; the default's read-back and
+check); the embedding's rows check the read-back derivation outside the
+time, so its column counts a linear proof whose derivation is past the
+64 MiB bound or the memory as decided, which `auto` does not: in
+classical logic 33 such problems (in SYJ201, SYJ204, SYJ205, SYJ210,
+SYJ211 and others, at the derivation bound, the memory or a check the
+memory refused), which is why `auto` decides 124 where the embedding's column says 157.
+54s-b's count with the derivation was 124 too. The command, which
+prints the verdict of a checked linear proof and leaves the derivation
+out with a line, answers those 33 as valid.
+
+Per logic (the time is the sum over the problems all methods of the
+logic decide, in milliseconds or seconds):
+
+| logic | embedding | LJT | SAT | default | all decide | embedding | LJT | SAT | default |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| classical | 157 | – | 254 | 124 | 124 | 28.7 ms | – | 5.0 ms | 346.1 ms |
+| intuitionistic | 188 | 200 | 252 | 252 | 186 | 11.58 s | 313.4 ms | 25.6 ms | 49.5 ms |
+| minimal | 188 | 200 | 253 | 252 | 186 | 11.80 s | 349.9 ms | 23.0 ms | 46.8 ms |
+
+Per problem class in intuitionistic logic (minimal logic is the same
+but for SYJ206 at size 16, which the solver decided in 2 003 ms in
+minimal logic, 3 ms past the limit for the default):
+
+| class | problems | embedding | LJT | SAT | default |
+|---|--:|--:|--:|--:|--:|
+| SYJ201 | 20 | 5 | 3 | 20 | 20 |
+| SYJ202 | 20 | 3 | 3 | 3 | 3 |
+| SYJ206 | 20 | 7 | 9 | 15 | 15 |
+| SYJ207 | 20 | 3 | 5 | 20 | 20 |
+| SYJ208 | 20 | 3 | 6 | 20 | 20 |
+| SYJ212 | 20 | 14 | 20 | 20 | 20 |
+| SYN007 | 1 | 0 | 1 | 1 | 1 |
+| the other 153 | 153 | 153 | 153 | 153 | 153 |
+
+In classical logic the solver decides all of SYJ201, SYJ204 to SYJ207,
+SYJ209 to SYJ212, the first ten sizes of SYJ202 and SYJ208 (pigeonhole
+formulas; the rest stop at the time limit) and SYN007+1.014, which the
+embedding refuses past the occurrence limit.
+
+The rows were tabulated by a short script (per logic, class and method:
+decided within the limit, and the time of the problems all decide), as
+step 54's `three.py`, and compared per problem: the default against LJT
+(the old default) on the 200 problems both decide in intuitionistic
+logic takes 183 ms in all against LJT's 1 429 ms; it is slower than LJT
+by over 20 % and 0.5 ms on 8 problems (SYJ206 at sizes 5 to 9, by 1 to
+8 ms, and SYJ212+1.016, 0.17 ms against 106 ms), and its median ratio to
+LJT is 1.8 on problems that take both under a millisecond. `summary
+--strict` fails on both files only on the embedding's `error` rows for
+SYN007+1.014 (past the occurrence limit), as in step 54's runs; its
+"Verdicts that disagree" is "None".
+
+### The default's changes, with their numbers
+
+- **Intuitionistic and minimal logic: LJT → the SAT solver**, giving way
+  to the embedding at a bound. The solver alone: 252 and 253 decided
+  against LJT's 200, 26 ms and 23 ms on the common problems against
+  313 ms and 350 ms (run 2). The default (`auto`): 252 in each logic,
+  50 ms and 47 ms on the common problems; it costs about twice the
+  solver alone because it asks LJT for the derivation of every valid
+  sequent, which on ILTP LJT gives or refuses at the derivation bound
+  within 0.3 s on every one (run 1, intuitionistic logic: of the 117
+  valid problems the solver proved, LJT proved 94 and was refused at
+  `derivation_limit` on 23, none at the time limit).
+- **What it loses, the dispatch keeps**: nothing on ILTP. The solver
+  decides every problem LJT or the embedding decides, so the gives-way
+  to the embedding (kept as LJT had it) answers no problem of ILTP: two
+  per logic gave way (SYJ202 at sizes 4 and 8, which the solver proved
+  but whose derivation, its own and LJT's, passed the 64 MiB bound) and
+  the embedding decided neither. It stays for a sequent the solver
+  stops on at the memory or work bound.
+- **Classical logic: unchanged** (the embedding), see above and the
+  question below.
+
+### BenchExec: intuit and intuitR beside deduxit's default
+
+`deduxit-bench run --tools deduxit-default,intuit,intuitr --tptp
+bench/iltp/Problems --logics intuitionistic --timeout 10 --memory-limit
+4294967296` in two shards on cores 2 and 3 (18:24 to 18:29), with
+`.#comparison`'s `bin` on `PATH` and its `tools.json`, as
+`comparison.sh` sets them; deduxit built from `zurrvuwo`. The rows,
+`ranking.md` and both `env.json` are in `bench/comparison/2026-11-14-iltp/`.
+
+| tool | solved | proved | not valid | not solved | time on the 254 all solve | median time |
+|---|--:|--:|--:|--:|--:|--:|
+| deduxit's default | 254 | 119 | 135 | 20 | 13.0 s | 3.6 ms |
+| intuit | 263 | 128 | 135 | 11 | 2.4 s | 5.1 ms |
+| intuitR | 263 | 128 | 135 | 11 | 1.6 s | 5.4 ms |
+
+deduxit is faster than intuitR on 218 of the 254; it solves nine valid
+problems fewer (SYJ202 at sizes 4 to 9, SYJ206 at 18 to 20; at 18 it
+answered after 10.14 s, late), and the larger SYJ206 sizes take 11.7 s
+of its 13.0 s. That is the measure of how close the engine comes to the
+tools whose algorithm it follows: on the same problems it decides 97 %
+of what they decide, faster on most, with a checked derivation of LJ
+for every valid one, which they do not make. Where it falls behind is
+the pigeonhole formulas SYJ202 from size 4 (at sizes 4 and 8 the solver
+proves them but their derivation of LJ passes the 64 MiB bound; at the
+others it reaches the time limit) and the read-back of SYJ206's largest
+derivations; why the solver's search takes longer than intuitR's on
+SYJ202 was not looked into (a follow-up). One row is odd: SYJ202+1.009's
+says `the time limit of 10s was reached while the sequent was read`:
+the solver stopped at the memory bound (2.6 GB, the cgroup's 4 GiB being
+deduxit's bound) and gave way to the embedding, whose translation then
+passed the time limit inside the command's `Deadline::within`, which
+words every limit there as the read (a follow-up: the wording).
+
+### What else ran beside the timed runs
+
+- First window (17:40 to 17:47): nothing of this session; the
+  orchestrator had paused the other sessions' heavy work.
+- Second window (18:13 to 18:29): one Kani process of 58a's (a single
+  cbmc, on cores 7 to 9) for part of it, which the orchestrator named.
+  The focused target set ran on cores 4 and 5 from 18:13:12 to
+  18:13:30 and ended ten seconds before the window began; the net target
+  set ran on core 6 after it ended.
+
+### Decisions, each with its reason
+
+- **The default prefers LJT's derivation** (`decide_preferring_ljt`;
+  `Method::Sat` named keeps the derivation read off the search, as
+  54s-a designed). The search's derivations carry cuts on every lemma:
+  `(a → b) → (b → c) → a → c` read back as the term
+  `λg₁. (λh. λf₁. (λf. λg. λx. g (f x)) h f₁) g₁` where LJT gives
+  `λf. λg. λx. g (f x)`, and `a ∨ b → b ∨ a` drew four cuts against
+  none. LJT runs after the search has its own checked derivation in
+  hand, so a bound or the stop that ends LJT leaves that derivation and
+  the verdict: no verdict is lost, only time, and on ILTP LJT never ran
+  to the limit on a valid sequent. A model of a "not valid" is the
+  search's in any case.
+- **Classical logic keeps the embedding** (departs from the design:
+  the brief moves the default where the solver wins, and it wins every
+  count). The command's behaviour is the library's `Settings::default()`
+  (`cli.md`'s decision), so a classical default by the solver would show
+  the clausal line in place of the derivation in every format, lose the
+  Rocq certificate of both verdicts and the "classical reading is
+  false where …" of a "not valid" (the behaviour lock's
+  `ordinary-classical`, `ordinary-rocq`, `format-rocq-not-valid`,
+  `file-tptp`, `ordinary-json` showed each), and the manual's first
+  example. A dispatch that decides by the solver and then asks the
+  embedding for the derivation would wait the whole time limit on the
+  97 valid problems the embedding cannot prove; one that runs the
+  embedding only for outputs that draw would make the method depend on
+  the output flags. Neither was taken. **The author's question**: should
+  the classical default be the solver, the derivation then needing
+  `--method embedding`? Recommendation: yes for the library and
+  `--quiet`/JSON users, who gain 130 problems; if the drawing matters
+  more by default, keep it as it is. A middle way, a not-valid
+  certificate from the solver's assignment (step 55's countermodel
+  output), would remove one of the two losses.
+- **`gives_way` takes `&Result<Outcome, Error>`** (any method's outcome)
+  in place of LJT's: unreleased since 0.3.0, so no break.
+- **The rows of run 2 are 1.3 MiB**, over jj's 1 MiB limit for a new
+  file; the commit took them with `--config
+  snapshot.max-new-file-size=2000000` on that command.
+- **The lock's `ordinary-ljt-*` calls name `--method ljt`**: they pinned
+  LJT through the old default; with the flag they pin LJT still, and
+  `ordinary-default-stats` pins the default's statistics.
+
+### The checks
+
+- The gate (`systemd-run … taskset -c 4-6 nix develop -c gate`): "gate:
+  passed" at `lvqsvmmp` (the code of `zurrvuwo`): clippy, the
+  workspace's tests (the behaviour lock, README's, the manual's and the
+  guide's examples among them), both `cargo hack` runs, the ratchet. Its
+  cache model named moved misses on `search-qbf-20-2`, a note and no
+  failure; `ordinary-pigeons` (the embedding's journey) counted 1.9 %
+  under its ceiling. The gate again at `smuytqrv`, the reviewer's fix:
+  its result is in the final message.
+- `cargo clippy` clean on the workspace with every target, and on the
+  library without default features with `parse,serialize`,
+  `parse,serialize,interactive`, `sat` alone and every default feature
+  with all targets; the command's tests after the fix.
+- `cargo run --release -p deduxit-bench -- run --all-families --timeout
+  5` (cores 4 to 6, at `smuytqrv`): 195 runs, `summary --strict` passes,
+  no mismatch, no verdict that disagrees.
+- The target sets: above, equal to 47's.
+- The timed runs and BenchExec: above; `summary --strict` fails on the
+  timed files only on the embedding's known `error` rows of
+  SYN007+1.014.
+- `nix flake check` at the chain's last commit, under the machine lock:
+  its result is in the final message, since a report cannot record the
+  check of its own commit.
+
+### The reviewer
+
+`fresh-reviewer` (Fable 5.2 at `medium`, a fresh context) on
+`uzmwmupr` to `lvqsvmmp`, against the brief, item 3 of the prompt and
+five criteria (no verdict from unchecked evidence, the default against
+the rows and the oracle, the text, the dispatch, the harness). **One
+finding, which held**:
+- **The command said "a proof was found" for a sequent that is not
+  valid**: `by_native` and the batch's `Shared::by_native` read every
+  `Refusal::Stopped` of a native method as a stop during a proof's
+  check, which was true of LJT; the SAT solver also returns it when the
+  stop fires while its countermodel is checked (`Model::refutes`). The
+  reviewer's witness, `p0 \/ p1 \/ … \/ p199999` in intuitionistic
+  logic at `--timeout 1250ms`, printed `unknown (… by the SAT solver): a
+  proof was found, but the time limit of 1.25s was reached before it was
+  checked`; at 1350 ms it is `not valid`. The verdict (unknown, exit 3)
+  was right, the line false. Answered in `smuytqrv`: the line is now
+  `unknown (L logic by M): the search ended, but … before its answer
+  was checked`, in both places; the witness at 1.2 s and 1.25 s prints
+  it, at 1.3 s `not valid`.
+It also noted that the changelog's "252 in each logic" (run 1) and the
+manual's 252 and 253 (run 2) cite different runs; the changelog now
+gives run 2's counts, as the manual does. Everything else held: every
+"valid" and "not valid" is built after its check (`prefer_ljt` swaps in
+only a derivation `ljt::decide` checked, after the read-off one was
+checked); no decided verdict of either file contradicts the oracle and
+none flips between repeats; no problem the old default or any method
+decides in intuitionistic or minimal logic is left undecided by the new
+default; the tables reproduce; the docs agree on the default; the
+dispatch (default gives way, a named method never) holds in `prove`, the
+batch and the library; the harness's rows have the shape `bench.md`
+says.
+
+### Departures from the design
+
+- Classical logic keeps the embedding as its default (above), with the
+  author's question.
+- The default's derivation is LJT's where LJT gives one, not the one
+  read off the search; `--method sat` keeps the latter. Not a departure
+  from the brief's words, but from 54s-a's design of the method, so
+  marked here.
+
+### What the next sessions must know
+
+- **For step 55 (countermodels).** The default's search is
+  `ordinary::sat::decide_preferring_ljt` (`Derive::PreferLjt` in
+  `sat/mod.rs`): its `sat::Outcome::model` holds the checked Kripke model
+  of a "not valid", the same model `sat::decide` gives (the preference
+  touches valid sequents only). `ordinary::decide` and the command's
+  `decide_natively` convert it to `ordinary::Outcome`, which drops the
+  model; an output of the model needs it kept there (a field of
+  `ordinary::Outcome`, or the command calling the `sat` function and
+  keeping its outcome). The verdict line says `a checked countermodel
+  refutes it` without the model. In classical logic the default is the
+  embedding, whose "not valid" has the image's refutation (an
+  assignment); `--method sat`'s model there is one world.
+- **The classical default** waits on the author's answer above; moving
+  it is `Method::default_for` and the docs that say "the default of
+  classical logic" (`decide.rs`'s `Evidence` doc, the manual's method
+  section, the guide, `status.md`, the help of `--method`).
+- **Follow-ups**: why the solver does not decide SYJ202 from size 4
+  within the time where intuitR solves up to 9 (at sizes 4 and 8 the
+  derivation passes the bound; a valid without a derivation would need
+  a clausal or other evidence there); the command's "while the sequent was read"
+  for a translation past the time limit after the solver gave way; the
+  test build without default features fails in
+  `core/src/linear/nets/cut/tests.rs` (54s-b2's reviewer's note, still
+  open); `comparison.sh` has no ILTP pass (this session ran the
+  command by hand, as the brief allowed).
