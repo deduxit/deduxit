@@ -161,20 +161,19 @@
 //! decide what the command decides, search with its `search` options and
 //! the stop that [`Settings::stop`] makes from its clock. That stop fires
 //! at the time limit but lets the refutation after the search run, as the
-//! command does. One job keeps the search on one thread, as the command's
-//! `--deterministic` does:
+//! command does. [`Settings::deterministic`] keeps the search on one
+//! thread, as the command's `--deterministic` does:
 //!
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
 //! use deduxit::{Settings, linear::{Mode, Verdict, prove_within}};
 //! use std::time::Instant;
 //!
-//! let settings = Settings::default();
-//! let search = settings.search.clone().with_jobs(1);
+//! let settings = Settings::default().deterministic();
 //! let start = Instant::now();
 //! let sequent = "!A |- !A * !A".parse()?;
 //! let stop = settings.stop(|| start.elapsed());
-//! let outcome = prove_within(&sequent, Mode::CLASSICAL, &search, &settings.limits, stop)?;
+//! let outcome = prove_within(&sequent, Mode::CLASSICAL, &settings.search, &settings.limits, stop)?;
 //! assert!(matches!(outcome.verdict, Verdict::Proved(_)));
 //! # Ok::<(), deduxit::Error>(())
 //! ```

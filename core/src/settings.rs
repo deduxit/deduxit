@@ -10,7 +10,7 @@ use crate::export::Styles;
 use crate::linear::proofs::cut;
 #[cfg(feature = "interactive")]
 use crate::linear::proofs::interactive;
-use crate::linear::search::{Jobs, Options, batch};
+use crate::linear::search::{Jobs, Options, Schedule, batch};
 use crate::{
     Limits, Phase, Progress,
     linear::{InputOptions, ViewOptions},
@@ -270,12 +270,60 @@ impl Settings {
                 && limit.is_some_and(|limit| elapsed() >= limit)
         }
     }
+
+    /// Returns the settings that search on one thread throughout, as the
+    /// command's `--deterministic` does: one job, the two searches of the
+    /// default bias taking turns, and no pool added later. Under a stop
+    /// that a time limit does not end, the verdict, the proof and the
+    /// statistics are then the same on every run.
+    ///
+    /// # Examples
+    ///
+    #[cfg_attr(feature = "parse", doc = "```")]
+    #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
+    /// use deduxit::{Settings, linear::{Mode, Verdict, prove_within}};
+    /// use std::time::Instant;
+    ///
+    /// let settings = Settings::default().deterministic();
+    /// let sequent = "!A |- !A * !A".parse()?;
+    /// let start = Instant::now();
+    /// let stop = settings.stop(|| start.elapsed());
+    /// let outcome = prove_within(&sequent, Mode::CLASSICAL, &settings.search, &settings.limits, stop)?;
+    /// assert!(matches!(outcome.verdict, Verdict::Proved(_)));
+    /// # Ok::<(), deduxit::Error>(())
+    /// ```
+    #[must_use]
+    pub fn deterministic(self) -> Self {
+        Self {
+            search: self
+                .search
+                .with_jobs(Jobs::Count(1))
+                .with_schedule(Schedule::Turns),
+            clock: Clock {
+                pool_after_ms: None,
+                ..self.clock
+            },
+            ..self
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::cell::Cell;
+
+    /// `deterministic` sets one job, turns and no pool, and keeps the rest.
+    #[test]
+    fn deterministic_keeps_one_thread() {
+        let settings = Settings::default();
+        let one = settings.clone().deterministic();
+        assert_eq!(one.search.jobs, Jobs::Count(1));
+        assert_eq!(one.search.schedule, Schedule::Turns);
+        assert_eq!(one.clock.pool_after_ms, None);
+        assert_eq!(one.clock.time_limit_ms, settings.clock.time_limit_ms);
+        assert_eq!(one.limits, settings.limits);
+    }
 
     /// The stop fires at the time limit in every phase but the refutation.
     /// It asks for the time only where it can fire, and never fires

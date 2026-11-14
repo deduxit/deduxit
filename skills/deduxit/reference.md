@@ -1253,10 +1253,9 @@ that the caller writes.
   command's stop. It is given the time since the caller started, and
   fires at `clock.time_limit_ms` in every phase but the classical
   refutation after the search, which runs on within its own work bound.
-- To decide as `deduxit prove --deterministic` does, call `prove_within`
-  with `settings.search` on one thread
-  (`.with_jobs(1).with_schedule(Schedule::Turns)`, `Schedule` from
-  `deduxit::linear::search`), `settings.limits` and that stop.
+- To decide as `deduxit prove --deterministic` does, take
+  `Settings::default().deterministic()` (one thread throughout) and
+  call `prove_within` with its `search`, its `limits` and its stop.
 
 ### Errors
 

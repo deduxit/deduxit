@@ -58,19 +58,19 @@ a call without a stop must end. The command instead deepens the bound
 until its time limit of two seconds. `Settings::default()` holds the
 command's settings, and `Settings::stop` builds its stop from the time
 since the start. It fires at the time limit and lets the classical
-reading after the search run past it, as the command does. On one
-thread this gives the command's `--deterministic` answer:
+reading after the search run past it, as the command does.
+`Settings::deterministic()` keeps the search on one thread, which gives
+the command's `--deterministic` answer:
 
 ```rust
 use deduxit::{Settings, linear::{Mode, Verdict, prove_within}};
 use std::time::Instant;
 
-let settings = Settings::default();
-let search = settings.search.clone().with_jobs(1);
+let settings = Settings::default().deterministic();
 let start = Instant::now();
 let sequent = "!A |- !A * !A".parse()?;
 let stop = settings.stop(|| start.elapsed());
-let outcome = prove_within(&sequent, Mode::CLASSICAL, &search, &settings.limits, stop)?;
+let outcome = prove_within(&sequent, Mode::CLASSICAL, &settings.search, &settings.limits, stop)?;
 assert!(matches!(outcome.verdict, Verdict::Proved(_)));
 ```
 

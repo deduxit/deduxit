@@ -85,6 +85,8 @@ unchanged.
   builds the command's stop from the time since the start. It fires at
   the time limit and lets the classical reading after the search run
   past it.
+  `Settings::deterministic()` gives the settings of `prove
+  --deterministic`: one thread throughout.
 - **Printing without a stop**: `export::{latex, typst, svg,
   rocq}::to_string(derivation, &options)` beside each `write`, and
   `Display` for `lambda::Term`.

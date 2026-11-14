@@ -14,7 +14,7 @@ use clap::ArgMatches;
 use clap::parser::ValueSource;
 use deduxit::Settings;
 use deduxit::linear::search::batch::{self, Cores};
-use deduxit::linear::search::{Jobs, Options, Schedule};
+use deduxit::linear::search::{Jobs, Options};
 use serde_json::Value;
 use std::collections::HashSet;
 use std::path::Path;
@@ -184,9 +184,7 @@ impl SearchArgs {
         // `--jobs N` searches with N threads from the start unless
         // `--pool-after` says otherwise, and `--deterministic` on one.
         if self.deterministic {
-            search.jobs = Jobs::Count(1);
-            search.schedule = Schedule::Turns;
-            clock.pool_after_ms = None;
+            *settings = std::mem::take(settings).deterministic();
             return;
         }
         if let Some(jobs) = self.jobs {
@@ -497,6 +495,7 @@ mod tests {
     use super::*;
     use crate::argument_parsing::{Cli, Command};
     use clap::{CommandFactory, FromArgMatches};
+    use deduxit::linear::search::Schedule;
 
     /// Returns the settings `prove` runs under with `args` before its
     /// sequent, and `--settings FILE` first where a file is given.

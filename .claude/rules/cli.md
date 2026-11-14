@@ -270,8 +270,9 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `Threads::of`, `time_limit`, `most`, `ordinary`. A new flag that sets
   a key is applied in its command's `settings` under its argument's
   name; a value no key holds (the output's path, `--quiet`) stays a
-  flag. `--deterministic` is `search.jobs` 1, `search.schedule` `turns` and
-  no pool (the lock's counters are the same as under `auto`, which with
+  flag. `--deterministic` is the library's `Settings::deterministic()`:
+  `search.jobs` 1, `search.schedule` `turns` and no pool, one place for
+  the command and a program to agree on (the lock's counters are the same as under `auto`, which with
   one job happened to take turns as well).
 - `seq.rs`: `seq print`, `seq json` and `seq fragment`.
 - `style.rs`: `read`, which makes the library's `export::Styles`, the
