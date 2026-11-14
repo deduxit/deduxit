@@ -54,6 +54,11 @@ unchanged.
   unused hypothesis is the problem, the command adds `; with -a
   (affine), an unused hypothesis is allowed`. The JSON `refutation` is
   unchanged.
+- **Two refusals say what to do**: in `interact`, a goal that is no
+  number says ``"x" is not a goal: a goal is a number, and `goals` lists
+  them`` instead of Rust's parse error; `prove --net` on MELL with units
+  says `proof nets with boxes exist only for MELL without units, and the
+  sequent has a unit`.
 - **The intuitionistic count refutation** counts by sides too, without
   "positively" and "negatively": `A occurs 1 more time on the right than
   on the left, so they cannot all meet in axioms (an implication's

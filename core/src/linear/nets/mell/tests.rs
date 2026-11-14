@@ -637,6 +637,12 @@ fn intuitionistic_nets() {
             mode: Mode::INTUITIONISTIC
         })
     );
+    // Where the units alone stand in the way, the refusal names them.
+    let units = MellStructure::exist(Fragment::MELL, Mode::CLASSICAL).unwrap_err();
+    assert!(
+        units.to_string().ends_with("the sequent has a unit"),
+        "{units}"
+    );
     let imell = Fragment::MLL.union(Fragment::EXPONENTIALS);
     assert_eq!(MellStructure::exist(imell, Mode::INTUITIONISTIC), Ok(()));
     for affine in [

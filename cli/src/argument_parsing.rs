@@ -347,8 +347,12 @@ pub(crate) struct ProveArgs {
     /// search over essential nets, directed by the intuitionistic reading,
     /// for IMLL without units. `inverse` is the focused inverse method, a
     /// forward search from the axioms, in every mode but the ordered ones;
-    /// it decides without exponentials, needs no copy bound with them, and
-    /// runs only when named here.
+    /// it decides without exponentials and needs no copy bound with them.
+    /// Named here, it searches alone. Without --engine, on one thread, it
+    /// also takes turns beside the engine on an intuitionistic goal with an
+    /// exponential and on a goal under Mix without weakening, and on some
+    /// sequents of MLL without Mix it takes over where the focus engine
+    /// meets its memory bound.
     #[arg(help_heading = SEARCH, long, value_name = "ENGINE", value_parser = engine_name(), default_value = "auto")]
     pub(crate) engine: Forced,
     /// The search's options, bounds and threads.
@@ -380,9 +384,10 @@ pub(crate) struct ProveArgs {
     pub(crate) stats: bool,
     /// Read the settings from a JSON file; the flags override it
     ///
-    /// The file is an object with any of the keys `clock`, `limits`, `search`, `view`, `styles`, `batch`, `ordinary`,
-    /// `lambda` and `input`. Each holds the
-    /// fields that the flags name in parentheses, such as `{"search":
+    /// The file is an object with any of the keys `clock`, `limits`,
+    /// `search`, `view`, `styles`, `batch`, `ordinary`, `interactive`,
+    /// `input`, `cut` and `lambda`. Each holds the fields that the flags
+    /// name in parentheses, such as `{"search":
     /// {"copies": 3}, "limits": {"memory_bytes": null}}`. A field left out
     /// keeps the command's default, and a misspelt one is an error.
     /// `ordinary` applies under --logic, which names the logic.
@@ -745,9 +750,10 @@ pub(crate) struct InteractArgs {
     pub(crate) rocq: RocqArgs,
     /// Read the settings from a JSON file; the flags override it
     ///
-    /// The file is an object with any of the keys `clock`, `limits`, `search`, `view`, `styles`, `batch`, `ordinary`,
-    /// `interactive`, `lambda` and `input`. Each holds the
-    /// fields that the flags name in parentheses, such as `{"search":
+    /// The file is an object with any of the keys `clock`, `limits`,
+    /// `search`, `view`, `styles`, `batch`, `ordinary`, `interactive`,
+    /// `input`, `cut` and `lambda`. Each holds the fields that the flags
+    /// name in parentheses, such as `{"search":
     /// {"copies": 3}, "limits": {"memory_bytes": null}}`. A field left out
     /// keeps the command's default, and a misspelt one is an error.
     /// `ordinary` applies under --logic, which names the logic.
@@ -815,9 +821,10 @@ pub(crate) struct CheckArgs {
     pub(crate) output: OutputArgs,
     /// Read the settings from a JSON file; the flags override it
     ///
-    /// The file is an object with any of the keys `clock`, `limits`, `search`, `view`, `styles`, `batch`, `ordinary`,
-    /// `lambda` and `input`. Each holds the
-    /// fields that the flags name in parentheses, such as `{"search":
+    /// The file is an object with any of the keys `clock`, `limits`,
+    /// `search`, `view`, `styles`, `batch`, `ordinary`, `interactive`,
+    /// `input`, `cut` and `lambda`. Each holds the fields that the flags
+    /// name in parentheses, such as `{"search":
     /// {"copies": 3}, "limits": {"memory_bytes": null}}`. A field left out
     /// keeps the command's default, and a misspelt one is an error.
     /// `ordinary` applies under --logic, which names the logic.
@@ -924,8 +931,9 @@ pub(crate) enum SeqCommand {
         /// Read the settings from a JSON file; the flags override it
         ///
         /// The file is an object with any of the keys `clock`, `limits`,
-        /// `search`, `view`, `styles`, `batch`, `ordinary` and `input`. Each
-        /// holds the fields that the flags name in parentheses, such as
+        /// `search`, `view`, `styles`, `batch`, `ordinary`, `interactive`,
+        /// `input`, `cut` and `lambda`. Each holds the fields that the
+        /// flags name in parentheses, such as
         /// `{"search": {"copies": 3}, "limits": {"memory_bytes": null}}`. A
         /// field left out keeps the command's default, and a misspelt one
         /// is an error. `ordinary` applies under --logic, which names the
@@ -2026,6 +2034,27 @@ mod tests {
                 assert!(help.contains(field.as_str()), "{format}.{field}");
             }
         }
+    }
+
+    /// Every `--settings` help names every top-level key of the settings
+    /// file.
+    #[test]
+    fn the_settings_help_names_every_key() {
+        let settings = serde_json::to_value(deduxit::Settings::default()).unwrap();
+        let mut commands = vec![Cli::command()];
+        let mut seen = 0;
+        while let Some(command) = commands.pop() {
+            if let Some(argument) = command.get_arguments().find(|a| a.get_id() == "settings") {
+                let help = argument.get_long_help().unwrap().to_string();
+                for key in settings.as_object().unwrap().keys() {
+                    let key = format!("`{key}`");
+                    assert!(help.contains(&key), "{}: {key}", command.get_name());
+                }
+                seen += 1;
+            }
+            commands.extend(command.get_subcommands().cloned());
+        }
+        assert!(seen >= 4, "{seen}");
     }
 
     /// Durations take a unit, seconds by default.

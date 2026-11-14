@@ -643,11 +643,29 @@ impl NetError {
                 write!(f, "inside the box of {}, ", vertex(door))?;
                 error.write_over(f, names, vertices, limit)
             }
-            NotMell { fragment, mode } => write!(
-                f,
-                "proof nets with boxes exist for MELL without units in classical mode, with or \
-                 without Mix, and in intuitionistic mode, only, not for {fragment} in {mode} mode"
-            ),
+            NotMell { fragment, mode } => {
+                // `Fragment` alone names the variant here.
+                use crate::linear::fragment::Fragment as F;
+                let unit_free = F::MLL.union(F::EXPONENTIALS);
+                if !unit_free.contains(*fragment)
+                    && unit_free.union(F::MULTIPLICATIVE_UNITS).contains(*fragment)
+                    && !mode.is_affine()
+                    && !mode.is_ordered()
+                {
+                    // The units alone are the reason.
+                    f.write_str(
+                        "proof nets with boxes exist only for MELL without units, and the \
+                         sequent has a unit",
+                    )
+                } else {
+                    write!(
+                        f,
+                        "proof nets with boxes exist for MELL without units in classical mode, \
+                         with or without Mix, and in intuitionistic mode, only, not for \
+                         {fragment} in {mode} mode"
+                    )
+                }
+            }
             NoCut { vertex: Some(v) } => write!(f, "vertex {} is no end of a cut link", vertex(v)),
             NoCut { vertex: None } => f.write_str("the net has no cut link"),
             Reduction { error } => {

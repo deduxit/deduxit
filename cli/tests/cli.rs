@@ -654,7 +654,7 @@ fn ordinary_session() {
     std::fs::create_dir_all(&dir).unwrap();
     let session = dir.join("session.json");
     let script = format!(
-        "goals\napply 0 L0 ->L L1\napply 1 R0 WR\napply 1 L0 ax\nundo\nsave {s}\n",
+        "goals\napply x L0 ax\napply 0 L0 ->L L1\napply 1 R0 WR\napply 1 L0 ax\nundo\nsave {s}\n",
         s = session.display()
     );
     let line = ["interact", "--logic", "intuitionistic", "a -> b, a |- b"];
@@ -663,6 +663,7 @@ fn ordinary_session() {
         out,
         format!(
             "goal 0: L0: a → b, L1: a ⊢ R0: b\n\
+             error: \"x\" is not a goal: a goal is a number, and `goals` lists them\n\
              opened goal 1: L0: a ⊢ R0: a\n\
              opened goal 2: L0: b ⊢ R0: b\n\
              error: the rule WR is not one of LJ in intuitionistic logic: its premise would \
@@ -727,7 +728,7 @@ fn interactive_session() {
     let session = dir.join("session.json");
     let proof = dir.join("proof.json");
     let script = format!(
-        "goals\nrules 0 1\napply 0 1 par\napply 0 1 * 0\napply 1 0 ax\nundo\nsave {s}\nquit\n",
+        "goals\napply x 1 par\nrules 0 1\napply 0 1 par\napply 0 1 * 0\napply 1 0 ax\nundo\nsave {s}\nquit\n",
         s = session.display()
     );
     let (status, out, err) = deduxit(&["interact", "A, A -o B |- B"], &script);
@@ -735,6 +736,7 @@ fn interactive_session() {
         out,
         format!(
             "goal 0: ⊢ 0: ~A, 1: A ⊗ ~B, 2: B\n\
+             error: \"x\" is not a goal: a goal is a number, and `goals` lists them\n\
              ⊗ (with a split)\n\
              error: the rule ⅋ does not act on formula 1, A ⊗ ~B; `rules 0 1` lists the rules \
              that do\n\

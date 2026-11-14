@@ -150,9 +150,12 @@ impl Commands for Session {
         let (command, rest) = words.split_first().map_or(("", &[][..]), |(c, r)| (*c, r));
         let goal = |i: usize| -> Result<GoalId> {
             let word = rest.get(i).context("which goal? see `goals`")?;
-            let id: u32 = word
-                .parse()
-                .with_context(|| format!("{word:?} is not a goal"))?;
+            // Rust's parse error says nothing a user can act on.
+            let id: u32 = word.parse().map_err(|_| {
+                anyhow::anyhow!(
+                    "{word:?} is not a goal: a goal is a number, and `goals` lists them"
+                )
+            })?;
             Ok(GoalId::new(id))
         };
         let formula = |i: usize| -> Result<(Side, usize)> {
