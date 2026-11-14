@@ -1842,7 +1842,9 @@ stop for `Image::read_back` and `Derivation::check`, went to step 28.
   problems, all refutations.
 - Classical logic through affine MALL costs one branch per way through
   the conjunctions: 116 of the 274 are unknown at 2 s, all large SYJ2xx
-  instances. Not a SAT solver, and not to be offered as one.
+  instances. Not a SAT solver, and not to be offered as one. (Since
+  step 54s the SAT solver is the classical default and decides 254;
+  the embedding gives its evidence within 2²⁰ units of work.)
 - A derivation read back from a proof that shares subproofs unfolds
   exponentially: seven classical proofs (8 to 32 million inferences)
   could not be checked within 6 GiB. A read-back on the proof term (a
@@ -1895,6 +1897,32 @@ Left by step 54 (`plan/reports/54-ljt-engine.md`, session 54b):
   derivation of a session with open goals. Its doc says so (`# Panics`).
   A read-back that refuses instead of panicking needs each of its
   `expect`s turned into an error.
+
+Left by step 54s (`plan/reports/54s-sat-engines.md`):
+
+- **The pigeonhole formulas' derivations pass the derivation limit, not
+  the search** (session 54s-c3): on ILTP's SYJ202 (Cook's pigeonhole
+  formulas) the SAT solver finds the intuitionistic "valid" in 27
+  conflicts at size 4, and its derivation of LJ has 14 036 inferences
+  (0.9 MB as JSON; 164 903 at size 5, 2 017 284 at size 6, about twelve
+  times per size). Built and checked with `--derivation-limit none` it
+  takes 2.8 ms at size 4 and 28 ms at size 5. But every inference
+  repeats the sequent's twenty-odd hypotheses, so the estimate of the
+  drawn text passes the default 64 MiB, and the read-back is refused
+  before the verdict; LJT's derivation likewise, so the default gives
+  way and the embedding decides nothing from size 4. intuit and intuitR,
+  which give no derivation, solve sizes 4 to 9 within 10 s. Two ways,
+  each the author's to choose: bound the derivation that is built and
+  checked by its inferences (or the memory) and keep `derivation_bytes`
+  for what is drawn, so that `-q` and JSON get the verdict and a drawing
+  is refused as too large; or a derivation with shared subderivations
+  and a checker that checks each once (the DAG read-back above), which
+  changes the checker, so the panel's.
+- **`comparison.sh` has no ILTP pass**: the comparison of 2026-11-14
+  (`bench/comparison/2026-11-14-iltp/`) ran `deduxit-bench run --tools`
+  by hand. A pass of its own, beside the LLTP ones, would rerun it with
+  the baseline.
+
 ## The web front end: a two-sided presentation of classical derivations
 
 *Assigned to step 40's second session (2026-10-23); done there: `TwoSided`, `--classical-sides`, `view.classical` and the client's switch (`plan/reports/40-ill-surface.md`, session 40b).*
