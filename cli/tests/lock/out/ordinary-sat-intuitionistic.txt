@@ -1,0 +1,13 @@
+$ deduxit prove --logic intuitionistic --method sat --stats '~~a -> a'
+--- status 1
+--- stdout
+not valid (intuitionistic logic by the SAT solver): a checked countermodel refutes it
+solver calls: 4
+conflicts: 0
+lemmas: 0
+worlds: 4
+facts derived: 0
+clauses: 0
+proof steps: 0
+time: …
+--- stderr

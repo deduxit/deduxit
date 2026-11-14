@@ -19,7 +19,7 @@ use crate::{Status, catch_interrupt, interrupted};
 use anyhow::{Context, Result, anyhow, bail};
 use deduxit::linear::search::batch::{self, Cores};
 use deduxit::linear::search::{Goal, Outcome, Pool, Verdict, prove_goal};
-use deduxit::ordinary::{self as ordinary_logic, Image, Method, ljt};
+use deduxit::ordinary::{self as ordinary_logic, Image, Method};
 use deduxit::{
     Settings,
     linear::{Forest, InputOptions, Mode},
@@ -720,9 +720,9 @@ impl Shared {
         };
         let (forest, image, writing) = match (read?, logic) {
             (Loaded::Ordinary(sequent), Some(options)) => {
-                if options.method() == Method::Ljt
+                if options.method() != Method::Embedding
                     && let Some(done) =
-                        self.by_ljt(&entry.name, &options, &sequent, plan, &deadline)?
+                        self.by_native(&entry.name, &options, &sequent, plan, &deadline)?
                 {
                     return Ok(done);
                 }
@@ -808,12 +808,12 @@ impl Shared {
         Ok(Done { text, status })
     }
 
-    /// Decides an entry of ordinary logic by LJT and returns what is
-    /// written for it, its derivation or outcome written into its file in
-    /// the directory; `None` where the logic's default gives way to the
-    /// embedding (LJT ended at a bound other than the time limit, or a
-    /// bound refused its proof's derivation).
-    fn by_ljt(
+    /// Decides an entry of ordinary logic by LJT or the SAT solver and
+    /// returns what is written for it, its derivation or outcome written
+    /// into its file in the directory; `None` where the logic's default
+    /// gives way to the embedding (it ended at a bound other than the time
+    /// limit, or a bound refused its proof's derivation).
+    fn by_native(
         &self,
         name: &str,
         options: &deduxit::ordinary::Options,
@@ -821,13 +821,18 @@ impl Shared {
         plan: &batch::Plan,
         deadline: &Deadline,
     ) -> Result<Option<Done>> {
+        let method = options.method();
         if self.show.net {
-            bail!("--net draws the proof net of a linear proof, and LJT makes none");
+            bail!(
+                "--net draws the proof net of a linear proof, and {} makes none",
+                ordinary::by(method)
+            );
         }
         let gives_way = options.method.is_none();
         let start = Instant::now();
         let halt = || interrupted() || deadline.passed() || self.batch.passed();
-        let decided = ljt::decide(sequent, options.logic, &plan.limits, |_| halt());
+        let decided =
+            ordinary::decide_natively(method, sequent, options.logic, &plan.limits, |_| halt());
         let ended = Ended {
             stop: self.stopped(deadline),
             elapsed: start.elapsed(),
@@ -836,12 +841,12 @@ impl Shared {
             return Ok(None);
         }
         let outcome = match decided {
-            Ok(outcome) => ordinary_logic::Outcome::from(outcome),
+            Ok(outcome) => outcome,
             Err(deduxit::Error::Refused(deduxit::Refusal::Stopped { .. })) => {
                 let line = format!(
-                    "unknown ({} logic by LJT): a proof was found, but {} before its derivation \
-                     was checked",
+                    "unknown ({} logic by {}): a proof was found, but {} before it was checked",
                     options.logic,
+                    ordinary::by(method),
                     Stop::why(ended.stop)
                 );
                 return Ok(Some(Done {
@@ -856,7 +861,7 @@ impl Shared {
             ordinary_logic::Verdict::NotValid => Status::No,
             _ => Status::Unknown,
         };
-        let line = ordinary::ljt_verdict_line(&outcome, &ended);
+        let line = ordinary::native_verdict_line(&outcome, &ended);
         let mut text = if self.json_lines() {
             let mut body = serde_json::to_string(&outcome)?;
             if self.args.stats {
@@ -868,21 +873,22 @@ impl Shared {
             format!("{}: {line}", shown(name))
         };
         if let Some(directory) = &self.directory
-            && let Some(note) = self.write_ljt(name, directory, &outcome, &line, deadline)?
+            && let Some(note) = self.write_native(name, directory, &outcome, &line, deadline)?
         {
             text.push_str(&format!("\n  {note}"));
         }
         if self.args.stats && !self.json_lines() {
-            for counter in ordinary::ljt_statistics(&outcome, ended.elapsed).lines() {
+            for counter in ordinary::native_statistics(&outcome, ended.elapsed).lines() {
                 text.push_str(&format!("\n  {counter}"));
             }
         }
         Ok(Some(Done { text, status }))
     }
 
-    /// Writes an outcome of LJT, or its derivation of LJ, into its file in
-    /// `directory`, as [`write`](Self::write) does for the image's.
-    fn write_ljt(
+    /// Writes an outcome of LJT or the SAT solver, or its derivation, into
+    /// its file in `directory`, as [`write`](Self::write) does for the
+    /// image's.
+    fn write_native(
         &self,
         name: &str,
         directory: &Path,

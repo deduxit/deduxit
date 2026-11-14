@@ -357,6 +357,43 @@ const CASES: &[Case] = &[
             "(a /\\ b) -> c |- a -> b -> c",
         ],
     ),
+    call(
+        "ordinary-sat-clausal",
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--method",
+            "sat",
+            "--stats",
+            "((a -> b) -> a) -> a",
+        ],
+    ),
+    call(
+        "ordinary-sat-json",
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--method",
+            "sat",
+            "--format",
+            "json",
+            "a -> b, b |- a",
+        ],
+    ),
+    call(
+        "ordinary-sat-intuitionistic",
+        &[
+            "prove",
+            "--logic",
+            "intuitionistic",
+            "--method",
+            "sat",
+            "--stats",
+            "~~a -> a",
+        ],
+    ),
     // Problem files.
     call("file-lltp", &["prove", "--file", "double.p"]),
     call(

@@ -76,6 +76,7 @@ Logic:
           Possible values:
           - embedding: Through its translation into linear logic, the proof read back as LK or LJ
           - ljt:       By Dyckhoff's calculus LJT, whose search always ends, for intuitionistic and minimal logic
+          - sat:       By a SAT solver, whose search always ends, for every logic; a valid classical sequent gets a checked clausal proof and no derivation
 
 Input:
   -f, --file <PATH>

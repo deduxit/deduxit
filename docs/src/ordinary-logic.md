@@ -81,6 +81,25 @@ sequent with nothing on the left.
 - `embedding` translates the sequent into linear logic, searches the
   image there and reads the proof back as one of LK or LJ. It decides
   all three logics and is the default for classical logic.
+- `sat` is a SAT solver, for all three logics. Its search always ends.
+  A sequent that is not valid comes with a countermodel, which is
+  checked: a Kripke model in intuitionistic and minimal logic, an
+  assignment of the atoms in classical logic. A valid sequent comes with
+  a derivation of LJ in intuitionistic and minimal logic. In classical
+  logic it comes with the solver's clausal proof: every step follows
+  from the clauses of the sequent's negation and the steps before it by
+  unit propagation, and the last step is the empty clause. A checker of
+  deduxit's own accepts it before the verdict is given. A clausal proof
+  is no derivation, so nothing is drawn; `--method embedding` gives the
+  derivation of LK.
+
+```console
+$ deduxit prove --logic classical --method sat -q '((a -> b) -> a) -> a'
+valid (classical logic by the SAT solver): a checked clausal proof of 1 step against the 6 clauses of the sequent's negation
+$ deduxit prove --logic intuitionistic --method sat '((a -> b) -> a) -> a'; echo "exit $?"
+not valid (intuitionistic logic by the SAT solver): a checked countermodel refutes it
+exit 1
+```
 
 On the ILTP library's 274 problems, with 2 seconds each, LJT decides 200
 in intuitionistic logic and 200 in minimal logic, the embedding 188 in
@@ -218,6 +237,15 @@ valid sequent, the `derivation`:
 ```console
 $ deduxit prove --logic intuitionistic --format json '~~a -> a'
 {"version":8,"deduxit":"0.3.0","verdict":"not_valid","logic":"intuitionistic","engine":"ljt","statistics":{"sequents":5,"memo_hits":0,"memo_entries":5,"subsumed":0}}
+```
+
+With `--method sat` the `engine` is `sat` and the `statistics` are the
+solver's. A sequent valid by a clausal proof has `clausal_proof` in place
+of `derivation`, with the counts of its variables, clauses and steps:
+
+```console
+$ deduxit prove --logic classical --method sat --format json 'a \/ ~a'
+{"version":10,"deduxit":"0.3.0","verdict":"valid","logic":"classical","engine":"sat","statistics":{"calls":1,"conflicts":1,"lemmas":0,"worlds":0,"facts":0,"clauses":4,"proof_steps":1,"ljt":null},"clausal_proof":{"variables":3,"clauses":4,"steps":1}}
 ```
 
 Through the embedding, the output is the outcome of the search on the

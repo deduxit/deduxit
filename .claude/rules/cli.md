@@ -140,22 +140,27 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   prints the image (two-sided for ILL). In a batch the logic applies to
   every entry, `lines` being ordinary sequents, and JSON and LLTP inputs
   refused per entry.
-  **The method** (`--method embedding|ljt`, `ordinary.method`, on
+  **The method** (`--method embedding|ljt|sat`, `ordinary.method`, on
   `prove` only; `settings::ordinary` sets the embedding where `--linear`
   is given and no method, and `method_given` refuses `--translation` or
-  `--linear` beside an explicit LJT, exit 2): `prove` reads the
+  `--linear` beside an explicit LJT or SAT solver, exit 2): `prove` reads the
   ordinary sequent first (`io::ordinary`), and where
-  `Options::method()` is LJT `by_ljt` decides it on the large stack
+  `Options::method()` is not the embedding `by_native` decides it by
+  `decide_natively` (LJT or the SAT solver) on the large stack
   under the deadline and Ctrl-C and writes the verdict line
-  (`ljt_verdict_line`: `valid (L logic by LJT)`, `not valid (…): the
-  search was exhaustive`, an unknown with `prove::advice`), the checked
+  (`native_verdict_line`, the method named by `by`: `valid (L logic by
+  LJT)`, `not valid (…): the search was exhaustive`, for the SAT solver
+  `not valid (…): a checked countermodel refutes it` (the model is not
+  on `ordinary::Outcome`, so it is not printed), an unknown with
+  `prove::advice`), the checked
   derivation through `show::shown` (none under `--tree never` or `-q`),
-  `--lambda` from `Derivation::term`, `--stats` (`ljt_statistics`) or
+  `--lambda` from `Derivation::term`, `--stats` (`native_statistics`:
+  LJT's four counters or the solver's seven) or
   the ordinary outcome as JSON (version first: through a `Value` only
   with `--lambda`), and refuses `--net`. Every derivation it draws or
   reads as a term comes through `Evidence::derivation`, so an outcome
-  valid by a clausal proof (the SAT solver in classical logic, which
-  `--method` does not offer yet) gets its verdict line `valid (classical
+  valid by a clausal proof (the SAT solver in classical logic) gets its
+  verdict line `valid (classical
   logic by the SAT solver): a checked clausal proof of …` and, in place
   of the derivation, the library's `NoDerivation` message as a left-out
   line (in a batch's directory, no file and that note); the lambda-term
@@ -167,7 +172,7 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `--method embedding`, and a stop during its check is an unknown line
   (on standard error where the output is JSON or a file: JSON has no
   form for it, as for `unread`). The batch has the same in
-  `Shared::by_ljt` and `write_ljt` (an entry is `Loaded::Ordinary` or
+  `Shared::by_native` and `write_native` (an entry is `Loaded::Ordinary` or
   `Loaded::Linear`, the forest boxed). `interact --logic`'s `close` stays
   the embedding (its steps take no cut), so its outcome is always
   `Search::Embedding`.

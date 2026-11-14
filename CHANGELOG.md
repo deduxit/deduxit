@@ -110,7 +110,8 @@ unchanged.
   it has no derivation, which `Method::Embedding` gives. Every "not
   valid" comes with a model that `Model::refutes` checks: a finite
   Kripke model (`sat::Model`), of one world in classical logic. The
-  command does not offer it yet.
+  command offers it as `--method sat` (the key `ordinary.method`), with
+  its counters under `--stats`, and the harness as the engine `sat`.
 - **The harness runs ordinary logic**: `deduxit-bench run --tptp PATH
   --logics …` with the engines `embedding`, `ljt` and `auto`, and
   `summary` lists the problems two configurations decide differently.

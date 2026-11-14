@@ -4,7 +4,7 @@
 //! Deciding an ordinary sequent in one call, by the method the options
 //! choose: through the embedding (the translation, the search on the
 //! image, and for a valid sequent the derivation of LK or LJ read back and
-//! checked) or by LJT.
+//! checked), by LJT or by the SAT solver.
 
 use super::{Derivation, Logic, Method, Options, Sequent, Translation, ljt, translate};
 use crate::limits::{Limits, Progress};
@@ -139,12 +139,12 @@ impl Evidence {
     }
 }
 
-/// Returns whether LJT's answer leaves the sequent to the embedding when
-/// the method is the logic's default: LJT stopped at a bound other than
-/// the caller's stop (the memory, the work), or a bound refused the
-/// derivation of the proof it found (its size, the memory), so that it
-/// gave no verdict where the embedding may give one.
-pub fn gives_way(decided: &Result<ljt::Outcome, Error>) -> bool {
+/// Returns whether a method's answer leaves the sequent to the embedding
+/// when the method is the logic's default: the method stopped at a bound
+/// other than the caller's stop (the memory, the work), or a bound refused
+/// the derivation of the proof it found (its size, the memory), so that
+/// it gave no verdict where the embedding may give one.
+pub fn gives_way(decided: &Result<Outcome, Error>) -> bool {
     match decided {
         Ok(outcome) => {
             matches!(outcome.verdict, Verdict::Unknown(reason) if reason != Reason::Stopped)
@@ -158,8 +158,9 @@ pub fn gives_way(decided: &Result<ljt::Outcome, Error>) -> bool {
 /// searches the image in its mode under `search`, and for a proof reads
 /// the derivation of LK or LJ back and checks it, under the same limits
 /// and stop; by LJT it is [`ljt::decide`] and by the SAT solver
-/// `sat::decide`, which read no `search` option. When the method is the logic's default (no method and no
-/// translation given) and LJT [`gives_way`], the embedding decides the
+/// `sat::decide`, which read no `search` option. When the method is the
+/// logic's default (no method and no translation given) and it
+/// [`gives_way`], the embedding decides the
 /// sequent in its place.
 ///
 /// # Errors
@@ -199,15 +200,18 @@ pub fn decide(
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
     let (logic, translation) = (options.logic, options.translation());
-    #[cfg(feature = "sat")]
-    if options.method() == Method::Sat {
-        return super::sat::decide(sequent, logic, limits, &mut stop).map(Outcome::from);
-    }
-    if options.method() == Method::Ljt {
-        let decided = ljt::decide(sequent, logic, limits, &mut stop);
-        if options.method.is_some() || !gives_way(&decided) {
-            return decided.map(Outcome::from);
+    let decided = match options.method() {
+        Method::Embedding => None,
+        Method::Ljt => Some(ljt::decide(sequent, logic, limits, &mut stop).map(Outcome::from)),
+        #[cfg(feature = "sat")]
+        Method::Sat => {
+            Some(super::sat::decide(sequent, logic, limits, &mut stop).map(Outcome::from))
         }
+    };
+    if let Some(decided) = decided
+        && (options.method.is_some() || !gives_way(&decided))
+    {
+        return decided;
     }
     let image = translate(sequent, logic, translation, limits)?;
     let linear = search::prove_within(image.sequent(), image.mode(), search, limits, &mut stop)?;
@@ -270,11 +274,14 @@ mod tests {
         // its derivation; named, it reports the bound.
         let small = limits.with_derivation_bytes(Some(64));
         let refused = super::ljt::decide(&sequent, Logic::Intuitionistic, &small, |_| false);
-        assert!(super::gives_way(&refused), "{refused:?}");
+        assert!(
+            super::gives_way(&refused.map(Into::into)),
+            "the derivation's bound"
+        );
         assert!(decide(&sequent, &ljt, &search, &small, |_| false).is_err());
         let stopped = super::ljt::decide(&sequent, Logic::Intuitionistic, &limits, |_| true);
-        assert!(!super::gives_way(&stopped), "{stopped:?}");
+        assert!(!super::gives_way(&stopped.map(Into::into)), "the stop");
         let classical = super::ljt::decide(&sequent, Logic::Classical, &limits, |_| false);
-        assert!(!super::gives_way(&classical), "{classical:?}");
+        assert!(!super::gives_way(&classical.map(Into::into)), "the logic");
     }
 }

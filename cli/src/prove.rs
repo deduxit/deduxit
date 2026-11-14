@@ -228,8 +228,8 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
     let (mode, read) = (args.mode.mode(), settings.input);
     let ordinary = crate::settings::ordinary(&settings, &args.logic, args.linear);
     let format = args.output.format();
-    // Ordinary logic is read first: LJT decides it, or by default hands
-    // it to the embedding where a bound stopped it.
+    // Ordinary logic is read first: LJT or the SAT solver decides it, or
+    // by default hands it to the embedding where a bound stopped it.
     let ordinary = match ordinary {
         Some(options) => {
             crate::ordinary::method_given(args, &options)?;
@@ -239,10 +239,10 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
                 return unread_into(args, limit);
             };
             let sequent = sequent?;
-            if options.method() == Method::Ljt {
+            if options.method() != Method::Embedding {
                 output_can_be_made(args, format)?;
                 if let Some(status) =
-                    crate::ordinary::by_ljt(args, &settings, &options, &sequent, &deadline)?
+                    crate::ordinary::by_native(args, &settings, &options, &sequent, &deadline)?
                 {
                     return Ok(status);
                 }

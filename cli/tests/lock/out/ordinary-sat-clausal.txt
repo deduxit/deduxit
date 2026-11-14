@@ -1,0 +1,14 @@
+$ deduxit prove --logic classical --method sat --stats '((a -> b) -> a) -> a'
+--- status 0
+--- stdout
+valid (classical logic by the SAT solver): a checked clausal proof of 1 step against the 6 clauses of the sequent's negation
+solver calls: 1
+conflicts: 1
+lemmas: 0
+worlds: 0
+facts derived: 0
+clauses: 6
+proof steps: 1
+time: …
+--- stderr
+the sequent is valid by a checked clausal proof, which is no derivation; the method embedding gives the derivation of LK

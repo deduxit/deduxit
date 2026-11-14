@@ -1172,6 +1172,9 @@ pub(crate) enum MethodArg {
     /// By Dyckhoff's calculus LJT, whose search always ends, for
     /// intuitionistic and minimal logic
     Ljt,
+    /// By a SAT solver, whose search always ends, for every logic; a valid
+    /// classical sequent gets a checked clausal proof and no derivation
+    Sat,
 }
 
 impl From<MethodArg> for deduxit::ordinary::Method {
@@ -1179,6 +1182,7 @@ impl From<MethodArg> for deduxit::ordinary::Method {
         match method {
             MethodArg::Embedding => Self::Embedding,
             MethodArg::Ljt => Self::Ljt,
+            MethodArg::Sat => Self::Sat,
         }
     }
 }

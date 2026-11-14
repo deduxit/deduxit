@@ -16,7 +16,7 @@ use crate::{Status, catch_interrupt, interrupted};
 use anyhow::{Result, anyhow, bail};
 use deduxit::linear::proofs::{Sides, Structural};
 use deduxit::linear::search::{Outcome, Verdict};
-use deduxit::ordinary::{self, Derivation, Image, Logic, Method, Translation, ljt};
+use deduxit::ordinary::{self, Derivation, Image, Logic, Method, Translation, ljt, sat};
 use deduxit::{
     Error, ErrorKind, Limits, Refusal, Settings,
     linear::{Forest, Proof, ViewOptions},
@@ -95,40 +95,71 @@ pub(crate) fn translated(
 ///
 /// # Errors
 ///
-/// Either flag beside `--method ljt`, or beside a settings file's
-/// `ordinary.method` of `ljt`.
+/// Either flag beside `--method ljt` or `sat`, or beside a settings
+/// file's `ordinary.method` of either.
 pub(crate) fn method_given(args: &ProveArgs, options: &ordinary::Options) -> Result<()> {
-    if options.method == Some(Method::Ljt) && (args.logic.translation.is_some() || args.linear) {
+    if let Some(method @ (Method::Ljt | Method::Sat)) = options.method
+        && (args.logic.translation.is_some() || args.linear)
+    {
         bail!(
-            "--translation and --linear name the embedding, and LJT decides without one: leave \
-             them out, or give --method embedding"
+            "--translation and --linear name the embedding, and {} decides without one: leave \
+             them out, or give --method embedding",
+            by(method)
         );
     }
     Ok(())
 }
 
-/// Decides an ordinary sequent by LJT and writes what `prove` writes for
-/// it: the verdict line, the checked derivation of LJ, its lambda-term
-/// and the statistics, or the outcome as JSON. Returns `None`, having
-/// written nothing, where the logic's default method gives way to the
-/// embedding: LJT ended at a bound other than the time limit or Ctrl-C,
-/// or a bound refused the derivation of the proof it found.
+/// Returns how the verdict line names a method that decides without the
+/// embedding: `LJT` or `the SAT solver`.
+pub(crate) const fn by(method: Method) -> &'static str {
+    match method {
+        Method::Sat => "the SAT solver",
+        _ => "LJT",
+    }
+}
+
+/// Decides an ordinary sequent by LJT or the SAT solver, as `method`
+/// says, under `stop`.
+pub(crate) fn decide_natively(
+    method: Method,
+    sequent: &ordinary::Sequent,
+    logic: Logic,
+    limits: &deduxit::Limits,
+    stop: impl FnMut(deduxit::Progress) -> bool,
+) -> Result<ordinary::Outcome, Error> {
+    match method {
+        Method::Sat => sat::decide(sequent, logic, limits, stop).map(ordinary::Outcome::from),
+        _ => ljt::decide(sequent, logic, limits, stop).map(ordinary::Outcome::from),
+    }
+}
+
+/// Decides an ordinary sequent by LJT or the SAT solver, as the options'
+/// method says, and writes what `prove` writes for it: the verdict line,
+/// the checked derivation of LJ or LK, its lambda-term and the
+/// statistics, or the outcome as JSON. Returns `None`, having written
+/// nothing, where the logic's default method gives way to the embedding:
+/// it ended at a bound other than the time limit or Ctrl-C, or a bound
+/// refused the derivation of the proof it found.
 ///
 /// # Errors
 ///
 /// `--net`, which draws a linear proof; a bound that refused the
-/// derivation of a proof under `--method ljt`; an output that cannot be
-/// written.
-pub(crate) fn by_ljt(
+/// derivation of a proof under `--method ljt` or `sat`; an output that
+/// cannot be written.
+pub(crate) fn by_native(
     args: &ProveArgs,
     settings: &Settings,
     options: &ordinary::Options,
     sequent: &ordinary::Sequent,
     deadline: &Deadline,
 ) -> Result<Option<Status>> {
+    let method = options.method();
     if args.output.net {
         bail!(
-            "--net draws the proof net of a linear proof, and LJT makes none: add --method embedding"
+            "--net draws the proof net of a linear proof, and {} makes none: add --method \
+             embedding",
+            by(method)
         );
     }
     let limits = settings.limits;
@@ -141,7 +172,7 @@ pub(crate) fn by_ljt(
         let start = Instant::now();
         let notice = Notice::start(NOTICE_AFTER, notice_line(deadline.limit(), false));
         let halt = || interrupted() || deadline.passed();
-        let decided = ljt::decide(sequent, options.logic, &limits, |_| halt());
+        let decided = decide_natively(method, sequent, options.logic, &limits, |_| halt());
         drop(notice);
         let ended = Ended {
             stop: stopped(deadline),
@@ -151,12 +182,12 @@ pub(crate) fn by_ljt(
             return Ok(None);
         }
         let outcome = match decided {
-            Ok(outcome) => ordinary::Outcome::from(outcome),
+            Ok(outcome) => outcome,
             Err(Error::Refused(Refusal::Stopped { .. })) => {
                 let line = format!(
-                    "unknown ({} logic by LJT): a proof was found, but {} before its derivation \
-                     was checked",
+                    "unknown ({} logic by {}): a proof was found, but {} before it was checked",
                     options.logic,
+                    by(method),
                     Stop::why(ended.stop)
                 );
                 match (format, &args.output.output) {
@@ -166,9 +197,10 @@ pub(crate) fn by_ljt(
                 return Ok(Some(Status::Unknown));
             }
             Err(error @ Error::Refused(_)) => bail!(
-                "LJT gave no verdict: {error}; raise the limit (--derivation-limit, \
+                "{} gave no verdict: {error}; raise the limit (--derivation-limit, \
                  --memory-limit, --work-limit), or decide through the embedding with --method \
-                 embedding"
+                 embedding",
+                by(method)
             ),
             Err(error) => return Err(error.into()),
         };
@@ -196,7 +228,7 @@ pub(crate) fn by_ljt(
             out.finish()?;
             return Ok(Some(status));
         }
-        let line = show.verdict.then(|| ljt_verdict_line(&outcome, &ended));
+        let line = show.verdict.then(|| native_verdict_line(&outcome, &ended));
         let prefix = show.open(&mut out, line.as_deref())?;
         let why = || Stop::why(stopped(deadline));
         let shown = match (&outcome.verdict, args.output.quiet) {
@@ -230,7 +262,7 @@ pub(crate) fn by_ljt(
             show.after(&mut out, &lambda_line(term, &show, over), drawn)?;
         }
         if args.stats {
-            show.after(&mut out, &ljt_statistics(&outcome, ended.elapsed), drawn)?;
+            show.after(&mut out, &native_statistics(&outcome, ended.elapsed), drawn)?;
         }
         if keep {
             out.finish()?;
@@ -242,17 +274,17 @@ pub(crate) fn by_ljt(
 /// Returns the verdict line of an ordinary sequent decided by LJT or the
 /// SAT solver: the verdict, the logic and the method, for a sequent valid
 /// by a clausal proof that proof, and for an undecided sequent why.
-pub(crate) fn ljt_verdict_line(outcome: &ordinary::Outcome, ended: &Ended) -> String {
-    let method = match outcome.method() {
-        Method::Sat => "the SAT solver",
-        _ => "LJT",
-    };
-    let context = format!("{} logic by {method}", outcome.logic);
+pub(crate) fn native_verdict_line(outcome: &ordinary::Outcome, ended: &Ended) -> String {
+    let method = outcome.method();
+    let context = format!("{} logic by {}", outcome.logic, by(method));
     match &outcome.verdict {
         ordinary::Verdict::Valid(ordinary::Evidence::Clausal(proof)) => {
             format!("valid ({context}): {proof}")
         }
         ordinary::Verdict::Valid(_) => format!("valid ({context})"),
+        ordinary::Verdict::NotValid if method == Method::Sat => {
+            format!("not valid ({context}): a checked countermodel refutes it")
+        }
         ordinary::Verdict::NotValid => {
             format!("not valid ({context}): the search was exhaustive")
         }
@@ -263,19 +295,30 @@ pub(crate) fn ljt_verdict_line(outcome: &ordinary::Outcome, ended: &Ended) -> St
     }
 }
 
-/// Returns the lines `--stats` prints for LJT: its counters, a line each,
-/// and the time.
-pub(crate) fn ljt_statistics(outcome: &ordinary::Outcome, elapsed: Duration) -> String {
+/// Returns the lines `--stats` prints for LJT or the SAT solver: its
+/// counters, a line each, and the time.
+pub(crate) fn native_statistics(outcome: &ordinary::Outcome, elapsed: Duration) -> String {
     let mut lines = String::new();
-    if let ordinary::Search::Ljt(s) = &outcome.search {
-        for (label, value) in [
+    let counters: &[(&str, u64)] = match &outcome.search {
+        ordinary::Search::Ljt(s) => &[
             ("sequents expanded", s.sequents),
             ("memo hits", s.memo_hits),
             ("memo entries", s.memo_entries),
             ("refuted by an earlier failure", s.subsumed),
-        ] {
-            writeln!(lines, "{label}: {value}").expect("a string takes it");
-        }
+        ],
+        ordinary::Search::Sat(s) => &[
+            ("solver calls", s.calls),
+            ("conflicts", s.conflicts),
+            ("lemmas", s.lemmas),
+            ("worlds", s.worlds),
+            ("facts derived", s.facts),
+            ("clauses", s.clauses),
+            ("proof steps", s.proof_steps),
+        ],
+        _ => &[],
+    };
+    for (label, value) in counters {
+        writeln!(lines, "{label}: {value}").expect("a string takes it");
     }
     write!(lines, "time: {elapsed:.2?}").expect("a string takes it");
     lines
@@ -452,7 +495,7 @@ mod tests {
             stop: None,
             elapsed: std::time::Duration::ZERO,
         };
-        let line = super::ljt_verdict_line(&outcome, &ended);
+        let line = super::native_verdict_line(&outcome, &ended);
         assert!(
             line.starts_with(
                 "valid (classical logic by the SAT solver): a checked clausal proof of "

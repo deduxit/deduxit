@@ -180,8 +180,8 @@ in use.
   checked. A valid sequent comes with a checked derivation of LJ in
   intuitionistic and minimal logic, and in classical logic with the
   solver's clausal proof, which a checker of deduxit's own accepts; the
-  embedding gives its derivation of LK. The command does not offer this
-  engine yet.
+  embedding gives its derivation of LK. The command offers it as
+  `--method sat`.
 
 ## Proofs as programs
 

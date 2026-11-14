@@ -1017,6 +1017,21 @@ proof back.
   alone chooses the embedding.
 - `seq print --logic` prints the image.
 
+`sat` is a SAT solver, for all three logics; its search always ends.
+
+- `not valid` comes with a checked countermodel: a Kripke model in
+  intuitionistic and minimal logic, an assignment in classical logic.
+  The line says `a checked countermodel refutes it`.
+- `valid` comes with a derivation of LJ in intuitionistic and minimal
+  logic. In classical logic it comes with a checked clausal proof
+  (`valid (classical logic by the SAT solver): a checked clausal proof
+  of N steps against the M clauses of the sequent's negation`), which is
+  no derivation: no drawing, certificate or `--lambda` term; a line on
+  standard error names `--method embedding`, which gives the derivation
+  of LK.
+- `--stats` prints `solver calls`, `conflicts`, `lemmas`, `worlds`,
+  `facts derived`, `clauses` and `proof steps`.
+
 ### JSON
 
 Under LJT, `--format json` writes the outcome of the ordinary sequent:
@@ -1024,7 +1039,11 @@ Under LJT, `--format json` writes the outcome of the ordinary sequent:
 "reason": …, "logic": …, "engine": "ljt", "statistics": {"sequents",
 "memo_hits", "memo_entries", "subsumed"}, "derivation": …}`. `check`
 refuses it (exit status 2); in the library, `ordinary::Derivation::check`
-checks its derivation. Through the embedding, `--format json` writes the
+checks its derivation. Under `--method sat` the `engine` is `sat`, the
+`statistics` are `{"calls", "conflicts", "lemmas", "worlds", "facts",
+"clauses", "proof_steps", "ljt"}`, and a classical valid sequent has
+`"clausal_proof": {"variables", "clauses", "steps"}` in place of
+`derivation`, at wire level 10. Through the embedding, `--format json` writes the
 image's outcome, as without `--logic`, and `check` reads it.
 
 ### Examples
