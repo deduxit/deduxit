@@ -52,7 +52,7 @@ Logic:
       --logic <LOGIC>
           Read the input as ordinary logic
           
-          The input is a formula or a sequent of propositional logic, in the syntax below; a `.p` file is a TPTP problem, as the ILTP library writes them. `prove` decides it and shows the proof as a derivation of LK (classical) or LJ (intuitionistic, minimal), checked by the rules of the logic before it is shown. By default a SAT solver, whose search always ends, decides every logic, and classical logic keeps the derivation its translation into affine MALL gives within a short bound; --method chooses. The translated sequent is called the image. Through the translation into ILL (--method embedding), intuitionistic and minimal logic may be answered unknown at the time limit, and the JSON output is the search's outcome on the image. `seq print` prints the image. `interact` proves the sequent step by step by the rules of LK or LJ, and its `close` decides a goal through the translation.
+          The input is a formula or a sequent of propositional logic, in the syntax below; a `.p` file is a TPTP problem, as the ILTP library writes them. `prove` decides it and shows the proof as a derivation of LK (classical) or LJ (intuitionistic, minimal), checked by the rules of the logic before it is shown. By default a SAT solver, whose search always ends, decides every logic, and classical logic keeps the derivation its translation into affine MALL gives within a short bound; --method chooses. The translated sequent is called the image. Through the translation into ILL (--method embedding), intuitionistic and minimal logic may be answered unknown at the time limit. The JSON output is the outcome of the ordinary sequent, the image's outcome nested in it; --linear writes the image's alone. `seq print` prints the image. `interact` proves the sequent step by step by the rules of LK or LJ, and its `close` decides a goal through the translation.
 
           Possible values:
           - classical:      Classical propositional logic, derivations in LK
@@ -71,7 +71,7 @@ Logic:
       --method <METHOD>
           With --logic, how to decide the sequent: through its embedding into linear logic, by LJT or by a SAT solver (ordinary.method)
           
-          By default every logic is decided by the SAT solver: intuitionistic and minimal logic with LJT's derivation where LJT gives one, and classical logic with the embedding's output (its derivation of LK, refutation and certificate) where the embedding decides within a short bound of work. LJT is Dyckhoff's calculus for intuitionistic and minimal logic. The SAT solver decides every logic; a valid classical sequent gets a checked clausal proof and no derivation. --translation and --linear name the embedding, so either of them alone decides through it. Under LJT or the SAT solver, --stats prints the method's counters and --format json writes the outcome of the ordinary sequent, with the engine "ljt" or "sat".
+          By default every logic is decided by the SAT solver: intuitionistic and minimal logic with LJT's derivation where LJT gives one, and classical logic with the embedding's output (its derivation of LK, refutation and certificate) where the embedding decides within a short bound of work. LJT is Dyckhoff's calculus for intuitionistic and minimal logic. The SAT solver decides every logic; a valid classical sequent gets a checked clausal proof and no derivation. --translation and --linear name the embedding, so either of them alone decides through it. Under LJT or the SAT solver, --stats prints the method's counters. Under every method --format json writes the outcome of the ordinary sequent, its "search" tagged by "method".
 
           Possible values:
           - embedding: Through its translation into linear logic, the proof read back as LK or LJ
@@ -147,7 +147,7 @@ Output:
 
           Possible values:
           - text:  The verdict on one line, then the derivation as a text tree
-          - json:  JSON: for `prove` the outcome (verdict, fragment, mode, engine, statistics, and the proof, which `check` reads), one record per line in a batch, and under --logic decided by LJT the ordinary outcome with its derivation of LJ; for `check` the verdict and error
+          - json:  JSON: for `prove` the outcome (verdict, fragment, mode, engine, statistics, and the proof, which `check` reads), one record per line in a batch, and under --logic the ordinary outcome, with its derivation of LK or LJ; for `check` the verdict and error
           - latex: The verdict as a comment, then the derivation as a LaTeX proof tree of the ebproof package, with the connectives of cmll and amssymb
           - typst: The verdict as a comment, then the derivation as a Typst proof tree: with the curryst package for a low tree, in deduxit's own layout for a high one (`--style typst.layout`)
           - svg:   The verdict as an XML comment, then the derivation drawn as an SVG document, set in the Euler Math font unless `--font` names another

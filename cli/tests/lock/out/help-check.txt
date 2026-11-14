@@ -3,11 +3,13 @@ $ deduxit check --help
 --- stdout
 Check a proof read from JSON, as `prove --format json` writes it, or the refutation of an unprovable outcome
 
+An outcome of `prove --logic`, or a derivation of LK or LJ, is checked by the rules of its calculus, with the image's proof or refutation where the embedding found one. One that holds nothing to check (a clausal proof's counts, a "not valid" without a refutation, an unknown) gets 3.
+
 The mode is the one the file states, or the flags' where it states none. A mode flag that names another mode is an error. The exit status is 0 for a valid proof, 1 for an invalid one, 3 for unknown (a limit stopped the check, so the proof is neither valid nor invalid) and 2 for an error.
 
 A refutation is checked without a search, in the mode its file states; it says nothing about other modes. The exit status is 0 where it holds and 1 where it does not. An outcome refuted only by an exhausted search has nothing to check, and gets 3.
 
-With `--format json` the verdict is `{"version", "verdict", "mode"}`, the verdict being `valid`, `invalid` or `unknown`. The last two add the library's `error` object and its `message`, with formulas.
+With `--format json` the verdict is `{"version", "verdict", "mode"}`, or `"logic"` in place of `"mode"` for ordinary logic, the verdict being `valid`, `invalid` or `unknown`. The last two add the library's `error` object and its `message`, with formulas.
 
 Usage: deduxit check [OPTIONS] [PROOF]
 
@@ -96,7 +98,7 @@ Output:
 
           Possible values:
           - text:  The verdict on one line, then the derivation as a text tree
-          - json:  JSON: for `prove` the outcome (verdict, fragment, mode, engine, statistics, and the proof, which `check` reads), one record per line in a batch, and under --logic decided by LJT the ordinary outcome with its derivation of LJ; for `check` the verdict and error
+          - json:  JSON: for `prove` the outcome (verdict, fragment, mode, engine, statistics, and the proof, which `check` reads), one record per line in a batch, and under --logic the ordinary outcome, with its derivation of LK or LJ; for `check` the verdict and error
           - latex: The verdict as a comment, then the derivation as a LaTeX proof tree of the ebproof package, with the connectives of cmll and amssymb
           - typst: The verdict as a comment, then the derivation as a Typst proof tree: with the curryst package for a low tree, in deduxit's own layout for a high one (`--style typst.layout`)
           - svg:   The verdict as an XML comment, then the derivation drawn as an SVG document, set in the Euler Math font unless `--font` names another
