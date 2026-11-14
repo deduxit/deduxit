@@ -136,7 +136,21 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `ordinary::shown`), or with `--linear` the linear proof as without
   `--logic`. A
   read-back that fails its check is an error (exit 2), a defect. JSON is
-  the search's outcome on the image, unchanged. `seq print --logic`
+  the ordinary outcome (`ordinary::write_json`), made from the image's
+  outcome by the library's `Image::outcome` (a refused derivation is
+  `Evidence::Image`, the verdict standing), so every method writes one
+  shape at level 12; `--linear` writes the image's outcome alone, as
+  before; `--net --format json` the net. The batch does the same in its
+  records and its JSON files (`write_native` writes the ordinary
+  outcome). `check` reads it (`read_document` probes `logic`, `verdict`
+  and `clausal_proof` first): `check_ordinary` checks a derivation by
+  its calculus with the image's proof (`check_derivation`), the image's
+  proof alone (`check_into`), the image's refutation
+  (`check_disproof`); a clausal proof's counts and a "not valid" of LJT
+  or the SAT solver are `unknown`, exit 3 (`unchecked_into`); a mode
+  flag beside an ordinary file is refused; its `Checked` JSON has
+  `logic` in place of `mode`. A bare derivation of LK or LJ is checked
+  the same way. `read_proof`'s ordinary message is `eliminate`'s now. `seq print --logic`
   prints the image (two-sided for ILL). In a batch the logic applies to
   every entry, `lines` being ordinary sequents, and JSON and LLTP inputs
   refused per entry.

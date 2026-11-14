@@ -15,13 +15,16 @@ use anyhow::{Context, Result, anyhow, bail};
 use deduxit::{
     Error, ErrorKind, Limits,
     linear::{CheckError, ClassicalSequent, Disproof, Forest, Mode, Proof, Reading},
+    ordinary,
 };
 use std::time::Instant;
 
 /// Runs `check`: reads a proof, or a disproof, checks it in the mode the
 /// file states, or the flags give where it states none, under the time
 /// limit and the bounds, and prints the verdict and the proof's
-/// derivation, or the verdict as JSON.
+/// derivation, or the verdict as JSON. An outcome of ordinary logic, or a
+/// derivation of LK or LJ, is checked by the rules of its calculus, with
+/// the image's proof or refutation that the embedding found.
 ///
 /// # Errors
 ///
@@ -57,7 +60,8 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
             let checked = Checked {
                 version: CHECKED_LEVEL,
                 verdict: "unknown",
-                mode,
+                mode: Some(mode),
+                logic: None,
                 error: None,
                 message: Some(line),
                 lambda: None,
@@ -77,6 +81,28 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
     };
     let proof = match document? {
         Document::Proof(proof) => *proof,
+        Document::Ordinary(outcome) => {
+            return check_ordinary(
+                *outcome, &args.mode, &settings, show, quiet, &deadline, path,
+            );
+        }
+        Document::Derivation(d) => {
+            return on_large_stack(settings.limits.stack_bytes(), move || {
+                let mut out = io::Output::open(path.as_deref(), show.format.is_binary())?;
+                let (status, keep) = check_derivation(&d, None, &show, quiet, &deadline, &mut out)?;
+                if keep {
+                    out.finish()?;
+                }
+                anyhow::Ok(status)
+            })?;
+        }
+        Document::Unchecked(line) => {
+            let mut out = io::Output::open(path.as_deref(), show.format.is_binary())?;
+            if unchecked_into(&line, None, &show, &mut out)? {
+                out.finish()?;
+            }
+            return Ok(Status::Unknown);
+        }
         Document::Disproof(disproof) => {
             // A refutation is a claim about the mode it was found in.
             if args.mode.given() && mode != disproof.mode() {
@@ -127,12 +153,20 @@ pub(crate) fn proof_mode(proof: &Proof, flags: &ModeArgs) -> Result<Mode> {
 }
 
 /// What `check` reads: a proof, or a disproof, which an unprovable
-/// outcome holds too.
+/// outcome holds too, or an outcome or a derivation of ordinary logic.
 enum Document {
     /// A proof.
     Proof(Box<Proof>),
     /// A disproof.
     Disproof(Box<Disproof>),
+    /// The outcome of deciding an ordinary sequent.
+    Ordinary(Box<ordinary::Outcome>),
+    /// A derivation of LK or LJ.
+    Derivation(Box<ordinary::Derivation>),
+    /// A document that holds nothing to check, and the line that says
+    /// why: an ordinary outcome valid by a clausal proof, kept as its
+    /// counts.
+    Unchecked(String),
 }
 
 /// Reads a proof file, or failing that a disproof, which an unprovable
@@ -142,18 +176,53 @@ enum Document {
 ///
 /// A document that is neither, or past the limit.
 fn read_document(text: &str, limits: &Limits) -> Result<Document> {
-    /// The key of a disproof that a proof lacks; serde skips the rest
+    /// The keys that tell the documents apart; serde skips the rest
     /// without holding it.
     #[derive(serde::Deserialize)]
     struct Keys {
-        /// The refutation.
+        /// The refutation, which a disproof has and a proof lacks.
         refutation: Option<serde::de::IgnoredAny>,
+        /// The logic of an ordinary outcome or derivation.
+        logic: Option<String>,
+        /// The verdict of an outcome.
+        verdict: Option<serde::de::IgnoredAny>,
+        /// The counts of a clausal proof, in an ordinary outcome.
+        clausal_proof: Option<serde::de::IgnoredAny>,
+    }
+    let keys = serde_json::from_str::<Keys>(text).ok();
+    if let Some(Keys {
+        logic: Some(logic),
+        verdict,
+        clausal_proof,
+        ..
+    }) = &keys
+    {
+        if clausal_proof.is_some() {
+            return Ok(Document::Unchecked(format!(
+                "unknown: the file is the outcome of a sequent of {logic} logic valid by a clausal \
+                 proof, which it keeps as its counts alone: it holds no proof to check"
+            )));
+        }
+        let mut document = serde_json::Deserializer::from_str(text);
+        let read = if verdict.is_some() {
+            deduxit::wire::upgrade::<ordinary::Outcome, _>(&mut document, limits)
+                .map(|outcome| Document::Ordinary(Box::new(outcome)))
+        } else {
+            deduxit::wire::upgrade::<ordinary::Derivation, _>(&mut document, limits)
+                .map(|d| Document::Derivation(Box::new(d)))
+        };
+        let read =
+            read.map_err(|error| limit_advice(error).unwrap_or_else(|error| error.into()))?;
+        document
+            .end()
+            .context("not an outcome in JSON: more follows it")?;
+        return Ok(read);
     }
     let error = match read_proof(text, limits) {
         Ok(proof) => return Ok(Document::Proof(Box::new(proof))),
         Err(error) => error,
     };
-    let refuted = serde_json::from_str::<Keys>(text).is_ok_and(|keys| keys.refutation.is_some());
+    let refuted = keys.is_some_and(|keys| keys.refutation.is_some());
     if !refuted {
         return Err(error);
     }
@@ -240,7 +309,8 @@ fn check_disproof(
                 Status::No => "invalid",
                 _ => "unknown",
             },
-            mode,
+            mode: Some(mode),
+            logic: None,
             message: (status != Status::Yes).then_some(line),
             error,
             lambda: None,
@@ -256,6 +326,229 @@ fn check_disproof(
         Shown::Nothing
     };
     Ok((status, show.close(out, shown, line.as_deref())?))
+}
+
+/// Checks the outcome of deciding an ordinary sequent and writes the
+/// verdict: a derivation by the rules of its calculus, with the image's
+/// proof where the embedding found one; the image's proof alone where no
+/// derivation was built; the image's refutation. A sequent found not
+/// valid by LJT or the SAT solver holds nothing to check: unknown.
+///
+/// # Errors
+///
+/// An outcome of a sequent found unknown, which holds no proof; a mode
+/// flag beside it; an output that cannot be made.
+fn check_ordinary(
+    outcome: ordinary::Outcome,
+    flags: &ModeArgs,
+    settings: &deduxit::Settings,
+    show: Show,
+    quiet: bool,
+    deadline: &Deadline,
+    path: Option<std::path::PathBuf>,
+) -> Result<Status> {
+    if flags.given() {
+        bail!(
+            "the file is an outcome of {} logic, which is checked by its own rules: leave out \
+             the mode flags",
+            outcome.logic
+        );
+    }
+    let logic = outcome.logic;
+    on_large_stack(settings.limits.stack_bytes(), move || {
+        let image = match &outcome.search {
+            ordinary::Search::Embedding { linear, .. } => Some(&**linear),
+            _ => None,
+        };
+        let mut out = io::Output::open(path.as_deref(), show.format.is_binary())?;
+        let (status, keep) = match (&outcome.verdict, image) {
+            (ordinary::Verdict::Valid(ordinary::Evidence::Derivation(d)), image) => {
+                let proof = image.and_then(|linear| match &linear.verdict {
+                    deduxit::linear::Verdict::Proved(proof) => Some((&**proof, linear.mode)),
+                    _ => None,
+                });
+                check_derivation(d, proof, &show, quiet, deadline, &mut out)?
+            }
+            (ordinary::Verdict::Valid(_), Some(linear)) => match &linear.verdict {
+                deduxit::linear::Verdict::Proved(proof) => {
+                    let (proof, mode) = (&**proof, linear.mode);
+                    check_into(proof, mode, &show, quiet, deadline, &mut out)?
+                }
+                _ => bail!("the outcome's image holds no proof"),
+            },
+            (ordinary::Verdict::NotValid, Some(linear)) => match &linear.verdict {
+                deduxit::linear::Verdict::Unprovable(disproof) => {
+                    check_disproof((**disproof).clone(), &show, deadline, &mut out)?
+                }
+                _ => bail!("the outcome's image holds no refutation"),
+            },
+            (ordinary::Verdict::NotValid, None) => {
+                let by = match outcome.method() {
+                    ordinary::Method::Sat => "the SAT solver",
+                    _ => "LJT",
+                };
+                let line = format!(
+                    "unknown: the file is the outcome of a sequent of {logic} logic found not valid by \
+                     {by}, and holds no refutation to check"
+                );
+                (
+                    Status::Unknown,
+                    unchecked_into(&line, Some(logic), &show, &mut out)?,
+                )
+            }
+            _ => bail!(
+                "the file is the outcome of a sequent of {logic} logic whose search found no verdict: \
+                 it holds no proof to check"
+            ),
+        };
+        if keep {
+            out.finish()?;
+        }
+        anyhow::Ok(status)
+    })?
+}
+
+/// Writes the line of a document that holds nothing to check, as text or
+/// as `check`'s JSON, whatever `--no-verdict` says, and returns whether
+/// the output is to be finished.
+fn unchecked_into(
+    line: &str,
+    logic: Option<ordinary::Logic>,
+    show: &Show,
+    out: &mut io::Output,
+) -> Result<bool> {
+    if show.format == Format::Json {
+        let checked = Checked {
+            version: CHECKED_LEVEL,
+            verdict: "unknown",
+            mode: None,
+            logic,
+            error: None,
+            message: Some(line.to_owned()),
+            lambda: None,
+        };
+        serde_json::to_writer(out.stream(), &checked)?;
+        return Ok(true);
+    }
+    show.open(out, Some(line))?;
+    show.close(out, Shown::Nothing, Some(line))
+}
+
+/// Checks a derivation of LK or LJ by the rules of its calculus, and the
+/// image's `proof` in its mode where the embedding found one, within the
+/// time limit and the bounds, and writes the verdict and the derivation,
+/// or the verdict as JSON; returns the verdict's status and whether the
+/// output is to be finished.
+///
+/// # Errors
+///
+/// An output that cannot be written.
+fn check_derivation(
+    d: &ordinary::Derivation,
+    proof: Option<(&Proof, Mode)>,
+    show: &Show,
+    quiet: bool,
+    deadline: &Deadline,
+    out: &mut io::Output,
+) -> Result<(Status, bool)> {
+    let over = || interrupted() || deadline.passed() || io::closed();
+    let mut result = d.check(&show.limits, |_| over());
+    if let (Ok(()), Some((proof, mode))) = (&result, proof)
+        && let Err(error) = proof.check_within(mode, &show.limits, |_| over())
+    {
+        result = Err(Error::from(error));
+    }
+    let status = match &result {
+        Ok(()) => Status::Yes,
+        Err(error) if error.is_refusal() => Status::Unknown,
+        Err(_) => Status::No,
+    };
+    let logic = d.logic();
+    let calculus = logic.calculus();
+    let (left, right) = d.sequent();
+    let side = |ids: &[ordinary::NodeId]| {
+        ids.iter()
+            .map(|&id| d.formulas().formula(id).to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    let sequent = abbreviated(
+        &match left {
+            [] => format!("⊢ {}", side(right)),
+            _ => format!("{} ⊢ {}", side(left), side(right)),
+        },
+        show.abbreviate,
+        left.len() + right.len(),
+    );
+    let line = match &result {
+        Ok(()) => format!("valid derivation in {calculus} of {sequent} ({logic} logic)"),
+        Err(error) if status == Status::Unknown => {
+            let advice = match error.setting() {
+                Some("limits.memory_bytes") => "; raise it with --memory-limit SIZE".to_owned(),
+                Some("limits.work") => "; raise it with --work-limit N".to_owned(),
+                _ => match stopped(deadline) {
+                    Some(Stop::Timeout(t)) => format!(
+                        ": the time limit of {t:?} was reached; --timeout DURATION gives the \
+                         check longer"
+                    ),
+                    _ => String::new(),
+                },
+            };
+            format!(
+                "unknown: the derivation in {calculus} of {sequent} ({logic} logic) is not \
+                 checked: {error}{advice}"
+            )
+        }
+        Err(error) => {
+            format!("invalid derivation in {calculus} of {sequent} ({logic} logic): {error}")
+        }
+    };
+    if show.format == Format::Json {
+        let lambda = match (&result, show.lambda) {
+            (Ok(()), Some(_)) => {
+                let term = d.term(&show.limits, |_| over());
+                Some(lambda_json(term, show, over)?)
+            }
+            _ => None,
+        };
+        let checked = Checked {
+            version: CHECKED_LEVEL,
+            verdict: match status {
+                Status::Yes => "valid",
+                Status::Unknown => "unknown",
+                _ => "invalid",
+            },
+            mode: None,
+            logic: Some(logic),
+            error: result.as_ref().err().cloned(),
+            message: result.is_err().then_some(line),
+            lambda,
+        };
+        serde_json::to_writer(out.stream(), &checked)?;
+        return Ok((status, true));
+    }
+    let line = (show.verdict || result.is_err()).then_some(line);
+    let prefix = show.open(out, line.as_deref())?;
+    if result.is_err() || quiet {
+        return Ok((status, show.close(out, Shown::Nothing, line.as_deref())?));
+    }
+    let why = || Stop::why(stopped(deadline));
+    let shown = crate::show::shown(
+        crate::ordinary::shown(d.clone(), show),
+        show.fit(),
+        show,
+        every_steps(&over),
+        why,
+        prefix.as_deref(),
+        out,
+    )?;
+    let drawn = matches!(shown, Shown::Written | Shown::Rendered(_));
+    let keep = show.close(out, shown, line.as_deref())?;
+    if let (Some(_), Format::Text) = (show.lambda, show.format) {
+        let term = d.term(&show.limits, |_| over());
+        show.after(out, &lambda_line(term, show, over), drawn)?;
+    }
+    Ok((status, keep))
 }
 
 /// Returns a sequent as `check` names it in a verdict: two-sided in an
@@ -286,8 +579,12 @@ pub(crate) struct Checked {
     pub(crate) version: u32,
     /// `valid`, `invalid` or `unknown`.
     pub(crate) verdict: &'static str,
-    /// The mode checked in.
-    pub(crate) mode: Mode,
+    /// The mode checked in, for linear logic.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) mode: Option<Mode>,
+    /// The logic checked in, for ordinary logic.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) logic: Option<ordinary::Logic>,
     /// Why the proof is not valid, as the library writes its errors.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) error: Option<Error>,
@@ -319,44 +616,31 @@ pub(crate) fn read_proof(text: &str, limits: &Limits) -> Result<Proof> {
         Err(Err(error)) => {
             // An outcome without a proof is a file the user may well hand
             // over; say what it is rather than which key it lacks.
-            /// The one key of an outcome looked for; serde skips the
-            /// rest without holding it.
+            /// The keys of an outcome looked for; serde skips the rest
+            /// without holding it.
             #[derive(serde::Deserialize)]
             struct Outcome {
                 /// The outcome's verdict.
                 verdict: Option<String>,
-                /// The ordinary logic of an ordinary sequent's outcome.
+                /// The logic of an ordinary outcome or derivation.
                 logic: Option<String>,
-                /// The engine, `ljt` or `sat` for an ordinary sequent not
-                /// decided through its image.
-                engine: Option<String>,
             }
             let outcome = serde_json::from_str::<Outcome>(text).ok();
             if let Some(Outcome {
                 verdict,
                 logic: Some(logic),
-                engine,
             }) = &outcome
             {
-                let by = match engine.as_deref() {
-                    Some("sat") => "the SAT solver",
-                    _ => "LJT",
+                let what = if verdict.is_some() {
+                    "an outcome"
+                } else {
+                    "a derivation"
                 };
-                match verdict.as_deref() {
-                    Some("valid") => bail!(
-                        "the file is the outcome of a sequent of {logic} logic decided by {by}, \
-                         and check reads proofs of linear logic: `prove --logic {logic} --method \
-                         embedding --format json` writes one, the proof of its image"
-                    ),
-                    Some(verdict) => bail!(
-                        "the file is the outcome of a sequent of {logic} logic found {verdict}: \
-                         it holds no proof to check"
-                    ),
-                    None => bail!(
-                        "the file is a derivation of {logic} logic, and check reads proofs of \
-                         linear logic"
-                    ),
-                }
+                bail!(
+                    "the file is {what} of {logic} logic, which `check` reads, and this command \
+                     reads proofs of linear logic: `prove --logic {logic} --linear --format json` \
+                     writes the proof of its image"
+                );
             }
             let verdict = outcome.and_then(|outcome| outcome.verdict);
             if let Some(verdict) = verdict.filter(|v| v != "proved") {
@@ -422,7 +706,8 @@ fn check_into(
                 Status::Unknown => "unknown",
                 _ => "invalid",
             },
-            mode,
+            mode: Some(mode),
+            logic: None,
             error,
             message,
             lambda,

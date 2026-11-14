@@ -249,28 +249,54 @@ valid (classical logic by the affine translation into affine MALL, focus engine)
 
 ## JSON output
 
-With `--format json`, LJT and the SAT solver write the outcome of the
-ordinary sequent: its `verdict` (`valid`, `not_valid`, or `unknown` with
-a `reason`), its `logic`, the `engine` (`ljt` or `sat`), its
-`statistics` and, for a valid sequent, the `derivation`:
+With `--format json` every method writes the outcome of the ordinary
+sequent: its `verdict` (`valid`, `not_valid`, or `unknown` with a
+`reason`), its `logic`, the `search` that decided it and, for a valid
+sequent, its evidence. `search` says the method in `method`; LJT and the
+SAT solver add their `statistics`:
 
 ```console
 $ deduxit prove --logic intuitionistic --format json '~~a -> a'
-{"version":8,"deduxit":"0.3.0","verdict":"not_valid","logic":"intuitionistic","engine":"sat","statistics":{"calls":4,"conflicts":0,"lemmas":0,"worlds":4,"facts":0,"clauses":0,"proof_steps":0,"ljt":null}}
+{"version":12,"deduxit":"0.3.0","verdict":"not_valid","logic":"intuitionistic","search":{"method":"sat","statistics":{"calls":4,"conflicts":0,"lemmas":0,"worlds":4,"facts":0,"clauses":0,"proof_steps":0,"ljt":null}}}
 ```
 
-A sequent valid by a clausal proof has `clausal_proof` in place
-of `derivation`, with the counts of its variables, clauses and steps:
+Through the embedding, `search` holds the `translation` and, under
+`image`, the outcome of the search on the image, as `prove` writes it
+without `--logic` (its proof, or its refutation):
+
+```console
+$ deduxit prove --logic classical --method embedding --format json 'a |- b'
+{"version":12,"deduxit":"0.3.0","verdict":"not_valid","logic":"classical","search":{"method":"embedding","translation":"affine","image":{"verdict":"unprovable","refutation":{"kind":"classical","assignment":[true,false]},"fragment":"MLL","mode":"affine","engine":"focus","statistics":{"nodes":1,"memo_hits":0,"memo_entries":1,"splits":0,"links":0,"tests":0,"copies":0,"forward_copies":0,"work":16},"sequent":{"terms":[{"D":0},{"V":1}],"roots":[0,1],"atoms":["a","b"],"antecedents":0}}}}
+```
+
+A valid sequent has its `derivation`. One valid by a clausal proof has
+`clausal_proof` in its place, with the counts of its variables, clauses
+and steps. Where the embedding proved the image but a bound or the time
+limit refused its derivation, neither is there, and the image's proof
+is the evidence:
 
 ```console
 $ deduxit prove --logic classical --method sat --format json 'a \/ ~a'
-{"version":10,"deduxit":"0.3.0","verdict":"valid","logic":"classical","engine":"sat","statistics":{"calls":1,"conflicts":1,"lemmas":0,"worlds":0,"facts":0,"clauses":4,"proof_steps":1,"ljt":null},"clausal_proof":{"variables":3,"clauses":4,"steps":1}}
+{"version":12,"deduxit":"0.3.0","verdict":"valid","logic":"classical","search":{"method":"sat","statistics":{"calls":1,"conflicts":1,"lemmas":0,"worlds":0,"facts":0,"clauses":4,"proof_steps":1,"ljt":null}},"clausal_proof":{"variables":3,"clauses":4,"steps":1}}
 ```
 
-Through the embedding, the output is the outcome of the search on the
-image, as `prove` writes it without `--logic`. So is the classical
-default's wherever the embedding decided. `check` reads proofs of
-linear logic, so it takes the embedding's outcome and refuses LJT's.
+`--linear` writes the image's outcome alone, as without `--logic`.
+
+`check` reads every outcome `prove --logic` writes, and a derivation of
+LK or LJ. It checks the derivation by the rules of its calculus, and the
+image's proof or refutation where the embedding found one:
+
+```console
+$ deduxit prove --logic intuitionistic --format json 'a |- a' > valid.json
+$ deduxit check --file valid.json
+valid derivation in LJ of a ⊢ a (intuitionistic logic)
+───── ax
+a ⊢ a
+```
+
+A clausal proof is written as its counts, and LJT and the SAT solver
+write no refutation of a sequent that is not valid: there `check` says
+the file holds nothing to check, with exit status 3.
 
 ## Step by step
 

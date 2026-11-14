@@ -12,6 +12,19 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### What breaks, and what to do instead
 
+- **`prove --logic L --format json` writes the ordinary outcome under
+  every method**, at wire level 12. Through the embedding it wrote the
+  translated sequent's outcome at the top; now that outcome is nested
+  under `search.image`. Under every method the keys `engine`,
+  `translation` and `statistics` moved into `search`, an object tagged
+  by `method` (`embedding`, `ljt` or `sat`). Read `search.method`,
+  `search.translation`, `search.statistics` and `search.image`, or give
+  `--linear` for the translated sequent's outcome alone, as before. The
+  batch's JSON Lines and files under `--logic` are the same.
+- **`ordinary::decide` takes the sequent and the options alone**, within
+  the default limits, as `linear::prove` does. The call with a search's
+  options, limits and a stop is `ordinary::decide_within(&sequent,
+  &options, &search, &limits, stop)`.
 - **`prove --logic intuitionistic` and `--logic minimal` decide by a
   SAT solver by default**, whose search always ends, with the derivation
   of LJ that Dyckhoff's calculus LJT gives where it gives one. The
@@ -91,6 +104,24 @@ unchanged.
 
 ### Added
 
+- **`check` reads every outcome `prove --logic` writes**, and a
+  derivation of LK or LJ: it checks the derivation by the rules of its
+  calculus (LJ's cut included) and the translated sequent's proof or
+  refutation where the embedding found one. A clausal proof, written as
+  its counts, and a "not valid" of LJT or the SAT solver, which carries
+  no refutation, hold nothing to check: `unknown`, exit status 3. Its
+  JSON names the `logic` in place of the `mode` for these.
+- **The ordinary outcome reads back**: `ordinary::Outcome` is
+  `Deserialize` and read by `wire::upgrade`, its derivation and the
+  translated sequent's proof unchecked until their checkers run, as the
+  linear outcome is; `ordinary::ljt::Statistics` and
+  `ordinary::sat::Statistics` read back too.
+- **`ordinary::Image::outcome(linear, &limits, stop)`** makes the ordinary
+  outcome from a search of the translated sequent that the caller ran,
+  as the command does: a proof's derivation is read back and checked, or,
+  where a bound or the stop refuses it, the new `ordinary::Evidence::Image`
+  says the translated sequent's proof stands alone (`evidence.derivation()`
+  answers the new `Error::NotBuilt`, code `not_built`).
 - **Hints on a newcomer's first errors**: `deduxit "A |- A"` suggests
   `deduxit prove "A |- A"`; an unquoted sequent suggests the command
   quoted; `->` in linear logic says to write `-o` or add `--logic
@@ -178,6 +209,11 @@ unchanged.
 - Level 11 adds the refutation by a basis, `{"kind": "basis", "body",
   "classes", "markings"}`, in a disproof or an unprovable outcome that
   holds one.
+- Level 12 writes every ordinary outcome with its `search` tagged by
+  `method`, the translated sequent's outcome nested under the embedding's
+  `image` (an outcome's keys without `version` and `deduxit`), and reads
+  it back; an ordinary outcome below level 12, which no release read, is
+  refused. Every other document is written as before.
 
 ## [0.3.0] - 2026-11-09
 

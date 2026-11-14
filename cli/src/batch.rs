@@ -813,8 +813,21 @@ impl Shared {
             }
             None => verdict_line(&outcome, search.fragment.is_some(), &ended),
         };
+        // Under --logic the JSON is the ordinary outcome, the image's
+        // nested in it; --linear asks for the image's alone.
+        let json = self.json_lines() || self.show.format == Format::Json;
+        let ordinary = match (&image, args.linear) {
+            (Some(image), false) if json => {
+                let over = || interrupted() || deadline.passed() || self.batch.passed();
+                Some(image.outcome(outcome.clone(), limits, |_| over())?)
+            }
+            _ => None,
+        };
         let mut text = if self.json_lines() {
-            let mut body = serde_json::to_string(&outcome)?;
+            let mut body = match &ordinary {
+                Some(ordinary) => serde_json::to_string(ordinary)?,
+                None => serde_json::to_string(&outcome)?,
+            };
             if args.stats {
                 body.pop();
                 body.push_str(&format!(",\"seconds\":{}}}", elapsed.as_secs_f64()));
@@ -823,7 +836,11 @@ impl Shared {
         } else {
             format!("{}: {line}", shown(&entry.name))
         };
-        if let Some(directory) = &self.directory
+        if let (Some(directory), Some(ordinary), Format::Json) =
+            (&self.directory, &ordinary, self.show.format)
+        {
+            self.write_native(&entry.name, directory, ordinary, &line, &deadline)?;
+        } else if let Some(directory) = &self.directory
             && let Some(note) = self.write(
                 &entry.name,
                 directory,

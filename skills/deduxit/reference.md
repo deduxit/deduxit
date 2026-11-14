@@ -1042,17 +1042,23 @@ cuts than LJT's.
 
 ### JSON
 
-Under LJT, `--format json` writes the outcome of the ordinary sequent:
-`{"version": 8, "deduxit": …, "verdict": "valid"|"not_valid"|"unknown",
-"reason": …, "logic": …, "engine": "ljt", "statistics": {"sequents",
-"memo_hits", "memo_entries", "subsumed"}, "derivation": …}`. `check`
-refuses it (exit status 2); in the library, `ordinary::Derivation::check`
-checks its derivation. Under `--method sat` the `engine` is `sat`, the
-`statistics` are `{"calls", "conflicts", "lemmas", "worlds", "facts",
-"clauses", "proof_steps", "ljt"}`, and a classical valid sequent has
-`"clausal_proof": {"variables", "clauses", "steps"}` in place of
-`derivation`, at wire level 10. Through the embedding, `--format json` writes the
-image's outcome, as without `--logic`, and `check` reads it.
+Every method's `--format json` is the outcome of the ordinary sequent,
+at wire level 12: `{"version": 12, "deduxit": …, "verdict":
+"valid"|"not_valid"|"unknown", "reason": …, "logic": …, "search": {…},
+"derivation": …}`. `search` is tagged by `method`: `{"method": "ljt",
+"statistics": {"sequents", "memo_hits", "memo_entries", "subsumed"}}`,
+`{"method": "sat", "statistics": {"calls", "conflicts", "lemmas",
+"worlds", "facts", "clauses", "proof_steps", "ljt"}}`, or `{"method":
+"embedding", "translation": …, "image": {…}}`, the image's outcome as
+`prove` writes it without `--logic` (no `version` of its own). A valid
+sequent has its `derivation`; a classical one valid by the SAT solver
+`"clausal_proof": {"variables", "clauses", "steps"}` in its place; one
+whose image the embedding proved without a derivation (a bound or the
+time limit refused it) neither. `--linear` writes the image's outcome
+alone. `check` reads every such file and a derivation of LK or LJ: it
+checks the derivation by its calculus and the image's proof or
+refutation; a clausal proof's counts, and a "not valid" of LJT or the
+SAT solver, hold nothing to check (exit status 3).
 
 ### Examples
 
@@ -1306,8 +1312,10 @@ occurrences by id, and `describe(&forest)` names them by formula.
 
 ### Ordinary logic
 
-- `ordinary::decide(&sequent, &options, &search, &limits, stop)` decides
-  by `options.method()`. `ordinary::Options::method` is `None` by
+- `ordinary::decide(&sequent, &options)` decides within the default
+  limits; `ordinary::decide_within(&sequent, &options, &search, &limits,
+  stop)` takes the bounds, the image's search options and a stop. Both
+  decide by `options.method()`. `ordinary::Options::method` is `None` by
   default, which means the SAT solver (`ordinary::Method::Sat`): through
   `ordinary::sat::decide_preferring_ljt` for intuitionistic and minimal
   logic, and in classical logic followed by the embedding within
@@ -1317,7 +1325,13 @@ occurrences by id, and `describe(&forest)` names them by formula.
 - The `ordinary::Outcome` says which method ran, in `search`:
   `ordinary::Search::Embedding` with the image's outcome,
   `ordinary::Search::Ljt` with LJT's statistics, or
-  `ordinary::Search::Sat` with the solver's.
+  `ordinary::Search::Sat` with the solver's. It is written and read back
+  (`wire::upgrade::<ordinary::Outcome, _>`), its derivation and the
+  image's proof unchecked until `Derivation::check` and `Proof::check`.
+- `image.outcome(linear, &limits, stop)` (an `ordinary::Image`) turns the
+  outcome of a search of the image that the caller ran into the ordinary
+  outcome, the derivation read back and checked, or
+  `ordinary::Evidence::Image` where a bound refused it.
 - `ordinary::ljt::decide(&sequent, logic, &limits, stop)` is LJT alone.
   Its search always ends: it has no copy bound, so it answers `unknown`
   only at a bound or the stop. Its derivation is LJ's with cuts, checked
@@ -1327,7 +1341,8 @@ occurrences by id, and `describe(&forest)` names them by formula.
   `ordinary::Evidence::Clausal`, a checked clausal proof.
   `evidence.derivation()` returns the derivation an export or a
   lambda-term needs, or `Error::NoDerivation` (code `no_derivation`) for
-  a clausal proof.
+  a clausal proof and `Error::NotBuilt` (code `not_built`) for
+  `ordinary::Evidence::Image`, the image's proof alone.
 - `ordinary::sat::decide(&sequent, logic, &limits, stop)` (feature
   `sat`, `ordinary::Method::Sat`) decides by a SAT solver. In classical
   logic a valid sequent's evidence is the solver's clausal proof
@@ -1339,7 +1354,7 @@ occurrences by id, and `describe(&forest)` names them by formula.
   (`outcome.model`).
 - `ordinary::Interactive` proves an LK or LJ sequent step by step:
   `rules`, `apply`, `undo`, `close` and `hint`, the last two through
-  `ordinary::decide`. Its finished derivation passes
+  `ordinary::decide_within`. Its finished derivation passes
   `Derivation::check`.
 - `ordinary::Rule` reads from its name or an ASCII spelling
   (`"impL".parse::<ordinary::Rule>()`), as the command's `apply` does.

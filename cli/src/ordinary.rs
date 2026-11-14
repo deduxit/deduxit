@@ -338,19 +338,7 @@ pub(crate) fn write_native(
     let over = || interrupted() || deadline.passed() || crate::io::closed();
     let mut out = io::Output::open(args.output.output.as_deref(), format.is_binary())?;
     if format == Format::Json {
-        match &outcome.verdict {
-            ordinary::Verdict::Valid(evidence) if show.lambda.is_some() => {
-                let term = evidence
-                    .derivation()
-                    .and_then(|d| d.term(&show.limits, |_| over()));
-                let mut value = serde_json::to_value(outcome)?;
-                if let Some(object) = value.as_object_mut() {
-                    object.insert("lambda".into(), lambda_json(term, &show, over)?);
-                }
-                serde_json::to_writer(out.stream(), &value)?;
-            }
-            _ => serde_json::to_writer(out.stream(), outcome)?,
-        }
+        write_json(outcome, &show, over, &mut out)?;
         out.finish()?;
         return Ok(status);
     }
@@ -394,6 +382,34 @@ pub(crate) fn write_native(
         out.finish()?;
     }
     Ok(status)
+}
+
+/// Writes an ordinary outcome as JSON, with the lambda-term of its
+/// derivation under the key `lambda` where `--lambda` asks for one.
+///
+/// # Errors
+///
+/// An output that cannot be written.
+pub(crate) fn write_json(
+    outcome: &ordinary::Outcome,
+    show: &Show,
+    over: impl Fn() -> bool,
+    out: &mut io::Output,
+) -> Result<()> {
+    match &outcome.verdict {
+        ordinary::Verdict::Valid(evidence) if show.lambda.is_some() => {
+            let term = evidence
+                .derivation()
+                .and_then(|d| d.term(&show.limits, |_| over()));
+            let mut value = serde_json::to_value(outcome)?;
+            if let Some(object) = value.as_object_mut() {
+                object.insert("lambda".into(), lambda_json(term, show, over)?);
+            }
+            serde_json::to_writer(out.stream(), &value)?;
+        }
+        _ => serde_json::to_writer(out.stream(), outcome)?,
+    }
+    Ok(())
 }
 
 /// Returns the verdict line of an ordinary sequent decided by LJT or the

@@ -62,7 +62,8 @@ pub(crate) fn eliminate(args: &EliminateArgs, given: &Given) -> Result<Status> {
             let unknown = Checked {
                 version: CHECKED_LEVEL,
                 verdict: "unknown",
-                mode,
+                mode: Some(mode),
+                logic: None,
                 error: None,
                 message: Some(line),
                 lambda: None,
@@ -214,7 +215,8 @@ fn eliminate_into(
                     } else {
                         "unknown"
                     },
-                    mode,
+                    mode: Some(mode),
+                    logic: None,
                     error: Some(Error::Check(error)),
                     message: Some(message),
                     lambda: None,
@@ -649,7 +651,8 @@ fn unchecked(
                 } else {
                     "unknown"
                 },
-                mode,
+                mode: Some(mode),
+                logic: None,
                 error: Some(Error::Check(error)),
                 message: Some(message),
                 lambda: None,

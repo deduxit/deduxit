@@ -2475,16 +2475,19 @@ fn ordinary_logic() {
     ]);
     assert_eq!(status, 1);
     assert!(out.starts_with("not valid (intuitionistic logic by the cbn translation into ILL"));
-    // `check` reads proofs of linear logic, and says so of the SAT
-    // solver's outcome.
+    // `check` reads the ordinary outcome: it checks the derivation by the
+    // rules of LJ, and a "not valid" of the SAT solver holds no refutation.
     let (_, json, _) = decide(&["--logic", "intuitionistic", "--format", "json", "a |- a"]);
-    let (status, _, err) = deduxit(&["check"], &json);
-    assert_eq!(status, 2);
-    assert!(err.contains("decided by the SAT solver"), "{err}");
+    let (status, out, _) = deduxit(&["check", "-q"], &json);
+    assert_eq!(status, 0);
+    assert_eq!(
+        out,
+        "valid derivation in LJ of a ⊢ a (intuitionistic logic)\n"
+    );
     let (_, json, _) = decide(&["--logic", "intuitionistic", "--format", "json", "a |- b"]);
-    let (status, _, err) = deduxit(&["check"], &json);
-    assert_eq!(status, 2);
-    assert!(err.contains("found not_valid: it holds no proof"), "{err}");
+    let (status, out, _) = deduxit(&["check"], &json);
+    assert_eq!(status, 3);
+    assert!(out.contains("holds no refutation to check"), "{out}");
     // By default the SAT solver gives way to the embedding where a bound
     // stops it.
     let (status, out, _) = decide(&[

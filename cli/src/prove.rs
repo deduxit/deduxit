@@ -375,6 +375,19 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
                 }
                 _ => false,
             };
+            // Under --logic the output is the ordinary outcome, the
+            // image's nested in it; --linear asks for the image's alone.
+            match (&image, args.linear, net) {
+                (_, _, true) => {}
+                (Some(image), false, false) => {
+                    let over = || interrupted() || deadline.passed();
+                    let ordinary = image.outcome(outcome, &limits, |_| over())?;
+                    crate::ordinary::write_json(&ordinary, &show, over, &mut out)?;
+                    out.finish()?;
+                    return Ok(status);
+                }
+                _ => {}
+            }
             match (&outcome.verdict, net) {
                 (_, true) => {}
                 (Verdict::Proved(proof), false) if show.lambda.is_some() => {
