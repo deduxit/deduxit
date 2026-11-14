@@ -589,14 +589,14 @@ impl std::fmt::Display for NoTerm {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
             Self::Classical => {
-                "a proof of classical logic has several conclusions, which no lambda-term types"
+                "a proof of classical logic may have several conclusions, which no lambda-term types; a term needs an intuitionistic proof"
             }
             Self::Mix => "Mix has no lambda-term",
             Self::Ordered => {
                 "the cyclic and the Lambek calculus have the terms of an ordered calculus, not these"
             }
             Self::Quantified => {
-                "quantifiers over first-order terms are no quantifiers over types"
+                "quantifiers over first-order terms are not quantifiers over types"
             }
             Self::Open => "the proof has open goals",
         })

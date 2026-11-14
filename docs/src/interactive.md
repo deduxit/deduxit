@@ -25,7 +25,7 @@ goal 0: 0: A, 1: A ⊸ B ⊢ 2: B
 > rules 0 1
 ⊸L (with a split)
 > apply 0 1 -oL 2
-error: a premise would have 2 formulas on the right of ⊢ instead of one
+error: a premise would have 2 formulas right of ⊢ instead of one
 > apply 0 1 -oL 0
 opened goal 1: 0: A ⊢ 1: A
 opened goal 2: 0: B ⊢ 1: B

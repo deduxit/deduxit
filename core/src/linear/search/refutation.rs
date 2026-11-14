@@ -494,17 +494,17 @@ impl Refutation {
             }
             Refutation::Saturated(Saturated { sequents, .. }) => write!(
                 f,
-                "the search saturated: {} {} closed under the rules, and the goal needs one {}",
+                "the search saturated: its {} {} closed under the rules, and {} the goal",
                 sequents.len(),
                 if sequents.len() == 1 {
-                    "sequent"
+                    "sequent is"
                 } else {
-                    "sequents"
+                    "sequents are"
                 },
                 if sequents.len() == 1 {
-                    "it does not give"
+                    "it does not yield"
                 } else {
-                    "they do not give"
+                    "none of them yields"
                 },
             ),
         }
@@ -612,8 +612,8 @@ fn placed(sequent: &Sequent, counted: &dyn Fn(Atom) -> bool, more_right: bool) -
 /// every literal below one has that sign. Where `predicate` is set, the
 /// count is over every atom of a predicate. The `words` say how: of the
 /// one-sided sequent; of a two-sided classical one, with the atom left and
-/// right of `⊢`; or of an intuitionistic one, by its positive and
-/// negative occurrences, its atoms right and left of `⊢`.
+/// right of `⊢`; or of an intuitionistic one, its positive occurrences
+/// counted right of `⊢` and its negative ones left of it.
 fn write_unbalanced(
     f: &mut Formatter<'_>,
     name: &str,
@@ -678,20 +678,21 @@ fn write_unbalanced(
         );
     }
     if matches!(words, Words::Intuitionistic) {
-        // An atom in output position is the positive literal.
+        // An atom in output position is the positive literal, which
+        // counts as right of `⊢`.
         let (more, fewer) = if least > 0 {
-            ("positively", "negatively")
+            ("right", "left")
         } else {
-            ("negatively", "positively")
+            ("left", "right")
         };
         let (place, copies) = match copied {
             Some(sign) => (
                 " outside the exponentials",
                 format!(
-                    ", and every occurrence of it below one, which copies add, is {}",
+                    ", and every occurrence of it below one, which copies add, is on the {}",
                     match sign {
-                        Sign::Atom => "positive",
-                        Sign::Dual => "negative",
+                        Sign::Atom => "right",
+                        Sign::Dual => "left",
                     }
                 ),
             ),
@@ -699,9 +700,9 @@ fn write_unbalanced(
         };
         return write!(
             f,
-            "{name} occurs {more} {excess} more {times} than {fewer}{place}{alternatives}{copies} \
-             (positive right of ⊢, negative left of it, an implication's antecedent on the other \
-             side){over}, so they cannot all meet in axioms",
+            "{name} occurs {excess} more {times} on the {more} than on the {fewer}{place}\
+             {alternatives}{copies}{over}, so they cannot all meet in axioms (an implication's \
+             antecedent counts on the other side)",
         );
     }
     let (more, fewer) = if least > 0 {

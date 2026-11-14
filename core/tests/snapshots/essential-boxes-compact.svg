@@ -6,7 +6,7 @@
 a[3] — a[6]
 a[4] — a[10]
 b[7] — b[9]
-proof net</desc>
+proof net (the correctness criterion holds)</desc>
 <g fill="none" stroke="black" stroke-width="40">
 <circle id="o6" cx="14911" cy="6318" r="380"/>
 <path d="M14911 5178L14911 5938"/>

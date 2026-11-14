@@ -90,7 +90,7 @@ impl MellStructure {
     ///      ?~a[0]: ~a[3] in !a[2]\n\
     ///      ?~b[1]: no copy, hangs on a[4]\n\
     ///      ~a[3] — a[4]\n\
-    ///      proof net"
+    ///      proof net (the correctness criterion holds)"
     /// );
     /// # Ok::<(), deduxit::Error>(())
     /// ```

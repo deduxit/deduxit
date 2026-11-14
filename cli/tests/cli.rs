@@ -560,9 +560,9 @@ fn intuitionistic_mode() {
         (
             &["prove", "-i", "-q", "(A -o B) -o A |- A"],
             1,
-            "unprovable (IMLL, intuitionistic, two-sided engine): A occurs negatively 1 more time \
-             than positively (positive right of ⊢, negative left of it, an implication's antecedent \
-             on the other side), so they cannot all meet in axioms",
+            "unprovable (IMLL, intuitionistic, two-sided engine): A occurs 1 more time on the left \
+             than on the right, so they cannot all meet in axioms (an implication's antecedent \
+             counts on the other side)",
         ),
         (
             &["prove", "-q", "--engine", "additive", "|- A & B, ~A + ~B"],
@@ -626,7 +626,7 @@ fn intuitionistic_mode() {
     let (status, out, _) = deduxit(&["check", "-i", "-q"], &without_mode(&json));
     assert_eq!(status, 1);
     assert!(
-        out.contains("a sequent of the rule has 2 formulas on the right of ⊢ instead of one"),
+        out.contains("a sequent of the rule has 2 formulas right of ⊢ instead of one"),
         "{out}"
     );
 
@@ -777,7 +777,7 @@ fn interactive_session() {
         out,
         "goal 0: 0: A, 1: A ⊸ B ⊢ 2: B\n\
          ⊸L (with a split)\n\
-         error: a premise would have 2 formulas on the right of ⊢ instead of one\n\
+         error: a premise would have 2 formulas right of ⊢ instead of one\n\
          opened goal 1: 0: A ⊢ 1: A\n\
          opened goal 2: 0: B ⊢ 1: B\n\
          goal 1: provable (IMLL, intuitionistic, two-sided engine)\n\
@@ -860,7 +860,10 @@ fn interactive_session() {
         out.contains("cut-free proof net of ⊢ ~A, A ⊗ ~B, B"),
         "{out}"
     );
-    assert!(out.ends_with("proof net\n"), "{out}");
+    assert!(
+        out.ends_with("proof net (the correctness criterion holds)\n"),
+        "{out}"
+    );
     assert!(!out.lines().any(|line| line.starts_with("cut ")), "{out}");
     assert_eq!(status, 0);
     let drawing = dir.join("net.svg");
@@ -1022,9 +1025,9 @@ fn an_eigenvariable_of_exists_left_is_refused_by_its_step() {
     let (_, out, _) = deduxit(&["interact", "-i", sequent], script);
     assert!(
         out.ends_with(
-            "error: the eigenvariable b cannot stand there: no step below this goal introduced \
-             it (a ∀ step, or ∀R or ∃L two-sided), or it is younger than the open witness it \
-             would fill\n"
+            "error: the eigenvariable b cannot be used here: either no step below this goal \
+             introduced it (a ∀ step, or ∀R or ∃L two-sided), or it was made after the open \
+             witness it would fill\n"
         ),
         "{out}"
     );
@@ -1146,7 +1149,7 @@ fn net_format() {
     let expected = "⊢ ~A, A ⊗ ~B, B\n\
                     ~A[0] — A[2]\n\
                     ~B[3] — B[4]\n\
-                    proof net\n";
+                    proof net (the correctness criterion holds)\n";
     let (status, out, _) = deduxit(&["prove", "--net", "A, A -o B |- B"], "");
     assert_eq!(status, 0);
     assert_eq!(
@@ -1165,7 +1168,10 @@ fn net_format() {
     let (_, json, _) = deduxit(&["prove", "--format", "json", "A, A -o B |- B"], "");
     let (status, out, _) = deduxit(&["check", "--net"], &json);
     assert_eq!(status, 0);
-    assert!(out.ends_with("~B[3] — B[4]\nproof net\n"), "{out}");
+    assert!(
+        out.ends_with("~B[3] — B[4]\nproof net (the correctness criterion holds)\n"),
+        "{out}"
+    );
     for (args, error) in [
         (
             &["prove", "--net", "A & B |- A"][..],
@@ -1195,7 +1201,7 @@ fn mell_nets() {
                     ?~a[0]: ~a[3] in !a[2]\n\
                     ?~b[1]: no copy, hangs on a[4]\n\
                     ~a[3] — a[4]\n\
-                    proof net\n";
+                    proof net (the correctness criterion holds)\n";
     let (status, out, _) = deduxit(&["prove", "--net", sequent], "");
     assert_eq!(status, 0);
     assert_eq!(
@@ -1267,7 +1273,10 @@ fn mell_nets() {
     assert_eq!(status, 0);
     let (status, checked, _) = deduxit(&["check", "--net", "-i"], &proof);
     assert_eq!(status, 0);
-    assert!(checked.ends_with("proof net\n"), "{checked}");
+    assert!(
+        checked.ends_with("proof net (the correctness criterion holds)\n"),
+        "{checked}"
+    );
     let (status, svg, _) = deduxit(
         &[
             "check",

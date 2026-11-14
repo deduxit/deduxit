@@ -66,7 +66,7 @@ $ echo '{"version":1,"sequent":{"terms":[{"V":0},{"V":1}],"roots":[0,1],"atoms":
 invalid proof of ⊢ A, B (classical): node 0 (ax on A, B): the literals are not an atom and its negation
 exit 1
 $ deduxit prove --format json "A * B |- B * A" | deduxit check --work-limit 1; echo "exit $?"
-unknown: the proof of ⊢ ~A ⅋ ~B, B ⊗ A (classical) is not checked: the check was given up at node 1, without a verdict on the proof: the call did the most work allowed, 1 unit; raise it with --work-limit N
+unknown: the proof of ⊢ ~A ⅋ ~B, B ⊗ A (classical) is not checked: the check stopped at node 1 without a verdict on the proof: the call did the most work allowed, 1 unit; raise it with --work-limit N
 exit 3
 $ echo quit | deduxit interact "A |- A"; echo "exit $?"
 exit 1
@@ -453,7 +453,7 @@ provable (MLL, classical, focus engine)
 A[1] — ~A[6]
 B[2] — ~B[7]
 C[4] — ~C[8]
-proof net
+proof net (the correctness criterion holds)
 $ deduxit prove --engine net "A & B |- A"
 error: proof nets exist for MLL without units only, not for ALL
 ```
@@ -617,7 +617,7 @@ the `∀R`/`∃L` steps below the goal (`cut 1 "p(a)" 1` after `∀R` made
 `a`: the instance of `∀a. p(a)`'s body); it refuses a name the sequent
 lacks or has with another arity (`error: the cut formula names r, …`)
 and an eigenvariable of another branch (`error: the eigenvariable a
-cannot stand there: …`).
+cannot be used here: …`).
 
 ```console
 $ printf 'apply 0 0 forallL\napply 1 1 ax\nproof\n' | deduxit interact -i "forall x. p(x) |- p(f(a))"
@@ -1125,7 +1125,7 @@ Proof.
   vm_compute. reflexivity.
 Qed.
 $ deduxit prove -i --format rocq "!d, !(c * d * d -o 1) |- c * c"
-(* unprovable (IMELL, intuitionistic, horn engine): c occurs positively 2 more times than negatively outside the exponentials, and every occurrence of it below one, which copies add, is positive (positive right of ⊢, negative left of it, an implication's antecedent on the other side), so they cannot all meet in axioms *)
+(* unprovable (IMELL, intuitionistic, horn engine): c occurs 2 more times on the right than on the left outside the exponentials, and every occurrence of it below one, which copies add, is on the right, so they cannot all meet in axioms (an implication's antecedent counts on the other side) *)
 Lemma certificate : ~ ill (atom := string) intuitionistic [ioc (ivar "d"); ioc (ilmap (itens (itens (ivar "c") (ivar "d")) (ivar "d")) ione)] (itens (ivar "c") (ivar "c")).
 Proof.
   apply (iweighted_refutation (weight_of String.eqb [("c", 1%Z)])

@@ -1477,9 +1477,9 @@ impl Display for ProofStructure {
     /// `cut A ⊗ B[5] — ~A ⅋ ~B[8]`. Then one line per axiom link as
     /// `~A[0] — A[2]`, each literal with its vertex id, the smaller id
     /// first and the links ordered by it. Last comes the verdict of the
-    /// criterion: `proof net`, `proof net with Mix`, `planar proof net` in
-    /// the cyclic order, or `not a proof net: ` and the reason with
-    /// formulas. No trailing newline.
+    /// criterion: `proof net (the correctness criterion holds)`, the same
+    /// with Mix, a `planar proof net` in the cyclic order, or `not a proof
+    /// net: ` and the reason with formulas. No trailing newline.
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         self.write(f, None)
     }
@@ -1542,9 +1542,13 @@ impl ProofStructure {
             )?;
         }
         match self.is_correct(|_| false) {
-            Ok(()) if self.criterion.mix => f.write_str("proof net with Mix"),
-            Ok(()) if self.criterion.order != Order::Commutative => f.write_str("planar proof net"),
-            Ok(()) => f.write_str("proof net"),
+            Ok(()) if self.criterion.mix => {
+                f.write_str("proof net with Mix (the correctness criterion with Mix holds)")
+            }
+            Ok(()) if self.criterion.order != Order::Commutative => f.write_str(
+                "planar proof net (the correctness criterion holds, and no two links cross)",
+            ),
+            Ok(()) => f.write_str("proof net (the correctness criterion holds)"),
             Err(e) => match mode {
                 Some(mode) => write!(
                     f,
@@ -1928,7 +1932,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             net.to_string(),
-            "⊢ ~A, A ⊗ ~B, B\n~A[0] — A[2]\n~B[3] — B[4]\nproof net"
+            "⊢ ~A, A ⊗ ~B, B\n~A[0] — A[2]\n~B[3] — B[4]\nproof net (the correctness criterion holds)"
         );
         let mut net = ProofStructure::new(forest("|- A par B, ~A, ~B"), criterion(true)).unwrap();
         net.link(v(1), v(3)).unwrap();
@@ -1937,7 +1941,10 @@ mod tests {
             "⊢ A ⅋ B, ~A, ~B\nA[1] — ~A[3]\nnot a proof net: literal B[2] has no axiom link"
         );
         net.link(v(2), v(4)).unwrap();
-        assert!(net.to_string().ends_with("\nproof net with Mix"));
+        assert!(
+            net.to_string()
+                .ends_with("\nproof net with Mix (the correctness criterion with Mix holds)")
+        );
         let net =
             ProofStructure::from_links(forest("|- A * ~A"), criterion(false), &[(v(1), v(2))])
                 .unwrap();

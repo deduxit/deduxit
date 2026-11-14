@@ -613,7 +613,7 @@ pub(crate) fn canonical(
             }
             FoTerm::Meta(_) => {
                 return Err(malformed(format!(
-                    "term {id} is a metavariable, an open witness"
+                    "term {id} is an open witness, which a proof cannot hold"
                 )));
             }
             FoTerm::Eigen(_) => {}
@@ -647,7 +647,7 @@ pub(crate) fn canonical(
     let mut lengths: Vec<u32> = Vec::with_capacity(table.frames.len());
     for (n, &(parent, term)) in table.frames.iter().enumerate() {
         if term.index() >= all_terms || !numbering.is_closed(term) {
-            return Err(malformed(format!("frame {n} pushes no closed term")));
+            return Err(malformed(format!("frame {n} adds no closed term")));
         }
         let length = match parent {
             None => 1,

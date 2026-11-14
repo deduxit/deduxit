@@ -6,7 +6,7 @@ cut a ⊗ b[6] — ~a ⅋ ~b[9]
 ~b[2] — b[8]
 b[4] — ~b[11]
 a[5] — ~a[10]
-proof net</desc>
+proof net (the correctness criterion holds)</desc>
 <g fill="none" stroke="black" stroke-width="40">
 <path d="M6153 5349L5417 4345"/>
 <path d="M6604 5350L7349 4345"/>

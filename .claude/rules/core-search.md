@@ -253,7 +253,10 @@ copies they had are gone (F103, F104).
   "(a negated formula or an implication's antecedent counts on the other
   side)" where a literal counts on the other side than its root; one-sided
   otherwise (`⊢ Γ`, a goal of a session, `Refutation`'s own `Display`).
-  A positive literal counts right of `⊢`. The JSON form, the check and
+  A positive literal counts right of `⊢`; the intuitionistic phrase says
+  so in the same words as the two-sided one ("on the left", "on the
+  right", "an implication's antecedent counts on the other side"), with
+  no "positively", since its excess is the same count. The JSON form, the check and
   the certificates do not change with it; the count equation's phrase
   stays one-sided (MLL's equation counts connectives one-sided).
 - **`Disproof::check`** (`refutation.rs`) verifies `Classical`,

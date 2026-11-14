@@ -192,13 +192,15 @@ impl Placement {
             Self::Nesting => "lies in boxes that nest in a cycle",
             Self::Link => "is linked out of its box",
             Self::Weakening => {
-                "is no weakening: no ? without copies hanging once on a literal of its box"
+                "is not a weakening: a ? without copies that hangs once on a literal of its box"
             }
             Self::Cut => {
-                "is no end of one cut link between a cut formula's occurrence and its dual in one \
-                 box"
+                "is not the end of one cut link between a cut formula's occurrence and its dual in \
+                 one box"
             }
-            Self::Uncut => "lies in a cut formula above every cut link, and is linked",
+            Self::Uncut => {
+                "lies in a cut formula above no cut link, so it is not a vertex, yet a link names it"
+            }
         }
     }
 }
@@ -720,8 +722,9 @@ impl std::fmt::Display for MellStructure {
     /// - a line per cut link, in their order (`cut !a[4] — ?~a[7]`);
     /// - a line per link, each with its smaller id first and ordered by it
     ///   (`a[2] — ~a[3]`);
-    /// - the criterion's verdict: `proof net`, `proof net with Mix`, or
-    ///   `not a proof net: ` and the reason with formulas.
+    /// - the criterion's verdict: `proof net (the correctness criterion
+    ///   holds)`, the same with Mix, or `not a proof net: ` and the reason
+    ///   with formulas.
     ///
     /// No trailing newline.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -810,8 +813,10 @@ impl MellStructure {
             f.write_str("\n")?;
         }
         match self.is_correct(|_| false) {
-            Ok(()) if self.criterion.mix => f.write_str("proof net with Mix"),
-            Ok(()) => f.write_str("proof net"),
+            Ok(()) if self.criterion.mix => {
+                f.write_str("proof net with Mix (the correctness criterion with Mix holds)")
+            }
+            Ok(()) => f.write_str("proof net (the correctness criterion holds)"),
             Err(e) => match mode {
                 Some(mode) => write!(f, "not a proof net: {}", e.describe(self).in_mode(mode)),
                 None => write!(f, "not a proof net: {}", e.describe(self)),

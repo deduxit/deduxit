@@ -826,6 +826,6 @@ fn text_form() {
         MellStructure::from_proof(proof, Criterion::MLL, &Limits::default(), |_| false).unwrap();
     assert_eq!(
         net.to_string(),
-        "⊢ ?~a, ?~b, !a\n?~a[0]: ~a[3] in !a[2]\n?~b[1]: no copy, hangs on a[4]\n~a[3] — a[4]\nproof net"
+        "⊢ ?~a, ?~b, !a\n?~a[0]: ~a[3] in !a[2]\n?~b[1]: no copy, hangs on a[4]\n~a[3] — a[4]\nproof net (the correctness criterion holds)"
     );
 }

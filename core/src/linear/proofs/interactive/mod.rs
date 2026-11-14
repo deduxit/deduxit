@@ -254,16 +254,16 @@ impl Display for StepError {
             ),
             StepError::Split { position } => write!(
                 f,
-                "position {position} of the split is out of range, repeated, or the formula the rule acts on"
+                "position {position} cannot go to the left premise: it is out of range, repeated, or the formula the rule acts on"
             ),
             StepError::NoSplit { rule } => write!(f, "the rule {rule} takes no split"),
             StepError::Succedents { count: n } => write!(
                 f,
-                "a premise would have {n} formulas on the right of ⊢ instead of one"
+                "a premise would have {n} formulas right of ⊢ instead of one"
             ),
             StepError::Output { position } => write!(
                 f,
-                "formula {position} is the one on the right of ⊢ and cannot be weakened"
+                "formula {position} is the one right of ⊢ and cannot be weakened"
             ),
             StepError::EmptyPremise => {
                 f.write_str("the split leaves a premise without a formula, which no rule concludes")
@@ -273,23 +273,24 @@ impl Display for StepError {
                  empty antecedents forbids",
             ),
             StepError::NoWitness { rule } => write!(f, "the rule {rule} takes no witness"),
-            StepError::Witness { reason } => write!(f, "the witness is no term here: {reason}"),
+            StepError::Witness { reason } => write!(f, "the witness is not a term here: {reason}"),
             StepError::Eigenvariable { name } => write!(
                 f,
-                "the eigenvariable {name} cannot stand there: no step below this goal \
-                 introduced it (a ∀ step, or ∀R or ∃L two-sided), or it is younger than the \
+                "the eigenvariable {name} cannot be used here: either no step below this goal \
+                 introduced it (a ∀ step, or ∀R or ∃L two-sided), or it was made after the \
                  open witness it would fill"
             ),
             StepError::CutSymbol { name } => write!(
                 f,
-                "the cut formula names {name}, which the sequent has not with this arity and \
-                 role: a cut formula in a session with quantifiers holds the sequent's symbols \
-                 and the goal's eigenvariables only"
+                "the cut formula names {name}, which the sequent does not have with this arity \
+                 and role: in a session with quantifiers, a cut formula may use only the \
+                 sequent's symbols and the goal's eigenvariables"
             ),
             StepError::Exchange { position } => write!(
                 f,
-                "formula {position} goes left before a formula going right, which needs an \
-                 exchange: the left premise takes the formulas just before the ⊗, going round"
+                "formula {position} goes left but comes before a formula that goes right, which \
+                 would need an exchange: the left premise takes the formulas just before the ⊗, \
+                 going round"
             ),
         }
     }

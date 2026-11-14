@@ -435,7 +435,7 @@ A ⊸ B, B ⊸ C ⊢ A ⊸ C
 A[1] — A[7]
 B[2] — B[4]
 C[5] — C[8]
-proof net
+proof net (the correctness criterion holds)
 $ deduxit prove -i "A -o B -o C, A * B |- C"
 provable (IMLL, intuitionistic, two-sided engine)
            ───── ax   ───── ax
@@ -473,9 +473,9 @@ error: cannot parse the sequent
      ^ unexpected "~"
   intuitionistic linear logic has no negation: write a negated formula on the other side of |- (A |- B, not |- ~A, B), and ~A par B as A -o B; --ill-syntax one-sided reads the classical syntax
 $ deduxit prove -i -q --ill-syntax one-sided "|- ~A par B"
-unprovable (IMLL, intuitionistic, two-sided engine): A occurs negatively 1 more time than positively (positive right of ⊢, negative left of it, an implication's antecedent on the other side), so they cannot all meet in axioms
+unprovable (IMLL, intuitionistic, two-sided engine): A occurs 1 more time on the left than on the right, so they cannot all meet in axioms (an implication's antecedent counts on the other side)
 $ deduxit prove -i --ill-syntax one-sided "|- A par B"
-error: not an intuitionistic sequent: the subformula A ⅋ B is neither an intuitionistic formula nor the negation of one (⅋ only as A ⊸ B, that is ~A ⅋ B, and ? only under a negation)
+error: not an intuitionistic sequent: the subformula A ⅋ B is neither an intuitionistic formula nor the negation of one: intuitionistic linear logic has ⅋ only in A ⊸ B (~A ⅋ B), and ? only under a negation
 $ deduxit prove -i "A |- B, C"
 error: not an intuitionistic sequent: an intuitionistic sequent has exactly one formula right of ⊢, not 2: write the hypotheses left of ⊢
 ```
@@ -540,7 +540,7 @@ sequents kept: 3
 units of work: 50
 time: 102.44µs
 $ deduxit prove -i --engine inverse -q "!(a -o b), a |- b * b"
-unprovable (IMELL, intuitionistic, inverse engine): the search saturated: 2 sequents closed under the rules, and the goal needs one they do not give
+unprovable (IMELL, intuitionistic, inverse engine): the search saturated: its 2 sequents are closed under the rules, and none of them yields the goal
 ```
 
 The exit status tells scripts the verdict: 0 provable, 1 unprovable, 3

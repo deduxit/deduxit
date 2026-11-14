@@ -243,7 +243,8 @@ impl Interactive {
                 let q = self.fo.as_mut().expect("a first-order session");
                 let Some((_, a)) = q.fresh_eigen() else {
                     return Err(StepError::Witness {
-                        reason: "the session has made every eigenvariable a u32 numbers".into(),
+                        reason: "the session has made as many eigenvariables as it can number"
+                            .into(),
                     });
                 };
                 Some(a)

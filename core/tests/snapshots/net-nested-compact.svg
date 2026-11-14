@@ -5,7 +5,7 @@
 ?a[4]: a[5]
 ~a[2] — a[5]
 ~a[3] — a[8]
-proof net</desc>
+proof net (the correctness criterion holds)</desc>
 <g fill="none" stroke="black" stroke-width="40">
 <circle id="o0" cx="1091" cy="6906" r="380"/>
 <path d="M1091 7286V7656"/>

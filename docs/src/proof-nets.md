@@ -14,7 +14,7 @@ provable (MLL, classical, focus engine)
 A[1] — ~A[6]
 B[2] — ~B[7]
 C[4] — ~C[8]
-proof net
+proof net (the correctness criterion holds)
 $ deduxit prove --engine net "A & B |- A"
 error: proof nets exist for MLL without units only, not for ALL
 ```
@@ -35,7 +35,7 @@ provable (MELL, classical, focus engine)
 ?~a[0]: ~a[3] in !a[2]
 ?~b[1]: no copy, hangs on a[4]
 ~a[3] — a[4]
-proof net
+proof net (the correctness criterion holds)
 $ deduxit prove --net --format json "!a, !b |- !a"
 {"version":4,"sequent":{"terms":[{"D":0},{"?":0},{"D":1},{"?":2},{"V":0},{"!":4}],"roots":[1,3,5],"atoms":["a","b"],"antecedents":2},"mix":false,"vertices":[[1,0,2],[5,2,2]],"links":[[4,3]],"weakenings":[[1,4]]}
 ```
@@ -54,7 +54,7 @@ provable (IMELL, intuitionistic, two-sided engine)
 !(a ⊸ b)[1]: a ⊸ b[4] in !b[2]
 a[3] — a[5]
 b[6] — b[7]
-proof net
+proof net (the correctness criterion holds)
 $ deduxit prove --net -i --affine "!a |- !a"
 error: proof nets exist in linear mode only, with or without --mix, not in intuitionistic affine mode
 ```

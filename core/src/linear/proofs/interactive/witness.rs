@@ -98,7 +98,7 @@ impl Interactive {
                         continue;
                     }
                     let Some(f) = fo.symbols.iter().position(|(s, _)| s == name) else {
-                        return Err(fault(format!("{name} is no symbol of the sequent")));
+                        return Err(fault(format!("{name} is not a symbol of the sequent")));
                     };
                     // The cast is exact: a sequent has fewer symbols than a
                     // `u32` counts.
@@ -163,7 +163,10 @@ impl Interactive {
                 }
                 TermNode::App(f, args) => {
                     let Some(&(ref name, arity)) = fo.symbols.get(f.index()) else {
-                        return Err(fault(format!("symbol {} is none of the sequent", f.get())));
+                        return Err(fault(format!(
+                            "symbol {} is not one of the sequent's",
+                            f.get()
+                        )));
                     };
                     if predicates.contains(f) {
                         return Err(fault(format!("{name} is a predicate, not a term")));

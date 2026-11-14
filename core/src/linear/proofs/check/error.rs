@@ -346,7 +346,7 @@ impl CheckError {
 impl Display for CheckError {
     /// Writes the node, its premises and the fault with member ids, as in
     /// `node 2 (⊗ on 1 from 0, 1) with premises ⊢ 0, 3 and ⊢ 3, 4: premise 0
-    /// lacks occurrence 2`. A refusal says that the check ended without a
+    /// lacks formula 2`. A refusal says that the check ended without a
     /// verdict, and why.
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         self.write(f, None, None)
@@ -375,7 +375,7 @@ impl CheckError {
             Self::Refused(refused) => {
                 return write!(
                     f,
-                    "the check was given up at node {}, without a verdict on the proof: {}",
+                    "the check stopped at node {} without a verdict on the proof: {}",
                     refused.node.get(),
                     refused.refusal
                 );
@@ -416,21 +416,21 @@ impl Invalid {
         f.write_str(": ")?;
         use Fault::*;
         match &self.fault {
-            Forbidden => f.write_str("the mode forbids the rule"),
+            Forbidden => f.write_str("the rule is not allowed in this mode"),
             Shape(e) => {
                 f.write_str("not an intuitionistic sequent: ")?;
                 e.write(f, names, limit)
             }
             Succedents { count } => write!(
                 f,
-                "a sequent of the rule has {count} formulas on the right of ⊢ instead of one"
+                "a sequent of the rule has {count} formulas right of ⊢ instead of one"
             ),
             Kind { member: o } => {
+                f.write_str("the rule does not act on ")?;
                 if names.is_none() {
-                    f.write_str("occurrence ")?;
+                    f.write_str("formula ")?;
                 }
-                cut(f, names, *o, limit)?;
-                f.write_str(" is not what the rule acts on")
+                cut(f, names, *o, limit)
             }
             NotDual => f.write_str(if reading.is_some() {
                 "the axiom's formulas are not one atom on either side of ⊢"
@@ -440,31 +440,37 @@ impl Invalid {
             Missing { premise, member: o } => {
                 write!(f, "premise {premise} lacks ")?;
                 if names.is_none() {
-                    f.write_str("occurrence ")?;
+                    f.write_str("formula ")?;
                 }
                 cut(f, names, *o, limit)
             }
-            NotEmpty => f.write_str("the linear zone is not empty"),
-            Differ => f.write_str("the premises differ"),
+            // Intuitionistically a promotion is `!R`, and an input `?` a
+            // hypothesis under a `!`; a `&` node is `&R` or `⊕L`.
+            NotEmpty => f.write_str(if reading.is_some() {
+                "the premise of !R has a hypothesis that is not a ! formula"
+            } else {
+                "the premise of ! has formulas besides the promoted one that are not ? formulas"
+            }),
+            Differ => f.write_str("the two premises do not have the same context"),
             Order => f.write_str("the premises' contexts are not the arcs on either side of the ⊗"),
             EmptyAntecedent => f.write_str(
                 "the sequent has no formula left of ⊢, which the Lambek calculus without empty antecedents forbids",
             ),
             NotACut { member: o } => {
                 if names.is_none() {
-                    f.write_str("occurrence ")?;
+                    f.write_str("formula ")?;
                 }
                 cut(f, names, *o, limit)?;
                 f.write_str(" is not in a cut formula")
             }
             NotUnderQuest { member: o } => {
                 if names.is_none() {
-                    f.write_str("occurrence ")?;
+                    f.write_str("formula ")?;
                 }
                 cut(f, names, *o, limit)?;
                 // An input `?` is a hypothesis under a `!`.
                 f.write_str(if reading.is_some() {
-                    " is not under a hypothesis's !"
+                    " is not under the ! of a hypothesis"
                 } else {
                     " is not under a ?"
                 })
@@ -474,10 +480,10 @@ impl Invalid {
             ),
             Instance { member: o } => {
                 if names.is_none() {
-                    f.write_str("occurrence ")?;
+                    f.write_str("formula ")?;
                 }
                 cut(f, names, *o, limit)?;
-                f.write_str(" stands under a binder and is named without its instance")
+                f.write_str(" lies under a quantifier but is named without the terms of its instance")
             }
             Eigenvariable { eigen } => {
                 f.write_str("eigenvariable ")?;

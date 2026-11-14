@@ -593,7 +593,7 @@ impl Interactive {
         let sequent = &inference.sequent;
         let Some((a, dual)) = inference.cut.and_then(|a| self.cut_pair(a)) else {
             return Err(inconsistent(
-                "a cut names no cut formula, nor the instance of one's body that a session cuts on",
+                "a cut names neither a cut formula nor the instance of a cut formula's body that a session cuts on",
             ));
         };
         // A cut on an instance holds only eigenvariables in the goal's
@@ -608,7 +608,7 @@ impl Interactive {
             });
             if !held {
                 return Err(inconsistent(
-                    "a cut's instance holds a term that is no eigenvariable in its goal's scope",
+                    "a cut's instance holds a term that is not an eigenvariable in its goal's scope",
                 ));
             }
         }

@@ -1211,7 +1211,7 @@ fn a_first_order_session_takes_the_quantifier_rules() {
         error["message"]
             .as_str()
             .unwrap()
-            .contains("eigenvariable b cannot stand there"),
+            .contains("eigenvariable b cannot be used here"),
         "{error}"
     );
 }

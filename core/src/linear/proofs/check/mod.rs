@@ -929,7 +929,7 @@ mod tests {
         assert_eq!(
             e.to_string(),
             format!(
-                "the check was given up at node {}, without a verdict on the proof: the check \
+                "the check stopped at node {} without a verdict on the proof: the check \
                  takes more than the memory limit of {limit} bytes",
                 e.node().get(),
             )
@@ -1054,7 +1054,7 @@ mod tests {
         assert_eq!(
             e.describe(p.forest()).to_string(),
             "node 3 (⅋ on ~A ⅋ C from 2) with premises ⊢ A ⊗ ⊤, ~A, …: \
-             a sequent of the rule has 2 formulas on the right of ⊢ instead of one"
+             a sequent of the rule has 2 formulas right of ⊢ instead of one"
         );
         // A ⊕ B, (1 ⊗ ⊤) ⊸ X, 0 ⊢ 1 ⊗ ⊤: 0 &, 1 ~A, 2 ~B, 3 ⊗, 4 ⊗, 5 1,
         // 6 ⊤, 7 ~X, 8 ⊤, 9 ⊗, 10 1, 11 ⊤. Both premises of the `&L` absorb
@@ -1309,7 +1309,7 @@ mod tests {
         assert_eq!(
             p.check(Mode::CLASSICAL).unwrap_err().to_string(),
             "node 2 (⊗ on 1 from 1, 0) with premises ⊢ 3, 4 and ⊢ 0, 2: \
-             premise 0 lacks occurrence 2"
+             premise 0 lacks formula 2"
         );
         assert_eq!(
             p.check(Mode::CLASSICAL)
@@ -1342,11 +1342,11 @@ mod tests {
         };
         assert_eq!(
             report(Some(3)),
-            "node 0 (ax on a ⊗…, ~a): a ⊗… is not what the rule acts on"
+            "node 0 (ax on a ⊗…, ~a): the rule does not act on a ⊗…"
         );
         assert_eq!(
             report(None),
-            "node 0 (ax on a ⊗ (b ⊗ c), ~a): a ⊗ (b ⊗ c) is not what the rule acts on"
+            "node 0 (ax on a ⊗ (b ⊗ c), ~a): the rule does not act on a ⊗ (b ⊗ c)"
         );
         // ⊢ ?~A, A with the ? step missing: the root's sequent has a Θ.
         let p = proof("!A |- A", vec![Ax(o(1), o(2)), Copy(o(1), n(0))]);

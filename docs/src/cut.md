@@ -136,7 +136,7 @@ a[2] — a[11]
 a[3] — a[7]
 a[4] — a[13]
 a[5] — a[9]
-proof net
+proof net (the correctness criterion holds)
 $ deduxit eliminate -i --net --format svg --output net.svg contraction.json
 1. contraction on the cut of !a
 2. dereliction on the cut of !a

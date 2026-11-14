@@ -36,7 +36,7 @@ provable (MLL, cyclic, net engine)
 ⊢ ~b ⊗ a, ~a, b
 ~b[1] — b[4]
 a[2] — ~a[3]
-planar proof net
+planar proof net (the correctness criterion holds, and no two links cross)
 ```
 
 Units, additives, exponentials, Mix, weakening and `--intuitionistic`

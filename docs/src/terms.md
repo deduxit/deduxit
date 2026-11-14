@@ -142,19 +142,19 @@ image instead.
 
 ## What has no term
 
-A proof of classical linear logic has several conclusions, which no
-lambda-term types; nor have a derivation of LK, a proof with Mix, a proof
-of the cyclic or the Lambek calculus (whose terms belong to an ordered
-calculus of their own), or a proof with first-order quantifiers, which
-are no quantifiers over types. The line says why:
+A proof of classical linear logic may have several conclusions, which no
+lambda-term types. A derivation of LK, a proof with Mix, a proof of the
+cyclic or the Lambek calculus (whose terms belong to an ordered calculus
+of their own) and a proof with first-order quantifiers, which are not
+quantifiers over types, have none either. The line says why:
 
 ```console
 $ deduxit prove --lambda --tree never '|- a, ~a'
 provable (MLL, classical, focus engine)
-no lambda-term: a proof of classical logic has several conclusions, which no lambda-term types
+no lambda-term: a proof of classical logic may have several conclusions, which no lambda-term types; a term needs an intuitionistic proof
 $ deduxit prove -i --lambda --tree never 'forall x. p(x) |- p(c)'
 provable (IMLL1, intuitionistic, two-sided engine)
-no lambda-term: quantifiers over first-order terms are no quantifiers over types
+no lambda-term: quantifiers over first-order terms are not quantifiers over types
 ```
 
 ## How the term is printed

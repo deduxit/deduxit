@@ -4,7 +4,7 @@
 b[1] — b[5]
 a[2] — a[3]
 c[6] — c[7]
-planar proof net</desc>
+planar proof net (the correctness criterion holds, and no two links cross)</desc>
 <g fill="none" stroke="black" stroke-width="40">
 <path d="M1997 4108L2889 3084"/>
 <path d="M2420 3450L2381 3668L2592 3600"/>

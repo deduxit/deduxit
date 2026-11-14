@@ -12,7 +12,7 @@ cut !a[15] — ?~a[17]
 ~b[5] — b[9]
 a[8] — ~a[14]
 a[10] — ~a[18]
-proof net</desc>
+proof net (the correctness criterion holds)</desc>
 <g fill="none" stroke="black" stroke-width="40">
 <path d="M13849 14652L7944 13184"/>
 <path d="M14264 14367L15189 6724"/>

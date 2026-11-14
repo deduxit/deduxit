@@ -82,7 +82,7 @@ an eigenvariable of another branch, by name:
 ```console
 $ printf 'apply 0 2 forallR\ncut 1 "r(a)" 1\ncut 1 "p(a)" 1\nclose\nproof\n' | deduxit interact -i "forall x. (p(x) -o q(x)), forall x. p(x) |- forall y. q(y)"
 opened goal 1: 0: ∀x. (p(x) ⊸ q(x)), 1: ∀x. p(x) ⊢ 2: q(a)
-error: the cut formula names r, which the sequent has not with this arity and role: a cut formula in a session with quantifiers holds the sequent's symbols and the goal's eigenvariables only
+error: the cut formula names r, which the sequent does not have with this arity and role: in a session with quantifiers, a cut formula may use only the sequent's symbols and the goal's eigenvariables
 opened goal 2: 0: ∀x. p(x) ⊢ 1: p(a)
 opened goal 3: 0: ∀x. (p(x) ⊸ q(x)), 2: p(a) ⊢ 1: q(a)
 goal 2: provable (IMLL1, intuitionistic, two-sided engine)

@@ -91,7 +91,7 @@ impl Interactive {
                 }
                 if o.index() < state.forest.len() && depth[o.index()] > 0 {
                     return Err(Error::InconsistentSession {
-                        reason: "an occurrence under quantifiers stands without its instance",
+                        reason: "a formula under quantifiers is named without its instance",
                     });
                 }
             }
@@ -111,7 +111,7 @@ impl Interactive {
         }
         if parent.iter().skip(1).any(Option::is_none) {
             return Err(Error::InconsistentSession {
-                reason: "an inference other than the root is nobody's premise",
+                reason: "an inference other than the root is the premise of no inference",
             });
         }
         state.inferences = inferences;
@@ -373,7 +373,7 @@ impl Interactive {
         let has_principal = classical.has_principal();
         if inference.principal.is_some() != has_principal {
             return Err(Error::InconsistentSession {
-                reason: "a rule other than the axiom and Mix names its principal formula, those two none",
+                reason: "every rule but the axiom and Mix names its principal formula, and those two name none",
             });
         }
         let principal = inference.principal;

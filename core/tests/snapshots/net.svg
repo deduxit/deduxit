@@ -3,7 +3,7 @@
 <desc>⊢ ~A ⅋ ~B, B ⊗ A
 ~A[1] — A[5]
 ~B[2] — B[4]
-proof net</desc>
+proof net (the correctness criterion holds)</desc>
 <g fill="none" stroke="black" stroke-width="40">
 <path d="M6443 4559L5678 3552"/>
 <path d="M6911 4566L7725 3552"/>

@@ -4,7 +4,7 @@
 a[1] — a[7]
 b[2] — b[4]
 c[5] — c[8]
-proof net</desc>
+proof net (the correctness criterion holds)</desc>
 <g fill="none" stroke="black" stroke-width="40">
 <path d="M1497 4750L604 3726"/>
 <path d="M901 4242L1112 4310L1073 4092"/>

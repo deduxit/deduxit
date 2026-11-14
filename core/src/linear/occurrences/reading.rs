@@ -146,7 +146,7 @@ impl ShapeError {
         let forest = names.map(|n| n.forest);
         match self {
             ShapeError::NoGoal => f.write_str(
-                "no formula can be the goal: an intuitionistic sequent has exactly one formula on the right of ⊢",
+                "no formula can be the goal: an intuitionistic sequent has exactly one formula right of ⊢",
             ),
             ShapeError::Succedents { count } => {
                 write!(
@@ -173,7 +173,7 @@ impl ShapeError {
                 f.write_str(" and ")?;
                 occurrence(f, *second)?;
                 f.write_str(
-                    " can be the goal, and the sequent does not say which stands right of ⊢: give its sides",
+                    " can be the goal, and the sequent does not say which one stands right of ⊢: write the sequent with both sides",
                 )
             }
             ShapeError::SeveralGoals { first: a, second: b } => {
@@ -197,7 +197,7 @@ impl ShapeError {
                     "cut formula "
                 })?;
                 occurrence(f, *o)?;
-                f.write_str(" is no intuitionistic formula")
+                f.write_str(" is not an intuitionistic formula")
             }
             ShapeError::Formula {
                 occurrence: o,
@@ -220,7 +220,7 @@ impl ShapeError {
                     write!(f, " (in {})", forest.formula(forest.root(*o)))?;
                 }
                 f.write_str(
-                    " is neither an intuitionistic formula nor the negation of one (⅋ only as A ⊸ B, that is ~A ⅋ B, and ? only under a negation)",
+                    " is neither an intuitionistic formula nor the negation of one: intuitionistic linear logic has ⅋ only in A ⊸ B (~A ⅋ B), and ? only under a negation",
                 )
             }
         }
@@ -894,23 +894,23 @@ mod tests {
             ),
             (
                 "|- B par ~A",
-                "the subformula B ⅋ ~A is neither an intuitionistic formula nor the negation of one (⅋ only as A ⊸ B, that is ~A ⅋ B, and ? only under a negation)",
+                "the subformula B ⅋ ~A is neither an intuitionistic formula nor the negation of one: intuitionistic linear logic has ⅋ only in A ⊸ B (~A ⅋ B), and ? only under a negation",
             ),
             (
                 "|- A par B",
-                "the subformula A ⅋ B is neither an intuitionistic formula nor the negation of one (⅋ only as A ⊸ B, that is ~A ⅋ B, and ? only under a negation)",
+                "the subformula A ⅋ B is neither an intuitionistic formula nor the negation of one: intuitionistic linear logic has ⅋ only in A ⊸ B (~A ⅋ B), and ? only under a negation",
             ),
             (
                 "A * (B par C) |- D",
-                "the subformula ~B ⊗ ~C (in ~A ⅋ (~B ⊗ ~C)) is neither an intuitionistic formula nor the negation of one (⅋ only as A ⊸ B, that is ~A ⅋ B, and ? only under a negation)",
+                "the subformula ~B ⊗ ~C (in ~A ⅋ (~B ⊗ ~C)) is neither an intuitionistic formula nor the negation of one: intuitionistic linear logic has ⅋ only in A ⊸ B (~A ⅋ B), and ? only under a negation",
             ),
             (
                 "|- ?A",
-                "the subformula ?A is neither an intuitionistic formula nor the negation of one (⅋ only as A ⊸ B, that is ~A ⅋ B, and ? only under a negation)",
+                "the subformula ?A is neither an intuitionistic formula nor the negation of one: intuitionistic linear logic has ⅋ only in A ⊸ B (~A ⅋ B), and ? only under a negation",
             ),
             (
                 "|- ~A",
-                "no formula can be the goal: an intuitionistic sequent has exactly one formula on the right of ⊢",
+                "no formula can be the goal: an intuitionistic sequent has exactly one formula right of ⊢",
             ),
         ] {
             assert_eq!(
@@ -926,7 +926,7 @@ mod tests {
         let error = Reading::new(&forest).unwrap_err();
         assert_eq!(
             error.to_string(),
-            "the subformula A ⅋ B is neither an intuitionistic formula nor the negation of one (⅋ only as A ⊸ B, that is ~A ⅋ B, and ? only under a negation)"
+            "the subformula A ⅋ B is neither an intuitionistic formula nor the negation of one: intuitionistic linear logic has ⅋ only in A ⊸ B (~A ⅋ B), and ? only under a negation"
         );
         let ShapeError::Formula { occurrence, .. } = error else {
             panic!("{error:?}");
@@ -937,7 +937,7 @@ mod tests {
         };
         assert_eq!(
             unnamed.to_string(),
-            "subformula 0 is neither an intuitionistic formula nor the negation of one (⅋ only as A ⊸ B, that is ~A ⅋ B, and ? only under a negation)"
+            "subformula 0 is neither an intuitionistic formula nor the negation of one: intuitionistic linear logic has ⅋ only in A ⊸ B (~A ⅋ B), and ? only under a negation"
         );
     }
 
@@ -996,7 +996,7 @@ mod tests {
         assert_eq!(
             read_unsided("|- 0, top"),
             Err(
-                "both 0 and ⊤ can be the goal, and the sequent does not say which stands right of ⊢: give its sides".to_owned()
+                "both 0 and ⊤ can be the goal, and the sequent does not say which one stands right of ⊢: write the sequent with both sides".to_owned()
             )
         );
         assert_eq!(

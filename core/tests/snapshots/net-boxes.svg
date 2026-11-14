@@ -7,7 +7,7 @@
 ~a[3] — a[8]
 ~a[4] — a[9]
 ~c[5] — c[11]
-proof net</desc>
+proof net (the correctness criterion holds)</desc>
 <g fill="none" stroke="black" stroke-width="40">
 <path d="M13796 13829L10083 12635"/>
 <path d="M14248 13576L15205 9655"/>
