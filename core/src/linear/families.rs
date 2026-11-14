@@ -1,36 +1,75 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Problem families with known verdicts, generated at any size: the hard
-//! families of the literature (3-Partition as a Horn program and as
-//! Lincoln and Winkler's two-literal sequent, Matsuoka's Partition, random
-//! QBF under a lock-and-key encoding into MALL, Petri-net counters), the
-//! families where one engine is known to be slow (wide contexts under
-//! Mix, wide sequents of distinct or shared atoms), and the slow cases of
-//! the exponentials, and first-order families: the Lambek calculus in
-//! first-order MILL, a chain of instances of a quantified clause under
-//! `!`, and a witness chosen among many. Some families have a growing set
-//! ([`Family::growth`]) and a claim ([`Family::claim`]): what the growth of
-//! the time to decide them shows about one engine or another prover,
-//! among them Franzén's contraction formulas and Cook's pigeonhole
-//! principle from Dyckhoff's benchmarks, Euler tours from Chaudhuri's
-//! benchmarks of the inverse method, a clause used many times on one
-//! branch, and reachability through a cycle at first order. Each instance says whether it is provable, by
-//! construction or by solving the combinatorial problem it encodes, never
-//! by running an engine. Random families are seeded by their size and
-//! index, so an instance is the same on every run.
+//! Families of problems with known verdicts, generated at any size.
+//!
+//! [`FAMILIES`] lists them, and [`find`] looks one up by name.
+//! [`Family::instance`] builds a family's problem of a size as an
+//! [`Instance`]: the sequent, the mode to prove it in, and whether it is
+//! provable. A family with several problems per size numbers them by an
+//! index. The verdict comes from the problem the family encodes or from
+//! an argument at its generator, never from running an engine, so an
+//! engine that disagrees is a finding. A random family seeds its
+//! generator from the size and the index, so an instance is the same on
+//! every run.
+//!
+//! The families are:
+//! - hard problems of the literature: 3-Partition as a Horn program and
+//!   as Lincoln and Winkler's two-literal sequent, Matsuoka's Partition,
+//!   random QBF in a lock-and-key encoding into MALL, and Petri-net
+//!   counters;
+//! - problems on which one engine is known to be slow: wide contexts
+//!   under Mix, wide sequents of distinct or shared atoms, and the slow
+//!   cases of the exponentials;
+//! - first-order problems: the Lambek calculus in first-order MILL, a
+//!   chain of instances of a quantified clause under `!`, a witness
+//!   chosen among many, and reachability through a cycle.
+//!
+//! Some families have a growing set of sizes ([`Family::growth`]) and a
+//! claim ([`Family::claim`]): what the growth of the time to decide them
+//! shows about an engine or another prover. Among them are Franzén's
+//! contraction formulas and Cook's pigeonhole principle from Dyckhoff's
+//! benchmarks, Euler tours from Chaudhuri's benchmarks of the inverse
+//! method, and a clause used many times on one branch.
+//!
+//! The encodings are public functions too ([`three_partition`],
+//! [`three_partition_mll`], [`partition`], [`qbf`], [`counter`],
+//! [`wide`], [`mix`]), to build a problem from data of your own.
 //!
 //! # Examples
 //!
+//! List the families, then build an instance and prove it:
+//!
 //! ```
-//! use deduxit::linear::families;
+//! use deduxit::linear::families::{self, FAMILIES};
 //! use deduxit::linear::search::{Options, Verdict, prove};
+//!
+//! for family in FAMILIES {
+//!     println!("{}: {}", family.name, family.summary);
+//! }
 //!
 //! let family = families::find("partition-no").unwrap();
 //! let instance = family.instance(3, 0)?;
+//! assert_eq!(instance.name, "partition-no/3");
 //! assert!(!instance.provable);
 //! let outcome = prove(&instance.sequent, instance.mode, &Options::default())?;
 //! assert!(matches!(outcome.verdict, Verdict::Unprovable(_)));
+//! # Ok::<(), deduxit::Error>(())
+//! ```
+//!
+//! A family with exponentials gives the copy bound to search with:
+//!
+//! ```
+//! use deduxit::linear::families;
+//! use deduxit::linear::search::{Options, prove};
+//!
+//! let instance = families::find("counter").unwrap().instance(8, 0)?;
+//! let mut options = Options::default();
+//! if let Some(copies) = instance.copies {
+//!     options = options.with_copies(Some(copies));
+//! }
+//! let outcome = prove(&instance.sequent, instance.mode, &options)?;
+//! assert!(outcome.verdict.proof().is_some());
 //! # Ok::<(), deduxit::Error>(())
 //! ```
 //!
@@ -41,25 +80,27 @@ use crate::{
     linear::{Mode, Sequent},
 };
 
-/// One problem of a family.
+/// One problem of a family, built by [`Family::instance`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct Instance {
-    /// The family's name, the size and, for random families, the index:
-    /// `qbf/8#2`.
+    /// The family's name, the size and, for a family of several
+    /// instances per size, the index: `qbf/8#2`, `counter/8`.
     pub name: String,
     /// The sequent.
     pub sequent: Sequent,
-    /// The mode the sequent is meant for.
+    /// The mode to prove the sequent in.
     pub mode: Mode,
     /// Whether the sequent is provable in its mode.
     pub provable: bool,
-    /// The per-branch copy bound under which a proof exists, for the
-    /// families with exponentials; `None` for the others.
+    /// The per-branch copy bound to search with, for the families with
+    /// exponentials: a proof exists within it when the instance is
+    /// provable, and it bounds the search when the instance is not.
+    /// `None` for the others.
     pub copies: Option<u32>,
-    /// The witness depth under which a proof exists, for the families
-    /// whose witnesses deepen with the size; `None` for the others, which
-    /// the default depth serves.
+    /// The witness depth to search with, for the families whose witnesses
+    /// deepen with the size: a proof exists within it when the instance
+    /// is provable. `None` for the others, which the default depth serves.
     pub witness_depth: Option<u32>,
 }
 
@@ -71,33 +112,40 @@ pub struct Family {
     pub name: &'static str,
     /// What the family is and what its size counts.
     pub summary: &'static str,
-    /// The sizes a benchmark runs by default: from easy to past what the
+    /// The sizes a benchmark runs by default, from easy to past what the
     /// engines decide in minutes.
     pub sizes: &'static [u32],
-    /// How many instances each size has: one for the constructed families,
-    /// several for the random ones and for the constructed families of
-    /// several shapes, whose summary says what each index is.
+    /// How many instances each size has: one for most constructed
+    /// families, several for the random ones and for the constructed
+    /// families of several shapes, whose summary says what each index is.
     pub instances: u32,
     /// The least size the family has an instance of.
     pub least: u32,
-    /// Whether its sizes are the powers of two.
+    /// Whether the family takes only powers of two as sizes.
     pub powers_of_two: bool,
-    /// What the family shows: the strength or weakness of an engine or
+    /// What the family shows: the strength or weakness of an engine or of
     /// another prover it is chosen for, and what a run is expected to
-    /// show; empty for a family that has no growing set.
+    /// show. Empty for a family that has no growing set.
     pub claim: &'static str,
     /// The sizes of its growing set, from easy to the ceiling where every
-    /// engine that admits it has met the time limit of a minute or a
-    /// bound; geometric where the time grows polynomially, by one where it
-    /// grows exponentially. Empty for a family that has none.
+    /// engine that admits the family has met the time limit of a minute
+    /// or a bound. They grow geometrically where the time grows
+    /// polynomially, and by one where it grows exponentially. Empty for a
+    /// family that has none.
     pub growth: &'static [u32],
     /// Builds the instance of a size and an index.
     generate: fn(u32, u32) -> Instance,
 }
 
 impl Family {
-    /// Returns the instance of the given size and index (below
-    /// [`instances`](Self::instances)), the same on every call.
+    /// Returns the instance of the given size and index, the same on
+    /// every call.
+    ///
+    /// The index counts from 0 and must be below
+    /// [`instances`](Self::instances). The call does not check it: past
+    /// that, the instance may not be one of the family's, and its
+    /// `provable` may be wrong. The instance is built without a bound on
+    /// its occurrences, so a large size takes time and memory to match.
     ///
     /// # Errors
     ///
@@ -344,7 +392,8 @@ pub static FAMILIES: &[Family] = &[
         summary: "!(p0 ⊸ p1 & p2), …, !(p(k−1) ⊸ pk & p(k+1)), p0 ⊢ p(k+1) (MELL, ILL-shaped), provable within k + 2 copies; the size is k",
         sizes: &[16, 64, 128, 256],
         instances: 1,
-        // `p0 ⊢ p1` at size 0 is unprovable, against the claim.
+        // Size 0 is `p0 ⊢ p1`, unprovable, and the family marks every
+        // instance provable.
         least: 1,
         powers_of_two: false,
         claim: "the focused engine's memo on repeated subgoals: the `&` of each clause offers two ways on, so Fibonacci-many paths lead to the goal and meet the same subgoals, which the memo answers once (about half the stable sequents are hits), so the time grows polynomially where without the memo it passes a minute at 64; the default deepening (`--copies none`, about k/2 + 1 levels) costs nothing more, the memo answering each level's repeated subgoals; the inverse method forced is faster still, though no row of the dispatch gives it a turn on a classical sequent without Mix",
@@ -383,7 +432,8 @@ pub static FAMILIES: &[Family] = &[
         summary: "Lambek sequents in Moot and Piazza's translation into first-order MILL, a formula at a pair of string positions; the size is k: #0 the chain a0, a0 \\ a1, …, a(k−1) \\ ak ⊢ ak, provable, #1 its first two formulas exchanged, unprovable, #2 the chain ak / a(k−1), …, a1 / a0, a0 ⊢ ak, provable, #3 a0, …, a(k−1) ⊢ a0 • … • a(k−1), provable, #4 its goal reversed, unprovable",
         sizes: &[16, 64, 256, 512],
         instances: 5,
-        // The reversed product of one formula is the product itself.
+        // At size 1 the reversed product of #4 is the product itself,
+        // provable, and #4 is marked unprovable.
         least: 2,
         powers_of_two: false,
         claim: "LinearOne's home ground: the Lambek calculus in first-order MILL, the fragment LinearOne's proof-net search is written for; the two-sided first-order search is faster at small sizes and meets its recursion limit of 2 048 at 512 formulas on #0 and #2 and at 1 024 on #3 and #4",
@@ -427,10 +477,10 @@ pub static FAMILIES: &[Family] = &[
             }
         },
     },
-    // The provable instances take an as the witness, and in #2 the other
-    // p(ai) for the factors ∃x.p(x). In #1 and #3 a cut-free proof links
-    // the goal's q(w) to the only q given, so w = b, and then p(b) to some
-    // p(ai), which differs from it: unprovable.
+    // The provable instances take `an` as the witness, and #2 takes the
+    // other p(ai) for the factors ∃x.p(x). In #1 and #3 a cut-free proof
+    // links the goal's q(w) to the only q given, so w = b, and then p(b)
+    // to some p(ai), which differs from it: unprovable.
     Family {
         name: "witness-fo",
         summary: "a witness among n: #0 p(a1) & … & p(an), q(an) ⊢ ∃x.(p(x) ⊗ q(x)) (MALL1), provable, #1 the same with q(b), unprovable, #2 p(a1), …, p(an), q(an) ⊢ ∃x.(p(x) ⊗ q(x)) ⊗ ∃x.p(x) ⊗ … with n − 1 factors ∃x.p(x) (MILL1), provable, #3 the same with q(b), unprovable",
@@ -583,11 +633,12 @@ pub static FAMILIES: &[Family] = &[
         },
     },
     // #0 is proved by n uses of the clause along the path n0, …, n(n−1),
-    // z, nested on one branch, at whose end the first edge is a copy of
-    // its own: n + 1 copies. #1 is unprovable: forgetting linearity, the model whose domain is
-    // the constants, with e true of the edges given and r of the cycle's
-    // nodes alone, satisfies the hypotheses and not r(z). No refuter
-    // decides it in general, so a search ends at a bound or the limit.
+    // z, nested on one branch, at whose end the first edge takes a copy
+    // of its own: n + 1 copies. #1 is unprovable: forgetting linearity,
+    // the model whose domain is the constants, with e true of the edges
+    // given and r true of the cycle's nodes alone, satisfies the
+    // hypotheses and not r(z). No refuter decides it in general, so a
+    // search ends at a bound or the limit.
     Family {
         name: "reach-fo",
         summary: "reachability through a cycle (IMELL1): !e(n0,n1), …, !e(n(n−1),n0), r(n0), !∀x∀y.(e(x,y) ⊗ r(x) ⊸ r(y)) ⊢ r(z), #0 with the exit !e(n(n−1),z), provable within n + 1 copies, #1 without it, unprovable, searched to n + 1 copies; the size is the cycle's nodes n, one a loop",
@@ -616,18 +667,23 @@ pub static FAMILIES: &[Family] = &[
     },
 ];
 
-/// Returns the family of that name.
+/// Returns the family of that name, or `None` if there is none.
 pub fn find(name: &str) -> Option<&'static Family> {
     FAMILIES.iter().find(|family| family.name == name)
 }
 
-/// Encodes a 3-Partition instance as a linear Horn program in the style of
-/// Kanovich's encodings: bin `j` offers `size` units `bj` and three slots
-/// `tj`; item `i` is a `&` over the bins of a clause taking its units and
-/// a slot from that bin and producing `di`; the goal is the tensor of every
-/// `di`. Every resource must be used exactly once, so the sequent is
-/// provable if and only if the items split into triples of sum `size`,
-/// one per bin.
+/// Returns a 3-Partition problem as a linear Horn program, in the style of
+/// Kanovich's encodings: can `items` be split into `bins` triples, each of
+/// total `size`?
+///
+/// - Bin `j` offers `size` units `bj` and three slots `tj`.
+/// - Item `i` is the `&`, over the bins, of a clause that takes the
+///   item's units and a slot from that bin and gives `di`.
+/// - The goal is the tensor of every `di`.
+///
+/// Every resource must be used exactly once, so the sequent is provable
+/// in classical mode if and only if the items split into triples of total
+/// `size`, one per bin.
 pub fn three_partition(items: &[u32], bins: u32, size: u32) -> Sequent {
     let mut hypotheses = Vec::new();
     for j in 1..=bins {
@@ -648,11 +704,14 @@ pub fn three_partition(items: &[u32], bins: u32, size: u32) -> Sequent {
     ))
 }
 
-/// Encodes a 3-Partition instance as Lincoln and Winkler's two-literal MLL
-/// sequent `⊢ k ⊗ (~c ⅋ … ⅋ ~c), …, ((~k ⅋ ~k ⅋ ~k) ⅋ (c ⊗ … ⊗ c)) ⊗ …`:
-/// an item of size `s` is `k ⊗` a par of `s` literals `~c`, a bin is three
-/// `~k` beside a tensor of `size` literals `c`, and the bins are joined by
-/// `⊗`, so that each bin's premise takes three items of total `size`.
+/// Returns a 3-Partition problem as Lincoln and Winkler's MLL sequent of
+/// two literals, `⊢ k ⊗ (~c ⅋ … ⅋ ~c), …, ((~k ⅋ ~k ⅋ ~k) ⅋ (c ⊗ … ⊗
+/// c)) ⊗ …`.
+///
+/// An item of size `s` is `k ⊗` the `⅋` of `s` literals `~c`. A bin is
+/// three `~k` beside the tensor of `size` literals `c`. The bins are
+/// joined by `⊗`, so each bin's premise takes three items of total
+/// `size`.
 pub fn three_partition_mll(items: &[u32], bins: u32, size: u32) -> Sequent {
     let mut roots: Vec<String> = items
         .iter()
@@ -663,12 +722,15 @@ pub fn three_partition_mll(items: &[u32], bins: u32, size: u32) -> Sequent {
     parse(&format!("|- {}", roots.join(", ")))
 }
 
-/// Encodes a Partition instance as a Horn sequent, as Matsuoka does: every
-/// item `a_i` of size `s_i` may be turned into `s_i` units `b` or `s_i`
-/// units `c`; half the total of each buys the items back once, and half
-/// the total of each buys the goal `e`. Every clause is used exactly once,
-/// so the sequent is provable if and only if the sizes split into two
-/// halves of equal sum.
+/// Returns a Partition problem as a Horn sequent, as Matsuoka encodes it:
+/// can `sizes` be split into two halves of equal total?
+///
+/// The items `a1`, …, `an` start out as one tensor. Item `ai` of size
+/// `si` can be turned into `si` units `b` or into `si` units `c`. Half the
+/// total in `b` and half in `c` buy all the items back once, and the same
+/// again buys the goal `e`. Every clause is used exactly once, so the
+/// sequent is provable in classical mode if and only if the sizes split
+/// into two halves of equal total.
 ///
 /// # Panics
 ///
@@ -693,11 +755,14 @@ pub fn partition(sizes: &[u32]) -> Sequent {
     parse(&format!("{} |- e", hypotheses.join(", ")))
 }
 
-/// The counter program as Petri-net reachability: `tokens` tokens `c0`,
-/// and reusable clauses `!(ci ⊗ ci ⊸ c(i+1))` doubling up to the goal
-/// `cL`, `L` the logarithm of `tokens`; with `over`, the goal is `cL ⊗
-/// c0`, which no firing reaches. Returns the sequent and `L`, the copies
-/// a branch to one token of the goal takes.
+/// Returns the counter, a problem of Petri-net reachability, and the
+/// copies it needs.
+///
+/// The sequent has `tokens` tokens `c0` and the reusable clauses `!(ci ⊗
+/// ci ⊸ c(i+1))`, which double up to the goal `cL`, `L` the base-2
+/// logarithm of `tokens`. With `over`, the goal is `cL ⊗ c0`, which no
+/// firing reaches. The number returned is `L`, the copies a branch to one
+/// token of the goal takes.
 ///
 /// # Panics
 ///
@@ -714,10 +779,18 @@ pub fn counter(tokens: u32, over: bool) -> (Sequent, u32) {
     (parse(&text), levels)
 }
 
-/// The wide sequent `⊢ (a1 ⅋ b1) ⊗ … ⊗ (ak ⅋ bk), ~a1 ⊗ ~b1, …, ~ak ⊗ ~bk`
-/// with pair `i` using the atoms of index `i / shared`, so that every
-/// literal occurs `shared` times (the last atoms fewer when `shared` does
-/// not divide `k`). Provable: identifying atoms keeps a proof a proof.
+/// Returns the wide sequent `⊢ (a1 ⅋ b1) ⊗ … ⊗ (ak ⅋ bk), ~a1 ⊗ ~b1, …,
+/// ~ak ⊗ ~bk` of `k` pairs, where pair `i` uses the atoms of index `i /
+/// shared`.
+///
+/// Every literal occurs `shared` times, the last atoms fewer when
+/// `shared` does not divide `k`. The sequent is provable for `k` of 1 or
+/// more, since identifying atoms keeps a proof a proof. `wide(0, _)` is
+/// the empty sequent, which is unprovable.
+///
+/// # Panics
+///
+/// If `shared` is 0 and `k` is not.
 pub fn wide(k: u32, shared: u32) -> Sequent {
     let pairs: Vec<String> = (0..k)
         .map(|i| format!("(a{0} | b{0})", i / shared))
@@ -727,11 +800,13 @@ pub fn wide(k: u32, shared: u32) -> Sequent {
     parse(&format!("|- {}", roots.join(", ")))
 }
 
-/// The unprovable sequent `⊢ (a1 ⊗ b1) ⊕ 0, (~a1 ⊗ ~b1) ⊕ 0, …` of `k`
-/// pairs: every axiom linking of a pair closes a cycle through its two
-/// `⊗`, with Mix too, and the `⊕ 0` makes it MALL, where the count
-/// equation that refutes the bare tensors at once does not hold, so that
-/// a search under Mix meets the partitions of the context.
+/// Returns the sequent `⊢ (a1 ⊗ b1) ⊕ 0, (~a1 ⊗ ~b1) ⊕ 0, …` of `k`
+/// pairs, unprovable with or without Mix.
+///
+/// Every axiom linking of a pair closes a cycle through its two `⊗`. The
+/// `⊕ 0` makes the sequent MALL, where the count equation that refutes
+/// the bare tensors at once does not hold, so a search under Mix meets
+/// the partitions of the context.
 pub fn mix(k: u32) -> Sequent {
     let roots: Vec<String> = (0..k)
         .map(|i| format!("(a{i} * b{i}) + 0, (~a{i} * ~b{i}) + 0"))
@@ -739,18 +814,26 @@ pub fn mix(k: u32) -> Sequent {
     parse(&format!("|- {}", roots.join(", ")))
 }
 
-/// A random closed 3-QBF and its truth value: `n` variables quantified
-/// alternately, `∃` first, and `⌈1.5 n⌉` clauses of three distinct
-/// variables of which at least two are existential (Gent and Walsh's
-/// model A, which keeps random instances from being false outright), with
-/// random signs; seeded by `n` and `index`. The formula is encoded into
-/// MALL by locks and keys: a `∀x` is `(~tx & ~fx) ⅋ S`, putting one of the
-/// two values into the context on each premise; an `∃x` is `((~tx ⅋ ~kx)
-/// ⊕ (~fx ⅋ ~kx)) ⅋ (kx ⊗ S)`, whose rest `S` needs the key `~kx` that
-/// only the choice of a value releases, so the choice precedes every
-/// later quantifier; the matrix is the `&` of the clauses, a clause the
-/// `⊕` of `(tx ⊗ ⊤)` or `(fx ⊗ ⊤)` over its literals, provable when the
-/// context holds a value that satisfies one of them.
+/// Returns a random closed 3-QBF encoded into MALL, and its truth value:
+/// the sequent is provable in classical mode exactly when the QBF is
+/// true.
+///
+/// The QBF has `n` variables quantified alternately, `∃` first, and
+/// `⌈1.5 n⌉` clauses of three distinct variables with random signs. At
+/// least two variables of each clause are existential (Gent and Walsh's
+/// model A), which keeps random instances from being false outright. The
+/// generator is seeded by `n` and `index`.
+///
+/// The encoding orders the quantifiers by locks and keys, `S` being the
+/// rest of the formula:
+/// - `∀x` is `(~tx & ~fx) ⅋ S`: each premise of the `&` puts one of the
+///   two values into the context;
+/// - `∃x` is `((~tx ⅋ ~kx) ⊕ (~fx ⅋ ~kx)) ⅋ (kx ⊗ S)`: `S` needs the key
+///   `~kx`, which only the choice of a value releases, so the choice
+///   comes before every later quantifier;
+/// - the matrix is the `&` of the clauses, and a clause the `⊕` of `(tx ⊗
+///   ⊤)` or `(fx ⊗ ⊤)` over its literals, provable when the context holds
+///   a value that satisfies one of them.
 ///
 /// # Panics
 ///
@@ -789,7 +872,8 @@ pub fn qbf(n: u32, index: u32) -> (Sequent, bool) {
     (parse(&format!("|- {formula}")), valid)
 }
 
-/// Evaluates the QBF of [`qbf`] under the values of the first variables.
+/// Returns the truth value of [`qbf`]'s formula with its first variables
+/// set to `values`.
 fn qbf_value(n: u32, clauses: &[[(u32, bool); 3]], values: &mut Vec<bool>) -> bool {
     let v = values.len() as u32;
     if v == n {
@@ -810,25 +894,29 @@ fn qbf_value(n: u32, clauses: &[[(u32, bool); 3]], values: &mut Vec<bool>) -> bo
     }
 }
 
-/// Six item sizes for two bins of size `b` (at least four) that split into
-/// the triples `1, 2, b − 3`.
+/// Returns six item sizes for two bins of size `b`, at least four, that
+/// split into the triples `1, 2, b − 3`.
 fn solvable_triples(b: u32) -> [u32; 6] {
     assert!(b >= 4, "bins of {b}");
     [1, 2, b - 3, 1, 2, b - 3]
 }
 
-/// Six item sizes for two bins of size `b` (at least four) that admit no
-/// 3-Partition: the item `b − 1` needs two more items of total one.
+/// Returns six item sizes for two bins of size `b`, at least four, that
+/// admit no 3-Partition: the item `b − 1` needs two more items of total
+/// one.
 fn unsolvable_triples(b: u32) -> [u32; 6] {
     assert!(b >= 4, "bins of {b}");
     [1, 1, 1, b - 1, 1, b - 3]
 }
 
-/// Returns `n` random item sizes from 1 to `n` with an even total whose
-/// Partition instance is solvable or not as asked: the first seed, counted
-/// from one derived from `n` and `solvable`, whose sizes answer so.
+/// Returns `n` random item sizes from 1 to `n`, with an even total, that
+/// split into two halves of equal total exactly when `solvable` is true.
+/// The generator, seeded from `n` and `solvable`, draws until the sizes
+/// answer so.
 fn partition_items(n: u32, solvable: bool) -> Vec<u32> {
-    // Two items of sizes one or two always split, one never does.
+    // One item never splits, so a solvable instance needs two. Two items
+    // of size one or two with an even total always split, so an
+    // unsolvable one needs three.
     assert!(n >= 2 + u32::from(!solvable), "{n} items");
     let mut rng = Rng((u64::from(n) << 1) | u64::from(solvable));
     loop {
@@ -851,8 +939,9 @@ fn partition_items(n: u32, solvable: bool) -> Vec<u32> {
     }
 }
 
-/// A complete tree of the given depth over the atoms `x<next>`, `&` at even
-/// levels and `⊕` at odd ones.
+/// Returns a complete tree of depth `depth` from `level` down, over the
+/// atoms `x<next>` numbered from `next` on, with `&` at even levels and
+/// `⊕` at odd ones.
 fn additive_tree(depth: u32, level: u32, next: &mut u32) -> String {
     if depth == level {
         *next += 1;
@@ -879,13 +968,13 @@ enum Lambek {
 }
 
 impl Lambek {
-    /// The atom `a<i>`.
+    /// Returns the atom `a<i>`.
     fn atom(i: u32) -> Self {
         Self::Atom(format!("a{i}"))
     }
 
-    /// The formula in the syntax of the Lambek calculus this crate's
-    /// ordered parse reads, every binary formula in parentheses.
+    /// Returns the formula in the syntax of the Lambek calculus that this
+    /// crate's ordered parse reads, every binary formula in parentheses.
     #[cfg(test)]
     fn text(&self) -> String {
         match self {
@@ -896,7 +985,7 @@ impl Lambek {
         }
     }
 
-    /// Moot and Piazza's translation of the formula at the string
+    /// Returns Moot and Piazza's translation of the formula at the string
     /// positions `x` to `y` into first-order MILL: an atom `p` is the
     /// predicate `p(x, y)`, `A / B` is `∀z.(B(y, z) ⊸ A(x, z))`, `B \ A` is
     /// `∀z.(B(z, x) ⊸ A(z, y))` and `A • B` is `∃z.(A(x, z) ⊗ B(z, y))`,
@@ -928,13 +1017,14 @@ impl Lambek {
     }
 }
 
-/// The Lambek sequent of shape `index` at size `k` (at least two) of the
-/// family `lambek-fo`, and whether it is provable. The verdicts hold of
-/// the translations directly, by the positions alone, since the positions
-/// `i0`, …, `in` are distinct constants and a cut-free proof of
-/// multiplicative linear logic without units links every atom of its
-/// conclusion's instance to one of the same predicate, arguments and
-/// opposite side:
+/// Returns the Lambek sequent of shape `index` at size `k`, at least two,
+/// of the family `lambek-fo`, and whether it is provable.
+///
+/// The verdicts hold of the translations directly, by the positions
+/// alone. The positions `i0`, …, `in` are distinct constants, and a
+/// cut-free proof of multiplicative linear logic without units links
+/// every atom of its conclusion's instance to one of the same predicate,
+/// the same arguments and the opposite side:
 ///
 /// - the chain is proved with every `∀` instantiated by `i0`, the chain
 ///   of `/` with every `∀` instantiated by the last position;
@@ -981,10 +1071,10 @@ fn lambek_shape(k: u32, index: u32) -> (Vec<Lambek>, Lambek, bool) {
     }
 }
 
-/// The two-sided text of the Lambek sequent `hypotheses ⊢ goal` in Moot
-/// and Piazza's translation: the `i`th hypothesis at the positions `i`
-/// to `i + 1`, the goal from the first position to the last, each
-/// position a constant `i<n>`.
+/// Returns the two-sided text of the Lambek sequent `hypotheses ⊢ goal`
+/// in Moot and Piazza's translation: the `i`th hypothesis at the
+/// positions `i` to `i + 1`, the goal from the first position to the
+/// last, each position a constant `i<n>`.
 fn lambek_first_order(hypotheses: &[Lambek], goal: &Lambek) -> String {
     let mut fresh = 0;
     let translated: Vec<String> = hypotheses
@@ -996,12 +1086,12 @@ fn lambek_first_order(hypotheses: &[Lambek], goal: &Lambek) -> String {
     format!("{} |- {goal}", translated.join(", "))
 }
 
-/// `n` copies of `formula` joined by `separator`.
+/// Returns `n` copies of `formula` joined by `separator`.
 fn power(formula: &str, n: u32, separator: &str) -> String {
     vec![formula; n as usize].join(separator)
 }
 
-/// Parses a sequent the generators built.
+/// Parses a sequent a generator wrote, without a bound on its size.
 fn parse(text: &str) -> Sequent {
     // A large size is the caller's to ask for: no bound on occurrences or
     // terms.
@@ -1012,7 +1102,8 @@ fn parse(text: &str) -> Sequent {
         .unwrap_or_else(|e| panic!("a generated sequent parses: {e}"))
 }
 
-/// An instance with a name to be filled in by [`Family::instance`].
+/// Returns an instance without a copy bound or a witness depth, its name
+/// left for [`Family::instance`] to fill in.
 fn instance(sequent: Sequent, mode: Mode, provable: bool) -> Instance {
     Instance {
         name: String::new(),
@@ -1070,7 +1161,8 @@ mod tests {
                     Verdict::Unprovable(_) => {
                         assert!(!instance.provable, "{} refuted", instance.name)
                     }
-                    // Exponential families without a proof are bounded.
+                    // An unprovable instance with a copy bound may end at
+                    // the bound.
                     Verdict::Unknown(_) => assert!(
                         !instance.provable && instance.copies.is_some(),
                         "{}: {:?}",
