@@ -6377,3 +6377,71 @@ move (D26).
 
   Next, from the chain of their finish notes: 54u-e when a slot frees,
   54s-b after 54s-a's dependency, 54u-d after 54u-c.
+- 2026-11-14: **Review of sessions 54s-a, 54u-a, 54u-b and 54u-c**
+  (each Opus 5.5 at `high`, all four finished in one chain of notes).
+  - **Stacked onto main** in the order 54u-a, 54s-a, 54u-b, 54u-c.
+    - 54u-b's first change met 54u-a's in `cli/src/prove.rs`: one import
+      list, resolved as the union without `Phase`, which 54u-a's
+      `Settings::stop` made unused there.
+    - `plan/reports/54u-usability.md` kept every section (54u-a, 54u-b,
+      54u-c, one header).
+    - The behaviour lock needed no second blessing: 54u-a left it
+      unchanged.
+  - **Checks at the stacked head** (`nutyxspz`):
+    - the gate passed (capped, cores 4-9);
+    - the ratchet named misses moved on `search-qbf-20-2`,
+      `search-chain-128` and `check-qbf-20-2`, a question for their
+      pinned time, not a failure;
+    - `nix flake check` under the machine lock: "all checks passed!".
+  - **My own probes** on the built command:
+    - `deduxit "A |- A"` tips `deduxit prove "A |- A"`;
+    - `prove 'a -> b |- a'` says to write `-o` or add `--logic classical`;
+    - `prove 'a, b |- a'` says "b on the left has no b on the right to
+      meet in an axiom", with the `-a` note;
+    - `prove -h` is 85 lines against `--help`'s 456, and ends with
+      "--help shows every option.";
+    - in 54s-a's `decide`, "valid" passes `Derivation::check` and
+      "not valid" passes `Model::refutes` before either is returned, so
+      the search and read-back stay untrusted.
+  - **A fix of my own** (`smoovulz`): `cargo test -p deduxit
+    --no-default-features` did not build since 2026-11-08 (54s-a
+    reported it). The lambda tests, and two focused-engine helpers only
+    parsing tests call, were `cfg(test)` alone; they now need `parse`.
+    No check runs that build: the gate's `cargo hack` runs `check`.
+  - **Departures marked by the sessions, each accepted:**
+    - 54s-a: the ILTP test reads LJT's recorded 2 s verdicts
+      (`core/tests/iltp/ljt.csv`), since LJT over ILTP did not finish in
+      30 minutes; the target set was run on cores 4-5 (the counters do
+      not depend on the core).
+    - 54u-a: `Settings::stop` takes `Fn() -> Duration` and returns an
+      `Fn`, not the design's `FnMut`, because the command's race shares
+      the stop between threads (an `Fn` closure is `Sync` when its clock
+      is). `Engine::Unknown` follows serde's `#[serde(other)]` pattern,
+      an addition since `Engine` is `#[non_exhaustive]`.
+    - 54u-b: the unquoted-sequent hint covers clap's "unexpected
+      argument" too, the same mistake with a comma; `--test-period` and
+      `--schedule` are hidden from `-h` with `--bias`; the batch's
+      large-run flags are hidden as "the benchmark inputs".
+    - 54u-c: W2 and W3 are tested end to end only, since neither has
+      logic outside the page's components.
+  - **For the author** (proposals in the reports, none built):
+    - 54u-a: an `FnMut` clock for `Settings::stop`, keeping an unknown
+      engine's name, rebuilding `Outcome::net` on read.
+    - 54u-b: an exact `-a` note by a bounded affine search; the count
+      equation's phrase in two-sided terms; `-h` still lists 21 Output
+      flags.
+    - 54u-c: an ordinary inner goal's "Not valid" sentence speaking of
+      the goal; keeping a root search's verdict from Go back; screen
+      readers' goal numbers.
+  - **For 54s-c:** a settings file naming `sat` runs the embedding until
+    the command has `--method sat`. **For the client:** its e2e tests
+    may assert the old one-sided refutation phrase once it takes this
+    library.
+  - **Next, as cards for the author** (this chain began with a session's
+    message, so the app refused to start them): 54s-b (cores 10-12),
+    54u-e (cores 7-9) and 54u-d (cores 13-15, brief
+    `/tmp/linlog-handoff/start-54u-d.md`), each based on `nutyxspz` or
+    `main@origin`.
+  - **Pushed:** `main` at `nutyxspz` (613110d4), the client's `main` at
+    54u-c's `vqlplqsw` (e9331ea7), both signed by the push. The fix and
+    this entry follow after their own flake check.
