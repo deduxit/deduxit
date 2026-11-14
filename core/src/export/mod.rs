@@ -1,40 +1,80 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Export of sequents and derivations: to LaTeX with the `ebproof` package
-//! ([`latex`], feature `latex`), to Typst with the
-//! `curryst` package or a layout of deduxit's own
-//! ([`typst`], feature `typst`),
-//! to SVG, with proof nets ([`svg`], feature `svg`),
-//! and to Rocq as proof scripts for the NanoYalla kernel
-//! ([`rocq`], feature `rocq`).
-//! Every function is a pure function of its input and of one options
-//! value per target, which holds everything a user may vary and has serde
-//! behind `serialize`; the output is deterministic. Anything
-//! [`Drawable`], a derivation of linear logic or
-//! one of LK or LJ, is written into any [`std::fmt::Write`] (a `String`
-//! among them) with a stop condition asked between two inferences, by one
-//! `write` per target of the same signature as the text tree's
-//! ([`Derivation::write_text`](crate::linear::Derivation::write_text)). LaTeX,
-//! Typst and Rocq come as a fragment to paste or as a standalone document
-//! ([`Form`]), and SVG is always a whole document.
-//! PNG ([`png`], feature `png`) and PDF
-//! ([`pdf`], feature `pdf`) render an SVG document of
-//! [`svg`] with the fonts the caller gives. [`Styles`]
-//! holds the options of every format in one value.
+//! Writes sequents and proofs as LaTeX, Typst, SVG, PNG, PDF and Rocq.
 //!
-//! All targets write formulas with the bracketing of `Display` (every
-//! binary subformula of a formula in brackets) and derivations as
-//! `Display` draws them: one-sided, or two-sided with the hypotheses in id
-//! order when the derivation has a reading.
-//! They write one inference at a time and keep their own stack, so the
-//! text grows with the derivation, not with its width, and a derivation of
-//! any height fits. Rules are labelled as [`Labels`](crate::linear::proofs::Labels) says,
-//! an open goal is drawn as [`OpenGoal`](crate::linear::proofs::OpenGoal) says, and an
-//! inference of a compact derivation that stands for a run of a
-//! structural rule ([`Compact`](crate::linear::proofs::Compact)) has its label starred.
+//! Each format is a module with one options value: start from its
+//! `default()` and set the fields you want to change. To export a proof,
+//! take its derivation with
+//! [`Proof::derivation`](crate::linear::Proof::derivation) and hand it to
+//! the format:
+//!
+//! | to get | call | cargo feature |
+//! |---|---|---|
+//! | a LaTeX proof tree, for the `ebproof` package | [`latex::to_string`] | `latex` |
+//! | a Typst proof tree, for the `curryst` package | [`typst::to_string`] | `typst` |
+//! | an SVG drawing | [`svg::to_string`] | `svg` |
+//! | a drawing of a proof net | [`svg::net`] | `svg` |
+//! | a PNG image | [`png::from_svg`] of the SVG text | `png` |
+//! | a PDF | [`pdf::from_svg`] of the SVG text | `pdf` |
+//! | a Rocq proof script that certifies the proof | [`rocq::to_string`] | `rocq` |
+//!
+//! Of these features, all but `png` and `pdf` are on by default. LaTeX, Typst and
+//! SVG also write a sequent alone (`sequent`).
+//!
+//! # Examples
+//!
+//! A proof as LaTeX:
+//!
+#![cfg_attr(all(feature = "parse", feature = "latex"), doc = "```")]
+#![cfg_attr(not(all(feature = "parse", feature = "latex")), doc = "```ignore")]
+//! use deduxit::export::latex;
+//! use deduxit::linear::{Mode, Options, Sequent, Verdict, prove};
+//!
+//! let sequent: Sequent = "A, A -o B |- B".parse()?;
+//! let outcome = prove(&sequent, Mode::INTUITIONISTIC, &Options::default())?;
+//! let Verdict::Proved(proof) = &outcome.verdict else {
+//!     panic!("provable");
+//! };
+//! let tex = latex::to_string(&proof.derivation()?, &latex::Options::default())?;
+//! assert!(tex.starts_with(r"\begin{prooftree}"));
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
+//!
+//! # Writing as you go
+//!
+//! Each `to_string` has a `write` beside it, with the signature of the
+//! text tree's [`Derivation::write_text`](crate::linear::Derivation::write_text).
+//! It writes into any [`std::fmt::Write`] one inference at a time, and asks
+//! a stop closure between two inferences; the closure returns `true` to
+//! stop. Use it to write into your own buffer, or to stop a large export.
+//! A closure that never stops is `|_| false`.
+//!
+//! # What every format shares
+//!
+//! - The output depends on the input and the options alone, byte for
+//!   byte. Every options value has serde behind the cargo feature
+//!   `serialize`, and [`Styles`] holds the options of every format in one
+//!   value.
+//! - The formats take anything [`Drawable`]: a derivation of linear logic,
+//!   the two-sided view of a classical one, or a derivation of LK or LJ.
+//! - LaTeX, Typst and Rocq write a fragment to paste into your document, or
+//!   a document that compiles on its own ([`Form`]). SVG always writes a
+//!   whole document.
+//! - Formulas are bracketed as `Display` brackets them: every binary
+//!   subformula of a formula in brackets. Derivations are drawn as
+//!   `Display` draws them: one-sided, or two-sided with the hypotheses in
+//!   the order of their ids when the derivation has a reading.
+//! - Rules are labelled as [`Labels`](crate::linear::proofs::Labels) says,
+//!   and an open goal is drawn as
+//!   [`OpenGoal`](crate::linear::proofs::OpenGoal) says. In a compact
+//!   derivation ([`Compact`](crate::linear::proofs::Compact)), an inference
+//!   that stands for a run of a structural rule has its label starred.
+//! - The writers keep their own stack, so a derivation of any height fits,
+//!   and the text grows with the derivation, not with its width.
 
-// A variant a later step adds must not fall into an existing arm.
+// A new variant of an enum of the calculus must be decided at every arm,
+// never fall into an existing one.
 #![deny(clippy::wildcard_enum_match_arm)]
 
 #[cfg(feature = "latex")]
@@ -62,11 +102,13 @@ pub mod typst;
 
 pub use styles::Styles;
 
-/// Returns the forest of a sequent to print two-sided in `mode`, built
-/// within the limits, or `None` to print it one-sided, after refusing a
-/// text estimated past `limits.derivation_bytes` (`Refusal::Output`) at
-/// `per_occurrence` bytes per occurrence and the longest atom name each,
-/// before anything is laid out.
+/// Returns the forest of a sequent that prints two-sided in `mode`, built
+/// within the limits, or `None` for one that prints one-sided.
+///
+/// It first estimates the text at `per_occurrence` bytes, plus the longest
+/// atom name, per occurrence, and refuses an estimate past
+/// `limits.derivation_bytes` (`Refusal::Output`) before anything is laid
+/// out.
 #[cfg(any(feature = "latex", feature = "typst", feature = "svg"))]
 pub(crate) fn printed(
     sequent: &crate::linear::Sequent,
@@ -99,9 +141,9 @@ pub(crate) fn printed(
     crate::linear::Forest::within(sequent, limits).map(Some)
 }
 
-/// Returns a sequent in math mode between `$`s in `notation`: one-sided,
-/// or in intuitionistic mode two-sided by its reading, after
-/// [`printed`]'s estimate.
+/// Returns a sequent in math mode, between `$`s, in `notation`: one-sided,
+/// or in intuitionistic mode two-sided by its reading. It refuses as
+/// [`printed`] does.
 #[cfg(any(feature = "latex", feature = "typst"))]
 pub(crate) fn math(
     sequent: &crate::linear::Sequent,
@@ -134,8 +176,8 @@ pub(crate) fn math(
 }
 
 /// Returns the typing judgement of a derivation's lambda-term in a
-/// target's spelling, where `term` asks for one, read back and written
-/// within the default bounds, asking `stop`.
+/// target's spelling, or `None` where `term` asks for none. The term is
+/// read back and written within the default limits, asking `stop`.
 #[cfg(any(feature = "latex", feature = "typst", feature = "svg"))]
 pub(crate) fn judgement(
     drawable: Drawable<'_>,
@@ -161,10 +203,14 @@ pub(crate) fn judgement(
     Ok(Some(out))
 }
 
-/// What the targets write: a derivation of linear logic, one- or
-/// two-sided, or a derivation of LK or LJ read back from a proof of an
-/// ordinary sequent's image. Each target's `write` takes either, as
-/// `&derivation`.
+/// A derivation that every format writes.
+///
+/// You rarely name it: each format's `write` and `to_string` take
+/// `&derivation` and convert it with `From`. It is one of:
+/// - a derivation of linear logic, one- or two-sided;
+/// - the two-sided view of a classical derivation;
+/// - a derivation of LK or LJ, read back from a proof of an ordinary
+///   sequent's image.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug)]
 pub enum Drawable<'a> {
@@ -198,8 +244,8 @@ impl<'a> From<&'a crate::ordinary::Derivation> for Drawable<'a> {
     }
 }
 
-/// Whether an export is a fragment to paste into a document or a document
-/// of its own.
+/// Whether an export is a fragment to paste into your document, or a
+/// document of its own.
 ///
 /// Needs one of the cargo features `latex`, `typst` or `rocq`.
 #[non_exhaustive]
@@ -213,13 +259,12 @@ pub enum Form {
     #[default]
     Fragment,
     /// A complete document that compiles on its own, cropped to its
-    /// content, or a whole Rocq file with its import.
+    /// content; for Rocq, a whole file with its imports.
     Standalone,
 }
 
-/// Returns the title and the description an SVG document of
-/// [`svg`] carries, its accessible name and its
-/// reading, where it has them.
+/// Returns the `<title>` and the `<desc>` of an SVG document of [`svg`],
+/// where it has them: its accessible name and the text that reads it.
 #[cfg(any(feature = "png", feature = "pdf"))]
 fn texts(svg: &str) -> (Option<String>, Option<String>) {
     let Ok(document) = resvg::usvg::roxmltree::Document::parse(svg) else {
@@ -235,8 +280,8 @@ fn texts(svg: &str) -> (Option<String>, Option<String>) {
     (text("title"), text("desc"))
 }
 
-/// Parses an SVG document with the fonts given and no other: what a text
-/// is set in depends on nothing but the arguments.
+/// Parses an SVG document with the fonts given and no others, so that the
+/// font a text is set in depends on the arguments alone.
 #[cfg(any(feature = "png", feature = "pdf"))]
 fn parse(svg: &str, fonts: &[&[u8]]) -> Result<resvg::usvg::Tree, crate::Error> {
     let mut options = resvg::usvg::Options::default();
@@ -249,45 +294,47 @@ fn parse(svg: &str, fonts: &[&[u8]]) -> Result<resvg::usvg::Tree, crate::Error> 
     })
 }
 
-/// What a render costs per unit of a [`Measure`], in bytes: each the
-/// larger of the memory it was measured to take and the time it was
-/// measured to take at [`BYTES_PER_MICROSECOND`], a quarter more, so that
-/// a bound on the estimate bounds both. Measured with usvg 0.47 and
-/// krilla 0.8 in a release build on one slow core of an x86-64 desktop
-/// (peak resident memory and wall time), on derivations of
-/// `a0 ⊗ … ⊗ aN ⊢ a0 ⊗ … ⊗ aN` (N from 50 to 200, atom names of 2 to 4
-/// and of 20 characters: 0.9 to 13 MB of SVG, up to
-/// 1.2 GB and 5 s as a PDF), a sequent of 40 000 literals on one line
-/// (160 million units wide), and nets of `a0 ⅋ … ⅋ aN, aN⊥ ⅋ … ⅋ a0⊥`
-/// and of crossing links under Mix (500 to 6 000 links, up to 5.7 MB of
-/// SVG and 15 s).
+/// What a render costs, in bytes, per unit of a [`Measure`].
+///
+/// Each cost is the larger of the memory and the time measured per unit,
+/// time counted at [`BYTES_PER_MICROSECOND`], plus a quarter. So a bound
+/// on the estimate bounds both memory and time.
+///
+/// Measured with usvg 0.47 and krilla 0.8, in a release build on one slow
+/// core of an x86-64 desktop (peak resident memory and wall time), on:
+/// - derivations of `a0 ⊗ … ⊗ aN ⊢ a0 ⊗ … ⊗ aN`, N from 50 to 200, with
+///   atom names of 2 to 4 and of 20 characters: 0.9 to 13 MB of SVG, up
+///   to 1.2 GB and 5 s as a PDF;
+/// - a sequent of 40 000 literals on one line, 160 million units wide;
+/// - nets of `a0 ⅋ … ⅋ aN, aN⊥ ⅋ … ⅋ a0⊥` and of crossing links under
+///   Mix: 500 to 6 000 links, up to 5.7 MB of SVG and 15 s.
 #[cfg(any(feature = "png", feature = "pdf"))]
 #[derive(Clone, Copy, Debug)]
 struct Costs {
-    /// What every render takes whatever its drawing: the fonts, the
+    /// What every render takes, whatever it draws: the fonts and the
     /// renderer's own tables.
     base: u64,
     /// Per byte of the SVG text, which is read and parsed whole.
     byte: u64,
-    /// Per element: 3 750 bytes measured in usvg's tree, 3 490 in the
+    /// Per element. Measured: 3 750 bytes in usvg's tree, 3 490 in the
     /// PDF.
     element: u64,
-    /// Per glyph: usvg sets each as a path, 795 bytes and 4.7 µs; the
-    /// PDF 1 035 bytes and 6.2 µs with text embedded, 1 600 bytes and
-    /// 12 µs with text as outlines.
+    /// Per glyph. usvg sets each glyph as a path. Measured: 795 bytes and
+    /// 4.7 µs in usvg; in the PDF, 1 035 bytes and 6.2 µs with text
+    /// embedded, 1 600 bytes and 12 µs with text as outlines.
     glyph: u64,
-    /// Per pixel of the image: 6.0 to 6.5 bytes measured, and 33 to 76 ns
-    /// drawing and encoding it.
+    /// Per pixel of the image. Measured: 6.0 to 6.5 bytes, and 33 to 76 ns
+    /// to draw and encode it.
     pixel: u64,
-    /// How often the arcs are stroked: once to bound them in the parse,
-    /// and again when the image is drawn.
+    /// How often the arcs are stroked: once in the parse, to bound them,
+    /// and once more where an image is drawn.
     arc_passes: u64,
 }
 
-/// The rate at which the measured renderers fill memory, 128 MiB a
-/// second (usvg and krilla filled 167 MB a second on glyphs): a cost
-/// that takes time and little memory, an arc or a pixel, is charged the
-/// bytes they would fill in that time.
+/// The rate at which the renderers fill memory, 128 MiB a second
+/// (measured: usvg and krilla filled 167 MB a second on glyphs). A cost
+/// that takes time but little memory, such as an arc or a pixel, is
+/// charged the bytes they would fill in that time.
 #[cfg(any(feature = "png", feature = "pdf"))]
 const BYTES_PER_MICROSECOND: u64 = 134;
 
@@ -318,18 +365,18 @@ const PDF: Costs = Costs {
 #[cfg(feature = "pdf")]
 const PDF_OUTLINES: Costs = Costs { glyph: 2000, ..PDF };
 
-/// The microseconds usvg takes at least to stroke an arc, when bounding
-/// it in the parse.
+/// The least time usvg takes to stroke an arc while bounding it in the
+/// parse, in microseconds.
 #[cfg(any(feature = "png", feature = "pdf"))]
 const ARC_LEAST: u64 = 200;
 
-/// The microseconds an arc takes beyond [`ARC_LEAST`] per million units
-/// its start point lies from the origin ([`arc_micros`]).
+/// The microseconds an arc takes beyond [`ARC_LEAST`] for each million
+/// units its start point lies from the origin ([`arc_micros`]).
 #[cfg(any(feature = "png", feature = "pdf"))]
 const ARC_PER_MILLION: u64 = 2000;
 
 /// The microseconds a wide arc takes beyond the others, wherever it
-/// starts: 1.4 ms measured for a half-width of 10 million at the origin.
+/// starts. Measured: 1.4 ms for a half-width of 10 million at the origin.
 #[cfg(any(feature = "png", feature = "pdf"))]
 const ARC_WIDE: u64 = 1500;
 
@@ -337,21 +384,23 @@ const ARC_WIDE: u64 = 1500;
 #[cfg(any(feature = "png", feature = "pdf"))]
 const WIDE: f64 = 5e5;
 
-/// The most microseconds an arc was measured to take, 35 ms, a seventh
-/// more.
+/// The most microseconds an arc may take: the most measured, 35 ms, plus
+/// a seventh.
 #[cfg(any(feature = "png", feature = "pdf"))]
 const ARC_MOST: u64 = 40_000;
 
 /// Returns the microseconds usvg may take to stroke an arc that starts
-/// `start` units from the origin and has the larger radius `radius`.
-/// usvg computes in single precision, and strokes an arc that starts
-/// millions of units out in many pieces: arcs of half-width 100 000
-/// starting at 8 million units took 11 ms each, at 30 million 24 ms, at
-/// 50 to 200 million 29 to 35 ms, at a billion almost nothing again; a
-/// wide arc near the origin took 1.4 ms. The line through `ARC_LEAST` and
-/// `ARC_PER_MILLION`, `ARC_WIDE` above it for a wide arc, capped at
-/// `ARC_MOST`, lies above every point of a grid of starts from 0 to 10
-/// billion units and half-widths from 1 000 to 30 million, 50 arcs each.
+/// `start` units from the origin and whose larger radius is `radius`.
+///
+/// usvg computes in single precision, so it strokes an arc that starts
+/// millions of units out in many pieces. Measured on arcs of half-width
+/// 100 000: 11 ms each starting at 8 million units, 24 ms at 30 million,
+/// 29 to 35 ms at 50 to 200 million, almost nothing at a billion; a wide
+/// arc near the origin took 1.4 ms. The estimate is a line from
+/// `ARC_LEAST` rising `ARC_PER_MILLION` per million units, plus
+/// `ARC_WIDE` for a wide arc, capped at `ARC_MOST`. It lies above every
+/// point measured on a grid of starts from 0 to 10 billion units and
+/// half-widths from 1 000 to 30 million, 50 arcs each.
 #[cfg(any(feature = "png", feature = "pdf"))]
 fn arc_micros(start: f64, radius: f64) -> u64 {
     if !start.is_finite() || !radius.is_finite() {
@@ -365,19 +414,19 @@ fn arc_micros(start: f64, radius: f64) -> u64 {
         .min(ARC_MOST)
 }
 
-/// The elements a drawing of [`svg`] has, the only ones a render reads:
-/// the measure counts what they cost, and an element that refers to
+/// The elements a drawing of [`svg`] has, and the only ones a render
+/// reads. The measure knows what these cost. An element that refers to
 /// another (`<use>`) or brings a cost of its own (a filter, a pattern, an
-/// image) would make a short text cost what the measure cannot see.
+/// image) could make a short text cost far more than the measure sees.
 #[cfg(any(feature = "png", feature = "pdf"))]
 const ELEMENTS: [&str; 8] = [
     "svg", "title", "desc", "g", "text", "path", "rect", "circle",
 ];
 
-/// What a drawing holds that decides what a render takes, read off its
-/// SVG text without parsing it: usvg sets every glyph as a path and
-/// strokes every arc to bound it before anything can be compared with a
-/// bound.
+/// What decides the cost of rendering a drawing, read off its SVG text
+/// without parsing it. It has to be read before the parse: usvg sets
+/// every glyph as a path and strokes every arc inside one call, so
+/// nothing can be compared with a bound once it runs.
 #[cfg(any(feature = "png", feature = "pdf"))]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 struct Measure {
@@ -385,8 +434,8 @@ struct Measure {
     bytes: u64,
     /// The elements.
     elements: u64,
-    /// The characters of the text content but its white space, outside
-    /// `<title>` and `<desc>`: the glyphs of the drawing.
+    /// The glyphs of the drawing: the characters of its text content
+    /// outside `<title>` and `<desc>`, white space left out.
     glyphs: u64,
     /// The microseconds stroking the arcs of every path may take
     /// ([`arc_micros`]).
@@ -396,15 +445,15 @@ struct Measure {
 #[cfg(any(feature = "png", feature = "pdf"))]
 impl Measure {
     /// Returns the measure of an SVG document. Every count saturates, so
-    /// that no text, however large, makes the estimate small.
+    /// that no text, however large, wraps to a small estimate.
     ///
     /// # Errors
     ///
-    /// [`Error::NotSvg`](crate::Error::NotSvg) for a document with an element a drawing of
-    /// [`svg`] does not have ([`ELEMENTS`]), a reference (`href`) or a
-    /// document type, whose cost the measure cannot see: six levels of
-    /// `<use>` in 1 287 bytes took 227 MB and 4.3 s under a bound of
-    /// 64 MiB.
+    /// [`Error::NotSvg`](crate::Error::NotSvg) for a document with an
+    /// element that no drawing of [`svg`] has ([`ELEMENTS`]), a reference
+    /// (`href`) or a document type. The measure cannot see what those
+    /// cost: six levels of `<use>` in 1 287 bytes were measured to take
+    /// 227 MB and 4.3 s under a bound of 64 MiB.
     fn of(svg: &str) -> Result<Self, crate::Error> {
         let refused = |what: String| {
             Err(crate::Error::NotSvg {
@@ -420,10 +469,10 @@ impl Measure {
         while let Some(start) = rest.find('<') {
             measure.glyphs = measure.glyphs.saturating_add(count(&rest[..start]));
             rest = &rest[start..];
-            // Where the markup ends: a comment at `-->`, a `<title>` or
-            // `<desc>` at its end tag unless its start tag closes it
-            // (`<title/>`), since its text is no glyph, and any other tag
-            // at its first `>` outside a quoted value.
+            // Where the markup ends: a comment at `-->`; a `<title>` or
+            // `<desc>` at its end tag, since its text is no glyph, unless
+            // its start tag closes it (`<title/>`); any other tag at its
+            // first `>` outside a quoted value.
             let start_tag = &rest[..tag_end(rest)];
             let empty = start_tag.ends_with("/>");
             let text = ["title", "desc"]
@@ -464,8 +513,8 @@ impl Measure {
     }
 
     /// Returns the bytes a render of the drawing is estimated to take at
-    /// `costs`, with an image of `pixels`; saturating, so that a huge
-    /// drawing is refused rather than estimated small.
+    /// `costs`, with an image of `pixels`. It saturates, so that a huge
+    /// drawing is refused, never estimated small.
     fn estimate(&self, costs: &Costs, pixels: u64) -> u64 {
         [
             (self.bytes, costs.byte),
@@ -485,8 +534,9 @@ impl Measure {
 }
 
 /// Returns the length of the markup that starts `text`, up to and with its
-/// first `>` outside a quoted attribute value: a `>` inside one ended the
-/// tag early, and a `<desc class=">"/>` then hid what followed it.
+/// first `>` outside a quoted attribute value. Counting a `>` inside a
+/// value would end the tag early: `<desc class=">"/>` would hide what
+/// follows it from the measure.
 #[cfg(any(feature = "png", feature = "pdf"))]
 fn tag_end(text: &str) -> usize {
     let mut quote = None;
@@ -501,9 +551,10 @@ fn tag_end(text: &str) -> usize {
     text.len()
 }
 
-/// Returns the length of `text` up to and with the end tag `</name>`,
-/// which may hold white space before its `>` (`</desc >` hid what followed
-/// it), or the whole text without one.
+/// Returns the length of `text` up to and with the end tag `</name>`, or
+/// the whole length where it has none. The end tag may hold white space
+/// before its `>`; missing that, `</desc >` would hide what follows it
+/// from the measure.
 #[cfg(any(feature = "png", feature = "pdf"))]
 fn through_end_tag(text: &str, name: &str) -> usize {
     let open = format!("</{name}");
@@ -519,11 +570,11 @@ fn through_end_tag(text: &str, name: &str) -> usize {
     text.len()
 }
 
-/// Returns the microseconds stroking the arcs of a start tag's path data
-/// (its `d` attribute) may take, by [`arc_micros`] of each arc's start
-/// point and radii; saturating. The start point is followed through absolute moves
-/// and lines; an arc after any other command, or in data that does not
-/// read, is taken at [`ARC_MOST`].
+/// Returns the microseconds that stroking the arcs of a start tag's path
+/// data (its `d` attribute) may take: [`arc_micros`] of each arc's start
+/// point and radii, summed with saturation. The start point is followed
+/// through absolute moves and lines. An arc after any other command, or
+/// in data that does not read, counts [`ARC_MOST`].
 #[cfg(any(feature = "png", feature = "pdf"))]
 fn arcs(tag: &str) -> u64 {
     let Some((start, quote)) = [" d=\"", " d='"]
@@ -574,10 +625,10 @@ fn arcs(tag: &str) -> u64 {
     micros
 }
 
-/// Returns the width and height an SVG document's root declares, in
-/// pixels, read off its start tag without parsing the document: plain
-/// numbers or numbers of `px`, as every drawing of
-/// [`svg`] has them; `None` for anything else.
+/// Returns the width and height in pixels that an SVG document's root
+/// declares, read off its start tag without parsing the document. It reads
+/// plain numbers and numbers in `px`, as every drawing of [`svg`] has
+/// them, and answers `None` for anything else.
 #[cfg(feature = "png")]
 fn declared_size(svg: &str) -> Option<(f64, f64)> {
     let root = &svg[svg.find("<svg")?..];

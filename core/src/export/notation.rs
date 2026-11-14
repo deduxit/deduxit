@@ -1,9 +1,9 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! What the export targets share besides the printer of formulas and
-//! sequents (`sequents::notation`, whose table each target fills): the
-//! walk over a derivation that writes one inference at a time.
+//! The walk over a derivation that every format shares, which hands the
+//! writers one inference at a time. The printer of formulas and sequents
+//! is `sequents::notation`, whose table each format fills.
 
 use crate::Error;
 use crate::linear::proofs::InfId;
@@ -26,10 +26,12 @@ pub(crate) enum Step {
     Exit(InfId, usize),
 }
 
-/// Walks a derivation depth-first from the root, premises in their order,
-/// and hands `visit` every inference once on the way up and once on the
-/// way down, until it fails. Exits alone come in postfix order. The walk
-/// keeps its own stack, so a derivation of any height fits.
+/// Walks a derivation depth-first from the root, premises in their order.
+///
+/// It hands `visit` each inference twice: on entering it, before its
+/// premises, and on leaving it, after them. It stops at the first error
+/// `visit` returns. The exits alone come in postfix order. The walk keeps
+/// its own stack, so a derivation of any height fits.
 pub(crate) fn walk<T: Drawn, E>(
     derivation: &T,
     mut visit: impl FnMut(Step) -> Result<(), E>,
@@ -47,10 +49,11 @@ pub(crate) fn walk<T: Drawn, E>(
     Ok(())
 }
 
-/// Writes what `buffer` holds to `out`, empties it, and fails if `stop`
-/// says so: the emitters make one inference at a time in a buffer and
-/// hand it on, so that they hold one inference's text and can be stopped
-/// between two.
+/// Writes what `buffer` holds to `out`, empties it, then asks `stop` and
+/// refuses with `Refusal::Stopped` if it says so.
+///
+/// The writers make one inference at a time in a buffer and hand it on
+/// here, so they hold one inference's text and can stop between two.
 pub(crate) fn flush(
     out: &mut impl Write,
     buffer: &mut String,

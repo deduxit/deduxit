@@ -3,18 +3,29 @@
 
 use crate::linear::proofs::TextOptions;
 
-/// The options of every output format in one value, which a front end
-/// keeps and changes key by key: the text tree's, LaTeX's, Typst's, the
-/// SVG drawing's (which PNG and PDF render), PNG's and PDF's beyond it,
-/// and the Rocq certificate's.
+/// The options of every output format in one value.
+///
+/// A front end keeps one and changes it key by key. It holds the options
+/// of the text tree, LaTeX, Typst, the SVG drawing (which PNG and PDF
+/// render), what PNG and PDF add to the drawing, and the Rocq certificate.
+///
+/// # Examples
+///
+#[cfg_attr(feature = "latex", doc = "```")]
+#[cfg_attr(not(feature = "latex"), doc = "```ignore")]
+/// use deduxit::export::{Styles, latex};
+///
+/// let styles = Styles::default().with_latex(latex::Options::default().with_align(false));
+/// assert!(!styles.latex.align);
+/// ```
 ///
 /// # JSON
 ///
-/// With the feature `serialize` an object with a key per format, each the
-/// JSON of that format's options; a missing key, or a missing field of
-/// one, takes its default, and a misspelt one is refused. A format this
-/// build lacks reads any value and writes nothing, so that one settings
-/// file serves every build.
+/// With the cargo feature `serialize`, an object with a key per format,
+/// each holding the JSON of that format's options. A missing key or field
+/// takes its default, and a misspelt one is refused. A format this build
+/// lacks reads any value and writes nothing, so one settings file serves
+/// every build.
 #[non_exhaustive]
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(
@@ -144,8 +155,8 @@ impl Styles {
     }
 }
 
-/// The options of a format this build lacks: any value reads as it, and
-/// nothing is written.
+/// The options of a format this build lacks: it reads any value and writes
+/// nothing.
 #[cfg(not(all(
     feature = "latex",
     feature = "typst",
