@@ -1,24 +1,59 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! PNG: an SVG document of [`svg`](super::svg) rendered to an image with
-//! resvg, its text set in the fonts the caller gives and no other, so that
-//! the image depends on nothing but the arguments. A transparent drawing
-//! stays transparent; [`Style::background`](super::svg::Style) fills it.
-//! The image declares its colours as sRGB and its density as the scale
-//! times 96 pixels per inch, so that a viewer shows it at the drawing's
-//! size, and carries the drawing's title and description as its `Title`
-//! and `Description`.
+//! Renders a drawing as a PNG image.
+//!
+//! [`from_svg`] takes the SVG text of a drawing of [`svg`](super::svg)
+//! and the data of the font files to set its text in. It reads no other
+//! font, so the image depends on the arguments alone. A text whose font
+//! is not among them is left out without an error, so give it the font
+//! the drawing names: Euler Math by default
+//! ([`Style::font`](super::svg::Style::font)).
+//!
+//! The image is the drawing's size times [`Options::scale`]. A transparent
+//! drawing stays transparent;
+//! [`Style::background`](super::svg::Style::background) fills it. The
+//! image declares its colours as sRGB and its density as the scale times
+//! 96 pixels per inch, so that a viewer shows it at the drawing's size. It
+//! carries the drawing's title and description, where it has them, as its
+//! `Title` and `Description`.
 //!
 //! Needs the cargo feature `png` (off by default).
+//!
+//! # Examples
+//!
+//! A proof drawn and rendered with Euler Math, from a font file of your
+//! own (TeX Live has `Euler-Math.otf`):
+//!
+#![cfg_attr(feature = "parse", doc = "```no_run")]
+#![cfg_attr(not(feature = "parse"), doc = "```ignore")]
+//! use deduxit::Limits;
+//! use deduxit::export::{png, svg};
+//! use deduxit::linear::{Mode, Options, Sequent, Verdict, prove};
+//!
+//! let sequent: Sequent = "A, A -o B |- B".parse()?;
+//! let outcome = prove(&sequent, Mode::INTUITIONISTIC, &Options::default())?;
+//! let Verdict::Proved(proof) = &outcome.verdict else {
+//!     panic!("provable");
+//! };
+//! let drawing = svg::to_string(&proof.derivation()?, &svg::Style::default())?;
+//! let font = std::fs::read("Euler-Math.otf")?;
+//! let image = png::from_svg(
+//!     &drawing,
+//!     &[font.as_slice()],
+//!     &png::Options::default(),
+//!     &Limits::default(),
+//! )?;
+//! std::fs::write("proof.png", image)?;
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
 
 use super::{Measure, PNG, declared_size, parse, texts};
 use crate::Error;
 use resvg::tiny_skia::{Pixmap, Transform};
 
-/// What a user may vary in a PNG beyond the drawing's style.
-/// Made from its `default()` with the fields set that differ, since a
-/// later field breaks no caller that way.
+/// The options of a PNG image, beyond the drawing's style. Start from
+/// `default()` and set the fields that differ.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -26,10 +61,10 @@ use resvg::tiny_skia::{Pixmap, Transform};
 pub struct Options {
     /// The pixels of the image per pixel of the SVG document.
     pub scale: u32,
-    /// The most pixels the image may have, or `None` for no bound: an
+    /// The most pixels the image may have, or `None` for no bound. An
     /// image takes up to eight bytes per pixel while it is drawn and
-    /// encoded. The bound is compared before the SVG is parsed, with the
-    /// size its root declares, and again after.
+    /// encoded. The bound is checked before the SVG is parsed, against
+    /// the size its root declares, and again after.
     pub pixels: Option<u64>,
 }
 
@@ -69,23 +104,26 @@ impl Options {
 /// Returns an SVG document rendered as a PNG image, its text set in
 /// `fonts` (the data of font files), within `limits.memory_bytes`.
 ///
-/// The memory is an estimate made before the SVG is parsed: it counts the
-/// glyphs of the drawing (usvg sets each as a path, some 1 000 bytes),
-/// its elements, the arcs usvg strokes to bound them and the pixels of
-/// the image; what takes time rather than memory is counted as the memory
-/// the renderer fills in that time, so that the bound keeps a render short
-/// as well: the default is about 8 s of rendering on a slow core at most.
+/// The memory is estimated before the SVG is parsed, since the renderer
+/// cannot be stopped once it runs. The estimate counts the drawing's
+/// glyphs (usvg sets each as a path, some 1 000 bytes), its elements, the
+/// arcs usvg strokes to find their bounds, and the image's pixels. Time
+/// is counted too, as the memory the renderer fills in that time, so the
+/// bound also keeps a render short: the default bound is at most about
+/// 8 s of rendering on a slow core.
 ///
 /// # Errors
 ///
-/// [`Refusal::Pixels`](crate::Refusal::Pixels) past
-/// [`Options::pixels`] and [`Refusal::Memory`](crate::Refusal::Memory)
-/// past the memory bound (both compared before the SVG is parsed, the
-/// pixels again after), and [`Error::NotSvg`] for a text that is no
-/// document the renderer reads or that has what no drawing of
-/// [`svg`](super::svg) has (an element but `svg`, `title`, `desc`, `g`,
-/// `text`, `path`, `rect` and `circle`, a reference, a document type),
-/// whose cost the estimate could not see.
+/// - [`Refusal::Pixels`](crate::Refusal::Pixels) past [`Options::pixels`],
+///   checked before the SVG is parsed and again after.
+/// - [`Refusal::Memory`](crate::Refusal::Memory) past the memory bound,
+///   checked before the SVG is parsed.
+/// - [`Error::NotSvg`] for a text that is no document the renderer reads,
+///   or that has what no drawing of [`svg`](super::svg) has: an element
+///   other than `svg`, `title`, `desc`, `g`, `text`, `path`, `rect` and
+///   `circle`, a reference or a document type. The estimate cannot see
+///   their cost.
+/// - [`Error::RenderFailed`] when the PNG encoder fails.
 pub fn from_svg(
     svg: &str,
     fonts: &[&[u8]],
