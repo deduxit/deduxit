@@ -31,7 +31,7 @@ thread_local! {
 /// Returns what `f` returns, run with the counts of [`Counts::new_until`]
 /// on this thread giving no rows to an atom with any literal below a `!`
 /// or `?`, as if both signs lay there.
-#[cfg(test)]
+#[cfg(all(test, feature = "parse"))]
 pub(crate) fn without_one_sided<T>(f: impl FnOnce() -> T) -> T {
     /// Turns the rows back on when dropped, after a panic too.
     struct Restore;

@@ -76,7 +76,7 @@ impl Classes {
 
     /// Returns whether no two occurrences of the forest are
     /// interchangeable, so that every occurrence is its own class.
-    #[cfg(test)]
+    #[cfg(all(test, feature = "parse"))]
     pub(crate) fn distinct(&self) -> bool {
         self.distinct
     }

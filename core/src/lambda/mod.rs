@@ -56,7 +56,7 @@
 pub(crate) mod linear;
 pub(crate) mod print;
 pub(crate) mod simple;
-#[cfg(test)]
+#[cfg(all(test, feature = "parse"))]
 mod tests;
 
 use crate::hash::HashMap;
