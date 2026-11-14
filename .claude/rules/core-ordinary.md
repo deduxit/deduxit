@@ -24,7 +24,7 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   `Rule`, `Inference` (private fields, accessors), `Derivation`, the
   read-back (`Image::read_back`) and the checker (`Derivation::check`);
   `decide.rs`: `decide`, translation, search, read-back and check in one
-  call, answering an `Outcome` (`Verdict::Valid` with the derivation,
+  call, answering an `Outcome` (`Verdict::Valid` with its `Evidence`,
   `NotValid`, `Unknown`, and the linear outcome); `rocq.rs` (behind
   `rocq`): the certificate over `Prop`, public as
   `export::rocq::ordinary`; `interactive.rs` (behind `interactive`): the
@@ -434,22 +434,51 @@ clausal proof's checker are the trust for "valid"; `Model::refutes` for
   every `POLL` clauses it is given, since it copies them and
   `add_clause` only charges; a goal of millions of conjuncts once ran
   1.7 s before the first poll and held 2.5 times the memory bound. The
-  solver, the check and the embedding each get the whole of
-  `limits.work` in turn.
-- **"Valid" then asks the embedding for the derivation of LK**
-  (`by_embedding`, `ordinary::decide` with `Method::Embedding` within the
-  same limits, the stop passed as a trait object since `decide` reaches
-  `sat::decide` again and a generic stop would instantiate without end).
-  Where the embedding's search stops first, the outcome is its
-  `Verdict::Unknown` with its reason (the bound that stopped it, which
-  names the setting to lift), `Statistics::proof_steps` saying the
-  proof passed; where its read-back is refused, that refusal.
-  `Verdict::Valid` holds a derivation, so a sequent valid by its clausal
-  proof alone has no verdict to say it yet. A first mapping of the
-  embedding's reasons onto refusals called a recursion bound "the
-  derivation estimated at 0 bytes, more than the limit" (the fresh
-  review); there is no refusal for most reasons. The embedding refuting
-  it is `ReadBack`.
+  solver and the check each get the whole of `limits.work` in turn.
+- **"Valid" is the checked clausal proof** (`Evidence::Clausal`, a
+  `ClausalProof`): the author's decision of 2026-11-14, as Lean's
+  `bv_decide` and the SAT Competition's certified track take a checked
+  DRUP/LRAT proof as the certificate. `ClausalProof` has private fields
+  and one constructor, `ClausalProof::checked` (`drup.rs`), which runs
+  `drup::check` and builds the value only when it accepts, so no code
+  makes a classical "valid" from an unchecked stream; it holds the
+  counts (variables, clauses, steps), not the proof, which is dropped
+  after the check. `Method::Sat` no longer asks the embedding for a
+  derivation: its cost was the embedding's whole search, which made the
+  method no faster than the embedding on valid sequents. A caller that
+  needs the derivation decides with `Method::Embedding`, the classical
+  default; `Evidence::derivation` refuses a clausal proof with
+  `Error::NoDerivation` (unsupported, `no_derivation`), whose message
+  names that method, and every reader that needs a derivation (the
+  goal state's `close` and `hint`, the command's drawing, its lambda-term,
+  the batch's file) goes through it.
+
+## Evidence (`decide.rs`)
+
+- **`Verdict::Valid(Evidence)`**: `Evidence::Derivation(Box<Derivation>)`,
+  checked by `Derivation::check`, from every method but the SAT solver
+  in classical logic; `Evidence::Clausal(sat::ClausalProof)` (feature
+  `sat`), checked by `drup::check`. Both are built only after their
+  check: a derivation by `decide`, `ljt::decide` and `sat::decide` after
+  `check`, a clausal proof by its constructor. The type proves that a
+  check ran; that it ran on this sequent's clauses rests on the one call
+  of `ClausalProof::checked` (`classical::decide`, on `encode`'s output,
+  unmodified): `ClausalProof` is `Copy` and the variants are public, so
+  a library caller could move one outcome's proof into another's
+  verdict, as it can wrap any derivation (the argument panel's note).
+  The enum is
+  `#[non_exhaustive]` (step 70's outside proofs, or LRAT, may add
+  evidence), so the command and the harness match the variant they need
+  and take the rest with `_`.
+- **The exports take a `Derivation` by type**, so none can be handed a
+  clausal proof: the refusal is `Evidence::derivation`'s, at the one
+  place a verdict turns into a derivation. An export, a drawing or a
+  term of an outcome goes through it.
+- **The JSON form** writes `"clausal_proof": {"variables", "clauses",
+  "steps"}` in place of `derivation`, at wire level 10 (`wire::CLAUSAL`):
+  a reader of level 9 would take a valid outcome without a derivation
+  for a broken one. An outcome with a derivation keeps level 8 or 9 and
+  its bytes.
 
 ## The goal state (`interactive.rs`)
 

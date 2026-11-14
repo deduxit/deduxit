@@ -152,7 +152,14 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   derivation through `show::shown` (none under `--tree never` or `-q`),
   `--lambda` from `Derivation::term`, `--stats` (`ljt_statistics`) or
   the ordinary outcome as JSON (version first: through a `Value` only
-  with `--lambda`), and refuses `--net`. With no method given it returns
+  with `--lambda`), and refuses `--net`. Every derivation it draws or
+  reads as a term comes through `Evidence::derivation`, so an outcome
+  valid by a clausal proof (the SAT solver in classical logic, which
+  `--method` does not offer yet) gets its verdict line `valid (classical
+  logic by the SAT solver): a checked clausal proof of …` and, in place
+  of the derivation, the library's `NoDerivation` message as a left-out
+  line (in a batch's directory, no file and that note); the lambda-term
+  says the same. With no method given it returns
   `None` where `ordinary::gives_way` says so, writing nothing, and the
   image path runs with the time left (`ordinary::translated`, the
   sequent read once, since standard input cannot be read twice); under

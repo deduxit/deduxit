@@ -341,8 +341,9 @@ the commit that lands it rewrites that bullet.
   `lltp::{Problem, Status}`; `mist::{Problem, Safety}`;
   `nets::cut::{Elimination, Reduction, Step}`;
   `occurrences::IllConnective`; `lambda::{Calculus, Notation, NoTerm,
-  Options}` (added at step 50); `ordinary::{Logic, Options, Outcome,
-  Problem, Target, Translation, Verdict}`; `ordinary::ljt::{Outcome,
+  Options}` (added at step 50); `ordinary::{Evidence, Logic, Options,
+  Outcome, Problem, Target, Translation, Verdict}` (`Evidence` added at
+  step 54s); `ordinary::ljt::{Outcome,
   Statistics}` (added at step 54); `ordinary::sat::{Model, Outcome,
   Statistics, World}` (added at step 54s); `proofs::{ClassicalRule,
   ClassicalSides, Compact, Dyadic, Fault, Invalid, Labels, OpenGoal,
