@@ -142,6 +142,17 @@
         web-package = config.packages.deduxit-web;
         web-wasm-tests = wasmTests;
         web-core-wasm32 = core32Tests;
+        # The WebAssembly features the module uses are those Rust enables
+        # for wasm32 by default since 1.87 (LLVM's `generic' CPU), which
+        # every current browser runs: a toolchain bump or a crate that
+        # turns on another one (SIMD, threads, tail calls) fails here, and
+        # moving the baseline is a decision of its own (web.md).
+        web-features = pkgs.runCommand "check-web-features" { nativeBuildInputs = [ pkgs.wasm-tools ]; } ''
+          wasm-tools validate \
+            --features mvp,mutable-global,sign-extension,saturating-float-to-int,multi-value,reference-types,bulk-memory \
+            ${config.packages.deduxit-web}/deduxit_web_bg.wasm
+          touch $out
+        '';
         # Clippy on the bindings and their tests for the browser's target,
         # where a lint can fire that the native build never sees.
         web-clippy-wasm32 = craneLib.mkCargoDerivation (

@@ -311,6 +311,29 @@ for `THIRD-PARTY-NOTICES.txt`.
   tests, `web-clippy-wasm32` on the bindings and theirs, warnings
   denied: a lint that fires on one width only takes a `cfg_attr` on
   `target_pointer_width` (`flake.md`).
+- **The feature baseline**: the module may use the WebAssembly features
+  Rust enables for wasm32 by default since 1.87 (LLVM's `generic` CPU:
+  mutable globals, sign extension, non-trapping float-to-int, multi-value,
+  reference types, bulk memory), which every browser of the last years
+  runs; `web-features` validates the package's module against exactly
+  those with `wasm-tools`. A toolchain bump that adds one to the default,
+  or a crate that enables one (SIMD by `#[target_feature]`, threads),
+  fails it: taking the feature is a decision, recorded here with the
+  browsers that run it, and the list in `web.nix` moves with it. A page
+  that must run on an MVP engine needs `-Ctarget-cpu=mvp` and a nightly
+  `-Zbuild-std` (the rustc book's wasm32 page), which no build here does.
+- **The wasm-bindgen policy**: the crate is pinned with `=` and moves
+  only at an `update-deps` run whose nixpkgs has the matching
+  `wasm-bindgen-cli_X_Y_Z` (above), the test crate with it; never ahead
+  of nixpkgs, and never alone (the client loads the module this CLI
+  writes, so the client's flake update follows the push).
+- **The budget** (`modules/budget.nix`): the module at `gzip -9` under a
+  ceiling (3 000 000 bytes; 2 842 389 on 2026-11-14, 2 603 759 at 0.2.0,
+  the PNG and PDF renderers' crates two fifths of it) and Cargo.lock's
+  packages under another (180; 173). A change that passes one raises it
+  in a commit that says what earned the room. The page loads the module
+  after first paint, in its worker, so the module is not part of the
+  page's first-load budget (about 170 KB of the client's own).
 - Locally: `nix develop` has the CLI, `wasm-opt`, Node and wasmtime;
   `CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=wasm-bindgen-test-runner
   cargo test -p deduxit-web --target wasm32-unknown-unknown` and

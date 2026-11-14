@@ -309,15 +309,16 @@ and Python with matplotlib; no check builds it.
   `Cargo.lock`, `wasm-opt`, and cargo-about's notices), with its own
   dependencies' build for wasm32 (`wasmArtifacts`); the checks
   `web-package`, `web-wasm-tests` (the bindings' tests under Node),
-  `web-core-wasm32` (the library's tests of its integers on
-  wasm32-wasip1 under wasmtime, from `core` and `core-tests` alone) and
-  `web-bindgen` (the CLI's version against the lock's); and the
-  devshell's CLI, `wasm-opt`, Node and wasmtime, added from this module.
-  `web-core-wasm32` runs the library's whole unit suite on wasm32-wasip1
-  but the nine tests `core32Skipped` names (each with why), preopening
-  the source tree for the tests that read files by the path cargo
-  compiled in; `web-clippy-wasm32` is Clippy on the bindings and their
-  tests for the browser's target.
+  `web-core-wasm32` (the library's unit tests on wasm32-wasip1 under
+  wasmtime, from `core` and `core-tests` alone), `web-clippy-wasm32`,
+  `web-features` and `web-bindgen` (the CLI's version against the
+  lock's); and the devshell's CLI, `wasm-opt`, Node and wasmtime, added
+  from this module. `web-core-wasm32` runs the whole unit suite but the
+  nine tests `core32Skipped` names (each with why), preopening the
+  source tree for the tests that read files by the path cargo compiled
+  in; `web-clippy-wasm32` is Clippy on the bindings and their tests for
+  the browser's target; `web-features` validates the package's module
+  with nixpkgs' `wasm-tools` against the feature baseline (`web.md`).
 - **`kani.nix`: Kani and the check `kani`.** nixpkgs has no Kani, so the
   package `kani` builds it from the input `kani` (the repository at a
   release tag, `flake = false`) with the nightly of its own
@@ -345,3 +346,7 @@ and Python with matplotlib; no check builds it.
   eleven). Kani is not in the devshell, which every session loads: `nix
   shell .#kani -c cargo kani -p deduxit --no-default-features` runs it
   there (`core-proofs.md` has the harnesses).
+- **`budget.nix`: the check `budget`.** Cargo.lock's packages and the web
+  module's bytes at `gzip -9`, each under a ceiling written in the file
+  with the figure it was set at; a change that passes one raises it
+  there, in a commit that says what earned the room.
