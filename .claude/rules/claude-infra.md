@@ -99,8 +99,7 @@ Current contents:
   modules, how its checker reads the Rust algorithm, the certificates,
   where a rule, a calculus or quantifiers plug in) moved with the library
   to its own repository on 2026-11-02, now `deduxit/rocq-deduxit`,
-  whose `.claude/` has them with copies of this repository's guards; a
-  change to a guard belongs in both.
+  whose `.claude/` has them.
 - `agents/crate-source-explorer.md`: read-only, answers dependency-API questions
   against the Cargo.lock-pinned sources in `~/.cargo/registry`, never the web.
 - `agents/fresh-reviewer.md` (Fable 5.2, medium): the once-per-session
@@ -136,16 +135,11 @@ Current contents:
   resumable points, record how each resumes; `HH:MM` stops by that
   time, the pause started twelve minutes before by one-shot crons;
   `resume` picks them up.
-- `hooks/block-git.py`, `hooks/block-jj-new-message.py`: `PreToolUse(Bash)`
-  guards, see below; `hooks/command_line.py`, the reading of a command
-  line both import (not executable, not a hook).
 - `hooks/format.sh`: `PostToolUse(Write|Edit)`, runs `nix fmt` on the one
   file that changed, if `modules/treefmt.nix` formats its type, from the
   nearest directory up from the session's `cwd` that holds `flake.nix`
   (from `cwd` alone it skipped every file of a session started in a
   subdirectory).
-- `hooks/session-jj-state.sh`: `SessionStart`, prints `@` and `@-` and any
-  bookmark `@` is stacked on that `main` lacks.
 - `hooks/notify-supervisor.sh`: `Notification` (matcher
   `permission_prompt|elicitation_dialog|agent_needs_input`). It appends
   the time and the payload, one JSON line with its `cwd`,
@@ -154,46 +148,18 @@ Current contents:
   planning session sees a step session waiting on a prompt or for input
   without reading its terminal. Shell, no parsing (no `jq` here), fails
   open.
-- `hooks/jj-worktree.py`: `WorktreeCreate` and `WorktreeRemove`, which
-  replace Claude Code's git worktrees (a sub-agent's `isolation:
-  "worktree"`, `--worktree`, a background session, a workflow agent): in
-  this colocated repository a git worktree under `.claude/worktrees/` is
-  one jj does not know, and a jj command there acts on the main
-  workspace.
-  - **Creation.** It makes a jj workspace `wt-NAME` beside the
-    workspace the session runs in: `../deduxit-wt-NAME` from the
-    checkout, `<that directory>-wt-NAME` from a hook workspace. It sits
-    on that workspace's `@-` (committed work only, as git's HEAD). The
-    hook copies what `.worktreeinclude` names, and prints the real path,
-    which Claude Code 2.1.325 requires.
-  - **A git worktree too.** Since jj 0.46, `jj workspace add` in a
-    colocated repository makes each workspace a git worktree as well
-    (`git.colocate`). nix therefore sees its files, and Claude Code
-    accepts it as a checkout of its own: its isolation check refuses a
-    directory whose git metadata resolves into the main checkout.
-  - **Reopening.** A second creation of the same name reopens the
-    workspace, as when the app reopens a session in its worktree.
-  - **Removal.** It deletes only a workspace it made whose `@` is empty,
-    and exits 1 otherwise. Claude Code's check for uncommitted work reads
-    git and cannot judge a jj working copy.
-  - **What Claude Code leaves behind.** It keeps the workspaces of
-    sub-agents and workflow agents, never runs the removal for them, and
-    its periodic sweep skips hook-made ones. `.claude/hooks/jj-worktree.py
-    prune` removes every empty one, nested ones included.
-    - It finds each by the root jj records, since jj 0.47 has `jj
-      workspace root --name` and `root` in templates.
-    - It never takes a step session's (`wt-step-`), whose working copy is
-      empty after each commit; those go by name at the session's clean-up.
-    - It forgets nothing: jj does not follow a workspace moved by hand.
-    - A sub-agent's new workspace is empty too, so it runs only when no
-      session runs.
-
-    `plan/housekeeping.py` lists them (the app's `list_sessions` says
-    which session works in each), and
-    the planning session's housekeeping (`plan/handoff.md`) runs both.
-  - **Tests.** The `claude-worktree-hook` check
-    (`modules/claude-worktree-hook-test.py`) runs the hook against a
-    throwaway colocated repository.
+- `settings.json` registers the machine's `claude-jj-worktree` for
+  `WorktreeCreate` and `WorktreeRemove` (by command name; it is the one
+  machine-wide hook a repository registers itself). It replaces Claude
+  Code's git worktrees with jj workspaces `wt-NAME` beside the workspace
+  the session runs in (`../deduxit-wt-NAME` from the checkout), and
+  keeps a step session's (`wt-step-`), whose working copy is empty after
+  each commit; those go by name at the session's clean-up.
+  `claude-jj-worktree prune` removes the empty leftovers of sub-agents
+  and other sessions, only when no session runs (a sub-agent's new
+  workspace is empty too). `plan/housekeeping.py` lists them (the app's
+  `list_sessions` says which session works in each), and the planning
+  session's housekeeping (`plan/handoff.md`) runs both.
 - `settings.json`: allow rules for the build/check commands and jj's read-only
   ones, `ask` on `jj git push` and on every `gh` command (the GitHub CLI is
   logged in with the author's rights over the organization and beyond; see
@@ -202,30 +168,20 @@ Current contents:
   lock files. `env` sets `CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS`, which drops
   Claude Code's built-in commit/PR instructions and its git status snapshot:
   both describe git, and in a colocated jj repo the snapshot shows a detached
-  HEAD. `env` also raises `CLAUDE_CODE_MAX_OUTPUT_TOKENS` to 128000, the
+  HEAD (the machine's `claude-jj-state` states `@` and `@-` instead).
+  `env` also raises `CLAUDE_CODE_MAX_OUTPUT_TOKENS` to 128000, the
   most a current model produces in one reply: the default of 64000 counts
   thinking and text together, and a session that designs a whole module in
-  one turn can exceed it, which discards the turn. It pins the aliases
-  `fable`, `opus` and `sonnet` to `claude-fable-5-2`, `claude-opus-5-5`
-  and `claude-sonnet-5-5` (`ANTHROPIC_DEFAULT_FABLE_MODEL`, `…_OPUS_…`,
-  `…_SONNET_…`). An agent, a workflow stage or a `--model` that names an
-  alias then runs the model `plan/README.md`'s role table chose,
-  whatever the installed Claude Code resolves it to. The pins move by
-  hand, at a re-evaluation of the models there, when a newer model
-  ships. `CLAUDE_CODE_SUBAGENT_MODEL` is `claude-sonnet-5-5`: a sub-agent
-  or workflow agent that names no model, and whose definition names
-  none, runs Sonnet 5.5 at its default effort (`medium`) instead of its
-  parent's model, which in a Fable session would bill at Fable's rate.
-  The variable does not reach the built-in Explore and Plan agents
-  (code.claude.com/docs/en/sub-agents). They keep the parent's model,
-  and Explore under Fable on a subscription runs the model `opus`
-  resolves to. A call to them for plain reading names `model:
-  "sonnet"`. Only `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` would move them,
-  and it would also override the named agents' own models.
-  `haiku` is left unpinned: its pin would also move `/goal`'s judge,
-  session titles and background tasks. The settings also enable the
-  `rust-analyzer-lsp` plugin (code intelligence;
-  needs `rust-analyzer` on PATH, which the devshell provides).
+  one turn can exceed it, which discards the turn. The model pins
+  (`fable`, `opus`, `sonnet`, `haiku`) and `CLAUDE_CODE_SUBAGENT_MODEL`
+  (Sonnet 5.5) are the machine's managed settings since 2026-11-14, which
+  rank above this file; until then this `env` set them. The built-in
+  Explore and Plan agents ignore the variable and keep the parent's
+  model, so a call to them for plain reading names `model: "sonnet"`.
+  `autoMemoryDirectory` is `~/.claude/memory/deduxit`, the one memory
+  both accounts and every workspace's sessions share. The settings also
+  enable the `rust-analyzer-lsp` plugin (code intelligence; needs
+  `rust-analyzer` on PATH, which the devshell provides).
   `attribution.sessionUrl` is `false` (the author, 2026-11-03, for
   privacy): a session connected through Remote Control or run in the
   cloud otherwise ends each commit with a `Claude-Session:` trailer
@@ -235,52 +191,18 @@ Current contents:
 
 ## Hooks
 
-- **Exec form**: `command` names the script through `${CLAUDE_PROJECT_DIR}`,
+- **Exec form**: `command` names the script through `${CLAUDE_PROJECT_DIR}`
+  (the machine's `claude-jj-worktree` by its name on PATH),
   and `args: []` selects exec form. The path is passed with no shell in between.
 - **Read the payload's `cwd`, not `$CLAUDE_PROJECT_DIR`** for the directory
   Claude works in. The latter stays at the original checkout after Claude
   enters a worktree.
 - **Fail open.** A missing tool, an unparseable payload or any error exits 0.
-  A hook that can wedge the session is worse than no hook. Only a guard that
-  is confident blocks, with exit 2. `jj-worktree.py` is the exception: a
-  creation that goes wrong exits 1 and Claude Code makes no worktree,
-  which is the safe side (the default would be a git worktree jj cannot
-  see), and a removal it doubts keeps the workspace.
-- **The guards are plain Python** and catch every exception. Without python3
-  the harness reports a non-blocking hook error, which is still open.
-- **Both guards read a command line one way** (`command_line.py`,
-  `commands`): the commands it runs past separators, `VAR=value`, the
-  wrappers in `WRAPPERS` (`env`, `timeout`, `run0`, `xargs`, `nice`,
-  `systemd-run`, `systemd-inhibit`, `taskset`, `flock`, `ionice`, `chrt`,
-  …, each with its options that take a value and its positionals; `env
-  -S STRING` runs STRING split into words, `env_split`), `bash -c`, `eval`, `nix shell … -c`, `nix develop -c` and `jj util exec`.
-  A global option's value before the subcommand is no subcommand: jj's
-  options that take one are `JJ_GLOBAL_VALUES` (`jj_subcommand`, which
-  `block-jj-new-message.py` reads too), and since nix takes every
-  setting as `--NAME VALUE` there, which no table lists, `shell` or
-  `develop` anywhere before `-c` is taken for nix's (`nix --option NAME
-  VALUE develop -c git …` once passed the git guard).
-  Quoted text is masked first, so searching for `git push` is not running
-  it. A wrapper it does not know hides what it runs: add it to
-  `WRAPPERS` with its cases. A heredoc line that starts with `git` still
-  reads as a command: write files with Write/Edit.
-- The guards set `sys.dont_write_bytecode` before importing
-  `command_line.py`: its `__pycache__` was once committed, and
-  `.gitignore` names `__pycache__/` too.
-- `block-git.py` blocks git behind the wrappers it knows, read-only
-  invocations too, `nix run nixpkgs#git` and `--commit-lock-file`, which
-  the `Bash(git *)` deny rule cannot (the capped form CLAUDE.md
-  prescribes, `systemd-run … taskset … git`, once ran git unblocked).
-- `block-jj-new-message.py` blocks `jj new` with `-m`/`--message`,
-  past jj's global options (`--ignore-working-copy`, `-R`, `--config`, …)
-  and wherever the shared reading finds the command.
-- **The `claude-hooks` flake check (`modules/claude-hooks.nix`) pins every
-  guard**: the commands it blocks and allows, that malformed payloads pass,
-  that `settings.json` registers it, and that the harness can run it by
-  its path (executable, `#!/usr/bin/env python3`; the cases run it with
-  `python3 FILE`, which tests neither); an executable `.py`
-  there without cases fails it. A new guard gets its cases there in the
-  same change.
+  A hook that can wedge the session is worse than no hook.
+- **git is denied, reads too.** The machine's `claude-jj-guard` blocks
+  git writes and `--commit-lock-file` behind the wrappers it knows; the
+  `Bash(git *)` deny rule here keeps the reads out as well, though it
+  does not see through a wrapper.
 - `jq` is not installed on this machine. Parse payloads with python3.
 
 ## Permission rules
@@ -294,7 +216,7 @@ Current contents:
 - A deny rule does not see through `nix develop -c …`. So do not add a broad
   `Bash(nix develop -c cargo *)` allow, which would route around the
   `cargo publish` deny. Grant specific commands instead, as `update-deps`
-  does in its `allowed-tools`. (`block-git.py` does see through it.)
+  does in its `allowed-tools`. (`claude-jj-guard` does see through it, for git writes.)
 - `settings.local.json` is gitignored: one-off grants go there, durable rules here.
 
 ## Third-party components
@@ -385,7 +307,7 @@ the procedure. This file holds the reasons.
   - If the app does run the `WorktreeRemove` hook for one, the hook keeps
     every `wt-step-` workspace. A paused step session reopened later then
     still finds its chain.
-  - `prune` removes the leftovers of other sessions.
+  - `claude-jj-worktree prune` removes the leftovers of other sessions.
 - **Messages:** an idle session takes a message as a new turn (probed
   2026-11-09 and 2026-11-13).
   - A busy one reads a `SendMessage` between tool calls, by the
@@ -434,12 +356,16 @@ the procedure. This file holds the reasons.
 
 ## Global vs repo-level
 
-`~/.claude/` (global CLAUDE.md, the notify and gpg-unwedge hooks, the
-jj commit signer `jj-sign-commits.py` after every Bash call, the
-`nix-tarball-inputs` skill, the theme) is generated by the user's NixOS flake
-(`~/Projects/own/flake`, `modules/claude-code.nix`). Never edit it from here.
-Something that should hold in every repo goes there. Everything specific to
-deduxit goes in this `.claude/`, versioned with the code it describes.
+The version-control plumbing is the machine's, the same in every repo
+and for both accounts: the git and `jj new -m` guard, the snapshot
+before `nix`, the jj notes at session start, the commit signer, the
+gpg-lock check, the dev-shell loader, the worktree hook and the model
+pins, as `claude-*` commands and managed settings from the author's
+NixOS flake (`~/Projects/own/flake`, `modules/claude-code.nix`, which
+has their checks). Never edit them from here. What is specific to
+deduxit (the formatter, the notification log, the permission rules, the
+agents, skills and rules) stays in this `.claude/`, versioned with the
+code it describes.
 
 ## Keep it current
 

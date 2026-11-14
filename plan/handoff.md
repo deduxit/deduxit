@@ -87,7 +87,7 @@ otherwise, this file holds.
     (titles `deduxit-step-…`) and their state;
   - `systemctl --user list-units 'step*' 'deduxit-*' 'linlog-*'`;
   - the notifications log, `$XDG_RUNTIME_DIR/deduxit-sessions/notifications.log`;
-  - `plan/keys-warm.sh --check`.
+  - `keys-warm --check`.
   `gh` asks the author's permission (a settings rule), so read CI's state
   only when the author is there, or from the repositories' pages, the
   crates.io API and Zenodo's records. GitHub's unauthenticated API
@@ -134,8 +134,8 @@ otherwise, this file holds.
   - rocq-deduxit's `main` (`../rocq-linlog`): `qlxkqlrx` (df4b15ec).
 - **Nothing runs.** No step session is open in the app (the earlier ones
   are archived), and there is no unit, not even the warm loop
-  `step-gpg-warm`. Both keys were unlocked on 2026-11-13: start the loop
-  with `plan/keys-warm.sh`.
+  `keys-warm`. Both keys were unlocked on 2026-11-13: start the loop
+  with `keys-warm`.
 - **The first housekeeping pass** ("Housekeeping") was taken on
   2026-11-13.
   - It removed nine forgotten workspaces: `../linlog-step41b-*`,
@@ -380,8 +380,8 @@ to D32), grouped by release. In brief:
 
      `jj workspace remove` snapshots what is left into a commit, then
      deletes the directory and its git worktree.
-   - Once no session of the step runs, `.claude/hooks/jj-worktree.py
-     prune` removes the empty workspaces its sub-agents left. It never
+   - Once no session of the step runs, `claude-jj-worktree prune`
+     removes the empty workspaces its sub-agents left. It never
      takes a `wt-step-` one.
    - `systemctl --user reset-failed 'linlog-stepNNx-*' 'stepNNx-*'`.
    - `plan/housekeeping.py`: nothing of the session's is left in it.
@@ -405,7 +405,7 @@ for each kind:
 - **A workspace whose session has ended, with its work on
   `main@origin` and an empty working copy.**
   - Remove it by name with `jj -R REPO workspace remove NAME`.
-  - `.claude/hooks/jj-worktree.py prune` removes every empty `wt-` one
+  - `claude-jj-worktree prune` removes every empty `wt-` one
     except the step sessions' (`wt-step-`). Run it only when no session
     and no sub-agent of yours runs: a sub-agent's new workspace is empty
     too.
@@ -543,7 +543,7 @@ for each kind:
     that a decision rests on at `high`.
   - A mechanical extraction runs on Haiku 5.5 at `medium`.
   - One that names no model runs Sonnet 5.5
-    (`CLAUDE_CODE_SUBAGENT_MODEL` in `.claude/settings.json`). The
+    (`CLAUDE_CODE_SUBAGENT_MODEL` in the machine's managed settings). The
     exceptions are the built-in Explore and Plan agents, which keep their
     parent's model (Explore under Fable runs Opus 5.5).
 - **The machine's lock**: `/tmp/linlog-machine.lock` (`flock -o`, so a
@@ -651,7 +651,7 @@ Code 2.1.321). What follows from them:
     working a "Resume", and it goes on with its context;
   - signing and SSH are locked: ask the author to unlock through SSH
     (`ssh -T git@github.com`, which unlocks the signing key too; signing
-    alone leaves SSH locked), then run `plan/keys-warm.sh`;
+    alone leaves SSH locked), then run `keys-warm`;
   - `nix-optimise` catches up its missed night run some minutes after
     boot (`systemctl list-timers`). Start no timed run before it has
     finished; it took a minute on 2026-11-03.
@@ -670,24 +670,25 @@ Code 2.1.321). What follows from them:
 - **jj only, never git**, not even to read. Every commit is signed as
   `flgrubm@grubmueller.dev`, with no other identity.
 - **The keys**:
-  - Keep both warm with `plan/keys-warm.sh` (the unit `step-gpg-warm`,
-    signing and SSH every four minutes; `--check` says which is
-    unlocked).
-  - Signing lapses 12 hours after the author entered the passphrase,
+  - Keep both warm with `keys-warm`, the machine's command (the unit
+    `keys-warm`, signing and SSH every four minutes; `--check` says
+    which is unlocked, `--stop` ends it).
+  - Signing lapses 24 hours after the author entered the passphrase (12
+    until 2026-11-14),
     however warm the loop. Then the author types:
     ```
     ! gpgconf --reload gpg-agent
     ! echo x | gpg --local-user flgrubm@grubmueller.dev --sign -o /dev/null
     ```
     plus `! ssh -T git@github.com` if SSH lapsed too, and you run
-    `plan/keys-warm.sh` again.
+    `keys-warm` again.
   - Never touch `~/.gnupg`. If a jj command fails on a stale keyring
-    lock, run `/home/tux/.claude/hooks/unwedge-gpg-lock.sh`.
+    lock, run `claude-unwedge-gpg-lock`.
   - Since 2026-11-08 jj writes commits unsigned (the author's flake,
-    `modules/jujutsu.nix`): the global hook
-    `~/.claude/hooks/jj-sign-commits.py` signs a session's new commits
-    right after the jj command that made them and reports their new
-    ids, and `git.sign-on-push` signs what is left before a push, so a
+    `modules/jujutsu.nix`): the machine's hook `claude-jj-sign` signs a
+    session's new commits right after the jj command that made them and
+    reports their new ids (no note means it did not run: `claude-jj-sign
+    now`), and `git.sign-on-push` signs what is left before a push, so a
     lapsed key stops no jj command and no commit. It does stop the push
     (the signing before it fails), and `push-main.sh` fails then: tell
     the author. Never pass `--config signing.behavior=…`; auto mode

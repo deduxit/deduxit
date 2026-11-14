@@ -65,7 +65,7 @@ commit and checklist, then its turn ended. So:
   loses the work as surely as a kill.
 - **Stop by unit name or PID**, never `pkill -f` or `killall`: a
   pattern matches the asking shell too.
-- **Keep the gpg warm loop** (a unit named `*-gpg-warm`): it takes no
+- **Keep the gpg warm loop** (the machine's unit `keys-warm`): it takes no
   CPU, and a resume needs signing.
 - **Delete nothing**: scratch directories, workspaces, partial outputs
   and logs stay.
@@ -147,7 +147,7 @@ their state, and `list_events` reads a session's transcript.
      error --local-user flgrubm@grubmueller.dev --sign -o /dev/null`).
      If it fails, ask the author to unlock through SSH (`ssh -T
      git@github.com`, which unlocks the signing key too), and restart
-     the warm loop (`plan/keys-warm.sh`).
+     the warm loop (`keys-warm`).
   2. Restart your own units and recreate your crons.
   3. Resume each paused worker: `SendMessage` "Resume" to its `local_…`
      id. An idle session in the app takes it as a new turn, with its

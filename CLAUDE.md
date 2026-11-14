@@ -144,7 +144,7 @@ bench/net-targets.sh LABEL        # the net engine's target set into bench/targe
 python3 bench/pinned-time.py run BASE LIFT RUNS.csv   # two builds' pinned CPU time side by side on cores 2 and 3, resumable (in a user unit under the machine lock; `summary RUNS.csv OUT.csv` after)
 bench/baseline.sh --detach --fresh   # the whole baseline in a user unit, started when the author gives the machine (about 3 h; --arm waits for the night slot): bench/results/DAY/, bench/RESULTS.md
 
-nix flake check   # build, clippy-CRATE, test-CRATE, test-debug-assertions-CRATE (the tests with debug_assert! on, which the release profile drops; CRATE is core, cli, bench, web or compat, each from its own crate's sources), doc, doc-private (the docs of private items, whose links must resolve), manual (the manual built, its figures drawn), manual-links (every link of the manual and README into the repository or the site resolves, offline), wasm (the library built for wasm32 with every feature but parallel), web-package, web-wasm-tests (the bindings' tests under Node), web-core-wasm32 (the checker's, size estimate's, memo's and memory account's tests on wasm32-wasip1), web-bindgen (the CLI's version against Cargo.lock's), deny, features (cargo-hack), package (both crates packaged and built as crates.io gets them), msrv (the workspace on the `rust-version` toolchain), export (the LaTeX and Typst output compiles, the SVG renders), rocq (NanoYalla checks the certificates), rocq-deduxit (the exporter's certificates against the pinned Rocq library), rocq-deduxit-library (the pinned library's own check, re-exported: its tests compiled, its theorems' assumptions closed under the global context), bench (the harness on the smallest problems), ratchet (the journeys' instruction counts against their ceilings), deadnix, actionlint, treefmt, claude-hooks, conventions (licence headers, no comment, README line or line of the manual naming the plan), typos (spelling, typos.toml), shear (no unused dependency)
+nix flake check   # build, clippy-CRATE, test-CRATE, test-debug-assertions-CRATE (the tests with debug_assert! on, which the release profile drops; CRATE is core, cli, bench, web or compat, each from its own crate's sources), doc, doc-private (the docs of private items, whose links must resolve), manual (the manual built, its figures drawn), manual-links (every link of the manual and README into the repository or the site resolves, offline), wasm (the library built for wasm32 with every feature but parallel), web-package, web-wasm-tests (the bindings' tests under Node), web-core-wasm32 (the checker's, size estimate's, memo's and memory account's tests on wasm32-wasip1), web-bindgen (the CLI's version against Cargo.lock's), deny, features (cargo-hack), package (both crates packaged and built as crates.io gets them), msrv (the workspace on the `rust-version` toolchain), export (the LaTeX and Typst output compiles, the SVG renders), rocq (NanoYalla checks the certificates), rocq-deduxit (the exporter's certificates against the pinned Rocq library), rocq-deduxit-library (the pinned library's own check, re-exported: its tests compiled, its theorems' assumptions closed under the global context), bench (the harness on the smallest problems), ratchet (the journeys' instruction counts against their ceilings), deadnix, actionlint, treefmt, conventions (licence headers, no comment, README line or line of the manual naming the plan), typos (spelling, typos.toml), shear (no unused dependency)
 nix build .#checks.x86_64-linux.rocq   # the certificates alone: Rocq is a 1.2 GB closure from the binary cache
 gate              # what every commit that touches code passes: clippy, the tests (the behaviour lock among them), both cargo hack runs, the ratchet (about 4 min on four cores)
 breaks 0.1.0      # what breaks a user of the library since that release: cargo-semver-checks, then cargo-public-api's diff (core.md says how to read them)
@@ -206,7 +206,7 @@ A jj repository, colocated with git only so that nix and the GitHub remote
 `origin` (`github.com/deduxit/deduxit`) keep working. **Never run git, not
 even to read.** Every operation goes through `jj`, including lock updates:
 `nix … --commit-lock-file` commits through git. The `Bash(git *)` deny rule and
-`.claude/hooks/block-git.py` enforce this.
+the machine's `claude-jj-guard` (git writes, `--commit-lock-file`) enforce this.
 
 - Reading: `jj st`, `jj log`, `jj diff`, `jj show`, `jj file annotate`, `jj root`.
 - **Commit thematically, without being asked**: one logical unit per change,
@@ -223,7 +223,7 @@ even to read.** Every operation goes through `jj`, including lock updates:
 - nix sees only files in the git tree, which any jj command updates: run
   `jj st` after creating a file, before a `nix` command that must see it.
 - Every step session works in a jj workspace of its own
-  (`../deduxit-wt-…`, made by `.claude/hooks/jj-worktree.py`), which is a
+  (`../deduxit-wt-…`, made by the machine's `claude-jj-worktree`), which is a
   git worktree too, so nix sees it. `plan/housekeeping.py` lists stale
   workspaces, leftover directories and old changes off `main`, and the
   planning session cleans them up regularly (`plan/handoff.md`,
@@ -326,12 +326,14 @@ even to read.** Every operation goes through `jj`, including lock updates:
 
 ## Claude Code setup
 
-`.claude/` is checked in: the hooks (the git and `jj new -m` guards, the
-formatter, a SessionStart note on the jj working copy, and jj workspaces
-in place of Claude Code's git worktrees for isolated agents and sessions,
+The git and `jj new -m` guards, the jj notes and the commit signer are
+the machine's (`claude-*` commands from the author's NixOS flake,
+`modules/claude-code.nix`). `.claude/` is checked in: the formatter hook,
+the registration of the machine's `claude-jj-worktree` (jj workspaces in
+place of Claude Code's git worktrees for isolated agents and sessions,
 `../deduxit-wt-NAME`, in which the planning session starts each step
 session from the Claude app and whose empty leftovers
-`.claude/hooks/jj-worktree.py prune` removes), permission rules,
+`claude-jj-worktree prune` removes), permission rules,
 the `crate-source-explorer` agent (use it before guessing at a
 dependency's API), the reviewers `fresh-reviewer` and the panel's
 `panel-counterexamples`, `panel-argument` and `panel-integers`, a

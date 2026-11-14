@@ -92,8 +92,7 @@ scripts `bench/*.sh` (the harness's test of the manual's names).
 `doc` is the published site and `doc-private` the
 docs of every item with `--document-private-items`, both with
 rustdoc's warnings denied, so a link in a private item's doc resolves too
-(a split of a module once left four such links pointing nowhere). `claude-hooks.nix` is the check that pins the
-`.claude/hooks` guards (`claude-infra.md`). `export.nix` is the `export`
+(a split of a module once left four such links pointing nowhere). `export.nix` is the `export`
 check, which compiles the snapshots (the fragments inside a document of
 its own; `core/tests/snapshots/deduxit/`, the Rocq library's
 certificates, is left out of its fileset, since it copies the files at

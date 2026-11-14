@@ -613,17 +613,18 @@ The standing rules that follow:
   - Every `Agent` call, workflow stage and session start names its
     model and its effort. The author's user settings run Opus 5.5 at
     `xhigh` and Fable 5.2 at `high` wherever no effort is named.
-  - `.claude/settings.json` sets `CLAUDE_CODE_SUBAGENT_MODEL` to Sonnet
-    5.5. A general-purpose, custom or workflow agent that names no model
-    then runs Sonnet 5.5 at its default, `medium`, and not its parent's
-    model.
+  - The machine's managed settings (the author's flake,
+    `modules/claude-code.nix`; `.claude/settings.json` until 2026-11-14)
+    set `CLAUDE_CODE_SUBAGENT_MODEL` to Sonnet 5.5. A general-purpose,
+    custom or workflow agent that names no model then runs Sonnet 5.5 at
+    its default, `medium`, and not its parent's model.
   - The built-in Explore and Plan agents keep the parent's model (Explore
     under Fable runs Opus 5.5). A call to them for plain reading names
     `model: "sonnet"`.
-  - It pins the `fable` and `opus` aliases to Fable 5.2 and Opus 5.5
-    (`ANTHROPIC_DEFAULT_FABLE_MODEL`, `ANTHROPIC_DEFAULT_OPUS_MODEL`), as
-    it pins `sonnet`. A new release then changes nothing until it is
-    re-evaluated here.
+  - The managed settings pin the `fable` and `opus` aliases to Fable 5.2
+    and Opus 5.5 (`ANTHROPIC_DEFAULT_FABLE_MODEL`,
+    `ANTHROPIC_DEFAULT_OPUS_MODEL`), as they pin `sonnet` and `haiku`. A
+    new release then changes nothing until it is re-evaluated here.
 - **Fable's half of the weekly limit is for the Fable roles above.**
   - When it is spent, the reviewer and the panel's argument run on Opus
     5.5 at `high`, and a Fable session waits or runs on Opus 5.5 at
