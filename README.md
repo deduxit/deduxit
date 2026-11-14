@@ -4,51 +4,28 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23448588.svg)](https://doi.org/10.5281/zenodo.23448588)
 
-Logic suites for all your needs, linear logic first: a command line
-program and a Rust library that parse, print and decide sequents of classical and
-intuitionistic linear logic and their fragments, keep the proofs in a
-checkable form and show them as derivation trees or proof nets, prove
-step by step, export to LaTeX, Typst, SVG and Rocq, decide ordinary
-propositional logic, intuitionistic logic by Dyckhoff's LJT and all of
-it through its embeddings into linear logic, and read
-intuitionistic proofs back as lambda-terms.
-
-deduxit is a collection of logic suites, grown one suite at a time: the
-crates `deduxit` and `deduxit-cli`, the command `deduxit`, whose
-`--logic` chooses the suite, and the library's modules `deduxit::linear`,
-`deduxit::ordinary` and `deduxit::lambda`. It began as linlog, a linear
-logic library (up to 0.2.0), and is growing to take in more calculi.
-
-Version 0.3.0 is the first under the name deduxit: the linear suite is
-the module `deduxit::linear`, ordinary logic is proved step by step in
-LK and LJ, intuitionistic proofs read back as lambda-terms, the
-one-sided count and the state equation are checked without the search
-and certified in Rocq, and the mark dēdūxit replaces the old logo; the
-[changelog](CHANGELOG.md) says what changed and what breaks since 0.2.0.
-
-deduxit's manual, [deduxit.github.io/deduxit/manual](https://deduxit.github.io/deduxit/manual/),
-describes every command, format and engine with real output, and the
-benchmarks and the comparison with the other provers with their figures
-(the other provers beside 0.1.0's engines on the libraries, and beside
-0.2.0's on the growing families, where two of them refute provable
-sequents once 63 formulas stand beside a `⊗`); the [web page](https://deduxit.github.io/) proves step by step in
-the browser on the same library.
+deduxit decides whether a sequent of linear logic is provable, and shows
+the proof or says why there is none. It is a command, `deduxit`, and a
+Rust library, the crate `deduxit`. It also handles intuitionistic,
+first-order and cyclic linear logic, the Lambek calculus and ordinary
+propositional logic; it proves step by step, draws proof nets, reads
+intuitionistic proofs as lambda-terms, and exports proofs to LaTeX,
+Typst, SVG, PNG, PDF and Rocq. The [web page](https://deduxit.github.io/)
+proves step by step in the browser with the same library.
 
 ## Install
 
-The command `deduxit` is the package `deduxit-cli`. Each
-[release](https://github.com/deduxit/deduxit/releases) has it built
-for Linux (an archive, a `.deb`, an `.rpm` and an Arch Linux package),
-macOS and Windows; crates.io and the flake of this repository build it:
+Each [release](https://github.com/deduxit/deduxit/releases) has the
+command built for Linux (an archive, a `.deb`, an `.rpm` and an Arch
+Linux package), macOS and Windows. With Rust 1.92 or later, or with Nix:
 
 ```sh
-cargo install --locked deduxit-cli                        # a Rust toolchain builds it
-nix run github:deduxit/deduxit -- --help           # run it once, without installing
+cargo install --locked deduxit-cli                  # build and install it
+nix run github:deduxit/deduxit -- --help            # run it once, without installing
 nix profile add github:deduxit/deduxit#deduxit-cli  # install it into your profile
 ```
 
-Building needs Rust 1.92 or later. The library is the crate
-[`deduxit`](https://crates.io/crates/deduxit):
+The library is the crate [`deduxit`](https://crates.io/crates/deduxit):
 
 ```toml
 [dependencies]
@@ -56,12 +33,9 @@ deduxit = "0.3"
 ```
 
 The manual's
-[Installation](https://deduxit.github.io/deduxit/manual/installation.html)
-has the rest: the commands for Debian and Ubuntu, Fedora, Arch Linux,
-NixOS and Nix, macOS and Windows, with how to update and remove, which
-build to prefer for long searches, the flake as an input of a NixOS or
-Home Manager configuration, the library's features and the Rocq kernel
-that checks the certificates.
+[Install deduxit](https://deduxit.github.io/deduxit/manual/installation.html)
+has the commands for each system, updating and removing, and the
+library's features.
 
 ## A first proof
 
@@ -76,52 +50,61 @@ $ deduxit prove "A |- B"
 unprovable (MLL, classical, focus engine): A on the left has no A on the right to meet in an axiom
 ```
 
-The verdict, the fragment the sequent lives in and the engine that
-searched, then the proof as a derivation tree of the one-sided sequent
-calculus, which the library's independent checker has validated, or
-why there is none. `deduxit --help` and `deduxit <command> --help`
-document every option.
+The first line is the verdict, with the fragment of linear logic the
+sequent uses, the logic and the engine that searched. Then comes the
+proof, which the proof checker has verified, or the reason there is
+none. The proof is written one-sided, the standard form for classical
+linear logic: `⊢ ~A, A` is the axiom `A ⊢ A`. `--classical-sides two`
+writes it with the sides you gave:
+
+```console
+$ deduxit prove --classical-sides two "A, A -o B |- B"
+provable (MLL, classical, focus engine)
+───── ax   ───── ax
+A ⊢ A      B ⊢ B
+──────────────── ⊸L
+  A, A ⊸ B ⊢ B
+```
+
+The exit status is 0 for provable, 1 for unprovable, 3 for unknown and
+2 for an error. `deduxit <command> --help` shows every option.
 
 ## Where to go next
 
 - **The manual**,
   [deduxit.github.io/deduxit/manual](https://deduxit.github.io/deduxit/manual/),
-  for `main`: [the commands](https://deduxit.github.io/deduxit/manual/commands.html)
-  and their output formats, interactive proving, cut and its
-  elimination, proof nets, first-order and ordinary logic, proofs as
-  programs, many
-  sequents in one call,
-  [the benchmarks and the comparison](https://deduxit.github.io/deduxit/manual/benchmarks.html)
-  with the other provers, what exists and what is planned, the
-  architecture and development. A release's manual is the `docs/`
-  directory of its tag.
+  starts with a short tour, then has a guide for each task (deciding a
+  sequent, checking a proof, exporting, Rocq certificates, proving step
+  by step, other logics, the library), the reference, how the search
+  works, and [the benchmarks](https://deduxit.github.io/deduxit/manual/benchmarks.html)
+  beside the other provers. It describes `main`; a release's manual is
+  the `docs/` directory of its tag.
 - **The web page**, [deduxit.github.io](https://deduxit.github.io/):
   proving step by step in the browser, with lessons.
-- **For AI models**: a guide to the command and the library, the Agent
-  Skill [`skills/deduxit/`](https://github.com/deduxit/deduxit/tree/main/skills/deduxit)
-  (a summary, `SKILL.md`, and the full reference beside it, whose every
-  example a test runs), served as
-  [llms.txt](https://deduxit.github.io/deduxit/llms.txt) and
-  [llms-full.txt](https://deduxit.github.io/deduxit/llms-full.txt);
-  copy the directory into an agent's skills (`~/.claude/skills/` for
-  Claude Code) to give it the guide.
-- **The Rocq library**, `rocq-deduxit`, in its own repository
-  [deduxit/rocq-deduxit](https://github.com/deduxit/rocq-deduxit):
-  the calculi, checkers and soundness theorems the certificates of
+- **The library's API**: [docs.rs/deduxit](https://docs.rs/deduxit) for
+  the releases, [deduxit.github.io/deduxit](https://deduxit.github.io/deduxit/)
+  for `main`.
+- **For AI models**: the Agent Skill
+  [`skills/deduxit/`](https://github.com/deduxit/deduxit/tree/main/skills/deduxit),
+  a summary and a full reference whose examples a test runs, also served
+  as [llms.txt](https://deduxit.github.io/deduxit/llms.txt) and
+  [llms-full.txt](https://deduxit.github.io/deduxit/llms-full.txt). Copy
+  the directory into an agent's skills (`~/.claude/skills/` for Claude
+  Code).
+- **The Rocq library**, `rocq-deduxit`
+  ([deduxit/rocq-deduxit](https://github.com/deduxit/rocq-deduxit)): the
+  calculi, checkers and soundness theorems that the certificates of
   `--kernel deduxit` are proved with.
-- **The library's API**: [docs.rs/deduxit](https://docs.rs/deduxit) for the
-  releases, [deduxit.github.io/deduxit](https://deduxit.github.io/deduxit/)
-  for `main`, rebuilt on every push.
-- **The changes of every release**:
-  [CHANGELOG.md](https://github.com/deduxit/deduxit/blob/main/CHANGELOG.md).
+- **What changed**: the [changelog](CHANGELOG.md). deduxit was called
+  linlog up to 0.2.0.
 
 deduxit's code, tests and documentation were written with substantial AI
 assistance, by Anthropic's Claude models in Claude Code, in steps the
 author planned, directed and accepted. Every proof the library returns
 has passed its independent checker, and a Rocq certificate can be
-checked by Rocq. deduxit is very much inspired by
-[Click & coLLecT](https://www.click-and-collect.linear-logic.org);
-feature requests and contributions are welcome.
+checked by Rocq. deduxit is much inspired by
+[Click & coLLecT](https://www.click-and-collect.linear-logic.org).
+Feature requests and contributions are welcome.
 
 ## Citing
 
