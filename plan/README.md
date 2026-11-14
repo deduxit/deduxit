@@ -6550,3 +6550,61 @@ move (D26).
       (`local_ac0c5002`, cores 13-15).
   - **Next:** 54w-e6 at the next free slot; 54s-c after 54s-b; step 55's
     first session after 54s; 54w-e4 after it.
+- 2026-11-14: **Review of sessions 54s-b, 54w-e3, 54w-c and 54w-e5**,
+  each as its note arrived, stacked in that order onto `main`.
+  - **54s-b** (`vukwwvlw` … `lypkoqpw`), classical logic by CDCL:
+    `Method::Sat` decides classical logic; "not valid" with a one-world
+    model checked by evaluation, "valid" with a DRUP proof recorded from
+    batsat's callbacks, checked by deduxit's own RUP checker, then the
+    embedding's LK derivation. The panel (argument, counterexamples,
+    integers) and `fresh-reviewer` ran; their findings are fixed. My
+    probe: the 15 tests of `ordinary::sat`, the ignored ones included,
+    pass with drat-trim 2023-05-22 on the `PATH`
+    (`drat_trim_accepts_the_proof` among them).
+  - **54w-e3** (`nwylqpqx` … `omqonsks`), the comments of `export`:
+    about 30 wrong claims fixed. My check: with comment lines dropped,
+    the 14 files differ from the base only by doc-test fence attributes.
+  - **54w-c** (`rwquttvk` … `kxyzszzm`), README, the manual (now a tour,
+    how-to guides, reference and explanation), the changelog's
+    Unreleased section and the guide. My fix on it (`mnmoyxwy`): the
+    changelog, `status.md` and `architecture.md` said the SAT engine
+    decides intuitionistic and minimal logic only; 54s-b added classical.
+  - **54w-e5** (`utmwrmuu` … `puzkvqls`), the comments of the root,
+    `serialize/`, `web/` and `bench/src/`, eight root error texts, three
+    test names. Its front page conflicted with 54s-b's one-line change of
+    `lib.rs`: 54w-e5's list kept, with "classical, intuitionistic and
+    minimal logic".
+  - **Overlaps resolved:** the two report files' appended sections (both
+    kept each time). 54w-c's readme test holds the manual's and the
+    guide's Rust examples to `lib.rs`'s doctests, which 54w-e5 rewrote:
+    7 of 7 pass at the combined head.
+  - **Checked at the head (`puzkvqls`):** the gate passed (the cache-miss note on `search-qbf-20-2` and `search-chain-128` as before, not a failure); `nix flake check` "all checks passed!".
+  - **Departures accepted:**
+    - 54s-b: "valid" still carries the embedding's derivation, since
+      `ordinary::Verdict::Valid` holds a derivation and nothing else; a
+      verdict resting on the checked clausal proof alone is an API
+      change, asked of the author (below).
+    - 54w-e5 corrected five facts of `.claude/rules/bench.md`, outside its
+      brief's list of files: the facts were wrong, and rules files are
+      where the next session reads them.
+  - **Asked of the author (2026-11-14):** may a classical "valid" rest on
+    a checked clausal proof alone? My recommendation, with 54s-b's: yes,
+    as a second kind of evidence in `Verdict::Valid` (the idiom of Lean's
+    `bv_decide` and the SAT Competition's certified track); the CDCL then
+    reports 256 of ILTP's 274 problems with a checked certificate, not
+    124. 54s-c waits for the answer.
+  - **Held for the author** (from the reports): `with_lambda` on the
+    LaTeX, Typst and SVG options; `--settings`'s help naming all 11
+    keys; the classical MELL net message naming the units; `--engine
+    inverse`'s help on its turns; `Settings::deterministic()`; the
+    harness's strings in `ranking.rs`, `summary` and `compare` (a short
+    commit); the intuitionistic count refutation naming the side with no
+    literal; `StepError::Rule` carrying the formula.
+  - **For later sessions:** 54w-e4 (`ordinary`, `lambda`): the SAT
+    engine in `decide.rs`'s JSON section, level 9 in `derivation.rs`,
+    `ordinary::interactive`'s refusals, and the export of an unchecked
+    derivation with `lambda` that panics; 54s-c: `interact`'s goal-number
+    error, and the changelog's, `status.md`'s and `architecture.md`'s
+    "the command does not offer it yet" once `--method sat` is wired.
+  - **Next:** 54w-e6 (its card waits for the author); 54s-c after the
+    author's answer; step 55's first session after 54s; 54w-e4 after it.
