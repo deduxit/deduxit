@@ -6692,3 +6692,61 @@ move (D26).
   - **54s-c2** runs in 54s-c1's cleared worker (`local_739ba359`), the
     first reuse: `clear_session`, a new title, the start message by
     `SendMessage`. Cores 4-6, the timed runs on 2-3 after my "go ahead".
+- 2026-11-14, about 20:30: **54s-c2, 58a, 58b and 54x reviewed and
+  stacked; 54s-c3, 57 and 54w-f started in reused workers.**
+  - **54s-c2** (`uzmwmupr` … `tzuzrunt`): `--method sat` (the key
+    `ordinary.method`); the SAT solver the default in intuitionistic
+    and minimal logic, with LJT's derivation where LJT gives one (252
+    of ILTP's problems per logic at 2 s, against LJT's 200 and the
+    embedding's 188; 50 ms against 313 ms on the 186 all decide; no
+    verdict differs from 54a's oracle). BenchExec at 10 s: deduxit's
+    default 254, intuit and intuitR 263 each, no contradiction; faster
+    than intuitR on 218 of the 254 all solve. Target sets equal 47's.
+    The reviewer's one fault (a stopped check printing "a proof was
+    found") fixed in `smuytqrv`.
+  - **58a** (`rrswyoyo` … `sqkxrrur`): Kani 0.68.0 built in the flake,
+    eleven harnesses on the checker's integers (the check `kani`, about
+    30 min of CPU, outside the gate); Clippy for wasm32 and the unit
+    suite on 32 bits (403 of 414, nine left out with reasons); the
+    module's feature baseline and budget; the MSRV, cadence and advisory
+    policy written down.
+  - **58b** (report `zouyurxo`; the client's `xswszwoz` … `wptvvnrm`):
+    axe on every page and state, both schemes, both widths (48 tests);
+    38 of 40 failing at first, every finding fixed but the rule labels'
+    target size on a phone, listed. The client's flake check passed at
+    `wptvvnrm`; **pushed** (client `main` = `wptvvnrm`).
+  - **54x** (`pnzntuur` … `ympppsxt`): the nine accepted proposals, each
+    a commit; the reviewer's two held points folded in. It rebased onto
+    the stack without a code conflict; the 58 report conflicted
+    (both sections kept).
+  - **Decided for the author:**
+    - **The classical default** (54s-c2's question): the SAT solver
+      decides first and the embedding's evidence (the LK derivation,
+      the Rocq certificate, the explanation of a "not valid") is kept
+      wherever the embedding gives it within a measured bound;
+      otherwise the clausal proof or the checked countermodel. The
+      default then decides about 254 classical problems in place of
+      124 and loses nothing the user gets today. Built by 54s-c3.
+    - **58b's proposals**, all accepted: rule labels named by their
+      step; on a phone the labels share the gap with their neighbours
+      as the formulas' buttons do (no change of how a drawing fits);
+      the atom-balance reason names the atom ahead; the dock follows
+      the goal in the same event; the broken-link test's race fixed at
+      its cause (all in 54w-f); deduxit's `<desc>` in the drawing's
+      notation (`A⊥`) and the net's description in sentences, for a
+      later small deduxit session.
+  - **Started:** 54s-c3 in 54s-c2's worker with its context kept
+    (`local_739ba359`, cores 4-6): the classical default, the line
+    printed when the translation passes the limit, the test build
+    without default features failing in `nets/cut/tests.rs`, and why
+    SYJ202 stops at size 4. Step 57 in 58a's worker (`local_b8490613`,
+    cores 7-9; the clear was refused for live work, so its old context
+    stays). 54w-f in 58b's cleared worker (`local_fe155f72`, cores
+    13-15): 54u-d's new page texts, lesson 2's paragraph and 58b's
+    client proposals.
+  - **Held:** step 55's first session waits for 54s-c3 (both change
+    the ordinary default); 54w-e4 (the ordinary and lambda comments)
+    after it.
+  - **Follow-ups collected for a small deduxit session:** the linear
+    session's positions answer with Rust's parse error (54x); `compare`'s
+    "Of the 1 problems" (54x); the two `<desc>` items above.
