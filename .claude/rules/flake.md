@@ -266,20 +266,31 @@ and Python with matplotlib; no check builds it.
   library (`nanoll.v` and `macroll.v` under `user-contrib/NanoYalla`,
   with the LGPL licence beside them); `rocq.nix` still compiles its own
   copy in the check, so the two builds are separate derivations of the
-  same files. The file is copied into a temporary directory (Rocq names
-  a module after its file, so a name that is no identifier becomes
-  `certificate`), compiled with `-Q . Checked`, and then each `Lemma` or
-  `Theorem` line's lemma is given to `Print Assumptions` from a second
-  file: `Admitted` and an `Axiom` compile in silence, and only
-  `Closed under the global context`, or the standard library's
-  `Classical_Prop.classic` alone in a file that imports `Classical_Prop`
-  (the classical certificates over `Prop`), passes. Exit 0 holds, 1
-  refused, 2 unreadable, as the command's. What it cannot see: that the
-  statement is the sequent the reader means (a file may define its own
-  `ll`); that is read from the file. The check `check-certificate` runs
-  it on a certificate of each kernel and one over `Prop`, and expects
-  status 1 for a changed statement, an `Admitted` proof and a fragment
-  without import lines.
+  same files. The file is copied into a temporary directory as
+  `certificate.v` (Rocq names a module after its file, and a file name
+  may be no identifier or a keyword such as `if`; Rocq's messages get
+  the user's name back), compiled with `-Q . Checked`, and then the
+  `.glob` file Rocq wrote beside it says what it defines, one line
+  `KIND START:END SECTION NAME` each, from Rocq's own parse: `prf`
+  (every theorem keyword) and `def` at the top level are its lemmas, `binder` and the
+  references are allowed, any other kind refuses the file (`sec` and
+  `var`: a section's hypothesis becomes a premise of the lemma and
+  vanishes from its assumptions; `mod`, `modtype`, `ax`). A grep of the
+  text found lemmas by line and missed `Lemma a … Qed. Lemma b … Admitted.`
+  on one line; a grep for `Section` would refuse an atom named
+  `Section`, which is a valid identifier there. Each lemma is then given
+  to `Print Assumptions` from a second file: `Admitted` and an `Axiom`
+  compile in silence, and only `Closed under the global context`, or the
+  standard library's `Classical_Prop.classic` alone in a file that
+  imports `Classical_Prop` (the classical certificates over `Prop`),
+  passes; an axiom of another module of that name prints longer. Exit 0
+  holds, 1 refused, 2 unreadable, as the command's. What it cannot see:
+  a file that gives the statement's own names another meaning (a
+  `Definition ll`); the statement is read from the file. The check
+  `check-certificate` runs it on a certificate of each kernel and one
+  over `Prop`, and expects status 1 for a changed statement, an
+  `Admitted` proof, a lemma proved in a section and a fragment without
+  import lines.
   The manual's Rocq chapter leads with the app and shows its output in a
   `readme-check: skip` block (README's test runs no `nix`), kept equal to
   it by hand: a bump of nixpkgs' Rocq or of either kernel changes its

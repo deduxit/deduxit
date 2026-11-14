@@ -111,12 +111,21 @@
             accepts deduxit.v rocq-deduxit
             accepts prop.v "its standard library"
             # Refused, with exit status 1: a statement its proof does not
-            # prove, a lemma left admitted, and a certificate written without
-            # its import lines.
+            # prove, a lemma left admitted, a lemma proved in a section from
+            # a hypothesis that becomes its premise, and a certificate written
+            # without its import lines.
             sed 's/tens B A\]/tens A A]/' nanoyalla.v >wrong.v
             if cmp -s nanoyalla.v wrong.v; then echo "no statement was changed"; exit 1; fi
             sed 's/^Qed\.$/Admitted./' deduxit.v >admitted.v
             if cmp -s deduxit.v admitted.v; then echo "no proof was left admitted"; exit 1; fi
+            cat >section.v <<'EOF'
+            From NanoYalla Require Import macroll.
+            Section Absurd.
+            Hypothesis absurd : False.
+            Lemma certificate (A B : formula) : ll [A; B].
+            Proof. destruct absurd. Qed.
+            End Absurd.
+            EOF
             deduxit prove --format rocq --output fragment.v 'A |- A'
             refuses() {
               status=0
@@ -126,6 +135,7 @@
             }
             refuses wrong.v
             refuses admitted.v
+            refuses section.v
             refuses fragment.v
             grep -q -- --standalone log || { echo "no hint for the fragment"; exit 1; }
             touch $out
