@@ -206,7 +206,9 @@ Built:
 - Proof certificates: a finished proof as a Rocq script for the NanoYalla
   kernel, a lemma proved rule by rule and closed by `Qed`, for every
   classical fragment and for intuitionistic proofs as the classical
-  proofs they are, with a flake check that runs Rocq on them.
+  proofs they are, with a flake check that runs Rocq on them. The flake
+  app `check-certificate` checks one certificate of either kernel in one
+  command.
 - A Rocq library of deduxit's own (the package `rocq-deduxit`, in its own
   repository, [deduxit/rocq-deduxit](https://github.com/deduxit/rocq-deduxit),
   on Rocq 9 and its standard library alone): the one-sided calculus of

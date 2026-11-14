@@ -37,6 +37,11 @@ second number (0.1.x to 0.2.0), anything else the third.
 - **The harness runs ordinary logic**: `deduxit-bench run --tptp PATH
   --logics …` with the engines `embedding`, `ljt` and `auto`, and
   `summary` lists the problems two configurations decide differently.
+- **A certificate is checked in one command**: `nix run
+  github:deduxit/deduxit#check-certificate -- proof.v` compiles a
+  certificate written with `--standalone` against the pinned NanoYalla
+  or rocq-deduxit, the kernel read from its import lines, and refuses a
+  lemma that rests on an axiom, such as a proof left `Admitted`.
 
 ## [0.3.0] - 2026-11-09
 

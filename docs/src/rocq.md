@@ -8,7 +8,37 @@ default for Mix, affine and intuitionistic logic and for a sequent with
 a quantifier. The verdict becomes a
 comment, and `--standalone` adds the import lines.
 
-For `nanoyalla` it is a proof script that the Rocq kernel
+## Check a certificate
+
+Write the certificate with `--standalone` and give it to the flake app
+`check-certificate`. It needs only Nix with flakes enabled (see
+[Installation](installation.md)):
+
+<!-- readme-check: skip, Nix runs the app; the flake check check-certificate runs it on a certificate of each kernel -->
+```console
+$ deduxit prove --format rocq --standalone --output proof.v "A * B |- B * A"
+$ nix run github:deduxit/deduxit#check-certificate -- proof.v
+Checking proof.v with Rocq 9.1.1 and NanoYalla 1.1.3.
+Lemma certificate: proved, with no axiom.
+The certificate holds.
+```
+
+The app reads the kernel from the file's import lines and compiles the
+file against the versions the flake pins: Rocq and its standard library
+from nixpkgs, NanoYalla 1.1.3 and rocq-deduxit 0.3.0. A release's tag
+after the repository's name (`github:deduxit/deduxit/TAG`) takes that
+release's versions. Then the app asks Rocq which axioms each lemma
+rests on, since a proof left `Admitted` compiles too. Its exit status is
+0 when the certificate holds, 1 when Rocq refuses the file or a lemma
+rests on an axiom (a classical certificate over `Prop` may use the
+excluded middle), and 2 when the file cannot be read.
+
+Without Nix, install the kernel the certificate needs, as the rest of
+this chapter shows.
+
+## The kernels
+
+For `nanoyalla` the certificate is a proof script that the Rocq kernel
 [NanoYalla](https://github.com/ComputerAidedLL/click-and-collect/tree/master/nanoyalla)
 checks, the kernel of Click & coLLecT: a lemma stating the one-sided
 sequent over the atoms as `formula` variables, proved by one derived rule
@@ -37,7 +67,7 @@ apply (tens_r_ext [dual B]); cbn_sequent.
 Qed.
 ```
 
-To check a certificate, install NanoYalla 1.1.3 (the `nanoyalla`
+To check a certificate without Nix, install NanoYalla 1.1.3 (the `nanoyalla`
 directory of the Click & coLLecT repository) with Rocq 9 and its standard
 library: `./configure && make && make install` there, or
 `rocq compile -R . NanoYalla nanoll.v` and the same for `macroll.v`, then

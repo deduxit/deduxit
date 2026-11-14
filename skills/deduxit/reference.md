@@ -1137,7 +1137,14 @@ no certificate: an exhausted search states no invariant, so only the search rule
 (* unprovable (MALL, classical, focus engine): the search was exhaustive *)
 ```
 
-Compile a certificate with the kernel on the load path: `rocq compile
+Check a certificate written with `--standalone` in one command, with
+Nix and flakes: `nix run github:deduxit/deduxit#check-certificate --
+proof.v` compiles it against the kernel its import lines name, at the
+versions the flake pins, then asks Rocq which axioms each lemma rests
+on. It exits with 0 when the certificate holds, 1 when Rocq refuses the
+file or a lemma rests on an axiom (a classical certificate over `Prop`
+may use the excluded middle), 2 when the file cannot be read. Without
+Nix, compile a certificate with the kernel on the load path: `rocq compile
 -R path/to/nanoyalla NanoYalla proof.v`, or for `--kernel deduxit`
 `rocq compile -Q path/to/rocq-deduxit/theories Deduxit proof.v`; Rocq prints
 nothing for a certificate it accepts.

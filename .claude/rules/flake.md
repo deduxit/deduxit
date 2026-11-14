@@ -280,6 +280,10 @@ and Python with matplotlib; no check builds it.
   it on a certificate of each kernel and one over `Prop`, and expects
   status 1 for a changed statement, an `Admitted` proof and a fragment
   without import lines.
+  The manual's Rocq chapter leads with the app and shows its output in a
+  `readme-check: skip` block (README's test runs no `nix`), kept equal to
+  it by hand: a bump of nixpkgs' Rocq or of either kernel changes its
+  first line there.
 - `web.nix` is the bindings for a browser (`web.md` has the details):
   the package `deduxit-web` (the module built for wasm32 by the
   `wasm-bindgen` CLI that nixpkgs has for the crate's version in
