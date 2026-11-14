@@ -4,9 +4,10 @@
 use std::fmt;
 use std::ops::Range;
 
-/// Where and why parsing failed, owned so that it outlives the input: the
-/// place as a byte range, as a range of UTF-16 code units and as a line
-/// and a character, what was found there and what could have stood there.
+/// Where and why parsing failed: the place as a byte range, as a range of
+/// UTF-16 code units and as a line and a character, what was found there
+/// and what could have stood there. It owns its data, so it outlives the
+/// input.
 ///
 /// Needs the cargo feature `parse` (on by default).
 #[non_exhaustive]
@@ -21,23 +22,23 @@ pub struct ParseError {
     pub span_utf16: Range<usize>,
     /// The line the place is on, counting from 1.
     pub line: usize,
-    /// The character of that line the place is, counting from 1.
+    /// The place's character in its line, counting from 1.
     pub column: usize,
     /// The character found there, or `None` at the end of the input.
     pub found: Option<String>,
     /// What could have stood there, in words.
     pub expected: &'static [&'static str],
-    /// Whether what was found is a word reserved for a later version of
-    /// the syntax: none is, since `forall` and `exists` read as the
-    /// quantifiers, so this is `false`; kept so that a stored error reads.
+    /// Whether what was found is a reserved word of the syntax. Always
+    /// `false`: no word is reserved, since `forall` and `exists` read as
+    /// the quantifiers. The JSON form leaves it out while it is `false`.
     #[cfg_attr(
         feature = "serialize",
         serde(skip_serializing_if = "std::ops::Not::not")
     )]
     pub reserved: bool,
-    /// What to write instead of what was found, where the input is
-    /// syntax of another logic: a symbol of classical linear logic in an
-    /// intuitionistic sequent.
+    /// What to write instead of what was found, where the input is in the
+    /// syntax of another logic, such as a symbol of classical linear logic
+    /// in an intuitionistic sequent.
     #[cfg_attr(feature = "serialize", serde(skip_serializing_if = "Option::is_none"))]
     pub hint: Option<&'static str>,
 }
@@ -50,8 +51,8 @@ impl ParseError {
         Self::spanning(input, at..end, expected)
     }
 
-    /// Returns the error for the text of `input` that spans `span`, the
-    /// empty span at the end of the input for its end.
+    /// Returns the error for the text of `input` that spans `span`. An
+    /// empty span at the end of the input stands for its end.
     pub(crate) fn spanning(
         input: &str,
         span: Range<usize>,

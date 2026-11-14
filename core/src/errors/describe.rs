@@ -14,9 +14,8 @@ use std::fmt::{self, Display, Formatter, Write};
 /// takes, or `None` for no bound.
 pub(crate) type Limit = Option<usize>;
 
-/// A writer that passes on at most `left` characters and then fails,
-/// setting `cut`, so that a formula or a list of formulas of an error
-/// report stops where its bound is reached.
+/// A writer that passes on at most `left` characters, then sets `cut` and
+/// fails. A formula or a list of formulas of an error report stops there.
 pub(crate) struct Budget<'a, W: Write + ?Sized> {
     /// Where the text goes.
     pub(crate) f: &'a mut W,
@@ -51,8 +50,8 @@ impl<W: Write + ?Sized> Write for Budget<'_, W> {
     }
 }
 
-/// What an error report names occurrences by: the forest's formulas, and
-/// under an intuitionistic reading the formulas as the reading writes
+/// What an error report names occurrences by: the forest's formulas or,
+/// under an intuitionistic reading, the formulas as the reading writes
 /// them, two-sided.
 #[derive(Clone, Copy)]
 pub(crate) struct Names<'a> {
@@ -64,13 +63,13 @@ pub(crate) struct Names<'a> {
     pub(crate) framing: Option<&'a Framing<'a>>,
 }
 
-/// The most characters of a term an error writes in an instance, past
-/// which it is cut: a term of shared subterms in a short file can unfold
+/// The most characters of a term that an error writes in an instance;
+/// the rest is cut. A term of shared subterms in a short file can unfold
 /// to more than any memory holds.
 pub(crate) const TERM: usize = 1 << 12;
 
-/// Writes a member as its formula when names are given, an instance as
-/// its owner's table says, else as its id.
+/// Writes a member as its formula when names are given, and an instance
+/// as its owner's table says. Without names it writes the id.
 pub(crate) fn occurrence(
     f: &mut (impl Write + ?Sized),
     names: Option<Names<'_>>,
@@ -98,7 +97,7 @@ pub(crate) fn occurrence(
 }
 
 /// Writes a member as [`occurrence`] does, cut after `limit` characters
-/// with `…` after it.
+/// and followed by `…` where it was cut.
 pub(crate) fn cut(
     f: &mut (impl Write + ?Sized),
     names: Option<Names<'_>>,
@@ -112,11 +111,15 @@ pub(crate) fn cut(
     }
 }
 
-/// What owns the occurrences an error names, whose formulas [`Described`]
-/// prints: a forest, or a value built on one. Sealed: the crate's types
-/// alone implement it.
+/// A value that owns the occurrences an error names: a forest, or a value
+/// built on one. [`Described`] prints their formulas from it.
+///
+/// It is implemented by [`Forest`], [`Proof`], [`Derivation`],
+/// [`ProofStructure`], [`MellStructure`] and, with the feature
+/// `interactive`, `Interactive`. It is sealed: no other crate implements
+/// it.
 pub trait Owner: crate::sealed::Owner {
-    /// Returns the forest whose occurrences the error's ids name.
+    /// Returns the forest whose occurrences the error's numbers name.
     fn forest(&self) -> &Forest;
 }
 
@@ -220,10 +223,10 @@ pub(crate) enum Subject<'a> {
     Shape(&'a ShapeError),
 }
 
-/// An error displayed with formulas instead of occurrence ids, read from
-/// the owner of the ids, as `describe` on [`Error`](enum@Error), [`CheckError`],
-/// [`NetError`] and [`ShapeError`] returns it; nodes and inferences keep
-/// their numbers.
+/// An error displayed with formulas in place of occurrence numbers, read
+/// from the value that owns the occurrences. `describe` on
+/// [`Error`](enum@Error), [`CheckError`], [`NetError`] and [`ShapeError`]
+/// returns it. Nodes and inferences keep their numbers.
 #[derive(Clone, Copy, Debug)]
 pub struct Described<'a> {
     /// The error.
@@ -255,22 +258,25 @@ impl<'a> Described<'a> {
     }
 
     /// Returns the report with every formula and every list of formulas
-    /// of a proof's error cut after `limit` characters, `…` and the
-    /// number of formulas of a list after it, or whole with `None`: a
-    /// zone may hold a formula per node of the proof.
+    /// cut after `limit` characters, or whole with `None`. A cut formula
+    /// ends in `…`, and a cut list says how many formulas it has. A list
+    /// in a proof's error may hold a formula per node of the proof.
     #[must_use]
     pub const fn abbreviated(self, limit: Option<usize>) -> Self {
         Self { limit, ..self }
     }
 
-    /// Returns the report with the formulas written as `mode` reads them:
-    /// in an intuitionistic mode two-sided, under the sequent's reading
-    /// (`A ⊸ B` where the one-sided sequent has `A ⊗ ~B` as a
-    /// hypothesis), where the sequent has one; in a classical mode, and
-    /// for a sequent without a reading, as the one-sided sequent writes
-    /// them. A proof that records its mode, a derivation and a session
-    /// give theirs already; this is for an owner that records none, such
-    /// as a forest or a proof structure.
+    /// Returns the report with the formulas written as `mode` reads them.
+    ///
+    /// In an intuitionistic mode they are written two-sided, under the
+    /// sequent's reading, where it has one: `A ⊸ B` where the one-sided
+    /// sequent has `A ⊗ ~B` as a hypothesis. In a classical mode, and for
+    /// a sequent without a reading, they are written as the one-sided
+    /// sequent writes them.
+    ///
+    /// A proof that records its mode, a derivation and a session give
+    /// their mode already. This is for an owner that records none, such as
+    /// a forest or a proof structure.
     #[must_use]
     pub const fn in_mode(self, mode: Mode) -> Self {
         Self {
@@ -281,7 +287,7 @@ impl<'a> Described<'a> {
 }
 
 impl Display for Described<'_> {
-    /// Writes the error with formulas instead of occurrence ids.
+    /// Writes the error with formulas in place of occurrence numbers.
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let reading = self
             .mode
@@ -333,17 +339,17 @@ impl serde::Serialize for Described<'_> {
 }
 
 impl Error {
-    /// Returns the error for display with formulas instead of occurrence
-    /// ids, read from `owner`, the value whose occurrences the error names
-    /// (the forest of the sequent, or the proof, derivation, structure or
-    /// session that failed). An error that names no occurrence prints as
+    /// Returns the error for display with formulas in place of occurrence
+    /// numbers. `owner` is the value whose occurrences the error names:
+    /// the forest of the sequent, or the proof, derivation, structure or
+    /// session that failed. An error that names no occurrence prints as
     /// [`Display`] does.
     pub fn describe<'a>(&'a self, owner: &'a impl Owner) -> Described<'a> {
         Described::new(Subject::Error(self), owner)
     }
 
-    /// Writes the error as [`Display`] does, with formulas instead of ids
-    /// when a forest is given.
+    /// Writes the error as [`Display`] does, with formulas in place of
+    /// numbers when names are given.
     pub(crate) fn write(
         &self,
         f: &mut Formatter<'_>,

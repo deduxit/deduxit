@@ -511,7 +511,7 @@ fn prove_verdicts_and_exit_statuses() {
         ),
         (
             &["prove", "--fragment", "mll", "A & B |- A"],
-            "outside the asserted fragment MLL",
+            "outside MLL, the fragment asked for",
         ),
     ] {
         let (status, out, err) = deduxit(args, "");
@@ -1095,7 +1095,7 @@ fn check_refuses_intuitionistic_mix() {
         (
             2,
             "",
-            "error: Mix has no intuitionistic form: a premise of a Mix would have no goal\n"
+            "error: Mix has no intuitionistic form: one premise of a Mix would have nothing right of ⊢\n"
         )
     );
 }

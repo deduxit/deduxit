@@ -4879,7 +4879,7 @@ mod tests {
         ));
         assert_eq!(
             error.to_string(),
-            "the sequent lies in ALL, outside the asserted fragment MLL"
+            "the sequent lies in ALL, outside MLL, the fragment asked for"
         );
     }
 
@@ -5056,7 +5056,7 @@ mod tests {
         let error = prove(&sequent("a |- a"), i.with_mix(), &Options::default()).unwrap_err();
         assert_eq!(
             error.to_string(),
-            "Mix has no intuitionistic form: a premise of a Mix would have no goal"
+            "Mix has no intuitionistic form: one premise of a Mix would have nothing right of ⊢"
         );
         let focus = Options::default().with_engine(Some(Engine::Focus));
         let error = prove(&sequent("a |- a"), i, &focus).unwrap_err();

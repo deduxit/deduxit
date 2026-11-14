@@ -21,29 +21,33 @@ use crate::linear::search::{Engine, NotTaken};
 use crate::linear::sequents::fo::SymbolFault;
 use thiserror::Error;
 
-/// Everything that can go wrong in a call of this crate, as one family:
-/// [`kind`](Self::kind) says what sort of failure it is, so that a refusal
-/// is never read as a fault, and [`code`](Self::code) is the stable reason
-/// a program branches on. The specific types a caller may match on
-/// ([`CheckError`], [`NetError`], [`ShapeError`], the session's
-/// `StepError`, the parser's `ParseError`, Rocq's `Unsupported`) are
-/// variants of it, converted without loss.
+/// Everything that can go wrong in a call of this crate.
+///
+/// [`kind`](Self::kind) says what sort of failure it is, so that a
+/// refusal is never read as a fault. [`code`](Self::code) is a stable name
+/// that a program branches on. The specific errors a caller may match on
+/// are variants of it, converted without loss: [`CheckError`],
+/// [`NetError`], [`ShapeError`], the session's `StepError`, the parser's
+/// `ParseError` and Rocq's `Unsupported`.
 ///
 /// # JSON
 ///
-/// With the feature `serialize` an error is written (never read) as
+/// With the feature `serialize` an error is written, never read, as
 /// `{"code": …, "kind": …, "message": …, "setting": …, "details": …}`:
-/// `code` is one of [`CODES`](Self::CODES), stable from the first release,
-/// which a client branches on, accepting a code it does not know by its
-/// `kind`; `kind` is the [`ErrorKind`] in snake case; `message` the
-/// English text, with formulas when written through
-/// [`describe`](Self::describe); `setting`, present only where a bound
-/// refused the call, the settings key that lifts it
-/// ([`setting`](Self::setting)); and `details` the variant's fields, or
-/// the wrapped error's (a `ParseError` its span in bytes and in UTF-16
-/// code units, its line and character and what was expected; a
-/// [`CheckError`] the node, its rule as a proof writes it, the fault and
-/// the premises' sequents; a [`Refusal`] its `kind` and fields).
+/// - `code` is one of [`CODES`](Self::CODES), stable from the first
+///   release. A client branches on it, and reads a code it does not know
+///   by its `kind`.
+/// - `kind` is the [`ErrorKind`] in snake case.
+/// - `message` is the English text, with formulas when written through
+///   [`describe`](Self::describe).
+/// - `setting` is the settings key that lifts the bound that refused the
+///   call ([`setting`](Self::setting)). It is present only where a bound
+///   refused the call.
+/// - `details` are the variant's fields, or the wrapped error's: a
+///   `ParseError`'s span in bytes and in UTF-16 code units, its line and
+///   character and what was expected; a [`CheckError`]'s node, its rule
+///   as a proof writes it, the fault and the premises' sequents; a
+///   [`Refusal`]'s `kind` and fields.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq, Error)]
 pub enum Error {
@@ -85,19 +89,19 @@ pub enum Error {
         /// What is wrong with it.
         message: String,
     },
-    /// An LLTP or TPTP file has more than one conjecture (the name of the
-    /// second given), which this crate does not read as one sequent.
+    /// An LLTP or TPTP file has more than one conjecture. A file holds one
+    /// sequent, so it has at most one.
     ///
     /// Needs the cargo feature `parse`.
     #[cfg(feature = "parse")]
-    #[error("the file has a second conjecture, `{second}`, and is read with one only")]
+    #[error("the file has a second conjecture, `{second}`; a file holds one conjecture only")]
     #[non_exhaustive]
     SeveralConjectures {
         /// The name of the second clause with the role `conjecture`.
         second: String,
     },
-    /// A name that names none of the values of its kind, such as a mode
-    /// or a fragment read from text.
+    /// A name that is none of the names of its kind, such as a mode or a
+    /// fragment read from text.
     #[error("unknown {what} `{name}`: {}", or_list(.known))]
     #[non_exhaustive]
     UnknownName {
@@ -127,8 +131,8 @@ pub enum Error {
         /// Whether its sizes are the powers of two.
         powers_of_two: bool,
     },
-    /// An option's value is not one the output can take: a Rocq lemma
-    /// that is no identifier.
+    /// An option's value is not one the output can take, such as a Rocq
+    /// lemma name that is no identifier.
     #[error("{key}: {message}")]
     #[non_exhaustive]
     InvalidOption {
@@ -137,8 +141,8 @@ pub enum Error {
         /// What is wrong with the value.
         message: String,
     },
-    /// A document is not of the form it was read as: not JSON, a key
-    /// missing or of another type.
+    /// A document is not of the form it was read as: it is not JSON, or a
+    /// key is missing or has another type.
     #[error("not a {form} of deduxit's wire form: {message}")]
     #[non_exhaustive]
     Json {
@@ -147,8 +151,8 @@ pub enum Error {
         /// What was wrong, as the reader says it.
         message: String,
     },
-    /// A document is of a wire level above the one this build reads.
-    #[error("the {form} is of wire level {found}, and this build reads levels up to {supported}")]
+    /// A document is of a wire level above the ones this build reads.
+    #[error("the {form} is of wire level {found}; this build reads levels up to {supported}")]
     #[non_exhaustive]
     Version {
         /// The form read.
@@ -158,8 +162,8 @@ pub enum Error {
         /// The highest level this build reads, [`wire::LEVEL`](crate::wire::LEVEL).
         supported: u32,
     },
-    /// An index of a value read names nothing: it is not below the length
-    /// of its space.
+    /// An index in a value read names nothing: it is not below the length
+    /// of what it indexes.
     #[error("{}", out_of_bounds(*.space, *.index, *.len))]
     #[non_exhaustive]
     IndexOutOfBounds {
@@ -170,8 +174,8 @@ pub enum Error {
         /// How many there are.
         len: usize,
     },
-    /// A term or a proof node names a part that does not come before it,
-    /// where every part must precede what uses it.
+    /// A term or a proof node names a part that does not come before it.
+    /// Every part must come before what uses it.
     #[error("{}", not_topological(*.space, *.index, *.parent))]
     #[non_exhaustive]
     NotTopological {
@@ -182,7 +186,7 @@ pub enum Error {
         /// The one that names it.
         parent: usize,
     },
-    /// A sequent says more of its root formulas stand left of `⊢`
+    /// A sequent says that more root formulas stand left of `⊢`
     /// (`antecedents`) than it has (`roots`).
     #[error(
         "the sequent has {} left of ⊢ but {} in all",
@@ -197,7 +201,7 @@ pub enum Error {
         roots: usize,
     },
     /// A cut formula was given as a sequent of `formulas` root formulas,
-    /// or with cut formulas of its own, where one formula is the cut's.
+    /// or with cut formulas of its own. A cut takes one formula.
     #[error(
         "a cut formula is one formula, not {}",
         counted(*.formulas, "formula", "formulas")
@@ -208,9 +212,8 @@ pub enum Error {
         formulas: usize,
     },
     /// An atom name read from a file or given to a constructor is no
-    /// identifier of the text syntax, or is one of its keywords or a word
-    /// reserved for a later version of it, so that the sequent written as
-    /// text would not read back as itself.
+    /// identifier of the text syntax, or is one of its keywords. The
+    /// sequent written as text would not read back as itself.
     #[error(
         "the atom name {name:?} {}",
         crate::linear::sequents::name::fault(name)
@@ -220,9 +223,10 @@ pub enum Error {
         /// The name.
         name: String,
     },
-    /// A symbol of a sequent's first-order tables cannot be one, as the
-    /// fault says: listed twice, used with another number of arguments
-    /// than its arity, or a predicate and a function symbol at once.
+    /// A symbol of a sequent's first-order tables is not valid, as the
+    /// fault says: it is listed twice, used with another number of
+    /// arguments than its arity, or both a predicate and a function
+    /// symbol.
     #[error("the symbol {name:?} {fault}")]
     #[non_exhaustive]
     Symbol {
@@ -231,16 +235,16 @@ pub enum Error {
         /// What is wrong with it.
         fault: SymbolFault,
     },
-    /// A root or a cut formula of a sequent holds a bound variable that no
-    /// binder of the formula binds: every formula of a sequent is closed.
-    #[error("term {term} holds a bound variable no binder of it binds")]
+    /// A root or a cut formula of a sequent has a bound variable that no
+    /// binder of the formula binds. Every formula of a sequent is closed.
+    #[error("term {term} has a bound variable that no binder of it binds")]
     #[non_exhaustive]
     LooseVariable {
         /// The arena index of the root or cut formula.
         term: usize,
     },
     /// The table of predicates of a sequent read from JSON has another
-    /// length than its table of atoms, where the two must be parallel.
+    /// length than its table of atoms. The two tables go in parallel.
     #[error("{predicates} predicates for {atoms} atoms: every atom has its predicate, or none has")]
     #[non_exhaustive]
     Predicates {
@@ -249,8 +253,8 @@ pub enum Error {
         /// The number of atoms.
         atoms: usize,
     },
-    /// The parts of an interactive proof read back do not fit together, as
-    /// the reason says.
+    /// The parts of an interactive proof read from a document do not fit
+    /// together, as the reason says.
     ///
     /// Needs the cargo feature `interactive`.
     #[cfg(feature = "interactive")]
@@ -284,8 +288,8 @@ pub enum Error {
     #[cfg(feature = "interactive")]
     #[error(transparent)]
     OrdinaryStep(#[from] crate::ordinary::StepError),
-    /// An interactive proof still has this many open goals, so there is no
-    /// proof term to make of it yet.
+    /// An interactive proof still has this many open goals, so it makes
+    /// no proof term.
     ///
     /// Needs the cargo feature `interactive`.
     #[cfg(feature = "interactive")]
@@ -298,13 +302,13 @@ pub enum Error {
         /// How many goals are open.
         count: usize,
     },
-    /// A proof given to an interactive proof to close a goal is over
-    /// another sequent than the session's, whose goals name occurrences of
-    /// the session's own.
+    /// A proof given to close a goal of an interactive proof is of another
+    /// sequent than the session's. The goals name occurrences of the
+    /// session's own sequent.
     ///
     /// Needs the cargo feature `interactive`.
     #[cfg(feature = "interactive")]
-    #[error("the proof is over another sequent than the session's")]
+    #[error("the proof is of another sequent than the session's")]
     ForeignProof,
     /// A proof given to close a goal of a session concludes another goal.
     ///
@@ -312,13 +316,13 @@ pub enum Error {
     #[cfg(feature = "interactive")]
     #[error("the proof concludes another goal than the one it is to close")]
     GoalMismatch,
-    /// A proof of a goal, given where a proof of the sequent is needed: a
-    /// proof of a goal is checked against the goal, so it is no wrong
-    /// proof, only not one of the sequent.
+    /// A proof of a goal was given where a proof of the sequent is needed.
+    /// A proof of a goal is checked against the goal, so it is not wrong,
+    /// only not a proof of the sequent.
     #[error("the proof concludes a goal, not the sequent")]
     GoalProof,
     /// A proof carried over to a goal ([`Proof::onto`](crate::linear::proofs::Proof::onto))
-    /// concludes other formulas than the goal holds, beyond their order.
+    /// concludes other formulas than the goal holds, in any order.
     #[error(
         "the proof's conclusions are not the goal's formulas: {} only in the proof, {} only in the goal",
         listed(proof),
@@ -333,17 +337,17 @@ pub enum Error {
         goal: Vec<String>,
     },
     /// The mode is intuitionistic and the sequent has no intuitionistic
-    /// reading. The message names occurrences by id;
+    /// reading. The message names occurrences by number;
     /// [`ShapeError::describe`] names them by formula.
     #[error("not an intuitionistic sequent: {0}")]
     NotIntuitionistic(ShapeError),
-    /// Mix was asked for in intuitionistic mode, where it has no form: a
-    /// premise of a Mix would have no goal.
-    #[error("Mix has no intuitionistic form: a premise of a Mix would have no goal")]
+    /// Mix was asked for in intuitionistic mode, where it has no form: one
+    /// premise of a Mix would have no formula right of `⊢`.
+    #[error("Mix has no intuitionistic form: one premise of a Mix would have nothing right of ⊢")]
     IntuitionisticMix,
-    /// An ordered mode was asked for with weakening or Mix, which no
-    /// calculus here combines with the order: they would let a formula,
-    /// or a whole premise, stand anywhere in the order.
+    /// An ordered mode was asked for with weakening or Mix. No calculus
+    /// here has both, since they would let a formula, or a whole premise,
+    /// stand anywhere in the order.
     #[error("{mode} mode has no calculus: an ordered mode takes neither weakening nor Mix")]
     #[non_exhaustive]
     OrderedMode {
@@ -351,7 +355,7 @@ pub enum Error {
         mode: Mode,
     },
     /// A sequent searched in an ordered mode lies beyond unit-free MLL,
-    /// the fragment the ordered calculus is decided in.
+    /// the only fragment decided in the ordered modes.
     #[error("{mode} mode decides unit-free MLL, and the sequent lies in {fragment}")]
     #[non_exhaustive]
     OrderedFragment {
@@ -360,9 +364,9 @@ pub enum Error {
         /// The ordered mode.
         mode: Mode,
     },
-    /// An intuitionistic goal has this many formulas on the right of `⊢`,
-    /// where a sequent of intuitionistic linear logic has exactly one.
-    #[error("an intuitionistic goal has {count} formulas on the right of ⊢ instead of one")]
+    /// An intuitionistic goal has this many formulas right of `⊢`. A goal
+    /// of intuitionistic linear logic has exactly one.
+    #[error("an intuitionistic goal has exactly one formula right of ⊢, not {count}")]
     #[non_exhaustive]
     GoalOutputs {
         /// How many formulas stand right of `⊢`.
@@ -376,14 +380,14 @@ pub enum Error {
         /// How many formulas stand right of `⊢`.
         count: usize,
     },
-    /// The sequent uses connectives outside the fragment the search options
-    /// assert.
-    #[error("the sequent lies in {detected}, outside the asserted fragment {asserted}")]
+    /// The sequent uses connectives outside the fragment that the search
+    /// options name.
+    #[error("the sequent lies in {detected}, outside {asserted}, the fragment asked for")]
     #[non_exhaustive]
     FragmentMismatch {
-        /// The fragment the options assert.
+        /// The fragment the options name.
         asserted: Fragment,
-        /// The fragment the sequent was detected to lie in.
+        /// The fragment the sequent lies in.
         detected: Fragment,
     },
     /// The translation does not decide the logic: the affine one decides
@@ -396,15 +400,16 @@ pub enum Error {
         /// The logic.
         logic: crate::ordinary::Logic,
     },
-    /// The engine decides intuitionistic and minimal logic only.
+    /// LJT was asked to decide classical logic. It decides intuitionistic
+    /// and minimal logic only.
     #[error("LJT decides intuitionistic and minimal logic, not {logic} logic")]
     #[non_exhaustive]
     Logic {
         /// The logic asked for.
         logic: crate::ordinary::Logic,
     },
-    /// No engine handles the fragment in the mode yet.
-    #[error("no engine for {fragment} in {mode} mode yet")]
+    /// No engine of this crate decides the fragment in the mode.
+    #[error("no engine decides {fragment} in {mode} mode")]
     #[non_exhaustive]
     NoEngine {
         /// The fragment the search was asked for.
@@ -413,8 +418,8 @@ pub enum Error {
         mode: Mode,
     },
     /// The engine the options force does not take the goal, for the
-    /// reason given: beyond its fragment, outside its modes, not the
-    /// sequent itself, or not of its shape.
+    /// reason given: the goal is beyond its fragment, outside its modes,
+    /// not the whole sequent, or not of its shape.
     #[error("{}", .because.explained(*.engine))]
     #[non_exhaustive]
     EngineRefused {
@@ -423,14 +428,14 @@ pub enum Error {
         /// Why it does not take the goal.
         because: NotTaken,
     },
-    /// The output has no form for the derivation; nothing was written.
+    /// The output has no form for the derivation. Nothing was written.
     ///
     /// Needs the cargo feature `rocq`.
     #[cfg(feature = "rocq")]
     #[error(transparent)]
     Unsupported(#[from] crate::export::rocq::Unsupported),
-    /// A bound, set or default, or the caller's stop refused the call
-    /// before it had an answer; lifting the bound may answer.
+    /// A bound, set or default, or the caller's stop ended the call before
+    /// it had an answer. With the bound lifted, the call may answer.
     #[error("{0}")]
     Refused(Refusal),
     /// The threads of a parallel search could not be started.
@@ -476,7 +481,7 @@ pub enum Error {
     #[error("a PDF/A document needs the date it was made: give pdf::Options::date")]
     NoDate,
     /// A step of cut elimination was asked of a node that is no cut, or of
-    /// a proof without one.
+    /// a proof without a cut.
     #[error("{}", match .node {
         Some(node) => format!("node {node} is no cut"),
         None => "the proof has no cut".to_owned(),
@@ -486,17 +491,17 @@ pub enum Error {
         /// The node named, or `None` where the strategy found no cut.
         node: Option<u32>,
     },
-    /// The checker refused the proof a step of cut elimination made: a
-    /// defect of this crate, which never returns such a proof.
+    /// The checker rejected the proof that a step of cut elimination made.
+    /// This is a defect of this crate, which never returns such a proof.
     #[error("a step of cut elimination made a proof the checker refuses: {0}")]
     Reduction(Box<CheckError>),
-    /// The checker rejected the proof a search found: a defect of the
-    /// engine that found it, and no verdict on the sequent.
+    /// The checker rejected the proof that a search found. This is a
+    /// defect of the engine that found it, and no verdict on the sequent.
     #[error("{}{}", describe::REJECTED, .0)]
     Rejected(Box<CheckError>),
     /// A proof or a derivation has no lambda-term, for the reason given:
-    /// a proof of classical logic, with Mix, of an ordered calculus, with
-    /// quantifiers or with open goals ([`Derivation::term`](crate::linear::Derivation::term)).
+    /// it is classical, or has Mix, an ordered calculus, quantifiers or
+    /// open goals ([`Derivation::term`](crate::linear::Derivation::term)).
     #[error("the proof has no lambda-term: {reason}")]
     #[non_exhaustive]
     NoTerm {
@@ -504,7 +509,7 @@ pub enum Error {
         reason: crate::lambda::NoTerm,
     },
     /// A derivation read back from a linear proof is not one of LK or LJ,
-    /// for the reason given: a defect of this crate.
+    /// for the reason given. This is a defect of this crate.
     #[error("the proof read back is not a derivation of {calculus}: {reason}")]
     #[non_exhaustive]
     ReadBack {
@@ -514,7 +519,7 @@ pub enum Error {
         reason: String,
     },
     /// A Kripke model does not refute the sequent it was found for, for
-    /// the reason given: a defect of this crate's engine that found it.
+    /// the reason given. This is a defect of the engine that found it.
     #[error("the Kripke model does not refute the sequent: {reason}")]
     #[non_exhaustive]
     Countermodel {
@@ -532,14 +537,16 @@ pub enum Error {
     serde(rename_all = "snake_case")
 )]
 pub enum ErrorKind {
-    /// The input is not what it says: no sequent, indices that do not fit.
+    /// The input is not what it claims to be: no sequent, or indices that
+    /// do not fit.
     Malformed,
     /// A verdict: the proof, net, step or session is not what it claims.
     Invalid,
-    /// No verdict: outside what this build, engine, kernel or reader does.
+    /// No verdict: the call asks for more than this build, engine, kernel
+    /// or reader does.
     Unsupported,
-    /// No verdict: a bound, set or default, refused the call; lifting it
-    /// may answer.
+    /// No verdict: a bound, set or default, refused the call. With the
+    /// bound lifted, the call may answer.
     Limit,
     /// No verdict: the caller's stop ended the call.
     Stopped,
@@ -577,8 +584,8 @@ impl std::fmt::Display for ErrorKind {
     }
 }
 
-/// Returns formulas joined by commas, or "nothing" for none: a side of a
-/// [`Error::SequentMismatch`].
+/// Returns formulas joined by commas, or "nothing" for none: one side of
+/// an [`Error::SequentMismatch`].
 fn listed(formulas: &[String]) -> String {
     if formulas.is_empty() {
         "nothing".to_owned()
@@ -654,7 +661,7 @@ impl Error {
         "reduction_rejected",
     ];
 
-    /// Returns what sort of failure this is; a wrapped error answers with
+    /// Returns what sort of failure this is. A wrapped error answers with
     /// its own kind, so a refused check is a refusal.
     pub fn kind(&self) -> ErrorKind {
         use ErrorKind::*;
@@ -726,8 +733,8 @@ impl Error {
         }
     }
 
-    /// Returns the stable reason a program branches on, never the English
-    /// text: one of [`CODES`](Self::CODES).
+    /// Returns the stable name of the error that a program branches on, in
+    /// place of the English text: one of [`CODES`](Self::CODES).
     pub fn code(&self) -> &'static str {
         match self {
             #[cfg(feature = "parse")]
@@ -806,7 +813,8 @@ impl Error {
     }
 
     /// Returns the settings key whose bound refused the call, which a front
-    /// end maps to its flag: `None` for every error a bound did not cause.
+    /// end maps to its flag. `None` for every error that a bound did not
+    /// cause.
     pub fn setting(&self) -> Option<&'static str> {
         match self {
             Self::Refused(refusal) => refusal.setting(),
@@ -897,8 +905,8 @@ fn not_topological(space: Space, index: usize, parent: usize) -> String {
     }
 }
 
-/// The message of a checker's error: a fault of the proof says so, a
-/// refusal is its own.
+/// The message of a checker's error. A fault of the proof starts with
+/// "invalid proof: "; a refusal's message is its own.
 fn check_message(error: &CheckError) -> String {
     match error {
         CheckError::Invalid(_) => format!("{INVALID_PROOF}{error}"),
