@@ -542,3 +542,230 @@ that item's test; one was a borderline it did not count.
 - **The behaviour lock**: 54u-a changes it too. The second to land
   rebases onto the first and blesses again (`BLESS=1 cargo test -p
   deduxit-cli --test lock`), in a commit of its own.
+
+## Session 54u-c: the page's prover
+
+Item 3 of `plan/54u-usability.md` (Opus 5.5 at `high`, 2026-11-14), in
+the web client's jj workspace `../linlog-prover.github.io-54u-c`
+(workspace `step54u-c`) on the client's `main` (`qyxnytmo`, which is
+also `main@origin`). Nothing was pushed. This deduxit workspace holds
+only this section.
+
+### Outcome
+
+W1, W2, W3, W9, W10 and W15 are built in the client, each with its
+e2e tests and, where the item has logic outside the island, its unit
+tests. The client's `nix flake check` passed at the chain's last
+commit, `vqlplqsw`: 584 unit tests and 156 e2e tests (see "The
+checks"). The fresh reviewer found one real bug in
+W15 (an ordinary proof's Go back landed without its note) and three
+smaller points; all four are answered below, the bug fixed.
+
+- **W1, reasons in view.** Every reason is a line under its keyword
+  (`Why` in `src/islands/ui.tsx`, class `said-why`), never only a tip:
+  - a goal's note (a refused step, a verdict, "Nothing to undo"), whose
+    keyword is now a plain `span.kw`, not a button with a tip;
+  - the split chooser's Passes and Cannot close;
+  - the stage's banner ("Proof not restored");
+  - the sequent field's parse error;
+  - the status popover's verdict;
+  - a greyed export item (`.fn .off`, "Close a goal the search refutes
+    first.");
+  - a greyed engine in Settings (`.why-not`), the greyed Mix switch in
+    intuitionistic mode, and the greyed Net tab once pressed
+    (`.net-why`, after the review).
+  - The saturation refutation's sentence is split: its first sentence
+    in view, the rest behind a "more" button (`Said.more` in
+    `src/lib/words.ts`).
+- **W2.** No Undo beside a refused step. "Other rules" stands there and
+  opens the same formula's rules popover (`Note.position` records the
+  refused step's formula; `openRules` in `Stage.tsx`).
+- **W3.** With Learn off and no tour running, the empty stage offers
+  "Start lesson 1" (Learn opened at lesson 1) and "Take the tour" as
+  buttons under the syntax line. Neither starts by itself.
+- **W9.** On a wide screen the tab's mark reads "Linear (LL) ▾" or
+  "Ordinary (LJ) ▾" (`markLabel` in `src/lib/suites.ts`), the fragment
+  between the label and the ▾; a phone keeps the short mark. The
+  accessible name stays "Logic: …". The restart warning now says
+  "Changing the logic" (after the review).
+- **W10.** The goal bar says "Open goal 1 of 2" (`openGoal` in
+  `words.ts`), the active goal's place among the open goals; a phone
+  says "Goal 1". The Steps list keeps deduxit's ids ("⊗ on goal 2").
+- **W15.** When the search refutes a goal that is not the sequent
+  itself, the note adds "This goal has no proof. The sequent may still
+  have one: an earlier step lost it. Go back takes you to the last step
+  that could still be proved." and a Go back button beside the verdict.
+  - Go back (`prover.goBack` in `state.tsx`, the walk `wayBack` in
+    `src/lib/steps.ts`) asks each goal below the refuted one on its
+    branch, nearest first, whether it still has a proof: a replay
+    without the steps above that goal, then one search within the
+    budget. The sequent's own kept verdict (`Proof.verdict`) replaces
+    the search when the sequent itself is asked.
+  - The first goal with a proof is shown open. The steps taken back are
+    one undo entry, which Redo takes again. The search's own graft is
+    never kept.
+  - With no such goal, the note says "No step to go back to" (the
+    sequent has no proof) or "No way back found" (the budget decided
+    nothing).
+  - When the sequent is already known to have no proof, the note says
+    "The sequent itself has no proof, so no step lost one." and offers
+    no Go back.
+  - Linear and ordinary proofs alike.
+
+### The client's commits
+
+On the client's `main` (`qyxnytmo`), oldest first, by change id:
+
+| change | what |
+|---|---|
+| `ypqvmzto` | W1, W2, W3, W9, W10: the reasons in view, Other rules, the empty stage's buttons, the tab's label, the goal bar; the unit tests (`markLabel`, `openGoal`, the saturation's `more`) and the e2e tests; README and the client's `web.md` |
+| `ozwnvxwn` | W15: `wayBack` and its unit tests, `goBack`, the lost-goal words and their unit tests, the e2e tests in linear and ordinary logic, the `targets.spec.ts` step |
+| `vvtprlnz` | the reviewer's finding 1: Go back in an ordinary proof whose lost step has a structural run under its rule |
+| `wrnqvwpw` | the reviewer's findings 2 and 3: the Net tab's reason as a line, "Changing the logic" |
+| `vqlplqsw` | the lost goal's and the long reason's target measures as a test of their own at both widths, out of the walk of every control |
+
+### Decisions
+
+- **One `Why` component for every reason.** It renders the sentence and
+  a "more" for a long one, so each place says a reason the same way.
+  Its "more" state is keyed by the text, so a new reason in the same
+  place starts closed without an effect that copies signals (the
+  client's `island.md`).
+- **A toggled fragment inside a `Show` lost its nodes.** The first
+  `Why` put a fragment (a space, a nested `Show`, the button) inside
+  `Show`'s callback; pressing "more" removed the button and inserted
+  nothing (seen in the built page). Each branch is now one element.
+  The comment in `ui.tsx` says so.
+- **Go back searches in the session, not the goal's text.** A replay
+  that reopens the goal, then `close` on it, is the page's own meaning
+  of "this goal has a proof": it holds with cuts, eigenvariables and
+  open witnesses, where a sequent written from the goal's formulas
+  would not. The cost is one replay per goal asked; the walk stops at
+  the first goal with a proof.
+- **A goal left undecided does not stop the walk.** The walk goes on to
+  the next goal below and lands only where the search found a proof,
+  which is what "the last goal that still had a proof" asks. Going back
+  further than needed loses steps but never leaves the visitor on a goal
+  without a proof.
+- **The verdicts kept are the sequent's own (`Proof.verdict`).** The page
+  keeps no verdict of an inner goal once a step expands it, so the walk
+  searches those. A kept "unknown" is searched again, since its budget
+  may differ.
+- **The goal's ids stay where the visitor names a goal across steps.**
+  The Steps list, the formulas' accessible names ("formula 1 of goal
+  3") and the live region keep deduxit's ids; only the bar counts among
+  the open goals. W10 names the bar alone.
+- **The logic dialog's group names "Calculus" and "Suite" stay.** 54w-a
+  kept them because the inner groups are already named "Logic" and
+  renaming the outer one gives two groups of one name; the reviewer's
+  finding 2 is answered by the visible text only (below).
+- **Reasons beyond the four the brief names.** The brief lists "a
+  refused step, a verdict, Cannot close, a greyed export item" as
+  examples of "every reason". The field's parse error, the banner, the
+  status, the greyed engines, the Mix switch and the Net tab got the
+  same line, since each is a reason a touch never saw.
+- **The Net tab's reason shows on a press**, not always: a line under
+  the stage's controls for every unfinished proof would stand there for
+  most of a proof. The tab is `aria-disabled`, so it still takes a
+  press or Enter.
+- **What the decisions rest on:** the usability review's citations
+  (NN/g's tooltip guidelines and empty-state article: no tip holds what
+  a task needs, help is offered and never imposed), taken as the review
+  gives them and not read again; the client's `island.md` for Solid 1.9
+  idioms. Playwright's `toHaveText` reads `textContent` unless
+  `useInnerText` is set, so the tests of labels with a wide-only and a
+  phone-only span set it.
+
+### The checks
+
+| check | result |
+|---|---|
+| Vitest (`tests`, `--maxWorkers=3`, cores 13-15) | 584 passed (579 before: 5 new tests, `markLabel`, `openGoal`, the lost-goal words, and two of `wayBack`) |
+| `biome lint --error-on-warnings`, `astro check`, `tsc --noEmit` | 0 errors |
+| e2e, the whole suite in the dev shell (`--workers=3`, cores 13-15) before the review | 151 passed, 3 failed: `modes.spec.ts` and `invertible.spec.ts` read the mark's text and the note's button, which moved (changed with them), and `prover.spec.ts`'s link test, which opens a fresh page and timed out under load; all three passed when run again |
+| e2e of the specs the review's fixes touch (`--workers=2`) | 66 passed, then the Net test again with the phone and dismiss specs: 10 passed |
+| `targets.spec.ts` after the walk's fix (`--workers=3`) | 10 passed; the walk takes 17 seconds, the new reasons test 4 |
+| the client's `nix flake check --keep-going --max-jobs 4 --cores 8`, under the machine lock, at `ozwnvxwn` | exit 0 |
+| the same at `wrnqvwpw` | exit 0: 584 unit tests, 153 e2e tests passed and 1 flaky: `targets.spec.ts`'s desktop walk of every control timed out at 60 seconds on the step this session had added to it, and passed on its retry; the run at `ozwnvxwn` had the same flaky test |
+| the same at `vqlplqsw`, the chain's last commit, after moving the two new states out of the walk | exit 0: 156 e2e tests passed, none flaky; the unit check's sources were unchanged since the run at `wrnqvwpw`, so its result (584 passed) came from the store |
+
+### The review
+
+The `fresh-reviewer` agent (Fable 5.2 at `medium`) read the first two
+commits against the brief, the prompt and the notes, and drove the
+built page with a scratch Playwright script on cores 13-15.
+
+1. **Go back in an ordinary proof showed no note when the lost step
+   had a structural run under its rule** (`~a, c |- c` in LJ, `¬L`,
+   then Close goal and Go back: the root reopened, the dock had no
+   note). Upheld. Ordinary `retract` climbs through the step's run to
+   the step's goal, so the goal reopened was below the path the walk
+   asked, and the note went to a path the new session lacked; the same
+   goal was also searched twice. Fixed in `vvtprlnz`: the walk keeps
+   each reopened goal's answer by its path, searches it once, applies
+   the kept verdict wherever the sequent itself is reopened, and notes
+   the goal it shows; an e2e case in `ordinary.spec.ts` drives it.
+2. **"One name, Logic": the dialog's outer group is labelled
+   "Calculus", and the restart warning said "Changing the calculus".**
+   Upheld for the visible text: "Changing the logic restarts this
+   proof" (`wrnqvwpw`). The group's accessible name stays, as 54w-a
+   decided and recorded (two groups named "Logic" otherwise).
+3. **The greyed Net tab's reason was still only a tip.** Upheld, since
+   `web.md`'s new rule says every reason is a line: a press on the tab
+   shows it until Tree is pressed (`wrnqvwpw`), with an e2e step.
+4. **W2 and W3 have e2e tests only, no unit test.** True, and left so:
+   neither item has logic outside the island (W2 is a button calling the
+   popover's own opener, W3 two buttons setting view state), and the
+   client has no unit tests of islands at all. A unit test would have
+   to extract a function only for the test. The brief's "unit and e2e
+   tests for each" is met for W1, W9, W10 and W15, and by e2e alone for
+   W2 and W3.
+
+### Departures from the brief
+
+- W2's and W3's tests are e2e only (review finding 4). (departs from
+  the design)
+- The verdict sentences 54w-a wrote are unchanged; the lost-goal line
+  is added under them. In an ordinary proof a refuted inner goal reads
+  "Not valid" with the sentence "The sequent has no derivation in LJ…",
+  over the line "The sequent may still have one: an earlier step lost
+  it." The two disagree about "the sequent". A proposal below.
+
+### Proposals beyond the items
+
+- Make the ordinary "Not valid" sentence speak of the goal ("This goal
+  has no derivation in LJ"), so that it reads right at an inner goal
+  (`ordinaryVerdict` in `src/lib/ordinary.ts`).
+- When Go back searches the sequent itself and finds no proof, keep
+  that as the proof's verdict (`Proof.verdict`), so that the tab's mark
+  and the status say it too.
+- The formulas' accessible names and the live region still number goals
+  by deduxit's ids while the bar counts among the open ones. A screen
+  reader hears both numberings; naming a formula's goal by its place
+  among the open goals would match the bar but not the Steps list.
+
+### What the next sessions must know
+
+- For 54u-d (Learn, Practice, Export), on the client's chain after
+  `wrnqvwpw`:
+  - Export's greyed items now show their reason as `span.off` inside
+    the item's `.fn`; W7's and W8's new items get it for free through
+    `off`.
+  - Every reason is a line (`Why` in `ui.tsx`); a new message with a
+    reason uses it, and a long one takes `more`.
+  - The empty stage's "Take the tour" and "Start lesson 1" contain
+    "tour" and "lesson": a test that finds the band's Tour by name
+    needs `exact: true` (`learn.spec.ts` now passes it).
+  - The goal bar's text is "Open goal N of M"; tests read it with
+    `toHaveText(…, { useInnerText: true })`, since the bar holds a
+    wide-only and a phone-only span. The tab's mark likewise
+    (`.pt-mark .mk`).
+  - A note's keyword is a `span.kw`, no longer a button: a test finds
+    the note as `.dock .note` and its sentence with `toContainText`.
+  - W14 renames the storage keys; nothing of this session reads or
+    writes one.
+- The client's `.claude/rules/web.md` records each of these, with Go
+  back's walk and the ordinary run case.
+- The dev shell of a fresh client workspace built biome from source for
+  twenty minutes under the machine lock (nixpkgs had no cached build at
+  the client's pin); a later workspace on the same pin reuses it.
