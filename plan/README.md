@@ -6492,3 +6492,61 @@ move (D26).
       other three.
   - **Next:** 54w-e3 and 54w-e5 (after 54u-a, ready) and 54w-e6 as
     slots free; 54w-c after 54u-e; 54s-c after 54s-b.
+- 2026-11-14: **Review of sessions 54u-e, 54w-d and 54u-d; the next three
+  started.** The author's standing instruction (2026-11-14): review each
+  session as its note arrives, and start the next pieces as soon as a
+  slot frees.
+  - **Stacked** onto `main`: 54u-e (`kvqyoyul` … `zvmzsrqt`), 54w-d on
+    it (`twqqvqwm` … `kyyryyok`, no conflict; both touch the guide's
+    `reference.md`), 54u-d's report on top (`llmypmxy`; both 54u
+    reports appended to `54u-usability.md`, both sections kept, 54u-e's
+    first).
+  - **Checked at `llmypmxy`:** the gate passed (its note that the cache
+    model's misses moved on `search-qbf-20-2`, `search-chain-128` and
+    `check-qbf-20-2` is not a failure, as at 54u-b); `nix flake check`
+    "all checks passed!".
+  - **My probes:**
+    - 54u-e's app on a certificate the command wrote: holds, exit 0; the
+      same file with `Admitted`, and with an `Axiom` added: refused,
+      exit 1, each saying why.
+    - 54w-d's texts on the built binary: `--net`'s verdict, the
+      intuitionistic count refutation by sides, an empty input's hint,
+      FC6's refusal ("the rule ⅋ does not act on formula 1, A ⊗ B;
+      `rules 0 1` lists the rules that do"), `prove -h`.
+    - Found, older than this chain: `interact`'s `apply x 0 par` says
+      `"x" is not a goal: invalid digit found in string`, Rust's parse
+      error and no hint (`cli/src/interact/mod.rs`, `ordinary.rs`). A
+      text fix for the next session that works in `cli/` (54s-c).
+  - **Departures accepted:**
+    - 54u-e refuses a certificate whose lemma rests on an axiom or is
+      `Admitted`. The brief asked for exit 0 on a compile, but those
+      compile silently, and a checker that passes them checks nothing.
+    - 54u-d's share items are "This proof" and "The sequent" under
+      "Share a link", to fit the 96-pixel label column.
+  - **54u-d in the client**: `vmoymwou` … `runpsyxs` on the client's
+    `main@origin`; its flake check passed there (586 unit, 162 e2e), and
+    again under my run before the push. When the client's pin of deduxit
+    next moves past 54w-d, its e2e tests may assert the old net verdict,
+    refutation or a step's refusal (`cannot stand there` is now `cannot
+    be used here`).
+  - **Held for the author** (from the reports): `rocq.nix` to build
+    NanoYalla once with `check-certificate.nix`;
+    `packages.check-certificate`; the intuitionistic count refutation
+    naming the side with no literal (code); `StepError::Rule` carrying
+    the formula (API); Learn's practice answer kept per lesson.
+  - **For later text work:** 54u-d's new page texts (the export details,
+    the share group, lesson 1's rewrite, the practice feedback,
+    Practice's text, the four split openings) and lesson 2's second
+    paragraph, which repeats lesson 1's rewrite, belong to the page's
+    next text pass, not to 54w-c.
+  - **Started** in the freed slots, each on Opus 5.5 at `high` in a jj
+    workspace on `main`, first rebased onto `llmypmxy`:
+    - 54w-c, README, the manual, the changelog and the guide
+      (`local_e4b17b55`, cores 4-6): its dependencies 54b, 54u-a, 54u-b
+      and 54u-e are in;
+    - 54w-e3, the comments of `export` (`local_a94c2c17`, cores 7-9);
+    - 54w-e5, the comments of the root, `web/`, `bench/` and `compat/`,
+      and the three test names that refer to how the code was made
+      (`local_ac0c5002`, cores 13-15).
+  - **Next:** 54w-e6 at the next free slot; 54s-c after 54s-b; step 55's
+    first session after 54s; 54w-e4 after it.
