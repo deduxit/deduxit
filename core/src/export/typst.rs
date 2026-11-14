@@ -1,34 +1,17 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Typst: formulas in math mode, and derivations as proof trees, of the
-//! `curryst` package, whose `rule(name: …, premises…, conclusion)` nests
-//! the premises inside their conclusion, or of deduxit's own layout.
+//! Writes sequents and proofs as Typst: formulas in math mode, and proofs
+//! as proof trees of the `curryst` package or of deduxit's own layout.
 //!
-//! The connectives are written as their Unicode characters (`⊗ ⅋ ⊕ ⊸ ⊢
-//! ⊥ ⊤`), which Typst's math reads with their Unicode math class and which
-//! no renaming of Typst's symbol names can break; `&` is escaped and set
-//! as a binary operator, `?` set as an ordinary symbol so that no
-//! punctuation space follows it, and `1` bold. A fragment is a sequent in
-//! `$…$` or a `#prooftree(…)` call, for a document that imports `rule`
-//! and `prooftree` from curryst [`CURRYST`]; a standalone document imports
-//! them itself and sizes the page to its content. Neither chooses a font:
-//! the output is set in the fonts of the document it goes into. curryst cannot align
-//! turnstiles, so every sequent is centred. An open goal of a proof in
-//! progress is its sequent under vertical dots, with no inference line.
-//! curryst nests its layout at every level of the tree, so Typst refuses a
-//! tree with two premises on a branch more than [`CURRYST_HEIGHT`]
-//! inferences high ("maximum show rule depth exceeded"). A higher tree is
-//! therefore written by default in deduxit's own layout ([`Layout`]): a
-//! `#context` block that lists the inferences and measures, lays out and
-//! places them in one box, the SVG drawing's layout with Typst's
-//! measurements, so that no height reaches a limit and no package is
-//! needed.
+//! | to get | call |
+//! |---|---|
+//! | a proof tree | [`to_string`] |
+//! | a proof tree, written into your own buffer with a stop | [`write()`] |
+//! | a sequent alone | [`sequent`] |
 //!
-//! An atom named by one letter is written as it is, in math italic; any
-//! other name is a string in `italic(…)`, with `"` and `\` escaped, since
-//! Typst would read a longer name as a variable of its own. Typst is
-//! Unicode throughout, so names beyond ASCII need nothing else.
+//! [`Options`] holds the choices: a fragment or a whole document, the rule
+//! labels, how an open goal looks, the layout and its spacing.
 //!
 //! Needs the cargo feature `typst` (on by default).
 //!
@@ -40,18 +23,14 @@
 //! use deduxit::{Limits, linear::{Mode, Options, Sequent, Verdict, prove}};
 //!
 //! let sequent: Sequent = "A, A -o B |- B".parse()?;
-//! let options = typst::Options::default();
-//! let printed = typst::sequent(&sequent, Mode::CLASSICAL, &options, &Limits::default())?;
-//! assert_eq!(printed, "$⊢ A^⊥, A ⊗ B^⊥, B$");
-//!
 //! let outcome = prove(&sequent, Mode::INTUITIONISTIC, &Options::default())?;
 //! let Verdict::Proved(proof) = &outcome.verdict else {
 //!     panic!("provable");
 //! };
-//! let mut written = String::new();
-//! typst::write(&proof.derivation()?, &options, &mut written, |_| false)?;
+//! let options = typst::Options::default();
+//! let tree = typst::to_string(&proof.derivation()?, &options)?;
 //! assert_eq!(
-//!     written,
+//!     tree,
 //!     r#"#prooftree(
 //!   rule(
 //!     name: $⊸ upright(L)$,
@@ -61,8 +40,60 @@
 //!   ),
 //! )"#
 //! );
+//!
+//! // The sequent alone, one-sided as classical linear logic writes it.
+//! let printed = typst::sequent(&sequent, Mode::CLASSICAL, &options, &Limits::default())?;
+//! assert_eq!(printed, "$⊢ A^⊥, A ⊗ B^⊥, B$");
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
+//!
+//! # What the output needs
+//!
+//! By default the output is a fragment: a sequent between `$`s, a
+//! `#prooftree(…)` call of curryst, or a `#context` block of deduxit's own
+//! layout. Paste it into a document. A curryst tree needs `prooftree` and
+//! `rule` imported from curryst, version [`CURRYST`]; the own layout needs no
+//! package. With [`Form::Standalone`] the output is a document whose page
+//! is the size of its content, and which imports curryst itself where the
+//! tree needs it.
+//!
+//! The output chooses no font. It takes the fonts of the document it goes
+//! into.
+//!
+//! # The two layouts
+//!
+//! curryst's `rule(name: …, premises…, conclusion)` nests the premises
+//! inside their conclusion, and curryst nests its layout at every level of
+//! the tree. So Typst refuses a curryst tree with a branch of more than
+//! [`CURRYST_HEIGHT`] inferences that has a rule of two premises on it
+//! ("maximum show rule depth exceeded").
+//!
+//! By default ([`Layout::Auto`]) a higher tree is written in deduxit's own
+//! layout instead. That layout lists the inferences in a `#context` block,
+//! measures them with Typst, lays the tree out as the SVG drawing does,
+//! and places every piece in one box. Nothing is nested per level, so the
+//! height of the tree reaches no limit of Typst's.
+//!
+//! curryst cannot line up turnstiles, so every sequent is centred, in
+//! both layouts.
+//!
+//! # How it is written
+//!
+//! - The connectives are their Unicode characters (`⊗ ⅋ ⊕ ⊸ ⊢ ⊥ ⊤`).
+//!   Typst's math reads them with their Unicode math class, and no
+//!   renaming of Typst's symbol names can break them.
+//! - `&` is escaped and set as a binary operator. `?` is set as an
+//!   ordinary symbol, so that no punctuation space follows it. `1` is
+//!   bold.
+//! - By default an open goal is its sequent under vertical dots, with no
+//!   inference line ([`Options::open`]).
+//!
+//! # Atom names
+//!
+//! A name of one letter is written as it is, in math italic. Any other
+//! name is a string in `italic(…)`, with `"` and `\` escaped: Typst would
+//! read a longer name as a variable. Typst reads Unicode throughout, so
+//! names beyond ASCII need nothing else.
 
 use super::notation::{Step, flush, walk};
 use super::{Drawable, Form};
@@ -74,9 +105,10 @@ use crate::linear::sequents::notation::{Atoms, Notation};
 use crate::ordinary::Symbols;
 use std::fmt::Write;
 
-/// The version of curryst a standalone document imports, the one the
-/// output is written for. The flake's `export` check compiles the output
-/// with this version from nixpkgs, so the two change together.
+// The flake's `export` check compiles the output with the curryst of
+// nixpkgs, so this version and that one change together.
+/// The version of curryst the output is written for, and the one a
+/// standalone document imports.
 pub const CURRYST: &str = "0.6.0";
 
 /// The Typst spelling of formulas and sequents.
@@ -105,7 +137,8 @@ const NOTATION: Notation = Notation {
     ordinary: Symbols::UNICODE,
 };
 
-/// Writes an atom's name in math mode.
+/// Writes an atom's name in math mode: one letter as it is, any other
+/// name as an italic string.
 pub(crate) fn atom<W: Write + ?Sized>(out: &mut W, name: &str) -> std::fmt::Result {
     let mut chars = name.chars();
     if let (Some(c), None) = (chars.next(), chars.next())
@@ -123,16 +156,21 @@ pub(crate) fn atom<W: Write + ?Sized>(out: &mut W, name: &str) -> std::fmt::Resu
     out.write_str("\")")
 }
 
-/// The page setup of a standalone document by default: as large as its
-/// content.
+/// The default page setup of a standalone document: a page as large as its
+/// content, with a margin of 5 pt.
 pub const PAGE: &str = "#set page(width: auto, height: auto, margin: 5pt)";
 
+// Measured with Typst 0.15.1 and curryst 0.6.0: a tree ten inferences high
+// with a binary rule on the branch fails and nine compiles, on chains of
+// `⊗` and on full binary trees. Chains of one-premise rules compile at
+// thirteen. The number moves with the two versions.
 /// The highest tree, in inferences on its longest branch, that curryst
-/// [`CURRYST`] sets: Typst refuses a higher one with two premises
-/// anywhere on the branch ("maximum show rule depth exceeded").
+/// [`CURRYST`] sets. Typst refuses a higher one that has a rule of two
+/// premises on that branch ("maximum show rule depth exceeded").
 pub const CURRYST_HEIGHT: usize = 9;
 
-/// Which code sets a Typst proof tree.
+/// Which code sets a Typst proof tree: the curryst package, or Typst code
+/// of deduxit's own written into the output.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -142,19 +180,36 @@ pub enum Layout {
     /// its longest branch, deduxit's own layout for a higher one.
     #[default]
     Auto,
-    /// curryst's `prooftree` and `rule`, which a document imports.
+    /// curryst's `prooftree` and `rule`, which the document imports.
     Curryst,
-    /// Typst code of deduxit's own in the output, which measures every
-    /// sequent and places it, with no package and no limit on the height.
-    /// Read from `"linlog"` too, its name up to 0.2.0.
+    /// deduxit's own layout: Typst code in the output that measures every
+    /// sequent and places it. It needs no package and has no limit on the
+    /// height.
+    ///
+    /// JSON reads `"linlog"` as this value too, the name deduxit 0.2.0
+    /// wrote, so its settings files still load.
     #[cfg_attr(feature = "serialize", serde(alias = "linlog"))]
     Deduxit,
 }
 
-/// A Typst length the output writes as code: a number of digits, with a
-/// fraction after a `.` or not, and one of the units `pt`, `mm`, `cm`,
-/// `in` and `em`, as in `1.5em`, so that an option's value can never be
-/// other code. In JSON (feature `serialize`) its text.
+/// A Typst length, such as `1.5em`, for the spacing of deduxit's own
+/// layout.
+///
+/// The output writes a length as code, so a length is checked when it is
+/// made: digits, then a `.` and more digits or not, then one of the units
+/// [`UNITS`](Self::UNITS). Nothing else can reach the output through an
+/// option. In JSON (cargo feature `serialize`) a length is its text.
+///
+/// # Examples
+///
+/// ```
+/// use deduxit::export::typst::Length;
+///
+/// let gap: Length = "1.5em".parse()?;
+/// assert_eq!(gap.as_str(), "1.5em");
+/// assert!(Length::new("1.5 em").is_err());
+/// # Ok::<(), deduxit::Error>(())
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Length(Box<str>);
 
@@ -162,11 +217,12 @@ impl Length {
     /// The units a length may have.
     pub const UNITS: [&'static str; 5] = ["pt", "mm", "cm", "in", "em"];
 
-    /// Returns the length `text` is.
+    /// Returns the length that `text` writes.
     ///
     /// # Errors
     ///
-    /// [`Error::InvalidOption`] for text that is no such length.
+    /// [`Error::InvalidOption`] for text that is not digits, an optional
+    /// fraction and one of the [`UNITS`](Self::UNITS).
     pub fn new(text: &str) -> Result<Self, Error> {
         let number = text.trim_end_matches(|c: char| c.is_ascii_alphabetic());
         let (whole, fraction) = number.split_once('.').unwrap_or((number, "0"));
@@ -224,9 +280,27 @@ impl<'a> serde::Deserialize<'a> for Length {
     }
 }
 
-/// What a user may vary in the Typst output.
-/// Made from its `default()` with the fields set that differ, since a
-/// later field breaks no caller that way.
+/// The choices of the Typst output.
+///
+/// Start from `Options::default()` and change the fields you want, by
+/// assignment or with the `with_*` methods. The struct is
+/// `#[non_exhaustive]`, so a field added later breaks no caller.
+///
+/// # Examples
+///
+/// A sequent as a document that compiles on its own:
+///
+#[cfg_attr(feature = "parse", doc = "```")]
+#[cfg_attr(not(feature = "parse"), doc = "```ignore")]
+/// use deduxit::export::{Form, typst};
+/// use deduxit::{Limits, linear::{Mode, Sequent}};
+///
+/// let sequent: Sequent = "A |- A".parse()?;
+/// let options = typst::Options::default().with_form(Form::Standalone);
+/// let document = typst::sequent(&sequent, Mode::CLASSICAL, &options, &Limits::default())?;
+/// assert_eq!(document, format!("{}\n\n$⊢ A^⊥, A$", typst::PAGE));
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -237,12 +311,14 @@ pub struct Options {
     /// The labels of the rules.
     pub labels: Labels,
     /// How an open goal is drawn: under `dots.v`, bare, as a leaf rule
-    /// named by a mark, or under a dashed line.
+    /// labelled with a mark, or under a dashed line.
     pub open: OpenGoal,
     /// The line of a standalone document that imports `prooftree` and
-    /// `rule` from curryst.
+    /// `rule` from curryst. Only a curryst tree writes it. It is written
+    /// as it is, as Typst code.
     pub import: String,
-    /// The page setup of a standalone document.
+    /// The page setup of a standalone document, written as it is, as Typst
+    /// code.
     pub page: String,
     /// Which code sets the tree.
     pub layout: Layout,
@@ -253,26 +329,29 @@ pub struct Options {
     /// deduxit's own layout.
     pub label_gap: Length,
     /// The least height of the space an inference line stands in, between
-    /// its premises and its conclusion, in deduxit's own layout; a taller
+    /// its premises and its conclusion, in deduxit's own layout. A taller
     /// label makes it taller.
     pub band: Length,
     /// The thickness of an inference line in deduxit's own layout.
     pub stroke: Length,
-    /// Whether the derivation's lambda-term is written under its
-    /// conclusion, as its typing judgement ([`lambda`](crate::lambda)),
-    /// with these options, their notation being the target's own; `None`
-    /// by default. A derivation without a term is refused
+    /// The derivation's lambda-term, written under its conclusion as its
+    /// typing judgement ([`lambda`](crate::lambda)), with these options.
+    /// `None`, the default, writes no term.
+    ///
+    /// The term is in Typst's notation, whatever
+    /// [`notation`](crate::lambda::Options::notation) says. Before anything
+    /// is written, [`write()`] refuses a derivation that has no term
     /// ([`Error::NoTerm`]), and a term whose text would pass the default
-    /// output bound ([`Limits::DEFAULT_DERIVATION_BYTES`](crate::Limits::DEFAULT_DERIVATION_BYTES))
-    /// is refused before anything is written.
+    /// output bound
+    /// ([`Limits::DEFAULT_DERIVATION_BYTES`](crate::Limits::DEFAULT_DERIVATION_BYTES)).
     pub lambda: Option<crate::lambda::Options>,
 }
 
 impl Default for Options {
-    /// Returns a fragment with upright labels, an open goal under
-    /// vertical dots, the import of curryst [`CURRYST`], the page
+    /// Returns the options of a fragment with upright labels, an open goal
+    /// under vertical dots, the import of curryst [`CURRYST`], the page
     /// [`PAGE`], curryst up to its height and deduxit's own layout above
-    /// it, with curryst's spacing and line.
+    /// it, curryst's spacing and line, and no lambda-term.
     fn default() -> Self {
         Self {
             form: Form::Fragment,
@@ -355,9 +434,10 @@ impl Options {
     }
 }
 
-/// Writes a label's markup in math mode: symbols as their characters,
-/// one letter as `upright(L)`, longer text as a string, subscripts after
-/// `_`, and a space before text that follows something.
+/// Writes a rule label's markup in math mode: symbols as their
+/// characters, one letter as `upright(L)`, longer text as a string, and
+/// subscripts after `_`. Text that follows something gets a space before
+/// it.
 fn label(out: &mut String, markup: &str) {
     let text = |out: &mut String, text: &str| {
         let mut chars = text.chars();
@@ -423,8 +503,8 @@ fn label(out: &mut String, markup: &str) {
     }
 }
 
-/// Returns `math` in the options' form: as it is, or after the page
-/// setup.
+/// Returns `math` in the options' form: as it is for a fragment, or after
+/// the page setup for a standalone document.
 fn formed(math: String, options: &Options) -> String {
     match options.form {
         Form::Fragment => math,
@@ -437,17 +517,21 @@ fn formed(math: String, options: &Options) -> String {
 /// its separator take.
 const PER_OCCURRENCE: u64 = 32;
 
-/// Returns a sequent in the options' form: one-sided, or in
-/// intuitionistic mode two-sided by its reading.
+/// Returns a sequent as Typst math between `$`s, or a standalone document
+/// that holds it, as [`Options::form`] says.
+///
+/// In an intuitionistic mode the sequent is two-sided, as its
+/// intuitionistic reading has it. In any other mode it is one-sided.
 ///
 /// # Errors
 ///
-/// [`Refusal::Output`](crate::Refusal::Output) for a sequent whose text is
-/// estimated past `limits.derivation_bytes` (`32` bytes an occurrence
-/// and its longest atom name), before anything is laid out;
-/// [`Error::NotIntuitionistic`] in intuitionistic mode for one without an
-/// intuitionistic reading, and the refusal of
-/// [`Forest::within`](crate::linear::Forest::within).
+/// - [`Refusal::Output`](crate::Refusal::Output) for a sequent whose text
+///   is estimated past `limits.derivation_bytes`, before anything is laid
+///   out. The estimate is 32 bytes plus the longest atom name for each
+///   occurrence of a subformula.
+/// - In an intuitionistic mode, [`Error::NotIntuitionistic`] for a
+///   sequent that has no intuitionistic reading, and the refusal of
+///   [`Forest::within`](crate::linear::Forest::within).
 pub fn sequent(
     sequent: &Sequent,
     mode: crate::linear::Mode,
@@ -457,22 +541,38 @@ pub fn sequent(
     super::math(sequent, mode, PER_OCCURRENCE, limits, &NOTATION).map(|out| formed(out, options))
 }
 
-/// Writes a derivation as a proof tree into `out`, in the options' form,
-/// one inference at a time, and asks `stop` after each: a curryst
-/// `#prooftree(…)` call, in which a rule with premises spans several
-/// lines, indented by its depth, and a leaf is one line; or a `#context`
-/// block of deduxit's own layout ([`Options::layout`]), the inferences
-/// listed first, from the root in preorder, one line each, then the code
-/// that sets them. A linear derivation is two-sided if it is; one of LK
-/// or LJ is two-sided, its connectives and constants their Unicode
-/// characters `¬ ∧ ∨ → ↔ ⊤ ⊥` and its labels those of [`ordinary::Rule`](crate::ordinary::Rule)
-/// (a label table of [`Labels::Table`] is keyed by the linear rules, so it
-/// leaves them upright). A `String` takes the whole.
+/// Writes a derivation as a Typst proof tree into `out`, one inference at
+/// a time, and asks `stop` after each.
+///
+/// For the whole text at once, use [`to_string`]. This function is for
+/// writing into your own buffer, or for stopping a large export.
+///
+/// [`Options::layout`] picks the code:
+/// - curryst's is a `#prooftree(…)` call. A rule with premises spans
+///   several lines, indented by its depth, and a leaf is one line.
+/// - deduxit's own is a `#context` block. It lists the inferences first,
+///   one line each, from the root in preorder (each inference before its
+///   premises), then the code that sets them.
+///
+/// With [`Options::lambda`] set, the tree and the judgement under it stand
+/// in a `#stack`.
+///
+/// The output is a fragment or a document, as [`Options::form`] says. A
+/// linear derivation is one- or two-sided, as it is. A derivation of LK or
+/// LJ is two-sided. Its connectives and constants are the Unicode
+/// characters `¬ ∧ ∨ → ↔ ⊤ ⊥`, and its labels those of
+/// [`ordinary::Rule`](crate::ordinary::Rule). A [`Labels::Table`] is
+/// keyed by the linear rules, so it leaves the labels of LK and LJ
+/// upright.
 ///
 /// # Errors
 ///
-/// [`Refusal::Stopped`](crate::Refusal::Stopped) when `stop` fired, and
-/// [`Error::WriteFailed`] when `out` refused the text.
+/// - [`Refusal::Stopped`](crate::Refusal::Stopped) when `stop` fired.
+/// - [`Error::WriteFailed`] when `out` refused the text.
+/// - With [`Options::lambda`] set, before anything is written:
+///   [`Error::NoTerm`] for a derivation that has no lambda-term, and
+///   [`Refusal::Output`](crate::Refusal::Output) for a term whose text is
+///   estimated past the default bound.
 pub fn write<'a>(
     derivation: impl Into<Drawable<'a>>,
     options: &Options,
@@ -496,16 +596,19 @@ pub fn write<'a>(
     }
 }
 
-/// Returns a derivation as [`write()`] writes it, whole, with a stop that
-/// never fires. The text is linear in the derivation, which was made
-/// within its own limits ([`Proof::derivation`](crate::linear::Proof::derivation)
-/// uses the default ones), and a lambda-term written under it is bounded
-/// by the default [`Limits`](crate::Limits).
+/// Returns a derivation as Typst, whole, as [`write()`] writes it.
+///
+/// It takes no stop. The text grows linearly with the derivation, which
+/// was made within its own limits
+/// ([`Proof::derivation`](crate::linear::Proof::derivation) uses the
+/// default ones). A lambda-term written under it is bounded by the default
+/// [`Limits`](crate::Limits).
 ///
 /// # Errors
 ///
-/// As [`write()`] answers, but [`Refusal::Stopped`](crate::Refusal::Stopped) and
-/// [`Error::WriteFailed`], which a `String` never gives.
+/// As [`write()`], but never [`Refusal::Stopped`](crate::Refusal::Stopped)
+/// or [`Error::WriteFailed`]: there is no stop, and a `String` takes any
+/// text.
 pub fn to_string<'a>(
     derivation: impl Into<Drawable<'a>>,
     options: &Options,
@@ -516,7 +619,7 @@ pub fn to_string<'a>(
 }
 
 /// Writes any derivation as [`write()`] does, in the layout the options
-/// choose, and under its conclusion the judgement given.
+/// choose, with the judgement given, if any, under its conclusion.
 fn tree<T: Drawn>(
     derivation: &T,
     options: &Options,
@@ -536,7 +639,8 @@ fn tree<T: Drawn>(
     }
 }
 
-/// Returns the inferences on the longest branch of a derivation.
+/// Returns the number of inferences on the longest branch of a
+/// derivation.
 fn height<T: Drawn>(derivation: &T) -> usize {
     // Premises come before their conclusions, the root last.
     let mut heights = vec![0; derivation.len()];
@@ -548,16 +652,24 @@ fn height<T: Drawn>(derivation: &T) -> usize {
     heights.last().copied().unwrap_or(0)
 }
 
-/// The Typst code of deduxit's own layout, which follows the inferences
-/// (`nodes`: premises, label and conclusion, from the root in preorder;
-/// `none` premises for an open goal drawn as `open` says) and the spacing
-/// in a `#context` block. It measures every sequent and label, lays the
-/// tree out as the SVG drawing does (premises side by side `gap` apart,
-/// their conclusions centred over the conclusion, the line spanning both
-/// with the label after it) and places every piece in one box: nothing is
-/// nested per level, so no height reaches a limit of Typst's. A sequent's
-/// ascent is its height less its depth, which a strut of `tall` above it
-/// reveals, so that the sequents of a row share a baseline.
+/// The Typst code of deduxit's own layout, which ends the `#context`
+/// block after the spacing and the inferences.
+///
+/// The inferences are `nodes`: each its number of premises, its label and
+/// its conclusion, from the root in preorder. An open goal has `none` for
+/// its premises and is drawn as `open` says, or, under a mark, is a leaf
+/// labelled with the mark.
+///
+/// The code measures every sequent and label and lays the tree out as the
+/// SVG drawing does. Premises stand side by side, `gap` apart, with their
+/// conclusions centred over the conclusion below. The inference line spans
+/// both, with the label after it. Every piece is placed in one box:
+/// nothing is nested per level, so no height of tree reaches a limit of
+/// Typst's.
+///
+/// The sequents of a row share a baseline. A sequent's ascent is its
+/// height less its depth, and its depth is what a strut of height `tall`
+/// before it adds to the height.
 const LAYOUT: &str = r#"  let n = nodes.len()
   let tall = (3em).to-absolute()
   let metrics(c) = {
@@ -670,8 +782,8 @@ const LAYOUT: &str = r#"  let n = nodes.len()
 "#;
 
 /// Writes a derivation in deduxit's own layout into `out`, one inference
-/// at a time, and asks `stop` after each; with a judgement, the tree and
-/// the judgement under it in a stack.
+/// at a time, and asks `stop` after each. With a judgement, the tree and
+/// the judgement under it stand in a stack.
 fn laid_out<T: Drawn>(
     derivation: &T,
     options: &Options,
@@ -729,11 +841,11 @@ fn laid_out<T: Drawn>(
     under(out, judgement)
 }
 
-/// What opens the stack of a tree and the judgement under it.
+/// The code that opens the stack of a tree and the judgement under it.
 const STACK: &str = "#stack(spacing: 0.8em, align(center, ";
 
-/// Closes the stack [`STACK`] opened with the judgement given under the
-/// tree, if there is one.
+/// Writes the judgement given under the tree and closes the stack that
+/// [`STACK`] opened. Without a judgement it writes nothing.
 fn under(out: &mut impl Write, judgement: Option<&str>) -> Result<(), Error> {
     if let Some(judgement) = judgement {
         write!(out, "), align(center, ${judgement}$))")?;
@@ -742,8 +854,8 @@ fn under(out: &mut impl Write, judgement: Option<&str>) -> Result<(), Error> {
 }
 
 /// Writes a derivation as a curryst tree into `out`, one inference at a
-/// time, and asks `stop` after each; with a judgement, the tree and the
-/// judgement under it in a stack.
+/// time, and asks `stop` after each. With a judgement, the tree and the
+/// judgement under it stand in a stack.
 fn curryst<T: Drawn>(
     derivation: &T,
     options: &Options,
@@ -881,7 +993,7 @@ mod tests {
         }
     }
 
-    /// One letter stays as it is; every other name is an italic string
+    /// One letter stays as it is. Every other name is an italic string,
     /// with quotes and backslashes escaped.
     #[test]
     fn names_are_escaped() {
