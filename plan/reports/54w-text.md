@@ -1012,3 +1012,228 @@ pairs changed as code.
   lines; the flake's `treefmt` check failed on one such line here until
   `nix fmt` reformatted it. Run `nix fmt` on a file edited outside the
   Edit tool before the flake check.
+
+## Session 54w-d: the command's help, messages and errors
+
+Item 5 of `plan/54w-text.md` (Opus 5.5 at `high`, 2026-11-14, cores 4-6,
+jj workspace `deduxit-wt-step-54w-d-96dffb`), the author away: every
+decision below was taken by the writing rules, the code's own idiom and
+the tests that read the help, each with its reason.
+
+### Outcome
+
+The command's `--help` and `-h`, its own messages and hints, the
+library's messages that the brief lists, the proof-net verdict and the
+refutation reasons are rewritten to `.claude/rules/writing.md`. No flag,
+default, exit status, JSON key or API changed. The chain, oldest first:
+
+| change | what |
+|---|---|
+| `twqqvqwm` | the help (`cli/src/argument_parsing.rs`'s doc comments) |
+| `uyuzkrxm` | the library's messages, with the manual's, the guide's and the tests' copies |
+| `krwwwpxo` | the command's own messages |
+| `zpqwnvmy` | the behaviour lock's changed lines, alone |
+| (this section) | the report |
+
+Nothing is pushed.
+
+### What was rewritten
+
+- **The help.** Every command's long help is split into short paragraphs
+  of one task each (`prove`: deciding, a batch, its lines, its exit
+  status; `eliminate`: the steps, the cases, the statuses, `--net`;
+  `interact`: starting, the session commands, the rules, the statuses).
+  Every flag whose help was one long paragraph, and so one long line of
+  `-h`, now has a short first line and the rest under `--help`
+  (`--settings`, `--cyclic`, `--lambek`, `--net`, `--output`, `--lambda`,
+  `--structural`, `--style-file`, `--invertible`, `--workers`,
+  `--batch-memory`, `--at`). `--style`'s field list is a paragraph per
+  format. Passive and "is X'd" phrasing became active where it read
+  better ("the command finds the sequent's fragment", "Give the sequent
+  as an argument"), and words like "detected", "rather than",
+  "alternating" went.
+- **The library's messages**: `ShapeError` (`⅋ only in A ⊸ B (~A ⅋ B)`,
+  "write the sequent with both sides", "right of ⊢" throughout),
+  `CheckError` ("the rule is not allowed in this mode", "the rule does
+  not act on F", "the premises of & do not have the same context", "the
+  premise of ! has formulas besides the promoted one that are not ?
+  formulas", in an intuitionistic check "the premise of !R has a
+  hypothesis that is not a ! formula", "the two premises do not have the
+  same context", "lies under a quantifier but is named without the terms
+  of its instance", "formula" for "occurrence", "the check stopped at node
+  N without a verdict"), `StepError` (the split, the eigenvariable, the
+  cut symbol, the exchange, the witness), the witness reader's, the
+  session replay's and `replay_cut`'s refusals, `canonical`'s ("term N is
+  an open witness, which a proof cannot hold", "frame N adds no closed
+  term"), `make_premises`' reason ("as many eigenvariables as it can
+  number"), and `lambda::NoTerm`'s classical and quantified reasons.
+- **The proof-net verdict** (`ProofStructure` and `MellStructure`'s
+  `Display`): `proof net (the correctness criterion holds)`, `proof net
+  with Mix (the correctness criterion with Mix holds)`, `planar proof net
+  (the correctness criterion holds, and no two links cross)`; `not a proof
+  net: …` as before. The SVG drawings' description carries it.
+- **The refutation reasons** (`refutation.rs`): the intuitionistic count
+  speaks of sides as the two-sided classical one does ("A occurs 1 more
+  time on the left than on the right, so they cannot all meet in axioms
+  (an implication's antecedent counts on the other side)"), and the
+  saturated set reads "its N sequents are closed under the rules, and
+  none of them yields the goal".
+- **The command's messages**: a rule that does not act on a formula is
+  now refused with the formula and the command that helps (FC6: "the rule
+  ⅋ does not act on formula 2, A ⊗ B; `rules 0 2` lists the rules that
+  do"); ordinary logic's "not valid" names "the translated sequent"
+  (FC9), and `--logic`'s help defines the image; an empty input, a
+  settings file given as `-`, TPTP without `--logic`, a style no format
+  has, and `--logic` on a format it does not read say what to write.
+
+### Claims found wrong, and fixed
+
+- `interact --help` said `proof … [FILE]` writes JSON for `check` "with
+  a FILE and no format": it writes the format the file's extension names,
+  and JSON only where the extension names none (the session's own `help`
+  says so); `show` likewise writes text then. It also left out the session
+  commands `invertible on|off` and `lambda`, which `help` lists.
+- `Placement::Uncut` said the vertex "lies in a cut formula above every
+  cut link": the variant is an occurrence above *no* cut link's end, so
+  no vertex (its own doc comment says so). Now "lies in a cut formula
+  above no cut link, so it is not a vertex, yet a link names it".
+- `NoTerm::Classical` said a classical proof "has several conclusions":
+  `⊢ 1` has one. Now "may have several conclusions …; a term needs an
+  intuitionistic proof" (FR3: the line says where a term comes from; it
+  names no flag, since it is the library's text and the page shows it
+  too).
+
+### Decisions
+
+- **The settings key stays in brackets at the end of a flag's first
+  line** (`(search.copies)`): `--settings` tells the reader that the flags
+  name the keys there, and `cli/tests/readme.rs` holds every key the guide
+  names to the help. Moving keys to the long help alone would have hidden
+  them from `-h`.
+- **What the tests read in the help stays word for word**: the batch's
+  order of exit statuses ("an error (2) before unknown (3) before
+  unprovable (1) before proved (0)"), the defaults in the forms
+  `guide_states_the_defaults` reads (`cbn (by default)`), `rocq:` in the
+  style list (`the_style_help_names_every_option`), and no hidden flag in
+  a short help (`short_help_keeps_to_the_common_flags`).
+- **The net verdict keeps its first words** and adds whose verdict it is
+  in brackets (FR2), so a script that looks for a line starting `proof
+  net` still finds it; one that matches the whole line `proof net` does
+  not, which the changelog should say (below).
+- **FC6 is the command's**: `StepError::Rule` names a position only, and
+  giving it the formula would be an API change; the session has the goal,
+  so `apply` names the formula and `rules G P`. The page can do the same.
+- **"the search was exhaustive" stays**: it is the refutation every other
+  phrase falls back to, plain enough, and quoted across the manual.
+- **The intuitionistic refutation counts by sides without saying "A on
+  the left has no A on the right"**: the classical phrase needs `placed`,
+  a pass the intuitionistic writer does not make; adding it is a code
+  change (a proposal below).
+
+### How no behaviour changed
+
+- **The code**: a lexer (in the scratch directory, gone with it) drops
+  comments and doc attributes, replaces every string literal by one
+  token, and compares each changed `.rs` file with its base
+  (`jj file show -r @-`). Of the 24 files, all but four have no change
+  beyond comments and string texts; the four are the FC6 arm in
+  `cli/src/interact/mod.rs` (a `map_err` that builds the message);
+  `CheckError`'s `Kind` arm, whose `write_str` moved before the formula
+  ("the rule does not act on F"), and its `NotEmpty` arm, which picks its
+  text by `reading.is_some()` as `NotDual` beside it does (the reviewer's
+  first finding); and braces around the longer strings of the nets'
+  verdict and `Placement::Uncut`.
+- **The help**: every `-h` and `--help` of the nine commands, captured
+  before the change from the base binary and after, compared by their
+  option lines, `[default: …]`, `[possible values: …]`, value lists,
+  headings and exit status: the same on all eighteen.
+- **The outputs**: the behaviour lock's diff (`zpqwnvmy`) changes text
+  lines only; no `--- status` line moved.
+
+### Checks
+
+Every run capped (`systemd-run --user --scope -p MemoryMax=8G -p
+MemorySwapMax=0 taskset -c 4-6`, three build jobs and test threads); the
+flake check under `flock -o /tmp/linlog-machine.lock` with `--max-jobs 4
+--cores 8`.
+
+- `cargo test --workspace`: the first run after the rewrite failed
+  exactly on the tests, snapshots and examples that pin the old phrases
+  (the lock, `readme`'s guide examples, the SVG snapshots' `<desc>`, the
+  core tests of the reading, the checker and the nets, the bindings'
+  eigenvariable test, one help test that reads `rocq:`); each was changed
+  with its message, and the second run passed all but the lock, which
+  was then blessed in its own commit.
+- `cargo test -p deduxit-cli --test cli --test readme` at the library's
+  commit `uyuzkrxm` alone, in a temporary jj workspace at that revision
+  (removed after): 59 and 7 passed, so the commit stands without the
+  command's.
+- `cargo clippy --workspace --all-targets -- --deny warnings`: clean.
+- The gate at the rebased chain's head (`zpqwnvmy`): "gate: passed". Its
+  note that the cache model's misses moved on `search-qbf-20-2` and
+  `check-qbf-20-2` is the same note 54u-b's gate gave; no journey runs a
+  line this chain changed but the texts written on a refusal.
+- `nix flake check` runs at the report's commit, the chain's last; its
+  result is in the session's final message, since a line written here
+  after it would make another commit.
+
+### The reviewer
+
+`fresh-reviewer` (Fable 5.2 at `medium`, its own definition) read the
+chain, the brief, the prompt and the code, compared the help screens
+before and after and ran the built binary on small inputs. It found
+three points; all held and were fixed in the commit they belong to.
+
+- **Two checker faults stated something false in an intuitionistic
+  check**: "the premises of & …" under a `⊕L` node, and "… are not ?
+  formulas" for a `!R` whose extra formula is a hypothesis that is not a
+  `!` formula (its witnesses were hand-made proof files checked with
+  `-i`). `Differ` now says "the two premises do not have the same
+  context", true of every `&` node, and `NotEmpty` speaks of `!R` and a
+  hypothesis under the reading, as `NotDual` and `NotUnderQuest` beside
+  it already did.
+- **"an intuitionistic proof has a term" was false**: an intuitionistic
+  proof with a quantifier, with Mix or of the Lambek calculus has none
+  (the manual's next example shows one). Now "a term needs an
+  intuitionistic proof", which is true.
+- **"A small sequent is so decided at once"** in `--jobs` read badly; now
+  "So a small sequent is decided at once …". The lock's two help files
+  were blessed again in the lock's commit.
+
+Everything else it checked held: the help's facts against the code
+(`--deterministic`, the forward search's bound, `interact`'s `proof
+FILE`, the session commands), `Placement::Uncut`, the intuitionistic
+refutation's sides, the new `map_err` in three modes, the help screens'
+flags, defaults, values and headings, and the lock's diff.
+
+### Proposals for the author
+
+- The intuitionistic count refutation could say "A on the left has no A
+  on the right" where the side with fewer literals has none, as the
+  two-sided classical one does: `placed` run under the reading in
+  `refutation.rs` (code, not text).
+- `StepError::Rule` could carry what the formula is (its connective), so
+  that every front end names it without the session's help; today the
+  command adds it.
+- The root's `Error::GoalOutputs` still says "on the right of ⊢" and
+  `ordinary::interactive`'s refusals were not in this brief; 54w-e4 and
+  54w-e5 meet them.
+
+### What the next sessions must know
+
+- **54w-c (the changelog's Unreleased section)**: two outputs a script
+  might match changed: `--net`'s last line (`proof net (the correctness
+  criterion holds)`, and its Mix and planar forms) and the intuitionistic
+  refutation (no "positively"/"negatively"). Ordinary logic's "not
+  valid" says "the translated sequent" for "the image". The manual's and
+  the guide's examples of each are changed already.
+- **The client (54u-d's e2e tests)** may assert the old net verdict, the
+  intuitionistic refutation or a step's refusal (`cannot stand there` is
+  now `cannot be used here`); the bindings' own test changed with it.
+- **The help's constraints** are in the decisions above: a text session
+  that rewrites `argument_parsing.rs` again runs `cargo test -p
+  deduxit-cli` (the help tests, the readme's names and defaults, the
+  lock) before anything else.
+- **`cli/src/interact/mod.rs` builds FC6's message** from the library's
+  `StepError::Rule`; reword the library's phrase and the command's
+  stays as it is (it does not match on it).
