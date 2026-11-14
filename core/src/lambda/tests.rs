@@ -570,6 +570,7 @@ fn cut_elimination_keeps_the_normal_form() {
 }
 
 /// A term of `⊸`, `&` and `⊤` as a tree, for the normal forms.
+#[cfg(feature = "interactive")]
 #[derive(Clone, Debug)]
 enum Normal {
     /// A variable.
@@ -588,6 +589,7 @@ enum Normal {
     True(Vec<Normal>),
 }
 
+#[cfg(feature = "interactive")]
 impl Normal {
     /// Unfolds a term of the fragment.
     fn of(term: &Term) -> Self {

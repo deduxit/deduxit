@@ -53,7 +53,7 @@
 
 /// The reductions of a structure with boxes.
 mod mell;
-#[cfg(all(test, feature = "parse"))]
+#[cfg(all(test, feature = "parse", feature = "interactive"))]
 mod tests;
 
 use super::{NetError, ProofStructure, VertexId, afford};

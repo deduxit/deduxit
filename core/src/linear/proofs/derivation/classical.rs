@@ -1405,7 +1405,6 @@ mod tests {
             inferences,
             negations,
             split,
-            cuts,
             ..
         } = tally;
         assert!(
@@ -1413,7 +1412,7 @@ mod tests {
             "{inferences} {negations} {split}"
         );
         #[cfg(feature = "interactive")]
-        assert!(cuts > 50, "{cuts} cuts");
+        assert!(tally.cuts > 50, "{} cuts", tally.cuts);
     }
 
     /// A first-order proof's view reads as its term too. Its quantifier

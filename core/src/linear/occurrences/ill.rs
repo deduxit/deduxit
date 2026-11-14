@@ -546,7 +546,9 @@ mod tests {
     #[test]
     fn every_inference_prints_as_an_intuitionistic_sequent() {
         let options = search::Options::default();
-        let (mut inferences, mut cuts) = (0, 0);
+        let mut inferences = 0;
+        #[cfg(feature = "interactive")]
+        let mut cuts = 0;
         let mut proofs = vec![];
         for text in generated(4200, 6) {
             let sequent: IllSequent = text.parse().unwrap();
@@ -612,7 +614,10 @@ mod tests {
                     reading.formula(goals[0]).to_string(),
                     "{text:?}: {printed:?}"
                 );
-                cuts += usize::from(inference.cut().is_some());
+                #[cfg(feature = "interactive")]
+                {
+                    cuts += usize::from(inference.cut().is_some());
+                }
                 inferences += 1;
             }
         }
@@ -624,11 +629,25 @@ mod tests {
     /// The symbols of classical linear logic in every notation's spelling
     /// (text, LaTeX, Typst, SVG), none of which an intuitionistic output
     /// may contain.
+    #[cfg(all(
+        feature = "latex",
+        feature = "typst",
+        feature = "svg",
+        feature = "rocq",
+        feature = "interactive"
+    ))]
     const CLASSICAL: [&str; 8] = ["~", "⅋", "⊥", "?", r"\parr", r"\bot", r"\wn", "perp"];
 
     /// Asserts that `out`, what `what` wrote of `sequent`, has no symbol of
     /// classical linear logic: of a Rocq certificate the comments, whose
     /// code is Rocq's (`~` its negation), and no classical constructor.
+    #[cfg(all(
+        feature = "latex",
+        feature = "typst",
+        feature = "svg",
+        feature = "rocq",
+        feature = "interactive"
+    ))]
     fn intuitionistic(sequent: &str, what: &str, out: &str) {
         // An SVG document's declaration is no formula.
         let out = out.replace("<?xml", "").replace("?>", "");
