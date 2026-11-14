@@ -39,6 +39,12 @@ if [[ -z $want || $want == *$'\n'* ]]; then
   echo "push-main: $1 is not one revision" >&2
   exit 2
 fi
+# The author's standing yes covers fast-forward pushes of `main` only.
+if [[ -n $(jj log --no-graph -r 'present(main@origin)' -T 'commit_id') &&
+-z $(jj log --no-graph -r "main@origin & ::change_id($want)" -T 'commit_id') ]]; then
+  echo "push-main: $1 does not descend from main@origin; nothing pushed" >&2
+  exit 2
+fi
 # GitHub's `ssh -T` exits 1 even when it authenticates, so the output decides.
 if [[ $(timeout 20 ssh -o BatchMode=yes -T git@github.com 2>&1) != *successfully* ]]; then
   echo "push-main: the SSH key is locked; nothing pushed" >&2

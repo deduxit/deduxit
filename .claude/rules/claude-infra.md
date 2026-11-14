@@ -161,9 +161,16 @@ Current contents:
   `list_sessions` says which session works in each), and the planning
   session's housekeeping (`plan/handoff.md`) runs both.
 - `settings.json`: allow rules for the build/check commands and jj's read-only
-  ones, `ask` on `jj git push` and on every `gh` command (the GitHub CLI is
-  logged in with the author's rights over the organization and beyond; see
-  CLAUDE.md), deny on every `git` command, on
+  ones, `ask` on the forms of `jj git push` that can move `main` (bare,
+  naming `main`, `--all`, `--tracked`, `--deleted`, `-r`) and on the
+  `gh` calls the author's standing yes of 2026-11-14 leaves out (an API
+  call with a method, fields or input, GraphQL, settings, secrets,
+  releases, keys, repositories, workflow runs, merges, deletions; the
+  GitHub CLI is logged in with the author's rights over the organization
+  and beyond; see CLAUDE.md). A rule matches the command as written: a
+  wrapper or a flag before the subcommand slips past it, so the rules
+  catch the usual spelling and the standing yes, not the pattern, is
+  what binds. Deny on every `git` command, on
   `cargo publish`/`yank`/`owner`/`login` and on hand edits of `LICENSE` and both
   lock files. `env` sets `CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS`, which drops
   Claude Code's built-in commit/PR instructions and its git status snapshot:

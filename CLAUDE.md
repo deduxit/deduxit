@@ -254,21 +254,29 @@ the machine's `claude-jj-guard` (git writes, `--commit-lock-file`) enforce this.
   major releases and exact pins, the toolchain, the fuzz nightly, the
   actions, the web client), verifying before it commits; the shell's `up`
   is the unverified shortcut.
-- Work lands on `main` directly or through a GitHub pull request. Pushing is
-  outward-facing, so only when asked: `plan/push-main.sh @-`, which moves
-  `main` and pushes it, failing at once rather than waiting on a
-  passphrase prompt when the SSH key is locked, and checks
-  `main@origin` after (by change id: the push signs what is unsigned,
-  which gives those commits new ids).
+- Work lands on `main` directly or through a GitHub pull request. Pushing
+  is the planning session's; a step session pushes nothing. The author's
+  standing yes (2026-11-14) covers every fast-forward push of `main` and
+  any push of another branch; a push that moves `main` back or sideways,
+  deletes a branch or pushes a tag needs a yes. `main` moves only through
+  `plan/push-main.sh @-`, which refuses a revision that does not descend
+  from `main@origin`, fails at once rather than waiting on a passphrase
+  prompt when the SSH key is locked, and checks `main@origin` after (by
+  change id: the push signs what is unsigned, which gives those commits
+  new ids).
 - The GitHub CLI (`gh`) is logged in with the author's own rights, over the
   organisations `deduxit` and `linlog-prover` (the old one, kept as a
   placeholder that redirects) and everything else the account reaches.
-  Ask before every administrative task through it (a setting of the
-  organization or a repository, Pages, Actions, branch rules, secrets,
-  releases, a new repository, a workflow run): say what the call does and
-  wait for a yes, which covers that task only. Deleting and transferring
-  are the author's own acts. A permission rule asks before any `gh`
-  command.
+  Every read through it, and every safe write that can be undone and is
+  not administrative (opening, commenting on, labelling or closing a pull
+  request or an issue, re-running a failed job), needs no ask (the
+  author, 2026-11-14). Ask before every administrative task (a setting of
+  the organization or a repository, Pages, Actions, branch rules,
+  secrets, releases, a new repository, starting a workflow, a merge into
+  `main`): say what the call does and wait for a yes, which covers that
+  task only. Deleting and transferring are the author's own acts. The
+  permission rules ask before those `gh` and `jj git push` forms
+  (`.claude/settings.json`).
 
 ## Conventions
 
