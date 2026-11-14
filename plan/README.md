@@ -6750,3 +6750,47 @@ move (D26).
   - **Follow-ups collected for a small deduxit session:** the linear
     session's positions answer with Rust's parse error (54x); `compare`'s
     "Of the 1 problems" (54x); the two `<desc>` items above.
+- 2026-11-14, about 21:40: **Paused for a restart, resumed; the stack
+  pushed; 54w-f reviewed and pushed; the dependency update started.**
+  - **Pause** (the author's "stop", about 21:00, before a restart that
+    turned out a reboot): the three workers paused by message and
+    `stop_session`, my flake check cut; all resumed by message after the
+    reboot, Remote Control switched on again for the planning session,
+    the keys unlocked by the author and `keys-warm` started again.
+  - **Pushed** (`vvsnwtoo`, dbf644c4): 54s-c2, 58a, 58b's report, 54x,
+    the Status entry and the narrowed ask rules, after the gate at
+    `ympppsxt` and `nix flake check` at `vvsnwtoo` ("all checks passed",
+    `kani` included).
+  - **The author's standing yes (2026-11-14):** every fast-forward push
+    of `main` and any push of another branch; every `gh` read and safe,
+    reversible, non-administrative `gh` write. `plan/push-main.sh` now
+    refuses a revision that does not descend from `main@origin`; the
+    project's ask rules cover only what the yes leaves out (CLAUDE.md,
+    `claude-infra.md`). The auto-mode classifier's environment in the
+    author's user settings was rewritten to match (run by the author).
+  - **54w-f** (client `ssyvkuoo` … `wztuunnm`, report `mwlpnpvl`): the
+    atom-balance reason names the literal ahead; rule labels named by
+    their step; label buttons share the gaps (departure accepted: under
+    44 px only where a neighbour's button is reached); the dock keeps up
+    with a drag; the link test's race fixed at its cause (the page's own
+    link rewrite); the text pass. The client's flake check passed (592
+    unit, 213 e2e). **Pushed** (client `wztuunnm`, deduxit `mwlpnpvl`).
+  - **Decided** (the author: "decide as you think is best"):
+    - **A link pasted into an open tab** (only the fragment changes):
+      accepted. The page reads the fragment on `hashchange` and opens
+      what it names, ignores the changes it makes itself, and keeps the
+      proof it replaces restorable through the restore bar, as a load
+      does.
+    - **A zoom floor for a finished drawing on a phone:** declined.
+      Fitting the whole proof is the overview a phone needs, and a floor
+      would make every finished proof a pan. Instead Learn's Reference
+      gains the hints of the rules it lacks (LK's, LJ's, the Lambek
+      calculus's, Mix and weakening), so every rule label has an
+      equivalent control, SC 2.5.8's exception; the axe spec's
+      exception then narrows to that reason alone.
+    - Both go to one client session, 54w-g, when a slot frees and the
+      dependency update has left the client.
+  - **Started:** the dependency update (`update-deps`, both
+    repositories) in 54w-f's cleared worker (`local_fe155f72`, cores
+    10-15), the author's request; its chain lands after 54s-c3 and 57,
+    and the combined head is gated again.
