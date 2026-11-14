@@ -605,10 +605,17 @@ mod tests {
         let steps = 8;
         let proof: Vec<Step> = (0..steps).map(|_| add(&[1, n + 1])).collect();
         let mut asked = 0;
-        let result = check(n as u32 + 1, &clauses(&units), &proof, &limits, &account, |_| {
-            asked += 1;
-            false
-        });
+        let result = check(
+            n as u32 + 1,
+            &clauses(&units),
+            &proof,
+            &limits,
+            &account,
+            |_| {
+                asked += 1;
+                false
+            },
+        );
         assert_eq!(result, Err(Rejection::Flaw(Flaw::NoEmptyClause)));
         assert!(asked >= steps, "{asked} polls for {steps} checks");
     }

@@ -218,7 +218,9 @@ fn sat_agrees_with_the_embedding_in_classical_logic() {
                     Some(true)
                 }
                 (Verdict::NotValid, Some(model)) => {
-                    model.refutes(&sequent, Logic::Classical, |_| false).unwrap();
+                    model
+                        .refutes(&sequent, Logic::Classical, |_| false)
+                        .unwrap();
                     Some(false)
                 }
                 // The clausal proof passed; the embedding's search for the

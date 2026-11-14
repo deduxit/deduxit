@@ -247,39 +247,39 @@ pub(super) fn decide(
         &mut stop,
     );
     let found = encoded.and_then(|clauses| {
-            statistics.clauses = clauses.clauses.len() as u64;
-            let work = limits.work.unwrap_or(u64::MAX);
-            let mut solver = Batsat::recording(work, &account, &mut stop);
-            for _ in 0..clauses.variables {
-                solver.new_var();
+        statistics.clauses = clauses.clauses.len() as u64;
+        let work = limits.work.unwrap_or(u64::MAX);
+        let mut solver = Batsat::recording(work, &account, &mut stop);
+        for _ in 0..clauses.variables {
+            solver.new_var();
+        }
+        // The solver copies the clauses: it is charged for them, and
+        // refused once over, before it holds them all.
+        for (n, clause) in clauses.clauses.iter().enumerate() {
+            solver.add_clause(clause);
+            if n % POLL == 0
+                && let Some(reason) = solver.poll(POLL as u64)
+            {
+                return Err(reason);
             }
-            // The solver copies the clauses: it is charged for them, and
-            // refused once over, before it holds them all.
-            for (n, clause) in clauses.clauses.iter().enumerate() {
-                solver.add_clause(clause);
-                if n % POLL == 0
-                    && let Some(reason) = solver.poll(POLL as u64)
-                {
-                    return Err(reason);
-                }
+        }
+        let answer = solver.solve(&[]);
+        statistics.calls = solver.calls();
+        statistics.conflicts = solver.conflicts();
+        match answer {
+            Answer::Satisfiable => {
+                let atoms = assignment(formulas, &clauses, &solver);
+                Ok(Found::Assignment(atoms))
             }
-            let answer = solver.solve(&[]);
-            statistics.calls = solver.calls();
-            statistics.conflicts = solver.conflicts();
-            match answer {
-                Answer::Satisfiable => {
-                    let atoms = assignment(formulas, &clauses, &solver);
-                    Ok(Found::Assignment(atoms))
-                }
-                Answer::Unsatisfiable => {
-                    let mut proof = solver.proof().unwrap_or_default();
-                    account.charge(Step::bytes(0));
-                    proof.push(Step::Add(Box::new([])));
-                    Ok(Found::Proof(clauses, proof))
-                }
-                Answer::Stopped(reason) => Err(reason),
+            Answer::Unsatisfiable => {
+                let mut proof = solver.proof().unwrap_or_default();
+                account.charge(Step::bytes(0));
+                proof.push(Step::Add(Box::new([])));
+                Ok(Found::Proof(clauses, proof))
             }
-        });
+            Answer::Stopped(reason) => Err(reason),
+        }
+    });
     let (verdict, model) = match found {
         Err(reason) => (Verdict::Unknown(reason), None),
         Ok(Found::Assignment(atoms)) => {
@@ -525,7 +525,10 @@ mod tests {
                 "{sequent}"
             );
         }
-        assert!(proved > 50 && refuted > 50, "{proved} proved, {refuted} refuted");
+        assert!(
+            proved > 50 && refuted > 50,
+            "{proved} proved, {refuted} refuted"
+        );
     }
 
     /// A proof of the pigeonhole sequent with a step planted wrong is
@@ -582,7 +585,10 @@ mod tests {
         let (_, proof) = refuted(&sequent);
         let adds = proof.iter().filter(|s| matches!(s, Step::Add(_))).count() as u64;
         let deletions = proof.len() as u64 - adds;
-        assert!(deletions > 0 && adds > 100, "{adds} added, {deletions} deleted");
+        assert!(
+            deletions > 0 && adds > 100,
+            "{adds} added, {deletions} deleted"
+        );
         let limits = Limits::default();
         let at = |work| limits.with_work(Some(work));
         let outcome = decide(&sequent, &at(adds / 2), |_| false, MOST_VARIABLES).unwrap();
