@@ -174,7 +174,8 @@ const CLASSICAL_WORK: u64 = 2_000_000;
 /// [`CLASSICAL_WORK`] gets the same verdict from the SAT solver within
 /// the same limits, its clausal proof or its assignment checked; the
 /// problems only the SAT solver decides, those it proves without the
-/// embedding's derivation and those where it stops are printed.
+/// embedding's derivation and those where it or a check stops are
+/// printed.
 #[cfg(feature = "sat")]
 #[test]
 #[ignore = "needs the ILTP library, which is not in the repository: nix build .#iltp -o bench/iltp"]
@@ -220,16 +221,22 @@ fn sat_agrees_with_the_embedding_in_classical_logic() {
                     model.refutes(&sequent, Logic::Classical, |_| false).unwrap();
                     Some(false)
                 }
+                // The clausal proof passed; the embedding's search for the
+                // derivation stopped.
+                (Verdict::Unknown(_), None) if outcome.statistics.proof_steps > 0 => {
+                    proved_alone.push(problem.clone());
+                    None
+                }
                 (Verdict::Unknown(reason), None) => {
                     stopped.push(format!("{problem}: {reason}"));
                     None
                 }
                 other => panic!("{problem}: {other:?}"),
             },
-            // The clausal proof passed; the embedding's derivation did not
-            // come within the limits.
-            Err(deduxit::Error::Refused(_)) => {
-                proved_alone.push(problem.clone());
+            // A bound refused the check of the clausal proof, or the
+            // read-back of the embedding's proof.
+            Err(deduxit::Error::Refused(refusal)) => {
+                stopped.push(format!("{problem}: {refusal}"));
                 None
             }
             Err(error) => panic!("{problem}: {error}"),

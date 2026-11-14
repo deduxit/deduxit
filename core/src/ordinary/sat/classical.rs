@@ -24,7 +24,7 @@ use super::drup::{self, Rejection, Step};
 use super::solver::{Answer, Batsat, Lit, Solver};
 use super::{Model, Outcome, Statistics, World};
 use crate::Error;
-use crate::limits::{Limits, Phase, Progress, Refusal};
+use crate::limits::{Limits, Phase, Progress};
 use crate::linear::search::memory::Account;
 use crate::linear::search::{self, Reason};
 use crate::ordinary::{
@@ -325,8 +325,10 @@ pub(super) fn decide(
                 }
             }
             drop((clauses, proof));
-            let derivation = by_embedding(sequent, limits, &mut stop)?;
-            (Verdict::Valid(Box::new(derivation)), None)
+            match by_embedding(sequent, limits, &mut stop)? {
+                Ok(derivation) => (Verdict::Valid(Box::new(derivation)), None),
+                Err(reason) => (Verdict::Unknown(reason), None),
+            }
         }
     };
     Ok(Outcome {
@@ -368,13 +370,13 @@ fn assignment(formulas: &Formulas, clauses: &Encoding, solver: &impl Solver) -> 
 }
 
 /// Returns the derivation of LK of a sequent the checked proof showed
-/// valid, by the embedding within the same limits; where the stop ends
-/// it, that stop; where a bound does, the bound as a refusal.
+/// valid, by the embedding within the same limits, or why the embedding's
+/// search stopped before it found one.
 fn by_embedding(
     sequent: &Sequent,
     limits: &Limits,
     stop: &mut impl FnMut(Progress) -> bool,
-) -> Result<Derivation, Error> {
+) -> Result<Result<Derivation, Reason>, Error> {
     let options = Options::default()
         .with_logic(Logic::Classical)
         .with_method(Some(Method::Embedding));
@@ -384,35 +386,13 @@ fn by_embedding(
     let outcome =
         super::super::decide(sequent, &options, &search::Options::default(), limits, stop)?;
     match outcome.verdict {
-        Verdict::Valid(derivation) => Ok(*derivation),
+        Verdict::Valid(derivation) => Ok(Ok(*derivation)),
         Verdict::NotValid => Err(Error::ReadBack {
             calculus: Logic::Classical.calculus(),
             reason: "the embedding refutes a sequent whose clausal proof passed its check"
                 .to_owned(),
         }),
-        Verdict::Unknown(reason) => Err(Error::Refused(match reason {
-            Reason::Stopped => Refusal::Stopped {
-                phase: Phase::ReadBack,
-            },
-            Reason::WorkLimit { limit } => Refusal::Work { limit },
-            Reason::MemoryLimit { limit_bytes } | Reason::Unchecked { limit_bytes } => {
-                Refusal::Memory {
-                    phase: Phase::ReadBack,
-                    limit_bytes,
-                    needed_bytes: None,
-                }
-            }
-            Reason::RecursionLimit { .. }
-            | Reason::CopyBound { .. }
-            | Reason::IndexLimit
-            | Reason::WitnessDepth { .. }
-            | Reason::Instances { .. } => Refusal::Output {
-                what: "derivation",
-                estimate_bytes: 0,
-                limit_bytes: limits.derivation_bytes.unwrap_or(u64::MAX),
-                least_bytes: None,
-            },
-        })),
+        Verdict::Unknown(reason) => Ok(Err(reason)),
     }
 }
 
@@ -420,6 +400,7 @@ fn by_embedding(
 mod tests {
     use super::super::MOST_VARIABLES;
     use super::*;
+    use crate::limits::Refusal;
     use crate::linear::search::generate::Rng;
     use crate::ordinary::tests::{generated_sequent, valid_by_truth_table};
 
@@ -629,6 +610,25 @@ mod tests {
             decide(&sequent, &at(adds), |_| false, MOST_VARIABLES),
             Err(Error::Refused(Refusal::Work { limit })) if limit == adds
         ));
+    }
+
+    /// Where the embedding stops before it finds the derivation of a
+    /// sequent the clausal proof showed valid, the outcome is the
+    /// embedding's unknown with its reason, the proof's steps counted.
+    #[test]
+    fn the_embedding_s_bound_is_its_unknown() {
+        let sequent: Sequent = "|- ((a -> b) -> a) -> a".parse().unwrap();
+        let shallow = Limits::default().with_recursion_depth(1);
+        let outcome = decide(&sequent, &shallow, |_| false, MOST_VARIABLES).unwrap();
+        assert!(
+            matches!(
+                outcome.verdict,
+                Verdict::Unknown(Reason::RecursionLimit { depth: 1 })
+            ),
+            "{:?}",
+            outcome.verdict
+        );
+        assert!(outcome.statistics.proof_steps > 0);
     }
 
     /// A sequent of many formulas asks the stop while it is encoded,

@@ -440,10 +440,16 @@ clausal proof's checker are the trust for "valid"; `Model::refutes` for
   (`by_embedding`, `ordinary::decide` with `Method::Embedding` within the
   same limits, the stop passed as a trait object since `decide` reaches
   `sat::decide` again and a generic stop would instantiate without end).
-  Where it does not come, the outcome is the refusal (its stop, work or
-  memory bound), as for LJT's derivation past its bound: `Verdict::Valid`
-  holds a derivation, so a sequent valid by its clausal proof alone has
-  no verdict to say it yet. The embedding refuting it is `ReadBack`.
+  Where the embedding's search stops first, the outcome is its
+  `Verdict::Unknown` with its reason (the bound that stopped it, which
+  names the setting to lift), `Statistics::proof_steps` saying the
+  proof passed; where its read-back is refused, that refusal.
+  `Verdict::Valid` holds a derivation, so a sequent valid by its clausal
+  proof alone has no verdict to say it yet. A first mapping of the
+  embedding's reasons onto refusals called a recursion bound "the
+  derivation estimated at 0 bytes, more than the limit" (the fresh
+  review); there is no refusal for most reasons. The embedding refuting
+  it is `ReadBack`.
 
 ## The goal state (`interactive.rs`)
 

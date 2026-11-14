@@ -158,8 +158,10 @@ struct Lemma {
 /// the same limits, a step of it a unit of `limits.work`, and its
 /// derivation of LK is the embedding's, found within them: the solver,
 /// the check and the embedding each have the whole bound on work
-/// ([`decide`](super::decide()) with [`Method::Embedding`](super::Method::Embedding));
-/// a sequent that is not valid gets a model of one world, checked.
+/// ([`decide`](super::decide()) with [`Method::Embedding`](super::Method::Embedding)),
+/// or the embedding's unknown with its reason where its search stops
+/// first, the statistics' `proof_steps` saying the proof passed; a
+/// sequent that is not valid gets a model of one world, checked.
 ///
 /// # Errors
 ///
@@ -169,7 +171,8 @@ struct Lemma {
 /// bound or the stop refused the derivation of a proof (the read-back's
 /// refusal, where LJT gave none either) or the check of a model, none of
 /// them a verdict, and in classical logic the bound or stop that refused
-/// the check of the clausal proof or the embedding's derivation; as
+/// the check of the clausal proof or the read-back of the embedding's
+/// proof; as
 /// [`Derivation::check`]; [`Error::ReadBack`] or [`Error::Countermodel`]
 /// where the derivation, the clausal proof or the model fails its check,
 /// or the embedding refutes a sequent the clausal proof showed valid, a
