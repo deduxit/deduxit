@@ -312,6 +312,10 @@ fn a_refused_step_says_why() {
         (json!("step"), json!("invalid"))
     );
     assert!(refused["details"]["kind"].is_string(), "{refused}");
+    // A rule that does not act on the formula names the formula.
+    let wrong = failure(&calls::apply(&state, goal, &step(1, "⅋", None), "").unwrap_err());
+    assert_eq!(wrong["details"]["kind"], "rule", "{wrong}");
+    assert!(wrong["details"]["formula"].is_string(), "{wrong}");
     // ⊢ A⊥ ⅋ B⊥, B ⊗ A: the ⊗ with nothing on its left cannot close.
     let passes = |left| calls::split_passes(&state, goal, &step(1, "⊗", Some(left)), "").unwrap();
     assert!(!passes(vec![]));

@@ -7,8 +7,9 @@
 use super::quantified::Clash;
 use super::{Applicable, Closed, GoalId, Interactive, Needs, Step, StepError, Witness};
 use crate::Error;
+use crate::errors::describe::{Names, cut};
 use crate::limits::{Limits, Progress};
-use crate::linear::occurrences::instances::eigen_names;
+use crate::linear::occurrences::instances::{Framing, eigen_names};
 use crate::linear::occurrences::{Member, OccId, Reading, Side};
 use crate::linear::proofs::derivation::{Derivation, InfId, Inference, ViewOptions};
 use crate::linear::proofs::multiset::Multiset;
@@ -17,6 +18,31 @@ use crate::linear::search::{self, Options, Verdict, focus};
 use crate::linear::sequents::Kind;
 
 impl Interactive {
+    /// Returns the refusal of a rule that does not act on the formula of
+    /// `member`, at `position` of its goal, with the formula's text.
+    fn rule_refused(&self, rule: Named, position: usize, member: Member) -> StepError {
+        let reading = self.reading();
+        let framing = self
+            .fo
+            .as_ref()
+            .map(|fo| Framing::new(&self.forest.sequent().fo, &fo.shown));
+        let names = Names {
+            forest: &self.forest,
+            reading: reading.as_ref(),
+            framing: framing.as_ref(),
+        };
+        // The writer stops at the budget, so a formula that unfolds past
+        // any memory is never written out. A `String` takes any text, so
+        // only the budget ends the writing, with `…`.
+        let mut text = String::new();
+        let _ = cut(&mut text, Some(names), member, Some(StepError::SHOWN));
+        StepError::Rule {
+            rule,
+            position,
+            formula: text.into_boxed_str(),
+        }
+    }
+
     /// Returns the occurrences of an open goal's sequent, or the refusal.
     pub(super) fn open(&self, id: GoalId) -> Result<Vec<OccId>, StepError> {
         let goal = self.goal(id)?;
@@ -114,20 +140,31 @@ impl Interactive {
         let reading = self.reading();
         let (rule, premises) = {
             let o = formula_at(&sequent, position)?;
+            // The goal's member: in a session with quantifiers, an
+            // instance, which the refusal writes with its terms.
+            let member = self.goal(goal)?[position];
             let rule = match &reading {
                 Some(reading) => {
                     let named = Named::applied(rule.rule, Some(reading), o);
                     if rule.side.is_some() && rule != named {
-                        return Err(StepError::Rule { rule, position });
+                        return Err(self.rule_refused(rule, position, member));
                     }
                     named
                 }
                 None => rule,
             };
-            (
-                rule,
-                self.expand(reading.as_ref(), &sequent, position, rule, left)?,
-            )
+            let premises = self
+                .expand(reading.as_ref(), &sequent, position, rule, left)
+                .map_err(|error| {
+                    if let StepError::Rule { rule, position, .. } = &error
+                        && self.fo.is_some()
+                    {
+                        self.rule_refused(*rule, *position, member)
+                    } else {
+                        error
+                    }
+                })?;
+            (rule, premises)
         };
         if step.witness != Witness::Open && rule.rule != Rule::Exists {
             return Err(StepError::NoWitness { rule });
@@ -430,7 +467,7 @@ impl Interactive {
         };
         let named = Named::applied(classical, reading, o);
         if !acts || rule != named {
-            return Err(StepError::Rule { rule, position });
+            return Err(self.rule_refused(rule, position, Member::from(o)));
         }
         let allowed = match classical {
             AffineWeakening => self.mode.affine,

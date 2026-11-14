@@ -410,17 +410,15 @@ impl Session {
                 let lost = splits && !self.state.split_passes(goal, &step).unwrap_or(true);
                 let before = self.state.steps();
                 let opened = self.state.apply(goal, &step).map_err(|error| {
-                    // The library's refusal names a position; the session
-                    // can name the formula and the command that helps.
-                    let at = self.state.goal(goal).ok().and_then(|m| m.get(position));
-                    match (&error, at) {
-                        (StepError::Rule { rule, .. }, Some(&member)) => anyhow::anyhow!(
-                            "the rule {rule} does not act on formula {position}, {}; `rules {} \
-                             {position}` lists the rules that do",
-                            self.state.formula(member),
+                    // The refusal names the formula; the command adds the
+                    // command that helps.
+                    if matches!(error, StepError::Rule { .. }) {
+                        anyhow::anyhow!(
+                            "{error}; `rules {} {position}` lists the rules that do",
                             goal.get()
-                        ),
-                        _ => error.into(),
+                        )
+                    } else {
+                        error.into()
                     }
                 })?;
                 let mut text = self.stepped(before, opened)?;

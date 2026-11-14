@@ -100,6 +100,10 @@ unchanged.
   one --problem family:NAME:SIZE:INDEX` refuses it too.
 - **`with_lambda`** on `export::latex::Options`, `export::typst::Options`
   and `export::svg::Style`, as every other field has its `with_*`.
+- **A refused step names its formula**: `StepError::Rule` carries
+  `formula`, the formula as the session writes it, and its message says
+  it (`the rule ⅋ does not act on formula 1, A ⊗ ~B`). The web bindings'
+  error has it under `details`.
 - **Errors show the formula**: `ShapeError::Formula` carries the
   formula's text, so `prove` in an intuitionistic mode names the
   subformula that has no intuitionistic reading.

@@ -109,6 +109,10 @@ pub enum StepError {
         rule: Named,
         /// The position of the formula.
         position: usize,
+        /// The formula as the session writes it
+        /// ([`Interactive::formula`]), cut after 4 096 characters with
+        /// `…`.
+        formula: Box<str>,
     },
     /// The rule is not available in the mode. Weakening a formula that is
     /// not a `?` formula needs affine mode, and Mix needs a mode with Mix.
@@ -234,9 +238,14 @@ impl Display for StepError {
                     crate::errors::counted(*len, "formula", "formulas")
                 )
             }
-            StepError::Rule { rule, position } => {
-                write!(f, "the rule {rule} does not act on formula {position}")
-            }
+            StepError::Rule {
+                rule,
+                position,
+                formula,
+            } => write!(
+                f,
+                "the rule {rule} does not act on formula {position}, {formula}"
+            ),
             StepError::Mode { rule, mode } => {
                 write!(f, "the rule {rule} is not available in {mode} mode")
             }
@@ -297,6 +306,13 @@ impl Display for StepError {
 }
 
 impl std::error::Error for StepError {}
+
+impl StepError {
+    /// The most characters of a formula a [`Rule`](Self::Rule) refusal
+    /// carries: a formula of a session read from JSON can unfold to more
+    /// text than any memory holds.
+    const SHOWN: usize = 1 << 12;
+}
 
 /// The number of an inference of a session, in the session's own order:
 /// the root is `0`, and every step's premises come after it.
@@ -1183,6 +1199,7 @@ mod tests {
                 StepError::Rule {
                     rule: Named::from(Tensor),
                     position: p(&s, "~a ⅋ ~b"),
+                    formula: "~a ⅋ ~b".into(),
                 },
             ),
             (
@@ -1253,6 +1270,7 @@ mod tests {
                 StepError::Rule {
                     rule: named("⊸L"),
                     position: p(&s, "1"),
+                    formula: "1".into(),
                 },
             ),
         ];
@@ -1313,7 +1331,8 @@ mod tests {
             s.apply(g, &Step::new(imp, named("⊗R"))),
             Err(StepError::Rule {
                 rule: named("⊗R"),
-                position: imp
+                position: imp,
+                formula: "a ⊸ b".into(),
             })
         );
         // The goal b with the antecedent a: two on the right.
