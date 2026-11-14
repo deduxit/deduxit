@@ -4,15 +4,15 @@
 //! The resources a call may use, what a long call tells its stop, and why
 //! a call was refused without an answer.
 //!
-//! Every long call of the crate takes a [`Limits`] and a stop, a closure
-//! `FnMut(Progress) -> bool` that the call asks at a bounded interval of
-//! work and that ends the call when it returns `true`. The crate reads no
-//! clock: a front end with a deadline reads its own clock in the stop, as
-//! often as the work done ([`Progress::work`]) says it should. A call
-//! that a bound or the stop ends answers with a [`Refusal`], which is
-//! never a verdict on its input.
+//! Every long call of the crate takes a [`Limits`] and a stop. The stop is
+//! a closure `FnMut(Progress) -> bool`. The call asks it after a bounded
+//! amount of work, and ends when it returns `true`; `|_| false` never
+//! stops. The crate reads no clock. A front end with a deadline reads its
+//! own clock in the stop, as often as the work done ([`Progress::work`])
+//! says it should. A call that a bound or the stop ends answers with a
+//! [`Refusal`], which is never a verdict on its input.
 //!
-//! The long calls, the fields of [`Limits`] that bind each, and how often
+//! The long calls, the fields of [`Limits`] that bound each, and how often
 //! each asks its stop:
 //!
 //! | call | bound by | asks the stop |
@@ -45,7 +45,7 @@ use std::fmt::{self, Display, Formatter};
 use serde::{Deserialize, Serialize};
 
 /// The resources a call may use, which the library enforces. `None` in an
-/// optional field means no bound; the defaults are the named constants.
+/// optional field means no bound. The defaults are the named constants.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(
@@ -54,46 +54,54 @@ use serde::{Deserialize, Serialize};
     serde(default, deny_unknown_fields)
 )]
 pub struct Limits {
-    /// The most bytes a call holds at once beyond its input: a search's
-    /// growing structures, a check's pass, a derivation's making, a
-    /// render's estimate. The sequent, its forest (bounded by
-    /// [`occurrences`](Self::occurrences)), the proof returned, the
-    /// threads' stacks and the allocator's own overhead are not counted.
+    /// The most bytes a call holds at once: a search's growing structures,
+    /// a check's pass, a derivation's making, a render's estimate.
+    ///
+    /// A search counts its input too, the sequent and its forest. Other
+    /// calls do not: there the input is bounded by
+    /// [`occurrences`](Self::occurrences). The proof returned, the threads'
+    /// stacks and the allocator's own overhead are never counted.
     #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::exact"))]
     pub memory_bytes: Option<u64>,
     /// The most subformula occurrences a sequent may unfold to, on every
     /// reader and wherever a forest is built. The text readers also refuse
-    /// a text nested deeper than it (more `(` or `~` waiting at once than
-    /// the bound), as if it had that many occurrences.
+    /// a text nested deeper than the bound (more `(` or `~` open at once),
+    /// as if it had that many occurrences.
     #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::exact"))]
     pub occurrences: Option<u64>,
     /// The most first-order terms a sequent's atoms may unfold to
     /// ([`Sequent::fo_size`](crate::linear::Sequent::fo_size)), and the most
-    /// entries a proof's instance table may hold, on every reader: a short
+    /// entries a proof's instance table may hold, on every reader. A short
     /// document of shared terms can name an atom of exponential length.
     #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::exact"))]
     pub terms: Option<u64>,
     /// The most bytes a derivation, or the drawing of a net or a sequent,
-    /// may be estimated at; past it nothing is made.
+    /// may be estimated at. Past it nothing is made.
     #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::exact"))]
     pub derivation_bytes: Option<u64>,
-    /// The most units of work a call may do: the proof checker counts a
-    /// node or an entry of a sequent its rules handle, the ordinary
-    /// checker an inference, a search its engine's unit (each
-    /// [`Engine`](crate::linear::search::Engine) variant says which; where the net
-    /// engine takes a goal over at another engine's limit, both engines'
-    /// units together). A search past
-    /// it is unknown with `Reason::WorkLimit`, as is one whose proof's
-    /// check passes it; a check alone refuses with
-    /// `Error::Check(CheckError::Refused)`.
+    /// The most units of work a call may do. The unit depends on the
+    /// call:
+    /// - the proof checker counts a node, or an entry of a sequent its
+    ///   rules handle;
+    /// - the ordinary checker counts an inference;
+    /// - a search counts its engine's unit, which each
+    ///   [`Engine`](crate::linear::search::Engine) variant names. Where
+    ///   another engine takes a goal over at an engine's limit, the units of
+    ///   both count together.
+    ///
+    /// A search past the bound is unknown with `Reason::WorkLimit`, and so
+    /// is a search whose proof's check passes it. A check alone refuses
+    /// with `Error::Check(CheckError::Refused)`.
     #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::exact"))]
     pub work: Option<u64>,
-    /// The deepest recursion on any one stack; every thread the library
-    /// starts is sized for it ([`stack_bytes`](Self::stack_bytes)). The
-    /// focused engine takes a level per asynchronous phase, per stable
-    /// sequent and per focus, a chain of `⅋`, `⊥` and `?` rules or of
-    /// forced splits none, so a formula copied `k` times on a branch takes
-    /// `k` focus levels; the additive path takes one per pair.
+    /// The deepest recursion on any one stack. Every thread the library
+    /// starts is sized for it ([`stack_bytes`](Self::stack_bytes)).
+    ///
+    /// The focused engine takes a level per asynchronous phase, per stable
+    /// sequent and per focus. A chain of `⅋`, `⊥` and `?` rules, or of
+    /// forced splits, takes none. So a formula copied `k` times on a
+    /// branch takes `k` focus levels. The additive path takes a level per
+    /// pair.
     pub recursion_depth: u32,
 }
 
@@ -101,11 +109,11 @@ impl Limits {
     /// The default memory bound: one gibibyte.
     pub const DEFAULT_MEMORY_BYTES: u64 = 1 << 30;
     /// The default bound on occurrences: fifty million, above the largest
-    /// problem of the LLTP library (27.8 million); a forest takes about
+    /// problem of the LLTP library (27.8 million). A forest takes about
     /// 25 bytes an occurrence.
     pub const DEFAULT_OCCURRENCES: u64 = 50_000_000;
     /// The default bound on first-order terms: as many as occurrences, so
-    /// that a sequent's terms take no more than its forest.
+    /// that a sequent's terms take no more room than its forest.
     pub const DEFAULT_TERMS: u64 = 50_000_000;
     /// The default bound on a derivation's estimated size: 64 mebibytes.
     pub const DEFAULT_DERIVATION_BYTES: u64 = 64 << 20;
@@ -113,8 +121,7 @@ impl Limits {
     /// thread's stack of 8 MiB in an optimized build.
     pub const DEFAULT_RECURSION_DEPTH: u32 = 2048;
 
-    /// No bound at all but the default recursion depth, which every stack
-    /// needs.
+    /// No bound but the default recursion depth, which every stack needs.
     pub const UNBOUNDED: Self = Self {
         memory_bytes: None,
         occurrences: None,
@@ -125,14 +132,14 @@ impl Limits {
     };
 
     /// The stack one level of the search's recursion may take: twice the
-    /// most it was measured to take, on a Mix of pairs whose parts are
-    /// recursed into (6.5 KiB unoptimized, 1.4 KiB optimized, on x86-64),
-    /// the deepest beside a chain of tensors whose splits are searched
+    /// most it was measured to take on x86-64. The deepest was a Mix of
+    /// pairs whose parts are recursed into (6.5 KiB unoptimized, 1.4 KiB
+    /// optimized), against a chain of tensors whose splits are searched
     /// (5.8 KiB, 1.2 KiB) and nested `&` (1.4 KiB, 0.4 KiB).
     const PER_LEVEL: usize = if cfg!(debug_assertions) { 13312 } else { 3072 };
 
-    /// What a thread needs below and beside the recursion: the frames of
-    /// its caller, the search's set-up and its proof's checks.
+    /// What a thread needs besides the recursion: the frames of its caller,
+    /// the search's set-up and the check of its proof.
     const RESERVE: usize = 1 << 20;
 
     /// Returns the stack a thread needs to recurse to
@@ -146,8 +153,9 @@ impl Limits {
         if needed > 8 << 20 { needed } else { 8 << 20 }
     }
 
-    /// Returns the deepest recursion a stack of `bytes` holds, the inverse
-    /// of [`stack_bytes`](Self::stack_bytes) above its floor.
+    /// Returns the deepest recursion a stack of `bytes` holds. It is the
+    /// inverse of [`stack_bytes`](Self::stack_bytes) above its floor of
+    /// 8 MiB.
     #[must_use]
     pub const fn recursion_depth_for_stack(bytes: usize) -> u32 {
         let levels = bytes.saturating_sub(Self::RESERVE) / Self::PER_LEVEL;
@@ -220,21 +228,21 @@ impl Default for Limits {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serialize", derive(Serialize))]
 pub struct Progress {
-    /// The units of work done since the previous poll, the unit of
+    /// The units of work done since the previous poll, in the unit of
     /// [`Limits::work`].
     pub work: u64,
     /// The units of work done since the call began.
     pub done: u64,
-    /// The bytes the call holds by its own count now: the proof checker's
-    /// pass and what derives from it fill it in, the net calls their
-    /// estimate (the criterion alone its working memory); a search, whose
-    /// two searches of the default bias each count their own half, leaves
-    /// it zero.
+    /// The bytes the call holds now, by its own count. The proof checker's
+    /// pass and the calls built on it fill it in. The net calls give their
+    /// estimate, and the criterion alone its working memory. A search
+    /// leaves it zero, since the two searches of its default bias each
+    /// count their own share.
     pub held_bytes: u64,
     /// What the call is doing.
     pub phase: Phase,
-    /// The item of a call that runs several, by its place: a goal of a
-    /// session's `close_all`, zero for every other call.
+    /// The place of the item being worked on, in a call that runs several:
+    /// a goal of a session's `close_all`. Zero for every other call.
     pub item: u32,
 }
 
@@ -381,9 +389,9 @@ pub enum Bound {
     Vertices,
 }
 
-/// Why a call was given up without an answer: a bound the caller set, or
-/// a default, refused it, or the caller's stop ended it. A refusal says
-/// nothing of the input; lifting the bound may answer.
+/// Why a call was given up without an answer: a bound, set or default,
+/// refused it, or the caller's stop ended it. A refusal says nothing of
+/// the input. With the bound lifted, the call may answer.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(
@@ -409,8 +417,8 @@ pub enum Refusal {
         /// anything was made.
         needed_bytes: Option<u64>,
     },
-    /// A sequent unfolds to more occurrences than the bound: the count, or
-    /// a number of them at which the count stopped.
+    /// A sequent unfolds to more occurrences than the bound. The count is
+    /// exact, or the number at which counting stopped.
     #[non_exhaustive]
     Occurrences {
         /// How many occurrences, or a number past the bound.
@@ -419,8 +427,8 @@ pub enum Refusal {
         limit: u64,
     },
     /// A sequent's atoms unfold to more first-order terms than the bound,
-    /// or a proof's instance table holds more entries: the count, or a
-    /// number of them at which the count stopped.
+    /// or a proof's instance table holds more entries. The count is exact,
+    /// or the number at which counting stopped.
     #[non_exhaustive]
     Terms {
         /// How many terms or entries, or a number past the bound.
@@ -428,7 +436,7 @@ pub enum Refusal {
         /// The bound, [`Limits::terms`].
         limit: u64,
     },
-    /// An output is estimated past its bound; nothing was made.
+    /// An output is estimated past its bound. Nothing was made.
     #[non_exhaustive]
     Output {
         /// What was to be made: a derivation, a drawing.
@@ -465,7 +473,7 @@ pub enum Refusal {
         limit: u64,
     },
     /// A count passes what a representation's indices can name, whatever
-    /// a bound says.
+    /// the bounds say.
     #[non_exhaustive]
     Index {
         /// What is counted.
@@ -478,7 +486,7 @@ pub enum Refusal {
 }
 
 impl Refusal {
-    /// Returns the stable code a program branches on.
+    /// Returns the stable name of the refusal that a program branches on.
     pub const fn code(&self) -> &'static str {
         match self {
             Self::Stopped { .. } => "stopped",
@@ -493,7 +501,7 @@ impl Refusal {
         }
     }
 
-    /// Returns the settings key whose bound refused the call; `None` for
+    /// Returns the settings key whose bound refused the call. `None` for
     /// the stop and for a representation's width, which no setting lifts.
     pub const fn setting(&self) -> Option<&'static str> {
         match self {
@@ -514,8 +522,7 @@ impl Refusal {
         }
     }
 
-    /// Returns whether the caller's stop ended the call, rather than a
-    /// bound.
+    /// Returns whether the caller's stop ended the call, not a bound.
     pub const fn is_stop(&self) -> bool {
         matches!(self, Self::Stopped { .. })
     }
@@ -624,8 +631,9 @@ impl Display for Refusal {
 
 impl std::error::Error for Refusal {}
 
-/// Turns a progress stop into the plain condition a loop asks once per
-/// unit of work in `phase`, telling the stop each unit and the units done.
+/// Turns a stop into the plain condition that a loop asks once per unit
+/// of work in `phase`. Each call tells the stop one unit and the units
+/// done.
 pub(crate) fn counting(
     mut stop: impl FnMut(Progress) -> bool,
     phase: Phase,

@@ -1,81 +1,66 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The wire forms: how a value crosses a process boundary (JSON, or any
-//! format serde writes), and the rule that keeps a stored document
+//! The wire forms: how a value crosses a process boundary, as JSON or any
+//! format serde writes, and the rule that keeps a stored document
 //! readable by later releases. Needs the cargo feature `serialize` (on by
 //! default).
 //!
 //! # The level
 //!
 //! Every top-level document starts with `"version": n`, the lowest wire
-//! level whose reader understands all of it; [`LEVEL`] is the highest
-//! this build reads and writes. The writer computes the level from the
-//! content, so a value that a later release represents as this one does
-//! keeps its bytes. Level 1 is that of 0.1.0; level 2 adds the classical
-//! refutation (`{"kind": "classical", "assignment": […]}`) and the
-//! ordered modes (`"mode": "cyclic"`, `"lambek"` and `"lambek-star"`, the
-//! rules of the Lambek calculus's divisions, and `"order": "cyclic"` in a
-//! proof structure), so a disproof or an unprovable outcome that holds
-//! the refutation and a document of an ordered mode are written at level 2;
-//! level 3 adds the refutation by a saturated set (`{"kind":
-//! "saturated", "positive": […], "sequents": […]}`), so a disproof or an
-//! unprovable outcome that holds it is written at level 3; level 4 adds
-//! the proof structure with boxes, a form whose `"vertices"` key makes its
-//! links name vertices rather than occurrences, so it is always written at
-//! level 4 (and the proof structure's reader refuses a document with that
-//! key); level 5 adds the intuitionistic sequent, a form of its own whose
-//! terms are the connectives of intuitionistic linear logic, always
-//! written at level 5; level 6 adds the cut: a sequent's cut formulas
-//! (`"cuts": […]`, without which a proof's cut nodes would name
-//! occurrences past its forest) and the proof's tag `cut`, so a document
-//! whose sequent holds a cut formula is written at level 6, and so is a
-//! proof with a cut, whose sequent holds the cut's formula, and the
-//! record of a cut elimination, whose proof's sequent holds them; level 7
-//! adds the first-order sequent (`"symbols"`, `"fo"`, `"binders"`, an atom
-//! as `{"P": [symbol, [terms]]}`, the terms `∀` and `∃`), so a document whose
-//! sequent is first-order is written at level 7; level 8 adds the forms of
-//! ordinary logic, an ordinary sequent, a derivation of LK or LJ, the
-//! outcome of deciding an ordinary sequent and a proof in progress of
-//! one, each written at level 8; level 9 adds LJ's cut (`"rule": "cut"`),
-//! so such a derivation, outcome or proof in progress that holds a cut is
-//! written at level 9; every other document is written at level 1. A reader refuses a
-//! document above its level by name ([`Error::Version`], code
-//! `unsupported_version`), before the other keys when `version` comes
-//! first, as the writer puts it; a document without `version` reads as
-//! level 1. Nested values carry no `version`.
+//! level whose reader understands all of it. [`LEVEL`] is the highest
+//! level this build reads and writes. The writer computes the level from
+//! the content, so a value that a later release represents as this one
+//! does keeps its bytes.
 //!
-//! What raises the level: a new tag, a new value of an enumeration a
-//! reader refuses when it does not know it (a mode, a criterion, a
-//! refutation's or a reason's kind), a key whose presence changes what the
-//! other keys mean. What does not: a key an older reader may ignore
-//! without misreading (a counter, an error's detail).
+//! | level | what it adds | what is written at it |
+//! |---|---|---|
+//! | 1 | the forms of 0.1.0 | every document that no row below names |
+//! | 2 | the classical refutation, `{"kind": "classical", "assignment": […]}`; the ordered modes: `"mode": "cyclic"`, `"lambek"` and `"lambek-star"`, the rules of the Lambek calculus's divisions, and `"order": "cyclic"` in a proof structure | a disproof or unprovable outcome that holds a classical refutation; a document of an ordered mode |
+//! | 3 | the refutation by a saturated set, `{"kind": "saturated", "positive": […], "sequents": […]}` | a disproof or unprovable outcome that holds one |
+//! | 4 | the proof structure with boxes, whose `"vertices"` key makes its links name vertices, not occurrences | every such structure; the reader of a proof structure refuses a document with that key |
+//! | 5 | the intuitionistic sequent, a form whose terms are the connectives of intuitionistic linear logic | every such sequent |
+//! | 6 | the cut: a sequent's cut formulas, `"cuts": […]`, without which a proof's cut nodes would name occurrences past its forest, and the proof's tag `cut` | a document whose sequent holds a cut formula: a proof with a cut, the record of a cut elimination |
+//! | 7 | the first-order sequent: `"symbols"`, `"fo"`, `"binders"`, an atom as `{"P": [symbol, [terms]]}`, the terms `∀` and `∃` | a document whose sequent is first-order |
+//! | 8 | the forms of ordinary logic: a sequent, a derivation of LK or LJ, the outcome of deciding a sequent, a proof in progress | each of those |
+//! | 9 | LJ's cut, `"rule": "cut"` | an ordinary derivation, outcome or proof in progress that holds a cut |
+//!
+//! A reader refuses a document above its level by name ([`Error::Version`],
+//! code `unsupported_version`). It does so before reading the other keys
+//! when `version` comes first, as the writer puts it. A document without
+//! `version` reads as level 1. Nested values carry no `version`.
+//!
+//! These raise the level: a new tag; a new value of an enumeration that a
+//! reader refuses when it does not know it (a mode, a criterion, the kind
+//! of a refutation or a reason); a key whose presence changes what the
+//! other keys mean. A key that an older reader may ignore without
+//! misreading (a counter, an error's detail) does not.
 //!
 //! # Reading
 //!
-//! [`upgrade`] is the one reader of every form: it reads a document of any
-//! level up to [`LEVEL`] as a value of this release, every older level
-//! through one step per level that changed a form (none so far: level 2
-//! only adds a kind of refutation and a mode, level 3 a kind of
-//! refutation, levels 4 and 5 a form each, level 6 a key and a tag, level
-//! 7 keys, tags and a shape of atom, level 8 forms, level 9 a rule), and
-//! counts every sequent's occurrences against `limits.occurrences` before
-//! anything unfolds. [`Within`] is the same as a serde seed, for a value
-//! nested in a document of the caller's; the plain `Deserialize` impls read
-//! within the default [`Limits`]. A data form (a sequent, a proof, a
-//! structure, a session) ignores the keys it does not know, which is what
-//! lets an outcome be read as a proof; an options form refuses them by
-//! name. The keys every level-1 value has are required, so a document of
-//! another shape is refused naming the key ([`Error::Json`]); the names
-//! of the forms before this release (`ids`, `var_dict`, `proof`, a mode as
-//! an object of flags) are not read.
+//! [`upgrade`] is the one reader of every form. It reads a document of any
+//! level up to [`LEVEL`] as a value of this release, and counts every
+//! sequent's occurrences against `limits.occurrences` before anything
+//! unfolds. An older level would be read through one step per level that
+//! changed a form; no level has changed one, since each only added kinds,
+//! modes, forms, keys, tags or a rule. [`Within`] does the same as a serde
+//! seed, for a value nested in a document of the caller's. The plain
+//! `Deserialize` impls read within the default [`Limits`].
+//!
+//! A data form (a sequent, a proof, a structure, a session) ignores the
+//! keys it does not know, which lets an outcome be read as a proof. An
+//! options form refuses them by name. The keys every level-1 value has
+//! are required, so a document of another shape is refused naming the key
+//! ([`Error::Json`]). Documents from before 0.1.0 (with the keys `ids`,
+//! `var_dict` or `proof`, or a mode as an object of flags) are not read.
 //!
 //! # The forms
 //!
-//! Enumerations are written by name, never by number; integers are exact
-//! in JavaScript (a bound past 2⁵³ is written `null`, and a written count
-//! that saturates is `u64::MAX`, meaning "at least"). With the running
-//! example `A, A -o B |- B`, `⊢ ~A, A ⊗ ~B, B`:
+//! Enumerations are written by name, never by number. Integers are exact
+//! in JavaScript: a bound past 2⁵³ is written `null`, and a count that
+//! saturates is written `u64::MAX`, meaning "at least". The examples use
+//! `A, A -o B |- B`, which is `⊢ ~A, A ⊗ ~B, B` one-sided:
 //!
 //! - **Sequent**: `{"version": 1, "terms": [{"D": 0}, {"V": 0}, {"D": 1},
 //!   {"⊗": [1, 2]}, {"V": 1}], "roots": [0, 3, 4], "atoms": ["A", "B"],
@@ -182,20 +167,18 @@ use std::marker::PhantomData;
 /// The highest wire level this build reads and writes.
 pub const LEVEL: u32 = 9;
 
-/// The level of every document but a disproof (or an unprovable
-/// outcome) with a classical refutation, which is level 2, or with a
-/// saturated set, which is level 3, and a document of an ordered mode.
+/// The level of every document that no later level's feature raises.
 pub(crate) const BASE: u32 = 1;
 
-/// The level of a proof structure with boxes, which level 4 added.
+/// The level of a proof structure with boxes.
 pub(crate) const BOXES: u32 = 4;
 
-/// The level of an intuitionistic sequent, which level 5 added.
+/// The level of an intuitionistic sequent.
 pub(crate) const ILL: u32 = 5;
 
-/// A form [`upgrade`] and [`Within`] read: one whose reading counts a
-/// sequent against the caller's limits. Sealed: the crate's data forms
-/// alone implement it.
+/// A form that [`upgrade`] and [`Within`] read, counting its sequents
+/// against the caller's limits. It is sealed: only the crate's data forms
+/// implement it.
 pub trait Readable: Sized + crate::sealed::Readable {
     /// The form's name, as an error names it: `sequent`, `proof`, …
     const FORM: &'static str;
@@ -205,14 +188,14 @@ pub trait Readable: Sized + crate::sealed::Readable {
     ///
     /// # Errors
     ///
-    /// The deserializer's error for a document of another shape or a value
-    /// the form's checks refuse.
+    /// The deserializer's error for a document of another shape, or for a
+    /// value that the form's checks refuse.
     fn read<'de, D: Deserializer<'de>>(deserializer: D, limits: &Limits) -> Result<Self, D::Error>;
 }
 
-/// Reads a value of the form `T` within limits, as a serde seed: the
-/// value nested in a document of the caller's that [`upgrade`] reads
-/// whole.
+/// Reads a value of the form `T` within limits, as a serde seed. It is
+/// for a value nested in a document of the caller's, where [`upgrade`]
+/// reads a whole document.
 #[derive(Clone, Copy, Debug)]
 pub struct Within<'a, T> {
     /// The limits.
@@ -240,19 +223,20 @@ impl<'de, T: Readable> DeserializeSeed<'de> for Within<'_, T> {
     }
 }
 
-/// Reads a document of any released level up to [`LEVEL`] and returns it
-/// as a value of this release, an older level through each level's step
-/// in turn (there is none so far), every sequent within
-/// `limits.occurrences`. It reads one value and leaves the deserializer
-/// there: a caller whose input is that one document ends the
-/// deserializer (`end()` in serde_json), which refuses what follows it.
+/// Reads a document of any level up to [`LEVEL`] and returns it as a
+/// value of this release, every sequent within `limits.occurrences`.
+///
+/// It reads one value and leaves the deserializer after it. A caller
+/// whose input is that one document ends the deserializer (`end()` in
+/// serde_json), which refuses anything that follows.
 ///
 /// # Errors
 ///
-/// [`Error::Version`] for a document above [`LEVEL`]; the error of the
-/// form's checks for a value they refuse (an index out of bounds, a
-/// sequent past the bound, links that are no links); [`Error::Json`] for a
-/// document of another shape, naming what is missing or wrong.
+/// - [`Error::Version`] for a document above [`LEVEL`];
+/// - the error of the form's checks for a value they refuse: an index out
+///   of bounds, a sequent past the bound, links that are no links;
+/// - [`Error::Json`] for a document of another shape, naming what is
+///   missing or wrong.
 ///
 /// # Examples
 ///
@@ -297,13 +281,14 @@ pub fn upgrade<'de, T: Readable, D: Deserializer<'de>>(
 }
 
 thread_local! {
-    /// The error of the library's own that ended the read [`upgrade`] runs
-    /// on this thread, which a deserializer's error carries as text only.
+    /// The library's own error that ended the read [`upgrade`] runs on
+    /// this thread. A deserializer's error carries it as text only.
     static CAUSE: RefCell<Option<Error>> = const { RefCell::new(None) };
 }
 
-/// Returns the deserializer's error for one of the library's own, which
-/// [`upgrade`] then answers instead of [`Error::Json`].
+/// Returns a deserializer's error for one of the library's own, and
+/// keeps the library's error for [`upgrade`] to answer in place of
+/// [`Error::Json`].
 pub(crate) fn fail<E: serde::de::Error>(error: Error) -> E {
     let message = error.to_string();
     CAUSE.with_borrow_mut(|cause| *cause = Some(error));
@@ -323,22 +308,20 @@ pub(crate) fn version<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Opti
     }
 }
 
-/// The level of a sequent with cut formulas, which level 6 added.
+/// The level of a sequent with cut formulas.
 pub(crate) const CUTS: u32 = 6;
 
-/// The level of a first-order sequent, which level 7 added.
+/// The level of a first-order sequent.
 pub(crate) const TERMS: u32 = 7;
 
-/// The level of the forms of ordinary logic, which level 8 added.
+/// The level of the forms of ordinary logic.
 pub(crate) const ORDINARY: u32 = 8;
 
-/// The level of a form of ordinary logic that holds LJ's cut, which
-/// level 9 added.
+/// The level of a form of ordinary logic that holds LJ's cut.
 pub(crate) const ORDINARY_CUT: u32 = 9;
 
 /// The level of a document that holds `sequent`: 7 where it is
-/// first-order, which level 7 added, 6 where it has cut formulas, which
-/// level 6 added, else 1.
+/// first-order, 6 where it has cut formulas, else 1.
 pub(crate) fn level_of_sequent(sequent: &crate::linear::Sequent) -> u32 {
     if sequent.is_first_order() {
         TERMS
@@ -350,7 +333,7 @@ pub(crate) fn level_of_sequent(sequent: &crate::linear::Sequent) -> u32 {
 }
 
 /// The level of a document of `mode`, or of no mode: 2 for an ordered
-/// mode, which level 2 added, else 1.
+/// mode, else 1.
 pub(crate) const fn level_in(mode: Option<crate::linear::Mode>) -> u32 {
     match mode {
         Some(mode) if mode.is_ordered() => 2,
@@ -358,9 +341,9 @@ pub(crate) const fn level_in(mode: Option<crate::linear::Mode>) -> u32 {
     }
 }
 
-/// The level of a disproof with `refutation` in `mode`: 3 for the
-/// saturated set, which level 3 added; 2 for the classical refutation and
-/// an ordered mode, which level 2 added; else 1.
+/// The level of a disproof with `refutation` in `mode`: 3 for a
+/// saturated set, 2 for a classical refutation or an ordered mode, else
+/// 1.
 pub(crate) const fn level_of(
     refutation: &crate::linear::search::Refutation,
     mode: crate::linear::Mode,

@@ -2,9 +2,9 @@
 // Licensed under the EUPL
 
 //! What a front end holds: every value that configures a call, in one
-//! [`Settings`], which reads and writes JSON with the feature `serialize`,
-//! and the [`Clock`] it applies through its stop, which the library never
-//! reads.
+//! [`Settings`]. With the feature `serialize` it reads and writes JSON. Its
+//! [`Clock`] holds the time limits, which the front end applies through
+//! its stop: the library reads no clock.
 
 use crate::export::Styles;
 use crate::linear::proofs::cut;
@@ -18,14 +18,15 @@ use crate::{
 };
 use std::time::Duration;
 
-/// What a front end with a clock applies through its stop, each counted in
-/// milliseconds from the front end's start; the library reads no clock.
-/// `None` is no limit.
+/// The time limits a front end with a clock applies through its stop, in
+/// milliseconds from the front end's start. `None` is no limit. The
+/// library reads no clock; [`Settings::stop`] makes the stop from these.
 ///
 /// # JSON
 ///
-/// With the feature `serialize` an object of the fields, each a number or
-/// `null`; a missing one takes its default and a misspelt one is refused.
+/// With the feature `serialize`, an object of the fields, each a number or
+/// `null`. A missing field takes its default, and a misspelt one is
+/// refused.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(
@@ -34,11 +35,11 @@ use std::time::Duration;
     serde(default, deny_unknown_fields)
 )]
 pub struct Clock {
-    /// How long a search may run, or a call that holds one.
+    /// How long a search may run, or a call that runs one.
     #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::exact"))]
     pub time_limit_ms: Option<u64>,
     /// How long a race searches on one thread before a pool of the other
-    /// threads searches beside it; `None` for no pool.
+    /// threads searches beside it. `None` for no pool.
     #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::exact"))]
     pub pool_after_ms: Option<u64>,
     /// How long a whole batch may run.
@@ -95,22 +96,27 @@ impl Default for Clock {
 }
 
 /// Everything that configures a front end's calls, in one value: the
-/// clock, the limits, the search's options, the view of a derivation, the
-/// options of every output format, the batch's, ordinary logic's, an
-/// interactive session's, cut elimination's and how a proof's
-/// lambda-term is printed.
+/// clock, the limits, the search's options, how a derivation is shown,
+/// the options of every output format, and the options of the batch, of
+/// ordinary logic, of an interactive session, of cut elimination and of
+/// printing a lambda-term.
 ///
-/// `Settings::default()` is the command's behaviour: no copy bound (a
-/// front end with a clock deepens until its time limit), every thread
-/// the machine runs, the clock's two seconds and a tenth, and the default
-/// limits. It differs from [`search::Options::default()`](Options), which
-/// keeps a copy bound of three, because a library call without a stop
-/// must end.
+/// `Settings::default()` is the `deduxit` command's behaviour:
+/// - no copy bound: a front end with a clock deepens until its time
+///   limit;
+/// - every thread the machine runs;
+/// - a time limit of two seconds, with the pool added after a tenth of a
+///   second;
+/// - the default limits.
+///
+/// It differs from [`search::Options::default()`](Options), which keeps a
+/// copy bound of three, because a library call without a stop must end.
+/// [`stop`](Self::stop) gives the command's stop.
 ///
 /// # JSON
 ///
-/// With the feature `serialize` an object with a key per field, each the
-/// JSON of that value; a missing key, or a missing field of one, takes
+/// With the feature `serialize`, an object with a key per field, each the
+/// JSON of that value. A missing key, or a missing field of one, takes
 /// its default, and a misspelt one is refused.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq)]
@@ -120,7 +126,7 @@ impl Default for Clock {
     serde(default, deny_unknown_fields)
 )]
 pub struct Settings {
-    /// What the front end applies through its stop.
+    /// The time limits the front end applies through its stop.
     pub clock: Clock,
     /// The resources a call may use.
     pub limits: Limits,
@@ -230,15 +236,16 @@ impl Settings {
         }
     }
 
-    /// Returns the stop the command applies: it fires once `elapsed()`
+    /// Returns the stop the command applies. It fires once `elapsed()`
     /// reaches the clock's [`time_limit_ms`](Clock::time_limit_ms), in
-    /// every phase but [`Phase::Refute`], and never without a time limit.
+    /// every phase but [`Phase::Refute`]. Without a time limit it never
+    /// fires.
     ///
-    /// The refutation after a search is bounded by its work, so it runs
+    /// The refutation after a search is bounded by its work, so it may run
     /// past the time limit: a search the limit ended can still be refuted,
     /// as the command's is. The crate reads no clock, so `elapsed` gives
-    /// the time since the caller started; it is not called in the refuting
-    /// phase or without a limit. A stop shared by threads (a race, a pool)
+    /// the time since the caller started. It is not called while refuting,
+    /// nor without a limit. A stop shared by threads (a race, a pool)
     /// needs an `elapsed` that is `Sync`, and is then `Sync` itself.
     ///
     /// # Examples
@@ -270,9 +277,9 @@ mod tests {
     use super::*;
     use std::cell::Cell;
 
-    /// The stop fires at the time limit in every phase but the refutation,
-    /// asks for the time only where it can fire, and never fires without a
-    /// limit.
+    /// The stop fires at the time limit in every phase but the refutation.
+    /// It asks for the time only where it can fire, and never fires
+    /// without a limit.
     #[test]
     fn the_stop_lets_the_refutation_run_past_the_limit() {
         let now = Cell::new(Duration::from_millis(1999));
