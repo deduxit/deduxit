@@ -128,7 +128,7 @@ that cannot repeat the engine's mistakes. Engines only call `Proof::check`.
   forest (6 GiB on a net of 65 000 clauses whose proof the search finds
   in 43 ms; the new pass checks it in a few milliseconds within the
   search's own memory). It is kept as `proofs/oracle.rs`, compiled for
-  tests only, and `agrees_with_the_first_implementation` requires the
+  tests only, and `agrees_with_the_oracle` requires the
   same verdict *and the same error* from both on the engines' proofs of
   the generated sequents and the families, in every mode, and on mutants
   of them: a change to a rule is made in both, or the test says where
@@ -308,7 +308,7 @@ that cannot repeat the engine's mistakes. Engines only call `Proof::check`.
   (`<=`, as the oracle has it) belongs to no accepted proof. A goal off
   the roots is read in its ascending order, which is the right one. The
   argument was reviewed (Fable 5.1); `cyclic` in `check/mod.rs` pins it,
-  and `agrees_with_the_first_implementation` runs every proof and mutant
+  and `agrees_with_the_oracle` runs every proof and mutant
   in the cyclic mode against the oracle.
 - **The Lambek calculus is the cyclic check, the intuitionistic one under
   the ordered reading, and R4** (`check::reading` builds the reading with

@@ -912,7 +912,7 @@ mod tests {
     /// implication's body from inside its antecedent, which a binder
     /// rejection without its last condition would refute.
     #[test]
-    fn the_review_s_witnesses() {
+    fn two_sequents_weaker_rejections_get_wrong() {
         let i = Mode::INTUITIONISTIC;
         let decided = |text: &str| verdict(text, prove(&sequent(text), i, &essential()).unwrap());
         assert!(!decided("a -o (a * a) |- (a -o a) * a"));

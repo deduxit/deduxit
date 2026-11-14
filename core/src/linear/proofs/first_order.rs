@@ -644,7 +644,7 @@ mod tests {
     /// witness, and every member of the table in place of a member a node
     /// names.
     #[test]
-    fn the_first_implementation_agrees() {
+    fn the_oracle_agrees_at_first_order() {
         let modes = [
             Mode::CLASSICAL,
             Mode::CLASSICAL.with_affine().with_mix(),

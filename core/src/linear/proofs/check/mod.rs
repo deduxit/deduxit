@@ -152,7 +152,7 @@ mod tests {
     /// They run on every proof of [`oracle::proofs`] in seven modes, and
     /// on mutants of those proofs in four.
     #[test]
-    fn agrees_with_the_first_implementation() {
+    fn agrees_with_the_oracle() {
         let classical = Mode::CLASSICAL;
         let proofs = oracle::proofs();
         assert!(proofs.len() > 1000, "{} proofs", proofs.len());
