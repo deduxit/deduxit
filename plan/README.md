@@ -6622,3 +6622,29 @@ move (D26).
     card, in the author's turn).
   - **Next:** 54s-c2 after 54s-b2 and 54s-c1; step 55's first session
     after 54s; 54w-e4 after it.
+- 2026-11-14: **54w-e6 reviewed; the held proposals decided (54x).**
+  - **54w-e6** (`lwtsvtrw` … `xkmrwmkq`), the comments of `lltp`, `mist`
+    and `families`: eight wrong claims fixed (among them `Family::instance`
+    not checking its index, and `wide(0, _)` being unprovable). My check:
+    with comment lines dropped, none of the three files differs from its
+    base. Its gate and flake check passed at its head; my plan commit on
+    top changes text only, and the text checks pass.
+  - **Decided for the author** (the author, 2026-11-14: decide such
+    questions while unattended, report afterwards). Accepted into one
+    session, 54x (`/tmp/linlog-handoff/start-54x.md`), since each is
+    small, serves users, and the slot on cores 10-12 had nothing else
+    ready (step 55 waits for 54s, 54w-e4 for step 55):
+    `Family::instance` refusing an index past `instances` (today it
+    gives a wrong expected verdict); `mist::read`'s cast as a refusal;
+    `with_lambda` on the three export options (every other field has its
+    `with_*`); a one-call deterministic `Settings` (the command has the
+    flag, the library needs two calls); `StepError::Rule` carrying the
+    formula (every front end names it alone; a breaking change, said in
+    the changelog, before 1.0); the intuitionistic count refutation
+    naming the empty side; four command texts (`--settings`' keys,
+    `--engine inverse`, classical MELL with units, `interact`'s goal
+    number); the harness's strings; NanoYalla built once and
+    `packages.check-certificate`. Declined: Learn's practice answer kept
+    per lesson (nothing asks for it); the page's new texts go to the
+    client's next text session.
+  - **Started** 54x on Opus 5.5 at `high`, cores 10-12.
