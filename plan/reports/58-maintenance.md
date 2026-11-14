@@ -324,3 +324,314 @@ wrote it:
   error in a future release (a future-incompatibility lint of the
   nightly, not of the pinned stable); the step that next moves the
   toolchain meets it.
+
+## Session 58b: the accessibility audit
+
+The client's accessibility audit of `plan/58-maintenance.md`
+(maintenance-4, web-teaching-4), Opus 5.5 at `high`, 2026-11-14, in the
+client's jj workspace `../deduxit.github.io-58b` (workspace `step58b`) on
+the client's `main@origin` (`runpsyxs`). Nothing was pushed. This
+deduxit workspace holds only this section.
+
+### Outcome
+
+axe (`@axe-core/playwright` 4.14.0 over axe-core 4.14.0, MPL-2.0, a
+dev-dependency only, past the fourteen-day gate) now runs as e2e tests
+on every page of the client and in every state of the prover's walk, in
+the light and the dark scheme, at a desktop's (1280 × 800) and a phone's
+(Pixel 7) width: 48 tests, WCAG 2.0, 2.1 and 2.2 at A and AA plus axe's
+best practices, failing on any violation. The first run found 38 of 40
+tests failing on ten rules; every finding is fixed but one, which is
+listed below with its reason. The screen-reader pass found the drawings'
+text alternatives complete, fixed one naming inconsistency in the
+client, and leaves two proposals; no structural twin was built.
+
+### Tools and pages audited
+
+- **Tool**: axe-core through `@axe-core/playwright` in the client's
+  Playwright (nixpkgs' Chromium), `tests/accessibility.spec.ts`. Tags
+  `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22a`, `wcag22aa`,
+  `best-practice`. Each violation is a line with axe's own reason (the
+  ratio, the covering element), so a failure says what to fix.
+  Lighthouse was not run: its accessibility audit is axe's rules.
+- **Pages**: the prover (`/`), `/privacy/`, the 404 page, and the Rocq
+  library's old address `/rocq-linlog/` (its meta refresh taken out by a
+  route, so that the page stays to be read). `/llms.txt` and
+  `/problems.json` are not HTML.
+- **States**: every state of the walk that `tests/targets.spec.ts`
+  measured, now one module, `tests/states.ts`, which both specs walk: the
+  empty page, a parse error, a proof with the rules popover, the split
+  chooser, a refusal, a hint, a proof closed, its net; every menu of the
+  band (Export, Steps, Import, Settings, Keys, About), the status, the
+  calculus and the restart warning; Practice and its filters; the tour;
+  Learn's Tutorial and Reference and the lesson states (worked proof,
+  dead end, faded proof, check, attempt, wrong step, unknown,
+  elimination, refusal); the restore bar; a goal's reasons (lost goal,
+  long reason); Learn's answers; an ordinary tab; the witness chooser;
+  the cut chooser and the elimination; the stage in each math font.
+  Twelve walks, each a test of its own per scheme and width.
+- **Incomplete results** (what axe cannot decide) are not asserted. A
+  probe of five states in both schemes found them all of one rule,
+  `color-contrast`: text over a gradient (the stage's dotted field, and
+  now every keyword's wash), under an overlapping element, an image, or
+  symbols alone. `colours.test.ts` holds the keywords instead.
+
+### Findings and what was done
+
+1. **Label in name (SC 2.5.3, A)**, `label-content-name-mismatch`, the
+   most frequent finding (every state with a tab, every lesson button,
+   every Practice row, Watch). Fixed in `omrrppxn`:
+   - The tab's calculus mark showed "Linear (LL) MLL" and was named
+     "Logic: Classical; fragment MLL". Its name is now "Logic:", then
+     what it shows at that width, then the switches' words ("Logic:
+     Linear (LL) MLL, Classical; fragment MLL"), by `aria-labelledby`
+     over its own label and fragment and two `hidden` spans beside it.
+     An `aria-label` could not do it: axe drops what stands in
+     parentheses, so the phone's "LL" was missing from "Linear (LL)".
+     Spans inside the button would have put screen-reader words into its
+     `textContent`, which a dozen tests read with `toContainText` (some
+     would then pass on those words alone). This replaces 54u-c's "the
+     accessible name stays Logic: …" (W9), keeping its "Logic" first.
+   - Lesson buttons: the name gains the line shown under the title
+     ("Lesson 2: The multiplicatives. A worked proof, your turn,
+     practice, a check"); Practice's rows gain the fragment shown; Watch
+     is "Watch the proof of …", as it shows "Watch the proof".
+   - axe compares words and joins an element's text nodes without a
+     space between elements ("1Reading", "LLMLL"): the parts of these
+     buttons now have a space between them in the markup, which their
+     flex and grid layouts ignore.
+2. **ARIA parents and children of the Export menu**
+   (`aria-required-parent`, `aria-required-children`, `list`, A): the
+   menu items sat in `ul`/`li`, so their parent was a list item, not the
+   menu. The lists are `role="none"` (`toxvrvvo`); the separators stay
+   `aria-hidden` list items (Biome refuses `role="separator"` on an
+   `li`, and an `hr` is no child of a `ul`).
+3. **Contrast (SC 1.4.3, AA)**: a `.kw.bad` keyword on Learn's frame was
+   4.29:1 in both schemes (its wash over the frame's tint). Recolouring
+   `--color-bad` could not reach 4.5:1 without breaking
+   `colours.test.ts`'s colour-vision distances (to warn under
+   deuteranopia and to the dominator colour). Instead every keyword's
+   wash is laid on the panel whatever stands under it (`wtzmlttl`), as
+   the stage's banner already did; `colours.test.ts` gains a test that
+   each tone reads at 4.5:1 on its wash over the panel (lowest: accent
+   in dark, 4.51). The keyword chips look the same on the panel and a
+   shade lighter on the field and in Learn.
+4. **Links in text (SC 1.4.1, A)**, `link-in-text-block`: the privacy
+   and 404 pages' links were told from the text by colour alone (2.48:1
+   and 2.8:1 against the text). Underlined (`wtzmlttl`), the word mark
+   excepted.
+5. **The Rocq library's old address** (best practice): no `main`, no
+   `h1`. Given both (`qnxxqwtz`).
+6. **Target size on a phone, the stage's buttons misplaced (SC 2.5.8,
+   AA)**: in lesson 7's search that gives up, on a phone with Learn open,
+   the dock's buttons were half covered by the stage's view controls and
+   the band. Two causes, both fixed in `truzxtpr`:
+   - The formula buttons lay 30 to 90 pixels off their formulas (a
+     516-pixel button over a 120-pixel formula): the effect that lays
+     them again after a zoom runs before the world's transform follows
+     the camera, so boxes were read at the old scale and divided by the
+     new. `rendered()` measures the scale actually shown (the drawing's
+     box over its layout width) for every box read off the drawing
+     (formulas, rule labels, cuts, engine labels); the sizes a button
+     must reach on the screen still come from the camera. This is a real
+     bug beyond the audit: on that screen the formulas could not be
+     clicked.
+   - The dock, placed below the goal for want of room above, ran under
+     the view controls. Where it fits neither above nor below without
+     that, the goal now moves down until the dock fits above it, if the
+     goal then still clears the controls, and only while the camera
+     stands where the page put it: after the visitor's own drag, wheel,
+     zoom or pinch the dock never moves the drawing (`rykuknrs`, the
+     review's finding 1).
+   - `phone.spec.ts` checks both in that state. Run against the old
+     stage it fails on the dock; the misplaced buttons are a race, which
+     that run did not hit (the axe runs and a probe did, every time).
+7. **Target size of the rule labels on a phone (SC 2.5.8), listed, not
+   fixed.** A rule label's button over a drawing fitted to a phone is 44
+   pixels square and overlaps its neighbours (an elimination's
+   derivation, lesson 9 and 10's drawings, a proof under More's sheet).
+   For a linear rule, what it opens, the rule's hint, is also in Learn's
+   Reference, whose controls meet the criterion: SC 2.5.8's "equivalent"
+   exception. For the rules the Reference lacks (LK's and LJ's, the
+   Lambek calculus's, Mix, weakening) it is a violation that remains
+   (the review's finding 2). A screen reader hears the hint as the
+   label's description in every case. The spec filters exactly these
+   nodes (`excepted`: rule `target-size`, a `button` of class `lb`) and
+   says which part is an exception and which a violation waiting for a
+   decision. A fix is a proposal below.
+8. **The phone's walk of a proof** ran past the dev shell's 30 seconds
+   once with axe in every state: `proving` is split into `proving` and
+   `menus` (`rkqlzsls`, `mqpvyvqn`).
+
+Two test fixes came with the runs: `ordinary.spec.ts`'s link test read
+the URL before the step's link was written (2 of 6 failures on `main`'s
+stage, 5 of 6 with the new one): fixed at its cause as 54u-d fixed its
+twin in `prover.spec.ts` (`xswszwoz`, 6 of 6 after). Practice's,
+Learn's, lessons' and the chip's tests name the controls by their new
+names (`omrrppxn`), the cut test by its new name (`rswnysrn`).
+
+### The screen-reader pass
+
+No screen reader runs headless on this machine, so the pass read what
+Chromium gives one: the accessibility tree (CDP
+`Accessibility.getFullAXTree`) and the stage's ARIA snapshot, for a
+proof begun, a step taken, a proof closed and its net, an intuitionistic
+proof and its essential net, a MELL proof and its net with a box, an
+ordinary proof, a refuted sequent and a cut elimination. What it found:
+
+- **Every drawing is one image, named by its sequent, described by its
+  steps.** deduxit's SVG keeps `role="img"`, its `<title>` the name
+  ("⊢ A⊥ ⅋ B⊥, B ⊗ A"), its `<desc>` the description: a derivation's
+  numbered inferences, premises first ("1. ⊢ ~B, B, by ax. … 4. ⊢ ~A ⅋
+  ~B, B ⊗ A, by ⅋ from 3."), an open goal as "open", a net's links in
+  its text form. The image's children are presentational, so a reader
+  does not spell out the italic letters. After the image come the
+  formulas' buttons ("A⊥ ⅋ B⊥, formula 1 of goal 1") and the rule
+  labels' buttons ("Rule ⊗", the rule's hint as description), then the
+  dock. That is a complete, ordered alternative.
+- **Countermodels are text**: a classical countermodel and every other
+  refutation is the note's sentence, read by the live region; there is
+  no drawing of one to describe.
+- **Notation differs**: the description writes a negated atom `~A`
+  (deduxit's text notation), while the name, the formulas' buttons and
+  the screen write `A⊥`. A reader hears "tilde A" in one and "A up
+  tack" in the other. The cut buttons were named in `~A` too: fixed in
+  the client (`rswnysrn`). The description is deduxit's: a proposal.
+- **A structural twin is not needed yet.** The description is a
+  complete twin of small and medium proofs, and the Steps list lists
+  the steps taken. For a long proof it is one long string with no
+  navigation; that is what a twin (a nested list, conclusion, rule,
+  premises) would give, and it waits for a screen-reader user's review
+  (web-teaching-4: no session can supply one). "Rule ax" twice in a
+  drawing does not say which inference: a proposal.
+
+### The checks
+
+| check | result |
+|---|---|
+| Vitest in the dev shell (`--maxWorkers=3`, cores 13-15) | 587 passed (586 on `main`: the keywords' contrast test is new) |
+| `biome lint --error-on-warnings`, `astro check`, `tsc --noEmit` | 0 errors |
+| axe spec, first run on `main`'s page (ten walks then, 40 tests) | 38 failed, 2 passed |
+| axe spec after the fixes | 40 passed (before the walk's split) |
+| the whole e2e suite in the dev shell (`--workers=3`, cores 13-15) | first 199 passed, 5 failed (the phone's proof walk past 30 s, Practice's two tests by the old names, the ordinary link race, `prover.spec.ts`'s link test once); after the split and the renames 207 passed, 1 failed (the ordinary link race), fixed, 6 of 6 |
+| the new phone test against `main`'s stage | fails (the dock) |
+| `prover.spec.ts`'s link test, repeated (`--repeat-each`) | 23 of 24 passed on this chain, 24 of 24 on `main@origin` (a workspace of its own, since removed); it failed at its broken-link step (`&d=AAAA`, reload, "Proof not restored"), which this chain does not touch, and 54u-c saw it fail once under load: left as a follow-up |
+| the client's `nix flake check --keep-going --max-jobs 4 --cores 8`, under the machine lock, at `mqpvyvqn` | exit 0, "all checks passed!": 587 unit tests, 208 e2e tests passed, none flaky |
+| after the review: `phone.spec.ts` and the axe spec (`--workers=3`) | 56 passed (48 axe, 8 phone); the new drag check fails on the stage before `rykuknrs` (177.7 against < 137.7) |
+| the client's `nix flake check`, as above, at `wptvvnrm`, the chain's last commit | exit 0, "all checks passed!": 587 unit tests, 212 e2e tests passed, none flaky |
+
+### The review
+
+The `fresh-reviewer` agent (Fable 5.2 at `medium`) read the chain up to
+`mqpvyvqn` against the brief and the prompt, and drove the built page
+with scratch Playwright scripts on cores 13-15 until deduxit-orchestrator
+paused browser runs for a timed run; two checks it planned were then
+left (below).
+
+1. **The dock's lift undid the visitor's upward drag** (Pixel 7, Learn
+   open, lesson 7's search: a 120-pixel drag up ended at the starting
+   transform, each move taken back). Upheld: the dock effect ran on
+   every camera change. Fixed in `rykuknrs`: `move` records whether the
+   visitor moved the camera (drag, wheel, zoom, pinch), and the dock
+   moves the drawing only where the page placed it. `phone.spec.ts`
+   drags up 50 pixels in that state and checks that the drawing stays
+   up. The reviewer also saw the dock trail the goal by one event during
+   a drag; whether `main` does the same was not compared (no build of
+   `main` was at hand), and it is left as a follow-up.
+2. **The exception's reason is false for some labels**: the Reference
+   holds no hint of LK's, LJ's, the Lambek calculus's, Mix's or
+   weakening's rules, so their labels have no equivalent control.
+   Upheld, from the code. The spec's comment, the client's `web.md` and
+   finding 7 above now say that those labels remain a violation, waiting
+   for the proposal (`wptvvnrm`). The filter itself is unchanged: it
+   removes only `target-size` on buttons of class `lb`, which the
+   reviewer confirmed.
+3. **`web.md` said axe walks every state of `tests/states.ts`**, but the
+   font walk was not among the axe walks. Upheld: `wptvvnrm` adds it
+   (the stage in each math font, a proof started and its split chooser).
+
+The reviewer found the rest sound: `rendered()` (its fallback at zero
+width, the net's paths), the mark's names at both widths and its ids
+unique per tab, the menu's roles, the keyword CSS against every rule
+that sets a background, every changed assertion (none weakened, two
+stricter), and the walk's states and order unchanged in
+`targets.spec.ts`.
+
+### The client's commits
+
+On the client's `main@origin` (`runpsyxs`), oldest first, by change id:
+
+| change | what |
+|---|---|
+| `xswszwoz` | `ordinary.spec.ts`'s link test waits for the step's link |
+| `truzxtpr` | the stage's buttons measured at the rendered scale; the dock kept clear of the view controls; the phone test |
+| `rswnysrn` | a cut's button named with `A⊥` |
+| `omrrppxn` | each control's visible text in its accessible name: the calculus mark, lessons, Practice's rows, Watch; the tests by the new names |
+| `toxvrvvo` | the Export menu's lists `role="none"` |
+| `wtzmlttl` | keywords' washes on the panel and their contrast test; links in text underlined |
+| `qnxxqwtz` | the Rocq library's old address: `main` and `h1` |
+| `rkqlzsls` | `tests/states.ts`, the walk `targets.spec.ts` and the axe spec share |
+| `mqpvyvqn` | `@axe-core/playwright`, `tests/accessibility.spec.ts`; the client's `web.md` and README |
+| `rykuknrs` | the review's finding 1: the dock moves the drawing only where the page placed it; the drag in `phone.spec.ts` |
+| `wptvvnrm` | the review's findings 2 and 3: the exception's reason narrowed to the linear rules, the font walk audited |
+
+### Departures from the brief
+
+- One finding is listed rather than fixed: the rule labels' targets on a
+  phone (finding 7), filtered in the spec by name and reason; for the
+  linear rules it is SC 2.5.8's "equivalent" exception, for the others
+  a violation that remains. (departs from the design)
+- The tab's calculus mark is no longer named "Logic: …" alone (54u-c's
+  W9 kept that name); its name now starts with "Logic:" and holds what
+  it shows. (departs from the design)
+- Keyword chips no longer let their ground show through their wash: they
+  are the panel's colour with the wash on it. (departs from the design)
+- On a short stage the dock may move the drawing down to fit above the
+  goal (only where the page placed the camera): a change of how the
+  stage behaves, made because the dock's buttons were otherwise covered.
+  (departs from the design)
+
+### Proposals beyond the audit, for the author
+
+- **deduxit's `<desc>` in the drawing's notation**: `write_steps` writes
+  `~A` where the `<title>` and the page write `A⊥`; a screen reader hears
+  two notations for one formula (`core/src/export/svg/`, `fmt.rs`). The
+  `<desc>` of a net is its text form run together ("⊢ ~A ⅋ ~B, B ⊗ A
+  ~A[1] — A[5] ~B[2] — B[4] proof net"), with no sentence breaks. Both
+  are deduxit's, not the client's.
+- **Rule labels named by their step**: "Rule ax, step 1" (the
+  description's numbering), so that a reader tabbing through a drawing
+  knows which inference each label belongs to.
+- **Rule labels' targets on a phone**: a zoom floor for a fitted
+  finished drawing (as `floor` does for the active goal's formulas), or
+  labels that share the gap with their neighbours as the formulas'
+  buttons do; either changes how a drawing fits a phone, which is the
+  author's call.
+- **The atom-balance reason says "A is ahead by -1"** when the dual is
+  the one ahead (`words.ts`, `unbalanced`): it should name the atom that
+  is ahead, or say "behind".
+- **The dock trails the goal by one event during a drag** (the
+  reviewer's observation; not compared with `main`): the dock effect
+  could run after the world's transform, as the buttons now are
+  measured.
+- **`prover.spec.ts`'s broken-link step** (`&d=AAAA`, reload) failed 1
+  of 24 runs on this chain: a race to find and fix at its cause.
+- **A review by a screen-reader user**, as web-teaching-4 says: the
+  pass above read the tree Chromium builds, not what NVDA, JAWS,
+  VoiceOver or Orca say.
+
+### What the next sessions must know
+
+- A new control, popover or state gets a step in `tests/states.ts`;
+  `targets.spec.ts` measures it and `accessibility.spec.ts` audits it in
+  both schemes at both widths. A walk that grows past about fifteen
+  states with axe in each nears the dev shell's 30 seconds on a phone:
+  split it, as `proving` and `menus` are.
+- axe's label-in-name check compares words: a control's `aria-label`
+  repeats every word it shows, parentheses do not count, and the parts
+  of a button's label need a space between them in the markup.
+- Every box read off the drawing is divided by `rendered()`, never by
+  `camera().k`.
+- The keyword washes are background images, so axe leaves their
+  contrast "incomplete"; `colours.test.ts` is what holds them.
+- The client's `web.md` records all of these.
