@@ -1453,3 +1453,241 @@ The four fixes are prose; the no-code check holds after them.
 - The PNG and PDF examples are `no_run`: they read `Euler-Math.otf` from
   the working directory (TeX Live's `euler-math` package has it; the
   command embeds it from `cli/fonts/`).
+
+## Session 54w-c: README, the manual, the changelog and the guide
+
+Item 4 of `plan/54w-text.md` (Opus 5.5 at `high`, 2026-11-14, cores 4-6,
+jj workspace `deduxit-wt-step-54w-c-e93b9d`), from the brief
+`start-54w-c.md`, on top of 54u-e's and 54w-d's chains (`llmypmxy`). The
+author was away; every decision below follows the writing rules,
+`plan/notes/usability.md` §6-§7 and the reports of 54b, 54s-a, 54u-a,
+54u-b, 54u-e and 54w-d.
+
+### Outcome
+
+README, the manual (every chapter under `docs/src/` but the dated
+results), the changelog's Unreleased section and the guide for AI
+models are rewritten to `.claude/rules/writing.md`, and the manual is
+split by Diátaxis's four kinds. No behaviour, flag, default or API
+changed. The one code file touched is `cli/tests/readme.rs`: its
+doctest rule now covers the manual's Rust examples too (below).
+
+| change | what |
+|---|---|
+| `rwquttvk` | the manual, the readme test's doctest rule, `cli.md`'s line on it |
+| `luvywlyk` | README |
+| `tpnmmmtr` | the changelog's Unreleased section |
+| `urswspwm` | the guide: `skills/deduxit/reference.md` and `SKILL.md` |
+| (this section) | the report |
+
+Five sub-agents on Opus 5.5 at `high` (`deduxit-docs-formats-rocq`,
+`deduxit-docs-interact-nets`, `deduxit-docs-other-logics`,
+`deduxit-docs-project-pages`, `deduxit-guide-reference`) rewrote the
+chapters I did not take, each on its own files, under one shared brief
+(the rules, the new layout, the shared sentence on deterministic
+answers, the changes since 0.3.0 the text must show). I wrote the
+layout, the tour, the split of the commands chapter, the new pages,
+README, the changelog and `SKILL.md`, and checked their reports.
+
+### The manual's new layout
+
+| part | chapter | kind |
+|---|---|---|
+| (front page) | `introduction.md` "Getting started" | tutorial: first proof (with Q7's line that `⊢ ~A, A` is `A ⊢ A`, and `--classical-sides two`), first unprovable sequent and its reason, `-a`, the exit status, first `-i` proof, an export, `check` |
+| How-to guides | `installation.md` "Install deduxit" | how-to; the musl/glibc note moved after the systems as "Long searches" |
+| | `commands.md` "Decide a sequent" | how-to: the verdict, why unprovable (Q8's phrases, read without the counts' explanation), unknown and the flag to raise, the same answer every time (FC10), the logic, `-i`, showing the derivation, JSON |
+| | `mistakes.md` "Avoid the common mistakes" (new) | how-to with Q6's hints: `prove` missing, an unquoted sequent, `->`, a file of named lines, classical symbols under `-i`, `tex`, an unused hypothesis |
+| | `check.md` "Check a proof or a refutation" (new) | how-to, from the commands chapter |
+| | `output-formats.md` "Export a proof" | how-to; names the exports' `to_string` |
+| | `rocq.md` "Check a certificate in Rocq" | how-to: Q11's `nix run …#check-certificate` first, the kernels, the Nix ways before opam, the plain statement that `rocq-deduxit` is not yet in opam's archive, and 54u-e's sentence on a file that redefines its statement's names |
+| | `interactive.md` "Prove step by step" | how-to, with Q9's rule list and the warning at a split that cannot be closed |
+| | `batch.md`, `cut.md`, `proof-nets.md` | how-to ("Decide many sequents at once", "Eliminate cuts", "Draw a proof net"); the net verdict in its three forms |
+| | `first-order.md`, `ordinary-logic.md`, `terms.md`, `cyclic.md`, `lambek.md` | how-to; "not valid" said in ordinary terms before the translation (FC9); `Display` for terms named |
+| | `library.md` "Use the library" (new) | how-to: decide and print, Q1's `Settings::stop`, Q2's `to_string` and `{}`, Q3's `Outcome` read back, the error with its formula |
+| Reference | `syntax.md` "The syntax" | reference: a table of connectives, precedence, the intuitionistic and first-order syntax |
+| | `options.md` "Limits, defaults and exit statuses" (new) | reference: exit statuses per command, every limit with its default, threads, the JSON outcome's keys; Q10's "`--help` shows every option" |
+| | `settings.md` "The settings file" (new) | reference, moved out of the formats chapter |
+| Explanation | `engines.md` "How deduxit searches" (new) | the engines, the copy bound and the bias, the Horn engine, the inverse method, the intuitionistic engines, why a sequent is unprovable, threads |
+| | `architecture.md`, `status.md` | explanation |
+| Results | `benchmarks.md`, `results/*.md` | the dated records unchanged |
+| The project | `development.md` | how-to for a contributor |
+
+File names are kept, so links into the published manual (README's,
+the web page's) still resolve; `commands.md` holds "Decide a sequent".
+
+### What else was rewritten
+
+- **README** opens with one paragraph of what deduxit does, then
+  Install, the first proof with the one-sided line and
+  `--classical-sides two`, and where to go next. The two paragraphs of
+  history went (the changelog has them; one line says deduxit was linlog
+  up to 0.2.0). Citing and the licences are unchanged in substance.
+- **The changelog's Unreleased section** has "What breaks", a new
+  "Changed" for the outputs a script may match (`--net`'s line in its
+  three forms, the two-sided classical refutation and the `-a` note,
+  the intuitionistic refutation without "positively"/"negatively",
+  ordinary logic's "the translated sequent", the help and messages, the
+  manual's layout) and "Added" (Q6's hints and `tex`, Q9, `Settings::stop`,
+  `to_string` and `Display`, `Deserialize` for `Outcome` and
+  `Engine::Unknown`, the formula in `ShapeError`, LJT, the SAT engine
+  `ordinary::sat` in the library, the harness's ordinary rows, the
+  certificate app).
+- **`SKILL.md`**: the shared sentence on deterministic answers, the
+  library line naming `Settings::stop`, the manual's description.
+- **One sentence on deterministic answers**, the same in the manual
+  (`commands.md`, `options.md`, `first-order.md`), `reference.md` §6 and
+  `SKILL.md` (FC10): "For the same verdict on every machine, bound the
+  search with `--work-limit N` or `--copies N` and lift the time limit
+  with `--timeout none`. `--deterministic` also makes the proof and
+  `--stats` the same on every run."
+
+### Claims found wrong, and fixed
+
+- `introduction.md` said the other provers had not yet run on the growing
+  families; the chapter of 2026-11-03 has them. The sentence went with
+  the old introduction.
+- The commands chapter said the additive and the Horn engine get no
+  pool; `--pool-after`'s help, which follows the code, names the
+  essential and inverse engines too. `engines.md` names all four.
+- The manual advised `--copies` or `--timeout none` for a stable answer,
+  the guide `--work-limit`: one sentence now (FC10).
+- `settings.md` (from the formats chapter) listed 7 top-level keys of
+  the settings file; the command takes 11 (`interactive`, `input`, `cut`,
+  `lambda` were missing), shown by the error a file with an unknown key
+  gets.
+- `installation.md` left out the default feature `sat`.
+- `rocq.md` left implicit that a refutation's certificate is always
+  rocq-deduxit's (`--kernel nanoyalla` says so on `A |- B`).
+- `terms.md` said `--lambda-types` gives `false` its goal's type; the
+  help and the output say `false` and `abort` (`abort_a(x)`).
+- `architecture.md` said four crates (six, with `compat/`), described
+  certificates as NanoYalla's only, and said one exchange per `⊗` (only
+  before a `⊗` whose goal is out of order).
+- `cut.md` left out the `above` key of the JSON record's steps;
+  `proof-nets.md` named only `MellStructure` as the net read back (an MLL
+  net is a `ProofStructure`).
+- The guide's §1 left `eliminate` out of the commands; §12 said a batch
+  goes across the cores by default (it goes within when there are fewer
+  sequents than workers, and on a stream); §15 left out the settings key
+  `interactive`; §16 left out the feature `sat`; §17 left out the web
+  bindings' `term` and `ordinary_term` and said every call takes
+  settings (`about` and `defaults` take none); the engine table said
+  the essential engine runs only when named (it decides the Lambek
+  calculus, and the net engine the cyclic mode). `engines.md` says the
+  same.
+- One "fix" a writer made was itself wrong and was undone: it said
+  `Error::NotIntuitionistic`'s message names occurrences by id, from the
+  doc comment on that variant in `core/src/errors/mod.rs`. Since 54u-a's
+  Q4, `ShapeError::Formula`'s `Display` writes the formula
+  (`core/src/linear/occurrences/reading.rs:207`); that doc comment is
+  stale (below).
+
+### A race in the working copy, and what it cost
+
+Three parallel Edits of `cli/tests/readme.rs` each ran the formatter
+hook's `nix fmt`, whose jj snapshots raced: the working-copy change went
+divergent, and the disk was set back to an older snapshot of some files
+(`cut.md`, `cyclic.md`, `output-formats.md`, `settings.md`, parts of
+`reference.md`, my own edits of `readme.rs` and `cli.md`). Both versions
+were saved to the scratchpad, every writer re-checked its files and
+redid what was lost, and the orphan was abandoned. No text was lost in
+the end. A session edits a file the hook formats (`.rs`, `.nix`,
+`.toml`, `.sh`, `.py`) one Edit at a time.
+
+### Checks
+
+Every cargo run capped on cores 4-6 (three jobs and test threads); the
+nix builds under `flock -o /tmp/linlog-machine.lock` with `--max-jobs 4
+--cores 8`.
+
+- `cargo test -p deduxit-cli --test readme`: 7 passed, after the
+  reviewer's fixes too (every console block of README, the manual and
+  the guide, the names, the defaults, the doctest rule, the summary's
+  budget: `SKILL.md` 94 lines and 7 996 bytes of body).
+- `cargo clippy -p deduxit-cli --tests -- --deny warnings`: clean.
+- `nix build` of `manual`, `manual-links`, `typos`, `conventions` and
+  `treefmt`: pass.
+- `nix flake check`: "all checks passed!" on the four commits before the
+  reviewer's fixes. The fixes change text, one test's counting, and no
+  code the checks build otherwise; the readme test and clippy above
+  cover them.
+- The gate was not run: the one code file changed is a test of the
+  command's examples (CLAUDE.md asks for the gate on a commit that
+  touches code; `nix flake check` ran the workspace's tests and clippy).
+
+### The reviewer
+
+`fresh-reviewer` (Fable 5.2 at `medium`) read the four commits, the
+brief and the prompt, and probed the binary. Three findings and four
+lesser points; all held and are fixed in the commit they belong to.
+
+1. `reference.md` §10 quoted the eigenvariable error as "cannot stand
+   there", which 54w-d reworded to "cannot be used here". Fixed.
+2. `commands.md` said a JSON, LLTP or `.spec` sequent stays one-sided
+   under `--classical-sides two`; the derivation is two-sided, its
+   formulas in their one-sided form (`A, ~A ⅋ B ⊢ B`). Fixed, checked
+   by running it.
+3. The doctest rule counted the guide's and the manual's Rust blocks
+   together, so the guide could lose its block unnoticed. It now asserts
+   each has one.
+- Lesser: `syntax.md` named `check` among the readers of the sequent
+  syntax (it reads a proof file); `reference.md` §3's `--logic` row
+  still said "through a translation" (LJT since 54b); `status.md` left
+  out `eliminate`; the changelog's `ordinary::Search` left out `Sat`.
+  All fixed.
+
+Everything else it checked held: the defaults, exit statuses, engines,
+the library's calls, the certificate app, the changelog against the
+reports, Q1-Q11 and Q7, the shared sentence (word for word in five
+places), the writing rules, and every link.
+
+### Proposals for the author
+
+- **`--settings`'s help names 8 of the settings file's 11 top-level
+  keys** (`interactive`, `cut` and `lambda` are missing). The help could
+  name all; `settings.md` lists the 11.
+- **`deduxit prove --net "!A |- A * 1"`** says nets with boxes exist
+  "not for MELL in classical mode", where the unit is the reason. The
+  message could name the units ("MELL with units").
+- **`--engine inverse`'s help** says it runs "only when named here", but
+  without `--engine` it also takes turns beside the engine and takes over
+  at the memory bound. A sentence there would match the manual.
+- **A one-call `--deterministic` in the library**: matching
+  `prove --deterministic` takes `settings.search.with_jobs(1)` (and the
+  schedule of turns, which one job takes anyway) beside `Settings::stop`;
+  a helper such as `Settings::deterministic()` would make it one call.
+- `rocq-deduxit` in the Rocq opam archive (already in `plan/later.md`
+  with Q11's second half), after which the Rocq chapter's opam lines
+  lead.
+
+### What the next sessions must know
+
+- **The manual's layout** is `SUMMARY.md`'s four parts: a tour
+  (`introduction.md`), how-to guides, reference, explanation, then the
+  results and the project. A new command, flag or format goes into the
+  how-to of its task with a real invocation, its limit and default into
+  `options.md`, its settings key into `settings.md`, and how it works
+  into `engines.md`. File names were kept, so `commands.md` is "Decide a
+  sequent".
+- **The manual has Rust examples now** (`docs/src/library.md`), held
+  by `rust_examples_are_doctests` to the crate root's doctests in
+  `core/src/lib.rs` as the guide's are. **54w-e5** rewrites the crate
+  root: a doctest it changes changes `library.md`'s and
+  `reference.md`'s copies in the same commit, or the readme test fails.
+- **A stale doc comment for 54w-e5**: `core/src/errors/mod.rs` says
+  `Error::NotIntuitionistic`'s message names occurrences by id; since
+  Q4 it names the subformula (`reading.rs`'s `Display`). One of this
+  session's writers was misled by it.
+- **54s-b** may add a line to `ordinary-logic.md` or the guide's §13:
+  the chapter kept its headings "How a sequent is decided" and "Step by
+  step"; `status.md`, `architecture.md` and the changelog say the
+  command does not offer the SAT engine yet, which its wiring changes.
+- **The shared sentence on deterministic answers** stands word for word
+  in `commands.md`, `options.md`, `first-order.md`, `reference.md` §6
+  and `SKILL.md`; change it in all five.
+- **`SKILL.md` is at its byte budget** (7 996 of 8 000 bytes of body):
+  a line added there needs one cut.
+- **The formatter hook and parallel edits**: editing one `.rs`, `.nix`,
+  `.toml`, `.sh` or `.py` file with several Edits in one message runs
+  the hook's `nix fmt` concurrently, whose jj snapshots race; edit such
+  files one at a time.
