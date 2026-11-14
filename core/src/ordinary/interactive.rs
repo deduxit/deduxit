@@ -957,7 +957,7 @@ impl Interactive {
     ) -> Result<Closed, Error> {
         let outcome = self.decide(goal, translation, search, limits, stop)?;
         let grafted = match &outcome.verdict {
-            Verdict::Valid(derivation) => match self.graft(goal, derivation, limits) {
+            Verdict::Valid(evidence) => match self.graft(goal, evidence.derivation()?, limits) {
                 Ok(()) => Ok(()),
                 Err(Error::Refused(refusal)) => Err(refusal),
                 Err(error) => return Err(error),
@@ -987,7 +987,7 @@ impl Interactive {
         let outcome = self.decide(goal, translation, search, limits, stop)?;
         self.open(goal)?;
         let steps = match &outcome.verdict {
-            Verdict::Valid(derivation) => self.first_steps(goal, derivation),
+            Verdict::Valid(evidence) => self.first_steps(goal, evidence.derivation()?),
             Verdict::NotValid | Verdict::Unknown(_) => Vec::new(),
         };
         Ok(Hint { outcome, steps })

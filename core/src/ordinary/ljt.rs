@@ -35,7 +35,9 @@
 //! # Ok::<(), deduxit::Error>(())
 //! ```
 
-use super::{Derivation, Formulas, Inference, Logic, Node, NodeId, Rule, Sequent, Side, Verdict};
+use super::{
+    Derivation, Evidence, Formulas, Inference, Logic, Node, NodeId, Rule, Sequent, Side, Verdict,
+};
 use crate::Error;
 use crate::hash::{HashMap, HashSet};
 use crate::limits::{Limits, Phase, Progress, Refusal, Space};
@@ -155,7 +157,7 @@ fn run(
             lj.plant = plant;
             let derivation = lj.translate(root, sequent.left(), goal)?;
             derivation.check(limits, &mut stop)?;
-            Verdict::Valid(Box::new(derivation))
+            Verdict::Valid(Evidence::Derivation(Box::new(derivation)))
         }
     };
     Ok(Outcome {
@@ -1301,7 +1303,8 @@ mod tests {
     #[test]
     fn the_root_keeps_the_written_order() {
         for text in ["a -> a -> b, a |- b", "b, a, b /\\ a |- a /\\ b"] {
-            let Verdict::Valid(d) = ljt(text, Logic::Intuitionistic).verdict else {
+            let Verdict::Valid(Evidence::Derivation(d)) = ljt(text, Logic::Intuitionistic).verdict
+            else {
                 panic!("{text} is valid");
             };
             assert_eq!(d.inference(d.root()).left(), d.sequent().0, "{text}");
@@ -1325,7 +1328,8 @@ mod tests {
             for logic in [Logic::Intuitionistic, Logic::Minimal] {
                 let outcome = decide(&sequent, logic, &unbounded, |_| false).unwrap();
                 let answer = match &outcome.verdict {
-                    Verdict::Valid(derivation) => {
+                    Verdict::Valid(evidence) => {
+                        let derivation = evidence.derivation().unwrap();
                         assert_eq!(derivation.check(&unbounded, |_| false), Ok(()), "{sequent}");
                         proved += 1;
                         true

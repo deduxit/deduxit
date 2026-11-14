@@ -25,6 +25,7 @@
 //! | 7 | the first-order sequent: `"symbols"`, `"fo"`, `"binders"`, an atom as `{"P": [symbol, [terms]]}`, the terms `∀` and `∃` | a document whose sequent is first-order |
 //! | 8 | the forms of ordinary logic: a sequent, a derivation of LK or LJ, the outcome of deciding a sequent, a proof in progress | each of those |
 //! | 9 | LJ's cut, `"rule": "cut"` | an ordinary derivation, outcome or proof in progress that holds a cut |
+//! | 10 | a sequent valid by a clausal proof, `"clausal_proof": {…}` in place of the derivation | an ordinary outcome that holds one |
 //!
 //! A reader refuses a document above its level by name ([`Error::Version`],
 //! code `unsupported_version`). It does so before reading the other keys
@@ -141,7 +142,12 @@
 //!   "affine", "engine": "focus", "statistics": {…}, "derivation": {…}}`,
 //!   `verdict` one of `valid`, `not_valid` and `unknown` (with a `reason`
 //!   in an outcome's form), the engine and statistics the image's search's;
-//!   see [`ordinary::Outcome`](crate::ordinary::Outcome).
+//!   see [`ordinary::Outcome`](crate::ordinary::Outcome). A sequent valid
+//!   by a clausal proof, as the SAT solver decides classical logic, is
+//!   written at level 10 with `"engine": "sat"` and `"clausal_proof":
+//!   {"variables": 7, "clauses": 12, "steps": 3}` in place of
+//!   `derivation`: the variables and clauses of the sequent's negation and
+//!   the steps of the proof that this crate's checker accepted.
 //! - **Ordinary session**: `{"version": 8, "logic": "intuitionistic",
 //!   "sequent": {…}, "inferences": […], "history": […]}`, the inferences in
 //!   the state's own order, the root first, an open goal its two sides
@@ -165,7 +171,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// The highest wire level this build reads and writes.
-pub const LEVEL: u32 = 9;
+pub const LEVEL: u32 = 10;
 
 /// The level of every document that no later level's feature raises.
 pub(crate) const BASE: u32 = 1;
@@ -250,10 +256,10 @@ impl<'de, T: Readable> DeserializeSeed<'de> for Within<'_, T> {
 /// document.end().expect("one document and nothing after it");
 /// assert_eq!(sequent.to_string(), "⊢ A");
 ///
-/// let newer = r#"{"version": 10, "terms": []}"#;
+/// let newer = r#"{"version": 11, "terms": []}"#;
 /// let mut document = serde_json::Deserializer::from_str(newer);
 /// let error = wire::upgrade::<Sequent, _>(&mut document, &Limits::default()).unwrap_err();
-/// assert!(matches!(error, Error::Version { found: 10, .. }));
+/// assert!(matches!(error, Error::Version { found: 11, .. }));
 /// # Ok::<(), Error>(())
 /// ```
 pub fn upgrade<'de, T: Readable, D: Deserializer<'de>>(
@@ -319,6 +325,10 @@ pub(crate) const ORDINARY: u32 = 8;
 
 /// The level of a form of ordinary logic that holds LJ's cut.
 pub(crate) const ORDINARY_CUT: u32 = 9;
+
+/// The level of an ordinary outcome valid by a clausal proof.
+#[cfg(feature = "sat")]
+pub(crate) const CLAUSAL: u32 = 10;
 
 /// The level of a document that holds `sequent`: 7 where it is
 /// first-order, 6 where it has cut formulas, else 1.

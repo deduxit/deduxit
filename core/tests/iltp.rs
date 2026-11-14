@@ -84,8 +84,12 @@ fn ljt_agrees_with_the_embedding_on_iltp() {
             .unwrap_or_else(|e| panic!("{problem} in {logic} logic: {e}"));
         let valid = match &outcome.verdict {
             // `decide` checked it; checked again here.
-            Verdict::Valid(derivation) => {
-                derivation.check(&limits, |_| false).unwrap();
+            Verdict::Valid(evidence) => {
+                evidence
+                    .derivation()
+                    .unwrap()
+                    .check(&limits, |_| false)
+                    .unwrap();
                 true
             }
             Verdict::NotValid => false,
@@ -138,8 +142,12 @@ fn sat_agrees_with_ljt_on_iltp() {
         let time = start.elapsed();
         let valid = match (&outcome.verdict, &outcome.model) {
             // `decide` checked both; checked again here.
-            (Verdict::Valid(derivation), None) => {
-                derivation.check(&limits, |_| false).unwrap();
+            (Verdict::Valid(evidence), None) => {
+                evidence
+                    .derivation()
+                    .unwrap()
+                    .check(&limits, |_| false)
+                    .unwrap();
                 true
             }
             (Verdict::NotValid, Some(model)) => {
@@ -172,15 +180,14 @@ const CLASSICAL_WORK: u64 = 2_000_000;
 /// The SAT solver against the embedding in classical logic: every
 /// problem of the library that the embedding decides within
 /// [`CLASSICAL_WORK`] gets the same verdict from the SAT solver within
-/// the same limits, its clausal proof or its assignment checked; the
-/// problems only the SAT solver decides, those it proves without the
-/// embedding's derivation and those where it or a check stops are
-/// printed.
+/// the same limits, valid by its checked clausal proof or not valid by
+/// its checked assignment; the problems only the SAT solver decides, and
+/// those where it or its check stops, are printed.
 #[cfg(feature = "sat")]
 #[test]
 #[ignore = "needs the ILTP library, which is not in the repository: nix build .#iltp -o bench/iltp"]
 fn sat_agrees_with_the_embedding_in_classical_logic() {
-    use deduxit::ordinary::{Options, decide, sat};
+    use deduxit::ordinary::{Evidence, Options, decide, sat};
     use std::collections::BTreeSet;
     let library = library();
     let limits = Limits::default()
@@ -197,8 +204,7 @@ fn sat_agrees_with_the_embedding_in_classical_logic() {
     assert_eq!(problems.len(), 274);
     let options = Options::default().with_logic(Logic::Classical);
     let search = deduxit::linear::Options::default();
-    let (mut agreed, mut only_sat, mut proved_alone, mut stopped) =
-        (0, Vec::new(), Vec::new(), Vec::new());
+    let (mut agreed, mut only_sat, mut stopped) = (0, Vec::new(), Vec::new());
     for problem in &problems {
         let text = std::fs::read_to_string(library.join(problem)).unwrap();
         let sequent = read_tptp(&text, &Limits::default()).unwrap().sequent;
@@ -213,8 +219,8 @@ fn sat_agrees_with_the_embedding_in_classical_logic() {
         };
         let solved = match sat::decide(&sequent, Logic::Classical, &limits, |_| false) {
             Ok(outcome) => match (&outcome.verdict, &outcome.model) {
-                (Verdict::Valid(derivation), None) => {
-                    derivation.check(&limits, |_| false).unwrap();
+                (Verdict::Valid(Evidence::Clausal(proof)), None) => {
+                    assert_eq!(proof.steps(), outcome.statistics.proof_steps, "{problem}");
                     Some(true)
                 }
                 (Verdict::NotValid, Some(model)) => {
@@ -223,20 +229,13 @@ fn sat_agrees_with_the_embedding_in_classical_logic() {
                         .unwrap();
                     Some(false)
                 }
-                // The clausal proof passed; the embedding's search for the
-                // derivation stopped.
-                (Verdict::Unknown(_), None) if outcome.statistics.proof_steps > 0 => {
-                    proved_alone.push(problem.clone());
-                    None
-                }
                 (Verdict::Unknown(reason), None) => {
                     stopped.push(format!("{problem}: {reason}"));
                     None
                 }
                 other => panic!("{problem}: {other:?}"),
             },
-            // A bound refused the check of the clausal proof, or the
-            // read-back of the embedding's proof.
+            // A bound refused the check of the clausal proof.
             Err(deduxit::Error::Refused(refusal)) => {
                 stopped.push(format!("{problem}: {refusal}"));
                 None
@@ -253,9 +252,10 @@ fn sat_agrees_with_the_embedding_in_classical_logic() {
             (None, None) => {}
         }
     }
+    let alone = only_sat.iter().filter(|(_, valid)| *valid).count();
     println!(
-        "{agreed} verdicts of the embedding agreed; decided by the solver alone: {only_sat:?}; \
-         proved by a checked clausal proof without the embedding's derivation: {proved_alone:?}; \
-         the solver stopped: {stopped:#?}"
+        "{agreed} verdicts of the embedding agreed; decided by the solver alone: {} ({alone} \
+         valid by a clausal proof): {only_sat:?}; the solver stopped: {stopped:#?}",
+        only_sat.len()
     );
 }

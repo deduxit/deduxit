@@ -37,9 +37,10 @@
 //! let options = ordinary::Options::default().with_logic(Logic::Intuitionistic);
 //! let outcome =
 //!     ordinary::decide(&sequent, &options, &Options::default(), &limits, |_| false)?;
-//! let Verdict::Valid(derivation) = &outcome.verdict else {
+//! let Verdict::Valid(evidence) = &outcome.verdict else {
 //!     panic!("valid");
 //! };
+//! let derivation = evidence.derivation()?;
 //! assert_eq!(derivation.inference(derivation.root()).rule().name(), "→R");
 //! # Ok::<(), deduxit::Error>(())
 //! ```
@@ -65,7 +66,7 @@ pub mod sat;
 /// The translations into linear logic.
 mod translate;
 
-pub use decide::{Outcome, Search, Verdict, decide, gives_way};
+pub use decide::{Evidence, Outcome, Search, Verdict, decide, gives_way};
 pub use derivation::{Derivation, Inference, Rule, Side};
 #[cfg(all(feature = "interactive", feature = "serialize"))]
 pub(crate) use interactive::Parts;

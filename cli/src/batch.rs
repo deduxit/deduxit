@@ -905,20 +905,26 @@ impl Shared {
             out.finish()?;
             return Ok(None);
         }
-        let (ordinary_logic::Verdict::Valid(d), false) = (&outcome.verdict, self.args.output.quiet)
+        let (ordinary_logic::Verdict::Valid(evidence), false) =
+            (&outcome.verdict, self.args.output.quiet)
         else {
             return Ok(None);
         };
         if show.tree == crate::argument_parsing::Tree::Never {
             return Ok(None);
         }
+        // A clausal proof has no derivation to write: no file.
+        let d = match evidence.derivation() {
+            Ok(d) => d,
+            Err(error) => return Ok(Some(format!("{error}; no file is written"))),
+        };
         let mut out = open()?;
         let over = || interrupted() || deadline.passed() || self.batch.passed() || io::closed();
         let prefix = (show.verdict && !show.format.is_binary())
             .then(|| format!("{}\n", crate::show::note(show.format, line)));
         let why = || Stop::why(self.stopped(deadline));
         let shown = crate::show::shown(
-            ordinary::shown((**d).clone(), show),
+            ordinary::shown(d.clone(), show),
             None,
             show,
             every_steps(&over),

@@ -59,10 +59,12 @@ fn open_goals(answer: &str) -> Vec<u32> {
 
 /// `about` lists both suites, each with the prefix of its calls, its term
 /// call and the parameter its `start` takes, with every value and the
-/// default.
+/// default, and the wire level, 10 since an outcome may hold a clausal
+/// proof.
 #[wasm_bindgen_test(unsupported = test)]
 fn about_lists_the_suites() {
     let about = value(&calls::about());
+    assert_eq!(about["level"], 10);
     let suites = about["suites"].as_array().unwrap();
     let names: Vec<&Value> = suites.iter().map(|s| &s["suite"]).collect();
     assert_eq!(names, [&json!("linear"), &json!("ordinary")]);
@@ -167,7 +169,9 @@ fn the_structural_rules_are_a_setting() {
 
 /// `close` grafts the derivation of a valid goal, and `hint` names first
 /// steps that `apply` takes. A goal that is not valid stays open, and the
-/// outcome says so.
+/// outcome says so. A classical goal is decided by the embedding, whose
+/// evidence is a derivation, never by a clausal proof, which has none to
+/// graft.
 #[wasm_bindgen_test(unsupported = test)]
 fn close_and_hint_decide_a_goal() {
     let peirce = "|- ((a -> b) -> a) -> a";
@@ -193,6 +197,10 @@ fn close_and_hint_decide_a_goal() {
         ),
         (&json!("valid"), &Value::Null, &json!(true))
     );
+    let outcome = &closed["outcome"];
+    assert!(outcome["derivation"].is_object(), "{outcome}");
+    assert!(outcome.get("clausal_proof").is_none(), "{outcome}");
+    assert_eq!(outcome["version"], 8);
 }
 
 /// Malformed input is refused with its reason, never with a panic:

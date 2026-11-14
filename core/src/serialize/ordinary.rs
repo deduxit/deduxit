@@ -6,8 +6,8 @@ use crate::Error;
 use crate::limits::{Limits, Refusal, Space};
 use crate::linear::proofs::InfId;
 use crate::ordinary::{
-    Derivation, Formulas, Inference, Logic, Method, Node, NodeId, Outcome, Rule, Search, Sequent,
-    Side, Translation, Verdict, bound, ljt,
+    Derivation, Evidence, Formulas, Inference, Logic, Method, Node, NodeId, Outcome, Rule, Search,
+    Sequent, Side, Translation, Verdict, bound, ljt,
 };
 #[cfg(feature = "interactive")]
 use crate::ordinary::{Interactive, Parts};
@@ -444,9 +444,13 @@ struct OutcomeForm<'a> {
     engine: &'static str,
     /// What the search cost.
     statistics: StatisticsForm<'a>,
-    /// The derivation, for `valid`.
+    /// The derivation, for `valid` by a derivation.
     #[serde(skip_serializing_if = "Option::is_none")]
     derivation: Option<DerivationForm>,
+    /// The clausal proof, for `valid` by one.
+    #[cfg(feature = "sat")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    clausal_proof: Option<&'a crate::ordinary::sat::ClausalProof>,
 }
 
 /// What the search of an outcome cost, written as the search's own
@@ -465,16 +469,22 @@ enum StatisticsForm<'a> {
 
 impl Serialize for Outcome {
     /// Serializes the outcome as a document: its verdict, with the reason
-    /// of an unknown one and the derivation of a valid sequent, and the
-    /// search that decided it. Its level is 9 for a derivation with a cut,
-    /// else 8.
+    /// of an unknown one and the evidence of a valid sequent, and the
+    /// search that decided it. Its level is 10 for a clausal proof, 9 for
+    /// a derivation with a cut, else 8.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let version = match &self.verdict {
-            Verdict::Valid(d) => level(d.inferences()),
+            Verdict::Valid(Evidence::Derivation(d)) => level(d.inferences()),
+            #[cfg(feature = "sat")]
+            Verdict::Valid(Evidence::Clausal(_)) => wire::CLAUSAL,
             Verdict::NotValid | Verdict::Unknown(_) => wire::ORDINARY,
         };
         let (verdict, reason, derivation) = match &self.verdict {
-            Verdict::Valid(d) => ("valid", None, Some(DerivationForm::from(&**d))),
+            Verdict::Valid(Evidence::Derivation(d)) => {
+                ("valid", None, Some(DerivationForm::from(&**d)))
+            }
+            #[cfg(feature = "sat")]
+            Verdict::Valid(Evidence::Clausal(_)) => ("valid", None, None),
             Verdict::NotValid => ("not_valid", None, None),
             Verdict::Unknown(r) => ("unknown", Some(Why::from(*r)), None),
         };
@@ -501,6 +511,13 @@ impl Serialize for Outcome {
             engine,
             statistics,
             derivation,
+            #[cfg(feature = "sat")]
+            clausal_proof: match &self.verdict {
+                Verdict::Valid(Evidence::Clausal(proof)) => Some(proof),
+                Verdict::Valid(Evidence::Derivation(_))
+                | Verdict::NotValid
+                | Verdict::Unknown(_) => None,
+            },
         }
         .serialize(serializer)
     }

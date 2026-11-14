@@ -83,7 +83,10 @@ ends, and every logic through an embedding: it translates the sequent
 into a linear one, searches that, and reads the linear proof back as a
 derivation of LK or LJ. A checker of its own checks that derivation by
 the rules of the logic. Behind the feature `sat`, a SAT-based engine
-decides classical, intuitionistic and minimal logic too.
+decides classical, intuitionistic and minimal logic too. In classical
+logic its evidence for a valid sequent is a clausal proof, which a
+checker of its own accepts: every step follows from the clauses before
+it by unit propagation, and the last is the empty clause.
 
 The lambda suite reads an intuitionistic proof back as a term: a proof
 of intuitionistic linear logic as a linear lambda-term, a derivation of

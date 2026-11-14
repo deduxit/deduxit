@@ -1181,7 +1181,7 @@ for the releases:
   `ProofStructure` and `Interactive`, and ordinary logic's
   `ordinary::Sequent`, `ordinary::Derivation`, `ordinary::Outcome` and
   `ordinary::Interactive` at wire level 8 (level 9 where a derivation
-  holds LJ's `cut`);
+  holds LJ's `cut`, level 10 for an outcome valid by a clausal proof);
 - each engine on `Engine`.
 
 ### Deciding a sequent
@@ -1292,6 +1292,21 @@ occurrences by id, and `describe(&forest)` names them by formula.
   Its search always ends: it has no copy bound, so it answers `unknown`
   only at a bound or the stop. Its derivation is LJ's with cuts, checked
   like any other.
+- A valid verdict holds its evidence, `ordinary::Verdict::Valid(evidence)`:
+  `ordinary::Evidence::Derivation`, a checked derivation of LK or LJ, or
+  `ordinary::Evidence::Clausal`, a checked clausal proof.
+  `evidence.derivation()` returns the derivation an export or a
+  lambda-term needs, or `Error::NoDerivation` (code `no_derivation`) for
+  a clausal proof.
+- `ordinary::sat::decide(&sequent, logic, &limits, stop)` (feature
+  `sat`, `ordinary::Method::Sat`) decides by a SAT solver. In classical
+  logic a valid sequent's evidence is the solver's clausal proof
+  (`ordinary::sat::ClausalProof`: its variables, clauses and steps),
+  which deduxit's own checker accepted; it has no derivation, which the
+  embedding, the default of classical logic, gives. In JSON it is
+  `"clausal_proof": {"variables", "clauses", "steps"}` in place of
+  `derivation`. A sequent that is not valid comes with a checked model
+  (`outcome.model`).
 - `ordinary::Interactive` proves an LK or LJ sequent step by step:
   `rules`, `apply`, `undo`, `close` and `hint`, the last two through
   `ordinary::decide`. Its finished derivation passes

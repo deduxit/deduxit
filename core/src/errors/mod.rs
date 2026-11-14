@@ -508,6 +508,14 @@ pub enum Error {
         /// Why.
         reason: crate::lambda::NoTerm,
     },
+    /// A sequent is valid by a clausal proof, where a derivation is needed:
+    /// to draw or export it, or to read it as a lambda-term
+    /// ([`Evidence::derivation`](crate::ordinary::Evidence::derivation)).
+    #[error(
+        "the sequent is valid by a checked clausal proof, which is no derivation; the method \
+         embedding gives the derivation of LK"
+    )]
+    NoDerivation,
     /// A derivation read back from a linear proof is not one of LK or LJ,
     /// for the reason given. This is a defect of this crate.
     #[error("the proof read back is not a derivation of {calculus}: {reason}")]
@@ -657,6 +665,7 @@ impl Error {
         "read_back",
         "countermodel",
         "no_term",
+        "no_derivation",
         "no_cut",
         "reduction_rejected",
     ];
@@ -729,7 +738,7 @@ impl Error {
             | Self::Countermodel { .. }
             | Self::Reduction(_) => Defect,
             Self::NoCut { .. } => Unsupported,
-            Self::NoTerm { .. } => Unsupported,
+            Self::NoTerm { .. } | Self::NoDerivation => Unsupported,
         }
     }
 
@@ -808,6 +817,7 @@ impl Error {
             Self::Countermodel { .. } => "countermodel",
             Self::NoCut { .. } => "no_cut",
             Self::NoTerm { .. } => "no_term",
+            Self::NoDerivation => "no_derivation",
             Self::Reduction(_) => "reduction_rejected",
         }
     }
@@ -1118,6 +1128,7 @@ mod tests {
             Error::NoTerm {
                 reason: crate::lambda::NoTerm::Classical,
             },
+            Error::NoDerivation,
             Error::ReadBack {
                 calculus: "LK",
                 reason: message(),
@@ -1318,6 +1329,7 @@ mod tests {
             | Error::Countermodel { .. }
             | Error::NoCut { .. }
             | Error::NoTerm { .. }
+            | Error::NoDerivation
             | Error::Reduction(_) => {}
         }
     }

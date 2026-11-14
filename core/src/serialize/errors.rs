@@ -148,7 +148,7 @@ impl Serialize for Details<'_> {
             Countermodel { reason } => entries!(s; "reason" => reason),
             #[cfg(feature = "interactive")]
             ForeignProof | GoalMismatch => entries!(s),
-            GoalProof => entries!(s),
+            GoalProof | NoDerivation => entries!(s),
             SequentMismatch { proof, goal } => entries!(s; "proof" => proof; "goal" => goal),
             #[cfg(feature = "pdf")]
             NoDate => entries!(s),

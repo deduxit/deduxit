@@ -22,11 +22,13 @@ use crate::{Error, Refusal};
 /// {…}, "derivation": {…}}` ([`wire`](crate::wire)), `verdict` one of
 /// `valid`, `not_valid` and `unknown`, the last with its `reason`. An
 /// outcome of LJT has no `translation`, its `engine` is `ljt`, and its
-/// `statistics` are [`ljt::Statistics`].
+/// `statistics` are [`ljt::Statistics`]. A sequent valid by a clausal
+/// proof (`Evidence::Clausal`, the SAT solver in classical logic) has
+/// `"clausal_proof": {…}` in place of `derivation`, at level 10.
 #[non_exhaustive]
 #[derive(Clone, Debug)]
 pub struct Outcome {
-    /// The verdict, with the derivation of a valid sequent.
+    /// The verdict, with the evidence of a valid sequent.
     pub verdict: Verdict,
     /// The logic decided.
     pub logic: Logic,
@@ -94,14 +96,47 @@ impl From<ljt::Outcome> for Outcome {
 #[non_exhaustive]
 #[derive(Clone, Debug)]
 pub enum Verdict {
-    /// The sequent is valid, and here is its derivation of LK or LJ, read
-    /// back from the proof of its image and checked.
-    Valid(Box<Derivation>),
+    /// The sequent is valid, and here is the checked evidence.
+    Valid(Evidence),
     /// The image is unprovable, so the sequent is not valid; the linear
     /// outcome's disproof says why.
     NotValid,
     /// The search stopped before it could decide, for the reason given.
     Unknown(Reason),
+}
+
+/// What shows a valid sequent valid, checked before the verdict is given.
+///
+/// Every method but the SAT solver in classical logic gives a derivation.
+/// The SAT solver gives a clausal proof there, which has no derivation to
+/// draw, export or read as a lambda-term; [`Method::Embedding`], the
+/// default of classical logic, gives the derivation of LK.
+#[non_exhaustive]
+#[derive(Clone, Debug)]
+pub enum Evidence {
+    /// A derivation of LK or LJ that [`Derivation::check`] accepted.
+    Derivation(Box<Derivation>),
+    /// A clausal proof that the clauses of the sequent's negation have no
+    /// model, which this crate's checker accepted. Needs the cargo feature
+    /// `sat`.
+    #[cfg(feature = "sat")]
+    Clausal(super::sat::ClausalProof),
+}
+
+impl Evidence {
+    /// Returns the derivation, for a call that needs one: an export, a
+    /// drawing, a lambda-term.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::NoDerivation`] for a clausal proof.
+    pub fn derivation(&self) -> Result<&Derivation, Error> {
+        match self {
+            Self::Derivation(derivation) => Ok(derivation),
+            #[cfg(feature = "sat")]
+            Self::Clausal(_) => Err(Error::NoDerivation),
+        }
+    }
 }
 
 /// Returns whether LJT's answer leaves the sequent to the embedding when
@@ -141,13 +176,13 @@ pub fn gives_way(decided: &Result<ljt::Outcome, Error>) -> bool {
 #[cfg_attr(feature = "parse", doc = "```")]
 #[cfg_attr(not(feature = "parse"), doc = "```ignore")]
 /// use deduxit::Limits;
-/// use deduxit::ordinary::{self, Logic, Verdict};
+/// use deduxit::ordinary::{self, Evidence, Logic, Verdict};
 ///
 /// let sequent: ordinary::Sequent = "|- ((a -> b) -> a) -> a".parse()?;
 /// let options = ordinary::Options::default().with_logic(Logic::Classical);
 /// let search = deduxit::linear::Options::default();
 /// let outcome = ordinary::decide(&sequent, &options, &search, &Limits::default(), |_| false)?;
-/// let Verdict::Valid(derivation) = outcome.verdict else {
+/// let Verdict::Valid(Evidence::Derivation(derivation)) = outcome.verdict else {
 ///     panic!("Peirce's law holds classically");
 /// };
 /// assert_eq!(derivation.logic(), Logic::Classical);
@@ -180,7 +215,7 @@ pub fn decide(
         search::Verdict::Proved(proof) => {
             let derivation = image.read_back(proof, limits, &mut stop)?;
             derivation.check(limits, &mut stop)?;
-            Verdict::Valid(Box::new(derivation))
+            Verdict::Valid(Evidence::Derivation(Box::new(derivation)))
         }
         search::Verdict::Unprovable(_) => Verdict::NotValid,
         search::Verdict::Unknown(reason) => Verdict::Unknown(*reason),

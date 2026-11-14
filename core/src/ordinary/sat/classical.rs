@@ -17,19 +17,17 @@
 //! the atoms, a Kripke model of one world, which must falsify the sequent
 //! by evaluation ([`Model::refutes`]). A refutation comes with the clauses
 //! the solver learnt and deleted, a clausal proof that the checker of
-//! [`drup`] accepts against the encoder's clauses before the
-//! sequent is called valid; the derivation of LK is then the embedding's.
+//! [`drup`](super::drup) accepts against the encoder's clauses before the sequent is
+//! called valid, with that proof as its evidence ([`ClausalProof`]).
 
-use super::drup::{self, Rejection, Step};
+use super::drup::{ClausalProof, Rejection, Step};
 use super::solver::{Answer, Batsat, Lit, Solver};
 use super::{Model, Outcome, Statistics, World};
 use crate::Error;
 use crate::limits::{Limits, Phase, Progress};
+use crate::linear::search::Reason;
 use crate::linear::search::memory::Account;
-use crate::linear::search::{self, Reason};
-use crate::ordinary::{
-    Derivation, Formulas, Logic, Method, Node, NodeId, Options, Sequent, Verdict,
-};
+use crate::ordinary::{Evidence, Formulas, Logic, Node, NodeId, Sequent, Verdict};
 
 /// The polarity of a formula that must be true where the sequent fails,
 /// as a hypothesis must.
@@ -307,7 +305,7 @@ pub(super) fn decide(
                 }))
                 .sum::<usize>();
             let account = Account::holding(limits.memory_bytes, held as u64);
-            match drup::check(
+            match ClausalProof::checked(
                 clauses.variables,
                 &clauses.clauses,
                 &proof,
@@ -315,7 +313,7 @@ pub(super) fn decide(
                 &account,
                 &mut stop,
             ) {
-                Ok(()) => {}
+                Ok(checked) => (Verdict::Valid(Evidence::Clausal(checked)), None),
                 Err(Rejection::Refused(refusal)) => return Err(Error::Refused(refusal)),
                 Err(Rejection::Flaw(flaw)) => {
                     return Err(Error::ReadBack {
@@ -323,11 +321,6 @@ pub(super) fn decide(
                         reason: format!("the solver's clausal proof fails its check: {flaw}"),
                     });
                 }
-            }
-            drop((clauses, proof));
-            match by_embedding(sequent, limits, &mut stop)? {
-                Ok(derivation) => (Verdict::Valid(Box::new(derivation)), None),
-                Err(reason) => (Verdict::Unknown(reason), None),
             }
         }
     };
@@ -369,40 +362,15 @@ fn assignment(formulas: &Formulas, clauses: &Encoding, solver: &impl Solver) -> 
     atoms
 }
 
-/// Returns the derivation of LK of a sequent the checked proof showed
-/// valid, by the embedding within the same limits, or why the embedding's
-/// search stopped before it found one.
-fn by_embedding(
-    sequent: &Sequent,
-    limits: &Limits,
-    stop: &mut impl FnMut(Progress) -> bool,
-) -> Result<Result<Derivation, Reason>, Error> {
-    let options = Options::default()
-        .with_logic(Logic::Classical)
-        .with_method(Some(Method::Embedding));
-    // A trait object, since `decide` reaches this function again through
-    // `Method::Sat` and a generic stop would wrap itself without end.
-    let stop: &mut dyn FnMut(Progress) -> bool = stop;
-    let outcome =
-        super::super::decide(sequent, &options, &search::Options::default(), limits, stop)?;
-    match outcome.verdict {
-        Verdict::Valid(derivation) => Ok(Ok(*derivation)),
-        Verdict::NotValid => Err(Error::ReadBack {
-            calculus: Logic::Classical.calculus(),
-            reason: "the embedding refutes a sequent whose clausal proof passed its check"
-                .to_owned(),
-        }),
-        Verdict::Unknown(reason) => Ok(Err(reason)),
-    }
-}
-
 #[cfg(all(test, feature = "parse"))]
 mod tests {
-    use super::super::MOST_VARIABLES;
+    use super::super::{MOST_VARIABLES, drup};
     use super::*;
     use crate::limits::Refusal;
+    use crate::linear::search;
     use crate::linear::search::generate::Rng;
     use crate::ordinary::tests::{generated_sequent, valid_by_truth_table};
+    use crate::ordinary::{Method, Options};
 
     /// Returns the pigeonhole sequent of `n + 1` pigeons and `n` holes:
     /// every pigeon in a hole and no two in one, which cannot all hold.
@@ -467,8 +435,8 @@ mod tests {
 
     /// On generated sequents and a few written ones, some with several
     /// formulas right of `⊢`, the solver agrees with the truth table and
-    /// with the embedding; each derivation passes the checker again and
-    /// each model refutes its sequent again.
+    /// with the embedding; each valid sequent has its clausal proof as
+    /// evidence and each model refutes its sequent again.
     #[test]
     fn agrees_with_the_truth_table_and_the_embedding() {
         let limits = Limits::default();
@@ -494,9 +462,10 @@ mod tests {
             let outcome = decide(&sequent, &limits, |_| false, MOST_VARIABLES)
                 .unwrap_or_else(|e| panic!("{sequent}: {e}"));
             let valid = match &outcome.verdict {
-                Verdict::Valid(derivation) => {
-                    assert_eq!(derivation.check(&limits, |_| false), Ok(()), "{sequent}");
-                    assert!(outcome.statistics.proof_steps > 0, "{sequent}");
+                Verdict::Valid(Evidence::Clausal(proof)) => {
+                    assert_eq!(proof.steps(), outcome.statistics.proof_steps, "{sequent}");
+                    assert_eq!(proof.clauses(), outcome.statistics.clauses, "{sequent}");
+                    assert!(proof.steps() > 0, "{sequent}");
                     proved += 1;
                     true
                 }
@@ -507,7 +476,9 @@ mod tests {
                     refuted += 1;
                     false
                 }
-                Verdict::Unknown(reason) => panic!("{sequent}: {reason:?}"),
+                verdict @ (Verdict::Valid(Evidence::Derivation(_)) | Verdict::Unknown(_)) => {
+                    panic!("{sequent}: {verdict:?}")
+                }
             };
             assert_eq!(valid, valid_by_truth_table(&sequent), "{sequent}");
             let options = Options::default().with_logic(Logic::Classical);
@@ -576,8 +547,8 @@ mod tests {
     }
 
     /// The work bound, the stop, the memory bound and the variables'
-    /// bound end the search, each as its reason, before the embedding is
-    /// asked; the bound on the work also refuses the check of a proof
+    /// bound end the search, each as its reason; the bound on the work
+    /// also refuses the check of a proof
     /// longer than the solver's work, which deletions make it.
     #[test]
     fn the_search_and_the_check_keep_to_their_bounds() {
@@ -618,23 +589,86 @@ mod tests {
         ));
     }
 
-    /// Where the embedding stops before it finds the derivation of a
-    /// sequent the clausal proof showed valid, the outcome is the
-    /// embedding's unknown with its reason, the proof's steps counted.
+    /// A sequent is valid by its clausal proof where the embedding's
+    /// bounds stop it first, and the proof is no derivation: a caller that
+    /// needs one is told so by name and asks the embedding.
     #[test]
-    fn the_embedding_s_bound_is_its_unknown() {
-        let sequent: Sequent = "|- ((a -> b) -> a) -> a".parse().unwrap();
+    fn valid_by_the_clausal_proof_where_the_embedding_stops() {
+        let options = Options::default()
+            .with_logic(Logic::Classical)
+            .with_method(Some(Method::Embedding));
+        let embedded = |sequent: &Sequent, limits: &Limits| {
+            crate::ordinary::decide(
+                sequent,
+                &options,
+                &search::Options::default(),
+                limits,
+                |_| false,
+            )
+            .unwrap()
+            .verdict
+        };
+        let peirce: Sequent = "|- ((a -> b) -> a) -> a".parse().unwrap();
         let shallow = Limits::default().with_recursion_depth(1);
-        let outcome = decide(&sequent, &shallow, |_| false, MOST_VARIABLES).unwrap();
-        assert!(
-            matches!(
-                outcome.verdict,
-                Verdict::Unknown(Reason::RecursionLimit { depth: 1 })
-            ),
-            "{:?}",
-            outcome.verdict
+        let pigeons = pigeons(5);
+        let short = Limits::default().with_work(Some(100_000));
+        for (sequent, limits) in [(&peirce, &shallow), (&pigeons, &short)] {
+            assert!(
+                matches!(embedded(sequent, limits), Verdict::Unknown(_)),
+                "{sequent}"
+            );
+            let outcome = decide(sequent, limits, |_| false, MOST_VARIABLES).unwrap();
+            let Verdict::Valid(evidence @ Evidence::Clausal(proof)) = &outcome.verdict else {
+                panic!("{sequent}: {:?}", outcome.verdict);
+            };
+            assert_eq!(proof.steps(), outcome.statistics.proof_steps);
+            assert!(matches!(evidence.derivation(), Err(Error::NoDerivation)));
+        }
+        let Verdict::Valid(evidence) = embedded(&peirce, &Limits::default()) else {
+            panic!("the embedding proves Peirce's law");
+        };
+        assert!(evidence.derivation().is_ok());
+    }
+
+    /// The outcome of a sequent valid by its clausal proof is written at
+    /// wire level 10 with the proof's counts in place of a derivation, and
+    /// reads back as JSON with the values the proof holds; a derivation's
+    /// outcome stays at level 8.
+    #[cfg(feature = "serialize")]
+    #[test]
+    fn a_clausal_proof_is_written_at_its_level() {
+        let sequent: Sequent = "|- ((a -> b) -> a) -> a".parse().unwrap();
+        let outcome = decide(&sequent, &Limits::default(), |_| false, MOST_VARIABLES).unwrap();
+        let Verdict::Valid(Evidence::Clausal(proof)) = outcome.verdict else {
+            panic!("{:?}", outcome.verdict);
+        };
+        let ordinary = crate::ordinary::Outcome::from(outcome);
+        let json = serde_json::to_value(&ordinary).unwrap();
+        assert_eq!(json["version"], crate::wire::CLAUSAL);
+        assert_eq!(json["verdict"], "valid");
+        assert_eq!(json["engine"], "sat");
+        assert!(json.get("derivation").is_none(), "{json}");
+        assert_eq!(
+            json["clausal_proof"],
+            serde_json::json!({
+                "variables": proof.variables(),
+                "clauses": proof.clauses(),
+                "steps": proof.steps(),
+            })
         );
-        assert!(outcome.statistics.proof_steps > 0);
+        assert_eq!(json["statistics"]["proof_steps"], proof.steps());
+        let options = Options::default().with_logic(Logic::Classical);
+        let embedded = crate::ordinary::decide(
+            &sequent,
+            &options,
+            &search::Options::default(),
+            &Limits::default(),
+            |_| false,
+        )
+        .unwrap();
+        let json = serde_json::to_value(&embedded).unwrap();
+        assert_eq!(json["version"], crate::wire::ORDINARY);
+        assert!(json.get("clausal_proof").is_none(), "{json}");
     }
 
     /// A sequent of many formulas asks the stop while it is encoded,

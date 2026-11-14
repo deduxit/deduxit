@@ -181,8 +181,10 @@ pub(crate) fn by_ljt(
         let mut out = io::Output::open(args.output.output.as_deref(), format.is_binary())?;
         if format == Format::Json {
             match &outcome.verdict {
-                ordinary::Verdict::Valid(d) if show.lambda.is_some() => {
-                    let term = d.term(&show.limits, |_| over());
+                ordinary::Verdict::Valid(evidence) if show.lambda.is_some() => {
+                    let term = evidence
+                        .derivation()
+                        .and_then(|d| d.term(&show.limits, |_| over()));
                     let mut value = serde_json::to_value(&outcome)?;
                     if let Some(object) = value.as_object_mut() {
                         object.insert("lambda".into(), lambda_json(term, &show, over)?);
@@ -202,23 +204,29 @@ pub(crate) fn by_ljt(
             (ordinary::Verdict::Valid(_), false) if over() => {
                 Shown::LeftOut(format!("the derivation is not written: {}", why()))
             }
-            (ordinary::Verdict::Valid(d), false) => crate::show::shown(
-                shown((**d).clone(), &show),
-                show.fit(),
-                &show,
-                every_steps(&over),
-                why,
-                prefix.as_deref(),
-                &mut out,
-            )?,
+            (ordinary::Verdict::Valid(evidence), false) => match evidence.derivation() {
+                Ok(d) => crate::show::shown(
+                    shown(d.clone(), &show),
+                    show.fit(),
+                    &show,
+                    every_steps(&over),
+                    why,
+                    prefix.as_deref(),
+                    &mut out,
+                )?,
+                // A clausal proof, which the verdict line names.
+                Err(error) => Shown::LeftOut(error.to_string()),
+            },
             _ => Shown::Nothing,
         };
         let drawn = matches!(shown, Shown::Written | Shown::Rendered(_));
         let keep = show.close(&mut out, shown, line.as_deref())?;
-        if let (ordinary::Verdict::Valid(d), Format::Text, Some(_)) =
+        if let (ordinary::Verdict::Valid(evidence), Format::Text, Some(_)) =
             (&outcome.verdict, format, show.lambda)
         {
-            let term = d.term(&show.limits, |_| over());
+            let term = evidence
+                .derivation()
+                .and_then(|d| d.term(&show.limits, |_| over()));
             show.after(&mut out, &lambda_line(term, &show, over), drawn)?;
         }
         if args.stats {
@@ -231,11 +239,19 @@ pub(crate) fn by_ljt(
     })?
 }
 
-/// Returns the verdict line of an ordinary sequent decided by LJT: the
-/// verdict, the logic and LJT, and for an undecided sequent why.
+/// Returns the verdict line of an ordinary sequent decided by LJT or the
+/// SAT solver: the verdict, the logic and the method, for a sequent valid
+/// by a clausal proof that proof, and for an undecided sequent why.
 pub(crate) fn ljt_verdict_line(outcome: &ordinary::Outcome, ended: &Ended) -> String {
-    let context = format!("{} logic by LJT", outcome.logic);
+    let method = match outcome.method() {
+        Method::Sat => "the SAT solver",
+        _ => "LJT",
+    };
+    let context = format!("{} logic by {method}", outcome.logic);
     match &outcome.verdict {
+        ordinary::Verdict::Valid(ordinary::Evidence::Clausal(proof)) => {
+            format!("valid ({context}): {proof}")
+        }
         ordinary::Verdict::Valid(_) => format!("valid ({context})"),
         ordinary::Verdict::NotValid => {
             format!("not valid ({context}): the search was exhaustive")
@@ -416,5 +432,37 @@ mod tests {
             line,
             "the derivation is not written: the time limit of 1s was reached"
         );
+    }
+
+    /// A sequent valid by a clausal proof says so on its verdict line, by
+    /// the SAT solver, and has no derivation to draw: the refusal names
+    /// the method that gives one.
+    #[test]
+    fn a_clausal_proof_is_named_on_the_verdict_line() {
+        let sequent: ordinary::Sequent = "|- ((a -> b) -> a) -> a".parse().unwrap();
+        let outcome = ordinary::sat::decide(
+            &sequent,
+            Logic::Classical,
+            &deduxit::Limits::default(),
+            |_| false,
+        )
+        .unwrap();
+        let outcome = ordinary::Outcome::from(outcome);
+        let ended = super::Ended {
+            stop: None,
+            elapsed: std::time::Duration::ZERO,
+        };
+        let line = super::ljt_verdict_line(&outcome, &ended);
+        assert!(
+            line.starts_with(
+                "valid (classical logic by the SAT solver): a checked clausal proof of "
+            ),
+            "{line}"
+        );
+        let ordinary::Verdict::Valid(evidence) = &outcome.verdict else {
+            panic!("valid")
+        };
+        let refused = evidence.derivation().unwrap_err().to_string();
+        assert!(refused.contains("the method embedding"), "{refused}");
     }
 }

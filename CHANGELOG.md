@@ -27,6 +27,13 @@ second number (0.1.x to 0.2.0), anything else the third.
   and `linear`. `ordinary::decide` decides intuitionistic and minimal
   logic by LJT unless `ordinary::Options` names a translation or a
   method.
+- **`ordinary::Verdict::Valid` holds the evidence**, an
+  `ordinary::Evidence`: `Evidence::Derivation` with the checked
+  derivation of LK or LJ, as before, or, with the feature `sat`,
+  `Evidence::Clausal` with a checked clausal proof. Match
+  `Verdict::Valid(Evidence::Derivation(derivation))`, or call
+  `evidence.derivation()`, which refuses a clausal proof with the new
+  `Error::NoDerivation` (code `no_derivation`).
 
 ### Changed
 
@@ -96,9 +103,11 @@ unchanged.
 - **A SAT-based engine for classical, intuitionistic and minimal
   logic**, in the library: `ordinary::sat::decide`
   (`ordinary::Method::Sat`, behind the new default feature `sat`, the
-  SAT solver batsat). Every "valid" comes with a derivation of LK or LJ
-  that the checker accepts; in classical logic the solver's clausal
-  proof is checked first, by a checker of deduxit's own. Every "not
+  SAT solver batsat). In intuitionistic and minimal logic every "valid"
+  comes with a derivation of LJ that the checker accepts. In classical
+  logic it comes with the solver's clausal proof (`sat::ClausalProof`),
+  which a checker of deduxit's own accepts before the verdict is given;
+  it has no derivation, which `Method::Embedding` gives. Every "not
   valid" comes with a model that `Model::refutes` checks: a finite
   Kripke model (`sat::Model`), of one world in classical logic. The
   command does not offer it yet.
@@ -110,6 +119,13 @@ unchanged.
   certificate written with `--standalone` against the pinned NanoYalla
   or rocq-deduxit, the kernel read from its import lines. It refuses a
   lemma that rests on an axiom, such as a proof left `Admitted`.
+
+### Wire forms
+
+- Level 10 adds the outcome of a sequent valid by a clausal proof:
+  `"clausal_proof": {"variables", "clauses", "steps"}` in place of
+  `derivation`, written at level 10; every other document is written as
+  before.
 
 ## [0.3.0] - 2026-11-09
 

@@ -781,7 +781,7 @@ impl Normal {
 /// leaves the structural rules out reads back to the same term.
 fn simple(text: &str, logic: Logic) -> Term {
     use crate::ordinary::{
-        Options as OrdinaryOptions, Sequent as OrdinarySequent, Verdict, decide,
+        Evidence, Options as OrdinaryOptions, Sequent as OrdinarySequent, Verdict, decide,
     };
     let sequent: OrdinarySequent = text.parse().unwrap();
     let options = OrdinaryOptions::default().with_logic(logic);
@@ -793,7 +793,7 @@ fn simple(text: &str, logic: Logic) -> Term {
         never,
     )
     .unwrap();
-    let Verdict::Valid(derivation) = outcome.verdict else {
+    let Verdict::Valid(Evidence::Derivation(derivation)) = outcome.verdict else {
         panic!("{text} is valid in {logic:?}");
     };
     let term = derivation.term(&Limits::default(), never).unwrap();
@@ -865,7 +865,9 @@ fn what_has_no_term_is_refused() {
     assert_eq!(reason(&lambek), NoTerm::Ordered);
     let quantified = proved("forall x. p(x) |- p(c)", Mode::INTUITIONISTIC);
     assert_eq!(reason(&quantified), NoTerm::Quantified);
-    use crate::ordinary::{Options as OrdinaryOptions, Sequent as OrdinarySequent, Verdict};
+    use crate::ordinary::{
+        Evidence, Options as OrdinaryOptions, Sequent as OrdinarySequent, Verdict,
+    };
     let sequent: OrdinarySequent = "|- a \\/ ~a".parse().unwrap();
     let options = OrdinaryOptions::default().with_logic(Logic::Classical);
     let outcome = crate::ordinary::decide(
@@ -876,7 +878,7 @@ fn what_has_no_term_is_refused() {
         never,
     )
     .unwrap();
-    let Verdict::Valid(lk) = outcome.verdict else {
+    let Verdict::Valid(Evidence::Derivation(lk)) = outcome.verdict else {
         panic!("valid");
     };
     assert!(matches!(

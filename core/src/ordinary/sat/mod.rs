@@ -34,10 +34,10 @@
 //! the sequent's negation (Tseitin's encoding with polarities). "Not
 //! valid" comes with a model of one world, the assignment that falsifies
 //! the sequent, which [`Model::refutes`] checks by evaluation. "Valid"
-//! needs two things: the clauses the solver learnt and deleted, recorded
-//! as a clausal proof (DRUP) that this module's own checker accepts by
-//! unit propagation against the clauses, and then the derivation of LK
-//! that the embedding finds within the same limits.
+//! comes with the clauses the solver learnt and deleted, recorded as a
+//! clausal proof (DRUP) that this module's own checker accepts by unit
+//! propagation against the clauses ([`ClausalProof`]). It is no
+//! derivation: the embedding gives the derivation of LK.
 //!
 //! Needs the cargo feature `sat`.
 //!
@@ -63,10 +63,11 @@ mod model;
 mod read_back;
 mod solver;
 
+pub use drup::ClausalProof;
 pub use model::{Model, World};
 
 use self::solver::{Answer, Batsat, Lit, MOST_VARIABLES, Solver};
-use super::{Derivation, Formulas, Logic, Node, NodeId, Sequent, Verdict, ljt};
+use super::{Derivation, Evidence, Formulas, Logic, Node, NodeId, Sequent, Verdict, ljt};
 use crate::Error;
 use crate::limits::{Limits, Progress, Refusal};
 use crate::linear::search::Reason;
@@ -76,7 +77,8 @@ use crate::linear::search::memory::Account;
 #[non_exhaustive]
 #[derive(Clone, Debug)]
 pub struct Outcome {
-    /// The verdict, with the derivation of LJ of a valid sequent.
+    /// The verdict, with the evidence of a valid sequent: a derivation of
+    /// LJ, or in classical logic a clausal proof.
     pub verdict: Verdict,
     /// The logic decided.
     pub logic: Logic,
@@ -154,14 +156,12 @@ struct Lemma {
 /// model, checked. A sequent with nothing right of `⊢` is decided as
 /// `Γ ⊢ ⊥`, and its derivation concludes that sequent.
 ///
-/// In classical logic a valid sequent's clausal proof is checked within
-/// the same limits, a step of it a unit of `limits.work`, and its
-/// derivation of LK is the embedding's, found within them: the solver,
-/// the check and the embedding each have the whole bound on work
-/// ([`decide`](super::decide()) with [`Method::Embedding`](super::Method::Embedding)),
-/// or the embedding's unknown with its reason where its search stops
-/// first, the statistics' `proof_steps` saying the proof passed; a
-/// sequent that is not valid gets a model of one world, checked.
+/// In classical logic a valid sequent's evidence is its clausal proof
+/// ([`ClausalProof`]), checked within the same limits, a step of it a
+/// unit of `limits.work` (the solver and the check each have the whole
+/// bound); it has no derivation, which [`decide`](super::decide()) with
+/// [`Method::Embedding`](super::Method::Embedding) gives. A sequent that
+/// is not valid gets a model of one world, checked.
 ///
 /// # Errors
 ///
@@ -171,12 +171,9 @@ struct Lemma {
 /// bound or the stop refused the derivation of a proof (the read-back's
 /// refusal, where LJT gave none either) or the check of a model, none of
 /// them a verdict, and in classical logic the bound or stop that refused
-/// the check of the clausal proof or the read-back of the embedding's
-/// proof; as
-/// [`Derivation::check`]; [`Error::ReadBack`] or [`Error::Countermodel`]
-/// where the derivation, the clausal proof or the model fails its check,
-/// or the embedding refutes a sequent the clausal proof showed valid, a
-/// defect.
+/// the check of the clausal proof; as [`Derivation::check`];
+/// [`Error::ReadBack`] or [`Error::Countermodel`] where the derivation,
+/// the clausal proof or the model fails its check, a defect.
 pub fn decide(
     sequent: &Sequent,
     logic: Logic,
@@ -309,7 +306,10 @@ fn run(
                 Err(error) => return Err(error),
             };
             derivation.check(limits, &mut stop)?;
-            (Verdict::Valid(Box::new(derivation)), None)
+            (
+                Verdict::Valid(Evidence::Derivation(Box::new(derivation))),
+                None,
+            )
         }
     };
     Ok(Outcome {
@@ -340,7 +340,9 @@ fn by_ljt(
         Err(other) => return Err(other),
     };
     match outcome.verdict {
-        Verdict::Valid(derivation) => Ok((*derivation, outcome.statistics)),
+        Verdict::Valid(Evidence::Derivation(derivation)) => Ok((*derivation, outcome.statistics)),
+        // LJT gives a derivation.
+        Verdict::Valid(Evidence::Clausal(_)) => Err(Error::NoDerivation),
         Verdict::Unknown(Reason::Stopped) => Err(Error::Refused(Refusal::Stopped {
             phase: crate::limits::Phase::Search,
         })),
@@ -866,7 +868,8 @@ mod tests {
                 let outcome = decide(&sequent, logic, &limits, |_| false)
                     .unwrap_or_else(|e| panic!("{sequent} in {logic} logic: {e}"));
                 let answer = match &outcome.verdict {
-                    Verdict::Valid(derivation) => {
+                    Verdict::Valid(evidence) => {
+                        let derivation = evidence.derivation().unwrap();
                         assert_eq!(derivation.check(&limits, |_| false), Ok(()), "{sequent}");
                         assert_eq!(outcome.statistics.ljt, None, "{sequent}: read off");
                         proved += 1;

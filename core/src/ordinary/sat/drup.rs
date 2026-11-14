@@ -89,6 +89,86 @@ pub(crate) enum Rejection {
     Refused(Refusal),
 }
 
+/// A clausal proof that a classical sequent is valid, which this crate's
+/// checker accepted: the clauses of the sequent's negation (every
+/// hypothesis true, every formula right of `⊢` false) have no model,
+/// since the proof's steps derive the empty clause from them, each added
+/// clause by unit propagation.
+///
+/// It holds what was checked, not the proof itself. Only the check makes
+/// one, so a value of this type is a proof that passed it.
+///
+/// # JSON
+///
+/// With the feature `serialize` it is written (never read) as
+/// `{"variables": 7, "clauses": 12, "steps": 3}`: the variables and the
+/// clauses of the negation, and the proof's steps, the clauses it adds and
+/// deletes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize))]
+pub struct ClausalProof {
+    /// The variables of the clauses: one per formula of the sequent.
+    variables: u32,
+    /// The clauses of the sequent's negation.
+    clauses: u64,
+    /// The proof's steps, the empty clause included.
+    steps: u64,
+}
+
+impl ClausalProof {
+    /// Checks `proof` against the clauses `formula` as [`check`] does and
+    /// returns what was checked when the check accepts it.
+    pub(super) fn checked(
+        variables: u32,
+        formula: &[Vec<Lit>],
+        proof: &[Step],
+        limits: &Limits,
+        account: &Account,
+        stop: impl FnMut(Progress) -> bool,
+    ) -> Result<Self, Rejection> {
+        check(variables, formula, proof, limits, account, stop)?;
+        Ok(Self {
+            variables,
+            clauses: formula.len() as u64,
+            steps: proof.len() as u64,
+        })
+    }
+
+    /// Returns the variables of the clauses, one per formula of the
+    /// sequent.
+    pub const fn variables(&self) -> u32 {
+        self.variables
+    }
+
+    /// Returns how many clauses the sequent's negation has.
+    pub const fn clauses(&self) -> u64 {
+        self.clauses
+    }
+
+    /// Returns how many steps the proof has: the clauses it adds, the empty
+    /// one included, and those it deletes.
+    pub const fn steps(&self) -> u64 {
+        self.steps
+    }
+}
+
+impl std::fmt::Display for ClausalProof {
+    /// Writes what the proof is, for a person: `a checked clausal proof of
+    /// 3 steps against the 12 clauses of the sequent's negation`.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let plural = |n: u64| if n == 1 { "" } else { "s" };
+        write!(
+            f,
+            "a checked clausal proof of {} step{} against the {} clause{} of the sequent's \
+             negation",
+            self.steps,
+            plural(self.steps),
+            self.clauses,
+            plural(self.clauses)
+        )
+    }
+}
+
 /// How many units of the checker's work (a step, a clause of the formula
 /// kept, a unit clause assigned, a literal propagated, a visit of a
 /// clause) lie between two polls of the stop.

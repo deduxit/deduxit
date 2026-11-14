@@ -310,7 +310,7 @@ fn lambda_terms() {
         |_| false,
     )
     .unwrap();
-    let ordinary::Verdict::Valid(lj) = outcome.verdict else {
+    let ordinary::Verdict::Valid(ordinary::Evidence::Derivation(lj)) = outcome.verdict else {
         panic!("valid");
     };
     pin_term("term-lj", &*lj);
@@ -339,7 +339,8 @@ fn ordinary_certificate_without_binders() {
             false
         })
         .unwrap();
-        let ordinary::Verdict::Valid(derivation) = outcome.verdict else {
+        let ordinary::Verdict::Valid(ordinary::Evidence::Derivation(derivation)) = outcome.verdict
+        else {
             panic!("{logic}: {:?}", outcome.verdict);
         };
         let mut out = String::new();

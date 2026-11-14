@@ -176,10 +176,12 @@ in use.
   the web bindings.
 - In the library, behind the default feature `sat`, `ordinary::sat`
   decides classical, intuitionistic and minimal logic with a SAT
-  solver. A valid sequent comes with a derivation of LK or LJ, and one
-  that is not valid with a model, which is checked. In classical logic
-  the solver's clausal proof is checked too. The command does not offer
-  this engine yet.
+  solver. A sequent that is not valid comes with a model, which is
+  checked. A valid sequent comes with a checked derivation of LJ in
+  intuitionistic and minimal logic, and in classical logic with the
+  solver's clausal proof, which a checker of deduxit's own accepts; the
+  embedding gives its derivation of LK. The command does not offer this
+  engine yet.
 
 ## Proofs as programs
 
