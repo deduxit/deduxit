@@ -7,7 +7,7 @@
 //! position, and a rule; the rule is validated against the formula and
 //! the logic, every inference a step makes is checked by the rules the
 //! derivation's checker applies, and the goals it leaves are returned.
-//! The search closes a goal through the embeddings ([`decide()`]), whose
+//! The search closes a goal through the embeddings ([`decide_within`]), whose
 //! derivations have no cut, and a
 //! finished state is a [`Derivation`] that [`Derivation::check`]
 //! validates, so this layer adds nothing to what is trusted.
@@ -17,7 +17,7 @@
 use super::derivation::{check_inference, same};
 use super::translate::Extra;
 use super::{Derivation, Formulas, Inference, Logic, Node, NodeId, Outcome, Rule, Sequent, Side};
-use super::{Translation, Verdict, bound, decide};
+use super::{Translation, Verdict, bound, decide_within};
 use crate::Error;
 use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::proofs::{GoalId, InfId, Size, Structural, ViewOptions};
@@ -943,7 +943,7 @@ impl Interactive {
     /// # Errors
     ///
     /// [`Error::OrdinaryStep`] for a goal that is not open, the errors of
-    /// [`decide()`] (a translation that does not decide the logic, the
+    /// [`decide_within`] (a translation that does not decide the logic, the
     /// refusal of a bound or the stop), the goal then still open, and
     /// [`Error::GoalMismatch`] should the derivation found conclude
     /// another sequent than the goal.
@@ -1013,7 +1013,7 @@ impl Interactive {
             .with_logic(self.logic)
             .with_translation(translation)
             .with_method(Some(super::Method::Embedding));
-        decide(&sequent, &options, search, limits, stop)
+        decide_within(&sequent, &options, search, limits, stop)
     }
 
     /// Returns the id in this state's arena of every formula of `other`,

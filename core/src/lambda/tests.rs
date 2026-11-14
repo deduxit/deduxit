@@ -783,11 +783,11 @@ impl Normal {
 /// leaves the structural rules out reads back to the same term.
 fn simple(text: &str, logic: Logic) -> Term {
     use crate::ordinary::{
-        Evidence, Options as OrdinaryOptions, Sequent as OrdinarySequent, Verdict, decide,
+        Evidence, Options as OrdinaryOptions, Sequent as OrdinarySequent, Verdict, decide_within,
     };
     let sequent: OrdinarySequent = text.parse().unwrap();
     let options = OrdinaryOptions::default().with_logic(logic);
-    let outcome = decide(
+    let outcome = decide_within(
         &sequent,
         &options,
         &SearchOptions::default(),
@@ -872,7 +872,7 @@ fn what_has_no_term_is_refused() {
     };
     let sequent: OrdinarySequent = "|- a \\/ ~a".parse().unwrap();
     let options = OrdinaryOptions::default().with_logic(Logic::Classical);
-    let outcome = crate::ordinary::decide(
+    let outcome = crate::ordinary::decide_within(
         &sequent,
         &options,
         &SearchOptions::default(),

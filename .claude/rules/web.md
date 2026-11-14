@@ -262,7 +262,10 @@ for `THIRD-PARTY-NOTICES.txt`.
   "split"}`, the rule by its exact name, which `Rule`'s serde form
   reads), since the library's `Step` has no wire form; `split` left out
   shares the context. `close` and `hint` take `ordinary.translation`
-  from the settings; `export` and `draw` draw with `view.structural`,
+  from the settings and answer the library's ordinary outcome as it
+  writes it, at wire level 12: `search` tagged `{"method":
+  "embedding", "translation", "image": {…}}`, the goal's image's outcome
+  nested (the goal state closes through the embedding alone); `export` and `draw` draw with `view.structural`,
   the view's `inferences` (`derivation_ids`) under the same setting so
   that `i<n>` maps to the goal, and `rocq` is the finished derivation,
   checked, always explicit. `tests/ordinary.rs` holds their tests.

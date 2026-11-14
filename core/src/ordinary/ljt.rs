@@ -61,11 +61,12 @@ pub struct Outcome {
 ///
 /// # JSON
 ///
-/// With the feature `serialize` it is written (never read) as
+/// With the feature `serialize` it is written and read back as
 /// `{"sequents": 12, "memo_hits": 3, "memo_entries": 9, "subsumed": 0}`.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize))]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", serde(default))]
 pub struct Statistics {
     /// The sequents expanded, the search's unit of work.
     pub sequents: u64,
@@ -1341,7 +1342,8 @@ mod tests {
                     .with_logic(logic)
                     .with_method(Some(super::super::Method::Embedding));
                 let embedded =
-                    super::super::decide(&sequent, &options, &search, &bounded, |_| false).unwrap();
+                    super::super::decide_within(&sequent, &options, &search, &bounded, |_| false)
+                        .unwrap();
                 match embedded.verdict {
                     Verdict::Valid(_) => assert!(
                         answer,
@@ -1355,8 +1357,10 @@ mod tests {
                 }
                 let classical = super::super::Options::default().with_logic(Logic::Classical);
                 let affine =
-                    super::super::decide(&sequent, &classical, &search, &unbounded, |_| false)
-                        .unwrap();
+                    super::super::decide_within(&sequent, &classical, &search, &unbounded, |_| {
+                        false
+                    })
+                    .unwrap();
                 if answer {
                     assert!(
                         matches!(affine.verdict, Verdict::Valid(_)),

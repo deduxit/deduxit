@@ -187,7 +187,7 @@ const CLASSICAL_WORK: u64 = 2_000_000;
 #[test]
 #[ignore = "needs the ILTP library, which is not in the repository: nix build .#iltp -o bench/iltp"]
 fn sat_agrees_with_the_embedding_in_classical_logic() {
-    use deduxit::ordinary::{Evidence, Options, decide, sat};
+    use deduxit::ordinary::{Evidence, Options, decide_within, sat};
     use std::collections::BTreeSet;
     let library = library();
     let limits = Limits::default()
@@ -208,7 +208,7 @@ fn sat_agrees_with_the_embedding_in_classical_logic() {
     for problem in &problems {
         let text = std::fs::read_to_string(library.join(problem)).unwrap();
         let sequent = read_tptp(&text, &Limits::default()).unwrap().sequent;
-        let embedded = match decide(&sequent, &options, &search, &limits, |_| false) {
+        let embedded = match decide_within(&sequent, &options, &search, &limits, |_| false) {
             Ok(outcome) => match outcome.verdict {
                 Verdict::Valid(_) => Some(true),
                 Verdict::NotValid => Some(false),

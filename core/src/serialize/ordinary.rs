@@ -6,8 +6,8 @@ use crate::Error;
 use crate::limits::{Limits, Refusal, Space};
 use crate::linear::proofs::InfId;
 use crate::ordinary::{
-    Derivation, Evidence, Formulas, Inference, Logic, Method, Node, NodeId, Outcome, Rule, Search,
-    Sequent, Side, Translation, Verdict, bound, ljt,
+    Derivation, Evidence, Formulas, Inference, Logic, Node, NodeId, Outcome, Rule, Search, Sequent,
+    Side, Translation, Verdict, bound, ljt,
 };
 #[cfg(feature = "interactive")]
 use crate::ordinary::{Interactive, Parts};
@@ -421,9 +421,8 @@ impl Readable for Derivation {
 }
 
 /// The serialized form of the outcome of deciding an ordinary sequent:
-/// the verdict, the logic, the search that decided it, and the derivation
-/// of a valid sequent. The search is the linear search of the image with
-/// its translation, LJT's or the SAT solver's.
+/// the verdict, the logic, the search that decided it, and the evidence
+/// of a valid sequent.
 #[derive(Serialize)]
 struct OutcomeForm<'a> {
     /// The wire level.
@@ -437,13 +436,8 @@ struct OutcomeForm<'a> {
     reason: Option<Why>,
     /// The logic decided.
     logic: Logic,
-    /// The translation the image was made by, for the embedding.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    translation: Option<Translation>,
-    /// The engine that searched the image, or `ljt` or `sat`.
-    engine: &'static str,
-    /// What the search cost.
-    statistics: StatisticsForm<'a>,
+    /// How the sequent was searched, tagged by its method.
+    search: SearchForm<'a>,
     /// The derivation, for `valid` by a derivation.
     #[serde(skip_serializing_if = "Option::is_none")]
     derivation: Option<DerivationForm>,
@@ -453,73 +447,230 @@ struct OutcomeForm<'a> {
     clausal_proof: Option<&'a crate::ordinary::sat::ClausalProof>,
 }
 
-/// What the search of an outcome cost, written as the search's own
-/// statistics.
+/// How an ordinary sequent was searched, as an outcome writes it: an
+/// object tagged by `method`, the method's name.
 #[derive(Serialize)]
-#[serde(untagged)]
-enum StatisticsForm<'a> {
-    /// What the linear search of the image cost.
-    Linear(&'a crate::linear::search::Statistics),
-    /// What LJT cost.
-    Ljt(&'a ljt::Statistics),
-    /// What the SAT solver cost.
+#[serde(tag = "method", rename_all = "snake_case")]
+enum SearchForm<'a> {
+    /// Through the embedding: the translation and the image's outcome.
+    Embedding {
+        /// The translation the image was made by.
+        translation: Translation,
+        /// The outcome of the image's search, with its proof or disproof.
+        image: super::search::Nested<'a>,
+    },
+    /// By LJT, and what its search cost.
+    Ljt {
+        /// LJT's statistics.
+        statistics: &'a ljt::Statistics,
+    },
+    /// By the SAT solver, and what its search cost.
     #[cfg(feature = "sat")]
-    Sat(&'a crate::ordinary::sat::Statistics),
+    Sat {
+        /// The SAT solver's statistics.
+        statistics: &'a crate::ordinary::sat::Statistics,
+    },
 }
 
 impl Serialize for Outcome {
-    /// Serializes the outcome as a document: its verdict, with the reason
-    /// of an unknown one and the evidence of a valid sequent, and the
-    /// search that decided it. Its level is 10 for a clausal proof, 9 for
-    /// a derivation with a cut, else 8.
+    /// Serializes the outcome as a document at level 12: its verdict, with
+    /// the reason of an unknown one and the evidence of a valid sequent,
+    /// and the search that decided it, the image's outcome nested under
+    /// the embedding.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let version = match &self.verdict {
-            Verdict::Valid(Evidence::Derivation(d)) => level(d.inferences()),
-            #[cfg(feature = "sat")]
-            Verdict::Valid(Evidence::Clausal(_)) => wire::CLAUSAL,
-            Verdict::NotValid | Verdict::Unknown(_) => wire::ORDINARY,
-        };
         let (verdict, reason, derivation) = match &self.verdict {
             Verdict::Valid(Evidence::Derivation(d)) => {
                 ("valid", None, Some(DerivationForm::from(&**d)))
             }
             #[cfg(feature = "sat")]
             Verdict::Valid(Evidence::Clausal(_)) => ("valid", None, None),
+            Verdict::Valid(Evidence::Image) => ("valid", None, None),
             Verdict::NotValid => ("not_valid", None, None),
             Verdict::Unknown(r) => ("unknown", Some(Why::from(*r)), None),
         };
-        let (translation, engine, statistics) = match &self.search {
+        let search = match &self.search {
             Search::Embedding {
                 translation,
                 linear,
-            } => (
-                Some(*translation),
-                linear.engine.name(),
-                StatisticsForm::Linear(&linear.statistics),
-            ),
-            Search::Ljt(statistics) => (None, Method::Ljt.name(), StatisticsForm::Ljt(statistics)),
+            } => SearchForm::Embedding {
+                translation: *translation,
+                image: super::search::Nested(linear),
+            },
+            Search::Ljt(statistics) => SearchForm::Ljt { statistics },
             #[cfg(feature = "sat")]
-            Search::Sat(statistics) => (None, Method::Sat.name(), StatisticsForm::Sat(statistics)),
+            Search::Sat(statistics) => SearchForm::Sat { statistics },
         };
         OutcomeForm {
-            version,
+            version: wire::SEARCH,
             deduxit: env!("CARGO_PKG_VERSION"),
             verdict,
             reason,
             logic: self.logic,
-            translation,
-            engine,
-            statistics,
+            search,
             derivation,
             #[cfg(feature = "sat")]
             clausal_proof: match &self.verdict {
                 Verdict::Valid(Evidence::Clausal(proof)) => Some(proof),
-                Verdict::Valid(Evidence::Derivation(_))
+                Verdict::Valid(Evidence::Derivation(_) | Evidence::Image)
                 | Verdict::NotValid
                 | Verdict::Unknown(_) => None,
             },
         }
         .serialize(serializer)
+    }
+}
+
+/// The verdict of an ordinary outcome read, by its word.
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum VerdictWord {
+    /// `valid`.
+    Valid,
+    /// `not_valid`.
+    NotValid,
+    /// `unknown`.
+    Unknown,
+}
+
+/// How an ordinary sequent was searched, as an outcome is read.
+#[derive(Deserialize)]
+#[serde(tag = "method", rename_all = "snake_case")]
+enum SearchRead {
+    /// Through the embedding.
+    Embedding {
+        /// The translation the image was made by.
+        translation: Translation,
+        /// The image's outcome.
+        image: Box<super::search::OutcomeForm>,
+    },
+    /// By LJT.
+    Ljt {
+        /// LJT's statistics.
+        statistics: ljt::Statistics,
+    },
+    /// By the SAT solver.
+    #[cfg(feature = "sat")]
+    Sat {
+        /// The SAT solver's statistics.
+        statistics: crate::ordinary::sat::Statistics,
+    },
+}
+
+/// The keys an ordinary outcome is read from. `deduxit`, the writer's
+/// version, is not read.
+#[derive(Deserialize)]
+struct OutcomeRead {
+    /// The wire level, read to refuse one above this build's.
+    #[serde(default, deserialize_with = "wire::version")]
+    version: Option<u32>,
+    /// `valid`, `not_valid` or `unknown`.
+    verdict: VerdictWord,
+    /// Why the search could not decide, for `unknown`.
+    #[serde(default)]
+    reason: Option<Why>,
+    /// The logic decided.
+    logic: Logic,
+    /// How the sequent was searched; absent below level 12.
+    #[serde(default)]
+    search: Option<SearchRead>,
+    /// The derivation, for `valid` by a derivation.
+    #[serde(default)]
+    derivation: Option<DerivationForm>,
+    /// The clausal proof's counts, for `valid` by one.
+    #[serde(default)]
+    clausal_proof: Option<serde::de::IgnoredAny>,
+}
+
+impl OutcomeRead {
+    /// Returns the outcome the form holds, its derivation and the image's
+    /// proof or disproof read within `limits`, neither checked. Refuses an
+    /// outcome below level 12, which has no `search`; one valid by a
+    /// clausal proof, whose document holds the proof's counts alone; and
+    /// one whose verdict the image's outcome does not bear out.
+    fn within(self, limits: &Limits) -> Result<Outcome, Error> {
+        let refuse = |message: &str| Error::Json {
+            form: "ordinary outcome",
+            message: message.to_owned(),
+        };
+        let search = match self.search {
+            Some(search) => search,
+            None if self.version.unwrap_or(wire::BASE) < wire::SEARCH => {
+                return Err(refuse(
+                    "an ordinary outcome below level 12 has no `search` and is not read back",
+                ));
+            }
+            None => return Err(refuse("missing field `search`")),
+        };
+        let search = match search {
+            SearchRead::Embedding { translation, image } => Search::Embedding {
+                translation,
+                linear: Box::new(image.within(limits)?),
+            },
+            SearchRead::Ljt { statistics } => Search::Ljt(statistics),
+            #[cfg(feature = "sat")]
+            SearchRead::Sat { statistics } => Search::Sat(statistics),
+        };
+        let image = match &search {
+            Search::Embedding { linear, .. } => Some(&linear.verdict),
+            #[cfg(feature = "sat")]
+            Search::Sat(_) => None,
+            Search::Ljt(_) => None,
+        };
+        use crate::linear::search::Verdict as Linear;
+        let borne = match (&self.verdict, image) {
+            (_, None)
+            | (VerdictWord::Valid, Some(Linear::Proved(_)))
+            | (VerdictWord::NotValid, Some(Linear::Unprovable(_)))
+            | (VerdictWord::Unknown, Some(Linear::Unknown(_))) => true,
+            (_, Some(_)) => false,
+        };
+        if !borne {
+            return Err(refuse("the verdict is not the image's outcome's"));
+        }
+        let verdict = match self.verdict {
+            VerdictWord::Valid if self.clausal_proof.is_some() => {
+                return Err(refuse(
+                    "a clausal proof is written as its counts, which hold no proof to read back",
+                ));
+            }
+            VerdictWord::Valid => match self.derivation {
+                Some(form) => Verdict::Valid(Evidence::Derivation(Box::new(form.within(limits)?))),
+                None if image.is_some() => Verdict::Valid(Evidence::Image),
+                None => return Err(refuse("missing field `derivation`")),
+            },
+            VerdictWord::NotValid => Verdict::NotValid,
+            VerdictWord::Unknown => match self.reason {
+                Some(reason) => Verdict::Unknown(reason.into()),
+                None => return Err(refuse("missing field `reason`")),
+            },
+        };
+        Ok(Outcome {
+            verdict,
+            logic: self.logic,
+            search,
+        })
+    }
+}
+
+impl<'a> Deserialize<'a> for Outcome {
+    /// Deserializes an ordinary outcome within the default limits, as
+    /// [`wire::upgrade`] does.
+    fn deserialize<D: Deserializer<'a>>(deserializer: D) -> Result<Self, D::Error> {
+        Self::read(deserializer, &Limits::default())
+    }
+}
+
+impl crate::sealed::Readable for Outcome {}
+
+impl Readable for Outcome {
+    const FORM: &'static str = "ordinary outcome";
+
+    /// Reads an ordinary outcome: its derivation and the image's proof or
+    /// disproof as their own readers read them, neither checked.
+    fn read<'de, D: Deserializer<'de>>(deserializer: D, limits: &Limits) -> Result<Self, D::Error> {
+        OutcomeRead::deserialize(deserializer)?
+            .within(limits)
+            .map_err(wire::fail)
     }
 }
 

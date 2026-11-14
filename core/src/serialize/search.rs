@@ -699,10 +699,13 @@ struct DisproofKeys<'a> {
 /// disproof file too.
 #[derive(Serialize)]
 struct Outcome<'a> {
-    /// The wire level.
-    version: u32,
-    /// The crate's version, which wrote the outcome.
-    deduxit: &'static str,
+    /// The wire level, written only at the top of a document.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    version: Option<u32>,
+    /// The crate's version, which wrote the outcome, written only at the
+    /// top of a document.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    deduxit: Option<&'static str>,
     /// `proved`, `unprovable` or `unknown`.
     verdict: &'static str,
     /// Whether the proof passed the checker, for `proved`.
@@ -735,43 +738,64 @@ impl Serialize for Out {
     /// its proof or its disproof, and the fragment, mode, engine
     /// and statistics of the search.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let verdict = self.verdict.name();
-        let (reason, refutation, proof, disproof) = match &self.verdict {
-            Verdict::Proved(p) => (None, None, Some(Proof::keys(p)), None),
-            Verdict::Unprovable(d) => {
-                let keys = DisproofKeys {
-                    sequent: SequentForm::from(d.sequent()),
-                    goal: d.goal(),
-                };
-                let why = WhyNot::from(d.refutation());
-                (None, Some(why), None, Some(keys))
-            }
-            Verdict::Unknown(r) => (Some(Why::from(*r)), None, None, None),
-        };
-        let version = match &self.verdict {
-            Verdict::Unprovable(d) => {
-                wire::level_of(d.refutation(), self.mode).max(wire::level_of_sequent(d.sequent()))
-            }
-            Verdict::Proved(p) => {
-                wire::level_in(Some(self.mode)).max(wire::level_of_sequent(p.sequent()))
-            }
-            Verdict::Unknown(_) => wire::level_in(Some(self.mode)),
-        };
-        Outcome {
-            version,
-            deduxit: env!("CARGO_PKG_VERSION"),
-            verdict,
-            checked: proof.as_ref().map(|_| self.checked),
-            reason,
-            refutation,
-            fragment: self.fragment.name_in(self.mode),
-            mode: self.mode,
-            engine: self.engine,
-            statistics: self.statistics,
-            proof,
-            disproof,
+        form(self, true).serialize(serializer)
+    }
+}
+
+/// An outcome written inside another document, as the image's outcome in
+/// an ordinary outcome: without its level and its writer's version.
+pub(super) struct Nested<'a>(pub(super) &'a Out);
+
+impl Serialize for Nested<'_> {
+    /// Serializes the outcome's keys without `version` and `deduxit`.
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        form(self.0, false).serialize(serializer)
+    }
+}
+
+/// Returns the wire level of an outcome: the larger of its mode's and its
+/// proof's or disproof's sequent's.
+pub(super) fn level(outcome: &Out) -> u32 {
+    match &outcome.verdict {
+        Verdict::Unprovable(d) => {
+            wire::level_of(d.refutation(), outcome.mode).max(wire::level_of_sequent(d.sequent()))
         }
-        .serialize(serializer)
+        Verdict::Proved(p) => {
+            wire::level_in(Some(outcome.mode)).max(wire::level_of_sequent(p.sequent()))
+        }
+        Verdict::Unknown(_) => wire::level_in(Some(outcome.mode)),
+    }
+}
+
+/// Returns the form an outcome is written in, with its level and writer
+/// at the top of a document.
+fn form(outcome: &Out, top: bool) -> Outcome<'_> {
+    let verdict = outcome.verdict.name();
+    let (reason, refutation, proof, disproof) = match &outcome.verdict {
+        Verdict::Proved(p) => (None, None, Some(Proof::keys(p)), None),
+        Verdict::Unprovable(d) => {
+            let keys = DisproofKeys {
+                sequent: SequentForm::from(d.sequent()),
+                goal: d.goal(),
+            };
+            let why = WhyNot::from(d.refutation());
+            (None, Some(why), None, Some(keys))
+        }
+        Verdict::Unknown(r) => (Some(Why::from(*r)), None, None, None),
+    };
+    Outcome {
+        version: top.then(|| level(outcome)),
+        deduxit: top.then_some(env!("CARGO_PKG_VERSION")),
+        verdict,
+        checked: proof.as_ref().map(|_| outcome.checked),
+        reason,
+        refutation,
+        fragment: outcome.fragment.name_in(outcome.mode),
+        mode: outcome.mode,
+        engine: outcome.engine,
+        statistics: outcome.statistics,
+        proof,
+        disproof,
     }
 }
 
@@ -804,7 +828,7 @@ impl<'a> Deserialize<'a> for EngineRead {
 /// and the disproof's together, each present for its verdict. Other keys
 /// are ignored, among them `deduxit`, the writer's version.
 #[derive(Deserialize)]
-struct OutcomeForm {
+pub(super) struct OutcomeForm {
     /// The wire level, read only to refuse one above this build's.
     #[serde(default, deserialize_with = "wire::version")]
     #[expect(dead_code, reason = "read for its check of the level alone")]
@@ -848,7 +872,7 @@ impl OutcomeForm {
     /// them. A key its verdict needs and the form lacks is an error.
     /// `checked` is false where the key is missing, and the outcome has no
     /// net.
-    fn within(self, limits: &Limits) -> Result<Out, crate::Error> {
+    pub(super) fn within(self, limits: &Limits) -> Result<Out, crate::Error> {
         let missing = |key: &str| crate::Error::Json {
             form: "outcome",
             message: format!("missing field `{key}`"),

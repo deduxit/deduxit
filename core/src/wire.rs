@@ -25,8 +25,9 @@
 //! | 7 | the first-order sequent: `"symbols"`, `"fo"`, `"binders"`, an atom as `{"P": [symbol, [terms]]}`, the terms `∀` and `∃` | a document whose sequent is first-order |
 //! | 8 | the forms of ordinary logic: a sequent, a derivation of LK or LJ, the outcome of deciding a sequent, a proof in progress | each of those |
 //! | 9 | LJ's cut, `"rule": "cut"` | an ordinary derivation, outcome or proof in progress that holds a cut |
-//! | 10 | a sequent valid by a clausal proof, `"clausal_proof": {…}` in place of the derivation | an ordinary outcome that holds one |
+//! | 10 | a sequent valid by a clausal proof, `"clausal_proof": {…}` in place of the derivation | an ordinary outcome that holds one, before level 12 |
 //! | 11 | the refutation by the basis of a backward search, `{"kind": "basis", "body": …, "classes": […], "markings": […]}` | a disproof or unprovable outcome that holds one |
+//! | 12 | the ordinary outcome's search as an object tagged by its method, `"search": {"method": "embedding", "translation": …, "image": {…}}`, `{"method": "ljt", "statistics": {…}}` or `{"method": "sat", …}`, the image's whole outcome under the embedding; a valid outcome without `derivation` or `clausal_proof` rests on the image's proof | every ordinary outcome |
 //!
 //! A reader refuses a document above its level by name ([`Error::Version`],
 //! code `unsupported_version`). It does so before reading the other keys
@@ -138,17 +139,21 @@
 //!   see [`ordinary::Derivation`](crate::ordinary::Derivation).
 //!
 //!   [`Derivation::check`]: crate::ordinary::Derivation::check
-//! - **Ordinary outcome** (written only): `{"version": 8, "deduxit":
-//!   "0.3.0", "verdict": "valid", "logic": "classical", "translation":
-//!   "affine", "engine": "focus", "statistics": {…}, "derivation": {…}}`,
-//!   `verdict` one of `valid`, `not_valid` and `unknown` (with a `reason`
-//!   in an outcome's form), the engine and statistics the image's search's;
-//!   see [`ordinary::Outcome`](crate::ordinary::Outcome). A sequent valid
-//!   by a clausal proof, as the SAT solver decides classical logic, is
-//!   written at level 10 with `"engine": "sat"` and `"clausal_proof":
-//!   {"variables": 7, "clauses": 12, "steps": 3}` in place of
-//!   `derivation`: the variables and clauses of the sequent's negation and
-//!   the steps of the proof that this crate's checker accepted.
+//! - **Ordinary outcome**: `{"version": 12, "deduxit": "0.3.0",
+//!   "verdict": "valid", "logic": "classical", "search": {"method":
+//!   "embedding", "translation": "affine", "image": {…}}, "derivation":
+//!   {…}}`, `verdict` one of `valid`, `not_valid` and `unknown` (with a
+//!   `reason` in an outcome's form), `search` tagged by `method`: the
+//!   embedding with its translation and the image's outcome (an outcome's
+//!   keys without `version` and `deduxit`), or `ljt` or `sat` with that
+//!   method's `statistics`; see [`ordinary::Outcome`](crate::ordinary::Outcome).
+//!   A valid outcome holds `derivation`, or, valid by a clausal proof (the
+//!   SAT solver in classical logic), `"clausal_proof": {"variables": 7,
+//!   "clauses": 12, "steps": 3}`, the counts of the proof this crate's
+//!   checker accepted, or neither where the image's proof stands without a
+//!   derivation. Reading one reads the derivation and the image's proof
+//!   or disproof as their own readers do, and refuses an outcome below
+//!   level 12 and one valid by a clausal proof, whose counts hold no proof.
 //! - **Ordinary session**: `{"version": 8, "logic": "intuitionistic",
 //!   "sequent": {…}, "inferences": […], "history": […]}`, the inferences in
 //!   the state's own order, the root first, an open goal its two sides
@@ -172,7 +177,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// The highest wire level this build reads and writes.
-pub const LEVEL: u32 = 11;
+pub const LEVEL: u32 = 12;
 
 /// The level of every document that no later level's feature raises.
 pub(crate) const BASE: u32 = 1;
@@ -257,10 +262,10 @@ impl<'de, T: Readable> DeserializeSeed<'de> for Within<'_, T> {
 /// document.end().expect("one document and nothing after it");
 /// assert_eq!(sequent.to_string(), "⊢ A");
 ///
-/// let newer = r#"{"version": 12, "terms": []}"#;
-/// let mut document = serde_json::Deserializer::from_str(newer);
+/// let newer = format!(r#"{{"version": {}, "terms": []}}"#, wire::LEVEL + 1);
+/// let mut document = serde_json::Deserializer::from_str(&newer);
 /// let error = wire::upgrade::<Sequent, _>(&mut document, &Limits::default()).unwrap_err();
-/// assert!(matches!(error, Error::Version { found: 12, .. }));
+/// assert!(matches!(error, Error::Version { found, .. } if found == u64::from(wire::LEVEL) + 1));
 /// # Ok::<(), Error>(())
 /// ```
 pub fn upgrade<'de, T: Readable, D: Deserializer<'de>>(
@@ -327,9 +332,9 @@ pub(crate) const ORDINARY: u32 = 8;
 /// The level of a form of ordinary logic that holds LJ's cut.
 pub(crate) const ORDINARY_CUT: u32 = 9;
 
-/// The level of an ordinary outcome valid by a clausal proof.
-#[cfg(feature = "sat")]
-pub(crate) const CLAUSAL: u32 = 10;
+/// The level of an ordinary outcome: its search tagged by its method,
+/// the image's outcome nested under the embedding.
+pub(crate) const SEARCH: u32 = 12;
 
 /// The level of a disproof or an outcome refuted by the basis of a
 /// backward search.

@@ -364,9 +364,13 @@ lacks.
 **Level 8 is ordinary logic** (`wire::ORDINARY`, `serialize/ordinary.rs`):
 the ordinary sequent (`formulas` in the arena's order with the tags
 `V ⊤ ⊥ ¬ ∧ ∨ → ↔`, `atoms`, `left`, `right`), the derivation of LK or LJ,
-the outcome of `ordinary::decide` (written only) and the goal state, each
-written at level 8, at 9 with LJ's cut, and an outcome valid by a
-clausal proof at 10 (`wire::CLAUSAL`, `core-ordinary.md`, "Evidence");
+and the goal state, each written at level 8, at 9 with LJ's cut; the
+outcome of `ordinary::decide` is written and read at level 12
+(`wire::SEARCH`, `core-ordinary.md`, "Evidence"), its search tagged
+and the image's outcome nested (`search::Nested`, an outcome's keys
+without `version` and `deduxit`; `search::OutcomeForm` reads it back);
+levels 8 to 10 wrote it differently, and its reader refuses them, since
+no release read it;
 a reader maps the document's indices to the
 arena it builds (equal formulas are one node there), so a document of
 ours writes back the same bytes. `ill.rs`'s refusal test names the level

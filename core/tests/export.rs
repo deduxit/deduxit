@@ -302,7 +302,7 @@ fn lambda_terms() {
     let options = ordinary::Options::default()
         .with_logic(Logic::Intuitionistic)
         .with_method(Some(ordinary::Method::Embedding));
-    let outcome = ordinary::decide(
+    let outcome = ordinary::decide_within(
         &sequent,
         &options,
         &Options::default(),
@@ -335,10 +335,11 @@ fn ordinary_certificate_without_binders() {
     for logic in [Logic::Classical, Logic::Intuitionistic] {
         let options = ordinary::Options::default().with_logic(logic);
         let unbounded = Limits::default();
-        let outcome = ordinary::decide(&sequent, &options, &Options::default(), &unbounded, |_| {
-            false
-        })
-        .unwrap();
+        let outcome =
+            ordinary::decide_within(&sequent, &options, &Options::default(), &unbounded, |_| {
+                false
+            })
+            .unwrap();
         let ordinary::Verdict::Valid(ordinary::Evidence::Derivation(derivation)) = outcome.verdict
         else {
             panic!("{logic}: {:?}", outcome.verdict);

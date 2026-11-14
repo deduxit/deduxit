@@ -10,7 +10,8 @@
 //! level 4 added, `wire/level-5.txt` those level 5 added,
 //! `wire/level-6.txt` those level 6 added, `wire/level-7.txt` those
 //! level 7 added, `wire/level-8.txt` those level 8 added,
-//! `wire/level-11.txt` those level 11 added; none is ever
+//! `wire/level-11.txt` those level 11 added, `wire/level-12.txt` the
+//! ordinary outcomes of level 12; none is ever
 //! rewritten: where
 //! the lock moves on, these files stay. Every
 //! line of a form that is read back reads through
@@ -259,6 +260,26 @@ fn the_eleventh_level_reads() {
         }
     }
     assert_eq!(lines.lines().count(), 2);
+}
+
+/// Every ordinary outcome of level 12 (LJT's, the embedding's with the
+/// image's proof nested, the SAT solver's refutation) reads and writes
+/// the same bytes again, and a derivation it holds still checks. Never
+/// rewritten, as `wire/level-1.txt` is not.
+#[test]
+fn the_twelfth_level_reads() {
+    use deduxit::ordinary;
+    let lines = include_str!("wire/level-12.txt");
+    for line in lines.lines() {
+        let (name, json) = line.split_once(": ").unwrap();
+        again::<ordinary::Outcome>(name, json);
+        let outcome: ordinary::Outcome = read(name, json);
+        if let ordinary::Verdict::Valid(evidence) = &outcome.verdict {
+            let derivation = evidence.derivation().unwrap();
+            assert_eq!(derivation.check(&Limits::default(), |_| false), Ok(()));
+        }
+    }
+    assert_eq!(lines.lines().count(), 3);
 }
 
 /// Every outcome the JSON lock holds (each verdict, refutation and reason,

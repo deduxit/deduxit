@@ -92,12 +92,13 @@ pub struct Outcome {
 ///
 /// # JSON
 ///
-/// With the feature `serialize` it is written (never read) as
+/// With the feature `serialize` it is written and read back as
 /// `{"calls": 7, "conflicts": 2, "lemmas": 1, "worlds": 0, "facts": 12,
 /// "clauses": 0, "proof_steps": 0, "ljt": null}`.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize))]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", serde(default))]
 pub struct Statistics {
     /// The calls of the SAT solver.
     pub calls: u64,
@@ -406,7 +407,9 @@ fn prefer_ljt(
         }),
         // LJT gives a derivation; a bound or the stop leaves the one read
         // off the search.
-        Verdict::Valid(Evidence::Clausal(_)) | Verdict::Unknown(_) => Ok(derivation),
+        Verdict::Valid(Evidence::Clausal(_) | Evidence::Image) | Verdict::Unknown(_) => {
+            Ok(derivation)
+        }
     }
 }
 
@@ -433,6 +436,7 @@ fn by_ljt(
         Verdict::Valid(Evidence::Derivation(derivation)) => Ok((*derivation, outcome.statistics)),
         // LJT gives a derivation.
         Verdict::Valid(Evidence::Clausal(_)) => Err(Error::NoDerivation),
+        Verdict::Valid(Evidence::Image) => Err(Error::NotBuilt),
         Verdict::Unknown(Reason::Stopped) => Err(Error::Refused(Refusal::Stopped {
             phase: crate::limits::Phase::Search,
         })),

@@ -503,7 +503,8 @@ fn ordinary() -> Result<()> {
         .with_logic(Logic::Classical)
         .with_translation(Some(Translation::Affine));
     measured(|| -> Result<()> {
-        let outcome = ordinary::decide(&sequent, &logic, &search, &Limits::default(), |_| false)?;
+        let outcome =
+            ordinary::decide_within(&sequent, &logic, &search, &Limits::default(), |_| false)?;
         let ordinary::Verdict::Valid(_) = outcome.verdict else {
             bail!("the pigeonhole formula is valid: {:?}", outcome.verdict);
         };

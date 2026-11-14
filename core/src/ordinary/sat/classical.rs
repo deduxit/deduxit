@@ -476,13 +476,14 @@ mod tests {
                     refuted += 1;
                     false
                 }
-                verdict @ (Verdict::Valid(Evidence::Derivation(_)) | Verdict::Unknown(_)) => {
+                verdict @ (Verdict::Valid(Evidence::Derivation(_) | Evidence::Image)
+                | Verdict::Unknown(_)) => {
                     panic!("{sequent}: {verdict:?}")
                 }
             };
             assert_eq!(valid, valid_by_truth_table(&sequent), "{sequent}");
             let options = Options::default().with_logic(Logic::Classical);
-            let embedded = crate::ordinary::decide(
+            let embedded = crate::ordinary::decide_within(
                 &sequent,
                 &options,
                 &search::Options::default(),
@@ -598,7 +599,7 @@ mod tests {
             .with_logic(Logic::Classical)
             .with_method(Some(Method::Embedding));
         let embedded = |sequent: &Sequent, limits: &Limits| {
-            crate::ordinary::decide(
+            crate::ordinary::decide_within(
                 sequent,
                 &options,
                 &search::Options::default(),
@@ -630,13 +631,12 @@ mod tests {
         assert!(evidence.derivation().is_ok());
     }
 
-    /// The outcome of a sequent valid by its clausal proof is written at
-    /// wire level 10 with the proof's counts in place of a derivation, and
-    /// reads back as JSON with the values the proof holds; a derivation's
-    /// outcome stays at level 8.
+    /// The outcome of a sequent valid by its clausal proof is written with
+    /// the proof's counts in place of a derivation, at the ordinary
+    /// outcome's level as a derivation's outcome is.
     #[cfg(feature = "serialize")]
     #[test]
-    fn a_clausal_proof_is_written_at_its_level() {
+    fn a_clausal_proof_is_written_as_its_counts() {
         let sequent: Sequent = "|- ((a -> b) -> a) -> a".parse().unwrap();
         let outcome = decide(&sequent, &Limits::default(), |_| false, MOST_VARIABLES).unwrap();
         let Verdict::Valid(Evidence::Clausal(proof)) = outcome.verdict else {
@@ -644,9 +644,9 @@ mod tests {
         };
         let ordinary = crate::ordinary::Outcome::from(outcome);
         let json = serde_json::to_value(&ordinary).unwrap();
-        assert_eq!(json["version"], crate::wire::CLAUSAL);
+        assert_eq!(json["version"], crate::wire::SEARCH);
         assert_eq!(json["verdict"], "valid");
-        assert_eq!(json["engine"], "sat");
+        assert_eq!(json["search"]["method"], "sat");
         assert!(json.get("derivation").is_none(), "{json}");
         assert_eq!(
             json["clausal_proof"],
@@ -656,9 +656,9 @@ mod tests {
                 "steps": proof.steps(),
             })
         );
-        assert_eq!(json["statistics"]["proof_steps"], proof.steps());
+        assert_eq!(json["search"]["statistics"]["proof_steps"], proof.steps());
         let options = Options::default().with_logic(Logic::Classical);
-        let embedded = crate::ordinary::decide(
+        let embedded = crate::ordinary::decide_within(
             &sequent,
             &options,
             &search::Options::default(),
@@ -667,7 +667,7 @@ mod tests {
         )
         .unwrap();
         let json = serde_json::to_value(&embedded).unwrap();
-        assert_eq!(json["version"], crate::wire::ORDINARY);
+        assert_eq!(json["version"], crate::wire::SEARCH);
         assert!(json.get("clausal_proof").is_none(), "{json}");
     }
 

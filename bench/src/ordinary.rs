@@ -260,7 +260,7 @@ fn by_default(args: &OneArgs, logic: Logic, sequent: &ordinary::Sequent, expecte
     );
     say(LOADED);
     let clock = Clock::start(args.timeout);
-    let outcome = ordinary::decide(sequent, &options, &search, &limits, |progress| {
+    let outcome = ordinary::decide_within(sequent, &options, &search, &limits, |progress| {
         progress.phase != Phase::Refute && clock.expired.load(Ordering::Relaxed)
     });
     let (time, cpu, wait) = clock.read();

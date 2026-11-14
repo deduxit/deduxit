@@ -532,6 +532,15 @@ pub enum Error {
          embedding gives the derivation of LK"
     )]
     NoDerivation,
+    /// A sequent is valid by the checked proof of its image, whose
+    /// derivation of LK or LJ was not built (a bound or the stop refused
+    /// it), where a derivation is needed
+    /// ([`Evidence::derivation`](crate::ordinary::Evidence::derivation)).
+    #[error(
+        "the sequent is valid by the checked proof of its image, whose derivation was not built; \
+         raise the derivation limit or the time limit to build it"
+    )]
+    NotBuilt,
     /// A derivation read back from a linear proof is not one of LK or LJ,
     /// for the reason given. This is a defect of this crate.
     #[error("the proof read back is not a derivation of {calculus}: {reason}")]
@@ -683,6 +692,7 @@ impl Error {
         "countermodel",
         "no_term",
         "no_derivation",
+        "not_built",
         "no_cut",
         "reduction_rejected",
     ];
@@ -756,6 +766,7 @@ impl Error {
             | Self::Reduction(_) => Defect,
             Self::NoCut { .. } => Unsupported,
             Self::NoTerm { .. } | Self::NoDerivation => Unsupported,
+            Self::NotBuilt => Limit,
         }
     }
 
@@ -837,6 +848,7 @@ impl Error {
             Self::NoCut { .. } => "no_cut",
             Self::NoTerm { .. } => "no_term",
             Self::NoDerivation => "no_derivation",
+            Self::NotBuilt => "not_built",
             Self::Reduction(_) => "reduction_rejected",
         }
     }
@@ -1148,6 +1160,7 @@ mod tests {
                 reason: crate::lambda::NoTerm::Classical,
             },
             Error::NoDerivation,
+            Error::NotBuilt,
             Error::ReadBack {
                 calculus: "LK",
                 reason: message(),
@@ -1355,6 +1368,7 @@ mod tests {
             | Error::NoCut { .. }
             | Error::NoTerm { .. }
             | Error::NoDerivation
+            | Error::NotBuilt
             | Error::Reduction(_) => {}
         }
     }

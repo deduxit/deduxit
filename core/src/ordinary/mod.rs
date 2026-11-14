@@ -1,47 +1,29 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Ordinary propositional logic, classical, intuitionistic and minimal,
-//! decided through its embeddings into linear logic: a sequent of
-//! ordinary formulas ([`Sequent`]), its image
-//! under a named [`Translation`]
-//! ([`translate()`], an
-//! [`Image`] holding a linear
-//! [`Sequent`](crate::linear::Sequent) and the mode to prove it in), and the
-//! linear proof read back as a derivation of LK or LJ
-//! ([`Image::read_back`], a
-//! [`Derivation`] that
-//! [`Derivation::check`] checks by the
-//! rules of the logic); [`decide()`] does all of it
-//! in one call.
+//! Ordinary propositional logic, classical, intuitionistic and minimal:
+//! a sequent of ordinary formulas ([`Sequent`]), decided in one call by
+//! [`decide()`], or under bounds, a search's options and a stop by
+//! [`decide_within`]. A valid sequent comes with checked [`Evidence`]: a
+//! derivation of LK or LJ ([`Derivation`], which [`Derivation::check`]
+//! checks by the rules of the logic) or, from the SAT solver in
+//! classical logic, a clausal proof.
 //!
-//! Classical logic goes into affine MALL without exponentials: the
-//! one-sided sequent in negation normal form with `∧` as `&`, `∨` as `⅋`,
-//! true as `⊤` and false as `⊥` is provable in affine mode exactly when
-//! the sequent is classically valid, and the focused engine decides it
-//! without a copy bound. Intuitionistic logic goes into intuitionistic
-//! linear logic by one of three translations with exponentials; minimal
-//! logic is the same with false translated as an atom. Deciding through
-//! them is subject to the copy bound of the search, so an intuitionistic
-//! sequent may be answered "unknown".
+//! [`Method`] chooses how: a SAT solver (the default, behind the feature
+//! `sat`), Dyckhoff's LJT for intuitionistic and minimal logic, or the
+//! embedding, which translates the sequent into linear logic
+//! ([`translate()`], an [`Image`] holding a linear sequent and the mode to
+//! prove it in) and reads the linear proof back ([`Image::read_back`]).
+//! Classical logic goes into affine MALL, intuitionistic and minimal logic
+//! into intuitionistic linear logic by a [`Translation`].
 //!
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
-//! use deduxit::ordinary::{self, Logic, Sequent, Translation, Verdict, translate};
-//! use deduxit::{Limits, linear::Options};
+//! use deduxit::ordinary::{Options, Sequent, Verdict, decide};
 //!
 //! let sequent: Sequent = "a -> b, b -> c |- a -> c".parse()?;
-//! let limits = Limits::default();
-//! let image = translate(&sequent, Logic::Intuitionistic, Translation::CallByName, &limits)?;
-//! assert_eq!(image.sequent().to_string(), "⊢ ?(!a ⊗ ~b), ?(!b ⊗ ~c), ?~a ⅋ c");
-//! let options = ordinary::Options::default().with_logic(Logic::Intuitionistic);
-//! let outcome =
-//!     ordinary::decide(&sequent, &options, &Options::default(), &limits, |_| false)?;
-//! let Verdict::Valid(evidence) = &outcome.verdict else {
-//!     panic!("valid");
-//! };
-//! let derivation = evidence.derivation()?;
-//! assert_eq!(derivation.inference(derivation.root()).rule().name(), "→R");
+//! let outcome = decide(&sequent, &Options::default())?;
+//! assert!(matches!(outcome.verdict, Verdict::Valid(_)));
 //! # Ok::<(), deduxit::Error>(())
 //! ```
 
@@ -66,7 +48,9 @@ pub mod sat;
 /// The translations into linear logic.
 mod translate;
 
-pub use decide::{EVIDENCE_WORK, Evidence, Outcome, Search, Verdict, decide, gives_way};
+pub use decide::{
+    EVIDENCE_WORK, Evidence, Outcome, Search, Verdict, decide, decide_within, gives_way,
+};
 pub use derivation::{Derivation, Inference, Rule, Side};
 #[cfg(all(feature = "interactive", feature = "serialize"))]
 pub(crate) use interactive::Parts;
@@ -1186,7 +1170,7 @@ mod tests {
                             .with_logic(logic)
                             .with_translation(Some(translation));
                         let outcome =
-                            super::decide(&sequent, &options, &search, &limits, |_| false)
+                            super::decide_within(&sequent, &options, &search, &limits, |_| false)
                                 .unwrap_or_else(|e| {
                                     panic!("{sequent} in {logic} logic by {translation}: {e}")
                                 });

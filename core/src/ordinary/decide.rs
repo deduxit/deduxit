@@ -122,6 +122,12 @@ pub enum Evidence {
     /// `sat`.
     #[cfg(feature = "sat")]
     Clausal(super::sat::ClausalProof),
+    /// The proof of the image, which the linear checker accepted and the
+    /// outcome's [`Search::Embedding`] holds, where its derivation of LK
+    /// or LJ was not built: a bound or the stop refused it. Only
+    /// [`Image::outcome`](super::Image::outcome) gives it, never
+    /// [`decide`].
+    Image,
 }
 
 impl Evidence {
@@ -130,12 +136,14 @@ impl Evidence {
     ///
     /// # Errors
     ///
-    /// [`Error::NoDerivation`] for a clausal proof.
+    /// [`Error::NoDerivation`] for a clausal proof, [`Error::NotBuilt`]
+    /// for the image's proof alone.
     pub fn derivation(&self) -> Result<&Derivation, Error> {
         match self {
             Self::Derivation(derivation) => Ok(derivation),
             #[cfg(feature = "sat")]
             Self::Clausal(_) => Err(Error::NoDerivation),
+            Self::Image => Err(Error::NotBuilt),
         }
     }
 }
@@ -226,16 +234,93 @@ fn with_evidence(
     })
 }
 
+/// Decides an ordinary sequent as `options` say, within the default
+/// [`Limits`] and with the linear search's default options, which bound
+/// the copies of the image's search. [`decide_within`] takes bounds, a
+/// search's options and a stop.
+///
+/// # Errors
+///
+/// As [`decide_within`].
+///
+/// # Examples
+///
+#[cfg_attr(feature = "parse", doc = "```")]
+#[cfg_attr(not(feature = "parse"), doc = "```ignore")]
+/// use deduxit::ordinary::{self, Logic, Options, Verdict};
+///
+/// let sequent: ordinary::Sequent = "|- ((a -> b) -> a) -> a".parse()?;
+/// let outcome = ordinary::decide(&sequent, &Options::default().with_logic(Logic::Classical))?;
+/// assert!(matches!(outcome.verdict, Verdict::Valid(_)));
+/// # Ok::<(), deduxit::Error>(())
+/// ```
+pub fn decide(sequent: &Sequent, options: &Options) -> Result<Outcome, Error> {
+    decide_within(
+        sequent,
+        options,
+        &search::Options::default(),
+        &Limits::default(),
+        |_| false,
+    )
+}
+
+impl super::Image {
+    /// Returns the outcome of deciding the ordinary sequent through this
+    /// image, from `linear`, the outcome of a search of the image that the
+    /// caller ran: for a proof the derivation of LK or LJ read back and
+    /// checked within `limits` and until `stop` fires, or, where a bound
+    /// or the stop refuses it, [`Evidence::Image`], since the image's
+    /// proof stands; for a refutation not valid; else unknown. A front end
+    /// that runs its own search (a race, a pool) writes this outcome.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::ReadBack`] where the derivation read back fails its check,
+    /// a defect.
+    pub fn outcome(
+        &self,
+        linear: search::Outcome,
+        limits: &Limits,
+        mut stop: impl FnMut(Progress) -> bool,
+    ) -> Result<Outcome, Error> {
+        let verdict = match &linear.verdict {
+            search::Verdict::Proved(proof) => {
+                let checked = self
+                    .read_back(proof, limits, &mut stop)
+                    .and_then(|d| d.check(limits, &mut stop).map(|()| d));
+                match checked {
+                    Ok(derivation) => Verdict::Valid(Evidence::Derivation(Box::new(derivation))),
+                    Err(error) if error.is_refusal() => Verdict::Valid(Evidence::Image),
+                    Err(error) => return Err(error),
+                }
+            }
+            search::Verdict::Unprovable(_) => Verdict::NotValid,
+            search::Verdict::Unknown(reason) => Verdict::Unknown(*reason),
+        };
+        Ok(Outcome {
+            verdict,
+            logic: self.logic(),
+            search: Search::Embedding {
+                translation: self.translation(),
+                linear: Box::new(linear),
+            },
+        })
+    }
+}
+
 /// Decides an ordinary sequent as `options` say, within `limits` and
-/// until `stop` fires. By the embedding it translates the sequent,
-/// searches the image in its mode under `search`, and for a proof reads
-/// the derivation of LK or LJ back and checks it, under the same limits
-/// and stop; by LJT it is [`ljt::decide`] and by the SAT solver
-/// `sat::decide`, which read no `search` option. When the method is the
-/// logic's default (no method and no translation given), the SAT solver
-/// takes LJT's derivation where LJT gives one
-/// (`sat::decide_preferring_ljt`), and where the method [`gives_way`]
-/// the embedding decides the sequent in its place.
+/// until `stop` fires, the image searched under `search`: [`decide`] with
+/// the bounds and options a caller chooses.
+///
+/// By the embedding it translates the sequent, searches the image in its
+/// mode, and for a proof reads the derivation of LK or LJ back and checks
+/// it; by LJT it is [`ljt::decide`] and by the SAT solver `sat::decide`,
+/// which read no `search` option. The logic's default (no method and no
+/// translation given) is the SAT solver: in intuitionistic and minimal
+/// logic it takes LJT's derivation where LJT gives one
+/// (`sat::decide_preferring_ljt`), in classical logic the embedding's
+/// evidence where the embedding gives it within [`EVIDENCE_WORK`], and
+/// where it [`gives_way`] the embedding decides in its place.
 ///
 /// # Errors
 ///
@@ -256,17 +341,17 @@ fn with_evidence(
 /// let sequent: ordinary::Sequent = "|- ((a -> b) -> a) -> a".parse()?;
 /// let options = ordinary::Options::default().with_logic(Logic::Classical);
 /// let search = deduxit::linear::Options::default();
-/// let outcome = ordinary::decide(&sequent, &options, &search, &Limits::default(), |_| false)?;
+/// let outcome = ordinary::decide_within(&sequent, &options, &search, &Limits::default(), |_| false)?;
 /// let Verdict::Valid(Evidence::Derivation(derivation)) = outcome.verdict else {
 ///     panic!("Peirce's law holds classically");
 /// };
 /// assert_eq!(derivation.logic(), Logic::Classical);
 /// let options = options.with_logic(Logic::Intuitionistic);
-/// let outcome = ordinary::decide(&sequent, &options, &search, &Limits::default(), |_| false)?;
+/// let outcome = ordinary::decide_within(&sequent, &options, &search, &Limits::default(), |_| false)?;
 /// assert!(matches!(outcome.verdict, Verdict::NotValid));
 /// # Ok::<(), deduxit::Error>(())
 /// ```
-pub fn decide(
+pub fn decide_within(
     sequent: &Sequent,
     options: &Options,
     search: &search::Options,
@@ -333,7 +418,7 @@ pub fn decide(
 
 #[cfg(all(test, feature = "parse"))]
 mod tests {
-    use super::{Method, Options, Search, Verdict, decide};
+    use super::{Method, Options, Search, Verdict, decide_within};
     use crate::Limits;
     use crate::linear::search;
     use crate::ordinary::{Logic, Sequent, Translation};
@@ -352,20 +437,20 @@ mod tests {
 
         let sequent: Sequent = "~~(a \\/ ~a)".parse().unwrap();
         let (search, limits) = (search::Options::default(), Limits::default());
-        let outcome = decide(&sequent, &ljt, &search, &limits, |_| false).unwrap();
+        let outcome = decide_within(&sequent, &ljt, &search, &limits, |_| false).unwrap();
         assert!(matches!(outcome.verdict, Verdict::Valid(_)));
         assert!(matches!(outcome.search, Search::Ljt(_)));
         #[cfg(feature = "serialize")]
         {
             let json = serde_json::to_value(&outcome).unwrap();
-            assert_eq!(json["engine"], "ljt");
-            assert!(json.get("translation").is_none());
-            assert!(json["statistics"]["sequents"].as_u64().unwrap() > 0);
+            assert_eq!(json["search"]["method"], "ljt");
+            assert!(json["search"].get("translation").is_none());
+            assert!(json["search"]["statistics"]["sequents"].as_u64().unwrap() > 0);
         }
-        let embedded = decide(&sequent, &translated, &search, &limits, |_| false).unwrap();
+        let embedded = decide_within(&sequent, &translated, &search, &limits, |_| false).unwrap();
         assert_eq!(embedded.method(), Method::Embedding);
         let classical = ljt.with_logic(Logic::Classical);
-        assert!(decide(&sequent, &classical, &search, &limits, |_| false).is_err());
+        assert!(decide_within(&sequent, &classical, &search, &limits, |_| false).is_err());
 
         // By default LJT gives way to the embedding where a bound refuses
         // its derivation; named, it reports the bound.
@@ -375,11 +460,80 @@ mod tests {
             super::gives_way(&refused.map(Into::into)),
             "the derivation's bound"
         );
-        assert!(decide(&sequent, &ljt, &search, &small, |_| false).is_err());
+        assert!(decide_within(&sequent, &ljt, &search, &small, |_| false).is_err());
         let stopped = super::ljt::decide(&sequent, Logic::Intuitionistic, &limits, |_| true);
         assert!(!super::gives_way(&stopped.map(Into::into)), "the stop");
         let classical = super::ljt::decide(&sequent, Logic::Classical, &limits, |_| false);
         assert!(!super::gives_way(&classical.map(Into::into)), "the logic");
+    }
+
+    /// Every kind of ordinary outcome reads back through the wire and
+    /// writes the same bytes: the embedding's three verdicts, its proof
+    /// without a derivation, LJT and the SAT solver; an outcome below
+    /// level 12 and one valid by a clausal proof are refused.
+    #[cfg(feature = "serialize")]
+    #[test]
+    fn outcomes_read_back() {
+        use super::super::Image;
+        let (search, limits) = (search::Options::default(), Limits::default());
+        let round = |outcome: &super::Outcome| {
+            let json = serde_json::to_string(outcome).unwrap();
+            let mut document = serde_json::Deserializer::from_str(&json);
+            let read: super::Outcome = crate::wire::upgrade(&mut document, &limits)
+                .unwrap_or_else(|e| panic!("{json}: {e}"));
+            assert_eq!(serde_json::to_string(&read).unwrap(), json);
+        };
+        let classical = Options::default()
+            .with_logic(Logic::Classical)
+            .with_method(Some(Method::Embedding));
+        for text in ["|- a \\/ ~a", "a |- b"] {
+            let sequent: Sequent = text.parse().unwrap();
+            round(&decide_within(&sequent, &classical, &search, &limits, |_| false).unwrap());
+        }
+        let sequent: Sequent = "~~a -> a".parse().unwrap();
+        for method in [Method::Ljt, Method::Embedding] {
+            let options = Options::default()
+                .with_logic(Logic::Intuitionistic)
+                .with_method(Some(method));
+            round(&decide_within(&sequent, &options, &search, &limits, |_| false).unwrap());
+        }
+        let stopped = Options::default().with_logic(Logic::Intuitionistic);
+        let options = stopped.with_method(Some(Method::Embedding));
+        let unknown = decide_within(&sequent, &options, &search, &limits, |_| true).unwrap();
+        assert!(matches!(unknown.verdict, Verdict::Unknown(_)));
+        round(&unknown);
+        #[cfg(feature = "sat")]
+        round(&decide_within(&sequent, &stopped, &search, &limits, |_| false).unwrap());
+
+        // The image's proof stands where its derivation is refused.
+        let peirce: Sequent = "((a -> b) -> a) -> a".parse().unwrap();
+        let image: Image =
+            super::super::translate(&peirce, Logic::Classical, Translation::Affine, &limits)
+                .unwrap();
+        let linear = search::prove(image.sequent(), image.mode(), &search).unwrap();
+        let small = limits.with_derivation_bytes(Some(64));
+        let outcome = image.outcome(linear, &small, |_| false).unwrap();
+        assert!(matches!(
+            outcome.verdict,
+            Verdict::Valid(super::Evidence::Image)
+        ));
+        round(&outcome);
+
+        let refused = |json: &str| {
+            let mut document = serde_json::Deserializer::from_str(json);
+            crate::wire::upgrade::<super::Outcome, _>(&mut document, &limits).unwrap_err()
+        };
+        let old = r#"{"version":8,"verdict":"not_valid","logic":"classical","translation":"affine","engine":"focus","statistics":{}}"#;
+        assert!(refused(old).to_string().contains("below level 12"));
+        #[cfg(feature = "sat")]
+        {
+            let options = Options::default()
+                .with_logic(Logic::Classical)
+                .with_method(Some(Method::Sat));
+            let outcome = decide_within(&peirce, &options, &search, &limits, |_| false).unwrap();
+            let json = serde_json::to_string(&outcome).unwrap();
+            assert!(refused(&json).to_string().contains("clausal proof"));
+        }
     }
 
     /// By default the SAT solver decides a classical sequent and the
@@ -393,14 +547,14 @@ mod tests {
         let options = Options::default().with_logic(Logic::Classical);
         let (search, limits) = (search::Options::default(), Limits::default());
         let sequent: Sequent = "|- ((a -> b) -> a) -> a".parse().unwrap();
-        let outcome = decide(&sequent, &options, &search, &limits, |_| false).unwrap();
+        let outcome = decide_within(&sequent, &options, &search, &limits, |_| false).unwrap();
         assert!(matches!(
             outcome.verdict,
             Verdict::Valid(Evidence::Derivation(_))
         ));
         assert_eq!(outcome.method(), Method::Embedding);
         let refuted: Sequent = "a |- b".parse().unwrap();
-        let outcome = decide(&refuted, &options, &search, &limits, |_| false).unwrap();
+        let outcome = decide_within(&refuted, &options, &search, &limits, |_| false).unwrap();
         assert!(matches!(outcome.verdict, Verdict::NotValid));
         assert_eq!(outcome.method(), Method::Embedding);
 
@@ -411,7 +565,7 @@ mod tests {
         });
         assert!(solved.is_ok());
         let mut asked = 0_usize;
-        let outcome = decide(&sequent, &options, &search, &limits, |_| {
+        let outcome = decide_within(&sequent, &options, &search, &limits, |_| {
             asked += 1;
             asked > polls
         })

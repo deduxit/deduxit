@@ -159,8 +159,11 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   application. Minimal logic's `⊥` is Rocq's `False`, so a certificate
   of minimal logic proves the intuitionistic statement only (minimality
   rests on the checker).
-- **Deciding** is `decide(&sequent, &ordinary::Options, &search::Options,
-  &limits, stop)`, which the ordinary journey runs, by
+- **Deciding** is `decide(&sequent, &ordinary::Options)` within the
+  default limits and search options, or `decide_within(&sequent,
+  &ordinary::Options, &search::Options, &limits, stop)`, which the
+  ordinary journey runs (the author's Q5: the linear suite's
+  `prove`/`prove_within` shape), by
   `Options::method()`: the method given, else the embedding when a
   translation is given, else `Method::default_for(logic)`: the SAT
   solver for every logic (without the feature `sat` LJT, and the
@@ -499,11 +502,26 @@ clausal proof's checker are the trust for "valid"; `Model::refutes` for
   clausal proof: the refusal is `Evidence::derivation`'s, at the one
   place a verdict turns into a derivation. An export, a drawing or a
   term of an outcome goes through it.
-- **The JSON form** writes `"clausal_proof": {"variables", "clauses",
-  "steps"}` in place of `derivation`, at wire level 10 (`wire::CLAUSAL`):
-  a reader of level 9 would take a valid outcome without a derivation
-  for a broken one. An outcome with a derivation keeps level 8 or 9 and
-  its bytes.
+- **`Evidence::Image`**: the image's proof, which the linear checker
+  accepted, where its derivation was not built (a bound or the stop
+  refused it). Only `Image::outcome` gives it, for a front end that ran
+  its own search of the image (the command's race, the batch); `decide`
+  never does, a refused derivation staying that refusal there.
+  `Evidence::derivation` answers `Error::NotBuilt` for it.
+- **The JSON form** (wire level 12, `wire::SEARCH`, every ordinary
+  outcome, the author's Q12): `{version, deduxit, verdict, reason?,
+  logic, search, derivation? | clausal_proof?}`, `search` internally
+  tagged by `method` (serde's `tag`, as a refutation is by `kind`):
+  `embedding` with `translation` and `image`, the image's whole outcome
+  nested; `ljt` and `sat` with `statistics`. Neither evidence key under
+  a valid verdict is `Evidence::Image`. It reads back
+  (`wire::Readable`, form `ordinary outcome`): the derivation and the
+  image's proof or disproof by their readers, unchecked; it refuses an
+  outcome below level 12 (no `search`), one valid by a clausal proof
+  (the document holds the counts, not the proof: a `ClausalProof` is
+  only ever built by its checker) and one whose verdict the image's
+  outcome does not bear out. 55b's countermodel is a key beside
+  `derivation` for `not_valid`, read the same way.
 
 ## The goal state (`interactive.rs`)
 

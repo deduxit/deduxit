@@ -59,12 +59,12 @@ fn open_goals(answer: &str) -> Vec<u32> {
 
 /// `about` lists both suites, each with the prefix of its calls, its term
 /// call and the parameter its `start` takes, with every value and the
-/// default, and the wire level, 11 since a disproof may hold the basis
-/// of a backward search.
+/// default, and the wire level, 12 since an ordinary outcome tags its
+/// search.
 #[wasm_bindgen_test(unsupported = test)]
 fn about_lists_the_suites() {
     let about = value(&calls::about());
-    assert_eq!(about["level"], 11);
+    assert_eq!(about["level"], 12);
     let suites = about["suites"].as_array().unwrap();
     let names: Vec<&Value> = suites.iter().map(|s| &s["suite"]).collect();
     assert_eq!(names, [&json!("linear"), &json!("ordinary")]);
@@ -200,7 +200,9 @@ fn close_and_hint_decide_a_goal() {
     let outcome = &closed["outcome"];
     assert!(outcome["derivation"].is_object(), "{outcome}");
     assert!(outcome.get("clausal_proof").is_none(), "{outcome}");
-    assert_eq!(outcome["version"], 8);
+    assert_eq!(outcome["version"], 12);
+    assert_eq!(outcome["search"]["method"], "embedding");
+    assert_eq!(outcome["search"]["image"]["verdict"], "proved");
 }
 
 /// Malformed input is refused with its reason, never with a panic:
