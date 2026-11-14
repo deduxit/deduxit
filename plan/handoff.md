@@ -388,6 +388,13 @@ to D32), grouped by release. In brief:
    then what needs them, in short plain sentences. When you give the
    next step, say what it does and every model and effort it starts.
 
+## ETAs
+
+Estimate a session's end from `plan/notes/step-durations.md` (the
+rules of thumb by kind of session, and every step's time), not from
+memory. Refresh the table after a few steps with `python3 -I
+plan/durations.py OUT.tsv` and fold what changed into the notes.
+
 ## Housekeeping
 
 The author asked on 2026-11-13 for the repositories to be cleaned up
