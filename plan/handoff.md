@@ -562,6 +562,11 @@ Code 2.1.321). What follows from them:
   2026-11-14: "I would like to only ever interact with you as the
   orchestrator, and all the other background sessions are managed by
   you").
+  - The planning session itself keeps Remote Control on: the author
+    talks to it from other devices. A new planning session starts
+    without it under this setting, so ask the author to switch it on
+    once from its toolbar (or `set_remote_control("self", true)` on
+    their word).
   - New sessions do not connect to Remote Control (the setting
     `connect_new_sessions_to_remote_control` off, the author's yes);
     `clear_session` refuses a session that serves Remote Control, so a
