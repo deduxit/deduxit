@@ -928,3 +928,279 @@ findings, both reproduced:
   `the sequent has more subformula occurrences than the limit of
   50000000` (exit 2, an `error` row), seen by hand while probing the
   command; 54s-b's classical engine may answer it.
+
+## Session 54s-b2: valid by a checked clausal proof
+
+Opus 5.5 at `high`, in the jj workspace `../deduxit-wt-step-54s-b2-53b484`,
+from item 2b of `plan/54s-sat-engines.md` and the brief
+`start-54s-b2.md` of the planning session, on 2026-11-14, cores 4 to 6.
+The author's decision of 2026-11-14 ("Go with your recommendation"): a
+classical "valid" may rest on a checked clausal proof alone.
+
+### Outcome
+
+- **`ordinary::Verdict::Valid` holds an `ordinary::Evidence`**:
+  `Evidence::Derivation(Box<Derivation>)`, a derivation of LK or LJ that
+  `Derivation::check` accepted, as every "valid" was before, or (feature
+  `sat`) `Evidence::Clausal(sat::ClausalProof)`, a clausal proof that
+  `drup::check` accepted.
+- **`ClausalProof` can only come from the check**: its fields are
+  private and its one constructor, `ClausalProof::checked`
+  (`pub(super)`, in `sat/drup.rs`), runs `drup::check` and builds the
+  value only when the check accepts. It holds what was checked (the
+  variables, the clauses of the sequent's negation, the proof's steps),
+  read through `variables()`, `clauses()` and `steps()`, and writes
+  itself for a person ("a checked clausal proof of 3 steps against the
+  12 clauses of the sequent's negation").
+- **`Method::Sat` in classical logic answers "valid" as soon as the
+  check passes**, with the clausal proof as its evidence; it no longer
+  runs the embedding.
+- **`Evidence::derivation()`** returns the derivation, or the new
+  `Error::NoDerivation` (kind `unsupported`, code `no_derivation`) for a
+  clausal proof, whose message names the method `embedding`. Every
+  reader that needs a derivation goes through it.
+- **The JSON form**: an outcome valid by a clausal proof is written at
+  the new wire level 10 (`wire::CLAUSAL`, `wire::LEVEL` now 10) with
+  `"clausal_proof": {"variables", "clauses", "steps"}` in place of
+  `derivation`; every other document keeps its level and its bytes.
+- **On ILTP the method now answers what it proves.**
+  `sat_agrees_with_the_embedding_in_classical_logic` (`core/tests/iltp.rs`,
+  ignored as its neighbours; release, cores 4 to 6, 408 s at
+  `spvlxqou`, at 2 000 000 units of work and 2 GiB): 124 verdicts agree
+  with the embedding, none differs, and the solver alone decides 132
+  more, all valid by a checked clausal proof (the SYJ201 family from
+  size 3 and the rest 54s-b listed), so 256 of the 274 problems are
+  decided with a checked certificate, where 54s-b's API let the method
+  report 124. The 18 left stop at the work bound (the pigeonhole
+  problems, as before).
+- **A unit test pins a clausal "valid" where the embedding does not
+  reach**: `valid_by_the_clausal_proof_where_the_embedding_stops`
+  (Peirce's law at a recursion depth of 1, and the pigeonhole sequent of
+  six pigeons at 100 000 units of work, each unknown to the embedding
+  and valid by its clausal proof, whose `derivation()` is
+  `NoDerivation`).
+
+### Decisions, each with its reason
+
+- **The form: a payload of `Valid`, an enum `Evidence`**, as 54s-b
+  recommended, rather than a second variant `Verdict::ValidByClauses`.
+  "Valid" is one answer whatever shows it, so the many readers that only
+  ask "valid or not" (`Valid(_)`: the command's exit status, the
+  harness, the agreement tests) keep their arm unchanged, and only the
+  readers that need a derivation name the kind of evidence. A second
+  variant would have made every such reader add an arm that says the
+  same thing. `Evidence` is `#[non_exhaustive]`, since step 70's outside
+  proofs or an LRAT proof may add kinds; it joins the marked types of
+  `core.md`. `Evidence::Clausal` is behind the feature `sat`, as
+  `Search::Sat` is.
+- **A private constructor, the check inside it**: the brief asks that
+  no caller can build "valid" from an unchecked stream. With
+  `ClausalProof::checked` the only way to the value, even code inside
+  the crate cannot make one without `drup::check` accepting; the type is
+  the witness of the check, as `Derivation` read back and checked is
+  for the embedding.
+- **It holds the counts, not the proof.** The clauses and the steps are
+  dropped after the check, as 54s-b dropped them: no caller reads them
+  (the command's line and the JSON need the counts, the web client
+  shows what the JSON holds), and an outcome holding a proof of
+  millions of steps would hold that memory for as long as the caller
+  keeps the verdict. A caller that wants the DRUP text for an outside
+  checker (drat-trim) is a later, additive accessor
+  (`ClausalProof::write_drup`, with the test-only `drup::dimacs` made
+  public), which "an item without a caller waits for one" leaves to its
+  first caller.
+- **`Method::Sat` no longer tries the embedding**, on no terms. Its
+  cost was the embedding's whole search after the solver's answer, so
+  on valid sequents the method could never beat the embedding, and 54s-c2
+  would have measured the embedding again. A caller that needs the
+  derivation has a plain way: `ordinary::decide` with
+  `Method::Embedding`, which is also the default of classical logic
+  (`Options::default().with_logic(Logic::Classical)`); the refusal
+  `Error::NoDerivation` names it. A bounded attempt (the embedding within
+  a fraction of the limits) was not taken: it would need a constant no
+  measurement backs, and the evidence a call returns would then depend
+  on the machine's speed under a time limit.
+- **One refusal at the evidence, not one per export** (departs from the
+  design). The brief has each export (LaTeX, Typst, SVG, Rocq, a term)
+  refuse a clausal proof. The exports take a `&Derivation` by type
+  (`Drawable`), so none can be handed a clausal proof at all; the only
+  place a verdict becomes a derivation is `Evidence::derivation`, which
+  refuses with one error whose message says what the evidence is and
+  names the method that gives a derivation. The command's drawing in
+  every format, its `--lambda`, the batch's file and the goal state's
+  `close` and `hint` all go through it; the test is
+  `valid_by_the_clausal_proof_where_the_embedding_stops` (the refusal)
+  and the command's `a_clausal_proof_is_named_on_the_verdict_line`.
+- **The wire level rises to 10** for an outcome valid by a clausal
+  proof alone: a reader of level 9 takes a valid outcome to carry a
+  derivation, and the key's presence changes what `valid` means there
+  (`wire.rs`'s rule). Nothing reads an ordinary outcome back, so no
+  `level-10.txt` file is added (level 9 has none either); the doctest of
+  `wire::upgrade` named 10 as an unknown level and now names 11.
+- **The command** cannot reach a clausal proof yet (`--method` takes
+  `embedding` and `ljt`; the value `sat` is 54s-c2's), but its readers
+  take one: `ljt_verdict_line` names the method from the outcome (`by
+  LJT` or `by the SAT solver`) and a clausal proof after the verdict,
+  `valid (classical logic by the SAT solver): a checked clausal proof of
+  …`; a drawing in any format is left out with the library's
+  `NoDerivation` message, as a refused certificate is; the batch writes
+  no file and adds that note to the entry's line.
+
+### Every reader of a verdict, and what it does now
+
+- **`ordinary::decide`, `ljt::decide`, `sat::decide` (intuitionistic
+  and minimal)**: build `Evidence::Derivation` after `check`, as before.
+  `sat::by_ljt` takes LJT's derivation by value and answers
+  `NoDerivation` for a clausal proof, which LJT never gives.
+- **`sat::classical::decide`**: `ClausalProof::checked` in place of
+  `drup::check` and `by_embedding` (removed); a flaw is still
+  `Error::ReadBack`, a refusal of the check still that refusal.
+- **`serialize/ordinary.rs`**: the outcome writes `clausal_proof` at
+  level 10, the derivation as before; `ClausalProof` derives its
+  `Serialize` (written only).
+- **`ordinary::interactive`**: `close` grafts and `hint` reads
+  `evidence.derivation()?`; its decisions name `Method::Embedding`, so a
+  clausal proof never reaches it, and if one did it would be the error,
+  never a graft.
+- **`lambda`**: the term is a derivation's (`Derivation::term`); its
+  tests match `Evidence::Derivation`. An outcome's term goes through
+  `Evidence::derivation` in the command.
+- **The exports**: unchanged, since they take a derivation by type; the
+  export test matches `Evidence::Derivation`.
+- **The command** (`cli/src/ordinary.rs`, `cli/src/batch.rs`): above.
+  The exit status of a clausal "valid" is 0, `Valid(_)` as before.
+- **The bindings** (`web/`): no code reads an ordinary verdict but
+  through the outcome's JSON, and a session's `close` and `hint` decide
+  by the embedding. `about`'s `level` is now 10;
+  `about_lists_the_suites` pins it, and `close_and_hint_decide_a_goal`
+  pins that a classical goal's outcome holds a derivation at level 8.
+- **The harness** (`bench/`): its ordinary child counts `Valid(_)` as
+  `proved` with `checked` `ok`, whatever the evidence, so a clausal
+  "valid" counts once 54s-c2 lets the child run `sat` (it still answers
+  "the harness does not run sat"). The journeys decide by the embedding
+  and LJT. No change.
+- **The ILTP tests** (`core/tests/iltp.rs`): the classical agreement
+  test now counts a valid by its clausal proof as decided (its steps
+  equal to the statistics'), and prints how many the solver alone
+  decides and how many of those are valid.
+
+### The panel and the reviewer
+
+`panel-argument` (Fable 5.2 at `high`, a fresh context) on `spvlxqou`,
+the one invariant soundness rests on: "valid" is built only from a
+derivation `Derivation::check` accepted or a clausal proof `drup::check`
+accepted. **The argument holds.** It stated the invariant from the code
+first (a `ClausalProof` arises only as the `Ok` of `checked`; the
+clauses checked are `encode`'s for the sequent decided, unmodified; each
+of the four non-test constructions of `Verdict::Valid`, in `decide.rs`,
+`ljt.rs`, `sat/mod.rs` and `sat/classical.rs`, follows its check; no
+reader turns a clausal proof into a derivation), then checked every
+site: the private fields and the one struct literal, the derives (no
+`Default`, `Deserialize` or `From`), `unsafe_code` forbidden, the
+outcome written only, no constructor of a verdict in the command, the
+bindings, the harness, `compat` or `fuzz`, and every reader through
+`Evidence::derivation`. One difference from the rules' argument, not a
+fault: the type proves that a check ran, and the single call site
+proves that it ran on this sequent's clauses. `ClausalProof` is `Copy`
+and `Evidence::Clausal` a public variant, so a caller of the library
+could put one sequent's proof into another sequent's verdict, as it can
+already wrap any derivation in `Evidence::Derivation`; no code of the
+workspace does. The rules now say so (below). The brief names the
+argument member alone; the counterexample and integer members were not
+run, since the change adds no arithmetic and no search, and the checker
+and the encoder they would test are 54s-b's, which its panel tested.
+
+The fresh-context reviewer (`fresh-reviewer`, Fable 5.2 at `medium`) on
+`spvlxqou` and `opqwwqkr`, against the brief, the shared rules and item
+2b of the prompt: **no finding**. It checked the four constructions of
+`Verdict::Valid`, read `drup::check` again as the one guard of a
+classical "valid", every reader, the wire level's documentation, the
+tests the brief names, the error family's tables and the features
+(`sat` on and off), and judged the one refusal at `Evidence::derivation`
+to leave no requirement unmet. Two observations, neither of this chain:
+- `cargo check -p deduxit --no-default-features --features parse
+  --all-targets` fails to compile the library's tests, with or without
+  `sat`: `core/src/linear/nets/cut/tests.rs:8` imports
+  `proofs::Interactive` without the feature `interactive`. Not this
+  chain's file; a follow-up for the planning session (the `cargo hack`
+  runs check the library, not its tests, so the gate does not see it).
+- The command's left-out line for a clausal proof and the batch's "no
+  file is written" note have no test that runs them: they are
+  unreachable until 54s-c2 wires `--method sat`, which should cover them
+  then (below).
+
+### The checks
+
+- `cargo clippy --workspace --all-targets -- --deny warnings` clean, and
+  `cargo clippy -p deduxit --all-targets` clean without default
+  features, with `sat` alone, `sat,serialize` and every default but
+  `sat`; `RUSTFLAGS="-W unreachable_pub -W unnameable_types" cargo
+  check -p deduxit --all-features` clean.
+- `cargo test --workspace --no-fail-fast`: every suite passed (27
+  results), README's, the manual's and the guide's examples among them.
+  A first run failed one doctest, `wire::upgrade`'s, which used level 10
+  as the level past `LEVEL`; it now uses 11.
+- The bindings' tests under Node (`nix build
+  .#checks.x86_64-linux.web-wasm-tests` under the machine lock): 29 and
+  6 passed.
+- `cargo run --release -p deduxit-bench -- run --all-families --timeout
+  5`: 195 runs, `summary --strict` passes, no verdict disagrees, no
+  mismatch.
+- The ILTP agreement, above (408 s, passed).
+- The gate (`systemd-run … taskset -c 4-6 nix develop -c gate`): "gate:
+  passed" at `opqwwqkr`; the ratchet named moved cache misses on three
+  linear journeys this chain does not touch (a layout's, never a
+  failure).
+- The behaviour lock is unchanged: the command prints nothing new for
+  any input it accepts today.
+- `nix flake check` at the chain's last commit, after the rebase, under
+  the machine lock: its result is in the session's final message, since
+  a report cannot record the check of its own commit.
+
+### Departures from the design
+
+- One refusal at the evidence (`Evidence::derivation`,
+  `Error::NoDerivation`) rather than one per export (departs from the
+  design); the reason is under "Decisions".
+- `panel-argument` alone, as the brief names it; the counterexample and
+  integer members were not run (the brief does not ask for them, and the
+  change adds no search and no arithmetic).
+
+### What the next sessions must know
+
+- **For 54s-c2 (the measurement, the default, `--method sat`).**
+  - `Method::Sat` in classical logic now costs the encoder, one solver
+    call and the check, and answers "valid" with `Evidence::Clausal`;
+    the embedding is not run. 54s-b's ILTP numbers (256 of 274 decided
+    with a checked certificate at 2 000 000 units of work) are now what
+    the method answers, not 124.
+  - The command's `by_ljt` and the batch's `Shared::by_ljt` call
+    `ljt::decide` directly. Wiring `--method sat` means calling
+    `ordinary::sat::decide` (or `ordinary::decide`) there; the readers
+    after the call already take a clausal proof (`ljt_verdict_line`
+    names "the SAT solver" from `outcome.method()`, the drawing and
+    `--lambda` go through `Evidence::derivation`, the batch writes no
+    file). The function names still say LJT; renaming them is yours.
+    `ljt_statistics` prints LJT's counters only, and `--net`'s refusal
+    names LJT.
+  - A settings file's `ordinary.method: "sat"` is read today (the
+    library's `Method` reads `sat`), and `prove` then takes the image
+    path, since it dispatches on `Method::Ljt` alone: the embedding
+    decides. Refuse it or wire it.
+  - The harness's ordinary child counts `Valid(_)` as proved; its
+    `sat` arm answers "the harness does not run sat" until you add it.
+- **For step 70 (outside proofs).** `ClausalProof::checked` is the
+  pattern: an outside DRUP or LRAT proof becomes evidence only through a
+  constructor that runs the check. Its error for a flaw must be of kind
+  `invalid`, not the `ReadBack` defect the engine's own stream gets.
+  `Evidence` is `#[non_exhaustive]`, so an `Evidence::Lrat` or a
+  `ClausalProof` that keeps its steps (to write them as DRUP for
+  drat-trim) is additive.
+- **For the web client.** Once its pin moves past this chain, `about`
+  reports `level` 10. No call of the bindings answers a clausal proof
+  today (`ordinary_close` and `ordinary_hint` decide by the embedding);
+  an outcome of `ordinary::decide` by the SAT solver, if a later call
+  offers one, has `"engine": "sat"`, no `derivation` and
+  `"clausal_proof": {"variables", "clauses", "steps"}`, which the page
+  shows as text (`ClausalProof`'s `Display` is the command's wording)
+  and cannot draw.
