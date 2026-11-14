@@ -90,8 +90,8 @@ fn session(answer: &str) -> String {
 }
 
 /// A proof by clicking: the rules a formula takes, a split, the axioms,
-/// the finished proof checked and every export of it; the view says
-/// which goals are open and what each drawn inference is.
+/// and the finished proof checked and exported in every format. The view
+/// says which goals are open and what each drawn inference is.
 #[wasm_bindgen_test(unsupported = test)]
 fn a_proof_by_steps_is_checked_and_exported() {
     // ⊢ ~A, A ⊗ ~B, B: the goal's formulas are 0: ~A, 1: A ⊗ ~B, 2: B.
@@ -137,10 +137,10 @@ fn a_proof_by_steps_is_checked_and_exported() {
     }
 }
 
-/// A typed classical sequent's session keeps how it was written, and with
+/// A typed classical sequent's session keeps how it was written. With
 /// `view.classical` `"two"` its derivation is drawn two-sided in every
-/// format, a negation step where a negation was written; by default it
-/// stays one-sided.
+/// format, with a negation step where a negation was written. By default
+/// it stays one-sided.
 #[wasm_bindgen_test(unsupported = test)]
 fn a_classical_session_is_drawn_as_written() {
     let started = calls::start("A par B |- ~(~A * ~B)", "classical", "").unwrap();
@@ -167,13 +167,13 @@ fn a_classical_session_is_drawn_as_written() {
     assert!(calls::draw(&state, &two).unwrap().contains("by ~L"));
 }
 
-/// A cut opens two goals, the formula typed as written proved by the
-/// first and used by the second; the finished proof has its cut, written
-/// at the wire level that has it, and is drawn as written with the cut
-/// named; the view gives each cut's formula as typed, with which a
-/// session started on the sequent (its cut formulas left out) makes the
-/// same cut again; text that is no formula of the mode is refused, the
-/// session unchanged, and `undo` takes the cut back.
+/// A cut opens two goals: the first proves the formula, typed as written,
+/// and the second uses it. The finished proof has its cut, written at the
+/// wire level that has cuts, and is drawn as written with the cut named.
+/// The view gives each cut's formula as typed. With it, a session started
+/// on the sequent, which leaves the cut formulas out, makes the same cut
+/// again. Text that is no formula of the mode is refused, the session
+/// unchanged, and `undo` takes the cut back.
 #[wasm_bindgen_test(unsupported = test)]
 fn a_cut_opens_two_goals() {
     let started = calls::start("A, A -o B |- B", "classical", "").unwrap();
@@ -238,12 +238,13 @@ fn a_cut_opens_two_goals() {
     assert_eq!(undone["session"], value(&ill)["session"]);
 }
 
-/// A finished proof with exponentials has its net with boxes: the view
-/// gives no refusal, and `draw_net` draws each box a rectangle, with its
-/// formulas or compact, in intuitionistic mode too, there also as its
-/// essential net; in affine mode the view says why there is no net, and
-/// `draw_net` refuses the same. The settings' `net_look` draws it in the
-/// textbooks' look, by the preset's name or its fields.
+/// A finished proof with exponentials has its net with boxes. The view
+/// gives no refusal, and `draw_net` draws each box as a rectangle, with
+/// its formulas or compact. So it does in intuitionistic mode, where it
+/// also draws the essential net. In affine mode the view says why there
+/// is no net, and `draw_net` refuses the same. The settings' `net_look`
+/// draws the net in the textbooks' look, by the preset's name or by its
+/// fields.
 #[wasm_bindgen_test(unsupported = test)]
 fn a_proof_with_exponentials_draws_its_net_with_boxes() {
     let started = calls::start("!a, !b |- !a", "classical", "").unwrap();
@@ -295,8 +296,8 @@ fn a_proof_with_exponentials_draws_its_net_with_boxes() {
     assert_eq!(refused["code"], "no_nets", "{refused}");
 }
 
-/// A refusal says why as values, and leaves the session unchanged;
-/// `split_passes` greys a split that cannot pass.
+/// A refusal says why as values, and leaves the session unchanged.
+/// `split_passes` answers `false` for a split that cannot close.
 #[wasm_bindgen_test(unsupported = test)]
 fn a_refused_step_says_why() {
     let started = calls::start("A * B |- B * A", "classical", "").unwrap();
@@ -334,9 +335,9 @@ fn a_position_past_32_bits_is_refused() {
     assert!(calls::apply(&state, goal, &step(0, "ax", None), "").is_ok());
 }
 
-/// Following the hints alone proves a sequent: each hint is the first
-/// steps of a proof the search found for the goal, which the page applies
-/// in turn, each on the goal the one before opened. A contraction comes
+/// Following the hints alone proves a sequent. Each hint is the first
+/// steps of a proof the search found for the goal. The page applies them
+/// in turn, each on the goal the step before opened. A contraction comes
 /// with the rule that uses both copies, so the hints do not contract and
 /// weaken a formula in turn.
 #[wasm_bindgen_test(unsupported = test)]
@@ -370,9 +371,10 @@ fn following_the_hints_proves_a_sequent() {
 }
 
 /// With `interactive.invertible` on, starting and every step apply the
-/// invertible rules, the view names the inferences they closed, a hint
-/// says whether its rule is invertible, following the hints still proves
-/// a sequent, and `invert_all` applies them to a session started without.
+/// invertible rules, and the view names the inferences they closed. A
+/// hint says whether its rule is invertible, and following the hints
+/// still proves a sequent. `invert_all` applies the rules to a session
+/// started without the setting.
 #[wasm_bindgen_test(unsupported = test)]
 fn the_invertible_rules_apply_by_the_setting() {
     assert!(!tab::defaults().interactive.invertible);
@@ -430,8 +432,9 @@ fn the_invertible_rules_apply_by_the_setting() {
     }
 }
 
-/// Closing a goal stops at the work budget with an honest unknown, and
-/// proves it within the tab's.
+/// Closing a goal under a tight work budget stops there, unknown with
+/// `work_limit`, and the goal stays open. Within the tab's budget it is
+/// proved.
 #[wasm_bindgen_test(unsupported = test)]
 fn closing_stops_at_the_work_budget() {
     let started = calls::start("!(a -o a * a), a |- a * a * a * a", "classical", "").unwrap();
@@ -452,11 +455,11 @@ fn closing_stops_at_the_work_budget() {
     assert_eq!(closed["view"]["complete"], true);
 }
 
-/// Closing every goal keeps to one budget for all their searches: with
+/// Closing every goal keeps to one budget for all their searches. Given
 /// what the first goal's search takes and half of what the second's
-/// does, the first is proved and the second is unknown at the work limit.
-/// The focused engine searches here, whose work, unlike the Horn engine's
-/// few units, outweighs the check of the proof it finds.
+/// takes, the first is proved and the second is unknown at the work
+/// limit. The focused engine searches here: its work outweighs the check
+/// of the proof it finds, which the Horn engine's few units would not.
 #[wasm_bindgen_test(unsupported = test)]
 fn closing_all_goals_shares_one_budget() {
     let sequent = "!(a -o a * a), a, !(b -o b * b), b |- (a * a * a * a) * (b * b * b * b)";
@@ -589,10 +592,15 @@ fn an_export_is_set_in_the_font_the_settings_name() {
 }
 
 /// A search that recurses to the tab's recursion limit stops there with
-/// that reason, on each of the paths whose levels take the most stack:
-/// copies of a `!` formula (a focus level each), nested `&` (the additive
-/// path's level a pair) and a Mix of pairs (a level a part). The module's
-/// stack and the host's hold the deepest recursion the limit allows.
+/// that reason. It does so on each of the paths whose levels take the
+/// most stack:
+///
+/// - copies of a `!` formula, a focus level each;
+/// - nested `&`, the additive path's level a pair;
+/// - a Mix of pairs, a level a part.
+///
+/// The module's stack and the host's hold the deepest recursion the limit
+/// allows.
 #[wasm_bindgen_test(unsupported = test)]
 fn a_search_at_the_recursion_limit_stops_there() {
     let depth = tab::RECURSION_DEPTH as usize;
@@ -617,10 +625,10 @@ fn a_search_at_the_recursion_limit_stops_there() {
     }
 }
 
-/// Runs `f` where a search to the tab's recursion limit runs: on the
-/// module's own stack under WebAssembly, and elsewhere on a thread with
-/// the stack the library asks for that depth, as the command gives its
-/// search one (a test thread's is smaller).
+/// Runs `f` where a search to the tab's recursion limit runs. Under
+/// WebAssembly that is the module's own stack. Elsewhere it is a thread
+/// with the stack the library asks for at that depth, as the command
+/// gives its search, since a test thread's stack is smaller.
 fn on_a_search_stack(f: impl FnOnce() -> String + Send + 'static) -> String {
     if cfg!(target_family = "wasm") {
         return f();
@@ -650,10 +658,10 @@ fn a_small_memory_bound_refuses() {
 }
 
 /// A goal is filled from another finished session of an equal sequent,
-/// its formulas in another order, here in intuitionistic mode; a source
-/// of other formulas is refused with them on each side, one not finished
-/// is refused, and a proof the goal's mode does not allow is the checker's
-/// to refuse.
+/// its formulas in another order, here in intuitionistic mode. A source
+/// of other formulas is refused, naming them on each side. A source not
+/// finished is refused. The checker refuses a proof the goal's mode does
+/// not allow.
 #[wasm_bindgen_test(unsupported = test)]
 fn a_goal_is_filled_from_another_session() {
     let finished = |sequent: &str, mode: &str| {
@@ -681,10 +689,10 @@ fn a_goal_is_filled_from_another_session() {
     assert_eq!(refused["code"], "invalid_proof", "{refused}");
 }
 
-/// In intuitionistic mode each goal formula carries its reading, which
-/// its text is too: a hypothesis `A ⊸ B` reads `A ⊸ B` (the one-sided
-/// sequent holds `A ⊗ ~B`), and so does the formula under a `!` that a
-/// promotion opened as a goal; in classical mode there is no reading.
+/// In intuitionistic mode each goal formula carries its reading, and its
+/// text is the same. A hypothesis `A ⊸ B` reads `A ⊸ B`, though the
+/// one-sided sequent holds `A ⊗ ~B`. So does the formula under a `!` that
+/// a promotion opened as a goal. In classical mode there is no reading.
 #[wasm_bindgen_test(unsupported = test)]
 fn a_goal_s_formulas_carry_their_reading() {
     let formulas = |answer: &str| value(answer)["view"]["goals"][0]["formulas"].clone();
@@ -751,12 +759,17 @@ fn ill_formula(state: &mut u64, depth: u32) -> String {
 }
 
 /// No text the bindings write of an intuitionistic sequent has a symbol
-/// of classical linear logic: over random sequents, the sequent `read_as`
-/// writes, every goal formula's text and reading, and every export of the
-/// session once all its goals are closed (of a Rocq certificate the
-/// comments, whose code is Rocq's, with no classical constructor), the
-/// net drawn, and every step of the elimination of the session's cut; a
-/// sequent written classically is refused with a hint.
+/// of classical linear logic. Over random sequents, that holds for:
+///
+/// - the sequent `read_as` writes;
+/// - every goal formula's text and reading;
+/// - every export of the session once all its goals are closed (of a Rocq
+///   certificate the comments, whose code is Rocq's, with no classical
+///   constructor);
+/// - the net drawn;
+/// - every step of the elimination of the session's cut.
+///
+/// A sequent written classically is refused with a hint.
 #[wasm_bindgen_test(unsupported = test)]
 fn no_intuitionistic_text_writes_a_classical_symbol() {
     const CLASSICAL: [&str; 8] = ["~", "⅋", "⊥", "?", r"\parr", r"\bot", r"\wn", "perp"];
@@ -874,9 +887,9 @@ fn no_intuitionistic_text_writes_a_classical_symbol() {
     );
 }
 
-/// Returns the finished session of `sequent` in `mode` cut on `formula`,
-/// the members at `left` going to its first premise, both premises closed
-/// by the search.
+/// Returns the finished session of `sequent` in `mode`, cut on `formula`.
+/// The members at `left` go to the cut's first premise, and the search
+/// closes both premises.
 fn cut_session(sequent: &str, mode: &str, formula: &str, left: &str) -> String {
     let started = calls::start(sequent, mode, "").unwrap();
     let root = value(&started)["view"]["goals"][0]["goal"]
@@ -899,13 +912,17 @@ fn strings(array: &Value) -> Vec<String> {
 }
 
 /// A proof with a cut is eliminated step by step, on the derivation drawn
-/// as the session is (two-sided as written, and intuitionistic): its cut
-/// listed with its formula and the drawing's inferences that show it, the
-/// cut named and the strategy's next one taking the same step, each step
-/// named by its case with the ids of the cut in the drawing of the proof
-/// it was taken on, until no cut is left; `eliminate` takes the same steps
-/// to the same proof, every step drawn with its cut; a node that is no cut
-/// and a proof of another sequent are refused.
+/// as the session is: two-sided as written, and intuitionistic.
+///
+/// - The cut is listed with its formula and the drawing's inferences that
+///   show it.
+/// - A step on the cut named and one on the strategy's next cut are the
+///   same step.
+/// - Each step is named by its case, with the ids of the cut in the
+///   drawing of the proof it was taken on, until no cut is left.
+/// - `eliminate` takes the same steps to the same proof, every step drawn
+///   with its cut.
+/// - A node that is no cut, and a proof of another sequent, are refused.
 #[wasm_bindgen_test(unsupported = test)]
 fn a_proof_with_cuts_is_eliminated_step_by_step() {
     let mut proofs = Vec::new();
@@ -978,9 +995,9 @@ fn a_proof_with_cuts_is_eliminated_step_by_step() {
 }
 
 /// An elimination to the end stops at `cut.steps` with the proof reached
-/// and its cuts, saying which bound; past `cut.drawn_bytes` its steps are
-/// taken undrawn, from the first whose drawing would pass it; the tab's
-/// bound on the drawings is its own.
+/// and its cuts, and says which bound stopped it. Past `cut.drawn_bytes`
+/// its steps are taken undrawn, from the first whose drawing would pass
+/// it. The tab has its own bound on the drawings.
 #[wasm_bindgen_test(unsupported = test)]
 fn an_elimination_stops_at_its_bounds() {
     assert_eq!(tab::defaults().cut.drawn_bytes, Some(tab::DRAWN_BYTES));
@@ -1011,13 +1028,17 @@ fn an_elimination_stops_at_its_bounds() {
 }
 
 /// A proof with a cut has a net with a cut link, eliminated step by step:
-/// the link listed with the id of its bar in the drawing, either end or
-/// the strategy's next one taking the same step, the net it was taken on
-/// drawn with its marks, each step named by its case; `net_eliminate`
-/// takes the same steps to the same net. With exponentials the net has
-/// boxes, and what a step acted on besides the cut is an element of its
-/// drawing; a proof that cuts one occurrence twice has a net with boxes
-/// too. A vertex at no cut link is refused.
+///
+/// - The link is listed with the id of its bar in the drawing.
+/// - A step at either end and one on the strategy's next link are the
+///   same step.
+/// - The net each step was taken on is drawn with its marks, and each
+///   step is named by its case.
+/// - `net_eliminate` takes the same steps to the same net.
+///
+/// With exponentials the net has boxes, and what a step acted on besides
+/// the cut is an element of its drawing. A proof that cuts one occurrence
+/// twice has a net with boxes too. A vertex at no cut link is refused.
 #[wasm_bindgen_test(unsupported = test)]
 fn a_net_with_cuts_is_eliminated_step_by_step() {
     let mll = cut_session("A, A -o B |- B", "classical", "A -o B", "[1]");
@@ -1098,13 +1119,18 @@ fn a_net_with_cuts_is_eliminated_step_by_step() {
     assert_eq!(ran["end"], "cut_free");
 }
 
-/// A first-order session through the calls: a sequent with quantifiers and
-/// terms read and written back, the four quantifier rules offered (a
-/// witness taken by `∃R` and `∀L` alone), `∃L` and `∀R` making
-/// eigenvariables, `∀L` with its witness left open as `$1` and `∃R` with
-/// one given as text, the axiom filling the open one, the finished proof
-/// checked, drawn and exported; a witness that does not read and the
-/// eigenvariable condition are refused in words.
+/// A first-order session through the calls:
+///
+/// - a sequent with quantifiers and terms is read and written back;
+/// - the four quantifier rules are offered, a witness taken by `∃R` and
+///   `∀L` alone;
+/// - `∃L` and `∀R` make eigenvariables;
+/// - `∀L` leaves its witness open as `$1`, `∃R` takes one given as text,
+///   and the axiom fills the open one;
+/// - the finished proof is checked, drawn and exported.
+///
+/// A witness that does not read, and a step that breaks the eigenvariable
+/// condition, are refused in words.
 #[wasm_bindgen_test(unsupported = test)]
 fn a_first_order_session_takes_the_quantifier_rules() {
     let text = "exists y. forall x. r(x, y) |- forall x. exists y. r(x, y)";
@@ -1216,9 +1242,9 @@ fn a_first_order_session_takes_the_quantifier_rules() {
     );
 }
 
-/// Undo after the session went through its JSON, as every call takes it,
-/// gives the eigenvariable letters and the table of a session that never
-/// left memory.
+/// Undo on a session that went through its JSON, as every call takes it,
+/// gives the same eigenvariable letters and table of terms as undo on a
+/// session that never left memory.
 #[wasm_bindgen_test(unsupported = test)]
 fn undo_through_the_calls_keeps_a_live_session_s_letters() {
     use deduxit::linear::{Interactive, Mode, Rule, Sequent, Step};
@@ -1265,9 +1291,9 @@ fn undo_through_the_calls_keeps_a_live_session_s_letters() {
     );
 }
 
-/// A hint on a goal of instances: the goal closed in a copy of the
-/// session, its first steps read from it, an `∃R` with the witness the
-/// search chose; following the hints proves the sequent.
+/// A hint on a goal of instances closes the goal in a copy of the
+/// session and reads its first steps from it, an `∃R` with the witness
+/// the search chose. Following the hints proves the sequent.
 #[wasm_bindgen_test(unsupported = test)]
 fn following_first_order_hints_proves_a_sequent() {
     let text = "forall x. (p(x) -o q(x)), forall x. p(x) |- forall y. q(y)";
@@ -1299,10 +1325,10 @@ fn following_first_order_hints_proves_a_sequent() {
     calls::proof(&session(&answer), "").unwrap();
 }
 
-/// A cut at first order through the calls: on `p(a)` under the `∀R` that
-/// made `a`, its view's formula as typed, the finished proof checked and
-/// its cut eliminated step by step to the end; an eigenvariable of another
-/// branch refused in words.
+/// A cut at first order through the calls, on `p(a)` under the `∀R` that
+/// made `a`. The view gives its formula as typed, the finished proof is
+/// checked, and its cut is eliminated step by step to the end. An
+/// eigenvariable of another branch is refused in words.
 #[wasm_bindgen_test(unsupported = test)]
 fn a_first_order_cut_is_made_and_eliminated() {
     let text = "forall x. (p(x) -o q(x)), forall x. p(x) |- forall y. q(y)";
@@ -1376,10 +1402,12 @@ fn a_first_order_cut_is_made_and_eliminated() {
     );
 }
 
-/// The first-order bounds are the tab's settings: the term limit the
-/// tab's occurrences, read over by the page's `limits.terms`, which
-/// refuses a witness past it; `search.witness_depth` stops a search
-/// that needs deeper witnesses; `search.instances` is read.
+/// The first-order bounds are settings of the tab:
+///
+/// - the bound on terms is the tab's occurrences, and the page's
+///   `limits.terms` replaces it and refuses a witness past it;
+/// - `search.witness_depth` stops a search that needs deeper witnesses;
+/// - `search.instances` is read.
 #[wasm_bindgen_test(unsupported = test)]
 fn the_first_order_bounds_are_settings() {
     let defaults = value(&calls::defaults());
@@ -1405,10 +1433,10 @@ fn the_first_order_bounds_are_settings() {
 }
 
 /// A finished intuitionistic proof reads back as a term of the linear
-/// lambda calculus, written as the settings' `lambda` says, an affine one
-/// as a term of the affine calculus; what has no term (a classical proof,
-/// open goals) and a term past the bounds are answered with the library's
-/// refusal, never thrown.
+/// lambda calculus, written as the settings' `lambda` says. An affine one
+/// reads back as a term of the affine calculus. What has no term, such as
+/// a classical proof or one with open goals, and a term past the bounds,
+/// are answered with the library's refusal, never thrown.
 #[wasm_bindgen_test(unsupported = test)]
 fn a_finished_proof_reads_back_as_a_lambda_term() {
     let finished = |sequent: &str, mode: &str| {

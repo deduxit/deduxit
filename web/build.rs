@@ -1,13 +1,14 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Gives the WebAssembly module the stack the search's recursion needs:
+//! Gives the WebAssembly module the stack the search's recursion needs.
 //! rustc links one of 1 MiB for `wasm32-unknown-unknown`.
 
 /// The stack of the module, in bytes, which the crate reads back as
 /// `STACK_BYTES`.
 const STACK_BYTES: usize = 8 << 20;
 
+/// Links a wasm32 build with the stack, and passes its size to the crate.
 fn main() {
     println!("cargo::rustc-env=DEDUXIT_WEB_STACK_BYTES={STACK_BYTES}");
     if std::env::var("CARGO_CFG_TARGET_ARCH").as_deref() == Ok("wasm32") {

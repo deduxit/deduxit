@@ -1,13 +1,15 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The calls of an ordinary tab: a sequent of classical, intuitionistic
-//! or minimal logic proved step by step by the rules of LK or LJ, over
-//! JSON text as the linear calls are. The session document is the
-//! library's goal state of ordinary sequents (`{"version", "logic",
-//! "sequent", "inferences", "history"}`), which the page keeps and sends
-//! with every call; a formula of a goal is named by its side and its
-//! position there.
+//! The calls of an ordinary tab, over JSON text as the linear calls are.
+//! The page proves a sequent of classical, intuitionistic or minimal
+//! logic step by step, by the rules of the sequent calculi LK (classical)
+//! or LJ (intuitionistic and minimal).
+//!
+//! The session document is the library's session of ordinary sequents,
+//! `{"version", "logic", "sequent", "inferences", "history"}`. The page
+//! keeps it and sends it with every call. A formula of a goal is named by
+//! its side of `⊢` and its position there.
 
 use crate::failure::Failure;
 use crate::tab;
@@ -18,8 +20,8 @@ use deduxit::ordinary::{
 use deduxit::{Progress, Settings, linear::GoalId, wire};
 use serde::{Deserialize, Serialize};
 
-/// The stop of every call: the page cancels by stopping the worker, so
-/// only the bounds of the settings end a call early.
+/// The stop of every call. The page cancels a call by stopping its
+/// worker, so only the bounds of the settings end a call early.
 const fn never(_: Progress) -> bool {
     false
 }
@@ -49,9 +51,9 @@ struct View {
     steps: usize,
     /// The open goals.
     goals: Vec<OpenGoal>,
-    /// For each inference `n` of the drawing (`i<n>`), with the structural
-    /// rules as the settings' `view.structural` draws them, the goal it is
-    /// in the session.
+    /// For each inference `i<n>` of the drawing, at index `n`, its goal id
+    /// in the session. The drawing shows the structural rules as the
+    /// settings' `view.structural` says.
     inferences: Vec<GoalId>,
 }
 
@@ -112,11 +114,13 @@ fn changed(
     })
 }
 
-/// Starts a proof of a sequent of ordinary logic, typed in the syntax of
-/// ordinary formulas or as the ordinary sequent's JSON, in a logic by its
-/// name (`classical`, `intuitionistic`, `minimal`), and returns the
-/// session with its view; an intuitionistic or minimal sequent with
-/// nothing right of `⊢` as `Γ ⊢ ⊥`.
+/// Starts a proof of a sequent of ordinary logic, and returns the session
+/// with its view, `{"session", "view"}`.
+///
+/// The sequent is typed in the syntax of ordinary formulas, or is the
+/// ordinary sequent's JSON. The logic is `classical`, `intuitionistic` or
+/// `minimal`. An intuitionistic or minimal sequent with nothing right of
+/// `⊢` is read as `Γ ⊢ ⊥`.
 ///
 /// # Errors
 ///
@@ -131,7 +135,8 @@ pub fn start(sequent: &str, logic: &str, settings: &str) -> Result<String, Failu
     changed(&state, &settings, serde_json::Map::new())
 }
 
-/// Returns a session's view.
+/// Returns what the page shows of a session: the `view` that every call
+/// that changes the session answers too.
 ///
 /// # Errors
 ///
@@ -147,13 +152,13 @@ pub fn view(session: &str, settings: &str) -> Result<String, Failure> {
 struct Offered {
     /// The rule's name.
     rule: Rule,
-    /// Whether it has two premises, which share the goal's context unless
-    /// a step splits it.
+    /// Whether it has two premises. They share the goal's other formulas
+    /// unless a step splits them.
     split: bool,
 }
 
 impl From<Applicable> for Offered {
-    /// The rule and whether a step of it takes a split.
+    /// The rule and whether a step of it can take a split.
     fn from(applicable: Applicable) -> Self {
         Self {
             rule: applicable.rule,
@@ -164,9 +169,9 @@ impl From<Applicable> for Offered {
 
 /// Returns the rules that act on the formula at a position of a side
 /// (`left` or `right`) of a goal, by its connective and the logic:
-/// `[{"rule", "split"}]`. A rule listed may still be refused by the
-/// step's split or, in LJ, by what its premises would hold right of `⊢`,
-/// with the reason.
+/// `[{"rule", "split"}]`. [`apply`] may still refuse a rule listed, with
+/// the reason: for the step's split, or in LJ for what its premises would
+/// hold right of `⊢`.
 ///
 /// # Errors
 ///
@@ -187,11 +192,12 @@ pub fn rules(
     written(&rules.into_iter().map(Offered::from).collect::<Vec<_>>())
 }
 
-/// A step as the page sends it: `{"side", "position", "rule", "split"}`,
-/// the rule by its name (`"→L"`), `split` for a rule with two premises
-/// the positions on each side that go to the first premise,
-/// `{"left": [..], "right": [..]}`, and left out for premises that share
-/// the goal's context.
+/// A step as the page sends it: `{"side", "position", "rule", "split"}`.
+///
+/// - `rule` is the rule's name, such as `"→L"`.
+/// - `split`, for a rule with two premises, is the positions on each side
+///   that go to the first premise: `{"left": [..], "right": [..]}`. It is
+///   left out when both premises share the goal's other formulas.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct StepForm {
@@ -202,7 +208,7 @@ pub struct StepForm {
     /// The rule.
     pub rule: Rule,
     /// The positions going to the first premise, or none for premises that
-    /// share the context.
+    /// share the goal's other formulas.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub split: Option<SplitForm>,
 }
@@ -255,13 +261,13 @@ struct Opened {
     opened: Vec<GoalId>,
 }
 
-/// Applies a step (as [`StepForm`]) to an open goal and returns the
-/// session with the goals it opened.
+/// Applies a step ([`StepForm`]) to an open goal and returns the session
+/// with `opened`, the goals the step opened.
 ///
 /// # Errors
 ///
-/// A step that is no such JSON, and the step error when the rule does
-/// not act on the formula, the logic lacks it, or its split does not fit.
+/// A step that is no such JSON. The step error when the rule does not act
+/// on the formula, the logic lacks it, or its split does not fit.
 pub fn apply(session: &str, goal: u32, step: &str, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let mut state = session_of(session, &settings)?;
@@ -279,8 +285,9 @@ struct Reopened {
     reopened: Option<GoalId>,
 }
 
-/// Retracts the session's last step: a rule applied, or a goal the
-/// search closed, whole.
+/// Takes back the session's last step: a rule applied, or the whole
+/// derivation the search grafted onto a goal. Returns the session with
+/// `reopened`, the goal, or `null` when no step was left.
 ///
 /// # Errors
 ///
@@ -296,19 +303,23 @@ pub fn undo(session: &str, settings: &str) -> Result<String, Failure> {
 #[derive(Serialize)]
 struct Closing {
     /// The outcome of deciding the goal as a sequent of its own, as
-    /// `prove --logic --format json` writes one, its derivation the
+    /// `prove --logic … --format json` writes one. Its derivation is the
     /// goal's.
     outcome: ordinary::Outcome,
-    /// `null` when the derivation was grafted or there was none, otherwise
-    /// the refusal of the graft by its size, the goal then still open.
+    /// `null` when the derivation was grafted or there was none.
+    /// Otherwise the refusal of the graft by its size, and the goal stays
+    /// open.
     refused: Option<serde_json::Value>,
 }
 
-/// Decides a goal through the translation of the settings'
-/// `ordinary.translation` (the logic's default when `null`) within the
-/// settings' bounds, and grafts its derivation onto the goal when it is
-/// valid; a goal not valid or undecided stays open, the outcome saying
-/// why.
+/// Decides a goal within the settings' bounds, and grafts its derivation
+/// onto the goal when the goal is valid. Answers the session with
+/// `outcome` and `refused`. A goal not valid or undecided stays open, and
+/// the outcome says why.
+///
+/// The goal is decided through its translation into linear logic, the
+/// one the settings' `ordinary.translation` names, or the logic's default
+/// when that is `null`.
 ///
 /// # Errors
 ///
@@ -345,18 +356,19 @@ pub fn close(session: &str, goal: u32, settings: &str) -> Result<String, Failure
 struct Hint {
     /// The outcome of deciding the goal.
     outcome: ordinary::Outcome,
-    /// The first steps of the derivation found, as [`apply`] takes them
-    /// in turn, each on the goal the one before opened, the first on the
-    /// goal asked for: the weakenings and contractions at its root and the
-    /// first rule that is not one, which ends the list. Empty unless the
-    /// goal is valid.
+    /// The first steps of the derivation found, as [`apply`] takes them in
+    /// turn: the weakenings and contractions at its root, then the first
+    /// rule that is neither, which ends the list. The first step is on the
+    /// goal asked for, and each later one on the goal the step before it
+    /// opened. Empty unless the goal is valid.
     steps: Vec<StepForm>,
 }
 
-/// Decides a goal as [`close`] does, the session left as it was, and
-/// returns the outcome with the first steps of the derivation found,
-/// which the page applies in turn: a contraction comes with the rule that
-/// uses both copies, so that following the hints proves the goal.
+/// Decides a goal as [`close`] does and returns the outcome with the
+/// first steps of the derivation found, `{"outcome", "steps"}`. The
+/// session stays as it was. The page applies the steps in turn. A
+/// contraction comes with the rule that uses both copies, so that
+/// following the hints proves the goal.
 ///
 /// # Errors
 ///
@@ -380,12 +392,13 @@ pub fn hint(session: &str, goal: u32, settings: &str) -> Result<String, Failure>
 }
 
 /// Returns the lambda-term of a session's derivation
-/// ([`ordinary::Derivation::term`]): a finished derivation of LJ as a term
-/// of the simply typed lambda calculus, answered as the linear
-/// [`calls::term`](crate::calls::term) answers, the term's JSON with its
-/// `text` and `judgement`, or `{"error": …}` where it has none (`no_term`:
-/// a derivation of LK, or one with open goals) or the settings' bounds
-/// refuse it.
+/// ([`ordinary::Derivation::term`]). A finished derivation of LJ gives a
+/// term of the simply typed lambda calculus.
+///
+/// The answer is as the linear [`calls::term`](crate::calls::term)
+/// answers: the term's JSON with its `text` and `judgement`. Where there
+/// is no term, it is `{"error": …}`: `no_term` for a derivation of LK or
+/// one with open goals, or the refusal of a bound of the settings.
 ///
 /// # Errors
 ///
@@ -400,9 +413,9 @@ pub fn term(session: &str, settings: &str) -> Result<String, Failure> {
 }
 
 /// Returns a session's derivation, open goals as bare leaves, as an SVG
-/// drawing in the settings' style (`styles.svg`) with its structural
-/// rules as `view.structural` draws them, with an id on every conclusion
-/// (`i<n>`, the view's `inferences` naming its goal).
+/// drawing in the settings' style (`styles.svg`). It shows the structural
+/// rules as `view.structural` says. Every inference has the id `i<n>`,
+/// and the view's `inferences` names its goal. It is [`export`] in `svg`.
 ///
 /// # Errors
 ///
@@ -411,11 +424,14 @@ pub fn draw(session: &str, settings: &str) -> Result<String, Failure> {
     export(session, "svg", settings)
 }
 
-/// Returns a session's derivation in a format: `text`, `latex`, `typst`
-/// or `svg`, open goals as bare leaves and the structural rules as the
-/// settings' `view.structural` draws them, or `rocq`, the certificate of
-/// the finished derivation over `Prop`, checked first, every structural
-/// rule in it. PNG and PDF are the SVG drawing rendered by `render`.
+/// Returns a session's derivation in a format:
+///
+/// - `text`, `latex`, `typst` or `svg`: open goals as bare leaves, and
+///   the structural rules as the settings' `view.structural` says;
+/// - `rocq`: the certificate of the finished derivation over `Prop`,
+///   checked first, with every structural rule in it.
+///
+/// For PNG and PDF, `render` renders the SVG drawing.
 ///
 /// # Errors
 ///

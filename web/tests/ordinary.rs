@@ -147,9 +147,10 @@ fn an_ordinary_proof_by_steps_is_exported() {
     }
 }
 
-/// The structural rules are a setting of the view: an axiom with a
-/// context is drawn as G3's axiom by default and with its weakening under
-/// `view.structural` `explicit`, which the certificate always names.
+/// The structural rules are a setting of the view. An axiom with other
+/// formulas beside it is drawn as G3's axiom by default, and with its
+/// weakening under `view.structural` `explicit`. The view's inferences
+/// follow the setting.
 #[wasm_bindgen_test(unsupported = test)]
 fn the_structural_rules_are_a_setting() {
     let started = ordinary::start("a, b |- a", "classical", "").unwrap();
@@ -164,9 +165,9 @@ fn the_structural_rules_are_a_setting() {
     assert_eq!(view["inferences"].as_array().unwrap().len(), 2);
 }
 
-/// `close` grafts the derivation of a valid goal, `hint` names first
-/// steps that `apply` takes, and a goal that is not valid stays open with
-/// the outcome saying so.
+/// `close` grafts the derivation of a valid goal, and `hint` names first
+/// steps that `apply` takes. A goal that is not valid stays open, and the
+/// outcome says so.
 #[wasm_bindgen_test(unsupported = test)]
 fn close_and_hint_decide_a_goal() {
     let peirce = "|- ((a -> b) -> a) -> a";
@@ -194,10 +195,15 @@ fn close_and_hint_decide_a_goal() {
     );
 }
 
-/// Malformed input is refused with its reason, never a panic: an unknown
-/// logic or side, a step that is no step's JSON or names no rule, a rule
-/// that does not fit, a goal that is not open, a linear session, a
-/// sequent of LJ with two formulas right of `⊢`, an unknown format.
+/// Malformed input is refused with its reason, never with a panic:
+///
+/// - an unknown logic or side;
+/// - a step that is no step's JSON or names no rule;
+/// - a rule that does not fit;
+/// - a goal that is not open;
+/// - a linear session;
+/// - a sequent of LJ with two formulas right of `⊢`;
+/// - an unknown format.
 #[wasm_bindgen_test(unsupported = test)]
 fn malformed_input_is_refused_with_its_reason() {
     let code = |result: Result<String, Failure>| failure(&result.unwrap_err())["code"].clone();
@@ -223,7 +229,7 @@ fn malformed_input_is_refused_with_its_reason() {
     for step in bad {
         assert_eq!(code(ordinary::apply(&state, 0, step, "")), "json", "{step}");
     }
-    // LJ's cut is a rule, which no step takes.
+    // Cut is a rule of LJ, but no step can take it.
     let cut = r#"{"side": "left", "position": 0, "rule": "cut"}"#;
     assert_eq!(code(ordinary::apply(&state, 0, cut, "")), "step");
     let refused = ordinary::apply(&state, 0, &step("left", 0, "∧R", None), "").unwrap_err();

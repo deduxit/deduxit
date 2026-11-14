@@ -1,20 +1,27 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! deduxit for a web page: the library compiled to WebAssembly behind
-//! calls of JSON text in and JSON or SVG text out, over the interactive
-//! state, the settings and a search's outcome.
+//! deduxit for a web page: the library compiled to WebAssembly. Each call
+//! takes JSON text and returns JSON or SVG text, or a render's bytes.
 //!
-//! Every call takes the documents it works on and the page's settings
-//! (the JSON of [`deduxit::Settings`], read over the tab's defaults: an
-//! empty text is the defaults, a key replaces the default there) and
-//! returns a document; nothing is kept between calls. A call that fails
-//! throws the error's JSON as a string, `{"code", "kind", "message",
-//! "setting", "details"}`, which the page words itself. The module reads
-//! no clock and starts no thread: a call ends at the bounds of the
-//! settings, the work bound first, or when the page stops its worker.
+//! Every call takes the documents it works on, such as a session, and the
+//! page's settings, and returns a document. Nothing is kept between calls.
+//! The settings are the JSON of [`deduxit::Settings`], read over the
+//! tab's defaults: an empty text is the defaults, and a key the page gives
+//! replaces the default there.
 //!
-//! The calls are those of [`calls`], each exported under its name.
+//! A call that fails throws the error's JSON as a string, `{"code",
+//! "kind", "message", "setting", "details"}`, `setting` only where a bound
+//! refused. The page branches on `code` and `kind` and words the message
+//! itself.
+//!
+//! The module reads no clock and starts no thread. A call ends at the
+//! bounds of the settings, the work bound first, or when the page stops
+//! its worker.
+//!
+//! The calls are those of [`calls`], exported under their names, `export`
+//! as `export_as`. Those of [`ordinary`] are exported with the prefix
+//! `ordinary_`.
 
 pub mod calls;
 mod failure;
@@ -35,7 +42,7 @@ mod exports {
     }
 
     /// Returns a goal or a position the page gives as a number, or the
-    /// failure thrown: see [`calls::index`].
+    /// failure thrown, as [`calls::index`] says.
     fn index(number: f64, what: &str) -> Result<u32, JsValue> {
         calls::index(number, what).map_err(thrown)
     }
@@ -183,8 +190,8 @@ mod exports {
         calls::draw_net(session, settings).map_err(thrown)
     }
 
-    /// Returns the cut or cut link a page names as a number, or `None` for
-    /// the strategy's when it gives `undefined` or `null`.
+    /// Returns the cut or cut link a page names as a number. `undefined`
+    /// or `null` is `None`, the strategy's choice.
     fn at(at: Option<f64>, what: &str) -> Result<Option<u32>, JsValue> {
         at.map(|at| index(at, what)).transpose()
     }
@@ -195,7 +202,7 @@ mod exports {
         calls::cuts(session, proof, settings).map_err(thrown)
     }
 
-    /// See [`calls::cut_step`]; `at` a node, or `undefined` for the
+    /// See [`calls::cut_step`]. `at` is a node, or `undefined` for the
     /// strategy's cut.
     #[wasm_bindgen]
     pub fn cut_step(
@@ -219,8 +226,8 @@ mod exports {
         calls::net_cuts(session, net, settings).map_err(thrown)
     }
 
-    /// See [`calls::net_cut_step`]; `at` a vertex at either end of a cut
-    /// link, or `undefined` for the strategy's.
+    /// See [`calls::net_cut_step`]. `at` is a vertex at either end of a
+    /// cut link, or `undefined` for the strategy's.
     #[wasm_bindgen]
     pub fn net_cut_step(
         session: &str,
@@ -237,8 +244,9 @@ mod exports {
         calls::net_eliminate(session, net, settings).map_err(thrown)
     }
 
-    /// See [`calls::export`]. `export` is a reserved word of JavaScript,
-    /// which wasm-bindgen would rename `_export`.
+    /// See [`calls::export`]. JavaScript exports it as `export_as`:
+    /// `export` is a reserved word there, which wasm-bindgen would rename
+    /// `_export`.
     #[wasm_bindgen(js_name = "export_as")]
     pub fn export(session: &str, format: &str, settings: &str) -> Result<String, JsValue> {
         calls::export(session, format, settings).map_err(thrown)

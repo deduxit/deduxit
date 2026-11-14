@@ -1,11 +1,13 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The calls of the bindings over JSON text: each reads its documents and
-//! the page's settings, does one thing with the library, and writes what
-//! the page shows. The page holds every document (the session, the
-//! settings); nothing is kept here between calls, so a worker stopped
-//! mid-call loses nothing.
+//! The calls of the bindings, over JSON text. Each call reads its
+//! documents and the page's settings, does one thing with the library,
+//! and writes what the page shows.
+//!
+//! The page holds every document, the session and the settings among
+//! them. Nothing is kept here between calls, so a worker stopped in the
+//! middle of a call loses nothing.
 
 use crate::failure::Failure;
 use crate::tab;
@@ -25,18 +27,27 @@ use deduxit::{
 };
 use serde::{Deserialize, Serialize};
 
-/// The stop of every call: the page cancels by stopping the worker, so
-/// only the bounds of the settings end a call early.
+/// The stop of every call. The page cancels a call by stopping its
+/// worker, so only the bounds of the settings end a call early.
 const fn never(_: Progress) -> bool {
     false
 }
 
-/// What the module is: the library's version, the highest wire level it
-/// reads and writes, and the suites a tab proves in, each with its name,
-/// the prefix of its calls and its parameters: the parameter its `start`
-/// takes by name, with every value it reads and the default, the
-/// settings that change how the suite proves or draws, and the name of
-/// its call that reads a finished proof back as a lambda-term.
+/// Describes the module, as JSON:
+///
+/// - `deduxit`: the library's version;
+/// - `level`: the highest wire level it reads and writes;
+/// - `stack_bytes`: the stack the module is linked with, in bytes;
+/// - `suites`: the suites a tab proves in.
+///
+/// Each suite has its `suite` and `name`, and:
+///
+/// - `calls`: the prefix of its calls' names;
+/// - `parameters`: the argument its `start` takes by name, with every
+///   value it reads and the default;
+/// - `settings`: the keys that change how the suite proves or draws;
+/// - `term`: the name of its call that reads a finished proof back as a
+///   lambda-term.
 pub fn about() -> String {
     serde_json::json!({
         "deduxit": env!("CARGO_PKG_VERSION"),
@@ -72,7 +83,7 @@ pub fn about() -> String {
     .to_string()
 }
 
-/// The tab's settings, as the page shows and changes them.
+/// Returns the tab's settings as JSON, which the page shows and changes.
 pub fn defaults() -> String {
     serde_json::to_string(&tab::defaults()).unwrap_or_default()
 }
@@ -80,7 +91,7 @@ pub fn defaults() -> String {
 /// What [`read`] found in a document.
 #[derive(Serialize)]
 struct Read<'a> {
-    /// `sequent` for a sequent, as text or as `seq json` writes it, and
+    /// `sequent` for a sequent, typed or as `seq json` writes it, and
     /// `session` for a session as `save` writes it.
     kind: &'static str,
     /// The sequent as JSON.
@@ -93,12 +104,12 @@ struct Read<'a> {
     /// The session, for a session.
     #[serde(skip_serializing_if = "Option::is_none")]
     session: Option<&'a Interactive>,
-    /// The smallest fragment the sequent is in, by the names `seq
-    /// fragment` prints, in each of the two modes.
+    /// The smallest fragment the sequent is in, in each of the two modes,
+    /// by the names `seq fragment` prints.
     fragment: Fragments,
 }
 
-/// A sequent's fragment as named in classical and intuitionistic mode.
+/// A sequent's fragment, named in classical and in intuitionistic mode.
 #[derive(Serialize)]
 struct Fragments {
     /// In classical mode.
@@ -118,21 +129,27 @@ impl Fragments {
     }
 }
 
-/// The keys that tell a session document from a sequent's, read without
-/// keeping anything else.
+/// The key that tells a session's document from a sequent's. The probe
+/// keeps nothing else of the document.
 #[derive(Deserialize)]
 struct Probe {
     /// A session's inferences.
     inferences: Option<serde::de::IgnoredAny>,
 }
 
-/// Reads a document the page was given: a sequent typed or as `seq json`
-/// writes it, or a session as `save` writes it, and says which.
+/// Reads a document the page was given and says what it is: a sequent,
+/// typed or as `seq json` writes it, or a session as `save` writes it.
+///
+/// Answers `{"kind", "sequent", "text", "fragment"}`, and for a session
+/// also `mode` and `session`. `kind` is `sequent` or `session`, `text` the
+/// sequent in the parser's Unicode syntax, and `fragment` the name of the
+/// smallest fragment it is in, under `classical` and `intuitionistic`
+/// for each mode.
 ///
 /// # Errors
 ///
-/// The parser's error for text that is no sequent (its position is the
-/// caret's), and the readers' for a document they refuse: an unknown
+/// The parser's error for text that is no sequent, its position the
+/// caret's. The readers' errors for a document they refuse: an unknown
 /// level, a malformed session, a bound passed.
 pub fn read(input: &str, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
@@ -171,18 +188,24 @@ pub fn read(input: &str, settings: &str) -> Result<String, Failure> {
     }
 }
 
-/// Reads a document as [`read`] does, for a session in `mode`: in an
-/// intuitionistic mode of the commutative order a sequent typed is read by
-/// the settings' `input.intuitionistic`, its own syntax alone by default
-/// (a symbol of classical linear logic refused with a hint), a sequent in
-/// JSON may be an intuitionistic sequent's document as well as `seq json`'s,
-/// and `text` is the sequent two-sided; in any other mode, and for a
-/// session, it is [`read`].
+/// Reads a document as [`read`] does, for a session in `mode`.
+///
+/// In the modes `intuitionistic` and `intuitionistic-affine`, a sequent is
+/// read as an intuitionistic one:
+///
+/// - Typed, it is read in the syntax the settings' `input.intuitionistic`
+///   names. By default that is intuitionistic linear logic's own syntax,
+///   and a symbol of classical linear logic is refused with a hint.
+/// - As JSON, it may be an intuitionistic sequent's document as well as
+///   `seq json`'s.
+/// - The answer's `text` is the sequent two-sided.
+///
+/// In any other mode, and for a session, it is [`read`].
 ///
 /// # Errors
 ///
 /// As [`read`], an unknown mode, and a sequent with no intuitionistic
-/// reading.
+/// reading (no way to read it as hypotheses and one goal).
 pub fn read_as(input: &str, mode: &str, settings: &str) -> Result<String, Failure> {
     let mode: Mode = mode.parse().map_err(Failure::from)?;
     let read_settings = tab::read(settings)?;
@@ -209,18 +232,17 @@ pub fn read_as(input: &str, mode: &str, settings: &str) -> Result<String, Failur
 /// A formula of a goal as the page shows it.
 #[derive(Serialize)]
 struct Formula {
-    /// The formula in the parser's Unicode syntax: in intuitionistic mode
-    /// as the reading writes it in its position, as `reading` does.
+    /// The formula in the parser's Unicode syntax. In intuitionistic mode
+    /// it is the same as `reading`.
     text: String,
     /// Its occurrence in the sequent's forest.
     occurrence: u32,
     /// In intuitionistic mode, `input` for a hypothesis and `output` for
-    /// the goal, `null` in classical mode.
+    /// the goal. `null` in classical mode.
     side: Option<&'static str>,
-    /// In intuitionistic mode, the formula as the reading writes it in its
-    /// position (a hypothesis `A ⊸ B` as `A ⊸ B`, which the one-sided
-    /// sequent holds as `A ⊗ ~B`), the same as `text`; absent in classical
-    /// mode.
+    /// In intuitionistic mode, the formula as the two-sided sequent writes
+    /// it in its position: a hypothesis `A ⊸ B` as `A ⊸ B`, which the
+    /// one-sided sequent holds as `A ⊗ ~B`. Left out in classical mode.
     #[serde(skip_serializing_if = "Option::is_none")]
     reading: Option<String>,
 }
@@ -247,30 +269,32 @@ struct View {
     steps: usize,
     /// The open goals.
     goals: Vec<Goal>,
-    /// For each inference `n` of the drawing (`i<n>`), the goal it is in
-    /// the session.
+    /// For each inference `i<n>` of the drawing, at index `n`, its goal id
+    /// in the session.
     inferences: Vec<GoalId>,
-    /// The session's inferences that a step of an invertible rule closed
-    /// (`Interactive::is_invertible`), whichever took it, in order.
+    /// The session's closed inferences whose rule is invertible on their
+    /// conclusion (`Interactive::is_invertible`), in order. The session
+    /// does not record whether the page or the setting took the step.
     invertible: Vec<GoalId>,
-    /// The session's cuts, each its inference and its cut formula as typed,
-    /// in the mode's syntax, which [`cut`] reads again: what a replay of
-    /// the session makes each cut with.
+    /// The session's cuts, each with its inference and its cut formula as
+    /// typed in the mode's syntax, which [`cut`] reads again. A replay of
+    /// the session makes each cut with these.
     cuts: Vec<CutMade>,
-    /// `null` when the sequent has proof nets, and otherwise the refusal
-    /// that says why not, which the page shows at the greyed net view.
+    /// `null` when the sequent has proof nets. Otherwise the refusal that
+    /// says why not, which the page shows at the greyed net view.
     net: Option<serde_json::Value>,
-    /// The session's closed quantifier steps, each its inference and the
-    /// term it opened its formula with as it took it: a `∀` step's
-    /// eigenvariable by its letter, a `∃` step's witness as given, `null`
-    /// for one left open: what a replay takes each step with. Left out
-    /// for a session without quantifiers.
+    /// The session's closed quantifier steps, each with its inference and
+    /// the term it took: a `∀` step's eigenvariable (the fresh name the
+    /// step introduces) by its letter, an `∃` step's witness as given, and
+    /// `null` for a witness left open. A replay takes each step with these.
+    /// Left out for a session without quantifiers.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     opened: Vec<OpenedWith>,
-    /// In a session with quantifiers, the forest's length: a member below
-    /// it is an occurrence, one past it the session's `instances.members`
-    /// entry of that offset, `[occurrence, frame]`; a replay renumbers
-    /// those, never an occurrence.
+    /// In a session with quantifiers, the length of the forest, the
+    /// sequent's formula occurrences. A member below it is an occurrence.
+    /// A member past it is the entry of the session's `instances.members`
+    /// at that offset, `[occurrence, frame]`. A replay renumbers the
+    /// members past the forest, never an occurrence.
     #[serde(skip_serializing_if = "Option::is_none")]
     forest: Option<usize>,
 }
@@ -289,7 +313,7 @@ fn opened_with(state: &Interactive) -> Vec<OpenedWith> {
     if !state.forest().has_binders() {
         return Vec::new();
     }
-    // As many inferences as the derivation has, numbered as a `u32` does.
+    // The session numbers its inferences with a `u32`, so the count fits.
     (0..state.derivation_ids().len() as u32)
         .map(GoalId::new)
         .filter_map(|goal| {
@@ -360,9 +384,9 @@ impl View {
 struct CutMade {
     /// The cut's inference.
     inference: GoalId,
-    /// The cut formula in the mode's syntax: under the reading in an
-    /// intuitionistic mode, as written in a classical session that keeps
-    /// how it was written, else one-sided.
+    /// The cut formula in the mode's syntax. In an intuitionistic mode it
+    /// is two-sided. In a classical session that keeps how its sequent was
+    /// written it is as written, and otherwise one-sided.
     formula: String,
 }
 
@@ -391,8 +415,8 @@ fn cuts_made(state: &Interactive) -> Vec<CutMade> {
         .collect()
 }
 
-/// Returns the inferences of a session that a step of an invertible rule
-/// closed: each closed inference whose rule, on its conclusion, is one.
+/// Returns the closed inferences of a session whose rule is invertible on
+/// their conclusion, in order.
 fn invertible_steps(state: &Interactive) -> Vec<GoalId> {
     let Ok(derivation) = state.derivation_within(
         &deduxit::linear::ViewOptions::default(),
@@ -435,21 +459,28 @@ fn changed(state: &Interactive, said: impl Serialize) -> Result<String, Failure>
     })
 }
 
-/// Starts a proof of a sequent, typed or as JSON, in a mode by its name
-/// (`classical`, `affine`, `mix`, `affine-mix`, `intuitionistic`,
-/// `intuitionistic-affine`), and returns the session with its view; with
-/// the settings' `interactive.invertible` on, every invertible rule
-/// applied to it first.
+/// Starts a proof of a sequent in a mode, and returns the session with
+/// its view.
+///
+/// The sequent is typed or JSON. The mode is one of `classical`,
+/// `affine`, `mix`, `affine-mix`, `intuitionistic`,
+/// `intuitionistic-affine`, `cyclic`, `lambek` and `lambek-star`. In the
+/// two intuitionistic modes the sequent is read as [`read_as`] reads it.
+/// In the first four modes a typed sequent keeps how it was written,
+/// so that [`export`] can draw it two-sided at any point. With the
+/// settings' `interactive.invertible` on, every invertible rule is applied
+/// first, and the answer's `inverted` says how many steps that took.
 ///
 /// # Errors
 ///
 /// As [`read`] for the sequent, an unknown mode, and a sequent the mode
-/// does not read (an intuitionistic one needs a reading).
+/// does not read: an intuitionistic mode needs a sequent with an
+/// intuitionistic reading.
 pub fn start(sequent: &str, mode: &str, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let mode: Mode = mode.parse().map_err(Failure::from)?;
-    // A typed classical sequent keeps how it was written, for a drawing
-    // two-sided at any point of the proof.
+    // A typed classical sequent keeps how it was written, so that the
+    // proof can be drawn two-sided at any point.
     let mut state = if !mode.is_intuitionistic() && !mode.is_ordered() && !is_json(sequent) {
         let written =
             ClassicalSequent::parse_within(sequent, &settings.limits).map_err(Failure::from)?;
@@ -469,7 +500,8 @@ pub fn start(sequent: &str, mode: &str, settings: &str) -> Result<String, Failur
     changed(&state, automatic)
 }
 
-/// Returns a session's view.
+/// Returns what the page shows of a session: the `view` that every call
+/// that changes the session answers too.
 ///
 /// # Errors
 ///
@@ -485,10 +517,11 @@ pub fn view(session: &str, settings: &str) -> Result<String, Failure> {
 struct Offered {
     /// The rule's name.
     rule: Named,
-    /// Whether a step of it needs a split: `⊗` and Mix.
+    /// Whether a step of it needs a split of the goal's formulas: `⊗` and
+    /// Mix.
     split: bool,
-    /// Whether a step of it takes a witness, given or left open: `∃R`
-    /// and `∀L` (`∃` one-sided); left out when not.
+    /// Whether a step of it takes a witness, given or left open: `∃R` and
+    /// `∀L`, or `∃` one-sided. Left out when not.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     witness: bool,
 }
@@ -506,8 +539,8 @@ impl From<Applicable> for Offered {
 
 /// Returns the rules that act on the formula at a position of a goal, by
 /// its connective and the mode: `[{"rule", "split"}]`, with `"witness":
-/// true` for a rule that takes a witness. A rule listed may
-/// still be refused by the context, with the reason.
+/// true` for a rule that takes a witness. [`apply`] may still refuse a
+/// rule listed because of the goal's other formulas, with the reason.
 ///
 /// # Errors
 ///
@@ -521,12 +554,15 @@ pub fn rules(session: &str, goal: u32, position: u32, settings: &str) -> Result<
     written(&rules.into_iter().map(Offered::from).collect::<Vec<_>>())
 }
 
-/// A step as the page sends it: `{"position", "rule", "left", "witness"}`,
-/// `left` the positions that go to the left premise of a `⊗` or Mix and
-/// left out for every other rule, `witness` the term of a `∃R` or `∀L`
-/// step (`∃` one-sided) as text, `f(a, b)` with the sequent's symbols and
-/// the session's eigenvariables by their letters, left out for a witness
-/// left open, written `$1`, `$2`, … until an axiom or the search fills it.
+/// A step as the page sends it: `{"position", "rule", "left", "witness"}`.
+///
+/// - `left` is the positions that go to the left premise of a `⊗` or Mix.
+///   It is left out for every other rule.
+/// - `witness` is the term of an `∃R` or `∀L` step (`∃` one-sided) as
+///   text, such as `f(a, b)`, with the sequent's symbols and the session's
+///   eigenvariables by their letters. It is left out for a witness left
+///   open, which the session writes `$1`, `$2`, … until an axiom or the
+///   search fills it.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct StepForm {
@@ -582,8 +618,9 @@ fn step_of(step: &str, state: &Interactive) -> Result<Step, Failure> {
         .step(state)
 }
 
-/// Returns whether a split can pass the counts: `false` means the step
-/// cannot close, `true` that it may.
+/// Returns whether the split of a `⊗` or Mix step passes the counts the
+/// search prunes with, a quick test. `false` means the split cannot be
+/// closed, and the page greys it. `true` means it may be.
 ///
 /// # Errors
 ///
@@ -599,23 +636,23 @@ pub fn split_passes(session: &str, goal: u32, step: &str, settings: &str) -> Res
 /// What a step opened.
 #[derive(Serialize)]
 struct Opened {
-    /// The goals the step opened, in the order of the rule's premises;
-    /// with `interactive.invertible`, those its invertible steps left
-    /// open, from left to right.
+    /// The goals the step opened, in the order of the rule's premises.
+    /// With `interactive.invertible` on, the goals the invertible steps
+    /// after it left open, from left to right.
     opened: Vec<GoalId>,
     /// The invertible steps taken after it.
     #[serde(flatten)]
     automatic: Automatic,
 }
 
-/// What the invertible rules applied by themselves did.
+/// What the invertible rules did when the call applied them itself.
 #[derive(Default, Serialize)]
 struct Automatic {
-    /// How many invertible steps were taken: none unless the settings'
-    /// `interactive.invertible` is on, or the call applies them anyway.
+    /// How many invertible steps were taken. None unless the settings'
+    /// `interactive.invertible` is on or the call applies them anyway.
     inverted: usize,
-    /// Left out, or the refusal of the bound that stopped the invertible
-    /// steps, the steps taken standing.
+    /// The refusal of the bound that stopped the invertible steps, or left
+    /// out. The steps taken before it stand.
     #[serde(skip_serializing_if = "Option::is_none")]
     inverted_refused: Option<serde_json::Value>,
 }
@@ -631,9 +668,9 @@ impl Automatic {
     }
 }
 
-/// Returns the bounds of a run of invertible steps: the settings' memory
-/// bound, and no more than the size of a derivation the page draws, so
-/// that the steps never make a session the page could not show.
+/// Returns the bounds of a run of invertible steps: the smaller of the
+/// settings' memory bound and their bound on a derivation's size. So the
+/// steps never make a session too large for the page to draw.
 fn inverting(settings: &Settings) -> deduxit::Limits {
     let limits = settings.limits;
     let bound = match (limits.memory_bytes, limits.derivation_bytes) {
@@ -643,15 +680,16 @@ fn inverting(settings: &Settings) -> deduxit::Limits {
     limits.with_memory_bytes(bound)
 }
 
-/// Applies a step to a goal and returns the session with the goals it
-/// opened. With the settings' `interactive.invertible` on, every
-/// invertible rule is then applied to those goals
-/// (`Interactive::invert`), each an ordinary step.
+/// Applies a step ([`StepForm`]) to a goal and returns the session with
+/// the goals it opened, `{"session", "view", "opened", "inverted"}`. With
+/// the settings' `interactive.invertible` on, every invertible rule is
+/// then applied to those goals (`Interactive::invert`), each as an
+/// ordinary step.
 ///
 /// # Errors
 ///
-/// The step's refusal with its reason (`kind`: `no_dual`, `not_alone`,
-/// `not_quest`, …), the session unchanged.
+/// The step's refusal (`code` `step`), its `details.kind` the reason:
+/// `no_dual`, `not_alone`, `not_quest`, …. The session is unchanged.
 pub fn apply(session: &str, goal: u32, step: &str, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let mut state = session_of(session, &settings)?;
@@ -671,21 +709,26 @@ pub fn apply(session: &str, goal: u32, step: &str, settings: &str) -> Result<Str
     changed(&state, Opened { opened, automatic })
 }
 
-/// Cuts an open goal on a formula typed as text, written as the session's
-/// mode writes formulas (intuitionistic as `input.intuitionistic` says,
-/// else classical as written), and returns the session with the two goals
-/// it opened: the first proves the formula, with the goal's formulas at
-/// the positions `left` (a JSON array), and the second takes it as a
-/// hypothesis, with the others (`Interactive::cut`). With the settings'
-/// `interactive.invertible` on, every invertible rule is then applied to
-/// those goals, as after `apply`; a cut itself is no invertible step.
+/// Cuts an open goal on a formula and returns the session with the two
+/// goals the cut opened, as [`apply`] answers (`Interactive::cut`).
+///
+/// - `formula` is typed in the mode's syntax: in an intuitionistic mode
+///   as `input.intuitionistic` says, else classical as written.
+/// - The first goal proves the formula, from the goal's formulas at the
+///   positions `left`, a JSON array.
+/// - The second goal takes the formula as a hypothesis, with the goal's
+///   other formulas.
+///
+/// With the settings' `interactive.invertible` on, every invertible rule
+/// is then applied to those goals, as after [`apply`]. A cut itself is no
+/// invertible step.
 ///
 /// # Errors
 ///
-/// The parse error of a formula that does not read (its span in the
-/// formula's text), `cut_formula` for text of another number of formulas
-/// than one, and the step's refusal (`kind`: `split`, `succedents`,
-/// `mode` in an ordered mode, …), the session unchanged.
+/// The parse error of a formula that does not read, with its span in the
+/// formula's text. `cut_formula` for text of more or fewer formulas than
+/// one. The step's refusal, its `details.kind` the reason: `split`,
+/// `succedents`, `mode` in an ordered mode, …. The session is unchanged.
 pub fn cut(
     session: &str,
     goal: u32,
@@ -716,9 +759,9 @@ pub fn cut(
 }
 
 /// Applies every invertible rule to every open goal
-/// (`Interactive::invert_all`), whatever the settings say, and returns
-/// the session with how many steps that took: what turning the setting
-/// on does to a session under way.
+/// (`Interactive::invert_all`), whatever the settings say. Returns the
+/// session with `inverted`, how many steps that took. The page calls it
+/// when `interactive.invertible` is turned on during a session.
 ///
 /// # Errors
 ///
@@ -731,21 +774,26 @@ pub fn invert_all(session: &str, settings: &str) -> Result<String, Failure> {
     changed(&state, automatic)
 }
 
-/// Closes an open goal with the proof of another finished session, a
-/// tab's of an equal sequent: the source's proof, checked in its own mode,
-/// is carried over to the goal, its formulas matched up to their order
-/// (`Proof::onto`), and grafted as one step, checked again in this
-/// session's mode. Returns the session with its view and the goal
-/// filled.
+/// Closes an open goal with the proof of another finished session, such
+/// as another tab's, whose sequent is the goal's up to the order of its
+/// formulas. Returns the session with its view and `filled`, the goal.
+///
+/// The source's proof is checked in its own mode, carried over to the
+/// goal with its formulas matched up to their order (`Proof::onto`), and
+/// grafted as one step. The graft is checked again in this session's
+/// mode.
 ///
 /// # Errors
 ///
-/// A goal that is not open; `open_goals` for a source not finished;
-/// `sequent_mismatch` for a source whose sequent is not the goal's up to
-/// order, its `details` the formulas only the source has (`proof`) and
-/// only the goal has (`goal`); and `invalid_proof` for a proof this
-/// session's mode does not allow (a rule of another mode), naming the
-/// rule; the session unchanged in each.
+/// The session is unchanged in each case:
+///
+/// - a goal that is not open;
+/// - `open_goals` for a source that is not finished;
+/// - `sequent_mismatch` for a source whose sequent is not the goal's up to
+///   order, its `details` the formulas only the source has (`proof`) and
+///   those only the goal has (`goal`);
+/// - `invalid_proof`, naming the rule, for a proof this session's mode
+///   does not allow, such as one with a rule of another mode.
 pub fn fill(session: &str, goal: u32, source: &str, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let mut state = session_of(session, &settings)?;
@@ -784,7 +832,9 @@ struct Reopened {
     reopened: Option<GoalId>,
 }
 
-/// Retracts the session's last step.
+/// Takes back the session's last step. Returns the session with
+/// `reopened`, the goal the step had closed, or `null` when no step was
+/// left.
 ///
 /// # Errors
 ///
@@ -799,19 +849,20 @@ pub fn undo(session: &str, settings: &str) -> Result<String, Failure> {
 /// What closing a goal did.
 #[derive(Serialize)]
 struct Closing {
-    /// The search's outcome, a proof in it the goal's alone.
+    /// The search's outcome. A proof in it proves the goal alone.
     outcome: Outcome,
-    /// `null` when the proof was grafted or there was none, otherwise the
-    /// refusal of the graft (its size, the stop), the goal then still
+    /// `null` when the proof was grafted or there was none. Otherwise the
+    /// refusal of the graft, by its size or the stop, and the goal stays
     /// open.
     refused: Option<serde_json::Value>,
     /// For an unprovable goal, whether its refutation passed
-    /// `Disproof::check`; `null` otherwise.
+    /// `Disproof::check`. `null` otherwise.
     refutation_checked: Option<bool>,
 }
 
-/// Runs the search on a goal within the settings' bounds, and grafts its
-/// proof.
+/// Runs the search on a goal within the settings' bounds, and grafts the
+/// proof it finds onto the goal. Answers the session with `outcome`,
+/// `refused` and `refutation_checked`.
 ///
 /// # Errors
 ///
@@ -865,15 +916,17 @@ struct All {
     results: Vec<Each>,
 }
 
-/// Runs the search on every open goal in turn within one work budget,
-/// `limits.work`, for all their searches together: each goal's search
-/// has what the searches before it left of the budget as its
-/// `limits.work`, so a goal the budget runs out on is unknown with
+/// Runs the search on every open goal in turn, and grafts every proof it
+/// finds. A goal not proved stays open. Answers the session with
+/// `results`, one entry per goal open before the call, in order:
+/// `{"goal", "outcome", "refused", "error", "work"}`.
+///
+/// All the searches share one work budget, `limits.work`. Each goal's
+/// search gets what the searches before it left of the budget as its own
+/// `limits.work`. So a goal the budget runs out on is unknown with
 /// `work_limit`, as after [`close`]. What a search spends is its
-/// `statistics.work`; its proof's check is bounded by the same remainder,
-/// and the classical refuter keeps its own bound
-/// (`search.classical_work`). Every proof found is grafted; a goal not
-/// proved stays open.
+/// `statistics.work`. Its proof's check is bounded by the same remainder.
+/// The classical refuter keeps its own bound, `search.classical_work`.
 ///
 /// # Errors
 ///
@@ -916,24 +969,27 @@ pub fn close_all(session: &str, settings: &str) -> Result<String, Failure> {
 struct Hint {
     /// The search's outcome on the goal.
     outcome: Outcome,
-    /// The first steps of the proof found, each on the goal the one
-    /// before it opened, the first on the goal asked for: the structural
-    /// rules at its root, and the first rule that is not one, which ends
-    /// the list. `null` when no proof was found or its derivation was
-    /// refused.
+    /// The first steps of the proof found: the structural rules at its
+    /// root, then the first rule that is not structural, which ends the
+    /// list. The first step is on the goal asked for, and each later one
+    /// on the goal the step before it opened. `null` when no proof was
+    /// found or the bounds refused its derivation.
     steps: Option<Vec<StepForm>>,
     /// Whether the last of the steps applies a rule invertible in the
-    /// session's mode (`Interactive::is_invertible`); `null` without
+    /// session's mode (`Interactive::is_invertible`). `null` without
     /// steps.
     invertible: Option<bool>,
 }
 
-/// Runs the search on a goal, the session left as it was, and returns
-/// its outcome with the first steps of the proof it found, which the page
-/// reveals rung by rung and, at the last rung, applies in turn. A
-/// contraction at the root comes with the rule that uses both copies, so
-/// that following the hints proves the goal: a search on the contracted
-/// goal alone may weaken the copy again.
+/// Runs the search on a goal and returns its outcome with the first steps
+/// of the proof it found, `{"outcome", "steps", "invertible"}`. The
+/// session stays as it was. The page reveals the hint rung by rung and,
+/// at the last rung, applies the steps in turn.
+///
+/// A contraction at the root comes with the rule that uses both copies.
+/// So following the hints proves the goal: a search on the contracted
+/// goal alone may weaken the copy again, and the hints would contract and
+/// weaken in turn forever.
 ///
 /// # Errors
 ///
@@ -968,12 +1024,14 @@ pub fn hint(session: &str, goal: u32, settings: &str) -> Result<String, Failure>
     })
 }
 
-/// Returns the hint on a goal of a session with quantifiers, whose
-/// members a search cannot take as they are: the goal closed in a copy of
-/// the session (`Interactive::close`, which searches the goal written as
-/// a sequent of its own, its open witnesses bound by `∃`), and the first
-/// steps read off the copy's derivation above the goal, each `∃R` and
-/// `∀L` with the witness the search chose as text.
+/// Returns the hint on a goal of a session with quantifiers, as [`hint`]
+/// answers. A search cannot take such a goal's members as they are.
+///
+/// So the goal is closed in a copy of the session (`Interactive::close`,
+/// which searches the goal written as a sequent of its own, its open
+/// witnesses bound by `∃`). The first steps are read off the copy's
+/// derivation above the goal, each `∃R` and `∀L` with the witness the
+/// search chose, as text.
 fn first_order_hint(
     state: &Interactive,
     goal: GoalId,
@@ -1004,13 +1062,13 @@ fn first_order_hint(
                 Some(derivation) => {
                     let ids = copy.derivation_ids();
                     let at = ids.iter().position(|&g| g == goal).map(|i| {
-                        // A derivation numbers fewer inferences than a
-                        // `u32` counts, as the session does.
+                        // The session numbers its inferences with a
+                        // `u32`, so the index fits one.
                         deduxit::linear::proofs::derivation::InfId::new(i as u32)
                     });
                     match at {
-                        // A witness the search made a constant of reads
-                        // as nothing in the session: it stays open there.
+                        // A witness that is a constant the search made
+                        // does not read in the session, so it stays open.
                         Some(at) => read_steps(&copy, &derivation, at, |id| {
                             copy.opened_term(ids[id.index()])
                                 .filter(|text| state.witness(text).is_ok())
@@ -1048,11 +1106,11 @@ fn first_steps(
     Ok(read_steps(state, &derivation, derivation.root(), |_| None))
 }
 
-/// Returns the steps of a derivation from the inference `at` up, as
+/// Returns the steps of a derivation from the inference `from` up, as
 /// [`Hint::steps`] says, with whether the last is invertible in the
-/// session; `witness` gives the term a quantifier step at an inference
-/// opened its formula with, as text. `None` for a Mix with no formula
-/// on its left.
+/// session. `witness` gives, as text, the term a quantifier step at an
+/// inference opened its formula with. `None` for a Mix with no formula on
+/// its left.
 fn read_steps(
     state: &Interactive,
     derivation: &deduxit::linear::Derivation<'_>,
@@ -1128,17 +1186,24 @@ pub fn proof(session: &str, settings: &str) -> Result<String, Failure> {
     written(&proof)
 }
 
-/// Returns the lambda-term of a session's proof, the session's own
-/// derivation read back ([`Derivation::term`](deduxit::linear::Derivation::term)):
-/// a finished proof of intuitionistic linear logic as a term of the
-/// linear lambda calculus, one of affine logic as a term of the affine
-/// one, a cut as a redex. The answer is the term's JSON with its `text`
-/// and its `judgement` (`x : A ⊢ M : B`) as the settings' `lambda` writes
-/// them, as `prove --lambda --format json` writes its `lambda`; or
-/// `{"error": …}`, the library's error, where the proof has no term
-/// (`no_term`, its `reason` saying why: a classical proof, Mix, the
-/// cyclic and Lambek modes, quantifiers, open goals) or the settings'
-/// bounds refuse the term or its derivation.
+/// Returns the lambda-term of a session's proof: the session's own
+/// derivation read back as a program
+/// ([`Derivation::term`](deduxit::linear::Derivation::term)).
+///
+/// A finished proof of intuitionistic linear logic gives a term of the
+/// linear lambda calculus, and one of affine logic a term of the affine
+/// calculus. A cut is a redex.
+///
+/// The answer is the term's JSON with its `text` and its `judgement`
+/// (`x : A ⊢ M : B`), written as the settings' `lambda` says. It is what
+/// `prove --lambda --format json` writes under `lambda`. Where there is no
+/// term, the answer is `{"error": …}` with the library's error:
+///
+/// - `no_term` where the proof has none, its `details.reason` saying why:
+///   a classical proof, Mix, the cyclic and Lambek modes, quantifiers,
+///   open goals;
+/// - the refusal of a bound of the settings, on the term or on its
+///   derivation.
 ///
 /// # Errors
 ///
@@ -1164,9 +1229,10 @@ struct Termed {
     judgement: String,
 }
 
-/// Writes a term read back, or why there is none, as [`term`] answers:
-/// the term and its judgement written within `limits.derivation_bytes`,
-/// a refusal on the way as `{"error": …}`.
+/// Writes a term read back, or why there is none, as [`term`] answers.
+/// The term and its judgement are written within
+/// `limits.derivation_bytes`, and a refusal on the way is the answer
+/// `{"error": …}`.
 pub(crate) fn termed(
     term: Result<deduxit::lambda::Term, Error>,
     settings: &Settings,
@@ -1191,15 +1257,15 @@ pub(crate) fn termed(
 /// A search's outcome, with what the page shows beside a refutation.
 #[derive(Serialize)]
 struct Decided {
-    /// The outcome, as `prove --json` writes it.
+    /// The outcome, as `prove --format json` writes it.
     outcome: Outcome,
-    /// For an unprovable sequent, whether the refutation passed
-    /// `Disproof::check`, its own checker; `null` otherwise.
+    /// For an unprovable sequent, whether the refutation passed its own
+    /// checker, `Disproof::check`. `null` otherwise.
     refutation_checked: Option<bool>,
 }
 
 /// Decides a sequent in a mode within the settings' bounds, and checks a
-/// refutation it gives.
+/// refutation it gives. Answers `{"outcome", "refutation_checked"}`.
 ///
 /// # Errors
 ///
@@ -1218,8 +1284,9 @@ pub fn prove(sequent: &str, mode: &str, settings: &str) -> Result<String, Failur
 }
 
 /// Returns a session's derivation, open goals as leaves, as an SVG
-/// drawing in the settings' style (`styles.svg`), with an id on every
-/// conclusion (`i<n>`) and, with `ids`, on every formula (`i<n>-<p>`).
+/// drawing in the settings' style (`styles.svg`). Every inference has the
+/// id `i<n>`. With `styles.svg.ids`, which the tab turns on, formula `p`
+/// of inference `n` has the id `i<n>-<p>`. It is [`export`] in `svg`.
 ///
 /// # Errors
 ///
@@ -1229,9 +1296,11 @@ pub fn draw(session: &str, settings: &str) -> Result<String, Failure> {
     export(session, "svg", settings)
 }
 
-/// Answers where a session's proof has a net: for a sequent of unit-free
-/// MLL, and with exponentials one with boxes, of unit-free MELL in
-/// classical mode, with or without Mix.
+/// Answers whether a session's proof has a proof net, and if not, why.
+/// A sequent of unit-free MLL has one, except in an affine mode and in an
+/// ordered mode with Mix. A sequent with exponentials has a net with
+/// boxes if it is of unit-free MELL and the mode is neither affine nor
+/// ordered.
 fn nets_exist(fragment: Fragment, mode: Mode) -> Result<(), NetError> {
     if fragment.has_exponentials() {
         MellStructure::exist(fragment, mode)
@@ -1240,17 +1309,25 @@ fn nets_exist(fragment: Fragment, mode: Mode) -> Result<(), NetError> {
     }
 }
 
-/// Returns the proof net of a finished session as an SVG drawing: for a
-/// sequent of unit-free MLL, and with `styles.svg.essential` for one with
-/// an intuitionistic reading, its essential net; for one of unit-free MELL
-/// in classical or intuitionistic mode, its net with boxes, each `!`-box a
-/// rectangle, with `styles.svg.essential` the essential net with boxes (ids
-/// `o<n>` on the only vertex of occurrence `n`, `v<k>` on vertex `k` of an
-/// occurrence with several, `b<k>` on the box of the `!` vertex `k`); every
-/// subformula written, or with `styles.svg.net` `"compact"` only the
-/// literals and the conclusions; in deduxit's look, or with
-/// `styles.svg.net_look` `"textbook"` (or its fields `premises`,
-/// `conclusions` and `why_not`) the textbooks'.
+/// Returns the proof net of a finished session as an SVG drawing.
+///
+/// - A sequent of unit-free MLL has a net without boxes. With
+///   `styles.svg.essential`, one with an intuitionistic reading is drawn
+///   as its essential net.
+/// - A sequent of unit-free MELL has a net with boxes, each `!`-box a
+///   rectangle. With `styles.svg.essential`, one with an intuitionistic
+///   reading is drawn as its essential net with boxes.
+/// - In an intuitionistic mode the net is always drawn essential, so
+///   that its formulas are the intuitionistic ones.
+///
+/// A net with boxes has the ids `o<n>` on the only vertex of occurrence
+/// `n`, `v<k>` on vertex `k` of an occurrence with several, and `b<k>` on
+/// the box of the `!` vertex `k`.
+///
+/// Every subformula is written, or with `styles.svg.net` `"compact"` only
+/// the literals and the conclusions. The net is drawn in deduxit's look,
+/// or the textbooks' with `styles.svg.net_look` `"textbook"`, or as its
+/// fields `premises`, `conclusions` and `why_not` say.
 ///
 /// # Errors
 ///
@@ -1266,7 +1343,8 @@ pub fn draw_net(session: &str, settings: &str) -> Result<String, Failure> {
     nets_exist(proof.sequent().fragment(), mode).map_err(|e| Failure::from(Error::from(e)))?;
     let criterion = Criterion::of(mode).map_err(|e| Failure::from(Error::from(e)))?;
     // An intuitionistic net is drawn as its essential net, whose formulas
-    // are the intuitionistic ones.
+    // are the intuitionistic ones. The plain drawing would write
+    // classical formulas.
     let svg_style = &settings
         .styles
         .svg
@@ -1283,13 +1361,18 @@ pub fn draw_net(session: &str, settings: &str) -> Result<String, Failure> {
     svg::net(&net, svg_style, limits, never).map_err(Failure::from)
 }
 
-/// Returns a session's derivation in a format: `text` (the command's text
-/// tree), `latex`, `typst` and `svg` of the session's tree, open goals
-/// included, and `rocq`, the certificate of a finished session's checked
-/// proof; each in the settings' style for it. With `view.classical`
-/// `"two"`, a session of a commutative classical mode is drawn two-sided
-/// as its sequent was written ([`TwoSided`]), or for a session that keeps
-/// no record, one read from JSON, as its one-sided syntax writes it.
+/// Returns a session's derivation in a format, in the settings' style for
+/// that format:
+///
+/// - `text`, the command's text tree, and `latex`, `typst` and `svg`:
+///   the session's tree, open goals included;
+/// - `rocq`: the certificate of a finished session's proof, checked
+///   first.
+///
+/// With `view.classical` `"two"`, a session in the modes `classical`,
+/// `affine`, `mix` and `affine-mix` is drawn two-sided ([`TwoSided`]): as
+/// its sequent was written, or, for a session read from JSON that keeps
+/// no record of that, as its one-sided syntax writes it.
 ///
 /// # Errors
 ///
@@ -1359,10 +1442,13 @@ pub fn export(session: &str, format: &str, settings: &str) -> Result<String, Fai
     Ok(out)
 }
 
-/// Renders an SVG drawing of the bindings as `png` or `pdf`, with the
-/// font the drawing names (`styles.svg.font`, by default Euler Math) as
-/// `font`, the bytes of its file: no other font sets its text.
-/// A PDF needs `styles.pdf.date`, which the page takes from its clock.
+/// Renders an SVG drawing these calls made as `png` or `pdf`, and returns
+/// its bytes.
+///
+/// `font` is the bytes of the file of the font the drawing names, the
+/// export's `styles.svg.font`, by default Euler Math. No other font sets
+/// the drawing's text. A PDF needs `styles.pdf.date`, which the page takes
+/// from its clock, since the module reads none.
 ///
 /// # Errors
 ///
@@ -1386,14 +1472,16 @@ pub fn render(svg: &str, format: &str, font: &[u8], settings: &str) -> Result<Ve
     .map_err(Failure::from)
 }
 
-/// Returns the Rocq certificate of non-derivability of a refuted sequent
-/// or goal: `document` is a disproof, or the outcome of [`prove`] or
-/// [`close`] for an unprovable one, which reads as its disproof.
+/// Returns the Rocq certificate that a refuted sequent or goal has no
+/// proof. `document` is a disproof, or the `outcome` that [`prove`] or
+/// [`close`] answers for an unprovable one, which reads as its disproof.
 ///
 /// # Errors
 ///
-/// A document that is no disproof, and a refutation the certificate does
-/// not cover (an exhausted search) or the kernel `nanoyalla`.
+/// A document that is no disproof, a refutation its check does not
+/// accept, and one the certificate does not cover: an exhausted search, a
+/// refutation by a saturated set, the cyclic mode, the count equation of
+/// a sequent with a quantifier, and the kernel `nanoyalla`.
 pub fn certificate(document: &str, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let mut json = serde_json::Deserializer::from_str(document);
@@ -1409,15 +1497,17 @@ fn is_json(input: &str) -> bool {
     input.trim_start().starts_with('{')
 }
 
-/// Returns whether `mode` reads its sequents as intuitionistic sequents
-/// of the commutative order, which the strict syntax is for.
+/// Returns whether `mode` is intuitionistic and not ordered:
+/// `intuitionistic` or `intuitionistic-affine`, the modes whose sequents
+/// the strict intuitionistic syntax reads.
 fn commutative_intuitionistic(mode: Mode) -> bool {
     mode.is_intuitionistic() && !mode.is_ordered()
 }
 
-/// Reads an intuitionistic sequent: typed by the settings'
-/// `input.intuitionistic`, or as JSON, an intuitionistic sequent's
-/// document or a one-sided sequent read as intuitionistic.
+/// Reads an intuitionistic sequent. Typed, it is read in the syntax the
+/// settings' `input.intuitionistic` names. As JSON, it is an
+/// intuitionistic sequent's document or a one-sided sequent read as
+/// intuitionistic.
 fn ill_of(input: &str, settings: &Settings) -> Result<IllSequent, Failure> {
     let limits = &settings.limits;
     if is_json(input) {
@@ -1447,9 +1537,9 @@ fn ill_of(input: &str, settings: &Settings) -> Result<IllSequent, Failure> {
     }
 }
 
-/// Reads a sequent for a session or a search in `mode`: in an
-/// intuitionistic mode of the commutative order as [`ill_of`] reads it,
-/// else typed or as JSON.
+/// Reads a sequent for a session or a search in `mode`, typed or as JSON.
+/// In the modes `intuitionistic` and `intuitionistic-affine` it is read as
+/// [`ill_of`] reads it.
 fn sequent_in(input: &str, mode: Mode, settings: &Settings) -> Result<Sequent, Failure> {
     if commutative_intuitionistic(mode) {
         return ill_of(input, settings).map(IllSequent::into_sequent);
@@ -1477,16 +1567,18 @@ fn session_of(input: &str, settings: &Settings) -> Result<Interactive, Failure> 
     Ok(state)
 }
 
-/// Returns the position a page gives as a number: a `u32` widens to a
+/// Returns the position a page gives as a number. A `u32` widens to a
 /// `usize` on every target the crate builds for, 32 bits included.
 fn position_of(position: u32) -> usize {
     position as usize
 }
 
 /// Returns a goal or a position the page gives as a JavaScript number,
-/// which must be an integer from 0 to `u32::MAX`; the exports take it as a
-/// number, since wasm-bindgen would convert any number to a `u32` modulo
-/// 2³², so that `2 ** 32 + 3` would be 3 and `1.5` would be 1.
+/// which must be an integer from 0 to `u32::MAX`.
+///
+/// The exports take a number, not a `u32`: wasm-bindgen would convert any
+/// number to a `u32` modulo 2³², so that `2 ** 32 + 3` would be 3 and
+/// `1.5` would be 1.
 ///
 /// # Errors
 ///
@@ -1537,18 +1629,18 @@ struct CutShown {
     node: u32,
     /// The cut formula as the mode reads it.
     formula: String,
-    /// The inferences of the drawing that show it (its `i<n>`): one, or
-    /// one for every place the proof reads a shared cut at.
+    /// The inferences `i<n>` of the drawing that show it, as the numbers
+    /// `n`. A cut the proof shares has one for every place it is used.
     inferences: Vec<u32>,
 }
 
-/// A proof of an elimination as the page shows it: the proof, its cuts
+/// A proof of an elimination as the page shows it: the proof, its cuts,
 /// and its derivation drawn.
 #[derive(Serialize)]
 struct CutsView<'a> {
     /// The proof, which the page keeps for the next call.
     proof: &'a Proof,
-    /// Its cuts, in the order of its arena.
+    /// Its cuts, in the order of its nodes.
     cuts: Vec<CutShown>,
     /// The cut the strategy reduces next, `null` for a cut-free proof.
     next: Option<u32>,
@@ -1565,13 +1657,13 @@ struct CutsView<'a> {
 struct Drawn {
     /// The drawing.
     svg: String,
-    /// For the inference `i<n>` of the drawing, at `n`, the node of the
-    /// proof it shows; `None` for an inference the view adds.
+    /// For the inference `i<n>` of the drawing, at index `n`, the node of
+    /// the proof it shows. `None` for an inference the view adds.
     nodes: Vec<Option<NodeId>>,
 }
 
 impl Drawn {
-    /// Returns the inferences of the drawing that show `node`.
+    /// Returns the numbers `n` of the inferences `i<n>` that show `node`.
     fn showing(&self, node: NodeId) -> Vec<u32> {
         (0u32..)
             .zip(&self.nodes)
@@ -1590,8 +1682,8 @@ impl Drawn {
 }
 
 /// Draws the derivation of `proof`, a proof of `state`'s sequent, as
-/// [`export`] draws the session's: two-sided in an intuitionistic mode,
-/// and in a classical one as written with `view.classical` `"two"`.
+/// [`export`] draws the session's. It is two-sided in an intuitionistic
+/// mode, and in a classical one as written with `view.classical` `"two"`.
 fn drawn(proof: &Proof, state: &Interactive, settings: &Settings) -> Result<Drawn, Error> {
     let (mode, limits) = (state.mode(), &settings.limits);
     let view = if mode.is_intuitionistic() {
@@ -1634,8 +1726,8 @@ fn drawn(proof: &Proof, state: &Interactive, settings: &Settings) -> Result<Draw
         &mut svg,
         never,
     )?;
-    // The view's inferences are numbered from 0, fewer than 2³² as its
-    // ids count them.
+    // The view numbers its inferences from 0 with a `u32`, so the count
+    // fits.
     let nodes = (0..two_sided.len() as u32)
         .map(InfId::new)
         .map(|id| match two_sided.rule(id) {
@@ -1649,8 +1741,9 @@ fn drawn(proof: &Proof, state: &Interactive, settings: &Settings) -> Result<Draw
 }
 
 /// Returns the text of a member of a proof as `mode` reads it, as
-/// [`formula_in`] writes an occurrence; an instance with its frame's
-/// terms, under the reading the proof's mode gives.
+/// [`formula_in`] writes an occurrence. An instance, a member past the
+/// forest, is written with its frame's terms, under the intuitionistic
+/// reading when the proof records an intuitionistic mode.
 fn member_in(proof: &Proof, member: Member, mode: Mode) -> String {
     if member.index() >= proof.forest().len() {
         proof.formula(member).to_string()
@@ -1659,8 +1752,8 @@ fn member_in(proof: &Proof, member: Member, mode: Mode) -> String {
     }
 }
 
-/// Returns the text of an occurrence as `mode` reads it: under the
-/// intuitionistic reading in an intuitionistic mode, else one-sided.
+/// Returns the text of an occurrence as `mode` reads it: two-sided under
+/// the intuitionistic reading in an intuitionistic mode, else one-sided.
 fn formula_in(
     forest: &deduxit::linear::Forest,
     occurrence: deduxit::linear::OccId,
@@ -1708,7 +1801,7 @@ impl<'a> CutsView<'a> {
 }
 
 /// Reads the proof of an elimination: a proof's document of the
-/// session's sequent, or with an empty text the session's own proof.
+/// session's sequent, or, for an empty text, the session's own proof.
 fn proof_in(proof: &str, state: &Interactive, settings: &Settings) -> Result<Proof, Failure> {
     if proof.trim().is_empty() {
         return state
@@ -1727,10 +1820,11 @@ fn proof_in(proof: &str, state: &Interactive, settings: &Settings) -> Result<Pro
 /// A step of an elimination as the page shows it.
 #[derive(Serialize)]
 struct Taken {
-    /// The cut reduced, a node of the proof the step was taken on, or for
-    /// a net its cut link, its end in a cut formula's tree first.
+    /// The cut reduced: a node of the proof the step was taken on, or for
+    /// a net its cut link as two vertices, its end in a cut formula's tree
+    /// first.
     cut: serde_json::Value,
-    /// The cut formula, the occurrence of the cut's, as the mode reads it.
+    /// The cut formula as the mode reads it.
     formula: String,
     /// The case, in snake case (`axiom`, `tensor_par`, …).
     case: cut::Case,
@@ -1739,8 +1833,8 @@ struct Taken {
     /// Where the step acted besides the cut, if anywhere: a node of the
     /// proof, or a vertex of the net, the step was taken on.
     above: Option<u32>,
-    /// The ids of the elements of that proof's or net's drawing to
-    /// highlight, `null` where it was not drawn.
+    /// The ids of the elements to highlight in that proof's or net's
+    /// drawing. `null` where it was not drawn.
     highlight: Option<Highlight>,
 }
 
@@ -1756,8 +1850,8 @@ struct Highlight {
 }
 
 impl Taken {
-    /// Returns a step of an elimination on a proof term, its ids those of
-    /// `drawn`, the drawing of the proof it was taken on.
+    /// Returns a step of an elimination on a proof term. Its ids are those
+    /// of `drawn`, the drawing of the proof it was taken on.
     fn term(step: &cut::Step, proof: &Proof, mode: Mode, drawn: Option<&Drawn>) -> Self {
         Self {
             cut: step.cut.get().into(),
@@ -1794,9 +1888,9 @@ struct Run {
     /// The step.
     #[serde(flatten)]
     step: Taken,
-    /// The drawing, of a net with what the step acted on in the highlight
-    /// colour; `null` for a step past `cut.drawn_bytes` or one whose
-    /// drawing its bound refused.
+    /// The drawing. A net's has what the step acted on in the highlight
+    /// colour. `null` for a step past `cut.drawn_bytes`, and for one whose
+    /// drawing its own bound refused.
     drawing: Option<String>,
     /// The refusal of that drawing, where there is one.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1815,8 +1909,8 @@ struct Ran<T: Serialize> {
     #[serde(skip_serializing_if = "Option::is_none")]
     reason: Option<serde_json::Value>,
     /// The first step, counted from 1, whose drawing `cut.drawn_bytes`
-    /// left out, with every step after it; `null` when every step is
-    /// drawn.
+    /// left out. Every step after it is left out too. `null` when every
+    /// step is drawn.
     undrawn: Option<usize>,
     /// The proof or net reached.
     #[serde(flatten)]
@@ -1832,9 +1926,9 @@ fn ended(end: &cut::End) -> (&'static str, Option<serde_json::Value>) {
     }
 }
 
-/// The drawings of an elimination's steps within `cut.drawn_bytes`: each
-/// is kept while the bytes kept so far, its own included, stay within the
-/// bound, and none after the first that would pass it.
+/// The drawings of an elimination's steps within `cut.drawn_bytes`. A
+/// drawing is kept while the bytes kept so far, its own included, stay
+/// within the bound. None is kept after the first that would pass it.
 struct Drawings {
     /// The bound, in bytes.
     limit: Option<u64>,
@@ -1862,18 +1956,20 @@ impl Drawings {
     }
 }
 
-/// Returns the proof of an elimination with its cuts, drawn, and the cut
-/// the strategy reduces next: `proof` a proof of the finished session's
-/// sequent as this call or [`cut_step`] wrote it, or with an empty text
-/// the session's own proof. Answers `{"proof", "cuts": [{"node",
-/// "formula", "inferences"}], "next", "drawing"}`, `inferences` the
-/// drawing's `i<n>` that show the cut.
+/// Returns a proof for cut elimination with its cuts, its drawing, and
+/// the cut the strategy reduces next.
+///
+/// `proof` is a proof of the finished session's sequent, as this call or
+/// [`cut_step`] wrote it, or an empty text for the session's own proof.
+/// Answers `{"proof", "cuts": [{"node", "formula", "inferences"}], "next",
+/// "drawing"}`. `inferences` are the numbers `n` of the drawing's
+/// inferences `i<n>` that show the cut. A drawing past its bound is `null`,
+/// with its refusal in `refused`.
 ///
 /// # Errors
 ///
 /// As the session's reader, `open_goals` for an unfinished session,
-/// `foreign_proof` for a proof of another sequent, and the proof's reader;
-/// a drawing past its bound is `null` with its refusal in `refused`.
+/// `foreign_proof` for a proof of another sequent, and the proof's reader.
 pub fn cuts(session: &str, proof: &str, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let state = session_of(session, &settings)?;
@@ -1881,19 +1977,21 @@ pub fn cuts(session: &str, proof: &str, settings: &str) -> Result<String, Failur
     written(&CutsView::of(&proof, &state, &settings).0)
 }
 
-/// Takes one step of cut elimination on a proof of a finished session
-/// (`proof` as [`cuts`] reads it): the cut at the node `at`, or with
-/// `None` the one the strategy picks (`cut.strategy`), within the
-/// settings' `cut` and `limits`. Answers the step, `{"cut", "formula",
-/// "case", "name", "above", "highlight": {"cut", "above"}}` (the ids of
-/// the drawing of the proof given that show the cut and where the step
-/// acted), and the proof made as [`cuts`] answers.
+/// Takes one step of cut elimination on a proof of a finished session,
+/// `proof` as [`cuts`] reads it. The step reduces the cut at the node
+/// `at`, or for `None` the one the strategy picks (`cut.strategy`), within
+/// the settings' `cut` and `limits`.
+///
+/// Answers `step`, `{"cut", "formula", "case", "name", "above",
+/// "highlight": {"cut", "above"}}`, and the proof made as [`cuts`]
+/// answers. `highlight` holds the ids of the elements of the given
+/// proof's drawing that show the cut and where the step acted.
 ///
 /// # Errors
 ///
-/// As [`cuts`] reads its documents; `no_cut` for an `at` that is no cut
-/// and for a cut-free proof; `elimination_limit` for a proof made past
-/// `cut.nodes`; and the checker's.
+/// As [`cuts`] reads its documents. `no_cut` for an `at` that is no cut
+/// and for a cut-free proof. `elimination_limit` for a proof made past
+/// `cut.nodes`. And the checker's errors.
 pub fn cut_step(
     session: &str,
     proof: &str,
@@ -1916,17 +2014,21 @@ pub fn cut_step(
     })
 }
 
-/// Eliminates the cuts of a proof of a finished session (`proof` as
-/// [`cuts`] reads it) by the strategy, within the settings' `cut` (`steps`,
-/// `nodes`, and `drawn_bytes` for the drawings of the steps) and `limits`.
-/// Answers `{"steps": [{…, "drawing"}], "end", "reason", "undrawn"}`, each
-/// step as [`cut_step`] gives it with the drawing of the proof it was taken
-/// on, and the proof reached as [`cuts`] answers.
+/// Eliminates the cuts of a proof of a finished session, `proof` as
+/// [`cuts`] reads it, by the strategy. The settings' `cut` bounds it:
+/// `steps`, `nodes`, and `drawn_bytes` for the steps' drawings together.
+/// `limits` bounds it too.
+///
+/// Answers `{"steps": [{…, "drawing"}], "end", "reason", "undrawn"}` and
+/// the proof reached as [`cuts`] answers. Each step is as [`cut_step`]
+/// gives it, with the drawing of the proof it was taken on. `end` is
+/// `cut_free`, or `refused` when a bound ended the elimination, with that
+/// bound in `reason`.
 ///
 /// # Errors
 ///
 /// As [`cuts`] reads its documents, and the checker's for a proof that is
-/// none; a bound that ends the elimination is its `end`, not an error.
+/// none. A bound that ends the elimination is its `end`, not an error.
 pub fn eliminate(session: &str, proof: &str, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let state = session_of(session, &settings)?;
@@ -1975,9 +2077,9 @@ pub fn eliminate(session: &str, proof: &str, settings: &str) -> Result<String, F
     })
 }
 
-/// A net of an elimination: a proof structure, or one with boxes for a
-/// sequent with exponentials and for a proof that cuts an occurrence
-/// twice.
+/// A net of an elimination: a proof structure, or one with boxes. Boxes
+/// are for a sequent with exponentials, and for a proof that cuts an
+/// occurrence twice.
 #[derive(Serialize)]
 #[serde(untagged)]
 enum Net {
@@ -1999,8 +2101,8 @@ enum NetRef<'a> {
 /// A cut link of a net as the page shows it.
 #[derive(Serialize)]
 struct LinkShown {
-    /// Its two ends, its end in a cut formula's tree first; either is the
-    /// `at` of [`net_cut_step`].
+    /// Its two ends, its end in a cut formula's tree first. Either can be
+    /// the `at` of [`net_cut_step`].
     ends: [u32; 2],
     /// The id of its bar in the drawing, `c<x>-<y>`.
     id: String,
@@ -2029,10 +2131,10 @@ struct NetView<'a> {
 }
 
 impl Net {
-    /// Returns the net of a proof in `mode`, as the command makes it: with
-    /// boxes for a sequent with exponentials, and for one without where
-    /// the proof cuts an occurrence twice, which needs two vertices of one
-    /// occurrence.
+    /// Returns the net of a proof in `mode`, as the command makes it. It
+    /// has boxes for a sequent with exponentials. It has them too for one
+    /// without, where the proof cuts an occurrence twice, since that needs
+    /// two vertices of one occurrence.
     fn of(proof: &Proof, mode: Mode, limits: &deduxit::Limits) -> Result<Self, Error> {
         nets_exist(proof.sequent().fragment(), mode)?;
         let criterion = Criterion::of(mode)?;
@@ -2126,8 +2228,8 @@ impl<'a> NetRef<'a> {
         mode: Mode,
         settings: &Settings,
     ) -> Result<String, Error> {
-        // An intuitionistic net is drawn as its essential net, with cut
-        // links too, whose formulas are the intuitionistic ones.
+        // An intuitionistic net is drawn as its essential net, cut links
+        // included, so that its formulas are the intuitionistic ones.
         let style = &settings
             .styles
             .svg
@@ -2191,10 +2293,10 @@ impl<'a> NetView<'a> {
     }
 }
 
-/// Reads the net of an elimination: a net's document as [`net_cuts`]
-/// writes it, or the net of a proof, a proof's document of the session's
-/// sequent (told by its `nodes`) or with an empty text the finished
-/// session's own.
+/// Reads the net of an elimination. It is a net's document as
+/// [`net_cuts`] writes it, or the net of a proof: a proof's document of
+/// the session's sequent, told by its `nodes`, or, for an empty text, the
+/// finished session's own proof.
 fn net_in(net: &str, state: &Interactive, settings: &Settings) -> Result<Net, Failure> {
     /// The key that tells a proof's document.
     #[derive(Deserialize)]
@@ -2214,24 +2316,27 @@ fn net_in(net: &str, state: &Interactive, settings: &Settings) -> Result<Net, Fa
     Net::of(&proof, state.mode(), &settings.limits).map_err(|e| Failure::described(&e, state))
 }
 
-/// Returns the net of an elimination with its cut links, drawn, and the
-/// cut link the strategy reduces next: `net` a net as this call or
-/// [`net_cut_step`] wrote it, or the net of a proof of the session's
-/// sequent (its document, or with an empty text the finished session's
-/// own proof): a proof structure (with cut links), or one with boxes for
-/// a sequent with exponentials and for a proof that cuts an occurrence
-/// twice. Answers `{"net", "boxes", "cuts": [{"ends",
-/// "id", "formula"}], "next", "drawing"}`, `id` the cut link's bar,
-/// `c<x>-<y>`. The session gives the mode, whose reading writes the
-/// formulas; the net is drawn as [`draw_net`] draws one, in an
-/// intuitionistic mode as its essential net, cut links and all.
+/// Returns a net for cut elimination with its cut links, its drawing, and
+/// the cut link the strategy reduces next.
+///
+/// `net` is a net as this call or [`net_cut_step`] wrote it, or the net of
+/// a proof of the session's sequent: the proof's document, or an empty
+/// text for the finished session's own proof. The net of a proof is a
+/// proof structure with cut links. It has boxes for a sequent with
+/// exponentials, and for a proof that cuts an occurrence twice.
+///
+/// Answers `{"net", "boxes", "cuts": [{"ends", "id", "formula"}], "next",
+/// "drawing"}`, `id` the id of the cut link's bar, `c<x>-<y>`. The
+/// session gives the mode, which says how the formulas are written. The
+/// net is drawn as [`draw_net`] draws one: in an intuitionistic mode as
+/// its essential net, cut links included. A drawing past its bound is
+/// `null`, with its refusal in `refused`.
 ///
 /// # Errors
 ///
 /// As the session's reader, `open_goals` for an unfinished session, the
 /// refusal [`view`]'s `net` gives for a sequent without nets, and the
-/// net's reader; a drawing past its bound is `null` with its refusal in
-/// `refused`.
+/// net's reader.
 pub fn net_cuts(session: &str, net: &str, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let state = session_of(session, &settings)?;
@@ -2239,20 +2344,23 @@ pub fn net_cuts(session: &str, net: &str, settings: &str) -> Result<String, Fail
     written(&NetView::of(&net, state.mode(), &settings))
 }
 
-/// Takes one step of cut elimination on a net (`net` as [`net_cuts`]
-/// reads it): the cut link at the vertex `at`, either end, or with `None`
-/// the strategy's, the first of the net's list, within the settings' `cut`
-/// (`nodes` counting the net's vertices) and `limits`. Answers the step,
-/// `{"cut": [x, y], "formula", "case", "name", "above", "highlight":
-/// {"cut", "above"}}`, `marked`, the net the step was taken on drawn with
-/// what it acted on in the highlight colour, and the net made as
-/// [`net_cuts`] answers.
+/// Takes one step of cut elimination on a net, `net` as [`net_cuts`]
+/// reads it. The step reduces the cut link at the vertex `at`, either
+/// end, or for `None` the strategy's: the first of the net's list. The
+/// settings' `cut` bounds it, its `nodes` counting the net's vertices, and
+/// so do `limits`.
+///
+/// Answers `step`, `{"cut": [x, y], "formula", "case", "name", "above",
+/// "highlight": {"cut", "above"}}`, then `marked`, and the net made as
+/// [`net_cuts`] answers. `marked` is the net the step was taken on, drawn
+/// with what the step acted on in the highlight colour.
 ///
 /// # Errors
 ///
-/// As [`net_cuts`] reads its documents; `no_cut` for a vertex at no cut
-/// link and for a net without one; `elimination_limit` for a net made past
-/// `cut.nodes`; the criterion's for a structure that is no proof net.
+/// As [`net_cuts`] reads its documents. `no_cut` for a vertex at no cut
+/// link and for a net without one. `elimination_limit` for a net made past
+/// `cut.nodes`. The criterion's errors for a structure that is no proof
+/// net.
 pub fn net_cut_step(
     session: &str,
     net: &str,
@@ -2280,18 +2388,20 @@ pub fn net_cut_step(
     })
 }
 
-/// Eliminates the cut links of a net (`net` as [`net_cuts`] reads it) by
-/// the strategy, within the settings' `cut` (`steps`, `nodes` counting
-/// vertices, and `drawn_bytes` for the drawings of the steps) and
-/// `limits`. Answers `{"steps": [{…, "drawing"}], "end", "reason",
-/// "undrawn"}`, each step as [`net_cut_step`] gives it with the net it
-/// was taken on drawn with its marks, and the net reached as [`net_cuts`]
-/// answers.
+/// Eliminates the cut links of a net, `net` as [`net_cuts`] reads it, by
+/// the strategy. The settings' `cut` bounds it: `steps`, `nodes` counting
+/// vertices, and `drawn_bytes` for the steps' drawings together. `limits`
+/// bounds it too.
+///
+/// Answers `{"steps": [{…, "drawing"}], "end", "reason", "undrawn"}` and
+/// the net reached as [`net_cuts`] answers, as [`eliminate`] does. Each
+/// step is as [`net_cut_step`] gives it, with the net it was taken on
+/// drawn with its marks.
 ///
 /// # Errors
 ///
-/// As [`net_cuts`] reads its documents, and the criterion's for a
-/// structure that is no proof net; a bound that ends the elimination is
+/// As [`net_cuts`] reads its documents, and the criterion's errors for a
+/// structure that is no proof net. A bound that ends the elimination is
 /// its `end`, not an error.
 pub fn net_eliminate(session: &str, net: &str, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;

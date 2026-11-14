@@ -1,27 +1,28 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Why a call answered no value: the library's error in its written form,
-//! which the page words itself.
+//! Why a call failed: the library's error in its written form, as JSON.
+//! The page words the message itself.
 
 use deduxit::{Error, Owner};
 use std::fmt::{self, Display, Formatter};
 
 /// A failed call: the JSON of the error, `{"code", "kind", "message",
-/// "setting", "details"}` as the library writes an [`Error`], so that the
-/// page branches on `code` and `kind` and never on the message.
+/// "setting", "details"}`, as the library writes an [`Error`]. The page
+/// branches on `code` and `kind`, never on the message.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Failure(pub String);
 
 impl Failure {
-    /// Returns the failure of an error of the library whose formulas
-    /// `owner` writes.
+    /// Returns the failure of a library error, its message naming
+    /// formulas as `owner` writes them.
     pub fn described(error: &Error, owner: &impl Owner) -> Self {
         Self(serde_json::to_string(&error.describe(owner)).unwrap_or_else(|_| written(error)))
     }
 
-    /// Returns the failure of a document that is no JSON or not of the
-    /// form asked for, in the library's form of such an error.
+    /// Returns the failure of a document that is no JSON, or not of the
+    /// form asked for, in the form the library gives such an error: code
+    /// `json`, with the line and column in `details`.
     pub fn json(error: serde_json::Error) -> Self {
         let message = format!("not the JSON asked for: {error}");
         Self(
@@ -37,6 +38,7 @@ impl Failure {
 
     /// Returns the failure of a request the bindings refuse before the
     /// library sees it, with the code and kind the library would give it.
+    /// It has no `details`.
     pub fn refused(code: &str, kind: &str, message: &str) -> Self {
         Self(serde_json::json!({"code": code, "kind": kind, "message": message}).to_string())
     }
@@ -56,7 +58,8 @@ impl Display for Failure {
     }
 }
 
-/// Returns an error's written form.
+/// Returns an error's written form, or its code and message alone if that
+/// cannot be written.
 fn written(error: &Error) -> String {
     serde_json::to_string(error).unwrap_or_else(|_| {
         serde_json::json!({"code": error.code(), "message": error.to_string()}).to_string()
