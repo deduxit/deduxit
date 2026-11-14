@@ -579,8 +579,10 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   statuses are shown by examples that print them (`; echo "exit $?"`).
   A number the guide states in no such form is not tested: write it in
   one, or leave it out.
-  `guide_s_rust_is_a_doctest` holds each `rust` block to a crate-level
-  doctest of `core/src/lib.rs`, which the library's tests run;
+  `rust_examples_are_doctests` holds each `rust` block of the guide and
+  of the manual (`docs/src/library.md`) to a crate-level doctest of
+  `core/src/lib.rs`, which the library's tests run, so a doctest
+  reworded there changes those blocks too;
   `the_summary_keeps_its_budget` holds the skill's front matter
   (`name` the directory's, `description` at most 1 024 characters, the
   Agent Skills limit) and its body (fewer than 100 lines and 8 000

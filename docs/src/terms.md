@@ -1,12 +1,10 @@
-# Proofs as programs
+# Read a proof as a program
 
-An intuitionistic proof is a program: by the Curry-Howard correspondence
-a proof of intuitionistic linear logic is a term of a linear lambda
-calculus, whose type is the proved sequent, and a derivation of LJ is a
-term of the simply typed lambda calculus. deduxit reads every
-intuitionistic proof it finds or checks back as its term. `--lambda`
-prints the term's typing judgement, the hypotheses' variables with their
-types, then the term and its type:
+Every intuitionistic proof is also a program: its formulas are the
+program's types, and its hypotheses the program's inputs. This is the
+Curry-Howard correspondence. `--lambda` prints the program of a proof as
+a lambda-term, the notation in which `λx. M` is the function of `x`
+whose result is `M`, and `f x` applies `f` to `x`:
 
 ```console
 $ deduxit prove -i --lambda 'a, a -o b |- b'
@@ -18,20 +16,34 @@ a ⊢ a      b ⊢ b
 lambda-term: x : a, f : a ⊸ b ⊢ f x : b
 ```
 
-The term is computed from the proof the checker accepted, one
-construction per rule; it is shown, not trusted, and the proof stays the
-certificate.
+The last line is the term's typing judgement. Left of `⊢` stand the
+hypotheses' variables with their types: `x` has the type `a`, and `f`
+the type `a ⊸ b`. Right of it stands the term, `f x`, with its type,
+`b`. The proof that `b` follows from `a` and `a ⊸ b` is the program
+that applies `f` to `x`.
+
+A proof of intuitionistic linear logic (`-i`) is a term of a linear
+lambda calculus, and a derivation of LJ (`--logic intuitionistic` or
+`minimal`) a term of the simply typed lambda calculus. deduxit reads
+every intuitionistic proof it finds or checks back as its term. The term
+is computed from the proof the checker accepted, one construction per
+rule. It is shown, not trusted: the proof stays the certificate.
 
 ## The linear lambda calculus
 
+In a linear lambda calculus a term uses each variable once, as linear
+logic uses each hypothesis once. A variable of a `!` type may be copied
+or discarded, and both components of a pair use the same variables,
+since a program takes only one of them.
+
 A proof of intuitionistic linear logic reads back as a term of the
 linear lambda calculus of Benton, Bierman, de Paiva and Hyland, "A term
-calculus for intuitionistic linear logic" (TLCA 1993, LNCS 664, pages
-75 to 90), in the sequent calculus form that G. M. Bierman gives it, with
-the additives and their units, in *On Intuitionistic Linear Logic* (PhD
-thesis, University of Cambridge, 1993, published as technical report
-UCAM-CL-TR-346, 1994), chapter 3, figure 3.2. Each rule of the two-sided
-sequent calculus has its term:
+calculus for intuitionistic linear logic" (TLCA 1993, LNCS 664, pages 75
+to 90). deduxit takes it in the sequent calculus form, with the
+additives and their units, that G. M. Bierman gives in *On
+Intuitionistic Linear Logic* (PhD thesis, University of Cambridge, 1993,
+published as technical report UCAM-CL-TR-346, 1994), chapter 3, figure
+3.2. Each rule of the two-sided sequent calculus has its term:
 
 | rule | term |
 |---|---|
@@ -46,13 +58,13 @@ sequent calculus has its term:
 | `!w`, `!c` | `discard z in M`; `copy z as x, y in M` |
 | cut | `(λx:A. N) M` |
 
-Every form in the table is the thesis's, but the cut's: the thesis's cut
-is the substitution `N[x := M]` itself, and deduxit writes it as the redex
-whose reduction that substitution is, in the calculus's own syntax. A
-left rule substitutes, as the thesis does, so the term of a cut-free
-proof is in normal form. `true` and `false` take every other hypothesis,
-since `⊤` and `0` discard a linear context only by consuming it, and the
-two components of a pair share their context:
+Every form in the table is the thesis's except the cut's. The thesis's
+cut is the substitution `N[x := M]` itself; deduxit writes it as the
+redex whose reduction is that substitution, in the calculus's own
+syntax. A left rule substitutes, as in the thesis, so the term of a
+cut-free proof is in normal form. `true` and `false` take every other
+hypothesis, since `⊤` and `0` discard a linear context only by consuming
+it. The two components of a pair share their context:
 
 ```console
 $ deduxit prove -i --lambda --tree never '|- a -o b -o a * b'
@@ -84,7 +96,7 @@ lambda-term: x : !(a ⊸ b), y : !a ⊢ promote x, y for z, u in derelict(z) der
 A proof of affine linear logic (`--affine`) reads back to the affine
 lambda calculus: the same terms, with weakening left implicit, so a
 variable may go unused. Neither the paper nor the thesis gives an affine
-calculus; this reading is deduxit's own.
+calculus, so this reading is deduxit's own.
 
 ```console
 $ deduxit prove -i --affine --lambda --tree never 'a, b |- a'
@@ -95,10 +107,11 @@ lambda-term: x : a, y : b ⊢ x : a
 ## Cuts are redexes
 
 A cut on `A` between a proof of `Γ ⊢ M : A` and one of `Δ, x : A ⊢ N :
-C` is the redex `(λx:A. N) M`, whose reduction is the substitution of
-the thesis's cut: eliminating the cut (`deduxit eliminate`, the chapter
-[Cut and its elimination](cut.md)) reduces the term. A session that
-cuts shows it:
+C` is the redex `(λx:A. N) M`: a function applied to its argument.
+Reducing it is the substitution of the thesis's cut, and eliminating the
+cut (`deduxit eliminate`, see [Eliminate cuts](cut.md)) reduces the
+term. The session command `lambda` shows the term of a session that
+cuts:
 
 ```console
 $ deduxit interact -i 'a, a -o b |- b'
@@ -115,13 +128,13 @@ x : a, f : a ⊸ b ⊢ (λy. y) (f x) : b
 
 ## The simply typed lambda calculus
 
-A derivation of LJ, from intuitionistic or minimal logic (`--logic`, the
-chapter [Ordinary logic](ordinary-logic.md)), reads back to the simply
+A derivation of LJ, from intuitionistic or minimal logic (`--logic`, see
+[Decide ordinary logic](ordinary-logic.md)), reads back to the simply
 typed lambda calculus with products, sums, a unit and an empty type, as
 J.-Y. Girard, Y. Lafont and P. Taylor give it in *Proofs and Types*
-(Cambridge University Press, 1989), sections 3.1.2 and 10.6, their `π₁`,
-`π₂`, `ι₁`, `ι₂`, `δ` and `ε` written `fst`, `snd`, `inl`, `inr`, `case`
-and `abort`. The book names no term of the unit type; `⟨⟩`, the empty
+(Cambridge University Press, 1989), sections 3.1.2 and 10.6. Their `π₁`,
+`π₂`, `ι₁`, `ι₂`, `δ` and `ε` are written `fst`, `snd`, `inl`, `inr`,
+`case` and `abort`. The book names no term of the unit type, so `⟨⟩`, the empty
 pair, is deduxit's own notation for it. `¬A` is `A → ⊥`, and `A ↔ B` the
 pair of both implications:
 
@@ -143,10 +156,15 @@ image instead.
 ## What has no term
 
 A proof of classical linear logic may have several conclusions, which no
-lambda-term types. A derivation of LK, a proof with Mix, a proof of the
-cyclic or the Lambek calculus (whose terms belong to an ordered calculus
-of their own) and a proof with first-order quantifiers, which are not
-quantifiers over types, have none either. The line says why:
+lambda-term types. These have no term either:
+- a derivation of LK;
+- a proof with Mix;
+- a proof of the cyclic or the Lambek calculus, whose terms belong to an
+  ordered calculus of their own;
+- a proof with first-order quantifiers, which are not quantifiers over
+  types.
+
+The line says why:
 
 ```console
 $ deduxit prove --lambda --tree never '|- a, ~a'
@@ -159,10 +177,12 @@ no lambda-term: quantifiers over first-order terms are not quantifiers over type
 
 ## How the term is printed
 
-`--lambda-notation ascii` writes it in ASCII, a notation of deduxit's own
-(`\x. M` for `λx. M`, `M * N` for `M ⊗ N`, `()` for `∗`, `<M, N>` for
-`⟨M, N⟩`, `->` and `|` in a case, the types as the parser reads them), and `--lambda-types` gives every binder its variable's type,
-`λx:A. M`, and `false` its goal's, as the calculus writes them; the
+`--lambda-notation ascii` writes the term in ASCII, a notation of
+deduxit's own: `\x. M` for `λx. M`, `M * N` for `M ⊗ N`, `()` for `∗`,
+`<M, N>` for `⟨M, N⟩`, `->` and `|` in a case, and the types as the parser
+reads them. `--lambda-types` gives every binder its variable's type,
+`λx:A. M`, and `false` and `abort` their goal's, as the calculus writes
+them. The
 settings keys are `lambda.notation` and `lambda.types`:
 
 ```console
@@ -171,9 +191,10 @@ provable (IMLL, intuitionistic, two-sided engine)
 lambda-term: |- \x:a. \y:b. x * y : a -o (b -o (a * b))
 ```
 
-In the library a `lambda::Term` prints with `Display`: `term.to_string()`
-is the term alone, in the default notation. `Term::write` and
-`Term::write_judgement` take the options.
+In a program that uses the library, a `lambda::Term` prints with
+`Display` (`term.to_string()` is the term alone, in the default
+notation), and `Term::write` and `Term::write_judgement` take the
+options.
 
 `check --lambda` prints the term of a proof read from a file, and the
 session command `lambda` of `interact` that of the finished proof or
@@ -213,5 +234,5 @@ $ deduxit prove -i --format json --lambda 'a |- a'
 
 A term repeats a left rule's term wherever its hypothesis goes, in both
 components of a pair, so its text can be longer than the derivation by
-any factor; a term whose text would pass `--derivation-limit` is not
+any factor. A term whose text would pass `--derivation-limit` is not
 written, and the line says so.

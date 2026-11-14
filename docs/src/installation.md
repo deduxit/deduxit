@@ -1,11 +1,15 @@
-# Installation
+# Install deduxit
 
-The command `deduxit` is the package `deduxit-cli`. Each release on
-[GitHub](https://github.com/deduxit/deduxit/releases) has it built
-for Linux, macOS and Windows, with packages for Debian and Ubuntu,
-Fedora and Arch Linux; it is on [crates.io](https://crates.io/crates/deduxit-cli)
-for `cargo install`, and the flake of this repository builds it with
-Nix. Pick your system:
+The command `deduxit` is the package `deduxit-cli`. The shortest ways
+in:
+- download the package for your system from a
+  [release on GitHub](https://github.com/deduxit/deduxit/releases),
+  built for Linux, macOS and Windows (the sections below give the
+  commands);
+- with Rust 1.92 or later, `cargo install --locked deduxit-cli`, from
+  [crates.io](https://crates.io/crates/deduxit-cli);
+- with Nix, `nix run github:deduxit/deduxit -- --help`, which runs it
+  without installing.
 
 | system | install | needs |
 |---|---|---|
@@ -19,22 +23,16 @@ Nix. Pick your system:
 | any system | `cargo install --locked deduxit-cli` | Rust 1.92 or later |
 
 The files below are those of version 0.3.0; a later release names its
-own.
+own. For long searches on Linux, a build of your own is faster
+([Long searches](#long-searches)).
 
-**Which to prefer.** The release's Linux files hold one binary linked
-statically against musl, so that it runs on every distribution. musl's
-C library is slower than glibc's at what a search does most: on two
-searches of about four seconds (cores of one machine, 2026-11-02) the
-static binary took 1.26 to 1.45 times as long as a build against glibc,
-on one thread and on four alike. For long searches, build the command
-on your machine, with `cargo install` or Nix, which link glibc; for
-everything else the packages are the quicker way in. Every release lists the SHA-256 sums of its files in `SHA256SUMS`
-and carries an attestation of where they were built, which
-`gh attestation verify FILE --repo deduxit/deduxit` checks with the
-GitHub command; the files of 0.2.0 and earlier were attested under the
-repository's former name, so for them it is
-`gh attestation verify FILE --repo linlog-prover/linlog`. The packages and binaries are not signed: what that
-means on each system is said in its section.
+Every release lists the SHA-256 sums of its files in `SHA256SUMS`. It
+also carries an attestation of where they were built, which the GitHub
+command checks: `gh attestation verify FILE --repo deduxit/deduxit`. The
+files of 0.2.0 and earlier were attested under the repository's former
+name, so for them it is `gh attestation verify FILE --repo
+linlog-prover/linlog`. The packages and binaries are not signed: each
+system's section says what that means there.
 
 ## Debian and Ubuntu
 
@@ -70,8 +68,8 @@ deduxit --version
 ```
 
 The package is for x86_64; on Arch Linux ARM, take the archive below.
-It is not signed, so pacman, which checks the signatures of packages from its
-repositories, asks nothing for a file. To update, install the next
+It is not signed. pacman checks the signatures of packages from its
+repositories, but asks nothing for a file named on its command line. To update, install the next
 release's package; to remove, `sudo pacman -R deduxit`.
 
 ## Any Linux
@@ -140,9 +138,9 @@ it as an input:
 
 (`home.packages` takes it the same way.) To update, move the input's tag
 and rebuild; to remove, take it out of the list. Nix builds it from
-source on first use, a few minutes; the binary cache under
-[Development](development.md) holds the builds of `main` for
-x86_64-linux and saves that, once it is trusted.
+source on first use, which takes a few minutes. The binary cache that
+[Development](development.md) names holds the builds of `main` for
+x86_64-linux and saves that time once you trust it.
 
 ## macOS
 
@@ -219,6 +217,17 @@ which needs Microsoft's C++ build tools (Visual Studio's "Desktop
 development with C++", which rustup-init offers to install). `rustup
 update` keeps it current and `rustup self uninstall` removes it.
 
+## Long searches
+
+The release's Linux files hold one binary linked statically against
+musl, so that it runs on every distribution. musl's C library is slower
+than glibc's at what a search does most. On two searches of about four
+seconds (cores of one machine, 2026-11-02), the static binary took 1.26
+to 1.45 times as long as a build against glibc, on one thread and on
+four alike. For long searches on Linux, build the command on your
+machine with `cargo install` or Nix, which link against glibc. For
+everything else, the packages are the quicker way in.
+
 ## The library
 
 The library is the crate [`deduxit`](https://crates.io/crates/deduxit):
@@ -228,16 +237,17 @@ The library is the crate [`deduxit`](https://crates.io/crates/deduxit):
 deduxit = "0.3"
 ```
 
-with the default features `parse`, `serialize`, `interactive`, `latex`,
-`typst`, `svg` and `rocq`, and `parallel` (a thread pool, not for wasm),
-`png` and `pdf` to add. The documentation's examples read and write JSON
-with `serde_json`, the caller's own dependency.
+Its default features are `parse`, `serialize`, `interactive`, `latex`,
+`typst`, `svg`, `rocq` and `sat`. Add `parallel` (a thread pool, not for
+wasm), `png` and `pdf` as you need them. The documentation's examples
+read and write JSON with `serde_json`, which you add yourself.
+[Use the library](library.md) shows how to call it.
 
 ## The Rocq library
 
 The Rocq certificates the command writes (`--format rocq`) are checked
 by the NanoYalla kernel or by deduxit's own Rocq library, `rocq-deduxit`,
 in its repository
-[deduxit/rocq-deduxit](https://github.com/deduxit/rocq-deduxit);
-[Rocq certificates](rocq.md) says how to install each and compile a
-certificate.
+[deduxit/rocq-deduxit](https://github.com/deduxit/rocq-deduxit).
+[Check a certificate in Rocq](rocq.md) says how to install each and
+check a certificate.

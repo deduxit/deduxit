@@ -1,12 +1,14 @@
-# Ordinary logic
+# Decide ordinary logic
 
-`--logic classical`, `intuitionistic` or `minimal` reads a formula or a
-sequent of ordinary propositional logic instead, written with `->`/`→`,
-`/\`/`∧`, `\/`/`∨`, `~`/`¬`, `<->`/`↔`, `true`/`⊤` and `false`/`⊥`
-(`~` binds tightest, then `/\`, `\/`, `->`, and last `<->`; `->` and
-`<->` group to the right). `prove` decides it and draws the proof as a
-derivation of LK or LJ, which is checked by the rules of the logic
-before it is shown:
+deduxit also decides ordinary propositional logic, in three variants:
+- classical logic, where every formula is true or false, so that
+  `a \/ ~a` holds;
+- intuitionistic logic, where a proof of a formula must build it, so
+  that `a \/ ~a` and `~~a -> a` do not hold in general;
+- minimal logic, intuitionistic logic in which false is an ordinary
+  atom: nothing follows from it.
+
+Name the logic with `--logic` and give `prove` a formula or a sequent:
 
 ```console
 $ deduxit prove --logic classical '((a -> b) -> a) -> a'
@@ -33,28 +35,65 @@ $ deduxit prove --logic intuitionistic '~~a -> a'
 not valid (intuitionistic logic by LJT): the search was exhaustive
 ```
 
+## Read the answer
+
+- `valid`: the sequent is a theorem of the logic. deduxit shows its proof
+  in Gentzen's sequent calculus, LK for classical logic and LJ for the
+  other two, and checks it by the rules of the logic before it is shown.
+  The exit status is 0.
+- `not valid`: no proof exists in LK or LJ, so the sequent is not a
+  theorem of that logic. `~~a -> a` above is a classical theorem, but not
+  an intuitionistic one. The exit status is 1.
+- `unknown`: a limit, such as the time limit, stopped the search before
+  it decided. The exit status is 3, and the line says which limit it
+  was.
+
+The words in brackets name the logic and how deduxit decided the
+sequent: by LJT, or through a translation into linear logic and the
+engine that searched there ([How a sequent is
+decided](#how-a-sequent-is-decided)).
+
+The line of a classical sequent that is not valid may name an
+assignment of truth values that makes it false. Here `a -> b` fails
+where `a` is true and `b` false:
+
+```console
+$ deduxit prove --logic classical 'a -> b'; echo "exit $?"
+not valid (classical logic by the affine translation into affine MALL, focus engine): the translated sequent is unprovable: the classical reading is false where a is true and every other atom false (! and ? erased, ⊗ and & as and, ⅋ and ⊕ as or, 1 and ⊤ true, ⊥ and 0 false), and every provable sequent reads as a tautology
+exit 1
+```
+
+## Write a formula
+
+The connectives are `->`/`→`, `/\`/`∧`, `\/`/`∨`, `~`/`¬`, `<->`/`↔`,
+`true`/`⊤` and `false`/`⊥`. `~` binds tightest, then `/\`, `\/`, `->`,
+and last `<->`. `->` and `<->` group to the right. A sequent such as
+`a, a -> b |- b` has hypotheses left of `|-`; a formula alone is the
+sequent with nothing on the left.
+
 ## How a sequent is decided
 
-`--method` chooses how (the key `ordinary.method`):
-
+`--method` chooses how (the settings key `ordinary.method`):
 - `ljt` is Dyckhoff's calculus LJT, for intuitionistic and minimal logic.
   Its search always ends, so every such sequent is answered `valid` or
   `not valid` unless the time limit or the memory runs out first. It is
   the default for both logics.
 - `embedding` translates the sequent into linear logic, searches the
-  image there and reads the proof back. It decides all three logics and
-  is the default for classical logic.
+  image there and reads the proof back as one of LK or LJ. It decides
+  all three logics and is the default for classical logic.
 
 On the ILTP library's 274 problems, with 2 seconds each, LJT decides 200
 in intuitionistic logic and 200 in minimal logic, the embedding 188 in
-each, and LJT is the faster on all but two of the problems both decide,
-which take under a millisecond either way. A derivation
-from LJT can be far larger than the search behind it. Where LJT stops at
-a bound other than the time limit, such as a derivation past
-`--derivation-limit`, the default hands the sequent to the embedding,
-and the verdict line names the translation. `--method ljt` reports the
-bound instead. `--translation` and `--linear` name the embedding, so
-either of them alone chooses it:
+each. LJT is the faster on all but two of the problems both decide,
+which take under a millisecond either way.
+
+A derivation from LJT can be far larger than the search behind it. Where
+LJT stops at a bound other than the time limit, such as a derivation
+past `--derivation-limit`, the default hands the sequent to the
+embedding, and the verdict line names the translation. `--method ljt`
+reports the bound instead. `--translation` and `--linear` name the
+embedding, so either of them alone chooses it. Through the embedding, a
+`not valid` says that the translated sequent is unprovable:
 
 ```console
 $ deduxit prove --logic intuitionistic --method embedding -q '~~a -> a'
@@ -69,44 +108,24 @@ time: …
 ```
 
 LJT's derivation of LJ uses Gentzen's cut for four of its rules, so its
-lambda-term may hold a redex and its certificate a `let`. With
-`--format json` the output is the outcome of the ordinary sequent: its
-`verdict` (`valid`, `not_valid` or `unknown` with a `reason`), its
-`logic`, the `engine` `ljt`, its `statistics` and the `derivation`.
-`check` reads proofs of linear logic, so it takes the embedding's
-outcome and refuses LJT's.
+lambda-term ([Read a proof as a program](terms.md)) may hold a redex and
+its certificate a `let`.
 
-The derivation is checked with every weakening and contraction as an
-inference of its own, and drawn with each of them left out where it is
-admissible, so that it reads as in G3, whose axiom takes a context
-(`a ⊢ b, a` above) and whose rules contract what they use twice;
-`--structural explicit` draws every one (the key `view.structural`), and
-a certificate names every one whatever the flag says:
-
-```console
-$ deduxit prove --logic classical --structural explicit '((a -> b) -> a) -> a'
-valid (classical logic by the affine translation into affine MALL, focus engine)
-  ───── ax
-  a ⊢ a
- ──────── WR
- a ⊢ b, a
-────────── →R   ───── ax
-⊢ a → b, a      a ⊢ a
-───────────────────── →L
-   (a → b) → a ⊢ a
- ─────────────────── →R
- ⊢ ((a → b) → a) → a
-```
+### The translations
 
 Through the embedding, classical logic goes into affine MALL without
 exponentials (negation normal form, `∧` as `&`, `∨` as `⅋`), where the
-search needs no copy bound. Intuitionistic logic goes into ILL by
-`--translation cbn` (Girard's call-by-name translation, the default),
-`cbv` (his call-by-value one) or `01` (Liang and Miller's 0/1
-translation); minimal logic is the same with false an atom. There the
-search deepens its copy bound under the time limit, so an intuitionistic
-formula may be answered unknown (exit status 3). `seq print` shows the
-image, and `--linear` the linear proof of it:
+search needs no copy bound. Intuitionistic logic goes into
+intuitionistic linear logic (ILL) by one of three translations, which
+`--translation` names:
+- `cbn`, Girard's call-by-name translation, the default;
+- `cbv`, his call-by-value one;
+- `01`, Liang and Miller's 0/1 translation.
+
+Minimal logic is the same with false an atom. In ILL the search deepens
+its copy bound under the time limit, so an intuitionistic formula may be
+answered unknown (exit status 3). `seq print` shows the image, and
+`--linear` the linear proof of it:
 
 ```console
 $ deduxit seq print --logic intuitionistic --translation cbv 'a, a -> b |- b'
@@ -127,22 +146,39 @@ a ⊢ a
  !a, !(!a ⊸ b) ⊢ b
 ```
 
-A `.p` file under `--logic` is a problem in TPTP's syntax, as the ILTP
-library writes them (`nix build .#iltp` fetches its 274 propositional
-problems), and the batch takes a directory of them. `--format latex`,
-`typst`, `svg`, `png` and `pdf` draw the derivation of LK or LJ, and
-`--format rocq` writes a certificate over `Prop` that needs no library
-(a classical one the standard library's excluded middle), and for a
-sequent that is not valid, where its image's refutation is a classical
-assignment, the lemma that the formula does not hold for all
-propositions, proved by instantiating the atoms with `True` and `False`:
+## Draw the derivation
+
+The derivation is checked with every weakening and contraction as an
+inference of its own. It is drawn with each of them left out where it is
+admissible, so that it reads as in G3, whose axiom takes a context
+(`a ⊢ b, a` above) and whose rules contract what they use twice.
+`--structural explicit` draws every one (the key `view.structural`), and
+a certificate names every one whatever the flag says:
 
 ```console
-$ echo 'fof(pel1, conjecture, (p => q) <=> (~ q => ~ p)).' > pel1.p
-$ deduxit prove --logic intuitionistic --quiet --file pel1.p
-not valid (intuitionistic logic by LJT): the search was exhaustive
-$ deduxit prove --logic classical --quiet --file pel1.p
+$ deduxit prove --logic classical --structural explicit '((a -> b) -> a) -> a'
 valid (classical logic by the affine translation into affine MALL, focus engine)
+  ───── ax
+  a ⊢ a
+ ──────── WR
+ a ⊢ b, a
+────────── →R   ───── ax
+⊢ a → b, a      a ⊢ a
+───────────────────── →L
+   (a → b) → a ⊢ a
+ ─────────────────── →R
+ ⊢ ((a → b) → a) → a
+```
+
+`--format latex`, `typst`, `svg`, `png` and `pdf` draw the derivation of
+LK or LJ. `--format rocq` writes a certificate over `Prop` that needs no
+library; a classical one uses the standard library's excluded middle.
+For a sequent that is not valid, where its image's refutation is a
+classical assignment, the certificate is the lemma that the formula does
+not hold for all propositions, proved by instantiating the atoms with
+`True` and `False`:
+
+```console
 $ deduxit prove --logic classical --format rocq 'a \/ ~a'
 (* valid (classical logic by the affine translation into affine MALL, focus engine) *)
 Lemma certificate : forall a : Prop, (a \/ ~ a).
@@ -157,23 +193,57 @@ Proof.
 Qed.
 ```
 
+## Read a problem file
+
+A `.p` file under `--logic` is a problem in TPTP's syntax, as the ILTP
+library writes them (`nix build .#iltp` fetches its 274 propositional
+problems). The batch ([Decide many sequents at once](batch.md)) takes a
+directory of them.
+
+```console
+$ echo 'fof(pel1, conjecture, (p => q) <=> (~ q => ~ p)).' > pel1.p
+$ deduxit prove --logic intuitionistic --quiet --file pel1.p
+not valid (intuitionistic logic by LJT): the search was exhaustive
+$ deduxit prove --logic classical --quiet --file pel1.p
+valid (classical logic by the affine translation into affine MALL, focus engine)
+```
+
+## JSON output
+
+With `--format json` and LJT, the output is the outcome of the ordinary
+sequent: its `verdict` (`valid`, `not_valid`, or `unknown` with a
+`reason`), its `logic`, the `engine` `ljt`, its `statistics` and, for a
+valid sequent, the `derivation`:
+
+```console
+$ deduxit prove --logic intuitionistic --format json '~~a -> a'
+{"version":8,"deduxit":"0.3.0","verdict":"not_valid","logic":"intuitionistic","engine":"ljt","statistics":{"sequents":5,"memo_hits":0,"memo_entries":5,"subsumed":0}}
+```
+
+Through the embedding, the output is the outcome of the search on the
+image, as `prove` writes it without `--logic`. `check` reads proofs of
+linear logic, so it takes the embedding's outcome and refuses LJT's.
+
 ## Step by step
 
 `deduxit interact --logic classical`, `intuitionistic` or `minimal`
-proves the sequent step by step by the rules of LK or LJ, with the
-commands of a linear session (see [Interactive proving](interactive.md)):
-`goals`, `rules`, `apply`, `undo`, `close`, `show`, `proof`, `save`,
-`load`, `help` and `quit`. A formula is named by its side and its position
-there, `L0`, `L1`, … left of `⊢` and `R0`, `R1`, … right of it, as `goals`
-lists them; a rule by its name or an ASCII spelling (`andR`, `orR1`, `->L`
-or `impL`, `~R` or `notR`, `iffL1`, `falseL`, `WL`, `CR`). The axiom closes
-a goal that has its formula on both sides, whatever else it holds. A rule
-with two premises gives both the whole context, as LJ's `→L` does in G3,
-unless the formulas named after the rule go to the first premise and
-the rest to the second (`apply 1 L1 ->L L0` sends `L0` to the first).
-`close` decides a goal through the embedding, whose derivations have no
-cut, by the translation `--translation` chooses, and grafts the
-derivation found, which `undo` takes back whole:
+proves the sequent step by step by the rules of LK or LJ. The session
+has the commands of a linear session ([Prove step by
+step](interactive.md)): `goals`, `rules`, `apply`, `undo`, `close`,
+`show`, `proof`, `save`, `load`, `help` and `quit`.
+- A formula is named by its side and its position there: `L0`, `L1`, …
+  left of `⊢` and `R0`, `R1`, … right of it, as `goals` lists them.
+- A rule is named by its name or an ASCII spelling: `andR`, `orR1`,
+  `->L` or `impL`, `~R` or `notR`, `iffL1`, `falseL`, `WL`, `CR`.
+- The axiom closes a goal that has its formula on both sides, whatever
+  else it holds.
+- A rule with two premises gives both the whole context, as LJ's `→L`
+  does in G3. Formulas named after the rule go to the first premise
+  instead, and the rest to the second: `apply 1 L1 ->L L0` sends `L0`
+  to the first.
+- `close` decides a goal through the embedding, whose derivations have
+  no cut, by the translation `--translation` chooses. It grafts the
+  derivation found, which `undo` takes back whole.
 
 ```console
 $ deduxit interact --logic intuitionistic 'a -> b, b -> c |- a -> c'
@@ -204,15 +274,18 @@ a ⊢ a      b ⊢ b
 ```
 
 In intuitionistic and minimal logic every goal keeps one formula right
-of `⊢`: a sequent with none starts as `Γ ⊢ ⊥`, the rules of LK that
-would leave a premise with none or two (`WR`, `CR`, `⊥R`, `∨R` with both
-disjuncts) are refused with the reason, and `¬R` and `¬L` take the form
-of `→R` and `→L` for `A → ⊥`; minimal logic has no `⊥L`. The goals the
-search cannot decide stay open with the reason, as `prove` gives it.
-`show` draws the derivation so far, open goals as bare sequents, and
-`proof` checks the finished one and prints it in every format of
-`prove`, `--structural` choosing how the structural rules are drawn
-(`proof --rocq` names every one); `save` writes the session as JSON,
+of `⊢`:
+- A sequent with none starts as `Γ ⊢ ⊥`.
+- The rules of LK that would leave a premise with none or two (`WR`,
+  `CR`, `⊥R`, `∨R` with both disjuncts) are refused with the reason.
+- `¬R` and `¬L` take the form of `→R` and `→L` for `A → ⊥`.
+- Minimal logic has no `⊥L`.
+
+The goals the search cannot decide stay open with the reason, as `prove`
+gives it. `show` draws the derivation so far, open goals as bare
+sequents. `proof` checks the finished one and prints it in every format
+of `prove`, `--structural` choosing how the structural rules are drawn
+(`proof --rocq` names every one). `save` writes the session as JSON,
 which `--state FILE` resumes:
 
 ```console

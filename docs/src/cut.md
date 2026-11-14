@@ -1,107 +1,54 @@
-# Cut and its elimination
+# Eliminate cuts
 
-`cut G C P…` cuts goal G on a formula C, written as the mode writes
-formulas (intuitionistic in intuitionistic mode, as the sequent is) and
-quoted when it has blanks: the formulas at the positions P go to the
-first premise, which proves C, and the others to the second, which takes
-C as a hypothesis, so that a goal `Γ, Δ ⊢ D` leaves `Γ ⊢ C` and
-`Δ, C ⊢ D`; `undo` takes the cut back with its formula. The search never
-makes a cut, and `close` proves each premise without one:
+A cut proves a formula C once and then uses it as a hypothesis: from
+`Γ ⊢ C` and `Δ, C ⊢ D` it concludes `Γ, Δ ⊢ D`. Cut elimination
+rewrites a proof with cuts into a proof of the same sequent without
+them. `deduxit eliminate` does it on a proof file, one step at a time:
 
 ```console
-$ deduxit interact -i "A, A -o B, B -o C |- C"
-> cut 0 B 0 1
-opened goal 1: 0: A, 1: A ⊸ B ⊢ 2: B
-opened goal 2: 0: B ⊸ C, 2: B ⊢ 1: C
-> close
-goal 1: provable (IMLL, intuitionistic, two-sided engine)
-goal 2: provable (IMLL, intuitionistic, two-sided engine)
-no goal is open: `proof` checks the proof
-> proof
-valid proof (intuitionistic)
-───── ax   ───── ax   ───── ax   ───── ax
-A ⊢ A      B ⊢ B      B ⊢ B      C ⊢ C
-──────────────── ⊸L   ──────────────── ⊸L
-  A, A ⊸ B ⊢ B          B ⊸ C, B ⊢ C
-  ────────────────────────────────── cut
-         A, A ⊸ B, B ⊸ C ⊢ C
+$ printf 'cut 0 B 0 1\nclose\nproof cut.json\n' | deduxit interact -i "A, A -o B, B -o C |- C" > /dev/null
+$ deduxit eliminate cut.json
+1. a commutative case on the cut of B
+2. the axiom case on the cut of B
+cut-free proof of A, A ⊸ B, B ⊸ C ⊢ C (intuitionistic) after 2 steps
+           ───── ax   ───── ax
+           B ⊢ B      C ⊢ C
+───── ax   ──────────────── ⊸L
+A ⊢ A        B, B ⊸ C ⊢ C
+───────────────────────── ⊸L
+   A, A ⊸ B, B ⊸ C ⊢ C
 ```
 
-`deduxit eliminate` reads a proof file, as `proof FILE` or `prove
---format json` writes it, checks it in the mode the file states (or
-the flags give, where it states none), and
-eliminates its cuts one step at a time: each step reduces the cut that
-comes first in the proof, the one with no cut above it, and is printed
-with its case (the axiom case, the key case of a connective and its
-dual, a commutative case, and for the exponentials weakening,
-dereliction, contraction and a box entering a box) and the cut
-formula, every proof reached is checked, and the proof the elimination
-ends with is drawn as `check` draws it. `--steps N` takes N steps at
-most (10 000 by default) and `--node-limit N` refuses a step that makes
-a proof of more than N nodes (100 000 by default): the exponentials can
-make a proof grow beyond any practical size, and a bound reached prints
-the proof reached, cuts and all. With `--format json` the output is the
-record `{"version", "proof", "steps", "end"}`: the proof reached, each
-step's `cut` (a node of the proof it was taken on), `formula` and
-`case`, and `end`, `cut_free` or `refused` with its `reason`. The exit
-status is 0 when no cut is left or the steps asked for with `--steps`
-were taken, 1 for a proof that is not valid, 3 when the default bound
-on steps, another bound or the time limit stopped it with cuts left,
-and 2 for an error.
+The first command writes `cut.json`, a proof that cuts on `B`. The
+search never makes a cut, so such a proof comes from the `cut` command
+of a session ([Prove a lemma with a cut](interactive.md#prove-a-lemma-with-a-cut))
+or from a file written by hand.
 
-`--at NODE` takes the first step on the cut at that node of the proof,
-its index in the file's `nodes` (as the checker's messages and the
-record's `cut` number nodes), and the others as before; a node that is
-no cut is an error. Here the proof has a cut on `a` (node 6) below a
-cut on `b` (node 5):
+`eliminate` reads a proof file as a session's `proof FILE` or
+`prove --format json` writes it. It checks the proof in the mode the
+file states, or the flags' mode where the file states none. Then each
+step reduces the first cut of the proof, one with no cut above it, and
+prints its case and the cut formula. Every proof reached is checked.
+The last one is drawn as [`check`](check.md) draws it, and `-q` leaves
+the drawing out.
 
-```console
-$ printf 'cut 0 a 0\ncut 2 b 0 2\nclose\nproof two.json\n' | deduxit interact -i "a, a -o b |- b" > /dev/null
-$ deduxit eliminate -q two.json
-1. the axiom case on the cut of b
-2. the axiom case on the cut of a
-cut-free proof of a, a ⊸ b ⊢ b (intuitionistic) after 2 steps
-$ deduxit eliminate -q --at 6 two.json
-1. the axiom case on the cut of a
-2. the axiom case on the cut of b
-cut-free proof of a, a ⊸ b ⊢ b (intuitionistic) after 2 steps
-```
+## The cases
 
-With `--net` the cuts are eliminated on the proof's net instead, for the
-sequents `--net` takes (MLL without units, and nets with boxes of MELL
-without units, classical with or without `--mix` or intuitionistic): the
-proof's cuts are the net's cut links, each step reduces the first cut
-link (nets have no commutative cases: the axiom case, the key case of ⊗
-and ⅋, and on boxes weakening, which erases a box, dereliction, which
-opens one, contraction, which duplicates one, and a box entering a box),
-every net reached passes the correctness criterion, and the net reached
-is printed as text, every cut link as a line `cut A[x] — A⊥[y]`; the
-bound on nodes counts a net's vertices. `--format svg`, `png` or `pdf`
-with `--output FILE` draws every net into a file of its own: `FILE-k`
-(`net-1.svg` for `net.svg`) the net step k was taken on, with its cut
-link, a bar under its two formulas, and what the step acts on (the links
-at its ends, its `⊗` and `⅋`, the box of its `!`, the box it enters)
-highlighted, and `FILE` the net reached; an SVG file's first line is a
-comment naming its step. Each file is written as soon as it is drawn,
-within `--derivation-limit`, and the steps' files take 256 MiB together
-at most (`--drawings-limit SIZE`, the settings key `cut.drawn_bytes`):
-past it the steps go on undrawn, a line on standard error says from
-which step, and `FILE` still holds the net reached. `--format json` writes the record `{"version",
-"net", "steps", "end"}` with the net reached, each step's `cut` the two
-vertices of its cut link.
+A step is one of these cases:
+
+- the axiom case, where one premise of the cut is an axiom;
+- the key case of a connective against its dual, such as `⊗` against
+  `⅋`;
+- a commutative case, which moves the cut above a rule that does not
+  act on the cut formula;
+- for the exponentials: weakening, dereliction, contraction, and a box
+  entering a box.
+
+A contraction copies a box, so the proof grows:
 
 ```console
-$ deduxit interact -i "!a |- a * a"
-> cut 0 !a 0
-opened goal 1: 0: !a ⊢ 1: !a
-opened goal 2: 1: !a ⊢ 0: a ⊗ a
-> close
-goal 1: provable (IMELL, intuitionistic, two-sided engine)
-goal 2: provable (IMELL, intuitionistic, horn engine)
-no goal is open: `proof` checks the proof
-> proof contraction.json
-valid proof written to contraction.json
-$ deduxit eliminate -q -i contraction.json
+$ printf 'cut 0 !a 0\nclose\nproof contraction.json\n' | deduxit interact -i '!a |- a * a' > /dev/null
+$ deduxit eliminate -q contraction.json
 1. contraction on the cut of !a
 2. dereliction on the cut of !a
 3. a commutative case on the cut of a
@@ -109,7 +56,19 @@ $ deduxit eliminate -q -i contraction.json
 5. a commutative case on the cut of a
 6. the axiom case on the cut of a
 cut-free proof of !a ⊢ a ⊗ a (intuitionistic) after 6 steps
-$ deduxit eliminate -i --steps=2 contraction.json
+```
+
+## Take a few steps, or bound the size
+
+`--steps N` takes N steps at most (10 000 by default) and prints the
+proof reached, cuts and all. `--node-limit N` refuses a step that makes
+a proof of more than N nodes (100 000 by default): the exponentials can
+make a proof grow beyond any practical size. A bound you set with
+`--steps` ends with exit status 0; every other bound ends with 3:
+
+```console
+$ printf 'cut 0 !a 0\nclose\nproof contraction.json\n' | deduxit interact -i '!a |- a * a' > /dev/null
+$ deduxit eliminate --steps=2 contraction.json
 1. contraction on the cut of !a
 2. dereliction on the cut of !a
 proof of !a ⊢ a ⊗ a (intuitionistic) with 2 cuts left after 2 steps: the elimination took the most steps allowed, 2; --steps N allows more
@@ -123,7 +82,51 @@ a ⊢ a       !a ⊢ a        a, a ⊢ a ⊗ a
         !a, !a ⊢ a ⊗ a
         ────────────── !c
           !a ⊢ a ⊗ a
-$ deduxit eliminate -i --net --steps=1 contraction.json
+$ deduxit eliminate -q --node-limit 10 contraction.json; echo "exit $?"
+proof of !a ⊢ a ⊗ a (intuitionistic) with 1 cut left after 0 steps: the next step of the elimination makes a proof of more than 10 nodes; raise it with --node-limit N
+exit 3
+```
+
+## Choose the first cut
+
+`--at NODE` takes the first step on the cut at that node of the proof,
+and the other steps as usual. NODE is the node's index in the file's
+`nodes`, as the checker's messages and the JSON record number nodes. A
+node that is no cut is an error. Here the proof has a cut on `a`
+(node 6) below a cut on `b` (node 5):
+
+```console
+$ printf 'cut 0 a 0\ncut 2 b 0 2\nclose\nproof two.json\n' | deduxit interact -i "a, a -o b |- b" > /dev/null
+$ deduxit eliminate -q two.json
+1. the axiom case on the cut of b
+2. the axiom case on the cut of a
+cut-free proof of a, a ⊸ b ⊢ b (intuitionistic) after 2 steps
+$ deduxit eliminate -q --at 6 two.json
+1. the axiom case on the cut of a
+2. the axiom case on the cut of b
+cut-free proof of a, a ⊸ b ⊢ b (intuitionistic) after 2 steps
+```
+
+## Eliminate on the proof net
+
+With `--net` the cuts are eliminated on the proof's
+[proof net](proof-nets.md) instead. It takes the sequents `--net`
+takes: MLL without units, and MELL without units with boxes, classical
+with or without `--mix`, or intuitionistic.
+
+- The proof's cuts are the net's cut links, and each step reduces the
+  first cut link.
+- Nets have no commutative case. The cases are the axiom case, the key
+  case of `⊗` against `⅋`, and on boxes weakening (which erases a box),
+  dereliction (which opens one), contraction (which copies one) and a
+  box entering a box.
+- Every net reached passes the correctness criterion.
+- The net reached is printed as text, each cut link as a line
+  `cut A[x] — A⊥[y]`. `--node-limit` counts the net's vertices.
+
+```console
+$ printf 'cut 0 !a 0\nclose\nproof contraction.json\n' | deduxit interact -i '!a |- a * a' > /dev/null
+$ deduxit eliminate --net --steps=1 contraction.json
 1. contraction on the cut of !a
 proof net of !a ⊢ a ⊗ a (intuitionistic) with 2 cut links left after 1 step: the elimination took the most steps allowed, 1; --steps N allows more
 !a ⊢ a ⊗ a
@@ -137,7 +140,7 @@ a[3] — a[7]
 a[4] — a[13]
 a[5] — a[9]
 proof net (the correctness criterion holds)
-$ deduxit eliminate -i --net --format svg --output net.svg contraction.json
+$ deduxit eliminate --net --format svg --output net.svg contraction.json
 1. contraction on the cut of !a
 2. dereliction on the cut of !a
 3. the axiom case on the cut of a
@@ -146,11 +149,53 @@ $ deduxit eliminate -i --net --format svg --output net.svg contraction.json
 cut-free proof net of !a ⊢ a ⊗ a (intuitionistic) after 5 steps
 ```
 
-The library's `linear::proofs::cut::step` reduces a cut the caller names, or the
-strategy's, and says which cut and which case; `linear::proofs::cut::eliminate`
-runs to the end within `cut::Options`, its first step on a cut the
-caller names where one is given.
+`--format svg`, `png` or `pdf` with `--output FILE` draws every net
+into a file of its own:
 
-The library's `linear::nets::cut::step` and `linear::nets::cut::eliminate` do the same
-on a `ProofStructure` or a `MellStructure`, and `svg::net_step` and
+- `FILE-k` is the net step k was taken on (`net-1.svg` for `net.svg`).
+  It shows the step's cut link with a bar under its two formulas, and
+  highlights what the step acts on: the links at its ends, its `⊗` and
+  `⅋`, the box of its `!`, the box it enters. An SVG file's first line
+  is a comment that names its step.
+- `FILE` is the net reached.
+
+Each file is written as soon as it is drawn. Each drawing is held to
+`--derivation-limit`, and the steps' files together take 256 MiB at
+most (`--drawings-limit SIZE`, the settings key `cut.drawn_bytes`).
+Past that the steps go on without drawings, a line on standard error
+says from which step, and `FILE` still holds the net reached.
+
+## JSON output
+
+With `--format json` the output is the record
+`{"version", "proof", "steps", "end"}`:
+
+- `proof` is the proof reached;
+- each step has its `cut` (a node of the proof it was taken on), its
+  `formula`, its `case`, and `above`, the node where the step acted
+  besides the cut, where it has one;
+- `end` is `cut_free`, or `refused` with its `reason`.
+
+With `--net` the record is `{"version", "net", "steps", "end"}`, with
+the net reached, and each step's `cut` is the two vertices of its cut
+link.
+
+## Exit status
+
+- 0: no cut is left, or the steps asked for with `--steps` (or a
+  settings file's `cut.steps`) were taken.
+- 1: the proof is not valid.
+- 2: an error.
+- 3: the default bound on steps, another bound or the time limit
+  stopped the elimination with cuts left. The proof reached is still
+  printed.
+
+## In the library
+
+`linear::proofs::cut::step` reduces one cut, the caller's or the
+strategy's, and says which cut and which case.
+`linear::proofs::cut::eliminate` runs to the end within `cut::Options`,
+its first step on a cut the caller names where one is given.
+`linear::nets::cut::step` and `linear::nets::cut::eliminate` do the
+same on a `ProofStructure` or a `MellStructure`, and `svg::net_step` and
 `svg::mell_net_step` draw a step.

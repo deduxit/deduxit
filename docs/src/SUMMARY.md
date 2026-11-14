@@ -1,24 +1,37 @@
 # Summary
 
-[deduxit](introduction.md)
+[Getting started](introduction.md)
 
-- [Installation](installation.md)
+# How-to guides
 
-# Using deduxit
+- [Install deduxit](installation.md)
+- [Decide a sequent](commands.md)
+- [Avoid the common mistakes](mistakes.md)
+- [Check a proof or a refutation](check.md)
+- [Export a proof](output-formats.md)
+- [Check a certificate in Rocq](rocq.md)
+- [Prove step by step](interactive.md)
+- [Decide many sequents at once](batch.md)
+- [Eliminate cuts](cut.md)
+- [Draw a proof net](proof-nets.md)
+- [Prove in first-order logic](first-order.md)
+- [Decide ordinary logic](ordinary-logic.md)
+- [Read a proof as a program](terms.md)
+- [Prove in cyclic linear logic](cyclic.md)
+- [Prove in the Lambek calculus](lambek.md)
+- [Use the library](library.md)
 
-- [The commands](commands.md)
-  - [Output formats](output-formats.md)
-  - [Rocq certificates](rocq.md)
-  - [The syntax](syntax.md)
-  - [Cyclic linear logic](cyclic.md)
-  - [The Lambek calculus](lambek.md)
-- [Interactive proving](interactive.md)
-- [Cut and its elimination](cut.md)
-- [Proof nets](proof-nets.md)
-- [First-order logic](first-order.md)
-- [Ordinary logic](ordinary-logic.md)
-- [Proofs as programs](terms.md)
-- [Many sequents in one call](batch.md)
+# Reference
+
+- [The syntax](syntax.md)
+- [Limits, defaults and exit statuses](options.md)
+- [The settings file](settings.md)
+
+# Explanation
+
+- [How deduxit searches](engines.md)
+- [Architecture](architecture.md)
+- [What exists and what is planned](status.md)
 
 # Results
 
@@ -33,6 +46,4 @@
 
 # The project
 
-- [What exists and what is planned](status.md)
-- [Architecture](architecture.md)
 - [Development](development.md)

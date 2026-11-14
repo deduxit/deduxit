@@ -739,11 +739,12 @@ fn names_that_do_not_exist(documents: &[(String, String)], keys_in_help: bool) -
     failures
 }
 
-/// Every Rust example of the guide is one of the library's crate-level
-/// doctests, which the library's tests compile and run: its lines, those
-/// the doctest hides (`# `) left out, stand together in that doctest.
+/// Every Rust example of the guide and of the manual is one of the
+/// library's crate-level doctests, which the library's tests compile and
+/// run: its lines, those the doctest hides (`# `) left out, stand together
+/// in that doctest.
 #[test]
-fn guide_s_rust_is_a_doctest() {
+fn rust_examples_are_doctests() {
     let library = include_str!("../../core/src/lib.rs");
     let docs: Vec<&str> = library
         .lines()
@@ -752,7 +753,12 @@ fn guide_s_rust_is_a_doctest() {
         .filter(|line| !line.starts_with("# "))
         .collect();
     let mut found = 0;
-    for (name, text) in GUIDE {
+    let mut in_guide = 0;
+    let documents = GUIDE
+        .iter()
+        .map(|&(name, text)| (name.to_owned(), text.to_owned()))
+        .chain(manual());
+    for (name, text) in documents {
         let mut block: Option<Vec<&str>> = None;
         for line in text.lines() {
             match (&mut block, line) {
@@ -765,6 +771,9 @@ fn guide_s_rust_is_a_doctest() {
                         lines.join("\n")
                     );
                     found += 1;
+                    if GUIDE.iter().any(|&(guide, _)| guide == name) {
+                        in_guide += 1;
+                    }
                     block = None;
                 }
                 (Some(lines), line) => lines.push(line),
@@ -772,7 +781,8 @@ fn guide_s_rust_is_a_doctest() {
             }
         }
     }
-    assert!(found > 0, "the guide has no Rust example");
+    assert!(in_guide > 0, "the guide has no Rust example");
+    assert!(found > in_guide, "the manual has no Rust example");
 }
 
 /// The summary is an Agent Skill within its budget: a `name` matching its
