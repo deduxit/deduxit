@@ -327,3 +327,378 @@ found nothing. Its notes, each answered:
   LJT's (`ljt.rs`), push, weakening, contraction and `in_order`; one
   shared builder in `derivation.rs` would serve both (not done: it would
   have touched LJT's translation).
+
+## Session 54s-b: classical logic by CDCL
+
+Opus 5.5 at `high`, in the jj workspace `../deduxit-wt-step-54s-b-d8f4a6`,
+from `plan/54s-sat-engines.md` (item 2 of "The sessions") and the brief
+`start-54s-b.md` of the planning session, on 2026-11-14, cores 10 to 12.
+The author was away; each decision below gives its reason.
+
+### Outcome
+
+- **`ordinary::sat::decide` and `Method::Sat` decide classical logic**
+  by one call of batsat on deduxit's own Tseitin clauses of the
+  sequent's negation (`sat/classical.rs`). "Not valid" comes with a
+  falsifying assignment, a `sat::Model` of one world that
+  `Model::refutes` checks by evaluation. "Valid" comes with a DRUP proof
+  recorded in memory from batsat's `on_new_clause` and
+  `on_delete_clause`, which deduxit's own RUP checker (`sat/drup.rs`)
+  accepts against the encoder's clauses, and then with the LK
+  derivation of the embedding.
+- **drat-trim accepts the recorded stream** (2023-05-22 from nixpkgs, a
+  test-time program): "s VERIFIED" for Peirce's law and for the
+  pigeonhole sequent of eight pigeons, whose proof has 2 553 steps with
+  1 050 deletions (`drat_trim_accepts_the_proof`, ignored, run with
+  drat-trim on the `PATH`).
+- **A planted wrong step is refused** (`a_planted_wrong_step_is_refused`
+  on hand-made proofs, `a_planted_wrong_proof_step_is_refused` on a real
+  one).
+- **On ILTP the method agrees with the embedding on every problem the
+  embedding decides** at 2 000 000 units of work and 2 GiB
+  (`sat_agrees_with_the_embedding_in_classical_logic` in
+  `core/tests/iltp.rs`, ignored as its neighbours; release, cores 10 to
+  12, 391 s at `ntquonzl`, most of it the stopped pigeonhole runs): 124
+  verdicts agree, none differs, no problem is decided by the solver
+  alone against the embedding. 132 more are valid by a checked clausal
+  proof without a derivation from the embedding: on 127 its search
+  stops at the work bound (the method answers unknown with that reason
+  and `proof_steps` above zero), on 4 the read-back's derivation is past
+  its 64 MiB bound and on SYN007+1.014 the translation passes the
+  occurrence bound (both refusals). 18 (SYJ202 and SYJ208 from size 12,
+  pigeonhole formulas, exponential for resolution) stop the solver at
+  the bound, where the embedding fails too. So the CDCL decides 256 of
+  the 274 problems with a checked certificate; the API lets it report
+  124 of them (see "Decisions").
+- **The checks**: the gate at `wlvqmtux` on cores 10 to 12 ("gate:
+  passed"), and `nix flake check` under the machine lock at the report's
+  commit (below, "The checks").
+
+### The encoder
+
+- **`ordinary::sat::classical::encode`** (crate-private) is Tseitin's
+  encoding with polarities (Plaisted and Greenbaum, J. Symbolic
+  Computation 2, 1986). Every formula the sequent holds is a variable,
+  numbered from 0 in the arena's order; a formula that must be true where
+  the sequent fails (a hypothesis, and the parts that make a true formula
+  true) gets "formula → definition", one that must be false "definition
+  → formula", an equivalence gives both polarities to its parts. Unit
+  clauses make every hypothesis true and every formula right of `⊢`
+  false, so several formulas right of `⊢` and empty sides need nothing
+  special.
+- **Its soundness argument**: every definitional clause holds when each
+  variable takes its formula's value under any assignment of the atoms,
+  and the units hold exactly where that assignment falsifies the
+  sequent; so the clauses have a model wherever the sequent is
+  falsifiable, and a refutation of them shows it valid.
+- **Why polarities**: half the clauses of full Tseitin, the usual
+  practice of structure-preserving clause forms, and the same
+  one-directional definitions 54s-a's intuitionistic clauses use. It has
+  its own polarity pass (no `⊥` variable, equivalences without the extra
+  implication nodes), so the trusted encoder reads alone.
+- **"Not valid"**: the solver's model read on the atoms' variables is a
+  `sat::Model` of one world (the brief's "one-world case of step 55's
+  countermodel", the same data), and `Model::refutes` now takes classical
+  logic: one world, no `⊥`, every hypothesis forced, no formula right of
+  `⊢` forced, which is classical evaluation and needs nothing of the
+  encoder.
+
+### The proof stream, and what drat-trim showed
+
+- **Recorded in memory from batsat's callbacks** (`Batsat::recording`,
+  in `solver.rs`): `on_new_clause` appends each learnt clause, units
+  included, and `on_delete_clause` each clause `reduce_db` deletes, as
+  `drup::Step`s charged to the memory account. batsat never learns the
+  empty clause (a conflict at level 0 returns at once), so the run
+  appends it, and the checker must derive it by RUP. A refuted call
+  under assumptions reports its final conflict as a learnt clause, which
+  `solve` pops from the proof (classical logic calls with none).
+- **drat-trim accepts it.** The ignored test
+  `drat_trim_accepts_the_proof` writes the encoder's clauses as DIMACS
+  and the proof as DRUP text for Peirce's law and the pigeonhole sequent
+  of eight pigeons and seven holes, and runs drat-trim 2023-05-22 from
+  nixpkgs (MIT; a test-time program from `nix build nixpkgs#drat-trim`,
+  never a dependency). Its output, run at `vukwwvlw` and again, the
+  same, at `wlvqmtux`:
+  - Peirce: 6 clauses, 1 step; "UNSAT via unit propagation on the input
+    instance", "s VERIFIED". drat-trim also printed "turning on binary
+    mode checking … wrong binary prefix" for the proof that is the empty
+    clause alone: its format guess reads the two bytes `0\n`; harmless.
+  - Pigeonhole 8/7: 644 clauses, 2 553 steps of which 1 050 deletions;
+    "1201 of 1504 lemmas in core using 20858 resolution steps", "s
+    VERIFIED", 0.040 s.
+  - Two warnings on the pigeonhole proof, "deleted clause on proof line
+    … does not occur". I traced them to batsat's `remove_satisfied`
+    (`core.rs`), which trims literals false at level 0 from learnt and
+    original clauses in place without telling the callbacks: the later
+    deletion names the trimmed clause, which was never added. RUP needs
+    no trimmed clause (the longer one stays, and the level-0 units are
+    propagated again), so the stream is complete; deduxit's checker
+    ignores such a deletion as drat-trim does.
+
+### The checker and its integers
+
+- **`ordinary::sat::drup::check`** (crate-private, in the style of
+  `linear::search::refutation`'s check: no counter that can wrap, each
+  bound said at its declaration) keeps the formula's and the proof's
+  clauses not deleted, checks each added clause by reverse unit
+  propagation (RUP: its literals assigned false, the unit clauses
+  propagated, a clause met with every literal false), and accepts at the
+  first empty clause it adds. Hints are found by propagation, as the
+  brief allows: no fork of batsat.
+- **Each check starts from no assignment and undoes everything after**,
+  so nothing but the clauses and their two watched literals carries from
+  one step to the next. Deleting a unit or a reason clause therefore
+  cannot leave a stale assignment, the known fault of DRUP checkers that
+  keep a top-level trail. The price is that each check propagates the
+  unit clauses again; on the sizes deduxit decides that is cheap (the
+  checks below take milliseconds).
+- **Its soundness needs** that propagation assigns a clause's last
+  non-false literal and calls a conflict on a clause all false, and the
+  watch invariant those rest on (a clause in the list of `l` has `l`
+  among its first two literals); the watches' completeness only avoids
+  false refusals. Clauses are sorted
+  and deduplicated when kept, a tautology is never kept, a deletion of a
+  clause not kept is ignored (sound: the clauses kept are then more,
+  each still a consequence of the formula; drat-trim does the same with
+  a warning), a literal past the formula's variables is a flaw.
+- **Its integers**: literal codes `2·var + sign` fit a `u32` since every
+  variable is below `MOST_VARIABLES` (`u32::MAX / 2 − 1`); clause indices
+  are `usize`, bounded by the clause vector's length; `steps` is bounded
+  by `limits.work` and by the proof held in memory; `ticks` resets at
+  `POLL` (4 096). Bounds: a step is a unit of `limits.work`
+  (`Refusal::Work`), the clauses, watches and index are charged to the
+  memory account (`Refusal::Memory`), the stop is asked every `POLL`
+  units of work: a step, a clause kept, a unit assigned, a literal
+  propagated, a clause visited (`Refusal::Stopped`), each tested
+  (`the_bounds_refuse_a_check`).
+- **A planted wrong step is refused**: `a_planted_wrong_step_is_refused`
+  (the checker alone: a step that does not follow, a missing empty
+  clause, a deletion a later step needed, a literal of no variable) and
+  `a_planted_wrong_proof_step_is_refused` (a real proof of the
+  pigeonhole sequent of five pigeons with its learnt clauses taken away,
+  and with a unit planted before them; a one-world model with a true
+  conclusion, and one of two worlds).
+- **A failed check is `Error::ReadBack`** (calculus LK, kind `defect`):
+  the stream is the engine's own, so a flaw is the engine's fault, as a
+  derivation failing its checker is.
+
+### Decisions, each with its reason
+
+- **One method `sat` for all three logics** (`Method::Sat`,
+  `Method::decides` now true for classical logic): 54s-a's report
+  anticipated it, and the user chooses a SAT solver, not a calculus.
+  `sat::decide` dispatches classical logic to `classical::decide`.
+- **"Valid" still carries an LK derivation, the embedding's**
+  (departs from the design). The prompt has "valid" come with the
+  checked proof "and with the LK derivation where the existing
+  read-back reaches it". `ordinary::Verdict::Valid` holds a derivation
+  and nothing else, and every engine's "valid" today is a checked
+  derivation; a verdict "valid by a checked clausal proof, no
+  derivation" is an API change (`Verdict`, its JSON, the command's
+  output, the bindings, the harness), which `writing.md` and CLAUDE.md
+  send to the author. So, within the API as it is: the clausal proof is
+  checked first, always, and then `ordinary::decide` with
+  `Method::Embedding` gives the derivation within the same limits; where
+  the embedding's search stops first, the outcome is its
+  `Verdict::Unknown` with its reason (the bound that stopped it, which
+  names the setting that lifts it), and `Statistics::proof_steps`
+  above zero says the clausal proof passed; where the read-back of its
+  proof is refused, that refusal, as for LJT's derivation past its
+  bound. The embedding refuting a sequent whose proof passed is
+  `Error::ReadBack`.
+  **Recommendation for the author**: a verdict for a sequent valid by a
+  checked certificate other than a derivation, so that the method
+  answers "valid" where the embedding does not reach a derivation (the
+  idiom of `bv_decide` in Lean and of the SAT Competition's certified
+  track: the checked LRAT/DRUP proof is the certificate). The most
+  direct form is a second payload of `Verdict::Valid` (an enum of a
+  derivation or a clausal proof), or a variant beside it; either is
+  54s-c's or a later step's, after the author's answer.
+- **The proof is not on `sat::Outcome`**: the checked proof is dropped
+  after its check, and `Statistics::proof_steps` and `clauses` say what
+  was checked. No caller needs the proof yet (the crate's rule "an item
+  without a caller waits for one"); step 70 is its first.
+- **The embedding's stop is a trait object** (`by_embedding`):
+  `ordinary::decide` reaches `sat::decide` again through `Method::Sat`,
+  and a generic stop wrapped itself in `&mut` without end at compile
+  time.
+
+### Changes to 54s-a's files
+
+- `solver.rs`: `Bridge` gains `proof: Option<Vec<Step>>`, appended by
+  `on_new_clause` and `on_delete_clause` (`Bridge::record`, charged to
+  the account) where `Batsat::recording` asks for it; `Batsat::proof`
+  takes it; `solve` pops a refuted call's final conflict from the proof
+  as it already released its charge; `Batsat::ours` turns batsat's
+  literal into ours (used by `failed` too); `Solver::new_var` documents
+  the numbering from 0.
+- `model.rs`: `Model::refutes` takes classical logic (one world, no
+  `⊥`, every formula right of `⊢` unforced) instead of refusing it.
+- `mod.rs`: the dispatch, the two statistics, the docs; the test that
+  pinned `Error::Logic` for classical logic now pins a classical verdict
+  (the behaviour was meant to change).
+- `ordinary/mod.rs`: `Method::Sat`'s docs and `decides`;
+  `valid_by_truth_table` (a test helper) is `pub(super)` for the
+  classical tests.
+
+### The panel and the reviewer
+
+Each member ran from a fresh context on the change `vukwwvlw` (the
+encoder, the checker, the recording, the one-world model's check):
+`panel-argument` on Fable 5.2, `panel-counterexamples` on Opus 5.5,
+`panel-integers` on Sonnet 5.5, all at `high`, on cores 10 to 12.
+
+- **Argument: the argument holds.** It stated the invariants from the
+  code first (every definitional clause true under the formulas' own
+  values; every kept clause entailed; every trailed literal implied; the
+  watch invariant; the full undo on every exit), checked every site of
+  the encoder, the checker, the model's check and the recording, and the
+  converse of the encoder (a model of the clauses falsifies the
+  sequent). Two places where my argument in the rules differed from the
+  code, neither a fault:
+  - *Soundness rests on the watch invariant too*: `propagate` takes a
+    clause's second literal to be the one just falsified without
+    testing it, so a clause in the list of `l` must have `l` among its
+    first two literals. The code keeps it at every site; the rules now
+    say so (`wlvqmtux`).
+  - *A deletion of a trimmed clause may delete another kept clause of
+    the same literals*, not only match nothing: sound, since a deletion
+    only weakens; the rules now say so (`wlvqmtux`).
+- **Integers: nothing wraps, truncates, panics or underflows**; every
+  limit it drove ends in a refusal (the variables' bound, the solver's
+  and the checker's work, memory, the stop; `empty` cannot underflow,
+  driven with overflow checks on). Two findings, both fixed in
+  `wlvqmtux`:
+  - *The check's stop polls came late*: each check assigns every unit
+    clause, which was not counted, so with a million unit hypotheses
+    polls came 0.6 to 1.3 s apart, with three million up to 7 s. Now a
+    unit assigned, a literal propagated and a clause of the formula
+    kept each count toward `POLL`; the test drives a check of 4 096 unit
+    clauses eight times and asserts eight polls at least
+    (`the_bounds_refuse_a_check`).
+  - *The encoder and the solver's setup asked no bound*: 3 million
+    conjuncts ran 1.7 s before the first poll, and 8 million unit
+    hypotheses under a 400 MB bound held about 1 GB before the refusal,
+    since the solver copies the clauses and `add_clause` only charges.
+    Now the encoder asks the stop every `POLL` formulas and the setup
+    asks the solver's `poll` (stop, work, memory) every `POLL` clauses
+    (`the_encoder_asks_the_stop`). The checker's charge per clause was
+    2.4 times short of the memory it held: it is now `CLAUSE_BYTES`
+    (224) beside 8 bytes a literal, and the encoder's 16 bytes more a
+    clause.
+  - Noted, not changed: the solver, the check and the embedding each
+    have the whole `limits.work`, so the method may do three times the
+    bound; the docs of `sat::decide` now say so. The cells bound of a
+    one-world model is not driven by a classical test (the same code as
+    the intuitionistic bound, which is). The check's charge of its
+    per-literal vectors saturates, so on a 32-bit target it refuses
+    before allocating, never wraps.
+- **Counterexamples: none.** Against a RUP reference of its own
+  (multiset of sorted clauses, naive propagation to a fixpoint, the same
+  deletion rules), a brute-force SAT check up to 22 variables and its own
+  truth table, at `vukwwvlw` and again at `wlvqmtux`:
+  - 2 820 000 random formulas with random proofs (empty, repeated and
+    tautological clauses, deletions of kept and absent clauses, variables
+    out of range): the two checkers agree on every answer and step, and
+    every accepted proof's formula is unsatisfiable;
+  - the solver's own proofs of 9 010 random formulas and pigeonhole
+    instances, and 113 803 mutants of them (a step dropped, a literal
+    flipped, a needed clause deleted, a unit deleted, a formula clause
+    dropped, a clause strengthened, …): no disagreement;
+  - long proofs: 175 random 3-SAT refutations of up to 200 variables
+    with 1 085 377 steps, 503 901 of them deletions, the longest 74 997
+    steps, with mutants: no disagreement;
+  - 37 000 random classical sequents (up to 10 atoms, depth 6, every
+    connective, 0 to 4 formulas a side, repeats): every falsifying
+    assignment extended by evaluation satisfies every clause of `encode`,
+    every "valid" is valid by the truth table, `refutes` accepts a
+    one-world model exactly when it falsifies the sequent; about 10 400
+    through the public `sat::decide` at 2 000 000 units of work, each
+    agreeing with the truth table, the rest a refusal or an unknown,
+    never `ReadBack` or `Countermodel`.
+
+The fresh-context reviewer (`fresh-reviewer`, Fable 5.2 at `medium`) on
+the chain up to `wlvqmtux`, against the brief, the shared rules and
+item 2 of the prompt: one finding, reproduced, and two questions.
+- *A bound of the embedding other than the stop, the work and the
+  memory was reported as a derivation past its size bound*:
+  `by_embedding` mapped a recursion, copy, index, witness or instance
+  bound onto `Refusal::Output` with an estimate of 0, so `|- ((a -> b) ->
+  a) -> a` at a recursion depth of 1 gave "the derivation is estimated
+  at 0 bytes, more than the limit of 67108864", naming
+  `limits.derivation_bytes`. It holds. Fixed (`ntquonzl`): where the
+  embedding's search stops, the outcome is its unknown with its own
+  reason, whichever bound it is (`the_embedding_s_bound_is_its_unknown`);
+  the rules, the docs and this report say so.
+- *The ILTP test could not tell a refused check from a missing
+  derivation* (a question): it counted every refusal as "proved by the
+  clausal proof alone". Now a missing derivation is an unknown with
+  `proof_steps` above zero and a refused check an error of its own, and
+  the test counts them apart; the numbers above are from the run after
+  the fix.
+- *`drup::check` trusts its caller to keep the variables below
+  `MOST_VARIABLES`* (a question): the encoder refuses past it first, so
+  no code reaches it today; step 70's reader of outside proofs must
+  refuse a larger header itself (said in "What the next sessions must
+  know").
+
+### The checks
+
+- `cargo clippy --workspace --all-targets -- --deny warnings` and
+  `cargo test --workspace` (every suite passed) during the work; the
+  `sat` library alone and with `serialize`, without default features,
+  free of warnings.
+- The gate (`systemd-run … taskset -c 10-12 nix develop -c gate`):
+  "gate: passed" at `wlvqmtux`, the chain before the reviewer's fix.
+- After the reviewer's fix and the rebase onto `main@origin`
+  (`tuknpoln`), the gate and `nix flake check` (under the machine lock,
+  `--max-jobs 4 --cores 8`) run at this report's commit, the chain's
+  last; their results are in the session's final message to the
+  planning session, since a report cannot record the check of its own
+  commit.
+- The outside checker and the ILTP agreement as above, the latter at
+  `ntquonzl` (the chain's last code).
+
+### What the next sessions must know
+
+- **For 54s-c (the measurement and the default).** `Method::Sat` now
+  decides classical logic (`Method::decides` says so), so `--method sat`
+  covers all three logics once wired. A classical "valid" costs the
+  solver, the check and then the embedding's whole search for the
+  derivation, so on valid problems the method cannot beat the embedding
+  until the author answers the verdict question above (where the
+  embedding stops, the method answers unknown with the embedding's
+  reason and `proof_steps` above zero); on "not valid" it
+  answers in one solver call with a checked assignment. The harness's
+  ordinary child still answers `sat` with "does not run"; its
+  `Method::decides` guard (`bench/src/ordinary.rs`) now lets classical
+  logic through to that answer. `sat::Statistics` gained `clauses` and
+  `proof_steps` (zero outside classical logic), written in its JSON.
+  Pigeonhole problems (ILTP's SYJ202) are exponential for resolution:
+  the solver stops at the work bound from about twelve holes, where the
+  embedding fails too.
+- **For step 70 (outside proofs).** The checker is
+  `ordinary::sat::drup::check(variables, formula, proof, limits, account,
+  stop)`, crate-private, over `solver::Lit` and `drup::Step`; it returns
+  a `Rejection` (a `Flaw` or a `Refusal`). For outside proofs it needs: a
+  DIMACS and DRAT reader (the test-only `drup::dimacs` writes both), an
+  error of kind `invalid` for a flaw (today's caller maps a flaw to
+  `Error::ReadBack`, a defect, since the stream is the engine's own), and
+  RAT steps if the solvers it reads use them (CaDiCaL's and MiniSat's
+  proofs are RUP only). Variables past the formula's are a flaw today;
+  extended resolution would need them. The checker trusts its caller to
+  keep the formula's variables below `MOST_VARIABLES` (its literal codes
+  are `u32`); a DIMACS header above that must be refused by the reader. LRAT hints would make each step
+  check its hints instead of propagating everything; the checker's
+  from-scratch propagation per step costs the unit clauses' closure each
+  time.
+- **batsat's stream** is complete for RUP but not literal-exact:
+  `remove_satisfied` trims level-0-false literals in place without a
+  log, so drat-trim warns on deletions of trimmed clauses. A fork that
+  logged the trimmed clause as an addition and the original as a
+  deletion would make the stream exact; nothing needs it now.
+- **The rules** (`.claude/rules/core-ordinary.md`, "Classical logic")
+  hold the encoder's soundness argument, the checker's invariants
+  (including the watch invariant soundness rests on) and what batsat
+  does not log.
