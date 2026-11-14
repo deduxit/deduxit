@@ -1916,3 +1916,141 @@ odd wrap in `run.rs`'s `finished`.
   say so. Here four writers edited disjoint files of one working copy
   while the session committed by path (`jj commit -m … PATHS`), and no
   change went divergent.
+
+## Session 54w-e6: the comments of lltp, mist and families
+
+Item 6 of `plan/54w-text.md` for `linear::lltp`, `linear::mist` and
+`linear::families` (Opus 5.5 at `high`, 2026-11-14, cores 10-12), in
+the jj workspace `../deduxit-wt-cranky-kirch-efed8c`, started on `main`
+at `ktopzxum`. Nothing was pushed.
+
+### Outcome
+
+Every doc comment and comment of `core/src/linear/lltp.rs`,
+`mist.rs` and `families.rs` is rewritten to `.claude/rules/writing.md`,
+by the session alone, no writers. No code changed. A caller who wants to
+read a problem file or generate a family now finds the call first and
+an example that runs:
+- `lltp`: the module doc says what a file holds, what `read` returns and
+  how to pick the mode (`ILL/` or `CLL/`); its example reads a problem
+  and proves it. `read`'s rules and errors are lists.
+- `mist`: the module doc says what a coverability problem asks and how
+  it becomes a Horn program; its example reads one and proves it in
+  intuitionistic affine mode, and says why `Display` shows `?(x ⊗ (~y ⅋
+  ~y))` for the rule `!(x ⊸ y ⊗ y)`. `read` lists its four sections and
+  its errors.
+- `families`: the module doc says how to list the families, build an
+  instance and use its verdict, groups the families by kind and names
+  the public encodings. Two examples: list the families and prove an
+  instance; prove an instance of a family with exponentials under its
+  copy bound. Each public encoding opens with what it returns and the
+  question it encodes.
+
+The chain, oldest first (change ids):
+
+| change | what |
+|---|---|
+| `lwtsvtrw` | the LLTP reader |
+| `pvkuystr` | the `.spec` reader |
+| `sztzlxmk` | the generated families |
+| `lxoppwms` | `core-inputs.md`: `Family::instance` does not check the index |
+| (this section) | the report |
+
+### Claims found wrong, and fixed
+
+- `lltp::read`'s errors put the parser's refusal of a sequent past the
+  limits under `Error::Parse`; it is `Error::Refused`, passed through
+  unchanged (`Refusal::Occurrences`, `Index` or `Terms`).
+- `mist::read`'s errors called the refused counter names "a word
+  reserved for a later version" of the syntax; `forall` and `exists`
+  are keywords today (`par`, `top`, `bot`, `forall`, `exists`). They
+  left out `Refusal::Index` past `Forest::MOST`, "no target", a
+  character the format does not use and a rule giving 2³² tokens.
+- `mist::read`'s doc said the `invariants` section is skipped; it is,
+  but the tokenizer reads the whole file first, so a character outside
+  the format there is still an error. The doc says so.
+- The comment on `mist::read`'s cast `roots.len() as u32` said there are
+  fewer roots than tokens and terms. There can be more: a rule with no
+  tokens (`-> ;`) is a root without a token. The comment now states the
+  condition under which the cast is exact (see "Proposals").
+- `Instance::name` carries the index for every family of several
+  instances per size (`lambek-fo/16#3`), not only for random ones.
+- `Instance::copies` was "the bound under which a proof exists"; for an
+  unprovable instance (`counter-over`, `chain-fo` #1, `reach-fo` #1) it
+  is the bound the search runs to.
+- `Family::instance` said the index is "below `instances`" as if it
+  were checked; it is not, and past it the verdict can be wrong
+  (`contraction` at index 2 is #0's provable sequent marked
+  unprovable). The doc says so, and the rules file has a bullet.
+- `wide`'s doc said "Provable" for every `k`; `wide(0, _)` is the empty
+  sequent, unprovable (checked with `deduxit prove '|-'`, with and
+  without `--mix`), and `wide` panics for `shared` 0 and `k` above 0.
+
+### How no code changed
+
+A lexer in the session's scratch directory (`nocode.py`, gone with it)
+reads each file into tokens: it drops `//` and nested `/* */` comments
+outside string, raw-string, byte-string and char literals, keeps every
+literal whole, then drops doc attributes. It compares the tokens with
+the file at `ktopzxum` (`jj file show`). Shown to catch a planted
+`Some(n + 1)` → `Some(n + 2)` and a changed string literal, and to
+ignore a comment edit. Result: `checked 3 files against ktopzxum, 0
+with a code difference`. The reviewer confirmed by a second method: of
+the changed lines of the three files, none is anything but a `//` line
+or a blank line. No doc-test fence was needed: the three modules are
+behind `parse`, so their examples never build without it.
+
+### The checks
+
+All capped on cores 10-12 (`systemd-run --user --scope -p MemoryMax=8G
+-p MemorySwapMax=0 taskset -c 10-12`, three jobs and test threads).
+
+| check | result |
+|---|---|
+| the no-code check above | 0 with a code difference |
+| `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features` | exit 0 |
+| `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --document-private-items -p deduxit -p deduxit-cli` | exit 0 |
+| `cargo test --doc -p deduxit --all-features` | 81 passed (the four new or changed examples among them) |
+| `cargo test --doc -p deduxit --no-default-features` | 5 passed, 50 ignored |
+| `cargo run --release -p deduxit-bench -- run --all-families --timeout 5` | 195 runs, exit 0, no `MISMATCH` |
+| the gate (capped, cores 10-12), at `lxoppwms` | `gate: passed`, the journeys within their ceilings (misses moved on three journeys, never a failure) |
+| `nix flake check --max-jobs 4 --cores 8` under the machine lock, at this section's commit on `main@origin` (with the placeholder of this row) | "all checks passed!", exit 0 |
+
+### The review
+
+The `fresh-reviewer` agent (Fable 5.2 at `medium`) read the chain
+against the brief, the writing rules and the code: no findings. It
+checked each fixed claim against the code, ran the three modules' doc
+tests, and confirmed no code changed by its own method. It did not run
+`cargo doc`; the session's run above resolves the new links
+(`Forest::within`, `Sequent::parse_within`).
+
+### Proposals for the author
+
+- **`Family::instance` could refuse an index past `instances`**, as it
+  refuses a size (`Error::FamilySize`, or a sibling variant). Today an
+  out-of-range index gives an instance whose `provable` may be wrong.
+  Recommendation: refuse it; it is the same check the size has. The
+  harness's own callers iterate `0..instances`, but `deduxit-bench one
+  --problem family:NAME:SIZE:INDEX` (`problems::load`) passes the index
+  from its command line unchecked, so `family:contraction:8:2` would
+  run with a wrong expected verdict today.
+- **`mist::read`'s root count**: the cast `roots.len() as u32 - 1`
+  wraps only past `u32::MAX` roots, which needs about four billion
+  tokens (allowed with `occurrences: None`, up to `Forest::MOST`) plus
+  the rules; memory runs out first in practice. A `u32::try_from` with
+  `Refusal::Index` would make it a refusal. Recommendation: do it with
+  the next change to the reader; it is not urgent.
+- The families' `summary` and `claim` strings are text a person reads
+  (the harness prints them), but they are code and stayed as they are.
+  Most read well; the long ones (`lambek-fo`, `chain`, `wide-m1`) are
+  one sentence of 60 words or more. A rewrite changes the harness's
+  output and possibly the manual's harness chapter, so it belongs to
+  whoever owns `bench/`'s text.
+
+### What the next sessions must know
+
+- A later change to a family's shapes raises `instances` with it, since
+  nothing checks the index (now in `core-inputs.md`).
+- The readers' error texts (`Error::Lltp`, `Error::Spec` messages) read
+  well and are unchanged; no behaviour-lock line moved.
