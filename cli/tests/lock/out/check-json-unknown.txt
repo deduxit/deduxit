@@ -4,5 +4,5 @@ $ deduxit check --format json --work-limit 1
 
 --- status 3
 --- stdout
-{"version":1,"verdict":"unknown","mode":"classical","error":{"code":"work_limit","kind":"limit","message":"the check was given up at node 1, without a verdict on the proof: the call did the most work allowed, 1 unit","setting":"limits.work","details":{"node":1,"refusal":{"kind":"work","limit":1}}},"message":"the check was given up at node 1, without a verdict on the proof: the call did the most work allowed, 1 unit"}
+{"version":1,"verdict":"unknown","mode":"classical","error":{"code":"work_limit","kind":"limit","message":"the check stopped at node 1 without a verdict on the proof: the call did the most work allowed, 1 unit","setting":"limits.work","details":{"node":1,"refusal":{"kind":"work","limit":1}}},"message":"the check stopped at node 1 without a verdict on the proof: the call did the most work allowed, 1 unit"}
 --- stderr

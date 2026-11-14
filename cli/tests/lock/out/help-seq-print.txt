@@ -9,7 +9,7 @@ Usage: deduxit seq print [OPTIONS] [SEQUENT]
 
 Arguments:
   [SEQUENT]
-          The sequent, such as "A, A -o B |- B"; read from --file when absent, or from standard input by every command but `interact`
+          The sequent, such as "A, A -o B |- B"; without it, the sequent is read from --file, or from standard input (but not by `interact`)
 
 Options:
   -i, --intuitionistic
@@ -41,24 +41,26 @@ Options:
           Write to this file instead of standard output
 
       --memory-limit <SIZE>
-          The most memory a png or pdf render may take, by its estimate: a number of bytes with a unit such as 512MiB or 4GiB, or `none` for no limit; see `prove --memory-limit`
+          The most memory a png or pdf render may take, by its estimate: a number of bytes with a unit, such as 512MiB or 4GiB, or `none` for no limit; see `prove --memory-limit`
           
           [default: 1GiB]
 
       --settings <PATH>
-          Read the settings from a JSON file, before the flags, which override it: an object with any of the keys `clock`, `limits`, `search`, `view`, `styles`, `batch`, `ordinary` and `input`, each an object of the fields the flags name in parentheses (`{"search": {"copies": 3}, "limits": {"memory_bytes": null}}`); a field left out keeps the command's default, and a misspelt one is an error; `ordinary` applies under --logic, which names the logic
+          Read the settings from a JSON file; the flags override it
+          
+          The file is an object with any of the keys `clock`, `limits`, `search`, `view`, `styles`, `batch`, `ordinary` and `input`. Each holds the fields that the flags name in parentheses, such as `{"search": {"copies": 3}, "limits": {"memory_bytes": null}}`. A field left out keeps the command's default, and a misspelt one is an error. `ordinary` applies under --logic, which names the logic.
 
   -h, --help
           Print help (see a summary with '-h')
 
 Input:
   -f, --file <PATH>
-          Read the sequent from this file, or `-` for standard input (but in `interact`, whose commands come from there)
+          Read the sequent from this file, or from standard input with `-` (not in `interact`, whose commands come from there)
           
-          The file's kind is its extension's unless --input-format says otherwise: `.p` an LLTP problem (under --logic, where a command takes it, a TPTP problem of ordinary logic), `.spec` a coverability problem, `.json` a JSON sequent, anything else the text syntax, which may span lines. `prove` takes the flag more than once, and a directory, as a batch.
+          The file's extension gives its kind unless --input-format says otherwise. `.p` is an LLTP problem, or under --logic, where a command takes it, a TPTP problem of ordinary logic. `.spec` is a coverability problem and `.json` a JSON sequent. Anything else is the text syntax, which may span lines. `prove` takes the flag more than once, and a directory, as a batch.
 
       --input-format <FORMAT>
-          How to read the input, rather than by the file's extension
+          How to read the input, in place of the file's extension
           
           `lines`, `jsonl` and `problems` hold many sequents, which `prove` decides as a batch.
 
@@ -67,7 +69,7 @@ Input:
           - text:     One sequent in the text syntax, which may span lines
           - json:     One sequent in JSON, as `seq json` writes it
           - lltp:     A problem of the LLTP library: its axioms ⊢ its conjecture; the file does not say whether it is intuitionistic, the flags do
-          - spec:     A coverability problem in the .spec format of the Mist tool: its rules under !, its initial marking ⊢ its target, a question of affine mode, in which it is decided without --affine
+          - spec:     A coverability problem in the .spec format of the Mist tool: its rules under !, its initial marking ⊢ its target; it is decided in affine mode, with or without --affine
           - lines:    One sequent per line in the text syntax, as `NAME: SEQUENT` or `SEQUENT`; blank lines and everything from `#` on are skipped
           - jsonl:    One JSON value per line: a sequent as `seq json` writes it, or {"name": …, "mode": …, "sequent": …} with the sequent in JSON or as text and the mode named as in `problems`; blank lines are skipped
           - tptp:     A problem of ordinary propositional logic in TPTP syntax, as the ILTP library writes them: its axioms ⊢ its conjecture (with --logic, where a `.p` file is one)
@@ -78,21 +80,21 @@ Input:
       --occurrence-limit <N>
           The most subformula occurrences the sequent may have, or `none` (limits.occurrences)
           
-          A sequent in JSON can share subformulas, so a small file may stand for a sequent of any size; one beyond the limit is refused before it is unfolded. Occurrences cost some 25 bytes each before any search, and no limit lets through more than about four billion. A text nested deeper than the limit (more `(` or `~` open at once) is refused the same way.
+          A sequent in JSON can share subformulas, so a small file can stand for a sequent of any size. A sequent past the limit is refused before it is unfolded. Each occurrence costs about 25 bytes before any search, and even `none` lets through at most about four billion. A text nested deeper than the limit, with more `(` or `~` open at once, is refused the same way.
           
           [default: 50000000]
 
       --term-limit <N>
           The most first-order terms the atoms' arguments may unfold to, or `none` (limits.terms)
           
-          A first-order sequent in JSON can share its terms, so a small file may name an atom of any length; one beyond the limit is refused before it is unfolded, and so is a proof whose instance table has more entries.
+          A first-order sequent in JSON can share its terms, so a small file can name an atom of any length. A sequent past the limit is refused before it is unfolded, and so is a proof whose instance table has more entries.
           
           [default: 50000000]
 
       --ill-syntax <SYNTAX>
           How the text of an intuitionistic sequent is read: in its own syntax alone, or in the classical one (input.intuitionistic)
           
-          With --intuitionistic a sequent is written in the syntax of intuitionistic linear logic, A -o B, A |- B, and a symbol of the classical one (~, ^, par, |, ?, bot) is refused with what to write instead; `one-sided` reads the classical syntax as the one-sided sequent it stands for, ~(A * ~B), A |- B as A ⊸ B, A ⊢ B.
+          With --intuitionistic, write a sequent in the syntax of intuitionistic linear logic: A -o B, A |- B. A symbol of the classical syntax (~, ^, par, |, ?, bot) is refused, and the error says what to write instead. `one-sided` reads the classical syntax as the one-sided sequent it stands for: ~(A * ~B), A |- B as A ⊸ B, A ⊢ B.
 
           Possible values:
           - strict:    The syntax of intuitionistic linear logic alone
@@ -104,12 +106,12 @@ Logic:
       --logic <LOGIC>
           Read the input as ordinary logic
           
-          The input is a formula or a sequent of propositional logic in the syntax below (a `.p` file a TPTP problem, as the ILTP library writes them). `prove` decides it and shows the proof as a derivation of LK (classical) or LJ (intuitionistic, minimal), which is checked by the rules of the logic before it is shown. Intuitionistic and minimal logic are decided by LJT, whose search always ends; classical logic through its translation into affine MALL, with no copy bound (--method chooses). Through the translation into ILL (--method embedding) intuitionistic and minimal logic may be answered unknown at the time limit, and the JSON output is the search's outcome on the image. `seq print` prints the image. `interact` proves the sequent step by step by the rules of LK or LJ, its `close` deciding a goal through the translation.
+          The input is a formula or a sequent of propositional logic, in the syntax below; a `.p` file is a TPTP problem, as the ILTP library writes them. `prove` decides it and shows the proof as a derivation of LK (classical) or LJ (intuitionistic, minimal), checked by the rules of the logic before it is shown. By default intuitionistic and minimal logic are decided by LJT, whose search always ends, and classical logic through its translation into affine MALL, with no copy bound; --method chooses. The translated sequent is called the image. Through the translation into ILL (--method embedding), intuitionistic and minimal logic may be answered unknown at the time limit, and the JSON output is the search's outcome on the image. `seq print` prints the image. `interact` proves the sequent step by step by the rules of LK or LJ, and its `close` decides a goal through the translation.
 
           Possible values:
           - classical:      Classical propositional logic, derivations in LK
           - intuitionistic: Intuitionistic propositional logic, derivations in LJ
-          - minimal:        Minimal logic: intuitionistic without ex falso, false an atom
+          - minimal:        Minimal logic: intuitionistic logic without ex falso, where false is an atom
 
       --translation <TRANSLATION>
           The translation into linear logic: affine for classical logic, cbn (by default), cbv or 01 for intuitionistic and minimal logic (ordinary.translation)
@@ -124,13 +126,27 @@ Output:
       --style <KEY=VALUE>
           Set an option of an output format, such as `labels=subscript`, `latex.open=bare` or `svg.font.family=monospace` (repeatable) (styles.FORMAT.KEY)
           
-          KEY is a field of the format's options, dotted into nested ones, as `--style-file` holds them; without a prefix `text.`, `latex.`, `typst.`, `svg.`, `png.`, `pdf.` or `rocq.` it names the format `--format` gives. VALUE is JSON, or else a string: `gap=5`, `ids=true`, `open={"mark":"?"}`, `labels.table.⊸L=⊸_L`. The fields: text: labels, open, bar, gap; latex: form, labels, open, align, ebproof, preamble, lambda (the lambda-term under the conclusion, null or {"notation","types"}, which --lambda sets); typst: form, labels, open, import, page, layout (auto, curryst or deduxit: curryst for a tree up to nine inferences high, deduxit's own code above), premise_gap, label_gap, band, stroke (lengths for deduxit's own layout: a number and pt, mm, cm, in or em), lambda; svg: font (family, advances), labels, open, ids, description, font_size, label_size, line_height, premise_gap, literal_gap, label_gap, margin, stroke_width, link_height, link_cap, node_radius, text, line, par, link, highlight, background, essential, input, dominator, lambda, net (formulas: a proof net with every subformula written, or compact: only its literals and conclusions written, its inner links circles), net_look (a net's look: textbook or deduxit, the default, or its fields premises: dashed or plain, the edges into a ⅋ or ? node; conclusions: raised or bottom, a ! with auxiliary doors written a row above the ? nodes or on the bottom row; why_not: node or rules, a ? node one node or the rules' dereliction, contraction and weakening nodes); png: scale, pixels; pdf: embed_text, compatible, accessible, title, language, date; rocq: form, lemma, prelude, kernel (where the command writes Rocq). `null` lifts a bound (`pixels=null`). Labels are upright, subscript, off or {"table":{RULE:LABEL}}, which `labels.table.RULE=LABEL` sets one rule of, the others upright; RULE is ax, ⊗, ⅋, 1, ⊥, &, ⊕₁, ⊕₂, ⊤, !, ?d, ?c, ?w, mix, wk, cut, ∀, ∃, ⊸L, ⊸R, ⊗L, ⊗R, &L₁, &L₂, &R, ⊕L, ⊕R₁, ⊕R₂, 1L, 1R, 0L, ⊤R, !L, !R, !c, !w, ∀R, ∃L, ∃R, ∀L, \L, \R, /L or /R. An open goal is dots, bare, dashed or {"mark":TEXT}
+          KEY is a field of the format's options, dotted into nested ones, as `--style-file` holds them. Without a prefix (`text.`, `latex.`, `typst.`, `svg.`, `png.`, `pdf.` or `rocq.`) it names a field of the format `--format` gives. VALUE is JSON, or else a string: `gap=5`, `ids=true`, `open={"mark":"?"}`, `labels.table.⊸L=⊸_L`. `null` lifts a bound (`pixels=null`).
+          
+          text: labels, open, bar, gap.
+          
+          latex: form, labels, open, align, ebproof, preamble, lambda. lambda is the lambda-term under the conclusion, null or {"notation","types"}, which --lambda sets.
+          
+          typst: form, labels, open, import, page, layout, premise_gap, label_gap, band, stroke, lambda. layout is auto, curryst or deduxit: curryst for a tree up to nine inferences high, deduxit's own code above. premise_gap, label_gap, band and stroke are lengths of deduxit's own layout: a number and pt, mm, cm, in or em.
+          
+          svg: font (family, advances), labels, open, ids, description, font_size, label_size, line_height, premise_gap, literal_gap, label_gap, margin, stroke_width, link_height, link_cap, node_radius, text, line, par, link, highlight, background, essential, input, dominator, lambda, net, net_look. net is formulas, a proof net with every subformula written, or compact, with only its literals and conclusions written and its inner links drawn as circles. net_look is a net's look: textbook, or deduxit (the default), or its fields. Its field premises is dashed or plain, for the edges into a ⅋ or ? node. conclusions is raised or bottom: a ! with auxiliary doors written a row above the ? nodes, or on the bottom row. why_not is node or rules: a ? node drawn as one node, or as the rules' dereliction, contraction and weakening nodes.
+          
+          png: scale, pixels. pdf: embed_text, compatible, accessible, title, language, date. rocq: form, lemma, prelude, kernel, where the command writes Rocq.
+          
+          labels is upright, subscript, off or {"table":{RULE:LABEL}}. `labels.table.RULE=LABEL` sets one rule's label and leaves the others upright. RULE is ax, ⊗, ⅋, 1, ⊥, &, ⊕₁, ⊕₂, ⊤, !, ?d, ?c, ?w, mix, wk, cut, ∀, ∃, ⊸L, ⊸R, ⊗L, ⊗R, &L₁, &L₂, &R, ⊕L, ⊕R₁, ⊕R₂, 1L, 1R, 0L, ⊤R, !L, !R, !c, !w, ∀R, ∃L, ∃R, ∀L, \L, \R, /L or /R. open, the mark of an open goal, is dots, bare, dashed or {"mark":TEXT}.
 
       --style-file <PATH>
-          Read the options of the output formats from a JSON file: an object with a key per format (text, latex, typst, svg, png, pdf, and rocq where the command writes Rocq), each holding the fields `--style` names; a field left out keeps its default (styles)
+          Read the output formats' options from a JSON file (styles)
+          
+          The file is an object with a key per format: text, latex, typst, svg, png, pdf, and rocq where the command writes Rocq. Each holds the fields `--style` names. A field left out keeps its default.
 
       --font <FONT>
-          The math font a drawing (SVG, PNG, PDF) is set and laid out in: euler, stix-two, garamond, asana or new-computer-modern; by default Euler Math (styles.svg.font)
+          The math font of a drawing (SVG, PNG, PDF); by default Euler Math (styles.svg.font)
 
           Possible values:
           - euler:               Euler Math 0.75, upright, after Hermann Zapf's Euler for the AMS
@@ -146,8 +162,8 @@ Sequent syntax: `A, B |- C, D` (or `⊢`), either side may be empty.
   negation  ~A, A^            exponentials  !A, ?A
   units  1, bot, ⊥, top, ⊤, 0
   quantifiers  forall x. A, ∀x. A, exists x. A, ∃x. A, forall x y. A
-  predicates  p(x, f(a)): a name a quantifier binds is its variable, any
-    other a constant, or a function symbol before a bracket
+  predicates  p(x, f(a)): a name bound by a quantifier is a variable, any
+    other name a constant, or a function symbol before a bracket
 Binding, tightest first: A^, then ~ ! ?, then *, |, &, +, then -o, which
 groups to the right, and last a quantifier, which reaches right as far as
 it can.

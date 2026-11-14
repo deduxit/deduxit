@@ -8,5 +8,5 @@ valid proof of ⊢ ~A ⅋ ~B, B ⊗ A (classical)
 ⊢ ~A ⅋ ~B, B ⊗ A
 ~A[1] — A[5]
 ~B[2] — B[4]
-proof net
+proof net (the correctness criterion holds)
 --- stderr

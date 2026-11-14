@@ -3,32 +3,42 @@ $ deduxit interact --help
 --- stdout
 Prove a sequent step by step, reading commands from standard input
 
-The session starts with the whole sequent as the one open goal; the sequent is an argument or `--file`, since standard input carries the commands. Commands, one per line, their words split as a shell splits them (quotes keep a name with blanks one word): `goals` lists the open goals with the positions of their formulas; `rules G P` lists the rules that act on formula P of goal G; `apply G P RULE [P…]` applies a rule, the further positions being the formulas that go to the left premise of a ⊗ or Mix; `cut G C [P…]` cuts goal G on the formula C, written as the mode writes formulas (quoted if it has blanks), the formulas at the positions P going to the first premise, which proves C, and the others to the second, which uses it; `undo` retracts the last step; `close [G]` lets the search close goal G, or every open goal; `show [--FORMAT] [FILE]` draws the derivation so far, open goals included, as text, or --latex, --typst, --svg, --png or --pdf; `proof [--FORMAT] [FILE]` checks the finished proof and prints or writes it, as JSON for `check` with a FILE and no format, or --rocq for a certificate; `save FILE` and `load FILE` keep and resume the session as JSON (`load` takes a session of the same sequent and mode); `help`; `quit`. A RULE is a rule's usual name or its ASCII spelling: ax, 1, bot, top, *, par, &, +1, +2, ?d, ?c, ?w, !, mix, wk (affine weakening), and in intuitionistic mode the two-sided names (-oL, -oR, *L, *R, &L1, &L2, &R, +L, +R1, +R2, 1L, 1R, 0L, topR, !L, !R, !c, !w); `rules` prints the names it applies. The exit status is 0 when the session ends with a finished proof that checks and 1 otherwise; a command's error is printed as `error: …` on standard output and the session goes on; 2 when the session cannot start or read its input.
+The session starts with the whole sequent as its one open goal. Give the sequent as an argument or with `--file`: standard input carries the commands. Write one command per line. Its words are split as a shell splits them, so quotes keep a name with blanks one word.
+
+`goals` lists the open goals, with the position of each formula. `rules G P` lists the rules that act on formula P of goal G. `apply G P RULE [P…]` applies a rule; for a ⊗ or Mix, the further positions are the formulas that go to the left premise. `cut G C [P…]` cuts goal G on the formula C, written as the mode writes formulas (quoted if it has blanks). The formulas at the positions P go to the first premise, which proves C, and the others to the second, which uses it. `undo` takes back the last step. `invertible on|off` turns on or off applying every invertible rule by itself. `close [G]` lets the search close goal G, or every open goal. `show [--FORMAT] [FILE]` draws the derivation so far, open goals included, as text, or --latex, --typst, --svg, --png or --pdf. `proof [--FORMAT] [FILE]` checks the finished proof and prints or writes it, as a certificate with --rocq. Given a FILE and no format, both write the format the file's extension names; where it names none, `show` writes text and `proof` writes JSON for `check`. `lambda` prints the finished proof's lambda-term. `save FILE` keeps the session as JSON, and `load FILE` resumes a session of the same sequent and mode. `help` lists the commands, and `quit` ends the session.
+
+A RULE is a rule's usual name or its ASCII spelling: ax, 1, bot, top, *, par, &, +1, +2, ?d, ?c, ?w, !, mix, and wk (affine weakening). In intuitionistic mode the rules are two-sided: -oL, -oR, *L, *R, &L1, &L2, &R, +L, +R1, +R2, 1L, 1R, 0L, topR, !L, !R, !c, !w. `rules` prints the names it applies.
+
+The exit status is 0 when the session ends with a finished proof that checks, 1 otherwise, and 2 when the session cannot start or read its input. A command that fails prints `error: …` on standard output, and the session goes on.
 
 Usage: deduxit interact [OPTIONS] [SEQUENT]
 
 Arguments:
   [SEQUENT]
-          The sequent, such as "A, A -o B |- B"; read from --file when absent, or from standard input by every command but `interact`
+          The sequent, such as "A, A -o B |- B"; without it, the sequent is read from --file, or from standard input (but not by `interact`)
 
 Options:
       --invertible
-          Apply every invertible rule by itself, to the sequent at the start and to the goals each step opens: ⅋, ⊥, & and ⊤, ! when every other formula is a ?, 1, ⊗ and the axiom when their formulas are the whole goal (interactive.invertible); the command `invertible on|off` turns it on or off within the session
+          Apply every invertible rule by itself, at the start and to the goals each step opens (interactive.invertible)
+          
+          The invertible rules are ⅋, ⊥, & and ⊤; ! when every other formula is a ?; and 1, ⊗ and the axiom when their formulas are the whole goal. The session command `invertible on|off` turns this on or off.
 
       --settings <PATH>
-          Read the settings from a JSON file, before the flags, which override it: an object with any of the keys `clock`, `limits`, `search`, `view`, `styles`, `batch`, `ordinary`, `interactive`, `lambda` and `input`, each an object of the fields the flags name in parentheses (`{"search": {"copies": 3}, "limits": {"memory_bytes": null}}`); a field left out keeps the command's default, and a misspelt one is an error; `ordinary` applies under --logic, which names the logic
+          Read the settings from a JSON file; the flags override it
+          
+          The file is an object with any of the keys `clock`, `limits`, `search`, `view`, `styles`, `batch`, `ordinary`, `interactive`, `lambda` and `input`. Each holds the fields that the flags name in parentheses, such as `{"search": {"copies": 3}, "limits": {"memory_bytes": null}}`. A field left out keeps the command's default, and a misspelt one is an error. `ordinary` applies under --logic, which names the logic.
 
   -h, --help
           Print help (see a summary with '-h')
 
 Input:
   -f, --file <PATH>
-          Read the sequent from this file, or `-` for standard input (but in `interact`, whose commands come from there)
+          Read the sequent from this file, or from standard input with `-` (not in `interact`, whose commands come from there)
           
-          The file's kind is its extension's unless --input-format says otherwise: `.p` an LLTP problem (under --logic, where a command takes it, a TPTP problem of ordinary logic), `.spec` a coverability problem, `.json` a JSON sequent, anything else the text syntax, which may span lines. `prove` takes the flag more than once, and a directory, as a batch.
+          The file's extension gives its kind unless --input-format says otherwise. `.p` is an LLTP problem, or under --logic, where a command takes it, a TPTP problem of ordinary logic. `.spec` is a coverability problem and `.json` a JSON sequent. Anything else is the text syntax, which may span lines. `prove` takes the flag more than once, and a directory, as a batch.
 
       --input-format <FORMAT>
-          How to read the input, rather than by the file's extension
+          How to read the input, in place of the file's extension
           
           `lines`, `jsonl` and `problems` hold many sequents, which `prove` decides as a batch.
 
@@ -37,7 +47,7 @@ Input:
           - text:     One sequent in the text syntax, which may span lines
           - json:     One sequent in JSON, as `seq json` writes it
           - lltp:     A problem of the LLTP library: its axioms ⊢ its conjecture; the file does not say whether it is intuitionistic, the flags do
-          - spec:     A coverability problem in the .spec format of the Mist tool: its rules under !, its initial marking ⊢ its target, a question of affine mode, in which it is decided without --affine
+          - spec:     A coverability problem in the .spec format of the Mist tool: its rules under !, its initial marking ⊢ its target; it is decided in affine mode, with or without --affine
           - lines:    One sequent per line in the text syntax, as `NAME: SEQUENT` or `SEQUENT`; blank lines and everything from `#` on are skipped
           - jsonl:    One JSON value per line: a sequent as `seq json` writes it, or {"name": …, "mode": …, "sequent": …} with the sequent in JSON or as text and the mode named as in `problems`; blank lines are skipped
           - tptp:     A problem of ordinary propositional logic in TPTP syntax, as the ILTP library writes them: its axioms ⊢ its conjecture (with --logic, where a `.p` file is one)
@@ -48,21 +58,21 @@ Input:
       --occurrence-limit <N>
           The most subformula occurrences the sequent may have, or `none` (limits.occurrences)
           
-          A sequent in JSON can share subformulas, so a small file may stand for a sequent of any size; one beyond the limit is refused before it is unfolded. Occurrences cost some 25 bytes each before any search, and no limit lets through more than about four billion. A text nested deeper than the limit (more `(` or `~` open at once) is refused the same way.
+          A sequent in JSON can share subformulas, so a small file can stand for a sequent of any size. A sequent past the limit is refused before it is unfolded. Each occurrence costs about 25 bytes before any search, and even `none` lets through at most about four billion. A text nested deeper than the limit, with more `(` or `~` open at once, is refused the same way.
           
           [default: 50000000]
 
       --term-limit <N>
           The most first-order terms the atoms' arguments may unfold to, or `none` (limits.terms)
           
-          A first-order sequent in JSON can share its terms, so a small file may name an atom of any length; one beyond the limit is refused before it is unfolded, and so is a proof whose instance table has more entries.
+          A first-order sequent in JSON can share its terms, so a small file can name an atom of any length. A sequent past the limit is refused before it is unfolded, and so is a proof whose instance table has more entries.
           
           [default: 50000000]
 
       --ill-syntax <SYNTAX>
           How the text of an intuitionistic sequent is read: in its own syntax alone, or in the classical one (input.intuitionistic)
           
-          With --intuitionistic a sequent is written in the syntax of intuitionistic linear logic, A -o B, A |- B, and a symbol of the classical one (~, ^, par, |, ?, bot) is refused with what to write instead; `one-sided` reads the classical syntax as the one-sided sequent it stands for, ~(A * ~B), A |- B as A ⊸ B, A ⊢ B.
+          With --intuitionistic, write a sequent in the syntax of intuitionistic linear logic: A -o B, A |- B. A symbol of the classical syntax (~, ^, par, |, ?, bot) is refused, and the error says what to write instead. `one-sided` reads the classical syntax as the one-sided sequent it stands for: ~(A * ~B), A |- B as A ⊸ B, A ⊢ B.
 
           Possible values:
           - strict:    The syntax of intuitionistic linear logic alone
@@ -71,7 +81,7 @@ Input:
           [default: strict]
 
       --state <PATH>
-          Resume a session saved with `save` instead of starting from a sequent; the mode or the logic is the file's, so the mode flags and --logic are refused
+          Resume a session saved with `save`; the file gives the mode or the logic, so the mode flags and --logic are refused
 
 Logic:
   -i, --intuitionistic
@@ -84,10 +94,14 @@ Logic:
           Allow the Mix rule, which proves ⊢ Γ, Δ from ⊢ Γ and ⊢ Δ
 
       --cyclic
-          Cyclic linear logic: the order of the formulas counts, up to rotation, with no exchange (unit-free MLL); the sequent's text is read with the dual of a product reversed, ~(A * B) as ~B par ~A, and the formulas left of ⊢ in the reverse order
+          Cyclic linear logic: the order of the formulas counts, up to rotation (unit-free MLL)
+          
+          There is no exchange rule. The text is read with the dual of a product reversed, ~(A * B) as ~B par ~A, and the formulas left of ⊢ in the reverse order.
 
       --lambek
-          The Lambek calculus: intuitionistic and in the order written, with the divisions A \ B and B / A beside A * B (unit-free), every sequent with a formula left of ⊢; the text is read as --cyclic reads it
+          The Lambek calculus: intuitionistic, in the order written, with the divisions A \ B and B / A beside A * B (unit-free)
+          
+          Every sequent has a formula left of ⊢, unless --empty-antecedents is given. The text is read as --cyclic reads it.
 
       --empty-antecedents
           With --lambek, allow sequents with no formula left of ⊢ (the calculus L*)
@@ -95,12 +109,12 @@ Logic:
       --logic <LOGIC>
           Read the input as ordinary logic
           
-          The input is a formula or a sequent of propositional logic in the syntax below (a `.p` file a TPTP problem, as the ILTP library writes them). `prove` decides it and shows the proof as a derivation of LK (classical) or LJ (intuitionistic, minimal), which is checked by the rules of the logic before it is shown. Intuitionistic and minimal logic are decided by LJT, whose search always ends; classical logic through its translation into affine MALL, with no copy bound (--method chooses). Through the translation into ILL (--method embedding) intuitionistic and minimal logic may be answered unknown at the time limit, and the JSON output is the search's outcome on the image. `seq print` prints the image. `interact` proves the sequent step by step by the rules of LK or LJ, its `close` deciding a goal through the translation.
+          The input is a formula or a sequent of propositional logic, in the syntax below; a `.p` file is a TPTP problem, as the ILTP library writes them. `prove` decides it and shows the proof as a derivation of LK (classical) or LJ (intuitionistic, minimal), checked by the rules of the logic before it is shown. By default intuitionistic and minimal logic are decided by LJT, whose search always ends, and classical logic through its translation into affine MALL, with no copy bound; --method chooses. The translated sequent is called the image. Through the translation into ILL (--method embedding), intuitionistic and minimal logic may be answered unknown at the time limit, and the JSON output is the search's outcome on the image. `seq print` prints the image. `interact` proves the sequent step by step by the rules of LK or LJ, and its `close` decides a goal through the translation.
 
           Possible values:
           - classical:      Classical propositional logic, derivations in LK
           - intuitionistic: Intuitionistic propositional logic, derivations in LJ
-          - minimal:        Minimal logic: intuitionistic without ex falso, false an atom
+          - minimal:        Minimal logic: intuitionistic logic without ex falso, where false is an atom
 
       --translation <TRANSLATION>
           The translation into linear logic: affine for classical logic, cbn (by default), cbv or 01 for intuitionistic and minimal logic (ordinary.translation)
@@ -113,9 +127,9 @@ Logic:
 
 Output:
       --structural <RULES>
-          How a derivation of LK or LJ (--logic) shows its weakenings and contractions: each left out where it is admissible, so that the derivation reads as G3's, whose axiom takes a context and whose rules contract what they use twice, or every one drawn as the checker has it, in every format but rocq (view.structural)
+          How a derivation of LK or LJ (--logic) shows its weakenings and contractions; rocq always shows them all (view.structural)
           
-          The derivation is the same either way, and its explicit form is the one checked; a certificate (--format rocq) names every structural rule.
+          `admissible` leaves each one out where it is admissible, so that the derivation reads as G3's, whose axiom takes a context and whose rules contract what they use twice. `explicit` draws every one, as the checker has it. The derivation is the same either way, and its explicit form is the one checked. A certificate (--format rocq) names every structural rule.
 
           Possible values:
           - admissible: Each weakening and contraction left out where it is admissible
@@ -138,13 +152,27 @@ Output:
       --style <KEY=VALUE>
           Set an option of an output format, such as `labels=subscript`, `latex.open=bare` or `svg.font.family=monospace` (repeatable) (styles.FORMAT.KEY)
           
-          KEY is a field of the format's options, dotted into nested ones, as `--style-file` holds them; without a prefix `text.`, `latex.`, `typst.`, `svg.`, `png.`, `pdf.` or `rocq.` it names the format `--format` gives. VALUE is JSON, or else a string: `gap=5`, `ids=true`, `open={"mark":"?"}`, `labels.table.⊸L=⊸_L`. The fields: text: labels, open, bar, gap; latex: form, labels, open, align, ebproof, preamble, lambda (the lambda-term under the conclusion, null or {"notation","types"}, which --lambda sets); typst: form, labels, open, import, page, layout (auto, curryst or deduxit: curryst for a tree up to nine inferences high, deduxit's own code above), premise_gap, label_gap, band, stroke (lengths for deduxit's own layout: a number and pt, mm, cm, in or em), lambda; svg: font (family, advances), labels, open, ids, description, font_size, label_size, line_height, premise_gap, literal_gap, label_gap, margin, stroke_width, link_height, link_cap, node_radius, text, line, par, link, highlight, background, essential, input, dominator, lambda, net (formulas: a proof net with every subformula written, or compact: only its literals and conclusions written, its inner links circles), net_look (a net's look: textbook or deduxit, the default, or its fields premises: dashed or plain, the edges into a ⅋ or ? node; conclusions: raised or bottom, a ! with auxiliary doors written a row above the ? nodes or on the bottom row; why_not: node or rules, a ? node one node or the rules' dereliction, contraction and weakening nodes); png: scale, pixels; pdf: embed_text, compatible, accessible, title, language, date; rocq: form, lemma, prelude, kernel (where the command writes Rocq). `null` lifts a bound (`pixels=null`). Labels are upright, subscript, off or {"table":{RULE:LABEL}}, which `labels.table.RULE=LABEL` sets one rule of, the others upright; RULE is ax, ⊗, ⅋, 1, ⊥, &, ⊕₁, ⊕₂, ⊤, !, ?d, ?c, ?w, mix, wk, cut, ∀, ∃, ⊸L, ⊸R, ⊗L, ⊗R, &L₁, &L₂, &R, ⊕L, ⊕R₁, ⊕R₂, 1L, 1R, 0L, ⊤R, !L, !R, !c, !w, ∀R, ∃L, ∃R, ∀L, \L, \R, /L or /R. An open goal is dots, bare, dashed or {"mark":TEXT}
+          KEY is a field of the format's options, dotted into nested ones, as `--style-file` holds them. Without a prefix (`text.`, `latex.`, `typst.`, `svg.`, `png.`, `pdf.` or `rocq.`) it names a field of the format `--format` gives. VALUE is JSON, or else a string: `gap=5`, `ids=true`, `open={"mark":"?"}`, `labels.table.⊸L=⊸_L`. `null` lifts a bound (`pixels=null`).
+          
+          text: labels, open, bar, gap.
+          
+          latex: form, labels, open, align, ebproof, preamble, lambda. lambda is the lambda-term under the conclusion, null or {"notation","types"}, which --lambda sets.
+          
+          typst: form, labels, open, import, page, layout, premise_gap, label_gap, band, stroke, lambda. layout is auto, curryst or deduxit: curryst for a tree up to nine inferences high, deduxit's own code above. premise_gap, label_gap, band and stroke are lengths of deduxit's own layout: a number and pt, mm, cm, in or em.
+          
+          svg: font (family, advances), labels, open, ids, description, font_size, label_size, line_height, premise_gap, literal_gap, label_gap, margin, stroke_width, link_height, link_cap, node_radius, text, line, par, link, highlight, background, essential, input, dominator, lambda, net, net_look. net is formulas, a proof net with every subformula written, or compact, with only its literals and conclusions written and its inner links drawn as circles. net_look is a net's look: textbook, or deduxit (the default), or its fields. Its field premises is dashed or plain, for the edges into a ⅋ or ? node. conclusions is raised or bottom: a ! with auxiliary doors written a row above the ? nodes, or on the bottom row. why_not is node or rules: a ? node drawn as one node, or as the rules' dereliction, contraction and weakening nodes.
+          
+          png: scale, pixels. pdf: embed_text, compatible, accessible, title, language, date. rocq: form, lemma, prelude, kernel, where the command writes Rocq.
+          
+          labels is upright, subscript, off or {"table":{RULE:LABEL}}. `labels.table.RULE=LABEL` sets one rule's label and leaves the others upright. RULE is ax, ⊗, ⅋, 1, ⊥, &, ⊕₁, ⊕₂, ⊤, !, ?d, ?c, ?w, mix, wk, cut, ∀, ∃, ⊸L, ⊸R, ⊗L, ⊗R, &L₁, &L₂, &R, ⊕L, ⊕R₁, ⊕R₂, 1L, 1R, 0L, ⊤R, !L, !R, !c, !w, ∀R, ∃L, ∃R, ∀L, \L, \R, /L or /R. open, the mark of an open goal, is dots, bare, dashed or {"mark":TEXT}.
 
       --style-file <PATH>
-          Read the options of the output formats from a JSON file: an object with a key per format (text, latex, typst, svg, png, pdf, and rocq where the command writes Rocq), each holding the fields `--style` names; a field left out keeps its default (styles)
+          Read the output formats' options from a JSON file (styles)
+          
+          The file is an object with a key per format: text, latex, typst, svg, png, pdf, and rocq where the command writes Rocq. Each holds the fields `--style` names. A field left out keeps its default.
 
       --font <FONT>
-          The math font a drawing (SVG, PNG, PDF) is set and laid out in: euler, stix-two, garamond, asana or new-computer-modern; by default Euler Math (styles.svg.font)
+          The math font of a drawing (SVG, PNG, PDF); by default Euler Math (styles.svg.font)
 
           Possible values:
           - euler:               Euler Math 0.75, upright, after Hermann Zapf's Euler for the AMS
@@ -154,7 +182,7 @@ Output:
           - new-computer-modern: New Computer Modern Math 7.1.1 (Book), the Computer Modern of TeX
 
       --kernel <KERNEL>
-          The Rocq kernel a certificate of linear logic is written for; by default the mode's: nanoyalla for classical linear logic, deduxit for Mix, affine and intuitionistic logic and for a sequent with a quantifier (styles.rocq.kernel)
+          The Rocq kernel to write a certificate of linear logic for; by default nanoyalla for classical linear logic, and deduxit for Mix, affine and intuitionistic logic and a sequent with a quantifier (styles.rocq.kernel)
 
           Possible values:
           - nanoyalla: NanoYalla 1.1.3, the kernel of Click & coLLecT: classical linear logic one-sided, a proof script checked rule by rule
@@ -170,7 +198,7 @@ Search:
       --bias <BIAS>
           How the focused engines pick the positive literal of every atom (search.bias)
           
-          No choice changes what is provable. `rarer` mostly chains backward from the goal, `factors` forward from the hypotheses, which on Horn clauses under `!`, such as a Petri net, is often much faster but takes one copy per step on a single branch. `auto` takes `rarer` in affine mode, `factors` in linear mode without exponentials, and in linear mode with exponentials runs both searches and answers with the first that decides: alternating on one core, side by side on several.
+          No choice changes what is provable. `rarer` mostly chains backward from the goal. `factors` mostly chains forward from the hypotheses: on Horn clauses under `!`, such as a Petri net, that is often much faster, but it takes one copy per step on a single branch. `auto` takes `rarer` in affine mode and `factors` in linear mode without exponentials. In linear mode with exponentials it runs both searches and answers with the first that decides: in turns on one core, side by side on several.
 
           Possible values:
           - auto:    `rarer` in affine mode, `factors` in linear mode without exponentials, and in linear mode with exponentials both, each in a search of its own
@@ -182,43 +210,43 @@ Search:
       --copies <N>
           How often `?` formulas may be copied on one branch of the proof, or `none` for no bound (search.copies)
           
-          The search tries the bounds 0, 1, … in turn. By default it goes on to the next bound until it decides or the time limit passes, and an unknown verdict says which bound it reached. With a bound, a sequent with exponentials that has no proof within it is unknown (exit status 3) unless a smaller bound already exhausted the search space, in which case it is unprovable. Sequents without exponentials are not affected.
+          The search tries the bounds 0, 1, … in turn. By default it goes on to the next bound until it decides or the time limit passes, and an unknown verdict says which bound it reached. With a bound, a sequent with exponentials that has no proof within it is unknown (exit status 3), unless a smaller bound already exhausted the search; it is then unprovable. The bound does not affect sequents without exponentials.
           
           [default: none]
 
       --forward-copies <N>
           How often `?` formulas may be copied on one branch of the forward search that `--bias auto` runs (search.forward_copies)
           
-          It applies to a Horn program: clauses such as `!(a * b -o c * d)`, a marking and a goal of atoms, as a Petri net is. There a copy is one step of a chain, and a chain of n steps needs n of them. The forward search never runs within less than `--copies`; on any other sequent, and under Mix, it runs within `--copies`. Without a bound from `--copies` it has no effect: both searches deepen while the time limit lasts.
+          It applies to a Horn program: clauses such as `!(a * b -o c * d)`, a marking and a goal of atoms, as in a Petri net. There a copy is one step of a chain, and a chain of n steps needs n copies. On a Horn program the forward search's bound is this or `--copies`, whichever is larger; on any other sequent, and under Mix, it is `--copies`. Without a `--copies` bound this flag has no effect: both searches deepen while the time limit lasts.
           
           [default: 30]
 
       --memo-limit <N>
           The most decided sequents the search remembers at once (search.memo_limit)
           
-          When the memo is full it is emptied, which costs time but not correctness. Zero switches the memo off. `--memory-limit` bounds the memo in bytes; this is the finer knob beside it.
+          When the memo is full it is emptied, which costs time but never changes a verdict. Zero switches the memo off. `--memory-limit` bounds the memo in bytes; this flag bounds it more finely.
           
           [default: 1048576]
 
   -j, --jobs <N>
           How many threads the search may use (search.jobs)
           
-          By default one thread searches first, for the time `--pool-after` gives, and then the machine's other threads join it: a small sequent is decided at once and always the same way, a hard one gets every core. A number given here is used from the start, unless `--pool-after` is given too; a number above the machine's parallelism is taken as that, with a note on standard error. More than one runs the focused engine and the net engine on that many threads; the proof found may then differ from run to run, the verdict never does.
+          By default one thread searches first, for the time `--pool-after` gives, and then the machine's other threads join it. So a small sequent is decided at once and always the same way, and a hard one gets every core. A number given here is used from the start, unless `--pool-after` is given too. A number above the machine's parallelism is taken as that, with a note on standard error. With more than one thread the focused engine and the net engine search in parallel; the proof found may then differ from run to run, but the verdict never does.
 
       --pool-after <DURATION>
           How long one thread searches before the other threads join it, such as 100ms; 0 starts them at once (clock.pool_after_ms)
           
-          The default is 100ms when `--jobs` is not given, and 0 when it is. The single thread goes on searching beside a pool of the other threads, which starts the search afresh, and the first to decide answers; both together hold at most `--memory-limit`. Below three threads there is no single thread: two search on a pool from the start. The additive, the Horn, the essential-net and the inverse engine run on one thread and get no pool.
+          The default is 100ms when `--jobs` is not given, and 0 when it is. The single thread goes on searching beside a pool of the other threads, which starts the search afresh, and the first to decide answers. Both together hold at most `--memory-limit`. Below three threads there is no single thread: two search on a pool from the start. The additive, Horn, essential-net and inverse engines run on one thread and get no pool.
 
       --deterministic
-          Run the sequential engines, whose proof is a function of the input
+          Search on one thread, so that the same input always gives the same proof and the same counts
           
-          The same as `--jobs 1 --schedule turns`, and takes precedence over `--jobs`, `--pool-after` and `--schedule`.
+          The same as `--jobs 1 --schedule turns`. It takes precedence over `--jobs`, `--pool-after` and `--schedule`.
 
       --test-period <N>
           How often the net engine runs its exact test of correctness, and the essential-net engine its test of the dominator condition: after this many links, or `auto` (search.test_period)
           
-          `auto` tests after every link on a small structure and every few links on a large one. The verdict never depends on it.
+          `auto` tests after every link on a small structure, and every few links on a large one. The verdict never depends on it.
           
           [default: auto]
 
@@ -227,7 +255,7 @@ Search:
 
           Possible values:
           - auto:  In slices on two threads
-          - turns: In turns on the calling thread, each turn from the search's start: the same answer and the same counts on every machine
+          - turns: In turns on the calling thread, each turn from the search's start, which gives the same answer and the same counts on every machine
           
           [default: auto]
 
@@ -235,49 +263,49 @@ Limits:
       --timeout <DURATION>
           Give up after this long, such as 500ms, 10s, 2m or 1h, or `none` for no limit (clock.time_limit_ms)
           
-          The verdict is then unknown (exit status 3). The time counts from the start of the command, so it covers reading and parsing the sequent as well as the search: a sequent that is not read in time is given up on like one that is not decided. Without the limit, the search runs until it decides or is interrupted with Ctrl-C, which with exponentials and no `--copies` bound can be forever. In a session it is each `close`'s limit.
+          The verdict is then unknown (exit status 3). The time counts from the start of the command, so it covers reading and parsing the sequent as well as the search: a sequent that is not read in time is given up on like one that is not decided. Without a limit, the search runs until it decides or you press Ctrl-C; with exponentials and no `--copies` bound, that can be forever. In a session the limit is each `close`'s.
           
           [default: 2s]
 
       --classical-work <N>
           The most work the classical refutation may do after a search that did not prove the sequent, in formulas evaluated, or 0 for none (search.classical_work)
           
-          It looks for truth values of the atoms that make the sequent false read classically (`!` and `?` erased, `*` and `&` as "and", `|` and `+` as "or", `1` and `top` true, `bot` and `0` false), which no provable sequent allows: a search that was unknown is then unprovable (exit status 1), and an exhausted one gets the values as its reason. It runs after the search, past the time limit within this bound (Ctrl-C stops it), and never changes a verdict the search gave.
+          It looks for truth values of the atoms that make the sequent false read classically: `!` and `?` erased, `*` and `&` as "and", `|` and `+` as "or", `1` and `top` true, `bot` and `0` false. No provable sequent has such values. When it finds them, a search that was unknown becomes unprovable (exit status 1), and an exhausted one gets the values as its reason. It runs after the search, past the time limit but within this bound, and Ctrl-C stops it. It never changes a verdict the search gave.
           
           [default: 67108864]
 
       --witness-depth <N>
           The deepest term a variable of a first-order search may be bound to (search.witness_depth)
           
-          The focused engine searches a sequent with quantifiers by leaving the witness of each `exists` open and filling it in where an axiom matches two atoms. A constant has depth 0, `f(t)` one more than `t`. A branch that would bind a deeper term is cut, and a search that cut one is unknown (exit status 3) rather than unprovable.
+          The focused engine searches a sequent with quantifiers by leaving the witness of each `exists` open, and filling it in where an axiom matches two atoms. A constant has depth 0, and `f(t)` one more than `t`. A branch that would bind a deeper term is cut, and a search that cut one is unknown (exit status 3), not unprovable.
           
           [default: 64]
 
       --instances <N>
           The most instances of quantified formulas a first-order search may hold at once (search.instances)
           
-          Each `forall` and `exists` the search steps through opens one, and copies of quantified hypotheses under `!` multiply them. A branch that would hold more is cut, and a search that cut one is unknown (exit status 3) rather than unprovable.
+          Each `forall` and `exists` the search steps through opens one, and copies of quantified hypotheses under `!` multiply them. A branch that would hold more is cut, and a search that cut one is unknown (exit status 3), not unprovable.
           
           [default: 65536]
 
       --memory-limit <SIZE>
           The most memory the search may hold: a number of bytes with a unit such as 512MiB or 4GiB, or `none` for no limit (limits.memory_bytes)
           
-          Counted is the sequent as the search holds it, about 25 bytes for each subformula occurrence, and what grows with the search: what it remembers, the proofs it keeps and what every level of its recursion takes. A memo that no longer fits is emptied first, as at `--memo-limit`; when that is not enough the verdict is unknown (exit status 3). The check of the proof and the derivation built from it are under the same limit: a derivation estimated above it is left out even with `--derivation-limit none`. By default one thread and, after `--pool-after`, a pool beside it search at once, both together within the limit. A png or pdf render is estimated before it starts, its time counted as the memory the renderer fills in it, and left out above the limit (the default is a few seconds of rendering).
+          The limit counts the sequent as the search holds it, about 25 bytes for each subformula occurrence, and what grows with the search: what it remembers, the proofs it keeps and what every level of its recursion takes. A memo that no longer fits is emptied first, as at `--memo-limit`; when that is not enough, the verdict is unknown (exit status 3). The proof's check and the derivation built from it are under the same limit: a derivation estimated above it is left out even with `--derivation-limit none`. By default one thread and, after `--pool-after`, a pool beside it search at once, both together within the limit. A png or pdf render is estimated before it starts, its time counted as the memory the renderer fills in it, and left out above the limit; the default allows a few seconds of rendering.
           
           [default: 1GiB]
 
       --recursion-limit <N>
           The deepest nesting of rules on one branch before the search gives up (limits.recursion_depth)
           
-          Raise it for sequents with thousands of connectives; the search runs on a thread whose stack grows with the limit.
+          Raise it for sequents with thousands of connectives. The search runs on a thread whose stack grows with the limit.
           
           [default: 2048]
 
       --work-limit <N>
           The most units of work the search may do, or `none` (limits.work)
           
-          A unit is what each engine counts at its polls (a stable sequent or a split for the focused engine, a literal or a failed test for the net engines, a pair for the additive one, a marking for the Horn engine), so a limit gives the same verdict on every machine where a time limit does not; past it the verdict is unknown (exit status 3). `--stats` prints the units a search did.
+          A unit is what each engine counts as it goes: a stable sequent or a split for the focused engine, a literal or a failed test for the net engines, a pair for the additive one, a marking for the Horn engine. So this limit gives the same verdict on every machine, which a time limit does not. Past it the verdict is unknown (exit status 3). `--stats` prints the units a search did.
           
           [default: none]
 
@@ -293,8 +321,8 @@ Sequent syntax: `A, B |- C, D` (or `⊢`), either side may be empty.
   negation  ~A, A^            exponentials  !A, ?A
   units  1, bot, ⊥, top, ⊤, 0
   quantifiers  forall x. A, ∀x. A, exists x. A, ∃x. A, forall x y. A
-  predicates  p(x, f(a)): a name a quantifier binds is its variable, any
-    other a constant, or a function symbol before a bracket
+  predicates  p(x, f(a)): a name bound by a quantifier is a variable, any
+    other name a constant, or a function symbol before a bracket
 Binding, tightest first: A^, then ~ ! ?, then *, |, &, +, then -o, which
 groups to the right, and last a quantifier, which reaches right as far as
 it can.
