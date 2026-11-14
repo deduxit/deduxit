@@ -309,3 +309,30 @@ and Python with matplotlib; no check builds it.
   wasm32-wasip1 under wasmtime, from `core` and `core-tests` alone) and
   `web-bindgen` (the CLI's version against the lock's); and the
   devshell's CLI, `wasm-opt`, Node and wasmtime, added from this module.
+- **`kani.nix`: Kani and the check `kani`.** nixpkgs has no Kani, so the
+  package `kani` builds it from the input `kani` (the repository at a
+  release tag, `flake = false`) with the nightly of its own
+  `rust-toolchain.toml` through rust-overlay (`rustc-dev` and
+  `llvm-tools`: kani-compiler links rustc's driver, whose path its
+  `build.rs` takes from rustup's directories, patched to the nightly's),
+  Kani's and the standard library's lock vendored by crane
+  (`vendorMultipleCargoDeps`: the library's `-Z build-std` sysroot
+  rebuilds std), and nixpkgs' CBMC, asserted equal to the version
+  `kani-dependencies` names. `build-dev --release` makes the binaries and
+  the sysroot; the install keeps the release bundle's layout
+  (`lib/kani/{bin,lib,playback,no_core,library,toolchain}`, where
+  kani-driver finds its compiler, its libraries and the cargo it runs by
+  its own path), and `bin/kani` and `bin/cargo-kani` wrap kani-driver
+  with CBMC, Kissat and a C compiler on `PATH` (`goto-cc` calls it).
+  The `charon` submodule, the optional Aeneas backend's, is missing from
+  GitHub's tarball and dropped from kani-compiler's manifest. The
+  standard library's lock is read from the toolchain at evaluation, so
+  the package and the check exist on x86_64-linux alone. The check runs
+  `cargo kani --package deduxit --no-default-features --jobs 2
+  --output-format terse` (Kani runs harnesses in parallel only with it)
+  from `core` alone, with the flags of `[workspace.metadata.kani]`
+  (`Cargo.toml`); a harness takes CBMC up to seven minutes and 8 GB, so
+  two at a time fit a CI runner's 16 GB (about 30 minutes of CPU for the
+  eleven). Kani is not in the devshell, which every session loads: `nix
+  shell .#kani -c cargo kani -p deduxit --no-default-features` runs it
+  there (`core-proofs.md` has the harnesses).

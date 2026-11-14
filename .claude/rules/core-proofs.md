@@ -237,6 +237,47 @@ that cannot repeat the engine's mistakes. Engines only call `Proof::check`.
   the size estimate's, the memo's and the memory account's tests on
   wasm32-wasip1 under wasmtime, where a failing test aborts the run (a
   panic aborts on WASI): run each test alone to find which.
+- **Kani checks the integer facts above within bounds**
+  (`check/harnesses.rs`, `#[cfg(kani)]`, the flake check `kani`;
+  `flake.md` has the tool). Each harness states one fact and its bound:
+  `table_bytes` and a sequent's bytes stay below 2³⁸ and 2³⁹ for every
+  table of up to 2³² members; `room`, the zone bound `within` holds a
+  zone to, is `goal + 2·later` capped at `Bag::MOST` and never
+  overflows; putting, taking, joining (`⊗`, Mix, cut) and uniting (`&`)
+  zones keep the counts, the outputs and both weights exact, or make
+  the zone longer than `Bag::MOST`, where `within` refuses it, so a
+  count or a sum saturates only there, no subtraction goes below zero,
+  and no count is zero or over the length; and a proof `Proof::new`
+  keeps has every premise before its node, the root last and every
+  other node read by a later one, so node `i` of `n` has at most `n − i`
+  readers. The first three are checked for every value; a put or a take
+  on a zone of one member, a sum of two zones of one member each (the
+  same or two), a union of two zones of the same member, with fixed ids
+  and any counts and weights (zones of two members, a union of two
+  members, and the swap `Bag::add` makes before pouring the smaller
+  table took past ten minutes and are left out); the arenas the one of
+  `1`, Mix, Mix with any premises and the root last (a free root ran out
+  of 8 GB). The arithmetic of the pass lives in
+  functions the harnesses call (`State::put`, `remove`, `add_linear`,
+  `recount`, `pass::room`, `table_bytes`): a change of it goes there,
+  so that the harnesses keep checking the code that runs.
+- **What makes a harness tractable for CBMC** (up to seven minutes and
+  8 GB each): a member's id is a constant (a symbolic key makes every
+  hash and probe of the standard library's table symbolic: over ten
+  minutes for one insertion); a sum is checked against the previous sum
+  plus or minus a weight, never against counts times weights computed
+  twice (the solver cannot match two products), and a sequent's weights
+  are any values with the facts exact sums have (each member held weighs
+  in, a weight is at most its members times 2³², written as a shift:
+  the same bound as a product with `u32::MAX` took 16 minutes); no
+  `expect` on, and no drop of, the crate's `Error` (its formatting and
+  drop glue walk every variant: forget it); and no free length of a
+  table the code under test keeps. Kani's memory-safety checks are off for the
+  crate (`[workspace.metadata.kani]`): the crate forbids `unsafe`, and
+  they would re-check the standard library's table; arithmetic,
+  panics and loop bounds stay checked. `#[kani::unwind]` is the least
+  bound that covers the table's probes (5; a lower one fails as an
+  unwinding assertion, never silently).
 - **A zone the rest of the proof cannot consume is refused where it
   arises** (`Pass::within`, `Fault::Surplus`): a rule takes two members
   of a premise's zone at most and passes the others on, and the root's

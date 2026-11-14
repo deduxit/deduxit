@@ -70,6 +70,23 @@
         "type": "github"
       }
     },
+    "kani": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1789503837,
+        "narHash": "sha256-6BT2BGgrkeZ5yoLj6ra01kECqbGVJfbkoch1ns7HXH0=",
+        "owner": "model-checking",
+        "repo": "kani",
+        "rev": "0d2328a93f0e0ff66132d6bfa1a7d884877cf862",
+        "type": "github"
+      },
+      "original": {
+        "owner": "model-checking",
+        "ref": "kani-0.68.0",
+        "repo": "kani",
+        "type": "github"
+      }
+    },
     "nanoyalla": {
       "flake": false,
       "locked": {
@@ -139,6 +156,7 @@
         "devshell": "devshell",
         "flake-parts": "flake-parts",
         "import-tree": "import-tree",
+        "kani": "kani",
         "nanoyalla": "nanoyalla",
         "nixpkgs": "nixpkgs",
         "rocq-deduxit": "rocq-deduxit",

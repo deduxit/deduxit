@@ -45,6 +45,14 @@
       flake = false;
     };
 
+    # Kani, the model checker of the checker's integer harnesses, at a
+    # release tag; `modules/kani.nix' builds it from this source with the
+    # nightly its rust-toolchain.toml names.
+    kani = {
+      url = "github:model-checking/kani/kani-0.68.0";
+      flake = false;
+    };
+
     # deduxit's own Rocq library, the kernel of `--kernel deduxit', in its own
     # repository; pinned by flake.lock to a commit of its `main'. It follows
     # this flake's nixpkgs, so that the library and the certificates are

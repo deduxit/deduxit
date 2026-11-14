@@ -40,6 +40,8 @@
 mod error;
 /// What the pass knows of a proof's members, and the frame pass.
 mod frames;
+#[cfg(kani)]
+mod harnesses;
 mod pass;
 mod zones;
 

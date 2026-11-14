@@ -8,6 +8,13 @@ members = ["bench", "cli", "compat/linlog", "compat/linlog-cli", "core", "web"]
 [workspace.metadata.crane]
 name = "deduxit-workspace"
 
+# `cargo kani`'s flags (the flake's `kani` check runs it). The library
+# forbids `unsafe`, so Kani's memory-safety checks would only re-check the
+# standard library's hash table, and take most of the time; its checks of
+# arithmetic, panics and loop bounds stay on.
+[workspace.metadata.kani]
+flags = { memory-safety-checks = false }
+
 # What every package shares; crates.io keeps a published version's
 # metadata as it was, so the addresses are the final ones.
 [workspace.package]
@@ -42,6 +49,8 @@ unused_macro_rules = "warn"
 unit_bindings = "warn"
 rust_2018_idioms = { level = "warn", priority = -1 }
 missing_debug_implementations = "warn"
+# Kani, the model checker, compiles its harnesses with `cfg(kani)`.
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(kani)"] }
 # Fire today: each goes to "warn" once its sites are fixed.
 elided_lifetimes_in_paths = "allow"
 single_use_lifetimes = "allow"
