@@ -92,6 +92,10 @@ unchanged.
   `Deserialize`, so a file of `prove --format json` reads back with its
   verdict, mode and engine. An engine name the library does not know
   reads as the new `Engine::Unknown`.
+- **A family refuses an index past its instances**: `Family::instance`
+  returns the new `Error::FamilyIndex` (code `family_index`), where it
+  returned an instance whose expected verdict could be wrong. `deduxit-bench
+  one --problem family:NAME:SIZE:INDEX` refuses it too.
 - **Errors show the formula**: `ShapeError::Formula` carries the
   formula's text, so `prove` in an intuitionistic mode names the
   subformula that has no intuitionistic reading.

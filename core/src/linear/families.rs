@@ -141,13 +141,15 @@ impl Family {
     /// Returns the instance of the given size and index, the same on
     /// every call.
     ///
-    /// The index counts from 0 and must be below
-    /// [`instances`](Self::instances). The call does not check it: past
-    /// that, the instance may not be one of the family's, and its
-    /// `provable` may be wrong. The instance is built without a bound on
-    /// its occurrences, so a large size takes time and memory to match.
+    /// The index counts from 0 and is below
+    /// [`instances`](Self::instances). The instance is built without a
+    /// bound on its occurrences, so a large size takes time and memory to
+    /// match.
     ///
     /// # Errors
+    ///
+    /// [`Error::FamilyIndex`] for an index from
+    /// [`instances`](Self::instances) on.
     ///
     /// [`Error::FamilySize`] for a size the family has no instance of:
     /// below [`least`](Self::least) (a 3-Partition bin smaller than four,
@@ -162,6 +164,13 @@ impl Family {
                 size,
                 least: self.least,
                 powers_of_two: self.powers_of_two,
+            });
+        }
+        if index >= self.instances {
+            return Err(Error::FamilyIndex {
+                family: self.name,
+                index,
+                instances: self.instances,
             });
         }
         let mut instance = (self.generate)(size, index);
@@ -1254,6 +1263,19 @@ mod tests {
                 "{name}"
             );
         }
+        // An index past the instances is refused as well: `contraction` at
+        // index 2 would otherwise be #0's provable sequent marked unprovable.
+        let contraction = find("contraction").unwrap();
+        assert_eq!(
+            contraction
+                .instance(8, contraction.instances)
+                .map(|i| i.name),
+            Err(Error::FamilyIndex {
+                family: "contraction",
+                index: contraction.instances,
+                instances: contraction.instances
+            })
+        );
         // Every family answers every size from 0 up past its least with an
         // instance or this refusal, never a panic: a wrong `least` was one.
         for family in FAMILIES {

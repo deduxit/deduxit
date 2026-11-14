@@ -131,6 +131,22 @@ pub enum Error {
         /// Whether its sizes are the powers of two.
         powers_of_two: bool,
     },
+    /// A generated family has no instance of the index asked for.
+    ///
+    /// Needs the cargo feature `parse`.
+    #[cfg(feature = "parse")]
+    #[error(
+        "the family {family} has no instance {index}: it has {instances} per size, numbered from 0"
+    )]
+    #[non_exhaustive]
+    FamilyIndex {
+        /// The family's name.
+        family: &'static str,
+        /// The index asked for.
+        index: u32,
+        /// How many instances each size has.
+        instances: u32,
+    },
     /// An option's value is not one the output can take, such as a Rocq
     /// lemma name that is no identifier.
     #[error("{key}: {message}")]
@@ -612,6 +628,7 @@ impl Error {
         "several_conjectures",
         "unknown_name",
         "family_size",
+        "family_index",
         "invalid_option",
         "json",
         "unsupported_version",
@@ -683,7 +700,7 @@ impl Error {
             | Self::SeveralConjectures { .. } => Malformed,
             Self::UnknownName { .. } | Self::InvalidOption { .. } | Self::Json { .. } => Malformed,
             #[cfg(feature = "parse")]
-            Self::FamilySize { .. } => Malformed,
+            Self::FamilySize { .. } | Self::FamilyIndex { .. } => Malformed,
             Self::Version { .. } => Unsupported,
             Self::IndexOutOfBounds { .. }
             | Self::NotTopological { .. }
@@ -759,6 +776,8 @@ impl Error {
             Self::UnknownName { .. } => "unknown_name",
             #[cfg(feature = "parse")]
             Self::FamilySize { .. } => "family_size",
+            #[cfg(feature = "parse")]
+            Self::FamilyIndex { .. } => "family_index",
             Self::InvalidOption { .. } => "invalid_option",
             Self::Json { .. } => "json",
             Self::Version { .. } => "unsupported_version",
@@ -1216,6 +1235,11 @@ mod tests {
                 least: 1,
                 powers_of_two: false,
             },
+            Error::FamilyIndex {
+                family: "contraction",
+                index: 2,
+                instances: 2,
+            },
         ]);
         #[cfg(feature = "interactive")]
         samples.extend([
@@ -1280,7 +1304,8 @@ mod tests {
             | Error::Spec { .. }
             | Error::Tptp { .. }
             | Error::SeveralConjectures { .. }
-            | Error::FamilySize { .. } => {}
+            | Error::FamilySize { .. }
+            | Error::FamilyIndex { .. } => {}
             #[cfg(feature = "interactive")]
             Error::InconsistentSession { .. }
             | Error::Step(_)
@@ -1376,7 +1401,8 @@ mod tests {
         ];
         let gated = |code: &str| {
             let render = cfg!(any(feature = "png", feature = "pdf"));
-            (parse.contains(&code) || code == "family_size") && !cfg!(feature = "parse")
+            (parse.contains(&code) || code == "family_size" || code == "family_index")
+                && !cfg!(feature = "parse")
                 || interactive.contains(&code) && !cfg!(feature = "interactive")
                 || code == "no_certificate" && !cfg!(feature = "rocq")
                 || code == "thread_pool" && !cfg!(feature = "parallel")

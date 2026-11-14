@@ -81,7 +81,8 @@ the generated families are read or changed; the harness that runs them is
   the sizes it takes (`least`, `powers_of_two`) and a generator `(size,
   index) → Instance` (sequent, mode, `provable`, `copies`);
   `Family::instance` refuses a size the generator has no instance of
-  with `Error::FamilySize` before it runs (a generator asserts its
+  with `Error::FamilySize`, and an index past `instances` with
+  `Error::FamilyIndex`, before it runs (a generator asserts its
   precondition, which a caller's size reached as a panic, F6), and
   generates without an occurrence bound, a large size being the
   caller's to ask for. A family's `provable` comes from the problem it encodes
@@ -145,11 +146,11 @@ the generated families are read or changed; the harness that runs them is
   nested clause uses; size 1 is a loop).
 - **The wide families start at one pair**: `wide(0, _)` is the empty
   sequent, unprovable without Mix, which `least: 0` had marked provable.
-- **`Family::instance` does not check the index**: past `instances` a
-  generator still answers, and its `provable` may be wrong
-  (`contraction` at index 2 is #0's provable sequent marked
-  unprovable). Callers iterate `0..instances`, and the doc says so; a
-  generator that gains a shape raises `instances` with it.
+- **`Family::instance` refuses an index from `instances` on**
+  (`Error::FamilyIndex`), because past it a generator still answers and
+  its `provable` may be wrong (`contraction` at index 2 is #0's provable
+  sequent marked unprovable). A generator that gains a shape raises
+  `instances` with it, or the new shape stays unreachable.
 - **`batch-families`'s input is a list of names** (`BATCHED` in
   `bench/src/journeys.rs`): a family added later stays out of the
   journey, so that its ceiling keeps measuring the same batch.
