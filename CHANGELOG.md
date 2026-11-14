@@ -12,35 +12,100 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### What breaks, and what to do instead
 
-- **`prove --logic intuitionistic` and `minimal` decide by LJT by
-  default**, Dyckhoff's calculus, whose search always ends: the verdict
-  line reads `valid (intuitionistic logic by LJT)`, `--stats` prints
-  LJT's counters, and `--format json` writes the outcome of the ordinary
-  sequent (`verdict` `valid`, `not_valid` or `unknown`, `engine` `ljt`)
-  instead of the image's. Where a bound other than the time limit stops
-  LJT, the embedding decides as before. `--method embedding`, or
-  `--translation`, gives the old behaviour.
-- **`ordinary::Outcome` says how the sequent was searched** in `search`
-  (`ordinary::Search::Embedding { translation, linear }` or
-  `ordinary::Search::Ljt`), in place of its fields `translation` and
-  `linear`; `ordinary::decide` decides intuitionistic and minimal logic
-  by LJT unless `ordinary::Options` names a translation or the method.
+- **`prove --logic intuitionistic` and `--logic minimal` decide by LJT
+  by default**, Dyckhoff's calculus, whose search always ends. The
+  verdict line reads `valid (intuitionistic logic by LJT)`, `--stats`
+  prints LJT's counters, and `--format json` writes the outcome of the
+  ordinary sequent (`verdict` `valid`, `not_valid` or `unknown`, `engine`
+  `ljt`) in place of the translated sequent's. Where a bound other than
+  the time limit stops LJT, the embedding decides as before. For the old
+  behaviour, give `--method embedding` or `--translation`.
+- **`ordinary::Outcome` says how the sequent was searched**, in its new
+  field `search` (`ordinary::Search::Embedding { translation, linear }`,
+  `ordinary::Search::Ljt` or, with the feature `sat`,
+  `ordinary::Search::Sat`), which replaces the fields `translation`
+  and `linear`. `ordinary::decide` decides intuitionistic and minimal
+  logic by LJT unless `ordinary::Options` names a translation or a
+  method.
+
+### Changed
+
+These outputs changed their words; a script that matches them needs
+the new text. The JSON forms, exit statuses, flags and defaults are
+unchanged.
+
+- **`--net`'s last line** says whose verdict it is: `proof net (the
+  correctness criterion holds)`, `proof net with Mix (the correctness
+  criterion with Mix holds)` and `planar proof net (the correctness
+  criterion holds, and no two links cross)`. It still starts with
+  `proof net` or `planar proof net`.
+- **A classical refutation of a sequent written with two sides** speaks
+  of the sides: `A on the left has no A on the right to meet in an
+  axiom`, and counts left and right where both have some. Where an
+  unused hypothesis is the problem, the command adds `; with -a
+  (affine), an unused hypothesis is allowed`. The JSON `refutation` is
+  unchanged.
+- **The intuitionistic count refutation** counts by sides too, without
+  "positively" and "negatively": `A occurs 1 more time on the right than
+  on the left, so they cannot all meet in axioms (an implication's
+  antecedent counts on the other side)`.
+- **Ordinary logic's "not valid"** through the embedding says `the
+  translated sequent is unprovable` in place of "the image".
+- **The help and the messages are rewritten** to say what went wrong and
+  what to do. `prove -h` lists the common options under the headings
+  Logic, Input, Output, Search and Limits and ends with "--help shows
+  every option."; `--help` lists every option. In `interact`, a rule
+  that does not act on the formula named now names the formula and
+  `rules G P`.
+- **The manual is reorganized**: a short tour, a guide for each task
+  (among them "Avoid the common mistakes", "Check a proof or a
+  refutation" and "Use the library"), the reference, and an explanation
+  of how the search works.
 
 ### Added
 
+- **Hints on a newcomer's first errors**: `deduxit "A |- A"` suggests
+  `deduxit prove "A |- A"`; an unquoted sequent suggests the command
+  quoted; `->` in linear logic says to write `-o` or add `--logic
+  classical`; a file of `NAME: SEQUENT` lines read as one sequent
+  suggests `--input-format lines`. `--format tex` is read as `latex`.
+- **`interact` guides**: an unknown rule's error lists the session's own
+  rules with their ASCII spellings, and after a split whose premise has
+  no proof a warning says so and that `undo` takes it back.
+- **Deciding as the command does, in the library**: `Settings::stop`
+  builds the command's stop from the time since the start. It fires at
+  the time limit and lets the classical reading after the search run
+  past it.
+- **Printing without a stop**: `export::{latex, typst, svg,
+  rocq}::to_string(derivation, &options)` beside each `write`, and
+  `Display` for `lambda::Term`.
+- **Reading the command's JSON**: the linear `Outcome` implements
+  `Deserialize`, so a file of `prove --format json` reads back with its
+  verdict, mode and engine. An engine name the library does not know
+  reads as the new `Engine::Unknown`.
+- **Errors show the formula**: `ShapeError::Formula` carries the
+  formula's text, so `prove` in an intuitionistic mode names the
+  subformula that has no intuitionistic reading.
 - **LJT**: `ordinary::ljt::decide` decides intuitionistic and minimal
-  logic by Dyckhoff's contraction-free calculus, its proofs translated
-  into derivations of LJ with Gentzen's cut, which `Derivation::check`
-  accepts; `ordinary::Method`, `ordinary::Options::method` and
-  `ordinary::gives_way` choose between it and the embedding, and the
-  command's `--method embedding|ljt` (the key `ordinary.method`).
+  logic by Dyckhoff's contraction-free calculus. Its proofs are
+  translated into derivations of LJ with Gentzen's cut, which
+  `Derivation::check` accepts. `ordinary::Method`,
+  `ordinary::Options::method` and `ordinary::gives_way` choose between it
+  and the embedding, and the command has `--method embedding|ljt` (the
+  key `ordinary.method`).
+- **A SAT-based engine for intuitionistic and minimal logic**, in the
+  library: `ordinary::sat::decide` (`ordinary::Method::Sat`, behind the
+  new default feature `sat`, the SAT solver batsat). Every "valid" comes
+  with a derivation of LJ that the checker accepts, and every "not
+  valid" with a finite Kripke model (`sat::Model`) that `Model::refutes`
+  checks. The command does not offer it yet.
 - **The harness runs ordinary logic**: `deduxit-bench run --tptp PATH
   --logics …` with the engines `embedding`, `ljt` and `auto`, and
   `summary` lists the problems two configurations decide differently.
 - **A certificate is checked in one command**: `nix run
   github:deduxit/deduxit#check-certificate -- proof.v` compiles a
   certificate written with `--standalone` against the pinned NanoYalla
-  or rocq-deduxit, the kernel read from its import lines, and refuses a
+  or rocq-deduxit, the kernel read from its import lines. It refuses a
   lemma that rests on an axiom, such as a proof left `Admitted`.
 
 ## [0.3.0] - 2026-11-09
