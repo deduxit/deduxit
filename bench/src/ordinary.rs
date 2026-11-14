@@ -1,11 +1,14 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The child's run of a problem of ordinary logic in one logic: through
-//! the embedding, whose image is searched as a linear problem is and
-//! whose proof is read back and checked as the check, by LJT, which
-//! checks its own derivation inside the time measured, or by the logic's
-//! default, the library's whole call with its checks timed.
+//! The child's run of a problem of ordinary (propositional) logic in one
+//! logic, by one of three methods:
+//! - the embedding: the image in linear logic is searched as a linear
+//!   problem is, and its proof is read back and checked as the row's
+//!   check;
+//! - LJT, a terminating sequent calculus for intuitionistic and minimal
+//!   logic, which checks its own derivation inside the time measured;
+//! - the logic's default: the library's whole call, its checks timed.
 
 use crate::OneArgs;
 use crate::problems;
@@ -19,9 +22,11 @@ use deduxit::ordinary::{self, Logic, Method, Translation, Verdict, ljt};
 use deduxit::{Error, Limits, Phase, Refusal};
 use std::sync::atomic::Ordering;
 
-/// Runs a TPTP problem in `logic` by the method the engine asked for
-/// names (a linear engine's name the embedding, `auto` the logic's
-/// default) and returns the tail of its row.
+/// Runs a TPTP problem in `logic` and returns the tail of its row.
+///
+/// The engine asked for names the method. A linear engine's name means the
+/// embedding, and `auto` the logic's default. A method that does not
+/// decide the logic gives a `refused` row.
 pub fn tail(args: &OneArgs, logic: Logic) -> String {
     let problem = match problems::load_ordinary(&args.problem) {
         Ok(problem) => problem,
@@ -54,9 +59,10 @@ pub fn tail(args: &OneArgs, logic: Logic) -> String {
     }
 }
 
-/// The `expected` column of a problem in `logic`. ILTP's statuses are
-/// intuitionistic: a theorem is a classical one too, and a non-theorem a
-/// minimal one.
+/// Returns the `expected` column of a problem in `logic`. ILTP's statuses
+/// are intuitionistic. An intuitionistic theorem is a classical one too,
+/// and a non-theorem is not a theorem of minimal logic either. Other
+/// pairs have no known verdict.
 fn expected(status: Option<Status>, logic: Logic) -> &'static str {
     match (status, logic) {
         (Some(Status::Theorem), Logic::Intuitionistic | Logic::Classical) => "provable",
@@ -66,8 +72,9 @@ fn expected(status: Option<Status>, logic: Logic) -> &'static str {
 }
 
 /// Decides the sequent through its image under the logic's default
-/// translation, searched as a linear problem is, and checks a proof by
-/// reading the derivation of LK or LJ back and checking it.
+/// translation, searched as a linear problem is, and returns the tail of
+/// its row. A proof is checked by reading back the derivation of LK or LJ
+/// and checking that.
 fn embedded(args: &OneArgs, logic: Logic, sequent: &ordinary::Sequent, expected: &str) -> String {
     let translation = Translation::default_for(logic);
     let image = match ordinary::translate(sequent, logic, translation, &Limits::default()) {
@@ -100,9 +107,10 @@ fn embedded(args: &OneArgs, logic: Logic, sequent: &ordinary::Sequent, expected:
 }
 
 /// Decides the sequent by LJT within the run's memory bound and time
-/// limit. Its derivation is checked inside the time measured; a proof
-/// whose derivation a bound refuses is `unknown`, with the bound as the
-/// reason (`derivation_limit` for its size).
+/// limit, and returns the tail of its row. The derivation is checked
+/// inside the time measured. A proof whose derivation a bound refuses is
+/// `unknown`, with the bound as the reason (`derivation_limit` for its
+/// size).
 fn by_ljt(args: &OneArgs, logic: Logic, sequent: &ordinary::Sequent, expected: &str) -> String {
     let limits = Limits::default().with_memory_bytes(memory_limit(args.memory_limit));
     let (bias, forward) = (
@@ -179,8 +187,8 @@ fn by_ljt(args: &OneArgs, logic: Logic, sequent: &ordinary::Sequent, expected: &
     row(&fields)
 }
 
-/// The `reason` of a row whose proof's derivation a bound refused, or
-/// whose derivation the time limit stopped.
+/// Returns the `reason` of a row whose proof's derivation a bound refused,
+/// or the time limit stopped.
 fn refused(refusal: &Refusal) -> String {
     match refusal {
         Refusal::Stopped { .. } => "timeout".to_owned(),
@@ -191,10 +199,10 @@ fn refused(refusal: &Refusal) -> String {
     }
 }
 
-/// Decides the sequent as the library does by default
-/// ([`ordinary::decide`] with the logic's default method and the run's
-/// search options), the read-back and check of the embedding's proofs
-/// inside the time measured, and returns the tail of its row.
+/// Decides the sequent as the library does by default, and returns the
+/// tail of its row. That is [`ordinary::decide`] with the logic's default
+/// method and the run's search options. The read-back and the check of the
+/// embedding's proofs are inside the time measured.
 fn by_default(args: &OneArgs, logic: Logic, sequent: &ordinary::Sequent, expected: &str) -> String {
     let copies = match args.copies {
         Some(Bound(bound)) => bound,

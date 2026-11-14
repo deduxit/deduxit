@@ -1,16 +1,20 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Problems written in other provers' syntax. Every translator prints
-//! through the library's public walk over a formula (`Sequent::walk`, or
-//! `Reading::walk` for an intuitionistic sequent), never by recursion, so
-//! a formula of any depth takes no more stack than a literal. Every binary
-//! formula is written in parentheses and every operand of `!` and `?` too,
-//! so that only the rule that `!` and `?` bind tighter than every binary
-//! connective matters, which every tool's grammar has, and an atom is
-//! written by its
-//! index (`p0`, `p1`, …), so that no name clashes with a tool's keywords
-//! or lexical rules.
+//! Problems written in other provers' syntax.
+//!
+//! Every translator prints through the library's public walk over a
+//! formula (`Sequent::walk`, or `Reading::walk` for an intuitionistic
+//! sequent), never by recursion. So a formula of any depth takes no more
+//! stack than a literal.
+//!
+//! Every binary formula is written in parentheses, and so is every operand
+//! of `!` and `?`. The only precedence that matters is then that `!` and
+//! `?` bind tighter than every binary connective, which every tool's
+//! grammar has.
+//!
+//! An atom is written by its index (`p0`, `p1`, …), so that no name clashes
+//! with a tool's keywords or lexical rules.
 
 use crate::problems::Problem;
 use anyhow::{Result, anyhow};
@@ -75,8 +79,8 @@ pub fn one_sided(out: &mut String, sequent: &Sequent, root: TermId, s: &Spelling
                     Term::Par(..) => s.par,
                     Term::With(..) => s.with,
                     Term::Plus(..) => s.plus,
-                    // No stop between operands comes at a literal, a unit or
-                    // a formula of one operand.
+                    // Only a binary connective has a stop between its
+                    // operands.
                     Term::Atom(_)
                     | Term::DualAtom(_)
                     | Term::One
@@ -95,8 +99,12 @@ pub fn one_sided(out: &mut String, sequent: &Sequent, root: TermId, s: &Spelling
     }
 }
 
-/// Writes the intuitionistic formula at `o` of `reading` into `out`, or
-/// says which connective the spelling has no place for.
+/// Writes the intuitionistic formula at `o` of `reading` into `out`.
+///
+/// # Errors
+///
+/// Names the connective where the formula has one it does not translate:
+/// the Lambek calculus's `\` and `/`, or a quantifier.
 pub fn intuitionistic(out: &mut String, reading: &Reading, o: OccId, s: &Spelling) -> Result<()> {
     use IllConnective as C;
     let forest = reading.forest();
@@ -130,7 +138,7 @@ pub fn intuitionistic(out: &mut String, reading: &Reading, o: OccId, s: &Spellin
     Ok(())
 }
 
-/// The formulas of a classical problem, one-sided, each written by
+/// Returns the formulas of a classical problem, one-sided, each written by
 /// [`one_sided`].
 pub fn classical_formulas(problem: &Problem, s: &Spelling) -> Vec<String> {
     let sequent = &problem.sequent;
@@ -143,8 +151,8 @@ pub fn classical_formulas(problem: &Problem, s: &Spelling) -> Vec<String> {
         .collect()
 }
 
-/// The hypotheses and the goal of an intuitionistic problem, each written
-/// by [`intuitionistic`].
+/// Returns the hypotheses and the goal of an intuitionistic problem, each
+/// written by [`intuitionistic`].
 pub fn intuitionistic_formulas(problem: &Problem, s: &Spelling) -> Result<(Vec<String>, String)> {
     let forest = Forest::new(&problem.sequent)?;
     let reading = Reading::new(&forest).map_err(|e| anyhow!("no intuitionistic reading: {e}"))?;
@@ -174,7 +182,8 @@ const CLICK_AND_COLLECT: Spelling = Spelling {
     dual: ("p", "^"),
 };
 
-/// A classical problem for Click & coLLecT: `|- F1, …, Fn` on one line.
+/// Writes a classical problem for Click & coLLecT: `|- F1, …, Fn` on one
+/// line.
 pub fn click_and_collect(problem: &Problem) -> Result<String> {
     Ok(format!(
         "|- {}\n",
@@ -204,9 +213,9 @@ const MAUDE: Spelling = Spelling {
 /// gives its intuitionistic search (`utils/exec-ILLTP-flat-file.sh`).
 pub const MAUDE_COPIES: u32 = 5;
 
-/// An intuitionistic problem for the Maude prover's focused ILL system: a
-/// reduction of `solve` on `[emp] Γ |~ A`, under the copy bound of the
-/// prover's own script.
+/// Writes an intuitionistic problem for the Maude prover's focused ILL
+/// system: a reduction of `solve` on `[emp] Γ |~ A`, under the copy bound
+/// of the prover's own script.
 pub fn maude_ill(problem: &Problem) -> Result<String> {
     let (hypotheses, goal) = intuitionistic_formulas(problem, &MAUDE)?;
     let hypotheses = if hypotheses.is_empty() {
@@ -219,8 +228,8 @@ pub fn maude_ill(problem: &Problem) -> Result<String> {
     ))
 }
 
-/// A classical problem for the Maude prover's focused LL system: a search
-/// for a proof of `|~ [emp] Γ`.
+/// Writes a classical problem for the Maude prover's focused LL system: a
+/// search for a proof of `|~ [emp] Γ`.
 pub fn maude_cll(problem: &Problem) -> Result<String> {
     Ok(format!(
         "search [1] prove(|~ [emp] {}) =>* proved .\nq\n",
@@ -228,8 +237,8 @@ pub fn maude_cll(problem: &Problem) -> Result<String> {
     ))
 }
 
-/// llprover's syntax: `+` for `⅋`, `/\\` and `\\/` for the additives,
-/// `0` for `⊥` and `bot` for `0`, as Girard wrote them first.
+/// llprover's syntax: `+` for `⅋`, `/\` for `&` and `\/` for `⊕`, and `0`
+/// for `⊥` and `bot` for `0`, as Girard wrote them first.
 const LLPROVER: Spelling = Spelling {
     tensor: "*",
     par: "+",
@@ -246,7 +255,7 @@ const LLPROVER: Spelling = Spelling {
     dual: ("~(p", ")"),
 };
 
-/// A classical problem for llprover: its classical system, then the
+/// Writes a classical problem for llprover: its classical system, then the
 /// one-sided sequent `[] --> Γ`.
 pub fn llprover_cll(problem: &Problem) -> Result<String> {
     let formulas = classical_formulas(problem, &LLPROVER);
@@ -258,8 +267,8 @@ pub fn llprover_cll(problem: &Problem) -> Result<String> {
     Ok(format!("cll(full).\n[] --> {right}.\n"))
 }
 
-/// An intuitionistic problem for llprover: its intuitionistic system, then
-/// `Γ --> A`.
+/// Writes an intuitionistic problem for llprover: its intuitionistic
+/// system, then `Γ --> A`.
 pub fn llprover_ill(problem: &Problem) -> Result<String> {
     let (hypotheses, goal) = intuitionistic_formulas(problem, &LLPROVER)?;
     let hypotheses = if hypotheses.is_empty() {
@@ -287,11 +296,16 @@ const LINTAP: Spelling = Spelling {
     dual: ("(~p", ")"),
 };
 
-/// A classical problem for linTAP: the one formula `F1 @ (F2 @ …)`, the
-/// `⅋` of the sequent's formulas. linTAP reads a `!` it meets in a formula
-/// proved one-sided as an atom, so a sequent with one is refused.
+/// Writes a classical problem for linTAP: the one formula `F1 @ (F2 @ …)`,
+/// the `⅋` of the sequent's formulas.
+///
+/// # Errors
+///
+/// A sequent with a `!` is refused: linTAP reads a `!` in a formula it
+/// proves one-sided as an atom.
 pub fn lintap(problem: &Problem) -> Result<String> {
-    // The parser and the readers keep no term that no root reaches.
+    // Every term is reachable from a root: the parser and the readers keep
+    // no other.
     if (problem.sequent.terms().iter()).any(|t| matches!(t, Term::Bang(_))) {
         return Err(anyhow!("linTAP reads a `!` proved one-sided as an atom"));
     }
@@ -313,14 +327,19 @@ pub fn lintap(problem: &Problem) -> Result<String> {
     Ok(out)
 }
 
-/// An intuitionistic multiplicative problem for LinearOne, first-order or
-/// not: `[Γ] => A.`, an atom `at(p, [t, …])`, `p(A, B)` for `⊗`,
-/// `impl(A, B)` for `⊸`, `forall(X, A)` and `exists(X, A)`. A predicate is
-/// written `p` and a function symbol `f` with its index in the sequent's
-/// symbols (`p0`, `f3(c1)`, a constant without parentheses), and every
-/// binder of the problem binds a Prolog variable of its own (`X0`, `X1`,
-/// …), since the problem is read as one term, whose variables of one name
-/// are one variable.
+/// Writes an intuitionistic multiplicative problem for LinearOne,
+/// first-order or not: `[Γ] => A.`, with an atom `at(p, [t, …])`,
+/// `p(A, B)` for `⊗`, `impl(A, B)` for `⊸`, and `forall(X, A)` and
+/// `exists(X, A)`.
+///
+/// A predicate is written `p` and a function symbol `f`, each with its
+/// index in the sequent's symbols (`p0`, `f3(f1)`). A constant has no
+/// parentheses, and a propositional atom is `p` with the atom's index and
+/// no arguments.
+///
+/// Every binder of the problem binds a Prolog variable of its own (`X0`,
+/// `X1`, …). LinearOne reads the problem as one term, in which variables
+/// of one name are one variable.
 pub fn linearone(problem: &Problem) -> Result<String> {
     let sequent = &problem.sequent;
     let forest = Forest::new(sequent)?;
@@ -391,7 +410,7 @@ pub fn linearone(problem: &Problem) -> Result<String> {
 
 /// Writes the first-order term `t` for LinearOne: a bound variable as the
 /// Prolog variable of its binder in `scope`, an application by its
-/// symbol's index. Iterative, as every translator is.
+/// symbol's index. It works without recursion, as every translator does.
 fn linearone_term(
     sequent: &Sequent,
     t: deduxit::linear::sequents::FoTermId,
@@ -449,8 +468,8 @@ fn linearone_term(
     Ok(())
 }
 
-/// Sympli's syntax: `#` for `⊤`, an operator between spaces, since an
-/// atom may contain `*`, `+`, `!` and `#`.
+/// Sympli's syntax: `#` for `⊤`. An operator stands between spaces, since
+/// an atom may contain `*`, `+`, `!` and `#`.
 const SYMPLI: Spelling = Spelling {
     tensor: "*",
     par: "",
@@ -467,9 +486,9 @@ const SYMPLI: Spelling = Spelling {
     dual: ("", ""),
 };
 
-/// An intuitionistic problem for Sympli, which proves a formula without
-/// hypotheses: `Γ ⊢ A` as `(⊗Γ) ⊸ A`, with its log of the proof's
-/// validation on.
+/// Writes an intuitionistic problem for Sympli, which proves a formula
+/// without hypotheses: `Γ ⊢ A` as `(⊗Γ) ⊸ A`. The problem turns on Sympli's
+/// log of the proof's validation.
 pub fn sympli(problem: &Problem) -> Result<String> {
     let (hypotheses, goal) = intuitionistic_formulas(problem, &SYMPLI)?;
     let formula = if hypotheses.is_empty() {
@@ -500,8 +519,12 @@ const LOLLI: Spelling = Spelling {
 /// The longest argument the kernel passes to a program (`MAX_ARG_STRLEN`).
 const ARGUMENT: usize = 128 * 1024;
 
-/// A classical problem for lolli: `⊢ Γ`, which its command takes as one
-/// argument, so a sequent longer than an argument can be is refused.
+/// Writes a classical problem for lolli: `⊢ Γ`.
+///
+/// # Errors
+///
+/// lolli's command takes the sequent as one argument, so a sequent longer
+/// than an argument can be is refused.
 pub fn lolli(problem: &Problem) -> Result<String> {
     let text = format!("⊢ {}", classical_formulas(problem, &LOLLI).join(", "));
     if text.len() >= ARGUMENT {
@@ -529,7 +552,7 @@ const APLL: Spelling = Spelling {
     dual: ("p", "^"),
 };
 
-/// A classical problem for APLL: `|- Γ`.
+/// Writes a classical problem for APLL: `|- Γ`.
 pub fn apll_ll(problem: &Problem) -> Result<String> {
     Ok(format!(
         "|- {}\n",
@@ -537,7 +560,7 @@ pub fn apll_ll(problem: &Problem) -> Result<String> {
     ))
 }
 
-/// An intuitionistic problem for APLL: `Γ |- A`.
+/// Writes an intuitionistic problem for APLL: `Γ |- A`.
 pub fn apll_ill(problem: &Problem) -> Result<String> {
     let (hypotheses, goal) = intuitionistic_formulas(problem, &APLL)?;
     Ok(format!("{} |- {goal}\n", hypotheses.join(", ")))
@@ -547,7 +570,7 @@ pub fn apll_ill(problem: &Problem) -> Result<String> {
 mod tests {
     use super::*;
 
-    /// A problem of the sequent in the mode.
+    /// Returns a problem of the sequent `text` in `mode`.
     fn problem(text: &str, mode: deduxit::linear::Mode) -> Problem {
         Problem {
             sequent: text.parse().unwrap(),

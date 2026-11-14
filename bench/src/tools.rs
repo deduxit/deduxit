@@ -1,15 +1,18 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Provers side by side: every problem run by each tool of a list, deduxit's
-//! command among them, each as a process of its own measured by BenchExec's
-//! `runexec` (wall time, CPU time and peak memory of the process and its
-//! children, in a cgroup with the memory limit), with the same time and
-//! memory limit for every tool. A tool is a [`Driver`]: whether it covers a
-//! problem's fragment and mode, how the problem is written for it, its
-//! command line, and how its verdict is read. A problem outside a tool's
-//! fragment gets a row of its own, verdict `refused` and reason `fragment`,
-//! and is not run.
+//! Provers side by side (`run --tools`). Each problem runs with each tool
+//! of a list, deduxit's command among them. Every tool gets the same time
+//! and memory limit.
+//!
+//! Each run is a process of its own, measured by BenchExec's `runexec`: the
+//! wall time, the CPU time and the peak memory of the process and its
+//! children, in a cgroup with the memory limit.
+//!
+//! A tool is a [`Driver`]. It says whether the tool covers a problem's
+//! fragment and mode, how the problem is written for it, its command line,
+//! and how its verdict is read. A problem outside a tool's fragment is not
+//! run: its row has the verdict `refused` and the reason `fragment`.
 
 use crate::growth::{Ended, SKIPPED, TOOL_SERIES};
 use crate::problems::{self, Problem, Reference, mode_name};
@@ -69,8 +72,8 @@ pub struct Answer {
     pub reason: String,
     /// The engine that decided, where the tool names one.
     pub engine: String,
-    /// The `checked` column of a refutation the driver checked itself,
-    /// `None` where the driver's [`Driver::checks`] says it.
+    /// The `checked` column of a refutation the driver checked itself, or
+    /// `None`, where [`Driver::checks`] decides the column.
     pub checked: Option<String>,
 }
 
@@ -97,24 +100,26 @@ fn classical(mode: Mode) -> bool {
     !mode.is_intuitionistic() && !mode.is_affine() && !mode.has_mix()
 }
 
-/// Whether a fragment has no quantifier: every other prover but LinearOne
-/// is run on propositional sequents alone, since their translators write an
-/// atom by its index, which drops a first-order atom's arguments.
+/// Whether a fragment has no quantifier. Every prover but deduxit and
+/// LinearOne runs on such sequents alone: its translator writes an atom by
+/// its index, which drops a first-order atom's arguments.
 const fn propositional(fragment: Fragment) -> bool {
     !fragment.has_quantifiers()
 }
 
-/// deduxit covers every problem the harness has.
+/// Returns true: deduxit covers every problem the harness has.
 const fn everything(_: Fragment, _: Mode) -> bool {
     true
 }
 
-/// deduxit reads its input itself.
+/// Returns an empty text: deduxit reads its input itself.
 fn untranslated(_: &Problem) -> Result<String> {
     Ok(String::new())
 }
 
-/// The arguments of `deduxit prove` common to both of deduxit's columns.
+/// Returns the arguments of `deduxit prove` that both of deduxit's columns
+/// pass: the input file and its format, the mode's flags, the limits, and
+/// JSON output.
 fn deduxit_arguments(file: &Path, problem: &Problem, timeout: f64, memory: u64) -> Vec<String> {
     let format = match file.extension().and_then(|e| e.to_str()) {
         Some("p") => "lltp",
@@ -142,8 +147,8 @@ fn deduxit_arguments(file: &Path, problem: &Problem, timeout: f64, memory: u64) 
         format!("{timeout}s"),
         "--memory-limit".into(),
         format!("{memory}B"),
-        // The outcome as JSON: an unprovable one holds the refutation that
-        // the driver checks.
+        // JSON, since an unprovable outcome holds the refutation that the
+        // driver checks.
         "--format".into(),
         "json".into(),
         "--quiet".into(),
@@ -151,18 +156,18 @@ fn deduxit_arguments(file: &Path, problem: &Problem, timeout: f64, memory: u64) 
     arguments
 }
 
-/// deduxit on one thread: its sequential engines, the counters a function
-/// of the input.
+/// Returns the arguments of deduxit on one thread (`--deterministic`), whose
+/// counters are a function of the input.
 fn deduxit_one(file: &Path, problem: &Problem, timeout: f64, memory: u64) -> Vec<String> {
     let mut arguments = deduxit_arguments(file, problem, timeout, memory);
     arguments.push("--deterministic".into());
     arguments
 }
 
-/// Reads deduxit's exit status (0 proved, 1 unprovable, 3 unknown, 2 an
-/// error) and its outcome in JSON: the engine, the reason of an unknown
-/// verdict, and an unprovable verdict's refutation, which
-/// `Disproof::check` checks ([`refutation_checked`]).
+/// Reads deduxit's answer from its exit status (0 proved, 1 unprovable, 3
+/// unknown, 2 an error) and its outcome in JSON. The outcome gives the
+/// engine, an unknown verdict's reason, and an unprovable verdict's
+/// refutation, which `Disproof::check` checks ([`refutation_checked`]).
 fn deduxit_read(output: &str, status: i32, _: &Problem) -> Answer {
     let line = output.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
     let outcome = output
@@ -179,10 +184,10 @@ fn deduxit_read(output: &str, status: i32, _: &Problem) -> Answer {
             Some(refutation_checked(output)),
         ),
         3 => {
-            // The library's reason, the one bound that stopped the search
-            // (its stop is the time limit here). Without an outcome, the
-            // verdict line says it in words, first, and may name another
-            // bound after it ("… at a copy bound of 410").
+            // The reason is the bound that stopped the search, and its stop
+            // is the time limit here. Without an outcome, the verdict line
+            // names that bound in words first, and may name another after
+            // it ("… at a copy bound of 410"), so the first one named wins.
             let reason = match text(&outcome["reason"]["kind"]).as_str() {
                 "stopped" => "timeout".to_owned(),
                 "" => {
@@ -215,10 +220,11 @@ fn deduxit_read(output: &str, status: i32, _: &Problem) -> Answer {
     }
 }
 
-/// Returns the `checked` column of deduxit's unprovable outcome, read from
-/// its JSON as the disproof it holds: `ok` where `Disproof::check` accepts
-/// the refutation, `failed: …` where it does not hold or cannot be read,
-/// empty for an exhausted search, which has no check.
+/// Returns the `checked` column of deduxit's unprovable outcome, whose JSON
+/// holds a disproof:
+/// - `ok` where `Disproof::check` accepts the refutation;
+/// - `failed: …` where it does not hold or cannot be read;
+/// - empty for an exhausted search, which has nothing to check.
 fn refutation_checked(output: &str) -> String {
     let read = output.lines().find_map(|l| {
         let mut document = serde_json::Deserializer::from_str(l);
@@ -297,7 +303,8 @@ pub const DRIVERS: &[Driver] = &[
             if output.contains("result Bool: true") {
                 Answer::plain("proved", "")
             } else if output.contains("result Bool: false") {
-                // Exhaustive only where no `!` can be copied.
+                // The search under a copy bound is exhaustive only where no
+                // `!` can be copied.
                 if problem.sequent.fragment().has_exponentials() {
                     Answer::plain("unknown", "copy_bound")
                 } else {
@@ -468,8 +475,8 @@ pub const DRIVERS: &[Driver] = &[
     },
 ];
 
-/// Reads APLL's answer, the line before its time: `P` provable, `N`
-/// refuted by a search that never met its bound, `-` the bound met.
+/// Reads APLL's answer from the line before its time: `P` is provable, `N`
+/// refuted by a search that never met its bound, and `-` the bound met.
 fn apll_read(output: &str, _: i32, _: &Problem) -> Answer {
     let mut lines = output.lines().rev().filter(|l| !l.trim().is_empty());
     let _time = lines.next();
@@ -481,8 +488,9 @@ fn apll_read(output: &str, _: i32, _: &Problem) -> Answer {
     }
 }
 
-/// The arguments of a prover on SWI-Prolog: the file, and the memory
-/// limit as its stacks' limit, which is 1 GiB unless a run names another.
+/// Returns the arguments of a prover on SWI-Prolog: the file, and the
+/// memory limit as the limit of its stacks. SWI-Prolog's own default limit
+/// is 1 GiB.
 fn prolog_arguments(file: &Path, _: &Problem, _: f64, memory: u64) -> Vec<String> {
     vec![file.display().to_string(), memory.to_string()]
 }
@@ -492,8 +500,9 @@ fn prolog_out_of_memory(output: &str) -> bool {
     output.contains("Stack limit") || output.contains("resource_error")
 }
 
-/// Reads llprover's verdict line: a failure is a refutation only where no
-/// `!` or `?` could be contracted beyond its threshold.
+/// Reads llprover's verdict line. A failure is a refutation only where the
+/// sequent has no `!` or `?`. With one, the failure may be the search's
+/// threshold.
 fn llprover_read(output: &str, _: i32, problem: &Problem) -> Answer {
     if prolog_out_of_memory(output) {
         Answer::plain("unknown", "out_of_memory")
@@ -511,7 +520,8 @@ fn llprover_read(output: &str, _: i32, problem: &Problem) -> Answer {
     }
 }
 
-/// Maude's first warning or error line, or its output's first line.
+/// Returns Maude's first warning or error line, else its output's first
+/// line that is not blank.
 fn maude_error(output: &str) -> &str {
     let mut lines = output.lines().filter(|l| !l.trim().is_empty());
     output
@@ -538,10 +548,10 @@ struct Measured {
     cpu_ms: f64,
     /// The cgroup's peak memory in bytes.
     peak_bytes: u64,
-    /// The exit status, or the signal that ended it as 128 and more.
+    /// The exit status, or 128 plus the signal that ended the process.
     status: i32,
-    /// Why runexec ended it: `walltime`, `memory`, …, empty when it ended
-    /// by itself.
+    /// Why runexec ended the process (`walltime`, `memory`, …), or empty
+    /// when it ended by itself.
     terminated: String,
 }
 
@@ -569,15 +579,16 @@ fn measured(stdout: &str) -> Measured {
     m
 }
 
-/// The tool's own output in runexec's log: what follows the command line
-/// and the line of dashes runexec writes first.
+/// Returns the tool's own output in runexec's log. runexec writes the
+/// command line and a line of dashes first; the output follows them.
 fn tool_output(log: &str) -> &str {
     let dashes = "-".repeat(80);
     log.split_once(dashes.as_str())
         .map_or(log, |(_, rest)| rest.trim_start_matches('\n'))
 }
 
-/// The settings of a comparison run that every row and the record name.
+/// The settings of a comparison run, which every row and the run's record
+/// name.
 pub struct Settings<'a> {
     /// The tools, in the order each problem runs them.
     pub drivers: Vec<&'static Driver>,
@@ -588,16 +599,18 @@ pub struct Settings<'a> {
     /// Seconds a tool may run past the limit before runexec ends it, so
     /// that deduxit's own stop answers first.
     pub grace: f64,
-    /// Where the inputs and logs of a run are written, emptied after it.
+    /// The directory of the runs' inputs and logs. A run's part is removed
+    /// after the run, and the directory when the comparison ends.
     pub work: &'a Path,
-    /// Each tool's version, from the record of the tools the run was
-    /// given.
+    /// Each tool's version, from the record of the tools that the
+    /// environment names.
     pub versions: std::collections::HashMap<String, String>,
 }
 
 /// Runs every problem with every tool and writes a row per pair into
-/// `out`; the keys in `done` (source, family, problem, mode, tool) are
-/// skipped.
+/// `out`. It skips the pairs whose key (source, family, problem, mode,
+/// tool) is in `done`. With `growing`, a family's larger sizes past a
+/// series' end get a `skipped` row and are not run.
 pub fn run(
     references: &[Reference],
     settings: &Settings,
@@ -815,8 +828,8 @@ fn one(
     Ok(row)
 }
 
-/// The whole CSV row of one run: the problem's columns, the driver's and
-/// the run's.
+/// Returns the whole CSV row of one run: the problem's columns, the
+/// driver's, the settings' and the run's.
 fn full_row(
     reference: &Reference,
     driver: &Driver,
@@ -863,20 +876,21 @@ fn full_row(
         .join(",")
 }
 
-/// The memory limit of every tool when `--memory-limit` names none.
+/// The memory limit of every tool, 4 GiB, when `--memory-limit` is absent
+/// or 0.
 pub const DEFAULT_MEMORY: u64 = 4 << 30;
 
-/// Seconds past the time limit before runexec ends a run: deduxit stops
+/// Seconds past the time limit before runexec ends a run. deduxit stops
 /// itself at the limit and needs a moment to say so.
 const GRACE: f64 = 1.0;
 
-/// The environment variable naming the record of the tools' versions, a
-/// JSON object from each tool's name to its version, source and licence,
-/// which the flake writes beside the tools.
+/// The environment variable naming the record of the tools: a JSON object
+/// from each tool's name to its version, source and licence. The flake
+/// writes it beside the tools.
 const TOOLS_RECORD: &str = "DEDUXIT_COMPARISON_TOOLS";
 
-/// `run --tools`: runs the problems listed with every tool named, writes
-/// the rows to the output (appending and resuming as `run` does) and the
+/// Runs `run --tools`: the problems listed with every tool named. It writes
+/// the rows to the output, appending and resuming as `run` does, and the
 /// record of the run beside it, `NAME.env.json`.
 pub fn main(args: &crate::RunArgs, references: Vec<Reference>) -> Result<()> {
     let drivers = args
@@ -949,8 +963,9 @@ pub fn main(args: &crate::RunArgs, references: Vec<Reference>) -> Result<()> {
     result
 }
 
-/// The problems and tools a file of `run --tools` has a row for, each as
-/// its source, family, problem, mode and tool joined by commas.
+/// Returns the problems and tools that a file of `run --tools` has a row
+/// for, each as its source, family, problem, mode and tool joined by
+/// commas.
 fn done(path: &Path) -> Result<HashSet<String>> {
     let Ok(text) = std::fs::read_to_string(path) else {
         return Ok(HashSet::new());
@@ -978,10 +993,12 @@ fn done(path: &Path) -> Result<HashSet<String>> {
         .collect())
 }
 
-/// Writes the record of a run: the command line, the limits, every tool
-/// with its program, version and source, deduxit's commit where the
-/// environment names it (`DEDUXIT_COMMIT`), and the machine (processor,
-/// cores this process may use, memory, kernel), as the run sees them.
+/// Writes the record of a run, as the run sees it:
+/// - the command line and the limits;
+/// - every tool with its program, summary and source record;
+/// - deduxit's version, and its commit where `DEDUXIT_COMMIT` names it;
+/// - the machine: processor, the CPUs this process may use, memory and
+///   kernel.
 fn record(path: &Path, settings: &Settings, tools: &serde_json::Value) -> Result<()> {
     let read = |file: &str| std::fs::read_to_string(file).unwrap_or_default();
     let cpuinfo = read("/proc/cpuinfo");
@@ -1034,8 +1051,8 @@ mod tests {
     use super::*;
 
     /// deduxit's unprovable outcome is checked by its refutation: `ok`
-    /// where it holds, `failed: …` where a planted change makes it fail,
-    /// and empty for an exhausted search.
+    /// where it holds, `failed: …` where a planted change breaks it, and
+    /// empty for an exhausted search.
     #[test]
     fn deduxit_s_refutations_are_checked() {
         let outcome = |input: &str, mode: Mode| {
@@ -1061,10 +1078,10 @@ mod tests {
         assert_eq!(refutation_checked(&exhausted), "");
     }
 
-    /// The reason is the bound that stopped the search: the outcome's
-    /// kind, though the search deepened its copy bound before it met the
-    /// recursion limit; and without an outcome the bound the verdict line
-    /// names first, not a copy bound named after it.
+    /// The reason is the bound that stopped the search. From an outcome it
+    /// is the outcome's kind, even where the search deepened its copy bound
+    /// before it met the recursion limit. From a verdict line it is the
+    /// bound named first, not a copy bound named after it.
     #[test]
     fn deduxit_reason_is_the_bound_named_first() {
         let problem = Problem {

@@ -1,14 +1,17 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Markdown that compares two sets of rows problem by problem: two
-//! baselines, each file with the file of the same name in the other
-//! (`summary --before`), or the files of one baseline with one of them
-//! (`summary --against`, as the passes under one atom bias against the
-//! default). A problem's outcome in a configuration is its first run's
-//! verdict and the median of its runs' times, as in the summary; a
-//! verdict found after the time limit (the grace before the kill allows
-//! it) counts as late and is kept apart.
+//! Markdown that compares two sets of rows, problem by problem. It compares
+//! either:
+//! - two baselines, each file with the file of the same name in the other
+//!   (`summary --before`);
+//! - or the files of one baseline with one of them (`summary --against`),
+//!   such as the passes under one atom bias against the default.
+//!
+//! A problem's outcome in a configuration is its first run's verdict and
+//! the median of its runs' times, as in the summary. A verdict found after
+//! the time limit, which the grace before the kill allows, counts as late
+//! and is kept apart.
 
 use crate::summary::{COUNTERS, Ending, Row, Runs, base, configuration, read};
 use anyhow::{Result, bail};
@@ -20,10 +23,12 @@ use std::path::{Path, PathBuf};
 type Outcomes<'a> = BTreeMap<(String, String), Runs<'a>>;
 
 /// Prints the comparison of every file with the file of the same name in
-/// the last of the directories `dirs`, followed by the outcomes of the
-/// files without one beside each problem decided before and not after;
-/// with several directories, oldest first, every baseline side by side
-/// before it.
+/// the last of the directories `dirs`.
+///
+/// The files without such a counterpart are not compared. Their outcomes
+/// stand beside each problem decided before and not after. With several
+/// directories, oldest first, every baseline is printed side by side
+/// before the comparison.
 pub fn before(dirs: &[PathBuf], files: &[PathBuf]) -> Result<()> {
     let Some((dir, earlier)) = dirs.split_last() else {
         bail!("no earlier baseline");
@@ -67,8 +72,8 @@ pub fn before(dirs: &[PathBuf], files: &[PathBuf]) -> Result<()> {
 }
 
 /// Prints the comparison of every other file with `reference`, problem by
-/// problem whatever the files' names, with every problem whose counters
-/// differ where `counters` asks.
+/// problem, whatever the files' names. With `counters`, it lists every
+/// problem whose counters differ.
 pub fn against(reference: &Path, files: &[PathBuf], counters: bool) -> Result<()> {
     let main = read(&[reference.to_path_buf()])?;
     let main: Vec<&Row> = main.iter().collect();
@@ -91,9 +96,10 @@ pub fn against(reference: &Path, files: &[PathBuf], counters: bool) -> Result<()
 }
 
 /// Prints every baseline side by side: the files of the same names as
-/// `files` in each of `dirs`, then `files`, a column each named by its
-/// directory. Per group, how many problems each decides of how many it
-/// ran; then every problem that is not from LLTP.
+/// `files` in each of `dirs`, then `files`, in a column each named by its
+/// directory. The first table has, per group of the last baseline, how
+/// many problems each baseline decides of how many it ran. The second has
+/// every problem that is not from LLTP.
 fn side_by_side(dirs: &[PathBuf], files: &[PathBuf]) -> Result<()> {
     let mut sets = Vec::new();
     for dir in dirs {
@@ -182,7 +188,7 @@ fn side_by_side(dirs: &[PathBuf], files: &[PathBuf]) -> Result<()> {
     Ok(())
 }
 
-/// A directory's name, or its path where it has none.
+/// Returns a directory's name, or its path where it has none.
 fn name(dir: &Path) -> String {
     dir.file_name().map_or_else(
         || dir.display().to_string(),
@@ -190,7 +196,7 @@ fn name(dir: &Path) -> String {
     )
 }
 
-/// A file's name without its extension.
+/// Returns a file's name without its extension.
 fn stem(file: &Path) -> String {
     file.file_stem()
         .unwrap_or_default()
@@ -198,7 +204,8 @@ fn stem(file: &Path) -> String {
         .into_owned()
 }
 
-/// The names of the files the rows come from, in the order first seen.
+/// Returns the names of the files the rows come from, in the order first
+/// seen.
 fn files_of(rows: &[Row]) -> Vec<String> {
     let mut names: Vec<String> = Vec::new();
     for row in rows {
@@ -217,13 +224,14 @@ enum Grouping {
     Files,
     /// By family and whole configuration, whatever the file.
     Configurations,
-    /// By family, mode, engine and threads alone: files of one baseline
-    /// that differ in an option (a bias, say), problem by problem.
+    /// By family and the configuration's base alone (mode, engine or tool,
+    /// threads, test period): files of one baseline that differ in an
+    /// option, such as a bias, problem by problem.
     Problems,
 }
 
-/// The group of a row: its file, family and configuration as `grouping`
-/// takes them, as the columns of a table, separated by `|`.
+/// Returns the group of a row: its file, family and configuration as
+/// `grouping` takes them, as columns of a table separated by `|`.
 fn group(row: &Row, grouping: Grouping) -> String {
     let (file, config) = match grouping {
         Grouping::Files => (row.get("file"), configuration(row)),
@@ -233,7 +241,7 @@ fn group(row: &Row, grouping: Grouping) -> String {
     format!("{file} | {} | {config}", row.get("family"))
 }
 
-/// The outcome of every problem in every group of the rows.
+/// Returns the outcome of every problem in every group of the rows.
 fn outcomes<'a>(rows: &[&'a Row], grouping: Grouping) -> Outcomes<'a> {
     let mut outcomes = Outcomes::new();
     for row in rows {
@@ -251,8 +259,8 @@ fn outcomes<'a>(rows: &[&'a Row], grouping: Grouping) -> Outcomes<'a> {
     outcomes
 }
 
-/// The undecided outcomes counted by where they ended, as `12 time, 3
-/// bound`, or `–`.
+/// Returns the undecided outcomes counted by where they ended, as `12
+/// time, 3 bound`, or `–` where there are none.
 fn endings<'a>(outcomes: impl Iterator<Item = &'a Runs<'a>>) -> String {
     let mut counts: BTreeMap<Ending, usize> = BTreeMap::new();
     for runs in outcomes.filter(|r| !r.decided()) {
@@ -269,7 +277,8 @@ fn endings<'a>(outcomes: impl Iterator<Item = &'a Runs<'a>>) -> String {
     }
 }
 
-/// A count with the late ones among them in parentheses.
+/// Returns the count of the decided outcomes, with the late ones among
+/// them in parentheses.
 fn decided<'a>(outcomes: impl Iterator<Item = &'a Runs<'a>>) -> String {
     let (mut all, mut later) = (0, 0);
     for runs in outcomes.filter(|r| r.decided()) {
@@ -283,7 +292,8 @@ fn decided<'a>(outcomes: impl Iterator<Item = &'a Runs<'a>>) -> String {
     }
 }
 
-/// The median of the ratios, as `1.23× (n)`, or `–`.
+/// Returns the median of the ratios and their number, as `1.23× (n)`, or
+/// `–` where there are none.
 fn median_ratio(mut ratios: Vec<f64>) -> String {
     if ratios.is_empty() {
         return "–".to_owned();
@@ -292,7 +302,8 @@ fn median_ratio(mut ratios: Vec<f64>) -> String {
     format!("{} ({})", ratio(ratios[ratios.len() / 2]), ratios.len())
 }
 
-/// A ratio of two times, in scientific notation below a tenth.
+/// Returns a ratio of two times as text, in scientific notation below a
+/// tenth.
 fn ratio(value: f64) -> String {
     if value >= 0.1 {
         format!("{value:.2}×")
@@ -302,13 +313,16 @@ fn ratio(value: f64) -> String {
 }
 
 /// Prints the comparison of the outcomes `first` and `second`, named
-/// `names`: the verdicts that differ, the problems decided by the first
-/// and not by the second (with the outcomes `beside` of the same problem),
-/// and with `both_ways` those decided by the second and not the first,
-/// one row per group, and every problem that is not from LLTP side by
-/// side; how many decided runs on one thread differ in their counters,
-/// and with `counters` which (a set of rows that must not change the
-/// search, against the one it is compared with, as the target set is).
+/// `names`. Its sections are:
+/// - the verdicts that differ;
+/// - how many problems decided alike on one thread differ in their
+///   counters, and with `counters` which ones, for a set of rows that must
+///   not change the search, such as the target set;
+/// - the problems decided by the first and not by the second, with the
+///   outcomes `beside` of the same problem;
+/// - with `both_ways`, those decided by the second and not by the first;
+/// - one row per group;
+/// - every problem that is not from LLTP, side by side.
 fn compare(
     first: &Outcomes,
     second: &Outcomes,
@@ -341,8 +355,8 @@ fn compare(
         println!();
     }
 
-    // On one thread the counters of a run decided alike are a function of
-    // its input: where they differ, the search did.
+    // On one thread the counters of a decided run are a function of its
+    // input: where they differ, the search did.
     println!("### Counters that differ\n");
     let counted: Vec<_> = both
         .iter()
@@ -380,8 +394,8 @@ fn compare(
         println!();
     }
 
-    // `--against` names the problems its reference decides and the
-    // other file does not, the losses, as well as the gains.
+    // `--against` names the losses as well as the gains: the problems its
+    // reference decides and the other file does not.
     let directions: &[bool] = if both_ways { &[false, true] } else { &[false] };
     for &reverse in directions {
         let (decider, other) = if reverse { (two, one) } else { (one, two) };
@@ -410,8 +424,8 @@ fn compare(
                 "--:|".repeat(extra.len())
             );
             for ((group, problem), a, b) in lost {
-                // The same problem in the files without a counterpart, which
-                // group it without a file.
+                // The files without a counterpart group their rows with no
+                // file, so their key is the group without its file.
                 let unfiled = group.split_once(" | ").map_or("", |(_, rest)| rest);
                 let cells: String = beside
                     .iter()
@@ -456,7 +470,8 @@ fn compare(
             println!("| {group} | 0 | | | | | | | | {new} |");
             continue;
         }
-        // Decided by the first and not the second (`true`), or the reverse.
+        // How many the first decides and the second does not (`true`), or
+        // the reverse.
         let only = |by_first: bool| {
             pairs
                 .iter()
@@ -482,7 +497,8 @@ fn compare(
     }
     println!();
 
-    // Generated and listed problems, side by side, whichever side has them.
+    // The generated and listed problems side by side, whichever side has
+    // them.
     let mut keys: Vec<&(String, String)> = first.keys().chain(second.keys()).collect();
     keys.sort();
     keys.dedup();

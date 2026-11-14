@@ -2,17 +2,21 @@
 // Licensed under the EUPL
 
 //! The ratchet: every journey's instruction count under callgrind against
-//! its committed ceiling in `bench/ceilings.csv`. A count above its
-//! ceiling by more than [`TOLERANCE`] fails the check; `--lower` writes
-//! the counts that went down as the new ceilings and never raises one: a
-//! raise is an edit of the file in a commit that says why.
+//! its committed ceiling in `bench/ceilings.csv`. A journey is a small,
+//! deterministic run of a hot path (`journeys.rs`).
 //!
-//! Beside each count, the misses of a fixed model of the caches (the first
-//! level's and the last's), against those recorded in `bench/misses.csv`:
-//! they show what a count cannot see, a layout that touches more lines or a
-//! working set that outgrows a cache, and are deterministic as the counts
-//! are. They never fail a run: a move past [`MISS_NOTICE`] is named, as a
-//! question for the journey's time pinned to one core.
+//! A count above its ceiling by more than [`TOLERANCE`] fails the check.
+//! `--lower` writes the counts that went down as the new ceilings, and
+//! never raises one: a raise is an edit of the file, in a commit that says
+//! why.
+//!
+//! Beside each count stand the misses of a fixed model of the caches, the
+//! first level's and the last's, against those recorded in
+//! `bench/misses.csv`. They show what a count cannot see: a layout that
+//! touches more cache lines, or a working set that outgrows a cache. They
+//! are deterministic, as the counts are. They never fail a run: a move past
+//! both [`MISS_NOTICE`] and [`MISS_FLOOR`] is named, as a question for the
+//! journey's time pinned to one core.
 
 use crate::journeys::JOURNEYS;
 use anyhow::{Context, Result, bail};
@@ -23,10 +27,10 @@ use std::sync::Mutex;
 use std::thread;
 
 /// How far a count may pass its ceiling, as a fraction. The counts of one
-/// build are exact, but a build in the shell and one in the flake's
+/// build are exact. But a build in the shell and one in the flake's
 /// sandbox, of the same sources in another directory, count up to 0.9 %
 /// apart (`render-svg`; under 0.1 % elsewhere). The ceilings are the
-/// larger of the two.
+/// larger of the two builds' counts.
 pub const TOLERANCE: f64 = 0.02;
 
 /// The ceilings' file, relative to the workspace.
@@ -36,21 +40,23 @@ pub const CEILINGS: &str = "bench/ceilings.csv";
 pub const MISSES: &str = "bench/misses.csv";
 
 /// How far a journey's misses may move from the record, as a fraction,
-/// before the run names the journey, if they moved by [`MISS_FLOOR`] too.
+/// before the run names the journey. The move must pass [`MISS_FLOOR`]
+/// too.
 pub const MISS_NOTICE: f64 = 0.05;
 
-/// How many misses a journey's may move by without notice, whatever the
-/// fraction: a build in the shell and one in the flake's sandbox lay the
-/// code out apart, which moved the first level's misses of `read-json` by
-/// 8.6 % (3 758 of 43 599) and no journey's by more than 59 000 (0.9 % of
-/// `search-additive-14`'s 6.5 million).
+/// By how many a journey's misses may move without notice, whatever the
+/// fraction. A build in the shell and one in the flake's sandbox lay
+/// the code out differently. That moved the first level's misses of
+/// `read-json` by 8.6 % (3 758 of 43 599), and no journey's by more than
+/// 59 000 (0.9 % of `search-additive-14`'s 6.5 million).
 pub const MISS_FLOOR: u64 = 10_000;
 
 /// The caches callgrind simulates: those of a performance core of the
-/// machine the ratchet was made on (L1 instructions 64 KiB, L1 data 48
-/// KiB, the last level 18 MiB, which callgrind takes as 18 ways of 16 384
-/// sets), named so that a run counts the same misses on any host, CI's
-/// included; left out, callgrind reads them off the host's processor.
+/// machine the ratchet was made on. They are L1 instructions 64 KiB, L1
+/// data 48 KiB, and the last level 18 MiB, which callgrind takes as 18
+/// ways of 16 384 sets. They are named so that a run counts the same misses
+/// on any host, CI's included. Left out, callgrind reads them off the
+/// host's processor.
 const CACHES: [&str; 3] = [
     "--I1=65536,16,64",
     "--D1=49152,12,64",
@@ -80,10 +86,13 @@ pub enum Action {
     Lower,
 }
 
-/// Counts the journeys named (all when `only` is empty) under callgrind,
-/// `jobs` at a time, keeping callgrind's files in `keep` if given, and
-/// compares them with the ceilings in `ceilings` and their misses with
-/// those in `misses`, which `record_misses` writes afresh.
+/// Counts the journeys named in `only`, or all of them, under callgrind,
+/// `jobs` at a time, and prints the table. It keeps callgrind's files in
+/// `keep` if given.
+///
+/// It compares the counts with the ceilings in `ceilings`, and their
+/// misses with those in `misses`, which `record_misses` writes afresh.
+/// `action` says whether it only shows, checks or lowers the ceilings.
 pub fn ratchet(
     action: Action,
     ceilings: &Path,
@@ -177,7 +186,8 @@ pub fn ratchet(
     Ok(())
 }
 
-/// Counts every journey, `jobs` at a time.
+/// Counts every journey named, `jobs` at a time, and returns the counts by
+/// name.
 fn count_all<'a>(
     names: &[&'a str],
     jobs: usize,
@@ -209,7 +219,8 @@ fn count_all<'a>(
 fn count(exe: &Path, name: &str, out: &Path) -> Result<Counts> {
     let valgrind = std::env::var_os("VALGRIND").unwrap_or_else(|| "valgrind".into());
     // valgrind warns on every run that it read the host's caches, even
-    // where CACHES replaces them, so its errors are shown on a failure only.
+    // where CACHES replaces them, so its error output is shown only on a
+    // failure.
     let output = Command::new(&valgrind)
         .args(["--tool=callgrind", "--collect-atstart=no", "--quiet"])
         .arg("--cache-sim=yes")
@@ -236,10 +247,10 @@ fn count(exe: &Path, name: &str, out: &Path) -> Result<Counts> {
     totals(&text).with_context(|| format!("no totals of the events in {}", out.display()))
 }
 
-/// Reads the totals off a callgrind file: the line naming its events and
-/// the line of their sums, the instructions `Ir`, the first level's misses
-/// `I1mr`, `D1mr` and `D1mw`, the last level's `ILmr`, `DLmr` and `DLmw`;
-/// an event named without a sum counted zero.
+/// Reads the totals off a callgrind file, from the line naming its events
+/// and the line of their sums. The instructions are `Ir`, the first
+/// level's misses `I1mr`, `D1mr` and `D1mw`, and the last level's `ILmr`,
+/// `DLmr` and `DLmw`. An event named without a sum counts zero.
 fn totals(text: &str) -> Option<Counts> {
     let events: Vec<&str> = text
         .lines()
@@ -273,7 +284,8 @@ fn totals(text: &str) -> Option<Counts> {
     })
 }
 
-/// A value's change from a reference, in percent, or `new` without one.
+/// Returns a value's change from a reference in percent, or `new` without
+/// one.
 fn change(value: u64, reference: Option<u64>) -> String {
     reference.map_or_else(
         || "new".to_owned(),
@@ -297,13 +309,14 @@ fn fails(count: u64, ceiling: Option<u64>, action: Action) -> bool {
     }
 }
 
-/// Whether `--lower` writes the count as the journey's new ceiling: below
-/// the ceiling, or where there is none; never above one.
+/// Whether `--lower` writes the count as the journey's new ceiling: where
+/// it is below the ceiling, or there is none, and never above one.
 fn lowers(count: u64, ceiling: Option<u64>, action: Action) -> bool {
     action == Action::Lower && ceiling.is_none_or(|c| count < c)
 }
 
-/// Reads the ceilings: a header, then `journey,instructions` per line.
+/// Reads the ceilings: a header, then `journey,instructions` per line; none
+/// when the file is absent.
 fn read(path: &Path) -> Result<BTreeMap<String, u64>> {
     let text = match std::fs::read_to_string(path) {
         Ok(text) => text,
@@ -378,9 +391,9 @@ fn write(path: &Path, table: &BTreeMap<String, u64>) -> Result<()> {
 mod tests {
     use super::*;
 
-    /// A count fails within its tolerance never, past it always, and
-    /// without a ceiling only under a check; `--lower` writes a count
-    /// below its ceiling or without one, and never raises one.
+    /// A count within its tolerance never fails, one past it always does,
+    /// and one without a ceiling fails only under a check. `--lower` writes
+    /// a count below its ceiling or without one, and never raises one.
     #[test]
     fn the_ratchet_s_decision() {
         assert!(!fails(1_020, Some(1_000), Action::Check));
@@ -393,9 +406,9 @@ mod tests {
         assert!(!lowers(999, Some(1_000), Action::Check));
     }
 
-    /// The totals are read by the events' names, whatever their order, a
-    /// missing sum as zero, and misses are named past both the notice and
-    /// the floor, either way, never within one.
+    /// The totals are read by the events' names, whatever their order, and
+    /// a missing sum is zero. Misses are named when they move past both the
+    /// notice and the floor, either way, and never within one.
     #[test]
     fn the_totals_and_the_misses_notice() {
         let text = "events: Ir Dr Dw I1mr D1mr D1mw ILmr DLmr DLmw\nfl=x\n\

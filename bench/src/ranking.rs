@@ -1,13 +1,18 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The comparison of tools in the rows of `run --tools`, as Markdown: per
-//! tool the problems solved within the time limit (the ranking), how the
-//! others ended and those outside its fragment, per group of problems; for
-//! deduxit on one thread against each other tool what one solves and the
-//! other does not; the translation times and peak memory; and every
-//! problem on which two tools, or a tool and the problem's known verdict,
-//! contradict each other.
+//! The comparison of tools in the rows of `run --tools`, as Markdown
+//! (`ranking`). It has these tables:
+//! - the ranking: per tool, the problems solved within the time limit, and
+//!   how the others ended;
+//! - per group of problems, each tool's solved problems of those in its
+//!   fragment;
+//! - deduxit on one thread against each other tool: what one solves and
+//!   the other does not;
+//! - the translation times and the peak memory;
+//! - the answers that came after the time limit;
+//! - every problem on which two tools, or a tool and the problem's known
+//!   verdict, contradict each other.
 
 use crate::summary::{Row, read_all, time};
 use anyhow::{Result, bail};
@@ -38,12 +43,13 @@ pub(crate) fn solved(row: &Row) -> bool {
     decided(row) && !late(row) && !wrong(row)
 }
 
-/// Whether a row's problem lies outside its tool's fragment.
+/// Whether a row's tool did not run: the problem lies outside the tool's
+/// fragment or mode, or its translation could not be written.
 fn outside(row: &Row) -> bool {
     row.get("verdict") == "refused"
 }
 
-/// The problem a row ran, the same for every tool.
+/// Returns the problem a row ran, named alike for every tool.
 fn problem(row: &Row) -> String {
     format!(
         "{}/{} ({})",
@@ -53,7 +59,8 @@ fn problem(row: &Row) -> String {
     )
 }
 
-/// The group of problems a row's belongs to in the tables.
+/// Returns the group of problems that a row's problem belongs to in the
+/// tables.
 fn group(row: &Row) -> &'static str {
     match row.get("source") {
         "lltp" if row.get("family").contains("petri-nets") => "LLTP Petri nets",
@@ -65,7 +72,7 @@ fn group(row: &Row) -> &'static str {
     }
 }
 
-/// How a run that solved nothing ended, in a word.
+/// Returns how a run that did not solve its problem ended, in a word.
 fn ending(row: &Row) -> &'static str {
     match (row.get("verdict"), row.get("reason")) {
         _ if wrong(row) => "wrong",
@@ -91,17 +98,25 @@ fn wrong(row: &Row) -> bool {
     row.get(JUDGED) == "wrong"
 }
 
-/// Whether a row's verdict contradicts the header of an LLTP problem, whose
-/// headers are known to be wrong on some files, without being wrong.
+/// Whether a row's verdict contradicts the problem's known verdict without
+/// being judged wrong (see [`judge`]). Some of the LLTP library's headers
+/// are wrong.
 fn against_header(row: &Row) -> bool {
     row.get(JUDGED) == "header"
 }
 
-/// Marks each row's verdict: `wrong` where it refutes a problem a tool
-/// proved with a checked proof, or decides a generated problem against its
-/// verdict by construction, or proves without a check what the source
-/// says is unprovable; `header` where it only contradicts an LLTP header,
-/// which a checked proof or a refutation can show to be wrong.
+/// Marks each row's verdict in the column [`JUDGED`].
+///
+/// `wrong` is:
+/// - a refutation of a problem that some tool proved with a checked proof;
+/// - a refutation of a generated problem that is provable by construction;
+/// - a proof without a check of a generated problem that is unprovable by
+///   construction.
+///
+/// `header` is every other verdict against the known one: against an LLTP
+/// header or another source's stated verdict, and a checked proof of a
+/// problem said to be unprovable, generated or not. A stated verdict can be
+/// wrong, which a checked proof or a refutation shows.
 fn judge(rows: &mut [Row]) {
     let checked: BTreeSet<String> = (rows.iter())
         .filter(|r| r.get("verdict") == "proved" && r.get("checked") == "ok")
@@ -136,9 +151,9 @@ pub fn ranking(files: &[PathBuf]) -> Result<()> {
     Ok(())
 }
 
-/// The whole report on the rows.
+/// Returns the whole report on the rows.
 fn report(rows: &[Row]) -> String {
-    // Per problem, per tool, the first row.
+    // A tool's first row of a problem stands for it.
     let mut problems: BTreeMap<String, BTreeMap<&str, &Row>> = BTreeMap::new();
     let mut tools: Vec<&str> = Vec::new();
     for row in rows {
@@ -179,8 +194,8 @@ fn report(rows: &[Row]) -> String {
     out
 }
 
-/// The ranking: per tool the problems solved within the limit, and how the
-/// others ended.
+/// Writes the ranking: per tool, the problems solved within the limit, and
+/// how the others ended.
 fn ranking_table(
     out: &mut String,
     tools: &[&str],
@@ -232,7 +247,8 @@ fn ranking_table(
     );
 }
 
-/// Per group of problems and tool, solved of those in the tool's fragment.
+/// Writes, per group of problems and per tool, how many the tool solved of
+/// those in its fragment.
 fn groups_table(
     out: &mut String,
     tools: &[&str],
@@ -275,9 +291,9 @@ fn groups_table(
     out.push('\n');
 }
 
-/// deduxit on one thread against each other tool on the problems both
-/// cover: solved by both, by one alone, by neither, and the problems the
-/// other solves and deduxit does not.
+/// Writes deduxit on one thread against each other tool, on the problems
+/// both cover: how many both solve, one alone, or neither. Then it lists
+/// the problems the other tool solves and deduxit does not.
 fn pairs(out: &mut String, tools: &[&str], problems: &BTreeMap<String, BTreeMap<&str, &Row>>) {
     if !tools.contains(&REFERENCE) {
         return;
@@ -331,9 +347,9 @@ fn pairs(out: &mut String, tools: &[&str], problems: &BTreeMap<String, BTreeMap<
     }
 }
 
-/// Every answer that came after the limit and before the run was ended:
-/// what a longer limit would have solved, as far as the margin before the
-/// kill shows it.
+/// Writes every answer that came after the limit and before the run was
+/// ended. It shows what a longer limit would have solved, as far as the
+/// margin before the kill can.
 fn late_answers(
     out: &mut String,
     tools: &[&str],
@@ -367,8 +383,8 @@ fn late_answers(
     out.push('\n');
 }
 
-/// Per tool the time its translation took and the peak memory of its
-/// solved runs.
+/// Writes, per tool, the time its translations took and the peak memory of
+/// its solved runs.
 fn costs(out: &mut String, tools: &[&str], problems: &BTreeMap<String, BTreeMap<&str, &Row>>) {
     let _ = writeln!(
         out,
@@ -416,8 +432,8 @@ fn costs(out: &mut String, tools: &[&str], problems: &BTreeMap<String, BTreeMap<
     );
 }
 
-/// Every problem on which a tool's decided verdict contradicts another's
-/// or the known one, with every tool's verdict.
+/// Writes every problem on which a tool's decided verdict contradicts
+/// another's or the known one, with every tool's verdict.
 fn contradictions(
     out: &mut String,
     tools: &[&str],
@@ -477,7 +493,7 @@ mod tests {
     use super::*;
     use crate::summary::tests::row;
 
-    /// A row of `run --tools`.
+    /// Returns a row of `run --tools` on a generated problem.
     fn run(tool: &str, problem: &str, verdict: &str, time_ms: &str) -> Row {
         row(&[
             ("source", "family"),
@@ -500,12 +516,12 @@ mod tests {
         ])
     }
 
-    /// The ranking counts per tool; a refutation of a problem with a checked
-    /// proof and an unchecked proof of a generated problem's refutable
-    /// sequent are wrong and not solved, a late answer is not solved; the
-    /// pair table names what the other tool alone solves; and a planted
-    /// disagreement is listed with both verdicts, against the known one as
-    /// well.
+    /// The ranking counts per tool. A refutation of a problem with a
+    /// checked proof is wrong and not solved, and so is an unchecked proof
+    /// of a generated problem that is unprovable. A late answer is not
+    /// solved. The pair table names what the other tool alone solves. A
+    /// planted disagreement is listed with both verdicts, and so is a
+    /// verdict against the known one.
     #[test]
     fn tools_ranked_and_contradictions_listed() {
         let mut rows = [

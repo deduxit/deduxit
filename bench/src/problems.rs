@@ -1,24 +1,28 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The five sources of problems. The parent lists [`Reference`]s without
-//! building a sequent from a file, so that an input that crashes the
-//! parser crashes a child, not the run; the child [`load`]s the one it is
-//! given.
+//! The five sources of problems: the generated families, LLTP files,
+//! `.spec` files, problem files and TPTP files.
 //!
-//! A problem file (`bench/problems/*.txt`) has one problem per line, `name;
-//! mode; expected; copies; sequent`, blank lines and lines from `#` on
-//! ignored: the mode is `classical`, `mix`, `affine`, `intuitionistic` or
-//! `intuitionistic-affine`, `expected` is `provable`, `unprovable` or
-//! `-`, `copies` a number or `-`, and the sequent is written as the
-//! `deduxit` command reads it. The part of the name before a `/` is the
-//! family, else the file's stem.
+//! The parent lists [`Reference`]s without building a sequent from a file,
+//! so that an input that crashes the parser crashes a child, not the run.
+//! The child [`load`]s the one it is given.
 //!
-//! A TPTP problem (`--tptp`, as the ILTP library has them) is ordinary
-//! logic, which `run` decides in each of its `--logics` rather than in a
-//! mode; its family is the TPTP problem's own where the file is one size
-//! of a generated family (`SYJ201+1.005.p`, family `SYJ201`, size 5),
-//! else its directory.
+//! A problem file (`bench/problems/*.txt`) has one problem per line:
+//! `name; mode; expected; copies; sequent`. A blank line is skipped, and so
+//! is everything from a `#` on. The fields are:
+//! - the name, whose part before a `/` is the family (else the family is
+//!   the file's stem);
+//! - the mode's name as the CSV writes it, such as `classical`,
+//!   `intuitionistic-affine`, `cyclic` or `lambek`;
+//! - `provable`, `unprovable` or `-`;
+//! - a copy bound, or `-`;
+//! - the sequent as the `deduxit` command reads it, in the mode's order.
+//!
+//! A TPTP problem (`--tptp`, as in the ILTP library) is ordinary logic.
+//! `run` decides it in each of its `--logics` instead of in a mode. Where
+//! the file is one size of a generated family, such as `SYJ201+1.005.p`,
+//! its family is that one (`SYJ201`, size 5); else it is its directory.
 
 use anyhow::{Context, Result, anyhow, bail};
 use deduxit::linear::families::{FAMILIES, find};
@@ -36,9 +40,10 @@ use std::path::{Path, PathBuf};
 pub struct Reference {
     /// Where it comes from: `family`, `lltp`, `spec`, `file` or `tptp`.
     pub source: &'static str,
-    /// Its family: a generated family, an LLTP or `.spec` directory
-    /// (relative to the parent of the path given), or a problem file's
-    /// group.
+    /// Its family: a generated family, a problem file's group, or the
+    /// directory of an LLTP, `.spec` or TPTP file relative to the parent of
+    /// the path given. A TPTP file of a generated ILTP family is in that
+    /// family.
     pub family: String,
     /// The size of a generated problem.
     pub size: Option<u32>,
@@ -46,16 +51,17 @@ pub struct Reference {
     pub index: Option<u32>,
     /// Its name within the family.
     pub name: String,
-    /// The mode it is meant for; a TPTP problem, which is run in logics
-    /// and not in modes, has intuitionistic mode, which no run reads.
+    /// The mode it is meant for. A TPTP problem runs in logics, not in
+    /// modes: its mode is intuitionistic, and no run reads it.
     pub mode: Mode,
-    /// How the child is told which problem to load: `family:NAME:SIZE:INDEX`,
-    /// `lltp:PATH`, `spec:PATH`, `file:PATH:LINE` or `tptp:PATH`.
+    /// The name the child gets of the problem to load:
+    /// `family:NAME:SIZE:INDEX`, `lltp:PATH`, `spec:PATH`, `file:PATH:LINE`
+    /// or `tptp:PATH`.
     pub id: String,
 }
 
 impl Reference {
-    /// Whether the problem is ordinary logic, a TPTP problem.
+    /// Whether the problem is a TPTP problem of ordinary logic.
     pub fn is_ordinary(&self) -> bool {
         self.source == TPTP
     }
@@ -72,14 +78,15 @@ pub struct Problem {
     pub mode: Mode,
     /// Whether it is provable, when the source says.
     pub expected: Option<bool>,
-    /// The copy bound the source names.
+    /// The copy bound the source names, if any.
     pub copies: Option<u32>,
-    /// The witness depth the source names.
+    /// The witness depth the source names, if any.
     pub witness_depth: Option<u32>,
 }
 
-/// Lists the instances of the families named (`NAME` or `NAME=SIZES`), of
-/// every family at its default sizes, and of every growing set.
+/// Lists the instances of the families named in `specs` (`NAME` or
+/// `NAME=SIZES`). With `all` it adds every family at its default sizes, and
+/// with `growing` every family's growing set.
 pub fn families(specs: &[String], all: bool, growing: bool) -> Result<Vec<Reference>> {
     let mut chosen = Vec::new();
     if all {
@@ -131,9 +138,9 @@ pub fn lltp(paths: &[PathBuf]) -> Result<Vec<Reference>> {
     listed(paths, "lltp", "p", lltp_mode)
 }
 
-/// Lists the coverability problems under the paths, in path order, each
-/// for intuitionistic affine mode: the question whether a marking that
-/// covers the target is reachable.
+/// Lists the coverability problems under the paths, in path order, each in
+/// intuitionistic affine mode. A coverability problem asks whether a
+/// marking that covers the target is reachable.
 pub fn specs(paths: &[PathBuf]) -> Result<Vec<Reference>> {
     listed(paths, "spec", "spec", |_| {
         Mode::INTUITIONISTIC.with_affine()
@@ -141,8 +148,8 @@ pub fn specs(paths: &[PathBuf]) -> Result<Vec<Reference>> {
 }
 
 /// Lists the TPTP problems of ordinary logic under the paths, in path
-/// order, each in the family of its TPTP name where it is one size of a
-/// generated family.
+/// order. A problem that is one size of a generated family is in the
+/// family its name gives.
 pub fn tptp(paths: &[PathBuf]) -> Result<Vec<Reference>> {
     let mut references = listed(paths, TPTP, "p", |_| Mode::INTUITIONISTIC)?;
     for reference in &mut references {
@@ -154,9 +161,9 @@ pub fn tptp(paths: &[PathBuf]) -> Result<Vec<Reference>> {
     Ok(references)
 }
 
-/// The family and size of a TPTP problem's file name of one size of a
+/// Returns the family and size in a TPTP file name of one size of a
 /// generated family, `NAME+VERSION.SIZE.p` with a size of three digits:
-/// `SYJ201+1.005.p` is `SYJ201` at 5.
+/// `SYJ201+1.005.p` is `SYJ201` at 5. Any other name gives `None`.
 fn sized(name: &str) -> Option<(&str, u32)> {
     let (family, rest) = name.strip_suffix(".p")?.split_once('+')?;
     let (_, size) = rest.split_once('.')?;
@@ -176,8 +183,8 @@ pub fn load_ordinary(id: &str) -> Result<ordinary::Problem> {
     Ok(ordinary::read_tptp(&text, &Limits::default())?)
 }
 
-/// Lists the files of a source under the paths, in path order: each path
-/// a file, or a directory searched for files with the extension; the
+/// Lists the files of a source under the paths, in path order. Each path
+/// is a file, or a directory searched for files with the extension. The
 /// family of a file is its directory relative to the parent of the path
 /// given.
 fn listed(
@@ -232,8 +239,8 @@ fn collect(path: &Path, extension: &str, files: &mut Vec<PathBuf>) -> std::io::R
     Ok(())
 }
 
-/// The mode of an LLTP problem: intuitionistic under the library's `ILL`
-/// directory, classical otherwise.
+/// Returns the mode of an LLTP problem: intuitionistic under the library's
+/// `ILL` directory, classical otherwise.
 fn lltp_mode(path: &Path) -> Mode {
     if path.components().any(|c| c.as_os_str() == "ILL") {
         Mode::INTUITIONISTIC
@@ -269,8 +276,8 @@ pub fn files(paths: &[PathBuf]) -> Result<Vec<Reference>> {
     Ok(references)
 }
 
-/// The five fields of a problem line, or `None` for a comment or a blank
-/// line.
+/// Returns the five fields of a problem line, or `None` for a comment or a
+/// blank line. A missing field is empty.
 fn fields(line: &str) -> Option<[&str; 5]> {
     let line = line.split_once('#').map_or(line, |(code, _)| code).trim();
     if line.is_empty() {
@@ -285,7 +292,7 @@ fn parse_mode(name: &str) -> Result<Mode> {
     Ok(name.parse()?)
 }
 
-/// Names a mode as problem files and the CSV write it.
+/// Returns a mode's name as problem files and the CSV write it.
 pub fn mode_name(mode: Mode) -> &'static str {
     mode.name()
 }
@@ -343,7 +350,8 @@ pub fn load(id: &str) -> Result<Problem> {
                 .nth(line - 1)
                 .and_then(fields)
                 .ok_or_else(|| anyhow!("no problem on line {line} of {path}"))?;
-            // A cyclic problem's text is read in its order.
+            // The sequent of an ordered mode, such as `cyclic`, is read in
+            // that mode's order.
             let mode = parse_mode(mode)?;
             Ok(Problem {
                 sequent: Sequent::parse_ordered(sequent, mode.order(), &Limits::default())?,
@@ -366,8 +374,8 @@ pub fn load(id: &str) -> Result<Problem> {
 mod tests {
     use super::*;
 
-    /// Every mode a problem can be in reads back from its name (Mix is
-    /// classical only), and a word that names no mode is an error.
+    /// Every commutative mode reads back from its name, with Mix tried in
+    /// the classical modes alone. A word that names no mode is an error.
     #[test]
     fn mode_names_read_back() {
         for intuitionistic in [false, true] {
@@ -391,8 +399,8 @@ mod tests {
         assert!(parse_mode("classicl").is_err());
     }
 
-    /// A TPTP problem of one size of a generated family is of that family,
-    /// any other of its directory's.
+    /// The name of a TPTP problem of one size of a generated family gives
+    /// that family and size; any other name gives none.
     #[test]
     fn tptp_families_are_read_from_names() {
         assert_eq!(sized("SYJ201+1.005.p"), Some(("SYJ201", 5)));
