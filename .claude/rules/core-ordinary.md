@@ -340,8 +340,8 @@ the trust.
   ignores its disjunct keeps that branch alone. Facts derived are the
   read-back's unit of `limits.work`.
 - **LJT where a bound refuses the read-back** (not the stop): its
-  derivation and statistics (`Statistics::ljt`); where LJT gives none,
-  the read-back's refusal. LJT refuting a sequent the search proved is
+  derivation and statistics (`Statistics::ljt`); where the stop ends
+  LJT, the stop; where another bound does, the read-back's refusal. LJT refuting a sequent the search proved is
   `Error::ReadBack`.
 - **The model is data** (`Model`, `World`: atoms by index, `⊥` forced in
   minimal logic only, edges to later worlds), kept on `sat::Outcome`,

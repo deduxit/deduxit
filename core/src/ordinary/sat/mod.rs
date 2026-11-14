@@ -291,7 +291,8 @@ fn run(
 }
 
 /// Returns LJT's derivation of a sequent the search proved, and its
-/// statistics; where LJT gives none, the read-back's `refusal`.
+/// statistics; where the stop ends LJT, that stop; where another bound
+/// does, the read-back's `refusal`.
 fn by_ljt(
     sequent: &Sequent,
     logic: Logic,
@@ -301,11 +302,18 @@ fn by_ljt(
 ) -> Result<(Derivation, ljt::Statistics), Error> {
     let outcome = match ljt::decide(sequent, logic, limits, &mut *stop) {
         Ok(outcome) => outcome,
+        // A stop stays a stop; another bound is the read-back's refusal.
+        Err(Error::Refused(stopped @ Refusal::Stopped { .. })) => {
+            return Err(Error::Refused(stopped));
+        }
         Err(Error::Refused(_)) => return Err(Error::Refused(refusal)),
         Err(other) => return Err(other),
     };
     match outcome.verdict {
         Verdict::Valid(derivation) => Ok((*derivation, outcome.statistics)),
+        Verdict::Unknown(Reason::Stopped) => Err(Error::Refused(Refusal::Stopped {
+            phase: crate::limits::Phase::Search,
+        })),
         Verdict::Unknown(_) => Err(Error::Refused(refusal)),
         Verdict::NotValid => Err(Error::ReadBack {
             calculus: logic.calculus(),
@@ -1107,5 +1115,39 @@ mod tests {
         let outcome = outcome.unwrap();
         assert!(matches!(outcome.verdict, Verdict::Valid(_)), "{outcome:?}");
         assert!(outcome.statistics.ljt.is_some(), "{:?}", outcome.statistics);
+        // The stop during LJT is the stop, not the read-back's refusal:
+        // it fires at the first poll of the search after the solver's.
+        let search = |p: &Progress| p.phase == crate::limits::Phase::Search;
+        let mut solver = 0;
+        let counted = |p: Progress| {
+            solver += u64::from(search(&p));
+            false
+        };
+        run(
+            &sequent,
+            logic,
+            &Limits::default(),
+            counted,
+            MOST_VARIABLES,
+            true,
+        )
+        .unwrap();
+        let mut asked = 0;
+        let ljt = |p: Progress| {
+            asked += u64::from(search(&p));
+            asked > solver
+        };
+        let stopped = run(
+            &sequent,
+            logic,
+            &Limits::default(),
+            ljt,
+            MOST_VARIABLES,
+            false,
+        );
+        assert!(
+            matches!(stopped, Err(Error::Refused(Refusal::Stopped { .. }))),
+            "{stopped:?}"
+        );
     }
 }
