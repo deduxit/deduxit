@@ -1525,3 +1525,70 @@ says.
   `core/src/linear/nets/cut/tests.rs` (54s-b2's reviewer's note, still
   open); `comparison.sh` has no ILTP pass (this session ran the
   command by hand, as the brief allowed).
+
+## Session 54s-c3: the classical default
+
+Opus 5.5 at `high`, the worker of 54s-c2 (same conversation and
+workspace), from the brief `start-54s-c3.md`, on 2026-11-14, cores 4 to
+6. **Paused** at the planning session's "Pause" (the author restarting
+the app); the checklist below is where it stands.
+
+### Checklist at the pause
+
+- [x] Base `ympppsxt` (`jj new ympppsxt`).
+- [x] **The classical default**, committed as `zzrpukpu` (4bf8e680):
+  `Method::default_for` is the SAT solver for every logic (with `sat`);
+  `ordinary::decide`'s `with_evidence` runs the embedding within
+  `ordinary::EVIDENCE_WORK` = 2²⁰ units after the solver decided, its
+  outcome replacing the solver's where it proves (derivation read back
+  and checked) or refutes; the command's `prove` and batch do the same
+  (`Native::Solved`, `ordinary::bounded`, `ordinary::evidence`,
+  `write_native`); `--net` skips the solver. Tests: one library test
+  (`the_classical_default_keeps_the_embedding_s_evidence`), one lock
+  call (`ordinary-classical-default-clausal`, four pigeons in three
+  holes). The manual, guide, changelog, status page and rules are
+  changed. `cargo test --workspace` passed before the commit (27
+  suites); clippy clean. The bound's choice: the 124 ILTP problems
+  whose derivation the old default gave at 2 s need at most 177 136
+  units (from `sat-default.csv`'s embedding rows; 2.3 ms of search);
+  the 33 more the embedding proves only past the derivation limit need
+  up to 51 million.
+- [x] **Item 1**, in the same commit: `prove::untranslated`, the line
+  when the time limit passes while the embedding translates after the
+  default gave way (the solver's reason, then that the embedding took
+  over).
+- [ ] **Item 2**, uncommitted in `@`: `nets/cut/mod.rs`'s tests gated on
+  `interactive` too (they use `Interactive` since `xzwvqqtv`,
+  2026-10-28, "Add cut links to proof nets and cut elimination on
+  them"), and the seven warnings of `cargo test -p deduxit
+  --no-default-features --features parse --no-run` fixed by gating
+  test-only items (`ill.rs`, `derivation/classical.rs`,
+  `lambda/tests.rs`). That build is clean; `--no-default-features`
+  alone was clean before. Still to run: `cargo clippy -p deduxit
+  --all-targets -- --deny warnings` (default features) and the core
+  tests, then commit "Build the library's tests with parse alone, without
+  warnings".
+- [ ] **Item 3**: found, written into `plan/later.md` (uncommitted in
+  `@`): SYJ202's intuitionistic "valid" takes the solver 27 conflicts at
+  size 4, but the derivation of LJ read off it passes the 64 MiB
+  derivation limit in 37 ms, LJT's too, so the default gives way. Still
+  to do: measure the derivation's size with `--derivation-limit none`
+  (`deduxit prove --logic intuitionistic --method sat --stats -q
+  --derivation-limit none bench/iltp/Problems/SYJ/SYJ202+1.004.p`) to
+  confirm the later.md entry's reading, then commit later.md with this
+  report. The entry for `comparison.sh`'s ILTP pass is in the same
+  file.
+- [ ] **The classical timed run**: script ready
+  (`timed3.sh` in the session's scratchpad: ILTP at 2 s, classical,
+  `--engines embedding,sat,auto`, two shards on cores 2 and 3). Build
+  `deduxit-bench` in release, copy it into the run's directory, send
+  "54s-c3: timed run ready, about 5 minutes on cores 2-3", wait for "go
+  ahead", run under `flock -o /tmp/linlog-machine.lock`, send "54s-c3:
+  timed run done". Then commit the rows as
+  `bench/defaults/sat-classical.csv` (named in `core-ordinary.md`), and
+  check the changelog's "254 problems where it decided 124" and the
+  results chapter against them.
+- [ ] The gate, every family at 5 s, the target sets against 47's,
+  `fresh-reviewer` once, `nix flake check` under the lock, this
+  section's full text (bound and numbers, the classical table, the
+  three items, the reviewer), rebase onto `main@origin`.
