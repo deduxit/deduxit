@@ -6670,3 +6670,25 @@ move (D26).
     Control, and the next piece for a freed slot goes to the finished
     worker by `clear_session` and a message (`plan/handoff.md`, "Reuse
     finished workers"). 54s-c1's worker is the first, for 54s-c2.
+- 2026-11-14, about 17:30: **Unattended again** ("Please consider
+  yourself unattended from now until further notice"): every decision
+  that would go to the author, API and design questions included, is
+  the planning session's, recorded here under "Decided for the author".
+- 2026-11-14: **54s-b2 reviewed and pushed; 54s-c2 started in a reused
+  worker.**
+  - **54s-b2** (`spvlxqou`, `opqwwqkr`, `zvxmpnzk`): `Verdict::Valid`
+    holds an `Evidence`, a checked derivation or (feature `sat`) a
+    `ClausalProof` whose only constructor runs `drup::check`; the SAT
+    method answers a classical "valid" by it without the embedding, and
+    reports 256 of ILTP's 274 problems with a checked certificate (124
+    before). The JSON form is wire level 10. `panel-argument` and the
+    reviewer found nothing. Departure accepted: one refusal at
+    `Evidence::derivation()` (`Error::NoDerivation`, naming the method
+    `embedding`) in place of one per export, since every export takes a
+    `&Derivation` by type and so cannot meet a clausal proof. The
+    session's gate, flake check, Node tests and ILTP run passed at its
+    head; rebased onto the plan-only `umxtwmuk`, the text checks pass.
+    Pushed (`zvxmpnzk`, 3b692dfc).
+  - **54s-c2** runs in 54s-c1's cleared worker (`local_739ba359`), the
+    first reuse: `clear_session`, a new title, the start message by
+    `SendMessage`. Cores 4-6, the timed runs on 2-3 after my "go ahead".
