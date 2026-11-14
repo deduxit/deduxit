@@ -47,6 +47,13 @@ for NanoYalla. What the code relies on:
   printer without a stop, bounded as `Proof::derivation()` is, since the
   text is linear in a derivation made within its limits); no per-type
   `ordinary` functions: one `Drawable` takes either.
+- **The docs lead with the calls**: `export`'s module doc opens with a
+  table of what a caller gets from each format and the call that gives
+  it (`to_string` for a proof, `svg::net` for a net, `png::from_svg` and
+  `pdf::from_svg` of the SVG text), and each format's module doc with a
+  table of its own calls, `to_string` first, its example calling it. A
+  new format or entry point joins both tables, with the feature it
+  needs.
 - **`export::Styles` holds every format's options in one value** (the
   command's `--style` keys and `Settings::styles` address it): a field per
   format, and for a format the build lacks a private `Absent` that reads
