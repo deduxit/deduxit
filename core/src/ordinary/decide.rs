@@ -105,7 +105,9 @@ pub enum Verdict {
     Unknown(Reason),
 }
 
-/// What shows a valid sequent valid, checked before the verdict is given.
+/// What shows a valid sequent valid, checked before a search gives the
+/// verdict. Evidence read from JSON is unchecked until its checker runs
+/// ([`Derivation::check`], `Proof::check`).
 ///
 /// Every method but the SAT solver in classical logic gives a derivation.
 /// The SAT solver gives a clausal proof there, which has no derivation to
@@ -122,11 +124,10 @@ pub enum Evidence {
     /// `sat`.
     #[cfg(feature = "sat")]
     Clausal(super::sat::ClausalProof),
-    /// The proof of the image, which the linear checker accepted and the
-    /// outcome's [`Search::Embedding`] holds, where its derivation of LK
-    /// or LJ was not built: a bound or the stop refused it. Only
-    /// [`Image::outcome`](super::Image::outcome) gives it, never
-    /// [`decide`].
+    /// The proof of the image, which the outcome's [`Search::Embedding`]
+    /// holds, where its derivation of LK or LJ was not built: a bound or
+    /// the stop refused it. From [`Image::outcome`](super::Image::outcome)
+    /// the linear checker accepted the proof; [`decide`] never gives it.
     Image,
 }
 

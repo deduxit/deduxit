@@ -607,9 +607,10 @@ search.
 - The mode is the one the file's `"mode"` states, or the flags' for a
   file that states none. A mode flag that names another mode is an error
   that names both, exit status 2.
-- `--format json` writes `{"version", "verdict", "mode"}`. The verdict is
-  `valid`, `invalid` or `unknown`, with the library's `error` for the
-  last two.
+- `--format json` writes `{"version", "verdict", "mode"}`, with
+  `"logic"` in place of `"mode"` for an outcome or derivation of ordinary
+  logic (section 13). The verdict is `valid`, `invalid` or `unknown`, with
+  the library's `error` for the last two.
 - The default time limit is `--timeout 2s`. `--work-limit` and
   `--memory-limit` bound the check too. A check that a limit gives up is
   unknown, exit status 3.
@@ -1057,8 +1058,8 @@ whose image the embedding proved without a derivation (a bound or the
 time limit refused it) neither. `--linear` writes the image's outcome
 alone. `check` reads every such file and a derivation of LK or LJ: it
 checks the derivation by its calculus and the image's proof or
-refutation; a clausal proof's counts, and a "not valid" of LJT or the
-SAT solver, hold nothing to check (exit status 3).
+refutation; a clausal proof's counts, a "not valid" of LJT or the SAT
+solver, and an unknown hold nothing to check (exit status 3).
 
 ### Examples
 

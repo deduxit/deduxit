@@ -332,12 +332,12 @@ fn check_disproof(
 /// verdict: a derivation by the rules of its calculus, with the image's
 /// proof where the embedding found one; the image's proof alone where no
 /// derivation was built; the image's refutation. A sequent found not
-/// valid by LJT or the SAT solver holds nothing to check: unknown.
+/// valid by LJT or the SAT solver, and one found unknown, hold nothing to
+/// check: unknown.
 ///
 /// # Errors
 ///
-/// An outcome of a sequent found unknown, which holds no proof; a mode
-/// flag beside it; an output that cannot be made.
+/// A mode flag beside it; an output that cannot be made.
 fn check_ordinary(
     outcome: ordinary::Outcome,
     flags: &ModeArgs,
@@ -396,10 +396,16 @@ fn check_ordinary(
                     unchecked_into(&line, Some(logic), &show, &mut out)?,
                 )
             }
-            _ => bail!(
-                "the file is the outcome of a sequent of {logic} logic whose search found no verdict: \
-                 it holds no proof to check"
-            ),
+            _ => {
+                let line = format!(
+                    "unknown: the file is the outcome of a sequent of {logic} logic whose search \
+                     found no verdict, and holds no proof to check"
+                );
+                (
+                    Status::Unknown,
+                    unchecked_into(&line, Some(logic), &show, &mut out)?,
+                )
+            }
         };
         if keep {
             out.finish()?;

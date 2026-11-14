@@ -139,6 +139,12 @@ pub(crate) enum Command {
     /// Check a proof read from JSON, as `prove --format json` writes it, or
     /// the refutation of an unprovable outcome
     ///
+    /// An outcome of `prove --logic`, or a derivation of LK or LJ, is
+    /// checked by the rules of its calculus, with the image's proof or
+    /// refutation where the embedding found one. One that holds nothing to
+    /// check (a clausal proof's counts, a "not valid" without a refutation,
+    /// an unknown) gets 3.
+    ///
     /// The mode is the one the file states, or the flags' where it states
     /// none. A mode flag that names another mode is an error. The exit
     /// status is 0 for a valid proof, 1 for an invalid one, 3 for unknown
@@ -151,7 +157,8 @@ pub(crate) enum Command {
     /// an exhausted search has nothing to check, and gets 3.
     ///
     /// With `--format json` the verdict is `{"version", "verdict",
-    /// "mode"}`, the verdict being `valid`, `invalid` or `unknown`. The
+    /// "mode"}`, or `"logic"` in place of `"mode"` for ordinary logic, the
+    /// verdict being `valid`, `invalid` or `unknown`. The
     /// last two add the library's `error` object and its `message`, with
     /// formulas.
     #[command(after_help = EVERY_OPTION, after_long_help = "")]
@@ -310,9 +317,9 @@ pub(crate) struct ProveArgs {
     /// SAT solver decides every logic; a valid classical sequent gets a
     /// checked clausal proof and no derivation. --translation and --linear
     /// name the embedding, so either of them alone decides through it.
-    /// Under LJT or the SAT solver, --stats prints the method's counters and
-    /// --format json writes the outcome of the ordinary sequent, with the
-    /// engine "ljt" or "sat".
+    /// Under LJT or the SAT solver, --stats prints the method's counters.
+    /// Under every method --format json writes the outcome of the ordinary
+    /// sequent, its "search" tagged by "method".
     #[arg(help_heading = LOGIC, long, value_enum, value_name = "METHOD", requires = "logic")]
     pub(crate) method: Option<MethodArg>,
     /// The sequent.
@@ -1141,7 +1148,8 @@ pub(crate) struct LogicArgs {
     /// bound; --method chooses. The translated sequent is called the
     /// image. Through the translation into ILL (--method embedding),
     /// intuitionistic and minimal logic may be answered unknown at the time
-    /// limit, and the JSON output is the search's outcome on the image.
+    /// limit. The JSON output is the outcome of the ordinary sequent, the
+    /// image's outcome nested in it; --linear writes the image's alone.
     /// `seq print` prints the image. `interact` proves the sequent step by
     /// step by the rules of LK or LJ, and its `close` decides a goal
     /// through the translation.
@@ -1776,8 +1784,8 @@ pub(crate) enum Format {
     Text,
     /// JSON: for `prove` the outcome (verdict, fragment, mode, engine,
     /// statistics, and the proof, which `check` reads), one record per line
-    /// in a batch, and under --logic decided by LJT the ordinary outcome
-    /// with its derivation of LJ; for `check` the verdict and error
+    /// in a batch, and under --logic the ordinary outcome, with its
+    /// derivation of LK or LJ; for `check` the verdict and error
     Json,
     /// The verdict as a comment, then the derivation as a LaTeX proof tree
     /// of the ebproof package, with the connectives of cmll and amssymb

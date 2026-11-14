@@ -16,6 +16,14 @@ $ deduxit prove --format json "A |- A" | deduxit check --format json
 The file states its mode, and `check` checks in that mode. A mode flag
 that names another mode is an error.
 
+`check` reads what `prove --logic` writes too, and a derivation of LK
+or LJ: it checks the derivation by the rules of its calculus, and the
+translated sequent's proof or refutation where the embedding found one.
+Its JSON then names the `logic` in place of the `mode`. A file that holds
+nothing to check (a clausal proof's counts, a "not valid" of LJT or the
+SAT solver, an unknown) gets exit status 3 ([Ordinary
+logic](ordinary-logic.md#json-output)).
+
 ## Exit status and limits
 
 `check` exits with 0 for a valid proof, 1 for an invalid one, and 3 when

@@ -108,8 +108,9 @@ unchanged.
   derivation of LK or LJ: it checks the derivation by the rules of its
   calculus (LJ's cut included) and the translated sequent's proof or
   refutation where the embedding found one. A clausal proof, written as
-  its counts, and a "not valid" of LJT or the SAT solver, which carries
-  no refutation, hold nothing to check: `unknown`, exit status 3. Its
+  its counts, a "not valid" of LJT or the SAT solver, which carries no
+  refutation, and an unknown hold nothing to check: `unknown`, exit
+  status 3. Its
   JSON names the `logic` in place of the `mode` for these.
 - **The ordinary outcome reads back**: `ordinary::Outcome` is
   `Deserialize` and read by `wire::upgrade`, its derivation and the

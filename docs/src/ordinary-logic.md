@@ -294,9 +294,10 @@ valid derivation in LJ of a ⊢ a (intuitionistic logic)
 a ⊢ a
 ```
 
-A clausal proof is written as its counts, and LJT and the SAT solver
-write no refutation of a sequent that is not valid: there `check` says
-the file holds nothing to check, with exit status 3.
+A clausal proof is written as its counts, LJT and the SAT solver write
+no refutation of a sequent that is not valid, and an unknown holds no
+proof: there `check` says the file holds nothing to check, with exit
+status 3.
 
 ## Step by step
 
