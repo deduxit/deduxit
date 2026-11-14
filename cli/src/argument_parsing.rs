@@ -301,9 +301,11 @@ pub(crate) struct ProveArgs {
     /// With --logic, how to decide the sequent: through its embedding into
     /// linear logic, by LJT or by a SAT solver (ordinary.method)
     ///
-    /// By default classical logic goes through the embedding, which gives
-    /// derivations of LK and certificates, and intuitionistic and minimal
-    /// logic by the SAT solver, with LJT's derivation where LJT gives one.
+    /// By default every logic is decided by the SAT solver: intuitionistic
+    /// and minimal logic with LJT's derivation where LJT gives one, and
+    /// classical logic with the embedding's output (its derivation of LK,
+    /// refutation and certificate) where the embedding decides within a
+    /// short bound of work.
     /// LJT is Dyckhoff's calculus for intuitionistic and minimal logic. The
     /// SAT solver decides every logic; a valid classical sequent gets a
     /// checked clausal proof and no derivation. --translation and --linear
@@ -1133,10 +1135,10 @@ pub(crate) struct LogicArgs {
     /// syntax below; a `.p` file is a TPTP problem, as the ILTP library
     /// writes them. `prove` decides it and shows the proof as a derivation
     /// of LK (classical) or LJ (intuitionistic, minimal), checked by the
-    /// rules of the logic before it is shown. By default intuitionistic and
-    /// minimal logic are decided by a SAT solver, whose search always ends, and
-    /// classical logic through its translation into affine MALL, with no
-    /// copy bound; --method chooses. The translated sequent is called the
+    /// rules of the logic before it is shown. By default a SAT solver, whose
+    /// search always ends, decides every logic, and classical logic keeps
+    /// the derivation its translation into affine MALL gives within a short
+    /// bound; --method chooses. The translated sequent is called the
     /// image. Through the translation into ILL (--method embedding),
     /// intuitionistic and minimal logic may be answered unknown at the time
     /// limit, and the JSON output is the search's outcome on the image.

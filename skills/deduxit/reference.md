@@ -993,7 +993,8 @@ The default is `sat`, the SAT solver below, for every logic. In
 intuitionistic and minimal logic it takes LJT's derivation where LJT
 gives one (`--stats` then ends with `derivation by LJT: N sequents
 expanded`). In classical logic the embedding then searches for at most
-2²⁰ units of work (about 20 ms): where it decides, the output is the
+2²⁰ units of work (a median of 16 ms on ILTP, at most 0.7 s): where it
+decides, the output is the
 embedding's, with its derivation of LK, refutation and certificate;
 otherwise the solver's answer stands. Where another bound
 than the time limit stops it (a derivation past `--derivation-limit`,

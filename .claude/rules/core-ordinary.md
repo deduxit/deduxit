@@ -177,8 +177,11 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   the solver's stands, so the stop never costs a verdict the solver
   gave. A verdict of the embedding that contradicts the solver's is
   `Error::ReadBack`, a defect. The bound covers the 124 ILTP problems
-  whose derivation the old default gave at 2 s (177 136 units at most)
-  and ends a hopeless search in about 20 ms. The command does the same
+  whose evidence the old default gave at 2 s (123 derivations and one
+  refutation, 177 136 units at most); the attempt costs a median of
+  16 ms where it gives nothing, at most 0.7 s (SYJ206 and SYJ212 at
+  size 20, where the focused engine's first node does 4.9 million units
+  before it asks the bound; `plan/later.md`). The command does the same
   with its own search (`cli.md`). The intuitionistic default's SAT solver is
   `sat::decide_preferring_ljt`: the search's verdict, LJT's derivation
   where LJT gives one (smaller, its terms with fewer redexes), else the

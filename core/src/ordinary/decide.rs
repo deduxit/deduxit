@@ -157,9 +157,8 @@ pub fn gives_way(decided: &Result<Outcome, Error>) -> bool {
 /// The most units of work the embedding's search may do, by default in
 /// classical logic, for the evidence of a sequent the SAT solver decided:
 /// a derivation of LK, or a refutation of the image. The 124 problems of
-/// ILTP whose derivation the embedding gives within 2 s need at most
-/// 177 136; at this bound a search that ends without a verdict takes
-/// about 20 ms.
+/// ILTP whose evidence the embedding gives within 2 s (123 derivations and
+/// one refutation) need at most 177 136.
 pub const EVIDENCE_WORK: u64 = 1 << 20;
 
 /// Returns the outcome of a classical sequent the SAT solver decided,

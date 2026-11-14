@@ -107,14 +107,15 @@ decides 252 in intuitionistic logic and 253 in minimal logic, LJT 200 and
 the embedding 188 in each. In classical logic the SAT solver decides 254
 and the embedding 157. The SAT solver decides every problem the others
 decide. The classical default decides the same 254, and gives the
-embedding's derivation of LK for the 124 whose derivation the embedding
-builds within 2 seconds. The 186 problems all three decide in intuitionistic logic take
+embedding's output for the 124 the embedding answers with its evidence
+within 2 seconds: 123 derivations of LK and one refutation. The 186 problems all three decide in intuitionistic logic take
 it 26 ms in all, LJT 313 ms and the embedding 11.6 s ([the
 measurement](results/iltp-2026-11-14.md)).
 
 In classical logic the default keeps the embedding's output where the
 embedding gives it quickly. Once the SAT solver has decided, the
-embedding searches for at most 2²⁰ units of work, about 20 ms. Where it
+embedding searches for at most 2²⁰ units of work, which costs a median
+of 16 ms on ILTP and at most 0.7 s. Where it
 proves the sequent, you get its verdict line, its derivation of LK and
 its certificate, as `--method embedding` gives them; where it refutes
 the sequent, its refutation. Otherwise the solver's clausal proof or

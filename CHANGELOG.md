@@ -24,7 +24,7 @@ second number (0.1.x to 0.2.0), anything else the third.
   the old behaviour, give `--method embedding` or `--translation`.
 - **`prove --logic classical` decides by the SAT solver by default**,
   and keeps the embedding's output wherever the embedding decides
-  within 2²⁰ units of work (`ordinary::EVIDENCE_WORK`, about 20 ms): its
+  within 2²⁰ units of work (`ordinary::EVIDENCE_WORK`): its
   verdict line, derivation of LK, refutation and certificate, as
   before. Otherwise the solver's answer stands: `valid (classical logic
   by the SAT solver): a checked clausal proof of …`, with no derivation,
