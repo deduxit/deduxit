@@ -1,32 +1,37 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Proof structures as formula trees under their axiom links: the
-//! literals side by side along the top in occurrence order, which is left
-//! to right in every tree, their edges and links meeting each at the
-//! middle of its atom (not of a negated literal's whole `A⊥`), each
-//! connective one layer below the lower of its premises, the conclusions
-//! on the bottom layer, and every link a half-ellipse over the two
-//! literals it joins, as high as it is wide times a fixed ratio up to
-//! [`Style::link_cap`] and less beyond, so that the arcs of nested pairs
-//! of literals still never cross; links over interleaved pairs cross.
+//! The layout of a proof structure without boxes: its formula trees under
+//! their axiom links.
 //!
-//! Drawn with its formulas, every occurrence is its formula's text, a
-//! connective's with its own connective under the joint where the edges
-//! from its premises meet, and the subtree of each premise as far to that
-//! side of the joint as the premise stands in the text: every subformula
-//! of a one-sided net is where it is in its conclusion, and since the
-//! subtrees of a link's two premises stand on either side of its joint,
-//! no edge crosses a formula. Compact, the literals are packed
-//! `literal_gap` apart, every connective is a circle halfway between its
-//! premises, and the conclusions are written under the edges hanging from
-//! the bottom layer, as far apart as their texts need.
+//! - The literals stand side by side along the top in occurrence order,
+//!   which is left to right in every tree. Edges and links meet a literal
+//!   at the middle of its atom, not of a negated literal's whole `A⊥`.
+//! - Each connective is one layer below the lower of its premises. The
+//!   conclusions are on the bottom layer.
+//! - An axiom link is a half-ellipse over the two literals it joins. Its
+//!   height is its width times a fixed ratio up to [`Style::link_cap`],
+//!   and grows more slowly beyond, so that the arcs of nested pairs of
+//!   literals never cross. Links over interleaved pairs do cross.
 //!
-//! A structure that is no proof net has its switching cycle, or every
+//! Drawn with its formulas, every occurrence is its formula's text. A
+//! connective's text has its own connective under the joint, the point
+//! where the edges from its premises meet. Each premise's subtree stands
+//! as far to its side of the joint as the premise stands in the text. So
+//! every subformula of a one-sided net is where it is in its conclusion,
+//! and since the subtrees of a connective's two premises stand on either
+//! side of its joint, no edge crosses a formula.
+//!
+//! Compact, the literals are packed `literal_gap` apart, and every
+//! connective is a circle halfway between its premises. The conclusions
+//! are written under the edges that hang from the bottom layer, as far
+//! apart as their texts need.
+//!
+//! A structure that is not a proof net has its switching cycle, or every
 //! part but the first that it falls into, in the highlight colour. Drawn
-//! as an essential net, the same layout carries the reading's direction
-//! on every edge, as an arrowhead halfway along it, and its polarity in
-//! the colours.
+//! as an essential net, the same layout shows the reading's direction on
+//! every edge, as an arrowhead halfway along it, and its polarity in the
+//! colours.
 
 use super::font::{AXIS, DEPTH, HEIGHT};
 use super::{
@@ -38,8 +43,8 @@ use crate::linear::occurrences::{OccId, Reading, Side};
 use crate::linear::sequents::Kind;
 use std::fmt::Write;
 
-/// The height of the middle of `⅋` above the baseline: unlike `⊗`, it
-/// stands on the baseline instead of being centred on the math axis.
+/// The height of the middle of `⅋` above the baseline. `⅋` stands on the
+/// baseline, where `⊗` is centred on the math axis.
 pub(super) const PAR_MIDDLE: i64 = 344;
 
 /// Writes an arrowhead with its tip at `tip`, pointing along `towards`,
@@ -95,15 +100,20 @@ pub(super) fn towards(from: (i64, i64), to: (i64, i64), by: i64) -> (i64, i64) {
     )
 }
 
-/// Returns the height of the arc of a link `rx` wide on either side of
-/// its middle: `rx` times the style's ratio, and beyond the style's cap
-/// `W` the ratio times `sqrt(W·rx)`, which meets it at `rx = W`.
+/// Returns the height of a link's arc, `rx` being half its width.
 ///
-/// Nested arcs never cross: the squared height of an arc over `(a, b)`
-/// at `x` is `φ(rx)·(x−a)(b−x)`, which shrinks with the interval for a
-/// constant `φ` (similar arcs) and for `φ ∝ 1/rx` (then it is a multiple
-/// of the harmonic mean of `x−a` and `b−x`), and an arc with `rx ≤ W` lies
-/// below that harmonic arc of its own interval.
+/// Up to the style's cap `W`, the height is `rx` times the style's ratio.
+/// Beyond it, the height is the ratio times `sqrt(W·rx)`, which equals
+/// the first at `rx = W`.
+///
+/// Nested arcs never cross. The squared height at `x` of an arc over
+/// `(a, b)` is `φ(rx)·(x−a)(b−x)`, with `φ` the square of the height over
+/// `rx`:
+/// - for a constant `φ` (arcs of one shape) it shrinks with the interval;
+/// - for `φ ∝ 1/rx` (past the cap) it is a multiple of the harmonic mean
+///   of `x−a` and `b−x`, which shrinks with the interval too;
+/// - an arc with `rx ≤ W` lies below that harmonic arc of its own
+///   interval, so it stays below a wider arc past the cap as well.
 pub(super) fn height(rx: i64, style: &Style) -> i64 {
     let ratio = i64::from(style.link_height);
     match style.link_cap.map(i64::from) {
@@ -117,9 +127,9 @@ fn joined(net: &ProofStructure) -> impl Iterator<Item = (OccId, OccId)> {
     net.links().iter().map(|&(x, y)| (x.occ(), y.occ()))
 }
 
-/// Returns every occurrence's component in the switching of a structure
-/// that keeps the left premise of every `⅋`, as the index of one
-/// occurrence in it.
+/// Returns every occurrence's component in the switching that keeps the
+/// left premise of every `⅋`, each component named by the index of one of
+/// its occurrences.
 fn components(net: &ProofStructure) -> Vec<usize> {
     let forest = net.forest();
     let mut parent: Vec<usize> = (0..forest.len()).collect();
@@ -177,13 +187,13 @@ pub(super) const ROOT: u64 = 60;
 /// The bytes of a link's arc and the two lines down to its literals.
 pub(super) const LINK: u64 = 160;
 
-/// The bytes an essential net's drawing adds per edge, conclusion and
-/// link: an arrowhead of three points with coordinates of up to twelve
-/// digits; per literal, its colour; and per drawing, its groups.
+/// The bytes of an arrowhead, a path of three points with coordinates of
+/// up to twelve digits. An essential net's drawing adds one per edge,
+/// conclusion and link.
 pub(super) const ARROW: u64 = 100;
 
 /// A writer that counts the bytes of what it is given escaped for XML,
-/// and fails once they pass `most`.
+/// and fails when they pass `most`.
 pub(super) struct Count {
     /// The bytes counted.
     bytes: u64,
@@ -221,10 +231,12 @@ impl Write for Count {
     }
 }
 
-/// Returns the bytes of a structure's drawing, estimated from the
-/// structure without drawing it, and at least what the drawing has; once
-/// past `most`, some number past it; `read` when it is drawn as its
-/// essential net. Saturating, so that no structure is estimated small.
+/// Returns an estimate of the bytes of a structure's drawing, made from
+/// the structure without drawing it.
+///
+/// The estimate is at least what the drawing has. Past `most`, it is some
+/// number past `most`. `read` says the structure is drawn as its
+/// essential net. The sums saturate, so no structure is estimated small.
 pub(super) fn estimate(net: &ProofStructure, style: &Style, read: bool, most: u64) -> u64 {
     let forest = net.forest();
     let sequent = forest.sequent();
@@ -234,11 +246,11 @@ pub(super) fn estimate(net: &ProofStructure, style: &Style, read: bool, most: u6
         false => 0,
     };
     let mut bytes = DOCUMENT;
-    // Per occurrence, the bytes of its formula's text with letters of four
-    // bytes, and how many negated literals it has, each a raised `⊥` that
-    // splits the text into two more pieces where the reading does not
-    // write it as its atom: a formula is written once per subformula
-    // drawn, so the drawing grows with the formulas' depth.
+    // Per occurrence, the bytes of its formula's text, at four bytes a
+    // letter, and how many negated literals it has. A negated literal is a
+    // raised `⊥` that splits the text into two more pieces, unless the
+    // reading writes it as its atom. Every subformula drawn writes its own
+    // text, so the drawing grows with the formulas' depth.
     let (mut chars, mut duals) = (vec![0u64; forest.len()], vec![0u64; forest.len()]);
     for o in forest.ids().rev() {
         let i = o.index();
@@ -265,8 +277,8 @@ pub(super) fn estimate(net: &ProofStructure, style: &Style, read: bool, most: u6
         bytes = bytes.saturating_add(match forest.atom(o) {
             // In the title, the name as it is, with a `⊥`.
             Some(atom) => (sequent.atom_name(atom).len() as u64).saturating_add(3),
-            // Its circle or joint, symbol and edges, and in the title the
-            // symbol with a space on either side and its brackets.
+            // Its circle or joint, its symbol and its edges, and in the
+            // title the symbol with a space on either side and brackets.
             None => CONNECTIVE + 9,
         });
     }
@@ -277,7 +289,8 @@ pub(super) fn estimate(net: &ProofStructure, style: &Style, read: bool, most: u6
         .saturating_add(links.saturating_mul(LINK));
     if read {
         // An arrowhead per edge (two per connective), conclusion and link,
-        // a colour per literal and the drawing's two more groups.
+        // and the drawing's two more groups. The colours are counted per
+        // piece of text above.
         let edges = (forest.len() as u64)
             .saturating_mul(2)
             .saturating_add(roots)
@@ -287,9 +300,9 @@ pub(super) fn estimate(net: &ProofStructure, style: &Style, read: bool, most: u6
             .saturating_add(DOCUMENT);
     }
     if style.description && bytes <= most {
-        // The text form, as the drawing writes it: its sequent, its links
-        // and the verdict, which names the occurrences of a switching
-        // cycle or of the parts of a disconnected structure.
+        // The text form, as the drawing writes it: the sequent, the links
+        // and the verdict. The verdict names the occurrences of a
+        // switching cycle or of the parts of a disconnected structure.
         let mut count = Count::new(most - bytes);
         let _ = write!(count, "{net}");
         bytes = bytes.saturating_add(count.bytes);
@@ -298,9 +311,12 @@ pub(super) fn estimate(net: &ProofStructure, style: &Style, read: bool, most: u6
 }
 
 /// Returns a proof structure as an SVG document, titled with its sequent
-/// in plain text; `verdict` is its [`ProofStructure::is_correct`], or with
-/// the `reading` of its sequent, which draws it as its essential net, its
-/// [`ProofStructure::is_essential`].
+/// in plain text.
+///
+/// `verdict` is the structure's [`ProofStructure::is_correct`]. With the
+/// `reading` of its sequent, the structure is drawn as its essential net,
+/// and `verdict` is its [`ProofStructure::is_essential`]. `step` marks
+/// what a step of cut elimination acted on, in the highlight colour.
 pub(super) fn draw(
     net: &ProofStructure,
     style: &Style,
@@ -309,9 +325,10 @@ pub(super) fn draw(
     step: &Marks,
 ) -> String {
     let forest = net.forest();
-    // The vertices: every occurrence but those of a cut formula above every
-    // cut link; the formulas at the bottom, the conclusions and the cut
-    // links' ends, each cut link's two ends side by side after them.
+    // The vertices are the live occurrences: all but those of a cut
+    // formula's tree that lie above no end of a cut link. The formulas at
+    // the bottom (`tops`) are the conclusions, then each cut link's two
+    // ends side by side.
     let live = |o: OccId| net.vertex(o).is_some();
     let mut tops: Vec<OccId> = forest.roots().to_vec();
     tops.extend(net.cuts().iter().flat_map(|&(x, y)| [x.occ(), y.occ()]));
@@ -338,12 +355,12 @@ pub(super) fn draw(
         }
         .unwrap();
     };
-    // The connective at a link's joint or in a compact node's circle, and
-    // the height of its middle above its baseline. An essential net's
-    // links are the reading's connectives: `A⊥ ⅋ B` in output position and
-    // `A ⊗ B⊥` in input position are `⊸`, a division of the Lambek
-    // calculus too, whose side its conclusion's text tells (a `\` or `/` at
-    // the joint would read as a piece of an edge).
+    // The symbol at a connective's joint or in its compact circle, and the
+    // height of its middle above its baseline. An essential net shows the
+    // reading's connectives: `A⊥ ⅋ B` in output position and `A ⊗ B⊥` in
+    // input position are `⊸`. A division of the Lambek calculus is `⊸`
+    // too, and the conclusion's text tells its side: a `\` or `/` at the
+    // joint would read as a piece of an edge.
     let symbol = |o: OccId| -> (&'static str, i64) {
         match reading {
             Some(_) if (forest.kind(o) == Kind::Par) != input(o) => (NOTATION.lollipop, AXIS),
@@ -353,10 +370,11 @@ pub(super) fn draw(
         }
     };
 
-    // Bottom-up, the extent of every subtree around its anchor (a literal's
-    // atom's middle, not a negated literal's whole `A⊥`; a link's joint; a
-    // compact node's centre) and each anchor's offset from its parent's;
-    // each connective one layer below the lower of its premises.
+    // Bottom-up: the extent of every subtree around its anchor, each
+    // anchor's offset from its parent's, and each connective's layer, one
+    // below the lower of its premises. The anchor is a literal's atom's
+    // middle (not a negated literal's whole `A⊥`), a connective's joint,
+    // or a compact node's centre.
     let mut formula = String::new();
     let mut from_left = vec![0; n];
     let mut extent = vec![(0, 0); n];
@@ -383,11 +401,13 @@ pub(super) fn draw(
         layer[i] = 1 + layer[l.index()].max(layer[r.index()]);
         let (left, right) = (extent[l.index()], extent[r.index()]);
         let own = if formulas {
-            // The text stands with its connective under the joint, and each
-            // premise's subtree as far from the joint as the premise stands
-            // in the text: so every subformula of a one-sided net is drawn
-            // where it is in its conclusion, and the subtrees of the two
-            // premises stand on either side of the joint.
+            // The text's connective stands under the joint. Each premise's
+            // subtree is as far from the joint as the premise is in the
+            // text: half the connective, a space, and a bracket unless the
+            // premise is a literal. So every subformula of a one-sided net
+            // is drawn where it is in its conclusion, and the two premises'
+            // subtrees stand on either side of the joint, which keeps every
+            // edge off every formula.
             let first = reading.and_then(|r| r.operands(o).0).unwrap_or(l);
             formula.clear();
             write(&mut formula, first, true);
@@ -403,8 +423,9 @@ pub(super) fn draw(
             offset[r.index()] = half + space + bracket(r, '(') - right.0;
             (-from_left[i], text_width - from_left[i])
         } else {
-            // The subtrees `literal_gap` apart and the node halfway between
-            // their anchors; a conclusion's text centred under its circle.
+            // The subtrees stand `literal_gap` apart, the node halfway
+            // between their anchors, a conclusion's text centred under its
+            // circle.
             let span = left.1 + gap - right.0;
             offset[l.index()] = -(span / 2);
             offset[r.index()] = span - span / 2;
@@ -438,8 +459,7 @@ pub(super) fn draw(
         }
     }
 
-    // The links' arcs above the literals decide where the literals'
-    // baseline is.
+    // The highest arc decides where the literals' baseline is.
     let arc = |(p, q): (OccId, OccId)| {
         let (a, b) = (
             x[p.index()].min(x[q.index()]),
@@ -451,10 +471,11 @@ pub(super) fn draw(
     let highest = joined(net).map(|l| arc(l).3).max();
     let baseline = margin + stroke + highest.unwrap_or(0) + HEIGHT;
     let top = baseline - HEIGHT;
-    // Drawn with its formulas, every layer is a line of text, the next
-    // `line_height` and a joint's room further down; compact, the nodes'
-    // layers are `line_height` apart, the conclusions' edges end half a
-    // layer below the lowest, and the conclusions are written under them.
+    // With formulas, every layer is a line of text, and the next is
+    // `line_height` plus a joint's room further down (`pitch`). Compact,
+    // the nodes' layers are `line_height` apart, the conclusions' edges
+    // end half a layer below the lowest, and the conclusions are written
+    // under them.
     let pitch = line_height + radius + HEIGHT + DEPTH;
     let end = baseline - AXIS + bottom * line_height + line_height / 2;
     let under = end + HEIGHT;
@@ -463,8 +484,8 @@ pub(super) fn draw(
         (false, true) => under,
         (false, false) => baseline,
     };
-    // A link's joint, half its room clear above its conclusion's text, or
-    // a compact node's centre.
+    // A connective's joint, 1.5 radii above the top of its text, or a
+    // compact node's centre.
     let node = |o: OccId| match formulas {
         true => (x[o.index()], text_y(o) - HEIGHT - radius - radius / 2),
         false => (
@@ -477,9 +498,10 @@ pub(super) fn draw(
     let depth = style.font.advances.depth();
     let foot = |o: OccId| (x[o.index()], text_y(o) + depth);
 
-    // A switching cycle, as its edges, or the parts of a disconnected
-    // structure: every occurrence's component in the switching that keeps
-    // each left premise, and the first part's, which stays unmarked.
+    // What the verdict highlights: a cycle as its edges, sorted; or for a
+    // disconnected structure, every occurrence's component in the
+    // switching that keeps each left premise, and the first part's
+    // component, which stays unmarked.
     let (mut cycle, mut parts) = (Vec::new(), None);
     match verdict {
         Err(
@@ -610,7 +632,7 @@ pub(super) fn draw(
                 }
                 continue;
             }
-            // A plain `⅋` edge is drawn as a `⊗` edge is.
+            // Under `Premises::Plain`, a `⅋` edge is drawn as a `⊗` edge.
             let par = forest.kind(o) == Kind::Par && style.net_look.premises == Premises::Dashed;
             let out = match (marks(o, child), par) {
                 (true, _) => &mut marked,
@@ -623,8 +645,9 @@ pub(super) fn draw(
             }
             out.push_str("/>\n");
         }
-        // A compact conclusion's edge hangs from its circle to its text;
-        // the hypotheses come in from below, the goal goes out.
+        // A compact conclusion's edge hangs from its circle to its text.
+        // Under the reading, a hypothesis's arrow points up, the goal's
+        // down.
         if root(o) && !formulas {
             let (column, start) = (x[o.index()], centre.1 + radius);
             let out = match (apart(o), input(o)) {
@@ -768,8 +791,8 @@ mod tests {
     use super::*;
 
     /// The arc of a wide link stays under the arc of a wider link it is
-    /// nested in, past the cap, where a plain cap on the height would
-    /// make them cross.
+    /// nested in, past the cap. A height that stopped growing at the cap
+    /// would make them cross.
     #[test]
     fn nested_arcs_do_not_cross() {
         let style = Style::default();

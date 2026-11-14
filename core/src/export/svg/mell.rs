@@ -1,31 +1,48 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Proof structures with boxes drawn as the multiplicative ones are, with
-//! every `!`-box a rectangle around its contents: the literals side by
-//! side along the top under the axiom links' arcs, every vertex one row
-//! below the lowest of what it depends on, the conclusions at the bottom.
+//! The layout of a proof structure with boxes. It is the layout of a
+//! structure without boxes (`net.rs`), with every `!`-box drawn as a
+//! rectangle around its contents:
+//! - the literals stand side by side along the top, under the axiom
+//!   links' arcs;
+//! - every vertex is one row below the lowest of what it depends on;
+//! - the conclusions are at the bottom.
 //!
-//! A box is laid out as one piece above its `!` vertex: the premise of the
-//! `!` where it stands in the `!` formula's text, and beside it the copies
-//! that lie in the box but belong to a `?` vertex outside it, those of a
-//! `?` that comes earlier in the formula trees to its left, the others to
-//! its right. Its rectangle encloses them and every box nested in them,
-//! with its bottom border through the `!` vertex's joint (its principal
-//! door) and through an auxiliary door for every `?` vertex outside with a
-//! copy inside, where the wires from those copies meet and leave the box,
-//! straight to the door of the box around it or to the `?` vertex itself.
-//! A `?` vertex stands at least a row below every door its wires leave,
-//! a link over a box rises above the box's top, and copies at their `?`
-//! vertex's own depth stand on the row right above it. Wires and the
-//! premise edges of a `?` vertex are switched as a `⅋`'s are and drawn
-//! like them. A weakening (a `?` vertex without copies) stands alone; the
-//! literal it hangs on is in the description. A door's wire may cross
-//! other edges and formulas, where the trees do not let it go around.
+//! The premises of a `?` vertex are its copies. A copy may lie in a box
+//! that its `?` vertex is outside of. Its edge then leaves the box through
+//! a door on the box's bottom border, and goes on as a wire to the door of
+//! the box around or to the `?` vertex itself.
+//!
+//! A box is laid out as one piece above its `!` vertex. The `!`'s premise
+//! stands where it stands in the `!` formula's text. Beside it stand the
+//! copies in the box whose `?` vertex is outside it: those of a `?` that
+//! comes earlier in the formula trees to its left, the others to its
+//! right. The rectangle encloses them and every box nested in them. Its
+//! bottom border runs through the `!` vertex's joint (the principal door)
+//! and through an auxiliary door for every `?` vertex outside with a copy
+//! inside. The wires from those copies meet at that door and leave the
+//! box, straight to the door of the box around it or to the `?` vertex.
+//!
+//! - A `?` vertex stands at least a row below every door its wires leave.
+//! - A link over a box rises above the box's top.
+//! - The copies of a `?` vertex with several at its own depth stand on
+//!   the row right above it.
+//! - Wires and the premise edges of a `?` vertex are switched as a `⅋`'s
+//!   premises are, and drawn like them.
+//! - A weakening (a `?` vertex without copies) stands alone. The literal
+//!   it hangs on is in the description.
+//! - A door's wire may cross other edges and formulas, where the trees do
+//!   not let it go around.
+//!
+//! Under [`WhyNot::Rules`] a `?` vertex is drawn as nodes of rules
+//! instead: a dereliction `?d` under each copy, binary contractions `?c`
+//! in a column over its formula, or a weakening `?w`. A box then has a
+//! door per copy, and a wire crosses its border with no symbol.
 //!
 //! A vertex's formula, or a compact vertex's circle, has the id `o<n>`
 //! when it is the only vertex of occurrence `n`, and `v<k>` (its vertex
-//! number) when its occurrence has several; a link has `l<x>-<y>`, the
+//! number) when its occurrence has several. A link has `l<x>-<y>`, the
 //! vertices it joins, and a box's rectangle `b<k>`, its `!` vertex.
 
 use super::font::{AXIS, DEPTH, HEIGHT};
@@ -61,20 +78,23 @@ const WIRE: u64 = 80;
 /// into it.
 const RULE: u64 = 200;
 
-/// The auxiliary doors of a structure: every pair of a box and a `?`
-/// vertex outside it with a copy inside, or under [`WhyNot::Rules`] of a
-/// box and such a copy, sorted, each with what feeds it and where its
-/// wire goes.
+/// The auxiliary doors of a structure, as pairs of a box and a key. The
+/// key is a `?` vertex outside the box with a copy inside, or under
+/// [`WhyNot::Rules`] that copy itself, since that look gives each copy a
+/// door of its own.
 struct Doors {
     /// The pairs (`!` vertex, `?` vertex or copy), sorted.
     pairs: Vec<(u32, u32)>,
 }
 
 impl Doors {
-    /// Returns the doors of a structure: for each copy outside its `?`
-    /// vertex's box, a door on every box from the copy's out to the
-    /// `?`'s, a box's chain walked only until a door already found; one
-    /// per copy, not per `?` vertex, when `apart`.
+    /// Returns the doors of a structure, one per `?` vertex and box, or
+    /// with `apart` one per copy and box.
+    ///
+    /// A copy in another box than its `?` vertex gets a door on every box
+    /// from its own outwards, up to the box that holds the `?` vertex. The
+    /// walk outwards stops at a door already found, so no chain of boxes
+    /// is walked twice for one key.
     fn of(net: &MellStructure, apart: bool) -> Self {
         let mut found: crate::hash::HashSet<(u32, u32)> = crate::hash::HashSet::default();
         for c in net.vertices() {
@@ -125,10 +145,12 @@ fn raw(v: Option<VertexId>) -> u32 {
     v.map_or(NONE, VertexId::get)
 }
 
-/// Returns the bytes of a structure's drawing, estimated without drawing
-/// it, and at least what the drawing has; once past `most`, some number
-/// past it; `read` when it is drawn as its essential net. Saturating, so
-/// that no structure is estimated small.
+/// Returns an estimate of the bytes of a structure's drawing, made without
+/// drawing it.
+///
+/// The estimate is at least what the drawing has. Past `most`, it is some
+/// number past `most`. `read` says the structure is drawn as its
+/// essential net. The sums saturate, so no structure is estimated small.
 pub(super) fn estimate(net: &MellStructure, style: &Style, read: bool, most: u64) -> u64 {
     let forest = net.forest();
     let sequent = forest.sequent();
@@ -143,9 +165,9 @@ pub(super) fn estimate(net: &MellStructure, style: &Style, read: bool, most: u64
     };
     let arrow = if read { ARROW + colour } else { 0 };
     let mut bytes = DOCUMENT;
-    // Per occurrence, the bytes of its formula's text with letters of four
-    // bytes and its negated literals, each a raised `⊥` of two more
-    // pieces; and in the title its symbols or its name.
+    // Per occurrence, the bytes of its formula's text, at four bytes a
+    // letter, and how many negated literals it has, each a raised `⊥` of
+    // two more pieces. Then, for the title, its symbol or its name.
     let (mut chars, mut duals) = (vec![0u64; forest.len()], vec![0u64; forest.len()]);
     for o in forest.ids().rev() {
         let i = o.index();
@@ -179,9 +201,9 @@ pub(super) fn estimate(net: &MellStructure, style: &Style, read: bool, most: u64
                 .saturating_add(pieces.saturating_mul(PIECE + colour))
                 .saturating_add(GROUP + colour);
         }
-        // Its symbol and circle or joint and the edges into it, its wire
-        // into a door, and a box's rectangle; drawn as an essential net,
-        // an arrowhead on its edge from its parent or its wire.
+        // Its symbol, its circle or joint, the edges into it, its wire into
+        // a door, and a box's rectangle. Drawn as an essential net, an
+        // arrowhead on the edge between it and its parent, or on its wire.
         bytes = bytes.saturating_add(CONNECTIVE + WIRE + arrow);
         if kind(net, v) == Kind::Bang {
             bytes = bytes.saturating_add(BOX);
@@ -225,13 +247,19 @@ pub(super) fn estimate(net: &MellStructure, style: &Style, read: bool, most: u64
 }
 
 /// Returns a proof structure with boxes as an SVG document, titled with
-/// its sequent in plain text; `verdict` is its
-/// [`MellStructure::is_correct`], whose switching cycle is drawn in the
-/// highlight colour; with the `reading` of its sequent, drawn as its
-/// essential net: the reading's formulas and connectives, the input
-/// occurrences and everything into them in the input colour, every edge,
-/// wire and link an arrow from the hypotheses toward the goal, and the
-/// edge into an implication's antecedent dotted.
+/// its sequent in plain text.
+///
+/// `verdict` is the structure's [`MellStructure::is_correct`], whose
+/// switching cycle is drawn in the highlight colour. `step` marks what a
+/// step of cut elimination acted on, in the same colour.
+///
+/// With the `reading` of its sequent, the structure is drawn as its
+/// essential net:
+/// - the reading's formulas and connectives;
+/// - the input occurrences and everything into them in the input colour;
+/// - every edge, wire and link an arrow from the hypotheses toward the
+///   goal;
+/// - the edge into an implication's antecedent dotted.
 #[expect(
     clippy::too_many_lines,
     reason = "one layout in its passes, as the multiplicative drawing is"
@@ -245,9 +273,9 @@ pub(super) fn draw(
 ) -> String {
     let forest = net.forest();
     let n = net.len();
-    // The formulas at the bottom: the roots and the ends of the cut links
-    // outside every box, each cut link's two ends side by side after them;
-    // the ends of a cut link inside a box stand in it, beside its premise.
+    // The formulas at the bottom (`tops`): the roots, then the two ends of
+    // each cut link outside every box, side by side. The ends of a cut
+    // link inside a box stand in the box, beside its premise.
     let raw_cuts: Vec<(u32, u32)> = net
         .cuts()
         .iter()
@@ -261,8 +289,8 @@ pub(super) fn draw(
             .flat_map(|&(x, y)| [x, y]),
     );
     let formulas = style.net == NetDrawing::Formulas;
-    // An essential net tells its edges apart by their polarity, not by
-    // the switching.
+    // An essential net tells its edges apart by their polarity, so it
+    // draws no switched edge dashed.
     let dashed = reading.is_none() && style.net_look.premises == Premises::Dashed;
     let rules = style.net_look.why_not == WhyNot::Rules;
     let line_height = i64::from(style.line_height);
@@ -293,10 +321,10 @@ pub(super) fn draw(
         false => String::new(),
     };
     let arrow = radius / 2;
-    // A symbol at a joint, a door or in a circle, and the height of its
-    // middle above its baseline: under the reading `A⊥ ⅋ B` in output
-    // position and `A ⊗ B⊥` in input position are `⊸`, and a `?` in input
-    // position is the hypothesis `!A`.
+    // The symbol at a joint, at a door or in a circle, and the height of
+    // its middle above its baseline. Under the reading, `A⊥ ⅋ B` in output
+    // position and `A ⊗ B⊥` in input position are `⊸`, and a `?` is the
+    // hypothesis `!A`.
     let symbol_of = |v: u32| -> (&'static str, i64) {
         match kind_of(v) {
             Kind::Par | Kind::Tensor if reading.is_some() => {
@@ -338,15 +366,18 @@ pub(super) fn draw(
         1 => format!("o{}", occ(v).get()),
         _ => format!("v{v}"),
     };
-    // What a boxed copy's doors are of, its `?` vertex or under the rules
-    // the copy itself, and the `?` vertex of a door's key.
+    // The key of a boxed copy's doors (its `?` vertex, or under the rules
+    // the copy itself), and the `?` vertex of a door's key.
     let key_of = |c: u32| if rules { c } else { parent(c) };
     let owner = |key: u32| if rules { parent(key) } else { key };
 
-    // The layout tree: a vertex's premises, a `!` vertex's box (node
-    // `n + b`), a `?` vertex's copies at its own depth, and a box's
-    // premise and its boxed copies, ordered by where their `?` vertex
-    // comes in the formula trees against the `!` vertex.
+    // The layout tree, by each node's children:
+    // - a vertex: its premises;
+    // - a `!` vertex: its box, node `n + b`;
+    // - a `?` vertex: its copies at its own depth;
+    // - a box: its `!`'s premise and its boxed copies (copies in the box
+    //   of a `?` outside it), ordered by where their `?` vertex comes in
+    //   the formula trees' pre-order against the `!` vertex.
     let mut pre = vec![0u32; n];
     let ends = raw_cuts.iter().flat_map(|&(x, y)| [x, y]);
     let mut walk: Vec<u32> = (0..forest.roots().len() as u32).chain(ends).rev().collect();
@@ -409,13 +440,15 @@ pub(super) fn draw(
             last.entry(owner(key)).or_default().push(b);
         }
     }
-    // Under the rules, per `?` vertex its premises (a copy at its depth or
-    // a wire), its nodes' rows (one for the derelictions of the copies at
-    // its depth, or with wires alone one the first wire comes down
-    // through, a contraction's for every premise past the first, or a
-    // weakening's), and the rows they take above it: all of them where
-    // its formula is written below the last, all but the last where that
-    // is its circle.
+    // Under the rules, per `?` vertex:
+    // - `inputs`, its premises: the copies at its depth and the wires;
+    // - `levels`, its nodes' rows: one for the derelictions of the copies
+    //   at its depth (with wires alone, a landing row the first wire comes
+    //   down through), one per contraction (each premise past the first),
+    //   or one for a weakening; a lone wire takes none;
+    // - `extra`, the rows they take above it: all of them when its formula
+    //   is written under the last, all but the last when the last is its
+    //   circle.
     let (mut inputs, mut levels, mut extra) = (vec![0u32; n], vec![0u32; n], vec![0u32; n]);
     if rules {
         for c in 0..n as u32 {
@@ -471,12 +504,12 @@ pub(super) fn draw(
             stack.extend(on.into_iter().map(|w| (w, false)));
         }
     }
-    // The conclusions on the bottom row, and the copies of a `?` vertex with
-    // several at its own depth on the row above it, so that their edges
-    // into it pass below every formula and box of the others (under the
-    // rules every copy at its depth, above its nodes' rows); a `!` vertex
-    // with auxiliary doors stays where it is, above the `?` vertices its
-    // wires go to.
+    // The conclusions go to the bottom row. The copies of a `?` vertex
+    // with several at its own depth go down to the row above it (under
+    // the rules every copy at its depth, to the row above its nodes), so
+    // that their edges into it pass below every formula and box of the
+    // others. A `!` vertex with auxiliary doors stays at its row, above
+    // the `?` vertices its wires go to.
     let bottom = tops.iter().map(|&r| layer[r as usize]).max().unwrap_or(0);
     let has_doors: Vec<bool> = {
         let mut has = vec![false; n];
@@ -599,10 +632,11 @@ pub(super) fn draw(
                     offset[r] = half + space + bracket(r as u32, '(') - right.0;
                     (-from_left[node], text_width - from_left[node])
                 } else {
-                    // The circle in the gap between the two subtrees, as a
-                    // joint stands between them: halfway between the
-                    // anchors, a box of one could reach over it, and the
-                    // edge to the other premise would rise through the box.
+                    // The circle stands in the gap between the two
+                    // subtrees' extents, as a joint does. Halfway between
+                    // the anchors, a box of one subtree could reach over
+                    // the circle, and the edge to the other premise would
+                    // rise through the box.
                     offset[l] = -(gap / 2) - left.1;
                     offset[r] = gap - gap / 2 - right.0;
                     from_left[node] = text_width / 2;
@@ -698,10 +732,10 @@ pub(super) fn draw(
         (x[u] + extent[u].0, x[u] + extent[u].1)
     };
 
-    // The links and the boxes of every depth: a box is as high above the
-    // literals as what is in it, plus a margin, and a link over a box rises
-    // above it, so that no arc enters a box it does not belong to. Boxes
-    // innermost first.
+    // Each box's lid and each link's rise, so that no arc enters a box it
+    // does not belong to. A box's lid is the highest arc in it plus
+    // `node_radius`. A link rises by the highest lid among the boxes of
+    // its depth that it spans. The depths go innermost first.
     let arc = |(p, q): (u32, u32)| {
         let (a, b) = (
             x[p as usize].min(x[q as usize]),
@@ -760,8 +794,9 @@ pub(super) fn draw(
         let table = runs(&lids);
         for &(p, q) in links_of.get(&depth).map_or(&[][..], Vec::as_slice) {
             let (a, b, _, ry) = arc((p, q));
-            // The boxes of this depth under the link, a run of the list,
-            // since they lie apart.
+            // The boxes of this depth under the link. They lie apart, so
+            // they are a run of the list, whose highest lid the sparse
+            // table gives.
             let from = inner.partition_point(|&c| sides(c).0 < a);
             let to = inner.partition_point(|&c| sides(c).1 <= b);
             let raised = most(&table, from, to);
@@ -774,24 +809,29 @@ pub(super) fn draw(
             lid[depth as usize] = tallest + radius;
         }
     }
-    // What a row's height leaves of the band below a row free for legs: by
-    // default with formulas, from twice the radius above the joints up to
-    // the text of the row above (the joint is 1.5 radii above its text's
-    // top); under the rules with formulas, the pitch less the circles
-    // above; compact, the row less the circles above.
+    // The part of `line_height` that the legs of wires cannot use. The
+    // room for legs above a band is `line_height` less this:
+    // - by default with formulas, `2.5·radius` and a stroke: a band is
+    //   twice the radius above a joint, and a joint is 1.5 radii above its
+    //   text's top, so the legs stay below the text of the row above;
+    // - under the rules with formulas, so that the room is the pitch less
+    //   the circles above, `pitch − 3·radius`;
+    // - compact, the circles above, `3·radius`.
     let room_beside = match (formulas, rules) {
         (true, false) => 5 * radius / 2 + stroke,
         (true, true) => 3 * radius - (radius + HEIGHT + DEPTH),
         (false, _) => 3 * radius,
     };
-    // The rows as far apart as the most wires that run level between the
-    // same two rows need, each half the radius from the next at least, so
-    // that none reads as part of another: by default a wire runs above the
-    // row of its `?` vertex, or of the box whose door it goes into; under
-    // the rules above the row of the node it comes into, the first of a `?`
-    // without copies at its depth above its landing row, and a lone wire
-    // above its formula's row (a door there has one wire, which goes
-    // straight down to the next).
+    // `line_height` raised so that the most wires running level in one
+    // band stand half the radius apart at least, and none reads as part
+    // of another. Each wire is counted at the row it runs above:
+    // - by default, the row of its `?` vertex, or of the box whose door it
+    //   goes into;
+    // - under the rules, the row of the node it comes into; for the first
+    //   wire of a `?` without copies at its depth, its landing row; for a
+    //   lone wire, its formula's row.
+    // Under the rules a door-to-door wire is not counted: a door there has
+    // one wire, which goes straight down to the next.
     let line_height = {
         let mut level: HashMap<u32, i64> = HashMap::default();
         for (d, &(_, key)) in doors.pairs.iter().enumerate() {
@@ -866,8 +906,8 @@ pub(super) fn draw(
         false if bare(v) => node(v),
         false => towards(node(v), to, radius),
     };
-    // The doors' points, innermost first: each halfway between what feeds
-    // it, on its box's bottom border.
+    // The doors' points, innermost first: each on its box's bottom
+    // border, at the mean of the places of what feeds it.
     let mut feeders: Vec<Vec<i64>> = vec![Vec::new(); doors.pairs.len()];
     let mut point = vec![(0i64, 0i64); doors.pairs.len()];
     let mut by_depth: Vec<usize> = (0..doors.pairs.len()).collect();
@@ -1030,7 +1070,9 @@ pub(super) fn draw(
             };
             segment(out, from, to, switched && marks(v, c));
         }
-        // The goal's edge leads down, a hypothesis's up.
+        // A lowered `!` conclusion's edge, down from its door to its text.
+        // A `!` vertex is in output position, so under the reading this is
+        // the goal's edge, and its arrow points down.
         if formulas && lowered(v) {
             let (start, foot) = (
                 (centre.0, centre.1 + radius),
@@ -1054,9 +1096,10 @@ pub(super) fn draw(
         }
     }
     // A node of the rules: its label at `centre`, narrowed to fit inside
-    // the node's radius, in a circle when compact and `circled` (the last
-    // node of a `?` vertex has its own, with the vertex's id); drawn as an
-    // essential net in the input colour, as a hypothesis's rules are.
+    // the node's radius, in a circle when compact and `circled`. The last
+    // node of a `?` vertex has its own circle, with the vertex's id. Drawn
+    // as an essential net, a node is in the input colour, as a
+    // hypothesis's rules are.
     let rule_node =
         |lines: &mut String, texts: &mut String, centre: (i64, i64), sign: &str, circled: bool| {
             let colour = match reading {
@@ -1066,8 +1109,8 @@ pub(super) fn draw(
             if circled && !formulas {
                 circle(lines, centre, None);
             }
-            // No room is less than none, so a label narrowed is wider
-            // than the room and of a width to divide by.
+            // The room is never negative, so a label wider than the room
+            // has a positive width to divide by.
             let room = (2 * radius - 4 * stroke).max(0);
             let full = run(sign, label_size, &style.font).width;
             let size = if full > room {
@@ -1103,17 +1146,24 @@ pub(super) fn draw(
         None => (&mut lines, false),
     };
     // Under the rules, every `?` vertex's nodes, and where each of its
-    // wires ends (the node, how far from it, and whether from above): a
-    // dereliction under each copy at its depth on the first of its rows,
-    // the contractions in a column over its formula, one a row, joining
-    // the copies first and then the wires, each the nearest to the column
-    // first, and the last node over its formula, or its circle when
-    // compact; a weakening alone, and a lone wire into its formula. A wire
-    // runs level between two rows, as the wires of the one `?` node do:
-    // into a contraction from the side along twice the radius above it,
-    // and the first one, with wires alone, along twice the radius above
-    // the row over it and down the column, so that no two share a leg.
-    // An edge of the rules from `a` down to `b`; under the reading led up.
+    // wires ends (`entry`: the node, how far from it, and whether from
+    // above):
+    // - a dereliction under each copy at its depth, on the first of its
+    //   rows;
+    // - the contractions in a column over its formula, one a row, joining
+    //   the copies first and then the wires, each nearest the column
+    //   first;
+    // - the last node over its formula, or its circle when compact;
+    // - a weakening alone, or a lone wire straight into its formula.
+    // A wire's leg runs level between two rows, as the default's wires do.
+    // Level with a row of nodes, it would pass through other `?` vertices'
+    // nodes on that row. A side premise comes into its contraction along
+    // twice the radius above it. The first wire, with wires alone, comes
+    // along twice the radius above the landing row and down the column. So
+    // the two premises of the first contraction never share a leg.
+    //
+    // `rule_edge` draws an edge of the rules from `a` down to `b`; under
+    // the reading, its arrow points up.
     let rule_edge = |out: &mut String, a: (i64, i64), b: (i64, i64), dashing: bool| match rule_up {
         true => directed(out, b, a),
         false => segment(out, a, b, dashing),
@@ -1192,13 +1242,16 @@ pub(super) fn draw(
         premises.sort_unstable_by_key(|&(at, copy, ..)| (copy.is_none(), (at - column).abs(), at));
         let first = row[q as usize] + u32::from(!formulas) - levels[q as usize];
         let k = k as usize;
-        // Contraction `j` (from 1) joins premise `j`, and the first two.
+        // Contraction `j`, counted from 1, takes premise `j` and what is
+        // above it in the column; contraction 1 takes premises 0 and 1. The
+        // last contraction is the `?` vertex's last node.
         let contraction_at = |j: usize| match j + 1 == k {
             true => last,
             false => (column, centre_at(first + j as u32)),
         };
-        // The contractions on the cycle's way: from the first premise on it
-        // to the last, or down to the formula.
+        // The contractions the marks run through: from the first marked
+        // premise's to the last's, or down to the formula when the edge
+        // below the `?` vertex is marked.
         let on: Vec<usize> = premises
             .iter()
             .enumerate()
@@ -1268,10 +1321,10 @@ pub(super) fn draw(
             }
         }
     }
-    // The wires: from each boxed copy into its door (under the rules from
-    // its dereliction, a row below it in its box), and from each door to
+    // The wires: from each boxed copy into its door, and from each door to
     // the door of the box around it or to its `?` vertex. Under the rules
-    // a wire runs through its doors, which have no symbol of their own.
+    // a copy's wire starts at its dereliction, a row below it in its box,
+    // and runs through its doors, which have no symbol of their own.
     let door_radius = if rules { 0 } else { radius };
     for c in 0..n as u32 {
         if !boxed(c) {
@@ -1312,12 +1365,13 @@ pub(super) fn draw(
             marks(q, c) && switched,
         );
     }
-    // The legs of the wires that run level between the same two rows
-    // apart, so that no two share one, wires bound for different `?`
-    // vertices and for the doors of a box around included: going left, the wire whose door is further left
-    // higher, and going right the one further right, so that where their
-    // spans overlap the way down of one does not cross the other's leg.
-    // They stay clear of the circles above.
+    // The legs of the wires in one band, staggered so that no two share
+    // one, whether they go to different `?` vertices or to the doors of a
+    // box around. Going left, the wire whose door is further left runs
+    // higher; going right, the one further right. So where two spans
+    // overlap, one wire's way down does not cross the other's leg. The
+    // legs stand at most the radius apart, within the room below what
+    // stands on the row above.
     let mut legs: HashMap<usize, i64> = HashMap::default();
     {
         let mut bands: HashMap<i64, Vec<(usize, i64, i64)>> = HashMap::default();
@@ -1601,8 +1655,8 @@ pub(super) fn draw(
     document(style, &title, description.as_deref(), (width, height), body)
 }
 
-/// Returns the most of every run of `values` whose length is a power of
-/// two, by length: `table[k][i]` is the most of `values[i..i + 2^k]`.
+/// Returns a sparse table of `values`: `table[k][i]` is the largest of
+/// `values[i..i + 2^k]`.
 fn runs(values: &[i64]) -> Vec<Vec<i64>> {
     let mut table = vec![values.to_vec()];
     let mut span = 1;
@@ -1617,8 +1671,8 @@ fn runs(values: &[i64]) -> Vec<Vec<i64>> {
     table
 }
 
-/// Returns the most of `values[from..to]` from its [`runs`], or 0 for an
-/// empty range.
+/// Returns the largest of `values[from..to]` from its table of [`runs`],
+/// or 0 for an empty range.
 fn most(table: &[Vec<i64>], from: usize, to: usize) -> i64 {
     if from >= to {
         return 0;
