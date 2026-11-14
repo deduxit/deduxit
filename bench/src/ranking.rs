@@ -239,12 +239,14 @@ fn ranking_table(
         );
     }
     out.push_str(
-        "\n`wrong`: a refutation of a problem some tool proved with a checked proof, or \
-         a verdict against a generated problem's by construction, never counted as \
-         solved; `late`: decided after the limit; `gave up`: the tool's own bound or \
-         no answer; `outside`: not run, outside the tool's fragment or mode; `against \
-         the header`: a verdict, counted as solved, that contradicts an LLTP file's \
-         header, which a few of the library's files have wrong.\n\n",
+        "\n`wrong`: a refutation of a problem that a tool proved with a checked proof, a \
+         refutation of a generated problem that is provable by construction, or an \
+         unchecked proof of one that is unprovable by construction. A wrong verdict never \
+         counts as solved. `late`: decided after the limit. `gave up`: the tool's own \
+         bound, or no answer. `outside`: not run, since the problem is outside the tool's \
+         fragment or mode. `against the header`: a verdict that contradicts an LLTP \
+         file's header. It counts as solved, since a few of the library's headers are \
+         wrong.\n\n",
     );
 }
 
@@ -443,9 +445,10 @@ fn contradictions(
     let _ = writeln!(
         out,
         "## Contradictions\n\nA problem on which one tool proves what another refutes, or \
-         a tool decides against the known verdict. A proof is checked where the row \
-         says so (deduxit's command checks every proof it reports, Sympli validates \
-         its own); no tool's `unprovable` is checked, deduxit's included.\n"
+         a tool decides against the known verdict. Each verdict says whether it was \
+         checked. deduxit's proofs and refutations are checked, but for an exhausted \
+         search, which has no certificate; Sympli checks its own proofs. No other \
+         tool's verdict is checked.\n"
     );
     let mut any = false;
     for (name, p) in problems {

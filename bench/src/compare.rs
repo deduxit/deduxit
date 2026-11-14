@@ -446,13 +446,15 @@ fn compare(
 
     println!("### By group\n");
     println!(
-        "Problems in both; decided (late: after the time limit); decided by one \
-         and not the other; where the undecided ended (`time` the time limit or \
-         `killed` past it, `bound` the copy bound, `depth` the recursion limit, \
-         `memory` the memory limit, `index` an index past its width, `wide` a \
-         context too wide to split, `crash` out of memory); the median \
-         ratio of {two}'s time to {one}'s on the problems both decide within the \
-         limit (how many); and the problems only {two} has.\n"
+        "Per group: the problems in both; how many each decided (late: after the time \
+         limit); how many one decided and the other did not; where the undecided runs \
+         ended; the median ratio of {two}'s time to {one}'s on the problems both decide \
+         within the limit (how many); and the problems only {two} has. An undecided run \
+         ended at `time` (the time limit), `killed` (past it, or while loading), `bound` (the copy \
+         bound), `depth` (the recursion limit), `memory` (the memory limit), `index` \
+         (an index past its width), `wide` (a context too wide to split), `crash` (the \
+         run crashed) or `error` (an error, or another reason such as the work \
+         limit).\n"
     );
     println!(
         "| file | family | configuration | problems | {one} decided | {two} decided | only {one} | only {two} | {one} ended | {two} ended | {two}/{one} | new |"

@@ -298,7 +298,7 @@ pub static FAMILIES: &[Family] = &[
         instances: 1,
         least: 1,
         powers_of_two: false,
-        claim: "the inverse method past the focused engine's limits: with every atom once with each sign the linking is forced, so where the focused engine stops at its memory bound (4 096 pairs) the default hands the sequent over to the inverse method, which decides it in about quadratic time, three to four times as fast as the net engine, which takes it over under Mix",
+        claim: "the inverse method past the focused engine's limits. With every atom once with each sign the linking is forced. Where the focused engine stops at its memory bound (4 096 pairs), the default hands the sequent to the inverse method, which decides it in about quadratic time, three to four times as fast as the net engine. Under Mix the net engine takes it over",
         growth: &[256, 512, 1024, 2048, 4096, 8192, 16384, 32768],
         generate: |k, _| instance(wide(k, 1), Mode::CLASSICAL, true),
     },
@@ -405,7 +405,7 @@ pub static FAMILIES: &[Family] = &[
         // instance provable.
         least: 1,
         powers_of_two: false,
-        claim: "the focused engine's memo on repeated subgoals: the `&` of each clause offers two ways on, so Fibonacci-many paths lead to the goal and meet the same subgoals, which the memo answers once (about half the stable sequents are hits), so the time grows polynomially where without the memo it passes a minute at 64; the default deepening (`--copies none`, about k/2 + 1 levels) costs nothing more, the memo answering each level's repeated subgoals; the inverse method forced is faster still, though no row of the dispatch gives it a turn on a classical sequent without Mix",
+        claim: "the focused engine's memo on repeated subgoals. The `&` of each clause offers two ways on, so Fibonacci-many paths lead to the goal and meet the same subgoals. The memo answers each once (about half the stable sequents are hits), so the time grows polynomially; without the memo it passes a minute at 64. The default deepening (`--copies none`, about k/2 + 1 levels) costs nothing more, since the memo answers each level's repeated subgoals. The inverse method forced is faster still, but no row of the dispatch gives it a turn on a classical sequent without Mix",
         growth: &[16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192],
         generate: |k, _| {
             let clauses: Vec<String> = (0..k)
@@ -438,7 +438,7 @@ pub static FAMILIES: &[Family] = &[
     },
     Family {
         name: "lambek-fo",
-        summary: "Lambek sequents in Moot and Piazza's translation into first-order MILL, a formula at a pair of string positions; the size is k: #0 the chain a0, a0 \\ a1, …, a(k−1) \\ ak ⊢ ak, provable, #1 its first two formulas exchanged, unprovable, #2 the chain ak / a(k−1), …, a1 / a0, a0 ⊢ ak, provable, #3 a0, …, a(k−1) ⊢ a0 • … • a(k−1), provable, #4 its goal reversed, unprovable",
+        summary: "Lambek sequents in Moot and Piazza's translation into first-order MILL, each formula at a pair of string positions; the size is k. #0 is the chain a0, a0 \\ a1, …, a(k−1) \\ ak ⊢ ak, provable; #1 is #0 with its first two formulas exchanged, unprovable; #2 is the chain ak / a(k−1), …, a1 / a0, a0 ⊢ ak, provable; #3 is a0, …, a(k−1) ⊢ a0 • … • a(k−1), provable; #4 is #3 with its goal reversed, unprovable",
         sizes: &[16, 64, 256, 512],
         instances: 5,
         // At size 1 the reversed product of #4 is the product itself,
@@ -530,7 +530,7 @@ pub static FAMILIES: &[Family] = &[
         instances: 2,
         least: 1,
         powers_of_two: false,
-        claim: "the inverse method's strength on a clause used n + 1 times on one branch: the backward search finds the proof in exponentially many stable sequents and the inverse method in about n²/2 sequents, the default giving it its turn after 2²⁴ units of work; on the non-theorem #1 the backward search ends at its copy bound and the inverse method saturates, up to 16 atoms within a minute",
+        claim: "the inverse method's strength on a clause used n + 1 times on one branch. The backward search finds the proof in exponentially many stable sequents, the inverse method in about n²/2 sequents; the default gives it its turn after 2²⁴ units of work. On the non-theorem #1 the backward search ends at its copy bound and the inverse method saturates, up to 16 atoms within a minute",
         growth: &[2, 4, 8, 16, 32, 64, 128, 256, 512],
         generate: |n, index| {
             let atoms: Vec<String> = (1..=n).map(|i| format!("p{i}")).collect();
@@ -598,7 +598,7 @@ pub static FAMILIES: &[Family] = &[
         instances: 2,
         least: 5,
         powers_of_two: false,
-        claim: "the focused engines' context splits: each ⊸ divides the remaining edges between its premises and each & picks a direction, so the exhaustive search on a graph without an Euler circuit (#1) grows exponentially, about twofold per vertex, where a circuit (#0) is found at once; Chaudhuri's inverse method was measured on complete graphs, whose edges grow too fast for a curve",
+        claim: "the focused engines' context splits. Each ⊸ divides the remaining edges between its premises and each & picks a direction, so on a graph without an Euler circuit (#1) the exhaustive search grows exponentially, about twofold per vertex; a circuit (#0) is found at once. Chaudhuri's inverse method was measured on complete graphs, whose edges grow too fast for a curve",
         growth: &[5, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24],
         generate: |n, index| {
             let mut edges: Vec<(u32, u32)> = (0..n)
@@ -655,7 +655,7 @@ pub static FAMILIES: &[Family] = &[
         instances: 2,
         least: 1,
         powers_of_two: false,
-        claim: "the first-order memo's loop check: a search through a cycle comes back to an instance it has met, which the memo recognises, so the exit is found (without the memo the search passes a minute at 8 nodes, with it at 12); the time still grows steeply with the cycle; #1, the cycle without an exit, ends at its copy bound",
+        claim: "the first-order memo's loop check. A search through a cycle comes back to an instance it has met, which the memo recognises, so the exit is found: without the memo the search passes a minute at 8 nodes, with it at 12. The time still grows steeply with the cycle. #1, the cycle without an exit, ends at its copy bound",
         growth: &[2, 3, 4, 5, 6, 8, 10, 12, 16],
         generate: |n, index| {
             let mut hypotheses: Vec<String> = (0..n)

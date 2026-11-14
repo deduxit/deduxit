@@ -104,7 +104,7 @@ None.
 
 ### By group
 
-Problems in both; decided (late: after the time limit); decided by one and not the other; where the undecided ended (`time` the time limit or `killed` past it, `bound` the copy bound, `depth` the recursion limit, `memory` the memory limit, `index` an index past its width, `wide` a context too wide to split, `crash` out of memory); the median ratio of before's time to after's on the problems both decide within the limit (how many); and the problems only before has.
+Per group: the problems in both; how many each decided (late: after the time limit); how many one decided and the other did not; where the undecided runs ended; the median ratio of before's time to after's on the problems both decide within the limit (how many); and the problems only before has. An undecided run ended at `time` (the time limit), `killed` (past it, or while loading), `bound` (the copy bound), `depth` (the recursion limit), `memory` (the memory limit), `index` (an index past its width), `wide` (a context too wide to split), `crash` (the run crashed) or `error` (an error, or another reason such as the work limit).
 
 | file | family | configuration | problems | after decided | before decided | only after | only before | after ended | before ended | before/after | new |
 |---|---|---|--:|--:|--:|--:|--:|---|---|--:|--:|
@@ -137,7 +137,7 @@ None.
 
 ### By group
 
-Problems in both; decided (late: after the time limit); decided by one and not the other; where the undecided ended (`time` the time limit or `killed` past it, `bound` the copy bound, `depth` the recursion limit, `memory` the memory limit, `index` an index past its width, `wide` a context too wide to split, `crash` out of memory); the median ratio of after's time to before's on the problems both decide within the limit (how many); and the problems only after has.
+Per group: the problems in both; how many each decided (late: after the time limit); how many one decided and the other did not; where the undecided runs ended; the median ratio of after's time to before's on the problems both decide within the limit (how many); and the problems only after has. An undecided run ended at `time` (the time limit), `killed` (past it, or while loading), `bound` (the copy bound), `depth` (the recursion limit), `memory` (the memory limit), `index` (an index past its width), `wide` (a context too wide to split), `crash` (the run crashed) or `error` (an error, or another reason such as the work limit).
 
 | file | family | configuration | problems | before decided | after decided | only before | only after | before ended | after ended | after/before | new |
 |---|---|---|--:|--:|--:|--:|--:|---|---|--:|--:|

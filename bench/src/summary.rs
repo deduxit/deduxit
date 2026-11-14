@@ -506,7 +506,8 @@ pub fn summary(files: &[PathBuf], strict: bool) -> Result<()> {
             bail!("the files hold no run");
         }
         if !failed.is_empty() {
-            bail!("{} runs failed: {}", failed.len(), failed.join(", "));
+            let runs = if failed.len() == 1 { "run" } else { "runs" };
+            bail!("{} {runs} failed: {}", failed.len(), failed.join(", "));
         }
         if !disagreeing.is_empty() {
             bail!(
@@ -623,7 +624,7 @@ pub(crate) mod tests {
         assert!(summary(std::slice::from_ref(&right), true).is_ok());
         let failed = summary(std::slice::from_ref(&wrong), true).unwrap_err();
         assert!(
-            failed.to_string().starts_with("1 runs failed: p"),
+            failed.to_string().starts_with("1 run failed: p"),
             "{failed}"
         );
         assert!(summary(std::slice::from_ref(&wrong), false).is_ok());

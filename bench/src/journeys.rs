@@ -130,7 +130,7 @@ pub static JOURNEYS: &[Journey] = &[
     },
     Journey {
         name: "batch-families",
-        summary: "a batch of the propositional families' smallest instances on one worker",
+        summary: "a batch of the propositional families' smallest instances, one sequent per worker, each on one thread",
         run: batch,
     },
     Journey {
