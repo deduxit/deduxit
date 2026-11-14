@@ -6446,3 +6446,49 @@ move (D26).
   - **Pushed:** `main` at `nutyxspz` (613110d4), the client's `main` at
     54u-c's `vqlplqsw` (e9331ea7), both signed by the push. The fix and
     this entry follow after their own flake check.
+- 2026-11-14: **The machine's setup moved, and the next four sessions
+  started** (the author's word, after the setup change).
+  - **The setup change** (the author's, while I was idle): the
+    version-control hooks are the machine's now (`claude-jj-guard`,
+    `claude-jj-sign`, `claude-jj-worktree`, the dev-shell loader,
+    `keys-warm`), so this repository's copies went (`qrwqzrtk`, and
+    `kwovvnut`, `nswkrksr` in the client and the Rocq library). The
+    client and the Rocq library moved to `../deduxit.github.io` and
+    `../rocq-deduxit` (`rnortsuu`, `wxxpuxrx`, `sqmpzpzx`). The memory
+    notes live in `~/.claude/memory/deduxit`.
+  - **Checked before the push:** the new folders exist, and
+    `plan/push-main.sh` and `flake.nix`'s comment name them;
+    `nix flake check` in each of the three repositories at its setup
+    commits, under the machine lock: "all checks passed!" in each.
+    deduxit's two were pushed (`rnortsuu`, 42ebfaf4).
+  - **The client's and the Rocq library's setup commits sat on old
+    commits** (`vnxtqrox` of 2026-11-08 and `wtkykwzw`, both ancestors of
+    their `main`), so the push refused to move `main` sideways. I rebased
+    them onto `main` (`kwovvnut`, `wxxpuxrx`; `nswkrksr`, `sqmpzpzx`):
+    - the hook files `main` had changed since, and their checks' modules,
+      deleted, as the setup meant;
+    - the client's `claude-infra.md` took the setup's line;
+    - rocq-deduxit's CLAUDE.md kept `main`'s later wording (deduxit for
+      linlog, the rules file `writing.md`) under the setup's changes, and
+      its two stale folder names (`rocq-linlog` as the local directory,
+      the checkout `../linlog`, also in `.claude/rules/rocq.md`) now name
+      `rocq-deduxit` and `../deduxit`;
+    - each rebased head flake-checked before its push (below).
+  - **Briefs** in `/tmp/linlog-handoff/` moved to the new folder names;
+    54u-d's client workspace is based on the client's `main@origin`.
+  - **Started**, each on Opus 5.5 at `high` in a jj workspace of its own
+    on `main` with the setup commits; the three cards of the review entry
+    above were withdrawn for these starts:
+    - 54s-b, classical logic by CDCL with checked proofs
+      (`local_8bab76ad`, cores 10-12, the panel);
+    - 54u-e, checking a certificate in one command (`local_87ba9c6c`,
+      cores 7-9);
+    - 54u-d, the page's Learn, Practice and Export (`local_37cc7f25`,
+      cores 13-15, in the client);
+    - 54w-d, the command's help, messages and errors (`local_83e37782`,
+      cores 4-6), whose dependencies 54b and 54u-b are on `main`;
+      chosen for the fourth slot over 54w-e3 and 54w-e5 because it is
+      the larger piece on 0.4.0's path and its files are clear of the
+      other three.
+  - **Next:** 54w-e3 and 54w-e5 (after 54u-a, ready) and 54w-e6 as
+    slots free; 54w-c after 54u-e; 54s-c after 54s-b.

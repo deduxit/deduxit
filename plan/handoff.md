@@ -22,9 +22,8 @@ otherwise, this file holds.
 - **The account**: the author's first account (Max 20x, shown as Ultra
   in the app), signed in to the Claude app. You and every step session
   run on it.
-  - Its memory notes are at
-    `/home/tux/.claude/projects/-home-tux-Projects-own-deduxit/memory/`
-    (`MEMORY.md` the index).
+  - Its memory notes are at `~/.claude/memory/deduxit/` (`MEMORY.md`
+    the index), since 2026-11-14.
   - Every session shares its five-hour window, yours included, and the
     author's other projects fill it too.
   - The second account (`claude2`, Max 5x) was a CLI wrapper and went
