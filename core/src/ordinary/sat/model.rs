@@ -15,7 +15,10 @@ use crate::limits::{Phase, Progress, Refusal};
 /// forces every formula of `Γ` and not `C` ([`refutes`](Self::refutes)).
 ///
 /// In minimal logic `⊥` is a proposition like an atom, which a world may
-/// force; in intuitionistic logic no world forces it.
+/// force; in intuitionistic logic no world forces it. A model of one
+/// world is an assignment of classical logic, the atoms it forces true
+/// and the others false, which refutes a classical sequent `Γ ⊢ Δ` when
+/// every formula of `Γ` is true and every formula of `Δ` false.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Model {
@@ -52,11 +55,15 @@ impl Model {
     /// implication or negation (`¬A` read as `A → ⊥`) from what the world
     /// forces and what the worlds directly above it force. The stop is asked once per world.
     ///
+    /// In classical logic the model must have one world, which forces no
+    /// `⊥`: forcing there is truth under the assignment, and the world
+    /// forces no formula right of `⊢`, however many there are.
+    ///
     /// # Errors
     ///
-    /// [`Error::Countermodel`] naming what fails; [`Error::Logic`] for
-    /// classical logic; [`Error::Succedents`] for more than one formula
-    /// right of `⊢`; [`Refusal::Memory`] where the check would compute more
+    /// [`Error::Countermodel`] naming what fails; [`Error::Succedents`] for
+    /// more than one formula right of `⊢` outside classical logic;
+    /// [`Refusal::Memory`] where the check would compute more
     /// than [`MOST_CELLS`](Self::MOST_CELLS) cells, and
     /// [`Refusal::Stopped`] when the stop fired, neither a verdict on the
     /// model.
@@ -66,10 +73,7 @@ impl Model {
         logic: Logic,
         mut stop: impl FnMut(Progress) -> bool,
     ) -> Result<(), Error> {
-        if logic == Logic::Classical {
-            return Err(Error::Logic { logic });
-        }
-        if sequent.right().len() > 1 {
+        if logic != Logic::Classical && sequent.right().len() > 1 {
             return Err(Error::Succedents {
                 count: sequent.right().len(),
             });
@@ -78,6 +82,11 @@ impl Model {
         let worlds = self.worlds.len();
         if worlds == 0 {
             return Err(flaw("no world".to_owned()));
+        }
+        if logic == Logic::Classical && worlds > 1 {
+            return Err(flaw(format!(
+                "{worlds} worlds where classical logic has one"
+            )));
         }
         let formulas = sequent.formulas();
         let atoms = formulas.atom_names().len();
@@ -104,8 +113,8 @@ impl Model {
             if let Some(&a) = world.atoms.iter().find(|&&a| a as usize >= atoms) {
                 return Err(flaw(format!("world {n}: no atom has the index {a}")));
             }
-            if world.falsity && logic == Logic::Intuitionistic {
-                return Err(flaw(format!("world {n} forces ⊥ in intuitionistic logic")));
+            if world.falsity && logic != Logic::Minimal {
+                return Err(flaw(format!("world {n} forces ⊥ in {logic} logic")));
             }
             for &up in &world.above {
                 let Some(above) = self.worlds.get(up as usize).filter(|_| up as usize > n) else {
@@ -181,13 +190,15 @@ impl Model {
                 formulas.formula(h)
             )));
         }
-        match sequent.right().first() {
-            Some(&c) if forced(c) => Err(flaw(format!(
+        if let Some(&c) = sequent.right().iter().find(|&&c| forced(c)) {
+            return Err(flaw(format!(
                 "the root forces the conclusion {}",
                 formulas.formula(c)
-            ))),
-            None if self.worlds[0].falsity => Err(flaw("the root forces ⊥".to_owned())),
-            _ => Ok(()),
+            )));
         }
+        if sequent.right().is_empty() && self.worlds[0].falsity {
+            return Err(flaw("the root forces ⊥".to_owned()));
+        }
+        Ok(())
     }
 }

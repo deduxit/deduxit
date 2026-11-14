@@ -30,6 +30,15 @@
 //! [`Model::refutes`] checks. Minimal logic is the same search with `⊥` a
 //! variable like an atom.
 //!
+//! Classical logic is decided by one call of the solver on the clauses of
+//! the sequent's negation (Tseitin's encoding with polarities). "Not
+//! valid" comes with a model of one world, the assignment that falsifies
+//! the sequent, which [`Model::refutes`] checks by evaluation. "Valid"
+//! needs two things: the clauses the solver learnt and deleted, recorded
+//! as a clausal proof (DRUP) that this module's own checker accepts by
+//! unit propagation against the clauses, and then the derivation of LK
+//! that the embedding finds within the same limits.
+//!
 //! Needs the cargo feature `sat`.
 //!
 #![cfg_attr(feature = "parse", doc = "```")]
@@ -48,6 +57,8 @@
 //! # Ok::<(), deduxit::Error>(())
 //! ```
 
+mod classical;
+mod drup;
 mod model;
 mod read_back;
 mod solver;
@@ -81,7 +92,7 @@ pub struct Outcome {
 ///
 /// With the feature `serialize` it is written (never read) as
 /// `{"calls": 7, "conflicts": 2, "lemmas": 1, "worlds": 0, "facts": 12,
-/// "ljt": null}`.
+/// "clauses": 0, "proof_steps": 0, "ljt": null}`.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize))]
@@ -96,6 +107,13 @@ pub struct Statistics {
     pub worlds: u64,
     /// The facts the read-back of the derivation derived.
     pub facts: u64,
+    /// In classical logic, the clauses of the sequent's negation the
+    /// solver was given.
+    pub clauses: u64,
+    /// In classical logic, the steps of the clausal proof that the
+    /// clauses have no model, which the checker accepted: the clauses the
+    /// solver learnt and deleted, and the empty clause.
+    pub proof_steps: u64,
     /// LJT's statistics where its search gave the derivation, the
     /// read-back having been refused by a bound.
     pub ljt: Option<ljt::Statistics>,
@@ -126,9 +144,8 @@ struct Lemma {
     made: NodeId,
 }
 
-/// Decides an intuitionistic or minimal sequent by the SAT solver within
-/// `limits`, the stop asked at every decision of the solver and at every
-/// call of it. A conflict or a call is a unit of `limits.work`, and the
+/// Decides a sequent by the SAT solver within `limits`, the stop asked at
+/// every decision of the solver and at every call of it. A conflict or a call is a unit of `limits.work`, and the
 /// clauses and worlds are charged to `limits.memory_bytes`. A valid
 /// sequent's derivation is read off the search within
 /// `limits.derivation_bytes`, `limits.memory_bytes` and `limits.work`
@@ -137,16 +154,25 @@ struct Lemma {
 /// model, checked. A sequent with nothing right of `⊢` is decided as
 /// `Γ ⊢ ⊥`, and its derivation concludes that sequent.
 ///
+/// In classical logic a valid sequent's clausal proof is checked within
+/// the same limits, a step of it a unit of `limits.work`, and its
+/// derivation of LK is the embedding's, found within them
+/// ([`decide`](super::decide()) with [`Method::Embedding`](super::Method::Embedding));
+/// a sequent that is not valid gets a model of one world, checked.
+///
 /// # Errors
 ///
-/// [`Error::Logic`] for classical logic; [`Error::Succedents`] for more
-/// than one formula right of `⊢`; [`Refusal::Output`],
+/// [`Error::Succedents`] for more than one formula right of `⊢` in
+/// intuitionistic or minimal logic; [`Refusal::Output`],
 /// [`Refusal::Memory`], [`Refusal::Work`] or [`Refusal::Stopped`] where a
 /// bound or the stop refused the derivation of a proof (the read-back's
 /// refusal, where LJT gave none either) or the check of a model, none of
-/// them a verdict; as [`Derivation::check`]; [`Error::ReadBack`] or
-/// [`Error::Countermodel`] where the derivation or the model fails its
-/// check, a defect.
+/// them a verdict, and in classical logic the bound or stop that refused
+/// the check of the clausal proof or the embedding's derivation; as
+/// [`Derivation::check`]; [`Error::ReadBack`] or [`Error::Countermodel`]
+/// where the derivation, the clausal proof or the model fails its check,
+/// or the embedding refutes a sequent the clausal proof showed valid, a
+/// defect.
 pub fn decide(
     sequent: &Sequent,
     logic: Logic,
@@ -168,7 +194,7 @@ fn run(
     read_off: bool,
 ) -> Result<Outcome, Error> {
     if logic == Logic::Classical {
-        return Err(Error::Logic { logic });
+        return classical::decide(sequent, limits, stop, most);
     }
     if sequent.right().len() > 1 {
         return Err(Error::Succedents {
@@ -907,11 +933,8 @@ mod tests {
                 "{text} minimally"
             );
         }
-        let sequent: Sequent = "a |- a".parse().unwrap();
-        assert!(matches!(
-            decide(&sequent, Logic::Classical, &Limits::default(), |_| false),
-            Err(Error::Logic { .. })
-        ));
+        // Classical logic is decided too, by the clauses of the negation.
+        assert!(valid(&sat("|- a \\/ ~a", Logic::Classical)));
     }
 
     /// A model changed in any of the ways the check guards against is

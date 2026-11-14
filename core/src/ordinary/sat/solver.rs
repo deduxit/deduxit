@@ -12,6 +12,7 @@ use std::cell::{Cell, RefCell};
 use batsat::interface::SolverInterface;
 use batsat::{Callbacks, ClauseKind, Lit as BatLit, SolverOpts, Var, lbool};
 
+use super::drup::Step;
 use crate::limits::{Phase, Progress};
 use crate::linear::search::Reason;
 use crate::linear::search::memory::Account;
@@ -70,7 +71,8 @@ pub(crate) enum Answer {
 /// An incremental SAT solver: clauses are only ever added, between calls
 /// of [`solve`](Self::solve).
 pub(crate) trait Solver {
-    /// Returns a new variable.
+    /// Returns a new variable, the variables numbered from 0 in the order
+    /// they are made.
     fn new_var(&mut self) -> u32;
     /// Adds a clause, a disjunction of its literals.
     fn add_clause(&mut self, clause: &[Lit]);
@@ -123,16 +125,21 @@ pub(crate) struct Bridge<'s> {
     work: u64,
     /// Why the solver was stopped, once it was.
     why: Cell<Option<Reason>>,
+    /// The clauses learnt and deleted, in order, where a proof is
+    /// recorded.
+    proof: Option<Vec<Step>>,
 }
 
 impl Callbacks for Bridge<'_> {
     fn on_new_clause(&mut self, clause: &[BatLit], _kind: ClauseKind) {
         self.done.set(self.done.get().saturating_add(1));
         self.account.charge(clause_bytes(clause.len()));
+        self.record(clause, Step::Add);
     }
 
     fn on_delete_clause(&mut self, clause: &[BatLit]) {
         self.account.release(clause_bytes(clause.len()));
+        self.record(clause, Step::Delete);
     }
 
     fn stop(&self) -> bool {
@@ -141,6 +148,15 @@ impl Callbacks for Bridge<'_> {
 }
 
 impl Bridge<'_> {
+    /// Appends the clause to the proof as `step` says, where a proof is
+    /// recorded, charging it to the memory account.
+    fn record(&mut self, clause: &[BatLit], step: fn(Box<[Lit]>) -> Step) {
+        if let Some(proof) = &mut self.proof {
+            self.account.charge(Step::bytes(clause.len()));
+            proof.push(step(clause.iter().map(|&l| Batsat::ours(l)).collect()));
+        }
+    }
+
     /// Returns whether the solver must stop: past the work bound, past the
     /// memory bound, or at the caller's stop, asked with `work` units of
     /// progress since the last ask; records why.
@@ -187,15 +203,44 @@ impl<'s> Batsat<'s> {
             done: Cell::new(0),
             work,
             why: Cell::new(None),
+            proof: None,
         };
         Self {
             solver: batsat::Solver::new(SolverOpts::default(), bridge),
         }
     }
 
+    /// [`new`](Self::new), recording every clause learnt and deleted as a
+    /// clausal proof, which [`proof`](Self::proof) takes.
+    pub(crate) fn recording(
+        work: u64,
+        account: &'s Account,
+        stop: &'s mut dyn FnMut(Progress) -> bool,
+    ) -> Self {
+        let mut solver = Self::new(work, account, stop);
+        solver.solver.cb_mut().proof = Some(Vec::new());
+        solver
+    }
+
+    /// Takes the clauses learnt and deleted so far, in order, where the
+    /// solver records them.
+    pub(crate) fn proof(&mut self) -> Option<Vec<Step>> {
+        let proof = self.solver.cb_mut().proof.as_mut()?;
+        Some(std::mem::take(proof))
+    }
+
     /// Returns batsat's literal of ours.
     fn lit(literal: Lit) -> BatLit {
         BatLit::new(Var::unsafe_from_idx(literal.var), literal.positive)
+    }
+
+    /// Returns our literal of batsat's, whose sign is `true` for the
+    /// variable itself.
+    fn ours(literal: BatLit) -> Lit {
+        Lit {
+            var: literal.var().idx(),
+            positive: literal.sign(),
+        }
     }
 }
 
@@ -236,9 +281,16 @@ impl Solver for Batsat<'_> {
             // A refutation of the assumptions reports its final conflict as
             // a clause learnt, which the solver does not keep: it is the
             // core, and given back here.
+            // It is no consequence of the clauses alone, so a proof does not
+            // record it.
             let core = self.solver.unsat_core().len();
             if core > 0 {
-                self.solver.cb().account.release(clause_bytes(core));
+                let bridge = self.solver.cb_mut();
+                bridge.account.release(clause_bytes(core));
+                if let Some(proof) = &mut bridge.proof {
+                    proof.pop();
+                    bridge.account.release(Step::bytes(core));
+                }
             }
             Answer::Unsatisfiable
         } else {
@@ -260,10 +312,7 @@ impl Solver for Batsat<'_> {
         self.solver
             .unsat_core()
             .iter()
-            .map(|l| Lit {
-                var: l.var().idx(),
-                positive: !l.sign(),
-            })
+            .map(|&l| Self::ours(!l))
             .collect()
     }
 

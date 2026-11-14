@@ -276,7 +276,8 @@ its search and translation are untrusted, the checker is the trust.
 
 intuit's search (Claessen and Rosén, LPAR 2015) with intuitR's restarts
 (Fiorentini, CADE 2021), public as `ordinary::sat::decide` and
-`Method::Sat` (`sat`), intuitionistic and minimal logic. `mod.rs` the
+`Method::Sat` (`sat`), intuitionistic and minimal logic; classical logic
+below. `mod.rs` the
 clauses and the loop, `solver.rs` the trait over batsat, `read_back.rs`
 the derivation, `model.rs` the Kripke model and its check. Its search,
 read-back and model are untrusted: the checker and `Model::refutes` are
@@ -353,6 +354,78 @@ the trust.
   Its cost is `MOST_CELLS` (worlds and edges times formulas), refused
   past it as memory. A model that fails is `Error::Countermodel`, a
   defect; a model a user gives would need an `invalid` kind.
+
+### Classical logic (`sat/classical.rs`, `sat/drup.rs`)
+
+`sat::decide` and `Method::Sat` decide classical logic too: one call of
+the solver on the clauses of the sequent's negation. The encoder and the
+clausal proof's checker are the trust for "valid"; `Model::refutes` for
+"not valid".
+
+- **The encoder** (`encode`) is Tseitin's with polarities
+  (Plaisted–Greenbaum): every formula the sequent holds is a variable, a
+  formula that must be true where the sequent fails (`TRUE`: hypotheses,
+  the parts that make a true formula true) gets "formula → definition",
+  one that must be false (`FALSE`) "definition → formula", an
+  equivalence gives both to its parts; units make every hypothesis true
+  and every formula right of `⊢` false. Its soundness argument: every
+  definitional clause holds when each variable takes its formula's value
+  under any assignment of the atoms, and the units hold exactly where
+  that assignment falsifies the sequent; so the clauses have a model
+  wherever the sequent is falsifiable. A change to a clause must keep
+  that. It has no `⊥` variable of its own: `⊥` and `⊤` are formulas like
+  others (`⊥` true is refused by a unit, `⊤` false likewise).
+- **"Not valid"** is a `Model` of one world, the atoms the solver's model
+  makes true; `Model::refutes` in classical logic demands one world, no
+  `⊥`, every hypothesis true and every formula right of `⊢` false, so it
+  is the classical evaluation and needs nothing of the encoder.
+- **The proof is recorded by `Batsat::recording`**: `Bridge` appends every
+  learnt clause (`on_new_clause`) and every deleted one
+  (`on_delete_clause`, from `reduce_db`) as a `drup::Step`, charged to the
+  account; a refuted call under assumptions reports its final conflict as
+  learnt, which `solve` pops (classical logic calls with none). The run
+  appends the empty clause, which the solver never learns: a conflict at
+  level 0 returns at once. drat-trim (nixpkgs' 2023-05-22) accepts the
+  stream (`drat_trim_accepts_the_proof`, ignored: `nix shell
+  nixpkgs#drat-trim`).
+- **What batsat does not log**: `remove_satisfied` drops satisfied
+  clauses and trims literals false at level 0 from the others in place,
+  both silently; `add_clause_reuse` drops level-0-false literals and
+  duplicates. So a later deletion of a trimmed clause matches nothing
+  kept, which the checker ignores (drat-trim warns "deleted clause …
+  does not occur"), and the longer clause stays, which RUP tolerates:
+  the level-0 units it lacks are propagated again in each check. The
+  account's release of a trimmed clause is short of its charge
+  (conservative).
+- **The checker** (`drup::check`) keeps the formula's and the proof's
+  clauses not deleted, checks each added clause by reverse unit
+  propagation and accepts at the first empty clause added. Each check
+  starts from no assignment and undoes all after, so nothing but the
+  clauses and their watches carries between checks, and deleting any
+  clause, a unit or a reason, cannot leave a stale assignment (the usual
+  fault of DRUP checkers that keep the top-level trail). Clauses are
+  sorted and deduplicated when kept; a tautology is never kept; a
+  deletion of a clause not kept is ignored; a literal past the formula's
+  variables is a flaw. Its soundness needs only that propagation assigns
+  a clause's last literal when the others are false and calls a conflict
+  only on a clause all false; completeness of the watches only avoids
+  false refusals.
+- **Its bounds**: a step is a unit of `limits.work` (a check costs at
+  most the literals kept), the clauses, watches and index are charged
+  and refused as `Refusal::Memory` past the bound, the stop is asked
+  every `POLL` steps and clause visits. Clause indices are `usize`
+  bounded by the vector's length; literal codes `2·var + sign` fit a
+  `u32` since `var < MOST_VARIABLES`. A failed check is
+  `Error::ReadBack` (calculus LK), a defect: the stream is the engine's
+  own. Step 70's outside proofs will need an error of kind `invalid`.
+- **"Valid" then asks the embedding for the derivation of LK**
+  (`by_embedding`, `ordinary::decide` with `Method::Embedding` within the
+  same limits, the stop passed as a trait object since `decide` reaches
+  `sat::decide` again and a generic stop would instantiate without end).
+  Where it does not come, the outcome is the refusal (its stop, work or
+  memory bound), as for LJT's derivation past its bound: `Verdict::Valid`
+  holds a derivation, so a sequent valid by its clausal proof alone has
+  no verdict to say it yet. The embedding refuting it is `ReadBack`.
 
 ## The goal state (`interactive.rs`)
 

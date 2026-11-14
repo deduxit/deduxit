@@ -152,8 +152,8 @@
 //! `serialize` (the JSON forms, through serde), `interactive`
 //! (`Interactive`, proving step by step), and the exports
 //! `latex`, `typst`, `svg` and `rocq` (under [`export`]), and `sat` (the
-//! SAT solver batsat, which `ordinary::sat` decides intuitionistic and
-//! minimal logic with). Off by default:
+//! SAT solver batsat, which `ordinary::sat` decides intuitionistic,
+//! minimal and classical logic with). Off by default:
 //! `parallel` (the search on a pool of [`Options::jobs`](linear::Options::jobs) threads, and a
 //! pool kept across searches, `linear::search::Pool`; never for WebAssembly), and
 //! `png` and `pdf` (the SVG drawings rendered). An item that needs a

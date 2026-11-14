@@ -312,10 +312,11 @@ pub enum Method {
     /// Dyckhoff's calculus LJT ([`ljt::decide`]), whose search always
     /// ends: intuitionistic and minimal logic only.
     Ljt,
-    /// A SAT solver with clauses for the implications ([`sat::decide`]),
-    /// whose search always ends, with a Kripke model for a sequent that is
-    /// not valid: intuitionistic and minimal logic only. Needs the cargo
-    /// feature `sat`.
+    /// A SAT solver ([`sat::decide`]), whose search always ends, with a
+    /// Kripke model for a sequent that is not valid: in intuitionistic and
+    /// minimal logic with clauses for the implications, in classical logic
+    /// on the clauses of the sequent's negation, with a clausal proof
+    /// checked for a valid sequent. Needs the cargo feature `sat`.
     #[cfg(feature = "sat")]
     Sat,
 }
@@ -360,14 +361,14 @@ impl Method {
         }
     }
 
-    /// Returns whether the method decides the logic: the embedding every
-    /// logic, LJT and the SAT solver intuitionistic and minimal logic.
+    /// Returns whether the method decides the logic: the embedding and the
+    /// SAT solver every logic, LJT intuitionistic and minimal logic.
     pub const fn decides(self, logic: Logic) -> bool {
         match self {
             Self::Embedding => true,
             Self::Ljt => !matches!(logic, Logic::Classical),
             #[cfg(feature = "sat")]
-            Self::Sat => !matches!(logic, Logic::Classical),
+            Self::Sat => true,
         }
     }
 }
@@ -1120,7 +1121,7 @@ mod tests {
 
     /// Returns whether every assignment of the sequent's atoms that makes
     /// all its hypotheses true makes some formula right of `⊢` true.
-    fn valid_by_truth_table(sequent: &Sequent) -> bool {
+    pub(super) fn valid_by_truth_table(sequent: &Sequent) -> bool {
         let formulas = sequent.formulas();
         (0..1_u32 << formulas.atom_names().len()).all(|assignment| {
             // Every node after its operands, so one pass evaluates all.
