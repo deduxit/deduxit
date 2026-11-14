@@ -28,7 +28,9 @@ release's versions. Then the app asks Rocq which axioms each lemma
 rests on, since a proof left `Admitted` compiles too. Its exit status
 is 0 when the certificate holds, 1 when Rocq refuses the file or a
 lemma rests on an axiom (a classical certificate over `Prop` may use
-the excluded middle), and 2 when the file cannot be read.
+the excluded middle), and 2 when the file cannot be read. To keep the
+app on your path, install the package of the same name: `nix profile
+install github:deduxit/deduxit#check-certificate`.
 
 The app reads the lemma's statement from the file, so it cannot see a
 file that redefines the names its statement uses (its own `Definition

@@ -108,7 +108,8 @@ veraPDF: every profile conforms), offline, and then once per math font
 of `--font` (the list `fonts`): three drawings rendered by resvg with that
 font's TeX Live directory alone, a PNG, and a PDF with the font embedded
 that conforms to PDF/A-4; `rocq.nix` is the `rocq`
-check, which builds NanoYalla from the non-flake input `nanoyalla`
+check, which compiles against NanoYalla as `check-certificate.nix`
+builds it from the non-flake input `nanoyalla`
 (Click & coLLecT pinned to a commit; `export::rocq::NANOYALLA` names
 the version, which an assertion compares with the kernel's README at
 evaluation) with nixpkgs' Rocq and standard library and compiles the
@@ -275,9 +276,12 @@ and Python with matplotlib; no check builds it.
   kernel it read (`From NanoYalla`, `From Deduxit`, other imports the
   standard library, none Rocq alone). NanoYalla is built here as a Rocq
   library (`nanoll.v` and `macroll.v` under `user-contrib/NanoYalla`,
-  with the LGPL licence beside them); `rocq.nix` still compiles its own
-  copy in the check, so the two builds are separate derivations of the
-  same files. The file is copied into a temporary directory as
+  with the LGPL licence beside them) and handed to `rocq.nix` as the
+  module argument `nanoyalla` (`_module.args`, as `toolchain.nix` hands
+  `craneLib`), whose check compiles every certificate against it: the
+  kernel is built once, and the app and the check read the same
+  compiled files. The app is also `packages.check-certificate`, for `nix
+  shell` and `nix profile install`. The file is copied into a temporary directory as
   `certificate.v` (Rocq names a module after its file, and a file name
   may be no identifier or a keyword such as `if`; Rocq's messages get
   the user's name back), compiled with `-Q . Checked`, and then the

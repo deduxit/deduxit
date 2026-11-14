@@ -145,7 +145,9 @@ unchanged.
   github:deduxit/deduxit#check-certificate -- proof.v` compiles a
   certificate written with `--standalone` against the pinned NanoYalla
   or rocq-deduxit, the kernel read from its import lines. It refuses a
-  lemma that rests on an axiom, such as a proof left `Admitted`.
+  lemma that rests on an axiom, such as a proof left `Admitted`. The
+  package of the same name installs it (`nix profile install
+  github:deduxit/deduxit#check-certificate`).
 
 ### Wire forms
 

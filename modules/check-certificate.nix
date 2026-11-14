@@ -7,8 +7,11 @@
 # rocq-deduxit.nix): NanoYalla from the input `nanoyalla', deduxit's library
 # from the input `rocq-deduxit', and nixpkgs' Rocq and standard library. All
 # are on the load path, and the file's own import lines pick the kernel, so
-# no flag names it. The program is check-certificate.sh. And the check
-# `check-certificate', which runs the app on certificates the command writes.
+# no flag names it. The program is check-certificate.sh, also the package
+# `check-certificate' for `nix shell' and `nix profile install'. And the
+# check `check-certificate', which runs the app on certificates the command
+# writes. The NanoYalla library built here is the module argument
+# `nanoyalla', which rocq.nix compiles its certificates against too.
 { inputs, ... }:
 {
   perSystem =
@@ -81,6 +84,10 @@
       };
     in
     {
+      _module.args = { inherit nanoyalla; };
+
+      packages.check-certificate = app;
+
       apps.check-certificate = {
         program = app;
         meta.description = "Check a Rocq certificate that deduxit wrote, against the kernel it names";
