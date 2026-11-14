@@ -22,7 +22,7 @@ Options:
       --settings <PATH>
           Read the settings from a JSON file; the flags override it
           
-          The file is an object with any of the keys `clock`, `limits`, `search`, `view`, `styles`, `batch`, `ordinary`, `lambda` and `input`. Each holds the fields that the flags name in parentheses, such as `{"search": {"copies": 3}, "limits": {"memory_bytes": null}}`. A field left out keeps the command's default, and a misspelt one is an error. `ordinary` applies under --logic, which names the logic.
+          The file is an object with any of the keys `clock`, `limits`, `search`, `view`, `styles`, `batch`, `ordinary`, `interactive`, `input`, `cut` and `lambda`. Each holds the fields that the flags name in parentheses, such as `{"search": {"copies": 3}, "limits": {"memory_bytes": null}}`. A field left out keeps the command's default, and a misspelt one is an error. `ordinary` applies under --logic, which names the logic.
 
   -h, --help
           Print help (see a summary with '-h')
