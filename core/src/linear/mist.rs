@@ -275,15 +275,31 @@ pub fn read(text: &str, limits: &Limits) -> Result<Problem, Error> {
         }
     }
     roots.push(goal);
-    // Everything but the goal stands left of `⊢`. The cast is exact while
-    // the roots number below `u32::MAX`: the tokens, at most
-    // `Forest::MOST` by the check above, and one root per rule, target
-    // line and parameter. `optimize` merges equal terms, as the parser
-    // does with what it reads.
-    let antecedents = Some(roots.len() as u32 - 1);
+    // Everything but the goal stands left of `⊢`. `optimize` merges equal
+    // terms, as the parser does with what it reads.
+    let antecedents = Some(antecedents(roots.len())?);
     let mut sequent = Sequent::from_parts(arena.terms, roots, arena.atoms, antecedents);
     sequent.optimize();
     Ok(Problem { sequent, expected })
+}
+
+/// Returns how many of a sequent's roots stand left of `⊢`: all but the
+/// goal.
+///
+/// # Errors
+///
+/// [`Refusal::Index`] for more than `u32::MAX`, which the tokens alone
+/// stay below but the tokens with one root per rule, target line and
+/// parameter may pass.
+fn antecedents(roots: usize) -> Result<u32, Error> {
+    let count = roots.saturating_sub(1);
+    u32::try_from(count).map_err(|_| {
+        Error::Refused(Refusal::Index {
+            what: Space::Member,
+            count: u64::try_from(count).unwrap_or(u64::MAX),
+            most: u64::from(u32::MAX),
+        })
+    })
 }
 
 /// The arena of a problem's sequent while it is built: its terms, its
@@ -657,6 +673,22 @@ impl<'a> Reader<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// More antecedents than a sequent counts are refused, never wrapped.
+    #[test]
+    #[cfg(target_pointer_width = "64")]
+    fn refuses_more_antecedents_than_a_sequent_counts() {
+        let most = usize::try_from(u32::MAX).unwrap();
+        assert_eq!(antecedents(most + 1), Ok(u32::MAX));
+        assert_eq!(
+            antecedents(most + 2),
+            Err(Error::Refused(Refusal::Index {
+                what: Space::Member,
+                count: u64::from(u32::MAX) + 1,
+                most: u64::from(u32::MAX),
+            }))
+        );
+    }
 
     /// Rules over several lines, guards above a decrement, a decrement
     /// without a guard, a rule without guards, comments, parameters, lines
