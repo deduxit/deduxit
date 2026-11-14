@@ -189,7 +189,8 @@ pub(crate) fn by_native(
             Ok(outcome) => outcome,
             Err(Error::Refused(Refusal::Stopped { .. })) => {
                 let line = format!(
-                    "unknown ({} logic by {}): a proof was found, but {} before it was checked",
+                    "unknown ({} logic by {}): the search ended, but {} before its answer \
+                     was checked",
                     options.logic,
                     by(method),
                     Stop::why(ended.stop)

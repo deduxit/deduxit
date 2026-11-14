@@ -115,9 +115,9 @@ unchanged.
   command offers it as `--method sat` (the key `ordinary.method`), with
   its counters under `--stats`, and the harness as the engine `sat`. It
   is the default for intuitionistic and minimal logic, where on the ILTP
-  library's 274 problems at 2 s it decides 252 in each logic, LJT 200,
-  and takes LJT's derivation where LJT gives one
-  (`ordinary::sat::decide_preferring_ljt`). The embedding stays the
+  library's 274 problems at 2 s it decides 252 in intuitionistic and 253
+  in minimal logic, LJT 200, and takes LJT's derivation where LJT gives
+  one (`ordinary::sat::decide_preferring_ljt`). The embedding stays the
   default for classical logic, for its derivations and certificates.
 - **The harness runs ordinary logic**: `deduxit-bench run --tptp PATH
   --logics …` with the engines `embedding`, `ljt` and `auto`, and

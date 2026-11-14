@@ -843,7 +843,8 @@ impl Shared {
             Ok(outcome) => outcome,
             Err(deduxit::Error::Refused(deduxit::Refusal::Stopped { .. })) => {
                 let line = format!(
-                    "unknown ({} logic by {}): a proof was found, but {} before it was checked",
+                    "unknown ({} logic by {}): the search ended, but {} before its answer \
+                     was checked",
                     options.logic,
                     ordinary::by(method),
                     Stop::why(ended.stop)
