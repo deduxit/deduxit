@@ -769,3 +769,177 @@ built page with a scratch Playwright script on cores 13-15.
 - The dev shell of a fresh client workspace built biome from source for
   twenty minutes under the machine lock (nixpkgs had no cached build at
   the client's pin); a later workspace on the same pin reuses it.
+
+## Session 54u-e: checking a certificate
+
+Session 5 of `plan/54u-usability.md` (Opus 5.5 at `high`, 2026-11-14,
+cores 7-9), in the jj workspace `../deduxit-wt-step-54u-e-1160d0`: Q11's
+first half (`plan/notes/usability.md` §6). Nothing was pushed.
+
+### Outcome
+
+`nix run github:deduxit/deduxit#check-certificate -- proof.v` checks a
+certificate the command wrote, with nothing installed but Nix. The flake
+check `check-certificate` runs it on a certificate of each kernel and on
+four files it must refuse. The manual's Rocq chapter leads with it and
+the guide for AI models names it.
+
+| change | what |
+|---|---|
+| `kvqyoyul` | the app, its NanoYalla build and the flake check (`modules/check-certificate.nix`, `modules/check-certificate.sh`), the flake rules and CLAUDE.md |
+| `nzmuxnpp` | the manual's Rocq chapter, the guide's section 18, the status chapter, the changelog |
+| `rwtnqorq` | the reviewer's findings: the lemmas read from Rocq's `.glob` file, sections and modules refused, odd file names |
+| this one | this report |
+
+The app's output on certificates the command wrote, run from an empty
+directory outside the repository (the scratchpad), with the workspace's
+flake:
+
+```
+$ nix run …#check-certificate -- proof.v      # deduxit prove --format rocq --standalone "A * B |- B * A"
+Checking proof.v with Rocq 9.1.1 and NanoYalla 1.1.3.
+Lemma certificate: proved, with no axiom.
+The certificate holds.                         # exit 0
+$ nix run …#check-certificate -- mp.v         # deduxit prove -i … "A, A -o B |- B"
+Checking mp.v with Rocq 9.1.1 and rocq-deduxit 0.3.0.
+Lemma certificate: proved, with no axiom.
+The certificate holds.                         # exit 0
+$ nix run …#check-certificate -- peirce.v     # deduxit prove --logic classical … "((a -> b) -> a) -> a"
+Checking peirce.v with Rocq 9.1.1 and its standard library.
+Lemma certificate: proved, with the excluded middle (classic) as its one axiom.
+The certificate holds.                         # exit 0
+```
+
+The directory held the three `.v` files afterwards and nothing else.
+
+### Decisions, with their reasons
+
+- **All three libraries on the load path at once; the file's imports
+  pick.** `ROCQPATH` names the standard library, NanoYalla and the
+  pinned rocq-deduxit, so Rocq resolves `From NanoYalla` or `From
+  Deduxit` itself and no flag names a kernel. The app reads the import
+  lines only to say which kernel it checks against. Picking one library
+  per file would add a branch that can only be wrong.
+- **NanoYalla built as a Rocq library here.** No package of it exists.
+  The derivation compiles the two files a certificate needs (`nanoll.v`,
+  `macroll.v`) under `user-contrib/NanoYalla`, with the kernel's LGPL
+  licence beside them, since CI pushes the closure to the public cache.
+  The cut files are left out: they hold an axiom and no certificate uses
+  a cut. `rocq.nix` keeps its own copy (proposal below).
+- **`writeShellApplication`, `inheritPath = false`, versions from Nix.**
+  This is nixpkgs' current way to package a script: shellcheck at build,
+  `set -euo pipefail`, `runtimeEnv` for the versions (Rocq's from
+  `rocq-core.version`, NanoYalla's from its README as `rocq.nix` reads
+  it, rocq-deduxit's from the package). The app is flake-parts'
+  `apps.<name>` with `meta.description`, which `nix flake check` asks
+  for (read in flake-parts' `modules/apps.nix` at the pinned revision).
+  The script is a file of its own beside the module, so treefmt's shfmt
+  and shellcheck format and check it.
+- **Compiled in a temporary directory under a fixed name.** Rocq names a
+  module after its file, and a file name may be no identifier
+  (`modus ponens.v`) or a keyword (`if.v`). The copy is `certificate.v`,
+  Rocq's messages get the user's file name back, and nothing is written
+  beside the user's file.
+- **A lemma that rests on an axiom is refused** (departs from the
+  design). The brief asks for exit 0 when the file compiles, but a proof
+  left `Admitted` and an `Axiom` compile in silence. A checker that
+  passes them checks nothing. So after the compile, each lemma goes to
+  `Print Assumptions`, as the check `rocq-deduxit` does for its
+  certificates. Only "Closed under the global context" passes, or the
+  standard library's excluded middle alone in a file that imports
+  `Classical_Prop`. Those are the classical certificates over `Prop`,
+  which the check `rocq` compiles too. Every certificate of the command
+  that was tried passes. Before the fix that meant the reviewer's 85: the
+  29 that `rocq.nix` and `rocq-deduxit.nix` generate, the 9 NanoYalla
+  and ordinary snapshots, and the 47 snapshots for rocq-deduxit. After
+  it, the 84 of them in its scratch directory.
+- **The lemmas come from Rocq's `.glob` file** (after the reviewer's
+  findings 1 and 2). It lists every definition from Rocq's own parse,
+  with its kind. The app takes `prf` (every theorem keyword, probed) and
+  `def` at the top level as the lemmas, and refuses every other kind but
+  binders and references: a section (its hypothesis becomes a premise of
+  the lemma, so no assumption shows), a module or module type (a lemma
+  in a functor is no constant of the file), a variable or an axiom. A
+  grep for `Section` would refuse a genuine certificate with an atom
+  named `Section`, which Rocq accepts as an identifier (probed).
+- **Exit statuses 0, 1, 2**: holds, refused, unreadable. These are the
+  command's for proved, unprovable and error.
+- **The manual's example is a `readme-check: skip` block.** README's test
+  has no rule for `nix`, and `cli/` is 54u-b's. The block shows the
+  app's real output, kept equal to it by hand (a note in
+  `.claude/rules/flake.md`). The flake check runs the app.
+
+### The checks
+
+- `nix build .#checks.x86_64-linux.check-certificate`: passes at
+  `rwtnqorq`. It accepts a NanoYalla certificate, a rocq-deduxit one and
+  a classical one over `Prop`, each line naming its kernel. It expects
+  exit 1 for a statement its proof does not prove, a proof left
+  `Admitted`, a lemma proved in a section from `False`, and a fragment
+  without import lines, whose message names `--standalone`.
+- `cargo test -p deduxit-cli --test readme`: 7 passed, after the manual
+  and the guide changed.
+- `nix build` of `manual`, `manual-links`, `conventions`, `typos` and
+  `treefmt`: pass.
+- `nix flake check` under the machine lock: "all checks passed!" at
+  `nzmuxnpp`, and again at this report's change, the chain's last. The app is
+  checked as `apps.x86_64-linux.check-certificate` with no warning.
+- The app from a clean directory: the output above, at `rwtnqorq`.
+- The gate was not run: the chain changes no Rust code. CLAUDE.md asks
+  for it on a commit that touches code.
+
+### The reviewer
+
+`fresh-reviewer` (Fable 5.2, medium) ran once on `kvqyoyul` and
+`nzmuxnpp`. It ran the app on 85 genuine certificates and on adversarial
+files. Its three findings all held, and each is fixed in `rwtnqorq`:
+
+1. **A lemma proved in a `Section` from a `Hypothesis absurd : False`
+   exited 0.** The section discharges the hypothesis into the lemma's
+   statement, so `Print Assumptions` shows none. Fixed: the `.glob` file
+   shows the section, which is refused. The flake check now holds this
+   case.
+2. **The lemma names came from a `sed` over lines**, so `Lemma a … Qed.
+   Lemma b … Admitted.` on one line, a name on the next line,
+   `#[local] Lemma` and `Definition … Admitted.` all passed with 0.
+   Fixed: the names come from the `.glob` file. All four witnesses now
+   exit 1.
+3. **File names**: `-p.v` made `grep` read an option, so the kernel line
+   was wrong and the excluded middle was refused (exit 1). A module
+   named `if` or `Type` failed at `Require`. Fixed: `grep -e … --`, and
+   the copy is always `certificate.v`. Both now exit 0.
+
+After the fix, the reviewer's 84 generated and snapshot certificates in
+its scratch directory all exit 0. Its adversarial files exit 1, but
+`comment.v`, a genuine certificate with a lemma's name in a comment,
+which exits 0 as it should.
+
+### What the next sessions must know (54w-c)
+
+- The Rocq chapter (`docs/src/rocq.md`) now has two headings: "Check a
+  certificate", which leads, and "The kernels", which holds the rest.
+  "To check a certificate without Nix" introduces the hand installs.
+  54w-c rewrites the chapter around the app. Keep the opam lines after
+  it, and the plain statement that the package is not yet in the
+  archive (FR1).
+- The example's first line carries versions (Rocq 9.1.1, NanoYalla
+  1.1.3, rocq-deduxit 0.3.0). A bump of nixpkgs' Rocq or of either
+  kernel changes it, and no test catches that: the block is skipped.
+- The guide names the app in `reference.md` section 18 only.
+  `SKILL.md` stands at 99 lines, at its budget's edge (fewer than 100).
+- `github:deduxit/deduxit/TAG#check-certificate` checks against a
+  release's pins. The manual says so without naming a tag, since no
+  release holds the app yet (0.4.0 will).
+- What the app cannot see: a file that gives the statement's own names
+  another meaning (a `Definition ll`). The statement is read from the
+  file. The manual does not say this; 54w-c may want a sentence.
+
+### Proposals beyond the item, for the author
+
+- `rocq.nix` could compile its certificates against the NanoYalla
+  package `check-certificate.nix` builds, rather than its own copy, so
+  the kernel is built once. It is a change of the check `rocq`, outside
+  this item.
+- `packages.check-certificate` beside the app would let `nix shell` and
+  `nix profile install` take the checker. The item asks for the app
+  alone.
