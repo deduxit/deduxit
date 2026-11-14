@@ -255,6 +255,31 @@ OCaml 4.14 (it was written for 4.06). Each carries
 `share/deduxit-comparison/tools.json` records per `--tools` name.
 `comparison` joins deduxit's command and harness, BenchExec, the provers
 and Python with matplotlib; no check builds it.
+- **`check-certificate.nix`: one command that checks a certificate.**
+  The app `check-certificate` (`nix run .#check-certificate -- FILE`,
+  the program `check-certificate.sh` beside it, a `writeShellApplication`
+  with `inheritPath = false`) puts nixpkgs' Rocq standard library,
+  NanoYalla and the pinned rocq-deduxit on `ROCQPATH` at once and lets
+  the file's own import lines pick the kernel; its first line names the
+  kernel it read (`From NanoYalla`, `From Deduxit`, other imports the
+  standard library, none Rocq alone). NanoYalla is built here as a Rocq
+  library (`nanoll.v` and `macroll.v` under `user-contrib/NanoYalla`,
+  with the LGPL licence beside them); `rocq.nix` still compiles its own
+  copy in the check, so the two builds are separate derivations of the
+  same files. The file is copied into a temporary directory (Rocq names
+  a module after its file, so a name that is no identifier becomes
+  `certificate`), compiled with `-Q . Checked`, and then each `Lemma` or
+  `Theorem` line's lemma is given to `Print Assumptions` from a second
+  file: `Admitted` and an `Axiom` compile in silence, and only
+  `Closed under the global context`, or the standard library's
+  `Classical_Prop.classic` alone in a file that imports `Classical_Prop`
+  (the classical certificates over `Prop`), passes. Exit 0 holds, 1
+  refused, 2 unreadable, as the command's. What it cannot see: that the
+  statement is the sequent the reader means (a file may define its own
+  `ll`); that is read from the file. The check `check-certificate` runs
+  it on a certificate of each kernel and one over `Prop`, and expects
+  status 1 for a changed statement, an `Admitted` proof and a fragment
+  without import lines.
 - `web.nix` is the bindings for a browser (`web.md` has the details):
   the package `deduxit-web` (the module built for wasm32 by the
   `wasm-bindgen` CLI that nixpkgs has for the crate's version in
