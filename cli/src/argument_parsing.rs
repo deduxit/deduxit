@@ -306,7 +306,8 @@ pub(crate) struct ProveArgs {
     #[command(flatten)]
     pub(crate) logic: LogicArgs,
     /// With --logic, how to decide the sequent: through its embedding into
-    /// linear logic, by LJT or by a SAT solver (ordinary.method)
+    /// linear logic, by LJT, by a SAT solver, by its truth table or by a
+    /// tableau (ordinary.method)
     ///
     /// By default every logic is decided by the SAT solver: intuitionistic
     /// and minimal logic with LJT's derivation where LJT gives one, and
@@ -317,9 +318,14 @@ pub(crate) struct ProveArgs {
     /// SAT solver decides every logic; a valid classical sequent gets a
     /// checked clausal proof and no derivation. --translation and --linear
     /// name the embedding, so either of them alone decides through it.
-    /// Under LJT or the SAT solver, --stats prints the method's counters.
-    /// Under every method --format json writes the outcome of the ordinary
-    /// sequent, its "search" tagged by "method".
+    /// The truth table and the tableau decide classical logic, and print
+    /// the table or the tableau in place of a derivation: the table's rows
+    /// that falsify the sequent marked `×`, the tableau's lines numbered,
+    /// each branch closed with `×` or left open. --table-atoms bounds the
+    /// table.
+    /// Under LJT, the SAT solver, the table and the tableau, --stats prints
+    /// the method's counters. Under every method --format json writes the
+    /// outcome of the ordinary sequent, its "search" tagged by "method".
     #[arg(help_heading = LOGIC, long, value_enum, value_name = "METHOD", requires = "logic")]
     pub(crate) method: Option<MethodArg>,
     /// The sequent.
@@ -391,6 +397,13 @@ pub(crate) struct ProveArgs {
     /// records.
     #[arg(help_heading = OUTPUT, long)]
     pub(crate) stats: bool,
+    /// The most atoms a truth table may have, or `none`
+    /// (limits.table_atoms)
+    ///
+    /// The rows double with each atom, so `--method table` refuses a
+    /// sequent of more atoms (exit status 2) unless this is raised.
+    #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u32>, default_value_t = Count(Some(Limits::DEFAULT_TABLE_ATOMS)))]
+    pub(crate) table_atoms: Count<u32>,
     /// Read the settings from a JSON file; the flags override it
     ///
     /// The file is an object with any of the keys `clock`, `limits`,
@@ -1222,6 +1235,12 @@ pub(crate) enum MethodArg {
     /// By a SAT solver, whose search always ends, for every logic; a valid
     /// classical sequent gets a checked clausal proof and no derivation
     Sat,
+    /// By its truth table, for classical logic: every assignment of its
+    /// atoms, within --table-atoms
+    Table,
+    /// By a signed tableau, for classical logic: a closed tableau is a
+    /// checked derivation of LK, an open branch a checked countermodel
+    Tableau,
 }
 
 impl From<MethodArg> for deduxit::ordinary::Method {
@@ -1230,6 +1249,8 @@ impl From<MethodArg> for deduxit::ordinary::Method {
             MethodArg::Embedding => Self::Embedding,
             MethodArg::Ljt => Self::Ljt,
             MethodArg::Sat => Self::Sat,
+            MethodArg::Table => Self::Table,
+            MethodArg::Tableau => Self::Tableau,
         }
     }
 }

@@ -453,6 +453,13 @@ fn check_ordinary(
                     unchecked_into(&line, Some(logic), &show, &mut out)?,
                 )
             }
+            // The reader computed the table again and found the file's.
+            (ordinary::Verdict::Valid(ordinary::Evidence::Table), None) => match &outcome.search {
+                ordinary::Search::Table(table) => {
+                    (Status::Yes, checked_table(table, logic, &show, &mut out)?)
+                }
+                _ => bail!("the outcome is valid by a truth table it does not hold"),
+            },
             _ => {
                 let line = format!(
                     "unknown: the file is the outcome of a sequent of {logic} logic whose search \
@@ -469,6 +476,43 @@ fn check_ordinary(
         }
         anyhow::Ok(status)
     })?
+}
+
+/// Writes the verdict on a truth table that shows its sequent valid, which
+/// the reader computed again: as text, or as `check`'s JSON. Returns
+/// whether the output is to be finished.
+fn checked_table(
+    table: &ordinary::TruthTable,
+    logic: ordinary::Logic,
+    show: &Show,
+    out: &mut io::Output,
+) -> Result<bool> {
+    let sequent = abbreviated(table.sequent(), show.abbreviate, 0);
+    let line = format!(
+        "valid truth table of {sequent} ({logic} logic): none of its {} falsifies it",
+        crate::eliminate::counted(
+            usize::try_from(table.rows()).unwrap_or(usize::MAX),
+            "row",
+            "rows"
+        )
+    );
+    if show.format == Format::Json {
+        let checked = Checked {
+            version: CHECKED_LEVEL,
+            verdict: "valid",
+            mode: None,
+            logic: Some(logic),
+            error: None,
+            message: None,
+            lambda: None,
+            failing: None,
+        };
+        serde_json::to_writer(out.stream(), &checked)?;
+        return Ok(true);
+    }
+    let line = show.verdict.then_some(line);
+    show.open(out, line.as_deref())?;
+    show.close(out, Shown::Nothing, line.as_deref())
 }
 
 /// Writes the line of a document that holds nothing to check, as text or
@@ -646,9 +690,9 @@ fn check_countermodel(
     let model = &countermodel.model;
     let line = match &result {
         Ok(()) => format!(
-            "valid refutation of {sequent} ({logic} logic): a Kripke model of {} worlds refutes it \
-             at world {}",
-            model.worlds.len(),
+            "valid refutation of {sequent} ({logic} logic): a Kripke model of {} refutes it at \
+             world {}",
+            crate::eliminate::counted(model.worlds.len(), "world", "worlds"),
             model.world
         ),
         Err(error) if status == Status::No => {

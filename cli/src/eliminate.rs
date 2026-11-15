@@ -675,7 +675,7 @@ fn unchecked(
 }
 
 /// Returns `count` and the noun for one or for many.
-fn counted(count: usize, one: &str, many: &str) -> String {
+pub(crate) fn counted(count: usize, one: &str, many: &str) -> String {
     format!("{count} {}", if count == 1 { one } else { many })
 }
 

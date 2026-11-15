@@ -115,6 +115,8 @@ pub(crate) fn method_given(args: &ProveArgs, options: &ordinary::Options) -> Res
 pub(crate) const fn by(method: Method) -> &'static str {
     match method {
         Method::Sat => "the SAT solver",
+        Method::Table => "its truth table",
+        Method::Tableau => "a tableau",
         _ => "LJT",
     }
 }
@@ -134,6 +136,10 @@ pub(crate) fn decide_natively(
             sat::decide_preferring_ljt(sequent, logic, limits, stop).map(ordinary::Outcome::from)
         }
         Method::Sat => sat::decide(sequent, logic, limits, stop).map(ordinary::Outcome::from),
+        Method::Table | Method::Tableau => {
+            let search = deduxit::linear::search::Options::default();
+            ordinary::decide_within(sequent, options, &search, limits, stop)
+        }
         _ => ljt::decide(sequent, logic, limits, stop).map(ordinary::Outcome::from),
     }
 }
@@ -299,19 +305,34 @@ pub(crate) fn by_native(
         let outcome = match decided {
             Ok(outcome) => outcome,
             Err(Error::Refused(Refusal::Stopped { .. })) => {
-                let line = format!(
-                    "unknown ({} logic by {}): the search ended, but {} before its answer \
-                     was checked",
-                    options.logic,
-                    by(method),
-                    Stop::why(ended.stop)
-                );
+                // LJT and the SAT solver ask the stop only once their
+                // search has ended; the table and the tableau as they go.
+                let line = if matches!(method, Method::Table | Method::Tableau) {
+                    format!(
+                        "unknown ({} logic by {}): {}",
+                        options.logic,
+                        by(method),
+                        Stop::why(ended.stop)
+                    )
+                } else {
+                    format!(
+                        "unknown ({} logic by {}): the search ended, but {} before its answer \
+                         was checked",
+                        options.logic,
+                        by(method),
+                        Stop::why(ended.stop)
+                    )
+                };
                 match (args.output.format(), &args.output.output) {
                     (Format::Text, None) => io::write(None, &format!("{line}\n"))?,
                     _ => eprintln!("{line}"),
                 }
                 return Ok(Native::Answered(Status::Unknown));
             }
+            Err(error @ Error::Refused(Refusal::Atoms { .. })) => bail!(
+                "{error}; raise the limit with --table-atoms, or decide the sequent by another \
+                 method (--method tableau)"
+            ),
             Err(error @ Error::Refused(_)) => bail!(
                 "{} gave no verdict: {error}; raise the limit (--derivation-limit, \
                  --memory-limit, --work-limit), or decide through the embedding with --method \
@@ -356,7 +377,20 @@ pub(crate) fn write_native(
     let line = show.verdict.then(|| native_verdict_line(outcome, ended));
     let prefix = show.open(&mut out, line.as_deref())?;
     let why = || Stop::why(stopped(deadline));
+    // A truth table or a tableau is the text in place of a derivation.
+    let laid_out = match &outcome.search {
+        ordinary::Search::Table(table) => Some(table.to_string()),
+        ordinary::Search::Tableau(tableau) => Some(tableau.to_string()),
+        _ => None,
+    };
     let shown = match (&outcome.verdict, args.output.quiet) {
+        (_, false) if laid_out.is_some() && format == Format::Text => match (show.tree, laid_out) {
+            (Tree::Never, _) | (_, None) => Shown::Nothing,
+            (_, Some(text)) => {
+                show.after(&mut out, &text, false)?;
+                Shown::Written
+            }
+        },
         (ordinary::Verdict::Valid(_), false) if show.tree == Tree::Never => Shown::Nothing,
         (ordinary::Verdict::Valid(_), false) if over() => {
             Shown::LeftOut(format!("the derivation is not written: {}", why()))
@@ -476,28 +510,56 @@ pub(crate) fn native_verdict_line(outcome: &ordinary::Outcome, ended: &Ended) ->
         ordinary::Verdict::Valid(ordinary::Evidence::Clausal(proof)) => {
             format!("valid ({context}): {proof}")
         }
+        ordinary::Verdict::Valid(_) if method == Method::Table => {
+            format!("valid ({context}): no row falsifies it")
+        }
+        ordinary::Verdict::Valid(_) if method == Method::Tableau => {
+            format!("valid ({context}): every branch closes, a checked derivation of LK")
+        }
         ordinary::Verdict::Valid(_) => format!("valid ({context})"),
-        ordinary::Verdict::NotValid if outcome.countermodel.is_some() => {
-            format!("not valid ({context}): a checked countermodel refutes it")
-        }
-        ordinary::Verdict::NotValid if method == Method::Sat => {
-            let worlds = match &outcome.search {
-                ordinary::Search::Sat(s) => s.worlds,
-                _ => 0,
-            };
-            format!(
-                "not valid ({context}): a countermodel of {worlds} worlds refutes it, too large to \
-                 show and check"
-            )
-        }
-        ordinary::Verdict::NotValid => {
-            format!("not valid ({context}): the search was exhaustive")
-        }
+        ordinary::Verdict::NotValid => match &outcome.search {
+            ordinary::Search::Table(table) => {
+                let rows = table.rows();
+                let falsifying = table.falsifying().len();
+                let rows = if falsifying == 1 {
+                    format!("1 of its {rows} rows falsifies it, a checked countermodel")
+                } else {
+                    format!(
+                        "{falsifying} of its {rows} rows falsify it, the first a checked \
+                         countermodel"
+                    )
+                };
+                format!("not valid ({context}): {rows}")
+            }
+            ordinary::Search::Tableau(_) => {
+                format!("not valid ({context}): an open branch gives a checked countermodel")
+            }
+            _ => not_valid(outcome, method, &context),
+        },
         ordinary::Verdict::Unknown(reason) => {
             format!("unknown ({context}): {}", advice(*reason, "", ended))
         }
         _ => format!("unknown ({context})"),
     }
+}
+
+/// Returns the verdict line of a sequent LJT or the SAT solver found not
+/// valid: with its countermodel, too large a one, or none.
+fn not_valid(outcome: &ordinary::Outcome, method: Method, context: &str) -> String {
+    if outcome.countermodel.is_some() {
+        return format!("not valid ({context}): a checked countermodel refutes it");
+    }
+    if method == Method::Sat {
+        let worlds = match &outcome.search {
+            ordinary::Search::Sat(s) => s.worlds,
+            _ => 0,
+        };
+        return format!(
+            "not valid ({context}): a countermodel of {worlds} worlds refutes it, too large to \
+             show and check"
+        );
+    }
+    format!("not valid ({context}): the search was exhaustive")
 }
 
 /// Returns the lines `--stats` prints for LJT or the SAT solver: its
@@ -519,6 +581,21 @@ pub(crate) fn native_statistics(outcome: &ordinary::Outcome, elapsed: Duration) 
             ("facts derived", s.facts),
             ("clauses", s.clauses),
             ("proof steps", s.proof_steps),
+        ],
+        ordinary::Search::Table(table) => &[
+            ("rows", table.rows()),
+            ("falsifying rows", table.falsifying().len() as u64),
+        ],
+        ordinary::Search::Tableau(tableau) => &[
+            ("lines", u64::from(tableau.line_count())),
+            (
+                "branches",
+                tableau
+                    .nodes()
+                    .iter()
+                    .filter(|n| n.children().is_empty())
+                    .count() as u64,
+            ),
         ],
         _ => &[],
     };

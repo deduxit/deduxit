@@ -225,6 +225,9 @@ impl ProveArgs {
         if apply.set("method") {
             settings.ordinary.method = self.method.map(Into::into);
         }
+        if apply.set("table_atoms") {
+            settings.limits.table_atoms = self.table_atoms.0;
+        }
         // The mode flags together are the batch's mode; each is asked, so
         // that one given overrides the file's.
         if ["intuitionistic", "affine", "mix"]
@@ -626,7 +629,8 @@ mod tests {
             --batch-timeout 2s      /clock/batch_time_limit_ms 1000              2000
             --lambda-notation ascii /lambda/notation           "unicode"         "ascii"
             --lambda-types          /lambda/types              false             true
-            --logic minimal --method ljt /ordinary/method      "embedding"       "ljt""#;
+            --logic minimal --method ljt /ordinary/method      "embedding"       "ljt"
+            --table-atoms 12        /limits/table_atoms        11                12"#;
         const CHECK: &str = r#"
             --memory-limit 2MiB     /limits/memory_bytes       1048576           2097152
             --timeout 3s            /clock/time_limit_ms       5000              3000
