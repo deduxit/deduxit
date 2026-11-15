@@ -209,7 +209,8 @@ top, world 0 forces neither `a` nor `~a`, since world 1 above it forces
 `a`; so it forces `~~a` and not `a`.
 
 In classical logic the model has one world: the atoms it forces are
-true, the others false. In minimal logic a world may force `false`, as
+true, the others false. By default the verdict line names those atoms
+itself; where it cannot, the model follows it. In minimal logic a world may force `false`, as
 an atom. deduxit checks the model before it gives the verdict, and
 `check` checks it again in a file `prove --format json` wrote. LJT
 (`--method ljt`) finds no model: its "not valid" says the search was

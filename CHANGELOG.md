@@ -116,7 +116,8 @@ unchanged.
   model in every logic, and in classical logic the embedding's
   assignment as a model of one world, checked before the verdict.
   `prove --logic` prints the SAT solver's after the verdict line, a
-  world per line (the embedding's verdict line names its assignment);
+  world per line (the embedding's verdict line names its assignment, and
+  where its refutation is none the solver's model follows it);
   its JSON holds it under `countermodel`, with the sequent it refutes,
   and `check` checks it there. LJT's "not valid" has none. A model too
   large to check (past `ordinary::MODEL_CELLS` cells or the memory

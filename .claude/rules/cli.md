@@ -157,7 +157,9 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   embedding's refutation first: a wrong model is the answer, else the
   image's refutation is checked as before. The classical default's JSON
   takes the solver's model where the embedding's refutation gave none
-  (`ordinary::solver_model`, in `prove` and the batch). A Kripke
+  (`ordinary::solver_model`, in `prove` and the batch), and `prove`'s
+  text prints it after the embedding's verdict line (the batch's lines
+  do not). A Kripke
   model document (`read_document` probes `worlds`) is checked against
   `--sequent` under `--logic` (`check_model`: `Model::forcing`, then
   `--world N` or every world (`Forcing::failing_anywhere`: a search per

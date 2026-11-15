@@ -2505,6 +2505,14 @@ fn ordinary_logic() {
     let (status, out, _) = deduxit(&["check"], &json);
     assert_eq!(status, 3);
     assert!(out.contains("holds no refutation to check"), "{out}");
+    // The classical default's refutation by exhaustion names no atoms: the
+    // SAT solver's model follows it.
+    let (status, out, _) = decide(&["--logic", "classical", "--classical-work", "0", "a |- b"]);
+    assert_eq!(status, 1);
+    assert!(
+        out.ends_with("the search was exhaustive\nworld 0 (the model's world): forces a\n"),
+        "{out}"
+    );
     // By default the SAT solver gives way to the embedding where a bound
     // stops it.
     let (status, out, _) = decide(&[

@@ -1,7 +1,7 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-use crate::argument_parsing::{Format, ProveArgs};
+use crate::argument_parsing::{Format, ProveArgs, Tree};
 use crate::io;
 use crate::limit::{Deadline, Notice};
 use crate::ordinary::{Embedded, Native};
@@ -469,6 +469,17 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
         };
         let drawn = matches!(shown, Shown::Written | Shown::Rendered(_));
         let keep = show.close(&mut out, shown, line.as_deref())?;
+        // Under the classical default, a refutation of the image that is no
+        // assignment names no atoms: the SAT solver's model follows, as
+        // after the solver's own verdict line.
+        if let (Verdict::Unprovable(disproof), Some((solved, _)), Format::Text, false, false) =
+            (&outcome.verdict, &solved, format, quiet, args.linear)
+            && show.tree != Tree::Never
+            && !matches!(disproof.refutation(), Refutation::Classical(_))
+            && let Some(countermodel) = &solved.countermodel
+        {
+            show.after(&mut out, &countermodel.model.to_string(), drawn)?;
+        }
         // The other formats write the term into their drawing.
         if let (Verdict::Proved(proof), Format::Text, Some(_)) =
             (&outcome.verdict, format, show.lambda)
