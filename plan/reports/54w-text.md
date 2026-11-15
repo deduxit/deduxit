@@ -2481,3 +2481,137 @@ for this visit alone, which a load resets; nothing broke from it.
   6 in the dev shell); watch it.
 - Not changed: `leave` keeps a forced engine and the visit-only
   settings, which a load resets.
+
+## Session 54w-e4a: lambda
+
+Item 6 of `plan/54w-text.md` for the module `lambda` (54w-e4 split:
+`ordinary` waits for 54w-e4b), Opus 5.5 at `high`, 2026-11-15, cores
+10-12, in the jj workspace `../deduxit-wt-step-58b-8c0bbc` (a reused
+worker), started on `main@origin` (`llpsqton`). Nothing was pushed.
+
+### Outcome
+
+Every doc comment and comment of `core/src/lambda/` (`mod.rs`,
+`linear.rs`, `simple.rs`, `print.rs`) is rewritten to
+`.claude/rules/writing.md`, with `Derivation::term`'s doc in
+`core/src/linear/proofs/derivation/view.rs`. No code changed. One
+commit, `rnqonlkk` ("Rewrite the lambda module's docs for its users"),
+and this section.
+
+What a caller gets:
+- `lambda`'s front doc opens with what a term is for a user (the proof
+  as a program, Curry-Howard in one sentence, the two calculi), then
+  "Get a term": a doc test that proves `A, A -o B |- B`
+  intuitionistically, calls `Derivation::term`, and prints `f x` and the
+  judgement `x : A, f : A ⊸ B ⊢ f x : B`, with one sentence on how to
+  read the judgement. Then "What has no term" (each refusal, and
+  `Error::NoTerm`'s `NoTerm`), "The calculi" (the sources and the rule
+  table, unchanged) and "The term's data".
+- `Options` has an example (ASCII with typed binders:
+  `|- \x:A. x : A -o A`) and names `Settings::lambda`.
+- `Term` says which calls make one and how to print it, and lists what
+  it holds; `Variable` says how names are chosen (`f g h` for
+  functions, `x y z u v w` otherwise, then the next index);
+  `Calculus::Linear` states its use rule; `Display` says it fails only
+  where the formatter does; `write` says why the bound matters and
+  points to `to_string()` for the plain case.
+- The exports' lambda docs (`with_lambda`, the `lambda` fields of
+  `latex::Options`, `typst::Options`, `svg::Style`, `Settings::lambda`)
+  already read to the rules after 54w-e3; left as they are (the
+  reviewer agreed).
+
+### Claims found wrong, and fixed
+
+- `Calculus::Linear` said every variable is used exactly once "but
+  those under `discard`, `copy`, `true` and `false`". No variable is
+  exempt: those four count as a use, and the components of a pair and
+  the branches of a `case` share their variables (the tests' `Checker`).
+- The front doc said every form but the affine reading, `⟨⟩` and the
+  ASCII notation is the sources'. The cut's redex `(λx:A. N) M` is
+  deduxit's own too (the thesis's cut is the substitution itself), as
+  the manual's chapter says.
+- `Derivation::term` said the term is "built within `limits`"; both
+  read-backs ignore `limits` (the term is never larger than the
+  derivation). Now it says `limits` refuses nothing.
+- `Builder::variable`'s cast comment said "fewer variables than
+  inferences, each of which binds two at most": a promotion binds a
+  variable per hypothesis. Now: at most two per hypothesis of a sequent
+  (a contraction's copies), so the cast truncates only past 2³¹ of them.
+  `Builder::node`'s comment now lists the counts as `linear::read` does
+  (it said "twice the inferences, plus the variables", leaving out a
+  compact run's discards and copies).
+- `simple::read`'s memory note said two nodes and two variables per
+  inference; the root's hypotheses take a variable each, and `∨L` makes
+  three nodes (two of them its variables'). Restated.
+- `Place::Argument` said "anything but an atomic term is bracketed";
+  only a binder, a tensor or an application is (`bracketed`).
+- The reviewer's finding (below): `Options::types` said "every binder"
+  shows its type; only `λ` does (and `false`/`abort` their goal).
+
+### How no code changed
+
+A lexer in the session's scratch directory drops `//` and nested
+`/* */` comments outside string, raw-string and char literals, drops doc
+attributes (`#[doc = …]`, `#![doc = …]`, `cfg_attr(…, doc = …)`),
+collapses whitespace and compares each file with `main@origin` (`jj
+file show`). A planted `+ 2` → `+ 3` in `print.rs` was caught. Result
+at the last commit: `checked 5 files against main@origin, 0 with a code
+difference`. The only attributes added are the two doc-test fences.
+
+### The checks
+
+| check | result |
+|---|---|
+| the no-code check, 5 files | 0 with a code difference |
+| `cargo test --doc -p deduxit --all-features lambda` | 2 passed (both new examples) |
+| `cargo test --doc -p deduxit --no-default-features` | 5 passed, 54 ignored |
+| `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features` | exit 0 |
+| `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --document-private-items -p deduxit -p deduxit-cli` | exit 0 |
+| `cargo clippy --workspace --all-targets -- --deny warnings` | exit 0 |
+| `rustfmt --check --edition 2024` on the 5 files | clean |
+| the gate (capped, cores 10-12), before the reviewer's prose fix | `gate: passed` |
+| `nix flake check --max-jobs 4 --cores 8` under the machine lock, at the chain rebased on `main@origin` (`zpqkxmzo`) | "all checks passed!", exit 0 |
+
+### The review
+
+The `fresh-reviewer` (Fable 5.2 at `medium`) read the commit against
+the brief, the writing rules and the code. It found no code changed
+(its own comparison: only the two fences differ), and checked the use
+rule against the tests' checker, the naming against `LETTERS`,
+`Display`'s failure, the judgement's leading `⊢`, the unused `limits`,
+both cast comments, `simple::read`'s counts, the cut's form against the
+manual and `Place::Argument`. One finding: "every binder shows its
+variable's type" (front doc and `Options::types`, inherited from the
+old text) is false, since `Printer::pieces` types only `λ`. Fixed in
+`rnqonlkk` (six doc lines: the front doc, `Options`, `types`,
+`DEFAULT_TYPES`, `Default`, and the printer's private field); the
+no-code check holds after it.
+
+### Proposals for the author
+
+None.
+
+### What the next sessions must know
+
+- **For a later text session**: the manual (`docs/src/terms.md:183`)
+  and `--lambda-types`' help (`cli/src/argument_parsing.rs`, "Write
+  every binder of a lambda-term with its variable's type") make the
+  same false claim; only `λ`, `false` and `abort` get types. Both are
+  outside this session's files.
+- `ordinary::Derivation::term`'s doc is 54w-e4b's; it makes no claim on
+  `limits` (unused there too), and its `# Panics` for an unchecked
+  derivation is the export path 54w-e3 named.
+- The front doc's example of LJ is prose only (a link to
+  `ordinary::Derivation::term`), since 55b reshapes `ordinary`'s calls;
+  54w-e4b may add a doc test once those settle.
+- Doubts left, none shown wrong: `Builder::ty`'s cast comment ("one type
+  per occurrence or ordinary formula, … the simple calculus adds at most
+  three per formula") leaves the same margin as the variables'; and
+  `linear::read`'s "never more nodes than the derivation has members"
+  rests on counting a contraction's intermediate copies against the
+  conclusion's members.
+- `.claude/rules/core-lambda.md` keeps history wording ("Step 71's
+  checker", "the review found the first printer…"); rules files are
+  working notes, left as they are.
+- Three of the Edit calls here went out in parallel by mistake; `jj log`
+  showed no divergent change and every edit is in the files.
