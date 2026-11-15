@@ -99,7 +99,11 @@ for NanoYalla. What the code relies on:
   `style.rs`), `TwoSided`, `ordinary::Derivation` (in
   `ordinary/derivation.rs`) and `rules::Drawing` (in `rules/draw.rs`):
   the root, the premises, a rule as a number below `rules()` (`open()`
-  the open goal's), `markup(rule, labels)`, `times` (1 for LK/LJ), `label` (the markup and `RUN` for a run), the sequent as the
+  the open goal's, `bare()` the one drawn as its sequent alone, a
+  hypothesis of natural deduction: `\hypo{…}` in LaTeX, a bare
+  conclusion in curryst, premises `-1` in the own Typst layout, whose
+  script then draws no line, no dots and no dash, no line in SVG, no bar
+  in the text tree), `markup(rule, labels)`, `times` (1 for LK/LJ), `label` (the markup and `RUN` for a run), the sequent as the
   text tree writes it (`write_sequent`) and in a `Notation`
   (`sequent(out, notation, id, aligned, marks)`), and the SVG's
   `positions` for `Style::ids`. The text tree, the steps of `<desc>`,
@@ -307,7 +311,16 @@ for NanoYalla. What the code relies on:
   it unfolds (`INFERENCE` and `MEMBER` bytes), so a derivation whose
   sharing would unfold exponentially is refused, not drawn. Its rules
   are the derivation's rule names in their order, then a hypothesis
-  (`hyp`), then the open goal; a name's subscript digits are lowered
+  (no label: it is `bare()`), then each rule that discharges with the
+  marks of the scopes it discharges (`→I` with `style::RAISED` before a
+  `{3}` group, `Part::Sup`, set as a superscript in every target: LaTeX
+  `^{…}`, Typst `^(…)`, SVG between `svg::SUPERSCRIPT`'s marks, text in
+  superscript digits), then the open goal; the marks number the
+  discharged scopes in the drawing's order, from the leaves up, so a
+  rule's label variant is a rule of its own and the per-rule tables
+  need nothing per inference; a hypothesis of a discharged scope is
+  written `[A]` and its mark raised (`Atoms::superscript`), an
+  assumption bare. A name's subscript digits are lowered
   (`∧L₁` as `∧L_1`), and its `_` and `*` are kept as text by
   `style::LITERAL` (U+0007 before a character makes `parts` read it as
   text): unescaped, `_|_E` wrote a double subscript that pdfLaTeX and
@@ -329,8 +342,33 @@ for NanoYalla. What the code relies on:
   pdfLaTeX sets only the characters `escape` spells: a rule file whose
   symbol is another non-ASCII character needs LuaLaTeX or XeLaTeX.
   Rocq refuses it (`Unsupported::Calculus`) and the lambda-term too
-  (`NoTerm::Calculus`). Snapshots `rules.*` (LJ) and `rules-tableau.*`
-  (the tableau's signs set upright), which the `export` check compiles.
+  (`NoTerm::Calculus`). Snapshots `rules.*` (LJ), `rules-tableau.*`
+  (the tableau's signs set upright) and `natural.*` (NJ's `∨E` and `→I`
+  with their marks), which the `export` check compiles.
+- **A Fitch proof** (`rules::Fitch`, `Drawable::Fitch`, feature
+  `serialize`; `core-rules.md` has the order of its lines): written by
+  each target's own function, not through `Drawn`, since it is a list.
+  LaTeX for the package `fitch` 1.0 (Selinger's, maintained by the Open
+  Logic Project; TeX Live's `fitch`, which needs `kvoptions`): `$\begin{nd}`
+  in math mode, `\open`/`\close` per subproof, `\hypo{n}{…}` and
+  `\have{n}{…}` with the line's number as its label, `\by{$RULE$}{2-4,
+  5}` (the package reads `-` as a range and `,` as a list and renders
+  `RULE, 2–4, 5`), the options' notes upright. Typst for fitchcraft
+  `typst::FITCHCRAFT` (1.0.1, chosen over derive-it, which draws no bar
+  under an assumption): `#proof((open, $A$, assume, ($B$, [$RULE$
+  2–4]), close, …))`; the package numbers the visible lines in order, as
+  the citations do, and a standalone document imports it, not the
+  options' `import` (curryst's). SVG (`svg/fitch.rs`): numbers
+  right-aligned at the label size, a vertical line per block from the
+  top of its first row to the bottom of its last (`premise_gap / 2`
+  apart), a short bar under a block's last hypothesis as wide as its
+  widest hypothesis, the justifications in a column a `premise_gap`
+  right of the widest formula, ids `l<n>` on each line's formula, and a
+  `<desc>` that reads each line as a sentence ("Line 6, b ∨ a: by ∨E
+  from line 1, the subproof of lines 2 to 3 …"). The `export` check
+  compiles `fitch.*`; `modules/export.nix` adds `fitch`, `kvoptions` and
+  the fitchcraft that `FITCHCRAFT` names, read from the source as
+  curryst's is.
 - **No drawing is held twice** (F5): `document` takes a closure that
   writes the body into the document itself; the sequent's line is laid
   out twice by `lay` (its width for the head, then each piece written as

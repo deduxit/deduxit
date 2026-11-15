@@ -973,7 +973,7 @@ pub fn write<'a>(
         // The certificate is the proof's, whichever way it is drawn.
         Drawable::Classical(view) => linear(view.derivation(), options, out, stop),
         #[cfg(feature = "serialize")]
-        Drawable::Rules(_) => Err(Unsupported::Calculus.into()),
+        Drawable::Rules(_) | Drawable::Fitch(_) => Err(Unsupported::Calculus.into()),
     }
 }
 

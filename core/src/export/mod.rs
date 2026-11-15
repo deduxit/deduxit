@@ -198,7 +198,7 @@ pub(crate) fn judgement(
             });
         }
         #[cfg(feature = "serialize")]
-        Drawable::Rules(_) => {
+        Drawable::Rules(_) | Drawable::Fitch(_) => {
             return Err(crate::Error::NoTerm {
                 reason: crate::lambda::NoTerm::Calculus,
             });
@@ -217,8 +217,9 @@ pub(crate) fn judgement(
 /// - the two-sided view of a classical derivation;
 /// - a derivation of LK or LJ, read back from a proof of an ordinary
 ///   sequent's image;
-/// - a derivation in a calculus given as data, as a
-///   [`rules::Drawing`](crate::rules::Drawing) lays it out.
+/// - a derivation in a calculus given as data, as a tree
+///   ([`rules::Drawing`](crate::rules::Drawing)) or as a Fitch proof
+///   ([`rules::Fitch`](crate::rules::Fitch)).
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug)]
 pub enum Drawable<'a> {
@@ -234,6 +235,19 @@ pub enum Drawable<'a> {
     /// Needs the cargo feature `serialize`.
     #[cfg(feature = "serialize")]
     Rules(&'a crate::rules::Drawing<'a>),
+    /// A derivation in a calculus given as data, as a Fitch proof.
+    ///
+    /// Needs the cargo feature `serialize`.
+    #[cfg(feature = "serialize")]
+    Fitch(&'a crate::rules::Fitch<'a>),
+}
+
+#[cfg(feature = "serialize")]
+impl<'a, 'p: 'a> From<&'a crate::rules::Fitch<'p>> for Drawable<'a> {
+    /// Writes a derivation in a calculus given as data as a Fitch proof.
+    fn from(proof: &'a crate::rules::Fitch<'p>) -> Self {
+        Self::Fitch(proof)
+    }
 }
 
 #[cfg(feature = "serialize")]

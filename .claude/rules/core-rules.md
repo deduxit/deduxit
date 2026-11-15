@@ -283,6 +283,28 @@ design, with the reasons and the alternatives weighed, is
   copies, last; a goal closed by a line after the line's step). Such a
   session is written at wire level 18 (`wire::FORWARD`, the keys
   `line` and `cites`); one without stays at 17.
+- **The Fitch proof** (`fitch.rs`, `rules::Fitch`, `FitchOptions`):
+  the lines are ordered per scope by Kahn's algorithm over its parts (a
+  node of the scope, or a subproof inside it as one part), a part after
+  every part it cites, hypotheses first, the scope's conclusion (the
+  root for the main proof, the premise a rule takes from the subproof
+  otherwise) held back to the last, ties in the derivation's order;
+  then each subproof is expanded in place by a stack of its own. A part
+  that cites across scopes waits at the scope that holds both
+  (`Climb::inside` walks up the scopes, each step counted against
+  `limits.work`). It refuses with `Error::NotFitch` (unsupported,
+  `not_fitch`), with the reason, a last node inside a subproof, a
+  premise out of reach, a subproof two rules take with different
+  conclusions, and an order that cannot put the conclusion last (a
+  line inside a subproof uses its conclusion, or a cycle through a
+  subproof); the checker accepts some of those, which can still be
+  drawn as a tree. A node cited by several lines is one line. Its size
+  is estimated before anything is laid out (`LINE`, `MEMBER`, against
+  `limits.derivation_bytes`, `Refusal::Output { what: "Fitch proof" }`).
+  `Display` is the text form (`│` per proof, `├───` under hypotheses,
+  the justifications aligned). The choice between the two layouts is
+  `ViewOptions::layout` (`Layout::Tree`, `Fitch`), the command's
+  `--layout`; `Styles::fitch` holds `FitchOptions`.
 - **The drawing** (`draw.rs`, `rules::Drawing`): the exports' view of
   a derivation, `core-export.md` has its rules. A session's tree is
   numbered alike in `Interactive::derived` and in the drawing (both

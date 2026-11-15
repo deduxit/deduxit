@@ -650,6 +650,16 @@ pub enum Error {
         /// The variables and contexts, by name.
         needs: Vec<String>,
     },
+    /// A derivation cannot be written as a Fitch proof: no order of its
+    /// lines keeps every subproof together under its hypotheses with the
+    /// line it concludes last, for the reason given. It may still be drawn
+    /// as a tree.
+    #[error("no Fitch proof: {reason}")]
+    #[non_exhaustive]
+    NotFitch {
+        /// Why.
+        reason: String,
+    },
     /// A node's sequent has another number of zones than its
     /// derivation's sequents.
     #[error("the sequent has {found} zones; the derivation's sequents have {zones}")]
@@ -802,6 +812,7 @@ impl Error {
         "zones",
         "step_refused",
         "step_needs",
+        "not_fitch",
         "no_term",
         "no_derivation",
         "not_built",
@@ -853,6 +864,7 @@ impl Error {
             }
             Self::InvalidCalculus { .. } | Self::Zones { .. } | Self::StepNeeds { .. } => Malformed,
             Self::StepRefused { .. } => Invalid,
+            Self::NotFitch { .. } => Unsupported,
             Self::NotIntuitionistic(_)
             | Self::IntuitionisticMix
             | Self::OrderedMode { .. }
@@ -975,6 +987,7 @@ impl Error {
             Self::Zones { .. } => "zones",
             Self::StepRefused { .. } => "step_refused",
             Self::StepNeeds { .. } => "step_needs",
+            Self::NotFitch { .. } => "not_fitch",
             Self::NoCut { .. } => "no_cut",
             Self::NoTerm { .. } => "no_term",
             Self::NoDerivation { .. } => "no_derivation",
@@ -1329,6 +1342,7 @@ mod tests {
             Error::StepNeeds {
                 needs: vec!["C".to_owned()],
             },
+            Error::NotFitch { reason: message() },
         ];
         let vertex = crate::linear::nets::VertexId::new(0);
         let nets = [
@@ -1538,6 +1552,7 @@ mod tests {
             | Error::Zones { .. }
             | Error::StepRefused { .. }
             | Error::StepNeeds { .. }
+            | Error::NotFitch { .. }
             | Error::NoCut { .. }
             | Error::NoTerm { .. }
             | Error::NoDerivation { .. }

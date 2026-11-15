@@ -1,0 +1,15 @@
+\documentclass[border=5pt]{standalone}
+\usepackage{amssymb}
+\usepackage{cmll}
+\usepackage{ebproof}
+\begin{document}
+\begin{prooftree}
+\hypo{[a \lor b]^{3}}
+\hypo{[a]^{1}}
+\infer1[$\lor\mathrm{I}_2$]{b \lor a}
+\hypo{[b]^{2}}
+\infer1[$\lor\mathrm{I}_1$]{b \lor a}
+\infer3[$\lor\mathrm{E}^{1,2}$]{b \lor a}
+\infer1[$\to\mathrm{I}^{3}$]{a \lor b \to b \lor a}
+\end{prooftree}
+\end{document}

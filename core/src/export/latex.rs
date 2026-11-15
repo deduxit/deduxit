@@ -425,6 +425,13 @@ fn label(out: &mut String, markup: &str) {
                 out.push('_');
                 out.push_str(t);
             }
+            Part::Sup(t) => {
+                out.push_str("^{");
+                for c in t.chars() {
+                    escape(out, c).unwrap();
+                }
+                out.push('}');
+            }
             Part::Sub(t) => {
                 out.push_str("_{");
                 text(out, t);
@@ -436,13 +443,13 @@ fn label(out: &mut String, markup: &str) {
 
 /// Writes the start of a standalone document, with `ebproof` loaded if
 /// `tree` is set.
-fn begin(out: &mut impl Write, options: &Options, tree: bool) -> std::fmt::Result {
+fn begin(out: &mut impl Write, options: &Options, package: Option<&str>) -> std::fmt::Result {
     match &options.preamble {
         Some(preamble) => writeln!(out, "{}", preamble.trim_end())?,
         None => {
             out.write_str(PREAMBLE)?;
-            if tree {
-                out.write_str("\\usepackage{ebproof}\n")?;
+            if let Some(package) = package {
+                writeln!(out, "\\usepackage{{{package}}}")?;
             }
         }
     }
@@ -456,7 +463,7 @@ fn formed(math: String, options: &Options) -> String {
         Form::Fragment => math,
         Form::Standalone => {
             let mut out = String::new();
-            begin(&mut out, options, false).expect("a string takes any text");
+            begin(&mut out, options, None).expect("a string takes any text");
             out.push_str(&math);
             out.push_str("\n\\end{document}");
             out
@@ -540,6 +547,8 @@ pub fn write<'a>(
         Drawable::Classical(view) => tree(view, options, judgement, out, stop),
         #[cfg(feature = "serialize")]
         Drawable::Rules(drawing) => tree(drawing, options, judgement, out, stop),
+        #[cfg(feature = "serialize")]
+        Drawable::Fitch(proof) => fitch(proof, options, out, stop),
     }
 }
 
@@ -576,7 +585,7 @@ fn tree<T: Drawn>(
 ) -> Result<(), Error> {
     let standalone = options.form == Form::Standalone;
     if standalone {
-        begin(out, options, true)?;
+        begin(out, options, Some("ebproof"))?;
     }
     out.write_str("\\begin{prooftree}")?;
     if !options.ebproof.is_empty() {
@@ -591,6 +600,7 @@ fn tree<T: Drawn>(
         let markup = derivation.label(id, &options.labels);
         let markup = markup.as_deref();
         match (derivation.is_open(id), &options.open) {
+            _ if derivation.is_bare(id) => buffer.push_str("\\hypo"),
             (true, OpenGoal::Dots) => buffer.push_str("\\hypo{\\vdots}\n\\infer[no rule]1"),
             (true, OpenGoal::Bare) => buffer.push_str("\\hypo"),
             (true, OpenGoal::Dashed) => buffer.push_str("\\infer[dashed]0"),
@@ -618,6 +628,74 @@ fn tree<T: Drawn>(
         writeln!(out, "\\infer[no rule]1{{{judgement}}}")?;
     }
     out.write_str("\\end{prooftree}")?;
+    if standalone {
+        out.write_str("\n\\end{document}")?;
+    }
+    Ok(())
+}
+
+/// Writes a Fitch proof with the package `fitch` (Selinger's, kept by the
+/// Open Logic Project) into `out`, one line at a time, and asks `stop`
+/// after each: the `nd` environment in math mode, a `\\hypo` per
+/// hypothesis, a `\\have` per other line with its rule and citations in
+/// `\\by`, and `\\open` and `\\close` around each subproof. A line's
+/// number is its label, which the citations name.
+#[cfg(feature = "serialize")]
+fn fitch(
+    fitch: &crate::rules::Fitch<'_>,
+    options: &Options,
+    out: &mut impl Write,
+    mut stop: impl FnMut() -> bool,
+) -> Result<(), Error> {
+    let standalone = options.form == Form::Standalone;
+    if standalone {
+        begin(out, options, Some("fitch"))?;
+    }
+    out.write_str("$\\begin{nd}\n")?;
+    let blocks = fitch.blocks();
+    let mut buffer = String::new();
+    for (index, line) in fitch.lines().iter().enumerate() {
+        let index = index as u32;
+        for block in blocks {
+            if block.depth > 0 && block.first == index {
+                buffer.push_str("\\open\n");
+            }
+        }
+        let kind = if fitch.is_hypothesis(line) {
+            "hypo"
+        } else {
+            "have"
+        };
+        write!(buffer, "\\{kind}{{{}}}{{", index + 1)?;
+        fitch.formula(line, &NOTATION, &mut buffer);
+        buffer.push('}');
+        match fitch.rule(line) {
+            Some(rule) => {
+                buffer.push_str(" \\by{$");
+                label(&mut buffer, &rule);
+                buffer.push_str("$}{");
+                // The package reads `-` as a range and `,` as a list.
+                crate::rules::Fitch::write_cites(line, "-", &mut buffer)?;
+                buffer.push('}');
+            }
+            None if fitch.note(line).is_empty() => {}
+            None => {
+                buffer.push_str(" \\by{$");
+                upright(&mut buffer, fitch.note(line))?;
+                buffer.push_str("$}{}");
+            }
+        }
+        buffer.push('\n');
+        let closing = blocks
+            .iter()
+            .filter(|block| block.depth > 0 && block.last == index)
+            .count();
+        for _ in 0..closing {
+            buffer.push_str("\\close\n");
+        }
+        flush(out, &mut buffer, &mut stop)?;
+    }
+    out.write_str("\\end{nd}$")?;
     if standalone {
         out.write_str("\n\\end{document}")?;
     }

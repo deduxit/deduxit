@@ -110,7 +110,9 @@ pub(super) fn draw<T: Drawn>(
         let width = conclusion(&mut sequent, id).width;
         let baseline = -(depth as i64) * line_height;
         top = top.min(baseline - HEIGHT);
-        if derivation.is_open(id) && (bare || dotted) {
+        let alone = derivation.is_bare(id);
+        if alone || (derivation.is_open(id) && (bare || dotted)) {
+            let dotted = dotted && !alone;
             if dotted {
                 top = top.min(baseline - dots_rise - HEIGHT);
             }
@@ -252,7 +254,7 @@ pub(super) fn draw<T: Drawn>(
         let line = conclusion(&mut sequent, id);
         text(&mut buffer, x + place.left, y, &line, &attributes, ids);
         match place.bar {
-            None if dotted => {
+            None if dotted && derivation.is_open(id) => {
                 let dots_x = x + (place.width - dots.width) / 2;
                 text(&mut buffer, dots_x, y - dots_rise, &dots, "", None);
             }

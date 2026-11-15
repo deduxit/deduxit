@@ -37,6 +37,8 @@ CLL = "CLL"
 MAILL = "MAILL"
 # Double negation elimination, in the name of the calculus NK-DNE.
 DNE = "DNE"
+# The LaTeX package fitch's environment of a proof, `\begin{nd}`.
+nd = "nd"
 # FoSSaCS, a conference.
 Fo = "Fo"
 # A field named after a plural of `&`, and a hyphenated prefix.

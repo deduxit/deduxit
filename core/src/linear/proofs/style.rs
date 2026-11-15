@@ -102,6 +102,9 @@ pub(crate) enum Part<'a> {
     Text(&'a str),
     /// A subscript, its text set upright.
     Sub(&'a str),
+    /// A superscript, its text set upright: the marks of the hypotheses a
+    /// rule of natural deduction discharges.
+    Sup(&'a str),
 }
 
 /// The mark before a character of a label that is text, whatever the
@@ -109,6 +112,11 @@ pub(crate) enum Part<'a> {
 /// writes its `_` so. No label typed by hand holds it, being a control
 /// character.
 pub(crate) const LITERAL: char = '\u{7}';
+
+/// The mark before a `{…}` group of a label set as a superscript: the
+/// marks of the hypotheses a rule discharges, `→I¹`. A control character,
+/// so no label typed by hand holds it.
+pub(crate) const RAISED: char = '\u{8}';
 
 /// Returns whether a character of a label is a symbol.
 fn symbol(c: char) -> bool {
@@ -144,7 +152,15 @@ pub(crate) fn parts(markup: &str) -> Vec<Part<'_>> {
     let mut parts = Vec::new();
     let mut rest = markup;
     while let Some(c) = rest.chars().next() {
-        if c == LITERAL {
+        if c == RAISED {
+            let after = &rest[c.len_utf8()..];
+            let (group, next) = match after.strip_prefix('{') {
+                Some(group) => group.split_once('}').unwrap_or((group, "")),
+                None => ("", after),
+            };
+            parts.push(Part::Sup(group));
+            rest = next;
+        } else if c == LITERAL {
             let after = &rest[c.len_utf8()..];
             let next = after.chars().next().map_or(0, char::len_utf8);
             if next > 0 {
@@ -164,13 +180,28 @@ pub(crate) fn parts(markup: &str) -> Vec<Part<'_>> {
             rest = &rest[c.len_utf8()..];
         } else {
             let end = rest
-                .find(|c: char| c == '_' || c == LITERAL || symbol(c))
+                .find(|c: char| c == '_' || c == LITERAL || c == RAISED || symbol(c))
                 .unwrap_or(rest.len());
             parts.push(Part::Text(&rest[..end]));
             rest = &rest[end..];
         }
     }
     parts
+}
+
+/// Returns a character raised as Unicode writes it: a digit as its
+/// superscript character, anything else as it is.
+pub(crate) fn superscript(c: char) -> char {
+    match c {
+        '1' => '¹',
+        '2' => '²',
+        '3' => '³',
+        '0' | '4'..='9' => c
+            .to_digit(10)
+            .and_then(|d| char::from_u32(0x2070 + d))
+            .unwrap_or(c),
+        c => c,
+    }
 }
 
 /// Returns a label's markup as plain Unicode text: subscript digits
@@ -185,6 +216,7 @@ pub(crate) fn plain(markup: &str) -> String {
                 Some(d) => char::from_u32(0x2080 + d).unwrap(),
                 None => c,
             })),
+            Part::Sup(text) => out.extend(text.chars().map(superscript)),
         }
     }
     out
@@ -252,6 +284,21 @@ pub(crate) trait Drawn {
     /// Returns whether an inference is an open goal.
     fn is_open(&self, id: InfId) -> bool {
         self.open() == Some(self.rule(id))
+    }
+
+    /// Returns the rule whose inferences are drawn as their sequent alone,
+    /// with no line and no label, if the calculus has one: a hypothesis of
+    /// natural deduction, which stands at a leaf as a formula, as
+    /// textbooks draw it.
+    fn bare(&self) -> Option<usize> {
+        None
+    }
+
+    /// Returns whether an inference is drawn as its sequent alone
+    /// ([`bare`](Self::bare)).
+    #[cfg(any(feature = "latex", feature = "typst", feature = "svg"))]
+    fn is_bare(&self, id: InfId) -> bool {
+        self.bare() == Some(self.rule(id))
     }
 
     /// Returns the label of an inference as [`markup`](Self::markup) does,

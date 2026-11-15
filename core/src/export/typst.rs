@@ -111,6 +111,12 @@ use std::fmt::Write;
 /// standalone document imports.
 pub const CURRYST: &str = "0.6.0";
 
+// The flake's `export` check compiles the output with the fitchcraft of
+// nixpkgs, so this version and that one change together.
+/// The version of fitchcraft a Fitch proof is written for, and the one a
+/// standalone document imports.
+pub const FITCHCRAFT: &str = "1.0.1";
+
 /// The Typst spelling of formulas and sequents.
 const NOTATION: Notation = Notation {
     tensor: "⊗",
@@ -520,6 +526,11 @@ fn label(out: &mut String, markup: &str) {
                 text(out, t);
                 out.push(')');
             }
+            Part::Sup(t) => {
+                out.push_str("^(");
+                text(out, t);
+                out.push(')');
+            }
         }
     }
 }
@@ -618,7 +629,90 @@ pub fn write<'a>(
         Drawable::Classical(view) => tree(view, options, judgement, out, stop),
         #[cfg(feature = "serialize")]
         Drawable::Rules(drawing) => tree(drawing, options, judgement, out, stop),
+        #[cfg(feature = "serialize")]
+        Drawable::Fitch(proof) => fitch(proof, options, out, stop),
     }
+}
+
+/// Writes a Fitch proof with the package fitchcraft ([`FITCHCRAFT`]) into
+/// `out`, one line at a time, and asks `stop` after each: its `proof`
+/// over the lines, a hypothesis as its formula alone and `assume` after a
+/// proof's or subproof's last one, every other line as its formula and
+/// its justification, and `open` and `close` around each subproof. The
+/// package numbers the lines in order, as the citations do. A standalone
+/// document imports fitchcraft in place of the options' `import`.
+#[cfg(feature = "serialize")]
+fn fitch(
+    fitch: &crate::rules::Fitch<'_>,
+    options: &Options,
+    out: &mut impl Write,
+    mut stop: impl FnMut() -> bool,
+) -> Result<(), Error> {
+    if options.form == Form::Standalone {
+        write!(
+            out,
+            "#import \"@preview/fitchcraft:{FITCHCRAFT}\": *\n{}\n\n",
+            options.page.trim_end()
+        )?;
+    }
+    out.write_str("#proof((\n")?;
+    let blocks = fitch.blocks();
+    let string = |out: &mut String, text: &str| {
+        out.push_str("[#\"");
+        for c in text.chars() {
+            if c == '"' || c == '\\' {
+                out.push('\\');
+            }
+            out.push(c);
+        }
+        out.push_str("\"]");
+    };
+    let mut buffer = String::new();
+    for (index, line) in fitch.lines().iter().enumerate() {
+        let index = index as u32;
+        for block in blocks {
+            if block.depth > 0 && block.first == index {
+                buffer.push_str("  open,\n");
+            }
+        }
+        let mut formula = String::from("$");
+        fitch.formula(line, &NOTATION, &mut formula);
+        formula.push('$');
+        match fitch.rule(line) {
+            Some(rule) => {
+                write!(buffer, "  ({formula}, [$")?;
+                label(&mut buffer, &rule);
+                buffer.push('$');
+                if !line.cites.is_empty() {
+                    buffer.push(' ');
+                    crate::rules::Fitch::write_cites(line, "–", &mut buffer)?;
+                }
+                buffer.push_str("]),\n");
+            }
+            None if fitch.note(line).is_empty() => writeln!(buffer, "  {formula},")?,
+            None => {
+                write!(buffer, "  ({formula}, ")?;
+                string(&mut buffer, fitch.note(line));
+                buffer.push_str("),\n");
+            }
+        }
+        if blocks
+            .iter()
+            .any(|block| block.hypotheses > 0 && block.first + block.hypotheses - 1 == index)
+        {
+            buffer.push_str("  assume,\n");
+        }
+        let closing = blocks
+            .iter()
+            .filter(|block| block.depth > 0 && block.last == index)
+            .count();
+        for _ in 0..closing {
+            buffer.push_str("  close,\n");
+        }
+        flush(out, &mut buffer, &mut stop)?;
+    }
+    out.write_str("))")?;
+    Ok(())
 }
 
 /// Returns a derivation as Typst, whole, as [`write()`] writes it.
@@ -713,11 +807,11 @@ const LAYOUT: &str = r#"  let n = nodes.len()
     width.at(i) = w
     up.at(i) = a
     down.at(i) = d
-    if k == none {
-      let reach = if open == "dots" { dots-width } else { 0pt }
+    if k == none or k == -1 {
+      let reach = if k == none and open == "dots" { dots-width } else { 0pt }
       wide.at(i) = calc.max(w, reach)
       left.at(i) = calc.max(reach - w, 0pt) / 2
-      if open == "dashed" { bar.at(i) = (left.at(i), left.at(i) + w) }
+      if k == none and open == "dashed" { bar.at(i) = (left.at(i), left.at(i) + w) }
       stack.push(i)
       continue
     }
@@ -843,6 +937,8 @@ fn laid_out<T: Drawn>(
         };
         let markup = derivation.label(id, &options.labels);
         let (premises, name) = match (derivation.is_open(id), &options.open) {
+            // A leaf drawn alone, whatever an open goal's shape is.
+            _ if derivation.is_bare(id) => ("-1".to_owned(), None),
             (true, OpenGoal::Mark(mark)) => ("0".to_owned(), Some(mark.as_str())),
             (true, _) => ("none".to_owned(), None),
             _ => (derivation.premises(id).len().to_string(), markup.as_deref()),
@@ -922,6 +1018,10 @@ fn curryst<T: Drawn>(
                     out.push_str("),\n");
                 };
                 match (derivation.is_open(id), &options.open) {
+                    _ if derivation.is_bare(id) => {
+                        conclusion(&mut buffer, id);
+                        buffer.push_str(",\n");
+                    }
                     (true, OpenGoal::Dots) => open(
                         &mut buffer,
                         "grid(align: center, row-gutter: 0.4em, $dots.v$, ",

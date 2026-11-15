@@ -7,7 +7,9 @@
 # TeX Live, Typst with curryst from nixpkgs and resvg, offline; the CLI's
 # PNG and PDF are checked with pngcheck, poppler and veraPDF. The curryst here is the version
 # `deduxit::export::typst::CURRYST' names, read from the source, so a change of
-# one without the other fails to evaluate. The LaTeX
+# one without the other fails to evaluate; fitchcraft, which Fitch proofs
+# use in Typst, likewise by `FITCHCRAFT', and TeX Live's `fitch' for them
+# in LaTeX. The LaTeX
 # and Typst output names no font, so Typst sees only the fonts it embeds;
 # resvg sees one math font and no system font: Euler Math for the
 # snapshots, and each math font the command offers (`--font') for its
@@ -34,6 +36,8 @@
         ps.amsfonts
         ps.cmll
         ps.ebproof
+        ps.fitch
+        ps.kvoptions
         ps.standalone
       ]);
 
@@ -44,8 +48,16 @@
         )
       );
 
+      # The version the Typst export writes into a Fitch proof's import line.
+      fitchcraft = builtins.head (
+        builtins.match ''.*pub const FITCHCRAFT: &str = "([0-9.]+)";.*'' (
+          builtins.readFile ../core/src/export/typst.rs
+        )
+      );
+
       typst = pkgs.typst.withPackages (ps: [
         ps."curryst_${lib.replaceStrings [ "." ] [ "_" ] curryst}"
+        ps."fitchcraft_${lib.replaceStrings [ "." ] [ "_" ] fitchcraft}"
       ]);
 
       # Each math font of `--font', the name a PDF embeds it under, and its

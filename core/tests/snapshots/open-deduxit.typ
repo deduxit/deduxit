@@ -30,11 +30,11 @@
     width.at(i) = w
     up.at(i) = a
     down.at(i) = d
-    if k == none {
-      let reach = if open == "dots" { dots-width } else { 0pt }
+    if k == none or k == -1 {
+      let reach = if k == none and open == "dots" { dots-width } else { 0pt }
       wide.at(i) = calc.max(w, reach)
       left.at(i) = calc.max(reach - w, 0pt) / 2
-      if open == "dashed" { bar.at(i) = (left.at(i), left.at(i) + w) }
+      if k == none and open == "dashed" { bar.at(i) = (left.at(i), left.at(i) + w) }
       stack.push(i)
       continue
     }

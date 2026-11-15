@@ -153,6 +153,29 @@ impl Atoms {
         }
     }
 
+    /// Writes text raised as a superscript: the marks of a discharged
+    /// hypothesis in a tree of natural deduction, `[A]¹`.
+    #[cfg(all(
+        feature = "serialize",
+        any(feature = "latex", feature = "typst", feature = "svg")
+    ))]
+    pub(crate) fn superscript<W: Write + ?Sized>(self, out: &mut W, text: &str) -> FmtResult {
+        match self {
+            Self::Plain => text
+                .chars()
+                .try_for_each(|c| out.write_char(crate::linear::proofs::style::superscript(c))),
+            #[cfg(feature = "latex")]
+            Self::Latex => write!(out, "^{{{text}}}"),
+            #[cfg(feature = "typst")]
+            Self::Typst => write!(out, "^({text})"),
+            #[cfg(feature = "svg")]
+            Self::Italic => {
+                let (open, close) = crate::export::svg::SUPERSCRIPT;
+                write!(out, "{open}{text}{close}")
+            }
+        }
+    }
+
     /// Returns what opens a function's arguments: in Typst a space keeps
     /// the bracket from reading as a call of the name before it.
     #[cfg(feature = "serialize")]

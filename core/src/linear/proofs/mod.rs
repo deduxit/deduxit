@@ -41,8 +41,8 @@ pub mod style;
 use crate::linear::occurrences::{Instances, instances};
 pub use check::{CheckError, Dyadic, Fault, Invalid, Refused};
 pub use derivation::{
-    ClassicalRule, ClassicalSides, Compact, Derivation, InfId, Inference, Sides, Structural,
-    TwoSided, ViewOptions,
+    ClassicalRule, ClassicalSides, Compact, Derivation, InfId, Inference, Layout, Sides,
+    Structural, TwoSided, ViewOptions,
 };
 pub use fmt::TextOptions;
 #[cfg(feature = "interactive")]

@@ -117,10 +117,11 @@ impl InfId {
 /// # JSON
 ///
 /// With the feature `serialize` an object `{"compact": "auto", "sides":
-/// "auto", "classical": "one", "structural": "admissible"}`, `compact` one
-/// of `"auto"`, `"always"` and `"never"`, `sides` one of `"auto"`, `"one"`
-/// and `"two"`, `classical` one of `"one"` and `"two"`, `structural` one
-/// of `"explicit"` and `"admissible"`; a key left out keeps its default,
+/// "auto", "classical": "one", "structural": "admissible", "layout":
+/// "tree"}`, `compact` one of `"auto"`, `"always"` and `"never"`, `sides`
+/// one of `"auto"`, `"one"` and `"two"`, `classical` one of `"one"` and
+/// `"two"`, `structural` one of `"explicit"` and `"admissible"`, `layout`
+/// one of `"tree"` and `"fitch"`; a key left out keeps its default,
 /// and an unknown one is refused, as for every options value.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -150,6 +151,33 @@ pub struct ViewOptions {
     /// derivation ignores it: [`compact`](Self::compact) decides how its
     /// structural rules are drawn.
     pub structural: Structural,
+    /// Whether a front end writes a derivation in a calculus given as data
+    /// as a proof tree or as a Fitch proof, numbered lines with its
+    /// subproofs together. A tree by default
+    /// ([`DEFAULT_LAYOUT`](Self::DEFAULT_LAYOUT)). The other suites'
+    /// derivations are trees whatever this says.
+    pub layout: Layout,
+}
+
+/// Whether a derivation in a calculus given as data is written as a proof
+/// tree ([`rules::Drawing`](crate::rules::Drawing)) or as a Fitch proof
+/// ([`rules::Fitch`](crate::rules::Fitch)).
+///
+/// # JSON
+///
+/// With the feature `serialize`, `"tree"` or `"fitch"`.
+#[non_exhaustive]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", serde(rename_all = "lowercase"))]
+pub enum Layout {
+    /// A proof tree, the conclusion at the root and every hypothesis at a
+    /// leaf, as Gentzen drew natural deduction.
+    #[default]
+    Tree,
+    /// Numbered lines, each with its justification, a subproof's lines
+    /// together under its hypotheses, as Fitch wrote natural deduction.
+    Fitch,
 }
 
 /// Whether a derivation of LK or LJ shows its structural rules.
@@ -260,6 +288,16 @@ impl ViewOptions {
     /// left out where admissible. This is how a first course writes LK and
     /// LJ: the axiom takes a context, and both premises share the context.
     pub const DEFAULT_STRUCTURAL: Structural = Structural::Admissible;
+
+    /// The default of [`layout`](Self::layout): a proof tree, which every
+    /// suite draws.
+    pub const DEFAULT_LAYOUT: Layout = Layout::Tree;
+
+    /// Returns the options with another [`layout`](Self::layout).
+    #[must_use]
+    pub const fn with_layout(self, layout: Layout) -> Self {
+        Self { layout, ..self }
+    }
 
     /// Returns the options with another [`structural`](Self::structural).
     #[must_use]

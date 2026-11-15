@@ -93,6 +93,9 @@
 //! `<title>` names the drawing by its sequent in plain text, and with
 //! [`Style::description`] a `<desc>` reads it out in order.
 
+/// Fitch proofs as numbered lines.
+#[cfg(feature = "serialize")]
+mod fitch;
 /// The fonts a drawing can ask for, and their metrics.
 mod font;
 /// Kripke models, as rows of worlds with arrows up.
@@ -864,8 +867,14 @@ const FORMULA: (char, char) = ('\u{2}', '\u{3}');
 /// the text [`label`] writes.
 const SUBSCRIPT: (char, char) = ('\u{4}', '\u{5}');
 
+/// The characters that open and close a superscript, in a label or a
+/// sequent: the marks of a discharged hypothesis, `[A]¹`, and of the rule
+/// that discharges it.
+pub(crate) const SUPERSCRIPT: (char, char) = ('\u{6}', '\u{f}');
+
 /// Writes a label's markup as text for [`run`]: symbols and text as they
-/// are, a subscript between the [`SUBSCRIPT`] marks.
+/// are, a subscript between the [`SUBSCRIPT`] marks, a superscript
+/// between the [`SUPERSCRIPT`] marks.
 fn label(markup: &str) -> String {
     let mut out = String::new();
     for part in parts(markup) {
@@ -876,6 +885,11 @@ fn label(markup: &str) -> String {
                 out.push(SUBSCRIPT.0);
                 out.push_str(text);
                 out.push(SUBSCRIPT.1);
+            }
+            Part::Sup(text) => {
+                out.push(SUPERSCRIPT.0);
+                out.push_str(text);
+                out.push(SUPERSCRIPT.1);
             }
         }
     }
@@ -1078,7 +1092,8 @@ fn run(text: &str, size: i64, font: &Font) -> Run {
 /// right, and returns its width.
 ///
 /// [`RAISED_BOT`] becomes a superscript `⊥`, the text between the
-/// [`SUBSCRIPT`] marks a subscript, and the text between the [`FORMULA`]
+/// [`SUBSCRIPT`] marks a subscript, the text between the [`SUPERSCRIPT`]
+/// marks a superscript, and the text between the [`FORMULA`]
 /// marks pieces of that formula. A space separates two pieces and never
 /// starts or ends one.
 fn lay(text: &str, size: i64, font: &Font, mut emit: impl FnMut(Piece)) -> i64 {
@@ -1095,7 +1110,7 @@ fn lay(text: &str, size: i64, font: &Font, mut emit: impl FnMut(Piece)) -> i64 {
     };
     let (mut position, mut start, mut end) = (0, 0, 0);
     let mut current = (0, 1000);
-    let (mut lowered, mut formula, mut formulas) = (false, None, 0);
+    let (mut lowered, mut raised, mut formula, mut formulas) = (false, false, None, 0);
     let mut piece = String::new();
     let mut close = |piece: &mut String, shape: (i64, i64), formula, start, end| {
         piece.truncate(piece.trim_end_matches(' ').len());
@@ -1121,9 +1136,14 @@ fn lay(text: &str, size: i64, font: &Font, mut emit: impl FnMut(Piece)) -> i64 {
             lowered = c == SUBSCRIPT.0;
             continue;
         }
+        if c == SUPERSCRIPT.0 || c == SUPERSCRIPT.1 {
+            raised = c == SUPERSCRIPT.0;
+            continue;
+        }
         let (c, shape) = match c {
             RAISED_BOT => ('⊥', (RAISE * size / 1000, SCRIPT)),
             c if lowered => (c, (-LOWER * size / 1000, SCRIPT)),
+            c if raised => (c, (RAISE * size / 1000, SCRIPT)),
             c => (c, (0, 1000)),
         };
         if shape != current {
@@ -1451,6 +1471,8 @@ pub fn write<'a>(
         Drawable::Classical(view) => tree::draw(view, style, judgement, out, stop),
         #[cfg(feature = "serialize")]
         Drawable::Rules(drawing) => tree::draw(drawing, style, judgement, out, stop),
+        #[cfg(feature = "serialize")]
+        Drawable::Fitch(proof) => fitch::draw(proof, style, out, stop),
     }
 }
 

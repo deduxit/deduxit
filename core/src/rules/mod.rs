@@ -50,6 +50,8 @@ mod check;
 mod derivation;
 /// A derivation laid out as a tree for the exports.
 mod draw;
+/// A derivation laid out as a Fitch proof.
+pub(crate) mod fitch;
 /// Building a derivation step by step.
 #[cfg(all(feature = "interactive", feature = "parse"))]
 pub(crate) mod interactive;
@@ -69,6 +71,7 @@ mod text;
 pub use calculus::{Associativity, Calculus, Discipline, Fixity};
 pub use derivation::{Derivation, Node, NodeId, NodeRef, ScopeId, Step};
 pub use draw::Drawing;
+pub use fitch::{Fitch, FitchOptions};
 #[cfg(all(feature = "interactive", feature = "parse"))]
 pub use interactive::{Applicable, Apply, Derive, GoalId, Interactive, LineId, Undone};
 pub use print::Shown;

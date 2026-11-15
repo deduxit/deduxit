@@ -7,7 +7,8 @@ use crate::linear::proofs::TextOptions;
 ///
 /// A front end keeps one and changes it key by key. It holds the options
 /// of the text tree, LaTeX, Typst, the SVG drawing (which PNG and PDF
-/// render), what PNG and PDF add to the drawing, and the Rocq certificate.
+/// render), what PNG and PDF add to the drawing, the Rocq certificate, and
+/// a Fitch proof's text.
 ///
 /// # Examples
 ///
@@ -91,6 +92,12 @@ pub struct Styles {
     #[cfg(not(feature = "rocq"))]
     #[cfg_attr(feature = "serialize", serde(skip_serializing))]
     rocq: Absent,
+    /// A Fitch proof's, whatever format writes it: what a hypothesis's and
+    /// an open line's justification say.
+    ///
+    /// Needs the cargo feature `serialize`.
+    #[cfg(feature = "serialize")]
+    pub fitch: crate::rules::FitchOptions,
 }
 
 impl Styles {
@@ -152,6 +159,15 @@ impl Styles {
     #[must_use]
     pub fn with_rocq(self, rocq: super::rocq::Options) -> Self {
         Self { rocq, ..self }
+    }
+
+    /// Returns the styles with another [`fitch`](Self::fitch).
+    ///
+    /// Needs the cargo feature `serialize`.
+    #[cfg(feature = "serialize")]
+    #[must_use]
+    pub fn with_fitch(self, fitch: crate::rules::FitchOptions) -> Self {
+        Self { fitch, ..self }
     }
 }
 

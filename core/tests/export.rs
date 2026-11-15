@@ -2503,3 +2503,128 @@ fn rules_drawings_stay_well_formed() {
     assert_eq!(refused.code(), "invalid_calculus");
     assert!(read(file("r\u{3}", "g")).is_err());
 }
+
+/// Returns an NJ derivation of `(a ∨ b) → (b ∨ a)`: `∨E` discharges `a`
+/// and `b` in two subproofs, `→I` discharges `a ∨ b`.
+fn commuted_disjunction() -> (deduxit::rules::Calculus, deduxit::rules::Derivation) {
+    let nj: deduxit::rules::Calculus = deduxit::wire::upgrade(
+        &mut serde_json::Deserializer::from_str(deduxit::rules::NJ),
+        &Limits::default(),
+    )
+    .unwrap();
+    let derivation: deduxit::rules::Derivation = deduxit::wire::upgrade(
+        serde_json::json!({
+            "version": 15, "calculus": "NJ",
+            "terms": ["a", "b", ["∨", 0, 1], ["∨", 1, 0], ["→", 2, 3]],
+            "scopes": [0, 1, 1],
+            "nodes": [
+                {"sequent": [[2]], "hypothesis": true, "scope": 1},
+                {"sequent": [[0]], "hypothesis": true, "scope": 2},
+                {"sequent": [[3]], "rule": "∨I₂", "premises": [1], "scope": 2},
+                {"sequent": [[1]], "hypothesis": true, "scope": 3},
+                {"sequent": [[3]], "rule": "∨I₁", "premises": [3], "scope": 3},
+                {"sequent": [[3]], "rule": "∨E", "premises": [0, 2, 4], "scope": 1},
+                {"sequent": [[4]], "rule": "→I", "premises": [5]}
+            ]
+        }),
+        &Limits::default(),
+    )
+    .unwrap();
+    derivation
+        .check(&nj, &Limits::default(), |_| false)
+        .unwrap();
+    (nj, derivation)
+}
+
+/// Natural deduction is drawn as textbooks draw it: hypotheses alone at
+/// the leaves, each discharged one bracketed with its number and the rule
+/// that discharges it carrying the number.
+#[test]
+fn natural_deduction_trees() {
+    let (nj, derivation) = commuted_disjunction();
+    let drawing = deduxit::rules::Drawing::new(&nj, &derivation, &Limits::default()).unwrap();
+    pin("natural", &drawing);
+    let tex = latex::to_string(&drawing, &latex::Options::default()).unwrap();
+    assert!(tex.contains(r"\hypo{[a]^{1}}"), "{tex}");
+    assert!(
+        tex.contains(r"\infer3[$\lor\mathrm{E}^{1,2}$]{b \lor a}"),
+        "{tex}"
+    );
+    assert!(tex.contains(r"\infer1[$\to\mathrm{I}^{3}$]"), "{tex}");
+    let svg = svg::to_string(&drawing, &Style::default()).unwrap();
+    assert!(svg.contains("[a ∨ b]³, by hypothesis"), "{svg}");
+}
+
+/// A Fitch proof keeps each subproof's lines together under its
+/// hypotheses, with the line it concludes last, and cites a subproof by
+/// its first and last line.
+#[test]
+fn fitch_text() {
+    let (nj, derivation) = commuted_disjunction();
+    let options = deduxit::rules::FitchOptions::default();
+    let fitch = deduxit::rules::Fitch::new(&nj, &derivation, &options, &Limits::default()).unwrap();
+    assert_eq!(
+        fitch.to_string(),
+        "\
+1 │ │ a ∨ b
+  │ ├───
+2 │ │ │ a
+  │ │ ├───
+3 │ │ │ b ∨ a       ∨I₂ 2
+4 │ │ │ b
+  │ │ ├───
+5 │ │ │ b ∨ a       ∨I₁ 4
+6 │ │ b ∨ a         ∨E 1, 2–3, 4–5
+7 │ a ∨ b → b ∨ a   →I 1–6
+"
+    );
+    pin("fitch", &fitch);
+    let typ = typst::to_string(&fitch, &typst::Options::default()).unwrap();
+    assert!(
+        typ.contains("  ($b ∨ a$, [$∨ upright(E)$ 1, 2–3, 4–5]),"),
+        "{typ}"
+    );
+    let svg = svg::to_string(&fitch, &Style::default()).unwrap();
+    assert!(
+        svg.contains("Line 6, b ∨ a: by ∨E from line 1, the subproof of lines 2 to 3 and the subproof of lines 4 to 5."),
+        "{svg}"
+    );
+}
+
+/// A proof whose subproof's conclusion a line inside it uses has no
+/// Fitch proof, which says why; it is still drawn as a tree.
+#[test]
+fn fitch_refuses_a_conclusion_used_inside_its_subproof() {
+    let nj: deduxit::rules::Calculus = deduxit::wire::upgrade(
+        &mut serde_json::Deserializer::from_str(deduxit::rules::NJ),
+        &Limits::default(),
+    )
+    .unwrap();
+    let derivation: deduxit::rules::Derivation = deduxit::wire::upgrade(
+        serde_json::json!({
+            "version": 15, "calculus": "NJ",
+            "terms": ["a", ["∧", 0, 0], ["→", 0, 1]],
+            "scopes": [0],
+            "nodes": [
+                {"sequent": [[0]], "hypothesis": true, "scope": 1},
+                {"sequent": [[1]], "rule": "∧I", "premises": [0, 0], "scope": 1},
+                {"sequent": [[0]], "rule": "∧E₁", "premises": [1], "scope": 1},
+                {"sequent": [[2]], "rule": "→I", "premises": [1]}
+            ]
+        }),
+        &Limits::default(),
+    )
+    .unwrap();
+    derivation
+        .check(&nj, &Limits::default(), |_| false)
+        .unwrap();
+    let options = deduxit::rules::FitchOptions::default();
+    let refused =
+        deduxit::rules::Fitch::new(&nj, &derivation, &options, &Limits::default()).unwrap_err();
+    assert_eq!(refused.code(), "not_fitch");
+    assert!(
+        refused.to_string().contains("uses its conclusion"),
+        "{refused}"
+    );
+    assert!(deduxit::rules::Drawing::new(&nj, &derivation, &Limits::default()).is_ok());
+}

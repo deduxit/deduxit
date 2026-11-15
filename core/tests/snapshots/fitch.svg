@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="255.152" height="171.2" viewBox="0 0 15947 10700" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
+<title>a ∨ b → b ∨ a</title>
+<desc>Line 1, a ∨ b: a hypothesis, which opens a subproof.
+Line 2, a: a hypothesis, which opens a subproof.
+Line 3, b ∨ a: by ∨I₂ from line 2.
+Line 4, b: a hypothesis, which opens a subproof.
+Line 5, b ∨ a: by ∨I₁ from line 4.
+Line 6, b ∨ a: by ∨E from line 1, the subproof of lines 2 to 3 and the subproof of lines 4 to 5.
+Line 7, a ∨ b → b ∨ a: by →I from the subproof of lines 1 to 6.</desc>
+<g fill="none" stroke="black" stroke-width="40">
+<path d="M1449 300V10400"/>
+<path d="M2199 300V8900"/>
+<path d="M2199 1400H5212"/>
+<path d="M2949 1800V4400"/>
+<path d="M2949 2900H3933"/>
+<path d="M2949 4800V7400"/>
+<path d="M2949 5900H3912"/>
+</g>
+<text x="300" y="1190" textLength="399" lengthAdjust="spacing" font-size="800">1</text>
+<text x="2574" y="1190" textLength="2638" lengthAdjust="spacing" id="l1">𝑎 ∨ 𝑏</text>
+<text x="300" y="2690" textLength="399" lengthAdjust="spacing" font-size="800">2</text>
+<text x="3324" y="2690" textLength="609" lengthAdjust="spacing" id="l2">𝑎</text>
+<text x="300" y="4190" textLength="399" lengthAdjust="spacing" font-size="800">3</text>
+<text x="3324" y="4190" textLength="2638" lengthAdjust="spacing" id="l3">𝑏 ∨ 𝑎</text>
+<g font-size="800">
+<text x="10266" y="4190" textLength="935" lengthAdjust="spacing">∨I</text>
+<text x="11201" y="4310" textLength="279" lengthAdjust="spacing" font-size="560">2</text>
+<text x="11747" y="4190" textLength="399" lengthAdjust="spacing">2</text>
+</g>
+<text x="300" y="5690" textLength="399" lengthAdjust="spacing" font-size="800">4</text>
+<text x="3324" y="5690" textLength="588" lengthAdjust="spacing" id="l4">𝑏</text>
+<text x="300" y="7190" textLength="399" lengthAdjust="spacing" font-size="800">5</text>
+<text x="3324" y="7190" textLength="2638" lengthAdjust="spacing" id="l5">𝑏 ∨ 𝑎</text>
+<g font-size="800">
+<text x="10266" y="7190" textLength="935" lengthAdjust="spacing">∨I</text>
+<text x="11201" y="7310" textLength="279" lengthAdjust="spacing" font-size="560">1</text>
+<text x="11747" y="7190" textLength="399" lengthAdjust="spacing">4</text>
+</g>
+<text x="300" y="8690" textLength="399" lengthAdjust="spacing" font-size="800">6</text>
+<text x="2574" y="8690" textLength="2638" lengthAdjust="spacing" id="l6">𝑏 ∨ 𝑎</text>
+<text x="10266" y="8690" textLength="5381" lengthAdjust="spacing" font-size="800">∨E 1, 2–3, 4–5</text>
+<text x="300" y="10190" textLength="399" lengthAdjust="spacing" font-size="800">7</text>
+<text x="1824" y="10190" textLength="6942" lengthAdjust="spacing" id="l7">𝑎 ∨ 𝑏 → 𝑏 ∨ 𝑎</text>
+<text x="10266" y="10190" textLength="2700" lengthAdjust="spacing" font-size="800">→I 1–6</text>
+</svg>

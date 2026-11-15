@@ -364,9 +364,9 @@ the commit that lands it rewrites that bullet.
   `ordinary::Countermodel` (added at step 55b);
   `ordinary::{End, Sign, Signed}` (added at step 56a);
   `rules::{Associativity, Discipline, Fixity, Node, Term}` (added at
-  step 60); `proofs::{ClassicalRule,
-  ClassicalSides, Compact, Dyadic, Fault, Invalid, Labels, OpenGoal,
-  Refused, Sides, Structural, TextOptions}`;
+  step 60), `rules::FitchOptions` (added at step 62); `proofs::{ClassicalRule,
+  ClassicalSides, Compact, Dyadic, Fault, Invalid, Labels, Layout, OpenGoal,
+  Refused, Sides, Structural, TextOptions}` (`Layout` added at step 62);
   `proofs::interactive::{Applicable, Closed, Inverted, Needs, Options,
   Split, TermNode, Witness}`;
   `proofs::cut::{Case, Elimination, End, Options, Reduction, Step,

@@ -126,6 +126,9 @@ fn bars<T: Drawn>(tree: &T, options: &TextOptions) -> Vec<Option<Bar>> {
                 label: plain(label),
                 dots,
             };
+            if tree.bare() == Some(rule) {
+                return None;
+            }
             if tree.open() != Some(rule) {
                 return Some(bar(
                     options.bar,

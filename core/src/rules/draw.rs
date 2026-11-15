@@ -6,9 +6,10 @@
 
 use super::derivation::Kind;
 use super::{Calculus, Derivation, NodeId, Step};
+use crate::hash::HashMap;
 use crate::linear::InfId;
 use crate::linear::proofs::Labels;
-use crate::linear::proofs::style::{Drawn, LITERAL};
+use crate::linear::proofs::style::{Drawn, LITERAL, RAISED, superscript};
 use crate::{Error, Limits};
 use std::fmt::Write;
 
@@ -26,8 +27,16 @@ const MEMBER: u64 = 64;
 ///
 /// Every export takes it as it takes a derivation of LK:
 /// `export::svg::to_string(&drawing, &style)`. A node that is the premise
-/// of several nodes is drawn once for each. A hypothesis is drawn as a
-/// leaf labelled `hyp`, an open goal as the style draws one.
+/// of several nodes is drawn once for each, and an open goal as the style
+/// draws one.
+///
+/// Natural deduction is drawn as textbooks draw it: a hypothesis is a leaf
+/// that is its formula alone, with no line over it. The hypotheses a rule
+/// discharges are bracketed and marked with a number, `[A]¹`, and the rule
+/// that discharges them carries the same number, `→I¹`; a rule that
+/// discharges in several premises carries each premise's number, `∨E¹˒²`.
+/// The numbers count the discharges from the leaves up. A hypothesis no
+/// rule discharges, an assumption, stands without brackets.
 ///
 /// The inferences are numbered from the leaves, each after its premises,
 /// premises in order: the SVG's `i<n>`. Where the nodes are stored in that
@@ -51,8 +60,13 @@ pub struct Drawing<'a> {
     /// The premises of every inference.
     premises: Vec<InfId>,
     /// The label of each rule in the label markup: the derivation's rule
-    /// names in their order, then a hypothesis's.
+    /// names in their order, then a hypothesis's (none: it is drawn
+    /// alone), then each rule with the marks of what it discharges.
     labels: Vec<String>,
+    /// Per inference, its rule among `labels`.
+    rules: Vec<u32>,
+    /// Per scope that a rule discharges, its mark.
+    marks: HashMap<u32, u32>,
 }
 
 impl<'a> Drawing<'a> {
@@ -138,12 +152,56 @@ impl<'a> Drawing<'a> {
                 }
             }
         }
-        let labels = derivation
+        let mut labels: Vec<String> = derivation
             .rules
             .iter()
             .map(|name| markup(name))
-            .chain(std::iter::once("hyp".to_owned()))
+            .chain(std::iter::once(String::new()))
             .collect();
+        // The discharges numbered from the leaves up, then each rule that
+        // discharges as a rule of its own, labelled with its marks.
+        let hypothesis = derivation.rules.len() as u32;
+        let scope = |node: NodeId| derivation.node(node).scope().index() as u32;
+        let mut marks: HashMap<u32, u32> = HashMap::default();
+        let mut marked: HashMap<(u32, Vec<u32>), u32> = HashMap::default();
+        let mut rules = Vec::with_capacity(nodes.len());
+        for &node in &nodes {
+            let rule = match derivation.nodes[node.index()].kind {
+                Kind::Rule(rule) => rule,
+                Kind::Hypothesis => hypothesis,
+                // Past every label: `open()` names it.
+                Kind::Open => u32::MAX,
+            };
+            let at = derivation.node(node);
+            let mut own = Vec::new();
+            for &premise in at.premises() {
+                let inner = scope(premise);
+                if inner != scope(node) {
+                    let next = marks.len() as u32 + 1;
+                    own.push(*marks.entry(inner).or_insert(next));
+                }
+            }
+            if own.is_empty() || rule == u32::MAX {
+                rules.push(rule);
+                continue;
+            }
+            let index = *marked.entry((rule, own.clone())).or_insert_with(|| {
+                let numbers: Vec<String> = own.iter().map(u32::to_string).collect();
+                labels.push(format!(
+                    "{}{RAISED}{{{}}}",
+                    labels[rule as usize],
+                    numbers.join(",")
+                ));
+                labels.len() as u32 - 1
+            });
+            rules.push(index);
+        }
+        let open = labels.len() as u32;
+        for rule in &mut rules {
+            if *rule == u32::MAX {
+                *rule = open;
+            }
+        }
         Ok(Self {
             calculus,
             derivation,
@@ -151,6 +209,8 @@ impl<'a> Drawing<'a> {
             ends,
             premises,
             labels,
+            rules,
+            marks,
         })
     }
 
@@ -158,12 +218,22 @@ impl<'a> Drawing<'a> {
     fn node(&self, id: InfId) -> NodeId {
         self.nodes[id.index()]
     }
+
+    /// Returns the mark of an inference that is a hypothesis some rule
+    /// discharges, or `None`.
+    fn mark(&self, id: InfId) -> Option<u32> {
+        let node = self.derivation.node(self.node(id));
+        if node.step() != Step::Hypothesis {
+            return None;
+        }
+        self.marks.get(&(node.scope().index() as u32)).copied()
+    }
 }
 
 /// Returns a rule's name in the label markup: a subscript digit lowered,
 /// as the drawings set the labels of LK, and `_` and `*`, which the
 /// markup reads as a subscript and a star, kept as text.
-fn markup(name: &str) -> String {
+pub(super) fn markup(name: &str) -> String {
     let mut out = String::new();
     for c in name.chars() {
         match c {
@@ -217,11 +287,11 @@ impl Drawn for Drawing<'_> {
     }
 
     fn rule(&self, id: InfId) -> usize {
-        match self.derivation.nodes[self.node(id).index()].kind {
-            Kind::Rule(rule) => rule as usize,
-            Kind::Hypothesis => self.labels.len() - 1,
-            Kind::Open => self.labels.len(),
-        }
+        self.rules[id.index()] as usize
+    }
+
+    fn bare(&self) -> Option<usize> {
+        Some(self.derivation.rules.len())
     }
 
     fn name(&self, id: InfId) -> &str {
@@ -237,11 +307,16 @@ impl Drawn for Drawing<'_> {
     }
 
     fn write_sequent(&self, out: &mut impl Write, id: InfId) -> std::fmt::Result {
-        write!(
-            out,
-            "{}",
-            self.calculus.show_sequent(self.derivation, self.node(id))
-        )
+        let shown = self.calculus.show_sequent(self.derivation, self.node(id));
+        match self.mark(id) {
+            None => write!(out, "{shown}"),
+            Some(mark) => {
+                write!(out, "[{shown}]")?;
+                mark.to_string()
+                    .chars()
+                    .try_for_each(|c| out.write_char(superscript(c)))
+            }
+        }
     }
 
     #[cfg(any(feature = "latex", feature = "typst", feature = "svg"))]
@@ -254,8 +329,17 @@ impl Drawn for Drawing<'_> {
         marks: bool,
     ) {
         let spelling = super::print::Spelling::of(notation, aligned, marks);
+        let mark = self.mark(id);
+        if mark.is_some() {
+            out.push('[');
+        }
         self.calculus
             .write_sequent_in(self.derivation, self.node(id), spelling, out);
+        if let Some(mark) = mark {
+            out.push(']');
+            // Writing into a `String` does not fail.
+            let _ = notation.atom.superscript(out, &mark.to_string());
+        }
     }
 
     #[cfg(feature = "svg")]

@@ -1,0 +1,21 @@
+\documentclass[border=5pt]{standalone}
+\usepackage{amssymb}
+\usepackage{cmll}
+\usepackage{fitch}
+\begin{document}
+$\begin{nd}
+\open
+\hypo{1}{a \lor b}
+\open
+\hypo{2}{a}
+\have{3}{b \lor a} \by{$\lor\mathrm{I}_2$}{2}
+\close
+\open
+\hypo{4}{b}
+\have{5}{b \lor a} \by{$\lor\mathrm{I}_1$}{4}
+\close
+\have{6}{b \lor a} \by{$\lor\mathrm{E}$}{1, 2-3, 4-5}
+\close
+\have{7}{a \lor b \to b \lor a} \by{$\to\mathrm{I}$}{1-6}
+\end{nd}$
+\end{document}
