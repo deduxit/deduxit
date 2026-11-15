@@ -164,8 +164,8 @@ pub struct Style {
     pub ids: bool,
     /// Whether a drawing of a derivation or a net has a `<desc>`, which a
     /// screen reader reads out: the derivation's numbered inferences,
-    /// premises first, or the net's links in its text form. A sequent
-    /// drawn alone has none. Default: `true`.
+    /// premises first, or short sentences of the net's conclusion, links,
+    /// boxes and verdict. A sequent drawn alone has none. Default: `true`.
     pub description: bool,
     /// The size of formula text in pixels. It scales the whole drawing:
     /// the document is this many pixels wide per 1000 units of its view
@@ -918,6 +918,80 @@ const PLAIN: Notation = Notation {
     ..NOTATION
 };
 
+/// Writes the first sentence of a net's description: the sequent it
+/// concludes, in the title's notation.
+fn net_conclusion(
+    out: &mut impl Write,
+    forest: &crate::linear::Forest,
+    reading: Option<&Reading<'_>>,
+) -> std::fmt::Result {
+    out.write_str("It concludes ")?;
+    match reading {
+        Some(reading) => PLAIN.reading(out, reading)?,
+        None => PLAIN.one_sided(out, forest.sequent())?,
+    }
+    out.write_char('.')
+}
+
+/// Writes `formula N, F` for a net's description, or `Formula N, F` to
+/// start a sentence: the vertex's number, as the net's text form numbers
+/// it, and its formula in the title's notation.
+fn net_formula(
+    out: &mut impl Write,
+    noun: &str,
+    number: u32,
+    forest: &crate::linear::Forest,
+    reading: Option<&Reading<'_>>,
+    o: crate::linear::OccId,
+) -> std::fmt::Result {
+    write!(out, "{noun} {number}, ")?;
+    match reading {
+        Some(reading) => PLAIN.ill(out, reading, o, false),
+        None => PLAIN.term(out, forest.sequent(), forest.term(o), false),
+    }
+}
+
+/// Writes the sentence of a net's description for one link: `An axiom
+/// link joins formula 1, A⊥, and formula 5, A.`, or for a cut link `A cut
+/// link joins …`.
+fn net_link(
+    out: &mut impl Write,
+    cut: bool,
+    ends: [(u32, crate::linear::OccId); 2],
+    forest: &crate::linear::Forest,
+    reading: Option<&Reading<'_>>,
+) -> std::fmt::Result {
+    out.write_str(if cut {
+        "\nA cut link joins "
+    } else {
+        "\nAn axiom link joins "
+    })?;
+    net_formula(out, "formula", ends[0].0, forest, reading, ends[0].1)?;
+    out.write_str(", and ")?;
+    net_formula(out, "formula", ends[1].0, forest, reading, ends[1].1)?;
+    out.write_char('.')
+}
+
+/// Writes the last sentence of a net's description: whether the
+/// structure is a proof net under `criterion`, or the `reason` it is not.
+fn net_verdict(
+    out: &mut impl Write,
+    criterion: crate::linear::Criterion,
+    reason: Option<&dyn std::fmt::Display>,
+) -> std::fmt::Result {
+    match reason {
+        Some(reason) => write!(out, "\nIt is not a proof net: {reason}."),
+        None if criterion.mix => {
+            out.write_str("\nIt is a proof net with Mix: the correctness criterion with Mix holds.")
+        }
+        None if criterion.order != crate::linear::Order::Commutative => out.write_str(
+            "\nIt is a planar proof net: the correctness criterion holds, and no two links \
+             cross.",
+        ),
+        None => out.write_str("\nIt is a proof net: the correctness criterion holds."),
+    }
+}
+
 /// Writes an atom's name with its Latin letters as mathematical italic
 /// characters. A name is an identifier, so it holds none of the control
 /// characters the layout marks its text with.
@@ -1486,26 +1560,33 @@ fn net_marked(
     // intuitionistic net is written in the intuitionistic syntax at every
     // step of an elimination.
     let reading = net.reading().ok().filter(|_| style.essential);
-    if let Some(limit) = limits.derivation_bytes {
-        let estimate = net::estimate(net, style, reading.is_some(), limit);
-        if estimate > limit {
-            return Err(Error::Refused(crate::limits::Refusal::Output {
-                what: "drawing",
-                estimate_bytes: estimate,
-                limit_bytes: limit,
-                least_bytes: None,
-            }));
-        }
-    }
+    let drawn = within(limits, || net::estimate(net, style, reading.is_some()))?;
     let mut stop = stop;
     let verdict = match &reading {
         Some(_) => net.is_essential(&mut stop),
         None => net.is_correct(&mut stop),
     };
-    if let Err(refused @ crate::linear::nets::NetError::Refused { .. }) = verdict {
-        return Err(refused.into());
+    refused(&verdict)?;
+    // The description states the switching criterion's verdict, which
+    // the essential one is not: that one does not test planarity.
+    let own = (reading.is_some() && style.description).then(|| net.is_correct(&mut stop));
+    if let Some(own) = &own {
+        refused(own)?;
     }
-    Ok(net::draw(net, style, &verdict, reading.as_ref(), marks))
+    let described = own.as_ref().unwrap_or(&verdict);
+    if style.description {
+        described_within(drawn, |most| {
+            net::described_bytes(net, described, reading.as_ref(), most)
+        })?;
+    }
+    Ok(net::draw(
+        net,
+        style,
+        &verdict,
+        described,
+        reading.as_ref(),
+        marks,
+    ))
 }
 
 /// Returns a proof structure with `!`-boxes as an SVG document, drawn as
@@ -1584,22 +1665,69 @@ fn mell_net_marked(
 ) -> Result<String, Error> {
     style.check()?;
     let reading = net.reading().ok().filter(|_| style.essential);
-    if let Some(limit) = limits.derivation_bytes {
-        let estimate = mell::estimate(net, style, reading.is_some(), limit);
-        if estimate > limit {
-            return Err(Error::Refused(crate::limits::Refusal::Output {
-                what: "drawing",
-                estimate_bytes: estimate,
-                limit_bytes: limit,
-                least_bytes: None,
-            }));
-        }
-    }
+    let drawn = within(limits, || mell::estimate(net, style, reading.is_some()))?;
     let verdict = net.is_correct(stop);
-    if let Err(refused @ crate::linear::nets::NetError::Refused { .. }) = verdict {
-        return Err(refused.into());
+    refused(&verdict)?;
+    if style.description {
+        described_within(drawn, |most| {
+            mell::described_bytes(net, &verdict, reading.as_ref(), most)
+        })?;
     }
     Ok(mell::draw(net, style, &verdict, reading.as_ref(), marks))
+}
+
+/// Returns the bound on a net's drawing and the bytes `estimate` gives
+/// for it, or the refusal when they pass it; `None` without a bound. The
+/// estimate is asked before the criterion runs, so a drawing too large
+/// is refused at once.
+fn within(
+    limits: &crate::Limits,
+    estimate: impl FnOnce() -> u64,
+) -> Result<Option<(u64, u64)>, Error> {
+    let Some(limit) = limits.derivation_bytes else {
+        return Ok(None);
+    };
+    let bytes = estimate();
+    if bytes > limit {
+        return Err(too_large(bytes, limit));
+    }
+    Ok(Some((limit, bytes)))
+}
+
+/// Refuses a net's drawing whose description, counted by `described`
+/// within what the bound leaves, takes it past the bound of `drawn`.
+fn described_within(
+    drawn: Option<(u64, u64)>,
+    described: impl FnOnce(u64) -> u64,
+) -> Result<(), Error> {
+    let Some((limit, bytes)) = drawn else {
+        return Ok(());
+    };
+    let total = bytes.saturating_add(described(limit - bytes));
+    match total > limit {
+        true => Err(too_large(total, limit)),
+        false => Ok(()),
+    }
+}
+
+/// Returns the refusal of a drawing estimated at `estimate` bytes, past
+/// the bound `limit`.
+const fn too_large(estimate: u64, limit: u64) -> Error {
+    Error::Refused(crate::limits::Refusal::Output {
+        what: "drawing",
+        estimate_bytes: estimate,
+        limit_bytes: limit,
+        least_bytes: None,
+    })
+}
+
+/// Returns a criterion's refusal as the drawing's error; a verdict,
+/// either way, is no error.
+fn refused(verdict: &Result<(), crate::linear::nets::NetError>) -> Result<(), Error> {
+    match verdict {
+        Err(refused @ crate::linear::nets::NetError::Refused { .. }) => Err(refused.clone().into()),
+        _ => Ok(()),
+    }
 }
 
 /// What a drawing of a net highlights of a step of cut elimination taken
@@ -1761,6 +1889,54 @@ mod tests {
             "{desc}"
         );
         assert!(!desc.contains('~'), "{desc}");
+    }
+
+    /// A net's description is short sentences in the title's notation:
+    /// the conclusion, each link with its formulas by number, then the
+    /// verdict.
+    #[cfg(feature = "parse")]
+    #[test]
+    fn a_net_is_described_in_sentences() {
+        use crate::linear::{Criterion, Mode, Options, ProofStructure, prove};
+        let s: Sequent = "A * B |- B * A".parse().unwrap();
+        let outcome = prove(&s, Mode::CLASSICAL, &Options::default()).unwrap();
+        let proof = outcome.verdict.proof().unwrap();
+        let limits = crate::Limits::default();
+        let structure =
+            ProofStructure::from_proof(proof, Criterion::MLL, &limits, |_| false).unwrap();
+        let svg = net(&structure, &Style::default(), &limits, |_| false).unwrap();
+        let desc = &svg[svg.find("<desc>").unwrap() + 6..svg.find("</desc>").unwrap()];
+        assert_eq!(
+            desc,
+            "It concludes ⊢ A⊥ ⅋ B⊥, B ⊗ A.\n\
+             An axiom link joins formula 1, A⊥, and formula 5, A.\n\
+             An axiom link joins formula 2, B⊥, and formula 4, B.\n\
+             It is a proof net: the correctness criterion holds."
+        );
+    }
+
+    /// An essential drawing of a cyclic structure whose links cross is
+    /// described as no proof net: the description states the switching
+    /// criterion's verdict, which tests planarity, where the drawn
+    /// essential one does not.
+    #[cfg(feature = "parse")]
+    #[test]
+    fn crossing_links_are_described_as_no_net() {
+        use crate::linear::nets::VertexId;
+        use crate::linear::{Criterion, Forest, Order, ProofStructure};
+        let limits = crate::Limits::default();
+        // ⊢ ~b, ~a, b ⊗ a: 0 ~b, 1 ~a, 2 ⊗, 3 b, 4 a.
+        let s = Sequent::parse_ordered("a, b |- b * a", Order::Cyclic, &limits).unwrap();
+        let v = VertexId::new;
+        let links = [(v(1), v(4)), (v(0), v(3))];
+        let structure =
+            ProofStructure::from_links(Forest::new(&s).unwrap(), Criterion::CYCLIC, &links)
+                .unwrap();
+        assert_eq!(structure.is_essential(|_| false), Ok(()));
+        let style = Style::default().with_essential(true);
+        let svg = net(&structure, &style, &limits, |_| false).unwrap();
+        let desc = &svg[svg.find("<desc>").unwrap()..svg.find("</desc>").unwrap()];
+        assert!(desc.contains("\nIt is not a proof net: "), "{desc}");
     }
 
     /// A style past a maximum is refused before anything is drawn, and

@@ -372,10 +372,31 @@ for NanoYalla. What the code relies on:
   `Derivation::write_steps` lists them, but each sequent in `PLAIN`, the
   title's notation: a negated atom `A⊥`, never the text tree's `~A`, so a
   screen reader hears one spelling; `proofs::fmt::write_steps` takes the
-  sequent's writer for that; a net's text form), which the PNG carries as its
+  sequent's writer for that; a net's in sentences, below), which the PNG carries as its
   `Description` and the accessible PDF as its figure's alternative
   text. No ids on the two, so that inlining several drawings in one
   page cannot collide (SVG-AAM takes them from the elements).
+- **A net's description is short sentences** (`net::describe`,
+  `mell::describe`, the helpers `net_conclusion`, `net_formula`,
+  `net_link`, `net_verdict` in `svg/mod.rs`), one per line: `It
+  concludes ⊢ Γ.`, a sentence per cut link and per axiom link (`An axiom
+  link joins formula 1, A⊥, and formula 5, A.`, by the smaller end),
+  per box by its `!` vertex, the drawing's `b<k>` (`Box 6 holds formula
+  7, …, the premise of formula 6, …`), per `?` vertex its copies or the
+  link its weakening hangs on, then the verdict (`It is a proof net: the
+  correctness criterion holds.`; the web client's tests look for `proof
+  net` in it). A formula is named by its vertex, the text form's number
+  (in MLL the occurrence of the drawing's `o<n>`), and written in
+  `PLAIN`. The verdict stated is always `is_correct`'s, as the text form
+  stated it: under the reading the drawn one is `is_essential`'s, which
+  does not test planarity, so a cyclic structure with crossing links
+  would read as a planar net (`crossing_links_are_described_as_no_net`).
+  The drawing's estimate leaves the description out and refuses before
+  the criterion runs (`is_essential` is quadratic: an implication's
+  search per implication); `described_bytes` counts the description
+  after it, against what the bound leaves (`within`,
+  `described_within`). A non-net's reason is `describe`'s, which writes
+  `~A` in the text notation: `Described` has no notation of its own.
 - **The PNG declares itself**: sRGB, a density of 96 dpi times the
   scale (so a viewer shows it at the drawing's size), `Title` and
   `Description` as iTXt. Its pixel bound (`png::Options::pixels`) is
@@ -510,7 +531,7 @@ for NanoYalla. What the code relies on:
   highlighted, a disconnection is not. Boxes take the `line` colour,
   wires and `?` edges the `par` colour and dash (under
   `Premises::Dashed`). The estimate counts per vertex (an occurrence under a `?` may
-  have none or many), per door and per box, and the text form.
+  have none or many), per door and per box, and the description.
 - **A net's look is `Style::net_look`** (`svg::NetLook`, three fields,
   each a closed enum; `NetLook::DEDUXIT` the default, unchanged from
   before it existed, and `NetLook::TEXTBOOK` the preset, both constants
@@ -616,8 +637,8 @@ for NanoYalla. What the code relies on:
   hypotheses from the goal). The verdict drawn is
   `is_essential`'s (a directed cycle, or the path around an implication
   plus that implication's dotted line, highlighted); the title is the
-  sequent two-sided and the description the net's text form under the
-  reading (`written_in`), so an essential drawing has no classical
+  sequent two-sided and the description written under the reading, so
+  an essential drawing has no classical
   symbol; the front ends set `essential` in an intuitionistic mode, since
   the plain drawing writes the one-sided formulas. A sequent without an intuitionistic
   reading is drawn as without the option, so one settings file serves
@@ -649,8 +670,8 @@ for NanoYalla. What the code relies on:
   `PIECE` per `<text>` (a negated literal's raised `⊥` adds two where
   the reading does not write the atom alone), fixed bytes per
   connective, conclusion and link, and the description counted by
-  writing the net's text form into a counter that gives up past the
-  limit) and refuses past `limit`; the estimate is at least the drawing
+  writing it into a counter that gives up past the limit) and refuses
+  past `limit`; the estimate is at least the drawing
   (`net_limit` checks it within four times, on a small net and a chain
   twelve deep, in each drawing). A formula is written once per
   subformula, so the drawing with formulas grows with the conclusions'

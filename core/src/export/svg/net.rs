@@ -35,8 +35,8 @@
 
 use super::font::{AXIS, DEPTH, HEIGHT};
 use super::{
-    Marks, NOTATION, NetDrawing, PLAIN, Premises, RAISED_BOT, Style, document, escaped, lay, run,
-    text,
+    Marks, NOTATION, NetDrawing, PLAIN, Premises, RAISED_BOT, Style, document, escaped, lay,
+    net_conclusion, net_link, net_verdict, run, text,
 };
 use crate::linear::nets::{NetError, ProofStructure};
 use crate::linear::occurrences::{OccId, Reading, Side};
@@ -234,10 +234,11 @@ impl Write for Count {
 /// Returns an estimate of the bytes of a structure's drawing, made from
 /// the structure without drawing it.
 ///
-/// The estimate is at least what the drawing has. Past `most`, it is some
-/// number past `most`. `read` says the structure is drawn as its
-/// essential net. The sums saturate, so no structure is estimated small.
-pub(super) fn estimate(net: &ProofStructure, style: &Style, read: bool, most: u64) -> u64 {
+/// The estimate is at least what the drawing has without its
+/// description, which [`described_bytes`] counts. `read` says the
+/// structure is drawn as its essential net. The sums saturate, so no
+/// structure is estimated small.
+pub(super) fn estimate(net: &ProofStructure, style: &Style, read: bool) -> u64 {
     let forest = net.forest();
     let sequent = forest.sequent();
     let formulas = style.net == NetDrawing::Formulas;
@@ -299,15 +300,66 @@ pub(super) fn estimate(net: &ProofStructure, style: &Style, read: bool, most: u6
             .saturating_add(edges.saturating_mul(ARROW))
             .saturating_add(DOCUMENT);
     }
-    if style.description && bytes <= most {
-        // The text form, as the drawing writes it: the sequent, the links
-        // and the verdict. The verdict names the occurrences of a
-        // switching cycle or of the parts of a disconnected structure.
-        let mut count = Count::new(most - bytes);
-        let _ = write!(count, "{net}");
-        bytes = bytes.saturating_add(count.bytes);
-    }
     bytes
+}
+
+/// Returns the bytes of a structure's description as [`describe`]
+/// writes it, escaped, or some number past `most`. The drawing's
+/// estimate leaves it out: it needs the verdict, which the criterion
+/// gives only after the estimate has refused what is too large.
+pub(super) fn described_bytes(
+    net: &ProofStructure,
+    verdict: &Result<(), NetError>,
+    reading: Option<&Reading<'_>>,
+    most: u64,
+) -> u64 {
+    let mut count = Count::new(most);
+    let _ = describe(net, verdict, reading, &mut count);
+    count.bytes()
+}
+
+/// Writes a structure's description, which a screen reader reads in
+/// place of the drawing, as short sentences: the sequent it concludes,
+/// each cut link, each axiom link (by the smaller of its ends), and
+/// `verdict`. A formula is named by its vertex, which is the occurrence
+/// the drawing's id `o<n>` names, and written in the title's notation.
+pub(super) fn describe(
+    net: &ProofStructure,
+    verdict: &Result<(), NetError>,
+    reading: Option<&Reading<'_>>,
+    out: &mut impl Write,
+) -> std::fmt::Result {
+    let forest = net.forest();
+    let end = |v: crate::linear::nets::VertexId| (v.get(), v.occ());
+    net_conclusion(out, forest, reading)?;
+    for &(x, y) in net.cuts() {
+        net_link(out, true, [end(x), end(y)], forest, reading)?;
+    }
+    let mut links: Vec<_> = net
+        .links()
+        .iter()
+        .map(|&(x, y)| (x.min(y), x.max(y)))
+        .collect();
+    links.sort_unstable();
+    for (x, y) in links {
+        net_link(out, false, [end(x), end(y)], forest, reading)?;
+    }
+    let mode = match reading {
+        Some(reading) if reading.is_ordered() => Some(crate::linear::Mode::LAMBEK),
+        Some(_) => Some(crate::linear::Mode::INTUITIONISTIC),
+        None => None,
+    };
+    match verdict {
+        Ok(()) => net_verdict(out, net.criterion(), None),
+        Err(error) => {
+            let described = error.describe(forest);
+            let described = match mode {
+                Some(mode) => described.in_mode(mode),
+                None => described,
+            };
+            net_verdict(out, net.criterion(), Some(&described))
+        }
+    }
 }
 
 /// Returns a proof structure as an SVG document, titled with its sequent
@@ -315,12 +367,15 @@ pub(super) fn estimate(net: &ProofStructure, style: &Style, read: bool, most: u6
 ///
 /// `verdict` is the structure's [`ProofStructure::is_correct`]. With the
 /// `reading` of its sequent, the structure is drawn as its essential net,
-/// and `verdict` is its [`ProofStructure::is_essential`]. `step` marks
-/// what a step of cut elimination acted on, in the highlight colour.
+/// and `verdict` is its [`ProofStructure::is_essential`]. `described` is
+/// the verdict the description states, always `is_correct`'s: the
+/// essential criterion does not test planarity. `step` marks what a step
+/// of cut elimination acted on, in the highlight colour.
 pub(super) fn draw(
     net: &ProofStructure,
     style: &Style,
     verdict: &Result<(), NetError>,
+    described: &Result<(), NetError>,
     reading: Option<&Reading<'_>>,
     step: &Marks,
 ) -> String {
@@ -773,15 +828,10 @@ pub(super) fn draw(
         true => baseline + bottom * pitch + DEPTH.max(cuts) + margin,
         false => under + DEPTH.max(cuts) + margin,
     };
-    let description = style.description.then(|| match reading {
-        Some(reading) => net
-            .written_in(if reading.is_ordered() {
-                crate::linear::Mode::LAMBEK
-            } else {
-                crate::linear::Mode::INTUITIONISTIC
-            })
-            .to_string(),
-        None => net.to_string(),
+    let description = style.description.then(|| {
+        let mut text = String::new();
+        describe(net, described, reading, &mut text).unwrap();
+        text
     });
     document(style, &title, description.as_deref(), (width, height), body)
 }

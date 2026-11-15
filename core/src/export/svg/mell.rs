@@ -52,7 +52,7 @@ use super::net::{
 };
 use super::{
     Conclusions, NOTATION, NetDrawing, PLAIN, Premises, RAISED_BOT, Style, WhyNot, document,
-    escaped, lay, run, text,
+    escaped, lay, net_conclusion, net_formula, net_link, net_verdict, run, text,
 };
 use crate::export::svg::Marks;
 use crate::hash::HashMap;
@@ -148,10 +148,11 @@ fn raw(v: Option<VertexId>) -> u32 {
 /// Returns an estimate of the bytes of a structure's drawing, made without
 /// drawing it.
 ///
-/// The estimate is at least what the drawing has. Past `most`, it is some
-/// number past `most`. `read` says the structure is drawn as its
-/// essential net. The sums saturate, so no structure is estimated small.
-pub(super) fn estimate(net: &MellStructure, style: &Style, read: bool, most: u64) -> u64 {
+/// The estimate is at least what the drawing has without its
+/// description, which [`described_bytes`] counts. `read` says the
+/// structure is drawn as its essential net. The sums saturate, so no
+/// structure is estimated small.
+pub(super) fn estimate(net: &MellStructure, style: &Style, read: bool) -> u64 {
     let forest = net.forest();
     let sequent = forest.sequent();
     let formulas = style.net == NetDrawing::Formulas;
@@ -238,12 +239,107 @@ pub(super) fn estimate(net: &MellStructure, style: &Style, read: bool, most: u64
         let colours = escaped(&style.input).len() + escaped(&style.dominator).len();
         bytes = bytes.saturating_add(2 * 70 + colours as u64);
     }
-    if style.description && bytes <= most {
-        let mut count = Count::new(most - bytes);
-        let _ = write!(count, "{net}");
-        bytes = bytes.saturating_add(count.bytes());
-    }
     bytes
+}
+
+/// Returns the bytes of a structure's description as [`describe`]
+/// writes it, escaped, or some number past `most`. The drawing's
+/// estimate leaves it out: it needs the verdict, which the criterion
+/// gives only after the estimate has refused what is too large.
+pub(super) fn described_bytes(
+    net: &MellStructure,
+    verdict: &Result<(), NetError>,
+    reading: Option<&Reading<'_>>,
+    most: u64,
+) -> u64 {
+    let mut count = Count::new(most);
+    let _ = describe(net, verdict, reading, &mut count);
+    count.bytes()
+}
+
+/// Writes a structure's description, which a screen reader reads in
+/// place of the drawing, as short sentences: the sequent it concludes,
+/// each cut link, each axiom link (by the smaller of its ends), each box
+/// by its `!` vertex, the box `b<k>` of the drawing, then each `?`
+/// vertex's copies or the link its weakening hangs on, and `verdict`. A
+/// formula is named by its vertex, as the net's text form names it, and
+/// written in the title's notation.
+pub(super) fn describe(
+    net: &MellStructure,
+    verdict: &Result<(), NetError>,
+    reading: Option<&Reading<'_>>,
+    out: &mut impl Write,
+) -> std::fmt::Result {
+    let forest = net.forest();
+    let occ = |v: VertexId| net.occurrence(v).expect("a vertex of the structure");
+    let end = |v: VertexId| (v.get(), occ(v));
+    let formula =
+        |out: &mut _, v: VertexId| net_formula(out, "formula", v.get(), forest, reading, occ(v));
+    net_conclusion(out, forest, reading)?;
+    for &(x, y) in net.cuts() {
+        net_link(out, true, [end(x), end(y)], forest, reading)?;
+    }
+    let mut links: Vec<_> = net
+        .links()
+        .iter()
+        .map(|&(x, y)| (x.min(y), x.max(y)))
+        .collect();
+    links.sort_unstable();
+    for (x, y) in links {
+        net_link(out, false, [end(x), end(y)], forest, reading)?;
+    }
+    for b in net.boxes() {
+        write!(out, "\nBox {} holds ", b.get())?;
+        if let Some(premise) = net.premises(b).next() {
+            formula(out, premise)?;
+            out.write_str(", the premise of ")?;
+        }
+        formula(out, b)?;
+        out.write_char('.')?;
+        if let Some(outer) = net.inside(b) {
+            write!(out, " It lies in box {}.", outer.get())?;
+        }
+    }
+    for q in net
+        .vertices()
+        .filter(|&q| forest.kind(occ(q)) == Kind::Quest)
+    {
+        out.write_char('\n')?;
+        net_formula(out, "Formula", q.get(), forest, reading, occ(q))?;
+        let copies = net.premises(q).count();
+        match copies {
+            0 => {
+                out.write_str(", has no copy")?;
+                if let Some(l) = net.hangs_on(q) {
+                    out.write_str(" and hangs on the axiom link of ")?;
+                    formula(out, l)?;
+                }
+            }
+            1 => out.write_str(", has 1 copy: ")?,
+            n => write!(out, ", has {n} copies: ")?,
+        }
+        for (k, c) in net.premises(q).enumerate() {
+            if k > 0 {
+                out.write_str("; ")?;
+            }
+            formula(out, c)?;
+            if let Some(d) = net.inside(c).filter(|&d| Some(d) != net.inside(q)) {
+                write!(out, ", in box {}", d.get())?;
+            }
+        }
+        out.write_char('.')?;
+    }
+    match verdict {
+        Ok(()) => net_verdict(out, net.criterion(), None),
+        Err(error) => {
+            let described = error.describe(net);
+            let described = match reading {
+                Some(_) => described.in_mode(crate::linear::Mode::INTUITIONISTIC),
+                None => described,
+            };
+            net_verdict(out, net.criterion(), Some(&described))
+        }
+    }
 }
 
 /// Returns a proof structure with boxes as an SVG document, titled with
@@ -1646,11 +1742,10 @@ pub(super) fn draw(
         true => baseline + i64::from(rows) * pitch + cuts + margin,
         false => under + cuts + margin,
     };
-    let description = style.description.then(|| match reading {
-        Some(_) => net
-            .written_in(crate::linear::Mode::INTUITIONISTIC)
-            .to_string(),
-        None => net.to_string(),
+    let description = style.description.then(|| {
+        let mut text = String::new();
+        describe(net, verdict, reading, &mut text).unwrap();
+        text
     });
     document(style, &title, description.as_deref(), (width, height), body)
 }

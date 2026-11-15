@@ -93,7 +93,10 @@ unchanged.
   implication's antecedent counts on the other side)`.
 - **An SVG drawing's description** (`<desc>`, which a screen reader
   reads, and a PNG and an accessible PDF carry) writes a negated atom
-  `A⊥`, as the drawing and its title do, where it wrote `~A`.
+  `A⊥`, as the drawing and its title do, where it wrote `~A`. A net's
+  description is short sentences in place of its text form: what it
+  concludes, each link with its formulas by number, each box, and
+  whether it is a proof net.
 - **Ordinary logic's "not valid"** through the embedding says `the
   translated sequent is unprovable` in place of "the image".
 - **The help and the messages are rewritten** to say what went wrong and
