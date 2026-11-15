@@ -20,6 +20,9 @@ use crate::limits::{Limits, Phase, Progress, Refusal};
 /// node.
 const POLL: u64 = 1 << 12;
 
+/// The most characters of a node's sequent an error writes.
+const SHOWN: usize = 200;
+
 /// The work done and the stop, which every loop of the check goes
 /// through.
 struct Meter<'a> {
@@ -240,11 +243,16 @@ impl Derivation {
                 Fault::Refused(error) => error,
                 Fault::Invalid(reason) => {
                     let index = node.id().index();
+                    // The zones are the calculus's, checked above.
+                    let sequent = calculus.show_sequent(self, node.id()).limit(SHOWN);
                     invalid(match self.nodes[index].kind {
-                        Kind::Rule(rule) => {
-                            format!("node {index} ({}): {reason}", self.rules[rule as usize])
+                        Kind::Rule(rule) => format!(
+                            "node {index} ({}, concluding {sequent}): {reason}",
+                            self.rules[rule as usize]
+                        ),
+                        Kind::Hypothesis | Kind::Open => {
+                            format!("node {index} ({sequent}): {reason}")
                         }
-                        Kind::Hypothesis | Kind::Open => format!("node {index}: {reason}"),
                     })
                 }
             })?;

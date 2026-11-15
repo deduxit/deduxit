@@ -15,8 +15,9 @@ use std::hash::BuildHasher as _;
 pub struct TermId(u32);
 
 impl TermId {
-    /// Returns the id at `index`.
-    pub(crate) const fn new(index: u32) -> Self {
+    /// Returns the id at `index`, a term of an arena only if it holds
+    /// that many terms.
+    pub const fn new(index: u32) -> Self {
         Self(index)
     }
 

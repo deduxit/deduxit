@@ -116,6 +116,17 @@ design, with the reasons and the alternatives weighed, is
 - **A connective takes `ARITY` (255) arguments at most**: the number
   comes from the file and sizes a vector, and 2³² of them reserved
   16 GiB under a 1 MiB memory bound.
+- **The printer** (`print.rs`, `Calculus::show`, `show_sequent`,
+  `Shown`): a loop over an explicit stack, written through `Bounded`,
+  which takes `Shown::LIMIT` (4096) characters unless `limit` says
+  otherwise and ends a cut text with `…`. A term is a DAG and may
+  unfold far past its arena, so the bound is what keeps the time too:
+  the stack holds at most about 2·arity items per character written.
+  A connective without `fixity` is prefix at arity 1, infix at 2, a
+  function otherwise; precedence defaults to 0 for infix and the
+  highest for the rest; an operand is bracketed by precedence and
+  associativity (`Shown::bracketed`). An error writes the failing
+  node's sequent within 200 characters (`check::SHOWN`).
 - **Errors**: `Error::InvalidCalculus` (malformed, `invalid_calculus`),
   `Error::InvalidDerivation` (invalid, `invalid_derivation`, the first
   node that fails), `Error::Zones` (malformed, `zones`); the checker's

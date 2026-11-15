@@ -245,3 +245,34 @@ fn deep_ordinary_formulas_need_no_stack() {
     });
     walks.unwrap().join().unwrap();
 }
+
+/// A term of a calculus given as data nested 50 000 deep, a chain of
+/// negations and one of implications, is read from JSON, checked in an
+/// axiom of LK, printed whole and written back, on a stack of 256 KiB.
+#[test]
+fn deep_rule_terms_need_no_stack() {
+    use deduxit::rules::{Calculus, Derivation, LK};
+    use deduxit::{Limits, wire};
+    let walks = std::thread::Builder::new().stack_size(STACK).spawn(|| {
+        let mut file = serde_json::Deserializer::from_str(LK);
+        let lk: Calculus = wire::upgrade(&mut file, &Limits::default()).unwrap();
+        for (connective, text) in [(r#"["¬",{}]"#, "¬"), (r#"["→",0,{}]"#, "a → ")] {
+            let mut terms = vec![r#""a""#.to_owned()];
+            terms.extend((0..DEPTH).map(|i| connective.replace("{}", &i.to_string())));
+            let json = format!(
+                r#"{{"version":15,"calculus":"LK","terms":[{}],"nodes":[{{"sequent":[[{DEPTH}],[{DEPTH}]],"rule":"ax"}}]}}"#,
+                terms.join(",")
+            );
+            let derivation: Derivation =
+                wire::upgrade(&mut serde_json::Deserializer::from_str(&json), &Limits::default())
+                    .unwrap();
+            derivation.check(&lk, &Limits::default(), |_| false).unwrap();
+            let root = derivation.root().unwrap().id();
+            let shown = lk.show_sequent(&derivation, root).limit(usize::MAX).to_string();
+            let formula = format!("{}a", text.repeat(DEPTH));
+            assert!(shown == format!("{formula} ⊢ {formula}"), "printed");
+            assert!(serde_json::to_string(&derivation).unwrap().len() > DEPTH);
+        }
+    });
+    walks.unwrap().join().unwrap();
+}

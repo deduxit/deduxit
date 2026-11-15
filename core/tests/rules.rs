@@ -140,6 +140,39 @@ fn broken(document: &Value, at: usize) -> Vec<Value> {
 }
 
 #[test]
+fn terms_print_by_the_calculus() {
+    let lk = calculus(LK).unwrap();
+    let document = json!({"version": 15, "calculus": "LK",
+        "terms": ["a", "b", ["∧", 0, 1], ["¬", 2], ["→", 3, 0], ["→", 1, 0], ["→", 0, 5],
+            ["→", 5, 0], ["∧", 1, 0]],
+        "nodes": [{"sequent": [[2], [8]], "rule": "ax"}]});
+    let derivation: Derivation = wire::upgrade(&document, &Limits::default()).unwrap();
+    let show = |index: u32| {
+        let id = deduxit::rules::TermId::new(index);
+        lk.show(derivation.terms(), id).to_string()
+    };
+    // Brackets where the precedences and the associativity ask for them.
+    assert_eq!(show(4), "¬(a ∧ b) → a");
+    assert_eq!(show(6), "a → b → a");
+    assert_eq!(show(7), "(b → a) → a");
+    let root = derivation.root().unwrap().id();
+    assert_eq!(
+        lk.show_sequent(&derivation, root).to_string(),
+        "a ∧ b ⊢ b ∧ a"
+    );
+    // Past its bound the text ends with an ellipsis.
+    assert_eq!(
+        lk.show(derivation.terms(), deduxit::rules::TermId::new(4))
+            .limit(5)
+            .to_string(),
+        "¬(a ∧…"
+    );
+    // A refused node is named with its sequent.
+    let reason = refused(&lk, &document);
+    assert!(reason.contains("concluding a ∧ b ⊢ b ∧ a"), "{reason}");
+}
+
+#[test]
 fn the_rule_files_agree_with_the_ordinary_checker() {
     let limits = Limits::default();
     let mut methods = vec![Method::Embedding, Method::Ljt];

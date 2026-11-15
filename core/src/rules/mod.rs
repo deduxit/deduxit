@@ -50,11 +50,14 @@ mod check;
 mod derivation;
 /// The derivations of LK and LJ in this form.
 mod ordinary;
+/// Terms and sequents as text.
+mod print;
 /// The terms of a derivation.
 mod terms;
 
 pub use calculus::{Associativity, Calculus, Discipline, Fixity};
 pub use derivation::{Derivation, Node, NodeId, NodeRef, ScopeId, Step};
+pub use print::Shown;
 pub use terms::{Term, TermId, Terms};
 
 /// The name of the sort every calculus has: that of formulas.
