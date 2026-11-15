@@ -18,7 +18,7 @@ use crate::{Error, Refusal};
 /// # JSON
 ///
 /// With the feature `serialize` an outcome is the document
-/// `{"version": 12, "deduxit": "0.3.0", "verdict": "valid", "logic":
+/// `{"version": 12, "deduxit": "0.4.0", "verdict": "valid", "logic":
 /// "classical", "search": {"method": "embedding", "translation": "affine",
 /// "image": {…}}, "derivation": {…}}` ([`wire`](crate::wire)). It is
 /// written at level 12 whatever it holds.
