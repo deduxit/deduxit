@@ -45,3 +45,37 @@ the `fresh-reviewer` agent (Fable 5.2 at `medium`) on the session's state
 (no operation yields a state the checker rejects). Deliverables: the
 commits, the client's commits, the manual and guide,
 `plan/reports/61-custom-rules-interactive.md`.
+
+## What step 60 left you (the review of 60, 2026-11-15)
+
+- **`deduxit::rules`** is built (60a on Fable, 60b on Opus with the
+  panel): the rule file and the generic derivation at wire level 15, the
+  checker by matching, the printer (`Calculus::show`, `show_sequent`),
+  the shipped calculi LK, LJ, LM, LL and the signed tableau, and `check
+  --calculus FILE|LK|LJ|LM|LL|tableau` (`cli/src/calculus.rs`,
+  `BUILT_IN`). Read `plan/reports/60-rule-schemas.md` whole, its "What
+  the next sessions must know" above all, and `plan/notes/rule-schemas.md`
+  (the design).
+- **The backward step is yours**: from a goal, a rule and the positions,
+  the premises. The compiled `Rule` has what it needs (`Shape`, `Entry`,
+  `Find`, the ordered `equations`, all crate-private); a premise's
+  patterns are instantiated with `Terms::apply`; what the conclusion
+  leaves open (a variable no conclusion member binds, how a split
+  context divides) is asked of the user, as the linear session asks a
+  witness or a split. `Calculus::positions(rule)` is a count today: add
+  the list of which member each position stands for. An open goal is
+  `Step::Open`, which the checker refuses, so a finished session's
+  derivation is checked whole, as the ordinary goal state's is.
+- **Drawings**: `check` shows a generic derivation as text or JSON only.
+  The page needs a drawing: the exports' `Drawable` over a
+  `rules::Derivation` (a tree, every node one parent), which 62 extends
+  with a Fitch list.
+- **Wire levels**: 15 is the rule file and the derivation; 63t-a, beside
+  you, takes 16. The session's JSON takes the next free level.
+- **Not overwhelming** (the author, 2026-11-15): a user who never loads
+  a rule file sees nothing new; on the page the custom calculus is one
+  more suite in the registry, and its first screen explains in a
+  sentence what a rule file is, with a built-in calculus (LJ or the
+  tableau) to start from.
+- **The workspace graph (63g)** will hold a rule file and a derivation
+  in it as nodes: keep them immutable values with their JSON forms.
