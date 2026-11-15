@@ -2628,3 +2628,93 @@ fn fitch_refuses_a_conclusion_used_inside_its_subproof() {
     );
     assert!(deduxit::rules::Drawing::new(&nj, &derivation, &Limits::default()).is_ok());
 }
+
+/// A rule that cites a hypothesis of a scope around it discharges
+/// nothing and carries no mark; each `→I` carries the mark of the
+/// hypothesis it discharges, and an assumption stands without brackets.
+#[test]
+fn only_a_discharge_is_marked() {
+    let nj: deduxit::rules::Calculus = deduxit::wire::upgrade(
+        &mut serde_json::Deserializer::from_str(deduxit::rules::NJ),
+        &Limits::default(),
+    )
+    .unwrap();
+    let read = |document: serde_json::Value| -> deduxit::rules::Derivation {
+        let derivation = deduxit::wire::upgrade(document, &Limits::default()).unwrap();
+        deduxit::rules::Derivation::check(&derivation, &nj, &Limits::default(), |_| false).unwrap();
+        derivation
+    };
+    let latex_of = |derivation: &deduxit::rules::Derivation| {
+        let drawing = deduxit::rules::Drawing::new(&nj, derivation, &Limits::default()).unwrap();
+        latex::to_string(&drawing, &latex::Options::default()).unwrap()
+    };
+    let pair = read(serde_json::json!({
+        "version": 15, "calculus": "NJ",
+        "terms": ["a", "b", ["∧", 0, 1], ["→", 1, 2], ["→", 0, 3]],
+        "scopes": [0, 1],
+        "nodes": [
+            {"sequent": [[0]], "hypothesis": true, "scope": 1},
+            {"sequent": [[1]], "hypothesis": true, "scope": 2},
+            {"sequent": [[2]], "rule": "∧I", "premises": [0, 1], "scope": 2},
+            {"sequent": [[3]], "rule": "→I", "premises": [2], "scope": 1},
+            {"sequent": [[4]], "rule": "→I", "premises": [3]}
+        ]
+    }));
+    let tex = latex_of(&pair);
+    assert!(tex.contains(r"\hypo{[a]^{2}}"), "{tex}");
+    assert!(tex.contains(r"\hypo{[b]^{1}}"), "{tex}");
+    assert!(tex.contains(r"\infer2[$\land\mathrm{I}$]"), "{tex}");
+    assert!(tex.contains(r"\infer1[$\to\mathrm{I}^{2}$]"), "{tex}");
+    // An assumption, used inside a subproof, has no brackets.
+    let assumed = read(serde_json::json!({
+        "version": 15, "calculus": "NJ",
+        "terms": ["a", "b", ["∧", 0, 1], ["→", 1, 2]],
+        "scopes": [0],
+        "nodes": [
+            {"sequent": [[0]], "hypothesis": true},
+            {"sequent": [[1]], "hypothesis": true, "scope": 1},
+            {"sequent": [[2]], "rule": "∧I", "premises": [0, 1], "scope": 1},
+            {"sequent": [[3]], "rule": "→I", "premises": [2]}
+        ]
+    }));
+    let tex = latex_of(&assumed);
+    assert!(tex.contains(r"\hypo{a}"), "{tex}");
+    assert!(tex.contains(r"\hypo{[b]^{1}}"), "{tex}");
+    assert!(tex.contains(r"\infer2[$\land\mathrm{I}$]"), "{tex}");
+}
+
+/// A Fitch proof's description calls a line a hypothesis only when it is
+/// one: a subproof without hypotheses opens with a rule's line.
+#[test]
+fn fitch_describes_each_line_by_what_it_is() {
+    let nj: deduxit::rules::Calculus = deduxit::wire::upgrade(
+        &mut serde_json::Deserializer::from_str(deduxit::rules::NJ),
+        &Limits::default(),
+    )
+    .unwrap();
+    // b → ⊤: `→I` discharges nothing of a subproof that holds `⊤I` alone.
+    let derivation: deduxit::rules::Derivation = deduxit::wire::upgrade(
+        serde_json::json!({
+            "version": 15, "calculus": "NJ",
+            "terms": ["b", ["⊤"], ["→", 0, 1]],
+            "scopes": [0],
+            "nodes": [
+                {"sequent": [[1]], "rule": "⊤I", "scope": 1},
+                {"sequent": [[2]], "rule": "→I", "premises": [0]}
+            ]
+        }),
+        &Limits::default(),
+    )
+    .unwrap();
+    derivation
+        .check(&nj, &Limits::default(), |_| false)
+        .unwrap();
+    let options = deduxit::rules::FitchOptions::default();
+    let fitch = deduxit::rules::Fitch::new(&nj, &derivation, &options, &Limits::default()).unwrap();
+    let svg = svg::to_string(&fitch, &Style::default()).unwrap();
+    assert!(svg.contains("Line 1, ⊤: by ⊤I."), "{svg}");
+    assert!(
+        svg.contains("Line 2, b → ⊤: by →I from the subproof of lines 1 to 1."),
+        "{svg}"
+    );
+}

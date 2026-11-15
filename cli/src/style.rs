@@ -13,8 +13,10 @@ use deduxit::export::{Form, Styles};
 use serde_json::Value;
 
 /// The names of the formats that have options, as `--style` keys and the
-/// style file name them.
-const FORMATS: [&str; 7] = ["text", "latex", "typst", "svg", "png", "pdf", "rocq"];
+/// style file name them; `fitch` is a Fitch proof's, in every format.
+const FORMATS: [&str; 8] = [
+    "text", "latex", "typst", "svg", "png", "pdf", "rocq", "fitch",
+];
 
 /// Reads the style file over `base` and applies the flags to it, in their
 /// order; an unprefixed key names `format`, the format of the command's

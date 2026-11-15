@@ -21,6 +21,10 @@ const LINE: u64 = 256;
 /// short formula's text.
 const MEMBER: u64 = 64;
 
+/// What the estimate counts per proof a line lies in, in bytes: the text
+/// form's `│ ` (four bytes) and the SVG's share of the line beside it.
+const BAR: u64 = 8;
+
 /// The choices of a Fitch proof's text, whatever format writes it.
 ///
 /// Start from `FitchOptions::default()` and change the fields you want,
@@ -90,6 +94,13 @@ pub(crate) struct Line {
     pub(crate) depth: u32,
     /// The lines and subproofs it is justified by, in its rule's order.
     pub(crate) cites: Vec<Cite>,
+    /// How many subproofs open at it.
+    pub(crate) opens: u32,
+    /// How many subproofs end at it.
+    pub(crate) closes: u32,
+    /// Whether it is the last hypothesis of its proof or subproof, which
+    /// a bar under it closes.
+    pub(crate) closes_hypotheses: bool,
 }
 
 /// A proof or subproof: its lines, by index, and its hypotheses first.
@@ -138,6 +149,13 @@ pub struct Fitch<'a> {
     /// The lines in order.
     lines: Vec<Line>,
     /// The main proof first, then every subproof in the order it opens.
+    #[cfg_attr(
+        not(feature = "svg"),
+        expect(
+            dead_code,
+            reason = "only the SVG drawing reads the blocks: the other writers read the lines' flags"
+        )
+    )]
     blocks: Vec<Block>,
 }
 
@@ -183,13 +201,28 @@ impl<'a> Fitch<'a> {
             return Err(invalid("it has no node".to_owned()));
         };
         let refused = |reason: String| Error::NotFitch { reason };
+        let count = derivation.len();
+        let parents = derivation.scope_parents();
+        let id = |node: u32| derivation.at(node as usize).id();
+        let scope = |node: u32| derivation.at(node as usize).scope().index() as u32;
+        // A scope's depth; a parent is made before its children.
+        let depth = depths(parents);
+        // The first node of each scope, by which a reason names a subproof
+        // and the order ties a subproof's place.
+        let mut firsts = vec![u32::MAX; parents.len()];
+        for node in (0..count as u32).rev() {
+            firsts[scope(node) as usize] = node;
+        }
+        let first_node = |scope: u32| firsts[scope as usize];
         // The text's size, before anything is laid out.
         let mut estimate = 0u64;
         for node in derivation.nodes() {
             let members = (0..derivation.zones()).map(|z| node.zone(z).len() as u64);
+            let bars = u64::from(depth[node.scope().index()]) + 1;
             estimate = estimate
                 .saturating_add(LINE)
-                .saturating_add(MEMBER.saturating_mul(members.sum()));
+                .saturating_add(MEMBER.saturating_mul(members.sum()))
+                .saturating_add(BAR.saturating_mul(bars));
         }
         if let Some(limit) = limits.derivation_bytes
             && estimate > limit
@@ -200,15 +233,6 @@ impl<'a> Fitch<'a> {
                 limit_bytes: limit,
                 least_bytes: None,
             }));
-        }
-        let count = derivation.len();
-        let parents = derivation.scope_parents();
-        let id = |node: u32| derivation.at(node as usize).id();
-        let scope = |node: u32| derivation.at(node as usize).scope().index() as u32;
-        // A scope's depth; a parent is made before its children.
-        let mut depth = vec![0u32; parents.len()];
-        for s in 1..parents.len() {
-            depth[s] = depth[parents[s] as usize] + 1;
         }
         let mut climb = Climb {
             parents,
@@ -246,6 +270,7 @@ impl<'a> Fitch<'a> {
             }
         }
         let mut waits: HashMap<Unit, Vec<Unit>> = HashMap::default();
+        let mut edges: HashSet<(Unit, Unit)> = HashSet::default();
         let mut owed: HashMap<Unit, u32> = HashMap::default();
         let mut concludes: Vec<Option<u32>> = vec![None; parents.len()];
         for node in 0..count as u32 {
@@ -266,7 +291,7 @@ impl<'a> Fitch<'a> {
                             return Err(refused(format!(
                                 "two rules take the subproof of node {} with different \
                                  conclusions, nodes {} and {}",
-                                first_node(derivation, there),
+                                first_node(there),
                                 other,
                                 premise
                             )));
@@ -286,12 +311,9 @@ impl<'a> Fitch<'a> {
                          its reach"
                     )));
                 };
-                if to != from {
-                    let list = waits.entry(from).or_default();
-                    if !list.contains(&to) {
-                        list.push(to);
-                        *owed.entry(to).or_default() += 1;
-                    }
+                if to != from && edges.insert((from, to)) {
+                    waits.entry(from).or_default().push(to);
+                    *owed.entry(to).or_default() += 1;
                 }
             }
         }
@@ -301,7 +323,7 @@ impl<'a> Fitch<'a> {
         // derivation's order.
         let key = |part: Unit| match part {
             Unit::Node(node) => node,
-            Unit::Block(s) => first_node(derivation, s),
+            Unit::Block(s) => first_node(s),
         };
         let hypothesis = |part: Unit| matches!(part, Unit::Node(n) if derivation.nodes[n as usize].kind == Kind::Hypothesis);
         let mut orders: Vec<Vec<Unit>> = vec![Vec::new(); parents.len()];
@@ -342,10 +364,7 @@ impl<'a> Fitch<'a> {
                 let what = if level == 0 {
                     "the main proof".to_owned()
                 } else {
-                    format!(
-                        "the subproof of node {}",
-                        first_node(derivation, level as u32)
-                    )
+                    format!("the subproof of node {}", first_node(level as u32))
                 };
                 return Err(refused(format!(
                     "no order of {what} puts every line after the lines it cites and the \
@@ -361,10 +380,7 @@ impl<'a> Fitch<'a> {
                     if level == 0 {
                         "the main proof".to_owned()
                     } else {
-                        format!(
-                            "the subproof of node {}",
-                            first_node(derivation, level as u32)
-                        )
+                        format!("the subproof of node {}", first_node(level as u32))
                     }
                 )));
             }
@@ -402,6 +418,9 @@ impl<'a> Fitch<'a> {
                         node: id(node),
                         depth: depth[level as usize],
                         cites: Vec::new(),
+                        opens: 0,
+                        closes: 0,
+                        closes_hypotheses: false,
                     });
                 }
                 Unit::Block(inner) => {
@@ -413,6 +432,15 @@ impl<'a> Fitch<'a> {
                     });
                     stack.push((inner, 0, blocks.len() - 1));
                 }
+            }
+        }
+        for block in &blocks {
+            if block.depth > 0 {
+                lines[block.first as usize].opens += 1;
+                lines[block.last as usize].closes += 1;
+            }
+            if block.hypotheses > 0 {
+                lines[(block.first + block.hypotheses - 1) as usize].closes_hypotheses = true;
             }
         }
         for line in &mut lines {
@@ -461,7 +489,7 @@ impl<'a> Fitch<'a> {
     }
 
     /// Returns the main proof, then every subproof in the order it opens.
-    #[cfg(any(feature = "latex", feature = "typst", feature = "svg"))]
+    #[cfg(feature = "svg")]
     pub(crate) fn blocks(&self) -> &[Block] {
         &self.blocks
     }
@@ -557,21 +585,31 @@ impl<'a> Fitch<'a> {
     }
 }
 
+/// Returns the depth of every scope, 0 for the main proof; a parent is
+/// made before its children.
+pub(super) fn depths(parents: &[u32]) -> Vec<u32> {
+    let mut depth = vec![0u32; parents.len()];
+    for s in 1..parents.len() {
+        depth[s] = depth[parents[s] as usize] + 1;
+    }
+    depth
+}
+
 /// A walk up the scopes, its steps counted against the work bound.
-struct Climb<'d> {
+pub(super) struct Climb<'d> {
     /// The parent of each scope, the main proof's its own.
-    parents: &'d [u32],
+    pub(super) parents: &'d [u32],
     /// The depth of each scope, 0 for the main proof.
-    depth: &'d [u32],
+    pub(super) depth: &'d [u32],
     /// The steps taken.
-    work: u64,
+    pub(super) work: u64,
     /// The most steps, [`Limits::work`].
-    limit: Option<u64>,
+    pub(super) limit: Option<u64>,
 }
 
 impl Climb<'_> {
     /// Counts a step, and refuses past the bound.
-    fn tick(&mut self) -> Result<(), Error> {
+    pub(super) fn tick(&mut self) -> Result<(), Error> {
         self.work = self.work.saturating_add(1);
         match self.limit {
             Some(limit) if self.work > limit => Err(Error::Refused(Refusal::Work { limit })),
@@ -581,7 +619,7 @@ impl Climb<'_> {
 
     /// Returns the scope directly inside `level` that holds `inner`, or
     /// `None` where `level` does not lie around `inner`.
-    fn inside(&mut self, mut inner: u32, level: u32) -> Result<Option<u32>, Error> {
+    pub(super) fn inside(&mut self, mut inner: u32, level: u32) -> Result<Option<u32>, Error> {
         let below = self.depth[level as usize] + 1;
         while self.depth[inner as usize] > below {
             self.tick()?;
@@ -601,14 +639,6 @@ impl Climb<'_> {
         }
         Ok(self.inside(at, level)?.map(Unit::Block))
     }
-}
-
-/// Returns the first node of a scope, by which a reason names a subproof.
-fn first_node(derivation: &Derivation, scope: u32) -> u32 {
-    derivation
-        .nodes()
-        .find(|node| node.scope().index() as u32 == scope)
-        .map_or(0, |node| node.id().index() as u32)
 }
 
 impl Display for Fitch<'_> {
@@ -640,15 +670,13 @@ impl Display for Fitch<'_> {
                 write!(f, "{head}{:pad$}   {justification}", "")?;
             }
             f.write_char('\n')?;
-            // A bar under the last hypothesis of every block it closes.
-            for block in &self.blocks {
-                if block.hypotheses > 0 && block.first + block.hypotheses - 1 == index as u32 {
-                    write!(f, "{:width$} ", "")?;
-                    for _ in 0..block.depth {
-                        f.write_str("│ ")?;
-                    }
-                    f.write_str("├───\n")?;
+            // A bar under the last hypothesis of its proof or subproof.
+            if line.closes_hypotheses {
+                write!(f, "{:width$} ", "")?;
+                for _ in 0..line.depth {
+                    f.write_str("│ ")?;
                 }
+                f.write_str("├───\n")?;
             }
         }
         Ok(())

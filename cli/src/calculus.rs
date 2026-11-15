@@ -214,6 +214,7 @@ pub(crate) fn check_rules(
             &line,
             status,
             result.is_ok(),
+            &over,
             out,
         );
     }
@@ -282,8 +283,8 @@ fn left_out(error: &Error) -> String {
 /// comment, then the derivation. Where there is nothing to draw (the
 /// derivation is invalid, or `-q` or `--tree never` asks for none) or it
 /// is left out, the verdict and the reason go to standard error and the
-/// output holds nothing. Returns the status and whether anything was
-/// written.
+/// output holds nothing. `over` says when the time limit or Ctrl-C ends
+/// the drawing. Returns the status and whether anything was written.
 #[expect(
     clippy::too_many_arguments,
     reason = "the check's parts, each needed once"
@@ -296,6 +297,7 @@ fn drawing(
     verdict: &str,
     status: Status,
     valid: bool,
+    over: &dyn Fn() -> bool,
     out: &mut io::Output,
 ) -> Result<(Status, bool)> {
     let say = |line: &str| {
@@ -307,7 +309,6 @@ fn drawing(
         say(verdict);
         return Ok((status, false));
     }
-    let over = || interrupted() || io::closed();
     let write = |drawable: Drawable<'_>| -> Result<String, Error> {
         let mut text = String::new();
         let styles = &show.styles;

@@ -299,8 +299,14 @@ design, with the reasons and the alternatives weighed, is
   line inside a subproof uses its conclusion, or a cycle through a
   subproof); the checker accepts some of those, which can still be
   drawn as a tree. A node cited by several lines is one line. Its size
-  is estimated before anything is laid out (`LINE`, `MEMBER`, against
-  `limits.derivation_bytes`, `Refusal::Output { what: "Fitch proof" }`).
+  is estimated before anything is laid out (`LINE`, `MEMBER`, and `BAR`
+  per proof each line lies in, against `limits.derivation_bytes`,
+  `Refusal::Output { what: "Fitch proof" }`): the text writes a `│` per
+  depth on every line, so a proof nested 20 000 deep wrote 1.28 GB
+  under an estimate of 6.4 MB before `BAR` (the review of 62c). Its
+  edges are deduplicated by a set and each scope's first node is found
+  once (a scan per citation and per subproof made a fan of 200 000
+  citations take 16 s).
   `Display` is the text form (`│` per proof, `├───` under hypotheses,
   the justifications aligned). The choice between the two layouts is
   `ViewOptions::layout` (`Layout::Tree`, `Fitch`), the command's

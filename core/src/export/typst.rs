@@ -656,7 +656,6 @@ fn fitch(
         )?;
     }
     out.write_str("#proof((\n")?;
-    let blocks = fitch.blocks();
     let string = |out: &mut String, text: &str| {
         out.push_str("[#\"");
         for c in text.chars() {
@@ -668,12 +667,12 @@ fn fitch(
         out.push_str("\"]");
     };
     let mut buffer = String::new();
-    for (index, line) in fitch.lines().iter().enumerate() {
-        let index = index as u32;
-        for block in blocks {
-            if block.depth > 0 && block.first == index {
-                buffer.push_str("  open,\n");
-            }
+    for line in fitch.lines() {
+        for _ in 0..line.opens {
+            buffer.push_str(
+                "  open,
+",
+            );
         }
         let mut formula = String::from("$");
         fitch.formula(line, &NOTATION, &mut formula);
@@ -696,17 +695,10 @@ fn fitch(
                 buffer.push_str("),\n");
             }
         }
-        if blocks
-            .iter()
-            .any(|block| block.hypotheses > 0 && block.first + block.hypotheses - 1 == index)
-        {
+        if line.closes_hypotheses {
             buffer.push_str("  assume,\n");
         }
-        let closing = blocks
-            .iter()
-            .filter(|block| block.depth > 0 && block.last == index)
-            .count();
-        for _ in 0..closing {
+        for _ in 0..line.closes {
             buffer.push_str("  close,\n");
         }
         flush(out, &mut buffer, &mut stop)?;

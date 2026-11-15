@@ -315,7 +315,12 @@ for NanoYalla. What the code relies on:
   marks of the scopes it discharges (`→I` with `style::RAISED` before a
   `{3}` group, `Part::Sup`, set as a superscript in every target: LaTeX
   `^{…}`, Typst `^(…)`, SVG between `svg::SUPERSCRIPT`'s marks, text in
-  superscript digits), then the open goal; the marks number the
+  superscript digits), then the open goal; a premise in the node's
+  scope or one around it is cited, and only one in a scope inside those
+  is discharged (`fitch::Climb::inside`, counted against `limits.work`):
+  counting every premise in another scope as discharged marked `∧I`
+  with a `→I`'s number and bracketed assumptions (the review of 62c,
+  `only_a_discharge_is_marked`); the marks number the
   discharged scopes in the drawing's order, from the leaves up, so a
   rule's label variant is a rule of its own and the per-rule tables
   need nothing per inference; a hypothesis of a discharged scope is
@@ -358,13 +363,17 @@ for NanoYalla. What the code relies on:
   under an assumption): `#proof((open, $A$, assume, ($B$, [$RULE$
   2–4]), close, …))`; the package numbers the visible lines in order, as
   the citations do, and a standalone document imports it, not the
-  options' `import` (curryst's). SVG (`svg/fitch.rs`): numbers
+  options' `import` (curryst's). Every writer reads each line's flags
+  (`Line::opens`, `closes`, `closes_hypotheses`), never all the blocks
+  per line, which was quadratic (the review of 62c: 100 000 sibling
+  subproofs took 14 to 18 s). SVG (`svg/fitch.rs`): numbers
   right-aligned at the label size, a vertical line per block from the
   top of its first row to the bottom of its last (`premise_gap / 2`
   apart), a short bar under a block's last hypothesis as wide as its
   widest hypothesis, the justifications in a column a `premise_gap`
   right of the widest formula, ids `l<n>` on each line's formula, and a
-  `<desc>` that reads each line as a sentence ("Line 6, b ∨ a: by ∨E
+  `<desc>` that reads each line as a sentence (a hypothesis is called one
+  only when it is: a subproof may open with a rule's or an open line) ("Line 6, b ∨ a: by ∨E
   from line 1, the subproof of lines 2 to 3 …"). The `export` check
   compiles `fitch.*`; `modules/export.nix` adds `fitch`, `kvoptions` and
   the fitchcraft that `FITCHCRAFT` names, read from the source as

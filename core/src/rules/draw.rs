@@ -79,7 +79,9 @@ impl<'a> Drawing<'a> {
     /// whose sequents have other zones than the calculus's;
     /// [`Refusal::Output`](crate::Refusal::Output) when the tree, a node
     /// shared by several drawn once for each, is estimated past
-    /// `limits.derivation_bytes`.
+    /// `limits.derivation_bytes`, and [`Refusal::Work`](crate::Refusal::Work)
+    /// when telling the rules' discharges takes more than `limits.work`
+    /// steps up the scopes.
     pub fn new(
         calculus: &'a Calculus,
         derivation: &'a Derivation,
@@ -165,6 +167,14 @@ impl<'a> Drawing<'a> {
         let mut marks: HashMap<u32, u32> = HashMap::default();
         let mut marked: HashMap<(u32, Vec<u32>), u32> = HashMap::default();
         let mut rules = Vec::with_capacity(nodes.len());
+        let parents = derivation.scope_parents();
+        let depth = super::fitch::depths(parents);
+        let mut climb = super::fitch::Climb {
+            parents,
+            depth: &depth,
+            work: 0,
+            limit: limits.work,
+        };
         for &node in &nodes {
             let rule = match derivation.nodes[node.index()].kind {
                 Kind::Rule(rule) => rule,
@@ -174,12 +184,17 @@ impl<'a> Drawing<'a> {
             };
             let at = derivation.node(node);
             let mut own = Vec::new();
+            let outer = scope(node);
             for &premise in at.premises() {
+                // A premise in the node's scope or one around it is cited;
+                // one in a scope inside those is the subproof the node
+                // discharges.
                 let inner = scope(premise);
-                if inner != scope(node) {
-                    let next = marks.len() as u32 + 1;
-                    own.push(*marks.entry(inner).or_insert(next));
+                if inner == outer || climb.inside(outer, inner)?.is_some() {
+                    continue;
                 }
+                let next = marks.len() as u32 + 1;
+                own.push(*marks.entry(inner).or_insert(next));
             }
             if own.is_empty() || rule == u32::MAX {
                 rules.push(rule);

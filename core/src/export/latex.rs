@@ -652,14 +652,10 @@ fn fitch(
         begin(out, options, Some("fitch"))?;
     }
     out.write_str("$\\begin{nd}\n")?;
-    let blocks = fitch.blocks();
     let mut buffer = String::new();
     for (index, line) in fitch.lines().iter().enumerate() {
-        let index = index as u32;
-        for block in blocks {
-            if block.depth > 0 && block.first == index {
-                buffer.push_str("\\open\n");
-            }
+        for _ in 0..line.opens {
+            buffer.push_str("\\open\n");
         }
         let kind = if fitch.is_hypothesis(line) {
             "hypo"
@@ -686,11 +682,7 @@ fn fitch(
             }
         }
         buffer.push('\n');
-        let closing = blocks
-            .iter()
-            .filter(|block| block.depth > 0 && block.last == index)
-            .count();
-        for _ in 0..closing {
+        for _ in 0..line.closes {
             buffer.push_str("\\close\n");
         }
         flush(out, &mut buffer, &mut stop)?;

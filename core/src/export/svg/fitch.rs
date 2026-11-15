@@ -164,7 +164,6 @@ fn stopped() -> Error {
 /// Writes what a screen reader reads of a Fitch proof: a sentence per
 /// line, its number, its formula in plain text, and what justifies it.
 fn describe(fitch: &Fitch<'_>, out: &mut impl Write) -> std::fmt::Result {
-    let blocks = fitch.blocks();
     let mut formula = String::new();
     for (index, line) in fitch.lines().iter().enumerate() {
         if index > 0 {
@@ -173,13 +172,14 @@ fn describe(fitch: &Fitch<'_>, out: &mut impl Write) -> std::fmt::Result {
         formula.clear();
         fitch.formula(line, &PLAIN, &mut formula);
         write!(out, "Line {}, {formula}: ", index + 1)?;
-        let opens = blocks
-            .iter()
-            .any(|block| block.depth > 0 && block.first == index as u32);
+        let hypothesis = fitch.is_hypothesis(line);
         match fitch.rule(line) {
-            _ if fitch.is_hypothesis(line) && line.depth == 0 => out.write_str("an assumption")?,
-            _ if opens => out.write_str("a hypothesis, which opens a subproof")?,
-            _ if fitch.is_hypothesis(line) => out.write_str("a hypothesis")?,
+            _ if hypothesis && line.depth == 0 => out.write_str("an assumption")?,
+            _ if hypothesis && line.opens > 0 => {
+                out.write_str("a hypothesis, which opens a subproof")?;
+            }
+            _ if hypothesis => out.write_str("a hypothesis")?,
+            None if line.opens > 0 => out.write_str("open, the first line of a subproof")?,
             None => out.write_str("open")?,
             Some(_) => {
                 out.write_str("by ")?;
