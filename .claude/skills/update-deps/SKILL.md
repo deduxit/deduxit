@@ -131,7 +131,7 @@ What a new toolchain breaks, and how each was met (2026-10-22, 1.98 → 1.99):
 - **The ratchet** (`bench/ceilings.csv`): codegen moves the journeys' counts
   both ways. Find what moved before touching a ceiling: build `deduxit-bench`
   at the commit before the bump in a workspace of its own (`jj workspace add
-  ../linlog-deps-old -r REV`) and after it, `ratchet --jobs 1 --keep DIR` in
+  ../deduxit-deps-old -r REV`) and after it, `ratchet --jobs 1 --keep DIR` in
   each, then compare callgrind's self counts per function (`callgrind_annotate`
   on both files), and time the journeys that moved, pinned to one core,
   alternating the two binaries (`journey NAME --repeat N`). A clean change of
