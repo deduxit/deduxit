@@ -311,6 +311,50 @@ fn the_thirteenth_level_reads() {
     assert_eq!(lines.lines().count(), 2);
 }
 
+/// The forms level 14 adds, a truth table and a tableau, read alone and
+/// in an outcome of their method, and write the same bytes again; the
+/// table read is the one computed from its sequent, and the outcome's
+/// evidence still holds. Never rewritten, as `wire/level-1.txt` is not.
+#[test]
+fn the_fourteenth_level_reads() {
+    use deduxit::ordinary;
+    let limits = deduxit::Limits::default();
+    let lines = include_str!("wire/level-14.txt");
+    for line in lines.lines() {
+        let (name, json) = line.split_once(": ").unwrap();
+        match name.split('-').next().unwrap() {
+            "table" => {
+                again::<ordinary::TruthTable>(name, json);
+                let table: ordinary::TruthTable = read(name, json);
+                assert_eq!(table.falsifying(), [2], "{name}");
+            }
+            "tableau" => {
+                again::<ordinary::Tableau>(name, json);
+                let tableau: ordinary::Tableau = read(name, json);
+                assert!(tableau.is_closed(), "{name}");
+            }
+            "outcome" => {
+                again::<ordinary::Outcome>(name, json);
+                let outcome: ordinary::Outcome = read(name, json);
+                match (&outcome.verdict, &outcome.countermodel) {
+                    (ordinary::Verdict::Valid(evidence), None) => {
+                        let derivation = evidence.derivation().unwrap();
+                        assert_eq!(derivation.check(&limits, |_| false), Ok(()), "{name}");
+                    }
+                    (ordinary::Verdict::NotValid, Some(countermodel)) => assert_eq!(
+                        countermodel.check(outcome.logic, &limits, |_| false),
+                        Ok(()),
+                        "{name}"
+                    ),
+                    other => panic!("{name}: {other:?}"),
+                }
+            }
+            other => panic!("{name}: no form {other}"),
+        }
+    }
+    assert_eq!(lines.lines().count(), 4);
+}
+
 /// Every outcome the JSON lock holds (each verdict, refutation and reason,
 /// at levels 1 and 2) reads as an `Outcome` and writes the same bytes
 /// again; one the first release wrote reads too, as does an engine this
