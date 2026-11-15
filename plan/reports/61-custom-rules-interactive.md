@@ -227,3 +227,252 @@ level (stated once).
   rule; for large sequents in a calculus with many two-position rules
   (the tableau's `×` is quadratic in the branch) a front end should ask
   it for one goal at a time, as the command does.
+
+## Session 61b: the bindings, the drawing and the page
+
+Opus 5.5 at high, cores 10-12, the reviewer on Fable 5.2. The prompt is
+`plan/61-custom-rules-interactive.md`, its second session, from the brief
+`start-61b.md`.
+
+### Outcome
+
+A visitor can now build a derivation in a calculus given as a rule file
+on the page: LJ or the tableau to start from, or a rule file of their
+own, each step checked by deduxit before the session takes it, the
+derivation drawn as LK's is, and the finished one checked whole, "valid
+in the calculus given". The page shows nothing of it until the
+calculus popover's one button "Your own calculus" is pressed.
+
+### The drawing
+
+- **`rules::Drawing::new(&calculus, &derivation, &limits)`** lays a
+  derivation out for the exports, and `Drawable::Rules` takes it
+  (feature `serialize`), so `svg`, `latex` and `typst` draw it as they
+  draw LK's: each node under its rule's name, the formulas in the rule
+  file's print forms, an open goal as the style draws one, a hypothesis
+  as a leaf labelled `hyp`. The SVG has its `<title>` (the conclusion)
+  and its `<desc>` (the numbered steps, "by ∧R"), as every tree's.
+- **`Drawn` became per value**: the rule count, the open rule and the
+  labels were constants of the type (`RULES`, `OPEN`, `markup` without
+  `self`), which a calculus known only at run time cannot give; they
+  are methods now (`rules()`, `open()`, `markup(&self, …)`), the label
+  tables still built once per drawing, so nothing per inference changed
+  (the ratchet's counts stayed within their ceilings).
+- **A derivation is a DAG in general**: `Drawing::new` unfolds it from
+  its last node into a tree, a shared node drawn once per use, and
+  refuses past `limits.derivation_bytes` by an estimate counted as it
+  unfolds, so a derivation whose sharing would unfold exponentially is
+  refused before anything is laid out. A session's derivation is a tree,
+  numbered alike in `Interactive::derived` and in the drawing, which
+  `Interactive::derivation_goals` (new) and the page's view rely on.
+- **Formulas in each notation**: the printer of rule files
+  (`rules/print.rs`) takes a `Spelling`. A connective whose symbol a
+  notation knows (the linear and ordinary symbols, `⊢`) takes that
+  notation's spelling (`\land`, `\vdash`), any other symbol is set
+  upright (`\mathrm{T}`, `upright("T") `), atoms as the notation's atoms
+  (italic letters in SVG). Each sequent is cut at `Shown::LIMIT`
+  characters a whole piece at a time, so no LaTeX command is cut in two.
+  pdfLaTeX knows only the characters `escape` spells; `×`, the
+  tableau's closing rule, was added. Snapshots `rules.*` (LJ) and
+  `rules-tableau.*`, which the `export` check compiles.
+- Rocq refuses such a derivation (`Unsupported::Calculus`) and it has no
+  lambda-term (`NoTerm::Calculus`).
+
+### The bindings
+
+`web/src/rules.rs`, exported with the prefix `rules_`: `calculus` (a
+built-in rule file's text), `read` (a rule file checked and described),
+`start` (calculus, goal, assumptions), `view` (a saved session read back,
+every step checked again: the load), `rules`, `apply` (`{"rule", "at",
+"given"}`), `assume`, `undo`, `check` (the finished derivation, "valid in
+the calculus given", and its document), `draw` and `export` (LaTeX,
+Typst, SVG). The session's document holds the rule file, so it is the
+whole state, which is what the save is. The view gives each open goal as
+text, its zones' members in the order of their numbers, the hypotheses
+in force, the root sequent and the assumptions, and `inferences`, the
+session node of each drawn `i<n>`. `about` lists the suite `rules` with
+the parameter `calculus` and `term` `null`. `rules::GoalId` serializes
+as its number, as the linear one does.
+
+The module grew to 3 111 006 bytes at gzip -9, past the ceiling of
+3 000 000: the bindings now link the rule-file reader, checker, text
+syntax and session. The ceiling is 3 300 000, in a commit of its own
+that says so.
+
+### The page
+
+In the client (`deduxit.github.io`):
+- **A suite of the registry** (`rules`, parameter `calculus`, the rule
+  file's name), with no segment on the calculus's segmented control:
+  one button in the calculus popover, "Your own calculus", opens it. A
+  visitor who never presses it sees the popover's one extra button and
+  nothing else (the author's "not overwhelming").
+- **The panel** (`src/islands/Custom.tsx`) stands in the stage's place,
+  as the truth table does. Its first screen says in one sentence what a
+  rule file is, starts from LJ or the tableau, and keeps the file and
+  the assumptions in two closed parts under it; the goal is typed in the
+  sequent field, its example in the placeholder. Once started: the
+  derivation drawn by deduxit, the open goals, the steps deduxit offers
+  for the goal chosen (one button per text, "∧R on b ∧ a"), a step that
+  needs values asking for each by name, "Close by a hypothesis", the
+  bottom band's Undo, and the check of the finished derivation:
+  "Valid in the calculus given: every step follows a rule of LJ.
+  Nothing says the rules themselves are sound." After a step the panel
+  moves to the goal the step opened, after an undo to the goal it
+  reopened.
+- **The state** keeps a custom proof's work in `Proof.custom` (the file
+  as typed, the assumptions, the session; never stored the view, the
+  verdict, the problem and the goal), never in `Proof.session`, so no
+  linear or ordinary call ever gets such a session and every path that
+  reads `session` sees the proof as not started.
+- **The link and the autosave keep the rule file**: the session holds
+  it, and the link writes it (`u=rules&m=NAME&d=…`), the shelf too
+  (`StoredProof.custom`); both are read back through `rules_view`, which
+  checks every step again. Nothing is sent anywhere: the calls run in
+  the page's worker.
+- The education skills used as references: cognitive load (one new thing
+  per screen: the file and the assumptions stay closed until wanted; the
+  goal is typed where every other goal is), and the feedback principles
+  (a refused step shows deduxit's reason under the steps, and a step
+  that needs values names each).
+
+### Checks
+
+All on cores 10-12, every nix build under the machine lock.
+
+| check | where | result |
+|---|---|---|
+| the gate (clippy, tests, both `cargo hack` runs, the ratchet) | deduxit at `tzmrqoux`, rebased onto 62a | passed (also at `wzqmmxvk` and `uqktymvt` before the rebase) |
+| the bindings' tests natively | `cargo test -p deduxit-web --test rules --test ordinary` | 4 and 10 passed |
+| the bindings' tests under Node | `checks.web-wasm-tests` (in `nix flake check`) | passed; `tests/rules.rs` 4 passed under Node at `wzqmmxvk` |
+| the export snapshots compiled | `checks.export` | passed (`rules.*`, `rules-tableau.*` by pdfLaTeX, Typst, resvg) |
+| `nix flake check` | deduxit at `sxwwwyql`, the report's commit | passed (also at `wzqmmxvk`) |
+| the client's unit suite (`tests`) | client at `uqqwsrmr` | 617 passed |
+| the client's lint (`lint`: Biome, `astro check`) | client at `uqqwsrmr` | clean |
+| the client's e2e suite (`e2e`, desktop and phone, axe in light and dark) | client at `uqqwsrmr` | 260 passed |
+| the client's `nix flake check` | client at `uqqwsrmr` | passed |
+
+The client was built against the deduxit chain with a local override,
+its committed lock untouched: `nix develop --override-input deduxit
+git+file:///home/tux/Projects/own/deduxit-wt-step-58b-8c0bbc -c …`
+for the dev shell's `tests`, `lint` and `e2e`, and `nix flake check
+--override-input deduxit git+file:///…` (a `git+file` input, so only
+tracked files go to the store). The client's `flake.lock` moves to
+deduxit's `main` once the planning session has pushed this chain.
+
+### Commits
+
+deduxit, on `main@origin` (`ntlzslyx`, 62a's review):
+
+| change | what |
+|---|---|
+| `zqztkpmt` | Draw a derivation in a calculus given as data |
+| `zlwrnprn` | Build a derivation in a calculus given as data in the web bindings |
+| `wzqmmxvk` | Raise the web module's ceiling for calculi given as data |
+| `uqktymvt` | Keep drawings of rule files well formed (the review's findings 1 to 4) |
+| `tzmrqoux` | Offer natural deduction's rule files in the web bindings |
+| `sxwwwyql` | Report of session 61b |
+
+The client, on its `main@origin` (`uxuxvlps`, 63t-b):
+
+| change | what |
+|---|---|
+| `sutqntom` | Build a derivation in a calculus of one's own |
+| `uqqwsrmr` | Leave out a stored custom proof without its rule file (finding 5) |
+
+### The reviewer's findings
+
+`fresh-reviewer` on Fable 5.2 (medium), once, with the page served from a
+build and driven by Playwright. The central criterion held: 19 200
+random apply, assume and undo operations over LJ, LK, LM, the tableau and
+a natural-deduction file with discharges, and 60 000 mutated session
+documents (58 accepted, each of those sound down its undo chain), never
+gave a session `rules_view` or `rules_check` refused; forged links and
+stored proofs were refused with deduxit's reason; a derivation whose
+sharing unfolds to 2^60 inferences was refused in about 3 ms. Five
+findings, all fixed:
+
+1. **A sequent cut at the printer's bound left LaTeX and Typst groups
+   open** (`\mathit{ab\dots`, `italic("abc dots`), which pdfLaTeX and
+   Typst refuse. Fixed: an atom or a symbol is written as one piece, a
+   cut sequent closes the brackets and member marks it opened, and a
+   bracket's closer is pushed only once its opener was written
+   (`uqktymvt`; `rules_drawings_stay_well_formed`, 800 nested `g(…)` and
+   a 5000-letter atom, balanced in both).
+2. **`_` and `*` in a rule's name were read as label markup**: `_|_E`
+   gave a double subscript (LaTeX and Typst refuse it) and an SVG
+   element with `font-size` twice. Fixed: `style::LITERAL` keeps a
+   character as text, and a rule file's names write `_` and `*` so
+   (`uqktymvt`).
+3. **A control character U+0002 or U+0003 in a symbol panicked the SVG
+   drawing** (`unreachable` in the module, no drawing on the page).
+   Fixed: the rule-file reader refuses a control character in the
+   calculus's name, a connective's name or symbol, a zone's name or mark
+   and a rule's name (`uqktymvt`).
+4. **`Drawing`'s doc comment** claimed inference `n` is node `n` for
+   every tree; it holds only where the nodes are stored in the
+   drawing's order, as a session's are. Reworded (`uqktymvt`).
+5. **A stored proof whose `custom` record lacks its file threw on
+   restore** (client). Fixed: the shelf's reader leaves such a proof out,
+   as it does any proof it cannot read (`uqqwsrmr` in the client).
+
+Not tested by the reviewer: a link of a file of one's own past 2000
+characters (its own padded file compressed below the limit).
+
+### Departures and assumptions
+
+- **A hypothesis is drawn as a leaf labelled `hyp`** with an inference
+  line, not as a bare formula, so that the drawings need no new kind of
+  leaf; a Gentzen-style tree of natural deduction draws hypotheses bare
+  and marks the discharged ones (departs from the design).
+- **The calculus popover shows one more button**, "Your own calculus",
+  to every visitor who opens it; nothing else of the suite shows until
+  it is pressed. The brief's "sees nothing new" is read as "nothing on
+  the page itself" (departs from the design).
+- **Undo in a custom proof is the last step**, not the active branch's:
+  a session in a calculus given as data keeps the steps' order, and its
+  undo is the library's (departs from the design).
+- **The panel offers LJ and the tableau to start from**; LK, LM and LL
+  are read by name from a link or a stored proof, and their files are
+  one edit away. **`rules_export` has no text format**: `rules_check`
+  answers the finished derivation's document.
+- **A link without its session** (past 2000 characters) restores a
+  built-in calculus's goal, not a file of one's own: the file travels in
+  the session (web.md says so).
+- A user's `Labels::Table` keys the linear rules and does not touch a
+  rule file's labels; `Labels::Off` turns them off.
+
+### What the next sessions must know (62b to 62d: natural deduction's builder, drawings and page)
+
+- **62a landed while this session ran**; the chain is rebased onto it.
+  The bindings' built-in names are now the command's thirteen
+  (`rules_calculus("NJ")` and the rest, `about`'s `values`), as 62a's
+  report asked of 61b; the page still offers LJ and the tableau to start
+  from, so a third button for NJ is 62d's choice.
+
+- **The drawing** is `rules::Drawing` over the exports' generic tree
+  layout; `Drawn` now gives its rule count, open rule and labels per
+  value, so a calculus known at run time draws. A tree of natural
+  deduction wants hypotheses bare and discharged ones bracketed with
+  their mark (`[A]¹`), and the rule's label carrying the mark: that is a
+  kind of leaf the trait does not have (today a hypothesis is a rule
+  `hyp`); add it to `Drawn` (default off) and to the four layouts, or
+  draw natural deduction with a layout of its own.
+- **The Fitch view is a list, not a tree**: a derivation's scopes are
+  its boxes (`Derivation::scope_parents`, each scope's owner node and
+  premise in the session), the nodes in postorder are its lines. Number
+  the lines as `derived` numbers nodes, so that the page's
+  `view.inferences` (`Interactive::derivation_goals`) maps a line to its
+  goal as it maps `i<n>`.
+- **The page**: the custom suite is `rules` in the client's registry,
+  its panel `src/islands/Custom.tsx`, its state `Proof.custom`; a Fitch
+  view would be a second view of the panel's drawing (as Table is of the
+  stage's), its first screen staying one sentence. Each new state joins
+  `customising` in `tests/states.ts` (the walk is about 4 s per scheme
+  and width now).
+- **The module** is 3 111 006 bytes at gzip -9 under a ceiling of
+  3 300 000; a layout of its own for natural deduction should stay
+  within it.
+- **Printing**: `rules::print::Spelling` writes a rule file's terms in
+  any export's notation; a new symbol a notation should spell itself
+  joins `Spelling::symbol`'s table.
