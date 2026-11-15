@@ -152,12 +152,19 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   outcome, exit 2, as before); a mode
   flag beside an ordinary file is refused; its `Checked` JSON has
   `logic` in place of `mode`. An outcome's countermodel is checked
-  (`check_countermodel`, valid refutation exit 0, invalid 1). A Kripke
+  (`check_countermodel`, valid refutation exit 0, invalid 1, two
+  formulas right of `⊢` outside classical logic invalid too), beside an
+  embedding's refutation first: a wrong model is the answer, else the
+  image's refutation is checked as before. The classical default's JSON
+  takes the solver's model where the embedding's refutation gave none
+  (`ordinary::solver_model`, in `prove` and the batch). A Kripke
   model document (`read_document` probes `worlds`) is checked against
   `--sequent` under `--logic` (`check_model`: `Model::forcing`, then
-  `--world N` or every world; exit 0 holds, 1 fails with the failing
+  `--world N` or every world (`Forcing::failing_anywhere`: a search per
+  world was quadratic and asked no stop); exit 0 holds, 1 fails with the failing
   world's forcing per subformula as lines, or `failing` in JSON; a model
-  of another logic is an error, exit 2); `--sequent` beside another
+  of another logic, `Error::Model`, or two formulas right of `⊢`, is an
+  error, exit 2); `--sequent` beside another
   document is refused, and `eliminate` refuses both flags. `prove`
   prints the countermodel after a "not valid" verdict line as text
   (`kripke::Model`'s `Display`, not under `-q` or `--tree never`; the

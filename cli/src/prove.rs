@@ -381,7 +381,11 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
                 (_, _, true) => {}
                 (Some(image), false, false) => {
                     let over = || interrupted() || deadline.passed();
-                    let ordinary = image.outcome(outcome, &limits, |_| over())?;
+                    let mut ordinary = image.outcome(outcome, &limits, |_| over())?;
+                    crate::ordinary::solver_model(
+                        &mut ordinary,
+                        solved.as_ref().map(|(s, _)| &**s),
+                    );
                     crate::ordinary::write_json(&ordinary, &show, over, &mut out)?;
                     out.finish()?;
                     return Ok(status);

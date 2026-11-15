@@ -551,11 +551,19 @@ pub enum Error {
         /// What is wrong, and at which inference.
         reason: String,
     },
-    /// A Kripke model does not refute the sequent it was found for, for
-    /// the reason given. This is a defect of the engine that found it.
+    /// A Kripke model an engine found does not refute the sequent it was
+    /// found for, for the reason given. This is a defect of the engine.
     #[error("the Kripke model does not refute the sequent: {reason}")]
     #[non_exhaustive]
     Countermodel {
+        /// What fails, and at which world.
+        reason: String,
+    },
+    /// A Kripke model fails its check: it is no model of the logic, or it
+    /// does not refute the sequent it is said to refute.
+    #[error("the Kripke model is wrong: {reason}")]
+    #[non_exhaustive]
+    Model {
         /// What fails, and at which world.
         reason: String,
     },
@@ -690,6 +698,7 @@ impl Error {
         "rejected",
         "read_back",
         "countermodel",
+        "invalid_model",
         "no_term",
         "no_derivation",
         "not_built",
@@ -736,7 +745,7 @@ impl Error {
             | Self::ForeignProof
             | Self::GoalMismatch => Invalid,
             Self::GoalProof => Unsupported,
-            Self::SequentMismatch { .. } => Invalid,
+            Self::SequentMismatch { .. } | Self::Model { .. } => Invalid,
             Self::NotIntuitionistic(_)
             | Self::IntuitionisticMix
             | Self::OrderedMode { .. }
@@ -845,6 +854,7 @@ impl Error {
             Self::Rejected(_) => "rejected",
             Self::ReadBack { .. } => "read_back",
             Self::Countermodel { .. } => "countermodel",
+            Self::Model { .. } => "invalid_model",
             Self::NoCut { .. } => "no_cut",
             Self::NoTerm { .. } => "no_term",
             Self::NoDerivation => "no_derivation",
@@ -1166,6 +1176,7 @@ mod tests {
                 reason: message(),
             },
             Error::Countermodel { reason: message() },
+            Error::Model { reason: message() },
         ];
         let vertex = crate::linear::nets::VertexId::new(0);
         let nets = [
@@ -1365,6 +1376,7 @@ mod tests {
             | Error::Rejected(_)
             | Error::ReadBack { .. }
             | Error::Countermodel { .. }
+            | Error::Model { .. }
             | Error::NoCut { .. }
             | Error::NoTerm { .. }
             | Error::NoDerivation

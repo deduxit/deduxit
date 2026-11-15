@@ -151,7 +151,10 @@ fn sat_agrees_with_ljt_on_iltp() {
                 true
             }
             (Verdict::NotValid, Some(model)) => {
-                model.model.refutes(&sequent, logic, |_| false).unwrap();
+                model
+                    .model
+                    .refutes(&sequent, logic, &Limits::default(), |_| false)
+                    .unwrap();
                 false
             }
             (Verdict::Unknown(reason), None) => {
@@ -226,7 +229,7 @@ fn sat_agrees_with_the_embedding_in_classical_logic() {
                 (Verdict::NotValid, Some(model)) => {
                     model
                         .model
-                        .refutes(&sequent, Logic::Classical, |_| false)
+                        .refutes(&sequent, Logic::Classical, &Limits::default(), |_| false)
                         .unwrap();
                     Some(false)
                 }

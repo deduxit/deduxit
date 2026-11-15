@@ -272,7 +272,8 @@ for `THIRD-PARTY-NOTICES.txt`.
   world, settings)` checks a Kripke model the page gives (the library's
   `Model::forcing`): `{"holds", "failing": {"world", "forcing":
   [{"formula", "forced"}]}}`, a model of another logic a failure of
-  code `countermodel`. `tests/ordinary.rs` holds their tests.
+  code `invalid_model` (kind invalid); "every world" is
+  `Forcing::failing_anywhere`, linear. `tests/ordinary.rs` holds their tests.
 - **The lambda-term** (`term`, `ordinary_term`) is the session's own
   derivation read back, as the command's session command `lambda` reads
   it, written with the settings' `lambda` (the command's key). What has no

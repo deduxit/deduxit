@@ -819,7 +819,9 @@ impl Shared {
         let ordinary = match (&image, args.linear) {
             (Some(image), false) if json => {
                 let over = || interrupted() || deadline.passed() || self.batch.passed();
-                Some(image.outcome(outcome.clone(), limits, |_| over())?)
+                let mut ordinary = image.outcome(outcome.clone(), limits, |_| over())?;
+                ordinary::solver_model(&mut ordinary, solved.as_ref().map(|(s, _)| &**s));
+                Some(ordinary)
             }
             _ => None,
         };

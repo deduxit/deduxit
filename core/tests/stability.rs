@@ -300,7 +300,10 @@ fn the_thirteenth_level_reads() {
                 again::<ordinary::Outcome>(name, json);
                 let outcome: ordinary::Outcome = read(name, json);
                 let countermodel = outcome.countermodel.expect("a countermodel");
-                assert_eq!(countermodel.check(outcome.logic, |_| false), Ok(()));
+                assert_eq!(
+                    countermodel.check(outcome.logic, &deduxit::Limits::default(), |_| false),
+                    Ok(())
+                );
             }
             other => panic!("{name}: no form {other}"),
         }

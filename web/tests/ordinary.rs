@@ -303,5 +303,5 @@ fn a_model_is_checked_against_a_sequent() {
         (&json!(true), &Value::Null)
     );
     let refused = ordinary::model(model, "a", "classical", None, "").unwrap_err();
-    assert_eq!(failure(&refused)["code"], "countermodel");
+    assert_eq!(failure(&refused)["code"], "invalid_model");
 }

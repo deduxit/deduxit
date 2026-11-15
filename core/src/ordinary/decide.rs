@@ -234,7 +234,12 @@ fn with_evidence(
         }
         (search::Verdict::Unknown(_), _) => return Ok(solved),
     };
-    let countermodel = image.countermodel(&linear)?;
+    // The embedding's assignment where it gave one, else the solver's
+    // model: a refutation by exhaustion or by a count gives none.
+    let countermodel = match image.countermodel(&linear, limits, &mut stop)? {
+        Some(countermodel) => Some(countermodel),
+        None => solved.countermodel,
+    };
     Ok(Outcome {
         verdict,
         logic,
@@ -309,7 +314,7 @@ impl super::Image {
             search::Verdict::Unprovable(_) => Verdict::NotValid,
             search::Verdict::Unknown(reason) => Verdict::Unknown(*reason),
         };
-        let countermodel = self.countermodel(&linear)?;
+        let countermodel = self.countermodel(&linear, limits, &mut stop)?;
         Ok(Outcome {
             verdict,
             logic: self.logic(),
@@ -324,13 +329,19 @@ impl super::Image {
     /// Returns the countermodel the image's refutation gives in classical
     /// logic: its assignment as a model of one world, which must refute
     /// the ordinary sequent; `None` in the other logics, for every other
-    /// refutation and every other verdict.
+    /// refutation and every other verdict, and where the model is too
+    /// large to check or the stop ended its check.
     ///
     /// # Errors
     ///
     /// [`Error::Countermodel`] where the assignment does not refute the
     /// ordinary sequent, a defect.
-    fn countermodel(&self, linear: &search::Outcome) -> Result<Option<super::Countermodel>, Error> {
+    fn countermodel(
+        &self,
+        linear: &search::Outcome,
+        limits: &Limits,
+        stop: impl FnMut(Progress) -> bool,
+    ) -> Result<Option<super::Countermodel>, Error> {
         let search::Verdict::Unprovable(disproof) = &linear.verdict else {
             return Ok(None);
         };
@@ -349,9 +360,18 @@ impl super::Image {
             .collect();
         let world = crate::kripke::World::new(atoms, false, Vec::new());
         let model = crate::kripke::Model::new(vec![world], 0);
-        let countermodel = super::Countermodel::new(self.ordinary().clone(), model);
-        countermodel.check(Logic::Classical, |_| false)?;
-        Ok(Some(countermodel))
+        // A model the stop ended the check of is not kept: the verdict
+        // stands without it.
+        match super::Countermodel::found(
+            self.ordinary().clone(),
+            model,
+            Logic::Classical,
+            limits,
+            stop,
+        ) {
+            Err(Error::Refused(Refusal::Stopped { .. })) => Ok(None),
+            found => found,
+        }
     }
 }
 
@@ -453,7 +473,7 @@ pub fn decide_within(
         search::Verdict::Unprovable(_) => Verdict::NotValid,
         search::Verdict::Unknown(reason) => Verdict::Unknown(*reason),
     };
-    let countermodel = image.countermodel(&linear)?;
+    let countermodel = image.countermodel(&linear, limits, &mut stop)?;
     Ok(Outcome {
         verdict,
         logic,

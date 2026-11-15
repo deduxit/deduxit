@@ -183,6 +183,17 @@ pub(crate) enum Embedded {
     Refutation,
 }
 
+/// Gives the embedding's ordinary outcome the countermodel of the SAT
+/// solver that decided first, where its refutation gave none (one by
+/// exhaustion or by a count), as the library's default does.
+pub(crate) fn solver_model(outcome: &mut ordinary::Outcome, solved: Option<&ordinary::Outcome>) {
+    if let (ordinary::Verdict::NotValid, None, Some(solved)) =
+        (&outcome.verdict, &outcome.countermodel, solved)
+    {
+        outcome.countermodel.clone_from(&solved.countermodel);
+    }
+}
+
 /// Returns what the embedding's `outcome` on the image gives for a
 /// sequent the SAT solver `solved`, as the library's default asks.
 pub(crate) fn evidence(

@@ -416,6 +416,19 @@ fn check_ordinary(
                 }
                 _ => bail!("the outcome's image holds no proof"),
             },
+            // A countermodel beside the image's refutation is checked
+            // first: where it is wrong, that is the answer.
+            (ordinary::Verdict::NotValid, Some(_))
+                if outcome.countermodel.as_ref().is_some_and(|countermodel| {
+                    let over = || interrupted() || deadline.passed() || io::closed();
+                    countermodel
+                        .check(logic, &show.limits, |_| over())
+                        .is_err_and(|error| !error.is_refusal())
+                }) =>
+            {
+                let countermodel = outcome.countermodel.as_ref().expect("a countermodel");
+                check_countermodel(countermodel, logic, &show, quiet, deadline, &mut out)?
+            }
             (ordinary::Verdict::NotValid, Some(linear)) => match &linear.verdict {
                 deduxit::linear::Verdict::Unprovable(disproof) => {
                     check_disproof((**disproof).clone(), &show, deadline, &mut out)?
@@ -620,9 +633,12 @@ fn check_countermodel(
     out: &mut io::Output,
 ) -> Result<(Status, bool)> {
     let over = || interrupted() || deadline.passed() || io::closed();
-    let result = countermodel.check(logic, |_| over());
+    let result = countermodel.check(logic, &show.limits, |_| over());
     let status = match &result {
         Ok(()) => Status::Yes,
+        // Two formulas right of `⊢` outside classical logic make no
+        // refutation of that logic.
+        Err(Error::Succedents { .. }) => Status::No,
         Err(error) if error.is_refusal() => Status::Unknown,
         Err(_) => Status::No,
     };
@@ -698,11 +714,12 @@ fn check_model(
         model.check_world(w)?;
     }
     let over = || interrupted() || deadline.passed() || io::closed();
-    let forcing = match model.forcing(&sequent, logic, |_| over()) {
+    let forcing = match model.forcing(&sequent, logic, &limits, |_| over()) {
         Ok(forcing) => forcing,
-        Err(Error::Countermodel { reason, .. }) => {
+        Err(Error::Model { reason, .. }) => {
             bail!("the file is no Kripke model of {logic} logic: {reason}")
         }
+        Err(error @ Error::Succedents { .. }) => return Err(error.into()),
         Err(error) if error.is_refusal() => {
             let line = format!("unknown: the model is not checked: {error}");
             return Ok((
@@ -719,7 +736,7 @@ fn check_model(
     };
     let failing = match world {
         Some(w) => forcing.failing(w),
-        None => (0..model.worlds.len() as u32).find_map(|w| forcing.failing(w)),
+        None => forcing.failing_anywhere(),
     };
     let formulas = sequent.formulas();
     let forced = |w: u32| -> Vec<(String, bool)> {

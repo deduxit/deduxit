@@ -431,7 +431,7 @@ struct Forced {
 ///
 /// A model or a sequent that cannot be read, an unknown logic, a world
 /// the model does not have, and a model that is not one of the logic
-/// (code `countermodel`, its reason).
+/// (code `invalid_model`, its reason).
 pub fn model(
     model: &str,
     sequent: &str,
@@ -449,11 +449,11 @@ pub fn model(
         model.check_world(w).map_err(Failure::from)?;
     }
     let forcing = model
-        .forcing(&sequent, logic, never)
+        .forcing(&sequent, logic, &settings.limits, never)
         .map_err(Failure::from)?;
     let failing = match world {
         Some(w) => forcing.failing(w),
-        None => (0..model.worlds.len() as u32).find_map(|w| forcing.failing(w)),
+        None => forcing.failing_anywhere(),
     };
     let formulas = sequent.formulas();
     let failing = failing.map(|w| Failing {

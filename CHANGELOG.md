@@ -115,16 +115,19 @@ unchanged.
 - **A "not valid" comes with its Kripke countermodel**: the SAT solver's
   model in every logic, and in classical logic the embedding's
   assignment as a model of one world, checked before the verdict.
-  `prove --logic` prints it after the verdict line, a world per line;
+  `prove --logic` prints the SAT solver's after the verdict line, a
+  world per line (the embedding's verdict line names its assignment);
   its JSON holds it under `countermodel`, with the sequent it refutes,
-  and `check` checks it there. LJT's "not valid" has none. A model past
-  `ordinary::MODEL_CELLS` cells is reported as too large to show.
+  and `check` checks it there. LJT's "not valid" has none. A model too
+  large to check (past `ordinary::MODEL_CELLS` cells or the memory
+  limit) is reported as too large to show, the verdict kept.
 - **`check --logic L --sequent SEQUENT FILE` checks a Kripke model you
   give** against a sequent: that it is a model of the logic, then
   whether the sequent holds at `--world N` or at every world, and where
   it fails, which world and what it forces of each subformula (exit
   status 0, 1, or 2 for no model of the logic). The bindings' call
-  `ordinary_model` does the same.
+  `ordinary_model` does the same. A model that fails its check is the
+  new `Error::Model` (code `invalid_model`, kind invalid).
 - **`deduxit::kripke::Model`**, the countermodel shared by the suites:
   worlds, their atoms by name, `falsity` for minimal logic, the arrows
   of the order and the world it is about. Ordinary logic checks it

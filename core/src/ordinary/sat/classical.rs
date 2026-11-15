@@ -286,9 +286,14 @@ pub(super) fn decide(
             let names = sequent.formulas().atom_names();
             let atoms = atoms.iter().map(|&a| names[a as usize].clone()).collect();
             let model = Model::new(vec![World::new(atoms, false, Vec::new())], 0);
-            model.refutes(sequent, logic, &mut stop)?;
-            let model = super::super::Countermodel::new(sequent.clone(), model);
-            (Verdict::NotValid, Some(model))
+            let model = super::super::Countermodel::found(
+                sequent.clone(),
+                model,
+                logic,
+                limits,
+                &mut stop,
+            )?;
+            (Verdict::NotValid, model)
         }
         Ok(Found::Proof(clauses, proof)) => {
             statistics.proof_steps = proof.len() as u64;
@@ -470,7 +475,10 @@ mod tests {
                 Verdict::NotValid => {
                     let model = &outcome.model.as_ref().unwrap().model;
                     assert_eq!(model.worlds.len(), 1, "{sequent}");
-                    assert_eq!(model.refutes(&sequent, Logic::Classical, |_| false), Ok(()));
+                    assert_eq!(
+                        model.refutes(&sequent, Logic::Classical, &Limits::default(), |_| false),
+                        Ok(())
+                    );
                     refuted += 1;
                     false
                 }
@@ -527,14 +535,17 @@ mod tests {
         // A one-world model that makes a formula right of `⊢` true.
         let sequent: Sequent = "a |- a, b".parse().unwrap();
         let model = Model::new(vec![World::new(vec!["a".to_owned()], false, Vec::new())], 0);
-        let Err(Error::Countermodel { reason }) =
-            model.refutes(&sequent, Logic::Classical, |_| false)
+        let Err(Error::Model { reason }) =
+            model.refutes(&sequent, Logic::Classical, &Limits::default(), |_| false)
         else {
             panic!("a true conclusion accepted");
         };
         assert!(reason.contains("forces the conclusion"), "{reason}");
         let two = Model::new(vec![model.worlds[0].clone(), World::default()], 0);
-        assert!(two.refutes(&sequent, Logic::Classical, |_| false).is_err());
+        assert!(
+            two.refutes(&sequent, Logic::Classical, &Limits::default(), |_| false)
+                .is_err()
+        );
     }
 
     /// The work bound, the stop, the memory bound and the variables'

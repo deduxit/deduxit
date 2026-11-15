@@ -294,8 +294,9 @@ fn run(
         Ok((Found::Worlds(worlds), _, nodes)) => {
             statistics.worlds = worlds.len() as u64;
             // The check computes a cell per world and formula at least:
-            // past its bound the model is not built. Below it the worlds'
-            // indices fit a `u32`.
+            // past its bound the model is not built, and a model the check
+            // refuses for its size (its arrows count too) is dropped. Below
+            // the bound the worlds' indices fit a `u32`.
             let cells = statistics
                 .worlds
                 .saturating_mul(sequent.formulas().len() as u64);
@@ -313,9 +314,14 @@ fn run(
                     &mut stop,
                 ) {
                     Ok(model) => {
-                        model.refutes(sequent, logic, &mut stop)?;
-                        let model = super::Countermodel::new(sequent.clone(), model);
-                        (Verdict::NotValid, Some(model))
+                        let model = super::Countermodel::found(
+                            sequent.clone(),
+                            model,
+                            logic,
+                            limits,
+                            &mut stop,
+                        )?;
+                        (Verdict::NotValid, model)
                     }
                     Err(reason) => (Verdict::Unknown(reason), None),
                 }
@@ -971,7 +977,10 @@ mod tests {
                     }
                     Verdict::NotValid => {
                         let model = &outcome.model.as_ref().unwrap().model;
-                        assert_eq!(model.refutes(&sequent, logic, |_| false), Ok(()));
+                        assert_eq!(
+                            model.refutes(&sequent, logic, &Limits::default(), |_| false),
+                            Ok(())
+                        );
                         refuted += 1;
                         false
                     }
@@ -1046,10 +1055,14 @@ mod tests {
         let sequent: Sequent = text.parse().unwrap();
         let logic = Logic::Intuitionistic;
         let model = sat(text, logic).model.unwrap().model;
-        assert_eq!(model.refutes(&sequent, logic, |_| false), Ok(()));
+        assert_eq!(
+            model.refutes(&sequent, logic, &Limits::default(), |_| false),
+            Ok(())
+        );
         assert!(model.worlds.len() >= 2, "{model:?}");
         let refused = |model: &Model, why: &str| {
-            let Err(Error::Countermodel { reason }) = model.refutes(&sequent, logic, |_| false)
+            let Err(Error::Model { reason }) =
+                model.refutes(&sequent, logic, &Limits::default(), |_| false)
             else {
                 panic!("{why}: {model:?} is accepted");
             };
@@ -1155,7 +1168,7 @@ mod tests {
         let worlds = (super::super::MODEL_CELLS as usize).div_ceil(sequent.formulas().len()) + 1;
         let model = Model::new(vec![World::default(); worlds], 0);
         assert!(matches!(
-            model.refutes(&sequent, logic, |_| false),
+            model.refutes(&sequent, logic, &Limits::default(), |_| false),
             Err(Error::Refused(Refusal::Memory { .. }))
         ));
     }

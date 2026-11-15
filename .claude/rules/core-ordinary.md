@@ -376,10 +376,18 @@ the trust.
   worlds with atoms by name, `falsity` (minimal logic only), arrows to
   the worlds directly above, and `world`, the world it is about. The SAT
   method's model is `ordinary::Countermodel` (the sequent and the model)
-  on `sat::Outcome::model`, carried into `ordinary::Outcome::countermodel`;
-  past `MODEL_CELLS` (worlds and arrows times formulas) the model is not
-  built and the verdict stays "not valid" without it (the prompt's "too
-  large to show"; such a verdict rests on the search, as LJT's does).
+  on `sat::Outcome::model`, carried into `ordinary::Outcome::countermodel`.
+  Every engine's model goes through `Countermodel::found`: checked,
+  `None` where the check refuses it for its size (past `MODEL_CELLS`, or
+  `limits.memory_bytes`), `Error::Model` turned into
+  `Error::Countermodel` (a defect). So a model too large to check drops
+  the model, never the verdict (the prompt's "too large to show"; such a
+  verdict rests on the search, as LJT's does): the SAT method's
+  pre-test counts worlds alone and the check adds the arrows, and the
+  band between once lost the verdict as an error (the panels of 55b).
+  The embedding's model (`Image::countermodel`) is also dropped where
+  the stop ends its check, and the classical default takes the solver's
+  where the embedding's refutation is not an assignment.
 - **The check** (`model.rs`): `Model::forcing` checks the model is one of
   the logic (the model's world among its worlds, arrows to worlds of the
   model and none round: Kahn's order on the arrows, a world after every
@@ -392,10 +400,18 @@ the trust.
   (the sequent at every world at or above `w`), `failing(w)` (a world at
   or above that forces Γ and not C), `at(w)` (each formula's forcing).
   `refutes` asks that the model's world forces Γ and not C. Past
-  `MODEL_CELLS` cells, `Refusal::Memory`; a model that fails is
-  `Error::Countermodel`, a defect for the engine's own model and "no
-  model of the logic" (exit 2) for a model the user gives. The panel of
-  55b reviewed it (`plan/reports/55-kripke-countermodels.md`).
+  `MODEL_CELLS` cells, or past `limits.memory_bytes` with the few words
+  per world, arrow and atom the passes hold (`WORLD_BYTES`,
+  `ATOM_BYTES`), `Refusal::Memory`; a model that fails is `Error::Model`
+  (kind invalid, code `invalid_model`). The stop is asked once per world
+  in each of its three passes, the first before any arrow is checked;
+  an arrow written twice is one (`ups`, sorted and deduplicated), and a
+  world's atoms are sorted indices (the sequent's first, so its own
+  are a prefix) looked up in each world directly above: before, a
+  world of 30 000 atoms and 30 000 copies of one arrow ran a minute
+  under a 1 s limit. `failing_anywhere` is a scan of `fails`; a
+  `failing` per world was quadratic. The panel of 55b reviewed it
+  (`plan/reports/55-kripke-countermodels.md`).
 - **The classical one-world model of the embedding**
   (`Image::countermodel`): the image's `Refutation::Classical`
   assignment over the image's atoms (the ordinary atoms, by name),

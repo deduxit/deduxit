@@ -200,7 +200,9 @@ A sequent that is not valid comes with a Kripke model that shows why.
 The model has worlds, each forcing some atoms. A world lies below the
 worlds its arrows reach, and every world forces what each world below it
 forces. A world forces `A -> B` when every world at or above it that
-forces `A` forces `B`, and `~A` when no world at or above it forces `A`.
+forces `A` forces `B`, and `~A` is `A -> false`. Only in minimal logic
+can a world force `false`; in the other logics a world forces `~A` when
+no world at or above it forces `A`.
 The model's world forces every formula left of `|-` and not the one
 right of it, so the sequent cannot be a theorem. In the example at the
 top, world 0 forces neither `a` nor `~a`, since world 1 above it forces
