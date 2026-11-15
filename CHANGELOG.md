@@ -23,6 +23,15 @@ second number (0.1.x to 0.2.0), anything else the third.
   `Derivation::from_ordinary` writes a derivation of LK or LJ in this
   form. Both documents are at wire level 15, which is now the highest
   level the library reads.
+- **`check --calculus CALCULUS`** checks such a derivation against a
+  rule file, or a built-in calculus by name (`LK`, `LJ`, `LM`, `LL`,
+  `tableau`); a derivation that names a built-in calculus needs no
+  flag. The verdict line reads "valid in the calculus given", and the
+  derivation's nodes follow as a list indented by scope.
+- The library also ships one-sided linear logic and signed tableaux as
+  rule files (`rules::LL`, `rules::TABLEAU`), writes a tableau in the
+  latter (`Derivation::from_tableau`), and prints a calculus's terms by
+  its print forms (`Calculus::show`, `show_sequent`).
 
 ## [0.4.0] - 2026-11-15
 

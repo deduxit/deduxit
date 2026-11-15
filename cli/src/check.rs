@@ -62,6 +62,7 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
                 verdict: "unknown",
                 mode: Some(mode),
                 logic: None,
+                calculus: None,
                 error: None,
                 message: Some(line),
                 lambda: None,
@@ -83,6 +84,12 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
     let document = document?;
     if let (Some(_), false) = (&args.sequent, matches!(document, Document::Model(_))) {
         bail!("--sequent checks a Kripke model against a sequent, and the file is no model");
+    }
+    if let (Some(_), false) = (&args.calculus, matches!(document, Document::Rules(_))) {
+        bail!(
+            "--calculus checks a derivation in a calculus given as data, and the file is none: \
+             it names no calculus"
+        );
     }
     let proof = match document {
         Document::Proof(proof) => *proof,
@@ -121,6 +128,29 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
                 }
                 anyhow::Ok(status)
             })?;
+        }
+        Document::Rules(derivation) => {
+            if args.mode.given() || args.logic.is_some() {
+                bail!(
+                    "a derivation in a calculus given as data is checked by its calculus's \
+                     rules: leave out the mode flags and --logic"
+                );
+            }
+            let calculus =
+                crate::calculus::calculus(args.calculus.as_deref(), &derivation, &settings.limits)?;
+            let mut out = io::Output::open(path.as_deref(), show.format.is_binary())?;
+            let (status, keep) = crate::calculus::check_rules(
+                &derivation,
+                &calculus,
+                &show,
+                quiet,
+                &deadline,
+                &mut out,
+            )?;
+            if keep {
+                out.finish()?;
+            }
+            return Ok(status);
         }
         Document::Unchecked(line) => {
             let mut out = io::Output::open(path.as_deref(), show.format.is_binary())?;
@@ -195,6 +225,8 @@ enum Document {
     Unchecked(String),
     /// A Kripke model, checked against the sequent `--sequent` names.
     Model(Box<deduxit::kripke::Model>),
+    /// A derivation in a calculus given as data.
+    Rules(Box<deduxit::rules::Derivation>),
 }
 
 /// Reads a proof file, or failing that a disproof, which an unprovable
@@ -218,8 +250,20 @@ fn read_document(text: &str, limits: &Limits) -> Result<Document> {
         clausal_proof: Option<serde::de::IgnoredAny>,
         /// The worlds of a Kripke model.
         worlds: Option<serde::de::IgnoredAny>,
+        /// The calculus a derivation in a calculus given as data names.
+        calculus: Option<serde::de::IgnoredAny>,
     }
     let keys = serde_json::from_str::<Keys>(text).ok();
+    if keys.as_ref().is_some_and(|keys| keys.calculus.is_some()) {
+        let mut document = serde_json::Deserializer::from_str(text);
+        let derivation =
+            deduxit::wire::upgrade::<deduxit::rules::Derivation, _>(&mut document, limits)
+                .map_err(|error| limit_advice(error).unwrap_or_else(|error| error.into()))?;
+        document
+            .end()
+            .context("not a derivation in JSON: more follows it")?;
+        return Ok(Document::Rules(Box::new(derivation)));
+    }
     if keys.as_ref().is_some_and(|keys| keys.worlds.is_some()) {
         let mut document = serde_json::Deserializer::from_str(text);
         let model = deduxit::wire::upgrade::<deduxit::kripke::Model, _>(&mut document, limits)
@@ -350,6 +394,7 @@ fn check_disproof(
             },
             mode: Some(mode),
             logic: None,
+            calculus: None,
             message: (status != Status::Yes).then_some(line),
             error,
             lambda: None,
@@ -502,6 +547,7 @@ fn checked_table(
             verdict: "valid",
             mode: None,
             logic: Some(logic),
+            calculus: None,
             error: None,
             message: None,
             lambda: None,
@@ -530,6 +576,7 @@ fn unchecked_into(
             verdict: "unknown",
             mode: None,
             logic,
+            calculus: None,
             error: None,
             message: Some(line.to_owned()),
             lambda: None,
@@ -628,6 +675,7 @@ fn check_derivation(
             },
             mode: None,
             logic: Some(logic),
+            calculus: None,
             error: result.as_ref().err().cloned(),
             message: result.is_err().then_some(line),
             lambda,
@@ -712,6 +760,7 @@ fn check_countermodel(
             },
             mode: None,
             logic: Some(logic),
+            calculus: None,
             error: result.as_ref().err().cloned(),
             message: result.is_err().then_some(line),
             lambda: None,
@@ -834,6 +883,7 @@ fn check_model(
             },
             mode: None,
             logic: Some(logic),
+            calculus: None,
             error: None,
             message: (status != Status::Yes).then_some(line),
             lambda: None,
@@ -915,6 +965,10 @@ pub(crate) struct Checked {
     /// The logic checked in, for ordinary logic.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) logic: Option<ordinary::Logic>,
+    /// The calculus checked in, for a derivation in a calculus given as
+    /// data.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) calculus: Option<String>,
     /// Why the proof is not valid, as the library writes its errors.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) error: Option<Error>,
@@ -1042,6 +1096,7 @@ fn check_into(
             },
             mode: Some(mode),
             logic: None,
+            calculus: None,
             error,
             message,
             lambda,

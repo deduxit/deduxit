@@ -258,6 +258,27 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `Loaded::Linear`, the forest boxed). `interact --logic`'s `close` stays
   the embedding (its steps take no cut), so its outcome is always
   `Search::Embedding`.
+- `calculus.rs`: `check` of a derivation in a calculus given as data
+  (`read_document` probes the key `calculus` first: no other document
+  has it). `--calculus CALCULUS` (a path, an input like the proof file,
+  so no settings key) names a rule file, or a built-in calculus by name
+  in any case (`BUILT_IN`: `LK`, `LJ`, `LM`, `LL`, `tableau`; a file of
+  such a name is given as `./LK`); without it the derivation's own
+  `calculus` must name a built-in one, else exit 2. A rule file is read
+  by `io::read_configuration`, so never from standard input, which
+  carries the derivation. The verdict line is `valid in the calculus
+  given (NAME): SEQUENT, a derivation of N nodes[ from K assumptions]`,
+  `invalid in the calculus given (NAME): REASON` (exit 1), or
+  `unknown: …` at a limit (exit 3); then, for a valid one on text output
+  and not under `-q` or `--tree never`, one line per node (`node_line`:
+  number, two spaces per scope depth, the sequent within
+  `--abbreviate`, the rule and premises), refused as a whole past
+  `--derivation-limit` at `LINE_BYTES` beyond each sequent. Lines are
+  written apart without a last newline (`Lines`), which
+  `Output::finish` adds. Only text and JSON: another `--format`,
+  `--net`, `--lambda`, a mode flag or `--logic` beside such a file is
+  exit 2. `Checked` has `calculus` for it; `eliminate` refuses the
+  flag.
 - `interact/ordinary.rs`: `interact --logic`, a session of LK or LJ over
   `ordinary::Interactive`, started from an ordinary sequent (read as
   `prove --logic` reads one, `SequentInput::ordinary`) or from a saved

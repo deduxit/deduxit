@@ -871,6 +871,18 @@ pub(crate) struct CheckArgs {
     /// every world when absent
     #[arg(help_heading = INPUT, long, value_name = "N", requires = "sequent")]
     pub(crate) world: Option<u32>,
+    /// With a derivation in a calculus given as data, the calculus to
+    /// check it in: a rule file, or LK, LJ, LM, LL or tableau, the ones
+    /// built in
+    ///
+    /// The file is then such a derivation in JSON, which names its
+    /// calculus; one that names a built-in calculus is checked in it
+    /// without the flag. A file named like a built-in calculus is given
+    /// with its path, ./LK. The verdict reads "valid in the calculus
+    /// given": the derivation keeps to the rules, which nothing checks
+    /// for soundness.
+    #[arg(help_heading = INPUT, long, value_name = "CALCULUS")]
+    pub(crate) calculus: Option<PathBuf>,
     /// Where to write the result.
     #[command(flatten)]
     pub(crate) output: OutputArgs,

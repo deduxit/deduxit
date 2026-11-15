@@ -24,6 +24,9 @@ nothing to check (a clausal proof's counts, a "not valid" of LJT or the
 SAT solver, an unknown) gets exit status 3 ([Ordinary
 logic](ordinary-logic.md#json-output)).
 
+A derivation in a calculus you give as a rule file is checked by
+`check` as well ([Check a derivation in your own rules](rules.md)).
+
 ## Exit status and limits
 
 `check` exits with 0 for a valid proof, 1 for an invalid one, and 3 when

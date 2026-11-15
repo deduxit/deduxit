@@ -10,6 +10,8 @@
 mod argument_parsing;
 /// `prove` over many sequents.
 mod batch;
+/// `check` of a derivation in a calculus given as data.
+mod calculus;
 /// The `check` command.
 mod check;
 /// The `eliminate` command.

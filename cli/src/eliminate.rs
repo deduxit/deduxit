@@ -44,6 +44,11 @@ pub(crate) fn eliminate(args: &EliminateArgs, given: &Given) -> Result<Status> {
     if check.logic.is_some() || check.sequent.is_some() {
         bail!("--logic and --sequent check a Kripke model, with `check`; eliminate reads proofs");
     }
+    if check.calculus.is_some() {
+        bail!(
+            "--calculus checks a derivation in a calculus given as data, with `check`; eliminate reads proofs"
+        );
+    }
     let mode = check.mode.mode();
     mode.check()?;
     let show = Show::new(&check.output, &settings)?;
@@ -67,6 +72,7 @@ pub(crate) fn eliminate(args: &EliminateArgs, given: &Given) -> Result<Status> {
                 verdict: "unknown",
                 mode: Some(mode),
                 logic: None,
+                calculus: None,
                 error: None,
                 message: Some(line),
                 lambda: None,
@@ -221,6 +227,7 @@ fn eliminate_into(
                     },
                     mode: Some(mode),
                     logic: None,
+                    calculus: None,
                     error: Some(Error::Check(error)),
                     message: Some(message),
                     lambda: None,
@@ -658,6 +665,7 @@ fn unchecked(
                 },
                 mode: Some(mode),
                 logic: None,
+                calculus: None,
                 error: Some(Error::Check(error)),
                 message: Some(message),
                 lambda: None,

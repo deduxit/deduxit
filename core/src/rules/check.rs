@@ -168,7 +168,7 @@ impl Derivation {
         };
         if self.calculus() != calculus.name() {
             return Err(invalid(format!(
-                "it is a derivation in {:?}",
+                "the derivation names the calculus {:?}",
                 self.calculus()
             )));
         }
@@ -458,6 +458,19 @@ impl<'a> Checker<'a> {
                     items.partition(|item| item.find == Find::Value);
                 for item in placed.into_iter().chain(by_value) {
                     self.meter.tick(1 + (item.root - item.first) as usize)?;
+                    // Where the member is looked for, for the message.
+                    let sequent = match s {
+                        0 => "the conclusion".to_owned(),
+                        _ if sequents.len() == 2 => "the premise".to_owned(),
+                        _ => format!("premise {s}"),
+                    };
+                    let zone_name = &self.calculus.zones[zone].name;
+                    let missing = || -> Fault {
+                        format!(
+                            "{sequent} lacks a formula the rule writes out in its zone {zone_name:?}"
+                        )
+                        .into()
+                    };
                     let place = match item.find {
                         Find::Start(place) => Some(place as usize),
                         Find::End(place) => members.len().checked_sub(1 + place as usize),
@@ -465,7 +478,7 @@ impl<'a> Checker<'a> {
                         Find::Value => {
                             let wanted = self
                                 .instance(rule, item.first, item.root)
-                                .ok_or("a formula the rule writes out is in no sequent")?;
+                                .ok_or_else(missing)?;
                             self.meter.tick(members.len())?;
                             let taken = &self.taken[slot];
                             members.iter().enumerate().position(|(at, &member)| {
@@ -473,9 +486,17 @@ impl<'a> Checker<'a> {
                             })
                         }
                     };
-                    let place = place
-                        .filter(|&place| place < members.len())
-                        .ok_or("a member the rule writes out is not where the node has it")?;
+                    let place = match place.filter(|&place| place < members.len()) {
+                        Some(place) => place,
+                        None if item.find == Find::Value => return Err(missing()),
+                        None => {
+                            return Err(format!(
+                                "{sequent} has no member where the rule writes one out in its \
+                                 zone {zone_name:?}"
+                            )
+                            .into());
+                        }
+                    };
                     if discipline != Discipline::Set && self.taken[slot][place] {
                         return Err("two members the rule writes out stand at one place".into());
                     }
