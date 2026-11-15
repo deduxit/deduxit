@@ -6886,3 +6886,39 @@ move (D26).
       54w-e4b does it.
   - **Running:** 55b (`local_739ba359`, cores 4-6: the panel's six fixes,
     then its checks), 55c (`local_b8490613`, waiting for 55b), 54w-e4a.
+- 2026-11-15, about 13:30: **55b and 54w-e4a reviewed and pushed;
+  55c's exporter half, 54w-e4b and ci-fix started.**
+  - **55b** (`qrzksyox` … `poqmmkmp`): `deduxit::kripke::Model`, shared
+    between suites, and `ordinary::Countermodel`; a "not valid" carries
+    its checked countermodel (the SAT method's, the default's in
+    intuitionistic and minimal logic; one world in classical logic);
+    `check --logic L --sequent S [--world N] model.json` checks a model
+    the user gives, the bindings' `ordinary_model` too; the check bounded
+    by `MODEL_CELLS` and the memory, asking the stop; a model document is
+    wire level 13, an outcome with a model stays at 12. The panel found
+    no wrong answer (260 000 random cases against the counterexamples
+    member's reference); its gaps and the reviewer's three fixed.
+    Departures accepted: LJT gives no model (its search keeps no record);
+    Beth models weighed, not built; a model's arrows acyclic (a partial
+    order: every preorder model collapses to one forcing the same).
+    **Pushed.**
+  - **54w-e4a** (`rnqonlkk`, `znkuolzp`): the `lambda` module's text;
+    rustdoc and typos checked again on the rebased head. **Pushed.**
+  - **CI's failures** (the author asked whether to run CI's check locally
+    before each push; it already runs, and passed at those heads): two
+    deduxit runs ended with the runner's shutdown signal during `kani`
+    (11 harnesses, up to 8 GB and 10 minutes each, two at a time, on a
+    16 GB runner); one client run timed out in the axe spec's Learn walk.
+  - **Decided for the author:**
+    - **A hand-written model refuses keys it does not know**, naming the
+      key; machine-written outcomes keep ignoring them (the wire rule is
+      for documents read across versions).
+    - **The classical default's text shows the solver's model** where
+      the embedding's refutation is not an assignment.
+    - **Kani leaves the push CI** for a weekly job and pushes that touch
+      the checker, one harness at a time; the client's slow walk is split
+      (ci-fix).
+  - **Started:** 55c's exporter half (`local_b8490613`, cores 7-9);
+    54w-e4b, the `ordinary` and `kripke` text with the model's unknown
+    keys, the lambda export's error and the classical text
+    (`local_739ba359`, cores 4-6); ci-fix (`local_fe155f72`, cores 13-15).
