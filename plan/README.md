@@ -6794,3 +6794,54 @@ move (D26).
     repositories) in 54w-f's cleared worker (`local_fe155f72`, cores
     10-15), the author's request; its chain lands after 54s-c3 and 57,
     and the combined head is gated again.
+- 2026-11-15, about 08:30: **54s-c3, 57 and the dependency update
+  reviewed and pushed; 55a, 54w-g and 54x2 running; a stop by 00:30 and
+  the resume; unattended again from about 08:20.**
+  - **54s-c3** (`zzrpukpu` … `rvuqtyyl`): classical logic decides by the
+    SAT solver by default and keeps the embedding's evidence where the
+    embedding decides within 2^20 units of work: 254 of ILTP's problems
+    at 2 s (124 before), the same as the SAT method, with all 124 earlier
+    answers' evidence kept (123 derivations, one refutation). The test
+    build with `parse` alone fixed (broken since 2026-10-28). SYJ202
+    fails only the 64 MiB derivation bound (the drawn text), not the
+    search: in `later.md`. Departures accepted: JSON carries the clausal
+    proof on 8 problems whose LK derivation is past the bound; asking the
+    embedding costs a median 16 ms, at most 0.7 s; `read-json`'s ceiling
+    raised in a commit of its own (code layout). Gate, flake check,
+    families, target sets equal 47's. **Pushed.** 54s is complete.
+  - **57** (`ytxszuuw` … `myrvqpyz`): the Horn engine's affine
+    non-coverability carries the basis it saturated
+    (`Refutation::Basis`), checked by `search/basis.rs` without the
+    search, wire level 11. The panel found nothing against soundness
+    (42 400 engine runs, 540 285 transplants to coverable goals, none
+    accepted); `panel-integers`' one finding and the reviewer's two
+    fixed. The Rocq lemma kept for later. **Pushed.**
+  - **The dependency update** (`opswzwzt` … `rruyoopr`; client
+    `unyoyuzv` … `ozpxotqm`): Rust 1.99.1 → 1.100.0, Cargo.lock,
+    flake.lock (nixpkgs, rocq-deduxit, rust-overlay), the fuzz lock and
+    nightly, one clippy fix; the client's npm (Astro 7.4.4, Solid) and
+    action. Gate and flake checks pass in both. **Pushed** (both).
+  - **Decided for the author:**
+    - **Rust 1.100's ratchet**: derivation-chain-64 rose 0.44 % in the
+      journey's own closure (codegen), 2.39 % over its ceiling, while
+      its wall time fell (482.7 µs against 505.7 µs); its ceiling raised
+      in a commit of its own, four that fell lowered.
+    - **Astro 7.4.7** (two moderate advisories against ≤ 7.4.6) waits
+      for its age gate on 2026-11-19: the client is a static site on
+      GitHub Pages, and the gate guards against a compromised release;
+      `update-deps` takes it then.
+    - **rocq-deduxit's own lock** is not in `update-deps`' scope; left
+      for that repository's next update.
+    - **The client's deduxit input** moves in 54w-g's chain, as its
+      last commit, now that deduxit's update is pushed.
+    - **Next small session (54x2)**: the linear session's position
+      message, `compare`'s plural, the SVG `<desc>` in the drawing's
+      notation, a net's `<desc>` in sentences.
+  - **The stop by 00:30** (the author's, moved from 00:15): the pause
+    went out at 00:18, the machine free at 00:19; 57 finished first.
+    Resumed at 08:08; the signing key was unlocked by the author.
+  - **Running:** 55a (`local_739ba359`, cores 4-6; wire level 12 now,
+    rebasing over the dependency update), 54w-g (`local_b8490613`, cores
+    7-9, the client) and 54x2 (`local_fe155f72`, cores 10-12).
+  - **Next:** 55b (the countermodel) after 55a; 54w-e4 (the ordinary and
+    lambda comments) after 55a.
