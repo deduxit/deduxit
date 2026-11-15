@@ -96,9 +96,10 @@ pub enum End {
         /// The line.
         line: u32,
     },
-    /// Open and finished: every formula on the branch is an atom, `⊤`
-    /// true or `⊥` false, and none closes it. The atoms true on it make
-    /// every true formula of the branch true and every false one false.
+    /// Open and finished: every formula left to expand on the branch is
+    /// an atom, `⊤` true or `⊥` false, and none closes it. The atoms true
+    /// on it make every true formula of the branch true and every false
+    /// one false.
     Open,
     /// Open and not finished: a formula on the branch is still to be
     /// expanded (a proof in progress).
@@ -186,9 +187,19 @@ pub struct Tableau {
     nodes: Vec<TableauNode>,
 }
 
+/// Where a formula of a sequent stands on its branch: a line written
+/// above, or the `k`th line of the node being made.
+#[derive(Clone, Copy, Debug)]
+enum Place {
+    /// A line above, by its number.
+    Line(u32),
+    /// The node's own line `k`.
+    New(usize),
+}
+
 /// A node of the walk over a derivation, waiting to be written: the
 /// inference that ends its branch's segment, its parent, its lines, and
-/// how long the branch was above it.
+/// the place of every formula of that inference's conclusion.
 struct Pending {
     /// The inference whose conclusion the node's branch has reached.
     inference: usize,
@@ -196,8 +207,43 @@ struct Pending {
     parent: Option<u32>,
     /// The lines the node adds.
     lines: Vec<Signed>,
-    /// The branch's lines above the node.
-    above: usize,
+    /// The place of each formula of the conclusion, its hypotheses
+    /// first.
+    places: Vec<Place>,
+}
+
+/// Returns the line of each formula of a premise, its hypotheses first,
+/// and the lines the premise adds: a formula the conclusion has keeps
+/// its line, the principal formula (`principal`, a position in the
+/// conclusion's list) excepted; a copy a contraction makes takes its
+/// original's line; every other formula is a new line.
+fn placed(
+    conclusion: &[Signed],
+    lines: &[u32],
+    principal: Option<usize>,
+    premise: &[Signed],
+    structural: bool,
+) -> (Vec<Place>, Vec<Signed>) {
+    let mut free: Vec<bool> = (0..conclusion.len())
+        .map(|k| Some(k) != principal)
+        .collect();
+    let mut added = Vec::new();
+    let places = premise
+        .iter()
+        .map(|line| {
+            let same = |k: &usize| conclusion[*k] == *line;
+            if let Some(k) = (0..conclusion.len()).find(|k| free[*k] && same(k)) {
+                free[k] = false;
+                Place::Line(lines[k])
+            } else if let (true, Some(k)) = (structural, (0..conclusion.len()).find(same)) {
+                Place::Line(lines[k])
+            } else {
+                added.push(*line);
+                Place::New(added.len() - 1)
+            }
+        })
+        .collect();
+    (places, added)
 }
 
 impl Tableau {
@@ -210,8 +256,9 @@ impl Tableau {
     /// # Errors
     ///
     /// [`Error::Logic`] for a derivation of LJ: a signed tableau is
-    /// classical. [`Error::ReadBack`] where an inference does not follow
-    /// from the formulas on its branch, which a derivation that
+    /// classical. [`Error::ReadBack`] where an inference does not have
+    /// the shape of its rule (a structural rule without a premise, a cut,
+    /// an axiom without a formula on both sides), which a derivation that
     /// [`Derivation::check`] accepts never has. [`Refusal::Stopped`] when
     /// `stop` fired.
     pub fn of(
@@ -232,31 +279,36 @@ impl Tableau {
         let (left, right) = derivation.sequent();
         let root: Vec<Signed> = signed(left, right).collect();
         let mut nodes: Vec<TableauNode> = Vec::new();
-        // The branch's lines from the root down, with their numbers.
-        let mut branch: Vec<(Signed, u32)> = Vec::new();
         let mut next_line = 0u32;
         let mut visited = 0u64;
         let mut pending = vec![Pending {
             inference: inferences.len() - 1,
             parent: None,
+            places: (0..root.len()).map(Place::New).collect(),
             lines: root,
-            above: 0,
         }];
         while let Some(node) = pending.pop() {
-            branch.truncate(node.above);
             let index = u32::try_from(nodes.len()).map_err(|_| too_many(nodes.len()))?;
             let first = next_line;
-            for &line in &node.lines {
-                branch.push((line, next_line));
-                next_line = next_line
-                    .checked_add(1)
-                    .ok_or_else(|| too_many(next_line as usize))?;
-            }
+            let count = u32::try_from(node.lines.len()).map_err(|_| too_many(node.lines.len()))?;
+            next_line = next_line
+                .checked_add(count)
+                .ok_or_else(|| too_many(next_line as usize))?;
             if let Some(parent) = node.parent {
                 nodes[parent as usize].children.push(index);
             }
+            // The line of each formula of the inference's conclusion.
+            let mut lines: Vec<u32> = node
+                .places
+                .iter()
+                .map(|place| match *place {
+                    Place::Line(line) => line,
+                    // Below `count`, which a `u32` holds.
+                    Place::New(k) => first + k as u32,
+                })
+                .collect();
             // Past the structural rules, to the inference that acts on a
-            // formula or ends the branch.
+            // formula or ends the branch, the lines carried along.
             let mut at = node.inference;
             loop {
                 visited += 1;
@@ -269,7 +321,31 @@ impl Tableau {
                     | Rule::WeakenRight
                     | Rule::ContractLeft
                     | Rule::ContractRight => {
-                        at = inference.premises()[0].index();
+                        let premise = inference
+                            .premises()
+                            .first()
+                            .ok_or_else(|| fail(format!("inference {at} has no premise")))?
+                            .index();
+                        let conclusion: Vec<Signed> =
+                            signed(inference.left(), inference.right()).collect();
+                        let above = &inferences[premise];
+                        let (places, _) = placed(
+                            &conclusion,
+                            &lines,
+                            None,
+                            &signed(above.left(), above.right()).collect::<Vec<_>>(),
+                            true,
+                        );
+                        lines = places
+                            .iter()
+                            .map(|place| match *place {
+                                Place::Line(line) => Ok(line),
+                                Place::New(_) => Err(fail(format!(
+                                    "the structural inference {at} adds a formula"
+                                ))),
+                            })
+                            .collect::<Result<_, _>>()?;
+                        at = premise;
                     }
                     Rule::Axiom
                     | Rule::AndLeft
@@ -297,13 +373,8 @@ impl Tableau {
                 }
             }
             let inference = &inferences[at];
-            let line_of = |signed: Signed| {
-                branch
-                    .iter()
-                    .rev()
-                    .find(|(line, _)| *line == signed)
-                    .map(|&(_, number)| number)
-            };
+            let conclusion: Vec<Signed> = signed(inference.left(), inference.right()).collect();
+            let hypotheses = inference.left().len();
             let mut made = TableauNode {
                 first,
                 lines: node.lines,
@@ -313,32 +384,22 @@ impl Tableau {
             };
             match inference.rule() {
                 Rule::Axiom => {
-                    let both = inference
-                        .left()
-                        .iter()
-                        .find(|x| inference.right().contains(x))
+                    let pair = inference.left().iter().enumerate().find_map(|(i, x)| {
+                        let j = inference.right().iter().position(|y| y == x)?;
+                        Some((lines[i], lines[hypotheses + j]))
+                    });
+                    let (true_line, false_line) = pair
                         .ok_or_else(|| fail(format!("axiom {at} has no formula on both sides")))?;
-                    let true_line = line_of(Signed::new(Sign::True, *both));
-                    let false_line = line_of(Signed::new(Sign::False, *both));
-                    let (Some(true_line), Some(false_line)) = (true_line, false_line) else {
-                        return Err(fail(format!(
-                            "axiom {at} closes on a formula off its branch"
-                        )));
-                    };
                     made.end = Some(End::Closed {
                         true_line,
                         false_line,
                     });
                 }
                 Rule::FalseLeft | Rule::TrueRight => {
-                    let (sign, list) = if inference.rule() == Rule::FalseLeft {
-                        (Sign::True, inference.left())
-                    } else {
-                        (Sign::False, inference.right())
-                    };
-                    let constant = |x: &&NodeId| match derivation.formulas().node(**x) {
-                        Node::False => sign == Sign::True,
-                        Node::True => sign == Sign::False,
+                    let falsity = inference.rule() == Rule::FalseLeft;
+                    let constant = |x: &NodeId| match derivation.formulas().node(*x) {
+                        Node::False => falsity,
+                        Node::True => !falsity,
                         Node::Atom(_)
                         | Node::Not(_)
                         | Node::And(..)
@@ -346,12 +407,17 @@ impl Tableau {
                         | Node::Implies(..)
                         | Node::Iff(..) => false,
                     };
-                    let line = list
-                        .iter()
-                        .find(constant)
-                        .and_then(|&x| line_of(Signed::new(sign, x)))
-                        .ok_or_else(|| fail(format!("inference {at} closes on no line")))?;
-                    made.end = Some(if sign == Sign::True {
+                    let line = if falsity {
+                        inference.left().iter().position(constant).map(|i| lines[i])
+                    } else {
+                        inference
+                            .right()
+                            .iter()
+                            .position(constant)
+                            .map(|j| lines[hypotheses + j])
+                    }
+                    .ok_or_else(|| fail(format!("inference {at} closes on no line")))?;
+                    made.end = Some(if falsity {
                         End::Falsity { line }
                     } else {
                         End::Truth { line }
@@ -392,41 +458,29 @@ impl Tableau {
                     let (side, position) = inference
                         .principal()
                         .ok_or_else(|| fail(format!("inference {at} has no principal formula")))?;
-                    let principal = *(match side {
-                        Side::Left => inference.left(),
-                        Side::Right => inference.right(),
-                    })
-                    .get(position)
-                    .ok_or_else(|| fail(format!("inference {at} names no formula")))?;
-                    let line =
-                        line_of(Signed::new(Sign::of(side), principal)).ok_or_else(|| {
-                            fail(format!("inference {at} expands a formula off its branch"))
-                        })?;
+                    let principal = match side {
+                        Side::Left => position,
+                        Side::Right => hypotheses + position,
+                    };
+                    let line = *lines
+                        .get(principal)
+                        .ok_or_else(|| fail(format!("inference {at} names no formula")))?;
                     made.expands = Some((line, rule));
                     // The first premise is written first, so it waits last.
                     for &premise in inference.premises().iter().rev() {
-                        // What the premise has beyond the conclusion,
-                        // counted as a multiset: the expansion's results,
-                        // written even where the branch has them already.
-                        let mut concluded: Vec<Signed> =
-                            signed(inference.left(), inference.right()).collect();
-                        let lines = signed(
-                            inferences[premise.index()].left(),
-                            inferences[premise.index()].right(),
-                        )
-                        .filter(|line| match concluded.iter().position(|c| c == line) {
-                            Some(k) => {
-                                concluded.swap_remove(k);
-                                false
-                            }
-                            None => true,
-                        })
-                        .collect();
+                        let above = &inferences[premise.index()];
+                        let (places, lines_added) = placed(
+                            &conclusion,
+                            &lines,
+                            Some(principal),
+                            &signed(above.left(), above.right()).collect::<Vec<_>>(),
+                            false,
+                        );
                         pending.push(Pending {
                             inference: premise.index(),
                             parent: Some(index),
-                            lines,
-                            above: branch.len(),
+                            lines: lines_added,
+                            places,
                         });
                     }
                 }
@@ -627,6 +681,11 @@ fn ending(end: End) -> String {
     }
 }
 
+/// The bytes the goal state holds per goal a step opens, besides its
+/// formulas' ids: the inference, its two lists, its premises and its
+/// entry in the history.
+const GOAL_BYTES: u64 = 160;
+
 /// Returns the refusal of a tableau of more nodes or lines than a `u32`
 /// numbers.
 fn too_many(count: usize) -> Error {
@@ -721,6 +780,8 @@ pub(super) fn decide(
     let mut open = Vec::new();
     let mut goals: Vec<_> = state.goals().collect();
     let mut steps = 0u64;
+    // What the goal state holds, counted per goal it opens.
+    let mut held = 0u64;
     while let Some(goal) = goals.pop() {
         steps += 1;
         if stop(Progress::new(Phase::Search, 1, steps)) {
@@ -737,6 +798,19 @@ pub(super) fn decide(
         match next_step(state.formulas(), left, right) {
             Some(step) => {
                 let opened = state.apply(goal, &step)?;
+                for &new in &opened {
+                    let (left, right) = state.goal(new)?;
+                    held = held.saturating_add(GOAL_BYTES + 8 * (left.len() + right.len()) as u64);
+                }
+                if let Some(limit) = limits.memory_bytes
+                    && held > limit
+                {
+                    return Err(Error::Refused(Refusal::Memory {
+                        phase: Phase::Search,
+                        limit_bytes: limit,
+                        needed_bytes: None,
+                    }));
+                }
                 // The first premise is expanded first, so it waits last.
                 goals.extend(opened.into_iter().rev());
             }
@@ -760,7 +834,7 @@ pub(super) fn decide(
     // the sequent at its root.
     let formulas = state.formulas();
     let (left, _) = state.goal(first)?;
-    let atoms = left
+    let mut atoms: Vec<String> = left
         .iter()
         .filter_map(|&x| match formulas.node(x) {
             Node::Atom(a) => Some(formulas.atom_names()[a as usize].clone()),
@@ -773,6 +847,8 @@ pub(super) fn decide(
             | Node::Iff(..) => None,
         })
         .collect();
+    atoms.sort_unstable();
+    atoms.dedup();
     let model = Model::new(vec![World::new(atoms, false, Vec::new())], 0);
     let countermodel =
         super::Countermodel::found(sequent.clone(), model, logic, limits, &mut stop)?;
@@ -836,5 +912,38 @@ mod tests {
 
         let intuitionistic = options.with_logic(Logic::Intuitionistic);
         assert!(decide(&sequent, &intuitionistic).is_err());
+
+        // A formula twice: each expansion cites its own line.
+        let twice: Sequent = "a /\\ b, a /\\ b |- c".parse().unwrap();
+        let outcome = decide(&twice, &options).unwrap();
+        let super::super::Search::Tableau(tableau) = &outcome.search else {
+            panic!("a tableau");
+        };
+        let cited: Vec<u32> = tableau
+            .nodes()
+            .iter()
+            .filter_map(|n| n.expands().map(|(line, _)| line))
+            .collect();
+        assert_eq!(cited, [0, 1]);
+        let atoms = &outcome.countermodel.unwrap().model.worlds[0].atoms;
+        assert_eq!(atoms, &["a", "b"]);
+
+        // The goal state is held within the memory bound.
+        let wide: Sequent = "a \\/ b, c \\/ d, e \\/ f |- g".parse().unwrap();
+        let small = crate::Limits::default().with_memory_bytes(Some(256));
+        let refused = super::super::decide_within(
+            &wide,
+            &options,
+            &crate::linear::search::Options::default(),
+            &small,
+            |_| false,
+        );
+        assert!(
+            matches!(
+                refused,
+                Err(crate::Error::Refused(crate::Refusal::Memory { .. }))
+            ),
+            "{refused:?}"
+        );
     }
 }

@@ -692,6 +692,19 @@ impl OutcomeRead {
         if !borne {
             return Err(refuse("the verdict is not the image's outcome's"));
         }
+        // A table or a tableau bears its verdict out itself.
+        let shown = match (&self.verdict, &search) {
+            (VerdictWord::Valid, Search::Table(table)) => table.falsifying().is_empty(),
+            (VerdictWord::NotValid, Search::Table(table)) => !table.falsifying().is_empty(),
+            #[cfg(feature = "interactive")]
+            (VerdictWord::Valid, Search::Tableau(tableau)) => tableau.is_closed(),
+            #[cfg(feature = "interactive")]
+            (VerdictWord::NotValid, Search::Tableau(tableau)) => !tableau.is_closed(),
+            _ => true,
+        };
+        if !shown {
+            return Err(refuse("the verdict is not its table's or its tableau's"));
+        }
         let verdict = match self.verdict {
             VerdictWord::Valid if self.clausal_proof.is_some() => {
                 return Err(refuse(

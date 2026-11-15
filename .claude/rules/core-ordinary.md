@@ -581,7 +581,8 @@ classical logic only (`Error::Logic`, which names the method).
   those where every hypothesis is true and every formula right of `⊢`
   false. Refused past `limits.table_atoms` (`Refusal::Atoms`,
   `DEFAULT_TABLE_ATOMS` 10: 1024 rows, about what a reader scans), past
-  `limits.memory_bytes` (the bits), past `limits.work` (a row a unit),
+  `limits.memory_bytes` (the bits, and 8 bytes a row for the falsifying
+  list, which every row may join), past `limits.work` (a row a unit),
   and where the cells pass a `usize` (`Refusal::Index`). A "not valid"
   is the first falsifying row as a one-world countermodel through
   `Countermodel::found`; a "valid" is `Evidence::Table`, which has no
@@ -593,8 +594,15 @@ classical logic only (`Error::Logic`, which names the method).
   `next_step` has nothing) or `End::Unexpanded`. A node's lines are what
   the premise has beyond the conclusion counted as a multiset, so an
   expansion's results are written even where the branch has them (as a
-  textbook writes them) and a contraction adds nothing. Nodes and lines
-  are numbered in preorder, the first premise first.
+  textbook writes them) and a contraction adds nothing. Each formula of
+  an inference's sequent is tied to its line by position (`Place`,
+  `placed`), carried through the structural rules, so an expansion and a
+  closed branch cite the line of the occurrence the inference acts on:
+  a search of the branch by formula cited the latest equal line, and a
+  formula written twice was cited twice (the review of 56a). A
+  structural rule without a premise is `Error::ReadBack`, never an index
+  past the end. Nodes and lines are numbered in preorder, the first
+  premise first.
 - **The method builds the tableau in the goal state**
   (`tableau::decide`): `next_step` takes a closing rule where one
   applies (axiom, `⊥L`, `⊤R`), else the first formula of a one-premise
@@ -605,8 +613,12 @@ classical logic only (`Error::Logic`, which names the method).
   `check_inference`; a closed state's derivation is `finished` (checked
   whole) and is the evidence; an open state's derivation (open goals
   as `Rule::Open`) gives the tableau, and the first open goal's true
-  atoms the countermodel, checked by `Countermodel::found`. A step is a
-  unit of `limits.work`, and the stop is asked once per step. It ends:
+  atoms (once each) the countermodel, checked by `Countermodel::found`.
+  A step is a unit of `limits.work`, the stop is asked once per step,
+  and every goal a step opens is charged to `limits.memory_bytes`
+  (`GOAL_BYTES` and 8 bytes a formula): the goal state grows with the
+  tableau, and the pigeonhole principle for 8 pigeons once took 4 GB
+  under a 16 MiB bound. It ends:
   every rule takes a formula apart and the goal state keeps no
   principal formula (G3c's invertible rules).
 - **Why not a view of the decided outcome's derivation alone**: a "not
@@ -618,7 +630,8 @@ classical logic only (`Error::Logic`, which names the method).
 - **Their JSON** (wire level 14, `serialize/ordinary.rs`): `TableForm`
   (rows as `T`/`F` strings over the form's formulas; the reader
   computes the table again and refuses a row or a falsifying list that
-  differs) and `TableauForm` (nodes with `lines`, `expands`,
+  differs; the outcome's reader refuses a verdict its table or tableau
+  does not bear out, `valid` with a falsifying row or an open branch) and `TableauForm` (nodes with `lines`, `expands`,
   `children`, `end`; the reader checks the tree's shape, a child after
   its parent and the child of one node, every line index in range, a
   node with children expanding a line and a leaf with an end, not the

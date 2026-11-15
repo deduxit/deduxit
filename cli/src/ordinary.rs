@@ -521,19 +521,26 @@ pub(crate) fn native_verdict_line(outcome: &ordinary::Outcome, ended: &Ended) ->
             ordinary::Search::Table(table) => {
                 let rows = table.rows();
                 let falsifying = table.falsifying().len();
-                let rows = if falsifying == 1 {
-                    format!("1 of its {rows} rows falsifies it, a checked countermodel")
-                } else {
-                    format!(
+                let checked = outcome.countermodel.is_some();
+                let rows = match (falsifying, checked) {
+                    (1, true) => {
+                        format!("1 of its {rows} rows falsifies it, a checked countermodel")
+                    }
+                    (1, false) => format!("1 of its {rows} rows falsifies it"),
+                    (_, true) => format!(
                         "{falsifying} of its {rows} rows falsify it, the first a checked \
                          countermodel"
-                    )
+                    ),
+                    (_, false) => format!("{falsifying} of its {rows} rows falsify it"),
                 };
                 format!("not valid ({context}): {rows}")
             }
-            ordinary::Search::Tableau(_) => {
+            ordinary::Search::Tableau(_) if outcome.countermodel.is_some() => {
                 format!("not valid ({context}): an open branch gives a checked countermodel")
             }
+            ordinary::Search::Tableau(_) => format!(
+                "not valid ({context}): an open branch gives a countermodel, too large to check"
+            ),
             _ => not_valid(outcome, method, &context),
         },
         ordinary::Verdict::Unknown(reason) => {

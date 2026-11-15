@@ -353,6 +353,17 @@ fn the_fourteenth_level_reads() {
         }
     }
     assert_eq!(lines.lines().count(), 4);
+    // A verdict its own tableau does not bear out is refused.
+    let valid = lines
+        .lines()
+        .find(|l| l.starts_with("outcome-tableau"))
+        .unwrap();
+    let forged = valid
+        .split_once(": ")
+        .unwrap()
+        .1
+        .replace("\"valid\"", "\"not_valid\"");
+    assert!(serde_json::from_str::<ordinary::Outcome>(&forged).is_err());
 }
 
 /// Every outcome the JSON lock holds (each verdict, refutation and reason,

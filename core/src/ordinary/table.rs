@@ -220,7 +220,10 @@ pub fn truth_table(
     }
     let rows = 1u64.checked_shl(atoms as u32).filter(|_| atoms < 64);
     let cells = rows.and_then(|rows| rows.checked_mul(width));
-    let needed = cells.map_or(u64::MAX, |cells| cells.div_ceil(8));
+    // The bits, and the list of falsifying rows, which every row may join.
+    let needed = cells.zip(rows).map_or(u64::MAX, |(cells, rows)| {
+        cells.div_ceil(8).saturating_add(rows.saturating_mul(8))
+    });
     if let Some(limit) = limits.memory_bytes
         && needed > limit
     {
