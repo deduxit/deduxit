@@ -607,13 +607,15 @@ impl<'a> Derivation<'a> {
         self.mode
     }
 
-    /// Reads the derivation back as a term of the linear lambda calculus
-    /// ([`lambda`](crate::lambda)), built within `limits` and asking
-    /// `stop` once per inference.
+    /// Reads the derivation back as a lambda-term, the proof as a program
+    /// ([`lambda`](crate::lambda) has an example), asking `stop` once per
+    /// inference.
     ///
     /// The derivation must be two-sided, of intuitionistic linear logic,
-    /// compact or not. Where it weakens a formula without `!`, the term is
-    /// of the affine lambda calculus.
+    /// compact or not. The term is of the linear lambda calculus, or of
+    /// the affine one where the derivation weakens a formula without `!`.
+    /// It is never larger than the derivation, so `limits` refuses
+    /// nothing.
     ///
     /// # Errors
     ///

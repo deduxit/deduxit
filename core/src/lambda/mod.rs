@@ -1,21 +1,72 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Proofs read back as lambda-terms: a proof of intuitionistic linear
-//! logic as a term of the linear lambda calculus of Benton, Bierman, de
-//! Paiva and Hyland, a derivation of LJ as a term of the simply typed
-//! lambda calculus with products, sums, a unit and an empty type.
+//! A proof as a program: an intuitionistic proof read back as a
+//! lambda-term.
 //!
-//! The term is computed from a derivation the checker has accepted
-//! ([`Derivation::term`](crate::linear::Derivation::term),
-//! [`ordinary::Derivation::term`](crate::ordinary::Derivation::term)),
-//! one construction per rule, and is printed, never trusted. The linear
-//! calculus is the sequent calculus term assignment of G. M. Bierman,
-//! *On Intuitionistic Linear Logic* (PhD thesis, Cambridge, 1993,
-//! published as technical report UCAM-CL-TR-346, 1994), chapter 3,
-//! figure 3.2, which completes Benton, Bierman, de Paiva and Hyland, "A
-//! term calculus for intuitionistic linear logic" (TLCA 1993, LNCS 664)
-//! with the additives and their units:
+//! Every intuitionistic proof is also a program, whose types are the
+//! proof's formulas and whose inputs are its hypotheses (the
+//! Curry-Howard correspondence). This module gives that program as a
+//! [`Term`]:
+//! - a two-sided proof of intuitionistic linear logic reads back as a term
+//!   of a linear lambda calculus, in which every variable is used once;
+//! - a derivation of LJ reads back as a term of the simply typed lambda
+//!   calculus.
+//!
+//! # Get a term
+//!
+//! Prove a sequent in an intuitionistic mode, then call
+//! [`Derivation::term`](crate::linear::Derivation::term) on its
+//! derivation:
+//!
+#![cfg_attr(feature = "parse", doc = "```")]
+#![cfg_attr(not(feature = "parse"), doc = "```ignore")]
+//! use deduxit::{Limits, lambda};
+//! use deduxit::linear::{Mode, Options, Sequent, Verdict, prove};
+//!
+//! let sequent: Sequent = "A, A -o B |- B".parse()?;
+//! let outcome = prove(&sequent, Mode::INTUITIONISTIC, &Options::default())?;
+//! let Verdict::Proved(proof) = &outcome.verdict else {
+//!     panic!("the sequent is provable");
+//! };
+//! let term = proof.derivation()?.term(&Limits::default(), |_| false)?;
+//! assert_eq!(term.to_string(), "f x");
+//!
+//! let mut judgement = String::new();
+//! let options = lambda::Options::default();
+//! term.write_judgement(&mut judgement, &options, &Limits::default(), |_| false)?;
+//! assert_eq!(judgement, "x : A, f : A ⊸ B ⊢ f x : B");
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
+//!
+//! The judgement reads: given `x` of type `A` and `f` of type `A ⊸ B`,
+//! the term `f x` has type `B`. [`Options`] picks the symbols, Unicode or
+//! ASCII, and whether every `λ` shows its variable's type.
+//! [`ordinary::Derivation::term`](crate::ordinary::Derivation::term)
+//! reads a derivation of LJ back the same way. The LaTeX, Typst and SVG
+//! exports write the judgement under a derivation when their `lambda`
+//! option is set ([`export`](crate::export)).
+//!
+//! The term is built from a derivation the checker accepted, one
+//! construction per rule. It is shown, not trusted: nothing checks the
+//! term, and the proof stays the certificate.
+//!
+//! # What has no term
+//!
+//! A proof of classical linear logic or a derivation of LK, a proof with
+//! Mix, of the cyclic or the Lambek calculus, with quantifiers, or with
+//! open goals. Each is refused with [`Error::NoTerm`](crate::Error::NoTerm),
+//! whose [`NoTerm`] says why.
+//!
+//! # The calculi
+//!
+//! A proof of intuitionistic linear logic reads back as a term of the
+//! linear lambda calculus of Benton, Bierman, de Paiva and Hyland, "A
+//! term calculus for intuitionistic linear logic" (TLCA 1993, LNCS 664).
+//! deduxit takes it in the sequent calculus form, with the additives and
+//! their units, that G. M. Bierman gives in *On Intuitionistic Linear
+//! Logic* (PhD thesis, Cambridge, 1993, published as technical report
+//! UCAM-CL-TR-346, 1994), chapter 3, figure 3.2. Each rule has its term:
 //!
 //! | rule | term |
 //! |---|---|
@@ -30,27 +81,36 @@
 //! | `!w`, `!c` | `discard z in M`; `copy z as x, y in M` |
 //! | cut | `(λx:A. N) M` |
 //!
-//! A left rule substitutes (the thesis's `M[x := …]`), so that a
-//! cut-free proof reads back as a term in normal form, and a cut is a
-//! redex, whose reduction is the thesis's substitution: cut elimination
-//! is reduction. A proof of affine linear logic reads back to the same
-//! terms with weakening left implicit: a variable may go unused
-//! ([`Calculus::Affine`]). An LJ derivation reads back to the simply
-//! typed calculus of Girard, Lafont and Taylor, *Proofs and Types* (1989),
-//! sections 3.1.2 and 10.6, with their `π₁`, `π₂`, `ι₁`, `ι₂`, `δ` and `ε`
-//! written `fst`, `snd`, `inl`, `inr`, `case` and `abort`, and `⟨⟩` for
-//! the unit, which the book does not name; `¬A` is `A → ⊥` and `A ↔ B`
-//! the pair of both implications. The affine reading, `⟨⟩` and the ASCII
-//! notation are this crate's own; every other form is the sources'.
+//! A left rule substitutes, as in the thesis (`M[x := …]`), so the term
+//! of a cut-free proof is in normal form. The thesis's cut is the
+//! substitution `N[x := M]` itself; deduxit writes it as the redex
+//! `(λx:A. N) M`, whose reduction is that substitution. So cut
+//! elimination is reduction, up to the commuting conversions that move a
+//! `let` or a `case` past a cut.
 //!
-//! A term is self-contained: its own atoms, types and variables, its
-//! nodes in an arena whose operands precede them, so that no walk over it
-//! needs recursion and its JSON form nests no deeper than one node. What
-//! has no term is refused with its reason ([`NoTerm`]): a proof of
-//! classical linear logic, with Mix, of the cyclic or the Lambek calculus,
-//! with quantifiers, or with open goals, and a derivation of LK.
+//! A proof of affine linear logic reads back to the same terms, with
+//! weakening left implicit: a variable may go unused
+//! ([`Calculus::Affine`]).
+//!
+//! A derivation of LJ reads back as a term of the simply typed lambda
+//! calculus of Girard, Lafont and Taylor, *Proofs and Types* (1989),
+//! sections 3.1.2 and 10.6. Their `π₁`, `π₂`, `ι₁`, `ι₂`, `δ` and `ε` are
+//! written `fst`, `snd`, `inl`, `inr`, `case` and `abort`, and the unit,
+//! which the book does not name, is `⟨⟩`. `¬A` is the type `A → ⊥`, and
+//! `A ↔ B` the pair of both implications.
+//!
+//! The cut's redex, the affine reading, `⟨⟩` and the ASCII notation are
+//! deduxit's own; every other form is the sources'.
+//!
+//! # The term's data
+//!
+//! A [`Term`] holds its own atoms, types and variables, and its nodes in
+//! an arena in which every node comes after the nodes it names. A walk
+//! over it needs no recursion, and its JSON form nests no deeper than one
+//! node.
 
-// A variant a later step adds must not fall into an existing arm.
+// A new variant of `Node` or `Type` must be decided at every match, not
+// fall into an existing arm.
 #![deny(clippy::wildcard_enum_match_arm)]
 
 pub(crate) mod linear;
@@ -98,7 +158,8 @@ impl TypeId {
     }
 }
 
-/// The calculus a term belongs to.
+/// The calculus a term belongs to, which says how often it may use a
+/// variable.
 ///
 /// # JSON
 ///
@@ -108,23 +169,30 @@ impl TypeId {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize))]
 #[cfg_attr(feature = "serialize", serde(rename_all = "lowercase"))]
 pub enum Calculus {
-    /// The linear lambda calculus: every variable used exactly once, but
-    /// those under `discard`, `copy`, `true` and `false`.
+    /// The linear lambda calculus: every variable is used exactly once.
+    /// `discard`, `copy`, `true` and `false` each count as a use, and the
+    /// two components of a pair, like the two branches of a `case`, use
+    /// the same variables.
     Linear,
-    /// The affine lambda calculus: the linear one, a variable used at most
-    /// once, which is what a proof that weakens a formula of no `!` reads
-    /// back to.
+    /// The affine lambda calculus: as the linear one, but a variable may
+    /// also go unused. A proof that weakens a formula without `!` reads
+    /// back to it.
     Affine,
-    /// The simply typed lambda calculus, any variable used any number of
-    /// times.
+    /// The simply typed lambda calculus: a variable may be used any number
+    /// of times.
     Simple,
 }
 
-/// A type of a term: in the linear calculi a formula of intuitionistic
-/// linear logic, in the simple one an ordinary formula, `With` its
-/// conjunction `∧`, `Plus` its disjunction `∨`, `Lollipop` its
-/// implication `→`, `Top` true and `Zero` false. Its operands precede it
-/// in the term's types, and an equal type is the same id.
+/// A type of a term.
+///
+/// In the linear calculi a type is a formula of intuitionistic linear
+/// logic. In the simple calculus it is an ordinary formula: `With` is the
+/// conjunction `∧`, `Plus` the disjunction `∨`, `Lollipop` the
+/// implication `→`, `Top` true and `Zero` false (`⊥`).
+///
+/// A type names its operands by their [`TypeId`], and they come before it
+/// in [`Term::types`]. Two equal types are one id, so a type's text can
+/// be much longer than the list of types.
 ///
 /// # JSON
 ///
@@ -181,8 +249,12 @@ pub enum Type {
     },
 }
 
-/// A variable of a term: its type and the name it is printed with, a
-/// letter and an index (none for 0).
+/// A variable of a term: its type and the name it is printed with.
+///
+/// A name is a letter and an index, written after the letter unless it is
+/// 0. A variable of a function type takes `f`, `g`, `h`, any other `x`,
+/// `y`, `z`, `u`, `v`, `w`, in the order the variables are made; once the
+/// letters run out, they start again with the next index (`x₁`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize))]
 pub struct Variable {
@@ -212,10 +284,14 @@ impl Variable {
     }
 }
 
-/// A node of a term, which names its subterms by their index in the
-/// term's nodes, each before it. The variables a node binds scope over
-/// its body. The type is closed, as the calculus is: a quantifier would be
-/// a variant of its own, with a type variable among the types.
+/// A node of a term.
+///
+/// A node names its subterms by their [`TermId`], and they come before it
+/// in [`Term::nodes`]. A variable a node binds is in scope in its body,
+/// and for `case` each branch's variable in that branch.
+///
+/// The enum is exhaustive, as the calculus is fixed: a `match` names every
+/// node.
 ///
 /// # JSON
 ///
@@ -316,14 +392,15 @@ pub enum Node {
         /// `P`
         right_body: TermId,
     },
-    /// `true(M⃗)`, of type `⊤`, which consumes the terms given; in the
-    /// simple calculus `⟨⟩`, with none.
+    /// `true(M⃗)`, of type `⊤`, which uses up the terms `M⃗`. In the simple
+    /// calculus it is the unit `⟨⟩`, and `M⃗` is empty.
     True {
         /// `M⃗`
         context: Box<[TermId]>,
     },
-    /// `false_A(M⃗; N)`, of type `A`, `N` of type `0`, which consumes the
-    /// terms given; in the simple calculus `abort(N)`, with none.
+    /// `false_A(M⃗; N)`, of type `A`, with `N` of type `0`, which uses up
+    /// the terms `M⃗`. In the simple calculus it is `abort(N)`, and `M⃗` is
+    /// empty.
     False {
         /// `M⃗`
         context: Box<[TermId]>,
@@ -366,12 +443,25 @@ pub enum Node {
     },
 }
 
-/// A lambda-term read back from a derivation, with its typing: the
-/// variables of its hypotheses in the order the sequent writes them
-/// (`context`), its type (`goal`), and its nodes, each after the nodes it
-/// names, `root` the whole term. A node may be named by several others
-/// (a term a left rule substituted into both components of a pair), so
-/// the nodes form a DAG that the printed term unfolds.
+/// A lambda-term read back from a derivation, with its typing judgement.
+///
+/// [`Derivation::term`](crate::linear::Derivation::term) and
+/// [`ordinary::Derivation::term`](crate::ordinary::Derivation::term) make
+/// one. Print it with `Display` (`term.to_string()`), [`write`](Self::write)
+/// or [`write_judgement`](Self::write_judgement); the module docs have an
+/// example.
+///
+/// A term holds:
+/// - the variables of its hypotheses, in the order the sequent writes
+///   them ([`context`](Self::context));
+/// - its type ([`goal`](Self::goal));
+/// - its nodes, each after the nodes it names, and the node that is the
+///   whole term ([`root`](Self::root)).
+///
+/// Several nodes may name one node: a left rule's term goes to both
+/// components of a pair, for example. The nodes are a DAG, and the
+/// printed term writes a shared node at every place, so the text can be
+/// much longer than the list of nodes.
 ///
 /// # JSON
 ///
@@ -438,11 +528,11 @@ impl Term {
         &self.nodes
     }
 
-    /// Returns the node at `id`, which must belong to this term.
+    /// Returns the node at `id`, an id of this term.
     ///
     /// # Panics
     ///
-    /// For an id of another term, past its end.
+    /// If `id` is past this term's nodes, as an id of another term may be.
     pub fn node(&self, id: TermId) -> &Node {
         &self.nodes[id.index()]
     }
@@ -453,8 +543,32 @@ impl Term {
     }
 }
 
-/// How a term is printed: the one options value of every front end that
-/// shows one.
+/// How a term is printed: its symbols, and whether `λ` shows types.
+///
+/// Every front end that shows a term takes this one value
+/// ([`Settings::lambda`](crate::Settings::lambda)). Start from
+/// `Options::default()` and change what differs:
+///
+#[cfg_attr(feature = "parse", doc = "```")]
+#[cfg_attr(not(feature = "parse"), doc = "```ignore")]
+/// use deduxit::{Limits, lambda::{Notation, Options}};
+/// use deduxit::linear::{Mode, Options as SearchOptions, Sequent, Verdict, prove};
+///
+/// let sequent: Sequent = "|- A -o A".parse()?;
+/// let outcome = prove(&sequent, Mode::INTUITIONISTIC, &SearchOptions::default())?;
+/// let Verdict::Proved(proof) = &outcome.verdict else {
+///     panic!("the sequent is provable");
+/// };
+/// let term = proof.derivation()?.term(&Limits::default(), |_| false)?;
+///
+/// let options = Options::default()
+///     .with_notation(Notation::Ascii)
+///     .with_types(true);
+/// let mut text = String::new();
+/// term.write_judgement(&mut text, &options, &Limits::default(), |_| false)?;
+/// assert_eq!(text, r"|- \x:A. x : A -o A");
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 ///
 /// # JSON
 ///
@@ -468,10 +582,10 @@ impl Term {
 pub struct Options {
     /// The symbols, Unicode by default ([`DEFAULT_NOTATION`](Self::DEFAULT_NOTATION)).
     pub notation: Notation,
-    /// Whether every binder carries its variable's type (`λx:A. M`) and
-    /// `false` its goal (`false_A`), as the calculus writes them; off by
-    /// default ([`DEFAULT_TYPES`](Self::DEFAULT_TYPES)), since the
-    /// sequent shows the types.
+    /// Whether every `λ` shows its variable's type (`λx:A. M`), and
+    /// `false` and `abort` the type they give (`false_A`), as the calculus
+    /// writes them. Off by default ([`DEFAULT_TYPES`](Self::DEFAULT_TYPES)),
+    /// since the sequent beside the term shows the types.
     pub types: bool,
 }
 
@@ -479,7 +593,7 @@ impl Options {
     /// The symbols by default.
     pub const DEFAULT_NOTATION: Notation = Notation::Unicode;
 
-    /// Whether binders carry types by default.
+    /// Whether `λ` shows types by default.
     pub const DEFAULT_TYPES: bool = false;
 
     /// Returns the options with another [`notation`](Self::notation).
@@ -496,7 +610,7 @@ impl Options {
 }
 
 impl Default for Options {
-    /// Returns Unicode symbols without types on binders.
+    /// Returns Unicode symbols, without types on `λ`.
     fn default() -> Self {
         Self {
             notation: Self::DEFAULT_NOTATION,
@@ -515,12 +629,12 @@ impl Default for Options {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", serde(rename_all = "lowercase"))]
 pub enum Notation {
-    /// The calculus's own: `λx. M`, `M ⊗ N`, `⟨M, N⟩`, `∗`, an index as
-    /// a subscript (`x₁`).
+    /// The calculus's own symbols: `λx. M`, `M ⊗ N`, `⟨M, N⟩`, `∗`, and
+    /// an index as a subscript (`x₁`).
     #[default]
     Unicode,
     /// ASCII alone: `\x. M`, `M * N`, `<M, N>`, `()`, `x1`, and the
-    /// types as the parser reads them (`-o`, `->`).
+    /// types as the parsers read them (`-o`, `->`).
     Ascii,
 }
 
@@ -557,7 +671,8 @@ impl std::str::FromStr for Notation {
     }
 }
 
-/// Why a proof or a derivation has no lambda-term.
+/// Why a proof or a derivation has no lambda-term: the `reason` of
+/// [`Error::NoTerm`](crate::Error::NoTerm).
 ///
 /// # JSON
 ///
@@ -569,13 +684,12 @@ impl std::str::FromStr for Notation {
 #[cfg_attr(feature = "serialize", serde(rename_all = "snake_case"))]
 pub enum NoTerm {
     /// A one-sided proof of classical linear logic, or a derivation of
-    /// LK: no lambda-term, since a sequent with several conclusions is no
-    /// type.
+    /// LK. A sequent with several conclusions is no type.
     Classical,
     /// A proof with Mix, which no intuitionistic calculus has.
     Mix,
-    /// A proof of the cyclic or the Lambek calculus, whose terms are
-    /// those of an ordered calculus of their own.
+    /// A proof of the cyclic or the Lambek calculus. Its term would be one
+    /// of an ordered calculus, which deduxit does not write.
     Ordered,
     /// A proof with quantifiers over first-order terms, which are no
     /// quantifiers over types.
@@ -603,9 +717,9 @@ impl std::fmt::Display for NoTerm {
     }
 }
 
-/// What the read-backs share while they build a term: the arena of
-/// types, hash-consed so that an equal type is one id, the variables
-/// with the names they get, and the nodes.
+/// What both read-backs fill while they build a term: the atoms, the
+/// types (two equal types are one id), the variables with their names,
+/// and the nodes.
 #[derive(Debug)]
 struct Builder {
     /// The atoms' names and their indices.
@@ -674,7 +788,10 @@ impl Builder {
         let n = self.named[class];
         self.named[class] = n.saturating_add(1);
         let letters_len = letters.len() as u32;
-        // Fewer variables than inferences, each of which binds two at most.
+        // Each variable stands for a hypothesis of a sequent of the
+        // derivation, at most two for one (a contraction's copies), so
+        // this truncates only for a derivation of more than 2³¹
+        // hypotheses.
         let id = VarId(self.variables.len() as u32);
         self.variables.push(Variable {
             ty,
@@ -686,15 +803,18 @@ impl Builder {
 
     /// Adds a node and returns its id.
     fn node(&mut self, node: Node) -> TermId {
-        // Fewer nodes than twice the inferences, plus the variables.
+        // At most two nodes per inference, one per formula a compact run
+        // discards or copies, and one per variable (`linear::read` and
+        // `simple::read` count them), so far fewer than 2³² for a
+        // derivation held in memory.
         let id = TermId(self.nodes.len() as u32);
         self.nodes.push(node);
         id
     }
 
-    /// Returns the term rooted at `root`, its nodes those `root` reaches
-    /// in their order: a node a rule made and the rules above left unused
-    /// (a weakened variable's) goes.
+    /// Returns the term whose whole is `root`, with only the nodes `root`
+    /// reaches, in their order. A node that no rule above used, such as a
+    /// weakened variable's, is dropped.
     fn finish(self, calculus: Calculus, context: Vec<VarId>, goal: TypeId, root: TermId) -> Term {
         let mut reached = vec![false; self.nodes.len()];
         reached[root.index()] = true;

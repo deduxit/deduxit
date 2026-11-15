@@ -2,18 +2,17 @@
 // Licensed under the EUPL
 
 //! The read-back of a two-sided derivation of intuitionistic linear
-//! logic as a term of the linear (or affine) lambda calculus, one
-//! construction per inference, by a walk from the root with a stack of
-//! its own.
+//! logic as a term of the linear or the affine lambda calculus: one
+//! construction per inference, in a walk from the root on a stack of its
+//! own.
 //!
 //! Every hypothesis of every sequent stands for a term: a variable bound
 //! below, or what a left rule substituted for it (`f M`, `fst(z)`,
-//! `derelict(z)`), shared wherever the hypothesis goes. The walk hands
+//! `derelict(z)`), one node wherever the hypothesis goes. The walk hands
 //! each premise the terms of its hypotheses, matched to the conclusion's
-//! by member: a member is an occurrence, and equal members are copies of
-//! one formula, so any of them may take any copy's term. A context split
-//! between two premises takes each term once; an additive rule gives both
-//! premises every term.
+//! by member. Equal members are copies of one formula, so any of them may
+//! take any copy's term. A context split between two premises gives each
+//! term to one of them; an additive rule gives both premises every term.
 
 use super::{Builder, Calculus, NoTerm, Node, Term, TermId, Type, TypeId, VarId, stopped};
 use crate::Error;
@@ -93,15 +92,18 @@ struct ReadBack<'d, 'a> {
 /// Reads a two-sided derivation back as a term, or refuses one that has
 /// none, asking `stop` once per inference.
 ///
-/// Memory: the term holds at most two nodes per inference, one per
-/// member a structural run of a compact derivation weakens or copies, and
-/// a node per variable, each variable bound to a member: never more nodes
-/// than the derivation has members. The tasks
-/// waiting hold the terms of the sequents of the premises not yet read,
-/// which lie on one branch: never more than the derivation itself, which
-/// was built within `limits` before it reached here. The walk counts on
-/// no integer but the ids, which count less than the derivation's
-/// inferences and members, fewer than 2³² each.
+/// `limits` bounds nothing here, since the term is no larger than the
+/// derivation, which was built within its own limits:
+/// - the term holds at most two nodes per inference, one per member a
+///   structural run of a compact derivation weakens or copies, and one
+///   node per variable, each variable bound to a member: never more
+///   nodes than the derivation has members;
+/// - the tasks waiting hold the terms of the sequents of the premises
+///   not yet read, which lie on one branch: never more than the
+///   derivation itself.
+///
+/// The walk counts on no integer but the ids, which count less than the
+/// derivation's inferences and members, fewer than 2³² each.
 pub(crate) fn read(
     derivation: &Derivation<'_>,
     _limits: &Limits,

@@ -80,9 +80,11 @@ struct ReadBack<'d> {
 /// Reads a derivation of LJ back as a term, or refuses one of LK or one
 /// with open goals, asking `stop` once per inference.
 ///
-/// Memory: at most two nodes and two variables per inference, and the
-/// tasks waiting, which lie on one branch: never more than the
-/// derivation, which its maker built within its bounds.
+/// `limits` bounds nothing here, since the term is no larger than the
+/// derivation, which its maker built within its own bounds. It holds at
+/// most two variables per inference and one per hypothesis of the root, a
+/// node per variable and at most two more per inference; the tasks
+/// waiting lie on one branch.
 pub(crate) fn read(
     derivation: &Derivation,
     _limits: &Limits,

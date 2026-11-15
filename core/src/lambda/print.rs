@@ -1,15 +1,15 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The one printer of terms: a table of spellings per target, the
-//! Unicode and ASCII texts and one per export, and a walk with a stack of
-//! its own that writes a term, or its typing judgement, after an upper
-//! bound of its length has passed the output bound.
+//! The one printer of terms: a table of spellings per target (Unicode,
+//! ASCII, and one per export), and a walk on a stack of its own that
+//! writes a term or its typing judgement. Before it writes anything, it
+//! bounds the text's length and refuses a term past the output bound.
 //!
-//! A node several others name is written at each place (the printed term
-//! is the tree the DAG unfolds to), so the text can be longer than the
-//! derivation by any factor; the bound is computed over the DAG, each
-//! node once, before anything is written.
+//! A node that several others name is written at every place (the
+//! printed term is the tree the DAG unfolds to), so the text can be
+//! longer than the derivation by any factor. The bound is computed over
+//! the DAG, each node once.
 
 use super::{Calculus, Node, Notation, Options, Term, TermId, Type, TypeId, VarId};
 use crate::Error;
@@ -96,8 +96,8 @@ pub(crate) enum Index {
     Marked(&'static str, &'static str),
 }
 
-/// The Unicode spelling, which the command and `Display`-like texts
-/// write.
+/// The Unicode spelling, which `Display` writes, and the command by
+/// default.
 pub(crate) const UNICODE: Spelling = Spelling {
     lambda: "λ",
     dot: ". ",
@@ -291,7 +291,7 @@ enum Place {
     Operand,
     /// A function applied: a binder or a tensor is bracketed.
     Function,
-    /// An argument: anything but an atomic term is bracketed.
+    /// An argument: a binder, a tensor or an application is bracketed.
     Argument,
 }
 
@@ -341,7 +341,7 @@ struct Printer<'t> {
     term: &'t Term,
     /// The spelling.
     spelling: &'t Spelling,
-    /// Whether binders carry their types.
+    /// Whether `λ`, `false` and `abort` show types.
     types: bool,
     /// An upper bound of the length of every type written, in brackets.
     type_lengths: Vec<u64>,
@@ -808,15 +808,21 @@ impl<'t> Printer<'t> {
 }
 
 impl Term {
-    /// Writes the term into `out` as `options` say, after an upper bound
-    /// of its length has passed `limits.derivation_bytes`, asking `stop`
-    /// once per node written.
+    /// Writes the term into `out` as `options` say, asking `stop` once per
+    /// node written.
+    ///
+    /// Before it writes anything, it bounds the text's length from above
+    /// and refuses a term past `limits.derivation_bytes`. The bound
+    /// matters: a node that several others name is written at every
+    /// place, so a small term can stand for a long text. For a term in a
+    /// `String` without limits or a stop, use `Display` (`to_string()`).
     ///
     /// # Errors
     ///
-    /// [`Refusal::Output`] for a term estimated past the bound, before
-    /// anything is written; [`Refusal::Stopped`] when `stop` fired;
-    /// [`Error::WriteFailed`] when `out` refused the text.
+    /// - [`Refusal::Output`] for a term estimated past the bound, before
+    ///   anything is written.
+    /// - [`Refusal::Stopped`] when `stop` fired.
+    /// - [`Error::WriteFailed`] when `out` refused the text.
     pub fn write(
         &self,
         out: &mut impl Write,
@@ -834,9 +840,10 @@ impl Term {
         )
     }
 
-    /// Writes the term's typing judgement into `out`, `x : A, y : B ⊢ M :
-    /// C`, the hypotheses' variables with their types, then the term and
-    /// its type, as [`write`](Self::write) writes the term.
+    /// Writes the term's typing judgement into `out`, as
+    /// [`write`](Self::write) writes the term: the hypotheses' variables
+    /// with their types, then the term and its type, as in `x : A, f : A ⊸
+    /// B ⊢ f x : B`. With no hypotheses, the judgement starts with `⊢`.
     ///
     /// # Errors
     ///
@@ -874,11 +881,13 @@ impl Term {
 
 impl std::fmt::Display for Term {
     /// Writes the term under the default [`Options`] within the default
-    /// [`Limits`], as [`write`](Term::write) does. A term whose text would
-    /// pass `Limits::derivation_bytes` (a pair under a left rule doubles it,
-    /// so a small term can stand for a long text) is not written: the text
-    /// is then the refusal's message between angle brackets, and
-    /// [`write`](Term::write) with larger limits writes the term.
+    /// [`Limits`], as [`write`](Term::write) does. It fails only when the
+    /// formatter does, so `to_string()` never panics.
+    ///
+    /// A term whose text would pass `Limits::derivation_bytes` is not
+    /// written: the text is then the refusal's message between angle
+    /// brackets. [`write`](Term::write) with larger limits writes such a
+    /// term.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.write(f, &Options::default(), &Limits::default(), |_| false) {
             Ok(()) => Ok(()),
