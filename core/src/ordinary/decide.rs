@@ -223,12 +223,20 @@ pub fn gives_way(decided: &Result<Outcome, Error>) -> bool {
 /// of LK, or a refutation of the image. The 124 problems of ILTP whose
 /// evidence the embedding gives within 2 s (123 derivations and one
 /// refutation) need at most 177 136.
+///
+/// It bounds the image's occurrences too. Translating and setting up a
+/// search visit every occurrence before the search counts a unit, so an
+/// image larger than the bound costs more than the bound before its
+/// first: ILTP's largest images (12.6 million occurrences) took 0.8 s
+/// for no evidence, where the solver answers in milliseconds. Those 124
+/// images have at most 175 occurrences.
 pub const EVIDENCE_WORK: u64 = 1 << 20;
 
 /// Returns the outcome of a classical sequent the SAT solver decided,
 /// with the embedding's evidence where the embedding gives it. The
-/// embedding searches within [`EVIDENCE_WORK`] units of work (or the
-/// caller's lower bound), and for a proof reads the derivation of LK back
+/// embedding translates within [`EVIDENCE_WORK`] occurrences and searches
+/// within as many units of work (or the caller's lower bounds), and for a
+/// proof reads the derivation of LK back
 /// and checks it within the caller's limits. Where the embedding gives no
 /// verdict, a bound refuses its derivation or `stop` fires, the solver's
 /// outcome stands.
@@ -248,10 +256,15 @@ fn with_evidence(
 ) -> Result<Outcome, Error> {
     let logic = solved.logic;
     let work = limits.work.map_or(EVIDENCE_WORK, |w| w.min(EVIDENCE_WORK));
-    let Ok(image) = translate(sequent, logic, translation, limits) else {
+    let occurrences = limits
+        .occurrences
+        .map_or(EVIDENCE_WORK, |o| o.min(EVIDENCE_WORK));
+    let bounded = limits
+        .with_work(Some(work))
+        .with_occurrences(Some(occurrences));
+    let Ok(image) = translate(sequent, logic, translation, &bounded) else {
         return Ok(solved);
     };
-    let bounded = limits.with_work(Some(work));
     let Ok(linear) =
         search::prove_within(image.sequent(), image.mode(), search, &bounded, &mut stop)
     else {
@@ -703,5 +716,47 @@ mod tests {
             Verdict::Valid(Evidence::Clausal(_))
         ));
         assert_eq!(outcome.method(), Method::Sat);
+    }
+
+    /// An image of more occurrences than the evidence's bound of work is
+    /// refused as it is translated: the solver's answer stands, and the
+    /// stop is asked no more often than by the solver alone, so no search
+    /// of the image ran.
+    #[cfg(feature = "sat")]
+    #[test]
+    fn a_large_image_gives_no_evidence_and_costs_no_search() {
+        use super::{EVIDENCE_WORK, Evidence};
+        use crate::ordinary::translate;
+        // Each `↔` is two implications in the image, so it doubles per level.
+        let chain = (1..17).fold("a0".to_owned(), |f, i| format!("({f} <-> a{i})"));
+        let sequent: Sequent = format!("|- {chain} <-> {chain}").parse().unwrap();
+        let limits = Limits::default();
+        let image = translate(&sequent, Logic::Classical, Translation::Affine, &limits).unwrap();
+        assert!(image.sequent().occurrences() > EVIDENCE_WORK);
+        let mut polls = 0_usize;
+        super::super::sat::decide(&sequent, Logic::Classical, &limits, |_| {
+            polls += 1;
+            false
+        })
+        .unwrap();
+        let options = Options::default().with_logic(Logic::Classical);
+        let mut asked = 0_usize;
+        let outcome = decide_within(
+            &sequent,
+            &options,
+            &search::Options::default(),
+            &limits,
+            |_| {
+                asked += 1;
+                false
+            },
+        )
+        .unwrap();
+        assert!(matches!(
+            outcome.verdict,
+            Verdict::Valid(Evidence::Clausal(_))
+        ));
+        assert_eq!(outcome.method(), Method::Sat);
+        assert_eq!(asked, polls);
     }
 }

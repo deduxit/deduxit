@@ -170,12 +170,15 @@ pub(crate) fn keeps_evidence(options: &ordinary::Options) -> bool {
     options.method.is_none() && options.method() == Method::Sat && options.logic == Logic::Classical
 }
 
-/// Returns the limits of the embedding's search for the evidence of a
-/// sequent the SAT solver decided: the work bound
-/// [`ordinary::EVIDENCE_WORK`], or the caller's where it is lower.
+/// Returns the limits of the embedding's translation and search for the
+/// evidence of a sequent the SAT solver decided: at most
+/// [`ordinary::EVIDENCE_WORK`] occurrences and units of work, or the
+/// caller's bounds where they are lower, as the library's default has them.
 pub(crate) fn bounded(limits: &Limits) -> Limits {
     let most = ordinary::EVIDENCE_WORK;
-    limits.with_work(Some(limits.work.map_or(most, |w| w.min(most))))
+    limits
+        .with_work(Some(limits.work.map_or(most, |w| w.min(most))))
+        .with_occurrences(Some(limits.occurrences.map_or(most, |o| o.min(most))))
 }
 
 /// What the embedding gives for a sequent the SAT solver decided.

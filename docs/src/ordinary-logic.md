@@ -126,12 +126,14 @@ measurement](results/iltp-2026-11-14.md)).
 
 In classical logic the default keeps the embedding's output where the
 embedding gives it quickly. Once the SAT solver has decided, the
-embedding searches for at most 2²⁰ units of work, which costs a median
-of 16 ms on ILTP and at most 0.7 s. Where it
+embedding searches for at most 2²⁰ units of work, on an image of at
+most 2²⁰ occurrences, which costs a median of 16 ms on ILTP and at most
+0.1 s. Where it
 proves the sequent, you get its verdict line, its derivation of LK and
 its certificate, as `--method embedding` gives them; where it refutes
 the sequent, its refutation. Otherwise the solver's clausal proof or
-countermodel stands. A larger `--work-limit` does not raise this bound;
+countermodel stands. A larger `--work-limit` or `--occurrence-limit`
+does not raise these bounds, and a smaller one lowers them;
 `--method embedding` gives the embedding the whole time limit.
 
 Where the SAT solver stops at a bound other than the time limit, such

@@ -236,8 +236,10 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   cannot be read twice). **The classical default** (`keeps_evidence`):
   `by_native` returns `Native::Solved` with the solver's decided
   outcome, unwritten; `prove` (and the batch's `decide`) then run the
-  image path as before with the search's limits `bounded`
-  (`ordinary::EVIDENCE_WORK`, or a lower `--work-limit`), and
+  image path as before, translating and searching within `bounded`
+  (`ordinary::EVIDENCE_WORK` occurrences and units of work, or a lower
+  `--occurrence-limit` or `--work-limit`: an image past it is refused
+  and the solver's answer written), and
   `ordinary::evidence` decides as the library's default does: a proof
   whose derivation reads back and checks under the settings' limits
   (drawn from that derivation, `derivation`'s `read`, not read back

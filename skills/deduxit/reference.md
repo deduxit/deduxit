@@ -996,7 +996,9 @@ The default is `sat`, the SAT solver below, for every logic. In
 intuitionistic and minimal logic it takes LJT's derivation where LJT
 gives one (`--stats` then ends with `derivation by LJT: N sequents
 expanded`). In classical logic the embedding then searches for at most
-2²⁰ units of work (a median of 16 ms on ILTP, at most 0.7 s): where it
+2²⁰ units of work on an image of at most 2²⁰ occurrences (a median of
+16 ms on ILTP, at most 0.1 s; a lower `--work-limit` or
+`--occurrence-limit` lowers the bound it names): where it
 decides, the output is the
 embedding's, with its derivation of LK, refutation and certificate;
 otherwise the solver's answer stands. Where another bound
@@ -1441,7 +1443,8 @@ occurrences by id, and `describe(&forest)` names them by formula.
   default, which means the SAT solver (`ordinary::Method::Sat`): through
   `ordinary::sat::decide_preferring_ljt` for intuitionistic and minimal
   logic, and in classical logic followed by the embedding within
-  `ordinary::EVIDENCE_WORK` units of work, whose outcome replaces the
+  `ordinary::EVIDENCE_WORK` units of work, on an image of at most as
+  many occurrences, whose outcome replaces the
   solver's where it decides. The embedding decides where a translation
   is given or where the SAT solver gives way (`ordinary::gives_way`).
 - The `ordinary::Outcome` says which method ran, in `search`:

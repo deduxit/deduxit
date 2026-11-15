@@ -188,10 +188,17 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   `Error::ReadBack`, a defect. The bound covers the 124 ILTP problems
   whose evidence the old default gave at 2 s (123 derivations and one
   refutation, 177 136 units at most); the attempt costs a median of
-  16 ms where it gives nothing, at most 0.7 s (SYJ206 and SYJ212 at
-  size 20, where the focused engine's first node does 4.9 million units
-  before it asks the bound; `plan/later.md`). The command does the same
-  with its own search (`cli.md`). The intuitionistic default's SAT solver is
+  16 ms where it gives nothing. **It translates within as many
+  occurrences** (`EVIDENCE_WORK`, or the caller's lower bound): the
+  translation and the search's set-up visit every occurrence before the
+  search counts a unit, and the set-up's polls report none, so on
+  ILTP's largest images (SYJ206 and SYJ212 at size 20, 12.6 million
+  occurrences) the attempt took 0.8 s and 775 MB for no evidence; the
+  124 images with evidence have at most 175 occurrences. Bounding the
+  image, not making the set-up's polls report work, keeps every
+  search's counters and the inverse method's turns as they were
+  (`a_large_image_gives_no_evidence_and_costs_no_search`). The command
+  does the same with its own search (`cli.md`). The intuitionistic default's SAT solver is
   `sat::decide_preferring_ljt`: the search's verdict, LJT's derivation
   where LJT gives one (smaller, its terms with fewer redexes), else the
   one read off; LJT never runs past the derivation it was asked for, and

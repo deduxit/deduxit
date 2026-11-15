@@ -281,8 +281,14 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
     let input = args.input.clone();
     // How the sequent was written is kept for a derivation drawn so.
     let keep = settings.view.classical == deduxit::linear::ClassicalSides::Two;
+    // The classical default's evidence is translated within a bound: an
+    // image past it is refused, and the solver's answer written.
+    let translating = match &solved {
+        Some(_) => crate::ordinary::bounded(&limits),
+        None => limits,
+    };
     let loaded = deadline.within(move || match ordinary {
-        Some((options, sequent)) => crate::ordinary::translated(&options, &sequent, &limits)
+        Some((options, sequent)) => crate::ordinary::translated(&options, &sequent, &translating)
             .map(|(forest, image)| (forest, Some(image), None)),
         None => input
             .forest(&limits, &read, mode, keep)

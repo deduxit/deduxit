@@ -1732,6 +1732,14 @@ meets first on a large problem, and come before any new engine:
   to 0.7 s on SYJ206 and SYJ212 at sizes 19 and 20 where the solver
   answers in 0.5 ms. A poll inside the first node's long pass (wherever
   those units are counted) would end it at the bound.
+  *Done in session 54x4 (2026-11-15), otherwise than proposed:* the
+  units were 49 `&` rules of 98 303 each (the forest's width, 12.6
+  million occurrences, over 128), done in 3 ms; the 0.6 s were the
+  translation and the set-up, whose polls report no work, so no work
+  bound can end them. The classical default's attempt now translates
+  within `EVIDENCE_WORK` occurrences (the 124 images with evidence have
+  at most 175): SYJ206+1.020 from 0.84 s and 775 MB to under 10 ms and
+  10 MB. The engine's polls are unchanged.
 
 ## Follow-ups: the Horn engine
 

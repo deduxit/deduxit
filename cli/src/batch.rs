@@ -731,7 +731,17 @@ impl Shared {
                         Native::Solved(outcome, start) => solved = Some((outcome, start)),
                     }
                 }
-                match (ordinary::translated(&options, &sequent, limits), &solved) {
+                // The classical default's evidence is translated within a
+                // bound: an image past it is refused, and the solver's
+                // answer written.
+                let translating = match &solved {
+                    Some(_) => ordinary::bounded(limits),
+                    None => *limits,
+                };
+                match (
+                    ordinary::translated(&options, &sequent, &translating),
+                    &solved,
+                ) {
                     (Ok((forest, image)), _) => (forest, Some(image), None),
                     (Err(_), Some((outcome, start))) => {
                         return self.native_done(&entry.name, outcome, *start, &deadline);
