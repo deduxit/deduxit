@@ -43,6 +43,13 @@ second number (0.1.x to 0.2.0), anything else the third.
   calculus's terms and sequents read
   from text in its own syntax (`Calculus::parse_term`,
   `parse_sequent`).
+- **Forward steps in a session of a calculus given as data**: `derive G
+  RULE L…` applies a rule forwards from lines in force and adds its
+  conclusion as a new line, beside `apply`'s backward steps; each goal
+  lists the lines in force with numbers that never change, and `assume
+  G L` closes a goal by line L. In the library, `Interactive::derive`,
+  `lines` and `cite`, and `undo` answers `rules::Undone`. A session
+  that holds such a line is written at wire level 18.
 - **A derivation in a calculus given as data is drawn** as one of LK
   is: `rules::Drawing::new(&calculus, &derivation, &limits)` gives what
   `export::svg`, `latex` and `typst` draw, each node under its rule's

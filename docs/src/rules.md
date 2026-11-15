@@ -57,8 +57,8 @@ rules. This one is natural deduction for implication and conjunction.
 A sequent is one formula, and `→I` discharges a hypothesis:
 
 ```console
-$ cat > nj.json
-> {"version": 15, "name": "NJ",
+$ cat > my-nj.json
+> {"version": 15, "name": "my-NJ",
 >  "connectives": [{"name": "→", "arity": 2, "associativity": "right"},
 >                  {"name": "∧", "arity": 2, "precedence": 1}],
 >  "sequent": [{"name": "formula", "discipline": "multiset", "least": 1, "most": 1}],
@@ -71,7 +71,7 @@ $ cat > nj.json
 >   {"name": "∧I", "premises": [{"formula": ["A"]}, {"formula": ["B"]}],
 >    "conclusion": {"formula": [["∧", "A", "B"]]}}]}
 $ cat > pair.json
-> {"version": 15, "calculus": "NJ",
+> {"version": 15, "calculus": "my-NJ",
 >  "terms": ["a", "b", ["∧", 0, 1], ["→", 1, 2], ["→", 0, 3]],
 >  "scopes": [0, 1],
 >  "nodes": [
@@ -80,23 +80,23 @@ $ cat > pair.json
 >   {"sequent": [[2]], "rule": "∧I", "premises": [0, 1], "scope": 2},
 >   {"sequent": [[3]], "rule": "→I", "premises": [2], "scope": 1},
 >   {"sequent": [[4]], "rule": "→I", "premises": [3]}]}
-$ deduxit check --calculus nj.json pair.json
-valid in the calculus given (NJ): a → b → a ∧ b, a derivation of 5 nodes
+$ deduxit check --calculus my-nj.json pair.json
+valid in the calculus given (my-NJ): a → b → a ∧ b, a derivation of 5 nodes
   0.   a    hypothesis
   1.     b    hypothesis
   2.     a ∧ b    ∧I 0, 1
   3.   b → a ∧ b    →I 2
   4. a → b → a ∧ b    →I 3
 $ cat > escape.json
-> {"version": 15, "calculus": "NJ",
+> {"version": 15, "calculus": "my-NJ",
 >  "terms": ["a", "b", ["∧", 0, 1]],
 >  "scopes": [0],
 >  "nodes": [
 >   {"sequent": [[1]], "hypothesis": true, "scope": 1},
 >   {"sequent": [[0]], "hypothesis": true},
 >   {"sequent": [[2]], "rule": "∧I", "premises": [1, 0]}]}
-$ deduxit check --calculus nj.json escape.json; echo "exit $?"
-invalid in the calculus given (NJ): node 2 (∧I, concluding a ∧ b): a premise lies in a scope that is closed here
+$ deduxit check --calculus my-nj.json escape.json; echo "exit $?"
+invalid in the calculus given (my-NJ): node 2 (∧I, concluding a ∧ b): a premise lies in a scope that is closed here
 exit 1
 ```
 
@@ -161,12 +161,13 @@ What the goal does not determine is asked for by name. `∧R split` above
 needs `Γ′` and `Δ′`, the parts of the context that go to the second
 premise. In natural deduction, `→E` concludes `B` from `A → B` and `A`,
 and the goal `B` says nothing of `A`: give it as `NAME=TEXT`. `--assume`
-gives hypotheses the derivation may use, and `assume G` closes a goal
-by a hypothesis in force:
+gives hypotheses the derivation may use, each goal lists the lines in
+force with their numbers, and `assume G` closes a goal by a line in
+force:
 
 ```console
-$ cat > nj.json
-> {"version": 15, "name": "NJ",
+$ cat > my-nj.json
+> {"version": 15, "name": "my-NJ",
 >  "connectives": [{"name": "→", "arity": 2, "associativity": "right"},
 >                  {"name": "∧", "arity": 2, "precedence": 1}],
 >  "sequent": [{"name": "formula", "discipline": "multiset", "least": 1, "most": 1}],
@@ -178,20 +179,20 @@ $ cat > nj.json
 >    "conclusion": {"formula": ["B"]}},
 >   {"name": "∧I", "premises": [{"formula": ["A"]}, {"formula": ["B"]}],
 >    "conclusion": {"formula": [["∧", "A", "B"]]}}]}
-$ deduxit interact --calculus nj.json --assume "a -> b" --assume a b
+$ deduxit interact --calculus my-nj.json --assume "a -> b" --assume a b
 > apply 0 →E
 error: the step needs A given: what the goal leaves open
 > apply 0 →E A=a
 opened goal 1: 0: a → b
-    hypotheses: a → b; a
+    lines: 1. a → b; 2. a
 opened goal 2: 0: a
-    hypotheses: a → b; a
+    lines: 1. a → b; 2. a
 > assume 1
 closed
 > assume 2
 closed; no goal is open: `proof` checks the proof
 > proof
-valid in the calculus given (NJ): b
+valid in the calculus given (my-NJ): b
   0. a → b    hypothesis
   1. a    hypothesis
   2. b    →E 0, 1

@@ -345,7 +345,9 @@ in use.
   each deriving exactly what the ordinary suite calls valid in its
   logic. `interact --calculus`
   builds such a derivation step by step, each step checked, what the
-  goal leaves open asked for by name; the web page is planned.
+  goal leaves open asked for by name: backwards from a goal, or
+  forwards from numbered lines in force, as a Fitch-style proof is
+  written; the web page is planned.
 - The unpublished crate `deduxit-web` in `web/` compiles the library to
   WebAssembly for a web page. Its calls take JSON and give JSON or SVG:
   a sequent read, a proof step by step, a goal closed by the search

@@ -1558,13 +1558,19 @@ your own rules").
   (`->`, `/\`, `|-` read as `→`, `∧`, `⊢` where it has them);
   `--assume SEQUENT` adds a hypothesis. Its commands: `goals`, `rules
   G` (each rule with the member numbers it acts on and what it
-  `needs`), `apply G RULE [N…] [NAME=TEXT…]` (`NAME=TEXT` gives a
-  variable or context the goal leaves open), `assume G`, `undo`,
-  `show`, `proof [FILE]`, `save FILE`, `load FILE`. Every step is
-  checked by the calculus's checker. In the library this is
-  `rules::Interactive` (`within`, `rules`, `apply` with an
-  `rules::Apply`, `assume`, `undo`, `finished`); a session's JSON is at
-  wire level 17. `rules::Drawing::new(&calculus, &derivation, &limits)`
+  `needs`), `apply G RULE [N…] [NAME=TEXT…]` (backwards; `NAME=TEXT`
+  gives a variable or context the goal leaves open), `derive G RULE
+  L… [NAME=TEXT…]` (forwards from the lines L… in force at goal G, its
+  conclusion a new line), `assume G [L]` (closes goal G by line L, or
+  by the line in force equal to it), `undo`, `show`, `proof [FILE]`,
+  `save FILE`, `load FILE`. Each goal lists the lines in force,
+  numbered from 1 for good; a rule that discharges a hypothesis applies
+  backwards and opens its subproof. Every step is checked by the
+  calculus's checker. In the library this is `rules::Interactive`
+  (`within`, `rules`, `apply` with an `rules::Apply`, `derive` with a
+  `rules::Derive`, `lines`, `assume`, `cite`, `undo`, `finished`); a
+  session's JSON is at wire level 17, or 18 once it holds a derived
+  line. `rules::Drawing::new(&calculus, &derivation, &limits)`
   lays a derivation out for the exports: `export::svg::to_string`,
   `latex` and `typst` draw it as they draw LK's.
 

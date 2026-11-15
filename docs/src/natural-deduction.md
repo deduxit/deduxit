@@ -129,39 +129,81 @@ exit 1
 
 ## Build a proof step by step
 
-`deduxit interact --calculus NJ` builds a proof from its conclusion up.
-`--assume` gives the assumptions. `apply` applies a rule backwards and
-asks for what the goal leaves open by name: `∨E` must be told the
-disjunction it takes apart. `assume` closes a goal by a hypothesis in
-force:
+`deduxit interact --calculus NJ` builds a proof in two directions, as
+on paper:
+- `derive G RULE L…` works forwards: it applies a rule to lines in
+  force and adds the conclusion as a new line, which later steps cite.
+- `apply G RULE` works backwards from goal G. A rule that discharges a
+  hypothesis (`→I`, `∨E`, `¬I`, `↔I`, `RAA`) is applied this way, and it
+  opens its subproof: the hypothesis becomes a new line, in force only
+  inside it.
+- `assume G` closes a goal by the line in force equal to it, and
+  `assume G L` by line L.
+
+Each goal lists the lines in force with their numbers, which never
+change. A line of an enclosing subproof is in force in the subproofs
+inside it, so no reiteration is needed:
+
+```console
+$ deduxit interact --calculus NJ "(a -> b) -> (b -> c) -> a -> c"
+> apply 0 →I
+opened goal 1: 0: (b → c) → a → c
+    lines: 1. a → b
+> apply 1 →I
+opened goal 2: 0: a → c
+    lines: 1. a → b; 2. b → c
+> apply 2 →I
+opened goal 3: 0: c
+    lines: 1. a → b; 2. b → c; 3. a
+> derive 3 →E 1 3
+line 4: b
+> derive 3 →E 2 4
+line 5: c
+> assume 3
+closed; no goal is open: `proof` checks the proof
+> proof
+valid in the calculus given (NJ): (a → b) → (b → c) → a → c
+  0.   a → b    hypothesis
+  1.       a    hypothesis
+  2.       b    →E 0, 1
+  3.     b → c    hypothesis
+  4.       c    →E 3, 2
+  5.     a → c    →I 4
+  6.   (b → c) → a → c    →I 5
+  7. (a → b) → (b → c) → a → c    →I 6
+```
+
+A step names what its lines leave open as `NAME=TEXT`. `∨I₁` from `a`
+needs `B=b` to conclude `a ∨ b`. Backwards, `∨E` must be told the
+disjunction it takes apart, and it opens two subproofs:
 
 ```console
 $ deduxit interact --calculus NJ --assume "a \/ b" "b \/ a"
 > apply 0 ∨E A=a B=b
 opened goal 1: 0: a ∨ b
-    hypotheses: a ∨ b
+    lines: 1. a ∨ b
 opened goal 2: 0: b ∨ a
-    hypotheses: a; a ∨ b
+    lines: 1. a ∨ b; 2. a
 opened goal 3: 0: b ∨ a
-    hypotheses: b; a ∨ b
+    lines: 1. a ∨ b; 3. b
 > assume 1
 closed
-> apply 2 ∨I₂
-opened goal 4: 0: a
-    hypotheses: a; a ∨ b
-> assume 4
+> derive 2 ∨I₂ 2 A=b
+line 4: b ∨ a
+> assume 2 4
 closed
-> apply 3 ∨I₁
-opened goal 5: 0: b
-    hypotheses: b; a ∨ b
-> assume 5
+> derive 3 ∨I₁ 3 B=a
+line 5: b ∨ a
+> assume 3 5
 closed; no goal is open: `proof` checks the proof
 > proof swap.json
 valid in the calculus given (NJ): b ∨ a; written to swap.json
 ```
 
-`proof FILE` writes the proof that `check` reads. The session's
-commands are in [Check a derivation in your own rules](rules.md#build-a-derivation-step-by-step).
+`proof FILE` writes the proof that `check` reads. A line of a subproof
+that is closed is out of force: citing it is refused, and so is a line
+that is not the goal. `undo` takes back the last step, a forward one
+too, and `help` lists every command.
 
 ## What the rule sets prove
 
