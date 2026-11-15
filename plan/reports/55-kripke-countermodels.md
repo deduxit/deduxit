@@ -499,3 +499,80 @@ on `Countermodel::found`), where the embedding's path drops the model.
   of ordinary logic's partial order and monotone valuation. Its JSON
   (level 13) needs no change; a frame condition the model claims would
   be a new key.
+
+## Session 55c: the Kripke lemma and the exporter
+
+Opus 5.5 at `high`, a reused worker (brief `start-55c.md`), in the jj
+workspace `../deduxit-wt-step-58a-610ed3` and, for the library,
+`../rocq-deduxit-55c` (workspace `step55c` of `rocq-deduxit`), on
+2026-11-15, cores 7 to 9.
+
+### Where it stands
+
+The library's half is done and checked; the exporter's half waits for
+55b on `main@origin`.
+
+### The library's half (`rocq-deduxit`)
+
+Two commits on its `main@origin` (`sqmpzpzx`): `womvrznp` (the
+calculus, the semantics, the checker, the tests, the check's second
+loop) and `xmsnqtwk` (README, changelog's Unreleased, opam
+description and keywords, CLAUDE.md, `rocq.md`). Not pushed: the
+planning session pushes them (`plan/push-main.sh --rocq`).
+
+- **A namespace of its own**, `Deduxit.Intuitionistic`
+  (`theories/Intuitionistic/`), as the library's shape of 2026-11-09
+  names it; nothing shared with `Deduxit.Linear`, so no `Deduxit.Base`.
+- **The trusted base**: `Formulas.v` (`var`, `bot`, `wedge`, `vee`,
+  `imp`; `top := imp bot bot`, `neg A := imp A bot`, `equiv A B := wedge
+  (imp A B) (imp B A)`, as Troelstra and Schwichtenberg define them)
+  and `Calculus.v` (`rules` with `explosion` and `cut`;
+  `intuitionistic` = LJ, `minimal` = LM; `lj R Γ C`). `lj` is G1i with
+  shared contexts: axiom on any formula, exchange as one `Permutation`
+  rule, weakening, contraction, `bot_l` under `explosion` (G1i's
+  weakening on the right, an empty succedent being `⊥`), the
+  connectives' rules on the first hypothesis, `cut_r` under `cut`. LM
+  is the same without `bot_l`: `⊥` is one more atom. The larger
+  calculus on purpose: a refutation of it covers every smaller one.
+- **The lemma** (`Kripke.v`): `model R` over any `world` type with a
+  `Prop` preorder `le`, a monotone valuation `val` and monotone worlds
+  `absurd` forcing `⊥`, empty under `explosion`; `forces` the textbook
+  recursion. `persistence`; `kripke_soundness : lj R G C -> forall w,
+  Forall (forces w) G -> forces w C` for every `R`, cut included;
+  `kripke_countermodel : Forall (forces w) G -> ~ forces w C -> ~ lj R
+  G C`. The corollary `classical_refutation : forall R v G C, forallb
+  (eval v) G && negb (eval v C) = true -> ~ lj R G C`, the one-world
+  model over `unit`.
+- **The checker and its theorem** (`KripkeCheck.v`): the data
+  `finite_model atom = {| later : list (list nat); atoms : list (list
+  atom); absurd : list nat |}`, worlds `0 … length later − 1`, `later
+  w` the worlds later than `w` (reflexive pairs implied: `ups w = w ::
+  later[w]`), `atoms w` the atoms `w` forces (missing = none), `absurd`
+  the worlds forcing `⊥`. `well_formed R` checks transitivity, that
+  later worlds are worlds, monotone atoms and `⊥`, and `absurd = []`
+  under `explosion`. `forced A` is the vector of worlds forcing `A`,
+  bottom up (`O(|A|·n²)` with `nth`). `refutes atom_eqb M R w G C`
+  asks `well_formed`, `w < size`, every `G` forced at `w` and `C` not.
+  `kripke_refutation : forall atom_eqb, (forall a b, reflect (a = b)
+  (atom_eqb a b)) -> forall R M w G C, refutes atom_eqb M R w G C =
+  true -> ~ lj R G C`.
+- **The certificate's form** the exporter will write:
+  `Lemma … : ~ lj intuitionistic [Γ] C.` (or `minimal`), `Proof. apply
+  (kripke_refutation String.eqb String.eqb_spec intuitionistic {| later
+  := [[1]; []]; atoms := [[]; ["a"]]; absurd := [] |} 0). vm_compute.
+  reflexivity. Qed.`, under `From Deduxit.Intuitionistic Require Import
+  KripkeCheck.`; a sequent with no atom writes `(atom := string)`.
+- **Assumptions**: `tests/Assumptions.v` names the four theorems by
+  their full paths; each answers `Closed under the global context` (37
+  lines, 33 before).
+- **Tests** (`tests/Intuitionistic/Kripke.v`, compiled as
+  `Deduxit.Intuitionistic.Tests` by a second loop of the check):
+  excluded middle, double negation (with cut), Peirce, `a ↔ ¬¬a` beside
+  `⊤`, `a → b ∨ c ⊢ (a → b) ∨ (a → c)` (three worlds), minimal `a, ¬a ⊢
+  b` and `¬a ⊢ b` (a later world forcing `⊥`), the one-world corollary,
+  a sequent with no atom; and `refutes … = false` for a world forcing
+  `⊥` in LJ, an intransitive order, a forgotten atom, a forgotten `⊥`,
+  a later world past the worlds, a refuting world past them, a world
+  forcing the conclusion, a hypothesis not forced.
+- **Checks**: the library's `nix flake check` passes at `xmsnqtwk`
+  (every admitted Rocq, 9.0 to 9.3; conventions, typos, treefmt).
