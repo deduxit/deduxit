@@ -56,7 +56,7 @@ fn the_rule_files_read_and_write_back() {
         // The file is written back as it was read.
         let written = serde_json::to_value(&read).unwrap();
         assert_eq!(written, serde_json::from_str::<Value>(text).unwrap());
-        assert_eq!(written["version"], wire::LEVEL);
+        assert_eq!(written["version"], 15, "the level of a rule file");
     }
     // The schema names every key the rule files use.
     let schema: Value = serde_json::from_str(deduxit::rules::SCHEMA).unwrap();

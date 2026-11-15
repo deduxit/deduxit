@@ -1162,3 +1162,40 @@ fn first_order_round_trip() {
         assert_eq!(error.code(), code, "{json}: {error}");
     }
 }
+
+/// A negative translation compared and an interpolation are documents at
+/// level 16, each holding its sequents and their outcomes without a
+/// `version` of their own.
+#[test]
+fn transformations_are_written_at_level_16() {
+    use deduxit::ordinary::{self, interpolant, negative};
+    let sequent: ordinary::Sequent = "a /\\ b |- b".parse().unwrap();
+    let options = negative::Options::default();
+    let compared = negative::compare_default(&sequent, &options).unwrap();
+    let written = serde_json::to_value(&compared).unwrap();
+    assert_eq!(written["version"], 16);
+    assert_eq!(written["translation"], "kolmogorov");
+    assert_eq!(written["target"], "minimal");
+    assert_eq!(written["agreement"], "valid");
+    assert_eq!(written["classical"]["logic"], "classical");
+    assert_eq!(written["decided"]["verdict"], "valid");
+    assert!(written["decided"].get("version").is_none());
+    assert_eq!(written["translated"]["left"].as_array().unwrap().len(), 1);
+
+    let classical = ordinary::Options::default().with_logic(ordinary::Logic::Classical);
+    let partition = interpolant::Partition::hypotheses(&sequent);
+    let found = interpolant::interpolate_default(&sequent, &classical, &partition).unwrap();
+    let written = serde_json::to_value(&found).unwrap();
+    assert_eq!(written["version"], 16);
+    assert_eq!(written["logic"], "classical");
+    assert_eq!(
+        written["partition"],
+        serde_json::json!({"left": [0], "right": []})
+    );
+    assert_eq!(written["interpolant"]["text"], "b");
+    assert_eq!(
+        written["interpolant"]["second"]["outcome"]["verdict"],
+        "valid"
+    );
+    assert!(written["outcome"].get("version").is_none());
+}

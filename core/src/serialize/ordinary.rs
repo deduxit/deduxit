@@ -423,10 +423,13 @@ impl Readable for Derivation {
 /// of a valid sequent.
 #[derive(Serialize)]
 struct OutcomeForm<'a> {
-    /// The wire level.
-    version: u32,
-    /// The crate's version, which wrote the outcome.
-    deduxit: &'static str,
+    /// The wire level, written only at the top of a document.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    version: Option<u32>,
+    /// The crate's version, which wrote the outcome, written only at the
+    /// top of a document.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    deduxit: Option<&'static str>,
     /// `valid`, `not_valid` or `unknown`.
     verdict: &'static str,
     /// Why the search could not decide.
@@ -500,69 +503,87 @@ impl Serialize for Outcome {
     /// and the search that decided it, the image's outcome nested under
     /// the embedding.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let (verdict, reason, derivation) = match &self.verdict {
-            Verdict::Valid(Evidence::Derivation(d)) => {
-                ("valid", None, Some(DerivationForm::from(&**d)))
-            }
-            #[cfg(feature = "sat")]
-            Verdict::Valid(Evidence::Clausal(_)) => ("valid", None, None),
-            Verdict::Valid(Evidence::Image | Evidence::Table) => ("valid", None, None),
-            Verdict::NotValid => ("not_valid", None, None),
-            Verdict::Unknown(r) => ("unknown", Some(Why::from(*r)), None),
-        };
-        let search = match &self.search {
-            Search::Embedding {
-                translation,
-                linear,
-            } => SearchForm::Embedding {
-                translation: *translation,
-                image: super::search::Nested(linear),
-            },
-            Search::Ljt(statistics) => SearchForm::Ljt { statistics },
-            #[cfg(feature = "sat")]
-            Search::Sat(statistics) => SearchForm::Sat { statistics },
-            Search::Table(table) => SearchForm::Table {
-                table: TableForm::from(&**table),
-            },
-            #[cfg(feature = "interactive")]
-            Search::Tableau(tableau) => SearchForm::Tableau {
-                tableau: TableauForm::from(&**tableau),
-            },
-        };
-        // A reader of level 12 does not know the methods `table` and
-        // `tableau`, so an outcome of either is at level 14.
-        let version = match &self.search {
-            Search::Table(_) => wire::TABLES,
-            #[cfg(feature = "interactive")]
-            Search::Tableau(_) => wire::TABLES,
-            Search::Embedding { .. } | Search::Ljt(_) => wire::SEARCH,
-            #[cfg(feature = "sat")]
-            Search::Sat(_) => wire::SEARCH,
-        };
-        let countermodel = self.countermodel.as_ref().map(|c| CountermodelForm {
-            sequent: SequentForm::of(c.sequent.formulas(), c.sequent.left(), c.sequent.right()),
-            model: super::kripke::ModelForm::from(&c.model),
-        });
-        // A reader of level 12 may ignore the countermodel without
-        // misreading the verdict, so it raises no level.
-        OutcomeForm {
-            version,
-            deduxit: env!("CARGO_PKG_VERSION"),
-            verdict,
-            reason,
-            logic: self.logic,
-            search,
-            derivation,
-            #[cfg(feature = "sat")]
-            clausal_proof: match &self.verdict {
-                Verdict::Valid(Evidence::Clausal(proof)) => Some(proof),
-                Verdict::Valid(Evidence::Derivation(_) | Evidence::Image | Evidence::Table)
-                | Verdict::NotValid
-                | Verdict::Unknown(_) => None,
-            },
-            countermodel,
+        outcome_form(self).serialize(serializer)
+    }
+}
+
+/// An ordinary outcome inside another document: its keys without
+/// `version` and `deduxit`.
+struct NestedOutcome<'a>(&'a Outcome);
+
+impl Serialize for NestedOutcome<'_> {
+    /// Serializes the outcome's keys but `version` and `deduxit`.
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut form = outcome_form(self.0);
+        form.version = None;
+        form.deduxit = None;
+        form.serialize(serializer)
+    }
+}
+
+/// Returns the form of an outcome as a document of its own.
+fn outcome_form(outcome: &Outcome) -> OutcomeForm<'_> {
+    let (verdict, reason, derivation) = match &outcome.verdict {
+        Verdict::Valid(Evidence::Derivation(d)) => {
+            ("valid", None, Some(DerivationForm::from(&**d)))
         }
-        .serialize(serializer)
+        #[cfg(feature = "sat")]
+        Verdict::Valid(Evidence::Clausal(_)) => ("valid", None, None),
+        Verdict::Valid(Evidence::Image | Evidence::Table) => ("valid", None, None),
+        Verdict::NotValid => ("not_valid", None, None),
+        Verdict::Unknown(r) => ("unknown", Some(Why::from(*r)), None),
+    };
+    let search = match &outcome.search {
+        Search::Embedding {
+            translation,
+            linear,
+        } => SearchForm::Embedding {
+            translation: *translation,
+            image: super::search::Nested(linear),
+        },
+        Search::Ljt(statistics) => SearchForm::Ljt { statistics },
+        #[cfg(feature = "sat")]
+        Search::Sat(statistics) => SearchForm::Sat { statistics },
+        Search::Table(table) => SearchForm::Table {
+            table: TableForm::from(&**table),
+        },
+        #[cfg(feature = "interactive")]
+        Search::Tableau(tableau) => SearchForm::Tableau {
+            tableau: TableauForm::from(&**tableau),
+        },
+    };
+    // A reader of level 12 does not know the methods `table` and
+    // `tableau`, so an outcome of either is at level 14.
+    let version = match &outcome.search {
+        Search::Table(_) => wire::TABLES,
+        #[cfg(feature = "interactive")]
+        Search::Tableau(_) => wire::TABLES,
+        Search::Embedding { .. } | Search::Ljt(_) => wire::SEARCH,
+        #[cfg(feature = "sat")]
+        Search::Sat(_) => wire::SEARCH,
+    };
+    let countermodel = outcome.countermodel.as_ref().map(|c| CountermodelForm {
+        sequent: SequentForm::of(c.sequent.formulas(), c.sequent.left(), c.sequent.right()),
+        model: super::kripke::ModelForm::from(&c.model),
+    });
+    // A reader of level 12 may ignore the countermodel without
+    // misreading the verdict, so it raises no level.
+    OutcomeForm {
+        version: Some(version),
+        deduxit: Some(env!("CARGO_PKG_VERSION")),
+        verdict,
+        reason,
+        logic: outcome.logic,
+        search,
+        derivation,
+        #[cfg(feature = "sat")]
+        clausal_proof: match &outcome.verdict {
+            Verdict::Valid(Evidence::Clausal(proof)) => Some(proof),
+            Verdict::Valid(Evidence::Derivation(_) | Evidence::Image | Evidence::Table)
+            | Verdict::NotValid
+            | Verdict::Unknown(_) => None,
+        },
+        countermodel,
     }
 }
 
@@ -1229,5 +1250,113 @@ impl Readable for crate::ordinary::Tableau {
         TableauForm::deserialize(deserializer)?
             .within(limits)
             .map_err(wire::fail)
+    }
+}
+
+/// The serialized form of a negative translation compared: the
+/// translation, the target logic, the agreement, both sequents and both
+/// outcomes.
+#[derive(Serialize)]
+struct ComparisonForm<'a> {
+    /// The wire level.
+    version: u32,
+    /// The crate's version, which wrote the document.
+    deduxit: &'static str,
+    /// The translation's name.
+    translation: crate::ordinary::negative::Translation,
+    /// The logic translated into.
+    target: Logic,
+    /// `valid`, `not_valid` or `unknown`.
+    agreement: crate::ordinary::negative::Agreement,
+    /// The classical sequent.
+    sequent: SequentForm,
+    /// Its translation.
+    translated: SequentForm,
+    /// The classical sequent decided.
+    classical: NestedOutcome<'a>,
+    /// The translation decided in the target logic.
+    decided: NestedOutcome<'a>,
+}
+
+impl Serialize for crate::ordinary::negative::Comparison {
+    /// Serializes the comparison as a document at level 16.
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let form = |s: &Sequent| SequentForm::of(s.formulas(), s.left(), s.right());
+        ComparisonForm {
+            version: wire::TRANSFORMS,
+            deduxit: env!("CARGO_PKG_VERSION"),
+            translation: self.translation,
+            target: self.decided.logic,
+            agreement: self.agreement,
+            sequent: form(&self.sequent),
+            translated: form(&self.translated),
+            classical: NestedOutcome(&self.classical),
+            decided: NestedOutcome(&self.decided),
+        }
+        .serialize(serializer)
+    }
+}
+
+/// The serialized form of an interpolation: the logic, the partition, the
+/// sequent's outcome and the interpolant.
+#[derive(Serialize)]
+struct InterpolationForm<'a> {
+    /// The wire level.
+    version: u32,
+    /// The crate's version, which wrote the document.
+    deduxit: &'static str,
+    /// The logic.
+    logic: Logic,
+    /// The positions of the first half.
+    partition: &'a crate::ordinary::interpolant::Partition,
+    /// The sequent decided.
+    outcome: NestedOutcome<'a>,
+    /// The interpolant, where the sequent is valid.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    interpolant: Option<InterpolantForm<'a>>,
+}
+
+/// The serialized form of an interpolant: its text and both halves.
+#[derive(Serialize)]
+struct InterpolantForm<'a> {
+    /// The interpolant as text.
+    text: String,
+    /// The first half with the interpolant right of `⊢`, decided.
+    first: HalfForm<'a>,
+    /// The second half with the interpolant as its first hypothesis,
+    /// decided.
+    second: HalfForm<'a>,
+}
+
+/// The serialized form of a half of an interpolation: its sequent and
+/// its outcome.
+#[derive(Serialize)]
+struct HalfForm<'a> {
+    /// The half's sequent.
+    sequent: SequentForm,
+    /// The half decided.
+    outcome: NestedOutcome<'a>,
+}
+
+impl Serialize for crate::ordinary::interpolant::Interpolation {
+    /// Serializes the interpolation as a document at level 16.
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let half = |s: &'_ Sequent, outcome| HalfForm {
+            sequent: SequentForm::of(s.formulas(), s.left(), s.right()),
+            outcome: NestedOutcome(outcome),
+        };
+        InterpolationForm {
+            version: wire::TRANSFORMS,
+            deduxit: env!("CARGO_PKG_VERSION"),
+            logic: self.outcome.logic,
+            partition: &self.partition,
+            outcome: NestedOutcome(&self.outcome),
+            interpolant: self.interpolant.as_ref().map(|i| InterpolantForm {
+                text: i.formula().to_string(),
+                first: half(&i.first, &i.first_outcome),
+                second: half(&i.second, &i.second_outcome),
+            }),
+        }
+        .serialize(serializer)
     }
 }

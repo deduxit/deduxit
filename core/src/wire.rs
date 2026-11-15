@@ -200,6 +200,22 @@
 //!   term indices of every zone; reading one checks its indices, and
 //!   `Derivation::check` its rules; see
 //!   [`rules::Derivation`](crate::rules::Derivation).
+//! - **Negative translation** (written only): `{"version": 16,
+//!   "deduxit": "0.5.0", "translation": "kolmogorov", "target": "minimal",
+//!   "agreement": "valid", "sequent": {…}, "translated": {…}, "classical":
+//!   {…}, "decided": {…}}`: the classical sequent and its translation, in
+//!   the form of an ordinary sequent, each decided, in the form of an
+//!   ordinary outcome, none with a `version`; `agreement` is `valid`,
+//!   `not_valid` or `unknown`; see
+//!   [`ordinary::negative::Comparison`](crate::ordinary::negative::Comparison).
+//! - **Interpolation** (written only): `{"version": 16, "deduxit": "0.5.0",
+//!   "logic": "classical", "partition": {"left": [0], "right": []},
+//!   "outcome": {…}, "interpolant": {"text": "b", "first": {"sequent": {…},
+//!   "outcome": {…}}, "second": {…}}}`: the positions of the first half,
+//!   the sequent decided, and where it is valid the interpolant with both
+//!   halves decided, the interpolant last right of `⊢` in the first and
+//!   first left of `⊢` in the second; see
+//!   [`ordinary::interpolant::Interpolation`](crate::ordinary::interpolant::Interpolation).
 //! - **Cut elimination** (written only): `{"version": 6, "proof": {…},
 //!   "steps": [{"cut": 7, "formula": 9, "case": "tensor_par"}, …],
 //!   "end": "cut_free"}`, or `"end": "refused"` with the `reason` in an
@@ -218,7 +234,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// The highest wire level this build reads and writes.
-pub const LEVEL: u32 = 15;
+pub const LEVEL: u32 = 16;
 
 /// The level of a rule file and of a derivation in a calculus given as
 /// data.
@@ -387,6 +403,10 @@ pub(crate) const KRIPKE: u32 = 13;
 /// The level of a truth table and a tableau, and of an ordinary outcome
 /// decided by either.
 pub(crate) const TABLES: u32 = 14;
+
+/// The level of a negative translation compared and of an interpolation,
+/// which are written only.
+pub(crate) const TRANSFORMS: u32 = 16;
 
 /// The level of a disproof or an outcome refuted by the basis of a
 /// backward search.
