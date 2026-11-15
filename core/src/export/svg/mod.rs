@@ -1743,6 +1743,26 @@ mod tests {
         );
     }
 
+    /// The description writes every formula as the title does, so that a
+    /// screen reader hears one spelling of a negated atom: `A⊥`, never
+    /// the text tree's `~A`.
+    #[cfg(feature = "parse")]
+    #[test]
+    fn the_description_writes_formulas_as_the_title_does() {
+        use crate::linear::{Mode, Options, prove};
+        let s: Sequent = "A -o B |- ~B -o ~A".parse().unwrap();
+        let outcome = prove(&s, Mode::CLASSICAL, &Options::default()).unwrap();
+        let proof = outcome.verdict.proof().unwrap();
+        let svg = to_string(&proof.derivation().unwrap(), &Style::default()).unwrap();
+        let desc = &svg[svg.find("<desc>").unwrap()..svg.find("</desc>").unwrap()];
+        assert!(svg.contains("<title>⊢ A ⊗ B⊥, B ⅋ A⊥</title>"), "{svg}");
+        assert!(
+            desc.ends_with("4. ⊢ A ⊗ B⊥, B ⅋ A⊥, by ⅋ from 3."),
+            "{desc}"
+        );
+        assert!(!desc.contains('~'), "{desc}");
+    }
+
     /// A style past a maximum is refused before anything is drawn, and
     /// one at every maximum draws in exact numbers. Without the maxima, a
     /// style of huge numbers overflows, and in a release build writes a

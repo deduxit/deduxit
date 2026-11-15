@@ -91,6 +91,9 @@ unchanged.
   antecedent counts on the other side)`. Where one side has no `A`, it
   says so: `A on the right has no A on the left to meet in an axiom (an
   implication's antecedent counts on the other side)`.
+- **An SVG drawing's description** (`<desc>`, which a screen reader
+  reads, and a PNG and an accessible PDF carry) writes a negated atom
+  `A⊥`, as the drawing and its title do, where it wrote `~A`.
 - **Ordinary logic's "not valid"** through the embedding says `the
   translated sequent is unprovable` in place of "the image".
 - **The help and the messages are rewritten** to say what went wrong and

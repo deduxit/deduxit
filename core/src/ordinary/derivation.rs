@@ -862,6 +862,7 @@ impl Derivation {
             self,
             out,
             crate::limits::counting(stop, crate::limits::Phase::Write),
+            |out, id| self.write_sequent(out, id),
         )
     }
 }

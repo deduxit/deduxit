@@ -383,12 +383,13 @@ pub(crate) fn write_text<T: Drawn>(
 }
 
 /// Writes a derivation as a numbered list of its inferences, as
-/// [`Derivation::write_steps`] describes, and calls `stop` before every
-/// line.
-pub(crate) fn write_steps<T: Drawn>(
+/// [`Derivation::write_steps`] describes, each sequent written by
+/// `sequent`, and calls `stop` before every line.
+pub(crate) fn write_steps<T: Drawn, W: Write>(
     tree: &T,
-    out: &mut impl Write,
+    out: &mut W,
     mut stop: impl FnMut() -> bool,
+    mut sequent: impl FnMut(&mut W, InfId) -> std::fmt::Result,
 ) -> Result<(), Error> {
     for i in 0..tree.len() {
         if stop() {
@@ -401,7 +402,7 @@ pub(crate) fn write_steps<T: Drawn>(
         }
         let id = InfId::new(i as u32);
         write!(out, "{}. ", i + 1)?;
-        tree.write_sequent(out, id)?;
+        sequent(out, id)?;
         if tree.is_open(id) {
             out.write_str(", open.")?;
             continue;
@@ -476,6 +477,7 @@ impl Derivation<'_> {
             self,
             out,
             crate::limits::counting(stop, crate::limits::Phase::Write),
+            |out, id| self.write_sequent(out, id),
         )
     }
 }

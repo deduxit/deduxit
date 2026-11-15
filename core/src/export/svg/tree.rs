@@ -200,8 +200,15 @@ pub(super) fn draw<T: Drawn>(
     let size = (width, DEPTH - top + rows + 2 * margin);
     head(out, style, &title, size)?;
     if style.description {
+        // In the title's notation, so that a screen reader hears one
+        // spelling of each formula: `A⊥`, never the text tree's `~A`.
         out.write_str("<desc>")?;
-        fmt::write_steps(derivation, &mut Escaping(out), &mut stop)?;
+        let mut line = String::new();
+        fmt::write_steps(derivation, &mut Escaping(out), &mut stop, |out, id| {
+            line.clear();
+            derivation.sequent(&mut line, &PLAIN, id, false, false);
+            out.write_str(&line)
+        })?;
         out.write_str("</desc>\n")?;
     }
     backdrop(out, style, size)?;

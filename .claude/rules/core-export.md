@@ -368,8 +368,11 @@ for NanoYalla. What the code relies on:
   PDF/A-4: that is what `compatible` is for.
 - **A drawing is accessible SVG**: `role="img"` on the root, `<title>`
   its accessible name, and with `Style::description` a `<desc>` that
-  reads it in order (`Derivation::write_steps`: numbered inferences,
-  premises first; a net's text form), which the PNG carries as its
+  reads it in order (numbered inferences, premises first, as
+  `Derivation::write_steps` lists them, but each sequent in `PLAIN`, the
+  title's notation: a negated atom `A⊥`, never the text tree's `~A`, so a
+  screen reader hears one spelling; `proofs::fmt::write_steps` takes the
+  sequent's writer for that; a net's text form), which the PNG carries as its
   `Description` and the accessible PDF as its figure's alternative
   text. No ids on the two, so that inlining several drawings in one
   page cannot collide (SVG-AAM takes them from the elements).
