@@ -401,3 +401,38 @@ fn outcomes_read_back() {
     let outcome: Outcome = read(name, &later);
     assert_eq!(outcome.engine, Engine::Unknown);
 }
+
+/// The forms level 15 adds, a rule file and derivations in a calculus
+/// given as data, read and written again byte for byte, each derivation
+/// checked in its calculus. Never rewritten, as `wire/level-1.txt` is
+/// not.
+#[test]
+fn the_fifteenth_level_reads() {
+    use deduxit::rules::{Calculus, Derivation, LK};
+    let lines = include_str!("wire/level-15.txt");
+    let mut calculi: Vec<Calculus> = vec![read("lk", LK)];
+    for line in lines.lines() {
+        let (name, json) = line.split_once(": ").unwrap();
+        match name.split('-').next().unwrap() {
+            "calculus" => {
+                again::<Calculus>(name, json);
+                calculi.push(read(name, json));
+            }
+            "derivation" => {
+                again::<Derivation>(name, json);
+                let derivation: Derivation = read(name, json);
+                let calculus = calculi
+                    .iter()
+                    .find(|c| c.name() == derivation.calculus())
+                    .unwrap_or_else(|| panic!("{name}: no calculus"));
+                assert_eq!(
+                    derivation.check(calculus, &Limits::default(), |_| false),
+                    Ok(()),
+                    "{name}"
+                );
+            }
+            other => panic!("{name}: no form {other}"),
+        }
+    }
+    assert_eq!(lines.lines().count(), 3);
+}

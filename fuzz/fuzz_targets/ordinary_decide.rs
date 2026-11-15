@@ -42,7 +42,7 @@ fuzz_target!(|data: &[u8]| {
         .with_logic(logic)
         .with_translation(Some(translation));
     let search = Options::default().with_copies(Some(2)).with_jobs(1);
-    if let Err(error) = ordinary::decide(&sequent, &options, &search, &limits, |_| false) {
+    if let Err(error) = ordinary::decide_within(&sequent, &options, &search, &limits, |_| false) {
         assert_ne!(error.kind(), ErrorKind::Defect, "{error}");
     }
 });

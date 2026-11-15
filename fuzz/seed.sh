@@ -15,7 +15,7 @@ cd "$(dirname "$(realpath "$0")")/.."
 deduxit=${DEDUXIT:-target/debug/deduxit}
 corpus=fuzz/corpus
 for t in sequent_text ordinary_text tptp lltp spec json_sequent json_proof json_structure json_session json_disproof \
-  session_steps proof_views ordinary_decide; do
+  session_steps proof_views ordinary_decide rule_file json_derivation; do
   mkdir -p "$corpus/$t"
 done
 seed() { # TARGET NAME: standard input into the corpus
@@ -93,6 +93,16 @@ for s in 'a \/ ~a' 'a -> b, a |- b' '~~a |- a' '(a /\ b) -> (b /\ a)' \
       printf '%s' "$s"
     } | seed ordinary_decide "small-$i-$b"
   done
+done
+# The built-in rule files, and the derivations and rule file the wire
+# level's test keeps.
+for f in core/src/rules/calculi/*.json; do
+  name=$(basename "$f")
+  seed rule_file "$name" <"$f"
+done
+grep '^calculus-' core/tests/wire/level-15.txt | cut -d' ' -f2- | seed rule_file level-15
+grep '^derivation-' core/tests/wire/level-15.txt | while read -r name json; do
+  printf '%s' "$json" | seed json_derivation "${name%:}"
 done
 # A proof's views read the proof files the checker's target starts from.
 cp "$corpus"/json_proof/* "$corpus"/proof_views/

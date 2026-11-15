@@ -117,3 +117,17 @@ path = "fuzz_targets/ordinary_decide.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "rule_file"
+path = "fuzz_targets/rule_file.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "json_derivation"
+path = "fuzz_targets/json_derivation.rs"
+test = false
+doc = false
+bench = false

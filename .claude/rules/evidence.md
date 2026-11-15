@@ -95,7 +95,12 @@ browser or a stranger's file would.
   structure (the criterion, then sequentialization and the checker), a
   session and a disproof (written back and read again; the seeds are
   unprovable outcomes, which read as disproofs). `Outcome` has no reader
-  of its own: it reads as a proof or a disproof.
+  of its own: it reads as a proof or a disproof. A calculus given as
+  data has two: a rule file (`rule_file`: read, written and read back
+  to the same bytes) and a derivation in it (`json_derivation`: read,
+  checked in the built-in calculus it names under small bounds, its
+  root printed), seeded with the built-in rule files and
+  `core/tests/wire/level-15.txt`.
 - Three targets drive what a reader hands on, past the readers: a
   session step by step (`session_steps`: the mode, the sequent, then
   steps of three bytes that apply a rule, undo or close a goal; a refused
