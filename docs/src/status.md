@@ -357,7 +357,10 @@ The collection grows by a suite at a time, release by release:
   checked and built in the command and on the page; natural deduction
   for ordinary logic in Gentzen's and Fitch's styles; classical logic
   translated into intuitionistic and minimal logic (Kolmogorov, Gödel
-  and Gentzen, Kuroda), and Craig interpolants, each checked.
+  and Gentzen, Kuroda), and Craig interpolants, each checked; a
+  workspace that keeps a sequent and what was made from it (its
+  translations, transformations and results) side by side, each step
+  undoable, the graph shown only once you branch.
 - 0.6.0: the modal logics K, T, K4, S4 and S5 decided, every refutation
   a checked Kripke countermodel, and a labelled calculus proved sound in
   Rocq; tools for teachers.
