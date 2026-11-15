@@ -21,7 +21,7 @@ use crate::{Error, Refusal};
 /// `{"version": 12, "deduxit": "0.4.0", "verdict": "valid", "logic":
 /// "classical", "search": {"method": "embedding", "translation": "affine",
 /// "image": {…}}, "derivation": {…}}` ([`wire`](crate::wire)). It is
-/// written at level 12 whatever it holds.
+/// written at level 12, or 14 when a truth table or a tableau decided it.
 ///
 /// - `verdict` is `valid`, `not_valid` or `unknown`; an unknown one has
 ///   its `reason`, as a linear outcome writes it.

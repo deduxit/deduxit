@@ -142,7 +142,8 @@ with their Kripke models, which the countermodels' certificates need.
 ### What breaks, and what to do instead
 
 - **`prove --logic L --format json` writes the ordinary outcome under
-  every method**, at wire level 12. Through the embedding it wrote the
+  every method**, at wire level 12 (14 for the methods `table` and
+  `tableau`). Through the embedding it wrote the
   translated sequent's outcome at the top; now that outcome is nested
   under `search.image`. Under every method the keys `engine`,
   `translation` and `statistics` moved into `search`, an object tagged
@@ -160,8 +161,9 @@ with their Kripke models, which the countermodels' certificates need.
   verdict line reads `valid (intuitionistic logic by the SAT solver)` or
   `not valid (…): a checked countermodel refutes it`, `--stats` prints
   the solver's counters, and `--format json` writes the outcome of the
-  ordinary sequent (`verdict` `valid`, `not_valid` or `unknown`, `engine`
-  `sat`) in place of the translated sequent's. Where a bound other than
+  ordinary sequent (`verdict` `valid`, `not_valid` or `unknown`,
+  `search.method` `sat`) in place of the translated sequent's. Where a
+  bound other than
   the time limit stops the solver, the embedding decides as before. For
   the old behaviour, give `--method embedding` or `--translation`.
 - **`prove --logic classical` decides by the SAT solver by default**,
@@ -316,7 +318,7 @@ unchanged.
   the world where it fails. In the library,
   `export::rocq::write_countermodel` and the prelude
   `DEDUXIT_KRIPKE_PRELUDE`. It needs the Rocq library's
-  `Deduxit.Intuitionistic`, which its next release adds.
+  `Deduxit.Intuitionistic`, which its 0.4.0 adds.
 - **`deduxit::kripke::Model`**, the countermodel shared by the suites:
   worlds, their atoms by name, `falsity` for minimal logic, the arrows
   of the order and the world it is about. Ordinary logic checks it
@@ -393,7 +395,7 @@ unchanged.
   which a checker of deduxit's own accepts before the verdict is given;
   it has no derivation, which `Method::Embedding` gives. Every "not
   valid" comes with a model that `Model::refutes` checks: a finite
-  Kripke model (`sat::Model`), of one world in classical logic. The
+  Kripke model (`kripke::Model`), of one world in classical logic. The
   command offers it as `--method sat` (the key `ordinary.method`), with
   its counters under `--stats`, and the harness as the engine `sat`. It
   is the default for intuitionistic and minimal logic, where on the ILTP
@@ -435,8 +437,8 @@ unchanged.
   a proof in progress that holds one, written at level 9.
 - Level 10 adds the outcome of a sequent valid by a clausal proof:
   `"clausal_proof": {"variables", "clauses", "steps"}` in place of
-  `derivation`. 0.4.0 writes every ordinary outcome at level 12, so no
-  document of it is at level 10.
+  `derivation`. 0.4.0 writes every ordinary outcome at level 12 or 14,
+  so no document of it is at level 10.
 - Level 11 adds the refutation by a basis, `{"kind": "basis", "body",
   "classes", "markings"}`, in a disproof or an unprovable outcome that
   holds one.
