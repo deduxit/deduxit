@@ -13,13 +13,15 @@ design, with the reasons and the alternatives weighed, is
 `plan/notes/rule-schemas.md`; this file holds what the code relies on.
 
 - **Layout.** `mod.rs`: the public names, `FORMULA`, the rule files'
-  text `LK`, `LJ`, `LM` (`calculi/*.json`) and `SCHEMA`
-  (`calculus.schema.json`); `terms.rs`: `Terms`, the hash-consed arena
-  of a derivation's terms; `calculus.rs`: `Calculus`, read from a
-  `CalculusForm` and compiled (`Rule`, `Shape`, `Entry`, `Find`,
-  `Equation`); `derivation.rs`: `Derivation`, its flat storage, `Node`
-  (what `push` takes), `NodeRef`, `Step`, scopes; `check.rs`:
-  `Derivation::check`; `ordinary.rs`: `Derivation::from_ordinary`. The
+  text `LK`, `LJ`, `LM`, `LL`, `TABLEAU` (`calculi/*.json`) and
+  `SCHEMA` (`calculus.schema.json`); `terms.rs`: `Terms`, the
+  hash-consed arena of a derivation's terms; `calculus.rs`: `Calculus`,
+  read from a `CalculusForm` and compiled (`Rule`, `Shape`, `Entry`,
+  `Find`, `Equation`); `derivation.rs`: `Derivation`, its flat storage,
+  `Node` (what `push` takes), `NodeRef`, `Step`, scopes; `check.rs`:
+  `Derivation::check`; `print.rs`: `Shown`, the printer; `ordinary.rs`:
+  `Derivation::from_ordinary`; `tableau.rs`: `Derivation::from_tableau`
+  (feature `interactive`). The
   JSON forms are `core/src/serialize/rules.rs`, both at wire level 15
   (`wire::RULES`).
 - **The module needs `serialize`**: a calculus is made only by reading
@@ -101,6 +103,23 @@ design, with the reasons and the alternatives weighed, is
   bound the terms by `limits.occurrences` and every index by `u32`
   (`Refusal::Index`). `Derivation::push` checks every index, so the
   checker indexes without a test.
+- **Two more rule files and their cross-checks**: `LL` (one-sided
+  linear logic, propositional, no cut, no Mix, not affine; `~` over an
+  atom with `atomic` is the dual atom; promotion keeps `["?", "Γ"]`) is
+  checked on the one-sided, uncompacted derivations of the linear
+  suite's proofs of 28 sequents (hand-written and the families' smallest
+  provable classical or intuitionistic instances), by a converter in
+  the test (`from_linear`), which gives the axiom the positions of its
+  atom and its dual. `TABLEAU` (Smullyan's signed tableau; one `set`
+  zone of sort `signed`; an expansion keeps the formula it expands, as
+  a tableau's branch does) is checked on the tableaux of the method
+  `tableau` and those `Tableau::of` reads off the embedding's
+  derivations, by `Derivation::from_tableau` (feature `interactive`,
+  `tableau.rs`): a node per tableau node, its branch's signed formulas
+  once each, children as premises, an open branch an open goal. A
+  closed tableau passes and an open one is refused. 56a closes a branch
+  on any formula, so `×` has no `atomic`. Affine and Mix modes, cut and
+  quantifiers have no rule file yet.
 - **The cross-check** (`core/tests/rules.rs`,
   `the_rule_files_agree_with_the_ordinary_checker`): derivations of
   every method in the three logics, and each broken once per inference

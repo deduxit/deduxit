@@ -19,6 +19,30 @@ const fn calculus(logic: Logic) -> &'static str {
     }
 }
 
+/// Adds every formula of `formulas` to `terms`, in the arena's order,
+/// and returns the term of each.
+pub(super) fn terms_of(
+    formulas: &ordinary::Formulas,
+    terms: &mut super::Terms,
+) -> Result<Vec<TermId>, Error> {
+    let mut ids: Vec<TermId> = Vec::with_capacity(formulas.len());
+    for &node in formulas.nodes() {
+        use ordinary::Node::*;
+        let id = match node {
+            Atom(atom) => terms.atom(formulas.atom_name(atom), FORMULA)?,
+            True => terms.apply("⊤", &[])?,
+            False => terms.apply("⊥", &[])?,
+            Not(a) => terms.apply("¬", &[ids[a.index()]])?,
+            And(a, b) => terms.apply("∧", &[ids[a.index()], ids[b.index()]])?,
+            Or(a, b) => terms.apply("∨", &[ids[a.index()], ids[b.index()]])?,
+            Implies(a, b) => terms.apply("→", &[ids[a.index()], ids[b.index()]])?,
+            Iff(a, b) => terms.apply("↔", &[ids[a.index()], ids[b.index()]])?,
+        };
+        ids.push(id);
+    }
+    Ok(ids)
+}
+
 /// Returns how many formulas a sequent holds.
 fn size(inference: &Inference) -> usize {
     inference.left().len() + inference.right().len()
@@ -106,22 +130,7 @@ impl Derivation {
         };
         let formulas = derivation.formulas();
         let mut out = Self::new(calculus(logic), 2);
-        let mut ids: Vec<TermId> = Vec::with_capacity(formulas.len());
-        for &node in formulas.nodes() {
-            use ordinary::Node::*;
-            let terms = out.terms_mut();
-            let id = match node {
-                Atom(atom) => terms.atom(formulas.atom_name(atom), FORMULA)?,
-                True => terms.apply("⊤", &[])?,
-                False => terms.apply("⊥", &[])?,
-                Not(a) => terms.apply("¬", &[ids[a.index()]])?,
-                And(a, b) => terms.apply("∧", &[ids[a.index()], ids[b.index()]])?,
-                Or(a, b) => terms.apply("∨", &[ids[a.index()], ids[b.index()]])?,
-                Implies(a, b) => terms.apply("→", &[ids[a.index()], ids[b.index()]])?,
-                Iff(a, b) => terms.apply("↔", &[ids[a.index()], ids[b.index()]])?,
-            };
-            ids.push(id);
-        }
+        let ids = terms_of(formulas, out.terms_mut())?;
         let zone = |side: &[ordinary::NodeId]| -> Vec<TermId> {
             side.iter().map(|formula| ids[formula.index()]).collect()
         };

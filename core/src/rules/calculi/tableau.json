@@ -1,0 +1,45 @@
+{
+  "version": 15,
+  "name": "tableau",
+  "description": "Smullyan's signed analytic tableau of classical propositional logic, written as a calculus: a node is the set of signed formulas on its branch, an expansion keeps the formula it expands, and a branch closes on a formula signed both ways, on ⊥ true or on ⊤ false.",
+  "sorts": ["signed"],
+  "connectives": [
+    {"name": "⊤", "arity": 0},
+    {"name": "⊥", "arity": 0},
+    {"name": "¬", "arity": 1, "fixity": "prefix", "precedence": 5},
+    {"name": "∧", "arity": 2, "fixity": "infix", "precedence": 4, "associativity": "right"},
+    {"name": "∨", "arity": 2, "fixity": "infix", "precedence": 3, "associativity": "right"},
+    {"name": "→", "arity": 2, "fixity": "infix", "precedence": 2, "associativity": "right"},
+    {"name": "↔", "arity": 2, "fixity": "infix", "precedence": 1, "associativity": "none"},
+    {"name": "T", "arity": 1, "sorts": ["formula", "signed"], "fixity": "prefix", "precedence": 0},
+    {"name": "F", "arity": 1, "sorts": ["formula", "signed"], "fixity": "prefix", "precedence": 0}
+  ],
+  "sequent": [
+    {"name": "branch", "sort": "signed", "discipline": "set"}
+  ],
+  "variables": {"formula": ["A", "B"]},
+  "contexts": ["S"],
+  "rules": [
+    {"name": "T∧", "premises": [{"branch": ["S", ["T", "A"], ["T", "B"]]}], "conclusion": {"branch": ["S", ["T", ["∧", "A", "B"]]]}},
+    {"name": "T∧₁", "premises": [{"branch": ["S", ["T", "A"]]}], "conclusion": {"branch": ["S", ["T", ["∧", "A", "B"]]]}},
+    {"name": "T∧₂", "premises": [{"branch": ["S", ["T", "B"]]}], "conclusion": {"branch": ["S", ["T", ["∧", "A", "B"]]]}},
+    {"name": "F∧", "premises": [{"branch": ["S", ["F", "A"]]}, {"branch": ["S", ["F", "B"]]}], "conclusion": {"branch": ["S", ["F", ["∧", "A", "B"]]]}},
+    {"name": "T∨", "premises": [{"branch": ["S", ["T", "A"]]}, {"branch": ["S", ["T", "B"]]}], "conclusion": {"branch": ["S", ["T", ["∨", "A", "B"]]]}},
+    {"name": "F∨", "premises": [{"branch": ["S", ["F", "A"], ["F", "B"]]}], "conclusion": {"branch": ["S", ["F", ["∨", "A", "B"]]]}},
+    {"name": "F∨₁", "premises": [{"branch": ["S", ["F", "A"]]}], "conclusion": {"branch": ["S", ["F", ["∨", "A", "B"]]]}},
+    {"name": "F∨₂", "premises": [{"branch": ["S", ["F", "B"]]}], "conclusion": {"branch": ["S", ["F", ["∨", "A", "B"]]]}},
+    {"name": "T→", "premises": [{"branch": ["S", ["F", "A"]]}, {"branch": ["S", ["T", "B"]]}], "conclusion": {"branch": ["S", ["T", ["→", "A", "B"]]]}},
+    {"name": "F→", "premises": [{"branch": ["S", ["T", "A"], ["F", "B"]]}], "conclusion": {"branch": ["S", ["F", ["→", "A", "B"]]]}},
+    {"name": "T¬", "premises": [{"branch": ["S", ["F", "A"]]}], "conclusion": {"branch": ["S", ["T", ["¬", "A"]]]}},
+    {"name": "F¬", "premises": [{"branch": ["S", ["T", "A"]]}], "conclusion": {"branch": ["S", ["F", ["¬", "A"]]]}},
+    {"name": "T↔", "premises": [{"branch": ["S", ["T", ["→", "A", "B"]], ["T", ["→", "B", "A"]]]}], "conclusion": {"branch": ["S", ["T", ["↔", "A", "B"]]]}},
+    {"name": "T↔₁", "premises": [{"branch": ["S", ["T", ["→", "A", "B"]]]}], "conclusion": {"branch": ["S", ["T", ["↔", "A", "B"]]]}},
+    {"name": "T↔₂", "premises": [{"branch": ["S", ["T", ["→", "B", "A"]]]}], "conclusion": {"branch": ["S", ["T", ["↔", "A", "B"]]]}},
+    {"name": "F↔", "premises": [{"branch": ["S", ["F", ["→", "A", "B"]]]}, {"branch": ["S", ["F", ["→", "B", "A"]]]}], "conclusion": {"branch": ["S", ["F", ["↔", "A", "B"]]]}},
+    {"name": "T⊤", "premises": [{"branch": ["S"]}], "conclusion": {"branch": ["S", ["T", "⊤"]]}},
+    {"name": "F⊥", "premises": [{"branch": ["S"]}], "conclusion": {"branch": ["S", ["F", "⊥"]]}},
+    {"name": "×", "conclusion": {"branch": ["S", ["T", "A"], ["F", "A"]]}},
+    {"name": "T⊥", "conclusion": {"branch": ["S", ["T", "⊥"]]}},
+    {"name": "F⊤", "conclusion": {"branch": ["S", ["F", "⊤"]]}}
+  ]
+}

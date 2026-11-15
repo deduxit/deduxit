@@ -42,14 +42,15 @@ fn the_rule_files_read_and_write_back() {
         (LJ, "LJ", 34),
         (LM, "LM", 32),
         (LL, "LL", 13),
+        (deduxit::rules::TABLEAU, "tableau", 21),
     ] {
         let read = calculus(text).unwrap();
         assert_eq!(read.name(), name);
         assert_eq!(read.rules().len(), rules);
-        let zones = if name == "LL" {
-            &["right"][..]
-        } else {
-            &["left", "right"]
+        let zones = match name {
+            "LL" => &["right"][..],
+            "tableau" => &["branch"],
+            _ => &["left", "right"],
         };
         assert_eq!(read.zones().collect::<Vec<_>>(), zones);
         // The file is written back as it was read.
@@ -621,11 +622,7 @@ fn from_linear(derivation: &deduxit::linear::proofs::Derivation<'_>, ll: &Calcul
             Term::Plus(a, b) => terms.apply("⊕", &[id(&a), id(&b)]),
             Term::Bang(a) => terms.apply("!", &[id(&a)]),
             Term::Quest(a) => terms.apply("?", &[id(&a)]),
-            #[expect(
-                clippy::wildcard_enum_match_arm,
-                reason = "the sample is propositional"
-            )]
-            _ => panic!("a first-order sequent in the sample"),
+            Term::Forall(_) | Term::Exists(_) => panic!("a first-order sequent in the sample"),
         };
         ids.push(made.unwrap());
     }
@@ -737,4 +734,50 @@ fn the_linear_rule_file_agrees_with_the_linear_checker() {
         "{proofs} proofs, {nodes} nodes"
     );
     assert!(refused > nodes / 4, "{refused} refused");
+}
+
+#[cfg(feature = "interactive")]
+#[test]
+fn the_tableau_rule_file_agrees_with_the_tableaux() {
+    use deduxit::ordinary::{Search, Tableau};
+    let rules = calculus(deduxit::rules::TABLEAU).unwrap();
+    let limits = Limits::default();
+    let classical = ordinary::Options::default().with_logic(Logic::Classical);
+    let (mut closed, mut open) = (0, 0);
+    let not_valid = ["a |- b", "a \\/ b |- a", "|- (a -> b) -> a", "a <-> b |- a"];
+    for text in SEQUENTS.iter().chain(&not_valid) {
+        let sequent: ordinary::Sequent = text.parse().unwrap();
+        let mut tableaux = Vec::new();
+        // The tableau the method builds, closed or open.
+        let outcome =
+            ordinary::decide(&sequent, &classical.with_method(Some(Method::Tableau))).unwrap();
+        if let Search::Tableau(tableau) = &outcome.search {
+            tableaux.push((**tableau).clone());
+        }
+        // The tableau of the embedding's derivation, read upside down.
+        let embedding = classical.with_method(Some(Method::Embedding));
+        if let Ok(outcome) = ordinary::decide(&sequent, &embedding)
+            && let Verdict::Valid(evidence) = &outcome.verdict
+        {
+            tableaux.push(Tableau::of(evidence.derivation().unwrap(), |_| false).unwrap());
+        }
+        for tableau in tableaux {
+            let derivation = Derivation::from_tableau(&tableau).unwrap();
+            let checked = derivation.check(&rules, &limits, |_| false);
+            assert_eq!(tableau.is_closed(), checked.is_ok(), "{text}: {checked:?}");
+            if checked.is_ok() {
+                closed += 1;
+                // A closure that cites another line is refused.
+                let mut broken = serde_json::to_value(&derivation).unwrap();
+                let leaf = &mut broken["nodes"][0];
+                if leaf["rule"] == "×" {
+                    leaf["at"] = json!([leaf["at"][1], leaf["at"][0]]);
+                    assert!(check(&rules, &broken).is_err(), "{text}");
+                }
+            } else {
+                open += 1;
+            }
+        }
+    }
+    assert!(closed >= 20 && open >= 4, "{closed} closed, {open} open");
 }

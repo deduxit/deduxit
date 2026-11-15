@@ -52,6 +52,9 @@ mod derivation;
 mod ordinary;
 /// Terms and sequents as text.
 mod print;
+/// The signed tableaux of classical logic in this form.
+#[cfg(feature = "interactive")]
+mod tableau;
 /// The terms of a derivation.
 mod terms;
 
@@ -89,6 +92,14 @@ pub const LM: &str = include_str!("calculi/lm.json");
 /// atom is the atom under `~`, and promotion `!` keeps `?` on its whole
 /// context (`["?", "Γ"]`).
 pub const LL: &str = include_str!("calculi/ll.json");
+
+/// The rule file of Smullyan's signed analytic tableau of classical
+/// propositional logic, written as a calculus: a node is the set of the
+/// signed formulas (`T A`, `F A`) on its branch, an expansion keeps the
+/// formula it expands, and a branch closes by `×` on a formula signed
+/// both ways, by `T⊥` or by `F⊤`. `Derivation::from_tableau` writes the
+/// ordinary suite's tableaux in it (feature `interactive`).
+pub const TABLEAU: &str = include_str!("calculi/tableau.json");
 
 /// The JSON Schema (draft 2020-12) of a rule file: the shape of the
 /// document, for an editor or a program that writes one. Reading a rule
