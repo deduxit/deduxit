@@ -26,21 +26,44 @@ const fn never(_: Progress) -> bool {
     false
 }
 
-/// The built-in calculi by name, each its rule file.
-const BUILT_IN: [(&str, &str); 5] = [
+/// The built-in calculi by name, each its rule file: the command's.
+const BUILT_IN: [(&str, &str); 13] = [
     ("LK", rules::LK),
     ("LJ", rules::LJ),
     ("LM", rules::LM),
     ("LL", rules::LL),
     ("tableau", rules::TABLEAU),
+    ("NJ", rules::NJ),
+    ("NK", rules::NK),
+    ("NM", rules::NM),
+    ("NK-DNE", rules::NK_DNE),
+    ("NK-LEM", rules::NK_LEM),
+    ("NJ-defined", rules::NJ_DEFINED),
+    ("NK-defined", rules::NK_DEFINED),
+    ("NM-defined", rules::NM_DEFINED),
 ];
 
 /// The names of the built-in calculi, which [`calculus`] gives.
-pub const NAMES: [&str; 5] = ["LK", "LJ", "LM", "LL", "tableau"];
+pub const NAMES: [&str; 13] = [
+    "LK",
+    "LJ",
+    "LM",
+    "LL",
+    "tableau",
+    "NJ",
+    "NK",
+    "NM",
+    "NK-DNE",
+    "NK-LEM",
+    "NJ-defined",
+    "NK-defined",
+    "NM-defined",
+];
 
-/// Returns the rule file of a built-in calculus by its name (`LK`, `LJ`,
-/// `LM`, `LL` or `tableau`): the JSON text a visitor starts their own
-/// calculus from.
+/// Returns the rule file of a built-in calculus by its name ([`NAMES`]:
+/// the sequent calculi `LK`, `LJ`, `LM`, `LL`, the `tableau`, and natural
+/// deduction's `NJ`, `NK`, `NM` and their variants): the JSON text a
+/// visitor starts their own calculus from.
 ///
 /// # Errors
 ///
@@ -54,7 +77,7 @@ pub fn calculus(name: &str) -> Result<String, Failure> {
             Failure::refused(
                 "unknown_name",
                 "malformed",
-                "the built-in calculi are LK, LJ, LM, LL and tableau",
+                "the built-in calculi are LK, LJ, LM, LL, tableau, NJ, NK, NM, NK-DNE, NK-LEM, NJ-defined, NK-defined and NM-defined",
             )
         })
 }

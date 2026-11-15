@@ -170,7 +170,7 @@ to 2³² − 1, anything else refused):
 | `ordinary_term(session, settings)` | as `term`, the derivation of LJ read back as a simply typed term (`calculus` `simple`); `no_term` for a derivation of LK or with open goals |
 | `ordinary_draw(session, settings)` | the derivation so far as SVG, open goals as bare leaves, the structural rules as `view.structural` draws them, `i<n>` on every conclusion |
 | `ordinary_export(session, format, settings)` | `text`, `latex`, `typst`, `svg` (the derivation so far) or `rocq` (the certificate of the finished derivation over `Prop`, checked first); PNG and PDF by `render` |
-| `rules_calculus(name)` | the rule file of a built-in calculus, `LK`, `LJ`, `LM`, `LL` or `tableau`, as JSON text to start one's own from |
+| `rules_calculus(name)` | the rule file of a built-in calculus, by the command's names (`LK`, `LJ`, `LM`, `LL`, `tableau`, `NJ`, `NK`, `NM` and their variants), as JSON text to start one's own from |
 | `rules_read(calculus, settings)` | a rule file (JSON, or a built-in name) checked: `{"name", "description", "zones": [{"name", "mark"}], "rules"}`; `invalid_calculus` with the reason |
 | `rules_start(calculus, goal, assumptions, settings)` | a session in the calculus: `{"session", "view"}`; the goal in the calculus's syntax, `assumptions` a JSON array of sequents or `""` |
 | `rules_view(session, settings)` | a saved session read, every step checked again: `{"calculus", "sequent", "assumptions", "finished", "steps", "goals": [{"goal", "sequent", "zones", "hypotheses"}], "inferences"}`, `zones` each zone's members as text in the order of their numbers, `hypotheses` those in force, `inferences[n]` the session node the drawing's `i<n>` is |

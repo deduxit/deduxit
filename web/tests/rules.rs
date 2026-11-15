@@ -72,7 +72,7 @@ fn the_built_in_calculi_read() {
     assert_eq!(suite["calls"], "rules_");
     assert_eq!(
         suite["parameters"][0],
-        json!({"name": "calculus", "values": ["LK", "LJ", "LM", "LL", "tableau"], "default": "LJ"})
+        json!({"name": "calculus", "values": rules::NAMES, "default": "LJ"})
     );
     for name in rules::NAMES {
         let file = rules::calculus(name).unwrap();
@@ -85,7 +85,7 @@ fn the_built_in_calculi_read() {
         lj["zones"],
         json!([{"name": "left", "mark": null}, {"name": "right", "mark": "⊢"}])
     );
-    let unknown = failure(&rules::calculus("NJ").unwrap_err());
+    let unknown = failure(&rules::calculus("NQ").unwrap_err());
     assert_eq!(unknown["code"], "unknown_name");
     let broken = failure(&rules::read(r#"{"version": 15, "name": "X"}"#, "").unwrap_err());
     assert_eq!(broken["kind"], "malformed");

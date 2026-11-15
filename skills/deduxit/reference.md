@@ -1625,8 +1625,8 @@ A tab in a calculus given as data has the calls `rules_…`, its session
 the library's `rules::Interactive` at wire level 17, which holds the
 rule file:
 
-- `rules_calculus(name)` gives a built-in rule file (`LK`, `LJ`, `LM`,
-  `LL`, `tableau`); `rules_read(calculus, settings)` reads one, or a
+- `rules_calculus(name)` gives a built-in rule file, by the names
+  `check --calculus` takes; `rules_read(calculus, settings)` reads one, or a
   name, and answers its `name`, `description`, `zones` and `rules`;
 - `rules_start(calculus, goal, assumptions, settings)`, the goal in the
   calculus's own syntax and `assumptions` a JSON array of sequents;
