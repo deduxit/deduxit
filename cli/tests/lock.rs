@@ -260,6 +260,28 @@ const CASES: &[Case] = &[
             "a, ~a |- b",
         ],
     ),
+    call(
+        "format-svg-countermodel",
+        &[
+            "prove",
+            "--logic",
+            "intuitionistic",
+            "--format",
+            "svg",
+            "|- a \\/ ~a",
+        ],
+    ),
+    call(
+        "format-latex-countermodel",
+        &[
+            "prove",
+            "--logic",
+            "intuitionistic",
+            "--format",
+            "latex",
+            "|- a \\/ ~a",
+        ],
+    ),
     call("format-net", &["prove", "--net", "A * B |- B * A"]),
     call(
         "format-net-svg",

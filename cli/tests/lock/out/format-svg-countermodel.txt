@@ -1,0 +1,27 @@
+$ deduxit prove --logic intuitionistic --format svg '|- a \/ ~a'
+--- status 1
+--- stdout
+<!-- not valid (intuitionistic logic by the SAT solver): a checked countermodel refutes it -->
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="46.208" height="105.6" viewBox="0 0 2888 6600" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
+<title>A countermodel of ⊢ a ∨ ¬a</title>
+<desc>A Kripke model of 2 worlds. An arrow points from a world to a world above it, which forces everything the world below forces.
+World 0, the model's world, forces nothing; world 1 is above it.
+World 1 forces a.
+World 0 forces each formula left of ⊢ and not the one right of it, so ⊢ a ∨ ¬a is not valid in intuitionistic logic.</desc>
+<g fill="none" stroke="black" stroke-width="40">
+<path d="M1983 4800L1983 1800"/>
+<path d="M2097 1990L1983 1800L1869 1990"/>
+<rect id="w0" x="1383" y="4800" width="1200" height="1500" rx="200" stroke="#d55e00" stroke-width="80"/>
+<rect id="w1" x="1379" y="300" width="1209" height="1500" rx="200"/>
+</g>
+<g>
+<text x="304" y="5890" textLength="649" lengthAdjust="spacing">w</text>
+<text x="953" y="6010" textLength="280" lengthAdjust="spacing" font-size="560">0</text>
+</g>
+<g>
+<text x="300" y="1390" textLength="649" lengthAdjust="spacing">w</text>
+<text x="949" y="1510" textLength="280" lengthAdjust="spacing" font-size="560">1</text>
+</g>
+<text x="1679" y="1390" textLength="609" lengthAdjust="spacing">𝑎</text>
+</svg>
+--- stderr

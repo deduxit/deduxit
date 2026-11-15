@@ -1,0 +1,6 @@
+$ deduxit prove --logic intuitionistic --format latex '|- a \/ ~a'
+--- status 1
+--- stdout
+% not valid (intuitionistic logic by the SAT solver): a checked countermodel refutes it
+--- stderr
+the countermodel is not drawn: LaTeX and Typst have no drawing of a Kripke model; --format svg, png or pdf draws it, and the text output lists its worlds
