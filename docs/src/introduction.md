@@ -2,12 +2,15 @@
 
 > **dēdūxit** [deːˈduːk.sɪt] *Latin, verb*: "it has derived", the perfect of *dēdūcō*, to lead down, derive.
 
-deduxit decides whether a sequent of linear logic is provable, and shows
-the proof or says why there is none. It is a command, `deduxit`, and a
-Rust library, the crate `deduxit`. It also handles intuitionistic linear
-logic, first-order and cyclic linear logic, the Lambek calculus and
-ordinary propositional logic. The [web page](https://deduxit.github.io/)
-proves step by step in the browser with the same library.
+deduxit is a collection of logic suites. It decides whether a sequent
+is provable, and shows the proof or says why there is none. It is a
+command, `deduxit`, and a Rust library, the crate `deduxit`. Its suites
+are linear logic (classical and intuitionistic, first-order and cyclic,
+and the Lambek calculus) and propositional logic (classical,
+intuitionistic and minimal, in [Ordinary logic](ordinary-logic.md)).
+The [web page](https://deduxit.github.io/) proves step by step in the
+browser with the same library. It began as linlog, a linear logic
+library (up to 0.2.0), and is growing to take in more calculi.
 
 This page is a short tour. It assumes you have installed the command ([Install deduxit](installation.md); `nix run
 github:deduxit/deduxit -- prove "A |- A"` runs it without installing).
@@ -115,6 +118,26 @@ unprovable (IMLL, intuitionistic, two-sided engine): A occurs 1 more time on the
 $ deduxit prove -q "!A |- A * A"
 provable (MELL, classical, horn engine)
 ```
+
+## Your first countermodel
+
+`--logic` reads a sequent of ordinary propositional logic instead, with
+`->` for implication, `\/` for "or" and `~` for "not". In intuitionistic
+logic `A \/ ~A` is not valid, and deduxit shows why with a Kripke
+countermodel:
+
+```console
+$ deduxit prove --logic intuitionistic "|- A \/ ~A"
+not valid (intuitionistic logic by the SAT solver): a checked countermodel refutes it
+world 0 (the model's world): forces nothing; below 1
+world 1: forces A
+```
+
+A Kripke model is a set of worlds, each forcing some atoms, and a world
+forces what every world below it forces. At world 0, `A` is not yet
+true, and `~A` fails since `A` holds at world 1 above it. [Ordinary
+logic](ordinary-logic.md) has the other logics, the truth table and the
+tableau of classical logic, and the proofs.
 
 ## Export the proof
 

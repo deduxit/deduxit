@@ -3,7 +3,7 @@
 
 [package]
 name = "deduxit"
-description = "Logic suites, linear logic first: decides, checks, proves step by step and exports sequents of classical and intuitionistic linear logic, and ordinary propositional logic through its embeddings."
+description = "A collection of logic suites: decides, checks, proves step by step and exports sequents of linear logic and of classical, intuitionistic and minimal propositional logic, with checked proofs, Kripke countermodels and Rocq certificates."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -4,14 +4,19 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23448588.svg)](https://doi.org/10.5281/zenodo.23448588)
 
-deduxit decides whether a sequent of linear logic is provable, and shows
-the proof or says why there is none. It is a command, `deduxit`, and a
-Rust library, the crate `deduxit`. It also handles intuitionistic,
-first-order and cyclic linear logic, the Lambek calculus and ordinary
-propositional logic; it proves step by step, draws proof nets, reads
+deduxit is a collection of logic suites. It decides whether a sequent
+is provable, and shows the proof or says why there is none. It is a
+command, `deduxit`, and a Rust library, the crate `deduxit`. Its suites
+are linear logic (classical and intuitionistic, first-order and cyclic,
+and the Lambek calculus) and propositional logic (classical,
+intuitionistic and minimal), where a sequent that is not valid gets a
+Kripke countermodel and classical logic has truth tables and tableaux.
+It proves step by step, draws proof nets and countermodels, reads
 intuitionistic proofs as lambda-terms, and exports proofs to LaTeX,
 Typst, SVG, PNG, PDF and Rocq. The [web page](https://deduxit.github.io/)
-proves step by step in the browser with the same library.
+proves step by step in the browser with the same library. It began as
+linlog, a linear logic library (up to 0.2.0), and is growing to take in
+more calculi.
 
 ## Install
 
@@ -66,8 +71,23 @@ A ⊢ A      B ⊢ B
   A, A ⊸ B ⊢ B
 ```
 
-The exit status is 0 for provable, 1 for unprovable, 3 for unknown and
-2 for an error. `deduxit <command> --help` shows every option.
+With `--logic`, deduxit decides classical, intuitionistic or minimal
+propositional logic instead. A sequent that is not valid comes with a
+checked Kripke countermodel:
+
+```console
+$ deduxit prove --logic intuitionistic "|- A \/ ~A"
+not valid (intuitionistic logic by the SAT solver): a checked countermodel refutes it
+world 0 (the model's world): forces nothing; below 1
+world 1: forces A
+```
+
+At world 0, `A` is not yet true, and `~A` fails since `A` holds at
+world 1 above it.
+
+The exit status is 0 for provable or valid, 1 for unprovable or not
+valid, 3 for unknown and 2 for an error. `deduxit <command> --help`
+shows every option.
 
 ## Where to go next
 
@@ -95,8 +115,7 @@ The exit status is 0 for provable, 1 for unprovable, 3 for unknown and
   ([deduxit/rocq-deduxit](https://github.com/deduxit/rocq-deduxit)): the
   calculi, checkers and soundness theorems that the certificates of
   `--kernel deduxit` are proved with.
-- **What changed**: the [changelog](CHANGELOG.md). deduxit was called
-  linlog up to 0.2.0.
+- **What changed**: the [changelog](CHANGELOG.md).
 
 deduxit's code, tests and documentation were written with substantial AI
 assistance, by Anthropic's Claude models in Claude Code, in steps the

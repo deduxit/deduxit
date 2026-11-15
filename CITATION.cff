@@ -6,30 +6,29 @@ message: "If you use deduxit in your work, please cite it as below."
 type: software
 title: deduxit
 abstract: >-
-  Logic suites, linear logic first: a Rust library and a command line
-  program that
-  decide, check, prove step by step and export sequents of classical and
-  intuitionistic linear logic and their fragments, keep proofs in a form
-  an independent checker validates, show them as derivation trees or
-  proof nets, and decide ordinary propositional logic through its
-  embeddings into linear logic. Its code, tests and documentation were
-  written with substantial AI assistance, by Anthropic's Claude models in
-  Claude Code, in steps the author planned, directed and accepted, and
-  the author is responsible for them. Its results do not rest on the
-  model that wrote it: every proof it returns is validated by an
-  independent proof checker, classical proofs can be exported as
-  certificates that the Rocq proof assistant checks, and proofs of every
-  mode as certificates against deduxit's own Rocq library, rocq-deduxit,
-  kept in its own repository
-  (https://github.com/deduxit/rocq-deduxit), the tests are
-  measured by mutation testing and fuzzing, and its verdicts on
-  published problem libraries are compared with their known status and
-  with those of eight other provers.
+  A collection of logic suites: a Rust library and a command line
+  program that decide, check, prove step by step and export sequents of
+  linear logic, classical and intuitionistic, and of classical,
+  intuitionistic and minimal propositional logic. Proofs are shown as
+  derivation trees, proof nets or tableaux, and classical sequents also
+  by their truth tables; a sequent that is not valid gets a Kripke
+  countermodel. Its code, tests and documentation were written with
+  substantial AI assistance, by Anthropic's Claude models in Claude
+  Code, in steps the author planned, directed and accepted, and the
+  author is responsible for them. Its results do not rest on the model
+  that wrote it. An independent checker validates every proof and every
+  countermodel it returns. Classical proofs export as certificates that
+  the Rocq proof assistant checks, and proofs of every mode and
+  countermodels as certificates against deduxit's own Rocq library,
+  rocq-deduxit (https://github.com/deduxit/rocq-deduxit). Mutation
+  testing and fuzzing measure the tests, and its verdicts on published
+  problem libraries are compared with their known status and with those
+  of eight other provers.
 authors:
   - given-names: Fabian Lukas
     family-names: Grubmüller
-version: 0.3.0
-date-released: "2026-11-09"
+version: 0.4.0
+date-released: "2026-11-15"
 # The DOI of every version, which resolves to the latest.
 doi: 10.5281/zenodo.23448588
 license: EUPL-1.2
@@ -39,10 +38,11 @@ references:
   - type: software
     title: rocq-deduxit
     abstract: >-
-      The Rocq library of deduxit: linear logic's sequent calculi,
-      deduxit's proof terms, their checkers and soundness theorems,
-      against which the certificates deduxit writes for its kernel deduxit
-      are proved.
+      The Rocq library of deduxit: the sequent calculi of linear,
+      intuitionistic and minimal logic, deduxit's proof terms, their
+      checkers and soundness theorems, and a checker of Kripke
+      countermodels, against which the certificates deduxit writes are
+      proved.
     authors:
       - given-names: Fabian Lukas
         family-names: Grubmüller
@@ -51,6 +51,8 @@ references:
 keywords:
   - linear logic
   - intuitionistic linear logic
+  - intuitionistic logic
+  - Kripke semantics
   - proof search
   - sequent calculus
   - proof nets

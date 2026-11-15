@@ -12,10 +12,13 @@ rules, conventions and pointers. Guidance for one area of the tree goes in
 
 ## Project
 
-deduxit is a collection of logic suites, linear logic first: it decides, checks, proves step by step
-and exports sequents of classical and intuitionistic linear logic and
-of cyclic MLL (the order of the formulas kept), and
-decides ordinary propositional logic through its embeddings (the
+deduxit is a collection of logic suites, linear logic one of them: it
+decides, checks, proves step by step and exports sequents of classical
+and intuitionistic linear logic and of cyclic MLL (the order of the
+formulas kept), and decides classical, intuitionistic and minimal
+propositional logic by a SAT solver, LJT, truth tables and tableaux, or
+through its embeddings, with a checked Kripke countermodel for what is
+not valid (the
 manual's "What exists and what is planned", `docs/src/status.md`). It is written in Rust with
 WebAssembly in mind for the `deduxit-web` crate: the library reads
 no clock and uses threads only behind a feature. Performance is a stated

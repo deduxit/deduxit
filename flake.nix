@@ -5,7 +5,7 @@
 # flake-parts module (paths with a `_' segment are skipped), so this file only
 # declares the inputs.
 {
-  description = "deduxit: logic suites for all your needs, linear logic first";
+  description = "deduxit: a collection of logic suites";
 
   inputs = {
     # The channel tarball: the same Hydra-tested revision as the GitHub

@@ -2,8 +2,9 @@
 
 > **dēdūxit** [deːˈduːk.sɪt] *Latin, verb*: "it has derived", the perfect of *dēdūcō*, to lead down, derive.
 
-deduxit decides, checks and proves sequents of linear logic and of
-ordinary propositional logic. This reference covers the `deduxit`
+deduxit is a collection of logic suites: it decides, checks and proves
+sequents of linear logic and of ordinary propositional logic (classical,
+intuitionistic and minimal). This reference covers the `deduxit`
 command (its flags, formats, JSON forms and exit statuses), then the
 Rust library, the WebAssembly bindings and the Rocq library.
 

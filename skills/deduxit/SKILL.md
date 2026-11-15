@@ -1,13 +1,13 @@
 ---
 name: deduxit
-description: Decides, checks, proves step by step and exports sequents of linear logic (classical, intuitionistic, affine, with Mix, cyclic, the Lambek calculus, first-order) and of ordinary propositional logic with the `deduxit` command. Use it to learn whether a sequent is provable and why not, to get a checked proof as a derivation tree, proof net, JSON, LaTeX, Typst, SVG, PNG, PDF or Rocq certificate, to check a proof file or eliminate its cuts, to apply proof steps from a script, or to decide many sequents in one call.
+description: A collection of logic suites in one command, `deduxit`, that decides, checks, proves step by step and exports sequents of linear logic (classical, intuitionistic, affine, with Mix, cyclic, the Lambek calculus, first-order) and of classical, intuitionistic and minimal propositional logic. Use it to learn whether a sequent is provable and why not (a refutation, a checked Kripke countermodel, a truth table or a tableau), to get a checked proof as a derivation tree, proof net, JSON, LaTeX, Typst, SVG, PNG, PDF or Rocq certificate, to check a proof file or eliminate its cuts, to apply proof steps from a script, or to decide many sequents in one call.
 license: EUPL-1.2
 compatibility: Needs the `deduxit` command, from `cargo install --locked deduxit-cli` or `nix run github:deduxit/deduxit -- ARGS`.
 ---
 
 # deduxit
 
-> `deduxit` decides sequents of linear logic and of ordinary propositional logic. A proof it prints has passed an independent checker; an unprovable verdict says why where it can; an unknown verdict names the limit that ended the search and the flag to raise.
+> `deduxit` is a collection of logic suites: it decides sequents of linear logic and of ordinary propositional logic. A proof it prints has passed an independent checker; an unprovable verdict says why where it can; an unknown verdict names the limit that ended the search and the flag to raise.
 
 [reference.md](reference.md) beside this file has every command, flag, format and JSON form with examples; `deduxit COMMAND --help` documents every flag.
 

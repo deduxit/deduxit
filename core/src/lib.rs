@@ -7,10 +7,11 @@
 )]
 //! **dēdūxit** \[deːˈduːk.sɪt\] *Latin, verb*: \"it has derived\", the perfect of *dēdūcō*, to lead down, derive.
 //!
-//! Decides sequents of linear logic, and of ordinary propositional logic
-//! through linear logic. Every proof it returns has passed the crate's
-//! checker, unless the caller turns the check off. A proof prints as a
-//! derivation, or exports to LaTeX, Typst, SVG, PNG, PDF or Rocq.
+//! A collection of logic suites: decides sequents of linear logic, and of
+//! classical, intuitionistic and minimal propositional logic. Every proof
+//! it returns has passed the crate's checker, unless the caller turns the
+//! check off, and every Kripke countermodel its own check. A proof prints
+//! as a derivation, or exports to LaTeX, Typst, SVG, PNG, PDF or Rocq.
 //!
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
@@ -54,8 +55,9 @@
 //!   and the formats under [`export`].
 //! - Work with proof nets: [`ProofStructure`](linear::ProofStructure).
 //! - Prove step by step: `linear::Interactive` (feature `interactive`).
-//! - Decide classical, intuitionistic or minimal propositional logic:
-//!   [`ordinary`].
+//! - Decide classical, intuitionistic or minimal propositional logic,
+//!   with a Kripke countermodel ([`kripke::Model`]) for what is not
+//!   valid: [`ordinary`].
 //! - Read a proof as a lambda-term: [`lambda`].
 //!
 //! Proofs, nets and errors name the *occurrences* of a sequent: an
