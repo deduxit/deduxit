@@ -47,7 +47,10 @@ const fn never(_: Progress) -> bool {
 ///   value it reads and the default;
 /// - `settings`: the keys that change how the suite proves or draws;
 /// - `term`: the name of its call that reads a finished proof back as a
-///   lambda-term.
+///   lambda-term;
+/// - `methods` (the ordinary suite): the methods a tab decides a sequent
+///   by besides proving it step by step, each with its `method`, the
+///   `call` that answers its outcome and the `logics` it decides.
 pub fn about() -> String {
     serde_json::json!({
         "deduxit": env!("CARGO_PKG_VERSION"),
@@ -75,8 +78,12 @@ pub fn about() -> String {
                         "default": deduxit::ordinary::Options::default().logic,
                     },
                 ],
-                "settings": ["lambda", "ordinary.translation", "view.structural"],
+                "settings": ["lambda", "limits.table_atoms", "ordinary.translation", "view.structural"],
                 "term": "ordinary_term",
+                "methods": [
+                    {"method": "table", "call": "ordinary_table", "logics": ["classical"]},
+                    {"method": "tableau", "call": "ordinary_tableau", "logics": ["classical"]},
+                ],
             },
         ],
     })

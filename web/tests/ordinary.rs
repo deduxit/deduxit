@@ -59,12 +59,13 @@ fn open_goals(answer: &str) -> Vec<u32> {
 
 /// `about` lists both suites, each with the prefix of its calls, its term
 /// call and the parameter its `start` takes, with every value and the
-/// default, and the wire level, 13 since an ordinary outcome may hold a
-/// Kripke model.
+/// default, the ordinary suite's methods, and the wire level, 14 since an
+/// ordinary outcome may hold a truth table or a tableau.
 #[wasm_bindgen_test(unsupported = test)]
 fn about_lists_the_suites() {
     let about = value(&calls::about());
-    assert_eq!(about["level"], 13);
+    assert_eq!(about["level"], 14);
+    assert_eq!(about["suites"][1]["methods"][1]["call"], "ordinary_tableau");
     let suites = about["suites"].as_array().unwrap();
     let names: Vec<&Value> = suites.iter().map(|s| &s["suite"]).collect();
     assert_eq!(names, [&json!("linear"), &json!("ordinary")]);
@@ -341,4 +342,33 @@ fn a_countermodel_is_drawn_and_certified() {
     );
     let refused = ordinary::model_drawing(&valid["outcome"].to_string(), "").unwrap_err();
     assert_eq!(failure(&refused)["code"], "no_countermodel");
+}
+
+/// The truth table and the tableau answer the outcome of their method:
+/// the rows and the falsifying ones, the tableau's nodes and how each
+/// branch ends, the countermodel of a sequent that is not valid; a
+/// table past the bound on atoms is refused by its code.
+#[wasm_bindgen_test]
+#[test]
+fn a_sequent_is_decided_by_its_table_or_a_tableau() {
+    let table = value(&ordinary::table("a -> b |- b -> a", "").unwrap());
+    assert_eq!(table["version"], 14);
+    assert_eq!(table["verdict"], "not_valid");
+    assert_eq!(table["search"]["table"]["falsifying"], json!([2]));
+    assert_eq!(
+        table["countermodel"]["model"]["worlds"][0]["atoms"],
+        json!(["b"])
+    );
+    let tableau = value(&ordinary::tableau("a /\\ b |- b /\\ a", "").unwrap());
+    assert_eq!(tableau["verdict"], "valid");
+    let nodes = tableau["search"]["tableau"]["nodes"].as_array().unwrap();
+    assert_eq!(nodes[0]["expands"], json!([0, "∧L"]));
+    assert_eq!(
+        nodes[2]["end"],
+        json!({"kind": "closed", "true_line": 3, "false_line": 4})
+    );
+    assert!(tableau["derivation"].is_object());
+    let wide = "a, b, c, d, e, f, g, h, i, j, k |- a";
+    let refused = ordinary::table(wide, "").unwrap_err();
+    assert_eq!(failure(&refused)["code"], "too_many_atoms");
 }

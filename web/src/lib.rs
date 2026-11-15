@@ -342,6 +342,18 @@ mod exports {
         ordinary::model(model, sequent, logic, world, settings).map_err(thrown)
     }
 
+    /// See [`ordinary::table`].
+    #[wasm_bindgen]
+    pub fn ordinary_table(sequent: &str, settings: &str) -> Result<String, JsValue> {
+        ordinary::table(sequent, settings).map_err(thrown)
+    }
+
+    /// See [`ordinary::tableau`].
+    #[wasm_bindgen]
+    pub fn ordinary_tableau(sequent: &str, settings: &str) -> Result<String, JsValue> {
+        ordinary::tableau(sequent, settings).map_err(thrown)
+    }
+
     /// See [`ordinary::draw`].
     #[wasm_bindgen]
     pub fn ordinary_draw(session: &str, settings: &str) -> Result<String, JsValue> {

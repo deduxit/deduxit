@@ -15,7 +15,7 @@ use crate::failure::Failure;
 use crate::tab;
 use deduxit::export::{latex, rocq, svg, typst};
 use deduxit::ordinary::{
-    self, Applicable, Context, Interactive, Logic, Needs, NodeId, Rule, Sequent, Side, Step,
+    self, Applicable, Context, Interactive, Logic, Method, Needs, NodeId, Rule, Sequent, Side, Step,
 };
 use deduxit::{Progress, Settings, linear::GoalId, wire};
 use serde::{Deserialize, Serialize};
@@ -495,6 +495,52 @@ pub fn model(
         holds: failing.is_none(),
         failing,
     })
+}
+
+/// Decides a sequent of classical logic by its truth table and answers
+/// the outcome: `{"version": 14, "verdict", "logic", "search": {"method":
+/// "table", "table": {"sequent", "rows", "falsifying"}}, "countermodel"}`,
+/// a row a `T` or `F` per formula of the sequent's form, from every atom
+/// true to every atom false; `countermodel` the first falsifying row,
+/// checked, for `not_valid`.
+///
+/// # Errors
+///
+/// A sequent that cannot be read, and more atoms than the settings'
+/// `limits.table_atoms` (code `too_many_atoms`).
+pub fn table(sequent: &str, settings: &str) -> Result<String, Failure> {
+    decided(sequent, Method::Table, settings)
+}
+
+/// Decides a sequent of classical logic by a signed tableau and answers
+/// the outcome: `{"version": 14, "verdict", "logic", "search": {"method":
+/// "tableau", "tableau": {"sequent", "nodes"}}, "derivation" |
+/// "countermodel"}`, the nodes each before its children, each with its
+/// `lines` (`["T", formula]`), and `expands` and `children`, or `end`; a
+/// closed tableau's derivation of LK and an open branch's countermodel,
+/// both checked.
+///
+/// # Errors
+///
+/// A sequent that cannot be read, and a refusal of a bound of the
+/// settings.
+pub fn tableau(sequent: &str, settings: &str) -> Result<String, Failure> {
+    decided(sequent, Method::Tableau, settings)
+}
+
+/// Decides a sequent of classical logic by `method` and answers the
+/// outcome as JSON.
+fn decided(sequent: &str, method: Method, settings: &str) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let sequent = sequent_of(sequent, &settings)?;
+    let options = deduxit::ordinary::Options::default()
+        .with_logic(Logic::Classical)
+        .with_method(Some(method));
+    let search = deduxit::linear::search::Options::default();
+    let outcome =
+        deduxit::ordinary::decide_within(&sequent, &options, &search, &settings.limits, never)
+            .map_err(Failure::from)?;
+    written(&outcome)
 }
 
 /// Returns the lambda-term of a session's derivation
