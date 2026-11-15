@@ -637,7 +637,19 @@ classical logic only (`Error::Logic`, which names the method).
   derivation, are the same. What is left is freeing the expansions, every
   premise a copy of its goal in three vectors: 0.2 s at 2 s on
   SYJ206+1.020 (1.7 million inferences); one allocation per inference
-  would be the next step (`Inference`'s storage). It ends:
+  would be the next step (`Inference`'s storage). **Each axiom's
+  weakenings are charged when the search meets it** (`axiom_bytes`:
+  `n − 1` inferences of `n(n − 1)/2` ids for a goal of `n` formulas),
+  so the search refuses with `Refusal::Memory` before the closing phase
+  builds them: uncharged, 2 048 branches of 1 200 formulas took 6 GB under
+  a bound of 256 MiB. The charge is about twice what the state holds
+  (ids are 4 bytes, charged 8, as an opened goal's are; 1.7 GB resident
+  for 3.1 GiB charged), so a refusal comes early rather than late. The
+  bound covers the goal state; the derivation `finished` and
+  `derivation_within` copy from it, its check and `Tableau::of` are the
+  proof returned, bounded by `derivation_bytes` (by the estimate, 2 to 9
+  times their resident size): under `--derivation-limit none` a run
+  just within the memory bound peaked 1.1 to 1.7 times it. It ends:
   every rule takes a formula apart and the goal state keeps no
   principal formula (G3c's invertible rules).
 - **Why not a view of the decided outcome's derivation alone**: a "not

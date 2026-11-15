@@ -686,6 +686,21 @@ fn ending(end: End) -> String {
 /// entry in the history.
 const GOAL_BYTES: u64 = 160;
 
+/// Returns the bytes an axiom adds to the goal state when it closes a goal
+/// of `formulas` formulas: one weakening per formula but the two it keeps,
+/// each holding what is left of the goal, and the axiom itself, `formulas
+/// − 1` inferences of `formulas · (formulas − 1) / 2` ids in all. Charged
+/// when the search meets the axiom, so that the search refuses before the
+/// state holds them: uncharged, 2 048 closed branches of 1 200 formulas
+/// each took 6 GB under a bound of 256 MiB.
+fn axiom_bytes(formulas: usize) -> u64 {
+    let n = formulas as u64;
+    let below = n.saturating_sub(1);
+    below
+        .saturating_mul(GOAL_BYTES)
+        .saturating_add(4u64.saturating_mul(n).saturating_mul(below))
+}
+
 /// Returns the refusal of a tableau of more nodes or lines than a `u32`
 /// numbers.
 fn too_many(count: usize) -> Error {
@@ -765,8 +780,8 @@ type Expanded = (Vec<GoalId>, Vec<(GoalId, Step)>, u64);
 /// Expands every goal of the state until each is finished or closes, and
 /// returns the open goals and the closing step of each closed one, not
 /// taken: the caller closes them. The stop is asked once per step, each
-/// step a unit of `limits.work`, and every goal a step opens is charged to
-/// `limits.memory_bytes`.
+/// step a unit of `limits.work`, and every goal a step opens, and every
+/// axiom's weakenings to come, are charged to `limits.memory_bytes`.
 fn expand(
     state: &mut Interactive,
     limits: &Limits,
@@ -776,7 +791,8 @@ fn expand(
     let mut closing = Vec::new();
     let mut goals: Vec<_> = state.goals().collect();
     let mut steps = 0u64;
-    // What the goal state holds, counted per goal it opens.
+    // What the goal state holds, counted per goal it opens, and what the
+    // closing steps will add.
     let mut held = 0u64;
     while let Some(goal) = goals.pop() {
         steps += 1;
@@ -793,6 +809,9 @@ fn expand(
         let (left, right) = state.goal(goal)?;
         match next_step(state.formulas(), left, right) {
             Some(step) if matches!(step.rule, Rule::Axiom | Rule::FalseLeft | Rule::TrueRight) => {
+                if step.rule == Rule::Axiom {
+                    held = held.saturating_add(axiom_bytes(left.len() + right.len()));
+                }
                 closing.push((goal, step));
             }
             Some(step) => {
@@ -801,19 +820,19 @@ fn expand(
                     let (left, right) = state.goal(new)?;
                     held = held.saturating_add(GOAL_BYTES + 8 * (left.len() + right.len()) as u64);
                 }
-                if let Some(limit) = limits.memory_bytes
-                    && held > limit
-                {
-                    return Err(Error::Refused(Refusal::Memory {
-                        phase: Phase::Search,
-                        limit_bytes: limit,
-                        needed_bytes: None,
-                    }));
-                }
                 // The first premise is expanded first, so it waits last.
                 goals.extend(opened.into_iter().rev());
             }
             None => open.push(goal),
+        }
+        if let Some(limit) = limits.memory_bytes
+            && held > limit
+        {
+            return Err(Error::Refused(Refusal::Memory {
+                phase: Phase::Search,
+                limit_bytes: limit,
+                needed_bytes: None,
+            }));
         }
     }
     Ok((open, closing, steps))
@@ -941,6 +960,45 @@ mod tests {
         let (open, closing, _) = expand(&mut state, &limits, &mut |_| false).unwrap();
         assert_eq!(open, []);
         assert_eq!(closing.len(), 8);
+    }
+
+    /// The weakenings of the axioms that close the branches are charged
+    /// while the search runs: 128 branches of 128 formulas are charged
+    /// some 11 MB once closed (they hold 6 to 7 MB) where the search itself
+    /// holds 0.3 MB, so a bound of 1 MiB refuses the search (before, it
+    /// answered valid and held the weakenings uncounted) and one of 64 MiB
+    /// lets it finish.
+    #[test]
+    fn the_axioms_weakenings_count_against_the_memory_bound() {
+        use super::super::{Method, decide_within};
+        use crate::limits::Refusal;
+        let atoms = |x: char| {
+            (0..60)
+                .map(|i| format!("{x}{i}"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        let splits = (0..6)
+            .map(|j| format!("(x{j} \\/ y{j})"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let text = format!("{}, {splits}, (z \\/ z) |- {}, z", atoms('p'), atoms('q'));
+        let sequent: Sequent = text.parse().unwrap();
+        let options = Options::default()
+            .with_logic(Logic::Classical)
+            .with_method(Some(Method::Tableau));
+        let decided = |bytes: u64| {
+            let limits = Limits::default().with_memory_bytes(Some(bytes));
+            decide_within(&sequent, &options, &Default::default(), &limits, |_| false)
+        };
+        assert!(matches!(
+            decided(1 << 20),
+            Err(crate::Error::Refused(Refusal::Memory { .. }))
+        ));
+        assert!(matches!(
+            decided(64 << 20).unwrap().verdict,
+            Verdict::Valid(Evidence::Derivation(_))
+        ));
     }
 
     /// A valid sequent's tableau closes every branch and is the checked
