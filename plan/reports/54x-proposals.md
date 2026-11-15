@@ -593,3 +593,96 @@ library and the command compute the same bounds). Three findings:
   parse,interactive --lib` does not build (the linear goal state's tests
   call `Interactive::inferences`, which needs `serialize`); no check
   builds that combination's tests.
+
+## Session 54x5: the tableau's memory account
+
+Opus 5.5 at `high`, the reused worker of 54s-c2 to 54x4 (same
+conversation), in the jj workspace `../deduxit-wt-step-54s-c1-161790`,
+from the brief `start-54x5.md`, on 2026-11-16, cores 4 to 6. The fix is
+`ykkxnxwr` on `main@origin`, this report after it.
+
+### The measurement
+
+- **62a's witness no longer passes the bound.** `prove --logic
+  classical --method tableau --memory-limit L -f SYJ202+1.004.p` at
+  `main@origin` (54x4 included) refused for memory at every limit, its
+  peak resident memory about 0.8 times the limit: 219 MB at 256 MiB,
+  430 MB at 512 MiB, 851 MB at 1 GiB, 1.69 GB at 2 GiB. 62a measured
+  before 54x4, when each axiom's weakenings grew the state during the
+  search, uncharged.
+- **The same structure was still uncharged after the search.** Since
+  54x4 the closing steps run after the search; an axiom on a goal of n
+  formulas builds a weakening per formula but two, each holding the
+  rest, and nothing charged them. Witness: 600 atoms each side, ten
+  disjunctions and `z ∨ z` (2 048 branches of about 1 200 formulas,
+  closed by axioms on `z`): the search held a few megabytes and passed,
+  and the closing phase was killed at a 6 GiB scope under
+  `--memory-limit 256MiB` (and under 1 GiB), 4.5 s in.
+
+### The cause and the fix
+
+Each axiom's weakenings are charged when the search meets it
+(`axiom_bytes`: `n − 1` inferences of `n(n − 1)/2` ids for a goal of
+`n` formulas, at the opened goal's rates, `GOAL_BYTES` and 8 bytes an
+id), and the memory test runs after every step, closings included. So
+the search refuses with `Refusal::Memory` before the closing phase
+builds what would pass the bound. `⊥L` and `⊤R` replace the goal in
+place and add nothing.
+
+- **The factor.** Where the closings are built (300 atoms a side,
+  2 048 branches, `--memory-limit 4GiB`), the charge was 3.1 GiB and
+  the resident peak 1.72 GB: the charge is about twice what the state
+  holds (ids are 4 bytes, charged 8, as the opened goals' are), so a
+  refusal comes early. The witness now refuses in under 0.2 s at every
+  limit from 64 MiB to 4 GiB, peaking at 9 to 18 MB; SYJ202+1.004 at 12
+  to 228 MB.
+- **What the bound does not cover** (the reviewer's measurement): the
+  derivation `finished` builds from the closed state, its check and
+  `Tableau::of` are the proof returned, bounded by `derivation_bytes`
+  (64 MiB by default, by an estimate 2 to 9 times their resident size),
+  as `Limits` documents for every proof returned. Under
+  `--derivation-limit none`, a run just within the memory bound peaked
+  1.1 times it where axioms dominate and up to 1.7 times where many
+  small goals do; with the default derivation limit the peak stays below
+  the memory bound. Charging the derivation to `memory_bytes` would
+  change that documented contract for every method, and was left.
+- **The test**: `the_axioms_weakenings_count_against_the_memory_bound`,
+  128 branches of 128 formulas, charged some 11 MB once closed (they
+  hold 6 to 7 MB) where the search holds 0.3 MB: a bound of 1 MiB
+  refuses for memory (before, it answered valid), 64 MiB lets it
+  finish. With the charge removed it fails.
+
+### The checks
+
+- **ILTP's 274 classical problems under the tableau at 2 s**, the
+  harness built before and after the fix, side by side on cores 4 and
+  5: every verdict the same (184 proved, 1 refuted, 89 unknown). 37
+  unknowns now stop at the memory bound where they ran into the time
+  limit (34) or the derivation limit (3): the search refuses as soon as
+  its closed state would pass the bound. The pass took 15.7 s summed
+  against 134.6 s, its longest row 0.74 s against 3.1 s.
+- **The gate** (capped, cores 4 to 6) at `ykkxnxwr` before the
+  reviewer's two text fixes: passed, the ratchet within its ceilings.
+- Clippy on the crate with every feature, and the ordinary suite's 70
+  tests, before the gate.
+- **`nix flake check`** at this report's commit, under the machine
+  lock, on `main@origin` `snqrmoss`: all checks passed (this line is
+  the only change after it).
+
+### The reviewer
+
+`fresh-reviewer` (Fable 5.2, medium) ran the release command on core 6
+and checked `axiom_bytes` against what `axiom` builds (n − 2 weakenings
+and the axiom, about n(n − 1)/2 ids net: the charge is above it for
+every n ≥ 2, all arithmetic saturating, n ≥ 2 by `next_step`). Nothing
+breaks correctness; the one caller of `tableau::decide` is
+`Method::Tableau`, so no other method moves. Two text findings, both
+answered in `ykkxnxwr`:
+
+1. **The peak past the bound under `--derivation-limit none`**
+   (1.1 to 1.7 times, measured at the least limit not refused): the
+   derivation and the tableau after the state are bounded by the
+   derivation limit, not the memory bound. The rules file and this
+   report now say which bound covers what, with the factor.
+2. **The test's comment gave the charge (11 MB) as what the state
+   holds** (6 to 7 MB): it now says both.
