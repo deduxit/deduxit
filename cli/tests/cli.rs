@@ -3259,3 +3259,33 @@ fn short_help_keeps_to_the_common_flags() {
     );
     assert!(!long.contains("--help shows every option"));
 }
+
+/// `check --table-atoms N` reads a truth table within the bound `prove
+/// --table-atoms` made it under: a table of two atoms is refused under one
+/// and checked under two.
+#[test]
+fn check_takes_the_table_bound() {
+    let (status, table, err) = deduxit(
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--method",
+            "table",
+            "--format",
+            "json",
+            "a |- b",
+        ],
+        "",
+    );
+    assert_eq!(status, 1, "{err}");
+    let (status, _, err) = deduxit(&["check", "--table-atoms", "1"], &table);
+    assert_eq!(status, 2, "{err}");
+    assert!(
+        err.contains("more than the limit of 1 atom allows"),
+        "{err}"
+    );
+    let (status, out, err) = deduxit(&["check", "--table-atoms", "2"], &table);
+    assert_eq!(status, 0, "{err}");
+    assert!(out.starts_with("valid refutation of a ⊢ b"), "{out}");
+}

@@ -195,7 +195,7 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   falsify it`, `an open branch gives a checked countermodel`), the
   countermodel after it; the drawn formats draw a closed tableau's
   derivation and refuse a table's (`NoDerivation`, a left-out line).
-  `--table-atoms N|none` (`limits.table_atoms`, on `prove`) bounds the
+  `--table-atoms N|none` (`limits.table_atoms`, on `prove` and `check`) bounds the
   table; past it the error names the flag (`Refusal::Atoms`). A stop
   during either is an unknown line of its own: they ask the stop as
   they go, where LJT and the SAT solver ask it after their search.

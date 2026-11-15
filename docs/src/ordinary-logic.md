@@ -301,7 +301,8 @@ exit 1
 
 The rows double with each atom, so `--method table` refuses a sequent
 of more than 10 atoms. `--table-atoms N` raises the bound (the settings
-key `limits.table_atoms`), and `none` lifts it.
+key `limits.table_atoms`), and `none` lifts it. `check` takes the same
+flag to check a table made with a raised bound.
 
 A tableau marks each formula `T` (true) or `F` (false). It starts from
 the sequent, its hypotheses true and the formulas right of `|-` false,

@@ -1047,7 +1047,8 @@ another), and print the table or the tableau in place of a derivation:
 - `table` evaluates every row, from all atoms true to all false; a row
   that falsifies the sequent ends with `×`, and the first is the
   countermodel. More atoms than `--table-atoms` (10 by default,
-  `limits.table_atoms`, `none` lifts it) are refused, exit status 2.
+  `limits.table_atoms`, `none` lifts it) are refused, exit status 2;
+  `check --table-atoms N` checks a table made under a raised bound.
   `--stats` prints `rows` and `falsifying rows`.
 - `tableau` builds a signed tableau (`T` true, `F` false) step by step,
   each step checked as a rule of LK: a line per signed formula, numbered

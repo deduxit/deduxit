@@ -131,7 +131,7 @@ unchanged.
   step by step in the goal state and checked whole; an open branch and
   the first falsifying row give a checked countermodel. The table is
   bounded by the new `Limits::table_atoms` (10 atoms, 1024 rows, by
-  default; `--table-atoms N|none`), refused past it with
+  default; `--table-atoms N|none` on `prove` and `check`), refused past it with
   `Refusal::Atoms` (code `too_many_atoms`). In the library:
   `ordinary::Method::Table` and `Method::Tableau`, `ordinary::truth_table`
   and `TruthTable`, `ordinary::Tableau` (`Tableau::of` reads any

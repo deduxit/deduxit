@@ -335,6 +335,9 @@ impl CheckArgs {
         if apply.set("work_limit") {
             settings.limits.work = self.work_limit.0;
         }
+        if apply.set("table_atoms") {
+            settings.limits.table_atoms = self.table_atoms.0;
+        }
         if apply.set("occurrence_limit") {
             settings.limits.occurrences = self.occurrence_limit.0;
         }
@@ -635,6 +638,7 @@ mod tests {
             --memory-limit 2MiB     /limits/memory_bytes       1048576           2097152
             --timeout 3s            /clock/time_limit_ms       5000              3000
             --work-limit 6          /limits/work               5                 6
+            --table-atoms 12        /limits/table_atoms        11                12
             --occurrence-limit 12   /limits/occurrences        11                12
             --term-limit 12         /limits/terms              11                12
             --derivation-limit 3KiB /limits/derivation_bytes   1024              3072

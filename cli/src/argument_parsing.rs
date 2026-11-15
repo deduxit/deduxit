@@ -819,6 +819,13 @@ pub(crate) struct CheckArgs {
     /// node. Past the limit the verdict is unknown (exit status 3).
     #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(None))]
     pub(crate) work_limit: Count<u64>,
+    /// The most atoms a truth table may have, or `none`
+    /// (limits.table_atoms); see `prove --table-atoms`
+    ///
+    /// A truth table that `prove --method table --table-atoms N` made with
+    /// more atoms is checked only with the same bound.
+    #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u32>, default_value_t = Count(Some(Limits::DEFAULT_TABLE_ATOMS)))]
+    pub(crate) table_atoms: Count<u32>,
     /// The most subformula occurrences the proof's sequent may have, or
     /// `none` (limits.occurrences); see `prove --occurrence-limit`
     #[arg(help_heading = INPUT, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(Some(Limits::DEFAULT_OCCURRENCES)))]
