@@ -7121,3 +7121,12 @@ move (D26).
     not where the brief guessed. The focused target set equals 47's. **Pushed.**
   - **Next, when the author says so:** 62b (the builder), 62c (drawings and exports), 62d (the
     page), then 63, 63g and the release of 0.5.0; the baseline night is prepared.
+- 2026-11-16, about 00:15: **The hold lifted ("go"); unattended again; 62b, 62c and 54x5 started.**
+  - **Asked before the author left:** the baseline night may run once the sessions reach a pause
+    point ("Yes, once idle"); release 0.5.0 may be tagged once CI is green at the release commit
+    ("Yes, tag it"; the crates.io approval stays the author's).
+  - **Started:** 62b (`local_b8490613`, cores 7-9: forward steps and Fitch's citations), 62c
+    (`local_fe155f72`, cores 10-12: Gentzen trees with discharge marks and the Fitch list in SVG,
+    LaTeX and Typst), 54x5 (`local_739ba359`, cores 4-6: the tableau passed 3 GB under a 512 MiB
+    limit, 62a's find). The fallback review check runs again (recreated after the restart).
+  - **Next:** the baseline night when these three end, then 62d (the page) and step 63.
