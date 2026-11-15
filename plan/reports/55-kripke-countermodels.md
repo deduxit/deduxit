@@ -509,16 +509,16 @@ workspace `../deduxit-wt-step-58a-610ed3` and, for the library,
 
 ### Where it stands
 
-The library's half is done and checked; the exporter's half waits for
-55b on `main@origin`.
+Both halves are done. The library's commits are on its `main`
+(`xmsnqtwk`, pushed by the planning session); the exporter's chain is
+in this workspace on deduxit's `main@origin` (`znkuolzp`).
 
 ### The library's half (`rocq-deduxit`)
 
-Two commits on its `main@origin` (`sqmpzpzx`): `womvrznp` (the
-calculus, the semantics, the checker, the tests, the check's second
-loop) and `xmsnqtwk` (README, changelog's Unreleased, opam
-description and keywords, CLAUDE.md, `rocq.md`). Not pushed: the
-planning session pushes them (`plan/push-main.sh --rocq`).
+Two commits, now on its `main`: `womvrznp` (the calculus, the
+semantics, the checker, the tests, the check's second loop) and
+`xmsnqtwk` (README, changelog's Unreleased, opam description and
+keywords, CLAUDE.md, `rocq.md`).
 
 - **A namespace of its own**, `Deduxit.Intuitionistic`
   (`theories/Intuitionistic/`), as the library's shape of 2026-11-09
@@ -576,3 +576,156 @@ planning session pushes them (`plan/push-main.sh --rocq`).
   forcing the conclusion, a hypothesis not forced.
 - **Checks**: the library's `nix flake check` passes at `xmsnqtwk`
   (every admitted Rocq, 9.0 to 9.3; conventions, typos, treefmt).
+
+### The exporter's half (deduxit)
+
+The chain on `main@origin` (`znkuolzp`): `zozytpwv` (this report's
+first part), `plzsqxku` ("flake.lock: Update", `rocq-deduxit` to
+`xmsnqtwk`), `zvvymvxw` (the library: `export::rocq::write_countermodel`,
+`DEDUXIT_KRIPKE_PRELUDE`, `ordinary/rocq.rs`'s `countermodel`, `Closure`,
+`formula`, `falsified`; the test `countermodel_certificates` and its
+snapshots; `core-export.md`, `core-ordinary.md`), `suxkmynq` (the
+command: `show::countermodel_into` from `prove`'s native path, from
+`check` of an outcome's countermodel and of a model given; the flake's
+`rocq-deduxit` and `rocq` checks; the manual's ordinary-logic, Rocq and
+status chapters; the guide; the changelog; `cli.md`, `flake.md`),
+`sqlxsqsx` (the lock: two calls), and this section.
+
+- **The certificate**: for intuitionistic and minimal logic,
+  `Lemma certificate : ~ lj (atom := string) R [Γ] C.` (`R`
+  `intuitionistic` or `minimal`, `C` `bot` for an empty right side),
+  `Proof. apply (kripke_refutation String.eqb String.eqb_spec R {|
+  later := …; atoms := …; absurd := … |} W). vm_compute. reflexivity.
+  Qed.`, under `DEDUXIT_KRIPKE_PRELUDE` (`From Deduxit.Intuitionistic
+  Require Import KripkeCheck.`). `⊤`, `¬`, `↔` are written as the
+  library's `top`, `neg`, `equiv`; minimal logic's `false` as `bot`.
+  `later` is each world's worlds strictly above it, the closure of
+  55b's arrows (the library asks a transitive relation), `absurd` the
+  worlds with `falsity`, every atom a world forces written, those the
+  sequent lacks too.
+- **Classical logic**: the model is one world, and the library has no
+  LK, so the certificate is the one over `Prop` from that world's
+  assignment (`falsified`, split out of `write_not_valid`'s writer).
+  Before, a classical "not valid" of `--method sat` wrote no
+  certificate.
+- **Checked first**: `Countermodel::check` under the caller's limits
+  and stop, so a model that does not refute has no certificate. The
+  text is estimated (formulas bottom up over the arena, saturating;
+  the closure's entries) and refused past `limits.derivation_bytes`
+  before anything is written; the closure's searches count against
+  `limits.work` and ask the stop every 1 024 steps and once per world.
+- **The API** (new, as the brief asks; departs from the design only in
+  that the design named no function): `write_countermodel(&countermodel,
+  logic, &options, &limits, &mut out, stop)`, beside `write_disproof`
+  and `write_not_valid`. It takes `&Limits` and a stop because it runs
+  the model's check, which takes them (the crate's rule for long calls).
+  The kernel option is ignored, as for every ordinary certificate.
+- **The command**: `prove --logic L --format rocq` on a "not valid" with
+  a countermodel (the SAT method, the default of intuitionistic and
+  minimal logic); `check --format rocq` on an outcome whose countermodel
+  holds, and on a model given (`--sequent`) at the world where it fails.
+  A refusal is a `no certificate: …` line on standard error, the verdict
+  and exit status as before. LJT's and the embedding's intuitionistic
+  "not valid" have no model, so no Kripke certificate (the embedding's
+  classical assignment keeps its certificate over `Prop`).
+- **The flake**: `rocq-deduxit` compiles the five snapshots and four
+  the command writes (two by `prove`, one by `check` of an outcome, one
+  of a model given), each asserted to hold a lemma, and refuses one
+  whose model has a later world forgetting an atom the sequent does not
+  name. `rocq` compiles `not_valid_kripke_lk.v` and a one-world
+  certificate of `--method sat`.
+- **A finding of my own**: the `rocq` check's `cli_lj_not_valid.v`
+  (`prove --logic intuitionistic … 'a \/ (b -> a)'`) has held only the
+  verdict comment since the SAT method became the default (it wrote no
+  certificate), so the check compiled an empty file. It now names
+  `--method embedding`, the path it was written for, and both new
+  calls assert a lemma (`grep -q '^Lemma certificate'`).
+- **`nix run .#check-certificate`** takes the new certificate: its
+  kernel is read from `From Deduxit` in the prelude (checked below).
+
+### The reviewer
+
+`fresh-reviewer` (Fable 5.2 at medium) on both halves. The library: no
+finding (`refutes` accepts no non-model it could build; `lj` is G1i and
+LM; the assumptions closed). Three findings on the exporter, all fixed
+in `zvvymvxw` and `suxkmynq`:
+- *The estimate overflowed on a shared arena*: `bytes + 2` was not
+  saturating, so a 70-level DAG of `∨` panicked in debug and would
+  wrap to a small estimate in release and build the text. Now every
+  addition saturates; the witness is refused (`no certificate: the
+  certificate is estimated at 18446744073709551615 bytes …`), exit 0
+  (the refutation holds).
+- *A certificate cut short at a work limit*: the two passes drew on one
+  `limits.work` budget, so a limit between S and 2S−1 steps passed the
+  estimate and stopped mid-text. The write pass now starts with the
+  whole budget again (it takes the estimate's steps exactly); the
+  witness writes nothing at 2 and the whole text at 3, 4 and 6; the
+  test pins both.
+- *The planted fault failed for a second reason* (the forgetting world
+  also forced the conclusion): the fault now adds an atom the sequent
+  lacks to world 0 alone, so only the model's growth fails (compiled
+  by hand: the clean file passes, the planted one is refused).
+
+### The checks
+
+- The library's `nix flake check`: passed at `xmsnqtwk` (Rocq 9.0 to
+  9.3).
+- `cargo clippy --workspace --all-targets -- --deny warnings`, `cargo
+  test -p deduxit --test export`, `cargo test -p deduxit-cli` (the lock,
+  README's, the manual's and the guide's examples among them): pass at
+  the head (cores 7 to 9).
+- The gate: passed at `zvvymvxw` before the reviewer's fixes (which
+  touch `ordinary/rocq.rs`, its test and two flake modules; clippy and
+  the tests above rerun after them).
+- `nix build` of `rocq-deduxit`, `rocq-deduxit-library`,
+  `check-certificate` and `rocq` at the head: pass (`rocq-deduxit`: 75
+  certificates, each closed under the global context; the planted model
+  refused). A first run failed the `rocq` check on `cli_lj_not_valid.v`,
+  the empty file above, now fixed.
+- `nix run .#check-certificate -- kripke.v` (Peirce's law in LJ, written
+  by `prove --format rocq --standalone`): "Checking … with Rocq 9.1.1 and
+  rocq-deduxit 0.3.0. Lemma certificate: proved, with no axiom. The
+  certificate holds.", exit 0.
+- `nix flake check` (under the machine lock, `--max-jobs 4 --cores 8`)
+  at `ksxsmnsq` rebased onto `main@origin` `wovnrwuz`: all checks
+  passed (the manual and its links, the bindings, the ratchet among
+  them); this line is the only change after it.
+
+### Departures from the design
+
+- Classical logic's countermodel is certified over `Prop`, not by the
+  library's lemma (departs from the design, which says the library
+  proves "LJ (and the minimal variant)" and names classical logic's
+  one-world case as a corollary): `~ lj` of a classical sequent would
+  state underivability in LJ, weaker than "not classically valid"; the
+  library has no LK. The library's `classical_refutation` (the one-world
+  corollary over `lj`) is there for a reader who wants it.
+- `lj` is the larger G1i (axiom on any formula, explicit weakening and
+  contraction, optional cut) rather than G3i (departs from nothing
+  stated; recorded since a later positive LJ certificate may prefer
+  G3i): a refutation of the larger calculus covers the smaller.
+
+### What is open
+
+- `DEDUXIT` stays `"0.3.0"`, the pinned library's opam version, though
+  the countermodel certificates need its `Deduxit.Intuitionistic`,
+  which 0.3.0 lacks: both rise together at the release (the flake's
+  assertion keeps them equal).
+- The bindings write no countermodel certificate: their Rocq export is
+  a session's derivation. A call for the page (55d) would be
+  `rocq::write_countermodel` behind a binding.
+
+### What the next sessions must know
+
+- **55d (the drawing and the page)**: the certificate's model is the
+  arrows' closure; the drawing shows the arrows. A Rocq download of a
+  "not valid" on the page needs a binding over `write_countermodel`.
+- **Step 65 (modal logics)**: the library's pattern for a calculus
+  refuted by models is `Deduxit.Intuitionistic`'s: the trusted
+  formulas and calculus, a `Prop` semantics over any world type with
+  its soundness, then finite models as data (`later` lists, per-world
+  atoms) with a `bool` checker and its theorem. A modal calculus takes
+  a namespace `Deduxit.Modal` with frame conditions as checks on
+  `later`; the exporter's `Closure` and `formula` are the parts to
+  share (the frame's accessibility may not be reflexive or transitive,
+  so `later` there is the relation itself, not a closure).
