@@ -207,3 +207,167 @@ correctness or the brief. Its three points:
 - `Settings::deterministic` is where `--deterministic`'s meaning lives;
   a change of what it sets changes the command and every library
   caller at once.
+
+## Session 54x2: four small follow-ups
+
+Session 54x2 (Opus 5.5 at `high`, 2026-11-15, cores 10-12), in the jj
+workspace `../deduxit-wt-step-58b-8c0bbc` (a reused worker), from the
+brief `/tmp/linlog-handoff/start-54x2.md`. Four follow-ups the reports
+of 54x and 58b left, each a commit of its own, items 3 and 4 each
+followed by their export snapshots and their behaviour-lock lines in
+commits of their own. Nothing was pushed.
+
+| change | what |
+|---|---|
+| `xnlspnvz` | 1: the linear session says what a position is |
+| `ltzttrpt` | 2: `compare`'s "1 problem … 1 differs" |
+| `ulwnqzrm` | 3: a derivation's `<desc>` in the title's notation |
+| `kwkzlovp` | the export snapshots of 3 |
+| `swurvkqo` | the behaviour lock of 3 |
+| `qytskkxu` | 4: a net's `<desc>` in sentences |
+| `tysppmzm` | the export snapshots of 4 |
+| `pswmostn` | the behaviour lock of 4 |
+| `nsvntkxq` | the render-svg ceiling lowered |
+| `llpsqton` | this report |
+
+### Each item
+
+1. **The linear session's positions**: `positions` and `position` in
+   `cli/src/interact/mod.rs` read a word through one closure,
+   `read_position`, which answers `"x" is not a position: a position is
+   a number, and `goals` lists them`, the words 54x gave goals, without
+   Rust's parse error. The cut's hint for an unquoted formula keeps its
+   context in front (`quote a cut formula that has blanks: … "&" is not
+   a position: …`). Test: `interactive_session` gained `rules 0 y`, and
+   `an_unquoted_cut_formula_is_explained` reads the new words; the
+   changelog's line on the session's refusals names both.
+2. **`compare`'s plural**: "Of the 1 problem both decide alike on one
+   thread, 1 differs in …", both nouns and the verb by their counts.
+   Test: `bench/tests/compare.rs`, whose two outputs have one problem
+   each, now expects the singular.
+3. **A derivation's `<desc>` in the drawing's notation**:
+   `proofs::fmt::write_steps` takes the sequent's writer as a closure;
+   the public `write_steps` of both derivations pass the text tree's
+   (`~A`, unchanged), and the SVG tree passes `Drawn::sequent` with
+   `PLAIN`, the call that writes the `<title>`, so a negated atom is
+   `A⊥` in both, a two-sided derivation stays two-sided, and an instance
+   reads `p(a, b)⊥`. The numbering and the words (`3. …, by ⊗ from 1 and
+   2.`) are as they were. Test:
+   `the_description_writes_formulas_as_the_title_does`; nine export
+   snapshots and the lock's `format-svg` (and `format-png`, whose PNG
+   carries the description) changed only in `~A` to `A⊥`.
+4. **A net's `<desc>` in sentences**: `net::describe` and
+   `mell::describe`, with the shared `net_conclusion`, `net_formula`,
+   `net_link` and `net_verdict` in `svg/mod.rs`, write one sentence a
+   line: `It concludes ⊢ A⊥ ⅋ B⊥, B ⊗ A.`, `An axiom link joins formula
+   1, A⊥, and formula 5, A.` (a cut link `A cut link joins …`), for a
+   net with boxes `Box 6 holds formula 7, a ⊗ a, the premise of formula
+   6, !(a ⊗ a).` (` It lies in box 3.` when nested) and `Formula 0, ?a⊥,
+   has 2 copies: formula 3, a⊥, in box 6; formula 4, a⊥, in box 6.` or
+   `…, has no copy and hangs on the axiom link of formula 11, a.`, then
+   `It is a proof net: the correctness criterion holds.` (with Mix, or
+   planar, in the words of the text form). A formula is named by its
+   vertex, the text form's number: in MLL that is the occurrence the
+   drawing's id `o<n>` names; a box is named by its `!` vertex, the
+   drawing's `b<k>`. Formulas are in `PLAIN`, under the reading in an
+   essential drawing. The verdict stated is `is_correct`'s, as the text
+   form's was. The drawing's estimate no longer counts the description:
+   it refuses before the criterion runs, as before, and
+   `described_bytes` counts the description after the criterion, against
+   what the bound leaves (`within`, `described_within`). Tests:
+   `a_net_is_described_in_sentences` (the whole description of `A ⊗ B ⊢
+   B ⊗ A`'s net) and `crossing_links_are_described_as_no_net` (the
+   reviewer's witness, below); 38 export snapshots and the lock's
+   `format-net-svg` changed in the description alone.
+
+The web client's tests read the description in two places
+(`tests/prover.spec.ts`, `tests/lessons.spec.ts` of
+`deduxit.github.io`): a net's `desc` contains `proof net`, which the
+verdict sentence keeps, and a derivation's contains `by ⅋ from` and
+`A ⊗ B ⊢ B ⊗ A, by ⊗L from`, which item 3 keeps (no negated atom in
+either). The rule labels' numbering is the steps', unchanged. The
+bindings' own tests (`web/tests/`) read no description.
+
+### The checks
+
+- `cargo clippy --workspace --all-targets -- --deny warnings` and the
+  tests of each area after each item, capped on cores 10-12.
+- The gate (`nix develop -c gate`, capped on cores 10-12) three times:
+  on the chain before the reviewer's fixes, on the chain with them
+  rebased onto `xxrrnlxl`, and rebased onto 55a's `kquywyxw`: passed
+  each time (clippy, the tests with the behaviour lock, both `cargo
+  hack` runs, the ratchet). The last rebase, onto `ntxxpkty`, brought a
+  report file alone. The
+  ratchet named render-svg 6.61 % below its ceiling (78 295 779 against
+  83 835 448), the same count both times, and the misses of
+  `check-qbf-20-2`, which it never fails on. The only code on
+  render-svg's path that differs from `main@origin` is item 3, whose
+  description writes a sequent into one string and escapes it once
+  where every piece went through the escaping writer apart; `ratchet
+  --lower` lowered that ceiling alone (`nsvntkxq`).
+- `cargo run --release -p deduxit-bench -- run --all-families --timeout
+  5` and `summary`: 195 runs, 26 rows, `mismatch` 0 in every row.
+- `nix flake check` on the chain over `kquywyxw`, under the machine
+  lock: "all checks passed!" (x86_64-linux; the other systems are
+  omitted as always).
+
+### The reviewer
+
+`fresh-reviewer` (Fable 5.2 at `medium`) read the chain, the brief and
+the code, and reproduced two findings, both in item 4; items 1 to 3 and
+the snapshot and lock commits it found sound.
+1. **A net with crossing links was described as planar.** Under
+   `Style::essential` the verdict drawn is `is_essential`'s, which does
+   not test planarity, and the description stated that verdict: a cyclic
+   structure `a, b ⊢ b ⊗ a` with crossing links read "It is a planar
+   proof net: … no two links cross". The text form it replaced ran
+   `is_correct`. Held: the description states `is_correct`'s verdict
+   always (run beside the drawn one under the reading, only when the
+   style has a description); `crossing_links_are_described_as_no_net`
+   pins the witness. The essential snapshot `essential-around.svg` says
+   the switching cycle again, as on `main`.
+2. **The criterion ran before the size refusal**, which I had moved so
+   that the estimate could count the description, under a comment that
+   called it linear; `is_essential` is quadratic (0.14 ms at 200
+   implications, 30.5 ms at 3 200, all spent before a refusal that came
+   from the estimate alone). Held: the estimate refuses before the
+   criterion again, without the description, and `described_bytes`
+   counts the description after it against what the bound leaves.
+Both fixes are folded into `qytskkxu` and `tysppmzm`.
+
+### Departures
+
+- Item 3 is broader than the brief's `fmt.rs`: the shared
+  `proofs::fmt::write_steps` takes the sequent's writer, so the SVG
+  writes the title's notation while the public `write_steps` of both
+  derivations keep the text tree's `~A` (a library call that asks for
+  the text keeps getting it).
+- Item 4 names a formula by its vertex, the number the net's text form
+  and `--net` print. In MLL that is the occurrence of the drawing's id
+  `o<n>`; in a net with boxes the drawing's id is `o<n>` by occurrence
+  where an occurrence has one vertex and `v<k>` by vertex otherwise, so
+  the description's number is the drawing's only in the second case
+  (departs from the design: "numbered as the drawing numbers them").
+  Boxes are the drawing's `b<k>` exactly.
+- The order of a net's description is conclusion, cut links, axiom
+  links, boxes, then each `?` formula's copies: the brief names the
+  first three; the copies are what the text form had besides.
+
+### What the next sessions must know
+
+- A non-net's reason in a net's description is `describe`'s, which
+  writes `~A` and brackets ids (`A ⊗ ~A[0]`): `Described` has no
+  notation of its own. A notation for it would go through
+  `errors::describe::Names` (four constructors) to `occurrence`. The
+  command and the bindings draw only nets of checked proofs, so only a
+  library caller drawing a structure it built reaches it.
+- Under `Style::essential` an MLL net's description states
+  `is_correct`'s verdict while the highlight is `is_essential`'s; the
+  two agree on whether it is a net but not on the witness
+  (`essential-around.svg`: the description names a switching cycle,
+  the drawing a path around an implication).
+- The net's description is counted after the criterion
+  (`described_bytes`); the drawing's estimate leaves it out. A new
+  sentence needs nothing more: it is counted by writing it.
+- render-svg's ceiling is 78 295 779 now; a chain stacked with this one
+  that moves the SVG writer compares against that.
