@@ -6956,3 +6956,6 @@ move (D26).
     Herbrand's theorem, miniscoping, the decidable fragments) are the
     planning session's, by the literature the research notes cite.
 - 2026-11-15, about 13:10: **The workspace graph placed (63g)** at the author's request: features that interact, each macro action undoable, a graph inside as node-based video tools have; "make sure that it will not be overwhelming for users" is fixed in the step (one sequent as today, the graph only on branching, a list before a canvas, a cognitive-load review and a first-time task tried). Step 63's protocol names every suite's artifacts and operations so that later suites join the graph without work; release 0.5.0 waits for 63g.
+- 2026-11-15, about 13:15: **63g's design by a panel** (the author): several
+  agents, one on Fable 5.2, with the education-agent-skills and
+  frontend-design plugins; written into the step's row.
