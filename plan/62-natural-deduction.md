@@ -43,3 +43,44 @@ page's list view and the tab, with the `frontend-design` plugin), each
 reviewed by the planning session; the `fresh-reviewer` agent (Fable 5.2
 at `medium`) on the discharge and scope handling. Deliverables: the
 commits, the client's commits, `plan/reports/62-natural-deduction.md`.
+
+## What steps 59 to 61 left you (the review of 61a, 2026-11-15)
+
+- **Step 60 built the base** (`deduxit::rules`): rule files at wire
+  level 15 with their JSON Schema, the generic derivation with scopes
+  and discharge, the checker by matching, the printer, the shipped
+  calculi LK, LJ, LM, LL and the signed tableau, and `check --calculus`.
+  60b's report names what is yours: the Fitch layout's own rules (a
+  subproof's lines contiguous, its assumption first, a citation of its
+  last line) are not the checker's; a vacuous discharge is accepted; a
+  set zone's discharge is compared as a set; the manual chapter's NJ is
+  the pattern of a rule file.
+- **Step 61a built the interactive session** (`rules::Interactive`,
+  `interact --calculus`, wire level 17): `apply` backwards, `assume` a
+  hypothesis in force, `undo`, the session embedding its rule file. The
+  builder of this step is that session over the natural deduction rule
+  files, not a second one; forward steps (Fitch's habit) may need an
+  addition, said in the report.
+- **61b** (the bindings, the drawing of a generic derivation as a tree,
+  the custom calculus on the page) runs now; this step's page sessions
+  come after it and take its tree drawing as the Gentzen view.
+- **Wire levels**: 16 is 63t-a's, 17 61a's; take the next free.
+- **The workspace graph (63g)** will hold a natural deduction proof as a
+  node: an immutable value with its JSON form.
+- **Not overwhelming** (the author): natural deduction is a method the
+  ordinary tab offers, chosen, never forced on a sequent's first view.
+
+## The sessions (planned at this review)
+
+- **62a**, the rule sets and the checker's use: NJ, NK and NM (and the
+  common variants a course meets) as rule files with their sources, the
+  cross-check against the ordinary suite's verdicts on ILTP's small
+  problems, `check --calculus NJ|NK|NM`, the manual. Opus 5.5 at `high`,
+  the fresh reviewer on Fable 5.2.
+- **62b**, the builder: forward and backward steps over the rule files,
+  `interact --calculus NJ`, Fitch's citations.
+- **62c**, the drawings and exports: Gentzen trees from 61b's drawing,
+  the Fitch list in SVG, LaTeX (the community's package) and Typst.
+- **62d** (and **62e** if needed), the page: the method in the ordinary
+  tab, the Fitch list view, in the client, with the `frontend-design`
+  plugin.

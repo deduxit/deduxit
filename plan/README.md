@@ -7077,3 +7077,17 @@ move (D26).
     61a worked): workers now message the planning session as their last act, and a cron checks
     every 15 minutes (`plan/handoff.md`, "Sessions in the Claude app").
   - **Started:** 63t-b (`local_739ba359`, cores 4-6), the page. **Running:** 61a.
+- 2026-11-15, about 20:45: **61a reviewed and pushed; 61b started; 62's
+  prompt finished at this review.**
+  - **61a** (`mlylvqxk` … `vxrortpx`): `rules::Interactive` and
+    `interact --calculus` (backward steps checked by the calculus's own
+    checker each, `assume`, `undo`, a session embedding its rule file,
+    wire level 17), a text syntax for terms, the manual's chapter "Write
+    rules as hypotheses". Departure accepted: `rules G` gives the member
+    numbers in place of a positions list. The worker's end-of-step line
+    arrived as the new rule asks. **Pushed.**
+  - **Started:** 61b (`local_fe155f72`): the bindings, the drawing, the
+    page. **Next:** 62a in the free worker (62's prompt finished, its
+    sessions planned). **Running:** 63t-b.
+  - **The step log** is now kept (`plan/notes/step-log.tsv`) and read
+    by the `status-update` skill.
