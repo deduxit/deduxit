@@ -7130,3 +7130,14 @@ move (D26).
     LaTeX and Typst), 54x5 (`local_739ba359`, cores 4-6: the tableau passed 3 GB under a 512 MiB
     limit, 62a's find). The fallback review check runs again (recreated after the restart).
   - **Next:** the baseline night when these three end, then 62d (the page) and step 63.
+- 2026-11-16, about 00:55: **54x5 reviewed and pushed.**
+  - **54x5** (`ykkxnxwr`, report `qprwwwkl`): the tableau charges each axiom's weakenings to the
+    memory bound when its search meets the axiom (`axiom_bytes`, about twice what the state holds),
+    so it refuses before the closing phase builds them. Uncharged, 2 048 branches of 1 200
+    formulas reached 6 GB under 256 MiB; now they refuse in 0.2 s. 62a's witness had already
+    stayed under the bound since 54x4. ILTP's 274 classical problems under the tableau at 2 s keep
+    every verdict, and the pass takes 15.7 s instead of 134.6 s. Not covered: the derivation
+    returned, which the derivation limit bounds, as for every method (left as documented).
+    Gate, fresh-reviewer (two text findings, fixed) and `nix flake check` passed.
+  - **Its slot stays free:** the baseline night runs once 62b and 62c end (the author's "once
+    idle"), then 62d and 63 start.
