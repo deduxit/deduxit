@@ -679,6 +679,18 @@ const CASES: &[Case] = &[
     piped("check-natural-nk", &["check"], NATURAL),
     piped("check-natural-nj", &["check"], NATURAL_NJ),
     piped(
+        "interact-calculus-forward",
+        &[
+            "interact",
+            "--calculus",
+            "NJ",
+            "--assume",
+            "a /\\ b",
+            "b /\\ a",
+        ],
+        "derive 0 ∧E₂ 1\nderive 0 ∧E₁ 1\nderive 0 ∧I 2 3\nderive 0 →I 1\nderive 0 ∧E₁ 9\nassume 0 2\nassume 0 4\nproof\n",
+    ),
+    piped(
         "interact-calculus",
         &["interact", "--calculus", "LK", "a /\\ b |- b /\\ a"],
         "rules 0\napply 0 ∧R 1\napply 1 ∧L₂ 0\napply 2 ∧L₁ 0\napply 3 ax\napply 4 wrong\nundo\napply 3 ax\napply 4 ax\nproof\n",
