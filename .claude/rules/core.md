@@ -325,9 +325,10 @@ the commit that lands it rewrites that bullet.
   `Interactive::goal`). A public list of an open enum's values (`ALL`,
   `Fragment::NAMED`) is a slice, never an array, whose length is part of
   its type and would change with a new value.
-- **The marked ones at 0.2.0** (every public enum and every struct with
-  a public field, 119, each `#[non_exhaustive]`; 81 at 0.1.0; the closed
-  are the seventeen above, fifteen at 0.2.0 and thirteen at 0.1.0; both lists checked against
+- **The marked ones at 0.4.0** (every public enum and every struct with
+  a public field, 146, each `#[non_exhaustive]`; 119 at 0.2.0 and 81 at
+  0.1.0; the closed are the seventeen above, fifteen at 0.2.0 and
+  thirteen at 0.1.0; both lists checked against
   the rustdoc JSON with every feature by a script, see "The break against
   the last release" below): `Bias`, `CheckError`, `Clock`, `Counter`,
   `Criterion`, `Engine`, `Error`, `ErrorKind`, `IllSyntax`,
@@ -344,15 +345,16 @@ the commit that lands it rewrites that bullet.
   `lltp::{Problem, Status}`; `mist::{Problem, Safety}`;
   `nets::cut::{Elimination, Reduction, Step}`;
   `occurrences::IllConnective`; `lambda::{Calculus, Notation, NoTerm,
-  Options}` (added at step 50); `ordinary::{Evidence, Logic, Options,
-  Outcome, Problem, Target, Translation, Verdict}` (`Evidence` added at
-  step 54s); `ordinary::ljt::{Outcome,
+  Options}` (added at step 50); `ordinary::{Evidence, Logic, Method, Options,
+  Outcome, Problem, Search, Target, Translation, Verdict}` (`Evidence`
+  and `Search` added at step 54s); `ordinary::interactive::{Context,
+  Hint}`; `ordinary::ljt::{Outcome,
   Statistics}` (added at step 54); `ordinary::sat::{Outcome,
   Statistics}` (added at step 54s); `kripke::{Model, World}`,
   `ordinary::Countermodel` (added at step 55b);
   `ordinary::{End, Sign, Signed}` (added at step 56a); `proofs::{ClassicalRule,
   ClassicalSides, Compact, Dyadic, Fault, Invalid, Labels, OpenGoal,
-  Refused, Sides, TextOptions}`;
+  Refused, Sides, Structural, TextOptions}`;
   `proofs::interactive::{Applicable, Closed, Inverted, Needs, Options,
   Split, TermNode, Witness}`;
   `proofs::cut::{Case, Elimination, End, Options, Reduction, Step,
