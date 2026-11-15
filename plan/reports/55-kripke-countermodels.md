@@ -729,3 +729,139 @@ in `zvvymvxw` and `suxkmynq`:
   `later`; the exporter's `Closure` and `formula` are the parts to
   share (the frame's accessibility may not be reflexive or transitive,
   so `later` there is the relation itself, not a closure).
+
+## Session 55d: the drawing and the page
+
+Opus 5.5 at `high`, the worker of 55c (same conversation), in the jj
+workspaces `../deduxit-wt-step-58a-610ed3` (deduxit) and
+`../deduxit.github.io-55d` (the client, workspace `step55d`), from the
+brief `start-55d.md`, on 2026-11-15, cores 7 to 9.
+
+### The drawing (deduxit)
+
+- **`export::svg::countermodel(&countermodel, logic, &style, &limits,
+  stop)`** checks the countermodel (`Countermodel::check`), then draws
+  the `kripke::Model` alone (`svg/kripke.rs`, `draw`, which step 65 can
+  call with its own title and closing sentence). Each world is a box
+  (`<rect id="wN">`) with the atoms it forces in italic and `⊥` for
+  `falsity`, its number `wₙ` at the label size to its left; an arrow up
+  to each world directly above it (repeated arrows once); the model's
+  world outlined in the highlight colour at twice the stroke.
+- **Layout**: rows by Kahn's order, a world one row above the highest
+  world with an arrow to it, so every arrow points up; within a row by
+  the mean place of the worlds below, then by number. An arrow past a
+  row is a curve bowed to the right (the reviewer's finding).
+- **Title and description**: `<title>A countermodel of ⊢ a ∨ ¬a</title>`;
+  the `<desc>` gives the model's size, a sentence per world (what it
+  forces, the worlds directly above it) and why the sequent fails at the
+  model's world, in the logic's words (classical: true and false).
+- **The bound**: the estimate (per world, per atom byte, per arrow, and
+  the sequent's text bottom up over the arena, saturating, before
+  `Display` writes it) is refused past `limits.derivation_bytes` before
+  anything is laid out, never cut. A model past the check's own bound has
+  no countermodel at all, and the verdict line already says "too large
+  to show and check" (55b).
+- **The command**: `prove --logic L --format svg|png|pdf` draws it for a
+  "not valid" (not under `--tree never` or `-q`); `check --format
+  svg|png|pdf` for an outcome's countermodel and for a model given at its
+  failing world. LaTeX and Typst draw none and say why on standard error
+  (departs from the design only in what it allowed: neither has a
+  standard package that lays out such a graph without coordinates; TikZ
+  would repeat this layout in TeX). The verdict and exit status are as
+  before.
+- **Snapshots** `kripke_independence.svg`, `kripke_minimal.svg` (the
+  `export` check renders them); lock calls `format-svg-countermodel`,
+  `format-latex-countermodel`.
+
+### The bindings
+
+- `ordinary_close` and `ordinary_hint` give a `not_valid` outcome without
+  a model the SAT solver's model of the goal (`with_countermodel`: a
+  session decides through the embedding, which has no Kripke model in
+  intuitionistic and minimal logic). The model is of the goal's own
+  sequent, in the session's logic, within the settings' limits; none
+  where the solver refuses.
+- `ordinary_model_drawing(outcome, settings)` and
+  `ordinary_model_certificate(outcome, settings)` read that outcome and
+  answer the SVG and the Rocq certificate (55c's `write_countermodel`);
+  an outcome without a model is `no_countermodel` (kind `unsupported`).
+  Tests in `web/tests/ordinary.rs`, natively and under Node.
+
+### The page (the client)
+
+- Under the "Not valid" note, `ModelFigure` (`Stage.tsx`) shows the
+  drawing as a picture (deduxit's `role="img"`, `<title>`, `<desc>`), in
+  the stage's font and colours (`.countermodel-drawing`, the model's
+  world in the net's highlight colour), and one sentence: "World 0,
+  outlined, forces every formula left of ⊢ and not the one right of it. A
+  world forces what every world below it forces, and an arrow points
+  up." (classical: its one world's truth values). The note's sentence
+  says deduxit found a Kripke model and where the sequent fails.
+- The Export menu's "Countermodel" writes the certificate (standalone),
+  for an ordinary proof only, greyed until a goal's close or hint found a
+  model.
+- **55a's shape on the page** (the plan gave the client's half of Q12 to
+  this session): the ordinary outcome's engine is under `search.image`;
+  `engineOf` unwraps it and the status reads it there. Without it the
+  graft marking failed (`a search's graft taken back by undo …`).
+- `tests/states.ts`'s ordinary walk ends on the countermodel ("ordinary
+  countermodel"), which axe and the target-size spec walk.
+- **The client builds against a local override** until the planning
+  session pushes this chain: every client run here was `nix develop
+  --override-input deduxit git+file:///home/tux/Projects/own/deduxit-wt-step-58a-610ed3`.
+  The client's commits use calls the pinned deduxit lacks, so they land
+  with the lock moved: after the push, `nix flake update deduxit` in the
+  client (a "flake.lock: Update" change), then its `nix flake check`.
+
+### The reviewer
+
+`fresh-reviewer` (Fable 5.2 at medium, from code; it had no browser),
+two findings, both fixed:
+- *The status popover's sentence said "the model below"*, where no model
+  is: the sentence no longer points at a place.
+- *An arrow past a row ran through the box between, its head on the
+  short arrow's*: it bows out now; `countermodel_drawings` pins it.
+
+### Commits
+
+deduxit, on `main@origin`: `xkorzqqo` (the drawing), `okuknrrl` (the
+command, the manual, the guide, the changelog), `nqvkwxxz` (the lock),
+`kswmolln` (the bindings), and this report's. The client, on its
+`main@origin` (`zkwnnqqs`): `movmzsku` (the engine under the image),
+`ozrpzzvu` (the figure, the Export item, the states).
+
+### The checks
+
+- deduxit: the gate passed (cores 7 to 9) at `kswmolln` before the
+  reviewer's arrow fix; after it, clippy on the workspace, the export
+  test, the lock and the examples test pass; `cargo hack check
+  --each-feature` (a first gate found `Formulas::nodes` gated on
+  `serialize` alone, now `serialize` or `svg`); the bindings' ordinary
+  tests natively and under Node (8).
+- The client, against the override: Vitest 601 passed; Playwright, the
+  whole suite 220 passed, the ordinary spec again (10) after the
+  sentence fix; lint and `astro check` clean.
+- `nix flake check` (under the machine lock, `--max-jobs 4 --cores 8`):
+  deduxit at `zulzqwyu` on `main@origin` `xyyzyqnz`, all checks passed
+  (the bindings under Node, the budget, the export renders among them;
+  a first run failed clippy on a test's `"Q"` pattern and treefmt on two
+  test files, both fixed in their commits); the client at `ozrpzzvu`
+  with `--override-input deduxit git+file:///home/tux/Projects/own/deduxit-wt-step-58a-610ed3`,
+  all checks passed (its e2e among them). This line is the only change
+  after them.
+- One slip: a client `nix develop` after the arrow fix rebuilt the
+  bindings outside the machine lock (a few minutes on cores 7 to 9);
+  every other build ran under it.
+
+### What step 65 must reuse
+
+- `svg/kripke.rs`'s `draw(model, title, last, style, limits, stop)`
+  draws any `kripke::Model`; a modal countermodel calls it with its own
+  title and closing sentence after its own check. Accessibility in a
+  modal frame need not be reflexive or transitive: the rows assume the
+  arrows go round nowhere, so a frame with cycles (S5, reflexive loops)
+  needs a layout of its own (a circle, or loops drawn on a box) before
+  it can use this one.
+- The page's `ModelFigure` takes any outcome with `countermodel.model`;
+  a modal suite's calls would be `modal_model_drawing` beside the
+  ordinary ones.
