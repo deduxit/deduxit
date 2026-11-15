@@ -1053,6 +1053,10 @@ pub(super) fn widths(formulas: &Formulas) -> Vec<u64> {
 /// and [`Size::BYTES_PER_CHARACTER`] per character of its sequent
 /// written, each formula with two for its separator; saturating.
 pub(super) fn inference_bytes(widths: &[u64], left: &[NodeId], right: &[NodeId]) -> u64 {
+    // Two for the turnstile and a space beside it. `Γ ⊢ Δ` writes one
+    // separator fewer than formulas on each side and ` ⊢ ` between them,
+    // so with two per formula the count is never below the sequent as
+    // written, whichever side is empty.
     let characters = left.iter().chain(right).fold(2u64, |sum, k| {
         sum.saturating_add(widths[k.index()]).saturating_add(2)
     });
