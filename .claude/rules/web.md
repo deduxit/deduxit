@@ -279,6 +279,18 @@ for `THIRD-PARTY-NOTICES.txt`.
   under the ordinary suite's `methods` (`method`, `call`, `logics`) and
   `limits.table_atoms` among its settings. "Every world" is
   `Forcing::failing_anywhere`, linear. `tests/ordinary.rs` holds their tests.
+- **The transformations** (`ordinary_translate(sequent, options,
+  settings)`, `ordinary_interpolate(sequent, logic, partition,
+  settings)`): the library's `negative::compare` and
+  `interpolant::interpolate` under the tab's limits, no stop and the
+  linear search's defaults (one thread, the copy bound 3), answering
+  their level-16 documents; `options` and `partition` are their serde
+  forms or `""` for the defaults (Kolmogorov's translation into minimal
+  logic; every hypothesis in the first half). `about` lists both under
+  the ordinary suite's `transformations` (`transformation`, `call`, the
+  `translations` with each `target`, or the `logics`), which the page
+  and the workspace graph read. A disagreement or an interpolant that
+  fails its check is the library's `claim_fails` (kind defect), thrown.
 - **A countermodel on the page** (`ordinary_close`, `ordinary_hint`):
   a session decides a goal through the embedding, which has no Kripke
   model in intuitionistic and minimal logic, so a `not_valid` outcome

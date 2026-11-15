@@ -386,7 +386,12 @@ names checked and composed as every reader's are, its size within
 `limits.occurrences`;
 a reader maps the document's indices to the
 arena it builds (equal formulas are one node there), so a document of
-ours writes back the same bytes. `ill.rs`'s refusal test names the level
+ours writes back the same bytes. Level 16 (`wire::TRANSFORMS`) is a
+negative translation compared and an interpolation, written only:
+they hold ordinary outcomes nested without `version` and `deduxit`
+(`serialize/ordinary.rs`'s `NestedOutcome`, the same `OutcomeForm` with
+both keys `None`), and nothing reads them back, since a front end
+holds the sequent and asks again. `ill.rs`'s refusal test names the level
 above `wire::LEVEL`, so that a raise of the level needs no test change.
 `core-ordinary.md` has the readers' checks.
 

@@ -30,7 +30,8 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   `export::rocq::ordinary`, and a countermodel's
   (`export::rocq::write_countermodel`, core-export.md); `model.rs`: the check of a Kripke model
   (`Model::forcing`, `refutes`, `Forcing`, `Countermodel`,
-  `MODEL_CELLS`); `interactive.rs` (behind `interactive`): the
+  `MODEL_CELLS`); `negative.rs` and `interpolant.rs`: the
+  transformations, below; `interactive.rs` (behind `interactive`): the
   goal state `Interactive`, below. Its JSON forms and those of the
   sequent, the derivation and the outcome are in
   `core/src/serialize/ordinary.rs`: the sequent, the derivation and the
@@ -763,6 +764,79 @@ factored out of the two until the kernel crate is.
 - **`Rule::Open`** marks an open goal of a proof in progress and appears
   nowhere else: the checker refuses it first ("an open goal"), `Drawn`
   draws it without a bar or label, as the linear `Rule::Open`.
+
+## Transformations (`negative.rs`, `interpolant.rs`)
+
+Public as `ordinary::negative` and `ordinary::interpolant`; the command's
+`seq translate` and `interpolate`, the bindings' `ordinary_translate`
+and `ordinary_interpolate`. Each claim is computed, never assumed:
+what fails it is `Error::ClaimFails` (kind defect, code `claim_fails`).
+
+- **A negative translation is a table** (`negative::row` per
+  translation and node: the connective kept or `A ∨ B` as `¬(¬A ∧ ¬B)`,
+  and the `¬` before it; `sides`: the `¬` before each hypothesis and
+  before the formula right of `⊢`), applied once down the arena to the
+  nodes the sequent reaches (`reached`, a pass from the last node), so
+  nothing recurses. Several formulas right of `⊢` are their disjunction,
+  the first leftmost, built in a copy of the source arena; none stays
+  none (`Γ ⊢ ⊥` in the target). Kuroda's translation is propositionally
+  `¬¬` before every formula of the sequent, Glivenko's before the right
+  side alone; the rows for `∀` and `∃` (Kuroda's `¬¬` after every `∀`,
+  Gödel and Gentzen's `∃x A` as `¬∀x ¬A`) go into `row` at first order.
+  The result is bounded by `limits.occurrences` (`bound`, now in every
+  build).
+- **The targets** (`Translation::reaches`): Kolmogorov's and Gödel and
+  Gentzen's reach minimal and intuitionistic logic, Kuroda's and
+  Glivenko's intuitionistic logic only (`false -> a` is classically
+  valid and `¬¬(⊥ → a)` not minimally), none classical logic;
+  `Error::NegativeTarget` otherwise, before anything is decided.
+- **`compare`** decides the sequent classically and its translation in
+  the target, each by its logic's default method, under the caller's
+  search options, limits and one stop; both verdicts known and different
+  is `ClaimFails`, either unknown `Agreement::Unknown`.
+  `every_translation_keeps_the_verdict` and
+  `generated_sequents_keep_their_verdicts` (200 generated sequents, every
+  translation) pin it.
+- **Maehara's method reads the rule table of the checker**:
+  `check_inference` returns, per premise, the formulas the rule adds to
+  the conclusion's context (`derivation::Added`), so the interpolant
+  has no table of its own to drift. Going up (`maehara`), each premise's
+  formulas get their halves: an added formula the principal formula's,
+  every other one drawn from the conclusion's context by side and
+  formula, from one pool for a split and from the whole context per
+  premise for a shared one (`premise_parts`: split tried first, shared
+  where a draw fails). Equal formulas are interchangeable, so which
+  occurrence of a repeated formula is drawn does not matter.
+- **LJ's halves are exchanged** where a premise's formula right of `⊢`
+  would be in the first half: the first premise of `→L` and of LJ's
+  two-premise `¬L`, and the premise of the one-premise `¬L`, on a
+  hypothesis of the first half. Going down, an exchanged premise's
+  interpolant enters negated (one premise) or as the antecedent
+  (`I₁ → I₂`); otherwise a leaf gives `⊥`/`⊤` by the principal's half
+  (an axiom `⊥`, `⊤`, `A` or `¬A` by its two sides' halves), one premise
+  its own, two the disjunction (principal in the first half) or the
+  conjunction. `Build` drops `⊤` and `⊥` where the logic proves the
+  result equivalent: in minimal logic only `⊤`, since `⊥ ∨ A ⊢ A` needs
+  ex falso.
+- **The check** (`checked`): the interpolant's atoms in both halves
+  (`atoms_of`, a pass down the arena), both halves within
+  `limits.occurrences`, then both decided by the logic's default method;
+  a half not valid is `ClaimFails`, a half unknown leaves
+  `Interpolant::is_checked` false (the command's exit 3).
+  `the_check_refuses_what_is_no_interpolant` plants a foreign atom and a
+  `⊤` that makes the second half fail; `generated_sequents_interpolate`
+  splits 200 generated sequents at random in every logic.
+- **Which derivation**: `interpolate` decides by the caller's method
+  (by default the SAT solver, so a sequent that is not valid gets its
+  countermodel at once), and where that derivation has a cut (LJT, the
+  SAT solver's read-back) or there is none (a clausal proof) and no
+  method was named, decides again through the embedding, whose read-back
+  has no cut; a named method's cut is `Error::NotCutFree`. The embedding
+  unknown leaves the method's verdict with no interpolant; the embedding
+  refuting what the method proved is `Error::ReadBack`.
+- **At first order** the tables gain the quantifier rows, and
+  Maehara's method needs the eigenvariable condition kept in the
+  interpolant: a term of one half only is quantified over.
 
 ## Decisions
 

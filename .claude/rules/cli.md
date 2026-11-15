@@ -379,6 +379,24 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   the command and a program to agree on (the lock's counters are the same as under `auto`, which with
   one job happened to take turns as well).
 - `seq.rs`: `seq print`, `seq json` and `seq fragment`.
+- `transform.rs`: `seq translate` (`TranslateArgs`: `--by`, `--to`) and
+  `interpolate` (`InterpolateArgs`: `--logic`, classical by default, and
+  `--first` positions `L0`/`R1`, the session's addresses, every
+  hypothesis by default), sharing `TransformArgs` (the input, `--format
+  text|json`, `--output`, `--timeout`, `--memory-limit`, `--work-limit`,
+  `--settings`; `TransformArgs::settings`). They call the library's
+  `negative::compare` and `interpolant::interpolate` on the large stack
+  under the deadline and Ctrl-C, with the settings' search on one thread
+  where it says `auto` (the library would take every thread from the
+  start, as a session's `close` once did). Text is a line per sequent
+  with its verdict and evidence (`verdict`: the calculus and the
+  inferences, or the countermodel indented under it, `model`); JSON the
+  library's level-16 document; a stop that ends a search before its
+  verdict is `unknown: …` (on standard error beside JSON), exit 3. Exit
+  statuses: 0 valid (both verdicts, or a checked interpolant), 1 not
+  valid, 3 unknown, 2 an error, a disagreement or a failed check
+  included (the library's `claim_fails`, a defect). Neither has a
+  derivation drawing: the JSON holds the derivations.
 - `style.rs`: `read`, which makes the library's `export::Styles`, the
   options value of every format (`TextOptions`, `latex::Options`, `typst::Options`,
   `svg::Style`, `png::Options`, `pdf::Options`, `rocq::Options`) under a
