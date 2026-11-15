@@ -29,6 +29,7 @@ const fn mode_of(intuitionistic: bool) -> Mode {
 /// drawing the memory bound refuses.
 pub(crate) fn run(command: &SeqCommand, given: &Given) -> Result<Status> {
     match command {
+        SeqCommand::Translate(args) => return crate::transform::translate(args, given),
         SeqCommand::Print {
             input,
             intuitionistic,

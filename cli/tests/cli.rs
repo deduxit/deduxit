@@ -3289,3 +3289,77 @@ fn check_takes_the_table_bound() {
     assert_eq!(status, 0, "{err}");
     assert!(out.starts_with("valid refutation of a ⊢ b"), "{out}");
 }
+
+/// `seq translate` prints the translation and both verdicts, which agree,
+/// and refuses a target its translation does not reach; `interpolate`
+/// prints a checked interpolant, exits 1 for a sequent that is not valid
+/// and refuses a partition that is not one.
+#[test]
+fn transformations_answer_with_their_checks() {
+    let (status, out, err) = deduxit(&["seq", "translate", "a \\/ ~a"], "");
+    assert_eq!(status, 0, "{err}");
+    assert!(
+        out.starts_with("Kolmogorov's translation into minimal logic: ⊢ ¬¬(¬¬a ∨ ¬¬¬¬¬a)"),
+        "{out}"
+    );
+    assert!(
+        out.ends_with("The verdicts agree, as Kolmogorov's translation claims.\n"),
+        "{out}"
+    );
+    let (status, out, err) = deduxit(&["seq", "translate", "--by", "glivenko", "a |- b"], "");
+    assert_eq!(status, 1, "{err}");
+    assert!(out.contains("intuitionistic logic: not valid"), "{out}");
+    let (status, _, err) = deduxit(
+        &["seq", "translate", "--by", "kuroda", "--to", "minimal", "a"],
+        "",
+    );
+    assert_eq!(status, 2);
+    assert!(
+        err.contains("does not carry classical logic into minimal logic"),
+        "{err}"
+    );
+
+    let (status, out, err) = deduxit(&["interpolate", "a /\\ b |- b \\/ c"], "");
+    assert_eq!(status, 0, "{err}");
+    assert!(out.starts_with("interpolant: b\na ∧ b ⊢ b: valid"), "{out}");
+    let (status, out, _) = deduxit(&["interpolate", "a |- b"], "");
+    assert_eq!(status, 1);
+    assert!(
+        out.ends_with("A sequent that is not valid has no interpolant.\n"),
+        "{out}"
+    );
+    let (status, _, err) = deduxit(
+        &[
+            "interpolate",
+            "--logic",
+            "minimal",
+            "--first",
+            "R0",
+            "a |- a",
+        ],
+        "",
+    );
+    assert_eq!(status, 2);
+    assert!(err.contains("belongs to the second half"), "{err}");
+    // Valid by the SAT solver, with no derivation without cuts within the
+    // work limit: unknown, and the line says what stopped.
+    let (status, out, _) = deduxit(
+        &[
+            "interpolate",
+            "--logic",
+            "intuitionistic",
+            "--work-limit",
+            "400",
+            "(a -> b) -> c, ~~(a -> b), c -> ~d, d |- false",
+        ],
+        "",
+    );
+    assert_eq!(status, 3, "{out}");
+    assert!(
+        out.contains("valid") && out.contains("No derivation without cuts"),
+        "{out}"
+    );
+    let (status, _, err) = deduxit(&["interpolate", "--first", "X0", "a |- a"], "");
+    assert_eq!(status, 2);
+    assert!(err.contains("is no position"), "{err}");
+}

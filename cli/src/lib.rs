@@ -39,6 +39,8 @@ mod settings;
 mod show;
 /// The options of every output format, from a file and flags.
 mod style;
+/// `seq translate` and `interpolate`.
+mod transform;
 
 use anyhow::Result;
 use argument_parsing::{Cli, Command};
@@ -292,6 +294,7 @@ fn run(cli: &Cli, given: &settings::Given) -> Result<Status> {
         Command::Check(args) => check::check(args, given),
         Command::Eliminate(args) => eliminate::eliminate(args, given),
         Command::Interact(args) => interact::interact(args, given),
+        Command::Interpolate(args) => transform::interpolate(args, given),
         Command::Seq { command } => seq::run(command, given),
     }
 }

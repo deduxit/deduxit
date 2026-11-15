@@ -7,6 +7,7 @@
 
 use crate::argument_parsing::{
     CheckArgs, CoresArg, EliminateArgs, InteractArgs, LambdaArgs, LogicArgs, ProveArgs, SearchArgs,
+    TransformArgs,
 };
 use crate::io;
 use anyhow::{Context, Result};
@@ -358,6 +359,38 @@ impl CheckArgs {
     }
 }
 
+impl TransformArgs {
+    /// Returns the settings `seq translate` and `interpolate` run under:
+    /// the bounds of their searches and of the sequent.
+    ///
+    /// # Errors
+    ///
+    /// Those of reading the settings file.
+    pub(crate) fn settings(&self, given: &Given) -> Result<Settings> {
+        let mut settings = read(self.settings.as_deref())?;
+        let apply = Apply {
+            file: self.settings.is_some(),
+            given,
+        };
+        if apply.set("memory_limit") {
+            settings.limits.memory_bytes = self.memory_limit.0;
+        }
+        if apply.set("timeout") {
+            settings.clock.time_limit_ms = self.timeout.0.map(millis);
+        }
+        if apply.set("work_limit") {
+            settings.limits.work = self.work_limit.0;
+        }
+        if apply.set("occurrence_limit") {
+            settings.limits.occurrences = self.input.occurrence_limit.0;
+        }
+        if apply.set("term_limit") {
+            settings.limits.terms = self.input.term_limit.0;
+        }
+        Ok(settings)
+    }
+}
+
 impl LambdaArgs {
     /// Sets how a lambda-term is printed.
     fn apply(&self, settings: &mut Settings, apply: &Apply<'_>) {
@@ -582,7 +615,13 @@ mod tests {
                 &given,
             )
             .unwrap(),
-            Command::Seq { .. } => unreachable!("only `seq print` reads settings"),
+            Command::Interpolate(args) => args.common.settings(&given).unwrap(),
+            Command::Seq {
+                command: crate::argument_parsing::SeqCommand::Translate(args),
+            } => args.common.settings(&given).unwrap(),
+            Command::Seq { .. } => {
+                unreachable!("only `seq print` and `seq translate` read settings")
+            }
         }
     }
 
@@ -659,6 +698,12 @@ mod tests {
             --memory-limit 2MiB     /limits/memory_bytes       1048576           2097152
             --occurrence-limit 12   /limits/occurrences        11                12
             --ill-syntax one-sided  /input/intuitionistic      "strict"          "one-sided""#;
+        const TRANSFORM: &str = r#"
+            --memory-limit 2MiB     /limits/memory_bytes       1048576           2097152
+            --timeout 3s            /clock/time_limit_ms       5000              3000
+            --work-limit 6          /limits/work               5                 6
+            --occurrence-limit 12   /limits/occurrences        11                12
+            --term-limit 12         /limits/terms              11                12"#;
         let file = std::env::temp_dir().join(format!(
             "deduxit-settings-flags-{}.json",
             std::process::id()
@@ -670,6 +715,8 @@ mod tests {
             (&["check"], "proof.json", [CHECK, LAMBDA].concat()),
             (&["eliminate"], "proof.json", [CHECK, ELIMINATE].concat()),
             (&["seq", "print"], "A |- A", PRINT.to_owned()),
+            (&["seq", "translate"], "a", TRANSFORM.to_owned()),
+            (&["interpolate"], "a |- a", TRANSFORM.to_owned()),
         ] {
             let cases: Vec<(Vec<&str>, &str, Value, Value)> = table
                 .lines()
@@ -779,6 +826,8 @@ mod tests {
             &["deduxit", "check", "proof.json"],
             &["deduxit", "eliminate", "proof.json"],
             &["deduxit", "seq", "print", "A |- A"],
+            &["deduxit", "seq", "translate", "a"],
+            &["deduxit", "interpolate", "a |- a"],
         ] {
             ASKED.with_borrow_mut(Vec::clear);
             let given = Given::default();
@@ -787,6 +836,10 @@ mod tests {
                 Command::Interact(args) => drop(args.settings(&given).unwrap()),
                 Command::Check(args) => drop(args.settings(&given).unwrap()),
                 Command::Eliminate(args) => drop(args.settings(&given).unwrap()),
+                Command::Interpolate(args) => drop(args.common.settings(&given).unwrap()),
+                Command::Seq {
+                    command: crate::argument_parsing::SeqCommand::Translate(args),
+                } => drop(args.common.settings(&given).unwrap()),
                 Command::Seq { .. } => drop(
                     of_print(None, None, None, deduxit::linear::IllSyntax::Strict, &given).unwrap(),
                 ),

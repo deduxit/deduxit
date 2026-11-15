@@ -346,6 +346,23 @@ const CASES: &[Case] = &[
             "(a /\\ b) -> (b /\\ a)",
         ],
     ),
+    call("translate", &["seq", "translate", "a \\/ ~a"]),
+    call(
+        "translate-not-valid",
+        &["seq", "translate", "--by", "godel-gentzen", "a |- b"],
+    ),
+    call("interpolate", &["interpolate", "a /\\ b |- b \\/ c"]),
+    call(
+        "interpolate-first",
+        &[
+            "interpolate",
+            "--logic",
+            "intuitionistic",
+            "--first",
+            "L1",
+            "a, a -> b |- b",
+        ],
+    ),
     call(
         "ordinary-linear",
         &["prove", "--logic", "intuitionistic", "--linear", "a -> a"],

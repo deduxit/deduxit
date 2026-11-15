@@ -242,7 +242,33 @@ pub(crate) enum Command {
     /// output, and the session goes on.
     #[command(after_help = SYNTAX_SHORT, after_long_help = SYNTAX)]
     Interact(InteractArgs),
-    /// Print a sequent, convert it to JSON, or name its fragment
+    /// Find a Craig interpolant of a valid sequent of ordinary logic, and
+    /// check it
+    ///
+    /// The sequent is split into two halves: by default every formula left
+    /// of ⊢ is in the first half and every formula right of it in the
+    /// second, and --first names the first half's formulas instead. An
+    /// interpolant I of `Γ₁, Γ₂ ⊢ Δ₁, Δ₂` is a formula with `Γ₁ ⊢ Δ₁, I` and
+    /// `I, Γ₂ ⊢ Δ₂` both valid, whose atoms are in both halves. For `A ⊢ B`
+    /// that is `A ⊢ I` and `I ⊢ B`.
+    ///
+    /// The sequent is decided through its translation into linear logic,
+    /// and the interpolant read off its derivation by Maehara's method. It
+    /// is checked before it is printed: both halves are decided again, and
+    /// its atoms compared. Each half's line says how it was decided.
+    ///
+    /// The exit status is 0 for an interpolant, 1 for a sequent that is not
+    /// valid (it has none, and the line after the verdict gives the
+    /// countermodel where there is one), 3 for unknown (the time limit or
+    /// another limit stopped the search, or a half's check) and 2 for an
+    /// error. With `--format json` the answer is the record `{"version",
+    /// "logic", "partition", "outcome", "interpolant"}`: the sequent's
+    /// outcome, and the interpolant's text and both halves, each with its
+    /// outcome.
+    #[command(after_help = ORDINARY_SHORT, after_long_help = ORDINARY)]
+    Interpolate(InterpolateArgs),
+    /// Print a sequent, convert it to JSON, name its fragment, or translate
+    /// it from classical logic
     Seq {
         /// What to do with the sequent.
         #[command(subcommand)]
@@ -269,6 +295,10 @@ impl Command {
             Command::Seq {
                 command: SeqCommand::Fragment { input, .. },
             } => Some((&["seq", "fragment"], input, false)),
+            Command::Interpolate(args) => Some((&["interpolate"], &args.common.input, true)),
+            Command::Seq {
+                command: SeqCommand::Translate(args),
+            } => Some((&["seq", "translate"], &args.common.input, true)),
             Command::Check(_) | Command::Eliminate(_) => None,
         }
     }
@@ -291,7 +321,10 @@ impl Command {
                         ..
                     },
             } => !(*intuitionistic || *cyclic || *lambek),
-            Command::Seq { .. } | Command::Check(_) | Command::Eliminate(_) => false,
+            Command::Seq { .. }
+            | Command::Check(_)
+            | Command::Eliminate(_)
+            | Command::Interpolate(_) => false,
         }
     }
 }
@@ -1008,6 +1041,29 @@ pub(crate) enum SeqCommand {
         #[arg(long, value_name = "PATH")]
         settings: Option<PathBuf>,
     },
+    /// Translate a classical sequent into intuitionistic or minimal logic,
+    /// and check that its verdict stays
+    ///
+    /// A negative translation turns a sequent of classical logic into one
+    /// that a weaker logic proves exactly when classical logic proves the
+    /// first. kolmogorov puts ¬¬ before every subformula; godel-gentzen
+    /// before every atom, and writes A ∨ B as ¬(¬A ∧ ¬B); both reach
+    /// minimal logic. kuroda puts ¬¬ before every formula of the sequent,
+    /// and glivenko before the formula right of ⊢ alone; both reach
+    /// intuitionistic logic. Several formulas right of ⊢ are translated as
+    /// their disjunction.
+    ///
+    /// The command prints the translation, then decides the sequent in
+    /// classical logic and its translation in the target logic, and prints
+    /// both verdicts, with the countermodel of a sequent that is not
+    /// valid. Verdicts that differ would be a defect of deduxit, and are an
+    /// error. The exit status is 0 where both are valid, 1 where neither
+    /// is, 3 for unknown (a limit stopped a search) and 2 for an error.
+    /// With `--format json` the answer is the record `{"version",
+    /// "translation", "target", "agreement", "sequent", "translated",
+    /// "classical", "decided"}`, both outcomes with their evidence.
+    #[command(after_help = ORDINARY)]
+    Translate(TranslateArgs),
     /// Print a sequent as JSON, the form `--input-format json` reads
     #[command(after_help = SYNTAX)]
     Json {
@@ -1052,6 +1108,147 @@ pub(crate) enum SeqCommand {
         #[arg(long, value_name = "SIZE", value_parser = parse_bytes, default_value_t = Bytes(Some(Limits::DEFAULT_MEMORY_BYTES)))]
         memory_limit: Bytes,
     },
+}
+
+/// What `seq translate` and `interpolate` share: the sequent, the
+/// output and the limits.
+#[derive(Args, Clone, Debug)]
+pub(crate) struct TransformArgs {
+    /// The sequent, of ordinary logic.
+    #[command(flatten)]
+    pub(crate) input: SequentInput,
+    /// The output format: text, or json for the whole answer with every
+    /// sequent, outcome and derivation
+    #[arg(help_heading = OUTPUT, long, value_enum, value_name = "FORMAT", default_value_t = AnswerFormat::Text)]
+    pub(crate) format: AnswerFormat,
+    /// Write to this file instead of standard output
+    #[arg(help_heading = OUTPUT, short, long, value_name = "PATH")]
+    pub(crate) output: Option<PathBuf>,
+    /// Give up after this long, such as 500ms, 10s, 2m or 1h, or `none`
+    /// (clock.time_limit_ms)
+    ///
+    /// Every search the command runs counts against it, from the start of
+    /// the command. When the time runs out, the verdict is unknown (exit
+    /// status 3).
+    #[arg(help_heading = LIMITS, long, value_name = "DURATION", value_parser = parse_time, default_value_t = Time(Some(DEFAULT_TIMEOUT)))]
+    pub(crate) timeout: Time,
+    /// The most memory a search may hold: a number of bytes with a unit
+    /// such as 512MiB or 4GiB, or `none` for no limit; see `prove
+    /// --memory-limit` (limits.memory_bytes)
+    #[arg(help_heading = LIMITS, long, value_name = "SIZE", value_parser = parse_bytes, default_value_t = Bytes(Some(Limits::DEFAULT_MEMORY_BYTES)))]
+    pub(crate) memory_limit: Bytes,
+    /// The most units of work each search may do, or `none`; see `prove
+    /// --work-limit` (limits.work)
+    #[arg(help_heading = LIMITS, hide_short_help = true, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(None))]
+    pub(crate) work_limit: Count<u64>,
+    /// Read the settings from a JSON file; the flags override it
+    ///
+    /// The file is an object with any of the keys `clock`, `limits`,
+    /// `search`, `view`, `styles`, `batch`, `ordinary`, `interactive`,
+    /// `input`, `cut` and `lambda`. Each holds the fields that the flags
+    /// name in parentheses, such as `{"limits": {"work": 100000}}`. A field
+    /// left out keeps the command's default, and a misspelt one is an
+    /// error.
+    #[arg(long, value_name = "PATH")]
+    pub(crate) settings: Option<PathBuf>,
+}
+
+/// The format of an answer that is no drawing: text or JSON.
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum AnswerFormat {
+    /// Lines of text
+    Text,
+    /// One JSON document
+    Json,
+}
+
+/// The arguments of `seq translate`.
+#[derive(Args, Clone, Debug)]
+pub(crate) struct TranslateArgs {
+    /// The sequent, the output and the limits.
+    #[command(flatten)]
+    pub(crate) common: TransformArgs,
+    /// The negative translation
+    #[arg(help_heading = LOGIC, long, value_enum, value_name = "TRANSLATION", default_value_t = NegativeArg::Kolmogorov)]
+    pub(crate) by: NegativeArg,
+    /// The logic to translate into: minimal or intuitionistic; by default
+    /// the weakest logic the translation reaches, minimal logic for
+    /// kolmogorov and godel-gentzen, intuitionistic logic for kuroda and
+    /// glivenko
+    #[arg(help_heading = LOGIC, long, value_enum, value_name = "LOGIC")]
+    pub(crate) to: Option<LogicArg>,
+}
+
+/// A negative translation of classical logic.
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum NegativeArg {
+    /// Kolmogorov's: ¬¬ before every subformula, into minimal logic
+    Kolmogorov,
+    /// Gödel and Gentzen's: ¬¬ before every atom and A ∨ B as ¬(¬A ∧ ¬B),
+    /// into minimal logic
+    GodelGentzen,
+    /// Kuroda's: ¬¬ before every formula of the sequent, into
+    /// intuitionistic logic
+    Kuroda,
+    /// Glivenko's: ¬¬ before the formula right of ⊢, into intuitionistic
+    /// logic
+    Glivenko,
+}
+
+impl From<NegativeArg> for deduxit::ordinary::negative::Translation {
+    fn from(translation: NegativeArg) -> Self {
+        match translation {
+            NegativeArg::Kolmogorov => Self::Kolmogorov,
+            NegativeArg::GodelGentzen => Self::GodelGentzen,
+            NegativeArg::Kuroda => Self::Kuroda,
+            NegativeArg::Glivenko => Self::Glivenko,
+        }
+    }
+}
+
+/// The arguments of `interpolate`.
+#[derive(Args, Clone, Debug)]
+pub(crate) struct InterpolateArgs {
+    /// The sequent, the output and the limits.
+    #[command(flatten)]
+    pub(crate) common: TransformArgs,
+    /// The ordinary logic of the sequent
+    #[arg(help_heading = LOGIC, long, value_enum, value_name = "LOGIC", default_value_t = LogicArg::Classical)]
+    pub(crate) logic: LogicArg,
+    /// The formulas of the first half, by position, separated by commas: L0
+    /// is the first formula left of ⊢, R0 the first right of it; by default
+    /// every formula left of ⊢
+    ///
+    /// In intuitionistic and minimal logic the formula right of ⊢ is always
+    /// in the second half.
+    #[arg(help_heading = INPUT, long, value_name = "POSITIONS", value_delimiter = ',', value_parser = parse_position)]
+    pub(crate) first: Option<Vec<Position>>,
+}
+
+/// A formula of a sequent by its side and its position there.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Position {
+    /// Whether it is right of ⊢.
+    pub(crate) right: bool,
+    /// Its position on its side, from 0.
+    pub(crate) at: usize,
+}
+
+/// Reads a position: `L` or `R` and a number, `L0` the first formula left
+/// of ⊢.
+fn parse_position(text: &str) -> Result<Position, String> {
+    let wrong = || {
+        format!(
+            "{text:?} is no position: write L0 for the first formula left of ⊢, R0 for the first right of it"
+        )
+    };
+    let (right, number) = match text.split_at_checked(1) {
+        Some(("L" | "l", number)) => (false, number),
+        Some(("R" | "r", number)) => (true, number),
+        _ => return Err(wrong()),
+    };
+    let at = number.parse().map_err(|_| wrong())?;
+    Ok(Position { right, at })
 }
 
 /// Where a sequent comes from.
