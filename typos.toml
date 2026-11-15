@@ -35,6 +35,8 @@ falso = "falso"
 # Classical and multiplicative-additive intuitionistic linear logic.
 CLL = "CLL"
 MAILL = "MAILL"
+# Double negation elimination, in the name of the calculus NK-DNE.
+DNE = "DNE"
 # FoSSaCS, a conference.
 Fo = "Fo"
 # A field named after a plural of `&`, and a hyphenated prefix.

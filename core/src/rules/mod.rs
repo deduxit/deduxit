@@ -109,6 +109,42 @@ pub const LL: &str = include_str!("calculi/ll.json");
 /// ordinary suite's tableaux in it (feature `interactive`).
 pub const TABLEAU: &str = include_str!("calculi/tableau.json");
 
+/// The rule file of NJ, Gentzen's natural deduction for intuitionistic
+/// propositional logic: a judgement is one formula, a hypothesis is a
+/// node of its own, and `→I`, `∨E`, `¬I` and `↔I` discharge hypotheses
+/// by scope. `¬I` and `¬E` are rules of their own, ex falso is `⊥E`, and
+/// every elimination takes its major premise first.
+pub const NJ: &str = include_str!("calculi/nj.json");
+
+/// The rule file of NK, natural deduction for classical propositional
+/// logic: [`NJ`] with the classical absurdity rule `RAA` (Prawitz's
+/// `⊥c`), which concludes `A` from `⊥` and discharges `¬A`.
+pub const NK: &str = include_str!("calculi/nk.json");
+
+/// The rule file of NM, natural deduction for minimal propositional
+/// logic: [`NJ`] without ex falso, so `⊥` has no rule of its own.
+pub const NM: &str = include_str!("calculi/nm.json");
+
+/// The rule file of NK with double negation elimination `¬¬E` in place
+/// of `RAA`.
+pub const NK_DNE: &str = include_str!("calculi/nk-dne.json");
+
+/// The rule file of NK with the law of excluded middle `LEM`, which
+/// concludes `A ∨ ¬A` from nothing, in place of `RAA`, as Gentzen gave
+/// the calculus.
+pub const NK_LEM: &str = include_str!("calculi/nk-lem.json");
+
+/// The rule file of [`NJ`] with `¬A` written `A → ⊥`: it has no `¬`, and
+/// `→I` and `→E` do the work of `¬I` and `¬E`.
+pub const NJ_DEFINED: &str = include_str!("calculi/nj-defined.json");
+
+/// The rule file of [`NK`] with `¬A` written `A → ⊥`: it has no `¬`,
+/// and `RAA` discharges `A → ⊥`.
+pub const NK_DEFINED: &str = include_str!("calculi/nk-defined.json");
+
+/// The rule file of [`NM`] with `¬A` written `A → ⊥`: it has no `¬`.
+pub const NM_DEFINED: &str = include_str!("calculi/nm-defined.json");
+
 /// The JSON Schema (draft 2020-12) of a rule file: the shape of the
 /// document, for an editor or a program that writes one. Reading a rule
 /// file checks more than a schema can say: that every name is declared,
