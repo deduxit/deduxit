@@ -488,7 +488,11 @@ impl Derivation {
         limits: &crate::Limits,
         mut stop: impl FnMut(crate::Progress) -> bool,
     ) -> Result<crate::lambda::Term, Error> {
-        if !self.trusted.get() {
+        // A derivation of LK or with an open goal has no term whether it
+        // checks or not: the read-back refuses it before it reads anything.
+        let refused =
+            self.logic == Logic::Classical || self.inferences.iter().any(|i| i.rule == Rule::Open);
+        if !self.trusted.get() && !refused {
             self.check(limits, &mut stop)?;
         }
         crate::lambda::simple::read(self, limits, stop)
@@ -1924,6 +1928,13 @@ mod tests {
         assert!(matches!(
             broken.term(&limits, |_| false),
             Err(Error::ReadBack { .. })
+        ));
+        // An open goal has no term, checked or not.
+        assert!(json.contains("\"ax\""), "{json}");
+        let open: Derivation = serde_json::from_str(&json.replace("\"ax\"", "\"open\"")).unwrap();
+        assert!(matches!(
+            open.term(&limits, |_| false),
+            Err(Error::NoTerm { .. })
         ));
     }
 }
