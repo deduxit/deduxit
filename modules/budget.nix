@@ -19,8 +19,10 @@
       packages = builtins.length (builtins.fromTOML (builtins.readFile ../Cargo.lock)).package;
 
       # The module the web page loads, in bytes at `gzip -9', what a
-      # browser downloads: 2 842 389 on 2026-11-14 (2 603 759 at 0.2.0).
-      mostModuleBytes = 3000000;
+      # browser downloads: 3 111 006 on 2026-11-15, when the bindings
+      # took up calculi given as data (2 842 389 on 2026-11-14, 2 603 759
+      # at 0.2.0).
+      mostModuleBytes = 3300000;
     in
     {
       checks.budget =
