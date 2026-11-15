@@ -22,8 +22,9 @@
 
 use super::drup::{ClausalProof, Rejection, Step};
 use super::solver::{Answer, Batsat, Lit, Solver};
-use super::{Model, Outcome, Statistics, World};
+use super::{Outcome, Statistics};
 use crate::Error;
+use crate::kripke::{Model, World};
 use crate::limits::{Limits, Phase, Progress};
 use crate::linear::search::Reason;
 use crate::linear::search::memory::Account;
@@ -282,14 +283,11 @@ pub(super) fn decide(
         Err(reason) => (Verdict::Unknown(reason), None),
         Ok(Found::Assignment(atoms)) => {
             statistics.worlds = 1;
-            let model = Model {
-                worlds: vec![World {
-                    atoms,
-                    falsity: false,
-                    above: Vec::new(),
-                }],
-            };
+            let names = sequent.formulas().atom_names();
+            let atoms = atoms.iter().map(|&a| names[a as usize].clone()).collect();
+            let model = Model::new(vec![World::new(atoms, false, Vec::new())], 0);
             model.refutes(sequent, logic, &mut stop)?;
+            let model = super::super::Countermodel::new(sequent.clone(), model);
             (Verdict::NotValid, Some(model))
         }
         Ok(Found::Proof(clauses, proof)) => {
@@ -470,7 +468,7 @@ mod tests {
                     true
                 }
                 Verdict::NotValid => {
-                    let model = outcome.model.as_ref().unwrap();
+                    let model = &outcome.model.as_ref().unwrap().model;
                     assert_eq!(model.worlds.len(), 1, "{sequent}");
                     assert_eq!(model.refutes(&sequent, Logic::Classical, |_| false), Ok(()));
                     refuted += 1;
@@ -528,22 +526,14 @@ mod tests {
         );
         // A one-world model that makes a formula right of `⊢` true.
         let sequent: Sequent = "a |- a, b".parse().unwrap();
-        let model = Model {
-            worlds: vec![World {
-                atoms: vec![0],
-                falsity: false,
-                above: Vec::new(),
-            }],
-        };
+        let model = Model::new(vec![World::new(vec!["a".to_owned()], false, Vec::new())], 0);
         let Err(Error::Countermodel { reason }) =
             model.refutes(&sequent, Logic::Classical, |_| false)
         else {
             panic!("a true conclusion accepted");
         };
         assert!(reason.contains("forces the conclusion"), "{reason}");
-        let two = Model {
-            worlds: vec![model.worlds[0].clone(), World::default()],
-        };
+        let two = Model::new(vec![model.worlds[0].clone(), World::default()], 0);
         assert!(two.refutes(&sequent, Logic::Classical, |_| false).is_err());
     }
 

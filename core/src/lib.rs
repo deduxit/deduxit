@@ -255,6 +255,7 @@ mod errors;
 pub mod export;
 /// The hash tables of this crate.
 mod hash;
+pub mod kripke;
 pub mod lambda;
 pub mod limits;
 pub mod linear;

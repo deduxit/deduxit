@@ -1,0 +1,2 @@
+model-two-worlds: {"version":13,"worlds":[{"atoms":[],"arrows":[1]},{"atoms":["a"]}],"world":0}
+outcome-countermodel: {"version":12,"deduxit":"0.3.0","verdict":"not_valid","logic":"intuitionistic","search":{"method":"sat","statistics":{"calls":2,"conflicts":0,"lemmas":0,"worlds":2,"facts":0,"clauses":0,"proof_steps":0,"ljt":null}},"countermodel":{"sequent":{"formulas":[{"V":0},{"¬":0},{"∨":[0,1]}],"atoms":["a"],"left":[],"right":[2]},"model":{"worlds":[{"atoms":[],"arrows":[1]},{"atoms":["a"]}],"world":0}}}

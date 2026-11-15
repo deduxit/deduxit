@@ -370,7 +370,12 @@ outcome of `ordinary::decide` is written and read at level 12
 and the image's outcome nested (`search::Nested`, an outcome's keys
 without `version` and `deduxit`; `search::OutcomeForm` reads it back);
 levels 8 to 10 wrote it differently, and its reader refuses them, since
-no release read it;
+no release read it; level 13 (`wire::KRIPKE`, `serialize/kripke.rs`)
+is the Kripke model, a document of its own; the outcome's
+`countermodel` (`{"sequent", "model"}`) raises no level (a reader of 12
+ignores it without misreading the verdict), so the outcome stays at 12; its
+names checked and composed as every reader's are, its size within
+`limits.occurrences`;
 a reader maps the document's indices to the
 arena it builds (equal formulas are one node there), so a document of
 ours writes back the same bytes. `ill.rs`'s refusal test names the level

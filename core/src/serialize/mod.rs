@@ -80,6 +80,8 @@ mod ill;
 /// steps.
 #[cfg(feature = "interactive")]
 mod interactive;
+/// Serde for `kripke::Model`: the worlds, their atoms and arrows.
+mod kripke;
 /// Serde for `ProofStructure` and `MellStructure`: the sequent and the
 /// links.
 mod nets;

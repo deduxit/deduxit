@@ -11,7 +11,8 @@
 //! `wire/level-6.txt` those level 6 added, `wire/level-7.txt` those
 //! level 7 added, `wire/level-8.txt` those level 8 added,
 //! `wire/level-11.txt` those level 11 added, `wire/level-12.txt` the
-//! ordinary outcomes of level 12; none is ever
+//! ordinary outcomes of level 12, `wire/level-13.txt` a Kripke model and
+//! an outcome that holds one (at level 12); none is ever
 //! rewritten: where
 //! the lock moves on, these files stay. Every
 //! line of a form that is read back reads through
@@ -280,6 +281,31 @@ fn the_twelfth_level_reads() {
         }
     }
     assert_eq!(lines.lines().count(), 3);
+}
+
+/// The forms level 13 added, a Kripke model, and an ordinary outcome that
+/// holds one (still written at level 12: the key raises no level), read
+/// and write the same bytes again, and the outcome's
+/// countermodel still refutes its sequent. Never rewritten, as
+/// `wire/level-1.txt` is not.
+#[test]
+fn the_thirteenth_level_reads() {
+    use deduxit::{kripke, ordinary};
+    let lines = include_str!("wire/level-13.txt");
+    for line in lines.lines() {
+        let (name, json) = line.split_once(": ").unwrap();
+        match name.split('-').next().unwrap() {
+            "model" => again::<kripke::Model>(name, json),
+            "outcome" => {
+                again::<ordinary::Outcome>(name, json);
+                let outcome: ordinary::Outcome = read(name, json);
+                let countermodel = outcome.countermodel.expect("a countermodel");
+                assert_eq!(countermodel.check(outcome.logic, |_| false), Ok(()));
+            }
+            other => panic!("{name}: no form {other}"),
+        }
+    }
+    assert_eq!(lines.lines().count(), 2);
 }
 
 /// Every outcome the JSON lock holds (each verdict, refutation and reason,

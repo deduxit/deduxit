@@ -445,6 +445,19 @@ struct OutcomeForm<'a> {
     #[cfg(feature = "sat")]
     #[serde(skip_serializing_if = "Option::is_none")]
     clausal_proof: Option<&'a crate::ordinary::sat::ClausalProof>,
+    /// The Kripke model that refutes the sequent, for `not_valid` by one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    countermodel: Option<CountermodelForm>,
+}
+
+/// The serialized form of a countermodel: the sequent refuted and the
+/// model.
+#[derive(Serialize, Deserialize)]
+struct CountermodelForm {
+    /// The sequent refuted.
+    sequent: SequentForm,
+    /// The model.
+    model: super::kripke::ModelForm,
 }
 
 /// How an ordinary sequent was searched, as an outcome writes it: an
@@ -500,6 +513,12 @@ impl Serialize for Outcome {
             #[cfg(feature = "sat")]
             Search::Sat(statistics) => SearchForm::Sat { statistics },
         };
+        let countermodel = self.countermodel.as_ref().map(|c| CountermodelForm {
+            sequent: SequentForm::of(c.sequent.formulas(), c.sequent.left(), c.sequent.right()),
+            model: super::kripke::ModelForm::from(&c.model),
+        });
+        // A reader of level 12 may ignore the countermodel without
+        // misreading the verdict, so it raises no level.
         OutcomeForm {
             version: wire::SEARCH,
             deduxit: env!("CARGO_PKG_VERSION"),
@@ -515,6 +534,7 @@ impl Serialize for Outcome {
                 | Verdict::NotValid
                 | Verdict::Unknown(_) => None,
             },
+            countermodel,
         }
         .serialize(serializer)
     }
@@ -579,6 +599,9 @@ struct OutcomeRead {
     /// The clausal proof's counts, for `valid` by one.
     #[serde(default)]
     clausal_proof: Option<serde::de::IgnoredAny>,
+    /// The Kripke model that refutes the sequent, for `not_valid`.
+    #[serde(default)]
+    countermodel: Option<CountermodelForm>,
 }
 
 impl OutcomeRead {
@@ -644,10 +667,23 @@ impl OutcomeRead {
                 None => return Err(refuse("missing field `reason`")),
             },
         };
+        let countermodel = match (self.countermodel, &verdict) {
+            (None, _) => None,
+            (Some(form), Verdict::NotValid) => Some(crate::ordinary::Countermodel::new(
+                sequent(form.sequent, limits)?,
+                form.model.within(limits)?,
+            )),
+            (Some(_), _) => {
+                return Err(refuse(
+                    "a countermodel beside a verdict other than not_valid",
+                ));
+            }
+        };
         Ok(Outcome {
             verdict,
             logic: self.logic,
             search,
+            countermodel,
         })
     }
 }

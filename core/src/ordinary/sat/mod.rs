@@ -27,13 +27,13 @@
 //! *A proof-theoretic perspective on SMT-solving for intuitionistic
 //! propositional logic*, TABLEAUX 2019), or by [`ljt`] where a bound
 //! refuses that derivation. "Not valid" comes with the Kripke model, which
-//! [`Model::refutes`] checks. Minimal logic is the same search with `⊥` a
+//! [`Model::refutes`](crate::kripke::Model::refutes) checks. Minimal logic is the same search with `⊥` a
 //! variable like an atom.
 //!
 //! Classical logic is decided by one call of the solver on the clauses of
 //! the sequent's negation (Tseitin's encoding with polarities). "Not
 //! valid" comes with a model of one world, the assignment that falsifies
-//! the sequent, which [`Model::refutes`] checks by evaluation. "Valid"
+//! the sequent, which [`Model::refutes`](crate::kripke::Model::refutes) checks by evaluation. "Valid"
 //! comes with the clauses the solver learnt and deleted, recorded as a
 //! clausal proof (DRUP) that this module's own checker accepts by unit
 //! propagation against the clauses ([`ClausalProof`]). It is no
@@ -52,19 +52,19 @@
 //! let sequent: ordinary::Sequent = "a \\/ ~a".parse()?;
 //! let outcome = sat::decide(&sequent, Logic::Intuitionistic, &Limits::default(), |_| false)?;
 //! assert!(matches!(outcome.verdict, Verdict::NotValid));
-//! let model = outcome.model.expect("a model refutes it");
-//! assert_eq!(model.worlds.len(), 2);
+//! let countermodel = outcome.model.expect("a model refutes it");
+//! assert_eq!(countermodel.model.worlds.len(), 2);
 //! # Ok::<(), deduxit::Error>(())
 //! ```
 
 mod classical;
 mod drup;
-mod model;
 mod read_back;
 mod solver;
 
 pub use drup::ClausalProof;
-pub use model::{Model, World};
+
+use crate::kripke::{Model, World};
 
 use self::solver::{Answer, Batsat, Lit, MOST_VARIABLES, Solver};
 use super::{Derivation, Evidence, Formulas, Logic, Node, NodeId, Sequent, Verdict, ljt};
@@ -84,8 +84,9 @@ pub struct Outcome {
     pub logic: Logic,
     /// What the search cost.
     pub statistics: Statistics,
-    /// The Kripke model that refutes a sequent that is not valid, checked.
-    pub model: Option<Model>,
+    /// The Kripke model that refutes a sequent that is not valid, with the
+    /// sequent, checked.
+    pub model: Option<super::Countermodel>,
 }
 
 /// What a search by the SAT solver cost.
@@ -298,26 +299,26 @@ fn run(
             let cells = statistics
                 .worlds
                 .saturating_mul(sequent.formulas().len() as u64);
-            if cells > Model::MOST_CELLS {
-                return Err(Error::Refused(Refusal::Memory {
-                    phase: crate::limits::Phase::Check,
-                    limit_bytes: Model::MOST_CELLS / 8,
-                    needed_bytes: Some(cells / 8),
-                }));
-            }
-            match kripke(
-                &formulas,
-                logic,
-                (falsity, &nodes),
-                worlds,
-                &account,
-                &mut stop,
-            ) {
-                Ok(model) => {
-                    model.refutes(sequent, logic, &mut stop)?;
-                    (Verdict::NotValid, Some(model))
+            if cells > super::MODEL_CELLS {
+                // Too large to show and to check: the verdict stands
+                // without its model, the worlds counted.
+                (Verdict::NotValid, None)
+            } else {
+                match kripke(
+                    &formulas,
+                    logic,
+                    (falsity, &nodes),
+                    worlds,
+                    &account,
+                    &mut stop,
+                ) {
+                    Ok(model) => {
+                        model.refutes(sequent, logic, &mut stop)?;
+                        let model = super::Countermodel::new(sequent.clone(), model);
+                        (Verdict::NotValid, Some(model))
+                    }
+                    Err(reason) => (Verdict::Unknown(reason), None),
                 }
-                Err(reason) => (Verdict::Unknown(reason), None),
             }
         }
         Ok((Found::Valid, lemmas, _)) => {
@@ -914,15 +915,14 @@ fn kripke(
             }
         }
         atoms.sort_unstable();
-        World {
-            atoms,
-            falsity: forces_falsity,
+        let names = formulas.atom_names();
+        World::new(
+            atoms.iter().map(|&a| names[a as usize].clone()).collect(),
+            forces_falsity,
             above,
-        }
+        )
     });
-    Ok(Model {
-        worlds: models.collect(),
-    })
+    Ok(Model::new(models.collect(), 0))
 }
 
 #[cfg(all(test, feature = "parse"))]
@@ -970,7 +970,7 @@ mod tests {
                         true
                     }
                     Verdict::NotValid => {
-                        let model = outcome.model.as_ref().unwrap();
+                        let model = &outcome.model.as_ref().unwrap().model;
                         assert_eq!(model.refutes(&sequent, logic, |_| false), Ok(()));
                         refuted += 1;
                         false
@@ -1045,7 +1045,7 @@ mod tests {
         let text = "((a -> b) -> a) -> a";
         let sequent: Sequent = text.parse().unwrap();
         let logic = Logic::Intuitionistic;
-        let model = sat(text, logic).model.unwrap();
+        let model = sat(text, logic).model.unwrap().model;
         assert_eq!(model.refutes(&sequent, logic, |_| false), Ok(()));
         assert!(model.worlds.len() >= 2, "{model:?}");
         let refused = |model: &Model, why: &str| {
@@ -1055,37 +1055,39 @@ mod tests {
             };
             assert!(reason.contains(why), "{reason} for {why}");
         };
+        let both = || vec!["a".to_owned(), "b".to_owned()];
         // The root's conclusion made true everywhere.
         let mut planted = model.clone();
         for world in &mut planted.worlds {
-            world.atoms = vec![0, 1];
+            world.atoms = both();
         }
         refused(&planted, "forces the conclusion");
         // A world above that forgets an atom below it.
         let mut planted = model.clone();
-        let up = planted.worlds[0].above[0] as usize;
-        planted.worlds[0].atoms.push(0);
+        let up = planted.worlds[0].arrows[0] as usize;
+        planted.worlds[0].atoms.push("a".to_owned());
         planted.worlds[up].atoms.clear();
         refused(&planted, "does not force all it forces");
-        // The edges taken away: the root alone forces the formula.
+        // The arrows taken away: the root alone forces the formula.
         let mut planted = model.clone();
         planted.worlds.truncate(1);
-        planted.worlds[0].above.clear();
+        planted.worlds[0].arrows.clear();
         refused(&planted, "forces the conclusion");
-        // An edge back, an atom that does not exist, ⊥ forced.
+        // An arrow back, an arrow to no world, ⊥ forced, the model's world
+        // missing.
         let mut planted = model.clone();
         let last = planted.worlds.len() - 1;
-        planted.worlds[last].above.push(0);
-        refused(&planted, "does not come after it");
+        planted.worlds[last].arrows.push(last as u32);
+        refused(&planted, "the arrows go round");
         let mut planted = model.clone();
-        planted.worlds[0].atoms = vec![7];
-        refused(&planted, "no atom has the index 7");
+        planted.worlds[0].arrows.push(99);
+        refused(&planted, "which the model does not have");
         let mut planted = model.clone();
         planted.worlds[0].falsity = true;
         refused(&planted, "forces ⊥ in intuitionistic logic");
         let mut planted = model;
-        planted.worlds[0].above.clear();
-        refused(&planted, "is not above the root");
+        planted.world = 99;
+        refused(&planted, "is not one of its");
     }
 
     /// The search stops at the work bound, the stop and the memory bound,
@@ -1150,10 +1152,8 @@ mod tests {
         // A model of more cells than the check computes.
         let chain: Vec<String> = (0..1 << 14).map(|i| format!("a{i}")).collect();
         let sequent: Sequent = format!("|- {}", chain.join(" /\\ ")).parse().unwrap();
-        let worlds = (Model::MOST_CELLS as usize).div_ceil(sequent.formulas().len()) + 1;
-        let model = Model {
-            worlds: vec![World::default(); worlds],
-        };
+        let worlds = (super::super::MODEL_CELLS as usize).div_ceil(sequent.formulas().len()) + 1;
+        let model = Model::new(vec![World::default(); worlds], 0);
         assert!(matches!(
             model.refutes(&sequent, logic, |_| false),
             Err(Error::Refused(Refusal::Memory { .. }))
@@ -1214,7 +1214,7 @@ mod tests {
             &mut |_| false,
         );
         let model = model.unwrap();
-        assert_eq!(model.worlds[0].above, vec![1]);
+        assert_eq!(model.worlds[0].arrows, vec![1]);
         assert_eq!(free.used(), 0);
         let small = Account::holding(Some(n as u64 * 8), 0);
         let refused = kripke(

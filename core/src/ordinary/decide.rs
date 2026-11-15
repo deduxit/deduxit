@@ -34,6 +34,13 @@ pub struct Outcome {
     pub logic: Logic,
     /// How the sequent was searched, and what the search found and cost.
     pub search: Search,
+    /// The Kripke model that refutes a sequent that is not valid, checked:
+    /// the SAT solver's, or in classical logic the assignment of the
+    /// image's refutation as a model of one world. `None` for every other
+    /// verdict, for a "not valid" of LJT, which gives no model, and for a
+    /// model past [`MODEL_CELLS`](super::MODEL_CELLS), too large to show
+    /// (the SAT solver's statistics count its worlds).
+    pub countermodel: Option<super::Countermodel>,
 }
 
 /// How an ordinary sequent was searched, by its [`Method`].
@@ -71,12 +78,13 @@ impl Outcome {
 #[cfg(feature = "sat")]
 impl From<super::sat::Outcome> for Outcome {
     /// The outcome of the SAT solver as an outcome of deciding an ordinary
-    /// sequent, without its model.
+    /// sequent, its model the countermodel.
     fn from(outcome: super::sat::Outcome) -> Self {
         Self {
             verdict: outcome.verdict,
             logic: outcome.logic,
             search: Search::Sat(outcome.statistics),
+            countermodel: outcome.model,
         }
     }
 }
@@ -88,6 +96,7 @@ impl From<ljt::Outcome> for Outcome {
             verdict: outcome.verdict,
             logic: outcome.logic,
             search: Search::Ljt(outcome.statistics),
+            countermodel: None,
         }
     }
 }
@@ -225,6 +234,7 @@ fn with_evidence(
         }
         (search::Verdict::Unknown(_), _) => return Ok(solved),
     };
+    let countermodel = image.countermodel(&linear)?;
     Ok(Outcome {
         verdict,
         logic,
@@ -232,6 +242,7 @@ fn with_evidence(
             translation,
             linear: Box::new(linear),
         },
+        countermodel,
     })
 }
 
@@ -298,6 +309,7 @@ impl super::Image {
             search::Verdict::Unprovable(_) => Verdict::NotValid,
             search::Verdict::Unknown(reason) => Verdict::Unknown(*reason),
         };
+        let countermodel = self.countermodel(&linear)?;
         Ok(Outcome {
             verdict,
             logic: self.logic(),
@@ -305,7 +317,41 @@ impl super::Image {
                 translation: self.translation(),
                 linear: Box::new(linear),
             },
+            countermodel,
         })
+    }
+
+    /// Returns the countermodel the image's refutation gives in classical
+    /// logic: its assignment as a model of one world, which must refute
+    /// the ordinary sequent; `None` in the other logics, for every other
+    /// refutation and every other verdict.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Countermodel`] where the assignment does not refute the
+    /// ordinary sequent, a defect.
+    fn countermodel(&self, linear: &search::Outcome) -> Result<Option<super::Countermodel>, Error> {
+        let search::Verdict::Unprovable(disproof) = &linear.verdict else {
+            return Ok(None);
+        };
+        let crate::linear::Refutation::Classical(classical) = disproof.refutation() else {
+            return Ok(None);
+        };
+        if self.logic() != Logic::Classical {
+            return Ok(None);
+        }
+        let names = disproof.sequent().atom_names();
+        let atoms = names
+            .iter()
+            .zip(&classical.assignment)
+            .filter(|&(_, &value)| value)
+            .map(|(name, _)| name.clone())
+            .collect();
+        let world = crate::kripke::World::new(atoms, false, Vec::new());
+        let model = crate::kripke::Model::new(vec![world], 0);
+        let countermodel = super::Countermodel::new(self.ordinary().clone(), model);
+        countermodel.check(Logic::Classical, |_| false)?;
+        Ok(Some(countermodel))
     }
 }
 
@@ -407,6 +453,7 @@ pub fn decide_within(
         search::Verdict::Unprovable(_) => Verdict::NotValid,
         search::Verdict::Unknown(reason) => Verdict::Unknown(*reason),
     };
+    let countermodel = image.countermodel(&linear)?;
     Ok(Outcome {
         verdict,
         logic,
@@ -414,6 +461,7 @@ pub fn decide_within(
             translation,
             linear: Box::new(linear),
         },
+        countermodel,
     })
 }
 

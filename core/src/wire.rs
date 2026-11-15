@@ -28,6 +28,7 @@
 //! | 10 | a sequent valid by a clausal proof, `"clausal_proof": {…}` in place of the derivation | an ordinary outcome that holds one, before level 12 |
 //! | 11 | the refutation by the basis of a backward search, `{"kind": "basis", "body": …, "classes": […], "markings": […]}` | a disproof or unprovable outcome that holds one |
 //! | 12 | the ordinary outcome's search as an object tagged by its method, `"search": {"method": "embedding", "translation": …, "image": {…}}`, `{"method": "ljt", "statistics": {…}}` or `{"method": "sat", …}`, the image's whole outcome under the embedding; a valid outcome without `derivation` or `clausal_proof` rests on the image's proof | every ordinary outcome |
+//! | 13 | the Kripke model, `{"worlds": [{"atoms": […], "falsity": true, "arrows": […]}, …], "world": n}`, a form of its own (an ordinary outcome holds one under `countermodel`, a key a reader of level 12 ignores without misreading, so the outcome stays at 12) | a model |
 //!
 //! A reader refuses a document above its level by name ([`Error::Version`],
 //! code `unsupported_version`). It does so before reading the other keys
@@ -154,6 +155,13 @@
 //!   derivation. Reading one reads the derivation and the image's proof
 //!   or disproof as their own readers do, and refuses an outcome below
 //!   level 12 and one valid by a clausal proof, whose counts hold no proof.
+//! - **Kripke model**: `{"version": 13, "worlds": [{"atoms": [],
+//!   "arrows": [1, 2]}, {"atoms": ["a"]}, {"atoms": ["b"]}], "world": 0}`:
+//!   each world's atoms by name, `"falsity": true` where it forces `⊥`,
+//!   its arrows to the worlds directly above it by index, and the world
+//!   the model is about; see [`kripke::Model`](crate::kripke::Model).
+//!   Nested in an ordinary outcome as `countermodel` it has no `version`;
+//!   the outcome stays at level 12.
 //! - **Ordinary session**: `{"version": 8, "logic": "intuitionistic",
 //!   "sequent": {…}, "inferences": […], "history": […]}`, the inferences in
 //!   the state's own order, the root first, an open goal its two sides
@@ -177,7 +185,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// The highest wire level this build reads and writes.
-pub const LEVEL: u32 = 12;
+pub const LEVEL: u32 = 13;
 
 /// The level of every document that no later level's feature raises.
 pub(crate) const BASE: u32 = 1;
@@ -335,6 +343,9 @@ pub(crate) const ORDINARY_CUT: u32 = 9;
 /// The level of an ordinary outcome: its search tagged by its method,
 /// the image's outcome nested under the embedding.
 pub(crate) const SEARCH: u32 = 12;
+
+/// The level of a Kripke model.
+pub(crate) const KRIPKE: u32 = 13;
 
 /// The level of a disproof or an outcome refuted by the basis of a
 /// backward search.

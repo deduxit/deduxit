@@ -38,6 +38,8 @@ mod derivation;
 #[cfg(feature = "interactive")]
 mod interactive;
 pub mod ljt;
+/// The check of a Kripke model.
+mod model;
 #[cfg(feature = "parse")]
 mod parse;
 /// The certificates over `Prop`.
@@ -56,6 +58,7 @@ pub use derivation::{Derivation, Inference, Rule, Side};
 pub(crate) use interactive::Parts;
 #[cfg(feature = "interactive")]
 pub use interactive::{Applicable, Closed, Context, Hint, Interactive, Needs, Step, StepError};
+pub use model::{Countermodel, Forcing, MODEL_CELLS};
 #[cfg(feature = "parse")]
 pub use parse::{Problem, read_tptp};
 pub use translate::{FALSE, Image, translate};

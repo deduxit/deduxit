@@ -47,7 +47,9 @@ re-exports `Error`, `ErrorKind`, `Described`, `Owner`, `ParseError`,
   family every call returns, the limits and progress every long call
   takes, the settings a front end holds for every suite, the exports
   (which draw an ordinary derivation as they draw a linear one), the
-  wire forms (whose level counts the ordinary forms too) and the
+  wire forms (whose level counts the ordinary forms too), the Kripke
+  model (`kripke`, data only: each suite checks it by its own rules, the
+  modal suite with its frame conditions) and the
   crate's serde and hash tables. What `ordinary` and `lambda` use of the
   calculus itself (`Mode`, `Proof`, the search they decide through, the
   occurrences a lambda-term reads) is the linear suite's, and they name
@@ -85,8 +87,8 @@ of those names),
 `simple`, the printer `print`),
 `ordinary` (the arena and syntax in `mod.rs`, `parse` behind the
 feature of that name, `translate`, `derivation` with the read-back and
-its checker, the native engine `ljt`, the SAT engine `sat` behind that feature, `rocq` behind that feature, `interactive` behind that
-feature), and `lltp`, `mist` and
+its checker, the native engine `ljt`, the SAT engine `sat` behind that feature, the check of a Kripke model `model`, `rocq` behind that feature, `interactive` behind that
+feature), `kripke` (the shared Kripke model), and `lltp`, `mist` and
 `families` behind `parse`. Users write `deduxit::linear::Sequent`,
 `deduxit::linear::Proof`, `deduxit::linear::prove`, `deduxit::Error`,
 `deduxit::Limits`, and so on. `hash` and `serialize` are crate-private,
@@ -344,8 +346,9 @@ the commit that lands it rewrites that bullet.
   Options}` (added at step 50); `ordinary::{Evidence, Logic, Options,
   Outcome, Problem, Target, Translation, Verdict}` (`Evidence` added at
   step 54s); `ordinary::ljt::{Outcome,
-  Statistics}` (added at step 54); `ordinary::sat::{Model, Outcome,
-  Statistics, World}` (added at step 54s); `proofs::{ClassicalRule,
+  Statistics}` (added at step 54); `ordinary::sat::{Outcome,
+  Statistics}` (added at step 54s); `kripke::{Model, World}`,
+  `ordinary::Countermodel` (added at step 55b); `proofs::{ClassicalRule,
   ClassicalSides, Compact, Dyadic, Fault, Invalid, Labels, OpenGoal,
   Refused, Sides, TextOptions}`;
   `proofs::interactive::{Applicable, Closed, Inverted, Needs, Options,

@@ -372,16 +372,34 @@ the trust.
   derivation and statistics (`Statistics::ljt`); where the stop ends
   LJT, the stop; where another bound does, the read-back's refusal. LJT refuting a sequent the search proved is
   `Error::ReadBack`.
-- **The model is data** (`Model`, `World`: atoms by index, `⊥` forced in
-  minimal logic only, edges to later worlds), kept on `sat::Outcome`,
-  not on `ordinary::Outcome`. `refutes` computes forcing for every
-  formula of the arena at every world, the last first, an implication
-  from its local value and the worlds directly above; `¬A` is `A → ⊥`,
-  so in minimal logic a world forcing `⊥` forces `¬A` too (the first
-  check read it as intuitionistic negation and refused minimal models).
-  Its cost is `MOST_CELLS` (worlds and edges times formulas), refused
-  past it as memory. A model that fails is `Error::Countermodel`, a
-  defect; a model a user gives would need an `invalid` kind.
+- **The model is the shared `kripke::Model`** (root module, step 55b):
+  worlds with atoms by name, `falsity` (minimal logic only), arrows to
+  the worlds directly above, and `world`, the world it is about. The SAT
+  method's model is `ordinary::Countermodel` (the sequent and the model)
+  on `sat::Outcome::model`, carried into `ordinary::Outcome::countermodel`;
+  past `MODEL_CELLS` (worlds and arrows times formulas) the model is not
+  built and the verdict stays "not valid" without it (the prompt's "too
+  large to show"; such a verdict rests on the search, as LJT's does).
+- **The check** (`model.rs`): `Model::forcing` checks the model is one of
+  the logic (the model's world among its worlds, arrows to worlds of the
+  model and none round: Kahn's order on the arrows, a world after every
+  world above it; atoms and `falsity` growing along every arrow, by
+  names, so an atom the sequent does not name counts too; `⊥` in minimal
+  logic only; one world classically), then computes forcing for every
+  formula of the arena at every world in that order, an implication from
+  its local value and the worlds directly above; `¬A` is `A → ⊥`, so in
+  minimal logic a world forcing `⊥` forces `¬A` too. `Forcing::holds(w)`
+  (the sequent at every world at or above `w`), `failing(w)` (a world at
+  or above that forces Γ and not C), `at(w)` (each formula's forcing).
+  `refutes` asks that the model's world forces Γ and not C. Past
+  `MODEL_CELLS` cells, `Refusal::Memory`; a model that fails is
+  `Error::Countermodel`, a defect for the engine's own model and "no
+  model of the logic" (exit 2) for a model the user gives. The panel of
+  55b reviewed it (`plan/reports/55-kripke-countermodels.md`).
+- **The classical one-world model of the embedding**
+  (`Image::countermodel`): the image's `Refutation::Classical`
+  assignment over the image's atoms (the ordinary atoms, by name),
+  checked by `refutes` against `Image::ordinary` before it is kept.
 
 ### Classical logic (`sat/classical.rs`, `sat/drup.rs`)
 

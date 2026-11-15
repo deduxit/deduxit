@@ -338,6 +338,8 @@ pub enum Space {
     Formula,
     /// The symbols of a sequent's first-order tables.
     Symbol,
+    /// The worlds of a Kripke model.
+    World,
 }
 
 impl Space {
@@ -353,6 +355,7 @@ impl Space {
             Self::Inference => "inference",
             Self::Formula => "formula",
             Self::Symbol => "symbol",
+            Self::World => "world",
         }
     }
 
@@ -368,6 +371,7 @@ impl Space {
             Self::Inference => "inferences",
             Self::Formula => "formulas",
             Self::Symbol => "symbols",
+            Self::World => "worlds",
         }
     }
 }
