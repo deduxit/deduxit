@@ -1,0 +1,8 @@
+$ deduxit check --logic intuitionistic --sequent '~~a -> a' --world 1
+--- stdin
+{"worlds":[{"atoms":[],"arrows":[1]},{"atoms":["a"]}]}
+
+--- status 0
+--- stdout
+the model satisfies ⊢ ¬¬a → a at world 1
+--- stderr

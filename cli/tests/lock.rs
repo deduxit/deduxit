@@ -57,6 +57,10 @@ const WRONG_PROOF: &str = r#"{"version":1,"sequent":{"terms":[{"D":0},{"D":1},{"
 /// --method ljt --format json` writes: a derivation of LJ.
 const ORDINARY_OUTCOME: &str = r#"{"version":12,"deduxit":"0.3.0","verdict":"valid","logic":"intuitionistic","search":{"method":"ljt","statistics":{"sequents":1,"memo_hits":0,"memo_entries":1,"subsumed":0}},"derivation":{"logic":"intuitionistic","sequent":{"formulas":[{"V":0},"⊥"],"atoms":["a"],"left":[0],"right":[0]},"inferences":[{"left":[0],"right":[0],"rule":"ax"}]}}"#;
 
+/// A Kripke model of two worlds, the second above the first and forcing
+/// `a`: the countermodel of the excluded middle.
+const MODEL: &str = r#"{"worlds":[{"atoms":[],"arrows":[1]},{"atoms":["a"]}]}"#;
+
 /// Every call the lock pins.
 const CASES: &[Case] = &[
     // Fragments and modes, as text.
@@ -481,6 +485,30 @@ const CASES: &[Case] = &[
     piped("check-invalid", &["check"], WRONG_PROOF),
     piped("check-not-json", &["check"], "A |- A"),
     piped("check-ordinary", &["check"], ORDINARY_OUTCOME),
+    piped(
+        "check-model-fails",
+        &[
+            "check",
+            "--logic",
+            "intuitionistic",
+            "--sequent",
+            "a \\/ ~a",
+        ],
+        MODEL,
+    ),
+    piped(
+        "check-model-holds",
+        &[
+            "check",
+            "--logic",
+            "intuitionistic",
+            "--sequent",
+            "~~a -> a",
+            "--world",
+            "1",
+        ],
+        MODEL,
+    ),
     piped("check-format-latex", &["check", "--format", "latex"], PROOF),
     piped("check-net", &["check", "--net"], PROOF),
     piped("check-json-valid", &["check", "--format", "json"], PROOF),

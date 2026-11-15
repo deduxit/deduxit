@@ -2,6 +2,10 @@ $ deduxit prove --logic intuitionistic --method sat --stats '~~a -> a'
 --- status 1
 --- stdout
 not valid (intuitionistic logic by the SAT solver): a checked countermodel refutes it
+world 0 (the model's world): forces nothing; below 1, 2
+world 1: forces a; below 3
+world 2: forces nothing; below 3
+world 3: forces a
 solver calls: 4
 conflicts: 0
 lemmas: 0

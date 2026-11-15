@@ -2,4 +2,6 @@ $ deduxit prove --logic intuitionistic 'a \/ ~a'
 --- status 1
 --- stdout
 not valid (intuitionistic logic by the SAT solver): a checked countermodel refutes it
+world 0 (the model's world): forces nothing; below 1
+world 1: forces a
 --- stderr

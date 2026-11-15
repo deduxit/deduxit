@@ -2,4 +2,8 @@ $ deduxit prove --logic intuitionistic --file peirce.p
 --- status 1
 --- stdout
 not valid (intuitionistic logic by the SAT solver): a checked countermodel refutes it
+world 0 (the model's world): forces nothing; below 1, 2
+world 1: forces p; below 3
+world 2: forces nothing; below 3
+world 3: forces p
 --- stderr

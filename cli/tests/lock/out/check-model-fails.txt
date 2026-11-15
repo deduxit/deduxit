@@ -1,0 +1,11 @@
+$ deduxit check --logic intuitionistic --sequent 'a \/ ~a'
+--- stdin
+{"worlds":[{"atoms":[],"arrows":[1]},{"atoms":["a"]}]}
+
+--- status 1
+--- stdout
+the model does not satisfy ⊢ a ∨ ¬a at every world: world 0 forces each formula left of ⊢ and not the one right of it
+  at world 0: a not forced
+  at world 0: ¬a not forced
+  at world 0: a ∨ ¬a not forced
+--- stderr
