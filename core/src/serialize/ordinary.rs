@@ -380,12 +380,10 @@ impl DerivationForm {
                 message: "the inferences are no tree with its root last".to_owned(),
             });
         }
-        Ok(Derivation::from_parts(
-            self.logic,
-            read.formulas,
-            (left, right),
-            inferences,
-        ))
+        Ok(
+            Derivation::from_parts(self.logic, read.formulas, (left, right), inferences)
+                .untrusted(),
+        )
     }
 }
 

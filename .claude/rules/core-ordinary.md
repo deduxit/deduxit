@@ -293,10 +293,16 @@ its search and translation are untrusted, the checker is the trust.
   `Reason::MemoryLimit` past it; the translation charges its own and
   refuses with `Refusal::Memory` or `Refusal::Output`. Classical logic is
   `Error::Logic`.
-- **`Derivation::term` assumes a checked derivation or a view of one**
-  (its `# Panics`): checking first would refuse the admissible view,
-  which `term` reads too, and a session's derivation with open goals; a
-  derivation read from JSON is checked before its term is read.
+- **`Derivation::term` checks a derivation read from JSON first**
+  (`Derivation::trusted`, an `AtomicBool` so that `check(&self)` can set
+  it): `from_parts` and the crate's own builders make a trusted one, the
+  JSON reader an untrusted one (`untrusted`), `check` trusts it once it
+  passes, and a view (`shown`) inherits the flag. So `term` never panics
+  on input (`simple::read` indexes by the checker's invariants), and a
+  checked derivation's admissible view, which `check` itself would
+  refuse, still reads; an unchecked one's view is refused with the
+  check's error. Checking every derivation first would refuse those
+  views and a session's open goals.
 - **What it copied from the linear engines** (for the kernel crate): the
   memo keyed by the sequent, the arena of proof steps, the stop's poll
   cadence and the memory account (`linear::search::memory::Account`,

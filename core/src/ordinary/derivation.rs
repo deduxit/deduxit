@@ -15,6 +15,7 @@ use crate::linear::sequents::notation::TEXT;
 use crate::{Error, linear::Proof};
 use std::borrow::Cow;
 use std::fmt::{Display, Formatter, Result as FmtResult, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// A side of the turnstile.
 ///
@@ -412,6 +413,34 @@ pub struct Derivation {
     right: Vec<NodeId>,
     /// The inferences, premises before conclusions.
     inferences: Vec<Inference>,
+    /// Whether the derivation is one its checker accepts, or a view of
+    /// one: false for a derivation read from a document until
+    /// [`check`](Derivation::check) accepts it.
+    trusted: Trusted,
+}
+
+/// Whether a derivation is known to pass its check: a flag that
+/// [`Derivation::check`] sets through a shared reference.
+#[derive(Debug)]
+struct Trusted(AtomicBool);
+
+impl Trusted {
+    /// Returns the flag, set or not.
+    const fn new(trusted: bool) -> Self {
+        Self(AtomicBool::new(trusted))
+    }
+
+    /// Returns whether the flag is set.
+    fn get(&self) -> bool {
+        self.0.load(Ordering::Relaxed)
+    }
+}
+
+impl Clone for Trusted {
+    /// Copies the flag.
+    fn clone(&self) -> Self {
+        Self::new(self.get())
+    }
 }
 
 impl Derivation {
@@ -438,18 +467,19 @@ impl Derivation {
     /// # Errors
     ///
     /// [`Error::NoTerm`] for a derivation of LK or one with open goals;
-    /// [`Refusal::Stopped`] when `stop` fired.
-    ///
-    /// # Panics
-    ///
-    /// For a derivation that [`check`](Self::check) refuses and that is no
-    /// view of one it accepts, such as a derivation read from JSON and not
-    /// checked: check such a derivation first.
+    /// [`Refusal::Stopped`] when `stop` fired. A derivation read from JSON
+    /// is checked first unless [`check`](Self::check) has accepted it, so
+    /// one that breaks a rule is [`check`](Self::check)'s error, and so is
+    /// a view of it with its structural rules left out: check the
+    /// derivation, then take the view.
     pub fn term(
         &self,
         limits: &crate::Limits,
-        stop: impl FnMut(crate::Progress) -> bool,
+        mut stop: impl FnMut(crate::Progress) -> bool,
     ) -> Result<crate::lambda::Term, Error> {
+        if !self.trusted.get() {
+            self.check(limits, &mut stop)?;
+        }
         crate::lambda::simple::read(self, limits, stop)
     }
 
@@ -485,7 +515,16 @@ impl Derivation {
             left,
             right,
             inferences,
+            trusted: Trusted::new(true),
         }
+    }
+
+    /// Returns the derivation marked as read from a document: its term
+    /// is read only once [`check`](Self::check) accepts it.
+    #[cfg(feature = "serialize")]
+    pub(crate) fn untrusted(self) -> Self {
+        self.trusted.0.store(false, Ordering::Relaxed);
+        self
     }
 
     /// Returns the sequent the derivation concludes, its two sides.
@@ -561,6 +600,7 @@ impl Derivation {
             left: self.left.clone(),
             right: self.right.clone(),
             inferences: out,
+            trusted: self.trusted.clone(),
         };
         (derivation, origin)
     }
@@ -624,6 +664,7 @@ impl Derivation {
             check_inference(&self.formulas, self.logic, inference, &premises)
                 .map_err(|why| fail(n, why))?;
         }
+        self.trusted.0.store(true, Ordering::Relaxed);
         Ok(())
     }
 }
@@ -1252,6 +1293,7 @@ impl Image {
             left: self.ordinary.left.clone(),
             right: self.ordinary.right.clone(),
             inferences: out,
+            trusted: Trusted::new(true),
         })
     }
 
@@ -1444,6 +1486,7 @@ mod tests {
             formulas: f.clone(),
             left: vec![a, not_a],
             right: vec![b],
+            trusted: Trusted::new(true),
             inferences: vec![
                 inference(vec![a], vec![a], Rule::Axiom, None, &[]),
                 inference(
@@ -1568,6 +1611,7 @@ mod tests {
             formulas: sequent.formulas().clone(),
             left: vec![a, b],
             right: vec![a],
+            trusted: Trusted::new(true),
             inferences: vec![
                 make(vec![a], vec![a], Rule::Axiom, &[]),
                 make(vec![a], vec![a], Rule::Axiom, &[]),
@@ -1841,5 +1885,29 @@ mod tests {
                 phase: Phase::ReadBack
             })
         );
+    }
+
+    /// A derivation read from JSON that breaks a rule has no term: its
+    /// check's error, never a panic; once checked, its term is read.
+    #[cfg(feature = "serialize")]
+    #[test]
+    fn a_derivation_read_from_json_is_checked_before_its_term() {
+        let sequent: Sequent = "|- a -> a".parse().unwrap();
+        let options = super::super::Options::default().with_logic(Logic::Intuitionistic);
+        let outcome = super::super::decide(&sequent, &options).unwrap();
+        let super::super::Verdict::Valid(evidence) = outcome.verdict else {
+            panic!("valid");
+        };
+        let json = serde_json::to_string(evidence.derivation().unwrap()).unwrap();
+        let limits = crate::Limits::default();
+        let read: Derivation = serde_json::from_str(&json).unwrap();
+        assert!(read.term(&limits, |_| false).is_ok());
+        // `∧R` in place of `→R`: two premises where the inference has one.
+        assert!(json.contains("\"→R\""), "{json}");
+        let broken: Derivation = serde_json::from_str(&json.replace("\"→R\"", "\"∧R\"")).unwrap();
+        assert!(matches!(
+            broken.term(&limits, |_| false),
+            Err(Error::ReadBack { .. })
+        ));
     }
 }

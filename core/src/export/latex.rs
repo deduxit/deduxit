@@ -500,7 +500,9 @@ pub fn sequent(
 /// - [`Refusal::Stopped`](crate::Refusal::Stopped) when `stop` fired.
 /// - [`Error::WriteFailed`] when `out` refused the text.
 /// - With [`Options::lambda`] set, before anything is written:
-///   [`Error::NoTerm`] for a derivation that has no lambda-term, and
+///   [`Error::NoTerm`] for a derivation that has no lambda-term,
+///   [`Error::ReadBack`] for a derivation of LJ read from JSON that its
+///   [`check`](crate::ordinary::Derivation::check) refuses, and
 ///   [`Refusal::Output`](crate::Refusal::Output) for a term whose text is
 ///   estimated past the default bound.
 pub fn write<'a>(

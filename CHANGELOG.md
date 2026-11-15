@@ -232,6 +232,14 @@ unchanged.
   search. It was "the search was exhaustive" before. `--format rocq`
   has no certificate for it yet (`Unsupported::Basis`).
 
+### Fixed
+
+- `ordinary::Derivation::term`, and every export that writes a
+  lambda-term, panicked on a derivation of LJ read from JSON that breaks
+  a rule. Such a derivation is now checked first, and refused with the
+  check's `Error::ReadBack`; one that `check` accepted reads as before,
+  in either view of its structural rules.
+
 ### Wire forms
 
 - Level 10 adds the outcome of a sequent valid by a clausal proof:
