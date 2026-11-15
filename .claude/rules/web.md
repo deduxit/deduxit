@@ -283,7 +283,9 @@ for `THIRD-PARTY-NOTICES.txt`.
   exported as `rules_calculus`, `rules_read`, `rules_start`,
   `rules_view`, `rules_rules`, `rules_apply`, `rules_assume`,
   `rules_undo`, `rules_check`, `rules_draw` and `rules_export`. The
-  session is `rules::Interactive` at level 17 and holds the rule file,
+  session is `rules::Interactive` at level 17 (18 once it holds a line
+  a forward step derived, which the page does not take yet; `rules_undo`
+  answers `reopened: null` for a forward step taken back) and holds the rule file,
   so the page needs nothing else to go on and a saved session is the
   whole state; reading it (`from_parts`) checks every step again, which
   is what lets the page trust a session from its link or storage. A

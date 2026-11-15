@@ -294,8 +294,12 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   refuses a session whose calculus, sequent or assumptions differ,
   `statement`). It shares `mod.rs`'s loop and `opened`'s words; a goal
   line numbers the members across the zones (`0: a ∧ b ⊢ 1: b ∧ a`) and
-  lists the hypotheses in force; `apply G RULE [N…] [NAME=TEXT…]` reads
-  numbers as positions and `NAME=TEXT` as given values; `rules G`
+  lists the lines in force as `lines: 1. a ∧ b; 2. b`; `apply G RULE
+  [N…] [NAME=TEXT…]` reads numbers as positions and `NAME=TEXT` as
+  given values; `derive G RULE L… [NAME=TEXT…]` reads numbers as lines
+  and writes `line N: FORMULA`; `assume G [L]` closes by line L
+  (`cite`) or by the line equal to the goal; `undo` writes `reopened
+  goal …` or `removed line N`; `rules G`
   writes `RULE at N…, needs …`; `proof` writes "valid in the calculus
   given (NAME): …" and the node list (`calculus::lines`), or the
   derivation's JSON into a FILE. Mode flags and `--logic` are refused

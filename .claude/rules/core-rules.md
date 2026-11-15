@@ -257,13 +257,39 @@ design, with the reasons and the alternatives weighed, is
   suffix property: a step's premises and scopes are the last the
   session holds. `rules` tries every rule at every choice of the
   conclusion's position members (at most `RULE_CHOICES`) on a clone.
+- **Forward steps and lines** (`Interactive::derive`, `lines`, `cite`,
+  `Derive`, `LineId`, `Undone`): a line is a hypothesis a scope offers
+  or a node a forward step derived (`Goal::line`), numbered from 1 by
+  `line_places` in the order the steps made them (a scope enters with
+  the premise its step opened in it, a line with its own node; both
+  keys are node places, which grow with the steps), so a number never
+  changes and the JSON needs no table of them. A line is in force at a
+  goal when its scope is in the goal's scope chain (`chain`), which is
+  also what makes a citation of a closed subproof's line a refusal. A
+  forward step takes rules without contexts and without a discharging
+  premise (those apply backwards, which opens the subproof, as Jape's
+  box proofs do), matches each cited line against its premise as
+  written, pushes the line node and then a hypothesis node per cited
+  hypothesis (opened in the line's scope, lying in the hypothesis's),
+  and runs `verify_all`, since a hypothesis node joins a scope whose
+  owner must check it. A derived line cited again is the same node, so
+  the session and its derivation are a DAG: `derived` emits the lines
+  first (an earlier line before a later that cites it) and then the
+  tree, a goal closed by a line (`Done::Line`) taking that line's node,
+  which `derivation_goals` skips. The reader checks that a line is no
+  root, does not discharge, is cited only by later lines, that a goal
+  closed by one equals it and has it in force, and the history's
+  suffix (a forward step's nodes are the line and its hypothesis
+  copies, last; a goal closed by a line after the line's step). Such a
+  session is written at wire level 18 (`wire::FORWARD`, the keys
+  `line` and `cites`); one without stays at 17.
 - **The drawing** (`draw.rs`, `rules::Drawing`): the exports' view of
   a derivation, `core-export.md` has its rules. A session's tree is
   numbered alike in `Interactive::derived` and in the drawing (both
   postorder, premises in order), which `Interactive::derivation_goals`
   and the web view's `inferences` rely on; change one order and the
   other with it.
-- **A session's JSON** (wire level 17, `wire::SESSION`; reader
+- **A session's JSON** (wire level 17, `wire::SESSION`, 18 with a derived line; reader
   `Interactive::from_parts`) checks the tree, each scope owned by one
   rule node whose discharging premise was opened in it, inside that
   node's scope, every hypothesis in the scope it was opened in or one
