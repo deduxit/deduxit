@@ -305,3 +305,40 @@ fn a_model_is_checked_against_a_sequent() {
     let refused = ordinary::model(model, "a", "classical", None, "").unwrap_err();
     assert_eq!(failure(&refused)["code"], "invalid_model");
 }
+
+/// A goal found not valid comes with the SAT solver's countermodel in
+/// `close`'s and `hint`'s outcome, which `model_drawing` draws and
+/// `model_certificate` certifies; an outcome without one is refused with
+/// `no_countermodel`.
+#[wasm_bindgen_test(unsupported = test)]
+fn a_countermodel_is_drawn_and_certified() {
+    let state = session(&ordinary::start("|- a \\/ ~a", "intuitionistic", "").unwrap());
+    let closed = value(&ordinary::close(&state, 0, "").unwrap());
+    let outcome = &closed["outcome"];
+    assert_eq!(outcome["verdict"], "not_valid");
+    assert_eq!(
+        outcome["countermodel"]["model"],
+        json!({"worlds": [{"atoms": [], "arrows": [1]}, {"atoms": ["a"]}], "world": 0})
+    );
+    let hint = value(&ordinary::hint(&state, 0, "").unwrap());
+    assert_eq!(hint["outcome"]["countermodel"], outcome["countermodel"]);
+    let drawing = ordinary::model_drawing(&outcome.to_string(), "").unwrap();
+    assert!(drawing.contains("<title>A countermodel of ⊢ a ∨ ¬a</title>"));
+    assert!(drawing.contains("World 0, the model's world, forces nothing; world 1 is above it."));
+    let settings = r#"{"styles": {"rocq": {"form": "standalone"}}}"#;
+    let certificate = ordinary::model_certificate(&outcome.to_string(), settings).unwrap();
+    assert!(certificate.starts_with("From Stdlib Require Import List String."));
+    assert!(certificate.contains(
+        r#"Lemma certificate : ~ lj (atom := string) intuitionistic [] (vee (var "a") (neg (var "a")))."#
+    ));
+    let valid = value(
+        &ordinary::close(
+            &session(&ordinary::start("a |- a", "intuitionistic", "").unwrap()),
+            0,
+            "",
+        )
+        .unwrap(),
+    );
+    let refused = ordinary::model_drawing(&valid["outcome"].to_string(), "").unwrap_err();
+    assert_eq!(failure(&refused)["code"], "no_countermodel");
+}

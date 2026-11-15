@@ -341,14 +341,37 @@ pub fn close(session: &str, goal: u32, settings: &str) -> Result<String, Failure
         .grafted
         .err()
         .and_then(|refusal| serde_json::to_value(deduxit::Error::Refused(refusal)).ok());
-    changed(
-        &state,
-        &settings,
-        Closing {
-            outcome: closed.outcome,
-            refused,
-        },
-    )
+    let mut outcome = closed.outcome;
+    with_countermodel(&mut outcome, &state, GoalId::new(goal), &settings);
+    changed(&state, &settings, Closing { outcome, refused })
+}
+
+/// Gives a "not valid" outcome without a countermodel the SAT solver's
+/// model of the goal, as the command's default search finds one: the
+/// session decides a goal through the embedding, which refutes the
+/// goal's image in linear logic and has no Kripke model in intuitionistic
+/// and minimal logic. Where the solver gives none within the settings'
+/// limits, the outcome stays as it is.
+fn with_countermodel(
+    outcome: &mut ordinary::Outcome,
+    state: &Interactive,
+    goal: GoalId,
+    settings: &Settings,
+) {
+    if !matches!(outcome.verdict, ordinary::Verdict::NotValid) || outcome.countermodel.is_some() {
+        return;
+    }
+    let Ok((left, right)) = state.goal(goal) else {
+        return;
+    };
+    let Ok(sequent) = Sequent::new(state.formulas().clone(), left.to_vec(), right.to_vec()) else {
+        return;
+    };
+    if let Ok(found) = ordinary::sat::decide(&sequent, state.logic(), &settings.limits, never)
+        && matches!(found.verdict, ordinary::Verdict::NotValid)
+    {
+        outcome.countermodel = found.model;
+    }
 }
 
 /// What a hint found.
@@ -385,9 +408,11 @@ pub fn hint(session: &str, goal: u32, settings: &str) -> Result<String, Failure>
             never,
         )
         .map_err(Failure::from)?;
+    let mut outcome = hint.outcome;
+    with_countermodel(&mut outcome, &state, GoalId::new(goal), &settings);
     written(&Hint {
         steps: hint.steps.iter().map(StepForm::of).collect(),
-        outcome: hint.outcome,
+        outcome,
     })
 }
 
@@ -545,6 +570,76 @@ pub fn export(session: &str, format: &str, settings: &str) -> Result<String, Fai
             ));
         }
     }
+    .map_err(Failure::from)?;
+    Ok(out)
+}
+
+/// Reads an ordinary outcome (as [`close`] and [`hint`] answer it, or
+/// as `prove --logic --format json` writes it) and returns its
+/// countermodel and logic.
+fn countermodel_of(
+    outcome: &str,
+    settings: &Settings,
+) -> Result<(ordinary::Countermodel, Logic), Failure> {
+    let mut json = serde_json::Deserializer::from_str(outcome);
+    let outcome: ordinary::Outcome =
+        wire::upgrade(&mut json, &settings.limits).map_err(Failure::from)?;
+    match outcome.countermodel {
+        Some(countermodel) => Ok((countermodel, outcome.logic)),
+        None => Err(Failure::refused(
+            "no_countermodel",
+            "unsupported",
+            "the outcome holds no countermodel: only a sequent found not valid has one, and a \
+             model too large to check is left out",
+        )),
+    }
+}
+
+/// Draws the countermodel of an ordinary outcome as SVG: each world a
+/// box with the atoms it forces, an arrow up to each world directly
+/// above it, and the model's world, where the sequent fails, outlined.
+/// The model is checked first.
+///
+/// # Errors
+///
+/// An outcome that cannot be read, `no_countermodel` for one without a
+/// countermodel, `invalid_model` for a model that does not refute its
+/// sequent, and a drawing past `limits.derivation_bytes`.
+pub fn model_drawing(outcome: &str, settings: &str) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let (countermodel, logic) = countermodel_of(outcome, &settings)?;
+    svg::countermodel(
+        &countermodel,
+        logic,
+        &settings.styles.svg,
+        &settings.limits,
+        never,
+    )
+    .map_err(Failure::from)
+}
+
+/// Writes the Rocq certificate of the countermodel of an ordinary
+/// outcome, in the settings' `styles.rocq`: in intuitionistic and minimal
+/// logic a lemma of deduxit's Rocq library that LJ or LM does not derive
+/// the sequent, proved from the model; in classical logic the
+/// certificate over `Prop` of the model's one world. The model is
+/// checked first.
+///
+/// # Errors
+///
+/// As [`model_drawing`], the text past `limits.derivation_bytes`.
+pub fn model_certificate(outcome: &str, settings: &str) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let (countermodel, logic) = countermodel_of(outcome, &settings)?;
+    let mut out = String::new();
+    rocq::write_countermodel(
+        &countermodel,
+        logic,
+        &settings.styles.rocq,
+        &settings.limits,
+        &mut out,
+        never,
+    )
     .map_err(Failure::from)?;
     Ok(out)
 }

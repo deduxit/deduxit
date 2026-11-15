@@ -142,6 +142,11 @@ unchanged.
   outcome's countermodel and a model you give at the world where it
   fails. LaTeX and Typst draw none and say so. In the library,
   `export::svg::countermodel`.
+- **The bindings give the page a countermodel**: `ordinary_close` and
+  `ordinary_hint` answer a goal that is not valid with the SAT solver's
+  countermodel in the outcome, and `ordinary_model_drawing` and
+  `ordinary_model_certificate` draw it as SVG and write its Rocq
+  certificate.
 - **A Kripke countermodel has a Rocq certificate**: `--format rocq`
   on a "not valid" of intuitionistic or minimal logic writes the lemma
   `~ lj (atom := string) intuitionistic [Γ] C` (or `minimal`) for the

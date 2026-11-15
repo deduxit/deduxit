@@ -274,6 +274,17 @@ for `THIRD-PARTY-NOTICES.txt`.
   [{"formula", "forced"}]}}`, a model of another logic a failure of
   code `invalid_model` (kind invalid); "every world" is
   `Forcing::failing_anywhere`, linear. `tests/ordinary.rs` holds their tests.
+- **A countermodel on the page** (`ordinary_close`, `ordinary_hint`):
+  a session decides a goal through the embedding, which has no Kripke
+  model in intuitionistic and minimal logic, so a `not_valid` outcome
+  without one gets the SAT solver's model of the goal (`with_countermodel`,
+  `sat::decide` on the goal as a sequent, within the settings' limits;
+  none where it refuses, the outcome as it was). `ordinary_model_drawing`
+  and `ordinary_model_certificate` read that outcome (`wire::upgrade` of
+  `ordinary::Outcome`, which carries the countermodel and the logic)
+  and answer `svg::countermodel` and `rocq::write_countermodel`; an
+  outcome without one is the bindings' refusal `no_countermodel` (kind
+  `unsupported`), which the library has no code for.
 - **The lambda-term** (`term`, `ordinary_term`) is the session's own
   derivation read back, as the command's session command `lambda` reads
   it, written with the settings' `lambda` (the command's key). What has no

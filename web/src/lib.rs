@@ -353,4 +353,16 @@ mod exports {
     pub fn ordinary_export(session: &str, format: &str, settings: &str) -> Result<String, JsValue> {
         ordinary::export(session, format, settings).map_err(thrown)
     }
+
+    /// See [`ordinary::model_drawing`].
+    #[wasm_bindgen]
+    pub fn ordinary_model_drawing(outcome: &str, settings: &str) -> Result<String, JsValue> {
+        ordinary::model_drawing(outcome, settings).map_err(thrown)
+    }
+
+    /// See [`ordinary::model_certificate`].
+    #[wasm_bindgen]
+    pub fn ordinary_model_certificate(outcome: &str, settings: &str) -> Result<String, JsValue> {
+        ordinary::model_certificate(outcome, settings).map_err(thrown)
+    }
 }
