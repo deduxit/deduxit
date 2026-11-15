@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" role="img" width="135.76" height="105.264" viewBox="0 0 8485 6579" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
 <title>⊢ A⊥ ⅋ B⊥, B ⊗ A</title>
-<desc>⊢ ~A ⅋ ~B, B ⊗ A
-~A[1] — A[5]
-~B[2] — B[4]
-proof net (the correctness criterion holds)</desc>
+<desc>It concludes ⊢ A⊥ ⅋ B⊥, B ⊗ A.
+An axiom link joins formula 1, A⊥, and formula 5, A.
+An axiom link joins formula 2, B⊥, and formula 4, B.
+It is a proof net: the correctness criterion holds.</desc>
 <g fill="none" stroke="black" stroke-width="40">
 <circle id="o0" cx="2325" cy="4429" r="380"/>
 <path d="M2325 4809V5179"/>

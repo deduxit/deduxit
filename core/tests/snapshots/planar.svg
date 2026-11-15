@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" role="img" width="200.432" height="176.048" viewBox="0 0 12527 11003" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
 <title>⊢ b⊥ ⅋ a⊥, c⊥, c ⊗ (a ⊗ b)</title>
-<desc>⊢ ~b ⅋ ~a, ~c, c ⊗ (a ⊗ b)
-~b[1] — b[8]
-~a[2] — a[7]
-~c[3] — c[5]
-planar proof net (the correctness criterion holds, and no two links cross)</desc>
+<desc>It concludes ⊢ b⊥ ⅋ a⊥, c⊥, c ⊗ (a ⊗ b).
+An axiom link joins formula 1, b⊥, and formula 8, b.
+An axiom link joins formula 2, a⊥, and formula 7, a.
+An axiom link joins formula 3, c⊥, and formula 5, c.
+It is a planar proof net: the correctness criterion holds, and no two links cross.</desc>
 <g fill="none" stroke="black" stroke-width="40">
 <path d="M8294 8661L7463 4743"/>
 <path d="M8702 8843L10644 7723"/>

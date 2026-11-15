@@ -1,11 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" role="img" width="159.728" height="144.896" viewBox="0 0 9983 9056" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
 <title>⊢ ?a⊥, ?a ⊗ !!a</title>
-<desc>⊢ ?~a, ?a ⊗ !!a
-?~a[0]: ~a[2], ~a[3] in !a[7]
-?a[4]: a[5]
-~a[2] — a[5]
-~a[3] — a[8]
-proof net (the correctness criterion holds)</desc>
+<desc>It concludes ⊢ ?a⊥, ?a ⊗ !!a.
+An axiom link joins formula 2, a⊥, and formula 5, a.
+An axiom link joins formula 3, a⊥, and formula 8, a.
+Box 6 holds formula 7, !a, the premise of formula 6, !!a.
+Box 7 holds formula 8, a, the premise of formula 7, !a. It lies in box 6.
+Formula 0, ?a⊥, has 2 copies: formula 2, a⊥; formula 3, a⊥, in box 7.
+Formula 4, ?a, has 1 copy: formula 5, a.
+It is a proof net: the correctness criterion holds.</desc>
 <g fill="none" stroke="black" stroke-width="40">
 <circle id="o0" cx="1091" cy="6906" r="380"/>
 <path d="M1091 7286V7656"/>

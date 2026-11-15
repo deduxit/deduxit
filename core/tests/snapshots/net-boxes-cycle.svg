@@ -1,9 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" role="img" width="116.864" height="187.616" viewBox="0 0 7304 11726" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
 <title>⊢ ?a⊥ ⊗ !a</title>
-<desc>⊢ ?~a ⊗ !a
-?~a[1]: ~a[4] in !a[2]
-a[3] — ~a[4]
-not a proof net: a switching cycle runs through ?~a ⊗ !a[0], ?~a[1], !a[2]</desc>
+<desc>It concludes ⊢ ?a⊥ ⊗ !a.
+An axiom link joins formula 3, a, and formula 4, a⊥.
+Box 2 holds formula 3, a, the premise of formula 2, !a.
+Formula 1, ?a⊥, has 1 copy: formula 4, a⊥, in box 2.
+It is not a proof net: a switching cycle runs through ?~a ⊗ !a[0], ?~a[1], !a[2].</desc>
 <g fill="none" stroke="black" stroke-width="40">
 <path d="M5991 3437L6319 2486"/>
 <path id="b2" d="M4479 3796H5487M6247 3796H7004V340H3415V3796H3719"/>

@@ -1,18 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" role="img" width="488.544" height="280.224" viewBox="0 0 30534 17514" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
 <title>⊢ ?a⊥, ?b⊥, !(a ⊗ b) ⊗ a</title>
-<desc>⊢ ?~a, ?~b, !(a ⊗ b) ⊗ a
-?~a[0]: ~a[3] in !a[15], ~a[4] in !a[11]
-?~b[1]: ~b[5] in !(a ⊗ b)[6]
-?~a[13]: ~a[14] in !(a ⊗ b)[6]
-?~a[17]: ~a[18]
-cut !a[11] — ?~a[13]
-cut !a[15] — ?~a[17]
-~a[3] — a[16]
-~a[4] — a[12]
-~b[5] — b[9]
-a[8] — ~a[14]
-a[10] — ~a[18]
-proof net (the correctness criterion holds)</desc>
+<desc>It concludes ⊢ ?a⊥, ?b⊥, !(a ⊗ b) ⊗ a.
+A cut link joins formula 11, !a, and formula 13, ?a⊥.
+A cut link joins formula 15, !a, and formula 17, ?a⊥.
+An axiom link joins formula 3, a⊥, and formula 16, a.
+An axiom link joins formula 4, a⊥, and formula 12, a.
+An axiom link joins formula 5, b⊥, and formula 9, b.
+An axiom link joins formula 8, a, and formula 14, a⊥.
+An axiom link joins formula 10, a, and formula 18, a⊥.
+Box 6 holds formula 7, a ⊗ b, the premise of formula 6, !(a ⊗ b).
+Box 11 holds formula 12, a, the premise of formula 11, !a.
+Box 15 holds formula 16, a, the premise of formula 15, !a.
+Formula 0, ?a⊥, has 2 copies: formula 3, a⊥, in box 15; formula 4, a⊥, in box 11.
+Formula 1, ?b⊥, has 1 copy: formula 5, b⊥, in box 6.
+Formula 13, ?a⊥, has 1 copy: formula 14, a⊥, in box 6.
+Formula 17, ?a⊥, has 1 copy: formula 18, a⊥.
+It is a proof net: the correctness criterion holds.</desc>
 <g fill="none" stroke="black" stroke-width="40">
 <path d="M13849 14652L7944 13184"/>
 <path d="M14264 14367L15189 6724"/>

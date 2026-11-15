@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" role="img" width="260.928" height="134.8" viewBox="0 0 16308 8425" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
 <title>⊢ a⊥ ⅋ b⊥, b ⊗ a</title>
-<desc>⊢ ~a ⅋ ~b, b ⊗ a
-cut a ⊗ b[6] — ~a ⅋ ~b[9]
-~a[1] — a[7]
-~b[2] — b[8]
-b[4] — ~b[11]
-a[5] — ~a[10]
-proof net (the correctness criterion holds)</desc>
+<desc>It concludes ⊢ a⊥ ⅋ b⊥, b ⊗ a.
+A cut link joins formula 6, a ⊗ b, and formula 9, a⊥ ⅋ b⊥.
+An axiom link joins formula 1, a⊥, and formula 7, a.
+An axiom link joins formula 2, b⊥, and formula 8, b.
+An axiom link joins formula 4, b, and formula 11, b⊥.
+An axiom link joins formula 5, a, and formula 10, a⊥.
+It is a proof net: the correctness criterion holds.</desc>
 <g fill="none" stroke="black" stroke-width="40">
 <path d="M6153 5349L5417 4345"/>
 <path d="M6604 5350L7349 4345"/>

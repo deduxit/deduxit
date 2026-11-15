@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" role="img" width="165.424" height="101.824" viewBox="0 0 10339 6364" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
 <title>c / b, a, a \ b ⊢ c</title>
-<desc>c / b, a, a \ b ⊢ c
-b[1] — b[5]
-a[2] — a[3]
-c[6] — c[7]
-planar proof net (the correctness criterion holds, and no two links cross)</desc>
+<desc>It concludes c / b, a, a \ b ⊢ c.
+An axiom link joins formula 1, b, and formula 5, b.
+An axiom link joins formula 2, a, and formula 3, a.
+An axiom link joins formula 6, c, and formula 7, c.
+It is a planar proof net: the correctness criterion holds, and no two links cross.</desc>
 <g fill="none" stroke="black" stroke-width="40">
 <path d="M1997 4108L2889 3084"/>
 <path d="M2420 3450L2381 3668L2592 3600"/>

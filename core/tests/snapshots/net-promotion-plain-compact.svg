@@ -1,14 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" role="img" width="441.776" height="197.424" viewBox="0 0 27611 12339" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
 <title>⊢ ?a⊥, ?b⊥, ?(c⊥ ⅋ d⊥), !((a ⊗ a) ⊗ (d ⊗ c))</title>
-<desc>⊢ ?~a, ?~b, ?(~c ⅋ ~d), !((a ⊗ a) ⊗ (d ⊗ c))
-?~a[0]: ~a[4] in !((a ⊗ a) ⊗ (d ⊗ c))[3], ~a[5] in !((a ⊗ a) ⊗ (d ⊗ c))[3]
-?~b[1]: no copy, hangs on a[11]
-?(~c ⅋ ~d)[2]: ~c ⅋ ~d[6] in !((a ⊗ a) ⊗ (d ⊗ c))[3]
-~a[4] — a[11]
-~a[5] — a[12]
-~c[7] — c[15]
-~d[8] — d[14]
-proof net (the correctness criterion holds)</desc>
+<desc>It concludes ⊢ ?a⊥, ?b⊥, ?(c⊥ ⅋ d⊥), !((a ⊗ a) ⊗ (d ⊗ c)).
+An axiom link joins formula 4, a⊥, and formula 11, a.
+An axiom link joins formula 5, a⊥, and formula 12, a.
+An axiom link joins formula 7, c⊥, and formula 15, c.
+An axiom link joins formula 8, d⊥, and formula 14, d.
+Box 3 holds formula 9, (a ⊗ a) ⊗ (d ⊗ c), the premise of formula 3, !((a ⊗ a) ⊗ (d ⊗ c)).
+Formula 0, ?a⊥, has 2 copies: formula 4, a⊥, in box 3; formula 5, a⊥, in box 3.
+Formula 1, ?b⊥, has no copy and hangs on the axiom link of formula 11, a.
+Formula 2, ?(c⊥ ⅋ d⊥), has 1 copy: formula 6, c⊥ ⅋ d⊥, in box 3.
+It is a proof net: the correctness criterion holds.</desc>
 <g fill="none" stroke="black" stroke-width="40">
 <circle id="o0" cx="1091" cy="10179" r="380"/>
 <path d="M1091 10559V10939"/>

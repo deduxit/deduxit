@@ -1,12 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" role="img" width="271.232" height="159.968" viewBox="0 0 16952 9998" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
 <title>!a, !(a ⊸ b) ⊢ !(b ⊗ a)</title>
-<desc>!a, !(a ⊸ b) ⊢ !(b ⊗ a)
-!a[0]: a[3] in !(b ⊗ a)[2], a[4] in !(b ⊗ a)[2]
-!(a ⊸ b)[1]: a ⊸ b[5] in !(b ⊗ a)[2]
-a[3] — a[6]
-a[4] — a[10]
-b[7] — b[9]
-proof net (the correctness criterion holds)</desc>
+<desc>It concludes !a, !(a ⊸ b) ⊢ !(b ⊗ a).
+An axiom link joins formula 3, a, and formula 6, a.
+An axiom link joins formula 4, a, and formula 10, a.
+An axiom link joins formula 7, b, and formula 9, b.
+Box 2 holds formula 8, b ⊗ a, the premise of formula 2, !(b ⊗ a).
+Formula 0, !a, has 2 copies: formula 3, a, in box 2; formula 4, a, in box 2.
+Formula 1, !(a ⊸ b), has 1 copy: formula 5, a ⊸ b, in box 2.
+It is a proof net: the correctness criterion holds.</desc>
 <g fill="none" stroke="black" stroke-width="40">
 <circle id="o6" cx="14911" cy="6318" r="380"/>
 <path d="M14911 5178L14911 5938"/>
