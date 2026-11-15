@@ -6987,3 +6987,28 @@ move (D26).
     tableaux and truth tables).
   - **Times corrected:** the entries above dated "about 13:30" and
     "about 14:30" were written at about 12:00 and 12:40.
+- 2026-11-15, about 15:00: **55d and 56a reviewed and pushed; step 55
+  complete; 59 started.**
+  - **55d** (`xkorzqqo` … `zulzqwyu`; client `movmzsku`, `ozrpzzvu`):
+    the Kripke countermodel drawn as SVG (worlds with what they force,
+    arrows up, the model's world highlighted, a `<desc>` in sentences),
+    from `prove` and `check` in SVG, PNG and PDF; LaTeX and Typst refuse
+    with the reason (no standard package draws such a graph); the
+    bindings' `ordinary_model_drawing` and `ordinary_model_certificate`;
+    the page's model under "Not valid" and its certificate in Export. The
+    client's chain waits for its deduxit input to move (55d's session).
+  - **56a** (`vwukrxys` … `oyrxnpoz`): `--method table` (`Limits::
+    table_atoms`, 10 by default, `Refusal::Atoms`) and `--method tableau`
+    (signed, Smullyan's order, built in the LK goal state so every step
+    is checked; an open branch a checked countermodel), wire level 14,
+    the bindings' `ordinary_table` and `ordinary_tableau`. Departure
+    accepted: the tableau is built by its method, not read off the
+    outcome (a "not valid" has no derivation, a SAT "valid" only a
+    clausal proof). Open: `check` has no `--table-atoms`; a message
+    "not a ordinary outcome".
+  - Stacked with one conflict (`web/tests/ordinary.rs`, both tests
+    kept); the gate and `nix flake check` passed at the stacked head.
+    **Pushed** (`oyrxnpoz`).
+  - **Started:** step 59, the release prepared up to the author's acts
+    (`local_fe155f72`, cores 10-12). **Next:** 56b (the page's views)
+    once the client holds 55d's page.
