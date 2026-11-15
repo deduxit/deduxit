@@ -204,20 +204,30 @@ design, with the reasons and the alternatives weighed, is
   else; fresh variables not given get a new atom, `new_atom`, named
   after the variable and unused anywhere; premises built with
   `Terms::apply`, a set zone deduplicated, a premise's position members
-  located where they landed), then `commit` appends the premises (a
+  located at the place each was built, a set's first copy after its
+  duplicates go; locating them by value took the wrong copy of a
+  sequence's equal members), then `commit` checks every premise's
+  shape before it pushes anything (a refusal in the loop once left
+  orphan goals that no `undo` removed), appends the premises (a
   discharging premise in a new scope owned by the goal), sets the goal,
   and **runs the checker on that node** (`verify`: the whole session
   converted by `derived`, then `check_node`); a refusal is rolled back
   (`back`), so no state holds a step the checker refuses. `assume`
-  closes a goal by a hypothesis its scope chain offers and re-checks the
-  owner rule node, whose scope check verifies the discharge; an
-  assumption (root scope) is the session's own. `undo` relies on the
+  closes a goal by a hypothesis its scope chain offers and re-checks
+  every closed node (`verify_all`, `check_open`): the owner's scope check
+  verifies the discharge, and a rule's `fresh` condition reads the
+  hypotheses in force, which the new one joins (a name given as new
+  and then assumed finished into a refusal when only the owner was
+  re-checked); an assumption (root scope) is the session's own. `undo` relies on the
   suffix property: a step's premises and scopes are the last the
   session holds. `rules` tries every rule at every choice of the
   conclusion's position members (at most `RULE_CHOICES`) on a clone.
 - **A session's JSON** (wire level 17, `wire::SESSION`; reader
-  `Interactive::from_parts`) checks the tree, the scopes and their
-  owners, where each goal was opened, every root-scope hypothesis an
+  `Interactive::from_parts`) checks the tree, each scope owned by one
+  rule node whose discharging premise was opened in it, inside that
+  node's scope, every hypothesis in the scope it was opened in or one
+  around it (two forged documents passed with weaker checks, and `undo`
+  then left a node in a removed scope), where each goal was opened, every root-scope hypothesis an
   assumption, every open goal's bounds, every closed node by
   `check_open` (the checker without the open goals), and the history's
   suffix property from the last step back. The scopes' hypothesis lists

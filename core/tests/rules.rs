@@ -985,3 +985,99 @@ fn a_session_builds_a_closed_tableau() {
         .unwrap();
     session.finished(|_| false).unwrap();
 }
+
+#[cfg(feature = "interactive")]
+#[test]
+fn no_step_leaves_a_state_the_checker_refuses() {
+    use deduxit::rules::{Apply, Interactive};
+    let limits = Limits::default();
+    // A refused step leaves no goal behind: LM's right zone holds one
+    // formula, and a split that empties it is refused whole.
+    let mut lm = Interactive::within(
+        calculus(LM).unwrap(),
+        "a \\/ b, ~a |- b \\/ a",
+        &[],
+        &limits,
+    )
+    .unwrap();
+    let split = Apply::new("∨L split")
+        .at(&[0])
+        .given(&[("Γ′", ""), ("Δ′", "")]);
+    assert!(matches!(
+        lm.apply(lm.goals()[0], &split),
+        Err(Error::StepRefused { .. })
+    ));
+    assert_eq!(lm.goals().len(), 1);
+    let saved = serde_json::to_value(&lm).unwrap();
+    wire::upgrade::<Interactive, _>(&saved, &limits).unwrap();
+    // A name given as new that a later hypothesis holds is refused at
+    // that hypothesis, so the session never finishes into a refusal.
+    let fresh = calculus(
+        r#"{"version": 15, "name": "F",
+            "connectives": [{"name": "→", "arity": 2}, {"name": "□", "arity": 1}],
+            "sequent": [{"name": "formula", "discipline": "multiset", "least": 1, "most": 1}],
+            "variables": {"formula": ["A", "P"]},
+            "rules": [{"name": "gen", "premises": [{"formula": [["→", "P", "A"]]}],
+                       "conclusion": {"formula": [["□", "A"]]}, "fresh": ["P"]}]}"#,
+    )
+    .unwrap();
+    let mut session = Interactive::within(fresh, "□ a", &["p -> a"], &limits).unwrap();
+    let goal = session
+        .apply(session.goals()[0], &Apply::new("gen").given(&[("P", "p")]))
+        .unwrap();
+    assert!(matches!(
+        session.assume(goal[0]),
+        Err(Error::StepRefused { .. })
+    ));
+    assert_eq!(session.goals(), goal);
+    // A member found by position in a sequence stands where it was
+    // built, not at the first equal member.
+    let ordered = calculus(
+        r#"{"version": 15, "name": "O", "connectives": [{"name": "•", "arity": 2}],
+            "sequent": [{"name": "left", "discipline": "sequence"},
+                        {"name": "right", "discipline": "multiset", "mark": "⊢", "least": 1, "most": 1}],
+            "variables": {"formula": ["A", "B", "C"]}, "contexts": ["Δ", "Δ′"],
+            "rules": [{"name": "•L", "premises": [{"left": ["Δ", "A", "B", "Δ′"], "right": ["C"]}],
+                       "conclusion": {"left": ["Δ", ["•", "A", "B"], "Δ′"], "right": ["C"]}}]}"#,
+    )
+    .unwrap();
+    let mut product = Interactive::within(ordered, "a, a • b |- c", &[], &limits).unwrap();
+    product
+        .apply(product.goals()[0], &Apply::new("•L").at(&[1]))
+        .unwrap();
+}
+
+#[cfg(feature = "interactive")]
+#[test]
+fn a_session_document_whose_scopes_do_not_fit_is_refused() {
+    use deduxit::rules::Interactive;
+    let mut nj: Value = serde_json::from_str(NJ).unwrap();
+    nj.as_object_mut().unwrap().remove("version");
+    let terms = json!(["a", ["→", 0, 0], ["∧", 1, 1]]);
+    let refused = |scopes: Value, nodes: Value, history: Value| {
+        let document = json!({"version": 17, "calculus": nj, "terms": terms,
+            "scopes": scopes, "nodes": nodes, "history": history});
+        matches!(
+            wire::upgrade::<Interactive, _>(&document, &Limits::default()),
+            Err(Error::InconsistentSession { .. })
+        )
+    };
+    // A scope owned by an open goal.
+    assert!(refused(
+        json!([{}, {"parent": 0, "owner": [1, 0]}, {"parent": 0, "owner": [2, 0], "hypotheses": [[[0]]]}]),
+        json!([{"sequent": [[2]], "rule": "∧I", "premises": [1, 2]}, {"sequent": [[1]]},
+               {"sequent": [[1]], "rule": "→I", "premises": [3]}, {"sequent": [[0]], "scope": 2}]),
+        json!([]),
+    ));
+    // A hypothesis in a sibling's scope.
+    assert!(refused(
+        json!([{}, {"parent": 0, "owner": [1, 0], "hypotheses": [[[0]]]},
+               {"parent": 0, "owner": [2, 0], "hypotheses": [[[0]]]}]),
+        json!([{"sequent": [[2]], "rule": "∧I", "premises": [1, 2]},
+               {"sequent": [[1]], "rule": "→I", "premises": [3]},
+               {"sequent": [[1]], "rule": "→I", "premises": [4]},
+               {"sequent": [[0]], "hypothesis": true, "scope": 2, "opened": 1},
+               {"sequent": [[0]], "scope": 2}]),
+        json!([2]),
+    ));
+}

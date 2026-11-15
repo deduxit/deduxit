@@ -436,6 +436,18 @@ impl Interactive {
             })
     }
 
+    /// Checks every closed node of the session, the open goals taken as
+    /// they are.
+    fn verify_all(&self) -> Result<(), Error> {
+        let (derivation, _) = self.derived()?;
+        derivation
+            .check_open(&self.calculus, &self.limits, |_| false)
+            .map_err(|error| match error {
+                Error::InvalidDerivation { reason, .. } => refused(reason),
+                other => other,
+            })
+    }
+
     /// Lists the rules that apply to the goal `goal`: for each rule and
     /// each choice of the members it acts on, the step if the checker
     /// takes it, or what it needs given. A rule that asks positions of
@@ -582,8 +594,11 @@ impl Interactive {
         }
         let scope = self.nodes[goal.index()].scope;
         let mut premises = Vec::with_capacity(plan.premises.len());
+        // Every premise's shape first, so that a refusal leaves nothing.
+        for (sequent, _) in &plan.premises {
+            self.shaped(sequent)?;
+        }
         for (index, (sequent, discharges)) in plan.premises.into_iter().enumerate() {
-            self.shaped(&sequent)?;
             let place = self.nodes.len() as u32;
             let opened = match discharges {
                 Some(hypotheses) => {
@@ -648,11 +663,13 @@ impl Interactive {
                 let node = &mut self.nodes[goal.index()];
                 node.done = Done::Hypothesis;
                 node.scope = scope;
-                // The rule that discharges it checks it; an assumption is
-                // the session's own.
-                if let Some((owner, _)) = owner
-                    && let Err(error) = self.verify(owner)
-                {
+                // Every closed node is checked again: the rule that
+                // discharges it checks the hypothesis, and a rule that asks
+                // a name to be new checks it against the hypotheses in
+                // force, this one now among them. An assumption is the
+                // session's own.
+                let _ = owner;
+                if let Err(error) = self.verify_all() {
                     let node = &mut self.nodes[goal.index()];
                     node.done = Done::Open;
                     node.scope = node.opened;
@@ -692,9 +709,8 @@ impl Interactive {
         Some(goal)
     }
 
-    /// Returns the derivation built so far, open goals as
-    /// [`Step::Open`](super::Step::Open), and for each derivation node the
-    /// goal it is, where it is one.
+    /// Returns the derivation built so far, its open goals as
+    /// [`Step::Open`] nodes.
     ///
     /// # Errors
     ///
@@ -939,7 +955,7 @@ impl Interactive {
         let mut premise_positions = Vec::new();
         for premise in &rule.premises {
             let mut built = vec![Vec::new(); zones];
-            let mut pending: Vec<(usize, TermId)> = Vec::new();
+            let mut pending: Vec<(usize, usize)> = Vec::new();
             for zone in 0..zones {
                 for entry in &premise.shape.zones[zone] {
                     match *entry {
@@ -948,7 +964,7 @@ impl Interactive {
                                 self.instance(rule, item.first, item.root, &bindings, &mut needs)?
                             {
                                 if item.find == Find::Position {
-                                    pending.push((zone, term));
+                                    pending.push((zone, built[zone].len()));
                                 }
                                 built[zone].push(term);
                             }
@@ -967,28 +983,30 @@ impl Interactive {
                     }
                 }
                 if calculus.zones[zone].discipline == Discipline::Set {
+                    // A member written twice stands at its first place.
+                    for slot in pending.iter_mut().filter(|(z, _)| *z == zone) {
+                        let term = built[zone][slot.1];
+                        slot.1 = built[zone]
+                            .iter()
+                            .position(|&m| m == term)
+                            .unwrap_or(slot.1);
+                    }
                     let mut seen = Vec::new();
-                    built[zone].retain(|m| {
-                        let fresh = !seen.contains(m);
-                        seen.push(*m);
-                        fresh
-                    });
+                    let mut kept = Vec::new();
+                    for (place, &m) in built[zone].iter().enumerate() {
+                        if !seen.contains(&m) {
+                            seen.push(m);
+                            kept.push(place);
+                        }
+                    }
+                    for slot in pending.iter_mut().filter(|(z, _)| *z == zone) {
+                        slot.1 = kept.iter().position(|&p| p == slot.1).unwrap_or(slot.1);
+                    }
+                    built[zone] = seen;
                 }
             }
-            // A member found by position: where it stands now. Two equal
-            // members of a multiset are interchangeable.
-            let mut used: Vec<Vec<bool>> = built.iter().map(|z| vec![false; z.len()]).collect();
-            for (zone, term) in pending {
-                let place = built[zone]
-                    .iter()
-                    .enumerate()
-                    .position(|(p, &m)| m == term && !used[zone][p])
-                    .or_else(|| built[zone].iter().position(|&m| m == term));
-                if let Some(place) = place {
-                    used[zone][place] = true;
-                    premise_positions.push(place as u32);
-                }
-            }
+            // Each member found by position stands where it was built.
+            premise_positions.extend(pending.iter().map(|&(_, place)| place as u32));
             let discharges = if premise.discharges.is_empty() {
                 None
             } else {
@@ -1272,6 +1290,48 @@ impl Interactive {
             if expected != Some(node.opened) {
                 return Err(fault(
                     "a goal was opened in another scope than its rule gives",
+                ));
+            }
+        }
+        // Each scope but the root is owned by a rule node whose premise
+        // was opened in it, inside the node's scope, one scope a premise.
+        for (index, scope) in scopes.iter().enumerate().skip(1) {
+            let Some((n, k)) = scope.owner else {
+                return Err(fault("a scope lies in no earlier scope, or has no owner"));
+            };
+            let owned = nodes.get(n as usize).and_then(|node| match node.done {
+                Done::Rule(ref name, _) => {
+                    let rule = &rules[calculus.rule_ids[name] as usize];
+                    let premise = *node.premises.get(k as usize)?;
+                    let discharges = !rule.premises.get(k as usize)?.discharges.is_empty();
+                    Some(
+                        discharges
+                            && nodes[premise as usize].opened == index as u32
+                            && scope.parent == node.scope,
+                    )
+                }
+                Done::Open | Done::Hypothesis => None,
+            });
+            let unique = scopes
+                .iter()
+                .filter(|other| other.owner == scope.owner)
+                .count()
+                == 1;
+            if owned != Some(true) || !unique {
+                return Err(fault(
+                    "a scope's owner is no rule node whose premise opened it",
+                ));
+            }
+        }
+        // A hypothesis lies in the scope it was opened in or one around it.
+        for node in &nodes {
+            let mut scope = node.opened;
+            while scope != node.scope && scope != 0 {
+                scope = scopes[scope as usize].parent;
+            }
+            if scope != node.scope {
+                return Err(fault(
+                    "a hypothesis lies in no scope around where it was opened",
                 ));
             }
         }
