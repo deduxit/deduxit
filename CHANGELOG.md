@@ -32,6 +32,20 @@ second number (0.1.x to 0.2.0), anything else the third.
   rule files (`rules::LL`, `rules::TABLEAU`), writes a tableau in the
   latter (`Derivation::from_tableau`), and prints a calculus's terms by
   its print forms (`Calculus::show`, `show_sequent`).
+- **Negative translations, checked** (`deduxit seq translate`, the
+  library's `ordinary::negative`, the bindings' `ordinary_translate`):
+  Kolmogorov's and Gödel and Gentzen's translations of classical logic
+  into minimal logic, Kuroda's and Glivenko's into intuitionistic logic.
+  The sequent is decided classically and its translation in the target
+  logic, and both verdicts are shown, with their derivations or
+  countermodels in the JSON; verdicts that differ are an error.
+- **Craig interpolants, checked** (`deduxit interpolate`, the library's
+  `ordinary::interpolant`, the bindings' `ordinary_interpolate`): read
+  off a derivation of LK or LJ without cuts by Maehara's method, for a
+  split of the sequent you name (`--first`), and checked by deciding
+  both halves and comparing their atoms.
+- The answers of both are documents at wire level 16, above the rule
+  files' 15: the highest level the library now reads and writes.
 
 ## [0.4.0] - 2026-11-15
 

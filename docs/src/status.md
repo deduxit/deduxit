@@ -193,6 +193,14 @@ in use.
   the web bindings. A goal's `close` and `hint` decide through the
   embedding; in the bindings a goal that is not valid gets the SAT
   solver's countermodel.
+- [Classical sequents are translated](transformations.md) into
+  minimal logic by Kolmogorov's and Gödel and Gentzen's negative
+  translations, and into intuitionistic logic by Kuroda's and Glivenko's.
+  `seq translate` decides the sequent and its translation and checks
+  that the verdicts agree. `interpolate` reads a Craig interpolant off a
+  derivation of LK or LJ without cuts by Maehara's method, and checks it
+  by deciding both halves and comparing the atoms. The library and the
+  web bindings have both; the web page does not show them yet.
 - In the library, behind the default feature `sat`, `ordinary::sat`
   decides classical, intuitionistic and minimal logic with a SAT
   solver. A sequent that is not valid comes with a model, which is
@@ -384,9 +392,8 @@ The collection grows by a suite at a time, release by release:
 
 - 0.5.0: custom rules, a calculus given as data, with derivations in it
   checked and built in the command and on the page; natural deduction
-  for ordinary logic in Gentzen's and Fitch's styles; classical logic
-  translated into intuitionistic and minimal logic (Kolmogorov, Gödel
-  and Gentzen, Kuroda), and Craig interpolants, each checked; a
+  for ordinary logic in Gentzen's and Fitch's styles; the negative
+  translations and Craig interpolants on the web page; a
   workspace that keeps a sequent and what was made from it (its
   translations, transformations and results) side by side, each step
   undoable, the graph shown only once you branch.

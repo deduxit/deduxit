@@ -1174,6 +1174,43 @@ contraction. The drawing leaves each one out where it is admissible
 (G3's axiom with a context). `--structural explicit` (`view.structural`)
 draws every one, and `--format rocq` always names them.
 
+### Translations and interpolants
+
+`deduxit seq translate SEQUENT` translates a classical sequent by a
+negative translation, decides the sequent in classical logic and its
+translation in the target logic, and prints both verdicts, which must
+agree. `--by kolmogorov` (the default) or `godel-gentzen` reach minimal
+logic, `kuroda` or `glivenko` intuitionistic logic. `--to
+intuitionistic|minimal` names the target, and a target a translation
+does not reach is an error. The exit status is 0 where both verdicts
+are valid, 1 where neither is, 3 for unknown.
+
+`deduxit interpolate SEQUENT` finds a Craig interpolant of a valid
+sequent and checks it: `Γ₁ ⊢ Δ₁, I` and `I, Γ₂ ⊢ Δ₂` are decided again,
+and every atom of `I` must be in both halves. The first half is every
+formula left of `⊢`, or the positions `--first L0,R1` names; `--logic`
+is classical by default, and outside classical logic the formula right
+of `⊢` stays in the second half. Exit 0 for a checked interpolant, 1 for
+a sequent that is not valid, 3 for unknown.
+
+```console
+$ deduxit interpolate 'a /\ b |- b \/ c'
+interpolant: b
+a ∧ b ⊢ b: valid, a checked derivation of LK (3 inferences)
+b ⊢ b ∨ c: valid, a checked derivation of LK (3 inferences)
+$ deduxit seq translate --by glivenko '~~a -> a'
+Glivenko's translation into intuitionistic logic: ⊢ ¬¬(¬¬a → a)
+classical logic: valid, a checked derivation of LK (4 inferences)
+intuitionistic logic: valid, a checked derivation of LJ (16 inferences)
+The verdicts agree, as Glivenko's translation claims.
+```
+
+Both take `--format json`, a document at wire level 16: `{"version",
+"translation", "target", "agreement", "sequent", "translated",
+"classical", "decided"}` from `seq translate` and `{"version", "logic",
+"partition", "outcome", "interpolant"}` from `interpolate`, every outcome
+an ordinary outcome without its own `version`.
+
 ### Step by step in LK or LJ
 
 `deduxit interact --logic LOGIC SEQUENT` proves an ordinary sequent step
@@ -1460,6 +1497,19 @@ occurrences by id, and `describe(&forest)` names them by formula.
   weakenings and contractions `explicit` or `admissible`.
 - `Derivation::term` reads the lambda-term of a checked derivation, or
   of a view of one.
+- `ordinary::negative::compare(&sequent, &options, &search, &limits,
+  stop)` translates a classical sequent (`ordinary::negative::Options`:
+  the `translation` and the `target` logic), decides both and returns an
+  `ordinary::negative::Comparison` with both outcomes and the
+  `agreement`; verdicts that differ are `Error::ClaimFails` (code
+  `claim_fails`). `ordinary::negative::translate` returns the translated
+  sequent alone.
+- `ordinary::interpolant::interpolate(&sequent, &options, &partition,
+  &search, &limits, stop)` decides the sequent and returns an
+  `ordinary::interpolant::Interpolation` whose `interpolant` holds both
+  halves decided; `ordinary::interpolant::Partition` lists the positions
+  of the first half. `ordinary::interpolant::interpolant` reads one off a
+  derivation you give, refusing one with a cut (`Error::NotCutFree`).
 
 ### A calculus given as data
 
@@ -1542,6 +1592,11 @@ library's `ordinary::Interactive` at wire level 8:
   the root of the derivation found and the rule above them, which
   `ordinary_apply` takes in turn;
 - `ordinary_export`, in `text`, `latex`, `typst`, `svg` or `rocq`.
+- `ordinary_translate(sequent, options, settings)`, `options` being
+  `{"translation": "kuroda", "target": "intuitionistic"}` or `""`, and
+  `ordinary_interpolate(sequent, logic, partition, settings)`,
+  `partition` being `{"left": [0], "right": []}` or `""`, answer the
+  documents `seq translate` and `interpolate` write as JSON.
 
 `about` lists the suites (`linear`, `ordinary`), each with the prefix of
 its calls, the parameter its start takes (`mode`, `logic`), every value
