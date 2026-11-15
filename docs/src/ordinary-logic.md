@@ -235,9 +235,9 @@ the model satisfies ⊢ a ∨ ¬a at world 1
 A world gets `"falsity": true` where it forces `false` (minimal logic).
 `check` first checks that the file is a model of the logic: its arrows
 do not go round, every world forces what each world below it forces,
-and only minimal logic has `falsity`. The exit status is 0 where the
-sequent holds, 1 where it fails, and 2 for a file that is no model of
-the logic.
+and only minimal logic has `falsity`. A key it does not know, such as a
+misspelt `arrows`, is an error. The exit status is 0 where the sequent
+holds, 1 where it fails, and 2 for a file that is no model of the logic.
 
 ## Draw the derivation
 

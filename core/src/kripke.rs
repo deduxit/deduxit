@@ -18,8 +18,11 @@
 //! ["a"]}], "world": 0}`: each world's atoms by name, `"falsity": true`
 //! where it forces `⊥` (minimal logic only), and its arrows to the worlds
 //! directly above it, by index; `world` the world the model is about,
-//! the one where the sequent fails for a countermodel. Nested in an
-//! outcome it has no `version`.
+//! the one where the sequent fails for a countermodel. A key the
+//! document does not know is refused by name, so that a misspelt key of a
+//! model written by hand is not read as a missing one. Nested in an
+//! outcome it has no `version`, and unknown keys are ignored there, as in
+//! every form a program writes.
 
 use crate::Error;
 use crate::limits::Space;

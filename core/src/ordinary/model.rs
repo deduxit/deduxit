@@ -525,6 +525,13 @@ mod tests {
             assert_eq!(read, model);
             let keyword = r#"{"worlds":[{"atoms":["par"]}]}"#;
             assert!(serde_json::from_str::<Model>(keyword).is_err());
+            // A misspelt key is refused by name, not read as no arrows.
+            let misspelt = r#"{"worlds":[{"atoms":[],"arrow":[1]},{"atoms":["a"]}]}"#;
+            let error = serde_json::from_str::<Model>(misspelt).unwrap_err();
+            assert!(
+                error.to_string().contains("unknown field `arrow`"),
+                "{error}"
+            );
         }
     }
 

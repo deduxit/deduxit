@@ -42,6 +42,56 @@ pub(super) struct ModelForm {
     world: u32,
 }
 
+/// A world of a model document, which refuses a key it does not know.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StrictWorld {
+    /// The atoms the world forces, by name.
+    atoms: Vec<String>,
+    /// Whether the world forces `⊥`.
+    #[serde(default)]
+    falsity: bool,
+    /// The worlds directly above.
+    #[serde(default)]
+    arrows: Vec<u32>,
+}
+
+/// A model document, which refuses a key it does not know: a model is
+/// often written by hand, and a misspelt `arrows` would otherwise read as
+/// a world without arrows. A model nested in an outcome is read as
+/// [`ModelForm`], which ignores unknown keys as every data form does.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StrictModel {
+    /// The wire level.
+    #[serde(default, deserialize_with = "wire::version")]
+    version: Option<u32>,
+    /// The worlds.
+    worlds: Vec<StrictWorld>,
+    /// The world the model is about; the first where it is missing.
+    #[serde(default)]
+    world: u32,
+}
+
+impl From<StrictModel> for ModelForm {
+    /// Returns the form of the model the document holds.
+    fn from(strict: StrictModel) -> Self {
+        Self {
+            version: strict.version,
+            worlds: strict
+                .worlds
+                .into_iter()
+                .map(|w| WorldForm {
+                    atoms: w.atoms,
+                    falsity: w.falsity,
+                    arrows: w.arrows,
+                })
+                .collect(),
+            world: strict.world,
+        }
+    }
+}
+
 impl From<&Model> for ModelForm {
     /// Writes the model's form, nested: without its level.
     fn from(model: &Model) -> Self {
@@ -115,10 +165,10 @@ impl crate::sealed::Readable for Model {}
 impl Readable for Model {
     const FORM: &'static str = "Kripke model";
 
-    /// Reads a model, its names checked, not whether it is a model of a
-    /// logic.
+    /// Reads a model document, its names checked, not whether it is a
+    /// model of a logic; a key it does not know is refused by name.
     fn read<'de, D: Deserializer<'de>>(deserializer: D, limits: &Limits) -> Result<Self, D::Error> {
-        ModelForm::deserialize(deserializer)?
+        ModelForm::from(StrictModel::deserialize(deserializer)?)
             .within(limits)
             .map_err(wire::fail)
     }

@@ -371,7 +371,10 @@ and the image's outcome nested (`search::Nested`, an outcome's keys
 without `version` and `deduxit`; `search::OutcomeForm` reads it back);
 levels 8 to 10 wrote it differently, and its reader refuses them, since
 no release read it; level 13 (`wire::KRIPKE`, `serialize/kripke.rs`)
-is the Kripke model, a document of its own; the outcome's
+is the Kripke model, a document of its own, which refuses a key it
+does not know (`StrictModel`, `deny_unknown_fields`: a model is written
+by hand, and a misspelt `arrows` read as no arrows), while the nested
+form (`ModelForm`) ignores one as every data form does; the outcome's
 `countermodel` (`{"sequent", "model"}`) raises no level (a reader of 12
 ignores it without misreading the verdict), so the outcome stays at 12; its
 names checked and composed as every reader's are, its size within

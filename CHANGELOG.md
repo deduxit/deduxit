@@ -247,7 +247,8 @@ unchanged.
   it back; an ordinary outcome below level 12, which no release read, is
   refused. Every other document is written as before.
 - Level 13 adds the Kripke model, `{"worlds": [{"atoms", "falsity",
-  "arrows"}], "world"}`, as a document. An ordinary outcome holds one
+  "arrows"}], "world"}`, as a document, which refuses a key it does not
+  know (a model is often written by hand). An ordinary outcome holds one
   under `countermodel` and stays at level 12: a reader of level 12
   ignores the key without misreading the verdict.
 

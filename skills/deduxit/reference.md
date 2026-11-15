@@ -1079,7 +1079,8 @@ no model. A model past a size bound is reported as too large to show.
 form (`{"worlds": […]}`) against a sequent: first that it is a model of
 the logic, then whether the sequent holds at `--world N`, or at every
 world; where it fails it names the world and what it forces of each
-subformula (exit status 0 holds, 1 fails, 2 no model of the logic):
+subformula (exit status 0 holds, 1 fails, 2 no model of the logic or a
+key the form does not know):
 
 ```console
 $ echo '{"worlds": [{"atoms": [], "arrows": [1]}, {"atoms": ["a"]}]}' > model.json
