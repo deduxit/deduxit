@@ -10,6 +10,21 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-15
+
+Intuitionistic logic decided by its own engines, with Kripke
+countermodels, and truth tables and tableaux for classical logic. A SAT
+solver decides classical, intuitionistic and minimal logic by default,
+with Dyckhoff's calculus LJT beside it. A sequent that is not valid
+comes with a Kripke countermodel, which is checked, printed, drawn and
+certified in Rocq, and `check` checks a model you give. The Horn
+engine's affine refutations are checked, the command guides a
+newcomer's first errors, and the help, the messages and the manual are
+rewritten. On the web page, a goal that is not valid shows its
+countermodel, and classical logic has its truth table and tableau. The
+Rocq library rocq-deduxit 0.4.0 adds intuitionistic and minimal logic
+with their Kripke models, which the countermodels' certificates need.
+
 ### What breaks, and what to do instead
 
 - **`prove --logic L --format json` writes the ordinary outcome under
@@ -36,10 +51,13 @@ second number (0.1.x to 0.2.0), anything else the third.
   the time limit stops the solver, the embedding decides as before. For
   the old behaviour, give `--method embedding` or `--translation`.
 - **`prove --logic classical` decides by the SAT solver by default**,
-  and keeps the embedding's output wherever the embedding decides
-  within 2²⁰ units of work (`ordinary::EVIDENCE_WORK`): its
-  verdict line, derivation of LK, refutation and certificate, as
-  before. Otherwise the solver's answer stands: `valid (classical logic
+  and keeps the embedding's output wherever the embedding gives a
+  derivation of LK or a refutation within 2²⁰ units of work
+  (`ordinary::EVIDENCE_WORK`): its verdict line, derivation,
+  refutation and certificate, as before. Where the embedding proves
+  the translated sequent but its derivation of LK passes the
+  derivation limit, `--format json` writes the solver's clausal proof
+  in place of the translated sequent's proof. Otherwise the solver's answer stands: `valid (classical logic
   by the SAT solver): a checked clausal proof of …`, with no derivation,
   or `not valid (…): a checked countermodel refutes it`. On the ILTP
   library at 2 s the default decides 254 problems where it decided 124.
@@ -61,6 +79,10 @@ second number (0.1.x to 0.2.0), anything else the third.
   `evidence.derivation()`, which refuses a clausal proof with the new
   `Error::NoDerivation` (code `no_derivation`; its field `evidence`
   names what the sequent is valid by).
+- **`ordinary::Rule` has the variant `Cut`**, Gentzen's cut in LJ,
+  which LJT's derivations hold; it comes before `Open`, which moves
+  `Open`'s place in the derived order and its number. A `match` over
+  `ordinary::Rule` without a wildcard adds an arm for `Rule::Cut`.
 - **`Error::Logic` names the method** that does not decide the logic,
   in its new field `method`: LJT for classical logic, as before, and the
   truth table and the tableau for intuitionistic and minimal logic.
@@ -295,10 +317,12 @@ unchanged.
 
 ### Wire forms
 
+- Level 9 adds LJ's cut, `"rule": "cut"`, in a derivation of LJ and
+  a proof in progress that holds one, written at level 9.
 - Level 10 adds the outcome of a sequent valid by a clausal proof:
   `"clausal_proof": {"variables", "clauses", "steps"}` in place of
-  `derivation`, written at level 10; every other document is written as
-  before.
+  `derivation`. 0.4.0 writes every ordinary outcome at level 12, so no
+  document of it is at level 10.
 - Level 11 adds the refutation by a basis, `{"kind": "basis", "body",
   "classes", "markings"}`, in a disproof or an unprovable outcome that
   holds one.
@@ -1557,6 +1581,7 @@ The first release.
   for proved or valid, 1 for unprovable or invalid, 2 for an error, 3
   for unknown and 130 at a second Ctrl-C.
 
+[0.4.0]: https://github.com/deduxit/deduxit/releases/tag/v0.4.0
 [0.3.0]: https://github.com/deduxit/deduxit/releases/tag/v0.3.0
 [0.2.0]: https://github.com/linlog-prover/linlog/releases/tag/v0.2.0
 [0.1.0]: https://github.com/linlog-prover/linlog/releases/tag/v0.1.0
