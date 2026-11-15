@@ -163,8 +163,21 @@ in use.
   default. Where a bound other than the time limit stops the solver,
   the embedding below decides instead. LJT alone is `--method ljt`; its
   proofs become derivations of LJ with cuts.
-- All three logics are decided through their embeddings into linear
-  logic: classical logic into affine MALL; intuitionistic logic into ILL
+- Classical logic also has the methods of a first logic course:
+  `--method table` prints the sequent's truth table with its falsifying
+  rows marked, and `--method tableau` a signed tableau whose lines name
+  their rules. A closed tableau is a checked derivation of LK, and an
+  open branch or a falsifying row a checked countermodel. The table is
+  bounded at 10 atoms by default.
+- Every "not valid" of the SAT solver comes with a Kripke countermodel,
+  and in classical logic the embedding's assignment is a model of one
+  world. The model is checked before the verdict, printed a world per
+  line, written in the JSON, drawn as SVG, PNG or PDF, and certified for
+  deduxit's Rocq library. `check --logic L --sequent SEQUENT FILE`
+  checks a Kripke model you give and says at which world the sequent
+  fails.
+- All three logics can also be decided through their embeddings into
+  linear logic: classical logic into affine MALL; intuitionistic logic into ILL
   by Girard's call-by-name and call-by-value translations or the 0/1
   translation; minimal logic the same, with false an atom. `seq print`
   prints the translated sequent, and `--method embedding` decides through
@@ -177,7 +190,9 @@ in use.
   intuitionistic or minimal logic gets a certificate for deduxit's Rocq
   library.
 - Sequents are proved step by step in LK and LJ, in the command and in
-  the web bindings.
+  the web bindings. A goal's `close` and `hint` decide through the
+  embedding; in the bindings a goal that is not valid gets the SAT
+  solver's countermodel.
 - In the library, behind the default feature `sat`, `ordinary::sat`
   decides classical, intuitionistic and minimal logic with a SAT
   solver. A sequent that is not valid comes with a model, which is
@@ -248,6 +263,10 @@ in use.
     weighted count), on which the certificates of refutations rest;
   - the proof that a derivation with Mix gives one of `?(⊥⊗⊥), Γ` without
     Mix and without cut;
+  - the calculi of intuitionistic and minimal logic, their Kripke
+    models with the theorem that a derivable sequent holds in every
+    model, and a checker of finite countermodels, on which the
+    certificates of countermodels rest;
   - bridges, checked against the kernels' own files, showing that its
     classical calculus derives exactly the sequents NanoYalla derives,
     and its intuitionistic calculus exactly those of Yalla's
@@ -308,8 +327,9 @@ in use.
   tested on a 32-bit target there too.
 - [deduxit.github.io](https://deduxit.github.io/) is a web page for
   proving step by step in the browser on those bindings, in linear logic
-  and in LK and LJ, with each intuitionistic proof's lambda-term and
-  lessons. It lives in a repository of its own.
+  and in LK and LJ, with each intuitionistic proof's lambda-term, the
+  countermodel of a goal that is not valid, the truth table and the
+  tableau of classical logic, and lessons. It lives in a repository of its own.
 
 ## Benchmarks
 
@@ -348,11 +368,6 @@ in use.
 
 The collection grows by a suite at a time, release by release:
 
-- 0.4.0: intuitionistic logic decided by its own engine on the page and
-  in a session's `close`, with Kripke countermodels for what is not
-  provable, checked, drawn and certified in Rocq; classical tableaux and
-  truth tables; a checked certificate for the affine refutations of the
-  Horn engine.
 - 0.5.0: custom rules, a calculus given as data, with derivations in it
   checked and built in the command and on the page; natural deduction
   for ordinary logic in Gentzen's and Fitch's styles; classical logic
