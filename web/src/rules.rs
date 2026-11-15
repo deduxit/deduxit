@@ -16,7 +16,7 @@
 use crate::failure::Failure;
 use crate::tab;
 use deduxit::export::{latex, svg, typst};
-use deduxit::rules::{self, Apply, Calculus, Drawing, GoalId, Interactive};
+use deduxit::rules::{self, Apply, Calculus, Drawing, GoalId, Interactive, Undone};
 use deduxit::{Progress, Settings, wire};
 use serde::{Deserialize, Serialize};
 
@@ -394,12 +394,14 @@ pub fn assume(session: &str, goal: u32, settings: &str) -> Result<String, Failur
 /// What an undo reopened.
 #[derive(Serialize)]
 struct Reopened {
-    /// The goal the undo reopened, `null` when no step was left.
+    /// The goal the undo reopened, `null` when no step was left or the
+    /// step taken back was a forward one, which reopens no goal.
     reopened: Option<GoalId>,
 }
 
 /// Takes back the session's last step and returns the session with
-/// `reopened`, the goal, or `null` when no step was left.
+/// `reopened`, the goal, or `null` when no step was left or a forward
+/// step was taken back.
 ///
 /// # Errors
 ///
@@ -407,7 +409,10 @@ struct Reopened {
 pub fn undo(session: &str, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let mut state = session_of(session, &settings)?;
-    let reopened = state.undo();
+    let reopened = match state.undo() {
+        Some(Undone::Reopened(goal)) => Some(goal),
+        _ => None,
+    };
     changed(&state, Reopened { reopened })
 }
 

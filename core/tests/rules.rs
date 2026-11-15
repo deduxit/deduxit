@@ -877,7 +877,7 @@ fn the_memory_bound_counts_every_context_and_zone() {
 #[cfg(feature = "interactive")]
 #[test]
 fn a_session_builds_a_derivation_the_checker_accepts() {
-    use deduxit::rules::{Apply, GoalId, Interactive};
+    use deduxit::rules::{Apply, GoalId, Interactive, Undone};
     let limits = Limits::default();
     // LK: a ∧ b ⊢ b ∧ a, its goals numbered across both zones.
     let mut session =
@@ -908,7 +908,9 @@ fn a_session_builds_a_derivation_the_checker_accepts() {
     assert_eq!(document["version"], 17);
     let mut read: Interactive = wire::upgrade(&document, &limits).unwrap();
     assert_eq!(serde_json::to_value(&read).unwrap(), document);
-    let reopened = read.undo().unwrap();
+    let Some(Undone::Reopened(reopened)) = read.undo() else {
+        panic!("undo reopens the goal the last step closed");
+    };
     assert_eq!(read.goals(), [reopened]);
     // A step the rule does not fit is refused, and the state stays.
     let wrong = read.apply(reopened, &Apply::new("∧R").at(&[1]));
@@ -1080,4 +1082,230 @@ fn a_session_document_whose_scopes_do_not_fit_is_refused() {
                {"sequent": [[0]], "scope": 2}]),
         json!([2]),
     ));
+}
+
+#[cfg(feature = "interactive")]
+#[test]
+fn a_session_derives_forwards_and_cites_its_lines() {
+    use deduxit::rules::{Apply, Derive, Interactive, LineId, NJ, Undone};
+    let limits = Limits::default();
+    let nj = calculus(NJ).unwrap();
+    // From the assumption a ∧ b (line 1), forwards to b ∧ a.
+    let mut session = Interactive::within(nj.clone(), "b /\\ a", &["a /\\ b"], &limits).unwrap();
+    let goal = session.goals()[0];
+    let one = [LineId::new(1)];
+    let b = session
+        .derive(goal, &Derive::new("∧E₂").lines(&one))
+        .unwrap();
+    let a = session
+        .derive(goal, &Derive::new("∧E₁").lines(&one))
+        .unwrap();
+    assert_eq!((b, a), (LineId::new(2), LineId::new(3)));
+    let both = session
+        .derive(goal, &Derive::new("∧I").lines(&[b, a]))
+        .unwrap();
+    assert_eq!(session.lines(goal).len(), 4);
+    session.cite(goal, both).unwrap();
+    let derivation = session.finished(|_| false).unwrap();
+    assert_eq!(derivation.assumptions().count(), 2);
+    // A session with derived lines is written at level 18 and reads back.
+    let document = serde_json::to_value(&session).unwrap();
+    assert_eq!(document["version"], 18);
+    let mut read: Interactive = wire::upgrade(&document, &limits).unwrap();
+    assert_eq!(serde_json::to_value(&read).unwrap(), document);
+    // A forged document is refused: a goal closed by a node that is no
+    // derived line, a line no longer marked as one, a goal closed by a
+    // line in the history before the line's step.
+    let nodes = document["nodes"].as_array().unwrap();
+    let line = nodes.iter().rposition(|n| n["line"] == true).unwrap();
+    let mut forged = document.clone();
+    forged["nodes"][0]["cites"] = json!(1);
+    assert!(wire::upgrade::<Interactive, _>(&forged, &limits).is_err());
+    let mut forged = document.clone();
+    forged["nodes"][line]
+        .as_object_mut()
+        .unwrap()
+        .remove("line");
+    assert!(wire::upgrade::<Interactive, _>(&forged, &limits).is_err());
+    let mut forged = document.clone();
+    let history = forged["history"].as_array_mut().unwrap();
+    let last = history.pop().unwrap();
+    history.insert(0, last);
+    assert!(wire::upgrade::<Interactive, _>(&forged, &limits).is_err());
+    assert_eq!(read.undo(), Some(Undone::Reopened(goal)));
+    assert_eq!(read.undo(), Some(Undone::Removed(both)));
+    assert_eq!(read.lines(goal).len(), 3);
+
+    // What a forward step refuses: a rule that discharges, a line that
+    // is no instance of its premise, a variable only the conclusion
+    // holds, a wrong count of lines.
+    let refused = |step: Result<LineId, Error>, words: &str| match step {
+        Err(Error::StepRefused { reason, .. }) => assert!(reason.contains(words), "{reason}"),
+        other => panic!("expected a refusal about {words:?}, got {other:?}"),
+    };
+    refused(
+        read.derive(goal, &Derive::new("→I").lines(&one)),
+        "apply it backwards",
+    );
+    refused(
+        read.derive(goal, &Derive::new("→E").lines(&[LineId::new(1), b])),
+        "no instance of premise 1",
+    );
+    refused(
+        read.derive(goal, &Derive::new("∧I").lines(&one)),
+        "cites 1 lines",
+    );
+    assert!(matches!(
+        read.derive(goal, &Derive::new("∨I₁").lines(&one)),
+        Err(Error::StepNeeds { needs, .. }) if needs == ["B"]
+    ));
+    read.derive(goal, &Derive::new("∨I₁").lines(&one).given(&[("B", "c")]))
+        .unwrap();
+
+    // A line of a subproof is in force inside it and nowhere else.
+    let mut nested = Interactive::within(nj, "(a -> a /\\ a) /\\ (a -> a)", &[], &limits).unwrap();
+    let opened = nested.apply(nested.goals()[0], &Apply::new("∧I")).unwrap();
+    let inner = nested.apply(opened[0], &Apply::new("→I")).unwrap()[0];
+    let hypothesis = LineId::new(1);
+    let line = nested
+        .derive(inner, &Derive::new("∧I").lines(&[hypothesis, hypothesis]))
+        .unwrap();
+    nested.assume(inner).unwrap();
+    let outer = opened[1];
+    match nested.derive(outer, &Derive::new("∧E₁").lines(&[line])) {
+        Err(Error::StepRefused { reason, .. }) => {
+            assert!(reason.contains("not in force"), "{reason}");
+        }
+        other => panic!("a line of a closed subproof was cited: {other:?}"),
+    }
+    assert!(nested.cite(outer, hypothesis).is_err());
+    let last = nested.apply(outer, &Apply::new("→I")).unwrap()[0];
+    // Line 3 is the second subproof's hypothesis.
+    nested.cite(last, LineId::new(3)).unwrap();
+    nested.finished(|_| false).unwrap();
+}
+
+#[cfg(feature = "interactive")]
+#[test]
+fn random_forward_and_backward_steps_keep_a_checked_session() {
+    use deduxit::rules::{Apply, Derive, Interactive, LineId, NJ, NK};
+    let limits = Limits::default();
+    let mut seed = 62_u64;
+    let mut next = |below: usize| {
+        seed ^= seed << 13;
+        seed ^= seed >> 7;
+        seed ^= seed << 17;
+        (seed % below as u64) as usize
+    };
+    let (mut steps, mut derived, mut refused) = (0, 0, 0);
+    for (file, goal, assumptions) in [
+        (NJ, "(a -> b) -> (b -> c) -> a -> c", &[][..]),
+        (NJ, "b \\/ a", &["a \\/ b"][..]),
+        (NJ, "~(a /\\ ~a)", &[][..]),
+        (NK, "a", &["~~a"][..]),
+        (NJ, "(a <-> b) -> b -> a", &[][..]),
+        (
+            NJ,
+            "d /\\ b",
+            &["a /\\ b", "a -> c", "c <-> d", "~d \\/ a"][..],
+        ),
+        (NK, "c \\/ ~c", &["a /\\ ~b", "a -> b \\/ c"][..]),
+    ] {
+        let rules: Vec<String> = calculus(file).unwrap().rules().map(str::to_owned).collect();
+        for _ in 0..40 {
+            let mut session =
+                Interactive::within(calculus(file).unwrap(), goal, assumptions, &limits).unwrap();
+            for _ in 0..30 {
+                let goals = session.goals();
+                if goals.is_empty() {
+                    break;
+                }
+                let goal = goals[next(goals.len())];
+                let in_force: Vec<LineId> = session
+                    .lines(goal)
+                    .into_iter()
+                    .map(|(line, _)| line)
+                    .collect();
+                let pick = |next: &mut dyn FnMut(usize) -> usize| {
+                    if in_force.is_empty() || next(4) == 0 {
+                        // Now and then a line out of force, or none at all.
+                        LineId::new(next(12) as u32)
+                    } else {
+                        in_force[next(in_force.len())]
+                    }
+                };
+                let rule = &rules[next(rules.len())];
+                let outcome = match next(9) {
+                    0 | 1 => {
+                        // Mostly a rule that applies as it is.
+                        let fits: Vec<_> = session
+                            .rules(goal)
+                            .unwrap()
+                            .into_iter()
+                            .filter(|r| r.needs.is_empty())
+                            .collect();
+                        if fits.is_empty() || next(5) == 0 {
+                            session.apply(goal, &Apply::new(rule)).map(|_| ())
+                        } else {
+                            let fit = &fits[next(fits.len())];
+                            session
+                                .apply(goal, &Apply::new(&fit.rule).at(&fit.at))
+                                .map(|_| ())
+                        }
+                    }
+                    2 | 6 | 7 => {
+                        // A rule that applies forwards, with as many lines
+                        // as it has premises, mostly; now and then any.
+                        const FORWARD: [(&str, usize); 10] = [
+                            ("∧E₁", 1),
+                            ("∧E₂", 1),
+                            ("∧I", 2),
+                            ("→E", 2),
+                            ("¬E", 2),
+                            ("↔E₁", 2),
+                            ("↔E₂", 2),
+                            ("∨I₁", 1),
+                            ("∨I₂", 1),
+                            ("⊥E", 1),
+                        ];
+                        let (name, count) = if next(5) == 0 {
+                            (rule.as_str(), next(3))
+                        } else {
+                            FORWARD[next(FORWARD.len())]
+                        };
+                        let lines: Vec<LineId> = (0..count).map(|_| pick(&mut next)).collect();
+                        let given = [("A", "a"), ("B", "b")];
+                        let given = &given[..next(3)];
+                        let line =
+                            session.derive(goal, &Derive::new(name).lines(&lines).given(given));
+                        derived += usize::from(line.is_ok());
+                        line.map(|_| ())
+                    }
+                    3 | 4 => session.assume(goal),
+                    5 => session.cite(goal, pick(&mut next)),
+                    _ => {
+                        session.undo();
+                        Ok(())
+                    }
+                };
+                match outcome {
+                    Ok(()) => steps += 1,
+                    Err(Error::StepRefused { .. } | Error::StepNeeds { .. }) => refused += 1,
+                    Err(other) => panic!("{other:?}"),
+                }
+                // Every state reads back, every step checked again.
+                let document = serde_json::to_value(&session).unwrap();
+                let read: Interactive =
+                    wire::upgrade(&document, &limits).unwrap_or_else(|e| panic!("{e}: {document}"));
+                assert_eq!(serde_json::to_value(&read).unwrap(), document);
+            }
+            if session.is_finished() {
+                session.finished(|_| false).unwrap();
+            }
+        }
+    }
+    assert!(
+        steps > 1000 && refused > 1000 && derived > 100,
+        "{steps} steps, {refused} refused, {derived} lines derived"
+    );
 }

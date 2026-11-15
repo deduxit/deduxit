@@ -70,7 +70,7 @@ pub use calculus::{Associativity, Calculus, Discipline, Fixity};
 pub use derivation::{Derivation, Node, NodeId, NodeRef, ScopeId, Step};
 pub use draw::Drawing;
 #[cfg(all(feature = "interactive", feature = "parse"))]
-pub use interactive::{Applicable, Apply, GoalId, Interactive};
+pub use interactive::{Applicable, Apply, Derive, GoalId, Interactive, LineId, Undone};
 pub use print::Shown;
 pub use terms::{Term, TermId, Terms};
 

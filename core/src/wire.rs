@@ -33,6 +33,7 @@
 //! | 15 | a calculus given as data: the rule file, and the derivation in such a calculus | a rule file, a derivation of [`rules`](crate::rules) |
 //! | 16 | a classical sequent's negative translations compared, and an interpolation, each holding ordinary outcomes nested without `version` and `deduxit`; written only | a comparison of translations, an interpolation |
 //! | 17 | a session of step-by-step proving in a calculus given as data: the rule file, the terms, the scopes, the nodes from the conclusion up and the steps | a session of [`rules`](crate::rules) (feature `interactive`) |
+//! | 18 | a session in a calculus given as data with lines a forward step derived: a node's `line`, and a goal's `cites` | a session of [`rules`](crate::rules) that holds such a line (feature `interactive`) |
 //!
 //! A reader refuses a document above its level by name ([`Error::Version`],
 //! code `unsupported_version`). It does so before reading the other keys
@@ -236,7 +237,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// The highest wire level this build reads and writes.
-pub const LEVEL: u32 = 17;
+pub const LEVEL: u32 = 18;
 
 /// The level of a rule file and of a derivation in a calculus given as
 /// data.
@@ -246,6 +247,11 @@ pub(crate) const RULES: u32 = 15;
 /// data.
 #[cfg(all(feature = "interactive", feature = "parse"))]
 pub(crate) const SESSION: u32 = 17;
+
+/// The level of a session in a calculus given as data that holds a line
+/// a forward step derived.
+#[cfg(all(feature = "interactive", feature = "parse"))]
+pub(crate) const FORWARD: u32 = 18;
 
 /// The level of every document that no later level's feature raises.
 pub(crate) const BASE: u32 = 1;

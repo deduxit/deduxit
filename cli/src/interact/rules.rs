@@ -10,20 +10,24 @@ use crate::argument_parsing::InteractArgs;
 use crate::io;
 use anyhow::{Context, Result, bail};
 use deduxit::Settings;
-use deduxit::rules::{Apply, GoalId, Interactive};
+use deduxit::rules::{Apply, Derive, GoalId, Interactive, LineId, Undone};
 use std::path::Path;
 
 /// The session's commands, as `help` lists them.
 const HELP: &str = "\
 goals               the open goals, each member numbered across the zones: 0, 1, …,
-                    with the hypotheses in force
+                    with the lines in force, numbered 1, 2, …
 rules G             the rules that apply to goal G, with the members they act on and what
                     each needs given
 apply G RULE [N…] [NAME=TEXT…]
                     apply a rule backwards to goal G, acting on members N…; NAME=TEXT
                     gives what the goal leaves open: a formula for a variable, members
                     separated by commas for a context (in quotes if TEXT has blanks)
-assume G            close goal G by a hypothesis in force
+derive G RULE L… [NAME=TEXT…]
+                    apply a rule forwards from lines L… in force at goal G, which adds
+                    its conclusion as a new line there; NAME=TEXT gives what the lines
+                    leave open
+assume G [L]        close goal G by line L in force, or by the line in force equal to it
 undo                retract the last step
 show                the derivation so far, a line per node
 proof [FILE]        check the finished derivation and print it, or write it to FILE as JSON
@@ -110,13 +114,19 @@ impl Session {
                 written = true;
             }
         }
-        let hypotheses = self.state.hypotheses(goal);
-        if !hypotheses.is_empty() {
-            let shown: Vec<String> = hypotheses
+        let lines = self.state.lines(goal);
+        if !lines.is_empty() {
+            let shown: Vec<String> = lines
                 .iter()
-                .map(|h| crate::calculus::sequent_of(calculus, terms, h))
+                .map(|(line, sequent)| {
+                    format!(
+                        "{}. {}",
+                        line.number(),
+                        crate::calculus::sequent_of(calculus, terms, sequent)
+                    )
+                })
                 .collect();
-            text.push_str(&format!("\n    hypotheses: {}", shown.join("; ")));
+            text.push_str(&format!("\n    lines: {}", shown.join("; ")));
         }
         text
     }
@@ -155,6 +165,14 @@ impl Session {
         let derivation = self.state.derivation()?;
         Ok(crate::calculus::lines(&derivation, self.state.calculus()))
     }
+}
+
+/// Returns the line a word names.
+fn line(word: &str) -> Result<LineId> {
+    let number: u32 = word.parse().with_context(|| {
+        format!("{word:?} names no line: give its number, as a goal's `lines` shows it")
+    })?;
+    Ok(LineId::new(number))
 }
 
 /// Returns the goal a word names.
@@ -214,13 +232,43 @@ impl Commands for Session {
                     .apply(target, &Apply::new(rule).at(&at).given(&given))?;
                 self.opened(&opened)
             }
+            "derive" => {
+                let target = goal(rest.first())?;
+                let rule = rest.get(1).context("which rule? see `rules` and `help`")?;
+                let mut lines = Vec::new();
+                let mut given = Vec::new();
+                for word in &rest[2..] {
+                    if let Some((name, text)) = word.split_once('=') {
+                        given.push((name, text));
+                    } else {
+                        lines.push(line(word)?);
+                    }
+                }
+                let derived = self
+                    .state
+                    .derive(target, &Derive::new(rule).lines(&lines).given(&given))?;
+                let calculus = self.state.calculus();
+                let sequent = self
+                    .state
+                    .lines(target)
+                    .into_iter()
+                    .find(|(l, _)| *l == derived)
+                    .map(|(_, s)| crate::calculus::sequent_of(calculus, self.state.terms(), s))
+                    .unwrap_or_default();
+                format!("line {}: {sequent}", derived.number())
+            }
             "assume" => {
                 let target = goal(rest.first())?;
-                self.state.assume(target)?;
+                match rest.get(1) {
+                    Some(word) => self.state.cite(target, line(word)?)?,
+                    None => self.state.assume(target)?,
+                }
                 self.opened(&[])
             }
             "undo" => match self.state.undo() {
-                Some(goal) => format!("reopened {}", self.goal_line(goal)),
+                Some(Undone::Reopened(goal)) => format!("reopened {}", self.goal_line(goal)),
+                Some(Undone::Removed(line)) => format!("removed line {}", line.number()),
+                Some(_) => "undone".to_owned(),
                 None => "nothing to undo".to_owned(),
             },
             "show" => self.show()?,

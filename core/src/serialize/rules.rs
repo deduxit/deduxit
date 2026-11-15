@@ -681,6 +681,12 @@ struct SessionNodeForm {
     /// The scope the node was opened in, where a hypothesis left it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     opened: Option<u32>,
+    /// Whether the node is a line a forward step derived (level 18).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    line: bool,
+    /// The derived line that closes the goal (level 18).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    cites: Option<u32>,
 }
 
 /// The serialized form of a session.
@@ -709,7 +715,8 @@ struct SessionForm {
 
 #[cfg(all(feature = "interactive", feature = "parse"))]
 impl Serialize for crate::rules::Interactive {
-    /// Serializes the session as a document at level 17.
+    /// Serializes the session as a document at level 17, or at 18 where
+    /// it holds a line a forward step derived.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use crate::rules::interactive::Done;
         let ids = |sequent: &[Vec<TermId>]| -> Vec<Vec<u32>> {
@@ -720,8 +727,13 @@ impl Serialize for crate::rules::Interactive {
         };
         let mut calculus = self.calculus().form().clone();
         calculus.version = None;
+        let forward = self.nodes.iter().any(|node| node.line);
         let form = SessionForm {
-            version: Some(wire::SESSION),
+            version: Some(if forward {
+                wire::FORWARD
+            } else {
+                wire::SESSION
+            }),
             calculus,
             terms: terms_form(self.terms()),
             scopes: self
@@ -740,16 +752,21 @@ impl Serialize for crate::rules::Interactive {
                     sequent: ids(&node.sequent),
                     rule: match &node.done {
                         Done::Rule(name, _) => Some(name.clone()),
-                        Done::Open | Done::Hypothesis => None,
+                        Done::Open | Done::Hypothesis | Done::Line(_) => None,
                     },
                     hypothesis: node.done == Done::Hypothesis,
                     at: match &node.done {
                         Done::Rule(_, at) => at.clone(),
-                        Done::Open | Done::Hypothesis => Vec::new(),
+                        Done::Open | Done::Hypothesis | Done::Line(_) => Vec::new(),
                     },
                     premises: node.premises.clone(),
                     scope: node.scope,
                     opened: (node.opened != node.scope).then_some(node.opened),
+                    line: node.line,
+                    cites: match node.done {
+                        Done::Line(line) => Some(line),
+                        Done::Open | Done::Hypothesis | Done::Rule(..) => None,
+                    },
                 })
                 .collect(),
             history: self.history.clone(),
@@ -814,13 +831,14 @@ fn session(form: SessionForm, limits: &Limits) -> Result<crate::rules::Interacti
         .nodes
         .iter()
         .map(|node| {
-            let done = match (&node.rule, node.hypothesis) {
-                (Some(rule), false) => Done::Rule(rule.clone(), node.at.clone()),
-                (None, true) => Done::Hypothesis,
-                (None, false) => Done::Open,
-                (Some(_), true) => {
+            let done = match (&node.rule, node.hypothesis, node.cites) {
+                (Some(rule), false, None) => Done::Rule(rule.clone(), node.at.clone()),
+                (None, true, None) => Done::Hypothesis,
+                (None, false, Some(line)) => Done::Line(line),
+                (None, false, None) => Done::Open,
+                _ => {
                     return Err(Error::InconsistentSession {
-                        reason: "a node is both a rule's and a hypothesis",
+                        reason: "a node is more than one of a rule's, a hypothesis and a line's",
                     });
                 }
             };
@@ -830,6 +848,7 @@ fn session(form: SessionForm, limits: &Limits) -> Result<crate::rules::Interacti
                 premises: node.premises.clone(),
                 scope: node.scope,
                 opened: node.opened.unwrap_or(node.scope),
+                line: node.line,
             })
         })
         .collect::<Result<Vec<_>, Error>>()?;
