@@ -554,6 +554,68 @@ pub(crate) fn countermodel_into(
     }
 }
 
+/// Writes the drawing of a countermodel into `out` after `prefix`, for
+/// `--format svg`, `png` or `pdf`; or says why there is none: LaTeX and
+/// Typst, which have no drawing of a model, a drawing past a bound, or
+/// `halt`. The verdict stays as it is.
+///
+/// # Errors
+///
+/// An output that cannot be written, and a render that cannot start.
+pub(crate) fn model_drawn(
+    countermodel: &deduxit::ordinary::Countermodel,
+    logic: deduxit::ordinary::Logic,
+    show: &Show,
+    prefix: Option<&str>,
+    out: &mut io::Output,
+    halt: &dyn Fn() -> bool,
+    why: &dyn Fn() -> String,
+) -> Result<Shown> {
+    if !matches!(show.format, Format::Svg | Format::Png | Format::Pdf) {
+        return Ok(Shown::LeftOut(
+            "the countermodel is not drawn: LaTeX and Typst have no drawing of a Kripke model; \
+             --format svg, png or pdf draws it, and the text output lists its worlds"
+                .to_owned(),
+        ));
+    }
+    let drawing =
+        match svg::countermodel(countermodel, logic, &show.styles.svg, &show.limits, |_| {
+            halt()
+        }) {
+            Ok(drawing) => drawing,
+            Err(Error::Refused(Refusal::Stopped { .. })) => {
+                return Ok(Shown::LeftOut(format!(
+                    "the countermodel is not drawn: {}",
+                    why()
+                )));
+            }
+            Err(error) => {
+                return Ok(Shown::LeftOut(format!(
+                    "the countermodel is not drawn: {error}"
+                )));
+            }
+        };
+    if show.format == Format::Svg {
+        write!(out, "{}{drawing}", prefix.unwrap_or(""))?;
+        return Ok(Shown::Written);
+    }
+    Ok(
+        match render(
+            drawing,
+            show.format,
+            &show.styles,
+            show.limits.memory_bytes,
+            halt,
+        )? {
+            Rendered::Bytes(bytes) => Shown::Rendered(bytes),
+            Rendered::Refused(line) => Shown::LeftOut(line),
+            Rendered::Stopped => {
+                Shown::LeftOut(format!("the countermodel is not drawn: {}", why()))
+            }
+        },
+    )
+}
+
 /// Writes the derivation of a proof into `out` as `show` asks, two-sided
 /// in intuitionistic mode, after a newline: a text tree, a LaTeX or
 /// Typst proof tree, an SVG document or a Rocq script; or says why it is

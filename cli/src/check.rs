@@ -8,7 +8,7 @@ use crate::prove::{Stop, on_large_stack, stopped};
 use crate::settings::{Given, time_limit};
 use crate::show::{
     Show, Shown, abbreviated, countermodel_into, derivation, disproof_into, every_steps,
-    lambda_json, lambda_line, linear_term, net_into, net_json, nets_exist,
+    lambda_json, lambda_line, linear_term, model_drawn, net_into, net_json, nets_exist,
 };
 use crate::{Status, exit_on_interrupt, interrupted};
 use anyhow::{Context, Result, anyhow, bail};
@@ -678,10 +678,19 @@ fn check_countermodel(
     }
     let line = (show.verdict || result.is_err()).then_some(line);
     let prefix = show.open(out, line.as_deref())?;
-    let shown = if result.is_ok() && show.format == Format::Rocq {
-        countermodel_into(countermodel, logic, show, prefix.as_deref(), out, over)
-    } else {
-        Shown::Nothing
+    let shown = match show.format {
+        _ if result.is_err() => Shown::Nothing,
+        Format::Rocq => countermodel_into(countermodel, logic, show, prefix.as_deref(), out, over),
+        Format::Svg | Format::Png | Format::Pdf | Format::Latex | Format::Typst => model_drawn(
+            countermodel,
+            logic,
+            show,
+            prefix.as_deref(),
+            out,
+            &over,
+            &|| Stop::why(stopped(deadline)),
+        )?,
+        Format::Text | Format::Json => Shown::Nothing,
     };
     let keep = show.close(out, shown, line.as_deref())?;
     if result.is_ok() && !quiet && show.format == Format::Text {
@@ -798,15 +807,31 @@ fn check_model(
     }
     let prefix = show.open(out, Some(&text))?;
     // A failing world refutes the sequent: its certificate.
-    let shown = match failing {
-        Some(v) if show.format == Format::Rocq => {
-            let countermodel = ordinary::Countermodel::new(
-                sequent.clone(),
-                deduxit::kripke::Model::new(model.worlds.clone(), v),
-            );
-            countermodel_into(&countermodel, logic, show, prefix.as_deref(), out, over)
+    // A failing world refutes the sequent: the model about it is a
+    // countermodel, with its certificate and its drawing.
+    let refuting = failing.map(|v| {
+        ordinary::Countermodel::new(
+            sequent.clone(),
+            deduxit::kripke::Model::new(model.worlds.clone(), v),
+        )
+    });
+    let shown = match (&refuting, show.format) {
+        (None, _) | (Some(_), Format::Text | Format::Json) => Shown::Nothing,
+        (Some(countermodel), Format::Rocq) => {
+            countermodel_into(countermodel, logic, show, prefix.as_deref(), out, over)
         }
-        _ => Shown::Nothing,
+        (
+            Some(countermodel),
+            Format::Svg | Format::Png | Format::Pdf | Format::Latex | Format::Typst,
+        ) => model_drawn(
+            countermodel,
+            logic,
+            show,
+            prefix.as_deref(),
+            out,
+            &over,
+            &|| Stop::why(stopped(deadline)),
+        )?,
     };
     let keep = show.close(out, shown, Some(&text))?;
     Ok((status, keep))

@@ -374,6 +374,25 @@ pub(crate) fn write_native(
             // A clausal proof, which the verdict line names.
             Err(error) => Shown::LeftOut(error.to_string()),
         },
+        (ordinary::Verdict::NotValid, false)
+            if matches!(
+                format,
+                Format::Svg | Format::Png | Format::Pdf | Format::Latex | Format::Typst
+            ) && show.tree != Tree::Never =>
+        {
+            match &outcome.countermodel {
+                Some(countermodel) => crate::show::model_drawn(
+                    countermodel,
+                    outcome.logic,
+                    &show,
+                    prefix.as_deref(),
+                    &mut out,
+                    &over,
+                    &why,
+                )?,
+                None => Shown::Nothing,
+            }
+        }
         (ordinary::Verdict::NotValid, false) if format == Format::Rocq => {
             match &outcome.countermodel {
                 Some(countermodel) => crate::show::countermodel_into(

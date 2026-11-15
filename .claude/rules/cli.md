@@ -171,6 +171,10 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   prints the countermodel after a "not valid" verdict line as text
   (`kripke::Model`'s `Display`, not under `-q` or `--tree never`; the
   drawn formats show none), and a model too large says so on the line.
+  `--format svg|png|pdf` draws it (`show::model_drawn`, the drawing
+  rendered as a net's is; LaTeX and Typst a left-out line), in
+  `write_native` (not under `--tree never`), in `check_countermodel`
+  and `check_model` as the certificate is.
   `--format rocq` writes its certificate (`show::countermodel_into`,
   `rocq::write_countermodel` under the settings' limits, a refusal a
   `no certificate: …` line, the verdict standing), in `write_native`,

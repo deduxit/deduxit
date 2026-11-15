@@ -1074,6 +1074,8 @@ it; the model's world forces every formula left of `|-` and not the one
 right of it. Classically the model has one world, the assignment (also
 from the embedding's refutation); `falsity` is minimal logic's. LJT gives
 no model. A model past a size bound is reported as too large to show.
+`--format svg|png|pdf` draws the model (worlds as boxes with their
+atoms, arrows up, the model's world outlined; LaTeX and Typst draw none);
 `--format rocq` writes the model as a certificate for the Rocq library
 (`~ lj (atom := string) intuitionistic [Γ] C`, or `minimal`, proved by
 `kripke_refutation` from the model as data); a classical one-world
@@ -1102,7 +1104,9 @@ answers what each world forces (`Forcing::holds`, `failing`,
 stop)` whether its world refutes the sequent, within
 `ordinary::MODEL_CELLS` cells and `limits.memory_bytes`;
 `export::rocq::write_countermodel(&countermodel, logic, &options,
-&limits, &mut out, stop)` writes its certificate.
+&limits, &mut out, stop)` writes its certificate and
+`export::svg::countermodel(&countermodel, logic, &style, &limits, stop)`
+its drawing.
 
 ### Examples
 

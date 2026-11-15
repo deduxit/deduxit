@@ -134,6 +134,14 @@ unchanged.
   status 0, 1, or 2 for no model of the logic). The bindings' call
   `ordinary_model` does the same. A model that fails its check is the
   new `Error::Model` (code `invalid_model`, kind invalid).
+- **A Kripke countermodel is drawn**: `--format svg`, `png` and `pdf`
+  on a "not valid" with a countermodel draw it, each world a box with
+  the atoms it forces (and `⊥` in minimal logic), an arrow up to each
+  world directly above it, the model's world outlined in the highlight
+  colour, with a title and a description in sentences. `check` draws an
+  outcome's countermodel and a model you give at the world where it
+  fails. LaTeX and Typst draw none and say so. In the library,
+  `export::svg::countermodel`.
 - **A Kripke countermodel has a Rocq certificate**: `--format rocq`
   on a "not valid" of intuitionistic or minimal logic writes the lemma
   `~ lj (atom := string) intuitionistic [Γ] C` (or `minimal`) for the

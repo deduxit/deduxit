@@ -240,6 +240,18 @@ and only minimal logic has `falsity`. A key it does not know, such as a
 misspelt `arrows`, is an error. The exit status is 0 where the sequent
 holds, 1 where it fails, and 2 for a file that is no model of the logic.
 
+`--format svg`, `png` and `pdf` draw the model: each world a box with
+the atoms it forces, its number `w₀`, `w₁`, … beside it, an arrow up to
+each world directly above it, and the model's world outlined in orange.
+The drawing's description, which a screen reader reads, says what each
+world forces and why the sequent fails. LaTeX and Typst draw no model.
+`check` draws one too: the countermodel of an outcome, or a model of
+your own at the world where it fails.
+
+```console
+$ deduxit prove --logic intuitionistic --format svg --output model.svg 'a \/ ~a'
+```
+
 `--format rocq` writes the model as a certificate for deduxit's Rocq
 library ([Check a certificate in Rocq](rocq.md)): a lemma that LJ, or
 minimal logic, does not derive the sequent, proved by the library's
