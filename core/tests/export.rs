@@ -2183,6 +2183,100 @@ fn countermodel_certificates() {
     assert_eq!(out, "");
 }
 
+/// A Kripke countermodel is drawn as rows of worlds with arrows up,
+/// pinned as `kripke_*.svg`, which the `export` check renders: its title
+/// names the sequent, its description reads every world and ends with
+/// why the sequent fails, and the model's world is outlined in the
+/// highlight colour. A model that does not refute, and a drawing past
+/// the bound, are not drawn.
+#[test]
+fn countermodel_drawings() {
+    use deduxit::kripke::{Model, World};
+    use deduxit::ordinary::{self, Countermodel, Logic};
+    let world = |atoms: &[&str], falsity: bool, arrows: &[u32]| {
+        World::new(
+            atoms.iter().map(|&a| a.to_owned()).collect(),
+            falsity,
+            arrows.to_vec(),
+        )
+    };
+    let countermodel = |input: &str, worlds: Vec<World>, at: u32| {
+        let sequent: ordinary::Sequent = input.parse().unwrap();
+        Countermodel::new(sequent, Model::new(worlds, at))
+    };
+    let draw = |countermodel: &Countermodel, logic: Logic, limits: &Limits| {
+        svg::countermodel(countermodel, logic, &Style::default(), limits, |_| false)
+    };
+    let defaults = Limits::default();
+    // Arrows written twice and an arrow past a row: each drawn once.
+    let independence = countermodel(
+        "a -> b \\/ c |- (a -> b) \\/ (a -> c)",
+        vec![
+            world(&[], false, &[2, 1, 2]),
+            world(&["a", "b"], false, &[]),
+            world(&["a", "c"], false, &[]),
+        ],
+        0,
+    );
+    let drawn = draw(&independence, Logic::Intuitionistic, &defaults).unwrap();
+    assert!(drawn.contains("<title>A countermodel of a → (b ∨ c) ⊢ (a → b) ∨ (a → c)</title>"));
+    assert!(drawn.contains(
+        "<desc>A Kripke model of 3 worlds. An arrow points from a world to a world above it, \
+         which forces everything the world below forces.\nWorld 0, the model's world, forces \
+         nothing; worlds 1 and 2 are above it.\nWorld 1 forces a and b.\nWorld 2 forces a and \
+         c.\nWorld 0 forces each formula left of ⊢ and not the one right of it, so a → (b ∨ c) ⊢ \
+         (a → b) ∨ (a → c) is not valid in intuitionistic logic.</desc>"
+    ));
+    assert!(drawn.contains(r##"<rect id="w0""##) && drawn.contains(r##"stroke="#d55e00""##));
+    assert_eq!(
+        drawn.matches("<path d=\"M").count(),
+        4,
+        "two arrows, two heads"
+    );
+    snapshot("kripke_independence.svg", &drawn);
+    let minimal = countermodel(
+        "~a |- b",
+        vec![world(&[], false, &[1]), world(&["a"], true, &[])],
+        0,
+    );
+    let drawn = draw(&minimal, Logic::Minimal, &defaults).unwrap();
+    assert!(drawn.contains("World 1 forces a and ⊥."));
+    snapshot("kripke_minimal.svg", &drawn);
+    // An arrow past a row bows out, so that it does not run through the
+    // box between.
+    let skipping = countermodel(
+        "|- a \\/ ~a",
+        vec![
+            world(&[], false, &[1, 2]),
+            world(&[], false, &[2]),
+            world(&["a"], false, &[]),
+        ],
+        0,
+    );
+    let drawn = draw(&skipping, Logic::Intuitionistic, &defaults).unwrap();
+    assert_eq!(
+        drawn.matches('Q').count(),
+        1,
+        "one arrow past a row: {drawn}"
+    );
+    // World 1 forces the conclusion.
+    let wrong = countermodel(
+        "|- a \\/ ~a",
+        vec![world(&[], false, &[1]), world(&["a"], false, &[])],
+        1,
+    );
+    assert!(matches!(
+        draw(&wrong, Logic::Intuitionistic, &defaults),
+        Err(Error::Model { .. })
+    ));
+    let mut small = Limits::default();
+    small.derivation_bytes = Some(1000);
+    assert!(matches!(
+        draw(&independence, Logic::Intuitionistic, &small),
+        Err(Error::Refused(Refusal::Output { .. }))
+    ));
+}
+
 /// Every step of an elimination on the net of an intuitionistic proof,
 /// with and without boxes, drawn under `Style::essential` as the front
 /// ends draw an intuitionistic net, is written in the intuitionistic

@@ -822,6 +822,32 @@ for NanoYalla. What the code relies on:
   `Unsupported::NotValid`. Snapshots `not_valid_lk.v` and
   `not_valid_lj.v` (compiled by the `rocq` check, beside two the
   command writes).
+- **A Kripke countermodel's drawing** (`svg::countermodel`,
+  `svg/kripke.rs`): checked first (`Countermodel::check`), then drawn
+  from the `kripke::Model` alone, so the modal suite's models take the
+  same `kripke::draw` with their own title and last sentence. Rows by
+  Kahn's order over the arrows (deduplicated), a world one row above the
+  highest world with an arrow to it, so every arrow points up; within a
+  row by the mean place of the worlds below, then by number (one sweep,
+  no crossing minimisation beyond it). A world is a `<rect id="wN">`
+  with its atoms (italic, `⊥` for `falsity`) centred, at least `LEAST`
+  wide so an empty world has a box, its number `wₙ` at the label size to
+  its left; the model's world in the highlight colour at twice the
+  stroke. An arrow runs from the middle of the lower box's top to the
+  middle of the upper box's bottom with `net::arrowhead` at its tip; one
+  past a row is a quadratic curve whose middle stands `reach` (half the
+  widest box and half a gap) right of its ends, the document that much
+  wider: straight, it ran through the box between and its head lay on
+  the short arrow's (the reviewer's finding). The
+  estimate (per world, per atom byte, per arrow, and the sequent's text
+  bottom up, saturating, before `Display` writes it) is refused past
+  `limits.derivation_bytes` before anything is laid out. The
+  description reads the size, then a sentence per world (what it forces,
+  the worlds directly above it), then why the sequent fails there.
+  Snapshots `kripke_independence.svg` and `kripke_minimal.svg`, which
+  the `export` check renders. LaTeX and Typst draw no model: neither has
+  a standard package that lays out such a graph without hand placement
+  (TikZ needs coordinates, which would duplicate this layout in TeX).
 - **A Kripke countermodel** (`rocq::write_countermodel`,
   `ordinary::rocq::countermodel`) is checked first
   (`Countermodel::check` under the caller's `&Limits` and stop), then

@@ -13,6 +13,7 @@
 //! | a proof net, or any proof structure | [`net()`] |
 //! | a step of cut elimination on a proof net | [`net_step`] |
 //! | a proof structure with `!`-boxes, or a step on one | [`mell_net`], [`mell_net_step`] |
+//! | a Kripke countermodel of an ordinary sequent | [`countermodel`] |
 //!
 //! `Style::default()` draws black on a transparent background in the
 //! Euler Math font, and [`Style::dark()`] light on dark. `export::png` and
@@ -94,6 +95,8 @@
 
 /// The fonts a drawing can ask for, and their metrics.
 mod font;
+/// Kripke models, as rows of worlds with arrows up.
+mod kripke;
 /// Proof structures with `!`-boxes, drawn as the multiplicative ones are.
 mod mell;
 /// Proof structures as formula trees under their axiom links.
@@ -1720,6 +1723,109 @@ const fn too_large(estimate: u64, limit: u64) -> Error {
         estimate_bytes: estimate,
         limit_bytes: limit,
         least_bytes: None,
+    })
+}
+
+/// Returns a Kripke countermodel of an ordinary sequent as an SVG
+/// document, after checking it in `logic` under `limits`: each world a
+/// box with the atoms it forces (and `⊥` in minimal logic), its number
+/// `wₙ` beside it, an arrow up to each world directly above it, and the
+/// model's world, where the sequent fails, outlined in the
+/// [`highlight`](Style::highlight) colour. Its title names the sequent,
+/// and with [`Style::description`] a `<desc>` reads each world and says
+/// why the sequent fails at the model's world.
+///
+/// # Examples
+///
+#[cfg_attr(all(feature = "parse", feature = "sat"), doc = "```")]
+#[cfg_attr(not(all(feature = "parse", feature = "sat")), doc = "```ignore")]
+/// use deduxit::Limits;
+/// use deduxit::export::svg::{self, Style};
+/// use deduxit::ordinary::{Logic, Options, Sequent, decide};
+///
+/// let sequent: Sequent = "|- a \\/ ~a".parse()?;
+/// let outcome = decide(&sequent, &Options::default().with_logic(Logic::Intuitionistic))?;
+/// let countermodel = outcome.countermodel.expect("a countermodel");
+/// let svg = svg::countermodel(
+///     &countermodel,
+///     Logic::Intuitionistic,
+///     &Style::default(),
+///     &Limits::default(),
+///     |_| false,
+/// )?;
+/// assert!(svg.contains("<title>A countermodel of ⊢ a ∨ ¬a</title>"));
+/// # Ok::<(), deduxit::Error>(())
+/// ```
+///
+/// # Errors
+///
+/// - The errors of [`Countermodel::check`](crate::ordinary::Countermodel::check):
+///   a model that does not refute the sequent in `logic`, a refusal by
+///   `limits` or `stop`.
+/// - [`Refusal::Output`](crate::Refusal::Output) for a drawing estimated
+///   past `limits.derivation_bytes`, before anything is laid out.
+/// - [`Refusal::Stopped`](crate::Refusal::Stopped) where `stop` asked,
+///   once per world.
+/// - [`Error::InvalidOption`] for a style [`Style::check`] refuses.
+pub fn countermodel(
+    countermodel: &crate::ordinary::Countermodel,
+    logic: crate::ordinary::Logic,
+    style: &Style,
+    limits: &crate::Limits,
+    mut stop: impl FnMut(crate::limits::Progress) -> bool,
+) -> Result<String, Error> {
+    use crate::ordinary::{Logic, Node, NodeId};
+    countermodel.check(logic, limits, &mut stop)?;
+    let sequent = &countermodel.sequent;
+    // The sequent's text, bottom up over its arena, before it is written:
+    // a shared formula is written each time it occurs.
+    within(limits, || {
+        let formulas = sequent.formulas();
+        let mut bytes: Vec<u64> = Vec::with_capacity(formulas.len());
+        for &node in formulas.nodes() {
+            let of = |k: NodeId| bytes[k.index()];
+            let b = match node {
+                Node::Atom(a) => (formulas.atom_names()[a as usize].len() as u64).saturating_add(2),
+                Node::True | Node::False => 3,
+                Node::Not(a) => of(a).saturating_add(4),
+                Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
+                    of(a).saturating_add(of(b)).saturating_add(9)
+                }
+            };
+            bytes.push(b);
+        }
+        // Written twice, in the title and the description, and escaped.
+        sequent
+            .left()
+            .iter()
+            .chain(sequent.right())
+            .fold(0u64, |sum, id| sum.saturating_add(bytes[id.index()]))
+            .saturating_mul(12)
+    })?;
+    let title = format!("A countermodel of {sequent}");
+    let w = countermodel.model.world;
+    let last = match (logic, sequent.right().is_empty()) {
+        (Logic::Classical, _) => format!(
+            "World {w} makes every formula left of ⊢ true and every formula right of it \
+             false, so {sequent} is not valid in classical logic."
+        ),
+        (Logic::Intuitionistic | Logic::Minimal, true) => format!(
+            "World {w} forces each formula left of ⊢ and not ⊥, so {sequent} is not valid in \
+             {logic} logic."
+        ),
+        (Logic::Intuitionistic | Logic::Minimal, false) => format!(
+            "World {w} forces each formula left of ⊢ and not the one right of it, so \
+             {sequent} is not valid in {logic} logic."
+        ),
+    };
+    let mut polls = 0u64;
+    kripke::draw(&countermodel.model, &title, &last, style, limits, || {
+        polls += 1;
+        stop(crate::limits::Progress::new(
+            crate::limits::Phase::Write,
+            1,
+            polls,
+        ))
     })
 }
 

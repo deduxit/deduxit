@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="143.52" height="105.6" viewBox="0 0 8970 6600" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
+<title>A countermodel of a → (b ∨ c) ⊢ (a → b) ∨ (a → c)</title>
+<desc>A Kripke model of 3 worlds. An arrow points from a world to a world above it, which forces everything the world below forces.
+World 0, the model's world, forces nothing; worlds 1 and 2 are above it.
+World 1 forces a and b.
+World 2 forces a and c.
+World 0 forces each formula left of ⊢ and not the one right of it, so a → (b ∨ c) ⊢ (a → b) ∨ (a → c) is not valid in intuitionistic logic.</desc>
+<g fill="none" stroke="black" stroke-width="40">
+<path d="M5024 4800L2582 1800"/>
+<path d="M2790 1875L2582 1800L2614 2019"/>
+<path d="M5024 4800L7517 1800"/>
+<path d="M7483 2019L7517 1800L7308 1873"/>
+<rect id="w0" x="4424" y="4800" width="1200" height="1500" rx="200" stroke="#d55e00" stroke-width="80"/>
+<rect id="w1" x="1379" y="300" width="2407" height="1500" rx="200"/>
+<rect id="w2" x="6365" y="300" width="2305" height="1500" rx="200"/>
+</g>
+<g>
+<text x="3345" y="5890" textLength="649" lengthAdjust="spacing">w</text>
+<text x="3994" y="6010" textLength="280" lengthAdjust="spacing" font-size="560">0</text>
+</g>
+<g>
+<text x="300" y="1390" textLength="649" lengthAdjust="spacing">w</text>
+<text x="949" y="1510" textLength="280" lengthAdjust="spacing" font-size="560">1</text>
+</g>
+<text x="1679" y="1390" textLength="1807" lengthAdjust="spacing">𝑎, 𝑏</text>
+<g>
+<text x="5286" y="1390" textLength="649" lengthAdjust="spacing">w</text>
+<text x="5935" y="1510" textLength="280" lengthAdjust="spacing" font-size="560">2</text>
+</g>
+<text x="6665" y="1390" textLength="1705" lengthAdjust="spacing">𝑎, 𝑐</text>
+</svg>

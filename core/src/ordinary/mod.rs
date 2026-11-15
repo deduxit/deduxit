@@ -563,7 +563,7 @@ impl Formulas {
     }
 
     /// Returns the nodes, each after its subformulas.
-    #[cfg(feature = "serialize")]
+    #[cfg(any(feature = "serialize", feature = "svg"))]
     pub(crate) fn nodes(&self) -> &[Node] {
         &self.nodes
     }
