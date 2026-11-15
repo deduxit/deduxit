@@ -272,7 +272,10 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `unknown: …` at a limit (exit 3); then, for a valid one on text output
   and not under `-q` or `--tree never`, one line per node (`node_line`:
   number, two spaces per scope depth, the sequent within
-  `--abbreviate`, the rule and premises), refused as a whole past
+  `--abbreviate`, the rule and premises; with `--abbreviate none` every
+  sequent, the verdict's too, is cut at `--derivation-limit` characters
+  (`bound`): a term shares its parts, and 1 KB of terms unfolded to
+  2⁶⁰ characters, written with no stop past `--timeout`), refused as a whole past
   `--derivation-limit` at `LINE_BYTES` beyond each sequent. Lines are
   written apart without a last newline (`Lines`), which
   `Output::finish` adds. Only text and JSON: another `--format`,

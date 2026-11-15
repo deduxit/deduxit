@@ -25,8 +25,8 @@ struct Form<'a> {
 }
 
 /// A term or a sequent to be written, at most [`Shown::LIMIT`] characters
-/// unless [`limit`](Shown::limit) says otherwise; past the bound it ends
-/// with `…`.
+/// unless [`limit`](Shown::limit) says otherwise, and `…` after them where
+/// the text goes on.
 ///
 /// A term is a graph with shared parts, so its text may be far longer
 /// than its arena. The bound keeps the text, and the time spent on it,
@@ -56,7 +56,8 @@ impl<'a> Shown<'a> {
     /// The most characters written by default.
     pub const LIMIT: usize = 4096;
 
-    /// Returns the same text bounded by `limit` characters.
+    /// Returns the same text cut after `limit` characters, `…` then
+    /// marking the cut.
     #[must_use]
     pub const fn limit(mut self, limit: usize) -> Self {
         self.limit = limit;

@@ -127,7 +127,7 @@ conclusion.
   array of a connective and its arguments. `["!", "Γ"]` is the context
   `Γ` with `!` on each member. A premise's `discharges` lists the
   hypotheses it discharges.
-- Three conditions: `fresh` names variables that must be atoms new to
+- Two conditions: `fresh` names variables that must be atoms new to
   the conclusion and to every hypothesis in force (an eigenvariable, a
   new label); `atomic` names variables that must be atoms (the axiom of
   G3, the closure of a tableau branch).

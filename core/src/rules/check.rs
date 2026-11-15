@@ -20,7 +20,8 @@ use crate::limits::{Limits, Phase, Progress, Refusal};
 /// node.
 const POLL: u64 = 1 << 12;
 
-/// The most characters of a node's sequent an error writes.
+/// The most characters of a node's sequent an error writes before the
+/// `…` that marks a cut.
 const SHOWN: usize = 200;
 
 /// The work done and the stop, which every loop of the check goes
@@ -182,6 +183,7 @@ impl Derivation {
         // What the check holds, in bytes, each sum saturating:
         // - per term its sort, the walk that saw it and a place on the
         //   freshness walk's stack, which pushes a term once;
+        // - per connective, variable and context of the calculus a slot;
         // - per node its place among the hypotheses;
         // - for the node being checked, per sequent of its rule and zone
         //   the marks and places of its members (two vectors), and copies
@@ -209,9 +211,17 @@ impl Derivation {
             (s.max(rule.premises.len() as u64 + 1), r.max(bytes))
         });
         let zones = calculus.zones.len() as u64;
+        // Per term: its sort, its walk mark, its connective's or sort's
+        // index, and a place on the walk's stack, whose vector may hold
+        // twice its length.
         let needed = (self.terms().len() as u64)
-            .saturating_mul(16)
+            .saturating_mul(32)
             .saturating_add((self.len() as u64).saturating_mul(8))
+            // Per connective, variable and context of the calculus, its
+            // slot in the checker's tables.
+            .saturating_add((calculus.connectives.len() as u64).saturating_mul(8))
+            .saturating_add(u64::from(calculus.variables).saturating_mul(8))
+            .saturating_add((calculus.contexts.len() as u64).saturating_mul(32))
             .saturating_add(widest.saturating_mul(sequents.saturating_mul(24)))
             .saturating_add(sequents.saturating_mul(zones).saturating_mul(48))
             .saturating_add(

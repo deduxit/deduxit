@@ -177,7 +177,7 @@ pub(crate) fn check_rules(
     }
     // The list is bounded as a drawing is: a line per node, each sequent
     // within --abbreviate.
-    let width = show.abbreviate.map_or(u64::MAX, |a| a as u64);
+    let width = bound(show, &show.limits) as u64;
     let estimate = (derivation.len() as u64).saturating_mul(width.saturating_add(LINE_BYTES));
     if let Some(limit) = show.limits.derivation_bytes
         && estimate > limit
@@ -259,13 +259,26 @@ fn sequent_text(
 ) -> String {
     let text = calculus
         .show_sequent(derivation, node.id())
-        .limit(show.abbreviate.unwrap_or(usize::MAX))
+        .limit(bound(show, &show.limits))
         .to_string();
     if text.is_empty() {
         "the empty sequent".to_owned()
     } else {
         text
     }
+}
+
+/// Returns the most characters a sequent is written with: `--abbreviate`,
+/// or with `none` the derivation's bound. A term shares its parts, so a
+/// sequent of a few bytes may unfold far past any bound; without one its
+/// text would take as long as its length, past the time limit.
+fn bound(show: &Show, limits: &Limits) -> usize {
+    show.abbreviate.unwrap_or_else(|| {
+        let bytes = limits
+            .derivation_bytes
+            .unwrap_or(Limits::DEFAULT_DERIVATION_BYTES);
+        usize::try_from(bytes).unwrap_or(usize::MAX)
+    })
 }
 
 /// Returns `n` with the noun that counts it.

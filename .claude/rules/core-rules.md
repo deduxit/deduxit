@@ -155,15 +155,19 @@ design, with the reasons and the alternatives weighed, is
   short file and was a grid of 56 MB. Names, sorts and zones are looked
   up in hash maps, here, in `Terms::atom` and in `Checker::terms`;
   linear scans made n sorts cost n².
-- **The memory estimate** (`Derivation::check`) counts per term 16
-  bytes (its sort, its walk mark, a place on the freshness walk's
-  stack, which marks a term as it pushes it and so holds each once),
-  per node 8, per sequent of the widest rule its zones' slots and the
+- **The memory estimate** (`Derivation::check`) counts per term 32
+  bytes (its sort, its walk mark, its connective's or sort's index, and
+  a place on the freshness walk's stack, which marks a term as it
+  pushes it and so holds each once, its vector up to twice its length),
+  per connective, variable and context of the calculus its slot in the
+  checker's tables, per node 8, per sequent of the widest rule its zones' slots and the
   widest sequent's copies, every context at the widest sequent, and
   each rule's pattern stacks and discharged instances. The panel of 60b
   found three structures it left out (the walk's stack, which grew by
   the arity per level; the contexts; the slots of empty zones), each
-  past a 1 MiB bound by tens of megabytes.
+  past a 1 MiB bound by tens of megabytes; the fresh review of 60b two
+  more (the stack's doubling, 1.5 times the bound, and the calculus's
+  tables, 1.6 MB under 4 KiB).
 - **A connective takes `ARITY` (255) arguments at most**: the number
   comes from the file and sizes a vector, and 2³² of them reserved
   16 GiB under a 1 MiB memory bound.
