@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" role="img" width="289.76" height="134.592" viewBox="0 0 18110 8412" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
 <title>⊢ ∀x. (∃y. p(x, y)⊥), ∀y. (∃x. p(x, y))</title>
-<desc>1. ⊢ ~p(a, b), p(a, b), by ax.
-2. ⊢ ∃x. p(x, b), ~p(a, b), by ∃ from 1.
-3. ⊢ ∃y. ~p(a, y), ∃x. p(x, b), by ∃ from 2.
-4. ⊢ ∀y. (∃x. p(x, y)), ∃y. ~p(a, y), by ∀ from 3.
-5. ⊢ ∀x. (∃y. ~p(x, y)), ∀y. (∃x. p(x, y)), by ∀ from 4.</desc>
+<desc>1. ⊢ p(a, b)⊥, p(a, b), by ax.
+2. ⊢ ∃x. p(x, b), p(a, b)⊥, by ∃ from 1.
+3. ⊢ ∃y. p(a, y)⊥, ∃x. p(x, b), by ∃ from 2.
+4. ⊢ ∀y. (∃x. p(x, y)), ∃y. p(a, y)⊥, by ∀ from 3.
+5. ⊢ ∀x. (∃y. p(x, y)⊥), ∀y. (∃x. p(x, y)), by ∀ from 4.</desc>
 <g fill="none" stroke="black" stroke-width="40">
 <path d="M300 6812H17090"/>
 <path d="M1480 5312H15911"/>

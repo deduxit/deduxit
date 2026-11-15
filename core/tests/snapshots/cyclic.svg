@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" role="img" width="272.736" height="110.592" viewBox="0 0 17046 6912" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
 <title>⊢ b⊥ ⅋ a⊥, c⊥, c ⊗ (a ⊗ b)</title>
-<desc>1. ⊢ ~c, c, by ax.
-2. ⊢ ~a, a, by ax.
-3. ⊢ ~b, b, by ax.
-4. ⊢ ~b, ~a, a ⊗ b, by ⊗ from 2 and 3.
-5. ⊢ ~b, ~a, ~c, c ⊗ (a ⊗ b), by ⊗ from 1 and 4.
-6. ⊢ ~b ⅋ ~a, ~c, c ⊗ (a ⊗ b), by ⅋ from 5.</desc>
+<desc>1. ⊢ c⊥, c, by ax.
+2. ⊢ a⊥, a, by ax.
+3. ⊢ b⊥, b, by ax.
+4. ⊢ b⊥, a⊥, a ⊗ b, by ⊗ from 2 and 3.
+5. ⊢ b⊥, a⊥, c⊥, c ⊗ (a ⊗ b), by ⊗ from 1 and 4.
+6. ⊢ b⊥ ⅋ a⊥, c⊥, c ⊗ (a ⊗ b), by ⅋ from 5.</desc>
 <g fill="none" stroke="black" stroke-width="40">
 <path d="M1304 5312H13483"/>
 <path d="M300 3812H14486"/>
