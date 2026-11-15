@@ -2,10 +2,15 @@
 # Licensed under the EUPL
 
 # Kani, the bounded model checker of the checker's integer harnesses
-# (`#[cfg(kani)]' modules of the core crate), and the check `kani' that
-# runs them. nixpkgs has no Kani, so it is built from the source the input
-# `kani' pins, with the nightly its rust-toolchain.toml names (rustc's
-# private crates are its interface, so no other compiler builds it) and
+# (`#[cfg(kani)]' modules of the core crate), and the package
+# `kani-harnesses' that runs them. It is no flake check: a harness takes up
+# to 8 GB and, on a CI runner, up to 25 minutes, so
+# `.github/workflows/kani.yml' builds it weekly and when the checker
+# changes, and `nix flake check' skips it.
+#
+# nixpkgs has no Kani, so it is built from the source the input `kani'
+# pins, with the nightly its rust-toolchain.toml names (rustc's private
+# crates are its interface, so no other compiler builds it) and
 # nixpkgs' CBMC, the version its `kani-dependencies' names (an assertion
 # compares them). The release bundle's layout is kept: `bin/' beside the
 # libraries Kani compiles for its own sysroot and a `toolchain' link,
@@ -136,8 +141,10 @@
       # The harnesses, every one, as `cargo kani' runs them in the shell:
       # the flags are the workspace's `[workspace.metadata.kani]'. The
       # library without its default features, which the checker needs
-      # none of. Two harnesses at a time: CBMC takes up to 8 GB for one,
-      # and a CI runner has 16.
+      # none of. One harness at a time: CBMC takes up to 8 GB for one, and
+      # two of them beside other builds starved a 16 GB CI runner until
+      # GitHub lost it. `--output-format terse' prints a summary per harness, not every
+      # property.
       harnesses = craneLib.mkCargoDerivation (
         workspace.argsOf [ "core" ]
         // {
@@ -146,14 +153,16 @@
           nativeBuildInputs = [ kani ];
           buildPhaseCargoCommand = ''
             export HOME=$TMPDIR
-            cargo kani --package deduxit --no-default-features --jobs 2 --output-format terse
+            cargo kani --package deduxit --no-default-features --jobs 1 --output-format terse
           '';
           doInstallCargoArtifacts = false;
         }
       );
     in
     lib.optionalAttrs (system == "x86_64-linux") {
-      packages.kani = kani;
-      checks.kani = harnesses;
+      packages = {
+        inherit kani;
+        kani-harnesses = harnesses;
+      };
     };
 }

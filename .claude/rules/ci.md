@@ -18,7 +18,8 @@ advisory asks of a session is that skill's "When". A workflow installs nothing
 but Nix, so CI checks with exactly the tools flake.lock pins.
 `.github/workflows/docs.yml` publishes the flake's `doc` package, the rustdoc
 of `main` with the manual under `manual/`, to GitHub Pages on every push to `main`. `.github/workflows/release.yml`
-releases a version tag `vX.Y.Z` (below).
+releases a version tag `vX.Y.Z` (below). `.github/workflows/kani.yml`
+runs Kani's harnesses, which `nix flake check` leaves out (below).
 
 - **Every tool comes from the flake.** A job installs Nix and runs
   `nix flake check`, `nix build` or `nix develop --command …`. No
@@ -59,7 +60,7 @@ releases a version tag `vX.Y.Z` (below).
   when the repositories moved to `sequentium` and it became `deduxit`,
   and no Cachix page says a
   cache can be renamed). `cachix/cachix-action` follows `install-nix-action`
-  in every job of the four workflows that installs Nix, with the
+  in every job of every workflow that installs Nix, with the
   repository secret `CACHIX_AUTH_TOKEN` (a write token) and `skipPush`
   unless the ref is `main` (`release.yml` only reads it): pushes to `main`, the weekly run and a dispatch on `main`
   upload, a pull request only downloads. A pull request from a fork gets
@@ -90,6 +91,22 @@ releases a version tag `vX.Y.Z` (below).
   release would mean building every tag's manual at every push. The
   manual's links are checked by the flake check `manual-links`, not by
   this workflow, which only builds.
+- **Kani** (`kani.yml`): `nix build .#kani-harnesses`, the checker's
+  integer harnesses one at a time, weekly (Monday 07:17 UTC), by
+  dispatch, and on pushes to `main` and pull requests that touch
+  `core/src/linear/proofs/check/`, `core/src/linear/proofs/mod.rs`
+  (`Proof::reach`), `modules/kani.nix` or the workflow. A harness takes
+  up to 8 GB and, on `ubuntu-latest` (4 cores, 16 GB), up to 25 minutes.
+  Until 2026-11-15 they were the flake check `kani`, two at a time
+  beside the other checks' builds: three CI runs died with "The runner
+  has received a shutdown signal" (exit 143; the job's annotation says
+  the runner was starved of CPU or memory), one of them before its log
+  was uploaded. That is why the harnesses are a package, not a check,
+  and why the job builds nothing else. It pushes to the cache like
+  `ci.yml`, so an unchanged derivation is fetched, not rerun: the weekly
+  run catches what the paths miss (a lock bump, the core crate's other
+  sources, `Cargo.toml`'s `[workspace.metadata.kani]`, the Kani tag). A harness added or made heavier is timed alone first: the
+  job's `timeout-minutes` is 240.
 - **Comparison** (`comparison.yml`, `workflow_dispatch` only, inputs
   `timeout` and `quick`) runs `bench/comparison.sh` in ten shards, one
   job each (two sequential streams on cores 0 and 1, deduxit's default on

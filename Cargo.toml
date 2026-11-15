@@ -8,10 +8,10 @@ members = ["bench", "cli", "compat/linlog", "compat/linlog-cli", "core", "web"]
 [workspace.metadata.crane]
 name = "deduxit-workspace"
 
-# `cargo kani`'s flags (the flake's `kani` check runs it). The library
-# forbids `unsafe`, so Kani's memory-safety checks would only re-check the
-# standard library's hash table, and take most of the time; its checks of
-# arithmetic, panics and loop bounds stay on.
+# `cargo kani`'s flags (the flake's package `kani-harnesses` runs it). The
+# library forbids `unsafe`, so Kani's memory-safety checks would only
+# re-check the standard library's hash table, and take most of the time;
+# its checks of arithmetic, panics and loop bounds stay on.
 [workspace.metadata.kani]
 flags = { memory-safety-checks = false }
 

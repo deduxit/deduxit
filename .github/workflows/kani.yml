@@ -1,0 +1,60 @@
+# deduxit © Fabian Lukas Grubmüller 2026
+# Licensed under the EUPL
+
+# Kani's harnesses of the checker's integers (modules/kani.nix), one at a
+# time. They are kept out of `nix flake check`, and so out of ci.yml: a
+# harness takes up to 8 GB and 25 minutes on this runner, and two of them
+# beside the other checks' builds made GitHub lose the runner. They run
+# weekly and when the code they check or the way they run changes.
+name: Kani
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/kani.yml
+      - modules/kani.nix
+      - core/src/linear/proofs/check/**
+      # `Proof::reach`, which a harness calls.
+      - core/src/linear/proofs/mod.rs
+  pull_request:
+    paths:
+      - .github/workflows/kani.yml
+      - modules/kani.nix
+      - core/src/linear/proofs/check/**
+      - core/src/linear/proofs/mod.rs
+  schedule:
+    - cron: "17 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  harnesses:
+    name: kani harnesses
+    runs-on: ubuntu-latest
+    # Eleven harnesses one after another: 32 minutes on a desktop core,
+    # and the longest took 25 minutes here beside other builds.
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
+        with:
+          # Fetching the `github:` inputs anonymously runs into rate limits.
+          github_access_token: ${{ github.token }}
+      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
+        with:
+          name: linlog-prover
+          # Only what `main` builds is uploaded: Kani itself, and the
+          # harnesses' empty result, so an unchanged checker is fetched.
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
+          pushFilter: '\.tar\.xz$'
+      - run: nix build .#kani-harnesses --print-build-logs

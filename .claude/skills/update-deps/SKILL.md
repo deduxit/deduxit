@@ -147,7 +147,7 @@ What a new toolchain breaks, and how each was met (2026-10-22, 1.98 → 1.99):
 - **Kani** is pinned by its release tag in `flake.nix` (`nix flake update`
   keeps it): move the tag to the latest release when nixpkgs has the CBMC
   its `kani-dependencies` names (`modules/kani.nix` asserts it), then
-  `nix flake lock` and `nix build .#checks.x86_64-linux.kani`.
+  `nix flake lock` and `nix build .#kani-harnesses`.
 
 ## 3. Major releases
 

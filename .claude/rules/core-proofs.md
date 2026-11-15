@@ -238,7 +238,7 @@ that cannot repeat the engine's mistakes. Engines only call `Proof::check`.
   where a failing test aborts the run (a panic aborts on WASI): run each
   test alone to find which.
 - **Kani checks the integer facts above within bounds**
-  (`check/harnesses.rs`, `#[cfg(kani)]`, the flake check `kani`;
+  (`check/harnesses.rs`, `#[cfg(kani)]`, the package `kani-harnesses`;
   `flake.md` has the tool). Each harness states one fact and its bound:
   `table_bytes` and a sequent's bytes stay below 2³⁸ and 2³⁹ for every
   table of up to 2³² members; `room`, the zone bound `within` holds a
@@ -261,7 +261,7 @@ that cannot repeat the engine's mistakes. Engines only call `Proof::check`.
   functions the harnesses call (`State::put`, `remove`, `add_linear`,
   `recount`, `pass::room`, `table_bytes`): a change of it goes there,
   so that the harnesses keep checking the code that runs.
-- **What makes a harness tractable for CBMC** (up to seven minutes and
+- **What makes a harness tractable for CBMC** (up to ten minutes and
   8 GB each): a member's id is a constant (a symbolic key makes every
   hash and probe of the standard library's table symbolic: over ten
   minutes for one insertion); a sum is checked against the previous sum

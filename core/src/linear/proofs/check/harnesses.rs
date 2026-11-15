@@ -12,8 +12,8 @@
 //! weights, lengths, indices) range over their whole type unless the
 //! harness says otherwise.
 //!
-//! The model checker runs them (`cargo kani -p deduxit`, the flake check
-//! `kani`); no other build compiles this module.
+//! The model checker runs them (`cargo kani -p deduxit`, the flake's
+//! package `kani-harnesses`); no other build compiles this module.
 
 use super::pass::room;
 use super::zones::{Bag, Eigens, State, Zone, table_bytes};

@@ -330,7 +330,7 @@ and Python with matplotlib; no check builds it.
   in; `web-clippy-wasm32` is Clippy on the bindings and their tests for
   the browser's target; `web-features` validates the package's module
   with nixpkgs' `wasm-tools` against the feature baseline (`web.md`).
-- **`kani.nix`: Kani and the check `kani`.** nixpkgs has no Kani, so the
+- **`kani.nix`: Kani and the package `kani-harnesses`.** nixpkgs has no Kani, so the
   package `kani` builds it from the input `kani` (the repository at a
   release tag, `flake = false`) with the nightly of its own
   `rust-toolchain.toml` through rust-overlay (`rustc-dev` and
@@ -348,13 +348,19 @@ and Python with matplotlib; no check builds it.
   The `charon` submodule, the optional Aeneas backend's, is missing from
   GitHub's tarball and dropped from kani-compiler's manifest. The
   standard library's lock is read from the toolchain at evaluation, so
-  the package and the check exist on x86_64-linux alone. The check runs
-  `cargo kani --package deduxit --no-default-features --jobs 2
-  --output-format terse` (Kani runs harnesses in parallel only with it)
-  from `core` alone, with the flags of `[workspace.metadata.kani]`
-  (`Cargo.toml`); a harness takes CBMC up to seven minutes and 8 GB, so
-  two at a time fit a CI runner's 16 GB (about 30 minutes of CPU for the
-  eleven). Kani is not in the devshell, which every session loads: `nix
+  both packages exist on x86_64-linux alone. `kani-harnesses` runs
+  `cargo kani --package deduxit --no-default-features --jobs 1
+  --output-format terse` (terse prints one summary per harness; `--jobs
+  1` only says what plain `cargo kani` does without `--jobs`) from
+  `core` alone, with the flags of `[workspace.metadata.kani]`
+  (`Cargo.toml`). It is a package, not a check: a harness takes CBMC up
+  to ten minutes and 8 GB here (the union of two zones, 582 s on
+  2026-11-15) and up to 25 minutes on a CI runner beside other builds, and the
+  check `kani` that ran two at a time beside the other checks starved
+  GitHub's runner (`ci.md`, Kani). `nix flake check` skips it;
+  `.github/workflows/kani.yml` builds it, and locally `nix build
+  .#kani-harnesses` (32 minutes for the eleven on 2026-11-15, under
+  the machine lock). Kani is not in the devshell, which every session loads: `nix
   shell .#kani -c cargo kani -p deduxit --no-default-features` runs it
   there (`core-proofs.md` has the harnesses).
 - **`budget.nix`: the check `budget`.** Cargo.lock's packages and the web
