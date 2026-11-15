@@ -372,8 +372,18 @@ fn compare(
         .iter()
         .filter(|(_, a, b)| COUNTERS.iter().any(|c| a.first.get(c) != b.first.get(c)))
         .collect();
+    let problems = if counted.len() == 1 {
+        "problem"
+    } else {
+        "problems"
+    };
+    let verb = if differ.len() == 1 {
+        "differs"
+    } else {
+        "differ"
+    };
     println!(
-        "Of the {} problems both decide alike on one thread, {} differ in {}.\n",
+        "Of the {} {problems} both decide alike on one thread, {} {verb} in {}.\n",
         counted.len(),
         differ.len(),
         COUNTERS.join(", ")
