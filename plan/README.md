@@ -7091,3 +7091,11 @@ move (D26).
     sessions planned). **Running:** 63t-b.
   - **The step log** is now kept (`plan/notes/step-log.tsv`) and read
     by the `status-update` skill.
+- 2026-11-15, about 21:10: **63t-b reviewed and pushed; step 63t complete; 54x4 started.**
+  - **63t-b** (client `yyrrpxqm` … `uxuxvlps`, report `wznpyuwz`): "Translate into intuitionistic
+    logic" and "Find an interpolant" in a classical proof's Logic popover, each a sheet with its
+    verdict sentence first; a translated sequent opens as its own proof. Departure accepted: sheets
+    from the popover, not view tabs (a fifth tab does not fit a phone). **Pushed.**
+  - **Started:** 54x4 (`local_739ba359`, cores 4-6): the flaky `ordinary.spec.ts` test at its
+    cause (three sightings today), the tableau's stop inside a step, the focused engine's late
+    first poll (the target set unchanged). **Running:** 61b, 62a.

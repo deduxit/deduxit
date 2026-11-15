@@ -26,7 +26,7 @@ baseline-prep	small	opus-5-5	high	reviewer	local_739ba359	2026-11-15 18:20	2026-
 60b	panel	opus-5-5	high	panel, reviewer (fable)	local_fe155f72	2026-11-15 18:25	2026-11-15 19:45	rules as data, finished
 63t-a	small	opus-5-5	high	reviewer (fable)	local_b8490613	2026-11-15 18:40	2026-11-15 19:50	translations and interpolants
 61a	panel	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-15 19:10	2026-11-15 20:35	building with custom rules
-63t-b	client	opus-5-5	high	reviewer	local_739ba359	2026-11-15 20:10		translations on the page
+63t-b	client	opus-5-5	high	reviewer, frontend-design, education skills	local_739ba359	2026-11-15 20:10	2026-11-15 21:05	translations on the page
 54	step	-	-	-	-	-	2026-11-14 12:00	complete: the LJT engine
 54u	step	-	-	-	-	-	2026-11-14 14:00	complete: the usability changes
 54s	step	-	-	-	-	-	2026-11-14 21:53	complete: the SAT engines and the defaults
@@ -40,3 +40,5 @@ baseline-prep	small	opus-5-5	high	reviewer	local_739ba359	2026-11-15 18:20	2026-
 60	step	-	-	-	-	-	2026-11-15 19:45	complete: rules as data
 61b	client	opus-5-5	high	reviewer (fable), frontend-design, education skills	local_fe155f72	2026-11-15 20:40		custom rules on the page
 62a	small	opus-5-5	high	reviewer (fable)	local_b8490613	2026-11-15 20:50		natural deduction's rule sets
+63t	step	-	-	-	-	-	2026-11-15 21:05	complete: translations and interpolants
+54x4	small	opus-5-5	high	reviewer	local_739ba359	2026-11-15 21:10		three recurring loose ends
