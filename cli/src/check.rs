@@ -65,6 +65,7 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
                 error: None,
                 message: Some(line),
                 lambda: None,
+                failing: None,
             };
             serde_json::to_writer(out.stream(), &checked)?;
             true
@@ -79,8 +80,33 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
         }
         return Ok(Status::Unknown);
     };
-    let proof = match document? {
+    let document = document?;
+    if let (Some(_), false) = (&args.sequent, matches!(document, Document::Model(_))) {
+        bail!("--sequent checks a Kripke model against a sequent, and the file is no model");
+    }
+    let proof = match document {
         Document::Proof(proof) => *proof,
+        Document::Model(model) => {
+            let (Some(sequent), Some(logic)) = (&args.sequent, args.logic) else {
+                bail!(
+                    "the file is a Kripke model, which is checked against a sequent: give \
+                     --sequent and --logic"
+                );
+            };
+            let mut out = io::Output::open(path.as_deref(), show.format.is_binary())?;
+            let (status, keep) = check_model(
+                &model,
+                (sequent, logic.into()),
+                args.world,
+                (&settings, &show),
+                &deadline,
+                &mut out,
+            )?;
+            if keep {
+                out.finish()?;
+            }
+            return Ok(status);
+        }
         Document::Ordinary(outcome) => {
             return check_ordinary(
                 *outcome, &args.mode, &settings, show, quiet, &deadline, path,
@@ -167,6 +193,8 @@ enum Document {
     /// why: an ordinary outcome valid by a clausal proof, kept as its
     /// counts.
     Unchecked(String),
+    /// A Kripke model, checked against the sequent `--sequent` names.
+    Model(Box<deduxit::kripke::Model>),
 }
 
 /// Reads a proof file, or failing that a disproof, which an unprovable
@@ -188,8 +216,19 @@ fn read_document(text: &str, limits: &Limits) -> Result<Document> {
         verdict: Option<serde::de::IgnoredAny>,
         /// The counts of a clausal proof, in an ordinary outcome.
         clausal_proof: Option<serde::de::IgnoredAny>,
+        /// The worlds of a Kripke model.
+        worlds: Option<serde::de::IgnoredAny>,
     }
     let keys = serde_json::from_str::<Keys>(text).ok();
+    if keys.as_ref().is_some_and(|keys| keys.worlds.is_some()) {
+        let mut document = serde_json::Deserializer::from_str(text);
+        let model = deduxit::wire::upgrade::<deduxit::kripke::Model, _>(&mut document, limits)
+            .map_err(|error| limit_advice(error).unwrap_or_else(|error| error.into()))?;
+        document
+            .end()
+            .context("not a model in JSON: more follows it")?;
+        return Ok(Document::Model(Box::new(model)));
+    }
     if let Some(Keys {
         logic: Some(logic),
         verdict,
@@ -314,6 +353,7 @@ fn check_disproof(
             message: (status != Status::Yes).then_some(line),
             error,
             lambda: None,
+            failing: None,
         };
         serde_json::to_writer(out.stream(), &checked)?;
         return Ok((status, true));
@@ -382,6 +422,10 @@ fn check_ordinary(
                 }
                 _ => bail!("the outcome's image holds no refutation"),
             },
+            (ordinary::Verdict::NotValid, None) if outcome.countermodel.is_some() => {
+                let countermodel = outcome.countermodel.as_ref().expect("a countermodel");
+                check_countermodel(countermodel, logic, &show, quiet, deadline, &mut out)?
+            }
             (ordinary::Verdict::NotValid, None) => {
                 let by = match outcome.method() {
                     ordinary::Method::Sat => "the SAT solver",
@@ -432,6 +476,7 @@ fn unchecked_into(
             error: None,
             message: Some(line.to_owned()),
             lambda: None,
+            failing: None,
         };
         serde_json::to_writer(out.stream(), &checked)?;
         return Ok(true);
@@ -529,6 +574,7 @@ fn check_derivation(
             error: result.as_ref().err().cloned(),
             message: result.is_err().then_some(line),
             lambda,
+            failing: None,
         };
         serde_json::to_writer(out.stream(), &checked)?;
         return Ok((status, true));
@@ -554,6 +600,182 @@ fn check_derivation(
         let term = d.term(&show.limits, |_| over());
         show.after(out, &lambda_line(term, show, over), drawn)?;
     }
+    Ok((status, keep))
+}
+
+/// Checks that an outcome's Kripke model refutes its sequent in `logic`,
+/// and writes the verdict and the model, or the verdict as JSON; returns
+/// the verdict's status (valid 0, invalid 1, unknown 3) and whether the
+/// output is to be finished.
+///
+/// # Errors
+///
+/// An output that cannot be written.
+fn check_countermodel(
+    countermodel: &ordinary::Countermodel,
+    logic: ordinary::Logic,
+    show: &Show,
+    quiet: bool,
+    deadline: &Deadline,
+    out: &mut io::Output,
+) -> Result<(Status, bool)> {
+    let over = || interrupted() || deadline.passed() || io::closed();
+    let result = countermodel.check(logic, |_| over());
+    let status = match &result {
+        Ok(()) => Status::Yes,
+        Err(error) if error.is_refusal() => Status::Unknown,
+        Err(_) => Status::No,
+    };
+    let sequent = abbreviated(&countermodel.sequent, show.abbreviate, 0);
+    let model = &countermodel.model;
+    let line = match &result {
+        Ok(()) => format!(
+            "valid refutation of {sequent} ({logic} logic): a Kripke model of {} worlds refutes it \
+             at world {}",
+            model.worlds.len(),
+            model.world
+        ),
+        Err(error) if status == Status::No => {
+            format!("invalid refutation of {sequent} ({logic} logic): {error}")
+        }
+        Err(error) => {
+            format!("unknown: the refutation of {sequent} ({logic} logic) is not checked: {error}")
+        }
+    };
+    if show.format == Format::Json {
+        let checked = Checked {
+            version: CHECKED_LEVEL,
+            verdict: match status {
+                Status::Yes => "valid",
+                Status::Unknown => "unknown",
+                _ => "invalid",
+            },
+            mode: None,
+            logic: Some(logic),
+            error: result.as_ref().err().cloned(),
+            message: result.is_err().then_some(line),
+            lambda: None,
+            failing: None,
+        };
+        serde_json::to_writer(out.stream(), &checked)?;
+        return Ok((status, true));
+    }
+    let line = (show.verdict || result.is_err()).then_some(line);
+    show.open(out, line.as_deref())?;
+    let keep = show.close(out, Shown::Nothing, line.as_deref())?;
+    if result.is_ok() && !quiet && show.format == Format::Text {
+        show.after(out, &model.to_string(), false)?;
+    }
+    Ok((status, keep))
+}
+
+/// Checks a Kripke model the user gives against a sequent of ordinary
+/// logic: that it is a model of the logic, then whether the sequent holds
+/// at `world`, or at every world, and where it fails, at which world and
+/// what that world forces of each subformula. Writes the verdict as text
+/// or as `check`'s JSON; returns the status (0 where the sequent holds, 1
+/// where it fails, 3 for a check a bound or the time limit gave up) and
+/// whether the output is to be finished.
+///
+/// # Errors
+///
+/// A sequent that cannot be read, a model that is not one of the logic, a
+/// world the model does not have, an output that cannot be written.
+fn check_model(
+    model: &deduxit::kripke::Model,
+    (text, logic): (&str, ordinary::Logic),
+    world: Option<u32>,
+    (settings, show): (&deduxit::Settings, &Show),
+    deadline: &Deadline,
+    out: &mut io::Output,
+) -> Result<(Status, bool)> {
+    let limits = settings.limits;
+    let sequent = ordinary::Sequent::parse_within(text, &limits).map_err(|error| match error {
+        Error::Parse(_) => crate::parse_error(text, error),
+        error => error.into(),
+    })?;
+    if let Some(w) = world {
+        model.check_world(w)?;
+    }
+    let over = || interrupted() || deadline.passed() || io::closed();
+    let forcing = match model.forcing(&sequent, logic, |_| over()) {
+        Ok(forcing) => forcing,
+        Err(Error::Countermodel { reason, .. }) => {
+            bail!("the file is no Kripke model of {logic} logic: {reason}")
+        }
+        Err(error) if error.is_refusal() => {
+            let line = format!("unknown: the model is not checked: {error}");
+            return Ok((
+                Status::Unknown,
+                unchecked_into(&line, Some(logic), show, out)?,
+            ));
+        }
+        Err(error) => return Err(error.into()),
+    };
+    let shown = abbreviated(&sequent, show.abbreviate, 0);
+    let at = |w: Option<u32>| match w {
+        Some(w) => format!("at world {w}"),
+        None => "at every world".to_owned(),
+    };
+    let failing = match world {
+        Some(w) => forcing.failing(w),
+        None => (0..model.worlds.len() as u32).find_map(|w| forcing.failing(w)),
+    };
+    let formulas = sequent.formulas();
+    let forced = |w: u32| -> Vec<(String, bool)> {
+        forcing
+            .at(w)
+            .map(|(id, forced)| (formulas.formula(id).to_string(), forced))
+            .collect()
+    };
+    let (status, line) = match failing {
+        None => (
+            Status::Yes,
+            format!("the model satisfies {shown} {}", at(world)),
+        ),
+        Some(v) => (
+            Status::No,
+            format!(
+                "the model does not satisfy {shown} {}: world {v} forces each formula left of ⊢ \
+                 and not the one right of it",
+                at(world)
+            ),
+        ),
+    };
+    if show.format == Format::Json {
+        let failing = failing.map(|v| {
+            let forcing: Vec<serde_json::Value> = forced(v)
+                .into_iter()
+                .map(|(formula, forced)| serde_json::json!({"formula": formula, "forced": forced}))
+                .collect();
+            serde_json::json!({"world": v, "forcing": forcing})
+        });
+        let checked = Checked {
+            version: CHECKED_LEVEL,
+            verdict: if status == Status::Yes {
+                "valid"
+            } else {
+                "invalid"
+            },
+            mode: None,
+            logic: Some(logic),
+            error: None,
+            message: (status != Status::Yes).then_some(line),
+            lambda: None,
+            failing,
+        };
+        serde_json::to_writer(out.stream(), &checked)?;
+        return Ok((status, true));
+    }
+    let mut text = line;
+    if let Some(v) = failing {
+        for (formula, forced) in forced(v) {
+            let word = if forced { "forced" } else { "not forced" };
+            text.push_str(&format!("\n  at world {v}: {formula} {word}"));
+        }
+    }
+    show.open(out, Some(&text))?;
+    let keep = show.close(out, Shown::Nothing, Some(&text))?;
     Ok((status, keep))
 }
 
@@ -601,6 +823,10 @@ pub(crate) struct Checked {
     /// The proof's lambda-term, where `--lambda` asks for it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) lambda: Option<serde_json::Value>,
+    /// Where a Kripke model fails a sequent: the world, and what it
+    /// forces of each subformula.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) failing: Option<serde_json::Value>,
 }
 
 /// Reads a proof file, its sequent within `limits.occurrences`; the
@@ -717,6 +943,7 @@ fn check_into(
             error,
             message,
             lambda,
+            failing: None,
         };
         serde_json::to_writer(out.stream(), &checked)?;
         return Ok((status, true));

@@ -112,6 +112,26 @@ unchanged.
 
 ### Added
 
+- **A "not valid" comes with its Kripke countermodel**: the SAT solver's
+  model in every logic, and in classical logic the embedding's
+  assignment as a model of one world, checked before the verdict.
+  `prove --logic` prints it after the verdict line, a world per line;
+  its JSON holds it under `countermodel`, with the sequent it refutes,
+  and `check` checks it there. LJT's "not valid" has none. A model past
+  `ordinary::MODEL_CELLS` cells is reported as too large to show.
+- **`check --logic L --sequent SEQUENT FILE` checks a Kripke model you
+  give** against a sequent: that it is a model of the logic, then
+  whether the sequent holds at `--world N` or at every world, and where
+  it fails, which world and what it forces of each subformula (exit
+  status 0, 1, or 2 for no model of the logic). The bindings' call
+  `ordinary_model` does the same.
+- **`deduxit::kripke::Model`**, the countermodel shared by the suites:
+  worlds, their atoms by name, `falsity` for minimal logic, the arrows
+  of the order and the world it is about. Ordinary logic checks it
+  (`Model::forcing`, `Model::refutes`, `ordinary::Forcing`), and
+  `ordinary::Countermodel` pairs it with the sequent it refutes, in the
+  new `ordinary::Outcome::countermodel`. It replaces `ordinary::sat::Model`
+  and `World`, whose atoms were indices.
 - **`check` reads every outcome `prove --logic` writes**, and a
   derivation of LK or LJ: it checks the derivation by the rules of its
   calculus (LJ's cut included) and the translated sequent's proof or
@@ -223,6 +243,10 @@ unchanged.
   `image` (an outcome's keys without `version` and `deduxit`), and reads
   it back; an ordinary outcome below level 12, which no release read, is
   refused. Every other document is written as before.
+- Level 13 adds the Kripke model, `{"worlds": [{"atoms", "falsity",
+  "arrows"}], "world"}`, as a document. An ordinary outcome holds one
+  under `countermodel` and stays at level 12: a reader of level 12
+  ignores the key without misreading the verdict.
 
 ## [0.3.0] - 2026-11-09
 

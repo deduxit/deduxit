@@ -33,6 +33,10 @@ a ⊢ b ∨ a       b ⊢ b ∨ a
    ⊢ (a ∨ b) → (b ∨ a)
 $ deduxit prove --logic intuitionistic '~~a -> a'
 not valid (intuitionistic logic by the SAT solver): a checked countermodel refutes it
+world 0 (the model's world): forces nothing; below 1, 2
+world 1: forces a; below 3
+world 2: forces nothing; below 3
+world 3: forces a
 ```
 
 ## Read the answer
@@ -43,7 +47,8 @@ not valid (intuitionistic logic by the SAT solver): a checked countermodel refut
   The exit status is 0.
 - `not valid`: no proof exists in LK or LJ, so the sequent is not a
   theorem of that logic. `~~a -> a` above is a classical theorem, but not
-  an intuitionistic one. The exit status is 1.
+  an intuitionistic one. The exit status is 1. The lines after it are a
+  countermodel ([A countermodel](#a-countermodel)).
 - `unknown`: a limit, such as the time limit, stopped the search before
   it decided. The exit status is 3, and the line says which limit it
   was.
@@ -99,6 +104,10 @@ $ deduxit prove --logic classical --method sat -q '((a -> b) -> a) -> a'
 valid (classical logic by the SAT solver): a checked clausal proof of 1 step against the 6 clauses of the sequent's negation
 $ deduxit prove --logic intuitionistic --method sat '((a -> b) -> a) -> a'; echo "exit $?"
 not valid (intuitionistic logic by the SAT solver): a checked countermodel refutes it
+world 0 (the model's world): forces nothing; below 1, 2
+world 1: forces a; below 3
+world 2: forces nothing; below 3
+world 3: forces a
 exit 1
 ```
 
@@ -185,6 +194,49 @@ a ⊢ a
  !a, !(!a ⊸ b) ⊢ b
 ```
 
+## A countermodel
+
+A sequent that is not valid comes with a Kripke model that shows why.
+The model has worlds, each forcing some atoms. A world lies below the
+worlds its arrows reach, and every world forces what each world below it
+forces. A world forces `A -> B` when every world at or above it that
+forces `A` forces `B`, and `~A` when no world at or above it forces `A`.
+The model's world forces every formula left of `|-` and not the one
+right of it, so the sequent cannot be a theorem. In the example at the
+top, world 0 forces neither `a` nor `~a`, since world 1 above it forces
+`a`; so it forces `~~a` and not `a`.
+
+In classical logic the model has one world: the atoms it forces are
+true, the others false. In minimal logic a world may force `false`, as
+an atom. deduxit checks the model before it gives the verdict, and
+`check` checks it again in a file `prove --format json` wrote. LJT
+(`--method ljt`) finds no model: its "not valid" says the search was
+exhaustive. A model past a size bound is not shown or checked, and the
+verdict line says so.
+
+To check a model of your own, write it in JSON and give `check` the
+logic and the sequent. The model holds each world's atoms and its
+arrows, by the index of the world above:
+
+```console
+$ echo '{"worlds": [{"atoms": [], "arrows": [1]}, {"atoms": ["a"]}]}' > model.json
+$ deduxit check --logic intuitionistic --sequent 'a \/ ~a' model.json; echo "exit $?"
+the model does not satisfy ⊢ a ∨ ¬a at every world: world 0 forces each formula left of ⊢ and not the one right of it
+  at world 0: a not forced
+  at world 0: ¬a not forced
+  at world 0: a ∨ ¬a not forced
+exit 1
+$ deduxit check --logic intuitionistic --sequent 'a \/ ~a' --world 1 model.json
+the model satisfies ⊢ a ∨ ¬a at world 1
+```
+
+A world gets `"falsity": true` where it forces `false` (minimal logic).
+`check` first checks that the file is a model of the logic: its arrows
+do not go round, every world forces what each world below it forces,
+and only minimal logic has `falsity`. The exit status is 0 where the
+sequent holds, 1 where it fails, and 2 for a file that is no model of
+the logic.
+
 ## Draw the derivation
 
 The derivation is checked with every weakening and contraction as an
@@ -257,7 +309,7 @@ SAT solver add their `statistics`:
 
 ```console
 $ deduxit prove --logic intuitionistic --format json '~~a -> a'
-{"version":12,"deduxit":"0.3.0","verdict":"not_valid","logic":"intuitionistic","search":{"method":"sat","statistics":{"calls":4,"conflicts":0,"lemmas":0,"worlds":4,"facts":0,"clauses":0,"proof_steps":0,"ljt":null}}}
+{"version":12,"deduxit":"0.3.0","verdict":"not_valid","logic":"intuitionistic","search":{"method":"sat","statistics":{"calls":4,"conflicts":0,"lemmas":0,"worlds":4,"facts":0,"clauses":0,"proof_steps":0,"ljt":null}},"countermodel":{"sequent":{"formulas":[{"V":0},{"¬":0},{"¬":1},{"→":[2,0]}],"atoms":["a"],"left":[],"right":[3]},"model":{"worlds":[{"atoms":[],"arrows":[1,2]},{"atoms":["a"],"arrows":[3]},{"atoms":[],"arrows":[3]},{"atoms":["a"]}],"world":0}}}
 ```
 
 Through the embedding, `search` holds the `translation` and, under
@@ -266,7 +318,7 @@ without `--logic` (its proof, or its refutation):
 
 ```console
 $ deduxit prove --logic classical --method embedding --format json 'a |- b'
-{"version":12,"deduxit":"0.3.0","verdict":"not_valid","logic":"classical","search":{"method":"embedding","translation":"affine","image":{"verdict":"unprovable","refutation":{"kind":"classical","assignment":[true,false]},"fragment":"MLL","mode":"affine","engine":"focus","statistics":{"nodes":1,"memo_hits":0,"memo_entries":1,"splits":0,"links":0,"tests":0,"copies":0,"forward_copies":0,"work":16},"sequent":{"terms":[{"D":0},{"V":1}],"roots":[0,1],"atoms":["a","b"],"antecedents":0}}}}
+{"version":12,"deduxit":"0.3.0","verdict":"not_valid","logic":"classical","search":{"method":"embedding","translation":"affine","image":{"verdict":"unprovable","refutation":{"kind":"classical","assignment":[true,false]},"fragment":"MLL","mode":"affine","engine":"focus","statistics":{"nodes":1,"memo_hits":0,"memo_entries":1,"splits":0,"links":0,"tests":0,"copies":0,"forward_copies":0,"work":16},"sequent":{"terms":[{"D":0},{"V":1}],"roots":[0,1],"atoms":["a","b"],"antecedents":0}}},"countermodel":{"sequent":{"formulas":[{"V":0},{"V":1},"⊥"],"atoms":["a","b"],"left":[0],"right":[1]},"model":{"worlds":[{"atoms":["a"]}],"world":0}}}
 ```
 
 A valid sequent has its `derivation`. One valid by a clausal proof has

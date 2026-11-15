@@ -391,6 +391,87 @@ pub fn hint(session: &str, goal: u32, settings: &str) -> Result<String, Failure>
     })
 }
 
+/// What the check of a Kripke model found.
+#[derive(Serialize)]
+struct Checked {
+    /// Whether the sequent holds at the world asked, or at every world.
+    holds: bool,
+    /// Where it does not: a world at or above the one asked that forces
+    /// each formula left of `⊢` and not the one right of it, and what it
+    /// forces of every subformula, each before the formulas made of it.
+    failing: Option<Failing>,
+}
+
+/// A world where a sequent fails, and what it forces.
+#[derive(Serialize)]
+struct Failing {
+    /// The world, by index.
+    world: u32,
+    /// Each subformula of the sequent and whether the world forces it.
+    forcing: Vec<Forced>,
+}
+
+/// Whether a world forces a formula.
+#[derive(Serialize)]
+struct Forced {
+    /// The formula, as the page prints formulas.
+    formula: String,
+    /// Whether the world forces it.
+    forced: bool,
+}
+
+/// Checks a Kripke model, in its JSON form (`{"worlds": [{"atoms",
+/// "falsity", "arrows"}], "world"}`), against a sequent of `logic`: that
+/// it is a model of the logic, then whether the sequent holds at `world`,
+/// or at every world when `world` is `None`. Answers `{"holds",
+/// "failing"}`, `failing` the world where the sequent fails, with what it
+/// forces of every subformula, or `null`.
+///
+/// # Errors
+///
+/// A model or a sequent that cannot be read, an unknown logic, a world
+/// the model does not have, and a model that is not one of the logic
+/// (code `countermodel`, its reason).
+pub fn model(
+    model: &str,
+    sequent: &str,
+    logic: &str,
+    world: Option<u32>,
+    settings: &str,
+) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let logic: Logic = logic.parse().map_err(Failure::from)?;
+    let sequent = sequent_of(sequent, &settings)?;
+    let mut document = serde_json::Deserializer::from_str(model);
+    let model: deduxit::kripke::Model =
+        wire::upgrade(&mut document, &settings.limits).map_err(Failure::from)?;
+    if let Some(w) = world {
+        model.check_world(w).map_err(Failure::from)?;
+    }
+    let forcing = model
+        .forcing(&sequent, logic, never)
+        .map_err(Failure::from)?;
+    let failing = match world {
+        Some(w) => forcing.failing(w),
+        None => (0..model.worlds.len() as u32).find_map(|w| forcing.failing(w)),
+    };
+    let formulas = sequent.formulas();
+    let failing = failing.map(|w| Failing {
+        world: w,
+        forcing: forcing
+            .at(w)
+            .map(|(id, forced)| Forced {
+                formula: formulas.formula(id).to_string(),
+                forced,
+            })
+            .collect(),
+    });
+    written(&Checked {
+        holds: failing.is_none(),
+        failing,
+    })
+}
+
 /// Returns the lambda-term of a session's derivation
 /// ([`ordinary::Derivation::term`]). A finished derivation of LJ gives a
 /// term of the simply typed lambda calculus.

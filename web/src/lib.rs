@@ -329,6 +329,19 @@ mod exports {
         ordinary::term(session, settings).map_err(thrown)
     }
 
+    /// See [`ordinary::model`]: `world` absent for every world.
+    #[wasm_bindgen]
+    pub fn ordinary_model(
+        model: &str,
+        sequent: &str,
+        logic: &str,
+        world: Option<f64>,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        let world = world.map(|w| index(w, "a world")).transpose()?;
+        ordinary::model(model, sequent, logic, world, settings).map_err(thrown)
+    }
+
     /// See [`ordinary::draw`].
     #[wasm_bindgen]
     pub fn ordinary_draw(session: &str, settings: &str) -> Result<String, JsValue> {

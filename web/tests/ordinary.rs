@@ -59,12 +59,12 @@ fn open_goals(answer: &str) -> Vec<u32> {
 
 /// `about` lists both suites, each with the prefix of its calls, its term
 /// call and the parameter its `start` takes, with every value and the
-/// default, and the wire level, 12 since an ordinary outcome tags its
-/// search.
+/// default, and the wire level, 13 since an ordinary outcome may hold a
+/// Kripke model.
 #[wasm_bindgen_test(unsupported = test)]
 fn about_lists_the_suites() {
     let about = value(&calls::about());
-    assert_eq!(about["level"], 12);
+    assert_eq!(about["level"], 13);
     let suites = about["suites"].as_array().unwrap();
     let names: Vec<&Value> = suites.iter().map(|s| &s["suite"]).collect();
     assert_eq!(names, [&json!("linear"), &json!("ordinary")]);
@@ -280,4 +280,28 @@ fn a_finished_derivation_reads_back_as_a_lambda_term() {
     let started = ordinary::start(composition, "minimal", "").unwrap();
     let open = value(&ordinary::term(&session(&started), "").unwrap());
     assert_eq!(open["error"]["code"], "no_term");
+}
+
+/// `model` checks a Kripke model the page gives against a sequent: the
+/// excluded middle fails at the root of two worlds, with what the root
+/// forces of each subformula, and holds at the world above; a model of
+/// two worlds is no model of classical logic.
+#[wasm_bindgen_test(unsupported = test)]
+fn a_model_is_checked_against_a_sequent() {
+    let model = r#"{"worlds":[{"atoms":[],"arrows":[1]},{"atoms":["a"]}]}"#;
+    let checked = value(&ordinary::model(model, "a \\/ ~a", "intuitionistic", None, "").unwrap());
+    assert_eq!(checked["holds"], false);
+    assert_eq!(checked["failing"]["world"], 0);
+    assert_eq!(
+        checked["failing"]["forcing"][2],
+        json!({"formula": "a ∨ ¬a", "forced": false})
+    );
+    let checked =
+        value(&ordinary::model(model, "a \\/ ~a", "intuitionistic", Some(1), "").unwrap());
+    assert_eq!(
+        (&checked["holds"], &checked["failing"]),
+        (&json!(true), &Value::Null)
+    );
+    let refused = ordinary::model(model, "a", "classical", None, "").unwrap_err();
+    assert_eq!(failure(&refused)["code"], "countermodel");
 }

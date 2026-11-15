@@ -268,7 +268,11 @@ for `THIRD-PARTY-NOTICES.txt`.
   nested (the goal state closes through the embedding alone); `export` and `draw` draw with `view.structural`,
   the view's `inferences` (`derivation_ids`) under the same setting so
   that `i<n>` maps to the goal, and `rocq` is the finished derivation,
-  checked, always explicit. `tests/ordinary.rs` holds their tests.
+  checked, always explicit. `ordinary_model(model, sequent, logic,
+  world, settings)` checks a Kripke model the page gives (the library's
+  `Model::forcing`): `{"holds", "failing": {"world", "forcing":
+  [{"formula", "forced"}]}}`, a model of another logic a failure of
+  code `countermodel`. `tests/ordinary.rs` holds their tests.
 - **The lambda-term** (`term`, `ordinary_term`) is the session's own
   derivation read back, as the command's session command `lambda` reads
   it, written with the settings' `lambda` (the command's key). What has no

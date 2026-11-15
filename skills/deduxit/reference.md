@@ -1058,8 +1058,41 @@ whose image the embedding proved without a derivation (a bound or the
 time limit refused it) neither. `--linear` writes the image's outcome
 alone. `check` reads every such file and a derivation of LK or LJ: it
 checks the derivation by its calculus and the image's proof or
-refutation; a clausal proof's counts, a "not valid" of LJT or the SAT
-solver, and an unknown hold nothing to check (exit status 3).
+refutation, and a countermodel against its sequent; a clausal proof's
+counts, a "not valid" of LJT, and an unknown hold nothing to check (exit
+status 3).
+
+### Countermodels
+
+A "not valid" of the SAT solver comes with a Kripke model, printed after
+the verdict line a world per line (`world 0 (the model's world): forces
+nothing; below 1`) and in JSON under `"countermodel": {"sequent": …,
+"model": {"worlds": [{"atoms": […], "falsity": true, "arrows": […]}],
+"world": n}}` (the model's own document is at wire level 13). Each world forces its atoms and what
+every world below it forces; its arrows go to the worlds directly above
+it; the model's world forces every formula left of `|-` and not the one
+right of it. Classically the model has one world, the assignment (also
+from the embedding's refutation); `falsity` is minimal logic's. LJT gives
+no model. A model past a size bound is reported as too large to show.
+
+`check --logic L --sequent SEQUENT FILE` checks a model in that JSON
+form (`{"worlds": […]}`) against a sequent: first that it is a model of
+the logic, then whether the sequent holds at `--world N`, or at every
+world; where it fails it names the world and what it forces of each
+subformula (exit status 0 holds, 1 fails, 2 no model of the logic):
+
+```console
+$ echo '{"worlds": [{"atoms": [], "arrows": [1]}, {"atoms": ["a"]}]}' > model.json
+$ deduxit check --logic intuitionistic --sequent 'a \/ ~a' --world 1 model.json
+the model satisfies ⊢ a ∨ ¬a at world 1
+```
+
+In the library, `ordinary::Outcome::countermodel` holds it
+(`ordinary::Countermodel`: the sequent and a `kripke::Model`);
+`model.forcing(&sequent, logic, stop)` checks a model and answers what
+each world forces (`Forcing::holds`, `failing`, `at`), and
+`model.refutes(&sequent, logic, stop)` whether its world refutes the
+sequent, within `ordinary::MODEL_CELLS` cells.
 
 ### Examples
 

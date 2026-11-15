@@ -2488,6 +2488,21 @@ fn ordinary_logic() {
     );
     let (_, json, _) = decide(&["--logic", "intuitionistic", "--format", "json", "a |- b"]);
     let (status, out, _) = deduxit(&["check"], &json);
+    assert_eq!(status, 0);
+    assert!(
+        out.starts_with("valid refutation of a ⊢ b (intuitionistic logic): a Kripke model"),
+        "{out}"
+    );
+    let (_, json, _) = decide(&[
+        "--logic",
+        "intuitionistic",
+        "--method",
+        "ljt",
+        "--format",
+        "json",
+        "a |- b",
+    ]);
+    let (status, out, _) = deduxit(&["check"], &json);
     assert_eq!(status, 3);
     assert!(out.contains("holds no refutation to check"), "{out}");
     // By default the SAT solver gives way to the embedding where a bound

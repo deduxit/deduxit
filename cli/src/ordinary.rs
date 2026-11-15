@@ -375,6 +375,17 @@ pub(crate) fn write_native(
             .and_then(|d| d.term(&show.limits, |_| over()));
         show.after(&mut out, &lambda_line(term, &show, over), drawn)?;
     }
+    // The countermodel's worlds, after the verdict, as text; the drawing
+    // formats show none.
+    if let (ordinary::Verdict::NotValid, Some(countermodel), Format::Text, false) = (
+        &outcome.verdict,
+        &outcome.countermodel,
+        format,
+        args.output.quiet,
+    ) && show.tree != Tree::Never
+    {
+        show.after(&mut out, &countermodel.model.to_string(), drawn)?;
+    }
     if args.stats {
         show.after(&mut out, &native_statistics(outcome, ended.elapsed), drawn)?;
     }
@@ -423,8 +434,18 @@ pub(crate) fn native_verdict_line(outcome: &ordinary::Outcome, ended: &Ended) ->
             format!("valid ({context}): {proof}")
         }
         ordinary::Verdict::Valid(_) => format!("valid ({context})"),
-        ordinary::Verdict::NotValid if method == Method::Sat => {
+        ordinary::Verdict::NotValid if outcome.countermodel.is_some() => {
             format!("not valid ({context}): a checked countermodel refutes it")
+        }
+        ordinary::Verdict::NotValid if method == Method::Sat => {
+            let worlds = match &outcome.search {
+                ordinary::Search::Sat(s) => s.worlds,
+                _ => 0,
+            };
+            format!(
+                "not valid ({context}): a countermodel of {worlds} worlds refutes it, too large to \
+                 show and check"
+            )
         }
         ordinary::Verdict::NotValid => {
             format!("not valid ({context}): the search was exhaustive")

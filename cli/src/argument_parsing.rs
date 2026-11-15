@@ -825,6 +825,32 @@ pub(crate) struct CheckArgs {
     /// The logic the proof must hold in.
     #[command(flatten)]
     pub(crate) mode: ModeArgs,
+    /// With a Kripke model, the ordinary logic to check it in
+    ///
+    /// The file is then a Kripke model in JSON, as `prove --logic
+    /// --format json` writes one under `countermodel`, and --sequent names
+    /// the sequent to check it against.
+    #[arg(help_heading = LOGIC, long, value_enum, value_name = "LOGIC")]
+    pub(crate) logic: Option<LogicArg>,
+    /// With a Kripke model, the sequent of ordinary logic to check it
+    /// against
+    ///
+    /// The model must be one of the logic: its worlds ordered by its
+    /// arrows, with no arrows round, each world forcing what every world
+    /// below it forces, and ⊥ forced only in minimal logic. Then the check
+    /// says whether the sequent holds at the world --world names, or at
+    /// every world: at every world at or above it that forces each formula
+    /// left of ⊢, the formula right of it is forced. Where it fails, it
+    /// names a world that forces each formula left of ⊢ and not the one
+    /// right of it, and what that world forces of each subformula. The
+    /// exit status is 0 where the sequent holds, 1 where it fails and 2
+    /// for a model that is not one of the logic.
+    #[arg(help_heading = INPUT, long, value_name = "SEQUENT", requires = "logic")]
+    pub(crate) sequent: Option<String>,
+    /// With a Kripke model, the world to check the sequent at, by index;
+    /// every world when absent
+    #[arg(help_heading = INPUT, long, value_name = "N", requires = "sequent")]
+    pub(crate) world: Option<u32>,
     /// Where to write the result.
     #[command(flatten)]
     pub(crate) output: OutputArgs,

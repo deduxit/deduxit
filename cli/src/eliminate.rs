@@ -41,6 +41,9 @@ pub(crate) fn eliminate(args: &EliminateArgs, given: &Given) -> Result<Status> {
     let asked = asked_steps(given, &settings);
     let deadline = Deadline::start(time_limit(&settings), start)?;
     let check = &args.check;
+    if check.logic.is_some() || check.sequent.is_some() {
+        bail!("--logic and --sequent check a Kripke model, with `check`; eliminate reads proofs");
+    }
     let mode = check.mode.mode();
     mode.check()?;
     let show = Show::new(&check.output, &settings)?;
@@ -67,6 +70,7 @@ pub(crate) fn eliminate(args: &EliminateArgs, given: &Given) -> Result<Status> {
                 error: None,
                 message: Some(line),
                 lambda: None,
+                failing: None,
             };
             serde_json::to_writer(out.stream(), &unknown)?;
             out.finish()?;
@@ -220,6 +224,7 @@ fn eliminate_into(
                     error: Some(Error::Check(error)),
                     message: Some(message),
                     lambda: None,
+                    failing: None,
                 };
                 serde_json::to_writer(out.stream(), &checked)?;
                 return Ok((status, true));
@@ -656,6 +661,7 @@ fn unchecked(
                 error: Some(Error::Check(error)),
                 message: Some(message),
                 lambda: None,
+                failing: None,
             };
             serde_json::to_writer(out.stream(), &checked)?;
         }

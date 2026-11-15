@@ -151,7 +151,17 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   (`unchecked_into`; the linear `check` refuses an unknown linear
   outcome, exit 2, as before); a mode
   flag beside an ordinary file is refused; its `Checked` JSON has
-  `logic` in place of `mode`. A bare derivation of LK or LJ is checked
+  `logic` in place of `mode`. An outcome's countermodel is checked
+  (`check_countermodel`, valid refutation exit 0, invalid 1). A Kripke
+  model document (`read_document` probes `worlds`) is checked against
+  `--sequent` under `--logic` (`check_model`: `Model::forcing`, then
+  `--world N` or every world; exit 0 holds, 1 fails with the failing
+  world's forcing per subformula as lines, or `failing` in JSON; a model
+  of another logic is an error, exit 2); `--sequent` beside another
+  document is refused, and `eliminate` refuses both flags. `prove`
+  prints the countermodel after a "not valid" verdict line as text
+  (`kripke::Model`'s `Display`, not under `-q` or `--tree never`; the
+  drawn formats show none), and a model too large says so on the line. A bare derivation of LK or LJ is checked
   the same way. `read_proof`'s ordinary message is `eliminate`'s now. `seq print --logic`
   prints the image (two-sided for ILL). In a batch the logic applies to
   every entry, `lines` being ordinary sequents, and JSON and LLTP inputs
