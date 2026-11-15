@@ -219,17 +219,23 @@ pub struct Interpolation {
     pub interpolant: Option<Interpolant>,
 }
 
-/// Decides `sequent` as `options` say, through the embedding unless they
-/// name another method, and reads the interpolant of `partition` off its
-/// derivation where it is valid ([`interpolant`]). A sequent that is not
-/// valid, or that the search does not decide, has none.
+/// Decides `sequent` as `options` say and reads the interpolant of
+/// `partition` off a derivation without cuts where it is valid
+/// ([`interpolant`]). Where the method's derivation has a cut (LJT, the SAT
+/// solver) or there is none (a clausal proof), and `options` name no
+/// method, the sequent is decided again through the embedding, whose
+/// derivations have none. A sequent that is not valid has no
+/// interpolant, and neither has one the searches do not decide or whose
+/// derivation the embedding does not find within the limits.
 ///
 /// # Errors
 ///
 /// [`Error::Partition`] for a partition that is not one of the sequent;
-/// [`decide_within`]'s errors; [`Error::NoDerivation`] for a method that
-/// gives none, and [`interpolant`]'s errors: [`Error::NotCutFree`] for one
-/// whose derivation has a cut (LJT, the SAT solver).
+/// [`decide_within`]'s errors; for a method named whose derivation has a
+/// cut, [`Error::NotCutFree`], and for one that gives no derivation,
+/// [`Error::NoDerivation`]; [`interpolant`]'s errors; [`Error::ReadBack`]
+/// where the embedding finds not valid what the method found valid, a
+/// defect.
 pub fn interpolate(
     sequent: &Sequent,
     options: &Options,
@@ -240,20 +246,50 @@ pub fn interpolate(
 ) -> Result<Interpolation, Error> {
     let logic = options.logic;
     partition.halves(logic, sequent.left().len(), sequent.right().len())?;
-    let options = options.with_method(Some(options.method.unwrap_or(Method::Embedding)));
-    let outcome = decide_within(sequent, &options, search, limits, &mut stop)?;
-    let interpolant = match &outcome.verdict {
-        Verdict::Valid(evidence) => {
-            let derivation = evidence.derivation()?;
-            // The derivation concludes the sequent, or in intuitionistic and
-            // minimal logic `Γ ⊢ ⊥` for `Γ ⊢`: its hypotheses are the
-            // sequent's, in their order, and its formula right of `⊢` is in
-            // the second half.
-            Some(interpolant(
-                derivation, partition, search, limits, &mut stop,
-            )?)
+    let decided = decide_within(sequent, options, search, limits, &mut stop)?;
+    let cut_free = |outcome: &Outcome| match &outcome.verdict {
+        Verdict::Valid(evidence) => match evidence.derivation() {
+            Ok(d) if !d.inferences().iter().any(|i| i.rule == Rule::Cut) => Ok(Some(d.clone())),
+            Ok(_) => Err(Error::NotCutFree),
+            Err(error) => Err(error),
+        },
+        Verdict::NotValid | Verdict::Unknown(_) => Ok(None),
+    };
+    let (outcome, derivation) = match cut_free(&decided) {
+        Ok(derivation) => (decided, derivation),
+        Err(error) if options.method.is_some() => return Err(error),
+        Err(_) => {
+            let embedding = options.with_method(Some(Method::Embedding));
+            let embedded = decide_within(sequent, &embedding, search, limits, &mut stop)?;
+            match embedded.verdict {
+                Verdict::Valid(_) => {
+                    let derivation = cut_free(&embedded)?;
+                    (embedded, derivation)
+                }
+                Verdict::NotValid => {
+                    return Err(Error::ReadBack {
+                        calculus: logic.calculus(),
+                        reason: "the embedding finds the sequent not valid, which the method found valid"
+                            .to_owned(),
+                    });
+                }
+                // The method's verdict stands without an interpolant.
+                Verdict::Unknown(_) => (decided, None),
+            }
         }
-        Verdict::NotValid | Verdict::Unknown(_) => None,
+    };
+    // The derivation concludes the sequent, or in intuitionistic and
+    // minimal logic `Γ ⊢ ⊥` for `Γ ⊢`: its hypotheses are the sequent's, in
+    // their order, and its formula right of `⊢` is in the second half.
+    let interpolant = match derivation {
+        Some(derivation) => Some(interpolant(
+            &derivation,
+            partition,
+            search,
+            limits,
+            &mut stop,
+        )?),
+        None => None,
     };
     Ok(Interpolation {
         partition: partition.clone(),
