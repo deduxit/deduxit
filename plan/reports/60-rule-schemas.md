@@ -286,3 +286,250 @@ untouched), a benchmark.
 - [x] The gate.
 - [ ] 60b: the printer, the linear rule file, 56a's tableau as a rule
   file, the command, the manual's chapter, the panel.
+
+## Session 60b: rules as data, finished, and its panel
+
+Session 60b, 2026-11-15, the same conversation as 60a, now on Opus 5.5
+at `high`. Brief: `/tmp/linlog-handoff/start-60b.md`; its list was 60a's
+"What the next sessions must know".
+
+### Outcome
+
+Everything on 60a's list for 60b is built, and the panel has reviewed
+the checker. `deduxit check` checks a derivation in a calculus given as
+data (`--calculus FILE` or a built-in name; a derivation naming a
+built-in calculus needs no flag), the manual has a chapter for it with
+real invocations, and the guide and `status.md` say so. Terms print by
+the calculus's print forms. One-sided linear logic and the signed
+tableau ship as rule files, checked against the linear checker's
+proofs and the ordinary suite's tableaux. Wire level 15 has its
+stability file and two fuzz targets. The panel found no unsoundness
+and eleven other faults (one reader panic, three false refusals, memory
+past its bound, uncounted work, three holes in the reader), all fixed
+with a test each.
+
+### What was built
+
+- **The printer** (`core/src/rules/print.rs`): `Calculus::show(terms,
+  id)` and `Calculus::show_sequent(derivation, node)` return `Shown`, a
+  `Display` bounded to `Shown::LIMIT` (4 096) characters, `limit(n)` to
+  change it, a loop over an explicit stack. A connective without
+  `fixity` is prefix at arity 1, infix at 2, a function otherwise;
+  brackets follow precedence and associativity. `core/tests/depth.rs`
+  prints and checks terms 50 000 deep on a stack of 256 KiB. An
+  `InvalidDerivation` now names the failing node's sequent (200
+  characters at most) and, where a member is missing, the sequent and
+  zone that lack it.
+- **`rules::LL`** (`calculi/ll.json`): one-sided linear logic,
+  propositional, no cut, no Mix, not affine; the dual of an atom is the
+  atom under `~` with `atomic`; promotion keeps `["?", "Γ"]`. The test
+  `the_linear_rule_file_agrees_with_the_linear_checker` writes the
+  linear suite's proofs of 28 sequents (eleven by hand, the families'
+  smallest provable classical or intuitionistic instances) through a
+  converter in the test, uncompacted and one-sided: 27 proofs, 505
+  nodes, all accepted; another rule at each of 369 nodes refused.
+- **`rules::TABLEAU`** (`calculi/tableau.json`) and
+  `Derivation::from_tableau` (`tableau.rs`, feature `interactive`):
+  Smullyan's signed tableau, one `set` zone of signed formulas, an
+  expansion keeping the formula it expands as a branch does, closures
+  `×`, `T⊥`, `F⊤`. The test checks the tableaux of the method `tableau`
+  and those `Tableau::of` reads off the embedding's derivations, on the
+  18 sequents of the ordinary cross-check and four not valid: closed
+  ones pass, open ones are refused, and a closure that cites another
+  line is refused.
+- **The command** (`cli/src/calculus.rs`, `check.rs`,
+  `argument_parsing.rs`): `check` reads a document with the key
+  `calculus` as such a derivation; `--calculus CALCULUS` names a rule
+  file or `LK`, `LJ`, `LM`, `LL`, `tableau` in any case. Verdict lines:
+  `valid in the calculus given (NAME): SEQUENT, a derivation of N nodes
+  [from K assumptions]`, then the nodes as a list indented by scope;
+  `invalid in the calculus given (NAME): REASON`, exit 1; `unknown: …`
+  at a limit, exit 3; a rule file that is no calculus, exit 2. JSON is
+  `Checked` with `calculus`. Text and JSON only; `eliminate` refuses
+  the flag. The behaviour lock gains five calls (its own commit).
+- **The manual's chapter** `docs/src/rules.md`, "Check a derivation in
+  your own rules", after `check.md`: a derivation in LK, a natural
+  deduction rule file with a discharge and nested scopes, a derivation
+  that uses a closed subproof's line, the rule file's keys, the exit
+  statuses. The guide's reference has the command beside the library.
+- **Evidence**: `core/tests/wire/level-15.txt` (a rule file and two
+  derivations, written once by the library) and
+  `the_fifteenth_level_reads`; the fuzz targets `rule_file` and
+  `json_derivation`, in `fuzz/run.sh` and seeded by `fuzz/seed.sh`.
+  `fuzz/fuzz_targets/ordinary_decide.rs` had stopped building (it called
+  `ordinary::decide` with `decide_within`'s arguments): fixed, since the
+  brief's fuzz check needs every target to build.
+
+D15 and D16: the printer's bound is a named constant with a setter; the
+command's list keeps to `--abbreviate` and `--derivation-limit`, its
+check to `--timeout`, `--work-limit` and `--memory-limit`. No settings
+key is new: `--calculus` is an input, as the proof file is.
+
+### The panel
+
+Three members, each in a jj workspace of its own on `main`, briefed
+with the claim of `core-rules.md` (instance, scopes, bounds) and the
+machine's rules (`scratchpad/panel/claim.md`).
+
+- **Counterexamples** (`panel-counterexamples`, Opus 5.5 at `high`):
+  a second reference of its own (no code shared with the checker; it
+  reads the rule file's JSON and searches every placement of the
+  written members, every split of the rest among the contexts, every
+  subset for a set) compared with `check` on every position vector of
+  each node: 22 212 random rule files (13 356 compiled) with 397 506
+  nodes and 14.6 million position vectors; 80 000 odd rule files for
+  the reader; 1.2 million natural deduction derivations with nested
+  scopes against a dependency judgement of its own; the committed
+  calculi's 106 rules. **No unsound accept anywhere.** Five
+  refutations: a reader panic and four false refusals (below).
+- **Argument** (`panel-argument`, Fable 5.2 at `high`): the invariants
+  stated from the code first, then checked at every site; the
+  compiler's plan, the matching, the equations, the set zones and the
+  scope induction hold. Gaps: the same panic, three of the same false
+  refusals, a conclusion's zone key written twice read as the last
+  (a rule file is the trusted base), and two places where the design
+  note's words differ from the code (`Calculus::located`, "mapped on
+  the way in and out").
+- **Integers** (`panel-integers`, Sonnet 5.5 at `high`): no wrap,
+  truncation or integer panic; the same reader panic; three structures
+  the memory estimate left out (the freshness walk's stack, grown by the
+  arity per level, 40.8 MB past a 1 MB bound; the contexts, 200 MB past
+  64 MiB; the slots of empty zones, 108 MB past 1 MiB); a rule file of
+  a thousand premises over a thousand zones compiled into 56 MB with no
+  bound; and work no unit counted: the compiler's equations and
+  duplicate test (quadratic, 2.9 s for a chain of 8 000 premises), sort
+  lookups by linear scan (n² for n sorts, in the reader and the
+  checker), the discharge comparison (copies per pattern), the cover
+  check of set zones.
+
+What was fixed (`ynwwwqxz`), each with a test in `core/tests/rules.rs`
+(`a_rule_file_that_is_no_calculus_is_refused`,
+`a_node_that_is_an_instance_passes`,
+`the_memory_bound_counts_every_context_and_zone`):
+
+- the reader refuses a connective over a context that does not take
+  one argument, a variable named twice in `fresh` or `atomic`, a zone's
+  key written twice in any sequent, and a file whose rules would
+  compile past `limits.memory_bytes`; names, sorts and zones are looked
+  up in hash maps;
+- `Compiler::equations` is a worklist, and each equation keeps its
+  segment's contexts, so neither the compiler nor the checker rescans a
+  zone (the chain of 8 000: 22 ms);
+- within a zone, members found by position come before those found by
+  value; an empty context under a connective maps to nothing; a set
+  zone's discharge is compared as a set;
+- the freshness walk marks a term as it pushes it, so its stack holds a
+  term once; the memory estimate counts the walk's stack, every
+  context, every zone's slots and each rule's patterns and discharges;
+  the discharge comparison sorts each hypothesis once and counts its
+  work, and the cover check and the conditions count theirs.
+
+All five counterexamples and the integers member's seven probes were
+run again on the fixed code: the panics and false refusals are gone
+(the panic case and the duplicate condition are now refused when the
+file is read), the memory cases are refused by the bound, and the
+quadratic cases end in milliseconds.
+
+### The reviewer's findings
+
+`fresh-reviewer` on Fable 5.2 (not the writer's model), once, on the
+seven commits. Four findings, none a soundness fault; all hold and are
+fixed in `twmqwmlu`:
+
+1. **`check --abbreviate none` wrote the verdict's sequent with no
+   bound** and no stop: a derivation of 1 KB whose term doubles 60
+   times ran past `--timeout 1s` for 30 s. Now every sequent `check`
+   writes is cut at `--abbreviate`, or with `none` at
+   `--derivation-limit` characters (`cli/src/calculus.rs`, `bound`); the
+   witness answers at once.
+2. **The memory estimate was below what the check holds** in two
+   places: the freshness walk's stack is a vector that may hold twice
+   its length (1.5 times the bound measured), and the checker's tables
+   sized by the calculus were not counted (1.6 MB held under a bound of
+   4 KiB with 200 000 connectives). The estimate now counts 32 bytes a
+   term and a slot per connective, variable and context.
+3. **`Shown` wrote `limit` characters and then `…`**, where its doc said
+   at most `limit`: the doc now says so.
+4. **The manual said "three conditions" and listed two**: fixed.
+
+It found sound: the printer (no recursion or panic; brackets
+injective on 49 573 terms of LK and LJ, 143 254 of LL and 233 304 of
+TABLEAU), `from_tableau` (29 950 forged tableaux: no panic, no open one
+accepted, every accepted root classically unsatisfiable), the panel's
+fixes (the worklist computes the same fixpoint; positions keep the `at`
+order), the command's statuses and examples, and the fuzz targets' use
+of the API.
+
+### Checks
+
+All on cores 10-12, capped at 8 GB.
+
+- `cargo test -p deduxit --test rules --test depth --test stability`:
+  13, 3 and 14 passed at the last code commit (`twmqwmlu`), the
+  cross-checks with LK, LJ, LM, LL and the tableau among them.
+- `cargo test -p deduxit-cli --test readme --test lock`: 7 and 1
+  passed; the lock's five new records and `help-check` were blessed in
+  their own commit (`tyospvtu`).
+- `cargo clippy --workspace --all-targets -- --deny warnings`: clean.
+- `gate`: passed at `nwwrnmpl` and again at `twmqwmlu`.
+- `nix develop .#fuzz -c cargo check --manifest-path fuzz/Cargo.toml
+  --bins`: every target builds (after the fix to `ordinary_decide`).
+- `nix flake check`, under the machine lock: passed at `twmqwmlu`, on its
+  second run; the first failed on shellcheck's SC2094 at a line of
+  `fuzz/seed.sh` (a file read and named in one command), rewritten.
+- The panel's and the reviewer's witnesses, run again on the fixed
+  code through the command or their probes: refused or accepted as the
+  claim says, in milliseconds.
+
+Not run: a fuzz run, `breaks`, `nix build .#kani-harnesses`, a
+benchmark.
+
+### Departures and assumptions
+
+- **The converter from the linear suite is in the test, not the
+  library** (departs from the design, which named neither): the
+  library ships `rules::LL` and the cross-check; a `from_linear` would
+  be API that no caller asked for, and adding it later breaks nothing.
+- **`check` shows such a derivation as text or JSON only**: the
+  drawings (LaTeX, Typst, SVG) need the derivation's layout through the
+  exports' `Drawable`, which is 61's or 62's (the Fitch view) to add.
+- **The tableau's `×` has no `atomic`**, as 60a's report foresaw: 56a
+  closes a branch on any formula.
+
+### What the next sessions must know
+
+No 60c is needed: what 60a left for 60b is done. For 61 and later:
+
+- **61 (building with custom rules)** needs a backward step: from a
+  goal, a rule and the positions, the premises. The compiled `Rule`
+  has what it needs (`Shape`, `Entry`, `Find`, the ordered
+  `equations`), all crate-private; a premise's patterns are
+  instantiated with `Terms::apply`, and what the conclusion leaves
+  open is asked of the user (a variable no conclusion member binds,
+  how a split context divides). `Calculus::positions(rule)` is a count;
+  61 adds a list of which member each position stands for. An open
+  goal is `Step::Open`, which the checker refuses, so a session's
+  finished derivation is checked whole as the ordinary goal state's is.
+  `interact --calculus` takes the flag's name and its built-in names
+  from `check` (`cli/src/calculus.rs`, `BUILT_IN`).
+- **The drawings**: `check` shows such a derivation as text or JSON
+  only. A drawing needs the exports' `Drawable` over a
+  `rules::Derivation` (a tree where every node has one parent; a Fitch
+  list for natural deduction, 62).
+- **62 (natural deduction)**: the Fitch layout's own rules (a
+  subproof's lines contiguous, its assumption first, a citation of its
+  last line) are not the checker's; a vacuous discharge is accepted; a
+  set zone's discharge is compared as a set. The chapter's NJ is the
+  pattern of a rule file.
+- **The panel's references** live outside the repository (under the
+  session's scratchpad, gone with it): the counterexamples member's
+  exhaustive reference and generators would be worth a committed
+  test-only reference, as step 26 made for the linear engines, if a
+  later step changes the checker.
+- **Fuzzing**: the two new targets build; no fuzz run was made (none
+  was named). `fuzz/seed.sh` seeds them from the shipped rule files and
+  `wire/level-15.txt`.
+- **Kani**: no harness was added. The panel's integers member found no
+  integer that can wrap; the checker's counters saturate and its
+  indices are checked when a derivation is built.
+- **The web client** stores the wire level 15 since 60a (`about.level`).

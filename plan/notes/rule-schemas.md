@@ -208,7 +208,10 @@ Beyond names and sorts: a context variable used in zones of two
 disciplines or two sorts, or twice in one zone; a variable of a
 discharged hypothesis or of `fresh`/`atomic` that no premise or
 conclusion binds; and a rule whose contexts cannot be told apart
-(4.2). The file is the trusted base of every verdict, so what the
+(4.2). Since 60b's panel also: a connective over a context that does
+not take one argument, a variable named twice in a condition, a zone's
+key written twice in a sequent, and a file whose rules would compile
+past the memory bound. The file is the trusted base of every verdict, so what the
 checker could only guess at is refused before any derivation is read.
 
 ## 3. The derivation
@@ -324,14 +327,18 @@ zones in order, then each premise's. A written member is found
   `ordinary`'s `principal` does);
 - **by value** in a premise's set or multiset zone, where every
   variable of the member is bound by then: the instance is looked up in
-  the term arena (no term is built) and one occurrence of it is taken;
+  the term arena (no term is built) and one occurrence of it is taken,
+  after the zone's members found by position: taken first, it could
+  take the place a later position names and refuse an instance (60b's
+  panel);
 - **by position** in a premise otherwise (a cut formula, a relational
   atom with a new label, any member of a sequence with two contexts).
 
 The node's `at` list gives the positions in that order.
 
 Which members take a position is fixed by the rule, so a front end asks
-the calculus (`Calculus::located(rule)`). For LK: one position for a
+the calculus (`Calculus::positions(rule)`, the count; a list of what
+each position stands for is 61's to add). For LK: one position for a
 rule with a principal formula (`ordinary`'s `principal`), none for the
 axiom `A ⊢ A`, none for LJ's cut (the cut formula is the first
 premise's one formula right of `⊢`). For natural deduction: none at
@@ -364,7 +371,8 @@ each sequent gives one equation between its rest and its contexts.
   by its written members and contexts. No order and no positions for
   contexts are needed, and `Γ, A` matches whether or not `A` is in `Γ`,
   as sets are read.
-- a context under a connective is mapped on the way in and out.
+- a context under a connective is mapped on the way in and out; an
+  empty one maps to nothing whether or not a term has the connective.
 
 Given the positions, the check accepts a rule node exactly when it is
 an instance of the rule. Its cost is linear in the node's sequents and
