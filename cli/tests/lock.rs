@@ -691,6 +691,17 @@ const CASES: &[Case] = &[
         "derive 0 ∧E₂ 1\nderive 0 ∧E₁ 1\nderive 0 ∧I 2 3\nderive 0 →I 1\nderive 0 ∧E₁ 9\nassume 0 2\nassume 0 4\nproof\n",
     ),
     piped(
+        "check-natural-fitch",
+        &["check", "--layout", "fitch"],
+        NATURAL,
+    ),
+    piped(
+        "check-natural-fitch-typst",
+        &["check", "--layout", "fitch", "--format", "typst"],
+        NATURAL,
+    ),
+    piped("check-natural-svg", &["check", "--format", "svg"], NATURAL),
+    piped(
         "interact-calculus",
         &["interact", "--calculus", "LK", "a /\\ b |- b /\\ a"],
         "rules 0\napply 0 ∧R 1\napply 1 ∧L₂ 0\napply 2 ∧L₁ 0\napply 3 ax\napply 4 wrong\nundo\napply 3 ax\napply 4 ax\nproof\n",

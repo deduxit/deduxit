@@ -1,0 +1,14 @@
+$ deduxit check --layout fitch
+--- stdin
+{"version": 15, "calculus": "NK", "terms": ["a", ["¬", 0], ["¬", 1], ["⊥"]], "scopes": [0], "nodes": [{"sequent": [[2]], "hypothesis": true}, {"sequent": [[1]], "hypothesis": true, "scope": 1}, {"sequent": [[3]], "rule": "¬E", "premises": [0, 1], "scope": 1}, {"sequent": [[0]], "rule": "RAA", "premises": [2]}]}
+
+--- status 0
+--- stdout
+valid in the calculus given (NK): a, a derivation of 4 nodes from 1 assumption
+1 │ ¬¬a
+  ├───
+2 │ │ ¬a
+  │ ├───
+3 │ │ ⊥    ¬E 1, 2
+4 │ a      RAA 2–3
+--- stderr

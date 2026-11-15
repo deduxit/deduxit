@@ -123,6 +123,17 @@ Logic:
           - minimal:        Minimal logic: intuitionistic logic without ex falso, where false is an atom
 
 Output:
+      --layout <LAYOUT>
+          With a derivation in a calculus given as data, how it is written: as a proof tree, or as a Fitch proof (view.layout)
+          
+          As a tree, text lists the derivation's nodes, and latex, typst and svg draw it with the conclusion at the root; in natural deduction a hypothesis stands alone at a leaf, the ones a rule discharges in brackets with a number, which the rule's name carries. As a Fitch proof, every format writes numbered lines, each with its rule and the lines it cites, a subproof's lines together under its hypotheses; latex uses the package fitch and typst the package fitchcraft. A derivation whose lines cannot be put in such an order is left out with the reason, and the verdict stands.
+
+          Possible values:
+          - tree:  A proof tree
+          - fitch: A Fitch proof: numbered lines, subproofs together
+          
+          [default: tree]
+
       --format <FORMAT>
           The output format; by default the one the `--output` file's extension names (.txt, .json, .tex, .typ, .svg, .png, .pdf, .v), else text
 
@@ -190,7 +201,7 @@ Output:
           
           svg: font (family, advances), labels, open, ids, description, font_size, label_size, line_height, premise_gap, literal_gap, label_gap, margin, stroke_width, link_height, link_cap, node_radius, text, line, par, link, highlight, background, essential, input, dominator, lambda, net, net_look. net is formulas, a proof net with every subformula written, or compact, with only its literals and conclusions written and its inner links drawn as circles. net_look is a net's look: textbook, or deduxit (the default), or its fields. Its field premises is dashed or plain, for the edges into a ⅋ or ? node. conclusions is raised or bottom: a ! with auxiliary doors written a row above the ? nodes, or on the bottom row. why_not is node or rules: a ? node drawn as one node, or as the rules' dereliction, contraction and weakening nodes.
           
-          png: scale, pixels. pdf: embed_text, compatible, accessible, title, language, date. rocq: form, lemma, prelude, kernel, where the command writes Rocq.
+          png: scale, pixels. pdf: embed_text, compatible, accessible, title, language, date. rocq: form, lemma, prelude, kernel, where the command writes Rocq. fitch: hypothesis, open, the justification a Fitch proof writes beside a hypothesis and an open line, in every format (check --calculus --layout fitch).
           
           labels is upright, subscript, off or {"table":{RULE:LABEL}}. `labels.table.RULE=LABEL` sets one rule's label and leaves the others upright. RULE is ax, ⊗, ⅋, 1, ⊥, &, ⊕₁, ⊕₂, ⊤, !, ?d, ?c, ?w, mix, wk, cut, ∀, ∃, ⊸L, ⊸R, ⊗L, ⊗R, &L₁, &L₂, &R, ⊕L, ⊕R₁, ⊕R₂, 1L, 1R, 0L, ⊤R, !L, !R, !c, !w, ∀R, ∃L, ∃R, ∀L, \L, \R, /L or /R. open, the mark of an open goal, is dots, bare, dashed or {"mark":TEXT}.
 

@@ -2,7 +2,14 @@ $ deduxit check --format latex
 --- stdin
 {"version": 15, "calculus": "LK", "terms": ["a", "b", ["∧", 0, 1], ["∧", 1, 0]], "nodes": [{"sequent": [[1], [1]], "rule": "ax"}, {"sequent": [[2], [1]], "rule": "∧L₂", "at": [0], "premises": [0]}, {"sequent": [[0], [0]], "rule": "ax"}, {"sequent": [[2], [0]], "rule": "∧L₁", "at": [0], "premises": [2]}, {"sequent": [[2], [3]], "rule": "∧R", "at": [0], "premises": [1, 3]}]}
 
---- status 2
+--- status 0
 --- stdout
+% valid in the calculus given (LK): a ∧ b ⊢ b ∧ a, a derivation of 5 nodes
+\begin{prooftree}
+\infer0[$\mathrm{ax}$]{b &\vdash b}
+\infer1[$\land\mathrm{L}_2$]{a \land b &\vdash b}
+\infer0[$\mathrm{ax}$]{a &\vdash a}
+\infer1[$\land\mathrm{L}_1$]{a \land b &\vdash a}
+\infer2[$\land\mathrm{R}$]{a \land b &\vdash b \land a}
+\end{prooftree}
 --- stderr
-error: a derivation in a calculus given as data is shown as text or JSON: leave out --format, --net and --lambda
