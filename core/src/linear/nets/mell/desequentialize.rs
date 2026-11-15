@@ -438,8 +438,8 @@ impl<'a> Unfolding<'a> {
             }
         }
         let mut parent = vec![NONE; n];
-        for v in 0..n {
-            for &w in &self.premises[v] {
+        for (v, premises) in self.premises.iter().enumerate() {
+            for &w in premises {
                 parent[w as usize] = v as u32;
             }
         }
