@@ -2615,3 +2615,181 @@ None.
   working notes, left as they are.
 - Three of the Edit calls here went out in parallel by mistake; `jj log`
   showed no divergent change and every edit is in the files.
+
+## Session 54w-e4b: ordinary
+
+Opus 5.5 at `high`, the reused worker of 55a and 55b (same
+conversation), in the jj workspace `../deduxit-wt-step-54s-c1-161790`,
+from the brief `start-54w-e4b.md` and `plan/54w-text.md` item 6, on
+2026-11-15, cores 4 to 6. The text was written by five sub-agents
+(`deduxit-text-ordinary-a` to `-e`, Opus 5.5 at `high`), each on its own
+files, from one brief; the session built, checked and committed.
+
+### What changed
+
+- **The text** of every doc comment and comment under
+  `core/src/ordinary/` and in `core/src/kripke.rs` (`stuottpq`), to the
+  writing rules. `ordinary`'s module doc now says in a few lines what a
+  user gets (a decided sequent of classical, intuitionistic or minimal
+  logic; a checked derivation of LK or LJ, a checked clausal proof or a
+  checked countermodel; the methods and their defaults) and has a doc
+  test that decides `a \/ ~a` with `ordinary::decide` and reads the
+  verdict and the countermodel. History wording went ("before", "a later
+  step", "the first attempt"), its reasons kept as reasons.
+- **Claims that were wrong, fixed** (the writers' reports, each read
+  against the code):
+  - `decide.rs`: `Outcome`'s JSON section described level 8 with flat
+    `translation`, `engine` and `statistics` and "never read"; it now
+    describes level 12, `search` tagged by `method`, the evidence keys,
+    `countermodel`, and what the reader refuses. `countermodel`'s `None`
+    cases, `Verdict::NotValid` (the image's disproof says why only
+    through the embedding) and `decide_within`'s default (the SAT solver
+    only with the feature `sat`) were corrected.
+  - `derivation.rs`: the JSON section names level 9 for a derivation
+    with LJ's cut; `principal` is `None` for an axiom, a cut and an open
+    goal; `root()`'s reason that `len() - 1` cannot underflow.
+  - `mod.rs`: an ordinary atom is an identifier other than `true`,
+    `false`, `par`, `top`, `bot`, `forall` and `exists` (it said `true`
+    and `false`); the right side holds one goal at most in intuitionistic
+    and minimal logic (a `Sequent` can hold more; `translate` refuses).
+  - `parse.rs`: TPTP's precedence (`~`; `&` and `~&`; `|` and `~|`;
+    `=>` and `<=`; `<=>` and `<~>`), and `read_tptp`'s `Error::AtomName`.
+  - `translate.rs`: the hypotheses' duals are the first roots (not
+    "fewer than nodes"); only the translations into ILL read `¬A` as
+    `A → false`; the extra nodes may stand after the formulas that use
+    them.
+  - `rocq.rs`: a variable is `h'n` or `k'n` (an atom identifier may hold
+    `'`); `write` asks the stop during the check too.
+  - `ljt.rs`: `decide`'s errors include `Refusal::Index`; the failure
+    subsumption's entailments include `x = ⊤`; a test doc's claim.
+  - `sat/mod.rs`: the loop's call (assumptions `a`, `¬b` and the world;
+    the clause learnt `A → c`); a "not valid" gets its model unless it is
+    too large to check; `decide`'s errors (`Refusal::Index`,
+    `Error::ReadBack` through `by_ljt`, `Error::Countermodel` for the
+    model alone).
+  - `sat/classical.rs`, `sat/drup.rs`: a variable count, both
+    directions of a definition for a formula of both polarities, the
+    proof's counts as the evidence, the checker's counter and what
+    `propagate` assigns.
+  - `.claude/rules/core-ordinary.md`: the wire levels of the layout
+    bullet, the outcome's `search` tag, and `gives_way` (a derivation
+    refused at `derivation_bytes` does give way: it is a refusal).
+- **The goal state's refusals** (`snwxlnqm`, the brief's
+  "`ordinary::interactive`'s refusals"): `StepError`'s messages say what
+  to do: "the rule ∨R is not available in intuitionistic logic: its
+  premise would have both disjuncts right of ⊢, and every goal of LJ
+  has exactly one formula there: use ∨R₁ or ∨R₂ to keep one disjunct";
+  a position past the goal's formulas adds "and positions start at 0";
+  the axiom names the other side; a split names each formula at most
+  once; the size refusal says to start with a higher bound. One was
+  wrong: `Succedents` advised a split that sends the right formula to
+  the premise without one, which no split achieves for `∨L`; it now
+  says to share the context or keep one formula right of `⊢` in each
+  premise. The session reader's two refusals of an LJ goal without
+  exactly one formula right of `⊢` were reworded. Their tests, the CLI
+  test, the manual's example and a changelog bullet changed with them;
+  the behaviour lock holds none of them.
+
+### The three code points
+
+- **A model document refuses a key it does not know** (`xsnqzxks`):
+  `serialize/kripke.rs` reads a document through `StrictModel` and
+  `StrictWorld` (`deny_unknown_fields`), naming the key ("unknown field
+  `arrow`, expected one of `atoms`, `falsity`, `arrows`"); a model
+  nested in an outcome is read as `ModelForm`, which ignores unknown
+  keys as every data form does. Test: `forcing_says_where_a_sequent_holds_and_fails`
+  reads `{"worlds":[{"atoms":[],"arrow":[1]},…]}` and asserts the
+  refusal names `arrow`. The manual, the guide, the changelog's level-13
+  entry and `core-sequents.md` say so.
+- **An unchecked derivation's lambda-term is an error, not a panic**
+  (`vytuprmz`): `ordinary::Derivation` has a private flag, `Trusted`
+  (an `AtomicBool`, so that `check(&self)` can set it), true for every
+  derivation the crate builds, false for one the JSON reader makes;
+  `check` sets it when the derivation passes, and a view (`shown`)
+  inherits it. `term` checks an untrusted derivation first and returns
+  the check's `Error::ReadBack`; so `term` never panics on input, a
+  checked derivation's admissible view still reads (the command checks
+  first, then draws), and an unchecked one's view is refused. Checking
+  every derivation in `term` was the alternative, and it would refuse
+  the admissible view, which `check` refuses by design. The `# Panics`
+  section went; `latex::write`, `typst::write` and `svg::write` name the
+  error; a Fixed bullet in the changelog. Test:
+  `a_derivation_read_from_json_is_checked_before_its_term` reads a
+  derivation of `|- a -> a`, gets its term, then turns `→R` into `∧R`
+  (two premises where the inference has one, which indexed past the end
+  before) and gets `Error::ReadBack`.
+- **The classical default's text shows the solver's model**
+  (`zqnsxrnl`): where the embedding's refutation is not a classical
+  assignment (an exhausted search, a count), `prove` prints the SAT
+  solver's model after the verdict line, as after the solver's own
+  (text, not `-q`, not `--tree never`, not `--linear`). The batch's
+  lines do not. Test: `ordinary_logic` in `cli/tests/cli.rs`, `prove
+  --logic classical --classical-work 0 'a |- b'` ends with the model.
+
+### The checks
+
+- Clippy on the workspace with `--deny warnings`, and `cargo test
+  --workspace`: pass (cores 4 to 6), the behaviour lock unchanged.
+- The rustdoc with `-D warnings`, public and private items, every
+  feature: clean after two links were fixed (a redundant target, and
+  `decide` both a function and a module). The doc tests: 85 pass with
+  every feature, 5 pass and 54 ignored with none.
+- The no-code check (a lexer that drops comments and doc attributes,
+  keeping string literals verbatim, compared with the base): every file
+  of `stuottpq` has the same code; `interactive.rs` differs only in its
+  message strings and the split of one match arm (`snwxlnqm`).
+- The gate (`nix develop -c gate`, cores 4 to 6): passed at
+  `stuottpq`; `uztnzltn` after it changes one condition in `term` and
+  its test, run with clippy and the test.
+- Every family at 5 s: 195 rows, no `MISMATCH`.
+- The ILTP agreement tests (`--release --test iltp -- --ignored`): 3
+  passed, 784 s.
+- `nix flake check` (under the machine lock, `--max-jobs 4 --cores 8`)
+  at the head rebased onto `main@origin` `wovnrwuz`: passed; this line
+  is the only change after it.
+
+### The reviewer
+
+`fresh-reviewer` once (Fable 5.2, medium), on the five changes then
+made. One finding, fixed in `uztnzltn`: a derivation read from JSON with
+an open goal (or of LK) got the check's `Error::ReadBack` from `term`
+where the doc promises `Error::NoTerm`, since the check ran before the
+read-back's own two refusals; `term` now checks only a derivation the
+read-back would read, and the test asserts `NoTerm` for an open goal.
+What held, by its reading and capped calls: a model document refuses an
+unknown key at the top and in a world while an outcome's nested model
+does not; every `expect`, index and `unreachable!` of
+`lambda/simple.rs` is guaranteed by `check_inference`, so `term` has no
+panic path on input; a checked derivation's admissible view reads its
+term; the model is printed only in the right case (not by default, nor
+under `--tree never`, `-q`, `--linear` or `--method embedding`); each
+rewritten refusal is true against `shape` and `expand`; `stuottpq`
+changes no code (its own comment-stripped comparison), and the doc
+claims it checked are true. It named the corrected TPTP precedence in
+`parse.rs` as a claim to report (above).
+
+### Departures from the design
+
+- The refusal messages of the goal state changed (the brief names
+  them as this session's); no other message, flag or API.
+- The rustdoc without default features fails on links behind
+  `serialize` across the crate, as it did at the base; the flake's
+  `doc` and `doc-private` checks build with the default features and
+  pass.
+
+### What the next sessions must know
+
+- `ordinary::Derivation`'s `Trusted` flag: a new constructor of a
+  derivation from outside data (another reader) makes it untrusted
+  (`untrusted()`), or `term` would index by invariants the data may
+  break; a new view of a derivation copies the flag.
+- A model document is strict and a nested model lenient: a new key of
+  the model goes into both `StrictModel`/`StrictWorld` and
+  `ModelForm`/`WorldForm`.
+- Left for a later session (from the writers' reports, not changed):
+  `translate.rs`'s `ordinary.left.len() as u32` would truncate past
+  `u32::MAX` hypotheses, reachable only through `Sequent::new` (the
+  parsers are bounded), before the occurrence check; `inference_bytes`
+  starts its count at 2 without saying why; `sat::decide`'s doc says
+  the stop is asked at every decision and call, true but not all the
+  places it is asked.
