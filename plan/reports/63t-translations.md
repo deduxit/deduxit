@@ -200,3 +200,180 @@ statuses and JSON as documented. One finding, fixed:
 - **60b** (rules as data): `core/tests/rules.rs` compared a rule file's
   written level with `wire::LEVEL`; it now compares with 15, the rule
   file's level, since level 16 is this step's.
+
+## Session 63t-b: the page
+
+Opus 5.5 at `high`, the reused worker of 54s-c2 to baseline-prep (same
+conversation), in the client's jj workspace `../deduxit.github.io-63tb`
+(on its `main@origin` `zszutryy`) and this workspace for the report, from
+the brief `start-63t-b.md`, on 2026-11-15, cores 4 to 6.
+
+### Outcome
+
+A started proof of classical ordinary logic offers two more buttons at
+the foot of its tab's Logic popover, under the switches: **Translate into
+intuitionistic logic** and **Find an interpolant**. Each opens a sheet
+over the stage (as Practice is one) that answers with its verdict
+sentence first. Nothing changes for a visitor who does not press them,
+nor for a linear, intuitionistic or minimal tab.
+
+- **The translation's sheet**: one sentence on what a negative
+  translation is, the four translations as a segmented control
+  (Glivenko, Kuroda, Gödel–Gentzen, Kolmogorov, from the least change to
+  the most, Glivenko first), the chosen one's line of what it does and
+  the logic it translates into, then the answer: "Both valid" (or "Both
+  not valid", "Not decided") with the sentence that the verdicts agree,
+  the translated sequent in the formulas' font at the large size, **Prove
+  it in <logic>** (a new tab in the target logic's calculus, the proof
+  it came from kept), and one line per logic: valid with a checked
+  derivation, or not valid with the classical falsifying values in words
+  and the translation's Kripke model drawn (55d's figure).
+- **The interpolant's sheet**: one sentence on what an interpolant is,
+  the sequent with each formula a button in its part (part 1 filled,
+  part 2 dashed, its number written before it; Craig's split, the
+  formulas left of ⊢, at the start), then "Interpolant: All three of its
+  checks pass", the formula large, and the three checks with their marks:
+  its atoms (named) occur in both parts, `Γ₁ ⊢ Δ₁, I` valid, `I, Γ₂ ⊢ Δ₂`
+  valid, the halves as deduxit decided them. A half not decided is marked
+  with a question mark and the keyword is "Not checked"; a sequent that
+  is not valid says "No interpolant" and draws its countermodel; a valid
+  one without a derivation free of cuts in the bounds says "Not found".
+
+The client's commits, on its `main@origin` `zszutryy`:
+
+| change | what |
+|---|---|
+| `yyrrpxqm` | flake.lock: deduxit's input moved to `main@origin` `09cfa99c` (63t-a's bindings) |
+| `tpzumptk` | `src/lib/transforms.ts` (the forms, the translations' list, the words of verdicts and checks), its unit tests, the two calls in the API and the worker |
+| `msqvnvks` | `src/islands/Transforms.tsx` (the two sheets), the Logic popover's two buttons, the styles, the client's `web.md` |
+| `kmpzouss` | `tests/transforms.spec.ts`, the walk `transforms` in `tests/states.ts` (axe and targets), the `switches` helper matching the Logic popover's exact name |
+| `uxuxvlps` | the review's fixes: a valid verdict said by how it was shown, and the join of the formulas right of ⊢ |
+
+### How they were designed
+
+- **Where they are asked for** (the cognitive-load analysis, the
+  education skills' `cognitive-load-analyser`, and the frontend-design
+  plugin):
+  - Not as view tabs beside Table and Tableau. The stage's row of views
+    holds 364 of a phone's 375 pixels already, so a fifth tab would need
+    a second row or a menu inside the tablist.
+  - In the Logic popover instead: it is where a student picks between
+    classical, intuitionistic and minimal logic, so a translation into
+    another logic sits beside the logics it relates. It is reached at
+    every width by a control that says it is one (`Ordinary (LK) ▾`).
+  - Shown only for a started classical proof; the author's rule (not
+    overwhelming) holds, since the popover is opened only on purpose.
+  - As sheets over the stage, not views in the drawing's place: the
+    proof stays where it was, light dismiss and Escape close them as any
+    menu, and the tablist keeps one selected tab (a view reached from
+    outside the tablist would leave none selected).
+- **What the analysis changed**:
+  - Glivenko's translation first, and the four in order of how much they
+    change the sequent: the first example a student sees is the easiest
+    to read (`a → b ⊢ ¬¬(¬b → ¬a)`), Kolmogorov's last (`¬¬(¬¬a → ¬¬b) ⊢
+    ¬¬(¬¬¬¬¬b → ¬¬¬¬¬a)`, which wraps on a phone).
+  - Each translation says in one line what it does and its target, so
+    the student need not hold four definitions in mind.
+  - The translated sequent stands right under the verdict sentence that
+    names it (no split attention), and the evidence is one line per
+    logic. Only the translation's Kripke model is drawn; the classical
+    countermodel is one world, said in words ("with a false, b true"),
+    so there is never a second figure to compare.
+  - The interpolant's halves are written once, as the sequents its
+    checks name, not restated beside the partition (redundancy); the
+    checks instantiate the definition the sheet's first sentence gives.
+  - A formula's part is its number and its border, filled or dashed,
+    never colour alone.
+- **The look**: no new colour or font; the verdicts' keywords are the
+  page's `kw` washes, and the one large thing in each sheet is the
+  answer's formula in the formulas' font (`--text-math-large`). No
+  motion, no cards inside the sheet; the answer is ruled off from the
+  choices by one line.
+
+### Departures
+
+- **Sheets from the Logic popover, not tabs of the stage (departs from
+  the design).** The brief leaves the place open ("a way to ask for");
+  56b put the table and the tableau among the stage's views. These two
+  would not fit that row on a phone, and they are asked for less often
+  and relate the sequent to other logics, which the Logic popover
+  already holds. 63g's workspace graph may give them another home.
+- **The interpolant is offered for classical proofs alone**, as the brief
+  says, though deduxit computes one in each of the three logics
+  (`about`'s `logics`); an intuitionistic or minimal tab would need only
+  the popover's button and the partition's rule that the formula right
+  of ⊢ stays in the second part.
+
+### Checks
+
+- **Wire levels**: the page sends deduxit nothing of its own level and
+  reads every answer through the module, so moving the input to level 16
+  needed no change; the stored problems' sessions (older levels) and
+  every call the suites make passed below at the new input.
+- **Lint and type-check** (`lint`: Biome, `astro check`): clean.
+- **The unit tests** (Vitest): 613 passed at the last commit, with
+  `src/lib/transforms.test.ts` (8) against deduxit's real module: the
+  translations equal `about`'s, every translated sequent read back as
+  itself by the field's parser, the verdicts' words, a valid verdict
+  shown by a clausal proof, the join of several formulas, the partition,
+  the interpolant's atoms.
+- **The e2e suite** (Playwright, cores 4 and 5, two workers): 249 passed
+  before the review's fixes, with `tests/transforms.spec.ts` (6), the
+  `transforms` walk under axe (light and dark, desktop and phone: no
+  violation; about 10 seconds a walk, under the 20) and its targets (24
+  pixels on a desktop, 44 on a phone); after the fixes the six again.
+- **The client's `nix flake check`** under the machine lock at
+  `uxuxvlps`: all checks passed; its e2e suite 248 passed and one flaky
+  (`ordinary.spec.ts`, the structural switch with a goal open, passed on
+  retry: a test this chain does not touch, which passed in the run
+  above).
+- **In a browser**: both sheets at 1280 and 375 pixels, driven by
+  Playwright scripts against the dev server (cores 4 to 6), screenshots
+  read; the reviewer drove the same.
+
+### The reviewer
+
+`fresh-reviewer` once (Fable 5.2, medium), which read the chain, the
+brief and the prompt, drove the page with Playwright scripts at 1280 and
+375 pixels, and called the module in Node. It found every translation
+offered with its target, the verdicts and the checks true to deduxit's
+answer, "Prove it" opening the target's tab with the original kept,
+nothing new for any other tab, no sideways scroll on a phone, every new
+control 44 pixels there, the focus and Escape right. Two findings, both
+fixed in `uxuxvlps`:
+
+1. **A valid verdict claimed a derivation deduxit did not give.** The
+   SAT solver proves a classical sequent valid by a clausal proof, with
+   no derivation (the reviewer's witness: `⊢ a ∨ ¬a ∧ … ∧ z ∨ ¬z`, 26
+   atoms), and the line said "deduxit found a derivation and checked it".
+   It now says what deduxit gave: a derivation, or that "the SAT solver
+   showed that no values make it false, and deduxit checked its proof";
+   a unit test runs the witness.
+2. **Glivenko's line was false for a right side of several formulas or
+   none**: `a ⊢ b, c` becomes `a ⊢ ¬¬(b ∨ c)`, and `a, ¬a ⊢` stays as it
+   is. The line now says "if there is one", and under every translation
+   a sequent with several formulas right of ⊢ gets "The formulas right of
+   ⊢ are first joined by ∨ into one."; a unit test holds both.
+
+### What the next sessions must know
+
+- **63g (the workspace graph)**: "Prove it in <logic>" is
+  `prover.open(text, ordinary(target))`, a new tab with no `origin` (that
+  field is a goal's path in another tab). The graph's edge needs the
+  tab it came from, the translation and its target: record them there
+  when the edge is built, and the sheet's button becomes the edge's
+  first use.
+- **Both calls run without a stop**, as the table's and the tableau's do:
+  the bindings decide with the copy bound 3 and no time limit, so a hard
+  sequent keeps the worker until it ends; the stage's Stop terminates it
+  as for any call. The sheets send `{}` as settings.
+- **Playwright matches a dialog's name by substring**: "Logic" matched
+  the sheet "Translate into intuitionistic logic". `switches` in
+  `tests/prover.ts` now asks for the exact name; a test that finds
+  another dialog by a short name while a sheet is open needs the same.
+- **Interpolants in LJ**: offering the sheet in an intuitionistic or
+  minimal tab is the popover's condition and `interpolate`'s `logic`
+  argument; deduxit refuses a partition with the formula right of ⊢ in
+  the first part there (code `partition`), which the sheet shows as
+  deduxit's message today, so the partition's buttons should keep that
+  formula in part 2.
