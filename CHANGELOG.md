@@ -21,8 +21,7 @@ second number (0.1.x to 0.2.0), anything else the third.
   deduction; sorts serve signed and labelled formulas. LK, LJ and
   minimal logic's calculus come as rule files, and
   `Derivation::from_ordinary` writes a derivation of LK or LJ in this
-  form. Both documents are at wire level 15, which is now the highest
-  level the library reads.
+  form. Both documents are at wire level 15.
 - **`check --calculus CALCULUS`** checks such a derivation against a
   rule file, or a built-in calculus by name (`LK`, `LJ`, `LM`, `LL`,
   `tableau`); a derivation that names a built-in calculus needs no
