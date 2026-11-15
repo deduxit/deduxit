@@ -371,3 +371,73 @@ Both fixes are folded into `qytskkxu` and `tysppmzm`.
   sentence needs nothing more: it is counted by writing it.
 - render-svg's ceiling is 78 295 779 now; a chain stacked with this one
   that moves the SVG writer compares against that.
+
+## Session 54x3: small follow-ups before 0.4.0
+
+Opus 5.5 at `high`, the worker of 55c and 55d (same conversation), in
+the jj workspace `../deduxit-wt-step-58a-610ed3`, from the brief
+`start-54x3.md`, on 2026-11-15, cores 7 to 9.
+
+### The items
+
+1. **`check --table-atoms N|none`** (`qkzpvqqz`, the lock's help file in
+   `zykskkvk`): `CheckArgs` takes the flag `prove` has, the same key
+   `limits.table_atoms`, so a table `prove --table-atoms 11` made is
+   checked with `check --table-atoms 11` (a settings file is no longer
+   needed). `eliminate`, which flattens `CheckArgs`, takes it too and
+   reads no table: harmless. Tests: `check_takes_the_table_bound` (a
+   table of two atoms refused under one, checked under two) and the
+   `CHECK` row of `each_flag_overrides_its_key_in_a_file`. The manual's
+   ordinary chapter, the guide and the changelog's table entry say so
+   (lines of 59's files: `CHANGELOG.md`'s truth-table bullet,
+   `skills/deduxit/reference.md`'s `table` bullet,
+   `docs/src/ordinary-logic.md`'s bound paragraph).
+2. **The wire error's article** (`pnkskkyl`): `Error::Json` writes "not
+   an ordinary outcome", "not a proof", the article from the form's
+   first letter (`article`). Test: `a_wire_error_takes_its_article`. No
+   lock, manual or guide text carried the old wording.
+3. **`translate`'s antecedents** (`lmtumvuq`): `u32::try_from` and
+   `Refusal::Index { what: Space::Member, most: u32::MAX }`, as
+   `mist::antecedents` does; `translate`'s `# Errors` names it. Test:
+   `the_antecedents_fit_32_bits` (its 64-bit half behind a `cfg`).
+4. **`inference_bytes`'s 2** (`txrnnypz`): right as it is. The comment
+   says why: `Γ ⊢ Δ` writes one separator fewer than formulas per side
+   and ` ⊢ ` between, so two per formula plus two is never below the
+   sequent written, whichever side is empty (the reviewer checked it
+   against `Notation::ordinary`: 1 to 3 characters above).
+5. **`sat::decide`'s stop** (`qpwswvvm`): its doc lists every place:
+   every call of the solver and every decision in it; the scan for an
+   unrealised implication and the ordering of a model's worlds, every
+   256; the model's check, once per world per pass; the read-back, LJT
+   and the derivation's check; in classical logic the encoding and the
+   handing of clauses to the solver, every 4 096, and the clausal
+   proof's check.
+
+### The reviewer
+
+`fresh-reviewer` (Fable 5.2 at medium): one finding, fixed in
+`qpwswvvm`: the classical path's handing of clauses to the solver
+(every 4 096) was missing from the list, and "between two of its
+calls" understated the poll at the start of every call. Its note,
+`cli.md`'s `--table-atoms` "on `prove`", is fixed in `qkzpvqqz`.
+
+### The checks
+
+- The gate passed (cores 7 to 9) before the reviewer's two doc and
+  rules lines; `cargo doc --document-private-items --all-features` with
+  warnings denied clean.
+- `nix flake check` (under the machine lock, `--max-jobs 4 --cores 8`)
+  at `mrrpnlyk` on `main@origin` `zpuvxkpt`: all checks passed. A first
+  run failed `wasm`: the test of item 3 imported for its 64-bit half
+  alone, unused on 32 bits; the imports moved inside that half
+  (`lmtumvuq`). This line is the only change after it.
+
+### What the next sessions must know
+
+- A new flag that sets a limit a document is read within belongs on
+  `check` as on `prove` (`CheckArgs::settings` and the `CHECK` row of
+  the settings test), or the document `prove` writes under a raised
+  bound cannot be checked without a settings file.
+- A new wire form's name needs nothing for its article: `article`
+  reads the first letter (a name sounded otherwise than written, "an
+  hour", would need a case there).
