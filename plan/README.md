@@ -7012,3 +7012,33 @@ move (D26).
   - **Started:** step 59, the release prepared up to the author's acts
     (`local_fe155f72`, cores 10-12). **Next:** 56b (the page's views)
     once the client holds 55d's page.
+- 2026-11-15, about 17:00: **0.4.0 released.**
+  - **Reviewed and pushed before it:** 56b (client `ylwvmwwz` …
+    `tsxslurw`: Table and Tableau views of a classical proof, a verdict
+    sentence first; departure accepted: views of the stage, not methods
+    of the tab), 54x3 (`qkzpvqqz` … `mrrpnlyk`: `check --table-atoms`,
+    "not an ordinary outcome", the hypothesis count by `try_from`, two
+    docs) and 59's preparation (`yqxkskqr` … `rvtpxosm`: versions,
+    `breaks 0.3.0` covered line by line, `rocq::Unsupported::Basis` moved
+    last, the collection's wording, the notes and the checklist). The gate
+    and `nix flake check` passed at the stacked head; CI passed at the
+    release commit; Install passed on a re-run (one macOS job's artifact
+    download hit `ENOTFOUND`, GitHub's network).
+  - **The author's answers:** "go for it" to the tags and the two
+    repository descriptions (set: "a collection of logic suites …");
+    no baseline night before the release ("maybe tonight"); the opam
+    submission when "everything is done, 0.8.0 or later".
+  - **Tags**, signed with the author's key here and made through
+    `gh api` (`~/Projects/own/deduxit-release-0.4.0/`), verified by
+    GitHub: `rocq-deduxit` `v0.4.0` → ef979655 (tag object 1fe6e349);
+    `deduxit` `v0.4.0` → 6ea3aa29 (tag object 794a49e7).
+  - **Published:** the author approved the `crates-io` job; crates.io has
+    `deduxit` and `deduxit-cli` 0.4.0; docs.rs built; both GitHub
+    releases (deduxit's with 15 assets); Zenodo
+    10.5281/zenodo.24250137 (deduxit) and 10.5281/zenodo.24248988
+    (rocq-deduxit). Kani's workflow green on `main` before the tag.
+  - **0.5.0 begun:** step 60's prompt finished at this review
+    (`okxnltll`: what 54 to 59 left it); 60a, the rule language and the
+    generic derivation, on Fable 5.2 at `high` (`local_fe155f72`, cores
+    10-12). The client's input moves to the release commit
+    (`local_b8490613`).
