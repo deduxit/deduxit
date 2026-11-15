@@ -1,0 +1,40 @@
+$ deduxit interact --calculus LK 'a /\ b |- b /\ a'
+--- stdin
+rules 0
+apply 0 ∧R 1
+apply 1 ∧L₂ 0
+apply 2 ∧L₁ 0
+apply 3 ax
+apply 4 wrong
+undo
+apply 3 ax
+apply 4 ax
+proof
+
+--- status 0
+--- stdout
+WL at 0
+WR at 1
+CL at 0
+CR at 1
+∧L at 0
+∧L₁ at 0
+∧L₂ at 0
+∧R at 1
+∧R split at 1, needs Γ′, Δ′
+opened goal 1: 0: a ∧ b ⊢ 1: b
+opened goal 2: 0: a ∧ b ⊢ 1: a
+opened goal 3: 0: b ⊢ 1: b
+opened goal 4: 0: a ⊢ 1: a
+closed
+error: the step is refused: the calculus has no rule "wrong"
+reopened goal 3: 0: b ⊢ 1: b
+closed
+closed; no goal is open: `proof` checks the proof
+valid in the calculus given (LK): a ∧ b ⊢ b ∧ a
+  0. b ⊢ b    ax
+  1. a ∧ b ⊢ b    ∧L₂ 0
+  2. a ⊢ a    ax
+  3. a ∧ b ⊢ a    ∧L₁ 2
+  4. a ∧ b ⊢ b ∧ a    ∧R 1, 3
+--- stderr

@@ -669,6 +669,11 @@ const CASES: &[Case] = &[
     piped("check-rules-json", &["check", "--format", "json"], RULES),
     piped("check-rules-other", &["check", "--calculus", "lj"], RULES),
     piped("check-rules-latex", &["check", "--format", "latex"], RULES),
+    piped(
+        "interact-calculus",
+        &["interact", "--calculus", "LK", "a /\\ b |- b /\\ a"],
+        "rules 0\napply 0 ∧R 1\napply 1 ∧L₂ 0\napply 2 ∧L₁ 0\napply 3 ax\napply 4 wrong\nundo\napply 3 ax\napply 4 ax\nproof\n",
+    ),
     // interact.
     piped(
         "interact-session",
