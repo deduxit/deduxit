@@ -85,7 +85,7 @@ Input:
 
 Logic:
       --calculus <CALCULUS>
-          Prove in a calculus given as data: a rule file, or LK, LJ, LM, LL or tableau, the ones built in
+          Prove in a calculus given as data: a rule file, or one built in (LK, LJ, LM, LL, tableau, and natural deduction's NJ, NK, NM, NK-DNE, NK-LEM, NJ-defined, NK-defined, NM-defined)
           
           The sequent is then written in the calculus's own syntax, its connectives by their symbols or names (`->` reads as `→`, `/\` as `∧`, `|-` as `⊢` where the calculus has them), and the session's commands apply its rules backwards. Each step is checked by the calculus's checker, and the finished derivation is "valid in the calculus given": the derivation keeps to the rules, which nothing checks for soundness. See `check --calculus`.
 

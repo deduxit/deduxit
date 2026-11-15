@@ -1,0 +1,8 @@
+$ deduxit check
+--- stdin
+{"version": 15, "calculus": "NJ", "terms": ["a", ["¬", 0], ["¬", 1], ["⊥"]], "scopes": [0], "nodes": [{"sequent": [[2]], "hypothesis": true}, {"sequent": [[1]], "hypothesis": true, "scope": 1}, {"sequent": [[3]], "rule": "¬E", "premises": [0, 1], "scope": 1}, {"sequent": [[0]], "rule": "RAA", "premises": [2]}]}
+
+--- status 1
+--- stdout
+invalid in the calculus given (NJ): node 3 (RAA, concluding a): the calculus has no rule of this name
+--- stderr

@@ -59,6 +59,13 @@ const WRONG_PROOF: &str = r#"{"version":1,"sequent":{"terms":[{"D":0},{"D":1},{"
 /// data.
 const RULES: &str = r#"{"version": 15, "calculus": "LK", "terms": ["a", "b", ["∧", 0, 1], ["∧", 1, 0]], "nodes": [{"sequent": [[1], [1]], "rule": "ax"}, {"sequent": [[2], [1]], "rule": "∧L₂", "at": [0], "premises": [0]}, {"sequent": [[0], [0]], "rule": "ax"}, {"sequent": [[2], [0]], "rule": "∧L₁", "at": [0], "premises": [2]}, {"sequent": [[2], [3]], "rule": "∧R", "at": [0], "premises": [1, 3]}]}"#;
 
+/// A proof of `a` from `¬¬a` in natural deduction, by `RAA` in the
+/// built-in calculus NK.
+const NATURAL: &str = r#"{"version": 15, "calculus": "NK", "terms": ["a", ["¬", 0], ["¬", 1], ["⊥"]], "scopes": [0], "nodes": [{"sequent": [[2]], "hypothesis": true}, {"sequent": [[1]], "hypothesis": true, "scope": 1}, {"sequent": [[3]], "rule": "¬E", "premises": [0, 1], "scope": 1}, {"sequent": [[0]], "rule": "RAA", "premises": [2]}]}"#;
+
+/// The same proof named as one of NJ, which has no `RAA`.
+const NATURAL_NJ: &str = r#"{"version": 15, "calculus": "NJ", "terms": ["a", ["¬", 0], ["¬", 1], ["⊥"]], "scopes": [0], "nodes": [{"sequent": [[2]], "hypothesis": true}, {"sequent": [[1]], "hypothesis": true, "scope": 1}, {"sequent": [[3]], "rule": "¬E", "premises": [0, 1], "scope": 1}, {"sequent": [[0]], "rule": "RAA", "premises": [2]}]}"#;
+
 /// The same derivation with the wrong rule at its fourth node.
 const WRONG_RULES: &str = r#"{"version": 15, "calculus": "LK", "terms": ["a", "b", ["∧", 0, 1], ["∧", 1, 0]], "nodes": [{"sequent": [[1], [1]], "rule": "ax"}, {"sequent": [[2], [1]], "rule": "∧L₂", "at": [0], "premises": [0]}, {"sequent": [[0], [0]], "rule": "ax"}, {"sequent": [[2], [0]], "rule": "∧L₂", "at": [0], "premises": [2]}, {"sequent": [[2], [3]], "rule": "∧R", "at": [0], "premises": [1, 3]}]}"#;
 
@@ -669,6 +676,8 @@ const CASES: &[Case] = &[
     piped("check-rules-json", &["check", "--format", "json"], RULES),
     piped("check-rules-other", &["check", "--calculus", "lj"], RULES),
     piped("check-rules-latex", &["check", "--format", "latex"], RULES),
+    piped("check-natural-nk", &["check"], NATURAL),
+    piped("check-natural-nj", &["check"], NATURAL_NJ),
     piped(
         "interact-calculus",
         &["interact", "--calculus", "LK", "a /\\ b |- b /\\ a"],

@@ -85,7 +85,7 @@ Input:
           With a Kripke model, the world to check the sequent at, by index; every world when absent
 
       --calculus <CALCULUS>
-          With a derivation in a calculus given as data, the calculus to check it in: a rule file, or LK, LJ, LM, LL or tableau, the ones built in
+          With a derivation in a calculus given as data, the calculus to check it in: a rule file, or one built in (LK, LJ, LM, LL, tableau, and natural deduction's NJ, NK, NM, NK-DNE, NK-LEM, NJ-defined, NK-defined, NM-defined)
           
           The file is then such a derivation in JSON, which names its calculus; one that names a built-in calculus is checked in it without the flag. A file named like a built-in calculus is given with its path, ./LK. The verdict reads "valid in the calculus given": the derivation keeps to the rules, which nothing checks for soundness.
 
