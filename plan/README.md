@@ -88,7 +88,8 @@ amended (see "Review protocol"). `notes/` holds research the prompts rely on.
 | 61 | Building derivations with custom rules in the command and on the page, every verdict "valid in the calculus given"; the manual's chapter on theories as hypotheses (two to three sessions) | `61-custom-rules-interactive.md` (finished at the review of 60) | Opus 5.5; a fresh-context reviewer on Fable 5.2 | high (the reviewer `medium`) | 60 |
 | 62 | Natural deduction for ordinary logic in Gentzen's and Fitch's styles, on the generic derivation, rule sets as files, the Fitch view on the page (four to six sessions) | `62-natural-deduction.md` (finished at the review of 61) | Opus 5.5; a fresh-context reviewer on Fable 5.2 | high (the reviewer `medium`) | 61 |
 | 63 | The suites' written protocol with a JSON Schema, the module question against 47's figures, Learn and Practice keyed by suite with the ordinary suite's content (two to three sessions) | `63-suite-protocol.md` (finished at the review of 62) | Opus 5.5; a fresh-context reviewer per content session | high | 47, 62 |
-| 64 | The release of 0.5.0 (one session) | `64-release-0.5.0.md` (finished at the review of 63) | Opus 5.5 | high | 60, 61, 62, 63 |
+| 63t | Transformations of ordinary logic (the author, 2026-11-15): the negative translations of classical into intuitionistic and minimal logic (Kolmogorov's, Gödel and Gentzen's, Kuroda's, and Glivenko's theorem for propositional logic), each checked by deciding the sequent and its translation and comparing; Craig interpolants read off derivations of LK and LJ (Maehara's method), checked by proving both halves and comparing the atoms; in the command, the library, the bindings and on the page, every step shown (two to three sessions) | `63t-translations.md` (written at the review of 62) | Opus 5.5; a fresh-context reviewer on Fable 5.2 | high (the reviewer `medium`) | 55, 56, 62 |
+| 64 | The release of 0.5.0 (one session) | `64-release-0.5.0.md` (finished at the review of 63) | Opus 5.5 | high | 60, 61, 62, 63, 63t |
 | | **Release 0.6.0: modal logics K to S5** (D27) | | | | |
 | 65 | Modal logics K, T, K4, S4 and S5 decided, every "not valid" a checked Kripke countermodel against the frame conditions, drawn, on the page; the second non-embedded suite (three to four sessions) | `65-modal-logics.md` (finished at the review of 64) | Fable 5.2 for the first session (the modal arena and systems), Opus 5.5 for the rest; the panel's argument on Fable 5.2 | high, with the panel | 55, 64 |
 | 66 | The labelled modal calculus step by step on the generic derivation, and its soundness proved in Rocq (five sessions) | `66-labelled-modal.md` (finished at the review of 65) | Opus 5.5; Fable 5.2 for the Rocq proof; a fresh-context reviewer on Fable 5.2 (on Opus 5.5 for the proof's sessions) | high (the reviewer `medium`) | 60, 61, 65 |
@@ -96,10 +97,18 @@ amended (see "Review protocol"). `notes/` holds research the prompts rely on.
 | 68 | Tools for teachers: a Kripke model editor, a checker for students' tableaux, course packs with a checkable handed-in link, a print stylesheet (three sessions) | `68-teaching-tools.md` (finished at the review of 67) | Opus 5.5; a fresh-context reviewer per client session | high | 56, 63, 65, 67 |
 | 69 | The release of 0.6.0 (one session) | `69-release-0.6.0.md` (finished at the review of 68) | Opus 5.5 | high | 65, 66, 67, 68 |
 | | **Release 0.7.0: resolution and the simply typed lambda calculus** (D27) | | | | |
-| 70 | Propositional resolution at teaching scale: CNF, refutations drawn as graphs, DPLL traced, a refutation checker, an outside proof read only through an allowed licence (three to four sessions) | `70-resolution.md` (finished at the review of 69) | Opus 5.5; the panel's argument on Fable 5.2 | high, with the panel | 63, 69 |
+| 70 | Propositional normal forms and resolution at teaching scale: NNF, CNF and DNF by distribution (equivalent, under a size bound that refuses) and CNF by Tseitin's and Plaisted and Greenbaum's encodings (equisatisfiable), every rewrite shown and the result checked, equivalence by the SAT engine and equisatisfiability through the definitions (the author, 2026-11-15); then resolution: refutations drawn as graphs, DPLL traced, a refutation checker, an outside proof read only through an allowed licence (three to four sessions) | `70-resolution.md` (finished at the review of 69) | Opus 5.5; the panel's argument on Fable 5.2 | high, with the panel | 63, 69 |
 | 71 | The simply typed lambda calculus: typing derivations checked and built, the linear terms of 50 checked, inhabitation enumerated and counted within a bound (three to four sessions) | `71-typed-lambda.md` (finished at the review of 69) | Fable 5.2 for the first session (the term model), Opus 5.5 for the rest; the panel's argument on Fable 5.2 | high, with the panel | 50, 69 |
 | 72 | Problems with verified answers for evaluating models, and a one-call grading mode (one to two sessions) | `72-model-dataset.md` (finished at the review of 69) | Opus 5.5; research on Sonnet 5.5 | high (research `high`) | 69 |
 | 73 | The release of 0.7.0, its report the state of every item kept for after it (one session) | `73-release-0.7.0.md` (finished at the review of 72) | Opus 5.5 | high | 70, 71, 72 |
+| | **Release 0.8.0: first-order ordinary logic** (the author, 2026-11-15) | | | | |
+| 74 | First-order ordinary logic, its language and calculi: terms, predicates and quantifiers on step 42's arena and unifier; TPTP `fof` with quantifiers and ILTP's first-order problems read; LK, LJ and LM with the quantifier rules, their checker, step by step in the command and the bindings (witnesses and eigenvariables as the linear session chooses them), exports and Rocq certificates of derivations (three to four sessions) | `74-first-order-ordinary.md` (written at the review of 73) | Fable 5.2 for the first session (the language and the calculi's data model), Opus 5.5 for the rest; the panel's argument on Fable 5.2 | high, with the panel | 42, 55, 60, 73 |
+| 75 | Proof search at first order, a semi-decision with "unknown" at a bound: classical logic through first-order affine MALL's engines and natively by a connection or free-variable tableau prover (the leanCoP family), intuitionistic logic through first-order ILL and natively by a prefixed connection calculus (the nanoCoP family); decidable fragments recognised and decided (monadic, Bernays and Schönfinkel's class); every proof read back to LK or LJ and checked; ILTP's first-order problems and a TPTP subset measured beside iLeanCoP and nanoCoP (three to four sessions) | `75-first-order-search.md` (written at the review of 74) | Opus 5.5; the panel's argument on Fable 5.2 | high, with the panel | 74 |
+| 76 | Countermodels at first order: finite models of classical logic found through the SAT engine (MACE's method) and finite Kripke models with growing domains for intuitionistic and minimal logic, each checked against the sequent, drawn, and certified by lemmas of the Rocq library; "not valid" where a finite model shows it, "unknown" where none is found within the bound (two to three sessions) | `76-first-order-countermodels.md` (written at the review of 75) | Opus 5.5 (Fable 5.2 at `high` for the Rocq lemma only if Opus visibly falls short); the panel's argument on Fable 5.2 | high, with the panel | 55, 75 |
+| 77 | Transformations at first order, each checked: prenex form and its inverse (miniscoping), Skolemization and Herbrandization (equisatisfiable, the certificate covering it), clausal form, Herbrand's theorem with the ground instances found by the SAT engine as a certificate, the negative translations at first order (Kuroda's and Gödel and Gentzen's, and the formula on which Glivenko's theorem fails), Craig interpolants of LK and LJ at first order; in the command, the library and on the page, every step shown (two to three sessions) | `77-first-order-transformations.md` (written at the review of 76) | Opus 5.5; a fresh-context reviewer on Fable 5.2 | high (the reviewer `medium`) | 63t, 70, 74, 76 |
+| 78 | Equality and first-order resolution: `=` as axioms in the image first, and a native rule only where measurement asks for it (more-logics-1); resolution with unification step by step, factoring and a refutation checker at teaching scale (resolution-2); TPTP `cnf` input and SZS status lines (resolution-4, interop-5) (three to four sessions) | `78-equality-resolution.md` (written at the review of 77) | Opus 5.5; the panel's argument on Fable 5.2 | high, with the panel | 70, 75, 77 |
+| 79 | First order on the page: the ordinary tab and the linear tab at first order, witnesses and eigenvariables chosen as the linear page chooses them, countermodels drawn, the transformations shown, Learn's and Practice's lessons on quantifiers (two to three sessions, in the client) | `79-first-order-page.md` (written at the review of 78) | Opus 5.5; a fresh-context reviewer per client session | high | 63, 76, 77 |
+| 80 | The release of 0.8.0 (one session) | `80-release-0.8.0.md` (written at the review of 79) | Opus 5.5 | high | 74, 75, 76, 77, 78, 79 |
 
 A step has a whole number, one prompt file named after it, one report
 under `reports/` with the same name, and as many sessions as it takes to
@@ -6922,3 +6931,26 @@ move (D26).
     54w-e4b, the `ordinary` and `kripke` text with the model's unknown
     keys, the lambda export's error and the classical text
     (`local_739ba359`, cores 4-6); ci-fix (`local_fe155f72`, cores 13-15).
+- 2026-11-15, about 14:30: **The author's new features placed.** The
+  author asked for transformations (classical into minimal logic, CNF,
+  DNF, prenex form) and "definitely" for first-order ordinary logic,
+  with those transformations "and more". Placed:
+  - **63t** (in 0.5.0): the negative translations (Kolmogorov, Gödel and
+    Gentzen, Kuroda, Glivenko) and Craig interpolants, each checked.
+  - **70 widened**: NNF, CNF and DNF by distribution (equivalent, under a
+    refusing size bound) and Tseitin's and Plaisted and Greenbaum's CNF
+    (equisatisfiable), every rewrite shown and checked.
+  - **A new release, 0.8.0, first-order ordinary logic**: 74 the language
+    and the calculi (Fable for the data model); 75 search (embedding into
+    first-order MALL and ILL, native connection provers of the leanCoP
+    and nanoCoP families, decidable fragments); 76 finite countermodels
+    (MACE's method, Kripke models with growing domains, Rocq lemmas); 77
+    transformations (prenex and miniscoping, Skolem and Herbrand forms,
+    clausal form, Herbrand's theorem by the SAT engine, the negative
+    translations at first order, interpolants); 78 equality and
+    first-order resolution, TPTP `cnf` and SZS lines; 79 the page; 80 the
+    release. `later.md`'s interop-5, more-logics-1 and -6, tableaux-3 and
+    resolution-2 and -4 assigned to them; the manual's planned list says
+    so. The added candidates beyond the author's list (interpolants,
+    Herbrand's theorem, miniscoping, the decidable fragments) are the
+    planning session's, by the literature the research notes cite.

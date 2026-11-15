@@ -353,16 +353,23 @@ The collection grows by a suite at a time, release by release:
   Horn engine.
 - 0.5.0: custom rules, a calculus given as data, with derivations in it
   checked and built in the command and on the page; natural deduction
-  for ordinary logic in Gentzen's and Fitch's styles.
+  for ordinary logic in Gentzen's and Fitch's styles; classical logic
+  translated into intuitionistic and minimal logic (Kolmogorov, Gödel
+  and Gentzen, Kuroda), and Craig interpolants, each checked.
 - 0.6.0: the modal logics K, T, K4, S4 and S5 decided, every refutation
   a checked Kripke countermodel, and a labelled calculus proved sound in
   Rocq; tools for teachers.
-- 0.7.0: propositional resolution at teaching scale, and the simply
-  typed lambda calculus, its typing derivations checked and built.
+- 0.7.0: normal forms (NNF, CNF and DNF, and CNF by Tseitin's encoding)
+  and propositional resolution at teaching scale, and the simply typed
+  lambda calculus, its typing derivations checked and built.
+- 0.8.0: first-order ordinary logic: classical, intuitionistic and
+  minimal, proved step by step and searched, with finite countermodels;
+  prenex form, Skolem form, clausal form and Herbrand's theorem, each
+  checked; equality and first-order resolution; all of it on the web
+  page, the linear tab at first order too.
 
-Not yet placed in a release: first-order proving on the web page, and
-the comparison with the other provers on the libraries with the engines
-of 0.2.0.
+Not yet placed in a release: the comparison with the other provers on
+the libraries with the engines of 0.2.0.
 
 ## Where it comes from
 

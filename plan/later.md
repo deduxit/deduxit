@@ -106,12 +106,12 @@ may be taken by that step and closed here, said in its report.
 | engines-13 | kept | measured only; a performance step the author chooses (LinearOne's eight problems) |
 | engines-14 | kept | as engines-13 |
 | proof-theory-9 | kept | explaining unprovability: after 0.7.0, the author's choice |
-| interop-5 | kept | TPTP's conventions: with resolution-4 and the first-order ordinary suite |
-| more-logics-1 | kept | first-order ordinary logic is after 0.7.0 |
-| more-logics-6 | kept | as more-logics-1 |
-| tableaux-3 | kept | needs a first-order ordinary syntax |
-| resolution-4 | kept | with resolution-2, after 0.7.0 |
-| resolution-2 | kept | needs resolution-4 and a first-order ordinary syntax |
+| interop-5 | 78 | TPTP's conventions, with resolution-4 (placed 2026-11-15) |
+| more-logics-1 | 78 | equality, as axioms first (placed 2026-11-15) |
+| more-logics-6 | 74, 75, 76 | first-order intuitionistic logic with Kripke countermodels (placed 2026-11-15) |
+| tableaux-3 | 75 | free-variable tableaux and connection provers (placed 2026-11-15) |
+| resolution-4 | 78 | (placed 2026-11-15) |
+| resolution-2 | 78 | (placed 2026-11-15) |
 | logics-1 | kept | exponentials by signature: after 0.7.0, the author's choice |
 | logics-2 | kept | as logics-1 |
 | logics-6 | kept | as logics-1 (its exponential half); LR proper has no tool or audience seen |
