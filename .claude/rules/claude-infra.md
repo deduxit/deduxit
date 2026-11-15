@@ -137,6 +137,15 @@ Current contents:
   resumable points, record how each resumes; `HH:MM` stops by that
   time, the pause started twelve minutes before by one-shot crons;
   `resume` picks them up.
+- `skills/status-update/`: the author's status report (2026-11-15):
+  every step and session in a window, done, running and planned, each
+  with its dependencies, what it does, its model, effort and agents and
+  its time, then what the author should do. `plan/status.py` prints the
+  tables from `plan/README.md`'s step table and
+  `plan/notes/step-log.tsv`, which the planning session keeps (a row per
+  session at its start, `finished` at its review, a `step` row when a
+  step is complete); the skill corrects the running rows from the live
+  sessions and checks prompts, releases, CI, keys and the baseline.
 - `hooks/format.sh`: `PostToolUse(Write|Edit)`, runs `nix fmt` on the one
   file that changed, if `modules/treefmt.nix` formats its type, from the
   nearest directory up from the session's `cwd` that holds `flake.nix`

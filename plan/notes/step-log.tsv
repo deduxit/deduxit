@@ -1,0 +1,40 @@
+step	kind	model	effort	agents	session	started	finished	note
+54x	small	opus-5-5	high	reviewer	local_492f9f1b	2026-11-14 16:34	2026-11-14 20:00	the held proposals
+58a	panel	opus-5-5	high	reviewer	local_b8490613	2026-11-14 16:40	2026-11-14 20:27	policies, Kani, wasm checks
+58b	client	opus-5-5	high	reviewer	local_fe155f72	2026-11-14 16:40	2026-11-14 20:00	the client's accessibility audit
+54s-c2	run	opus-5-5	high	reviewer	local_739ba359	2026-11-14 17:26	2026-11-14 20:20	the measurement, the default, --method sat
+54s-c3	small	opus-5-5	high	reviewer	local_739ba359	2026-11-14 20:33	2026-11-14 21:53	the classical default
+57	panel	opus-5-5	high	panel, reviewer	local_b8490613	2026-11-14 20:33	2026-11-15 00:10	a checked basis for non-coverability
+54w-f	client	opus-5-5	high	reviewer	local_fe155f72	2026-11-14 20:33	2026-11-14 22:10	the page's texts and the audit's proposals
+deps	small	opus-5-5	high	reviewer	local_fe155f72	2026-11-14 22:00	2026-11-15 08:40	every dependency, Rust 1.100 (paused 00:18 to 08:08)
+55a	small	opus-5-5	high	reviewer	local_739ba359	2026-11-14 22:05	2026-11-15 09:40	ordinary logic's shape (paused 00:18 to 08:08)
+54w-g	client	opus-5-5	high	reviewer	local_b8490613	2026-11-15 08:30	2026-11-15 09:55	pasted links, the Reference's rules
+54x2	small	opus-5-5	high	reviewer	local_fe155f72	2026-11-15 08:50	2026-11-15 10:30	four small follow-ups
+55b	panel	opus-5-5	high	panel, reviewer	local_739ba359	2026-11-15 09:45	2026-11-15 12:15	the countermodel
+55c	panel	opus-5-5	high	reviewer	local_b8490613	2026-11-15 10:15	2026-11-15 13:25	the Kripke lemma and the exporter (waited for 55b 10:45 to 12:20)
+54w-e4a	text	opus-5-5	high	writers, reviewer	local_fe155f72	2026-11-15 10:40	2026-11-15 11:25	the lambda module's text
+54w-e4b	text	opus-5-5	high	writers, reviewer	local_739ba359	2026-11-15 11:35	2026-11-15 13:20	the ordinary module's text
+ci-fix	small	opus-5-5	high	reviewer	local_fe155f72	2026-11-15 11:35	2026-11-15 13:20	Kani off the push CI, the client's walk split
+55d	client	opus-5-5	high	reviewer	local_b8490613	2026-11-15 13:30	2026-11-15 15:10	the countermodel drawn and on the page
+56a	small	opus-5-5	high	reviewer	local_739ba359	2026-11-15 13:30	2026-11-15 15:00	tableaux and truth tables
+59	release	opus-5-5	high	reviewer	local_fe155f72	2026-11-15 15:05	2026-11-15 15:40	the 0.4.0 release, prepared
+54x3	small	opus-5-5	high	reviewer	local_b8490613	2026-11-15 15:15	2026-11-15 16:25	small follow-ups before 0.4.0
+56b	client	opus-5-5	high	reviewer	local_739ba359	2026-11-15 15:15	2026-11-15 16:30	tableaux and truth tables on the page
+release-0.4.0	release	opus-5-5	high	-	planning	2026-11-15 16:30	2026-11-15 18:05	tags, publish, Zenodo
+60a	design	fable-5-2	high	research, reviewer (opus)	local_fe155f72	2026-11-15 17:10	2026-11-15 18:15	the rule language and the generic derivation
+baseline-prep	small	opus-5-5	high	reviewer	local_739ba359	2026-11-15 18:20	2026-11-15 19:40	ordinary logic in the baseline
+60b	panel	opus-5-5	high	panel, reviewer (fable)	local_fe155f72	2026-11-15 18:25	2026-11-15 19:45	rules as data, finished
+63t-a	small	opus-5-5	high	reviewer (fable)	local_b8490613	2026-11-15 18:40	2026-11-15 19:50	translations and interpolants
+61a	panel	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-15 20:00		building with custom rules
+63t-b	client	opus-5-5	high	reviewer	local_739ba359	2026-11-15 20:10		translations on the page
+54	step	-	-	-	-	-	2026-11-14 12:00	complete: the LJT engine
+54u	step	-	-	-	-	-	2026-11-14 14:00	complete: the usability changes
+54s	step	-	-	-	-	-	2026-11-14 21:53	complete: the SAT engines and the defaults
+54x	step	-	-	-	-	-	2026-11-15 15:25	complete: the held proposals and their follow-ups
+55	step	-	-	-	-	-	2026-11-15 15:10	complete: Kripke countermodels
+56	step	-	-	-	-	-	2026-11-15 16:30	complete: tableaux and truth tables
+57	step	-	-	-	-	-	2026-11-15 00:10	complete: the basis certificate
+58	step	-	-	-	-	-	2026-11-14 20:27	complete: maintenance and Kani
+54w	step	-	-	-	-	-	2026-11-15 13:20	complete: the text pass
+59	step	-	-	-	-	-	2026-11-15 18:05	complete: 0.4.0 released
+60	step	-	-	-	-	-	2026-11-15 19:45	complete: rules as data

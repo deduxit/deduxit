@@ -559,6 +559,11 @@ for each kind:
 
 ## Sessions in the Claude app
 
+- **Keep the step log** (`plan/notes/step-log.tsv`, since 2026-11-15): a row when a session
+  starts (step, kind as `plan/notes/step-durations.md` names them, model, effort, agents,
+  session id, started), `finished` when it is reviewed, and a row of kind `step` when a whole
+  step is complete. The `status-update` skill and `plan/status.py` read it for the author's
+  status reports and ETAs.
 - **Review the moment a step finishes** (the author, 2026-11-15). The app continues the
   planning session for a session's finished turn only when no other session it started is
   working, so a finished step can wait unseen. Two things keep it prompt: every brief's
