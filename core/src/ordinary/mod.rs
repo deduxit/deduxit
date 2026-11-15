@@ -70,6 +70,9 @@ pub(crate) mod rocq;
 #[cfg(feature = "sat")]
 pub mod sat;
 /// The translations into linear logic.
+mod table;
+#[cfg(feature = "interactive")]
+mod tableau;
 mod translate;
 
 pub use decide::{
@@ -83,6 +86,9 @@ pub use interactive::{Applicable, Closed, Context, Hint, Interactive, Needs, Ste
 pub use model::{Countermodel, Forcing, MODEL_CELLS};
 #[cfg(feature = "parse")]
 pub use parse::{Problem, read_tptp};
+pub use table::{TruthTable, truth_table};
+#[cfg(feature = "interactive")]
+pub use tableau::{End, Sign, Signed, Tableau, TableauNode};
 pub use translate::{FALSE, Image, translate};
 
 use crate::Error;
@@ -330,33 +336,79 @@ pub enum Method {
     /// `sat`.
     #[cfg(feature = "sat")]
     Sat,
+    /// The truth table ([`truth_table`]): every assignment of the atoms,
+    /// classical logic only, within [`Limits::table_atoms`](crate::Limits::table_atoms). A sequent
+    /// that is not valid gets its first falsifying row as a countermodel.
+    Table,
+    /// A signed analytic tableau ([`Tableau`]), classical logic only. A
+    /// closed tableau is a derivation of LK, which is checked; an open
+    /// branch gives a countermodel, which is checked too. Needs the cargo
+    /// feature `interactive`.
+    #[cfg(feature = "interactive")]
+    Tableau,
 }
 
 impl Method {
     /// Every method, in the order of [`NAMES`](Self::NAMES).
-    #[cfg(feature = "sat")]
-    pub const ALL: &'static [Self] = &[Self::Embedding, Self::Ljt, Self::Sat];
-    /// Every method, in the order of [`NAMES`](Self::NAMES).
-    #[cfg(not(feature = "sat"))]
-    pub const ALL: &'static [Self] = &[Self::Embedding, Self::Ljt];
+    pub const ALL: &'static [Self] = &[
+        Self::Embedding,
+        Self::Ljt,
+        #[cfg(feature = "sat")]
+        Self::Sat,
+        Self::Table,
+        #[cfg(feature = "interactive")]
+        Self::Tableau,
+    ];
 
     /// The methods' names, which [`name`](Self::name) writes and `FromStr`
     /// reads.
-    #[cfg(feature = "sat")]
-    pub const NAMES: &'static [&'static str] = &["embedding", "ljt", "sat"];
-    /// The methods' names, which [`name`](Self::name) writes and `FromStr`
-    /// reads.
-    #[cfg(not(feature = "sat"))]
-    pub const NAMES: &'static [&'static str] = &["embedding", "ljt"];
+    pub const NAMES: &'static [&'static str] = &[
+        "embedding",
+        "ljt",
+        #[cfg(feature = "sat")]
+        "sat",
+        "table",
+        #[cfg(feature = "interactive")]
+        "tableau",
+    ];
 
-    /// Returns the method's name: `embedding`, `ljt` or `sat`, as the
-    /// command and the JSON spell it.
+    /// Returns the method's name: `embedding`, `ljt`, `sat`, `table` or
+    /// `tableau`, as the command and the JSON spell it.
     pub const fn name(self) -> &'static str {
         match self {
             Self::Embedding => "embedding",
             Self::Ljt => "ljt",
             #[cfg(feature = "sat")]
             Self::Sat => "sat",
+            Self::Table => "table",
+            #[cfg(feature = "interactive")]
+            Self::Tableau => "tableau",
+        }
+    }
+
+    /// Returns the method's name in a sentence: `LJT`, `a truth table`.
+    pub(crate) const fn title(self) -> &'static str {
+        match self {
+            Self::Embedding => "the embedding",
+            Self::Ljt => "LJT",
+            #[cfg(feature = "sat")]
+            Self::Sat => "the SAT solver",
+            Self::Table => "a truth table",
+            #[cfg(feature = "interactive")]
+            Self::Tableau => "a tableau",
+        }
+    }
+
+    /// Returns the logics the method decides, in words.
+    pub(crate) const fn logics(self) -> &'static str {
+        match self {
+            Self::Embedding => "every logic",
+            #[cfg(feature = "sat")]
+            Self::Sat => "every logic",
+            Self::Ljt => "intuitionistic and minimal logic",
+            Self::Table => "classical logic",
+            #[cfg(feature = "interactive")]
+            Self::Tableau => "classical logic",
         }
     }
 
@@ -382,13 +434,17 @@ impl Method {
     }
 
     /// Returns whether the method decides the logic: the embedding and the
-    /// SAT solver every logic, LJT intuitionistic and minimal logic.
+    /// SAT solver every logic, LJT intuitionistic and minimal logic, the
+    /// truth table and the tableau classical logic.
     pub const fn decides(self, logic: Logic) -> bool {
         match self {
             Self::Embedding => true,
             Self::Ljt => !matches!(logic, Logic::Classical),
             #[cfg(feature = "sat")]
             Self::Sat => true,
+            Self::Table => matches!(logic, Logic::Classical),
+            #[cfg(feature = "interactive")]
+            Self::Tableau => matches!(logic, Logic::Classical),
         }
     }
 }

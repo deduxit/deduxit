@@ -433,9 +433,8 @@ fn prefer_ljt(
         // LJT never gives a clausal proof or an image's proof. An unknown,
         // from a bound or the stop, leaves the derivation read off the
         // search.
-        Verdict::Valid(Evidence::Clausal(_) | Evidence::Image) | Verdict::Unknown(_) => {
-            Ok(derivation)
-        }
+        Verdict::Valid(Evidence::Clausal(_) | Evidence::Image | Evidence::Table)
+        | Verdict::Unknown(_) => Ok(derivation),
     }
 }
 
@@ -462,8 +461,13 @@ fn by_ljt(
     match outcome.verdict {
         Verdict::Valid(Evidence::Derivation(derivation)) => Ok((*derivation, outcome.statistics)),
         // LJT never gives a clausal proof or an image's proof.
-        Verdict::Valid(Evidence::Clausal(_)) => Err(Error::NoDerivation),
+        Verdict::Valid(Evidence::Clausal(_)) => Err(Error::NoDerivation {
+            evidence: "a checked clausal proof",
+        }),
         Verdict::Valid(Evidence::Image) => Err(Error::NotBuilt),
+        Verdict::Valid(Evidence::Table) => Err(Error::NoDerivation {
+            evidence: "its truth table",
+        }),
         Verdict::Unknown(Reason::Stopped) => Err(Error::Refused(Refusal::Stopped {
             phase: crate::limits::Phase::Search,
         })),

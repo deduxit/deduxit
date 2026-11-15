@@ -487,7 +487,9 @@ mod tests {
                     refuted += 1;
                     false
                 }
-                verdict @ (Verdict::Valid(Evidence::Derivation(_) | Evidence::Image)
+                verdict @ (Verdict::Valid(
+                    Evidence::Derivation(_) | Evidence::Image | Evidence::Table,
+                )
                 | Verdict::Unknown(_)) => {
                     panic!("{sequent}: {verdict:?}")
                 }
@@ -629,7 +631,10 @@ mod tests {
                 panic!("{sequent}: {:?}", outcome.verdict);
             };
             assert_eq!(proof.steps(), outcome.statistics.proof_steps);
-            assert!(matches!(evidence.derivation(), Err(Error::NoDerivation)));
+            assert!(matches!(
+                evidence.derivation(),
+                Err(Error::NoDerivation { .. })
+            ));
         }
         let Verdict::Valid(evidence) = embedded(&peirce, &Limits::default()) else {
             panic!("the embedding proves Peirce's law");

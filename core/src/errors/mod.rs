@@ -416,13 +416,16 @@ pub enum Error {
         /// The logic.
         logic: crate::ordinary::Logic,
     },
-    /// LJT was asked to decide classical logic. It decides intuitionistic
-    /// and minimal logic only.
-    #[error("LJT decides intuitionistic and minimal logic, not {logic} logic")]
+    /// A method of ordinary logic was asked to decide a logic it does not
+    /// decide: LJT classical logic, a truth table or a tableau another
+    /// logic than classical logic.
+    #[error("{} decides {}, not {logic} logic", .method.title(), .method.logics())]
     #[non_exhaustive]
     Logic {
         /// The logic asked for.
         logic: crate::ordinary::Logic,
+        /// The method asked.
+        method: crate::ordinary::Method,
     },
     /// No engine of this crate decides the fragment in the mode.
     #[error("no engine decides {fragment} in {mode} mode")]
@@ -524,14 +527,20 @@ pub enum Error {
         /// Why.
         reason: crate::lambda::NoTerm,
     },
-    /// A sequent is valid by a clausal proof, where a derivation is needed:
-    /// to draw or export it, or to read it as a lambda-term
+    /// A sequent is valid by a clausal proof or its truth table, where a
+    /// derivation is needed: to draw or export it, or to read it as a
+    /// lambda-term
     /// ([`Evidence::derivation`](crate::ordinary::Evidence::derivation)).
     #[error(
-        "the sequent is valid by a checked clausal proof, which is no derivation; the method \
-         embedding gives the derivation of LK"
+        "the sequent is valid by {evidence}, which is no derivation; the method embedding gives \
+         the derivation of LK"
     )]
-    NoDerivation,
+    #[non_exhaustive]
+    NoDerivation {
+        /// What the sequent is valid by: `a checked clausal proof`, `its
+        /// truth table`.
+        evidence: &'static str,
+    },
     /// A sequent is valid by the checked proof of its image, whose
     /// derivation of LK or LJ was not built (a bound or the stop refused
     /// it), where a derivation is needed
@@ -688,6 +697,7 @@ impl Error {
         "output_too_large",
         "work_limit",
         "too_many_pixels",
+        "too_many_atoms",
         "elimination_limit",
         "index_limit",
         "thread_pool",
@@ -774,7 +784,7 @@ impl Error {
             | Self::Countermodel { .. }
             | Self::Reduction(_) => Defect,
             Self::NoCut { .. } => Unsupported,
-            Self::NoTerm { .. } | Self::NoDerivation => Unsupported,
+            Self::NoTerm { .. } | Self::NoDerivation { .. } => Unsupported,
             Self::NotBuilt => Limit,
         }
     }
@@ -857,7 +867,7 @@ impl Error {
             Self::Model { .. } => "invalid_model",
             Self::NoCut { .. } => "no_cut",
             Self::NoTerm { .. } => "no_term",
-            Self::NoDerivation => "no_derivation",
+            Self::NoDerivation { .. } => "no_derivation",
             Self::NotBuilt => "not_built",
             Self::Reduction(_) => "reduction_rejected",
         }
@@ -1061,6 +1071,7 @@ mod tests {
                 what: crate::limits::Bound::Steps,
                 limit: 1,
             },
+            Refusal::Atoms { atoms: 2, limit: 1 },
             Refusal::Index {
                 what: Space::Node,
                 count: 2,
@@ -1153,6 +1164,7 @@ mod tests {
             },
             Error::Logic {
                 logic: crate::ordinary::Logic::Classical,
+                method: crate::ordinary::Method::Ljt,
             },
             Error::NoEngine {
                 fragment: Fragment::LL,
@@ -1169,7 +1181,7 @@ mod tests {
             Error::NoTerm {
                 reason: crate::lambda::NoTerm::Classical,
             },
-            Error::NoDerivation,
+            Error::NoDerivation { evidence: "x" },
             Error::NotBuilt,
             Error::ReadBack {
                 calculus: "LK",
@@ -1379,7 +1391,7 @@ mod tests {
             | Error::Model { .. }
             | Error::NoCut { .. }
             | Error::NoTerm { .. }
-            | Error::NoDerivation
+            | Error::NoDerivation { .. }
             | Error::NotBuilt
             | Error::Reduction(_) => {}
         }
@@ -1397,6 +1409,7 @@ mod tests {
             | Refusal::Work { .. }
             | Refusal::Pixels { .. }
             | Refusal::Elimination { .. }
+            | Refusal::Atoms { .. }
             | Refusal::Index { .. } => {}
         }
     }

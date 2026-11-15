@@ -94,6 +94,9 @@ pub struct Limits {
     /// with `Error::Check(CheckError::Refused)`.
     #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::exact"))]
     pub work: Option<u64>,
+    /// The most atoms a truth table may have: its rows double with each.
+    /// [`DEFAULT_TABLE_ATOMS`](Self::DEFAULT_TABLE_ATOMS) by default.
+    pub table_atoms: Option<u32>,
     /// The deepest recursion on any one stack. Every thread the library
     /// starts is sized for it ([`stack_bytes`](Self::stack_bytes)).
     ///
@@ -117,6 +120,10 @@ impl Limits {
     pub const DEFAULT_TERMS: u64 = 50_000_000;
     /// The default bound on a derivation's estimated size: 64 mebibytes.
     pub const DEFAULT_DERIVATION_BYTES: u64 = 64 << 20;
+    /// The default bound on a truth table's atoms: ten, so 1024 rows, about
+    /// as many as a reader scans; a table that large is refused unless the
+    /// bound is raised.
+    pub const DEFAULT_TABLE_ATOMS: u32 = 10;
     /// The default recursion depth: 2048 levels, which fit a main
     /// thread's stack of 8 MiB in an optimized build.
     pub const DEFAULT_RECURSION_DEPTH: u32 = 2048;
@@ -128,6 +135,7 @@ impl Limits {
         terms: None,
         derivation_bytes: None,
         work: None,
+        table_atoms: None,
         recursion_depth: Self::DEFAULT_RECURSION_DEPTH,
     };
 
@@ -201,6 +209,13 @@ impl Limits {
         self
     }
 
+    /// Returns the limits with another bound on a truth table's atoms.
+    #[must_use]
+    pub const fn with_table_atoms(mut self, table_atoms: Option<u32>) -> Self {
+        self.table_atoms = table_atoms;
+        self
+    }
+
     /// Returns the limits with another recursion depth.
     #[must_use]
     pub const fn with_recursion_depth(mut self, recursion_depth: u32) -> Self {
@@ -218,6 +233,7 @@ impl Default for Limits {
             terms: Some(Self::DEFAULT_TERMS),
             derivation_bytes: Some(Self::DEFAULT_DERIVATION_BYTES),
             work: None,
+            table_atoms: Some(Self::DEFAULT_TABLE_ATOMS),
             recursion_depth: Self::DEFAULT_RECURSION_DEPTH,
         }
     }
@@ -476,6 +492,15 @@ pub enum Refusal {
         /// or [`cut::Options::nodes`](crate::linear::proofs::cut::Options::nodes).
         limit: u64,
     },
+    /// A truth table would have more atoms than the bound, and so more
+    /// rows than it allows.
+    #[non_exhaustive]
+    Atoms {
+        /// The sequent's atoms.
+        atoms: u64,
+        /// The bound, [`Limits::table_atoms`].
+        limit: u64,
+    },
     /// A count passes what a representation's indices can name, whatever
     /// the bounds say.
     #[non_exhaustive]
@@ -501,6 +526,7 @@ impl Refusal {
             Self::Work { .. } => "work_limit",
             Self::Pixels { .. } => "too_many_pixels",
             Self::Elimination { .. } => "elimination_limit",
+            Self::Atoms { .. } => "too_many_atoms",
             Self::Index { .. } => "index_limit",
         }
     }
@@ -514,6 +540,7 @@ impl Refusal {
             Self::Terms { .. } => Some("limits.terms"),
             Self::Output { .. } => Some("limits.derivation_bytes"),
             Self::Work { .. } => Some("limits.work"),
+            Self::Atoms { .. } => Some("limits.table_atoms"),
             Self::Pixels { .. } => Some("styles.png.pixels"),
             Self::Elimination {
                 what: Bound::Steps, ..
@@ -623,6 +650,13 @@ impl Display for Refusal {
                 f,
                 "the next step of the elimination makes a net of more than {}",
                 counted(*limit, "vertex", "vertices")
+            ),
+            Self::Atoms { atoms, limit } => write!(
+                f,
+                "the truth table of {} would have 2^{atoms} rows, more than the limit of {} \
+                 allows",
+                counted(*atoms, "atom", "atoms"),
+                counted(*limit, "atom", "atoms")
             ),
             Self::Index { what, count, most } => write!(
                 f,

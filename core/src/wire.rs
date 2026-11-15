@@ -29,6 +29,7 @@
 //! | 11 | the refutation by the basis of a backward search, `{"kind": "basis", "body": …, "classes": […], "markings": […]}` | a disproof or unprovable outcome that holds one |
 //! | 12 | the ordinary outcome's search as an object tagged by its method, `"search": {"method": "embedding", "translation": …, "image": {…}}`, `{"method": "ljt", "statistics": {…}}` or `{"method": "sat", …}`, the image's whole outcome under the embedding; a valid outcome without `derivation` or `clausal_proof` rests on the image's proof | every ordinary outcome |
 //! | 13 | the Kripke model, `{"worlds": [{"atoms": […], "falsity": true, "arrows": […]}, …], "world": n}`, a form of its own (an ordinary outcome holds one under `countermodel`, a key a reader of level 12 ignores without misreading, so the outcome stays at 12) | a model |
+//! | 14 | the truth table and the tableau of a classical sequent, documents of their own and the `search` of an ordinary outcome decided by `table` or `tableau` | a truth table, a tableau, an outcome of either method |
 //!
 //! A reader refuses a document above its level by name ([`Error::Version`],
 //! code `unsupported_version`). It does so before reading the other keys
@@ -162,6 +163,19 @@
 //!   the model is about; see [`kripke::Model`](crate::kripke::Model).
 //!   Nested in an ordinary outcome as `countermodel` it has no `version`;
 //!   the outcome stays at level 12.
+//! - **Truth table**: `{"version": 14, "sequent": {…}, "rows": ["TFT…",
+//!   …], "falsifying": [2]}`: a row per assignment, from every atom true
+//!   to every atom false, each a `T` or `F` per formula of the sequent's
+//!   form; reading one computes the table again and refuses rows that
+//!   differ; see `ordinary::TruthTable`.
+//! - **Tableau**: `{"version": 14, "sequent": {…}, "nodes": [{"lines":
+//!   [["T", 0], ["F", 2]], "expands": [0, "∧L"], "children": [1]}, {"lines":
+//!   […], "end": {"kind": "closed", "true_line": 3, "false_line": 5}}]}`,
+//!   the nodes each before its children; reading one checks the tree's
+//!   shape and every index, not the expansions; see `ordinary::Tableau`
+//!   (feature `interactive`). An ordinary outcome decided by `table` or
+//!   `tableau` holds one under `search` as `table` or `tableau`, without
+//!   `version`, and is written at level 14.
 //! - **Ordinary session**: `{"version": 8, "logic": "intuitionistic",
 //!   "sequent": {…}, "inferences": […], "history": […]}`, the inferences in
 //!   the state's own order, the root first, an open goal its two sides
@@ -185,7 +199,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// The highest wire level this build reads and writes.
-pub const LEVEL: u32 = 13;
+pub const LEVEL: u32 = 14;
 
 /// The level of every document that no later level's feature raises.
 pub(crate) const BASE: u32 = 1;
@@ -346,6 +360,10 @@ pub(crate) const SEARCH: u32 = 12;
 
 /// The level of a Kripke model.
 pub(crate) const KRIPKE: u32 = 13;
+
+/// The level of a truth table and a tableau, and of an ordinary outcome
+/// decided by either.
+pub(crate) const TABLES: u32 = 14;
 
 /// The level of a disproof or an outcome refuted by the basis of a
 /// backward search.

@@ -88,6 +88,12 @@ pub enum Search {
     /// feature `sat`.
     #[cfg(feature = "sat")]
     Sat(super::sat::Statistics),
+    /// By the truth table, which the outcome holds.
+    Table(Box<super::TruthTable>),
+    /// By a tableau, which the outcome holds. Needs the cargo feature
+    /// `interactive`.
+    #[cfg(feature = "interactive")]
+    Tableau(Box<super::Tableau>),
 }
 
 impl Outcome {
@@ -98,6 +104,9 @@ impl Outcome {
             Search::Ljt(_) => Method::Ljt,
             #[cfg(feature = "sat")]
             Search::Sat(_) => Method::Sat,
+            Search::Table(_) => Method::Table,
+            #[cfg(feature = "interactive")]
+            Search::Tableau(_) => Method::Tableau,
         }
     }
 }
@@ -166,6 +175,9 @@ pub enum Evidence {
     /// [`Image::outcome`](super::Image::outcome) gives it, after the linear
     /// checker accepted the proof; [`decide`] never does.
     Image,
+    /// The truth table, which the outcome's [`Search::Table`] holds: no
+    /// row falsifies the sequent.
+    Table,
 }
 
 impl Evidence {
@@ -174,13 +186,18 @@ impl Evidence {
     ///
     /// # Errors
     ///
-    /// [`Error::NoDerivation`] for a clausal proof, [`Error::NotBuilt`]
-    /// for the image's proof alone.
+    /// [`Error::NoDerivation`] for a clausal proof and a truth table,
+    /// [`Error::NotBuilt`] for the image's proof alone.
     pub fn derivation(&self) -> Result<&Derivation, Error> {
         match self {
             Self::Derivation(derivation) => Ok(derivation),
             #[cfg(feature = "sat")]
-            Self::Clausal(_) => Err(Error::NoDerivation),
+            Self::Clausal(_) => Err(Error::NoDerivation {
+                evidence: "a checked clausal proof",
+            }),
+            Self::Table => Err(Error::NoDerivation {
+                evidence: "its truth table",
+            }),
             Self::Image => Err(Error::NotBuilt),
         }
     }
@@ -494,6 +511,9 @@ pub fn decide_within(
         Method::Sat => {
             Some(super::sat::decide(sequent, logic, limits, &mut stop).map(Outcome::from))
         }
+        Method::Table => Some(super::table::decide(sequent, logic, limits, &mut stop)),
+        #[cfg(feature = "interactive")]
+        Method::Tableau => Some(super::tableau::decide(sequent, logic, limits, &mut stop)),
     };
     if let Some(decided) = decided
         && (options.method.is_some() || !gives_way(&decided))

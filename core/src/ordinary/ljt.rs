@@ -128,7 +128,10 @@ fn run(
     plant: Option<Plant>,
 ) -> Result<Outcome, Error> {
     if logic == Logic::Classical {
-        return Err(Error::Logic { logic });
+        return Err(Error::Logic {
+            logic,
+            method: super::Method::Ljt,
+        });
     }
     if sequent.right().len() > 1 {
         return Err(Error::Succedents {
