@@ -2,7 +2,7 @@
 // Licensed under the EUPL
 
 //! The child's run of a problem of ordinary (propositional) logic in one
-//! logic, by one of three methods:
+//! logic, by one of these methods:
 //! - the embedding: the image in linear logic is searched as a linear
 //!   problem is, and its proof is read back and checked as the row's
 //!   check;
@@ -10,6 +10,9 @@
 //!   logic, which checks its own derivation inside the time measured;
 //! - the SAT solver, which checks its derivation, its clausal proof or
 //!   its countermodel inside the time measured;
+//! - the truth table and the tableau, classical logic only, which check
+//!   their tableau's derivation or their countermodel inside the time
+//!   measured;
 //! - the logic's default: the library's whole call, its checks timed.
 
 use crate::OneArgs;
@@ -54,6 +57,9 @@ pub fn tail(args: &OneArgs, logic: Logic) -> String {
     match method {
         Method::Embedding => embedded(args, logic, &problem.sequent, expected),
         Method::Ljt | Method::Sat => native(args, logic, &problem.sequent, expected, method),
+        Method::Table | Method::Tableau => {
+            classical(args, logic, &problem.sequent, expected, method)
+        }
         other => row(&[
             ("verdict", "error"),
             ("reason", &format!("the harness does not run {other}")),
@@ -218,6 +224,98 @@ fn native(
     row(&fields)
 }
 
+/// Decides a classical sequent by its truth table or its tableau within the
+/// command's bounds (the table's at most
+/// [`Limits::DEFAULT_TABLE_ATOMS`] atoms among them), the run's memory
+/// bound and its time limit, and returns the tail of its row. The tableau's
+/// derivation and either method's countermodel are checked inside the time
+/// measured.
+///
+/// The table's `nodes` and `work` are its rows; the tableau's `nodes` its
+/// nodes and `work` its lines. A table past the bound on atoms is
+/// `unknown` with the reason `too_many_atoms`.
+fn classical(
+    args: &OneArgs,
+    logic: Logic,
+    sequent: &ordinary::Sequent,
+    expected: &str,
+    method: Method,
+) -> String {
+    let limits = Limits::default().with_memory_bytes(memory_limit(args.memory_limit));
+    let options = ordinary::Options::default()
+        .with_logic(logic)
+        .with_method(Some(method));
+    // The columns `run` keys a resumed row by, written as every method's.
+    let (bias, forward) = (
+        name(&args.bias),
+        forward_copies(args.forward_copies).to_string(),
+    );
+    let (memory, pool, memo) = (
+        memory_column(args.memory_limit),
+        pool_column(args.pool_after),
+        memo_column(args.memo_limit),
+    );
+    say(LOADED);
+    let clock = Clock::start(args.timeout);
+    let outcome = ordinary::decide_within(sequent, &options, &Options::default(), &limits, |_| {
+        clock.expired.load(Ordering::Relaxed)
+    });
+    let (time, cpu, wait) = clock.read();
+    let time = format!("{time:.3}");
+    let mut fields = vec![
+        ("expected", expected),
+        ("engine", method.name()),
+        ("fragment", method.name()),
+        ("time_ms", &time),
+        ("cpu_ms", &cpu),
+        ("wait_ms", &wait),
+        ("bias", &bias),
+        ("forward_copies", &forward),
+        ("memory_limit", &memory),
+        ("pool_after", &pool),
+        ("memo_limit", &memo),
+    ];
+    let message;
+    let counters: [String; 2];
+    match &outcome {
+        Ok(outcome) => {
+            let (nodes, work) = match &outcome.search {
+                ordinary::Search::Table(table) => (table.rows(), table.rows()),
+                ordinary::Search::Tableau(tableau) => (
+                    u64::try_from(tableau.nodes().len()).unwrap_or(u64::MAX),
+                    u64::from(tableau.line_count()),
+                ),
+                _ => (0, 0),
+            };
+            counters = [nodes.to_string(), work.to_string()];
+            fields.extend([
+                ("nodes", counters[0].as_str()),
+                ("work", counters[1].as_str()),
+            ]);
+            fields.extend(match &outcome.verdict {
+                // The tableau's derivation is checked inside the time; the
+                // table is its own evidence.
+                Verdict::Valid(_) => [("verdict", "proved"), ("checked", "ok")],
+                Verdict::NotValid => [("verdict", "unprovable"), ("checked", "")],
+                Verdict::Unknown(reason) => [("verdict", "unknown"), ("reason", reason.name())],
+                _ => [
+                    ("verdict", "error"),
+                    ("reason", "a verdict the harness does not know"),
+                ],
+            });
+        }
+        Err(Error::Refused(refusal)) => {
+            message = refused(refusal);
+            fields.extend([("verdict", "unknown"), ("reason", message.as_str())]);
+        }
+        Err(error) => {
+            message = clean(&error.to_string());
+            fields.extend([("verdict", "error"), ("reason", message.as_str())]);
+        }
+    }
+    row(&fields)
+}
+
 /// Returns the `reason` of a row whose proof's derivation a bound refused,
 /// or the time limit stopped.
 fn refused(refusal: &Refusal) -> String {
@@ -226,6 +324,7 @@ fn refused(refusal: &Refusal) -> String {
         Refusal::Output { .. } => "derivation_limit".to_owned(),
         Refusal::Memory { .. } => "memory_limit".to_owned(),
         Refusal::Work { .. } => "work_limit".to_owned(),
+        Refusal::Atoms { .. } => "too_many_atoms".to_owned(),
         refusal => clean(&refusal.to_string()),
     }
 }
