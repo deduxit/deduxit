@@ -183,6 +183,12 @@ None. The page was run against the live site rather than the client's
 dev server, as the prompt allows ("only if cheap"): it needed no build.
 No Rocq certificate was compiled (the notes say so, R3).
 
+### Departures from the design
+
+- Learn's Reference also lists classical linear logic drawn two-sided,
+  all 38 rules, beyond the brief's list (the review's finding 1). None
+  departs from the design.
+
 ### What the next sessions must know
 
 **For 54w-a (the page's text and teaching):**
@@ -2315,3 +2321,163 @@ Other texts:
 - A test opens a link as a load of its own; `goto` to another fragment
   of the loaded page keeps the document, and the page's own link may
   replace it.
+
+## Session 54w-g: pasted links and the Reference's missing rules
+
+The brief is `/tmp/linlog-handoff/start-54w-g.md` (Opus 5.5 at `high`,
+2026-11-15, cores 7-9), in the client's workspace
+`../deduxit.github.io-54wg` (workspace `step54wg`) on the client's
+`main@origin` (`ozpxotqm`). Nothing is pushed. This deduxit workspace
+holds only this section.
+
+### Outcome
+
+Both changes are built, each with its tests, and the client's input
+`deduxit` is moved to `rruyoopr`. The chain of seven commits stands on
+the client's `main@origin` (`ozpxotqm`), which did not move (fetched at
+the end); `jj st` is clean in both workspaces.
+
+| change | what |
+|---|---|
+| `rllwppox` | a link pasted into the open page opens on `hashchange`, the closed proofs restorable |
+| `mqqotwoy` | Learn's Reference shows every rule label's hint; the axe exception rests on that alone |
+| `vvtvvuwk` | the review's finding 2: a pasted link read from its event's address |
+| `otqopolw` | the review's finding 1: classical linear logic's two-sided rules drawn in the Reference |
+| `qwsqyklu` | the first flake check's finding: the e2e specs read the Reference from the built page, not from `src/` |
+| `pvnqpnsw` | the import test refuses level 99: with the input moved, deduxit's `LEVEL` is 11 and level 9 imports |
+| `okozzuwt` | flake.lock: Update, the input `deduxit` to `rruyoopr` (deduxit's dependency update), asked by the planning session as the chain's last commit |
+
+### A link pasted into an open tab
+
+- `App.tsx`: the link opening is one function, `openLink`, called at
+  the load and by `pasted`, the `hashchange` listener. `pasted` reads
+  the event's `newURL` (the review's finding 2), ignores the fragment the page wrote last
+  (`wrote`, read back from `location` after each `replaceState`; a
+  `replaceState` fires no `hashchange` anyway), ignores a fragment that
+  is no link, and runs after the start-up and any earlier paste
+  (`opening`, a promise chain).
+- `state.tsx`, `leave`: as a new load would, it cancels a search under
+  way, saves, starts a new visit (a fresh `visit` key), resets the
+  calculus a new tab starts in to classical linear logic, closes every
+  proof and gathers the earlier visits' proofs, this one's among them,
+  into the restore bar (`setAside`, as at a load). The bar reads "1
+  proof from your last visit", the load's wording, since the pasted
+  link starts a new visit.
+- A paste does not mark itself as the page starting, so the old proof's
+  menus and selection close as the active proof changes.
+- Test (`prover.spec.ts`): a proof begun (`⅋` applied) and its link
+  written, `location.hash` set to a link of `A ⊢ A` and the page's own
+  link put back by `replaceState` before the event; the new sequent opens alone, the bar offers
+  1 proof; after the page writes its own link (with `&d=`) and 500 ms
+  more, still one tab and one proof in the bar; Restore brings back the
+  old proof at the step it had reached. With the listener removed, and
+  with `location.hash` read in place of the event's address, it fails at
+  the new sequent's formula.
+
+### The Reference's missing rules
+
+- `rules.ts` exports `REFERENCE`, five parts taken from the hints' own
+  tables (the same objects the labels' hints show): Mix and affine
+  weakening (one-sided, and `wk` intuitionistic), classical linear logic
+  drawn two-sided (all 38 of its rules, `mix`, `wk`, `~L` and `~R`
+  among them), the Lambek calculus, LK, LJ. The classical two-sided
+  part is beyond the brief's list (the review's finding 1, below): a
+  two-sided name listed under a one-sided rule shows neither the
+  label's schema nor its sentence.
+- `Learn.tsx`: `RuleItem` is the written rules' list item (schema, full
+  name, sentence, a line under it), shared by `Rules` and the new
+  `HintRules`, which portal into `<div data-rules-<key>>` in
+  `texts/reference.md`. The text gains "Mix and weakening", "Classical,
+  two-sided", "The Lambek calculus" and "Ordinary logic" (LK, LJ), each
+  a short paragraph in the switches' own words (the Logic mark, Mix,
+  Affine, Two-sided, Structural rules).
+- `inReference` says whether the Reference shows a label's hint, its
+  full name, schema and sentence: a written rule, or the same hint among
+  the parts.
+  `rules.test.ts` holds every label of every calculus to it, and each
+  part to its place in the text.
+- The axe exception (`accessibility.spec.ts`, `excepted`) now passes a
+  `target-size` violation only on a label's button whose rule
+  (`Rule X, step N`, read unescaped) names a rule the built Reference
+  draws (the hint itself, calculus by calculus, is `rules.test.ts`'s),
+  and still never one that overlaps another
+  button. The comment gives the criterion's "equivalent" exception as
+  the one reason. The old filter also compared the crowded names with
+  the HTML's escaped attribute, so a crowded `&` label was not seen; it
+  now compares the unescaped name.
+- `learn.spec.ts`: each part of the Reference draws a schema of its
+  own (`mix`, `⅋L`, `\L`, `WR`, `¬R`), the LK heading, and the one-sided
+  `mix` marked "One-sided.".
+- The specs first imported `REFERENCE` and the hint tables from `src/`;
+  the client's e2e check builds from `tests/`, `playwright.config.ts`
+  and the built site alone, so both failed there ("Cannot find module
+  /build/source/src/lib/rules"), which the dev shell's `e2e` did not
+  show. `qwsqyklu`: the axe spec reads the schemas' names from the
+  built Reference, once per worker, in a browser context of its own (a
+  second page of the same context would set the walk's proofs aside),
+  and `learn.spec.ts` names the schemas it expects.
+- No zoom floor (declined); the drawing fits the phone as before.
+
+### The checks
+
+| check | result |
+|---|---|
+| Vitest in the dev shell (`--maxWorkers=3`, cores 7-9) | 601 passed (592 on `main`: the Reference's coverage and places in `rules.test.ts`) |
+| `biome lint --error-on-warnings`, `astro check` | 0 errors |
+| e2e `prover`, `learn`, `hints`, `accessibility`, `targets` in the dev shell, after the review's fixes | 116 passed |
+| the paste test with the listener removed; with `location.hash` read in place of the event's address | failed, both |
+| the axe spec with the Reference check forced false | 7 of 48 failed (label states); restored, 48 passed |
+| the client's `nix flake check` at `okozzuwt` before the spec fix | failed: the e2e check has no `src/` ("Cannot find module …/src/lib/rules"); fixed in `qwsqyklu` |
+| the same at `okozzuwt` after it | e2e 1 failed (the import test's level 9, now known to deduxit), 1 flaky (`ordinary.spec.ts`, the structural switch with a goal open, passed on retry; 6 of 6 in the dev shell); fixed in `pvnqpnsw` |
+| the client's `nix flake check --keep-going --max-jobs 4 --cores 8`, under the machine lock, at `okozzuwt`, the chain's last commit | exit 0, "all checks passed!": 601 unit tests, 215 e2e tests passed, none flaky |
+
+### The review
+
+`fresh-reviewer` (Fable 5.2 at `medium`) read the chain, the brief and
+the code and probed the built page in Playwright (a paste during a
+search, an unparseable link pasted during a search, back and forward
+after a paste, a paste during a lesson's worked proof, a Lambek session
+opened from a link, the rendered parts and their ids). Two findings,
+both upheld and fixed:
+1. Medium: for a classical two-sided label other than `mix`, `wk`,
+   `~L` and `~R` (`⅋L` its witness: "par, left" occurs nowhere in the
+   Reference), the Reference showed only the name, listed under the
+   one-sided rule, not the label's schema and sentence; `inReference`
+   and the axe exception counted that as equivalent. Fixed in
+   `otqopolw`: the whole two-sided table is a part of the Reference,
+   `inReference` asks for the same hint, and the comment and `web.md`
+   say why a listed name is no equivalent.
+2. Low: `pasted` read `location.hash` when the event ran, so a link
+   write of the page landing between the navigation and the event made
+   it look like the page's own (reproduced by a `replaceState` in the
+   same task). Fixed in `vvtvvuwk`: the event's `newURL`; the test now
+   does exactly that and fails on the old read.
+Noted, not changed: `leave` keeps a forced engine and the settings set
+for this visit alone, which a load resets; nothing broke from it.
+
+### What the next sessions must know
+
+- A link pasted into the open page opens in place and moves the open
+  proofs to the restore bar: a test that does `goto` to another
+  fragment of a loaded page now opens that link there, then a reload
+  right after may race the page's own link write. Open a link's load in
+  a page of its own, as before.
+- A new rule of deduxit needs its hint (`rules.ts`) and a place in the
+  Reference (a written rule or a `REFERENCE` part); `rules.test.ts`
+  fails otherwise, and the axe spec no longer excepts its label's small
+  button.
+- In the axe walk only linear labels fall under 24 pixels on a phone
+  (the 7 failures with the Reference check off); LK's, LJ's and Mix's
+  labels never reached the exception there.
+- A Playwright spec imports nothing from `src/`: the e2e check's
+  sources are `tests/` and the built site, and the dev shell's `e2e`
+  does not show the difference.
+- The client's `nix fmt` in a fresh workspace built Biome from source
+  (about 12 minutes, `-j 16`, which this session ran outside the
+  machine lock by mistake): run it under the lock with the caps, or
+  after a check that has Biome in the store.
+- `ordinary.spec.ts`' "the structural switch with a goal open" flaked
+  once in the sandbox with deduxit at `rruyoopr` (passed on retry, 6 of
+  6 in the dev shell); watch it.
+- Not changed: `leave` keeps a forced engine and the visit-only
+  settings, which a load resets.
