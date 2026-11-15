@@ -7,8 +7,8 @@ use crate::limit::Deadline;
 use crate::prove::{Stop, on_large_stack, stopped};
 use crate::settings::{Given, time_limit};
 use crate::show::{
-    Show, Shown, abbreviated, derivation, disproof_into, every_steps, lambda_json, lambda_line,
-    linear_term, net_into, net_json, nets_exist,
+    Show, Shown, abbreviated, countermodel_into, derivation, disproof_into, every_steps,
+    lambda_json, lambda_line, linear_term, net_into, net_json, nets_exist,
 };
 use crate::{Status, exit_on_interrupt, interrupted};
 use anyhow::{Context, Result, anyhow, bail};
@@ -677,8 +677,13 @@ fn check_countermodel(
         return Ok((status, true));
     }
     let line = (show.verdict || result.is_err()).then_some(line);
-    show.open(out, line.as_deref())?;
-    let keep = show.close(out, Shown::Nothing, line.as_deref())?;
+    let prefix = show.open(out, line.as_deref())?;
+    let shown = if result.is_ok() && show.format == Format::Rocq {
+        countermodel_into(countermodel, logic, show, prefix.as_deref(), out, over)
+    } else {
+        Shown::Nothing
+    };
+    let keep = show.close(out, shown, line.as_deref())?;
     if result.is_ok() && !quiet && show.format == Format::Text {
         show.after(out, &model.to_string(), false)?;
     }
@@ -791,8 +796,19 @@ fn check_model(
             text.push_str(&format!("\n  at world {v}: {formula} {word}"));
         }
     }
-    show.open(out, Some(&text))?;
-    let keep = show.close(out, Shown::Nothing, Some(&text))?;
+    let prefix = show.open(out, Some(&text))?;
+    // A failing world refutes the sequent: its certificate.
+    let shown = match failing {
+        Some(v) if show.format == Format::Rocq => {
+            let countermodel = ordinary::Countermodel::new(
+                sequent.clone(),
+                deduxit::kripke::Model::new(model.worlds.clone(), v),
+            );
+            countermodel_into(&countermodel, logic, show, prefix.as_deref(), out, over)
+        }
+        _ => Shown::Nothing,
+    };
+    let keep = show.close(out, shown, Some(&text))?;
     Ok((status, keep))
 }
 

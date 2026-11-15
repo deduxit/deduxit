@@ -113,8 +113,9 @@ builds it from the non-flake input `nanoyalla`
 (Click & coLLecT pinned to a commit; `export::rocq::NANOYALLA` names
 the version, which an assertion compares with the kernel's README at
 evaluation) with nixpkgs' Rocq and standard library and compiles the
-`.v` snapshots and six CLI certificates against it (four of them over
-`Prop`, of ordinary logic, classical and intuitionistic, two of `true`,
+`.v` snapshots and seven CLI certificates against it (five of them over
+`Prop`, of ordinary logic, classical and intuitionistic, one from the
+SAT solver's one-world model, two of `true`,
 which bind nothing; the intuitionistic linear one names `--kernel
 nanoyalla`, since the mode alone would choose deduxit's library),
 requiring Rocq to print nothing; `rocq-deduxit.nix` is the check
@@ -123,12 +124,15 @@ exporter's snapshots for deduxit's own Rocq library
 (`core/tests/snapshots/deduxit/`) and the certificates the CLI writes for
 it (Mix, affine, intuitionistic, intuitionistic affine, a `⊤`/`0` goal,
 classical with `--kernel deduxit`, four refutations, five first-order
-ones, one of them from a session's open witness), against the package
+ones, one of them from a session's open witness, four Kripke
+countermodels: two by `prove`, one by `check` of an outcome, one of a
+model given), against the package
 `rocq-deduxit` of the flake input `rocq-deduxit`
 (`github:deduxit/rocq-deduxit`, pinned by the lock; `ROCQPATH`
 names its `user-contrib` and the standard library's), requires silence
-from each and that a first-order certificate with a wrong witness
-planted by `sed` be refused, and compiles a file that requires an
+from each and that a first-order certificate with a wrong witness, a weight and a
+countermodel whose valuation shrinks, each planted by `sed`, be
+refused, and compiles a file that requires an
 intuitionistic certificate as a module and applies its lemma to the
 two-sided goal (the Rocq chapter's example, `-R . Proofs`, kept equal to
 it by hand); an assertion at evaluation compares

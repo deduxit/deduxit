@@ -48,7 +48,8 @@ names:
 - `deduxit`, deduxit's own Rocq library
   ([deduxit/rocq-deduxit](https://github.com/deduxit/rocq-deduxit)),
   the default for Mix, affine and intuitionistic logic, for a sequent
-  with a quantifier, and the only kernel for a refutation.
+  with a quantifier, and the only kernel for a refutation and for a
+  Kripke countermodel of ordinary logic.
 
 The verdict line becomes a comment of the certificate.
 
@@ -193,6 +194,16 @@ $ deduxit prove --format rocq "A & B |- A * B"
 no certificate: an exhausted search states no invariant, so only the search rules the proofs out and Rocq has nothing to check
 (* unprovable (MALL, classical, focus engine): the search was exhaustive *)
 ```
+
+A sequent of intuitionistic or minimal logic that is not valid gets a
+certificate from its Kripke countermodel: the lemma `~ lj (atom :=
+string) intuitionistic [Γ] C` (or `minimal`), proved by the library's
+`kripke_refutation` from the model written as data, which the library
+checks by computation ([A countermodel](ordinary-logic.md#a-countermodel)
+shows one). Its statement rests on the library's
+`Intuitionistic/Formulas.v` and `Intuitionistic/Calculus.v`: the
+formulas of ordinary logic and the calculus LJ, with minimal logic as
+LJ without its rule for `false`.
 
 ## Check one without Nix
 

@@ -173,7 +173,9 @@ in use.
   checker of its own validates and every output draws. Its weakenings and
   contractions are drawn, or left out where they are admissible. A valid
   sequent gets a certificate over `Prop` for Rocq, and so does a sequent
-  that an assignment of its atoms makes false.
+  that an assignment of its atoms makes false; a Kripke countermodel of
+  intuitionistic or minimal logic gets a certificate for deduxit's Rocq
+  library.
 - Sequents are proved step by step in LK and LJ, in the command and in
   the web bindings.
 - In the library, behind the default feature `sat`, `ordinary::sat`

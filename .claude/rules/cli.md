@@ -170,7 +170,13 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   document is refused, and `eliminate` refuses both flags. `prove`
   prints the countermodel after a "not valid" verdict line as text
   (`kripke::Model`'s `Display`, not under `-q` or `--tree never`; the
-  drawn formats show none), and a model too large says so on the line. A bare derivation of LK or LJ is checked
+  drawn formats show none), and a model too large says so on the line.
+  `--format rocq` writes its certificate (`show::countermodel_into`,
+  `rocq::write_countermodel` under the settings' limits, a refusal a
+  `no certificate: …` line, the verdict standing), in `write_native`,
+  in `check_countermodel` for a refutation that holds, and in
+  `check_model` for the failing world (the model with that world as its
+  own). A bare derivation of LK or LJ is checked
   the same way. `read_proof`'s ordinary message is `eliminate`'s now. `seq print --logic`
   prints the image (two-sided for ILL). In a batch the logic applies to
   every entry, `lines` being ordinary sequents, and JSON and LLTP inputs

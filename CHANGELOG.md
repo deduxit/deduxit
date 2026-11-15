@@ -134,6 +134,17 @@ unchanged.
   status 0, 1, or 2 for no model of the logic). The bindings' call
   `ordinary_model` does the same. A model that fails its check is the
   new `Error::Model` (code `invalid_model`, kind invalid).
+- **A Kripke countermodel has a Rocq certificate**: `--format rocq`
+  on a "not valid" of intuitionistic or minimal logic writes the lemma
+  `~ lj (atom := string) intuitionistic [Γ] C` (or `minimal`) for the
+  Rocq library, proved by its `kripke_refutation` from the model as
+  data, which the library checks by computation; a classical model of
+  one world gets the certificate over `Prop`. `check --format rocq`
+  writes it for an outcome's countermodel and for a model you give, at
+  the world where it fails. In the library,
+  `export::rocq::write_countermodel` and the prelude
+  `DEDUXIT_KRIPKE_PRELUDE`. It needs the Rocq library's
+  `Deduxit.Intuitionistic`, which its next release adds.
 - **`deduxit::kripke::Model`**, the countermodel shared by the suites:
   worlds, their atoms by name, `falsity` for minimal logic, the arrows
   of the order and the world it is about. Ordinary logic checks it

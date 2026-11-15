@@ -6,7 +6,8 @@
 # CLI writes, first-order ones among them, compiled against that library as
 # the flake input `rocq-deduxit' pins it (github:deduxit/rocq-deduxit, built with
 # this flake's nixpkgs, so with the Rocq the NanoYalla check uses, rocq.nix);
-# a certificate with a planted fault (a wrong witness, a wrong weight) must
+# a certificate with a planted fault (a wrong witness, a wrong weight, a
+# valuation that does not grow along the order) must
 # be refused, and a file that requires a certificate and applies its lemma
 # compiles. Rocq prints nothing for
 # a file it accepts, so any other output fails the check, and `Print
@@ -109,6 +110,20 @@
               'forall x. p(x), q |- exists y. p(y)'
             deduxit prove -i --affine --format rocq --standalone --output cli_fo_ill_affine.v \
               'forall x. p(x), q |- exists y. p(y)'
+            # Kripke countermodels of intuitionistic and minimal logic: two
+            # the search found, one from checking an outcome, one from a
+            # model the user gives.
+            deduxit prove --logic intuitionistic --format rocq --standalone --output cli_kripke.v \
+              '|- a \/ ~a' || [ $? -eq 1 ]
+            deduxit prove --logic minimal --format rocq --standalone --output cli_kripke_minimal.v \
+              'a, ~a |- b' || [ $? -eq 1 ]
+            deduxit prove --logic intuitionistic --format json --output ../peirce.json \
+              '((a -> b) -> a) -> a' || [ $? -eq 1 ]
+            deduxit check --format rocq --standalone --output cli_kripke_check.v ../peirce.json
+            echo '{"version": 13, "worlds": [{"atoms": [], "arrows": [1]}, {"atoms": ["a"]}]}' >../model.json
+            deduxit check --logic intuitionistic --sequent '~~a |- a' --format rocq --standalone \
+              --output cli_kripke_model.v ../model.json || [ $? -eq 1 ]
+            for file in cli_kripke*.v; do grep -q '^Lemma certificate' "$file"; done
             printf '%s\n' 'apply 0 0 ∀L' 'apply 1 0 ∃R' 'close 2' 'proof --rocq cli_fo_session.v' |
               deduxit interact -i --style rocq.form=standalone 'forall x. p(x) |- exists y. p(y)' >/dev/null
             for file in *.v; do
@@ -150,6 +165,17 @@
             fi
             if rocq compile ../fault/weight.v >/dev/null 2>&1; then
               echo "a certificate with a wrong weight was accepted"
+              exit 1
+            fi
+            # And a model whose atom a later world forgets: one the sequent
+            # does not name, so only the model's growth fails.
+            sed 's/atoms := \[\[\]; \["a"\]\]/atoms := [["b"]; ["a"]]/' cli_kripke_model.v >../fault/model.v
+            if cmp -s cli_kripke_model.v ../fault/model.v; then
+              echo "no model was planted"
+              exit 1
+            fi
+            if rocq compile ../fault/model.v >/dev/null 2>&1; then
+              echo "a certificate with a model that is no Kripke model was accepted"
               exit 1
             fi
             # A certificate is a module that another file requires, applying

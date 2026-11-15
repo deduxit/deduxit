@@ -1074,6 +1074,12 @@ it; the model's world forces every formula left of `|-` and not the one
 right of it. Classically the model has one world, the assignment (also
 from the embedding's refutation); `falsity` is minimal logic's. LJT gives
 no model. A model past a size bound is reported as too large to show.
+`--format rocq` writes the model as a certificate for the Rocq library
+(`~ lj (atom := string) intuitionistic [Γ] C`, or `minimal`, proved by
+`kripke_refutation` from the model as data); a classical one-world
+model, the certificate over `Prop`. `check --format rocq` writes it for
+an outcome's countermodel, and for a model of your own at the world
+where it fails.
 
 `check --logic L --sequent SEQUENT FILE` checks a model in that JSON
 form (`{"worlds": […]}`) against a sequent: first that it is a model of
@@ -1094,7 +1100,9 @@ In the library, `ordinary::Outcome::countermodel` holds it
 answers what each world forces (`Forcing::holds`, `failing`,
 `failing_anywhere`, `at`), and `model.refutes(&sequent, logic, &limits,
 stop)` whether its world refutes the sequent, within
-`ordinary::MODEL_CELLS` cells and `limits.memory_bytes`.
+`ordinary::MODEL_CELLS` cells and `limits.memory_bytes`;
+`export::rocq::write_countermodel(&countermodel, logic, &options,
+&limits, &mut out, stop)` writes its certificate.
 
 ### Examples
 

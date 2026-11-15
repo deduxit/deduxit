@@ -240,6 +240,28 @@ and only minimal logic has `falsity`. A key it does not know, such as a
 misspelt `arrows`, is an error. The exit status is 0 where the sequent
 holds, 1 where it fails, and 2 for a file that is no model of the logic.
 
+`--format rocq` writes the model as a certificate for deduxit's Rocq
+library ([Check a certificate in Rocq](rocq.md)): a lemma that LJ, or
+minimal logic, does not derive the sequent, proved by the library's
+theorem that a Kripke model refutes what it does not satisfy. The model
+is written as data: for each world the worlds above it, the atoms it
+forces, and the worlds that force `false`. The library checks it by
+computation. `check --format rocq` writes the same for a countermodel
+in an outcome, and for a model of your own at the world where it fails.
+
+```console
+$ deduxit prove --logic intuitionistic --format rocq 'a \/ ~a'
+(* not valid (intuitionistic logic by the SAT solver): a checked countermodel refutes it *)
+Lemma certificate : ~ lj (atom := string) intuitionistic [] (vee (var "a") (neg (var "a"))).
+Proof.
+  apply (kripke_refutation String.eqb String.eqb_spec intuitionistic
+    {| later := [[1]; []];
+       atoms := [[]; ["a"]];
+       absurd := [] |} 0).
+  vm_compute. reflexivity.
+Qed.
+```
+
 ## Draw the derivation
 
 The derivation is checked with every weakening and contraction as an
@@ -267,10 +289,12 @@ valid (classical logic by the affine translation into affine MALL, focus engine)
 `--format latex`, `typst`, `svg`, `png` and `pdf` draw the derivation of
 LK or LJ. `--format rocq` writes a certificate over `Prop` that needs no
 library; a classical one uses the standard library's excluded middle.
-For a sequent that is not valid, where its image's refutation is a
-classical assignment, the certificate is the lemma that the formula does
-not hold for all propositions, proved by instantiating the atoms with
-`True` and `False`:
+For a sequent that is not valid, where its image's refutation or the SAT
+solver's model is a classical assignment, the certificate is the lemma
+that the formula does not hold for all propositions, proved by
+instantiating the atoms with `True` and `False`. A Kripke countermodel
+of intuitionistic or minimal logic has a certificate of its own
+([A countermodel](#a-countermodel)).
 
 ```console
 $ deduxit prove --logic classical --format rocq 'a \/ ~a'

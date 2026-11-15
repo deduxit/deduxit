@@ -525,6 +525,35 @@ pub(crate) fn disproof_into(
     }
 }
 
+/// Writes the certificate of a countermodel into `out` after `prefix`,
+/// for `--format rocq`: that deduxit's library does not derive the
+/// sequent in LJ or LM, or in classical logic that it is false over
+/// `Prop`; or says why there is none (a model past a bound, or `halt`),
+/// which leaves the verdict as it is.
+pub(crate) fn countermodel_into(
+    countermodel: &deduxit::ordinary::Countermodel,
+    logic: deduxit::ordinary::Logic,
+    show: &Show,
+    prefix: Option<&str>,
+    out: &mut impl Write,
+    halt: impl Fn() -> bool,
+) -> Shown {
+    let mut out = Prefixed { out, prefix };
+    let written = rocq::write_countermodel(
+        countermodel,
+        logic,
+        &show.styles.rocq,
+        &show.limits,
+        &mut out,
+        |_| halt(),
+    );
+    match written {
+        // The output's own error, which finishing it reports.
+        Ok(()) | Err(Error::WriteFailed) => Shown::Written,
+        Err(error) => Shown::LeftOut(format!("no certificate: {error}")),
+    }
+}
+
 /// Writes the derivation of a proof into `out` as `show` asks, two-sided
 /// in intuitionistic mode, after a newline: a text tree, a LaTeX or
 /// Typst proof tree, an SVG document or a Rocq script; or says why it is

@@ -82,8 +82,15 @@
             # the command exits with 1 for a sequent that is not valid.
             deduxit prove --logic classical --format rocq --standalone --output cli_lk_not_valid.v \
               'a -> b, b |- a' || [ $? -eq 1 ]
-            deduxit prove --logic intuitionistic --format rocq --standalone --output cli_lj_not_valid.v \
-              'a \/ (b -> a)' || [ $? -eq 1 ]
+            # The embedding: the SAT solver, the default, gives a Kripke
+            # countermodel, whose certificate is the library's (rocq-deduxit.nix).
+            deduxit prove --logic intuitionistic --method embedding --format rocq --standalone \
+              --output cli_lj_not_valid.v 'a \/ (b -> a)' || [ $? -eq 1 ]
+            grep -q '^Lemma certificate' cli_lj_not_valid.v
+            # And by the one world of the SAT solver's countermodel.
+            deduxit prove --logic classical --method sat --format rocq --standalone \
+              --output cli_lk_kripke.v 'a -> b, b |- a' || [ $? -eq 1 ]
+            grep -q '^Lemma certificate' cli_lk_kripke.v
             for file in *.v; do
               rocq compile "$file" 2>&1 | tee log
               if [ -s log ]; then exit 1; fi

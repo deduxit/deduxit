@@ -374,6 +374,19 @@ pub(crate) fn write_native(
             // A clausal proof, which the verdict line names.
             Err(error) => Shown::LeftOut(error.to_string()),
         },
+        (ordinary::Verdict::NotValid, false) if format == Format::Rocq => {
+            match &outcome.countermodel {
+                Some(countermodel) => crate::show::countermodel_into(
+                    countermodel,
+                    outcome.logic,
+                    &show,
+                    prefix.as_deref(),
+                    &mut out,
+                    over,
+                ),
+                None => Shown::Nothing,
+            }
+        }
         _ => Shown::Nothing,
     };
     let drawn = matches!(shown, Shown::Written | Shown::Rendered(_));
