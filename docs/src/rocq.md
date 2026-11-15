@@ -22,7 +22,7 @@ The certificate holds.
 
 The app reads the kernel from the file's import lines and compiles the
 file against the versions the flake pins: Rocq and its standard library
-from nixpkgs, NanoYalla 1.1.3 and rocq-deduxit 0.3.0. A release's tag
+from nixpkgs, NanoYalla 1.1.3 and rocq-deduxit 0.4.0. A release's tag
 after the repository's name (`github:deduxit/deduxit/TAG`) takes that
 release's versions. Then the app asks Rocq which axioms each lemma
 rests on, since a proof left `Admitted` compiles too. Its exit status
@@ -227,12 +227,13 @@ Yalla installation, and the certificate uses no cut and no axiom.
 
 The library is the package `rocq-deduxit`, in a repository of its own,
 [deduxit/rocq-deduxit](https://github.com/deduxit/rocq-deduxit). It
-runs on Rocq 9.0 to 9.3 with its standard library alone, and its linear
-logic is under the logical path `Deduxit.Linear`. Its version is
-deduxit's, so deduxit 0.3.0's certificates compile against
-rocq-deduxit 0.3.0.
+runs on Rocq 9.0 to 9.3 with its standard library alone. Its linear
+logic is under the logical path `Deduxit.Linear`, and intuitionistic
+and minimal logic with their Kripke models under
+`Deduxit.Intuitionistic`. Its version is deduxit's, so deduxit 0.4.0's
+certificates compile against rocq-deduxit 0.4.0.
 
-Build it with Nix (`nix build github:deduxit/rocq-deduxit/v0.3.0`), or
+Build it with Nix (`nix build github:deduxit/rocq-deduxit/v0.4.0`), or
 with `make` in a checkout with Rocq on the path. Built in place, a
 certificate compiles with the theories on the load path:
 
@@ -246,7 +247,7 @@ the Rocq opam archive, so `opam install rocq-deduxit` fails today; once
 a release is there, the archive's two lines install it:
 
 ```sh
-opam pin add rocq-deduxit https://github.com/deduxit/rocq-deduxit.git#v0.3.0
+opam pin add rocq-deduxit https://github.com/deduxit/rocq-deduxit.git#v0.4.0
 ```
 
 ```sh

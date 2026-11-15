@@ -271,7 +271,7 @@ pub enum Kernel {
 /// repository <https://github.com/deduxit/rocq-deduxit>, logical root
 /// `Deduxit`, its linear logic under `Deduxit.Linear`. It builds with
 /// Rocq 9 and its standard library.
-pub const DEDUXIT: &str = "0.3.0";
+pub const DEDUXIT: &str = "0.4.0";
 
 /// The prelude of a one-sided certificate for deduxit's library: the
 /// imports of its soundness theorems, and of lists and strings, whose
