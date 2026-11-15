@@ -282,7 +282,14 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   2⁶⁰ characters, written with no stop past `--timeout`), refused as a whole past
   `--derivation-limit` at `LINE_BYTES` beyond each sequent. Lines are
   written apart without a last newline (`Lines`), which
-  `Output::finish` adds. Only text and JSON: another `--format`,
+  `Output::finish` adds. `--layout fitch` (`LayoutArg`, `view.layout`)
+  writes the Fitch proof's text in place of the list. `--format latex|
+  typst|svg` (`drawing`) writes the verdict as the format's comment and
+  the tree (`rules::Drawing`) or the Fitch proof (`rules::Fitch`), with
+  the styles' options; nothing to draw (an invalid derivation, `-q`,
+  `--tree never`) or a drawing left out (`Error::NotFitch`, a bound,
+  `left_out`) puts the verdict and the reason on standard error and
+  writes nothing. Another `--format`,
   `--net`, `--lambda`, a mode flag or `--logic` beside such a file is
   exit 2. `Checked` has `calculus` for it; `eliminate` refuses the
   flag.

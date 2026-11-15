@@ -934,6 +934,20 @@ pub(crate) struct CheckArgs {
     /// for soundness.
     #[arg(help_heading = INPUT, long, value_name = "CALCULUS")]
     pub(crate) calculus: Option<PathBuf>,
+    /// With a derivation in a calculus given as data, how it is written:
+    /// as a proof tree, or as a Fitch proof (view.layout)
+    ///
+    /// As a tree, text lists the derivation's nodes, and latex, typst and
+    /// svg draw it with the conclusion at the root; in natural deduction a
+    /// hypothesis stands alone at a leaf, the ones a rule discharges in
+    /// brackets with a number, which the rule's name carries. As a Fitch
+    /// proof, every format writes numbered lines, each with its rule and
+    /// the lines it cites, a subproof's lines together under its
+    /// hypotheses; latex uses the package fitch and typst the package
+    /// fitchcraft. A derivation whose lines cannot be put in such an
+    /// order is left out with the reason, and the verdict stands.
+    #[arg(help_heading = OUTPUT, long, value_enum, value_name = "LAYOUT", default_value_t = LayoutArg::Tree)]
+    pub(crate) layout: LayoutArg,
     /// Where to write the result.
     #[command(flatten)]
     pub(crate) output: OutputArgs,
@@ -1703,6 +1717,25 @@ pub(crate) struct OutputArgs {
     pub(crate) classical_sides: ClassicalSidesArg,
 }
 
+/// How a derivation in a calculus given as data is written.
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum LayoutArg {
+    /// A proof tree
+    Tree,
+    /// A Fitch proof: numbered lines, subproofs together
+    Fitch,
+}
+
+impl From<LayoutArg> for deduxit::linear::proofs::Layout {
+    /// Returns the library's value of the switch.
+    fn from(layout: LayoutArg) -> Self {
+        match layout {
+            LayoutArg::Tree => Self::Tree,
+            LayoutArg::Fitch => Self::Fitch,
+        }
+    }
+}
+
 /// How a derivation of classical linear logic is drawn.
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ClassicalSidesArg {
@@ -1875,7 +1908,9 @@ pub(crate) struct StyleArgs {
     ///
     /// png: scale, pixels. pdf: embed_text, compatible, accessible, title,
     /// language, date. rocq: form, lemma, prelude, kernel, where the
-    /// command writes Rocq.
+    /// command writes Rocq. fitch: hypothesis, open, the justification a
+    /// Fitch proof writes beside a hypothesis and an open line, in every
+    /// format (check --calculus --layout fitch).
     ///
     /// labels is upright, subscript, off or {"table":{RULE:LABEL}}.
     /// `labels.table.RULE=LABEL` sets one rule's label and leaves the

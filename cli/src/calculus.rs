@@ -10,10 +10,14 @@ use crate::check::{CHECKED_LEVEL, Checked};
 use crate::io;
 use crate::limit::Deadline;
 use crate::prove::{Stop, stopped};
-use crate::show::Show;
+use crate::show::{Show, note};
 use crate::{Status, interrupted};
 use anyhow::{Context, Result, bail};
-use deduxit::rules::{self, Calculus, Derivation, NodeRef, ScopeId, Step, TermId, Terms};
+use deduxit::export::{Drawable, latex, svg, typst};
+use deduxit::linear::proofs::Layout;
+use deduxit::rules::{
+    self, Calculus, Derivation, Drawing, Fitch, NodeRef, ScopeId, Step, TermId, Terms,
+};
 use deduxit::{Error, Limits};
 use std::fmt::Write as _;
 use std::io::Write as _;
@@ -126,10 +130,14 @@ pub(crate) fn check_rules(
     deadline: &Deadline,
     out: &mut io::Output,
 ) -> Result<(Status, bool)> {
-    if !matches!(show.format, Format::Text | Format::Json) || show.net || show.lambda.is_some() {
+    let drawn = matches!(show.format, Format::Latex | Format::Typst | Format::Svg);
+    if !(drawn || matches!(show.format, Format::Text | Format::Json))
+        || show.net
+        || show.lambda.is_some()
+    {
         bail!(
-            "a derivation in a calculus given as data is shown as text or JSON: leave out \
-             --format, --net and --lambda"
+            "a derivation in a calculus given as data is shown as text, json, latex, typst or \
+             svg: give one of those to --format, and leave out --net and --lambda"
         );
     }
     let over = || interrupted() || deadline.passed() || io::closed();
@@ -197,6 +205,18 @@ pub(crate) fn check_rules(
         serde_json::to_writer(out.stream(), &checked)?;
         return Ok((status, true));
     }
+    if drawn {
+        return drawing(
+            derivation,
+            calculus,
+            show,
+            quiet,
+            &line,
+            status,
+            result.is_ok(),
+            out,
+        );
+    }
     // Lines are written apart, the last without its newline, which
     // finishing the output adds.
     let mut lines = Lines { written: false };
@@ -205,6 +225,17 @@ pub(crate) fn check_rules(
     }
     if result.is_err() || quiet || show.tree == Tree::Never {
         return Ok((status, lines.written));
+    }
+    if show.view.layout == Layout::Fitch {
+        match Fitch::new(calculus, derivation, &show.styles.fitch, &show.limits) {
+            Ok(fitch) => {
+                for row in fitch.to_string().lines() {
+                    lines.write(out, row)?;
+                }
+            }
+            Err(error) => lines.write(out, &left_out(&error))?,
+        }
+        return Ok((status, true));
     }
     // The list is bounded as a drawing is: a line per node, each sequent
     // within --abbreviate.
@@ -233,6 +264,80 @@ pub(crate) fn check_rules(
         )?;
     }
     Ok((status, lines.written))
+}
+
+/// Returns the line that says why a derivation's drawing or Fitch proof
+/// is left out.
+fn left_out(error: &Error) -> String {
+    let flag = match error.setting() {
+        Some("limits.derivation_bytes") => "; raise --derivation-limit",
+        Some("limits.work") => "; raise --work-limit",
+        _ => "",
+    };
+    format!("the derivation is left out: {error}{flag}")
+}
+
+/// Writes a checked derivation in a drawn format (latex, typst, svg), as
+/// a tree or a Fitch proof by `view.layout`: the verdict as the format's
+/// comment, then the derivation. Where there is nothing to draw (the
+/// derivation is invalid, or `-q` or `--tree never` asks for none) or it
+/// is left out, the verdict and the reason go to standard error and the
+/// output holds nothing. Returns the status and whether anything was
+/// written.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the check's parts, each needed once"
+)]
+fn drawing(
+    derivation: &Derivation,
+    calculus: &Calculus,
+    show: &Show,
+    quiet: bool,
+    verdict: &str,
+    status: Status,
+    valid: bool,
+    out: &mut io::Output,
+) -> Result<(Status, bool)> {
+    let say = |line: &str| {
+        if show.verdict || !valid {
+            eprintln!("{line}");
+        }
+    };
+    if !valid || quiet || show.tree == Tree::Never {
+        say(verdict);
+        return Ok((status, false));
+    }
+    let over = || interrupted() || io::closed();
+    let write = |drawable: Drawable<'_>| -> Result<String, Error> {
+        let mut text = String::new();
+        let styles = &show.styles;
+        match show.format {
+            Format::Latex => latex::write(drawable, &styles.latex, &mut text, |_| over())?,
+            Format::Typst => typst::write(drawable, &styles.typst, &mut text, |_| over())?,
+            _ => svg::write(drawable, &styles.svg, &mut text, |_| over())?,
+        }
+        Ok(text)
+    };
+    let made = match show.view.layout {
+        Layout::Fitch => Fitch::new(calculus, derivation, &show.styles.fitch, &show.limits)
+            .and_then(|fitch| write(Drawable::from(&fitch))),
+        _ => Drawing::new(calculus, derivation, &show.limits)
+            .and_then(|tree| write(Drawable::from(&tree))),
+    };
+    match made {
+        Ok(text) => {
+            if show.verdict {
+                writeln!(out.stream(), "{}", note(show.format, verdict))?;
+            }
+            out.stream().write_all(text.as_bytes())?;
+            Ok((status, true))
+        }
+        Err(error) => {
+            say(verdict);
+            eprintln!("{}", left_out(&error));
+            Ok((status, false))
+        }
+    }
 }
 
 /// Lines written to an output, each but the first after a newline.

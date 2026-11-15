@@ -354,6 +354,9 @@ impl CheckArgs {
         if apply.set("classical_sides") {
             settings.view.classical = self.output.classical_sides.into();
         }
+        if apply.set("layout") {
+            settings.view.layout = self.layout.into();
+        }
         self.output.lambda_style.apply(&mut settings, &apply);
         Ok(settings)
     }
@@ -681,7 +684,8 @@ mod tests {
             --occurrence-limit 12   /limits/occurrences        11                12
             --term-limit 12         /limits/terms              11                12
             --derivation-limit 3KiB /limits/derivation_bytes   1024              3072
-            --compact never         /view/compact              "always"          "never""#;
+            --compact never         /view/compact              "always"          "never"
+            --layout fitch          /view/layout               "tree"            "fitch""#;
         const LAMBDA: &str = r#"
             --lambda-notation ascii /lambda/notation           "unicode"         "ascii"
             --lambda-types          /lambda/types              false             true"#;

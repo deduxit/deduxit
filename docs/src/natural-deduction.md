@@ -49,6 +49,62 @@ The proof names its calculus, so `check` needs no flag. `--calculus`
 names a built-in calculus or a rule file of your own, and the proof
 must name the same calculus.
 
+## Draw a proof
+
+`check` writes a proof as a tree by default, and as a Fitch proof with
+`--layout fitch`. This proof puts the one above inside `→I`, which
+discharges the assumption `a ∨ b`:
+
+```console
+$ cat > or.json
+> {"version": 15, "calculus": "NJ",
+>  "terms": ["a", "b", ["∨", 0, 1], ["∨", 1, 0], ["→", 2, 3]],
+>  "scopes": [0, 1, 1],
+>  "nodes": [
+>   {"sequent": [[2]], "hypothesis": true, "scope": 1},
+>   {"sequent": [[0]], "hypothesis": true, "scope": 2},
+>   {"sequent": [[3]], "rule": "∨I₂", "premises": [1], "scope": 2},
+>   {"sequent": [[1]], "hypothesis": true, "scope": 3},
+>   {"sequent": [[3]], "rule": "∨I₁", "premises": [3], "scope": 3},
+>   {"sequent": [[3]], "rule": "∨E", "premises": [0, 2, 4], "scope": 1},
+>   {"sequent": [[4]], "rule": "→I", "premises": [5]}]}
+$ deduxit check or.json --layout fitch
+valid in the calculus given (NJ): a ∨ b → b ∨ a, a derivation of 7 nodes
+1 │ │ a ∨ b
+  │ ├───
+2 │ │ │ a
+  │ │ ├───
+3 │ │ │ b ∨ a       ∨I₂ 2
+4 │ │ │ b
+  │ │ ├───
+5 │ │ │ b ∨ a       ∨I₁ 4
+6 │ │ b ∨ a         ∨E 1, 2–3, 4–5
+7 │ a ∨ b → b ∨ a   →I 1–6
+$ deduxit check or.json --format latex --standalone --output or.tex
+$ deduxit check or.json --layout fitch --format typst --standalone --output or.typ
+```
+
+Each line has a number, its formula, and the rule with the lines it
+follows from. A subproof's lines stand together, its hypotheses first
+above a short bar, and a line at its left runs down to its last line.
+A rule that discharges cites the subproof by its first and last line:
+`→I 1–6` takes the subproof that assumes `a ∨ b` and ends in `b ∨ a`.
+The lines need not be in the file's order: `check` puts each subproof
+together, its last line the one the rule takes. A proof whose lines
+cannot be put in such an order, such as one where a line inside a
+subproof uses the subproof's last line, is left out with the reason,
+and the verdict stands.
+
+`--format latex`, `typst` and `svg` draw either layout, as the last two
+commands do. In the tree each hypothesis stands alone at a leaf. The
+hypotheses a rule discharges are in brackets with a number, and the
+rule carries the same number: `[a]¹` and `[b]²` above `∨E¹˒²`, and
+`[a ∨ b]³` above `→I³`. A Fitch proof is written for the LaTeX package
+`fitch` and the Typst package `fitchcraft`.
+
+`--style fitch.hypothesis=Hyp` writes `Hyp` as a hypothesis's
+justification, as some textbooks do.
+
 ## Choose the rule set
 
 | calculus | logic | how it differs |

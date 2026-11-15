@@ -247,4 +247,6 @@ for an invalid or unknown verdict, as in the first example.
 The check never searches, so its work grows with the derivation's size.
 It keeps to `--timeout`, `--work-limit` and `--memory-limit`, as the
 check of a proof does, and the list of nodes to `--derivation-limit`.
-The derivation is shown as text or JSON alone.
+`--format latex`, `typst` and `svg` draw the derivation as a tree, and
+`--layout fitch` writes it as a Fitch proof:
+[Draw a proof](natural-deduction.md#draw-a-proof) shows both.

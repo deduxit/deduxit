@@ -12,6 +12,19 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### Added
 
+- **Natural deduction drawn as textbooks draw it**: in a tree each
+  hypothesis stands alone at a leaf, the ones a rule discharges in
+  brackets with a number that the rule carries (`[a]¹` … `→I¹`), in
+  LaTeX, Typst and SVG. **A Fitch proof** of any derivation in a
+  calculus given as data (`rules::Fitch`): numbered lines, each
+  subproof's lines together under its hypotheses, a rule citing lines
+  and subproofs (`→I 1–6`), written as text, as SVG, for the LaTeX
+  package `fitch` and for the Typst package `fitchcraft`.
+  `check --calculus` draws both (`--format latex|typst|svg`, `--layout
+  fitch`, the settings key `view.layout`, the style `fitch`); a
+  derivation whose lines cannot be put in Fitch's order is refused with
+  the reason (`Error::NotFitch`).
+
 - **A calculus given as data** (the library, `deduxit::rules`): a rule
   file in JSON (connectives, the zones of a sequent, rules as premises
   and a conclusion over schematic formulas and contexts), a derivation
