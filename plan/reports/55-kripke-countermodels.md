@@ -201,3 +201,301 @@ check. Its findings:
   arm checks it (`Model::refutes`) and answers valid or invalid.
 - The SAT solver's `NotValid` in classical logic is one world; the
   embedding's `NotValid` carries the image's refutation already.
+
+## Session 55b: the countermodel
+
+Opus 5.5 at `high`, the reused worker of 55a (same conversation), in
+the jj workspace `../deduxit-wt-step-54s-c1-161790`, from "Fixed now" of
+`plan/55-kripke-countermodels.md` and the brief `start-55b.md`, on
+2026-11-15, cores 4 to 6.
+
+### Outcome
+
+- **The output kind** is `deduxit::kripke::Model`, a root module shared
+  by the suites: worlds, each with the atoms it forces by name,
+  `falsity` (minimal logic's `⊥`), and its arrows to the worlds directly
+  above it, the order being their reflexive and transitive closure; and
+  `world`, the world the model is about (for a countermodel, where the
+  sequent fails). It is data: each suite checks it by its own rules, so
+  the modal suite (step 65) reads the arrows as its accessibility with
+  its frame conditions; the classical assignment is the one-world case.
+- **Its sources**: the SAT method's model (now the default's in
+  intuitionistic and minimal logic) and, in classical logic, the SAT
+  solver's assignment or the embedding's (the image's
+  `Refutation::Classical`, its atoms the ordinary atoms by name), each
+  checked by `Model::refutes` before it is kept. `ordinary::Countermodel`
+  pairs the model with the sequent it refutes, and
+  `ordinary::Outcome::countermodel` holds it for a "not valid". LJT's
+  "not valid" has none (below).
+- **The check is a checker** (`core/src/ordinary/model.rs`):
+  `Model::forcing` checks the model is one of the logic, then computes
+  forcing of every formula of the sequent's arena at every world, within
+  `ordinary::MODEL_CELLS` (2²⁷ cells: worlds and arrows times formulas,
+  16 MiB of bits), said at its declaration, and within
+  `limits.memory_bytes` with what it holds beside the table; past either
+  the check is refused as memory, and an engine's model it refuses is
+  dropped (`Countermodel::found`): the verdict stays "not valid" and its
+  line says "a countermodel of N worlds refutes it, too large to show and
+  check".
+- **A model the user gives**: `check --logic L --sequent SEQUENT
+  [--world N] model.json` and the bindings' `ordinary_model`, below.
+- **`check` checks an outcome's countermodel** (55a's `(NotValid, None)`
+  arm): valid refutation, exit 0; invalid, exit 1.
+- **`prove --logic`** prints the model after a "not valid" verdict
+  line, a world per line (`world 0 (the model's world): forces nothing;
+  below 1`).
+
+The commits on `main@origin` (`kquywyxw`): `qrzksyox` (the library: the
+kind, the check, the sources, the outcome's field, the JSON, level 13),
+`tsnkovrm` (the command, the bindings, the manual, the guide, the
+changelog), `lyoprosz` (the lock), `sskymumt` (the panel's fixes), `vyzvoxok`
+(the reviewer's) and this report's.
+
+### The output kind and its JSON
+
+`{"version": 13, "worlds": [{"atoms": [], "arrows": [1]}, {"atoms":
+["a"]}], "world": 0}`: `falsity` written only where true, `arrows` only
+where there are some, `world` defaulting to 0 on reading. The reader
+composes every name (NFC) and checks it as a sequent's atom name is
+(`name::check`), and refuses more worlds, arrows and atoms together than
+`limits.occurrences`; whether the model is one of a logic is the
+check's. In an ordinary outcome: `"countermodel": {"sequent": {…},
+"model": {…}}` (nested, no version), beside `derivation` and
+`clausal_proof`.
+
+**The level**, decided by `wire.rs`'s rules: the model is a new form,
+so its document is at level 13 (`wire::KRIPKE`), as new forms took
+levels 4, 5 and 8. The outcome's `countermodel` is a key a reader of
+level 12 ignores without misreading the verdict, which the rules say
+raises no level, so the outcome stays at 12. `core/tests/wire/level-13.txt`
+holds a model and an outcome with one.
+
+### The extraction per method
+
+- **The SAT method** (intuitionistic, minimal): its model, the worlds
+  of the last round ordered by inclusion (54s-a), now with the atoms by
+  name and the root as the model's world.
+- **The SAT method in classical logic**: the assignment, one world.
+- **The embedding in classical logic**: the image's classical
+  assignment, one world, checked against `Image::ordinary`. The
+  embedding in intuitionistic and minimal logic refutes the image in
+  linear logic (`Disproof`), which is no Kripke model: its "not valid"
+  carries the image's refutation, as before, and no countermodel.
+- **LJT** (`--method ljt`): no model (departs from the design, which
+  asks for Pinto and Dyckhoff's extraction where LJT is the default; it
+  no longer is). Pinto and Dyckhoff (*Loop-free construction of
+  counter-models for intuitionistic propositional logic*, 1995) build a
+  model from a failed search of their own calculus, a G4ip variant
+  whose every failed node keeps the alternatives that failed, joined
+  under a new root. deduxit's LJT keeps a failed sequent's verdict in
+  its memo and nothing of why, refutes some sequents by failure
+  subsumption (a stronger sequent failed before, whose model would have
+  to be carried to the weaker one), and stops a `→→L` frame at its
+  second premise's failure: the failed search it would read is not
+  kept. Recording it is a change to the engine's search, a step of its
+  own; since 54s-c2 the SAT method is the default and gives a model for
+  every sequent it finds not valid, so LJT's "not valid" says "the
+  search was exhaustive", and `check` answers it unknown (exit 3).
+
+### The check and its bound
+
+`Model::forcing` checks: at least one world, `world` among them; every
+arrow to a world of the model and none going round (Kahn's algorithm on
+the arrows, which also gives the order the table is filled in, every
+world after the worlds above it); atoms and `falsity` growing along
+every arrow, by name, so an atom the sequent does not name counts as
+well; `falsity` in minimal logic only; one world in classical logic.
+Then forcing of every formula at every world: an atom where the world
+forces it, `⊥` where it forces `falsity`, `∧` and `∨` from their parts,
+an implication, a negation (`¬A` as `A → ⊥`, so in minimal logic a
+world forcing `⊥` forces `¬A`) and an equivalence where they hold there
+and at every world directly above. `Forcing::holds(w)` is the sequent at
+every world at or above `w`, `failing(w)` a world at or above `w` that
+forces every hypothesis and not the conclusion, `at(w)` each formula's
+forcing; `Model::refutes` asks the model's world to force Γ and not C
+(classically none of Δ; `⊥` for an empty right side). An arrow written
+twice is one. The stop is asked once per world in each of the three
+passes (the atoms as indices, the arrows' check, the table), so no pass
+runs long without it. `MODEL_CELLS` is 2²⁷: the cells (worlds plus
+arrows, times the arena's formulas) are compared with it before the
+table is made, and the table with a few words per world, arrow and atom
+with `limits.memory_bytes`. `forcing` and `refutes` take `&Limits`, as
+every long call of the library does. A model that fails is
+`Error::Model` (kind invalid); `Error::Countermodel` is kept for an
+engine's model that fails, a defect.
+
+### The user's model
+
+`check --logic L --sequent SEQUENT [--world N] FILE`, `FILE` the
+model's JSON (the key `worlds` tells it from the other documents `check`
+reads). `check` is the command that checks a claim read from a file
+(proofs, refutations, outcomes), and a model is a claim about a
+sequent, so it takes the sequent as a flag rather than a new subcommand
+(the CLI's existing shape; `eliminate`, which flattens `check`'s
+arguments, refuses the flags). It answers "the model satisfies S at
+world N" (or "at every world"), exit 0, or "the model does not satisfy
+S …: world V forces each formula left of ⊢ and not the one right of
+it" with a line per subformula of what world V forces, exit 1; a model
+of another logic is an error naming why, exit 2. JSON: `check`'s form
+with `logic` and `failing: {"world", "forcing": [{"formula",
+"forced"}]}`. The bindings' `ordinary_model(model, sequent, logic,
+world, settings)` answers `{"holds", "failing"}` the same way.
+
+### Beth models, weighed
+
+On a finite tree, Beth forcing differs from Kripke forcing in `∨`: a
+node forces `A ∨ B` when some bar above it has every node forcing `A`
+or `B` (a root with two leaves forcing `p` and `q` forces `p ∨ q` in
+Beth's sense, not in Kripke's). It is decidable there and could be a
+second semantics of the same data restricted to trees. Not built
+(departs from the design only in that the prompt allowed it): no engine
+of deduxit produces Beth models, so the semantics would serve only a
+model the user gives, whose editor is step 68's; and finite Kripke
+models are already complete for intuitionistic logic (the finite model
+property), so Beth models add no refutation. The shape when step 68
+wants it: an `ordinary::Semantics::{Kripke, Beth}` argument to
+`forcing`, Beth refusing a model that is not a tree, `∨` (and an atom,
+by the covering condition) read through bars. An infinite fan needs a
+finite presentation, and none is standard: it stays out.
+
+### The panel and the reviewer
+
+Three members, each from a fresh context, on the check and its
+sources: `panel-counterexamples` (Opus 5.5, high), `panel-argument`
+(Fable 5.2, high), `panel-integers` (Sonnet 5.5, high). None found a
+wrong answer: the counterexamples member compared the check with a
+reference of its own (Floyd–Warshall closure, forcing quantified over
+every world above) on 260 000 random models and sequents in the three
+logics, 91 325 runs of the SAT method (72 546 countermodels) and 10 022
+of the classical default, with no mismatch; the argument member stated
+the invariant (a model of the logic; the table equals forcing because
+Kahn's order puts each world after the worlds above it; persistence
+gives soundness, Kripke 1965, Segerberg 1968 for minimal logic) and
+found it held at every site. What they found, and what became of it:
+
+- **A "not valid" lost as an error** (argument 1, integers R3): the SAT
+  method's pre-test counted worlds times formulas, the check worlds and
+  arrows, so a model in the band between was built and its check's
+  memory refusal left `sat::decide` through `?`. Every engine's model now
+  goes through `Countermodel::found`, which drops a model the check
+  refuses for its size and keeps the verdict; the classical paths had
+  no pre-test at all and go through it too. Fixed.
+- **The classical default dropped the solver's model** where the
+  embedding's refutation was not an assignment (argument 2, `prove
+  --classical-work 0 'a |- b'`): `with_evidence` and the command's JSON
+  (`ordinary::solver_model`) now take the solver's. Fixed.
+- **`check` did not read an embedding outcome's countermodel**
+  (argument 3: a forged model beside a true refutation passed): it is
+  now checked first, and a wrong one is the answer. Fixed.
+- **Two passes ran unpolled** (all three: the subset test per arrow,
+  quadratic with duplicate arrows, a minute under `--timeout 1s`; "at
+  every world" in `check` and the bindings, a search per world,
+  quadratic, 178 s on a chain of 100 000 worlds). The check now asks the
+  stop once per world in each of its three passes, reads an arrow
+  written twice as one, looks a world's sorted atom indices up in each
+  world directly above, and `Forcing::failing_anywhere` scans `fails`.
+  Fixed.
+- **The check's memory beside the table was not bounded** (integers R4:
+  110 bytes a world, 35 an atom, gigabytes at the cell bound): `forcing`
+  and `refutes` now take `&Limits`, as every long call does, and refuse
+  past `limits.memory_bytes` with the table and a few words per world,
+  arrow and atom (`WORLD_BYTES`, `ATOM_BYTES`). Fixed.
+- **Error kinds** (argument 6): a model that fails is now `Error::Model`
+  (kind invalid, code `invalid_model`), so a wrong file is no defect;
+  `Error::Countermodel` stays the defect of an engine's model. Two
+  formulas right of `⊢` are an error in `check --sequent` (exit 2) and
+  an invalid refutation in an outcome, no longer "unknown". Fixed.
+- **The manual's negation sentence** was wrong in minimal logic
+  (argument 5): rewritten. Fixed.
+- **`Forcing::forces` past the last world** could read the last word's
+  padding (argument 7): it now asserts the world, as its `# Panics`
+  says. Kahn's count is a `usize` (argument 8, integers). Fixed.
+- **A misspelt key of a model document is ignored** (counterexamples'
+  note): kept, since the wire rules let a reader ignore a key it does
+  not know, so that a later level may add one.
+
+Then `fresh-reviewer` once (Fable 5.2, medium), on the four changes
+then made: the check sound as far as it could break it (every branch
+read, thirteen edge cases run), the level decision right by `wire.rs`'s
+rule, and three findings, all fixed in `vyzvoxok`: the guide gave
+`forcing` and `refutes` without `&Limits`; the rules still named the
+deleted `sat/model.rs` and not `ordinary/model.rs`; and the SAT method's
+order of worlds charged to its memory account before the check
+(`kripke`, n²/8 bytes) still turned a "not valid" into
+`Unknown(MemoryLimit)` past the account, now a "not valid" without its
+model. Its question, not a finding: a misspelt key of a model (`above`
+for `arrows`) is ignored as the wire rules say, so a hand-written model
+can be read as other worlds than meant and answered quietly; whether
+the model document should refuse unknown keys is for the author (open,
+below). A stop during an engine's model check is the stop (documented
+on `Countermodel::found`), where the embedding's path drops the model.
+
+### The checks
+
+- `cargo clippy --workspace --all-targets -- --deny warnings` and
+  `cargo test --workspace`: pass at `sskymumt` (cores 4 to 6), and
+  clippy, the SAT tests and the guide's test again at `vyzvoxok`.
+- The gate (`nix develop -c gate`, cores 4 to 6): passed at `sskymumt`;
+  `vyzvoxok` after it changes one arm of `sat::run`, the guide and a
+  rules file.
+- Every family at 5 s (`deduxit-bench run --all-families --timeout 5`):
+  195 rows, no `MISMATCH`.
+- The ILTP agreement tests (`cargo test -p deduxit --release --test iltp
+  -- --ignored`): 3 passed, 774 s.
+- The panel's witnesses rerun at `sskymumt`: the chain of 100 000 worlds
+  answers in 180 ms (was 178 s), the world of 30 000 atoms and 30 000
+  copies of an arrow in 63 ms (was 57 s), the forged embedding outcome
+  is an invalid refutation (exit 1, was valid), `prove --classical-work
+  0 'a |- b'` writes the solver's model in its JSON, the band witness
+  `win.txt` under `--method sat` is "not valid … too large to show and
+  check", exit 1 (was exit 2), and a wrong model in an outcome writes
+  `invalid_model`.
+- `nix flake check` (under the machine lock, `--max-jobs 4 --cores 8`)
+  at the head rebased onto `main@origin` `zpqkxmzo`: passed, the
+  bindings' tests under Node (`web-wasm-tests`) among its checks; this
+  line is the only change after it.
+
+### Departures from the design
+
+- LJT's "not valid" gets no model (departs from the design): why above.
+- Beth models are weighed, not built (departs from the design in what
+  the prompt left open): why above.
+- A model's worlds form a partial order: arrows that go round are
+  refused, not read as a preorder of equivalent worlds (departs from the
+  design's "a preorder"): a preorder's model is equivalent to its
+  quotient, whose worlds are the classes, and the user writes one world
+  for each class.
+- `ordinary::sat::Model` and `World` are gone, replaced by the shared
+  `kripke::Model` with atoms by name (no release had them).
+
+### What is open
+
+- Whether a model document should refuse a key it does not know: the
+  wire rules let every reader ignore one, so a misspelt `arrows` reads
+  as worlds without arrows and a hand-written model is answered
+  quietly (the reviewer's question). For the author.
+- The embedding's text output under the classical default names the
+  image's refutation; where that is no assignment (`--classical-work 0`)
+  the solver's model is in the JSON only.
+
+### What the next sessions must know
+
+- **55c (the lemma and the exporter)**: the certificate is of an
+  `ordinary::Countermodel` (sequent and model, checked): the library's
+  lemma takes a finite model (worlds, the arrows' closure, the
+  valuation, `falsity` for minimal logic) and a world forcing Γ and not
+  C. The order is the reflexive transitive closure of the arrows, which
+  are acyclic; forcing is the table `Model::forcing` computes, which the
+  exporter can write as data the lemma's checker recomputes. In
+  classical logic the model is one world (the assignment).
+- **55d (the drawing and the page)**: draw `kripke::Model` (worlds as
+  nodes with their atoms, the arrows as the order, `world` marked); its
+  `Display` is the text form the command prints. The page reads it in
+  the ordinary outcome's `countermodel` and checks a model with the
+  bindings' `ordinary_model` (`{"holds", "failing"}`).
+- **Step 65 (modal logics)**: reuse `kripke::Model` as data (worlds,
+  arrows as accessibility, atoms by name, `world`) and write the modal
+  check beside `ordinary/model.rs`, with the frame conditions in place
+  of ordinary logic's partial order and monotone valuation. Its JSON
+  (level 13) needs no change; a frame condition the model claims would
+  be a new key.
