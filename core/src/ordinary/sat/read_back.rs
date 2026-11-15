@@ -4,22 +4,22 @@
 //! The derivation of LJ read off a search that proved its sequent.
 //!
 //! The search proved `Γ ⊢ C` by a SAT call that found its flat clauses and
-//! `¬C` unsatisfiable, after learning clauses `B → c`, each from a call that
-//! found `B, a ⊢ b` for an implication `c = a → b` (or `c = ¬a`, `b` being
-//! `⊥`). Each flat clause is a formula's own rule read as an implication
-//! between its subformulas, so a classical refutation of flat clauses is an
-//! intuitionistic derivation (Fiorentini, Goré and Graham-Lengrand,
-//! TABLEAUX 2019, Lemma 2). It is found again here by a tableau that
-//! applies the rules the clauses stand for, forward, and splits on a
-//! disjunction only where nothing else applies; every split is complete,
-//! since the clauses entail the goal classically.
+//! `¬C` unsatisfiable. Before it, the search learnt clauses `B → c`, each
+//! from a call that found `B, a ⊢ b` for an implication `c = a → b` (or
+//! `c = ¬a`, `b` being `⊥`). Each flat clause is a formula's own rule read
+//! as an implication between its subformulas. So a classical refutation
+//! of flat clauses is an intuitionistic derivation (Fiorentini, Goré and
+//! Graham-Lengrand, TABLEAUX 2019, Lemma 2). A tableau finds that
+//! derivation again: it applies the rules the clauses stand for, forward,
+//! and splits on a disjunction only where nothing else applies. Every
+//! branch closes, since the clauses entail the goal classically.
 //!
-//! A learnt clause becomes the formula `b₁ → (… → (bₙ → c))`, derived once
-//! by `→R` from its tableau and cut below the derivation of the sequent, so
-//! that each use is a run of `→L`. Every derivation is built from the
-//! hypotheses it uses alone: a step whose formulas the derivation above it
-//! does not use is left out, and so is a split whose first branch does not
-//! use its disjunct.
+//! A learnt clause becomes the formula `b₁ → (… → (bₙ → c))`. It is
+//! derived once by `→R` from its tableau and cut below the derivation of
+//! the sequent, so that each use is a run of `→L`. Every derivation keeps
+//! only the hypotheses it uses: a step whose formulas the derivation above
+//! it does not use is left out, and so is a split whose first branch does
+//! not use its disjunct.
 
 use super::super::derivation::{inference_bytes, same, widths};
 use super::super::{Derivation, Formulas, Inference, Logic, Node, NodeId, Rule, Side};
@@ -32,11 +32,12 @@ use crate::linear::search::memory::Account;
 /// How many facts the tableau derives between two polls of the stop.
 const POLL: u64 = 1 << 8;
 
-/// Returns the derivation of LJ of `left ⊢ goal` (`left` as written) from
-/// the lemmas the search learnt, in the order learnt, and the facts the
-/// tableaux derived; the arena gains the lemmas' formulas. `polarity`
-/// says which formulas the search's clauses take apart (negative) and
-/// build (positive); `held` is the memory the search still holds.
+/// Returns the derivation of LJ of `left ⊢ goal` (`left` as written),
+/// read from the lemmas the search learnt in the order learnt, and the
+/// number of facts the tableaux derived. The derivation's arena gains the
+/// lemmas' formulas. `polarity` says which formulas the search's clauses
+/// take apart (negative) and build (positive); `held` is the memory the
+/// search still holds.
 ///
 /// # Errors
 ///
@@ -106,8 +107,8 @@ struct Learnt {
 #[derive(Clone, Copy, Debug)]
 struct Step {
     /// The rule: a left rule on `principal`, or a right rule that made
-    /// `principal` (a cut below, the formula's derivation its first
-    /// premise).
+    /// `principal`, applied as a cut whose first premise derives that
+    /// formula.
     rule: Rule,
     /// The formula taken apart, or the formula made.
     principal: NodeId,
@@ -172,9 +173,10 @@ struct Tableau<'s, S> {
     /// the implications and negations it is the antecedent of, and the
     /// formulas it is a part of that are made by their right rule.
     watchers: Vec<Vec<NodeId>>,
-    /// The formulas `⊤` is made of: none.
+    /// The formulas `⊤` made by their right rule, which needs no
+    /// hypothesis.
     truths: Vec<NodeId>,
-    /// The negations made from `⊥`.
+    /// The negations made by their right rule, which needs `⊥`.
     negations: Vec<NodeId>,
     /// Whether a formula is a hypothesis of the branch.
     have: Vec<bool>,
@@ -191,8 +193,8 @@ struct Tableau<'s, S> {
 }
 
 impl<'s, S: FnMut(Progress) -> bool> Tableau<'s, S> {
-    /// The tableaux of a read-back: the lemmas' formulas added to the
-    /// arena, and the rules' tables.
+    /// Returns the tableaux of a read-back: adds the lemmas' formulas to
+    /// the arena and builds the rules' tables.
     #[expect(
         clippy::too_many_arguments,
         reason = "the search's results, each of its own kind"
@@ -292,8 +294,8 @@ impl<'s, S: FnMut(Progress) -> bool> Tableau<'s, S> {
         })
     }
 
-    /// Returns the derivation of the lemma `k`, `hypotheses` and the
-    /// formulas of the lemmas before it left of `⊢`.
+    /// Returns the derivation of lemma `k`'s formula from `hypotheses` and
+    /// the formulas of the lemmas learnt before it.
     fn lemma(&mut self, k: usize, hypotheses: &[NodeId]) -> Result<InfId, Error> {
         let lemma = &self.lemmas[k];
         let (a, b, c) = (lemma.antecedent, lemma.consequent, lemma.made);
@@ -333,7 +335,7 @@ impl<'s, S: FnMut(Progress) -> bool> Tableau<'s, S> {
         self.lj.tidy(d)
     }
 
-    /// Returns a derivation of `given ⊢ goal` (or of a part of `given`),
+    /// Returns a derivation of `goal` from `given`, or from a part of it,
     /// found by the tableau.
     fn prove(&mut self, given: &[NodeId], goal: NodeId) -> Result<InfId, Error> {
         if matches!(self.formulas.node(goal), Node::True) {
@@ -445,7 +447,8 @@ impl<'s, S: FnMut(Progress) -> bool> Tableau<'s, S> {
             self.add(disjuncts[0]);
             next = self.facts.len() - 1;
         };
-        // A refusal leaves the branch's facts behind.
+        // A refusal leaves the branch's facts behind; the tableau is left
+        // empty either way.
         self.undo(0, 0);
         result
     }
@@ -458,7 +461,7 @@ impl<'s, S: FnMut(Progress) -> bool> Tableau<'s, S> {
         }
     }
 
-    /// Makes `x` a hypothesis of the branch, given.
+    /// Makes `x` a hypothesis of the branch, unless it is one already.
     fn add(&mut self, x: NodeId) {
         if !self.have[x.index()] {
             self.have[x.index()] = true;
@@ -585,8 +588,9 @@ impl<'s, S: FnMut(Progress) -> bool> Tableau<'s, S> {
         (find(Node::Implies(a, b)), find(Node::Implies(b, a)))
     }
 
-    /// Returns a disjunction among the hypotheses with neither disjunct
-    /// one, the first that came.
+    /// Returns the first hypothesis that is a disjunction taken apart by
+    /// its left rule, with neither disjunct a hypothesis, and its
+    /// disjuncts.
     fn disjunction(&self) -> Option<(NodeId, [NodeId; 2])> {
         self.facts
             .iter()
@@ -610,7 +614,7 @@ impl<'s, S: FnMut(Progress) -> bool> Tableau<'s, S> {
     }
 
     /// Returns `d` with the steps from `from` to `to` applied below it,
-    /// the last first, each where `d` uses what it made.
+    /// the last first, each only where `d` uses what it made.
     fn unwind(&mut self, from: usize, to: usize, mut d: InfId) -> Result<InfId, Error> {
         for k in (from..to).rev() {
             let step = self.steps[k];
@@ -791,8 +795,8 @@ struct Lj<'s, S> {
 }
 
 impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
-    /// A derivation over the arena, within `limits`, the search still
-    /// holding `held` bytes.
+    /// Starts an empty derivation over the arena, within `limits`, while
+    /// the search still holds `held` bytes.
     fn new(formulas: &Formulas, limits: &Limits, held: u64, stop: &'s mut S) -> Self {
         let widths = widths(formulas);
         let account = Account::holding(limits.memory_bytes, held);
@@ -887,13 +891,13 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
         Ok(InfId::new(id))
     }
 
-    /// `A ⊢ A`.
+    /// Adds the axiom `a ⊢ a`.
     fn axiom(&mut self, a: NodeId) -> Result<InfId, Error> {
         self.push(vec![a], vec![a], Rule::Axiom, None, Vec::new())
     }
 
-    /// Weakens `d` until it concludes `want` left of `⊢`, which holds its
-    /// hypotheses.
+    /// Weakens `d` until it concludes `want` left of `⊢`; `want` holds the
+    /// hypotheses of `d`.
     fn weaken(&mut self, d: InfId, want: &[NodeId]) -> Result<InfId, Error> {
         let mut have = self.left(d).to_vec();
         let right = self.inferences[d.index()].right.clone();
@@ -936,9 +940,9 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
         Ok(d)
     }
 
-    /// Returns the right rule `rule` on `made`, whose antecedent is `a`,
-    /// below `d`, which concludes what `made` is made of, the hypotheses
-    /// less `a`.
+    /// Returns the right rule `rule` below `d`: `d` derives what `made` is
+    /// made of, and the conclusion moves the antecedent `a` from the
+    /// hypotheses into `made`.
     fn right(&mut self, d: InfId, a: NodeId, made: NodeId, rule: Rule) -> Result<InfId, Error> {
         let context = without(self.left(d), &[a]);
         let premise = self.weaken(d, &[&context[..], &[a]].concat())?;

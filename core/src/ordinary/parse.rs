@@ -1,10 +1,11 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! A precedence parser for ordinary formulas and sequents that keeps its
-//! own stack, in two dialects: this crate's syntax (documented on
-//! [`Sequent`]) and the propositional formulas of TPTP's `fof`, which the
-//! ILTP library is written in.
+//! A precedence parser for ordinary formulas and sequents, in two
+//! dialects: this crate's syntax (documented on [`Sequent`]) and the
+//! propositional formulas of TPTP's `fof`, the syntax of the ILTP library.
+//! It keeps its own stack, so a formula of any depth is read without
+//! recursion.
 
 use super::{Formulas, Node, NodeId, Sequent};
 use crate::Error;
@@ -87,8 +88,8 @@ struct Parser<'a> {
     pending: Vec<Pending>,
     /// How many parentheses are open.
     open: usize,
-    /// The most formulas the arena may hold, the caller's bound on
-    /// occurrences: every formula of the arena is one at least.
+    /// The most formulas the arena may hold: the caller's bound on
+    /// occurrences, since every formula of the arena is at least one.
     limit: Option<u64>,
 }
 
@@ -237,10 +238,10 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Notes an operator that waits for its right operand, failing once
-    /// more wait than the limit allows: each will be a formula, and they
-    /// lie on one branch of the formula, so no two are the same, which a
-    /// run of `~` or of `->` would otherwise pile up unbounded.
+    /// Notes an operator that waits for its right operand, and fails once
+    /// more operators wait than the limit allows. Each will make a formula
+    /// of its own, since all lie on one branch of the formula; without the
+    /// bound a run of `~` or of `->` would pile up without end.
     fn wait(&mut self, operator: Pending) -> Result<(), Error> {
         self.pending.push(operator);
         count_within(self.pending.len() - self.open, self.limit)
@@ -327,10 +328,11 @@ impl std::str::FromStr for Sequent {
 
 impl Sequent {
     /// Parses a sequent of ordinary logic, or one formula to prove, in the
-    /// syntax [`Sequent`] documents, refusing it as soon as its distinct
-    /// subformulas or its formulas pass `limits.occurrences` (each is an
-    /// occurrence of its image at least), before anything of that size is
-    /// built.
+    /// syntax [`Sequent`] documents. It refuses the text as soon as its
+    /// distinct subformulas, its formulas, the operators waiting for an
+    /// operand or the open parentheses pass `limits.occurrences`, before
+    /// anything of that size is built: each formula is at least one
+    /// occurrence of its image.
     ///
     /// Needs the cargo feature `parse` (on by default).
     ///
@@ -390,7 +392,7 @@ impl Sequent {
 }
 
 /// Fails once `count` formulas, of the arena or of a sequent, pass
-/// `limit`: each is an occurrence of the image at least, however much of
+/// `limit`: each is at least one occurrence of the image, however much of
 /// the arena a formula of the sequent shares with the others.
 fn count_within(count: usize, limit: Option<u64>) -> Result<(), Error> {
     match limit {
@@ -418,11 +420,12 @@ pub struct Problem {
 /// Reads a problem of propositional logic in TPTP's `fof` syntax, as the
 /// ILTP library writes them: every clause with the role `axiom` or
 /// `hypothesis` is a hypothesis, the one `conjecture` the formula right
-/// of `⊢`. A formula is built with `~`, `&`, `|`, `=>`, `<=`, `<=>`, `<~>`,
-/// `~|`, `~&`, `$true` and `$false`, which bind in that order from `~`,
-/// the tightest, to the equivalences (TPTP asks for parentheses where
-/// this matters, and reads `~` as tight as here). The file's statuses are
-/// read as [`lltp::read`](crate::linear::lltp::read) reads them.
+/// of `⊢`. A formula is built over `$true`, `$false` and atoms with these
+/// connectives, from the tightest binding to the loosest: `~`; `&` and
+/// `~&`; `|` and `~|`; `=>` and `<=`; `<=>` and `<~>`. TPTP asks for
+/// parentheses wherever this order matters, and binds `~` as tightly as
+/// here. The file's statuses are read as
+/// [`lltp::read`](crate::linear::lltp::read) reads them.
 ///
 /// Every formula is read within `limits.occurrences`, as
 /// [`Sequent::parse_within`] reads them.
@@ -435,7 +438,8 @@ pub struct Problem {
 /// [`Error::SeveralConjectures`] for a file with more than one conjecture
 /// (TPTP asks for each to be proved, which right of `⊢` would read as
 /// their disjunction), [`Error::Parse`] for a formula that is not one,
-/// and [`Refusal::Occurrences`] past the bound.
+/// [`Error::AtomName`] for an atom named by a keyword of the ordinary
+/// syntax, such as `true`, and [`Refusal::Occurrences`] past the bound.
 pub fn read_tptp(text: &str, limits: &Limits) -> Result<Problem, Error> {
     let clauses = clauses(text, |message| Error::Tptp { message })?;
     let mut formulas = Formulas::default();

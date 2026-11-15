@@ -11,20 +11,42 @@ use crate::limits::{Limits, Progress};
 use crate::linear::search::{self, Reason};
 use crate::{Error, Refusal};
 
-/// What deciding an ordinary sequent found, with what the method's
-/// search found and cost.
+/// What deciding an ordinary sequent found: the verdict, the logic, how
+/// the method searched and what that cost, and a countermodel where one
+/// shows the sequent is not valid.
 ///
 /// # JSON
 ///
-/// With the feature `serialize` an outcome is written (never read) as
-/// `{"version": 8, "deduxit": "0.3.0", "verdict": "valid", "logic":
-/// "classical", "translation": "affine", "engine": "focus", "statistics":
-/// {…}, "derivation": {…}}` ([`wire`](crate::wire)), `verdict` one of
-/// `valid`, `not_valid` and `unknown`, the last with its `reason`. An
-/// outcome of LJT has no `translation`, its `engine` is `ljt`, and its
-/// `statistics` are [`ljt::Statistics`]. A sequent valid by a clausal
-/// proof (`Evidence::Clausal`, the SAT solver in classical logic) has
-/// `"clausal_proof": {…}` in place of `derivation`, at level 10.
+/// With the feature `serialize` an outcome is the document
+/// `{"version": 12, "deduxit": "0.3.0", "verdict": "valid", "logic":
+/// "classical", "search": {"method": "embedding", "translation": "affine",
+/// "image": {…}}, "derivation": {…}}` ([`wire`](crate::wire)). It is
+/// written at level 12 whatever it holds.
+///
+/// - `verdict` is `valid`, `not_valid` or `unknown`; an unknown one has
+///   its `reason`, as a linear outcome writes it.
+/// - `search` says how the sequent was searched, tagged by `method`:
+///   `embedding` has the `translation` and the `image`, the outcome of the
+///   image's search (a linear outcome's keys without `version` and
+///   `deduxit`); `ljt` and `sat` have the method's `statistics`
+///   ([`ljt::Statistics`], or `sat::Statistics`).
+/// - A valid outcome holds `derivation`, in the form of a
+///   [`Derivation`]. One valid by a clausal proof (the SAT solver in
+///   classical logic) holds `"clausal_proof": {"variables": …, "clauses":
+///   …, "steps": …}` instead, the counts of the proof the checker
+///   accepted. One with neither rests on the image's proof
+///   ([`Evidence::Image`]).
+/// - A `not_valid` outcome may hold `"countermodel": {"sequent": {…},
+///   "model": {…}}`, the sequent in the form of a
+///   [`Sequent`] and the model in the form of a
+///   [`kripke::Model`](crate::kripke::Model), neither with a `version`.
+///
+/// An outcome reads back through [`wire::upgrade`](crate::wire::upgrade),
+/// its derivation and the image's proof or disproof unchecked. The reader
+/// refuses an outcome below level 12, which has no `search`; one valid by
+/// a clausal proof, since the counts hold no proof; one whose verdict the
+/// image's outcome does not bear out; and one with a countermodel beside
+/// a verdict other than `not_valid`.
 #[non_exhaustive]
 #[derive(Clone, Debug)]
 pub struct Outcome {
@@ -36,10 +58,15 @@ pub struct Outcome {
     pub search: Search,
     /// The Kripke model that refutes a sequent that is not valid, checked:
     /// the SAT solver's, or in classical logic the assignment of the
-    /// image's refutation as a model of one world. `None` for every other
-    /// verdict, for a "not valid" of LJT, which gives no model, and for a
-    /// model past [`MODEL_CELLS`](super::MODEL_CELLS), too large to show
-    /// (the SAT solver's statistics count its worlds).
+    /// image's refutation as a model of one world.
+    ///
+    /// `None` for every other verdict, and for a "not valid" with no
+    /// model: LJT gives none, and the embedding gives one only in
+    /// classical logic and only for a refutation by an assignment. `None`
+    /// also where the model is too large to check (past
+    /// [`MODEL_CELLS`](super::MODEL_CELLS) or `limits.memory_bytes`; the
+    /// SAT solver's statistics count its worlds), and where the stop ended
+    /// the check of the embedding's model.
     pub countermodel: Option<super::Countermodel>,
 }
 
@@ -107,20 +134,21 @@ impl From<ljt::Outcome> for Outcome {
 pub enum Verdict {
     /// The sequent is valid, and here is the checked evidence.
     Valid(Evidence),
-    /// The image is unprovable, so the sequent is not valid; the linear
-    /// outcome's disproof says why.
+    /// The sequent is not valid. Through the embedding the image is
+    /// unprovable, and the image's disproof says why; the outcome's
+    /// countermodel, where it has one, shows it.
     NotValid,
     /// The search stopped before it could decide, for the reason given.
     Unknown(Reason),
 }
 
-/// What shows a valid sequent valid, checked before a search gives the
-/// verdict. Evidence read from JSON is unchecked until its checker runs
-/// ([`Derivation::check`], `Proof::check`).
+/// What shows a valid sequent valid. A method checks it before it gives
+/// the verdict; evidence read from JSON is unchecked until its checker
+/// runs ([`Derivation::check`], `Proof::check`).
 ///
 /// Every method but the SAT solver in classical logic gives a derivation.
-/// The SAT solver gives a clausal proof there, which has no derivation to
-/// draw, export or read as a lambda-term; [`Method::Embedding`] gives the
+/// There the SAT solver gives a clausal proof, which has no derivation to
+/// draw, export or read as a lambda-term. [`Method::Embedding`] gives the
 /// derivation of LK, and so does the default wherever the embedding
 /// gives it within [`EVIDENCE_WORK`].
 #[non_exhaustive]
@@ -133,10 +161,10 @@ pub enum Evidence {
     /// `sat`.
     #[cfg(feature = "sat")]
     Clausal(super::sat::ClausalProof),
-    /// The proof of the image, which the outcome's [`Search::Embedding`]
-    /// holds, where its derivation of LK or LJ was not built: a bound or
-    /// the stop refused it. From [`Image::outcome`](super::Image::outcome)
-    /// the linear checker accepted the proof; [`decide`] never gives it.
+    /// The image's proof alone, which the outcome's [`Search::Embedding`]
+    /// holds: a bound or the stop refused its derivation of LK or LJ. Only
+    /// [`Image::outcome`](super::Image::outcome) gives it, after the linear
+    /// checker accepted the proof; [`decide`] never does.
     Image,
 }
 
@@ -158,11 +186,12 @@ impl Evidence {
     }
 }
 
-/// Returns whether a method's answer leaves the sequent to the embedding
-/// when the method is the logic's default: the method stopped at a bound
-/// other than the caller's stop (the memory, the work), or a bound refused
-/// the derivation of the proof it found (its size, the memory), so that
-/// it gave no verdict where the embedding may give one.
+/// Returns whether a method's answer leaves the sequent to the embedding,
+/// where the method is the logic's default and was not named. It does
+/// when the method gave no verdict and the embedding may give one: the
+/// method stopped at a bound other than the caller's stop (the memory,
+/// the work), or a bound refused the derivation of the proof it found
+/// (its size, the memory).
 pub fn gives_way(decided: &Result<Outcome, Error>) -> bool {
     match decided {
         Ok(outcome) => {
@@ -172,18 +201,18 @@ pub fn gives_way(decided: &Result<Outcome, Error>) -> bool {
     }
 }
 
-/// The most units of work the embedding's search may do, by default in
-/// classical logic, for the evidence of a sequent the SAT solver decided:
-/// a derivation of LK, or a refutation of the image. The 124 problems of
-/// ILTP whose evidence the embedding gives within 2 s (123 derivations and
-/// one refutation) need at most 177 136.
+/// The most units of work the embedding's search may do for the evidence
+/// of a classical sequent the SAT solver decided by default: a derivation
+/// of LK, or a refutation of the image. The 124 problems of ILTP whose
+/// evidence the embedding gives within 2 s (123 derivations and one
+/// refutation) need at most 177 136.
 pub const EVIDENCE_WORK: u64 = 1 << 20;
 
 /// Returns the outcome of a classical sequent the SAT solver decided,
-/// with the embedding's evidence where the embedding gives it: its
-/// search within [`EVIDENCE_WORK`] units of work (or the caller's lower
-/// bound), and for a proof the derivation of LK read back and checked
-/// within the caller's limits. Where the embedding ends without a
+/// with the embedding's evidence where the embedding gives it. The
+/// embedding searches within [`EVIDENCE_WORK`] units of work (or the
+/// caller's lower bound), and for a proof reads the derivation of LK back
+/// and checks it within the caller's limits. Where the embedding gives no
 /// verdict, a bound refuses its derivation or `stop` fires, the solver's
 /// outcome stands.
 ///
@@ -284,11 +313,14 @@ pub fn decide(sequent: &Sequent, options: &Options) -> Result<Outcome, Error> {
 impl super::Image {
     /// Returns the outcome of deciding the ordinary sequent through this
     /// image, from `linear`, the outcome of a search of the image that the
-    /// caller ran: for a proof the derivation of LK or LJ read back and
-    /// checked within `limits` and until `stop` fires, or, where a bound
-    /// or the stop refuses it, [`Evidence::Image`], since the image's
-    /// proof stands; for a refutation not valid; else unknown. A front end
-    /// that runs its own search (a race, a pool) writes this outcome.
+    /// caller ran. It is for a front end that runs its own search (a race,
+    /// a pool).
+    ///
+    /// For a proof the verdict is valid, with the derivation of LK or LJ
+    /// read back and checked within `limits` and until `stop` fires; where
+    /// a bound or the stop refuses that derivation, the image's proof
+    /// stands as [`Evidence::Image`]. For a refutation the verdict is not
+    /// valid, and otherwise unknown.
     ///
     /// # Errors
     ///
@@ -381,20 +413,26 @@ impl super::Image {
 ///
 /// By the embedding it translates the sequent, searches the image in its
 /// mode, and for a proof reads the derivation of LK or LJ back and checks
-/// it; by LJT it is [`ljt::decide`] and by the SAT solver `sat::decide`,
-/// which read no `search` option. The logic's default (no method and no
-/// translation given) is the SAT solver: in intuitionistic and minimal
-/// logic it takes LJT's derivation where LJT gives one
-/// (`sat::decide_preferring_ljt`), in classical logic the embedding's
-/// evidence where the embedding gives it within [`EVIDENCE_WORK`], and
-/// where it [`gives_way`] the embedding decides in its place.
+/// it. By LJT it is [`ljt::decide`], and by the SAT solver `sat::decide`;
+/// neither reads `search`.
+///
+/// With no method and no translation given, the method is the logic's
+/// default, [`Method::default_for`]: the SAT solver with the feature
+/// `sat`; without it, the embedding in classical logic and LJT in the
+/// others. In
+/// intuitionistic and minimal logic the SAT solver takes LJT's derivation
+/// where LJT gives one (`sat::decide_preferring_ljt`); in classical logic
+/// the outcome takes the embedding's evidence where the embedding gives
+/// it within [`EVIDENCE_WORK`]. Where a default method [`gives_way`], the
+/// embedding decides in its place.
 ///
 /// # Errors
 ///
 /// As [`translate()`], [`search::prove_within`], [`Image::read_back`] and
-/// [`Derivation::check`], or as [`ljt::decide`]: a proof whose derivation
-/// a bound or the stop refused is that refusal, not a verdict, and a
-/// derivation that fails the check is [`Error::ReadBack`], a defect.
+/// [`Derivation::check`], or as [`ljt::decide`] or `sat::decide`. A proof
+/// whose derivation a bound or the stop refused is that refusal, not a
+/// verdict, and a derivation that fails the check is [`Error::ReadBack`],
+/// a defect.
 ///
 /// [`Image::read_back`]: super::Image::read_back
 ///
@@ -446,8 +484,8 @@ pub fn decide_within(
                 decided => Some(decided),
             }
         }
-        // The default prefers LJT's derivation, the method named the one
-        // read off the search.
+        // The default prefers LJT's derivation; the SAT solver named gives
+        // the one read off its search.
         #[cfg(feature = "sat")]
         Method::Sat if options.method.is_none() => Some(
             super::sat::decide_preferring_ljt(sequent, logic, limits, &mut stop).map(Outcome::from),
@@ -493,8 +531,9 @@ mod tests {
     use crate::ordinary::{Logic, Sequent, Translation};
 
     /// A translation given names the embedding unless a method is given,
-    /// and LJT's outcome says so: written with the engine `ljt` and no
-    /// translation; by default LJT gives way where a bound stops it.
+    /// and LJT's outcome says so: its `search` is written with the method
+    /// `ljt` and no translation. By default LJT gives way where a bound
+    /// stops it.
     #[test]
     fn the_options_choose_the_method() {
         let options = Options::default().with_logic(Logic::Intuitionistic);

@@ -1,14 +1,14 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The translations into linear logic. Each is a table of patterns: per
+//! The translations into linear logic. Each is a table of patterns. Per
 //! connective and per translation function (the side for the classical
-//! translation, `t₀` or `t₁` for the 0/1 one), how many `!` stand on top
-//! of the image, the linear connective under them, and each operand with
-//! its function and the `!` added above it. The image of a sequent is
-//! built from the table bottom-up over the arena, and the read-back walks
-//! the forest of the image with the same table, so that every occurrence
-//! is known as the ordinary formula it is the image of.
+//! translation, `t₀` or `t₁` for the 0/1 one), a pattern gives how many
+//! `!` stand on top of the image, the linear connective under them, and
+//! each operand with its function and the `!` added above it. The image
+//! of a sequent is built from the table bottom-up over the arena. The
+//! read-back walks the forest of the image with the same table, so it
+//! knows every occurrence as the image of an ordinary formula.
 
 use super::{Formulas, Logic, Node, NodeId, Sequent, Side, Translation};
 use crate::hash::HashMap;
@@ -52,9 +52,9 @@ pub(super) struct Pattern {
     pub(super) operands: [Option<Operand>; 2],
 }
 
-/// The name of the atom false is translated as in minimal logic, which no
-/// atom of an ordinary sequent can have, `false` being a keyword of its
-/// syntax.
+/// The name of the atom that false becomes in minimal logic. No atom of
+/// an ordinary sequent can have it, since `false` is a keyword of the
+/// ordinary syntax.
 pub const FALSE: &str = "false";
 
 /// The classical translation's function for a formula right of `⊢`.
@@ -67,7 +67,8 @@ const T0: u8 = 0;
 const T1: u8 = 1;
 
 /// The extra nodes a translation refers to: the two implications of every
-/// equivalence, and false, which `¬A` is `A → false` of.
+/// equivalence, and false, since the translations into ILL take `¬A` as
+/// `A → false`.
 #[derive(Clone, Debug)]
 pub(super) struct Extra {
     /// Per node, the implications `A → B` and `B → A` of an equivalence.
@@ -235,9 +236,9 @@ pub(super) struct Root {
 }
 
 /// The image of an ordinary sequent under a translation: the linear
-/// sequent, one-sided as every [`Sequent`](crate::linear::Sequent) is, the mode
-/// it is decided in, and what the read-back needs to map a proof of it
-/// back to the ordinary formulas.
+/// sequent, stored one-sided as every [`Sequent`](crate::linear::Sequent)
+/// is, the mode it is decided in, and what the read-back needs to map a
+/// proof of it back to the ordinary formulas.
 #[derive(Clone, Debug)]
 pub struct Image {
     /// The linear sequent.
@@ -249,7 +250,7 @@ pub struct Image {
     /// The translation.
     pub(super) translation: Translation,
     /// The ordinary sequent decided: the one given, with false as the goal
-    /// of an intuitionistic sequent that has none.
+    /// of an intuitionistic or minimal sequent that has none.
     pub(super) ordinary: Sequent,
     /// The extra nodes, which the arena of `ordinary` holds.
     pub(super) extra: Extra,
@@ -288,7 +289,7 @@ impl Image {
 }
 
 /// Returns the image of an ordinary sequent under a translation, for
-/// deciding it in `logic`: the sequent is valid exactly when the image is
+/// deciding it in `logic`. The sequent is valid exactly when the image is
 /// provable in the image's [`mode`](Image::mode).
 ///
 /// # Errors
@@ -329,10 +330,11 @@ pub fn translate(
         Translation::CallByName | Translation::CallByValue => 1,
     };
 
-    // Every node's image under every function, right of `⊢` and dual,
-    // in index order, so that the operands' images are there: an
-    // implication of an equivalence is made before the equivalence's
-    // image is, from operands before both.
+    // Every node's image under every function, right of `⊢` and dual, in
+    // index order, so that each operand's image is made before its
+    // formula's. The extra nodes may stand after the formulas that use
+    // them, so they are made earlier: an equivalence's implications just
+    // before it, since their operands precede both.
     let mut builder = Builder::default();
     let mut images: Vec<Option<(TermId, TermId)>> = vec![None; formulas.len() * functions as usize];
     let slot = |id: NodeId, function: u8| id.index() * functions as usize + function as usize;
@@ -423,9 +425,9 @@ pub fn translate(
         }
     }
 
-    // The roots: classically every formula on the right of the one-sided
-    // sequent, a hypothesis by the function of the left; in ILL a
-    // hypothesis by its dual.
+    // The roots. Classically every formula stands right of the one-sided
+    // sequent's `⊢`, a hypothesis under the function for the left side; in
+    // ILL a hypothesis stands as its dual.
     let mut roots = Vec::with_capacity(ordinary.left.len() + ordinary.right.len());
     let mut terms = Vec::with_capacity(roots.capacity());
     for (side, list) in [(Side::Left, &ordinary.left), (Side::Right, &ordinary.right)] {
@@ -457,7 +459,7 @@ pub fn translate(
     }
 
     // Classically every image stands right of `⊢`; in ILL the hypotheses'
-    // duals stand left of it, and there are fewer of them than nodes.
+    // duals, the first roots, stand left of it.
     let antecedents = if classical {
         0
     } else {

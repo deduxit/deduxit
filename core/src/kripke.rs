@@ -4,16 +4,16 @@
 //! Finite Kripke models, the countermodels of the suites: worlds, an
 //! order on them, and the atoms each world forces.
 //!
-//! A [`Model`] is data. Each suite checks it against its own sequents:
-//! ordinary logic reads the order as a partial order and requires the
-//! atoms forced to grow along it (`ordinary::Sequent`'s checks, on
-//! [`Model::refutes`] and [`Model::forcing`]). A model of one world is
-//! an assignment of classical logic: the atoms it forces are true, the
-//! others false.
+//! A [`Model`] is data. Each suite checks it against its own sequents.
+//! Ordinary logic checks it with [`Model::refutes`] and
+//! [`Model::forcing`], against an `ordinary::Sequent`: the arrows must
+//! form no cycle, so they order the worlds, and the atoms forced must grow
+//! along them. A model of one world is an assignment of classical logic:
+//! the atoms it forces are true, the others false.
 //!
 //! # JSON
 //!
-//! With the feature `serialize` a model is written and read as
+//! With the cargo feature `serialize` a model is written and read as
 //! `{"version": 13, "worlds": [{"atoms": [], "arrows": [1]}, {"atoms":
 //! ["a"]}], "world": 0}`: each world's atoms by name, `"falsity": true`
 //! where it forces `⊥` (minimal logic only), and its arrows to the worlds

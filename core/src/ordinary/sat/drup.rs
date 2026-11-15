@@ -1,9 +1,10 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Clausal proofs of unsatisfiability in the DRUP format (clauses added
-//! and deleted, each added clause a consequence of the clauses before it
-//! by unit propagation), and a checker of them.
+//! Clausal proofs of unsatisfiability in the DRUP format, and a checker of
+//! them. A DRUP proof (deletion and reverse unit propagation) is a list of
+//! clauses added and deleted; each added clause follows from the clauses
+//! before it by unit propagation.
 //!
 //! A clause `C` follows from clauses `F` by reverse unit propagation (RUP)
 //! when assigning every literal of `C` false and propagating the unit
@@ -209,7 +210,8 @@ struct Checker<'a> {
     index: HashMap<Box<[u32]>, Vec<usize>>,
     /// Per literal code, the clauses of two or more literals watching it.
     watches: Vec<Vec<usize>>,
-    /// The clauses of one literal, kept or deleted.
+    /// The clauses of one literal; a deleted one leaves the list at the
+    /// next check.
     units: Vec<usize>,
     /// How many empty clauses are kept.
     empty: usize,
@@ -221,8 +223,8 @@ struct Checker<'a> {
     variables: u32,
     /// The memory account the clauses are charged to.
     account: &'a Account,
-    /// Steps and visits of a clause since the stop was last asked, at
-    /// most `POLL`.
+    /// The units of work (as [`POLL`] lists them) since the stop was last
+    /// asked, at most `POLL`.
     ticks: u64,
     /// The steps checked, at most `Limits::work`, which a `u64` holds
     /// since each costs a step of the proof in memory.
@@ -244,8 +246,8 @@ pub(crate) fn check(
     mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<(), Rejection> {
     let codes = 2 * variables as usize;
-    // Saturating, the charge refuses on a 32-bit target before the
-    // vectors are made, never wraps.
+    // Saturating: on a 32-bit target the charge refuses before the
+    // vectors are made, and never wraps.
     account.charge(codes.saturating_mul(size_of::<Vec<usize>>() + size_of::<bool>()));
     if account.over() {
         return Err(over(account));
@@ -299,9 +301,10 @@ pub(crate) fn check(
 }
 
 impl Checker<'_> {
-    /// Returns the clause's codes sorted without repeats, `Some(None)`
-    /// within for a tautology, which holds under every assignment and is
-    /// never kept; `None` where a literal names no variable.
+    /// Returns the clause's codes, sorted and without repeats;
+    /// `Some(None)` for a tautology, which holds under every assignment
+    /// and is never kept; `None` where a literal names no variable of the
+    /// formula.
     #[expect(
         clippy::option_option,
         reason = "a clause of a missing variable, a tautology and a clause are three answers"
@@ -370,7 +373,8 @@ impl Checker<'_> {
     /// Counts `n` units of work, asking the stop once [`POLL`] of them
     /// have passed since it was last asked.
     fn tick(&mut self, n: u64, stop: &mut impl FnMut(Progress) -> bool) -> Result<(), Rejection> {
-        // At most `POLL` before and a vector's length added: no wrap.
+        // Below `POLL` before, and `n` is at most a vector's length: no
+        // wrap.
         self.ticks += n;
         if self.ticks >= POLL {
             let ticks = std::mem::take(&mut self.ticks);
@@ -412,8 +416,9 @@ impl Checker<'_> {
         found
     }
 
-    /// Assigns the negation of every literal of `clause` and of the unit
-    /// clauses kept, then propagates; returns whether a conflict was met.
+    /// Assigns every literal of `clause` false and the literal of every
+    /// unit clause kept true, then propagates; returns whether a conflict
+    /// was met. A kept empty clause is a conflict at once.
     fn propagate(
         &mut self,
         clause: &[Lit],
@@ -492,7 +497,8 @@ impl Checker<'_> {
                     break;
                 }
             }
-            // The clauses not visited stay watched.
+            // Drop the clauses visited that moved to another watch or were
+            // deleted; those not visited stay watched.
             watching.drain(kept..at);
             self.watches[falsified as usize] = watching;
             if conflict {
@@ -595,7 +601,7 @@ mod tests {
     /// refuted by learning `x₁` and then the empty clause.
     const SQUARE: &[&[i32]] = &[&[1, 2], &[1, -2], &[-1, 2], &[-1, -2]];
 
-    /// A right proof is accepted; a planted wrong step, a missing empty
+    /// A correct proof is accepted; a planted wrong step, a missing empty
     /// clause, a deletion of a clause a later step needs and an unknown
     /// variable are refused, each for its reason.
     #[test]

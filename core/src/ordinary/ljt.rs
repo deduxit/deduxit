@@ -1,25 +1,26 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Intuitionistic and minimal logic decided natively, by Dyckhoff's
+//! Decides intuitionistic and minimal logic directly, with Dyckhoff's
 //! contraction-free sequent calculus LJT, also called G4ip (R. Dyckhoff,
 //! *Contraction-free sequent calculi for intuitionistic logic*, JSL 57(3),
-//! 1992; its correction, JSL 83(4), 2018), whose proof search terminates
-//! by the calculus: every premise is lighter than its conclusion in the
-//! multiset ordering of formula weights, so no branch is infinite and no
-//! loop check or copy bound is needed. The search may still take
-//! exponential time, and stops at the work bound, the memory bound or the
-//! caller's stop.
+//! 1992; its correction, JSL 83(4), 2018).
 //!
-//! A proof is translated into a derivation of LJ that
-//! [`Derivation::check`] accepts before it is returned: the rules of LJT
-//! that LJ has are its own, and each other left rule on an implication
-//! becomes a derivation of LJ with a cut on the formula the rule makes,
-//! whose first premise derives that formula from the implication taken
-//! apart: the soundness half of the equivalence of G4ip and G3ip, which
-//! the correction calls straightforward "using admissibility of Cut in
-//! G3ip". Minimal logic is the same search with `⊥` an atom, whose left
-//! rule it lacks. "Not valid" is the search's word: it was exhaustive.
+//! The search ends on every sequent with no loop check and no bound on
+//! copies. Every premise of a rule is lighter than its conclusion, in the
+//! multiset ordering of formula weights, so no branch is infinite. The
+//! search may still take exponential time. It stops at the work bound,
+//! the memory bound or the caller's stop.
+//!
+//! A proof is translated into a derivation of LJ, which
+//! [`Derivation::check`] must accept before [`decide`] returns it. The rules LJT
+//! shares with LJ stay as they are. Each other left rule on an
+//! implication becomes a cut on the formula the rule makes, whose first
+//! premise derives that formula from the implication taken apart. This
+//! is the soundness half of the equivalence of G4ip and G3ip, which the
+//! correction calls straightforward "using admissibility of Cut in G3ip".
+//! Minimal logic is the same search with `⊥` an atom, so `⊥` has no left
+//! rule. "Not valid" rests on the search alone: it tried every proof.
 //!
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
@@ -79,32 +80,35 @@ pub struct Statistics {
     pub subsumed: u64,
 }
 
-/// How many sequents the search expands between two polls of its stop at
-/// most, and how many hypotheses those sequents hold at most.
+/// The most sequents the search expands between two asks of its stop, and
+/// the most hypotheses those sequents hold together.
 pub const POLL: u64 = 1 << 8;
 
 /// How many of the latest failures of a goal a new sequent of that goal
 /// is compared with.
 const SUBSUMING: usize = 1 << 10;
 
-/// Decides an intuitionistic or minimal sequent by LJT within `limits`,
-/// asking `stop` every [`POLL`] sequents expanded, and sooner where they
-/// hold [`POLL`] hypotheses together: the search counts a sequent
-/// expanded as a unit of `limits.work` and charges what it holds to
-/// `limits.memory_bytes`; a proof is translated into a derivation of LJ
-/// within `limits.derivation_bytes` and `limits.memory_bytes`, asking
-/// `stop` once per inference, and checked. A sequent with nothing right of
-/// `⊢` is decided as `Γ ⊢ ⊥`, and its derivation concludes that sequent.
+/// Decides an intuitionistic or minimal sequent by LJT within `limits`.
+///
+/// The search counts each sequent it expands as a unit of `limits.work`
+/// and charges what it holds to `limits.memory_bytes`. It asks `stop`
+/// every [`POLL`] sequents expanded, and sooner where those sequents hold
+/// [`POLL`] hypotheses together. A proof is translated into a derivation
+/// of LJ within `limits.derivation_bytes` and `limits.memory_bytes`,
+/// asking `stop` once per inference, and then checked. A sequent with
+/// nothing right of `⊢` is decided as `Γ ⊢ ⊥`, and its derivation
+/// concludes `Γ ⊢ ⊥`.
 ///
 /// # Errors
 ///
 /// [`Error::Logic`] for classical logic; [`Error::Succedents`] for more
-/// than one formula right of `⊢`; [`Refusal::Output`],
-/// [`Refusal::Memory`] or [`Refusal::Stopped`] where a bound or the stop
-/// refused the derivation of a proof, and [`Refusal::Work`] where its
-/// check would pass `limits.work` inferences, none of them a verdict; as
-/// [`Derivation::check`], [`Error::ReadBack`] being a defect of the
-/// translation.
+/// than one formula right of `⊢`; [`Refusal::Index`] where the arena has
+/// no room for `⊥` or the derivation would pass 2³² inferences. Where a
+/// bound or the stop refuses the derivation of a proof:
+/// [`Refusal::Output`], [`Refusal::Memory`] or [`Refusal::Stopped`], and
+/// [`Refusal::Work`] where its check would pass `limits.work` inferences.
+/// None of these is a verdict. [`Error::ReadBack`], as from
+/// [`Derivation::check`], is a defect of the translation.
 pub fn decide(
     sequent: &Sequent,
     logic: Logic,
@@ -114,8 +118,8 @@ pub fn decide(
     run(sequent, logic, limits, stop, None)
 }
 
-/// [`decide`], with a fault planted in the translation, which only the
-/// tests plant.
+/// [`decide`], with the fault `plant` names planted in the translation
+/// (only tests plant one).
 fn run(
     sequent: &Sequent,
     logic: Logic,
@@ -181,7 +185,7 @@ fn set(left: &[NodeId]) -> Box<[NodeId]> {
 /// A sequent of the search: the hypotheses as a set, and the goal.
 type Key = (Box<[NodeId]>, NodeId);
 
-/// A rule of the search, each one of LJT's or a rule LJ derives at once.
+/// A rule of the search: one of LJT's, or one that LJ derives directly.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Kind {
     /// The goal is a hypothesis.
@@ -213,7 +217,8 @@ enum Kind {
     TrueImplies,
     /// `(A ∧ B) → C` gives `A → (B → C)`.
     AndImplies,
-    /// `(A ↔ B) → C` gives `(A → B) → ((B → A) → C)`, the rule of `∧`.
+    /// `(A ↔ B) → C` gives `(A → B) → ((B → A) → C)`, as the rule of `∧`
+    /// does for the conjunction of both implications.
     IffImplies,
     /// `(A ∨ B) → C` gives `A → C` and `B → C`.
     OrImplies,
@@ -257,11 +262,12 @@ enum Known {
 struct Frame {
     /// The sequent.
     key: Key,
-    /// The rules to try in turn: one, where an invertible rule applies.
+    /// The rules to try in turn: one alone where a leaf rule or an
+    /// invertible rule applies.
     moves: Vec<Move>,
     /// The rule tried.
     at: usize,
-    /// Its premises, once made.
+    /// The premises of the rule tried, once made.
     premises: Option<Vec<Key>>,
     /// The steps proving the premises proved so far.
     proved: Vec<u32>,
@@ -275,7 +281,7 @@ struct Search {
     falsity: NodeId,
     /// Intuitionistic or minimal logic.
     logic: Logic,
-    /// Who is charged what the search holds.
+    /// The account charged with the memory the search holds.
     account: Account,
     /// The verdict of every sequent decided.
     memo: HashMap<Key, Known>,
@@ -295,8 +301,9 @@ struct Search {
     asked: u64,
 }
 
-/// The bytes a sequent of `len` hypotheses is charged at where it is
-/// kept: its slice and the key, twice over for a table's spare room.
+/// The bytes a sequent of `len` hypotheses is charged where it is kept:
+/// its key, its verdict and its hypotheses, twice over for a table's
+/// spare room.
 const fn bytes(len: usize) -> usize {
     2 * (size_of::<Key>() + size_of::<Known>() + len * size_of::<NodeId>())
 }
@@ -423,8 +430,9 @@ impl Search {
             .filter(|&h| self.split(h).is_some_and(|(a, _)| self.split(a).is_some()))
             .collect();
         if implications.len() > 1 {
-            // Only the order of the alternatives changes, so no proof is
-            // lost: those whose consequent leads to the goal sooner first.
+            // Try first the implications whose consequent leads to the
+            // goal sooner. This only orders the alternatives, so no proof
+            // is lost.
             let levels = self.levels(left, goal);
             let rank = |h: NodeId| {
                 let (_, c) = self.split(h).unwrap_or((h, h));
@@ -446,11 +454,11 @@ impl Search {
         moves
     }
 
-    /// Adds to `heads` the atoms (and `⊥`) a proof of `x` as the goal
+    /// Adds to `heads` the atoms (and `⊥`) that a proof of `x` as the goal
     /// ends in: `x` itself for an atom, the heads of `C` for `A → C`, and
-    /// of both operands of `∧`, `∨` and `↔`; with a stack of its own,
-    /// each node once, so that a formula whose operands share nodes costs
-    /// its nodes and not the tree it unfolds to.
+    /// those of both operands of `∧`, `∨` and `↔`. It walks with a stack
+    /// of its own and visits each node once, so a formula whose operands
+    /// share nodes costs its nodes, not the tree it unfolds to.
     fn heads(&self, x: NodeId, heads: &mut Vec<NodeId>) {
         let mut seen: HashSet<NodeId> = HashSet::default();
         let mut stack = vec![x];
@@ -684,11 +692,12 @@ impl Search {
         // An expansion costs about the size of its sequent, so the stop is
         // also asked once the sequents expanded since the last ask hold
         // `POLL` hypotheses: a large sequent is never `POLL` expansions
-        // from an ask. Saturating: a sum of lengths of slices in memory.
+        // from an ask. Saturating, though a sum of the lengths of slices
+        // in memory stays far below the limit.
         self.unpolled = self.unpolled.saturating_add(key.0.len() as u64);
         if done.is_multiple_of(POLL) || self.unpolled >= POLL {
             self.unpolled = 0;
-            // At most `done`, the count at the last ask.
+            // `asked` is the count at the last ask, so at most `done`.
             let since = done - self.asked;
             self.asked = done;
             if stop(Progress::new(Phase::Search, since, done)) {
@@ -729,9 +738,9 @@ impl Search {
             if applied.kind == Kind::ImpliesImplies {
                 premises.reverse();
             }
-            // A step per sequent proved, each charged: within the memory
-            // bound, and without one below 2³² in any address space that
-            // holds the memo of this many sequents.
+            // One step per sequent proved, each charged. Their count stays
+            // below 2³²: within the memory bound, or without one, in any
+            // address space that holds a memo of that many sequents.
             let id = u32::try_from(self.steps.len()).unwrap_or(u32::MAX);
             self.account
                 .charge(size_of::<Step>() + bytes(frame.key.0.len()) + premises.len() * 4);
@@ -769,8 +778,9 @@ impl Search {
 
     /// Returns whether one of the hypotheses `by` (sorted) entails `x`
     /// by a rule of minimal logic that needs no search: `x` is one of
-    /// them, `x` is `A → A`, `x` is `A → C` with `C` one of them, or `x`
-    /// is `(A → B) → B` with `A` one of them (`¬¬A` among those).
+    /// them, `x` is `⊤`, `x` is `A → A`, `x` is `A → C` with `C` one of
+    /// them, or `x` is `(A → B) → B` with `A` one of them (`¬¬A` among
+    /// those).
     fn entailed(&self, x: NodeId, by: &[NodeId]) -> bool {
         let has = |y: NodeId| by.binary_search(&y).is_ok();
         if has(x) || self.formulas.node(x) == Node::True {
@@ -802,7 +812,7 @@ enum Plant {
 struct Lj<'s, S> {
     /// The search, with its formulas and steps.
     search: &'s Search,
-    /// The characters of every formula, for the size estimate.
+    /// The width of every formula in characters, for the size estimate.
     widths: Vec<u64>,
     /// The inferences made, premises first.
     inferences: Vec<Inference>,
@@ -847,7 +857,8 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
         self.plant == Some(plant)
     }
 
-    /// Adds an inference, within the bounds and until the stop fires.
+    /// Adds an inference and returns its id, refusing past a bound or once
+    /// the stop fires.
     fn push(
         &mut self,
         left: Vec<NodeId>,
@@ -899,7 +910,7 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
             principal,
             premises,
         });
-        // The list by what it allocated, not by what it holds.
+        // Charge the list by its capacity, not its length.
         let size = size_of::<Inference>();
         self.account
             .resize(before * size, self.inferences.capacity() * size);
@@ -946,8 +957,8 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
         }
     }
 
-    /// Weakens the derivation `d` until it concludes `want` left of `⊢`,
-    /// which holds its hypotheses.
+    /// Weakens the derivation `d` until it concludes `want` left of `⊢`;
+    /// `want` holds every hypothesis of `d`.
     fn weaken_to(&mut self, d: InfId, want: &[NodeId]) -> Result<InfId, Error> {
         let inference = &self.inferences[d.index()];
         let (mut have, right) = (inference.left.clone(), inference.right.clone());
@@ -971,8 +982,8 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
     }
 
     /// Writes the hypotheses of the root `d` in the order of `left`, the
-    /// sequent as written, where it holds the same formulas as often: the
-    /// checker reads them as a multiset, while the lambda-term, the
+    /// sequent as written, where both hold the same formulas as often.
+    /// The checker reads them as a multiset, but the lambda-term, the
     /// certificate and the drawings name them in their order. A principal
     /// formula left of `⊢` is found again by formula.
     fn in_order(&mut self, d: InfId, left: &[NodeId]) {
@@ -992,7 +1003,7 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
     }
 
     /// Contracts the derivation `d` until it concludes `want` left of
-    /// `⊢`, which holds each of its hypotheses once at least.
+    /// `⊢`; `want` holds each hypothesis of `d` at least once.
     fn contract_to(&mut self, d: InfId, want: &[NodeId]) -> Result<InfId, Error> {
         let inference = &self.inferences[d.index()];
         let (mut have, right) = (inference.left.clone(), inference.right.clone());
@@ -1141,8 +1152,8 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
                 self.left_rule(rule, gamma, goal, p, vec![truth, second])
             }
             Kind::ModusPonens => {
-                // `a ⊢ a` and `Δ, b ⊢ G` split below `Δ, a, p`, `a` being
-                // in `Δ`, then `a` contracted.
+                // `→L` splits `Δ, a, p` into `a ⊢ a` and `Δ, b ⊢ G`. `Δ`
+                // holds `a` too, so the extra copy is contracted.
                 let second = self.weaken_to(d[0], &delta(&[b]))?;
                 let ax = self.axiom(a)?;
                 let rule = self.implication_rule(p, Side::Left);
@@ -1224,9 +1235,9 @@ impl<'s, S: FnMut(Progress) -> bool> Lj<'s, S> {
                 let m = self.left_rule(left, vec![p, y], b, p, vec![ya, bb])?;
                 let right = self.implication_rule(yb, Side::Right);
                 let schema = self.right_rule(right, vec![p], yb, vec![m])?;
-                // `Γ ⊢ a` by the cut and `Δ, b ⊢ G` from the second
-                // premise split below `Γ, Δ, p`, which is `Γ, Γ`,
-                // contracted to `Γ`.
+                // `→L` splits `Γ, Δ, p`, which is `Γ, Γ`, into `Γ ⊢ a` by
+                // the cut and `Δ, b ⊢ G` from the second premise; the
+                // copies are then contracted to `Γ`.
                 let first = self.weaken_to(d[0], &delta(&[yb]))?;
                 let cut =
                     self.push(gamma.clone(), vec![a], Rule::Cut, None, vec![schema, first])?;
@@ -1314,8 +1325,8 @@ mod tests {
 
     /// On generated sequents LJT decides every one in intuitionistic and
     /// minimal logic, each proof it returns passes the checker again, no
-    /// verdict contradicts the embedding's where that decides, and no
-    /// valid sequent is refuted by the truth table.
+    /// verdict contradicts the embedding's where that decides, and every
+    /// sequent it proves is classically valid.
     #[test]
     fn agrees_with_the_embedding() {
         const SEQUENTS: usize = 400;
@@ -1422,8 +1433,9 @@ mod tests {
     /// Two families of Dyckhoff's benchmark at size 20 are decided within
     /// a few thousand sequents: Korn and Kreitz's theorem, whose `→→L`
     /// alternatives are ordered towards the goal, and Franzén's
-    /// non-theorem, which the failure subsumption refutes (each doubled
-    /// with the size before, past a million sequents at 20).
+    /// non-theorem, which the failure subsumption refutes. Without the
+    /// order and the subsumption, each doubles with the size and passes a
+    /// million sequents at 20.
     #[test]
     fn the_benchmark_families_stay_small() {
         const N: usize = 20;
@@ -1479,7 +1491,7 @@ mod tests {
     }
 
     /// Each fault planted in the translation is refused by the checker,
-    /// so that `decide` answers a defect and no verdict.
+    /// so that `decide` returns a defect, never a verdict.
     #[test]
     fn a_planted_wrong_translation_is_refused() {
         let cases = [

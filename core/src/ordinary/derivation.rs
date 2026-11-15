@@ -42,19 +42,21 @@ impl Side {
     }
 }
 
-/// A rule of LK or LJ, as a derivation read back names it.
+/// A rule of LK or LJ, the sequent calculi of classical and of
+/// intuitionistic logic, as a [`Derivation`] names it.
 ///
-/// The derivations are those of Gentzen's calculi with explicit weakening
-/// and contraction: a rule with two premises takes its context either
-/// whole into both (as `∧R` of LJ does) or split between them (as `→L`
-/// of LJ does); an axiom `A ⊢ A` has no context, while `⊤R` and `⊥L` take
-/// any. `¬A` is a connective of its own; in LJ its left rule has the form
-/// of `→L` for `A → ⊥`, and in LK the one premise `Γ ⊢ A, Δ`. Every LJ
-/// sequent has at most one formula right of `⊢`; minimal logic has no
-/// `⊥L` and exactly one formula right of `⊢` in every sequent (G1m), since
-/// an empty right side would be read as `⊥` by one rule and as anything
-/// by another. LJ has Gentzen's cut besides, which LK's derivations here
-/// do without.
+/// The rules are Gentzen's, with explicit weakening and contraction. A
+/// rule with two premises takes its context either whole into both (as
+/// `∧R` of LJ does) or split between them (as `→L` of LJ does). An axiom
+/// `A ⊢ A` has no context, while `⊤R` and `⊥L` take any. `¬A` is a
+/// connective of its own: in LJ its left rule has the form of `→L` for
+/// `A → ⊥`, and in LK the one premise `Γ ⊢ A, Δ`.
+///
+/// Every LJ sequent has at most one formula right of `⊢`. Minimal logic
+/// has no `⊥L` and exactly one formula right of `⊢` in every sequent
+/// (G1m): one rule would read an empty right side as `⊥` and another as
+/// any formula, which together give ex falso. LJ also has Gentzen's cut;
+/// LK's derivations have none.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Rule {
     /// `ax`: `A ⊢ A`.
@@ -108,20 +110,21 @@ pub enum Rule {
     /// `⊤R`
     TrueRight,
     /// `cut`, in LJ only: `Γ ⊢ C` and `Δ, C ⊢ E` conclude `Γ, Δ ⊢ E`
-    /// (Gentzen's cut, the context split between the premises), the cut
-    /// formula `C` being the one right of `⊢` in the first premise and no
-    /// formula of the conclusion, which has no principal formula. Where
-    /// the conclusion has nothing right of `⊢`, both premises may take
-    /// its whole context instead.
+    /// (Gentzen's cut, the context split between the premises). The cut
+    /// formula `C` is the one right of `⊢` in the first premise; it is no
+    /// formula of the conclusion, so the inference has no principal
+    /// formula. Where the conclusion has nothing right of `⊢`, both
+    /// premises may take its whole context instead.
     Cut,
-    /// An open goal of a proof in progress, which no derivation the
-    /// checker accepts has.
+    /// An open goal of a proof in progress. No derivation the checker
+    /// accepts has one.
     Open,
 }
 
-/// The labels of every rule in the order of [`Rule::ALL`], upright and
-/// with the side and the letter of a structural rule as a subscript: the
-/// upright one is the rule's name in markup, which a test compares.
+/// Each rule's two labels in markup, in the order of [`Rule::ALL`]:
+/// upright, and with the side and its number lowered as a subscript
+/// (`∧_{L1}`). The upright label is the rule's name in markup, which a
+/// test compares.
 const LABELS: [(&str, &str); Rule::ALL.len()] = [
     ("ax", "ax"),
     ("WL", "W_L"),
@@ -232,8 +235,8 @@ impl Rule {
     }
 
     /// Returns the label in the markup the exports set (a subscript as
-    /// `_1`), upright or with the side and the letter of a structural
-    /// rule as a subscript.
+    /// `_1`), upright, or with the side and its number lowered as a
+    /// subscript where `subscript` is set.
     pub(crate) const fn markup(self, subscript: bool) -> &'static str {
         let (upright, lowered) = LABELS[self as usize];
         if subscript { lowered } else { upright }
@@ -344,7 +347,8 @@ pub struct Inference {
     /// The rule.
     pub(crate) rule: Rule,
     /// The side and the position there of the formula the rule
-    /// introduces, removes or copies; `None` for an axiom.
+    /// introduces, removes or copies; `None` for an axiom, a cut and an
+    /// open goal.
     pub(crate) principal: Option<(Side, usize)>,
     /// The premises, in the rule's order.
     pub(crate) premises: Vec<InfId>,
@@ -368,7 +372,8 @@ impl Inference {
     }
 
     /// Returns the side and the position there of the formula the rule
-    /// introduces, removes or copies; `None` for an axiom.
+    /// introduces, removes or copies; `None` for an axiom, a cut and an
+    /// open goal.
     pub const fn principal(&self) -> Option<(Side, usize)> {
         self.principal
     }
@@ -387,34 +392,40 @@ impl Inference {
     }
 }
 
-/// A derivation of LK or LJ (see [`Rule`]), read back from a linear proof
-/// of an image by [`Image::read_back`] or made step by step (feature
-/// `interactive`): premises precede their conclusion, the root is the
-/// last inference.
+/// A derivation of LK or LJ (see [`Rule`]): its inferences, premises
+/// before their conclusion and the root last.
+///
+/// [`decide`](super::decide()) gives one for a valid sequent, from every
+/// method but the SAT solver in classical logic. [`Image::read_back`]
+/// reads one back from a linear proof of an image, and a proof in
+/// progress makes one step by step (feature `interactive`).
 ///
 /// # JSON
 ///
-/// With the feature `serialize` a derivation is `{"version": 8, "logic":
-/// "classical", "sequent": {…}, "inferences": […]}`, the sequent in the
-/// ordinary sequent's form with every formula the inferences name, each
-/// inference `{"left": [ids], "right": [ids], "rule": name, "principal":
-/// ["right", position], "premises": [indices]}` ([`wire`](crate::wire)).
-/// Reading one checks its shape, not its rules: that is
-/// [`check`](Self::check)'s.
+/// With the feature `serialize` a derivation is the document
+/// `{"version": 8, "logic": "classical", "sequent": {…}, "inferences":
+/// […]}` ([`wire`](crate::wire)). `sequent` is in the form of a
+/// [`Sequent`](super::Sequent), with every formula the inferences name.
+/// Each inference is `{"left": [ids], "right": [ids], "rule": name,
+/// "principal": ["right", position], "premises": [indices]}`, without
+/// `principal` or `premises` where it has none. A derivation with LJ's
+/// cut ([`Rule::Cut`]) is written at level 9, since a reader of level 8
+/// does not know the rule. Reading one checks its shape (a tree, its root
+/// last), not its rules: that is [`check`](Self::check)'s.
 #[derive(Clone, Debug)]
 pub struct Derivation {
     /// The logic.
     logic: Logic,
     /// The formulas, those an equivalence or a negation needs included.
     formulas: Formulas,
-    /// The sequent derived.
+    /// The hypotheses of the sequent derived.
     left: Vec<NodeId>,
-    /// The sequent derived, right of `⊢`.
+    /// The formulas right of `⊢` in the sequent derived.
     right: Vec<NodeId>,
     /// The inferences, premises before conclusions.
     inferences: Vec<Inference>,
     /// Whether the derivation is one its checker accepts, or a view of
-    /// one: false for a derivation read from a document until
+    /// one. It is false for a derivation read from a document until
     /// [`check`](Derivation::check) accepts it.
     trusted: Trusted,
 }
@@ -459,18 +470,18 @@ impl Derivation {
         &self.inferences
     }
 
-    /// Reads the derivation back as a term of the simply typed lambda
+    /// Returns the derivation read as a term of the simply typed lambda
     /// calculus ([`lambda`](crate::lambda)), asking `stop` once per
-    /// inference: a derivation of LJ, in either view of its structural
-    /// rules.
+    /// inference. The derivation is one of LJ, in either view of its
+    /// structural rules.
     ///
     /// # Errors
     ///
     /// [`Error::NoTerm`] for a derivation of LK or one with open goals;
     /// [`Refusal::Stopped`] when `stop` fired. A derivation read from JSON
-    /// is checked first unless [`check`](Self::check) has accepted it, so
-    /// one that breaks a rule is [`check`](Self::check)'s error, and so is
-    /// a view of it with its structural rules left out: check the
+    /// is checked first unless [`check`](Self::check) has accepted it. So
+    /// one that breaks a rule gets [`check`](Self::check)'s error, and so
+    /// does a view of it with its structural rules left out: check the
     /// derivation, then take the view.
     pub fn term(
         &self,
@@ -494,8 +505,8 @@ impl Derivation {
 
     /// Returns the root.
     pub fn root(&self) -> InfId {
-        // A derivation read back, made by a proof in progress or read from
-        // its JSON has an inference for every leaf.
+        // Every derivation has at least one inference: its builders make
+        // one, and the JSON reader refuses a derivation without.
         InfId::new(self.inferences.len() as u32 - 1)
     }
 
@@ -532,15 +543,16 @@ impl Derivation {
         (&self.left, &self.right)
     }
 
-    /// Returns the derivation as `structural` shows it: itself when
-    /// explicit, and when admissible without every weakening and
-    /// contraction whose branch the rules above it close, each such run's
-    /// lowest conclusion shown as the conclusion of the first rule above
-    /// it that is no structural one, its principal formula found there by
-    /// its formula. A run above which a goal is still open stays, so that
-    /// an open goal shows its own sequent. What is shown when admissible
-    /// is no derivation [`check`](Self::check) accepts: its axioms have a
-    /// context.
+    /// Returns the derivation as `structural` shows it.
+    ///
+    /// Explicit, it is the derivation itself. Admissible, it leaves out
+    /// every weakening and contraction whose branch the rules above
+    /// close: the lowest conclusion of each such run becomes the
+    /// conclusion of the first rule above it that is not structural, whose
+    /// principal formula is found there by formula. A run with an open goal
+    /// above it stays, so that an open goal shows its own sequent. The
+    /// admissible view is no derivation [`check`](Self::check) accepts:
+    /// its axioms have a context.
     pub fn shown(&self, structural: Structural) -> Cow<'_, Self> {
         match structural {
             Structural::Explicit => Cow::Borrowed(self),
@@ -583,7 +595,8 @@ impl Derivation {
                 .iter()
                 .map(|p| shown[p.index()].0)
                 .collect();
-            // Fewer inferences shown than this derivation has.
+            // Fits a `u32`: no more inferences are shown than this
+            // derivation has.
             let id = InfId::new(out.len() as u32);
             out.push(Inference {
                 premises,
@@ -606,9 +619,9 @@ impl Derivation {
     }
 
     /// Checks the derivation by the rules of its logic, as [`Rule`]
-    /// describes them, and that its root concludes the sequent it was read
-    /// back for: each inference on its own, from the formulas as they
-    /// stand, sharing nothing with the linear proof or the read-back.
+    /// describes them, and that its root concludes the derivation's
+    /// sequent. Each inference is checked on its own, from the formulas as
+    /// they stand, trusting nothing of whatever made the derivation.
     /// Checks `limits.work` inferences at most and asks `stop` before
     /// each.
     ///
@@ -670,9 +683,10 @@ impl Derivation {
 }
 
 /// Checks one inference of a derivation of `logic` over `formulas`
-/// against its rule, given its premises: the number of formulas right of
-/// `⊢` its logic allows, then the rule. [`Derivation::check`] asks it of
-/// every inference, and a proof in progress of every step it takes.
+/// against its rule, given its premises: first the number of formulas
+/// right of `⊢` its logic allows, then the rule. [`Derivation::check`]
+/// calls it for every inference, and a proof in progress for every step
+/// it takes.
 pub(super) fn check_inference(
     formulas: &Formulas,
     logic: Logic,
@@ -687,8 +701,8 @@ pub(super) fn check_inference(
     if logic != Logic::Classical && inference.right.len() > 1 {
         return Err("more than one formula right of ⊢".to_owned());
     }
-    // An empty right side is ⊥ for one rule and anything for another
-    // (`WR`, a split `∨L`), which is ex falso.
+    // One rule reads an empty right side as ⊥ and another as any formula
+    // (`WR`, a split `∨L`), which together give ex falso.
     if logic == Logic::Minimal && inference.right.is_empty() {
         return Err("no formula right of ⊢ in minimal logic".to_owned());
     }
@@ -808,8 +822,8 @@ pub(super) fn check_inference(
         (OrRight2, Right, Node::Or(_, b)) => unary(&[(Right, b)]),
         (ImpliesLeft, Left, Node::Implies(a, b)) => binary(&[(Right, a)], &[(Left, b)]),
         (ImpliesRight, Right, Node::Implies(a, b)) => unary(&[(Left, a), (Right, b)]),
-        // `¬A` as itself, or as `A → ⊥` in LJ; LK's rules have their own
-        // forms only, which its certificate reads.
+        // `¬A` as itself, or as `A → ⊥` in LJ. LK takes only its own
+        // forms, the ones its certificate reads.
         (NotRight, Right, Node::Not(a)) if logic == Logic::Classical => unary(&[(Left, a)]),
         (NotLeft, Left, Node::Not(_)) if logic == Logic::Classical && premises.len() != 1 => {
             Err("LK's ¬L has one premise".to_owned())
@@ -861,10 +875,10 @@ impl Derivation {
 
     /// Writes the derivation as a tree of sequents `Γ ⊢ Δ`, one line per
     /// row, without a trailing newline, as
-    /// [`crate::linear::Derivation::write_text`] draws a linear one, and asks
-    /// `stop` before every piece of a row. The labels are those of
-    /// [`Rule`] (a label table of [`Labels::Table`] is keyed by the
-    /// linear rules, so it leaves them upright).
+    /// [`crate::linear::Derivation::write_text`] draws a linear one, and
+    /// asks `stop` before every piece of a row. The labels are those of
+    /// [`Rule`]. A label table ([`Labels::Table`]) is keyed by the linear
+    /// rules, so under one the labels stay upright.
     ///
     /// # Errors
     ///
@@ -885,10 +899,10 @@ impl Derivation {
     }
 
     /// Writes the derivation as a numbered list of its inferences, one per
-    /// line, premises before their conclusion and the conclusion last, as
-    /// [`crate::linear::Derivation::write_steps`] reads a linear one out: the
-    /// reading of a derivation for a screen reader. Asks `stop` before
-    /// every line.
+    /// line, premises before their conclusion and the root last, as
+    /// [`crate::linear::Derivation::write_steps`] reads a linear one out.
+    /// It is the reading of a derivation for a screen reader. Asks `stop`
+    /// before every line.
     ///
     /// # Errors
     ///
@@ -984,12 +998,13 @@ impl Drawn for Derivation {
     }
 }
 
-/// Returns whether two lists are the same multiset: at once where their
-/// lengths differ or they are equal as they stand, by counting where they
-/// are short, and by sorting copies only where they are long, so that the
-/// checker's question of every inference costs no allocation.
+/// Returns whether two lists are the same multiset. Lists of different
+/// lengths, or equal as they stand, are answered at once; short lists are
+/// compared by counting, and only long ones by sorting copies, so that
+/// the checker allocates nothing for an inference of short sequents.
 pub(super) fn same(a: &[NodeId], b: &[NodeId]) -> bool {
-    /// The longest lists compared by counting, a square of comparisons.
+    /// The longest lists compared by counting, which takes the square of
+    /// their length in comparisons.
     const SHORT: usize = 16;
     if a.len() != b.len() {
         return false;
@@ -1007,11 +1022,11 @@ pub(super) fn same(a: &[NodeId], b: &[NodeId]) -> bool {
     a == b
 }
 
-/// Returns the characters every formula of the arena is written with,
-/// every binary subformula in brackets, saturating: the size estimate's
-/// measure of a formula.
+/// Returns, for every formula of the arena, the characters it is written
+/// with, every binary subformula in brackets, saturating: the size
+/// estimate's measure of a formula.
 pub(super) fn widths(formulas: &Formulas) -> Vec<u64> {
-    // Every subformula precedes the formulas built from it.
+    // One pass: every subformula precedes the formulas built from it.
     let mut weight: Vec<u64> = Vec::with_capacity(formulas.len());
     for node in &formulas.nodes {
         let of = |k: NodeId| weight[k.index()];
@@ -1088,25 +1103,26 @@ impl Image {
         proof.derivation_within(&view, limits, stop)
     }
 
-    /// Reads a proof of the image back as a derivation of LK (classical
-    /// logic) or LJ (intuitionistic and minimal logic) of the ordinary
-    /// sequent: a linear rule on an image is the rule of its connective, a
-    /// dereliction or a promotion is no inference, a contraction or a
-    /// weakening is one of the ordinary formula, and a classical negation,
-    /// which has no image of its own, is a `¬` rule where its operand is
-    /// taken apart. The proof is unfolded first, never compact (two-sided
-    /// for an image in ILL), within `limits.derivation_bytes` and
-    /// `limits.memory_bytes`, and `stop` is asked as that unfolding asks
-    /// it and once per inference read; [`Derivation::check`] checks the
-    /// result.
+    /// Returns the derivation of the ordinary sequent that a proof of the
+    /// image reads back as: one of LK in classical logic, of LJ in
+    /// intuitionistic and minimal logic. [`Derivation::check`] checks it.
+    ///
+    /// A linear rule on an image is the rule of its connective. A
+    /// dereliction or a promotion is no inference, and a contraction or a
+    /// weakening is one of the ordinary formula. A classical negation has
+    /// no image of its own, so it is a `¬` rule where its operand is taken
+    /// apart. The proof is unfolded first, never compact (two-sided for an
+    /// image in ILL), within `limits.derivation_bytes` and
+    /// `limits.memory_bytes`. `stop` is asked as that unfolding asks it,
+    /// and once per inference read.
     ///
     /// # Errors
     ///
     /// [`Error::GoalProof`] for a proof of a goal other than the image's
     /// roots, whose read-back would conclude another sequent; as
     /// [`Proof::derivation_within`] for the unfolding; [`Error::ReadBack`]
-    /// for a proof that is not of this image, or a rule with no reading;
-    /// [`Refusal::Stopped`] when `stop` fired.
+    /// for a proof that is not of this image, or a rule with no reading (a
+    /// cut, a quantifier); [`Refusal::Stopped`] when `stop` fired.
     #[expect(
         clippy::missing_panics_doc,
         reason = "the expects state that the forest's preorder tags a parent before its children, which the walk establishes"
@@ -1233,8 +1249,8 @@ impl Image {
                         "a quantifier, which the read-back has no rule for".to_owned(),
                     ));
                 }
-                // An ordinary derivation of the image read back is
-                // cut-free, as every proof the search finds is.
+                // Every proof the search finds is cut-free, so the
+                // read-back needs no rule for a cut.
                 Linear::Cut => {
                     return Err(fail(
                         "a cut, which the read-back has no rule for".to_owned(),
@@ -1297,10 +1313,9 @@ impl Image {
         })
     }
 
-    /// Follows a formula through the classical negations, which have no
-    /// image of their own, to the formula whose connective its image has:
-    /// returns the negations passed and that formula. Other translations
-    /// pass none.
+    /// Returns the classical negations above a formula, which have no
+    /// image of their own, and the formula under them, whose connective
+    /// its image has. Other translations pass no negation.
     fn unwind(&self, mut node: NodeId, mut function: u8, mut side: Side) -> Unwound {
         let mut chain = Vec::new();
         if self.translation == Translation::Affine {
@@ -1317,8 +1332,9 @@ impl Image {
         }
     }
 
-    /// Returns the ordinary rule a classical linear rule is on the image of
-    /// `node` standing on `side`.
+    /// Returns the ordinary rule that the linear rule `rule`, by its
+    /// classical name, stands for on the image of `node` on `side`; `None`
+    /// where it stands for none.
     fn rule_of(&self, node: Node, side: Side, rule: Linear) -> Option<Rule> {
         use Linear as L;
         use Side::{Left, Right};
@@ -1384,16 +1400,16 @@ fn push(
         principal,
         premises,
     });
-    // A read-back has an inference for every linear inference and every
-    // negation passed, as many as the linear derivation's `InfId` counts
-    // times the depth of a formula, far below `u32::MAX` for any proof a
-    // search returns within its memory bound.
+    // Fits a `u32`: a read-back has an inference per linear inference and
+    // per negation passed, at most the linear derivation's inferences
+    // times a formula's depth, far below `u32::MAX` for any proof a search
+    // returns within its memory bound.
     InfId::new(out.len() as u32 - 1)
 }
 
 /// Adds below `id` the `¬` inferences that take the formula at `at` from
-/// its core back to the negations of `chain`, the innermost first, and
-/// returns the last one.
+/// the formula under its negations back through the negations of
+/// `chain`, the innermost first, and returns the last one.
 fn negations(
     out: &mut Vec<Inference>,
     members: &mut [(NodeId, Side)],

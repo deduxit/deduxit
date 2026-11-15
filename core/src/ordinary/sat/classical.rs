@@ -7,18 +7,19 @@
 //!
 //! The clauses are Tseitin's encoding with polarities (D. A. Plaisted and
 //! S. Greenbaum, *A structure-preserving clause form translation*, J.
-//! Symbolic Computation 2, 1986): every subformula is a variable, and a
-//! formula gets the clauses of one direction of its definition, the one
-//! its polarity needs. A formula that must be true gets "the formula
-//! implies its definition", one that must be false "its definition
-//! implies the formula".
+//! Symbolic Computation 2, 1986). Every subformula is a variable. A
+//! formula gets the clauses of the directions of its definition that its
+//! polarity needs. A formula that must be true gets "the formula implies
+//! its definition", one that must be false "its definition implies the
+//! formula", and one that must be both gets both.
 //!
 //! The answers are checked. A model of the clauses gives an assignment of
 //! the atoms, a Kripke model of one world, which must falsify the sequent
 //! by evaluation ([`Model::refutes`]). A refutation comes with the clauses
-//! the solver learnt and deleted, a clausal proof that the checker of
-//! [`drup`](super::drup) accepts against the encoder's clauses before the sequent is
-//! called valid, with that proof as its evidence ([`ClausalProof`]).
+//! the solver learnt and deleted: a clausal proof. The checker of
+//! [`drup`](super::drup) must accept it against the encoder's clauses
+//! before the sequent is called valid, and the proof's counts are the
+//! evidence ([`ClausalProof`]).
 
 use super::drup::{ClausalProof, Rejection, Step};
 use super::solver::{Answer, Batsat, Lit, Solver};
@@ -41,17 +42,18 @@ const FALSE: u8 = 2;
 pub(super) struct Encoding {
     /// The variable of every formula of the arena that has one.
     pub(super) vars: Vec<Option<u32>>,
-    /// The variables, numbered from 0.
+    /// How many variables there are; they are numbered from 0.
     pub(super) variables: u32,
     /// The clauses.
     pub(super) clauses: Vec<Vec<Lit>>,
 }
 
 /// Returns the polarity of every formula of the arena where `left ⊢
-/// right` fails: `TRUE` for the hypotheses and the parts of a formula
-/// that must be true and that make it true, `FALSE` likewise, both for
-/// the parts of an equivalence; `0` for a formula the sequent does not
-/// hold.
+/// right` fails. `TRUE` marks a formula that must be true there, `FALSE`
+/// one that must be false. The hypotheses are `TRUE` and the formulas
+/// right of `⊢` are `FALSE`. A part takes its parent's polarity, flipped
+/// under a negation and left of an implication; the parts of an
+/// equivalence get both. A formula the sequent does not hold gets `0`.
 fn polarities(formulas: &Formulas, left: &[NodeId], right: &[NodeId]) -> Vec<u8> {
     let mut polarity = vec![0u8; formulas.len()];
     for h in left {
@@ -96,10 +98,10 @@ const POLL: usize = 1 << 12;
 /// its literals: its vector and the header of its allocation.
 const CLAUSE_BYTES: usize = size_of::<Vec<Lit>>() + 16;
 
-/// Returns the clauses of the negation of `left ⊢ right`, a variable for
-/// every formula the sequent holds, at most `most` variables, each clause
-/// charged to the account; refuses once the account is over, past
-/// `most`, or when the stop, asked every [`POLL`] formulas, fires.
+/// Returns the clauses of the negation of `left ⊢ right`, with a variable
+/// for every formula the sequent holds. Each clause is charged to the
+/// account. Refuses once the account is over, past `most` variables, or
+/// when the stop fires, which is asked every [`POLL`] formulas.
 ///
 /// Every clause holds when each variable takes its formula's value under
 /// an assignment of the atoms, except the unit clauses of the sequent's
@@ -153,7 +155,8 @@ pub(super) fn encode(
             continue;
         }
         let x = NodeId(id as u32);
-        // `x` true implies its definition, its definition implies `x`.
+        // `forward`: `x` implies its definition; `backward`: its definition
+        // implies `x`.
         let (forward, backward) = (p & TRUE != 0, p & FALSE != 0);
         let mut definition: Vec<Vec<Lit>> = Vec::new();
         match formulas.node(x) {
@@ -252,8 +255,9 @@ pub(super) fn decide(
         for _ in 0..clauses.variables {
             solver.new_var();
         }
-        // The solver copies the clauses: it is charged for them, and
-        // refused once over, before it holds them all.
+        // The solver copies the clauses and is charged for them. Polling it
+        // as they go in refuses a sequent past the memory bound before the
+        // solver holds them all.
         for (n, clause) in clauses.clauses.iter().enumerate() {
             solver.add_clause(clause);
             if n % POLL == 0
@@ -297,7 +301,8 @@ pub(super) fn decide(
         }
         Ok(Found::Proof(clauses, proof)) => {
             statistics.proof_steps = proof.len() as u64;
-            // The solver is gone; the clauses and the proof stay.
+            // The solver is dropped: the check's account holds only the
+            // clauses and the proof.
             let held = clauses
                 .clauses
                 .iter()
@@ -377,8 +382,8 @@ mod tests {
 
     /// Returns the pigeonhole sequent of `n + 1` pigeons and `n` holes:
     /// every pigeon in a hole and no two in one, which cannot all hold.
-    /// Its refutation takes the solver thousands of conflicts from
-    /// `n = 7`, and clauses deleted on the way.
+    /// From `n = 7` its refutation takes the solver thousands of conflicts,
+    /// and the solver deletes clauses on the way.
     fn pigeons(n: usize) -> Sequent {
         let mut hypotheses = Vec::new();
         for i in 0..=n {
@@ -549,9 +554,9 @@ mod tests {
     }
 
     /// The work bound, the stop, the memory bound and the variables'
-    /// bound end the search, each as its reason; the bound on the work
-    /// also refuses the check of a proof
-    /// longer than the solver's work, which deletions make it.
+    /// bound end the search, each as its reason. The work bound also
+    /// refuses the check of a proof that has more steps than the solver
+    /// did work, as its deletions make it.
     #[test]
     fn the_search_and_the_check_keep_to_their_bounds() {
         let sequent = pigeons(7);

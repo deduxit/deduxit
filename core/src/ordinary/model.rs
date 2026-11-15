@@ -1,9 +1,10 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Ordinary logic's check of a finite Kripke model: whether it is a model
-//! of the logic, what each world forces, and whether a sequent holds or
-//! fails there.
+//! The check of a finite Kripke model ([`kripke`](crate::kripke): worlds
+//! joined by arrows to the worlds above them, each forcing some atoms)
+//! against an ordinary sequent: whether it is a model of the logic, what
+//! each world forces, and whether the sequent holds or fails there.
 
 use super::{Logic, Node, NodeId, Sequent};
 use crate::Error;
@@ -12,9 +13,9 @@ use crate::limits::{Limits, Phase, Progress, Refusal};
 
 /// The most cells a check computes: a cell is a world, or an arrow to a
 /// world above, times a formula of the sequent's arena. The forcing table
-/// holds a bit per world and formula, so a check holds 16 MiB of it at
-/// most; a model past the bound is not checked, and a countermodel past
-/// it is reported as too large to show.
+/// holds a bit per world and formula, so a check holds at most 16 MiB of
+/// it. A model past the bound is not checked, and an outcome drops a
+/// countermodel past it as too large to show.
 pub const MODEL_CELLS: u64 = 1 << 27;
 
 /// The bytes the check holds per world besides the table: its atoms' and
@@ -34,8 +35,8 @@ const ATOM_BYTES: u64 = 4 + 32;
 pub struct Countermodel {
     /// The sequent refuted.
     pub sequent: Sequent,
-    /// The model, whose world forces every formula left of the sequent's
-    /// `⊢` and not the formula right of it.
+    /// The model. Its world forces every formula left of the sequent's
+    /// `⊢` and none right of it, as [`Model::refutes`] checks.
     pub model: Model,
 }
 
@@ -61,7 +62,8 @@ impl Countermodel {
     }
 
     /// Returns the countermodel an engine found, checked: `None` where it
-    /// is too large to check (past [`MODEL_CELLS`] or `limits`).
+    /// is too large to check (past [`MODEL_CELLS`] or
+    /// `limits.memory_bytes`).
     ///
     /// # Errors
     ///
@@ -88,7 +90,7 @@ impl Countermodel {
 /// arena, as [`Model::forcing`] computes it.
 #[derive(Clone, Debug)]
 pub struct Forcing {
-    /// The formulas of the sequent's arena, per world.
+    /// The number of formulas in the sequent's arena: the bits per world.
     width: usize,
     /// A bit per world and formula.
     table: Vec<u64>,
@@ -131,7 +133,7 @@ impl Forcing {
 
     /// Returns whether the sequent holds at `world`: every world at or
     /// above it that forces every formula left of `⊢` forces the formula
-    /// right of it (classically, one of them).
+    /// right of it (`⊥` where there is none; classically, one of them).
     ///
     /// # Panics
     ///
@@ -174,23 +176,28 @@ impl Model {
     /// Checks that the model is one of `logic` and computes what each of
     /// its worlds forces, for every formula of the sequent's arena.
     ///
-    /// A model of the logic: at least one world, the model's world among
-    /// them; every arrow to a world of the model, and no arrows round
-    /// (the order is a partial order, worlds above each other being one
-    /// world); every world forcing the atoms, and `⊥`, of every world
-    /// below it; `⊥` only in minimal logic; in classical logic one world.
-    /// An atom the sequent does not name changes nothing it forces, and an
-    /// arrow written twice is one arrow.
+    /// A model of the logic has:
+    /// - at least one world, the model's world among them;
+    /// - every arrow to a world of the model, and no cycle of arrows (the
+    ///   order is a partial order: two worlds each above the other would
+    ///   be one world);
+    /// - every world forcing the atoms, and `⊥`, of every world below it;
+    /// - `⊥` forced only in minimal logic;
+    /// - one world in classical logic.
     ///
-    /// Forcing is computed world by world, the worlds above first: an
-    /// atom where the world forces it, `⊥` where it forces it (minimal
-    /// logic), `∧` and `∨` from their parts there, an implication, a
-    /// negation (`¬A` read as `A → ⊥`) or an equivalence where it holds
-    /// there and at every world directly above, which holds it at every
-    /// world above. The stop is asked once per world in each pass over
-    /// the worlds. Besides the table ([`MODEL_CELLS`]) the check holds a
-    /// few words per world, arrow and atom, which `limits.memory_bytes`
-    /// bounds.
+    /// An atom the sequent does not name changes nothing the sequent's
+    /// formulas force, though it must grow along the arrows as the others
+    /// do. An arrow written twice is one arrow.
+    ///
+    /// Forcing is computed world by world, the worlds above first. An atom
+    /// is forced where the world forces it, and `⊥` where the world forces
+    /// it (minimal logic). `∧` and `∨` follow from their parts there. An
+    /// implication, a negation (`¬A` read as `A → ⊥`) or an equivalence is
+    /// forced where it holds there and is forced at every world directly
+    /// above, which then forces it at every world above. The stop is asked
+    /// once per world in each pass over the worlds. Besides the table
+    /// ([`MODEL_CELLS`]) the check holds a few words per world, arrow and
+    /// atom, which `limits.memory_bytes` bounds.
     ///
     /// # Errors
     ///
@@ -250,10 +257,8 @@ impl Model {
         if cells > MODEL_CELLS {
             return refused(MODEL_CELLS / 8, cells / 8);
         }
-        // What the passes below hold besides the table: per world its
-        // atoms' and arrows' vectors, those into it, its place in the
-        // order and two flags; per arrow two indices; per atom an index
-        // and its name's entry in the map.
+        // What the passes below hold besides the table: `WORLD_BYTES` per
+        // world, two indices per arrow and `ATOM_BYTES` per atom.
         let held = (worlds as u64)
             .saturating_mul(WORLD_BYTES)
             .saturating_add(arrows.saturating_mul(8))
@@ -538,7 +543,7 @@ mod tests {
     /// The check asks the stop before its first pass over the atoms, reads
     /// an arrow written twice as one, finds a failing world without a
     /// search per world, and refuses past the memory bound, where an
-    /// engine's model is dropped rather than its verdict.
+    /// engine's model is dropped and its verdict kept.
     #[test]
     fn the_check_asks_the_stop_and_keeps_to_its_memory() {
         let sequent: Sequent = "a |- b".parse().unwrap();

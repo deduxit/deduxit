@@ -32,7 +32,9 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   `MODEL_CELLS`); `interactive.rs` (behind `interactive`): the
   goal state `Interactive`, below. Its JSON forms and those of the
   sequent, the derivation and the outcome are in
-  `core/src/serialize/ordinary.rs`, wire level 8 (`wire::ORDINARY`).
+  `core/src/serialize/ordinary.rs`: the sequent, the derivation and the
+  goal state at wire level 8 (`wire::ORDINARY`, 9 with LJ's cut), the
+  outcome at 12 (`wire::SEARCH`), the Kripke model at 13.
 - **Every entry keeps to the occurrence bound**: `Sequent::parse_within`
   and `read_tptp` refuse at the first formula of the arena past
   `limits.occurrences`, and at the formula of the sequent past it,
@@ -196,13 +198,14 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   within 0.3 s on every valid problem). With no method given, the
   method gives way to the embedding where `gives_way` (on any method's
   `Outcome`) says so: an unknown at a bound
-  other than `Reason::Stopped`, or an `Error::Refused` other than the stop, never an unsupported input (the
-  derivation past `derivation_bytes`). The outcome's
+  other than `Reason::Stopped`, or an `Error::Refused` other than the
+  stop (the derivation past `derivation_bytes` included: it is a
+  refusal, `Refusal::Output`). The outcome's
   `search` (`Search::Embedding` with the translation and the image's
   outcome, `Search::Ljt` with LJT's statistics, `Search::Sat` with the
   solver's, LJT's among them where it gave the derivation) says which
-  decided, and its JSON writes `engine` `ljt` or `sat` and no
-  `translation` for them. The
+  decided, and its JSON tags `search` by `method` (`ljt` and `sat` with
+  `statistics`, no `translation`). The
   command still runs the steps itself (its race and its output, the
   dispatch by `gives_way` in `cli/src/ordinary.rs`), with its defaults
   (no copy bound, the time limit), affine classical mode for `Affine`,

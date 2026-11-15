@@ -7,37 +7,44 @@
 //! intuitR (C. Fiorentini, *Efficient SAT-based proof search in
 //! intuitionistic propositional logic*, CADE-28, 2021).
 //!
-//! Every subformula of the sequent is a variable of the solver, and each
-//! connective's rules become clauses between a formula and its parts: the
-//! flat clauses, which hold classically and intuitionistically alike, and
-//! for every implication `a → b` that the sequent needs to prove the
-//! implication clause `(a → b) → (a → b)`, which the solver cannot read.
-//! The search looks for worlds, models of the flat clauses in which the
-//! goal is false. A world that lacks an implication needs a world above it
-//! that has `a` and not `b`; the solver looks for one under the
-//! assumptions of the world and `a`. Where there is none, the call's failed
-//! assumptions `A` give the clause `A → (a → b)`, which is learnt, and the
-//! search starts again. Where every world has the worlds it needs, they
-//! are a Kripke model in which the goal fails. Where the goal holds in
-//! every model of the clauses, the sequent is valid.
+//! Every subformula of the sequent is a variable of the solver. Each
+//! connective's rules become clauses between a formula and its parts.
+//! Most are flat clauses, which hold classically and intuitionistically
+//! alike. The exception is the implication clause `(a → b) → c`, where `c`
+//! is the variable of `a → b`, one for every implication the sequent needs
+//! to prove. The solver cannot read it, so the search handles it.
+//!
+//! The search looks for worlds: models of the flat clauses in which the
+//! goal is false. A world where `a`, `b` and `c` are all false needs a
+//! world above it that has `a` and not `b`. The solver looks for one, with
+//! `a`, `¬b` and the world as assumptions. Where there is none, the
+//! world's assumptions that the refutation used, `A`, give the clause
+//! `A → c`. The search learns it and starts again. Where every world has
+//! the worlds it needs, they are a Kripke model in which the goal fails.
+//! Where the goal holds in every model of the clauses, the sequent is
+//! valid.
 //!
 //! Both answers are checked. "Valid" comes with a derivation of LJ that
-//! [`Derivation::check`] accepts, read off the learnt clauses and the last
-//! call (the correspondence of Fiorentini, Goré and Graham-Lengrand,
-//! *A proof-theoretic perspective on SMT-solving for intuitionistic
-//! propositional logic*, TABLEAUX 2019), or by [`ljt`] where a bound
-//! refuses that derivation. "Not valid" comes with the Kripke model, which
-//! [`Model::refutes`](crate::kripke::Model::refutes) checks. Minimal logic is the same search with `⊥` a
-//! variable like an atom.
+//! [`Derivation::check`] accepts. It is read off the learnt clauses and
+//! the last call (the correspondence of Fiorentini, Goré and
+//! Graham-Lengrand, *A proof-theoretic perspective on SMT-solving for
+//! intuitionistic propositional logic*, TABLEAUX 2019), or found by
+//! [`ljt`] where a bound refuses that derivation. "Not valid" comes with
+//! the Kripke model, which
+//! [`Model::refutes`](crate::kripke::Model::refutes) checks. Minimal logic
+//! is the same search with `⊥` a variable like an atom.
 //!
-//! Classical logic is decided by one call of the solver on the clauses of
-//! the sequent's negation (Tseitin's encoding with polarities). "Not
-//! valid" comes with a model of one world, the assignment that falsifies
-//! the sequent, which [`Model::refutes`](crate::kripke::Model::refutes) checks by evaluation. "Valid"
-//! comes with the clauses the solver learnt and deleted, recorded as a
-//! clausal proof (DRUP) that this module's own checker accepts by unit
-//! propagation against the clauses ([`ClausalProof`]). It is no
-//! derivation: the embedding gives the derivation of LK.
+//! Classical logic takes one call of the solver on the clauses of the
+//! sequent's negation (Tseitin's encoding with polarities). "Not valid"
+//! comes with a model of one world, the assignment that falsifies the
+//! sequent, which [`Model::refutes`](crate::kripke::Model::refutes)
+//! checks by evaluation. "Valid" comes with the clauses the solver learnt
+//! and deleted, recorded as a clausal proof (DRUP). This module's own
+//! checker accepts it by unit propagation against the clauses
+//! ([`ClausalProof`]). A clausal proof is no derivation:
+//! [`decide`](super::decide()) with
+//! [`Method::Embedding`](super::Method::Embedding) gives the derivation of
+//! LK.
 //!
 //! Needs the cargo feature `sat`.
 //!
@@ -85,7 +92,8 @@ pub struct Outcome {
     /// What the search cost.
     pub statistics: Statistics,
     /// The Kripke model that refutes a sequent that is not valid, with the
-    /// sequent, checked.
+    /// sequent, checked. `None` for any other verdict, and where the model
+    /// is too large to check.
     pub model: Option<super::Countermodel>,
 }
 
@@ -107,7 +115,8 @@ pub struct Statistics {
     pub conflicts: u64,
     /// The clauses learnt from implications, each followed by a restart.
     pub lemmas: u64,
-    /// The worlds of the model that refutes the sequent.
+    /// The worlds of the model that refutes the sequent, counted also where
+    /// the model is too large to keep.
     pub worlds: u64,
     /// The facts the read-back of the derivation derived.
     pub facts: u64,
@@ -118,8 +127,8 @@ pub struct Statistics {
     /// clauses have no model, which the checker accepted: the clauses the
     /// solver learnt and deleted, and the empty clause.
     pub proof_steps: u64,
-    /// LJT's statistics where its search gave the derivation: the
-    /// read-back was refused by a bound, or the logic's default prefers
+    /// LJT's statistics where its search gave the derivation: where a
+    /// bound refused the read-back, or where the logic's default prefers
     /// LJT's derivation ([`decide_preferring_ljt`]).
     pub ljt: Option<ljt::Statistics>,
 }
@@ -149,34 +158,41 @@ struct Lemma {
     made: NodeId,
 }
 
-/// Decides a sequent by the SAT solver within `limits`, the stop asked at
-/// every decision of the solver and at every call of it. A conflict or a call is a unit of `limits.work`, and the
-/// clauses and worlds are charged to `limits.memory_bytes`. A valid
-/// sequent's derivation is read off the search within
+/// Decides a sequent by the SAT solver within `limits`.
+///
+/// The stop is asked at every decision of the solver and at every call of
+/// it. A conflict or a call is a unit of `limits.work`, and the clauses
+/// and worlds are charged to `limits.memory_bytes`. A valid sequent's
+/// derivation of LJ is read off the search within
 /// `limits.derivation_bytes`, `limits.memory_bytes` and `limits.work`
-/// facts, or where a bound refuses it found by [`ljt::decide`] within the
-/// same limits, and checked; a sequent that is not valid gets its Kripke
-/// model, checked. A sequent with nothing right of `⊢` is decided as
-/// `Γ ⊢ ⊥`, and its derivation concludes that sequent.
+/// facts. Where a bound, not the stop, refuses it, [`ljt::decide`]
+/// finds one within the same limits. Either derivation is checked. A
+/// sequent that is not valid gets its Kripke model, checked, unless the
+/// model is too large to check: then the verdict stands without it. A
+/// sequent with nothing right of `⊢` is decided as `Γ ⊢ ⊥`, and its
+/// derivation concludes that sequent.
 ///
 /// In classical logic a valid sequent's evidence is its clausal proof
-/// ([`ClausalProof`]), checked within the same limits, a step of it a
-/// unit of `limits.work` (the solver and the check each have the whole
-/// bound); it has no derivation, which [`decide`](super::decide()) with
-/// [`Method::Embedding`](super::Method::Embedding) gives. A sequent that
-/// is not valid gets a model of one world, checked.
+/// ([`ClausalProof`]), checked within the same limits. A step of it is a
+/// unit of `limits.work`; the solver and the check each have the whole
+/// bound. A clausal proof is no derivation: [`decide`](super::decide())
+/// with [`Method::Embedding`](super::Method::Embedding) gives one. A
+/// sequent that is not valid gets a model of one world, checked.
 ///
 /// # Errors
 ///
-/// [`Error::Succedents`] for more than one formula right of `⊢` in
-/// intuitionistic or minimal logic; [`Refusal::Output`],
-/// [`Refusal::Memory`], [`Refusal::Work`] or [`Refusal::Stopped`] where a
-/// bound or the stop refused the derivation of a proof (the read-back's
-/// refusal, where LJT gave none either) or the check of a model, none of
-/// them a verdict, and in classical logic the bound or stop that refused
-/// the check of the clausal proof; as [`Derivation::check`];
-/// [`Error::ReadBack`] or [`Error::Countermodel`] where the derivation,
-/// the clausal proof or the model fails its check, a defect.
+/// - [`Error::Succedents`] for more than one formula right of `⊢` in
+///   intuitionistic or minimal logic.
+/// - [`Refusal::Output`], [`Refusal::Memory`], [`Refusal::Work`],
+///   [`Refusal::Index`] or [`Refusal::Stopped`] where a bound or the stop
+///   refused the derivation of a proof (where LJT gave none either), the
+///   check of a model or, in classical logic, the check of the clausal
+///   proof. None of them is a verdict.
+/// - As [`Derivation::check`].
+/// - [`Error::ReadBack`] where the derivation or the clausal proof fails
+///   its check, or where LJT refutes a sequent the search proved, and
+///   [`Error::Countermodel`] where the model fails its check: each a
+///   defect.
 pub fn decide(
     sequent: &Sequent,
     logic: Logic,
@@ -197,15 +213,14 @@ pub fn decide(
 /// derivation of LJ from [`ljt::decide`] where LJT gives one within the
 /// limits and before the stop, and otherwise the one read off the search.
 /// LJT's derivations are smaller, and their lambda-terms have fewer
-/// redexes; the verdict is the search's either way. This is how the
-/// logic's default decides intuitionistic and minimal logic
-/// ([`decide`](super::decide()) with no method given); in classical logic
-/// it is [`decide`].
+/// redexes. The verdict is the search's either way. The logic's default
+/// decides intuitionistic and minimal logic this way
+/// ([`decide`](super::decide()) with no method given). In classical logic
+/// this function is [`decide`].
 ///
 /// # Errors
 ///
-/// As [`decide`], and [`Error::ReadBack`] where LJT refutes a sequent the
-/// search proved, a defect.
+/// As [`decide`].
 pub fn decide_preferring_ljt(
     sequent: &Sequent,
     logic: Logic,
@@ -254,9 +269,9 @@ fn run(
     }
     let mut formulas = sequent.formulas().clone();
     let falsity = formulas.add(Node::False)?;
-    // `a ↔ b` holds where `a → b` and `b → a` hold, which are formulas of
-    // the arena; every equivalence is a node before them, so a pass over
-    // the arena's first part adds them all.
+    // The clauses of `a ↔ b` go through `a → b` and `b → a`, which are
+    // added here. The range is fixed before the loop adds any, and an
+    // implication added is no equivalence, so one pass adds them all.
     for id in 0..formulas.len() {
         if let Node::Iff(a, b) = formulas.node(NodeId(id as u32)) {
             formulas.add(Node::Implies(a, b))?;
@@ -293,8 +308,8 @@ fn run(
         Err(reason) => (Verdict::Unknown(reason), None),
         Ok((Found::Worlds(worlds), _, nodes)) => {
             statistics.worlds = worlds.len() as u64;
-            // The check computes a cell per world and formula at least:
-            // past its bound the model is not built, and a model the check
+            // The check computes at least a cell per world and formula.
+            // Past its bound the model is not built, and a model the check
             // refuses for its size (its arrows count too) is dropped. Below
             // the bound the worlds' indices fit a `u32`.
             let cells = statistics
@@ -302,7 +317,7 @@ fn run(
                 .saturating_mul(sequent.formulas().len() as u64);
             if cells > super::MODEL_CELLS {
                 // Too large to show and to check: the verdict stands
-                // without its model, the worlds counted.
+                // without its model, and the statistics count its worlds.
                 (Verdict::NotValid, None)
             } else {
                 match kripke(
@@ -323,7 +338,7 @@ fn run(
                         )?;
                         (Verdict::NotValid, model)
                     }
-                    // The worlds' order past the memory bound: the
+                    // The worlds' order would pass the memory bound: the
                     // verdict stands without its model.
                     Err(Reason::MemoryLimit { .. }) => (Verdict::NotValid, None),
                     Err(reason) => (Verdict::Unknown(reason), None),
@@ -415,17 +430,19 @@ fn prefer_ljt(
             calculus: logic.calculus(),
             reason: "LJT refutes a sequent the SAT search proved".to_owned(),
         }),
-        // LJT gives a derivation; a bound or the stop leaves the one read
-        // off the search.
+        // LJT never gives a clausal proof or an image's proof. An unknown,
+        // from a bound or the stop, leaves the derivation read off the
+        // search.
         Verdict::Valid(Evidence::Clausal(_) | Evidence::Image) | Verdict::Unknown(_) => {
             Ok(derivation)
         }
     }
 }
 
-/// Returns LJT's derivation of a sequent the search proved, and its
-/// statistics; where the stop ends LJT, that stop; where another bound
-/// does, the read-back's `refusal`.
+/// Returns LJT's derivation of a sequent the search proved, and LJT's
+/// statistics. Where the stop ends LJT, returns that stop; where another
+/// bound does, the read-back's `refusal`; where LJT refutes the sequent,
+/// [`Error::ReadBack`].
 fn by_ljt(
     sequent: &Sequent,
     logic: Logic,
@@ -444,7 +461,7 @@ fn by_ljt(
     };
     match outcome.verdict {
         Verdict::Valid(Evidence::Derivation(derivation)) => Ok((*derivation, outcome.statistics)),
-        // LJT gives a derivation.
+        // LJT never gives a clausal proof or an image's proof.
         Verdict::Valid(Evidence::Clausal(_)) => Err(Error::NoDerivation),
         Verdict::Valid(Evidence::Image) => Err(Error::NotBuilt),
         Verdict::Unknown(Reason::Stopped) => Err(Error::Refused(Refusal::Stopped {
@@ -491,8 +508,9 @@ fn polarities(formulas: &Formulas, left: &[NodeId], goal: NodeId, falsity: NodeI
                 polarity[b.index()] |= p;
             }
             Node::Iff(a, b) => {
-                // The implications may come after the equivalence: their
-                // parts get both polarities here, as they would from them.
+                // The implications may come after the equivalence, and this
+                // pass has then gone by them: the parts get here what the
+                // implications would give them, both polarities.
                 polarity[a.index()] |= NEGATIVE | POSITIVE;
                 polarity[b.index()] |= NEGATIVE | POSITIVE;
                 for i in [Node::Implies(a, b), Node::Implies(b, a)] {
@@ -571,9 +589,10 @@ struct Search<'a, S> {
 }
 
 impl<'a, S: Solver> Search<'a, S> {
-    /// The solver given the clauses of the formulas `polarity` names,
-    /// at most `most` variables, each variable and clause charged to the
-    /// account as it is made and the setup refused once that is over.
+    /// Gives the solver the clauses of the formulas `polarity` names, with
+    /// at most `most` variables. Each variable and clause is charged to the
+    /// account as it is made, and the setup is refused once the account is
+    /// over.
     fn new(
         solver: &'a mut S,
         formulas: &Formulas,
@@ -739,7 +758,7 @@ impl<'a, S: Solver> Search<'a, S> {
     ) -> Result<bool, Reason> {
         // A pair passed over is realised, and stays so as worlds are
         // added, so each world keeps a cursor over the implications. The
-        // oldest world is examined first: on ILTP the newest first left
+        // oldest world is examined first: newest first leaves ILTP's
         // SYJ212+1.020 undecided after 20 s, which this order refutes in
         // 130 calls.
         let mut next: Vec<usize> = vec![0; worlds.len()];
@@ -765,9 +784,9 @@ impl<'a, S: Solver> Search<'a, S> {
                 return Ok(false);
             };
             // `a` and `¬b` first: the solver blames a conflict on the first
-            // assumptions that imply it, so what `a` implies is not blamed
-            // on the world, whose variables would make the clause learnt
-            // as narrow as the world.
+            // assumptions that imply it. So what `a` implies is not blamed
+            // on the world, whose variables would tie the clause learnt to
+            // that one world.
             let mut assumptions = vec![Lit::positive(a), Lit::negative(b)];
             assumptions.extend(worlds[w].members().map(Lit::positive));
             match self.solver.solve(&assumptions) {
@@ -834,17 +853,18 @@ fn unrealised(worlds: &[Bits], w: usize, [a, b, c]: [u32; 3]) -> bool {
         return false;
     }
     // A world that has `a` is not `w`, so it is above `w` where it holds
-    // `w`.
+    // every variable of `w`.
     !worlds
         .iter()
         .any(|other| other.has(a) && !other.has(b) && world.within(other))
 }
 
 /// Returns the Kripke model of the worlds: ordered by inclusion, the
-/// least first, each with the atoms of its variables, and `⊥` in minimal
-/// logic. The order is found as a bit per pair of worlds, charged to the
-/// account; past its bound, or when the stop fires (asked every `POLL`
-/// comparisons of worlds), the reason.
+/// least first, each with the atoms whose variables it holds, and `⊥`
+/// where it holds `⊥` in minimal logic. Finding the order takes a bit per
+/// pair of worlds, charged to the account. Returns the reason past the
+/// memory bound, or when the stop fires (asked every `POLL` comparisons
+/// of worlds).
 fn kripke(
     formulas: &Formulas,
     logic: Logic,
@@ -888,7 +908,8 @@ fn kripke(
             }
             below.push(set);
         }
-        // The worlds directly below: below, and below no world below.
+        // The worlds directly below each: below it, and below no other
+        // world below it.
         let mut above = vec![Vec::new(); n];
         for (j, set) in below.iter().enumerate() {
             let mut direct = set.clone();
@@ -1107,9 +1128,9 @@ mod tests {
     }
 
     /// The search stops at the work bound, the stop and the memory bound,
-    /// refuses a sequent of more formulas than it has variables, and a
-    /// derivation past its bound is refused when LJT gives none either;
-    /// the model's check refuses past its cells.
+    /// and refuses a sequent of more formulas than it has variables. A
+    /// derivation past its bound is refused when LJT gives none either.
+    /// The model's check refuses past its cells.
     #[test]
     fn the_search_keeps_to_its_bounds() {
         let sequent: Sequent = "((a -> b) -> a) -> a".parse().unwrap();

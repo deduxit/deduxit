@@ -1,11 +1,11 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! The SAT solver the engine asks, behind a trait of this crate's own, so
-//! that another solver or a fork replaces it in one place: variables,
-//! clauses, solving under assumptions, the model, the failed assumptions,
-//! and a stop that the solver polls at every decision. The one
-//! implementation is batsat, MiniSat 2.2 in Rust.
+//! The SAT solver the engine calls, behind a trait of this crate's own so
+//! that another solver, or a fork, replaces it in one place. The trait has
+//! variables, clauses, solving under assumptions, the model, the failed
+//! assumptions, and a stop that the solver polls at every decision. Its
+//! one implementation is batsat, MiniSat 2.2 in Rust.
 
 use std::cell::{Cell, RefCell};
 
@@ -83,11 +83,11 @@ pub(crate) trait Solver {
     /// satisfiable answer found.
     fn value(&self, literal: Lit) -> bool;
     /// Returns the assumptions of the last unsatisfiable answer that
-    /// make the clauses unsatisfiable by themselves.
+    /// suffice, without the others, to make the clauses unsatisfiable.
     fn failed(&self) -> Vec<Lit>;
-    /// Asks the stop, the work bound and the memory bound between calls,
-    /// with `work` units of progress since the last ask, returning why
-    /// the solver must stop, if it must.
+    /// Asks the work bound, the memory bound and the stop between calls,
+    /// reporting `work` units of progress since the last ask. Returns why
+    /// the solver must stop, or `None`.
     fn poll(&mut self, work: u64) -> Option<Reason>;
     /// Returns the calls of [`solve`](Self::solve) so far.
     fn calls(&self) -> u64;
@@ -148,8 +148,8 @@ impl Callbacks for Bridge<'_> {
 }
 
 impl Bridge<'_> {
-    /// Appends the clause to the proof as `step` says, where a proof is
-    /// recorded, charging it to the memory account.
+    /// Where a proof is recorded, appends the clause to it as `step` says
+    /// and charges it to the memory account.
     fn record(&mut self, clause: &[BatLit], step: fn(Box<[Lit]>) -> Step) {
         if let Some(proof) = &mut self.proof {
             self.account.charge(Step::bytes(clause.len()));
@@ -188,9 +188,9 @@ pub(crate) struct Batsat<'s> {
 }
 
 impl<'s> Batsat<'s> {
-    /// A solver that stops past `work` units of work (a conflict, or a
-    /// call of `solve`), past the memory account's bound, or when `stop`
-    /// fires.
+    /// Returns a solver that stops past `work` units of work (a conflict,
+    /// or a call of `solve`), past the memory account's bound, or when
+    /// `stop` fires.
     pub(crate) fn new(
         work: u64,
         account: &'s Account,
@@ -210,8 +210,9 @@ impl<'s> Batsat<'s> {
         }
     }
 
-    /// [`new`](Self::new), recording every clause learnt and deleted as a
-    /// clausal proof, which [`proof`](Self::proof) takes.
+    /// Returns a solver as [`new`](Self::new) does that also records every
+    /// clause learnt and deleted as a clausal proof, which
+    /// [`proof`](Self::proof) takes.
     pub(crate) fn recording(
         work: u64,
         account: &'s Account,
@@ -222,8 +223,8 @@ impl<'s> Batsat<'s> {
         solver
     }
 
-    /// Takes the clauses learnt and deleted so far, in order, where the
-    /// solver records them.
+    /// Takes the clauses learnt and deleted so far, in order; `None` unless
+    /// the solver records them.
     pub(crate) fn proof(&mut self) -> Option<Vec<Step>> {
         let proof = self.solver.cb_mut().proof.as_mut()?;
         Some(std::mem::take(proof))
@@ -261,8 +262,8 @@ impl Solver for Batsat<'_> {
             .cb()
             .account
             .charge(clause_bytes(literals.len()));
-        // `false` says the clauses are unsatisfiable already, which the
-        // next call of `solve` answers.
+        // batsat returns `false` when the clauses are unsatisfiable
+        // already; the next call of `solve` answers that.
         self.solver.add_clause_reuse(&mut literals);
     }
 
@@ -278,11 +279,10 @@ impl Solver for Batsat<'_> {
         if answer == lbool::TRUE {
             Answer::Satisfiable
         } else if answer == lbool::FALSE {
-            // A refutation of the assumptions reports its final conflict as
-            // a clause learnt, which the solver does not keep: it is the
-            // core, and given back here.
-            // It is no consequence of the clauses alone, so a proof does not
-            // record it.
+            // A refutation under assumptions reports its final conflict,
+            // the core, as a clause learnt, though the solver does not keep
+            // it. So its charge is given back here, and a proof drops it:
+            // it does not follow from the clauses alone.
             let core = self.solver.unsat_core().len();
             if core > 0 {
                 let bridge = self.solver.cb_mut();

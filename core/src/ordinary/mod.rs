@@ -1,33 +1,55 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Ordinary propositional logic, classical, intuitionistic and minimal:
-//! a sequent of ordinary formulas ([`Sequent`]), decided in one call by
-//! [`decide()`], or under bounds, a search's options and a stop by
-//! [`decide_within`]. A valid sequent comes with checked [`Evidence`]: a
-//! derivation of LK or LJ ([`Derivation`], which [`Derivation::check`]
-//! checks by the rules of the logic) or, from the SAT solver in
-//! classical logic, a clausal proof.
+//! Ordinary propositional logic: classical, intuitionistic and minimal.
 //!
-//! [`Method`] chooses how: a SAT solver (the default, behind the feature
-//! `sat`), Dyckhoff's LJT for intuitionistic and minimal logic, or the
-//! embedding, which translates the sequent into linear logic
-//! ([`translate()`], an [`Image`] holding a linear sequent and the mode to
-//! prove it in) and reads the linear proof back ([`Image::read_back`]).
-//! Classical logic goes into affine MALL, intuitionistic and minimal logic
-//! into intuitionistic linear logic by a [`Translation`].
+//! [`decide()`] says whether a [`Sequent`] is valid in a [`Logic`]. A
+//! valid sequent comes with checked [`Evidence`]: a derivation of LK
+//! (classical logic) or LJ (intuitionistic and minimal logic), Gentzen's
+//! sequent calculi, which [`Derivation::check`] accepted; or, from the SAT
+//! solver in classical logic, a clausal proof that the crate's checker
+//! accepted. A sequent that is not valid comes with a checked Kripke model
+//! that refutes it ([`Countermodel`]) where the method finds one.
+//! [`decide_within`] does the same under the caller's bounds, search
+//! options and stop.
+//!
+//! [`Method`] chooses how a sequent is decided:
+//! - a SAT solver, the default for every logic; it needs the cargo feature
+//!   `sat`, on by default;
+//! - Dyckhoff's calculus LJT, for intuitionistic and minimal logic, their
+//!   default without `sat`;
+//! - the embedding, classical logic's default without `sat`. It translates
+//!   the sequent into linear logic by a [`Translation`] ([`translate()`]
+//!   returns an [`Image`]: a linear sequent and the mode to prove it in),
+//!   and reads the linear proof back ([`Image::read_back`]). Classical
+//!   logic goes into affine MALL, intuitionistic and minimal logic into
+//!   intuitionistic linear logic.
+//!
+//! [`Method::default_for`] says which evidence the default keeps from the
+//! other methods.
+//!
+//! The excluded middle is not valid in intuitionistic logic, the default:
 //!
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
 //! use deduxit::ordinary::{Options, Sequent, Verdict, decide};
 //!
-//! let sequent: Sequent = "a -> b, b -> c |- a -> c".parse()?;
+//! let sequent: Sequent = "a \\/ ~a".parse()?;
 //! let outcome = decide(&sequent, &Options::default())?;
-//! assert!(matches!(outcome.verdict, Verdict::Valid(_)));
+//! match &outcome.verdict {
+//!     Verdict::Valid(evidence) => println!("valid\n{}", evidence.derivation()?),
+//!     Verdict::NotValid => println!("not valid"),
+//!     _ => println!("unknown"),
+//! }
+//! if let Some(countermodel) = &outcome.countermodel {
+//!     println!("{}", countermodel.model);
+//! }
+//! assert!(matches!(outcome.verdict, Verdict::NotValid));
 //! # Ok::<(), deduxit::Error>(())
 //! ```
 
-// A variant a later step adds must not fall into an existing arm.
+// A new variant must be decided at every arm, never fall into an
+// existing one.
 #![deny(clippy::wildcard_enum_match_arm)]
 
 /// Deciding an ordinary sequent in one call.
@@ -82,8 +104,8 @@ pub enum Logic {
     /// Intuitionistic logic, whose derivations are LJ's.
     #[default]
     Intuitionistic,
-    /// Minimal logic: intuitionistic logic without ex falso, false being
-    /// a proposition like any other.
+    /// Minimal logic: intuitionistic logic without ex falso. False is a
+    /// proposition like any other and does not prove every formula.
     Minimal,
 }
 
@@ -222,8 +244,8 @@ impl Translation {
         )
     }
 
-    /// Returns where the image lies: MALL in classical affine mode, or LL
-    /// in intuitionistic mode.
+    /// Returns the fragment and mode of the translation's images: MALL in
+    /// classical affine mode, or LL in intuitionistic mode.
     pub const fn target(self) -> Target {
         match self {
             Self::Affine => Target {
@@ -300,11 +322,12 @@ pub enum Method {
     /// Dyckhoff's calculus LJT ([`ljt::decide`]), whose search always
     /// ends: intuitionistic and minimal logic only.
     Ljt,
-    /// A SAT solver ([`sat::decide`]), whose search always ends, with a
-    /// Kripke model for a sequent that is not valid: in intuitionistic and
-    /// minimal logic with clauses for the implications, in classical logic
-    /// on the clauses of the sequent's negation, with a clausal proof
-    /// checked for a valid sequent. Needs the cargo feature `sat`.
+    /// A SAT solver ([`sat::decide`]), whose search always ends. A sequent
+    /// that is not valid gets a Kripke model. In intuitionistic and
+    /// minimal logic the solver works on clauses for the implications; in
+    /// classical logic on the clauses of the sequent's negation, and a
+    /// valid sequent gets a checked clausal proof. Needs the cargo feature
+    /// `sat`.
     #[cfg(feature = "sat")]
     Sat,
 }
@@ -337,15 +360,16 @@ impl Method {
         }
     }
 
-    /// Returns the method the logic is decided with by default, chosen by
-    /// a run of the ILTP library's propositional problems: the SAT solver
-    /// (the embedding for classical logic and LJT otherwise without the
-    /// cargo feature `sat`). By default the SAT solver keeps the evidence
-    /// of the method the logic had before: in classical logic the
-    /// embedding's derivation of LK or refutation, asked for within
-    /// [`EVIDENCE_WORK`], and otherwise LJT's
-    /// derivation; and it gives way to the embedding where a bound stops
-    /// it ([`gives_way`]).
+    /// Returns the method the logic is decided with by default: the SAT
+    /// solver, chosen by a run of the ILTP library's propositional
+    /// problems. Without the cargo feature `sat` it is the embedding for
+    /// classical logic and LJT for the others.
+    ///
+    /// The default keeps the evidence of the other methods. In classical
+    /// logic it asks the embedding for a derivation of LK or a refutation,
+    /// within [`EVIDENCE_WORK`]; in intuitionistic and minimal logic it
+    /// prefers LJT's derivation. Where a bound stops the SAT solver, the
+    /// default gives way to the embedding ([`gives_way`]).
     pub const fn default_for(logic: Logic) -> Self {
         match logic {
             #[cfg(feature = "sat")]
@@ -404,7 +428,7 @@ pub struct Options {
     /// The logic.
     pub logic: Logic,
     /// The translation, or `None` for the logic's default. A translation
-    /// given names the embedding: with no method given, it is the method.
+    /// given without a method chooses the embedding.
     pub translation: Option<Translation>,
     /// The method, or `None` for the embedding when a translation is
     /// given and otherwise the logic's default ([`Method::default_for`]).
@@ -487,8 +511,8 @@ pub enum Node {
     Iff(NodeId, NodeId),
 }
 
-/// A node is a tag and two arena indices at most: the arena and the
-/// translation's tables grow with it.
+/// A node stays a tag and at most two arena indices, since the arena and
+/// the translation's tables grow with its size.
 const _: () = assert!(size_of::<Node>() == 12);
 
 impl Node {
@@ -532,7 +556,8 @@ impl Formulas {
     ///
     /// # Panics
     ///
-    /// For an id of another one, past its end.
+    /// If the id is past the arena's end, as an id of another arena may
+    /// be.
     pub fn node(&self, id: NodeId) -> Node {
         self.nodes[id.index()]
     }
@@ -621,11 +646,12 @@ impl Formulas {
         }
     }
 
-    /// Returns the atom called `name` in NFC, adding it unless the arena
-    /// has it. The name is an identifier of the text syntax and none of its
-    /// keywords, so that the formula written as text reads back as itself:
-    /// neither `true` nor `false`, nor a keyword of the linear syntax, since
-    /// the atom keeps its name in the translations.
+    /// Returns the atom named `name`, adding it unless the arena has it.
+    /// The name is kept in Unicode normal form NFC, so one name is one atom
+    /// however its accents are encoded. It must be an identifier of the
+    /// text syntax and no keyword, so that a formula written as text reads
+    /// back as itself: not `true` or `false`, and no keyword of the linear
+    /// syntax either, since the translations keep the atom's name.
     ///
     /// # Errors
     ///
@@ -749,32 +775,35 @@ impl Display for Formula<'_> {
     }
 }
 
-/// A sequent of ordinary propositional logic, `Γ ⊢ Δ`: formulas left of
-/// the turnstile, the hypotheses, and right of it, read as their
-/// disjunction classically and as the one goal intuitionistically, which
-/// is false when there is none.
+/// A sequent of ordinary propositional logic, `Γ ⊢ Δ`: the hypotheses `Γ`
+/// left of the turnstile, and the formulas `Δ` right of it. Classically
+/// `Δ` reads as the disjunction of its formulas. In intuitionistic and
+/// minimal logic `Δ` holds one goal at most, and an empty `Δ` means
+/// false.
 ///
 /// # Syntax
 ///
-/// With the feature `parse`, `"…".parse::<ordinary::Sequent>()` reads a
-/// sequent written `formulas |- formulas` (or `⊢`), each side a list
-/// separated by commas and possibly empty; a text without a turnstile is
-/// one formula to prove. From the loosest binding to the tightest, a
+/// With the cargo feature `parse`, `"…".parse::<ordinary::Sequent>()`
+/// reads a sequent written `formulas |- formulas` (or `⊢`), each side a
+/// list separated by commas and possibly empty; a text without a turnstile
+/// is one formula to prove. From the loosest binding to the tightest, a
 /// formula is built with `<->`/`↔` (to the right), `->`/`→` (to the
 /// right), `\/`/`∨`, `/\`/`∧` (these to the left) and the prefix `~`/`¬`,
 /// over the constants `true`/`⊤` and `false`/`⊥`, atoms and parentheses.
-/// An atom is a Unicode identifier other than `true` and `false`. The
-/// symbols of linear logic (`&`, `|`, `*`, `-o`, …) are not read here, so
-/// that a linear connective is never taken for an ordinary one.
+/// An atom is a Unicode identifier other than a keyword: `true`, `false`,
+/// the linear syntax's `par`, `top` and `bot`, and the reserved `forall`
+/// and `exists`. The symbols of linear logic (`&`, `|`, `*`, `-o`, …) are
+/// not read here, so that a linear connective is never taken for an
+/// ordinary one.
 ///
 /// `Display` writes the Unicode symbols with every nested binary formula
 /// in brackets, which this syntax reads back.
 ///
 /// # JSON
 ///
-/// With the feature `serialize` a sequent is `{"version": 8, "formulas":
-/// [{"V": 0}, {"V": 1}, {"→": [0, 1]}], "atoms": ["a", "b"], "left": [0],
-/// "right": [1]}` for `a ⊢ b` with the arena `a, b, a → b`
+/// With the cargo feature `serialize` a sequent is `{"version": 8,
+/// "formulas": [{"V": 0}, {"V": 1}, {"→": [0, 1]}], "atoms": ["a", "b"],
+/// "left": [0], "right": [1]}` for `a ⊢ b` with the arena `a, b, a → b`
 /// ([`wire`](crate::wire)): the formulas in the arena's order, every
 /// operand before the formula built from it, as `{"V": atom}`, `"⊤"`,
 /// `"⊥"`, `{"¬": a}`, `{"∧": [a, b]}`, `{"∨": [a, b]}`, `{"→": [a, b]}`

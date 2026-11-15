@@ -4,12 +4,13 @@
 //! The certificate of an ordinary sequent: a lemma over `Prop` whose
 //! proof is a term made from a checked derivation of LK or LJ, one
 //! construction per rule. An LJ sequent `Γ ⊢ C` is a term of type `C`
-//! (`False` when nothing is right of `⊢`) with a variable per hypothesis;
-//! an LK sequent `Γ ⊢ Δ` a term of type `False` with a variable per
-//! hypothesis and one of type `~ D` per formula `D` of `Δ`, which the
-//! rules that move a formula to the right close with the excluded middle
-//! (`NNPP` of the standard library). The terms are written by a walk with
-//! a stack of its own, so a derivation of any height is written.
+//! (`False` when nothing is right of `⊢`) with a variable per hypothesis.
+//! An LK sequent `Γ ⊢ Δ` is a term of type `False` with a variable per
+//! hypothesis and one of type `~ D` per formula `D` of `Δ`; the rules that
+//! move a formula to the right use double-negation elimination (`NNPP`
+//! from the standard library's `Classical_Prop`). The terms are written by
+//! a walk with a stack of its own, so a derivation of any height is
+//! written.
 
 use super::derivation::Side;
 use super::{Derivation, Formulas, Image, Logic, Node, NodeId, Rule, Symbols};
@@ -21,7 +22,8 @@ use crate::linear::proofs::InfId;
 use crate::linear::search::{Classical, Disproof, Refutation};
 use std::fmt::Write;
 
-/// The names the terms use, which an atom never gets.
+/// The names the terms use. An atom's identifier that is one of them gets
+/// `'` appended until it is none.
 const USED: &[&str] = &[
     "conj",
     "or_introl",
@@ -58,7 +60,7 @@ enum Task {
     Text(String),
     /// Give formulas names for the premise that follows.
     Bind(Vec<((NodeId, Side), String)>),
-    /// Take back the names of the last `Bind` of this many.
+    /// Take back the names these formulas were last given.
     Unbind(Vec<(NodeId, Side)>),
 }
 
@@ -97,7 +99,8 @@ impl Certificate<'_> {
         out
     }
 
-    /// Returns a new variable's name, with a `'` no atom has.
+    /// Returns a new variable's name, `h'n` or `k'n` with a new number
+    /// `n`, which no atom's identifier is.
     fn name(&mut self, letter: char) -> String {
         self.fresh += 1;
         format!("{letter}'{}", self.fresh)
@@ -355,21 +358,23 @@ fn implications(formulas: &Formulas, a: NodeId, b: NodeId) -> (NodeId, NodeId) {
     )
 }
 
-/// Writes the certificate of a derivation, which is checked first
-/// ([`Derivation::check`], an open goal refused before it): the lemma `options.lemma` stating the sequent
-/// over `Prop`, with a variable for every atom, and its proof term;
-/// standalone, it starts with `options.prelude`, by default the import of
-/// the standard library's excluded middle for a classical certificate and
-/// nothing for one of LJ. Asks `stop` after each inference.
+/// Writes the certificate of a derivation: the lemma `options.lemma`
+/// stating the sequent over `Prop`, with a variable for every atom, and
+/// its proof term. The derivation is checked first
+/// ([`Derivation::check`]), and one with an open goal is refused before
+/// that. A standalone certificate starts with `options.prelude`; by
+/// default that is the import of `Classical_Prop` for a classical
+/// certificate and nothing for one of LJ. Asks `stop` during the check
+/// and after each inference.
 pub(crate) fn write(
     derivation: &Derivation,
     options: &Options,
     out: &mut impl Write,
     mut stop: impl FnMut() -> bool,
 ) -> Result<(), Error> {
-    // A derivation of a proof in progress or one read from a document
-    // may be no derivation of its logic; the terms are made only of one
-    // that is.
+    // A proof in progress, or a derivation read from a document, may break
+    // the rules of its logic, and the terms are sound only for one that
+    // keeps them.
     if derivation
         .inferences()
         .iter()
@@ -519,14 +524,16 @@ pub(crate) fn write(
 
 /// Writes the certificate that an ordinary sequent is not valid, from the
 /// classical refutation of its image: the lemma `options.lemma` stating
-/// `~ (forall a b : Prop, Γ -> Δ)`, `Γ` and `Δ` as the positive
-/// certificate states them, proved by instantiating every atom with
-/// `True` or `False` as the image's assignment gives it (an atom the
-/// image lacks with `False`) and `tauto`, which decides the closed
-/// formula left. The assignment is first checked to make every
-/// hypothesis true and every formula right of `⊢` false; standalone, the
-/// file starts with `options.prelude` where one is given, since the
-/// certificate needs no library.
+/// `~ (forall a b : Prop, Γ -> Δ)`, with `Γ` and `Δ` written as a
+/// certificate of validity writes them. The proof instantiates every atom
+/// with `True` or `False`, as the image's assignment gives it (`False`
+/// for an atom the image lacks), and `tauto` decides the closed formula
+/// left. The refutation and then the assignment are checked first: the
+/// assignment must make every hypothesis true and every formula right of
+/// `⊢` false. A standalone certificate starts with `options.prelude` only
+/// where one is given, since it needs no library. A refutation that is no
+/// classical assignment, or an assignment that fails, is
+/// [`Unsupported::NotValid`].
 pub(crate) fn not_valid(
     image: &Image,
     disproof: &Disproof,
