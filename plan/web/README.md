@@ -132,7 +132,7 @@ to 2³² − 1, anything else refused):
 
 | call | answers |
 |---|---|
-| `about()` | `{"linlog", "level", "stack_bytes", "suites"}`: the library's version, the highest wire level it reads, and the suites, each `{"suite", "name", "calls", "parameters": [{"name", "values", "default"}], "settings", "term"}` (`linear` with the parameter `mode` and calls without prefix, `ordinary` with `logic` and the calls `ordinary_…`; `term` the name of the suite's call for the lambda-term) |
+| `about()` | `{"linlog", "level", "stack_bytes", "suites"}`: the library's version, the highest wire level it reads, and the suites, each `{"suite", "name", "calls", "parameters": [{"name", "values", "default"}], "settings", "term"}` (`linear` with the parameter `mode` and calls without prefix, `ordinary` with `logic` and the calls `ordinary_…`, `rules` with `calculus` and the calls `rules_…` and no `term`; `term` the name of the suite's call for the lambda-term) |
 | `defaults()` | the tab's settings, for the Settings pane |
 | `read(input, settings)` | a typed sequent, a sequent's JSON (`seq json`) or a session (`save`): `{"kind": "sequent" or "session", "sequent", "text", "fragment": {"classical", "intuitionistic"}, "mode", "session"}`; a parse error carries the caret's place, a level above the module's is `unsupported_version` |
 | `start(sequent, mode, settings)` | a new session: `{"session", "view", "inverted"}`; `mode` one of `classical`, `affine`, `mix`, `affine-mix`, `intuitionistic`, `intuitionistic-affine`; with `interactive.invertible` on, every invertible rule applied first, `inverted` the steps that took |
@@ -170,6 +170,16 @@ to 2³² − 1, anything else refused):
 | `ordinary_term(session, settings)` | as `term`, the derivation of LJ read back as a simply typed term (`calculus` `simple`); `no_term` for a derivation of LK or with open goals |
 | `ordinary_draw(session, settings)` | the derivation so far as SVG, open goals as bare leaves, the structural rules as `view.structural` draws them, `i<n>` on every conclusion |
 | `ordinary_export(session, format, settings)` | `text`, `latex`, `typst`, `svg` (the derivation so far) or `rocq` (the certificate of the finished derivation over `Prop`, checked first); PNG and PDF by `render` |
+| `rules_calculus(name)` | the rule file of a built-in calculus, `LK`, `LJ`, `LM`, `LL` or `tableau`, as JSON text to start one's own from |
+| `rules_read(calculus, settings)` | a rule file (JSON, or a built-in name) checked: `{"name", "description", "zones": [{"name", "mark"}], "rules"}`; `invalid_calculus` with the reason |
+| `rules_start(calculus, goal, assumptions, settings)` | a session in the calculus: `{"session", "view"}`; the goal in the calculus's syntax, `assumptions` a JSON array of sequents or `""` |
+| `rules_view(session, settings)` | a saved session read, every step checked again: `{"calculus", "sequent", "assumptions", "finished", "steps", "goals": [{"goal", "sequent", "zones", "hypotheses"}], "inferences"}`, `zones` each zone's members as text in the order of their numbers, `hypotheses` those in force, `inferences[n]` the session node the drawing's `i<n>` is |
+| `rules_rules(session, goal, settings)` | `[{"rule", "at", "needs"}]`: each rule at each choice of the members it acts on that the checker takes, or what it needs given |
+| `rules_apply(session, goal, step, settings)` | `{"session", "view", "opened"}`; a step is `{"rule", "at", "given": {NAME: TEXT}}`; `step_needs` with `details.needs`, `step_refused` with the reason |
+| `rules_assume(session, goal, settings)` | `{"session", "view"}`: the goal closed by a hypothesis in force |
+| `rules_undo(session, settings)` | `{"session", "view", "reopened"}` |
+| `rules_check(session, settings)` | `{"calculus", "verdict": "valid in the calculus given", "derivation"}` for a finished session; `open_goals` otherwise |
+| `rules_draw(session, settings)`, `rules_export(session, format, settings)` | the derivation so far as SVG (`i<n>` on every inference), or in `latex` or `typst` |
 | `ordinary_model_drawing(outcome, settings)` | the countermodel of an ordinary outcome (`ordinary_close`'s or `ordinary_hint`'s, or `prove --format json`'s) drawn as SVG, checked first: worlds as boxes with their atoms, arrows up, the model's world outlined, ids `w<n>` on each world's box; `no_countermodel` for an outcome without one |
 | `ordinary_model_certificate(outcome, settings)` | the Rocq certificate of that countermodel, in `styles.rocq` (`form` `standalone` for a file): `~ lj` for deduxit's Rocq library in intuitionistic and minimal logic, over `Prop` in classical logic |
 

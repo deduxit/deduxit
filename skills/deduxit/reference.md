@@ -1561,7 +1561,9 @@ your own rules").
   checked by the calculus's checker. In the library this is
   `rules::Interactive` (`within`, `rules`, `apply` with an
   `rules::Apply`, `assume`, `undo`, `finished`); a session's JSON is at
-  wire level 17.
+  wire level 17. `rules::Drawing::new(&calculus, &derivation, &limits)`
+  lays a derivation out for the exports: `export::svg::to_string`,
+  `latex` and `typst` draw it as they draw LK's.
 
 ## 17. The web bindings
 
@@ -1619,9 +1621,28 @@ library's `ordinary::Interactive` at wire level 8:
   `partition` being `{"left": [0], "right": []}` or `""`, answer the
   documents `seq translate` and `interpolate` write as JSON.
 
-`about` lists the suites (`linear`, `ordinary`), each with the prefix of
-its calls, the parameter its start takes (`mode`, `logic`), every value
-and the default.
+A tab in a calculus given as data has the calls `rules_…`, its session
+the library's `rules::Interactive` at wire level 17, which holds the
+rule file:
+
+- `rules_calculus(name)` gives a built-in rule file (`LK`, `LJ`, `LM`,
+  `LL`, `tableau`); `rules_read(calculus, settings)` reads one, or a
+  name, and answers its `name`, `description`, `zones` and `rules`;
+- `rules_start(calculus, goal, assumptions, settings)`, the goal in the
+  calculus's own syntax and `assumptions` a JSON array of sequents;
+- `rules_view`, which reads a saved session and checks every step again;
+- `rules_rules(session, goal, settings)`, each step `{"rule", "at",
+  "needs"}`;
+- `rules_apply`, which takes a step `{"rule", "at": [members],
+  "given": {"Γ′": "a, b"}}`, `step_needs` naming what must be given;
+- `rules_assume(session, goal, settings)`, `rules_undo`;
+- `rules_check`, the finished derivation's verdict, "valid in the
+  calculus given";
+- `rules_draw` and `rules_export` in `latex`, `typst` or `svg`.
+
+`about` lists the suites (`linear`, `ordinary`, `rules`), each with the
+prefix of its calls, the parameter its start takes (`mode`, `logic`,
+`calculus`), every value and the default.
 
 ## 18. Rocq certificates and the Rocq library
 

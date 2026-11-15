@@ -43,6 +43,15 @@ second number (0.1.x to 0.2.0), anything else the third.
   calculus's terms and sequents read
   from text in its own syntax (`Calculus::parse_term`,
   `parse_sequent`).
+- **A derivation in a calculus given as data is drawn** as one of LK
+  is: `rules::Drawing::new(&calculus, &derivation, &limits)` gives what
+  `export::svg`, `latex` and `typst` draw, each node under its rule's
+  name and the formulas in the rule file's symbols. Rocq has no
+  certificate for it (`Unsupported::Calculus`) and it has no
+  lambda-term (`NoTerm::Calculus`). The web bindings build such a
+  derivation step by step (`rules_start`, `rules_apply`, `rules_assume`,
+  `rules_undo`, `rules_check`, `rules_draw`), in a built-in calculus or a
+  rule file the page holds.
 - The manual has a chapter on rule systems written as hypotheses and
   decided by the Horn engine, and when a calculus of your own is the
   better tool.

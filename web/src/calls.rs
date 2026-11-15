@@ -55,6 +55,11 @@ const fn never(_: Progress) -> bool {
 ///   into, each with its `transformation`, its `call`, and the negative
 ///   `translations` with the `target` logic of each, or the `logics` an
 ///   interpolant is found in.
+///
+/// The suite `rules` builds a derivation in a calculus given as data: its
+/// parameter `calculus` is a built-in calculus by name or the JSON of a
+/// rule file, and it has no `term` (`null`): the rules of a calculus
+/// given as data have no lambda-terms.
 pub fn about() -> String {
     serde_json::json!({
         "deduxit": env!("CARGO_PKG_VERSION"),
@@ -103,6 +108,16 @@ pub fn about() -> String {
                         "logics": deduxit::ordinary::Logic::NAMES,
                     },
                 ],
+            },
+            {
+                "suite": "rules",
+                "name": "Custom calculus",
+                "calls": "rules_",
+                "parameters": [
+                    {"name": "calculus", "values": crate::rules::NAMES, "default": "LJ"},
+                ],
+                "settings": [],
+                "term": null,
             },
         ],
     })

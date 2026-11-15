@@ -57,7 +57,7 @@ fn open_goals(answer: &str) -> Vec<u32> {
         .collect()
 }
 
-/// `about` lists both suites, each with the prefix of its calls, its term
+/// `about` lists the suites, each with the prefix of its calls, its term
 /// call and the parameter its `start` takes, with every value and the
 /// default, the ordinary suite's methods, and the wire level, 17 since the
 /// library reads sessions in a calculus given as data.
@@ -68,9 +68,15 @@ fn about_lists_the_suites() {
     assert_eq!(about["suites"][1]["methods"][1]["call"], "ordinary_tableau");
     let suites = about["suites"].as_array().unwrap();
     let names: Vec<&Value> = suites.iter().map(|s| &s["suite"]).collect();
-    assert_eq!(names, [&json!("linear"), &json!("ordinary")]);
+    assert_eq!(
+        names,
+        [&json!("linear"), &json!("ordinary"), &json!("rules")]
+    );
     let terms: Vec<&Value> = suites.iter().map(|s| &s["term"]).collect();
-    assert_eq!(terms, [&json!("term"), &json!("ordinary_term")]);
+    assert_eq!(
+        terms,
+        [&json!("term"), &json!("ordinary_term"), &Value::Null]
+    );
     let ordinary = &suites[1];
     assert_eq!(ordinary["calls"], "ordinary_");
     assert_eq!(

@@ -253,6 +253,12 @@ design, with the reasons and the alternatives weighed, is
   suffix property: a step's premises and scopes are the last the
   session holds. `rules` tries every rule at every choice of the
   conclusion's position members (at most `RULE_CHOICES`) on a clone.
+- **The drawing** (`draw.rs`, `rules::Drawing`): the exports' view of
+  a derivation, `core-export.md` has its rules. A session's tree is
+  numbered alike in `Interactive::derived` and in the drawing (both
+  postorder, premises in order), which `Interactive::derivation_goals`
+  and the web view's `inferences` rely on; change one order and the
+  other with it.
 - **A session's JSON** (wire level 17, `wire::SESSION`; reader
   `Interactive::from_parts`) checks the tree, each scope owned by one
   rule node whose discharging premise was opened in it, inside that

@@ -279,6 +279,22 @@ for `THIRD-PARTY-NOTICES.txt`.
   under the ordinary suite's `methods` (`method`, `call`, `logics`) and
   `limits.table_atoms` among its settings. "Every world" is
   `Forcing::failing_anywhere`, linear. `tests/ordinary.rs` holds their tests.
+- **A tab in a calculus given as data** has `rules.rs`'s calls,
+  exported as `rules_calculus`, `rules_read`, `rules_start`,
+  `rules_view`, `rules_rules`, `rules_apply`, `rules_assume`,
+  `rules_undo`, `rules_check`, `rules_draw` and `rules_export`. The
+  session is `rules::Interactive` at level 17 and holds the rule file,
+  so the page needs nothing else to go on and a saved session is the
+  whole state; reading it (`from_parts`) checks every step again, which
+  is what lets the page trust a session from its link or storage. A
+  calculus is a rule file's JSON or a built-in's name (`BUILT_IN`, as
+  the command's). The step is the bindings' `StepForm` (`{"rule",
+  "at", "given"}`, `given` a map so that a name is given once). The
+  view's `inferences` is `Interactive::derivation_goals`, which lines
+  up with the drawing's `i<n>` because `rules::Drawing` numbers a
+  tree's inferences in the derivation's order. `about` lists the suite
+  as `rules` with the parameter `calculus` and `term` `null` (a rule
+  file's rules have no lambda-terms). `tests/rules.rs` holds the tests.
 - **The transformations** (`ordinary_translate(sequent, options,
   settings)`, `ordinary_interpolate(sequent, logic, partition,
   settings)`): the library's `negative::compare` and

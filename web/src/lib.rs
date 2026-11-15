@@ -21,11 +21,13 @@
 //!
 //! The calls are those of [`calls`], exported under their names, `export`
 //! as `export_as`. Those of [`ordinary`] are exported with the prefix
-//! `ordinary_`.
+//! `ordinary_`, and those of [`rules`], which build a derivation in a
+//! calculus given as data, with the prefix `rules_`.
 
 pub mod calls;
 mod failure;
 pub mod ordinary;
+pub mod rules;
 pub mod tab;
 
 pub use failure::Failure;
@@ -33,7 +35,7 @@ pub use failure::Failure;
 /// The exports of the module, which wrap [`calls`] for JavaScript.
 mod exports {
     use crate::failure::Failure;
-    use crate::{calls, ordinary};
+    use crate::{calls, ordinary, rules};
     use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 
     /// Returns a failure as the string a call throws.
@@ -397,5 +399,81 @@ mod exports {
     #[wasm_bindgen]
     pub fn ordinary_model_certificate(outcome: &str, settings: &str) -> Result<String, JsValue> {
         ordinary::model_certificate(outcome, settings).map_err(thrown)
+    }
+
+    /// See [`rules::calculus`].
+    #[wasm_bindgen]
+    pub fn rules_calculus(name: &str) -> Result<String, JsValue> {
+        rules::calculus(name).map_err(thrown)
+    }
+
+    /// See [`rules::read`].
+    #[wasm_bindgen]
+    pub fn rules_read(calculus: &str, settings: &str) -> Result<String, JsValue> {
+        rules::read(calculus, settings).map_err(thrown)
+    }
+
+    /// See [`rules::start`].
+    #[wasm_bindgen]
+    pub fn rules_start(
+        calculus: &str,
+        goal: &str,
+        assumptions: &str,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        rules::start(calculus, goal, assumptions, settings).map_err(thrown)
+    }
+
+    /// See [`rules::view`].
+    #[wasm_bindgen]
+    pub fn rules_view(session: &str, settings: &str) -> Result<String, JsValue> {
+        rules::view(session, settings).map_err(thrown)
+    }
+
+    /// See [`rules::rules`].
+    #[wasm_bindgen]
+    pub fn rules_rules(session: &str, goal: f64, settings: &str) -> Result<String, JsValue> {
+        rules::rules(session, index(goal, "a goal")?, settings).map_err(thrown)
+    }
+
+    /// See [`rules::apply`].
+    #[wasm_bindgen]
+    pub fn rules_apply(
+        session: &str,
+        goal: f64,
+        step: &str,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        rules::apply(session, index(goal, "a goal")?, step, settings).map_err(thrown)
+    }
+
+    /// See [`rules::assume`].
+    #[wasm_bindgen]
+    pub fn rules_assume(session: &str, goal: f64, settings: &str) -> Result<String, JsValue> {
+        rules::assume(session, index(goal, "a goal")?, settings).map_err(thrown)
+    }
+
+    /// See [`rules::undo`].
+    #[wasm_bindgen]
+    pub fn rules_undo(session: &str, settings: &str) -> Result<String, JsValue> {
+        rules::undo(session, settings).map_err(thrown)
+    }
+
+    /// See [`rules::check`].
+    #[wasm_bindgen]
+    pub fn rules_check(session: &str, settings: &str) -> Result<String, JsValue> {
+        rules::check(session, settings).map_err(thrown)
+    }
+
+    /// See [`rules::draw`].
+    #[wasm_bindgen]
+    pub fn rules_draw(session: &str, settings: &str) -> Result<String, JsValue> {
+        rules::draw(session, settings).map_err(thrown)
+    }
+
+    /// See [`rules::export`].
+    #[wasm_bindgen]
+    pub fn rules_export(session: &str, format: &str, settings: &str) -> Result<String, JsValue> {
+        rules::export(session, format, settings).map_err(thrown)
     }
 }

@@ -12,8 +12,10 @@ use super::terms::{Term, TermId, Terms};
 use crate::Error;
 use crate::limits::{Limits, Refusal};
 
-/// An open goal of a session, by its place in the session.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+/// An open goal of a session, by its place in the session. Its JSON is
+/// that number.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize)]
+#[serde(transparent)]
 pub struct GoalId(u32);
 
 impl GoalId {
@@ -270,6 +272,12 @@ impl Interactive {
             .filter(|&n| self.nodes[n].done == Done::Open)
             .map(|n| GoalId(n as u32))
             .collect()
+    }
+
+    /// Returns how many steps the session holds: what [`undo`](Self::undo)
+    /// can take back.
+    pub fn steps(&self) -> usize {
+        self.history.len()
     }
 
     /// Returns whether every goal is closed.
@@ -717,6 +725,24 @@ impl Interactive {
     /// A refusal where the derivation's indices would pass a `u32`.
     pub fn derivation(&self) -> Result<Derivation, Error> {
         self.derived().map(|(derivation, _)| derivation)
+    }
+
+    /// Returns, for each node of [`derivation`](Self::derivation) in its
+    /// order, the node of the session it is, as the id the session's calls
+    /// take for it while it is an open goal. A drawing of the derivation
+    /// ([`Drawing`](super::Drawing)) numbers its inferences in the same
+    /// order.
+    ///
+    /// # Errors
+    ///
+    /// As [`derivation`](Self::derivation).
+    pub fn derivation_goals(&self) -> Result<Vec<GoalId>, Error> {
+        let (_, places) = self.derived()?;
+        let mut goals = vec![GoalId(0); places.len()];
+        for (node, &place) in places.iter().enumerate() {
+            goals[place as usize] = GoalId(node as u32);
+        }
+        Ok(goals)
     }
 
     /// Returns the finished derivation, checked whole by the calculus's
