@@ -10,7 +10,7 @@
 
 use deduxit::limits::Refusal;
 use deduxit::ordinary::{self, Logic, Method, Verdict};
-use deduxit::rules::{Calculus, Derivation, LJ, LK, LM};
+use deduxit::rules::{Calculus, Derivation, LJ, LK, LL, LM, Node, Step};
 use deduxit::{Error, Limits, wire};
 use serde_json::{Value, json};
 
@@ -37,11 +37,21 @@ fn refused(calculus: &Calculus, derivation: &Value) -> String {
 
 #[test]
 fn the_rule_files_read_and_write_back() {
-    for (text, name, rules) in [(LK, "LK", 29), (LJ, "LJ", 34), (LM, "LM", 32)] {
+    for (text, name, rules) in [
+        (LK, "LK", 29),
+        (LJ, "LJ", 34),
+        (LM, "LM", 32),
+        (LL, "LL", 13),
+    ] {
         let read = calculus(text).unwrap();
         assert_eq!(read.name(), name);
         assert_eq!(read.rules().len(), rules);
-        assert_eq!(read.zones().collect::<Vec<_>>(), ["left", "right"]);
+        let zones = if name == "LL" {
+            &["right"][..]
+        } else {
+            &["left", "right"]
+        };
+        assert_eq!(read.zones().collect::<Vec<_>>(), zones);
         // The file is written back as it was read.
         let written = serde_json::to_value(&read).unwrap();
         assert_eq!(written, serde_json::from_str::<Value>(text).unwrap());
@@ -581,4 +591,150 @@ fn the_check_keeps_to_its_bounds() {
     let newer = json!({"version": wire::LEVEL + 1, "calculus": "LK", "terms": [], "nodes": []});
     let version = wire::upgrade::<Derivation, _>(&newer, &limits);
     assert!(matches!(version, Err(Error::Version { .. })));
+}
+
+/// Returns a derivation of the linear suite, one-sided, written in the
+/// rule file [`LL`]: its formulas as terms (the dual of an atom under
+/// `~`), its inferences as nodes, each with the positions its rule needs.
+fn from_linear(derivation: &deduxit::linear::proofs::Derivation<'_>, ll: &Calculus) -> Derivation {
+    use deduxit::linear::{Kind, Term};
+    let forest = derivation.forest();
+    let sequent = forest.sequent();
+    let mut out = Derivation::new("LL", 1);
+    let mut ids = Vec::with_capacity(sequent.terms().len());
+    for term in sequent.terms() {
+        let terms = out.terms_mut();
+        let id = |t: &deduxit::linear::TermId| ids[t.index()];
+        let made = match *term {
+            Term::Atom(a) => terms.atom(sequent.atom_name(a), "formula"),
+            Term::DualAtom(a) => {
+                let atom = terms.atom(sequent.atom_name(a), "formula").unwrap();
+                terms.apply("~", &[atom])
+            }
+            Term::One => terms.apply("1", &[]),
+            Term::Bot => terms.apply("⊥", &[]),
+            Term::Top => terms.apply("⊤", &[]),
+            Term::Zero => terms.apply("0", &[]),
+            Term::Tensor(a, b) => terms.apply("⊗", &[id(&a), id(&b)]),
+            Term::Par(a, b) => terms.apply("⅋", &[id(&a), id(&b)]),
+            Term::With(a, b) => terms.apply("&", &[id(&a), id(&b)]),
+            Term::Plus(a, b) => terms.apply("⊕", &[id(&a), id(&b)]),
+            Term::Bang(a) => terms.apply("!", &[id(&a)]),
+            Term::Quest(a) => terms.apply("?", &[id(&a)]),
+            #[expect(
+                clippy::wildcard_enum_match_arm,
+                reason = "the sample is propositional"
+            )]
+            _ => panic!("a first-order sequent in the sample"),
+        };
+        ids.push(made.unwrap());
+    }
+    for inference in derivation.inferences() {
+        let members = inference.sequent();
+        let zone: Vec<_> = members
+            .iter()
+            .map(|&m| ids[forest.term(derivation.occurrence(m)).index()])
+            .collect();
+        let name = inference.rule().rule.name();
+        let positions: Vec<u32> = match ll.positions(name) {
+            Some(2) => [Kind::Atom, Kind::DualAtom]
+                .iter()
+                .map(|&kind| {
+                    let at = members
+                        .iter()
+                        .position(|&m| forest.kind(derivation.occurrence(m)) == kind);
+                    u32::try_from(at.unwrap()).unwrap()
+                })
+                .collect(),
+            Some(1) => vec![u32::try_from(inference.principal().unwrap()).unwrap()],
+            _ => Vec::new(),
+        };
+        let premises: Vec<u32> = inference.premises().iter().map(|p| p.get()).collect();
+        let sequent = [zone];
+        out.push(
+            Node::new(&sequent, Step::Rule(name))
+                .premises(&premises)
+                .positions(&positions),
+        )
+        .unwrap();
+    }
+    out
+}
+
+#[test]
+fn the_linear_rule_file_agrees_with_the_linear_checker() {
+    use deduxit::linear::proofs::{Compact, ViewOptions};
+    use deduxit::linear::search::{Options, Verdict, prove_within};
+    use deduxit::linear::{Mode, Sequent, families};
+    let ll = calculus(LL).unwrap();
+    let limits = Limits::default().with_work(Some(1 << 20));
+    let mut view = ViewOptions::default();
+    view.compact = Compact::Never;
+    let mut sequents: Vec<(Sequent, Mode)> = [
+        "|- a, ~a",
+        "a * b |- b * a",
+        "a & b |- a + b",
+        "!a |- !a * !a",
+        "!(a -o b), !a |- !b",
+        "|- ?a, ?~a",
+        "a, b |- (a * b) & (b * a)",
+        "|- 1, top",
+        "bot, a |- a",
+        "!(a & b) |- !a * !b",
+        "|- ?(a * ~a), !(~a par a)",
+    ]
+    .iter()
+    .map(|text| (text.parse().unwrap(), Mode::CLASSICAL))
+    .collect();
+    for family in families::FAMILIES {
+        for index in 0..family.instances {
+            let Ok(instance) = family.instance(family.least, index) else {
+                continue;
+            };
+            let classical =
+                instance.mode == Mode::CLASSICAL || instance.mode == Mode::INTUITIONISTIC;
+            if instance.provable && classical && !instance.sequent.is_first_order() {
+                sequents.push((instance.sequent, instance.mode));
+            }
+        }
+    }
+    let (mut proofs, mut nodes, mut refused) = (0, 0, 0);
+    for (sequent, mode) in &sequents {
+        let Ok(outcome) = prove_within(sequent, *mode, &Options::default(), &limits, |_| false)
+        else {
+            continue;
+        };
+        let Verdict::Proved(proof) = outcome.verdict else {
+            continue;
+        };
+        if proof.forest().has_cuts() {
+            continue;
+        }
+        proof.check(*mode).unwrap();
+        let Ok(linear) = proof.derivation_within(&view, &limits, |_| false) else {
+            continue;
+        };
+        let derivation = from_linear(&linear, &ll);
+        let checked = derivation.check(&ll, &limits, |_| false);
+        assert!(checked.is_ok(), "{sequent}: {checked:?}");
+        proofs += 1;
+        nodes += derivation.len();
+        // Another rule of the file at a node is refused, but where it
+        // happens to fit as well.
+        let document = serde_json::to_value(&derivation).unwrap();
+        for at in 0..derivation.len().min(40) {
+            let mut broken = document.clone();
+            let rule = broken["nodes"][at]["rule"].as_str().unwrap().to_owned();
+            let other = if rule == "⊕₁" { "⊕₂" } else { "⊕₁" };
+            broken["nodes"][at]["rule"] = json!(other);
+            if check(&ll, &broken).is_err() {
+                refused += 1;
+            }
+        }
+    }
+    assert!(
+        proofs >= 15 && nodes > 200,
+        "{proofs} proofs, {nodes} nodes"
+    );
+    assert!(refused > nodes / 4, "{refused} refused");
 }

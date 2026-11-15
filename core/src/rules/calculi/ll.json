@@ -1,0 +1,38 @@
+{
+  "version": 15,
+  "name": "LL",
+  "description": "Girard's one-sided sequent calculus of classical linear logic, propositional and without cut: a sequent is a multiset of formulas in negation normal form, and the dual of an atom is the atom under ~.",
+  "connectives": [
+    {"name": "~", "arity": 1, "fixity": "prefix"},
+    {"name": "1", "arity": 0},
+    {"name": "⊥", "arity": 0},
+    {"name": "⊤", "arity": 0},
+    {"name": "0", "arity": 0},
+    {"name": "!", "arity": 1, "fixity": "prefix"},
+    {"name": "?", "arity": 1, "fixity": "prefix"},
+    {"name": "⊗", "arity": 2, "fixity": "infix", "precedence": 4, "associativity": "none"},
+    {"name": "⅋", "arity": 2, "fixity": "infix", "precedence": 3, "associativity": "none"},
+    {"name": "&", "arity": 2, "fixity": "infix", "precedence": 2, "associativity": "none"},
+    {"name": "⊕", "arity": 2, "fixity": "infix", "precedence": 1, "associativity": "none"}
+  ],
+  "sequent": [
+    {"name": "right", "discipline": "multiset", "mark": "⊢"}
+  ],
+  "variables": {"formula": ["A", "B"]},
+  "contexts": ["Γ", "Δ"],
+  "rules": [
+    {"name": "ax", "conclusion": {"right": ["A", ["~", "A"]]}, "atomic": ["A"]},
+    {"name": "⊗", "premises": [{"right": ["Γ", "A"]}, {"right": ["Δ", "B"]}], "conclusion": {"right": ["Γ", "Δ", ["⊗", "A", "B"]]}},
+    {"name": "⅋", "premises": [{"right": ["Γ", "A", "B"]}], "conclusion": {"right": ["Γ", ["⅋", "A", "B"]]}},
+    {"name": "1", "conclusion": {"right": ["1"]}},
+    {"name": "⊥", "premises": [{"right": ["Γ"]}], "conclusion": {"right": ["Γ", "⊥"]}},
+    {"name": "&", "premises": [{"right": ["Γ", "A"]}, {"right": ["Γ", "B"]}], "conclusion": {"right": ["Γ", ["&", "A", "B"]]}},
+    {"name": "⊕₁", "premises": [{"right": ["Γ", "A"]}], "conclusion": {"right": ["Γ", ["⊕", "A", "B"]]}},
+    {"name": "⊕₂", "premises": [{"right": ["Γ", "B"]}], "conclusion": {"right": ["Γ", ["⊕", "A", "B"]]}},
+    {"name": "⊤", "conclusion": {"right": ["Γ", "⊤"]}},
+    {"name": "!", "premises": [{"right": [["?", "Γ"], "A"]}], "conclusion": {"right": [["?", "Γ"], ["!", "A"]]}},
+    {"name": "?d", "premises": [{"right": ["Γ", "A"]}], "conclusion": {"right": ["Γ", ["?", "A"]]}},
+    {"name": "?c", "premises": [{"right": ["Γ", ["?", "A"], ["?", "A"]]}], "conclusion": {"right": ["Γ", ["?", "A"]]}},
+    {"name": "?w", "premises": [{"right": ["Γ"]}], "conclusion": {"right": ["Γ", ["?", "A"]]}}
+  ]
+}

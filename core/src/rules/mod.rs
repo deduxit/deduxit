@@ -82,6 +82,14 @@ pub const LJ: &str = include_str!("calculi/lj.json");
 /// logic: LJ with exactly one formula right of `⊢` and without `⊥L`.
 pub const LM: &str = include_str!("calculi/lm.json");
 
+/// The rule file of LL, Girard's one-sided sequent calculus of classical
+/// linear logic, propositional and without cut, in which the
+/// [`linear`](crate::linear) suite's derivations are written: a sequent
+/// is a multiset of formulas in negation normal form, the dual of an
+/// atom is the atom under `~`, and promotion `!` keeps `?` on its whole
+/// context (`["?", "Γ"]`).
+pub const LL: &str = include_str!("calculi/ll.json");
+
 /// The JSON Schema (draft 2020-12) of a rule file: the shape of the
 /// document, for an editor or a program that writes one. Reading a rule
 /// file checks more than a schema can say: that every name is declared,
