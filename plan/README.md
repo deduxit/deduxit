@@ -6845,3 +6845,44 @@ move (D26).
     7-9, the client) and 54x2 (`local_fe155f72`, cores 10-12).
   - **Next:** 55b (the countermodel) after 55a; 54w-e4 (the ordinary and
     lambda comments) after 55a.
+- 2026-11-15, about 11:00: **55a, 54w-g, 54x2 and 55c's library half
+  reviewed and pushed; 55b running; 54w-e4a started.**
+  - **55a** (`rpotllmp` … `kquywyxw`): `ordinary::decide(&sequent,
+    &options)` beside `decide_within`; every ordinary run writes one
+    outcome at wire level 12, its `search` tagged by `method`
+    (`embedding` with the image's outcome, `ljt`, `sat`); `check` reads
+    every file `prove --logic` writes. Departures accepted:
+    `Evidence::Image` (the image proved, its LK derivation past a bound:
+    the command's old "valid" kept); an ordinary outcome below level 12
+    refused (no release wrote one). Gate and flake check on Rust 1.100.
+    **Pushed.**
+  - **54w-g** (client `rllwppox` … `okozzuwt`, report `ntxxpkty`): a link
+    pasted into an open tab opens in place, the replaced proofs on the
+    restore bar; Learn's Reference shows every rule label's hint (LK,
+    LJ, Lambek, Mix, weakening and the 38 classical two-sided rules); the
+    axe exception holds only where the Reference shows the rule; the
+    client's deduxit input moved to `rruyoopr`. Client flake check
+    passed (601 unit, 215 e2e). **Pushed.** Noted: one ordinary-tab e2e
+    test failed once in the sandbox, passed on retry and 6 of 6.
+  - **54x2** (`xnlspnvz` … `llpsqton`): the linear session's position
+    message; `compare`'s plural; the SVG `<desc>` writes `A⊥` as the
+    title does; a net's `<desc>` in sentences. The reviewer's two findings
+    fixed. Left: a non-net's reason still writes `~A` (the library's
+    error formatter; only a library caller drawing an unchecked
+    structure meets it). **Pushed.**
+  - **55c, the library half** (rocq-deduxit `womvrznp`, `xmsnqtwk`): LJ
+    and LM as calculi (`Deduxit.Intuitionistic`), Kripke soundness for
+    every rule set (cut included), the countermodel corollary, the
+    classical one-world case, the checker `kripke_refutation` with its
+    theorem; no admit or axiom, rejection tests. **Pushed** to
+    rocq-deduxit. Its exporter half waits for 55b.
+  - **Decided for the author:**
+    - **54w-e4 split**: `lambda` now (54w-e4a, `local_fe155f72`, cores
+      10-12); `ordinary` after 55b (54w-e4b).
+    - **The export of an unchecked derivation with lambda-terms**, which
+      panics today (`ordinary::Derivation::term` on a derivation its
+      `check` refuses, read from JSON): it becomes an error, not a
+      documented panic, since a library must not panic on its input;
+      54w-e4b does it.
+  - **Running:** 55b (`local_739ba359`, cores 4-6: the panel's six fixes,
+    then its checks), 55c (`local_b8490613`, waiting for 55b), 54w-e4a.
