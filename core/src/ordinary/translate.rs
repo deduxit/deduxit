@@ -288,6 +288,25 @@ impl Image {
     }
 }
 
+/// Returns the number of an ILL image's antecedents, the hypotheses'
+/// images.
+///
+/// # Errors
+///
+/// [`Refusal::Index`](crate::Refusal::Index) for more than `u32::MAX`, the
+/// most a sequent's `antecedents` holds: a hypothesis may be written many
+/// times over one node of the arena, so the arena's own bound does not
+/// keep the count below it.
+fn antecedents(hypotheses: usize) -> Result<u32, Error> {
+    u32::try_from(hypotheses).map_err(|_| {
+        Error::Refused(crate::limits::Refusal::Index {
+            what: crate::limits::Space::Member,
+            count: u64::try_from(hypotheses).unwrap_or(u64::MAX),
+            most: u64::from(u32::MAX),
+        })
+    })
+}
+
 /// Returns the image of an ordinary sequent under a translation, for
 /// deciding it in `logic`. The sequent is valid exactly when the image is
 /// provable in the image's [`mode`](Image::mode).
@@ -299,7 +318,9 @@ impl Image {
 /// or minimal sequent with more than one formula right of `⊢`, and
 /// [`Refusal::Occurrences`](crate::Refusal::Occurrences) for an image that
 /// unfolds to more occurrences than `limits.occurrences` or than an arena
-/// holds, before a forest of it is laid out.
+/// holds, before a forest of it is laid out, or
+/// [`Refusal::Index`](crate::Refusal::Index) for more than `u32::MAX`
+/// hypotheses.
 #[expect(
     clippy::missing_panics_doc,
     reason = "the expects state facts of the pattern table the translation builds from"
@@ -463,7 +484,7 @@ pub fn translate(
     let antecedents = if classical {
         0
     } else {
-        ordinary.left.len() as u32
+        antecedents(ordinary.left.len())?
     };
     let mut linear = crate::linear::Sequent {
         terms: builder.terms,
@@ -541,5 +562,27 @@ impl Builder {
         self.atoms.push(name.to_owned());
         self.names.insert(name.to_owned(), atom);
         atom
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::antecedents;
+
+    /// A count of hypotheses past `u32::MAX` is refused, never cut to 32
+    /// bits; a count that fits is the image's antecedents.
+    #[test]
+    fn the_antecedents_fit_32_bits() {
+        assert_eq!(antecedents(3), Ok(3));
+        // A `usize` past `u32::MAX` exists on 64 bits alone.
+        #[cfg(target_pointer_width = "64")]
+        {
+            use crate::Error;
+            use crate::limits::Refusal;
+            assert!(matches!(
+                antecedents(usize::try_from(u64::from(u32::MAX) + 1).unwrap()),
+                Err(Error::Refused(Refusal::Index { most, .. })) if most == u64::from(u32::MAX)
+            ));
+        }
     }
 }
