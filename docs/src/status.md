@@ -318,6 +318,19 @@ in use.
   `export::{latex, typst, svg, rocq}::to_string(derivation, &options)`
   writes an export into a string. A linear `Outcome` reads back from its
   JSON with `serde_json::from_str`.
+- The library checks a derivation in a calculus you give as data
+  (`deduxit::rules`). A rule file in JSON declares the connectives, the
+  zones of a sequent (each a set, a multiset or a sequence) and the
+  rules as premises and a conclusion over schematic formulas and
+  contexts. A derivation names its rules, and `Derivation::check`
+  matches each step against its rule. The verdict is "valid in the
+  calculus given": the rules are yours, and nothing checks that they
+  are sound. Hypotheses that a rule discharges and nested scopes serve
+  natural deduction, sets of signed formulas a tableau, and sorts for
+  labels a labelled modal calculus. LK, LJ and the calculus of minimal
+  logic come as rule files (`rules::LK`, `rules::LJ`, `rules::LM`),
+  with the JSON Schema of the format (`rules::SCHEMA`). The command and
+  the web page do not use it yet.
 - The unpublished crate `deduxit-web` in `web/` compiles the library to
   WebAssembly for a web page. Its calls take JSON and give JSON or SVG:
   a sequent read, a proof step by step, a goal closed by the search

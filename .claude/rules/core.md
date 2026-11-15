@@ -29,13 +29,16 @@ it; only what holds for the whole crate goes here.
 | `core-batch.md` | `search/batch.rs` | many sequents in one call: the order of results, the workers and the stream, how the batch's memory bound is shared |
 | `core-inputs.md` | `lltp.rs`, `mist.rs`, `families.rs` | the LLTP reader, the `.spec` reader of coverability problems and the generated families |
 | `core-lambda.md` | `lambda/` | proofs read back as lambda-terms: the calculus and its source, the term's data, matching premises by member, the structural rules, the DAG and the printer's bound, the refusals, the tests' own type checker |
+| `core-rules.md` | `rules/`, `serialize/rules.rs`, the rules test | calculi given as data: the rule file and its checks, the generic derivation (terms, nodes, scopes), the checker by matching and its bounds, the rule files of LK, LJ and LM and their cross-check |
 | `core-ordinary.md` | `ordinary/` | ordinary logic: its syntax and TPTP reader, the translations as one pattern table, the read-back to LK and LJ, its checker, the certificate over `Prop`, the goal state of LK and LJ |
 
 ## Layout
 
 The root holds what every suite shares: `errors`, `limits`, `settings`,
 `wire`, `export`, `serialize` and `hash`, and the suites beside each
-other: `linear` (`core/src/linear/`), `ordinary` and `lambda`. The
+other: `linear` (`core/src/linear/`), `ordinary` and `lambda`, and
+`rules` (behind `serialize`), the calculi given as data, which belongs
+to no suite. The
 linear suite is `linear` with `sequents`, `parse`, `fragment`,
 `occurrences`, `proofs`, `search`, `nets`, `lltp`, `mist` and
 `families`; `linear/mod.rs` re-exports its public types, the root
@@ -139,6 +142,11 @@ Each entry point is described in the file of its module:
   `ordinary::Interactive` (`within`, `rules`, `apply`, `undo`, `close`,
   `hint`, `derivation_within`, `finished`), `ordinary::truth_table` and
   `Tableau::of` (`core-ordinary.md`);
+- `rules`: `wire::upgrade::<rules::Calculus, _>` (a rule file; `rules::LK`,
+  `LJ`, `LM` are three, `rules::SCHEMA` their JSON Schema),
+  `rules::Derivation` (`new`, `terms_mut`, `scope`, `push`, or read from
+  JSON), `Derivation::check(&calculus, &limits, stop)` and
+  `Derivation::from_ordinary` (`core-rules.md`);
 - `lambda`: `Derivation::term(&limits, stop)` and
   `ordinary::Derivation::term` to a `lambda::Term`,
   `Term::write`/`write_judgement` under `lambda::Options`, and
@@ -307,7 +315,8 @@ the commit that lands it rewrites that bullet.
   (the Lambek calculus's two, added at step 35), `sequents::fo::FoTerm`
   (a first-order term, added at step 42),
   `ordinary::{Node, Rule, Side}`, `lambda::{Node, Type}` (a term's
-  nodes and types, added at step 50), and `sequents::Visit`, whose enter,
+  nodes and types, added at step 50), `rules::Step` (what justifies a
+  node: a rule, a hypothesis, an open goal; added at step 60), and `sequents::Visit`, whose enter,
   between and exit describe a walk over any tree); every other public enum, every
   options value and every struct with public fields that a later step
   extends is `#[non_exhaustive]`, and so is every struct-like variant of
@@ -352,7 +361,9 @@ the commit that lands it rewrites that bullet.
   Statistics}` (added at step 54); `ordinary::sat::{Outcome,
   Statistics}` (added at step 54s); `kripke::{Model, World}`,
   `ordinary::Countermodel` (added at step 55b);
-  `ordinary::{End, Sign, Signed}` (added at step 56a); `proofs::{ClassicalRule,
+  `ordinary::{End, Sign, Signed}` (added at step 56a);
+  `rules::{Associativity, Discipline, Fixity, Node, Term}` (added at
+  step 60); `proofs::{ClassicalRule,
   ClassicalSides, Compact, Dyadic, Fault, Invalid, Labels, OpenGoal,
   Refused, Sides, Structural, TextOptions}`;
   `proofs::interactive::{Applicable, Closed, Inverted, Needs, Options,

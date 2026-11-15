@@ -59,12 +59,12 @@ fn open_goals(answer: &str) -> Vec<u32> {
 
 /// `about` lists both suites, each with the prefix of its calls, its term
 /// call and the parameter its `start` takes, with every value and the
-/// default, the ordinary suite's methods, and the wire level, 14 since an
-/// ordinary outcome may hold a truth table or a tableau.
+/// default, the ordinary suite's methods, and the wire level, 15 since the
+/// library reads rule files and derivations in them.
 #[wasm_bindgen_test(unsupported = test)]
 fn about_lists_the_suites() {
     let about = value(&calls::about());
-    assert_eq!(about["level"], 14);
+    assert_eq!(about["level"], 15);
     assert_eq!(about["suites"][1]["methods"][1]["call"], "ordinary_tableau");
     let suites = about["suites"].as_array().unwrap();
     let names: Vec<&Value> = suites.iter().map(|s| &s["suite"]).collect();

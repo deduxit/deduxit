@@ -30,6 +30,9 @@
         core = fileset.unions [
           ../core/Cargo.toml
           (craneLib.fileset.commonCargoSources ../core/src)
+          # The rule files and their schema, which the library includes
+          # as text.
+          (fileset.fileFilter (file: file.hasExt "json") ../core/src/rules)
         ];
         core-tests = fileset.unions [
           ../core/tests

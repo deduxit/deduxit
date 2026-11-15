@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "A deduxit rule file",
+  "description": "A calculus given as data: sorts, connectives, the zones of a sequent, schematic variables and rules. deduxit checks a derivation against it by matching. The schema covers the file's shape; deduxit also checks that every name is declared, every pattern well sorted, and every rule's contexts told apart.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "connectives", "sequent", "rules"],
+  "properties": {
+    "version": {
+      "description": "The wire level of the document: 15.",
+      "type": "integer",
+      "minimum": 15
+    },
+    "name": {
+      "description": "The calculus's name, which a derivation names.",
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "description": "What the calculus is, for a reader.",
+      "type": "string"
+    },
+    "sorts": {
+      "description": "The sorts beside `formula`, which every calculus has: for example `label` and `judgement` in a labelled calculus.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "connectives": {
+      "description": "The connectives terms and patterns are built with.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/connective" }
+    },
+    "sequent": {
+      "description": "The zones of a sequent, in the order written.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/zone" }
+    },
+    "variables": {
+      "description": "The schematic variables, by sort: each stands for a term of that sort.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string", "minLength": 1 }
+      }
+    },
+    "contexts": {
+      "description": "The context variables: each stands for what a zone holds beyond the members a rule writes out.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "rules": {
+      "description": "The rules. Their names are distinct.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/rule" }
+    }
+  },
+  "$defs": {
+    "connective": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "arity"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "arity": {
+          "description": "How many terms the connective takes: 255 at most.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "sorts": {
+          "description": "The sorts of its arguments, then the sort of the term it makes: one more entry than its arity. Without the key all are `formula`.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "symbol": {
+          "description": "What is printed for it, where that is not its name.",
+          "type": "string"
+        },
+        "fixity": {
+          "description": "Where it is printed among its arguments.",
+          "enum": ["prefix", "infix", "postfix", "function"]
+        },
+        "precedence": {
+          "description": "How tightly it binds when printed: a higher number binds tighter.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "associativity": {
+          "description": "How a chain of it is read without brackets.",
+          "enum": ["left", "right", "none"]
+        }
+      }
+    },
+    "zone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "discipline"],
+      "properties": {
+        "name": {
+          "description": "The zone's name, a key of every schematic sequent. `discharges` is taken.",
+          "type": "string",
+          "minLength": 1,
+          "not": { "const": "discharges" }
+        },
+        "sort": {
+          "description": "The sort of its members; `formula` where absent.",
+          "type": "string"
+        },
+        "discipline": {
+          "description": "A set has neither multiplicity nor order, a multiset no order, a sequence both.",
+          "enum": ["set", "multiset", "sequence"]
+        },
+        "mark": {
+          "description": "What is written before the zone, as `⊢`.",
+          "type": "string"
+        },
+        "least": {
+          "description": "The fewest members the zone holds.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "most": {
+          "description": "The most members the zone holds.",
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "pattern": {
+      "description": "A declared variable or a connective without arguments, by name; or an array of a connective's name and the patterns it is applied to. As an entry of a zone it may also be a context variable, alone or as the one argument of a unary connective (`[\"!\", \"Γ\"]`: every member of the context under `!`). Nested 64 deep at most.",
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "array",
+          "minItems": 1,
+          "prefixItems": [{ "type": "string", "minLength": 1 }],
+          "items": { "$ref": "#/$defs/pattern" }
+        }
+      ]
+    },
+    "sequent": {
+      "description": "A schematic sequent: the entries of each zone, by the zone's name. An absent zone is empty.",
+      "type": "object",
+      "propertyNames": { "not": { "const": "discharges" } },
+      "additionalProperties": {
+        "type": "array",
+        "items": { "$ref": "#/$defs/pattern" }
+      }
+    },
+    "premise": {
+      "description": "A schematic sequent, and under `discharges` the hypotheses the premise discharges, each a sequent of written members without contexts.",
+      "type": "object",
+      "properties": {
+        "discharges": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sequent" }
+        }
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": { "$ref": "#/$defs/pattern" }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "conclusion"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "premises": {
+          "description": "The premises, in order; absent for a rule without any.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/premise" }
+        },
+        "conclusion": { "$ref": "#/$defs/sequent" },
+        "fresh": {
+          "description": "Variables matched by atoms that occur neither in the conclusion nor in a hypothesis in force: an eigenvariable, a new label.",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "atomic": {
+          "description": "Variables matched by atoms.",
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

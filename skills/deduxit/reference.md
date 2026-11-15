@@ -1461,6 +1461,31 @@ occurrences by id, and `describe(&forest)` names them by formula.
 - `Derivation::term` reads the lambda-term of a checked derivation, or
   of a view of one.
 
+### A calculus given as data
+
+`deduxit::rules` checks a derivation against rules you give. The command
+does not use it yet.
+
+- A rule file is JSON, read with `wire::upgrade::<rules::Calculus, _>`:
+  `connectives` (`name`, `arity`), `sequent` (the zones, each with a
+  `discipline`: `set`, `multiset` or `sequence`), `variables` by sort,
+  `contexts`, and `rules`, each a `name`, `premises` and a `conclusion`.
+  A sequent is an object keyed by zone; a pattern is a declared name or
+  an array `["∧", "A", "B"]`. `rules::LK`, `rules::LJ` and `rules::LM`
+  are complete files to copy from, and `rules::SCHEMA` is the format's
+  JSON Schema.
+- A derivation is JSON too (`rules::Derivation`): `calculus`, `terms`
+  (an atom's name, or `["∧", 0, 1]` over earlier terms) and `nodes`,
+  premises first, each with its `sequent` (per zone, indices of terms),
+  its `rule`, its `premises` and, under `at`, the positions of the
+  formulas the rule acts on (`Calculus::positions` says how many).
+- `derivation.check(&calculus, &limits, stop)` answers `Ok` for "valid in
+  the calculus given" and `Error::InvalidDerivation` with the first step
+  that fails. It says nothing about whether the rules are sound.
+- A node with `"hypothesis": true` is a hypothesis of its `scope`. A
+  premise with `discharges` closes a scope, as natural deduction's `→I`
+  does.
+
 ## 17. The web bindings
 
 An agent with a shell uses the command instead; this section is for a

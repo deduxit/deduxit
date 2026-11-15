@@ -90,6 +90,9 @@ mod nets;
 mod ordinary;
 /// Serde for `Proof`, through a proxy with short tags.
 mod proofs;
+/// Serde for `rules::Calculus` and `rules::Derivation`: the rule file
+/// and the derivation in a calculus given as data.
+pub(crate) mod rules;
 /// Serde for `Fragment`, `Mode`, the outcome of a search and its parts.
 mod search;
 /// Serde for `Sequent`, through a proxy with short tags.

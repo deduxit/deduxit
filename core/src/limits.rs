@@ -356,6 +356,8 @@ pub enum Space {
     Symbol,
     /// The worlds of a Kripke model.
     World,
+    /// The scopes of a derivation in a calculus given as data.
+    Scope,
 }
 
 impl Space {
@@ -372,6 +374,7 @@ impl Space {
             Self::Formula => "formula",
             Self::Symbol => "symbol",
             Self::World => "world",
+            Self::Scope => "scope",
         }
     }
 
@@ -388,6 +391,7 @@ impl Space {
             Self::Formula => "formulas",
             Self::Symbol => "symbols",
             Self::World => "worlds",
+            Self::Scope => "scopes",
         }
     }
 }

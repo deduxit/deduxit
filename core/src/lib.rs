@@ -59,6 +59,8 @@
 //!   with a Kripke countermodel ([`kripke::Model`]) for what is not
 //!   valid: [`ordinary`].
 //! - Read a proof as a lambda-term: [`lambda`].
+//! - Check a derivation in a calculus you give as a rule file: `rules`
+//!   (feature `serialize`).
 //!
 //! Proofs, nets and errors name the *occurrences* of a sequent: an
 //! occurrence is one place of a subformula in the sequent, and the
@@ -262,6 +264,8 @@ pub mod lambda;
 pub mod limits;
 pub mod linear;
 pub mod ordinary;
+#[cfg(feature = "serialize")]
+pub mod rules;
 /// The supertraits that keep the crate's public traits to its own types.
 mod sealed {
     /// Seals [`Owner`](crate::Owner): only the crate's types own the

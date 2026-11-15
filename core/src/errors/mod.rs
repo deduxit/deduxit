@@ -576,6 +576,35 @@ pub enum Error {
         /// What fails, and at which world.
         reason: String,
     },
+    /// A rule file is no calculus: a name it uses is not declared, a
+    /// pattern is ill sorted, or a rule cannot be matched without a
+    /// search.
+    #[error("the rule file is no calculus: {reason}")]
+    #[non_exhaustive]
+    InvalidCalculus {
+        /// What is wrong, and in which rule.
+        reason: String,
+    },
+    /// A derivation is none of the calculus it was checked against. The
+    /// verdict is about that calculus alone.
+    #[error("not a derivation in the calculus {calculus}: {reason}")]
+    #[non_exhaustive]
+    InvalidDerivation {
+        /// The calculus's name.
+        calculus: Box<str>,
+        /// What fails, and at which node.
+        reason: String,
+    },
+    /// A node's sequent has another number of zones than its
+    /// derivation's sequents.
+    #[error("the sequent has {found} zones; the derivation's sequents have {zones}")]
+    #[non_exhaustive]
+    Zones {
+        /// The zones of the node's sequent.
+        found: usize,
+        /// The zones of the derivation's sequents.
+        zones: usize,
+    },
 }
 
 /// What sort of failure an [`Error`](enum@Error) is.
@@ -709,6 +738,9 @@ impl Error {
         "read_back",
         "countermodel",
         "invalid_model",
+        "invalid_calculus",
+        "invalid_derivation",
+        "zones",
         "no_term",
         "no_derivation",
         "not_built",
@@ -755,7 +787,10 @@ impl Error {
             | Self::ForeignProof
             | Self::GoalMismatch => Invalid,
             Self::GoalProof => Unsupported,
-            Self::SequentMismatch { .. } | Self::Model { .. } => Invalid,
+            Self::SequentMismatch { .. } | Self::Model { .. } | Self::InvalidDerivation { .. } => {
+                Invalid
+            }
+            Self::InvalidCalculus { .. } | Self::Zones { .. } => Malformed,
             Self::NotIntuitionistic(_)
             | Self::IntuitionisticMix
             | Self::OrderedMode { .. }
@@ -865,6 +900,9 @@ impl Error {
             Self::ReadBack { .. } => "read_back",
             Self::Countermodel { .. } => "countermodel",
             Self::Model { .. } => "invalid_model",
+            Self::InvalidCalculus { .. } => "invalid_calculus",
+            Self::InvalidDerivation { .. } => "invalid_derivation",
+            Self::Zones { .. } => "zones",
             Self::NoCut { .. } => "no_cut",
             Self::NoTerm { .. } => "no_term",
             Self::NoDerivation { .. } => "no_derivation",
@@ -1199,6 +1237,12 @@ mod tests {
             },
             Error::Countermodel { reason: message() },
             Error::Model { reason: message() },
+            Error::InvalidCalculus { reason: message() },
+            Error::InvalidDerivation {
+                calculus: "LK".into(),
+                reason: message(),
+            },
+            Error::Zones { found: 1, zones: 2 },
         ];
         let vertex = crate::linear::nets::VertexId::new(0);
         let nets = [
@@ -1399,6 +1443,9 @@ mod tests {
             | Error::ReadBack { .. }
             | Error::Countermodel { .. }
             | Error::Model { .. }
+            | Error::InvalidCalculus { .. }
+            | Error::InvalidDerivation { .. }
+            | Error::Zones { .. }
             | Error::NoCut { .. }
             | Error::NoTerm { .. }
             | Error::NoDerivation { .. }

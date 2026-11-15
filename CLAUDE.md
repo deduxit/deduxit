@@ -28,7 +28,8 @@ Workspace crates:
 - `core/` is package **`deduxit`**: all logic. The linear suite is the
   module `deduxit::linear` (sequents, the forest, proofs and the checker,
   nets, the search, the readers and families); `ordinary` and `lambda`
-  are suites beside it, and what they share with it stays at the root
+  are suites beside it, `rules` checks a derivation in a calculus given
+  as a rule file, and what they share with it stays at the root
   (the errors, the limits, the settings, the exports, the wire forms).
   It has eight optional
   default features, `parse` (the text parser, the LLTP reader and the
@@ -108,7 +109,7 @@ per bullet, what a later session must know and cannot see in the code.
 
 | rules file | loads for | holds |
 |---|---|---|
-| `core.md` | `core/**` | the crate's layout and API in brief, its crate-wide rules, and the table of the fifteen module files `core-*.md` (sequents and parsing, the forest, proofs and the checker, derivations and interactive proving, the search's front door, the focused engine, the Horn engine, the inverse method, the parallel runtime, proof nets and the net engine, the exports, the batch, the benchmark inputs, ordinary logic, lambda-terms), each loaded for its own module |
+| `core.md` | `core/**` | the crate's layout and API in brief, its crate-wide rules, and the table of the sixteen module files `core-*.md` (sequents and parsing, the forest, proofs and the checker, derivations and interactive proving, the search's front door, the focused engine, the Horn engine, the inverse method, the parallel runtime, proof nets and the net engine, the exports, the batch, the benchmark inputs, ordinary logic, lambda-terms, calculi given as data), each loaded for its own module |
 | `cli.md` | `cli/**` | the command's layout, exit statuses, defaults, time limit, outputs, README's and the manual's examples as a test, extension points |
 | `bench.md` | `bench/**` | the harness, the CSV columns as its interface, the baselines, the target set, extension points |
 | `web.md` | `web/**`, `modules/web.nix` | the bindings' layout, why nothing is kept between calls, the tab's settings, the errors, the stack measured, the build and its checks, extension points |

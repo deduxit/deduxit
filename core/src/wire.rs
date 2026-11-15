@@ -30,6 +30,7 @@
 //! | 12 | the ordinary outcome's search as an object tagged by its method, `"search": {"method": "embedding", "translation": …, "image": {…}}`, `{"method": "ljt", "statistics": {…}}` or `{"method": "sat", …}`, the image's whole outcome under the embedding; a valid outcome without `derivation` or `clausal_proof` rests on the image's proof | every ordinary outcome |
 //! | 13 | the Kripke model, `{"worlds": [{"atoms": […], "falsity": true, "arrows": […]}, …], "world": n}`, a form of its own (an ordinary outcome holds one under `countermodel`, a key a reader of level 12 ignores without misreading, so the outcome stays at 12) | a model |
 //! | 14 | the truth table and the tableau of a classical sequent, documents of their own and the `search` of an ordinary outcome decided by `table` or `tableau` | a truth table, a tableau, an outcome of either method |
+//! | 15 | a calculus given as data: the rule file, and the derivation in such a calculus | a rule file, a derivation of [`rules`](crate::rules) |
 //!
 //! A reader refuses a document above its level by name ([`Error::Version`],
 //! code `unsupported_version`). It does so before reading the other keys
@@ -181,6 +182,24 @@
 //!   the state's own order, the root first, an open goal its two sides
 //!   alone; reading one checks every inference by the checker's rules; see
 //!   `ordinary::Interactive` (feature `interactive`).
+//! - **Rule file**: `{"version": 15, "name": "LK", "connectives":
+//!   [{"name": "∧", "arity": 2}], "sequent": [{"name": "left",
+//!   "discipline": "multiset"}, {"name": "right", "discipline":
+//!   "multiset", "mark": "⊢"}], "variables": {"formula": ["A", "B"]},
+//!   "contexts": ["Γ", "Δ"], "rules": [{"name": "∧R", "premises": [{"left":
+//!   ["Γ"], "right": ["A", "Δ"]}, {"left": ["Γ"], "right": ["B", "Δ"]}],
+//!   "conclusion": {"left": ["Γ"], "right": [["∧", "A", "B"], "Δ"]}}]}`.
+//!   It refuses a key it does not know, since it is written by hand;
+//!   reading one checks that it is a calculus; see
+//!   [`rules::Calculus`](crate::rules::Calculus).
+//! - **Derivation in a calculus**: `{"version": 15, "calculus": "LK",
+//!   "terms": ["a", "b", ["∧", 0, 1]], "nodes": [{"sequent": [[0], [0]],
+//!   "rule": "ax"}, {"sequent": [[2], [0]], "rule": "∧L₁", "at": [0],
+//!   "premises": [0]}]}`: the terms, every argument before its term, and
+//!   the nodes, premises before conclusions, each its sequent as the
+//!   term indices of every zone; reading one checks its indices, and
+//!   `Derivation::check` its rules; see
+//!   [`rules::Derivation`](crate::rules::Derivation).
 //! - **Cut elimination** (written only): `{"version": 6, "proof": {…},
 //!   "steps": [{"cut": 7, "formula": 9, "case": "tensor_par"}, …],
 //!   "end": "cut_free"}`, or `"end": "refused"` with the `reason` in an
@@ -199,7 +218,11 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// The highest wire level this build reads and writes.
-pub const LEVEL: u32 = 14;
+pub const LEVEL: u32 = 15;
+
+/// The level of a rule file and of a derivation in a calculus given as
+/// data.
+pub(crate) const RULES: u32 = 15;
 
 /// The level of every document that no later level's feature raises.
 pub(crate) const BASE: u32 = 1;

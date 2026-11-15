@@ -10,6 +10,20 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ## [Unreleased]
 
+### Added
+
+- **A calculus given as data** (the library, `deduxit::rules`): a rule
+  file in JSON (connectives, the zones of a sequent, rules as premises
+  and a conclusion over schematic formulas and contexts), a derivation
+  whose steps name its rules, and `Derivation::check`, which matches
+  every step against its rule. The verdict is "valid in the calculus
+  given". Hypotheses, discharge and nested scopes serve natural
+  deduction; sorts serve signed and labelled formulas. LK, LJ and
+  minimal logic's calculus come as rule files, and
+  `Derivation::from_ordinary` writes a derivation of LK or LJ in this
+  form. Both documents are at wire level 15, which is now the highest
+  level the library reads.
+
 ## [0.4.0] - 2026-11-15
 
 Intuitionistic logic decided by its own engines, with Kripke

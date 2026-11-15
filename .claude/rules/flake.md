@@ -33,7 +33,9 @@ and `systems.nix` are what their names say.
 - **Each check reads only its crate's parts.** `workspace.nix` cuts the
   workspace into parts (`core`, `core-tests`, `cli`, `cli-tests`,
   `bench`, `bench-tests`, `web`, `web-tests`: a crate's `src/` with its
-  manifest (the bindings' `build.rs` and cargo-about files too), and its
+  manifest (the bindings' `build.rs` and cargo-about files too; the core
+  crate's rule files and schema, `core/src/rules/**/*.json`, which
+  `include_str!` reads and crane's cargo sources leave out), and its
   `tests/` with what they read: the core crate's export tests the font
   in `cli/fonts`, the command's README's examples), and `argsOf PARTS`
   gives the crane arguments of a source of those parts. Every source

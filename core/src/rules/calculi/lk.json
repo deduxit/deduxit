@@ -1,0 +1,51 @@
+{
+  "version": 15,
+  "name": "LK",
+  "description": "Gentzen's sequent calculus of classical propositional logic, with explicit weakening and contraction. A rule of two premises takes its context whole into both, or split between them under the name that ends in \"split\".",
+  "connectives": [
+    {"name": "⊤", "arity": 0},
+    {"name": "⊥", "arity": 0},
+    {"name": "¬", "arity": 1, "fixity": "prefix", "precedence": 5},
+    {"name": "∧", "arity": 2, "fixity": "infix", "precedence": 4, "associativity": "right"},
+    {"name": "∨", "arity": 2, "fixity": "infix", "precedence": 3, "associativity": "right"},
+    {"name": "→", "arity": 2, "fixity": "infix", "precedence": 2, "associativity": "right"},
+    {"name": "↔", "arity": 2, "fixity": "infix", "precedence": 1, "associativity": "none"}
+  ],
+  "sequent": [
+    {"name": "left", "discipline": "multiset"},
+    {"name": "right", "discipline": "multiset", "mark": "⊢"}
+  ],
+  "variables": {"formula": ["A", "B", "C"]},
+  "contexts": ["Γ", "Δ", "Γ′", "Δ′"],
+  "rules": [
+    {"name": "ax", "conclusion": {"left": ["A"], "right": ["A"]}},
+    {"name": "WL", "premises": [{"left": ["Γ"], "right": ["Δ"]}], "conclusion": {"left": ["Γ", "A"], "right": ["Δ"]}},
+    {"name": "WR", "premises": [{"left": ["Γ"], "right": ["Δ"]}], "conclusion": {"left": ["Γ"], "right": ["A", "Δ"]}},
+    {"name": "CL", "premises": [{"left": ["Γ", "A", "A"], "right": ["Δ"]}], "conclusion": {"left": ["Γ", "A"], "right": ["Δ"]}},
+    {"name": "CR", "premises": [{"left": ["Γ"], "right": ["A", "A", "Δ"]}], "conclusion": {"left": ["Γ"], "right": ["A", "Δ"]}},
+    {"name": "∧L", "premises": [{"left": ["Γ", "A", "B"], "right": ["Δ"]}], "conclusion": {"left": ["Γ", ["∧", "A", "B"]], "right": ["Δ"]}},
+    {"name": "∧L₁", "premises": [{"left": ["Γ", "A"], "right": ["Δ"]}], "conclusion": {"left": ["Γ", ["∧", "A", "B"]], "right": ["Δ"]}},
+    {"name": "∧L₂", "premises": [{"left": ["Γ", "B"], "right": ["Δ"]}], "conclusion": {"left": ["Γ", ["∧", "A", "B"]], "right": ["Δ"]}},
+    {"name": "∧R", "premises": [{"left": ["Γ"], "right": ["A", "Δ"]}, {"left": ["Γ"], "right": ["B", "Δ"]}], "conclusion": {"left": ["Γ"], "right": [["∧", "A", "B"], "Δ"]}},
+    {"name": "∧R split", "premises": [{"left": ["Γ"], "right": ["A", "Δ"]}, {"left": ["Γ′"], "right": ["B", "Δ′"]}], "conclusion": {"left": ["Γ", "Γ′"], "right": [["∧", "A", "B"], "Δ", "Δ′"]}},
+    {"name": "∨L", "premises": [{"left": ["Γ", "A"], "right": ["Δ"]}, {"left": ["Γ", "B"], "right": ["Δ"]}], "conclusion": {"left": ["Γ", ["∨", "A", "B"]], "right": ["Δ"]}},
+    {"name": "∨L split", "premises": [{"left": ["Γ", "A"], "right": ["Δ"]}, {"left": ["Γ′", "B"], "right": ["Δ′"]}], "conclusion": {"left": ["Γ", "Γ′", ["∨", "A", "B"]], "right": ["Δ", "Δ′"]}},
+    {"name": "∨R", "premises": [{"left": ["Γ"], "right": ["A", "B", "Δ"]}], "conclusion": {"left": ["Γ"], "right": [["∨", "A", "B"], "Δ"]}},
+    {"name": "∨R₁", "premises": [{"left": ["Γ"], "right": ["A", "Δ"]}], "conclusion": {"left": ["Γ"], "right": [["∨", "A", "B"], "Δ"]}},
+    {"name": "∨R₂", "premises": [{"left": ["Γ"], "right": ["B", "Δ"]}], "conclusion": {"left": ["Γ"], "right": [["∨", "A", "B"], "Δ"]}},
+    {"name": "→L", "premises": [{"left": ["Γ"], "right": ["A", "Δ"]}, {"left": ["Γ", "B"], "right": ["Δ"]}], "conclusion": {"left": ["Γ", ["→", "A", "B"]], "right": ["Δ"]}},
+    {"name": "→L split", "premises": [{"left": ["Γ"], "right": ["A", "Δ"]}, {"left": ["Γ′", "B"], "right": ["Δ′"]}], "conclusion": {"left": ["Γ", "Γ′", ["→", "A", "B"]], "right": ["Δ", "Δ′"]}},
+    {"name": "→R", "premises": [{"left": ["Γ", "A"], "right": ["B", "Δ"]}], "conclusion": {"left": ["Γ"], "right": [["→", "A", "B"], "Δ"]}},
+    {"name": "¬L", "premises": [{"left": ["Γ"], "right": ["A", "Δ"]}], "conclusion": {"left": ["Γ", ["¬", "A"]], "right": ["Δ"]}},
+    {"name": "¬R", "premises": [{"left": ["Γ", "A"], "right": ["Δ"]}], "conclusion": {"left": ["Γ"], "right": [["¬", "A"], "Δ"]}},
+    {"name": "↔L", "premises": [{"left": ["Γ", ["→", "A", "B"], ["→", "B", "A"]], "right": ["Δ"]}], "conclusion": {"left": ["Γ", ["↔", "A", "B"]], "right": ["Δ"]}},
+    {"name": "↔L₁", "premises": [{"left": ["Γ", ["→", "A", "B"]], "right": ["Δ"]}], "conclusion": {"left": ["Γ", ["↔", "A", "B"]], "right": ["Δ"]}},
+    {"name": "↔L₂", "premises": [{"left": ["Γ", ["→", "B", "A"]], "right": ["Δ"]}], "conclusion": {"left": ["Γ", ["↔", "A", "B"]], "right": ["Δ"]}},
+    {"name": "↔R", "premises": [{"left": ["Γ"], "right": [["→", "A", "B"], "Δ"]}, {"left": ["Γ"], "right": [["→", "B", "A"], "Δ"]}], "conclusion": {"left": ["Γ"], "right": [["↔", "A", "B"], "Δ"]}},
+    {"name": "↔R split", "premises": [{"left": ["Γ"], "right": [["→", "A", "B"], "Δ"]}, {"left": ["Γ′"], "right": [["→", "B", "A"], "Δ′"]}], "conclusion": {"left": ["Γ", "Γ′"], "right": [["↔", "A", "B"], "Δ", "Δ′"]}},
+    {"name": "⊥L", "conclusion": {"left": ["Γ", "⊥"], "right": ["Δ"]}},
+    {"name": "⊥R", "premises": [{"left": ["Γ"], "right": ["Δ"]}], "conclusion": {"left": ["Γ"], "right": ["⊥", "Δ"]}},
+    {"name": "⊤L", "premises": [{"left": ["Γ"], "right": ["Δ"]}], "conclusion": {"left": ["Γ", "⊤"], "right": ["Δ"]}},
+    {"name": "⊤R", "conclusion": {"left": ["Γ"], "right": ["⊤", "Δ"]}}
+  ]
+}
