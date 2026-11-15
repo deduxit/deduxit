@@ -7099,3 +7099,25 @@ move (D26).
   - **Started:** 54x4 (`local_739ba359`, cores 4-6): the flaky `ordinary.spec.ts` test at its
     cause (three sightings today), the tableau's stop inside a step, the focused engine's late
     first poll (the target set unchanged). **Running:** 61b, 62a.
+- 2026-11-15, about 23:35: **61b, 62a and 54x4 reviewed and pushed; steps 61 complete; new steps on hold.**
+  - **The author** (about 21:40): "Please stop after the currently running steps are done and you
+    reviewed them / applied small fixes. Don't start any new steps unless I tell you to." Nothing
+    new is started (not 62b, 62c, 63, nor the baseline night) until the author says so.
+  - **62a** (`unpppxmx` … `onkyxuom`): natural deduction's rule files NJ, NK, NM and the DNE, LEM
+    and "¬ defined" variants with their sources, cross-checked both ways against the ordinary
+    suite (fixed, generated and ILTP's small problems); `check --calculus NJ|NK|NM`; the
+    manual's chapter. **Pushed.**
+  - **61b** (`zqztkpmt` … `sxwwwyql`; client `sutqntom`, `uqqwsrmr`, `uuquskyu`): a derivation in
+    a calculus given as data drawn as LK's is (SVG, LaTeX, Typst), the bindings' `rules_*`
+    calls, "Your own calculus" on the page starting from LJ or the tableau; the web module's
+    ceiling raised to 3.2 MB at gzip in a commit of its own. Departures accepted: one button in
+    the calculus popover; undo takes the last step back. **Pushed** (both). Step 61 complete.
+  - **54x4** (`ywtsxtrt`, `qropoqnt`, `uxzrrnzu`; client `kvwnuzlv`, rebased onto 61b's client
+    chain and checked again): the flaky `ordinary.spec.ts` test was a race in the test (the
+    drawing read before the step was drawn; `cut.spec.ts` had the same), fixed, 160 runs under
+    load passing; the tableau's late stop was the quadratic freeing of the axiom's weakenings,
+    now applied after the search; the focused engine's late poll was the translation and set-up,
+    now bounded by the evidence's work. Departures accepted: each fixed at the cause measured,
+    not where the brief guessed. The focused target set equals 47's. **Pushed.**
+  - **Next, when the author says so:** 62b (the builder), 62c (drawings and exports), 62d (the
+    page), then 63, 63g and the release of 0.5.0; the baseline night is prepared.
