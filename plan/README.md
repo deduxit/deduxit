@@ -6959,3 +6959,31 @@ move (D26).
 - 2026-11-15, about 13:15: **63g's design by a panel** (the author): several
   agents, one on Fable 5.2, with the education-agent-skills and
   frontend-design plugins; written into the step's row.
+- 2026-11-15, about 13:40: **54w-e4b, 55c and ci-fix reviewed and
+  pushed; 55d and 56a started.**
+  - **54w-e4b** (`xsnqzxks` … `xzutokzr`): a model document refuses an
+    unknown key; `ordinary::Derivation::term` checks a derivation read
+    from JSON instead of panicking; the classical default's text shows
+    the solver's model; the `ordinary` and `kripke` docs reworked (about
+    twenty wrong claims fixed); the goal state's refusals say what to do.
+  - **55c, the exporter** (`plzsqxku` … `ksxsmnsq`): `prove --format rocq`
+    and `check --format rocq` write an intuitionistic or minimal
+    countermodel's certificate by `kripke_refutation`; the input
+    `rocq-deduxit` moved to `xmsnqtwk`. Departures accepted: a classical
+    countermodel keeps its certificate over `Prop` (the library has no
+    LK); `lj` is G1i, the larger calculus. Open: `DEDUXIT` and the
+    library's opam version rise together at 0.4.0.
+  - **ci-fix** (`wluzzkvq`, `wvkxovwl`; client `zkwnnqqs`): Kani's
+    harnesses are the package `kani-harnesses`, built one at a time by
+    `kani.yml` (weekly, by dispatch, and on changes to the checker);
+    `nix flake check` and the push CI skip them; the client's Learn walk
+    split in two. Three runner deaths, not two, were Kani's.
+  - Stacked with one conflict (`core/src/ordinary/rocq.rs`, 55c's helper
+    `falsified` taking 54w-e4b's wording); the gate and `nix flake check`
+    passed at the stacked head. **Pushed** (`pwwwlmqk`, client
+    `zkwnnqqs`).
+  - **Started:** 55d (`local_b8490613`, cores 7-9: the countermodel drawn,
+    in the bindings, on the page) and 56a (`local_739ba359`, cores 4-6:
+    tableaux and truth tables).
+  - **Times corrected:** the entries above dated "about 13:30" and
+    "about 14:30" were written at about 12:00 and 12:40.
