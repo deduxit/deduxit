@@ -441,3 +441,155 @@ calls" understated the poll at the start of every call. Its note,
 - A new wire form's name needs nothing for its article: `article`
   reads the first letter (a name sounded otherwise than written, "an
   hour", would need a case there).
+
+## Session 54x4: three recurring loose ends
+
+Opus 5.5 at `high`, the reused worker of 54s-c2 to 63t-b (same
+conversation), in the jj workspace `../deduxit-wt-step-54s-c1-161790`
+and the client's `../deduxit.github.io-63tb`, from the brief
+`start-54x4.md`, on 2026-11-15, cores 4 to 6.
+
+The chain: deduxit `ywtsxtrt` (item 2) and `qropoqnt` (item 3) on
+`main@origin` `sxwwwyql`, this report after them; the client
+`kvwnuzlv` (item 1) on its `main@origin` `uxuxvlps`. Items 2 and 3 were
+measured before they were fixed, and in both the cause was elsewhere
+than the brief supposed; each fix is at the cause found.
+
+### The items
+
+1. **The flaky client test** (`kvwnuzlv`). Cause, in the test: the
+   failure's log (the 63t-b flake check) shows `before` holding both
+   open goals of `∧R` (`a, b ⊢ a` and `a, b ⊢ b`, joined by the space),
+   so it was read off the drawing before the `ax` step's: `rule()` in
+   `tests/prover.ts` returns once the rule is pressed, and nothing
+   waited for the step's drawing; the page drew the right goal (the
+   failure's `received` is it), but `before` never matched. Unloaded,
+   the drawing always won (a probe read one open goal right after the
+   click in 50 of 50 runs, throttled or not), so the race shows only
+   under the flake check's load. Fix: wait for one `g.open-goal` before
+   reading (the goal's buttons are laid only over the current
+   session's drawing, so the `a, formula 3` button clicked exists over
+   `∧R`'s drawing alone, and one open goal means the step is drawn).
+   `tests/cut.spec.ts` ("a replayed classical cut…") had the same
+   read after `cut()`, which returns when the chooser closes; it now
+   waits for the second premise's button, which only the cut's drawing
+   has. Shown: before the fix 40 runs (`CI=1`, one core, four workers)
+   and 80 (one core, eight workers) passed, since the race needs the
+   whole suite's load; after it, both tests 80 times each (one core,
+   eight workers, `--retries 0`): 160 passed; the client's flake check
+   then had no flaky test (249 passed), where this test had failed
+   once in each of three that day.
+2. **The tableau's stop** (`ywtsxtrt`). Measured with a probe: no step
+   of `tableau::decide` took 5 ms on SYJ202+1.008; the stop fired at
+   2.000 s, and dropping the goal state then took 0.56 s (4.4 million
+   inferences). The axiom closes a branch by weakening every other
+   formula of its goal away, one inference each holding the rest, so
+   the state grew with the square of every closed goal. Asking the stop
+   inside a step, as the brief proposed, would have changed nothing
+   (departs from the design). Fix: the search (`expand`) returns each
+   branch's closing step (axiom, `⊥L`, `⊤R`) untaken, and `decide`
+   applies them after the search, asking the stop before each. The
+   tree, so the tableau and the derivation, are the same; the work and
+   memory counts are unchanged. Harness at 2 s: SYJ202+1.008 from
+   2 538 ms (`timeout`) to 1 329 ms (`memory_limit`: it gets further
+   and reaches the bound on the goals it holds), SYJ206+1.020 from
+   2 496 ms to 2 205 ms, SYJ201+1.010 proved as before (21 ms). What is
+   left, 0.2 s on SYJ206+1.020, is freeing the expansions themselves
+   (1.7 million inferences, three vectors each); one allocation per
+   inference would be the next step, a change of `Inference`'s storage
+   across the suite. Test: `a_stopped_search_holds_no_closed_branch`
+   (six steps stopped hold at most 13 inferences; before, the sixth was
+   an axiom of about 85 weakenings).
+3. **The focused engine's late first poll** (`qropoqnt`). Measured: on
+   SYJ206+1.020's affine image (12.6 million occurrences) the 4.9
+   million units were 49 `&` rules of 98 303 each (the forest's width
+   over 128), done in 3 ms; the 0.6 s before them were the translation
+   (0.26 s) and the set-up's counts (0.31 s, 770 polls that report no
+   work), and freeing took 0.21 s after. An earlier poll in the node
+   would have saved 3 ms. Making the set-up's polls report work would
+   have moved counters (the inverse method's turns come at counts of
+   the engine's work, and a refutation's counts pass would meet the
+   bound), so the fix is where the cost arose (departs from the
+   design): the classical default's evidence attempt translates within
+   as many occurrences as its bound of work, `EVIDENCE_WORK` (or the
+   caller's lower `--occurrence-limit`), in the library
+   (`with_evidence`) and the command (`bounded`, in `prove` and the
+   batch); a refused image leaves the solver's answer, as any refused
+   attempt did. The 124 ILTP images with evidence have at most 175
+   occurrences; the 8 past 2²⁰ cost 3.7 s together for nothing.
+   `prove --logic classical` on SYJ206+1.020 went from 0.84 s and
+   775 MB to under 10 ms and 10 MB; the attempt now costs at most
+   0.1 s on ILTP (SYJ206+1.016, 786 415 occurrences). The engine is
+   untouched. Test: `a_large_image_gives_no_evidence_and_costs_no_search`
+   (a chain of `↔` whose image passes 2²⁰ occurrences: the solver's
+   clausal proof, and the stop asked exactly as often as by the solver
+   alone). The `later.md` entry is closed with these numbers.
+
+### The checks
+
+- **The target set against 47's** (`bench/targets.sh` run from a copy
+  pinned to cores 4 and 5, label `54x4`, at `qropoqnt`):
+  `summary --against bench/targets/47.csv … --counters`: no verdict
+  differs, and of the 145 problems both decide alike on one thread none
+  differs in nodes, splits, memo hits, memo entries, links or tests.
+  The CSV is kept out of the tree.
+- **The gate** (capped, cores 4 to 6) at `qropoqnt` before the
+  reviewer's text fixes and the rebase: passed, the ratchet within its
+  ceilings.
+- **Every family at 5 s** (release, cores 4 to 6, after the rebase):
+  195 problems (100 proved, 66 refuted, 29 unknown), "every problem
+  decided in a mode has one verdict".
+- The workspace's tests and Clippy before each commit; the manual's and
+  the guide's examples (`--test readme`) after the reviewer's text
+  fixes.
+- **The client**: both tests repeated as above; its unit suite 613 and
+  e2e suite 249 passed; its `nix flake check` at `kvwnuzlv` under the
+  machine lock: all checks passed, no test flaky.
+- **`nix flake check`** at this report's commit, under the machine
+  lock: all checks passed on `main@origin` `ntlzslyx`, and again after
+  the rebase onto `sxwwwyql` (61b's bindings and drawings of calculi
+  given as data came in); this line is the only change since.
+
+### The reviewer
+
+`fresh-reviewer` (Fable 5.2, medium) read both chains against the
+brief, ran the command on core 6 and the 274 ILTP problems as a batch
+(123 derivations and one refutation by the embedding, the 124 as
+before). It found the three fixes sound (the client's waits are
+conditions on the page's own invariant; deferring the closings keeps
+the tree; lower `--work-limit` and `--occurrence-limit` still apply, the
+library and the command compute the same bounds). Three findings:
+
+1. **The manual and the guide still gave the old cost** (at most 0.7 s)
+   and did not say the image is bounded: `docs/src/ordinary-logic.md`
+   and `skills/deduxit/reference.md` now say "on an image of at most
+   2²⁰ occurrences … at most 0.1 s" and that a lower `--work-limit` or
+   `--occurrence-limit` lowers its bound; folded into `qropoqnt`.
+2. **The tableau's test called `Interactive::parts`, which only
+   `serialize` builds**: it is gated on `serialize` now, as the accessor
+   is; folded into `ywtsxtrt`. The test build with `parse,interactive`
+   and no `serialize` fails anyway, in the linear goal state's tests
+   (`linear/proofs/interactive/mod.rs`, nine calls of `inferences`),
+   before this chain: a follow-up below.
+3. **The report was not in the chain yet**: this section.
+
+### What the next sessions must know
+
+- **A test that reads the drawing after `rule()`, `cut()` or another
+  helper that only clicks must wait for the step's drawing first** (a
+  goal's button that only the new drawing has, or the count of open
+  goals): the helpers return before the page answers, and the race
+  shows only under the flake check's load.
+- **The tableau's goal state grows with every premise's copy of its
+  goal**; past 1.7 million inferences freeing it is a fifth of a second.
+  A storage of `Inference` with one allocation (the sides and premises
+  in one slice) would cut that and the memory alike.
+- **The set-up's polls report no work**, on purpose (the slices and the
+  counters); a work bound therefore cannot end a search during its
+  set-up, which on millions of occurrences is most of a second. A
+  caller that bounds work and meets large inputs bounds the input too,
+  as the evidence attempt now does.
+- **Follow-up**: `cargo test -p deduxit --no-default-features --features
+  parse,interactive --lib` does not build (the linear goal state's tests
+  call `Interactive::inferences`, which needs `serialize`); no check
+  builds that combination's tests.
