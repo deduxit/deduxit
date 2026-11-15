@@ -615,11 +615,22 @@ classical logic only (`Error::Logic`, which names the method).
   whole) and is the evidence; an open state's derivation (open goals
   as `Rule::Open`) gives the tableau, and the first open goal's true
   atoms (once each) the countermodel, checked by `Countermodel::found`.
-  A step is a unit of `limits.work`, the stop is asked once per step,
-  and every goal a step opens is charged to `limits.memory_bytes`
+  A step is a unit of `limits.work`, the stop is asked once per step and
+  once per branch closed, and every goal a step opens is charged to
+  `limits.memory_bytes`
   (`GOAL_BYTES` and 8 bytes a formula): the goal state grows with the
   tableau, and the pigeonhole principle for 8 pigeons once took 4 GB
-  under a 16 MiB bound. It ends:
+  under a 16 MiB bound. **The branches close after the search**
+  (`expand` returns each closing step untaken, `decide` applies them
+  after): the axiom weakens every other formula of its goal away, one
+  inference holding the rest each, so closing as the search met them
+  grew the state with the square of each goal, and freeing it after the
+  stop overran a 2 s limit by 0.54 s (4.4 million inferences on ILTP's
+  SYJ202+1.008; no step was slow). The tree, and so the tableau and the
+  derivation, are the same. What is left is freeing the expansions, every
+  premise a copy of its goal in three vectors: 0.2 s at 2 s on
+  SYJ206+1.020 (1.7 million inferences); one allocation per inference
+  would be the next step (`Inference`'s storage). It ends:
   every rule takes a formula apart and the goal state keeps no
   principal formula (G3c's invertible rules).
 - **Why not a view of the decided outcome's derivation alone**: a "not

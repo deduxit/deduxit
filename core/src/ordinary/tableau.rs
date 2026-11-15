@@ -25,7 +25,7 @@ use super::{Derivation, Formulas, Interactive, Logic, Node, NodeId, Rule, Sequen
 use crate::Error;
 use crate::kripke::{Model, World};
 use crate::limits::{Limits, Phase, Progress, Refusal};
-use crate::linear::proofs::{Structural, ViewOptions};
+use crate::linear::proofs::{GoalId, Structural, ViewOptions};
 use std::fmt::{self, Display, Formatter, Write};
 
 /// The sign of a formula on a tableau's branch: true or false.
@@ -758,26 +758,22 @@ fn next_step(formulas: &Formulas, left: &[NodeId], right: &[NodeId]) -> Option<S
     None
 }
 
-/// Decides a sequent of classical logic by a systematic tableau, built in
-/// the goal state so that every step is checked by the rules of LK: valid
-/// with the checked derivation of LK the closed tableau is, or not valid
-/// with the first open branch's assignment as a checked countermodel. The
-/// stop is asked once per step, and each step is a unit of
-/// `limits.work`.
-pub(super) fn decide(
-    sequent: &Sequent,
-    logic: Logic,
+/// The goals and steps of a tableau's search: the goals left open, the
+/// closing step of every branch that closes, and the steps taken.
+type Expanded = (Vec<GoalId>, Vec<(GoalId, Step)>, u64);
+
+/// Expands every goal of the state until each is finished or closes, and
+/// returns the open goals and the closing step of each closed one, not
+/// taken: the caller closes them. The stop is asked once per step, each
+/// step a unit of `limits.work`, and every goal a step opens is charged to
+/// `limits.memory_bytes`.
+fn expand(
+    state: &mut Interactive,
     limits: &Limits,
-    mut stop: impl FnMut(Progress) -> bool,
-) -> Result<super::Outcome, Error> {
-    if logic != Logic::Classical {
-        return Err(Error::Logic {
-            logic,
-            method: super::Method::Tableau,
-        });
-    }
-    let mut state = Interactive::within(sequent, logic, limits)?;
+    stop: &mut impl FnMut(Progress) -> bool,
+) -> Result<Expanded, Error> {
     let mut open = Vec::new();
+    let mut closing = Vec::new();
     let mut goals: Vec<_> = state.goals().collect();
     let mut steps = 0u64;
     // What the goal state holds, counted per goal it opens.
@@ -796,6 +792,9 @@ pub(super) fn decide(
         }
         let (left, right) = state.goal(goal)?;
         match next_step(state.formulas(), left, right) {
+            Some(step) if matches!(step.rule, Rule::Axiom | Rule::FalseLeft | Rule::TrueRight) => {
+                closing.push((goal, step));
+            }
             Some(step) => {
                 let opened = state.apply(goal, &step)?;
                 for &new in &opened {
@@ -816,6 +815,42 @@ pub(super) fn decide(
             }
             None => open.push(goal),
         }
+    }
+    Ok((open, closing, steps))
+}
+
+/// Decides a sequent of classical logic by a systematic tableau, built in
+/// the goal state so that every step is checked by the rules of LK: valid
+/// with the checked derivation of LK the closed tableau is, or not valid
+/// with the first open branch's assignment as a checked countermodel. The
+/// stop is asked once per step and once per branch closed, and each step
+/// is a unit of `limits.work`.
+pub(super) fn decide(
+    sequent: &Sequent,
+    logic: Logic,
+    limits: &Limits,
+    mut stop: impl FnMut(Progress) -> bool,
+) -> Result<super::Outcome, Error> {
+    if logic != Logic::Classical {
+        return Err(Error::Logic {
+            logic,
+            method: super::Method::Tableau,
+        });
+    }
+    let mut state = Interactive::within(sequent, logic, limits)?;
+    let (open, closing, steps) = expand(&mut state, limits, &mut stop)?;
+    // The branches close only now: the axiom weakens every other formula
+    // of its goal away, one inference holding the rest of the goal each, so
+    // closing them as the search met them grew the state with the square
+    // of every goal, and freeing it once the stop fired took half a second
+    // (4.4 million inferences at 2 s).
+    for (goal, step) in closing {
+        if stop(Progress::new(Phase::Search, 1, steps)) {
+            return Err(Error::Refused(Refusal::Stopped {
+                phase: Phase::Search,
+            }));
+        }
+        state.apply(goal, &step)?;
     }
     let Some(&first) = open.first() else {
         let derivation = state.finished(limits, &mut stop)?;
@@ -862,8 +897,51 @@ pub(super) fn decide(
 
 #[cfg(all(test, feature = "parse"))]
 mod tests {
-    use super::super::{Evidence, Logic, Options, Sequent, Verdict, decide};
-    use super::{End, Tableau};
+    use super::super::{Evidence, Interactive, Logic, Options, Sequent, Verdict, decide};
+    use super::{End, Tableau, expand};
+    use crate::Limits;
+
+    /// A search stopped part way holds only the expansions it made: no
+    /// branch is closed before the search ends, so the axiom's weakenings,
+    /// one inference per formula of its goal, are never left to free.
+    #[test]
+    #[cfg(feature = "serialize")]
+    fn a_stopped_search_holds_no_closed_branch() {
+        // Forty atoms on each side, so every goal is large, and eight
+        // branches after three splits, each closed by an axiom on `e` or `f`.
+        let atoms = |x: char| {
+            (0..40)
+                .map(|i| format!("{x}{i}"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        let text = format!(
+            "{}, (a \\/ b) /\\ (c \\/ d) /\\ (e \\/ f) |- {}, e, f",
+            atoms('p'),
+            atoms('q')
+        );
+        let sequent: Sequent = text.parse().unwrap();
+        let limits = Limits::default();
+        let mut state = Interactive::within(&sequent, Logic::Classical, &limits).unwrap();
+        let mut asked = 0u64;
+        let stopped = expand(&mut state, &limits, &mut |_| {
+            asked += 1;
+            asked > 6
+        });
+        assert!(stopped.is_err());
+        // Six steps, each one inference and at most two premises.
+        assert!(
+            state.parts().2.len() <= 1 + 6 * 2,
+            "{}",
+            state.parts().2.len()
+        );
+        // Unstopped, every branch waits to close, and closing them all
+        // gives the same verdict as the method.
+        let mut state = Interactive::within(&sequent, Logic::Classical, &limits).unwrap();
+        let (open, closing, _) = expand(&mut state, &limits, &mut |_| false).unwrap();
+        assert_eq!(open, []);
+        assert_eq!(closing.len(), 8);
+    }
 
     /// A valid sequent's tableau closes every branch and is the checked
     /// derivation of LK upside down; one that is not valid has an open
