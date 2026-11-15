@@ -13,13 +13,20 @@
 //! written.
 
 use super::derivation::Side;
-use super::{Derivation, Formulas, Image, Logic, Node, NodeId, Rule, Symbols};
+use super::{
+    Countermodel, Derivation, Formulas, Image, Logic, Node, NodeId, Rule, Sequent, Symbols,
+};
 use crate::Error;
 use crate::export::Form;
-use crate::export::rocq::{CLASSICAL_PRELUDE, Options, Unsupported, identifiers};
+use crate::export::rocq::{
+    CLASSICAL_PRELUDE, DEDUXIT_KRIPKE_PRELUDE, Options, Unsupported, identifiers,
+};
 use crate::hash::HashMap;
+use crate::kripke::Model;
+use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::proofs::InfId;
 use crate::linear::search::{Classical, Disproof, Refutation};
+use crate::linear::sequents::{Stop, Stops};
 use std::fmt::Write;
 
 /// The names the terms use. An atom's identifier that is one of them gets
@@ -523,17 +530,8 @@ pub(crate) fn write(
 }
 
 /// Writes the certificate that an ordinary sequent is not valid, from the
-/// classical refutation of its image: the lemma `options.lemma` stating
-/// `~ (forall a b : Prop, Γ -> Δ)`, with `Γ` and `Δ` written as a
-/// certificate of validity writes them. The proof instantiates every atom
-/// with `True` or `False`, as the image's assignment gives it (`False`
-/// for an atom the image lacks), and `tauto` decides the closed formula
-/// left. The refutation and then the assignment are checked first: the
-/// assignment must make every hypothesis true and every formula right of
-/// `⊢` false. A standalone certificate starts with `options.prelude` only
-/// where one is given, since it needs no library. A refutation that is no
-/// classical assignment, or an assignment that fails, is
-/// [`Unsupported::NotValid`].
+/// classical refutation of its image, as [`falsified`] does with the
+/// image's assignment (an atom the image lacks false).
 pub(crate) fn not_valid(
     image: &Image,
     disproof: &Disproof,
@@ -544,10 +542,27 @@ pub(crate) fn not_valid(
         return Err(Unsupported::NotValid.into());
     };
     disproof.check()?;
-    let sequent = image.ordinary();
-    let formulas = sequent.formulas();
     let linear = image.sequent();
     let value = |name: &str| linear.atom(name).is_some_and(|a| assignment[a.index()]);
+    falsified(image.ordinary(), value, options, out)
+}
+
+/// Writes the certificate that an ordinary sequent is false under the
+/// assignment `value` gives its atoms by name: the lemma `options.lemma`
+/// stating `~ (forall a b : Prop, Γ -> Δ)`, with `Γ` and `Δ` written as a
+/// certificate of validity writes them. The proof instantiates every atom
+/// with `True` or `False`, as `value` gives it, and `tauto` decides the
+/// closed formula left. The assignment is checked first: it must make
+/// every hypothesis true and every formula right of `⊢` false. A
+/// standalone certificate starts with `options.prelude` only where one is
+/// given, since it needs no library.
+fn falsified(
+    sequent: &Sequent,
+    value: impl Fn(&str) -> bool,
+    options: &Options,
+    out: &mut impl Write,
+) -> Result<(), Error> {
+    let formulas = sequent.formulas();
     // Every subformula precedes the formulas built from it.
     let mut truth: Vec<bool> = Vec::with_capacity(formulas.len());
     for id in 0..formulas.len() {
@@ -629,4 +644,296 @@ pub(crate) fn not_valid(
         options.lemma
     )?;
     Ok(())
+}
+
+/// Writes the certificate that an ordinary sequent is not valid, from a
+/// countermodel, after checking it in `logic` under `limits`: in
+/// intuitionistic and minimal logic the lemma `options.lemma` stating
+/// `~ lj (atom := string) R [Γ] C` over deduxit's library (`R`
+/// `intuitionistic` or `minimal`, `C` `bot` where nothing is right of
+/// `⊢`), proved by `kripke_refutation` applied to the model as data and
+/// its world, which the library's `refutes` checks by `vm_compute`; in
+/// classical logic, where the model is one world, the certificate over
+/// `Prop` of that world's assignment ([`falsified`]). The text is refused
+/// past `limits.derivation_bytes` before anything is written, and the
+/// order's closure, which it lists, within `limits.work` steps; `stop` is
+/// asked once per world and every [`Closure::POLL`] steps of the closure.
+pub(crate) fn countermodel(
+    countermodel: &Countermodel,
+    logic: Logic,
+    options: &Options,
+    limits: &Limits,
+    out: &mut impl Write,
+    mut stop: impl FnMut(Progress) -> bool,
+) -> Result<(), Error> {
+    countermodel.check(logic, limits, &mut stop)?;
+    let (sequent, model) = (&countermodel.sequent, &countermodel.model);
+    let rules = match logic {
+        Logic::Classical => {
+            let world = &model.worlds[model.world as usize];
+            let value = |name: &str| world.atoms.iter().any(|a| a == name);
+            return falsified(sequent, value, options, out);
+        }
+        Logic::Intuitionistic => "intuitionistic",
+        Logic::Minimal => "minimal",
+    };
+    let mut closure = Closure::new(model, limits);
+    // The bytes of the text, counted before any of it is written.
+    let formulas = sequent.formulas();
+    let mut bytes: Vec<u64> = Vec::with_capacity(formulas.len());
+    for id in 0..formulas.len() {
+        let of = |k: NodeId| bytes[k.index()];
+        let b = match formulas.node(NodeId(id as u32)) {
+            Node::Atom(a) => (formulas.atom_names()[a as usize].len() as u64)
+                .saturating_mul(2)
+                .saturating_add(9),
+            Node::True | Node::False => 5,
+            Node::Not(a) => of(a).saturating_add(7),
+            Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
+                of(a).saturating_add(of(b)).saturating_add(10)
+            }
+        };
+        bytes.push(b);
+    }
+    let mut estimate = sequent
+        .left()
+        .iter()
+        .chain(sequent.right())
+        .fold(400u64, |sum, id| {
+            sum.saturating_add(bytes[id.index()].saturating_add(2))
+        });
+    let digits = model.worlds.len().to_string().len() as u64 + 2;
+    for (w, world) in model.worlds.iter().enumerate() {
+        if stop(Progress::new(Phase::Write, 1, w as u64 + 1)) {
+            return Err(Refusal::Stopped {
+                phase: Phase::Write,
+            }
+            .into());
+        }
+        let above = closure.above(w, &mut stop)?.len() as u64;
+        let atoms = world
+            .atoms
+            .iter()
+            .fold(4u64, |sum, a| sum.saturating_add(a.len() as u64 * 2 + 4));
+        estimate = estimate
+            .saturating_add(above.saturating_mul(digits))
+            .saturating_add(atoms)
+            .saturating_add(digits + 4);
+        if let Some(limit) = limits.derivation_bytes
+            && estimate > limit
+        {
+            return Err(Refusal::Output {
+                what: "certificate",
+                estimate_bytes: estimate,
+                limit_bytes: limit,
+                least_bytes: None,
+            }
+            .into());
+        }
+    }
+    // The estimate's searches took every step the writing takes again,
+    // within the bound: the text is not cut short by it.
+    closure.left = closure.limit;
+    if options.form == Form::Standalone {
+        let prelude = options.prelude.as_deref().unwrap_or(DEDUXIT_KRIPKE_PRELUDE);
+        write!(out, "{}\n\n", prelude.trim_end())?;
+    }
+    let mut text = String::new();
+    let hypotheses: Vec<String> = sequent
+        .left()
+        .iter()
+        .map(|&h| {
+            text.clear();
+            formula(sequent, &mut text, h, false);
+            text.clone()
+        })
+        .collect();
+    text.clear();
+    match sequent.right().first() {
+        Some(&c) => formula(sequent, &mut text, c, true),
+        None => text.push_str("bot"),
+    }
+    write!(
+        out,
+        "Lemma {} : ~ lj (atom := string) {rules} [{}] {text}.\nProof.\n  apply (kripke_refutation \
+         String.eqb String.eqb_spec {rules}\n    {{| later := [",
+        options.lemma,
+        hypotheses.join("; "),
+    )?;
+    for w in 0..model.worlds.len() {
+        if stop(Progress::new(Phase::Write, 1, w as u64 + 1)) {
+            return Err(Refusal::Stopped {
+                phase: Phase::Write,
+            }
+            .into());
+        }
+        if w > 0 {
+            out.write_str("; ")?;
+        }
+        out.write_char('[')?;
+        for (n, v) in closure.above(w, &mut stop)?.iter().enumerate() {
+            if n > 0 {
+                out.write_str("; ")?;
+            }
+            write!(out, "{v}")?;
+        }
+        out.write_char(']')?;
+    }
+    out.write_str("];\n       atoms := [")?;
+    for (w, world) in model.worlds.iter().enumerate() {
+        if w > 0 {
+            out.write_str("; ")?;
+        }
+        out.write_char('[')?;
+        for (n, a) in world.atoms.iter().enumerate() {
+            if n > 0 {
+                out.write_str("; ")?;
+            }
+            out.write_str(&string(a))?;
+        }
+        out.write_char(']')?;
+    }
+    out.write_str("];\n       absurd := [")?;
+    let absurd: Vec<String> = (0..model.worlds.len())
+        .filter(|&w| model.worlds[w].falsity)
+        .map(|w| w.to_string())
+        .collect();
+    write!(
+        out,
+        "{}] |}} {}).\n  vm_compute. reflexivity.\nQed.",
+        absurd.join("; "),
+        model.world
+    )?;
+    Ok(())
+}
+
+/// The worlds above each world of a model, by a search along its arrows
+/// from that world, within a bound of steps.
+struct Closure<'a> {
+    /// The model.
+    model: &'a Model,
+    /// The search that last reached each world.
+    seen: Vec<u32>,
+    /// The current search's mark, never 0.
+    mark: u32,
+    /// The worlds to search from.
+    stack: Vec<u32>,
+    /// The worlds above the last world asked, in order.
+    above: Vec<u32>,
+    /// The steps left, or `None` without a bound.
+    left: Option<u64>,
+    /// The bound of steps.
+    limit: Option<u64>,
+    /// The steps taken.
+    steps: u64,
+}
+
+impl<'a> Closure<'a> {
+    /// The steps between two polls of the stop.
+    const POLL: u64 = 1024;
+
+    /// Returns the search over this model, bounded by `limits.work`.
+    fn new(model: &'a Model, limits: &Limits) -> Self {
+        Self {
+            model,
+            seen: vec![0; model.worlds.len()],
+            mark: 0,
+            stack: Vec::new(),
+            above: Vec::new(),
+            left: limits.work,
+            limit: limits.work,
+            steps: 0,
+        }
+    }
+
+    /// Returns the worlds strictly above `w`, in increasing order; the
+    /// model's arrows were checked to go round nowhere. `stop` is asked
+    /// every [`Self::POLL`] steps, since one world's search may be long.
+    fn above(
+        &mut self,
+        w: usize,
+        stop: &mut impl FnMut(Progress) -> bool,
+    ) -> Result<&[u32], Error> {
+        // Each search has its own mark, so a world reached by an earlier
+        // search counts as unreached.
+        if self.mark == u32::MAX {
+            self.seen.fill(0);
+            self.mark = 0;
+        }
+        self.mark += 1;
+        let mark = self.mark;
+        self.above.clear();
+        self.stack.clear();
+        self.stack.push(w as u32);
+        while let Some(u) = self.stack.pop() {
+            for &v in &self.model.worlds[u as usize].arrows {
+                self.steps += 1;
+                if self.steps.is_multiple_of(Self::POLL)
+                    && stop(Progress::new(Phase::Write, Self::POLL, self.steps))
+                {
+                    return Err(Refusal::Stopped {
+                        phase: Phase::Write,
+                    }
+                    .into());
+                }
+                if let Some(left) = &mut self.left {
+                    *left = left.checked_sub(1).ok_or(Refusal::Work {
+                        limit: self.limit.unwrap_or(0),
+                    })?;
+                }
+                if self.seen[v as usize] != mark {
+                    self.seen[v as usize] = mark;
+                    self.above.push(v);
+                    self.stack.push(v);
+                }
+            }
+        }
+        self.above.sort_unstable();
+        Ok(&self.above)
+    }
+}
+
+/// Writes the formula `id` in the constructors of the library's
+/// `Deduxit.Intuitionistic`, in brackets if `argument` is set and it is
+/// an application.
+fn formula(sequent: &Sequent, out: &mut String, id: NodeId, argument: bool) {
+    let formulas = sequent.formulas();
+    for visit in Stops::new(id, argument, |k| formulas.node(k).operands()) {
+        match visit {
+            Stop::Enter(k, argument) => {
+                let node = formulas.node(k);
+                if argument && !matches!(node, Node::True | Node::False) {
+                    out.push('(');
+                }
+                match node {
+                    // A leaf has no exit, so its bracket closes here.
+                    Node::Atom(a) => {
+                        out.push_str("var ");
+                        out.push_str(&string(&formulas.atom_names()[a as usize]));
+                        if argument {
+                            out.push(')');
+                        }
+                    }
+                    Node::True => out.push_str("top"),
+                    Node::False => out.push_str("bot"),
+                    Node::Not(_) => out.push_str("neg "),
+                    Node::And(..) => out.push_str("wedge "),
+                    Node::Or(..) => out.push_str("vee "),
+                    Node::Implies(..) => out.push_str("imp "),
+                    Node::Iff(..) => out.push_str("equiv "),
+                }
+            }
+            Stop::Between(_) => out.push(' '),
+            Stop::Exit(_, argument) => {
+                if argument {
+                    out.push(')');
+                }
+            }
+        }
+    }
+}
+
+/// Returns an atom's name as a Rocq string, `"` doubled.
+fn string(name: &str) -> String {
+    format!("\"{}\"", name.replace('"', "\"\""))
 }

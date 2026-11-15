@@ -13,6 +13,7 @@
 //! | the same, written into your own buffer, with a stop | [`write()`] |
 //! | a certificate that a sequent has no proof | [`write_disproof`] |
 //! | a certificate that an ordinary sequent is not valid | [`write_not_valid`] |
+//! | the same, from a Kripke countermodel | [`write_countermodel`] |
 //!
 //! Each takes an [`Options`]: start from its `default()` and set the
 //! fields you want to change. By default a certificate is the lemma
@@ -188,7 +189,8 @@ pub struct Options {
     ///   [`DEDUXIT_FIRST_ORDER_PRELUDE`] or
     ///   [`DEDUXIT_FIRST_ORDER_TWO_SIDED_PRELUDE`], and for a certificate
     ///   that a sequent has no proof [`DEDUXIT_REFUTATION_PRELUDE`] or
-    ///   [`DEDUXIT_FIRST_ORDER_REFUTATION_PRELUDE`];
+    ///   [`DEDUXIT_FIRST_ORDER_REFUTATION_PRELUDE`], and for a Kripke
+    ///   countermodel [`DEDUXIT_KRIPKE_PRELUDE`];
     /// - for a classical certificate over `Prop`, the standard library's
     ///   excluded middle ([`CLASSICAL_PRELUDE`]);
     /// - for one of LJ, nothing.
@@ -197,7 +199,9 @@ pub struct Options {
     /// for the one the proof chooses, as the
     /// [module docs](crate::export::rocq) say: in short, NanoYalla for
     /// classical linear logic, deduxit's library for the rest. A
-    /// certificate of ordinary logic needs no kernel and ignores it.
+    /// certificate of ordinary logic ignores it: a derivation and an
+    /// assignment are stated over `Prop`, a Kripke countermodel over
+    /// deduxit's library.
     pub kernel: Option<Kernel>,
 }
 
@@ -320,6 +324,15 @@ pub const DEDUXIT_FIRST_ORDER_REFUTATION_PRELUDE: &str =
     "From Stdlib Require Import Bool List String ZArith.
 From Deduxit.Linear Require Calculus Intuitionistic TermsCheck.
 From Deduxit.Linear Require Import FirstOrderCalculus FirstOrderIntuitionistic FirstOrderWeights.
+Import ListNotations.
+Open Scope string_scope.";
+
+/// The prelude of a certificate that a sequent of intuitionistic or
+/// minimal logic is not valid, for deduxit's library: the import of its
+/// Kripke models' checker and theorem, and of lists and strings, whose
+/// notations the lemma uses.
+pub const DEDUXIT_KRIPKE_PRELUDE: &str = "From Stdlib Require Import List String.
+From Deduxit.Intuitionistic Require Import KripkeCheck.
 Import ListNotations.
 Open Scope string_scope.";
 
@@ -1082,6 +1095,73 @@ pub fn write_not_valid(
     out: &mut impl Write,
 ) -> Result<(), Error> {
     crate::ordinary::rocq::not_valid(image, disproof, options, out)
+}
+
+/// Writes the certificate that a sequent of ordinary logic is not valid,
+/// from a countermodel, after checking it in `logic` under `limits`.
+///
+/// In intuitionistic and minimal logic the lemma `options.lemma` states
+/// `~ lj (atom := string) R [Γ] C` over deduxit's library, `R` being
+/// `intuitionistic` or `minimal` and `C` `bot` where nothing is right of
+/// `⊢`; its proof applies the library's `kripke_refutation` to the model
+/// written as data (for each world the worlds above it, the atoms it
+/// forces, and the worlds that force `⊥`) and to its world, and the
+/// library's checker accepts them by `vm_compute`. In classical logic the
+/// model is one world, and the certificate is the one over `Prop` that
+/// [`write_not_valid`] writes, from that world's assignment. A standalone
+/// file starts with `options.prelude`, by default
+/// [`DEDUXIT_KRIPKE_PRELUDE`] (none for the classical one). `stop` is
+/// asked once per world and during the listing of the worlds above each
+/// world, whose steps `limits.work` bounds.
+///
+/// # Examples
+///
+#[cfg_attr(all(feature = "parse", feature = "sat"), doc = "```")]
+#[cfg_attr(not(all(feature = "parse", feature = "sat")), doc = "```ignore")]
+/// use deduxit::Limits;
+/// use deduxit::export::rocq::{self, Options};
+/// use deduxit::ordinary::{Logic, Options as Ordinary, Sequent, Verdict, decide};
+///
+/// let sequent: Sequent = "|- a \\/ ~a".parse()?;
+/// let options = Ordinary::default().with_logic(Logic::Intuitionistic);
+/// let outcome = decide(&sequent, &options)?;
+/// assert!(matches!(outcome.verdict, Verdict::NotValid));
+/// let countermodel = outcome.countermodel.expect("a countermodel");
+/// let mut certificate = String::new();
+/// rocq::write_countermodel(
+///     &countermodel,
+///     Logic::Intuitionistic,
+///     &Options::default(),
+///     &Limits::default(),
+///     &mut certificate,
+///     |_| false,
+/// )?;
+/// assert!(certificate.starts_with(
+///     r#"Lemma certificate : ~ lj (atom := string) intuitionistic [] (vee (var "a") (neg (var "a")))."#
+/// ));
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+///
+/// # Errors
+///
+/// - The errors of [`Countermodel::check`](crate::ordinary::Countermodel::check):
+///   a model that does not refute the sequent in `logic`, a refusal by
+///   `limits` or `stop`.
+/// - [`Error::Refused`] with [`Refusal::Output`](crate::Refusal::Output)
+///   for a text estimated past `limits.derivation_bytes`, before anything
+///   is written, [`Refusal::Work`](crate::Refusal::Work) past
+///   `limits.work` steps of listing the worlds above each world, and
+///   [`Refusal::Stopped`](crate::Refusal::Stopped) where `stop` asked.
+/// - [`Error::WriteFailed`] when `out` refused the text.
+pub fn write_countermodel(
+    countermodel: &crate::ordinary::Countermodel,
+    logic: crate::ordinary::Logic,
+    options: &Options,
+    limits: &crate::Limits,
+    out: &mut impl Write,
+    stop: impl FnMut(crate::limits::Progress) -> bool,
+) -> Result<(), Error> {
+    crate::ordinary::rocq::countermodel(countermodel, logic, options, limits, out, stop)
 }
 
 /// Writes the certificate of a linear derivation for the kernel the

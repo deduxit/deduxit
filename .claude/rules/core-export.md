@@ -822,6 +822,35 @@ for NanoYalla. What the code relies on:
   `Unsupported::NotValid`. Snapshots `not_valid_lk.v` and
   `not_valid_lj.v` (compiled by the `rocq` check, beside two the
   command writes).
+- **A Kripke countermodel** (`rocq::write_countermodel`,
+  `ordinary::rocq::countermodel`) is checked first
+  (`Countermodel::check` under the caller's `&Limits` and stop), then
+  written for the library's `Deduxit.Intuitionistic` in intuitionistic
+  and minimal logic: `~ lj (atom := string) R [Γ] C`, `R`
+  `intuitionistic` or `minimal`, `C` `bot` for an empty right side,
+  formulas in its constructors (`var`, `bot`, `wedge`, `vee`, `imp`;
+  `⊤`, `¬`, `↔` as its definitions `top`, `neg`, `equiv`, which keeps
+  the trusted calculus to five constructors), proved by `apply
+  (kripke_refutation String.eqb String.eqb_spec R {| later := …; atoms
+  := …; absurd := … |} W). vm_compute. reflexivity.` with
+  `DEDUXIT_KRIPKE_PRELUDE`. `later` is each world's worlds strictly
+  above it, the closure of the arrows, since the library's `refutes`
+  asks a transitive relation and adds the world itself (`Closure`: a
+  search per world with a fresh mark each, counted against
+  `limits.work`; a mark reused across the two passes once dropped every
+  world an earlier search had reached). The text is estimated first
+  (formulas bottom up over the arena, saturating, so a shared DAG cannot
+  run away; the closure's entries) and refused past
+  `limits.derivation_bytes` before anything is written. Every atom the
+  model's worlds force is written, those the sequent lacks too: the
+  library checks their growth as the Rust check does. Classical logic,
+  whose model is one world, gets the certificate over `Prop` of that
+  world's assignment (`falsified`, which `write_not_valid` shares): the
+  library has no LK. The kernel option is ignored, as for every ordinary
+  certificate. Snapshots `deduxit/countermodel_*.v` and
+  `not_valid_kripke_lk.v`; the `rocq-deduxit` check compiles four the
+  command writes (two by `prove`, one by `check` of an outcome, one of a
+  model given) and refuses one with a valuation that shrinks.
 - **NanoYalla** (`export/rocq/mod.rs`): the kernel is NanoYalla `NANOYALLA`
   (Click & coLLecT's `nanoyalla/`: `nanoll.v` is the trusted `ll`
   inductive over list sequents, `macroll.v` the derived rules), and the

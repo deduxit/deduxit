@@ -2026,6 +2026,163 @@ fn disproof_certificates() {
     }
 }
 
+/// A Kripke countermodel of an intuitionistic or minimal sequent has a
+/// certificate for deduxit's library, pinned as `deduxit/countermodel_*.v`,
+/// which the `rocq-deduxit` check compiles; a classical one, one world,
+/// the certificate over `Prop`, pinned as `not_valid_kripke_lk.v`, which
+/// the `rocq` check compiles. A model that does not refute, a text past
+/// the bound and a stop write nothing.
+#[test]
+fn countermodel_certificates() {
+    use deduxit::kripke::{Model, World};
+    use deduxit::ordinary::{self, Countermodel, Logic};
+    let options = rocq::Options::default().with_form(Form::Standalone);
+    let world = |atoms: &[&str], falsity: bool, arrows: &[u32]| {
+        World::new(
+            atoms.iter().map(|&a| a.to_owned()).collect(),
+            falsity,
+            arrows.to_vec(),
+        )
+    };
+    let countermodel = |input: &str, worlds: Vec<World>, at: u32| {
+        let sequent: ordinary::Sequent = input.parse().unwrap();
+        Countermodel::new(sequent, Model::new(worlds, at))
+    };
+    let write = |countermodel: &Countermodel, logic: Logic, limits: &Limits| {
+        let mut out = String::new();
+        rocq::write_countermodel(countermodel, logic, &options, limits, &mut out, |_| false)
+            .map(|()| out)
+    };
+    let defaults = Limits::default();
+    let two = || vec![world(&[], false, &[1]), world(&["a"], false, &[])];
+    for (name, logic, model) in [
+        (
+            "excluded_middle",
+            Logic::Intuitionistic,
+            countermodel("|- a \\/ ~a", two(), 0),
+        ),
+        // Three worlds, and an atom only a later world names.
+        (
+            "independence",
+            Logic::Intuitionistic,
+            countermodel(
+                "a -> b \\/ c |- (a -> b) \\/ (a -> c)",
+                vec![
+                    world(&[], false, &[1, 2]),
+                    world(&["a", "b", "d"], false, &[]),
+                    world(&["a", "c"], false, &[]),
+                ],
+                0,
+            ),
+        ),
+        // A chain of three: world 0 sees world 2 through world 1, which
+        // the certificate lists from the arrows' closure.
+        (
+            "chain",
+            Logic::Intuitionistic,
+            countermodel(
+                "true, (a <-> b), false -> c |- ~~a -> a",
+                vec![
+                    world(&[], false, &[1]),
+                    world(&[], false, &[2]),
+                    world(&["a", "b"], false, &[]),
+                ],
+                0,
+            ),
+        ),
+        // Minimal logic: a world forcing ⊥, and nothing right of ⊢.
+        (
+            "minimal",
+            Logic::Minimal,
+            countermodel("a, ~a |- b", vec![world(&["a"], true, &[])], 0),
+        ),
+        (
+            "minimal_empty",
+            Logic::Minimal,
+            countermodel("a \\/ b |-", vec![world(&["a"], false, &[])], 0),
+        ),
+    ] {
+        let out = write(&model, logic, &defaults).unwrap();
+        snapshot(&format!("deduxit/countermodel_{name}.v"), &out);
+    }
+    let lk = countermodel("a -> b, b |- a", vec![world(&["b"], false, &[])], 0);
+    snapshot(
+        "not_valid_kripke_lk.v",
+        &write(&lk, Logic::Classical, &defaults).unwrap(),
+    );
+    // World 1 forces the conclusion.
+    assert!(matches!(
+        write(
+            &countermodel("|- a \\/ ~a", two(), 1),
+            Logic::Intuitionistic,
+            &defaults
+        ),
+        Err(Error::Model { .. })
+    ));
+    // ⊥ forced in intuitionistic logic.
+    assert!(matches!(
+        write(
+            &countermodel("a, ~a |- b", vec![world(&["a"], true, &[])], 0),
+            Logic::Intuitionistic,
+            &defaults
+        ),
+        Err(Error::Model { .. })
+    ));
+    let mut small = Limits::default();
+    small.derivation_bytes = Some(100);
+    assert!(matches!(
+        write(
+            &countermodel("|- a \\/ ~a", two(), 0),
+            Logic::Intuitionistic,
+            &small
+        ),
+        Err(Error::Refused(Refusal::Output { .. }))
+    ));
+    // A chain of three takes three steps to list the worlds above each
+    // world: three suffice to write it whole, two refuse it unwritten.
+    let chain = || {
+        countermodel(
+            "~~a |- a",
+            vec![
+                world(&[], false, &[1]),
+                world(&[], false, &[2]),
+                world(&["a"], false, &[]),
+            ],
+            0,
+        )
+    };
+    let mut three = Limits::default();
+    three.work = Some(3);
+    assert!(write(&chain(), Logic::Intuitionistic, &three).is_ok());
+    three.work = Some(2);
+    let mut out = String::new();
+    assert!(matches!(
+        rocq::write_countermodel(
+            &chain(),
+            Logic::Intuitionistic,
+            &options,
+            &three,
+            &mut out,
+            |_| false
+        ),
+        Err(Error::Refused(Refusal::Work { limit: 2, .. }))
+    ));
+    assert_eq!(out, "");
+    let mut out = String::new();
+    assert!(matches!(
+        rocq::write_countermodel(
+            &countermodel("|- a \\/ ~a", two(), 0),
+            Logic::Intuitionistic,
+            &options,
+            &defaults,
+            &mut out,
+            |_| true,
+        ),
+        Err(Error::Refused(Refusal::Stopped { .. }))
+    ));
+    assert_eq!(out, "");
+}
+
 /// Every step of an elimination on the net of an intuitionistic proof,
 /// with and without boxes, drawn under `Style::essential` as the front
 /// ends draw an intuitionistic net, is written in the intuitionistic

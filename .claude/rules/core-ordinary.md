@@ -27,7 +27,8 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   call, answering an `Outcome` (`Verdict::Valid` with its `Evidence`,
   `NotValid`, `Unknown`, and the linear outcome); `rocq.rs` (behind
   `rocq`): the certificate over `Prop`, public as
-  `export::rocq::ordinary`; `model.rs`: the check of a Kripke model
+  `export::rocq::ordinary`, and a countermodel's
+  (`export::rocq::write_countermodel`, core-export.md); `model.rs`: the check of a Kripke model
   (`Model::forcing`, `refutes`, `Forcing`, `Countermodel`,
   `MODEL_CELLS`); `interactive.rs` (behind `interactive`): the
   goal state `Interactive`, below. Its JSON forms and those of the
