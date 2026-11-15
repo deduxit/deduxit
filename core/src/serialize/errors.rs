@@ -124,6 +124,12 @@ impl Serialize for Details<'_> {
                 entries!(s; "translation" => translation; "logic" => logic)
             }
             Logic { logic, method } => entries!(s; "logic" => logic; "method" => method),
+            NegativeTarget { translation, logic } => {
+                entries!(s; "translation" => translation; "logic" => logic)
+            }
+            Partition { reason } => entries!(s; "reason" => reason),
+            NotCutFree => entries!(s),
+            ClaimFails { claim, reason } => entries!(s; "claim" => claim; "reason" => reason),
             NoEngine { fragment, mode } | OrderedFragment { fragment, mode } => {
                 entries!(s; "fragment" => fragment; "mode" => mode)
             }

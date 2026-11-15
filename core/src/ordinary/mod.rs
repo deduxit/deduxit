@@ -59,9 +59,11 @@ mod derivation;
 /// Step-by-step proving in LK and LJ.
 #[cfg(feature = "interactive")]
 mod interactive;
+pub mod interpolant;
 pub mod ljt;
 /// The check of a Kripke model.
 mod model;
+pub mod negative;
 #[cfg(feature = "parse")]
 mod parse;
 /// The certificates over `Prop`.
@@ -925,7 +927,6 @@ impl Display for Sequent {
 
 /// Returns the number of subformula occurrences the formulas unfold to,
 /// saturating.
-#[cfg(any(feature = "interactive", feature = "serialize"))]
 fn occurrences<'a>(formulas: &Formulas, roots: impl Iterator<Item = &'a NodeId>) -> u64 {
     // Every subformula precedes the formulas built from it.
     let mut size: Vec<u64> = Vec::with_capacity(formulas.len());
@@ -939,7 +940,6 @@ fn occurrences<'a>(formulas: &Formulas, roots: impl Iterator<Item = &'a NodeId>)
 
 /// Checks that a sequent over the formulas unfolds to at most
 /// `limits.occurrences` subformula occurrences.
-#[cfg(any(feature = "interactive", feature = "serialize"))]
 pub(crate) fn bound(
     formulas: &Formulas,
     left: &[NodeId],

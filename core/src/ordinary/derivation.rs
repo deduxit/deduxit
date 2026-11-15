@@ -686,17 +686,48 @@ impl Derivation {
     }
 }
 
+/// The formulas a rule adds to the context in each premise, by side: at
+/// most two premises, each with at most two formulas, kept inline since
+/// the checker makes one for every inference it checks.
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct Added {
+    /// Each premise's formulas, in the rule's order.
+    lists: [[Option<(Side, NodeId)>; 2]; 2],
+}
+
+impl Added {
+    /// Returns the formulas each premise adds, one list per premise.
+    fn of(premises: &[&[(Side, NodeId)]]) -> Self {
+        let mut added = Self::default();
+        for (list, premise) in added.lists.iter_mut().zip(premises) {
+            for (slot, &formula) in list.iter_mut().zip(*premise) {
+                *slot = Some(formula);
+            }
+        }
+        added
+    }
+
+    /// Returns the formulas premise `k` adds.
+    pub(super) fn premise(&self, k: usize) -> Vec<(Side, NodeId)> {
+        self.lists[k].iter().flatten().copied().collect()
+    }
+}
+
 /// Checks one inference of a derivation of `logic` over `formulas`
 /// against its rule, given its premises: first the number of formulas
 /// right of `⊢` its logic allows, then the rule. [`Derivation::check`]
 /// calls it for every inference, and a proof in progress for every step
 /// it takes.
+///
+/// Returns, for each premise, the formulas the rule adds to the
+/// conclusion's context there (without its principal formula); a premise
+/// holds them and the context, whole or the part a split gives it.
 pub(super) fn check_inference(
     formulas: &Formulas,
     logic: Logic,
     inference: &Inference,
     premises: &[&Inference],
-) -> Result<(), String> {
+) -> Result<Added, String> {
     use Rule::*;
     use Side::{Left, Right};
     if inference.rule == Open {
@@ -721,7 +752,7 @@ pub(super) fn check_inference(
     if inference.rule == Axiom {
         count(0)?;
         return match (&inference.left[..], &inference.right[..]) {
-            ([a], [b]) if a == b && inference.principal.is_none() => Ok(()),
+            ([a], [b]) if a == b && inference.principal.is_none() => Ok(Added::default()),
             _ => Err("not a sequent A ⊢ A".to_owned()),
         };
     }
@@ -757,7 +788,7 @@ pub(super) fn check_inference(
     let unary = |added: &[(Side, NodeId)]| {
         count(1)?;
         if is(premises[0], &with(added)) {
-            Ok(())
+            Ok(Added::of(&[added]))
         } else {
             Err("the premise is not what the rule makes of the conclusion".to_owned())
         }
@@ -766,8 +797,9 @@ pub(super) fn check_inference(
     // the formulas given added.
     let binary = |first: &[(Side, NodeId)], second: &[(Side, NodeId)]| {
         count(2)?;
+        let added = || Added::of(&[first, second]);
         if is(premises[0], &with(first)) && is(premises[1], &with(second)) {
-            return Ok(());
+            return Ok(added());
         }
         // Split: what each premise holds beyond its formulas is a part
         // of the context, the two parts together all of it.
@@ -785,7 +817,7 @@ pub(super) fn check_inference(
             a.0.extend(b.0);
             a.1.extend(b.1);
             if same(&a.0, &context.0) && same(&a.1, &context.1) {
-                return Ok(());
+                return Ok(added());
             }
         }
         Err("the premises do not share or split the context".to_owned())
@@ -811,7 +843,7 @@ pub(super) fn check_inference(
         return Err("no principal formula".to_owned());
     };
     let node = f.node(principal);
-    let leaf = || count(0);
+    let leaf = || count(0).map(|()| Added::default());
     match (inference.rule, side, node) {
         (WeakenLeft, Left, _) | (WeakenRight, Right, _) => unary(&[]),
         (ContractLeft, Left, _) => unary(&[(Left, principal), (Left, principal)]),

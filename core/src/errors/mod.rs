@@ -427,6 +427,45 @@ pub enum Error {
         /// The method asked.
         method: crate::ordinary::Method,
     },
+    /// A negative translation was asked to carry classical logic into a
+    /// logic where its claim does not hold: Kuroda's translation and
+    /// Glivenko's into minimal logic, or any into classical logic.
+    #[error("{} does not carry classical logic into {logic} logic", .translation.title())]
+    #[non_exhaustive]
+    NegativeTarget {
+        /// The translation.
+        translation: crate::ordinary::negative::Translation,
+        /// The logic asked for.
+        logic: crate::ordinary::Logic,
+    },
+    /// A partition of a sequent into two halves for an interpolant names
+    /// a position outside the sequent or twice, or puts the formula right
+    /// of `⊢` into the first half in intuitionistic or minimal logic.
+    #[error("not a partition of the sequent: {reason}")]
+    #[non_exhaustive]
+    Partition {
+        /// What is wrong.
+        reason: String,
+    },
+    /// An interpolant was asked of a derivation with a cut. Maehara's
+    /// method reads it off a derivation without one, and the derivations
+    /// of LJT and of the SAT solver have cuts.
+    #[error(
+        "the derivation has a cut, and an interpolant is read off a derivation without one; \
+         decide the sequent through the embedding, or in classical logic by a tableau"
+    )]
+    NotCutFree,
+    /// What a transformation claims did not hold where it was computed:
+    /// a negative translation changed a verdict, or an interpolant failed
+    /// its check. This is a defect of this crate.
+    #[error("{claim} does not hold here: {reason}")]
+    #[non_exhaustive]
+    ClaimFails {
+        /// The claim, such as Kolmogorov's translation.
+        claim: String,
+        /// What was found.
+        reason: String,
+    },
     /// No engine of this crate decides the fragment in the mode.
     #[error("no engine decides {fragment} in {mode} mode")]
     #[non_exhaustive]
@@ -716,6 +755,10 @@ impl Error {
         "fragment_mismatch",
         "translation",
         "logic",
+        "negative_target",
+        "partition",
+        "not_cut_free",
+        "claim_fails",
         "no_engine",
         "engine_refused",
         "no_certificate",
@@ -800,8 +843,12 @@ impl Error {
             | Self::FragmentMismatch { .. }
             | Self::Translation { .. }
             | Self::Logic { .. }
+            | Self::NegativeTarget { .. }
+            | Self::NotCutFree
             | Self::NoEngine { .. }
             | Self::EngineRefused { .. } => Unsupported,
+            Self::Partition { .. } => Malformed,
+            Self::ClaimFails { .. } => Defect,
             #[cfg(feature = "rocq")]
             Self::Unsupported(_) => Unsupported,
             Self::Refused(refusal) => refusal_kind(refusal),
@@ -882,6 +929,10 @@ impl Error {
             Self::FragmentMismatch { .. } => "fragment_mismatch",
             Self::Translation { .. } => "translation",
             Self::Logic { .. } => "logic",
+            Self::NegativeTarget { .. } => "negative_target",
+            Self::Partition { .. } => "partition",
+            Self::NotCutFree => "not_cut_free",
+            Self::ClaimFails { .. } => "claim_fails",
             Self::NoEngine { .. } => "no_engine",
             Self::EngineRefused { .. } => "engine_refused",
             #[cfg(feature = "rocq")]
@@ -1214,6 +1265,16 @@ mod tests {
                 logic: crate::ordinary::Logic::Classical,
                 method: crate::ordinary::Method::Ljt,
             },
+            Error::NegativeTarget {
+                translation: crate::ordinary::negative::Translation::Kuroda,
+                logic: crate::ordinary::Logic::Minimal,
+            },
+            Error::Partition { reason: message() },
+            Error::NotCutFree,
+            Error::ClaimFails {
+                claim: "Kolmogorov's translation".into(),
+                reason: message(),
+            },
             Error::NoEngine {
                 fragment: Fragment::LL,
                 mode: Mode::CLASSICAL,
@@ -1436,6 +1497,10 @@ mod tests {
             | Error::FragmentMismatch { .. }
             | Error::Translation { .. }
             | Error::Logic { .. }
+            | Error::NegativeTarget { .. }
+            | Error::Partition { .. }
+            | Error::NotCutFree
+            | Error::ClaimFails { .. }
             | Error::NoEngine { .. }
             | Error::EngineRefused { .. }
             | Error::WriteFailed
