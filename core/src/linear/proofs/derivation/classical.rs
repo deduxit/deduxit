@@ -821,10 +821,15 @@ impl<'a> TwoSided<'a> {
 }
 
 impl Drawn for TwoSided<'_> {
-    const RULES: usize = ClassicalRule::ALL.len();
-    const OPEN: Option<usize> = Some(ClassicalRule::Open as usize);
+    fn rules(&self) -> usize {
+        ClassicalRule::ALL.len()
+    }
 
-    fn markup(rule: usize, labels: &Labels) -> Option<&str> {
+    fn open(&self) -> Option<usize> {
+        Some(ClassicalRule::Open as usize)
+    }
+
+    fn markup<'a>(&'a self, rule: usize, labels: &'a Labels) -> Option<&'a str> {
         let rule = ClassicalRule::ALL[rule];
         // A table names the rules of the one-sided calculus and of
         // intuitionistic linear logic, so these keep their upright labels.

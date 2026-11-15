@@ -253,6 +253,56 @@ fn ordinary_derivation() {
     snapshot("ordinary.typ", &typ);
     svg::write(&derivation, &Style::default(), &mut drawing, |_| false).unwrap();
     snapshot("ordinary.svg", &drawing);
+
+    // The same derivation in LJ's rule file is drawn by its rule names,
+    // `→L` and `→R`, its formulas written by the rule file's symbols.
+    let lj: deduxit::rules::Calculus = deduxit::wire::upgrade(
+        &mut serde_json::Deserializer::from_str(deduxit::rules::LJ),
+        &Limits::default(),
+    )
+    .unwrap();
+    let generic = deduxit::rules::Derivation::from_ordinary(&derivation).unwrap();
+    generic.check(&lj, &Limits::default(), |_| false).unwrap();
+    let drawn = deduxit::rules::Drawing::new(&lj, &generic, &Limits::default()).unwrap();
+    pin("rules", &drawn);
+    let svg = svg::to_string(&drawn, &Style::default()).unwrap();
+    assert!(svg.contains("<title>a → b, b → c ⊢ a → c</title>"), "{svg}");
+    assert!(svg.contains(", by →R"), "{svg}");
+    assert!(
+        matches!(
+            rocq::to_string(&drawn, &rocq::Options::default()),
+            Err(Error::Unsupported(Unsupported::Calculus))
+        ),
+        "a rule file's derivation has no certificate"
+    );
+}
+
+/// A signed tableau in the tableau's rule file is drawn with its signs,
+/// `T` and `F`, which no notation has, set upright, and an open branch
+/// as an open goal.
+#[test]
+fn rules_tableau() {
+    use deduxit::ordinary::{self, Logic, Method, Tableau};
+    let sequent: ordinary::Sequent = "a \\/ b |- b \\/ a".parse().unwrap();
+    let options = ordinary::Options::default()
+        .with_logic(Logic::Classical)
+        .with_method(Some(Method::Embedding));
+    let outcome = ordinary::decide(&sequent, &options).unwrap();
+    let ordinary::Verdict::Valid(evidence) = &outcome.verdict else {
+        panic!("valid");
+    };
+    let tableau = Tableau::of(evidence.derivation().unwrap(), |_| false).unwrap();
+    let calculus: deduxit::rules::Calculus = deduxit::wire::upgrade(
+        &mut serde_json::Deserializer::from_str(deduxit::rules::TABLEAU),
+        &Limits::default(),
+    )
+    .unwrap();
+    let generic = deduxit::rules::Derivation::from_tableau(&tableau).unwrap();
+    generic
+        .check(&calculus, &Limits::default(), |_| false)
+        .unwrap();
+    let drawn = deduxit::rules::Drawing::new(&calculus, &generic, &Limits::default()).unwrap();
+    pin("rules-tableau", &drawn);
 }
 
 /// Pins a derivation with its lambda-term under the conclusion, binders

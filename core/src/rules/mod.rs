@@ -48,6 +48,8 @@ mod calculus;
 mod check;
 /// The derivation.
 mod derivation;
+/// A derivation laid out as a tree for the exports.
+mod draw;
 /// Building a derivation step by step.
 #[cfg(all(feature = "interactive", feature = "parse"))]
 pub(crate) mod interactive;
@@ -66,6 +68,7 @@ mod text;
 
 pub use calculus::{Associativity, Calculus, Discipline, Fixity};
 pub use derivation::{Derivation, Node, NodeId, NodeRef, ScopeId, Step};
+pub use draw::Drawing;
 #[cfg(all(feature = "interactive", feature = "parse"))]
 pub use interactive::{Applicable, Apply, GoalId, Interactive};
 pub use print::Shown;

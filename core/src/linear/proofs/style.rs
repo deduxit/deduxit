@@ -182,16 +182,17 @@ pub(crate) fn plain(markup: &str) -> String {
 /// in a target's notation. The linear derivations and those of LK and LJ
 /// implement it, so every output draws both.
 pub(crate) trait Drawn {
-    /// How many rules the calculus has: a rule is a number below it.
-    const RULES: usize;
+    /// Returns how many rules the calculus has: a rule is a number below
+    /// it.
+    fn rules(&self) -> usize;
 
-    /// The rule of an open goal, if the calculus has one.
-    const OPEN: Option<usize>;
+    /// Returns the rule of an open goal, if the calculus has one.
+    fn open(&self) -> Option<usize>;
 
     /// Returns the label of a rule under `labels`, in the label markup, or
     /// `None` where it has none: an open goal, or every rule when labels
     /// are off.
-    fn markup(rule: usize, labels: &Labels) -> Option<&str>;
+    fn markup<'a>(&'a self, rule: usize, labels: &'a Labels) -> Option<&'a str>;
 
     /// Returns the number of inferences.
     fn len(&self) -> usize;
@@ -203,12 +204,12 @@ pub(crate) trait Drawn {
     /// precedes it.
     fn premises(&self, id: InfId) -> &[InfId];
 
-    /// Returns the rule of an inference, a number below [`RULES`](Self::RULES).
+    /// Returns the rule of an inference, a number below [`rules`](Self::rules).
     fn rule(&self, id: InfId) -> usize;
 
     /// Returns the name of an inference's rule, as the numbered list of
     /// steps writes it.
-    fn name(&self, id: InfId) -> &'static str;
+    fn name(&self, id: InfId) -> &str;
 
     /// Returns how many applications of its rule an inference stands for.
     fn times(&self, id: InfId) -> u32;
@@ -237,14 +238,14 @@ pub(crate) trait Drawn {
 
     /// Returns whether an inference is an open goal.
     fn is_open(&self, id: InfId) -> bool {
-        Self::OPEN == Some(self.rule(id))
+        self.open() == Some(self.rule(id))
     }
 
     /// Returns the label of an inference as [`markup`](Self::markup) does,
     /// followed by [`RUN`] when the inference stands for a run of its rule.
     #[cfg(any(feature = "latex", feature = "typst"))]
-    fn label<'l>(&self, id: InfId, labels: &'l Labels) -> Option<Cow<'l, str>> {
-        let markup = Self::markup(self.rule(id), labels)?;
+    fn label<'l>(&'l self, id: InfId, labels: &'l Labels) -> Option<Cow<'l, str>> {
+        let markup = self.markup(self.rule(id), labels)?;
         Some(match self.times(id) {
             1 => Cow::Borrowed(markup),
             _ => Cow::Owned(format!("{markup}{RUN}")),
@@ -253,10 +254,15 @@ pub(crate) trait Drawn {
 }
 
 impl Drawn for Derivation<'_> {
-    const RULES: usize = LABELLED;
-    const OPEN: Option<usize> = Some(Named::new(Rule::Open, None).index());
+    fn rules(&self) -> usize {
+        LABELLED
+    }
 
-    fn markup(rule: usize, labels: &Labels) -> Option<&str> {
+    fn open(&self) -> Option<usize> {
+        Some(Named::new(Rule::Open, None).index())
+    }
+
+    fn markup<'a>(&'a self, rule: usize, labels: &'a Labels) -> Option<&'a str> {
         labels.markup(Named::at(rule))
     }
 

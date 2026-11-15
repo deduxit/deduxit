@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="553.04" height="86.592" viewBox="0 0 34565 5412" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
+<title>T (a ∨ b), F (b ∨ a)</title>
+<desc>1. T (a ∨ b), F (b ∨ a), T a, F b, F a, by ×.
+2. T (a ∨ b), F (b ∨ a), T a, by F∨ from 1.
+3. T (a ∨ b), F (b ∨ a), T b, F b, F a, by ×.
+4. T (a ∨ b), F (b ∨ a), T b, by F∨ from 3.
+5. T (a ∨ b), F (b ∨ a), by T∨ from 2 and 4.</desc>
+<g fill="none" stroke="black" stroke-width="40">
+<path d="M2341 3812H31005"/>
+<path d="M300 2312H15324"/>
+<path d="M300 812H15324"/>
+<path d="M18043 2312H33046"/>
+<path d="M18043 812H33046"/>
+</g>
+<text x="12235" y="4902" textLength="8877" lengthAdjust="spacing" id="i4">T (𝑎 ∨ 𝑏), F (𝑏 ∨ 𝑎)</text>
+<text x="31205" y="4012" textLength="1031" lengthAdjust="spacing" font-size="800">T∨</text>
+<text x="2341" y="3402" textLength="10943" lengthAdjust="spacing" id="i1">T (𝑎 ∨ 𝑏), F (𝑏 ∨ 𝑎), T 𝑎</text>
+<text x="15524" y="2512" textLength="1019" lengthAdjust="spacing" font-size="800">F∨</text>
+<text x="300" y="1902" textLength="15024" lengthAdjust="spacing" id="i0">T (𝑎 ∨ 𝑏), F (𝑏 ∨ 𝑎), T 𝑎, F 𝑏, F 𝑎</text>
+<text x="15524" y="1012" textLength="520" lengthAdjust="spacing" font-size="800">×</text>
+<text x="20083" y="3402" textLength="10922" lengthAdjust="spacing" id="i3">T (𝑎 ∨ 𝑏), F (𝑏 ∨ 𝑎), T 𝑏</text>
+<text x="33246" y="2512" textLength="1019" lengthAdjust="spacing" font-size="800">F∨</text>
+<text x="18043" y="1902" textLength="15003" lengthAdjust="spacing" id="i2">T (𝑎 ∨ 𝑏), F (𝑏 ∨ 𝑎), T 𝑏, F 𝑏, F 𝑎</text>
+<text x="33246" y="1012" textLength="520" lengthAdjust="spacing" font-size="800">×</text>
+</svg>

@@ -1,0 +1,13 @@
+\documentclass[border=5pt]{standalone}
+\usepackage{amssymb}
+\usepackage{cmll}
+\usepackage{ebproof}
+\begin{document}
+\begin{prooftree}
+\infer0[$\mathrm{{\times}}$]{\mathrm{T} (a \lor b), \mathrm{F} (b \lor a), \mathrm{T} a, \mathrm{F} b, \mathrm{F} a}
+\infer1[$\mathrm{F}\lor$]{\mathrm{T} (a \lor b), \mathrm{F} (b \lor a), \mathrm{T} a}
+\infer0[$\mathrm{{\times}}$]{\mathrm{T} (a \lor b), \mathrm{F} (b \lor a), \mathrm{T} b, \mathrm{F} b, \mathrm{F} a}
+\infer1[$\mathrm{F}\lor$]{\mathrm{T} (a \lor b), \mathrm{F} (b \lor a), \mathrm{T} b}
+\infer2[$\mathrm{T}\lor$]{\mathrm{T} (a \lor b), \mathrm{F} (b \lor a)}
+\end{prooftree}
+\end{document}

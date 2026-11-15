@@ -109,26 +109,27 @@ struct Bar {
 /// Returns the bar row of every rule of `T` under the options, in the
 /// rules' order, then the bar row of every rule for a run of it
 /// ([`bar`] picks one). The row is `None` for an open goal drawn bare.
-fn bars<T: Drawn>(options: &TextOptions) -> Vec<Option<Bar>> {
-    let runs = (0..T::RULES).map(|rule| {
+fn bars<T: Drawn>(tree: &T, options: &TextOptions) -> Vec<Option<Bar>> {
+    let runs = (0..tree.rules()).map(|rule| {
         Some(Bar {
             line: options.bar,
-            label: T::markup(rule, &options.labels)
+            label: tree
+                .markup(rule, &options.labels)
                 .map_or_else(String::new, |label| plain(label) + RUN),
             dots: false,
         })
     });
-    (0..T::RULES)
+    (0..tree.rules())
         .map(|rule| {
             let bar = |line, label: &str, dots| Bar {
                 line,
                 label: plain(label),
                 dots,
             };
-            if T::OPEN != Some(rule) {
+            if tree.open() != Some(rule) {
                 return Some(bar(
                     options.bar,
-                    T::markup(rule, &options.labels).unwrap_or(""),
+                    tree.markup(rule, &options.labels).unwrap_or(""),
                     false,
                 ));
             }
@@ -145,7 +146,7 @@ fn bars<T: Drawn>(options: &TextOptions) -> Vec<Option<Bar>> {
 
 /// Returns the bar row of an inference among those [`bars`] returns.
 fn bar<'a, T: Drawn>(bars: &'a [Option<Bar>], tree: &T, id: InfId) -> &'a Option<Bar> {
-    let run = if tree.times(id) > 1 { T::RULES } else { 0 };
+    let run = if tree.times(id) > 1 { tree.rules() } else { 0 };
     &bars[tree.rule(id) + run]
 }
 
@@ -309,7 +310,7 @@ fn layout<T: Drawn>(tree: &T, options: &TextOptions, bars: &[Option<Bar>]) -> Ve
 /// Returns the width in characters and the number of lines of the tree
 /// that [`write_text`] draws under the options, without drawing it.
 pub(crate) fn text_size<T: Drawn>(tree: &T, options: &TextOptions) -> (usize, usize) {
-    let root = layout(tree, options, &bars::<T>(options))[tree.root().index()];
+    let root = layout(tree, options, &bars(tree, options))[tree.root().index()];
     (root.width, root.height)
 }
 
@@ -323,7 +324,7 @@ pub(crate) fn write_text<T: Drawn>(
     out: &mut impl Write,
     mut stop: impl FnMut() -> bool,
 ) -> Result<(), Error> {
-    let bars = bars::<T>(options);
+    let bars = bars(tree, options);
     let places = layout(tree, options, &bars);
     let height = places[tree.root().index()].height;
     // The root's conclusion is the last row, its bar the one above, and

@@ -7,6 +7,7 @@
 use super::calculus::{Associativity, Calculus, Fixity};
 use super::derivation::{Derivation, NodeId};
 use super::terms::{Term, TermId, Terms};
+use crate::linear::sequents::notation::Notation;
 use std::fmt::{self, Display, Formatter, Write};
 
 /// How a connective is written: the text, its place among the
@@ -139,14 +140,22 @@ impl<'a> Shown<'a> {
         }
     }
 
-    /// Writes the term at `id` through `out`, with a stack of its own.
-    fn write_term(&self, out: &mut Bounded<'_, '_>, id: TermId) -> fmt::Result {
+    /// Writes the term at `id` through `out` as `spelling` spells it,
+    /// with a stack of its own.
+    fn write_term<W: Write + ?Sized>(
+        &self,
+        out: &mut Bounded<'_, W>,
+        spelling: Spelling<'_>,
+        id: TermId,
+    ) -> fmt::Result {
         /// What is left to write.
         enum Item<'a> {
             /// A term, and whether it is bracketed.
             Term(TermId, bool),
             /// A piece of text.
             Text(&'a str),
+            /// A connective's symbol.
+            Symbol(&'a str),
         }
         let mut stack = vec![Item::Term(id, false)];
         while let Some(item) = stack.pop() {
@@ -158,6 +167,10 @@ impl<'a> Shown<'a> {
                     out.write_str(text)?;
                     continue;
                 }
+                Item::Symbol(symbol) => {
+                    spelling.symbol(out, symbol)?;
+                    continue;
+                }
                 Item::Term(id, bracketed) => (id, bracketed),
             };
             if bracketed {
@@ -166,7 +179,7 @@ impl<'a> Shown<'a> {
             }
             let (connective, arguments) = match self.terms.term(id) {
                 Term::Atom { name, .. } => {
-                    out.write_str(name)?;
+                    spelling.atom(out, name)?;
                     continue;
                 }
                 Term::Apply {
@@ -182,16 +195,16 @@ impl<'a> Shown<'a> {
             // A word as a symbol keeps a space from its operand.
             let spaced = |c: Option<char>| c.is_some_and(char::is_alphanumeric);
             match form.fixity {
-                _ if arguments.is_empty() => out.write_str(form.symbol)?,
+                _ if arguments.is_empty() => spelling.symbol(out, form.symbol)?,
                 Fixity::Prefix => {
-                    out.write_str(form.symbol)?;
+                    spelling.symbol(out, form.symbol)?;
                     stack.push(argument(0));
                     if spaced(form.symbol.chars().next_back()) {
                         stack.push(Item::Text(" "));
                     }
                 }
                 Fixity::Postfix => {
-                    stack.push(Item::Text(form.symbol));
+                    stack.push(Item::Symbol(form.symbol));
                     if spaced(form.symbol.chars().next()) {
                         stack.push(Item::Text(" "));
                     }
@@ -200,13 +213,13 @@ impl<'a> Shown<'a> {
                 Fixity::Infix => {
                     stack.push(argument(1));
                     stack.push(Item::Text(" "));
-                    stack.push(Item::Text(form.symbol));
+                    stack.push(Item::Symbol(form.symbol));
                     stack.push(Item::Text(" "));
                     stack.push(argument(0));
                 }
                 Fixity::Function => {
-                    out.write_str(form.symbol)?;
-                    out.write_str("(")?;
+                    spelling.symbol(out, form.symbol)?;
+                    out.write_str(spelling.call())?;
                     stack.push(Item::Text(")"));
                     for place in (0..arguments.len()).rev() {
                         stack.push(Item::Term(arguments[place], false));
@@ -224,31 +237,42 @@ impl<'a> Shown<'a> {
 impl Display for Shown<'_> {
     /// Writes the term or the sequent, at most the bound's characters.
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let mut out = Bounded {
-            out: f,
-            left: self.limit,
-            cut: false,
-        };
-        match self.what {
-            What::Term(id) => self.write_term(&mut out, id)?,
-            What::Sequent(derivation, node) => {
-                let node = derivation.node(node);
-                self.write_zones(&mut out, |index| node.zone(index))?;
-            }
-            What::Zones(zones) => self.write_zones(&mut out, |index| &zones[index][..])?,
-        }
-        if out.cut {
-            out.out.write_str("…")?;
-        }
-        Ok(())
+        self.write_in(f, Spelling::PLAIN)
     }
 }
 
 impl<'a> Shown<'a> {
+    /// Writes the term or the sequent into `out` as `spelling` spells
+    /// it, at most the bound's characters, then a mark of the cut where
+    /// there is one.
+    fn write_in<W: Write + ?Sized>(&self, out: &mut W, spelling: Spelling<'_>) -> fmt::Result {
+        let mut out = Bounded {
+            out,
+            left: self.limit,
+            cut: false,
+            whole: spelling.notation.is_some(),
+        };
+        match self.what {
+            What::Term(id) => self.write_term(&mut out, spelling, id)?,
+            What::Sequent(derivation, node) => {
+                let node = derivation.node(node);
+                self.write_zones(&mut out, spelling, |index| node.zone(index))?;
+            }
+            What::Zones(zones) => {
+                self.write_zones(&mut out, spelling, |index| &zones[index][..])?;
+            }
+        }
+        if out.cut {
+            out.out.write_str(spelling.cut())?;
+        }
+        Ok(())
+    }
+
     /// Writes a sequent whose zone at each index `zone` gives.
-    fn write_zones(
+    fn write_zones<W: Write + ?Sized>(
         &self,
-        out: &mut Bounded<'_, '_>,
+        out: &mut Bounded<'_, W>,
+        spelling: Spelling<'_>,
         zone: impl Fn(usize) -> &'a [TermId],
     ) -> fmt::Result {
         let mut written = false;
@@ -260,7 +284,10 @@ impl<'a> Shown<'a> {
                     if written {
                         out.write_str(" ")?;
                     }
-                    out.write_str(mark)?;
+                    if spelling.aligned && mark == "⊢" {
+                        spelling.align(out)?;
+                    }
+                    spelling.symbol(out, mark)?;
                     if !members.is_empty() {
                         out.write_str(" ")?;
                     }
@@ -272,7 +299,10 @@ impl<'a> Shown<'a> {
                     if place > 0 {
                         out.write_str(", ")?;
                     }
-                    self.write_term(out, member)?;
+                    let (open, close) = spelling.marks();
+                    out.write_str(open)?;
+                    self.write_term(out, spelling, member)?;
+                    out.write_str(close)?;
                     written = true;
                 }
             }
@@ -282,25 +312,39 @@ impl<'a> Shown<'a> {
 }
 
 /// A writer that takes at most a number of characters and then nothing.
-struct Bounded<'a, 'b> {
+struct Bounded<'a, W: Write + ?Sized> {
     /// Where the text goes.
-    out: &'a mut Formatter<'b>,
+    out: &'a mut W,
     /// The characters it still takes.
     left: usize,
     /// Whether some text was not taken.
     cut: bool,
+    /// Whether each piece is taken whole or not at all, so that no
+    /// command of a target's notation is cut in two.
+    whole: bool,
 }
 
-impl Bounded<'_, '_> {
+impl<W: Write + ?Sized> Bounded<'_, W> {
     /// Returns whether some text was not taken, after which nothing is.
     const fn full(&self) -> bool {
         self.cut
     }
 }
 
-impl Write for Bounded<'_, '_> {
+impl<W: Write + ?Sized> Write for Bounded<'_, W> {
     /// Writes as much of `text` as the bound takes.
     fn write_str(&mut self, text: &str) -> fmt::Result {
+        if self.cut {
+            return Ok(());
+        }
+        if self.whole {
+            if self.left == 0 {
+                self.cut = true;
+                return Ok(());
+            }
+            self.left = self.left.saturating_sub(text.chars().count());
+            return self.out.write_str(text);
+        }
         let end = match text.char_indices().nth(self.left) {
             Some((at, _)) => {
                 self.cut = true;
@@ -365,5 +409,119 @@ impl Calculus {
             what: What::Sequent(derivation, node),
             limit: Shown::LIMIT,
         }
+    }
+}
+
+/// How a term is spelt: as the calculus writes it, or in an export's
+/// notation, where the connectives that notation knows take its symbols
+/// and every other symbol is set upright.
+#[derive(Clone, Copy)]
+pub(crate) struct Spelling<'n> {
+    /// The export's notation, or `None` for the calculus's own text.
+    notation: Option<&'n Notation>,
+    /// Whether each member of a sequent is put between the marks the SVG
+    /// layout groups a formula by.
+    marks: bool,
+    /// Whether the turnstile is preceded by the notation's alignment
+    /// mark.
+    aligned: bool,
+}
+
+impl<'n> Spelling<'n> {
+    /// The calculus's own text.
+    const PLAIN: Self = Self {
+        notation: None,
+        marks: false,
+        aligned: false,
+    };
+
+    /// Returns the spelling of `notation`, with `marks` around members
+    /// and the turnstile `aligned` as [`Notation::sequent`] has them.
+    #[cfg(any(feature = "latex", feature = "typst", feature = "svg"))]
+    pub(crate) const fn of(notation: &'n Notation, aligned: bool, marks: bool) -> Self {
+        Self {
+            notation: Some(notation),
+            marks,
+            aligned,
+        }
+    }
+
+    /// Writes an atom's name.
+    fn atom<W: Write + ?Sized>(self, out: &mut W, name: &str) -> fmt::Result {
+        match self.notation {
+            None => out.write_str(name),
+            Some(notation) => notation.atom.write(out, name),
+        }
+    }
+
+    /// Writes a connective's symbol or a zone's mark: the notation's own
+    /// symbol where it has one, else the text set upright.
+    fn symbol<W: Write + ?Sized>(self, out: &mut W, symbol: &str) -> fmt::Result {
+        let Some(notation) = self.notation else {
+            return out.write_str(symbol);
+        };
+        let known = match symbol {
+            "⊗" => notation.tensor,
+            "⅋" => notation.par,
+            "&" => notation.with,
+            "⊕" => notation.plus,
+            "⊸" => notation.lollipop,
+            "\\" => notation.under,
+            "/" => notation.over,
+            "!" => notation.bang,
+            "?" => notation.quest,
+            "1" => notation.one,
+            "0" => notation.zero,
+            "⊤" => notation.top,
+            "⊥" => notation.bot,
+            "¬" => notation.ordinary.not,
+            "∧" => notation.ordinary.and,
+            "∨" => notation.ordinary.or,
+            "→" => notation.ordinary.implies,
+            "↔" => notation.ordinary.iff,
+            "⊢" => notation.turnstile,
+            _ => return notation.atom.upright(out, symbol),
+        };
+        out.write_str(known)
+    }
+
+    /// Writes the alignment mark before a turnstile.
+    fn align<W: Write + ?Sized>(self, out: &mut W) -> fmt::Result {
+        self.notation.map_or(Ok(()), |n| out.write_str(n.align))
+    }
+
+    /// Returns what opens a function's arguments.
+    fn call(self) -> &'static str {
+        self.notation.map_or("(", |n| n.atom.call())
+    }
+
+    /// Returns what marks text cut by the bound.
+    fn cut(self) -> &'static str {
+        self.notation.map_or("…", |n| n.atom.cut())
+    }
+
+    /// Returns what goes before and after each member of a sequent.
+    const fn marks(self) -> (&'static str, &'static str) {
+        if self.marks {
+            ("\u{2}", "\u{3}")
+        } else {
+            ("", "")
+        }
+    }
+}
+
+impl Calculus {
+    /// Writes the sequent of `node` into `out` as `spelling` spells it,
+    /// at most [`Shown::LIMIT`] characters of it.
+    #[cfg(any(feature = "latex", feature = "typst", feature = "svg"))]
+    pub(crate) fn write_sequent_in(
+        &self,
+        derivation: &Derivation,
+        node: NodeId,
+        spelling: Spelling<'_>,
+        out: &mut String,
+    ) {
+        // Writing into a `String` does not fail.
+        let _ = self.show_sequent(derivation, node).write_in(out, spelling);
     }
 }

@@ -968,10 +968,15 @@ impl Display for Derivation {
 }
 
 impl Drawn for Derivation {
-    const RULES: usize = Rule::ALL.len();
-    const OPEN: Option<usize> = Some(Rule::Open as usize);
+    fn rules(&self) -> usize {
+        Rule::ALL.len()
+    }
 
-    fn markup(rule: usize, labels: &Labels) -> Option<&str> {
+    fn open(&self) -> Option<usize> {
+        Some(Rule::Open as usize)
+    }
+
+    fn markup<'a>(&'a self, rule: usize, labels: &'a Labels) -> Option<&'a str> {
         let rule = Rule::ALL[rule];
         match labels {
             _ if rule == Rule::Open => None,

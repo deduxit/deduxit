@@ -696,6 +696,9 @@ pub enum NoTerm {
     Quantified,
     /// A proof in progress, with open goals.
     Open,
+    /// A derivation in a calculus given as data, whose rules have no
+    /// terms.
+    Calculus,
 }
 
 impl std::fmt::Display for NoTerm {
@@ -713,6 +716,7 @@ impl std::fmt::Display for NoTerm {
                 "quantifiers over first-order terms are not quantifiers over types"
             }
             Self::Open => "the proof has open goals",
+            Self::Calculus => "the rules of a calculus given as data have no lambda-terms",
         })
     }
 }

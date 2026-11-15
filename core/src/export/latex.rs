@@ -218,6 +218,17 @@ pub(crate) fn atom<W: Write + ?Sized>(out: &mut W, name: &str) -> std::fmt::Resu
     out.write_char('}')
 }
 
+/// Writes a symbol of a calculus given as data in math mode, upright
+/// and escaped.
+#[cfg(feature = "serialize")]
+pub(crate) fn upright<W: Write + ?Sized>(out: &mut W, text: &str) -> std::fmt::Result {
+    out.write_str(r"\mathrm{")?;
+    for c in text.chars() {
+        escape(out, c)?;
+    }
+    out.write_char('}')
+}
+
 /// Writes a character of text in math mode: a character TeX treats
 /// specially escaped or as text, a Greek letter as its command, and any
 /// other character as it is.
@@ -234,6 +245,8 @@ fn escape(out: &mut (impl Write + ?Sized), c: char) -> std::fmt::Result {
         // `lltp::HYPHEN` and `lltp::DOT`, spelt out because `lltp` needs
         // the `parse` feature.
         '‿' => out.write_str(r"{\smallsmile}"),
+        // The closing rule of a tableau's rule file.
+        '×' => out.write_str(r"{\times}"),
         '·' => out.write_str(r"{\cdotp}"),
         // Braces keep a letter that follows from joining the command's
         // name.
@@ -525,6 +538,8 @@ pub fn write<'a>(
         Drawable::Linear(derivation) => tree(derivation, options, judgement, out, stop),
         Drawable::Ordinary(derivation) => tree(derivation, options, judgement, out, stop),
         Drawable::Classical(view) => tree(view, options, judgement, out, stop),
+        #[cfg(feature = "serialize")]
+        Drawable::Rules(drawing) => tree(drawing, options, judgement, out, stop),
     }
 }
 

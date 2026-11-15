@@ -137,6 +137,50 @@ impl Atoms {
             Self::Italic => crate::export::svg::italic(out, name),
         }
     }
+
+    /// Writes a symbol the notation has no spelling of, set upright: a
+    /// connective of a calculus given as data.
+    #[cfg(feature = "serialize")]
+    pub(crate) fn upright<W: Write + ?Sized>(self, out: &mut W, text: &str) -> FmtResult {
+        match self {
+            Self::Plain => out.write_str(text),
+            #[cfg(feature = "latex")]
+            Self::Latex => crate::export::latex::upright(out, text),
+            #[cfg(feature = "typst")]
+            Self::Typst => crate::export::typst::upright(out, text),
+            #[cfg(feature = "svg")]
+            Self::Italic => out.write_str(text),
+        }
+    }
+
+    /// Returns what opens a function's arguments: in Typst a space keeps
+    /// the bracket from reading as a call of the name before it.
+    #[cfg(feature = "serialize")]
+    pub(crate) const fn call(self) -> &'static str {
+        match self {
+            Self::Plain => "(",
+            #[cfg(feature = "latex")]
+            Self::Latex => "(",
+            #[cfg(feature = "typst")]
+            Self::Typst => " (",
+            #[cfg(feature = "svg")]
+            Self::Italic => "(",
+        }
+    }
+
+    /// Returns the mark of a text cut short.
+    #[cfg(feature = "serialize")]
+    pub(crate) const fn cut(self) -> &'static str {
+        match self {
+            Self::Plain => "…",
+            #[cfg(feature = "latex")]
+            Self::Latex => r"\dots",
+            #[cfg(feature = "typst")]
+            Self::Typst => " dots",
+            #[cfg(feature = "svg")]
+            Self::Italic => "…",
+        }
+    }
 }
 
 /// The binders a printer's walk is inside of: their variables' names as

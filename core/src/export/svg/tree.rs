@@ -63,13 +63,17 @@ pub(super) fn draw<T: Drawn>(
     let dots_rise = line_height - DEPTH;
     // Every rule's label laid out ahead, an open goal's being its mark
     // under `OpenGoal::Mark`; then every rule's label for a run of it.
-    let runs =
-        (0..T::RULES).map(|rule| T::markup(rule, &style.labels).map(|m| format!("{m}{RUN}")));
-    let labels: Vec<Option<Run>> = (0..T::RULES)
+    let rules = derivation.rules();
+    let runs = (0..rules).map(|rule| {
+        derivation
+            .markup(rule, &style.labels)
+            .map(|m| format!("{m}{RUN}"))
+    });
+    let labels: Vec<Option<Run>> = (0..rules)
         .map(|rule| match &style.open {
-            OpenGoal::Mark(mark) if T::OPEN == Some(rule) => Some(mark.clone()),
+            OpenGoal::Mark(mark) if derivation.open() == Some(rule) => Some(mark.clone()),
             OpenGoal::Dots | OpenGoal::Bare | OpenGoal::Mark(_) | OpenGoal::Dashed => {
-                T::markup(rule, &style.labels).map(str::to_owned)
+                derivation.markup(rule, &style.labels).map(str::to_owned)
             }
         })
         .chain(runs)
@@ -77,11 +81,7 @@ pub(super) fn draw<T: Drawn>(
         .collect();
     let empty = Run::default();
     let label_of = |id: InfId| {
-        let run = if derivation.times(id) > 1 {
-            T::RULES
-        } else {
-            0
-        };
+        let run = if derivation.times(id) > 1 { rules } else { 0 };
         labels[derivation.rule(id) + run].as_ref().unwrap_or(&empty)
     };
     let bare = matches!(style.open, OpenGoal::Bare);

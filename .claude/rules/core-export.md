@@ -96,10 +96,10 @@ for NanoYalla. What the code relies on:
   term of `ordinary/rocq.rs` (`core-ordinary.md`).
 - **Every emitter is generic over the crate-private trait
   `proofs::style::Drawn`**, implemented by `proofs::Derivation` (in
-  `style.rs`) and `ordinary::Derivation` (in `ordinary/derivation.rs`):
-  the root, the premises, a rule as a number below `RULES` (`OPEN` the
-  open goal's, `None` for LK/LJ), `markup(rule, labels)`, `times` (1 for
-  LK/LJ), `label` (the markup and `RUN` for a run), the sequent as the
+  `style.rs`), `TwoSided`, `ordinary::Derivation` (in
+  `ordinary/derivation.rs`) and `rules::Drawing` (in `rules/draw.rs`):
+  the root, the premises, a rule as a number below `rules()` (`open()`
+  the open goal's), `markup(rule, labels)`, `times` (1 for LK/LJ), `label` (the markup and `RUN` for a run), the sequent as the
   text tree writes it (`write_sequent`) and in a `Notation`
   (`sequent(out, notation, id, aligned, marks)`), and the SVG's
   `positions` for `Style::ids`. The text tree, the steps of `<desc>`,
@@ -112,7 +112,10 @@ for NanoYalla. What the code relies on:
   derivation implements `Drawn` and adds a variant of `Drawable` with its
   `From`, and an arm in each `write`; the per-rule label tables (the text
   tree's `bars`, the SVG's laid-out labels) are indexed by `rule`, plus
-  `RULES` for a run.
+  `rules()` for a run. The rule count, the open rule and the labels are
+  methods of the value, not constants of the type, because a calculus
+  given as data has its rules at run time; a table is built once per
+  drawing, so the per-inference cost is unchanged.
 - **Rule labels are one table per convention** (`proofs/style.rs`:
   `UPRIGHT`, `SUBSCRIPT`, indexed by `Named::index` in the order of
   `Named::ALL`, plus the user's `Labels::Table` keyed by `Named`), written in a markup
@@ -296,6 +299,28 @@ for NanoYalla. What the code relies on:
   `hmtx` (`ttx -t cmap -t hmtx` of `cli/fonts/Euler-Math.otf`, which
   also gives `⊗` 668 as the table has it); a character added to a printer
   gets its advance the same way, or takes the fallback of 650.
+- **A derivation in a calculus given as data** (`rules::Drawing`,
+  `Drawable::Rules`, feature `serialize`): `Drawing::new(&calculus,
+  &derivation, &limits)` unfolds the derivation from its last node into
+  a tree (a node that is the premise of several is drawn once for each)
+  and refuses past `limits.derivation_bytes` by an estimate counted as
+  it unfolds (`INFERENCE` and `MEMBER` bytes), so a derivation whose
+  sharing would unfold exponentially is refused, not drawn. Its rules
+  are the derivation's rule names in their order, then a hypothesis
+  (`hyp`), then the open goal; a name's subscript digits are lowered
+  (`∧L₁` as `∧L_1`), and a `_` in a name reads as a subscript in every
+  target. Sequents are the rule file's print forms through
+  `rules::print::Spelling`: a connective whose symbol a notation knows
+  (the linear and ordinary symbols, `⊢`) takes that notation's
+  spelling, any other symbol is set upright (`Atoms::upright`: LaTeX
+  `\mathrm{…}` escaped, Typst `upright("…") `, SVG as is), atoms as the
+  notation's atoms; each sequent is cut at `Shown::LIMIT` characters
+  whole pieces at a time (`Bounded::whole`), since a term is a DAG.
+  pdfLaTeX sets only the characters `escape` spells: a rule file whose
+  symbol is another non-ASCII character needs LuaLaTeX or XeLaTeX.
+  Rocq refuses it (`Unsupported::Calculus`) and the lambda-term too
+  (`NoTerm::Calculus`). Snapshots `rules.*` (LJ) and `rules-tableau.*`
+  (the tableau's signs set upright), which the `export` check compiles.
 - **No drawing is held twice** (F5): `document` takes a closure that
   writes the body into the document itself; the sequent's line is laid
   out twice by `lay` (its width for the head, then each piece written as

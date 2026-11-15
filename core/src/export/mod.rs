@@ -197,6 +197,12 @@ pub(crate) fn judgement(
                 reason: crate::lambda::NoTerm::Classical,
             });
         }
+        #[cfg(feature = "serialize")]
+        Drawable::Rules(_) => {
+            return Err(crate::Error::NoTerm {
+                reason: crate::lambda::NoTerm::Calculus,
+            });
+        }
     };
     let mut out = String::new();
     term.write_in(spelling, options.types, true, &mut out, &limits, stop)?;
@@ -210,7 +216,9 @@ pub(crate) fn judgement(
 /// - a derivation of linear logic, one- or two-sided;
 /// - the two-sided view of a classical derivation;
 /// - a derivation of LK or LJ, read back from a proof of an ordinary
-///   sequent's image.
+///   sequent's image;
+/// - a derivation in a calculus given as data, as a
+///   [`rules::Drawing`](crate::rules::Drawing) lays it out.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug)]
 pub enum Drawable<'a> {
@@ -221,6 +229,19 @@ pub enum Drawable<'a> {
     /// The two-sided view of a classical derivation, as its sequent was
     /// written.
     Classical(&'a crate::linear::TwoSided<'a>),
+    /// A derivation in a calculus given as data.
+    ///
+    /// Needs the cargo feature `serialize`.
+    #[cfg(feature = "serialize")]
+    Rules(&'a crate::rules::Drawing<'a>),
+}
+
+#[cfg(feature = "serialize")]
+impl<'a, 'p: 'a> From<&'a crate::rules::Drawing<'p>> for Drawable<'a> {
+    /// Draws a derivation in a calculus given as data.
+    fn from(drawing: &'a crate::rules::Drawing<'p>) -> Self {
+        Self::Rules(drawing)
+    }
 }
 
 impl<'a, 'p: 'a> From<&'a crate::linear::Derivation<'p>> for Drawable<'a> {

@@ -156,6 +156,21 @@ pub(crate) fn atom<W: Write + ?Sized>(out: &mut W, name: &str) -> std::fmt::Resu
     out.write_str("\")")
 }
 
+/// Writes a symbol of a calculus given as data in math mode, as an
+/// upright string. A space after it keeps a bracket that follows from
+/// reading as its call's arguments.
+#[cfg(feature = "serialize")]
+pub(crate) fn upright<W: Write + ?Sized>(out: &mut W, text: &str) -> std::fmt::Result {
+    out.write_str("upright(\"")?;
+    for c in text.chars() {
+        if c == '"' || c == '\\' {
+            out.write_char('\\')?;
+        }
+        out.write_char(c)?;
+    }
+    out.write_str("\") ")
+}
+
 /// The default page setup of a standalone document: a page as large as its
 /// content, with a margin of 5 pt.
 pub const PAGE: &str = "#set page(width: auto, height: auto, margin: 5pt)";
@@ -601,6 +616,8 @@ pub fn write<'a>(
         Drawable::Linear(derivation) => tree(derivation, options, judgement, out, stop),
         Drawable::Ordinary(derivation) => tree(derivation, options, judgement, out, stop),
         Drawable::Classical(view) => tree(view, options, judgement, out, stop),
+        #[cfg(feature = "serialize")]
+        Drawable::Rules(drawing) => tree(drawing, options, judgement, out, stop),
     }
 }
 

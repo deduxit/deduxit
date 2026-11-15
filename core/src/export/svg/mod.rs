@@ -1449,6 +1449,8 @@ pub fn write<'a>(
         Drawable::Linear(derivation) => tree::draw(derivation, style, judgement, out, stop),
         Drawable::Ordinary(derivation) => tree::draw(derivation, style, judgement, out, stop),
         Drawable::Classical(view) => tree::draw(view, style, judgement, out, stop),
+        #[cfg(feature = "serialize")]
+        Drawable::Rules(drawing) => tree::draw(drawing, style, judgement, out, stop),
     }
 }
 

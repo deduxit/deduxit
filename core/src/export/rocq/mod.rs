@@ -471,6 +471,12 @@ pub enum Unsupported {
         "the Rocq calculi are commutative, so a derivation or a disproof of the cyclic mode has no certificate"
     )]
     Ordered,
+    /// The derivation is in a calculus given as data, whose rules
+    /// neither kernel knows.
+    #[error(
+        "the Rocq kernels know their own calculi, so a derivation in a calculus given as data has no certificate"
+    )]
+    Calculus,
     /// The disproof's refutation is a saturated set, for which the
     /// library has no theorem. Its certificate is the set itself, which
     /// the disproof's check verifies.
@@ -966,6 +972,8 @@ pub fn write<'a>(
         }
         // The certificate is the proof's, whichever way it is drawn.
         Drawable::Classical(view) => linear(view.derivation(), options, out, stop),
+        #[cfg(feature = "serialize")]
+        Drawable::Rules(_) => Err(Unsupported::Calculus.into()),
     }
 }
 
