@@ -330,19 +330,23 @@ impl Session {
     /// Runs one command and returns what to print.
     fn answer(&mut self, words: &[&str]) -> Result<String> {
         let (command, rest) = words.split_first().map_or(("", &[][..]), |(c, r)| (*c, r));
+        // Rust's parse error says nothing a user can act on.
+        let read_position = |word: &str| -> Result<usize> {
+            word.parse().map_err(|_| {
+                anyhow::anyhow!(
+                    "{word:?} is not a position: a position is a number, and `goals` lists them"
+                )
+            })
+        };
         let positions = |from: usize| -> Result<Vec<usize>> {
             rest.get(from..)
                 .unwrap_or(&[])
                 .iter()
-                .map(|w| {
-                    w.parse()
-                        .with_context(|| format!("{w:?} is not a position"))
-                })
+                .map(|w| read_position(w))
                 .collect()
         };
         let goal = |i: usize| -> Result<GoalId> {
             let word = rest.get(i).context("which goal? see `goals`")?;
-            // Rust's parse error says nothing a user can act on.
             let id: u32 = word.parse().map_err(|_| {
                 anyhow::anyhow!(
                     "{word:?} is not a goal: a goal is a number, and `goals` lists them"
@@ -351,9 +355,7 @@ impl Session {
             Ok(GoalId::new(id))
         };
         let position = |i: usize| -> Result<usize> {
-            let word = rest.get(i).context("which formula? see `goals`")?;
-            word.parse()
-                .with_context(|| format!("{word:?} is not a position"))
+            read_position(rest.get(i).context("which formula? see `goals`")?)
         };
         Ok(match command {
             "" => String::new(),

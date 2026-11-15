@@ -716,11 +716,12 @@ fn ordinary_session() {
 }
 
 /// `interact` reads commands from standard input: rules are listed and
-/// applied by goal and position, refused with a reason, undone, goals are
-/// closed by the search, the session is saved and resumed, the finished
-/// proof is checked, which decides the exit status, a goal is cut on a
-/// formula typed as written, and the invertible rules applied by
-/// themselves are undone with the step they followed.
+/// applied by goal and position, a mistyped goal or position is explained,
+/// a step is refused with a reason, undone, goals are closed by the
+/// search, the session is saved and resumed, the finished proof is
+/// checked, which decides the exit status, a goal is cut on a formula
+/// typed as written, and the invertible rules applied by themselves are
+/// undone with the step they followed.
 #[test]
 fn interactive_session() {
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("cli-session");
@@ -728,7 +729,7 @@ fn interactive_session() {
     let session = dir.join("session.json");
     let proof = dir.join("proof.json");
     let script = format!(
-        "goals\napply x 1 par\nrules 0 1\napply 0 1 par\napply 0 1 * 0\napply 1 0 ax\nundo\nsave {s}\nquit\n",
+        "goals\napply x 1 par\nrules 0 y\nrules 0 1\napply 0 1 par\napply 0 1 * 0\napply 1 0 ax\nundo\nsave {s}\nquit\n",
         s = session.display()
     );
     let (status, out, err) = deduxit(&["interact", "A, A -o B |- B"], &script);
@@ -737,6 +738,7 @@ fn interactive_session() {
         format!(
             "goal 0: ⊢ 0: ~A, 1: A ⊗ ~B, 2: B\n\
              error: \"x\" is not a goal: a goal is a number, and `goals` lists them\n\
+             error: \"y\" is not a position: a position is a number, and `goals` lists them\n\
              ⊗ (with a split)\n\
              error: the rule ⅋ does not act on formula 1, A ⊗ ~B; `rules 0 1` lists the rules \
              that do\n\
@@ -1013,8 +1015,8 @@ fn an_unquoted_cut_formula_is_explained() {
     assert_eq!(
         out,
         "error: quote a cut formula that has blanks: cut 0 \"b & a\" …: \"&\" is not a \
-         position: invalid digit found in string\n\
-         error: \"x\" is not a position: invalid digit found in string\n"
+         position: a position is a number, and `goals` lists them\n\
+         error: \"x\" is not a position: a position is a number, and `goals` lists them\n"
     );
 }
 
