@@ -14,6 +14,8 @@
 use crate::failure::Failure;
 use crate::tab;
 use deduxit::export::{latex, rocq, svg, typst};
+use deduxit::ordinary::interpolant::{self, Partition};
+use deduxit::ordinary::negative;
 use deduxit::ordinary::{
     self, Applicable, Context, Interactive, Logic, Method, Needs, NodeId, Rule, Sequent, Side, Step,
 };
@@ -526,6 +528,76 @@ pub fn table(sequent: &str, settings: &str) -> Result<String, Failure> {
 /// settings.
 pub fn tableau(sequent: &str, settings: &str) -> Result<String, Failure> {
     decided(sequent, Method::Tableau, settings)
+}
+
+/// Translates a sequent of classical logic by a negative translation,
+/// decides it in classical logic and its translation in the target logic,
+/// and answers the comparison: `{"version": 16, "translation", "target",
+/// "agreement", "sequent", "translated", "classical", "decided"}`, both
+/// outcomes with their evidence, `agreement` being `valid`, `not_valid`
+/// or `unknown`. `options` is `{"translation": "kolmogorov", "target":
+/// "minimal"}`, every key optional (the translation `kolmogorov`, the
+/// target the translation's own), or `""` for the defaults.
+///
+/// # Errors
+///
+/// A sequent or options that cannot be read, a target the translation
+/// does not reach (code `negative_target`), and verdicts that differ
+/// (code `claim_fails`, a defect).
+pub fn translate(sequent: &str, options: &str, settings: &str) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let sequent = sequent_of(sequent, &settings)?;
+    let options: negative::Options = if options.trim().is_empty() {
+        negative::Options::default()
+    } else {
+        serde_json::from_str(options).map_err(Failure::json)?
+    };
+    let search = deduxit::linear::search::Options::default();
+    let compared = negative::compare(&sequent, &options, &search, &settings.limits, never)
+        .map_err(Failure::from)?;
+    written(&compared)
+}
+
+/// Decides a sequent of `logic` and answers its interpolant for
+/// `partition`: `{"version": 16, "logic", "partition", "outcome",
+/// "interpolant": {"text", "first": {"sequent", "outcome"}, "second":
+/// {…}}}`, the interpolant absent for a sequent that is not valid or not
+/// decided. `partition` is `{"left": [0], "right": []}`, the positions of
+/// the first half's formulas on each side, or `""` for every hypothesis
+/// first. Both halves are decided again and the interpolant's atoms
+/// compared before it is answered.
+///
+/// # Errors
+///
+/// A sequent, logic or partition that cannot be read, a partition that is
+/// not one of the sequent (code `partition`), and an interpolant that
+/// fails its check (code `claim_fails`, a defect).
+pub fn interpolate(
+    sequent: &str,
+    logic: &str,
+    partition: &str,
+    settings: &str,
+) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let logic: Logic = logic.parse().map_err(Failure::from)?;
+    let sequent = sequent_of(sequent, &settings)?;
+    let partition = if partition.trim().is_empty() {
+        Partition::hypotheses(&sequent)
+    } else {
+        serde_json::from_str(partition).map_err(Failure::json)?
+    };
+    let options = deduxit::ordinary::Options::default().with_logic(logic);
+    let search = deduxit::linear::search::Options::default();
+    let found = interpolant::interpolate(
+        &sequent,
+        &options,
+        &partition,
+        &search,
+        &settings.limits,
+        never,
+    )
+    .map_err(Failure::from)?;
+    written(&found)
 }
 
 /// Decides a sequent of classical logic by `method` and answers the

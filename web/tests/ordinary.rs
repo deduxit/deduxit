@@ -59,12 +59,12 @@ fn open_goals(answer: &str) -> Vec<u32> {
 
 /// `about` lists both suites, each with the prefix of its calls, its term
 /// call and the parameter its `start` takes, with every value and the
-/// default, the ordinary suite's methods, and the wire level, 15 since the
-/// library reads rule files and derivations in them.
+/// default, the ordinary suite's methods, and the wire level, 16 since the
+/// library writes negative translations and interpolants.
 #[wasm_bindgen_test(unsupported = test)]
 fn about_lists_the_suites() {
     let about = value(&calls::about());
-    assert_eq!(about["level"], 15);
+    assert_eq!(about["level"], 16);
     assert_eq!(about["suites"][1]["methods"][1]["call"], "ordinary_tableau");
     let suites = about["suites"].as_array().unwrap();
     let names: Vec<&Value> = suites.iter().map(|s| &s["suite"]).collect();
@@ -371,4 +371,37 @@ fn a_sequent_is_decided_by_its_table_or_a_tableau() {
     let wide = "a, b, c, d, e, f, g, h, i, j, k |- a";
     let refused = ordinary::table(wide, "").unwrap_err();
     assert_eq!(failure(&refused)["code"], "too_many_atoms");
+}
+
+/// A negative translation answers both verdicts, which agree, and an
+/// interpolant answers both halves decided; `about` names both calls,
+/// and a target the translation does not reach and a partition that is
+/// not one are refused by their codes.
+#[wasm_bindgen_test(unsupported = test)]
+fn a_sequent_is_translated_and_interpolated() {
+    let compared = value(&ordinary::translate("a \\/ ~a", "", "").unwrap());
+    assert_eq!(compared["version"], 16);
+    assert_eq!(compared["agreement"], "valid");
+    assert_eq!(compared["target"], "minimal");
+    assert_eq!(compared["decided"]["verdict"], "valid");
+    let glivenko = r#"{"translation": "glivenko"}"#;
+    let compared = value(&ordinary::translate("a |- b", glivenko, "").unwrap());
+    assert_eq!(compared["agreement"], "not_valid");
+    assert_eq!(compared["target"], "intuitionistic");
+    let refused = ordinary::translate("a", r#"{"translation": "kuroda", "target": "minimal"}"#, "");
+    assert_eq!(failure(&refused.unwrap_err())["code"], "negative_target");
+
+    let found = value(&ordinary::interpolate("a /\\ b |- b \\/ c", "classical", "", "").unwrap());
+    assert_eq!(found["version"], 16);
+    assert_eq!(found["interpolant"]["text"], "b");
+    assert_eq!(found["interpolant"]["first"]["outcome"]["verdict"], "valid");
+    let partition = r#"{"left": [], "right": [0]}"#;
+    let refused = ordinary::interpolate("a |- a", "intuitionistic", partition, "");
+    assert_eq!(failure(&refused.unwrap_err())["code"], "partition");
+
+    let about = value(&calls::about());
+    let transformations = &about["suites"][1]["transformations"];
+    assert_eq!(transformations[0]["call"], "ordinary_translate");
+    assert_eq!(transformations[0]["translations"][1]["target"], "minimal");
+    assert_eq!(transformations[1]["call"], "ordinary_interpolate");
 }

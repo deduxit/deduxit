@@ -354,6 +354,27 @@ mod exports {
         ordinary::tableau(sequent, settings).map_err(thrown)
     }
 
+    /// See [`ordinary::translate`].
+    #[wasm_bindgen]
+    pub fn ordinary_translate(
+        sequent: &str,
+        options: &str,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        ordinary::translate(sequent, options, settings).map_err(thrown)
+    }
+
+    /// See [`ordinary::interpolate`].
+    #[wasm_bindgen]
+    pub fn ordinary_interpolate(
+        sequent: &str,
+        logic: &str,
+        partition: &str,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        ordinary::interpolate(sequent, logic, partition, settings).map_err(thrown)
+    }
+
     /// See [`ordinary::draw`].
     #[wasm_bindgen]
     pub fn ordinary_draw(session: &str, settings: &str) -> Result<String, JsValue> {

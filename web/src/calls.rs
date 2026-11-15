@@ -51,6 +51,10 @@ const fn never(_: Progress) -> bool {
 /// - `methods` (the ordinary suite): the methods a tab decides a sequent
 ///   by besides proving it step by step, each with its `method`, the
 ///   `call` that answers its outcome and the `logics` it decides.
+/// - `transformations` (the ordinary suite): what a tab turns a sequent
+///   into, each with its `transformation`, its `call`, and the negative
+///   `translations` with the `target` logic of each, or the `logics` an
+///   interpolant is found in.
 pub fn about() -> String {
     serde_json::json!({
         "deduxit": env!("CARGO_PKG_VERSION"),
@@ -83,6 +87,21 @@ pub fn about() -> String {
                 "methods": [
                     {"method": "table", "call": "ordinary_table", "logics": ["classical"]},
                     {"method": "tableau", "call": "ordinary_tableau", "logics": ["classical"]},
+                ],
+                "transformations": [
+                    {
+                        "transformation": "negative",
+                        "call": "ordinary_translate",
+                        "translations": deduxit::ordinary::negative::Translation::ALL
+                            .iter()
+                            .map(|t| serde_json::json!({"translation": t, "target": t.target()}))
+                            .collect::<Vec<_>>(),
+                    },
+                    {
+                        "transformation": "interpolant",
+                        "call": "ordinary_interpolate",
+                        "logics": deduxit::ordinary::Logic::NAMES,
+                    },
                 ],
             },
         ],
