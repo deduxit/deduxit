@@ -39,6 +39,6 @@ baseline-prep	small	opus-5-5	high	reviewer	local_739ba359	2026-11-15 18:20	2026-
 59	step	-	-	-	-	-	2026-11-15 18:05	complete: 0.4.0 released
 60	step	-	-	-	-	-	2026-11-15 19:45	complete: rules as data
 61b	client	opus-5-5	high	reviewer (fable), frontend-design, education skills	local_fe155f72	2026-11-15 20:40		custom rules on the page
-62a	small	opus-5-5	high	reviewer (fable)	local_b8490613	2026-11-15 20:50		natural deduction's rule sets
+62a	small	opus-5-5	high	reviewer (fable)	local_b8490613	2026-11-15 20:50	2026-11-15 22:00	natural deduction's rule sets
 63t	step	-	-	-	-	-	2026-11-15 21:05	complete: translations and interpolants
 54x4	small	opus-5-5	high	reviewer	local_739ba359	2026-11-15 21:10		three recurring loose ends
