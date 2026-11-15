@@ -377,6 +377,28 @@ impl Calculus {
         if form.name.is_empty() {
             return Err(invalid("the calculus has no name".to_owned()));
         }
+        // Every text a sequent or a drawing writes: a control character
+        // there is no symbol, and the drawings take two of them as marks
+        // of their own.
+        let written = std::iter::once(form.name.as_str())
+            .chain(
+                form.connectives
+                    .iter()
+                    .flat_map(|c| std::iter::once(c.name.as_str()).chain(c.symbol.as_deref())),
+            )
+            .chain(
+                form.sequent
+                    .iter()
+                    .flat_map(|z| std::iter::once(z.name.as_str()).chain(z.mark.as_deref())),
+            )
+            .chain(form.rules.iter().map(|r| r.name.as_str()));
+        for text in written {
+            if text.chars().any(char::is_control) {
+                return Err(invalid(format!(
+                    "the name or symbol {text:?} holds a control character"
+                )));
+            }
+        }
         // A compiled rule holds a few words for each zone of each of its
         // sequents, and the file names neither number but once: a file of
         // a thousand zones and a thousand premises is short and would

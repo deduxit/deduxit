@@ -199,6 +199,10 @@ design, with the reasons and the alternatives weighed, is
   past a 1 MiB bound by tens of megabytes; the fresh review of 60b two
   more (the stack's doubling, 1.5 times the bound, and the calculus's
   tables, 1.6 MB under 4 KiB).
+- **No control character in a file's printed texts**: the calculus's
+  name, every connective's name and symbol, every zone's name and mark
+  and every rule's name (`from_form`), since the drawings take U+0001 to
+  U+0005 as their own marks and LaTeX sets none of them.
 - **A connective takes `ARITY` (255) arguments at most**: the number
   comes from the file and sizes a vector, and 2³² of them reserved
   16 GiB under a 1 MiB memory bound.

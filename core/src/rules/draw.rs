@@ -8,7 +8,7 @@ use super::derivation::Kind;
 use super::{Calculus, Derivation, NodeId, Step};
 use crate::linear::InfId;
 use crate::linear::proofs::Labels;
-use crate::linear::proofs::style::Drawn;
+use crate::linear::proofs::style::{Drawn, LITERAL};
 use crate::{Error, Limits};
 use std::fmt::Write;
 
@@ -30,10 +30,11 @@ const MEMBER: u64 = 64;
 /// leaf labelled `hyp`, an open goal as the style draws one.
 ///
 /// The inferences are numbered from the leaves, each after its premises,
-/// premises in order: the SVG's `i<n>`. For a derivation whose every
-/// node lies under the root and is the premise of one node at most, as
-/// a session's ([`Interactive::derivation`](super::Interactive::derivation))
-/// is, inference `n` is node `n`.
+/// premises in order: the SVG's `i<n>`. Where the nodes are stored in that
+/// order already, every node under the root and the premise of one node
+/// at most, inference `n` is node `n`: a session's derivation
+/// ([`Interactive::derivation`](super::Interactive::derivation)) is stored
+/// so.
 ///
 /// Needs the cargo feature `serialize`.
 #[derive(Clone, Debug)]
@@ -160,7 +161,8 @@ impl<'a> Drawing<'a> {
 }
 
 /// Returns a rule's name in the label markup: a subscript digit lowered,
-/// as the drawings set the labels of LK.
+/// as the drawings set the labels of LK, and `_` and `*`, which the
+/// markup reads as a subscript and a star, kept as text.
 fn markup(name: &str) -> String {
     let mut out = String::new();
     for c in name.chars() {
@@ -168,6 +170,10 @@ fn markup(name: &str) -> String {
             '₀'..='₉' => {
                 out.push('_');
                 out.extend(char::from_digit(u32::from(c) - u32::from('₀'), 10));
+            }
+            '_' | '*' => {
+                out.push(LITERAL);
+                out.push(c);
             }
             c => out.push(c),
         }

@@ -160,6 +160,22 @@ impl<'a> Shown<'a> {
         let mut stack = vec![Item::Term(id, false)];
         while let Some(item) = stack.pop() {
             if out.full() {
+                // In a target's notation a cut text still closes what it
+                // opened, or the output would not compile.
+                if out.whole {
+                    let open = stack
+                        .iter()
+                        .filter(|i| matches!(i, Item::Text(")")))
+                        .count();
+                    let closing = if matches!(item, Item::Text(")")) {
+                        open + 1
+                    } else {
+                        open
+                    };
+                    for _ in 0..closing {
+                        out.out.write_str(")")?;
+                    }
+                }
                 break;
             }
             let (id, bracketed) = match item {
@@ -173,9 +189,13 @@ impl<'a> Shown<'a> {
                 }
                 Item::Term(id, bracketed) => (id, bracketed),
             };
+            // A bracket is closed only where it was opened: a cut text
+            // closes those still waiting.
             if bracketed {
                 out.write_str("(")?;
-                stack.push(Item::Text(")"));
+                if !out.full() {
+                    stack.push(Item::Text(")"));
+                }
             }
             let (connective, arguments) = match self.terms.term(id) {
                 Term::Atom { name, .. } => {
@@ -220,7 +240,9 @@ impl<'a> Shown<'a> {
                 Fixity::Function => {
                     spelling.symbol(out, form.symbol)?;
                     out.write_str(spelling.call())?;
-                    stack.push(Item::Text(")"));
+                    if !out.full() {
+                        stack.push(Item::Text(")"));
+                    }
                     for place in (0..arguments.len()).rev() {
                         stack.push(Item::Term(arguments[place], false));
                         if place > 0 {
@@ -300,9 +322,13 @@ impl<'a> Shown<'a> {
                         out.write_str(", ")?;
                     }
                     let (open, close) = spelling.marks();
+                    let opened = !out.full();
                     out.write_str(open)?;
                     self.write_term(out, spelling, member)?;
-                    out.write_str(close)?;
+                    // A member's mark is closed whatever the bound cut.
+                    if opened {
+                        out.out.write_str(close)?;
+                    }
                     written = true;
                 }
             }
@@ -446,11 +472,16 @@ impl<'n> Spelling<'n> {
         }
     }
 
-    /// Writes an atom's name.
+    /// Writes an atom's name, in a notation as one piece, so that a bound
+    /// never cuts it in two.
     fn atom<W: Write + ?Sized>(self, out: &mut W, name: &str) -> fmt::Result {
         match self.notation {
             None => out.write_str(name),
-            Some(notation) => notation.atom.write(out, name),
+            Some(notation) => {
+                let mut piece = String::new();
+                notation.atom.write(&mut piece, name)?;
+                out.write_str(&piece)
+            }
         }
     }
 
@@ -480,7 +511,11 @@ impl<'n> Spelling<'n> {
             "→" => notation.ordinary.implies,
             "↔" => notation.ordinary.iff,
             "⊢" => notation.turnstile,
-            _ => return notation.atom.upright(out, symbol),
+            _ => {
+                let mut piece = String::new();
+                notation.atom.upright(&mut piece, symbol)?;
+                return out.write_str(&piece);
+            }
         };
         out.write_str(known)
     }

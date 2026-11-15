@@ -308,14 +308,24 @@ for NanoYalla. What the code relies on:
   sharing would unfold exponentially is refused, not drawn. Its rules
   are the derivation's rule names in their order, then a hypothesis
   (`hyp`), then the open goal; a name's subscript digits are lowered
-  (`∧L₁` as `∧L_1`), and a `_` in a name reads as a subscript in every
-  target. Sequents are the rule file's print forms through
+  (`∧L₁` as `∧L_1`), and its `_` and `*` are kept as text by
+  `style::LITERAL` (U+0007 before a character makes `parts` read it as
+  text): unescaped, `_|_E` wrote a double subscript that pdfLaTeX and
+  Typst refuse and an SVG element with two `font-size` attributes (the
+  review of 61b). Sequents are the rule file's print forms through
   `rules::print::Spelling`: a connective whose symbol a notation knows
   (the linear and ordinary symbols, `⊢`) takes that notation's
   spelling, any other symbol is set upright (`Atoms::upright`: LaTeX
   `\mathrm{…}` escaped, Typst `upright("…") `, SVG as is), atoms as the
   notation's atoms; each sequent is cut at `Shown::LIMIT` characters
-  whole pieces at a time (`Bounded::whole`), since a term is a DAG.
+  whole pieces at a time (`Bounded::whole`: an atom or a symbol is one
+  piece), since a term is a DAG, and a cut sequent still closes every
+  bracket and member mark it opened (a bracket's closer is pushed only
+  once its opener was written): cut in the middle, `\mathit{ab\dots`
+  and `italic("abc dots` did not compile (the review of 61b). A rule
+  file's names, symbols and marks hold no control character
+  (`core-rules.md`), since the SVG layout takes U+0001 to U+0005 as its
+  own marks: a symbol U+0002 panicked the drawing.
   pdfLaTeX sets only the characters `escape` spells: a rule file whose
   symbol is another non-ASCII character needs LuaLaTeX or XeLaTeX.
   Rocq refuses it (`Unsupported::Calculus`) and the lambda-term too

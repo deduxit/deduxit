@@ -104,6 +104,12 @@ pub(crate) enum Part<'a> {
     Sub(&'a str),
 }
 
+/// The mark before a character of a label that is text, whatever the
+/// markup makes of it otherwise: a rule file's rule named `and_intro`
+/// writes its `_` so. No label typed by hand holds it, being a control
+/// character.
+pub(crate) const LITERAL: char = '\u{7}';
+
 /// Returns whether a character of a label is a symbol.
 fn symbol(c: char) -> bool {
     matches!(
@@ -138,7 +144,14 @@ pub(crate) fn parts(markup: &str) -> Vec<Part<'_>> {
     let mut parts = Vec::new();
     let mut rest = markup;
     while let Some(c) = rest.chars().next() {
-        if c == '_' {
+        if c == LITERAL {
+            let after = &rest[c.len_utf8()..];
+            let next = after.chars().next().map_or(0, char::len_utf8);
+            if next > 0 {
+                parts.push(Part::Text(&after[..next]));
+            }
+            rest = &after[next..];
+        } else if c == '_' {
             let after = &rest[1..];
             let (sub, next) = match after.strip_prefix('{') {
                 Some(group) => group.split_once('}').unwrap_or((group, "")),
@@ -151,7 +164,7 @@ pub(crate) fn parts(markup: &str) -> Vec<Part<'_>> {
             rest = &rest[c.len_utf8()..];
         } else {
             let end = rest
-                .find(|c: char| c == '_' || symbol(c))
+                .find(|c: char| c == '_' || c == LITERAL || symbol(c))
                 .unwrap_or(rest.len());
             parts.push(Part::Text(&rest[..end]));
             rest = &rest[end..];

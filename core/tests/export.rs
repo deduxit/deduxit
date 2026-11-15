@@ -2438,3 +2438,68 @@ fn to_string_is_write_into_a_string() {
         certificate(|out| rocq::write(&derivation, &rocq, out, |_| false)).unwrap(),
     );
 }
+
+/// A derivation of a rule file is drawn well formed whatever the file
+/// names: a rule named with `_` and `*` keeps them as text, a sequent cut
+/// at the printer's bound closes every group it opened, and a control
+/// character, which the drawings take as a mark, is refused when the file
+/// is read.
+#[test]
+fn rules_drawings_stay_well_formed() {
+    use deduxit::rules::{Calculus, Derivation, Drawing};
+    let read = |file: serde_json::Value| -> Result<Calculus, Error> {
+        deduxit::wire::upgrade(&file, &Limits::default())
+    };
+    let file = |rule: &str, symbol: &str| {
+        serde_json::json!({
+            "version": 15, "name": "Odd",
+            "connectives": [{"name": "g", "arity": 1, "fixity": "function", "symbol": symbol}],
+            "sequent": [{"name": "left", "discipline": "multiset"}, {"name": "right", "mark": "⊢", "discipline": "multiset"}],
+            "variables": {"formula": ["A"]},
+            "rules": [{"name": rule, "conclusion": {"left": ["A"], "right": ["A"]}}]
+        })
+    };
+    let calculus = read(file("and_intro*", "g")).unwrap();
+    // A term g(g(…(a…))) 800 deep and an atom of 5000 letters, each past
+    // the printer's bound of 4096 characters.
+    let long = "a".repeat(5000);
+    let mut terms = vec![serde_json::json!("a"), serde_json::json!(long)];
+    for depth in 0..800 {
+        terms.push(serde_json::json!([
+            "g",
+            if depth == 0 { 0 } else { depth + 1 }
+        ]));
+    }
+    let deep = terms.len() - 1;
+    let derivation: Derivation = deduxit::wire::upgrade(
+        serde_json::json!({
+            "version": 15, "calculus": "Odd", "terms": terms,
+            "nodes": [{"sequent": [[deep, 1], [deep]], "rule": "and_intro*"}]
+        }),
+        &Limits::default(),
+    )
+    .unwrap();
+    let drawing = Drawing::new(&calculus, &derivation, &Limits::default()).unwrap();
+    let tex = latex::to_string(&drawing, &latex::Options::default()).unwrap();
+    let balanced = |text: &str, open: char, close: char| {
+        text.chars().filter(|&c| c == open).count() == text.chars().filter(|&c| c == close).count()
+    };
+    assert!(
+        balanced(&tex, '{', '}') && balanced(&tex, '(', ')'),
+        "{tex}"
+    );
+    assert!(
+        tex.contains(r"\mathrm{and}\mathrm{\_}\mathrm{intro}"),
+        "{tex}"
+    );
+    let typ = typst::to_string(&drawing, &typst::Options::default()).unwrap();
+    assert!(balanced(&typ, '(', ')'), "{typ}");
+    assert_eq!(typ.matches('"').count() % 2, 0, "{typ}");
+    assert!(!typ.contains("^*"), "{typ}");
+    let svg = svg::to_string(&drawing, &Style::default()).unwrap();
+    assert!(svg.contains("by and_intro*"), "{svg}");
+
+    let refused = read(file("r", "\u{2}")).unwrap_err();
+    assert_eq!(refused.code(), "invalid_calculus");
+    assert!(read(file("r\u{3}", "g")).is_err());
+}
