@@ -1,0 +1,11 @@
+$ deduxit prove --logic classical --method table 'a -> b |- b -> a'
+--- status 1
+--- stdout
+not valid (classical logic by its truth table): 1 of its 4 rows falsifies it, a checked countermodel
+a  b  │  a → b  ⊢  b → a
+T  T  │    T         T
+T  F  │    F         T
+F  T  │    T         F    ×
+F  F  │    T         T
+world 0 (the model's world): forces b
+--- stderr

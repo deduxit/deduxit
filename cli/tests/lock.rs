@@ -479,6 +479,80 @@ const CASES: &[Case] = &[
             "~~a -> a",
         ],
     ),
+    // The truth table and the tableau, valid and not, and their JSON.
+    call(
+        "ordinary-table",
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--method",
+            "table",
+            "a -> b |- b -> a",
+        ],
+    ),
+    call(
+        "ordinary-table-json",
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--method",
+            "table",
+            "--format",
+            "json",
+            "|- a \\/ ~a",
+        ],
+    ),
+    call(
+        "ordinary-table-atoms",
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--method",
+            "table",
+            "--table-atoms",
+            "1",
+            "a |- b",
+        ],
+    ),
+    call(
+        "ordinary-tableau",
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--method",
+            "tableau",
+            "p \\/ q, p -> r, q -> r |- r",
+        ],
+    ),
+    call(
+        "ordinary-tableau-open",
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--method",
+            "tableau",
+            "--stats",
+            "a -> b |- b -> a",
+        ],
+    ),
+    call(
+        "ordinary-tableau-json",
+        &[
+            "prove",
+            "--logic",
+            "classical",
+            "--method",
+            "tableau",
+            "--format",
+            "json",
+            "a /\\ b |- b",
+        ],
+    ),
     // Problem files.
     call("file-lltp", &["prove", "--file", "double.p"]),
     call(

@@ -1,0 +1,5 @@
+$ deduxit prove --logic classical --method tableau --format json 'a /\ b |- b'
+--- status 0
+--- stdout
+{"version":14,"deduxit":"…","verdict":"valid","logic":"classical","search":{"method":"tableau","tableau":{"sequent":{"formulas":[{"V":0},{"V":1},{"∧":[0,1]},"⊥"],"atoms":["a","b"],"left":[2],"right":[1]},"nodes":[{"lines":[["T",2],["F",1]],"expands":[0,"∧L"],"children":[1]},{"lines":[["T",0],["T",1]],"end":{"kind":"closed","true_line":3,"false_line":1}}]}},"derivation":{"logic":"classical","sequent":{"formulas":[{"V":0},{"V":1},{"∧":[0,1]},"⊥"],"atoms":["a","b"],"left":[2],"right":[1]},"inferences":[{"left":[1],"right":[1],"rule":"ax"},{"left":[0,1],"right":[1],"rule":"WL","principal":["left",0],"premises":[0]},{"left":[2],"right":[1],"rule":"∧L","principal":["left",0],"premises":[1]}]}}
+--- stderr

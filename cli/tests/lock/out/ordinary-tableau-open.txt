@@ -1,0 +1,17 @@
+$ deduxit prove --logic classical --method tableau --stats 'a -> b |- b -> a'
+--- status 1
+--- stdout
+not valid (classical logic by a tableau): an open branch gives a checked countermodel
+1  T a → b
+2  F b → a
+3  T b      →R 2
+4  F a      →R 2
+├─ 5  F a   →L 1
+│  open
+└─ 6  T b   →L 1
+   open
+world 0 (the model's world): forces b
+lines: 6
+branches: 2
+time: …
+--- stderr

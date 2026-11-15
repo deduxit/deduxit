@@ -69,14 +69,16 @@ Logic:
           - 01:     Liang and Miller's 0/1 translation into ILL, as the LLTP library states it
 
       --method <METHOD>
-          With --logic, how to decide the sequent: through its embedding into linear logic, by LJT or by a SAT solver (ordinary.method)
+          With --logic, how to decide the sequent: through its embedding into linear logic, by LJT, by a SAT solver, by its truth table or by a tableau (ordinary.method)
           
-          By default every logic is decided by the SAT solver: intuitionistic and minimal logic with LJT's derivation where LJT gives one, and classical logic with the embedding's output (its derivation of LK, refutation and certificate) where the embedding decides within a short bound of work. LJT is Dyckhoff's calculus for intuitionistic and minimal logic. The SAT solver decides every logic; a valid classical sequent gets a checked clausal proof and no derivation. --translation and --linear name the embedding, so either of them alone decides through it. Under LJT or the SAT solver, --stats prints the method's counters. Under every method --format json writes the outcome of the ordinary sequent, its "search" tagged by "method".
+          By default every logic is decided by the SAT solver: intuitionistic and minimal logic with LJT's derivation where LJT gives one, and classical logic with the embedding's output (its derivation of LK, refutation and certificate) where the embedding decides within a short bound of work. LJT is Dyckhoff's calculus for intuitionistic and minimal logic. The SAT solver decides every logic; a valid classical sequent gets a checked clausal proof and no derivation. --translation and --linear name the embedding, so either of them alone decides through it. The truth table and the tableau decide classical logic, and print the table or the tableau in place of a derivation: the table's rows that falsify the sequent marked `×`, the tableau's lines numbered, each branch closed with `×` or left open. --table-atoms bounds the table. Under LJT, the SAT solver, the table and the tableau, --stats prints the method's counters. Under every method --format json writes the outcome of the ordinary sequent, its "search" tagged by "method".
 
           Possible values:
           - embedding: Through its translation into linear logic, the proof read back as LK or LJ
           - ljt:       By Dyckhoff's calculus LJT, whose search always ends, for intuitionistic and minimal logic
           - sat:       By a SAT solver, whose search always ends, for every logic; a valid classical sequent gets a checked clausal proof and no derivation
+          - table:     By its truth table, for classical logic: every assignment of its atoms, within --table-atoms
+          - tableau:   By a signed tableau, for classical logic: a closed tableau is a checked derivation of LK, an open branch a checked countermodel
 
 Input:
   -f, --file <PATH>
@@ -431,6 +433,13 @@ Limits:
           A derivation writes out the whole sequent at every inference, and repeats every subproof that the proof shares, so it can be larger than the proof by any factor. A derivation estimated above the limit is not built, in any format. The verdict is reported without it, with a line that says how large it is, and the exit status is the verdict's. `--format json` writes the proof itself at any size. The drawing of a proof net (`--net`) is estimated before it is drawn, and left out above the same limit.
           
           [default: 64MiB]
+
+      --table-atoms <N>
+          The most atoms a truth table may have, or `none` (limits.table_atoms)
+          
+          The rows double with each atom, so `--method table` refuses a sequent of more atoms (exit status 2) unless this is raised.
+          
+          [default: 10]
 
 Batch:
       --files-from <LIST>

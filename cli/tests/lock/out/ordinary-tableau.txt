@@ -1,0 +1,22 @@
+$ deduxit prove --logic classical --method tableau 'p \/ q, p -> r, q -> r |- r'
+--- status 0
+--- stdout
+valid (classical logic by a tableau): every branch closes, a checked derivation of LK
+1  T p ∨ q
+2  T p → r
+3  T q → r
+4  F r
+├─ 5  T p         ∨L 1
+│  ├─ 6  F p      →L 2
+│  │  × 5, 6
+│  └─ 7  T r      →L 2
+│     × 7, 4
+└─ 8  T q         ∨L 1
+   ├─ 9  F p      →L 2
+   │  ├─ 10  F q  →L 3
+   │  │  × 8, 10
+   │  └─ 11  T r  →L 3
+   │     × 11, 4
+   └─ 12  T r     →L 2
+      × 12, 4
+--- stderr

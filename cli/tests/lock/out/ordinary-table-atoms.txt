@@ -1,0 +1,5 @@
+$ deduxit prove --logic classical --method table --table-atoms 1 'a |- b'
+--- status 2
+--- stdout
+--- stderr
+error: the truth table of 2 atoms would have 2^2 rows, more than the limit of 1 atom allows; raise the limit with --table-atoms, or decide the sequent by another method (--method tableau)

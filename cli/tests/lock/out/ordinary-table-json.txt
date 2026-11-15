@@ -1,0 +1,5 @@
+$ deduxit prove --logic classical --method table --format json '|- a \/ ~a'
+--- status 0
+--- stdout
+{"version":14,"deduxit":"…","verdict":"valid","logic":"classical","search":{"method":"table","table":{"sequent":{"formulas":[{"V":0},{"¬":0},{"∨":[0,1]}],"atoms":["a"],"left":[],"right":[2]},"rows":["TFT","FTT"],"falsifying":[]}}}
+--- stderr
