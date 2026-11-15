@@ -570,6 +570,60 @@ clausal proof's checker are the trust for "valid"; `Model::refutes` for
   outcome does not bear out. 55b's countermodel is a key beside
   `derivation` for `not_valid`, read the same way.
 
+## Truth tables and tableaux (`table.rs`, `tableau.rs`)
+
+The methods `Method::Table` and `Method::Tableau` (behind `interactive`),
+classical logic only (`Error::Logic`, which names the method).
+
+- **The truth table** (`truth_table`, `TruthTable`): a bit per row and
+  formula of the sequent's arena, rows from every atom true to every
+  atom false (the first atom slowest, `assigns`), the falsifying rows
+  those where every hypothesis is true and every formula right of `⊢`
+  false. Refused past `limits.table_atoms` (`Refusal::Atoms`,
+  `DEFAULT_TABLE_ATOMS` 10: 1024 rows, about what a reader scans), past
+  `limits.memory_bytes` (the bits), past `limits.work` (a row a unit),
+  and where the cells pass a `usize` (`Refusal::Index`). A "not valid"
+  is the first falsifying row as a one-world countermodel through
+  `Countermodel::found`; a "valid" is `Evidence::Table`, which has no
+  derivation (`NoDerivation`, its `evidence` "its truth table").
+- **The tableau is LK upside down** (the brief's design): `Tableau::of`
+  reads any derivation of LK, its structural rules skipped, an
+  inference on a formula an expansion of that formula's line, an axiom,
+  `⊥L` and `⊤R` closed branches, an open goal `End::Open` (finished:
+  `next_step` has nothing) or `End::Unexpanded`. A node's lines are what
+  the premise has beyond the conclusion counted as a multiset, so an
+  expansion's results are written even where the branch has them (as a
+  textbook writes them) and a contraction adds nothing. Nodes and lines
+  are numbered in preorder, the first premise first.
+- **The method builds the tableau in the goal state**
+  (`tableau::decide`): `next_step` takes a closing rule where one
+  applies (axiom, `⊥L`, `⊤R`), else the first formula of a one-premise
+  rule (Smullyan's α: `∧L`, `¬L`, `↔L`, `∨R`, `→R`, `¬R`, the left side
+  first), else of a two-premise one (β: `∨L`, `→L`, `∧R`, `↔R`); `⊤`
+  true and `⊥` false are left as they are. Every step goes through
+  `Interactive::apply`, so every inference is checked by
+  `check_inference`; a closed state's derivation is `finished` (checked
+  whole) and is the evidence; an open state's derivation (open goals
+  as `Rule::Open`) gives the tableau, and the first open goal's true
+  atoms the countermodel, checked by `Countermodel::found`. A step is a
+  unit of `limits.work`, and the stop is asked once per step. It ends:
+  every rule takes a formula apart and the goal state keeps no
+  principal formula (G3c's invertible rules).
+- **Why not a view of the decided outcome's derivation alone**: a "not
+  valid" has no derivation, and the SAT solver's classical "valid" has a
+  clausal proof; a tableau of the embedding's read-back would also
+  follow the linear search's order, not a tableau's. The method builds
+  its own LK derivation and `Tableau::of` stays the view of any
+  derivation of LK.
+- **Their JSON** (wire level 14, `serialize/ordinary.rs`): `TableForm`
+  (rows as `T`/`F` strings over the form's formulas; the reader
+  computes the table again and refuses a row or a falsifying list that
+  differs) and `TableauForm` (nodes with `lines`, `expands`,
+  `children`, `end`; the reader checks the tree's shape, a child after
+  its parent and the child of one node, every line index in range, a
+  node with children expanding a line and a leaf with an end, not the
+  expansions).
+
 ## The goal state (`interactive.rs`)
 
 A native state of ordinary sequents, not a session over the image: the

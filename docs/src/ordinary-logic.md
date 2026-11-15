@@ -98,6 +98,9 @@ sequent with nothing on the left.
   the certificates that the SAT solver does not give.
 - `ljt` is Dyckhoff's calculus LJT, for intuitionistic and minimal logic.
   Its search always ends too.
+- `table` and `tableau`, for classical logic, decide the sequent by its
+  truth table or by a tableau, as a first logic course does, and print
+  the table or the tableau ([Truth tables and tableaux](#truth-tables-and-tableaux)).
 
 ```console
 $ deduxit prove --logic classical --method sat -q '((a -> b) -> a) -> a'
@@ -273,6 +276,89 @@ Proof.
   vm_compute. reflexivity.
 Qed.
 ```
+
+## Truth tables and tableaux
+
+For classical logic, `--method table` and `--method tableau` decide a
+sequent the way a first logic course does, and print the table or the
+tableau in place of a derivation.
+
+The truth table has a row for every assignment of the atoms, from all
+true to all false. A row marked `×` makes every formula left of `|-`
+true and every formula right of it false, so it falsifies the sequent:
+
+```console
+$ deduxit prove --logic classical --method table 'a -> b |- b -> a'; echo "exit $?"
+not valid (classical logic by its truth table): 1 of its 4 rows falsifies it, a checked countermodel
+a  b  │  a → b  ⊢  b → a
+T  T  │    T         T
+T  F  │    F         T
+F  T  │    T         F    ×
+F  F  │    T         T
+world 0 (the model's world): forces b
+exit 1
+```
+
+The rows double with each atom, so `--method table` refuses a sequent
+of more than 10 atoms. `--table-atoms N` raises the bound (the settings
+key `limits.table_atoms`), and `none` lifts it.
+
+A tableau marks each formula `T` (true) or `F` (false). It starts from
+the sequent, its hypotheses true and the formulas right of `|-` false,
+and expands one formula at a time: a true `p ∨ q` splits the branch in
+two, one where `p` is true and one where `q` is. A branch closes, `×`,
+where a formula is both true and false, `⊥` true or `⊤` false. Each line
+names the rule of LK that made it and the line it expands:
+
+```console
+$ deduxit prove --logic classical --method tableau 'p \/ q, p -> r, q -> r |- r'
+valid (classical logic by a tableau): every branch closes, a checked derivation of LK
+1  T p ∨ q
+2  T p → r
+3  T q → r
+4  F r
+├─ 5  T p         ∨L 1
+│  ├─ 6  F p      →L 2
+│  │  × 5, 6
+│  └─ 7  T r      →L 2
+│     × 7, 4
+└─ 8  T q         ∨L 1
+   ├─ 9  F p      →L 2
+   │  ├─ 10  F q  →L 3
+   │  │  × 8, 10
+   │  └─ 11  T r  →L 3
+   │     × 11, 4
+   └─ 12  T r     →L 2
+      × 12, 4
+```
+
+A closed tableau is a derivation of LK read upside down: a branch is a
+goal, its `T` formulas left of `⊢` and its `F` formulas right. deduxit
+builds it step by step, checks every step by the rules of LK, and checks
+the finished derivation, which `--format latex` and the other drawn
+formats draw. A branch left open, with nothing more to expand, gives an
+assignment that falsifies the sequent: its true atoms are those the
+countermodel forces.
+
+```console
+$ deduxit prove --logic classical --method tableau 'a -> b |- b -> a'
+not valid (classical logic by a tableau): an open branch gives a checked countermodel
+1  T a → b
+2  F b → a
+3  T b      →R 2
+4  F a      →R 2
+├─ 5  F a   →L 1
+│  open
+└─ 6  T b   →L 1
+   open
+world 0 (the model's world): forces b
+```
+
+With `--format json`, the outcome holds the table or the tableau under
+`search` (wire level 14): the table's rows as a `T` or `F` per formula of
+its sequent's form, and the tableau's nodes, each before its children,
+with its signed lines and either the line it expands or how its branch
+ends.
 
 ## Draw the derivation
 

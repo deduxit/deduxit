@@ -87,7 +87,7 @@ of those names),
 `simple`, the printer `print`),
 `ordinary` (the arena and syntax in `mod.rs`, `parse` behind the
 feature of that name, `translate`, `derivation` with the read-back and
-its checker, the native engine `ljt`, the SAT engine `sat` behind that feature, the check of a Kripke model `model`, `rocq` behind that feature, `interactive` behind that
+its checker, the native engine `ljt`, the SAT engine `sat` behind that feature, the check of a Kripke model `model`, the truth table `table`, the signed tableau `tableau` behind `interactive`, `rocq` behind that feature, `interactive` behind that
 feature), `kripke` (the shared Kripke model), and `lltp`, `mist` and
 `families` behind `parse`. Users write `deduxit::linear::Sequent`,
 `deduxit::linear::Proof`, `deduxit::linear::prove`, `deduxit::Error`,
@@ -137,7 +137,8 @@ Each entry point is described in the file of its module:
   the native engine, `ordinary::sat::decide` (feature `sat`) the SAT
   engine with its checked `Model`, `export::rocq::ordinary`, and the goal state
   `ordinary::Interactive` (`within`, `rules`, `apply`, `undo`, `close`,
-  `hint`, `derivation_within`, `finished`) (`core-ordinary.md`);
+  `hint`, `derivation_within`, `finished`), `ordinary::truth_table` and
+  `Tableau::of` (`core-ordinary.md`);
 - `lambda`: `Derivation::term(&limits, stop)` and
   `ordinary::Derivation::term` to a `lambda::Term`,
   `Term::write`/`write_judgement` under `lambda::Options`, and
@@ -348,7 +349,8 @@ the commit that lands it rewrites that bullet.
   step 54s); `ordinary::ljt::{Outcome,
   Statistics}` (added at step 54); `ordinary::sat::{Outcome,
   Statistics}` (added at step 54s); `kripke::{Model, World}`,
-  `ordinary::Countermodel` (added at step 55b); `proofs::{ClassicalRule,
+  `ordinary::Countermodel` (added at step 55b);
+  `ordinary::{End, Sign, Signed}` (added at step 56a); `proofs::{ClassicalRule,
   ClassicalSides, Compact, Dyadic, Fault, Invalid, Labels, OpenGoal,
   Refused, Sides, TextOptions}`;
   `proofs::interactive::{Applicable, Closed, Inverted, Needs, Options,

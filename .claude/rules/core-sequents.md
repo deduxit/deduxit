@@ -374,7 +374,12 @@ no release read it; level 13 (`wire::KRIPKE`, `serialize/kripke.rs`)
 is the Kripke model, a document of its own, which refuses a key it
 does not know (`StrictModel`, `deny_unknown_fields`: a model is written
 by hand, and a misspelt `arrows` read as no arrows), while the nested
-form (`ModelForm`) ignores one as every data form does; the outcome's
+form (`ModelForm`) ignores one as every data form does; level 14
+(`wire::TABLES`) is the truth table and the tableau, documents of their
+own and the `search` of an outcome of the methods `table` and `tableau`,
+which is written at 14 (a reader of 12 refuses the unknown method by
+name; the other outcomes stay at 12); a table is read by computing it
+again and comparing, a tableau by its shape and indices; the outcome's
 `countermodel` (`{"sequent", "model"}`) raises no level (a reader of 12
 ignores it without misreading the verdict), so the outcome stays at 12; its
 names checked and composed as every reader's are, its size within

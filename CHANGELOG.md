@@ -59,7 +59,12 @@ second number (0.1.x to 0.2.0), anything else the third.
   `Evidence::Clausal` with a checked clausal proof. Match
   `Verdict::Valid(Evidence::Derivation(derivation))`, or call
   `evidence.derivation()`, which refuses a clausal proof with the new
-  `Error::NoDerivation` (code `no_derivation`).
+  `Error::NoDerivation` (code `no_derivation`; its field `evidence`
+  names what the sequent is valid by).
+- **`Error::Logic` names the method** that does not decide the logic,
+  in its new field `method`: LJT for classical logic, as before, and the
+  truth table and the tableau for intuitionistic and minimal logic.
+  A pattern that names its fields adds `method` or `..`.
 
 ### Changed
 
@@ -117,6 +122,24 @@ unchanged.
 
 ### Added
 
+- **Truth tables and tableaux, the methods of a first logic course**,
+  for classical logic: `prove --logic classical --method table` prints
+  the sequent's truth table, its falsifying rows marked, and `--method
+  tableau` a signed tableau (`T` true, `F` false) with numbered lines,
+  each naming the rule of LK and the line it expands, and each branch
+  closed (`×`) or open. A closed tableau is a derivation of LK built
+  step by step in the goal state and checked whole; an open branch and
+  the first falsifying row give a checked countermodel. The table is
+  bounded by the new `Limits::table_atoms` (10 atoms, 1024 rows, by
+  default; `--table-atoms N|none`), refused past it with
+  `Refusal::Atoms` (code `too_many_atoms`). In the library:
+  `ordinary::Method::Table` and `Method::Tableau`, `ordinary::truth_table`
+  and `TruthTable`, `ordinary::Tableau` (`Tableau::of` reads any
+  derivation of LK as one) with `TableauNode`, `Sign`, `Signed` and
+  `End`, `ordinary::Search::Table` and `Search::Tableau`, and
+  `ordinary::Evidence::Table`. The bindings' `ordinary_table` and
+  `ordinary_tableau` answer either method's outcome, and `about` lists
+  them as the ordinary suite's methods.
 - **A "not valid" comes with its Kripke countermodel**: the SAT solver's
   model in every logic, and in classical logic the embedding's
   assignment as a model of one world, checked before the verdict.
@@ -289,6 +312,13 @@ unchanged.
   know (a model is often written by hand). An ordinary outcome holds one
   under `countermodel` and stays at level 12: a reader of level 12
   ignores the key without misreading the verdict.
+- Level 14 adds the truth table, `{"sequent", "rows": ["TFT…"],
+  "falsifying": […]}`, and the tableau, `{"sequent", "nodes":
+  [{"lines": [["T", formula]], "expands": [line, rule], "children":
+  […]} | {"lines", "end": {"kind": …}}]}`, as documents and as the
+  `search` of an ordinary outcome of the methods `table` and `tableau`,
+  which is written at level 14. Reading a table computes it again from
+  its sequent; reading a tableau checks its shape and indices.
 
 ## [0.3.0] - 2026-11-09
 

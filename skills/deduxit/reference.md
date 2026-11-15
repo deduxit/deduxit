@@ -1041,16 +1041,51 @@ cuts than LJT's.
 - `--stats` prints `solver calls`, `conflicts`, `lemmas`, `worlds`,
   `facts derived`, `clauses` and `proof steps`.
 
+`table` and `tableau` decide classical logic only (exit status 2 for
+another), and print the table or the tableau in place of a derivation:
+
+- `table` evaluates every row, from all atoms true to all false; a row
+  that falsifies the sequent ends with `×`, and the first is the
+  countermodel. More atoms than `--table-atoms` (10 by default,
+  `limits.table_atoms`, `none` lifts it) are refused, exit status 2.
+  `--stats` prints `rows` and `falsifying rows`.
+- `tableau` builds a signed tableau (`T` true, `F` false) step by step,
+  each step checked as a rule of LK: a line per signed formula, numbered
+  from 1, with the rule and the line it expands; `├─` and `└─` start the
+  two branches of a split, `× i, j` closes a branch by a formula true at
+  line `i` and false at line `j`, `open` marks a branch with nothing left
+  to expand. A closed tableau is a checked derivation of LK, which the
+  drawn formats draw; an open branch gives a checked countermodel.
+  `--stats` prints `lines` and `branches`.
+
+```console
+$ deduxit prove --logic classical --method tableau 'a /\ b |- b /\ a'
+valid (classical logic by a tableau): every branch closes, a checked derivation of LK
+1  T a ∧ b
+2  F b ∧ a
+3  T a      ∧L 1
+4  T b      ∧L 1
+├─ 5  F b   ∧R 2
+│  × 4, 5
+└─ 6  F a   ∧R 2
+   × 3, 6
+```
+
 ### JSON
 
 Every method's `--format json` is the outcome of the ordinary sequent,
-at wire level 12: `{"version": 12, "deduxit": …, "verdict":
+at wire level 12 (14 for `table` and `tableau`): `{"version": 12, "deduxit": …, "verdict":
 "valid"|"not_valid"|"unknown", "reason": …, "logic": …, "search": {…},
 "derivation": …}`. `search` is tagged by `method`: `{"method": "ljt",
 "statistics": {"sequents", "memo_hits", "memo_entries", "subsumed"}}`,
 `{"method": "sat", "statistics": {"calls", "conflicts", "lemmas",
-"worlds", "facts", "clauses", "proof_steps", "ljt"}}`, or `{"method":
-"embedding", "translation": …, "image": {…}}`, the image's outcome as
+"worlds", "facts", "clauses", "proof_steps", "ljt"}}`, `{"method":
+"table", "table": {"sequent", "rows": ["TFT…"], "falsifying": [row]}}`
+(a `T` or `F` per formula of the sequent's form), `{"method": "tableau",
+"tableau": {"sequent", "nodes": [{"lines": [["T", formula]], "expands":
+[line, rule], "children": [node]} | {"lines", "end": {"kind":
+"closed", "true_line", "false_line"} | {"kind": "open"} | …}]}}`, or
+`{"method": "embedding", "translation": …, "image": {…}}`, the image's outcome as
 `prove` writes it without `--logic` (no `version` of its own). A valid
 sequent has its `derivation`; a classical one valid by the SAT solver
 `"clausal_proof": {"variables", "clauses", "steps"}` in its place; one
@@ -1385,12 +1420,25 @@ occurrences by id, and `describe(&forest)` names them by formula.
   only at a bound or the stop. Its derivation is LJ's with cuts, checked
   like any other.
 - A valid verdict holds its evidence, `ordinary::Verdict::Valid(evidence)`:
-  `ordinary::Evidence::Derivation`, a checked derivation of LK or LJ, or
-  `ordinary::Evidence::Clausal`, a checked clausal proof.
-  `evidence.derivation()` returns the derivation an export or a
-  lambda-term needs, or `Error::NoDerivation` (code `no_derivation`) for
-  a clausal proof and `Error::NotBuilt` (code `not_built`) for
+  `ordinary::Evidence::Derivation`, a checked derivation of LK or LJ,
+  `ordinary::Evidence::Clausal`, a checked clausal proof, or
+  `ordinary::Evidence::Table`, a truth table no row of which falsifies
+  the sequent. `evidence.derivation()` returns the derivation an export
+  or a lambda-term needs, or `Error::NoDerivation` (code
+  `no_derivation`) for a clausal proof or a table and `Error::NotBuilt` (code `not_built`) for
   `ordinary::Evidence::Image`, the image's proof alone.
+- `ordinary::Method::Table` and `ordinary::Method::Tableau` decide
+  classical logic. `ordinary::truth_table(&sequent, &limits, stop)`
+  makes the `ordinary::TruthTable` (its `rows`, each formula's `value`,
+  the `falsifying` rows), refused past `limits.table_atoms` with
+  `Refusal::Atoms` (code `too_many_atoms`); a valid sequent's evidence is
+  `ordinary::Evidence::Table`. `ordinary::Tableau::of(&derivation,
+  stop)` reads a derivation of LK as a signed tableau (its `nodes`, each
+  with its `lines`, `expands`, `children` and `end`); the method builds
+  one in the goal state, so a closed tableau's evidence is its checked
+  derivation, and an open branch gives the countermodel. Both are in
+  `outcome.search` (`ordinary::Search::Table`,
+  `ordinary::Search::Tableau`).
 - `ordinary::sat::decide(&sequent, logic, &limits, stop)` (feature
   `sat`, `ordinary::Method::Sat`) decides by a SAT solver. In classical
   logic a valid sequent's evidence is the solver's clausal proof

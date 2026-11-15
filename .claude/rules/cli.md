@@ -185,6 +185,22 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   prints the image (two-sided for ILL). In a batch the logic applies to
   every entry, `lines` being ordinary sequents, and JSON and LLTP inputs
   refused per entry.
+  **The truth table and the tableau** (`--method table|tableau`,
+  classical logic, through `decide_natively`, which calls
+  `ordinary::decide_within` for them): `write_native` writes the table's
+  or the tableau's text (the library's `Display`) in place of a
+  derivation under `--format text` (not under `-q` or `--tree never`),
+  the verdict line from `native_verdict_line` (`no row falsifies it`,
+  `every branch closes, a checked derivation of LK`, `N of its M rows
+  falsify it`, `an open branch gives a checked countermodel`), the
+  countermodel after it; the drawn formats draw a closed tableau's
+  derivation and refuse a table's (`NoDerivation`, a left-out line).
+  `--table-atoms N|none` (`limits.table_atoms`, on `prove`) bounds the
+  table; past it the error names the flag (`Refusal::Atoms`). A stop
+  during either is an unknown line of its own: they ask the stop as
+  they go, where LJT and the SAT solver ask it after their search.
+  `check` of a table's valid outcome is `valid truth table …`
+  (`checked_table`): the reader computed the table again.
   **The method** (`--method embedding|ljt|sat`, `ordinary.method`, on
   `prove` only; `settings::ordinary` sets the embedding where `--linear`
   is given and no method, and `method_given` refuses `--translation` or

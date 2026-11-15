@@ -272,7 +272,12 @@ for `THIRD-PARTY-NOTICES.txt`.
   world, settings)` checks a Kripke model the page gives (the library's
   `Model::forcing`): `{"holds", "failing": {"world", "forcing":
   [{"formula", "forced"}]}}`, a model of another logic a failure of
-  code `invalid_model` (kind invalid); "every world" is
+  code `invalid_model` (kind invalid). `ordinary_table(sequent,
+  settings)` and `ordinary_tableau(sequent, settings)` answer the
+  outcome of those methods (`ordinary::decide_within` with the method
+  named, classical logic), which 56b's page draws; `about` lists them
+  under the ordinary suite's `methods` (`method`, `call`, `logics`) and
+  `limits.table_atoms` among its settings. "Every world" is
   `Forcing::failing_anywhere`, linear. `tests/ordinary.rs` holds their tests.
 - **A countermodel on the page** (`ordinary_close`, `ordinary_hint`):
   a session decides a goal through the embedding, which has no Kripke
