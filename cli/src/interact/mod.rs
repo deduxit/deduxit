@@ -27,6 +27,8 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 mod ordinary;
+/// `interact --calculus`: a session in a calculus given as data.
+mod rules;
 
 /// The commands, as `help` prints them.
 const HELP: &str = "\
@@ -79,9 +81,13 @@ pub(crate) fn interact(args: &InteractArgs, given: &Given) -> Result<Status> {
     if args.logic.logic.is_some() {
         return ordinary::interact(args, settings, None);
     }
+    if args.calculus.is_some() && saved.is_none() {
+        return rules::interact(args, settings, None);
+    }
     let state = match saved {
         Some(Saved::Linear(state)) => *state,
         Some(Saved::Ordinary(state)) => return ordinary::interact(args, settings, Some(*state)),
+        Some(Saved::Rules(state)) => return rules::interact(args, settings, Some(*state)),
         None => {
             no_standard_input(args)?;
             let sequent =
@@ -244,6 +250,8 @@ enum Saved {
     Linear(Box<Interactive>),
     /// A session of LK or LJ.
     Ordinary(Box<deduxit::ordinary::Interactive>),
+    /// A session in a calculus given as data.
+    Rules(Box<deduxit::rules::Interactive>),
 }
 
 /// Reads a session from a JSON file, its sequent within
@@ -256,12 +264,19 @@ fn load(path: &Path, limits: &Limits) -> Result<Saved> {
     struct Probe {
         /// The session's logic.
         logic: Option<serde::de::IgnoredAny>,
+        /// The rule file of a session in a calculus given as data.
+        calculus: Option<serde::de::IgnoredAny>,
     }
     let text = io::read(Some(path), "session", limits.memory_bytes)?;
     let mut document = serde_json::Deserializer::from_str(&text);
     let not = || format!("{} is not a saved session", path.display());
-    let ordinary = serde_json::from_str::<Probe>(&text).is_ok_and(|probe| probe.logic.is_some());
-    let read = if ordinary {
+    let probe = serde_json::from_str::<Probe>(&text).ok();
+    let ordinary = probe.as_ref().is_some_and(|probe| probe.logic.is_some());
+    let rules = probe.as_ref().is_some_and(|probe| probe.calculus.is_some());
+    let read = if rules {
+        deduxit::wire::upgrade::<deduxit::rules::Interactive, _>(&mut document, limits)
+            .map(|session| Saved::Rules(Box::new(session)))
+    } else if ordinary {
         deduxit::wire::upgrade::<deduxit::ordinary::Interactive, _>(&mut document, limits)
             .map(|session| Saved::Ordinary(Box::new(session)))
     } else {
@@ -601,9 +616,10 @@ impl Session {
                 };
                 let state = match load(Path::new(path), &self.limits)? {
                     Saved::Linear(state) => *state,
-                    Saved::Ordinary(_) => bail!(
-                        "{path} holds a session of LK or LJ; `load` resumes one of this sequent, \
-                         and `deduxit interact --state {path}` starts that one"
+                    Saved::Ordinary(_) | Saved::Rules(_) => bail!(
+                        "{path} holds a session of LK or LJ or of a calculus given as data; \
+                         `load` resumes one of this sequent, and `deduxit interact --state \
+                         {path}` starts that one"
                     ),
                 };
                 // The exit status answers for the session's sequent and

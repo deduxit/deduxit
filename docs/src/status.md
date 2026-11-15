@@ -338,8 +338,9 @@ in use.
   formulas a tableau, and sorts for labels a labelled modal calculus.
   LK, LJ, minimal logic's calculus, one-sided linear logic and signed
   tableaux are built in; derivations of LK and LJ and the tableaux of
-  ordinary logic agree with their own checkers. Building such a
-  derivation step by step, and the web page, are planned.
+  ordinary logic agree with their own checkers. `interact --calculus`
+  builds such a derivation step by step, each step checked, what the
+  goal leaves open asked for by name; the web page is planned.
 - The unpublished crate `deduxit-web` in `web/` compiles the library to
   WebAssembly for a web page. Its calls take JSON and give JSON or SVG:
   a sequent read, a proof step by step, a goal closed by the search

@@ -1,7 +1,8 @@
 # Check a derivation in your own rules
 
-`deduxit check` also checks a derivation against rules you give: a
-calculus written as a JSON rule file. You write the rules once, as a
+`deduxit check` also checks a derivation against rules you give, and
+`deduxit interact` builds one step by step: the rules are a calculus
+written as a JSON rule file. You write the rules once, as a
 textbook states them, and every derivation in them is checked step by
 step. The verdict reads "valid in the calculus given": the derivation
 keeps to your rules, and nothing checks that the rules are sound.
@@ -105,6 +106,100 @@ a closed subproof cannot be used outside it, which is what the last
 derivation above does. A hypothesis in the outermost scope stays an assumption: the verdict
 then says from how many assumptions the derivation shows its
 conclusion.
+
+## Build a derivation step by step
+
+`deduxit interact --calculus` builds a derivation from its conclusion
+up, one rule at a time, in a built-in calculus or one of your own. Give
+it the sequent, written with the calculus's connectives (`->` reads as
+`→`, `/\` as `∧`, `|-` as `⊢` where the calculus has them), and type
+commands on standard input. `rules` lists the rules that apply to a
+goal and the members they act on, each member numbered across the
+zones; `apply` applies one backwards:
+
+```console
+$ deduxit interact --calculus LK "a /\ b |- b /\ a"
+> rules 0
+WL at 0
+WR at 1
+CL at 0
+CR at 1
+∧L at 0
+∧L₁ at 0
+∧L₂ at 0
+∧R at 1
+∧R split at 1, needs Γ′, Δ′
+> apply 0 ∧R 1
+opened goal 1: 0: a ∧ b ⊢ 1: b
+opened goal 2: 0: a ∧ b ⊢ 1: a
+> apply 1 ∧L₂ 0
+opened goal 3: 0: b ⊢ 1: b
+> apply 2 ∧L₁ 0
+opened goal 4: 0: a ⊢ 1: a
+> apply 3 ax
+closed
+> apply 4 ax
+closed; no goal is open: `proof` checks the proof
+> proof
+valid in the calculus given (LK): a ∧ b ⊢ b ∧ a
+  0. b ⊢ b    ax
+  1. a ∧ b ⊢ b    ∧L₂ 0
+  2. a ⊢ a    ax
+  3. a ∧ b ⊢ a    ∧L₁ 2
+  4. a ∧ b ⊢ b ∧ a    ∧R 1, 3
+```
+
+The calculus's checker checks each step before the session takes it,
+so a step the rules do not allow is refused with the reason, and the
+goal stays open. `undo` takes back the last step, `show` lists the
+derivation so far, `save FILE` and `--state FILE` keep a session, and
+`help` lists every command.
+
+What the goal does not determine is asked for by name. `∧R split` above
+needs `Γ′` and `Δ′`, the parts of the context that go to the second
+premise. In natural deduction, `→E` concludes `B` from `A → B` and `A`,
+and the goal `B` says nothing of `A`: give it as `NAME=TEXT`. `--assume`
+gives hypotheses the derivation may use, and `assume G` closes a goal
+by a hypothesis in force:
+
+```console
+$ cat > nj.json
+> {"version": 15, "name": "NJ",
+>  "connectives": [{"name": "→", "arity": 2, "associativity": "right"},
+>                  {"name": "∧", "arity": 2, "precedence": 1}],
+>  "sequent": [{"name": "formula", "discipline": "multiset", "least": 1, "most": 1}],
+>  "variables": {"formula": ["A", "B"]},
+>  "rules": [
+>   {"name": "→I", "premises": [{"formula": ["B"], "discharges": [{"formula": ["A"]}]}],
+>    "conclusion": {"formula": [["→", "A", "B"]]}},
+>   {"name": "→E", "premises": [{"formula": [["→", "A", "B"]]}, {"formula": ["A"]}],
+>    "conclusion": {"formula": ["B"]}},
+>   {"name": "∧I", "premises": [{"formula": ["A"]}, {"formula": ["B"]}],
+>    "conclusion": {"formula": [["∧", "A", "B"]]}}]}
+$ deduxit interact --calculus nj.json --assume "a -> b" --assume a b
+> apply 0 →E
+error: the step needs A given: what the goal leaves open
+> apply 0 →E A=a
+opened goal 1: 0: a → b
+    hypotheses: a → b; a
+opened goal 2: 0: a
+    hypotheses: a → b; a
+> assume 1
+closed
+> assume 2
+closed; no goal is open: `proof` checks the proof
+> proof
+valid in the calculus given (NJ): b
+  0. a → b    hypothesis
+  1. a    hypothesis
+  2. b    →E 0, 1
+```
+
+A rule that discharges opens a scope for its premise: the hypotheses
+it discharges are in force there and nowhere else. A variable the rule
+asks to be new (`fresh`) gets a new atom when it is not given. The
+session's exit status is 0 when it ends with a finished derivation that
+checks, and 1 otherwise.
 
 ## The rule file
 

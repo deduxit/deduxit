@@ -291,9 +291,10 @@ impl Commands for Session {
                 };
                 let state = match load(Path::new(path), &self.limits)? {
                     Saved::Ordinary(state) => *state,
-                    Saved::Linear(_) => bail!(
-                        "{path} holds a session of linear logic; `load` resumes one of this \
-                         sequent, and `deduxit interact --state {path}` starts that one"
+                    Saved::Linear(_) | Saved::Rules(_) => bail!(
+                        "{path} holds a session of linear logic or of a calculus given as \
+                         data; `load` resumes one of this sequent, and `deduxit interact \
+                         --state {path}` starts that one"
                     ),
                 };
                 // The exit status answers for the session's sequent and

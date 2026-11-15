@@ -765,9 +765,25 @@ pub(crate) struct InteractArgs {
         help_heading = INPUT,
         long,
         value_name = "PATH",
-        conflicts_with_all = ["sequent", "file", "intuitionistic", "affine", "mix", "logic"]
+        conflicts_with_all = ["sequent", "file", "intuitionistic", "affine", "mix", "logic", "calculus", "assume"]
     )]
     pub(crate) state: Option<PathBuf>,
+    /// Prove in a calculus given as data: a rule file, or LK, LJ, LM, LL
+    /// or tableau, the ones built in
+    ///
+    /// The sequent is then written in the calculus's own syntax, its
+    /// connectives by their symbols or names (`->` reads as `→`, `/\` as
+    /// `∧`, `|-` as `⊢` where the calculus has them), and the session's
+    /// commands apply its rules backwards. Each step is checked by the
+    /// calculus's checker, and the finished derivation is "valid in the
+    /// calculus given": the derivation keeps to the rules, which nothing
+    /// checks for soundness. See `check --calculus`.
+    #[arg(help_heading = LOGIC, long, value_name = "CALCULUS", conflicts_with_all = ["logic", "intuitionistic", "affine", "mix"])]
+    pub(crate) calculus: Option<PathBuf>,
+    /// With --calculus, a hypothesis the derivation may use and leave
+    /// undischarged, a sequent of the calculus; repeat it for more
+    #[arg(help_heading = LOGIC, long, value_name = "SEQUENT", requires = "calculus")]
+    pub(crate) assume: Vec<String>,
     /// The logic.
     #[command(flatten)]
     pub(crate) mode: ModeArgs,

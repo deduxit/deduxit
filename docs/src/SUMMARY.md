@@ -9,6 +9,7 @@
 - [Avoid the common mistakes](mistakes.md)
 - [Check a proof or a refutation](check.md)
 - [Check a derivation in your own rules](rules.md)
+- [Write rules as hypotheses](theories.md)
 - [Export a proof](output-formats.md)
 - [Check a certificate in Rocq](rocq.md)
 - [Prove step by step](interactive.md)

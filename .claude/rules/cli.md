@@ -282,6 +282,20 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   `--net`, `--lambda`, a mode flag or `--logic` beside such a file is
   exit 2. `Checked` has `calculus` for it; `eliminate` refuses the
   flag.
+- `interact/rules.rs`: `interact --calculus CALCULUS SEQUENT
+  [--assume SEQUENT…]`, a session over `rules::Interactive` (the
+  calculus by `calculus::named`, the sequent the argument's text), or
+  one `--state` or `load` reads (`load` probes the key `calculus`,
+  `Saved::Rules`; the other two sessions refuse it by name, and `load`
+  refuses a session whose calculus, sequent or assumptions differ,
+  `statement`). It shares `mod.rs`'s loop and `opened`'s words; a goal
+  line numbers the members across the zones (`0: a ∧ b ⊢ 1: b ∧ a`) and
+  lists the hypotheses in force; `apply G RULE [N…] [NAME=TEXT…]` reads
+  numbers as positions and `NAME=TEXT` as given values; `rules G`
+  writes `RULE at N…, needs …`; `proof` writes "valid in the calculus
+  given (NAME): …" and the node list (`calculus::lines`), or the
+  derivation's JSON into a FILE. Mode flags and `--logic` are refused
+  beside it; there is no search, so no `close`.
 - `interact/ordinary.rs`: `interact --logic`, a session of LK or LJ over
   `ordinary::Interactive`, started from an ordinary sequent (read as
   `prove --logic` reads one, `SequentInput::ordinary`) or from a saved

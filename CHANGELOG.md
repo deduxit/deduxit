@@ -27,6 +27,18 @@ second number (0.1.x to 0.2.0), anything else the third.
   `tableau`); a derivation that names a built-in calculus needs no
   flag. The verdict line reads "valid in the calculus given", and the
   derivation's nodes follow as a list indented by scope.
+- **`interact --calculus CALCULUS`** builds a derivation step by step
+  in a calculus given as data: `rules` lists what applies, `apply`
+  applies a rule backwards and asks what the goal leaves open by name,
+  `assume` closes a goal by a hypothesis in force (`--assume` adds
+  hypotheses), and every step is checked by the calculus's checker. In
+  the library, `rules::Interactive`; its JSON is at wire level 17. A
+  calculus's terms and sequents read
+  from text in its own syntax (`Calculus::parse_term`,
+  `parse_sequent`).
+- The manual has a chapter on rule systems written as hypotheses and
+  decided by the Horn engine, and when a calculus of your own is the
+  better tool.
 - The library also ships one-sided linear logic and signed tableaux as
   rule files (`rules::LL`, `rules::TABLEAU`), writes a tableau in the
   latter (`Derivation::from_tableau`), and prints a calculus's terms by

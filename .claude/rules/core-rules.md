@@ -19,7 +19,7 @@ design, with the reasons and the alternatives weighed, is
   read from a `CalculusForm` and compiled (`Rule`, `Shape`, `Entry`,
   `Find`, `Equation`); `derivation.rs`: `Derivation`, its flat storage,
   `Node` (what `push` takes), `NodeRef`, `Step`, scopes; `check.rs`:
-  `Derivation::check`; `print.rs`: `Shown`, the printer; `ordinary.rs`:
+  `Derivation::check`; `print.rs`: `Shown`, the printer; `text.rs`: the text syntax; `interactive.rs`: the session (feature `interactive`); `ordinary.rs`:
   `Derivation::from_ordinary`; `tableau.rs`: `Derivation::from_tableau`
   (feature `interactive`). The
   JSON forms are `core/src/serialize/rules.rs`, both at wire level 15
@@ -182,7 +182,50 @@ design, with the reasons and the alternatives weighed, is
   highest for the rest; an operand is bracketed by precedence and
   associativity (`Shown::bracketed`). An error writes the failing
   node's sequent within 200 characters (`check::SHOWN`).
-- **Errors**: `Error::InvalidCalculus` (malformed, `invalid_calculus`),
+- **The text syntax** (`text.rs`, `Calculus::parse_term`,
+  `parse_sequent`, crate-private `parse_list`): what `show` writes reads
+  back. A lexer by the calculus's names, symbols and marks (a word is
+  read whole, a symbol by longest match; `ASCII` spellings such as `->`
+  and `|-` only where the calculus declares the target and not the
+  spelling, so LL's `~` stays its own), then a shunting-yard over an
+  explicit stack (prefix, infix by precedence and associativity, a
+  chain of a non-associative connective refused, postfix, `f(a, b)`),
+  then the sorts from the root down, atoms made of the sort their place
+  asks. A text's tokens count against `limits.occurrences`.
+- **The session** (`interactive.rs`, `rules::Interactive`, features
+  `interactive`): a top-down arena (`Goal`: sequent, `Done`, premises,
+  scope, `opened`), scopes (`Scope`: parent, owner node and premise,
+  the hypotheses it offers; the root scope's are the assumptions) and
+  the history of goals closed. `apply` plans a backward step (`plan`:
+  the conclusion's members at the positions given, numbered across the
+  zones, matched; given values parsed; each conclusion zone's contexts
+  solved by its discipline, a set's at their largest, two unknown in
+  one segment asked for by name, `Error::StepNeeds`, before anything
+  else; fresh variables not given get a new atom, `new_atom`, named
+  after the variable and unused anywhere; premises built with
+  `Terms::apply`, a set zone deduplicated, a premise's position members
+  located where they landed), then `commit` appends the premises (a
+  discharging premise in a new scope owned by the goal), sets the goal,
+  and **runs the checker on that node** (`verify`: the whole session
+  converted by `derived`, then `check_node`); a refusal is rolled back
+  (`back`), so no state holds a step the checker refuses. `assume`
+  closes a goal by a hypothesis its scope chain offers and re-checks the
+  owner rule node, whose scope check verifies the discharge; an
+  assumption (root scope) is the session's own. `undo` relies on the
+  suffix property: a step's premises and scopes are the last the
+  session holds. `rules` tries every rule at every choice of the
+  conclusion's position members (at most `RULE_CHOICES`) on a clone.
+- **A session's JSON** (wire level 17, `wire::SESSION`; reader
+  `Interactive::from_parts`) checks the tree, the scopes and their
+  owners, where each goal was opened, every root-scope hypothesis an
+  assumption, every open goal's bounds, every closed node by
+  `check_open` (the checker without the open goals), and the history's
+  suffix property from the last step back. The scopes' hypothesis lists
+  are only what `assume` tries; its re-check is what trusts them.
+- **Errors**: `Error::StepRefused` (invalid, `step_refused`),
+  `Error::StepNeeds` (malformed, `step_needs`, the names), and a
+  finished session with goals open `Error::OpenGoals`;
+  `Error::InvalidCalculus` (malformed, `invalid_calculus`),
   `Error::InvalidDerivation` (invalid, `invalid_derivation`, the first
   node that fails), `Error::Zones` (malformed, `zones`); the checker's
   `Fault` keeps a refusal apart from a fault.

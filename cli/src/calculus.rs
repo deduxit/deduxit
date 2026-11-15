@@ -13,7 +13,7 @@ use crate::prove::{Stop, stopped};
 use crate::show::Show;
 use crate::{Status, interrupted};
 use anyhow::{Context, Result, bail};
-use deduxit::rules::{self, Calculus, Derivation, NodeRef, ScopeId, Step};
+use deduxit::rules::{self, Calculus, Derivation, NodeRef, ScopeId, Step, TermId, Terms};
 use deduxit::{Error, Limits};
 use std::fmt::Write as _;
 use std::io::Write as _;
@@ -53,13 +53,7 @@ pub(crate) fn calculus(
             .map(|&(_, text)| text)
     };
     let (text, what) = match flag {
-        Some(path) => match path.to_str().and_then(built_in) {
-            Some(text) => (text.to_owned(), "the built-in calculus".to_owned()),
-            None => (
-                io::read_configuration(path, "rule file")?,
-                format!("the rule file {}", path.display()),
-            ),
-        },
+        Some(path) => return named(path, limits),
         None => match built_in(derivation.calculus()) {
             Some(text) => (text.to_owned(), "the built-in calculus".to_owned()),
             None => bail!(
@@ -69,7 +63,36 @@ pub(crate) fn calculus(
             ),
         },
     };
-    let mut document = serde_json::Deserializer::from_str(&text);
+    read(&text, &what, limits)
+}
+
+/// Returns the calculus `--calculus` names: a built-in one by name, in
+/// any case, or a rule file.
+///
+/// # Errors
+///
+/// A file that cannot be read or is no calculus.
+pub(crate) fn named(path: &Path, limits: &Limits) -> Result<Calculus> {
+    let built_in = path.to_str().and_then(|name| {
+        BUILT_IN
+            .iter()
+            .find(|(known, _)| known.eq_ignore_ascii_case(name))
+            .map(|&(_, text)| text)
+    });
+    match built_in {
+        Some(text) => read(text, "the built-in calculus", limits),
+        None => read(
+            &io::read_configuration(path, "rule file")?,
+            &format!("the rule file {}", path.display()),
+            limits,
+        ),
+    }
+}
+
+/// Reads a calculus from `text`, a rule file, `what` naming it in an
+/// error.
+fn read(text: &str, what: &str, limits: &Limits) -> Result<Calculus> {
+    let mut document = serde_json::Deserializer::from_str(text);
     let calculus: Calculus = deduxit::wire::upgrade(&mut document, limits)
         .with_context(|| format!("cannot read {what}"))?;
     document
@@ -113,7 +136,7 @@ pub(crate) fn check_rules(
         Ok(()) => {
             // A root exists: the check refuses a derivation without.
             let root = derivation.root().expect("a checked derivation has a root");
-            let sequent = sequent_text(derivation, calculus, root, show);
+            let sequent = sequent_text(derivation, calculus, root, bound(show, &show.limits));
             let nodes = counted(derivation.len(), "node", "nodes");
             match derivation.assumptions().count() {
                 0 => format!(
@@ -196,7 +219,10 @@ pub(crate) fn check_rules(
             lines.write(out, &cut)?;
             break;
         }
-        lines.write(out, &node_line(derivation, calculus, node, show))?;
+        lines.write(
+            out,
+            &node_line(derivation, calculus, node, bound(show, &show.limits)),
+        )?;
     }
     Ok((status, lines.written))
 }
@@ -224,7 +250,7 @@ fn node_line(
     derivation: &Derivation,
     calculus: &Calculus,
     node: NodeRef<'_>,
-    show: &Show,
+    limit: usize,
 ) -> String {
     let mut depth = 0usize;
     let mut scope = node.scope();
@@ -234,7 +260,7 @@ fn node_line(
     }
     debug_assert!(scope == ScopeId::ROOT, "every scope lies in the root scope");
     let mut line = format!("{:>3}. {}", node.id().index(), "  ".repeat(depth));
-    line.push_str(&sequent_text(derivation, calculus, node, show));
+    line.push_str(&sequent_text(derivation, calculus, node, limit));
     match node.step() {
         Step::Rule(rule) => {
             write!(line, "    {rule}").expect("a string takes any text");
@@ -255,11 +281,11 @@ fn sequent_text(
     derivation: &Derivation,
     calculus: &Calculus,
     node: NodeRef<'_>,
-    show: &Show,
+    limit: usize,
 ) -> String {
     let text = calculus
         .show_sequent(derivation, node.id())
-        .limit(bound(show, &show.limits))
+        .limit(limit)
         .to_string();
     if text.is_empty() {
         "the empty sequent".to_owned()
@@ -279,6 +305,33 @@ fn bound(show: &Show, limits: &Limits) -> usize {
             .unwrap_or(Limits::DEFAULT_DERIVATION_BYTES);
         usize::try_from(bytes).unwrap_or(usize::MAX)
     })
+}
+
+/// The most characters of a sequent a session's line writes.
+const SESSION_LINE: usize = 200;
+
+/// Returns a sequent given as each zone's members as text, within a
+/// session's bound, or `the empty sequent`.
+pub(crate) fn sequent_of(calculus: &Calculus, terms: &Terms, zones: &[Vec<TermId>]) -> String {
+    let text = calculus
+        .show_zones(terms, zones)
+        .limit(SESSION_LINE)
+        .to_string();
+    if text.is_empty() {
+        "the empty sequent".to_owned()
+    } else {
+        text
+    }
+}
+
+/// Returns a derivation's nodes, a line each, as `check` lists them,
+/// each sequent within a session's bound.
+pub(crate) fn lines(derivation: &Derivation, calculus: &Calculus) -> String {
+    derivation
+        .nodes()
+        .map(|node| node_line(derivation, calculus, node, SESSION_LINE))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Returns `n` with the noun that counts it.

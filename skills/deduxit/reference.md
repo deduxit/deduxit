@@ -1541,6 +1541,18 @@ your own rules").
   a rule file. The verdict line starts `valid in the calculus given`;
   exit 0 valid, 1 invalid, 3 a limit, 2 a rule file that is no
   calculus.
+- `deduxit interact --calculus CALCULUS "SEQUENT"` builds a derivation
+  step by step, the sequent written with the calculus's connectives
+  (`->`, `/\`, `|-` read as `→`, `∧`, `⊢` where it has them);
+  `--assume SEQUENT` adds a hypothesis. Its commands: `goals`, `rules
+  G` (each rule with the member numbers it acts on and what it
+  `needs`), `apply G RULE [N…] [NAME=TEXT…]` (`NAME=TEXT` gives a
+  variable or context the goal leaves open), `assume G`, `undo`,
+  `show`, `proof [FILE]`, `save FILE`, `load FILE`. Every step is
+  checked by the calculus's checker. In the library this is
+  `rules::Interactive` (`within`, `rules`, `apply` with an
+  `rules::Apply`, `assume`, `undo`, `finished`); a session's JSON is at
+  wire level 17.
 
 ## 17. The web bindings
 
