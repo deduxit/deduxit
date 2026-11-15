@@ -63,3 +63,34 @@ rest on Opus 5.5 at `high`. The checker is reviewed by the panel of step
 26's prompt (argument on Fable 5.2 at `high`). Deliverables: the
 commits, the manual's chapter, the guide's lines, the JSON Schema of the
 rule language, `plan/reports/60-rule-schemas.md`.
+
+## What steps 54 to 59 left you (the review of 59, 2026-11-15)
+
+- **The ordinary suite grew methods and artifacts**: the SAT method
+  (classical, intuitionistic, minimal), LJT, the truth table and the
+  signed tableau (56a: `Tableau::of` reads any LK derivation as a
+  tableau; built by its method in the LK goal state). The generic
+  derivation's closure of a branch by complementary literals should be
+  able to state 56a's tableau as a rule file: that is a cross-check
+  worth having beside LK's and LJ's.
+- **The Kripke model is shared at the root** (`deduxit::kripke`, data
+  only, each suite checking it by its own rules; 55b), with its JSON at
+  wire level 13. Labels and relational atoms of the modal calculi
+  (step 65, 66) should be able to name its worlds and arrows.
+- **Wire levels** stand at 14 (11 the Horn engine's basis, 12 the
+  ordinary outcome, 13 the Kripke model, 14 the table and the tableau).
+  The rule language and the generic derivation take new levels by
+  `core-sequents.md`'s rules.
+- **The workspace graph (63g) will hold these artifacts**: a rule file
+  and a derivation in it are immutable values with a JSON form, so that
+  the graph can store, cache and share them without a format of its own.
+  Design them so.
+- **Translations (63t) and the normal forms (70)** are rewrites; the
+  rule language need not express them, but its connective table should
+  let a rewrite name the formulas it produces.
+- **The text everyone reads follows `.claude/rules/writing.md`**
+  (2026-11-09), and a new interactive feature is **not overwhelming**
+  (the author, 2026-11-15): the single-task path stays as simple as
+  before.
+- **CI**: Kani's harnesses run in `kani.yml`, not in `nix flake check`;
+  a checker of integers gains harnesses there (`core-proofs.md`).
