@@ -7063,3 +7063,17 @@ move (D26).
   - **Started:** 61a (`local_fe155f72`, cores 10-12). **Running:** 63t-a
     (`local_b8490613`, cores 7-9). baseline-prep's worker waits for
     63t-b.
+- 2026-11-15, about 20:10: **63t-a reviewed and pushed; 63t-b started; reviews made prompt.**
+  - **63t-a** (`yqvvklvx` … `xtxnspwq`, and `zxwmkkxu` merging the changelog's two "highest
+    level" sentences): `ordinary::negative` (Kolmogorov, Gödel and Gentzen into minimal logic;
+    Kuroda, Glivenko into intuitionistic), each claim checked by deciding both sides
+    (`ClaimFails`, a defect, on disagreement); `ordinary::interpolant` by Maehara's method on a
+    cut-free LK or LJ derivation, its three conditions checked; `seq translate`, `interpolate`
+    (`--first L0,R1`), wire level 16, the bindings' calls, the chapter `transformations.md`.
+    Departure accepted: `interpolate` decides by the default method first, then the embedding
+    for a cut-free derivation. **Pushed.**
+  - **Reviews made prompt** (the author: "make sure that [you] start reviewing sessions really
+    as soon as they finish"; 63t-a had waited about 35 minutes, the app holding its note while
+    61a worked): workers now message the planning session as their last act, and a cron checks
+    every 15 minutes (`plan/handoff.md`, "Sessions in the Claude app").
+  - **Started:** 63t-b (`local_739ba359`, cores 4-6), the page. **Running:** 61a.

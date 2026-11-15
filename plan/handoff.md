@@ -559,6 +559,14 @@ for each kind:
 
 ## Sessions in the Claude app
 
+- **Review the moment a step finishes** (the author, 2026-11-15). The app continues the
+  planning session for a session's finished turn only when no other session it started is
+  working, so a finished step can wait unseen. Two things keep it prompt: every brief's
+  shared rules end with the worker's `SendMessage` to deduxit-orchestrator, "<session>:
+  done, head <change>", as its very last action (a message wakes an idle planning session at
+  once); and a recurring cron (`7,22,37,52 * * * *`, session-only: recreate it after a restart)
+  checks `list_sessions {"linked": true}` for an idle, unreviewed finished step.
+
 Since 2026-11-13 you and every step session run in the Claude app, and
 the CLI is uninstalled. Sources: the docs (code.claude.com/docs/en/
 desktop, …/agents, …/claude-projects, …/goal,
