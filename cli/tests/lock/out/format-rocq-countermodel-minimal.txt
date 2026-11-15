@@ -1,0 +1,13 @@
+$ deduxit prove --logic minimal --format rocq 'a, ~a |- b'
+--- status 1
+--- stdout
+(* not valid (minimal logic by the SAT solver): a checked countermodel refutes it *)
+Lemma certificate : ~ lj (atom := string) minimal [var "a"; neg (var "a")] (var "b").
+Proof.
+  apply (kripke_refutation String.eqb String.eqb_spec minimal
+    {| later := [[]];
+       atoms := [["a"]];
+       absurd := [0] |} 0).
+  vm_compute. reflexivity.
+Qed.
+--- stderr

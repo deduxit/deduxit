@@ -238,6 +238,28 @@ const CASES: &[Case] = &[
             "a -> b, b |- a",
         ],
     ),
+    call(
+        "format-rocq-countermodel",
+        &[
+            "prove",
+            "--logic",
+            "intuitionistic",
+            "--format",
+            "rocq",
+            "|- a \\/ ~a",
+        ],
+    ),
+    call(
+        "format-rocq-countermodel-minimal",
+        &[
+            "prove",
+            "--logic",
+            "minimal",
+            "--format",
+            "rocq",
+            "a, ~a |- b",
+        ],
+    ),
     call("format-net", &["prove", "--net", "A * B |- B * A"]),
     call(
         "format-net-svg",

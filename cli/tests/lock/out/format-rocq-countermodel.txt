@@ -1,0 +1,13 @@
+$ deduxit prove --logic intuitionistic --format rocq '|- a \/ ~a'
+--- status 1
+--- stdout
+(* not valid (intuitionistic logic by the SAT solver): a checked countermodel refutes it *)
+Lemma certificate : ~ lj (atom := string) intuitionistic [] (vee (var "a") (neg (var "a"))).
+Proof.
+  apply (kripke_refutation String.eqb String.eqb_spec intuitionistic
+    {| later := [[1]; []];
+       atoms := [[]; ["a"]];
+       absurd := [] |} 0).
+  vm_compute. reflexivity.
+Qed.
+--- stderr
