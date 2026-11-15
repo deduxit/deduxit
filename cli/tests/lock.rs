@@ -55,6 +55,13 @@ const WRONG_PROOF: &str = r#"{"version":1,"sequent":{"terms":[{"D":0},{"D":1},{"
 
 /// An outcome of ordinary logic that `prove --logic intuitionistic
 /// --method ljt --format json` writes: a derivation of LJ.
+/// A derivation of `a ∧ b ⊢ b ∧ a` in the built-in calculus LK, given as
+/// data.
+const RULES: &str = r#"{"version": 15, "calculus": "LK", "terms": ["a", "b", ["∧", 0, 1], ["∧", 1, 0]], "nodes": [{"sequent": [[1], [1]], "rule": "ax"}, {"sequent": [[2], [1]], "rule": "∧L₂", "at": [0], "premises": [0]}, {"sequent": [[0], [0]], "rule": "ax"}, {"sequent": [[2], [0]], "rule": "∧L₁", "at": [0], "premises": [2]}, {"sequent": [[2], [3]], "rule": "∧R", "at": [0], "premises": [1, 3]}]}"#;
+
+/// The same derivation with the wrong rule at its fourth node.
+const WRONG_RULES: &str = r#"{"version": 15, "calculus": "LK", "terms": ["a", "b", ["∧", 0, 1], ["∧", 1, 0]], "nodes": [{"sequent": [[1], [1]], "rule": "ax"}, {"sequent": [[2], [1]], "rule": "∧L₂", "at": [0], "premises": [0]}, {"sequent": [[0], [0]], "rule": "ax"}, {"sequent": [[2], [0]], "rule": "∧L₂", "at": [0], "premises": [2]}, {"sequent": [[2], [3]], "rule": "∧R", "at": [0], "premises": [1, 3]}]}"#;
+
 const ORDINARY_OUTCOME: &str = r#"{"version":12,"deduxit":"0.3.0","verdict":"valid","logic":"intuitionistic","search":{"method":"ljt","statistics":{"sequents":1,"memo_hits":0,"memo_entries":1,"subsumed":0}},"derivation":{"logic":"intuitionistic","sequent":{"formulas":[{"V":0},"⊥"],"atoms":["a"],"left":[0],"right":[0]},"inferences":[{"left":[0],"right":[0],"rule":"ax"}]}}"#;
 
 /// A Kripke model of two worlds, the second above the first and forcing
@@ -640,6 +647,11 @@ const CASES: &[Case] = &[
         &["check", "--format", "json", "--work-limit", "1"],
         PROOF,
     ),
+    piped("check-rules-valid", &["check"], RULES),
+    piped("check-rules-invalid", &["check"], WRONG_RULES),
+    piped("check-rules-json", &["check", "--format", "json"], RULES),
+    piped("check-rules-other", &["check", "--calculus", "lj"], RULES),
+    piped("check-rules-latex", &["check", "--format", "latex"], RULES),
     // interact.
     piped(
         "interact-session",
