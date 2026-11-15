@@ -7043,3 +7043,23 @@ move (D26).
     10-12). The client's input moves to the release commit
     (`local_b8490613`).
 - 2026-11-15, about 17:40: **60a reviewed and pushed (rules as data, designed on Fable); 60b and 63t started; the baseline prepared.** 60a: `deduxit::rules` (the rule file at wire level 15 with its JSON Schema, the generic derivation with scopes and discharge, the checker by matching, LK, LJ and LM as rule files; the cross-check agreed on about 30 000 broken derivations; the reviewer's four findings fixed). 60b continues in the same session on Opus with the panel. The baseline night waits for the author ("I'll tell you when"); baseline-prep adds an ILTP stage for 0.4.0's ordinary engines and the night's checklist. **63t moved ahead** (decided, unattended): its prompt is written, and it needs only the ordinary suite (its row's dependencies now 55, 56, 59, not 62), so it runs beside 60.
+- 2026-11-15, about 19:00: **baseline-prep and 60b reviewed and pushed;
+  61a started.**
+  - **baseline-prep** (`kkpyuwyq` … `xnwytxss`): stage 1 of
+    `bench/baseline.sh` runs ILTP under every ordinary method (passes
+    `iltp`, `iltp-classical`), the harness has `table` and `tableau`, the
+    script refuses to start without the libraries; the night's checklist
+    is `plan/notes/baseline-night.md`. The reviewer's resume fault (548
+    rows run again) fixed. The night waits for the author.
+  - **60b** (`txuqprzw` … `osqoyttl`): the printer, `rules::LL` and
+    `rules::TABLEAU` with their cross-checks, `check --calculus`, the
+    manual's chapter, level 15's evidence, two fuzz targets (and
+    `ordinary_decide`'s fixed). The panel: no unsound accept in 14.6
+    million position checks and 1.2 million derivations; its other
+    findings and the reviewer's fixed. Departure accepted: the linear
+    converter stays in the test until a caller asks for it.
+  - Stacked without conflict; the gate and `nix flake check` passed.
+    **Pushed** (`osqoyttl`); step 61's prompt finished (`zyzsrspm`).
+  - **Started:** 61a (`local_fe155f72`, cores 10-12). **Running:** 63t-a
+    (`local_b8490613`, cores 7-9). baseline-prep's worker waits for
+    63t-b.
