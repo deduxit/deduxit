@@ -1,0 +1,8 @@
+$ deduxit seq translate 'a \/ ~a'
+--- status 0
+--- stdout
+Kolmogorov's translation into minimal logic: ⊢ ¬¬(¬¬a ∨ ¬¬¬¬¬a)
+classical logic: valid, a checked derivation of LK (3 inferences)
+minimal logic: valid, a checked derivation of LJ (65 inferences)
+The verdicts agree, as Kolmogorov's translation claims.
+--- stderr

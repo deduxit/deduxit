@@ -1,0 +1,7 @@
+$ deduxit interpolate 'a /\ b |- b \/ c'
+--- status 0
+--- stdout
+interpolant: b
+a ∧ b ⊢ b: valid, a checked derivation of LK (3 inferences)
+b ⊢ b ∨ c: valid, a checked derivation of LK (3 inferences)
+--- stderr

@@ -1,0 +1,12 @@
+$ deduxit seq translate --by godel-gentzen 'a |- b'
+--- status 1
+--- stdout
+Gödel and Gentzen's translation into minimal logic: ¬¬a ⊢ ¬¬b
+classical logic: not valid, a checked Kripke model refutes it:
+  world 0 (the model's world): forces a
+minimal logic: not valid, a checked Kripke model refutes it:
+  world 0 (the model's world): forces nothing; below 1
+  world 1: forces a; below 2
+  world 2: forces a
+The verdicts agree, as Gödel and Gentzen's translation claims.
+--- stderr

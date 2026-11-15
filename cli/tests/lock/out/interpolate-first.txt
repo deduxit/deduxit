@@ -1,0 +1,7 @@
+$ deduxit interpolate --logic intuitionistic --first L1 'a, a -> b |- b'
+--- status 0
+--- stdout
+interpolant: a → b
+a → b ⊢ a → b: valid, a checked derivation of LJ (1 inference)
+a → b, a ⊢ b: valid, a checked derivation of LJ (5 inferences)
+--- stderr
