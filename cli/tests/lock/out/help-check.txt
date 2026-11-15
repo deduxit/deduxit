@@ -51,6 +51,13 @@ Limits:
           
           [default: none]
 
+      --table-atoms <N>
+          The most atoms a truth table may have, or `none` (limits.table_atoms); see `prove --table-atoms`
+          
+          A truth table that `prove --method table --table-atoms N` made with more atoms is checked only with the same bound.
+          
+          [default: 10]
+
       --derivation-limit <SIZE>
           The largest derivation to build, by its estimated size: a number of bytes with a unit such as 64MiB or 2GiB, or `none` for no limit (limits.derivation_bytes)
           
