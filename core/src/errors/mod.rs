@@ -159,7 +159,7 @@ pub enum Error {
     },
     /// A document is not of the form it was read as: it is not JSON, or a
     /// key is missing or has another type.
-    #[error("not a {form} of deduxit's wire form: {message}")]
+    #[error("not {} {form} of deduxit's wire form: {message}", article(form))]
     #[non_exhaustive]
     Json {
         /// The form read: `sequent`, `proof`, …
@@ -903,6 +903,16 @@ pub(crate) const fn refusal_kind(refusal: &Refusal) -> ErrorKind {
     }
 }
 
+/// Returns the indefinite article of a form's name: `an` before a
+/// vowel (`an ordinary outcome`, `an intuitionistic sequent`), `a`
+/// otherwise. Every form's name starts with a letter sounded as written.
+fn article(form: &str) -> &'static str {
+    match form.chars().next() {
+        Some('a' | 'e' | 'i' | 'o' | 'u' | 'A' | 'E' | 'I' | 'O' | 'U') => "an",
+        _ => "a",
+    }
+}
+
 /// Lists names as prose: `a, b or c`.
 fn or_list(names: &[&str]) -> String {
     match names.split_last() {
@@ -1412,6 +1422,24 @@ mod tests {
             | Refusal::Atoms { .. }
             | Refusal::Index { .. } => {}
         }
+    }
+
+    /// A document read as a form whose name starts with a vowel is "not
+    /// an …", and the others "not a …".
+    #[test]
+    fn a_wire_error_takes_its_article() {
+        let error = |form| Error::Json {
+            form,
+            message: "missing field `verdict`".to_owned(),
+        };
+        assert_eq!(
+            error("ordinary outcome").to_string(),
+            "not an ordinary outcome of deduxit's wire form: missing field `verdict`"
+        );
+        assert_eq!(
+            error("proof").to_string(),
+            "not a proof of deduxit's wire form: missing field `verdict`"
+        );
     }
 
     /// `CODES` lists exactly the codes the errors give, once each; a code
