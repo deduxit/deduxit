@@ -50,6 +50,8 @@ enum What<'a> {
     Term(TermId),
     /// The sequent of a node.
     Sequent(&'a Derivation, NodeId),
+    /// A sequent given as each zone's members.
+    Zones(&'a [Vec<TermId>]),
 }
 
 impl<'a> Shown<'a> {
@@ -231,33 +233,49 @@ impl Display for Shown<'_> {
             What::Term(id) => self.write_term(&mut out, id)?,
             What::Sequent(derivation, node) => {
                 let node = derivation.node(node);
-                let mut written = false;
-                for (index, zone) in self.calculus.form().sequent.iter().enumerate() {
-                    let members = node.zone(index);
-                    if let Some(mark) = &zone.mark {
-                        if written {
-                            out.write_str(" ")?;
-                        }
-                        out.write_str(mark)?;
-                        if !members.is_empty() {
-                            out.write_str(" ")?;
-                        }
-                        written = true;
-                    } else if written && !members.is_empty() {
-                        out.write_str("; ")?;
-                    }
-                    for (place, &member) in members.iter().enumerate() {
-                        if place > 0 {
-                            out.write_str(", ")?;
-                        }
-                        self.write_term(&mut out, member)?;
-                        written = true;
-                    }
-                }
+                self.write_zones(&mut out, |index| node.zone(index))?;
             }
+            What::Zones(zones) => self.write_zones(&mut out, |index| &zones[index][..])?,
         }
         if out.cut {
             out.out.write_str("…")?;
+        }
+        Ok(())
+    }
+}
+
+impl<'a> Shown<'a> {
+    /// Writes a sequent whose zone at each index `zone` gives.
+    fn write_zones(
+        &self,
+        out: &mut Bounded<'_, '_>,
+        zone: impl Fn(usize) -> &'a [TermId],
+    ) -> fmt::Result {
+        let mut written = false;
+        for (index, form) in self.calculus.form().sequent.iter().enumerate() {
+            let members = zone(index);
+            let zone = form;
+            {
+                if let Some(mark) = &zone.mark {
+                    if written {
+                        out.write_str(" ")?;
+                    }
+                    out.write_str(mark)?;
+                    if !members.is_empty() {
+                        out.write_str(" ")?;
+                    }
+                    written = true;
+                } else if written && !members.is_empty() {
+                    out.write_str("; ")?;
+                }
+                for (place, &member) in members.iter().enumerate() {
+                    if place > 0 {
+                        out.write_str(", ")?;
+                    }
+                    self.write_term(out, member)?;
+                    written = true;
+                }
+            }
         }
         Ok(())
     }
@@ -312,6 +330,22 @@ impl Calculus {
             calculus: self,
             terms,
             what: What::Term(id),
+            limit: Shown::LIMIT,
+        }
+    }
+
+    /// Returns a sequent of `terms`, each zone's members, as text, as
+    /// [`show_sequent`](Self::show_sequent) writes a node's.
+    ///
+    /// # Panics
+    ///
+    /// For a sequent with fewer zones than the calculus, when the text is
+    /// written.
+    pub const fn show_zones<'a>(&'a self, terms: &'a Terms, zones: &'a [Vec<TermId>]) -> Shown<'a> {
+        Shown {
+            calculus: self,
+            terms,
+            what: What::Zones(zones),
             limit: Shown::LIMIT,
         }
     }

@@ -278,6 +278,19 @@ pub struct Calculus {
     /// The discipline of each context variable; `None` for one no rule
     /// uses.
     pub(crate) contexts: Vec<Option<Discipline>>,
+    /// Each schematic variable's name and the index of its sort.
+    #[cfg_attr(
+        not(all(feature = "interactive", feature = "parse")),
+        expect(dead_code, reason = "a session reads them")
+    )]
+    pub(crate) variable_names: Vec<(String, u32)>,
+    /// Each context variable's name and the index of its members' sort,
+    /// `None` for one no rule uses.
+    #[cfg_attr(
+        not(all(feature = "interactive", feature = "parse")),
+        expect(dead_code, reason = "a session reads them")
+    )]
+    pub(crate) context_names: Vec<(String, Option<u32>)>,
     /// The rules, in the file's order.
     pub(crate) rules: Vec<Rule>,
     /// The index of each rule's name.
@@ -326,6 +339,11 @@ impl Calculus {
     /// Returns the names of the zones of a sequent, in the order written.
     pub fn zones(&self) -> impl ExactSizeIterator<Item = &str> {
         self.zones.iter().map(|zone| &*zone.name)
+    }
+
+    /// Returns the mark written before each zone, where it has one.
+    pub fn marks(&self) -> impl ExactSizeIterator<Item = Option<&str>> {
+        self.form.sequent.iter().map(|zone| zone.mark.as_deref())
     }
 
     /// Returns the names of the rules, in the file's order.
@@ -458,10 +476,12 @@ impl Calculus {
         }
         // Variables and contexts.
         let mut variables = 0;
+        let mut variable_names = Vec::new();
         for (sort, list) in &form.variables {
             let sort = sort_of(sort)?;
             for name in list {
                 declare(&mut names, name, Name::Variable(variables, sort))?;
+                variable_names.push((name.clone(), sort));
                 variables += 1;
             }
         }
@@ -506,6 +526,12 @@ impl Calculus {
             .iter()
             .map(|c| c.map(|(d, _)| d))
             .collect();
+        let context_names = form
+            .contexts
+            .iter()
+            .zip(&compiler.contexts)
+            .map(|(name, c)| (name.clone(), c.map(|(_, sort)| sort)))
+            .collect();
         let connective_ids = form
             .connectives
             .iter()
@@ -519,6 +545,8 @@ impl Calculus {
             zones,
             variables,
             contexts,
+            variable_names,
+            context_names,
             rules,
             rule_ids,
             form,

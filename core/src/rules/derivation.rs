@@ -28,6 +28,12 @@ impl ScopeId {
     /// The root scope, whose hypotheses are the derivation's assumptions.
     pub const ROOT: Self = Self(0);
 
+    /// Returns the scope at `index`.
+    #[cfg(all(feature = "interactive", feature = "parse"))]
+    pub(crate) const fn new(index: u32) -> Self {
+        Self(index)
+    }
+
     /// Returns the scope's index in its derivation.
     pub const fn index(self) -> usize {
         self.0 as usize
@@ -288,6 +294,14 @@ impl Derivation {
     /// Returns the terms the nodes' sequents are made of.
     pub const fn terms(&self) -> &Terms {
         &self.terms
+    }
+
+    /// Gives the derivation these terms, in place of its own, which must
+    /// be empty.
+    #[cfg(all(feature = "interactive", feature = "parse"))]
+    pub(crate) fn adopt_terms(&mut self, terms: Terms) {
+        debug_assert!(self.terms.is_empty(), "the derivation has terms of its own");
+        self.terms = terms;
     }
 
     /// Returns the terms, to add to them. A term added changes no node.

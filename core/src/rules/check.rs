@@ -68,6 +68,25 @@ impl Meter<'_> {
     }
 }
 
+/// Which nodes a check checks.
+#[derive(Clone, Copy, Debug)]
+enum Which {
+    /// Every node.
+    All,
+    /// Every node but the open goals.
+    #[cfg_attr(
+        not(all(feature = "interactive", feature = "parse")),
+        expect(dead_code, reason = "a session read from JSON is checked so")
+    )]
+    Open,
+    /// The node at this index alone.
+    #[cfg_attr(
+        not(all(feature = "interactive", feature = "parse")),
+        expect(dead_code, reason = "a session checks each step so")
+    )]
+    Node(usize),
+}
+
 /// Why a node is no instance of its rule. A refusal is told apart from
 /// it, so that a bound never reads as a fault.
 enum Fault {
@@ -161,7 +180,50 @@ impl Derivation {
         &self,
         calculus: &Calculus,
         limits: &Limits,
+        stop: impl FnMut(Progress) -> bool,
+    ) -> Result<(), Error> {
+        self.check_some(calculus, limits, stop, Which::All)
+    }
+
+    /// Checks the derivation as [`check`](Self::check) does, but for its
+    /// open goals, which it takes as they are: a proof in progress whose
+    /// every step keeps to the calculus.
+    #[cfg_attr(
+        not(all(feature = "interactive", feature = "parse")),
+        expect(dead_code, reason = "a session read from JSON is checked so")
+    )]
+    pub(crate) fn check_open(
+        &self,
+        calculus: &Calculus,
+        limits: &Limits,
+        stop: impl FnMut(Progress) -> bool,
+    ) -> Result<(), Error> {
+        self.check_some(calculus, limits, stop, Which::Open)
+    }
+
+    /// Checks the one node at `node` against its rule, or as a
+    /// hypothesis, the rest of the derivation taken as it is.
+    #[cfg_attr(
+        not(all(feature = "interactive", feature = "parse")),
+        expect(dead_code, reason = "a session checks each step so")
+    )]
+    pub(crate) fn check_node(
+        &self,
+        calculus: &Calculus,
+        node: usize,
+        limits: &Limits,
+        stop: impl FnMut(Progress) -> bool,
+    ) -> Result<(), Error> {
+        self.check_some(calculus, limits, stop, Which::Node(node))
+    }
+
+    /// Checks the nodes `which` names.
+    fn check_some(
+        &self,
+        calculus: &Calculus,
+        limits: &Limits,
         mut stop: impl FnMut(Progress) -> bool,
+        which: Which,
     ) -> Result<(), Error> {
         let invalid = |reason: String| Error::InvalidDerivation {
             calculus: calculus.name().into(),
@@ -266,6 +328,15 @@ impl Derivation {
             Fault::Refused(error) => error,
         })?;
         for node in self.nodes() {
+            let index = node.id().index();
+            let skipped = match which {
+                Which::All => false,
+                Which::Open => self.nodes[index].kind == Kind::Open,
+                Which::Node(only) => index != only,
+            };
+            if skipped {
+                continue;
+            }
             checker.meter.ask()?;
             checker.node(node).map_err(|fault| match fault {
                 Fault::Refused(error) => error,
@@ -289,6 +360,7 @@ impl Derivation {
         // discharges and that are no assumptions either.
         match self.nodes.last() {
             None => Err(invalid("it has no node".to_owned())),
+            Some(_) if matches!(which, Which::Node(_)) => Ok(()),
             Some(root) if root.scope != 0 => Err(invalid(format!(
                 "node {}: the root lies in a scope that no rule closes",
                 self.len() - 1

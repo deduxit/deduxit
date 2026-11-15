@@ -873,3 +873,115 @@ fn the_memory_bound_counts_every_context_and_zone() {
         "{read:?}"
     );
 }
+
+#[cfg(feature = "interactive")]
+#[test]
+fn a_session_builds_a_derivation_the_checker_accepts() {
+    use deduxit::rules::{Apply, GoalId, Interactive};
+    let limits = Limits::default();
+    // LK: a ∧ b ⊢ b ∧ a, its goals numbered across both zones.
+    let mut session =
+        Interactive::within(calculus(LK).unwrap(), "a /\\ b |- b /\\ a", &[], &limits).unwrap();
+    let root = session.goals()[0];
+    let listed = session.rules(root).unwrap();
+    let ready: Vec<(&str, &[u32])> = listed
+        .iter()
+        .filter(|a| a.needs.is_empty())
+        .map(|a| (a.rule.as_str(), a.at.as_slice()))
+        .collect();
+    assert!(ready.contains(&("∧R", &[1][..])), "{listed:?}");
+    assert!(ready.contains(&("∧L", &[0][..])), "{listed:?}");
+    // A rule of two premises that splits needs the split given.
+    let split = listed.iter().find(|a| a.rule == "∧R split").unwrap();
+    assert_eq!(split.needs, ["Γ′", "Δ′"], "{split:?}");
+    let goals = session.apply(root, &Apply::new("∧R").at(&[1])).unwrap();
+    assert_eq!(goals.len(), 2);
+    for (goal, rule) in goals.iter().zip(["∧L₂", "∧L₁"]) {
+        let axiom = session.apply(*goal, &Apply::new(rule).at(&[0])).unwrap();
+        session.apply(axiom[0], &Apply::new("ax")).unwrap();
+    }
+    assert!(session.is_finished());
+    let derivation = session.finished(|_| false).unwrap();
+    assert_eq!(derivation.len(), 5);
+    // The session reads back as itself, and undo reopens the last goal.
+    let document = serde_json::to_value(&session).unwrap();
+    assert_eq!(document["version"], 17);
+    let mut read: Interactive = wire::upgrade(&document, &limits).unwrap();
+    assert_eq!(serde_json::to_value(&read).unwrap(), document);
+    let reopened = read.undo().unwrap();
+    assert_eq!(read.goals(), [reopened]);
+    // A step the rule does not fit is refused, and the state stays.
+    let wrong = read.apply(reopened, &Apply::new("∧R").at(&[1]));
+    assert!(matches!(wrong, Err(Error::StepRefused { .. })), "{wrong:?}");
+    assert_eq!(read.goals(), [reopened]);
+    let _ = GoalId::index(reopened);
+}
+
+#[cfg(feature = "interactive")]
+#[test]
+fn a_session_discharges_by_scope() {
+    use deduxit::rules::{Apply, Interactive};
+    let limits = Limits::default();
+    let nj = calculus(NJ).unwrap();
+    // a → (b → a ∧ b), then (a → b) → a → b with →E's A given.
+    let mut session = Interactive::within(nj.clone(), "a -> (b -> a /\\ b)", &[], &limits).unwrap();
+    let inner = session
+        .apply(session.goals()[0], &Apply::new("→I"))
+        .unwrap();
+    let pair = session.apply(inner[0], &Apply::new("→I")).unwrap();
+    let both = session.apply(pair[0], &Apply::new("∧I")).unwrap();
+    for goal in both {
+        session.assume(goal).unwrap();
+    }
+    let derivation = session.finished(|_| false).unwrap();
+    assert_eq!(derivation.assumptions().count(), 0);
+    let mut modus = Interactive::within(nj.clone(), "b", &["a -> b", "a"], &limits).unwrap();
+    let needs = modus.apply(modus.goals()[0], &Apply::new("→E"));
+    assert!(
+        matches!(needs, Err(Error::StepNeeds { ref needs, .. }) if needs == &["A"]),
+        "{needs:?}"
+    );
+    let goals = modus
+        .apply(modus.goals()[0], &Apply::new("→E").given(&[("A", "a")]))
+        .unwrap();
+    for goal in goals {
+        modus.assume(goal).unwrap();
+    }
+    assert_eq!(modus.finished(|_| false).unwrap().assumptions().count(), 2);
+    // A hypothesis that is not in force does not close a goal.
+    let mut alone = Interactive::within(nj, "a -> a /\\ b", &[], &limits).unwrap();
+    let body = alone.apply(alone.goals()[0], &Apply::new("→I")).unwrap();
+    let parts = alone.apply(body[0], &Apply::new("∧I")).unwrap();
+    alone.assume(parts[0]).unwrap();
+    assert!(matches!(
+        alone.assume(parts[1]),
+        Err(Error::StepRefused { .. })
+    ));
+}
+
+#[cfg(feature = "interactive")]
+#[test]
+fn a_session_builds_a_closed_tableau() {
+    use deduxit::rules::{Apply, Interactive};
+    let limits = Limits::default();
+    let tableau = calculus(deduxit::rules::TABLEAU).unwrap();
+    let mut session = Interactive::within(tableau, "T (a /\\ b), F a", &[], &limits).unwrap();
+    let branch = session
+        .apply(session.goals()[0], &Apply::new("T∧").at(&[0]))
+        .unwrap();
+    // The branch keeps the expanded formula: T (a ∧ b), F a, T a, T b.
+    assert_eq!(session.goal(branch[0])[0].len(), 4);
+    let members = session.members(branch[0]);
+    let shown = |n: usize| {
+        session
+            .calculus()
+            .show(session.terms(), members[n].1)
+            .to_string()
+    };
+    let t = (0..4).find(|&n| shown(n) == "T a").unwrap() as u32;
+    let f = (0..4).find(|&n| shown(n) == "F a").unwrap() as u32;
+    session
+        .apply(branch[0], &Apply::new("×").at(&[t, f]))
+        .unwrap();
+    session.finished(|_| false).unwrap();
+}

@@ -211,6 +211,12 @@ impl Terms {
         self.add(Head::Connective(index), arguments)
     }
 
+    /// Returns whether an atom of any sort has the name `name`.
+    #[cfg(all(feature = "interactive", feature = "parse"))]
+    pub(crate) fn names(&self, name: &str) -> bool {
+        self.atoms.iter().any(|(atom, _)| atom == name)
+    }
+
     /// Returns the names of the connectives the terms use, by index.
     pub(crate) fn connectives(&self) -> &[String] {
         &self.connectives

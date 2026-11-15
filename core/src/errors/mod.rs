@@ -634,6 +634,22 @@ pub enum Error {
         /// What fails, and at which node.
         reason: String,
     },
+    /// A step of a proof in progress in a calculus given as data is not
+    /// one the calculus allows, for the reason given.
+    #[error("the step is refused: {reason}")]
+    #[non_exhaustive]
+    StepRefused {
+        /// Why.
+        reason: String,
+    },
+    /// A step of a proof in progress in a calculus given as data needs
+    /// values the goal leaves open: the variables and contexts named.
+    #[error("the step needs {} given: what the goal leaves open", .needs.join(", "))]
+    #[non_exhaustive]
+    StepNeeds {
+        /// The variables and contexts, by name.
+        needs: Vec<String>,
+    },
     /// A node's sequent has another number of zones than its
     /// derivation's sequents.
     #[error("the sequent has {found} zones; the derivation's sequents have {zones}")]
@@ -784,6 +800,8 @@ impl Error {
         "invalid_calculus",
         "invalid_derivation",
         "zones",
+        "step_refused",
+        "step_needs",
         "no_term",
         "no_derivation",
         "not_built",
@@ -833,7 +851,8 @@ impl Error {
             Self::SequentMismatch { .. } | Self::Model { .. } | Self::InvalidDerivation { .. } => {
                 Invalid
             }
-            Self::InvalidCalculus { .. } | Self::Zones { .. } => Malformed,
+            Self::InvalidCalculus { .. } | Self::Zones { .. } | Self::StepNeeds { .. } => Malformed,
+            Self::StepRefused { .. } => Invalid,
             Self::NotIntuitionistic(_)
             | Self::IntuitionisticMix
             | Self::OrderedMode { .. }
@@ -954,6 +973,8 @@ impl Error {
             Self::InvalidCalculus { .. } => "invalid_calculus",
             Self::InvalidDerivation { .. } => "invalid_derivation",
             Self::Zones { .. } => "zones",
+            Self::StepRefused { .. } => "step_refused",
+            Self::StepNeeds { .. } => "step_needs",
             Self::NoCut { .. } => "no_cut",
             Self::NoTerm { .. } => "no_term",
             Self::NoDerivation { .. } => "no_derivation",
@@ -1304,6 +1325,10 @@ mod tests {
                 reason: message(),
             },
             Error::Zones { found: 1, zones: 2 },
+            Error::StepRefused { reason: message() },
+            Error::StepNeeds {
+                needs: vec!["C".to_owned()],
+            },
         ];
         let vertex = crate::linear::nets::VertexId::new(0);
         let nets = [
@@ -1511,6 +1536,8 @@ mod tests {
             | Error::InvalidCalculus { .. }
             | Error::InvalidDerivation { .. }
             | Error::Zones { .. }
+            | Error::StepRefused { .. }
+            | Error::StepNeeds { .. }
             | Error::NoCut { .. }
             | Error::NoTerm { .. }
             | Error::NoDerivation { .. }

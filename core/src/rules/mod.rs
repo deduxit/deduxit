@@ -48,6 +48,9 @@ mod calculus;
 mod check;
 /// The derivation.
 mod derivation;
+/// Building a derivation step by step.
+#[cfg(all(feature = "interactive", feature = "parse"))]
+pub(crate) mod interactive;
 /// The derivations of LK and LJ in this form.
 mod ordinary;
 /// Terms and sequents as text.
@@ -57,9 +60,14 @@ mod print;
 mod tableau;
 /// The terms of a derivation.
 mod terms;
+/// Terms and sequents read from text.
+#[cfg(feature = "parse")]
+mod text;
 
 pub use calculus::{Associativity, Calculus, Discipline, Fixity};
 pub use derivation::{Derivation, Node, NodeId, NodeRef, ScopeId, Step};
+#[cfg(all(feature = "interactive", feature = "parse"))]
+pub use interactive::{Applicable, Apply, GoalId, Interactive};
 pub use print::Shown;
 pub use terms::{Term, TermId, Terms};
 

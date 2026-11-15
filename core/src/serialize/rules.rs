@@ -4,7 +4,7 @@
 use crate::Error;
 use crate::limits::{Limits, Refusal, Space};
 use crate::rules::{Associativity, Calculus, Derivation, Discipline, Fixity, Step, TermId};
-use crate::rules::{Node, Term};
+use crate::rules::{Node, Term, Terms};
 use crate::wire::{self, Readable};
 use serde::de::{DeserializeSeed, MapAccess, SeqAccess, Visitor};
 use serde::ser::{SerializeMap, SerializeSeq};
@@ -27,7 +27,7 @@ pub(crate) struct CalculusForm {
         skip_serializing_if = "Option::is_none",
         deserialize_with = "wire::version"
     )]
-    version: Option<u32>,
+    pub(crate) version: Option<u32>,
     /// The calculus's name, which a derivation names.
     pub(crate) name: String,
     /// What the calculus is, for a reader.
@@ -479,23 +479,11 @@ struct DerivationForm {
 impl From<&Derivation> for DerivationForm {
     /// Writes the derivation's form.
     fn from(derivation: &Derivation) -> Self {
-        let terms = derivation.terms();
         let index = |id: &TermId| id.index() as u32;
         Self {
             version: None,
             calculus: derivation.calculus().to_owned(),
-            terms: (0..terms.len())
-                .map(|n| match terms.term(TermId::new(n as u32)) {
-                    Term::Atom { name, sort } => TermForm::Atom(name.to_owned(), sort.to_owned()),
-                    Term::Apply {
-                        connective,
-                        arguments,
-                    } => TermForm::Apply(
-                        connective.to_owned(),
-                        arguments.iter().map(index).collect(),
-                    ),
-                })
-                .collect(),
+            terms: terms_form(derivation.terms()),
             scopes: derivation.scope_parents().iter().skip(1).copied().collect(),
             nodes: derivation
                 .nodes()
@@ -517,45 +505,76 @@ impl From<&Derivation> for DerivationForm {
     }
 }
 
+/// Returns the forms of every term of `terms`, in the arena's order.
+fn terms_form(terms: &Terms) -> Vec<TermForm> {
+    (0..terms.len())
+        .map(|n| match terms.term(TermId::new(n as u32)) {
+            Term::Atom { name, sort } => TermForm::Atom(name.to_owned(), sort.to_owned()),
+            Term::Apply {
+                connective,
+                arguments,
+            } => TermForm::Apply(
+                connective.to_owned(),
+                arguments.iter().map(|id| id.index() as u32).collect(),
+            ),
+        })
+        .collect()
+}
+
+/// Reads terms into `terms` and returns the term of each form; equal
+/// forms are one term. Refuses more forms than `limits.occurrences`.
+fn read_terms(
+    forms: &[TermForm],
+    terms: &mut Terms,
+    limits: &Limits,
+) -> Result<Vec<TermId>, Error> {
+    if let Some(limit) = limits.occurrences
+        && forms.len() as u64 > limit
+    {
+        return Err(Error::Refused(Refusal::Occurrences {
+            occurrences: forms.len() as u64,
+            limit,
+        }));
+    }
+    let mut ids: Vec<TermId> = Vec::with_capacity(forms.len());
+    for form in forms {
+        let id = match form {
+            TermForm::Atom(name, sort) => terms.atom(name, sort)?,
+            TermForm::Apply(connective, arguments) => {
+                let arguments = arguments
+                    .iter()
+                    .map(|&index| term_at(&ids, index))
+                    .collect::<Result<Vec<_>, _>>()?;
+                terms.apply(connective, &arguments)?
+            }
+        };
+        ids.push(id);
+    }
+    Ok(ids)
+}
+
+/// Returns the term a form's index names, or the error for one past
+/// the forms read.
+fn term_at(ids: &[TermId], index: u32) -> Result<TermId, Error> {
+    ids.get(index as usize)
+        .copied()
+        .ok_or(Error::IndexOutOfBounds {
+            space: Space::Term,
+            index: index as usize,
+            len: ids.len(),
+        })
+}
+
 impl DerivationForm {
     /// Returns the derivation the form holds, its terms within
     /// `limits.occurrences`. Every index is checked; whether it is a
     /// derivation of its calculus is for [`Derivation::check`] to say.
     fn within(self, limits: &Limits) -> Result<Derivation, Error> {
-        if let Some(limit) = limits.occurrences
-            && self.terms.len() as u64 > limit
-        {
-            return Err(Error::Refused(Refusal::Occurrences {
-                occurrences: self.terms.len() as u64,
-                limit,
-            }));
-        }
         let zones = self.nodes.first().map_or(0, |node| node.sequent.len());
         let mut derivation = Derivation::new(&self.calculus, zones);
         // Equal terms of the document are one term of the arena.
-        let mut ids: Vec<TermId> = Vec::with_capacity(self.terms.len());
-        let at = |ids: &[TermId], index: u32| {
-            ids.get(index as usize)
-                .copied()
-                .ok_or(Error::IndexOutOfBounds {
-                    space: Space::Term,
-                    index: index as usize,
-                    len: ids.len(),
-                })
-        };
-        for form in &self.terms {
-            let id = match form {
-                TermForm::Atom(name, sort) => derivation.terms_mut().atom(name, sort)?,
-                TermForm::Apply(connective, arguments) => {
-                    let arguments = arguments
-                        .iter()
-                        .map(|&index| at(&ids, index))
-                        .collect::<Result<Vec<_>, _>>()?;
-                    derivation.terms_mut().apply(connective, &arguments)?
-                }
-            };
-            ids.push(id);
-        }
+        let ids = read_terms(&self.terms, derivation.terms_mut(), limits)?;
+        let at = term_at;
         for parent in self.scopes {
             derivation.scope(parent)?;
         }
@@ -621,4 +640,198 @@ impl Readable for Derivation {
         let form = DerivationForm::deserialize(deserializer)?;
         form.within(limits).map_err(wire::fail)
     }
+}
+
+/// The serialized form of a scope of a session.
+#[cfg(all(feature = "interactive", feature = "parse"))]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct ScopeForm {
+    /// The scope around it.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    parent: u32,
+    /// The node and the premise of it that lie in the scope.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    owner: Option<(u32, u32)>,
+    /// The hypotheses it offers, each a sequent of term indices.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    hypotheses: Vec<Vec<Vec<u32>>>,
+}
+
+/// The serialized form of a node of a session.
+#[cfg(all(feature = "interactive", feature = "parse"))]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct SessionNodeForm {
+    /// The members of each zone, as indices of terms.
+    sequent: Vec<Vec<u32>>,
+    /// The rule's name; absent for a hypothesis and an open goal.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    rule: Option<String>,
+    /// Whether the node is a hypothesis.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    hypothesis: bool,
+    /// The positions the rule needs.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    at: Vec<u32>,
+    /// The premises, as later nodes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    premises: Vec<u32>,
+    /// The node's scope; the root scope where absent.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    scope: u32,
+    /// The scope the node was opened in, where a hypothesis left it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    opened: Option<u32>,
+}
+
+/// The serialized form of a session.
+#[cfg(all(feature = "interactive", feature = "parse"))]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct SessionForm {
+    /// The wire level, written only at the top of a document.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "wire::version"
+    )]
+    version: Option<u32>,
+    /// The rule file.
+    calculus: CalculusForm,
+    /// The terms.
+    terms: Vec<TermForm>,
+    /// The scopes, the root scope first.
+    scopes: Vec<ScopeForm>,
+    /// The nodes, the root first.
+    nodes: Vec<SessionNodeForm>,
+    /// The goals the steps closed, in order.
+    #[serde(default)]
+    history: Vec<u32>,
+}
+
+#[cfg(all(feature = "interactive", feature = "parse"))]
+impl Serialize for crate::rules::Interactive {
+    /// Serializes the session as a document at level 17.
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use crate::rules::interactive::Done;
+        let ids = |sequent: &[Vec<TermId>]| -> Vec<Vec<u32>> {
+            sequent
+                .iter()
+                .map(|zone| zone.iter().map(|id| id.index() as u32).collect())
+                .collect()
+        };
+        let mut calculus = self.calculus().form().clone();
+        calculus.version = None;
+        let form = SessionForm {
+            version: Some(wire::SESSION),
+            calculus,
+            terms: terms_form(self.terms()),
+            scopes: self
+                .scopes
+                .iter()
+                .map(|scope| ScopeForm {
+                    parent: scope.parent,
+                    owner: scope.owner,
+                    hypotheses: scope.hypotheses.iter().map(|h| ids(h)).collect(),
+                })
+                .collect(),
+            nodes: self
+                .nodes
+                .iter()
+                .map(|node| SessionNodeForm {
+                    sequent: ids(&node.sequent),
+                    rule: match &node.done {
+                        Done::Rule(name, _) => Some(name.clone()),
+                        Done::Open | Done::Hypothesis => None,
+                    },
+                    hypothesis: node.done == Done::Hypothesis,
+                    at: match &node.done {
+                        Done::Rule(_, at) => at.clone(),
+                        Done::Open | Done::Hypothesis => Vec::new(),
+                    },
+                    premises: node.premises.clone(),
+                    scope: node.scope,
+                    opened: (node.opened != node.scope).then_some(node.opened),
+                })
+                .collect(),
+            history: self.history.clone(),
+        };
+        form.serialize(serializer)
+    }
+}
+
+#[cfg(all(feature = "interactive", feature = "parse"))]
+impl<'a> Deserialize<'a> for crate::rules::Interactive {
+    /// Deserializes a session within the default limits, as
+    /// [`wire::upgrade`] does.
+    fn deserialize<D: Deserializer<'a>>(deserializer: D) -> Result<Self, D::Error> {
+        Self::read(deserializer, &Limits::default())
+    }
+}
+
+#[cfg(all(feature = "interactive", feature = "parse"))]
+impl crate::sealed::Readable for crate::rules::Interactive {}
+
+#[cfg(all(feature = "interactive", feature = "parse"))]
+impl Readable for crate::rules::Interactive {
+    const FORM: &'static str = "session in a calculus";
+
+    /// Reads a session and checks every step it holds.
+    fn read<'de, D: Deserializer<'de>>(deserializer: D, limits: &Limits) -> Result<Self, D::Error> {
+        let form = SessionForm::deserialize(deserializer)?;
+        session(form, limits).map_err(wire::fail)
+    }
+}
+
+/// Returns the session a form holds, its calculus read and every step
+/// checked, within the limits.
+#[cfg(all(feature = "interactive", feature = "parse"))]
+fn session(form: SessionForm, limits: &Limits) -> Result<crate::rules::Interactive, Error> {
+    use crate::rules::interactive::{Done, Goal, Scope};
+    let calculus = Calculus::from_form(form.calculus, limits)?;
+    let mut terms = Terms::default();
+    let ids = read_terms(&form.terms, &mut terms, limits)?;
+    let sequent = |zones: &[Vec<u32>]| -> Result<Vec<Vec<TermId>>, Error> {
+        zones
+            .iter()
+            .map(|zone| zone.iter().map(|&i| term_at(&ids, i)).collect())
+            .collect()
+    };
+    let scopes = form
+        .scopes
+        .iter()
+        .map(|scope| {
+            Ok(Scope {
+                parent: scope.parent,
+                owner: scope.owner,
+                hypotheses: scope
+                    .hypotheses
+                    .iter()
+                    .map(|h| sequent(h))
+                    .collect::<Result<_, Error>>()?,
+            })
+        })
+        .collect::<Result<Vec<_>, Error>>()?;
+    let nodes = form
+        .nodes
+        .iter()
+        .map(|node| {
+            let done = match (&node.rule, node.hypothesis) {
+                (Some(rule), false) => Done::Rule(rule.clone(), node.at.clone()),
+                (None, true) => Done::Hypothesis,
+                (None, false) => Done::Open,
+                (Some(_), true) => {
+                    return Err(Error::InconsistentSession {
+                        reason: "a node is both a rule's and a hypothesis",
+                    });
+                }
+            };
+            Ok(Goal {
+                sequent: sequent(&node.sequent)?,
+                done,
+                premises: node.premises.clone(),
+                scope: node.scope,
+                opened: node.opened.unwrap_or(node.scope),
+            })
+        })
+        .collect::<Result<Vec<_>, Error>>()?;
+    crate::rules::Interactive::from_parts(calculus, terms, scopes, nodes, form.history, limits)
 }
