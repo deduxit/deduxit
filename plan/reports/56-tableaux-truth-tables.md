@@ -234,3 +234,138 @@ with `--table-atoms` above 10 needs the bound in a settings file, since
   tree (the research note's tableaux-2) would read the JSON form and
   check each expansion against `next_step`'s rules; the reader today
   checks only the shape.
+
+## Session 56b: the page
+
+Opus 5.5 at `high`, the reused worker of 55a to 56a (same conversation),
+in the client's jj workspace `../deduxit.github.io-56b` (on its
+`main@origin` `vtvywvym`, deduxit pinned at `oyrxnpoz`) and this
+workspace for the report, from the brief `start-56b.md`, on 2026-11-15,
+cores 13 to 15.
+
+### Outcome
+
+A started proof of classical ordinary logic offers two more tabs beside
+Tree and Net, **Table** and **Tableau**. Each shows, in the drawing's
+place, the sequent decided by that method (the bindings'
+`ordinary_table` and `ordinary_tableau`): the verdict in one sentence that
+names its reason, then the truth table or the tableau, then for a sequent
+that is not valid its countermodel (55d's drawing). The proof stays as it
+was; Tree brings it back. Nothing else changes for a visitor who does not
+press them.
+
+The client's commits, on its `main@origin` `vtvywvym`: `ylwvmwwz` (each
+formula of an ordinary sequent's JSON written on its own), `lkxxqzrs`
+(reading the table and the tableau from deduxit: `src/lib/methods.ts`, its
+unit tests, the two calls), `pkpkmnou` (the countermodel's figure in a
+module of its own), `trnxxwzo` (the two views, the tabs, the styles, the
+client's `web.md`), `kltrzkxo` (the interaction tests, the `methods` walk of
+`tests/states.ts`, the axe and target specs), `tsxslurw` (the review's
+fixes).
+
+### How the views were designed
+
+- **The frontend-design plugin**: the page's visual language is fixed by
+  its tokens (palette, Figtree for words, Euler Math for formulas), so the
+  views add no colour and no font: the verdict's keyword in the ok or bad
+  token beside its word, `F` values in the dim ink, a falsifying row in the
+  bad wash with `×` and its word. The one bold element is the tableau's
+  branch connectors: a bar the two branches hang from, side by side on a
+  wide screen, stacked with a rule on a phone. No cards, no eyebrows, no
+  motion.
+- **The cognitive-load analysis** (the education skills'
+  `cognitive-load-analyser`), applied:
+  - one sentence above each view says the verdict and why, naming the
+    values ("With a false, b true, every formula left of ⊢ is true and
+    every formula right of it false: row 3"): the student does not search
+    the table and translate a row (split attention);
+  - the table has only the columns the verdict needs, the atoms and the
+    sequent's own formulas, not every subformula (redundancy), with ⊢
+    standing between the formulas left of it and right of it;
+  - a falsifying row is marked by a sign and a word, not by colour alone;
+    the first one's mark ("× the countermodel") takes the student to the
+    countermodel under the table;
+  - an open branch of the tableau says its assignment where it ends ("open:
+    a false, b true"); a closed one shows `× 4, 5` and says "closed: b is
+    true at line 4 and false at line 5" to a screen reader;
+  - one view at a time, and only on request (not overwhelming).
+- **A table past the bound** (deduxit's `limits.table_atoms`, 10) says so
+  in the page's words ("This sequent has 11 atoms, so its truth table has
+  2048 rows: more than the page draws at once. The tableau decides it
+  without the rows.") and offers "Draw all 2048 rows" up to 14 atoms, by
+  sending the bound raised.
+
+### Views, not a method of the tab (departs from the design)
+
+The brief, after D29, has the methods chosen in the tab beside the
+default, and the client's rules foresaw a second method as a field of the
+tab's calculus, the link's `k` and the shelf. The session made them views
+of the stage instead, beside Tree and Net. A truth table and a tableau
+decide the sequent at once and hold no steps, so a tab of their own would
+hold nothing to do, and switching the calculus restarts a proof; as views
+they keep the proof, need no change of the link, the shelf, the tour or
+the restore bar, and cost a visitor who does not press them nothing. The
+registry's `methods` and the link's `k` stay free for a method with steps
+(a student's own tableau, the research note's tableaux-2).
+
+### The checks
+
+- The client's unit tests (Vitest, `tests`): 605 passed, with the new
+  `src/lib/methods.test.ts` against deduxit's real module.
+- Lint and type-check (`lint`: Biome, `astro check`): clean.
+- The views' e2e tests (`tests/methods.spec.ts`, 11), the `methods` walk
+  under axe (light and dark, desktop and phone: no violation) and the
+  target sizes (24 pixels on a desktop, 44 on a phone): passed.
+- The client's `nix flake check` (under the machine lock) at `tsxslurw`:
+  passed, its e2e suite 237 tests, its unit suite 605.
+- In a browser (the built-in pane, the dev server on cores 13 to 15):
+  both views at a desktop's and a phone's width; the 11-atom table drawn
+  in 100 ms (27 s before the model was memoized, below).
+
+### The reviewer
+
+`fresh-reviewer` once (Fable 5.2, medium), which drove the page with a
+Playwright script and read its screenshots. It accepted the views as
+meeting D29's intent, to be marked as a departure (done above), and
+confirmed the verdict sentences, the marked row, the countermodel's
+agreement with the open branch, the refusal and the phone layout. Four
+findings, fixed in `tsxslurw`:
+
+1. **A key changed the hidden proof**: `C` behind the table closed every
+   goal unseen. Now any change of the proof while a view shows brings the
+   tree back, so the visitor sees what changed (keys and the bottom band
+   alike); a test presses `C` behind the table.
+2. **The valid tableau's sentence was false where ⊥ true or ⊤ false
+   closes a branch** ("each makes one formula both true and false"): now
+   "Every branch closes, so no assignment makes …"; a test on `false |- a`.
+3. **The restore bar covered the view's sentence**, on a phone most of
+   it: the panel starts under the bar while it shows; a test measures the
+   two boxes.
+4. **A stale Table or Tableau tab** stayed set for a proof that has none
+   (a finished intuitionistic proof lost its "Proved" line): the stage
+   goes back to Tree when the proof shown has no table; a test switches
+   the logic.
+
+Before the review the session found and fixed one more: the table's
+model was built in JSX props, which Solid reads as a getter at every
+use, so the table was rebuilt for every cell (27 s for 2048 rows); it is
+memoized now.
+
+### What the next sessions must know
+
+- **The two views** are `src/islands/Methods.tsx` over `src/lib/methods.ts`
+  (the forms and the models: columns and rows, nested branches with each
+  end in words); the stage shows one while `ui.tab` is `table` or
+  `tableau` and the proof is classical and started (`decidable`), and
+  hides its camera, buttons and dock (`data-method`).
+- **A prop is a getter**: a model built in JSX props is rebuilt at every
+  read; the table built per cell took 27 s for 2048 rows. Build it once
+  (`createMemo`), as `Methods.tsx` does.
+- **For step 63 (Learn and Practice)**: the views are ready for lessons on
+  truth tables and tableaux; a lesson can open a classical tab and press
+  the tab. The rule names of the tableau (`∧L 1`) carry no hint yet: the
+  rule hints (`RuleHint.tsx`) are tied to the derivation's drawing; a
+  hint per tableau rule would join them there.
+- **A student's own tableau** (checked step by step) would be a method of
+  the tab with steps, the link's `k` and the registry's `methods`; deduxit's
+  tableau reader checks only the shape today (56a's report).
