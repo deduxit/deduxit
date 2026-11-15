@@ -1522,9 +1522,17 @@ your own rules").
   `discipline`: `set`, `multiset` or `sequence`), `variables` by sort,
   `contexts`, and `rules`, each a `name`, `premises` and a `conclusion`.
   A sequent is an object keyed by zone; a pattern is a declared name or
-  an array `["∧", "A", "B"]`. `rules::LK`, `LJ`, `LM`, `LL` and
-  `TABLEAU` are complete files to copy from, and `rules::SCHEMA` is the
-  format's JSON Schema.
+  an array `["∧", "A", "B"]`. `rules::LK`, `LJ`, `LM`, `LL`,
+  `TABLEAU`, `NJ`, `NK`, `NM` and the variants `NK_DNE`, `NK_LEM`,
+  `NJ_DEFINED`, `NK_DEFINED`, `NM_DEFINED` are complete files to copy
+  from, and `rules::SCHEMA` is the format's JSON Schema.
+- Natural deduction (the manual's chapter "Check a proof in natural
+  deduction"): a judgement is one formula, a hypothesis a node of its
+  own, and `→I`, `∨E`, `¬I`, `↔I` and the classical `RAA` discharge
+  hypotheses by scope; every elimination takes its main premise first
+  (`→E`: `A → B`, then `A`). `NK` is `NJ` with `RAA`, `NM` is `NJ`
+  without ex falso `⊥E`; a `-defined` file has no `¬` (write `A → ⊥`).
+  Each derives exactly what `prove --logic` calls valid in its logic.
 - A derivation is JSON too (`rules::Derivation`): `calculus`, `terms`
   (an atom's name, or `["∧", 0, 1]` over earlier terms) and `nodes`,
   premises first, each with its `sequent` (per zone, indices of terms),
@@ -1537,8 +1545,9 @@ your own rules").
   premise with `discharges` closes a scope, as natural deduction's `→I`
   does.
 - `deduxit check FILE` checks a derivation that names a built-in
-  calculus (`LK`, `LJ`, `LM`, `LL`, `tableau`); `--calculus FILE` gives
-  a rule file. The verdict line starts `valid in the calculus given`;
+  calculus (`LK`, `LJ`, `LM`, `LL`, `tableau`, and natural deduction's
+  `NJ`, `NK`, `NM`, `NK-DNE`, `NK-LEM`, `NJ-defined`, `NK-defined`,
+  `NM-defined`); `--calculus FILE` gives a rule file. The verdict line starts `valid in the calculus given`;
   exit 0 valid, 1 invalid, 3 a limit, 2 a rule file that is no
   calculus.
 - `deduxit interact --calculus CALCULUS "SEQUENT"` builds a derivation

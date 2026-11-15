@@ -9,9 +9,11 @@ keeps to your rules, and nothing checks that the rules are sound.
 
 ## Check a derivation in a built-in calculus
 
-deduxit ships five calculi: `LK`, `LJ` and `LM`, the sequent calculi of
-classical, intuitionistic and minimal logic; `LL`, one-sided linear
-logic; and `tableau`, signed tableaux for classical logic. A derivation
+deduxit ships these calculi: `LK`, `LJ` and `LM`, the sequent calculi
+of classical, intuitionistic and minimal logic; `LL`, one-sided linear
+logic; `tableau`, signed tableaux for classical logic; and `NJ`, `NK`,
+`NM` and their variants, natural deduction for the three logics
+([Check a proof in natural deduction](natural-deduction.md)). A derivation
 names its calculus, and one that names a built-in calculus needs no
 flag. This one derives `a ∧ b ⊢ b ∧ a` in LK:
 

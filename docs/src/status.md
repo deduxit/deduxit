@@ -338,7 +338,12 @@ in use.
   formulas a tableau, and sorts for labels a labelled modal calculus.
   LK, LJ, minimal logic's calculus, one-sided linear logic and signed
   tableaux are built in; derivations of LK and LJ and the tableaux of
-  ordinary logic agree with their own checkers. `interact --calculus`
+  ordinary logic agree with their own checkers. Natural deduction is
+  built in too ([Check a proof in natural deduction](natural-deduction.md)):
+  NJ, NK and NM with the variants courses use (`¬` defined as `A → ⊥`,
+  double negation elimination or excluded middle in place of `RAA`),
+  each deriving exactly what the ordinary suite calls valid in its
+  logic. `interact --calculus`
   builds such a derivation step by step, each step checked, what the
   goal leaves open asked for by name; the web page is planned.
 - The unpublished crate `deduxit-web` in `web/` compiles the library to

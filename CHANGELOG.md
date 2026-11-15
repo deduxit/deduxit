@@ -27,6 +27,13 @@ second number (0.1.x to 0.2.0), anything else the third.
   `tableau`); a derivation that names a built-in calculus needs no
   flag. The verdict line reads "valid in the calculus given", and the
   derivation's nodes follow as a list indented by scope.
+- **Natural deduction** as built-in calculi: `NJ`, `NK` and `NM` for
+  intuitionistic, classical and minimal logic, and the variants
+  `NK-DNE`, `NK-LEM`, `NJ-defined`, `NK-defined` and `NM-defined`, each
+  rule file naming its sources (`rules::NJ`, `rules::NK`, … in the
+  library). `check --calculus NJ` and `interact --calculus NJ` take
+  them by name. Each derives exactly what the ordinary suite calls
+  valid in its logic, which the tests check both ways.
 - **`interact --calculus CALCULUS`** builds a derivation step by step
   in a calculus given as data: `rules` lists what applies, `apply`
   applies a rule backwards and asks what the goal leaves open by name,
