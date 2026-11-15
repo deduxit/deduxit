@@ -666,8 +666,8 @@ fn ordinary_session() {
              error: \"x\" is not a goal: a goal is a number, and `goals` lists them\n\
              opened goal 1: L0: a ⊢ R0: a\n\
              opened goal 2: L0: b ⊢ R0: b\n\
-             error: the rule WR is not one of LJ in intuitionistic logic: its premise would \
-             have no formula right of ⊢, and every goal keeps one\n\
+             error: the rule WR is not available in intuitionistic logic: its premise would \
+             have no formula right of ⊢, and every goal of LJ has exactly one\n\
              closed\n\
              reopened goal 1: L0: a ⊢ R0: a\n\
              session written to {}\n",

@@ -67,6 +67,11 @@ These outputs changed their words; a script that matches them needs
 the new text. The JSON forms, exit statuses, flags and defaults are
 unchanged.
 
+- **The refusals of a proof of LK or LJ step by step** (`interact
+  --logic`, `ordinary::StepError`) say what to do: a rule the logic
+  does not allow is "not available in L logic", with the way out where
+  there is one (`∨R₁` or `∨R₂` for `∨R` in LJ), and a position past the
+  goal's formulas says positions start at 0.
 - **`--net`'s last line** says whose verdict it is: `proof net (the
   correctness criterion holds)`, `proof net with Mix (the correctness
   criterion with Mix holds)` and `planar proof net (the correctness

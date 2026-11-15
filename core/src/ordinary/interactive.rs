@@ -1,16 +1,16 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
-//! Step-by-step proving in LK and LJ: a derivation of the ordinary
-//! sequent built top-down by the rules of [`Rule`], with open goals as
-//! leaves. A client names a goal, a formula in it by its side and
-//! position, and a rule; the rule is validated against the formula and
-//! the logic, every inference a step makes is checked by the rules the
-//! derivation's checker applies, and the goals it leaves are returned.
-//! The search closes a goal through the embeddings ([`decide_within`]), whose
-//! derivations have no cut, and a
-//! finished state is a [`Derivation`] that [`Derivation::check`]
-//! validates, so this layer adds nothing to what is trusted.
+//! Step-by-step proving in LK and LJ. A proof in progress is a derivation
+//! of an ordinary sequent, built from its conclusion up by the rules of
+//! [`Rule`], with the open goals as leaves. A step names a goal, a formula
+//! in it by its side and position, and a rule. The step checks the rule
+//! against the formula and the logic, checks every inference it makes by
+//! the rules the derivation's checker applies, and returns the goals it
+//! opens. The search can close a goal through the embedding into linear
+//! logic ([`decide_within`]), whose derivations have no cut. A finished
+//! proof is a [`Derivation`] that [`Derivation::check`] validates, so this
+//! module adds nothing to what must be trusted.
 //!
 //! Needs the cargo feature `interactive` (on by default).
 
@@ -24,8 +24,8 @@ use crate::linear::proofs::{GoalId, InfId, Size, Structural, ViewOptions};
 use crate::linear::search;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-/// Why a rule does not apply to a goal as asked. Positions are those of
-/// the side of the goal's sequent named, as the client named them.
+/// Why a step does not apply to a goal as asked. Positions are the ones
+/// the step gave, counted from 0 on the side of the goal it named.
 ///
 /// Needs the cargo feature `interactive` (on by default).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -52,8 +52,9 @@ pub enum StepError {
         /// How many formulas the side has.
         len: usize,
     },
-    /// The rule does not act on the formula: its connective is another,
-    /// or the rule is for the other side of `⊢`.
+    /// The rule does not act on the formula: the formula has another
+    /// connective, or the rule is for the other side of `⊢`. Cut and the
+    /// mark of an open goal act on no formula.
     #[non_exhaustive]
     Rule {
         /// The rule asked for.
@@ -63,9 +64,10 @@ pub enum StepError {
         /// The position of the formula.
         position: usize,
     },
-    /// The rule is not one of the logic's: ex falso in minimal logic, and
-    /// in intuitionistic and minimal logic a rule whose premise would have
-    /// two formulas right of `⊢` or none, where every goal keeps one.
+    /// The logic does not offer the rule: ex falso (`⊥L`) in minimal
+    /// logic, and in intuitionistic and minimal logic a rule whose premise
+    /// would have two formulas right of `⊢` or none, since every goal there
+    /// has exactly one.
     #[non_exhaustive]
     Logic {
         /// The rule asked for.
@@ -103,9 +105,9 @@ pub enum StepError {
         /// The rule asked for.
         rule: Rule,
     },
-    /// The run of weakenings below an axiom, or of contractions below a
-    /// shared rule, would be estimated past the derivation's bound in
-    /// bytes the state was started under.
+    /// The weakenings below an axiom, or the contractions below a shared
+    /// rule, are estimated past the bound on the derivation's bytes that
+    /// the proof was started or read under.
     #[non_exhaustive]
     Size {
         /// The estimate of the run, in bytes.
@@ -144,13 +146,14 @@ const fn target(rule: Rule) -> &'static str {
         FalseRight => "⊥ right of ⊢",
         TrueLeft => "⊤ left of ⊢",
         TrueRight => "⊤ right of ⊢",
-        Cut => "no formula: its cut formula is none of the goal's",
-        Open => "no formula: it is the mark of an open goal",
+        Cut => "no formula of a goal, so no step takes it",
+        Open => "no formula, since it only marks an open goal",
     }
 }
 
 impl Display for StepError {
-    /// Writes the refusal as a phrase, naming rules, sides and positions.
+    /// Writes the refusal as a sentence that names the rule, side and
+    /// position, and says what the step needs.
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {
             StepError::NoGoal { goal } => write!(f, "there is no open goal {}", goal.get()),
@@ -160,7 +163,8 @@ impl Display for StepError {
                 len,
             } => write!(
                 f,
-                "the goal has no formula {position} {}: it has {}",
+                "the goal has no formula {position} {}: it has {} there, and positions \
+                 start at 0",
                 of(*side),
                 crate::errors::counted(*len, "formula", "formulas")
             ),
@@ -177,33 +181,41 @@ impl Display for StepError {
             StepError::Logic { rule, logic } => {
                 let why = match (rule, logic) {
                     (Rule::FalseLeft, Logic::Minimal) => "minimal logic has no ex falso",
-                    (Rule::ContractRight | Rule::OrRight, _) => {
-                        "its premise would have two formulas right of ⊢, and every goal keeps one"
+                    (Rule::OrRight, _) => {
+                        "its premise would have both disjuncts right of ⊢, and every goal of LJ \
+                         has exactly one formula there: use ∨R₁ or ∨R₂ to keep one disjunct"
                     }
-                    _ => "its premise would have no formula right of ⊢, and every goal keeps one",
+                    (Rule::ContractRight, _) => {
+                        "its premise would have two formulas right of ⊢, and every goal of LJ \
+                         has exactly one"
+                    }
+                    _ => {
+                        "its premise would have no formula right of ⊢, and every goal of LJ has \
+                         exactly one"
+                    }
                 };
                 write!(
                     f,
-                    "the rule {rule} is not one of {} in {logic} logic: {why}",
-                    logic.calculus()
+                    "the rule {rule} is not available in {logic} logic: {why}"
                 )
             }
             StepError::NoPartner { side, position } => write!(
                 f,
-                "the axiom needs formula {position} {} on the other side of ⊢ too",
-                of(*side)
+                "the axiom needs formula {position} {} to stand {} too",
+                of(*side),
+                of(side.flip())
             ),
             StepError::Succedents { count } => write!(
                 f,
-                "a premise would have {} right of ⊢ instead of one, which every goal of LJ \
-                 keeps: give the step a split that sends the formula right of ⊢ to the premise \
-                 that takes none of its own",
+                "a premise would have {} right of ⊢, and every goal of LJ has exactly one: \
+                 share the context, or split it so that each premise keeps one formula right \
+                 of ⊢",
                 crate::errors::counted(*count, "formula", "formulas")
             ),
             StepError::Split { side, position } => write!(
                 f,
-                "position {position} {} of the split is out of range, repeated, or the formula \
-                 the rule acts on",
+                "the split's position {position} {} is out of range, named twice, or the \
+                 formula the rule acts on: name each other formula of the goal at most once",
                 of(*side)
             ),
             StepError::Size {
@@ -211,8 +223,9 @@ impl Display for StepError {
                 limit_bytes,
             } => write!(
                 f,
-                "the step's structural rules would be estimated at {estimate_bytes} bytes, past \
-                 the bound of {limit_bytes} bytes the proof was started under"
+                "the weakenings or contractions this step makes are estimated at \
+                 {estimate_bytes} bytes, over the derivation bound of {limit_bytes} bytes the \
+                 proof was started or read with: start it with a higher bound"
             ),
             StepError::NoSplit { rule } => {
                 write!(
@@ -249,7 +262,7 @@ pub enum Context {
 
 /// A step of a proof in progress: the rule applied to the formula at a
 /// position of a side of a goal, and for a rule with two premises how
-/// they share the context.
+/// they take the context.
 ///
 /// Needs the cargo feature `interactive` (on by default).
 #[non_exhaustive]
@@ -313,8 +326,8 @@ pub struct Applicable {
 pub enum Needs {
     /// Nothing.
     Nothing,
-    /// How its two premises take the context: shared unless a split is
-    /// given.
+    /// A context for its two premises: shared unless the step gives a
+    /// split.
     Context,
 }
 
@@ -344,14 +357,15 @@ pub struct Closed {
 pub struct Hint {
     /// The outcome of deciding the goal as a sequent of its own.
     pub outcome: Outcome,
-    /// The first steps of the derivation found, each with its formula
-    /// and, for two premises, how they took the context: the weakenings
-    /// and contractions at its root and the first rule that is not one,
-    /// which ends the list, the first step on the goal asked for and each
-    /// other on the goal the step before it opened. Empty unless the goal
-    /// is valid. All are read off one derivation, so that following them
-    /// makes progress: a contraction alone, hinted again, could be
-    /// answered by a weakening of the copy.
+    /// The first steps of the derivation found: the weakenings and
+    /// contractions at its root, then the first rule that is neither, which
+    /// ends the list. The first step acts on the goal asked about, each
+    /// later one on the goal the step before it opened. Each step names its
+    /// formula and, for two premises, how they take the context. Empty
+    /// unless the goal is valid. The steps come from one derivation so that
+    /// following them makes progress: a contraction hinted alone could be
+    /// answered, at the next hint, by a weakening of the copy, and the two
+    /// would alternate for ever.
     pub steps: Vec<Step>,
 }
 
@@ -367,19 +381,18 @@ enum Shape {
     Binary([(Vec<NodeId>, Vec<NodeId>); 2]),
 }
 
-/// A proof in progress of an ordinary sequent in a logic: the formulas,
-/// the inferences of a derivation of LK or LJ made so far with the open
-/// goals as leaves, and the steps taken. It starts from the sequent as
-/// one open goal; rules are applied to a formula of a goal by side and
-/// position, the search closes goals, [`undo`](Self::undo) retracts the
-/// last step, and once no goal is open [`finished`](Self::finished)
-/// gives the derivation, checked.
+/// A proof in progress of an ordinary sequent in LK or LJ. It starts with
+/// the sequent as its one open goal. [`apply`](Self::apply) applies a rule
+/// to a formula of a goal, named by side and position;
+/// [`close`](Self::close) lets the search prove a goal;
+/// [`undo`](Self::undo) takes back the last step. Once no goal is open,
+/// [`finished`](Self::finished) returns the derivation, checked.
 ///
 /// In intuitionistic and minimal logic every goal has exactly one formula
-/// right of `⊢`: a sequent with none starts as `Γ ⊢ ⊥`, as it is decided,
-/// and the rules whose premise would have none or two (`WR`, `CR`, `⊥R`
-/// and `∨R` with both disjuncts) are not offered; `¬R` and `¬L` take the
-/// form of `→R` and `→L` for `A → ⊥`.
+/// right of `⊢`. A sequent with none starts as `Γ ⊢ ⊥`, the sequent the
+/// search decides. The rules whose premise would have none or two (`WR`,
+/// `CR`, `⊥R`, and `∨R` with both disjuncts) are not offered, and `¬R`
+/// and `¬L` take the form of `→R` and `→L` for `A → ⊥`.
 ///
 /// # Examples
 ///
@@ -405,15 +418,16 @@ enum Shape {
 ///
 /// # JSON
 ///
-/// With the feature `serialize` a proof in progress is `{"version": 8,
-/// "logic": "intuitionistic", "sequent": {…}, "inferences": […],
-/// "history": […]}` ([`wire`](crate::wire)): the sequent as the ordinary
-/// sequent's form, the inferences in the state's own order, the
-/// conclusion first, each `{"left": [ids], "right": [ids], "rule":
-/// name, "principal": ["left", position], "premises": [indices]}`, an
-/// open goal its two sides alone, and the history as the inferences the
-/// steps closed, in order. Reading it back checks every inference by the
-/// checker's rules, so a state read is as sound as one built through
+/// With the feature `serialize`, a proof in progress is written as
+/// `{"version": 8, "logic": "intuitionistic", "sequent": {…},
+/// "inferences": […], "history": […]}` ([`wire`](crate::wire)).
+/// `sequent` has the form of an ordinary [`Sequent`]. `inferences` lists
+/// the inferences in the state's own order, the conclusion first, each
+/// `{"left": [ids], "right": [ids], "rule": name, "principal": ["left",
+/// position], "premises": [indices]}`; an open goal has its two sides
+/// alone. `history` lists, in order, the inference each step closed.
+/// Reading the form back checks every inference by the checker's rules,
+/// so a state read from JSON is as sound as one built through
 /// [`apply`](Self::apply).
 ///
 /// Needs the cargo feature `interactive` (on by default).
@@ -448,15 +462,15 @@ const fn open(left: Vec<NodeId>, right: Vec<NodeId>) -> Inference {
 }
 
 impl Interactive {
-    /// Starts a proof of the sequent in the logic, with the whole sequent
-    /// as the one open goal; an intuitionistic or minimal sequent with
-    /// nothing right of `⊢` as `Γ ⊢ ⊥`.
+    /// Starts a proof of the sequent in the logic, the whole sequent its
+    /// one open goal. In intuitionistic and minimal logic a sequent with
+    /// nothing right of `⊢` starts as `Γ ⊢ ⊥`.
     ///
     /// # Errors
     ///
     /// [`Error::Succedents`] for an intuitionistic or minimal sequent with
     /// more than one formula right of `⊢`, and [`Refusal::Occurrences`]
-    /// past the default bound.
+    /// past the default bound on subformula occurrences.
     pub fn new(sequent: &Sequent, logic: Logic) -> Result<Self, Error> {
         Self::within(sequent, logic, &Limits::default())
     }
@@ -546,12 +560,12 @@ impl Interactive {
         self.history.len()
     }
 
-    /// Returns the rules that can act on the formula at `position` of
-    /// `side` of the open goal in this logic: the axiom where the formula
-    /// stands on the other side too, the rules of its connective on its
-    /// side, weakening and contraction, each that the logic has.
-    /// Whether a split given fits, and in LJ whether the premises keep one
-    /// formula right of `⊢`, is what [`apply`](Self::apply) decides.
+    /// Returns the rules the logic offers for the formula at `position` of
+    /// `side` of the open goal: the axiom where the formula stands on the
+    /// other side too, the rules of its connective on its side, and
+    /// weakening and contraction. [`apply`](Self::apply) still decides
+    /// whether a split fits and, in LJ, whether each premise keeps one
+    /// formula right of `⊢`.
     ///
     /// # Errors
     ///
@@ -685,19 +699,21 @@ impl Interactive {
 
     /// Applies a step to the open goal and returns the goals it opens, in
     /// the rule's order of premises; a rule without premises opens none.
+    ///
     /// The axiom closes a goal whose formula stands on both sides of `⊢`,
-    /// weakening every other formula first, which the derivation shows as
-    /// inferences of their own unless its structural rules are drawn
-    /// admissible ([`Structural`]). A rule with two premises gives each
-    /// the whole context unless the step splits it ([`Step::split`]); in
-    /// intuitionistic and minimal logic `→L` and `¬L`, whose first premise
-    /// has its own formula right of `⊢`, give it every hypothesis and the
-    /// second premise every hypothesis and the goal's formula right of
-    /// `⊢`, the hypotheses contracted first, which an admissible drawing
-    /// leaves out.
+    /// weakening every other formula away first. The derivation shows
+    /// these weakenings unless its structural rules are drawn admissible
+    /// ([`Structural`]). A rule with two premises gives each the whole
+    /// context unless the step splits it ([`Step::split`]). In
+    /// intuitionistic and minimal logic, `→L` and `¬L` have a first premise
+    /// with its own formula right of `⊢`. With a shared context they give
+    /// every hypothesis to both premises and the goal's formula right of
+    /// `⊢` to the second; the hypotheses are contracted first, which an
+    /// admissible drawing leaves out.
+    ///
     /// Every inference the step makes is checked by the rules of the
-    /// derivation's checker before the state changes. Fails with what the
-    /// rule needed, and changes nothing then.
+    /// derivation's checker before the state changes. A refused step
+    /// changes nothing.
     ///
     /// # Errors
     ///
@@ -727,7 +743,8 @@ impl Interactive {
                 .iter()
                 .position(|&y| y == x)
                 .ok_or(StepError::NoPartner { side, position })?;
-            // A weakening per formula, each with the sequent left.
+            // One weakening per formula, each holding what is left of the
+            // sequent.
             let len = goal.left.len() + goal.right.len();
             self.run_within(len, len)?;
             axiom(goal, side, position, partner)
@@ -792,11 +809,12 @@ impl Interactive {
         Ok(self.checked(made))
     }
 
-    /// Fails unless a run of `inferences` inferences whose sequents have
-    /// at most `len` formulas each is within the state's bound, by the size
-    /// estimate's measure with every formula three characters at least
-    /// (one and two for its separator): what an axiom's weakenings and a
-    /// shared rule's contractions hold grows with the square of the goal.
+    /// Refuses a run of `inferences` inferences, each sequent at most
+    /// `len` formulas, past the state's bound. It uses the size estimate's
+    /// measure, counting every formula as three characters (at least one,
+    /// and two for its separator). An axiom's weakenings and a shared
+    /// rule's contractions grow with the square of the goal, so they are
+    /// checked before they are made.
     fn run_within(&self, inferences: usize, len: usize) -> Result<(), StepError> {
         let (inferences, len) = (inferences as u64, len as u64);
         let bytes = inferences.saturating_mul(
@@ -928,25 +946,26 @@ impl Interactive {
         ids
     }
 
-    /// Decides the open goal as a sequent of its own in the state's logic,
-    /// by the translation given (`None` for the logic's default), with
-    /// the search options and within `limits`, until `stop` fires, and
-    /// returns the outcome. When the goal is valid, the derivation found
-    /// is grafted onto it as one step, which [`undo`](Self::undo) retracts
-    /// whole; a goal the search refutes or cannot decide stays open, the
-    /// outcome saying why ([`Verdict::Unknown`] with its reason).
+    /// Decides the open goal as a sequent of its own in the state's logic
+    /// and returns the outcome. The search goes through the embedding by
+    /// `translation` (`None` for the logic's default), with the search
+    /// options, within `limits` and until `stop` fires. When the goal is
+    /// valid, the derivation found is grafted onto it as one step, which
+    /// [`undo`](Self::undo) takes back whole. A goal the search refutes or
+    /// cannot decide stays open, and the outcome says why
+    /// ([`Verdict::NotValid`], or [`Verdict::Unknown`] with its reason).
     ///
-    /// The derivation grafted is within `limits.derivation_bytes` by the
-    /// size estimate's measure: a larger one leaves the goal open and
-    /// [`Closed::grafted`] says why, the derivation kept in the outcome.
+    /// A derivation larger than `limits.derivation_bytes` by the size
+    /// estimate is not grafted: the goal stays open, [`Closed::grafted`]
+    /// says why, and the outcome keeps the derivation.
     ///
     /// # Errors
     ///
     /// [`Error::OrdinaryStep`] for a goal that is not open, the errors of
     /// [`decide_within`] (a translation that does not decide the logic, the
     /// refusal of a bound or the stop), the goal then still open, and
-    /// [`Error::GoalMismatch`] should the derivation found conclude
-    /// another sequent than the goal.
+    /// [`Error::GoalMismatch`] if the derivation found concludes a sequent
+    /// other than the goal.
     pub fn close(
         &mut self,
         goal: GoalId,
@@ -968,10 +987,9 @@ impl Interactive {
     }
 
     /// Decides the open goal as [`close`](Self::close) does and returns
-    /// the outcome with the first steps of the derivation found, its
-    /// structural rules at the root and the rule above them, which
-    /// [`apply`](Self::apply) takes in turn ([`Hint::steps`]); the state
-    /// is left as it was.
+    /// the outcome with the first steps of the derivation found
+    /// ([`Hint::steps`]), which [`apply`](Self::apply) takes in turn. The
+    /// state does not change.
     ///
     /// # Errors
     ///
@@ -1016,8 +1034,8 @@ impl Interactive {
         decide_within(&sequent, &options, search, limits, stop)
     }
 
-    /// Returns the id in this state's arena of every formula of `other`,
-    /// an arena that extends a copy of it, adding what this one lacks.
+    /// Returns the id in `formulas` of every formula of `other`, adding to
+    /// `formulas` those it lacks.
     fn ids_of(formulas: &mut Formulas, other: &Formulas) -> Result<Vec<NodeId>, Error> {
         let mut ids: Vec<NodeId> = Vec::with_capacity(other.len());
         // Every subformula precedes the formulas built from it.
@@ -1192,12 +1210,12 @@ impl Interactive {
         self.derivation_within(&ViewOptions::default(), &Limits::default(), |_| false)
     }
 
-    /// Returns the derivation so far with the open goals as leaves of
-    /// [`Rule::Open`], renumbered premises before conclusions, so that its
-    /// ids are not this state's ([`derivation_ids`](Self::derivation_ids)
-    /// maps them), with its structural rules as `view.structural` draws
-    /// them; refused past `limits.derivation_bytes` by its estimate before
-    /// anything is built, and when `stop` fires.
+    /// Returns the derivation so far, with the open goals as leaves of
+    /// [`Rule::Open`] and the structural rules drawn as `view.structural`
+    /// says. Its inferences are numbered premises before conclusions, so
+    /// their ids are not this state's; [`derivation_ids`](Self::derivation_ids)
+    /// maps them. The derivation is refused past `limits.derivation_bytes`
+    /// by its estimate, before anything is built, and when `stop` fires.
     ///
     /// # Errors
     ///
@@ -1259,7 +1277,7 @@ impl Interactive {
     /// Returns, for every inference of the derivation that
     /// [`derivation_within`](Self::derivation_within) gives under the
     /// structural rules drawn as `structural` says, the id of the
-    /// inference of this state it shows: what turns an inference of a
+    /// inference of this state it shows. It turns an inference of a
     /// drawing into the goal that [`apply`](Self::apply) and
     /// [`close`](Self::close) take.
     pub fn derivation_ids(&self, structural: Structural) -> Vec<GoalId> {
@@ -1324,14 +1342,15 @@ impl Interactive {
 
     /// Returns the derivation of a finished proof, every structural rule
     /// explicit, checked by [`Derivation::check`] within `limits` and
-    /// until `stop` fires: the checker is the final word, though it never
-    /// rejects what this state built.
+    /// until `stop` fires. The check never refuses what this state built;
+    /// it runs so that the checker, not this module, vouches for the
+    /// result.
     ///
     /// # Errors
     ///
     /// [`Error::OpenGoals`] while goals are open, the refusals of
-    /// [`derivation_within`](Self::derivation_within), and those of
-    /// [`Derivation::check`] with its rejection.
+    /// [`derivation_within`](Self::derivation_within), and the errors of
+    /// [`Derivation::check`], its rejection among them.
     pub fn finished(
         &self,
         limits: &Limits,
@@ -1592,7 +1611,7 @@ impl Interactive {
                 }
                 if logic != Logic::Classical && right != 1 {
                     return Err(inconsistent(
-                        "an open goal of LJ has not one formula right of ⊢",
+                        "an open goal of LJ must have exactly one formula right of ⊢",
                     ));
                 }
                 continue;
@@ -1627,7 +1646,7 @@ impl Interactive {
             // one formula right of `⊢`.
             if logic != Logic::Classical && inferences[g].right.len() != 1 {
                 return Err(inconsistent(
-                    "a step of LJ closed a goal without one formula right of ⊢",
+                    "a step of LJ closed a goal that has no formula or several right of ⊢",
                 ));
             }
             named[g] = true;
@@ -1984,8 +2003,9 @@ mod tests {
         let error = refused(&mut s, Step::new(Right, 0, Rule::OrRight));
         assert_eq!(
             error.to_string(),
-            "the rule ∨R is not one of LJ in intuitionistic logic: its premise would have two \
-             formulas right of ⊢, and every goal keeps one"
+            "the rule ∨R is not available in intuitionistic logic: its premise would have both \
+             disjuncts right of ⊢, and every goal of LJ has exactly one formula there: use ∨R₁ \
+             or ∨R₂ to keep one disjunct"
         );
         // →L sending c ∨ a to the first premise leaves it beside a there.
         let error = refused(
@@ -2000,7 +2020,7 @@ mod tests {
         );
         assert_eq!(
             refused(&mut s, Step::new(Left, 0, Rule::Axiom)).to_string(),
-            "the axiom needs formula 0 left of ⊢ on the other side of ⊢ too"
+            "the axiom needs formula 0 left of ⊢ to stand right of ⊢ too"
         );
         assert_eq!(
             refused(
@@ -2020,7 +2040,7 @@ mod tests {
         );
         assert_eq!(
             refused(&mut s, Step::new(Right, 3, Rule::OrRight1)).to_string(),
-            "the goal has no formula 3 right of ⊢: it has 1 formula"
+            "the goal has no formula 3 right of ⊢: it has 1 formula there, and positions start at 0"
         );
         assert_eq!(
             s.apply(GoalId::new(9), &Step::new(Left, 0, Rule::AndLeft)),
@@ -2034,7 +2054,7 @@ mod tests {
             s.apply(g, &Step::new(Left, 0, Rule::FalseLeft))
                 .unwrap_err()
                 .to_string(),
-            "the rule ⊥L is not one of LJ in minimal logic: minimal logic has no ex falso"
+            "the rule ⊥L is not available in minimal logic: minimal logic has no ex falso"
         );
         let rules = |s: &Interactive, side, position| -> Vec<Rule> {
             s.rules(g, side, position)
@@ -2116,8 +2136,8 @@ mod tests {
 
     /// Following the hints proves a sequent whose derivation contracts a
     /// hypothesis at its root: the contraction comes with the rule that
-    /// uses both copies, where hinted alone it was answered by a weakening
-    /// of the copy, and the two alternated for ever.
+    /// uses both copies. Hinted alone, it could be answered by a weakening
+    /// of the copy, and the two would alternate for ever.
     #[test]
     fn following_the_hints_proves_a_sequent() {
         // Every sequent is valid, so a search that deepens its copy bound
@@ -2329,8 +2349,8 @@ mod tests {
             crate::wire::upgrade::<Derivation, _>(&mut document, &Limits::default())
         };
         assert!(matches!(derivation_of(derivation), Err(Error::Json { .. })));
-        // An open goal is a leaf: drawn bare with a premise above it, its
-        // layout's height underflowed.
+        // An open goal must be a leaf: drawn bare with a premise above it,
+        // it would underflow the layout's height.
         let open = r#"{"version":8,"logic":"classical","sequent":{"formulas":[{"V":0},{"V":1}],"atoms":["a","b"],"left":[1],"right":[1]},"inferences":[{"left":[1],"right":[1],"rule":"ax"},{"left":[1],"right":[1],"rule":"open","premises":[0]}]}"#;
         assert!(matches!(derivation_of(open), Err(Error::Json { .. })));
         // A step of LJ that closed `a, ¬a ⊢`: undone, it would reopen a

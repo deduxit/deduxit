@@ -423,7 +423,7 @@ $ deduxit interact --logic minimal 'a |- ~~a'
 > apply 0 R0 ~R
 opened goal 1: L0: a, L1: ¬a ⊢ R0: ⊥
 > apply 1 R0 falseR
-error: the rule ⊥R is not one of LJ in minimal logic: its premise would have no formula right of ⊢, and every goal keeps one
+error: the rule ⊥R is not available in minimal logic: its premise would have no formula right of ⊢, and every goal of LJ has exactly one
 > apply 1 L1 ~L
 opened goal 3: L0: a ⊢ R0: a
 opened goal 4: L0: a, L1: ⊥ ⊢ R0: ⊥
