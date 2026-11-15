@@ -29,7 +29,7 @@ it; only what holds for the whole crate goes here.
 | `core-batch.md` | `search/batch.rs` | many sequents in one call: the order of results, the workers and the stream, how the batch's memory bound is shared |
 | `core-inputs.md` | `lltp.rs`, `mist.rs`, `families.rs` | the LLTP reader, the `.spec` reader of coverability problems and the generated families |
 | `core-lambda.md` | `lambda/` | proofs read back as lambda-terms: the calculus and its source, the term's data, matching premises by member, the structural rules, the DAG and the printer's bound, the refusals, the tests' own type checker |
-| `core-rules.md` | `rules/`, `serialize/rules.rs`, the rules test | calculi given as data: the rule file and its checks, the generic derivation (terms, nodes, scopes), the checker by matching and its bounds, the rule files of LK, LJ and LM and their cross-check |
+| `core-rules.md` | `rules/`, `serialize/rules.rs`, the rules and natural deduction tests | calculi given as data: the rule file and its checks, the generic derivation (terms, nodes, scopes), the checker by matching and its bounds, the built-in rule files (LK, LJ, LM, LL, the tableau, natural deduction) and their cross-checks |
 | `core-ordinary.md` | `ordinary/` | ordinary logic: its syntax and TPTP reader, the translations as one pattern table, the read-back to LK and LJ, its checker, the certificate over `Prop`, the goal state of LK and LJ |
 
 ## Layout
@@ -143,7 +143,8 @@ Each entry point is described in the file of its module:
   `hint`, `derivation_within`, `finished`), `ordinary::truth_table` and
   `Tableau::of` (`core-ordinary.md`);
 - `rules`: `wire::upgrade::<rules::Calculus, _>` (a rule file; `rules::LK`,
-  `LJ`, `LM` are three, `rules::SCHEMA` their JSON Schema),
+  `LJ`, `LM`, `LL`, `TABLEAU` and natural deduction's `NJ`, `NK`, `NM`
+  and variants are built in, `rules::SCHEMA` their JSON Schema),
   `rules::Derivation` (`new`, `terms_mut`, `scope`, `push`, or read from
   JSON), `Derivation::check(&calculus, &limits, stop)` and
   `Derivation::from_ordinary` (`core-rules.md`);

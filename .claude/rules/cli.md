@@ -262,7 +262,9 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   (`read_document` probes the key `calculus` first: no other document
   has it). `--calculus CALCULUS` (a path, an input like the proof file,
   so no settings key) names a rule file, or a built-in calculus by name
-  in any case (`BUILT_IN`: `LK`, `LJ`, `LM`, `LL`, `tableau`; a file of
+  in any case (`BUILT_IN`: `LK`, `LJ`, `LM`, `LL`, `tableau`, and
+  natural deduction's `NJ`, `NK`, `NM`, `NK-DNE`, `NK-LEM`,
+  `NJ-defined`, `NK-defined`, `NM-defined`; a file of
   such a name is given as `./LK`); without it the derivation's own
   `calculus` must name a built-in one, else exit 2. A rule file is read
   by `io::read_configuration`, so never from standard input, which

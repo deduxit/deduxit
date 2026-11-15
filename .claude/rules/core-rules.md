@@ -3,6 +3,7 @@ paths:
   - "core/src/rules/**"
   - "core/src/serialize/rules.rs"
   - "core/tests/rules.rs"
+  - "core/tests/natural.rs"
 ---
 
 # deduxit core: calculi given as data
@@ -13,7 +14,9 @@ design, with the reasons and the alternatives weighed, is
 `plan/notes/rule-schemas.md`; this file holds what the code relies on.
 
 - **Layout.** `mod.rs`: the public names, `FORMULA`, the rule files'
-  text `LK`, `LJ`, `LM`, `LL`, `TABLEAU` (`calculi/*.json`) and
+  text `LK`, `LJ`, `LM`, `LL`, `TABLEAU`, natural deduction's `NJ`,
+  `NK`, `NM`, `NK_DNE`, `NK_LEM`, `NJ_DEFINED`, `NK_DEFINED`,
+  `NM_DEFINED` (`calculi/*.json`) and
   `SCHEMA` (`calculus.schema.json`); `terms.rs`: `Terms`, the
   hash-consed arena of a derivation's terms; `calculus.rs`: `Calculus`,
   read from a `CalculusForm` and compiled (`Rule`, `Shape`, `Entry`,
@@ -144,6 +147,34 @@ design, with the reasons and the alternatives weighed, is
   whose two implications the arena lacks, as the ordinary checker does
   for `↔L₁` and `↔L₂` too, which a rule file cannot ask; no engine
   makes such an arena, so the test has that document by hand.
+- **Natural deduction's files** (`calculi/n*.json`, written once by a
+  script and kept as data, as LK's were): a judgement is one formula
+  (one multiset zone of exactly one member, so no rule needs a
+  position), a hypothesis a node, discharge by scope; every elimination
+  takes its major premise first; the classical rule is `RAA` (Prawitz's
+  `⊥c`), `¬¬E` or `LEM`, minimal logic drops `⊥E`, and a `-defined`
+  file has no `¬`. Each file's `description` names its sources; change
+  them only with a source read. The cross-check (`core/tests/natural.rs`)
+  holds "derivable in the file exactly when the ordinary suite says
+  valid in its logic" both ways: every rule, read as the sequent
+  `⋀(discharged → premise) ⊢ conclusion` with its variables as atoms, is
+  valid in the file's logic and in no weaker one unless it needs none
+  (`needs`: the classical rules classical, `⊥E` intuitionistic), which
+  with the scope invariant makes every accepted derivation valid; and
+  the ordinary suite's derivations (embedding, LJT, tableau; the fixed
+  list and 300 generated sequents, each logic) translated into every
+  file whose logic is at least as strong pass and conclude the sequent's
+  formula from hypotheses of it. The translator is in the test: open
+  leaves are named by formula, so a left rule substitutes a derivation
+  for every open leaf of a formula and no occurrence is tracked; LK
+  becomes `⊥` from `Γ, ¬Δ` and then the classical rule. Breaking each
+  small derivation once per node (formula, rule, premise order, scope)
+  and deciding what every accepted break shows checks the first
+  direction on samples; `a_weaker_file_refuses_what_needs_a_stronger_rule`
+  pins that a proof needing `RAA`, `¬¬E` or `⊥E` is refused for the rule.
+  The ILTP part is ignored (the library is not in the tree) and leaves
+  the tableau method out, which held several times its memory bound on
+  SYJ202+1.004.
 - **What the reader refuses beyond names and sorts**: a connective
   over a context that does not take exactly one argument (index 0 of
   an empty list panicked), a variable named twice in `fresh` or

@@ -80,8 +80,9 @@ Current contents:
     benchmark inputs;
   - `rules/core-ordinary.md` (`ordinary/`): ordinary logic through its
     embeddings, the read-back to LK and LJ and its checker.
-  - `rules/core-rules.md` (`rules/`, `serialize/rules.rs`): calculi
-    given as data, the generic derivation and its checker.
+  - `rules/core-rules.md` (`rules/`, `serialize/rules.rs`, the rules
+    and natural deduction tests): calculi given as data, the generic
+    derivation and its checker, the built-in rule files.
 - `rules/cli.md` (`cli/**`): the `deduxit` command's layout, exit statuses,
   search thread, stop polling, the interactive session, and where a new
   engine, output format or session command plugs in.
