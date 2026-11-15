@@ -21,12 +21,20 @@ use std::path::Path;
 
 /// The calculi this crate ships, by the name a derivation names and the
 /// flag takes, any case.
-const BUILT_IN: [(&str, &str); 5] = [
+const BUILT_IN: [(&str, &str); 13] = [
     ("LK", rules::LK),
     ("LJ", rules::LJ),
     ("LM", rules::LM),
     ("LL", rules::LL),
     ("tableau", rules::TABLEAU),
+    ("NJ", rules::NJ),
+    ("NK", rules::NK),
+    ("NM", rules::NM),
+    ("NK-DNE", rules::NK_DNE),
+    ("NK-LEM", rules::NK_LEM),
+    ("NJ-defined", rules::NJ_DEFINED),
+    ("NK-defined", rules::NK_DEFINED),
+    ("NM-defined", rules::NM_DEFINED),
 ];
 
 /// The bytes a line of the node list takes beyond its sequent: the

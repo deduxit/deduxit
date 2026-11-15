@@ -768,8 +768,9 @@ pub(crate) struct InteractArgs {
         conflicts_with_all = ["sequent", "file", "intuitionistic", "affine", "mix", "logic", "calculus", "assume"]
     )]
     pub(crate) state: Option<PathBuf>,
-    /// Prove in a calculus given as data: a rule file, or LK, LJ, LM, LL
-    /// or tableau, the ones built in
+    /// Prove in a calculus given as data: a rule file, or one built in
+    /// (LK, LJ, LM, LL, tableau, and natural deduction's NJ, NK, NM,
+    /// NK-DNE, NK-LEM, NJ-defined, NK-defined, NM-defined)
     ///
     /// The sequent is then written in the calculus's own syntax, its
     /// connectives by their symbols or names (`->` reads as `→`, `/\` as
@@ -921,8 +922,9 @@ pub(crate) struct CheckArgs {
     #[arg(help_heading = INPUT, long, value_name = "N", requires = "sequent")]
     pub(crate) world: Option<u32>,
     /// With a derivation in a calculus given as data, the calculus to
-    /// check it in: a rule file, or LK, LJ, LM, LL or tableau, the ones
-    /// built in
+    /// check it in: a rule file, or one built in (LK, LJ, LM, LL,
+    /// tableau, and natural deduction's NJ, NK, NM, NK-DNE, NK-LEM,
+    /// NJ-defined, NK-defined, NM-defined)
     ///
     /// The file is then such a derivation in JSON, which names its
     /// calculus; one that names a built-in calculus is checked in it
