@@ -10,7 +10,9 @@
 # with every engine that applies, the net engine's test period, the
 # intuitionistic mode of the families that have one, the whole LLTP
 # library in both modes, and the intuitionistic library again under each
-# atom bias alone; the largest sizes with 20 minutes each, the LLTP
+# atom bias alone, and ILTP's propositional problems in classical,
+# intuitionistic and minimal logic under each method of ordinary logic;
+# the largest sizes with 20 minutes each, the LLTP
 # problems that ended at the copy bound or the recursion limit with those
 # raised; then the thread counts 2, 4, 8 and every core on the hard
 # families, every core on the LLTP problems not decided at once, and the
@@ -21,11 +23,15 @@
 # (`reference'), so that every row of it has its counterpart. About three
 # hours on sixteen cores, on an otherwise idle machine: stages 1 to 3 of
 # the first baseline took 9 h 21 min on 2026-09-30, the second 8 h 4 min,
-# and the third 2 h 58 min on 2026-10-17, its engines deciding most of what
-# the earlier ones waited out. A baseline stopped at the slot's end is
-# finished on the next night.
+# the third 2 h 58 min on 2026-10-17, its engines deciding most of what
+# the earlier ones waited out, and the fourth 2 h 23 min on 2026-11-02,
+# beside other work on CPUs 2 to 9. The ILTP passes, a quarter of an hour
+# each, run in the two streams of stage 1 that finish first, so they add
+# little. A baseline stopped at the slot's end is finished on the next
+# night.
 #
 #   nix build .#lltp -o bench/lltp          # once: the LLTP library
+#   nix build .#iltp -o bench/iltp          # once: the ILTP library
 #   bench/baseline.sh --arm --fresh          # from the devshell
 #   systemctl --user list-timers             # deduxit-baseline and its stop
 #   journalctl --user -fu deduxit-baseline    # progress every ten minutes
@@ -84,6 +90,7 @@ set -euo pipefail
 self=$(realpath "$0")
 cd "$(dirname "$self")/.."
 lltp=bench/lltp
+iltp=bench/iltp
 results=bench/results
 cores=(1 0 2 3)
 cpus=''
@@ -166,6 +173,15 @@ if [ -n "$cpus" ]; then
     fi
   done
 fi
+
+# The libraries are not in the repository; without them every run of
+# theirs would be an error row.
+for library in "$lltp" "$iltp"; do
+  if [ ! -d "$library" ]; then
+    echo "$library is missing: nix build .#${library##*/} -o $library" >&2
+    exit 1
+  fi
+done
 
 # The baseline's directory: the one --into names (a finished baseline is
 # resumed too, its new runs added), else the latest one without
@@ -478,16 +494,28 @@ mll=(--family "partition-yes=4,5,6,12,20" --family "partition-no=3,4,9,12" --fam
 
 # Stage 1, sequential, four streams: every family, the engines against each
 # other, the net engine's test period, the intuitionistic mode, the whole
-# LLTP library in both modes, and the intuitionistic library under each
+# LLTP library in both modes, the intuitionistic library under each
 # atom bias alone: the backward search (the rarer literal positive) and the
 # forward one (its factors positive) within the forward bound of the
-# default, which runs the two on a sequent with exponentials. The two
-# passes under one bias are the longest and have a stream each; the others
-# share theirs, the families after one library pass and the engines after
-# the other. About fifty minutes (three and a half hours in the second
+# default, which runs the two on a sequent with exponentials; and ILTP's
+# 274 problems of ordinary logic under each method, as the runs that chose
+# the defaults measured them (bench/defaults/sat-*.csv): no copy bound, two
+# seconds, the embedding, LJT, the SAT solver and the default in
+# intuitionistic and minimal logic, and the embedding, the SAT solver, the
+# default, the truth table (within the command's bound of ten atoms) and
+# the tableau in classical logic. The two passes under one bias are the
+# longest and have a stream each; the others share theirs, the families
+# after one library pass and the engines after the other, and the two ILTP
+# passes end the two streams that finish first, each about a quarter of an
+# hour. About fifty minutes (three and a half hours in the second
 # baseline).
+ordinary=(--tptp "$iltp/Problems" --copies none --timeout 2 --repeat 3 --repeat-under 1)
 streams=()
-run "${cores[0]}" lltp-rarer --lltp "$lltp/ILL" --bias rarer --copies 3 --timeout 5 &
+(
+  run "${cores[0]}" lltp-rarer --lltp "$lltp/ILL" --bias rarer --copies 3 --timeout 5
+  run "${cores[0]}" iltp "${ordinary[@]}" --logics intuitionistic,minimal \
+    --engines embedding,ljt,sat,auto
+) &
 streams+=($!)
 run "${cores[1]}" lltp-forward --lltp "$lltp/ILL" --bias factors --copies 30 --timeout 5 &
 streams+=($!)
@@ -511,6 +539,8 @@ streams+=($!)
   run "${cores[3]}" intuitionistic --family counter --family counter-over --family chain \
     --family 3-partition-yes --family 3-partition-no=4 --modes intuitionistic --timeout 300 \
     "${repeat[@]}"
+  run "${cores[3]}" iltp-classical "${ordinary[@]}" --logics classical \
+    --engines embedding,sat,auto,table,tableau
 ) &
 streams+=($!)
 wait "${streams[@]}"
@@ -647,7 +677,9 @@ beside them, $parallel. A time is the median of up to
 three runs; \`✓\` is proved, \`✗\` refuted, \`?\` unknown (\`bound\`: the copy
 bound, \`wide\`: a context too wide to split, \`depth\`: the recursion
 limit), \`>\` a time limit reached, \`MISMATCH\` a verdict against the
-problem's known one (for LLTP, the one its header claims). \`deduxit-bench
+problem's known one (for LLTP, the one its header claims; for ILTP, its
+intuitionistic status, which also settles a classical theorem and a
+minimal non-theorem). \`deduxit-bench
 summary $out/*.csv\` prints the tables again.
 
 EOF2

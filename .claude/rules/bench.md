@@ -53,7 +53,14 @@ serde_json, which the CLI and the core's tests already have.
   `sat::decide` in all three logics the same way (its derivation, clausal
   proof or model checked inside), `fragment` `SAT`, `nodes` its conflicts,
   `work` its calls and conflicts (the units of its work bound), the memo
-  columns empty; `auto` times the
+  columns empty; `table` and `tableau` (classical logic only, the
+  others `refused`) time `ordinary::decide_within` with the method
+  named, within `Limits::default()` (the command's bound of ten atoms on
+  a table) and the run's memory bound, the tableau's derivation and
+  either's countermodel checked inside, `nodes` the table's rows or the
+  tableau's nodes, `work` the rows or the lines, a table past the bound
+  `unknown` with the reason `too_many_atoms` (the tableau's `Tableau`
+  needs the feature `interactive`, which the harness enables); `auto` times the
   library's whole default call (`ordinary::decide`, read-back and checks
   inside), so its rows compare with the other two by verdict, and by
   time only where that is said. A method on a linear problem, and LJT on
@@ -296,7 +303,15 @@ serde_json, which the CLI and the core's tests already have.
   intuitionistic library under each bias alone (`lltp-rarer`, `--bias
   rarer`; `lltp-forward`, `--bias factors --copies 30`) in a stream each,
   the families after the default intuitionistic pass and the engines
-  after the classical one. The later stages take their LLTP problems
+  after the classical one. ILTP's 274 problems end the two streams
+  that finish first, with the settings of the runs that chose the
+  defaults (`--copies none --timeout 2 --repeat 3 --repeat-under 1`):
+  `iltp` (intuitionistic and minimal logic; embedding, LJT, SAT, the
+  default) after `lltp-rarer`, `iltp-classical` (the embedding, SAT,
+  the default, the table and the tableau) after `intuitionistic`, each
+  about a quarter of an hour. The script refuses to start, arm or
+  detach without `bench/lltp` and `bench/iltp`, whose runs would
+  otherwise be error rows all night. The later stages take their LLTP problems
   (`ended`) from the first baseline's intuitionistic pass (`reference`,
   `results/2026-09-30/`), not from the night's own, so that every row has
   its counterpart; a later baseline keeps that reference.
