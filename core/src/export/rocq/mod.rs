@@ -478,13 +478,6 @@ pub enum Unsupported {
         "deduxit's library has no theorem for a saturated set, so a refutation by one has no certificate in Rocq"
     )]
     Saturated,
-    /// The disproof's refutation is the basis of a backward search, for
-    /// which the library has no theorem yet. Its certificate is the basis
-    /// itself, which the disproof's check verifies.
-    #[error(
-        "deduxit's library has no theorem for the basis of a backward search, so a refutation by one has no certificate in Rocq"
-    )]
-    Basis,
     /// The sequent has a quantifier, which NanoYalla's kernel and the
     /// library's theorem of the count equation lack.
     #[error(
@@ -498,6 +491,13 @@ pub enum Unsupported {
         "an exhausted search states no invariant, so only the search rules the proofs out and Rocq has nothing to check"
     )]
     Exhausted,
+    /// The disproof's refutation is the basis of a backward search, for
+    /// which the library has no theorem yet. Its certificate is the basis
+    /// itself, which the disproof's check verifies.
+    #[error(
+        "deduxit's library has no theorem for the basis of a backward search, so a refutation by one has no certificate in Rocq"
+    )]
+    Basis,
 }
 
 /// Rocq's keywords, which no atom and no lemma may take.
