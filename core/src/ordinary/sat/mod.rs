@@ -323,6 +323,9 @@ fn run(
                         )?;
                         (Verdict::NotValid, model)
                     }
+                    // The worlds' order past the memory bound: the
+                    // verdict stands without its model.
+                    Err(Reason::MemoryLimit { .. }) => (Verdict::NotValid, None),
                     Err(reason) => (Verdict::Unknown(reason), None),
                 }
             }

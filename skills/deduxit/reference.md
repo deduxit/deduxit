@@ -1089,10 +1089,11 @@ the model satisfies ⊢ a ∨ ¬a at world 1
 
 In the library, `ordinary::Outcome::countermodel` holds it
 (`ordinary::Countermodel`: the sequent and a `kripke::Model`);
-`model.forcing(&sequent, logic, stop)` checks a model and answers what
-each world forces (`Forcing::holds`, `failing`, `at`), and
-`model.refutes(&sequent, logic, stop)` whether its world refutes the
-sequent, within `ordinary::MODEL_CELLS` cells.
+`model.forcing(&sequent, logic, &limits, stop)` checks a model and
+answers what each world forces (`Forcing::holds`, `failing`,
+`failing_anywhere`, `at`), and `model.refutes(&sequent, logic, &limits,
+stop)` whether its world refutes the sequent, within
+`ordinary::MODEL_CELLS` cells and `limits.memory_bytes`.
 
 ### Examples
 

@@ -27,7 +27,9 @@ translating into linear logic, and the linear proof read back as LK or LJ.
   call, answering an `Outcome` (`Verdict::Valid` with its `Evidence`,
   `NotValid`, `Unknown`, and the linear outcome); `rocq.rs` (behind
   `rocq`): the certificate over `Prop`, public as
-  `export::rocq::ordinary`; `interactive.rs` (behind `interactive`): the
+  `export::rocq::ordinary`; `model.rs`: the check of a Kripke model
+  (`Model::forcing`, `refutes`, `Forcing`, `Countermodel`,
+  `MODEL_CELLS`); `interactive.rs` (behind `interactive`): the
   goal state `Interactive`, below. Its JSON forms and those of the
   sequent, the derivation and the outcome are in
   `core/src/serialize/ordinary.rs`, wire level 8 (`wire::ORDINARY`).
@@ -307,7 +309,7 @@ intuit's search (Claessen and Rosén, LPAR 2015) with intuitR's restarts
 `Method::Sat` (`sat`), intuitionistic and minimal logic; classical logic
 below. `mod.rs` the
 clauses and the loop, `solver.rs` the trait over batsat, `read_back.rs`
-the derivation, `model.rs` the Kripke model and its check. Its search,
+the derivation; the model's check is `ordinary/model.rs`. Its search,
 read-back and model are untrusted: the checker and `Model::refutes` are
 the trust.
 
@@ -380,9 +382,10 @@ the trust.
   Every engine's model goes through `Countermodel::found`: checked,
   `None` where the check refuses it for its size (past `MODEL_CELLS`, or
   `limits.memory_bytes`), `Error::Model` turned into
-  `Error::Countermodel` (a defect). So a model too large to check drops
-  the model, never the verdict (the prompt's "too large to show"; such a
-  verdict rests on the search, as LJT's does): the SAT method's
+  `Error::Countermodel` (a defect), a stop during its check the stop. So
+  a model too large to check drops the model, never the verdict, and so
+  does the SAT method's order past its memory account (the prompt's "too
+  large to show"; such a verdict rests on the search, as LJT's does): the SAT method's
   pre-test counts worlds alone and the check adds the arrows, and the
   band between once lost the verdict as an error (the panels of 55b).
   The embedding's model (`Image::countermodel`) is also dropped where
