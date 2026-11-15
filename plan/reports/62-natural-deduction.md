@@ -236,3 +236,221 @@ None departs from the design as the prompt and the brief state it.
   memory on large pigeonhole problems (`prove --logic classical
   --method tableau --memory-limit 512MiB --file SYJ202+1.004.p` passes
   3 GB). For 56a's area (`ordinary/tableau.rs`, `GOAL_BYTES`).
+
+## Session 62b: the builder
+
+Session 62b, 2026-11-16, Opus 5.5 at `high`, the conversation of 62a.
+Brief: `/tmp/linlog-handoff/start-62b.md`.
+
+### Outcome
+
+A session in a calculus given as data now builds a proof forwards as
+well as backwards, as a Fitch-style proof is written. `derive G RULE
+L…` applies a rule to lines in force and adds its conclusion as a new
+line, which later steps cite by its number. Backward steps (`apply`)
+are unchanged, and a rule that discharges a hypothesis opens its
+subproof that way. `assume G [L]` closes a goal by line L, or by the
+line in force equal to it. Every step is still checked by step 60's
+checker, the session's JSON reads every step again, and a session with
+a derived line is written at wire level 18. The manual's natural
+deduction chapter shows both directions with real sessions, and
+`rules.md`'s example rule file is now `my-NJ`.
+
+The chain on `main@origin` (`poolokwq`, rebased from `stlokosv`):
+
+| change | what |
+|---|---|
+| `mxxquknp` | the library (`Interactive::derive`, `lines`, `cite`, `Derive`, `LineId`, `Undone`; the reader; level 18), its tests, the command's words, the bindings' undo |
+| `wsssxwow` | the behaviour lock: `interact-calculus-forward` |
+| `lppusyxq` | the manual (natural deduction's session section, `rules.md`'s `my-NJ` and its `lines:`), the guide, the status, the changelog |
+| `lqrkvzwv` | the rules files: `core-rules.md`, `cli.md`, `web.md` |
+
+### The forward step's design and its sources
+
+The research sub-agent read the tools' own pages (Sonnet 5.5, `medium`);
+ProofWeb's site and manual could not be reached, so nothing here rests
+on it.
+
+- **Jape** (Bornat, "Natural Deduction Proof and Disproof in Jape", the
+  manual at cs.ox.ac.uk/people/bernard.sufrin/personal/jape.org):
+  forward and backward steps in box proofs ("for a forward step you
+  must choose a hypothesis and for a backward step an open (unproved)
+  conclusion"). An unproved conclusion is a line below three dots, and
+  rules open and discharge boxes themselves ("combining introduction
+  and discharge into a single step… never a need to guess an
+  assumption"). A step reaches only lines above it in its own box or
+  in enclosing boxes. This is the design taken: forward and backward
+  steps in one session, open goals as Jape's unproved conclusions, and
+  subproofs opened by applying a discharging rule backwards.
+- **forall x: Calgary** (chapters 17 and 18 at
+  forallx.openlogicproject.org): lines are cited by number and a
+  subproof by its range. A line may be cited where it comes before and
+  lies in no closed subproof, outer lines inside an inner subproof
+  included, so reiteration is never needed. The session's lines in
+  force are exactly these: a line is in force at a goal when its scope
+  encloses the goal's, and a citation of any other is refused.
+- **Carnap** (carnap.github.io/Carnap-Manual/forallx.html): a
+  justification is a rule followed by line numbers and ranges, and a
+  subproof begins with an assumption line. Its manual says nothing of
+  goals or of building backwards.
+- **Lean 4** (the tactic reference): `assumption` "tries to solve the
+  main goal using a hypothesis of compatible type". The session's
+  `assume` likewise closes a goal by any line in force, derived lines
+  included. That `have`'s facts count is the sub-agent's inference
+  from the reference, not a sentence of it.
+
+The choices that follow from these:
+- **A line is a node, shared.** A derived line is one node however
+  often it is cited (`Goal::line`), so the session and its derivation
+  are a DAG, which step 60's checker and 61b's drawing already take.
+  - `derived` emits the lines first, then the tree; a goal closed by a
+    line (`Done::Line`) is that line's node.
+  - A cited hypothesis becomes a hypothesis node of its own per
+    citation, lying in the hypothesis's scope.
+  - `verify_all` checks every closed node after each forward step,
+    since a new hypothesis node joins a scope whose owner checks it.
+- **Line numbers are stable and stored nowhere.** Lines are numbered
+  from 1 in the order the steps made them (`line_places`): the
+  assumptions, then each scope's hypotheses keyed by the premise node
+  that opened the scope, and each derived line keyed by its node. Node
+  places only grow, so a number never changes and the JSON needs no
+  table of them.
+- **What a forward step refuses.**
+  - **A discharging rule** applies backwards, which opens its subproof,
+    as Jape does: "→I discharges hypotheses: apply it backwards to a
+    goal, which opens its subproof".
+  - **A rule with contexts** applies backwards too, since the lines
+    cannot tell the contexts apart. Natural deduction has none; LK's
+    rules are refused forwards.
+  - **What the lines leave open** is asked for by name, as backwards:
+    `∨I₁` needs `B=…`.
+- **Fitch's subproof citation by range (`→I 2–6`) has no forward
+  form.** It is the backward `→I` in this session. A forward form would
+  need a subproof opened by an assumption that no rule owns yet, which
+  a scope of the session cannot be. That is the brief's "a subproof is
+  opened by an assumption and closed by the rule that discharges it" in
+  Jape's form, and 62c's Fitch view can still draw it as a range.
+
+### The command
+
+- **Session words.** `derive G RULE L… [NAME=TEXT…]` answers `line N:
+  FORMULA`. `assume G [L]` closes by line L (the library's `cite`) or
+  by the line equal to the goal (`assume`). `undo` answers `reopened
+  goal …` or `removed line N`.
+- **Goal lines.** Each goal now lists `lines: 1. a → b; 2. b → c` in
+  place of 61a's `hypotheses: …`. These are the lines in force, in the
+  order of their numbers, where 61a listed the innermost first.
+- **Errors** name the line: `there is no line 9`, `line 2 is not goal
+  0`, `line N is not in force at goal G: it lies in a subproof that is
+  closed there`.
+- **The library's `undo`** answers `rules::Undone` (`Reopened(goal)`
+  or `Removed(line)`); `rules::Interactive` has not been released, so
+  nothing released breaks. The bindings' `rules_undo` answers
+  `reopened: null` for a forward step.
+
+### The JSON
+
+The session reader of level 17 ignores keys it does not know, so a
+derived line could not be a field an old reader ignores: it would read
+a line node as an orphan and a goal closed by one as open. A session
+that holds a derived line is therefore written at level 18
+(`wire::FORWARD`, `wire::LEVEL` 18): a node's `"line": true` and a
+goal's `"cites": N`. One without stays at level 17, byte for byte.
+The reader checks:
+- a line is no root, does not discharge, and is cited only by later
+  lines;
+- a goal closed by a line equals it and has it in force;
+- the history: a forward step's nodes are the last it made, and a goal
+  closed by a line comes after the line's step.
+
+### Checks
+
+All on cores 7-9, capped at 8 GB.
+
+- `cargo test -p deduxit --test rules`: 20 passed.
+  - `random_forward_and_backward_steps_keep_a_checked_session`: seven
+    sessions in NJ and NK, 40 walks of 30 random steps each. It reads
+    every state back through `wire::upgrade`, which checks every step,
+    and compares the JSON.
+  - `a_session_derives_forwards_and_cites_its_lines`: a forward proof,
+    level 18, the refusals, scope, and forged documents.
+- `cargo test -p deduxit-cli --test readme --test lock`: passed. The
+  lock's new call `interact-calculus-forward` was blessed in its own
+  commit.
+- `cargo clippy --workspace --all-targets -- --deny warnings`: clean.
+- The gate passed at `lqrkvzwv`. It noted that the cache misses of
+  `render-svg` moved (+8.77 %); nothing it renders was touched. The one
+  change after it is the rustdoc of `Interactive` (the reviewer's
+  finding), built with `cargo doc`.
+- `nix flake check` under the machine lock: passed on `snqrmoss`, and
+  again after the rebase onto `poolokwq` (54x5's tableau memory
+  account), the bindings' tests under Node included (`about.level`
+  18).
+
+### The reviewer's findings
+
+`fresh-reviewer` on Fable 5.2 at `medium`, once, on the four changes.
+
+- **Criteria 1 to 4 hold.**
+  - Its own random test ran 1 200 sessions of up to 40 steps (`apply`,
+    `derive`, `assume`, `cite`, `undo`, undo from finished states) in
+    NJ, NK, LK, the tableau and a calculus of its own with `fresh`,
+    `atomic` and a discharging rule. Totals: 12 122 steps, 1 402 derived
+    lines, 301 finished states.
+  - Every state read back to the same JSON, and every finished state
+    passed `finished`.
+- **Refused as they should be**:
+  - lines of closed or sibling subproofs, line 0 and lines past the end
+    for both `cite` and `derive`, and `assume G L` with a line that is
+    not the goal;
+  - about twenty forged level-18 documents: a goal citing a sibling's
+    line, a line with `→I`, a line citing a later line, a tree node
+    citing a line, moved scopes, reused hypothesis nodes, a misplaced
+    `line` mark, version 19.
+- **Stable numbers.** A line's number held across steps, undo, save and
+  load. The chapter's sessions printed exactly what it shows.
+- **One finding, fixed** (folded into `mxxquknp`): `Interactive`'s
+  rustdoc, the library's manual for its JSON form, still said level 17
+  and named neither the keys `line` and `cites`, nor `derive`, `lines`
+  and `cite`. It now does.
+- **Its observation, no break**: a level-18 document relabelled 17
+  still reads, checked in full. A level-17 reader is this build's own,
+  and the keys mean the same.
+
+### Departures and decisions
+
+- **`undo`'s answer changed** from `Option<GoalId>` to
+  `Option<Undone>`, on an item not yet released.
+- **The line numbers start at 1**, as Fitch proofs do on paper, while
+  goals and members start at 0, as 61a's session has them.
+- **The goal lines say `lines:`** in place of `hypotheses:`, which
+  changes 61a's session output; the manual and the lock moved with it.
+
+None departs from the design as the prompt and the brief state it.
+
+### What the next sessions must know
+
+- **62c (the drawings)**:
+  - A session with derived lines gives a DAG: a line cited twice is one
+    node. `derived` emits the lines first, and a goal closed by a line
+    has no node of its own (`derivation_goals` leaves it out).
+  - `core-rules.md`'s note that the drawing and `derived` number a
+    session's tree alike in postorder holds for sessions without lines.
+    With lines, the drawing's numbering, which unfolds a shared node
+    under each parent, and `derivation_goals` differ: 62c's tree
+    drawing must map shared nodes, or the view's `inferences` must
+    become per drawn inference.
+  - Each citation of a hypothesis is a hypothesis node of its own, so
+    a Fitch view should show the hypotheses of one scope with equal
+    sequents as one line, and the derived lines in the order of their
+    numbers (`Interactive::lines` on the innermost goal gives them).
+  - Fitch's range citation of a subproof is the backward rule's
+    discharging premise: its scope's lines are the range.
+- **62d (the page)**:
+  - The bindings have no `derive` or `cite` call yet: `rules_view`
+    lists no lines and `rules_assume` takes no line.
+  - The page's forward step needs a call over `Interactive::derive`
+    with lines as numbers (`calls::index`'s rule for integers), and the
+    view needs `lines` per goal.
+  - `rules_undo` answers `reopened: null` for a forward step.
+  - `about.level` is 18.
