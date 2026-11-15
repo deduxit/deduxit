@@ -115,6 +115,13 @@ Before the tags:
 
 After the tags (the planning session makes them, rocq-deduxit first):
 
+- rocq-deduxit's `main` (`svrorwzs`, pushed) already names the tag
+  `v0.4.0` in its README's install lines (`opam pin add …#v0.4.0`,
+  `nix build github:deduxit/rocq-deduxit/v0.4.0`, the flake input), and
+  deduxit's Rocq chapter and guide name it too once this chain is
+  pushed. Those lines fail until the tag exists, so rocq-deduxit's tag
+  goes with the release, without a long gap, before anyone follows them.
+
 - [ ] Approve the job `cargo publish` in the environment `crates-io`.
 - [ ] The Zenodo check above, for both releases, if the planning
   session has not reported it.
