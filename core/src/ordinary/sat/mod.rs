@@ -160,8 +160,23 @@ struct Lemma {
 
 /// Decides a sequent by the SAT solver within `limits`.
 ///
-/// The stop is asked at every decision of the solver and at every call of
-/// it. A conflict or a call is a unit of `limits.work`, and the clauses
+/// The stop is asked:
+/// - at every call of the solver, the first included, and at every
+///   decision in it;
+/// - while the worlds are scanned for an implication they do not realise,
+///   every 256 pairs;
+/// - while the worlds of a model are ordered, every 256 comparisons, and
+///   by the model's check
+///   ([`Countermodel::check`](super::Countermodel::check)), once per world
+///   in each of its passes;
+/// - while a valid sequent's derivation is read off the search, by LJT
+///   where it gives that derivation, and by the derivation's check
+///   ([`Derivation::check`]);
+/// - in classical logic, while the sequent is encoded, every 4 096
+///   formulas, while its clauses are handed to the solver, every 4 096
+///   clauses, and by the clausal proof's check.
+///
+/// A conflict or a call is a unit of `limits.work`, and the clauses
 /// and worlds are charged to `limits.memory_bytes`. A valid sequent's
 /// derivation of LJ is read off the search within
 /// `limits.derivation_bytes`, `limits.memory_bytes` and `limits.work`
