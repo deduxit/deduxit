@@ -515,6 +515,25 @@ fn a_rule_file_that_is_no_calculus_is_refused() {
     let mut wide = lk.clone();
     wide["connectives"][0]["arity"] = json!(u32::MAX);
     assert!(reason(&wide).contains("255 at most"));
+    // A connective over a context takes one argument.
+    for arity in [0, 2] {
+        let mut over = lk.clone();
+        over["connectives"][0]["arity"] = json!(arity);
+        over["rules"][0]["conclusion"]["left"] = json!([["⊤", "Γ"]]);
+        assert!(reason(&over).contains("only a connective of one argument"));
+    }
+    // A condition names a variable once, a sequent each zone once.
+    let mut fresh = lk.clone();
+    fresh["rules"][0]["atomic"] = json!(["A", "A"]);
+    assert!(reason(&fresh).contains("named twice"));
+    let twice = LK.replacen(
+        r#""conclusion": {"left": ["A"], "right": ["A"]}"#,
+        r#""conclusion": {"left": ["A"], "left": ["A"], "right": ["A"]}"#,
+        1,
+    );
+    assert!(
+        matches!(calculus(&twice), Err(Error::Json { message, .. }) if message.contains("twice"))
+    );
     // A pattern nested past the reader's bound.
     let mut deep = json!("A");
     for _ in 0..100 {
@@ -780,4 +799,77 @@ fn the_tableau_rule_file_agrees_with_the_tableaux() {
         }
     }
     assert!(closed >= 20 && open >= 4, "{closed} closed, {open} open");
+}
+
+#[test]
+fn a_node_that_is_an_instance_passes() {
+    // An empty context under a connective that no term is built with.
+    let ll = calculus(LL).unwrap();
+    let promoted = json!({"version": 15, "calculus": "LL", "terms": [["1"], ["!", 0]], "nodes": [
+        {"sequent": [[0]], "rule": "1"},
+        {"sequent": [[1]], "rule": "!", "at": [0], "premises": [0]}]});
+    check(&ll, &promoted).unwrap();
+    // A member found by value does not take the place a position names.
+    let p1 = calculus(
+        r#"{"version": 15, "name": "P1", "connectives": [],
+            "sequent": [{"name": "s", "discipline": "multiset"}],
+            "variables": {"formula": ["A", "B"]}, "contexts": ["Γ"],
+            "rules": [{"name": "ax", "conclusion": {"s": ["Γ"]}},
+                      {"name": "r", "premises": [{"s": ["A", "B", "Γ"]}],
+                       "conclusion": {"s": ["A", "Γ"]}}]}"#,
+    )
+    .unwrap();
+    let same = json!({"version": 15, "calculus": "P1", "terms": ["a"], "nodes": [
+        {"sequent": [[0, 0]], "rule": "ax"},
+        {"sequent": [[0]], "rule": "r", "at": [0, 0], "premises": [0]}]});
+    check(&p1, &same).unwrap();
+    // A discharged hypothesis in a set zone is compared as a set.
+    let p2 = calculus(
+        r#"{"version": 15, "name": "P2", "connectives": [{"name": "→", "arity": 2}],
+            "sequent": [{"name": "s", "discipline": "set"}],
+            "variables": {"formula": ["A", "B"]},
+            "rules": [{"name": "d", "premises": [{"s": ["A", "B"], "discharges": [{"s": ["A", "B"]}]}],
+                       "conclusion": {"s": [["→", "A", "B"]]}}]}"#,
+    )
+    .unwrap();
+    let set = json!({"version": 15, "calculus": "P2", "terms": ["a", ["→", 0, 0]], "scopes": [0],
+        "nodes": [
+            {"sequent": [[0]], "hypothesis": true, "scope": 1},
+            {"sequent": [[1]], "rule": "d", "premises": [0]}]});
+    check(&p2, &set).unwrap();
+}
+
+#[test]
+fn the_memory_bound_counts_every_context_and_zone() {
+    // A thousand contexts each as large as a zone of ten thousand atoms.
+    let contexts: Vec<String> = (0..1000).map(|k| format!("G{k}")).collect();
+    let file = json!({"version": 15, "name": "C", "connectives": [],
+        "sequent": [{"name": "s", "discipline": "set"}], "contexts": contexts,
+        "rules": [{"name": "ax", "conclusion": {"s": contexts}},
+                  {"name": "r", "premises": [{"s": contexts}], "conclusion": {"s": contexts}}]});
+    let many = calculus(&file.to_string()).unwrap();
+    let atoms: Vec<String> = (0..10_000).map(|k| format!("a{k}")).collect();
+    let zone: Vec<usize> = (0..10_000).collect();
+    let document = json!({"version": 15, "calculus": "C", "terms": atoms, "nodes": [
+        {"sequent": [zone], "rule": "ax"},
+        {"sequent": [zone], "rule": "r", "premises": [0]}]});
+    let derivation: Derivation = wire::upgrade(&document, &Limits::default()).unwrap();
+    let small = Limits::default().with_memory_bytes(Some(16 << 20));
+    let refused = derivation.check(&many, &small, |_| false);
+    assert!(
+        matches!(refused, Err(Error::Refused(Refusal::Memory { .. }))),
+        "{refused:?}"
+    );
+    // A rule file of a thousand premises over a thousand zones is short
+    // and would compile into a grid of a million.
+    let zones: Vec<Value> = (0..1000)
+        .map(|k| json!({"name": format!("z{k}"), "discipline": "multiset"}))
+        .collect();
+    let grid = json!({"version": 15, "name": "G", "connectives": [], "sequent": zones,
+        "rules": [{"name": "r", "premises": vec![json!({}); 1000], "conclusion": {}}]});
+    let read = wire::upgrade::<Calculus, _>(&grid, &small);
+    assert!(
+        matches!(read, Err(Error::Refused(Refusal::Memory { .. }))),
+        "{read:?}"
+    );
 }

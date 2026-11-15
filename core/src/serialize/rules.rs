@@ -108,6 +108,7 @@ pub(crate) struct RuleForm {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub(crate) premises: Vec<PremiseForm>,
     /// Its conclusion.
+    #[serde(deserialize_with = "once")]
     pub(crate) conclusion: SequentForm,
     /// The variables matched by atoms new to the conclusion.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -167,7 +168,8 @@ impl<'de> Deserialize<'de> for PremiseForm {
                 let mut discharges = false;
                 while let Some(key) = map.next_key::<String>()? {
                     let twice = if key == DISCHARGES {
-                        premise.discharges = map.next_value()?;
+                        let hypotheses: Vec<Once> = map.next_value()?;
+                        premise.discharges = hypotheses.into_iter().map(|h| h.0).collect();
                         std::mem::replace(&mut discharges, true)
                     } else {
                         let entries = map.next_value()?;
@@ -184,6 +186,45 @@ impl<'de> Deserialize<'de> for PremiseForm {
         }
         deserializer.deserialize_map(Keys)
     }
+}
+
+/// A schematic sequent read with every zone's key once. A plain map keeps
+/// the last of two equal keys, and a rule whose conclusion wrote `"s"`
+/// twice would read as the second alone.
+struct Once(SequentForm);
+
+impl<'de> Deserialize<'de> for Once {
+    /// Reads the zones, refusing a key written twice.
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        /// Reads a sequent's map.
+        struct Keys;
+        impl<'de> Visitor<'de> for Keys {
+            type Value = Once;
+
+            fn expecting(&self, f: &mut Formatter<'_>) -> FmtResult {
+                f.write_str("a sequent: the entries of each zone, by the zone's name")
+            }
+
+            fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Once, A::Error> {
+                let mut sequent = SequentForm::new();
+                while let Some(key) = map.next_key::<String>()? {
+                    let entries = map.next_value()?;
+                    if sequent.insert(key.clone(), entries).is_some() {
+                        return Err(serde::de::Error::custom(format!(
+                            "the key {key:?} is written twice"
+                        )));
+                    }
+                }
+                Ok(Once(sequent))
+            }
+        }
+        deserializer.deserialize_map(Keys)
+    }
+}
+
+/// Reads a schematic sequent with every zone's key once.
+fn once<'de, D: Deserializer<'de>>(deserializer: D) -> Result<SequentForm, D::Error> {
+    Once::deserialize(deserializer).map(|once| once.0)
 }
 
 /// The serialized form of a pattern: a name, or a connective's name

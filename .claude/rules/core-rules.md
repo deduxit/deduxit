@@ -61,7 +61,12 @@ design, with the reasons and the alternatives weighed, is
   count or a sequence with at most one context forces the place;
   `Position` for every other member of the conclusion and for a
   premise's member with a variable not bound by then or in a sequence;
-  `Value` for a premise's bound member in a set or multiset. The order
+  `Value` for a premise's bound member in a set or multiset. Within a
+  zone the checker resolves the `Position`, `Start` and `End` members
+  before the `Value` ones: a `Value` member binds nothing, and taken
+  first it could take the place a later position names and refuse an
+  instance (the panel of 60b). A context under a connective that is
+  empty maps to nothing whether or not a term has that connective. The order
   is the conclusion's zones, then each premise's, and `Rule::positions`
   counts the `Position`s; a node gives exactly that many (`at`).
   Changing the order or the rule changes every stored derivation: it is
@@ -69,7 +74,12 @@ design, with the reasons and the alternatives weighed, is
 - **Contexts** (`Checker::equations`, `sets`): multiset and sequence
   zones are solved in the order `Compiler::equations` found (each
   equation has at most one context not yet defined; a rule with none
-  such is refused, "cannot be told apart"); set zones by the largest
+  such is refused, "cannot be told apart"). That order is found by a
+  worklist (each equation counts the contexts it waits on, each context
+  lists its equations), and each `Equation` keeps its segment's
+  contexts, so neither the compiler nor the checker rescans a zone: a
+  rescan per pass and a scan per segment were quadratic in the rule
+  (the panel of 60b: 2.9 s for a chain of 8 000 premises, 22 ms now). set zones by the largest
   value of each context (what all its zones share), then a cover check.
   A context belongs to one discipline and one member sort
   (`Compiler::contexts`), and stands at most once in a zone.
@@ -84,7 +94,9 @@ design, with the reasons and the alternatives weighed, is
   one around it; a premise of a rule that discharges may instead lie in
   a scope directly inside one of those, and then every hypothesis node
   of that scope is an instance of one of the premise's `discharges`
-  (compared per zone, sorted unless a sequence). A hypothesis of the
+  (compared per zone by `sort_by`: as written in a sequence, sorted in
+  a multiset, sorted and deduplicated in a set; a set compared as a
+  multiset refused an instance, the panel of 60b). A hypothesis of the
   root scope is an assumption. The invariant: a node's sequent follows
   from the hypotheses of its scope and the scopes around it. It is a
   statement per node, so `check` also asks that the root lie in the
@@ -132,6 +144,26 @@ design, with the reasons and the alternatives weighed, is
   whose two implications the arena lacks, as the ordinary checker does
   for `↔L₁` and `↔L₂` too, which a rule file cannot ask; no engine
   makes such an arena, so the test has that document by hand.
+- **What the reader refuses beyond names and sorts**: a connective
+  over a context that does not take exactly one argument (index 0 of
+  an empty list panicked), a variable named twice in `fresh` or
+  `atomic`, and a zone's key written twice in any sequent (`Once`; a
+  plain map kept the last, so a conclusion `{"s": ["⊥"], "s": ["A"]}`
+  read as `A`). It refuses a file whose rules would compile into more
+  than `limits.memory_bytes` at `SLOT_BYTES` per zone of each sequent
+  (`Refusal::Memory`): a thousand premises over a thousand zones is a
+  short file and was a grid of 56 MB. Names, sorts and zones are looked
+  up in hash maps, here, in `Terms::atom` and in `Checker::terms`;
+  linear scans made n sorts cost n².
+- **The memory estimate** (`Derivation::check`) counts per term 16
+  bytes (its sort, its walk mark, a place on the freshness walk's
+  stack, which marks a term as it pushes it and so holds each once),
+  per node 8, per sequent of the widest rule its zones' slots and the
+  widest sequent's copies, every context at the widest sequent, and
+  each rule's pattern stacks and discharged instances. The panel of 60b
+  found three structures it left out (the walk's stack, which grew by
+  the arity per level; the contexts; the slots of empty zones), each
+  past a 1 MiB bound by tens of megabytes.
 - **A connective takes `ARITY` (255) arguments at most**: the number
   comes from the file and sizes a vector, and 2³² of them reserved
   16 GiB under a 1 MiB memory bound.

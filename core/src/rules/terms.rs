@@ -89,6 +89,8 @@ pub struct Terms {
     connective_ids: HashMap<String, u32>,
     /// The names of the atoms' sorts, in the order first used.
     sorts: Vec<String>,
+    /// The index of each sort's name.
+    sort_ids: HashMap<String, u32>,
     /// The atoms: each its name and the index of its sort.
     atoms: Vec<(String, u32)>,
     /// The index of each atom, by sort and name.
@@ -158,13 +160,15 @@ impl Terms {
                 });
             }
         }
-        let sort = match self.sorts.iter().position(|known| known == sort) {
-            Some(index) => index as u32,
+        let sort = match self.sort_ids.get(sort) {
+            Some(&index) => index,
             None => {
-                self.sorts.push(sort.to_owned());
                 // A sort is added with an atom, so there are no more
                 // sorts than atoms, which `add` bounds.
-                self.sorts.len() as u32 - 1
+                let index = self.sorts.len() as u32;
+                self.sorts.push(sort.to_owned());
+                self.sort_ids.insert(sort.to_owned(), index);
+                index
             }
         };
         let key = (sort, name.to_owned());

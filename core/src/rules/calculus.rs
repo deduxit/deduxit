@@ -7,13 +7,18 @@
 
 use super::FORMULA;
 use crate::Error;
-use crate::hash::HashMap;
-use crate::limits::{Limits, Refusal};
+use crate::hash::{HashMap, HashSet};
+use crate::limits::{Limits, Phase, Refusal};
 use crate::serialize::rules::{CalculusForm, DISCHARGES, PatternForm, RuleForm, SequentForm};
 
 /// The most arguments a connective takes. A rule file says the number,
 /// and the calculus holds a sort for each.
 const ARITY: u32 = 255;
+
+/// The bytes a compiled rule holds per zone of one of its sequents, a
+/// premise's hypotheses included: the zone's list of entries, and its
+/// equations in the plan.
+const SLOT_BYTES: u64 = 64;
 
 /// What the members of a zone are.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -144,29 +149,6 @@ pub(crate) struct Shape {
     pub(crate) zones: Vec<Vec<Entry>>,
 }
 
-impl Shape {
-    /// Returns the contexts of the segment `segment` of `zone`: all of a
-    /// zone that is no sequence, and in a sequence those between two
-    /// members written out.
-    pub(crate) fn segment(
-        &self,
-        zone: usize,
-        segment: u32,
-        sequence: bool,
-    ) -> impl Iterator<Item = (u32, Option<u32>)> + '_ {
-        let mut at = 0;
-        self.zones[zone]
-            .iter()
-            .filter_map(move |entry| match *entry {
-                Entry::Item(_) => {
-                    at += u32::from(sequence);
-                    None
-                }
-                Entry::Context { variable, under } => (at == segment).then_some((variable, under)),
-            })
-    }
-}
-
 /// A premise of a rule: its sequent and the hypotheses it discharges.
 #[derive(Clone, Debug)]
 pub(crate) struct Premise {
@@ -179,7 +161,7 @@ pub(crate) struct Premise {
 
 /// One equation between what a zone holds beyond its written members and
 /// its contexts, in the order the checker solves them.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct Equation {
     /// The sequent: `0` the conclusion, then the premises.
     pub(crate) sequent: u32,
@@ -187,6 +169,9 @@ pub(crate) struct Equation {
     pub(crate) zone: u32,
     /// The segment of the zone.
     pub(crate) segment: u32,
+    /// The contexts of the segment in the order written, each under its
+    /// connective or as it is.
+    pub(crate) contexts: Vec<(u32, Option<u32>)>,
     /// The place in the segment of the context the equation defines;
     /// `None` where all are bound and the equation is a comparison.
     pub(crate) define: Option<u32>,
@@ -280,8 +265,8 @@ impl Rule {
 pub struct Calculus {
     /// The rule file.
     form: CalculusForm,
-    /// The names of the sorts, `formula` first.
-    pub(crate) sorts: Vec<String>,
+    /// The index of each sort's name.
+    pub(crate) sort_ids: HashMap<String, u32>,
     /// The connectives, in the file's order.
     pub(crate) connectives: Vec<Connective>,
     /// The index of each connective's name.
@@ -374,19 +359,41 @@ impl Calculus {
         if form.name.is_empty() {
             return Err(invalid("the calculus has no name".to_owned()));
         }
+        // A compiled rule holds a few words for each zone of each of its
+        // sequents, and the file names neither number but once: a file of
+        // a thousand zones and a thousand premises is short and would
+        // take gigabytes.
+        let slots = form.rules.iter().fold(0u64, |sum, rule| {
+            let sequents = rule.premises.iter().fold(1u64, |sum, premise| {
+                sum.saturating_add(1)
+                    .saturating_add(premise.discharges.len() as u64)
+            });
+            sum.saturating_add(sequents.saturating_mul(form.sequent.len() as u64))
+        });
+        let needed = slots.saturating_mul(SLOT_BYTES);
+        if let Some(limit_bytes) = limits.memory_bytes
+            && needed > limit_bytes
+        {
+            return Err(Error::Refused(Refusal::Memory {
+                phase: Phase::Read,
+                limit_bytes,
+                needed_bytes: Some(needed),
+            }));
+        }
         // Sorts.
-        let mut sorts = vec![FORMULA.to_owned()];
+        let mut sort_ids: HashMap<String, u32> = HashMap::default();
+        sort_ids.insert(FORMULA.to_owned(), 0);
         for sort in &form.sorts {
-            if sorts.contains(sort) || sort.is_empty() {
+            // No more sorts than the file's bytes.
+            let index = sort_ids.len() as u32;
+            if sort.is_empty() || sort_ids.insert(sort.clone(), index).is_some() {
                 return Err(invalid(format!("the sort {sort:?} is declared twice")));
             }
-            sorts.push(sort.clone());
         }
         let sort_of = |name: &str| {
-            sorts
-                .iter()
-                .position(|sort| sort == name)
-                .map(|index| index as u32)
+            sort_ids
+                .get(name)
+                .copied()
                 .ok_or_else(|| invalid(format!("no sort is named {name:?}")))
         };
         // Connectives.
@@ -423,8 +430,9 @@ impl Calculus {
         }
         // Zones.
         let mut zones = Vec::with_capacity(form.sequent.len());
+        let mut zone_names: HashSet<&str> = HashSet::default();
         for zone in &form.sequent {
-            if zone.name == DISCHARGES || zones.iter().any(|z: &Zone| z.name == zone.name) {
+            if zone.name == DISCHARGES || !zone_names.insert(&zone.name) {
                 return Err(invalid(format!(
                     "the zone name {:?} is taken: by another zone, or as a premise's key",
                     zone.name
@@ -465,6 +473,11 @@ impl Calculus {
             names: &names,
             connectives: &connectives,
             zones: &zones,
+            zone_ids: zones
+                .iter()
+                .enumerate()
+                .map(|(index, zone)| (&*zone.name, index))
+                .collect(),
             contexts: vec![None; form.contexts.len()],
             budget: limits.occurrences,
             nodes: 0,
@@ -500,7 +513,7 @@ impl Calculus {
             .map(|(index, connective)| (connective.name.clone(), index as u32))
             .collect();
         Ok(Self {
-            sorts,
+            sort_ids,
             connectives,
             connective_ids,
             zones,
@@ -521,6 +534,8 @@ struct Compiler<'a> {
     connectives: &'a [Connective],
     /// The zones.
     zones: &'a [Zone],
+    /// The index of each zone's name.
+    zone_ids: HashMap<&'a str, usize>,
     /// Per context variable, the discipline and the sort of its members,
     /// once a rule has used it.
     contexts: Vec<Option<(Discipline, u32)>>,
@@ -618,9 +633,9 @@ impl Compiler<'_> {
 
     /// Returns the zone named `name` and its index.
     fn zone(&self, name: &str) -> Result<usize, Error> {
-        self.zones
-            .iter()
-            .position(|zone| zone.name == name)
+        self.zone_ids
+            .get(name)
+            .copied()
             .ok_or_else(|| invalid(format!("no zone is named {name:?}")))
     }
 
@@ -635,6 +650,8 @@ impl Compiler<'_> {
         let mut shape = Shape {
             zones: vec![Vec::new(); self.zones.len()],
         };
+        // The contexts of each zone met so far.
+        let mut placed: HashSet<(usize, u32)> = HashSet::default();
         for (name, entries) in form {
             let zone = self.zone(name)?;
             let (sort, discipline) = (self.zones[zone].sort, self.zones[zone].discipline);
@@ -649,6 +666,14 @@ impl Compiler<'_> {
                         [PatternForm::Name(inner)] => match (self.name(head)?, self.name(inner)?) {
                             (Name::Connective(connective), Name::Context(variable)) => {
                                 let signature = &self.connectives[connective as usize];
+                                if signature.arguments.len() != 1 {
+                                    return Err(invalid(format!(
+                                        "{head:?} over the context {inner:?} takes {} \
+                                         arguments: only a connective of one argument stands \
+                                         over a context",
+                                        signature.arguments.len()
+                                    )));
+                                }
                                 if signature.result != sort {
                                     return Err(invalid(format!(
                                         "{head:?} over the context {inner:?} makes no member \
@@ -683,10 +708,7 @@ impl Compiler<'_> {
                             .to_owned(),
                     ));
                 }
-                let twice = shape.zones[zone]
-                    .iter()
-                    .any(|e| matches!(e, Entry::Context { variable: v, .. } if *v == variable));
-                if twice {
+                if !placed.insert((zone, variable)) {
                     return Err(invalid(format!(
                         "a context stands twice in the zone {name:?}"
                     )));
@@ -812,11 +834,15 @@ impl Compiler<'_> {
                 if !bound[variable as usize] {
                     return Err(unbound("a condition"));
                 }
-                if into == 0 {
-                    rule.fresh.push(variable);
+                let list = if into == 0 {
+                    &mut rule.fresh
                 } else {
-                    rule.atomic.push(variable);
+                    &mut rule.atomic
+                };
+                if list.contains(&variable) {
+                    return Err(invalid(format!("{name:?} is named twice in a condition")));
                 }
+                list.push(variable);
             }
         }
         for premise in &rule.premises {
@@ -834,9 +860,11 @@ impl Compiler<'_> {
     }
 
     /// Returns the equations of a rule's multiset and sequence zones in an
-    /// order in which each has at most one context not yet defined.
+    /// order in which each has at most one context not yet defined. Each
+    /// equation is taken once a context it waits on is defined, so the
+    /// order is found in time linear in the rule.
     fn equations(&self, rule: &Rule) -> Result<Vec<Equation>, Error> {
-        let mut open = Vec::new();
+        let mut equations = Vec::new();
         for sequent in 0..=rule.premises.len() {
             for (zone, entries) in rule.shape(sequent).zones.iter().enumerate() {
                 let sequence = match self.zones[zone].discipline {
@@ -844,48 +872,74 @@ impl Compiler<'_> {
                     Discipline::Multiset => false,
                     Discipline::Sequence => true,
                 };
-                let items = entries
-                    .iter()
-                    .filter(|e| matches!(e, Entry::Item(_)))
-                    .count();
-                let segments = if sequence { items as u32 + 1 } else { 1 };
-                open.extend((0..segments).map(|segment| (sequent as u32, zone as u32, segment)));
+                let mut segment = 0;
+                let mut contexts = Vec::new();
+                for entry in entries {
+                    match *entry {
+                        Entry::Context { variable, under } => contexts.push((variable, under)),
+                        Entry::Item(_) if sequence => {
+                            equations.push(Equation {
+                                sequent: sequent as u32,
+                                zone: zone as u32,
+                                segment,
+                                contexts: std::mem::take(&mut contexts),
+                                define: None,
+                            });
+                            segment += 1;
+                        }
+                        Entry::Item(_) => {}
+                    }
+                }
+                equations.push(Equation {
+                    sequent: sequent as u32,
+                    zone: zone as u32,
+                    segment,
+                    contexts,
+                    define: None,
+                });
+            }
+        }
+        // Per equation the contexts it waits on, and per context the
+        // equations it stands in.
+        let mut waiting: Vec<usize> = equations.iter().map(|e| e.contexts.len()).collect();
+        let mut stands: Vec<Vec<usize>> = vec![Vec::new(); self.contexts.len()];
+        for (index, equation) in equations.iter().enumerate() {
+            for &(variable, _) in &equation.contexts {
+                stands[variable as usize].push(index);
             }
         }
         let mut defined = vec![false; self.contexts.len()];
-        let mut order = Vec::with_capacity(open.len());
-        while !open.is_empty() {
-            let before = open.len();
-            open.retain(|&(sequent, zone, segment)| {
-                let sequence = self.zones[zone as usize].discipline == Discipline::Sequence;
-                let mut unknown = rule
-                    .shape(sequent as usize)
-                    .segment(zone as usize, segment, sequence)
-                    .enumerate()
-                    .filter(|(_, (variable, _))| !defined[*variable as usize]);
-                let define = match (unknown.next(), unknown.next()) {
-                    (None, _) => None,
-                    (Some((place, (variable, _))), None) => {
-                        defined[variable as usize] = true;
-                        Some(place as u32)
-                    }
-                    (Some(_), Some(_)) => return true,
-                };
-                order.push(Equation {
-                    sequent,
-                    zone,
-                    segment,
-                    define,
-                });
-                false
-            });
-            if open.len() == before {
-                return Err(invalid(
-                    "its contexts cannot be told apart: every context must stand alone in \
-                     some zone, or beside contexts that do"
-                        .to_owned(),
-                ));
+        let mut done = vec![false; equations.len()];
+        let mut ready: Vec<usize> = (0..equations.len()).filter(|&e| waiting[e] <= 1).collect();
+        let mut order = Vec::with_capacity(equations.len());
+        while let Some(index) = ready.pop() {
+            if std::mem::replace(&mut done[index], true) {
+                continue;
             }
+            let mut equation = equations[index].clone();
+            let unknown = equation
+                .contexts
+                .iter()
+                .position(|&(variable, _)| !defined[variable as usize]);
+            if let Some(place) = unknown {
+                let variable = equation.contexts[place].0;
+                defined[variable as usize] = true;
+                equation.define = Some(place as u32);
+                for &other in &stands[variable as usize] {
+                    waiting[other] -= 1;
+                    if waiting[other] <= 1 && !done[other] {
+                        ready.push(other);
+                    }
+                }
+            }
+            order.push(equation);
+        }
+        if order.len() < equations.len() {
+            return Err(invalid(
+                "its contexts cannot be told apart: every context must stand alone in \
+                 some zone, or beside contexts that do"
+                    .to_owned(),
+            ));
         }
         Ok(order)
     }

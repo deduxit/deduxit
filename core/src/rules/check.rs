@@ -10,7 +10,7 @@
 //! zone's discipline. Given those positions, a node passes exactly when
 //! it is an instance of its rule.
 
-use super::calculus::{Calculus, Discipline, Entry, Find, Pattern, Rule};
+use super::calculus::{Calculus, Discipline, Entry, Find, Item, Pattern, Rule};
 use super::derivation::{Derivation, Kind, NodeRef};
 use super::terms::{Head, TermId};
 use crate::Error;
@@ -179,10 +179,15 @@ impl Derivation {
                 calculus.zones.len()
             )));
         }
-        // What the check holds: per term its sort and the walk that saw
-        // it, per node its place among the hypotheses, and for the node
-        // being checked a few vectors per sequent of its rule, each at
-        // most the widest sequent long. The sum saturates.
+        // What the check holds, in bytes, each sum saturating:
+        // - per term its sort, the walk that saw it and a place on the
+        //   freshness walk's stack, which pushes a term once;
+        // - per node its place among the hypotheses;
+        // - for the node being checked, per sequent of its rule and zone
+        //   the marks and places of its members (two vectors), and copies
+        //   of a zone's members, each at most the widest sequent long;
+        // - every context's members, each at most the widest sequent;
+        // - per rule its patterns' stacks and the hypotheses it discharges.
         let widest = self
             .nodes()
             .map(|node| {
@@ -191,17 +196,30 @@ impl Derivation {
                     .sum::<usize>()
             })
             .max()
-            .unwrap_or(0);
-        let sequents = calculus
-            .rules
-            .iter()
-            .map(|rule| rule.premises.len() as u64 + 1)
-            .max()
-            .unwrap_or(1);
+            .unwrap_or(0) as u64;
+        let (sequents, rule_bytes) = calculus.rules.iter().fold((1u64, 0u64), |(s, r), rule| {
+            let discharges = rule
+                .premises
+                .iter()
+                .map(|p| p.discharges.len() as u64)
+                .sum::<u64>();
+            let bytes = (rule.patterns.len() as u64)
+                .saturating_mul(16)
+                .saturating_add(discharges.saturating_mul(calculus.zones.len() as u64 * 24));
+            (s.max(rule.premises.len() as u64 + 1), r.max(bytes))
+        });
+        let zones = calculus.zones.len() as u64;
         let needed = (self.terms().len() as u64)
-            .saturating_mul(8)
+            .saturating_mul(16)
             .saturating_add((self.len() as u64).saturating_mul(8))
-            .saturating_add((widest as u64).saturating_mul(sequents.saturating_mul(24)));
+            .saturating_add(widest.saturating_mul(sequents.saturating_mul(24)))
+            .saturating_add(sequents.saturating_mul(zones).saturating_mul(48))
+            .saturating_add(
+                (calculus.contexts.len() as u64)
+                    .saturating_mul(widest)
+                    .saturating_mul(4),
+            )
+            .saturating_add(rule_bytes);
         if let Some(limit_bytes) = limits.memory_bytes
             && needed > limit_bytes
         {
@@ -275,6 +293,8 @@ impl<'a> Checker<'a> {
     /// term's sort, and lists the hypotheses by scope.
     fn terms(&mut self) -> Result<(), Fault> {
         let (terms, calculus) = (self.derivation.terms(), self.calculus);
+        self.meter
+            .tick(terms.connectives().len() + terms.sorts().len())?;
         for name in terms.connectives() {
             let Some(&index) = calculus.connective_ids.get(name) else {
                 return Err(format!("the calculus has no connective {name:?}").into());
@@ -284,10 +304,10 @@ impl<'a> Checker<'a> {
         }
         let mut atom_sorts = Vec::with_capacity(terms.sorts().len());
         for name in terms.sorts() {
-            let Some(sort) = calculus.sorts.iter().position(|sort| sort == name) else {
+            let Some(&sort) = calculus.sort_ids.get(name) else {
                 return Err(format!("the calculus has no sort {name:?}").into());
             };
-            atom_sorts.push(sort as u32);
+            atom_sorts.push(sort);
         }
         for index in 0..terms.len() {
             let (head, arguments) = terms.parts(TermId::new(index as u32));
@@ -417,14 +437,26 @@ impl<'a> Checker<'a> {
         let mut positions = node.positions().iter();
         for (s, sequent) in sequents.iter().enumerate() {
             for zone in 0..zones {
+                self.meter.tick(1)?;
                 let members = sequent.zone(zone);
                 let discipline = self.calculus.zones[zone].discipline;
                 let slot = s * zones + zone;
                 self.taken[slot].clear();
                 self.taken[slot].resize(members.len(), false);
                 self.places[slot].clear();
-                for entry in &rule.shape(s).zones[zone] {
-                    let Entry::Item(item) = entry else { continue };
+                // The members found by value last: they bind nothing, and
+                // the first free one of equal value must not take the
+                // place a position names. A sequence has none of them, so
+                // its places keep the order written.
+                let items = rule.shape(s).zones[zone]
+                    .iter()
+                    .filter_map(|entry| match entry {
+                        Entry::Item(item) => Some(item),
+                        Entry::Context { .. } => None,
+                    });
+                let (by_value, placed): (Vec<Item>, Vec<Item>) =
+                    items.partition(|item| item.find == Find::Value);
+                for item in placed.into_iter().chain(by_value) {
                     self.meter.tick(1 + (item.root - item.first) as usize)?;
                     let place = match item.find {
                         Find::Start(place) => Some(place as usize),
@@ -541,6 +573,7 @@ impl<'a> Checker<'a> {
             checker.bindings[variable as usize]
                 .filter(|&term| matches!(terms.parts(term).0, Head::Atom(_)))
         };
+        self.meter.tick(rule.atomic.len() + rule.fresh.len())?;
         for &variable in &rule.atomic {
             atom(self, variable).ok_or("a formula the rule asks to be an atom is none")?;
         }
@@ -592,21 +625,31 @@ impl<'a> Checker<'a> {
         let terms = self.derivation.terms();
         self.meter.tick(1 + members.len())?;
         self.stack.clear();
-        self.stack.extend(members.iter().map(|&member| (0, member)));
-        while let Some((_, term)) = self.stack.pop() {
-            // A term's arguments lie before it, so a term before the
-            // atom does not hold it.
-            if term < name || self.seen[term.index()] == self.walk {
-                continue;
+        // A term is marked as it is pushed, so the stack holds each term
+        // once at most. A term's arguments lie before it, so a term
+        // before the atom does not hold it.
+        let walk = self.walk;
+        let push = |stack: &mut Vec<(u32, TermId)>, seen: &mut [u32], term: TermId| {
+            if term < name || seen[term.index()] == walk {
+                return false;
             }
-            if term == name {
+            seen[term.index()] = walk;
+            stack.push((0, term));
+            term == name
+        };
+        for &member in members {
+            if push(&mut self.stack, &mut self.seen, member) {
                 return Ok(true);
             }
-            self.seen[term.index()] = self.walk;
-            self.meter.tick(1)?;
+        }
+        while let Some((_, term)) = self.stack.pop() {
             let (_, arguments) = terms.parts(term);
-            self.stack
-                .extend(arguments.iter().map(|&argument| (0, argument)));
+            self.meter.tick(1 + arguments.len())?;
+            for &argument in arguments {
+                if push(&mut self.stack, &mut self.seen, argument) {
+                    return Ok(true);
+                }
+            }
         }
         Ok(false)
     }
@@ -619,6 +662,11 @@ impl<'a> Checker<'a> {
         let Some(connective) = under else {
             return Some(members.clone());
         };
+        // An empty context stands for no member, whether or not a term
+        // is built with the connective.
+        if members.is_empty() {
+            return Some(Vec::new());
+        }
         let local = self.local[connective as usize]?;
         let terms = self.derivation.terms();
         members
@@ -656,10 +704,7 @@ impl<'a> Checker<'a> {
             let members = sequents[s].zone(zone);
             self.meter.tick(1 + members.len())?;
             let sequence = self.calculus.zones[zone].discipline == Discipline::Sequence;
-            let segment: Vec<(u32, Option<u32>)> = rule
-                .shape(s)
-                .segment(zone, equation.segment, sequence)
-                .collect();
+            let segment = &equation.contexts;
             if sequence {
                 // The members between two written ones, in order.
                 let places = &self.places[slot];
@@ -675,12 +720,14 @@ impl<'a> Checker<'a> {
                 // The contexts before the one defined, from the start.
                 for &(variable, under) in &segment[..define.unwrap_or(segment.len())] {
                     let known = self.mapped(variable, under).ok_or(differs)?;
+                    self.meter.tick(known.len())?;
                     rest = rest.strip_prefix(&known[..]).ok_or(differs)?;
                 }
                 // Those after it, from the end.
                 if let Some(place) = define {
                     for &(variable, under) in segment[place + 1..].iter().rev() {
                         let known = self.mapped(variable, under).ok_or(differs)?;
+                        self.meter.tick(known.len())?;
                         rest = rest.strip_suffix(&known[..]).ok_or(differs)?;
                     }
                     let (variable, under) = segment[place];
@@ -702,6 +749,7 @@ impl<'a> Checker<'a> {
                     continue;
                 }
                 let mut known = self.mapped(variable, under).ok_or(differs)?;
+                self.meter.tick(known.len())?;
                 known.sort_unstable();
                 rest = difference(&rest, &known).ok_or(differs)?;
             }
@@ -759,7 +807,9 @@ impl<'a> Checker<'a> {
         for (s, sequent) in sequents.iter().enumerate() {
             for zone in (0..zones).filter(|&zone| set(zone)) {
                 let members = sequent.zone(zone);
-                self.meter.tick(1 + members.len())?;
+                let entries = rule.shape(s).zones[zone].len();
+                self.meter
+                    .tick(members.len().saturating_mul(1 + entries).saturating_add(1))?;
                 let taken = &self.taken[s * zones + zone];
                 let covered = members.iter().zip(taken).all(|(&member, &taken)| {
                     taken
@@ -827,6 +877,12 @@ impl<'a> Checker<'a> {
             // members sorted where their order does not count.
             let mut allowed: Vec<Vec<Vec<TermId>>> = Vec::with_capacity(shape.discharges.len());
             for hypothesis in &shape.discharges {
+                let nodes = hypothesis
+                    .iter()
+                    .flatten()
+                    .map(|&(first, root)| (root - first) as usize + 1)
+                    .fold(hypothesis.len(), usize::saturating_add);
+                self.meter.tick(nodes)?;
                 let instance: Option<Vec<Vec<TermId>>> = hypothesis
                     .iter()
                     .enumerate()
@@ -835,9 +891,7 @@ impl<'a> Checker<'a> {
                             .iter()
                             .map(|&(first, root)| self.instance(rule, first, root))
                             .collect::<Option<Vec<_>>>()?;
-                        if self.calculus.zones[zone].discipline != Discipline::Sequence {
-                            members.sort_unstable();
-                        }
+                        sort_by(&mut members, self.calculus.zones[zone].discipline);
                         Some(members)
                     })
                     .collect();
@@ -845,16 +899,19 @@ impl<'a> Checker<'a> {
             }
             for at in self.hypothesis_range(scope) {
                 let hypothesis = self.at(self.hypotheses[at].1);
-                self.meter.tick(1)?;
-                let discharged = allowed.iter().any(|instance| {
-                    (0..zones).all(|zone| {
-                        let mut members = hypothesis.zone(zone).to_vec();
-                        if self.calculus.zones[zone].discipline != Discipline::Sequence {
-                            members.sort_unstable();
-                        }
-                        members == instance[zone]
-                    })
-                });
+                // Its zones, sorted where their order does not count, once
+                // for every pattern it is compared with.
+                let mut members: Vec<Vec<TermId>> = Vec::with_capacity(zones);
+                let mut size = 0usize;
+                for (zone, of) in self.calculus.zones.iter().enumerate() {
+                    let mut list = hypothesis.zone(zone).to_vec();
+                    sort_by(&mut list, of.discipline);
+                    size = size.saturating_add(list.len());
+                    members.push(list);
+                }
+                self.meter
+                    .tick(size.saturating_add(zones).saturating_mul(1 + allowed.len()))?;
+                let discharged = allowed.contains(&members);
                 if !discharged {
                     return Err(format!(
                         "the hypothesis at node {} lies in the scope of a premise and is none \
@@ -866,6 +923,19 @@ impl<'a> Checker<'a> {
             }
         }
         Ok(())
+    }
+}
+
+/// Puts `members` in the form two zones of `discipline` are compared in:
+/// sorted, and once each in a set; as written in a sequence.
+fn sort_by(members: &mut Vec<TermId>, discipline: Discipline) {
+    match discipline {
+        Discipline::Sequence => {}
+        Discipline::Multiset => members.sort_unstable(),
+        Discipline::Set => {
+            members.sort_unstable();
+            members.dedup();
+        }
     }
 }
 
