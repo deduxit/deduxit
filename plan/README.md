@@ -7261,3 +7261,12 @@ move (D26).
     `later.md` (an ordinary `invert_all`; a rule file marking invertible rules). Gate and
     `nix flake check` passed.
   - **Next:** 63g-b (the workspace's library and command) in 63a's slot.
+- 2026-11-16, 11:58: **63c reviewed and pushed (both repositories); step 63 complete.**
+  - **63c** (the client `srzvrvnq`, `wqlqqwyo`; deduxit's report `otwvrzvv`): the ordinary
+    course's six lessons (the truth table, signed tableaux, LK, natural deduction backwards and
+    forwards, the three logics with a countermodel), one player over `undo` for the sequent
+    calculus, natural deduction and tableaux and a table's rows read in the lesson; every worked
+    proof a session the client's flake check resumes and checks. fresh-reviewer (Fable) checked
+    every claim against the rule files and played every lesson; six findings fixed, among them
+    lesson 6's wrong clause for negation in a Kripke model. Departure marked: three education
+    skills not loaded. Client flake check passed (661 unit, 283 e2e, 62 problems, 5 sessions).
