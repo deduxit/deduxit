@@ -1,7 +1,8 @@
 # The settings file
 
 `--settings FILE` reads settings from a JSON file. `prove`, `check`,
-`interact`, `eliminate` and `seq print` take it. The file holds the
+`interact`, `eliminate`, `seq print` and the `workspace` commands that
+run take it. The file holds the
 same settings the flags set, in the form a front end keeps (the
 library's `Settings`).
 
@@ -32,6 +33,12 @@ know is an error.
 
 The file is read whole, up to 16 MiB, and never from standard input,
 which carries the sequent.
+
+A [workspace](workspace.md) has bounds of its own under
+`limits.workspace`: `nodes` (1 024 by default), `records`, the runs it
+keeps (4 096), `log`, the edits undo keeps (256), and `bytes`, the bytes
+of its values (64 MiB). Past the edits kept, the oldest is forgotten;
+past any other bound, the change is refused.
 
 ## How the file and the flags combine
 

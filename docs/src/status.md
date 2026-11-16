@@ -331,6 +331,11 @@ in use.
   settings each reads and what each promises, and runs and checks them
   over JSON ([What each suite offers](protocol.md)). A JSON Schema
   describes every JSON form.
+- `deduxit workspace` keeps sequents and what was made from them in a
+  file ([Keep a sequent and what is made from it](workspace.md)): a
+  changed sequent marks what follows from it out of date until it runs
+  again, and undo and redo take back whole edits. The web page does not
+  show it yet.
 - `check` checks a derivation in a calculus you give as data
   ([Check a derivation in your own rules](rules.md)): a rule file in
   JSON declares the connectives, the zones of a sequent (each a set, a
@@ -406,8 +411,8 @@ The collection grows by a suite at a time, release by release:
 - 0.5.0: custom rules, a calculus given as data, with derivations in it
   checked and built in the command and on the page; natural deduction
   for ordinary logic in Gentzen's and Fitch's styles; the negative
-  translations and Craig interpolants on the web page; a
-  workspace that keeps a sequent and what was made from it (its
+  translations and Craig interpolants on the web page; the
+  workspace on the web page, a sequent and what was made from it (its
   translations, transformations and results) side by side, each step
   undoable, the graph shown only once you branch.
 - 0.6.0: the modal logics K, T, K4, S4 and S5 decided, every refutation

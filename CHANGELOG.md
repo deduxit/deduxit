@@ -96,7 +96,26 @@ second number (0.1.x to 0.2.0), anything else the third.
   split of the sequent you name (`--first`), and checked by deciding
   both halves and comparing their atoms.
 - The answers of both are documents at wire level 16, above the rule
-  files' 15: the highest level the library now reads and writes.
+  files' 15.
+- **What each suite offers, as data** (the library's `protocol`, a
+  default feature): the kinds of values, the operations between them
+  (`ordinary.translate`, `linear.prove`, …) with their parameters, the
+  settings each reads and what each promises, run and checked over JSON
+  (`protocol::run`, `protocol::check`, `protocol::catalogue`). The
+  manual's chapter "What each suite offers" lists them, with a JSON
+  Schema of every form.
+- **A workspace** (`deduxit workspace`, the library's `workspace`):
+  a JSON file that keeps sequents and what was made from them by those
+  operations, each node with its parameters and the limits it ran
+  under. Changing a sequent marks what was made from it out of date
+  until `workspace run` makes it again; `undo` and `redo` take back and
+  bring back whole edits and show the earlier results without running
+  them again; `--checks` checks what each operation promises. Reading a
+  file checks every value and runs again each run that needs no search.
+  Its bounds are the settings `limits.workspace` (nodes, runs kept,
+  edits undo keeps, bytes); past one, a change is refused
+  (`workspace_limit`). Its JSON is at wire level 19: the highest level
+  the library now reads and writes.
 
 ## [0.4.0] - 2026-11-15
 

@@ -917,6 +917,50 @@ $ deduxit seq print --format typst "A * B -o C |- A -o B -o C"
 $⊢ (A ⊗ B) ⊗ C^⊥, A^⊥ ⅋ (B^⊥ ⅋ C)$
 ```
 
+### What is made from a sequent: `workspace`
+
+A workspace is a JSON file that keeps sequents and what deduxit made
+from them, each node with its operation, parameters and limits.
+
+- `workspace new FILE SEQUENT` makes the file; `--logic` names an
+  ordinary logic, else `--mode` a linear mode (`classical` by default).
+  `workspace add FILE SEQUENT` adds another sequent.
+- `workspace apply FILE NODE… OPERATION --set KEY=VALUE` makes a node
+  by one of the operations `workspace operations KIND` lists
+  (`ordinary.translate`, `ordinary.decide`, `linear.prove`, …) and runs
+  it; `--no-run` leaves it to run later.
+- `workspace set FILE NODE SEQUENT` changes a sequent, and `--set`,
+  `--work-limit`, `--memory-limit` or `--settings` a node's parameters
+  or limits. What was made from it is out of date until `workspace run`.
+- `workspace run FILE [NODE…]` makes again what is out of date, each
+  node under the limits it keeps, the whole run within `--timeout`;
+  `--checks` makes each node's check too (`held`, `failed`; one that
+  needs a search reads back from the file as `recorded`).
+- `workspace undo`, `redo` and `log` take back and bring back whole
+  edits; `workspace remove FILE NODE` removes a node and what was made
+  from it.
+- `workspace show FILE` lists the nodes; `workspace show FILE NODE
+  --format json` writes one node's value, which `check` or `interact
+  --state` read. `workspace check FILE` makes every check again.
+
+Exit statuses as `prove`'s: 0 valid, 1 not valid, 3 not decided, 2 an
+error or a check that failed. A node keeps the limits it was made under;
+the file's own bounds are the settings under `limits.workspace`: its
+nodes, the runs it keeps, the edits undo keeps and the bytes of its
+values.
+
+```console
+$ deduxit workspace new lem.json '|- a \/ ~a' --logic classical
+0  ordinary.sequent  ⊢ a ∨ ¬a (classical)
+$ deduxit workspace apply lem.json 0 ordinary.translate --set translation=glivenko
+1  ordinary.sequent  ⊢ ¬¬(a ∨ ¬a) (intuitionistic)
+   from 0 by ordinary.translate translation=glivenko; check: held
+$ deduxit workspace apply lem.json 1 ordinary.decide; echo "exit $?"
+2  ordinary.outcome  Valid
+   from 1 by ordinary.decide; check: held
+exit 0
+```
+
 ## 12. Many sequents in one call
 
 `prove` decides a batch when it is given any of these:
@@ -1345,7 +1389,13 @@ for the releases:
   with their parameters, the settings each reads and what each promises,
   run and checked over JSON by `protocol::run` and `protocol::check`;
   the manual's chapter "What each suite offers" lists them, and its
-  `wire.schema.json` is the JSON Schema of every form.
+  `wire.schema.json` is the JSON Schema of every form;
+- the workspace of the command `workspace`, on `protocol`:
+  `workspace::Workspace` keeps values and the nodes made from them,
+  changed by `Workspace::edit` and taken back by `undo` and `redo`;
+  `Workspace::run` makes what is out of date, or `compute` and `accept`
+  apart where the run happens elsewhere (a worker of a web page). Its
+  JSON is wire level 19, and reading it checks every value again.
 
 ### Deciding a sequent
 
