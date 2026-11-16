@@ -686,6 +686,16 @@ passes (core has `serde_json` only under `protocol`).
   digits is the line expanded, a word before it that `Named::read`
   takes is the rule (no ordinary atom is all digits, and a rule's name
   is no formula's last word).
+- **A word before the line number that reads as a rule's name** (`¬R`,
+  `∧L`) is taken as the rule only where the formula then reads; else it
+  is the formula's last word (`T p ∧ ¬R 1`, atom `R` negated). A
+  formula cannot end with a negation's operand missing, so the two
+  readings never both parse with `¬`; with `∧L` both do (`p ∧ L`), and
+  the rule wins, as the printer writes it.
+- **A formula's "end of input" error** is placed in the whole text at
+  the character after the formula (`parse::formula_in`): the parser
+  reads only up to the formula's end, and the command's caret otherwise
+  went to the text's last line.
 - **The layout**: a branch starts with a marker (`├─`, `└─`, `+-`,
   `\-`, `` `- `` or `-`; `|-` counted at the bar's column) at the column of its parent's lines,
   its own lines at the column after the marker; a line without a marker
@@ -703,7 +713,9 @@ passes (core has `serde_json` only under `protocol`).
   citing one line into one expansion (`group`: as long as they fit one
   result list of `shapes`), and matches each against `shapes`, which
   lists exactly the rules of `TABLEAU` that expand the line (the partial
-  ones `T∧₁`, `F∨₁`, `T↔₁`… marked `partial`). A group passes where it is
+  ones `T∧₁`, `F∨₁`, `F→₁`, `T↔₁`… marked `partial`; every rule that
+  does not split has a part per result, so a group within a result list
+  always completes one, which `expansion`'s `unreachable!` rests on). A group passes where it is
   within a result list as a multiset and the branch with it holds the
   whole list, which is exactly when the rule's node is an instance (the
   branch is a set). A split's two branches must start with the two

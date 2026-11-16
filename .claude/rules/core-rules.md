@@ -133,7 +133,8 @@ design, with the reasons and the alternatives weighed, is
   `tableau.rs`): a node per tableau node, its branch's signed formulas
   once each, children as premises, an open branch an open goal. A
   closed tableau passes and an open one is refused. 56a closes a branch
-  on any formula, so `×` has no `atomic`. `T↔′` and `F↔′` expand an equivalence by
+  on any formula, so `×` has no `atomic`. `F→₁` and `F→₂` take one result of `F→`
+  alone, as `T∧₁` and `F∨₂` do (Smullyan's rule A). `T↔′` and `F↔′` expand an equivalence by
   its sides' values, as textbooks draw it (no LK rule maps to them, so
   `from_tableau` never writes them); `ordinary::WrittenTableau::review`
   checks a student's tableau as a derivation in the file

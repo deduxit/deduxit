@@ -418,7 +418,21 @@ pub(super) fn formula_in(
         limit: limits.occurrences,
     };
     let at = parser.at;
-    let (formula, end) = parser.formula()?;
+    let (formula, end) = match parser.formula() {
+        Ok(read) => read,
+        // The parser read the text up to the formula's end, so an error
+        // there says "the end of input"; it is placed in the whole text
+        // instead, at the character after the formula.
+        Err(Error::Parse(error)) if error.found.is_none() && span.end < text.len() => {
+            let placed = ParseError::new(text, span.end, error.expected);
+            return Err(match error.hint {
+                Some(hint) => placed.with_hint(hint),
+                None => placed,
+            }
+            .into());
+        }
+        Err(error) => return Err(error),
+    };
     match end {
         End::Stop => Ok(formula),
         End::Comma | End::Turnstile => {

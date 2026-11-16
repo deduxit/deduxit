@@ -1,7 +1,7 @@
 {
   "version": 15,
   "name": "tableau",
-  "description": "Smullyan's signed analytic tableau of classical propositional logic, written as a calculus: a node is the set of signed formulas on its branch, an expansion keeps the formula it expands, and a branch closes on a formula signed both ways, on ⊥ true or on ⊤ false. An equivalence expands two ways: into the two implications, as LK does (T↔, F↔), or by the values of its sides, as the Open Logic Project's and forall x's trees do (T↔′, F↔′).",
+  "description": "Smullyan's signed analytic tableau of classical propositional logic, written as a calculus: a node is the set of signed formulas on its branch, an expansion keeps the formula it expands, and a branch closes on a formula signed both ways, on ⊥ true or on ⊤ false. An equivalence expands two ways: into the two implications, as LK does (T↔, F↔), or by the values of its sides, as the Open Logic Project's and forall x's trees do (T↔′, F↔′). As Smullyan's rule A allows, a branch may take one result of a rule that does not split it (T∧₁, F∨₂, F→₁, …).",
   "sorts": ["signed"],
   "connectives": [
     {"name": "⊤", "arity": 0},
@@ -30,6 +30,8 @@
     {"name": "F∨₂", "premises": [{"branch": ["S", ["F", "B"]]}], "conclusion": {"branch": ["S", ["F", ["∨", "A", "B"]]]}},
     {"name": "T→", "premises": [{"branch": ["S", ["F", "A"]]}, {"branch": ["S", ["T", "B"]]}], "conclusion": {"branch": ["S", ["T", ["→", "A", "B"]]]}},
     {"name": "F→", "premises": [{"branch": ["S", ["T", "A"], ["F", "B"]]}], "conclusion": {"branch": ["S", ["F", ["→", "A", "B"]]]}},
+    {"name": "F→₁", "premises": [{"branch": ["S", ["T", "A"]]}], "conclusion": {"branch": ["S", ["F", ["→", "A", "B"]]]}},
+    {"name": "F→₂", "premises": [{"branch": ["S", ["F", "B"]]}], "conclusion": {"branch": ["S", ["F", ["→", "A", "B"]]]}},
     {"name": "T¬", "premises": [{"branch": ["S", ["F", "A"]]}], "conclusion": {"branch": ["S", ["T", ["¬", "A"]]]}},
     {"name": "F¬", "premises": [{"branch": ["S", ["T", "A"]]}], "conclusion": {"branch": ["S", ["F", ["¬", "A"]]]}},
     {"name": "T↔", "premises": [{"branch": ["S", ["T", ["→", "A", "B"]], ["T", ["→", "B", "A"]]]}], "conclusion": {"branch": ["S", ["T", ["↔", "A", "B"]]]}},

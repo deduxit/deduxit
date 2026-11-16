@@ -91,9 +91,10 @@ struct Named {
 impl Named {
     /// Reads a rule's name as a tableau writes it (`T∧`, `∧T`, `T/\`) or
     /// as LK names it (`∧L` for a true formula, `∧R` for a false one),
-    /// with an index `₁` or `₂` after it, which says nothing more.
+    /// with an index (`₁`, `₂`, `1`, `2`) after it, which says nothing
+    /// more.
     fn read(word: &str) -> Option<Self> {
-        let word = word.trim_end_matches(['₁', '₂']);
+        let word = word.trim_end_matches(['₁', '₂', '1', '2']);
         let sign = |letter: &str| match letter {
             "T" | "L" => Some(Sign::True),
             "F" | "R" => Some(Sign::False),
@@ -526,6 +527,8 @@ impl WrittenTableau {
         let rest = body[at..].trim_end();
         let mut formula_end = at + rest.len();
         let (mut cites, mut rule) = (None, None);
+        // Where the formula ends if the word before the number is no rule.
+        let mut whole_end = formula_end;
         if let Some((head, last)) = rest.rsplit_once(char::is_whitespace)
             && !last.is_empty()
             && last.bytes().all(|b| b.is_ascii_digit())
@@ -533,6 +536,7 @@ impl WrittenTableau {
         {
             cites = Some(number(text, content + at + rest.len() - last.len(), last)?);
             formula_end = at + head.trim_end().len();
+            whole_end = formula_end;
             let head = head.trim_end();
             if let Some((before, word)) = head.rsplit_once(char::is_whitespace)
                 && !before.trim().is_empty()
@@ -542,12 +546,21 @@ impl WrittenTableau {
                 formula_end = at + before.trim_end().len();
             }
         }
-        let formula = formula_in(
-            text,
-            content + at..content + formula_end,
-            &mut self.formulas,
-            limits,
-        )?;
+        let span = |end: usize| content + at..content + end;
+        let formula = match formula_in(text, span(formula_end), &mut self.formulas, limits) {
+            // A word that reads as a rule's name may end the formula
+            // instead, as `¬R` does in `T p ∧ ¬R 1`: a formula cannot end
+            // where the name would leave it (a negation needs a
+            // connective before it), so this is the only other reading.
+            Err(Error::Parse(_)) if rule.is_some() => {
+                let formula = formula_in(text, span(whole_end), &mut self.formulas, limits);
+                if formula.is_ok() {
+                    rule = None;
+                }
+                formula?
+            }
+            read => read?,
+        };
         Ok(Line {
             number: line_number,
             row,
@@ -647,7 +660,8 @@ impl WrittenTableau {
         if let Some(expected) = expected
             && let Some(message) = self.differs(expected)?
         {
-            let first = &self.lines[self.root_lines()[0] as usize];
+            // The first line, whether or not it is the sequent's.
+            let first = &self.lines[self.branches[0].lines[0] as usize];
             return Ok(answer(Standing::Wrong, Some(first), message));
         }
         let mut walk = Walk::new(self, limits);
@@ -829,12 +843,12 @@ enum Item {
 /// Returns the words of `text` split by `split`, each with its byte
 /// offset.
 fn words(text: &str, split: impl Fn(char) -> bool) -> impl Iterator<Item = (usize, &str)> {
-    let mut at = 0;
-    text.split(split).filter_map(move |word| {
-        let offset = at;
-        at += word.len() + 1;
-        (!word.is_empty()).then_some((offset, word))
-    })
+    // A separator may be several bytes long (U+3000 is white space), so
+    // each word's offset is read off its place in the text.
+    let start = text.as_ptr() as usize;
+    text.split(split)
+        .filter(|word| !word.is_empty())
+        .map(move |word| (word.as_ptr() as usize - start, word))
 }
 
 /// Reads a line's number at byte `at` of `text`.
@@ -912,7 +926,11 @@ fn shapes(formulas: &Formulas, signed: Signed) -> Vec<Shape> {
             vec![Shape::new("T→", "T→", vec![vec![s(F, a)], vec![s(T, b)]])]
         }
         (F, Node::Implies(a, b)) => {
-            vec![Shape::new("F→", "F→", vec![vec![s(T, a), s(F, b)]])]
+            vec![
+                Shape::new("F→", "F→", vec![vec![s(T, a), s(F, b)]]),
+                Shape::new("F→₁", "F→", vec![vec![s(T, a)]]).part(),
+                Shape::new("F→₂", "F→", vec![vec![s(F, b)]]).part(),
+            ]
         }
         (T, Node::Iff(a, b)) => {
             let mut all = vec![Shape::new(
@@ -1297,38 +1315,37 @@ impl<'a> Walk<'a> {
         let all = shapes(&tableau.formulas, principal);
         let ones: Vec<&Shape> = all.iter().filter(|s| s.results.len() == 1).collect();
         let number = tableau.lines[first as usize].number;
-        if ones.is_empty() {
-            let shape = &all[0];
-            self.fault(
-                first,
-                format!(
-                    "line {number}: {} on {} splits the branch in two, one that starts with {} \
-                     and one with {}",
-                    shape.shown,
-                    tableau.cite(cited),
-                    tableau.list(&shape.results[0]),
-                    tableau.list(&shape.results[1])
-                ),
-            );
-            return Ok(0);
-        }
-        let group = self.group(run, cited, &ones);
+        // The rule as a whole (not a part of it), for the messages.
+        let whole = all.iter().find(|shape| !shape.partial).unwrap_or(&all[0]);
+        let group = if ones.is_empty() {
+            0
+        } else {
+            self.group(run, cited, &ones)
+        };
         let signed: Vec<Signed> = run[..group]
             .iter()
             .map(|&id| tableau.lines[id as usize].signed)
             .collect();
         if group == 0 {
-            let shape = ones[0];
-            self.fault(
-                first,
+            let message = if let [one, two] = whole.results.as_slice() {
+                format!(
+                    "line {number}: {} on {} splits the branch in two, one that starts with {} \
+                     and one with {}",
+                    whole.shown,
+                    tableau.cite(cited),
+                    tableau.list(one),
+                    tableau.list(two)
+                )
+            } else {
                 format!(
                     "line {number}: {} on {} adds {}, not {}",
-                    shape.shown,
+                    whole.shown,
                     tableau.cite(cited),
-                    tableau.list(&shape.results[0]),
+                    tableau.list(&whole.results[0]),
                     tableau.signed(tableau.lines[first as usize].signed)
-                ),
-            );
+                )
+            };
+            self.fault(first, message);
             return Ok(0);
         }
         let complete = |shape: &Shape| {
@@ -1336,32 +1353,15 @@ impl<'a> Walk<'a> {
                 .iter()
                 .all(|&r| self.holds(r) || signed.contains(&r))
         };
+        // Every rule that does not split has a part for each of its
+        // results (`T∧₁`, `F→₂`, …), so a group within a result list is
+        // within a list the branch completes: a part's own result.
         let Some(shape) = ones
             .iter()
             .copied()
             .find(|shape| within(&signed, &shape.results[0]) && complete(shape))
         else {
-            let shape = ones
-                .iter()
-                .copied()
-                .find(|shape| !shape.partial && within(&signed, &shape.results[0]))
-                .unwrap_or(ones[0]);
-            let missing: Vec<Signed> = shape.results[0]
-                .iter()
-                .copied()
-                .filter(|&r| !self.holds(r) && !signed.contains(&r))
-                .collect();
-            self.fault(
-                first,
-                format!(
-                    "line {number}: {} on {} adds {}; {} is missing",
-                    shape.shown,
-                    tableau.cite(cited),
-                    tableau.list(&shape.results[0]),
-                    tableau.list(&missing)
-                ),
-            );
-            return Ok(0);
+            unreachable!("a group fits a rule's part whenever it fits the rule")
         };
         let at = self.plan(*slot, Some(shape.name), vec![cited], 1)?;
         *slot = Some((at, 0));

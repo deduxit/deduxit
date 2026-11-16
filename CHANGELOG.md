@@ -82,9 +82,10 @@ second number (0.1.x to 0.2.0), anything else the third.
   `tableau`, and an open one's branch gives a checked countermodel.
   `--sequent` names the sequent it must start from. Exit 0 for a right
   and finished tableau, 1 for a wrong or unfinished one.
-- **The textbooks' rules for `↔` in the rule file `tableau`**: `T↔′`
-  and `F↔′` expand an equivalence by its sides' values (`T p, T q` and
-  `F p, F q`), beside LK's two implications.
+- **The textbooks' rules in the rule file `tableau`**: `T↔′` and
+  `F↔′` expand an equivalence by its sides' values (`T p, T q` and `F
+  p, F q`), beside LK's two implications; `F→₁` and `F→₂` take one
+  result of `F→` alone, as `T∧₁` and `F∨₂` already did.
 
 ### Changed
 

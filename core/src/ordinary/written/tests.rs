@@ -203,8 +203,8 @@ fn each_fault_is_said_with_its_line() {
             "line 4: T∧ on line 1 (T p ∧ q) adds T p and T q, not T r",
         ),
         (
-            "1 F p → q\n2 T p 1\n",
-            "line 2: F→ on line 1 (F p → q) adds T p and F q; F q is missing",
+            "1 F p → q\n2 T q 1\n",
+            "line 2: F→ on line 1 (F p → q) adds T p and F q, not T q",
         ),
         (
             "1 T p ∨ q\n2 T p 1\n",
@@ -263,6 +263,49 @@ fn each_fault_is_said_with_its_line() {
         assert_eq!(review.standing, Standing::Wrong, "{text}");
         assert_eq!(review.message, message, "{text}");
     }
+}
+
+#[test]
+fn a_right_tableau_reads_as_written() {
+    // A negated atom that reads like a rule's name ends a formula; one
+    // result of `F→` alone, and its two results apart, as Smullyan's
+    // rule A allows; `x` with a space of another width.
+    for text in [
+        "1 T P /\\ (Q /\\ ~R)\n2 F Q\n3 T P 1\n4 T Q /\\ ~R 1\n5 T Q 4\n6 T ~R 4\nx 5, 2\n",
+        "1 F a -> (b -> a)\n2 T a 1\n3 F b -> a 1\n4 F a 3\nx 2, 4\n",
+        "1 F a -> (c -> b)\n2 T a 1\n3 F c -> b 1\n4 T c 3\n5 F b\u{3000}F→ 3\n",
+        "1 T p\n2 F p\n×\u{3000}1,\u{3000}2\n",
+    ] {
+        let review = review(text);
+        assert_ne!(review.standing, Standing::Wrong, "{text}\n{review:?}");
+    }
+}
+
+#[test]
+fn faults_on_odd_input_are_said_not_panicked() {
+    // A number past 2³² after a wide space, a first line that cites one
+    // with a sequent given, a formula cut short before its line's end.
+    let refused = WrittenTableau::parse_within("1 T p\n2 F p\n×\u{3000}99999999999\n", &Limits::default());
+    assert!(matches!(refused, Err(Error::Parse(_))));
+    let tableau: WrittenTableau = "1 T p 1\n".parse().unwrap();
+    let sequent: Sequent = "p |- p".parse().unwrap();
+    let cited = tableau
+        .review(&calculus(), Some(&sequent), &Limits::default(), |_| false)
+        .unwrap();
+    assert_eq!(cited.standing, Standing::Wrong);
+    let Err(Error::Parse(error)) =
+        WrittenTableau::parse_within("1 T p /\\ q\n2 F p\n3 T p /\\ 1\n4 T q 1\n", &Limits::default())
+    else {
+        panic!("read")
+    };
+    assert_eq!(error.line, 3);
+    // The rule as a whole, whatever the arena holds of its parts.
+    let whole = review("1 T p <-> q\n2 F p -> q\n3 T q 1\n");
+    assert_eq!(
+        whole.message,
+        "line 3: T↔ on line 1 (T p ↔ q) splits the branch in two, one that starts with T p and \
+         T q and one with F p and F q"
+    );
 }
 
 #[test]
