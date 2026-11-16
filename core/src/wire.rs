@@ -166,7 +166,7 @@
 //!   see [`ordinary::Derivation`](crate::ordinary::Derivation).
 //!
 //!   [`Derivation::check`]: crate::ordinary::Derivation::check
-//! - **Ordinary outcome**: `{"version": 12, "deduxit": "0.5.0",
+//! - **Ordinary outcome**: `{"version": 12, "deduxit": "0.6.0",
 //!   "verdict": "valid", "logic": "classical", "search": {"method":
 //!   "embedding", "translation": "affine", "image": {…}}, "derivation":
 //!   {…}}`, `verdict` one of `valid`, `not_valid` and `unknown` (with a
@@ -227,14 +227,14 @@
 //!   `Derivation::check` its rules; see
 //!   [`rules::Derivation`](crate::rules::Derivation).
 //! - **Negative translation** (written only): `{"version": 16,
-//!   "deduxit": "0.5.0", "translation": "kolmogorov", "target": "minimal",
+//!   "deduxit": "0.6.0", "translation": "kolmogorov", "target": "minimal",
 //!   "agreement": "valid", "sequent": {…}, "translated": {…}, "classical":
 //!   {…}, "decided": {…}}`: the classical sequent and its translation, in
 //!   the form of an ordinary sequent, each decided, in the form of an
 //!   ordinary outcome, none with a `version`; `agreement` is `valid`,
 //!   `not_valid` or `unknown`; see
 //!   [`ordinary::negative::Comparison`](crate::ordinary::negative::Comparison).
-//! - **Interpolation** (written only): `{"version": 16, "deduxit": "0.5.0",
+//! - **Interpolation** (written only): `{"version": 16, "deduxit": "0.6.0",
 //!   "logic": "classical", "partition": {"left": [0], "right": []},
 //!   "outcome": {…}, "interpolant": {"text": "b", "first": {"sequent": {…},
 //!   "outcome": {…}}, "second": {…}}}`: the positions of the first half,

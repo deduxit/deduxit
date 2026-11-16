@@ -82,7 +82,7 @@ const MODEL: &str = r#"{"worlds":[{"atoms":[],"arrows":[1]},{"atoms":["a"]}]}"#;
 
 /// A modal outcome at level 20: `□p ⊢ □□p` not valid in K, with its
 /// countermodel.
-const MODAL_OUTCOME: &str = r#"{"version":20,"deduxit":"0.5.0","verdict":"not_valid","system":"K","statistics":{"worlds":3,"splits":0,"blocked":0,"work":15,"inferences":0},"sequent":{"formulas":[{"V":0},{"□":0},{"□":1}],"atoms":["p"],"left":[1],"right":[2]},"countermodel":{"model":{"worlds":[{"atoms":[],"arrows":[1]},{"atoms":["p"],"arrows":[2]},{"atoms":[]}],"world":0}}}"#;
+const MODAL_OUTCOME: &str = r#"{"version":20,"deduxit":"0.6.0","verdict":"not_valid","system":"K","statistics":{"worlds":3,"splits":0,"blocked":0,"work":15,"inferences":0},"sequent":{"formulas":[{"V":0},{"□":0},{"□":1}],"atoms":["p"],"left":[1],"right":[2]},"countermodel":{"model":{"worlds":[{"atoms":[],"arrows":[1]},{"atoms":["p"],"arrows":[2]},{"atoms":[]}],"world":0}}}"#;
 
 /// A Kripke model of three worlds in a row, `p` at the middle one: it
 /// refutes `□p ⊢ □□p` at world 0, and no world sees itself.

@@ -367,7 +367,7 @@ pub enum Agreement {
 /// # JSON
 ///
 /// With the feature `serialize` a comparison is the document
-/// `{"version": 16, "deduxit": "0.5.0", "translation": "kolmogorov",
+/// `{"version": 16, "deduxit": "0.6.0", "translation": "kolmogorov",
 /// "target": "minimal", "agreement": "valid", "sequent": {…},
 /// "translated": {…}, "classical": {…}, "decided": {…}}`
 /// ([`wire`](crate::wire)), written only: the two sequents in the form of
