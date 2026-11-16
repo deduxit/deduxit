@@ -371,6 +371,19 @@ for `THIRD-PARTY-NOTICES.txt`.
   it proves or draws, `term` the name of its call for the lambda-term). The client's registry reads it; a new suite is a
   row there with its calls.
 
+- **A tab of modal logic** has `modal.rs`'s calls, exported as
+  `modal_…`, each the protocol's operation of its name run under the
+  tab's settings (`modal.decide`, `modal.countermodel`,
+  `modal.evaluate`, `modal.draw`, `modal.export`, `modal.calculus`), so
+  the page and the workspace answer alike; `modal_read` is
+  `protocol::statement("modal", …)`. There is no session: a tab holds
+  a statement and its outcome. `modal_model_drawing` builds a
+  `modal::Countermodel` of the visitor's model at the world given and
+  draws it with `svg::modal_countermodel`, which checks it first, so a
+  model where the sequent holds is `invalid_model`, never a drawing.
+  `about`'s row names the parameter `system`, default `K`; `SUITES`
+  (`protocol.rs`) offers `read`, `draw`, `export_as` and the rest as
+  extras, the method `labelled`.
 - **The workspace** (`workspace.rs`, exported `workspace_…`): the
   linked tabs a page keeps, over the library's `workspace`
   (`core-workspace.md`). The page holds the document and sends it with

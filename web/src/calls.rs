@@ -119,6 +119,20 @@ pub fn about() -> String {
                 "settings": [],
                 "term": null,
             },
+            {
+                "suite": "modal",
+                "name": "Modal",
+                "calls": "modal_",
+                "parameters": [
+                    {
+                        "name": "system",
+                        "values": deduxit::modal::System::NAMES,
+                        "default": deduxit::modal::Options::default().system,
+                    },
+                ],
+                "settings": [],
+                "term": null,
+            },
         ],
     })
     .to_string()

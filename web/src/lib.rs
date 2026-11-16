@@ -21,14 +21,16 @@
 //!
 //! The calls are those of [`calls`], exported under their names, `export`
 //! as `export_as`. Those of [`ordinary`] are exported with the prefix
-//! `ordinary_`, and those of [`rules`], which build a derivation in a
-//! calculus given as data, with the prefix `rules_`. [`protocol`] writes
+//! `ordinary_`, those of [`rules`], which build a derivation in a
+//! calculus given as data, with the prefix `rules_`, and those of
+//! [`modal`], which decide modal logic, with the prefix `modal_`. [`protocol`] writes
 //! down which call of each suite is which of the protocol's, `describe`
 //! answering it as JSON. Those of [`workspace`], the linked tabs a page
 //! keeps, are exported with the prefix `workspace_`.
 
 pub mod calls;
 mod failure;
+pub mod modal;
 pub mod ordinary;
 pub mod protocol;
 pub mod rules;
@@ -40,7 +42,7 @@ pub use failure::Failure;
 /// The exports of the module, which wrap [`calls`] for JavaScript.
 mod exports {
     use crate::failure::Failure;
-    use crate::{calls, ordinary, protocol, rules, workspace};
+    use crate::{calls, modal, ordinary, protocol, rules, workspace};
     use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 
     /// Returns a failure as the string a call throws.
@@ -526,6 +528,66 @@ mod exports {
     #[wasm_bindgen]
     pub fn rules_export(session: &str, format: &str, settings: &str) -> Result<String, JsValue> {
         rules::export(session, format, settings).map_err(thrown)
+    }
+
+    /// See [`modal::read`].
+    #[wasm_bindgen]
+    pub fn modal_read(text: &str, system: &str, settings: &str) -> Result<String, JsValue> {
+        modal::read(text, system, settings).map_err(thrown)
+    }
+
+    /// See [`modal::decide`].
+    #[wasm_bindgen]
+    pub fn modal_decide(statement: &str, settings: &str) -> Result<String, JsValue> {
+        modal::decide(statement, settings).map_err(thrown)
+    }
+
+    /// See [`modal::countermodel`].
+    #[wasm_bindgen]
+    pub fn modal_countermodel(outcome: &str, settings: &str) -> Result<String, JsValue> {
+        modal::countermodel(outcome, settings).map_err(thrown)
+    }
+
+    /// See [`modal::evaluate`]; a `world` of `undefined` checks every
+    /// world.
+    #[wasm_bindgen]
+    pub fn modal_evaluate(
+        statement: &str,
+        model: &str,
+        world: Option<f64>,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        let world = world.map(|w| index(w, "world")).transpose()?;
+        modal::evaluate(statement, model, world, settings).map_err(thrown)
+    }
+
+    /// See [`modal::draw`].
+    #[wasm_bindgen]
+    pub fn modal_draw(outcome: &str, settings: &str) -> Result<String, JsValue> {
+        modal::draw(outcome, settings).map_err(thrown)
+    }
+
+    /// See [`modal::export`].
+    #[wasm_bindgen]
+    pub fn modal_export(outcome: &str, format: &str, settings: &str) -> Result<String, JsValue> {
+        modal::export(outcome, format, settings).map_err(thrown)
+    }
+
+    /// See [`modal::calculus`].
+    #[wasm_bindgen]
+    pub fn modal_calculus(statement: &str, settings: &str) -> Result<String, JsValue> {
+        modal::calculus(statement, settings).map_err(thrown)
+    }
+
+    /// See [`modal::model_drawing`].
+    #[wasm_bindgen]
+    pub fn modal_model_drawing(
+        statement: &str,
+        model: &str,
+        world: f64,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        modal::model_drawing(statement, model, index(world, "world")?, settings).map_err(thrown)
     }
 
     /// See [`workspace::statement`].

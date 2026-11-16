@@ -59,8 +59,7 @@ fn open_goals(answer: &str) -> Vec<u32> {
 
 /// `about` lists the suites, each with the prefix of its calls, its term
 /// call and the parameter its `start` takes, with every value and the
-/// default, the ordinary suite's methods, and the wire level, 18 since the
-/// library reads sessions in a calculus given as data with derived lines.
+/// default, the ordinary suite's methods, and the wire level.
 #[wasm_bindgen_test(unsupported = test)]
 fn about_lists_the_suites() {
     let about = value(&calls::about());
@@ -70,13 +69,25 @@ fn about_lists_the_suites() {
     let names: Vec<&Value> = suites.iter().map(|s| &s["suite"]).collect();
     assert_eq!(
         names,
-        [&json!("linear"), &json!("ordinary"), &json!("rules")]
+        [
+            &json!("linear"),
+            &json!("ordinary"),
+            &json!("rules"),
+            &json!("modal")
+        ]
     );
     let terms: Vec<&Value> = suites.iter().map(|s| &s["term"]).collect();
     assert_eq!(
         terms,
-        [&json!("term"), &json!("ordinary_term"), &Value::Null]
+        [
+            &json!("term"),
+            &json!("ordinary_term"),
+            &Value::Null,
+            &Value::Null
+        ]
     );
+    assert_eq!(suites[3]["calls"], "modal_");
+    assert_eq!(suites[3]["parameters"][0]["default"], "K");
     let ordinary = &suites[1];
     assert_eq!(ordinary["calls"], "ordinary_");
     assert_eq!(

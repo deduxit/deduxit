@@ -127,8 +127,18 @@ const SEQUENT: Method = Method {
     layouts: &["tree"],
 };
 
+/// The labelled sequent calculus, the method of the modal suite: each
+/// formula at a world, decided by a search, with a countermodel drawn as
+/// a graph.
+const LABELLED: Method = Method {
+    method: "labelled",
+    runs: None,
+    calculi: &[],
+    layouts: &["tree", "graph"],
+};
+
 /// Every suite of the module, as the protocol has it.
-pub const SUITES: [Speaks; 3] = [
+pub const SUITES: [Speaks; 4] = [
     Speaks {
         suite: "linear",
         calls: [
@@ -296,6 +306,55 @@ pub const SUITES: [Speaks; 3] = [
         ],
         layouts: &["tree", "list"],
         builds: &[SEQUENT],
+    },
+    Speaks {
+        suite: "modal",
+        calls: [
+            offered("read", "modal_read", &["input", "system", "settings"]),
+            lacks("start"),
+            lacks("view"),
+            lacks("rules"),
+            lacks("apply"),
+            lacks("undo"),
+            lacks("close"),
+            lacks("hint"),
+            offered("draw", "modal_draw", &["outcome", "settings"]),
+            offered(
+                "export_as",
+                "modal_export",
+                &["outcome", "format", "settings"],
+            ),
+            lacks("certificate"),
+        ],
+        extra: &[
+            Extra {
+                export: "modal_decide",
+                takes: &["statement", "settings"],
+                does: "decides the statement in its system: a derivation or a countermodel",
+            },
+            Extra {
+                export: "modal_countermodel",
+                takes: &["outcome", "settings"],
+                does: "gives a not-valid outcome's Kripke model",
+            },
+            Extra {
+                export: "modal_evaluate",
+                takes: &["statement", "model", "world", "settings"],
+                does: "checks a Kripke model against the statement, at a world or every world",
+            },
+            Extra {
+                export: "modal_model_drawing",
+                takes: &["statement", "model", "world", "settings"],
+                does: "draws a model that refutes the statement at a world",
+            },
+            Extra {
+                export: "modal_calculus",
+                takes: &["statement", "settings"],
+                does: "gives the system's labelled calculus as a rule file",
+            },
+        ],
+        layouts: &["tree", "graph"],
+        builds: &[LABELLED],
     },
 ];
 
