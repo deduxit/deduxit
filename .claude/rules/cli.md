@@ -384,9 +384,12 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   numbering as the linear intuitionistic session prints it would have
   made those messages name other numbers than the user typed. Rule names
   are `ordinary::Rule::from_str` (names, symbols, words: `andR`, `->L`;
-  the splitter takes `\` as an escape, so `/\R` needs quotes). `cut`
-  and `invertible` are refused by name, as are `-i`/`-a`/`--mix` and
-  `--invertible` beside `--logic`. `close` runs the library's
+  the splitter takes `\` as an escape, so `/\R` needs quotes). `cut` is
+  refused by name, as are `-i`/`-a`/`--mix` beside `--logic`.
+  `--invertible` and `invertible on|off` work as in the linear session
+  (`Session::invert_all`, `stepped`, the `groups` that `undo` takes
+  back together, cleared by `load`), over the library's
+  `ordinary::Interactive::invert`. `close` runs the library's
   `Interactive::close` (through `ordinary::decide`), which has no race of
   one thread against a pool, so it searches on one thread unless
   `--jobs N` asks for a count from the start (`Threads::alone` is

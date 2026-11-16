@@ -64,6 +64,9 @@ mod derivation;
 #[cfg(feature = "interactive")]
 mod interactive;
 pub mod interpolant;
+/// The invertible rules of LK and LJ, applied by the goal state.
+#[cfg(feature = "interactive")]
+mod invert;
 pub mod ljt;
 /// The check of a Kripke model.
 mod model;

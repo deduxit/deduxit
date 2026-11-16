@@ -11,9 +11,11 @@
 //! keeps it and sends it with every call. A formula of a goal is named by
 //! its side of `⊢` and its position there.
 
+use crate::calls::{Automatic, inverting};
 use crate::failure::Failure;
 use crate::tab;
 use deduxit::export::{latex, rocq, svg, typst};
+use deduxit::linear::proofs::Structural;
 use deduxit::ordinary::interpolant::{self, Partition};
 use deduxit::ordinary::negative;
 use deduxit::ordinary::{
@@ -61,6 +63,10 @@ struct View {
     /// in the session. The drawing shows the structural rules as the
     /// settings' `view.structural` says.
     inferences: Vec<GoalId>,
+    /// The session's steps that apply a rule invertible in its logic on
+    /// their goal, with a shared context (`Interactive::is_invertible`),
+    /// by their goal, in order.
+    invertible: Vec<GoalId>,
 }
 
 impl View {
@@ -91,8 +97,46 @@ impl View {
             steps: state.steps(),
             goals,
             inferences: state.derivation_ids(settings.view.structural),
+            invertible: invertible_steps(state),
         }
     }
+}
+
+/// Returns the goals a session closed by a rule invertible in its logic,
+/// in order. A step's inference is drawn with its weakenings left out, so
+/// an axiom shows its goal's sequent. A rule of two premises took a shared
+/// context where each premise keeps every other formula of its goal: a
+/// split gives each premise part of them.
+fn invertible_steps(state: &Interactive) -> Vec<GoalId> {
+    let view = deduxit::linear::ViewOptions::default();
+    let limits = deduxit::Limits::default().with_derivation_bytes(None);
+    let Ok(derivation) = state.derivation_within(&view, &limits, never) else {
+        return Vec::new();
+    };
+    let inferences = derivation.inferences();
+    let ids = state.derivation_ids(Structural::Admissible);
+    let mut found: Vec<GoalId> = (inferences.iter().zip(ids))
+        .filter(|(inference, _)| {
+            let (left, right) = (inference.left(), inference.right());
+            let step = match (inference.rule(), inference.principal()) {
+                (Rule::Axiom, _) => match left.iter().position(|x| right.contains(x)) {
+                    Some(position) => Step::new(Side::Left, position, Rule::Axiom),
+                    None => return false,
+                },
+                (rule, Some((side, position))) => Step::new(side, position, rule),
+                (_, None) => return false,
+            };
+            let shared = inference.premises().len() < 2
+                || inference.premises().iter().all(|p| {
+                    let premise = &inferences[p.index()];
+                    premise.left().len() + premise.right().len() + 1 >= left.len() + right.len()
+                });
+            shared && state.is_invertible((left, right), &step)
+        })
+        .map(|(_, goal)| goal)
+        .collect();
+    found.sort_unstable();
+    found
 }
 
 /// A session after a call that changed it, with its view and what the
@@ -138,8 +182,13 @@ pub fn start(sequent: &str, logic: &str, settings: &str) -> Result<String, Failu
     let settings = tab::read(settings)?;
     let logic: Logic = logic.parse().map_err(Failure::from)?;
     let sequent = sequent_of(sequent, &settings)?;
-    let state = Interactive::within(&sequent, logic, &settings.limits).map_err(Failure::from)?;
-    changed(&state, &settings, serde_json::Map::new())
+    let mut state =
+        Interactive::within(&sequent, logic, &settings.limits).map_err(Failure::from)?;
+    let mut automatic = Automatic::default();
+    if settings.interactive.invertible {
+        automatic.add(state.invert_all(&inverting(&settings)));
+    }
+    changed(&state, &settings, automatic)
 }
 
 /// Returns what the page shows of a session: the `view` that every call
@@ -264,8 +313,13 @@ impl StepForm {
 /// What a step opened.
 #[derive(Serialize)]
 struct Opened {
-    /// The goals the step opened, none when it closed its goal.
+    /// The goals the step opened, none when it closed its goal. With
+    /// `interactive.invertible` on, the goals the invertible steps after it
+    /// left open, from left to right.
     opened: Vec<GoalId>,
+    /// The invertible steps taken after it.
+    #[serde(flatten)]
+    automatic: Automatic,
 }
 
 /// Applies a step ([`StepForm`]) to an open goal and returns the session
@@ -279,10 +333,38 @@ pub fn apply(session: &str, goal: u32, step: &str, settings: &str) -> Result<Str
     let settings = tab::read(settings)?;
     let mut state = session_of(session, &settings)?;
     let step: StepForm = serde_json::from_str(step).map_err(Failure::json)?;
-    let opened = state
+    let mut opened = state
         .apply(GoalId::new(goal), &step.step())
         .map_err(|e| Failure::from(deduxit::Error::from(e)))?;
-    changed(&state, &settings, Opened { opened })
+    let mut automatic = Automatic::default();
+    if settings.interactive.invertible {
+        let limits = inverting(&settings);
+        for goal in std::mem::take(&mut opened) {
+            let inverted = state
+                .invert(goal, &limits)
+                .map_err(|e| Failure::from(deduxit::Error::from(e)))?;
+            opened.extend(automatic.add(inverted));
+        }
+    }
+    changed(&state, &settings, Opened { opened, automatic })
+}
+
+/// Applies every invertible rule to every open goal
+/// (`Interactive::invert_all`), whatever the settings say, and returns
+/// the session with `inverted`, how many steps that took: what the page
+/// calls when `interactive.invertible` is turned on during a session.
+/// LK's rules of the connectives are invertible; LJ's `→L`, `¬L` and
+/// `∨R₁`, `∨R₂` are not.
+///
+/// # Errors
+///
+/// As the session's reader.
+pub fn invert_all(session: &str, settings: &str) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let mut state = session_of(session, &settings)?;
+    let mut automatic = Automatic::default();
+    automatic.add(state.invert_all(&inverting(&settings)));
+    changed(&state, &settings, automatic)
 }
 
 /// What an undo reopened.

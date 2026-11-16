@@ -223,6 +223,11 @@ pub const SUITES: [Speaks; 4] = [
                 does: "decides a classical sequent by a signed tableau",
             },
             Extra {
+                export: "ordinary_invert_all",
+                takes: SESSION,
+                does: "applies every invertible rule of LK or LJ to every open goal",
+            },
+            Extra {
                 export: "ordinary_tableau_review",
                 takes: &["text", "sequent", "settings"],
                 does: "reviews a classical tableau written by hand, step by step",

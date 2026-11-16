@@ -390,6 +390,26 @@ fn a_sequent_is_decided_by_its_table_or_a_tableau() {
     assert_eq!(failure(&refused)["code"], "too_many_atoms");
 }
 
+/// With `interactive.invertible` on, a session applies the invertible
+/// rules of its logic by itself at the start and after each step, and the
+/// view lists the steps they took; `ordinary_invert_all` applies them
+/// whatever the settings say. LJ leaves `→L` to the visitor.
+#[wasm_bindgen_test(unsupported = test)]
+fn the_invertible_rules_apply_by_themselves() {
+    let on = r#"{"interactive": {"invertible": true}}"#;
+    let started = value(&ordinary::start("a /\\ b |- b /\\ a", "classical", on).unwrap());
+    assert_eq!(started["inverted"], 4);
+    assert_eq!(started["view"]["complete"], true);
+    assert_eq!(started["view"]["invertible"].as_array().unwrap().len(), 4);
+    let lj = value(&ordinary::start("c, a -> b, a |- b /\\ c", "intuitionistic", on).unwrap());
+    assert_eq!(lj["view"]["goals"].as_array().unwrap().len(), 1);
+    let off = ordinary::start("a /\\ b |- b /\\ a", "classical", "").unwrap();
+    assert_eq!(value(&off)["inverted"], 0);
+    let all = value(&ordinary::invert_all(&session(&off), "").unwrap());
+    assert_eq!(all["inverted"], 4);
+    assert_eq!(all["view"]["complete"], true);
+}
+
 /// A tableau written by hand is reviewed: a closed one, an open one with
 /// its countermodel, a wrong step at its text line, the sequent given;
 /// a text that is no tableau is refused as a parse error placed in it.

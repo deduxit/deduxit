@@ -668,6 +668,34 @@ classical logic only (`Error::Logic`, which names the method).
   node with children expanding a line and a leaf with an end, not the
   expansions).
 
+## The invertible rules (`invert.rs`)
+
+`Interactive::invert`, `invert_all` and `is_invertible` (feature
+`interactive`), the linear session's `invert.rs` read for LK and LJ:
+`interactive.invertible` and the front ends' switch drive them.
+
+- **The set** (`invertible`, one table by logic, side and connective):
+  the axiom, and in LK every rule of a connective with a shared context
+  (`⊤L`, `⊥R` included); in LJ and minimal logic all but `→L`, `¬L`
+  (the first premise drops the formula right of `⊢`) and `∨R₁`, `∨R₂`
+  (a choice); minimal logic has no `⊥L`. The partial rules (`∧L₁`,
+  `↔L₂`), the structural rules and a split context are never taken.
+  These are G3's invertibility facts for rules that drop their
+  principal; the test checks them semantically, every goal of a valid
+  sequent valid after the run, on 200 generated sequents in each logic.
+- **It ends**: every premise is lighter than its conclusion with `↔`
+  weighed as `2(w(A) + w(B)) + 3`, above its two implications.
+- **Each step goes through `apply`**, the public step, so the checker's
+  rule checks every one, and a step `apply` refuses (the axiom's
+  weakenings past the session's bound) leaves the goal open; the goals
+  opened are charged per inference and formula to
+  `limits.memory_bytes`, `Refusal::Memory` in `Inverted::finished` at
+  the bound, the steps taken standing. `Inverted` is the linear
+  session's type, its goals the ordinary session's ids.
+- **The order**: a closing step (the axiom, `⊥` true, `⊤` false) first,
+  else the first formula's rule, the hypotheses before the formulas
+  right of `⊢`; depth first, `Inverted::open` left to right.
+
 ## A tableau written by hand (`written/`)
 
 `WrittenTableau` (features `parse`, `serialize`, `interactive`): a

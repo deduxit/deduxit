@@ -95,7 +95,7 @@ of those names),
 `simple`, the printer `print`),
 `ordinary` (the arena and syntax in `mod.rs`, `parse` behind the
 feature of that name, `translate`, `derivation` with the read-back and
-its checker, the native engine `ljt`, the SAT engine `sat` behind that feature, the check of a Kripke model `model`, the truth table `table`, the signed tableau `tableau` behind `interactive`, the review of a tableau written by hand `written` behind `parse`, `serialize` and `interactive`, `rocq` behind that feature, `interactive` behind that
+its checker, the native engine `ljt`, the SAT engine `sat` behind that feature, the check of a Kripke model `model`, the truth table `table`, the signed tableau `tableau` behind `interactive`, the review of a tableau written by hand `written` behind `parse`, `serialize` and `interactive`, `rocq` behind that feature, `interactive` and its invertible rules `invert` behind that
 feature), `modal` (the arena, `system`, `parse` behind the feature of
 that name, the model check `model`, and behind `serialize` the labelled
 calculus `calculus`, the tableau `search` and `decide`), `kripke` (the shared Kripke model), and `lltp`, `mist` and

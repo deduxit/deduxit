@@ -369,6 +369,12 @@ mod exports {
         ordinary::tableau(sequent, settings).map_err(thrown)
     }
 
+    /// See [`ordinary::invert_all`].
+    #[wasm_bindgen]
+    pub fn ordinary_invert_all(session: &str, settings: &str) -> Result<String, JsValue> {
+        ordinary::invert_all(session, settings).map_err(thrown)
+    }
+
     /// See [`ordinary::tableau_review`]: `sequent` `""` for none.
     #[wasm_bindgen]
     pub fn ordinary_tableau_review(

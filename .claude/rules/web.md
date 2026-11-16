@@ -285,6 +285,15 @@ for `THIRD-PARTY-NOTICES.txt`.
   14, written only); a text that is no tableau is the library's parse
   error, its place in the text (`details.line`, `span_utf16`) for the
   page's editor; `describe` lists it among the ordinary suite's extras.
+  The invertible rules (`interactive.invertible`) apply in an ordinary
+  session as in a linear one: `ordinary_start` and `ordinary_apply`
+  answer `inverted`, `ordinary_invert_all` applies them whatever the
+  settings say, and the view's `invertible` lists the goals closed by
+  an invertible rule, read off the derivation drawn with its
+  weakenings left out (so an axiom shows its goal) and judged by
+  `Interactive::is_invertible`, a rule of two premises only where each
+  premise keeps every other formula (a shared context). The page's
+  switch is a later client step.
   `tests/ordinary.rs` holds their tests.
 - **A tab in a calculus given as data** has `rules.rs`'s calls,
   exported as `rules_calculus`, `rules_read`, `rules_start`,

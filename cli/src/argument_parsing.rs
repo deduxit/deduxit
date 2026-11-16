@@ -1031,7 +1031,9 @@ pub(crate) struct InteractArgs {
     ///
     /// The invertible rules are ⅋, ⊥, & and ⊤; ! when every other formula
     /// is a ?; and 1, ⊗ and the axiom when their formulas are the whole
-    /// goal. The session command `invertible on|off` turns this on or off.
+    /// goal. Under --logic, the axiom and every rule of a connective with
+    /// a shared context, but in LJ →L, ¬L and ∨R₁, ∨R₂. The session command
+    /// `invertible on|off` turns this on or off.
     #[arg(long)]
     pub(crate) invertible: bool,
     /// The largest derivation `close` grafts, by its estimated size; see

@@ -12,6 +12,13 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### Added
 
+- **The invertible rules in LK and LJ** (`ordinary::Interactive::invert`,
+  `invert_all` and `is_invertible`; `interact --logic … --invertible` and
+  the session command `invertible on|off`; the bindings'
+  `interactive.invertible` and `ordinary_invert_all`): the axiom and the
+  rules of the connectives with a shared context are applied by
+  themselves, but in LJ `→L`, `¬L` and `∨R₁`, `∨R₂`, which can lose a
+  proof.
 - **Modal formulas and systems** (the library, `deduxit::modal`): a
   sequent of propositional modal logic is read from text, the syntax of
   ordinary logic with the prefixes `[]` or `□` and `<>` or `◇`

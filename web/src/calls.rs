@@ -87,7 +87,7 @@ pub fn about() -> String {
                         "default": deduxit::ordinary::Options::default().logic,
                     },
                 ],
-                "settings": ["lambda", "limits.table_atoms", "ordinary.translation", "view.structural"],
+                "settings": ["interactive.invertible", "lambda", "limits.table_atoms", "ordinary.translation", "view.structural"],
                 "term": "ordinary_term",
                 "methods": [
                     {"method": "table", "call": "ordinary_table", "logics": ["classical"]},
@@ -706,7 +706,7 @@ struct Opened {
 
 /// What the invertible rules did when the call applied them itself.
 #[derive(Default, Serialize)]
-struct Automatic {
+pub(crate) struct Automatic {
     /// How many invertible steps were taken. None unless the settings'
     /// `interactive.invertible` is on or the call applies them anyway.
     inverted: usize,
@@ -718,7 +718,7 @@ struct Automatic {
 
 impl Automatic {
     /// Counts a run of invertible steps and returns the goals it left open.
-    fn add(&mut self, inverted: Inverted) -> Vec<GoalId> {
+    pub(crate) fn add(&mut self, inverted: Inverted) -> Vec<GoalId> {
         self.inverted += inverted.steps;
         if let Err(refused) = inverted.finished {
             self.inverted_refused.get_or_insert(refusal(refused));
@@ -730,7 +730,7 @@ impl Automatic {
 /// Returns the bounds of a run of invertible steps: the smaller of the
 /// settings' memory bound and their bound on a derivation's size. So the
 /// steps never make a session too large for the page to draw.
-fn inverting(settings: &Settings) -> deduxit::Limits {
+pub(crate) fn inverting(settings: &Settings) -> deduxit::Limits {
     let limits = settings.limits;
     let bound = match (limits.memory_bytes, limits.derivation_bytes) {
         (Some(memory), Some(derivation)) => Some(memory.min(derivation)),

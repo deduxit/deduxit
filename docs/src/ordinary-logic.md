@@ -565,7 +565,7 @@ status 3.
 proves the sequent step by step by the rules of LK or LJ. The session
 has the commands of a linear session ([Prove step by
 step](interactive.md)): `goals`, `rules`, `apply`, `undo`, `close`,
-`show`, `proof`, `save`, `load`, `help` and `quit`.
+`invertible`, `show`, `proof`, `save`, `load`, `help` and `quit`.
 - A formula is named by its side and its position there: `L0`, `L1`, …
   left of `⊢` and `R0`, `R1`, … right of it, as `goals` lists them.
 - A rule is named by its name or an ASCII spelling: `andR`, `orR1`,
@@ -579,6 +579,11 @@ step](interactive.md)): `goals`, `rules`, `apply`, `undo`, `close`,
 - `close` decides a goal through the embedding, whose derivations have
   no cut, by the translation `--translation` chooses. It grafts the
   derivation found, which `undo` takes back whole.
+- `invertible on` (or `--invertible` from the start) applies every
+  invertible rule by itself: the axiom and the rules of the connectives
+  with a shared context, but in LJ `→L`, `¬L` and `∨R₁`, `∨R₂`, which
+  can lose a proof. `undo` then takes back a step with the steps that
+  followed it.
 
 ```console
 $ deduxit interact --logic intuitionistic 'a -> b, b -> c |- a -> c'
@@ -606,6 +611,18 @@ a ⊢ a      b ⊢ b
           a → b, b → c, a ⊢ c
           ──────────────────── →R
           a → b, b → c ⊢ a → c
+```
+
+With the invertible rules on, LJ leaves `→L` to the user:
+
+```console
+$ deduxit interact --logic intuitionistic --invertible 'c, a -> b, a |- b /\ c'
+applied 2 invertible steps
+> goals
+goal 1: L0: c, L1: a → b, L2: a ⊢ R0: b
+> apply 1 L1 ->L
+then 2 invertible steps
+closed; no goal is open: `proof` checks the proof
 ```
 
 In intuitionistic and minimal logic every goal keeps one formula right

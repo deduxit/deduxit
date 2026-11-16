@@ -1291,7 +1291,8 @@ outcome an ordinary outcome without its own `version` and `deduxit`.
 `deduxit interact --logic LOGIC SEQUENT` proves an ordinary sequent step
 by step by the rules of LK or LJ. It has the linear session's commands
 (`goals`, `rules`, `apply`, `undo`, `close`, `show`, `proof`, `lambda`,
-`save`, `load`, `help`, `quit`), but no `cut` and no `invertible`.
+`save`, `load`, `help`, `quit`, and `invertible`, which in LJ leaves
+`→L`, `¬L` and `∨R₁`, `∨R₂` to the user), but no `cut`.
 
 - A formula is named by its side and position: `L0`, `L1`, … left of
   `⊢`, and `R0`, … right of it, as `goals` shows them.

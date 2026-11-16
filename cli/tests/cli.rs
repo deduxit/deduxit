@@ -689,6 +689,25 @@ fn ordinary_session() {
     );
     assert_eq!((status, err.as_str()), (0, ""));
     std::fs::remove_dir_all(&dir).unwrap();
+    // The invertible rules: LJ leaves →L to the user, and undo takes a
+    // step back with the steps that followed it.
+    let line = [
+        "interact",
+        "--logic",
+        "intuitionistic",
+        "--invertible",
+        "c, a -> b, a |- b /\\ c",
+    ];
+    let (status, out, _) = deduxit(&line, "apply 1 L1 ->L\nundo\n");
+    assert_eq!(
+        out,
+        "applied 2 invertible steps\n\
+         then 2 invertible steps\n\
+         closed; no goal is open: `proof` checks the proof\n\
+         retracted 3 steps\n\
+         reopened goal 1: L0: c, L1: a → b, L2: a ⊢ R0: b\n"
+    );
+    assert_eq!(status, 1);
 
     let line = ["interact", "--logic", "classical", "a, b |- a, c"];
     let (status, out, _) = deduxit(&line, "apply 0 L0 ax\nshow\n");

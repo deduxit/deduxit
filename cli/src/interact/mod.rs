@@ -1073,7 +1073,7 @@ fn format_of(proof: bool, word: &str) -> Result<Format> {
 /// Says how many invertible steps were taken (`3 invertible steps`), and why they stopped short
 /// if the memory bound stopped them; `None` for none taken and none
 /// refused.
-fn inverted_line(steps: usize, refused: Option<&Refusal>) -> Option<String> {
+pub(super) fn inverted_line(steps: usize, refused: Option<&Refusal>) -> Option<String> {
     let taken = match steps {
         1 => "1 invertible step".to_owned(),
         n => format!("{n} invertible steps"),
