@@ -1328,8 +1328,8 @@ provable (MLL, classical, focus engine)
 ## 16. The Rust library
 
 The crate `deduxit` on crates.io holds all of it. Its default features
-are `parse`, `serialize`, `interactive`, `latex`, `typst`, `svg`, `rocq`
-and `sat`; `parallel`, `png` and `pdf` are off. Its documentation is at
+are `parse`, `serialize`, `interactive`, `latex`, `typst`, `svg`, `rocq`,
+`sat` and `protocol`; `parallel`, `png` and `pdf` are off. Its documentation is at
 <https://deduxit.github.io/deduxit/deduxit/> for `main`, and on docs.rs
 for the releases:
 
@@ -1339,7 +1339,13 @@ for the releases:
   `ordinary::Sequent`, `ordinary::Derivation`, `ordinary::Outcome` and
   `ordinary::Interactive` at wire level 8 (level 9 where a derivation
   holds LJ's `cut`, level 10 for an outcome valid by a clausal proof);
-- each engine on `Engine`.
+- each engine on `Engine`;
+- what each suite offers as data, on `protocol`: the kinds of values,
+  the operations between them (`ordinary.translate`, `linear.prove`, …)
+  with their parameters, the settings each reads and what each promises,
+  run and checked over JSON by `protocol::run` and `protocol::check`;
+  the manual's chapter "What each suite offers" lists them, and its
+  `wire.schema.json` is the JSON Schema of every form.
 
 ### Deciding a sequent
 

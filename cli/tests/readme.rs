@@ -697,9 +697,13 @@ fn names_that_do_not_exist(documents: &[(String, String)], keys_in_help: bool) -
                     }
                 }
             }
-            // A settings key such as `search.copies`.
+            // A settings key such as `search.copies`; a kind or an
+            // operation of the suites' protocol (`ordinary.decide`) is a
+            // name of the library, which the protocol's own tests hold.
             if let Some((top, _)) = piece.split_once('.')
                 && SETTINGS.contains(&top)
+                && deduxit::protocol::kind(piece).is_err()
+                && deduxit::protocol::operation(piece).is_err()
                 && piece
                     .chars()
                     .all(|c| c.is_ascii_lowercase() || c == '.' || c == '_')

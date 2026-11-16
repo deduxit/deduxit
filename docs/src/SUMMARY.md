@@ -30,6 +30,7 @@
 - [The syntax](syntax.md)
 - [Limits, defaults and exit statuses](options.md)
 - [The settings file](settings.md)
+- [What each suite offers](protocol.md)
 
 # Explanation
 

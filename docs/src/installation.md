@@ -239,7 +239,7 @@ deduxit = "0.4"
 ```
 
 Its default features are `parse`, `serialize`, `interactive`, `latex`,
-`typst`, `svg`, `rocq` and `sat`. Add `parallel` (a thread pool, not for
+`typst`, `svg`, `rocq`, `sat` and `protocol`. Add `parallel` (a thread pool, not for
 wasm), `png` and `pdf` as you need them. The documentation's examples
 read and write JSON with `serde_json`, which you add yourself.
 [Use the library](library.md) shows how to call it.

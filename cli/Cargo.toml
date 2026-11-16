@@ -66,6 +66,10 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.149", features = ["raw_value"] }
 terminal_size = "0.4.4"
 
+[dev-dependencies]
+# The manual's test tells the protocol's names from settings keys.
+deduxit = { workspace = true, features = ["protocol"] }
+
 [lints]
 workspace = true
 

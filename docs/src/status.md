@@ -326,6 +326,11 @@ in use.
   `export::{latex, typst, svg, rocq}::to_string(derivation, &options)`
   writes an export into a string. A linear `Outcome` reads back from its
   JSON with `serde_json::from_str`.
+- `deduxit::protocol` lists what each suite offers as data: the kinds of
+  values, the operations between them with their parameters, the
+  settings each reads and what each promises, and runs and checks them
+  over JSON ([What each suite offers](protocol.md)). A JSON Schema
+  describes every JSON form.
 - `check` checks a derivation in a calculus you give as data
   ([Check a derivation in your own rules](rules.md)): a rule file in
   JSON declares the connectives, the zones of a sequent (each a set, a
