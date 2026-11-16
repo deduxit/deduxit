@@ -7141,3 +7141,17 @@ move (D26).
     Gate, fresh-reviewer (two text findings, fixed) and `nix flake check` passed.
   - **Its slot stays free:** the baseline night runs once 62b and 62c end (the author's "once
     idle"), then 62d and 63 start.
+- 2026-11-16, about 01:45: **62b reviewed and pushed.**
+  - **62b** (`mxxquknp` to `uxnytmqt`): a session in a calculus given as data builds forwards as
+    well, Fitch's and Jape's way. `derive G RULE L…` applies a rule to lines in force and adds its
+    conclusion as a numbered line. `assume G [L]` closes a goal by a line. A discharging rule still
+    opens its subproof backwards, as in Jape. Lines are shared nodes (a DAG, which the checker
+    takes), numbered from 1, stable, stored nowhere. A session with a derived line is wire level
+    18. `rules.md`'s example is now `my-NJ`. Goal listings say `lines:` in place of
+    `hypotheses:`; the behaviour lock gained `interact-calculus-forward` in its own commit.
+    Tests include 40 random walks of 30 steps, read back through the checker; fresh-reviewer
+    (Fable) ran 1 200 random sessions and about twenty forged documents, all refused or
+    checked, and found one stale rustdoc (fixed). Gate and `nix flake check` passed, the
+    latter after the rebase onto 54x5.
+  - **For 62c:** the tree drawing unfolds a shared line under each parent, so its numbering
+    differs from `derivation_goals` once a session holds lines; told to 62c before it ends.

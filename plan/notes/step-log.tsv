@@ -43,6 +43,6 @@ baseline-prep	small	opus-5-5	high	reviewer	local_739ba359	2026-11-15 18:20	2026-
 63t	step	-	-	-	-	-	2026-11-15 21:05	complete: translations and interpolants
 54x4	small	opus-5-5	high	reviewer	local_739ba359	2026-11-15 21:10	2026-11-15 23:30	three recurring loose ends
 61	step	-	-	-	-	-	2026-11-15 23:05	complete: building with custom rules
-62b	panel	opus-5-5	high	reviewer (fable)	local_b8490613	2026-11-16 00:15		natural deduction's builder
+62b	panel	opus-5-5	high	reviewer (fable)	local_b8490613	2026-11-16 00:15	2026-11-16 01:45	natural deduction's builder
 62c	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-16 00:15		natural deduction drawn
 54x5	small	opus-5-5	high	reviewer	local_739ba359	2026-11-16 00:15	2026-11-16 00:55	the tableau's memory account
