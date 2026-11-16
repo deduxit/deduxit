@@ -10,6 +10,51 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-16
+
+Calculi given as data, and natural deduction. A rule file in JSON
+declares a calculus: its connectives, the zones of a sequent and its
+rules. deduxit checks a derivation in it, builds one step by step,
+backwards from a goal or forwards from numbered lines, and draws it.
+Natural deduction for classical, intuitionistic and minimal logic is
+built in (NK, NJ, NM and the variants courses use), drawn as a
+textbook's tree or as a Fitch proof in LaTeX, Typst and SVG. Classical
+sequents are translated into intuitionistic and minimal logic by the
+negative translations, and Craig interpolants are read off derivations;
+each result is checked. `deduxit::protocol` lists what each suite offers
+as data, with a JSON Schema of every form, and a workspace keeps a
+sequent and what was made from it, with undo and redo. On the web page
+the ordinary tab proves in natural deduction and in a calculus of your
+own, translates and interpolates, and links the tabs made from one
+sequent; Learn and Practice follow the tab's suite, with a course of six
+lessons for ordinary logic. Each release now carries the JSON Schemas of
+its version, `wire.schema.json` and `rules.schema.json`.
+
+### What breaks, and what to do instead
+
+Nothing that 0.4.0 offers was removed or changed: its calls, types,
+command lines and JSON forms are as they were, and every new variant or
+field belongs to a `#[non_exhaustive]` type. What a program may notice
+is under "Changed".
+
+### Changed
+
+- **A default build of the library compiles `serde_json`**, which the
+  new default feature `protocol` needs. To leave it out, turn the
+  default features off and name those you use.
+- **Thirteen new error codes** (`Error::code`): `invalid_calculus`,
+  `invalid_derivation`, `zones`, `step_refused`, `step_needs`,
+  `not_fitch`, `negative_target`, `claim_fails`, `not_cut_free`,
+  `partition`, `workspace_limit`, `not_applicable` and `not_given`. Only
+  the new calls answer them.
+- **`deduxit` without a command lists `interpolate` and `workspace`**
+  beside the others, and the help of `check`, `interact`, `prove` and
+  `seq print` names the new flags and the style `fitch`.
+- **0.4.0 refuses what 0.5.0 writes at wire levels 15 to 19**, naming
+  the level (`unsupported_version`), and a settings file that sets one
+  of the new keys (`limits.workspace`, `view.layout`, the style
+  `fitch`).
+
 ### Added
 
 - **Natural deduction drawn as textbooks draw it**: in a tree each
@@ -116,6 +161,24 @@ second number (0.1.x to 0.2.0), anything else the third.
   edits undo keeps, bytes); past one, a change is refused
   (`workspace_limit`). Its JSON is at wire level 19: the highest level
   the library now reads and writes.
+
+### Wire forms
+
+- Level 15 adds a calculus given as data: the rule file, and a
+  derivation in such a calculus.
+- Level 16 adds a classical sequent's negative translations compared
+  and an interpolation, each holding ordinary outcomes nested without
+  `version` and `deduxit`. They are written only.
+- Level 17 adds a session of step-by-step proving in a calculus given as
+  data: the rule file, the terms, the scopes, the nodes from the
+  conclusion up and the steps.
+- Level 18 adds a line that a forward step derived, a node's `line` and
+  a goal's `cites`, in such a session; a session without one is written
+  at level 17.
+- Level 19 adds the workspace: its values, each its kind's document
+  whole, the nodes, given or made by an operation, the records of runs
+  and the log of edits. `wire::LEVEL` is 19. Every document of levels 1
+  to 14 reads and is written as before.
 
 ## [0.4.0] - 2026-11-15
 
@@ -1690,6 +1753,7 @@ The first release.
   for proved or valid, 1 for unprovable or invalid, 2 for an error, 3
   for unknown and 130 at a second Ctrl-C.
 
+[0.5.0]: https://github.com/deduxit/deduxit/releases/tag/v0.5.0
 [0.4.0]: https://github.com/deduxit/deduxit/releases/tag/v0.4.0
 [0.3.0]: https://github.com/deduxit/deduxit/releases/tag/v0.3.0
 [0.2.0]: https://github.com/linlog-prover/linlog/releases/tag/v0.2.0
