@@ -1168,15 +1168,24 @@ impl Image {
     /// [`Proof::derivation_within`] for the unfolding; [`Error::ReadBack`]
     /// for a proof that is not of this image, or a rule with no reading (a
     /// cut, a quantifier); [`Refusal::Stopped`] when `stop` fired.
-    #[expect(
-        clippy::missing_panics_doc,
-        reason = "the expects state that the forest's preorder tags a parent before its children, which the walk establishes"
-    )]
     pub fn read_back(
         &self,
         proof: &Proof,
         limits: &Limits,
         mut stop: impl FnMut(Progress) -> bool,
+    ) -> Result<Derivation, Error> {
+        self.read_back_with(proof, limits, &mut stop)
+    }
+
+    /// [`read_back`](Self::read_back) with the stop as a trait object, so
+    /// that the read-back is compiled once, not once per caller's closure.
+    /// Its `expect`s state that the forest's preorder tags a parent before
+    /// its children, which the walk establishes.
+    fn read_back_with(
+        &self,
+        proof: &Proof,
+        limits: &Limits,
+        mut stop: &mut dyn FnMut(Progress) -> bool,
     ) -> Result<Derivation, Error> {
         if proof.goal().is_some() {
             return Err(Error::GoalProof);

@@ -75,7 +75,7 @@ impl Countermodel {
         model: Model,
         logic: Logic,
         limits: &Limits,
-        stop: impl FnMut(Progress) -> bool,
+        stop: &mut dyn FnMut(Progress) -> bool,
     ) -> Result<Option<Self>, Error> {
         match model.refutes(&sequent, logic, limits, stop) {
             Ok(()) => Ok(Some(Self::new(sequent, model))),
@@ -213,6 +213,18 @@ impl Model {
         logic: Logic,
         limits: &Limits,
         mut stop: impl FnMut(Progress) -> bool,
+    ) -> Result<Forcing, Error> {
+        self.forcing_with(sequent, logic, limits, &mut stop)
+    }
+
+    /// [`forcing`](Self::forcing) with the stop as a trait object, so that
+    /// the check is compiled once, not once per caller's closure.
+    fn forcing_with(
+        &self,
+        sequent: &Sequent,
+        logic: Logic,
+        limits: &Limits,
+        mut stop: &mut dyn FnMut(Progress) -> bool,
     ) -> Result<Forcing, Error> {
         if logic != Logic::Classical && sequent.right().len() > 1 {
             return Err(Error::Succedents {
@@ -564,10 +576,12 @@ mod tests {
         else {
             panic!("a check past the memory bound ran");
         };
-        let found = Countermodel::found(sequent.clone(), model.clone(), logic, &small, |_| false);
+        let found = Countermodel::found(sequent.clone(), model.clone(), logic, &small, &mut |_| {
+            false
+        });
         assert!(matches!(found, Ok(None)), "{found:?}");
         let wrong = Model::new(vec![world(&["b"], &[])], 0);
-        let found = Countermodel::found(sequent, wrong, logic, &limits, |_| false);
+        let found = Countermodel::found(sequent, wrong, logic, &limits, &mut |_| false);
         assert!(
             matches!(found, Err(Error::Countermodel { .. })),
             "{found:?}"

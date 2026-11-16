@@ -183,7 +183,7 @@ pub(crate) fn judgement(
     drawable: Drawable<'_>,
     term: Option<&crate::lambda::Options>,
     spelling: &crate::lambda::print::Spelling,
-    mut stop: impl FnMut(crate::Progress) -> bool,
+    mut stop: &mut dyn FnMut(crate::Progress) -> bool,
 ) -> Result<Option<String>, crate::Error> {
     let Some(options) = term else {
         return Ok(None);

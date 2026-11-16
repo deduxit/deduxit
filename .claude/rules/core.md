@@ -295,6 +295,17 @@ binder kept its old index in `optimize`, a quantifier rule reached
 NanoYalla's output). A test's catch-all arm takes an `#[expect]` with
 its reason.
 
+**A long body takes the stop as `&mut dyn FnMut(Progress) -> bool`**;
+its public `impl FnMut` entry is a one-line shim that passes `&mut stop`
+(`ordinary::decide_within`, `sat::run`, `ljt::run`, `Image::read_back`,
+`Model::forcing`, `svg::write`, `export::judgement`). Each caller's
+closure, and each `&mut` a caller adds passing it on, is a type of its
+own, so a generic body is compiled once per caller: the web module held
+up to six copies of the SAT search (the workspace's calls added callers
+through the protocol's `&mut dyn`), and the shims took 129 KB off it at
+gzip (54x6's report). The focused engine's front door (`prove_goal`)
+was left generic: a change there runs the target set.
+
 Doc examples that parse are fenced with `cfg_attr(feature = "parse", doc =
 "```")` and an `ignore` fence otherwise, so `cargo test --no-default-features`
 passes; copy that pattern for a new example.

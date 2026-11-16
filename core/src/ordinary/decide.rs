@@ -402,7 +402,7 @@ impl super::Image {
         &self,
         linear: &search::Outcome,
         limits: &Limits,
-        stop: impl FnMut(Progress) -> bool,
+        mut stop: impl FnMut(Progress) -> bool,
     ) -> Result<Option<super::Countermodel>, Error> {
         let search::Verdict::Unprovable(disproof) = &linear.verdict else {
             return Ok(None);
@@ -429,7 +429,7 @@ impl super::Image {
             model,
             Logic::Classical,
             limits,
-            stop,
+            &mut stop,
         ) {
             Err(Error::Refused(Refusal::Stopped { .. })) => Ok(None),
             found => found,
@@ -492,6 +492,18 @@ pub fn decide_within(
     search: &search::Options,
     limits: &Limits,
     mut stop: impl FnMut(Progress) -> bool,
+) -> Result<Outcome, Error> {
+    within(sequent, options, search, limits, &mut stop)
+}
+
+/// [`decide_within`] with the stop as a trait object, so that every
+/// method is compiled once, not once per caller's closure.
+fn within(
+    sequent: &Sequent,
+    options: &Options,
+    search: &search::Options,
+    limits: &Limits,
+    mut stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
     let (logic, translation) = (options.logic, options.translation());
     let decided = match options.method() {

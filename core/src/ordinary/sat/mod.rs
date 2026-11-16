@@ -212,13 +212,13 @@ pub fn decide(
     sequent: &Sequent,
     logic: Logic,
     limits: &Limits,
-    stop: impl FnMut(Progress) -> bool,
+    mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
     run(
         sequent,
         logic,
         limits,
-        stop,
+        &mut stop,
         MOST_VARIABLES,
         Derive::ReadOff,
     )
@@ -240,13 +240,13 @@ pub fn decide_preferring_ljt(
     sequent: &Sequent,
     logic: Logic,
     limits: &Limits,
-    stop: impl FnMut(Progress) -> bool,
+    mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
     run(
         sequent,
         logic,
         limits,
-        stop,
+        &mut stop,
         MOST_VARIABLES,
         Derive::PreferLjt,
     )
@@ -265,12 +265,13 @@ enum Derive {
 }
 
 /// [`decide`] with at most `most` variables, which the tests lower, and
-/// the derivation from where `derive` says.
+/// the derivation from where `derive` says. The stop is a trait object,
+/// so that the search is compiled once, not once per caller's closure.
 fn run(
     sequent: &Sequent,
     logic: Logic,
     limits: &Limits,
-    mut stop: impl FnMut(Progress) -> bool,
+    mut stop: &mut dyn FnMut(Progress) -> bool,
     most: u32,
     derive: Derive,
 ) -> Result<Outcome, Error> {
@@ -1177,7 +1178,7 @@ mod tests {
             &sequent,
             logic,
             &Limits::default(),
-            |_| false,
+            &mut |_| false,
             5,
             Derive::ReadOff,
         )
@@ -1191,7 +1192,7 @@ mod tests {
                 &sequent,
                 logic,
                 &Limits::default(),
-                |_| false,
+                &mut |_| false,
                 6,
                 Derive::ReadOff
             )
@@ -1303,7 +1304,7 @@ mod tests {
             &sequent,
             logic,
             &Limits::default(),
-            |_| false,
+            &mut |_| false,
             MOST_VARIABLES,
             Derive::Ljt,
         );
@@ -1314,7 +1315,7 @@ mod tests {
         // it fires at the first poll of the search after the solver's.
         let search = |p: &Progress| p.phase == crate::limits::Phase::Search;
         let mut solver = 0;
-        let counted = |p: Progress| {
+        let mut counted = |p: Progress| {
             solver += u64::from(search(&p));
             false
         };
@@ -1322,13 +1323,13 @@ mod tests {
             &sequent,
             logic,
             &Limits::default(),
-            counted,
+            &mut counted,
             MOST_VARIABLES,
             Derive::ReadOff,
         )
         .unwrap();
         let mut asked = 0;
-        let ljt = |p: Progress| {
+        let mut ljt = |p: Progress| {
             asked += u64::from(search(&p));
             asked > solver
         };
@@ -1336,7 +1337,7 @@ mod tests {
             &sequent,
             logic,
             &Limits::default(),
-            ljt,
+            &mut ljt,
             MOST_VARIABLES,
             Derive::Ljt,
         );

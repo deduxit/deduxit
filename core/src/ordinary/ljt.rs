@@ -113,18 +113,19 @@ pub fn decide(
     sequent: &Sequent,
     logic: Logic,
     limits: &Limits,
-    stop: impl FnMut(Progress) -> bool,
+    mut stop: impl FnMut(Progress) -> bool,
 ) -> Result<Outcome, Error> {
-    run(sequent, logic, limits, stop, None)
+    run(sequent, logic, limits, &mut stop, None)
 }
 
 /// [`decide`], with the fault `plant` names planted in the translation
-/// (only tests plant one).
+/// (only tests plant one). The stop is a trait object, so that the search
+/// is compiled once, not once per caller's closure.
 fn run(
     sequent: &Sequent,
     logic: Logic,
     limits: &Limits,
-    mut stop: impl FnMut(Progress) -> bool,
+    mut stop: &mut dyn FnMut(Progress) -> bool,
     plant: Option<Plant>,
 ) -> Result<Outcome, Error> {
     if logic == Logic::Classical {
@@ -1509,7 +1510,7 @@ mod tests {
                 &sequent,
                 Logic::Intuitionistic,
                 &Limits::default(),
-                |_| false,
+                &mut |_| false,
                 None,
             );
             assert!(
@@ -1520,7 +1521,7 @@ mod tests {
                 &sequent,
                 Logic::Intuitionistic,
                 &Limits::default(),
-                |_| false,
+                &mut |_| false,
                 Some(plant),
             );
             assert!(

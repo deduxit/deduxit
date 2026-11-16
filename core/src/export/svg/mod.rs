@@ -1455,11 +1455,21 @@ pub fn write<'a>(
     derivation: impl Into<Drawable<'a>>,
     style: &Style,
     out: &mut impl Write,
-    stop: impl FnMut(crate::limits::Progress) -> bool,
+    mut stop: impl FnMut(crate::limits::Progress) -> bool,
+) -> Result<(), Error> {
+    drawn(derivation.into(), style, out, &mut stop)
+}
+
+/// [`write()`] of a drawable, with the stop as a trait object, so that
+/// each layout is compiled once per output type, not once per caller's
+/// closure and derivation type as well.
+fn drawn(
+    drawable: Drawable<'_>,
+    style: &Style,
+    out: &mut impl Write,
+    mut stop: &mut dyn FnMut(crate::limits::Progress) -> bool,
 ) -> Result<(), Error> {
     style.check()?;
-    let mut stop = stop;
-    let drawable = derivation.into();
     let judgement = super::judgement(
         drawable,
         style.lambda.as_ref(),
