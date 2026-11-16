@@ -10,6 +10,53 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-20
+
+Modal logic, and tools for teachers. deduxit decides a sequent of
+propositional modal logic in any of the fifteen normal systems from K
+to S5: a valid one with a checked derivation in the system's labelled
+sequent calculus, one that is not valid with a checked Kripke
+countermodel. Both become Rocq certificates for rocq-deduxit 0.6.0,
+whose `Deduxit.Modal` proves the labelled calculus sound. A labelled
+sequent can be proved step by step, with forward steps, and a Kripke
+model you write is checked against a sequent. `check --tableau` checks a
+signed tableau written by hand and names its first wrong step. On the
+web page, the modal tab decides, draws and proves step by step; a model
+editor changes or builds a countermodel and checks it; a tableau editor
+checks a tableau as it is written. In LK and LJ, a session proving
+step by step can apply the invertible rules by itself. A teacher hands
+out a course pack of problems as a link, reads the students' hand-ins
+in a check view, embeds a tab in another page and prints a handout.
+
+### What breaks, and what to do instead
+
+Nothing that 0.5.0 offers was removed or changed: its calls, types,
+command lines, error codes and JSON forms are as they were. Every new
+variant or field belongs to a `#[non_exhaustive]` type, and the new
+`rocq::Unsupported::Assumption` comes after the other variants, so
+their numbers stay. What a program may notice is under "Changed".
+
+### Changed
+
+- **A name a rule asks to be new is new to the rule's other variables
+  too**: a derivation or a session in a labelled modal calculus no
+  longer takes `Ser` with one new label at both ends of its edge
+  (`w1 R w1`), which made "a new world that sees itself". The rule
+  file's `fresh` says so.
+- **`check --format json` names the modal system** under the new key
+  `system`, for a modal outcome or a model checked under `--system`.
+- **Rule labels with `□` or `◇`** are set as symbols in every export:
+  `\Box` and `\Diamond` in LaTeX.
+- **The help of `check`** names the new flags `--system` and
+  `--tableau`, and says that `--sequent` takes a modal sequent or the
+  sequent a tableau starts from; **the help of `prove`** names
+  `--system`; **the help of `interact`** names `--invertible`.
+- **The protocol has a fourth suite**, `modal`, with its kinds and
+  operations, so a program that walks `protocol::suites()` or the
+  catalogue meets them.
+- **0.5.0 refuses what 0.6.0 writes at wire level 20**, naming the
+  level (`unsupported_version`).
+
 ### Added
 
 - **The invertible rules in LK and LJ** (`ordinary::Interactive::invert`,
@@ -94,17 +141,13 @@ second number (0.1.x to 0.2.0), anything else the third.
   p, F q`), beside LK's two implications; `F→₁` and `F→₂` take one
   result of `F→` alone, as `T∧₁` and `F∨₂` already did.
 
-### Changed
+### Wire forms
 
-- **A name a rule asks to be new is new to the rule's other variables
-  too**: a derivation or a session in a labelled modal calculus no
-  longer takes `Ser` with one new label at both ends of its edge
-  (`w1 R w1`), which made "a new world that sees itself". The rule
-  file's `fresh` says so.
-- **`check --format json` names the modal system** under the new key
-  `system`, for a modal outcome or a model checked under `--system`.
-- **Rule labels with `□` or `◇`** are set as symbols in every export:
-  `\Box` and `\Diamond` in LaTeX.
+- Level 20 adds modal logic: a sequent whose formulas hold `□` or `◇`
+  (one without is written at level 8, as the ordinary sequent it is),
+  and the outcome of deciding one, with its derivation or its
+  countermodel. `wire::LEVEL` is 20. Every document of levels 1 to 19
+  reads and is written as before.
 
 ## [0.5.0] - 2026-11-16
 
@@ -1849,6 +1892,7 @@ The first release.
   for proved or valid, 1 for unprovable or invalid, 2 for an error, 3
   for unknown and 130 at a second Ctrl-C.
 
+[0.6.0]: https://github.com/deduxit/deduxit/releases/tag/v0.6.0
 [0.5.0]: https://github.com/deduxit/deduxit/releases/tag/v0.5.0
 [0.4.0]: https://github.com/deduxit/deduxit/releases/tag/v0.4.0
 [0.3.0]: https://github.com/deduxit/deduxit/releases/tag/v0.3.0
