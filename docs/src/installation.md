@@ -238,10 +238,21 @@ The library is the crate [`deduxit`](https://crates.io/crates/deduxit):
 deduxit = "0.5"
 ```
 
-Its default features are `parse`, `serialize`, `interactive`, `latex`,
-`typst`, `svg`, `rocq`, `sat` and `protocol`. Add `parallel` (a thread pool, not for
-wasm), `png` and `pdf` as you need them. The documentation's examples
-read and write JSON with `serde_json`, which you add yourself.
+Its features:
+
+| feature | on by default | what it adds | dependencies it brings |
+|---|---|---|---|
+| `parse` | yes | the text syntaxes, the LLTP, TPTP and `.spec` readers, the generated families | none |
+| `serialize` | yes | the JSON forms, and the calculi given as rule files | `serde` |
+| `interactive` | yes | proving step by step | none |
+| `latex`, `typst`, `svg`, `rocq` | yes | the exports | none |
+| `sat` | yes | the SAT solver that decides ordinary logic by default | `batsat` |
+| `protocol` | yes | what each suite offers, run over JSON, and the workspace; needs `parse`, `serialize` and `interactive` | `serde_json` |
+| `parallel` | no | the search on a thread pool, not for WebAssembly | `rayon` |
+| `png`, `pdf` | no | the SVG drawings rendered as PNG and PDF | `resvg` with `png` or with `krilla` and `krilla-svg` |
+
+The documentation's examples read and write JSON with `serde_json`,
+which you add yourself.
 [Use the library](library.md) shows how to call it.
 
 ## The Rocq library

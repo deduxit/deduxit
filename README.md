@@ -11,7 +11,9 @@ are linear logic (classical and intuitionistic, first-order and cyclic,
 and the Lambek calculus) and propositional logic (classical,
 intuitionistic and minimal), where a sequent that is not valid gets a
 Kripke countermodel and classical logic has truth tables and tableaux.
-It proves step by step, draws proof nets and countermodels, reads
+It checks and builds derivations in calculi given as rule files,
+natural deduction among them, drawn as trees or as Fitch proofs. It
+proves step by step, draws proof nets and countermodels, reads
 intuitionistic proofs as lambda-terms, and exports proofs to LaTeX,
 Typst, SVG, PNG, PDF and Rocq. The [web page](https://deduxit.github.io/)
 proves step by step in the browser with the same library. It began as

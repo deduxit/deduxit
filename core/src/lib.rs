@@ -58,11 +58,17 @@
 //! - Decide classical, intuitionistic or minimal propositional logic,
 //!   with a Kripke countermodel ([`kripke::Model`]) for what is not
 //!   valid: [`ordinary`].
+//! - Translate a classical sequent into intuitionistic or minimal logic,
+//!   or find a Craig interpolant, each checked: `ordinary::negative` and
+//!   `ordinary::interpolant`.
 //! - Read a proof as a lambda-term: [`lambda`].
-//! - Check a derivation in a calculus you give as a rule file: `rules`
-//!   (feature `serialize`).
+//! - Check, build and draw a derivation in a calculus you give as a rule
+//!   file, natural deduction among the built-in ones, as a tree or as a
+//!   Fitch proof: `rules` (feature `serialize`).
 //! - List what each suite makes and does, and run it over JSON: `protocol`
 //!   (feature `protocol`).
+//! - Keep sequents and what was made from them, with undo and redo:
+//!   `workspace` (feature `protocol`).
 //!
 //! Proofs, nets and errors name the *occurrences* of a sequent: an
 //! occurrence is one place of a subformula in the sequent, and the
@@ -253,7 +259,8 @@
 //! - `sat`: the SAT solver batsat, with which `ordinary::sat` decides
 //!   classical, intuitionistic and minimal logic;
 //! - `protocol`: `protocol`, what each suite offers as data, run over JSON
-//!   with `serde_json` (it needs `serialize`, `parse` and `interactive`).
+//!   with `serde_json`, and `workspace`, values linked by its operations
+//!   (it needs `serialize`, `parse` and `interactive`).
 //!
 //! Off by default:
 //! - `parallel`: the search on a pool of

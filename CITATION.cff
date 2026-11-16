@@ -12,7 +12,9 @@ abstract: >-
   intuitionistic and minimal propositional logic. Proofs are shown as
   derivation trees, proof nets or tableaux, and classical sequents also
   by their truth tables; a sequent that is not valid gets a Kripke
-  countermodel. Its code, tests and documentation were written with
+  countermodel. It checks and builds derivations in calculi given as
+  rule files, natural deduction in Gentzen's and Fitch's styles among
+  them. Its code, tests and documentation were written with
   substantial AI assistance, by Anthropic's Claude models in Claude
   Code, in steps the author planned, directed and accepted, and the
   author is responsible for them. Its results do not rest on the model
@@ -55,5 +57,6 @@ keywords:
   - Kripke semantics
   - proof search
   - sequent calculus
+  - natural deduction
   - proof nets
   - theorem prover
