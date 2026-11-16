@@ -7416,3 +7416,20 @@ move (D26).
     decided" not walked. Gate and both flake checks passed.
 - 2026-11-16, about 18:05: **Step 65 complete**: 65d's client chain and its lock update (`qtwlokpn`)
   are on the client's `main` after its flake check passed.
+- 2026-11-16, 19:00: **66b reviewed and pushed (rocq-deduxit first, then deduxit's lock).**
+  - **66b** (rocq-deduxit `lmxkyrxm`, `mnvpnktw`, `ztysvovp`; deduxit's report `ltkpoqlt` and the
+    lock `nrvymkms`): `Deduxit.Modal`, seven files: formulas, Kripke semantics with the five frame
+    conditions and the fifteen systems, labelled items, the inductive `g3` matching
+    `modal::calculus` rule for rule, `g3_sound` for every set of conditions, the checker `mcheck`
+    with `modal_soundness`, finite countermodels with `modal_refutation`; every theorem closed
+    under the global context (45 `Print Assumptions`): forcing is stable by hypothesis rather
+    than an axiom (Doczkal and Smolka's definition), `excluded_middle_stable` recovering the
+    textbook statement (departs from 66a's recommendation of `classic`). fresh-reviewer (Opus)
+    found nothing. The library's flake check passed on Rocq 9.0 to 9.3; deduxit's `rocq-deduxit`
+    and `rocq-deduxit-library` checks passed against the moved lock.
+  - **For the author:** deduxit's checker accepts `Ser` with one new label on both ends
+    (`w1 R w1`): sound (66b proves it with a second model), but a student's step "seriality gives
+    a world that sees itself" is accepted; a "these differ" condition of the rule language would
+    refuse it. In `later.md`.
+  - **fix-band** started (`local_fe155f72`, the author's report of a broken bottom band on the
+    live page).

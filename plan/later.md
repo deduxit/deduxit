@@ -2770,3 +2770,12 @@ cost is the branching where a system has neither reflexivity nor a cluster and `
 world at every dead end. The answer is a cache of the verdicts of world signatures across
 branches ("global caching", Goré and Nguyen's tableaux for K4-like logics, not yet read), for
 when a user meets it. KD4 is offered with the rest (the author's yes to all fifteen).
+
+## Seriality with one new label (66b, 2026-11-16)
+
+deduxit's generic checker accepts `Ser` with the same new label on both ends (`w1 R w1`): it binds
+`x` and `y` of the rule from the premise's new member and asks only that `y` be fresh. Sound for
+what the calculus derives (a world that sees itself alone can be put beside any model; 66b proves
+it in `Deduxit.Modal`), but a session would accept the step "seriality gives a world that sees
+itself". The answer is a side condition of the rule language ("these variables differ") or a check
+in the modal sessions; a `fresh` on `x` would refuse the wanted instances.
