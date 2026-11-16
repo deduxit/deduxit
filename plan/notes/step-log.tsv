@@ -68,4 +68,5 @@ baseline-prep	small	opus-5-5	high	reviewer	local_739ba359	2026-11-15 18:20	2026-
 66b	design	fable-5-2	high	reviewer (opus)	local_fe155f72	2026-11-16 18:14	2026-11-16 18:45	the modal soundness proof in Rocq
 fix-band	client	opus-5-5	high	-	local_fe155f72	2026-11-16 18:55	2026-11-16 19:10	the page's bottom band (the author's report)
 66c	small	opus-5-5	high	reviewer (fable)	local_b8490613	2026-11-16 19:15		modal certificates
-67a	design	fable-5-2	high	reviewer (opus)	local_fe155f72	2026-11-16 19:14		the kernel crate: inventory and boundary
+67a	design	fable-5-2	high	reviewer (opus)	local_fe155f72	2026-11-16 19:14	2026-11-16 20:35	the kernel crate: inventory and boundary
+67	step	-	-	-	-	-	2026-11-16 20:40	complete: ended at the gate (no kernel crate yet)

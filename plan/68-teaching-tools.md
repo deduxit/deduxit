@@ -44,3 +44,34 @@ checker with its bindings; the model editor; the packs, the check view
 and print), the client's with the `frontend-design` and education
 plugins; a fresh-context reviewer per client session. Deliverables: the
 commits, the client's commits, `plan/reports/68-teaching-tools.md`.
+
+## What steps 63 to 67 left you (the review of 67a, 2026-11-16)
+
+- **The model a user gives** is checked in both suites now: step 55's
+  ordinary Kripke model (`check --logic … MODEL`) and 65's modal one
+  (`check --system S --sequent SEQ MODEL [--world N]`, the bindings'
+  `modal_evaluate`, `modal_model_drawing`); 65d's page has a model
+  editor as a list of worlds with checkboxes. Its "What the next
+  sessions must know" (68) says a drawing to edit on (dragging an
+  arrow) is this step's.
+- **Tableaux**: step 56's signed tableau is a calculus given as data
+  (`tableau.json`), so a student's tableau can be a derivation in it,
+  checked by step 60's checker; the written format is still to choose
+  from the textbooks.
+- **Course packs**: 63b's lesson format and stores by suite, 63g-c's
+  links at version 3 (a group of linked tabs) and the shelf are the
+  pieces a pack builds on; the ordinary store has no `literature`
+  problems yet.
+- **No kernel crate** (67a): if the tableau checker needs a meter, move
+  the one of `rules/check.rs` to `limits` instead of writing a third.
+- **The module's ceiling** is 3 750 000 bytes at gzip (54x6); the page
+  is at 3 637 866 after 65d.
+
+## The sessions (planned at this review)
+
+- **68a, the tableau checker** (library, command, bindings): the written
+  format, the reader and the rule-by-rule check with the failing step
+  named.
+- **68b, the model editor**: drawing and editing a model on the page,
+  the countermodels of the ordinary and modal suites opened in it.
+- **68c, packs, the check view, the embed and print** (the client).

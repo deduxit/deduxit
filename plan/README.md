@@ -94,7 +94,7 @@ amended (see "Review protocol"). `notes/` holds research the prompts rely on.
 | | **Release 0.6.0: modal logics K to S5** (D27) | | | | |
 | 65 | Modal logics K, T, K4, S4 and S5 decided, every "not valid" a checked Kripke countermodel against the frame conditions, drawn, on the page; the second non-embedded suite (three to four sessions) | `65-modal-logics.md` (finished at the review of 64) | Fable 5.2 for the first session (the modal arena and systems), Opus 5.5 for the rest; the panel's argument on Fable 5.2 | high, with the panel | 55, 64 |
 | 66 | The labelled modal calculus step by step on the generic derivation, and its soundness proved in Rocq (five sessions) | `66-labelled-modal.md` (finished at the review of 65) | Opus 5.5; Fable 5.2 for the Rocq proof; a fresh-context reviewer on Fable 5.2 (on Opus 5.5 for the proof's sessions) | high (the reviewer `medium`) | 60, 61, 65 |
-| 67 | The kernel crate, extracted only from what at least two suites copied, unpublished at 0.0.0, deduxit's paths kept (D25; three to five sessions, or one that ends at the gate) | `67-kernel-crate.md` (finished at the review of 66) | Fable 5.2 for the first session (the inventory and the boundary), Opus 5.5 for the extraction | high | 47, 65, 66 |
+| 67 | The kernel crate, extracted only from what at least two suites copied, unpublished at 0.0.0, deduxit's paths kept (D25; three to five sessions, or one that ends at the gate) | `67-kernel-crate.md` (ended at the gate, 2026-11-16: no crate yet, the list in `later.md`) | Fable 5.2 for the first session (the inventory and the boundary), Opus 5.5 for the extraction | high | 47, 65, 66 |
 | 68 | Tools for teachers: a Kripke model editor, a checker for students' tableaux, course packs with a checkable handed-in link, a print stylesheet (three sessions) | `68-teaching-tools.md` (finished at the review of 67) | Opus 5.5; a fresh-context reviewer per client session | high | 56, 63, 65, 67 |
 | 69 | The release of 0.6.0 (one session) | `69-release-0.6.0.md` (finished at the review of 68) | Opus 5.5 | high | 65, 66, 67, 68 |
 | | **Release 0.7.0: resolution and the simply typed lambda calculus** (D27) | | | | |
@@ -7453,3 +7453,16 @@ move (D26).
     class of their own (`act-name`); a test at eight widths, Learn off and on, checks that no two
     actions overlap and each action's icon, label and key stand apart inside its button (it fails
     on `xxvkxvzm`'s build). The client's flake check passed.
+- 2026-11-16, 20:40: **67a reviewed and pushed; step 67 ends at its gate.**
+  - **67a** (`vvnzzszt`, `uxuwtkpr`, `smzlxvxz`; no code): the suites copied about 1 050 lines
+    (the ordinary arena, parser and JSON form into `modal`; the goal tree's helpers; two meters);
+    about 4 600 lines are shared once already; `Error`, `Settings`, the wire level, `Drawable`,
+    `Notation` and the protocol's registry are sums over the suites and stay in `deduxit`. Not
+    yet a crate: a kernel of 3 % of the lines cannot be unpublished while `deduxit` re-exports
+    it (Cargo refuses a published crate's unpublished dependency), could not hold the types the
+    prompt listed first, and a split is a release with breaking changes. The list is in
+    `later.md`; step 74 decides the shared arena core, the parser over tables and the goal tree's
+    functions. Four decisions in the author's place (marked departures), reviewed and kept.
+    fresh-reviewer (Opus) seven findings, none changing the answer, all fixed.
+  - **68's prompt finished**: 68a (the tableau checker), 68b (the model editor), 68c (packs, the
+    check view, the embed and print).
