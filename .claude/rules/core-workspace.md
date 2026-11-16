@@ -67,10 +67,11 @@ and redo, the bounds and the JSON form. The design is
   `wire::WORKSPACE`): every value is read by its kind's reader within
   the limits; each record of an instant operation is run again and
   dropped where its output differs; each instant check is made again;
-  a check that needs a search reads back as `Status::Recorded` (departs
-  from the design, which made every check again), which `workspace
-  check` makes again. A record written by another version of deduxit
-  (`deduxit` in the form) is foreign: kept, shown as out of date, never
+  a check that needs a search reads back as `Status::Recorded`, which
+  `workspace check` makes again. Running instant records again on reading
+  goes past the design, which made only their checks again. A record
+  written by another version of deduxit (`deduxit` in the form) is
+  foreign: kept, shown as out of date, never
   settled to. A file can forge a search's output; only its check, made
   again, tells.
 - **`pack`** keeps the nodes asked for and what they are made from, no
