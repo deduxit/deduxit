@@ -7186,3 +7186,16 @@ move (D26).
   - **63's prompt finished**: 63a (the protocol and the bindings) after 62d and 63g-a; 63b
     (Learn and Practice by suite).
   - **After the baseline**: 62d (the page, `start-62d.md`) and 63g-a start together.
+- 2026-11-16, about 08:50: **The baseline night done; 62d and 63g-a started four hours late.**
+  - **The baseline** (`bench/results/2026-11-16/`, committed) ran from 02:04:52 to 04:27, 2 h 22 min,
+    `nix-optimise` at 03:52 its one scheduled job. No verdict disagrees between configurations, no
+    ILTP mismatch; the LLTP mismatches are the known headers. One `error` cell: the embedding on
+    `SYN007+1.014` (the unfolded sequent past the 50 million occurrence limit, as 54s's report
+    says), in all three logics. Its tables compare with the defaults' runs in the morning's
+    review below.
+  - **Four hours lost**: at 03:14 the planning session switched 63g-a's worker to Fable 5.2, a
+    model dearer than its own, which the app asks the author about even in auto mode; the turn
+    waited on that prompt until the author's click at about 08:30. 62d could have started at
+    04:27, 63g-a at 03:14. Both started at 08:47 (62d in `local_fe155f72`, cores 10-12; 63g-a in
+    `local_b8490613`, cores 7-9, on Fable 5.2). Recorded so that it does not recur: no model
+    switch to a dearer model while the author is away.
