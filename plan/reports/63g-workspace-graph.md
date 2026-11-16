@@ -516,3 +516,210 @@ passed whatever the forgery; the tests now edit the written text.
   are `#[non_exhaustive]`).
 - `wire::LEVEL` is 19: a 0.4.0 reader refuses a workspace file, as it
   should.
+
+## Session 63g-c: the page
+
+Opus 5.5 at `high`, the same worker as 63g-a, 63a and 63g-b, from the
+brief `/tmp/linlog-handoff/start-63g-c.md`, on 2026-11-16. deduxit in
+`../deduxit-wt-step-58a-610ed3` on `main@origin` `muovpmwk`; the client
+in its own jj workspace `../deduxit.github.io-63gc` (`step63gc`) on its
+`main@origin` `wqlqqwyo`, built against this chain with
+`--override-input deduxit
+git+file:///home/tux/Projects/own/deduxit-wt-step-58a-610ed3` (never
+`path:`); its `flake.lock` does not move until the planning session has
+pushed the deduxit chain. Cores 7 to 9.
+
+### Outcome
+
+A visitor who presses "Prove it in ⟨logic⟩" on the translation sheet, or
+"Duplicate this proof" in the Logic popover, gets two linked tabs: a
+Workspace button in the top band, and a panel (docked left of the stage
+where the window is 960 pixels wide and Learn is off, else a sheet from
+the button) that lists the linked tabs, each made tab under an inference
+line naming how it was made and the check of what that promised. A
+changed sequent puts what was made from it out of date until Start
+again (Update when the proof has no steps); the panel's Undo and Redo
+take back whole actions by name; three linked tabs can be shown as a
+graph; a linked tab's link (version 3) opens its whole linked group on
+another page. Before the first link the page is as it was: no
+document, no workspace call, no button.
+
+### deduxit: the library and the bindings
+
+- `ywswyost` **Make the instant runs a proof needs within the edit that
+  starts it**: `Edit::ready` (in `connect` and `restart` of a proof or
+  copy) makes each instant run its inputs need and points the node at
+  the record by a swap of the edit, so "a translation and its proof" is
+  one action, which undo takes back whole. Undo and redo settle every
+  node but those their entry changed, which show exactly their state
+  before or after (a fresh record of a node the entry touched no longer
+  replaces what it showed before). A test (`a_proof_of_a_translation_is_made_in_one_action`).
+- `mpwqoysw` **`Workspace::read_own`**: a document the program wrote and
+  kept itself is read with every check of the claim reader but the
+  runs, its records trusted and its checks as written. Through the
+  claim reader on every stateless call, a search's check turned
+  `recorded` after each call and ran again. A test of both readers.
+- `nxlrwxnz` **The bindings** (`web/src/workspace.rs`, exported
+  `workspace_…`): `statement`, `open` (the claim reader and `rebound`,
+  for a link or a file), `edit` (an action `{"name", "edits"}` read
+  whole before any edit, since the library's error variants cannot be
+  built outside it; a node is a number or `{"made": K}`), `undo` and
+  `redo` (with the sessions they changed), `compute` and `accept`, `run`,
+  `view` (each node's summary, label, cost, class, state, end, check,
+  column), `pack`. Every answer carries the document as a JSON string
+  of its text: written again through `serde_json::Value`, or by
+  JavaScript, a value's keys could come out in another order, which is
+  another value, and every record dropped on the next read. The tab's
+  `limits.workspace.bytes` is 2 MiB. Five tests under Node and natively.
+- `qwzvqqpr` **A node an undo took away is left out of `work`** (the
+  reviewer's first finding, below).
+
+### The page (the client)
+
+- `qtlzrsyv` the store (`src/islands/Workspace.tsx`: the document, the
+  tabs' nodes, the view; every call queued), the panel, the button, the
+  graph, "Prove it in" and "Duplicate this proof" as actions, the pure
+  rows and words (`src/lib/workspace.ts`), the worker's calls, the
+  styles and the tokens `--size-workspace` (320 pixels) and
+  `--size-card` (240).
+- `rxqmkwnt` link version 3 (`#v=3&u&m&s&n&w`) and arriving by it.
+- `rqornqsw` the `linking` walk in `tests/states.ts` (linked, out of
+  date, the graph, the sheet on a phone), run by axe and the target
+  sizes; the client's rules section "The workspace of linked tabs".
+- `zoqwuwxw` the review's fixes (below), and `xwvkwlsl` the rules'
+  update.
+
+Departures, each "(departs from the design)":
+- The workspace's code is in the island's bundle, not a lazy chunk; it
+  makes no call and shows nothing before the first link.
+- A row has no menu (Translate…, Duplicate, Remove); Duplicate is in the
+  Logic popover, removing is closing the tab.
+- The interpolant's sheet has no "Prove the first part" and "Prove the
+  second part".
+- A made tab's sequent field is not read-only: a made tab's or a copy's
+  own change unlinks it ("unlinking", which Undo takes back).
+- No setting "Update linked tabs by themselves"; what needs no search is
+  made again by itself after each action, a check waits for Check.
+- Arriving by a link says "This link holds N linked tabs. The Workspace
+  button shows them." in the shown tab's banner, with no "Show
+  workspace" button, and runs no search or check when the panel opens.
+- The shelf does not keep the workspace: a restored visit's tabs come
+  back unlinked.
+- No "This Undo takes back proof steps" for the likely slip.
+- The graph's columns are by a row's link depth, without arrow keys,
+  over the stage while shown.
+- The link carries `n`, the shown tab's node.
+- Closing a linked tab removes its node; the tabs made from it keep their
+  lines to the sequent (no `detach`).
+- The page's document keeps the tabs' sessions (12.1 kept them apart);
+  `work` lays the tabs' sessions in before each call.
+
+### The first-time task
+
+A `general-purpose` agent on Sonnet 5.5 that had not seen the design,
+given only the address and the task in a student's words (prove
+`a ∨ ¬a`, translate and prove the translation, change the sequent to
+`a → (b ∨ ¬b)` and have the translation follow, take the change back),
+in the built-in browser at a desktop width. It reached every part. Its
+path: the calculus mark, Ordinary and Classical, the sequent, ∨R and ¬R
+by keys, Close goal; it looked in Export for the translation first,
+then found "Translate into intuitionistic logic" in the Logic popover;
+"Prove it in intuitionistic logic" gave the Workspace button and the
+docked panel with "Glivenko's translation"; it proved the translation
+by Close goal; it changed the first tab's sequent and read "Out of date.
+It is now ⊢ ¬¬(a → (b ∨ ¬b)). This proof is of the earlier one. Undo
+brings it back." with Start again; it pressed Start again and proved the
+new translation; then Undo restart and Undo sequent change brought back
+the first sequent with both proofs. Where it hesitated: the translation
+behind the calculus mark (today's page); it expected the translated
+proof to follow by itself rather than by Start again; the two undos by
+name needed reading; one Undo seemed to do nothing for a few seconds
+before it showed (the calls run one after another; no busy state on the
+panel's Undo). Its frame was 400 by 300 in the pane's screenshots, so it
+read the page's text more than its pictures.
+
+### The cognitive-load check
+
+`cognitive-load-analyser` on the same path: at the link, about five new
+elements (a tab made from a tab, the line, its check, the panel's Undo,
+the button), each where it is used; the status sentence and the panel's
+first-time sentence say different things, so no redundancy. Out of date
+is told three ways at once (the row's keyword and reason, the dashed
+line, the button's warn style), each in its own place, which the reader
+need not integrate. "Update" and "Start again" keep apart a proof
+without steps from one with steps. No change made from it; the trial's
+"seemed to do nothing" is the one extraneous load seen, and a busy state
+on the panel's Undo is a follow-up.
+
+### Checks
+
+- deduxit: the gate (clippy, the tests with the behaviour lock, both
+  `cargo hack` runs, the ratchet) passed on `nxlrwxnz`; the workspace's
+  library tests (19) and the bindings' (5) passed at each later commit.
+  `nix flake check --keep-going` under the machine lock failed the
+  `budget` alone (the module at 3 670 553 bytes against 3 300 000;
+  `main`'s at 3 166 704, measured by building its `deduxit-web`), which
+  `oppkoukm` raises with the reason; it passes at the head.
+- The client, against this chain: `lint` (Biome, `astro check`) clean;
+  Vitest 667 passed (28 files); Playwright 300 passed (6.6 min), among
+  them the eleven of `tests/workspace.spec.ts` and the `linking` walk
+  under axe in both schemes at both widths and the target sizes (24 and
+  44 pixels); its `nix flake check --keep-going` with the `git+file`
+  override passed.
+
+### The reviewer's findings
+
+`fresh-reviewer` once, on Fable 5.2, with the four criteria of the
+brief; it could not reach the built-in browser and drove the built page
+with the client's Playwright. Criteria 2 and 3 broken, 1 held, 4 held
+but for one gap; six findings, all reproduced and all fixed, each with a
+test in `tests/workspace.spec.ts`:
+1. **Undo of an action that made a tab failed and left the workspace
+   dead**: the page sent the made tab's session for a node the undo took
+   away, which the bindings refused, the document undone and the view
+   not. Fixed in deduxit (`qwzvqqpr`: such a node is left out of
+   `work`) and on the page: after an undo a tab whose node is gone is
+   closed if the workspace opened it, else unlinked and parked, and
+   relinked when Redo brings its node back.
+2. **Undo of a sequent change or a closing lost the steps taken since
+   the last workspace action**: the document held the session as of the
+   last call. Fixed: `latest` keeps each linked tab's latest session,
+   laid in before the change or the closing.
+3. **A change of a typed tab's logic was not seen**, the line keeping a
+   check of the classical statement as current. Fixed: the change is
+   keyed by logic and sequent, and a logic change is an action of its
+   own, "logic change".
+4. **Editing a copy rewrote the sequent it shares with its original**,
+   putting the original out of date. Fixed: only the tab that owns a
+   given sequent changes it; a copy's or a made tab's own change unlinks
+   it.
+5. **A link held only the shown tab's neighbours**, dropping sibling
+   tabs. Fixed: the whole linked group.
+6. **Unlinking was logged as "closing"** and its undo opened a stray
+   tab. Fixed: "unlinking", whose undo relinks the same tab once it
+   shows the session back.
+
+### What the next sessions must know
+
+**64 (the release).**
+- The client's `flake.lock` moves to deduxit's `main` once this chain is
+  pushed; until then the client's commits build only with the
+  `git+file` override.
+- The bindings' answers carry the workspace's document as a string; a
+  front end that parses it and writes it again breaks every record.
+- The library gained `Workspace::read_own` and the `Edit::ready`
+  behaviour, both under the unreleased `workspace` module; the
+  changelog's workspace entry covers them.
+- The departures above are the page's list of what 0.5.0's workspace
+  lacks against the design; the shelf's version 3 (autosave) is the one
+  a returning visitor meets first.
+
+**65d (the modal page).**
+- A new suite's tabs join the workspace through its suite's kinds: a
+  given statement (`workspace_statement` with the suite's name), a work
+  node of its start operation, and the page's `rowsOf` reading a work
+  node's input chain. `src/lib/workspace.ts` names `ordinary.start` and
+  `ordinary.sequent` today; a modal suite adds its names there.
+- The workspace's effects compare each linked tab's logic and sequent
+  (`keyOf`); a suite whose calculus has another parameter (a modal
+  system) adds it to the key, or a change of it goes unseen.
