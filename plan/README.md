@@ -7529,3 +7529,6 @@ move (D26).
   pack bars the search, "Apply invertible rules by themselves" has no effect on its tabs, and the
   Settings sheet says why; a test in `packs.spec.ts`; the client's flake check passed (341 e2e).
   Step 68 waits for nothing else on the page; 54x7 runs, then 69.
+- 2026-11-16, 22:40: **rocq-deduxit 0.6.0 prepared and pushed** (69's `qworrpqw`, `1ab69571`: the
+  changelog's 0.6.0 section, CITATION and opam at 0.6.0, README saying the library is released
+  under deduxit's number when it changes, no 0.5.0). Its tag `v0.6.0` follows when its CI is green.
