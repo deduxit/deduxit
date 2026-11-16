@@ -42,10 +42,13 @@ second number (0.1.x to 0.2.0), anything else the third.
   PDF, with an arrow from each world to each world it sees.
   `check --calculus` takes the labelled calculi by name (`G3S4`), and
   `workspace new --system` keeps a modal sequent.
-- **Modal logic in the protocol**: the kinds `modal.sequent` and
-  `modal.outcome`, the operations `modal.decide`, `modal.derivation`,
-  `modal.draw` and `modal.duplicate`, and the schema's forms
-  `modal_sequent`, `modal_outcome` and `modal_statement`.
+- **Modal logic in the protocol**: the kinds `modal.sequent`,
+  `modal.outcome`, `modal.model` and `modal.evaluation`; the operations
+  `modal.decide`, `modal.countermodel`, `modal.evaluate` (a model
+  checked against a sequent), `modal.derivation`, `modal.calculus` (the
+  system's rule file), `modal.draw`, `modal.export` and
+  `modal.duplicate`; and the schema's forms `modal_sequent`,
+  `modal_outcome`, `modal_statement` and `modal_evaluation`.
 
 ### Changed
 

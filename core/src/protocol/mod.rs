@@ -465,9 +465,14 @@ const OPERATIONS: &[&str] = &[
     "rules.export",
     "rules.duplicate",
     "modal.decide",
+    "modal.countermodel",
+    "modal.evaluate",
     "modal.derivation",
+    "modal.calculus",
     #[cfg(feature = "svg")]
     "modal.draw",
+    #[cfg(any(feature = "latex", feature = "typst"))]
+    "modal.export",
     "modal.duplicate",
 ];
 
@@ -489,6 +494,8 @@ const KINDS: &[&str] = &[
     "rules.derivation",
     "modal.sequent",
     "modal.outcome",
+    "modal.model",
+    "modal.evaluation",
     "drawing",
     "text",
     "certificate",

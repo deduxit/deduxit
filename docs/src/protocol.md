@@ -62,6 +62,8 @@ text, quick to make again.
 | `rules.derivation` | a derivation | the derivation's JSON |
 | `modal.sequent` | a sequent of modal logic and its system | the sequent's JSON with `system` |
 | `modal.outcome` | a sequent decided, with a derivation or a countermodel | the outcome's JSON |
+| `modal.model` | a Kripke model, each world's arrows the worlds it sees | the model's JSON |
+| `modal.evaluation` | a model checked against a sequent | `{"system", "world", "frame", "holds", "failing", "values"}` |
 | `drawing` | a drawing | `{"svg"}` |
 | `text` | a text in a format | `{"format", "text"}` |
 | `certificate` | a certificate for Rocq | `{"text"}` |
@@ -110,8 +112,12 @@ promises something of its output and says what checking that costs.
 | `rules.export` | `rules.session` | `text` | renders |
 | `rules.duplicate` | `rules.sequent` | `rules.sequent` | exact |
 | `modal.decide` | `modal.sequent` | `modal.outcome` | decides |
+| `modal.countermodel` | `modal.outcome` | `modal.model` | exact |
+| `modal.evaluate` | `modal.sequent`, `modal.model` | `modal.evaluation` | exact |
 | `modal.derivation` | `modal.outcome` | `rules.derivation` | proves |
+| `modal.calculus` | `modal.sequent` | `rules.calculus` | exact |
 | `modal.draw` | `modal.outcome` | `drawing` | renders |
+| `modal.export` | `modal.outcome` | `text` | renders |
 | `modal.duplicate` | `modal.sequent` | `modal.sequent` | exact |
 
 The catalogue gives each operation's parameters with their values and

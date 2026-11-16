@@ -4085,6 +4085,108 @@
         }
       }
     },
+    "modal_evaluation": {
+      "description": "A value of the protocol's kind `modal.evaluation` (the protocol's own form, written only): a Kripke model checked against a modal sequent in `system`, at `world` or at every world. Either `frame`, the frame condition the model's arrows fail with the worlds that show it, or `holds`, and where the sequent fails, `failing`, the world, and `values`, each compound formula's value there with the world that shows a false `□` or a true `◇`.",
+      "type": "object",
+      "required": [
+        "system"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "system": {
+          "$ref": "#/$defs/system"
+        },
+        "world": {
+          "$ref": "#/$defs/index"
+        },
+        "frame": {
+          "type": "object",
+          "required": [
+            "condition",
+            "worlds"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "condition": {
+              "enum": [
+                "serial",
+                "reflexive",
+                "symmetric",
+                "transitive",
+                "euclidean"
+              ]
+            },
+            "worlds": {
+              "$ref": "#/$defs/indices"
+            }
+          }
+        },
+        "holds": {
+          "type": "boolean"
+        },
+        "failing": {
+          "$ref": "#/$defs/index"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "formula",
+              "true"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "formula": {
+                "type": "string"
+              },
+              "true": {
+                "type": "boolean"
+              },
+              "witness": {
+                "$ref": "#/$defs/index"
+              }
+            }
+          }
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "frame"
+          ],
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "holds"
+                ]
+              },
+              {
+                "required": [
+                  "failing"
+                ]
+              },
+              {
+                "required": [
+                  "values"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "required": [
+            "holds"
+          ],
+          "not": {
+            "required": [
+              "frame"
+            ]
+          }
+        }
+      ]
+    },
     "calculus": {
       "description": "A value of the protocol's kind `rules.calculus`: a rule file (level 15). Its own schema is the library's `deduxit::rules::SCHEMA`.",
       "type": "object",

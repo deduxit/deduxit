@@ -395,3 +395,55 @@ fn a_modal_outcome_is_drawn() {
         assert!(drawing.contains("<svg"), "{system}: {drawing}");
     }
 }
+
+#[test]
+fn a_modal_model_is_taken_from_an_outcome_and_evaluated() {
+    let limits = settings().limits;
+    let k = super::statement("modal", "[]p |- [][]p", "K", &limits).unwrap();
+    let outcome = ran("modal.decide", &[&k], "");
+    let model = ran("modal.countermodel", &[&outcome], "");
+    assert_eq!(
+        summary("modal.model", &model, &limits).unwrap(),
+        "A model of 3 worlds"
+    );
+    let evaluation = ran("modal.evaluate", &[&k, &model], "");
+    assert_eq!(
+        summary("modal.evaluation", &evaluation, &limits).unwrap(),
+        "Fails at world 0"
+    );
+    assert!(
+        evaluation.contains(r#""formula":"□□p","true":false,"witness":1"#),
+        "{evaluation}"
+    );
+    // At world 2, which sees nothing, every □ holds.
+    let at = ran("modal.evaluate", &[&k, &model], r#"{"world": 2}"#);
+    assert_eq!(summary("modal.evaluation", &at, &limits).unwrap(), "Holds");
+    // The model is no model of T: no world sees itself.
+    let t = super::statement("modal", "[]p |- [][]p", "T", &limits).unwrap();
+    let frame = ran("modal.evaluate", &[&t, &model], "");
+    assert_eq!(
+        summary("modal.evaluation", &frame, &limits).unwrap(),
+        "No model of T: not reflexive"
+    );
+    // A valid outcome holds no countermodel.
+    let s4 = super::statement("modal", "[]p |- [][]p", "S4", &limits).unwrap();
+    let valid = ran("modal.decide", &[&s4], "");
+    let error = run("modal.countermodel", &[&valid], "", &settings(), |_| false).unwrap_err();
+    assert_eq!(error.code(), "invalid_option");
+    // The calculus is the system's rule file, which reads back.
+    let calculus = ran("modal.calculus", &[&s4], "");
+    assert_eq!(
+        summary("rules.calculus", &calculus, &limits).unwrap(),
+        "G3S4"
+    );
+}
+
+#[cfg(feature = "latex")]
+#[test]
+fn a_modal_derivation_is_exported() {
+    let limits = settings().limits;
+    let s4 = super::statement("modal", "[]p |- [][]p", "S4", &limits).unwrap();
+    let outcome = ran("modal.decide", &[&s4], "");
+    let text = ran("modal.export", &[&outcome], "");
+    assert!(text.contains(r"\\Box"), "{text}");
+}
