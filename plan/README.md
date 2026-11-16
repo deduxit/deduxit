@@ -7480,3 +7480,14 @@ move (D26).
     passed.
   - **For 0.6.0's release:** `rocq-deduxit` is released first (its `Deduxit.Modal` is in
     `[Unreleased]` at 0.4.0), and `export::rocq::DEDUXIT` moves with the lock.
+- 2026-11-16, 21:40: **68b reviewed and pushed (the client).**
+  - **68b** (the client `yzysoplp`, `vquzrxyw`, `somyrllz`; deduxit's report `vwqokkwn`): a Kripke
+    model editor drawn on the page, opened from a modal or ordinary countermodel ("Change the
+    model and check it") or "Check a model": worlds as boxes, a drag from world to world adds or
+    removes an arrow (a loop back onto the world), every edit also a keyboard control (WCAG
+    2.5.7); checked by deduxit (`modal_evaluate`, `ordinary_model`), the failing world, its
+    witnesses and a frame condition's missing arrow drawn on the model in colour and pattern. No
+    binding changed. fresh-reviewer (Fable) checked nine frame classes and the keyboard path;
+    five findings fixed. Four departures marked (the failing world on the editor's own drawing;
+    "Check a model" in the calculus popover; worlds' places not kept; no undo of its own). The
+    client's flake check passed (691 unit, 323 e2e).
