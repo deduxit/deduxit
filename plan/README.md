@@ -7240,3 +7240,6 @@ move (D26).
     wrong account of LK against LJ (the difference is how many formulas stand right of ⊢).
     Departure marked: five of six ordinary lessons are "to come", for 63c. Auto-reverse is not
     needed by the course as written (a later small step if wanted).
+- 2026-11-16, 11:25: **Times corrected.** The three entries above guessed their times: 63g-a was
+  reviewed at 10:34, 62d at 10:41 (step 62 complete then), 63a started at 10:35, 63b at 10:42
+  and was reviewed at 11:24. The step log has the commits' times.
