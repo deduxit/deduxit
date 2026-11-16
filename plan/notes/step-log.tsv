@@ -59,5 +59,6 @@ baseline-prep	small	opus-5-5	high	reviewer	local_739ba359	2026-11-15 18:20	2026-
 63g-c	client	opus-5-5	high	reviewer (fable), frontend-design, education skills, first-time tester	local_b8490613	2026-11-16 13:45	2026-11-16 14:50	the workspace graph on the page
 63g	step	-	-	-	-	-	2026-11-16 14:55	complete: the workspace graph
 64	release	opus-5-5	high	reviewer	local_b8490613	2026-11-16 15:00	2026-11-16 15:45	the 0.5.0 release, prepared
-65c	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-16 15:35		modal logic in the command
+65c	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-16 15:35	2026-11-16 16:45	modal logic in the command
 54x6	small	opus-5-5	high	reviewer (fable)	local_b8490613	2026-11-16 15:55		the module size, wire docs, a busy Undo
+64	step	-	-	-	-	-	2026-11-16 16:50	complete: 0.5.0 tagged (the publish waits for the author)

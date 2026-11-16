@@ -7364,3 +7364,19 @@ move (D26).
   author's yes of 2026-11-16. No Rocq release (the library did not move since v0.4.0). The release
   workflow runs (`43900585722`); its `cargo publish` waits for the author's approval in the
   `crates-io` environment. Next: the modal chain (65a, 65b) lands on `main`, rebased by 65c.
+- 2026-11-16, about 16:55: **The modal chain on `main`: 65a, 65b and 65c reviewed and pushed.**
+  - Times: 0.5.0 was tagged at about 16:45 (the entry above says 16:20).
+  - **65c** (`znvuvtzk` to `ukrptxsp`): `--system SYSTEM` on `prove` and `check` (the author's
+    yes): the verdict, the derivation as `check --calculus`'s node list or drawn in LaTeX, Typst
+    and SVG, the countermodel in words ("sees") or drawn (`svg::modal_countermodel`: loops as
+    curls, arcs for arrows within a row), a user's model checked (frame conditions first, then
+    the sequent, with the failing world and its witnesses); `check --calculus G3S4`; `workspace
+    --system`; the protocol's modal suite (four kinds, eight operations); `□` and `◇` in every
+    export with the fonts' advances; `level-20.txt` and the schema's modal forms; the manual's
+    chapter "Decide modal logic", the guide, the changelog under "Unreleased", 22 lock calls.
+    fresh-reviewer (Fable) five findings, among them a batch under `--system` decided as linear
+    logic (now refused), all fixed. Three departures marked (the command's evaluation JSON is
+    `Checked`; a model outside its system is exit 2; `modal.export` writes LaTeX and Typst only).
+    Gate and `nix flake check` passed (before the rebase onto the plan commits, which change
+    `plan/` only).
+  - **Next:** 65d (the modal suite on the page), then step 66.
