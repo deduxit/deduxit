@@ -226,6 +226,10 @@ struct Record {
     check: Option<Check>,
     /// Whether another build of deduxit made it.
     foreign: bool,
+    /// Whether this build made it, or made it again on reading: only such
+    /// a record answers a run a check asks for, since a file can claim any
+    /// output for a search.
+    trusted: bool,
     /// When it was made, by the workspace's count of changes: the oldest
     /// unpinned record gives way first.
     made: u64,
@@ -480,6 +484,35 @@ fn refused(what: Held, count: usize, limit: u64) -> Error {
 /// Returns whether `count` passes `bound`.
 fn past(count: usize, bound: Option<u64>) -> Option<u64> {
     bound.filter(|&bound| u64::try_from(count).unwrap_or(u64::MAX) > bound)
+}
+
+/// Gives a node's recipe the bounds `bounds` (the caller's `Limits` as
+/// JSON) for the `limits.*` keys it reads; returns whether it changed.
+fn rebind(node: &mut Node, bounds: &serde_json::Value) -> bool {
+    let recipe = match &mut node.body {
+        Body::Given(_) => return false,
+        Body::Derived { recipe, .. } | Body::Work { recipe, .. } | Body::Copy { recipe, .. } => {
+            recipe
+        }
+    };
+    let Ok(mut keys) =
+        serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&recipe.settings)
+    else {
+        return false;
+    };
+    let mut touched = false;
+    for (key, value) in &mut keys {
+        if let Some(limit) = key.strip_prefix("limits.").and_then(|k| at_key(bounds, k))
+            && value != limit
+        {
+            *value = limit.clone();
+            touched = true;
+        }
+    }
+    if touched {
+        recipe.settings = serde_json::Value::Object(keys).to_string().into();
+    }
+    touched
 }
 
 impl Workspace {
@@ -774,9 +807,24 @@ impl Workspace {
             swaps: Vec::new(),
         };
         let done = f(&mut edit);
-        let swaps = std::mem::take(&mut edit.swaps);
+        let mut swaps = std::mem::take(&mut edit.swaps);
         match done {
             Ok(done) => {
+                // The records the edit leads nodes to show are part of it, so
+                // that undo shows again what each node showed before.
+                for (id, before) in self.settled() {
+                    if let Some(now) = self.node(id).cloned() {
+                        let mut then = now.clone();
+                        if let Body::Derived { record, .. } = &mut then.body {
+                            *record = before;
+                        }
+                        swaps.push(Swap {
+                            id,
+                            before: Some(then),
+                            after: Some(now),
+                        });
+                    }
+                }
                 if !swaps.is_empty() {
                     self.log.truncate(self.at);
                     self.log.push(Entry {
@@ -792,7 +840,6 @@ impl Workspace {
                     self.at = self.log.len();
                     self.made += 1;
                 }
-                self.settle();
                 Ok(done)
             }
             Err(error) => {
@@ -844,6 +891,12 @@ impl Workspace {
     /// its inputs' values now, where one is kept. Runs nothing; returns
     /// the nodes it pointed elsewhere.
     pub fn settle(&mut self) -> Vec<NodeId> {
+        self.settled().into_iter().map(|(id, _)| id).collect()
+    }
+
+    /// Settles as [`settle`](Self::settle) does, and returns each node it
+    /// pointed elsewhere with the record it showed before.
+    fn settled(&mut self) -> Vec<(NodeId, Option<RecordId>)> {
         let mut moved = Vec::new();
         for at in 0..self.nodes.len() {
             let Body::Derived { recipe, record } = &self.nodes[at].body else {
@@ -865,9 +918,8 @@ impl Workspace {
             {
                 let id = self.nodes[at].id;
                 if let Body::Derived { record, .. } = &mut self.nodes[at].body {
-                    *record = Some(found);
+                    moved.push((id, record.replace(found)));
                 }
-                moved.push(id);
             }
         }
         moved
@@ -947,6 +999,23 @@ impl Workspace {
         what: What,
         mut stop: impl FnMut(Progress) -> bool,
     ) -> Result<Computed, Error> {
+        // A run the caller's stop ended is no function of its key, so it is
+        // refused, never computed: a search answers such a stop with an
+        // unknown outcome, which a record would keep as if a bound had
+        // ended it.
+        let stopped = std::cell::Cell::new(false);
+        let mut stop = |progress: Progress| {
+            let now = stop(progress);
+            if now {
+                stopped.set(true);
+            }
+            now
+        };
+        let halted = || {
+            Error::Refused(Refusal::Stopped {
+                phase: crate::Phase::Search,
+            })
+        };
         let found = self.node(node).ok_or_else(|| no_node(node))?;
         let Body::Derived { recipe, record } = &found.body else {
             return Err(Error::NotApplicable {
@@ -990,6 +1059,7 @@ impl Workspace {
                     &settings,
                     &mut stop,
                 ) {
+                    Ok(_) if stopped.get() => return Err(halted()),
                     Ok(produced) => Ok(output_of(produced)),
                     Err(error) if error.kind() == ErrorKind::Stopped => return Err(error),
                     Err(error) => Err(serde_json::to_string(&error).map_err(json_error)?),
@@ -1012,14 +1082,16 @@ impl Workspace {
                         Ok,
                     )
                 };
-                Some(
-                    suite.check(&call, &output.value, &mut ask, &mut |progress| {
-                        (stop.borrow_mut())(progress)
-                    })?,
-                )
+                let check = suite.check(&call, &output.value, &mut ask, &mut |progress| {
+                    (stop.borrow_mut())(progress)
+                })?;
+                Some(check)
             }
             _ => None,
         };
+        if stopped.get() {
+            return Err(halted());
+        }
         Ok(Computed {
             node: node.0,
             operation: recipe.operation.name.to_owned(),
@@ -1031,7 +1103,8 @@ impl Workspace {
         })
     }
 
-    /// Returns the output of a record kept for the run a check asks for.
+    /// Returns the output of a record kept for the run a check asks for,
+    /// where this build made it.
     fn asked(
         &self,
         name: &str,
@@ -1053,7 +1126,9 @@ impl Workspace {
             settings: project(settings, operation.reads).ok()?,
             inputs: values,
         };
-        let record = self.record(*self.index.get(&key)?)?;
+        let record = self
+            .record(*self.index.get(&key)?)
+            .filter(|record| record.trusted && !record.foreign)?;
         record.output.map(|output| self.text(output).to_owned())
     }
 
@@ -1100,19 +1175,24 @@ impl Workspace {
             }
             Err(error) => (End::Refused(error.into()), None),
         };
+        let fresh = Record {
+            key: key.clone(),
+            end,
+            output,
+            check: None,
+            foreign: false,
+            trusted: true,
+            made: self.made,
+        };
         let found = match self.index.get(&key) {
+            // Another build's record of the same key gives way in place, so
+            // that the nodes showing it show this build's run.
+            Some(&found) if self.record(found).is_some_and(|r| r.foreign) => {
+                self.records[found.0 as usize] = Some(fresh);
+                found
+            }
             Some(&found) if self.record(found).is_some() => found,
-            _ => self.insert(
-                Record {
-                    key: key.clone(),
-                    end,
-                    output,
-                    check: None,
-                    foreign: false,
-                    made: self.made,
-                },
-                limits,
-            )?,
+            _ => self.insert(fresh, limits)?,
         };
         if let Some(check) = computed.check
             && let Some(Some(record)) = self.records.get_mut(found.0 as usize)
@@ -1194,8 +1274,9 @@ impl Workspace {
 
     /// Runs the nodes [`plan`](Self::plan) lists for `targets`, each
     /// computed and accepted in order, and with [`What::Check`] makes the
-    /// checks the targets' records lack. Returns each node run with its
-    /// state after.
+    /// checks the targets' records lack, hold only as `recorded` (read from
+    /// a file, not made by this build), or hold as failed or open, which a
+    /// file may claim too. Returns each node run with its state after.
     ///
     /// # Errors
     ///
@@ -1232,9 +1313,15 @@ impl Workspace {
                     Body::Derived {
                         record: Some(record),
                         ..
-                    } => self
-                        .record(*record)
-                        .is_some_and(|r| r.check.is_none() && r.output.is_some()),
+                    } => self.record(*record).is_some_and(|r| {
+                        r.output.is_some()
+                            && r.check.as_ref().is_none_or(|check| {
+                                matches!(
+                                    check.status,
+                                    Status::Recorded | Status::Failed | Status::Open
+                                )
+                            })
+                    }),
                     _ => false,
                 });
                 if lacks && self.state(node) == State::Current {
@@ -1292,38 +1379,25 @@ impl Workspace {
 
     /// Gives every recipe the `limits.*` values of `limits` for the keys it
     /// reads, so that a document from elsewhere runs within the caller's
-    /// bounds; the records that then fit no node stay in the cache. Returns
-    /// the nodes whose recipes changed.
+    /// bounds; the records that then fit no node stay in the cache. The
+    /// recipes the log keeps are given them too, so that undo and redo
+    /// bring back no other bounds. Returns the nodes alive whose recipes
+    /// changed.
     pub fn rebound(&mut self, limits: &Limits) -> Vec<NodeId> {
         let Ok(bounds) = serde_json::to_value(limits) else {
             return Vec::new();
         };
         let mut changed = Vec::new();
         for node in &mut self.nodes {
-            let id = node.id;
-            let recipe = match &mut node.body {
-                Body::Given(_) => continue,
-                Body::Derived { recipe, .. }
-                | Body::Work { recipe, .. }
-                | Body::Copy { recipe, .. } => recipe,
-            };
-            let Ok(mut keys) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(
-                &recipe.settings,
-            ) else {
-                continue;
-            };
-            let mut touched = false;
-            for (key, value) in &mut keys {
-                if let Some(limit) = key.strip_prefix("limits.").and_then(|k| at_key(&bounds, k))
-                    && value != limit
-                {
-                    *value = limit.clone();
-                    touched = true;
-                }
+            if rebind(node, &bounds) {
+                changed.push(node.id);
             }
-            if touched {
-                recipe.settings = serde_json::Value::Object(keys).to_string().into();
-                changed.push(id);
+        }
+        for entry in &mut self.log {
+            for swap in &mut entry.swaps {
+                for node in swap.before.iter_mut().chain(swap.after.iter_mut()) {
+                    rebind(node, &bounds);
+                }
             }
         }
         self.settle();

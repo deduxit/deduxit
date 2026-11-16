@@ -106,6 +106,11 @@ struct RecordForm {
     /// The check.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     check: Option<Check>,
+    /// Whether another build of deduxit made it, where the document's own
+    /// build did not: a file written again keeps another build's records
+    /// out of date.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    foreign: bool,
 }
 
 /// How a run ended.
@@ -212,8 +217,7 @@ impl Serialize for Workspace {
         for (at, record) in self.records.iter().enumerate() {
             if let Some(record) = record {
                 numbers[at] = Some(
-                    u32::try_from(kept.len())
-                        .map_err(<S::Error as serde::ser::Error>::custom)?,
+                    u32::try_from(kept.len()).map_err(<S::Error as serde::ser::Error>::custom)?,
                 );
                 kept.push(record);
             }
@@ -257,6 +261,7 @@ impl Serialize for Workspace {
                     },
                     output: record.output.map(|v| v.0),
                     check: record.check.clone(),
+                    foreign: record.foreign,
                 })
             })
             .collect::<Result<Vec<_>, serde_json::Error>>()
@@ -411,7 +416,8 @@ fn built(form: Form, limits: &Limits) -> Result<Workspace, Error> {
             end,
             output,
             check: record.check.clone(),
-            foreign,
+            foreign: foreign || record.foreign,
+            trusted: false,
             made: 0,
         }));
     }
@@ -423,7 +429,9 @@ fn built(form: Form, limits: &Limits) -> Result<Workspace, Error> {
             Err(malformed("a record's number is past the records"))
         }
     };
-    let node = |form: &NodeForm, alive: &[NodeId]| -> Result<Node, Error> {
+    // A node of the log is checked against the nodes of its own time when
+    // the log is replayed, below; here only its inputs' numbers.
+    let node = |form: &NodeForm, alive: Option<&[NodeId]>| -> Result<Node, Error> {
         let id = NodeId(form.id);
         let body = match &form.operation {
             None => Body::Given(value(
@@ -434,9 +442,10 @@ fn built(form: Form, limits: &Limits) -> Result<Workspace, Error> {
                 let (_, operation) = protocol::operation(name)?;
                 let from: Vec<NodeId> = form.from.iter().map(|&i| NodeId(i)).collect();
                 if from.len() != operation.from.len()
-                    || from
-                        .iter()
-                        .any(|input| *input >= id || alive.binary_search(input).is_err())
+                    || from.iter().any(|input| {
+                        *input >= id
+                            || alive.is_some_and(|alive| alive.binary_search(input).is_err())
+                    })
                 {
                     return Err(malformed("a recipe names a node that is not before it"));
                 }
@@ -474,23 +483,15 @@ fn built(form: Form, limits: &Limits) -> Result<Workspace, Error> {
     for found in &form.nodes {
         let id = NodeId(found.id);
         if alive.last().is_some_and(|&last| last >= id) || found.id >= form.next {
-            return Err(malformed("the nodes are not in order, or a number is past `next`"));
+            return Err(malformed(
+                "the nodes are not in order, or a number is past `next`",
+            ));
         }
-        let built = node(found, &alive)?;
+        let built = node(found, Some(&alive))?;
         workspace.nodes.push(built);
         alive.push(id);
     }
-    // The kinds of each recipe's inputs.
-    for found in &workspace.nodes {
-        if let Some(recipe) = found.recipe() {
-            for (input, kinds) in recipe.from.iter().zip(recipe.operation.from) {
-                let input = workspace.node(*input).ok_or_else(|| no_input(found.id))?;
-                if !kinds.contains(&workspace.kind_of(input)) {
-                    return Err(no_input(found.id));
-                }
-            }
-        }
-    }
+    fits(&workspace, limits)?;
     workspace.next = form.next;
     // The log: its nodes are read whole; a removed node's inputs need not
     // stand any more.
@@ -500,11 +501,22 @@ fn built(form: Form, limits: &Limits) -> Result<Workspace, Error> {
     for entry in &form.log.entries {
         let mut swaps = Vec::with_capacity(entry.swaps.len());
         for swap in &entry.swaps {
-            let every: Vec<NodeId> = (0..form.next).map(NodeId).collect();
+            let before = swap.before.as_ref().map(|n| node(n, None)).transpose()?;
+            let after = swap.after.as_ref().map(|n| node(n, None)).transpose()?;
+            if swap.id >= form.next
+                || [&before, &after]
+                    .into_iter()
+                    .flatten()
+                    .any(|n| n.id.0 != swap.id)
+            {
+                return Err(malformed(
+                    "a change of the log names another node than its own, or one past `next`",
+                ));
+            }
             swaps.push(Swap {
                 id: NodeId(swap.id),
-                before: swap.before.as_ref().map(|n| node(n, &every)).transpose()?,
-                after: swap.after.as_ref().map(|n| node(n, &every)).transpose()?,
+                before,
+                after,
             });
         }
         workspace.log.push(Entry {
@@ -518,6 +530,7 @@ fn built(form: Form, limits: &Limits) -> Result<Workspace, Error> {
         });
     }
     workspace.at = form.log.at;
+    replayed(&mut workspace, limits)?;
     workspace.index = workspace
         .records
         .iter()
@@ -536,6 +549,94 @@ fn built(form: Form, limits: &Limits) -> Result<Workspace, Error> {
     Ok(workspace)
 }
 
+/// Checks the nodes alive: within the bound on nodes, and each recipe's
+/// inputs alive, before it and of kinds its operation takes.
+fn fits(workspace: &Workspace, limits: &Limits) -> Result<(), Error> {
+    bounded(Held::Nodes, workspace.nodes.len(), limits.workspace.nodes)?;
+    for found in &workspace.nodes {
+        if let Some(recipe) = found.recipe() {
+            for (input, kinds) in recipe.from.iter().zip(recipe.operation.from) {
+                let input = workspace
+                    .node(*input)
+                    .filter(|input| input.id < found.id)
+                    .ok_or_else(|| no_input(found.id))?;
+                if !kinds.contains(&workspace.kind_of(input)) {
+                    return Err(no_input(found.id));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Returns a node as the log compares it: without the record it shows,
+/// which runs change, and without a session's state, which its steps
+/// change; the log holds neither.
+fn placed(node: Option<&Node>) -> Option<Node> {
+    node.cloned().map(|mut node| {
+        match &mut node.body {
+            Body::Derived { record, .. } => *record = None,
+            Body::Work { value, .. } => *value = ValueId(u32::MAX),
+            Body::Given(_) | Body::Copy { .. } => {}
+        }
+        node
+    })
+}
+
+/// Puts one change of the log, `to` in place of `from`, after checking that
+/// `from` is what stands there now.
+fn swapped(
+    workspace: &mut Workspace,
+    id: NodeId,
+    from: Option<&Node>,
+    to: Option<Node>,
+) -> Result<(), Error> {
+    if placed(workspace.node(id)) != placed(from) {
+        return Err(malformed(
+            "the log does not lead to the nodes it stands beside",
+        ));
+    }
+    workspace.put(id, to);
+    Ok(())
+}
+
+/// Replays the log from the nodes alive: every edit taken back to the
+/// first, brought back to the last and taken back again to where the
+/// document stands, each change checked against the node it replaces and
+/// each state with [`fits`]. Undo and redo then reach no other states.
+fn replayed(workspace: &mut Workspace, limits: &Limits) -> Result<(), Error> {
+    let log = std::mem::take(&mut workspace.log);
+    // The log's nodes hold no record shown; the nodes as read come back.
+    let alive = workspace.nodes.clone();
+    let back = |workspace: &mut Workspace, entry: &Entry| -> Result<(), Error> {
+        for swap in entry.swaps.iter().rev() {
+            swapped(workspace, swap.id, swap.after.as_ref(), swap.before.clone())?;
+        }
+        fits(workspace, limits)
+    };
+    let forth = |workspace: &mut Workspace, entry: &Entry| -> Result<(), Error> {
+        for swap in &entry.swaps {
+            swapped(workspace, swap.id, swap.before.as_ref(), swap.after.clone())?;
+        }
+        fits(workspace, limits)
+    };
+    let done = (|| {
+        for entry in log[..workspace.at].iter().rev() {
+            back(workspace, entry)?;
+        }
+        for entry in &log {
+            forth(workspace, entry)?;
+        }
+        for entry in log[workspace.at..].iter().rev() {
+            back(workspace, entry)?;
+        }
+        Ok(())
+    })();
+    workspace.log = log;
+    workspace.nodes = alive;
+    done
+}
+
 /// Returns the error of a recipe whose input is of a kind it does not take.
 fn no_input(node: NodeId) -> Error {
     Error::NotApplicable {
@@ -552,6 +653,7 @@ fn verify(workspace: &mut Workspace) -> Result<(), Error> {
         let Some(record) = &workspace.records[at] else {
             continue;
         };
+        let foreign = record.foreign;
         let (suite, operation) = protocol::operation(record.key.operation)?;
         let texts: Vec<String> = record
             .key
@@ -563,7 +665,7 @@ fn verify(workspace: &mut Workspace) -> Result<(), Error> {
         let settings = super::settings_of(&record.key.settings)?;
         let output = record.output.map(|v| workspace.text(v).to_owned());
         let mut keep = true;
-        if operation.cost == Cost::Instant && !record.foreign {
+        if operation.cost == Cost::Instant && !foreign {
             let made = protocol::run(
                 operation.name,
                 &texts,
@@ -588,8 +690,10 @@ fn verify(workspace: &mut Workspace) -> Result<(), Error> {
                     };
                     suite.check(&call, output, &mut ask, &mut |_| false)?
                 }
+                // A held check is a claim until made again; a failed one
+                // keeps what follows from it held back.
                 Some(Cost::Search) => Check {
-                    status: if matches!(stored.status, Status::Held | Status::Failed) {
+                    status: if stored.status == Status::Held {
                         Status::Recorded
                     } else {
                         stored.status
@@ -601,8 +705,10 @@ fn verify(workspace: &mut Workspace) -> Result<(), Error> {
             _ => None,
         };
         if keep {
+            let made_again = operation.cost == Cost::Instant && !foreign;
             if let Some(Some(record)) = workspace.records.get_mut(at) {
                 record.check = check;
+                record.trusted = made_again;
             }
         } else {
             workspace.records[at] = None;

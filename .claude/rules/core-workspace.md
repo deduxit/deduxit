@@ -30,6 +30,12 @@ and redo, the bounds and the JSON form. The design is
   undo exact; a setting an operation reads and does not list would let
   a stale record show as current. A new operation lists its reads in its
   suite (`core-protocol.md`).
+- **A run the caller's stop ended is refused, never kept** (`compute`
+  watches the stop it passes on): the searches answer such a stop with
+  an unknown outcome and a limit named `stopped`, which a record would
+  keep under a key that holds no time, shown current for good. A bound
+  of the recipe's own (`limits.work`, `search.copies`) is in the key, so
+  its unknown outcome is kept.
 - **States are computed, never stored** (`state`): `Given`, `Current`
   (the record the node points at has the key the recipe gives now),
   `OutOfDate` with a `Cause` (an input changed, the recipe changed, the
@@ -38,7 +44,10 @@ and redo, the bounds and the JSON form. The design is
 - **`settle` after every change** (`edit`, `undo`, `redo`, `accept`,
   reading a file): each node that is not current is pointed at a record
   of its key where one is kept, never at a foreign one. It runs
-  nothing. This is how undo shows the earlier results without a run.
+  nothing. The moves `settle` makes after an edit are swaps of that
+  edit's entry (`settled`), so undo points those nodes back at what they
+  showed: a node that was out of date and is settled by the edit onto
+  another node's record would otherwise keep it after the undo.
 - **An edit is one entry of the log, whole or not at all**: `edit`
   records each node's before and after (`Swap`) as `Edit` changes it;
   an `f` that fails puts every node back and keeps no entry. A new edit
@@ -68,12 +77,32 @@ and redo, the bounds and the JSON form. The design is
   the limits; each record of an instant operation is run again and
   dropped where its output differs; each instant check is made again;
   a check that needs a search reads back as `Status::Recorded`, which
-  `workspace check` makes again. Running instant records again on reading
-  goes past the design, which made only their checks again. A record
-  written by another version of deduxit (`deduxit` in the form) is
-  foreign: kept, shown as out of date, never
-  settled to. A file can forge a search's output; only its check, made
-  again, tells.
+  `workspace check` makes again (`run` with `What::Check` makes again a
+  check that is `recorded`, `failed` or `open`, any of which a file can
+  claim; a failed one read back stays failed, holding back what follows
+  from it). Running instant records again on reading goes past the
+  design, which made only their checks again. A record written by
+  another version of deduxit is foreign: the document's `deduxit`, or the
+  record's own `foreign`, which the writer keeps, so a file written again
+  by this build does not make another build's records its own. A foreign
+  record is shown out of date, never settled to, and a run of its key
+  replaces it in place (`accept`).
+- **Only a trusted record answers a check's own runs** (`Record::trusted`,
+  `asked`): one this build made, or an instant one made again on
+  reading. A file can claim any output for a search; such a record is
+  the cache a node shows, never the verdict a check compares with.
+- **The log is replayed on reading** (`form.rs`, `replayed`): from the
+  nodes as read, every entry taken back to the first, brought back to
+  the last and taken back to the document's `at`, each swap checked to
+  name its own node below `next` and to stand where the node it
+  replaces stands (`placed`, which leaves out the record shown and a
+  session's state, which runs and steps change outside the log), each
+  state within the bound on nodes and with its inputs before it and of
+  kinds that fit (`fits`). Undo and redo then reach no state the reader
+  did not check; without it a file's log made undo panic or pass the
+  bound on nodes.
+- **`rebound` reaches the log's recipes too**, so undo and redo bring
+  back no recipe outside the caller's bounds.
 - **`pack`** keeps the nodes asked for and what they are made from, no
   record and no log: what a link of the web page holds.
 - **`compute` and `accept` are the run split in two**, for a front end

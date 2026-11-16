@@ -347,11 +347,15 @@ fn a_forged_record_is_dropped_on_reading() {
     workspace
         .run(&[translated], What::Output, &limits, |_| false)
         .unwrap();
-    let mut json: serde_json::Value = serde_json::to_value(&workspace).unwrap();
+    let json = serde_json::to_string(&workspace).unwrap();
+    let read = |json: &str| {
+        let mut document = serde_json::Deserializer::from_str(json);
+        wire::upgrade::<Workspace, _>(&mut document, &limits).unwrap()
+    };
+    assert_eq!(read(&json).state(translated), State::Current);
     // Point the record's output at the other given sequent's value.
-    json["records"][0]["output"] = serde_json::json!(1);
-    let read: Workspace = serde_json::from_value(json).unwrap();
-    assert_eq!(read.state(translated), State::NotRun);
+    let forged = edited(&json, r#""output":2"#, r#""output":1"#);
+    assert_eq!(read(&forged).state(translated), State::NotRun);
 }
 
 #[test]
@@ -532,4 +536,245 @@ fn a_link_holds_recipes_and_sessions_but_no_result() {
         State::Current,
         "a session is in the link"
     );
+}
+
+/// Returns a workspace of two classical sequents, each decided, and the
+/// numbers of the first sequent and of the two decisions.
+fn two_decided(limits: &Limits) -> (Workspace, NodeId, NodeId, NodeId) {
+    let settings = Settings::default();
+    let mut workspace = Workspace::new();
+    let (first, decided, other) = workspace
+        .edit("two", limits, |edit| {
+            let first = edit.add("ordinary.sequent", &classical("a |- a"))?;
+            let decided = edit.connect("ordinary.decide", &[first], "", &settings)?;
+            let second = edit.add("ordinary.sequent", &classical("a |- b"))?;
+            let other = edit.connect("ordinary.decide", &[second], "", &settings)?;
+            Ok((first, decided, other))
+        })
+        .unwrap();
+    workspace
+        .run(&[decided, other], What::Output, limits, |_| false)
+        .unwrap();
+    (workspace, first, decided, other)
+}
+
+/// Returns the document with its first `from` replaced by `to`: an edit of
+/// the text, since a round trip through `serde_json::Value` reorders a
+/// value's keys, which makes it another value.
+fn edited(json: &str, from: &str, to: &str) -> String {
+    assert!(json.contains(from), "{from} is not in {json}");
+    json.replacen(from, to, 1)
+}
+
+/// Reads a document within `limits`.
+fn read(json: &str, limits: &Limits) -> Result<Workspace, Error> {
+    let mut document = serde_json::Deserializer::from_str(json);
+    wire::upgrade(&mut document, limits)
+}
+
+#[test]
+fn a_run_the_caller_stopped_is_refused_and_kept_nowhere() {
+    let limits = Limits::default();
+    let settings = Settings::default();
+    let statement = protocol::statement(
+        "linear",
+        "!(A -o A * A), !(A -o B), !(B * B -o C), A |- C * ?D",
+        "classical",
+        &limits,
+    )
+    .unwrap();
+    let mut workspace = Workspace::new();
+    let proved = workspace
+        .edit("prove", &limits, |edit| {
+            let given = edit.add("linear.sequent", &statement)?;
+            edit.connect("linear.prove", &[given], "", &settings)
+        })
+        .unwrap();
+    let error = workspace
+        .run(&[proved], What::Output, &limits, |_| true)
+        .unwrap_err();
+    assert_eq!(error.code(), "stopped");
+    assert_eq!(workspace.state(proved), State::NotRun);
+    assert!(workspace.value(proved).is_none());
+}
+
+#[test]
+fn another_build_s_record_stays_out_of_date_until_run_again() {
+    let limits = Limits::default();
+    let (workspace, _, decided, _) = two_decided(&limits);
+    let json = edited(
+        &serde_json::to_string(&workspace).unwrap(),
+        concat!(r#""deduxit":""#, env!("CARGO_PKG_VERSION")),
+        r#""deduxit":"0.0.1"#,
+    );
+    let mut read_back = read(&json, &limits).unwrap();
+    assert_eq!(read_back.state(decided), State::OutOfDate(Cause::Version));
+    // Written again by this build, the record is still another build's.
+    read_back
+        .edit("add", &limits, |edit| {
+            edit.add("ordinary.sequent", &classical("b |- b"))
+        })
+        .unwrap();
+    let again = read(&serde_json::to_string(&read_back).unwrap(), &limits).unwrap();
+    assert_eq!(again.state(decided), State::OutOfDate(Cause::Version));
+    // A run replaces it.
+    read_back
+        .run(&[decided], What::Output, &limits, |_| false)
+        .unwrap();
+    assert_eq!(read_back.state(decided), State::Current);
+    current_is_fresh(&read_back);
+}
+
+#[test]
+fn undo_shows_again_what_a_stale_node_showed() {
+    let limits = Limits::default();
+    let (mut workspace, first, _, _) = two_decided(&limits);
+    workspace
+        .edit("sequent change", &limits, |edit| {
+            edit.set(first, &classical("|- c \\/ d"))
+        })
+        .unwrap();
+    let before = seen(&workspace);
+    // The new value has a record kept: the other decision's.
+    workspace
+        .edit("sequent change", &limits, |edit| {
+            edit.set(first, &classical("a |- b"))
+        })
+        .unwrap();
+    workspace.undo().unwrap();
+    assert_eq!(seen(&workspace), before);
+}
+
+#[test]
+fn a_check_answers_only_from_this_build_s_runs() {
+    let limits = Limits::default();
+    let settings = Settings::default();
+    let (mut workspace, _, decided, _) = two_decided(&limits);
+    let input = workspace
+        .nodes()
+        .find(|node| node.id == decided)
+        .map(|node| node.from[0])
+        .unwrap();
+    let text = workspace.value(input).unwrap().to_owned();
+    assert!(
+        workspace
+            .asked("ordinary.decide", &[&text], "", &settings)
+            .is_some()
+    );
+    for record in workspace.records.iter_mut().flatten() {
+        record.trusted = false;
+    }
+    assert!(
+        workspace
+            .asked("ordinary.decide", &[&text], "", &settings)
+            .is_none()
+    );
+}
+
+#[test]
+fn a_recorded_check_is_made_again_and_a_failed_one_stays() {
+    let limits = Limits::default();
+    let settings = Settings::default();
+    let mut workspace = Workspace::new();
+    let translated = workspace
+        .edit("translation", &limits, |edit| {
+            let given = edit.add("ordinary.sequent", &classical("|- a \\/ ~a"))?;
+            edit.connect(
+                "ordinary.translate",
+                &[given],
+                r#"{"translation": "glivenko"}"#,
+                &settings,
+            )
+        })
+        .unwrap();
+    workspace
+        .run(&[translated], What::Check, &limits, |_| false)
+        .unwrap();
+    let json = serde_json::to_string(&workspace).unwrap();
+    let mut read_back = read(&json, &limits).unwrap();
+    let status = |workspace: &Workspace| {
+        workspace
+            .nodes()
+            .find(|node| node.id == translated)
+            .and_then(|node| node.check.map(|check| check.status))
+    };
+    assert_eq!(status(&read_back), Some(Status::Recorded));
+    read_back
+        .run(&[translated], What::Check, &limits, |_| false)
+        .unwrap();
+    assert_eq!(status(&read_back), Some(Status::Held));
+    let failed = edited(
+        &json,
+        r#""promise":"same_verdict","status":"held""#,
+        r#""promise":"same_verdict","status":"failed""#,
+    );
+    let mut read_back = read(&failed, &limits).unwrap();
+    assert_eq!(status(&read_back), Some(Status::Failed));
+    // A failed check a file claims is made again too.
+    read_back
+        .run(&[translated], What::Check, &limits, |_| false)
+        .unwrap();
+    assert_eq!(status(&read_back), Some(Status::Held));
+}
+
+#[test]
+fn a_log_that_does_not_fit_its_nodes_is_refused_on_reading() {
+    let limits = Limits::default();
+    let (workspace, _, _, _) = two_decided(&limits);
+    let json = serde_json::to_value(&workspace).unwrap();
+    // A change that names another node than its own.
+    let mut other = json.clone();
+    other["log"]["entries"][0]["swaps"][0]["id"] = serde_json::json!(3);
+    assert_eq!(
+        read(&other.to_string(), &limits).unwrap_err().code(),
+        "json"
+    );
+    // A change whose node is not the one standing there.
+    let mut moved = json.clone();
+    moved["log"]["entries"][0]["swaps"][0]["after"]["value"] = serde_json::json!(1);
+    assert_eq!(
+        read(&moved.to_string(), &limits).unwrap_err().code(),
+        "json"
+    );
+    // A log whose undo would pass the bound on nodes.
+    let given =
+        |id: u32| serde_json::json!({"id": id, "before": {"id": id, "value": 0}, "after": null});
+    let many = serde_json::json!({
+        "version": 19, "deduxit": env!("CARGO_PKG_VERSION"), "next": 3,
+        "values": [{"kind": "ordinary.sequent", "value": serde_json::from_str::<serde_json::Value>(&classical("a |- a")).unwrap()}],
+        "nodes": [],
+        "log": {"at": 1, "entries": [{"name": "removal", "swaps": [given(0), given(1), given(2)]}]},
+    });
+    let two = Limits::default().with_workspace(WorkspaceLimits::UNBOUNDED.with_nodes(Some(2)));
+    assert_eq!(
+        read(&many.to_string(), &two).unwrap_err().code(),
+        "workspace_limit"
+    );
+    assert!(read(&many.to_string(), &limits).is_ok());
+    // A `next` far past the nodes costs nothing.
+    let mut far = many;
+    far["next"] = serde_json::json!(u32::MAX);
+    assert!(read(&far.to_string(), &limits).is_ok());
+}
+
+#[test]
+fn rebound_reaches_the_recipes_undo_brings_back() {
+    let limits = Limits::default();
+    let (mut workspace, _, decided, _) = two_decided(&limits);
+    workspace
+        .edit("limits change", &limits, |edit| {
+            edit.set_settings(
+                decided,
+                &Settings::default().with_limits(Limits::default().with_work(Some(200))),
+            )
+        })
+        .unwrap();
+    workspace.rebound(&Limits::default().with_work(Some(7)));
+    workspace.undo().unwrap();
+    let settings = workspace
+        .nodes()
+        .find(|node| node.id == decided)
+        .and_then(|node| node.settings.map(str::to_owned))
+        .unwrap();
+    assert!(settings.contains(r#""limits.work":7"#), "{settings}");
 }
