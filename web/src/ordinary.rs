@@ -18,6 +18,7 @@ use deduxit::ordinary::interpolant::{self, Partition};
 use deduxit::ordinary::negative;
 use deduxit::ordinary::{
     self, Applicable, Context, Interactive, Logic, Method, Needs, NodeId, Rule, Sequent, Side, Step,
+    WrittenTableau,
 };
 use deduxit::{Progress, Settings, linear::GoalId, wire};
 use serde::{Deserialize, Serialize};
@@ -532,6 +533,36 @@ pub fn table(sequent: &str, settings: &str) -> Result<String, Failure> {
 /// settings.
 pub fn tableau(sequent: &str, settings: &str) -> Result<String, Failure> {
     decided(sequent, Method::Tableau, settings)
+}
+
+/// Reviews a signed tableau of classical logic written by hand, as text,
+/// step by step against the built-in rule file `tableau` and, where
+/// `sequent` is not `""`, against that sequent (text or JSON); answers the
+/// review: `{"version": 14, "standing", "sequent", "text_line", "line",
+/// "message", "countermodel"}`, `standing` being `closed`, `open`,
+/// `unfinished` or `wrong`, `text_line` the line of the text (from 1) that
+/// `message` is about, `line` the tableau's own number for it, and
+/// `countermodel` the checked model of an open tableau.
+///
+/// # Errors
+///
+/// A text that is no tableau, a failure of code `parse` placed in the
+/// text with a hint; a sequent that cannot be read; the settings' bounds.
+pub fn tableau_review(text: &str, sequent: &str, settings: &str) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let tableau = WrittenTableau::parse_within(text, &settings.limits).map_err(Failure::from)?;
+    let expected = if sequent.trim().is_empty() {
+        None
+    } else {
+        Some(sequent_of(sequent, &settings)?)
+    };
+    let mut json = serde_json::Deserializer::from_str(deduxit::rules::TABLEAU);
+    let calculus: deduxit::rules::Calculus =
+        wire::upgrade(&mut json, &settings.limits).map_err(Failure::from)?;
+    let review = tableau
+        .review(&calculus, expected.as_ref(), &settings.limits, never)
+        .map_err(Failure::from)?;
+    written(&review)
 }
 
 /// Translates a sequent of classical logic by a negative translation,

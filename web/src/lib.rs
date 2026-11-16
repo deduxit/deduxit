@@ -369,6 +369,16 @@ mod exports {
         ordinary::tableau(sequent, settings).map_err(thrown)
     }
 
+    /// See [`ordinary::tableau_review`]: `sequent` `""` for none.
+    #[wasm_bindgen]
+    pub fn ordinary_tableau_review(
+        text: &str,
+        sequent: &str,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        ordinary::tableau_review(text, sequent, settings).map_err(thrown)
+    }
+
     /// See [`ordinary::translate`].
     #[wasm_bindgen]
     pub fn ordinary_translate(

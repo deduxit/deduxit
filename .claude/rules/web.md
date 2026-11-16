@@ -278,7 +278,14 @@ for `THIRD-PARTY-NOTICES.txt`.
   named, classical logic), which 56b's page draws; `about` lists them
   under the ordinary suite's `methods` (`method`, `call`, `logics`) and
   `limits.table_atoms` among its settings. "Every world" is
-  `Forcing::failing_anywhere`, linear. `tests/ordinary.rs` holds their tests.
+  `Forcing::failing_anywhere`, linear. `ordinary_tableau_review(text,
+  sequent, settings)` reviews a tableau written by hand
+  (`ordinary::WrittenTableau`, the built-in rule file `tableau` read per
+  call), `sequent` `""` for none, answering the library's review (level
+  14, written only); a text that is no tableau is the library's parse
+  error, its place in the text (`details.line`, `span_utf16`) for the
+  page's editor; `describe` lists it among the ordinary suite's extras.
+  `tests/ordinary.rs` holds their tests.
 - **A tab in a calculus given as data** has `rules.rs`'s calls,
   exported as `rules_calculus`, `rules_read`, `rules_start`,
   `rules_view`, `rules_rules`, `rules_apply`, `rules_derive`,

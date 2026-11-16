@@ -223,6 +223,11 @@ pub const SUITES: [Speaks; 4] = [
                 does: "decides a classical sequent by a signed tableau",
             },
             Extra {
+                export: "ordinary_tableau_review",
+                takes: &["text", "sequent", "settings"],
+                does: "reviews a classical tableau written by hand, step by step",
+            },
+            Extra {
                 export: "ordinary_translate",
                 takes: &["sequent", "options", "settings"],
                 does: "translates a classical sequent negatively and compares the verdicts",
