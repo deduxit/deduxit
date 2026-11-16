@@ -7504,3 +7504,17 @@ move (D26).
     them), the seventh (an empty sequent's tableau) left with its reason. Departures marked: no
     modal tableau (a second matcher for the labelled calculus, later); signed tableaux only.
     Gate and `nix flake check` passed.
+- 2026-11-16, 22:30: **68c reviewed; its client chain waits for its lock and check.**
+  - **68c** (the client `qrkyzmsr`, `nnvupxxs`, `ozppvoup`, `vqzymsrw`; deduxit's report
+    `monroqnz`): course packs (a teacher's Export, "Course pack": a title, the problems, whether
+    the search may close goals and give hints, the pack's code, the link, the embed code, a
+    printed handout); a student's pack bar with its limits held on every route; a hand-in as a link
+    or a file, nothing sent; a check view that reads every answer again with deduxit and trusts
+    nothing (29 forged answers refused by the reviewer); the embed (`&e=1`); print; and "Check a
+    tableau", the editor over 68a's review. fresh-reviewer (Fable) seven findings, all fixed
+    (two high: a barred problem showing deduxit's table, and "Prove it step by step" lifting a
+    pack's limits). Departures marked: packs hold linear, ordinary and modal problems (rules
+    sessions not yet read by the check view); a tableau to write is not yet a pack's problem;
+    the limits are on the pack's tabs.
+  - **For the author:** with "Apply invertible rules by themselves" on, a pack that bars the
+    search can be finished with no step of the student's: is that allowed under "by hand"?
