@@ -457,7 +457,7 @@ const fn is_zero(scope: &u32) -> bool {
 
 /// The serialized form of a derivation.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-struct DerivationForm {
+pub(crate) struct DerivationForm {
     /// The wire level, written only at the top of a document.
     #[serde(
         default,
@@ -569,7 +569,7 @@ impl DerivationForm {
     /// Returns the derivation the form holds, its terms within
     /// `limits.occurrences`. Every index is checked; whether it is a
     /// derivation of its calculus is for [`Derivation::check`] to say.
-    fn within(self, limits: &Limits) -> Result<Derivation, Error> {
+    pub(crate) fn within(self, limits: &Limits) -> Result<Derivation, Error> {
         let zones = self.nodes.first().map_or(0, |node| node.sequent.len());
         let mut derivation = Derivation::new(&self.calculus, zones);
         // Equal terms of the document are one term of the arena.

@@ -1573,14 +1573,23 @@ occurrences by id, and `describe(&forest)` names them by formula.
 
 ### Modal logic
 
-`deduxit::modal` holds formulas and systems; nothing decides a modal
-sequent yet. `"[]p -> [][]p".parse::<modal::Sequent>()` reads the
+`deduxit::modal` decides propositional modal logic in the library
+(the command does not offer it yet).
+`"[]p -> [][]p".parse::<modal::Sequent>()` reads the
 syntax of ordinary logic with the prefixes `[]` or `□` and `<>` or `◇`.
 `modal::System` is one of the fifteen normal systems from K to S5
 (`System::S4`, or `"KD45".parse()`); `system.has(Condition::Transitive)`
-asks for a condition its frames meet. Both have JSON forms: a sequent
-as an ordinary sequent with the formulas `{"□": a}` and `{"◇": a}`, a
-system as its name.
+asks for a condition its frames meet. `modal::decide(&sequent,
+&modal::Options::default().with_system(System::S4))` answers
+`Verdict::Valid(Evidence::Derivation(_))`, a `rules::Derivation` in the
+system's labelled calculus (`modal::calculus(system, &limits)`) that the
+checker accepted, or `Verdict::NotValid` with `outcome.countermodel`, a
+checked `kripke::Model` whose arrows are the accessibility relation
+itself. `model.truth(&sequent, system, &limits, stop)` checks a model
+you give (the first failing frame condition is `model.frame_fault`).
+JSON forms: a sequent as an ordinary sequent with the formulas
+`{"□": a}` and `{"◇": a}`, a system as its name, an outcome as
+`{"verdict", "system", "sequent", "derivation" | "countermodel", …}`.
 
 ### A calculus given as data
 

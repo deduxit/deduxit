@@ -341,8 +341,12 @@ in use.
   (`deduxit::modal`): the syntax of ordinary logic with `[]` or `□`
   and `<>` or `◇`, and a JSON form. It names the fifteen normal systems
   from K to S5, each by the conditions its frames meet (serial,
-  reflexive, symmetric, transitive, euclidean). Nothing decides a
-  modal sequent yet.
+  reflexive, symmetric, transitive, euclidean). It decides a modal
+  sequent in any of them: a valid one with a derivation in the system's
+  labelled sequent calculus, which the checker of calculi given as data
+  accepts, one that is not valid with a checked Kripke countermodel. It
+  checks a Kripke model you give against a sequent and a system. The
+  command and the web page do not offer modal logic yet.
 - `check` checks a derivation in a calculus you give as data
   ([Check a derivation in your own rules](rules.md)): a rule file in
   JSON declares the connectives, the zones of a sequent (each a set, a

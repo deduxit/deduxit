@@ -11,8 +11,17 @@
 //! them. A sequent is valid in a [`System`] when it holds at every world
 //! of every model whose frame meets the system's [`Condition`]s.
 //!
-//! This module holds the formulas, the sequents and the systems. It reads
-//! and writes them as text and as JSON.
+//! [`decide()`] says whether a sequent is valid in a system. A valid
+//! sequent comes with a derivation in the system's labelled sequent
+//! calculus ([`calculus()`]), which the checker of calculi given as data
+//! ([`rules`](crate::rules)) accepted; a sequent that is not valid comes
+//! with a Kripke model that refutes it, which [`Model::truth`] accepted.
+//! [`Model::truth`] and [`Model::frame_fault`] also check a model you
+//! give. Deciding needs the cargo feature `serialize`, as calculi given
+//! as data do.
+//!
+//! [`Model::truth`]: crate::kripke::Model::truth
+//! [`Model::frame_fault`]: crate::kripke::Model::frame_fault
 //!
 #![cfg_attr(feature = "parse", doc = "```")]
 #![cfg_attr(not(feature = "parse"), doc = "```ignore")]
@@ -29,10 +38,28 @@
 // existing one.
 #![deny(clippy::wildcard_enum_match_arm)]
 
+/// The labelled calculus of each system, as a calculus given as data.
+#[cfg(feature = "serialize")]
+mod calculus;
+/// Deciding a sequent in a system.
+#[cfg(feature = "serialize")]
+mod decide;
+/// The check of a Kripke model against a sequent and a system.
+mod model;
 #[cfg(feature = "parse")]
 mod parse;
+/// The labelled tableau that decides a sequent.
+#[cfg(feature = "serialize")]
+mod search;
+#[cfg(all(test, feature = "parse", feature = "serialize"))]
+mod search_tests;
 mod system;
 
+#[cfg(feature = "serialize")]
+pub use calculus::calculus;
+#[cfg(feature = "serialize")]
+pub use decide::{Evidence, Options, Outcome, Statistics, Verdict, decide, decide_within};
+pub use model::{CHECKED, Countermodel, Frame, Truth};
 pub use system::{Condition, System};
 
 use crate::Error;

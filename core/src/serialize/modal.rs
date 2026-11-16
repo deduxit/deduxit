@@ -1,9 +1,15 @@
 // deduxit © Fabian Lukas Grubmüller 2026
 // Licensed under the EUPL
 
+use super::kripke::ModelForm;
+use super::rules::DerivationForm;
+use super::search::Why;
 use crate::Error;
 use crate::limits::{Limits, Refusal, Space};
-use crate::modal::{Formulas, Node, NodeId, Sequent, System, bound};
+use crate::modal::{
+    Countermodel, Evidence, Formulas, Node, NodeId, Outcome, Sequent, Statistics, System, Verdict,
+    bound,
+};
 use crate::wire::{self, Readable};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -229,6 +235,149 @@ impl Readable for Sequent {
     }
 }
 
+/// The verdict of a modal outcome, as written.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum VerdictWord {
+    /// `valid`.
+    Valid,
+    /// `not_valid`.
+    NotValid,
+    /// `unknown`.
+    Unknown,
+}
+
+/// A countermodel as an outcome holds it: the model alone, since the
+/// outcome holds the sequent and the system.
+#[derive(Serialize, Deserialize)]
+struct CountermodelForm {
+    /// The model.
+    model: ModelForm,
+}
+
+/// The serialized form of the outcome of deciding a modal sequent.
+#[derive(Serialize, Deserialize)]
+struct OutcomeForm {
+    /// The wire level, written only at the top of a document.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "wire::version"
+    )]
+    version: Option<u32>,
+    /// The crate's version, which wrote the outcome; not read.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    deduxit: Option<String>,
+    /// `valid`, `not_valid` or `unknown`.
+    verdict: VerdictWord,
+    /// Why the search could not decide.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reason: Option<Why>,
+    /// The system decided in.
+    system: System,
+    /// What the search counted.
+    #[serde(default)]
+    statistics: Statistics,
+    /// The sequent decided.
+    sequent: SequentForm,
+    /// The derivation, for `valid`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    derivation: Option<DerivationForm>,
+    /// The countermodel, for `not_valid` where there is one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    countermodel: Option<CountermodelForm>,
+}
+
+impl Serialize for Outcome {
+    /// Serializes the outcome as a document at the level of the modal
+    /// forms.
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let (verdict, reason, derivation) = match &self.verdict {
+            Verdict::Valid(Evidence::Derivation(derivation)) => (
+                VerdictWord::Valid,
+                None,
+                Some(DerivationForm::from(&**derivation)),
+            ),
+            Verdict::NotValid => (VerdictWord::NotValid, None, None),
+            Verdict::Unknown(reason) => (VerdictWord::Unknown, Some(Why::from(*reason)), None),
+        };
+        OutcomeForm {
+            version: Some(wire::MODAL),
+            deduxit: Some(env!("CARGO_PKG_VERSION").to_owned()),
+            verdict,
+            reason,
+            system: self.system,
+            statistics: self.statistics,
+            sequent: SequentForm::of(&self.sequent),
+            derivation,
+            countermodel: self.countermodel.as_ref().map(|c| CountermodelForm {
+                model: ModelForm::from(&c.model),
+            }),
+        }
+        .serialize(serializer)
+    }
+}
+
+impl<'a> Deserialize<'a> for Outcome {
+    /// Deserializes an outcome within the default limits, as
+    /// [`wire::upgrade`] does.
+    fn deserialize<D: Deserializer<'a>>(deserializer: D) -> Result<Self, D::Error> {
+        Self::read(deserializer, &Limits::default())
+    }
+}
+
+impl crate::sealed::Readable for Outcome {}
+
+impl Readable for Outcome {
+    const FORM: &'static str = "modal outcome";
+
+    /// Reads an outcome: its sequent, derivation and model by their
+    /// readers, unchecked; a verdict without the evidence it needs, or
+    /// with evidence of another verdict, is refused.
+    fn read<'de, D: Deserializer<'de>>(deserializer: D, limits: &Limits) -> Result<Self, D::Error> {
+        let form = OutcomeForm::deserialize(deserializer)?;
+        outcome(form, limits).map_err(wire::fail)
+    }
+}
+
+/// Returns the outcome a form holds, within the limits.
+fn outcome(form: OutcomeForm, limits: &Limits) -> Result<Outcome, Error> {
+    let shape = |message: &str| Error::Json {
+        form: "modal outcome",
+        message: message.to_owned(),
+    };
+    let sequent = form.sequent.within(limits)?;
+    let verdict = match (form.verdict, form.reason, form.derivation) {
+        (VerdictWord::Valid, None, Some(derivation)) => {
+            Verdict::Valid(Evidence::Derivation(Box::new(derivation.within(limits)?)))
+        }
+        (VerdictWord::Valid, ..) => return Err(shape("a valid outcome holds its derivation alone")),
+        (VerdictWord::NotValid, None, None) => Verdict::NotValid,
+        (VerdictWord::Unknown, Some(reason), None) => Verdict::Unknown(reason.into()),
+        (VerdictWord::NotValid | VerdictWord::Unknown, ..) => {
+            return Err(shape("an outcome holds a reason for unknown only, a derivation for valid only"));
+        }
+    };
+    let countermodel = match form.countermodel {
+        None => None,
+        Some(_) if !matches!(verdict, Verdict::NotValid) => {
+            return Err(shape("only a not_valid outcome holds a countermodel"));
+        }
+        Some(c) => Some(Countermodel::new(
+            sequent.clone(),
+            form.system,
+            c.model.within(limits)?,
+        )),
+    };
+    Ok(Outcome {
+        verdict,
+        sequent,
+        system: form.system,
+        countermodel,
+        statistics: form.statistics,
+    })
+}
+
 #[cfg(all(test, feature = "parse"))]
 mod tests {
     use super::*;
@@ -298,6 +447,52 @@ mod tests {
             read(&json, &bound(5)),
             Err(Error::Refused(Refusal::Occurrences { .. }))
         ));
+    }
+
+    /// Every verdict's outcome reads back as the same bytes, its
+    /// evidence still passing its check; a verdict without its evidence,
+    /// or with another's, is refused.
+    #[test]
+    fn an_outcome_reads_back() {
+        use crate::modal::{Options, calculus, decide_within};
+        let limits = Limits::default();
+        let read = |json: &str| -> Result<Outcome, Error> {
+            wire::upgrade(&mut serde_json::Deserializer::from_str(json), &limits)
+        };
+        let s4 = Options::default().with_system(System::S4);
+        for (text, options, work) in [
+            ("[]p -> [][]p", s4, None),
+            ("[]p -> [][]p", Options::default(), None),
+            ("[]p -> [][]p", s4, Some(2)),
+        ] {
+            let sequent: Sequent = text.parse().unwrap();
+            let bounded = limits.with_work(work);
+            let outcome = decide_within(&sequent, &options, &bounded, |_| false).unwrap();
+            let json = serde_json::to_string(&outcome).unwrap();
+            assert!(json.starts_with(&format!(r#"{{"version":{},"deduxit":"#, wire::MODAL)));
+            let back = read(&json).unwrap();
+            assert_eq!(serde_json::to_string(&back).unwrap(), json);
+            match &back.verdict {
+                Verdict::Valid(Evidence::Derivation(d)) => {
+                    let calculus = calculus(back.system, &limits).unwrap();
+                    assert!(d.check(&calculus, &limits, |_| false).is_ok());
+                }
+                Verdict::NotValid => {
+                    let model = back.countermodel.as_ref().unwrap();
+                    assert!(model.check(&limits, |_| false).is_ok());
+                }
+                Verdict::Unknown(_) => assert!(json.contains(r#""reason":{"kind":"work_limit""#)),
+            }
+        }
+        let valid = serde_json::to_string(
+            &decide_within(&"[]p -> [][]p".parse().unwrap(), &s4, &limits, |_| false).unwrap(),
+        )
+        .unwrap();
+        let bare = valid.replace(r#""verdict":"valid""#, r#""verdict":"not_valid""#);
+        assert!(matches!(read(&bare), Err(Error::Json { .. })));
+        let start = valid.find(r#","derivation""#).unwrap();
+        let without = format!("{}}}", &valid[..start]);
+        assert!(matches!(read(&without), Err(Error::Json { .. })));
     }
 
     /// A system is written as its name and read from any of its names.

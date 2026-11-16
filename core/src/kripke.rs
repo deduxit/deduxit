@@ -11,6 +11,11 @@
 //! along them. A model of one world is an assignment of classical logic:
 //! the atoms it forces are true, the others false.
 //!
+//! Modal logic checks it with [`Model::frame_fault`] and [`Model::truth`],
+//! against a `modal::Sequent` in a `modal::System`: there each world's
+//! arrows are the worlds it sees, nothing added, and the relation must
+//! meet the system's frame conditions.
+//!
 //! # JSON
 //!
 //! With the cargo feature `serialize` a model is written and read as

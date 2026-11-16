@@ -61,8 +61,9 @@
 //! - Translate a classical sequent into intuitionistic or minimal logic,
 //!   or find a Craig interpolant, each checked: `ordinary::negative` and
 //!   `ordinary::interpolant`.
-//! - Read and write formulas of modal logic and name the systems from K
-//!   to S5: [`modal`].
+//! - Decide propositional modal logic in the systems from K to S5, with a
+//!   derivation in a labelled calculus or a checked Kripke countermodel:
+//!   [`modal`].
 //! - Read a proof as a lambda-term: [`lambda`].
 //! - Check, build and draw a derivation in a calculus you give as a rule
 //!   file, natural deduction among the built-in ones, as a tree or as a

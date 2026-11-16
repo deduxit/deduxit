@@ -150,7 +150,11 @@ Each entry point is described in the file of its module:
   `Tableau::of` (`core-ordinary.md`);
 - `modal`: `"…".parse::<modal::Sequent>()`, `Sequent::parse_within`,
   `System` (the fifteen constants, `with`, `has`, `extends`, `FromStr`)
-  and `Condition` (`core-modal.md`);
+  and `Condition`; `modal::decide(&sequent, &Options)` and
+  `decide_within(…, &limits, stop)` to an `Outcome` (`Verdict::Valid`
+  with a `rules::Derivation` in `modal::calculus(system, &limits)`,
+  `NotValid` with a checked `modal::Countermodel`), and
+  `Model::frame_fault`, `Model::truth` (`core-modal.md`);
 - `rules`: `wire::upgrade::<rules::Calculus, _>` (a rule file; `rules::LK`,
   `LJ`, `LM`, `LL`, `TABLEAU` and natural deduction's `NJ`, `NK`, `NM`
   and variants are built in, `rules::SCHEMA` their JSON Schema),
@@ -349,7 +353,7 @@ the commit that lands it rewrites that bullet.
   its type and would change with a new value.
 - **The marked ones** (every public enum and every struct with a public
   field, each `#[non_exhaustive]`, and `workspace::Computed`, marked
-  though its fields are private: 187 after step 65a's one, 186 at
+  though its fields are private: 194 after step 65's eight, 186 at
   0.5.0, 146 at 0.4.0, 119 at 0.2.0 and 81 at 0.1.0; the closed are the
   nineteen above, eighteen at 0.5.0, seventeen at 0.4.0, fifteen at
   0.2.0 and thirteen at 0.1.0; both lists checked against
@@ -384,7 +388,9 @@ the commit that lands it rewrites that bullet.
   Parameter, Part, Produced, Promise, Role, Status, Verdict}` (added at
   step 63a); `workspace::{Cause, Computed, End, NodeView, Ran, State,
   What}` and `limits::{Held, WorkspaceLimits}` (added at step 63g-b);
-  `modal::Condition` (added at step 65a);
+  `modal::Condition` (added at step 65a); `modal::{Countermodel,
+  Evidence, Frame, Options, Outcome, Statistics, Verdict}` (added at
+  step 65b);
   `rules::{Associativity, Discipline, Fixity, Node, Term}` (added at
   step 60), `rules::FitchOptions` (added at step 62),
   `rules::{Applicable, Apply, Derive, Undone}` (added at steps 61 and

@@ -20,8 +20,18 @@ second number (0.1.x to 0.2.0), anything else the third.
   held as the conditions its frames meet (`modal::Condition`: serial,
   reflexive, symmetric, transitive, euclidean), so
   `System::T.with(Condition::Euclidean)` is `System::S5`; it reads the
-  usual names (`S4`, `KT4`, `KD45`). Nothing decides a modal sequent
-  yet. A sequent with `□` or `◇` is written at wire level 20.
+  usual names (`S4`, `KT4`, `KD45`). A sequent with `□` or `◇` is
+  written at wire level 20.
+- **Modal sequents decided in all fifteen systems** (the library,
+  `modal::decide`): a valid sequent comes with a derivation in the
+  system's labelled sequent calculus (`modal::calculus`, Negri's G3K
+  with the frame rules of the system, as a calculus given as data),
+  which the checker of `deduxit::rules` accepted; a sequent that is not
+  valid comes with a Kripke model whose relation meets the system's
+  frame conditions and that refutes it, both checked. `Model::truth`
+  and `Model::frame_fault` check a model you give against a modal
+  sequent and a system, naming the frame condition that fails and the
+  worlds that show it. The outcome has a JSON form at level 20.
 
 ## [0.5.0] - 2026-11-16
 
