@@ -320,7 +320,24 @@ design, with the reasons and the alternatives weighed, is
   twice is one node and two drawn inferences, and `Drawing::nodes`
   gives each inference's node. In the Fitch proof the hypotheses of one
   scope with equal sequents are one line (a hypothesis is a node per
-  use: per citation in a session, per leaf in 62a's translation).
+  use: per citation in a session, per leaf in 62a's translation). A
+  session's Fitch proof takes `Interactive::fitch_derivation`, which
+  adds every hypothesis its scopes offer as a node, cited or not, a
+  scope's just before its first node or, where no node lies in it,
+  before the rule that discharges it: `derivation` has a hypothesis only
+  where a step uses it, so a subproof whose hypothesis no step cited yet
+  (or never, a vacuous discharge) opened with another line, which read as
+  its assumption (found on the page, 62d). All of them first instead
+  sorted every subproof ahead of the lines derived before it (the
+  review of 62d), since the order ties by the derivation's. It also
+  maps each session line to the node showing it, an equal hypothesis to
+  the scope's first. A conclusion that is a hypothesis (a goal closed by
+  one) stands with the hypotheses, not held back last (`a ⊢ a` and a
+  subproof with a line beside its hypothesis were refused before). A derivation read from a file has no such record: its
+  vacuous discharge still has no hypothesis line. A rule whose premise
+  lies outside the subproof it discharges (the goal closed by an outer
+  hypothesis) cites that line, `→I 1`; a Fitch proof would add a
+  reiteration line, which the module does not write.
 - **A session's JSON** (wire level 17, `wire::SESSION`, 18 with a derived line; reader
   `Interactive::from_parts`) checks the tree, each scope owned by one
   rule node whose discharging premise was opened in it, inside that

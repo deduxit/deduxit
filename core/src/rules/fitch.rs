@@ -254,7 +254,8 @@ impl<'a> Fitch<'a> {
             work: 0,
             limit: limits.work,
         };
-        let root_index = root.id().index() as u32;
+        // The root as the line that shows it: a hypothesis may be merged.
+        let root_index = shown[root.id().index()];
         if scope(root_index) != 0 {
             return Err(refused(
                 "the last node lies inside a subproof, not in the main proof".to_owned(),
@@ -345,11 +346,15 @@ impl<'a> Fitch<'a> {
             if list.is_empty() {
                 continue;
             }
+            // A conclusion that is one of the hypotheses stands first among
+            // them: a Fitch proof would repeat it last, which this one does
+            // not write, and the citation of the whole subproof holds it.
             let last = if level == 0 {
                 Some(Unit::Node(root_index))
             } else {
                 concludes[level].map(Unit::Node)
-            };
+            }
+            .filter(|&part| !hypothesis(part));
             let mut ready: BinaryHeap<Reverse<(bool, u32, Unit)>> = BinaryHeap::new();
             for &part in list {
                 if owed.get(&part).copied().unwrap_or(0) == 0 && Some(part) != last {

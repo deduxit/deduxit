@@ -961,6 +961,90 @@ fn a_session_discharges_by_scope() {
     ));
 }
 
+/// A session's Fitch proof opens each subproof with its hypotheses,
+/// one no step cited (a vacuous discharge, or a goal still open) too.
+#[cfg(feature = "interactive")]
+#[test]
+fn a_sessions_fitch_proof_shows_every_hypothesis() {
+    use deduxit::rules::{Apply, Fitch, FitchOptions, Interactive};
+    let limits = Limits::default();
+    let nj = calculus(deduxit::rules::NJ).unwrap();
+    let mut session = Interactive::within(nj.clone(), "a -> (b -> a)", &[], &limits).unwrap();
+    let inner = session
+        .apply(session.goals()[0], &Apply::new("→I"))
+        .unwrap();
+    let last = session.apply(inner[0], &Apply::new("→I")).unwrap();
+    let fitch = |session: &Interactive| {
+        let (derivation, _) = session.fitch_derivation().unwrap();
+        Fitch::new(&nj, &derivation, &FitchOptions::default(), &limits)
+            .unwrap()
+            .to_string()
+    };
+    // Open: both hypotheses stand before the goal a, the session's lines
+    // 1 and 2 its first two.
+    let open = fitch(&session);
+    let (derivation, lines) = session.fitch_derivation().unwrap();
+    let drawn = Fitch::new(&nj, &derivation, &FitchOptions::default(), &limits).unwrap();
+    assert_eq!(drawn.nodes().take(2).collect::<Vec<_>>(), lines);
+    assert!(open.starts_with("1 │ │ a\n"), "{open}");
+    assert!(open.contains("2 │ │ │ b\n"), "{open}");
+    session.assume(last[0]).unwrap();
+    // Closed by line 1, b never cited: still the second subproof's line.
+    // Its →I cites line 1 itself, which lies outside the subproof (a
+    // Fitch proof has no reiteration line).
+    let closed = fitch(&session);
+    assert_eq!(closed.lines().count(), 6, "{closed}");
+    assert!(closed.contains("2 │ │ │ b\n"), "{closed}");
+    assert!(closed.contains("→I 1–3"), "{closed}");
+    // The tree has a node per use alone: a, b → a, a → (b → a).
+    assert_eq!(session.derivation().unwrap().len(), 3);
+}
+
+/// The reviewer's witnesses of 62d: a goal closed by a hypothesis is a
+/// Fitch proof, with or without lines derived beside it; equal
+/// assumptions are one line; a line derived before a subproof opens
+/// stands above it.
+#[cfg(feature = "interactive")]
+#[test]
+fn a_sessions_fitch_proof_keeps_hypotheses_and_lines_in_order() {
+    use deduxit::rules::{Apply, Derive, Fitch, FitchOptions, Interactive, LineId};
+    let limits = Limits::default();
+    let nj = calculus(deduxit::rules::NJ).unwrap();
+    let drawn = |session: &Interactive| {
+        let (derivation, lines) = session.fitch_derivation().unwrap();
+        let fitch = Fitch::new(&nj, &derivation, &FitchOptions::default(), &limits).unwrap();
+        let numbers: Vec<usize> = lines
+            .iter()
+            .map(|node| fitch.nodes().position(|n| n == *node).unwrap() + 1)
+            .collect();
+        (fitch.to_string(), numbers)
+    };
+    // a ⊢ a, the goal closed by its assumption: one line.
+    let mut alone = Interactive::within(nj.clone(), "a", &["a"], &limits).unwrap();
+    alone.cite(alone.goals()[0], LineId::new(1)).unwrap();
+    assert_eq!(drawn(&alone).0, "1 │ a\n  ├───\n");
+    // ⊢ a → a with ⊤ derived in the subproof: the hypothesis first, and
+    // the →I citing the whole subproof.
+    let mut beside = Interactive::within(nj.clone(), "a -> a", &[], &limits).unwrap();
+    let body = beside.apply(beside.goals()[0], &Apply::new("→I")).unwrap();
+    beside.derive(body[0], &Derive::new("⊤I")).unwrap();
+    beside.cite(body[0], LineId::new(1)).unwrap();
+    let (text, _) = drawn(&beside);
+    assert!(text.contains("→I 1–2"), "{text}");
+    // Two equal assumptions are the one line 1.
+    let twice = Interactive::within(nj.clone(), "a /\\ a", &["a", "a"], &limits).unwrap();
+    assert_eq!(drawn(&twice).1, [1, 1]);
+    // ⊤ derived in the main proof before the subproof's first line stands
+    // above it, and the numbers follow the drawing, not the steps.
+    let mut order = Interactive::within(nj.clone(), "(a -> a) /\\ ⊤", &[], &limits).unwrap();
+    let parts = order.apply(order.goals()[0], &Apply::new("∧I")).unwrap();
+    order.apply(parts[0], &Apply::new("→I")).unwrap();
+    order.derive(parts[1], &Derive::new("⊤I")).unwrap();
+    let (text, numbers) = drawn(&order);
+    assert!(text.starts_with("1 │ ⊤"), "{text}");
+    assert_eq!(numbers, [2, 1], "{text}");
+}
+
 #[cfg(feature = "interactive")]
 #[test]
 fn a_session_builds_a_closed_tableau() {

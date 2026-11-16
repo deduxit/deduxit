@@ -7,7 +7,7 @@
 //! checked by the calculus's checker before the state takes it.
 
 use super::calculus::{Calculus, Discipline, Entry, Find, Pattern, Rule};
-use super::derivation::{Derivation, Node, ScopeId, Step};
+use super::derivation::{Derivation, Node, NodeId, ScopeId, Step};
 use super::terms::{Term, TermId, Terms};
 use crate::Error;
 use crate::limits::{Limits, Refusal};
@@ -604,10 +604,25 @@ impl Interactive {
     /// postorder, premises before conclusions, the root last, and for each
     /// node of the session its place in the derivation.
     pub(crate) fn derived(&self) -> Result<(Derivation, Vec<u32>), Error> {
+        self.derived_with(false)
+            .map(|(derivation, places, _)| (derivation, places))
+    }
+
+    /// [`derived`](Self::derived), with every hypothesis each scope
+    /// offers as a node of its own, cited or not, when `offered`: a
+    /// scope's just before its first node, or before the rule that
+    /// discharges it where no node lies in it, so that a Fitch proof keeps
+    /// the derivation's order. Also returns where each scope's hypotheses
+    /// start (`u32::MAX` without `offered`).
+    fn derived_with(&self, offered: bool) -> Result<(Derivation, Vec<u32>, Vec<u32>), Error> {
         let mut out = Derivation::new(self.calculus.name(), self.calculus.zones.len());
         out.adopt_terms(self.terms.clone());
         for scope in &self.scopes[1..] {
             out.scope(scope.parent)?;
+        }
+        let mut offset = vec![u32::MAX; self.scopes.len()];
+        if offered {
+            self.offer(&mut out, 0, &mut offset)?;
         }
         let mut places = vec![u32::MAX; self.nodes.len()];
         // The derived lines first, a line before every line that cites it,
@@ -646,6 +661,16 @@ impl Interactive {
                     Done::Rule(name, at) => (Step::Rule(name), &at[..]),
                     Done::Line(_) => unreachable!("a goal closed by a line has its line's place"),
                 };
+                if offered {
+                    self.offer(&mut out, goal.scope, &mut offset)?;
+                    // A subproof no node lies in, its goal closed by a
+                    // hypothesis from outside, opens before its rule.
+                    for (scope, opened) in self.scopes.iter().enumerate() {
+                        if opened.owner.is_some_and(|(owner, _)| owner == node) {
+                            self.offer(&mut out, scope as u32, &mut offset)?;
+                        }
+                    }
+                }
                 let id = out.push(
                     Node::new(&goal.sequent, step)
                         .premises(&premises)
@@ -655,7 +680,23 @@ impl Interactive {
                 places[node as usize] = id.index() as u32;
             }
         }
-        Ok((out, places))
+        Ok((out, places, offset))
+    }
+
+    /// Pushes the hypotheses that the scope at `scope` and every scope
+    /// around it offer, the outermost first, for each scope not pushed
+    /// yet, and records in `at` where each one's start.
+    fn offer(&self, out: &mut Derivation, scope: u32, at: &mut [u32]) -> Result<(), Error> {
+        for outer in self.chain(scope).into_iter().rev() {
+            if at[outer as usize] != u32::MAX {
+                continue;
+            }
+            at[outer as usize] = out.len() as u32;
+            for hypothesis in &self.scopes[outer as usize].hypotheses {
+                out.push(Node::new(hypothesis, Step::Hypothesis).scope(ScopeId::new(outer)))?;
+            }
+        }
+        Ok(())
     }
 
     /// Checks the node at `node` of the session against its rule, or as
@@ -1179,6 +1220,53 @@ impl Interactive {
     /// A refusal where the derivation's indices would pass a `u32`.
     pub fn derivation(&self) -> Result<Derivation, Error> {
         self.derived().map(|(derivation, _)| derivation)
+    }
+
+    /// Returns the derivation built so far with every hypothesis its
+    /// scopes offer as a node, ahead of the rest, whether a step cites it
+    /// yet or not: what a [`Fitch`](super::Fitch) proof of the session
+    /// takes, so that each subproof opens with its hypotheses, an unused
+    /// one too. The derivation cites a hypothesis by a node per use, and
+    /// the Fitch proof shows those of one scope with equal formulas as one
+    /// line; the proof tree takes [`derivation`](Self::derivation).
+    ///
+    /// Beside it, at index `n - 1`, the node that shows the session's line
+    /// `n`: a hypothesis by its first node, a derived line by its own. The
+    /// Fitch proof's line showing that node ([`Fitch::nodes`](super::Fitch::nodes))
+    /// is where the line stands in it, numbered otherwise.
+    ///
+    /// # Errors
+    ///
+    /// As [`derivation`](Self::derivation).
+    pub fn fitch_derivation(&self) -> Result<(Derivation, Vec<NodeId>), Error> {
+        let (derivation, places, at) = self.derived_with(true)?;
+        let lines = self
+            .line_places()
+            .into_iter()
+            .map(|place| {
+                let index = match place {
+                    // The first equal hypothesis of the scope: the line the
+                    // Fitch proof shows for every one of them.
+                    Place::Offered { scope, index } => {
+                        let offered = &self.scopes[scope as usize].hypotheses;
+                        let first = offered
+                            .iter()
+                            .position(|h| *h == offered[index])
+                            .unwrap_or(index);
+                        let start = at[scope as usize];
+                        if start == u32::MAX {
+                            return Err(Error::InconsistentSession {
+                                reason: "a scope's hypotheses were not drawn",
+                            });
+                        }
+                        start as usize + first
+                    }
+                    Place::Derived(node) => places[node as usize] as usize,
+                };
+                Ok(derivation.at(index).id())
+            })
+            .collect::<Result<_, Error>>()?;
+        Ok((derivation, lines))
     }
 
     /// Returns, for each node of [`derivation`](Self::derivation) in its
