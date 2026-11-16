@@ -230,8 +230,10 @@ The library is the package `rocq-deduxit`, in a repository of its own,
 runs on Rocq 9.0 to 9.3 with its standard library alone. Its linear
 logic is under the logical path `Deduxit.Linear`, and intuitionistic
 and minimal logic with their Kripke models under
-`Deduxit.Intuitionistic`. Its version is deduxit's, so deduxit 0.4.0's
-certificates compile against rocq-deduxit 0.4.0.
+`Deduxit.Intuitionistic`. The library is released beside deduxit,
+under deduxit's version number, when it changes: deduxit 0.5.0's
+certificates compile against rocq-deduxit 0.4.0, the latest
+(`deduxit::export::rocq::DEDUXIT` names it).
 
 Build it with Nix (`nix build github:deduxit/rocq-deduxit/v0.4.0`), or
 with `make` in a checkout with Rocq on the path. Built in place, a
