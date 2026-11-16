@@ -41,3 +41,39 @@ for the Rocq proof on Fable 5.2 at `high` (the proof of a calculus's
 metatheory); a fresh-context reviewer on the rule files against the note's
 sources. Deliverables: the commits in the repositories,
 `plan/reports/66-labelled-modal.md`.
+
+## What step 65 left you (the review of 65c, 2026-11-16)
+
+- **The labelled calculus exists already** (65b): `modal::calculus(system)`
+  builds Negri's G3K with the system's frame rules as a calculus given as
+  data, for all fifteen systems of the cube; `check --calculus G3S4` and
+  `interact --calculus G3S4 'w0 : □p |- w0 : p'` already read it
+  (`calculus::named`). Its departures from Negri's Table II (kept
+  principal formulas, `L¬`, `R¬`, `R⊤`, the `↔` rules, no initial
+  sequent on a relational atom) are listed in `calculus()`'s doc comment;
+  the panel's argument member found every rule sound.
+- **Open from 65c**: the rule file's syntax takes `□` and `◇` but not
+  `[]` and `<>`; a session's forward steps (62b) on labelled rules are
+  untried; the page's builder (61b, 62d) has no modal tab until 65d.
+- **The certificate**: the exporter's second kernel (`--kernel deduxit`,
+  `rocq-deduxit`) checks linear proofs; a labelled derivation's
+  certificate is new: its term in Rocq, the soundness theorem for Kripke
+  semantics over the frame conditions, and the flake check of the
+  exported certificates against the pinned library.
+
+## The sessions (planned at this review)
+
+- **66a, the calculus step by step** (Opus 5.5 at `high`): the ASCII
+  spellings, sessions in the labelled calculi backwards and forwards
+  (62b's lines), the command's chapter, the page's modal tab gaining the
+  builder (after 65d), the certificate's exporter side designed with the
+  Rocq session.
+- **66b and 66c, the Rocq proof** (Fable 5.2 at `high`): the labelled
+  calculus and its soundness for Kripke semantics, the checker as a
+  function and the theorem that a term it accepts proves its sequent,
+  in the place the author chooses (below); the flake check of 66a's
+  certificates.
+- **Where the proof lives**: asked of the author at this review, with
+  the recommendation of a module `Deduxit.Modal` of `rocq-deduxit`
+  (one opam package, its CI and the flake's input already in place; a
+  new repository is the author's act).
