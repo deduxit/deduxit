@@ -20,7 +20,8 @@
 //! A node is its number, or `{"made": K}`, the node the action's edit K
 //! made. `work` maps a proof's node to its session as the page holds it
 //! now, laid in before the call without an entry of the log: a step of a
-//! proof is the session's own undo.
+//! proof is the session's own undo. A node the workspace no longer holds
+//! (an undo took it away) is left out of `work`.
 
 use crate::failure::Failure;
 use crate::tab;
@@ -51,10 +52,14 @@ fn opened(document: &str, work: &str, limits: &Limits) -> Result<Workspace, Fail
         let sessions: serde_json::Map<String, Value> =
             serde_json::from_str(work).map_err(Failure::json)?;
         for (node, session) in sessions {
-            let node = node.parse::<u32>().map_err(|_| {
+            let node = NodeId::new(node.parse::<u32>().map_err(|_| {
                 Failure::refused("json", "malformed", &format!("{node} is no node's number"))
-            })?;
-            workspace.work(NodeId::new(node), &session.to_string(), limits)?;
+            })?);
+            // A node an undo took away is left out: the page learns it from the answer.
+            if workspace.nodes().all(|view| view.id != node) {
+                continue;
+            }
+            workspace.work(node, &session.to_string(), limits)?;
         }
     }
     Ok(workspace)

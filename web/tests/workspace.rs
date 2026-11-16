@@ -62,8 +62,13 @@ fn a_link_is_one_action_that_undo_takes_back() {
     assert_eq!(view["nodes"][2]["class"], "work");
     assert_eq!(view["nodes"][1]["column"], 1);
     assert_eq!(view["undo"], "translation");
-    let undone = value(&workspace::undo(&made, "", "", false).unwrap());
+    // The page still sends the made tab's session, whose node the undo takes away.
+    let view = value(&workspace::view(&made, "", "").unwrap());
+    let work = json!({"2": view["nodes"][2]["value"]}).to_string();
+    let undone = value(&workspace::undo(&made, &work, "", false).unwrap());
     assert_eq!(undone["name"], "translation");
+    let gone = undone["workspace"].as_str().unwrap();
+    assert!(workspace::view(gone, &work, "").is_ok());
     let undone_document = document(&workspace::undo(&made, "", "", false).unwrap());
     let view = value(&workspace::view(&undone_document, "", "").unwrap());
     assert_eq!(view["nodes"], json!([]));

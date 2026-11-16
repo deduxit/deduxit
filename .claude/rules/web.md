@@ -382,7 +382,10 @@ for `THIRD-PARTY-NOTICES.txt`.
   edit, since a refusal inside `Workspace::edit` can only be the
   library's (its error's variants are not built outside it); a node is
   its number or `{"made": K}`, an earlier edit's. `work` lays the open
-  tabs' sessions in before a call without an entry of the log. An
+  tabs' sessions in before a call without an entry of the log, and
+  leaves out a node the document no longer holds: after an undo that
+  took a tab's node away the page still sends that tab's session, and a
+  refusal there left the page's document undone and its view not. An
   answer carries its document as a JSON string of its text (`answer`),
   which the page hands back as it is: read as an object and written
   again (by `serde_json::Value`, or by JavaScript, which puts keys that
