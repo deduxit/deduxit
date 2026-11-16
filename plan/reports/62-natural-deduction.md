@@ -695,3 +695,230 @@ well formed. Its five findings:
 - `uusxrkvr` Show a hypothesis used several times as one line of a
   Fitch proof (62b's note; `Drawing::nodes`).
 - The report.
+
+## Session 62d: the page
+
+Opus 5.5 at high, cores 10-12, the reviewer on Fable 5.2. From the brief
+`start-62d.md`, on `main@origin` (`qsllsruo`), the client on its
+`main@origin` (`kvwnuzlv`).
+
+### Outcome
+
+The ordinary tab proves its sequent by natural deduction when the
+visitor presses "Natural deduction" in the calculus popover: NK, NJ or
+NM by the tab's logic, built backwards from a goal and forwards from
+numbered lines, each step checked by deduxit, drawn as Gentzen's tree or
+as Fitch's lines from one session, saved as LaTeX, Typst or SVG. A
+visitor who never presses the button sees nothing new.
+
+### The bindings
+
+- `rules_derive(session, goal, step, settings)`: a forward step,
+  `DeriveForm` `{"rule", "lines", "given"}`, answering the new line's
+  number `line`; `rules_cite(session, goal, line, settings)` closes a
+  goal by a line equal to it. Lines from JavaScript go through
+  `calls::index`, as goals do.
+- The view's goals list `lines`, `{"line", "fitch", "sequent"}`: `line`
+  the session's number (what the calls take), `fitch` the number the
+  Fitch drawing shows. `rules_undo` adds `removed`, a forward step's
+  line.
+- `inferences` maps each of the tree's `i<n>` through `Drawing::nodes()`
+  and `derivation_goals` (62c's note): a line cited twice is two
+  inferences of one goal. The view builds the drawing within the
+  settings' bounds and is empty where they refuse it.
+- `rules_draw` and `rules_export` write the Fitch proof under
+  `view.layout` `fitch`, `not_fitch` passed on as the library writes it.
+
+### Two faults the page showed, fixed in the library
+
+- **A subproof opened with the wrong line.** A session's derivation has
+  a hypothesis node only where a step uses it. So while a subproof's
+  hypothesis was not cited yet, or never (a vacuous discharge), the Fitch
+  proof opened the subproof with its first derived line, which read as
+  its assumption (`b → a` where `b` belonged). `Interactive::fitch_derivation`
+  puts every hypothesis the scopes offer first, as nodes of their own;
+  62c's merge of equal hypotheses joins them with their cited copies.
+  The tree keeps `derivation()`. A derivation read from a file has no
+  record of an unused hypothesis, so its vacuous discharge still has no
+  line (core-rules.md says so).
+- **Two numberings on one screen.** The session numbers lines in the
+  order its steps made them (stable, which the calls rely on); the Fitch
+  drawing numbers them top to bottom. `b → a` was line 4 in the list a
+  forward step cites and line 3 in the drawing.
+  `fitch_derivation` also gives the node that shows each session line,
+  the view gives each line its `fitch` number, and the page shows and
+  reads that number only, mapping it back to `line` for the call.
+
+### The page
+
+- **Where it lives**: the registry's `Method` was `"sequent"` alone and
+  is now `"sequent" | "natural"`, the ordinary suite's second method, set
+  by one toggle button of the calculus popover beside the logic (as "Your
+  own calculus" is one button); the tab's mark reads NJ, NK or NM. A view
+  tab beside Tree and Net, my first version, would have shown on every
+  ordinary proof, which the author's "sees nothing new" rules out.
+- **The view** (`src/islands/Natural.tsx`) stands in the drawing's
+  place: one sentence on what natural deduction is, a sentence when the
+  goal was made (⊥ for nothing right of ⊢, the disjunction of several),
+  the status, the Tree/Fitch switch with Undo and Check, the drawing,
+  the open goals, the goal's lines in force, "Close the goal by line N"
+  where a line equals the goal, then one direction at a time: "From the
+  goal" (deduxit's steps for the goal, as in a calculus of one's own) or
+  "From lines" (a rule and the lines it cites, typed "2, 3"). A refusal
+  says deduxit's reason; a number no line in force has is refused on the
+  page with the reason.
+- **The bottom band stands aside**: its Undo, Redo, Steps, Close all,
+  Hint and Export, and their keys, would act on the sequent calculus
+  proof the stage does not show; the view has its own Undo and Save as.
+- **Kept for the visit only** (departs from the design): the natural
+  deduction session is held in a module store by the tab and its
+  sequent, never in the shelf or the link. The shelf keeps the method;
+  the link names none (`u=ordinary&m=LOGIC`), so a link of such a proof
+  opens in the sequent calculus.
+- **Design and teaching sources**: the `frontend-design` plugin (the
+  design system D1-D60 binds, so its advice was restraint: the stage's
+  own vocabulary, the one distinctive element the line numbers a forward
+  step cites) and `cognitive-load-analyser`: the two directions are
+  never shown at once, closing by a line is offered where it applies
+  rather than searched for, the lines are listed beside the goal in both
+  drawings so that a forward step never depends on the Fitch drawing
+  being shown. `worked-example-fading-designer` has no place here (no
+  lesson is part of this step); `ai-feedback-design-principles` was not
+  loaded: the messages follow writing.md and give the reason and what to
+  do.
+
+### Checks
+
+- **The gate** passed at the head after the rebase onto `xmsrxxqr`
+  (clippy, the tests, both `cargo hack` runs, the ratchet within its
+  ceilings): 886 tests in the counted suites, 5 ignored as before.
+- **The bindings' tests** (`web/tests/rules.rs`, 7, natively in the
+  gate and under Node in `web-wasm-tests`): natural deduction forwards
+  and backwards with an undo and a line cited twice, a line out of
+  scope refused, equal assumptions one Fitch line and a goal closed by
+  its assumption drawn. The library's session tests in
+  `core/tests/rules.rs` (two new: every hypothesis in a session's
+  Fitch proof; the reviewer's witnesses).
+- **`nix flake check`** on deduxit at `kmwwpnur` under the machine lock
+  (`--keep-going`): passed, `web-wasm-tests`, `web-package`, `budget` and
+  the docs among its checks.
+- **The client** against the chain (`--override-input deduxit
+  git+file:///home/tux/Projects/own/deduxit-wt-step-58b-8c0bbc`, the
+  module built from the workspace, never `path:`): the unit tests (23
+  files, `natural.test.ts` new with 10 tests), `lint` (Biome and `astro
+  check`, no error), `tests/natural.spec.ts` (4 tests), the walk
+  `deducing` in the target and axe specs (6 tests: both widths, both
+  schemes), and the client's `nix flake check` under the machine lock: passed
+  (627 unit tests, 270 e2e tests). Its first run failed one e2e test
+  twice in the sandbox: a forward step's success cleared the lines field
+  even when the next lines had been typed while it ran, so the next step
+  went out with none. A race a visitor could meet too: the field is now
+  cleared only if it still holds what was sent (folded into
+  `krxskuqu`).
+- Biome was not in the binary cache and the store had lost the earlier
+  local build, so the first dev shell compiled it. I started that one
+  without `--cores 8`, and it ran at `-j 16` in the daemon for about
+  ten minutes; every later nix command had the caps.
+
+### The reviewer's findings
+
+`fresh-reviewer` on Fable 5.2 at medium, once, with the page served
+from the e2e build and driven by Playwright, and the module in Node. Its
+runs: a random walk of the bindings over NJ, NK and NM (14 problems,
+14 193 operations, 7 283 refused, every refusal with a message): after
+every accepted operation the session read back and equalled its view,
+all 45 finished sessions passed `rules_check` and no unfinished one did,
+no derive or cite of a line outside the goal's `lines` was accepted,
+the tree's `i<n>` always matched `inferences`, and every export worked
+wherever its drawing did. On the page: four out-of-scope citations
+refused with a reason, nothing of natural deduction on an ordinary
+proof never set to it, the band's keys inert in the method. Criteria
+1, 2 and 4 held. Its four findings, all against the views staying in
+step, all fixed:
+
+1. **The Fitch view refused the simplest finished proofs**: `a ⊢ a`
+   closed by its assumption, and a subproof with a line derived beside
+   its hypothesis (`⊢ a → a`, `⊤I`, the goal closed by line 1), were
+   `not_fitch`. The root, or the subproof's conclusion, was a hypothesis
+   merged into the first line, and the layout held it back to the last.
+   Fixed in `fitch.rs`: the root is the line that shows it, and a
+   conclusion that is a hypothesis stands with the hypotheses (the
+   whole subproof is cited). `a_sessions_fitch_proof_keeps_hypotheses_and_lines_in_order`,
+   `equal_assumptions_are_one_fitch_line`, and the page's "a goal closed
+   by its assumption is drawn in both views".
+2. **A second equal assumption had Fitch number 0** and could not be
+   cited on the page. Fixed: `fitch_derivation` maps an offered
+   hypothesis to the first equal one of its scope, the bindings write
+   every `fitch` as `null` should any line lack a drawn number (the page
+   then shows the session's numbers), and the page lists each shown
+   number once (`listedLines`).
+3. **A refusal named the session's line number**, not the one the page
+   shows. Fixed: the page rewrites deduxit's "line N" to the shown
+   number (`shownMessage`).
+4. **A line in force stood below its goal in the Fitch drawing**: all
+   offered hypotheses first gave every subproof a key ahead of the lines
+   derived before it. Fixed: a scope's hypotheses are emitted just
+   before its first node (before its rule where no node lies in it), so
+   the drawing keeps the derivation's order; `a_line_out_of_scope_is_refused`
+   now reads `b` as Fitch line 4, under the first subproof and its
+   `a → a`.
+
+### Commits
+
+deduxit, on `main@origin` (`xmsrxxqr`):
+
+- `zkkvwwww` Derive and cite lines, and draw the Fitch proof, in the
+  bindings of a calculus given as data.
+- `wxomtxss` Open every subproof of a session's Fitch proof with its
+  hypotheses (the library: `Interactive::fitch_derivation`, the Fitch
+  layout's root and hypothesis conclusion).
+- `kmwwpnur` Draw a session's Fitch proof with every hypothesis, and
+  number its lines in force as it does, in the bindings (with the guide,
+  the changelog, web.md and the call table).
+- The report.
+
+The client (`deduxit.github.io`), on its `main@origin` (`kvwnuzlv`),
+in the workspace `deduxit.github.io-61b`; its `flake.lock` moves to
+deduxit's chain only after the planning session pushes it:
+
+- `krxskuqu` Prove an ordinary sequent by natural deduction, a method
+  the calculus popover offers.
+- `srtorpmu` Walk and test natural deduction on the page.
+
+### What the next sessions must know
+
+- **63 (the suite protocol)**:
+  - The client's registry has a second method: `Method` is `"sequent" |
+    "natural"`, and the ordinary suite lists both. With `natural`, an
+    ordinary proof keeps its ordinary session (it parses the sequent and
+    holds its form) while the stage runs a session of the `rules` suite's
+    calls in NK, NJ or NM: a method of one suite that runs another
+    suite's calls. The protocol should say how a method names its calls
+    (here `Natural.tsx` calls `api.custom` directly).
+  - The band's proof actions and their keys stand aside for this method
+    (`isNatural` in `BottomBand.tsx` and `App.tsx`): a protocol where a
+    method owns the band's actions would replace that.
+  - The link names no method (`u=ordinary&m=LOGIC`): a link of a
+    natural deduction proof opens in the sequent calculus. The shelf
+    keeps the method; the natural deduction session lives in a module
+    store for the visit (`works` in `Natural.tsx`), in neither.
+- **63g (the workspace graph)**:
+  - A natural deduction proof as a node is the `rules` session document
+    (wire level 17, 18 once a forward step derived a line), which holds
+    the rule file and checks again on reading, or once finished the
+    derivation `rules_check` answers (level 15). The tree and the Fitch
+    proof are views of the same value (`view.layout`), not values.
+  - A line's `line` number is stable while it stands; its `fitch` number
+    is the drawing's and may change with any later step. A reference
+    from another node to a line should keep `line`.
+- **Known limits, for a later step**:
+  - The Fitch proof writes no reiteration line: a rule whose premise
+    lies outside the subproof it discharges cites that line (`→I 1`),
+    and a subproof whose conclusion is its hypothesis is cited whole
+    (`→I 1–2`) with the conclusion first.
+  - A derivation read from a file (`check --calculus --layout fitch`)
+    has no record of a hypothesis no node uses, so its vacuous
+    discharge has no hypothesis line; a session's has.
+  - Forward steps take rules without contexts and without discharge
+    (62b): `→I` and the like are applied from the goal, which the page's
+    "From the goal" offers.
