@@ -797,6 +797,12 @@ const CASES: &[Case] = &[
         "derive 0 ∧E₂ 1\nderive 0 ∧E₁ 1\nderive 0 ∧I 2 3\nderive 0 →I 1\nderive 0 ∧E₁ 9\nassume 0 2\nassume 0 4\nproof\n",
     ),
     piped(
+        "interact-calculus-labelled",
+        &["interact", "--calculus", "G3S4", "w0 : []p |- w0 : [][]p"],
+        "derive 9 L∧ 0\napply 0 R□ 1\napply 1 R□ 3\nderive 2 Trans 1 2\nderive 3 L□ 0 3\nderive 4 R∧ 0\n\
+         derive 4 L□ 0 3\nderive 4 Ref\nderive 4 Ref x=w0\napply 5 ax 4 8\nproof\n",
+    ),
+    piped(
         "check-natural-fitch",
         &["check", "--layout", "fitch"],
         NATURAL,

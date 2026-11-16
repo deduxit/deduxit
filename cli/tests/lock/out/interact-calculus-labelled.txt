@@ -1,0 +1,37 @@
+$ deduxit interact --calculus G3S4 'w0 : []p |- w0 : [][]p'
+--- stdin
+derive 9 L∧ 0
+apply 0 R□ 1
+apply 1 R□ 3
+derive 2 Trans 1 2
+derive 3 L□ 0 3
+derive 4 R∧ 0
+derive 4 L□ 0 3
+derive 4 Ref
+derive 4 Ref x=w0
+apply 5 ax 4 8
+proof
+
+--- status 0
+--- stdout
+error: the step is refused: there is no open goal 9
+opened goal 1: 0: w0 : □p, 1: w0 R y ⊢ 2: w0 : □□p, 3: y : □p
+opened goal 2: 0: w0 : □p, 1: w0 R y, 2: y R y1 ⊢ 3: w0 : □□p, 4: y : □p, 5: y1 : p
+opened goal 3: 0: w0 : □p, 1: w0 R y, 2: y R y1, 3: w0 R y1 ⊢ 4: w0 : □□p, 5: y : □p, 6: y1 : p
+added 3: w0 R y1
+opened goal 4: 0: w0 : □p, 1: w0 R y, 2: y R y1, 3: w0 R y1, 4: y1 : p ⊢ 5: w0 : □□p, 6: y : □p, 7: y1 : p
+added 4: y1 : p
+error: the step is refused: R∧ has 2 premises, and a forward step keeps one goal: apply it backwards to the goal
+error: the step is refused: L□ derives nothing the goal does not hold already
+error: the step needs x given: what the goal leaves open
+opened goal 5: 0: w0 : □p, 1: w0 R y, 2: y R y1, 3: w0 R y1, 4: y1 : p, 5: w0 R w0 ⊢ 6: w0 : □□p, 7: y : □p, 8: y1 : p
+added 5: w0 R w0
+closed; no goal is open: `proof` checks the proof
+valid in the calculus given (G3S4): w0 : □p ⊢ w0 : □□p
+  0. w0 : □p, w0 R y, y R y1, w0 R y1, y1 : p, w0 R w0 ⊢ w0 : □□p, y : □p, y1 : p    ax
+  1. w0 : □p, w0 R y, y R y1, w0 R y1, y1 : p ⊢ w0 : □□p, y : □p, y1 : p    Ref 0
+  2. w0 : □p, w0 R y, y R y1, w0 R y1 ⊢ w0 : □□p, y : □p, y1 : p    L□ 1
+  3. w0 : □p, w0 R y, y R y1 ⊢ w0 : □□p, y : □p, y1 : p    Trans 2
+  4. w0 : □p, w0 R y ⊢ w0 : □□p, y : □p    R□ 3
+  5. w0 : □p ⊢ w0 : □□p    R□ 4
+--- stderr
