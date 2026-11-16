@@ -819,3 +819,43 @@ fn a_proof_of_a_translation_is_made_in_one_action() {
     workspace.undo().unwrap();
     assert_eq!(workspace.nodes().count(), 0);
 }
+
+#[test]
+fn the_program_s_own_document_keeps_its_checks_and_a_claim_does_not() {
+    let limits = Limits::default();
+    let settings = Settings::default();
+    let mut workspace = Workspace::new();
+    let translated = workspace
+        .edit("translation", &limits, |edit| {
+            let given = edit.add("ordinary.sequent", &classical("|- a \\/ ~a"))?;
+            edit.connect(
+                "ordinary.translate",
+                &[given],
+                r#"{"translation": "glivenko"}"#,
+                &settings,
+            )
+        })
+        .unwrap();
+    workspace
+        .run(&[translated], What::Check, &limits, |_| false)
+        .unwrap();
+    let json = serde_json::to_string(&workspace).unwrap();
+    let status = |workspace: &Workspace| {
+        workspace
+            .nodes()
+            .find(|node| node.id == translated)
+            .and_then(|node| node.check.map(|check| check.status))
+    };
+    let own = Workspace::read_own(&json, &limits).unwrap();
+    assert_eq!(status(&own), Some(Status::Held));
+    assert_eq!(seen(&own), seen(&workspace));
+    assert!(own.records.iter().flatten().all(|record| record.trusted));
+    let claim = read(&json, &limits).unwrap();
+    assert_eq!(status(&claim), Some(Status::Recorded));
+    // The bounds hold for the program's own document too.
+    let one = Limits::default().with_workspace(WorkspaceLimits::UNBOUNDED.with_nodes(Some(1)));
+    assert_eq!(
+        Workspace::read_own(&json, &one).unwrap_err().code(),
+        "workspace_limit"
+    );
+}

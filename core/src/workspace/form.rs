@@ -326,7 +326,7 @@ impl wire::Readable for Workspace {
     /// instant operation and each instant check made again.
     fn read<'de, D: Deserializer<'de>>(deserializer: D, limits: &Limits) -> Result<Self, D::Error> {
         let form = Form::deserialize(deserializer)?;
-        built(form, limits).map_err(wire::fail)
+        built(form, limits, Trust::Claim).map_err(wire::fail)
     }
 }
 
@@ -353,8 +353,42 @@ fn bounded(what: Held, count: usize, bound: Option<u64>) -> Result<(), Error> {
     }
 }
 
+/// How far a document's records are believed.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Trust {
+    /// A document from elsewhere: each instant run and check is made again,
+    /// and a search's check is `recorded`.
+    Claim,
+    /// A document this program wrote and kept itself: its records stand as
+    /// written.
+    Own,
+}
+
+impl Workspace {
+    /// Reads a document this program wrote and kept itself, such as a
+    /// page's between two calls: the numbers, the order, the log and the
+    /// bounds are checked and every value is read by its kind's reader, as
+    /// [`wire::upgrade`] does, but the runs and the checks stand as written
+    /// (another build's records are still another build's). A document from
+    /// elsewhere, a link's or a file's, is read by [`wire::upgrade`], which
+    /// makes each instant run again and reads a search's check as
+    /// `recorded`.
+    ///
+    /// # Errors
+    ///
+    /// A document that is no workspace's, and what [`wire::upgrade`]
+    /// refuses but the runs.
+    pub fn read_own(document: &str, limits: &Limits) -> Result<Self, Error> {
+        let form: Form = serde_json::from_str(document).map_err(|error| Error::Json {
+            form: "workspace",
+            message: error.to_string(),
+        })?;
+        built(form, limits, Trust::Own)
+    }
+}
+
 /// Builds a workspace from its form.
-fn built(form: Form, limits: &Limits) -> Result<Workspace, Error> {
+fn built(form: Form, limits: &Limits, trust: Trust) -> Result<Workspace, Error> {
     let bounds = &limits.workspace;
     bounded(Held::Nodes, form.nodes.len(), bounds.nodes)?;
     bounded(Held::Records, form.records.len(), bounds.records)?;
@@ -417,7 +451,7 @@ fn built(form: Form, limits: &Limits) -> Result<Workspace, Error> {
             output,
             check: record.check.clone(),
             foreign: foreign || record.foreign,
-            trusted: false,
+            trusted: trust == Trust::Own && !(foreign || record.foreign),
             made: 0,
         }));
     }
@@ -544,7 +578,9 @@ fn built(form: Form, limits: &Limits) -> Result<Workspace, Error> {
             })
         })
         .collect();
-    verify(&mut workspace)?;
+    if trust == Trust::Claim {
+        verify(&mut workspace)?;
+    }
     workspace.settle();
     Ok(workspace)
 }

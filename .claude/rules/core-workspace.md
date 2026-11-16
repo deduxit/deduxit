@@ -111,6 +111,14 @@ and redo, the bounds and the JSON form. The design is
   bound on nodes.
 - **`rebound` reaches the log's recipes too**, so undo and redo bring
   back no recipe outside the caller's bounds.
+- **Two readers**: `wire::upgrade` reads a document from elsewhere as a
+  claim (above); `Workspace::read_own` reads one the program wrote and
+  kept itself, a page's between two stateless calls, with the same
+  checks of numbers, order, log, bounds and values but its runs and
+  checks as written, this build's records trusted. Read through the
+  claim reader on every call, a page's searches would turn `recorded`
+  after each call and run again; a link or a file still comes in
+  through the claim reader (the bindings' `workspace_open`).
 - **`pack`** keeps the nodes asked for and what they are made from, no
   record and no log: what a link of the web page holds.
 - **`compute` and `accept` are the run split in two**, for a front end
