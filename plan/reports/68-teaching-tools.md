@@ -428,3 +428,200 @@ reviewer's findings), on its `main@origin` `unnzuxur`.
   passing no `onChange` work (a prop to add).
 - Print: the canvas is an SVG in the page's colours; its marks keep
   their words and patterns in black and white.
+
+## Session 68c: packs, the check view, the embed and print
+
+Opus 5.5 at `high` (the 68b worker, its conversation kept), from the
+brief `/tmp/linlog-handoff/start-68c.md`, on 2026-11-16, cores 7 to 9:
+deduxit in `../deduxit-wt-step-58a-610ed3` on `main@origin`
+(`ypwvprqu`), for this report only; the client in its workspace
+`step68b` (`../deduxit.github.io-68b`) on its `main@origin`
+(`somyrllz`).
+
+### What a teacher and a student see
+
+- **A teacher** opens the problems as tabs (typed, or from Practice's
+  stores), then Export, "Course pack": a title, the problems (every
+  started tab of linear, ordinary or modal logic, each unticked to leave
+  it out), "The search may close goals and give hints" (off by default),
+  the pack's code, "Copy the link", "Copy the embed code" and "Print the
+  problems" (the handout: the title, each problem and its calculus, the
+  link and the code).
+- **A student** who opens the link gets a tab per problem in its
+  calculus, and a bar over the stage: the title, a button per problem
+  (a tick on each done), "N of M done" and "Hand in". With the search
+  barred, Close goal, Close all and Hint are greyed with the reason as
+  their tip; a key or the hint ladder says the reason on the tab's
+  banner; the calculus popover says "This is problem N of the pack: its
+  sequent and calculus are fixed." in place of its switches. A modal
+  problem with the search barred is not decided: its model editor is
+  open and empty, and the model the student makes and checks is the
+  answer. The answers are kept in the browser under the pack's code, so
+  the pack's link opens them again.
+- **The hand-in** is a link (`#v=4&h=…`, up to 16 000 characters) or a
+  file (`hand-in-<code>.json`), with the pack's code. The page sends
+  nothing: the student sends the link or the file.
+- **The check view** opens from a hand-in's link, its file in Import or
+  dropped on the stage, and leaves the open tabs alone. Per problem: the
+  sequent and calculus, deduxit's finding ("Proved: deduxit read every
+  step again: the proof is finished and checked.", "Not finished: 1 goal
+  is still open.", "Another sequent", "Another calculus", "Refused",
+  "Countermodel", "No countermodel", "No model of S4: …", "No answer"),
+  and "Open the answer" on a tab of its own. Its head shows the pack's
+  code, which the teacher compares with the code their sheet showed.
+- **The embed**: `&e=1` on any link (the sheet's embed code is an
+  `<iframe>` of the pack's link with it) shows the proof and its actions
+  without the site's places (Practice, Learn, the tour, the keys,
+  About), the restore bar or a new tab, and an "Open in deduxit" link.
+- **Print**: the light scheme in either theme, no band, menu or stage
+  controls; with the pack's sheet open, the handout alone, over as many
+  pages as it takes.
+- **A tableau written by hand** (68a's call, on `main` during this
+  session): "Check a tableau" in the calculus popover of a started
+  classical sequent opens a field in the drawing's place ("Your
+  tableau"), begun with the sequent's own signed lines (deduxit's
+  tableau is not shown there), a sentence on the list form and a closed
+  example. "Check the tableau" says Closed, Open, Unfinished, Wrong
+  step (with "Line N:" and that line selected in the field) or Not read
+  (the parse failure's place selected, its hint said); an open one's
+  countermodel opens in 68b's model view.
+
+### How it holds
+
+- **The formats** (`src/lib/pack.ts`): a pack `{"pack": 1, "title",
+  "search", "problems": [{"suite", "parameter", "sequent"}]}`, a hand-in
+  `{"handin": 1, "pack", "answers"}` with an answer per problem (a
+  session, a model and its world, or null). Read key by key within
+  bounds: no key of its own, a calculus the registry knows, at most 30
+  problems, sequents of at most 1 000 characters; the links unpack at
+  most `UNPACKED_LIMIT` bytes as every link does. A first draft read
+  them with zod, whose probe of `eval` the page's CSP blocked (the e2e
+  fixture caught it); a reader by hand also keeps zod off the island's
+  first load.
+- **The limits are the prover's**: `Limits` (`search`, `fixed`) is a
+  signal of the prover, set by the open pack; `close`, `closeAll`,
+  `fill`, `hint` (and the ladder in `App.tsx`), `submit` and
+  `setCalculus` ask it before they act, so no key or path does more than
+  the greyed buttons.
+- **The check trusts nothing** (`checkAnswer`): a session is read again
+  by its suite's call (deduxit's readers replay and check every step of
+  a session they read), its mode or logic held to the problem's, its
+  sequent's text (`read_as`, `ordinary_read` on the session's `sequent`)
+  to the problem's; a finished linear proof is checked once more by
+  `proof`. A model is checked by `modal_evaluate` against the problem.
+  The pack inside a hand-in is the student's too, hence its code: 48
+  bits of SHA-256 of the pack's JSON with its keys in one order.
+- **The passes**: `udl-barrier-anticipator` (every control named, the
+  done tick beside the colour, the problem buttons 44 pixels on a
+  phone), `cognitive-load-analyser` (one bar of four parts for the
+  student, the teacher's sheet one screen, nothing for a visitor without
+  a pack), `ai-feedback-design-principles` (each refusal says what is
+  fixed and what to do instead: "A new tab takes another sequent.").
+
+### Checks
+
+- **deduxit**: unchanged but for this report; no gate and no flake
+  check of its own.
+- **The client** at `nnvupxxs`, against its pinned deduxit: lint and
+  `astro check` clean, Vitest 698, `nix flake check` passed (the whole
+  e2e suite, 335).
+- **The client** at `vqzymsrw` (the review's fixes and the tableau
+  editor), against deduxit's `main@origin` (`sspmkqrl`, 68a's call) by
+  `--override-input deduxit git+file:///…/deduxit-wt-step-58a-610ed3`:
+  lint and `astro check` clean; Vitest 703 (`pack.test.ts` 7,
+  `written.test.ts` 5 against deduxit's review); Playwright
+  `packs.spec.ts` 9, `written.spec.ts` 2, and the walks under axe in
+  both schemes at both widths and the target sizes at 24 and 44 pixels,
+  the `packing` walk and the tableau's two states among them: 123
+  passed; `nix flake check` with the same override: passed (every
+  check, the whole e2e suite 340).
+
+### The reviewer's findings
+
+`fresh-reviewer` on Fable 5.2, over `qrkyzmsr` and `nnvupxxs`, with
+the page driven by Playwright: the hand-in check held against 29 forged
+answers (another sequent, mode or logic, a refused session, a model of
+the wrong system, a model for a proof problem and the reverse, a changed
+pack's code), no request carried a pack, a hand-in or an answer (every
+request a GET to the page's own server), nothing showed for a visitor
+without a pack, and the keys, a pasted session and an import kept to the
+limits. Seven findings, all fixed in `ozppvoup` (the stage's and the
+stylesheet's part in `vqzymsrw`) and tested in `packs.spec.ts` but the
+last:
+1. **High: a barred classical problem still showed deduxit's table and
+   closed tableau.** The Table and Tableau tabs are not offered where
+   the search is barred.
+2. **High: "Prove it step by step" turned a modal problem into a
+   calculus of its own**, which lifted the pack's limits. `modalSteps`,
+   `customFrom` and `showModalStatement` ask the pack first.
+3. **Medium: a valid modal problem counted as done** with no answer to
+   hand in. Done is a finished proof or a model where the sequent fails.
+4. **Medium: both bands printed**: the screen's rules outweighed the
+   print rule. The print rules weigh the same and come later.
+5. **Medium: in the dark theme nothing printed light.** Print sets the
+   light scheme over `data-theme`.
+6. **Medium: a long handout was cut at one page**, losing the link and
+   the code (a fixed box). It is drawn at the body's end and flows.
+7. **Low: a barred modal tab said "Deciding" for good.** It says
+   "Undecided: find a model" until its model is checked. Not tested
+   apart: the walk shows it.
+8. **A question**: with "Apply invertible rules by themselves" on, a
+   barred problem can finish with no step of the student's. That is no
+   search, so the limit's words hold; whether "by hand" bars it is the
+   author's to say (below).
+
+The tableau editor (`vqzymsrw`) came after the review: 68a landed
+meanwhile. It is covered by its unit tests against deduxit, its spec
+and the walk, not by the reviewer.
+
+### Commits
+
+deduxit: this report's. The client: `qrkyzmsr` (the formats and their
+links), `nnvupxxs` (the packs on the page, the hand-in, the check view,
+the embed and print, the walk and the spec, the rules), `ozppvoup` (the
+reviewer's findings), `vqzymsrw` (the tableau written by hand, and the
+stage's and stylesheet's share of the findings), on its `main@origin`
+`somyrllz`. `vqzymsrw` calls `ordinary_tableau_review`, which the
+client's pinned deduxit lacks: the client's lock moves to deduxit's
+`main` after this chain is pushed (`nix flake update deduxit`, a
+"flake.lock: Update" change), then its `nix flake check`. `ozppvoup`
+alone fails its own test of the Table tab, whose fix is in `vqzymsrw`.
+
+### Departures
+
+- **A pack's problems are linear, ordinary (sequent calculus) and modal
+  ones.** Natural deduction, the tableau and a calculus of one's own are
+  sessions of the rules suite, which the check view does not read yet;
+  "the methods allowed" is the search's switch. (departs from the
+  design)
+- **The tableau editor is not a pack's problem**: a pack's problem is a
+  sequent to prove; a tableau to write (a `method` in the problem, read
+  by the check view through the review) is for the release's planning.
+- **The limits are on the pack's tabs.** A student may prove the same
+  sequent in a tab of their own with the search, and the check view
+  cannot tell a proof typed by hand from one copied step by step: the
+  pack bars a route, it does not prove who did the work.
+- **A modal problem's answer is a model.** A valid modal sequent has no
+  answer in a pack: its labelled proof is a calculus of its own, which a
+  pack's tab keeps out (the review's second finding), so a pack's modal
+  problems are ones to refute.
+- **The embed has no option of its own** (read-only, Close hidden):
+  `&e=1` is one stripped view; a pack's limits apply in it as anywhere.
+
+### What the next sessions must know (the release of 0.6.0)
+
+- **A pack's tableau problem**: the editor exists; a pack's problem
+  could carry `"method": "tableau"`, its answer the written text, which
+  the check view reviews with `ordinary_tableau_review`.
+- **The author's question**: should a pack that bars the search bar
+  "Apply invertible rules by themselves" too?
+- **The client's lock**: `vqzymsrw` needs deduxit's `main` of 68a; move
+  the client's input after the push, before its next `nix flake check`.
+- **The check view reads the rules suite next**: natural deduction and
+  tableau sessions (`rules_check`, the session's calculus held to the
+  problem's), which makes their packs possible.
+- **The formats are versioned** (`pack: 1`, `handin: 1`, links `v=4`):
+  a change of either adds a version and reads the old one.
+- **Before 0.6.0**: the manual and the page's About say what a pack is
+  and that nothing is sent; the client's README names `#v=4` beside the
+  other link versions.
