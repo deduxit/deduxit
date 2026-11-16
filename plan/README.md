@@ -7215,3 +7215,16 @@ move (D26).
     `workspace` of the core crate, goes to 63g-b's dependency check.
   - **Next:** 63a (the protocol) once 62d lands, taking the kinds and operations of the note's
     section 3.
+- 2026-11-16, about 11:20: **62d reviewed and pushed; step 62 complete.**
+  - **62d** (`zkkvwwww` to `ylsoosss`; the client `krxskuqu`, `srtorpmu`): the ordinary tab proves
+    its sequent by natural deduction (NK, NJ or NM by the tab's logic) when the visitor presses
+    "Natural deduction" in the calculus popover, built backwards and forwards, drawn as a Gentzen
+    tree or a Fitch proof from one session, exported in LaTeX, Typst and SVG; a visitor who never
+    presses it sees nothing new. Bindings `rules_derive`, `rules_cite`, the view's `lines` with
+    the session's and the drawing's numbers, `inferences` through `Drawing::nodes()`. Two faults
+    the page showed were fixed in the library (a subproof opened by its first derived line;
+    two numberings on one screen: the page shows the Fitch numbers only). fresh-reviewer (Fable)
+    walked 14 193 operations of the bindings and the page in a browser; four findings, all fixed.
+    One departure marked: the session is kept for the visit only, not in the shelf or the link.
+    Gate, both flake checks (deduxit and the client against the chain) passed.
+  - **Next:** 63a has the bindings now; 63b (Learn and Practice by suite) starts in 62d's slot.
