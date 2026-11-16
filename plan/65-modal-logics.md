@@ -56,3 +56,32 @@ procedure's design) on Fable 5.2 at `high`, the rest on Opus 5.5 at
 check; the page in the client's repository as a suite of the registry.
 Deliverables: the commits, the client's commits,
 `plan/reports/65-modal-logics.md`.
+
+## What steps 55 to 63 left you (written at the review of 63c, 2026-11-16, before 64)
+
+The first session starts before the release of 0.5.0, on the author's
+yes of 2026-11-16; its code lands after the tag. The rest of this
+prompt is finished at the review of 64.
+- **Step 55's countermodel** (`ordinary::kripke`, wire level 13, the
+  checker, the drawing on the page) is the output kind to reuse; its
+  report and `core-ordinary.md` say how it is built and checked.
+- **Step 60's generic derivation** (`deduxit::rules`, rule files at
+  level 15) is where step 66's labelled calculus lives; a proof here is
+  in the calculus the search uses.
+- **Step 63a's protocol** (`deduxit::protocol`, `Suite`, the registry,
+  `wire.schema.json`): the modal suite implements `Suite` from the start,
+  its kinds and operations in the catalogue, its forms in the schema.
+  63g's workspace graph takes it from there without work of its own.
+- **Wire levels**: 18 is the last on `main`; 63g-b takes 19. Take the
+  next free when the code lands, after 63g-b.
+
+## The sessions (planned 2026-11-16)
+
+- **65a, the design** (Fable 5.2 at `high`): the modal arena, the
+  systems as values, the procedure per system with its loop checks and
+  sources, the proof and the countermodel, the user's model checked,
+  the protocol's kinds and operations, in `plan/notes/modal-design.md`,
+  then the code as far as the session reaches (the arena and the
+  systems), landing after 0.5.0's tag.
+- 65b to 65d: the search and its panel, the command, the page (Opus
+  5.5), planned at the review of 64.
