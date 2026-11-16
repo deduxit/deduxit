@@ -107,7 +107,13 @@ design, with the reasons and the alternatives weighed, is
   showed `b` from no assumption (the review of 60a).
 - **Freshness** (`Checker::conditions`): the variable is bound to an
   atom that occurs neither in the node's sequent nor in a hypothesis of
-  its scope or a scope around it. `occurs` walks the term DAG once per
+  its scope or a scope around it, and that no other variable of the rule
+  is bound to (checked last, so a name in the conclusion is said as
+  such). Only a variable bound from a premise alone can share it:
+  `Ser`'s `x`, with which `w1 R w1` for a new `w1` passed, "seriality
+  gives a world that sees itself" (sound for what the calculus derives,
+  which the Rocq library's `g3` proves for the wider rule, but no step a
+  session should take). `occurs` walks the term DAG once per
   walk number (`seen`), skipping ids below the atom's, and counts every
   member it is handed: a node of a `fresh` rule looks through every
   hypothesis in force, which was quadratic and uncounted before.

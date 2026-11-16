@@ -227,8 +227,9 @@ checks, and 1 otherwise.
   `Γ` with `!` on each member. A premise's `discharges` lists the
   hypotheses it discharges.
 - Two conditions: `fresh` names variables that must be atoms new to
-  the conclusion and to every hypothesis in force (an eigenvariable, a
-  new label); `atomic` names variables that must be atoms (the axiom of
+  the conclusion, to every hypothesis in force and to the rule's other
+  variables (an eigenvariable, a new label: seriality's new world is
+  not the world that sees it); `atomic` names variables that must be atoms (the axiom of
   G3, the closure of a tableau branch).
 
 Every name must be declared, so a typo is an error, not a new variable.

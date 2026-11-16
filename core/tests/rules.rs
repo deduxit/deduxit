@@ -1394,6 +1394,27 @@ fn random_forward_and_backward_steps_keep_a_checked_session() {
     );
 }
 
+/// Seriality gives a new world that the world named sees, never a new
+/// world that sees itself: `Ser` with one new label on both ends of its
+/// edge is refused, and with a label of the conclusion at its start
+/// passes.
+#[test]
+fn seriality_s_new_world_is_not_the_one_that_sees_it() {
+    let calculus = deduxit::modal::calculus(deduxit::modal::System::D, &Limits::default()).unwrap();
+    let derivation = |edge: [u32; 2]| {
+        json!({"version": 15, "calculus": "G3D",
+            "terms": [{"atom": "w0", "sort": "label"}, "p", [":", 0, 1],
+                {"atom": "w1", "sort": "label"}, ["R", edge[0], edge[1]]],
+            "nodes": [{"sequent": [[2, 4], [2]], "rule": "ax", "at": [0, 0]},
+                {"sequent": [[2], [2]], "rule": "Ser", "at": [1], "premises": [0]}]})
+    };
+    check(&calculus, &derivation([0, 3])).unwrap();
+    assert!(
+        refused(&calculus, &derivation([3, 3]))
+            .contains("a name the rule asks to be new is one another of its variables names")
+    );
+}
+
 /// In every modal system's calculus the rules that read forwards are
 /// exactly those that reason from hypotheses and add hypotheses: `L∧`,
 /// `L□`, `L◇` and the system's frame rules. Each rule is tried at every

@@ -718,6 +718,21 @@ impl<'a> Checker<'a> {
                 }
                 scope = self.derivation.scopes[scope as usize];
             }
+            // New means new to the step too: no other variable of the
+            // rule names the same atom. Only a variable bound from a
+            // premise alone can (one bound from the conclusion makes the
+            // name occur there), as `Ser`'s `x` can, which would let a
+            // new world see itself.
+            self.meter.tick(self.bindings.len())?;
+            let shared = (0..self.bindings.len())
+                .any(|other| other != variable as usize && self.bindings[other] == Some(name));
+            if shared {
+                return Err(
+                    "a name the rule asks to be new is one another of its variables \
+                            names"
+                        .into(),
+                );
+            }
         }
         Ok(())
     }

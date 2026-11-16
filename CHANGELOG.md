@@ -89,6 +89,11 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ### Changed
 
+- **A name a rule asks to be new is new to the rule's other variables
+  too**: a derivation or a session in a labelled modal calculus no
+  longer takes `Ser` with one new label at both ends of its edge
+  (`w1 R w1`), which made "a new world that sees itself". The rule
+  file's `fresh` says so.
 - **`check --format json` names the modal system** under the new key
   `system`, for a modal outcome or a model checked under `--system`.
 - **Rule labels with `□` or `◇`** are set as symbols in every export:

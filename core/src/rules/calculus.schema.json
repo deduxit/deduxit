@@ -178,7 +178,7 @@
         },
         "conclusion": { "$ref": "#/$defs/sequent" },
         "fresh": {
-          "description": "Variables matched by atoms that occur neither in the conclusion nor in a hypothesis in force: an eigenvariable, a new label.",
+          "description": "Variables matched by atoms that occur neither in the conclusion nor in a hypothesis in force, and that no other variable of the rule matches: an eigenvariable, a new label.",
           "type": "array",
           "items": { "type": "string" }
         },
