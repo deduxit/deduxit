@@ -21,7 +21,7 @@ Options:
       --invertible
           Apply every invertible rule by itself, at the start and to the goals each step opens (interactive.invertible)
           
-          The invertible rules are ⅋, ⊥, & and ⊤; ! when every other formula is a ?; and 1, ⊗ and the axiom when their formulas are the whole goal. The session command `invertible on|off` turns this on or off.
+          The invertible rules are ⅋, ⊥, & and ⊤; ! when every other formula is a ?; and 1, ⊗ and the axiom when their formulas are the whole goal. Under --logic, the axiom and every rule of a connective with a shared context, but in LJ →L, ¬L and ∨R₁, ∨R₂. The session command `invertible on|off` turns this on or off.
 
       --settings <PATH>
           Read the settings from a JSON file; the flags override it
