@@ -52,3 +52,44 @@ bindings; the client's Learn and Practice with the education plugins,
 a fresh-context reviewer per content session as step 43's).
 Deliverables: the commits, the client's commits,
 `plan/reports/63-suite-protocol.md`.
+
+## What steps 60 to 62 left you (the review of 62c, 2026-11-16)
+
+- **The suites that work now**: linear; ordinary (sequents by LJT, the
+  SAT solver, the embeddings, truth tables, tableaux, Kripke
+  countermodels, 63t's translations and interpolants); a calculus given
+  as data (step 60's rule files, 61's sessions, 62's natural deduction
+  NJ, NK, NM with forward and backward steps, Gentzen trees and Fitch
+  proofs). Each speaks its own calls in `web/src/` today; the protocol
+  makes them one set.
+- **Wire levels**: 17 is a session in a calculus given as data, 18 one
+  that holds a derived line (62b). Take the next free for anything new.
+- **`layout`**: 62c's `ViewOptions::layout` (`Layout::Tree`, `Fitch`;
+  the settings key `view.layout`) is the first view choice of a suite;
+  the protocol's `layout` field (`tree`, `list`, `graph`, `text`) is the
+  host the stage draws into, and the Fitch proof is a `list`.
+- **The workspace graph (63g)** is designed first (63g-a, a Fable panel,
+  `plan/notes/63g-design.md`): it names each suite's artifacts and
+  operations. The protocol writes them down as its own, so that 63g-b
+  takes every suite from the protocol.
+- **Not overwhelming** (the author): the protocol changes no visitor's
+  first screen; Learn and Practice by suite keep the linear course as
+  it is and add the ordinary suite's beside it.
+- **The module's size**: the client's ceiling is 3.3 MB at gzip
+  (`budget`); measure the module after 62d before the module question.
+
+## The sessions (planned at this review)
+
+- **63a, the protocol and the bindings** (Opus 5.5 at `high`, the fresh
+  reviewer on Fable 5.2): after 62d has landed (it owns `web/src/rules.rs`
+  until then) and after 63g-a's design. The protocol written down with
+  its JSON Schema (interop-1), every suite's bindings speaking it, the
+  linear calls kept, the tests under Node, the module question
+  answered with its measurement.
+- **63b, Learn and Practice by suite** (Opus 5.5 at `high`, in the
+  client, with the education plugins; a fresh-context reviewer per
+  content session): the lesson format as data, the linear lessons and
+  the 452 problems moved under the linear suite unchanged, the ordinary
+  suite's lessons and problems (sequents, tableaux, natural deduction)
+  with their verdicts decided by the command in a flake check.
+- **63c** if the content needs a second session.
