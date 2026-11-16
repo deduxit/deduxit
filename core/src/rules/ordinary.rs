@@ -21,7 +21,7 @@ const fn calculus(logic: Logic) -> &'static str {
 
 /// Adds every formula of `formulas` to `terms`, in the arena's order,
 /// and returns the term of each.
-pub(super) fn terms_of(
+pub(crate) fn terms_of(
     formulas: &ordinary::Formulas,
     terms: &mut super::Terms,
 ) -> Result<Vec<TermId>, Error> {

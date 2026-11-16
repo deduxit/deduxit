@@ -42,7 +42,7 @@ fn the_rule_files_read_and_write_back() {
         (LJ, "LJ", 34),
         (LM, "LM", 32),
         (LL, "LL", 13),
-        (deduxit::rules::TABLEAU, "tableau", 21),
+        (deduxit::rules::TABLEAU, "tableau", 23),
     ] {
         let read = calculus(text).unwrap();
         assert_eq!(read.name(), name);

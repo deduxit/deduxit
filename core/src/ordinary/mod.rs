@@ -76,6 +76,9 @@ mod table;
 #[cfg(feature = "interactive")]
 mod tableau;
 mod translate;
+/// A tableau written by hand, read and reviewed.
+#[cfg(all(feature = "interactive", feature = "parse", feature = "serialize"))]
+mod written;
 
 pub use decide::{
     EVIDENCE_WORK, Evidence, Outcome, Search, Verdict, decide, decide_within, gives_way,
@@ -92,6 +95,8 @@ pub use table::{TruthTable, truth_table};
 #[cfg(feature = "interactive")]
 pub use tableau::{End, Sign, Signed, Tableau, TableauNode};
 pub use translate::{FALSE, Image, translate};
+#[cfg(all(feature = "interactive", feature = "parse", feature = "serialize"))]
+pub use written::{Standing, TableauReview, WrittenTableau};
 
 use crate::Error;
 use crate::hash::HashMap;

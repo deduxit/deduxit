@@ -75,6 +75,8 @@ pub use fitch::{Fitch, FitchOptions};
 #[cfg(all(feature = "interactive", feature = "parse"))]
 pub use interactive::{Applicable, Apply, Derive, GoalId, Interactive, LineId, Undone};
 pub use print::Shown;
+#[cfg(all(feature = "interactive", feature = "parse"))]
+pub(crate) use ordinary::terms_of;
 pub use terms::{Term, TermId, Terms};
 
 /// The name of the sort every calculus has: that of formulas.

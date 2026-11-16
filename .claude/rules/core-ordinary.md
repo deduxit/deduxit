@@ -668,6 +668,81 @@ classical logic only (`Error::Logic`, which names the method).
   node with children expanding a line and a leaf with an end, not the
   expansions).
 
+## A tableau written by hand (`written/`)
+
+`WrittenTableau` (features `parse`, `serialize`, `interactive`): a
+student's signed tableau read from text and reviewed step by step
+against the rule file `rules::TABLEAU`, which the caller reads and
+passes (core has `serde_json` only under `protocol`).
+
+- **The text is what `Tableau`'s `Display` prints**, so `prove
+  --method tableau`'s output reads back: numbered lines (`3` or `3.`,
+  `T`/`F`, the formula in the ordinary syntax, then optionally a rule's
+  name and the number of the line expanded), `×` (`x`, `*`, `⊗`) with
+  zero, one or two line numbers, `open`. The formula is parsed by
+  `parse::formula_in` into one arena for the whole tableau, so equal
+  formulas are one id; an error is a `ParseError` placed in the whole
+  text. The justification is split off from the right: a last word of
+  digits is the line expanded, a word before it that `Named::read`
+  takes is the rule (no ordinary atom is all digits, and a rule's name
+  is no formula's last word).
+- **The layout**: a branch starts with a marker (`├─`, `└─`, `+-`,
+  `\-`, `` `- `` or `-`; `|-` counted at the bar's column) at the column of its parent's lines,
+  its own lines at the column after the marker; a line without a marker
+  goes on the open branch whose lines stand in its column (a stack of
+  open branches, each with its column). So the drawn tree, its ASCII
+  form and a plain list read alike. A line after a split, after a mark,
+  or indented under no branch is a `ParseError` with a hint.
+- **The first lines that cite no line are the sequent's** (`root_lines`),
+  hypotheses `T`, conclusions `F`; a later line without a citation is a
+  fault of the review, not of the reader.
+- **The review's own matcher gives the words; the rule file gives the
+  verdict.** `Walk` goes through the branches in text order (which is
+  preorder: branches are made as the text reads), keeping the current
+  branch's lines (`path`, `on_path`, `present`), groups consecutive lines
+  citing one line into one expansion (`group`: as long as they fit one
+  result list of `shapes`), and matches each against `shapes`, which
+  lists exactly the rules of `TABLEAU` that expand the line (the partial
+  ones `T∧₁`, `F∨₁`, `T↔₁`… marked `partial`). A group passes where it is
+  within a result list as a multiset and the branch with it holds the
+  whole list, which is exactly when the rule's node is an instance (the
+  branch is a set). A split's two branches must start with the two
+  result lists in either order. Every fault is kept only if it is at an
+  earlier text line than the one held, and the walk goes on, so the
+  answer is the first fault in the text whatever the branch order. A
+  split at fault passes over its branches' first lines citing alike
+  (`passed`): read again as expansions they were said again, at a line
+  earlier than the other branch's fault.
+- **No fault, then the derivation**: `Walk::plan` writes a node per
+  expansion, split and leaf, each holding its branch's signed formulas
+  once (first occurrence order), `derivation` pushes them in reverse
+  (premises first), and `review` runs `Derivation::check` (all closed)
+  or `check_open` (open and unmarked branches as open goals). A refusal
+  of the rule file is `Standing::Wrong` with its reason: the matcher's
+  pass is never the verdict, so a matcher that accepted too much shows
+  as that message, never as `Closed` or `Open`. A closed tableau is a
+  checked derivation in `TABLEAU`; an open one's first open branch gives
+  the one-world model of its true atoms, checked by
+  `Countermodel::found`.
+- **`finished`** (an `open` mark, the unfinished message) is the
+  Hintikka condition read off `shapes`: every line has a whole result
+  list of one of its non-partial rules on the branch, and nothing
+  closes it (`closer`: a formula true and false, `⊥` true, `⊤` false).
+  It decides only what the student is told: the open verdict rests on
+  the countermodel's check.
+- **Bounds**: the planned nodes are charged `NODE_BYTES` and
+  `MEMBER_BYTES` per member against `limits.memory_bytes`
+  (`Refusal::Memory`), since each holds its whole branch (nodes times
+  depth); the formulas count against `limits.occurrences`; lines and
+  branches are `u32` (`Refusal::Index`); the stop is asked per branch
+  and by the checker per node.
+- **The expected sequent** (`review`'s `expected`) is compared as two
+  sets of signed formulas with the first lines, after mapping its arena
+  into a copy of the tableau's.
+- **JSON** (`serialize/ordinary.rs`, `ReviewForm`, written only, level
+  14): `{version, standing, sequent, text_line?, line?, message,
+  countermodel?}`; nothing reads it back.
+
 ## The goal state (`interactive.rs`)
 
 A native state of ordinary sequents, not a session over the image: the

@@ -1,7 +1,7 @@
 {
   "version": 15,
   "name": "tableau",
-  "description": "Smullyan's signed analytic tableau of classical propositional logic, written as a calculus: a node is the set of signed formulas on its branch, an expansion keeps the formula it expands, and a branch closes on a formula signed both ways, on ⊥ true or on ⊤ false.",
+  "description": "Smullyan's signed analytic tableau of classical propositional logic, written as a calculus: a node is the set of signed formulas on its branch, an expansion keeps the formula it expands, and a branch closes on a formula signed both ways, on ⊥ true or on ⊤ false. An equivalence expands two ways: into the two implications, as LK does (T↔, F↔), or by the values of its sides, as the Open Logic Project's and forall x's trees do (T↔′, F↔′).",
   "sorts": ["signed"],
   "connectives": [
     {"name": "⊤", "arity": 0},
@@ -36,6 +36,8 @@
     {"name": "T↔₁", "premises": [{"branch": ["S", ["T", ["→", "A", "B"]]]}], "conclusion": {"branch": ["S", ["T", ["↔", "A", "B"]]]}},
     {"name": "T↔₂", "premises": [{"branch": ["S", ["T", ["→", "B", "A"]]]}], "conclusion": {"branch": ["S", ["T", ["↔", "A", "B"]]]}},
     {"name": "F↔", "premises": [{"branch": ["S", ["F", ["→", "A", "B"]]]}, {"branch": ["S", ["F", ["→", "B", "A"]]]}], "conclusion": {"branch": ["S", ["F", ["↔", "A", "B"]]]}},
+    {"name": "T↔′", "premises": [{"branch": ["S", ["T", "A"], ["T", "B"]]}, {"branch": ["S", ["F", "A"], ["F", "B"]]}], "conclusion": {"branch": ["S", ["T", ["↔", "A", "B"]]]}},
+    {"name": "F↔′", "premises": [{"branch": ["S", ["T", "A"], ["F", "B"]]}, {"branch": ["S", ["F", "A"], ["T", "B"]]}], "conclusion": {"branch": ["S", ["F", ["↔", "A", "B"]]]}},
     {"name": "T⊤", "premises": [{"branch": ["S"]}], "conclusion": {"branch": ["S", ["T", "⊤"]]}},
     {"name": "F⊥", "premises": [{"branch": ["S"]}], "conclusion": {"branch": ["S", ["F", "⊥"]]}},
     {"name": "×", "conclusion": {"branch": ["S", ["T", "A"], ["F", "A"]]}},

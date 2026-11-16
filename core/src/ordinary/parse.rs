@@ -391,6 +391,54 @@ impl Sequent {
     }
 }
 
+/// Reads the one formula that `text[span]` holds into `formulas`, within
+/// `limits.occurrences`, and returns its id. An error names its place in
+/// the whole text, up to the formula's end.
+///
+/// # Errors
+///
+/// [`Error::Parse`] where the span holds no formula or more than one,
+/// [`Error::AtomName`] for an atom named by a keyword, and
+/// [`Refusal::Occurrences`] past the bound.
+#[cfg(all(feature = "interactive", feature = "serialize"))]
+pub(super) fn formula_in(
+    text: &str,
+    span: std::ops::Range<usize>,
+    formulas: &mut Formulas,
+    limits: &Limits,
+) -> Result<NodeId, Error> {
+    let input = &text[..span.end];
+    let mut parser = Parser {
+        input,
+        at: span.start,
+        dialect: Dialect::Native,
+        formulas,
+        pending: Vec::new(),
+        open: 0,
+        limit: limits.occurrences,
+    };
+    let at = parser.at;
+    let (formula, end) = parser.formula()?;
+    match end {
+        End::Stop => Ok(formula),
+        End::Comma | End::Turnstile => {
+            let read = &input[at..parser.at];
+            let token = if read.ends_with("|-") {
+                2
+            } else if read.ends_with('⊢') {
+                '⊢'.len_utf8()
+            } else {
+                1
+            };
+            let span = parser.at - token..parser.at;
+            Err(
+                ParseError::spanning(input, span, &["a connective", "the end of the formula"])
+                    .into(),
+            )
+        }
+    }
+}
+
 /// Fails once `count` formulas, of the arena or of a sequent, pass
 /// `limit`: each is at least one occurrence of the image, however much of
 /// the arena a formula of the sequent shares with the others.

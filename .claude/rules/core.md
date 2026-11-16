@@ -95,7 +95,7 @@ of those names),
 `simple`, the printer `print`),
 `ordinary` (the arena and syntax in `mod.rs`, `parse` behind the
 feature of that name, `translate`, `derivation` with the read-back and
-its checker, the native engine `ljt`, the SAT engine `sat` behind that feature, the check of a Kripke model `model`, the truth table `table`, the signed tableau `tableau` behind `interactive`, `rocq` behind that feature, `interactive` behind that
+its checker, the native engine `ljt`, the SAT engine `sat` behind that feature, the check of a Kripke model `model`, the truth table `table`, the signed tableau `tableau` behind `interactive`, the review of a tableau written by hand `written` behind `parse`, `serialize` and `interactive`, `rocq` behind that feature, `interactive` behind that
 feature), `modal` (the arena, `system`, `parse` behind the feature of
 that name, the model check `model`, and behind `serialize` the labelled
 calculus `calculus`, the tableau `search` and `decide`), `kripke` (the shared Kripke model), and `lltp`, `mist` and
@@ -148,7 +148,7 @@ Each entry point is described in the file of its module:
   engine with its checked `Model`, `export::rocq::ordinary`, and the goal state
   `ordinary::Interactive` (`within`, `rules`, `apply`, `undo`, `close`,
   `hint`, `derivation_within`, `finished`), `ordinary::truth_table` and
-  `Tableau::of` (`core-ordinary.md`);
+  `Tableau::of`, `WrittenTableau::parse_within` and `review` (`core-ordinary.md`);
 - `modal`: `"…".parse::<modal::Sequent>()`, `Sequent::parse_within`,
   `System` (the fifteen constants, `with`, `has`, `extends`, `FromStr`)
   and `Condition`; `modal::decide(&sequent, &Options)` and
@@ -366,7 +366,7 @@ the commit that lands it rewrites that bullet.
   its type and would change with a new value.
 - **The marked ones** (every public enum and every struct with a public
   field, each `#[non_exhaustive]`, and `workspace::Computed`, marked
-  though its fields are private: 194 after step 65's eight, 186 at
+  though its fields are private: 196 after step 68's two, 194 after step 65's eight, 186 at
   0.5.0, 146 at 0.4.0, 119 at 0.2.0 and 81 at 0.1.0; the closed are the
   nineteen above, eighteen at 0.5.0, seventeen at 0.4.0, fifteen at
   0.2.0 and thirteen at 0.1.0; both lists checked against
@@ -397,6 +397,7 @@ the commit that lands it rewrites that bullet.
   Statistics}` (added at step 54s); `kripke::{Model, World}`,
   `ordinary::Countermodel` (added at step 55b);
   `ordinary::{End, Sign, Signed}` (added at step 56a);
+  `ordinary::{Standing, TableauReview}` (added at step 68a);
   `protocol::{Call, Check, Class, Cost, Kind, Limit, Operation,
   Parameter, Part, Produced, Promise, Role, Status, Verdict}` (added at
   step 63a); `workspace::{Cause, Computed, End, NodeView, Ran, State,

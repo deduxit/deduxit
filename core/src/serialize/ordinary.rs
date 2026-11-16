@@ -1278,6 +1278,54 @@ struct ComparisonForm<'a> {
     decided: NestedOutcome<'a>,
 }
 
+/// The written form of a review of a tableau written by hand.
+#[cfg(all(feature = "interactive", feature = "parse"))]
+#[derive(Serialize)]
+struct ReviewForm<'a> {
+    /// The wire level.
+    version: u32,
+    /// How the tableau stands.
+    standing: &'static str,
+    /// The sequent its first lines give.
+    sequent: SequentForm,
+    /// The text line the message is about.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    text_line: Option<u32>,
+    /// The tableau's line the message is about.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    line: Option<u32>,
+    /// What the review found.
+    message: &'a str,
+    /// The model an open branch gives, checked.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    countermodel: Option<CountermodelForm>,
+}
+
+#[cfg(all(feature = "interactive", feature = "parse"))]
+impl Serialize for crate::ordinary::TableauReview {
+    /// Serializes the review as a document at level 14, written only.
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let sequent = &self.sequent;
+        ReviewForm {
+            version: wire::TABLES,
+            standing: self.standing.word(),
+            sequent: SequentForm::of(sequent.formulas(), sequent.left(), sequent.right()),
+            text_line: self.text_line,
+            line: self.line,
+            message: &self.message,
+            countermodel: self.countermodel.as_ref().map(|c| CountermodelForm {
+                sequent: SequentForm::of(
+                    c.sequent.formulas(),
+                    c.sequent.left(),
+                    c.sequent.right(),
+                ),
+                model: super::kripke::ModelForm::from(&c.model),
+            }),
+        }
+        .serialize(serializer)
+    }
+}
+
 impl Serialize for crate::ordinary::negative::Comparison {
     /// Serializes the comparison as a document at level 16.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
