@@ -330,7 +330,10 @@ baseline's build overwrites the head's `target/doc/deduxit.json`, so the
 command builds both APIs afresh. The two lists of types below are
 checked the same way: every public enum and every struct with a public
 field of the head's JSON, by its `non_exhaustive` attribute, against the
-names listed.
+names listed. A marked struct without a public field (`Mode`, the two
+`Inference`s, `workspace::Computed`) is outside the count, though
+`Computed` is listed; the JSON's paths are the defining modules', so a
+listed `modal::Verdict` names `modal::decide::Verdict`.
 
 ## Decisions
 
@@ -366,9 +369,9 @@ the commit that lands it rewrites that bullet.
   its type and would change with a new value.
 - **The marked ones** (every public enum and every struct with a public
   field, each `#[non_exhaustive]`, and `workspace::Computed`, marked
-  though its fields are private: 196 after step 68's two, 194 after step 65's eight, 186 at
+  though its fields are private: 196 at 0.6.0, 186 at
   0.5.0, 146 at 0.4.0, 119 at 0.2.0 and 81 at 0.1.0; the closed are the
-  nineteen above, eighteen at 0.5.0, seventeen at 0.4.0, fifteen at
+  nineteen above at 0.6.0, eighteen at 0.5.0, seventeen at 0.4.0, fifteen at
   0.2.0 and thirteen at 0.1.0; both lists checked against
   the rustdoc JSON with every feature by a script, see "The break against
   the last release" below): `Bias`, `CheckError`, `Clock`, `Counter`,
