@@ -7521,3 +7521,5 @@ move (D26).
 - 2026-11-16, about 22:40: **The author: "Yes, tag 0.6.0"**: the planning session makes 0.6.0's
   signed tags (rocq-deduxit first, then deduxit) once CI is green at each release commit; the
   crates.io approval stays the author's.
+- 2026-11-16, about 22:45: **The author: "Go with your recommendation"**: a course pack that bars
+  the search bars the automatic invertible rules too (68c's question 8); 68d makes the change.
