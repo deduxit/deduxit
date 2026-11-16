@@ -1,0 +1,5 @@
+$ deduxit prove --system S4 -i []p
+--- status 2
+--- stdout
+--- stderr
+error: --system decides modal logic, which has no mode: leave out the mode flags

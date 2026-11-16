@@ -1,0 +1,7 @@
+$ deduxit prove --system S6 []p
+--- status 2
+--- stdout
+--- stderr
+error: invalid value 'S6' for '--system <SYSTEM>': unknown modal system `S6`: K, D, T, KB, KDB, B, K4, KD4, S4, K5, KD5, K45, KD45, KB5 or S5
+
+For more information, try '--help'.

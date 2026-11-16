@@ -1,0 +1,5 @@
+$ deduxit prove --system kt4 -q '<>[]p -> []<>p'
+--- status 1
+--- stdout
+not valid in S4: a checked countermodel of 3 worlds refutes ⊢ ◇□p → □◇p at world 0
+--- stderr

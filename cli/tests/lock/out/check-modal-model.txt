@@ -1,0 +1,13 @@
+$ deduxit check --system K --sequent '[]p |- [][]p'
+--- stdin
+{"worlds":[{"atoms":[],"arrows":[1]},{"atoms":["p"],"arrows":[2]},{"atoms":[]}]}
+
+--- status 1
+--- stdout
+fails in K at world 0: □p ⊢ □□p; every formula left of ⊢ is true there and every formula right of it false
+  □p is true
+  □□p is false: world 1 shows it
+world 0 (where the sequent fails): forces nothing; sees 1
+world 1: forces p; sees 2
+world 2: forces nothing; sees no world
+--- stderr

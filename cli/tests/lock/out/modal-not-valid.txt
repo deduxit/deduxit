@@ -1,0 +1,8 @@
+$ deduxit prove --system K '[]p -> [][]p'
+--- status 1
+--- stdout
+not valid in K: a checked countermodel of 3 worlds refutes ⊢ □p → □□p at world 0
+world 0 (where the sequent fails): forces nothing; sees 1
+world 1: forces p; sees 2
+world 2: forces nothing; sees no world
+--- stderr

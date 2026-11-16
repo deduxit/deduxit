@@ -75,6 +75,15 @@ const ORDINARY_OUTCOME: &str = r#"{"version":12,"deduxit":"0.3.0","verdict":"val
 /// `a`: the countermodel of the excluded middle.
 const MODEL: &str = r#"{"worlds":[{"atoms":[],"arrows":[1]},{"atoms":["a"]}]}"#;
 
+/// A modal outcome at level 20: `□p ⊢ □□p` not valid in K, with its
+/// countermodel.
+const MODAL_OUTCOME: &str = r#"{"version":20,"deduxit":"0.5.0","verdict":"not_valid","system":"K","statistics":{"worlds":3,"splits":0,"blocked":0,"work":15,"inferences":0},"sequent":{"formulas":[{"V":0},{"□":0},{"□":1}],"atoms":["p"],"left":[1],"right":[2]},"countermodel":{"model":{"worlds":[{"atoms":[],"arrows":[1]},{"atoms":["p"],"arrows":[2]},{"atoms":[]}],"world":0}}}"#;
+
+/// A Kripke model of three worlds in a row, `p` at the middle one: it
+/// refutes `□p ⊢ □□p` at world 0, and no world sees itself.
+const MODAL_MODEL: &str =
+    r#"{"worlds":[{"atoms":[],"arrows":[1]},{"atoms":["p"],"arrows":[2]},{"atoms":[]}]}"#;
+
 /// Every call the lock pins.
 const CASES: &[Case] = &[
     // Fragments and modes, as text.
@@ -602,6 +611,64 @@ const CASES: &[Case] = &[
             "a /\\ b |- b",
         ],
     ),
+    // Modal logic.
+    call("modal-valid", &["prove", "--system", "S4", "[]p -> [][]p"]),
+    call(
+        "modal-not-valid",
+        &["prove", "--system", "K", "[]p -> [][]p"],
+    ),
+    call(
+        "modal-json",
+        &["prove", "--system", "K", "--format", "json", "[]p -> [][]p"],
+    ),
+    call(
+        "modal-stats",
+        &["prove", "--system", "KD45", "--stats", "-q", "[]p -> <>p"],
+    ),
+    call(
+        "modal-latex",
+        &[
+            "prove",
+            "--system",
+            "S4",
+            "--format",
+            "latex",
+            "[]p, <>q |- <>([]p /\\ q)",
+        ],
+    ),
+    call(
+        "modal-svg-countermodel",
+        &["prove", "--system", "K", "--format", "svg", "[]p -> [][]p"],
+    ),
+    call(
+        "modal-unknown",
+        &[
+            "prove",
+            "--system",
+            "S4",
+            "--work-limit",
+            "1",
+            "[](p -> []p) -> (p -> []p)",
+        ],
+    ),
+    call(
+        "modal-alias",
+        &["prove", "--system", "kt4", "-q", "<>[]p -> []<>p"],
+    ),
+    call("modal-unknown-system", &["prove", "--system", "S6", "[]p"]),
+    call("modal-mode-flag", &["prove", "--system", "S4", "-i", "[]p"]),
+    call(
+        "modal-batch",
+        &[
+            "prove",
+            "--system",
+            "K",
+            "--input-format",
+            "lines",
+            "--file",
+            "many.txt",
+        ],
+    ),
     // Problem files.
     call("file-lltp", &["prove", "--file", "double.p"]),
     call(
@@ -675,6 +742,27 @@ const CASES: &[Case] = &[
             "1",
         ],
         MODEL,
+    ),
+    piped("check-modal", &["check"], MODAL_OUTCOME),
+    piped(
+        "check-modal-json",
+        &["check", "--format", "json"],
+        MODAL_OUTCOME,
+    ),
+    piped(
+        "check-modal-system",
+        &["check", "--system", "K"],
+        MODAL_OUTCOME,
+    ),
+    piped(
+        "check-modal-model",
+        &["check", "--system", "K", "--sequent", "[]p |- [][]p"],
+        MODAL_MODEL,
+    ),
+    piped(
+        "check-modal-frame",
+        &["check", "--system", "T", "--sequent", "[]p |- [][]p"],
+        MODAL_MODEL,
     ),
     piped("check-format-latex", &["check", "--format", "latex"], PROOF),
     piped("check-net", &["check", "--net"], PROOF),

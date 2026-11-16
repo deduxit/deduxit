@@ -1,0 +1,5 @@
+$ deduxit prove --system S4 --work-limit 1 '[](p -> []p) -> (p -> []p)'
+--- status 3
+--- stdout
+unknown in S4: the work limit of 1 was reached after …; raise it with --work-limit N
+--- stderr

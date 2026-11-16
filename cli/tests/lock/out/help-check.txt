@@ -77,7 +77,7 @@ Input:
           [default: 50000000]
 
       --sequent <SEQUENT>
-          With a Kripke model, the sequent of ordinary logic to check it against
+          With a Kripke model, the sequent of ordinary logic (--logic) or of modal logic (--system) to check it against
           
           The model must be one of the logic: its worlds ordered by its arrows, with no arrows round, each world forcing what every world below it forces, and ⊥ forced only in minimal logic. Then the check says whether the sequent holds at the world --world names, or at every world: at every world at or above it that forces each formula left of ⊢, the formula right of it is forced. Where it fails, it names a world that forces each formula left of ⊢ and not the one right of it, and what that world forces of each subformula. The exit status is 0 where the sequent holds, 1 where it fails and 2 for a model that is not one of the logic.
 
@@ -121,6 +121,11 @@ Logic:
           - classical:      Classical propositional logic, derivations in LK
           - intuitionistic: Intuitionistic propositional logic, derivations in LJ
           - minimal:        Minimal logic: intuitionistic logic without ex falso, where false is an atom
+
+      --system <SYSTEM>
+          With a Kripke model, the modal system to check it in
+          
+          The file is then a Kripke model in JSON, as `prove --system --format json` writes one under `countermodel`, each world's arrows the worlds it sees, and --sequent names the modal sequent to check it against. The model must meet the system's frame conditions on its arrows as written (a model of S4 lists its loops); the check names the first condition it does not meet. Then it says whether the sequent holds at the world --world names, or at every world, and where it fails, the value there of each subformula and the world each false □ or true ◇ looks to. The exit status is 0 where the sequent holds, 1 where it fails and 2 for a model that is none of the system.
 
 Output:
       --layout <LAYOUT>

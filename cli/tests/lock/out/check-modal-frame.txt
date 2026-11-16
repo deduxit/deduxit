@@ -1,0 +1,8 @@
+$ deduxit check --system T --sequent '[]p |- [][]p'
+--- stdin
+{"worlds":[{"atoms":[],"arrows":[1]},{"atoms":["p"],"arrows":[2]},{"atoms":[]}]}
+
+--- status 2
+--- stdout
+--- stderr
+error: the model is no model of T: not reflexive: world 0 does not see itself

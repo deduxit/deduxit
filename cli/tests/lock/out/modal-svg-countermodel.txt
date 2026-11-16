@@ -1,0 +1,35 @@
+$ deduxit prove --system K --format svg '[]p -> [][]p'
+--- status 1
+--- stdout
+<!-- not valid in K: a checked countermodel of 3 worlds refutes ⊢ □p → □□p at world 0 -->
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="70.064" height="225.6" viewBox="0 0 4379 14100" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
+<title>A countermodel of ⊢ □p → □□p in K</title>
+<desc>A Kripke model of 3 worlds. An arrow points from a world to a world it sees.
+World 0, the model's world, forces nothing; it sees world 1.
+World 1 forces p; it sees world 2.
+World 2 forces nothing.
+At world 0 every formula left of ⊢ is true and every formula right of it false, so ⊢ □p → □□p is not valid in K.</desc>
+<g fill="none" stroke="black" stroke-width="40">
+<path d="M1979 3300L1979 6300"/>
+<path d="M1865 6110L1979 6300L2093 6110"/>
+<path d="M1979 7800L1979 10800"/>
+<path d="M1865 10610L1979 10800L2093 10610"/>
+<rect id="w0" x="1379" y="1800" width="1200" height="1500" rx="200" stroke="#d55e00" stroke-width="80"/>
+<rect id="w1" x="1379" y="6300" width="1200" height="1500" rx="200"/>
+<rect id="w2" x="1379" y="10800" width="1200" height="1500" rx="200"/>
+</g>
+<g>
+<text x="300" y="2890" textLength="649" lengthAdjust="spacing">w</text>
+<text x="949" y="3010" textLength="280" lengthAdjust="spacing" font-size="560">0</text>
+</g>
+<g>
+<text x="300" y="7390" textLength="649" lengthAdjust="spacing">w</text>
+<text x="949" y="7510" textLength="280" lengthAdjust="spacing" font-size="560">1</text>
+</g>
+<text x="1684" y="7390" textLength="589" lengthAdjust="spacing">𝑝</text>
+<g>
+<text x="300" y="11890" textLength="649" lengthAdjust="spacing">w</text>
+<text x="949" y="12010" textLength="280" lengthAdjust="spacing" font-size="560">2</text>
+</g>
+</svg>
+--- stderr

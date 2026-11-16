@@ -1,0 +1,11 @@
+$ deduxit prove --system KD45 --stats -q '[]p -> <>p'
+--- status 0
+--- stdout
+valid in KD45: ⊢ □p → ◇p, a checked derivation of 5 inferences in G3KD45
+worlds made: 2
+splits: 0
+worlds blocked: 0
+units of work: 11
+inferences: 5
+time: …
+--- stderr

@@ -1,0 +1,5 @@
+$ deduxit prove --system K --format json '[]p -> [][]p'
+--- status 1
+--- stdout
+{"version":20,"deduxit":"…","verdict":"not_valid","system":"K","statistics":{"worlds":3,"splits":0,"blocked":0,"work":16,"inferences":0},"sequent":{"formulas":[{"V":0},{"□":0},{"□":1},{"→":[1,2]}],"atoms":["p"],"left":[],"right":[3]},"countermodel":{"model":{"worlds":[{"atoms":[],"arrows":[1]},{"atoms":["p"],"arrows":[2]},{"atoms":[]}],"world":0}}}
+--- stderr

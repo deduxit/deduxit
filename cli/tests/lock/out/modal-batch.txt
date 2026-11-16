@@ -1,0 +1,5 @@
+$ deduxit prove --system K --input-format lines --file many.txt
+--- status 2
+--- stdout
+--- stderr
+error: --system decides one sequent: give it as the argument, or one file with --file

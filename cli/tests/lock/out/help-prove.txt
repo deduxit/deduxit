@@ -68,6 +68,11 @@ Logic:
           - cbv:    Girard's call-by-value translation into ILL: atoms as !a, A → B as !(A ⊸ B), ∧ as ⊗
           - 01:     Liang and Miller's 0/1 translation into ILL, as the LLTP library states it
 
+      --system <SYSTEM>
+          Read the input as modal logic and decide it in this system
+          
+          The input is a formula or a sequent of propositional modal logic: ordinary logic's syntax with the prefixes [] (necessarily) and <> (possibly), as `[]p -> [][]p`, or its JSON form. The system is one of K, D, T, KB, KDB, B, K4, KD4, S4, K5, KD5, K45, KD45, KB5 and S5, or another name of one, such as KT4 for S4. A valid sequent is shown as a checked derivation in the system's labelled sequent calculus, G3 and the system's name, which `check --calculus` reads; one that is not valid with a checked Kripke countermodel, each world's arrows the worlds it sees. The JSON output is the modal outcome.
+
       --method <METHOD>
           With --logic, how to decide the sequent: through its embedding into linear logic, by LJT, by a SAT solver, by its truth table or by a tableau (ordinary.method)
           
