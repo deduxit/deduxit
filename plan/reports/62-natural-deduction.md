@@ -565,6 +565,20 @@ was rebased onto them (`nnwtrksk`) and two of 62b's notes for 62c met:
   each inference draws, as `Fitch::nodes()` gives each line's;
   `Interactive::derivation_goals`'s doc says so. The bindings' view
   still gives `inferences` per node (see below).
+- **Checked on a real session** (the orchestrator's request after 62b
+  landed): `interact --calculus NJ 'a /\ b -> (b /\ a) /\ (b /\ a)'`,
+  `apply 0 →I`, three `derive`s, `apply 1 ∧I` and both goals closed by
+  line 4. The Fitch proof shows the two hypothesis nodes of `a ∧ b` as
+  line 1, the derived lines 2 to 4 in their numbers' order (the
+  derivation's order, since `derived` emits the lines first, in step
+  order), and cites the shared line twice (`∧I 4, 4`); the tree draws
+  line 4 under each parent (12 inferences for 7 nodes). Text, LaTeX,
+  Typst and SVG all drew it; `a_line_cited_twice_is_one_fitch_line`
+  pins it. Nothing is refused for a DAG. What does not hold yet is the
+  web view's `inferences`, which 62d must map through `Drawing::nodes()`
+  (below): the bindings make no line today, but a level-18 session
+  loaded into the page would mislabel the drawn inferences after a
+  shared one.
 
 ### Checks
 
