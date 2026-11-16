@@ -199,9 +199,9 @@ error: the step is refused: L¬ adds members after ⊢, and a forward step adds 
 ```
 
 `proof FILE` writes the finished derivation as JSON, which `check
---calculus G3S4 FILE` checks again. The search's derivations are in the
-same calculi, so a session shows how a proof `prove --system` found is
-made.
+--calculus G3S4 FILE` checks again, and `proof --rocq FILE` its
+certificate for Rocq. The search's derivations are in the same calculi,
+so a session shows how a proof `prove --system` found is made.
 
 ## Draw a derivation or a model
 
@@ -214,6 +214,11 @@ $ deduxit prove --system S4 --output proof.tex '[]p |- [][]p'
 $ deduxit prove --system K --output model.svg '[]p |- [][]p'; echo "exit $?"
 exit 1
 ```
+
+`--format rocq` writes a certificate of either verdict for deduxit's
+Rocq library, which proves the sequent valid over the system's frames,
+or not valid, from the derivation or the countermodel
+([Certificates of modal logic](rocq.md#certificates-of-modal-logic)).
 
 ## Limits
 

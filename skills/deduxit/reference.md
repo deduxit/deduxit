@@ -1340,7 +1340,13 @@ arrows as written (a model of S4 lists every world's arrow to itself;
 one that fails them is exit 2), then exit 0 where the sequent holds and
 1 where it fails, with each formula's value at the failing world.
 `--format latex|typst|svg|png|pdf` draws the derivation; `svg`, `png`
-and `pdf` draw a countermodel. `--stats` counts worlds made, splits,
+and `pdf` draw a countermodel. `--format rocq` writes a certificate for
+deduxit's Rocq library (`From Deduxit.Modal`) of either verdict:
+`valid C [Γ] [Δ]` over the system's frames, `C` the record of its frame
+conditions, proved by `modal_soundness` from the labelled derivation as
+a term, or `~ valid C [Γ] [Δ]` by `modal_refutation` from the
+countermodel; `check --format rocq` writes one for an outcome or a
+derivation in a `G3…` calculus. `--stats` counts worlds made, splits,
 worlds blocked, units of work and inferences.
 
 `deduxit interact --calculus G3S4 "w0 : []p |- w0 : [][]p"` (any
@@ -1350,7 +1356,9 @@ goal G, where `L□`, `L∧`, `L◇` and the conditions' rules (`Ref`, `Ser`,
 `Sym`, `Trans`, `Eucl`) add what they derive before `⊢` (`x=w0` gives a
 label the members leave open). A rule that acts on a member after `⊢`
 (every right rule), adds after it (`L¬`), splits the goal or closes it
-is refused forwards with the reason.
+is refused forwards with the reason. `proof --rocq [FILE]` writes the
+finished derivation's certificate, stated as `lvalid` (`labelled_soundness`)
+for a root that is not every formula at one world.
 
 ```console
 $ deduxit prove --system K --format json --output outcome.json "[]p -> [][]p"; echo "exit $?"

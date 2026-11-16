@@ -48,8 +48,8 @@ names:
 - `deduxit`, deduxit's own Rocq library
   ([deduxit/rocq-deduxit](https://github.com/deduxit/rocq-deduxit)),
   the default for Mix, affine and intuitionistic logic, for a sequent
-  with a quantifier, and the only kernel for a refutation and for a
-  Kripke countermodel of ordinary logic.
+  with a quantifier, and the only kernel for a refutation, for a
+  Kripke countermodel of ordinary logic and for modal logic.
 
 The verdict line becomes a comment of the certificate.
 
@@ -204,6 +204,61 @@ shows one). Its statement rests on the library's
 `Intuitionistic/Formulas.v` and `Intuitionistic/Calculus.v`: the
 formulas of ordinary logic and the calculus LJ, with minimal logic as
 LJ without its rule for `false`.
+
+## Certificates of modal logic
+
+`--format rocq` on a [modal sequent](modal-logic.md) writes a
+certificate for deduxit's library whichever way the verdict goes. A
+valid sequent's lemma says that it is valid over the system's frames,
+`valid C [Γ] [Δ]`: every world of every Kripke model whose relation
+meets the conditions `C` and forces all of `Γ` forces one of `Δ`. `C` is
+the record of the conditions the system holds, those its axioms imply
+too (T is serial as well as reflexive). The proof is the derivation in
+the labelled calculus written as a term, one constructor per rule, which
+the library's `modal_soundness` takes and its checker runs on:
+
+```console
+$ deduxit prove --system T --format rocq '[]p |- p'
+(* valid in T: □p ⊢ p, a checked derivation of 3 inferences in G3T *)
+Lemma certificate : valid (atom := string) {| serial := true; reflexive := true; symmetric := false; transitive := false; euclidean := false |} [box (var "p")] [var "p"].
+Proof.
+  apply (modal_soundness String.eqb String.eqb_spec {| serial := true; reflexive := true; symmetric := false; transitive := false; euclidean := false |} "w0"
+    (Ref "w0" (LBox "w0" "w0" (var "p") (Ax "w0" (var "p"))))).
+  vm_compute. reflexivity.
+Qed.
+```
+
+A sequent that is not valid gets `~ valid C [Γ] [Δ]`, proved by
+`modal_refutation` from its countermodel, each world with the worlds it
+sees as the model lists them and the atoms it forces; the library checks
+the frame conditions and the forcing by computation:
+
+```console
+$ deduxit prove --system K --format rocq '[]p |- p'; echo "exit $?"
+(* not valid in K: a checked countermodel of 1 world refutes □p ⊢ p at world 0 *)
+Lemma certificate : ~ valid (atom := string) {| serial := false; reflexive := false; symmetric := false; transitive := false; euclidean := false |} [box (var "p")] [var "p"].
+Proof.
+  apply (modal_refutation String.eqb
+    {| arrows := [[]];
+       atoms := [[]] |}
+    {| serial := false; reflexive := false; symmetric := false; transitive := false; euclidean := false |} 0).
+  vm_compute. reflexivity.
+Qed.
+exit 1
+```
+
+A derivation you build step by step gets one too: `proof --rocq FILE` in
+`interact --calculus G3S4`, and `check --format rocq` of a derivation in
+such a calculus or of an outcome. A derivation whose steps share a
+premise is written as a tree, each use in full, since that is the work
+the library's checker does. A root that is not every formula at
+one world, such as `w0 : □p, w0 R w1 ⊢ w1 : p`, is stated as the labelled
+sequent's validity, `lvalid`, and proved by `labelled_soundness`. The
+statements rest on the library's `Modal/Formulas.v`, `Modal/Kripke.v`
+and, for a labelled one, `Modal/Labelled.v`: the formulas, the frame
+conditions and forcing. The models are those whose forcing is stable
+under double negation, which every model is under excluded middle, so
+no certificate assumes an axiom.
 
 ## Check one without Nix
 

@@ -57,6 +57,16 @@ second number (0.1.x to 0.2.0), anything else the third.
   member after `⊢`, splits the goal or closes it is refused forwards
   with the reason. In the
   library, `rules::Interactive::extend` and `rules::Calculus::contexts`.
+- **Certificates of modal logic** (`--format rocq` under `--system`):
+  a valid sequent's labelled derivation as a term of deduxit's Rocq
+  library (`Deduxit.Modal`), proving the sequent valid over the system's
+  frames by `modal_soundness`, and a countermodel proving it not valid
+  by `modal_refutation`; `check --format rocq` of a modal outcome or of
+  a derivation in a `G3…` calculus, and a session's `proof --rocq`, the
+  same. In the library, `export::rocq::write_labelled`,
+  `write_modal_countermodel` and `write_modal_outcome`, and
+  `rocq::Unsupported::Assumption` for a derivation that rests on an
+  assumption.
 - **`[]` and `<>` in a calculus given as data**: a calculus's text
   syntax reads them as `□` and `◇` where it has those connectives.
 
