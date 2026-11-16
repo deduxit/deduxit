@@ -47,6 +47,10 @@ const fn piped(name: &'static str, args: &'static [&'static str], stdin: &'stati
     Case { name, args, stdin }
 }
 
+/// A closed tableau written as a list.
+const TABLEAU_CLOSED: &str = "1 T p \\/ q\n2 F q \\/ p\n3 F q 2\n4 F p 2\n- 5 T p 1\n  × 4, 5\n- 6 T q 1\n  × 3, 6\n";
+/// An open tableau, drawn as `prove --method tableau` prints one.
+const TABLEAU_OPEN: &str = "1  T a → b\n2  F b → a\n3  T b      →R 2\n4  F a      →R 2\n├─ 5  F a   →L 1\n│  open\n└─ 6  T b   →L 1\n   open\n";
 /// A proof of `A * B |- B * A`, as `prove --format json` writes it.
 const PROOF: &str = r#"{"version":1,"linlog":"0.1.0","verdict":"proved","checked":true,"fragment":"MLL","mode":"classical","engine":"net","statistics":{"nodes":2,"memo_hits":0,"memo_entries":0,"splits":0,"links":2,"tests":2,"copies":0},"sequent":{"terms":[{"D":0},{"D":1},{"⅋":[0,1]},{"V":1},{"V":0},{"⊗":[3,4]}],"roots":[2,5],"atoms":["A","B"]},"nodes":[{"ax":[2,4]},{"ax":[1,5]},{"⊗":[3,0,1]},{"⅋":[0,2]}]}"#;
 
@@ -846,6 +850,28 @@ const CASES: &[Case] = &[
         NATURAL,
     ),
     piped("check-natural-svg", &["check", "--format", "svg"], NATURAL),
+    piped("check-tableau-closed", &["check", "--tableau"], TABLEAU_CLOSED),
+    piped(
+        "check-tableau-open",
+        &["check", "--tableau", "--sequent", "a -> b |- b -> a"],
+        TABLEAU_OPEN,
+    ),
+    piped(
+        "check-tableau-json",
+        &["check", "--tableau", "--format", "json"],
+        TABLEAU_OPEN,
+    ),
+    piped(
+        "check-tableau-wrong",
+        &["check", "--tableau"],
+        "1 T p /\\ q\n2 F p\n3 T p 1\n4 T r 1\n",
+    ),
+    piped(
+        "check-tableau-unfinished",
+        &["check", "--tableau"],
+        "1 T p \\/ q\n2 F p\n",
+    ),
+    piped("check-tableau-layout", &["check", "--tableau"], "1 T p\n   2 F q\n"),
     piped(
         "interact-calculus",
         &["interact", "--calculus", "LK", "a /\\ b |- b /\\ a"],

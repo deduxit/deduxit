@@ -1,0 +1,11 @@
+$ deduxit check --tableau
+--- stdin
+1 T p /\ q
+2 F p
+3 T p 1
+4 T r 1
+
+--- status 1
+--- stdout
+wrong tableau of p ∧ q ⊢ p: line 4: T∧ on line 1 (T p ∧ q) adds T p and T q, not T r
+--- stderr

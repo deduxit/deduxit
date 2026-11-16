@@ -1,0 +1,12 @@
+$ deduxit check --tableau
+--- stdin
+1 T p
+   2 F q
+
+--- status 2
+--- stdout
+--- stderr
+error: cannot parse the tableau
+     2 F q
+     ^ unexpected "2" at line 2, character 4
+  indent a line as the other lines of its branch, or start a branch with `-`

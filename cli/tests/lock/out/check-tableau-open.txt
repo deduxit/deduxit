@@ -1,0 +1,16 @@
+$ deduxit check --tableau --sequent 'a -> b |- b -> a'
+--- stdin
+1  T a → b
+2  F b → a
+3  T b      →R 2
+4  F a      →R 2
+├─ 5  F a   →L 1
+│  open
+└─ 6  T b   →L 1
+   open
+
+--- status 0
+--- stdout
+open tableau of a → b ⊢ b → a: every step follows the rules, every branch is finished, and the branch ending at line 5 is open, so the sequent is not valid in classical logic: a checked countermodel
+world 0 (the model's world): forces b
+--- stderr

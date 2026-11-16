@@ -1,0 +1,15 @@
+$ deduxit check --tableau --format json
+--- stdin
+1  T a → b
+2  F b → a
+3  T b      →R 2
+4  F a      →R 2
+├─ 5  F a   →L 1
+│  open
+└─ 6  T b   →L 1
+   open
+
+--- status 0
+--- stdout
+{"version":14,"standing":"open","sequent":{"formulas":[{"V":0},{"V":1},{"→":[0,1]},{"→":[1,0]}],"atoms":["a","b"],"left":[2],"right":[3]},"text_line":6,"line":5,"message":"every step follows the rules, every branch is finished, and the branch ending at line 5 is open","countermodel":{"sequent":{"formulas":[{"V":0},{"V":1},{"→":[0,1]},{"→":[1,0]}],"atoms":["a","b"],"left":[2],"right":[3]},"model":{"worlds":[{"atoms":["b"]}],"world":0}}}
+--- stderr

@@ -1,0 +1,9 @@
+$ deduxit check --tableau
+--- stdin
+1 T p \/ q
+2 F p
+
+--- status 1
+--- stdout
+unfinished tableau of p ∨ q ⊢ p: every step so far follows the rules; the branch ending at line 2 is not finished: line 1 (T p ∨ q) is not expanded on it
+--- stderr
