@@ -233,7 +233,7 @@ checks, and 1 otherwise.
 Every name must be declared, so a typo is an error, not a new variable.
 A rule whose contexts cannot be told apart without a search is refused.
 `deduxit::rules::SCHEMA` in the library is the format's JSON Schema, for
-an editor, and the library's documentation of `rules::Calculus` and
+an editor; each release carries it as `rules.schema.json`. The library's documentation of `rules::Calculus` and
 `rules::Derivation` gives both forms in full.
 
 ## Exit status, JSON and limits

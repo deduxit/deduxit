@@ -179,7 +179,10 @@ runs Kani's harnesses, which `nix flake check` leaves out (below).
   failed): `gh release create` with the changelog's section as the notes
   (and a line naming the installation chapter), the two `.crate` files
   downloaded from static.crates.io, the ones published, and the
-  `packages` job's files with their `SHA256SUMS` and a build provenance
+  `packages` job's files and the version's two JSON Schemas
+  (`wire.schema.json`, and `rules.schema.json` copied from
+  `core/src/rules/calculus.schema.json`, from 0.5.0 on) with their
+  `SHA256SUMS` and a build provenance
   attestation of each (`actions/attest`, `id-token: write`,
   `attestations: write`), which `gh attestation verify FILE --repo
   deduxit/deduxit` checks; it waits for `packages` too. The cache is only read (`skipPush`): a tag's builds are

@@ -173,6 +173,12 @@ jobs:
           pattern: dist-*
           path: dist
           merge-multiple: true
+      # The JSON Schemas of the version: every JSON document it writes and
+      # reads, and a rule file (`deduxit::rules::SCHEMA`).
+      - name: The JSON Schemas
+        run: |
+          cp docs/src/wire.schema.json dist/wire.schema.json
+          cp core/src/rules/calculus.schema.json dist/rules.schema.json
       - name: The checksums
         working-directory: dist
         run: sha256sum -- * >SHA256SUMS

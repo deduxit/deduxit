@@ -173,4 +173,6 @@ for a derivation, `list` for a Fitch proof.
 document deduxit writes and reads, with the level each form appeared at,
 and of the values above. A rule file has a schema of its own,
 `deduxit::rules::SCHEMA` ([Check a derivation in your own
-rules](rules.md)).
+rules](rules.md)). Each
+[release](https://github.com/deduxit/deduxit/releases) carries both
+schemas of its version, `wire.schema.json` and `rules.schema.json`.
