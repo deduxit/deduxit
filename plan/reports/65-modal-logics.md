@@ -601,3 +601,190 @@ the missing arrow.
 
 **Step 66 (the labelled calculus step by step)**: `modal::calculus`
 is the rule file; a session in it is `rules::Interactive` as it is.
+
+## Session 65c: the command
+
+Opus 5.5 at `high` (the 65a and 65b worker, its conversation kept), in
+the workspace `../deduxit-wt-step-58b-8c0bbc`, from the brief
+`/tmp/linlog-handoff/start-65c.md`, on 2026-11-16, cores 10 to 12. The
+chain was rebased onto `main@origin` at 64's release (`lroloqww`, 0.5.0
+prepared) during the session.
+
+### Outcome
+
+- **`--system SYSTEM` on `prove` and `check`** selects the modal suite,
+  as `--logic` selects the ordinary one (the proposal; the author
+  answered "Yes, --system" through the planning session). It takes the
+  fifteen names and K or D followed by axiom letters (`KT4`), any case.
+- **`prove --system`**: text or JSON input; the verdict line (`valid in
+  S4: …, a checked derivation of N inferences in G3S4`, `not valid in K:
+  a checked countermodel of N worlds refutes … at world W`, `unknown in
+  S4: …` with the flag to raise); then the derivation as the node lines
+  `check --calculus` prints, or the countermodel's worlds in words
+  ("world 0 (where the sequent fails): forces nothing; sees 1", "sees no
+  world"); `--format json` the library's outcome; LaTeX, Typst and SVG
+  draw the derivation (a `rules::Drawing`), SVG, PNG and PDF the
+  countermodel, Rocq a left-out line; `--stats` a counter per line.
+  Exit 0, 1, 3, and 2 for the flags of other suites, a batch and an
+  unknown system.
+- **`check`** reads a modal outcome by its `system` key and checks its
+  evidence again (`Outcome::check`); `check --system S --sequent SEQ
+  MODEL [--world N]` checks a Kripke model you write: the frame
+  conditions on the arrows as written first (exit 2 naming the
+  condition), then whether the sequent holds (0) or fails (1, with each
+  compound subformula's value and the world that shows a false `□` or a
+  true `◇`). `check --format json` writes `Checked` with the new key
+  `system` (and `failing` for a model).
+- **`check --calculus G3S4`** and a bare derivation naming `G3S4` (any
+  case, any system) are read as `modal::calculus(system)`.
+- **`workspace new|add --system`** keeps a modal sequent.
+- **The protocol's modal suite** has all of the design's section 11:
+  kinds `modal.sequent`, `modal.outcome`, `modal.model`,
+  `modal.evaluation`; operations `modal.decide` (decides),
+  `modal.countermodel`, `modal.evaluate` (parameter `world`),
+  `modal.derivation` (proves), `modal.calculus`, `modal.draw`,
+  `modal.export`, `modal.duplicate`. `describe()` of the bindings takes
+  it through the catalogue; the bindings have no modal calls of their
+  own (65d's).
+- **The exports**: `Notation::necessary`/`possible` in every table
+  (LaTeX `\Box `, `\Diamond `; Typst and SVG the characters), `□` and
+  `◇` label symbols (so `L□` is `\mathrm{L}\Box`), the five fonts'
+  advances for both read from the font files (the font test holds them).
+  `svg::modal_countermodel` draws a modal model: rows by distance from
+  the model's world, loops as curls, arrows within a row as arcs above
+  or below, arrows both ways set apart, and a description in "sees".
+  Snapshots `kripke_modal.svg` and `modal.{tex,typ,svg}`, which the
+  `export` check compiles and renders.
+- **The wire**: `core/tests/wire/level-20.txt` (a modal sequent and an
+  outcome of each verdict, read back byte for byte and their evidence
+  checked, `the_twentieth_level_reads`); the schema's `system`,
+  `modal_formula`, `modal_sequent` (with its keys and nested form, level
+  20 required where a `□` or `◇` occurs), `modal_statistics`,
+  `modal_outcome`, `modal_statement`, `modal_evaluation`, and
+  `rules_derivation` split into `rules_derivation_keys` and the
+  document, since the outcome nests a derivation without `version`;
+  `checked` gains `system`. `documents.sh` writes the three outcomes and
+  two modal checks; `check.py` lists `modal_sequent` (written only
+  nested) and `modal_statement` as unwritten.
+- **Docs**: the manual's chapter "Decide modal logic"
+  (`docs/src/modal-logic.md`, every example run by the README test),
+  the protocol chapter's rows, `status.md`, README's first paragraph, the
+  guide (the summary's logic paragraph within its 8000 bytes, the
+  reference's "Modal logic: `--system`" under section 13, renamed
+  "Ordinary and modal logic", and the library paragraph), the changelog
+  under "Unreleased", the behaviour lock (22 modal calls, and the help of
+  `prove` and `check`), and the rules (`cli.md`'s `modal.rs`,
+  `core-export.md`'s modal drawing, `core-protocol.md`'s modal suite).
+
+### The command's design
+
+- **No settings key for the system**: it names the logic of the input,
+  as `--logic` does for ordinary logic, and the protocol's
+  `modal.sequent` carries it beside the sequent. A front end passes it
+  with the sequent.
+- **The derivation in text is the node list** of `check --calculus`,
+  not a tree: the labelled sequents are long (every relational atom and
+  labelled formula), and the list is what the generic derivation
+  already prints. The drawn formats draw the tree.
+- **The calculus's name is `G3` and the system's** (decided here, as
+  65b asked): `check --calculus G3S4` and a derivation naming it are
+  read without a rule file, so the outcome's derivation checks alone.
+- **A batch is refused under `--system`** (exit 2): the batch's entries
+  are read and decided by the linear and ordinary paths, which would
+  have decided a modal batch as linear logic (the reviewer's finding).
+
+### Checks
+
+- **Clippy** on the workspace with warnings denied, and `RUSTFLAGS="-W
+  unreachable_pub -W unnameable_types" cargo check -p deduxit
+  --all-features`: clean.
+- **The tests** (`cargo test --workspace`, capped): pass, the protocol's
+  five modal tests, the export's `modal_derivation` and
+  `countermodel_drawings`, `the_twentieth_level_reads`, the README and
+  guide examples and the lock among them.
+- **The schema**: `modules/_schema/documents.sh` with the debug binary,
+  then `check.py` (jsonschema from nixpkgs): 88 documents, no failure;
+  the protocol's two `modal_evaluation` values (failing, frame) were
+  validated the same way.
+- **The gate** (capped, cores 10 to 12): the first run failed at `cargo
+  hack` without default features: `Notation::necessary`/`possible` are
+  read only by `rules::print` (feature `serialize`), so they take
+  `cfg_attr(not(feature = "serialize"), expect(dead_code))`. The second
+  run, on the head with the reviewer's fixes, passed; the ratchet within
+  its ceilings (render-svg +1.47 % instructions, its misses +10.6 %
+  flagged as a question for pinned time, not a failure: the font table
+  grew by two rows and the label symbols by two arms).
+- **`nix flake check`** under the machine lock at the report's commit:
+  the first run failed at `typos`, which read the frame rule `Ser` in
+  the manual's table as a misspelling of `Set`; `typos.toml` now lists
+  it as a word of the domain. The second run (`--keep-going`) passed.
+- Not run: the fuzz targets, the mutation run, any benchmark.
+
+### The reviewer's findings
+
+`fresh-reviewer` on Fable 5.2 at medium, over `znvuvtzk..umsovvzt`:
+1. **High: a batch under `--system` was decided as linear logic**
+   (`prove --system K --input-format lines --file weak.txt` answered
+   `unprovable (MLL, …)`). Fixed: `--system` beside a batch is exit 2,
+   pinned by the lock's `modal-batch`, said in the manual.
+2. **Medium: half of section 11 was built**. Fixed: the other two
+   kinds and four operations, with their schema entry, tests and rows.
+   The two departures it found in the command are marked below.
+3. **Low: `check` ignored `--system` beside a modal outcome and mode
+   flags beside a modal model**. Fixed: both exit 2 (`check-modal-system`
+   in the lock).
+4. **Low: `svg::modal_countermodel` was missing from the SVG module's
+   table of calls**. Fixed.
+5. **Low, a question: the level-20 documents carry `"deduxit":
+   "0.5.0"`**, which never wrote level 20 in a release. The stamp is the
+   crate version that wrote the file (the head's, after 64's bump); the
+   reader ignores it, as the other wire files' stamps. The lock's comment
+   that called it "0.5.0's level 20" is corrected.
+
+### Departures
+
+- **The evaluation's JSON in the command is `Checked`** (`{"version",
+  "verdict", "system", "message", "failing"}`), as `check --logic`
+  writes for an ordinary model, not section 9's evaluation form; the
+  protocol's `modal.evaluate` writes section 9's form (`system`,
+  `world`, `frame` as `{condition, worlds}`, `holds`, `failing`,
+  `values`), without `version`, as the protocol's own forms carry none.
+  (departs from the design)
+- **A model that is none of the system is exit 2**, as the ordinary
+  model check and the help say, not section 10's exit 1. (departs from
+  the design)
+- **`modal.export` writes LaTeX and Typst only**: the library has no
+  text writer of a calculus given as data (the command's node lines are
+  its own). (departs from the design)
+- **The changelog's 65a and 65b entries** had merged into 0.5.0's
+  "Added" at the rebase; they are moved back under "Unreleased" in their
+  own commits (`llurntnq`, `mzxntwlm`, `pqmqzuoy`).
+
+### What the next sessions must know
+
+**65d (the page)**:
+- The protocol has every modal kind and operation the page needs:
+  `modal.decide` for the verdict, `modal.countermodel` and
+  `modal.evaluate` for a model the user edits (`frame` names the
+  condition and its worlds, `values` the formulas' values and
+  witnesses), `modal.draw` for either drawing, `modal.calculus` for the
+  rule file. `protocol::statement("modal", text, "S4", &limits)` makes
+  the statement.
+- The bindings have no modal call of their own yet (`web/src/protocol.rs`'s
+  `SUITES` has three rows; `describe()` already carries the modal suite
+  in `catalogue`).
+- The SVG of a modal model is `svg::modal_countermodel`; its ids are the
+  ordinary drawing's (`wN` on each world's box).
+- `kripke::Model`'s `Display` still says "below"; the command's
+  `worlds_text` says "sees" and is the command's alone.
+
+**Step 66 (the labelled calculus step by step)**: `modal.calculus` gives
+the rule file, and `interact --calculus G3S4 'w0 : □p |- w0 : p'`
+already starts a session in it (`calculus::named`; tried: `goal 0: 0:
+w0 : □p ⊢ 1: w0 : p`). The rule file's syntax takes `□` and `◇` but not
+`[]` and `<>`, which its parser reads as no symbol: the ASCII spellings
+are 66's to add.
+
+**Open**: the fuzz targets `modal_text`, `json_modal` and `modal_decide`
+were built at 65b and are still not run; `json_modal` can be seeded
+with the level-20 documents.
