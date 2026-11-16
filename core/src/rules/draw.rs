@@ -234,6 +234,13 @@ impl<'a> Drawing<'a> {
         self.nodes[id.index()]
     }
 
+    /// Returns the node each inference draws, in the inferences' order:
+    /// the SVG's `i<n>` draws the `n`th. A node shared by several is drawn
+    /// once for each, so it may stand more than once.
+    pub fn nodes(&self) -> impl ExactSizeIterator<Item = NodeId> + '_ {
+        self.nodes.iter().copied()
+    }
+
     /// Returns the mark of an inference that is a hypothesis some rule
     /// discharges, or `None`.
     fn mark(&self, id: InfId) -> Option<u32> {

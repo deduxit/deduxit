@@ -316,7 +316,11 @@ design, with the reasons and the alternatives weighed, is
   numbered alike in `Interactive::derived` and in the drawing (both
   postorder, premises in order), which `Interactive::derivation_goals`
   and the web view's `inferences` rely on; change one order and the
-  other with it.
+  other with it. That holds only without derived lines: a line cited
+  twice is one node and two drawn inferences, and `Drawing::nodes`
+  gives each inference's node. In the Fitch proof the hypotheses of one
+  scope with equal sequents are one line (a hypothesis is a node per
+  use: per citation in a session, per leaf in 62a's translation).
 - **A session's JSON** (wire level 17, `wire::SESSION`, 18 with a derived line; reader
   `Interactive::from_parts`) checks the tree, each scope owned by one
   rule node whose discharging premise was opened in it, inside that

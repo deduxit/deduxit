@@ -2718,3 +2718,42 @@ fn fitch_describes_each_line_by_what_it_is() {
         "{svg}"
     );
 }
+
+/// A hypothesis is a node per use; the Fitch proof shows those of one
+/// subproof with equal formulas as one line, the tree a leaf per use.
+#[test]
+fn fitch_shows_a_hypothesis_used_twice_once() {
+    let nj: deduxit::rules::Calculus = deduxit::wire::upgrade(
+        &mut serde_json::Deserializer::from_str(deduxit::rules::NJ),
+        &Limits::default(),
+    )
+    .unwrap();
+    let derivation: deduxit::rules::Derivation = deduxit::wire::upgrade(
+        serde_json::json!({
+            "version": 15, "calculus": "NJ",
+            "terms": ["a", ["∧", 0, 0], ["→", 0, 1]],
+            "scopes": [0],
+            "nodes": [
+                {"sequent": [[0]], "hypothesis": true, "scope": 1},
+                {"sequent": [[0]], "hypothesis": true, "scope": 1},
+                {"sequent": [[1]], "rule": "∧I", "premises": [0, 1], "scope": 1},
+                {"sequent": [[2]], "rule": "→I", "premises": [2]}
+            ]
+        }),
+        &Limits::default(),
+    )
+    .unwrap();
+    derivation
+        .check(&nj, &Limits::default(), |_| false)
+        .unwrap();
+    let options = deduxit::rules::FitchOptions::default();
+    let fitch = deduxit::rules::Fitch::new(&nj, &derivation, &options, &Limits::default()).unwrap();
+    let text = fitch.to_string();
+    assert_eq!(fitch.len(), 3, "{text}");
+    assert!(
+        text.contains("∧I 1, 1") && text.contains("→I 1–2"),
+        "{text}"
+    );
+    let drawing = deduxit::rules::Drawing::new(&nj, &derivation, &Limits::default()).unwrap();
+    assert_eq!(drawing.nodes().len(), 4);
+}

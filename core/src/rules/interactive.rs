@@ -1185,7 +1185,9 @@ impl Interactive {
     /// order, the node of the session it is, as the id the session's calls
     /// take for it while it is an open goal. A drawing of the derivation
     /// ([`Drawing`](super::Drawing)) numbers its inferences in the same
-    /// order.
+    /// order while the session has no derived line; a line cited twice is
+    /// drawn twice, and [`Drawing::nodes`](super::Drawing::nodes) gives
+    /// the node of each inference.
     ///
     /// # Errors
     ///

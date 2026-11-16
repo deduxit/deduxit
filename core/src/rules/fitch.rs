@@ -5,7 +5,7 @@
 //! numbered lines, each subproof's lines together under its hypotheses.
 
 use super::derivation::Kind;
-use super::{Calculus, Derivation, NodeId, Step};
+use super::{Calculus, Derivation, NodeId, Step, TermId};
 use crate::hash::{HashMap, HashSet};
 use crate::limits::Refusal;
 use crate::{Error, Limits};
@@ -135,7 +135,8 @@ pub(crate) struct Block {
 /// conclusion a line inside it uses, or one that two rules conclude
 /// differently, is refused ([`Error::NotFitch`]): it can still be drawn
 /// as a tree ([`Drawing`](super::Drawing)). A node used by several lines is
-/// one line, cited by each.
+/// one line, cited by each, and so are the hypotheses of one subproof
+/// with equal formulas: a derivation has a hypothesis node per use.
 ///
 /// Needs the cargo feature `serialize`.
 #[derive(Clone, Debug)]
@@ -214,6 +215,19 @@ impl<'a> Fitch<'a> {
             firsts[scope(node) as usize] = node;
         }
         let first_node = |scope: u32| firsts[scope as usize];
+        // The node whose line shows each node. A hypothesis is a node per
+        // use, so the hypotheses of one scope with equal sequents are one
+        // line, the first one's.
+        let mut shown: Vec<u32> = (0..count as u32).collect();
+        let mut uses: HashMap<(u32, Vec<&[TermId]>), u32> = HashMap::default();
+        for (node, at) in derivation.nodes().enumerate() {
+            if derivation.nodes[node].kind == Kind::Hypothesis {
+                let sequent = (0..derivation.zones()).map(|z| at.zone(z)).collect();
+                shown[node] = *uses
+                    .entry((scope(node as u32), sequent))
+                    .or_insert(node as u32);
+            }
+        }
         // The text's size, before anything is laid out.
         let mut estimate = 0u64;
         for node in derivation.nodes() {
@@ -251,7 +265,7 @@ impl<'a> Fitch<'a> {
         // subproof concludes.
         let mut parts: Vec<Vec<Unit>> = vec![Vec::new(); parents.len()];
         let mut seen: HashSet<Unit> = HashSet::default();
-        for node in 0..count as u32 {
+        for node in (0..count as u32).filter(|&node| shown[node as usize] == node) {
             let mut level = scope(node);
             let mut part = Unit::Node(node);
             // The node, and every subproof around it up to the main proof,
@@ -276,7 +290,7 @@ impl<'a> Fitch<'a> {
         for node in 0..count as u32 {
             let at = scope(node);
             for &premise in derivation.at(node as usize).premises() {
-                let premise = premise.index() as u32;
+                let premise = shown[premise.index()];
                 let there = scope(premise);
                 // A premise in the scope or one around it, or a subproof
                 // directly inside one of those, which the node discharges.
@@ -448,7 +462,7 @@ impl<'a> Fitch<'a> {
             for &premise in derivation.node(line.node).premises() {
                 let there = scope(premise.index() as u32);
                 let cite = if there == at || climb.inside(at, there)?.is_some() {
-                    Cite::Line(number[premise.index()])
+                    Cite::Line(number[shown[premise.index()] as usize])
                 } else {
                     let (first, last) = spans[there as usize];
                     Cite::Range(first + 1, last + 1)
@@ -477,7 +491,8 @@ impl<'a> Fitch<'a> {
     }
 
     /// Returns the node each line shows, in the lines' order: line `n`,
-    /// counted from 1, shows the `n - 1`th.
+    /// counted from 1, shows the `n - 1`th. A hypothesis used several
+    /// times shows the first of its nodes.
     pub fn nodes(&self) -> impl ExactSizeIterator<Item = NodeId> + '_ {
         self.lines.iter().map(|line| line.node)
     }
