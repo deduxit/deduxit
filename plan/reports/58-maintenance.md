@@ -635,3 +635,51 @@ On the client's `main@origin` (`runpsyxs`), oldest first, by change id:
 - The keyword washes are background images, so axe leaves their
   contrast "incomplete"; `colours.test.ts` is what holds them.
 - The client's `web.md` records all of these.
+
+## Fix: the bottom band (2026-11-16)
+
+The author's report (about 18:50): on the live site, at a wide desktop
+window, the bottom band's icons and labels were drawn on top of each
+other in one run at the centre.
+
+- **Reproduced** in the built-in browser at 2000 × 1080, both schemes,
+  on the live site and on the client's build of `main@origin`: every
+  label `position: absolute`, unclipped, over its icon and its
+  neighbours. With Learn on the band was right, and on a phone too.
+- **The cause**: two components shared the class `lb`. The band's labels
+  (`BottomBand.tsx`, `<span class="lb">`) had no rule at a desktop's
+  width with Learn off, so they stood beside their icons as D54 asks.
+  The client's `xxvkxvzm` ("Give every rule label a hint", 2026-11-09)
+  gave the rule labels' buttons over the drawing the class `lb` with a
+  global rule `.lb { position: absolute; … }`, which caught the band's
+  labels too. Builds of `xxvkxvzm` and of its parent `vupupxnp`, served
+  as the e2e suite serves them, show the band broken and right. So the
+  bug is a week old, from none of today's commits the brief listed.
+- **The fix** (`vzmpmrxp`): the band's labels get a class of their own,
+  `act-name`; its four rules in `app.css` and `learn.spec.ts`'s locator
+  follow. The drawing's `.lb` is unchanged. Checked in the browser at
+  2000 × 1080 in both schemes: each action's icon and label stand apart.
+- **Why the suite missed it**: the target-size walks and axe measure the
+  buttons, and the band's buttons kept their size and did not overlap;
+  only their label spans spilled out. No test looked at a button's
+  contents.
+- **The guard** (`qlzlvuwm`): `page.spec.ts`, "the bottom band's
+  actions and their labels stand apart at every width, Learn off and
+  on", at 320, 412, 641, 800, 1024, 1280, 1920 and 2560 pixels: no two
+  actions overlap, and each action's icon, label and key lie inside its
+  button and apart from each other (a label clipped for a screen reader
+  is skipped). Against the build of `xxvkxvzm` it fails at 641 with
+  Learn off, naming every label of the author's report; against its
+  parent and against the fix it passes.
+- **Recorded** (`unnzuxur`): a bullet in the client's `web.md` on the
+  band's labels and why a class belongs to one component.
+- **Checks**: on `qtwlokpn`, the affected e2e specs against a fresh
+  build (`page`, `learn`, `hints`, `targets`, `accessibility`, `phone`:
+  140 passed); after the rebase onto `qxuysxlm`, the client's Vitest
+  (677 passed), `lint` (Biome and `astro check`, 0 errors) and its `nix
+  flake check`, the whole e2e suite among its checks: all checks passed).
+- No reviewer: the fix is the band's class and styles alone, as the
+  brief allows.
+- The client's chain, rebased onto its `main@origin` (`qxuysxlm`): `vzmpmrxp`,
+  `qlzlvuwm`, `unnzuxur`, in the workspace
+  `../deduxit.github.io-fixband`. Nothing pushed.
