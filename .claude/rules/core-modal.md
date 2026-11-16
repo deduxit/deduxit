@@ -109,7 +109,17 @@ The design, with its reasons, alternatives and sources, is
   the agenda to a fixpoint (closures first, then one-premise rules and
   propagation), then a split (the oldest world), then a witness (the
   oldest world not blocked), then `Ser` in a serial system without
-  reflexivity. A split clones the branch for the second premise.
+  reflexivity. A split clones the branch for the second premise. The
+  pending formulas keep their order (`remove`, never `swap_remove`): a
+  swap once put the last diamond first and changed which world was made
+  next.
+- **Every scan is work** (`Search::owed`): a scan over a world's
+  arrows, a bit set, the pending formulas or an ancestor's signature
+  adds its length to `owed`, which the next `tick` counts against
+  `limits.work` and the poll; uncounted, a world of 200 000 formulas
+  made each edge cost a pass over all of them for one unit (the
+  integers panel of 65b). The step and proof-node indices are `u32`:
+  past them `full` is set and the next tick answers `IndexLimit`.
 - **Blocking only where the relation is transitive and neither
   symmetric nor euclidean** (K4, KD4, S4): a world is blocked when a
   proper ancestor's signature (its formulas, with every `□` true and `◇`
@@ -118,14 +128,21 @@ The design, with its reasons, alternatives and sources, is
   the agenda and every split) its ancestors' signatures and its own are
   final. The open branch's model gives a blocked world that waits
   (a demand without a witness, or a dead end in a serial system) its
-  blocker's arrows, then closes the relation under the system's
-  conditions, then gives a dead end a loop in a serial system.
+  blocker's arrows, closes those under transitivity by a worklist (the
+  branch's relation is closed already, and the blocking systems are
+  neither symmetric nor euclidean), each new pair charged, then gives a
+  dead end a loop in a serial system. A closure of the whole relation
+  by rounds built every 2-path, n³/6 pairs uncharged: 7 to 9 times the
+  memory bound (the integers panel of 65b).
 - **A step is kept only where the proof above uses it** (`fold`,
   `join`): a closed part carries the members of its conclusion its
   proof uses; a step whose *new* members (those not on the branch
   before it) none of them uses is left out, and a split whose first
   premise's proof uses none of its new members stands for the
-  conclusion, its second premise never searched. Emission
+  conclusion, its second premise never searched: worlds that each split
+  once beside one that closes cost a split each, against `2^n`
+  (`independent_splits_do_not_multiply`; 65b measured 20 such worlds
+  at 20 splits against an unknown at 2²⁶ units without it). Emission
   (`decide::derivation`) adds each kept step's whole premise list (not
   only the new members), so a member another, left-out step put on the
   branch first is still in the premise the rule writes out. Every
@@ -133,8 +150,25 @@ The design, with its reasons, alternatives and sources, is
   below it, so its adder is kept.
 - **The derivation's size is estimated before it is made** (each
   node's members are the root's and its path's additions, an upper
-  bound), against `limits.derivation_bytes`; past it `Refusal::Output`,
-  never a verdict lost. A derivation the checker refuses is
+  bound, and a term of `TERM_BYTES` for each formula of the arena and
+  each member put on a sequent), against `limits.derivation_bytes`;
+  past it `Refusal::Output`, never a verdict lost. The terms are made
+  once, in the arena's order (`Terms::formula`; a rescan from the start
+  per member was quadratic), and the build asks the stop every 4 096
+  members (`Phase::View`).
+- **A "not valid" whose model is too large to check** (past
+  `MODEL_CELLS` or the memory bound) drops the model and keeps the
+  verdict, as the ordinary suite does: there the verdict rests on the
+  search's arguments (the panel of 65b found them sound). Every other
+  verdict's evidence passes its check first.
+- **`Outcome::check`** is the check of an outcome read back: the
+  derivation's root must be `w0 : Γ ⊢ w0 : Δ` (its terms made in a copy
+  of the derivation, so a term it lacks shows as a difference), it must
+  rest on no assumption (the generic checker accepts root-scope
+  hypotheses as assumptions) and be in the outcome's system's calculus;
+  a countermodel must be of the outcome's system. `Derivation::check`
+  alone takes no sequent, so a document's derivation of `⊢ w0 : p`
+  passes it for any sequent. A derivation the checker refuses is
   `Error::ReadBack` (calculus `G3…`, a defect), a model the check
   refuses `Error::Countermodel`.
 - **The outcome's JSON** (`serialize/modal.rs`, level `wire::MODAL`):

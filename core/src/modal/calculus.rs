@@ -150,10 +150,13 @@ pub(crate) const fn name(system: System) -> &'static str {
 /// set. The rules are those of Negri's G3K ("Proof analysis in modal
 /// logic", J. Philos. Logic 34, 2005, Table II), with the frame rule of
 /// each condition of the system (Ref, Ser, Sym, Trans, Eucl, p. 515).
-/// Two departures, both sound: every rule keeps its principal formula in
-/// its premises, as a tableau keeps the formula it expands, and the
-/// axiom closes on any formula at one label, not only an atom. Labels
-/// are atoms of sort `label`; `R□`, `L◇` and `Ser` ask theirs to be new.
+/// Its departures, all sound: every rule keeps its principal formula in
+/// its premises, as a tableau keeps the formula it expands; the axiom
+/// closes on any formula at one label, not only an atom; `L¬`, `R¬`,
+/// `R⊤`, `L↔` and `R↔` are added for the connectives Table II has no rules
+/// for; and the initial sequent on a relational atom is left out, since
+/// no frame condition here needs it. Labels are atoms of sort `label`;
+/// `R□`, `L◇` and `Ser` ask theirs to be new.
 ///
 /// [`Calculus`](rules::Calculus) writes itself back as a rule file, the
 /// text a front end shows or saves.

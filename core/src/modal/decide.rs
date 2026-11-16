@@ -10,7 +10,7 @@ use super::search::{Found, Member, Search};
 use super::{Countermodel, Node, NodeId, Sequent, System};
 use crate::Error;
 use crate::hash::HashMap;
-use crate::limits::{Limits, Progress, Refusal};
+use crate::limits::{Limits, Phase, Progress, Refusal};
 use crate::linear::search::Reason;
 use crate::rules::{self, TermId};
 
@@ -86,9 +86,8 @@ pub struct Statistics {
 /// `sequent` the sequent's form, `derivation` that of a
 /// [`rules::Derivation`] without its `version`, and for `not_valid` by a
 /// model `"countermodel": {"model": {…}}`, the Kripke model's form. It
-/// reads back unchecked: the derivation's check
-/// ([`rules::Derivation::check`] in [`calculus`](super::calculus())) and
-/// the countermodel's ([`Countermodel::check`]) are the caller's.
+/// reads back unchecked: [`check`](Self::check) checks its evidence
+/// against its sequent and system.
 #[non_exhaustive]
 #[derive(Clone, Debug)]
 pub struct Outcome {
@@ -106,6 +105,92 @@ pub struct Outcome {
     pub countermodel: Option<Countermodel>,
     /// What the search counted.
     pub statistics: Statistics,
+}
+
+impl Outcome {
+    /// Checks the outcome's evidence against its sequent and system, as an
+    /// outcome read from JSON needs: a derivation concludes `w0 : Γ ⊢ w0 :
+    /// Δ` for the sequent `Γ ⊢ Δ`, rests on no assumption, and passes the
+    /// checker in the system's calculus ([`calculus`](super::calculus()));
+    /// a countermodel refutes the sequent in the system
+    /// ([`Countermodel::check`]). An outcome without evidence (unknown, or
+    /// not valid without a model) has nothing to check.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::InvalidDerivation`] for a derivation of another sequent, or
+    /// one that rests on an assumption, or one the checker refuses;
+    /// [`Error::Model`] for a model that is none of the system or does not
+    /// refute the sequent; [`Error::Refused`] where a bound or the stop
+    /// refuses a check.
+    pub fn check(
+        &self,
+        limits: &Limits,
+        mut stop: impl FnMut(Progress) -> bool,
+    ) -> Result<(), Error> {
+        if let Some(countermodel) = &self.countermodel {
+            if countermodel.system != self.system {
+                return Err(Error::Model {
+                    reason: format!(
+                        "the model is said to be one of {}, the outcome's system is {}",
+                        countermodel.system, self.system
+                    ),
+                });
+            }
+            countermodel.check(limits, &mut stop)?;
+        }
+        let Verdict::Valid(Evidence::Derivation(derivation)) = &self.verdict else {
+            return Ok(());
+        };
+        let refused = |reason: &str| Error::InvalidDerivation {
+            calculus: derivation.calculus().into(),
+            reason: reason.to_owned(),
+        };
+        if derivation.calculus() != calculus::name(self.system) {
+            return Err(refused("it is in another system's calculus"));
+        }
+        if derivation.assumptions().next().is_some() {
+            return Err(refused("it rests on an assumption"));
+        }
+        let root = derivation.root().ok_or_else(|| refused("it has no node"))?;
+        // The root the sequent asks for, its terms made in a copy so that
+        // a term the derivation lacks shows as a difference.
+        let mut terms = Terms {
+            derivation: (**derivation).clone(),
+            sequent: &self.sequent,
+            formulas: Vec::new(),
+            labels: Vec::new(),
+            members: HashMap::default(),
+        };
+        let mut zones: [Vec<TermId>; 2] = [Vec::new(), Vec::new()];
+        let members = self
+            .sequent
+            .left()
+            .iter()
+            .map(|&id| super::search::formula(0, id, false))
+            .chain(
+                self.sequent
+                    .right()
+                    .iter()
+                    .map(|&id| super::search::formula(0, id, true)),
+            );
+        for member in members {
+            let (zone, term) = terms.member(member)?;
+            zones[zone].push(term);
+        }
+        for (zone, wanted) in zones.iter_mut().enumerate() {
+            wanted.sort_unstable();
+            wanted.dedup();
+            let mut found = root.zone(zone).to_vec();
+            found.sort_unstable();
+            found.dedup();
+            if found != *wanted {
+                return Err(refused("its root is not the outcome's sequent at w0"));
+            }
+        }
+        let calculus = calculus::calculus(self.system, limits)?;
+        derivation.check(&calculus, limits, stop)
+    }
 }
 
 /// Decides `sequent` in the system of `options` within the default
@@ -139,19 +224,24 @@ pub fn decide(sequent: &Sequent, options: &Options) -> Result<Outcome, Error> {
 /// are a derivation in the system's labelled calculus, which the generic
 /// checker checks before "valid" is answered, and an open branch is a
 /// Kripke model, which the model check checks against the system's frame
-/// conditions and the sequent before "not valid" is answered. The search
-/// counts its work against `limits.work` and its memory against
-/// `limits.memory_bytes`; past either, or when the stop fires, the
-/// verdict is unknown with the reason.
+/// conditions and the sequent. A model too large to check (past
+/// [`MODEL_CELLS`](crate::ordinary::MODEL_CELLS) cells or
+/// `limits.memory_bytes`) is dropped and "not valid" stands without it,
+/// resting on the search's argument alone, as the ordinary suite's does.
+/// The search counts its work against `limits.work` and its memory
+/// against `limits.memory_bytes`; past either, or when the stop fires,
+/// the verdict is unknown with the reason.
 ///
 /// # Errors
 ///
 /// [`Refusal::Output`] where the derivation would pass
-/// `limits.derivation_bytes`, and [`Refusal::Memory`], [`Refusal::Work`]
-/// and [`Refusal::Stopped`] where a bound or the stop refuses its check:
-/// none of these is a verdict. [`Error::ReadBack`] where the checker
-/// refuses the derivation and [`Error::Countermodel`] where the model
-/// check refuses the model are defects of the search.
+/// `limits.derivation_bytes`; [`Refusal::Memory`], [`Refusal::Work`] and
+/// [`Refusal::Stopped`] where a bound or the stop refuses the check of
+/// the derivation or of the model (each check has `limits.work` of its
+/// own), or the stop the making of the derivation: none of these is a
+/// verdict. [`Error::ReadBack`] where the checker refuses the derivation
+/// and [`Error::Countermodel`] where the model check refuses the model
+/// are defects of the search.
 pub fn decide_within(
     sequent: &Sequent,
     options: &Options,
@@ -177,7 +267,7 @@ pub fn decide_within(
             (Verdict::NotValid, countermodel)
         }
         Ok(Found::Closed(root)) => {
-            let derivation = derivation(&search, root, sequent, system, limits)?;
+            let derivation = derivation(&search, root, sequent, system, limits, &mut stop)?;
             statistics.inferences = derivation.len() as u64;
             let calculus = calculus::calculus(system, limits)?;
             derivation
@@ -213,14 +303,25 @@ const NODE_BYTES: u64 = 48;
 /// The bytes of a member of a node's sequent.
 const MEMBER_BYTES: u64 = 4;
 
+/// The bytes of a term made for a formula of the arena or a member: its
+/// entry in the terms' arena and their maps, an atom's name, and a
+/// member's entry in the map of members. Measured at about 400 bytes for
+/// an atom and its member together.
+const TERM_BYTES: u64 = 256;
+
+/// The members put on the sequent between two asks of the stop while a
+/// derivation is made.
+const POLL: u64 = 1 << 12;
+
 /// The terms of a derivation in the making, each member's made once.
 struct Terms<'a> {
     /// The derivation.
     derivation: rules::Derivation,
     /// The sequent's arena.
     sequent: &'a Sequent,
-    /// The term of each formula of the arena, made on first use.
-    formulas: Vec<Option<TermId>>,
+    /// The term of each formula of the arena, made in the arena's order up
+    /// to the last asked for.
+    formulas: Vec<TermId>,
     /// The term of each label, made on first use.
     labels: Vec<Option<TermId>>,
     /// The term of each member, made on first use.
@@ -228,37 +329,30 @@ struct Terms<'a> {
 }
 
 impl Terms<'_> {
-    /// Returns the term of a formula of the arena.
+    /// Returns the term of a formula of the arena, making it and every
+    /// formula before it in the arena's order not made yet: every operand
+    /// precedes its formula, so this needs no recursion, and the arena is
+    /// made once in all.
     fn formula(&mut self, id: NodeId) -> Result<TermId, Error> {
-        if let Some(term) = self.formulas[id.index()] {
-            return Ok(term);
-        }
-        // Every operand precedes its formula, so one pass up to it makes
-        // them all without recursion.
-        for i in 0..=id.index() {
-            if self.formulas[i].is_some() {
-                continue;
-            }
-            let f = |k: NodeId, formulas: &[Option<TermId>]| {
-                formulas[k.index()].unwrap_or_else(|| unreachable!("an operand comes first"))
-            };
-            let terms = self.derivation.terms_mut();
+        while self.formulas.len() <= id.index() {
             let fs = &self.formulas;
-            let term = match self.sequent.formulas().node(NodeId(i as u32)) {
+            let f = |k: NodeId| fs[k.index()];
+            let terms = self.derivation.terms_mut();
+            let term = match self.sequent.formulas().node(NodeId(fs.len() as u32)) {
                 Node::Atom(a) => terms.atom(self.sequent.formulas().atom_name(a), "formula")?,
                 Node::True => terms.apply("⊤", &[])?,
                 Node::False => terms.apply("⊥", &[])?,
-                Node::Not(a) => terms.apply("¬", &[f(a, fs)])?,
-                Node::Box(a) => terms.apply("□", &[f(a, fs)])?,
-                Node::Diamond(a) => terms.apply("◇", &[f(a, fs)])?,
-                Node::And(a, b) => terms.apply("∧", &[f(a, fs), f(b, fs)])?,
-                Node::Or(a, b) => terms.apply("∨", &[f(a, fs), f(b, fs)])?,
-                Node::Implies(a, b) => terms.apply("→", &[f(a, fs), f(b, fs)])?,
-                Node::Iff(a, b) => terms.apply("↔", &[f(a, fs), f(b, fs)])?,
+                Node::Not(a) => terms.apply("¬", &[f(a)])?,
+                Node::Box(a) => terms.apply("□", &[f(a)])?,
+                Node::Diamond(a) => terms.apply("◇", &[f(a)])?,
+                Node::And(a, b) => terms.apply("∧", &[f(a), f(b)])?,
+                Node::Or(a, b) => terms.apply("∨", &[f(a), f(b)])?,
+                Node::Implies(a, b) => terms.apply("→", &[f(a), f(b)])?,
+                Node::Iff(a, b) => terms.apply("↔", &[f(a), f(b)])?,
             };
-            self.formulas[i] = Some(term);
+            self.formulas.push(term);
         }
-        Ok(self.formulas[id.index()].unwrap_or_else(|| unreachable!("made above")))
+        Ok(self.formulas[id.index()])
     }
 
     /// Returns the term of a label, `w` and its number.
@@ -314,12 +408,17 @@ fn derivation(
     sequent: &Sequent,
     system: System,
     limits: &Limits,
+    stop: &mut impl FnMut(Progress) -> bool,
 ) -> Result<rules::Derivation, Error> {
     let (steps, proofs) = (&search.steps, &search.proofs);
     // The size first, by a walk that adds each premise's members to its
-    // conclusion's count, before anything is made.
+    // conclusion's count, before anything is made: the nodes, their
+    // members, and a term for each formula of the arena and each member
+    // put on a sequent (at most).
     let base = (sequent.left().len() + sequent.right().len()) as u64;
-    let mut estimate = 0u64;
+    let mut estimate = (sequent.formulas().len() as u64)
+        .saturating_add(base)
+        .saturating_mul(TERM_BYTES);
     let mut stack = vec![(root, base)];
     while let Some((node, size)) = stack.pop() {
         estimate = estimate
@@ -328,7 +427,9 @@ fn derivation(
         let proof = &proofs[node as usize];
         let step = &steps[proof.step as usize];
         for (i, &premise) in proof.premises.iter().enumerate() {
-            stack.push((premise, size + step.premises[i].len() as u64));
+            let added = step.premises[i].len() as u64;
+            estimate = estimate.saturating_add(added.saturating_mul(TERM_BYTES));
+            stack.push((premise, size.saturating_add(added)));
         }
     }
     if let Some(limit) = limits.derivation_bytes
@@ -344,7 +445,7 @@ fn derivation(
     let mut terms = Terms {
         derivation: rules::Derivation::new(calculus::name(system), 2),
         sequent,
-        formulas: vec![None; sequent.formulas().len()],
+        formulas: Vec::new(),
         labels: Vec::new(),
         members: HashMap::default(),
     };
@@ -379,6 +480,8 @@ fn derivation(
         /// The derivation's nodes of the premises visited.
         made: Vec<u32>,
     }
+    // The members put on a sequent, for the stop's asks.
+    let (mut put, mut asked) = (0u64, 0u64);
     let mut walk = vec![Visit {
         node: root,
         next: 0,
@@ -397,6 +500,13 @@ fn derivation(
         let proof = &proofs[top.node as usize];
         let step = &steps[proof.step as usize];
         if let Some(&premise) = proof.premises.get(top.next) {
+            put = put.saturating_add(step.premises[top.next].len() as u64 + 1);
+            if put - asked >= POLL {
+                if stop(Progress::new(Phase::View, put - asked, put)) {
+                    return Err(Error::Refused(Refusal::Stopped { phase: Phase::View }));
+                }
+                asked = put;
+            }
             let mut added = Vec::new();
             for &member in &step.premises[top.next] {
                 let (zone, term) = terms.member(member)?;

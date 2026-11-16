@@ -482,3 +482,23 @@ fn a_formula_can_force_an_exponential_model() {
         );
     }
 }
+
+/// A split whose first premise closes without its formula is not
+/// searched further: worlds that each split once, beside one world that
+/// closes, cost a split each, where without the pruning they would cost
+/// `2^n`.
+#[test]
+fn independent_splits_do_not_multiply() {
+    let n = 16;
+    let mut parts: Vec<String> = (0..n).map(|i| format!("<>(a{i} \\/ b{i})")).collect();
+    parts.push("<>(c /\\ ~c)".to_owned());
+    let sequent: Sequent = format!("{} |-", parts.join(", ")).parse().unwrap();
+    let outcome = decide(&sequent, &Options::default()).unwrap();
+    assert!(matches!(outcome.verdict, Verdict::Valid(_)));
+    assert!(
+        outcome.statistics.splits <= n,
+        "{}",
+        outcome.statistics.splits
+    );
+    assert!(outcome.statistics.inferences <= 4);
+}

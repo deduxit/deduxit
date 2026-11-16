@@ -351,11 +351,15 @@ fn outcome(form: OutcomeForm, limits: &Limits) -> Result<Outcome, Error> {
         (VerdictWord::Valid, None, Some(derivation)) => {
             Verdict::Valid(Evidence::Derivation(Box::new(derivation.within(limits)?)))
         }
-        (VerdictWord::Valid, ..) => return Err(shape("a valid outcome holds its derivation alone")),
+        (VerdictWord::Valid, ..) => {
+            return Err(shape("a valid outcome holds its derivation alone"));
+        }
         (VerdictWord::NotValid, None, None) => Verdict::NotValid,
         (VerdictWord::Unknown, Some(reason), None) => Verdict::Unknown(reason.into()),
         (VerdictWord::NotValid | VerdictWord::Unknown, ..) => {
-            return Err(shape("an outcome holds a reason for unknown only, a derivation for valid only"));
+            return Err(shape(
+                "an outcome holds a reason for unknown only, a derivation for valid only",
+            ));
         }
     };
     let countermodel = match form.countermodel {
@@ -472,6 +476,7 @@ mod tests {
             assert!(json.starts_with(&format!(r#"{{"version":{},"deduxit":"#, wire::MODAL)));
             let back = read(&json).unwrap();
             assert_eq!(serde_json::to_string(&back).unwrap(), json);
+            assert!(back.check(&limits, |_| false).is_ok(), "{text}");
             match &back.verdict {
                 Verdict::Valid(Evidence::Derivation(d)) => {
                     let calculus = calculus(back.system, &limits).unwrap();
@@ -488,6 +493,23 @@ mod tests {
             &decide_within(&"[]p -> [][]p".parse().unwrap(), &s4, &limits, |_| false).unwrap(),
         )
         .unwrap();
+        // A derivation of another sequent passes the checker but not the
+        // outcome's check, nor does one in another system's calculus.
+        let other = valid.replace(
+            r#""sequent":{"formulas":[{"V":0},{"□":0},{"□":1},{"→":[1,2]}],"atoms":["p"],"left":[],"right":[3]}"#,
+            r#""sequent":{"formulas":[{"V":0}],"atoms":["p"],"left":[],"right":[0]}"#,
+        );
+        assert_ne!(other, valid);
+        let forged = read(&other).unwrap();
+        assert!(matches!(
+            forged.check(&limits, |_| false),
+            Err(Error::InvalidDerivation { .. })
+        ));
+        let k = read(&valid.replace(r#""system":"S4""#, r#""system":"K""#)).unwrap();
+        assert!(matches!(
+            k.check(&limits, |_| false),
+            Err(Error::InvalidDerivation { .. })
+        ));
         let bare = valid.replace(r#""verdict":"valid""#, r#""verdict":"not_valid""#);
         assert!(matches!(read(&bare), Err(Error::Json { .. })));
         let start = valid.find(r#","derivation""#).unwrap();

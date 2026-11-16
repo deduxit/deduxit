@@ -32,8 +32,10 @@
 //! searched further, so that independent parts of a branch do not
 //! multiply.
 //!
-//! The search is not trusted: the derivation passes the generic checker
-//! and the countermodel the model check before an outcome is given.
+//! The search is not trusted for "valid": the derivation passes the
+//! generic checker before the outcome is given. Its countermodel passes
+//! the model check too, unless it is too large to check, where "not
+//! valid" rests on the arguments above.
 
 use super::calculus::Rule;
 use super::{Condition, Node, NodeId, Sequent, System};
@@ -213,6 +215,13 @@ pub(super) struct Search<'a> {
     work: u64,
     /// The units of work at the last ask of the stop.
     asked: u64,
+    /// Units of work done by a scan since the last tick, counted at the
+    /// next.
+    owed: u64,
+    /// Whether the steps or the proof nodes passed what a `u32` indexes:
+    /// only a search without a memory bound gets there (a step holds 128
+    /// bytes and more), and the next tick refuses it.
+    full: bool,
     /// What the search counted.
     pub(super) counts: Counts,
 }
@@ -268,13 +277,20 @@ impl<'a> Search<'a> {
             account: Account::holding(limits.memory_bytes, 0),
             work: limits.work.unwrap_or(u64::MAX),
             asked: 0,
+            owed: 0,
+            full: false,
             counts: Counts::default(),
         }
     }
 
-    /// Counts `units` of work, refuses past the bound, asks the stop
-    /// every [`POLL`] units and refuses past the memory bound.
+    /// Counts `units` of work and those owed, refuses past the bound,
+    /// asks the stop every [`POLL`] units and refuses past the memory
+    /// bound and past the indices.
     fn tick(&mut self, units: u64, stop: &mut impl FnMut(Progress) -> bool) -> Result<(), Reason> {
+        if self.full {
+            return Err(Reason::IndexLimit);
+        }
+        let units = units.saturating_add(std::mem::take(&mut self.owed));
         let done = self.counts.work.saturating_add(units);
         self.counts.work = done;
         if done > self.work {
@@ -296,15 +312,27 @@ impl<'a> Search<'a> {
         Ok(())
     }
 
-    /// Returns the bytes a branch holds.
+    /// Returns the bytes a branch holds, saturating.
     fn bytes(&self, branch: &Branch) -> usize {
-        let world = 2 * self.words * 8 + 2 * 24 + 8;
+        let world = self.words.saturating_mul(16).saturating_add(56);
         let edges: usize = branch.worlds.iter().map(|w| w.sees.len()).sum();
-        branch.worlds.len() * world
-            + 8 * edges
-            + MEMBER_BYTES * branch.agenda.len()
-            + 12 * (branch.betas.len() + branch.demands.len())
-            + 4 * branch.segment.len()
+        branch
+            .worlds
+            .len()
+            .saturating_mul(world)
+            .saturating_add(edges.saturating_mul(8))
+            .saturating_add(branch.agenda.len().saturating_mul(MEMBER_BYTES))
+            .saturating_add((branch.betas.len() + branch.demands.len()).saturating_mul(12))
+            .saturating_add(branch.segment.len().saturating_mul(4))
+    }
+
+    /// Returns a `u32` index of a vector of this length, noting where it
+    /// passes what a `u32` holds.
+    fn index(&mut self, len: usize) -> u32 {
+        u32::try_from(len).unwrap_or_else(|_| {
+            self.full = true;
+            u32::MAX
+        })
     }
 
     /// Runs the search to its end.
@@ -417,7 +445,7 @@ impl<'a> Search<'a> {
     fn node(&mut self, step: u32, premises: Vec<u32>) -> u32 {
         self.account
             .charge(16 + 4 * premises.len() + std::mem::size_of::<ProofNode>());
-        let index = self.proofs.len() as u32;
+        let index = self.index(self.proofs.len());
         self.proofs.push(ProofNode { step, premises });
         index
     }
@@ -530,7 +558,7 @@ impl<'a> Search<'a> {
     fn record(&mut self, step: Step) -> u32 {
         let members: usize = step.written.len() + step.premises.iter().map(Vec::len).sum::<usize>();
         self.account.charge(STEP_BYTES + 2 * MEMBER_BYTES * members);
-        let index = self.steps.len() as u32;
+        let index = self.index(self.steps.len());
         self.steps.push(step);
         index
     }
@@ -662,7 +690,9 @@ impl<'a> Search<'a> {
                     | (Node::Implies(..), false)
                     | (Node::Iff(..), _) => branch.betas.push((world, id, right)),
                     (Node::Box(a), false) => {
-                        for y in branch.worlds[world as usize].sees.clone() {
+                        let sees = branch.worlds[world as usize].sees.clone();
+                        self.owed = self.owed.saturating_add(sees.len() as u64);
+                        for y in sees {
                             self.linear(
                                 branch,
                                 Rule::BoxLeft,
@@ -673,7 +703,9 @@ impl<'a> Search<'a> {
                         }
                     }
                     (Node::Diamond(a), true) => {
-                        for y in branch.worlds[world as usize].sees.clone() {
+                        let sees = branch.worlds[world as usize].sees.clone();
+                        self.owed = self.owed.saturating_add(sees.len() as u64);
+                        for y in sees {
                             self.linear(
                                 branch,
                                 Rule::DiamondRight,
@@ -711,13 +743,19 @@ impl<'a> Search<'a> {
     /// `y`, and the frame rules add the edges it makes with the others.
     fn edge(&mut self, branch: &mut Branch, x: u32, y: u32) {
         let edge = Member::Edge(x, y);
-        for i in 0..self.sequent.formulas().len() {
+        // The `□` true and `◇` false of `x`, word by word.
+        self.owed = self.owed.saturating_add(self.words as u64);
+        for word in 0..self.words {
             let w = &branch.worlds[x as usize];
-            let id = NodeId(i as u32);
-            if bit(&self.boxes, i) && bit(&w.truth, i) {
+            let mut boxes = w.truth[word] & self.boxes[word];
+            let mut diamonds = w.falsity[word] & self.diamonds[word];
+            while boxes != 0 {
+                let id = NodeId((word * 64) as u32 + boxes.trailing_zeros());
+                boxes &= boxes - 1;
                 let Node::Box(a) = self.sequent.formulas().node(id) else {
                     unreachable!("a box's bit")
                 };
+                self.owed = self.owed.saturating_add(1);
                 self.linear(
                     branch,
                     Rule::BoxLeft,
@@ -725,10 +763,14 @@ impl<'a> Search<'a> {
                     vec![formula(y, a, false)],
                     false,
                 );
-            } else if bit(&self.diamonds, i) && bit(&w.falsity, i) {
+            }
+            while diamonds != 0 {
+                let id = NodeId((word * 64) as u32 + diamonds.trailing_zeros());
+                diamonds &= diamonds - 1;
                 let Node::Diamond(a) = self.sequent.formulas().node(id) else {
                     unreachable!("a diamond's bit")
                 };
+                self.owed = self.owed.saturating_add(1);
                 self.linear(
                     branch,
                     Rule::DiamondRight,
@@ -748,7 +790,14 @@ impl<'a> Search<'a> {
             );
         }
         if self.transitive {
-            for z in branch.worlds[y as usize].sees.clone() {
+            let (sees, seen_by) = (
+                branch.worlds[y as usize].sees.clone(),
+                branch.worlds[x as usize].seen_by.clone(),
+            );
+            self.owed = self
+                .owed
+                .saturating_add((sees.len() + seen_by.len()) as u64);
+            for z in sees {
                 self.linear(
                     branch,
                     Rule::Transitive,
@@ -757,7 +806,7 @@ impl<'a> Search<'a> {
                     false,
                 );
             }
-            for w in branch.worlds[x as usize].seen_by.clone() {
+            for w in seen_by {
                 self.linear(
                     branch,
                     Rule::Transitive,
@@ -768,7 +817,9 @@ impl<'a> Search<'a> {
             }
         }
         if self.euclidean {
-            for z in branch.worlds[x as usize].sees.clone() {
+            let sees = branch.worlds[x as usize].sees.clone();
+            self.owed = self.owed.saturating_add(2 * sees.len() as u64);
+            for z in sees {
                 let other = Member::Edge(x, z);
                 self.linear(
                     branch,
@@ -816,7 +867,7 @@ impl<'a> Search<'a> {
         let Some((index, [first, second], rule)) = best else {
             return Ok(None);
         };
-        let (world, id, right) = branch.betas.swap_remove(index);
+        let (world, id, right) = branch.betas.remove(index);
         let step = self.record(Step {
             rule,
             written: vec![formula(world, id, right)],
@@ -874,7 +925,11 @@ impl<'a> Search<'a> {
         branch: &mut Branch,
         stop: &mut impl FnMut(Progress) -> bool,
     ) -> Result<bool, Reason> {
-        self.tick(branch.demands.len() as u64, stop)?;
+        // Each demand's test looks through the worlds its world sees.
+        let cost = branch.demands.iter().fold(0u64, |n, &(world, ..)| {
+            n.saturating_add(1 + branch.worlds[world as usize].sees.len() as u64)
+        });
+        self.tick(cost, stop)?;
         // Drop those with a witness: they keep it.
         let mut demands = std::mem::take(&mut branch.demands);
         demands.retain(|&(world, id, right)| !self.realised(branch, world, id, right));
@@ -889,7 +944,7 @@ impl<'a> Search<'a> {
             }
         }
         if let Some(index) = best {
-            let (x, id, right) = branch.demands.swap_remove(index);
+            let (x, id, right) = branch.demands.remove(index);
             let a = match self.sequent.formulas().node(id) {
                 Node::Box(a) | Node::Diamond(a) => a,
                 Node::Atom(_)
@@ -992,10 +1047,16 @@ impl<'a> Search<'a> {
         if !self.blocking {
             return Ok(None);
         }
+        // A signature costs a pass over the bit sets of the world and of
+        // each world that sees it.
+        let words = self.words as u64;
+        let cost =
+            |w: u32| words.saturating_mul(1 + branch.worlds[w as usize].seen_by.len() as u64);
+        self.tick(cost(world), stop)?;
         let (truth, falsity) = self.signature(branch, world);
         let mut ancestor = branch.worlds[world as usize].parent;
         while let Some(a) = ancestor {
-            self.tick(1 + branch.worlds[a as usize].seen_by.len() as u64, stop)?;
+            self.tick(cost(a), stop)?;
             let (t, f) = self.signature(branch, a);
             if (0..self.words).all(|i| truth[i] & !t[i] == 0 && falsity[i] & !f[i] == 0) {
                 return Ok(Some(a));
@@ -1030,8 +1091,36 @@ impl<'a> Search<'a> {
         stop: &mut impl FnMut(Progress) -> bool,
     ) -> Result<Model, Reason> {
         let n = branch.worlds.len();
+        let edges: usize = branch.worlds.iter().map(|w| w.sees.len()).sum();
+        self.account.charge(edges.saturating_mul(8));
+        self.tick(n as u64, stop)?;
         let mut sees: Vec<Vec<u32>> = branch.worlds.iter().map(|w| w.sees.clone()).collect();
+        // The branch's relation is closed under the system's frame rules
+        // already. Only a blocked world's arrows from its blocker need
+        // closing, and only under transitivity: the systems that block
+        // are neither symmetric nor euclidean. Each new pair is charged
+        // and acted on once.
         if self.blocking {
+            self.account.charge(edges.saturating_mul(8));
+            let mut seen_by: Vec<Vec<u32>> =
+                branch.worlds.iter().map(|w| w.seen_by.clone()).collect();
+            let mut pending: Vec<(u32, u32)> = Vec::new();
+            let add = |x: u32,
+                       y: u32,
+                       sees: &mut [Vec<u32>],
+                       seen_by: &mut [Vec<u32>],
+                       pending: &mut Vec<(u32, u32)>| {
+                if let Err(at) = sees[x as usize].binary_search(&y) {
+                    sees[x as usize].insert(at, y);
+                    let into = &mut seen_by[y as usize];
+                    let at = into.binary_search(&x).unwrap_or_else(|at| at);
+                    into.insert(at, x);
+                    pending.push((x, y));
+                    true
+                } else {
+                    false
+                }
+            };
             for x in 0..n as u32 {
                 let w = &branch.worlds[x as usize];
                 let waits = branch
@@ -1039,45 +1128,32 @@ impl<'a> Search<'a> {
                     .iter()
                     .any(|&(d, id, right)| d == x && !self.realised(branch, d, id, right))
                     || (self.serial && w.sees.is_empty());
+                self.owed = self
+                    .owed
+                    .saturating_add(branch.demands.len() as u64 + w.sees.len() as u64);
                 if waits && let Some(a) = self.blocker(branch, x, stop)? {
                     let more = branch.worlds[a as usize].sees.clone();
-                    let into = &mut sees[x as usize];
-                    into.extend(more);
-                    into.sort_unstable();
-                    into.dedup();
-                }
-            }
-        }
-        // The closure, to a fixpoint: each round adds every edge one rule
-        // makes from the edges of the round before.
-        loop {
-            let mut added = Vec::new();
-            for x in 0..n {
-                self.tick(1 + sees[x].len() as u64, stop)?;
-                for &y in &sees[x] {
-                    if self.symmetric {
-                        added.push((y, x as u32));
-                    }
-                    if self.transitive {
-                        self.tick(sees[y as usize].len() as u64, stop)?;
-                        added.extend(sees[y as usize].iter().map(|&z| (x as u32, z)));
-                    }
-                    if self.euclidean {
-                        self.tick(sees[x].len() as u64, stop)?;
-                        added.extend(sees[x].iter().map(|&z| (y, z)));
+                    self.tick(more.len() as u64, stop)?;
+                    for c in more {
+                        if add(x, c, &mut sees, &mut seen_by, &mut pending) {
+                            self.account.charge(24);
+                        }
                     }
                 }
             }
-            let mut grew = false;
-            for (x, y) in added {
-                let into = &mut sees[x as usize];
-                if let Err(at) = into.binary_search(&y) {
-                    into.insert(at, y);
-                    grew = true;
+            while let Some((x, y)) = pending.pop() {
+                let (after, before) = (sees[y as usize].clone(), seen_by[x as usize].clone());
+                self.tick(1 + (after.len() + before.len()) as u64, stop)?;
+                for z in after {
+                    if add(x, z, &mut sees, &mut seen_by, &mut pending) {
+                        self.account.charge(24);
+                    }
                 }
-            }
-            if !grew {
-                break;
+                for w in before {
+                    if add(w, y, &mut sees, &mut seen_by, &mut pending) {
+                        self.account.charge(24);
+                    }
+                }
             }
         }
         if self.serial {
