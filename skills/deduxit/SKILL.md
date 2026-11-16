@@ -1,13 +1,13 @@
 ---
 name: deduxit
-description: A collection of logic suites in one command, `deduxit`, that decides, checks, proves step by step and exports sequents of linear logic (classical, intuitionistic, affine, with Mix, cyclic, the Lambek calculus, first-order) and of classical, intuitionistic and minimal propositional logic. Use it to learn whether a sequent is provable and why not (a refutation, a checked Kripke countermodel, a truth table or a tableau), to get a checked proof as a derivation tree, proof net, JSON, LaTeX, Typst, SVG, PNG, PDF or Rocq certificate, to check a proof file or eliminate its cuts, to apply proof steps from a script, or to decide many sequents in one call.
+description: A collection of logic suites in one command, `deduxit`, that decides, checks, proves step by step and exports sequents of linear logic (classical, intuitionistic, affine, with Mix, cyclic, the Lambek calculus, first-order) of classical, intuitionistic and minimal propositional logic, and of the modal logics from K to S5. Use it to learn whether a sequent is provable and why not (a refutation, a checked Kripke countermodel, a truth table or a tableau), to get a checked proof as a derivation tree, proof net, JSON, LaTeX, Typst, SVG, PNG, PDF or Rocq certificate, to check a proof file or eliminate its cuts, to apply proof steps from a script, or to decide many sequents in one call.
 license: EUPL-1.2
 compatibility: Needs the `deduxit` command, from `cargo install --locked deduxit-cli` or `nix run github:deduxit/deduxit -- ARGS`.
 ---
 
 # deduxit
 
-> `deduxit` is a collection of logic suites: it decides sequents of linear logic and of ordinary propositional logic. A proof it prints has passed an independent checker; an unprovable verdict says why where it can; an unknown verdict names the limit that ended the search and the flag to raise.
+> `deduxit` is a collection of logic suites: it decides sequents of linear logic and of ordinary and modal propositional logic. A proof it prints has passed an independent checker; an unprovable verdict says why where it can; an unknown verdict names the limit that ended the search and the flag to raise.
 
 `deduxit COMMAND --help` documents every flag, and [reference.md](reference.md) everything, with examples.
 
@@ -15,7 +15,7 @@ compatibility: Needs the `deduxit` command, from `cargo install --locked deduxit
 
 **Syntax.** Quote the sequent for the shell: `"A, A -o B |- B"` (`⊢` also works; either side may be empty). After a common mistake the command's tips say what to write (reference.md, section 19). Connectives: `*` (⊗), `par` or `|` (⅋), `&`, `+` (⊕), `-o` (⊸), `~A` or `A^` (negation), `!A`, `?A`; units `1`, `bot`, `top`, `0`. Binding, tightest first: `~ ! ?`, then `*`, `|`, `&`, `+`, and `-o`, which groups to the right. Atoms are identifiers, or predicates over terms, `p(x, f(a))`; `forall x. A` and `exists x. A` bind loosest; `prove` decides a sequent with them in classical mode (with `--mix` and `--affine` too) and with `-i` (affine too).
 
-**The logic** is classical linear logic unless a flag says otherwise: `-i` intuitionistic (hypotheses left of `|-`, exactly one formula right of it, and no `~`, `par`, `|`, `?` or `bot`: write `A -o B`), `-a` affine (a hypothesis may go unused), `--mix`, `--cyclic` (order kept up to rotation), `--lambek` (with `A \ B` and `B / A`). `--logic classical|intuitionistic|minimal` reads ordinary logic instead, with `->`, `/\`, `\/`, `~`, `<->`, `true` and `false`, and answers `valid` or `not valid`; a SAT solver decides it (see `--method`).
+**The logic** is classical linear logic unless a flag says otherwise: `-i` intuitionistic (hypotheses left of `|-`, exactly one formula right of it, and no `~`, `par`, `|`, `?` or `bot`: write `A -o B`), `-a` affine (a hypothesis may go unused), `--mix`, `--cyclic` (order kept up to rotation), `--lambek` (with `A \ B` and `B / A`). `--logic classical|intuitionistic|minimal` reads ordinary logic instead, with `->`, `/\`, `\/`, `~`, `<->`, `true` and `false`, and answers `valid` or `not valid`; a SAT solver decides it (see `--method`). `--system S4` (K to S5) reads modal logic, with `[]` and `<>` added.
 
 **The answer.** The first line is the verdict, then the fragment, the mode and the engine in parentheses, and after a colon the reason. The exit status says the same:
 
@@ -67,7 +67,7 @@ $ deduxit prove --format latex "A, A -o B |- B"
 
 **Many sequents.** `--input-format lines` reads `NAME: SEQUENT` or `SEQUENT` per line (from `--file` or standard input; blank lines and `#` comments skipped) and answers `NAME: VERDICT` per line in input order; the exit status is the worst: an error (2) before unknown (3) before unprovable (1) before proved (0). `--format json` makes each answer a JSON line.
 
-**Step by step.** `interact` reads one command per line: `goals`, `rules G P`, `apply G P RULE [P…]` (goal G, the formula at position P; for `*` the positions of G's other formulas that go to the left premise follow), `cut G C [P…]` (a cut on the formula C, the positions P going to the premise that proves it), `undo`, `close [G]` (the search closes a goal), `show`, `proof [FILE]` (checks the finished proof; a FILE gets its JSON, for `check`), `save FILE` and `load FILE` (the session's own JSON, for `load` only), `quit`.
+**Step by step.** `interact` reads one command per line: `goals`, `rules G P`, `apply G P RULE [P…]` (goal G, the formula at position P; for `*` the positions of G's other formulas that go to the left premise follow), `cut G C [P…]` (a cut on the formula C, the positions P going to the premise that proves it), `undo`, `close [G]` (the search closes a goal), `show`, `proof [FILE]` (checks the finished proof; a FILE gets its JSON, for `check`), `save FILE` and `load FILE` (the session's JSON), `quit`.
 
 The session starts with goal 0; a step closes its goal and opens new ones, newly numbered (`opened goal 1: ⊢ 0: ~A, 1: A`), each goal's formulas numbered from 0: read the numbers from the output before the next step. A RULE is `ax` (on either literal), `*`, `par`, `&`, `+1`, `+2`, `1`, `bot`, `top`, `?d`, `?c`, `?w`, `!`, `mix` or `wk`, and with `-i` the two-sided names (`-oL`, `-oR`, `*L`, `*R`, …, in reference.md). It exits 0 when the session ends with a checked proof, 1 otherwise. With `--logic`, LK's or LJ's rules (`andR`, `->L`) on formulas named `L0`, `R1` (reference.md, section 13).
 
@@ -90,8 +90,8 @@ valid proof (classical)
 ## Docs
 
 - [Reference](reference.md): every command, flag, format and JSON form, with examples
-- [Manual](https://deduxit.github.io/deduxit/manual/): a tour, a guide per task, the reference, how the search works
-- [Library API](https://deduxit.github.io/deduxit/deduxit/): the Rust crate's documentation, the text syntax and the JSON forms
+- [Manual](https://deduxit.github.io/deduxit/manual/): a tour, a guide per task, the reference
+- [Library API](https://deduxit.github.io/deduxit/deduxit/): the Rust crate's documentation
 
 ## Optional
 

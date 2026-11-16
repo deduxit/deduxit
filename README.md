@@ -10,7 +10,8 @@ command, `deduxit`, and a Rust library, the crate `deduxit`. Its suites
 are linear logic (classical and intuitionistic, first-order and cyclic,
 and the Lambek calculus) and propositional logic (classical,
 intuitionistic and minimal), where a sequent that is not valid gets a
-Kripke countermodel and classical logic has truth tables and tableaux.
+Kripke countermodel and classical logic has truth tables and tableaux,
+and propositional modal logic in the fifteen systems from K to S5.
 It checks and builds derivations in calculi given as rule files,
 natural deduction among them, drawn as trees or as Fitch proofs. It
 proves step by step, draws proof nets and countermodels, reads

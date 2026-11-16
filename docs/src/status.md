@@ -347,7 +347,9 @@ in use.
   accepts, one that is not valid with a Kripke countermodel, checked
   where it is small enough to check. It
   checks a Kripke model you give against a sequent and a system. The
-  command and the web page do not offer modal logic yet.
+  command does both under `--system` ([Decide modal logic](modal-logic.md)),
+  and the protocol offers the decision; the web page does not offer
+  modal logic yet.
 - `check` checks a derivation in a calculus you give as data
   ([Check a derivation in your own rules](rules.md)): a rule file in
   JSON declares the connectives, the zones of a sequent (each a set, a

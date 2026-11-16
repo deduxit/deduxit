@@ -33,6 +33,26 @@ second number (0.1.x to 0.2.0), anything else the third.
   and `Model::frame_fault` check a model you give against a modal
   sequent and a system, naming the frame condition that fails and the
   worlds that show it. The outcome has a JSON form at level 20.
+- **Modal logic in the command** (`--system`): `deduxit prove --system
+  S4 '[]p -> [][]p'` decides a modal sequent and prints the derivation,
+  or the countermodel's worlds and what each sees; `--format json`
+  writes the outcome, which `check` checks again. `check --system K
+  --sequent SEQUENT MODEL` checks a Kripke model you write. A derivation
+  is drawn in LaTeX, Typst and SVG, and a countermodel in SVG, PNG and
+  PDF, with an arrow from each world to each world it sees.
+  `check --calculus` takes the labelled calculi by name (`G3S4`), and
+  `workspace new --system` keeps a modal sequent.
+- **Modal logic in the protocol**: the kinds `modal.sequent` and
+  `modal.outcome`, the operations `modal.decide`, `modal.derivation`,
+  `modal.draw` and `modal.duplicate`, and the schema's forms
+  `modal_sequent`, `modal_outcome` and `modal_statement`.
+
+### Changed
+
+- **`check --format json` names the modal system** under the new key
+  `system`, for a modal outcome or a model checked under `--system`.
+- **Rule labels with `□` or `◇`** are set as symbols in every export:
+  `\Box` and `\Diamond` in LaTeX.
 
 ## [0.5.0] - 2026-11-16
 

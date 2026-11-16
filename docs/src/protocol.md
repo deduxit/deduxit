@@ -1,7 +1,7 @@
 # What each suite offers
 
 deduxit's suites (linear logic, ordinary logic, calculi given as rule
-files) each make values and turn values into others: a sequent becomes a
+files, modal logic) each make values and turn values into others: a sequent becomes a
 decision, a translation, a proof step by step, a drawing. The library
 lists these as data, so that a program, a web page or the workspace of
 linked tabs can offer every one of them without code of its own per
@@ -60,12 +60,14 @@ text, quick to make again.
 | `rules.sequent` | a sequent to derive in a calculus | `{"goal", "assumptions"}`, text the calculus reads |
 | `rules.session` | a derivation in progress | the session's JSON |
 | `rules.derivation` | a derivation | the derivation's JSON |
+| `modal.sequent` | a sequent of modal logic and its system | the sequent's JSON with `system` |
+| `modal.outcome` | a sequent decided, with a derivation or a countermodel | the outcome's JSON |
 | `drawing` | a drawing | `{"svg"}` |
 | `text` | a text in a format | `{"format", "text"}` |
 | `certificate` | a certificate for Rocq | `{"text"}` |
 | `term` | a proof read as a lambda-term | `{"text", "judgement"}` |
 
-A sequent's JSON with `mode` or `logic` beside its keys reads as the
+A sequent's JSON with `mode`, `logic` or `system` beside its keys reads as the
 sequent wherever a sequent is read: the key is ignored there. `text`,
 where present, is the sequent as it was typed.
 
@@ -107,6 +109,10 @@ promises something of its output and says what checking that costs.
 | `rules.draw` | `rules.session` | `drawing` | renders |
 | `rules.export` | `rules.session` | `text` | renders |
 | `rules.duplicate` | `rules.sequent` | `rules.sequent` | exact |
+| `modal.decide` | `modal.sequent` | `modal.outcome` | decides |
+| `modal.derivation` | `modal.outcome` | `rules.derivation` | proves |
+| `modal.draw` | `modal.outcome` | `drawing` | renders |
+| `modal.duplicate` | `modal.sequent` | `modal.sequent` | exact |
 
 The catalogue gives each operation's parameters with their values and
 defaults, its plain name, how its output relates to its inputs once made

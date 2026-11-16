@@ -4,7 +4,8 @@
 
 deduxit is a collection of logic suites: it decides, checks and proves
 sequents of linear logic and of ordinary propositional logic (classical,
-intuitionistic and minimal). This reference covers the `deduxit`
+intuitionistic and minimal), and decides propositional modal logic in
+the systems from K to S5. This reference covers the `deduxit`
 command (its flags, formats, JSON forms and exit statuses), then the
 Rust library, the WebAssembly bindings and the Rocq library.
 
@@ -28,7 +29,7 @@ Contents:
 10. Step by step: `interact`
 11. A sequent alone: `seq`
 12. Many sequents in one call
-13. Ordinary logic
+13. Ordinary and modal logic
 14. Cyclic linear logic and the Lambek calculus
 15. Settings files and styles
 16. The Rust library
@@ -923,7 +924,9 @@ A workspace is a JSON file that keeps sequents and what deduxit made
 from them, each node with its operation, parameters and limits.
 
 - `workspace new FILE SEQUENT` makes the file; `--logic` names an
-  ordinary logic, else `--mode` a linear mode (`classical` by default).
+  ordinary logic, `--system` a modal system (`modal.decide`,
+  `modal.derivation`, `modal.draw`), else `--mode` a linear mode
+  (`classical` by default).
   `workspace add FILE SEQUENT` adds another sequent.
 - `workspace apply FILE NODE… OPERATION --set KEY=VALUE` makes a node
   by one of the operations `workspace operations KIND` lists
@@ -1021,7 +1024,7 @@ A record or a problem names its mode as one of `classical`, `mix`,
 What a batch across the cores leaves unknown is worth a second pass
 with `--cores within` or a longer `--timeout`.
 
-## 13. Ordinary logic
+## 13. Ordinary and modal logic
 
 `--logic classical`, `intuitionistic` or `minimal` reads a formula or a
 sequent of propositional logic. The connectives are `->`/`→`, `/\`/`∧`,
@@ -1304,6 +1307,52 @@ a ∧ b ⊢ b       a ∧ b ⊢ a
    ⊢ (a ∧ b) → (b ∧ a)
 ```
 
+### Modal logic: `--system`
+
+`--system K`, `D`, `T`, `KB`, `KDB`, `B`, `K4`, `KD4`, `S4`, `K5`, `KD5`,
+`K45`, `KD45`, `KB5` or `S5` (any case; also K followed by the axioms'
+letters D, T, B, 4, 5, as `KT4` for S4) reads a sequent of modal logic:
+ordinary logic's syntax with the prefixes `[]`/`□` (necessarily) and
+`<>`/`◇` (possibly), which bind as tightly as `~`. It is decided in that
+system: `valid` with a derivation in the system's labelled calculus
+(`G3S4`: each formula at a world, `w0 : □p`, and `w0 R w1` for "world 0
+sees world 1"), or `not valid` with a checked Kripke countermodel,
+each world with the atoms it forces and the worlds it sees.
+
+```console
+$ deduxit prove --system S4 -q "[]p -> [][]p"
+valid in S4: ⊢ □p → □□p, a checked derivation of 6 inferences in G3S4
+$ deduxit prove --system K "[]p -> [][]p"; echo "exit $?"
+not valid in K: a checked countermodel of 3 worlds refutes ⊢ □p → □□p at world 0
+world 0 (where the sequent fails): forces nothing; sees 1
+world 1: forces p; sees 2
+world 2: forces nothing; sees no world
+exit 1
+```
+
+`--format json` writes the modal outcome (`verdict`, `system`,
+`statistics`, `sequent`, and `derivation` or `countermodel` with its
+`model`), which `check` checks again; a bare derivation (`"calculus":
+"G3S4"`) is checked by its calculus. `check --system SYSTEM --sequent
+SEQUENT MODEL` checks a Kripke model you write against a sequent, at
+every world or at `--world N`: first the system's conditions on the
+arrows as written (a model of S4 lists every world's arrow to itself;
+one that fails them is exit 2), then exit 0 where the sequent holds and
+1 where it fails, with each formula's value at the failing world.
+`--format latex|typst|svg|png|pdf` draws the derivation; `svg`, `png`
+and `pdf` draw a countermodel. `--stats` counts worlds made, splits,
+worlds blocked, units of work and inferences.
+
+```console
+$ deduxit prove --system K --format json --output outcome.json "[]p -> [][]p"; echo "exit $?"
+exit 1
+$ deduxit check outcome.json
+not valid in K: ⊢ □p → □□p, its countermodel checked
+$ echo '{"worlds": [{"atoms": ["p"], "arrows": [0, 1]}, {"atoms": ["p"], "arrows": [1]}]}' > model.json
+$ deduxit check --system S4 --sequent "[]p |- [][]p" model.json
+holds in S4 at every world: □p ⊢ □□p
+```
+
 ## 14. Cyclic linear logic and the Lambek calculus
 
 `--cyclic` decides unit-free MLL whose formulas keep their order, up to
@@ -1573,8 +1622,8 @@ occurrences by id, and `describe(&forest)` names them by formula.
 
 ### Modal logic
 
-`deduxit::modal` decides propositional modal logic in the library
-(the command does not offer it yet).
+`deduxit::modal` decides propositional modal logic (the command's
+`--system`, section 13).
 `"[]p -> [][]p".parse::<modal::Sequent>()` reads the
 syntax of ordinary logic with the prefixes `[]` or `□` and `<>` or `◇`.
 `modal::System` is one of the fifteen normal systems from K to S5
