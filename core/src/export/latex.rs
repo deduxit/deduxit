@@ -116,6 +116,8 @@ const NOTATION: Notation = Notation {
     forall: r"\forall ",
     exists: r"\exists ",
     dot: r".\,",
+    necessary: r"\Box ",
+    possible: r"\Diamond ",
     ordinary: Symbols {
         not: r"\lnot ",
         and: r"\land",
@@ -418,6 +420,8 @@ fn label(out: &mut String, markup: &str) {
                 '↔' => NOTATION.ordinary.iff,
                 '∀' => r"\forall",
                 '∃' => r"\exists",
+                '□' => r"\Box",
+                '◇' => r"\Diamond",
                 _ => NOTATION.zero,
             }),
             Part::Text(t) => text(out, t),

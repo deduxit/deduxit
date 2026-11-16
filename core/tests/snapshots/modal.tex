@@ -1,0 +1,16 @@
+\documentclass[border=5pt]{standalone}
+\usepackage{amssymb}
+\usepackage{cmll}
+\usepackage{ebproof}
+\begin{document}
+\begin{prooftree}
+\infer0[$\mathrm{ax}$]{\mathit{w0} \mathrm{:} \Box p, \mathit{w0} \mathrm{:} \Diamond q, \mathit{w0} \mathrm{R} \mathit{w1}, \mathit{w1} \mathrm{:} q, \mathit{w1} \mathrm{R} \mathit{w2}, \mathit{w2} \mathrm{:} p, \mathit{w0} \mathrm{R} \mathit{w2} &\vdash \mathit{w0} \mathrm{:} \Diamond (\Box p \land q), \mathit{w1} \mathrm{:} \Box p \land q, \mathit{w1} \mathrm{:} \Box p, \mathit{w2} \mathrm{:} p}
+\infer1[$\mathrm{L}\Box$]{\mathit{w0} \mathrm{:} \Box p, \mathit{w0} \mathrm{:} \Diamond q, \mathit{w0} \mathrm{R} \mathit{w1}, \mathit{w1} \mathrm{:} q, \mathit{w1} \mathrm{R} \mathit{w2}, \mathit{w0} \mathrm{R} \mathit{w2} &\vdash \mathit{w0} \mathrm{:} \Diamond (\Box p \land q), \mathit{w1} \mathrm{:} \Box p \land q, \mathit{w1} \mathrm{:} \Box p, \mathit{w2} \mathrm{:} p}
+\infer1[$\mathrm{Trans}$]{\mathit{w0} \mathrm{:} \Box p, \mathit{w0} \mathrm{:} \Diamond q, \mathit{w0} \mathrm{R} \mathit{w1}, \mathit{w1} \mathrm{:} q, \mathit{w1} \mathrm{R} \mathit{w2} &\vdash \mathit{w0} \mathrm{:} \Diamond (\Box p \land q), \mathit{w1} \mathrm{:} \Box p \land q, \mathit{w1} \mathrm{:} \Box p, \mathit{w2} \mathrm{:} p}
+\infer1[$\mathrm{R}\Box$]{\mathit{w0} \mathrm{:} \Box p, \mathit{w0} \mathrm{:} \Diamond q, \mathit{w0} \mathrm{R} \mathit{w1}, \mathit{w1} \mathrm{:} q &\vdash \mathit{w0} \mathrm{:} \Diamond (\Box p \land q), \mathit{w1} \mathrm{:} \Box p \land q, \mathit{w1} \mathrm{:} \Box p}
+\infer0[$\mathrm{ax}$]{\mathit{w0} \mathrm{:} \Box p, \mathit{w0} \mathrm{:} \Diamond q, \mathit{w0} \mathrm{R} \mathit{w1}, \mathit{w1} \mathrm{:} q &\vdash \mathit{w0} \mathrm{:} \Diamond (\Box p \land q), \mathit{w1} \mathrm{:} q, \mathit{w1} \mathrm{:} \Box p \land q}
+\infer2[$\mathrm{R}\land$]{\mathit{w0} \mathrm{:} \Box p, \mathit{w0} \mathrm{:} \Diamond q, \mathit{w0} \mathrm{R} \mathit{w1}, \mathit{w1} \mathrm{:} q &\vdash \mathit{w0} \mathrm{:} \Diamond (\Box p \land q), \mathit{w1} \mathrm{:} \Box p \land q}
+\infer1[$\mathrm{R}\Diamond$]{\mathit{w0} \mathrm{:} \Box p, \mathit{w0} \mathrm{:} \Diamond q, \mathit{w0} \mathrm{R} \mathit{w1}, \mathit{w1} \mathrm{:} q &\vdash \mathit{w0} \mathrm{:} \Diamond (\Box p \land q)}
+\infer1[$\mathrm{L}\Diamond$]{\mathit{w0} \mathrm{:} \Box p, \mathit{w0} \mathrm{:} \Diamond q &\vdash \mathit{w0} \mathrm{:} \Diamond (\Box p \land q)}
+\end{prooftree}
+\end{document}

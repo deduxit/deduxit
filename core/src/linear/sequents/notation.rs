@@ -73,6 +73,18 @@ pub(crate) struct Notation {
     /// What stands between a binder's variable and its body: the dot and
     /// a space.
     pub(crate) dot: &'static str,
+    /// `□`, necessity, written directly before its operand as `¬` is.
+    #[cfg_attr(
+        not(feature = "serialize"),
+        expect(dead_code, reason = "a calculus given as data writes it")
+    )]
+    pub(crate) necessary: &'static str,
+    /// `◇`, possibility, written directly before its operand.
+    #[cfg_attr(
+        not(feature = "serialize"),
+        expect(dead_code, reason = "a calculus given as data writes it")
+    )]
+    pub(crate) possible: &'static str,
     /// The connectives and constants of ordinary formulas.
     pub(crate) ordinary: Symbols,
 }
@@ -101,6 +113,8 @@ pub(crate) const TEXT: Notation = Notation {
     forall: "∀",
     exists: "∃",
     dot: ". ",
+    necessary: "□",
+    possible: "◇",
     ordinary: Symbols::UNICODE,
 };
 

@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="130.528" height="153.6" viewBox="0 0 8158 9600" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
+<title>A countermodel of □p, ◇¬q ⊢ q in S5</title>
+<desc>A Kripke model of 3 worlds. An arrow points from a world to a world it sees.
+World 0, the model's world, forces p; it sees itself, world 1 and world 2.
+World 1 forces p; it sees world 0, itself and world 2.
+World 2 forces p; it sees world 0, world 1 and itself.
+At world 0 every formula left of ⊢ is true and every formula right of it false, so □p, ◇¬q ⊢ q is not valid in S5.</desc>
+<g fill="none" stroke="black" stroke-width="40">
+<path d="M4468 2050C5968 1550 5968 3550 4468 3050"/>
+<path d="M4684 3002L4468 3050L4612 3218"/>
+<path d="M3668 3300L1779 6300"/>
+<path d="M1784 6078L1779 6300L1977 6200"/>
+<path d="M3668 3300L5558 6300"/>
+<path d="M5360 6200L5558 6300L5553 6078"/>
+<path d="M2179 6300L4068 3300"/>
+<path d="M4063 3522L4068 3300L3870 3400"/>
+<path d="M2579 6550C4079 6050 4079 8050 2579 7550"/>
+<path d="M2795 7502L2579 7550L2723 7718"/>
+<path d="M1979 6300Q3868 3300 5758 6300"/>
+<path d="M5560 6200L5758 6300L5753 6078"/>
+<path d="M5958 6300L4068 3300"/>
+<path d="M4266 3400L4068 3300L4073 3522"/>
+<path d="M5758 7800Q3868 10800 1979 7800"/>
+<path d="M2177 7900L1979 7800L1984 8022"/>
+<path d="M6358 6550C7858 6050 7858 8050 6358 7550"/>
+<path d="M6574 7502L6358 7550L6502 7718"/>
+<rect id="w0" x="3268" y="1800" width="1200" height="1500" rx="200" stroke="#d55e00" stroke-width="80"/>
+<rect id="w1" x="1379" y="6300" width="1200" height="1500" rx="200"/>
+<rect id="w2" x="5158" y="6300" width="1200" height="1500" rx="200"/>
+</g>
+<g>
+<text x="2189" y="2890" textLength="649" lengthAdjust="spacing">w</text>
+<text x="2838" y="3010" textLength="280" lengthAdjust="spacing" font-size="560">0</text>
+</g>
+<text x="3573" y="2890" textLength="589" lengthAdjust="spacing">𝑝</text>
+<g>
+<text x="300" y="7390" textLength="649" lengthAdjust="spacing">w</text>
+<text x="949" y="7510" textLength="280" lengthAdjust="spacing" font-size="560">1</text>
+</g>
+<text x="1684" y="7390" textLength="589" lengthAdjust="spacing">𝑝</text>
+<g>
+<text x="4079" y="7390" textLength="649" lengthAdjust="spacing">w</text>
+<text x="4728" y="7510" textLength="280" lengthAdjust="spacing" font-size="560">2</text>
+</g>
+<text x="5463" y="7390" textLength="589" lengthAdjust="spacing">𝑝</text>
+</svg>

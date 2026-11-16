@@ -14,6 +14,7 @@
 //! | a step of cut elimination on a proof net | [`net_step`] |
 //! | a proof structure with `!`-boxes, or a step on one | [`mell_net`], [`mell_net_step`] |
 //! | a Kripke countermodel of an ordinary sequent | [`countermodel`] |
+//! | a Kripke countermodel of a modal sequent | [`modal_countermodel`] |
 //!
 //! `Style::default()` draws black on a transparent background in the
 //! Euler Math font, and [`Style::dark()`] light on dark. `export::png` and
@@ -924,6 +925,8 @@ const NOTATION: Notation = Notation {
     forall: "∀",
     exists: "∃",
     dot: ". ",
+    necessary: "□",
+    possible: "◇",
     ordinary: Symbols::UNICODE,
 };
 
@@ -1843,14 +1846,119 @@ pub fn countermodel(
         ),
     };
     let mut polls = 0u64;
-    kripke::draw(&countermodel.model, &title, &last, style, limits, || {
-        polls += 1;
-        stop(crate::limits::Progress::new(
-            crate::limits::Phase::Write,
-            1,
-            polls,
-        ))
-    })
+    kripke::draw(
+        &countermodel.model,
+        kripke::Arrows::Order,
+        &title,
+        &last,
+        style,
+        limits,
+        || {
+            polls += 1;
+            stop(crate::limits::Progress::new(
+                crate::limits::Phase::Write,
+                1,
+                polls,
+            ))
+        },
+    )
+}
+
+/// Returns a Kripke countermodel of a modal sequent as an SVG document,
+/// after checking it in its system under `limits`: each world a box with
+/// the atoms true there, its number `wₙ` beside it, an arrow to each
+/// world it sees (a curl on its right where it sees itself), and the
+/// model's world, where the sequent fails, outlined in the
+/// [`highlight`](Style::highlight) colour. The model's world stands at the
+/// top and every other world in the row of its distance from it. Its
+/// title names the sequent and the system, and with
+/// [`Style::description`] a `<desc>` reads each world and says why the
+/// sequent fails at the model's world.
+///
+/// # Examples
+///
+#[cfg_attr(feature = "parse", doc = "```")]
+#[cfg_attr(not(feature = "parse"), doc = "```ignore")]
+/// use deduxit::Limits;
+/// use deduxit::export::svg::{self, Style};
+/// use deduxit::modal::{Options, Sequent, decide};
+///
+/// let sequent: Sequent = "[]p |- p".parse()?;
+/// let outcome = decide(&sequent, &Options::default())?;
+/// let countermodel = outcome.countermodel.expect("a countermodel");
+/// let svg = svg::modal_countermodel(&countermodel, &Style::default(), &Limits::default(), |_| false)?;
+/// assert!(svg.contains("<title>A countermodel of □p ⊢ p in K</title>"));
+/// # Ok::<(), deduxit::Error>(())
+/// ```
+///
+/// # Errors
+///
+/// - The errors of [`Countermodel::check`](crate::modal::Countermodel::check):
+///   a model that is none of its system or does not refute the sequent,
+///   a refusal by `limits` or `stop`.
+/// - [`Refusal::Output`](crate::Refusal::Output) for a drawing estimated
+///   past `limits.derivation_bytes`, before anything is laid out.
+/// - [`Refusal::Stopped`](crate::Refusal::Stopped) where `stop` asked,
+///   once per world.
+/// - [`Error::InvalidOption`] for a style [`Style::check`] refuses.
+pub fn modal_countermodel(
+    countermodel: &crate::modal::Countermodel,
+    style: &Style,
+    limits: &crate::Limits,
+    mut stop: impl FnMut(crate::limits::Progress) -> bool,
+) -> Result<String, Error> {
+    use crate::modal::{Node, NodeId};
+    countermodel.check(limits, &mut stop)?;
+    let sequent = &countermodel.sequent;
+    // The sequent's text, bottom up over its arena, before it is written:
+    // a shared formula is written each time it occurs.
+    within(limits, || {
+        let formulas = sequent.formulas();
+        let mut bytes: Vec<u64> = Vec::with_capacity(formulas.len());
+        for i in 0..formulas.len() {
+            let of = |k: NodeId| bytes[k.index()];
+            let b = match formulas.node(NodeId::new(i)) {
+                Node::Atom(a) => (formulas.atom_name(a).len() as u64).saturating_add(2),
+                Node::True | Node::False => 3,
+                Node::Not(a) | Node::Box(a) | Node::Diamond(a) => of(a).saturating_add(4),
+                Node::And(a, b) | Node::Or(a, b) | Node::Implies(a, b) | Node::Iff(a, b) => {
+                    of(a).saturating_add(of(b)).saturating_add(9)
+                }
+            };
+            bytes.push(b);
+        }
+        // Written twice, in the title and the description, and escaped.
+        sequent
+            .left()
+            .iter()
+            .chain(sequent.right())
+            .fold(0u64, |sum, id| sum.saturating_add(bytes[id.index()]))
+            .saturating_mul(12)
+    })?;
+    let system = countermodel.system;
+    let title = format!("A countermodel of {sequent} in {system}");
+    let w = countermodel.model.world;
+    let last = format!(
+        "At world {w} every formula left of ⊢ is true and every formula right of it false, \
+         so {sequent} is not valid in {system}."
+    );
+    let mut polls = 0u64;
+    kripke::draw(
+        &countermodel.model,
+        kripke::Arrows::Relation,
+        &title,
+        &last,
+        style,
+        limits,
+        || {
+            polls += 1;
+            stop(crate::limits::Progress::new(
+                crate::limits::Phase::Write,
+                1,
+                polls,
+            ))
+        },
+    )
 }
 
 /// Returns a criterion's refusal as the drawing's error; a verdict,

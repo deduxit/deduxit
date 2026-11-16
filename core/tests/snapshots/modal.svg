@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="1413.088" height="182.592" viewBox="0 0 88318 11412" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
+<title>w0 : □p, w0 : ◇q ⊢ w0 : ◇(□p ∧ q)</title>
+<desc>1. w0 : □p, w0 : ◇q, w0 R w1, w1 : q, w1 R w2, w2 : p, w0 R w2 ⊢ w0 : ◇(□p ∧ q), w1 : □p ∧ q, w1 : □p, w2 : p, by ax.
+2. w0 : □p, w0 : ◇q, w0 R w1, w1 : q, w1 R w2, w0 R w2 ⊢ w0 : ◇(□p ∧ q), w1 : □p ∧ q, w1 : □p, w2 : p, by L□ from 1.
+3. w0 : □p, w0 : ◇q, w0 R w1, w1 : q, w1 R w2 ⊢ w0 : ◇(□p ∧ q), w1 : □p ∧ q, w1 : □p, w2 : p, by Trans from 2.
+4. w0 : □p, w0 : ◇q, w0 R w1, w1 : q ⊢ w0 : ◇(□p ∧ q), w1 : □p ∧ q, w1 : □p, by R□ from 3.
+5. w0 : □p, w0 : ◇q, w0 R w1, w1 : q ⊢ w0 : ◇(□p ∧ q), w1 : q, w1 : □p ∧ q, by ax.
+6. w0 : □p, w0 : ◇q, w0 R w1, w1 : q ⊢ w0 : ◇(□p ∧ q), w1 : □p ∧ q, by R∧ from 4 and 5.
+7. w0 : □p, w0 : ◇q, w0 R w1, w1 : q ⊢ w0 : ◇(□p ∧ q), by R◇ from 6.
+8. w0 : □p, w0 : ◇q ⊢ w0 : ◇(□p ∧ q), by L◇ from 7.</desc>
+<g fill="none" stroke="black" stroke-width="40">
+<path d="M35496 9812H59415"/>
+<path d="M32388 8312H62522"/>
+<path d="M8199 6812H86711"/>
+<path d="M4249 5312H46451"/>
+<path d="M1996 3812H48705"/>
+<path d="M300 2312H50401"/>
+<path d="M300 812H50401"/>
+<path d="M53169 5312H86711"/>
+</g>
+<text x="39453" y="10902" textLength="16004" lengthAdjust="spacing" id="i7">𝑤0 : □𝑝, 𝑤0 : ◇𝑞 ⊢ 𝑤0 : ◇(□𝑝 ∧ 𝑞)</text>
+<text x="59615" y="10012" textLength="1012" lengthAdjust="spacing" font-size="800">L◇</text>
+<text x="35496" y="9402" textLength="23919" lengthAdjust="spacing" id="i6">𝑤0 : □𝑝, 𝑤0 : ◇𝑞, 𝑤0 R 𝑤1, 𝑤1 : 𝑞 ⊢ 𝑤0 : ◇(□𝑝 ∧ 𝑞)</text>
+<text x="62722" y="8512" textLength="1052" lengthAdjust="spacing" font-size="800">R◇</text>
+<text x="32388" y="7902" textLength="30134" lengthAdjust="spacing" id="i5">𝑤0 : □𝑝, 𝑤0 : ◇𝑞, 𝑤0 R 𝑤1, 𝑤1 : 𝑞 ⊢ 𝑤0 : ◇(□𝑝 ∧ 𝑞), 𝑤1 : □𝑝 ∧ 𝑞</text>
+<text x="86911" y="7012" textLength="1107" lengthAdjust="spacing" font-size="800">R∧</text>
+<text x="8199" y="6402" textLength="34303" lengthAdjust="spacing" id="i3">𝑤0 : □𝑝, 𝑤0 : ◇𝑞, 𝑤0 R 𝑤1, 𝑤1 : 𝑞 ⊢ 𝑤0 : ◇(□𝑝 ∧ 𝑞), 𝑤1 : □𝑝 ∧ 𝑞, 𝑤1 : □𝑝</text>
+<text x="46651" y="5512" textLength="1108" lengthAdjust="spacing" font-size="800">R□</text>
+<text x="4249" y="4902" textLength="42202" lengthAdjust="spacing" id="i2">𝑤0 : □𝑝, 𝑤0 : ◇𝑞, 𝑤0 R 𝑤1, 𝑤1 : 𝑞, 𝑤1 R 𝑤2 ⊢ 𝑤0 : ◇(□𝑝 ∧ 𝑞), 𝑤1 : □𝑝 ∧ 𝑞, 𝑤1 : □𝑝, 𝑤2 : 𝑝</text>
+<text x="48905" y="4012" textLength="2139" lengthAdjust="spacing" font-size="800">Trans</text>
+<text x="1996" y="3402" textLength="46709" lengthAdjust="spacing" id="i1">𝑤0 : □𝑝, 𝑤0 : ◇𝑞, 𝑤0 R 𝑤1, 𝑤1 : 𝑞, 𝑤1 R 𝑤2, 𝑤0 R 𝑤2 ⊢ 𝑤0 : ◇(□𝑝 ∧ 𝑞), 𝑤1 : □𝑝 ∧ 𝑞, 𝑤1 : □𝑝, 𝑤2 : 𝑝</text>
+<text x="50601" y="2512" textLength="1068" lengthAdjust="spacing" font-size="800">L□</text>
+<text x="300" y="1902" textLength="50101" lengthAdjust="spacing" id="i0">𝑤0 : □𝑝, 𝑤0 : ◇𝑞, 𝑤0 R 𝑤1, 𝑤1 : 𝑞, 𝑤1 R 𝑤2, 𝑤2 : 𝑝, 𝑤0 R 𝑤2 ⊢ 𝑤0 : ◇(□𝑝 ∧ 𝑞), 𝑤1 : □𝑝 ∧ 𝑞, 𝑤1 : □𝑝, 𝑤2 : 𝑝</text>
+<text x="50601" y="1012" textLength="908" lengthAdjust="spacing" font-size="800">ax</text>
+<text x="53169" y="6402" textLength="33542" lengthAdjust="spacing" id="i4">𝑤0 : □𝑝, 𝑤0 : ◇𝑞, 𝑤0 R 𝑤1, 𝑤1 : 𝑞 ⊢ 𝑤0 : ◇(□𝑝 ∧ 𝑞), 𝑤1 : 𝑞, 𝑤1 : □𝑝 ∧ 𝑞</text>
+<text x="86911" y="5512" textLength="908" lengthAdjust="spacing" font-size="800">ax</text>
+</svg>

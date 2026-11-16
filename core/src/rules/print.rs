@@ -510,6 +510,8 @@ impl<'n> Spelling<'n> {
             "∨" => notation.ordinary.or,
             "→" => notation.ordinary.implies,
             "↔" => notation.ordinary.iff,
+            "□" => notation.necessary,
+            "◇" => notation.possible,
             "⊢" => notation.turnstile,
             _ => {
                 let mut piece = String::new();

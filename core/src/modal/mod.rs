@@ -77,6 +77,13 @@ impl NodeId {
     pub const fn index(self) -> usize {
         self.0 as usize
     }
+
+    /// Returns the id of the formula at `index` of an arena, which the
+    /// arena must hold: arenas hold fewer than 2³² formulas.
+    #[cfg(feature = "svg")]
+    pub(crate) const fn new(index: usize) -> Self {
+        Self(index as u32)
+    }
 }
 
 /// A node of a modal formula, which refers to its subformulas by arena

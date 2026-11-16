@@ -140,6 +140,8 @@ const NOTATION: Notation = Notation {
     forall: "forall ",
     exists: "exists ",
     dot: ". ",
+    necessary: "□",
+    possible: "◇",
     ordinary: Symbols::UNICODE,
 };
 
@@ -509,6 +511,8 @@ fn label(out: &mut String, markup: &str) {
                 '↔' => "↔",
                 '∀' => "forall",
                 '∃' => "exists",
+                '□' => "□",
+                '◇' => "◇",
                 _ => "0",
             }),
             Part::Text(t) => {

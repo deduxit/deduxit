@@ -305,6 +305,28 @@ fn rules_tableau() {
     pin("rules-tableau", &drawn);
 }
 
+/// A modal derivation in its labelled calculus is drawn with `□` and `◇`
+/// in every target's spelling, in its formulas and its rule labels.
+#[test]
+fn modal_derivation() {
+    use deduxit::modal::{self, Evidence, System, Verdict};
+    let sequent: modal::Sequent = "[]p, <>q |- <>([]p /\\ q)".parse().unwrap();
+    let options = modal::Options::default().with_system(System::S4);
+    let outcome = modal::decide(&sequent, &options).unwrap();
+    let Verdict::Valid(Evidence::Derivation(derivation)) = &outcome.verdict else {
+        panic!("valid in S4");
+    };
+    let calculus = modal::calculus(System::S4, &Limits::default()).unwrap();
+    let drawn = deduxit::rules::Drawing::new(&calculus, derivation, &Limits::default()).unwrap();
+    pin("modal", &drawn);
+    let tex = latex::to_string(&drawn, &latex::Options::default()).unwrap();
+    assert!(
+        tex.contains(r"\mathrm{L}\Box") && tex.contains(r"\Diamond "),
+        "{tex}"
+    );
+    assert!(!tex.contains('□') && !tex.contains('◇'), "{tex}");
+}
+
 /// Pins a derivation with its lambda-term under the conclusion, binders
 /// typed, as `name.tex`, `name.typ`, `name-deduxit.typ` (Typst's own
 /// layout) and `name.svg`, which the `export` check compiles and renders.
@@ -2292,6 +2314,26 @@ fn countermodel_drawings() {
     let drawn = draw(&minimal, Logic::Minimal, &defaults).unwrap();
     assert!(drawn.contains("World 1 forces a and ⊥."));
     snapshot("kripke_minimal.svg", &drawn);
+    // A modal model: its world at the top, loops as curls, two worlds
+    // that see each other two arrows side by side, an arrow across a row.
+    let sequent: deduxit::modal::Sequent = "[]p, <>~q |- q".parse().unwrap();
+    let model = deduxit::kripke::Model::new(
+        vec![
+            world(&["p"], false, &[0, 1, 2]),
+            world(&["p"], false, &[0, 1, 2]),
+            world(&["p"], false, &[0, 1, 2]),
+        ],
+        0,
+    );
+    let modal = deduxit::modal::Countermodel::new(sequent, deduxit::modal::System::S5, model);
+    let drawn = svg::modal_countermodel(&modal, &Style::default(), &defaults, |_| false).unwrap();
+    assert!(drawn.contains("<title>A countermodel of □p, ◇¬q ⊢ q in S5</title>"));
+    assert!(
+        drawn
+            .contains("World 0, the model's world, forces p; it sees itself, world 1 and world 2.")
+    );
+    assert_eq!(drawn.matches('C').count(), 3, "a curl per world: {drawn}");
+    snapshot("kripke_modal.svg", &drawn);
     // An arrow past a row bows out, so that it does not run through the
     // box between.
     let skipping = countermodel(
