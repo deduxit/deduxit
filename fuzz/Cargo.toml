@@ -131,3 +131,24 @@ path = "fuzz_targets/json_derivation.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "modal_text"
+path = "fuzz_targets/modal_text.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "json_modal"
+path = "fuzz_targets/json_modal.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "modal_decide"
+path = "fuzz_targets/modal_decide.rs"
+test = false
+doc = false
+bench = false

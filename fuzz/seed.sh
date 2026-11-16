@@ -15,7 +15,7 @@ cd "$(dirname "$(realpath "$0")")/.."
 deduxit=${DEDUXIT:-target/debug/deduxit}
 corpus=fuzz/corpus
 for t in sequent_text ordinary_text tptp lltp spec json_sequent json_proof json_structure json_session json_disproof \
-  session_steps proof_views ordinary_decide rule_file json_derivation; do
+  session_steps proof_views ordinary_decide rule_file json_derivation modal_text json_modal modal_decide; do
   mkdir -p "$corpus/$t"
 done
 seed() { # TARGET NAME: standard input into the corpus
@@ -92,6 +92,20 @@ for s in 'a \/ ~a' 'a -> b, a |- b' '~~a |- a' '(a /\ b) -> (b /\ a)' \
       printf '%b' "\\00$b"
       printf '%s' "$s"
     } | seed ordinary_decide "small-$i-$b"
+  done
+done
+# Modal sequents: the text, and for modal_decide the first byte the
+# system (an index of System::ALL: 0 is K, 8 S4, 14 S5). json_modal has
+# no seed until the command writes modal documents.
+for s in '[]p -> [][]p' '[](p -> q) -> []p -> []q' '<>p |- []<>p' '[]p, <>q |- <>(p /\ q)' \
+  '|- []p \/ ~[]p' '[]([]p -> p) -> []p' '<>[]p <-> []<>p'; do
+  i=$((i + 1))
+  printf '%s' "$s" | seed modal_text "small-$i"
+  for b in 0 1 2 5 6 8 9 12 14; do
+    {
+      printf '%b' "\\$(printf '%03o' "$b")"
+      printf '%s' "$s"
+    } | seed modal_decide "small-$i-$b"
   done
 done
 # The built-in rule files, and the derivations and rule file the wire
