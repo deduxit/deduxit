@@ -7525,3 +7525,7 @@ move (D26).
   the search bars the automatic invertible rules too (68c's question 8); 68d makes the change.
 - 2026-11-16, about 22:50: **68c's client chain on the client's `main`** (with its lock update
   `tllwnulk` to deduxit's main holding 68a's call) after its flake check passed.
+- 2026-11-16, 22:35: **68d reviewed and pushed (the client `rluokntt`, report `mrzuwslw`).** Where a
+  pack bars the search, "Apply invertible rules by themselves" has no effect on its tabs, and the
+  Settings sheet says why; a test in `packs.spec.ts`; the client's flake check passed (341 e2e).
+  Step 68 waits for nothing else on the page; 54x7 runs, then 69.
