@@ -323,3 +323,281 @@ ordinary reading.
 **65d (the page)**: a modal model's arrows are no order (loops,
 cycles), so step 55's drawing needs a layout for them; implied arrows
 may be hidden by an option of the drawing, never in the data.
+
+## Session 65b: the search and the panel
+
+Opus 5.5 at `high` (the 65a worker, its conversation kept), in the
+workspace `../deduxit-wt-step-58b-8c0bbc`, from the brief
+`/tmp/linlog-handoff/start-65b.md`, on 2026-11-16, cores 10 to 12.
+
+### Outcome
+
+- **The library decides modal logic in all fifteen systems of the
+  cube** (`modal::decide`, `decide_within`): a valid sequent comes with
+  a derivation in the system's labelled calculus (`modal::calculus`,
+  Negri's G3K with the frame rules of the system, a calculus given as
+  data), which the generic checker of step 60 accepted; a sequent that
+  is not valid comes with a Kripke model whose relation meets the
+  system's frame conditions and that refutes it, both checked before
+  the outcome is given. All fifteen pass the same tests, so all fifteen
+  are offered (65a's question 1, as the planning session decided).
+- **A model the user gives is checked** (`Model::frame_fault`,
+  `Model::truth`, `Truth`): the first frame condition the arrows as
+  written fail, with the worlds that show it, then each formula's value
+  at each world, whether the sequent holds at a world or anywhere, and
+  for a false `□A` or a true `◇A` the world that shows it.
+- **The outcome has a JSON form** at level 20 (`serialize/modal.rs`),
+  which reads back unchecked; `Outcome::check` checks a read-back
+  outcome's evidence against its sequent and system.
+- **Three fuzz targets**: `modal_text`, `json_modal`, `modal_decide`
+  (built, seeded; not run, below).
+- **The panel** of three found no unsound answer; it found four bound
+  faults, one termination fault in practice (KD4 and S4 at tens of
+  millions of units), and three claims the docs made wrongly. All are
+  answered in code or in the docs (below).
+
+### The search, the proof and the countermodel
+
+As the design note's sections 4 to 7 say, with these choices made here:
+- **One branch** holds worlds (two bit sets over the arena each, sorted
+  arrows both ways), an agenda, the formulas waiting for a split, the
+  `□` false and `◇` true waiting for a witness, and the steps since the
+  last split. The relation is kept closed under the system's frame
+  rules as each edge is acted on, each derived edge a step of the
+  derivation, so a `□` reaches a world along a derived edge by `L□`.
+- **Blocking only in K4, KD4 and S4, by any earlier world that no world
+  blocks and whose signature includes the world's** (departs from the
+  design, which took Garg, Genovese and Negri's proper ancestors): the
+  counterexamples member found `⊢ □(□□q ↔ r) → ◇□(□◇q ↔ r)` of
+  fourteen nodes taking 40.7 million units in KD4 and `□(□(p ↔ q) ↔ □q
+  ∨ p) ⊢ ◇□◇(p ∧ q), q` reaching the 1 GiB memory bound, both not
+  valid: sibling worlds of equal content each expanded. With blocking
+  by any earlier world, as description-logic tableaux without inverse
+  roles block anywhere, they end in 105 000 and 162 000 units, and the
+  third witness, which also ran out of memory in S4, in 38 000. The
+  argument for the model is the ancestors' one: in these systems no
+  edge leads to an older world, so every existing world's signature is
+  final when a world is first tested, and a blocked world that waits
+  takes its blocker's arrows (with the blocker's loop first where it is
+  a serial system's dead end, so never none), then the transitive
+  closure. The model check decides each model anyway.
+- **A step is kept only where the proof above uses its new members**,
+  and a split whose first premise closes without its new members is
+  not searched further. Measured before it was kept (the design asked
+  for it): twenty worlds that each split once beside one that closes
+  took 20 splits with it, and without it 2²⁰ branches, unknown at 2²⁶
+  units (`independent_splits_do_not_multiply` pins it at 16).
+- **Every principal formula is kept in its premises** (departs from the
+  design, which named G3c's rules): a tableau branch keeps what it
+  expands, and with the calculus's set zones the branch is then the
+  derivation's sequent as it is. The calculus also has `L¬`, `R¬`, `R⊤`
+  and the `↔` rules, which Negri's Table II lacks, and no initial
+  sequent on a relational atom; the doc comment of `calculus()` lists
+  each, the argument member checked every rule sound.
+- **The derivation** is emitted by a walk over the kept steps, each
+  node's sequent the root's and its path's premise lists (whole, not
+  only the new members, so a member a left-out step put first is still
+  there), each zone sorted, positions by the rule compiler's order. Its
+  size is estimated first, terms included, against
+  `limits.derivation_bytes`; the build asks the stop.
+- **A model too large to check is dropped and "not valid" stands**, as
+  in the ordinary suite (the design's section 6); the argument member
+  found the docs saying otherwise in three places, now corrected:
+  there the verdict rests on the search's arguments, which the panel
+  found sound.
+- **No `Error::Frame`** (departs from the design): the failing
+  condition is data in `Model::frame_fault`'s answer (`Frame`), and
+  `truth` refuses with `Error::Model` and the frame's text, so the
+  shared error family is untouched while 63g changes it. `MODEL_CELLS`
+  stays `ordinary`'s (departs from the design, which moved it to
+  `kripke`): the modal check reads it there.
+- **`CHECKED`**: the frame conditions are checked reflexive first, then
+  serial, symmetric, transitive, euclidean, so a world without arrows in
+  T is told it does not see itself.
+- **What `decide` needs**: the feature `serialize` (the generic
+  derivation does); the arena, the systems and the model check need no
+  feature.
+
+### The panel's findings and answers
+
+**`panel-counterexamples`** (Opus 5.5, its own formula type,
+evaluator, frame check, checker of the G3 rules and a shrinker; 474 750
+decisions over 31 650 sequents in all fifteen systems, 1 545 000 model
+checks of 103 000 random models, 173 686 mutants of 2 300 derivations):
+- No "valid" refuted on any frame of up to three worlds or 200 sampled
+  four-world frames; every "not valid" with a model its evaluator and
+  frame check confirmed; no defect error, no panic; `frame_fault` and
+  `truth` agreed with its own code on every model; every mutant the
+  generic checker accepted was a sound instance of a rule by its own
+  checker.
+- **Refuted: termination within 2²⁴ units** in K4, KD4 and S4 on small
+  sequents (13 of 474 750 decisions, three shrunk witnesses above).
+  Answered by blocking by any earlier world (`lntxmttw`), which ends all
+  nine of its unknowns.
+- **The rerun on the new blocking** (630 150 decisions over 42 010
+  sequents, 126 000 of them in K4, KD4 and S4; 750 000 model checks;
+  120 691 derivation mutants): no unsound answer, no defect, no panic,
+  every "not valid" model confirmed by its own evaluator and frame
+  check (blocked K4, KD4 and S4 models among them). **Still refuted in
+  KD4 alone**: two sequents that are not valid in KD4 (KD45, a stronger
+  system, refutes them with a model of 10 worlds) end above 2²⁴ units:
+  `⊢ ◇((q → (◇⊤ ↔ ⊥)) → □□(p → q)), (◇¬◇(s ↔ q) → ⊤) → ◇(((p ↔ □□s) ∧
+  ◇(◇s ↔ ◇q)) ↔ s)` (37 nodes) in 20.5 million units, and its 50-node
+  original reaches the 1 GiB memory bound, so the default `decide`
+  answers unknown on it. S4 decides both within 1.4 million units, K4
+  in a few. Not answered in this session: it is a cost, not a fault
+  (termination and soundness hold), of the search's branching where a
+  system has neither reflexivity nor a cluster, with `Ser` making
+  worlds at every dead end. What would answer it is a cache of the
+  verdicts of world signatures across branches (the "global caching" of
+  Goré and Nguyen's tableaux for K4-like logics, not read), for a later
+  step; the author is told below.
+
+**`panel-argument`** (Fable 5.2): every rule sound under the checker's
+reading of set zones and contexts; the emitted derivation's invariant
+(every needed member in the kept node's sequent, positions in the
+compiler's order, fresh labels absent from the conclusion) holds at
+every site; the five "(ours)" arguments of the design hold (termination
+by modal depth, ancestor blocking and its model, the euclidean cluster,
+the serial loop, the implications); the model check is the Kripke
+semantics. Three findings:
+1. "Not valid" without a checked model past `MODEL_CELLS` (a run of 500
+   diamonds in S5), against three sentences of the docs. Answered in
+   the docs (above); the verdict is the design's.
+2. **A derivation read back was not tied to its sequent**: a document
+   whose derivation proves `⊢ w0 : p` passed `Derivation::check` for any
+   outcome. Answered by `Outcome::check` (the root must be `w0 : Γ ⊢
+   w0 : Δ`, no assumption, the system's calculus), tested with a forged
+   sequent and a forged system.
+3. `calculus()`'s doc comment named two departures where there are
+   five: corrected.
+
+**`panel-integers`** (Sonnet 5.5): nothing wrapped or panicked; four
+bounds did not hold:
+1. **The model's closure** built every 2-path of the relation, uncharged:
+   7 to 9 times the memory bound (S4 chain of 1 000 worlds at 1.48 GB
+   under 200 MiB). Now only a blocked world's new arrows are closed, by
+   a charged worklist: 175 MB under 200 MiB, 57 MB under 50 MiB.
+2. **The derivation's terms** were made by a rescan of the arena per
+   member, quadratic and unpolled (46 s at 500 000 hypotheses). Now made
+   once in the arena's order, the build polled: 0.15 s at 200 000.
+3. **The size estimate** left out the terms, a hundredfold short. Now
+   counted (103 MB estimated against 81 MB built at 200 000).
+4. **Scans the work count did not count** (every edge scanned the
+   arena, a demand's test the worlds seen, a signature the bit sets).
+   Each now owes its length to the next tick: the padded chain that ran
+   5.3 s on 1.4 million units stops at its 2-million bound in 36 ms.
+- Also: the step and proof indices are `u32` (a refusal now, `full`,
+  past them), and the byte estimate of a branch saturates.
+
+### Checks
+
+- **The modal tests**: 25 in the library (the model check four, the
+  calculus one, the search ten, the JSON five, the arena's and the
+  parser's), with the defaults, with `serialize` and `parse` alone, and
+  with no feature (the three that need neither); the doc tests.
+- **Clippy** on the workspace with warnings denied, `cargo hack check
+  --each-feature -p deduxit`, `RUSTFLAGS="-W unreachable_pub -W
+  unnameable_types" cargo check -p deduxit --all-features`, and
+  `cargo doc` with every feature, public and private, warnings denied:
+  clean.
+- **The fuzz targets** build (`nix develop .#fuzz -c cargo check
+  --manifest-path fuzz/Cargo.toml --bins`); not run.
+- **The gate** (capped, cores 10 to 12) on the rebased chain at
+  `lzrknpwx`: passed, the ratchet within its ceilings.
+- **`nix flake check`** under the machine lock: passed at `lzrknpwx`
+  before the reviewer's fixes, and again at `pqmqzuoy`, the last code
+  commit ("all checks passed!"); the guide and manual test
+  (`cargo test -p deduxit-cli --test readme`) passed on the fixes too.
+- **The panel's probes, rerun after the fixes** (the integers member's
+  `run.sh`, the counterexamples member's harness against a copy of the
+  fixed tree): the figures in the panel's section above.
+
+### The reviewer's findings
+
+`fresh-reviewer` on Fable 5.2 at `medium` (the writer on Opus) read the
+five commits, the rebase's resolution, the brief and the code, ran a
+probe against the public API and the builds without default features.
+It found nothing against the new blocking or the model's reading, and
+seven findings, all held:
+1. **`Outcome::check` took a countermodel of another sequent** (an
+   outcome of `⊢ p ∨ ¬p` with the model of `⊢ p` passed; only through
+   the public fields, since the JSON reader builds the countermodel
+   from the outcome's own sequent). The check now compares the two
+   sequents' texts; `forged_evidence_is_refused` pins it.
+2. **A test's comment claimed a truth-table check its body did not
+   make.** The comment is corrected, and `classical_sequents_keep_their_verdicts`
+   now compares sixty generated sequents without modalities with their
+   truth tables in all fifteen systems.
+3. **The design's section 12 was only partly in the tree.** Added: a
+   derivation forged once per node is refused
+   (`forged_evidence_is_refused`). Left as they are, and recorded here:
+   the small frames sample 48 of the 512 relations on three worlds (all
+   512 times every valuation in fifteen systems was minutes in a debug
+   build; the counterexamples member ran all of them out of tree); "a
+   countermodel of an extension refutes in the system" is checked by
+   the verdicts, not on the model; Halpern and Moses's formulas run in
+   K for `m` up to 3, not in T and S4, and no test drives one to the
+   memory bound (the integers member did, out of tree).
+4. **`Statistics` and the rules file still named an ancestor** as the
+   blocker: corrected.
+5. **Four texts said every "not valid" comes with a checked model**
+   (the changelog, the status chapter, the guide, `core.md`): each now
+   says where it is small enough to check.
+6. **The wire docs gave level 20 to the sequent alone**, where every
+   modal outcome is written at it: the table's row, the list of forms
+   and `MODAL`'s comment now name the outcome.
+7. **CLAUDE.md and `core.md` described 65a's module**: corrected.
+
+### Departures
+
+Each marked above "(departs from the design)": blocking by any earlier
+world; kept principal formulas; no `Error::Frame`; `MODEL_CELLS` not
+moved. The tests of the design's section 12 are in the tree as the
+reviewer's finding 3 says, the rest out of tree by the panel. Not done
+here: the suite's registration in the protocol (65c,
+with its first operation, as 65a said), a run of the fuzz targets
+(below), the wire file `core/tests/wire/level-20.txt` (with the
+command's documents, 65c).
+
+### For the author, through the planning session
+
+- **KD4 is offered with a known cost**: on some sequents of a few dozen
+  nodes it needs tens of millions of units or more memory than the
+  default bound, where S4 and KD45 decide them at once (the panel's two
+  witnesses above). The other fourteen systems ended every one of the
+  panel's 630 150 decisions within 2²⁴ units. Recommended: offer KD4
+  with the rest, as decided, and keep a cache of world signatures across
+  branches in `plan/later.md` for when a user meets it.
+
+### What the next sessions must know
+
+**65c (the command)**:
+- `modal::decide_within(&sequent, &modal::Options::default().with_system(s), &limits, stop)`
+  is the call; the time limit comes through `Settings::stop` as the
+  other suites'. `Outcome`'s JSON is written at `wire::MODAL` (20);
+  `Outcome::check` is the check a stored outcome needs (the protocol's
+  `decides` promise).
+- The derivation is a `rules::Derivation` in `modal::calculus(system)`:
+  the command's `check --calculus` and its drawings take it as they
+  take any (the calculus is not one of `rules`' built-in names: write
+  it out with `Calculus`'s serde, or give `--calculus` a system name,
+  which is 65c's to propose).
+- `kripke::Model`'s `Display` says "below" for an arrow (the ordinary
+  reading); a modal model needs "sees".
+- A user's model: `model.frame_fault(system, …)` then
+  `model.truth(&sequent, system, …)`; `Truth::failing`, `sequent_holds`,
+  `holds`, `witness` answer the prompt's "which world fails and why".
+- The schema entries for the modal sequent and outcome, and
+  `core/tests/wire/level-20.txt`, go in with the command's documents.
+- The fuzz targets were built, not run: run `modal_text`, `json_modal`
+  (seed it with the command's documents) and `modal_decide` at the next
+  fuzz run.
+
+**65d (the page)**: a modal model's arrows are no order (loops,
+cycles); the labelled derivation is a `rules` derivation, which the
+page's tree view of calculi given as data draws; `Frame`'s worlds mark
+the missing arrow.
+
+**Step 66 (the labelled calculus step by step)**: `modal::calculus`
+is the rule file; a session in it is `rules::Interactive` as it is.

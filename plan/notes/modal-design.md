@@ -303,6 +303,12 @@ Let `d` be the sequent's modal depth, `p` the number of its subformulas
 | K4, KD4, S4 | blocking, below | a world is blocked by a proper ancestor whose formulas include its own | finite; chains up to `2^n` in the worst case (ours: no polynomial bound claimed for subset blocking) | Garg, Genovese and Negri 2012 (TR Def. B.5, Fig. 7, Thm B.16; K, T, K4, S4 and each with D, Thm B.24); Goré 1999 section 4.14.4; Wu and Goré 2019 |
 | K5, KD5, K45, KD45, KB5, S5 | every world but the root lies in one cluster whose worlds all see each other, so a witness made once serves every world of the cluster | none | at most `2p + 2` worlds | shape: Halpern and Rêgo 2007 Lemma 3.2 (K5, KD5, K45, KD45, S5), Halpern and Moses 1992 Prop 6.2 (S5, citing Ladner), Hemaspaandra and Schnoor Thm 4.15 (KB5 as K4B); the search's argument is ours; Massacci Thm 9.6 has it for K45, KD45, S5 |
 
+- **Built in 65b with blocking by any earlier unblocked world**, not
+  ancestors only: ancestor blocking let sibling worlds of equal content
+  each expand (KD4 sequents of fourteen nodes at 40 million units; the
+  panel of 65b). The argument below carries over: every existing
+  world's signature is final when a world is first tested. The report's
+  65b section has the rest of what was built differently.
 - **K4, KD4, S4, the loop check.** Let `S(x)` be the formulas true and
   false at `x` together with every `□A` true and `◇A` false at a world
   that sees `x` (the modal formulas `x` inherits). `x` is *blocked*
