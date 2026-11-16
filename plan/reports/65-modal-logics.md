@@ -788,3 +788,173 @@ are 66's to add.
 **Open**: the fuzz targets `modal_text`, `json_modal` and `modal_decide`
 were built at 65b and are still not run; `json_modal` can be seeded
 with the level-20 documents.
+
+## Session 65d: the page
+
+Opus 5.5 at `high` (the 65a to 65c worker, its conversation kept), from
+the brief `/tmp/linlog-handoff/start-65d.md`, on 2026-11-16, cores 10 to
+12: deduxit in `../deduxit-wt-step-58b-8c0bbc` on `main@origin`
+(`yuorlook`), the client in its workspace `step65d`
+(`../deduxit.github.io-65d`) on its `main@origin` (`koqworoq`).
+
+### The bindings (deduxit)
+
+- `web/src/modal.rs`, exported as `modal_…`: each call is the
+  protocol's operation of its name run under the tab's settings, so the
+  page and the workspace answer alike. `modal_read(text, system)` is
+  `protocol::statement("modal", …)`; `modal_decide`,
+  `modal_countermodel`, `modal_evaluate(statement, model, world?)`,
+  `modal_draw` (the derivation's tree or the countermodel), `modal_export`
+  (LaTeX, Typst), `modal_calculus` (the rule file);
+  `modal_model_drawing(statement, model, world)` draws a model the
+  visitor gave as the statement's countermodel at that world, after
+  `svg::modal_countermodel`'s own check (`invalid_model` otherwise).
+- `about` lists the suite `modal` (`calls` `modal_`, the parameter
+  `system` with the fifteen names, default `K`, no term), and the
+  protocol's `SUITES` its row (`read`, `draw`, `export_as`, the rest as
+  extras, the method `labelled`).
+- Tests: `web/tests/modal.rs` (two, natively and under Node), and
+  `about_lists_the_suites` with the fourth suite.
+
+### The page (the client)
+
+- **A suite a visitor chooses.** The calculus popover has a button
+  "Modal logic" under "Your own calculus", no segment of its own: a
+  visitor who never presses it sees nothing new (the author's rule).
+  Pressed, the popover shows the system's chooser (the fifteen names, K
+  first) with the chosen system's conditions on a line under it
+  ("S4: reflexive, transitive"), and "Duplicate this proof" once
+  decided.
+- **The panel** in the stage's place (`ModalPanel`,
+  `data-method="modal"`): before a sequent, what □ and ◇ mean and how
+  to type them, and "Try []p -> [][]p"; after, the verdict ("Valid in
+  S4: …", "Not valid in K: the model below is one of K where it
+  fails"), the system's conditions in a sentence, the drawing (a valid
+  sequent's labelled derivation, with one sentence on `w0 : □p` and `w0
+  R w1`; a countermodel as a figure, the failing world outlined, an
+  arrow from each world to each world it sees), and a closed
+  `<details>` with the model to change: atoms per world, an arrow per
+  checkbox, worlds added up to eight or removed, checked at every world
+  or one. The check names the frame condition and its worlds ("Not
+  reflexive: world 0 does not see itself."), or says it holds, or gives
+  the failing world, each compound formula's value and the world that
+  shows a false □ or a true ◇, and draws the model there.
+- **What is kept**: the tab's sequent and system, in the shelf and the
+  link (`u=modal&m=S4&s=…`); either is decided again when read. A
+  change of the system decides again at once (no restart warning: the
+  tab has no steps).
+- **The workspace**: a modal tab joins as its statement
+  (`modal.sequent`) and its decision (`modal.decide`), which the page
+  runs at once; the rows take a modal decision as a tab's node
+  (`isTabNode`); the key of a tab's sequent holds its system; a copy is
+  a second decision of the same statement, which the library's cache
+  makes one record, so the copy follows the owner's change of system or
+  sequent (the tab shows it, decided again) and Undo takes it back on
+  both; Update on an out-of-date modal row runs its decision and shows
+  the statement above it.
+- **The cognitive-load pass** (`cognitive-load-analyser`): the verdict no
+  longer repeats the caption's sentence on the failing world; the first
+  screen drops the system's sentence until a sequent is decided; the
+  labelled derivation gets the one sentence its notation needs. The
+  check's feedback names what to change (the condition and its worlds,
+  the witness world), which `ai-feedback-design-principles` asks.
+- **States**: `tests/states.ts`'s `modalising` (seven states: the
+  popover, the first screen, a countermodel, a check, a valid
+  derivation, a frame fault), walked by axe in both schemes at both
+  widths and by the target sizes at 24 and 44 pixels;
+  `tests/modal.spec.ts` (six tests: nothing shown before the button, a
+  countermodel in words of seeing, a system change, a changed model
+  checked and a frame fault named, the link, a linked copy with Undo).
+
+### Checks
+
+- **deduxit**: Clippy on the bindings and the workspace, warnings
+  denied; `cargo test -p deduxit-web` (the modal tests 2, `about` 1);
+  the bindings' tests under Node (`web-wasm-tests`); the gate (capped,
+  cores 10 to 12) at `rprmqqkr` on `main@origin` (`rokzyzqq`): passed;
+  `nix flake check` under the machine lock at `rprmqqkr`: passed (the
+  budget among them). The report's commit changes `plan/` only.
+- **The module's bytes**: at `main@origin` 10 083 547 (3 622 988 at gzip
+  -9), with the modal calls 10 125 556 (3 637 866): 42 009 bytes, 14 878
+  at gzip, under 54x6's ceiling of 3 750 000. `model_drawing` passes its
+  stop as the protocol's `&mut dyn`, so the modal drawing and its check
+  are compiled once (54x6's rule in `core.md`).
+- **The client**, against `--override-input deduxit
+  git+file:///home/tux/Projects/own/deduxit-wt-step-58b-8c0bbc`: lint
+  and `astro check` clean; Vitest 675 passed (`modal.test.ts` 7);
+  Playwright: `modal.spec.ts` 7, the modal walk under axe in both schemes
+  at both widths (4) and the target sizes (2), `workspace`, `custom` and
+  `ordinary` specs again after the reviewer's fixes (33 with the modal
+  spec); `nix flake check` (every check, its whole e2e suite among them):
+  passed before the reviewer's fixes, and again after them at `zotrsnkk`.
+
+### The reviewer's findings
+
+`fresh-reviewer` on Fable 5.2 at medium, over the bindings and both
+client commits, with the page driven by Playwright on the dev server:
+1. **Medium: a linked tab switched between modal logic and another
+   suite stayed linked to a node of the other kind**, and the workspace
+   refused the next call in wire words. Fixed: such a tab leaves the
+   workspace (`leaveForSuite`, "is no longer linked: its tab is now in
+   another suite"), Undo links it again; showing a modal statement
+   clears the tab's other session, which had unlinked it a second time.
+   Tested in `modal.spec.ts`.
+2. **Low: Undo of a modal copy's unlinking opened a third tab.** Fixed:
+   a parked modal tab whose decision comes back is linked again and
+   shows its statement.
+3. **Low: the rules note and a doc comment said a copy goes out of
+   date**, where it follows at once. Corrected.
+4. **Low: the euclidean sentence named a world twice** ("world 1 does
+   not see world 1"). It says "does not see itself" now; tested.
+5. **Low, a question: states not walked.** The walk has the "Holds"
+   check, the linked copy in the panel and a parse error now; "Not
+   decided" (a budget set low in Settings) is not walked.
+
+### Commits
+
+deduxit: `rprmqqkr` (the bindings), this report's. The client:
+`xtvupuwq` (the page and the workspace), `zotrsnkk` (the walk and the
+tests), on its `main@origin` `znvysotx`.
+
+### Departures
+
+- **A modal copy follows its original** where an ordinary copy goes out
+  of date: the library's workspace keeps one record per recipe and
+  input, and a copy of a decision is the same decision of the same
+  statement. (departs from the design: 63g-c's copy is a proof of its
+  own)
+- **The page's Export menu takes no modal derivation**: the bindings
+  have `modal_export`, the menu is the sequent calculus proofs'.
+- **"Not decided" is not a walked state.**
+
+### What the suite copied (for step 67)
+
+- The page's pattern for a suite without steps: `Proof.modal` beside
+  `Proof.custom`, a panel in the stage's place (`data-method`), a
+  button in the calculus popover and no segment, the system as the
+  parameter in the registry, the link without `d` and the shelf without
+  a session, decided again when read.
+- The workspace's pattern for such a suite: the statement and the
+  decision as the tab's node (`joinedModal`, `isTabNode`), run at once,
+  copies that follow, a switch of suite that leaves.
+- The bindings' pattern: each call the protocol's operation of its
+  name, the `about` row and the `SUITES` row.
+
+### What the next sessions must know
+
+**Step 66 (the labelled calculus step by step)**:
+- `modal_calculus(statement)` gives the system's rule file; a session
+  in it is `rules_start(calculus, "w0 : □p ⊢ w0 : p", "[]")` as the
+  custom calculus's; the rule file reads `□` and `◇`, not `[]` and `<>`.
+- The modal panel is where "Prove it step by step" would go (after the
+  verdict, or as a second method of the suite: the registry's `methods`
+  and the link's `k`).
+
+**Step 68 (a model the visitor edits)**:
+- `modal_evaluate` answers the protocol's `modal_evaluation`: `frame`
+  (condition and worlds), or `holds`, `failing` and `values` with their
+  witnesses; `src/lib/modal.ts` words them (`evaluationWords`,
+  `frameWords`, `valueWords`) and edits a model (`addWorld`,
+  `removeWorld`, `toggleArrow`, `setAtoms`).
+- The editor is a list of worlds with checkboxes; a drawing to edit on
+  (drag an arrow) is 68's.
