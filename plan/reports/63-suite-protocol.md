@@ -1,5 +1,260 @@
 # Step 63: the suites' written protocol, and Learn and Practice by suite
 
+## Session 63a: the protocol
+
+Opus 5.5 at `high` (the worker that designed 63g-a on Fable, its
+conversation kept), in the workspace `../deduxit-wt-step-58a-610ed3`, from
+the brief `/tmp/linlog-handoff/start-63a.md`, on 2026-11-16, cores 7 to 9.
+The library and the schema were written first; the bindings after 62d
+landed on `main`.
+
+### Outcome
+
+- **The library** has `deduxit::protocol` (feature `protocol`, on by
+  default): each suite's kinds of values and operations between them as
+  data, with each operation's parameters, the settings it reads, what it
+  promises and what checking that costs; the trait `Suite` a suite
+  implements (not sealed); the registry of a build's suites; and `run`,
+  `check`, `read`, `summary` and `catalogue` over JSON. The three suites
+  implement it: 11 operations of linear logic, 13 of ordinary logic, 6
+  of calculi given as data, and 18 kinds (4 of them renderings no suite
+  owns).
+- **The protocol written down**: the manual's reference chapter "What
+  each suite offers" (`docs/src/protocol.md`): the kinds, the
+  operations, the promises and their checks, what a run depends on, the
+  web module's calls by suite, and `wire.schema.json`, a JSON Schema of
+  every wire form (interop-1), published with the manual and checked by
+  the flake check `wire-schema` against 81 documents the command writes.
+- **The bindings** speak it: `describe()` writes which call of each
+  suite is which of the protocol's eleven (with their arguments, `null`
+  where a suite lacks one), each suite's further calls, its layouts and
+  how its proofs are built, and the library's catalogue; every `view`
+  answers `layout` (`tree`, or `list` for a Fitch proof); the ordinary
+  suite gains `ordinary_read` and `ordinary_certificate`, the two calls
+  it lacked. Every existing call keeps its name and its answer.
+- **The module question**: one module stays (D29). After 62d the module
+  is 3 151 428 bytes at `gzip -9`, 3 158 833 with the protocol (7 405
+  more), under the ceiling of 3 300 000.
+
+### The library: the trait and the registry
+
+- `deduxit::protocol` (`core/src/protocol/`): `Kind` (name, role, the
+  schema's form, level, stored, label), `Operation` (inputs' kinds,
+  output kind, class `derived`/`work`/`copy`, cost `instant`/`search`,
+  parameters, `reads`, promise, label), `Promise` (name, the check's
+  cost), the trait `Suite` (`name`, `label`, `kinds`, `operations`,
+  `read`, `summary`, `run`, `check`, the last taking `Ask`, a run through
+  the caller, so the workspace answers it from its cache), `suites()`,
+  `shared()`, `operation`, `kind`, and the front doors `run`, `check`,
+  `read`, `summary`, `catalogue`. It writes down 63g's section 3: the
+  kinds and operations named there, with these differences (each departs
+  from the design, none from the prompt):
+  - **Values cross as documents with their `version`**, not as nested
+    forms (63g section 10 said nested values carry none): a value then
+    reads alone through `wire::upgrade`, and the protocol needs no
+    nested writer per form. The workspace (63g-b) strips or keeps them
+    when it nests them.
+  - **A statement is the sequent's document with `logic` or `mode` beside
+    its keys**, which the sequent's reader ignores, so it needs no new
+    form and no wire level; 63g had a form `{"logic", "sequent", "text"}`.
+    `wire::LEVEL` stays 18, and level 19 is still free for 63g-b's
+    workspace.
+  - **`duplicate` is one operation per suite** (`linear.duplicate`,
+    `ordinary.duplicate`, `rules.duplicate`), since an operation's output
+    has one kind; 63g had one shared `duplicate`.
+  - **Drawings and texts are four kinds no suite owns** (`drawing`,
+    `text`, `certificate`, `term`), each an object of the protocol's own;
+    `export` writes `text`, `latex` or `typst`, and `draw` the SVG.
+  - **`rules.draw` and `rules.export` take a session**, which holds its
+    calculus; a derivation alone does not.
+  - **The Kripke model is no kind**: an outcome holds it, and `draw` and
+    `certificate` take the outcome, as the bindings do.
+- **The feature `protocol`** needs `serialize`, `parse` and `interactive`
+  and brings `serde_json` as an optional dependency of the core crate (a
+  dev-dependency before): values are JSON text (decided here, 63g's
+  section 18 point 1). The command does not enable it; the bindings do,
+  and the command's tests (the manual's names).
+- **`reads`** lists, per operation, every settings key its output
+  depends on (the readers' `limits.occurrences` and `limits.terms`
+  included; `search` for all the search's keys), checked by reading each
+  function the run calls and by the reviewer's sweep of 620 single-key
+  changes (one key missing, `limits.derivation_bytes` of
+  `ordinary.derivation`, now added). Over-inclusion only costs the cache
+  a miss.
+- **Errors**: no new code. An unknown operation, kind, format or half is
+  `unknown_name`, another number of inputs or bad parameters
+  `invalid_option`, a value of another kind `json`.
+- **Tests** (`core/src/protocol/tests.rs`, 13): the registry against its
+  name lists, refusals, a translation and its check, a countermodel, an
+  unknown naming its bound, an interpolant and its halves, an embedding,
+  a linear proof with its net and certificate, an intuitionistic goal
+  keeping its sides, a calculus given as data, and one per review
+  finding (a check left open by a bound, an interpolant held to its
+  input, a value of another kind refused).
+
+### The calls and the schema
+
+- **The manual's reference chapter** `docs/src/protocol.md` ("What each
+  suite offers"): the library's example (a crate doctest too, as
+  `rust_examples_are_doctests` asks), the kinds, the operations, the
+  promises and their checks' statuses, what a run depends on, the web
+  module's calls by suite, the schema. The guide's reference names the
+  module; the status and the installation chapters list the feature.
+- **The schema** (`docs/src/wire.schema.json`, draft 2020-12, 87 forms,
+  published at `deduxit.github.io/deduxit/manual/wire.schema.json`):
+  every document the library writes and reads, by level, written by a
+  sub-agent on Opus 5.5 from the serde code, and the protocol's own
+  forms added here. `additionalProperties: false` throughout, so a key a
+  writer adds later fails. The check `wire-schema` (`modules/schema.nix`)
+  runs the command over 81 cases (`modules/_schema/documents.sh`) and
+  validates each with Python's `jsonschema` (`check.py`), which also
+  fails a document that still passes with a key added, and wants a
+  document of every top-level form but six it lists with why. No crate
+  was added: a validator crate would have brought some twenty packages
+  to a lock at 173 of its 180. The rule file keeps its own schema
+  (`rules::SCHEMA`); the protocol's forms are held to the schema by name
+  (`web/tests/protocol.rs`), since no command writes them.
+- What the schema's author found in the code's documents (no Rust
+  changed, for a later step): `wire.rs` lists neither the net
+  elimination's record nor a first-order session's `instances`; it says
+  an outcome holds the model as `countermodel` where the writer nests it
+  as `countermodel.model`; `seq translate`'s help lists its record's keys
+  without `deduxit`; and a session's `written` key is never written by
+  the command (only the bindings start a session from typed text).
+
+### The bindings
+
+- `describe()` (`web/src/protocol.rs`): `about`'s answer with `calls`
+  (the protocol's eleven names), and per suite `calls` (each `{"call",
+  "export", "takes"}`), `extra` (its calls beyond the protocol's),
+  `layouts` and `builds` (its methods: the ordinary suite's `natural`
+  runs the `rules` suite's calls, `calculi` naming NK, NJ and NM per
+  logic, which answers 62d's question of how a method names its calls),
+  and `catalogue`. `about` stays as it was, `methods` (the ordinary
+  suite's table and tableau) included.
+- **What each suite lacks, said**: the `rules` suite has no `close`,
+  `hint` or `certificate` (no search, no Rocq export of a rule file);
+  its `read` reads a rule file. The ordinary suite gained `read` and
+  `certificate`: `ordinary_read(input, logic, settings)` refuses what
+  `ordinary_start` refuses, `ordinary_certificate(outcome, settings)`
+  certifies a derivation or a countermodel.
+- Every `view` answers `layout`: `tree`, or `list` for a Fitch proof.
+  `graph` and `text` are the protocol's other two, which no suite's view
+  draws into yet.
+- Tests: `web/tests/protocol.rs`, 4: every export `describe` names exists
+  in `lib.rs`, every view's layout, the ordinary suite's read and
+  certificate, every kind's form in the schema.
+
+### The module's measurement and the answer
+
+`nix build .#deduxit-web` under the machine lock, `gzip -9` of
+`deduxit_web_bg.wasm`:
+
+| build | raw | gzip -9 |
+|---|---|---|
+| `main` after 62d (`252b2ff5`) | 8 480 353 | 3 151 428 |
+| this chain | 8 512 908 | 3 158 833 |
+
+The ceiling is 3 300 000 (`modules/budget.nix`): 141 167 bytes of room
+remain. One module stays (D29); a module per suite (web-front-end-4)
+waits for its other trigger, a suite from another repository, or for
+the next suite that passes the ceiling.
+
+### Auto-reverse (education-3)
+
+Step 38h's switch (`interactive.invertible`) applies the invertible
+rules in the linear suite only, through `Interactive::invert_all`. The
+new suites need more before the switch can serve them, and this step
+adds none of it (a feature, not the protocol's):
+- the ordinary suite's session has no judgement of which steps are
+  invertible: LK's rules are, LJ's `→L`, `∨R₁`, `∨R₂` and `¬L` are not;
+  it needs `is_invertible` and `invert_all` on `ordinary::Interactive`,
+  then the bindings' setting as the linear calls have it;
+- a calculus given as data cannot know which of its rules are
+  invertible: a rule file would have to say so (an optional key per
+  rule, a wire level), and the check that a rule so marked is invertible
+  is the author's, as the rules are.
+Both are follow-ups for `plan/later.md`, for the planning session.
+
+### Checks
+
+- **The gate** (`nix develop -c gate`, capped on cores 7 to 9) at
+  `zyxywqwt`: passed (Clippy, the tests with the behaviour lock, both
+  `cargo hack` runs, the ratchet within its ceilings).
+- **`nix flake check`** under the machine lock at `zyxywqwt` with this
+  report (`suyppvno`): passed, among them `test-web` and
+  `web-wasm-tests` (the bindings' tests natively and under Node, the
+  protocol's four among them), `wire-schema` (81 documents, 0 failures),
+  `manual` and `manual-links` (the chapter and its link to the schema),
+  `budget`, `features`, `deny`, `shear`, `typos` and `conventions`.
+- **Each feature alone and every pair** (`cargo hack`, warnings denied):
+  passed after the fixes for the features `protocol` alone and with one
+  export feature, which an earlier run found (imports and variants
+  unused without `svg`, `rocq`, `latex` or `typst`).
+- **The protocol's tests** (13 in the library, 4 in the bindings) and the
+  manual's test (`cli/tests/readme.rs`, which now tells the protocol's
+  names, `ordinary.decide`, from settings keys) pass.
+
+### The reviewer's findings
+
+`fresh-reviewer` on Fable 5.2 (the writer on Opus) ran every operation
+on small inputs, read each output back by its kind, ran each twice,
+swept 620 single-key changes of the settings against each `reads`,
+validated the command's 81 documents and 70 protocol outputs against the
+schema, and Clippy on five feature sets. Eight findings and a question;
+all held and were fixed in `zyxywqwt`:
+1. **`same_verdict` failed when one side stopped at a bound.** Now the
+   check is `open`, the decided side `held`.
+2. **The `interpolates` check panicked** on an interpolant whose half
+   lacked the formula, which `read` had accepted. Reading an interpolant
+   now checks each half holds the formula where it belongs.
+3. **The `interpolates` check never looked at the input.** It now
+   compares the halves with the input's parts by the partition (a part
+   `halves` before the atoms).
+4. **`ordinary.derivation`'s `reads` lacked `limits.derivation_bytes`**:
+   added.
+5. **Inputs of a kind `from` does not list were taken** (an outcome as
+   a linear proof, a derivation where an ordinary operation takes a
+   session or an outcome): refused now by the operation's `from`.
+6. **`read("ordinary.outcome")` took any value with a `verdict`**: only
+   an outcome valid by a clausal proof is read by its keys now, its
+   `logic` required; every other goes through its reader.
+7. **`web/src/rules.rs` was not formatted**: formatted.
+8. **The new public types were missing from `core.md`'s marked list**:
+   added, 160 now.
+- The question (the check's searches did not obey the caller's stop):
+  they do now, one stop shared through a `RefCell`.
+
+### What the next sessions must know
+
+- **63b (Learn and Practice by suite, the client)**: `describe()` is the
+  registry's source from now on: each suite's calls by the protocol's
+  names with their arguments, `null` where a suite lacks one, its
+  layouts and its `builds` (a method that runs another suite's calls
+  names it in `runs`, with the calculus per logic). `about()` is
+  unchanged. Every view answers `layout`.
+- **63g-b (the library and the command of the workspace)**:
+  - Take every kind and operation from `deduxit::protocol`: `run` with
+    the recipe's settings, `check` with an `Ask` that answers from the
+    workspace's records, `Produced::limit` for an unknown's bound (its
+    `reason` and its `setting`, `None` where no key lifts it, as 63g's
+    review asked), `Check::parts` naming each part.
+  - The cache key is an operation's `reads`; a check's result depends on
+    the `reads` of the operations it asks for.
+  - Values are documents with their `version`; nest them as the
+    workspace's form says (63g section 10) or keep them whole, and say
+    which. `wire::LEVEL` is still 18.
+  - An ordinary outcome valid by a clausal proof has no reader: store it
+    in memory only, as 63g said; `protocol::read` takes it by its keys.
+  - `linear.goal` refuses a goal holding instances of quantified
+    formulas.
+  - The feature `protocol` is off in the command: turn it on there for
+    `deduxit workspace`.
+- **63g-c (the page)**: `describe()`'s `catalogue` lists each kind's
+  label and each operation's label, parameters and promise, which the
+  cards and menus read. A check's statuses are `held`, `failed`, `open`,
+  `recorded`, `outside`, `none`.
+
 ## Session 63b: Learn and Practice by suite
 
 Opus 5.5 at high, cores 10-12, the reviewer on Fable 5.2. From the brief
