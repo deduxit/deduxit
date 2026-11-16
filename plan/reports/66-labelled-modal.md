@@ -557,3 +557,162 @@ left for the planning session to push from and remove.
   invariants: the trusted base, why forcing is stable, the two forms of
   the conclusion, `g3` against the rule file, the Ser instance, the
   proof term, the finite models over `{ w | w < size }`.
+
+## Session 66c: the certificates
+
+Opus 5.5 at `high`, the conversation of 54x6 and 66a, in the jj
+workspace `../deduxit-wt-step-58a-610ed3`, from the brief
+`start-66c.md`, on 2026-11-16, cores 7 to 9. The chain on `main@origin`
+`uwnktrmt`:
+
+| change | what |
+|---|---|
+| `utvppnwm` | the writer (`core/src/modal/rocq.rs`), `export::rocq::write_labelled` and `write_modal_countermodel`, two preludes, the snapshots `deduxit/modal_*.v` |
+| `yuuznuly` | the command: `prove --system --format rocq`, `check --format rocq` of an outcome, `check --calculus G3… --format rocq`, a session's `proof --rocq [FILE]` |
+| `uvxlklvu` | the behaviour lock: `modal-rocq`, `modal-rocq-countermodel` |
+| `vurkosxr` | the flake: `rocq-deduxit` compiles the command's modal certificates, `check-certificate` checks one, both refuse forged ones |
+| `rxvwtryy` | the Rocq chapter's "Certificates of modal logic", the modal chapter, the guide, the changelog |
+
+### The exporter
+
+- **A valid sequent** (`write_labelled`, from a `rules::Derivation` of a
+  `G3…` calculus): the system is read from the calculus's name and the
+  derivation checked in that system's calculus first (a user's file
+  named `G3S4` is judged by the built-in one). A root whose items are
+  all formulas at one label `x` is stated as `valid (atom := string) C
+  [Γ] [Δ]` and proved by `modal_soundness String.eqb String.eqb_spec C
+  "x" term`; any other root, a relational atom or two labels, as
+  `lvalid C [items] [items]` by `labelled_soundness`. `C` is the record
+  of `System::conditions()`, the closed set (T writes `serial := true`).
+- **The term**: a constructor per rule, the 66b order (the principal
+  label, then the edge's other label or the new label, then the
+  principal formula's parts, then the premises in the rule file's
+  order). Each node's members are read from its positions: `shape` says,
+  per rule, which zone each position points into (the conclusion's left
+  or right, or the first premise's left for the new edge of `R□`, `L◇`,
+  `Ser` and `Ref`), in the rule compiler's order, and the item's
+  structure gives the labels and parts. Every node's term is in
+  brackets. The derivation is written as a tree, a node with two parents
+  once per use (the reviewer's finding below: a `let` shared the text,
+  not the checker's work).
+- **An outcome** (`write_modal_outcome`, which the command calls for
+  both verdicts): a valid one is checked (`Outcome::check`, the root is
+  the sequent at `w0`) and stated as the sequent the outcome decided,
+  repeated formulas included, which the derivation's root (a set) holds
+  once.
+- **A countermodel** (`write_modal_countermodel`): checked, then `~ valid
+  C [Γ] [Δ]` from the modal arena, proved by `modal_refutation
+  String.eqb {| arrows; atoms |} C w`, the arrows as the model holds
+  them, the model's world.
+- **Both** write into a text that refuses past `limits.derivation_bytes`
+  before anything is written, ask the stop per node and per world, and
+  walk terms and formulas on a stack (`Stops`), never by recursion. The
+  kernel option is ignored, as for the ordinary certificates: only
+  deduxit's library has modal logic. Preludes `DEDUXIT_MODAL_PRELUDE`
+  (`Check`) and `DEDUXIT_MODAL_COUNTERMODEL_PRELUDE` (`Countermodel`).
+- **Refused**: a derivation of another calculus (`Unsupported::Calculus`,
+  whose message now names the modal calculi as the ones that have
+  certificates), one with an open goal (`Unsupported::Open`), one that
+  rests on an assumption (`Unsupported::Assumption`, new, last of the
+  enum), one the checker refuses (its error), and a text past the bound
+  (`Refusal::Output`).
+
+### The command
+
+- `prove --system S --format rocq` writes the certificate of either
+  verdict after the verdict as a comment (`calculus::shown` and
+  `countermodel_shown` gained a Rocq arm).
+- `check --format rocq` of a modal outcome writes the certificate of
+  evidence that holds, the verdict alone on standard error otherwise;
+  `check --calculus G3S4 --format rocq` of a derivation file, through the
+  drawing path, and "no certificate: …" for another calculus.
+- A calculus session's `proof --rocq [FILE]` writes it, under the
+  session's styles, which the session now reads as the linear one does
+  (`style::read`: `--style rocq.form=standalone`, `--lemma`, `--prelude`;
+  before, `--style` did not reach a calculus session).
+- `check-certificate` already read `From Deduxit.Modal` as rocq-deduxit
+  (a word match on `Deduxit`); its check now accepts a modal certificate
+  and refuses one whose `Trans` names its edges wrongly.
+
+### The checks
+
+All on cores 7 to 9, capped.
+- `cargo test -p deduxit --all-features --test export modal_certificates`:
+  the thirteen snapshots (a valid sequent per frame rule, one of every
+  connective, a shared node, a labelled root from a session,
+  countermodels in K, T, S4, KD45 and S5), a derivation of another
+  calculus and a bound refused.
+- The snapshots compiled by hand against the pinned library, then the
+  command's: `prove` in T and K, a session's `proof --rocq`, `check` of a
+  valid T outcome and of an S5 countermodel; `Print Assumptions` closed;
+  a `Trans` on the wrong edges and a record with `transitive := false`
+  refused.
+- `nix build .#checks.x86_64-linux.rocq-deduxit
+  .#checks.x86_64-linux.check-certificate` under the machine lock: both
+  passed, "100 certificates, each closed under the global context", the
+  modal certificate accepted and the forged ones refused; again after the
+  reviewer's fixes, 101 (`modal_repeated.v` new).
+- `cargo test -p deduxit-cli --test readme` (the chapters' new
+  examples) and `--test lock` (blessed in its own commit): passed.
+- The gate passed before the reviewer's fixes and after them.
+- `nix flake check` at the report's commit under the machine lock:
+  all checks passed. Only this report changed after it.
+
+### The reviewer's findings
+
+`fresh-reviewer` (Fable 5.2, medium), once, on the five changes. It
+compiled 285 certificates the command wrote (19 sequents in all fifteen
+systems, 160 valid and 125 not valid), each in agreement with the exit
+status and with the closed set of conditions, the thirteen snapshots,
+and hand-written derivations (a shared node, permuted zones, labelled
+roots, `Ser u u`, odd names); every forged term or model was refused.
+Three findings, all answered:
+1. **A `let` hid exponential work**: the library's `mcheck` walks a
+   shared term once per use, so a chain of shared `L∨` nodes (both
+   premises the conclusion itself, in a set zone) cost 2ⁿ in Rocq: 42 s
+   at 20, past two minutes at 60, from a certificate the command wrote
+   at once. The derivation is now written unfolded, so the text's bound
+   (`limits.derivation_bytes`) is also the check's.
+2. **A valid statement dropped repeated formulas**: `q, p, q ⊢ p, r, p`
+   was stated `[q; p] [p; r]`, from the root's set zones; equivalent,
+   but not the sequent as written. A modal outcome is now stated from
+   its own sequent (`write_modal_outcome`).
+3. **An assumption was refused as an open goal**: the new
+   `Unsupported::Assumption` says what it is.
+
+Its note: a formula nested 30 000 deep writes a certificate on which
+Rocq's own parser overflows its stack (2 000 compiles); Rocq's limit,
+not the writer's.
+
+### Departures
+
+- **The kernel option is ignored for modal certificates** (as for the
+  ordinary ones): only deduxit's library has a modal calculus, so
+  `--kernel nanoyalla` gets the library's certificate rather than a
+  refusal.
+- **`check --calculus G3… --format rocq`** goes beyond the brief (which
+  named `prove` and the session): the drawing path took it for free.
+- **No `let` for a shared node** (departs from the design, which wrote
+  one): the review showed it hides the checker's work.
+
+### What the next sessions must know
+
+- **67**: modal certificates are written by `export::rocq::write_labelled`
+  and `write_modal_countermodel`; a new frame condition is a field of the
+  library's `conditions`, a row of `conditions()` in `modal/rocq.rs`, a
+  rule of `shape` and a constructor of the library's `proof`, together.
+- **The release of 0.6.0**: deduxit's lock pins `rocq-deduxit` with
+  `Deduxit.Modal` at its version 0.4.0 (unreleased there). The library is
+  released first and `export::rocq::DEDUXIT` moved to its version with
+  the lock, as `rocq-deduxit.nix` asserts; the manual's Rocq chapter
+  names no version. The changelog's "Certificates of modal logic" entry
+  is under Unreleased.
+- **The certificate of a large derivation** is held whole before it is
+  written (within `limits.derivation_bytes`), unlike the linear writers,
+  which flush per inference; a modal derivation's size is already
+  estimated and bounded when it is made.
+- **A new public item each**: `rocq::write_labelled`,
+  `write_modal_countermodel`, `write_modal_outcome`, the preludes
+  `DEDUXIT_MODAL_PRELUDE` and `DEDUXIT_MODAL_COUNTERMODEL_PRELUDE`, and
+  the variant `Unsupported::Assumption` (last, as the rule for fieldless
+  enums asks): the release's break check lists them as additions.
