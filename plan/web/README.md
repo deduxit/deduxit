@@ -187,6 +187,14 @@ to 2³² − 1, anything else refused):
 | `rules_draw(session, settings)`, `rules_export(session, format, settings)` | the derivation so far as SVG (`i<n>` on every inference), or in `latex` or `typst`; with `view.layout` `fitch` its Fitch proof (`l<n>` on line `n`'s formula, `styles.fitch` its text), `not_fitch` with the reason where none writes it |
 | `ordinary_model_drawing(outcome, settings)` | the countermodel of an ordinary outcome (`ordinary_close`'s or `ordinary_hint`'s, or `prove --format json`'s) drawn as SVG, checked first: worlds as boxes with their atoms, arrows up, the model's world outlined, ids `w<n>` on each world's box; `no_countermodel` for an outcome without one |
 | `ordinary_model_certificate(outcome, settings)` | the Rocq certificate of that countermodel, in `styles.rocq` (`form` `standalone` for a file): `~ lj` for deduxit's Rocq library in intuitionistic and minimal logic, over `Prop` in classical logic |
+| `workspace_statement(suite, text, parameter, settings)` | the value a typed sequent is in the workspace: its document with `logic` (`ordinary`) or `mode` (`linear`) and the text as typed |
+| `workspace_open(document, settings)` | a workspace from a link or a file, read as a claim (instant runs made again, a search's check `recorded`) and given the tab's bounds (`rebound`); the document the page then holds |
+| `workspace_edit(document, action, work, settings)` | `{"workspace", "made"}` (in every answer `workspace` is the document's text as a JSON string, to hand back as it is): one action `{"name", "edits"}`, one entry of the log, each edit `add`, `set`, `connect`, `parameters`, `settings`, `restart`, `work`, `detach` or `remove`, a node its number or `{"made": K}`; a proof's or a copy's instant inputs are made in the same action; `made` per edit the node made, or the nodes removed |
+| `workspace_undo(document, work, settings)`, `workspace_redo(…)` | `{"workspace", "name", "sessions"}`: the action taken back or brought back (`null` for none) and each proof's session it changed, by node |
+| `workspace_compute(document, node, what, work, settings)`, `workspace_accept(document, computed, work, settings)` | a node's run (`what`: `output` or `check`) made apart, for the worker, and put in where the node still asks for exactly it: `{"workspace", "accepted"}`; a run the stop ended is never made |
+| `workspace_run(document, nodes, what, work, settings)` | `{"workspace", "ran"}`: what the nodes need, in order |
+| `workspace_view(document, work, settings)` | `{"nodes": [{"node", "kind", "value", "summary", "operation", "label", "cost", "class", "from", "parameters", "state": {"state", "cause", "node"}, "end", "check", "column"}], "undo", "redo"}` |
+| `workspace_pack(document, nodes, work, settings)` | what a link holds: the nodes and what they are made from, their recipes and sessions, no runs and no log |
 
 The session's JSON itself is the session export (D16) and what the link
 carries (D20).
@@ -209,6 +217,7 @@ command's but for:
 | `clock` | no limits | 2 s | the page applies a time by stopping its worker |
 | `styles.svg.ids`, `.description` | on | off | the page's buttons over the formulas, the screen reader's description |
 | `cut.drawn_bytes` | 16 MiB | 256 MiB | the page holds every step's drawing of an elimination: four at the tab's bound on one, as the command's is four at its own |
+| `limits.workspace.bytes` | 2 MiB | 64 MiB | the page keeps the workspace in the browser's storage; three linked tabs are about 17 KB |
 
 ## What the library lacks for the page
 

@@ -24,7 +24,8 @@
 //! `ordinary_`, and those of [`rules`], which build a derivation in a
 //! calculus given as data, with the prefix `rules_`. [`protocol`] writes
 //! down which call of each suite is which of the protocol's, `describe`
-//! answering it as JSON.
+//! answering it as JSON. Those of [`workspace`], the linked tabs a page
+//! keeps, are exported with the prefix `workspace_`.
 
 pub mod calls;
 mod failure;
@@ -32,13 +33,14 @@ pub mod ordinary;
 pub mod protocol;
 pub mod rules;
 pub mod tab;
+pub mod workspace;
 
 pub use failure::Failure;
 
 /// The exports of the module, which wrap [`calls`] for JavaScript.
 mod exports {
     use crate::failure::Failure;
-    use crate::{calls, ordinary, protocol, rules};
+    use crate::{calls, ordinary, protocol, rules, workspace};
     use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 
     /// Returns a failure as the string a call throws.
@@ -524,5 +526,97 @@ mod exports {
     #[wasm_bindgen]
     pub fn rules_export(session: &str, format: &str, settings: &str) -> Result<String, JsValue> {
         rules::export(session, format, settings).map_err(thrown)
+    }
+
+    /// See [`workspace::statement`].
+    #[wasm_bindgen]
+    pub fn workspace_statement(
+        suite: &str,
+        text: &str,
+        parameter: &str,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        workspace::statement(suite, text, parameter, settings).map_err(thrown)
+    }
+
+    /// See [`workspace::open`].
+    #[wasm_bindgen]
+    pub fn workspace_open(document: &str, settings: &str) -> Result<String, JsValue> {
+        workspace::open(document, settings).map_err(thrown)
+    }
+
+    /// See [`workspace::edit`].
+    #[wasm_bindgen]
+    pub fn workspace_edit(
+        document: &str,
+        action: &str,
+        work: &str,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        workspace::edit(document, action, work, settings).map_err(thrown)
+    }
+
+    /// See [`workspace::undo`].
+    #[wasm_bindgen]
+    pub fn workspace_undo(document: &str, work: &str, settings: &str) -> Result<String, JsValue> {
+        workspace::undo(document, work, settings, false).map_err(thrown)
+    }
+
+    /// See [`workspace::undo`], forward.
+    #[wasm_bindgen]
+    pub fn workspace_redo(document: &str, work: &str, settings: &str) -> Result<String, JsValue> {
+        workspace::undo(document, work, settings, true).map_err(thrown)
+    }
+
+    /// See [`workspace::compute`].
+    #[wasm_bindgen]
+    pub fn workspace_compute(
+        document: &str,
+        node: f64,
+        what: &str,
+        work: &str,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        workspace::compute(document, index(node, "node")?, what, work, settings).map_err(thrown)
+    }
+
+    /// See [`workspace::accept`].
+    #[wasm_bindgen]
+    pub fn workspace_accept(
+        document: &str,
+        computed: &str,
+        work: &str,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        workspace::accept(document, computed, work, settings).map_err(thrown)
+    }
+
+    /// See [`workspace::run`].
+    #[wasm_bindgen]
+    pub fn workspace_run(
+        document: &str,
+        nodes: &str,
+        what: &str,
+        work: &str,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        workspace::run(document, nodes, what, work, settings).map_err(thrown)
+    }
+
+    /// See [`workspace::view`].
+    #[wasm_bindgen]
+    pub fn workspace_view(document: &str, work: &str, settings: &str) -> Result<String, JsValue> {
+        workspace::view(document, work, settings).map_err(thrown)
+    }
+
+    /// See [`workspace::pack`].
+    #[wasm_bindgen]
+    pub fn workspace_pack(
+        document: &str,
+        nodes: &str,
+        work: &str,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        workspace::pack(document, nodes, work, settings).map_err(thrown)
     }
 }

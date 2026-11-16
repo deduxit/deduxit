@@ -7,6 +7,7 @@
 
 use crate::failure::Failure;
 use deduxit::export::Styles;
+use deduxit::limits::WorkspaceLimits;
 use deduxit::linear::search::{Jobs, Options};
 use deduxit::{Clock, Limits, Settings};
 use serde_json::Value;
@@ -65,9 +66,15 @@ pub const RECURSION_DEPTH: u32 = 384;
 /// tab's whole memory bound ([`MEMORY_BYTES`]).
 pub const DRAWN_BYTES: u64 = 4 * DERIVATION_BYTES;
 
+/// The bound on the bytes of a workspace's values: 2 MiB, a thirty-second
+/// of the command's. Three linked tabs hold about 17 KB, and the page
+/// keeps the document in the browser's storage, whose quota is a few
+/// mebibytes a site where it is smallest.
+pub const WORKSPACE_BYTES: u64 = 2 << 20;
+
 /// Returns the tab's settings. They are the command's except for:
 ///
-/// - the bounds above;
+/// - the bounds above, and a workspace's bytes;
 /// - one thread;
 /// - no bound on copies, since the work bound ends a search;
 /// - no clock;
@@ -80,7 +87,8 @@ pub fn defaults() -> Settings {
         .with_terms(Some(TERMS))
         .with_derivation_bytes(Some(DERIVATION_BYTES))
         .with_work(Some(WORK))
-        .with_recursion_depth(RECURSION_DEPTH);
+        .with_recursion_depth(RECURSION_DEPTH)
+        .with_workspace(WorkspaceLimits::default().with_bytes(Some(WORKSPACE_BYTES)));
     let search = Options::default()
         .with_copies(None)
         .with_jobs(Jobs::Count(1))

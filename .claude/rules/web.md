@@ -371,6 +371,26 @@ for `THIRD-PARTY-NOTICES.txt`.
   it proves or draws, `term` the name of its call for the lambda-term). The client's registry reads it; a new suite is a
   row there with its calls.
 
+- **The workspace** (`workspace.rs`, exported `workspace_…`): the
+  linked tabs a page keeps, over the library's `workspace`
+  (`core-workspace.md`). The page holds the document and sends it with
+  every call, read by `Workspace::read_own`, its runs and checks as
+  written: read as a claim each call, a search's check would turn
+  `recorded` and run again. A link or a file comes in through
+  `workspace_open` alone, the claim reader, which also gives its recipes
+  the tab's bounds. An action (`workspace_edit`) is read whole before any
+  edit, since a refusal inside `Workspace::edit` can only be the
+  library's (its error's variants are not built outside it); a node is
+  its number or `{"made": K}`, an earlier edit's. `work` lays the open
+  tabs' sessions in before a call without an entry of the log. An
+  answer carries its document as a JSON string of its text (`answer`),
+  which the page hands back as it is: read as an object and written
+  again (by `serde_json::Value`, or by JavaScript, which puts keys that
+  look like numbers first), a value's keys could come out in another
+  order, which is another value to the workspace, and every record would
+  drop on the next read. The tab's `limits.workspace.bytes` is 2 MiB
+  (`tab::WORKSPACE_BYTES`).
+
 ## The build (`modules/web.nix`)
 
 - The `wasm-bindgen` CLI is nixpkgs' `wasm-bindgen-cli_X_Y_Z` for the
