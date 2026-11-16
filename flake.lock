@@ -137,11 +137,11 @@
         "yalla": "yalla"
       },
       "locked": {
-        "lastModified": 1794851006,
-        "narHash": "sha256-RsGB3iZuEIvlOMpvj2wMKPuSxpPNHGlvt3UiPTkJ7ko=",
+        "lastModified": 1795144499,
+        "narHash": "sha256-SVm7aPMXZjTpXAguYqpeXdkQqEjNVfyMLAQS1I+rojE=",
         "owner": "deduxit",
         "repo": "rocq-deduxit",
-        "rev": "051675d0dedbc4e301817f815650160e5b4bcb50",
+        "rev": "03f0af2032a78a415f77efa8f9849ce9f1fa134b",
         "type": "github"
       },
       "original": {
