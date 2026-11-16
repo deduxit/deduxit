@@ -2722,3 +2722,15 @@ users bring stopping at the solver, CaDiCaL (MIT, LRAT natively, a
 terminator and limits) can join behind a feature never on for wasm,
 through `cadical-sys` (no libclang) behind 54s's solver trait. Its costs:
 a C++ build in the flake, one maintainer, and two code paths to test.
+
+## Auto-reverse for the ordinary suite and for calculi given as data (63a, 2026-11-16)
+
+Step 38h's switch (`interactive.invertible`) applies the invertible rules in the linear suite only
+(`Interactive::invert_all`). For the other suites:
+- **The ordinary suite**: `is_invertible` and `invert_all` on `ordinary::Interactive` (LK's rules
+  are all invertible; LJ's `→L`, `∨R₁`, `∨R₂` and `¬L` are not), then the bindings' setting as the
+  linear calls have it. 63b found the ordinary course does not need it (each worked step is the
+  visitor's), but a visitor practising would gain from it.
+- **A calculus given as data**: a rule file would say which rules are invertible (an optional key
+  per rule, a wire level); whether a rule so marked is invertible is the file author's claim.
+Source: the 63a and 63b sections of `plan/reports/63-suite-protocol.md`.
