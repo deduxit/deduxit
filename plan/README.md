@@ -7491,3 +7491,16 @@ move (D26).
     five findings fixed. Four departures marked (the failing world on the editor's own drawing;
     "Check a model" in the calculus popover; worlds' places not kept; no undo of its own). The
     client's flake check passed (691 unit, 323 e2e).
+- 2026-11-16, 22:10: **68a reviewed and pushed.**
+  - **68a** (`prrsputk` to `zlwskqws`): a student's signed tableau written by hand (the text
+    `prove --method tableau` prints, a drawn tree or an indented list, Smullyan's and the Open
+    Logic Project's rule names) read by `ordinary::WrittenTableau` and reviewed step by step:
+    the first fault named in words (which line, which rule, what it adds), unfinished branches
+    said, a finished tableau's verdict resting on step 60's checker of the rule file `tableau`
+    (closed) or a checked countermodel (open); `check --tableau [--sequent]`, the bindings'
+    `ordinary_tableau_review`, the schema's `tableau_review`. The rule file gained `T↔′`,
+    `F↔′`, `F→₁`, `F→₂` (the textbooks' rules). fresh-reviewer (Fable) ran about 720 mutants
+    against `prove`, no disagreement; six of seven findings fixed (two panics on odd input among
+    them), the seventh (an empty sequent's tableau) left with its reason. Departures marked: no
+    modal tableau (a second matcher for the labelled calculus, later); signed tableaux only.
+    Gate and `nix flake check` passed.
