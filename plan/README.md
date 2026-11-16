@@ -7359,3 +7359,8 @@ move (D26).
     findings, fixed. Gate, `nix flake check`, the workflow's dry run passed.
   - **Next:** CI green at the release commit, then the signed tag `v0.5.0` (the author's yes of
     2026-11-16); the crates.io publish waits for the author's approval.
+- 2026-11-16, about 16:20: **0.5.0 tagged.** CI green at the release commit `87831e47` (`lroloqww`);
+  the signed tag object `15156829` (verified "true valid") and `refs/tags/v0.5.0`, made on the
+  author's yes of 2026-11-16. No Rocq release (the library did not move since v0.4.0). The release
+  workflow runs (`43900585722`); its `cargo publish` waits for the author's approval in the
+  `crates-io` environment. Next: the modal chain (65a, 65b) lands on `main`, rebased by 65c.
