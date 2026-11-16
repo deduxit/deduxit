@@ -7344,3 +7344,6 @@ move (D26).
     recommendation; a cache of world signatures in `later.md`).
   - **65c** (the command, the protocol's registration, the exports, the schema) started on top
     of the held chain; it builds `--system S4` as proposed, the author asked.
+- 2026-11-16, about 15:45: **The author: "Yes, --system"**: the command selects the modal suite
+  with `--system NAME` (any of the fifteen), as `--logic` selects the ordinary one (65a's
+  question 2); told to 65c.
