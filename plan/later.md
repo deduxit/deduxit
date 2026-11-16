@@ -2735,15 +2735,30 @@ Step 38h's switch (`interactive.invertible`) applies the invertible rules in the
   per rule, a wire level); whether a rule so marked is invertible is the file author's claim.
 Source: the 63a and 63b sections of `plan/reports/63-suite-protocol.md`.
 
-## The web module's size after the workspace (63g-c, 2026-11-16)
+## The web module's size after the workspace (63g-c, 2026-11-16; 54x6)
 
 63g-c raised the module's ceiling from 3.3 MB to 3.9 MB at gzip: the workspace's calls link every
-suite's operations through the protocol's `run` and `check`, so code the linker dropped before is
-now in (3 166 704 bytes before, 3 670 553 after, +16 %). Measure what came in with
-`bench/footprint.py wasm` (twiggy) and decide between trimming it (the protocol's operations
-behind the calls the page uses) and step 47's answer, a module per suite loaded lazily
-(web-front-end-4), whose trigger this is close to. Also from 63g-c's trial: a busy state on the
-workspace panel's Undo (it seemed to do nothing for seconds).
+suite's operations through the protocol's `run` and `check` (3 166 704 bytes before, 3 670 553
+after). 54x6 measured what came in (twiggy, its report) and took 129 KB of it back: the generic
+bodies over the stop closure were compiled once per caller's stop type, six copies of the SAT
+search among them, and now take a trait object (3 541 359 bytes, the ceiling 3 750 000). The
+busy state on the workspace panel's Undo is in the client. What is left, for the author:
+
+- **The protocol's dispatch and readers, about 1.35 MB raw of the 1.95 MB that came in**: every
+  suite's operations (`protocol::*`, 363 KB raw), the workspace (111 KB), and the serde code
+  of every kind's form that only the workspace's reads reach (`serialize`, +160 KB, and their
+  instances in `core`, `serde` and `serde_json`, about +580 KB). The page links two operations,
+  `ordinary.translate` and `ordinary.start`. A trim needs the library to let a caller name the
+  operations and kinds a workspace may run (a registry the bindings build from the page's list),
+  an API change, so the author's to decide; a feature per suite is against the plan's "no feature
+  per suite". Its cost: the bindings would list the operations the page links, and a new one
+  would be a change of the bindings as well as of the page.
+- **A module per suite (web-front-end-4) gains little**: the linear suite is 1.40 MB raw of
+  deduxit's 3.13 MB, and every suite's module would carry the PNG and PDF renderers (2.69 MB raw,
+  27 % of the module) and the protocol it shares. The larger first-load gain is a module of its
+  own for the renderers, loaded on the first PNG or PDF export.
+- **`linear::search::prove_goal`** is still compiled per stop type (four copies, 23 KB raw); its
+  change would be the focused engine's front door, which runs the target set.
 
 ## KD4's cost: a cache of world signatures across branches (65b, 2026-11-16)
 

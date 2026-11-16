@@ -686,3 +686,167 @@ answered in `ykkxnxwr`:
    report now say which bound covers what, with the factor.
 2. **The test's comment gave the charge (11 MB) as what the state
    holds** (6 to 7 MB): it now says both.
+
+## Session 54x6: the web module's size, and three loose ends
+
+Opus 5.5 at `high`, a reused worker, in the jj workspace
+`../deduxit-wt-step-58a-610ed3`, from the brief `start-54x6.md`, on
+2026-11-16, cores 7 to 9. The chain is `yrvrponq` (the wire docs),
+`wqopplrx` (the trim), `kvwxqypz` (the ceiling) and this report, made
+on `lroloqww` and rebased onto `main@origin` `vyktrwxy` (0.5.0
+published at `ruwkkrsz`, with the modal chain 65a to 65c, and a plan
+commit after it); the client's change is `tokunpkt` on the
+client's `main@origin` `koqworoq`, in its workspace `step54x6`
+(`../deduxit.github.io-54x6`).
+
+### The module's size
+
+Measured as `bench/footprint.py` says: the module built again with its
+names (`cargo build --release` for wasm32, `wasm-bindgen`, `wasm-opt -O3
+-g`), twiggy's CSV, and `wasm-opt -O3` of the same build for the size at
+`gzip -9`, which came within 22 bytes of the package's 3 670 553.
+
+| build | raw code and data | gzip -9 |
+|---|---|---|
+| before the workspace's calls (`mpwqoysw`) | 8 496 993 | 3 166 018 |
+| `main@origin` (`lroloqww`) | 10 446 036 | 3 670 575 |
+| first trim (the ordinary engines) | | 3 567 069 |
+| this chain (`wqopplrx`) | 9 850 130 | 3 541 359 |
+
+**What came in** (raw bytes, before → after the workspace's calls):
+
+| group or crate | before | after | change |
+|---|---|---|---|
+| deduxit and deduxit-web | 2 783 076 | 3 928 688 | +1 145 612 |
+| the standard library (`core`, `alloc`) | 1 238 205 | 1 741 331 | +503 126 |
+| the other crates (`serde_json`, `serde`, `serde_core`) | 383 162 | 573 308 | +190 146 |
+| data segments | 825 777 | 883 903 | +58 126 |
+| the bindings' shims | 581 175 | 633 151 | +51 976 |
+| the PNG and PDF renderers' crates | 2 685 598 | 2 685 655 | +57 |
+
+In deduxit, by module: `protocol` +413 288 (it was not linked
+before: `ordinary` 173 KB, `linear` 101 KB, `document` 53 KB, `rules`
+48 KB of it), `ordinary` +340 534, `serialize` +160 206, `workspace`
++111 202, `linear` +73 145, `export::svg` +39 161, `settings` +20 990
+(its serializer). `core`'s growth is serde: the deserializers of every
+kind's form (`serialize::ordinary`, `rules`, `search`, `sequents`,
+`proofs`, `interactive`, the workspace's own form), which only the
+workspace's reads of each kind reach.
+
+**What was trimmed**: copies of one function that differ only in the
+stop closure's type. Each caller's closure, and each `&mut` added when
+the stop is passed on, is a type of its own; the protocol hands the
+suites a `&mut dyn`, and the bodies below re-borrowed it at every depth.
+At `main@origin` the module held 697 KB of deduxit's generics past their
+first copy (235 KB before the workspace's calls): six copies of
+`sat::run` (145 KB), five of `decide_within` (83 KB), four of
+`ljt::run`, five of `Countermodel::found`, nine of `Image::read_back`,
+three of `svg::write`. Each body now takes `&mut dyn FnMut(Progress) ->
+bool` behind its public `impl FnMut` entry, which passes `&mut stop`
+(no public signature changed): `sat::run`, `ljt::run`, `decide_within`
+(`within`), `Image::read_back` (`read_back_with`), `Model::forcing`
+(`forcing_with`), `Countermodel::found` (crate-private, takes the trait
+object itself), `export::judgement` (likewise) and `svg::write`
+(`drawn`). The first five took 103 506 bytes at gzip, the last three
+25 710: 129 216 in all, a quarter of what the workspace added. The
+bindings' own calls share those bodies now, so `ordinary` is smaller
+than before the workspace (277 KB against 323 KB). `core.md` has the
+rule.
+
+**The ceiling** is 3 750 000 (`kvwxqypz`), the trimmed size with the
+margin the last one had (6 %).
+
+**What was not trimmed, and why** (in `later.md`'s section, rewritten):
+- `linear::search::prove_goal`, four copies, 23 KB raw: the focused
+  engine's front door, whose change the rules check with the target
+  set on the timed cores, which the brief did not name.
+- The protocol's dispatch and the readers and writers of every kind
+  that only the workspace reaches, about 1.35 MB raw. The page links
+  `ordinary.translate` and `ordinary.start`; a trim needs the library to
+  let the bindings name the operations and kinds a workspace may run, an
+  API change and the author's to decide (a feature per suite is against
+  the plan's "no feature per suite").
+- **A module per suite (web-front-end-4) would gain little**: the linear
+  suite is 1.40 MB raw of deduxit's 3.13 MB, and each suite's module
+  would carry the PNG and PDF renderers (2.69 MB raw, 27 % of the
+  module) and the protocol. The larger first-load gain is a module of
+  its own for the renderers, loaded at the first PNG or PDF export.
+
+### The wire docs (`yrvrponq`)
+
+Each of 63a's findings, against the writers and the command's output:
+- `wire.rs` lists the record of a cut elimination on a net (`version`
+  the net's level, at least 6 since its sequent keeps the cut formulas;
+  `net` without its own `version`; each step's `cut` as two vertices,
+  `case` and `above`; `end` and `reason`).
+- The session's entry has a first-order session's `instances` (level 7;
+  `members`, `frames`, `terms` with the open witnesses `{"M": k}`,
+  `eigens`, and `metas`, `constants`, `bindings`, `marks` where not
+  empty).
+- The level-13 row, the ordinary outcome's entry and the Kripke model's
+  say the model is nested as `countermodel.model` beside
+  `countermodel.sequent`.
+- `seq translate`'s and `interpolate`'s help, and the guide, list
+  `deduxit` among their records' keys (the manual already did).
+- `written`: no key is dead. `Interactive::of_classical`, which the web
+  bindings call for a typed sequent, keeps it; the command never starts
+  such a session, but its `load` keeps the key of a document that has
+  it and `save` writes it back. `wire.rs` and the schema's description
+  of the session say so.
+
+### The client (`tokunpkt`)
+
+The workspace panel's Undo and Redo read "Undoing NAME…" and "Redoing
+NAME…" from the press until the tabs show the change, both disabled,
+the pressed one `aria-busy`; a second press does nothing (it queued a
+second undo before). The name is the one pressed: the view names the
+next action as soon as it is read again. The client's `web.md` says
+so. No test pins the busy state: it lasts as long as the worker takes,
+which a test cannot hold open without a hook of its own; the e2e tests
+that press Undo and Redo pass.
+
+### The checks
+
+- **The gate** (capped, cores 7 to 9) at `kvwxqypz` before the
+  reviewer's fixes (two doc paragraphs and the client's label): passed.
+  The ratchet within its ceilings; against `main@origin` counted the
+  same way, every journey within 0.15 % but `read-json` +0.88 % (this
+  chain does not touch the readers: layout) and `ordinary-pigeons`
+  +0.85 % (the trait-object stop of the SAT search).
+- `cargo doc -p deduxit --all-features` with warnings denied (the new
+  links), clippy on the crate with every feature.
+- **The client**: Vitest (667) and lint before the fix, lint after, and
+  its `nix flake check` at `tokunpkt` under the machine lock: all
+  checks passed, the e2e suite 300 passed.
+- **`nix flake check`** at the report's commit under the machine lock,
+  the bindings' tests under Node among them: all checks passed. Its
+  `budget` check gives the package at 3 541 980 bytes at `gzip -9`
+  (173 packages), the figure `budget.nix` and `web.md` now name; the
+  table above is this measurement's rebuild, 621 bytes below. Only the
+  ceiling's comment changed after it.
+- **After the rebase onto `ruwkkrsz`**: clippy on the workspace, then
+  `nix flake check` at the rebased report under the machine lock: all
+  checks passed. The modal suite adds 80 988 bytes: the package is
+  3 622 968 at `gzip -9`, 3.5 % under the ceiling. `budget.nix` and
+  `web.md` name that figure; only those comments and this report
+  changed after the check.
+
+### The reviewer
+
+`fresh-reviewer` (Fable 5.2, medium) read the chain and the client's
+change and ran the command for the wire docs. Three findings, all
+answered:
+1. **The net record's example said `"version": 4`**; a record with a
+   step is at least 6, since the net keeps its cut formulas (its
+   witness: `eliminate --net --format json` of the manual's
+   `contraction.json`). Fixed in `yrvrponq`, with that record's step.
+2. **"The command's sessions never keep `written`" was false** for a
+   session the command loads: `load` keeps the key and `save` writes it.
+   `wire.rs` now says both; the schema's wording was right.
+3. **The busy label read the name live**, so after the view was read
+   again it named the next action ("Undoing sequent change…" while
+   "restart" was undone). The name is now kept as pressed.
+Its question on 3 670 575 against 3 670 553: the first is this
+measurement's rebuild (`wasm-opt -O3` of the named build), the second
+the package's. The ceiling's comment now names the package's trimmed
+size, 3 541 980, which the flake check printed.
