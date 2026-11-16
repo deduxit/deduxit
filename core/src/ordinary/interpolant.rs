@@ -440,7 +440,7 @@ fn checked(
 /// Returns, by atom index, whether an atom occurs in the formulas at
 /// `roots`; every operand precedes its formula, so one pass down the arena
 /// marks what the roots reach.
-fn atoms_of(formulas: &Formulas, roots: &[NodeId]) -> Vec<bool> {
+pub(crate) fn atoms_of(formulas: &Formulas, roots: &[NodeId]) -> Vec<bool> {
     let mut reached = vec![false; formulas.len()];
     for root in roots {
         reached[root.index()] = true;

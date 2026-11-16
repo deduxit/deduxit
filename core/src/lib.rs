@@ -61,6 +61,8 @@
 //! - Read a proof as a lambda-term: [`lambda`].
 //! - Check a derivation in a calculus you give as a rule file: `rules`
 //!   (feature `serialize`).
+//! - List what each suite makes and does, and run it over JSON: `protocol`
+//!   (feature `protocol`).
 //!
 //! Proofs, nets and errors name the *occurrences* of a sequent: an
 //! occurrence is one place of a subformula in the sequent, and the
@@ -182,6 +184,32 @@
 //! # Ok::<(), deduxit::Error>(())
 //! ```
 //!
+//! # What each suite offers, over JSON
+//!
+//! [`protocol`] lists each suite's kinds of values and the operations
+//! between them, and runs an operation on JSON values. Here a classical
+//! sequent is translated into intuitionistic logic, and the translation's
+//! promise, that both are valid together or not, is checked:
+//!
+#![cfg_attr(feature = "protocol", doc = "```")]
+#![cfg_attr(not(feature = "protocol"), doc = "```ignore")]
+//! use deduxit::{Settings, protocol};
+//!
+//! let settings = Settings::default().deterministic();
+//! let sequent = r#"{"version": 8, "formulas": [{"V": 0}, {"¬": 0}, {"∨": [0, 1]}],
+//!     "atoms": ["a"], "left": [], "right": [2], "logic": "classical"}"#;
+//! let glivenko = r#"{"translation": "glivenko"}"#;
+//! let translated =
+//!     protocol::run("ordinary.translate", &[sequent], glivenko, &settings, |_| false)?;
+//! let text = protocol::summary("ordinary.sequent", &translated.value, &settings.limits)?;
+//! assert_eq!(text, "⊢ ¬¬(a ∨ ¬a)");
+//! let check = protocol::check(
+//!     "ordinary.translate", &[sequent], glivenko, &translated.value, &settings, |_| false,
+//! )?;
+//! assert_eq!(check.status, protocol::Status::Held);
+//! # Ok::<(), deduxit::Error>(())
+//! ```
+//!
 //! # Errors
 //!
 //! Every call that can fail returns an [`Error`], or a more specific
@@ -223,7 +251,9 @@
 //! - `interactive`: `Interactive`, proving step by step;
 //! - `latex`, `typst`, `svg` and `rocq`: the exports under [`export`];
 //! - `sat`: the SAT solver batsat, with which `ordinary::sat` decides
-//!   classical, intuitionistic and minimal logic.
+//!   classical, intuitionistic and minimal logic;
+//! - `protocol`: `protocol`, what each suite offers as data, run over JSON
+//!   with `serde_json` (it needs `serialize`, `parse` and `interactive`).
 //!
 //! Off by default:
 //! - `parallel`: the search on a pool of
@@ -264,6 +294,8 @@ pub mod lambda;
 pub mod limits;
 pub mod linear;
 pub mod ordinary;
+#[cfg(feature = "protocol")]
+pub mod protocol;
 #[cfg(feature = "serialize")]
 pub mod rules;
 /// The supertraits that keep the crate's public traits to its own types.

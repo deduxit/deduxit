@@ -31,6 +31,7 @@ it; only what holds for the whole crate goes here.
 | `core-lambda.md` | `lambda/` | proofs read back as lambda-terms: the calculus and its source, the term's data, matching premises by member, the structural rules, the DAG and the printer's bound, the refusals, the tests' own type checker |
 | `core-rules.md` | `rules/`, `serialize/rules.rs`, the rules and natural deduction tests | calculi given as data: the rule file and its checks, the generic derivation (terms, nodes, scopes), the checker by matching and its bounds, the built-in rule files (LK, LJ, LM, LL, the tableau, natural deduction) and their cross-checks |
 | `core-ordinary.md` | `ordinary/` | ordinary logic: its syntax and TPTP reader, the translations as one pattern table, the read-back to LK and LJ, its checker, the certificate over `Prop`, the goal state of LK and LJ |
+| `core-protocol.md` | `protocol/` | the suites' protocol: kinds, operations and promises as data, the registry, the runs and checks over JSON, why `reads` is a cache key |
 
 ## Layout
 
@@ -38,7 +39,8 @@ The root holds what every suite shares: `errors`, `limits`, `settings`,
 `wire`, `export`, `serialize` and `hash`, and the suites beside each
 other: `linear` (`core/src/linear/`), `ordinary` and `lambda`, and
 `rules` (behind `serialize`), the calculi given as data, which belongs
-to no suite. The
+to no suite, and `protocol` (behind its feature), what each suite offers
+as data. The
 linear suite is `linear` with `sequents`, `parse`, `fragment`,
 `occurrences`, `proofs`, `search`, `nets`, `lltp`, `mist` and
 `families`; `linear/mod.rs` re-exports its public types, the root

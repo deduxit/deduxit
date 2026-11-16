@@ -31,15 +31,16 @@ Workspace crates:
   are suites beside it, `rules` checks a derivation in a calculus given
   as a rule file, and what they share with it stays at the root
   (the errors, the limits, the settings, the exports, the wire forms).
-  It has eight optional
+  It has nine optional
   default features, `parse` (the text parser, the LLTP reader and the
   generated families),
   `serialize` (serde), `interactive` (step-by-step proving),
-  `latex`, `typst`, `svg` and `rocq` (the exports), and `sat` (batsat:
-  the SAT-based engine `ordinary::sat`), and three off by
+  `latex`, `typst`, `svg` and `rocq` (the exports), `sat` (batsat:
+  the SAT-based engine `ordinary::sat`) and `protocol` (what each suite
+  offers as data, run over JSON with serde_json), and three off by
   default, `parallel` (rayon: the search on a thread pool, off for
   wasm), `png` (resvg) and `pdf` (krilla), which render the SVG with
-  fonts the caller gives; the CLI enables the last nine.
+  fonts the caller gives; the CLI enables every one but `protocol`.
 - `cli/` is package **`deduxit-cli`**, library **`deduxit_cli`** and binary
   **`deduxit`** (one call into the library; `doc = false` because it shares
   the core crate's name): `prove` (one sequent, or a batch of many),
@@ -109,7 +110,7 @@ per bullet, what a later session must know and cannot see in the code.
 
 | rules file | loads for | holds |
 |---|---|---|
-| `core.md` | `core/**` | the crate's layout and API in brief, its crate-wide rules, and the table of the sixteen module files `core-*.md` (sequents and parsing, the forest, proofs and the checker, derivations and interactive proving, the search's front door, the focused engine, the Horn engine, the inverse method, the parallel runtime, proof nets and the net engine, the exports, the batch, the benchmark inputs, ordinary logic, lambda-terms, calculi given as data), each loaded for its own module |
+| `core.md` | `core/**` | the crate's layout and API in brief, its crate-wide rules, and the table of the seventeen module files `core-*.md` (sequents and parsing, the forest, proofs and the checker, derivations and interactive proving, the search's front door, the focused engine, the Horn engine, the inverse method, the parallel runtime, proof nets and the net engine, the exports, the batch, the benchmark inputs, ordinary logic, lambda-terms, calculi given as data, the suites' protocol), each loaded for its own module |
 | `cli.md` | `cli/**` | the command's layout, exit statuses, defaults, time limit, outputs, README's and the manual's examples as a test, extension points |
 | `bench.md` | `bench/**` | the harness, the CSV columns as its interface, the baselines, the target set, extension points |
 | `web.md` | `web/**`, `modules/web.nix` | the bindings' layout, why nothing is kept between calls, the tab's settings, the errors, the stack measured, the build and its checks, extension points |
