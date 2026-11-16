@@ -24,6 +24,9 @@ mod interact;
 mod io;
 /// The time limit of a command.
 mod limit;
+/// Modal logic under `--system`: deciding a sequent, checking an outcome
+/// or a model given.
+mod modal;
 /// Ordinary logic: its input, its verdict line and the derivation read
 /// back.
 mod ordinary;

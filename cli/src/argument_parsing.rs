@@ -420,16 +420,19 @@ pub(crate) enum WorkspaceCommand {
 #[derive(Args, Clone, Debug)]
 pub(crate) struct StatementArgs {
     /// The sequent is of ordinary logic, claimed in this logic; without
-    /// it, of linear logic
+    /// it or --system, of linear logic
     #[arg(long, value_enum, value_name = "LOGIC")]
     pub(crate) logic: Option<LogicArg>,
+    /// The sequent is of modal logic, claimed in this system, such as S4
+    #[arg(long, value_name = "SYSTEM", value_parser = parse_system, conflicts_with = "logic")]
+    pub(crate) system: Option<deduxit::modal::System>,
     /// The linear mode the sequent is claimed in, such as classical or
     /// intuitionistic
     #[arg(
         long,
         value_name = "MODE",
         default_value = "classical",
-        conflicts_with = "logic"
+        conflicts_with_all = ["logic", "system"]
     )]
     pub(crate) mode: String,
 }
@@ -547,6 +550,19 @@ pub(crate) struct ProveArgs {
     /// The ordinary logic the input is in, if any.
     #[command(flatten)]
     pub(crate) logic: LogicArgs,
+    /// Read the input as modal logic and decide it in this system
+    ///
+    /// The input is a formula or a sequent of propositional modal logic:
+    /// ordinary logic's syntax with the prefixes [] (necessarily) and <>
+    /// (possibly), as `[]p -> [][]p`, or its JSON form. The system is one of
+    /// K, D, T, KB, KDB, B, K4, KD4, S4, K5, KD5, K45, KD45, KB5 and S5, or
+    /// another name of one, such as KT4 for S4. A valid sequent is shown as
+    /// a checked derivation in the system's labelled sequent calculus,
+    /// G3 and the system's name, which `check --calculus` reads; one that is
+    /// not valid with a checked Kripke countermodel, each world's arrows the
+    /// worlds it sees. The JSON output is the modal outcome.
+    #[arg(help_heading = LOGIC, long, value_name = "SYSTEM", value_parser = parse_system, conflicts_with = "logic")]
+    pub(crate) system: Option<deduxit::modal::System>,
     /// With --logic, how to decide the sequent: through its embedding into
     /// linear logic, by LJT, by a SAT solver, by its truth table or by a
     /// tableau (ordinary.method)
@@ -1111,8 +1127,22 @@ pub(crate) struct CheckArgs {
     /// the sequent to check it against.
     #[arg(help_heading = LOGIC, long, value_enum, value_name = "LOGIC")]
     pub(crate) logic: Option<LogicArg>,
-    /// With a Kripke model, the sequent of ordinary logic to check it
-    /// against
+    /// With a Kripke model, the modal system to check it in
+    ///
+    /// The file is then a Kripke model in JSON, as `prove --system --format
+    /// json` writes one under `countermodel`, each world's arrows the worlds
+    /// it sees, and --sequent names the modal sequent to check it against.
+    /// The model must meet the system's frame conditions on its arrows as
+    /// written (a model of S4 lists its loops); the check names the first
+    /// condition it does not meet. Then it says whether the sequent holds at
+    /// the world --world names, or at every world, and where it fails, the
+    /// value there of each subformula and the world each false □ or true ◇
+    /// looks to. The exit status is 0 where the sequent holds, 1 where it
+    /// fails and 2 for a model that is none of the system.
+    #[arg(help_heading = LOGIC, long, value_name = "SYSTEM", value_parser = parse_system, conflicts_with = "logic")]
+    pub(crate) system: Option<deduxit::modal::System>,
+    /// With a Kripke model, the sequent of ordinary logic (--logic) or of
+    /// modal logic (--system) to check it against
     ///
     /// The model must be one of the logic: its worlds ordered by its
     /// arrows, with no arrows round, each world forcing what every world
@@ -1124,7 +1154,7 @@ pub(crate) struct CheckArgs {
     /// right of it, and what that world forces of each subformula. The
     /// exit status is 0 where the sequent holds, 1 where it fails and 2
     /// for a model that is not one of the logic.
-    #[arg(help_heading = INPUT, long, value_name = "SEQUENT", requires = "logic")]
+    #[arg(help_heading = INPUT, long, value_name = "SEQUENT")]
     pub(crate) sequent: Option<String>,
     /// With a Kripke model, the world to check the sequent at, by index;
     /// every world when absent
@@ -2243,6 +2273,12 @@ impl<T: std::fmt::Display> std::fmt::Display for Count<T> {
             Some(n) => write!(f, "{n}"),
         }
     }
+}
+
+/// Reads a modal system by any of its names.
+fn parse_system(text: &str) -> Result<deduxit::modal::System, String> {
+    text.parse()
+        .map_err(|error: deduxit::Error| error.to_string())
 }
 
 /// Parses a number, or `none`.

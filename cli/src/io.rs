@@ -544,6 +544,17 @@ impl SequentInput {
         crate::ordinary::sequent_in(&text, format, Most::of(limits))
     }
 
+    /// Reads the one modal sequent from the argument, the file or
+    /// standard input, as text or JSON, within `limits.occurrences`.
+    ///
+    /// # Errors
+    ///
+    /// An input that cannot be read, or text that is no modal sequent.
+    pub(crate) fn modal(&self, limits: &Limits) -> Result<deduxit::modal::Sequent> {
+        let (text, format) = self.text(false, limits.memory_bytes)?;
+        crate::modal::sequent_in(&text, format, Most::of(limits))
+    }
+
     /// Returns the bounds the flags give the sequent.
     pub(crate) fn most(&self) -> Most {
         Most {

@@ -311,6 +311,8 @@ pub(crate) fn run(command: &WorkspaceCommand, given: &Given) -> Result<Status> {
 const fn kind_of(statement: &StatementArgs) -> &'static str {
     if statement.logic.is_some() {
         "ordinary.sequent"
+    } else if statement.system.is_some() {
+        "modal.sequent"
     } else {
         "linear.sequent"
     }
@@ -318,12 +320,15 @@ const fn kind_of(statement: &StatementArgs) -> &'static str {
 
 /// Returns the value of a sequent typed with these flags.
 fn statement_of(statement: &StatementArgs, text: &str, settings: &Settings) -> Result<String> {
-    Ok(match statement.logic {
-        Some(logic) => {
+    Ok(match (statement.logic, statement.system) {
+        (Some(logic), _) => {
             let logic: deduxit::ordinary::Logic = logic.into();
             protocol::statement("ordinary", text, logic.name(), &settings.limits)?
         }
-        None => protocol::statement("linear", text, &statement.mode, &settings.limits)?,
+        (None, Some(system)) => {
+            protocol::statement("modal", text, system.name(), &settings.limits)?
+        }
+        (None, None) => protocol::statement("linear", text, &statement.mode, &settings.limits)?,
     })
 }
 
@@ -334,6 +339,7 @@ fn retyped(kind: &str, old: Option<&str>, text: &str, settings: &Settings) -> Re
     let (suite, parameter) = match kind {
         "ordinary.sequent" => ("ordinary", old["logic"].as_str().unwrap_or("classical")),
         "linear.sequent" => ("linear", old["mode"].as_str().unwrap_or("classical")),
+        "modal.sequent" => ("modal", old["system"].as_str().unwrap_or("K")),
         other => bail!("a node of kind {other} takes no sequent"),
     };
     Ok(protocol::statement(
@@ -468,7 +474,10 @@ fn shown(workspace: &Workspace, nodes: &[NodeId], output: Option<&Path>) -> Resu
                 let mut line = protocol::summary(view.kind, value, &limits)
                     .unwrap_or_else(|_| "a value".to_owned());
                 let read: serde_json::Value = serde_json::from_str(value).unwrap_or_default();
-                if let Some(calculus) = read["logic"].as_str().or_else(|| read["mode"].as_str())
+                if let Some(calculus) = read["logic"]
+                    .as_str()
+                    .or_else(|| read["mode"].as_str())
+                    .or_else(|| read["system"].as_str())
                     && view.kind.ends_with(".sequent")
                 {
                     write!(line, " ({calculus})")?;

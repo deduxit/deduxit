@@ -10,7 +10,7 @@ use crate::check::{CHECKED_LEVEL, Checked};
 use crate::io;
 use crate::limit::Deadline;
 use crate::prove::{Stop, stopped};
-use crate::show::{Show, note};
+use crate::show::{Prefixed, Rendered, Show, Shown, note, render};
 use crate::{Status, interrupted};
 use anyhow::{Context, Result, bail};
 use deduxit::export::{Drawable, latex, svg, typst};
@@ -45,9 +45,19 @@ const BUILT_IN: [(&str, &str); 13] = [
 /// number, the indent, the rule and its premises, for the list's bound.
 const LINE_BYTES: u64 = 48;
 
+/// Returns the labelled calculus of a modal system its name names:
+/// `G3` and the system's name, any case (`G3S4`, `g3kd45`).
+fn modal(name: &str, limits: &Limits) -> Option<Result<Calculus>> {
+    let system = name
+        .get(..2)
+        .filter(|g3| g3.eq_ignore_ascii_case("G3"))
+        .and_then(|_| name[2..].parse().ok())?;
+    Some(deduxit::modal::calculus(system, limits).map_err(Into::into))
+}
+
 /// Returns the calculus `--calculus` names, a built-in one by name or a
 /// rule file, or with no flag the built-in calculus the derivation
-/// names.
+/// names (a modal system's `G3…` among them).
 ///
 /// # Errors
 ///
@@ -64,6 +74,11 @@ pub(crate) fn calculus(
             .find(|(known, _)| known.eq_ignore_ascii_case(name))
             .map(|&(_, text)| text)
     };
+    if flag.is_none()
+        && let Some(calculus) = modal(derivation.calculus(), limits)
+    {
+        return calculus;
+    }
     let (text, what) = match flag {
         Some(path) => return named(path, limits),
         None => match built_in(derivation.calculus()) {
@@ -85,6 +100,9 @@ pub(crate) fn calculus(
 ///
 /// A file that cannot be read or is no calculus.
 pub(crate) fn named(path: &Path, limits: &Limits) -> Result<Calculus> {
+    if let Some(calculus) = path.to_str().and_then(|name| modal(name, limits)) {
+        return calculus;
+    }
     let built_in = path.to_str().and_then(|name| {
         BUILT_IN
             .iter()
@@ -197,6 +215,7 @@ pub(crate) fn check_rules(
             mode: None,
             logic: None,
             calculus: Some(name.to_owned()),
+            system: None,
             error: result.as_ref().err().cloned(),
             message: result.is_err().then_some(line),
             lambda: None,
@@ -338,6 +357,102 @@ fn drawing(
             eprintln!("{}", left_out(&error));
             Ok((status, false))
         }
+    }
+}
+
+/// Writes a checked derivation as `show` asks, after `prefix`: its nodes
+/// as a list in text, drawn as a tree in LaTeX, Typst and SVG, rendered
+/// in PNG and PDF; Rocq leaves it out with the reason, as does a bound.
+///
+/// # Errors
+///
+/// An output that cannot be written.
+pub(crate) fn shown(
+    derivation: &Derivation,
+    calculus: &Calculus,
+    show: &Show,
+    prefix: Option<&str>,
+    out: &mut io::Output,
+    halt: &dyn Fn() -> bool,
+) -> Result<Shown> {
+    let write = |drawable: Drawable<'_>, format: Format| -> Result<String, Error> {
+        let mut text = String::new();
+        let styles = &show.styles;
+        match format {
+            Format::Latex => latex::write(drawable, &styles.latex, &mut text, |_| halt())?,
+            Format::Typst => typst::write(drawable, &styles.typst, &mut text, |_| halt())?,
+            _ => svg::write(drawable, &styles.svg, &mut text, |_| halt())?,
+        }
+        Ok(text)
+    };
+    match show.format {
+        Format::Text => {
+            let width = bound(show, &show.limits) as u64;
+            let estimate =
+                (derivation.len() as u64).saturating_mul(width.saturating_add(LINE_BYTES));
+            if let Some(limit) = show.limits.derivation_bytes
+                && estimate > limit
+            {
+                return Ok(Shown::LeftOut(format!(
+                    "the list of the derivation's {} is left out: it may take {estimate} \
+                     bytes, past --derivation-limit; --format json writes it",
+                    counted(derivation.len(), "node", "nodes")
+                )));
+            }
+            let mut writer = Prefixed { out, prefix };
+            for (n, node) in derivation.nodes().enumerate() {
+                if halt() {
+                    return Ok(Shown::Cut("the list is cut short".to_owned()));
+                }
+                if n > 0 {
+                    writer.write_str("\n")?;
+                }
+                writer.write_str(&node_line(
+                    derivation,
+                    calculus,
+                    node,
+                    bound(show, &show.limits),
+                ))?;
+            }
+            Ok(Shown::Written)
+        }
+        Format::Latex | Format::Typst | Format::Svg | Format::Png | Format::Pdf => {
+            let drawn = Drawing::new(calculus, derivation, &show.limits).and_then(|tree| {
+                let format = if show.format.is_binary() {
+                    Format::Svg
+                } else {
+                    show.format
+                };
+                write(Drawable::from(&tree), format)
+            });
+            let text = match drawn {
+                Ok(text) => text,
+                Err(error) => return Ok(Shown::LeftOut(left_out(&error))),
+            };
+            if !show.format.is_binary() {
+                write!(out.stream(), "{}{text}", prefix.unwrap_or(""))?;
+                return Ok(Shown::Written);
+            }
+            Ok(
+                match render(
+                    text,
+                    show.format,
+                    &show.styles,
+                    show.limits.memory_bytes,
+                    halt,
+                )? {
+                    Rendered::Bytes(bytes) => Shown::Rendered(bytes),
+                    Rendered::Refused(line) => Shown::LeftOut(line),
+                    Rendered::Stopped => {
+                        Shown::LeftOut("the derivation is not drawn: it was stopped".to_owned())
+                    }
+                },
+            )
+        }
+        _ => Ok(Shown::LeftOut(
+            "no certificate: a derivation in a calculus given as data has no Rocq certificate"
+                .to_owned(),
+        )),
     }
 }
 

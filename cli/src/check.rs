@@ -63,6 +63,7 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
                 mode: Some(mode),
                 logic: None,
                 calculus: None,
+                system: None,
                 error: None,
                 message: Some(line),
                 lambda: None,
@@ -85,6 +86,12 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
     if let (Some(_), false) = (&args.sequent, matches!(document, Document::Model(_))) {
         bail!("--sequent checks a Kripke model against a sequent, and the file is no model");
     }
+    if let (Some(_), false) = (&args.system, matches!(document, Document::Model(_))) {
+        bail!(
+            "--system checks a Kripke model against a modal sequent, and the file is no model: a \
+             modal outcome names its own system"
+        );
+    }
     if let (Some(_), false) = (&args.calculus, matches!(document, Document::Rules(_))) {
         bail!(
             "--calculus checks a derivation in a calculus given as data, and the file is none: \
@@ -93,11 +100,35 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
     }
     let proof = match document {
         Document::Proof(proof) => *proof,
+        Document::Model(model) if args.system.is_some() => {
+            if args.mode.given() {
+                bail!("--system checks modal logic, which has no mode: leave out the mode flags");
+            }
+            let (Some(sequent), Some(system)) = (&args.sequent, args.system) else {
+                bail!(
+                    "the file is a Kripke model, which is checked against a sequent: give \
+                     --sequent and --system"
+                );
+            };
+            let mut out = io::Output::open(path.as_deref(), show.format.is_binary())?;
+            let (status, keep) = crate::modal::check_model(
+                &model,
+                (sequent, system),
+                args.world,
+                (&settings, &show),
+                &deadline,
+                &mut out,
+            )?;
+            if keep {
+                out.finish()?;
+            }
+            return Ok(status);
+        }
         Document::Model(model) => {
             let (Some(sequent), Some(logic)) = (&args.sequent, args.logic) else {
                 bail!(
                     "the file is a Kripke model, which is checked against a sequent: give \
-                     --sequent and --logic"
+                     --sequent and --logic, or --system for a modal one"
                 );
             };
             let mut out = io::Output::open(path.as_deref(), show.format.is_binary())?;
@@ -109,6 +140,19 @@ pub(crate) fn check(args: &CheckArgs, given: &Given) -> Result<Status> {
                 &deadline,
                 &mut out,
             )?;
+            if keep {
+                out.finish()?;
+            }
+            return Ok(status);
+        }
+        Document::Modal(outcome) => {
+            if args.mode.given() || args.logic.is_some() {
+                bail!(
+                    "a modal outcome is checked in its own system: leave out the mode flags and --logic"
+                );
+            }
+            let mut out = io::Output::open(path.as_deref(), show.format.is_binary())?;
+            let (status, keep) = crate::modal::check_outcome(&outcome, &show, &deadline, &mut out)?;
             if keep {
                 out.finish()?;
             }
@@ -227,6 +271,8 @@ enum Document {
     Model(Box<deduxit::kripke::Model>),
     /// A derivation in a calculus given as data.
     Rules(Box<deduxit::rules::Derivation>),
+    /// The outcome of deciding a modal sequent.
+    Modal(Box<deduxit::modal::Outcome>),
 }
 
 /// Reads a proof file, or failing that a disproof, which an unprovable
@@ -252,6 +298,8 @@ fn read_document(text: &str, limits: &Limits) -> Result<Document> {
         worlds: Option<serde::de::IgnoredAny>,
         /// The calculus a derivation in a calculus given as data names.
         calculus: Option<serde::de::IgnoredAny>,
+        /// The system of a modal outcome.
+        system: Option<serde::de::IgnoredAny>,
     }
     let keys = serde_json::from_str::<Keys>(text).ok();
     if keys.as_ref().is_some_and(|keys| keys.calculus.is_some()) {
@@ -263,6 +311,15 @@ fn read_document(text: &str, limits: &Limits) -> Result<Document> {
             .end()
             .context("not a derivation in JSON: more follows it")?;
         return Ok(Document::Rules(Box::new(derivation)));
+    }
+    if keys.as_ref().is_some_and(|keys| keys.system.is_some()) {
+        let mut document = serde_json::Deserializer::from_str(text);
+        let outcome = deduxit::wire::upgrade::<deduxit::modal::Outcome, _>(&mut document, limits)
+            .map_err(|error| limit_advice(error).unwrap_or_else(|error| error.into()))?;
+        document
+            .end()
+            .context("not a modal outcome in JSON: more follows it")?;
+        return Ok(Document::Modal(Box::new(outcome)));
     }
     if keys.as_ref().is_some_and(|keys| keys.worlds.is_some()) {
         let mut document = serde_json::Deserializer::from_str(text);
@@ -395,6 +452,7 @@ fn check_disproof(
             mode: Some(mode),
             logic: None,
             calculus: None,
+            system: None,
             message: (status != Status::Yes).then_some(line),
             error,
             lambda: None,
@@ -548,6 +606,7 @@ fn checked_table(
             mode: None,
             logic: Some(logic),
             calculus: None,
+            system: None,
             error: None,
             message: None,
             lambda: None,
@@ -577,6 +636,7 @@ fn unchecked_into(
             mode: None,
             logic,
             calculus: None,
+            system: None,
             error: None,
             message: Some(line.to_owned()),
             lambda: None,
@@ -676,6 +736,7 @@ fn check_derivation(
             mode: None,
             logic: Some(logic),
             calculus: None,
+            system: None,
             error: result.as_ref().err().cloned(),
             message: result.is_err().then_some(line),
             lambda,
@@ -761,6 +822,7 @@ fn check_countermodel(
             mode: None,
             logic: Some(logic),
             calculus: None,
+            system: None,
             error: result.as_ref().err().cloned(),
             message: result.is_err().then_some(line),
             lambda: None,
@@ -884,6 +946,7 @@ fn check_model(
             mode: None,
             logic: Some(logic),
             calculus: None,
+            system: None,
             error: None,
             message: (status != Status::Yes).then_some(line),
             lambda: None,
@@ -969,6 +1032,10 @@ pub(crate) struct Checked {
     /// data.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) calculus: Option<String>,
+    /// The modal system checked in, for a modal outcome or a model checked
+    /// under --system.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) system: Option<deduxit::modal::System>,
     /// Why the proof is not valid, as the library writes its errors.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) error: Option<Error>,
@@ -1097,6 +1164,7 @@ fn check_into(
             mode: Some(mode),
             logic: None,
             calculus: None,
+            system: None,
             error,
             message,
             lambda,

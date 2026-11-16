@@ -207,7 +207,7 @@ pub(crate) fn describe(error: Error, sequent: &Sequent) -> anyhow::Error {
 /// engine, since nothing is known of the sequent. The line is the output,
 /// as a comment of the format; JSON has no form for it, so there it goes
 /// to standard error.
-fn unread_into(args: &ProveArgs, line: &str) -> Result<Status> {
+pub(crate) fn unread_into(args: &ProveArgs, line: &str) -> Result<Status> {
     // A file holds a derivation or nothing, and JSON has no form for this.
     match (args.output.format(), &args.output.output) {
         (Format::Json, _) | (_, Some(_)) => eprintln!("{line}"),
@@ -232,6 +232,9 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
     let start = Instant::now();
     let settings = args.settings(given)?;
     if crate::batch::is_batch(args) {
+        if args.system.is_some() {
+            bail!("--system decides one sequent: give it as the argument, or one file with --file");
+        }
         if args.output.lambda {
             bail!("--lambda prints the term of one proof, not of a batch's");
         }
@@ -239,6 +242,9 @@ pub(crate) fn prove(args: &ProveArgs, given: &Given) -> Result<Status> {
     }
     ordinary_mode(args)?;
     let deadline = Deadline::start(time_limit(&settings), start)?;
+    if let Some(system) = args.system {
+        return crate::modal::prove(args, &settings, system, &deadline);
+    }
     let input = args.input.clone();
     let limits = settings.limits;
     let (mode, read) = (args.mode.mode(), settings.input);
