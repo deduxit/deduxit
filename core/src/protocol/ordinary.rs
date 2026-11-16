@@ -367,11 +367,20 @@ fn statement(value: &str, limits: &Limits) -> Result<(Sequent, Logic), Error> {
 }
 
 /// Writes a statement.
-pub(super) fn write_statement(sequent: &Sequent, logic: Logic) -> Result<String, Error> {
+pub(crate) fn write_statement(sequent: &Sequent, logic: Logic) -> Result<String, Error> {
+    typed_statement(sequent, logic, None)
+}
+
+/// Writes a statement with the text it was typed as.
+pub(super) fn typed_statement(
+    sequent: &Sequent,
+    logic: Logic,
+    text: Option<&str>,
+) -> Result<String, Error> {
     written(&Statement {
         sequent,
         logic,
-        text: None,
+        text,
     })
 }
 
@@ -546,7 +555,7 @@ pub(super) fn checked(name: &'static str, result: Result<(), Error>) -> Result<P
         },
     };
     Ok(Part {
-        name,
+        name: name.to_owned(),
         status,
         verdict: None,
     })
@@ -970,7 +979,7 @@ impl Suite for Ordinary {
                 // `interpolated` read both halves with the formula in place.
                 let (input, _) = statement(call.input(0), limits)?;
                 let halves = Part {
-                    name: "halves",
+                    name: "halves".to_owned(),
                     status: if halves_fit(&input, &read.partition, &one, &two) {
                         Status::Held
                     } else {
@@ -989,7 +998,7 @@ impl Suite for Ordinary {
                     .iter()
                     .all(|atom| rest_one.contains(atom) && rest_two.contains(atom));
                 let atoms = Part {
-                    name: "atoms",
+                    name: "atoms".to_owned(),
                     status: if shared { Status::Held } else { Status::Failed },
                     verdict: None,
                 };

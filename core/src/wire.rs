@@ -34,6 +34,7 @@
 //! | 16 | a classical sequent's negative translations compared, and an interpolation, each holding ordinary outcomes nested without `version` and `deduxit`; written only | a comparison of translations, an interpolation |
 //! | 17 | a session of step-by-step proving in a calculus given as data: the rule file, the terms, the scopes, the nodes from the conclusion up and the steps | a session of [`rules`](crate::rules) (feature `interactive`) |
 //! | 18 | a session in a calculus given as data with lines a forward step derived: a node's `line`, and a goal's `cites` | a session of [`rules`](crate::rules) that holds such a line (feature `interactive`) |
+//! | 19 | a workspace of linked values: the values, each its kind's document whole; the nodes, given or made by a recipe; the records of runs; the log of edits | a workspace (`workspace`, feature `protocol`) |
 //!
 //! A reader refuses a document above its level by name ([`Error::Version`],
 //! code `unsupported_version`). It does so before reading the other keys
@@ -237,7 +238,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// The highest wire level this build reads and writes.
-pub const LEVEL: u32 = 18;
+pub const LEVEL: u32 = 19;
 
 /// The level of a rule file and of a derivation in a calculus given as
 /// data.
@@ -252,6 +253,10 @@ pub(crate) const SESSION: u32 = 17;
 /// a forward step derived.
 #[cfg(all(feature = "interactive", feature = "parse"))]
 pub(crate) const FORWARD: u32 = 18;
+
+/// The level of a workspace of linked values.
+#[cfg(feature = "protocol")]
+pub(crate) const WORKSPACE: u32 = 19;
 
 /// The level of every document that no later level's feature raises.
 pub(crate) const BASE: u32 = 1;

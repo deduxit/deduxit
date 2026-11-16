@@ -455,6 +455,26 @@ pub enum Error {
          decide the sequent through the embedding, or in classical logic by a tableau"
     )]
     NotCutFree,
+    /// An operation does not take the value it was given, or an edit of a
+    /// workspace does not apply to the node named.
+    #[error("{operation} does not apply: {reason}")]
+    #[non_exhaustive]
+    NotApplicable {
+        /// The operation or the edit: `ordinary.decide`, `detach`.
+        operation: Box<str>,
+        /// Why not.
+        reason: String,
+    },
+    /// An edit gives a value of its own to a node that a recipe makes.
+    #[error(
+        "node {node} is made by its recipe and takes no value of its own; change what it is made \
+         from, or detach it first"
+    )]
+    #[non_exhaustive]
+    NotGiven {
+        /// The node.
+        node: u32,
+    },
     /// What a transformation claims did not hold where it was computed:
     /// a negative translation changed a verdict, or an interpolant failed
     /// its check. This is a defect of this crate.
@@ -784,6 +804,8 @@ impl Error {
         "negative_target",
         "partition",
         "not_cut_free",
+        "not_applicable",
+        "not_given",
         "claim_fails",
         "no_engine",
         "engine_refused",
@@ -796,6 +818,7 @@ impl Error {
         "work_limit",
         "too_many_pixels",
         "too_many_atoms",
+        "workspace_limit",
         "elimination_limit",
         "index_limit",
         "thread_pool",
@@ -878,6 +901,7 @@ impl Error {
             | Self::NotCutFree
             | Self::NoEngine { .. }
             | Self::EngineRefused { .. } => Unsupported,
+            Self::NotApplicable { .. } | Self::NotGiven { .. } => Malformed,
             Self::Partition { .. } => Malformed,
             Self::ClaimFails { .. } => Defect,
             #[cfg(feature = "rocq")]
@@ -963,6 +987,8 @@ impl Error {
             Self::NegativeTarget { .. } => "negative_target",
             Self::Partition { .. } => "partition",
             Self::NotCutFree => "not_cut_free",
+            Self::NotApplicable { .. } => "not_applicable",
+            Self::NotGiven { .. } => "not_given",
             Self::ClaimFails { .. } => "claim_fails",
             Self::NoEngine { .. } => "no_engine",
             Self::EngineRefused { .. } => "engine_refused",
@@ -1205,6 +1231,11 @@ mod tests {
                 limit: 1,
             },
             Refusal::Atoms { atoms: 2, limit: 1 },
+            Refusal::Workspace {
+                what: crate::limits::Held::Nodes,
+                count: 2,
+                limit: 1,
+            },
             Refusal::Index {
                 what: Space::Node,
                 count: 2,
@@ -1305,6 +1336,11 @@ mod tests {
             },
             Error::Partition { reason: message() },
             Error::NotCutFree,
+            Error::NotApplicable {
+                operation: "detach".into(),
+                reason: message(),
+            },
+            Error::NotGiven { node: 1 },
             Error::ClaimFails {
                 claim: "Kolmogorov's translation".into(),
                 reason: message(),
@@ -1539,6 +1575,8 @@ mod tests {
             | Error::NegativeTarget { .. }
             | Error::Partition { .. }
             | Error::NotCutFree
+            | Error::NotApplicable { .. }
+            | Error::NotGiven { .. }
             | Error::ClaimFails { .. }
             | Error::NoEngine { .. }
             | Error::EngineRefused { .. }
@@ -1574,6 +1612,7 @@ mod tests {
             | Refusal::Pixels { .. }
             | Refusal::Elimination { .. }
             | Refusal::Atoms { .. }
+            | Refusal::Workspace { .. }
             | Refusal::Index { .. } => {}
         }
     }

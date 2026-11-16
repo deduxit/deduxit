@@ -39,7 +39,7 @@ resvg = { version = "0.47", default-features = false, features = [
   "text",
 ], optional = true }
 serde = { version = "1.0.228", features = ["derive"], optional = true }
-serde_json = { version = "1.0.149", optional = true }
+serde_json = { version = "1.0.149", features = ["raw_value"], optional = true }
 thiserror = "2.0.17"
 unicode-ident = "1.0.26"
 unicode-normalization = { version = "0.1.25", default-features = false }

@@ -64,7 +64,7 @@ fn open_goals(answer: &str) -> Vec<u32> {
 #[wasm_bindgen_test(unsupported = test)]
 fn about_lists_the_suites() {
     let about = value(&calls::about());
-    assert_eq!(about["level"], 18);
+    assert_eq!(about["level"], deduxit::wire::LEVEL);
     assert_eq!(about["suites"][1]["methods"][1]["call"], "ordinary_tableau");
     let suites = about["suites"].as_array().unwrap();
     let names: Vec<&Value> = suites.iter().map(|s| &s["suite"]).collect();

@@ -106,6 +106,9 @@ pub struct Limits {
     /// branch takes `k` focus levels. The additive path takes a level per
     /// pair.
     pub recursion_depth: u32,
+    /// The bounds of a workspace of linked values
+    /// (`deduxit::workspace`), each refused at its edge.
+    pub workspace: WorkspaceLimits,
 }
 
 impl Limits {
@@ -137,6 +140,7 @@ impl Limits {
         work: None,
         table_atoms: None,
         recursion_depth: Self::DEFAULT_RECURSION_DEPTH,
+        workspace: WorkspaceLimits::UNBOUNDED,
     };
 
     /// The stack one level of the search's recursion may take: twice the
@@ -222,6 +226,13 @@ impl Limits {
         self.recursion_depth = recursion_depth;
         self
     }
+
+    /// Returns the limits with other bounds of a workspace.
+    #[must_use]
+    pub const fn with_workspace(mut self, workspace: WorkspaceLimits) -> Self {
+        self.workspace = workspace;
+        self
+    }
 }
 
 impl Default for Limits {
@@ -235,6 +246,133 @@ impl Default for Limits {
             work: None,
             table_atoms: Some(Self::DEFAULT_TABLE_ATOMS),
             recursion_depth: Self::DEFAULT_RECURSION_DEPTH,
+            workspace: WorkspaceLimits::default(),
+        }
+    }
+}
+
+/// The bounds of a workspace: how much of each thing it holds at once.
+/// `None` in a field means no bound.
+#[non_exhaustive]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "serialize",
+    derive(Serialize, Deserialize),
+    serde(default, deny_unknown_fields)
+)]
+pub struct WorkspaceLimits {
+    /// The most nodes alive.
+    #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::exact"))]
+    pub nodes: Option<u64>,
+    /// The most records of runs kept; the oldest that no node shows and no
+    /// edit names give way first.
+    #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::exact"))]
+    pub records: Option<u64>,
+    /// The most edits that undo can take back; the oldest is forgotten
+    /// past it, and a document past it is refused.
+    #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::exact"))]
+    pub log: Option<u64>,
+    /// The most bytes of the values held, as their JSON's length.
+    #[cfg_attr(feature = "serialize", serde(with = "crate::serialize::exact"))]
+    pub bytes: Option<u64>,
+}
+
+impl WorkspaceLimits {
+    /// The default bound on nodes.
+    pub const DEFAULT_NODES: u64 = 1024;
+    /// The default bound on records.
+    pub const DEFAULT_RECORDS: u64 = 4096;
+    /// The default bound on the edits undo keeps.
+    pub const DEFAULT_LOG: u64 = 256;
+    /// The default bound on the values' bytes: 64 mebibytes.
+    pub const DEFAULT_BYTES: u64 = 64 << 20;
+
+    /// No bound.
+    pub const UNBOUNDED: Self = Self {
+        nodes: None,
+        records: None,
+        log: None,
+        bytes: None,
+    };
+
+    /// Returns the bounds with another bound on nodes.
+    #[must_use]
+    pub const fn with_nodes(mut self, nodes: Option<u64>) -> Self {
+        self.nodes = nodes;
+        self
+    }
+
+    /// Returns the bounds with another bound on records.
+    #[must_use]
+    pub const fn with_records(mut self, records: Option<u64>) -> Self {
+        self.records = records;
+        self
+    }
+
+    /// Returns the bounds with another bound on the edits kept.
+    #[must_use]
+    pub const fn with_log(mut self, log: Option<u64>) -> Self {
+        self.log = log;
+        self
+    }
+
+    /// Returns the bounds with another bound on bytes.
+    #[must_use]
+    pub const fn with_bytes(mut self, bytes: Option<u64>) -> Self {
+        self.bytes = bytes;
+        self
+    }
+}
+
+impl Default for WorkspaceLimits {
+    /// Returns the default bounds, each a named constant.
+    fn default() -> Self {
+        Self {
+            nodes: Some(Self::DEFAULT_NODES),
+            records: Some(Self::DEFAULT_RECORDS),
+            log: Some(Self::DEFAULT_LOG),
+            bytes: Some(Self::DEFAULT_BYTES),
+        }
+    }
+}
+
+/// What a [`Refusal::Workspace`] counts.
+#[non_exhaustive]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "serialize",
+    derive(Serialize),
+    serde(rename_all = "snake_case")
+)]
+pub enum Held {
+    /// Nodes alive.
+    Nodes,
+    /// Records of runs kept.
+    Records,
+    /// Edits in the log, of a document read.
+    Log,
+    /// Bytes of the values held.
+    Bytes,
+}
+
+impl Held {
+    /// Returns the settings key of its bound.
+    pub const fn setting(self) -> &'static str {
+        match self {
+            Self::Nodes => "limits.workspace.nodes",
+            Self::Records => "limits.workspace.records",
+            Self::Log => "limits.workspace.log",
+            Self::Bytes => "limits.workspace.bytes",
+        }
+    }
+
+    /// Returns its name in the plural, for a message.
+    const fn plural(self) -> &'static str {
+        match self {
+            Self::Nodes => "nodes",
+            Self::Records => "records",
+            Self::Log => "edits",
+            Self::Bytes => "bytes",
         }
     }
 }
@@ -505,6 +643,17 @@ pub enum Refusal {
         /// The bound, [`Limits::table_atoms`].
         limit: u64,
     },
+    /// A workspace would hold more than a bound of
+    /// [`Limits::workspace`] allows.
+    #[non_exhaustive]
+    Workspace {
+        /// What is counted.
+        what: Held,
+        /// The count.
+        count: u64,
+        /// The bound.
+        limit: u64,
+    },
     /// A count passes what a representation's indices can name, whatever
     /// the bounds say.
     #[non_exhaustive]
@@ -531,6 +680,7 @@ impl Refusal {
             Self::Pixels { .. } => "too_many_pixels",
             Self::Elimination { .. } => "elimination_limit",
             Self::Atoms { .. } => "too_many_atoms",
+            Self::Workspace { .. } => "workspace_limit",
             Self::Index { .. } => "index_limit",
         }
     }
@@ -545,6 +695,7 @@ impl Refusal {
             Self::Output { .. } => Some("limits.derivation_bytes"),
             Self::Work { .. } => Some("limits.work"),
             Self::Atoms { .. } => Some("limits.table_atoms"),
+            Self::Workspace { what, .. } => Some(what.setting()),
             Self::Pixels { .. } => Some("styles.png.pixels"),
             Self::Elimination {
                 what: Bound::Steps, ..
@@ -661,6 +812,11 @@ impl Display for Refusal {
                  allows",
                 counted(*atoms, "atom", "atoms"),
                 counted(*limit, "atom", "atoms")
+            ),
+            Self::Workspace { what, count, limit } => write!(
+                f,
+                "the workspace would hold {count} {}, more than the limit of {limit}",
+                what.plural()
             ),
             Self::Index { what, count, most } => write!(
                 f,

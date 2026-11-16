@@ -129,6 +129,10 @@ impl Serialize for Details<'_> {
             }
             Partition { reason } => entries!(s; "reason" => reason),
             NotCutFree => entries!(s),
+            NotApplicable { operation, reason } => {
+                entries!(s; "operation" => operation; "reason" => reason)
+            }
+            NotGiven { node } => entries!(s; "node" => node),
             ClaimFails { claim, reason } => entries!(s; "claim" => claim; "reason" => reason),
             NoEngine { fragment, mode } | OrderedFragment { fragment, mode } => {
                 entries!(s; "fragment" => fragment; "mode" => mode)

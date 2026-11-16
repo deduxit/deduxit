@@ -288,6 +288,9 @@ struct Statement<'a> {
     sequent: &'a Sequent,
     /// The mode it is claimed in.
     mode: Mode,
+    /// The sequent as typed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    text: Option<&'a str>,
 }
 
 /// Reads a statement: its one-sided sequent and its mode. An
@@ -305,7 +308,20 @@ fn statement(value: &str, limits: &Limits) -> Result<(Sequent, Mode), Error> {
 
 /// Writes a statement.
 pub(super) fn write_statement(sequent: &Sequent, mode: Mode) -> Result<String, Error> {
-    written(&Statement { sequent, mode })
+    typed_statement(sequent, mode, None)
+}
+
+/// Writes a statement with the text it was typed as.
+pub(super) fn typed_statement(
+    sequent: &Sequent,
+    mode: Mode,
+    text: Option<&str>,
+) -> Result<String, Error> {
+    written(&Statement {
+        sequent,
+        mode,
+        text,
+    })
 }
 
 /// The key that tells a session's document from a proof's.

@@ -66,6 +66,9 @@ mod ordinary;
 mod rules;
 mod shared;
 
+#[cfg(test)]
+pub(crate) use ordinary::write_statement as ordinary_statement;
+
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
@@ -258,7 +261,7 @@ impl Produced {
 
 /// How a check ended.
 #[non_exhaustive]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Status {
     /// Made, and it holds.
@@ -278,7 +281,7 @@ pub enum Status {
 
 /// A verdict, in the words every suite shares.
 #[non_exhaustive]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Verdict {
     /// Valid, or proved.
@@ -291,10 +294,10 @@ pub enum Verdict {
 
 /// A part of a check.
 #[non_exhaustive]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, serde::Deserialize)]
 pub struct Part {
     /// What it is: `sequent`, `translation`, `atoms`, `first`.
-    pub name: &'static str,
+    pub name: String,
     /// Whether it holds.
     pub status: Status,
     /// The verdict it rests on, where it rests on one.
@@ -304,10 +307,10 @@ pub struct Part {
 
 /// The check of what an operation promised of its output.
 #[non_exhaustive]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, serde::Deserialize)]
 pub struct Check {
     /// The promise checked.
-    pub promise: &'static str,
+    pub promise: String,
     /// The result.
     pub status: Status,
     /// Its parts, where it has several.
@@ -316,9 +319,9 @@ pub struct Check {
 
 impl Check {
     /// Returns a check with no parts.
-    const fn whole(promise: &'static Promise, status: Status) -> Self {
+    fn whole(promise: &'static Promise, status: Status) -> Self {
         Self {
-            promise: promise.name,
+            promise: promise.name.to_owned(),
             status,
             parts: Vec::new(),
         }
@@ -335,7 +338,7 @@ impl Check {
             Status::Held
         };
         Self {
-            promise: promise.name,
+            promise: promise.name.to_owned(),
             status,
             parts,
         }
@@ -634,6 +637,47 @@ fn takes(call: &Call<'_>, kind: &str) -> Result<(), Error> {
     }
 }
 
+/// Returns the statement of a sequent typed in a suite's syntax, the value
+/// a workspace's sequent holds: `suite` is `ordinary` with `parameter` a
+/// logic, or `linear` with `parameter` a mode, whose intuitionistic modes
+/// read the sequent two-sided in the syntax of intuitionistic linear logic.
+/// The text is kept beside the sequent as typed.
+///
+/// # Errors
+///
+/// An unknown suite, logic or mode, the parser's error, and a sequent past
+/// `limits.occurrences`.
+pub fn statement(
+    suite: &str,
+    text: &str,
+    parameter: &str,
+    limits: &Limits,
+) -> Result<String, Error> {
+    match suite {
+        "ordinary" => {
+            let logic: crate::ordinary::Logic = parameter.parse()?;
+            let sequent = crate::ordinary::Sequent::parse_within(text, limits)?;
+            ordinary::typed_statement(&sequent, logic, Some(text))
+        }
+        "linear" => {
+            let mode: crate::linear::Mode = parameter.parse()?;
+            let sequent = if mode.is_intuitionistic() && !mode.is_ordered() {
+                crate::linear::IllSequent::parse_within(text, limits)?.into_sequent()
+            } else if mode.is_ordered() {
+                crate::linear::Sequent::parse_ordered(text, mode.order(), limits)?
+            } else {
+                crate::linear::Sequent::parse_within(text, limits)?
+            };
+            linear::typed_statement(&sequent, mode, Some(text))
+        }
+        _ => Err(Error::UnknownName {
+            what: "suite",
+            name: suite.into(),
+            known: &["linear", "ordinary"],
+        }),
+    }
+}
+
 /// Refuses a call with another number of inputs than its operation takes.
 fn arity(call: &Call<'_>) -> Result<(), Error> {
     let takes = call.operation.from.len();
@@ -763,7 +807,7 @@ fn part(name: &'static str, verdict: Verdict, expected: Verdict) -> Part {
         _ => Status::Failed,
     };
     Part {
-        name,
+        name: name.to_owned(),
         status,
         verdict: Some(verdict),
     }
@@ -789,12 +833,12 @@ fn same_verdict(
         promise,
         vec![
             Part {
-                name: names[0],
+                name: names[0].to_owned(),
                 status: status(verdicts[0]),
                 verdict: Some(verdicts[0]),
             },
             Part {
-                name: names[1],
+                name: names[1].to_owned(),
                 status: status(verdicts[1]),
                 verdict: Some(verdicts[1]),
             },

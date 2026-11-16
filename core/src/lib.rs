@@ -369,6 +369,8 @@ mod serialize;
 pub mod settings;
 #[cfg(feature = "serialize")]
 pub mod wire;
+#[cfg(feature = "protocol")]
+pub mod workspace;
 
 #[cfg(feature = "parse")]
 pub use errors::ParseError;
