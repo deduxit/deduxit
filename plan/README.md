@@ -7326,3 +7326,21 @@ move (D26).
 - 2026-11-16, about 15:20: **Step 63g complete**: the client's chain (`qtlzrsyv` to `xwvkwlsl`) and
   its lock update (`koqworoq`) are on the client's `main` after its flake check passed. Every step
   of 0.5.0 is in; 64 (the release, `local_b8490613`) prepares it.
+- 2026-11-16, 15:35: **65b reviewed and held for the tag; 65c started.**
+  - **65b** (`mzxntwlm` to `lzrknpwx`, on top of 65a's held chain, rebased onto `usvtvqyn`):
+    `modal::decide` in all fifteen systems: a labelled tableau whose "valid" is a derivation in
+    the system's labelled calculus (`modal::calculus`) checked by step 60's checker, whose "not
+    valid" is a Kripke model meeting the frame conditions, checked (dropped past `MODEL_CELLS`,
+    the verdict then resting on the search's arguments, as in the ordinary suite); a user's
+    model checked (`frame_fault`, `truth`); the outcome's JSON at level 20 with
+    `Outcome::check`; three fuzz targets built. The panel: counterexamples (630 150 decisions,
+    750 000 model checks, 120 691 derivation mutants after the fixes) found no unsound answer
+    but runaway cost in K4, KD4 and S4, answered by blocking by any earlier world (departs from
+    the design); argument found every rule and the five "(ours)" arguments sound, and an
+    unchecked tie between a read-back derivation and its sequent (fixed); integers found four
+    bounds that did not hold (all fixed). fresh-reviewer (Fable) seven findings, all held.
+    Gate and `nix flake check` passed.
+  - **Decided for the author:** KD4 offered with its known cost on some sequents (65b's
+    recommendation; a cache of world signatures in `later.md`).
+  - **65c** (the command, the protocol's registration, the exports, the schema) started on top
+    of the held chain; it builds `--system S4` as proposed, the author asked.

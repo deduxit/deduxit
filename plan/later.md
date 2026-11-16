@@ -2744,3 +2744,14 @@ now in (3 166 704 bytes before, 3 670 553 after, +16 %). Measure what came in wi
 behind the calls the page uses) and step 47's answer, a module per suite loaded lazily
 (web-front-end-4), whose trigger this is close to. Also from 63g-c's trial: a busy state on the
 workspace panel's Undo (it seemed to do nothing for seconds).
+
+## KD4's cost: a cache of world signatures across branches (65b, 2026-11-16)
+
+The modal search decides all fifteen systems; in KD4 alone the panel found sequents of a few
+dozen nodes that are not valid and take tens of millions of units or more memory than the default
+bound (S4 and KD45 decide them at once): `⊢ ◇((q → (◇⊤ ↔ ⊥)) → □□(p → q)), (◇¬◇(s ↔ q) → ⊤) →
+◇(((p ↔ □□s) ∧ ◇(◇s ↔ ◇q)) ↔ s)` in 20.5 million units. Termination and soundness hold; the
+cost is the branching where a system has neither reflexivity nor a cluster and `Ser` makes a
+world at every dead end. The answer is a cache of the verdicts of world signatures across
+branches ("global caching", Goré and Nguyen's tableaux for K4-like logics, not yet read), for
+when a user meets it. KD4 is offered with the rest (the author's yes to all fifteen).

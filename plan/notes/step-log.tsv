@@ -55,7 +55,8 @@ baseline-prep	small	opus-5-5	high	reviewer	local_739ba359	2026-11-15 18:20	2026-
 63g-b	large	opus-5-5	high	reviewer (fable)	local_b8490613	2026-11-16 11:55	2026-11-16 13:35	the workspace library and command
 63	step	-	-	-	-	-	2026-11-16 11:58	complete: the suites' protocol, Learn and Practice by suite
 65a	design	fable-5-2	high	reviewer (opus)	local_fe155f72	2026-11-16 12:03	2026-11-16 13:00	modal logics: the design and the arena
-65b	panel	opus-5-5	high	panel (counterexamples opus, argument fable, integers sonnet), reviewer (fable)	local_fe155f72	2026-11-16 13:05		the modal search and its panel
+65b	panel	opus-5-5	high	panel (counterexamples opus, argument fable, integers sonnet), reviewer (fable)	local_fe155f72	2026-11-16 13:05	2026-11-16 15:25	the modal search and its panel
 63g-c	client	opus-5-5	high	reviewer (fable), frontend-design, education skills, first-time tester	local_b8490613	2026-11-16 13:45	2026-11-16 14:50	the workspace graph on the page
 63g	step	-	-	-	-	-	2026-11-16 14:55	complete: the workspace graph
 64	release	opus-5-5	high	reviewer	local_b8490613	2026-11-16 15:00		the 0.5.0 release, prepared
+65c	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-16 15:35		modal logic in the command
