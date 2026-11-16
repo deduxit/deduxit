@@ -269,9 +269,10 @@ pub enum Kernel {
 /// The version of deduxit's Rocq library the certificates of its kernel
 /// are written for. The library is the package `rocq-deduxit` of the
 /// repository <https://github.com/deduxit/rocq-deduxit>, logical root
-/// `Deduxit`, its linear logic under `Deduxit.Linear`. It builds with
+/// `Deduxit`, its linear logic under `Deduxit.Linear` and its modal logic
+/// under `Deduxit.Modal`. It builds with
 /// Rocq 9 and its standard library.
-pub const DEDUXIT: &str = "0.4.0";
+pub const DEDUXIT: &str = "0.6.0";
 
 /// The prelude of a one-sided certificate for deduxit's library: the
 /// imports of its soundness theorems, and of lists and strings, whose

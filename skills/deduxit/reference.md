@@ -1873,7 +1873,7 @@ Without Nix, compile the certificate with the kernel on the load path:
 Rocq prints nothing for a certificate it accepts. `rocq-deduxit` is not
 yet in opam's archive: build it from its repository, or pin it with opam
 at the tag of the version `deduxit::export::rocq::DEDUXIT` names
-(`v0.4.0` for deduxit 0.5.0).
+(`v0.6.0` for deduxit 0.6.0).
 
 ### Kernels
 
