@@ -483,10 +483,22 @@ fn shown(workspace: &Workspace, nodes: &[NodeId], output: Option<&Path>) -> Resu
                     write!(text, " {key}={value}")?;
                 }
             }
-            if let Some(check) = view.check {
+            if let Some(check) = view
+                .check
+                .filter(|check| check.status != protocol::Status::None)
+            {
                 write!(text, "; check: {}", status_word(check.status))?;
             }
             text.push('\n');
+        }
+        if let Some(deduxit::workspace::End::Limit(limit)) = view.end {
+            match limit.setting {
+                Some(setting) => writeln!(
+                    text,
+                    "   not decided: the run stopped at its bound {setting}"
+                )?,
+                None => writeln!(text, "   not decided: the run stopped at {}", limit.reason)?,
+            }
         }
         let state = match view.state {
             State::Given | State::Current => None,
@@ -508,6 +520,9 @@ fn shown(workspace: &Workspace, nodes: &[NodeId], output: Option<&Path>) -> Resu
         if let Some(state) = state {
             writeln!(text, "   {state}")?;
         }
+    }
+    if text.is_empty() && workspace.nodes().next().is_none() {
+        text.push_str("the workspace holds no node");
     }
     io::write(output, text.trim_end())?;
     Ok(Status::Yes)
