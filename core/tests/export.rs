@@ -2757,3 +2757,54 @@ fn fitch_shows_a_hypothesis_used_twice_once() {
     let drawing = deduxit::rules::Drawing::new(&nj, &derivation, &Limits::default()).unwrap();
     assert_eq!(drawing.nodes().len(), 4);
 }
+
+/// A session's derived line cited twice is one node: the Fitch proof
+/// shows it once and cites it twice, the tree draws it under each parent.
+#[test]
+fn a_line_cited_twice_is_one_fitch_line() {
+    let nj: deduxit::rules::Calculus = deduxit::wire::upgrade(
+        &mut serde_json::Deserializer::from_str(deduxit::rules::NJ),
+        &Limits::default(),
+    )
+    .unwrap();
+    // What `interact --calculus NJ` writes after `apply 0 →I`, three
+    // `derive`s, `apply 1 ∧I` and both goals closed by line 4.
+    let derivation: deduxit::rules::Derivation = deduxit::wire::upgrade(
+        serde_json::json!({
+            "version": 15, "calculus": "NJ",
+            "terms": ["a", "b", ["∧", 0, 1], ["∧", 1, 0], ["∧", 3, 3], ["→", 2, 4]],
+            "scopes": [0],
+            "nodes": [
+                {"sequent": [[2]], "hypothesis": true, "scope": 1},
+                {"sequent": [[1]], "rule": "∧E₂", "premises": [0], "scope": 1},
+                {"sequent": [[2]], "hypothesis": true, "scope": 1},
+                {"sequent": [[0]], "rule": "∧E₁", "premises": [2], "scope": 1},
+                {"sequent": [[3]], "rule": "∧I", "premises": [1, 3], "scope": 1},
+                {"sequent": [[4]], "rule": "∧I", "premises": [4, 4], "scope": 1},
+                {"sequent": [[5]], "rule": "→I", "premises": [5]}
+            ]
+        }),
+        &Limits::default(),
+    )
+    .unwrap();
+    derivation
+        .check(&nj, &Limits::default(), |_| false)
+        .unwrap();
+    let options = deduxit::rules::FitchOptions::default();
+    let fitch = deduxit::rules::Fitch::new(&nj, &derivation, &options, &Limits::default()).unwrap();
+    assert_eq!(
+        fitch.to_string(),
+        "\
+1 │ │ a ∧ b
+  │ ├───
+2 │ │ b                       ∧E₂ 1
+3 │ │ a                       ∧E₁ 1
+4 │ │ b ∧ a                   ∧I 2, 3
+5 │ │ (b ∧ a) ∧ b ∧ a         ∧I 4, 4
+6 │ a ∧ b → (b ∧ a) ∧ b ∧ a   →I 1–5
+"
+    );
+    let drawing = deduxit::rules::Drawing::new(&nj, &derivation, &Limits::default()).unwrap();
+    let shared = drawing.nodes().filter(|node| node.index() == 4).count();
+    assert_eq!((drawing.nodes().len(), shared), (12, 2));
+}
