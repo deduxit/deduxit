@@ -5,33 +5,27 @@ $ deduxit check --format svg
 --- status 0
 --- stdout
 <!-- valid in the calculus given (NK): a, a derivation of 4 nodes from 1 assumption -->
-<svg xmlns="http://www.w3.org/2000/svg" role="img" width="145.216" height="75.2" viewBox="0 0 9076 4700" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="125.872" height="75.2" viewBox="0 0 7867 4700" font-family="'Euler Math', 'Neo Euler', serif" font-size="1000" fill="black">
 <title>a</title>
-<desc>1. [¬¬a]¹, by hypothesis.
-2. [¬a]², by hypothesis.
+<desc>1. ¬¬a, by hypothesis.
+2. [¬a]¹, by hypothesis.
 3. ⊥, by ¬E from 1 and 2.
 4. a, by RAA from 3.</desc>
 <g fill="none" stroke="black" stroke-width="40">
-<path d="M3310 3100H4184"/>
-<path d="M300 1600H7195"/>
+<path d="M2846 3100H3720"/>
+<path d="M300 1600H6266"/>
 </g>
-<text x="3443" y="4190" textLength="609" lengthAdjust="spacing" id="i3">𝑎</text>
+<text x="2979" y="4190" textLength="609" lengthAdjust="spacing" id="i3">𝑎</text>
 <g font-size="800">
-<text x="4384" y="3300" textLength="1719" lengthAdjust="spacing">RAA</text>
-<text x="6103" y="2980" textLength="279" lengthAdjust="spacing" font-size="560">2</text>
+<text x="3920" y="3300" textLength="1719" lengthAdjust="spacing">RAA</text>
+<text x="5639" y="2980" textLength="279" lengthAdjust="spacing" font-size="560">1</text>
 </g>
-<text x="3310" y="2690" textLength="874" lengthAdjust="spacing" id="i2">⊥</text>
-<g font-size="800">
-<text x="7395" y="1800" textLength="1101" lengthAdjust="spacing">¬E</text>
-<text x="8496" y="1480" textLength="280" lengthAdjust="spacing" font-size="560">1</text>
-</g>
-<g id="i0">
-<text x="300" y="1190" textLength="2735" lengthAdjust="spacing">[¬¬𝑎]</text>
-<text x="3035" y="790" textLength="349" lengthAdjust="spacing" font-size="700">1</text>
-</g>
+<text x="2846" y="2690" textLength="874" lengthAdjust="spacing" id="i2">⊥</text>
+<text x="6466" y="1800" textLength="1101" lengthAdjust="spacing" font-size="800">¬E</text>
+<text x="300" y="1190" textLength="2155" lengthAdjust="spacing" id="i0">¬¬𝑎</text>
 <g id="i1">
-<text x="4884" y="1190" textLength="1962" lengthAdjust="spacing">[¬𝑎]</text>
-<text x="6846" y="790" textLength="349" lengthAdjust="spacing" font-size="700">2</text>
+<text x="3955" y="1190" textLength="1962" lengthAdjust="spacing">[¬𝑎]</text>
+<text x="5917" y="790" textLength="349" lengthAdjust="spacing" font-size="700">1</text>
 </g>
 </svg>
 --- stderr

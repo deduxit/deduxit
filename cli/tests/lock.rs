@@ -696,6 +696,17 @@ const CASES: &[Case] = &[
         NATURAL,
     ),
     piped(
+        "check-natural-fitch-style",
+        &[
+            "check",
+            "--layout",
+            "fitch",
+            "--style",
+            "fitch.hypothesis=Hyp",
+        ],
+        NATURAL,
+    ),
+    piped(
         "check-natural-fitch-typst",
         &["check", "--layout", "fitch", "--format", "typst"],
         NATURAL,
