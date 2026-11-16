@@ -285,7 +285,8 @@ fn a_right_tableau_reads_as_written() {
 fn faults_on_odd_input_are_said_not_panicked() {
     // A number past 2³² after a wide space, a first line that cites one
     // with a sequent given, a formula cut short before its line's end.
-    let refused = WrittenTableau::parse_within("1 T p\n2 F p\n×\u{3000}99999999999\n", &Limits::default());
+    let refused =
+        WrittenTableau::parse_within("1 T p\n2 F p\n×\u{3000}99999999999\n", &Limits::default());
     assert!(matches!(refused, Err(Error::Parse(_))));
     let tableau: WrittenTableau = "1 T p 1\n".parse().unwrap();
     let sequent: Sequent = "p |- p".parse().unwrap();
@@ -293,9 +294,10 @@ fn faults_on_odd_input_are_said_not_panicked() {
         .review(&calculus(), Some(&sequent), &Limits::default(), |_| false)
         .unwrap();
     assert_eq!(cited.standing, Standing::Wrong);
-    let Err(Error::Parse(error)) =
-        WrittenTableau::parse_within("1 T p /\\ q\n2 F p\n3 T p /\\ 1\n4 T q 1\n", &Limits::default())
-    else {
+    let Err(Error::Parse(error)) = WrittenTableau::parse_within(
+        "1 T p /\\ q\n2 F p\n3 T p /\\ 1\n4 T q 1\n",
+        &Limits::default(),
+    ) else {
         panic!("read")
     };
     assert_eq!(error.line, 3);

@@ -17,8 +17,8 @@ use deduxit::export::{latex, rocq, svg, typst};
 use deduxit::ordinary::interpolant::{self, Partition};
 use deduxit::ordinary::negative;
 use deduxit::ordinary::{
-    self, Applicable, Context, Interactive, Logic, Method, Needs, NodeId, Rule, Sequent, Side, Step,
-    WrittenTableau,
+    self, Applicable, Context, Interactive, Logic, Method, Needs, NodeId, Rule, Sequent, Side,
+    Step, WrittenTableau,
 };
 use deduxit::{Progress, Settings, linear::GoalId, wire};
 use serde::{Deserialize, Serialize};

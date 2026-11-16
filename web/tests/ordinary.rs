@@ -395,7 +395,8 @@ fn a_sequent_is_decided_by_its_table_or_a_tableau() {
 /// a text that is no tableau is refused as a parse error placed in it.
 #[wasm_bindgen_test(unsupported = test)]
 fn a_tableau_written_by_hand_is_reviewed() {
-    let closed = "1 T p \\/ q\n2 F q \\/ p\n3 F q 2\n4 F p 2\n- 5 T p 1\n  × 4, 5\n- 6 T q 1\n  × 3, 6\n";
+    let closed =
+        "1 T p \\/ q\n2 F q \\/ p\n3 F q 2\n4 F p 2\n- 5 T p 1\n  × 4, 5\n- 6 T q 1\n  × 3, 6\n";
     let review = value(&ordinary::tableau_review(closed, "p \\/ q |- q \\/ p", "").unwrap());
     assert_eq!(review["version"], 14);
     assert_eq!(review["standing"], "closed");
@@ -409,7 +410,10 @@ fn a_tableau_written_by_hand_is_reviewed() {
     let wrong = "1 T p /\\ q\n2 F p\n3 T p 1\n4 T r 1\n";
     let review = value(&ordinary::tableau_review(wrong, "", "").unwrap());
     assert_eq!(review["standing"], "wrong");
-    assert_eq!((review["text_line"].clone(), review["line"].clone()), (json!(4), json!(4)));
+    assert_eq!(
+        (review["text_line"].clone(), review["line"].clone()),
+        (json!(4), json!(4))
+    );
     let other = value(&ordinary::tableau_review(closed, "p |- p", "").unwrap());
     assert_eq!(other["standing"], "wrong");
     let refused = ordinary::tableau_review("1 T p\n   2 F q\n", "", "").unwrap_err();

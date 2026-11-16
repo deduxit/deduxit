@@ -1314,11 +1314,7 @@ impl Serialize for crate::ordinary::TableauReview {
             line: self.line,
             message: &self.message,
             countermodel: self.countermodel.as_ref().map(|c| CountermodelForm {
-                sequent: SequentForm::of(
-                    c.sequent.formulas(),
-                    c.sequent.left(),
-                    c.sequent.right(),
-                ),
+                sequent: SequentForm::of(c.sequent.formulas(), c.sequent.left(), c.sequent.right()),
                 model: super::kripke::ModelForm::from(&c.model),
             }),
         }

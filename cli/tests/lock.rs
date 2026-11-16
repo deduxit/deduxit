@@ -48,7 +48,8 @@ const fn piped(name: &'static str, args: &'static [&'static str], stdin: &'stati
 }
 
 /// A closed tableau written as a list.
-const TABLEAU_CLOSED: &str = "1 T p \\/ q\n2 F q \\/ p\n3 F q 2\n4 F p 2\n- 5 T p 1\n  × 4, 5\n- 6 T q 1\n  × 3, 6\n";
+const TABLEAU_CLOSED: &str =
+    "1 T p \\/ q\n2 F q \\/ p\n3 F q 2\n4 F p 2\n- 5 T p 1\n  × 4, 5\n- 6 T q 1\n  × 3, 6\n";
 /// An open tableau, drawn as `prove --method tableau` prints one.
 const TABLEAU_OPEN: &str = "1  T a → b\n2  F b → a\n3  T b      →R 2\n4  F a      →R 2\n├─ 5  F a   →L 1\n│  open\n└─ 6  T b   →L 1\n   open\n";
 /// A proof of `A * B |- B * A`, as `prove --format json` writes it.
@@ -850,7 +851,11 @@ const CASES: &[Case] = &[
         NATURAL,
     ),
     piped("check-natural-svg", &["check", "--format", "svg"], NATURAL),
-    piped("check-tableau-closed", &["check", "--tableau"], TABLEAU_CLOSED),
+    piped(
+        "check-tableau-closed",
+        &["check", "--tableau"],
+        TABLEAU_CLOSED,
+    ),
     piped(
         "check-tableau-open",
         &["check", "--tableau", "--sequent", "a -> b |- b -> a"],
@@ -871,7 +876,11 @@ const CASES: &[Case] = &[
         &["check", "--tableau"],
         "1 T p \\/ q\n2 F p\n",
     ),
-    piped("check-tableau-layout", &["check", "--tableau"], "1 T p\n   2 F q\n"),
+    piped(
+        "check-tableau-layout",
+        &["check", "--tableau"],
+        "1 T p\n   2 F q\n",
+    ),
     piped(
         "interact-calculus",
         &["interact", "--calculus", "LK", "a /\\ b |- b /\\ a"],

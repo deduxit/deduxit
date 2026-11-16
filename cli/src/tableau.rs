@@ -10,8 +10,8 @@ use crate::limit::Deadline;
 use crate::show::{Show, Shown};
 use crate::{Status, interrupted};
 use anyhow::{Result, bail};
-use deduxit::ordinary::{self, Standing, WrittenTableau};
 use deduxit::Error;
+use deduxit::ordinary::{self, Standing, WrittenTableau};
 
 /// Runs `check --tableau`: reads the tableau's text, reviews it against
 /// the built-in rule file of the tableau and, where `--sequent` is given,
