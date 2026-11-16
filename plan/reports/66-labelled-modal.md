@@ -1,5 +1,257 @@
 # Step 66: the labelled modal calculus step by step, and its soundness in Rocq
 
+## Session 66a: the calculus step by step
+
+Opus 5.5 at `high`, a reused worker (the conversation of 54x6), in the
+jj workspace `../deduxit-wt-step-58a-610ed3`, from the brief
+`start-66a.md` and `plan/66-labelled-modal.md`, on 2026-11-16, cores 7
+to 9. The chain on `main@origin`:
+
+| change | what |
+|---|---|
+| `zqmrqlxq` | `[]` and `<>` read as `□` and `◇` in a calculus's text |
+| `zuzplnsw` | `rules::Interactive::extend`, `rules::Calculus::contexts`, the command's `derive` in a sequent calculus, the random walks over the fifteen calculi, the rules files |
+| `zlzplptt` | the behaviour lock: `interact-calculus-labelled` |
+| `vyxlvxry` | the manual ("Prove step by step" in the modal chapter, `rules.md`), the guide, the status, the changelog |
+| `zpmqyopq` | `plan/notes/labelled-certificate.md`, the certificate's design for 66b |
+
+### The spellings
+
+`rules::text`'s ASCII table gains `[]` for `□` and `<>` for `◇`, read
+where the calculus declares the symbol and not the spelling, as `->`
+is. Every place a labelled formula is read goes through that lexer: a
+session's sequent and its `NAME=TEXT` values, `--assume`, and the
+bindings' `rules_start`. `<>` and `<->` do not meet: the longest match
+reads `<->` whole.
+
+### The sessions, and what is refused
+
+Backward steps worked already (`interact --calculus G3S4`, 65c). Forward
+steps did not: 62b's lines are hypothesis and derived-line nodes, which
+a sequent calculus never has (no rule discharges, no assumption is
+given apart from the sequent), and its `derive` refuses every rule with
+contexts, so every labelled rule was refused forwards.
+
+What reads forwards in a labelled calculus is the left rules and the
+frame rules: every rule of `modal::calculus` keeps its principal
+formula and its contexts are the whole zones, so a one-premise rule
+whose premise only adds before `⊢` is forward reasoning on the goal's
+hypotheses. `L□` derives `y : A` from `x : □A` and `x R y`, `Trans`
+derives `x R z` from `x R y` and `y R z`, the relational atoms being
+hypotheses like the labelled formulas (the brief's "relational atoms as
+lines too"). So:
+- **`rules::Interactive::extend(goal, &Apply)`** plans the rule's
+  backward step on the goal as `apply` does and takes it only where its
+  one premise is the goal with members added to the first zone, every
+  member kept; the node, the derivation and the JSON are `apply`'s, so
+  no wire level changes. It answers the goal that holds the new members.
+- **The command's `derive G RULE N…`** calls it in a calculus that
+  declares contexts (`rules::Calculus::contexts`, new), reading N… as
+  the goal's member numbers as `goals` prints them, and writes the new
+  goal and an `added N: MEMBER` line per member added. In a calculus
+  without contexts (natural deduction) `derive` is 62b's, unchanged.
+- **The frame rules in both directions**: backwards with `apply` on any
+  goal, forwards with `derive` from the relational atoms they need
+  (`Sym`, `Trans`, `Eucl`) or from none (`Ref`, `Ser`, the label given
+  as `x=w0`, a new one made for `Ser`'s `y` as backwards).
+- **Refused forwards, each with its reason**: a rule with two premises
+  (`R∧`, `L∨`, `L→`, `L↔`, `R↔`: "a forward step keeps one goal"), one
+  with none (`ax`, `L⊥`, `R⊤`: it closes a goal), one that acts on a
+  member after `⊢` (every right rule: "acts on members after ⊢"; `R¬`'s
+  premise adds only before `⊢`, so without this test it passed, the
+  reviewer's finding), one that adds after `⊢` (`L¬`), and a step that
+  adds nothing the goal holds already. Each says "apply it backwards to
+  the goal" but the last, whose step would change nothing.
+  `forward_steps_are_the_rules_that_add_hypotheses` pins the set in each
+  of the fifteen calculi (`L∧`, `L□`, `L◇` and the system's frame
+  rules), on a goal where `R¬` and `R→` would add a new hypothesis; it
+  fails without the test on the acted members.
+- **What does not carry over from 62b**: lines with stable numbers.
+  Members are numbered per goal, as `apply` numbers them, and a set
+  zone's order can change between goals, so a number names a member of
+  one goal only. `assume`/`cite` close by lines, which a sequent
+  calculus has none of; its goals close by `ax` (`apply`).
+
+The library's `derive` now names `extend` in its refusal of a rule with
+contexts. Neither item was released: `extend` and `contexts` are
+additions.
+
+**Tests** (`core/tests/rules.rs`, `random_labelled_steps_keep_a_checked_session`):
+random sessions in all fifteen calculi over seven sequents (the axioms
+K, D, T, B, 4, 5 and one of every connective, written with `[]` and
+`<>`): `apply` by what `rules` lists (closing rules first) or any rule
+on any members, `extend` by the forward rules where they apply or any
+rule on any members, `assume`, `undo`. Every state is read back through
+`wire::upgrade`, which replays and checks every step, and written to the
+same JSON; every finished state passes `finished`. Committed: two walks
+of twenty steps per sequent and system (about 36 s in release). Run
+once by hand at twelve walks of forty steps (15 × 7 × 12 sessions):
+passed in 643 s, no state refused on reading, every finished state
+checked.
+
+### The certificate's design
+
+`plan/notes/labelled-certificate.md`, for 66b. In short:
+- The lemma states the sequent **valid over the system's frame class**
+  (`valid C Γ Δ`, local consequence), the conditions as the closed set
+  deduxit's `System` holds, so the trusted base is forcing and the frame
+  conditions alone; a root that is no `w0 : Γ ⊢ w0 : Δ` is stated as
+  labelled validity (`lvalid`).
+- The proof term has a constructor per rule of the rule file, carrying
+  the principal's parts and new labels only: the calculus keeps every
+  principal formula, so a premise is the conclusion plus the rule's new
+  items, and the checker `mcheck` needs no context matching. Theorems:
+  `mcheck_sound` (to an inductive `g3`), `g3_sound` (to `lvalid`), `local`,
+  and `modal_soundness`, the root's label a parameter, which a
+  certificate applies with `vm_compute. reflexivity.`, as `soundness_ill`
+  is.
+- **It needs classical reasoning** as stated (`⊢ w0 : p ∨ ¬p` is
+  derivable, and `valid` over `Prop` valuations is then excluded middle):
+  the note recommends `Classical_Prop.classic` named in the assumptions,
+  as the classical certificates over `Prop` already are, and gives the
+  other way (a decidable or double-negation-stable forcing).
+- The exporter (66c): `rocq::write` of a `Drawable::Rules` whose calculus
+  is one of `modal::calculus`'s, the term read off the nodes' positions,
+  a shared node under a `let`, the prelude `From Deduxit.Modal Require
+  Import Check.`; a countermodel's certificate in the shape of
+  `kripke_refutation`, if 66b takes it.
+- **Where it lives**: the author chose `rocq-deduxit`, a module
+  `Deduxit.Modal` (2026-11-16, told to this session through the plan);
+  the note holds for a library of its own too.
+
+### The page
+
+65d (modal logic on the page) had landed when this chain was rebased
+(`nqzpmrux`, "65d reviewed"), so the modal tab gains the builder here,
+in the client (`../deduxit.github.io-66a`, change `pzvwxttr` on its `main@origin` `qtwlokpn`):
+- Under a valid derivation, **"Prove it step by step"** (`modalSteps`)
+  turns the tab into a calculus given as data: the rule file the
+  bindings' `modal_calculus` gives (`G3S4`), the sequent the root of
+  the valid derivation, every compound operand bracketed
+  (`rootSequent`), started before the tab changes (a refusal is said in
+  the modal panel, which stays as it was), then shown in the custom
+  builder of 61b/62d, whose offered steps and value form take it from
+  there.
+- **No new binding**: in a sequent calculus a forward step is the same
+  node as the backward step at the same members, and the builder's
+  offered steps already list `L□` at its members, so the page needs no
+  call over `extend`.
+- Tests: `rootSequent` and real starts in G3T and G3K (a chain of `↔`,
+  `∧` grouped left) in Vitest (`src/lib/modal.test.ts`), and the e2e test "a valid sequent is proved
+  step by step in its system's labelled calculus" (`□p ⊢ p` in T: `Ref`
+  with `x` given, `L□`, `ax`, checked whole).
+
+### The checks
+
+All on cores 7 to 9, capped.
+- `cargo test --release -p deduxit --test rules`: 24 passed, the two
+  new tests among them (the walks 34 s).
+- The large sample of the walks (twelve walks of forty steps per
+  sequent and system), once, by hand: passed in 643 s.
+- `cargo test -p deduxit-cli --test readme`: the manual's three new
+  sessions and the guide, 7 passed. `--test lock` with the new call
+  `interact-calculus-labelled`, blessed in its own commit.
+- `cargo clippy --workspace --all-targets -- --deny warnings`: clean;
+  `-p deduxit --all-features` clean.
+- The gate passed three times: before the reviewer's fixes, after the
+  first round, and at the final chain.
+- The client (`pzvwxttr`): Vitest 677 and lint, and its `nix flake
+  check` under the machine lock at the final change: all checks passed,
+  the e2e suite 314 passed.
+- `nix flake check` of this chain under the machine lock: a first run
+  failed on `treefmt` alone (a file changed from the shell, formatted
+  since); at the final chain: all checks passed, the bindings' tests
+  under Node among them. Only this report changed after it.
+
+### The reviewer's findings
+
+`fresh-reviewer` (Fable 5.2, medium), once, on the five changes. Five
+findings, all answered:
+1. **`derive` with a goal past the session's nodes panicked** in a
+   calculus with contexts (`derive 7 L∧ 0`: index out of bounds, exit
+   101): the command asked the goal's members before the library refused
+   it. It now refuses an unknown goal first ("there is no open goal 7");
+   the lock call starts with that step.
+2. **`R¬` read forwards**, and `R→` where `B` stood right of `⊢`
+   already: their premises add only before `⊢`. A forward step now also
+   asks that the rule act on members before `⊢` alone, so every right
+   rule is refused; the test above pins the set, and the manual, the
+   guide, the changelog and the rules files say "acts on a member after
+   ⊢".
+3. **The note said soundness needs no classical reasoning**: false for a
+   `Prop`-valued `valid` (`⊢ w0 : p ∨ ¬p` gives excluded middle). The
+   note now says so and gives 66b the two ways, recommending `classic`
+   named in the assumptions.
+4. **The note's S4 record left out `serial`**, which the closed set has
+   and `G3S4`'s `Ser` needs: fixed, with why.
+5. **`modal_soundness` was fixed to the label `w0`**: the label is now
+   its parameter (a session's root may be at any label), and the
+   exporter's example passes it.
+
+Its second round, on the fixes and the page: the five fixed. Four more
+findings, answered in two fixes:
+6. **The page's labelled text came from the typed text** (`labelled`):
+   a chain of `<->` (the rule file's `↔` is non-associative) and an atom
+   named `R` (the calculus's relation) were refused after the tab had
+   already turned into a rules tab, the valid result lost; and `a /\ b
+   /\ c` started a session on `a ∧ (b ∧ c)`, since the calculus groups
+   `∧` right where the modal parser groups it left. The page now takes
+   the valid derivation's root, fully bracketed, and starts the session
+   before it changes the tab; a refusal (an atom named `R`) is said in
+   the modal panel.
+7. **The command's `derive` said no `added` line for a copy** in a
+   multiset zone (LK's `CL`): it now counts members as multisets.
+
+What it found sound: `extend` goes through `plan` and `commit`/`verify`
+as `apply` does and answers the one premise; a refusal leaves nodes,
+scopes and history as they were (an interned atom stays, documented);
+members past the goal or in the other zone are refused; a given label
+that is not new is refused by the checker; NJ's and NK's `derive` is
+62b's, unchanged; the rule table matches Table II and 65's departures;
+the note's account of the checker's freshness, the node positions and
+DAG derivations is right.
+
+### Departures
+
+- **Forward steps cite the goal's members, not lines** (departs from the
+  design, which said "62b's lines tried on the labelled rules"): tried,
+  62b's lines do not exist in a sequent calculus, and a member is what a
+  labelled hypothesis is. The relational atoms are cited as the
+  labelled formulas are.
+- **The certificate needs classical reasoning** (departs from the
+  linear certificates' closed assumptions): recommended `classic`
+  named, 66b decides.
+
+### What the next sessions must know
+
+- **66b (the Rocq proof)**: the note's sections 2 and 3 are the
+  library's side, `Deduxit.Modal` in `rocq-deduxit` (the author's
+  choice). Every rule keeps its principal formula and the contexts are
+  whole zones (`modal::calculus`'s doc), which is what the checker's
+  shape rests on; its departures from Table II (the axiom on any
+  formula, `L¬`, `R¬`, `R⊤`, `L↔`, `R↔`, no initial sequent on a
+  relational atom) each need their case in `g3_sound`. Negri's
+  soundness theorem is to be read in her paper (its number is not in
+  65's sources). The statement needs classical reasoning (the note's
+  section 3): with `classic` named, the library's own assumptions check
+  must let it through for the modal theorems, by name. The record a
+  certificate states is the closed set (S4 marks `serial`), and the
+  root's label is a parameter of `modal_soundness`.
+- **66c (the exporter and the check)**: the note's section 4. The
+  positions of a node follow the rule compiler's order
+  (`core-modal.md`); labels are atoms of sort `label` with the names a
+  search or a session gave (`w0`, `w1`, or `y`, `y1` in a session, since
+  a session names a new label after the rule's variable). Derivations
+  from a session are trees; a file may be a DAG.
+- **The page**: the builder is in (above). A page that wanted forward
+  steps worded as such ("from x : □p and x R y, derive y : p") would
+  mark the offered steps whose rule reads forwards; no call is needed.
+  The page writes the sequent in signs, so it does not wait for the
+  client's lock to move past this chain.
+- A refused step can still intern a new label's atom, so the next
+  label made is numbered on (`y1` after a refused `R□`): cosmetic, noted
+  in `core-modal.md`.
+
 ## Session 66b: the soundness proof
 
 Fable 5.2 at `high` (a reused worker, its conversation cleared), from
