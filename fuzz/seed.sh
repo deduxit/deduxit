@@ -23,7 +23,10 @@ seed() { # TARGET NAME: standard input into the corpus
 }
 
 i=0
-grep -v '^#' bench/problems/* | cut -d';' -f5 | sed 's/^ //' | while read -r s; do
+# The lists the commutative parser reads: the Lambek calculus's
+# divisions and the TPTP problem beside them read otherwise.
+grep -hv '^#' bench/problems/slow-tests.txt bench/problems/cyclic.txt | cut -d';' -f5 |
+  sed 's/^ //' | while read -r s; do
   [ -n "$s" ] || continue
   i=$((i + 1))
   printf '%s' "$s" | seed sequent_text "problem-$i"
@@ -94,9 +97,9 @@ for s in 'a \/ ~a' 'a -> b, a |- b' '~~a |- a' '(a /\ b) -> (b /\ a)' \
     } | seed ordinary_decide "small-$i-$b"
   done
 done
-# Modal sequents: the text, and for modal_decide the first byte the
-# system (an index of System::ALL: 0 is K, 8 S4, 14 S5). json_modal has
-# no seed until the command writes modal documents.
+# Modal sequents: the text, for modal_decide the first byte the system
+# (an index of System::ALL: 0 is K, 8 S4, 14 S5), and for json_modal the
+# outcomes the command writes in K and S4, valid and not.
 for s in '[]p -> [][]p' '[](p -> q) -> []p -> []q' '<>p |- []<>p' '[]p, <>q |- <>(p /\ q)' \
   '|- []p \/ ~[]p' '[]([]p -> p) -> []p' '<>[]p <-> []<>p'; do
   i=$((i + 1))
@@ -107,6 +110,15 @@ for s in '[]p -> [][]p' '[](p -> q) -> []p -> []q' '<>p |- []<>p' '[]p, <>q |- <
       printf '%s' "$s"
     } | seed modal_decide "small-$i-$b"
   done
+  for system in K S4; do
+    { "$deduxit" prove --system "$system" --format json "$s" || true; } |
+      seed json_modal "small-$i-$system"
+  done
+done
+# The modal documents the wire level's test keeps: a sequent and an
+# outcome of each verdict.
+grep -E '^[a-z-]+: ' core/tests/wire/level-20.txt | while read -r name json; do
+  printf '%s' "$json" | seed json_modal "${name%:}"
 done
 # The built-in rule files, and the derivations and rule file the wire
 # level's test keeps.

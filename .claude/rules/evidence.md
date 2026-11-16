@@ -125,9 +125,13 @@ browser or a stranger's file would.
   a printed sequent parses back, a correct structure sequentializes to a
   proof the checker accepts, a complete session's proof checks, a
   disproof writes back as a document that reads back as itself.
-- `fuzz/seed.sh` seeds the corpora from `bench/problems`, the command's
-  own JSON and the LLTP, ILTP and qcover libraries; without seeds a JSON
-  target rarely gets past the arena's consistency checks.
+- `fuzz/seed.sh` seeds the corpora from `bench/problems` (the lists the
+  commutative parser reads: `slow-tests.txt` and `cyclic.txt`; the
+  Lambek list's divisions and the TPTP file beside them stopped the
+  script), the command's own JSON (`json_modal` from `prove --system`'s
+  outcomes and `core/tests/wire/level-20.txt`) and the LLTP, ILTP and
+  qcover libraries; without seeds a JSON target rarely gets past the
+  arena's consistency checks.
 - `fuzz/run.sh` builds with debug assertions (so overflow checks are on)
   and runs libFuzzer in fork mode, which goes on past a crash, a timeout
   or an out-of-memory and keeps each under `fuzz/artifacts/TARGET/`; a
