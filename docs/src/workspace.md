@@ -86,6 +86,8 @@ redo brings back: sequent change
 
 A check that needs a search reads back from the file as `recorded`: it
 held when it was made, and `workspace check` makes every check again.
+Its exit status is the checks': 0 where all hold, 1 where one fails, 3
+where one could not be made within its node's limits.
 Undo shows again what was made before the change without running it:
 the file keeps each run, keyed by its operation, its parameters, the
 limits it ran under and its inputs. `workspace remove` removes a node

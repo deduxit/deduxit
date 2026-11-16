@@ -943,8 +943,9 @@ from them, each node with its operation, parameters and limits.
   --format json` writes one node's value, which `check` or `interact
   --state` read. `workspace check FILE` makes every check again.
 
-Exit statuses as `prove`'s: 0 valid, 1 not valid, 3 not decided, 2 an
-error or a check that failed. A node keeps the limits it was made under;
+`apply` and `run` exit as `prove` does: 0 valid, 1 not valid, 3 not
+decided, 2 an error or a check that failed. `workspace check` answers
+for the checks alone: 1 where one fails, 3 where one could not be made. A node keeps the limits it was made under;
 the file's own bounds are the settings under `limits.workspace`: its
 nodes, the runs it keeps, the edits undo keeps and the bytes of its
 values.

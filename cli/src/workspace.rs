@@ -257,11 +257,19 @@ pub(crate) fn run(command: &WorkspaceCommand, given: &Given) -> Result<Status> {
             let settings = common.settings(given)?;
             let mut workspace = load(file, &settings)?;
             let all: Vec<NodeId> = workspace.nodes().map(|view| view.id).collect();
-            let mut status = running(&mut workspace, &all, What::Check, &settings)?;
+            // The checks alone decide, never the outcomes' verdicts: 1 where
+            // one fails, 3 where one stays open, a run met its bound or the
+            // run stopped, 2 where a run was refused.
+            let mut status = match running(&mut workspace, &all, What::Check, &settings)? {
+                Status::Unknown => Status::Unknown,
+                _ => Status::Yes,
+            };
             for view in workspace.nodes() {
-                status = status.worse(match view.check.map(|check| check.status) {
-                    Some(protocol::Status::Failed) => Status::No,
-                    Some(protocol::Status::Open) => Status::Unknown,
+                status = status.worse(match (view.check.map(|check| check.status), view.end) {
+                    (Some(protocol::Status::Failed), _) => Status::No,
+                    (Some(protocol::Status::Open), _)
+                    | (_, Some(deduxit::workspace::End::Limit(_))) => Status::Unknown,
+                    (_, Some(deduxit::workspace::End::Refused(_))) => Status::Error,
                     _ => Status::Yes,
                 });
             }

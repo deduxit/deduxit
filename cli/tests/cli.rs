@@ -3363,3 +3363,39 @@ fn transformations_answer_with_their_checks() {
     assert_eq!(status, 2);
     assert!(err.contains("is no position"), "{err}");
 }
+
+/// `workspace check` answers for the checks alone: an outcome that is not
+/// valid, whose check holds, exits 0 (`apply` exits 1 for its verdict),
+/// and a run its bound stopped exits 3.
+#[test]
+fn workspace_check_answers_for_the_checks() {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("cli-workspace-check");
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("w.json");
+    let _ = std::fs::remove_file(&file);
+    let file = file.to_str().unwrap();
+    let run = |args: &[&str]| deduxit(args, "");
+    let (status, _, err) = run(&["workspace", "new", file, "|- a", "--logic", "classical"]);
+    assert_eq!(status, 0, "{err}");
+    let (status, out, err) = run(&["workspace", "apply", file, "0", "ordinary.decide"]);
+    assert_eq!(status, 1, "{out}{err}");
+    let (status, out, err) = run(&["workspace", "check", file]);
+    assert_eq!(status, 0, "{out}{err}");
+    let peirce = "|- ((a -> b) -> a) -> a";
+    let (status, _, err) = run(&["workspace", "add", file, peirce, "--logic", "classical"]);
+    assert_eq!(status, 0, "{err}");
+    let (status, out, err) = run(&[
+        "workspace",
+        "apply",
+        file,
+        "2",
+        "ordinary.decide",
+        "--set",
+        "method=embedding",
+        "--work-limit",
+        "1",
+    ]);
+    assert_eq!(status, 3, "{out}{err}");
+    let (status, out, err) = run(&["workspace", "check", file]);
+    assert_eq!(status, 3, "{out}{err}");
+}
