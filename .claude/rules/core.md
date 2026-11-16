@@ -341,10 +341,11 @@ the commit that lands it rewrites that bullet.
   `Interactive::goal`). A public list of an open enum's values (`ALL`,
   `Fragment::NAMED`) is a slice, never an array, whose length is part of
   its type and would change with a new value.
-- **The marked ones at 0.4.0** (every public enum and every struct with
-  a public field, 169 after step 63g-b's nine, each `#[non_exhaustive]`; 119 at 0.2.0 and 81 at
-  0.1.0; the closed are the seventeen above, fifteen at 0.2.0 and
-  thirteen at 0.1.0; both lists checked against
+- **The marked ones at 0.5.0** (every public enum and every struct with
+  a public field, 186, each `#[non_exhaustive]`, and `workspace::Computed`,
+  marked though its fields are private; 146 at 0.4.0, 119 at 0.2.0 and
+  81 at 0.1.0; the closed are the eighteen above, seventeen at 0.4.0,
+  fifteen at 0.2.0 and thirteen at 0.1.0; both lists checked against
   the rustdoc JSON with every feature by a script, see "The break against
   the last release" below): `Bias`, `CheckError`, `Clock`, `Counter`,
   `Criterion`, `Engine`, `Error`, `ErrorKind`, `IllSyntax`,
@@ -363,8 +364,11 @@ the commit that lands it rewrites that bullet.
   `occurrences::IllConnective`; `lambda::{Calculus, Notation, NoTerm,
   Options}` (added at step 50); `ordinary::{Evidence, Logic, Method, Options,
   Outcome, Problem, Search, Target, Translation, Verdict}` (`Evidence`
-  and `Search` added at step 54s); `ordinary::interactive::{Context,
-  Hint}`; `ordinary::ljt::{Outcome,
+  and `Search` added at step 54s); `ordinary::interactive::{Applicable,
+  Closed, Context, Hint, Needs, Step, StepError}`;
+  `ordinary::interpolant::{Interpolant, Interpolation, Partition}` and
+  `ordinary::negative::{Agreement, Comparison, Options,
+  Translation}` (added at step 63t); `ordinary::ljt::{Outcome,
   Statistics}` (added at step 54); `ordinary::sat::{Outcome,
   Statistics}` (added at step 54s); `kripke::{Model, World}`,
   `ordinary::Countermodel` (added at step 55b);
@@ -374,7 +378,9 @@ the commit that lands it rewrites that bullet.
   step 63a); `workspace::{Cause, Computed, End, NodeView, Ran, State,
   What}` and `limits::{Held, WorkspaceLimits}` (added at step 63g-b);
   `rules::{Associativity, Discipline, Fixity, Node, Term}` (added at
-  step 60), `rules::FitchOptions` (added at step 62); `proofs::{ClassicalRule,
+  step 60), `rules::FitchOptions` (added at step 62),
+  `rules::{Applicable, Apply, Derive, Undone}` (added at steps 61 and
+  62); `proofs::{ClassicalRule,
   ClassicalSides, Compact, Dyadic, Fault, Invalid, Labels, Layout, OpenGoal,
   Refused, Sides, Structural, TextOptions}` (`Layout` added at step 62);
   `proofs::interactive::{Applicable, Closed, Inverted, Needs, Options,
