@@ -169,6 +169,12 @@ in use.
   their rules. A closed tableau is a checked derivation of LK, and an
   open branch or a falsifying row a checked countermodel. The table is
   bounded at 10 atoms by default.
+- A tableau a student writes by hand, as text, is checked step by step
+  (`check --tableau`): the first step that breaks a rule is named with
+  its line and what the rule gives, a branch marked wrongly or not
+  finished is said, and a right tableau without a fault is checked
+  again as a derivation in the calculus `tableau`; an open one's branch
+  gives a checked countermodel.
 - Every "not valid" of the SAT solver comes with a Kripke countermodel,
   and in classical logic the embedding's assignment is a model of one
   world. The model is checked before the verdict, printed a world per

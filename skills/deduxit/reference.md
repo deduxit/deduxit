@@ -1123,6 +1123,31 @@ valid (classical logic by a tableau): every branch closes, a checked derivation 
    × 3, 6
 ```
 
+`check --tableau [FILE]` checks a signed tableau written by hand, as
+text: a line is a number, `T` or `F`, a formula and at its end the
+number of the line it expands (a rule's name may precede it, `T∧ 1` or
+`∧L 1`); the first lines, which expand no line, are the sequent's; a
+branch starts with `-` (or `├─`, `└─`) under the lines it goes on
+from, its lines indented after it; `× i, j` closes a branch, `open`
+leaves it open. The tableau `--method tableau` prints reads back. It
+prints `closed`, `open`, `unfinished` or `wrong tableau of SEQUENT:`
+and what it found, naming the first wrong step by its line; exit 0
+for a closed or open tableau that is right and finished, 1 for a wrong
+or unfinished one, 2 for text that is no tableau. `--sequent SEQUENT`
+names the sequent it must start from; `--format json` writes `{"version":
+14, "standing", "sequent", "text_line", "line", "message",
+"countermodel"}`.
+
+```console
+$ deduxit check --tableau; echo "exit $?"
+> 1 T p /\ q
+> 2 F q
+> 3 T p 1
+> 4 T r 1
+wrong tableau of p ∧ q ⊢ q: line 4: T∧ on line 1 (T p ∧ q) adds T p and T q, not T r
+exit 1
+```
+
 ### JSON
 
 Every method's `--format json` is the outcome of the ordinary sequent,
@@ -1785,6 +1810,9 @@ library's `ordinary::Interactive` at wire level 8:
   `ordinary_interpolate(sequent, logic, partition, settings)`,
   `partition` being `{"left": [0], "right": []}` or `""`, answer the
   documents `seq translate` and `interpolate` write as JSON.
+- `ordinary_tableau_review(text, sequent, settings)` checks a tableau
+  written by hand, as `check --tableau` does (`sequent` `""` for none),
+  and answers the review `check --tableau --format json` writes.
 
 A tab in a calculus given as data has the calls `rules_…`, its session
 the library's `rules::Interactive` at wire level 17 (18 once it holds a

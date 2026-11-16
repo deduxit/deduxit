@@ -70,6 +70,22 @@ second number (0.1.x to 0.2.0), anything else the third.
 - **`[]` and `<>` in a calculus given as data**: a calculus's text
   syntax reads them as `□` and `◇` where it has those connectives.
 
+- **A tableau written by hand, checked step by step** (`check
+  --tableau`, the library's `ordinary::WrittenTableau`, the bindings'
+  `ordinary_tableau_review`): a signed tableau of classical logic as a
+  student writes it, a numbered line per signed formula with the line it
+  expands, branches as an indented list or as `prove --method tableau`
+  draws them, `×` and `open` under a branch. The check names the first
+  step that breaks a rule (its line, the rule, what the rule gives), a
+  branch marked wrongly and the first branch not finished; a tableau
+  without a fault is checked again as a derivation in the rule file
+  `tableau`, and an open one's branch gives a checked countermodel.
+  `--sequent` names the sequent it must start from. Exit 0 for a right
+  and finished tableau, 1 for a wrong or unfinished one.
+- **The textbooks' rules for `↔` in the rule file `tableau`**: `T↔′`
+  and `F↔′` expand an equivalence by its sides' values (`T p, T q` and
+  `F p, F q`), beside LK's two implications.
+
 ### Changed
 
 - **`check --format json` names the modal system** under the new key

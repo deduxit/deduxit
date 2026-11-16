@@ -363,6 +363,86 @@ its sequent's form, and the tableau's nodes, each before its children,
 with its signed lines and either the line it expands or how its branch
 ends.
 
+## Check a tableau written by hand
+
+`deduxit check --tableau` reads a signed tableau that a student wrote,
+checks it rule by rule, and names the first step that breaks a rule.
+The tableau is text, one line per signed formula, as on paper and as in
+the forall x and Open Logic Project books:
+
+- a line is its number, `T` or `F`, the formula, and at its end the
+  number of the line it expands. A rule's name may come before that
+  number (`F∨ 2`, `∨R 2` or `F\/ 2`), and is then checked too;
+- the first lines, which expand no line, are the sequent's: its
+  hypotheses `T` and its conclusions `F`;
+- a branch starts with `-` under the lines it goes on from, its lines
+  indented to the column after the `-`. The tree that
+  `prove --method tableau` prints, with `├─` and `└─`, reads as well;
+- `×` (or `x`) under a branch closes it, followed by the two lines of a
+  formula true and false, or by the one line of `⊥` true or `⊤` false.
+  `open` marks a branch that stays open.
+
+A tableau with every step right and every branch closed proves the
+sequent valid:
+
+```console
+$ deduxit check --tableau; echo "exit $?"
+> 1 T p \/ q
+> 2 F q \/ p
+> 3 F q        2
+> 4 F p        2
+> - 5 T p      1
+>   × 4, 5
+> - 6 T q      1
+>   × 3, 6
+closed tableau of p ∨ q ⊢ q ∨ p: every step follows the rules and every branch closes, so the sequent is valid in classical logic
+exit 0
+```
+
+A wrong step is named with its line, its rule and what the rule gives,
+and the exit status is 1:
+
+```console
+$ deduxit check --tableau; echo "exit $?"
+> 1 T p /\ q
+> 2 F q
+> 3 T p        1
+> 4 T r        1
+wrong tableau of p ∧ q ⊢ q: line 4: T∧ on line 1 (T p ∧ q) adds T p and T q, not T r
+exit 1
+```
+
+The check also says where a branch is marked wrongly (`×` with nothing
+that closes it, `open` on a branch that closes or has a formula left to
+expand) and which branch is not finished yet. A finished open branch
+makes the sequent not valid: its true atoms give a countermodel, which
+is checked against the sequent and printed. `--sequent` names the
+sequent the tableau must start from, as an exercise sets it:
+
+```console
+$ deduxit check --tableau --sequent 'a -> b |- b -> a'
+> 1 T a -> b
+> 2 F b -> a
+> 3 T b 2
+> 4 F a 2
+> - 5 F a 1
+>   open
+> - 6 T b 1
+>   open
+open tableau of a → b ⊢ b → a: every step follows the rules, every branch is finished, and the branch ending at line 5 is open, so the sequent is not valid in classical logic: a checked countermodel
+world 0 (the model's world): forces b
+```
+
+An equivalence expands either way: by its sides' values, as the
+textbooks do (`T p ↔ q` into `T p, T q` and `F p, F q`), or into its two
+implications, as LK does. A tableau without a fault is checked once more
+as a derivation in the built-in calculus `tableau` (see
+[Calculi given as data](rules.md)), so a closed tableau is a checked
+proof. `--format json` writes the review: `{"version": 14, "standing":
+"closed"|"open"|"unfinished"|"wrong", "sequent", "text_line", "line",
+"message", "countermodel"}`, where `text_line` is the line of the text
+the message is about and `line` the tableau's own number for it.
+
 ## Draw the derivation
 
 The derivation is checked with every weakening and contraction as an

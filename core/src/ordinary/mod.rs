@@ -28,6 +28,10 @@
 //! [`Method::default_for`] says which evidence the default keeps from the
 //! other methods.
 //!
+//! [`WrittenTableau`] reads a signed tableau of classical logic that a
+//! student wrote as text and [reviews](WrittenTableau::review) it rule by
+//! rule, naming the first step that breaks a rule.
+//!
 //! The excluded middle is not valid in intuitionistic logic, the default:
 //!
 #![cfg_attr(feature = "parse", doc = "```")]
