@@ -590,10 +590,48 @@ pub fn check(
     let (suite, operation) = self::operation(operation)?;
     let call = Call::new(operation, inputs, parameters, settings);
     arity(&call)?;
+    // The check's own work and the runs it asks for take turns, so one
+    // stop serves both.
+    let stop = std::cell::RefCell::new(&mut stop);
     let mut ask = |name: &str, inputs: &[&str], parameters: &str| {
-        run(name, inputs, parameters, settings, |_| false).map(|produced| produced.value)
+        run(name, inputs, parameters, settings, |progress| {
+            (stop.borrow_mut())(progress)
+        })
+        .map(|produced| produced.value)
     };
-    suite.check(&call, output, &mut ask, &mut stop)
+    suite.check(&call, output, &mut ask, &mut |progress| {
+        (stop.borrow_mut())(progress)
+    })
+}
+
+/// The error of an input of a kind the operation does not take.
+fn kinds(call: &Call<'_>) -> Error {
+    Error::Json {
+        form: "input",
+        message: format!(
+            "{} takes {}",
+            call.operation.name,
+            call.operation
+                .from
+                .first()
+                .map_or(String::new(), |kinds| kinds.join(" or "))
+        ),
+    }
+}
+
+/// Refuses an input of a kind other than the operation's first input
+/// takes.
+fn takes(call: &Call<'_>, kind: &str) -> Result<(), Error> {
+    if call
+        .operation
+        .from
+        .first()
+        .is_some_and(|kinds| kinds.contains(&kind))
+    {
+        Ok(())
+    } else {
+        Err(kinds(call))
+    }
 }
 
 /// Refuses a call with another number of inputs than its operation takes.
@@ -738,10 +776,13 @@ fn same_verdict(
     names: [&'static str; 2],
     verdicts: [Verdict; 2],
 ) -> Check {
+    // A side not decided leaves the check open: the decided side is no
+    // fault while the other has no verdict to compare.
+    let open = verdicts.contains(&Verdict::Unknown);
     let agree = verdicts[0] == verdicts[1];
     let status = |verdict| match verdict {
         Verdict::Unknown => Status::Open,
-        _ if agree => Status::Held,
+        _ if agree || open => Status::Held,
         _ => Status::Failed,
     };
     Check::of(

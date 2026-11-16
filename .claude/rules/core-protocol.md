@@ -40,13 +40,30 @@ workspace graph builds on it.
   add it. The time limits are no part of it: a stop leaves no output.
   A check runs its operations under the call's settings, so its result
   depends on what they read.
+- **A check never calls a fault what a bound left open**: a promise
+  between two verdicts (`same_verdict`) with one side unknown is `Open`,
+  the decided side `Held`; only two decided verdicts that differ fail.
+  `protocol::check` hands the caller's stop to the runs it asks for
+  (one stop through a `RefCell`, since the check's own work and its runs
+  take turns).
+- **An interpolant is held to its input**: reading its value checks that
+  each half holds the formula where it belongs (last right of ⊢ in the
+  first, first left of ⊢ in the second, the same text as `formula`) and
+  is claimed in its logic, so no check indexes past an end; the check of
+  `interpolates` compares the halves with the input's parts by the
+  partition (`halves_fit`, as multisets of formulas' texts) before the
+  atoms and the two decisions.
 - **An input of several kinds is told by its keys** (`input` in each
   suite: `verdict` an outcome, `history` a session, `links` a net,
   `vertices` a net with boxes), since a `Call` carries values and not
-  their kinds.
+  their kinds; the kind found must be one the operation's `from` lists
+  (`takes`), and a linear outcome, which the proof's reader takes too,
+  is no `linear.proof` (`proof_of`).
 - **An ordinary outcome valid by a clausal proof has no reader** (its
-  counts hold no proof): `summary`, `verdict_of` and the check of
-  `decides` read its keys alone, and that check is `Recorded`. A check
+  counts hold no proof): `summary` (`outcome_verdict`) and the check of
+  `decides` read its keys alone, `logic` among them so that a linear
+  outcome is refused; every other ordinary outcome goes through its
+  reader, and that check is `Recorded`. A check
   of a refutation the checker calls uncertified (an exhausted search) is
   `Recorded` too.
 - **A check's errors**: kind `invalid` or `defect` is `Failed`, `limit`

@@ -10,7 +10,7 @@ use super::promises::{DECIDES, EXACT, PROVES, RENDERS};
 use super::shared::Text;
 use super::{
     Call, Check, Class, Cost, Kind, Limit, Operation, Parameter, Produced, Role, Status, Suite,
-    Verdict, document, object, parameters, verdict_of, written,
+    Verdict, document, kinds, object, parameters, verdict_of, written,
 };
 use crate::linear::nets::{Criterion, MellStructure, ProofStructure};
 use crate::linear::occurrences::reading::Side;
@@ -385,6 +385,18 @@ fn input(value: &str, limits: &Limits) -> Result<Input, Error> {
     })
 }
 
+/// Reads a proof. An outcome of a proof, which the proof's reader takes
+/// too, is refused: it is a value of another kind.
+fn proof_of(value: &str, limits: &Limits) -> Result<Proof, Error> {
+    if object::<Probe>(value, "proof")?.verdict.is_some() {
+        return Err(Error::Json {
+            form: "proof",
+            message: "an outcome, which is no proof here".to_owned(),
+        });
+    }
+    document(value, limits)
+}
+
 /// Returns a proof's mode: the one it records, else classical.
 fn mode_of(proof: &Proof) -> Mode {
     proof.mode().unwrap_or(Mode::CLASSICAL)
@@ -475,7 +487,7 @@ impl Suite for Linear {
                 }
             }
             "linear.proof" => {
-                document::<Proof>(value, limits)?;
+                proof_of(value, limits)?;
                 "A proof".to_owned()
             }
             _ => {
@@ -523,7 +535,7 @@ impl Suite for Linear {
                 written(&session.proof(limits, stop)?)?
             }
             "linear.net" => {
-                let proof: Proof = document(call.input(0), limits)?;
+                let proof = proof_of(call.input(0), limits)?;
                 let mode = mode_of(&proof);
                 let criterion = Criterion::of(mode)?;
                 if proof.sequent().fragment().has_exponentials() {
@@ -535,7 +547,7 @@ impl Suite for Linear {
                 }
             }
             "linear.eliminate" => {
-                let proof: Proof = document(call.input(0), limits)?;
+                let proof = proof_of(call.input(0), limits)?;
                 let mode = mode_of(&proof);
                 let elimination = crate::linear::proofs::cut::eliminate(
                     &proof,
@@ -711,20 +723,5 @@ impl Suite for Linear {
             "certifies" => Ok(Check::whole(promise, Status::Outside)),
             _ => Ok(Check::whole(promise, Status::None)),
         }
-    }
-}
-
-/// The error of an input of a kind the operation does not take.
-fn kinds(call: &Call<'_>) -> Error {
-    Error::Json {
-        form: "input",
-        message: format!(
-            "{} takes {}",
-            call.operation.name,
-            call.operation
-                .from
-                .first()
-                .map_or(String::new(), |kinds| kinds.join(" or "))
-        ),
     }
 }

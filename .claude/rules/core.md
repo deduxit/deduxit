@@ -338,7 +338,7 @@ the commit that lands it rewrites that bullet.
   `Fragment::NAMED`) is a slice, never an array, whose length is part of
   its type and would change with a new value.
 - **The marked ones at 0.4.0** (every public enum and every struct with
-  a public field, 146, each `#[non_exhaustive]`; 119 at 0.2.0 and 81 at
+  a public field, 160 after step 63a's fourteen, each `#[non_exhaustive]`; 119 at 0.2.0 and 81 at
   0.1.0; the closed are the seventeen above, fifteen at 0.2.0 and
   thirteen at 0.1.0; both lists checked against
   the rustdoc JSON with every feature by a script, see "The break against
@@ -365,6 +365,9 @@ the commit that lands it rewrites that bullet.
   Statistics}` (added at step 54s); `kripke::{Model, World}`,
   `ordinary::Countermodel` (added at step 55b);
   `ordinary::{End, Sign, Signed}` (added at step 56a);
+  `protocol::{Call, Check, Class, Cost, Kind, Limit, Operation,
+  Parameter, Part, Produced, Promise, Role, Status, Verdict}` (added at
+  step 63a);
   `rules::{Associativity, Discipline, Fixity, Node, Term}` (added at
   step 60), `rules::FitchOptions` (added at step 62); `proofs::{ClassicalRule,
   ClassicalSides, Compact, Dyadic, Fault, Invalid, Labels, Layout, OpenGoal,

@@ -9,7 +9,7 @@ use super::promises::{DECIDES, EXACT, INTERPOLATES, PROVES, RENDERS, SAME_VERDIC
 use super::shared::{Term, Text};
 use super::{
     Call, Check, Class, Cost, Kind, Limit, Operation, Parameter, Part, Produced, Role, Status,
-    Suite, Verdict, document, object, parameters, part, same_verdict, verdict_of, written,
+    Suite, Verdict, document, object, parameters, part, same_verdict, takes, verdict_of, written,
 };
 use crate::ordinary::interpolant::{self, Partition};
 use crate::ordinary::{
@@ -132,10 +132,11 @@ static TERM_READS: [&str; 7] = [
 ];
 
 /// The settings keys a session's derivation reads.
-static FINISH_READS: [&str; 4] = [
+static FINISH_READS: [&str; 5] = [
     "limits.memory_bytes",
     "limits.occurrences",
     "limits.terms",
+    "limits.derivation_bytes",
     "limits.work",
 ];
 
@@ -419,14 +420,19 @@ enum Input {
     Derivation(Box<Derivation>),
 }
 
-/// Reads an input that may be a session, an outcome or a derivation.
-fn input(value: &str, limits: &Limits) -> Result<Input, Error> {
+/// Reads the first input of `call`, which may be a session, an outcome or
+/// a derivation, refusing a kind the operation does not take.
+fn input(call: &Call<'_>, limits: &Limits) -> Result<Input, Error> {
+    let value = call.input(0);
     let probe: Probe = object(value, "ordinary value")?;
     Ok(if probe.verdict.is_some() {
+        takes(call, "ordinary.outcome")?;
         Input::Outcome(Box::new(document(value, limits)?))
     } else if probe.history.is_some() {
+        takes(call, "ordinary.session")?;
         Input::Session(Box::new(document(value, limits)?))
     } else {
+        takes(call, "ordinary.derivation")?;
         Input::Derivation(Box::new(document(value, limits)?))
     })
 }
@@ -546,6 +552,92 @@ pub(super) fn checked(name: &'static str, result: Result<(), Error>) -> Result<P
     })
 }
 
+/// The keys every ordinary outcome writes, and the clausal proof's.
+#[derive(Deserialize)]
+struct OutcomeKeys {
+    /// The verdict's name.
+    verdict: String,
+    /// The logic decided, which a linear outcome lacks.
+    #[expect(dead_code, reason = "read to refuse a value that has no logic")]
+    logic: Logic,
+    /// The proof's counts, for a valid sequent by the SAT solver.
+    clausal_proof: Option<serde::de::IgnoredAny>,
+}
+
+/// Returns the verdict of an ordinary outcome, read by its reader; an
+/// outcome valid by a clausal proof, which has no reader (its counts hold
+/// no proof), by its keys alone.
+fn outcome_verdict(value: &str, limits: &Limits) -> Result<Verdict, Error> {
+    let keys: OutcomeKeys = object(value, "ordinary outcome")?;
+    if keys.clausal_proof.is_some() && keys.verdict == "valid" {
+        return Ok(Verdict::Valid);
+    }
+    document::<Outcome>(value, limits)?;
+    verdict_of(value)
+}
+
+/// Returns a formula's text, as an interpolant's is written.
+fn text_of(sequent: &Sequent, id: ordinary::NodeId) -> String {
+    sequent.formulas().formula(id).to_string()
+}
+
+/// Reads an interpolant's value: where it holds one, its halves are
+/// statements of its logic, the first with the formula last right of ⊢
+/// and the second with it first left of ⊢.
+fn interpolated(value: &str, limits: &Limits) -> Result<Interpolated, Error> {
+    let read: Interpolated = object(value, "interpolant")?;
+    if let Some(found) = &read.interpolant {
+        let fault = |message: &str| Error::Json {
+            form: "interpolant",
+            message: message.to_owned(),
+        };
+        let (first, first_logic) = statement(&written(&found.first)?, limits)?;
+        let (second, second_logic) = statement(&written(&found.second)?, limits)?;
+        if first_logic != read.logic || second_logic != read.logic {
+            return Err(fault("its halves are claimed in another logic"));
+        }
+        let (Some(&last), Some(&head)) = (first.right().last(), second.left().first()) else {
+            return Err(fault("a half lacks the interpolant"));
+        };
+        if text_of(&first, last) != found.formula || text_of(&second, head) != found.formula {
+            return Err(fault(
+                "its halves hold another formula than the interpolant",
+            ));
+        }
+    }
+    Ok(read)
+}
+
+/// Returns the texts of the formulas at `ids` in `sequent`, sorted: a part
+/// compared as a multiset.
+fn texts(sequent: &Sequent, ids: impl IntoIterator<Item = ordinary::NodeId>) -> Vec<String> {
+    let mut texts: Vec<String> = ids.into_iter().map(|id| text_of(sequent, id)).collect();
+    texts.sort();
+    texts
+}
+
+/// Returns whether an interpolant's halves are the input's parts by its
+/// partition: `Γ₁ ⊢ Δ₁, I` and `I, Γ₂ ⊢ Δ₂`, each part compared as a
+/// multiset of formulas.
+fn halves_fit(input: &Sequent, partition: &Partition, one: &Sequent, two: &Sequent) -> bool {
+    let first_side = |ids: &[ordinary::NodeId], chosen: &[usize], wanted: bool| {
+        let picked = ids
+            .iter()
+            .enumerate()
+            .filter(|(position, _)| chosen.contains(position) == wanted)
+            .map(|(_, &id)| id);
+        texts(input, picked)
+    };
+    let right = one.right();
+    first_side(input.left(), &partition.left, true) == texts(one, one.left().iter().copied())
+        && first_side(input.right(), &partition.right, true)
+            == texts(one, right[..right.len() - 1].iter().copied())
+        && first_side(input.left(), &partition.left, false)
+            == texts(two, two.left()[1..].iter().copied())
+        && first_side(input.right(), &partition.right, false)
+            == texts(two, two.right().iter().copied())
+}
+
 /// Returns the names of the atoms of `roots` in `sequent`.
 fn atom_names(sequent: &Sequent, roots: &[ordinary::NodeId]) -> Vec<String> {
     let formulas = sequent.formulas();
@@ -593,7 +685,7 @@ impl Suite for Ordinary {
             }
             // An outcome valid by a clausal proof has no reader: its words
             // are read alone.
-            "ordinary.outcome" => match verdict_of(value)? {
+            "ordinary.outcome" => match outcome_verdict(value, limits)? {
                 Verdict::Valid => "Valid".to_owned(),
                 Verdict::NotValid => "Not valid".to_owned(),
                 Verdict::Unknown => "Not decided".to_owned(),
@@ -603,7 +695,7 @@ impl Suite for Ordinary {
                 format!("A derivation of {}", derivation.logic().calculus())
             }
             _ => {
-                let read: Interpolated = object(value, "interpolant")?;
+                let read = interpolated(value, limits)?;
                 match read.interpolant {
                     Some(found) => format!("Interpolant {}", found.formula),
                     None => "No interpolant".to_owned(),
@@ -647,7 +739,7 @@ impl Suite for Ordinary {
                 write_statement(&sequent, session.logic())?
             }
             "ordinary.derivation" => {
-                let input = input(call.input(0), limits)?;
+                let input = input(call, limits)?;
                 written(&derivation_of(input, true, call, stop)?)?
             }
             "ordinary.translate" => {
@@ -701,7 +793,7 @@ impl Suite for Ordinary {
                 });
             }
             "ordinary.half" => {
-                let read: Interpolated = object(call.input(0), "interpolant")?;
+                let read = interpolated(call.input(0), limits)?;
                 let p: Half = parameters(call)?;
                 let found = read.interpolant.ok_or_else(|| Error::InvalidOption {
                     key: "which",
@@ -730,14 +822,14 @@ impl Suite for Ordinary {
                 super::linear::write_statement(image.sequent(), image.mode())?
             }
             "ordinary.term" => {
-                let input = input(call.input(0), limits)?;
+                let input = input(call, limits)?;
                 let derivation = derivation_of(input, false, call, stop)?;
                 let term = derivation.term(limits, &mut *stop)?;
                 term_value(&term, settings, stop)?
             }
             #[cfg(feature = "svg")]
             "ordinary.draw" => {
-                let input = input(call.input(0), limits)?;
+                let input = input(call, limits)?;
                 let svg = match input {
                     Input::Outcome(outcome) if outcome.countermodel.is_some() => {
                         let countermodel = outcome
@@ -767,7 +859,7 @@ impl Suite for Ordinary {
                 written(&super::shared::Drawing { svg })?
             }
             "ordinary.export" => {
-                let input = input(call.input(0), limits)?;
+                let input = input(call, limits)?;
                 let derivation = derivation_of(input, false, call, stop)?;
                 let p: Format = parameters(call)?;
                 let format = p.format.unwrap_or_else(|| "text".to_owned());
@@ -795,7 +887,7 @@ impl Suite for Ordinary {
             }
             #[cfg(feature = "rocq")]
             "ordinary.certificate" => {
-                let input = input(call.input(0), limits)?;
+                let input = input(call, limits)?;
                 let mut out = String::new();
                 match input {
                     Input::Outcome(outcome) if outcome.countermodel.is_some() => {
@@ -868,13 +960,24 @@ impl Suite for Ordinary {
                 ))
             }
             "interpolates" => {
-                let read: Interpolated = object(output, "interpolant")?;
+                let read = interpolated(output, limits)?;
                 let Some(found) = read.interpolant else {
                     return Ok(Check::whole(promise, Status::None));
                 };
                 let (first, second) = (written(&found.first)?, written(&found.second)?);
                 let (one, _) = statement(&first, limits)?;
                 let (two, _) = statement(&second, limits)?;
+                // `interpolated` read both halves with the formula in place.
+                let (input, _) = statement(call.input(0), limits)?;
+                let halves = Part {
+                    name: "halves",
+                    status: if halves_fit(&input, &read.partition, &one, &two) {
+                        Status::Held
+                    } else {
+                        Status::Failed
+                    },
+                    verdict: None,
+                };
                 let interpolant = atom_names(&one, &one.right()[one.right().len() - 1..]);
                 let mut rest_one = one.left().to_vec();
                 rest_one.extend_from_slice(&one.right()[..one.right().len() - 1]);
@@ -895,6 +998,7 @@ impl Suite for Ordinary {
                 Ok(Check::of(
                     promise,
                     vec![
+                        halves,
                         atoms,
                         part("first", first, Verdict::Valid),
                         part("second", second, Verdict::Valid),
@@ -913,17 +1017,9 @@ fn decides(
     limits: &Limits,
     stop: &mut dyn FnMut(Progress) -> bool,
 ) -> Result<Check, Error> {
-    /// The key of an outcome valid by a clausal proof.
-    #[derive(Deserialize)]
-    struct Clausal {
-        /// The proof's counts.
-        clausal_proof: Option<serde::de::IgnoredAny>,
-    }
     let promise = &DECIDES;
-    if object::<Clausal>(output, "outcome")?
-        .clausal_proof
-        .is_some()
-    {
+    let keys: OutcomeKeys = object(output, "ordinary outcome")?;
+    if keys.clausal_proof.is_some() && keys.verdict == "valid" {
         // The SAT solver's proof was checked when it was made, and the
         // outcome keeps its counts alone.
         return Ok(Check::whole(promise, Status::Recorded));

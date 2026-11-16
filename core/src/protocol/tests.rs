@@ -180,7 +180,7 @@ fn an_interpolant_and_its_halves() {
     );
     let check = checked("ordinary.interpolate", &[&sequent], "", &interpolant);
     assert_eq!(check.status, Status::Held, "{check:?}");
-    assert_eq!(check.parts.len(), 3);
+    assert_eq!(check.parts.len(), 4);
     let second = ran("ordinary.half", &[&interpolant], r#"{"which": "second"}"#);
     read("ordinary.sequent", &second, &limits).unwrap();
     let session = ran("ordinary.start", &[&second], "");
@@ -270,4 +270,75 @@ fn a_calculus_given_as_data_starts_a_derivation() {
         checked("rules.from_ordinary", &[&derivation], "", &generic).status,
         Status::Held
     );
+}
+
+#[test]
+fn a_check_with_a_side_not_decided_is_open() {
+    let sequent = ordinary("|- a \\/ ~a", crate::ordinary::Logic::Classical);
+    let parameters = r#"{"translation": "glivenko"}"#;
+    let translated = ran("ordinary.translate", &[&sequent], parameters);
+    let tight = settings().with_limits(settings().limits.with_work(Some(1)));
+    let check = check(
+        "ordinary.translate",
+        &[&sequent],
+        parameters,
+        &translated,
+        &tight,
+        |_| false,
+    )
+    .unwrap();
+    assert_eq!(check.status, Status::Open, "{check:?}");
+    assert!(check.parts.iter().all(|p| p.status != Status::Failed));
+}
+
+#[test]
+fn an_interpolant_is_held_to_its_input_and_its_halves() {
+    let sequent = ordinary("a /\\ b |- b \\/ c", crate::ordinary::Logic::Classical);
+    let interpolant = ran("ordinary.interpolate", &[&sequent], "");
+    let mut value: serde_json::Value = serde_json::from_str(&interpolant).unwrap();
+    let limits = settings().limits;
+    // A half without the interpolant in its place is refused, not read.
+    let mut broken = value.clone();
+    broken["interpolant"]["first"] =
+        serde_json::from_str(&ordinary("a |-", crate::ordinary::Logic::Classical)).unwrap();
+    let broken = broken.to_string();
+    assert_eq!(
+        read("ordinary.interpolant", &broken, &limits)
+            .unwrap_err()
+            .code(),
+        "json"
+    );
+    // An interpolant of another sequent fails its check.
+    let other = ordinary("a /\\ c |- b \\/ c", crate::ordinary::Logic::Classical);
+    let check = checked("ordinary.interpolate", &[&other], "", &interpolant);
+    assert_eq!(check.status, Status::Failed);
+    assert_eq!(check.parts[0].name, "halves");
+    value["interpolant"]["formula"] = serde_json::json!("c");
+    let renamed = value.to_string();
+    assert!(read("ordinary.interpolant", &renamed, &limits).is_err());
+}
+
+#[test]
+fn a_value_of_another_kind_is_refused() {
+    let sequent = ordinary("a /\\ b |- b", crate::ordinary::Logic::Intuitionistic);
+    let decided = ran("ordinary.decide", &[&sequent], r#"{"method": "ljt"}"#);
+    let derivation = ran("ordinary.derivation", &[&decided], "");
+    let refused = |operation: &str, input: &str| {
+        run(operation, &[input], "", &settings(), |_| false)
+            .unwrap_err()
+            .code()
+    };
+    assert_eq!(refused("ordinary.derivation", &derivation), "json");
+    assert_eq!(refused("ordinary.term", &decided), "json");
+    let limits = settings().limits;
+    assert!(read("ordinary.outcome", r#"{"verdict": "banana"}"#, &limits).is_err());
+    // A linear outcome is no linear proof here.
+    let linear = super::linear::write_statement(
+        &"|- ~a, a".parse().unwrap(),
+        crate::linear::Mode::CLASSICAL,
+    )
+    .unwrap();
+    let outcome = ran("linear.prove", &[&linear], "");
+    assert_eq!(refused("linear.net", &outcome), "json");
+    assert!(read("linear.proof", &outcome, &limits).is_err());
 }
