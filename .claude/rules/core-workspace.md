@@ -47,7 +47,15 @@ and redo, the bounds and the JSON form. The design is
   nothing. The moves `settle` makes after an edit are swaps of that
   edit's entry (`settled`), so undo points those nodes back at what they
   showed: a node that was out of date and is settled by the edit onto
-  another node's record would otherwise keep it after the undo.
+  another node's record would otherwise keep it after the undo. Undo and
+  redo settle every node but those their entry changed, which show
+  exactly their state before or after it; the others take up runs made
+  since.
+- **A proof or a copy is made from inputs ready within the edit**
+  (`Edit::ready`, in `connect` and `restart`): each instant run its
+  inputs need is made and its node pointed at the record by a swap of
+  the edit, so "a translation and its proof" is one action and undo
+  takes both back; a search is left to wait (`not_applicable` then).
 - **An edit is one entry of the log, whole or not at all**: `edit`
   records each node's before and after (`Swap`) as `Edit` changes it;
   an `f` that fails puts every node back and keeps no entry. A new edit

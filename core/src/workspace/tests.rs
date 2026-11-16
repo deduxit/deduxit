@@ -778,3 +778,44 @@ fn rebound_reaches_the_recipes_undo_brings_back() {
         .unwrap();
     assert!(settings.contains(r#""limits.work":7"#), "{settings}");
 }
+
+#[test]
+fn a_proof_of_a_translation_is_made_in_one_action() {
+    let limits = Limits::default();
+    let settings = Settings::default();
+    let mut workspace = Workspace::new();
+    let (given, translated, session) = workspace
+        .edit("translation", &limits, |edit| {
+            let given = edit.add("ordinary.sequent", &classical("|- a \\/ ~a"))?;
+            let translated = edit.connect(
+                "ordinary.translate",
+                &[given],
+                r#"{"translation": "glivenko", "target": "intuitionistic"}"#,
+                &settings,
+            )?;
+            let session = edit.connect("ordinary.start", &[translated], "", &settings)?;
+            Ok((given, translated, session))
+        })
+        .unwrap();
+    assert_eq!(workspace.state(translated), State::Current);
+    assert_eq!(workspace.state(session), State::Current);
+    current_is_fresh(&workspace);
+    // A changed sequent: the restart makes the translation it needs.
+    workspace
+        .edit("sequent change", &limits, |edit| {
+            edit.set(given, &classical("|- a -> b \\/ ~b"))
+        })
+        .unwrap();
+    let before = seen(&workspace);
+    workspace
+        .edit("restart", &limits, |edit| edit.restart(session))
+        .unwrap();
+    assert_eq!(workspace.state(session), State::Current);
+    assert_eq!(workspace.state(translated), State::Current);
+    current_is_fresh(&workspace);
+    workspace.undo().unwrap();
+    assert_eq!(seen(&workspace), before);
+    workspace.undo().unwrap();
+    workspace.undo().unwrap();
+    assert_eq!(workspace.nodes().count(), 0);
+}

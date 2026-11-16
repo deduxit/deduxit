@@ -67,7 +67,7 @@ use serde::Serialize;
 
 use crate::hash::HashMap;
 use crate::limits::{Held, Refusal};
-use crate::protocol::{self, Check, Class, Kind, Limit, Operation, Produced, Status};
+use crate::protocol::{self, Check, Class, Cost, Kind, Limit, Operation, Produced, Status};
 use crate::{Error, ErrorKind, Limits, Progress, Settings};
 
 /// A node's number in its workspace, never used twice there.
@@ -812,7 +812,7 @@ impl Workspace {
             Ok(done) => {
                 // The records the edit leads nodes to show are part of it, so
                 // that undo shows again what each node showed before.
-                for (id, before) in self.settled() {
+                for (id, before) in self.settled(&[]) {
                     if let Some(now) = self.node(id).cloned() {
                         let mut then = now.clone();
                         if let Body::Derived { record, .. } = &mut then.body {
@@ -867,11 +867,12 @@ impl Workspace {
     pub fn undo(&mut self) -> Option<String> {
         let at = self.at.checked_sub(1)?;
         let swaps: Vec<Swap> = self.log[at].swaps.clone();
+        let touched: Vec<NodeId> = swaps.iter().map(|swap| swap.id).collect();
         for swap in swaps.into_iter().rev() {
             self.put(swap.id, swap.before);
         }
         self.at = at;
-        self.settle();
+        self.settled(&touched);
         Some(self.log[at].name.to_string())
     }
 
@@ -879,11 +880,12 @@ impl Workspace {
     /// `None` with nothing to bring back.
     pub fn redo(&mut self) -> Option<String> {
         let swaps: Vec<Swap> = self.log.get(self.at)?.swaps.clone();
+        let touched: Vec<NodeId> = swaps.iter().map(|swap| swap.id).collect();
         for swap in swaps {
             self.put(swap.id, swap.after);
         }
         self.at += 1;
-        self.settle();
+        self.settled(&touched);
         Some(self.log[self.at - 1].name.to_string())
     }
 
@@ -891,14 +893,19 @@ impl Workspace {
     /// its inputs' values now, where one is kept. Runs nothing; returns
     /// the nodes it pointed elsewhere.
     pub fn settle(&mut self) -> Vec<NodeId> {
-        self.settled().into_iter().map(|(id, _)| id).collect()
+        self.settled(&[]).into_iter().map(|(id, _)| id).collect()
     }
 
-    /// Settles as [`settle`](Self::settle) does, and returns each node it
-    /// pointed elsewhere with the record it showed before.
-    fn settled(&mut self) -> Vec<(NodeId, Option<RecordId>)> {
+    /// Settles as [`settle`](Self::settle) does, but for the nodes `kept`,
+    /// and returns each node it pointed elsewhere with the record it showed
+    /// before. Undo and redo keep the nodes their entry changed, so those
+    /// show exactly what they showed before or after it.
+    fn settled(&mut self, kept: &[NodeId]) -> Vec<(NodeId, Option<RecordId>)> {
         let mut moved = Vec::new();
         for at in 0..self.nodes.len() {
+            if kept.contains(&self.nodes[at].id) {
+                continue;
+            }
             let Body::Derived { recipe, record } = &self.nodes[at].body else {
                 continue;
             };
@@ -1143,12 +1150,29 @@ impl Workspace {
     /// bound on records or on bytes.
     pub fn accept(&mut self, computed: Computed, limits: &Limits) -> Result<bool, Error> {
         let node = NodeId(computed.node);
-        let Some(Body::Derived { recipe, .. }) = self.node(node).map(|n| &n.body) else {
+        let Some(found) = self.recorded(computed, limits)? else {
             return Ok(false);
+        };
+        if let Ok(at) = self.nodes.binary_search_by_key(&node, |n| n.id)
+            && let Body::Derived { record, .. } = &mut self.nodes[at].body
+        {
+            *record = Some(found);
+        }
+        self.settle();
+        Ok(true)
+    }
+
+    /// Keeps a computed run as a record, where the node's recipe on its
+    /// inputs' values asks for exactly that run, and returns the record;
+    /// points no node at it.
+    fn recorded(&mut self, computed: Computed, limits: &Limits) -> Result<Option<RecordId>, Error> {
+        let node = NodeId(computed.node);
+        let Some(Body::Derived { recipe, .. }) = self.node(node).map(|n| &n.body) else {
+            return Ok(None);
         };
         let recipe = recipe.clone();
         let Ok(key) = self.key_of(&recipe) else {
-            return Ok(false);
+            return Ok(None);
         };
         let same = computed.operation == recipe.operation.name
             && *computed.parameters == *recipe.parameters
@@ -1160,7 +1184,7 @@ impl Workspace {
                 .zip(&key.inputs)
                 .all(|(text, &value)| text == self.text(value));
         if !same {
-            return Ok(false);
+            return Ok(None);
         }
         let (end, output) = match computed.output {
             Ok(output) => {
@@ -1199,14 +1223,8 @@ impl Workspace {
         {
             record.check = Some(check);
         }
-        if let Ok(at) = self.nodes.binary_search_by_key(&node, |n| n.id)
-            && let Body::Derived { record, .. } = &mut self.nodes[at].body
-        {
-            *record = Some(found);
-        }
         self.made += 1;
-        self.settle();
-        Ok(true)
+        Ok(Some(found))
     }
 
     /// Adds a record, making room past the bound by dropping the oldest
@@ -1691,6 +1709,7 @@ impl Edit<'_> {
                 record: None,
             },
             Class::Work | Class::Copy => {
+                self.ready(&recipe.from)?;
                 let (value, started) = self.made_now(&recipe)?;
                 if operation.class == Class::Work {
                     Body::Work {
@@ -1801,10 +1820,40 @@ impl Edit<'_> {
                 reason: format!("node {node} holds no proof in progress"),
             });
         };
+        let from = recipe.from.clone();
+        self.ready(&from)?;
         let (made, inputs) = self.made_now(recipe)?;
         *value = made;
         *started = inputs;
         self.put(node, Some(changed));
+        Ok(())
+    }
+
+    /// Makes what `inputs` need that needs no search, so that a proof or a
+    /// copy can be made from them within the action: each instant run that
+    /// is not current, in order, kept as a record and shown by its node as
+    /// a change of the action, which undo takes back. A search is left to
+    /// wait.
+    fn ready(&mut self, inputs: &[NodeId]) -> Result<(), Error> {
+        for id in self.workspace.plan(inputs) {
+            let Some(node) = self.workspace.node(id).cloned() else {
+                continue;
+            };
+            let Body::Derived { recipe, .. } = &node.body else {
+                continue;
+            };
+            if recipe.operation.cost != Cost::Instant || self.workspace.key_of(recipe).is_err() {
+                continue;
+            }
+            let computed = self.workspace.compute(id, What::Output, |_| false)?;
+            if let Some(found) = self.workspace.recorded(computed, self.limits)? {
+                let mut shown = node.clone();
+                if let Body::Derived { record, .. } = &mut shown.body {
+                    *record = Some(found);
+                }
+                self.put(id, Some(shown));
+            }
+        }
         Ok(())
     }
 
