@@ -7397,3 +7397,6 @@ move (D26).
     elimination's record, a first-order session's `instances`, `countermodel.model`, `written`);
     the workspace panel's Undo shows "Undoing NAME…". fresh-reviewer (Fable) three findings,
     fixed. Gate and both flake checks passed.
+- 2026-11-16, about 17:45: **The author: "In rocq-deduxit"**: the labelled modal calculus's
+  soundness for Kripke semantics is proved in a module `Deduxit.Modal` of `rocq-deduxit` (step
+  66's open placement); told to 66a for its certificate design.

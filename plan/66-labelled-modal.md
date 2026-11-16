@@ -73,7 +73,8 @@ sources. Deliverables: the commits in the repositories,
   function and the theorem that a term it accepts proves its sequent,
   in the place the author chooses (below); the flake check of 66a's
   certificates.
-- **Where the proof lives**: asked of the author at this review, with
+- **Where the proof lives**: the author chose `rocq-deduxit` (2026-11-16), a module
+  `Deduxit.Modal`; asked at this review, with
   the recommendation of a module `Deduxit.Modal` of `rocq-deduxit`
   (one opam package, its CI and the flake's input already in place; a
   new repository is the author's act).
