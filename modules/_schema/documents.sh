@@ -150,6 +150,13 @@ run ordinary_outcome-unknown 3 "$deduxit" prove "${t[@]}" --logic intuitionistic
 run checked-ordinary 0 "$deduxit" check "${t[@]}" --format json "$out/ordinary_outcome-ljt-valid.json"
 echo '{"worlds": [{"atoms": [], "arrows": [1]}, {"atoms": ["a"]}]}' >model.json
 run checked-model 1 "$deduxit" check "${t[@]}" --format json --logic intuitionistic --sequent 'a \/ ~a' model.json
+# Modal logic: outcomes, their check and a model checked by hand.
+run modal_outcome-valid 0 "$deduxit" prove "${t[@]}" --system S4 --format json '[]p |- [][]p'
+run modal_outcome-not-valid 1 "$deduxit" prove "${t[@]}" --system K --format json '[]p |- [][]p'
+run modal_outcome-unknown 3 "$deduxit" prove "${t[@]}" --system S4 --work-limit 1 --format json '[](p -> []p) -> (p -> []p)'
+run checked-modal 0 "$deduxit" check "${t[@]}" --format json "$out/modal_outcome-not-valid.json"
+echo '{"worlds": [{"atoms": [], "arrows": [1]}, {"atoms": ["p"], "arrows": [2]}, {"atoms": []}]}' >modal-model.json
+run checked-modal-model 1 "$deduxit" check "${t[@]}" --format json --system K --sequent '[]p |- [][]p' modal-model.json
 keep ordinary_session-intuitionistic 1 session.json "$deduxit" interact --logic intuitionistic 'a -> b, b -> c |- a -> c' <<<$'apply 0 R0 ->R\nsave session.json'
 keep ordinary_derivation-intuitionistic 0 derivation.json "$deduxit" interact --logic intuitionistic 'a, a -> b |- b' <<<$'close\nproof derivation.json'
 keep ordinary_derivation-classical 0 lk-derivation.json "$deduxit" interact --logic classical '((a -> b) -> a) -> a' <<<$'close\nproof lk-derivation.json'

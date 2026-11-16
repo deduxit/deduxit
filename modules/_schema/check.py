@@ -35,6 +35,9 @@ UNWRITTEN = {
     # A value of the library's protocol, which no command runs; the
     # bindings' tests hold every kind's form to the schema by name.
     "ordinary_statement": "only the protocol writes it",
+    "modal_statement": "only the protocol writes it",
+    # Nested in every modal outcome; no command writes a bare one.
+    "modal_sequent": "the command writes it only nested",
 }
 
 

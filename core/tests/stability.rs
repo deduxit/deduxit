@@ -457,3 +457,31 @@ fn the_fifteenth_level_reads() {
     }
     assert_eq!(lines.lines().count(), 3);
 }
+
+/// The forms level 20 adds, a modal sequent and the outcomes of deciding
+/// one, read and written again byte for byte, each decided outcome's
+/// evidence checked. Never rewritten, as `wire/level-1.txt` is not.
+#[test]
+fn the_twentieth_level_reads() {
+    use deduxit::modal;
+    let lines = include_str!("wire/level-20.txt");
+    for line in lines.lines() {
+        let (name, json) = line.split_once(": ").unwrap();
+        match name.split('-').next().unwrap() {
+            "sequent" => again::<modal::Sequent>(name, json),
+            "outcome" => {
+                again::<modal::Outcome>(name, json);
+                let outcome: modal::Outcome = read(name, json);
+                if !matches!(outcome.verdict, modal::Verdict::Unknown(_)) {
+                    assert_eq!(
+                        outcome.check(&Limits::default(), |_| false),
+                        Ok(()),
+                        "{name}"
+                    );
+                }
+            }
+            other => panic!("{name}: no form {other}"),
+        }
+    }
+    assert_eq!(lines.lines().count(), 4);
+}

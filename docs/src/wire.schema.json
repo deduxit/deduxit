@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://deduxit.github.io/deduxit/manual/wire.schema.json",
   "title": "deduxit's JSON documents",
-  "description": "The JSON documents deduxit writes and reads: sequents, proofs, refutations, outcomes, proof structures, sessions and the forms of ordinary logic and of calculi given as data. Each entry of `$defs` is one form; validate a document against `#/$defs/FORM`. A document starts with `version`, the lowest wire level whose reader understands all of it (`deduxit::wire`). The schema holds the shape of each form: which keys, which names, which kinds of value. deduxit checks the rest when it reads a document: that every index is in range, that a list comes in the order its form asks, and that a proof, a refutation or a derivation holds. The rule file of a calculus given as data has a schema of its own, `deduxit::rules::SCHEMA`, and is not described here.",
+  "description": "The JSON documents deduxit writes and reads: sequents, proofs, refutations, outcomes, proof structures, sessions and the forms of ordinary logic, of modal logic and of calculi given as data. Each entry of `$defs` is one form; validate a document against `#/$defs/FORM`. A document starts with `version`, the lowest wire level whose reader understands all of it (`deduxit::wire`). The schema holds the shape of each form: which keys, which names, which kinds of value. deduxit checks the rest when it reads a document: that every index is in range, that a list comes in the order its form asks, and that a proof, a refutation or a derivation holds. The rule file of a calculus given as data has a schema of its own, `deduxit::rules::SCHEMA`, and is not described here.",
   "$defs": {
     "index": {
       "description": "A position in a list of the document, counted from 0. deduxit checks that it is in range.",
@@ -3166,11 +3166,10 @@
         "$ref": "#/$defs/indices"
       }
     },
-    "rules_derivation": {
-      "description": "A derivation in a calculus given as data (level 15; `interact --calculus`'s `proof FILE`): the calculus by name, the terms, the parent of each scope after the root scope, and the nodes, premises before conclusions, each its sequent, its rule or `hypothesis`, the positions the rule acts on, its premises and its scope (0 where absent). deduxit checks its indices when it reads one, and `check` its rules. A reader ignores keys it does not know.",
+    "rules_derivation_keys": {
+      "description": "The keys of a derivation in a calculus given as data, at the top of a document or nested without `version`: the calculus by name, the terms, the parent of each scope after the root scope, and the nodes, premises before conclusions, each its sequent, its rule or `hypothesis`, the positions the rule acts on, its premises and its scope (0 where absent). A reader ignores keys it does not know.",
       "type": "object",
       "required": [
-        "version",
         "calculus",
         "terms",
         "nodes"
@@ -3234,6 +3233,13 @@
           }
         }
       }
+    },
+    "rules_derivation": {
+      "description": "A derivation in a calculus given as data (level 15; `interact --calculus`'s `proof FILE`). deduxit checks its indices when it reads one, and `check` its rules.",
+      "$ref": "#/$defs/rules_derivation_keys",
+      "required": [
+        "version"
+      ]
     },
     "rules_session": {
       "description": "A session of step-by-step proving in a calculus given as data (level 17, `interact --calculus`'s `save FILE`; 18 where it holds a line a forward step derived): the rule file, the terms, the scopes with the node and premise that own each and the hypotheses it offers, the nodes from the conclusion up, and the goals the steps closed in order. A node is a rule's, a hypothesis, or a line a forward step derived (`line`, level 18); an open goal closed by such a line names it in `cites` (level 18). A reader ignores keys it does not know.",
@@ -3369,8 +3375,314 @@
         }
       }
     },
+    "system": {
+      "description": "A normal modal system by its name. deduxit writes these names; it also reads other names of a system (`KT4` for `S4`, `KT5` for `S5`) and any case.",
+      "enum": [
+        "K",
+        "D",
+        "T",
+        "KB",
+        "KDB",
+        "B",
+        "K4",
+        "KD4",
+        "S4",
+        "K5",
+        "KD5",
+        "K45",
+        "KD45",
+        "KB5",
+        "S5"
+      ]
+    },
+    "modal_formula": {
+      "description": "A formula of modal logic in its sequent's list: an ordinary formula's forms, and `□` (necessarily) or `◇` (possibly) with one operand. Every operand comes before its formula.",
+      "oneOf": [
+        {
+          "enum": [
+            "⊤",
+            "⊥"
+          ]
+        },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "V": {
+              "$ref": "#/$defs/index"
+            },
+            "¬": {
+              "$ref": "#/$defs/index"
+            },
+            "∧": {
+              "$ref": "#/$defs/pair"
+            },
+            "∨": {
+              "$ref": "#/$defs/pair"
+            },
+            "→": {
+              "$ref": "#/$defs/pair"
+            },
+            "↔": {
+              "$ref": "#/$defs/pair"
+            },
+            "□": {
+              "$ref": "#/$defs/index"
+            },
+            "◇": {
+              "$ref": "#/$defs/index"
+            }
+          }
+        }
+      ]
+    },
+    "modal_sequent_keys": {
+      "description": "The keys of a sequent of modal logic, at the top of a document or nested without `version`. A reader ignores keys it does not know.",
+      "type": "object",
+      "required": [
+        "formulas",
+        "atoms",
+        "left",
+        "right"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 8,
+          "description": "The wire level, written only at the top of a document: 20 where `formulas` holds a `□` or a `◇`, else 8, that of an ordinary sequent."
+        },
+        "formulas": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/modal_formula"
+          }
+        },
+        "atoms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/name"
+          }
+        },
+        "left": {
+          "$ref": "#/$defs/indices",
+          "description": "The hypotheses, as positions in `formulas`."
+        },
+        "right": {
+          "$ref": "#/$defs/indices",
+          "description": "The formulas right of ⊢."
+        }
+      },
+      "if": {
+        "required": [
+          "version",
+          "formulas"
+        ],
+        "properties": {
+          "formulas": {
+            "contains": {
+              "type": "object",
+              "anyOf": [
+                {
+                  "required": [
+                    "□"
+                  ]
+                },
+                {
+                  "required": [
+                    "◇"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "version": {
+            "minimum": 20
+          }
+        }
+      }
+    },
+    "modal_sequent": {
+      "description": "A sequent of modal logic (level 20, or 8 without `□` and `◇`, when it is a sequent of ordinary logic): the formulas, the atoms and the two sides.",
+      "$ref": "#/$defs/modal_sequent_keys",
+      "required": [
+        "version"
+      ]
+    },
+    "nested_modal_sequent": {
+      "description": "A sequent of modal logic nested in another form: no `version`.",
+      "$ref": "#/$defs/modal_sequent_keys",
+      "not": {
+        "required": [
+          "version"
+        ]
+      }
+    },
+    "modal_statistics": {
+      "description": "What a modal search cost: the worlds it made, the splits it took, the worlds it blocked, its units of work and the inferences of the derivation it built.",
+      "type": "object",
+      "required": [
+        "worlds",
+        "splits",
+        "blocked",
+        "work",
+        "inferences"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "worlds": {
+          "$ref": "#/$defs/count"
+        },
+        "splits": {
+          "$ref": "#/$defs/count"
+        },
+        "blocked": {
+          "$ref": "#/$defs/count"
+        },
+        "work": {
+          "$ref": "#/$defs/count"
+        },
+        "inferences": {
+          "$ref": "#/$defs/count"
+        }
+      }
+    },
+    "modal_outcome": {
+      "description": "The outcome of deciding a modal sequent (level 20, `prove --system … --format json`): the verdict (`unknown` with a `reason`), the system, what the search cost, the sequent, and the evidence: a valid outcome's `derivation` in the system's labelled calculus (`G3` and the system's name), a not-valid outcome's `countermodel` where one was small enough to check. A reader ignores keys it does not know.",
+      "type": "object",
+      "required": [
+        "version",
+        "deduxit",
+        "verdict",
+        "system",
+        "sequent"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 20
+        },
+        "deduxit": {
+          "$ref": "#/$defs/writer"
+        },
+        "verdict": {
+          "enum": [
+            "valid",
+            "not_valid",
+            "unknown"
+          ]
+        },
+        "reason": {
+          "$ref": "#/$defs/reason"
+        },
+        "system": {
+          "$ref": "#/$defs/system"
+        },
+        "statistics": {
+          "$ref": "#/$defs/modal_statistics"
+        },
+        "sequent": {
+          "$ref": "#/$defs/nested_modal_sequent"
+        },
+        "derivation": {
+          "$ref": "#/$defs/rules_derivation_keys",
+          "not": {
+            "required": [
+              "version"
+            ]
+          }
+        },
+        "countermodel": {
+          "description": "The Kripke model that refutes the sequent: each world's arrows the worlds it sees, `world` the world where the sequent fails.",
+          "type": "object",
+          "required": [
+            "model"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "model": {
+              "$ref": "#/$defs/kripke_model_keys",
+              "not": {
+                "required": [
+                  "version"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "verdict": {
+                "const": "unknown"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "reason"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "reason"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "verdict": {
+                "const": "valid"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "derivation"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "derivation"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "not": {
+              "properties": {
+                "verdict": {
+                  "const": "not_valid"
+                }
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "countermodel"
+              ]
+            }
+          }
+        }
+      ]
+    },
     "checked": {
-      "description": "The verdict of `check --format json` (level 1, the command's own form, written only): `valid`, `invalid` or `unknown`; the mode of a proof of linear logic, the logic of an ordinary derivation, outcome or model, or the calculus of a derivation in a calculus given as data; for an invalid or unknown verdict the library's error and its message with formulas, or why the check was not made; `lambda` under `--lambda`; and where a Kripke model fails a sequent, the world and what it forces of each subformula.",
+      "description": "The verdict of `check --format json` (level 1, the command's own form, written only): `valid`, `invalid` or `unknown`; the mode of a proof of linear logic, the logic of an ordinary derivation, outcome or model, the calculus of a derivation in a calculus given as data, or the system of a modal outcome or model; for an invalid or unknown verdict the library's error and its message with formulas, or why the check was not made; `lambda` under `--lambda`; and where a Kripke model fails a sequent, the world and what it forces of each subformula.",
       "type": "object",
       "required": [
         "version",
@@ -3398,6 +3710,9 @@
         "calculus": {
           "type": "string",
           "minLength": 1
+        },
+        "system": {
+          "$ref": "#/$defs/system"
         },
         "error": {
           "$ref": "#/$defs/error"
@@ -3687,6 +4002,85 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        }
+      }
+    },
+    "modal_statement": {
+      "description": "A value of the protocol's kind `modal.sequent`: a sequent of modal logic's document with `system`, the system it is claimed in, beside its keys (a reader of the sequent ignores it, so it raises no level), and `text`, where present, the sequent as typed.",
+      "type": "object",
+      "required": [
+        "atoms",
+        "formulas",
+        "left",
+        "right",
+        "system",
+        "version"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 8,
+          "description": "The wire level, written only at the top of a document: 20 where `formulas` holds a `□` or a `◇`, else 8, that of an ordinary sequent."
+        },
+        "formulas": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/modal_formula"
+          }
+        },
+        "atoms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/name"
+          }
+        },
+        "left": {
+          "$ref": "#/$defs/indices",
+          "description": "The hypotheses, as positions in `formulas`."
+        },
+        "right": {
+          "$ref": "#/$defs/indices",
+          "description": "The formulas right of ⊢."
+        },
+        "system": {
+          "$ref": "#/$defs/system"
+        },
+        "text": {
+          "type": "string",
+          "description": "The sequent as it was typed."
+        }
+      },
+      "if": {
+        "required": [
+          "version",
+          "formulas"
+        ],
+        "properties": {
+          "formulas": {
+            "contains": {
+              "type": "object",
+              "anyOf": [
+                {
+                  "required": [
+                    "□"
+                  ]
+                },
+                {
+                  "required": [
+                    "◇"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "version": {
+            "minimum": 20
           }
         }
       }
