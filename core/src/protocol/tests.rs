@@ -58,7 +58,7 @@ fn the_names_list_every_operation_and_kind_once() {
         }
     }
     let json = serde_json::to_value(catalogue()).unwrap();
-    assert_eq!(json["suites"].as_array().unwrap().len(), 3);
+    assert_eq!(json["suites"].as_array().unwrap().len(), 4);
     assert_eq!(
         json["suites"][1]["operations"][4]["promise"]["name"],
         "same_verdict"
@@ -341,4 +341,57 @@ fn a_value_of_another_kind_is_refused() {
     let outcome = ran("linear.prove", &[&linear], "");
     assert_eq!(refused("linear.net", &outcome), "json");
     assert!(read("linear.proof", &outcome, &limits).is_err());
+}
+
+#[test]
+fn a_modal_sequent_is_decided_and_its_evidence_checked() {
+    let limits = settings().limits;
+    let valid = super::statement("modal", "[]p |- [][]p", "S4", &limits).unwrap();
+    assert_eq!(
+        summary("modal.sequent", &valid, &limits).unwrap(),
+        "□p ⊢ □□p"
+    );
+    let outcome = ran("modal.decide", &[&valid], "");
+    assert_eq!(verdict_of(&outcome).unwrap(), Verdict::Valid);
+    assert_eq!(
+        checked("modal.decide", &[&valid], "", &outcome).status,
+        Status::Held
+    );
+    let derivation = ran("modal.derivation", &[&outcome], "");
+    assert_eq!(
+        checked("modal.derivation", &[&outcome], "", &derivation).status,
+        Status::Held
+    );
+    // Not valid in K: the countermodel is checked, and has no derivation.
+    let refuted = super::statement("modal", "[]p |- [][]p", "K", &limits).unwrap();
+    let outcome = ran("modal.decide", &[&refuted], "");
+    assert_eq!(
+        summary("modal.outcome", &outcome, &limits).unwrap(),
+        "Not valid"
+    );
+    assert_eq!(
+        checked("modal.decide", &[&refuted], "", &outcome).status,
+        Status::Held
+    );
+    let error = run("modal.derivation", &[&outcome], "", &settings(), |_| false).unwrap_err();
+    assert_eq!(error.code(), "no_derivation");
+    // A forged countermodel fails its check.
+    let forged = outcome.replacen(r#""arrows":[1]"#, r#""arrows":[]"#, 1);
+    assert_ne!(forged, outcome);
+    assert_eq!(
+        checked("modal.decide", &[&refuted], "", &forged).status,
+        Status::Failed
+    );
+}
+
+#[cfg(feature = "svg")]
+#[test]
+fn a_modal_outcome_is_drawn() {
+    let limits = settings().limits;
+    for system in ["S4", "K"] {
+        let statement = super::statement("modal", "[]p |- [][]p", system, &limits).unwrap();
+        let outcome = ran("modal.decide", &[&statement], "");
+        let drawing = ran("modal.draw", &[&outcome], "");
+        assert!(drawing.contains("<svg"), "{system}: {drawing}");
+    }
 }

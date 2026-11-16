@@ -62,6 +62,7 @@
 //! ```
 
 mod linear;
+mod modal;
 mod ordinary;
 mod rules;
 mod shared;
@@ -413,7 +414,12 @@ pub fn suites() -> &'static [&'static dyn Suite] {
 }
 
 /// The suites of this build, in the order a front end shows them.
-static SUITES: [&dyn Suite; 3] = [&linear::LINEAR, &ordinary::ORDINARY, &rules::RULES];
+static SUITES: [&dyn Suite; 4] = [
+    &linear::LINEAR,
+    &ordinary::ORDINARY,
+    &rules::RULES,
+    &modal::MODAL,
+];
 
 /// The kinds no suite owns: the renderings every suite makes.
 pub const fn shared() -> &'static [Kind] {
@@ -458,6 +464,11 @@ const OPERATIONS: &[&str] = &[
     #[cfg(any(feature = "latex", feature = "typst"))]
     "rules.export",
     "rules.duplicate",
+    "modal.decide",
+    "modal.derivation",
+    #[cfg(feature = "svg")]
+    "modal.draw",
+    "modal.duplicate",
 ];
 
 /// Every kind name of this build: the suites' in order, then the shared.
@@ -476,6 +487,8 @@ const KINDS: &[&str] = &[
     "rules.sequent",
     "rules.session",
     "rules.derivation",
+    "modal.sequent",
+    "modal.outcome",
     "drawing",
     "text",
     "certificate",
@@ -639,13 +652,14 @@ fn takes(call: &Call<'_>, kind: &str) -> Result<(), Error> {
 
 /// Returns the statement of a sequent typed in a suite's syntax, the value
 /// a workspace's sequent holds: `suite` is `ordinary` with `parameter` a
-/// logic, or `linear` with `parameter` a mode, whose intuitionistic modes
-/// read the sequent two-sided in the syntax of intuitionistic linear logic.
+/// logic, `linear` with `parameter` a mode, whose intuitionistic modes
+/// read the sequent two-sided in the syntax of intuitionistic linear logic,
+/// or `modal` with `parameter` a system (`S4`).
 /// The text is kept beside the sequent as typed.
 ///
 /// # Errors
 ///
-/// An unknown suite, logic or mode, the parser's error, and a sequent past
+/// An unknown suite, logic, mode or system, the parser's error, and a sequent past
 /// `limits.occurrences`.
 pub fn statement(
     suite: &str,
@@ -670,10 +684,15 @@ pub fn statement(
             };
             linear::typed_statement(&sequent, mode, Some(text))
         }
+        "modal" => {
+            let system: crate::modal::System = parameter.parse()?;
+            let sequent = crate::modal::Sequent::parse_within(text, limits)?;
+            modal::typed_statement(&sequent, system, Some(text))
+        }
         _ => Err(Error::UnknownName {
             what: "suite",
             name: suite.into(),
-            known: &["linear", "ordinary"],
+            known: &["linear", "ordinary", "modal"],
         }),
     }
 }
