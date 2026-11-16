@@ -21,6 +21,7 @@ deduxit = { workspace = true, features = [
   "parse",
   "pdf",
   "png",
+  "protocol",
   "rocq",
   "sat",
   "serialize",

@@ -141,6 +141,32 @@ so a program may keep it. A run that a bound ended says which: its
 output says "unknown", and the run names the reason and the settings
 key that lifts it, `limits.work` for the budget of work.
 
+## In the web page's module
+
+The WebAssembly module of the web page (the crate `deduxit-web`) has the
+same calls for every suite, under the suite's prefix: none for linear
+logic, `ordinary_` and `rules_`. `describe()` answers which call of a
+suite is which, with its arguments, and the catalogue above:
+
+| call | what it does | linear | ordinary | rules |
+|---|---|---|---|---|
+| `read` | reads a sequent, or a rule file | `read_as` | `ordinary_read` | `rules_read` |
+| `start` | starts a proof step by step | `start` | `ordinary_start` | `rules_start` |
+| `view` | what the page shows of a proof | `view` | `ordinary_view` | `rules_view` |
+| `rules` | the rules that apply at a goal | `rules` | `ordinary_rules` | `rules_rules` |
+| `apply` | takes a step | `apply` | `ordinary_apply` | `rules_apply` |
+| `undo` | takes the last step back | `undo` | `ordinary_undo` | `rules_undo` |
+| `close` | closes a goal by the search | `close` | `ordinary_close` | none |
+| `hint` | the next steps of the goal's proof | `hint` | `ordinary_hint` | none |
+| `draw` | the proof as SVG | `draw` | `ordinary_draw` | `rules_draw` |
+| `export_as` | the proof in a format | `export_as` | `ordinary_export` | `rules_export` |
+| `certificate` | a Rocq certificate of an outcome | `certificate` | `ordinary_certificate` | none |
+
+Each call takes JSON text and the page's settings, and keeps nothing
+between calls: the documents it takes and gives carry their `version`.
+Every `view` says in `layout` where the page draws the proof: `tree`
+for a derivation, `list` for a Fitch proof.
+
 ## The schema of the JSON forms
 
 [`wire.schema.json`](wire.schema.json) is a JSON Schema of every

@@ -300,6 +300,9 @@ struct Goal {
 /// What the page shows of a session.
 #[derive(Serialize)]
 struct View {
+    /// The host the stage draws the session into, as the protocol names
+    /// it (`describe`): `tree` for a derivation.
+    layout: &'static str,
     /// The session's mode.
     mode: Mode,
     /// The smallest fragment of the sequent, named in the mode.
@@ -403,6 +406,7 @@ impl View {
             })
             .collect();
         Self {
+            layout: "tree",
             mode: state.mode(),
             fragment: fragment.name_in(state.mode()),
             complete: state.is_complete(),

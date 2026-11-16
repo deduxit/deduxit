@@ -176,6 +176,9 @@ struct LineView {
 /// What the page shows of a session.
 #[derive(Serialize)]
 struct View<'a> {
+    /// The host the stage draws the session into, as the protocol names
+    /// it (`describe`): `tree` for a derivation, `list` for a Fitch proof (`view.layout` `fitch`).
+    layout: &'static str,
     /// The calculus.
     calculus: Described<'a>,
     /// The sequent derived, the session's first goal, as text.
@@ -198,7 +201,8 @@ struct View<'a> {
 impl<'a> View<'a> {
     /// Returns the view of a session, its drawing's inferences within
     /// `limits`.
-    fn of(state: &'a Interactive, limits: &Limits) -> Result<Self, Failure> {
+    fn of(state: &'a Interactive, settings: &Settings) -> Result<Self, Failure> {
+        let limits = &settings.limits;
         let (calculus, terms) = (state.calculus(), state.terms());
         let fitch = fitch_numbers(state, limits);
         let goals = state
@@ -241,6 +245,11 @@ impl<'a> View<'a> {
             |drawing| drawing.nodes().map(|node| nodes[node.index()]).collect(),
         );
         Ok(Self {
+            layout: if settings.view.layout == Layout::Fitch {
+                "list"
+            } else {
+                "tree"
+            },
             calculus: Described::of(calculus),
             sequent: calculus
                 .show_zones(terms, state.goal(GoalId::new(0)))
@@ -295,10 +304,14 @@ struct Changed<'a, T: Serialize> {
 }
 
 /// Returns a session's document with its view and what a call said.
-fn changed(state: &Interactive, limits: &Limits, said: impl Serialize) -> Result<String, Failure> {
+fn changed(
+    state: &Interactive,
+    settings: &Settings,
+    said: impl Serialize,
+) -> Result<String, Failure> {
     written(&Changed {
         session: state,
-        view: View::of(state, limits)?,
+        view: View::of(state, settings)?,
         said,
     })
 }
@@ -334,7 +347,7 @@ pub fn start(
     let assumptions: Vec<&str> = assumptions.iter().map(String::as_str).collect();
     let state = Interactive::within(calculus, goal, &assumptions, &settings.limits)
         .map_err(Failure::from)?;
-    changed(&state, &settings.limits, serde_json::Map::new())
+    changed(&state, &settings, serde_json::Map::new())
 }
 
 /// Reads a saved session, checking every step in it again, and returns
@@ -349,7 +362,7 @@ pub fn start(
 pub fn view(session: &str, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let state = session_of(session, &settings)?;
-    written(&View::of(&state, &settings.limits)?)
+    written(&View::of(&state, &settings)?)
 }
 
 /// A step the page may take, as [`rules`](self::rules) lists it.
@@ -442,7 +455,7 @@ pub fn apply(session: &str, goal: u32, step: &str, settings: &str) -> Result<Str
             &Apply::new(&step.rule).at(&step.at).given(&given),
         )
         .map_err(Failure::from)?;
-    changed(&state, &settings.limits, Opened { opened })
+    changed(&state, &settings, Opened { opened })
 }
 
 /// A forward step as the page sends it: `{"rule", "lines", "given"}`.
@@ -502,7 +515,7 @@ pub fn derive(session: &str, goal: u32, step: &str, settings: &str) -> Result<St
         .map_err(Failure::from)?;
     changed(
         &state,
-        &settings.limits,
+        &settings,
         Derived {
             line: line.number(),
         },
@@ -522,7 +535,7 @@ pub fn cite(session: &str, goal: u32, line: u32, settings: &str) -> Result<Strin
     state
         .cite(GoalId::new(goal), LineId::new(line))
         .map_err(Failure::from)?;
-    changed(&state, &settings.limits, serde_json::Map::new())
+    changed(&state, &settings, serde_json::Map::new())
 }
 
 /// Closes an open goal by a hypothesis in force, and returns the session.
@@ -535,7 +548,7 @@ pub fn assume(session: &str, goal: u32, settings: &str) -> Result<String, Failur
     let settings = tab::read(settings)?;
     let mut state = session_of(session, &settings)?;
     state.assume(GoalId::new(goal)).map_err(Failure::from)?;
-    changed(&state, &settings.limits, serde_json::Map::new())
+    changed(&state, &settings, serde_json::Map::new())
 }
 
 /// What an undo took back.
@@ -565,7 +578,7 @@ pub fn undo(session: &str, settings: &str) -> Result<String, Failure> {
         Some(Undone::Removed(line)) => (None, Some(line.number())),
         _ => (None, None),
     };
-    changed(&state, &settings.limits, Reopened { reopened, removed })
+    changed(&state, &settings, Reopened { reopened, removed })
 }
 
 /// The verdict on a finished derivation.

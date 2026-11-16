@@ -22,11 +22,14 @@
 //! The calls are those of [`calls`], exported under their names, `export`
 //! as `export_as`. Those of [`ordinary`] are exported with the prefix
 //! `ordinary_`, and those of [`rules`], which build a derivation in a
-//! calculus given as data, with the prefix `rules_`.
+//! calculus given as data, with the prefix `rules_`. [`protocol`] writes
+//! down which call of each suite is which of the protocol's, `describe`
+//! answering it as JSON.
 
 pub mod calls;
 mod failure;
 pub mod ordinary;
+pub mod protocol;
 pub mod rules;
 pub mod tab;
 
@@ -35,7 +38,7 @@ pub use failure::Failure;
 /// The exports of the module, which wrap [`calls`] for JavaScript.
 mod exports {
     use crate::failure::Failure;
-    use crate::{calls, ordinary, rules};
+    use crate::{calls, ordinary, protocol, rules};
     use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 
     /// Returns a failure as the string a call throws.
@@ -59,6 +62,12 @@ mod exports {
     #[wasm_bindgen]
     pub fn defaults() -> String {
         calls::defaults()
+    }
+
+    /// See [`protocol::describe`].
+    #[wasm_bindgen]
+    pub fn describe() -> String {
+        protocol::describe()
     }
 
     /// See [`calls::read`].
@@ -393,6 +402,18 @@ mod exports {
     #[wasm_bindgen]
     pub fn ordinary_model_drawing(outcome: &str, settings: &str) -> Result<String, JsValue> {
         ordinary::model_drawing(outcome, settings).map_err(thrown)
+    }
+
+    /// See [`ordinary::read`].
+    #[wasm_bindgen]
+    pub fn ordinary_read(input: &str, logic: &str, settings: &str) -> Result<String, JsValue> {
+        ordinary::read(input, logic, settings).map_err(thrown)
+    }
+
+    /// See [`ordinary::certificate`].
+    #[wasm_bindgen]
+    pub fn ordinary_certificate(outcome: &str, settings: &str) -> Result<String, JsValue> {
+        ordinary::certificate(outcome, settings).map_err(thrown)
     }
 
     /// See [`ordinary::model_certificate`].

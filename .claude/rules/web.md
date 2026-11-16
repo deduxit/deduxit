@@ -343,6 +343,28 @@ for `THIRD-PARTY-NOTICES.txt`.
   `lambda`, never thrown: a refusal is what the page shows in place of the
   term, and only an unreadable session throws. The judgement writes types
   and joins `no_intuitionistic_text_writes_a_classical_symbol`.
+- **The protocol** (`protocol.rs`, exported `describe`): which of each
+  suite's calls is which of the protocol's eleven (`CALLS`), with its
+  arguments (`takes`), `null` where the suite lacks one (the `rules`
+  suite has no search, so no `close`, `hint` or `certificate`), its
+  calls beyond them (`extra`), the layouts its views draw into and how
+  its proofs are built (`builds`: the ordinary suite's `natural` runs the
+  `rules` suite's calls in NK, NJ or NM). It is `about`'s answer with
+  those keys added (`about`'s own `methods`, the ordinary suite's table
+  and tableau, stay), and `catalogue`, the library's
+  `protocol::catalogue()`, which the workspace runs. Every `view`
+  answers `layout`: `tree`, or `list` for a Fitch proof (`rules`, under
+  `view.layout` `fitch`); a key of an answer, so no wire level.
+  `tests/protocol.rs` holds every export `describe` names to `lib.rs`
+  and every kind's form to the manual's schema
+  (`docs/src/wire.schema.json`, which the `web-tests` part keeps). A new
+  call of a suite is a row there; a new suite a row of `SUITES`.
+- **`ordinary_read(input, logic, settings)`** reads a sequent as
+  `ordinary_start` would (a session made and dropped, so that two
+  formulas right of ⊢ outside classical logic is the same
+  `succedents`), answering `{"kind", "sequent", "text", "logic"}`;
+  **`ordinary_certificate(outcome, settings)`** writes an outcome's Rocq
+  certificate, its derivation's or its countermodel's.
 - **`about` lists the suites** (`suite`, `name`, `calls` the prefix of
   the suite's calls, `parameters` the argument its start takes by name
   with every value and the default, `settings` the keys that change how

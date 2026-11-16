@@ -43,6 +43,9 @@ struct OpenGoal {
 /// What the page shows of a session.
 #[derive(Serialize)]
 struct View {
+    /// The host the stage draws the session into, as the protocol names
+    /// it (`describe`): `tree` for a derivation.
+    layout: &'static str,
     /// The session's logic.
     logic: Logic,
     /// Its calculus, `LK` or `LJ`.
@@ -80,6 +83,7 @@ impl View {
             })
             .collect();
         Self {
+            layout: "tree",
             logic: state.logic(),
             calculus: state.logic().calculus(),
             complete: state.is_complete(),
@@ -758,6 +762,84 @@ pub fn model_certificate(outcome: &str, settings: &str) -> Result<String, Failur
         &mut out,
         never,
     )
+    .map_err(Failure::from)?;
+    Ok(out)
+}
+
+/// What [`read`] found: the sequent as JSON and as text.
+#[derive(Serialize)]
+struct Read {
+    /// `sequent`, as the linear `read` names what it read.
+    kind: &'static str,
+    /// The sequent as JSON.
+    sequent: Sequent,
+    /// The sequent in the parser's Unicode syntax.
+    text: String,
+    /// The logic it is read for.
+    logic: Logic,
+}
+
+/// Reads a sequent of ordinary logic, typed or as JSON, for `logic`, and
+/// answers `{"kind": "sequent", "sequent", "text", "logic"}`: what the
+/// page shows before the proof starts. A sequent with more than one
+/// formula right of `⊢` is refused outside classical logic, as `start`
+/// refuses it.
+///
+/// # Errors
+///
+/// A parse error with its place, an unknown logic, and `succedents`.
+pub fn read(input: &str, logic: &str, settings: &str) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let logic: Logic = logic.parse().map_err(Failure::from)?;
+    let sequent = sequent_of(input, &settings)?;
+    // A session refuses the sequent where the logic does: two formulas
+    // right of ⊢ outside classical logic.
+    Interactive::within(&sequent, logic, &settings.limits).map_err(Failure::from)?;
+    written(&Read {
+        kind: "sequent",
+        text: sequent.to_string(),
+        sequent,
+        logic,
+    })
+}
+
+/// Returns the Rocq certificate of an ordinary outcome: of its checked
+/// derivation where the sequent is valid, of its countermodel where it is
+/// not. The certificate is over `Prop` and needs no library.
+///
+/// # Errors
+///
+/// An outcome that cannot be read (one valid by a clausal proof keeps no
+/// proof to certify), `no_certificate` for an outcome with neither a
+/// derivation nor a countermodel, and the certificate's own refusals.
+pub fn certificate(outcome: &str, settings: &str) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let mut json = serde_json::Deserializer::from_str(outcome);
+    let outcome: ordinary::Outcome =
+        wire::upgrade(&mut json, &settings.limits).map_err(Failure::from)?;
+    json.end().map_err(Failure::json)?;
+    let mut out = String::new();
+    match (&outcome.verdict, &outcome.countermodel) {
+        (ordinary::Verdict::Valid(evidence), _) => {
+            let derivation = evidence.derivation().map_err(Failure::from)?;
+            rocq::write(derivation, &settings.styles.rocq, &mut out, never)
+        }
+        (_, Some(countermodel)) => rocq::write_countermodel(
+            countermodel,
+            outcome.logic,
+            &settings.styles.rocq,
+            &settings.limits,
+            &mut out,
+            never,
+        ),
+        _ => {
+            return Err(Failure::refused(
+                "no_certificate",
+                "unsupported",
+                "the outcome holds neither a derivation nor a countermodel to certify",
+            ));
+        }
+    }
     .map_err(Failure::from)?;
     Ok(out)
 }

@@ -74,10 +74,12 @@
           (craneLib.fileset.commonCargoSources ../web/src)
           ../LICENSE
         ];
-        # The bindings' tests render with the font the command embeds.
+        # The bindings' tests render with the font the command embeds, and
+        # hold the protocol's kinds to the schema the manual publishes.
         web-tests = fileset.unions [
           ../web/tests
           ../cli/fonts
+          ../docs/src/wire.schema.json
         ];
         # The last releases under the old names, linlog and linlog-cli.
         compat = fileset.unions [
