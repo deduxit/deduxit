@@ -19,12 +19,14 @@
       packages = builtins.length (builtins.fromTOML (builtins.readFile ../Cargo.lock)).package;
 
       # The module the web page loads, in bytes at `gzip -9', what a
-      # browser downloads: 3 670 553 on 2026-11-16, when the bindings took
-      # up the workspace, whose runs and checks link every suite's
-      # operations (3 166 704 before; 3 111 006 on 2026-11-15, with
-      # calculi given as data; 2 842 389 on 2026-11-14, 2 603 759 at
-      # 0.2.0).
-      mostModuleBytes = 3900000;
+      # browser downloads: 3 622 968 on 2026-11-16 with the modal suite
+      # (3 541 980 before it, once the ordinary searches and the SVG
+      # drawing were compiled once whatever closure stops them; 3 670 553
+      # before that, when the bindings took up the
+      # workspace, whose runs and checks link every suite's operations;
+      # 3 166 704 before that; 3 111 006 on 2026-11-15, with calculi
+      # given as data; 2 842 389 on 2026-11-14, 2 603 759 at 0.2.0).
+      mostModuleBytes = 3750000;
     in
     {
       checks.budget =
