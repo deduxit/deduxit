@@ -7270,3 +7270,21 @@ move (D26).
     every claim against the rule files and played every lesson; six findings fixed, among them
     lesson 6's wrong clause for negation in a Kripke model. Departure marked: three education
     skills not loaded. Client flake check passed (661 unit, 283 e2e, 62 problems, 5 sessions).
+- 2026-11-16, 13:05: **65a reviewed; its design on `main`, its code held until 0.5.0; 65b started.**
+  - **65a** (`ntmsxtsv` the design, pushed; `llurntnq` the code and `zxvlwlvt` the report, held
+    off `main` until 63g-b's level 19 has landed and 0.5.0 is tagged): `plan/notes/modal-design.md`
+    (the arena, the fifteen systems of the modal cube as closed sets of five frame conditions,
+    one search for all: backward search in Negri's labelled G3K with the system's frame rules,
+    loop checks for K4, KD4 and S4 by Garg, Genovese and Negri's condition; the proof a
+    `rules::Derivation` in the system's labelled rule file checked by step 60's checker, which a
+    tried S4 rule file and a derivation of axiom 4 already pass; the countermodel a
+    `kripke::Model` checked by a modal model check, the one new trusted piece). Code:
+    `deduxit::modal` (arena, sequent, parser, JSON at the placeholder level 20, `System`).
+    Reviewer (Opus) found no counterexample to the arguments; six findings answered. Departures
+    marked: the level taken before 19 landed; the suite not yet in the protocol (65c registers
+    it with its first operation); no schema entry yet.
+  - **Decided for the author:** all fifteen systems offered where they pass the same tests
+    (65a's question 1, its recommendation: KD45 is the logic of belief). Its question 2, the
+    command's `--system S4`, waits for 65c's proposal and goes to the author then.
+  - **65b** started (`local_fe155f72`, now Opus 5.5, on top of the held chain): the search, the
+    proof and the countermodel, with the panel.
