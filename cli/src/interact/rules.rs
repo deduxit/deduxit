@@ -26,7 +26,8 @@ apply G RULE [N…] [NAME=TEXT…]
 derive G RULE L… [NAME=TEXT…]
                     apply a rule forwards from lines L… in force at goal G, which adds
                     its conclusion as a new line there; NAME=TEXT gives what the lines
-                    leave open
+                    leave open. In a sequent calculus (a calculus with contexts) L… are
+                    members of goal G, and what the rule derives from them joins them
 assume G [L]        close goal G by line L in force, or by the line in force equal to it
 undo                retract the last step
 show                the derivation so far, a line per node
@@ -160,6 +161,53 @@ impl Session {
             .join("\n")
     }
 
+    /// Takes `derive G RULE N… [NAME=TEXT…]` in a sequent calculus: the
+    /// rule applied forwards to members N… of goal G. Answers the goal
+    /// that holds what it derived, and each member it added.
+    fn extend(&mut self, rest: &[&str]) -> Result<String> {
+        let target = goal(rest.first())?;
+        let rule = rest.get(1).context("which rule? see `rules` and `help`")?;
+        let mut at = Vec::new();
+        let mut given = Vec::new();
+        for word in rest.get(2..).unwrap_or_default() {
+            if let Some((name, text)) = word.split_once('=') {
+                given.push((name, text));
+            } else {
+                at.push(word.parse::<u32>().with_context(|| {
+                    format!(
+                        "{word:?} is neither a member's number nor NAME=TEXT: in a sequent \
+                         calculus a forward step acts on the goal's members, as `goals` numbers them"
+                    )
+                })?);
+            }
+        }
+        if !self.state.goals().contains(&target) {
+            bail!(
+                "the step is refused: there is no open goal {}",
+                target.index()
+            );
+        }
+        let mut before = self.state.members(target);
+        let opened = self
+            .state
+            .extend(target, &Apply::new(rule).at(&at).given(&given))?;
+        let calculus = self.state.calculus();
+        let mut text = format!("opened {}", self.goal_line(opened));
+        // Counted as multisets: a copy in a multiset zone is a member added.
+        for (number, (zone, member)) in self.state.members(opened).into_iter().enumerate() {
+            match before.iter().position(|&kept| kept == (zone, member)) {
+                Some(at) => {
+                    before.swap_remove(at);
+                }
+                None => text.push_str(&format!(
+                    "\nadded {number}: {}",
+                    calculus.show(self.state.terms(), member)
+                )),
+            }
+        }
+        Ok(text)
+    }
+
     /// Returns the derivation so far, a line per node.
     fn show(&self) -> Result<String> {
         let derivation = self.state.derivation()?;
@@ -232,6 +280,7 @@ impl Commands for Session {
                     .apply(target, &Apply::new(rule).at(&at).given(&given))?;
                 self.opened(&opened)
             }
+            "derive" if self.state.calculus().contexts().len() > 0 => self.extend(rest)?,
             "derive" => {
                 let target = goal(rest.first())?;
                 let rule = rest.get(1).context("which rule? see `rules` and `help`")?;

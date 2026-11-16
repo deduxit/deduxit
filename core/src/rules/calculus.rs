@@ -346,6 +346,14 @@ impl Calculus {
         self.form.sequent.iter().map(|zone| zone.mark.as_deref())
     }
 
+    /// Returns the names of the contexts the rule file declares, in its
+    /// order: none in natural deduction, whose forward steps cite lines,
+    /// and some in a sequent calculus, whose forward steps act on a goal's
+    /// members (`Interactive::extend`, feature `interactive`).
+    pub fn contexts(&self) -> impl ExactSizeIterator<Item = &str> {
+        self.form.contexts.iter().map(String::as_str)
+    }
+
     /// Returns the names of the rules, in the file's order.
     pub fn rules(&self) -> impl ExactSizeIterator<Item = &str> {
         self.form.rules.iter().map(|rule| &*rule.name)

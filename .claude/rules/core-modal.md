@@ -99,6 +99,13 @@ The design, with its reasons, alternatives and sources, is
   `L◇`, `Ser`, and `Ref`'s `x R x`). `Step::written` and
   `Step::located` are built in that order; a change of a rule's
   written order is a change of both.
+- **Sessions in the calculus** are `rules::Interactive` on
+  `calculus(system)` (`interact --calculus G3S4`): backwards as any
+  calculus given as data, forwards by `Interactive::extend` for the
+  rules whose premise only adds before `⊢` (`L∧`, `L□`, `L◇`, the frame
+  rules), `core-rules.md`. A label a step makes is named after the
+  rule's variable (`y`, `y1`); a refused step may still have made the
+  name, so the next is numbered on.
 - **The search** (`search.rs`): one branch is worlds (two bit sets over
   the arena each, sorted `sees` and `seen_by`), an agenda of members
   added and not yet acted on, the formulas waiting for a split, the

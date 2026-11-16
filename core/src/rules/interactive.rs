@@ -929,8 +929,9 @@ impl Interactive {
     /// asks to be new gets a new atom where it is not given. A rule whose
     /// premise discharges hypotheses applies backwards only, which opens
     /// its subproof ([`apply`](Self::apply)), and so does one whose
-    /// sequents have a context. The checker checks the step before the
-    /// state takes it.
+    /// sequents have a context, which applies forwards to a goal's
+    /// members instead ([`extend`](Self::extend)). The checker checks the
+    /// step before the state takes it.
     ///
     /// # Errors
     ///
@@ -1022,6 +1023,122 @@ impl Interactive {
         Ok(LineId(self.line_places().len() as u32))
     }
 
+    /// Applies a rule forwards to the members of the goal `goal`, in a
+    /// sequent calculus: the members `step.at` names are what the rule
+    /// reasons from, and what it derives joins them. It returns the goal
+    /// that holds them, the old goal's one premise.
+    ///
+    /// A sequent calculus's rules have contexts, which lines cannot tell
+    /// apart ([`derive`](Self::derive)), but a rule whose one premise is
+    /// its conclusion with members added to the first zone reads forwards
+    /// as it is: in Negri's labelled calculus, `L□` derives `y : A` from
+    /// `x : □A` and `x R y`, and `Trans` derives `x R z` from `x R y` and
+    /// `y R z`. The step is that rule's backward step on `goal`, so the
+    /// derivation is the same as [`apply`](Self::apply) makes. A rule with
+    /// another number of premises, one that acts on a member of another
+    /// zone (a right rule), one that drops a member of the goal, one that
+    /// adds to another zone and one that adds nothing the goal lacks apply
+    /// backwards only.
+    ///
+    /// # Errors
+    ///
+    /// As [`apply`](Self::apply), and [`Error::StepRefused`] for a rule
+    /// that does not read forwards, with the reason.
+    pub fn extend(&mut self, goal: GoalId, step: &Apply<'_>) -> Result<GoalId, Error> {
+        let before = self.open(goal)?.sequent.clone();
+        let Some(&index) = self.calculus.rule_ids.get(step.rule) else {
+            return Err(refused(format!("the calculus has no rule {:?}", step.rule)));
+        };
+        let rule = self.calculus.rules[index as usize].clone();
+        let backwards = |why: &str| {
+            Err(refused(format!(
+                "{} {why}: apply it backwards to the goal",
+                step.rule
+            )))
+        };
+        match rule.premises.as_slice() {
+            [] => return backwards("has no premise, so it closes a goal"),
+            [premise] if !premise.discharges.is_empty() => {
+                return backwards("discharges hypotheses");
+            }
+            [_] => {}
+            premises => {
+                return backwards(&format!(
+                    "has {} premises, and a forward step keeps one goal",
+                    premises.len()
+                ));
+            }
+        }
+        // A zone by the mark around it, `after ⊢` and `before ⊢`, else
+        // by its name.
+        let marks: Vec<Option<String>> = self
+            .calculus
+            .marks()
+            .map(|mark| mark.map(str::to_owned))
+            .collect();
+        let names: Vec<String> = self.calculus.zones().map(str::to_owned).collect();
+        let zone = |z: usize| match (&marks[z], marks.get(z + 1).and_then(Option::as_ref)) {
+            (Some(mark), _) => format!("after {mark}"),
+            (None, Some(mark)) => format!("before {mark}"),
+            (None, None) => format!("in the zone {}", names[z]),
+        };
+        // A forward step reasons from hypotheses: a rule that acts on a
+        // member of another zone (a right rule, `R¬` whose premise only
+        // adds before `⊢` among them) is goal-directed.
+        if let Some(z) = (1..rule.conclusion.zones.len()).find(|&z| {
+            rule.conclusion.zones[z]
+                .iter()
+                .any(|entry| matches!(entry, Entry::Item(_)))
+        }) {
+            return backwards(&format!(
+                "acts on members {}, and a forward step acts on members {} alone",
+                zone(z),
+                zone(0)
+            ));
+        }
+        let plan = match self.plan(goal, &rule, step) {
+            Ok(plan) => plan,
+            Err(Unplanned::Needs(needs)) => return Err(Error::StepNeeds { needs }),
+            Err(Unplanned::Error(error)) => return Err(error),
+        };
+        let mut gained = false;
+        for (z, (old, new)) in before.iter().zip(&plan.premises[0].0).enumerate() {
+            // Counted as multisets: a set zone holds each member once.
+            let (mut old, mut new) = (old.clone(), new.clone());
+            old.sort_unstable();
+            new.sort_unstable();
+            let mut at = 0;
+            for member in &old {
+                while at < new.len() && new[at] < *member {
+                    at += 1;
+                }
+                if at == new.len() || new[at] != *member {
+                    let shown = self.calculus.show(&self.terms, *member);
+                    return backwards(&format!("drops {shown} from the goal"));
+                }
+                at += 1;
+            }
+            if new.len() > old.len() {
+                if z > 0 {
+                    return backwards(&format!(
+                        "adds members {}, and a forward step adds them only {}",
+                        zone(z),
+                        zone(0)
+                    ));
+                }
+                gained = true;
+            }
+        }
+        if !gained {
+            return Err(refused(format!(
+                "{} derives nothing the goal does not hold already",
+                step.rule
+            )));
+        }
+        let opened = self.commit(goal, step.rule, plan)?;
+        Ok(opened[0])
+    }
+
     /// Plans a forward step of `rule` from the sequents `cited`: the
     /// conclusion and the positions the node gives.
     fn forward(
@@ -1040,7 +1157,7 @@ impl Interactive {
             .any(|entry| matches!(entry, Entry::Context { .. }));
         if contexts {
             return Err(refused(format!(
-                "{} has contexts, which a forward step cannot tell apart: apply it backwards",
+                "{} has contexts, which lines cannot tell apart: apply it backwards, or forwards on the goal's members",
                 step.rule
             ))
             .into());

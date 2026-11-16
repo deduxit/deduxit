@@ -1393,3 +1393,189 @@ fn random_forward_and_backward_steps_keep_a_checked_session() {
         "{steps} steps, {refused} refused, {derived} lines derived"
     );
 }
+
+/// In every modal system's calculus the rules that read forwards are
+/// exactly those that reason from hypotheses and add hypotheses: `L∧`,
+/// `L□`, `L◇` and the system's frame rules. Each rule is tried at every
+/// place `rules` lists on a goal where every rule applies, `R¬` and `R→`
+/// among them on goals whose premise would add only before `⊢`.
+#[cfg(feature = "interactive")]
+#[test]
+fn forward_steps_are_the_rules_that_add_hypotheses() {
+    use deduxit::modal::{self, System};
+    use deduxit::rules::{Apply, Interactive};
+    use std::collections::BTreeSet;
+    let limits = Limits::default();
+    let goal = "w0 : p /\\ q, w0 : ~p, w0 : p \\/ q, w0 : p -> q, w0 : p <-> q, w0 : []p, \
+                w0 : <>p, w0 R w1, w1 R w2 |- w0 : r /\\ s, w0 : ~t, w0 : r \\/ s, \
+                w0 : p -> q, w0 : q, w0 : r <-> s, w0 : []s, w0 : <>s";
+    for &system in System::ALL {
+        let calculus = modal::calculus(system, &limits).unwrap();
+        let mut expected: BTreeSet<String> = ["L∧", "L□", "L◇"].map(str::to_owned).into();
+        for rule in calculus.rules() {
+            if ["Ref", "Ser", "Sym", "Trans", "Eucl"].contains(&rule) {
+                expected.insert(rule.to_owned());
+            }
+        }
+        let mut session = Interactive::within(calculus, goal, &[], &limits).unwrap();
+        let root = session.goals()[0];
+        let mut forward = BTreeSet::new();
+        for fit in session.rules(root).unwrap() {
+            let given = [("x", "w0"), ("y", "w1")];
+            let given = &given[..fit.needs.len().min(2)];
+            if session
+                .extend(root, &Apply::new(&fit.rule).at(&fit.at).given(given))
+                .is_ok()
+            {
+                forward.insert(fit.rule.clone());
+                session.undo();
+            }
+        }
+        assert_eq!(forward, expected, "{system}");
+    }
+}
+
+/// Random sessions in the labelled calculus of every modal system, with
+/// backward steps, forward steps on the goal's members (`extend`), the
+/// ASCII spellings `[]` and `<>`, refusals and undo: every state reads
+/// back with every step checked again, and every finished state is
+/// checked whole.
+#[cfg(feature = "interactive")]
+#[test]
+fn random_labelled_steps_keep_a_checked_session() {
+    use deduxit::modal::{self, System};
+    use deduxit::rules::{Apply, Interactive};
+    let limits = Limits::default();
+    let mut seed = 66_u64;
+    let mut next = |below: usize| {
+        seed ^= seed << 13;
+        seed ^= seed >> 7;
+        seed ^= seed << 17;
+        (seed % below as u64) as usize
+    };
+    // The axioms K, D, T, B, 4 and 5, each valid in the systems that have
+    // its condition, and a sequent of every connective.
+    let sequents = [
+        "w0 : [](p -> q), w0 : []p |- w0 : []q",
+        "w0 : []p |- w0 : <>p",
+        "w0 : []p |- w0 : p",
+        "w0 : p |- w0 : []<>p",
+        "w0 : []p |- w0 : [][]p",
+        "w0 : <>p |- w0 : []<>p",
+        "w0 : <>(p /\\ q), w0 : ~r \\/ s, w0 R w1 |- w1 : p <-> q, w0 : <>q",
+    ];
+    // Rules that read forwards, each with the members it acts on.
+    const FORWARD: [(&str, usize); 8] = [
+        ("L∧", 1),
+        ("L□", 2),
+        ("L◇", 1),
+        ("Ref", 0),
+        ("Ser", 0),
+        ("Sym", 1),
+        ("Trans", 2),
+        ("Eucl", 2),
+    ];
+    let (mut steps, mut extended, mut refused, mut finished) = (0, 0, 0, 0);
+    for &system in System::ALL {
+        let rules: Vec<String> = modal::calculus(system, &limits)
+            .unwrap()
+            .rules()
+            .map(str::to_owned)
+            .collect();
+        for text in sequents {
+            for _ in 0..2 {
+                let calculus = modal::calculus(system, &limits).unwrap();
+                let mut session = Interactive::within(calculus, text, &[], &limits).unwrap();
+                for _ in 0..20 {
+                    let goals = session.goals();
+                    if goals.is_empty() {
+                        break;
+                    }
+                    let goal = goals[next(goals.len())];
+                    let members = session.members(goal).len();
+                    let fits = session.rules(goal).unwrap();
+                    let pick = |next: &mut dyn FnMut(usize) -> usize, count: usize| {
+                        // Now and then a number past the goal's members.
+                        (0..count)
+                            .map(|_| next(members + 1) as u32)
+                            .collect::<Vec<u32>>()
+                    };
+                    let labels = ["w0", "w1", "y"];
+                    let given = [("x", labels[next(3)]), ("y", labels[next(3)])];
+                    let given = &given[..next(3)];
+                    let outcome = match next(8) {
+                        0..=2 => {
+                            // A closing rule first where one applies, so
+                            // that walks finish.
+                            let closing: Vec<_> = fits
+                                .iter()
+                                .filter(|r| ["ax", "L⊥", "R⊤"].contains(&r.rule.as_str()))
+                                .collect();
+                            let fits: Vec<_> = if closing.is_empty() || next(4) == 0 {
+                                fits.iter().filter(|r| r.needs.is_empty()).collect()
+                            } else {
+                                closing
+                            };
+                            if fits.is_empty() || next(5) == 0 {
+                                let rule = &rules[next(rules.len())];
+                                let count = next(3);
+                                let at = pick(&mut next, count);
+                                session.apply(goal, &Apply::new(rule).at(&at))
+                            } else {
+                                let fit = &fits[next(fits.len())];
+                                session.apply(goal, &Apply::new(&fit.rule).at(&fit.at))
+                            }
+                            .map(|_| ())
+                        }
+                        3..=5 => {
+                            // Mostly a rule that reads forwards where it
+                            // applies, its label given where it needs one;
+                            // now and then any rule on any members.
+                            let forward: Vec<_> = fits
+                                .iter()
+                                .filter(|r| FORWARD.iter().any(|(name, _)| *name == r.rule))
+                                .collect();
+                            let (name, at) = if forward.is_empty() || next(4) == 0 {
+                                let (name, count) = if next(3) == 0 {
+                                    (rules[next(rules.len())].as_str(), next(3))
+                                } else {
+                                    FORWARD[next(FORWARD.len())]
+                                };
+                                (name, pick(&mut next, count))
+                            } else {
+                                let fit = forward[next(forward.len())];
+                                (fit.rule.as_str(), fit.at.clone())
+                            };
+                            let step = Apply::new(name).at(&at).given(given);
+                            let opened = session.extend(goal, &step);
+                            extended += usize::from(opened.is_ok());
+                            opened.map(|_| ())
+                        }
+                        6 => session.assume(goal),
+                        _ => {
+                            session.undo();
+                            Ok(())
+                        }
+                    };
+                    match outcome {
+                        Ok(()) => steps += 1,
+                        Err(Error::StepRefused { .. } | Error::StepNeeds { .. }) => refused += 1,
+                        Err(other) => panic!("{system}, {text}: {other:?}"),
+                    }
+                    let document = serde_json::to_value(&session).unwrap();
+                    let read: Interactive = wire::upgrade(&document, &limits)
+                        .unwrap_or_else(|e| panic!("{e}: {document}"));
+                    assert_eq!(serde_json::to_value(&read).unwrap(), document);
+                }
+                if session.is_finished() {
+                    session.finished(|_| false).unwrap();
+                    finished += 1;
+                }
+            }
+        }
+    }
+    assert!(
+        steps > 1500 && refused > 500 && extended > 300 && finished > 3,
+        "{steps} steps, {refused} refused, {extended} forward, {finished} finished"
+    );
+}

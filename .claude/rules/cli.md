@@ -340,7 +340,11 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   lists the lines in force as `lines: 1. a ∧ b; 2. b`; `apply G RULE
   [N…] [NAME=TEXT…]` reads numbers as positions and `NAME=TEXT` as
   given values; `derive G RULE L… [NAME=TEXT…]` reads numbers as lines
-  and writes `line N: FORMULA`; `assume G [L]` closes by line L
+  and writes `line N: FORMULA`, and in a calculus that declares contexts
+  (a sequent calculus, `Calculus::contexts`, the labelled modal ones
+  among them) reads them as the goal's members and calls
+  `Interactive::extend`, writing `opened goal …` and an `added N:
+  MEMBER` line per member the step added; `assume G [L]` closes by line L
   (`cite`) or by the line equal to the goal; `undo` writes `reopened
   goal …` or `removed line N`; `rules G`
   writes `RULE at N…, needs …`; `proof` writes "valid in the calculus

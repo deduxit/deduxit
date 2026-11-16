@@ -226,7 +226,9 @@ design, with the reasons and the alternatives weighed, is
   explicit stack (prefix, infix by precedence and associativity, a
   chain of a non-associative connective refused, postfix, `f(a, b)`),
   then the sorts from the root down, atoms made of the sort their place
-  asks. A text's tokens count against `limits.occurrences`.
+  asks. A text's tokens count against `limits.occurrences`. `[]` and
+  `<>` are the ASCII spellings of `□` and `◇`, so a labelled modal
+  sequent reads as the modal suite's text does.
 - **The session** (`interactive.rs`, `rules::Interactive`, features
   `interactive`): a top-down arena (`Goal`: sequent, `Done`, premises,
   scope, `opened`), scopes (`Scope`: parent, owner node and premise,
@@ -283,6 +285,25 @@ design, with the reasons and the alternatives weighed, is
   copies, last; a goal closed by a line after the line's step). Such a
   session is written at wire level 18 (`wire::FORWARD`, the keys
   `line` and `cites`); one without stays at 17.
+- **Forward steps in a sequent calculus** (`Interactive::extend`):
+  lines are nodes, which a calculus with contexts never has, and
+  `derive` refuses every rule with contexts. `extend` takes a rule
+  whose conclusion writes members of the first zone alone (a right rule
+  is goal-directed: `R¬`'s premise adds only before `⊢`, and passed the
+  other tests, the review of 66a), plans its backward step on the goal
+  (`plan`, the members by position as `apply` takes them) and takes it
+  only where its one premise is the goal with members added to the
+  first zone and every member of the goal kept (compared as multisets);
+  a rule with no or two premises, one that discharges, drops a member,
+  adds to another zone or adds nothing is refused with that reason.
+  `forward_steps_are_the_rules_that_add_hypotheses` pins the set per
+  system: `L∧`, `L□`, `L◇` and the frame rules. The node is `apply`'s, so the derivation and
+  the JSON are unchanged. It reads forwards because the labelled
+  calculus keeps every principal formula: `L□`, `L∧`, `L◇` and the
+  frame rules add hypotheses. The command's `derive` takes it in a
+  calculus that declares contexts (`Calculus::contexts`), citing member
+  numbers; `random_labelled_steps_keep_a_checked_session`
+  (`core/tests/rules.rs`) walks the fifteen labelled calculi.
 - **The Fitch proof** (`fitch.rs`, `rules::Fitch`, `FitchOptions`):
   the lines are ordered per scope by Kahn's algorithm over its parts (a
   node of the scope, or a subproof inside it as one part), a part after
