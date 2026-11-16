@@ -103,13 +103,15 @@
           }
           ''
             export HOME=$TMPDIR
-            # Accepted: one certificate for each kernel, and a classical one
-            # over Prop, which rests on the excluded middle. The app's output
+            # Accepted: one certificate for each kernel, a classical one over
+            # Prop, which rests on the excluded middle, and a modal one, which
+            # imports Deduxit.Modal. The app's output
             # names the kernel it read from the file.
             deduxit prove --format rocq --standalone --output nanoyalla.v 'A * B |- B * A'
             deduxit prove -i --format rocq --standalone --output deduxit.v 'A, A -o B |- B'
             deduxit prove --logic classical --format rocq --standalone --output prop.v \
               '((a -> b) -> a) -> a'
+            deduxit prove --system S4 --format rocq --standalone --output modal.v '[]p -> [][]p'
             accepts() {
               check-certificate "$1" | tee log
               grep -q "$2" log || { echo "$1 was not checked against $2"; exit 1; }
@@ -117,14 +119,19 @@
             accepts nanoyalla.v NanoYalla
             accepts deduxit.v rocq-deduxit
             accepts prop.v "its standard library"
+            accepts modal.v rocq-deduxit
             # Refused, with exit status 1: a statement its proof does not
-            # prove, a lemma left admitted, a lemma proved in a section from
+            # prove, a lemma left admitted, a modal term the library's checker
+            # refuses, a lemma proved in a section from
             # a hypothesis that becomes its premise, and a certificate written
             # without its import lines.
             sed 's/tens B A\]/tens A A]/' nanoyalla.v >wrong.v
             if cmp -s nanoyalla.v wrong.v; then echo "no statement was changed"; exit 1; fi
             sed 's/^Qed\.$/Admitted./' deduxit.v >admitted.v
             if cmp -s deduxit.v admitted.v; then echo "no proof was left admitted"; exit 1; fi
+            # A modal term whose transitivity step names its edges wrongly.
+            sed 's/Trans "w0" "w1" "w2"/Trans "w0" "w2" "w1"/' modal.v >modal-wrong.v
+            if cmp -s modal.v modal-wrong.v; then echo "no modal term was changed"; exit 1; fi
             cat >section.v <<'EOF'
             From NanoYalla Require Import macroll.
             Section Absurd.
@@ -142,6 +149,7 @@
             }
             refuses wrong.v
             refuses admitted.v
+            refuses modal-wrong.v
             refuses section.v
             refuses fragment.v
             grep -q -- --standalone log || { echo "no hint for the fragment"; exit 1; }

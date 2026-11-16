@@ -3,11 +3,12 @@
 
 # The check `rocq-deduxit': every certificate the core tests pin for
 # deduxit's own Rocq library in core/tests/snapshots/deduxit, and some the
-# CLI writes, first-order ones among them, compiled against that library as
+# CLI writes, first-order and modal ones among them, compiled against that library as
 # the flake input `rocq-deduxit' pins it (github:deduxit/rocq-deduxit, built with
 # this flake's nixpkgs, so with the Rocq the NanoYalla check uses, rocq.nix);
 # a certificate with a planted fault (a wrong witness, a wrong weight, a
-# valuation that does not grow along the order) must
+# valuation that does not grow along the order, a modal step on the wrong
+# edges, a modal model that misses its system's frame condition) must
 # be refused, and a file that requires a certificate and applies its lemma
 # compiles. Rocq prints nothing for
 # a file it accepts, so any other output fails the check, and `Print
@@ -126,6 +127,25 @@
             for file in cli_kripke*.v; do grep -q '^Lemma certificate' "$file"; done
             printf '%s\n' 'apply 0 0 ∀L' 'apply 1 0 ∃R' 'close 2' 'proof --rocq cli_fo_session.v' |
               deduxit interact -i --style rocq.form=standalone 'forall x. p(x) |- exists y. p(y)' >/dev/null
+            # Modal logic: a valid sequent for each frame rule, a derivation
+            # a session built, one from checking an outcome, and a
+            # countermodel for each kind of system.
+            deduxit prove --system T --format rocq --standalone --output cli_modal_ref.v '[]p |- p'
+            deduxit prove --system D --format rocq --standalone --output cli_modal_ser.v '[]p |- <>p'
+            deduxit prove --system B --format rocq --standalone --output cli_modal_sym.v 'p |- []<>p'
+            deduxit prove --system S4 --format rocq --standalone --output cli_modal_trans.v '[]p -> [][]p'
+            deduxit prove --system KD45 --format rocq --standalone --output cli_modal_eucl.v \
+              '<>p |- []<>p'
+            printf '%s\n' 'derive 0 L□ 0 1' 'apply 1 ax 2 3' 'proof --rocq cli_modal_session.v' |
+              deduxit interact --calculus G3K --style rocq.form=standalone 'w0 : []p, w0 R w1 |- w1 : p' \
+              >/dev/null
+            deduxit prove --system S5 --format json --output ../s5.json '<>[]p -> []p'
+            deduxit check --format rocq --standalone --output cli_modal_check.v ../s5.json
+            for system in K T S4 KD45 S5; do
+              deduxit prove --system $system --format rocq --standalone \
+                --output "cli_modal_countermodel_$system.v" '<>p |- []p' || [ $? -eq 1 ]
+            done
+            for file in cli_modal_*.v; do grep -q '^Lemma certificate' "$file"; done
             for file in *.v; do
               rocq compile "$file" 2>&1 | tee log
               if [ -s log ]; then exit 1; fi
@@ -176,6 +196,26 @@
             fi
             if rocq compile ../fault/model.v >/dev/null 2>&1; then
               echo "a certificate with a model that is no Kripke model was accepted"
+              exit 1
+            fi
+            # And a modal term whose transitivity step names its edges wrongly,
+            # and a modal countermodel of S4 whose world forgets its loop.
+            sed 's/Trans "w0" "w1" "w2"/Trans "w0" "w2" "w1"/' cli_modal_trans.v >../fault/modal.v
+            if cmp -s cli_modal_trans.v ../fault/modal.v; then
+              echo "no modal term was planted"
+              exit 1
+            fi
+            if rocq compile ../fault/modal.v >/dev/null 2>&1; then
+              echo "a modal certificate with a wrong step was accepted"
+              exit 1
+            fi
+            sed 's/arrows := \[\[0; /arrows := [[/' cli_modal_countermodel_S4.v >../fault/frame.v
+            if cmp -s cli_modal_countermodel_S4.v ../fault/frame.v; then
+              echo "no frame fault was planted"
+              exit 1
+            fi
+            if rocq compile ../fault/frame.v >/dev/null 2>&1; then
+              echo "a modal countermodel that is no model of S4 was accepted"
               exit 1
             fi
             # A certificate is a module that another file requires, applying

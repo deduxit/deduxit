@@ -128,12 +128,15 @@ it (Mix, affine, intuitionistic, intuitionistic affine, a `⊤`/`0` goal,
 classical with `--kernel deduxit`, four refutations, five first-order
 ones, one of them from a session's open witness, four Kripke
 countermodels: two by `prove`, one by `check` of an outcome, one of a
-model given), against the package
+model given; modal ones: a valid sequent per frame rule, a labelled root
+from a session's `proof --rocq`, one by `check` of an outcome, and a
+countermodel in K, T, S4, KD45 and S5), against the package
 `rocq-deduxit` of the flake input `rocq-deduxit`
 (`github:deduxit/rocq-deduxit`, pinned by the lock; `ROCQPATH`
 names its `user-contrib` and the standard library's), requires silence
-from each and that a first-order certificate with a wrong witness, a weight and a
-countermodel whose valuation shrinks, each planted by `sed`, be
+from each and that a first-order certificate with a wrong witness, a weight, a
+countermodel whose valuation shrinks, a modal `Trans` on the wrong edges
+and a modal model of S4 without a loop, each planted by `sed`, be
 refused, and compiles a file that requires an
 intuitionistic certificate as a module and applies its lemma to the
 two-sided goal (the Rocq chapter's example, `-R . Proofs`, kept equal to
@@ -308,10 +311,11 @@ and Python with matplotlib; no check builds it.
   holds, 1 refused, 2 unreadable, as the command's. What it cannot see:
   a file that gives the statement's own names another meaning (a
   `Definition ll`); the statement is read from the file. The check
-  `check-certificate` runs it on a certificate of each kernel and one
-  over `Prop`, and expects status 1 for a changed statement, an
-  `Admitted` proof, a lemma proved in a section and a fragment without
-  import lines.
+  `check-certificate` runs it on a certificate of each kernel, one
+  over `Prop` and a modal one (`From Deduxit.Modal`, read as
+  rocq-deduxit), and expects status 1 for a changed statement, an
+  `Admitted` proof, a modal term the library's checker refuses, a lemma
+  proved in a section and a fragment without import lines.
   The manual's Rocq chapter leads with the app and shows its output in a
   `readme-check: skip` block (README's test runs no `nix`), kept equal to
   it by hand: a bump of nixpkgs' Rocq or of either kernel changes its
