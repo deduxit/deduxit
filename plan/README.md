@@ -7243,3 +7243,21 @@ move (D26).
 - 2026-11-16, 11:25: **Times corrected.** The three entries above guessed their times: 63g-a was
   reviewed at 10:34, 62d at 10:41 (step 62 complete then), 63a started at 10:35, 63b at 10:42
   and was reviewed at 11:24. The step log has the commits' times.
+- 2026-11-16, 11:52: **63a reviewed and pushed: the suites' protocol.**
+  - **63a** (`wmtqzulr` to `suyppvno`): `deduxit::protocol` (feature `protocol`, on by default,
+    off in the command; brings `serde_json` as an optional dependency of the core crate, 63g's
+    decision 1): each suite's kinds and operations as data with parameters, `reads`, promises
+    and the check's cost; the trait `Suite` (not sealed) and the registry; `run`, `check`,
+    `read`, `summary`, `catalogue` over JSON. Linear 11 operations, ordinary 13, rules 6, 18
+    kinds. The manual's chapter "What each suite offers" and `wire.schema.json` (87 forms,
+    the flake check `wire-schema` against 81 documents the command writes). The bindings'
+    `describe()`, `layout` on every view, `ordinary_read` and `ordinary_certificate`; every
+    existing call kept. One module stays: 3 158 833 bytes at gzip, 141 kB under the ceiling.
+    Six departures from 63g's design marked (values cross as documents with `version`; a
+    statement is the sequent's document with `logic` beside it, so no wire level; one
+    `duplicate` per suite; four rendering kinds; rules' draw takes a session; the Kripke
+    model is no kind). fresh-reviewer (Fable) ran every operation, swept 620 settings
+    changes against `reads`; eight findings fixed. Auto-reverse for the new suites goes to
+    `later.md` (an ordinary `invert_all`; a rule file marking invertible rules). Gate and
+    `nix flake check` passed.
+  - **Next:** 63g-b (the workspace's library and command) in 63a's slot.

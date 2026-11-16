@@ -49,6 +49,6 @@ baseline-prep	small	opus-5-5	high	reviewer	local_739ba359	2026-11-15 18:20	2026-
 62d	client	opus-5-5	high	reviewer (fable), frontend-design, education skills	local_fe155f72	2026-11-16 08:47	2026-11-16 10:41	natural deduction on the page
 63g-a	design	fable-5-2	high	panel (fable, opus, education, frontend-design), reviewer (opus)	local_b8490613	2026-11-16 08:47	2026-11-16 10:34	the workspace graph designed
 62	step	-	-	-	-	-	2026-11-16 10:41	complete: natural deduction
-63a	panel	opus-5-5	high	reviewer (fable)	local_b8490613	2026-11-16 10:35		the suites' protocol
+63a	panel	opus-5-5	high	reviewer (fable)	local_b8490613	2026-11-16 10:35	2026-11-16 11:52	the suites' protocol
 63b	client	opus-5-5	high	reviewer (fable), education skills, frontend-design	local_fe155f72	2026-11-16 10:42	2026-11-16 11:24	Learn and Practice by suite
 63c	client	opus-5-5	high	reviewer (fable), education skills, frontend-design	local_fe155f72	2026-11-16 11:27		the ordinary course
