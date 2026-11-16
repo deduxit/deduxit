@@ -28,7 +28,8 @@ second number (0.1.x to 0.2.0), anything else the third.
   with the frame rules of the system, as a calculus given as data),
   which the checker of `deduxit::rules` accepted; a sequent that is not
   valid comes with a Kripke model whose relation meets the system's
-  frame conditions and that refutes it, both checked. `Model::truth`
+  frame conditions and that refutes it, checked too where it is small
+  enough to check. `Model::truth`
   and `Model::frame_fault` check a model you give against a modal
   sequent and a system, naming the frame condition that fails and the
   worlds that show it. The outcome has a JSON form at level 20.

@@ -27,8 +27,8 @@ goal: the data structures are compact and cache-friendly.
 Workspace crates:
 - `core/` is package **`deduxit`**: all logic. The linear suite is the
   module `deduxit::linear` (sequents, the forest, proofs and the checker,
-  nets, the search, the readers and families); `ordinary`, `modal` (its
-  formulas and systems so far) and `lambda` are suites beside it, `rules` checks a derivation in a calculus given
+  nets, the search, the readers and families); `ordinary`, `modal` (the
+  systems from K to S5, decided by a labelled tableau) and `lambda` are suites beside it, `rules` checks a derivation in a calculus given
   as a rule file, and what they share with it stays at the root
   (the errors, the limits, the settings, the exports, the wire forms).
   It has nine optional

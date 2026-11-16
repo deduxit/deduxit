@@ -1585,7 +1585,7 @@ asks for a condition its frames meet. `modal::decide(&sequent,
 system's labelled calculus (`modal::calculus(system, &limits)`) that the
 checker accepted, or `Verdict::NotValid` with `outcome.countermodel`, a
 checked `kripke::Model` whose arrows are the accessibility relation
-itself. `model.truth(&sequent, system, &limits, stop)` checks a model
+itself (`None` where the model is too large to check). `model.truth(&sequent, system, &limits, stop)` checks a model
 you give (the first failing frame condition is `model.frame_fault`).
 JSON forms: a sequent as an ordinary sequent with the formulas
 `{"□": a}` and `{"◇": a}`, a system as its name, an outcome as

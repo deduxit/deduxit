@@ -114,7 +114,7 @@ The design, with its reasons, alternatives and sources, is
   swap once put the last diamond first and changed which world was made
   next.
 - **Every scan is work** (`Search::owed`): a scan over a world's
-  arrows, a bit set, the pending formulas or an ancestor's signature
+  arrows, a bit set, the pending formulas or an earlier world's signature
   adds its length to `owed`, which the next `tick` counts against
   `limits.work` and the poll; uncounted, a world of 200 000 formulas
   made each edge cost a pass over all of them for one unit (the

@@ -66,10 +66,11 @@ pub struct Statistics {
     pub worlds: u64,
     /// The branches split by a rule of two premises.
     pub splits: u64,
-    /// The tests that found a world blocked by an ancestor (K4, KD4, S4).
+    /// The tests that found a world blocked by an earlier world (K4, KD4,
+    /// S4).
     pub blocked: u64,
     /// The units of work: a member of a branch acted on, a pending
-    /// formula or an ancestor looked at.
+    /// formula or an earlier world looked at.
     pub work: u64,
     /// The inferences of the derivation of a valid sequent.
     pub inferences: u64,
@@ -113,8 +114,9 @@ impl Outcome {
     /// Δ` for the sequent `Γ ⊢ Δ`, rests on no assumption, and passes the
     /// checker in the system's calculus ([`calculus`](super::calculus()));
     /// a countermodel refutes the sequent in the system
-    /// ([`Countermodel::check`]). An outcome without evidence (unknown, or
-    /// not valid without a model) has nothing to check.
+    /// ([`Countermodel::check`]), the countermodel's sequent the outcome's
+    /// own (the same text). An outcome without evidence (unknown, or not
+    /// valid without a model) has nothing to check.
     ///
     /// # Errors
     ///
@@ -129,6 +131,14 @@ impl Outcome {
         mut stop: impl FnMut(Progress) -> bool,
     ) -> Result<(), Error> {
         if let Some(countermodel) = &self.countermodel {
+            if countermodel.sequent.to_string() != self.sequent.to_string() {
+                return Err(Error::Model {
+                    reason: format!(
+                        "the model is said to refute {}, the outcome's sequent is {}",
+                        countermodel.sequent, self.sequent
+                    ),
+                });
+            }
             if countermodel.system != self.system {
                 return Err(Error::Model {
                     reason: format!(

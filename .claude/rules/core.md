@@ -31,7 +31,7 @@ it; only what holds for the whole crate goes here.
 | `core-lambda.md` | `lambda/` | proofs read back as lambda-terms: the calculus and its source, the term's data, matching premises by member, the structural rules, the DAG and the printer's bound, the refusals, the tests' own type checker |
 | `core-rules.md` | `rules/`, `serialize/rules.rs`, the rules and natural deduction tests | calculi given as data: the rule file and its checks, the generic derivation (terms, nodes, scopes), the checker by matching and its bounds, the built-in rule files (LK, LJ, LM, LL, the tableau, natural deduction) and their cross-checks |
 | `core-ordinary.md` | `ordinary/` | ordinary logic: its syntax and TPTP reader, the translations as one pattern table, the read-back to LK and LJ, its checker, the certificate over `Prop`, the goal state of LK and LJ |
-| `core-modal.md` | `modal/`, `serialize/modal.rs` | modal logic: the arena and its syntax, the systems from K to S5 as closed sets of frame conditions, the JSON level read from the content |
+| `core-modal.md` | `modal/`, `serialize/modal.rs` | modal logic: the arena and its syntax, the systems from K to S5 as closed sets of frame conditions, the JSON level read from the content, the model check, the labelled calculus, the tableau with its blocking and its bounds, the derivation emitted, the outcome and its check |
 | `core-protocol.md` | `protocol/` | the suites' protocol: kinds, operations and promises as data, the registry, the runs and checks over JSON, why `reads` is a cache key |
 | `core-workspace.md` | `workspace/` | the workspace: values linked by operations, records as the cache and their key, states computed, the edit log with undo and redo, the bounds as refusals, the JSON form and what reading it checks again, the reference test |
 
@@ -97,7 +97,8 @@ of those names),
 feature of that name, `translate`, `derivation` with the read-back and
 its checker, the native engine `ljt`, the SAT engine `sat` behind that feature, the check of a Kripke model `model`, the truth table `table`, the signed tableau `tableau` behind `interactive`, `rocq` behind that feature, `interactive` behind that
 feature), `modal` (the arena, `system`, `parse` behind the feature of
-that name), `kripke` (the shared Kripke model), and `lltp`, `mist` and
+that name, the model check `model`, and behind `serialize` the labelled
+calculus `calculus`, the tableau `search` and `decide`), `kripke` (the shared Kripke model), and `lltp`, `mist` and
 `families` behind `parse`. Users write `deduxit::linear::Sequent`,
 `deduxit::linear::Proof`, `deduxit::linear::prove`, `deduxit::Error`,
 `deduxit::Limits`, and so on. `hash` and `serialize` are crate-private,
@@ -153,7 +154,8 @@ Each entry point is described in the file of its module:
   and `Condition`; `modal::decide(&sequent, &Options)` and
   `decide_within(…, &limits, stop)` to an `Outcome` (`Verdict::Valid`
   with a `rules::Derivation` in `modal::calculus(system, &limits)`,
-  `NotValid` with a checked `modal::Countermodel`), and
+  `NotValid` with a checked `modal::Countermodel` where it is small
+  enough to check), and
   `Model::frame_fault`, `Model::truth` (`core-modal.md`);
 - `rules`: `wire::upgrade::<rules::Calculus, _>` (a rule file; `rules::LK`,
   `LJ`, `LM`, `LL`, `TABLEAU` and natural deduction's `NJ`, `NK`, `NM`

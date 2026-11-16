@@ -35,7 +35,7 @@
 //! | 17 | a session of step-by-step proving in a calculus given as data: the rule file, the terms, the scopes, the nodes from the conclusion up and the steps | a session of [`rules`](crate::rules) (feature `interactive`) |
 //! | 18 | a session in a calculus given as data with lines a forward step derived: a node's `line`, and a goal's `cites` | a session of [`rules`](crate::rules) that holds such a line (feature `interactive`) |
 //! | 19 | a workspace of linked values: the values, each its kind's document whole; the nodes, given or made by a recipe; the records of runs; the log of edits | a workspace (`workspace`, feature `protocol`) |
-//! | 20 | the modal sequent: the formulas `{"□": a}` and `{"◇": a}` beside those of ordinary logic | a sequent of [`modal`](crate::modal) whose formulas, used or not, hold `□` or `◇` (one without is written at level 8, as the ordinary sequent it is) |
+//! | 20 | the forms of modal logic: a sequent with the formulas `{"□": a}` and `{"◇": a}` beside those of ordinary logic, and the outcome of deciding one | a sequent of [`modal`](crate::modal) whose formulas, used or not, hold `□` or `◇` (one without is written at level 8, as the ordinary sequent it is); every modal outcome |
 //!
 //! A reader refuses a document above its level by name ([`Error::Version`],
 //! code `unsupported_version`). It does so before reading the other keys
@@ -141,6 +141,11 @@
 //!   `⊢ □p → p`: an ordinary sequent's form with the formulas `□` and
 //!   `◇`; see [`modal::Sequent`](crate::modal::Sequent). A system is its
 //!   name, `"S4"`; see [`modal::System`](crate::modal::System).
+//! - **Modal outcome**: `{"version": 20, "deduxit": "…", "verdict":
+//!   "valid", "system": "S4", "statistics": {…}, "sequent": {…},
+//!   "derivation": {…}}`, a derivation in the system's labelled calculus
+//!   for `valid`, `"countermodel": {"model": {…}}` for `not_valid` where
+//!   there is one; see [`modal::Outcome`](crate::modal::Outcome).
 //! - **Ordinary derivation**: `{"version": 8, "logic": "intuitionistic",
 //!   "sequent": {…}, "inferences": [{"left": [0], "right": [0], "rule":
 //!   "ax"}, …, {"left": [2, 0], "right": [1], "rule": "→L", "principal":
@@ -264,7 +269,8 @@ pub(crate) const FORWARD: u32 = 18;
 #[cfg(feature = "protocol")]
 pub(crate) const WORKSPACE: u32 = 19;
 
-/// The level of a modal sequent that holds `□` or `◇`.
+/// The level of a modal sequent that holds `□` or `◇`, and of a modal
+/// outcome.
 pub(crate) const MODAL: u32 = 20;
 
 /// The level of every document that no later level's feature raises.

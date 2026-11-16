@@ -344,7 +344,8 @@ in use.
   reflexive, symmetric, transitive, euclidean). It decides a modal
   sequent in any of them: a valid one with a derivation in the system's
   labelled sequent calculus, which the checker of calculi given as data
-  accepts, one that is not valid with a checked Kripke countermodel. It
+  accepts, one that is not valid with a Kripke countermodel, checked
+  where it is small enough to check. It
   checks a Kripke model you give against a sequent and a system. The
   command and the web page do not offer modal logic yet.
 - `check` checks a derivation in a calculus you give as data

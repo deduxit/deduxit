@@ -216,9 +216,8 @@ fn holds_on_small_frames(sequent: &Sequent, system: System, rng: &mut Rng) -> bo
 
 /// On generated sequents, in every system: every answer has its checked
 /// evidence; no small model of the system refutes a sequent called
-/// valid; what is valid in a system is valid in every system that
-/// extends it; and a sequent without modalities is valid in every system
-/// exactly when the truth table says so.
+/// valid; and what is valid in a system is valid in every system that
+/// extends it.
 #[test]
 fn generated_sequents_agree_with_small_frames_and_the_order_of_systems() {
     let mut rng = Rng::new(20_261_116);
@@ -245,7 +244,9 @@ fn generated_sequents_agree_with_small_frames_and_the_order_of_systems() {
 }
 
 /// A sequent without modalities is valid in every system exactly when
-/// classical logic proves it.
+/// its truth table says so: generated sequents of `¬`, `∧`, `∨` and `→`
+/// over two atoms and the constants, the table read off the models of
+/// one world, and a few hand-written ones.
 #[test]
 fn classical_sequents_keep_their_verdicts() {
     for (text, classical) in [
@@ -253,14 +254,91 @@ fn classical_sequents_keep_their_verdicts() {
         ("((p -> q) -> p) -> p", true),
         ("p -> q", false),
         ("p <-> q |- (p -> q) /\\ (q -> p)", true),
-        ("true, ~false |- p \\/ true", true),
-        ("p /\\ ~p |- q", true),
-        ("p \\/ q |- p", false),
     ] {
         for &system in System::ALL {
             assert_eq!(valid(text, system), classical, "{text} in {system}");
         }
     }
+    let limits = Limits::default();
+    let mut rng = Rng::new(11);
+    for _ in 0..60 {
+        // Every connective but the modalities.
+        let mut formulas = Formulas::default();
+        let atoms = [formulas.atom("p").unwrap(), formulas.atom("q").unwrap()];
+        let mut formula = |rng: &mut Rng| {
+            let mut made = atoms.to_vec();
+            for _ in 0..rng.below(6) {
+                let a = made[rng.below(made.len())];
+                let b = made[rng.below(made.len())];
+                let node = match rng.below(5) {
+                    0 => Node::Not(a),
+                    1 => Node::And(a, b),
+                    2 => Node::Or(a, b),
+                    3 => Node::Implies(a, b),
+                    _ => Node::False,
+                };
+                made.push(formulas.add(node).unwrap());
+            }
+            made[made.len() - 1]
+        };
+        let left = (0..rng.below(3)).map(|_| formula(&mut rng)).collect();
+        let right = vec![formula(&mut rng)];
+        let sequent = Sequent::new(formulas, left, right).unwrap();
+        let table = (0..4_u32).all(|valuation| {
+            let atoms = ["p", "q"]
+                .iter()
+                .enumerate()
+                .filter(|&(a, _)| valuation >> a & 1 == 1)
+                .map(|(_, &name)| name.to_owned())
+                .collect();
+            let world = Model::new(vec![World::new(atoms, false, Vec::new())], 0);
+            let truth = world
+                .truth(&sequent, System::K, &limits, |_| false)
+                .unwrap();
+            truth.sequent_holds(0)
+        });
+        for &system in System::ALL {
+            assert_eq!(decided(&sequent, system), table, "{sequent} in {system}");
+        }
+    }
+}
+
+/// A derivation the search gives is refused once any one of its nodes
+/// names another rule, and an outcome whose countermodel refutes
+/// another sequent fails its check.
+#[test]
+fn forged_evidence_is_refused() {
+    use crate::wire;
+    let limits = Limits::default();
+    let s4 = Options::default().with_system(System::S4);
+    let sequent: Sequent = "[]p -> [][]p".parse().unwrap();
+    let outcome = decide(&sequent, &s4).unwrap();
+    let Verdict::Valid(Evidence::Derivation(derivation)) = &outcome.verdict else {
+        panic!("valid in S4");
+    };
+    let calculus = calculus(System::S4, &limits).unwrap();
+    let json: serde_json::Value = serde_json::to_value(&**derivation).unwrap();
+    let nodes = json["nodes"].as_array().unwrap().len();
+    for node in 0..nodes {
+        let mut forged = json.clone();
+        let rule = forged["nodes"][node]["rule"].as_str().unwrap().to_owned();
+        let other = if rule == "ax" { "Trans" } else { "ax" };
+        forged["nodes"][node]["rule"] = other.into();
+        let text = forged.to_string();
+        let read: crate::rules::Derivation =
+            wire::upgrade(&mut serde_json::Deserializer::from_str(&text), &limits).unwrap();
+        assert!(
+            read.check(&calculus, &limits, |_| false).is_err(),
+            "node {node} as {other}"
+        );
+    }
+    let mut refuted = decide(&"|- p".parse().unwrap(), &Options::default()).unwrap();
+    assert!(refuted.check(&limits, |_| false).is_ok());
+    refuted.sequent = "|- p \\/ ~p".parse().unwrap();
+    assert!(matches!(
+        refuted.check(&limits, |_| false),
+        Err(crate::Error::Model { .. })
+    ));
 }
 
 /// Returns Gödel's translation of an ordinary sequent into S4: `p` as
