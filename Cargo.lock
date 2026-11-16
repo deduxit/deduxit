@@ -294,7 +294,7 @@ checksum = "be1e0bca6c3637f992fc1cc7cbc52a78c1ef6db076dbf1059c4323d6a2048376"
 
 [[package]]
 name = "deduxit"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "batsat",
  "foldhash",
@@ -314,7 +314,7 @@ dependencies = [
 
 [[package]]
 name = "deduxit-bench"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -324,7 +324,7 @@ dependencies = [
 
 [[package]]
 name = "deduxit-cli"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -338,7 +338,7 @@ dependencies = [
 
 [[package]]
 name = "deduxit-web"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "deduxit",
  "serde",

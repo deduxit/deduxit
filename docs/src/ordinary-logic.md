@@ -437,7 +437,7 @@ SAT solver add their `statistics`:
 
 ```console
 $ deduxit prove --logic intuitionistic --format json '~~a -> a'
-{"version":12,"deduxit":"0.4.0","verdict":"not_valid","logic":"intuitionistic","search":{"method":"sat","statistics":{"calls":4,"conflicts":0,"lemmas":0,"worlds":4,"facts":0,"clauses":0,"proof_steps":0,"ljt":null}},"countermodel":{"sequent":{"formulas":[{"V":0},{"¬":0},{"¬":1},{"→":[2,0]}],"atoms":["a"],"left":[],"right":[3]},"model":{"worlds":[{"atoms":[],"arrows":[1,2]},{"atoms":["a"],"arrows":[3]},{"atoms":[],"arrows":[3]},{"atoms":["a"]}],"world":0}}}
+{"version":12,"deduxit":"0.5.0","verdict":"not_valid","logic":"intuitionistic","search":{"method":"sat","statistics":{"calls":4,"conflicts":0,"lemmas":0,"worlds":4,"facts":0,"clauses":0,"proof_steps":0,"ljt":null}},"countermodel":{"sequent":{"formulas":[{"V":0},{"¬":0},{"¬":1},{"→":[2,0]}],"atoms":["a"],"left":[],"right":[3]},"model":{"worlds":[{"atoms":[],"arrows":[1,2]},{"atoms":["a"],"arrows":[3]},{"atoms":[],"arrows":[3]},{"atoms":["a"]}],"world":0}}}
 ```
 
 Through the embedding, `search` holds the `translation` and, under
@@ -446,7 +446,7 @@ without `--logic` (its proof, or its refutation):
 
 ```console
 $ deduxit prove --logic classical --method embedding --format json 'a |- b'
-{"version":12,"deduxit":"0.4.0","verdict":"not_valid","logic":"classical","search":{"method":"embedding","translation":"affine","image":{"verdict":"unprovable","refutation":{"kind":"classical","assignment":[true,false]},"fragment":"MLL","mode":"affine","engine":"focus","statistics":{"nodes":1,"memo_hits":0,"memo_entries":1,"splits":0,"links":0,"tests":0,"copies":0,"forward_copies":0,"work":16},"sequent":{"terms":[{"D":0},{"V":1}],"roots":[0,1],"atoms":["a","b"],"antecedents":0}}},"countermodel":{"sequent":{"formulas":[{"V":0},{"V":1},"⊥"],"atoms":["a","b"],"left":[0],"right":[1]},"model":{"worlds":[{"atoms":["a"]}],"world":0}}}
+{"version":12,"deduxit":"0.5.0","verdict":"not_valid","logic":"classical","search":{"method":"embedding","translation":"affine","image":{"verdict":"unprovable","refutation":{"kind":"classical","assignment":[true,false]},"fragment":"MLL","mode":"affine","engine":"focus","statistics":{"nodes":1,"memo_hits":0,"memo_entries":1,"splits":0,"links":0,"tests":0,"copies":0,"forward_copies":0,"work":16},"sequent":{"terms":[{"D":0},{"V":1}],"roots":[0,1],"atoms":["a","b"],"antecedents":0}}},"countermodel":{"sequent":{"formulas":[{"V":0},{"V":1},"⊥"],"atoms":["a","b"],"left":[0],"right":[1]},"model":{"worlds":[{"atoms":["a"]}],"world":0}}}
 ```
 
 A valid sequent has its `derivation`. One valid by a clausal proof has
@@ -457,7 +457,7 @@ is the evidence:
 
 ```console
 $ deduxit prove --logic classical --method sat --format json 'a \/ ~a'
-{"version":12,"deduxit":"0.4.0","verdict":"valid","logic":"classical","search":{"method":"sat","statistics":{"calls":1,"conflicts":1,"lemmas":0,"worlds":0,"facts":0,"clauses":4,"proof_steps":1,"ljt":null}},"clausal_proof":{"variables":3,"clauses":4,"steps":1}}
+{"version":12,"deduxit":"0.5.0","verdict":"valid","logic":"classical","search":{"method":"sat","statistics":{"calls":1,"conflicts":1,"lemmas":0,"worlds":0,"facts":0,"clauses":4,"proof_steps":1,"ljt":null}},"clausal_proof":{"variables":3,"clauses":4,"steps":1}}
 ```
 
 `--linear` writes the image's outcome alone, as without `--logic`.

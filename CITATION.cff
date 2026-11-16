@@ -27,8 +27,8 @@ abstract: >-
 authors:
   - given-names: Fabian Lukas
     family-names: Grubmüller
-version: 0.4.0
-date-released: "2026-11-15"
+version: 0.5.0
+date-released: "2026-11-16"
 # The DOI of every version, which resolves to the latest.
 doi: 10.5281/zenodo.23448588
 license: EUPL-1.2

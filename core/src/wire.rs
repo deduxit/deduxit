@@ -146,7 +146,7 @@
 //!   see [`ordinary::Derivation`](crate::ordinary::Derivation).
 //!
 //!   [`Derivation::check`]: crate::ordinary::Derivation::check
-//! - **Ordinary outcome**: `{"version": 12, "deduxit": "0.4.0",
+//! - **Ordinary outcome**: `{"version": 12, "deduxit": "0.5.0",
 //!   "verdict": "valid", "logic": "classical", "search": {"method":
 //!   "embedding", "translation": "affine", "image": {…}}, "derivation":
 //!   {…}}`, `verdict` one of `valid`, `not_valid` and `unknown` (with a
