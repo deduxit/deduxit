@@ -13,7 +13,7 @@ use crate::prove::{Stop, stopped};
 use crate::show::{Prefixed, Rendered, Show, Shown, note, render};
 use crate::{Status, interrupted};
 use anyhow::{Context, Result, bail};
-use deduxit::export::{Drawable, latex, svg, typst};
+use deduxit::export::{Drawable, latex, rocq, svg, typst};
 use deduxit::linear::proofs::Layout;
 use deduxit::rules::{
     self, Calculus, Derivation, Drawing, Fitch, NodeRef, ScopeId, Step, TermId, Terms,
@@ -148,14 +148,18 @@ pub(crate) fn check_rules(
     deadline: &Deadline,
     out: &mut io::Output,
 ) -> Result<(Status, bool)> {
-    let drawn = matches!(show.format, Format::Latex | Format::Typst | Format::Svg);
+    let drawn = matches!(
+        show.format,
+        Format::Latex | Format::Typst | Format::Svg | Format::Rocq
+    );
     if !(drawn || matches!(show.format, Format::Text | Format::Json))
         || show.net
         || show.lambda.is_some()
     {
         bail!(
             "a derivation in a calculus given as data is shown as text, json, latex, typst or \
-             svg: give one of those to --format, and leave out --net and --lambda"
+             svg, and one of a modal system's labelled calculus as rocq too: give one of those to \
+             --format, and leave out --net and --lambda"
         );
     }
     let over = || interrupted() || deadline.passed() || io::closed();
@@ -298,8 +302,8 @@ fn left_out(error: &Error) -> String {
 }
 
 /// Writes a checked derivation in a drawn format (latex, typst, svg), as
-/// a tree or a Fitch proof by `view.layout`: the verdict as the format's
-/// comment, then the derivation. Where there is nothing to draw (the
+/// a tree or a Fitch proof by `view.layout`, or its certificate (rocq):
+/// the verdict as the format's comment, then the derivation. Where there is nothing to draw (the
 /// derivation is invalid, or `-q` or `--tree never` asks for none) or it
 /// is left out, the verdict and the reason go to standard error and the
 /// output holds nothing. `over` says when the time limit or Ctrl-C ends
@@ -339,6 +343,19 @@ fn drawing(
         Ok(text)
     };
     let made = match show.view.layout {
+        // A modal system's labelled calculus has a certificate; any other
+        // calculus is refused by name.
+        _ if show.format == Format::Rocq => {
+            let mut text = String::new();
+            rocq::write_labelled(
+                derivation,
+                &show.styles.rocq,
+                &show.limits,
+                &mut text,
+                |_| over(),
+            )
+            .map(|()| text)
+        }
         Layout::Fitch => Fitch::new(calculus, derivation, &show.styles.fitch, &show.limits)
             .and_then(|fitch| write(Drawable::from(&fitch))),
         _ => Drawing::new(calculus, derivation, &show.limits)
@@ -354,7 +371,11 @@ fn drawing(
         }
         Err(error) => {
             say(verdict);
-            eprintln!("{}", left_out(&error));
+            if show.format == Format::Rocq {
+                eprintln!("no certificate: {error}");
+            } else {
+                eprintln!("{}", left_out(&error));
+            }
             Ok((status, false))
         }
     }
@@ -362,7 +383,9 @@ fn drawing(
 
 /// Writes a checked derivation as `show` asks, after `prefix`: its nodes
 /// as a list in text, drawn as a tree in LaTeX, Typst and SVG, rendered
-/// in PNG and PDF; Rocq leaves it out with the reason, as does a bound.
+/// in PNG and PDF, and in Rocq the certificate of a modal system's
+/// labelled calculus; a bound, or Rocq for another calculus, leaves it
+/// out with the reason.
 ///
 /// # Errors
 ///
@@ -449,10 +472,25 @@ pub(crate) fn shown(
                 },
             )
         }
-        _ => Ok(Shown::LeftOut(
-            "no certificate: a derivation in a calculus given as data has no Rocq certificate"
-                .to_owned(),
-        )),
+        Format::Rocq => {
+            // The labelled calculi of modal logic have one; any other
+            // calculus is refused by name.
+            let mut text = String::new();
+            match rocq::write_labelled(
+                derivation,
+                &show.styles.rocq,
+                &show.limits,
+                &mut text,
+                |_| halt(),
+            ) {
+                Ok(()) => {
+                    write!(out.stream(), "{}{text}", prefix.unwrap_or(""))?;
+                    Ok(Shown::Written)
+                }
+                Err(error) => Ok(Shown::LeftOut(format!("no certificate: {error}"))),
+            }
+        }
+        Format::Json => Ok(Shown::Nothing),
     }
 }
 

@@ -32,6 +32,8 @@ assume G [L]        close goal G by line L in force, or by the line in force equ
 undo                retract the last step
 show                the derivation so far, a line per node
 proof [FILE]        check the finished derivation and print it, or write it to FILE as JSON
+proof --rocq [FILE] the certificate of a finished derivation in a modal system's labelled
+                    calculus (G3S4) for deduxit's Rocq library, printed or written to FILE
 save FILE           write the session as JSON
 load FILE           resume a session written by save
 help                this list
@@ -43,6 +45,8 @@ struct Session {
     state: Interactive,
     /// The bounds of a file read.
     limits: deduxit::Limits,
+    /// The options of a certificate `proof --rocq` writes.
+    rocq: deduxit::export::rocq::Options,
 }
 
 /// Runs `interact --calculus` on the sequent and assumptions the
@@ -79,7 +83,14 @@ pub(super) fn interact(
             Interactive::within(calculus, goal, &assumptions, &limits)?
         }
     };
-    let mut session = Session { state, limits };
+    // The command line's `--style`, `--lemma`, `--prelude` and `--kernel`
+    // over the settings', as the linear session reads them.
+    let styles = crate::style::read(&settings.styles, &args.style, Some(&args.rocq), None, false)?;
+    let mut session = Session {
+        state,
+        limits,
+        rocq: styles.rocq,
+    };
     run(&mut session, None)
 }
 
@@ -335,12 +346,32 @@ impl Commands for Session {
                     )
                 );
                 match rest {
+                    ["--rocq", path @ ..] if path.len() <= 1 => {
+                        let mut text = String::new();
+                        deduxit::export::rocq::write_labelled(
+                            &derivation,
+                            &self.rocq,
+                            &self.limits,
+                            &mut text,
+                            |_| crate::interrupted(),
+                        )
+                        .map_err(|error| anyhow::anyhow!("no certificate: {error}"))?;
+                        match path {
+                            [path] => {
+                                io::write(Some(Path::new(path)), &text)?;
+                                format!("{line}; certificate written to {path}")
+                            }
+                            _ => text,
+                        }
+                    }
                     [] => format!("{line}\n{}", crate::calculus::lines(&derivation, calculus)),
                     [path] => {
                         io::write(Some(Path::new(path)), &serde_json::to_string(&derivation)?)?;
                         format!("{line}; written to {path}")
                     }
-                    _ => bail!("proof writes one file, in quotes if its name has blanks"),
+                    _ => bail!(
+                        "proof [--rocq] [FILE]: one file at most, in quotes if its name has blanks"
+                    ),
                 }
             }
             "save" => {

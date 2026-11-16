@@ -310,15 +310,18 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   model too large to check, or `unknown in S4: ` and `prove::advice`),
   then the evidence (`evidence`): a derivation through `calculus::shown`
   (the node lines of `check --calculus`, a `rules::Drawing` in LaTeX,
-  Typst and SVG, PNG and PDF rendered, Rocq a left-out line), a
-  countermodel as `worlds_text` lines in text (`sees 1, 2`, `sees no
-  world`; the drawn formats `svg::modal_countermodel`, LaTeX and Typst
-  none); `--stats` a counter per line and `time: …` through
+  Typst and SVG, PNG and PDF rendered, Rocq the certificate of
+  `rocq::write_labelled`), a countermodel as `worlds_text` lines in text
+  (`sees 1, 2`, `sees no world`; the drawn formats
+  `svg::modal_countermodel`, Rocq `rocq::write_modal_countermodel`,
+  LaTeX and Typst none); `--stats` a counter per line and `time: …` through
   `Show::after`. `check` reads a modal outcome by its `system` key
   (`read_document`, `Document::Modal`), refusing mode flags and
   `--logic`, and checks it again (`check_outcome`: exit 0 when its
   evidence holds, 1 when not, 3 at a limit or for an outcome with no
-  evidence); a Kripke model under `--system` with `--sequent`
+  evidence; `--format rocq` writes the certificate of evidence that holds
+  through the same `evidence`, and only the verdict on standard error
+  otherwise); a Kripke model under `--system` with `--sequent`
   (`check_model`) is checked first for the system's frame conditions on
   its arrows as written (`Model::frame_fault`, exit 2 naming the
   condition), then `Model::truth` at `--world` or every world: exit 0
@@ -349,7 +352,11 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   goal …` or `removed line N`; `rules G`
   writes `RULE at N…, needs …`; `proof` writes "valid in the calculus
   given (NAME): …" and the node list (`calculus::lines`), or the
-  derivation's JSON into a FILE. Mode flags and `--logic` are refused
+  derivation's JSON into a FILE; `proof --rocq [FILE]` the certificate of
+  a derivation in a modal system's calculus (`rocq::write_labelled`, the
+  session's styles read as the linear session reads them, `style::read`).
+  `check --calculus` takes `--format rocq` for such a derivation too.
+  Mode flags and `--logic` are refused
   beside it; there is no search, so no `close`.
 - `interact/ordinary.rs`: `interact --logic`, a session of LK or LJ over
   `ordinary::Interactive`, started from an ordinary sequent (read as

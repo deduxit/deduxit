@@ -13,7 +13,7 @@ use crate::prove::{Ended, NOTICE_AFTER, Stop, advice, notice_line, on_large_stac
 use crate::show::{Prefixed, Rendered, Show, Shown, render};
 use crate::{Status, catch_interrupt, interrupted};
 use anyhow::{Result, bail};
-use deduxit::export::svg;
+use deduxit::export::{rocq, svg};
 use deduxit::kripke::Model;
 use deduxit::limits::Refusal;
 use deduxit::modal::{self, Countermodel, Evidence, Outcome, Sequent, System, Verdict};
@@ -207,8 +207,9 @@ fn verdict_line(outcome: &Outcome, ended: &Ended) -> String {
 }
 
 /// Writes the evidence of an outcome as `show` asks: the derivation (its
-/// nodes as text, drawn in LaTeX, Typst, SVG, PNG or PDF), or the
-/// countermodel (its worlds as text, drawn in SVG, PNG or PDF).
+/// nodes as text, drawn in LaTeX, Typst, SVG, PNG or PDF), the
+/// countermodel (its worlds as text, drawn in SVG, PNG or PDF), or in
+/// Rocq the certificate of either.
 fn evidence(
     outcome: &Outcome,
     show: &Show,
@@ -216,6 +217,23 @@ fn evidence(
     out: &mut io::Output,
     halt: &dyn Fn() -> bool,
 ) -> Result<Shown> {
+    if show.format == Format::Rocq {
+        // The certificate of either verdict, stated as the outcome's
+        // sequent is written.
+        let mut writer = Prefixed { out, prefix };
+        let written = rocq::write_modal_outcome(
+            outcome,
+            &show.styles.rocq,
+            &show.limits,
+            &mut writer,
+            |_| halt(),
+        );
+        return Ok(match written {
+            // The output's own error, which finishing it reports.
+            Ok(()) | Err(deduxit::Error::WriteFailed) => Shown::Written,
+            Err(error) => Shown::LeftOut(format!("no certificate: {error}")),
+        });
+    }
     match (&outcome.verdict, &outcome.countermodel) {
         (Verdict::Valid(Evidence::Derivation(derivation)), _) => {
             let calculus = modal::calculus(outcome.system, &show.limits)?;
@@ -229,7 +247,8 @@ fn evidence(
 }
 
 /// Writes a countermodel as `show` asks: its worlds as text, or drawn in
-/// SVG, PNG or PDF; LaTeX, Typst and Rocq leave it out with the reason.
+/// SVG, PNG or PDF; LaTeX and Typst leave it out with the reason (Rocq is
+/// the outcome's certificate, `evidence`).
 fn countermodel_shown(
     countermodel: &Countermodel,
     show: &Show,
@@ -276,8 +295,8 @@ fn countermodel_shown(
             )
         }
         _ => Ok(Shown::LeftOut(
-            "the countermodel is not drawn: LaTeX, Typst and Rocq have no drawing of a Kripke \
-             model; --format svg, png or pdf draws it, and the text output lists its worlds"
+            "the countermodel is not drawn: LaTeX and Typst have no drawing of a Kripke model; \
+             --format svg, png or pdf draws it, and the text output lists its worlds"
                 .to_owned(),
         )),
     }
@@ -315,8 +334,8 @@ fn worlds_text(model: &Model, marked: Option<u32>) -> String {
 }
 
 /// Checks a modal outcome read from a file: its evidence against its
-/// sequent and system ([`Outcome::check`]), and writes the verdict, or the
-/// verdict as JSON; returns the status (the verdict holds 0, it fails 1,
+/// sequent and system ([`Outcome::check`]), and writes the verdict, the
+/// verdict as JSON, or the certificate of evidence that holds; returns the status (the verdict holds 0, it fails 1,
 /// nothing to check or a bound 3) and whether the output is to be
 /// finished.
 ///
@@ -377,8 +396,19 @@ pub(crate) fn check_outcome(
         serde_json::to_writer(out.stream(), &checked)?;
         return Ok((status, true));
     }
+    if show.format == Format::Rocq {
+        // The certificate of evidence that holds; nothing else has one.
+        if status != Status::Yes {
+            eprintln!("{line}");
+            return Ok((status, false));
+        }
+        let prefix = show.open(out, show.verdict.then_some(line.as_str()))?;
+        let shown = self::evidence(outcome, show, prefix.as_deref(), out, &over)?;
+        let keep = show.close(out, shown, show.verdict.then_some(line.as_str()))?;
+        return Ok((status, keep));
+    }
     if show.format != Format::Text {
-        bail!("a modal outcome is checked as text or json: give one of those to --format");
+        bail!("a modal outcome is checked as text, json or rocq: give one of those to --format");
     }
     if show.verdict || status != Status::Yes {
         out.stream().write_all(line.as_bytes())?;
