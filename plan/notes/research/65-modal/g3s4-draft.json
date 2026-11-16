@@ -1,0 +1,366 @@
+{
+ "version": 15,
+ "name": "G3S4-one-zone",
+ "description": "A feasibility draft of a labelled calculus for S4.",
+ "sorts": [
+  "label",
+  "item"
+ ],
+ "connectives": [
+  {
+   "name": "⊤",
+   "arity": 0
+  },
+  {
+   "name": "⊥",
+   "arity": 0
+  },
+  {
+   "name": "¬",
+   "arity": 1,
+   "fixity": "prefix",
+   "precedence": 5
+  },
+  {
+   "name": "□",
+   "arity": 1,
+   "fixity": "prefix",
+   "precedence": 5
+  },
+  {
+   "name": "◇",
+   "arity": 1,
+   "fixity": "prefix",
+   "precedence": 5
+  },
+  {
+   "name": "∧",
+   "arity": 2,
+   "fixity": "infix",
+   "precedence": 4,
+   "associativity": "right"
+  },
+  {
+   "name": "∨",
+   "arity": 2,
+   "fixity": "infix",
+   "precedence": 3,
+   "associativity": "right"
+  },
+  {
+   "name": "→",
+   "arity": 2,
+   "fixity": "infix",
+   "precedence": 2,
+   "associativity": "right"
+  },
+  {
+   "name": ":",
+   "arity": 2,
+   "sorts": [
+    "label",
+    "formula",
+    "item"
+   ],
+   "fixity": "infix",
+   "precedence": 0
+  },
+  {
+   "name": "R",
+   "arity": 2,
+   "sorts": [
+    "label",
+    "label",
+    "item"
+   ],
+   "fixity": "infix",
+   "precedence": 0
+  }
+ ],
+ "sequent": [
+  {
+   "name": "left",
+   "sort": "item",
+   "discipline": "set"
+  },
+  {
+   "name": "right",
+   "sort": "item",
+   "discipline": "set",
+   "mark": "⊢"
+  }
+ ],
+ "variables": {
+  "formula": [
+   "A",
+   "B"
+  ],
+  "label": [
+   "x",
+   "y",
+   "z"
+  ]
+ },
+ "contexts": [
+  "Γ",
+  "Δ"
+ ],
+ "rules": [
+  {
+   "name": "ax",
+   "conclusion": {
+    "left": [
+     "Γ",
+     [
+      ":",
+      "x",
+      "A"
+     ]
+    ],
+    "right": [
+     "Δ",
+     [
+      ":",
+      "x",
+      "A"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "R→",
+   "premises": [
+    {
+     "left": [
+      "Γ",
+      [
+       ":",
+       "x",
+       "A"
+      ]
+     ],
+     "right": [
+      "Δ",
+      [
+       ":",
+       "x",
+       "B"
+      ]
+     ]
+    }
+   ],
+   "conclusion": {
+    "left": [
+     "Γ"
+    ],
+    "right": [
+     "Δ",
+     [
+      ":",
+      "x",
+      [
+       "→",
+       "A",
+       "B"
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "name": "L□",
+   "premises": [
+    {
+     "left": [
+      "Γ",
+      [
+       ":",
+       "x",
+       [
+        "□",
+        "A"
+       ]
+      ],
+      [
+       ":",
+       "y",
+       "A"
+      ],
+      [
+       "R",
+       "x",
+       "y"
+      ]
+     ],
+     "right": [
+      "Δ"
+     ]
+    }
+   ],
+   "conclusion": {
+    "left": [
+     "Γ",
+     [
+      ":",
+      "x",
+      [
+       "□",
+       "A"
+      ]
+     ],
+     [
+      "R",
+      "x",
+      "y"
+     ]
+    ],
+    "right": [
+     "Δ"
+    ]
+   }
+  },
+  {
+   "name": "R□",
+   "premises": [
+    {
+     "left": [
+      "Γ",
+      [
+       "R",
+       "x",
+       "y"
+      ]
+     ],
+     "right": [
+      "Δ",
+      [
+       ":",
+       "y",
+       "A"
+      ]
+     ]
+    }
+   ],
+   "conclusion": {
+    "left": [
+     "Γ"
+    ],
+    "right": [
+     "Δ",
+     [
+      ":",
+      "x",
+      [
+       "□",
+       "A"
+      ]
+     ]
+    ]
+   },
+   "fresh": [
+    "y"
+   ]
+  },
+  {
+   "name": "Ref",
+   "premises": [
+    {
+     "left": [
+      "Γ",
+      [
+       "R",
+       "x",
+       "x"
+      ]
+     ],
+     "right": [
+      "Δ"
+     ]
+    }
+   ],
+   "conclusion": {
+    "left": [
+     "Γ"
+    ],
+    "right": [
+     "Δ"
+    ]
+   }
+  },
+  {
+   "name": "Trans",
+   "premises": [
+    {
+     "left": [
+      "Γ",
+      [
+       "R",
+       "x",
+       "y"
+      ],
+      [
+       "R",
+       "y",
+       "z"
+      ],
+      [
+       "R",
+       "x",
+       "z"
+      ]
+     ],
+     "right": [
+      "Δ"
+     ]
+    }
+   ],
+   "conclusion": {
+    "left": [
+     "Γ",
+     [
+      "R",
+      "x",
+      "y"
+     ],
+     [
+      "R",
+      "y",
+      "z"
+     ]
+    ],
+    "right": [
+     "Δ"
+    ]
+   }
+  },
+  {
+   "name": "Ser",
+   "premises": [
+    {
+     "left": [
+      "Γ",
+      [
+       "R",
+       "x",
+       "y"
+      ]
+     ],
+     "right": [
+      "Δ"
+     ]
+    }
+   ],
+   "conclusion": {
+    "left": [
+     "Γ"
+    ],
+    "right": [
+     "Δ"
+    ]
+   },
+   "fresh": [
+    "y"
+   ]
+  }
+ ]
+}
