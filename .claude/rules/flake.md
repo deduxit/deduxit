@@ -365,6 +365,19 @@ and Python with matplotlib; no check builds it.
   the machine lock). Kani is not in the devshell, which every session loads: `nix
   shell .#kani -c cargo kani -p deduxit --no-default-features` runs it
   there (`core-proofs.md` has the harnesses).
+- **`schema.nix`: the check `wire-schema`.** `_schema/documents.sh`
+  writes one JSON document of every form the command writes
+  (`FORM-CASE.json`, small inputs, each case's exit status expected) with
+  the `deduxit-cli` package, and `_schema/check.py` (Python's
+  `jsonschema`, `Draft202012Validator`) validates each against
+  `$defs/FORM` of `docs/src/wire.schema.json`, the schema the manual
+  publishes, fails a document that still passes with a key added (so the
+  schema says what each form holds), and wants a document of every form
+  that requires `version` but those `UNWRITTEN` lists with why. Its source
+  is those files alone, so editing them rebuilds no Rust. The protocol's
+  own forms have no command that writes them; `web/tests/protocol.rs`
+  holds every kind's form to the schema by name (the `web-tests` part
+  keeps the schema for it).
 - **`budget.nix`: the check `budget`.** Cargo.lock's packages and the web
   module's bytes at `gzip -9`, each under a ceiling written in the file
   with the figure it was set at; a change that passes one raises it

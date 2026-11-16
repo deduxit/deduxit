@@ -1,0 +1,3838 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://deduxit.github.io/deduxit/manual/wire.schema.json",
+  "title": "deduxit's JSON documents",
+  "description": "The JSON documents deduxit writes and reads: sequents, proofs, refutations, outcomes, proof structures, sessions and the forms of ordinary logic and of calculi given as data. Each entry of `$defs` is one form; validate a document against `#/$defs/FORM`. A document starts with `version`, the lowest wire level whose reader understands all of it (`deduxit::wire`). The schema holds the shape of each form: which keys, which names, which kinds of value. deduxit checks the rest when it reads a document: that every index is in range, that a list comes in the order its form asks, and that a proof, a refutation or a derivation holds. The rule file of a calculus given as data has a schema of its own, `deduxit::rules::SCHEMA`, and is not described here.",
+  "$defs": {
+    "index": {
+      "description": "A position in a list of the document, counted from 0. deduxit checks that it is in range.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    "indices": {
+      "description": "A list of positions.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/index"
+      }
+    },
+    "pair": {
+      "description": "Two positions.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/index"
+        },
+        {
+          "$ref": "#/$defs/index"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "triple": {
+      "description": "Three positions.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/index"
+        },
+        {
+          "$ref": "#/$defs/index"
+        },
+        {
+          "$ref": "#/$defs/index"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "count": {
+      "description": "A count. A count that would pass the largest 64-bit integer is written as that integer, 18446744073709551615, and means at least that many.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "writer": {
+      "description": "The version of deduxit that wrote the document. A reader ignores it.",
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+([-+][0-9A-Za-z.+-]+)?$"
+    },
+    "name": {
+      "description": "An atom's or a symbol's name. deduxit checks that it reads back as that name in the text syntax.",
+      "type": "string",
+      "minLength": 1
+    },
+    "mode": {
+      "description": "The mode of linear logic a document is meant for, by name. The ordered modes `cyclic`, `lambek` and `lambek-star` are from level 2.",
+      "enum": [
+        "classical",
+        "affine",
+        "mix",
+        "affine-mix",
+        "intuitionistic",
+        "intuitionistic-affine",
+        "cyclic",
+        "lambek",
+        "lambek-star"
+      ]
+    },
+    "fragment": {
+      "description": "The smallest named fragment that holds a sequent, by its name in the mode: the intuitionistic names in an intuitionistic mode. A reader takes any name of a fragment.",
+      "enum": [
+        "MLL",
+        "MLL with units",
+        "ALL",
+        "MALL",
+        "MELL",
+        "LL",
+        "MLL1",
+        "MLL1 with units",
+        "ALL1",
+        "MALL1",
+        "MELL1",
+        "LL1",
+        "IMLL",
+        "IMLL with units",
+        "IALL",
+        "IMALL",
+        "IMELL",
+        "ILL",
+        "IMLL1",
+        "IMLL1 with units",
+        "IALL1",
+        "IMALL1",
+        "IMELL1",
+        "ILL1"
+      ]
+    },
+    "engine": {
+      "description": "The engine that searched. `unknown` stands for a name the build that read the outcome did not know; a reader takes any name.",
+      "enum": [
+        "focus",
+        "net",
+        "two-sided",
+        "additive",
+        "horn",
+        "essential",
+        "inverse",
+        "unknown"
+      ]
+    },
+    "logic": {
+      "description": "A logic of ordinary propositional logic.",
+      "enum": [
+        "classical",
+        "intuitionistic",
+        "minimal"
+      ]
+    },
+    "lambda": {
+      "description": "The proof's lambda-term, which the command adds under `--lambda`: the term's own form with its `text` and its `judgement`, or `{\"error\": …}` with why the proof has none. Its inner form is not described here.",
+      "type": "object"
+    },
+    "error": {
+      "description": "An error of the library, written and never read: `code` is what a program branches on, one of `deduxit::Error::CODES`; `kind` is what sort of failure it is; `message` is the English text; `setting` is the settings key of the bound that refused the call, present only where a bound did; `details` holds the fields of the error's variant, or the wrapped error's (a parse error's span, a check's node, rule, fault and premises, a refusal's `kind`). A client reads a code it does not know by its `kind`.",
+      "type": "object",
+      "required": [
+        "code",
+        "kind",
+        "message",
+        "details"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "enum": [
+            "parse",
+            "lltp",
+            "spec",
+            "tptp",
+            "several_conjectures",
+            "unknown_name",
+            "family_size",
+            "family_index",
+            "invalid_option",
+            "json",
+            "unsupported_version",
+            "index_out_of_bounds",
+            "not_topological",
+            "antecedents",
+            "cut_formula",
+            "atom_name",
+            "inconsistent_session",
+            "invalid_proof",
+            "invalid_refutation",
+            "uncertified",
+            "invalid_net",
+            "no_nets",
+            "step",
+            "open_goals",
+            "foreign_proof",
+            "goal_mismatch",
+            "goal_proof",
+            "sequent_mismatch",
+            "not_intuitionistic",
+            "intuitionistic_mix",
+            "ordered_mode",
+            "symbol",
+            "loose_variable",
+            "predicates",
+            "ordered_fragment",
+            "goal_outputs",
+            "succedents",
+            "fragment_mismatch",
+            "translation",
+            "logic",
+            "negative_target",
+            "partition",
+            "not_cut_free",
+            "claim_fails",
+            "no_engine",
+            "engine_refused",
+            "no_certificate",
+            "stopped",
+            "memory_limit",
+            "too_many_occurrences",
+            "too_many_terms",
+            "output_too_large",
+            "work_limit",
+            "too_many_pixels",
+            "too_many_atoms",
+            "elimination_limit",
+            "index_limit",
+            "thread_pool",
+            "write_failed",
+            "not_svg",
+            "render_failed",
+            "no_date",
+            "rejected",
+            "read_back",
+            "countermodel",
+            "invalid_model",
+            "invalid_calculus",
+            "invalid_derivation",
+            "zones",
+            "step_refused",
+            "step_needs",
+            "not_fitch",
+            "no_term",
+            "no_derivation",
+            "not_built",
+            "no_cut",
+            "reduction_rejected"
+          ]
+        },
+        "kind": {
+          "enum": [
+            "malformed",
+            "invalid",
+            "unsupported",
+            "limit",
+            "stopped",
+            "failed",
+            "defect"
+          ]
+        },
+        "message": {
+          "type": "string"
+        },
+        "setting": {
+          "type": "string",
+          "minLength": 1
+        },
+        "details": {
+          "type": "object"
+        }
+      }
+    },
+    "reason": {
+      "description": "Why a search stopped without a verdict, tagged by `kind`, with the bound that stopped it where there is one. A reader refuses a kind it does not know.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "stopped",
+                "index_limit"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "depth"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "recursion_limit",
+                "witness_depth"
+              ]
+            },
+            "depth": {
+              "$ref": "#/$defs/index"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "copies"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "copy_bound"
+            },
+            "copies": {
+              "$ref": "#/$defs/index"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "limit_bytes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "memory_limit",
+                "unchecked"
+              ]
+            },
+            "limit_bytes": {
+              "$ref": "#/$defs/count"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "limit"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "work_limit"
+            },
+            "limit": {
+              "$ref": "#/$defs/count"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "instances"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "instances"
+            },
+            "instances": {
+              "$ref": "#/$defs/index"
+            }
+          }
+        }
+      ]
+    },
+    "literal": {
+      "description": "A literal of an atom: the atom, or its negation.",
+      "enum": [
+        "atom",
+        "dual"
+      ]
+    },
+    "excess": {
+      "description": "An excess of positive over negative literals, which may be negative.",
+      "type": "integer",
+      "minimum": -2147483648,
+      "maximum": 2147483647
+    },
+    "weights": {
+      "description": "Atoms or occurrences by position, each with its weight.",
+      "type": "array",
+      "items": {
+        "type": "array",
+        "prefixItems": [
+          {
+            "$ref": "#/$defs/index"
+          },
+          {
+            "type": "integer"
+          }
+        ],
+        "minItems": 2,
+        "maxItems": 2
+      }
+    },
+    "refutation": {
+      "description": "Why a sequent is unprovable, tagged by `kind`: an exhaustive search (`exhausted`), an atom or a predicate whose literals cannot pair up (`unbalanced`, `one_sided`, `unbalanced_symbol`, `one_sided_symbol`), the count equation (`equation`), the state equation of a Petri net (`state_equation`), a classical assignment (`classical`, from level 2), a saturated set (`saturated`, from level 3) or the basis of a backward search (`basis`, from level 11). Atoms, symbols and occurrences are positions; deduxit checks them against the sequent when it reads a disproof, and `check` checks the refutation itself. A reader refuses a kind it does not know.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "exhausted"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "atom",
+            "least",
+            "most"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "unbalanced"
+            },
+            "atom": {
+              "$ref": "#/$defs/index"
+            },
+            "least": {
+              "$ref": "#/$defs/excess"
+            },
+            "most": {
+              "$ref": "#/$defs/excess"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "atom",
+            "least",
+            "most",
+            "copied"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "one_sided"
+            },
+            "atom": {
+              "$ref": "#/$defs/index"
+            },
+            "least": {
+              "$ref": "#/$defs/excess"
+            },
+            "most": {
+              "$ref": "#/$defs/excess"
+            },
+            "copied": {
+              "$ref": "#/$defs/literal"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "symbol",
+            "least",
+            "most"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "unbalanced_symbol"
+            },
+            "symbol": {
+              "$ref": "#/$defs/index"
+            },
+            "least": {
+              "$ref": "#/$defs/excess"
+            },
+            "most": {
+              "$ref": "#/$defs/excess"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "symbol",
+            "least",
+            "most",
+            "copied"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "one_sided_symbol"
+            },
+            "symbol": {
+              "$ref": "#/$defs/index"
+            },
+            "least": {
+              "$ref": "#/$defs/excess"
+            },
+            "most": {
+              "$ref": "#/$defs/excess"
+            },
+            "copied": {
+              "$ref": "#/$defs/literal"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "formulas",
+            "needed",
+            "tensors",
+            "pars",
+            "ones",
+            "bottoms",
+            "mix"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "equation"
+            },
+            "formulas": {
+              "$ref": "#/$defs/count"
+            },
+            "needed": {
+              "type": "integer"
+            },
+            "tensors": {
+              "$ref": "#/$defs/count"
+            },
+            "pars": {
+              "$ref": "#/$defs/count"
+            },
+            "ones": {
+              "$ref": "#/$defs/count"
+            },
+            "bottoms": {
+              "$ref": "#/$defs/count"
+            },
+            "mix": {
+              "type": "boolean"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "atoms",
+            "clauses",
+            "dropped"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "state_equation"
+            },
+            "atoms": {
+              "$ref": "#/$defs/weights"
+            },
+            "clauses": {
+              "$ref": "#/$defs/weights"
+            },
+            "dropped": {
+              "$ref": "#/$defs/indices"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "assignment"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "classical"
+            },
+            "assignment": {
+              "type": "array",
+              "items": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "positive",
+            "sequents"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "saturated"
+            },
+            "positive": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/literal"
+              }
+            },
+            "sequents": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "linear",
+                  "unrestricted",
+                  "absorbs"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "linear": {
+                    "$ref": "#/$defs/indices"
+                  },
+                  "unrestricted": {
+                    "$ref": "#/$defs/indices"
+                  },
+                  "absorbs": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "body",
+            "classes",
+            "markings"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "basis"
+            },
+            "body": {
+              "$ref": "#/$defs/literal"
+            },
+            "classes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/indices"
+              }
+            },
+            "markings": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "atoms",
+                  "tickets"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "atoms": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/pair"
+                    }
+                  },
+                  "tickets": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/pair"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "linear_levels": {
+      "description": "The levels the content of a document of linear logic asks for: 2 for an ordered mode or a classical refutation, 3 for a saturated set, 6 for a sequent with cut formulas, 7 for a first-order sequent, 11 for a basis.",
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "mode"
+            ],
+            "properties": {
+              "mode": {
+                "enum": [
+                  "cyclic",
+                  "lambek",
+                  "lambek-star"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "version": {
+                "minimum": 2
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "refutation"
+            ],
+            "properties": {
+              "refutation": {
+                "required": [
+                  "kind"
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "classical"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "version": {
+                "minimum": 2
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "refutation"
+            ],
+            "properties": {
+              "refutation": {
+                "required": [
+                  "kind"
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "saturated"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "version": {
+                "minimum": 3
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "refutation"
+            ],
+            "properties": {
+              "refutation": {
+                "required": [
+                  "kind"
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "basis"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "version": {
+                "minimum": 11
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "sequent"
+            ],
+            "properties": {
+              "sequent": {
+                "required": [
+                  "cuts"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "version": {
+                "minimum": 6
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "sequent"
+            ],
+            "properties": {
+              "sequent": {
+                "required": [
+                  "symbols"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "version": {
+                "minimum": 7
+              }
+            }
+          }
+        }
+      ]
+    },
+    "fo_term": {
+      "description": "A first-order term: `{\"B\": k}` the variable of the k-th binder out (0 the innermost), `{\"F\": [symbol, [terms]]}` a symbol applied to earlier terms of the same list, `{\"E\": k}` an eigenvariable, only among a proof's own terms.",
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "B": {
+          "$ref": "#/$defs/index"
+        },
+        "E": {
+          "$ref": "#/$defs/index"
+        },
+        "F": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "$ref": "#/$defs/index"
+            },
+            {
+              "$ref": "#/$defs/indices"
+            }
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        }
+      }
+    },
+    "atoms": {
+      "description": "The atoms: each by name, or in a first-order document a predicate symbol applied to terms, `{\"P\": [symbol, [terms]]}`.",
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/name"
+          },
+          {
+            "type": "object",
+            "required": [
+              "P"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "P": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "$ref": "#/$defs/index"
+                  },
+                  {
+                    "$ref": "#/$defs/indices"
+                  }
+                ],
+                "minItems": 2,
+                "maxItems": 2
+              }
+            }
+          }
+        ]
+      }
+    },
+    "symbols": {
+      "description": "The symbols of a first-order sequent, each a name with its arity.",
+      "type": "array",
+      "items": {
+        "type": "array",
+        "prefixItems": [
+          {
+            "$ref": "#/$defs/name"
+          },
+          {
+            "$ref": "#/$defs/index"
+          }
+        ],
+        "minItems": 2,
+        "maxItems": 2
+      }
+    },
+    "term": {
+      "description": "A term of a one-sided sequent's arena: an atom `{\"V\": a}` or its negation `{\"D\": a}`, a unit `\"1\"`, `\"⊥\"`, `\"⊤\"` or `\"0\"`, a binary connective with its two operands, `!`, `?` or a quantifier (level 7) with its operand. Every operand comes before its term; deduxit checks that.",
+      "oneOf": [
+        {
+          "enum": [
+            "1",
+            "⊥",
+            "⊤",
+            "0"
+          ]
+        },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "V": {
+              "$ref": "#/$defs/index"
+            },
+            "D": {
+              "$ref": "#/$defs/index"
+            },
+            "⊗": {
+              "$ref": "#/$defs/pair"
+            },
+            "⅋": {
+              "$ref": "#/$defs/pair"
+            },
+            "&": {
+              "$ref": "#/$defs/pair"
+            },
+            "⊕": {
+              "$ref": "#/$defs/pair"
+            },
+            "!": {
+              "$ref": "#/$defs/index"
+            },
+            "?": {
+              "$ref": "#/$defs/index"
+            },
+            "∀": {
+              "$ref": "#/$defs/index"
+            },
+            "∃": {
+              "$ref": "#/$defs/index"
+            }
+          }
+        }
+      ]
+    },
+    "sequent_keys": {
+      "description": "The keys of a one-sided sequent of linear logic, at the top of a document or nested in another form without `version`. A reader ignores keys it does not know.",
+      "type": "object",
+      "required": [
+        "terms",
+        "roots",
+        "atoms"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The wire level, written only at the top of a document."
+        },
+        "terms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/term"
+          }
+        },
+        "roots": {
+          "$ref": "#/$defs/indices",
+          "description": "The formulas of the sequent, as positions in `terms`."
+        },
+        "atoms": {
+          "$ref": "#/$defs/atoms"
+        },
+        "symbols": {
+          "$ref": "#/$defs/symbols"
+        },
+        "fo": {
+          "description": "The first-order terms, each argument before its term. An eigenvariable stands only in a proof's terms.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fo_term",
+            "not": {
+              "required": [
+                "E"
+              ]
+            }
+          }
+        },
+        "binders": {
+          "description": "The variables' names, one per quantifier in the order of the terms.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/name"
+          }
+        },
+        "antecedents": {
+          "$ref": "#/$defs/index",
+          "description": "How many of the roots, the first ones, stand left of ⊢. Absent where the sides are not known."
+        },
+        "cuts": {
+          "$ref": "#/$defs/indices",
+          "description": "The cut formulas, as positions in `terms` (level 6)."
+        }
+      },
+      "dependentSchemas": {
+        "cuts": {
+          "properties": {
+            "version": {
+              "minimum": 6
+            }
+          }
+        },
+        "symbols": {
+          "properties": {
+            "version": {
+              "minimum": 7
+            }
+          }
+        }
+      }
+    },
+    "sequent": {
+      "description": "A one-sided sequent of linear logic (level 1, `seq json`): the arena of terms, the roots, the atoms, and where it has them the sides, the cut formulas (level 6) and the first-order tables (level 7).",
+      "$ref": "#/$defs/sequent_keys",
+      "required": [
+        "version"
+      ]
+    },
+    "nested_sequent": {
+      "description": "A one-sided sequent nested in another form: no `version`.",
+      "$ref": "#/$defs/sequent_keys",
+      "not": {
+        "required": [
+          "version"
+        ]
+      }
+    },
+    "proof_node": {
+      "description": "A node of a proof: the rule's tag with the occurrences (members) it acts on and its premises, nodes before it. `{\"ax\": [a, b]}`, `{\"⊗\": [x, left, right]}`, `{\"⅋\": [x, premise]}`, `{\"1\": x}`, `{\"cut\": [a, left, right]}` with `a` the occurrence of the cut formula (level 6), `{\"∀\": [m, eigenvariable, premise]}` and `{\"∃\": [m, witness, premise]}` (level 7).",
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "ax": {
+          "$ref": "#/$defs/pair"
+        },
+        "⊗": {
+          "$ref": "#/$defs/triple"
+        },
+        "⅋": {
+          "$ref": "#/$defs/pair"
+        },
+        "1": {
+          "$ref": "#/$defs/index"
+        },
+        "⊥": {
+          "$ref": "#/$defs/pair"
+        },
+        "&": {
+          "$ref": "#/$defs/triple"
+        },
+        "⊕₁": {
+          "$ref": "#/$defs/pair"
+        },
+        "⊕₂": {
+          "$ref": "#/$defs/pair"
+        },
+        "⊤": {
+          "$ref": "#/$defs/index"
+        },
+        "!": {
+          "$ref": "#/$defs/pair"
+        },
+        "?": {
+          "$ref": "#/$defs/pair"
+        },
+        "copy": {
+          "$ref": "#/$defs/pair"
+        },
+        "wk": {
+          "$ref": "#/$defs/pair"
+        },
+        "mix": {
+          "$ref": "#/$defs/pair"
+        },
+        "cut": {
+          "$ref": "#/$defs/triple"
+        },
+        "∀": {
+          "$ref": "#/$defs/triple"
+        },
+        "∃": {
+          "$ref": "#/$defs/triple"
+        }
+      }
+    },
+    "instances": {
+      "description": "A first-order proof's instance table (level 7): `members` each member past the sequent's occurrences as `[occurrence, frame]`; `frames` each as `[parent, term]`, `null` past the outermost binder; `terms` the proof's own terms, numbered on from the sequent's `fo`. A reader refuses a key it does not know.",
+      "type": "object",
+      "required": [
+        "members",
+        "frames",
+        "terms"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "members": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pair"
+          }
+        },
+        "frames": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/index"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              {
+                "$ref": "#/$defs/index"
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2
+          }
+        },
+        "terms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fo_term"
+          }
+        }
+      }
+    },
+    "proof_keys": {
+      "description": "The keys of a proof, at the top of a document or nested in a cut elimination's record. A reader ignores keys it does not know.",
+      "type": "object",
+      "required": [
+        "sequent",
+        "nodes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The wire level, written only at the top of a document."
+        },
+        "sequent": {
+          "$ref": "#/$defs/nested_sequent"
+        },
+        "nodes": {
+          "description": "The nodes, premises before conclusions, the root last.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/proof_node"
+          }
+        },
+        "mode": {
+          "$ref": "#/$defs/mode"
+        },
+        "goal": {
+          "$ref": "#/$defs/indices",
+          "description": "The occurrences the root concludes, where they are not the sequent's roots."
+        },
+        "instances": {
+          "$ref": "#/$defs/instances"
+        }
+      },
+      "not": {
+        "required": [
+          "goal",
+          "instances"
+        ]
+      }
+    },
+    "proof": {
+      "description": "A proof of linear logic (level 1; `interact`'s `proof FILE.json`, and the keys of a proved outcome, which reads as a proof): the sequent, the nodes, the mode where recorded, the goal where it is not the roots, the instance table of a first-order proof (level 7). deduxit checks the order of the nodes when it reads one, and `check` the proof.",
+      "$ref": "#/$defs/proof_keys",
+      "required": [
+        "version"
+      ],
+      "allOf": [
+        {
+          "$ref": "#/$defs/linear_levels"
+        }
+      ]
+    },
+    "disproof": {
+      "description": "A refutation of a sequent in a mode (level 1; the keys of an unprovable outcome, which reads as a disproof): the sequent, the mode, the refutation, and the goal where it is not the roots. A reader ignores keys it does not know.",
+      "type": "object",
+      "required": [
+        "version",
+        "sequent",
+        "mode",
+        "refutation"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sequent": {
+          "$ref": "#/$defs/nested_sequent"
+        },
+        "mode": {
+          "$ref": "#/$defs/mode"
+        },
+        "refutation": {
+          "$ref": "#/$defs/refutation"
+        },
+        "goal": {
+          "$ref": "#/$defs/indices"
+        }
+      },
+      "allOf": [
+        {
+          "$ref": "#/$defs/linear_levels"
+        }
+      ]
+    },
+    "statistics": {
+      "description": "What a search cost, its counters by name. A reader reads a missing counter as zero; the first-order counters `unifications` and `bindings` are written only where they are not zero.",
+      "type": "object",
+      "required": [
+        "nodes",
+        "memo_hits",
+        "memo_entries",
+        "splits",
+        "links",
+        "tests",
+        "copies",
+        "forward_copies",
+        "work"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "nodes": {
+          "$ref": "#/$defs/count"
+        },
+        "memo_hits": {
+          "$ref": "#/$defs/count"
+        },
+        "memo_entries": {
+          "$ref": "#/$defs/count"
+        },
+        "splits": {
+          "$ref": "#/$defs/count"
+        },
+        "links": {
+          "$ref": "#/$defs/count"
+        },
+        "tests": {
+          "$ref": "#/$defs/count"
+        },
+        "copies": {
+          "$ref": "#/$defs/index"
+        },
+        "forward_copies": {
+          "$ref": "#/$defs/index"
+        },
+        "work": {
+          "$ref": "#/$defs/count"
+        },
+        "unifications": {
+          "$ref": "#/$defs/count",
+          "exclusiveMinimum": 0
+        },
+        "bindings": {
+          "$ref": "#/$defs/count",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "outcome_keys": {
+      "description": "The keys of the outcome of a search in linear logic, at the top of a document or nested without `version` and `deduxit`. A proved outcome holds a proof's keys and an unprovable one a disproof's, so that it reads back as a proof or a disproof. A reader ignores keys it does not know.",
+      "type": "object",
+      "required": [
+        "verdict",
+        "fragment",
+        "mode",
+        "engine",
+        "statistics"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The wire level, written only at the top of a document."
+        },
+        "deduxit": {
+          "$ref": "#/$defs/writer"
+        },
+        "verdict": {
+          "enum": [
+            "proved",
+            "unprovable",
+            "unknown"
+          ]
+        },
+        "checked": {
+          "type": "boolean",
+          "description": "Whether the proof passed the checker."
+        },
+        "reason": {
+          "$ref": "#/$defs/reason"
+        },
+        "refutation": {
+          "$ref": "#/$defs/refutation"
+        },
+        "fragment": {
+          "$ref": "#/$defs/fragment"
+        },
+        "mode": {
+          "$ref": "#/$defs/mode"
+        },
+        "engine": {
+          "$ref": "#/$defs/engine"
+        },
+        "statistics": {
+          "$ref": "#/$defs/statistics"
+        },
+        "sequent": {
+          "$ref": "#/$defs/nested_sequent"
+        },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/proof_node"
+          }
+        },
+        "goal": {
+          "$ref": "#/$defs/indices"
+        },
+        "instances": {
+          "$ref": "#/$defs/instances"
+        },
+        "lambda": {
+          "$ref": "#/$defs/lambda"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "verdict": {
+                "const": "proved"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "checked",
+              "sequent",
+              "nodes"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "reason"
+                  ]
+                },
+                {
+                  "required": [
+                    "refutation"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "verdict": {
+                "const": "unprovable"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "refutation",
+              "sequent"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "reason"
+                  ]
+                },
+                {
+                  "required": [
+                    "checked"
+                  ]
+                },
+                {
+                  "required": [
+                    "nodes"
+                  ]
+                },
+                {
+                  "required": [
+                    "instances"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "verdict": {
+                "const": "unknown"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "reason"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "refutation"
+                  ]
+                },
+                {
+                  "required": [
+                    "checked"
+                  ]
+                },
+                {
+                  "required": [
+                    "sequent"
+                  ]
+                },
+                {
+                  "required": [
+                    "nodes"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "$ref": "#/$defs/linear_levels"
+        }
+      ]
+    },
+    "outcome": {
+      "description": "The outcome of deciding a sequent of linear logic (level 1, `prove --format json`): the verdict, how the search ran, and the proof's keys for `proved`, the disproof's for `unprovable`, the reason for `unknown`. `--lambda` adds `lambda`.",
+      "$ref": "#/$defs/outcome_keys",
+      "required": [
+        "version",
+        "deduxit"
+      ]
+    },
+    "nested_outcome": {
+      "description": "An outcome of linear logic nested in another document, as the image's outcome under an ordinary outcome's embedding: no `version` and no `deduxit`.",
+      "$ref": "#/$defs/outcome_keys",
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "version"
+            ]
+          },
+          {
+            "required": [
+              "deduxit"
+            ]
+          }
+        ]
+      }
+    },
+    "proof_structure_keys": {
+      "description": "The keys of a proof structure without boxes: its links name occurrences. A reader ignores keys it does not know, and refuses `vertices`, the key of a structure with boxes.",
+      "type": "object",
+      "required": [
+        "sequent",
+        "mix",
+        "links"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The wire level, written only at the top of a document."
+        },
+        "sequent": {
+          "$ref": "#/$defs/nested_sequent"
+        },
+        "mix": {
+          "type": "boolean"
+        },
+        "order": {
+          "description": "`cyclic` for a structure of an ordered mode (level 2), absent for a commutative one.",
+          "enum": [
+            "cyclic",
+            "commutative"
+          ]
+        },
+        "cuts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pair"
+          },
+          "description": "The cut links (level 6)."
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pair"
+          },
+          "description": "The axiom links."
+        }
+      },
+      "dependentSchemas": {
+        "order": {
+          "properties": {
+            "version": {
+              "minimum": 2
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "$ref": "#/$defs/linear_levels"
+        }
+      ]
+    },
+    "proof_structure": {
+      "description": "A proof structure of MLL (level 1, `prove --net --format json`): the sequent, whether Mix is allowed, and the axiom links between literal occurrences, with the order of an ordered mode (level 2) and the cut links of a structure with cuts (level 6). Whether it is a proof net is for `check --net` to say.",
+      "$ref": "#/$defs/proof_structure_keys",
+      "required": [
+        "version"
+      ]
+    },
+    "vertex": {
+      "description": "A vertex of a structure with boxes past the roots: `[occurrence, parent, box]`, `box` the `!` vertex of its innermost box or `null`, `parent` `null` for an end of a cut link.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/index"
+        },
+        {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/index"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/index"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "mell_structure_keys": {
+      "description": "The keys of a proof structure with boxes. A reader ignores keys it does not know.",
+      "type": "object",
+      "required": [
+        "sequent",
+        "mix",
+        "vertices",
+        "links",
+        "weakenings"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 4,
+          "description": "The wire level, written only at the top of a document."
+        },
+        "sequent": {
+          "$ref": "#/$defs/nested_sequent"
+        },
+        "mix": {
+          "type": "boolean"
+        },
+        "vertices": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/vertex"
+          }
+        },
+        "cuts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pair"
+          },
+          "description": "The cut links by their two vertices (level 6)."
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pair"
+          },
+          "description": "The axiom links by their two vertices."
+        },
+        "weakenings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pair"
+          },
+          "description": "Each `?` vertex without copies and the literal it hangs on."
+        }
+      },
+      "allOf": [
+        {
+          "$ref": "#/$defs/linear_levels"
+        }
+      ]
+    },
+    "mell_structure": {
+      "description": "A proof structure with boxes (level 4, `prove --net --format json` on a sequent with exponentials): the roots are vertices 0 to r − 1, then each of `vertices`, and the links and weakenings name vertices.",
+      "$ref": "#/$defs/mell_structure_keys",
+      "required": [
+        "version"
+      ]
+    },
+    "ill_term": {
+      "description": "A term of an intuitionistic sequent: an atom `{\"V\": a}`, a unit `\"1\"`, `\"0\"` or `\"⊤\"`, `⊗`, `⊸` (the antecedent first), `&` or `⊕` with two operands, `!` or a quantifier (level 7) with one. Every operand comes before its term.",
+      "oneOf": [
+        {
+          "enum": [
+            "1",
+            "0",
+            "⊤"
+          ]
+        },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "V": {
+              "$ref": "#/$defs/index"
+            },
+            "⊗": {
+              "$ref": "#/$defs/pair"
+            },
+            "⊸": {
+              "$ref": "#/$defs/pair"
+            },
+            "&": {
+              "$ref": "#/$defs/pair"
+            },
+            "⊕": {
+              "$ref": "#/$defs/pair"
+            },
+            "!": {
+              "$ref": "#/$defs/index"
+            },
+            "∀": {
+              "$ref": "#/$defs/index"
+            },
+            "∃": {
+              "$ref": "#/$defs/index"
+            }
+          }
+        }
+      ]
+    },
+    "ill_sequent": {
+      "description": "An intuitionistic sequent (level 5, `seq json -i`): terms of intuitionistic linear logic, the atoms, the hypotheses and the goal, with the first-order tables of a first-order sequent (level 7). A reader ignores keys it does not know.",
+      "type": "object",
+      "required": [
+        "version",
+        "terms",
+        "atoms",
+        "hypotheses",
+        "goal"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 5
+        },
+        "terms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ill_term"
+          }
+        },
+        "atoms": {
+          "$ref": "#/$defs/atoms"
+        },
+        "symbols": {
+          "$ref": "#/$defs/symbols"
+        },
+        "fo": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fo_term",
+            "not": {
+              "required": [
+                "E"
+              ]
+            }
+          }
+        },
+        "binders": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/name"
+          }
+        },
+        "hypotheses": {
+          "$ref": "#/$defs/indices"
+        },
+        "goal": {
+          "$ref": "#/$defs/index"
+        }
+      },
+      "dependentSchemas": {
+        "symbols": {
+          "properties": {
+            "version": {
+              "minimum": 7
+            }
+          }
+        }
+      }
+    },
+    "session_rule": {
+      "description": "A rule of a session by name: a one-sided rule (`ax`, `⊗`, `⅋`, `1`, `⊥`, `&`, `⊕₁`, `⊕₂`, `⊤`, `!`, `?d`, `?c`, `?w`, `mix`, `wk`, `cut`, `∀`, `∃`), a two-sided one of an intuitionistic mode, or a division of the Lambek calculus.",
+      "enum": [
+        "ax",
+        "⊗",
+        "⅋",
+        "1",
+        "⊥",
+        "&",
+        "⊕₁",
+        "⊕₂",
+        "⊤",
+        "!",
+        "?d",
+        "?c",
+        "?w",
+        "mix",
+        "wk",
+        "cut",
+        "∀",
+        "∃",
+        "⊸L",
+        "⊸R",
+        "⊗L",
+        "⊗R",
+        "&L₁",
+        "&L₂",
+        "&R",
+        "⊕L",
+        "⊕R₁",
+        "⊕R₂",
+        "1L",
+        "1R",
+        "0L",
+        "⊤R",
+        "!L",
+        "!R",
+        "!c",
+        "!w",
+        "∀R",
+        "∃L",
+        "∃R",
+        "∀L",
+        "\\L",
+        "\\R",
+        "/L",
+        "/R"
+      ]
+    },
+    "session": {
+      "description": "A session of step-by-step proving in linear logic (level 1, `interact`'s `save FILE`): the sequent, the mode, the inferences (an open goal without `rule`), the steps taken in order, and where the session keeps them how its sequent was written (`written`, which raises no level) and the instance table of a first-order session. A reader ignores keys it does not know.",
+      "type": "object",
+      "required": [
+        "version",
+        "sequent",
+        "mode",
+        "inferences",
+        "history"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sequent": {
+          "$ref": "#/$defs/nested_sequent"
+        },
+        "mode": {
+          "$ref": "#/$defs/mode"
+        },
+        "inferences": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "sequent"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "sequent": {
+                "$ref": "#/$defs/indices",
+                "description": "The members of the inference's sequent."
+              },
+              "rule": {
+                "$ref": "#/$defs/session_rule"
+              },
+              "principal": {
+                "$ref": "#/$defs/index"
+              },
+              "premises": {
+                "$ref": "#/$defs/indices"
+              },
+              "cut": {
+                "$ref": "#/$defs/index"
+              }
+            }
+          }
+        },
+        "history": {
+          "$ref": "#/$defs/indices"
+        },
+        "written": {
+          "description": "How the sequent was written: the occurrences left of ⊢ and those written as implications, each list ascending.",
+          "type": "object",
+          "required": [
+            "inputs",
+            "implications"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "inputs": {
+              "$ref": "#/$defs/indices"
+            },
+            "implications": {
+              "$ref": "#/$defs/indices"
+            }
+          }
+        },
+        "instances": {
+          "description": "The instance table of a first-order session: members, frames and terms as a proof's, the metavariables and how they are bound.",
+          "type": "object",
+          "required": [
+            "members",
+            "frames",
+            "terms",
+            "eigens"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "members": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/pair"
+              }
+            },
+            "frames": {
+              "$ref": "#/$defs/instances/properties/frames"
+            },
+            "terms": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "minProperties": 1,
+                "maxProperties": 1,
+                "additionalProperties": false,
+                "properties": {
+                  "F": {
+                    "$ref": "#/$defs/fo_term/properties/F"
+                  },
+                  "E": {
+                    "$ref": "#/$defs/index"
+                  },
+                  "M": {
+                    "$ref": "#/$defs/index"
+                  }
+                }
+              }
+            },
+            "metas": {
+              "$ref": "#/$defs/indices"
+            },
+            "eigens": {
+              "$ref": "#/$defs/index"
+            },
+            "constants": {
+              "$ref": "#/$defs/indices"
+            },
+            "bindings": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/triple"
+              }
+            },
+            "marks": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/index"
+                },
+                "minItems": 6,
+                "maxItems": 6
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "$ref": "#/$defs/linear_levels"
+        }
+      ]
+    },
+    "cut_case": {
+      "description": "The case of a step of cut elimination.",
+      "enum": [
+        "axiom",
+        "tensor_par",
+        "one_bot",
+        "with_plus",
+        "weakening",
+        "dereliction",
+        "contraction",
+        "box_into_box",
+        "forall_exists",
+        "commutative"
+      ]
+    },
+    "elimination_end": {
+      "description": "How an elimination ended: `cut_free`, or `refused` with the `reason` in an error's form.",
+      "if": {
+        "properties": {
+          "end": {
+            "const": "refused"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "reason"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "reason"
+          ]
+        }
+      }
+    },
+    "elimination": {
+      "description": "The record of a cut elimination on a proof (`eliminate --format json`, written only): the proof reached, at the level of its form, each step's cut node, the occurrence of its cut formula, its case and the node it acted at besides the cut, and how it ended.",
+      "type": "object",
+      "required": [
+        "version",
+        "proof",
+        "steps",
+        "end"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "proof": {
+          "$ref": "#/$defs/proof_keys",
+          "not": {
+            "required": [
+              "version"
+            ]
+          }
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "cut",
+              "formula",
+              "case"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "cut": {
+                "$ref": "#/$defs/index"
+              },
+              "formula": {
+                "$ref": "#/$defs/index"
+              },
+              "case": {
+                "$ref": "#/$defs/cut_case"
+              },
+              "above": {
+                "$ref": "#/$defs/index"
+              }
+            }
+          }
+        },
+        "end": {
+          "enum": [
+            "cut_free",
+            "refused"
+          ]
+        },
+        "reason": {
+          "$ref": "#/$defs/error"
+        }
+      },
+      "allOf": [
+        {
+          "$ref": "#/$defs/elimination_end"
+        }
+      ]
+    },
+    "net_elimination": {
+      "description": "The record of a cut elimination on a proof net (`eliminate --net --format json`, written only): the net reached, as a proof structure with or without boxes and at the level of its form, each step's cut link by its two vertices, its case and the vertex it acted at besides the cut, and how it ended.",
+      "type": "object",
+      "required": [
+        "version",
+        "net",
+        "steps",
+        "end"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "net": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/proof_structure_keys"
+            },
+            {
+              "$ref": "#/$defs/mell_structure_keys"
+            }
+          ],
+          "not": {
+            "required": [
+              "version"
+            ]
+          }
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "cut",
+              "case"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "cut": {
+                "$ref": "#/$defs/pair"
+              },
+              "case": {
+                "$ref": "#/$defs/cut_case"
+              },
+              "above": {
+                "$ref": "#/$defs/index"
+              }
+            }
+          }
+        },
+        "end": {
+          "enum": [
+            "cut_free",
+            "refused"
+          ]
+        },
+        "reason": {
+          "$ref": "#/$defs/error"
+        }
+      },
+      "allOf": [
+        {
+          "$ref": "#/$defs/elimination_end"
+        }
+      ]
+    },
+    "formula": {
+      "description": "A formula of ordinary logic in its sequent's list: an atom `{\"V\": a}`, `\"⊤\"`, `\"⊥\"`, `¬` with one operand, `∧`, `∨`, `→` or `↔` with two. Every operand comes before its formula.",
+      "oneOf": [
+        {
+          "enum": [
+            "⊤",
+            "⊥"
+          ]
+        },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "V": {
+              "$ref": "#/$defs/index"
+            },
+            "¬": {
+              "$ref": "#/$defs/index"
+            },
+            "∧": {
+              "$ref": "#/$defs/pair"
+            },
+            "∨": {
+              "$ref": "#/$defs/pair"
+            },
+            "→": {
+              "$ref": "#/$defs/pair"
+            },
+            "↔": {
+              "$ref": "#/$defs/pair"
+            }
+          }
+        }
+      ]
+    },
+    "ordinary_sequent_keys": {
+      "description": "The keys of a sequent of ordinary logic, at the top of a document or nested without `version`. A reader ignores keys it does not know.",
+      "type": "object",
+      "required": [
+        "formulas",
+        "atoms",
+        "left",
+        "right"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 8,
+          "description": "The wire level, written only at the top of a document."
+        },
+        "formulas": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/formula"
+          }
+        },
+        "atoms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/name"
+          }
+        },
+        "left": {
+          "$ref": "#/$defs/indices",
+          "description": "The hypotheses, as positions in `formulas`."
+        },
+        "right": {
+          "$ref": "#/$defs/indices",
+          "description": "The formulas right of ⊢."
+        }
+      }
+    },
+    "ordinary_sequent": {
+      "description": "A sequent of ordinary logic (level 8): the formulas, the atoms and the two sides.",
+      "$ref": "#/$defs/ordinary_sequent_keys",
+      "required": [
+        "version"
+      ]
+    },
+    "nested_ordinary_sequent": {
+      "description": "A sequent of ordinary logic nested in another form: no `version`.",
+      "$ref": "#/$defs/ordinary_sequent_keys",
+      "not": {
+        "required": [
+          "version"
+        ]
+      }
+    },
+    "ordinary_rule": {
+      "description": "A rule of LK or LJ by name; `cut` is from level 9, and `open` marks an open goal.",
+      "enum": [
+        "ax",
+        "WL",
+        "WR",
+        "CL",
+        "CR",
+        "∧L",
+        "∧L₁",
+        "∧L₂",
+        "∧R",
+        "∨L",
+        "∨R",
+        "∨R₁",
+        "∨R₂",
+        "→L",
+        "→R",
+        "¬L",
+        "¬R",
+        "↔L",
+        "↔L₁",
+        "↔L₂",
+        "↔R",
+        "⊥L",
+        "⊥R",
+        "⊤L",
+        "⊤R",
+        "cut",
+        "open"
+      ]
+    },
+    "inference": {
+      "description": "An inference of LK or LJ: its two sides as positions in the sequent's `formulas`, its rule, its principal formula's side and position, and its premises. A session's open goal has its two sides alone.",
+      "type": "object",
+      "required": [
+        "left",
+        "right"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "left": {
+          "$ref": "#/$defs/indices"
+        },
+        "right": {
+          "$ref": "#/$defs/indices"
+        },
+        "rule": {
+          "$ref": "#/$defs/ordinary_rule"
+        },
+        "principal": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "enum": [
+                "left",
+                "right"
+              ]
+            },
+            {
+              "$ref": "#/$defs/index"
+            }
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "premises": {
+          "$ref": "#/$defs/indices"
+        }
+      }
+    },
+    "ordinary_derivation_keys": {
+      "description": "The keys of a derivation of LK or LJ, at the top of a document or nested in an outcome without `version`. A reader ignores keys it does not know.",
+      "type": "object",
+      "required": [
+        "logic",
+        "sequent",
+        "inferences"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 8,
+          "description": "The wire level, written only at the top of a document: 9 where it holds a cut."
+        },
+        "logic": {
+          "$ref": "#/$defs/logic"
+        },
+        "sequent": {
+          "$ref": "#/$defs/nested_ordinary_sequent"
+        },
+        "inferences": {
+          "description": "The inferences, premises before conclusions, the root last. deduxit checks that they form a tree, and `check` checks the rules.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/inference"
+          }
+        }
+      }
+    },
+    "ordinary_derivation": {
+      "description": "A derivation of LK or LJ (level 8, `interact --logic`'s `proof FILE.json`): the logic, the sequent with every formula the inferences name, and the inferences.",
+      "$ref": "#/$defs/ordinary_derivation_keys",
+      "required": [
+        "version"
+      ]
+    },
+    "ljt_statistics": {
+      "description": "What a search by LJT cost. A reader reads a missing counter as zero.",
+      "type": "object",
+      "required": [
+        "sequents",
+        "memo_hits",
+        "memo_entries",
+        "subsumed"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "sequents": {
+          "$ref": "#/$defs/count"
+        },
+        "memo_hits": {
+          "$ref": "#/$defs/count"
+        },
+        "memo_entries": {
+          "$ref": "#/$defs/count"
+        },
+        "subsumed": {
+          "$ref": "#/$defs/count"
+        }
+      }
+    },
+    "sat_statistics": {
+      "description": "What a search by the SAT solver cost, with LJT's statistics where LJT gave the derivation. A reader reads a missing counter as zero.",
+      "type": "object",
+      "required": [
+        "calls",
+        "conflicts",
+        "lemmas",
+        "worlds",
+        "facts",
+        "clauses",
+        "proof_steps",
+        "ljt"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "calls": {
+          "$ref": "#/$defs/count"
+        },
+        "conflicts": {
+          "$ref": "#/$defs/count"
+        },
+        "lemmas": {
+          "$ref": "#/$defs/count"
+        },
+        "worlds": {
+          "$ref": "#/$defs/count"
+        },
+        "facts": {
+          "$ref": "#/$defs/count"
+        },
+        "clauses": {
+          "$ref": "#/$defs/count"
+        },
+        "proof_steps": {
+          "$ref": "#/$defs/count"
+        },
+        "ljt": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/ljt_statistics"
+            }
+          ]
+        }
+      }
+    },
+    "kripke_model_keys": {
+      "description": "The keys of a Kripke model, at the top of a document or nested without `version`: each world's atoms by name, `falsity` where it forces `⊥` (minimal logic), its arrows to the worlds directly above it, and the world the model is about (0 where absent). The reader of a model given by hand refuses a key it does not know.",
+      "type": "object",
+      "required": [
+        "worlds"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 13,
+          "description": "The wire level, written only at the top of a document."
+        },
+        "worlds": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "atoms"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "atoms": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/name"
+                }
+              },
+              "falsity": {
+                "type": "boolean"
+              },
+              "arrows": {
+                "$ref": "#/$defs/indices"
+              }
+            }
+          }
+        },
+        "world": {
+          "$ref": "#/$defs/index"
+        }
+      }
+    },
+    "kripke_model": {
+      "description": "A Kripke model (level 13): the worlds and the world the model is about. deduxit checks that the arrows do not go round and that every world forces what each world below it forces.",
+      "$ref": "#/$defs/kripke_model_keys",
+      "required": [
+        "version"
+      ]
+    },
+    "truth_table_keys": {
+      "description": "The keys of a truth table, at the top of a document or nested in an outcome without `version`. A reader ignores keys it does not know.",
+      "type": "object",
+      "required": [
+        "sequent",
+        "rows",
+        "falsifying"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 14,
+          "description": "The wire level, written only at the top of a document."
+        },
+        "sequent": {
+          "$ref": "#/$defs/nested_ordinary_sequent"
+        },
+        "rows": {
+          "description": "A row per assignment, from every atom true to every atom false, a `T` or `F` per formula of the sequent. deduxit computes the table again and refuses rows that differ.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[TF]*$"
+          }
+        },
+        "falsifying": {
+          "description": "The rows that falsify the sequent.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/count"
+          }
+        }
+      }
+    },
+    "truth_table": {
+      "description": "The truth table of a classical sequent (level 14).",
+      "$ref": "#/$defs/truth_table_keys",
+      "required": [
+        "version"
+      ]
+    },
+    "tableau_keys": {
+      "description": "The keys of a tableau, at the top of a document or nested in an outcome without `version`. A reader ignores keys it does not know.",
+      "type": "object",
+      "required": [
+        "sequent",
+        "nodes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 14,
+          "description": "The wire level, written only at the top of a document."
+        },
+        "sequent": {
+          "$ref": "#/$defs/nested_ordinary_sequent"
+        },
+        "nodes": {
+          "description": "The nodes, each before its children, the root first: its lines as a sign and a formula, and either the line it expands with the rule and its children, or how its branch ends. deduxit checks the tree's shape and every index, not the expansions.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "lines"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "lines": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "enum": [
+                        "T",
+                        "F"
+                      ]
+                    },
+                    {
+                      "$ref": "#/$defs/index"
+                    }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2
+                }
+              },
+              "expands": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "$ref": "#/$defs/index"
+                  },
+                  {
+                    "$ref": "#/$defs/ordinary_rule"
+                  }
+                ],
+                "minItems": 2,
+                "maxItems": 2
+              },
+              "children": {
+                "$ref": "#/$defs/indices"
+              },
+              "end": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "kind",
+                      "true_line",
+                      "false_line"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "const": "closed"
+                      },
+                      "true_line": {
+                        "$ref": "#/$defs/index"
+                      },
+                      "false_line": {
+                        "$ref": "#/$defs/index"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "kind",
+                      "line"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "enum": [
+                          "falsity",
+                          "truth"
+                        ]
+                      },
+                      "line": {
+                        "$ref": "#/$defs/index"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "enum": [
+                          "open",
+                          "unexpanded"
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "tableau": {
+      "description": "A signed tableau of a classical sequent (level 14).",
+      "$ref": "#/$defs/tableau_keys",
+      "required": [
+        "version"
+      ]
+    },
+    "search": {
+      "description": "How an ordinary sequent was decided, tagged by `method`: through the embedding into linear logic with its translation and the image's outcome, by LJT or the SAT solver with their statistics, or by a truth table or a tableau (level 14).",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "method",
+            "translation",
+            "image"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "method": {
+              "const": "embedding"
+            },
+            "translation": {
+              "enum": [
+                "affine",
+                "cbn",
+                "cbv",
+                "01"
+              ]
+            },
+            "image": {
+              "$ref": "#/$defs/nested_outcome"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "method",
+            "statistics"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "method": {
+              "const": "ljt"
+            },
+            "statistics": {
+              "$ref": "#/$defs/ljt_statistics"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "method",
+            "statistics"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "method": {
+              "const": "sat"
+            },
+            "statistics": {
+              "$ref": "#/$defs/sat_statistics"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "method",
+            "table"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "method": {
+              "const": "table"
+            },
+            "table": {
+              "$ref": "#/$defs/truth_table_keys",
+              "not": {
+                "required": [
+                  "version"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "method",
+            "tableau"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "method": {
+              "const": "tableau"
+            },
+            "tableau": {
+              "$ref": "#/$defs/tableau_keys",
+              "not": {
+                "required": [
+                  "version"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ordinary_outcome_keys": {
+      "description": "The keys of the outcome of deciding an ordinary sequent, at the top of a document or nested without `version` and `deduxit`. A reader ignores keys it does not know.",
+      "type": "object",
+      "required": [
+        "verdict",
+        "logic",
+        "search"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 12,
+          "description": "The wire level, written only at the top of a document."
+        },
+        "deduxit": {
+          "$ref": "#/$defs/writer"
+        },
+        "verdict": {
+          "enum": [
+            "valid",
+            "not_valid",
+            "unknown"
+          ]
+        },
+        "reason": {
+          "$ref": "#/$defs/reason"
+        },
+        "logic": {
+          "$ref": "#/$defs/logic"
+        },
+        "search": {
+          "$ref": "#/$defs/search"
+        },
+        "derivation": {
+          "$ref": "#/$defs/ordinary_derivation_keys",
+          "not": {
+            "required": [
+              "version"
+            ]
+          }
+        },
+        "clausal_proof": {
+          "description": "The counts of the clausal proof that deduxit's checker accepted: variables, clauses and steps. It holds no proof, so a reader refuses an outcome with it.",
+          "type": "object",
+          "required": [
+            "variables",
+            "clauses",
+            "steps"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "variables": {
+              "$ref": "#/$defs/index"
+            },
+            "clauses": {
+              "$ref": "#/$defs/count"
+            },
+            "steps": {
+              "$ref": "#/$defs/count"
+            }
+          }
+        },
+        "countermodel": {
+          "description": "The Kripke model that refutes a sequent that is not valid, with the sequent it refutes.",
+          "type": "object",
+          "required": [
+            "sequent",
+            "model"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "sequent": {
+              "$ref": "#/$defs/nested_ordinary_sequent"
+            },
+            "model": {
+              "$ref": "#/$defs/kripke_model_keys",
+              "not": {
+                "required": [
+                  "version"
+                ]
+              }
+            }
+          }
+        },
+        "lambda": {
+          "$ref": "#/$defs/lambda"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "verdict": {
+                "const": "unknown"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "reason"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "reason"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "verdict": {
+                "const": "valid"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "derivation",
+                "clausal_proof"
+              ]
+            }
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "derivation"
+                  ]
+                },
+                {
+                  "required": [
+                    "clausal_proof"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "not": {
+              "properties": {
+                "verdict": {
+                  "const": "not_valid"
+                }
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "countermodel"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "search"
+            ],
+            "properties": {
+              "search": {
+                "required": [
+                  "method"
+                ],
+                "properties": {
+                  "method": {
+                    "enum": [
+                      "table",
+                      "tableau"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "version": {
+                "minimum": 14
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ordinary_outcome": {
+      "description": "The outcome of deciding an ordinary sequent (level 12, `prove --logic … --format json`): the verdict (`unknown` with a `reason`), the logic, the search tagged by its method, and the evidence: a valid outcome's `derivation`, its `clausal_proof` (the SAT solver in classical logic) or neither where the image's proof or the table stands alone; a not-valid outcome's `countermodel` where one was found. `--lambda` adds `lambda`.",
+      "$ref": "#/$defs/ordinary_outcome_keys",
+      "required": [
+        "version",
+        "deduxit"
+      ]
+    },
+    "nested_ordinary_outcome": {
+      "description": "An ordinary outcome nested in a comparison or an interpolation: no `version` and no `deduxit`.",
+      "$ref": "#/$defs/ordinary_outcome_keys",
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "version"
+            ]
+          },
+          {
+            "required": [
+              "deduxit"
+            ]
+          }
+        ]
+      }
+    },
+    "ordinary_session": {
+      "description": "A session of step-by-step proving in LK or LJ (level 8, `interact --logic`'s `save FILE`; 9 where it holds a cut): the logic, the sequent, the inferences in the session's own order with the root first, an open goal its two sides alone, and the steps taken in order. deduxit checks every inference by the checker's rules when it reads one. A reader ignores keys it does not know.",
+      "type": "object",
+      "required": [
+        "version",
+        "logic",
+        "sequent",
+        "inferences",
+        "history"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 8
+        },
+        "logic": {
+          "$ref": "#/$defs/logic"
+        },
+        "sequent": {
+          "$ref": "#/$defs/nested_ordinary_sequent"
+        },
+        "inferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/inference"
+          }
+        },
+        "history": {
+          "$ref": "#/$defs/indices"
+        }
+      }
+    },
+    "comparison": {
+      "description": "A classical sequent's negative translation compared (level 16, `seq translate --format json`, written only): the translation, its target logic, whether the two verdicts agree, the sequent and its translation, and each decided.",
+      "type": "object",
+      "required": [
+        "version",
+        "deduxit",
+        "translation",
+        "target",
+        "agreement",
+        "sequent",
+        "translated",
+        "classical",
+        "decided"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 16
+        },
+        "deduxit": {
+          "$ref": "#/$defs/writer"
+        },
+        "translation": {
+          "enum": [
+            "kolmogorov",
+            "godel-gentzen",
+            "kuroda",
+            "glivenko"
+          ]
+        },
+        "target": {
+          "$ref": "#/$defs/logic"
+        },
+        "agreement": {
+          "enum": [
+            "valid",
+            "not_valid",
+            "unknown"
+          ]
+        },
+        "sequent": {
+          "$ref": "#/$defs/nested_ordinary_sequent"
+        },
+        "translated": {
+          "$ref": "#/$defs/nested_ordinary_sequent"
+        },
+        "classical": {
+          "$ref": "#/$defs/nested_ordinary_outcome"
+        },
+        "decided": {
+          "$ref": "#/$defs/nested_ordinary_outcome"
+        }
+      }
+    },
+    "half": {
+      "description": "A half of an interpolation: the sequent and its outcome.",
+      "type": "object",
+      "required": [
+        "sequent",
+        "outcome"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "sequent": {
+          "$ref": "#/$defs/nested_ordinary_sequent"
+        },
+        "outcome": {
+          "$ref": "#/$defs/nested_ordinary_outcome"
+        }
+      }
+    },
+    "interpolation": {
+      "description": "A Craig interpolation (level 16, `interpolate --format json`, written only): the logic, the positions of the first half, the sequent decided, and where it is valid the interpolant as text with both halves decided, the interpolant last right of ⊢ in the first and first left of ⊢ in the second.",
+      "type": "object",
+      "required": [
+        "version",
+        "deduxit",
+        "logic",
+        "partition",
+        "outcome"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 16
+        },
+        "deduxit": {
+          "$ref": "#/$defs/writer"
+        },
+        "logic": {
+          "$ref": "#/$defs/logic"
+        },
+        "partition": {
+          "type": "object",
+          "required": [
+            "left",
+            "right"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "left": {
+              "$ref": "#/$defs/indices"
+            },
+            "right": {
+              "$ref": "#/$defs/indices"
+            }
+          }
+        },
+        "outcome": {
+          "$ref": "#/$defs/nested_ordinary_outcome"
+        },
+        "interpolant": {
+          "type": "object",
+          "required": [
+            "text",
+            "first",
+            "second"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "text": {
+              "type": "string",
+              "minLength": 1
+            },
+            "first": {
+              "$ref": "#/$defs/half"
+            },
+            "second": {
+              "$ref": "#/$defs/half"
+            }
+          }
+        }
+      }
+    },
+    "rules_term": {
+      "description": "A term of a derivation in a calculus given as data: an atom of sort `formula` as its name, an atom of another sort as `{\"atom\": name, \"sort\": sort}`, a connective applied to earlier terms as `[name, index, …]`.",
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "object",
+          "required": [
+            "atom"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "atom": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sort": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "string",
+              "minLength": 1
+            }
+          ],
+          "items": {
+            "$ref": "#/$defs/index"
+          },
+          "minItems": 1
+        }
+      ]
+    },
+    "zones": {
+      "description": "A sequent of a calculus given as data: the members of each zone, as positions in `terms`.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/indices"
+      }
+    },
+    "rules_derivation": {
+      "description": "A derivation in a calculus given as data (level 15; `interact --calculus`'s `proof FILE`): the calculus by name, the terms, the parent of each scope after the root scope, and the nodes, premises before conclusions, each its sequent, its rule or `hypothesis`, the positions the rule acts on, its premises and its scope (0 where absent). deduxit checks its indices when it reads one, and `check` its rules. A reader ignores keys it does not know.",
+      "type": "object",
+      "required": [
+        "version",
+        "calculus",
+        "terms",
+        "nodes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 15
+        },
+        "calculus": {
+          "type": "string",
+          "minLength": 1
+        },
+        "terms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/rules_term"
+          }
+        },
+        "scopes": {
+          "$ref": "#/$defs/indices"
+        },
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "sequent"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "sequent": {
+                "$ref": "#/$defs/zones"
+              },
+              "rule": {
+                "type": "string",
+                "minLength": 1
+              },
+              "hypothesis": {
+                "const": true
+              },
+              "at": {
+                "$ref": "#/$defs/indices"
+              },
+              "premises": {
+                "$ref": "#/$defs/indices"
+              },
+              "scope": {
+                "$ref": "#/$defs/index",
+                "exclusiveMinimum": 0
+              }
+            },
+            "not": {
+              "required": [
+                "rule",
+                "hypothesis"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "rules_session": {
+      "description": "A session of step-by-step proving in a calculus given as data (level 17, `interact --calculus`'s `save FILE`; 18 where it holds a line a forward step derived): the rule file, the terms, the scopes with the node and premise that own each and the hypotheses it offers, the nodes from the conclusion up, and the goals the steps closed in order. A node is a rule's, a hypothesis, or a line a forward step derived (`line`, level 18); an open goal closed by such a line names it in `cites` (level 18). A reader ignores keys it does not know.",
+      "type": "object",
+      "required": [
+        "version",
+        "calculus",
+        "terms",
+        "scopes",
+        "nodes",
+        "history"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 17
+        },
+        "calculus": {
+          "description": "The rule file, without `version`. Its schema is the rule file's own, `deduxit::rules::SCHEMA`.",
+          "type": "object",
+          "required": [
+            "name",
+            "connectives",
+            "sequent",
+            "rules"
+          ],
+          "not": {
+            "required": [
+              "version"
+            ]
+          }
+        },
+        "terms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/rules_term"
+          }
+        },
+        "scopes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "parent": {
+                "$ref": "#/$defs/index",
+                "exclusiveMinimum": 0
+              },
+              "owner": {
+                "$ref": "#/$defs/pair"
+              },
+              "hypotheses": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/zones"
+                }
+              }
+            }
+          }
+        },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "sequent"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "sequent": {
+                "$ref": "#/$defs/zones"
+              },
+              "rule": {
+                "type": "string",
+                "minLength": 1
+              },
+              "hypothesis": {
+                "const": true
+              },
+              "at": {
+                "$ref": "#/$defs/indices"
+              },
+              "premises": {
+                "$ref": "#/$defs/indices"
+              },
+              "scope": {
+                "$ref": "#/$defs/index",
+                "exclusiveMinimum": 0
+              },
+              "opened": {
+                "$ref": "#/$defs/index"
+              },
+              "line": {
+                "const": true
+              },
+              "cites": {
+                "$ref": "#/$defs/index"
+              }
+            }
+          }
+        },
+        "history": {
+          "$ref": "#/$defs/indices"
+        }
+      },
+      "if": {
+        "properties": {
+          "nodes": {
+            "contains": {
+              "anyOf": [
+                {
+                  "required": [
+                    "line"
+                  ]
+                },
+                {
+                  "required": [
+                    "cites"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "version": {
+            "minimum": 18
+          }
+        }
+      }
+    },
+    "checked": {
+      "description": "The verdict of `check --format json` (level 1, the command's own form, written only): `valid`, `invalid` or `unknown`; the mode of a proof of linear logic, the logic of an ordinary derivation, outcome or model, or the calculus of a derivation in a calculus given as data; for an invalid or unknown verdict the library's error and its message with formulas, or why the check was not made; `lambda` under `--lambda`; and where a Kripke model fails a sequent, the world and what it forces of each subformula.",
+      "type": "object",
+      "required": [
+        "version",
+        "verdict"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "verdict": {
+          "enum": [
+            "valid",
+            "invalid",
+            "unknown"
+          ]
+        },
+        "mode": {
+          "$ref": "#/$defs/mode"
+        },
+        "logic": {
+          "$ref": "#/$defs/logic"
+        },
+        "calculus": {
+          "type": "string",
+          "minLength": 1
+        },
+        "error": {
+          "$ref": "#/$defs/error"
+        },
+        "message": {
+          "type": "string"
+        },
+        "lambda": {
+          "$ref": "#/$defs/lambda"
+        },
+        "failing": {
+          "type": "object",
+          "required": [
+            "world",
+            "forcing"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "world": {
+              "$ref": "#/$defs/index"
+            },
+            "forcing": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "formula",
+                  "forced"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "formula": {
+                    "type": "string"
+                  },
+                  "forced": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "verdict": {
+            "const": "valid"
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "error"
+              ]
+            },
+            {
+              "required": [
+                "failing"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "linear_statement": {
+      "description": "A value of the protocol's kind `linear.sequent`: a sequent's document, one-sided or intuitionistic, with `mode`, the mode it is claimed in, beside its keys (a reader of the sequent ignores it, so it raises no level), and `text`, where present, the sequent as typed.",
+      "oneOf": [
+        {
+          "description": "A one-sided sequent with its mode.",
+          "type": "object",
+          "required": [
+            "atoms",
+            "mode",
+            "roots",
+            "terms",
+            "version"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "version": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "The wire level, written only at the top of a document."
+            },
+            "terms": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/term"
+              }
+            },
+            "roots": {
+              "$ref": "#/$defs/indices",
+              "description": "The formulas of the sequent, as positions in `terms`."
+            },
+            "atoms": {
+              "$ref": "#/$defs/atoms"
+            },
+            "symbols": {
+              "$ref": "#/$defs/symbols"
+            },
+            "fo": {
+              "description": "The first-order terms, each argument before its term. An eigenvariable stands only in a proof's terms.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/fo_term",
+                "not": {
+                  "required": [
+                    "E"
+                  ]
+                }
+              }
+            },
+            "binders": {
+              "description": "The variables' names, one per quantifier in the order of the terms.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/name"
+              }
+            },
+            "antecedents": {
+              "$ref": "#/$defs/index",
+              "description": "How many of the roots, the first ones, stand left of ⊢. Absent where the sides are not known."
+            },
+            "cuts": {
+              "$ref": "#/$defs/indices",
+              "description": "The cut formulas, as positions in `terms` (level 6)."
+            },
+            "mode": {
+              "$ref": "#/$defs/mode"
+            },
+            "text": {
+              "type": "string",
+              "description": "The sequent as it was typed."
+            }
+          },
+          "dependentSchemas": {
+            "cuts": {
+              "properties": {
+                "version": {
+                  "minimum": 6
+                }
+              }
+            },
+            "symbols": {
+              "properties": {
+                "version": {
+                  "minimum": 7
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "An intuitionistic sequent with its mode.",
+          "type": "object",
+          "required": [
+            "atoms",
+            "goal",
+            "hypotheses",
+            "mode",
+            "terms",
+            "version"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "version": {
+              "type": "integer",
+              "minimum": 5
+            },
+            "terms": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ill_term"
+              }
+            },
+            "atoms": {
+              "$ref": "#/$defs/atoms"
+            },
+            "symbols": {
+              "$ref": "#/$defs/symbols"
+            },
+            "fo": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/fo_term",
+                "not": {
+                  "required": [
+                    "E"
+                  ]
+                }
+              }
+            },
+            "binders": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/name"
+              }
+            },
+            "hypotheses": {
+              "$ref": "#/$defs/indices"
+            },
+            "goal": {
+              "$ref": "#/$defs/index"
+            },
+            "mode": {
+              "$ref": "#/$defs/mode"
+            },
+            "text": {
+              "type": "string",
+              "description": "The sequent as it was typed."
+            }
+          },
+          "dependentSchemas": {
+            "symbols": {
+              "properties": {
+                "version": {
+                  "minimum": 7
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ordinary_statement": {
+      "description": "A value of the protocol's kind `ordinary.sequent`: a sequent of ordinary logic's document with `logic`, the logic it is claimed in, beside its keys (a reader of the sequent ignores it, so it raises no level), and `text`, where present, the sequent as typed.",
+      "type": "object",
+      "required": [
+        "atoms",
+        "formulas",
+        "left",
+        "logic",
+        "right",
+        "version"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 8,
+          "description": "The wire level, written only at the top of a document."
+        },
+        "formulas": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/formula"
+          }
+        },
+        "atoms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/name"
+          }
+        },
+        "left": {
+          "$ref": "#/$defs/indices",
+          "description": "The hypotheses, as positions in `formulas`."
+        },
+        "right": {
+          "$ref": "#/$defs/indices",
+          "description": "The formulas right of ⊢."
+        },
+        "logic": {
+          "$ref": "#/$defs/logic"
+        },
+        "text": {
+          "type": "string",
+          "description": "The sequent as it was typed."
+        }
+      }
+    },
+    "rules_statement": {
+      "description": "A value of the protocol's kind `rules.sequent`: a sequent to derive in a calculus given as data and the hypotheses it may be derived from, each as text the calculus reads. No `version`: it is no document of its own.",
+      "type": "object",
+      "required": [
+        "goal"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "goal": {
+          "type": "string"
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "calculus": {
+      "description": "A value of the protocol's kind `rules.calculus`: a rule file (level 15). Its own schema is the library's `deduxit::rules::SCHEMA`.",
+      "type": "object",
+      "required": [
+        "name",
+        "connectives",
+        "sequent",
+        "rules"
+      ]
+    },
+    "interpolant": {
+      "description": "A value of the protocol's kind `ordinary.interpolant`: the logic, the partition (the first part's positions on each side), the sequent's outcome as `ordinary.decide` writes it, and the interpolant where the sequent is valid and one was found, its formula as text and its two halves as statements of the logic: `Γ₁ ⊢ Δ₁, I` and `I, Γ₂ ⊢ Δ₂`. No `version`: it is no document of its own.",
+      "type": "object",
+      "required": [
+        "logic",
+        "partition",
+        "outcome",
+        "interpolant"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "logic": {
+          "$ref": "#/$defs/logic"
+        },
+        "partition": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "left": {
+              "$ref": "#/$defs/indices"
+            },
+            "right": {
+              "$ref": "#/$defs/indices"
+            }
+          }
+        },
+        "outcome": {
+          "$ref": "#/$defs/ordinary_outcome"
+        },
+        "interpolant": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "required": [
+                "formula",
+                "first",
+                "second"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "formula": {
+                  "type": "string"
+                },
+                "first": {
+                  "$ref": "#/$defs/ordinary_statement"
+                },
+                "second": {
+                  "$ref": "#/$defs/ordinary_statement"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "drawing": {
+      "description": "A value of the protocol's kind `drawing`: an SVG drawing.",
+      "type": "object",
+      "required": [
+        "svg"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "svg": {
+          "type": "string"
+        }
+      }
+    },
+    "text": {
+      "description": "A value of the protocol's kind `text`: a text in a format.",
+      "type": "object",
+      "required": [
+        "format",
+        "text"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "format": {
+          "enum": [
+            "text",
+            "latex",
+            "typst"
+          ]
+        },
+        "text": {
+          "type": "string"
+        }
+      }
+    },
+    "certificate": {
+      "description": "A value of the protocol's kind `certificate`: a Rocq file.",
+      "type": "object",
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      }
+    },
+    "lambda_term": {
+      "description": "A value of the protocol's kind `term`: a proof read back as a lambda-term, the term and its typing judgement as text.",
+      "type": "object",
+      "required": [
+        "text",
+        "judgement"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "judgement": {
+          "type": "string"
+        }
+      }
+    },
+    "net": {
+      "description": "A value of the protocol's kind `linear.net`: a proof structure, without boxes or with them.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/proof_structure"
+        },
+        {
+          "$ref": "#/$defs/mell_structure"
+        }
+      ]
+    }
+  }
+}
