@@ -7400,3 +7400,6 @@ move (D26).
 - 2026-11-16, about 17:45: **The author: "In rocq-deduxit"**: the labelled modal calculus's
   soundness for Kripke semantics is proved in a module `Deduxit.Modal` of `rocq-deduxit` (step
   66's open placement); told to 66a for its certificate design.
+- 2026-11-16, 17:40: **0.5.0 complete**: the release run passed (17 assets on the GitHub release,
+  both JSON Schemas among them), docs.rs built 0.5.0, Zenodo archived it as
+  10.5281/zenodo.24285537.
