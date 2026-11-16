@@ -7347,3 +7347,15 @@ move (D26).
 - 2026-11-16, about 15:45: **The author: "Yes, --system"**: the command selects the modal suite
   with `--system NAME` (any of the fifteen), as `--logic` selects the ordinary one (65a's
   question 2); told to 65c.
+- 2026-11-16, 15:50: **64 reviewed and pushed: 0.5.0 prepared.**
+  - **64** (`xzvlmnot` to `lroloqww`): version 0.5.0; `breaks 0.4.0` one line (a fieldless
+    enum's discriminants, fixed by moving `rocq::Unsupported::Calculus` last); the behaviour
+    lock blessed by the version alone; `stability.rs` compares the writer's version as this
+    build writes it (departs: the level files stay as 0.4.0 wrote them); both JSON Schemas
+    attached to each release by the workflow (departs: release assets); status, README,
+    `CITATION.cff`, the installation chapter's feature table, the changelog's 0.5.0 section
+    dated 2026-11-16; fourteen marked types added to `core.md`'s list. The Rocq library did not
+    move since v0.4.0: no Rocq release, `DEDUXIT` stays 0.4.0. fresh-reviewer (Fable) three
+    findings, fixed. Gate, `nix flake check`, the workflow's dry run passed.
+  - **Next:** CI green at the release commit, then the signed tag `v0.5.0` (the author's yes of
+    2026-11-16); the crates.io publish waits for the author's approval.
