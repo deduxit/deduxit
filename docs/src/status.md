@@ -199,8 +199,8 @@ in use.
   `seq translate` decides the sequent and its translation and checks
   that the verdicts agree. `interpolate` reads a Craig interpolant off a
   derivation of LK or LJ without cuts by Maehara's method, and checks it
-  by deciding both halves and comparing the atoms. The library and the
-  web bindings have both; the web page does not show them yet.
+  by deciding both halves and comparing the atoms. The library, the
+  web bindings and the web page have both.
 - In the library, behind the default feature `sat`, `ordinary::sat`
   decides classical, intuitionistic and minimal logic with a SAT
   solver. A sequent that is not valid comes with a model, which is
@@ -285,7 +285,8 @@ in use.
 
 ## The command
 
-- The `deduxit` command has `prove`, `check`, `eliminate`, `interact` and `seq`. It
+- The `deduxit` command has `prove`, `check`, `eliminate`, `interact`,
+  `interpolate`, `seq` and `workspace`. It
   has time limits, Ctrl-C, statistics, JSON output, proof nets, LaTeX,
   Typst, SVG and Rocq output, and `--jobs`, `--pool-after` and
   `--deterministic` for the search. [Decide a sequent](commands.md)
@@ -334,8 +335,8 @@ in use.
 - `deduxit workspace` keeps sequents and what was made from them in a
   file ([Keep a sequent and what is made from it](workspace.md)): a
   changed sequent marks what follows from it out of date until it runs
-  again, and undo and redo take back whole edits. The web page does not
-  show it yet.
+  again, and undo and redo take back whole edits. The web page links
+  tabs the same way.
 - `check` checks a derivation in a calculus you give as data
   ([Check a derivation in your own rules](rules.md)): a rule file in
   JSON declares the connectives, the zones of a sequent (each a set, a
@@ -357,19 +358,30 @@ in use.
   builds such a derivation step by step, each step checked, what the
   goal leaves open asked for by name: backwards from a goal, or
   forwards from numbered lines in force, as a Fitch-style proof is
-  written; the web page is planned.
+  written. Such a derivation is drawn as a tree in LaTeX, Typst and
+  SVG, natural deduction with each discharged hypothesis in brackets
+  and numbered, and as a Fitch proof, as text, as SVG, for the LaTeX
+  package `fitch` and for the Typst package `fitchcraft`.
 - The unpublished crate `deduxit-web` in `web/` compiles the library to
   WebAssembly for a web page. Its calls take JSON and give JSON or SVG:
   a sequent read, a proof step by step, a goal closed by the search
-  within a budget of work, a hint, and every export, for linear logic and
-  for LK and LJ. Its defaults fit a browser tab. The flake builds it as
+  within a budget of work, a hint, and every export, for linear logic,
+  for LK and LJ and for a calculus given as data; the translations and
+  interpolants; the protocol's description of each suite; and the
+  workspace. Its defaults fit a browser tab. The flake builds it as
   a package and tests it under Node. The library's checker and memo are
   tested on a 32-bit target there too.
 - [deduxit.github.io](https://deduxit.github.io/) is a web page for
   proving step by step in the browser on those bindings, in linear logic
   and in LK and LJ, with each intuitionistic proof's lambda-term, the
   countermodel of a goal that is not valid, the truth table and the
-  tableau of classical logic, and lessons. It lives in a repository of its own.
+  tableau of classical logic. It proves in natural deduction (NK, NJ
+  and NM, as a tree or as Fitch's lines) and in a rule file of your
+  own, translates a classical sequent and finds an interpolant, and
+  links the tabs made from one sequent into a workspace. Learn and
+  Practice follow the tab's suite: linear logic has a course of eleven
+  lessons, ordinary logic one of six and a store of problems. It lives
+  in a repository of its own.
 
 ## Benchmarks
 
@@ -392,7 +404,7 @@ in use.
   start it as a CI workflow.
 - Four baselines measured the focused engine's performance work: one
   before it, one after it, and one at each of the releases 0.1.0 and
-  0.2.0.
+  0.2.0. The latest, of 2026-11-16, is in `bench/RESULTS.md`.
 
 ## Releases
 
@@ -408,13 +420,6 @@ in use.
 
 The collection grows by a suite at a time, release by release:
 
-- 0.5.0: custom rules, a calculus given as data, with derivations in it
-  checked and built in the command and on the page; natural deduction
-  for ordinary logic in Gentzen's and Fitch's styles; the negative
-  translations and Craig interpolants on the web page; the
-  workspace on the web page, a sequent and what was made from it (its
-  translations, transformations and results) side by side, each step
-  undoable, the graph shown only once you branch.
 - 0.6.0: the modal logics K, T, K4, S4 and S5 decided, every refutation
   a checked Kripke countermodel, and a labelled calculus proved sound in
   Rocq; tools for teachers.
