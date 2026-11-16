@@ -3120,6 +3120,69 @@
         }
       }
     },
+    "tableau_review": {
+      "description": "The review of a signed tableau written by hand (level 14, `check --tableau --format json`, written only): how it stands, the sequent its first lines give, what the review found in words, the text line and the tableau's own line the message is about where it names one, and for an open tableau the checked countermodel its open branch gives.",
+      "type": "object",
+      "required": [
+        "version",
+        "standing",
+        "sequent",
+        "message"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 14
+        },
+        "standing": {
+          "enum": [
+            "closed",
+            "open",
+            "unfinished",
+            "wrong"
+          ]
+        },
+        "sequent": {
+          "$ref": "#/$defs/nested_ordinary_sequent"
+        },
+        "text_line": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "countermodel": {
+          "type": "object",
+          "required": [
+            "sequent",
+            "model"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "sequent": {
+              "$ref": "#/$defs/nested_ordinary_sequent"
+            },
+            "model": {
+              "$ref": "#/$defs/kripke_model_keys",
+              "not": {
+                "required": [
+                  "version"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
     "rules_term": {
       "description": "A term of a derivation in a calculus given as data: an atom of sort `formula` as its name, an atom of another sort as `{\"atom\": name, \"sort\": sort}`, a connective applied to earlier terms as `[name, index, …]`.",
       "oneOf": [

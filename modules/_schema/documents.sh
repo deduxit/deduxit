@@ -168,6 +168,14 @@ run comparison-not-valid 1 "$deduxit" seq translate "${t[@]}" --by godel-gentzen
 run interpolation-classical 0 "$deduxit" interpolate "${t[@]}" --format json 'a /\ b |- b \/ c'
 run interpolation-intuitionistic 0 "$deduxit" interpolate "${t[@]}" --logic intuitionistic --first L1 --format json 'a, a -> b |- b'
 run interpolation-not-valid 1 "$deduxit" interpolate "${t[@]}" --format json 'a |- b'
+# A tableau written by hand, reviewed: closed, open with the countermodel
+# its branch gives, and wrong at a line.
+printf '1 T p \\/ q\n2 F q \\/ p\n3 F q 2\n4 F p 2\n- 5 T p 1\n  x 4, 5\n- 6 T q 1\n  x 3, 6\n' >closed.txt
+run tableau_review-closed 0 "$deduxit" check "${t[@]}" --tableau --format json closed.txt
+printf '1 T a -> b\n2 F b -> a\n3 T b 2\n4 F a 2\n- 5 F a 1\n  open\n- 6 T b 1\n  open\n' >open.txt
+run tableau_review-open 0 "$deduxit" check "${t[@]}" --tableau --format json open.txt
+printf '1 T p /\\ q\n2 F p\n3 T r 1\n' >wrong.txt
+run tableau_review-wrong 1 "$deduxit" check "${t[@]}" --tableau --format json wrong.txt
 
 # Calculi given as data: derivations, sessions and their check.
 keep rules_session-backward 0 session.json "$deduxit" interact --calculus LK "a /\ b |- b /\ a" <<<$'apply 0 ∧R 1\napply 1 ∧L₂ 0\nsave session.json\napply 2 ∧L₁ 0\napply 3 ax\napply 4 ax\nproof swap.json'
