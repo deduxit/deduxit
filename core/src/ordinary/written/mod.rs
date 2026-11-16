@@ -938,15 +938,15 @@ fn shapes(formulas: &Formulas, signed: Signed) -> Vec<Shape> {
                 "T↔",
                 vec![vec![s(T, a), s(T, b)], vec![s(F, a), s(F, b)]],
             )];
-            let (ab, ba) = (implication(a, b), implication(b, a));
-            if let (Some(ab), Some(ba)) = (ab, ba) {
-                all.push(Shape::new("T↔", "T↔", vec![vec![s(T, ab), s(T, ba)]]));
+            let (there, back) = (implication(a, b), implication(b, a));
+            if let (Some(there), Some(back)) = (there, back) {
+                all.push(Shape::new("T↔", "T↔", vec![vec![s(T, there), s(T, back)]]));
             }
-            if let Some(ab) = ab {
-                all.push(Shape::new("T↔₁", "T↔", vec![vec![s(T, ab)]]).part());
+            if let Some(there) = there {
+                all.push(Shape::new("T↔₁", "T↔", vec![vec![s(T, there)]]).part());
             }
-            if let Some(ba) = ba {
-                all.push(Shape::new("T↔₂", "T↔", vec![vec![s(T, ba)]]).part());
+            if let Some(back) = back {
+                all.push(Shape::new("T↔₂", "T↔", vec![vec![s(T, back)]]).part());
             }
             all
         }
@@ -956,8 +956,12 @@ fn shapes(formulas: &Formulas, signed: Signed) -> Vec<Shape> {
                 "F↔",
                 vec![vec![s(T, a), s(F, b)], vec![s(F, a), s(T, b)]],
             )];
-            if let (Some(ab), Some(ba)) = (implication(a, b), implication(b, a)) {
-                all.push(Shape::new("F↔", "F↔", vec![vec![s(F, ab)], vec![s(F, ba)]]));
+            if let (Some(there), Some(back)) = (implication(a, b), implication(b, a)) {
+                all.push(Shape::new(
+                    "F↔",
+                    "F↔",
+                    vec![vec![s(F, there)], vec![s(F, back)]],
+                ));
             }
             all
         }
@@ -1126,9 +1130,7 @@ impl<'a> Walk<'a> {
             .path
             .iter()
             .copied()
-            .filter(|&id| {
-                seen.insert(self.tableau.lines[id as usize].signed)
-            })
+            .filter(|&id| seen.insert(self.tableau.lines[id as usize].signed))
             .collect();
         self.held = self
             .held
@@ -1713,7 +1715,10 @@ impl<'a> Walk<'a> {
         let signed = |id: u32| tableau.lines[id as usize].signed;
         let closes = match lines.as_slice() {
             [one] => matches!(
-                (signed(*one).sign, tableau.formulas.node(signed(*one).formula)),
+                (
+                    signed(*one).sign,
+                    tableau.formulas.node(signed(*one).formula)
+                ),
                 (Sign::True, Node::False) | (Sign::False, Node::True)
             ),
             [a, b] => {
