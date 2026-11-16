@@ -1,0 +1,5 @@
+$ deduxit workspace show workspace.json 1 --format json
+--- status 0
+--- stdout
+{"version":8,"formulas":[{"V":0},{"¬":0},{"∨":[0,1]},{"¬":2},{"¬":3}],"atoms":["a"],"left":[],"right":[4],"logic":"intuitionistic"}
+--- stderr

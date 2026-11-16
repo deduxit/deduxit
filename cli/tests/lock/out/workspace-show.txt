@@ -1,0 +1,11 @@
+$ deduxit workspace show workspace.json
+--- status 0
+--- stdout
+0  ordinary.sequent  ⊢ a → (b ∨ ¬b) (classical)
+1  ordinary.sequent  ⊢ ¬¬(a ∨ ¬a) (intuitionistic)
+   from 0 by ordinary.translate translation=glivenko; check: recorded
+   out of date: node 0 changed
+2  ordinary.outcome  Valid
+   from 1 by ordinary.decide; check: held
+   out of date: it waits for node 1
+--- stderr

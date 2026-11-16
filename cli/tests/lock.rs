@@ -359,6 +359,24 @@ const CASES: &[Case] = &[
         &["seq", "translate", "--by", "godel-gentzen", "a |- b"],
     ),
     call("interpolate", &["interpolate", "a /\\ b |- b \\/ c"]),
+    // A workspace written by the command, read back.
+    call("workspace-show", &["workspace", "show", "workspace.json"]),
+    call("workspace-log", &["workspace", "log", "workspace.json"]),
+    call(
+        "workspace-node",
+        &[
+            "workspace",
+            "show",
+            "workspace.json",
+            "1",
+            "--format",
+            "json",
+        ],
+    ),
+    call(
+        "workspace-operations",
+        &["workspace", "operations", "ordinary.sequent"],
+    ),
     call(
         "interpolate-first",
         &[

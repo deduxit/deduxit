@@ -1,0 +1,10 @@
+$ deduxit workspace operations ordinary.sequent
+--- status 0
+--- stdout
+ordinary.decide  ordinary.sequent -> ordinary.outcome: A decision
+ordinary.start  ordinary.sequent -> ordinary.session: A proof step by step
+ordinary.translate  ordinary.sequent -> ordinary.sequent: A negative translation
+ordinary.interpolate  ordinary.sequent -> ordinary.interpolant: A Craig interpolant
+ordinary.embed  ordinary.sequent -> linear.sequent: The embedding into linear logic
+ordinary.duplicate  ordinary.sequent -> ordinary.sequent: A copy
+--- stderr

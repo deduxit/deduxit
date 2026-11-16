@@ -1,0 +1,6 @@
+$ deduxit workspace log workspace.json
+--- status 0
+--- stdout
+undo takes back: sequent change
+nothing to redo
+--- stderr
