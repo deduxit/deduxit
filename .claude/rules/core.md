@@ -294,8 +294,10 @@ version on crates.io, then cargo-public-api's diff of both public APIs,
 each built as rustdoc JSON with every feature. The first finds new
 variants of closed enums, moved discriminants (a downstream `as` cast
 of a fieldless enum compiles even when it is `#[non_exhaustive]`, so
-inserting a variant before others moves their numbers) and removed
-items, but no changed type of a field or signature (it has no such
+inserting a variant before others moves their numbers, so a new
+variant of a fieldless enum goes last: `rocq::Unsupported` was put
+right at 0.4.0 and 0.5.0, `Basis` and then `Calculus` moved last) and
+removed items, but no changed type of a field or signature (it has no such
 lint); the diff's "Changed" lists those, and an array constant's
 length is one (`Rule::ALL`). The diff shows an impl whose derive's
 `where` bound changed as removed and added again: look for it under

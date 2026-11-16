@@ -471,12 +471,6 @@ pub enum Unsupported {
         "the Rocq calculi are commutative, so a derivation or a disproof of the cyclic mode has no certificate"
     )]
     Ordered,
-    /// The derivation is in a calculus given as data, whose rules
-    /// neither kernel knows.
-    #[error(
-        "the Rocq kernels know their own calculi, so a derivation in a calculus given as data has no certificate"
-    )]
-    Calculus,
     /// The disproof's refutation is a saturated set, for which the
     /// library has no theorem. Its certificate is the set itself, which
     /// the disproof's check verifies.
@@ -504,6 +498,12 @@ pub enum Unsupported {
         "deduxit's library has no theorem for the basis of a backward search, so a refutation by one has no certificate in Rocq"
     )]
     Basis,
+    /// The derivation is in a calculus given as data, whose rules
+    /// neither kernel knows.
+    #[error(
+        "the Rocq kernels know their own calculi, so a derivation in a calculus given as data has no certificate"
+    )]
+    Calculus,
 }
 
 /// Rocq's keywords, which no atom and no lemma may take.
