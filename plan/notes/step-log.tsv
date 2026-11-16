@@ -73,3 +73,4 @@ fix-band	client	opus-5-5	high	-	local_fe155f72	2026-11-16 18:55	2026-11-16 19:10
 68a	small	opus-5-5	high	reviewer (fable)	local_fe155f72	2026-11-16 20:39		the tableau checker
 66	step	-	-	-	-	-	2026-11-16 20:55	complete: the labelled modal calculus and its certificates
 68b	client	opus-5-5	high	reviewer (fable), frontend-design, education skills	local_b8490613	2026-11-16 20:54	2026-11-16 21:35	the model editor
+68c	client	opus-5-5	high	reviewer (fable), frontend-design, education skills	local_b8490613	2026-11-16 21:38		packs, the check view, the embed, print
