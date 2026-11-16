@@ -7518,3 +7518,6 @@ move (D26).
     the limits are on the pack's tabs.
   - **For the author:** with "Apply invertible rules by themselves" on, a pack that bars the
     search can be finished with no step of the student's: is that allowed under "by hand"?
+- 2026-11-16, about 22:40: **The author: "Yes, tag 0.6.0"**: the planning session makes 0.6.0's
+  signed tags (rocq-deduxit first, then deduxit) once CI is green at each release commit; the
+  crates.io approval stays the author's.
