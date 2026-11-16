@@ -28,7 +28,7 @@
 //! | 10 | a sequent valid by a clausal proof, `"clausal_proof": {…}` in place of the derivation | an ordinary outcome that holds one, before level 12 |
 //! | 11 | the refutation by the basis of a backward search, `{"kind": "basis", "body": …, "classes": […], "markings": […]}` | a disproof or unprovable outcome that holds one |
 //! | 12 | the ordinary outcome's search as an object tagged by its method, `"search": {"method": "embedding", "translation": …, "image": {…}}`, `{"method": "ljt", "statistics": {…}}` or `{"method": "sat", …}`, the image's whole outcome under the embedding; a valid outcome without `derivation` or `clausal_proof` rests on the image's proof | every ordinary outcome |
-//! | 13 | the Kripke model, `{"worlds": [{"atoms": […], "falsity": true, "arrows": […]}, …], "world": n}`, a form of its own (an ordinary outcome holds one under `countermodel`, a key a reader of level 12 ignores without misreading, so the outcome stays at 12) | a model |
+//! | 13 | the Kripke model, `{"worlds": [{"atoms": […], "falsity": true, "arrows": […]}, …], "world": n}`, a form of its own (an ordinary outcome holds one as `countermodel.model`, beside the sequent it refutes, a key a reader of level 12 ignores without misreading, so the outcome stays at 12) | a model |
 //! | 14 | the truth table and the tableau of a classical sequent, documents of their own and the `search` of an ordinary outcome decided by `table` or `tableau` | a truth table, a tableau, an outcome of either method |
 //! | 15 | a calculus given as data: the rule file, and the derivation in such a calculus | a rule file, a derivation of [`rules`](crate::rules) |
 //! | 16 | a classical sequent's negative translations compared, and an interpolation, each holding ordinary outcomes nested without `version` and `deduxit`; written only | a comparison of translations, an interpolation |
@@ -126,11 +126,20 @@
 //!   body}`, and `binders` the variables' names, one per binder in the
 //!   order of the terms.
 //! - **Session**: `{"version": 1, "sequent": {…}, "mode":
-//!   "intuitionistic", "inferences": […], "history": […]}`, and for a
-//!   session that keeps how its sequent was written `"written":
-//!   {"inputs": […], "implications": […]}`, a key that raises no level,
-//!   since a reader that ignores it reads the session as it is and draws
-//!   it one-sided; see `Interactive` (feature `interactive`).
+//!   "intuitionistic", "inferences": […], "history": […]}`. A session
+//!   started from a classical sequent as written
+//!   (`Interactive::of_classical`, which the web bindings call for a
+//!   typed sequent and the command never does), and one read from a
+//!   document that has the key, also has `"written": {"inputs": […],
+//!   "implications": […]}`, a key that raises no level, since a reader
+//!   that ignores it reads the session as it is and draws it one-sided.
+//!   A session of a first-order sequent is written at level 7 and has
+//!   `"instances": {"members", "frames", "terms", "eigens"}`, as a proof's
+//!   with the steps' open witnesses `{"M": k}` among the terms, and where
+//!   they are not empty `metas` (the level each witness was made at),
+//!   `constants`, `bindings` (`[witness, term, step]`) and `marks` (where
+//!   the table stood before each step that added to it); see
+//!   `Interactive` (feature `interactive`).
 //! - **Ordinary sequent**: `{"version": 8, "formulas": [{"V": 0}, {"V":
 //!   1}, {"→": [0, 1]}], "atoms": ["a", "b"], "left": [2, 0], "right": [1]}`
 //!   for `a → b, a ⊢ b`: the formulas `V`, `⊤`, `⊥`, `¬`, `∧`, `∨`, `→`
@@ -169,7 +178,9 @@
 //!   SAT solver in classical logic), `"clausal_proof": {"variables": 7,
 //!   "clauses": 12, "steps": 3}`, the counts of the proof this crate's
 //!   checker accepted, or neither where the image's proof stands without a
-//!   derivation. Reading one reads the derivation and the image's proof
+//!   derivation. A not-valid outcome that found a Kripke model holds
+//!   `"countermodel": {"sequent": {…}, "model": {…}}`, the sequent it
+//!   refutes and the model, neither with a `version`. Reading one reads the derivation and the image's proof
 //!   or disproof as their own readers do, and refuses an outcome below
 //!   level 12 and one valid by a clausal proof, whose counts hold no proof.
 //! - **Kripke model**: `{"version": 13, "worlds": [{"atoms": [],
@@ -177,8 +188,8 @@
 //!   each world's atoms by name, `"falsity": true` where it forces `⊥`,
 //!   its arrows to the worlds directly above it by index, and the world
 //!   the model is about; see [`kripke::Model`](crate::kripke::Model).
-//!   Nested in an ordinary outcome as `countermodel` it has no `version`;
-//!   the outcome stays at level 12.
+//!   Nested in an ordinary outcome as `countermodel.model` it has no
+//!   `version`; the outcome stays at level 12.
 //! - **Truth table**: `{"version": 14, "sequent": {…}, "rows": ["TFT…",
 //!   …], "falsifying": [2]}`: a row per assignment, from every atom true
 //!   to every atom false, each a `T` or `F` per formula of the sequent's
@@ -235,6 +246,14 @@
 //!   "steps": [{"cut": 7, "formula": 9, "case": "tensor_par"}, …],
 //!   "end": "cut_free"}`, or `"end": "refused"` with the `reason` in an
 //!   error's form; see [`Elimination`](crate::linear::proofs::cut::Elimination).
+//! - **Cut elimination on a net** (written only): `{"version": 6, "net":
+//!   {…}, "steps": [{"cut": [5, 7], "case": "contraction", "above": 8},
+//!   …], "end": "cut_free"}`: the net reached, a proof structure with or
+//!   without boxes and without its own `version`, which is the record's
+//!   (at least 6: its sequent keeps the cut formulas); each step's cut
+//!   link by its two vertices, its case and, where there is one, the
+//!   vertex it acted at besides the cut; and `end` as above; see
+//!   [`nets::cut::Elimination`](crate::linear::nets::cut::Elimination).
 //! - **Outcome**: `{"version": 1, "deduxit": "0.1.0",
 //!   "verdict": "proved", "checked": true, "fragment": "MLL", "mode":
 //!   "classical", "engine": "net", "statistics": {…}, "sequent": {…},

@@ -1819,7 +1819,7 @@
       ]
     },
     "session": {
-      "description": "A session of step-by-step proving in linear logic (level 1, `interact`'s `save FILE`): the sequent, the mode, the inferences (an open goal without `rule`), the steps taken in order, and where the session keeps them how its sequent was written (`written`, which raises no level) and the instance table of a first-order session. A reader ignores keys it does not know.",
+      "description": "A session of step-by-step proving in linear logic (level 1, `interact`'s `save FILE`): the sequent, the mode, the inferences (an open goal without `rule`), the steps taken in order, how its sequent was written (`written`, which raises no level), kept by a session started from a classical sequent as written, as the web bindings start one from typed text and the command never does, and the instance table of a first-order session (`instances`, at level 7). A reader ignores keys it does not know.",
       "type": "object",
       "required": [
         "version",

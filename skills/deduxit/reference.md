@@ -1256,10 +1256,10 @@ The verdicts agree, as Glivenko's translation claims.
 ```
 
 Both take `--format json`, a document at wire level 16: `{"version",
-"translation", "target", "agreement", "sequent", "translated",
-"classical", "decided"}` from `seq translate` and `{"version", "logic",
-"partition", "outcome", "interpolant"}` from `interpolate`, every outcome
-an ordinary outcome without its own `version`.
+"deduxit", "translation", "target", "agreement", "sequent", "translated",
+"classical", "decided"}` from `seq translate` and `{"version", "deduxit",
+"logic", "partition", "outcome", "interpolant"}` from `interpolate`, every
+outcome an ordinary outcome without its own `version` and `deduxit`.
 
 ### Step by step in LK or LJ
 

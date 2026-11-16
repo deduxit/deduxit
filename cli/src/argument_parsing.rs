@@ -262,7 +262,7 @@ pub(crate) enum Command {
     /// countermodel where there is one), 3 for unknown (the time limit or
     /// another limit stopped the search, or a half's check) and 2 for an
     /// error. With `--format json` the answer is the record `{"version",
-    /// "logic", "partition", "outcome", "interpolant"}`: the sequent's
+    /// "deduxit", "logic", "partition", "outcome", "interpolant"}`: the sequent's
     /// outcome, and the interpolant's text and both halves, each with its
     /// outcome.
     #[command(after_help = ORDINARY_SHORT, after_long_help = ORDINARY)]
@@ -1331,8 +1331,9 @@ pub(crate) enum SeqCommand {
     /// error. The exit status is 0 where both are valid, 1 where neither
     /// is, 3 for unknown (a limit stopped a search) and 2 for an error.
     /// With `--format json` the answer is the record `{"version",
-    /// "translation", "target", "agreement", "sequent", "translated",
-    /// "classical", "decided"}`, both outcomes with their evidence.
+    /// "deduxit", "translation", "target", "agreement", "sequent",
+    /// "translated", "classical", "decided"}`, both outcomes with their
+    /// evidence.
     #[command(after_help = ORDINARY)]
     Translate(TranslateArgs),
     /// Print a sequent as JSON, the form `--input-format json` reads
