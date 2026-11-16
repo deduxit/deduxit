@@ -196,8 +196,8 @@ in use.
   intuitionistic or minimal logic gets a certificate for deduxit's Rocq
   library.
 - Sequents are proved step by step in LK and LJ, in the command and in
-  the web bindings. A goal's `close` and `hint` decide through the
-  embedding; in the bindings a goal that is not valid gets the SAT
+  the web bindings, and a session can apply the invertible rules by
+  itself. A goal's `close` and `hint` decide through the embedding; in the bindings a goal that is not valid gets the SAT
   solver's countermodel.
 - [Classical sequents are translated](transformations.md) into
   minimal logic by Kolmogorov's and Gödel and Gentzen's negative
@@ -259,6 +259,10 @@ in use.
   countermodel, an atom's count, the count equation, a weighted count or
   a Petri net's state equation, `--format rocq` writes the lemma that the
   calculus does not derive it, checked by computation.
+- For a modal sequent, `--format rocq` writes the lemma that it is valid
+  over the system's frames, proved from its labelled derivation, or
+  that it is not, proved from its countermodel. A derivation built step
+  by step in a labelled calculus gets one too.
 - deduxit's Rocq library is the package `rocq-deduxit`, in its own
   repository,
   [deduxit/rocq-deduxit](https://github.com/deduxit/rocq-deduxit), on
@@ -281,6 +285,10 @@ in use.
     models with the theorem that a derivable sequent holds in every
     model, and a checker of finite countermodels, on which the
     certificates of countermodels rest;
+  - the modal systems from K to S5 with their Kripke models, the
+    labelled sequent calculus with the theorem that it derives only
+    valid sequents, and checkers of labelled proofs and of finite
+    countermodels, on which the modal certificates rest;
   - bridges, checked against the kernels' own files, showing that its
     classical calculus derives exactly the sequents NanoYalla derives,
     and its intuitionistic calculus exactly those of Yalla's
@@ -389,8 +397,9 @@ in use.
   a sequent read, a proof step by step, a goal closed by the search
   within a budget of work, a hint, and every export, for linear logic,
   for LK and LJ and for a calculus given as data; the translations and
-  interpolants; the protocol's description of each suite; and the
-  workspace. Its defaults fit a browser tab. The flake builds it as
+  interpolants; modal logic's decision, countermodels and a model
+  checked against a sequent; the review of a tableau written by hand;
+  the protocol's description of each suite; and the workspace. Its defaults fit a browser tab. The flake builds it as
   a package and tests it under Node. The library's checker and memo are
   tested on a 32-bit target there too.
 - [deduxit.github.io](https://deduxit.github.io/) is a web page for
@@ -400,10 +409,19 @@ in use.
   tableau of classical logic. It proves in natural deduction (NK, NJ
   and NM, as a tree or as Fitch's lines) and in a rule file of your
   own, translates a classical sequent and finds an interpolant, and
-  links the tabs made from one sequent into a workspace. Learn and
-  Practice follow the tab's suite: linear logic has a course of eleven
-  lessons, ordinary logic one of six and a store of problems. It lives
-  in a repository of its own.
+  links the tabs made from one sequent into a workspace. Its modal tab
+  decides a sequent in any of the fifteen systems, draws its derivation
+  or countermodel and proves it step by step in the labelled calculus.
+  A model editor changes a countermodel, or builds one, and checks it
+  against the sequent, ordinary or modal; a tableau editor checks a
+  tableau you write and names its first wrong step. Learn and Practice
+  follow the tab's suite: linear logic has a course of eleven lessons,
+  ordinary logic one of six and a store of problems. For teachers, a
+  course pack is a link to a set of problems, with the search allowed
+  or barred; a student hands in a link or a file, which the check view
+  reads again step by step. The page sends nothing: the student sends
+  the hand-in. A pack or a proof can be embedded in another page and
+  printed. It lives in a repository of its own.
 
 ## Benchmarks
 
@@ -442,9 +460,6 @@ in use.
 
 The collection grows by a suite at a time, release by release:
 
-- 0.6.0: the modal logics K, T, K4, S4 and S5 decided, every refutation
-  a checked Kripke countermodel, and a labelled calculus proved sound in
-  Rocq; tools for teachers.
 - 0.7.0: normal forms (NNF, CNF and DNF, and CNF by Tseitin's encoding)
   and propositional resolution at teaching scale, and the simply typed
   lambda calculus, its typing derivations checked and built.
