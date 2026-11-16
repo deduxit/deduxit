@@ -249,7 +249,10 @@ fn natural_deduction_is_built_forwards_and_backwards() {
     let opened = take(&session(&started), 0, "→I");
     assert_eq!(value(&opened)["opened"], json!([1]));
     let goal = &value(&opened)["view"]["goals"][0];
-    assert_eq!(goal["lines"], json!([{"line": 1, "sequent": "a ∧ b"}]));
+    assert_eq!(
+        goal["lines"],
+        json!([{"line": 1, "fitch": 1, "sequent": "a ∧ b"}])
+    );
     let mut state = session(&opened);
     for (rule, lines, number) in [
         ("∧E₂", vec![1], 2),
@@ -309,6 +312,28 @@ fn natural_deduction_is_built_forwards_and_backwards() {
     assert_eq!(checked["verdict"], "valid in the calculus given");
 }
 
+/// A goal closed by its assumption has a Fitch proof, and two equal
+/// assumptions are its one line 1.
+#[wasm_bindgen_test(unsupported = test)]
+fn equal_assumptions_are_one_fitch_line() {
+    let fitch = r#"{"view": {"layout": "fitch"}}"#;
+    let started = rules::start("NJ", "a", r#"["a"]"#, "").unwrap();
+    let closed = session(&rules::cite(&session(&started), 0, 1, "").unwrap());
+    let svg = rules::draw(&closed, fitch).unwrap();
+    assert!(
+        svg.contains("id=\"l1\"") && !svg.contains("id=\"l2\""),
+        "{svg}"
+    );
+    let twice = value(&rules::start("NJ", "a ∧ a", r#"["a", "a"]"#, "").unwrap());
+    let numbers: Vec<&Value> = twice["view"]["goals"][0]["lines"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|line| &line["fitch"])
+        .collect();
+    assert_eq!(numbers, [&json!(1), &json!(1)]);
+}
+
 /// A line of a closed subproof is out of reach of a goal outside it, and
 /// citing it is refused with the reason.
 #[wasm_bindgen_test(unsupported = test)]
@@ -322,9 +347,12 @@ fn a_line_out_of_scope_is_refused() {
         state = session(&take(&state, goal, "→I"));
     }
     let view = value(&rules::view(&state, "").unwrap());
+    // The second subproof's hypothesis is the session's line 2 and the
+    // Fitch proof's line 4, under the first subproof (lines 1 and 2) and
+    // the line 3 that discharges it.
     let lines = |at: usize| view["goals"][at]["lines"].clone();
-    assert_eq!(lines(0), json!([{"line": 1, "sequent": "a"}]));
-    assert_eq!(lines(1), json!([{"line": 2, "sequent": "b"}]));
+    assert_eq!(lines(0), json!([{"line": 1, "fitch": 1, "sequent": "a"}]));
+    assert_eq!(lines(1), json!([{"line": 2, "fitch": 4, "sequent": "b"}]));
     let goal = u32::try_from(view["goals"][1]["goal"].as_u64().unwrap()).unwrap();
     let refused = failure(&rules::cite(&state, goal, 1, "").unwrap_err());
     assert_eq!(refused["code"], "step_refused");

@@ -295,7 +295,13 @@ for `THIRD-PARTY-NOTICES.txt`.
   "at", "given"}`, `given` a map so that a name is given once); a
   forward step is `DeriveForm` (`{"rule", "lines", "given"}`), its lines
   by their numbers from 1, which never change while a line stands, so the
-  page cites what the view's `lines` lists. The view's `inferences` maps
+  page cites what the view's `lines` lists. Each listed line also has
+  `fitch`, its number in the session's Fitch proof (built from
+  `Interactive::fitch_derivation`, which opens every subproof with its
+  hypotheses, and mapped through `Fitch::nodes`): the session numbers
+  lines in the order the steps made them, the drawing top to bottom, so
+  the page shows and reads `fitch` and sends `line`, one numbering on
+  the screen. The view's `inferences` maps
   each of the tree's `i<n>` to its session node through
   `Drawing::nodes()` and `Interactive::derivation_goals` (a line cited
   twice is one node and two inferences), so the view builds the drawing

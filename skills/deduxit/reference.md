@@ -1640,8 +1640,8 @@ library's `ordinary::Interactive` at wire level 8:
   documents `seq translate` and `interpolate` write as JSON.
 
 A tab in a calculus given as data has the calls `rules_…`, its session
-the library's `rules::Interactive` at wire level 17, which holds the
-rule file:
+the library's `rules::Interactive` at wire level 17 (18 once it holds a
+line a forward step derived), which holds the rule file:
 
 - `rules_calculus(name)` gives a built-in rule file, by the names
   `check --calculus` takes; `rules_read(calculus, settings)` reads one, or a
@@ -1653,10 +1653,20 @@ rule file:
   "needs"}`;
 - `rules_apply`, which takes a step `{"rule", "at": [members],
   "given": {"Γ′": "a, b"}}`, `step_needs` naming what must be given;
-- `rules_assume(session, goal, settings)`, `rules_undo`;
+- `rules_derive(session, goal, step, settings)`, a forward step
+  `{"rule", "lines": [2, 3], "given": {}}` from lines in force to a new
+  line, answering its number `line`; `rules_cite(session, goal, line,
+  settings)`, which closes a goal by a line equal to it; each goal of
+  the view lists its `lines` in force, `{"line", "fitch", "sequent"}`,
+  `line` the number the calls take and `fitch` the number the Fitch
+  drawing shows;
+- `rules_assume(session, goal, settings)`, `rules_undo` (`reopened`,
+  or for a forward step `removed`, the line's number);
 - `rules_check`, the finished derivation's verdict, "valid in the
   calculus given";
-- `rules_draw` and `rules_export` in `latex`, `typst` or `svg`.
+- `rules_draw` and `rules_export` in `latex`, `typst` or `svg`, a
+  Fitch proof with the settings' `view.layout` `fitch` (`not_fitch` with
+  the reason where none writes the session).
 
 `about` lists the suites (`linear`, `ordinary`, `rules`), each with the
 prefix of its calls, the parameter its start takes (`mode`, `logic`,

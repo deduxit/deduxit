@@ -162,8 +162,13 @@ struct OpenGoal {
 /// A line in force at a goal.
 #[derive(Serialize)]
 struct LineView {
-    /// Its number, from 1, which never changes while the line stands.
+    /// Its number, from 1, which never changes while the line stands:
+    /// what the calls take.
     line: u32,
+    /// Its number in the session's Fitch proof, from 1, which the drawing
+    /// shows and a later step may change; `null` where no Fitch proof
+    /// writes the session or the bounds refuse it.
+    fitch: Option<u32>,
     /// The line as text.
     sequent: String,
 }
@@ -195,6 +200,7 @@ impl<'a> View<'a> {
     /// `limits`.
     fn of(state: &'a Interactive, limits: &Limits) -> Result<Self, Failure> {
         let (calculus, terms) = (state.calculus(), state.terms());
+        let fitch = fitch_numbers(state, limits);
         let goals = state
             .goals()
             .into_iter()
@@ -220,6 +226,9 @@ impl<'a> View<'a> {
                     .into_iter()
                     .map(|(line, sequent)| LineView {
                         line: line.number(),
+                        fitch: fitch
+                            .as_ref()
+                            .and_then(|numbers| numbers.get(line.number() as usize - 1).copied()),
                         sequent: calculus.show_zones(terms, sequent).to_string(),
                     })
                     .collect(),
@@ -247,6 +256,29 @@ impl<'a> View<'a> {
             inferences,
         })
     }
+}
+
+/// Returns, at index `n - 1`, the number of the session's line `n` in its
+/// Fitch proof, or `None` where no Fitch proof writes the session within
+/// `limits`.
+fn fitch_numbers(state: &Interactive, limits: &Limits) -> Option<Vec<u32>> {
+    let (derivation, lines) = state.fitch_derivation().ok()?;
+    let fitch = Fitch::new(
+        state.calculus(),
+        &derivation,
+        &rules::FitchOptions::default(),
+        limits,
+    )
+    .ok()?;
+    let mut numbers = vec![0; derivation.len()];
+    for (number, node) in (1..).zip(fitch.nodes()) {
+        numbers[node.index()] = number;
+    }
+    // Every line is drawn, an equal hypothesis as the first of its scope.
+    lines
+        .iter()
+        .map(|node| Some(numbers[node.index()]).filter(|&number| number > 0))
+        .collect()
 }
 
 /// A session after a call that changed it, with its view and what the
@@ -595,7 +627,6 @@ pub fn draw(session: &str, settings: &str) -> Result<String, Failure> {
 pub fn export(session: &str, format: &str, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let state = session_of(session, &settings)?;
-    let derivation = state.derivation().map_err(Failure::from)?;
     let styles = &settings.styles;
     let write = |drawable: Drawable<'_>| -> Result<String, Failure> {
         let mut out = String::new();
@@ -616,10 +647,13 @@ pub fn export(session: &str, format: &str, settings: &str) -> Result<String, Fai
     };
     let calculus = state.calculus();
     if settings.view.layout == Layout::Fitch {
+        // Every subproof opens with its hypotheses, those no step cites yet too.
+        let (derivation, _) = state.fitch_derivation().map_err(Failure::from)?;
         let fitch = Fitch::new(calculus, &derivation, &styles.fitch, &settings.limits)
             .map_err(Failure::from)?;
         write(Drawable::from(&fitch))
     } else {
+        let derivation = state.derivation().map_err(Failure::from)?;
         let tree = Drawing::new(calculus, &derivation, &settings.limits).map_err(Failure::from)?;
         write(Drawable::from(&tree))
     }

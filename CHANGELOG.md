@@ -23,7 +23,11 @@ second number (0.1.x to 0.2.0), anything else the third.
   `check --calculus` draws both (`--format latex|typst|svg`, `--layout
   fitch`, the settings key `view.layout`, the style `fitch`); a
   derivation whose lines cannot be put in Fitch's order is refused with
-  the reason (`Error::NotFitch`).
+  the reason (`Error::NotFitch`). A session's Fitch proof
+  (`rules::Interactive::fitch_derivation`) opens every subproof with its
+  hypotheses, those no step has used yet too, and says which Fitch line
+  shows each of the session's lines; `Drawing::nodes` and `Fitch::nodes`
+  say which node each inference or line shows.
 
 - **A calculus given as data** (the library, `deduxit::rules`): a rule
   file in JSON (connectives, the zones of a sequent, rules as premises
