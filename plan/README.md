@@ -7155,3 +7155,20 @@ move (D26).
     latter after the rebase onto 54x5.
   - **For 62c:** the tree drawing unfolds a shared line under each parent, so its numbering
     differs from `derivation_goals` once a session holds lines; told to 62c before it ends.
+- 2026-11-16, about 02:20: **62c reviewed and pushed; the baseline night next.**
+  - **62c** (`otztspzs` to `xzmyspxx`): a derivation in a calculus given as data is drawn as a
+    Gentzen tree (hypotheses bare, discharged ones `[A]¹`, the discharging rule marked `→I¹`) or
+    as a Fitch proof (`rules::Fitch`: numbered lines, a subproof per discharged scope, lines
+    reordered per scope by Kahn's algorithm, citations by number or range, refusals
+    `not_fitch` with the reason, cost bounded by the derivation and work limits), in text,
+    SVG, LaTeX (the package `fitch` 1.0) and Typst (fitchcraft 1.0.1). `check --calculus
+    --format latex|typst|svg` and `--layout fitch`; `FitchOptions` in `export::Styles::fitch`
+    (D15), the view's `view.layout`. After 62b: equal hypotheses of one scope are one Fitch
+    line, and `Drawing::nodes()` maps drawn inferences to nodes. fresh-reviewer (Fable): 4 500
+    accepted and 12 000 forged derivations, no wrong order or citation; five findings, four
+    fixed (an outer premise marked as a discharge, quadratic cost, a refused style key, a
+    wrong description), one left (TeX's own dimension limit). Two departures marked: a one-line
+    subproof cited `n–n`, and `--layout fitch` replacing the text node list. Gate, export check
+    and `nix flake check` passed.
+  - **Next:** the machine is idle; the baseline night starts now (the author's "once idle").
+    62d (the page) and 63 wait for it.
