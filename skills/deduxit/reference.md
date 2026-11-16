@@ -1571,6 +1571,17 @@ occurrences by id, and `describe(&forest)` names them by formula.
   of the first half. `ordinary::interpolant::interpolant` reads one off a
   derivation you give, refusing one with a cut (`Error::NotCutFree`).
 
+### Modal logic
+
+`deduxit::modal` holds formulas and systems; nothing decides a modal
+sequent yet. `"[]p -> [][]p".parse::<modal::Sequent>()` reads the
+syntax of ordinary logic with the prefixes `[]` or `□` and `<>` or `◇`.
+`modal::System` is one of the fifteen normal systems from K to S5
+(`System::S4`, or `"KD45".parse()`); `system.has(Condition::Transitive)`
+asks for a condition its frames meet. Both have JSON forms: a sequent
+as an ordinary sequent with the formulas `{"□": a}` and `{"◇": a}`, a
+system as its name.
+
 ### A calculus given as data
 
 `deduxit::rules` checks a derivation against rules you give, and

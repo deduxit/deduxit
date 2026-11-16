@@ -337,6 +337,12 @@ in use.
   changed sequent marks what follows from it out of date until it runs
   again, and undo and redo take back whole edits. The web page links
   tabs the same way.
+- The library reads and writes sequents of propositional modal logic
+  (`deduxit::modal`): the syntax of ordinary logic with `[]` or `□`
+  and `<>` or `◇`, and a JSON form. It names the fifteen normal systems
+  from K to S5, each by the conditions its frames meet (serial,
+  reflexive, symmetric, transitive, euclidean). Nothing decides a
+  modal sequent yet.
 - `check` checks a derivation in a calculus you give as data
   ([Check a derivation in your own rules](rules.md)): a rule file in
   JSON declares the connectives, the zones of a sequent (each a set, a

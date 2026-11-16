@@ -31,6 +31,7 @@ it; only what holds for the whole crate goes here.
 | `core-lambda.md` | `lambda/` | proofs read back as lambda-terms: the calculus and its source, the term's data, matching premises by member, the structural rules, the DAG and the printer's bound, the refusals, the tests' own type checker |
 | `core-rules.md` | `rules/`, `serialize/rules.rs`, the rules and natural deduction tests | calculi given as data: the rule file and its checks, the generic derivation (terms, nodes, scopes), the checker by matching and its bounds, the built-in rule files (LK, LJ, LM, LL, the tableau, natural deduction) and their cross-checks |
 | `core-ordinary.md` | `ordinary/` | ordinary logic: its syntax and TPTP reader, the translations as one pattern table, the read-back to LK and LJ, its checker, the certificate over `Prop`, the goal state of LK and LJ |
+| `core-modal.md` | `modal/`, `serialize/modal.rs` | modal logic: the arena and its syntax, the systems from K to S5 as closed sets of frame conditions, the JSON level read from the content |
 | `core-protocol.md` | `protocol/` | the suites' protocol: kinds, operations and promises as data, the registry, the runs and checks over JSON, why `reads` is a cache key |
 | `core-workspace.md` | `workspace/` | the workspace: values linked by operations, records as the cache and their key, states computed, the edit log with undo and redo, the bounds as refusals, the JSON form and what reading it checks again, the reference test |
 
@@ -38,7 +39,7 @@ it; only what holds for the whole crate goes here.
 
 The root holds what every suite shares: `errors`, `limits`, `settings`,
 `wire`, `export`, `serialize` and `hash`, and the suites beside each
-other: `linear` (`core/src/linear/`), `ordinary` and `lambda`, and
+other: `linear` (`core/src/linear/`), `ordinary`, `modal` and `lambda`, and
 `rules` (behind `serialize`), the calculi given as data, which belongs
 to no suite, `protocol` (behind its feature), what each suite offers
 as data, and `workspace` (behind the same feature), values linked by
@@ -95,7 +96,8 @@ of those names),
 `ordinary` (the arena and syntax in `mod.rs`, `parse` behind the
 feature of that name, `translate`, `derivation` with the read-back and
 its checker, the native engine `ljt`, the SAT engine `sat` behind that feature, the check of a Kripke model `model`, the truth table `table`, the signed tableau `tableau` behind `interactive`, `rocq` behind that feature, `interactive` behind that
-feature), `kripke` (the shared Kripke model), and `lltp`, `mist` and
+feature), `modal` (the arena, `system`, `parse` behind the feature of
+that name), `kripke` (the shared Kripke model), and `lltp`, `mist` and
 `families` behind `parse`. Users write `deduxit::linear::Sequent`,
 `deduxit::linear::Proof`, `deduxit::linear::prove`, `deduxit::Error`,
 `deduxit::Limits`, and so on. `hash` and `serialize` are crate-private,
@@ -146,6 +148,9 @@ Each entry point is described in the file of its module:
   `ordinary::Interactive` (`within`, `rules`, `apply`, `undo`, `close`,
   `hint`, `derivation_within`, `finished`), `ordinary::truth_table` and
   `Tableau::of` (`core-ordinary.md`);
+- `modal`: `"…".parse::<modal::Sequent>()`, `Sequent::parse_within`,
+  `System` (the fifteen constants, `with`, `has`, `extends`, `FromStr`)
+  and `Condition` (`core-modal.md`);
 - `rules`: `wire::upgrade::<rules::Calculus, _>` (a rule file; `rules::LK`,
   `LJ`, `LM`, `LL`, `TABLEAU` and natural deduction's `NJ`, `NK`, `NM`
   and variants are built in, `rules::SCHEMA` their JSON Schema),
@@ -321,7 +326,8 @@ the commit that lands it rewrites that bullet.
   `Rule`, `Verdict`, `Branch`, `Sign`, `Polarity`, `Side`, `Division`
   (the Lambek calculus's two, added at step 35), `sequents::fo::FoTerm`
   (a first-order term, added at step 42),
-  `ordinary::{Node, Rule, Side}`, `lambda::{Node, Type}` (a term's
+  `ordinary::{Node, Rule, Side}`, `modal::Node` (a modal formula's
+  nodes, added at step 65), `lambda::{Node, Type}` (a term's
   nodes and types, added at step 50), `rules::Step` (what justifies a
   node: a rule, a hypothesis, an open goal; added at step 60), and `sequents::Visit`, whose enter,
   between and exit describe a walk over any tree); every other public enum, every
@@ -341,11 +347,12 @@ the commit that lands it rewrites that bullet.
   `Interactive::goal`). A public list of an open enum's values (`ALL`,
   `Fragment::NAMED`) is a slice, never an array, whose length is part of
   its type and would change with a new value.
-- **The marked ones at 0.5.0** (every public enum and every struct with
-  a public field, 186, each `#[non_exhaustive]`, and `workspace::Computed`,
-  marked though its fields are private; 146 at 0.4.0, 119 at 0.2.0 and
-  81 at 0.1.0; the closed are the eighteen above, seventeen at 0.4.0,
-  fifteen at 0.2.0 and thirteen at 0.1.0; both lists checked against
+- **The marked ones** (every public enum and every struct with a public
+  field, each `#[non_exhaustive]`, and `workspace::Computed`, marked
+  though its fields are private: 187 after step 65a's one, 186 at
+  0.5.0, 146 at 0.4.0, 119 at 0.2.0 and 81 at 0.1.0; the closed are the
+  nineteen above, eighteen at 0.5.0, seventeen at 0.4.0, fifteen at
+  0.2.0 and thirteen at 0.1.0; both lists checked against
   the rustdoc JSON with every feature by a script, see "The break against
   the last release" below): `Bias`, `CheckError`, `Clock`, `Counter`,
   `Criterion`, `Engine`, `Error`, `ErrorKind`, `IllSyntax`,
@@ -377,6 +384,7 @@ the commit that lands it rewrites that bullet.
   Parameter, Part, Produced, Promise, Role, Status, Verdict}` (added at
   step 63a); `workspace::{Cause, Computed, End, NodeView, Ran, State,
   What}` and `limits::{Held, WorkspaceLimits}` (added at step 63g-b);
+  `modal::Condition` (added at step 65a);
   `rules::{Associativity, Discipline, Fixity, Node, Term}` (added at
   step 60), `rules::FitchOptions` (added at step 62),
   `rules::{Applicable, Apply, Derive, Undone}` (added at steps 61 and

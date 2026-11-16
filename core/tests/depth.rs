@@ -246,6 +246,29 @@ fn deep_ordinary_formulas_need_no_stack() {
     walks.unwrap().join().unwrap();
 }
 
+/// Modal formulas nested 50 000 deep, a tower of `□` and `◇` and
+/// implications nested to the right in brackets, are parsed and printed
+/// on a stack of 256 KiB.
+#[cfg(feature = "parse")]
+#[test]
+fn deep_modal_formulas_need_no_stack() {
+    let walks = std::thread::Builder::new().stack_size(STACK).spawn(|| {
+        let modal = |text: &str, unicode: &str| {
+            let sequent: deduxit::modal::Sequent = text.parse().unwrap();
+            assert!(sequent.to_string() == format!("⊢ {unicode}"), "printed");
+        };
+        let tower = format!("{}a", "[]<>".repeat(DEPTH / 2));
+        modal(&tower, &tower.replace("[]", "□").replace("<>", "◇"));
+        let nested = DEPTH - 1;
+        let implications = format!("{}a -> a{}", "[]a -> (".repeat(nested), ")".repeat(nested));
+        modal(
+            &implications,
+            &implications.replace("->", "→").replace("[]", "□"),
+        );
+    });
+    walks.unwrap().join().unwrap();
+}
+
 /// A term of a calculus given as data nested 50 000 deep, a chain of
 /// negations and one of implications, is read from JSON, checked in an
 /// axiom of LK, printed whole and written back, on a stack of 256 KiB.

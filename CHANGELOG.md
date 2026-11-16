@@ -10,6 +10,19 @@ second number (0.1.x to 0.2.0), anything else the third.
 
 ## [Unreleased]
 
+### Added
+
+- **Modal formulas and systems** (the library, `deduxit::modal`): a
+  sequent of propositional modal logic is read from text, the syntax of
+  ordinary logic with the prefixes `[]` or `□` and `<>` or `◇`
+  (`[]p -> [][]p`), and from JSON, and written as both.
+  `modal::System` is one of the fifteen normal systems from K to S5,
+  held as the conditions its frames meet (`modal::Condition`: serial,
+  reflexive, symmetric, transitive, euclidean), so
+  `System::T.with(Condition::Euclidean)` is `System::S5`; it reads the
+  usual names (`S4`, `KT4`, `KD45`). Nothing decides a modal sequent
+  yet. A sequent with `□` or `◇` is written at wire level 20.
+
 ## [0.5.0] - 2026-11-16
 
 Calculi given as data, and natural deduction. A rule file in JSON

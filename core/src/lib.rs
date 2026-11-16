@@ -61,6 +61,8 @@
 //! - Translate a classical sequent into intuitionistic or minimal logic,
 //!   or find a Craig interpolant, each checked: `ordinary::negative` and
 //!   `ordinary::interpolant`.
+//! - Read and write formulas of modal logic and name the systems from K
+//!   to S5: [`modal`].
 //! - Read a proof as a lambda-term: [`lambda`].
 //! - Check, build and draw a derivation in a calculus you give as a rule
 //!   file, natural deduction among the built-in ones, as a tree or as a
@@ -300,6 +302,7 @@ pub mod kripke;
 pub mod lambda;
 pub mod limits;
 pub mod linear;
+pub mod modal;
 pub mod ordinary;
 #[cfg(feature = "protocol")]
 pub mod protocol;

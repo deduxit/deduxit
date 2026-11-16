@@ -35,6 +35,7 @@
 //! | 17 | a session of step-by-step proving in a calculus given as data: the rule file, the terms, the scopes, the nodes from the conclusion up and the steps | a session of [`rules`](crate::rules) (feature `interactive`) |
 //! | 18 | a session in a calculus given as data with lines a forward step derived: a node's `line`, and a goal's `cites` | a session of [`rules`](crate::rules) that holds such a line (feature `interactive`) |
 //! | 19 | a workspace of linked values: the values, each its kind's document whole; the nodes, given or made by a recipe; the records of runs; the log of edits | a workspace (`workspace`, feature `protocol`) |
+//! | 20 | the modal sequent: the formulas `{"□": a}` and `{"◇": a}` beside those of ordinary logic | a sequent of [`modal`](crate::modal) whose formulas, used or not, hold `□` or `◇` (one without is written at level 8, as the ordinary sequent it is) |
 //!
 //! A reader refuses a document above its level by name ([`Error::Version`],
 //! code `unsupported_version`). It does so before reading the other keys
@@ -135,6 +136,11 @@
 //!   for `a → b, a ⊢ b`: the formulas `V`, `⊤`, `⊥`, `¬`, `∧`, `∨`, `→`
 //!   and `↔`, every operand before its formula, and the two sides as
 //!   indices into them; see [`ordinary::Sequent`](crate::ordinary::Sequent).
+//! - **Modal sequent**: `{"version": 20, "formulas": [{"V": 0}, {"□":
+//!   0}, {"→": [1, 0]}], "atoms": ["p"], "left": [], "right": [2]}` for
+//!   `⊢ □p → p`: an ordinary sequent's form with the formulas `□` and
+//!   `◇`; see [`modal::Sequent`](crate::modal::Sequent). A system is its
+//!   name, `"S4"`; see [`modal::System`](crate::modal::System).
 //! - **Ordinary derivation**: `{"version": 8, "logic": "intuitionistic",
 //!   "sequent": {…}, "inferences": [{"left": [0], "right": [0], "rule":
 //!   "ax"}, …, {"left": [2, 0], "right": [1], "rule": "→L", "principal":
@@ -238,7 +244,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// The highest wire level this build reads and writes.
-pub const LEVEL: u32 = 19;
+pub const LEVEL: u32 = 20;
 
 /// The level of a rule file and of a derivation in a calculus given as
 /// data.
@@ -257,6 +263,9 @@ pub(crate) const FORWARD: u32 = 18;
 /// The level of a workspace of linked values.
 #[cfg(feature = "protocol")]
 pub(crate) const WORKSPACE: u32 = 19;
+
+/// The level of a modal sequent that holds `□` or `◇`.
+pub(crate) const MODAL: u32 = 20;
 
 /// The level of every document that no later level's feature raises.
 pub(crate) const BASE: u32 = 1;

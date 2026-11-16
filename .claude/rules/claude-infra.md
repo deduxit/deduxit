@@ -80,6 +80,8 @@ Current contents:
     benchmark inputs;
   - `rules/core-ordinary.md` (`ordinary/`): ordinary logic through its
     embeddings, the read-back to LK and LJ and its checker.
+  - `rules/core-modal.md` (`modal/`, `serialize/modal.rs`): modal
+    logic, its arena and syntax, the systems from K to S5.
   - `rules/core-rules.md` (`rules/`, `serialize/rules.rs`, the rules
     and natural deduction tests): calculi given as data, the generic
     derivation and its checker, the built-in rule files.
