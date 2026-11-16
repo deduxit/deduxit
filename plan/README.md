@@ -7445,3 +7445,11 @@ move (D26).
     derivation, starting the custom builder on the derivation's root. fresh-reviewer (Fable) two
     rounds, nine findings, all answered (a panic on an unknown goal, `R¬` read forwards, …).
     Gate and `nix flake check` passed; the client's flake check passed against the chain.
+- 2026-11-16, 19:15: **fix-band reviewed and pushed; the live page's bottom band fixed.**
+  - **fix-band** (the client `vzmpmrxp`, `qlzlvuwm`, `unnzuxur`; deduxit's report `prtwwssw`): the
+    band's labels and the drawing's rule labels shared the class `lb`, and `xxvkxvzm` (2026-11-09)
+    gave `.lb` a global `position: absolute`, which piled the band's labels over their icons at
+    desktop widths with Learn off; a week old, none of today's commits. The band's labels have a
+    class of their own (`act-name`); a test at eight widths, Learn off and on, checks that no two
+    actions overlap and each action's icon, label and key stand apart inside its button (it fails
+    on `xxvkxvzm`'s build). The client's flake check passed.
