@@ -482,3 +482,183 @@ deduxit, on `main@origin`: `tmnpvxqp` (the design note), and the report.
 - **68**: the ordinary store has no `literature` problems; sources read
   with their page would add them (`source`, `url`, as the linear
   store's).
+
+## Session 63c: the ordinary course
+
+Opus 5.5 at high, cores 10-12, the reviewer on Fable 5.2. From the brief
+`start-63c.md`, the client on its `main@origin` (`vmtksloy`, 63b).
+
+### Outcome
+
+The ordinary course has its six lessons: the truth table, signed
+tableaux, the sequent calculus LK (63b's), natural deduction backwards
+and forwards, and the three logics with a countermodel. One player
+plays every method: a session taken back step by step (`ordinary_undo`,
+`rules_undo`) for the sequent calculus, natural deduction and tableaux,
+and a truth table's rows read in the lesson. Every worked proof is a
+session the command checks in the flake check; every step's rule is
+held to the session (or for a table to deduxit's own table) in a test.
+
+What each suite has now: **linear**, its course (eleven lessons, 452
+problems); **ordinary**, a course of six lessons and a store of 62
+problems, 22 of them practice of a lesson; **a calculus of one's own**,
+no course.
+
+### The lessons and their sources
+
+| lesson | method, logic | worked | practice |
+|---|---|---|---|
+| 1 Valid, by the truth table | table, classical | `a → b, b ⊢ a` (affirming the consequent): four rows, the third falsifies | 4: denying the antecedent, the converse, one disjunct, modus ponens |
+| 2 Signed tableaux | tableau, classical | `¬¬a ⊢ a`: `T¬`, `F¬`, `×` | 4: Dummett's law, a split antecedent, distribution, cases |
+| 3 The sequent calculus LK | sequent, classical | `⊢ a ∨ ¬a` (63b) | 4 (63b) |
+| 4 Natural deduction, backwards | natural, NJ | `⊢ a → (b → a)`: `→I`, `→I`, a line in force | 4: Frege's axiom, currying, contraction, three negations |
+| 5 Natural deduction, forwards | natural, NJ | `a ∧ b ⊢ b ∧ a`: `∧E₂`, `∧E₁`, `∧I`, a line | 3: both at once, the syllogism, uncurrying |
+| 6 Classical, intuitionistic, minimal | natural, NK | `⊢ a ∨ ¬a` by `RAA`, nine steps; the countermodel of `⊢ a ∨ ¬a` in intuitionistic logic | 3: contraposition back, a negated implication, Peirce's law |
+
+- The order is 63b's (`explicit-instruction-sequence-builder`); each
+  lesson one objective and one misconception in its hinge: "valid means
+  true in some row", "an open branch means the tableau is unfinished",
+  "a discharged hypothesis must be used", "any line above may be
+  cited", "no proof found means the search gave up".
+- **Fading** (`worked-example-fading-designer`): from the end, where
+  the steps are routine; the visitor takes over after row 2 of the
+  table, step 1 of the tableau, step 1 backwards, step 2 forwards, step
+  5 of the reductio. Practice is near transfer, in the lesson's method
+  (a table, a tableau to build, natural deduction).
+- `cognitive-load-analyser` (62d's analysis) and `frontend-design`
+  again: one direction at a time, the reason beside the step, the
+  table's rows in the lesson so that the stage does not give away the
+  prediction. `practice-problem-sequence-designer`,
+  `retrieval-practice-generator` and `ai-feedback-design-principles`
+  were not loaded (departs from the design): the practice lists are
+  three or four problems each from the store, ordered by the store's
+  levels, and the feedback is the hinge's form, fixed by the linear
+  course; loading them would have cost context the five lessons needed.
+
+### The player
+
+- One `states` per lesson: the finished session and every state before
+  it, taken back by `undo`, each shown on the method's stage:
+  `sequent` an ordinary tab (`showOrdinarySession`), `tableau` a custom
+  tab in the calculus `tableau` (`showCustomSession`), `natural` an
+  ordinary tab set to natural deduction (`putNatural`, 62d's view's
+  store; its own start leaves a lesson's session be). A goal closed by
+  a line is the step `line`, read "a line in force".
+- A truth table has no session: its steps are its rows (`holds`,
+  `falsifies`), read in the lesson, and the whole table opens on the
+  stage at the end; its faded part is the last rows predicted without
+  reasons.
+- Lesson 6's `model` opens the sequent it refutes in its logic and lets
+  deduxit decide it, which draws the countermodel.
+- Two faults the walks found, fixed: opening an ordinary sequent dropped
+  the calculus's method, so a problem opened for natural deduction came
+  up in the sequent calculus (`openOrdinary` keeps it now); and the
+  course left Learn when the tableau's custom tab became current (the
+  open lesson is module state, `ordinaryLessonOpen`).
+- **63a's protocol**: the player calls `ordinary_undo`, `rules_undo`,
+  `rules_view` and the stages' own entry points; when the protocol
+  gives every suite `undo` and `view`, `Course.tsx`'s `states` and
+  `showAt` become one branch.
+
+### Checks
+
+- **The client's unit tests**: 661 passed, among them the course's 29
+  (each lesson: its problem valid in the lesson's logic or a classical
+  table; its steps against the session's history or deduxit's table,
+  each among the rules to predict; the undo walk back to the sequent;
+  the hinge and practice; lesson 6's model not valid in its logic).
+- **The client's e2e suite**: 283 passed, among them `course.spec.ts`'s
+  6 (one per method, the countermodel, a practice problem opening by
+  natural deduction, the course kept on the tableau's tab, the Fitch
+  drawing of a natural deduction lesson) and the `coursing` walk with
+  the table's and a natural deduction lesson's states, in the target
+  and axe specs at both widths and in both schemes.
+- **The client's `nix flake check`** at the head under the machine lock:
+  passed, its `ordinary-problems` check with 62 problems and 5 sessions
+  as deduxit decides them.
+- **deduxit**: only `plan/` changed (this report), so no gate or flake
+  check ran for it.
+
+### The reviewer's findings
+
+`fresh-reviewer` on Fable 5.2 at medium, once, on the two commits, with
+the page served from the e2e build and driven by Playwright. What held:
+every claim of the five lessons but one (below) against the rule files;
+the 23 steps of the four sessions against `interact --state` and
+`proof`; the table's rows against the page's table; the five worked
+proofs played with right and wrong predictions on their stages, the
+self-explanations at their place, the 20 hinge options; the faded parts
+of lessons 2, 4 and 5 finished by hand and checked valid; all 18
+practice problems opening in their lesson's method; lesson 6's
+countermodel; a linear visitor's Learn as before; the flake check
+failing on an unfinished session. Its six findings, all fixed:
+
+1. **Lesson 1 asked about rows it never showed**: "Row 1 of 4: does it
+   falsify the sequent?" with no assignment anywhere, and the faded
+   rows never showed theirs. Each row's assignment (`a true, b true`) is
+   now in the question, read off `ordinary_table`; the part is headed
+   "The table, row by row", started by "Start with the first row" and
+   answered by "Show the answer".
+2. **`layout: fitch` was read by nothing**: lessons 4, 5 and 6 played in
+   the tree, whose bracket numbers contradicted the reasons' line
+   numbers. A natural deduction lesson now sets the view's drawing to
+   its `layout` (`setNaturalLayout`); the e2e test checks the Fitch
+   drawing's line ids.
+3. **Lesson 6's negation clause was wrong**: "`¬A` holds at a world when
+   `A` holds at no later world" makes `¬a` hold at the model's last
+   world, where `a` holds. Now "neither there nor at any later world",
+   in the opening and the hinge.
+4. **"All lessons" from the tableau lesson showed the linear course**
+   (its custom tab is current). The course now stays in Learn from a
+   lesson's opening until the visitor goes to a linear tab.
+5. **Lesson 1's practice gave nothing to do**: each problem opened on
+   the Table view, which already gives the verdict and the row. It now
+   opens on the tree, the visitor asked to decide it row by row and then
+   compare with the Table view.
+6. **"A …" misconceptions printed a capital mid-sentence**: 63b's
+   `lowered` kept every capital before a lower-case letter. It now
+   lowers the first letter unless a capital follows it (`LJ's` kept).
+
+Its questions, answered in the content: the logic beside a table's or a
+tableau's practice problem is no longer shown (they open in classical
+logic); lesson 4's practice needs `→E` and `¬E`, which lesson 5
+teaches, and each is still doable by working backwards; lesson 6's
+practice is three NK proofs and its countermodel part, not "decides
+sequents in the three logics" (the store's Practice does that).
+
+### Commits
+
+The client (`deduxit.github.io`), on its `main@origin` (`vmtksloy`), in
+the workspace `deduxit.github.io-61b`:
+
+- `srzvrvnq` Play the ordinary course's lessons by natural deduction, as
+  tableaux and as truth tables (the player, `putNatural` and
+  `setNaturalLayout`, `showCustomSession`, `openOrdinary` keeping the
+  method, the course kept in Learn, the flake check resuming sessions).
+- `wqlqqwyo` Write the ordinary course's lessons on truth tables,
+  tableaux, natural deduction and the three logics (the five lessons,
+  four sessions, 18 problems filed as practice, the tests, the walk).
+
+deduxit: the report.
+
+### Departures and decisions
+
+- The three skills not loaded, above (departs from the design).
+- **The flake check resumes sessions** (`interact --state`, then
+  `proof`) rather than `check --calculus`, which reads a derivation and
+  refused a session document: 63b's script named the wrong command, and
+  no session had met it yet.
+- **Port 8790** was held by another program on this machine during the
+  e2e runs; the local runs used `E2E_PORT=8797`. The flake check runs in
+  its sandbox and is not affected.
+
+### What the next sessions must know
+
+- **63g-c (the workspace graph)**: a lesson's worked proof is a session
+  document beside its problem, by method (`<id>.sequent.json` at wire
+  level 8, `.natural.json` and `.tableau.json` at 17 or 18); a lesson
+  of the table method has none. These, and the problems, are the
+  values a graph's node would hold.
+- **68**: the ordinary store still has no `literature` problems; the
+  lessons cite no source but the rule files' own (`calculi/n*.json`,
+  `tableau.json`), whose `description` names theirs.
