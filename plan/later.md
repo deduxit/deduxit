@@ -79,7 +79,7 @@ may be taken by that step and closed here, said in its report.
 | web-front-end-3 | adopted (D29) | one module until a measured size or an outside suite asks |
 | web-front-end-4 | kept, decided in 63 against step 47's figures | a module per suite only when one of D29's triggers holds |
 | structure-1 | adopted (D25) | |
-| structure-5 | 67 | gated on two suites' copies |
+| structure-5 | 67, ended at the gate (2026-11-16): kept | not yet a crate; the list and what reopens it under "The kernel crate: ended at the gate" |
 | structure-2 | kept | for a suite a third party writes (D25) |
 | structure-3 | dropped | every variant a 0.y bump for all users; the feature powerset |
 | structure-4 | dropped | rewriting the trusted core; D28 keeps the generic layer beside it |
@@ -2779,3 +2779,31 @@ what the calculus derives (a world that sees itself alone can be put beside any 
 it in `Deduxit.Modal`), but a session would accept the step "seriality gives a world that sees
 itself". The answer is a side condition of the rule language ("these variables differ") or a check
 in the modal sessions; a `fresh` on `x` would refuse the wanted instances.
+
+## The kernel crate: ended at the gate (67a, 2026-11-16)
+
+Step 67 ended at its gate: not yet a crate (`notes/kernel-boundary.md`, the inventory, the
+boundary a split would follow and its sessions; `reports/67-kernel-crate.md`). The suites are
+modules of one crate and nothing else would depend on a kernel; a published crate cannot depend
+on an unpublished one, so the kernel would be a third crate on crates.io; `Error`, `Settings`,
+the wire level, `Drawable` and the protocol's registry are sums over the suites and stay above
+them; and what two suites hold twice is about 1 050 lines of 156 447.
+
+**What reopens it**: a decision to put a suite in a crate of its own that `deduxit` depends on
+(for the build time, 20.0 s for the library's dev unit and 3.5 s incremental on 2026-11-16, or
+for ownership), or a suite from another repository that must not link the linear suite. A module
+per suite for the page is not one: it asks for a cargo feature per suite.
+
+**The list** (what two suites copied, or share from under `linear`), each made one copy inside
+the crate by the step named, none by a session of its own:
+
+| item | where | taken by |
+|---|---|---|
+| The memory account, the name checks and `Stops` live under `linear` and serve `ordinary`, `modal` and `rules`; the layout trait `Drawn` likewise | `linear/search/memory.rs`, `linear/sequents/name.rs`, `linear/sequents/fmt.rs`, `linear/proofs/style.rs:231` | the first session that edits one of them: a move to the root (`Drawn` to `export`), no public path changed |
+| The propositional arena and sequent, about 300 lines twice | `ordinary/mod.rs:539-956`, `modal/mod.rs:71-480` | step 74, which gives `ordinary::Node` quantifiers and so shows what a shared core may assume, or a third arena of this shape: a crate-private `Arena<N>` at the root, the two `Formulas` kept as public types |
+| The parser, about 296 lines twice | `ordinary/parse.rs`, `modal/parse.rs` | after step 74's parser, if the two still share a loop |
+| The sequent's JSON form, about 143 lines twice | `serialize/ordinary.rs:35-231`, `serialize/modal.rs:33-236` | with the arena |
+| The goal tree's helpers (`subtree`, `postorder`, the graft's renumbering, the reader's history walk), about 60 lines the same text and at most 230 the same algorithm | `linear/proofs/interactive/{expand,terms,replay}.rs`, `ordinary/interactive.rs` | the step that gives the ordinary session its term table (74): free functions over an inference's premises, no generic goal state |
+| The checkers' meter and the model checks' memory pre-check | `rules/check.rs:29`, `modal/model.rs:376`; `ordinary/model.rs:263-282`, `modal/model.rs:245-263` | the next checker that would write the struct a third time (step 68's tableau checker is the candidate): one in `limits` |
+| `protocol::Limit` built from a `Reason` three times | `protocol/linear.rs:529`, `modal.rs:480`, `ordinary.rs:475` | any session that edits them |
+| The command's and the bindings' per-suite copies (`goals`, `opened`, `Changed`, `session_of`, `written`) | `cli/src/interact/`, `web/src/{calls,ordinary,rules}.rs` | the front ends' own matter, when a fourth session kind is added |
