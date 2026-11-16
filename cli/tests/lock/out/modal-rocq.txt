@@ -1,0 +1,11 @@
+$ deduxit prove --system S4 --format rocq '[]p -> [][]p'
+--- status 0
+--- stdout
+(* valid in S4: ⊢ □p → □□p, a checked derivation of 6 inferences in G3S4 *)
+Lemma certificate : valid (atom := string) {| serial := true; reflexive := true; symmetric := false; transitive := true; euclidean := false |} [] [imp (box (var "p")) (box (box (var "p")))].
+Proof.
+  apply (modal_soundness String.eqb String.eqb_spec {| serial := true; reflexive := true; symmetric := false; transitive := true; euclidean := false |} "w0"
+    (RImp "w0" (box (var "p")) (box (box (var "p"))) (RBox "w0" "w1" (box (var "p")) (RBox "w1" "w2" (var "p") (Trans "w0" "w1" "w2" (LBox "w0" "w2" (var "p") (Ax "w2" (var "p")))))))).
+  vm_compute. reflexivity.
+Qed.
+--- stderr

@@ -614,6 +614,28 @@ const CASES: &[Case] = &[
     // Modal logic.
     call("modal-valid", &["prove", "--system", "S4", "[]p -> [][]p"]),
     call(
+        "modal-rocq",
+        &[
+            "prove",
+            "--system",
+            "S4",
+            "--format",
+            "rocq",
+            "[]p -> [][]p",
+        ],
+    ),
+    call(
+        "modal-rocq-countermodel",
+        &[
+            "prove",
+            "--system",
+            "S4",
+            "--format",
+            "rocq",
+            "<>[]p |- []<>p",
+        ],
+    ),
+    call(
         "modal-not-valid",
         &["prove", "--system", "K", "[]p -> [][]p"],
     ),
