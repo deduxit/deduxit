@@ -8,11 +8,13 @@ title: deduxit
 abstract: >-
   A collection of logic suites: a Rust library and a command line
   program that decide, check, prove step by step and export sequents of
-  linear logic, classical and intuitionistic, and of classical,
-  intuitionistic and minimal propositional logic. Proofs are shown as
+  linear logic, classical and intuitionistic, of classical,
+  intuitionistic and minimal propositional logic, and of propositional
+  modal logic in the fifteen systems from K to S5. Proofs are shown as
   derivation trees, proof nets or tableaux, and classical sequents also
   by their truth tables; a sequent that is not valid gets a Kripke
-  countermodel. It checks and builds derivations in calculi given as
+  countermodel, and a modal one that is valid a derivation in a
+  labelled sequent calculus. It checks and builds derivations in calculi given as
   rule files, natural deduction in Gentzen's and Fitch's styles among
   them. Its code, tests and documentation were written with
   substantial AI assistance, by Anthropic's Claude models in Claude
@@ -55,6 +57,7 @@ keywords:
   - intuitionistic linear logic
   - intuitionistic logic
   - Kripke semantics
+  - modal logic
   - proof search
   - sequent calculus
   - natural deduction

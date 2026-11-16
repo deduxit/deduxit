@@ -3,7 +3,7 @@
 
 [package]
 name = "deduxit-cli"
-description = "The deduxit command, a collection of logic suites: decide, check, prove step by step and export sequents of linear logic and of classical, intuitionistic and minimal propositional logic."
+description = "The deduxit command, a collection of logic suites: decide, check, prove step by step and export sequents of linear logic, of classical, intuitionistic and minimal propositional logic and of modal logic."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

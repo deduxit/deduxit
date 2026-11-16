@@ -63,7 +63,10 @@
 //!   `ordinary::interpolant`.
 //! - Decide propositional modal logic in the systems from K to S5, with a
 //!   derivation in a labelled calculus or a checked Kripke countermodel:
-//!   [`modal`].
+//!   [`modal`]. Either becomes a Rocq certificate under `export::rocq`.
+//! - Check a signed tableau written by hand, step by step:
+//!   `ordinary::WrittenTableau` (features `parse`, `serialize` and
+//!   `interactive`).
 //! - Read a proof as a lambda-term: [`lambda`].
 //! - Check, build and draw a derivation in a calculus you give as a rule
 //!   file, natural deduction among the built-in ones, as a tree or as a

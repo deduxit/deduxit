@@ -8,7 +8,7 @@ deduxit is a collection of logic suites. It decides whether a sequent
 is provable, and shows the proof or says why there is none. It is a
 command, `deduxit`, and a Rust library, the crate `deduxit`. Its suites
 are linear logic (classical and intuitionistic, first-order and cyclic,
-and the Lambek calculus) and propositional logic (classical,
+and the Lambek calculus), propositional logic (classical,
 intuitionistic and minimal), where a sequent that is not valid gets a
 Kripke countermodel and classical logic has truth tables and tableaux,
 and propositional modal logic in the fifteen systems from K to S5.
