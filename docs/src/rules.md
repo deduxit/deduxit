@@ -114,7 +114,8 @@ conclusion.
 `deduxit interact --calculus` builds a derivation from its conclusion
 up, one rule at a time, in a built-in calculus or one of your own. Give
 it the sequent, written with the calculus's connectives (`->` reads as
-`→`, `/\` as `∧`, `|-` as `⊢` where the calculus has them), and type
+`→`, `/\` as `∧`, `[]` as `□`, `<>` as `◇`, `|-` as `⊢` where the
+calculus has them), and type
 commands on standard input. `rules` lists the rules that apply to a
 goal and the members they act on, each member numbered across the
 zones; `apply` applies one backwards:

@@ -129,6 +129,80 @@ error: the model is no model of T: not reflexive: world 0 does not see itself
 exit 2
 ```
 
+## Prove step by step
+
+`interact --calculus G3S4` builds a derivation in the labelled calculus
+yourself, one rule at a time; every system's calculus is `G3` and the
+system's name (`G3K`, `G3KD45`). Give the sequent with each formula's
+world, `w0 : []p |- w0 : p`, and type commands on standard input, as in
+any [calculus given as data](rules.md#build-a-derivation-step-by-step):
+`rules G` lists the rules that apply to goal G and the members they act
+on, numbered across both sides, and `apply` applies one backwards.
+
+`derive G RULE N…` applies a rule forwards to members N… of goal G and
+adds what the rule derives from them to the goal: `L□` derives `y : A`
+from `x : □A` and `x R y`, and a condition's rule derives what the
+condition gives (`Ref` derives `x R x`, `Trans` derives `x R z` from
+`x R y` and `y R z`). Where the members do not fix a label, give it:
+`x=w0`. Axiom T in T:
+
+```console
+$ deduxit interact --calculus G3T 'w0 : []p |- w0 : p'
+> derive 0 Ref x=w0
+opened goal 1: 0: w0 : □p, 1: w0 R w0 ⊢ 2: w0 : p
+added 1: w0 R w0
+> derive 1 L□ 0 1
+opened goal 2: 0: w0 : □p, 1: w0 R w0, 2: w0 : p ⊢ 3: w0 : p
+added 2: w0 : p
+> apply 2 ax 2 3
+closed; no goal is open: `proof` checks the proof
+> proof
+valid in the calculus given (G3T): w0 : □p ⊢ w0 : p
+  0. w0 : □p, w0 R w0, w0 : p ⊢ w0 : p    ax
+  1. w0 : □p, w0 R w0 ⊢ w0 : p    L□ 0
+  2. w0 : □p ⊢ w0 : p    Ref 1
+```
+
+Axiom 4 in S4: `R□` applied backwards twice makes two new worlds, `y`
+and `y1`; `Trans` derives that world 0 sees `y1`, and `L□` takes `p`
+there:
+
+```console
+$ deduxit interact --calculus G3S4 'w0 : []p |- w0 : [][]p'
+> apply 0 R□ 1
+opened goal 1: 0: w0 : □p, 1: w0 R y ⊢ 2: w0 : □□p, 3: y : □p
+> apply 1 R□ 3
+opened goal 2: 0: w0 : □p, 1: w0 R y, 2: y R y1 ⊢ 3: w0 : □□p, 4: y : □p, 5: y1 : p
+> derive 2 Trans 1 2
+opened goal 3: 0: w0 : □p, 1: w0 R y, 2: y R y1, 3: w0 R y1 ⊢ 4: w0 : □□p, 5: y : □p, 6: y1 : p
+added 3: w0 R y1
+> derive 3 L□ 0 3
+opened goal 4: 0: w0 : □p, 1: w0 R y, 2: y R y1, 3: w0 R y1, 4: y1 : p ⊢ 5: w0 : □□p, 6: y : □p, 7: y1 : p
+added 4: y1 : p
+> apply 4 ax 4 7
+closed; no goal is open: `proof` checks the proof
+```
+
+A forward step reasons from members before `⊢` and adds there. A rule
+that acts on a member after `⊢` (every right rule), adds after it
+(`L¬`), splits the goal in two (`L∨`, `L→`, `L↔`) or closes it (`ax`)
+applies backwards, and `derive` says so:
+
+```console
+$ deduxit interact --calculus G3K 'w0 : [](p \/ q), w0 : ~q |- w0 : []p'
+> derive 0 R□ 2
+error: the step is refused: R□ acts on members after ⊢, and a forward step acts on members before ⊢ alone: apply it backwards to the goal
+> derive 0 L∨ 0
+error: the step is refused: L∨ has 2 premises, and a forward step keeps one goal: apply it backwards to the goal
+> derive 0 L¬ 1
+error: the step is refused: L¬ adds members after ⊢, and a forward step adds them only before ⊢: apply it backwards to the goal
+```
+
+`proof FILE` writes the finished derivation as JSON, which `check
+--calculus G3S4 FILE` checks again. The search's derivations are in the
+same calculi, so a session shows how a proof `prove --system` found is
+made.
+
 ## Draw a derivation or a model
 
 `--format latex`, `typst` and `svg` draw the derivation as a tree, and

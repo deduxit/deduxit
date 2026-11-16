@@ -49,6 +49,16 @@ second number (0.1.x to 0.2.0), anything else the third.
   system's rule file), `modal.draw`, `modal.export` and
   `modal.duplicate`; and the schema's forms `modal_sequent`,
   `modal_outcome`, `modal_statement` and `modal_evaluation`.
+- **Modal proofs step by step**: `deduxit interact --calculus G3S4
+  'w0 : []p |- w0 : [][]p'` proves a labelled sequent in any system's
+  calculus. `derive G RULE N…` applies a rule forwards to members of the
+  goal in a sequent calculus: `L□` derives `y : p` from `x : □p` and
+  `x R y`, `Trans` derives `x R z`; a rule that acts on or adds a
+  member after `⊢`, splits the goal or closes it is refused forwards
+  with the reason. In the
+  library, `rules::Interactive::extend` and `rules::Calculus::contexts`.
+- **`[]` and `<>` in a calculus given as data**: a calculus's text
+  syntax reads them as `□` and `◇` where it has those connectives.
 
 ### Changed
 

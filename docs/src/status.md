@@ -348,8 +348,11 @@ in use.
   where it is small enough to check. It
   checks a Kripke model you give against a sequent and a system. The
   command does both under `--system` ([Decide modal logic](modal-logic.md)),
-  and the protocol offers the decision; the web page does not offer
-  modal logic yet.
+  and proves a labelled sequent step by step in any system's calculus,
+  backwards and, for the rules that add before `⊢`, forwards
+  (`interact --calculus G3S4`). The protocol offers the decision, and
+  the web page decides a modal sequent, draws its derivation or
+  countermodel, and proves it step by step in the system's calculus.
 - `check` checks a derivation in a calculus you give as data
   ([Check a derivation in your own rules](rules.md)): a rule file in
   JSON declares the connectives, the zones of a sequent (each a set, a

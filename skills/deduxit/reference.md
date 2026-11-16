@@ -1343,6 +1343,15 @@ one that fails them is exit 2), then exit 0 where the sequent holds and
 and `pdf` draw a countermodel. `--stats` counts worlds made, splits,
 worlds blocked, units of work and inferences.
 
+`deduxit interact --calculus G3S4 "w0 : []p |- w0 : [][]p"` (any
+system's calculus, `G3` and its name) proves a labelled sequent step by
+step: `apply` backwards, and `derive G RULE N…` forwards on members of
+goal G, where `L□`, `L∧`, `L◇` and the conditions' rules (`Ref`, `Ser`,
+`Sym`, `Trans`, `Eucl`) add what they derive before `⊢` (`x=w0` gives a
+label the members leave open). A rule that acts on a member after `⊢`
+(every right rule), adds after it (`L¬`), splits the goal or closes it
+is refused forwards with the reason.
+
 ```console
 $ deduxit prove --system K --format json --output outcome.json "[]p -> [][]p"; echo "exit $?"
 exit 1
@@ -1686,20 +1695,24 @@ your own rules").
   package `fitch` in LaTeX and `fitchcraft` in Typst.
 - `deduxit interact --calculus CALCULUS "SEQUENT"` builds a derivation
   step by step, the sequent written with the calculus's connectives
-  (`->`, `/\`, `|-` read as `→`, `∧`, `⊢` where it has them);
+  (`->`, `/\`, `[]`, `<>`, `|-` read as `→`, `∧`, `□`, `◇`, `⊢` where
+  it has them);
   `--assume SEQUENT` adds a hypothesis. Its commands: `goals`, `rules
   G` (each rule with the member numbers it acts on and what it
   `needs`), `apply G RULE [N…] [NAME=TEXT…]` (backwards; `NAME=TEXT`
   gives a variable or context the goal leaves open), `derive G RULE
   L… [NAME=TEXT…]` (forwards from the lines L… in force at goal G, its
-  conclusion a new line), `assume G [L]` (closes goal G by line L, or
+  conclusion a new line; in a calculus with contexts, a sequent
+  calculus, from members L… of goal G before `⊢`, a rule whose one
+  premise only adds members there, which join the goal), `assume G [L]` (closes goal G by line L, or
   by the line in force equal to it), `undo`, `show`, `proof [FILE]`,
   `save FILE`, `load FILE`. Each goal lists the lines in force,
   numbered from 1 for good; a rule that discharges a hypothesis applies
   backwards and opens its subproof. Every step is checked by the
   calculus's checker. In the library this is `rules::Interactive`
   (`within`, `rules`, `apply` with an `rules::Apply`, `derive` with a
-  `rules::Derive`, `lines`, `assume`, `cite`, `undo`, `finished`); a
+  `rules::Derive`, `extend` with an `Apply` in a sequent calculus,
+  `lines`, `assume`, `cite`, `undo`, `finished`); a
   session's JSON is at wire level 17, or 18 once it holds a derived
   line. `rules::Drawing::new(&calculus, &derivation, &limits)`
   lays a derivation out for the exports: `export::svg::to_string`,
