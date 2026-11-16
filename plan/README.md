@@ -7306,3 +7306,20 @@ move (D26).
     feature `workspace` of its own; signature changes from the design's sketch; reading runs
     instant records again (stricter). Gate and `nix flake check` passed.
   - **63g-c** (the bindings and the page) started in the same worker.
+- 2026-11-16, 14:55: **63g-c reviewed; step 63g complete once the client's lock moves.**
+  - **63g-c** (deduxit `ywswyost` to `oqyowxuv`; the client `qtlzrsyv` to `xwvkwlsl`): "Prove it
+    in ⟨logic⟩" and "Duplicate this proof" make linked tabs; a Workspace button and a panel
+    (docked left at 960 px, else a sheet) list them under inference lines with their checks;
+    a changed sequent puts what was made from it out of date until "Start again"; undo and redo
+    by name; a graph view of the linked tabs; links at version 3 carry the whole linked group.
+    Before the first link the page is as it was. Bindings `workspace_*` with the document as a
+    string (its keys' order is its identity); `Workspace::read_own`; `Edit::ready`. A fresh
+    Sonnet agent did the first-time task in a browser and reached every part (it looked in
+    Export first; an Undo seemed to do nothing for seconds). fresh-reviewer (Fable) broke two
+    criteria with six findings (an undo that left the workspace dead, lost steps, an unseen
+    logic change, a copy's edit rewriting its original, a link dropping siblings, unlinking
+    logged as closing), all fixed with a test each. Eleven departures marked (no lazy chunk,
+    no row menu, no "Update by themselves" setting, the shelf keeps no workspace, …).
+  - **The module's ceiling raised** from 3.3 MB to 3.9 MB at gzip in its own commit
+    (`oppkoukm`, 3 670 553 bytes, +16 %): accepted for 0.5.0; what came in and a module per
+    suite go to `later.md`.

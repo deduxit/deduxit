@@ -2734,3 +2734,13 @@ Step 38h's switch (`interactive.invertible`) applies the invertible rules in the
 - **A calculus given as data**: a rule file would say which rules are invertible (an optional key
   per rule, a wire level); whether a rule so marked is invertible is the file author's claim.
 Source: the 63a and 63b sections of `plan/reports/63-suite-protocol.md`.
+
+## The web module's size after the workspace (63g-c, 2026-11-16)
+
+63g-c raised the module's ceiling from 3.3 MB to 3.9 MB at gzip: the workspace's calls link every
+suite's operations through the protocol's `run` and `check`, so code the linker dropped before is
+now in (3 166 704 bytes before, 3 670 553 after, +16 %). Measure what came in with
+`bench/footprint.py wasm` (twiggy) and decide between trimming it (the protocol's operations
+behind the calls the page uses) and step 47's answer, a module per suite loaded lazily
+(web-front-end-4), whose trigger this is close to. Also from 63g-c's trial: a busy state on the
+workspace panel's Undo (it seemed to do nothing for seconds).
