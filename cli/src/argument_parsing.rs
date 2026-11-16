@@ -274,6 +274,193 @@ pub(crate) enum Command {
         #[command(subcommand)]
         command: SeqCommand,
     },
+    /// Keep sequents and what is made from them in a workspace file
+    ///
+    /// A workspace holds nodes: a sequent you give, or a value made from
+    /// other nodes by an operation (a translation, a decision, a proof
+    /// started). Change a sequent, and what was made from it is out of
+    /// date until `run` makes it again; `undo` and `redo` take a whole
+    /// change back and bring it back. `operations` lists what each kind of
+    /// value takes. Each command reads the file, changes it and writes it
+    /// back, and lists the nodes it touched: the number, the kind, the
+    /// value in a line, and how it was made.
+    Workspace {
+        /// What to do with the workspace.
+        #[command(subcommand)]
+        command: WorkspaceCommand,
+    },
+}
+
+/// What `workspace` does.
+#[derive(Subcommand, Clone, Debug)]
+pub(crate) enum WorkspaceCommand {
+    /// Make a workspace file, with one sequent if one is given
+    New {
+        /// The workspace file to make; an existing file is not replaced
+        file: PathBuf,
+        /// The sequent
+        sequent: Option<String>,
+        /// The sequent's calculus.
+        #[command(flatten)]
+        statement: StatementArgs,
+    },
+    /// Add a sequent
+    Add {
+        /// The workspace file
+        file: PathBuf,
+        /// The sequent
+        sequent: String,
+        /// The sequent's calculus.
+        #[command(flatten)]
+        statement: StatementArgs,
+    },
+    /// Make a node from other nodes by an operation, and run it
+    ///
+    /// The nodes come first, by their numbers, then the operation, such as
+    /// `ordinary.translate`; `operations` lists them. The node runs under
+    /// the limits given here, which it keeps.
+    Apply {
+        /// The workspace file
+        file: PathBuf,
+        /// The input nodes, then the operation
+        #[arg(required = true, num_args = 1..)]
+        words: Vec<String>,
+        /// A parameter of the operation, as KEY=VALUE, such as
+        /// translation=glivenko; a value that is no JSON is a string
+        #[arg(long = "set", value_name = "KEY=VALUE")]
+        set: Vec<String>,
+        /// Make the node without running it
+        #[arg(long)]
+        no_run: bool,
+        /// The limits and the output.
+        #[command(flatten)]
+        common: WorkspaceArgs,
+    },
+    /// Change a given node's sequent, or a node's parameters or limits
+    Set {
+        /// The workspace file
+        file: PathBuf,
+        /// The node
+        node: u32,
+        /// The node's new sequent, in its calculus
+        sequent: Option<String>,
+        /// A parameter of the node's operation, as KEY=VALUE
+        #[arg(long = "set", value_name = "KEY=VALUE")]
+        set: Vec<String>,
+        /// The limits and the output.
+        #[command(flatten)]
+        common: WorkspaceArgs,
+    },
+    /// Make again what is out of date or not run: every node, or those
+    /// named and what they are made from
+    Run {
+        /// The workspace file
+        file: PathBuf,
+        /// The nodes
+        nodes: Vec<u32>,
+        /// Also make each node's check of what its operation promises
+        #[arg(long)]
+        checks: bool,
+        /// The limits and the output.
+        #[command(flatten)]
+        common: WorkspaceArgs,
+    },
+    /// Remove a node and every node made from it
+    Remove {
+        /// The workspace file
+        file: PathBuf,
+        /// The node
+        node: u32,
+    },
+    /// Take back the last change
+    Undo {
+        /// The workspace file
+        file: PathBuf,
+    },
+    /// Bring back the change undo took back last
+    Redo {
+        /// The workspace file
+        file: PathBuf,
+    },
+    /// List the changes, those undo takes back and those redo brings back
+    Log {
+        /// The workspace file
+        file: PathBuf,
+    },
+    /// List the nodes, or write one node's value
+    Show {
+        /// The workspace file
+        file: PathBuf,
+        /// The node whose value to write
+        node: Option<u32>,
+        /// The output format: text, or json for the workspace's document,
+        /// or for a node its value's document
+        #[arg(long, value_enum, value_name = "FORMAT", default_value_t = AnswerFormat::Text)]
+        format: AnswerFormat,
+        /// Write to this file instead of standard output
+        #[arg(short, long, value_name = "PATH")]
+        output: Option<PathBuf>,
+    },
+    /// Check again every node's check, searches included
+    Check {
+        /// The workspace file
+        file: PathBuf,
+        /// The limits and the output.
+        #[command(flatten)]
+        common: WorkspaceArgs,
+    },
+    /// List the operations, or those that take a value of one kind
+    Operations {
+        /// The kind, such as ordinary.sequent
+        kind: Option<String>,
+    },
+}
+
+/// The calculus a sequent of a workspace is claimed in.
+#[derive(Args, Clone, Debug)]
+pub(crate) struct StatementArgs {
+    /// The sequent is of ordinary logic, claimed in this logic; without
+    /// it, of linear logic
+    #[arg(long, value_enum, value_name = "LOGIC")]
+    pub(crate) logic: Option<LogicArg>,
+    /// The linear mode the sequent is claimed in, such as classical or
+    /// intuitionistic
+    #[arg(
+        long,
+        value_name = "MODE",
+        default_value = "classical",
+        conflicts_with = "logic"
+    )]
+    pub(crate) mode: String,
+}
+
+/// What the workspace's commands that run share: the limits a node keeps
+/// and the time limit of the run.
+#[derive(Args, Clone, Debug)]
+pub(crate) struct WorkspaceArgs {
+    /// Give up after this long, such as 500ms, 10s, 2m or 1h, or `none`
+    /// (clock.time_limit_ms); a node the time limit stopped stays as it
+    /// was
+    #[arg(help_heading = LIMITS, long, value_name = "DURATION", value_parser = parse_time, default_value_t = Time(Some(DEFAULT_TIMEOUT)))]
+    pub(crate) timeout: Time,
+    /// The most memory a search may hold, which the node keeps; see `prove
+    /// --memory-limit` (limits.memory_bytes)
+    #[arg(help_heading = LIMITS, long, value_name = "SIZE", value_parser = parse_bytes, default_value_t = Bytes(Some(Limits::DEFAULT_MEMORY_BYTES)))]
+    pub(crate) memory_limit: Bytes,
+    /// The most units of work each search may do, or `none`, which the
+    /// node keeps; see `prove --work-limit` (limits.work)
+    #[arg(help_heading = LIMITS, long, value_name = "N", value_parser = parse_count::<u64>, default_value_t = Count(None))]
+    pub(crate) work_limit: Count<u64>,
+    /// Read the settings from a JSON file; the flags override it
+    ///
+    /// The file is an object with any of the keys `clock`, `limits`,
+    /// `search`, `view`, `styles`, `batch`, `ordinary`, `interactive`,
+    /// `input`, `cut` and `lambda`. A node keeps the keys its operation
+    /// reads, such as `{"limits": {"work": 100000}}`; the bounds of the
+    /// workspace itself are `limits.workspace`. A field left out keeps the
+    /// command's default, and a misspelt one is an error.
+    #[arg(long, value_name = "PATH")]
+    pub(crate) settings: Option<PathBuf>,
 }
 
 impl Command {
@@ -299,7 +486,7 @@ impl Command {
             Command::Seq {
                 command: SeqCommand::Translate(args),
             } => Some((&["seq", "translate"], &args.common.input, true)),
-            Command::Check(_) | Command::Eliminate(_) => None,
+            Command::Check(_) | Command::Eliminate(_) | Command::Workspace { .. } => None,
         }
     }
 
@@ -322,6 +509,7 @@ impl Command {
                     },
             } => !(*intuitionistic || *cyclic || *lambek),
             Command::Seq { .. }
+            | Command::Workspace { .. }
             | Command::Check(_)
             | Command::Eliminate(_)
             | Command::Interpolate(_) => false,

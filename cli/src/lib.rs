@@ -41,6 +41,8 @@ mod show;
 mod style;
 /// `seq translate` and `interpolate`.
 mod transform;
+/// `workspace`: linked values kept in a file.
+mod workspace;
 
 use anyhow::Result;
 use argument_parsing::{Cli, Command};
@@ -296,6 +298,7 @@ fn run(cli: &Cli, given: &settings::Given) -> Result<Status> {
         Command::Interact(args) => interact::interact(args, given),
         Command::Interpolate(args) => transform::interpolate(args, given),
         Command::Seq { command } => seq::run(command, given),
+        Command::Workspace { command } => workspace::run(command, given),
     }
 }
 

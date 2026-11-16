@@ -40,7 +40,7 @@ Workspace crates:
   offers as data, run over JSON with serde_json), and three off by
   default, `parallel` (rayon: the search on a thread pool, off for
   wasm), `png` (resvg) and `pdf` (krilla), which render the SVG with
-  fonts the caller gives; the CLI enables every one but `protocol`.
+  fonts the caller gives; the CLI enables them all.
 - `cli/` is package **`deduxit-cli`**, library **`deduxit_cli`** and binary
   **`deduxit`** (one call into the library; `doc = false` because it shares
   the core crate's name): `prove` (one sequent, or a batch of many),

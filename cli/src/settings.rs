@@ -7,7 +7,7 @@
 
 use crate::argument_parsing::{
     CheckArgs, CoresArg, EliminateArgs, InteractArgs, LambdaArgs, LogicArgs, ProveArgs, SearchArgs,
-    TransformArgs,
+    TransformArgs, WorkspaceArgs,
 };
 use crate::io;
 use anyhow::{Context, Result};
@@ -394,6 +394,32 @@ impl TransformArgs {
     }
 }
 
+impl WorkspaceArgs {
+    /// Returns the settings a workspace's command runs under: the limits a
+    /// node it makes or changes keeps, and the time limit of its runs.
+    ///
+    /// # Errors
+    ///
+    /// Those of reading the settings file.
+    pub(crate) fn settings(&self, given: &Given) -> Result<Settings> {
+        let mut settings = read(self.settings.as_deref())?;
+        let apply = Apply {
+            file: self.settings.is_some(),
+            given,
+        };
+        if apply.set("memory_limit") {
+            settings.limits.memory_bytes = self.memory_limit.0;
+        }
+        if apply.set("timeout") {
+            settings.clock.time_limit_ms = self.timeout.0.map(millis);
+        }
+        if apply.set("work_limit") {
+            settings.limits.work = self.work_limit.0;
+        }
+        Ok(settings)
+    }
+}
+
 impl LambdaArgs {
     /// Sets how a lambda-term is printed.
     fn apply(&self, settings: &mut Settings, apply: &Apply<'_>) {
@@ -625,6 +651,22 @@ mod tests {
             Command::Seq { .. } => {
                 unreachable!("only `seq print` and `seq translate` read settings")
             }
+            Command::Workspace { command } => workspace_settings(&command, &given),
+        }
+    }
+
+    /// Returns the settings of a workspace's command that runs.
+    fn workspace_settings(
+        command: &crate::argument_parsing::WorkspaceCommand,
+        given: &Given,
+    ) -> Settings {
+        use crate::argument_parsing::WorkspaceCommand::{Apply, Check, Run, Set};
+        match command {
+            Apply { common, .. }
+            | Set { common, .. }
+            | Run { common, .. }
+            | Check { common, .. } => common.settings(given).unwrap(),
+            _ => unreachable!("the other workspace commands read no settings"),
         }
     }
 
@@ -832,6 +874,7 @@ mod tests {
             &["deduxit", "seq", "print", "A |- A"],
             &["deduxit", "seq", "translate", "a"],
             &["deduxit", "interpolate", "a |- a"],
+            &["deduxit", "workspace", "run", "w.json"],
         ] {
             ASKED.with_borrow_mut(Vec::clear);
             let given = Given::default();
@@ -847,6 +890,7 @@ mod tests {
                 Command::Seq { .. } => drop(
                     of_print(None, None, None, deduxit::linear::IllSyntax::Strict, &given).unwrap(),
                 ),
+                Command::Workspace { command } => drop(workspace_settings(&command, &given)),
             }
             let mut leaf = &cli;
             for word in &line[1..] {
