@@ -5,7 +5,7 @@
 //! data, as the page makes them, under WebAssembly in Node and as
 //! ordinary tests elsewhere.
 
-use deduxit_web::rules::{self, StepForm};
+use deduxit_web::rules::{self, DeriveForm, StepForm};
 use deduxit_web::{Failure, calls};
 use serde_json::{Value, json};
 use wasm_bindgen_test::wasm_bindgen_test;
@@ -34,6 +34,16 @@ fn step(rule: &str, at: &[u32], given: &[(&str, &str)]) -> String {
             .iter()
             .map(|&(name, text)| (name.to_owned(), text.to_owned()))
             .collect(),
+    })
+    .unwrap()
+}
+
+/// A forward step's JSON: the rule from these lines.
+fn derive(rule: &str, lines: &[u32]) -> String {
+    serde_json::to_string(&DeriveForm {
+        rule: rule.to_owned(),
+        lines: lines.to_vec(),
+        given: std::collections::BTreeMap::new(),
     })
     .unwrap()
 }
@@ -228,4 +238,98 @@ fn a_calculus_of_ones_own_is_used() {
     });
     let refused = failure(&rules::read(&unknown.to_string(), "").unwrap_err());
     assert_eq!(refused["code"], "invalid_calculus");
+}
+
+/// Natural deduction built both ways: a subproof opened backwards, lines
+/// derived forwards from it, an undo of a forward step, a line cited by
+/// two goals, the tree and the Fitch proof of the result.
+#[wasm_bindgen_test(unsupported = test)]
+fn natural_deduction_is_built_forwards_and_backwards() {
+    let started = rules::start("NJ", "a ∧ b → (b ∧ a) ∧ (b ∧ a)", "", "").unwrap();
+    let opened = take(&session(&started), 0, "→I");
+    assert_eq!(value(&opened)["opened"], json!([1]));
+    let goal = &value(&opened)["view"]["goals"][0];
+    assert_eq!(goal["lines"], json!([{"line": 1, "sequent": "a ∧ b"}]));
+    let mut state = session(&opened);
+    for (rule, lines, number) in [
+        ("∧E₂", vec![1], 2),
+        ("∧E₁", vec![1], 3),
+        ("∧I", vec![2, 3], 4),
+    ] {
+        let answer = rules::derive(&state, 1, &derive(rule, &lines), "").unwrap();
+        assert_eq!(value(&answer)["line"], number);
+        state = session(&answer);
+    }
+    let undone = rules::undo(&state, "").unwrap();
+    let said = value(&undone);
+    assert_eq!(
+        (&said["reopened"], &said["removed"]),
+        (&json!(null), &json!(4))
+    );
+    let again = rules::derive(&session(&undone), 1, &derive("∧I", &[2, 3]), "").unwrap();
+    assert_eq!(value(&again)["line"], 4);
+    state = session(&again);
+
+    // A rule that discharges applies backwards only; a line must exist.
+    let discharging = failure(&rules::derive(&state, 1, &derive("→I", &[4]), "").unwrap_err());
+    assert_eq!(discharging["code"], "step_refused");
+    let missing = failure(&rules::derive(&state, 1, &derive("∧I", &[4, 9]), "").unwrap_err());
+    assert!(
+        missing["message"].as_str().unwrap().contains("no line 9"),
+        "{missing}"
+    );
+
+    let split = take(&state, 1, "∧I");
+    let goals = open_goals(&split);
+    state = session(&split);
+    for goal in goals {
+        state = session(&rules::cite(&state, goal, 4, "").unwrap());
+    }
+    let view = value(&rules::view(&state, "").unwrap());
+    assert_eq!(view["finished"], true);
+    // Line 4 is drawn under each parent: two inferences, one node.
+    let inferences = view["inferences"].as_array().unwrap();
+    let tree = rules::draw(&state, "").unwrap();
+    assert_eq!(inferences.len(), 12);
+    assert!(
+        tree.contains("id=\"i11\"") && !tree.contains("id=\"i12\""),
+        "{tree}"
+    );
+
+    let fitch = r#"{"view": {"layout": "fitch"}}"#;
+    let latex = rules::export(&state, "latex", fitch).unwrap();
+    assert!(latex.contains(r"\hypo{1}{a \land b}"), "{latex}");
+    assert!(latex.contains(r"\by{$\land\mathrm{I}$}{4, 4}"), "{latex}");
+    let svg = rules::draw(&state, fitch).unwrap();
+    assert!(
+        svg.contains("id=\"l6\"") && !svg.contains("id=\"l7\""),
+        "{svg}"
+    );
+    let checked = value(&rules::check(&state, "").unwrap());
+    assert_eq!(checked["verdict"], "valid in the calculus given");
+}
+
+/// A line of a closed subproof is out of reach of a goal outside it, and
+/// citing it is refused with the reason.
+#[wasm_bindgen_test(unsupported = test)]
+fn a_line_out_of_scope_is_refused() {
+    let mut state = session(&take(
+        &session(&rules::start("NJ", "(a → a) ∧ (b → b)", "", "").unwrap()),
+        0,
+        "∧I",
+    ));
+    for goal in [1, 2] {
+        state = session(&take(&state, goal, "→I"));
+    }
+    let view = value(&rules::view(&state, "").unwrap());
+    let lines = |at: usize| view["goals"][at]["lines"].clone();
+    assert_eq!(lines(0), json!([{"line": 1, "sequent": "a"}]));
+    assert_eq!(lines(1), json!([{"line": 2, "sequent": "b"}]));
+    let goal = u32::try_from(view["goals"][1]["goal"].as_u64().unwrap()).unwrap();
+    let refused = failure(&rules::cite(&state, goal, 1, "").unwrap_err());
+    assert_eq!(refused["code"], "step_refused");
+    assert!(
+        refused["message"].as_str().unwrap().contains("line 1"),
+        "{refused}"
+    );
 }

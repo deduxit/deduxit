@@ -447,6 +447,34 @@ mod exports {
         rules::apply(session, index(goal, "a goal")?, step, settings).map_err(thrown)
     }
 
+    /// See [`rules::derive`].
+    #[wasm_bindgen]
+    pub fn rules_derive(
+        session: &str,
+        goal: f64,
+        step: &str,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        rules::derive(session, index(goal, "a goal")?, step, settings).map_err(thrown)
+    }
+
+    /// See [`rules::cite`].
+    #[wasm_bindgen]
+    pub fn rules_cite(
+        session: &str,
+        goal: f64,
+        line: f64,
+        settings: &str,
+    ) -> Result<String, JsValue> {
+        rules::cite(
+            session,
+            index(goal, "a goal")?,
+            index(line, "a line")?,
+            settings,
+        )
+        .map_err(thrown)
+    }
+
     /// See [`rules::assume`].
     #[wasm_bindgen]
     pub fn rules_assume(session: &str, goal: f64, settings: &str) -> Result<String, JsValue> {

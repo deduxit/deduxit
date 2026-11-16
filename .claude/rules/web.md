@@ -281,20 +281,28 @@ for `THIRD-PARTY-NOTICES.txt`.
   `Forcing::failing_anywhere`, linear. `tests/ordinary.rs` holds their tests.
 - **A tab in a calculus given as data** has `rules.rs`'s calls,
   exported as `rules_calculus`, `rules_read`, `rules_start`,
-  `rules_view`, `rules_rules`, `rules_apply`, `rules_assume`,
-  `rules_undo`, `rules_check`, `rules_draw` and `rules_export`. The
+  `rules_view`, `rules_rules`, `rules_apply`, `rules_derive`,
+  `rules_cite`, `rules_assume`, `rules_undo`, `rules_check`,
+  `rules_draw` and `rules_export`. The
   session is `rules::Interactive` at level 17 (18 once it holds a line
-  a forward step derived, which the page does not take yet; `rules_undo`
-  answers `reopened: null` for a forward step taken back) and holds the rule file,
+  a forward step derived; `rules_undo` answers `reopened: null` and
+  `removed`, the line's number, for a forward step taken back) and holds the rule file,
   so the page needs nothing else to go on and a saved session is the
   whole state; reading it (`from_parts`) checks every step again, which
   is what lets the page trust a session from its link or storage. A
   calculus is a rule file's JSON or a built-in's name (`BUILT_IN`, as
   the command's). The step is the bindings' `StepForm` (`{"rule",
-  "at", "given"}`, `given` a map so that a name is given once). The
-  view's `inferences` is `Interactive::derivation_goals`, which lines
-  up with the drawing's `i<n>` because `rules::Drawing` numbers a
-  tree's inferences in the derivation's order. `about` lists the suite
+  "at", "given"}`, `given` a map so that a name is given once); a
+  forward step is `DeriveForm` (`{"rule", "lines", "given"}`), its lines
+  by their numbers from 1, which never change while a line stands, so the
+  page cites what the view's `lines` lists. The view's `inferences` maps
+  each of the tree's `i<n>` to its session node through
+  `Drawing::nodes()` and `Interactive::derivation_goals` (a line cited
+  twice is one node and two inferences), so the view builds the drawing
+  within the settings' bounds and is empty where they refuse it. `draw`
+  and `export` write the Fitch proof when `view.layout` is `fitch`
+  (`rules::Fitch`, `styles.fitch` its text, ids `l<n>`), its `not_fitch`
+  refusal passed on as the library writes it. `about` lists the suite
   as `rules` with the parameter `calculus` and `term` `null` (a rule
   file's rules have no lambda-terms). `tests/rules.rs` holds the tests.
 - **The transformations** (`ordinary_translate(sequent, options,

@@ -10,14 +10,20 @@
 //! which holds the rule file itself. The page keeps it, saves it and
 //! sends it with every call; reading it checks every step taken again.
 //! A member of a goal is named by its number across the goal's zones,
-//! the first zone's members first. Every verdict is "valid in the
-//! calculus given": nothing says the calculus's rules are sound.
+//! the first zone's members first, and a line by its number from 1, as
+//! the session numbers its hypotheses and the lines a forward step
+//! derived. Every verdict is "valid in the calculus given": nothing says
+//! the calculus's rules are sound.
 
 use crate::failure::Failure;
 use crate::tab;
+use deduxit::export::Drawable;
 use deduxit::export::{latex, svg, typst};
-use deduxit::rules::{self, Apply, Calculus, Drawing, GoalId, Interactive, Undone};
-use deduxit::{Progress, Settings, wire};
+use deduxit::linear::proofs::Layout;
+use deduxit::rules::{
+    self, Apply, Calculus, Derive, Drawing, Fitch, GoalId, Interactive, LineId, Undone,
+};
+use deduxit::{Limits, Progress, Settings, wire};
 use serde::{Deserialize, Serialize};
 
 /// The stop of every call. The page cancels a call by stopping its
@@ -148,6 +154,18 @@ struct OpenGoal {
     /// The hypotheses in force at the goal as text, the innermost first,
     /// the session's assumptions last: what `assume` closes it by.
     hypotheses: Vec<String>,
+    /// The lines in force at the goal, in the order of their numbers:
+    /// what a forward step cites and `cite` closes the goal by.
+    lines: Vec<LineView>,
+}
+
+/// A line in force at a goal.
+#[derive(Serialize)]
+struct LineView {
+    /// Its number, from 1, which never changes while the line stands.
+    line: u32,
+    /// The line as text.
+    sequent: String,
 }
 
 /// What the page shows of a session.
@@ -165,14 +183,17 @@ struct View<'a> {
     steps: usize,
     /// The open goals.
     goals: Vec<OpenGoal>,
-    /// For each inference `i<n>` of the drawing, at index `n`, its node in
-    /// the session: an open goal's id where the inference is one.
+    /// For each inference `i<n>` of the tree's drawing, at index `n`, its
+    /// node in the session: an open goal's id where the inference is one.
+    /// A line cited twice is drawn under each parent, so its node stands
+    /// twice. Empty when the settings' bounds refuse the drawing.
     inferences: Vec<GoalId>,
 }
 
 impl<'a> View<'a> {
-    /// Returns the view of a session.
-    fn of(state: &'a Interactive) -> Result<Self, Failure> {
+    /// Returns the view of a session, its drawing's inferences within
+    /// `limits`.
+    fn of(state: &'a Interactive, limits: &Limits) -> Result<Self, Failure> {
         let (calculus, terms) = (state.calculus(), state.terms());
         let goals = state
             .goals()
@@ -194,8 +215,22 @@ impl<'a> View<'a> {
                     .into_iter()
                     .map(|h| calculus.show_zones(terms, h).to_string())
                     .collect(),
+                lines: state
+                    .lines(goal)
+                    .into_iter()
+                    .map(|(line, sequent)| LineView {
+                        line: line.number(),
+                        sequent: calculus.show_zones(terms, sequent).to_string(),
+                    })
+                    .collect(),
             })
             .collect();
+        let derivation = state.derivation().map_err(Failure::from)?;
+        let nodes = state.derivation_goals().map_err(Failure::from)?;
+        let inferences = Drawing::new(calculus, &derivation, limits).map_or_else(
+            |_| Vec::new(),
+            |drawing| drawing.nodes().map(|node| nodes[node.index()]).collect(),
+        );
         Ok(Self {
             calculus: Described::of(calculus),
             sequent: calculus
@@ -209,7 +244,7 @@ impl<'a> View<'a> {
             finished: state.is_finished(),
             steps: state.steps(),
             goals,
-            inferences: state.derivation_goals().map_err(Failure::from)?,
+            inferences,
         })
     }
 }
@@ -228,10 +263,10 @@ struct Changed<'a, T: Serialize> {
 }
 
 /// Returns a session's document with its view and what a call said.
-fn changed(state: &Interactive, said: impl Serialize) -> Result<String, Failure> {
+fn changed(state: &Interactive, limits: &Limits, said: impl Serialize) -> Result<String, Failure> {
     written(&Changed {
         session: state,
-        view: View::of(state)?,
+        view: View::of(state, limits)?,
         said,
     })
 }
@@ -267,7 +302,7 @@ pub fn start(
     let assumptions: Vec<&str> = assumptions.iter().map(String::as_str).collect();
     let state = Interactive::within(calculus, goal, &assumptions, &settings.limits)
         .map_err(Failure::from)?;
-    changed(&state, serde_json::Map::new())
+    changed(&state, &settings.limits, serde_json::Map::new())
 }
 
 /// Reads a saved session, checking every step in it again, and returns
@@ -282,7 +317,7 @@ pub fn start(
 pub fn view(session: &str, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let state = session_of(session, &settings)?;
-    written(&View::of(&state)?)
+    written(&View::of(&state, &settings.limits)?)
 }
 
 /// A step the page may take, as [`rules`](self::rules) lists it.
@@ -375,7 +410,87 @@ pub fn apply(session: &str, goal: u32, step: &str, settings: &str) -> Result<Str
             &Apply::new(&step.rule).at(&step.at).given(&given),
         )
         .map_err(Failure::from)?;
-    changed(&state, Opened { opened })
+    changed(&state, &settings.limits, Opened { opened })
+}
+
+/// A forward step as the page sends it: `{"rule", "lines", "given"}`.
+///
+/// - `rule` is the rule's name.
+/// - `lines` lists the lines in force that the rule's premises are, by
+///   their numbers, in the rule's order.
+/// - `given` maps what the lines leave open, a variable of the rule by
+///   name, to its text: a formula only the conclusion holds.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeriveForm {
+    /// The rule.
+    pub rule: String,
+    /// The lines cited.
+    #[serde(default)]
+    pub lines: Vec<u32>,
+    /// The values given, by name.
+    #[serde(default)]
+    pub given: std::collections::BTreeMap<String, String>,
+}
+
+/// What a forward step derived.
+#[derive(Serialize)]
+struct Derived {
+    /// The number of the line the step derived.
+    line: u32,
+}
+
+/// Applies a rule forwards ([`DeriveForm`]) at an open goal: from lines
+/// in force there to a new line in the goal's subproof, which the goal
+/// and every goal inside the subproof may cite. Returns the session with
+/// `line`, the new line's number. A rule that discharges hypotheses is
+/// refused: it applies backwards, which opens its subproof.
+///
+/// # Errors
+///
+/// A step that is no such JSON; `step_refused` with the reason for a line
+/// not in force, a rule the lines do not match, or one that discharges;
+/// `step_needs` with the names of what the step needs given; `parse` for
+/// a given text that is no term.
+pub fn derive(session: &str, goal: u32, step: &str, settings: &str) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let mut state = session_of(session, &settings)?;
+    let step: DeriveForm = serde_json::from_str(step).map_err(Failure::json)?;
+    let lines: Vec<LineId> = step.lines.iter().copied().map(LineId::new).collect();
+    let given: Vec<(&str, &str)> = step
+        .given
+        .iter()
+        .map(|(name, text)| (name.as_str(), text.as_str()))
+        .collect();
+    let line = state
+        .derive(
+            GoalId::new(goal),
+            &Derive::new(&step.rule).lines(&lines).given(&given),
+        )
+        .map_err(Failure::from)?;
+    changed(
+        &state,
+        &settings.limits,
+        Derived {
+            line: line.number(),
+        },
+    )
+}
+
+/// Closes an open goal by a line in force at it, by the line's number
+/// from 1, and returns the session.
+///
+/// # Errors
+///
+/// `step_refused` for a goal that is not open, a line not in force at
+/// it, and a line that is not the goal.
+pub fn cite(session: &str, goal: u32, line: u32, settings: &str) -> Result<String, Failure> {
+    let settings = tab::read(settings)?;
+    let mut state = session_of(session, &settings)?;
+    state
+        .cite(GoalId::new(goal), LineId::new(line))
+        .map_err(Failure::from)?;
+    changed(&state, &settings.limits, serde_json::Map::new())
 }
 
 /// Closes an open goal by a hypothesis in force, and returns the session.
@@ -388,20 +503,24 @@ pub fn assume(session: &str, goal: u32, settings: &str) -> Result<String, Failur
     let settings = tab::read(settings)?;
     let mut state = session_of(session, &settings)?;
     state.assume(GoalId::new(goal)).map_err(Failure::from)?;
-    changed(&state, serde_json::Map::new())
+    changed(&state, &settings.limits, serde_json::Map::new())
 }
 
-/// What an undo reopened.
+/// What an undo took back.
 #[derive(Serialize)]
 struct Reopened {
     /// The goal the undo reopened, `null` when no step was left or the
     /// step taken back was a forward one, which reopens no goal.
     reopened: Option<GoalId>,
+    /// The number of the line a forward step taken back had derived, or
+    /// `null`.
+    removed: Option<u32>,
 }
 
 /// Takes back the session's last step and returns the session with
-/// `reopened`, the goal, or `null` when no step was left or a forward
-/// step was taken back.
+/// `reopened`, the goal a backward step or a closing reopens, and
+/// `removed`, the line a forward step had derived; both `null` when no
+/// step was left.
 ///
 /// # Errors
 ///
@@ -409,11 +528,12 @@ struct Reopened {
 pub fn undo(session: &str, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let mut state = session_of(session, &settings)?;
-    let reopened = match state.undo() {
-        Some(Undone::Reopened(goal)) => Some(goal),
-        _ => None,
+    let (reopened, removed) = match state.undo() {
+        Some(Undone::Reopened(goal)) => (Some(goal), None),
+        Some(Undone::Removed(line)) => (None, Some(line.number())),
+        _ => (None, None),
     };
-    changed(&state, Reopened { reopened })
+    changed(&state, &settings.limits, Reopened { reopened, removed })
 }
 
 /// The verdict on a finished derivation.
@@ -448,9 +568,11 @@ pub fn check(session: &str, settings: &str) -> Result<String, Failure> {
 }
 
 /// Returns a session's derivation as an SVG drawing in the settings'
-/// style (`styles.svg`), open goals as the style draws them. Every
-/// inference has the id `i<n>`, and the view's `inferences` names its
-/// node in the session. It is [`export`] in `svg`.
+/// style (`styles.svg`), open goals as the style draws them. In a tree
+/// every inference has the id `i<n>`, and the view's `inferences` names
+/// its node in the session; in a Fitch proof (`view.layout` `fitch`)
+/// every line's formula has the id `l<n>`, `n` its number. It is
+/// [`export`] in `svg`.
 ///
 /// # Errors
 ///
@@ -460,35 +582,47 @@ pub fn draw(session: &str, settings: &str) -> Result<String, Failure> {
 }
 
 /// Returns a session's derivation in a format, `latex`, `typst` or
-/// `svg`, open goals as the settings' style draws them. [`check`] gives
-/// a finished derivation's document.
+/// `svg`, open goals as the settings' style draws them: a tree, or with
+/// `view.layout` `fitch` a Fitch proof, its numbered lines and
+/// subproofs, the text `styles.fitch` sets. [`check`] gives a finished
+/// derivation's document.
 ///
 /// # Errors
 ///
 /// An unknown format, a drawing estimated past `limits.derivation_bytes`,
-/// and what the format refuses.
+/// `not_fitch` with the reason for a derivation no Fitch proof writes
+/// (the tree draws it), and what the format refuses.
 pub fn export(session: &str, format: &str, settings: &str) -> Result<String, Failure> {
     let settings = tab::read(settings)?;
     let state = session_of(session, &settings)?;
     let derivation = state.derivation().map_err(Failure::from)?;
-    let drawing =
-        Drawing::new(state.calculus(), &derivation, &settings.limits).map_err(Failure::from)?;
     let styles = &settings.styles;
-    let mut out = String::new();
-    match format {
-        "latex" => latex::write(&drawing, &styles.latex, &mut out, never),
-        "typst" => typst::write(&drawing, &styles.typst, &mut out, never),
-        "svg" => svg::write(&drawing, &styles.svg, &mut out, never),
-        _ => {
-            return Err(Failure::refused(
-                "unknown_name",
-                "malformed",
-                "the formats are latex, typst and svg",
-            ));
+    let write = |drawable: Drawable<'_>| -> Result<String, Failure> {
+        let mut out = String::new();
+        match format {
+            "latex" => latex::write(drawable, &styles.latex, &mut out, never),
+            "typst" => typst::write(drawable, &styles.typst, &mut out, never),
+            "svg" => svg::write(drawable, &styles.svg, &mut out, never),
+            _ => {
+                return Err(Failure::refused(
+                    "unknown_name",
+                    "malformed",
+                    "the formats are latex, typst and svg",
+                ));
+            }
         }
+        .map_err(Failure::from)?;
+        Ok(out)
+    };
+    let calculus = state.calculus();
+    if settings.view.layout == Layout::Fitch {
+        let fitch = Fitch::new(calculus, &derivation, &styles.fitch, &settings.limits)
+            .map_err(Failure::from)?;
+        write(Drawable::from(&fitch))
+    } else {
+        let tree = Drawing::new(calculus, &derivation, &settings.limits).map_err(Failure::from)?;
+        write(Drawable::from(&tree))
     }
-    .map_err(Failure::from)?;
-    Ok(out)
 }
 
 /// Reads a rule file, its JSON or a built-in calculus's name.
