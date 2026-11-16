@@ -441,7 +441,9 @@ for `THIRD-PARTY-NOTICES.txt`.
   of nixpkgs, and never alone (the client loads the module this CLI
   writes, so the client's flake update follows the push).
 - **The budget** (`modules/budget.nix`): the module at `gzip -9` under a
-  ceiling (3 300 000 bytes; 3 111 006 on 2026-11-15 with the calls of a
+  ceiling (3 900 000 bytes; 3 670 553 on 2026-11-16 with the workspace's
+  calls, which link every suite's operations through the protocol's run
+  and check; 3 111 006 on 2026-11-15 with the calls of a
   calculus given as data, 2 842 389 on 2026-11-14, 2 603 759 at 0.2.0,
   the PNG and PDF renderers' crates two fifths of it) and Cargo.lock's
   packages under another (180; 173). A change that passes one raises it
