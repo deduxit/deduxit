@@ -625,3 +625,31 @@ alone fails its own test of the Table tab, whose fix is in `vqzymsrw`.
 - **Before 0.6.0**: the manual and the page's About say what a pack is
   and that nothing is sent; the client's README names `#v=4` beside the
   other link versions.
+
+## Session 68d
+
+Opus 5.5 at `high` (the 68b and 68c worker, its conversation kept),
+from the brief `/tmp/linlog-handoff/start-68d.md`, on 2026-11-16, cores
+7 to 9: the client in its workspace `step68b` on `tllwnulk` (68c's chain
+with its lock update), deduxit for this report.
+
+- **The change** (the author's decision of 2026-11-16 on 68c's
+  question): where a course pack bars the search, "Apply invertible
+  rules by themselves" has no effect on the pack's tabs. The prover's
+  `invertibleOn(id)` is the setting less the pack's bar; every call's
+  settings (`json`), the undo's grouping of a step with its invertible
+  steps and the setting's own run over the open goals read it. The
+  setting stays the visitor's elsewhere, and the Settings sheet says
+  "This pack asks for every step by hand." while a barred tab shows.
+  The linear suite is the one whose sessions apply the rules today; the
+  ordinary one has no such setting yet. The check view takes a hand-in
+  as before: a session that holds invertible steps is still a proof.
+- **The test**: `packs.spec.ts`, "with the search barred, the invertible
+  rules wait for the student too": the setting turned on in a pack of
+  two linear problems leaves `⊢ A ⊸ A` open and the bar at 0 of 2, and a
+  tab outside the pack is finished by the rules alone.
+- **Checks** (the client): lint and `astro check` clean, Vitest 703,
+  `packs.spec.ts` 10 passed, `nix flake check` passed (every check,
+  the whole e2e suite 341).
+- **Commits**: the client `rluokntt` on `tllwnulk`; deduxit this
+  report's.
