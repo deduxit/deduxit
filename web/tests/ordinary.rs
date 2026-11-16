@@ -400,7 +400,13 @@ fn the_invertible_rules_apply_by_themselves() {
     let started = value(&ordinary::start("a /\\ b |- b /\\ a", "classical", on).unwrap());
     assert_eq!(started["inverted"], 4);
     assert_eq!(started["view"]["complete"], true);
-    assert_eq!(started["view"]["invertible"].as_array().unwrap().len(), 4);
+    assert_eq!(started["view"]["invertible"], json!([0, 1, 2, 3]));
+    // A split context is no invertible step.
+    let split = ordinary::start("c, d |- a /\\ b", "classical", "").unwrap();
+    let step =
+        r#"{"side": "right", "position": 0, "rule": "∧R", "split": {"left": [0], "right": []}}"#;
+    let split = value(&ordinary::apply(&session(&split), 0, step, "").unwrap());
+    assert_eq!(split["view"]["invertible"], json!([]));
     let lj = value(&ordinary::start("c, a -> b, a |- b /\\ c", "intuitionistic", on).unwrap());
     assert_eq!(lj["view"]["goals"].as_array().unwrap().len(), 1);
     let off = ordinary::start("a /\\ b |- b /\\ a", "classical", "").unwrap();

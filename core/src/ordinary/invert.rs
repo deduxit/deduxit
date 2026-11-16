@@ -10,7 +10,7 @@
 //! right of `⊢` or chooses a disjunct).
 
 use super::interactive::{Context, Interactive, Step};
-use super::{Inference, Logic, Node, NodeId, Rule, Side};
+use super::{Logic, Node, NodeId, Rule, Side};
 use crate::limits::{Limits, Phase, Refusal};
 use crate::linear::proofs::GoalId;
 use crate::linear::proofs::interactive::Inverted;
@@ -92,9 +92,11 @@ impl Interactive {
     /// step, which [`undo`](Self::undo) takes back one at a time. It
     /// always ends: every premise has a lighter sequent than its
     /// conclusion, an equivalence counted as heavier than its two
-    /// implications. The bytes of the goals it opens are bounded by
-    /// `limits.memory_bytes`: at the bound it stops, and the steps it
-    /// took stand ([`Inverted::finished`]).
+    /// implications. The bytes of the inferences it adds, by the
+    /// estimate [`derivation_within`](Self::derivation_within) bounds a
+    /// derivation by (an axiom's weakenings among them), are bounded by
+    /// `limits.memory_bytes`: past the bound it stops after the step that
+    /// passed it, and the steps it took stand ([`Inverted::finished`]).
     ///
     /// # Errors
     ///
@@ -117,15 +119,17 @@ impl Interactive {
     fn invert_goals(&mut self, goals: Vec<GoalId>, limits: &Limits) -> Inverted {
         let mut todo: Vec<GoalId> = goals.into_iter().rev().collect();
         let (mut steps, mut open) = (0, Vec::new());
-        // The bytes of the goals opened: per goal, an inference and its
-        // formulas. The sum saturates, but the bound stops the run long
-        // before that.
+        // The bytes of the inferences the steps add, by the derivation's
+        // own estimate, an axiom's weakenings included. The sum saturates,
+        // but the bound stops the run long before that.
         let mut held = 0u64;
+        let widths = self.widths();
         while let Some(goal) = todo.pop() {
             let Some(step) = self.invertible_step(goal) else {
                 open.push(goal);
                 continue;
             };
+            let from = self.inference_count();
             let Ok(opened) = self.apply(goal, &step) else {
                 // A step the state refuses (past the bound on a step's
                 // weakenings) leaves the goal open.
@@ -133,12 +137,7 @@ impl Interactive {
                 continue;
             };
             steps += 1;
-            let needed = opened.iter().fold(0u64, |sum, &g| {
-                let formulas = self.goal(g).map_or(0, |(l, r)| l.len() + r.len());
-                let bytes = size_of::<Inference>() + formulas * size_of::<NodeId>();
-                sum.saturating_add(bytes as u64)
-            });
-            held = held.saturating_add(needed);
+            held = held.saturating_add(self.added_bytes(&widths, goal, from));
             if let Some(limit) = limits.memory_bytes
                 && held > limit
             {
@@ -191,8 +190,9 @@ impl Interactive {
 
 #[cfg(all(test, feature = "parse"))]
 mod tests {
-    use super::super::{Interactive, Logic, Options, Sequent, Verdict, decide};
+    use super::super::{Interactive, Logic, Options, Rule, Sequent, Side, Step, Verdict, decide};
     use crate::Limits;
+    use crate::linear::proofs::GoalId;
 
     /// Returns whether the open goals of a session are all valid in its
     /// logic, by the default decision.
@@ -254,6 +254,31 @@ mod tests {
             let inverted = state.invert_all(&Limits::default());
             assert_eq!(inverted.open.len(), open, "{text} in {logic} logic");
         }
+    }
+
+    #[test]
+    fn the_steps_taken_by_an_invertible_rule_are_listed_by_their_goal() {
+        // An axiom with a context closes its goal through weakenings.
+        let sequent: Sequent = "a, b |- a".parse().unwrap();
+        let mut state = Interactive::new(&sequent, Logic::Classical).unwrap();
+        state.invert_all(&Limits::default());
+        assert_eq!(state.invertible_steps(), [GoalId::new(0)]);
+        // A split context is the user's choice, not an invertible step.
+        let sequent: Sequent = "c, d |- a /\\ b".parse().unwrap();
+        let mut state = Interactive::new(&sequent, Logic::Classical).unwrap();
+        let step = Step::new(Side::Right, 0, Rule::AndRight).split(&[0], &[]);
+        state.apply(GoalId::new(0), &step).unwrap();
+        assert_eq!(state.invertible_steps(), []);
+    }
+
+    #[test]
+    fn an_axiom_s_weakenings_count_against_the_bound() {
+        let atoms: Vec<String> = (0..100).map(|k| format!("a{k}")).collect();
+        let text = format!("{} |- {}", atoms.join(", "), atoms.join(" /\\ "));
+        let sequent: Sequent = text.parse().unwrap();
+        let mut state = Interactive::new(&sequent, Logic::Classical).unwrap();
+        let inverted = state.invert_all(&Limits::default().with_memory_bytes(Some(262_144)));
+        assert!(inverted.finished.is_err());
     }
 
     #[test]

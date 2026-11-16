@@ -687,10 +687,23 @@ classical logic only (`Error::Logic`, which names the method).
   weighed as `2(w(A) + w(B)) + 3`, above its two implications.
 - **Each step goes through `apply`**, the public step, so the checker's
   rule checks every one, and a step `apply` refuses (the axiom's
-  weakenings past the session's bound) leaves the goal open; the goals
-  opened are charged per inference and formula to
-  `limits.memory_bytes`, `Refusal::Memory` in `Inverted::finished` at
-  the bound, the steps taken standing. `Inverted` is the linear
+  weakenings past the session's bound) leaves the goal open. Every
+  inference a step added (`added_bytes`: from the count before it, and
+  the goal's own) is charged by the derivation's estimate
+  (`derivation::inference_bytes`, which `derivation_within` bounds a
+  derivation by) to `limits.memory_bytes`, `Refusal::Memory` in
+  `Inverted::finished` after the step that passed it, the steps taken
+  standing. Charging only the goals opened let an axiom's weakenings
+  (n inferences of up to n formulas) pass: 100 atoms made 2.2 MB under a
+  bound of 256 KiB, and a page's session too large to draw (the review
+  of 54x7).
+- **`invertible_steps`** lists the goals the history's steps closed by
+  an invertible rule: an axiom step is its goal's chain of weakenings
+  (premises no other step closed) ending in the axiom, whose goal holds
+  the first weakening; a two-premise rule counts as shared where each
+  premise holds at least as many formulas as its goal. Read off the
+  drawing it named the axiom's inference instead of the step's goal,
+  and a split that dropped one formula per premise passed. `Inverted` is the linear
   session's type, its goals the ordinary session's ids.
 - **The order**: a closing step (the axiom, `⊥` true, `⊤` false) first,
   else the first formula's rule, the hypotheses before the formulas

@@ -15,7 +15,6 @@ use crate::calls::{Automatic, inverting};
 use crate::failure::Failure;
 use crate::tab;
 use deduxit::export::{latex, rocq, svg, typst};
-use deduxit::linear::proofs::Structural;
 use deduxit::ordinary::interpolant::{self, Partition};
 use deduxit::ordinary::negative;
 use deduxit::ordinary::{
@@ -63,9 +62,9 @@ struct View {
     /// in the session. The drawing shows the structural rules as the
     /// settings' `view.structural` says.
     inferences: Vec<GoalId>,
-    /// The session's steps that apply a rule invertible in its logic on
-    /// their goal, with a shared context (`Interactive::is_invertible`),
-    /// by their goal, in order.
+    /// The goals the session's steps closed by a rule invertible in its
+    /// logic (`Interactive::invertible_steps`), in order: what the page's
+    /// undo goes past with `interactive.invertible` on.
     invertible: Vec<GoalId>,
 }
 
@@ -97,46 +96,9 @@ impl View {
             steps: state.steps(),
             goals,
             inferences: state.derivation_ids(settings.view.structural),
-            invertible: invertible_steps(state),
+            invertible: state.invertible_steps(),
         }
     }
-}
-
-/// Returns the goals a session closed by a rule invertible in its logic,
-/// in order. A step's inference is drawn with its weakenings left out, so
-/// an axiom shows its goal's sequent. A rule of two premises took a shared
-/// context where each premise keeps every other formula of its goal: a
-/// split gives each premise part of them.
-fn invertible_steps(state: &Interactive) -> Vec<GoalId> {
-    let view = deduxit::linear::ViewOptions::default();
-    let limits = deduxit::Limits::default().with_derivation_bytes(None);
-    let Ok(derivation) = state.derivation_within(&view, &limits, never) else {
-        return Vec::new();
-    };
-    let inferences = derivation.inferences();
-    let ids = state.derivation_ids(Structural::Admissible);
-    let mut found: Vec<GoalId> = (inferences.iter().zip(ids))
-        .filter(|(inference, _)| {
-            let (left, right) = (inference.left(), inference.right());
-            let step = match (inference.rule(), inference.principal()) {
-                (Rule::Axiom, _) => match left.iter().position(|x| right.contains(x)) {
-                    Some(position) => Step::new(Side::Left, position, Rule::Axiom),
-                    None => return false,
-                },
-                (rule, Some((side, position))) => Step::new(side, position, rule),
-                (_, None) => return false,
-            };
-            let shared = inference.premises().len() < 2
-                || inference.premises().iter().all(|p| {
-                    let premise = &inferences[p.index()];
-                    premise.left().len() + premise.right().len() + 1 >= left.len() + right.len()
-                });
-            shared && state.is_invertible((left, right), &step)
-        })
-        .map(|(_, goal)| goal)
-        .collect();
-    found.sort_unstable();
-    found
 }
 
 /// A session after a call that changed it, with its view and what the

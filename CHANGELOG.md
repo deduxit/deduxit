@@ -13,7 +13,7 @@ second number (0.1.x to 0.2.0), anything else the third.
 ### Added
 
 - **The invertible rules in LK and LJ** (`ordinary::Interactive::invert`,
-  `invert_all` and `is_invertible`; `interact --logic … --invertible` and
+  `invert_all`, `is_invertible` and `invertible_steps`; `interact --logic … --invertible` and
   the session command `invertible on|off`; the bindings'
   `interactive.invertible` and `ordinary_invert_all`): the axiom and the
   rules of the connectives with a shared context are applied by

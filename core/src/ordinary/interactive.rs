@@ -560,6 +560,79 @@ impl Interactive {
         self.history.len()
     }
 
+    /// Returns the goals that the session's steps closed by a rule
+    /// invertible in its logic ([`is_invertible`](Self::is_invertible)),
+    /// in the order of the goals: an axiom (its weakenings with it), or a
+    /// rule of a connective whose premises each kept every other formula
+    /// of the goal, a shared context. A step is judged by what it made,
+    /// whoever took it: a graft whose last rule is such a rule is listed
+    /// too.
+    pub fn invertible_steps(&self) -> Vec<GoalId> {
+        let steps: crate::hash::HashSet<InfId> = self.history.iter().copied().collect();
+        let mut found: Vec<GoalId> = self
+            .history
+            .iter()
+            .filter(|&&id| self.closed_invertibly(id, &steps))
+            .map(|id| GoalId::new(id.get()))
+            .collect();
+        found.sort_unstable();
+        found
+    }
+
+    /// Returns whether the step that closed inference `id` applied an
+    /// invertible rule; `steps` are the inferences the steps closed.
+    fn closed_invertibly(&self, id: InfId, steps: &crate::hash::HashSet<InfId>) -> bool {
+        let goal = &self.inferences[id.index()];
+        // An axiom's step is its weakenings, each with one premise that
+        // no other step closed, then the axiom.
+        let mut at = goal;
+        while matches!(at.rule, Rule::WeakenLeft | Rule::WeakenRight)
+            && let [premise] = at.premises[..]
+            && !steps.contains(&premise)
+        {
+            at = &self.inferences[premise.index()];
+        }
+        if at.rule == Rule::Axiom {
+            return true;
+        }
+        let Some((side, position)) = goal.principal else {
+            return false;
+        };
+        let size = |i: &Inference| i.left.len() + i.right.len();
+        let shared = goal.premises.len() < 2
+            || goal
+                .premises
+                .iter()
+                .all(|p| size(&self.inferences[p.index()]) >= size(goal));
+        shared
+            && self.is_invertible(
+                (&goal.left, &goal.right),
+                &Step::new(side, position, goal.rule),
+            )
+    }
+
+    /// Returns the width of every formula of the state, as the
+    /// derivation's estimate counts it. No step adds a formula.
+    pub(super) fn widths(&self) -> Vec<u64> {
+        super::derivation::widths(&self.formulas)
+    }
+
+    /// Returns the bytes the derivation's estimate gives the inferences
+    /// from `from` on and the goal `goal`'s, under the state's `widths`:
+    /// what a step on `goal` added, measured after it.
+    pub(super) fn added_bytes(&self, widths: &[u64], goal: GoalId, from: usize) -> u64 {
+        let bytes = |i: &Inference| super::derivation::inference_bytes(widths, &i.left, &i.right);
+        let own = bytes(&self.inferences[goal.index()]);
+        self.inferences[from..]
+            .iter()
+            .fold(own, |sum, i| sum.saturating_add(bytes(i)))
+    }
+
+    /// Returns how many inferences the state holds.
+    pub(super) fn inference_count(&self) -> usize {
+        self.inferences.len()
+    }
+
     /// Returns the rules the logic offers for the formula at `position` of
     /// `side` of the open goal: the axiom where the formula stands on the
     /// other side too, the rules of its connective on its side, and
