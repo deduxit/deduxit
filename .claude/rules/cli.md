@@ -426,6 +426,29 @@ binary `deduxit` (`[[bin]]` in `cli/Cargo.toml`; `meta.mainProgram` in
   valid, 3 unknown, 2 an error, a disagreement or a failed check
   included (the library's `claim_fails`, a defect). Neither has a
   derivation drawing: the JSON holds the derivations.
+- `workspace.rs`: `deduxit workspace …` over the library's `workspace`
+  (`core-workspace.md`), its file read through `wire::upgrade` within
+  `limits.workspace` and written whole (`io::write`, beside and
+  renamed). `new` and `add` read a sequent by `protocol::statement`
+  (`--logic` an ordinary one, else `--mode`, default `classical`);
+  `apply NODE… OPERATION --set KEY=VALUE` connects and runs, a value
+  that is no JSON taken as a string; `set` changes a given node's
+  sequent, a node's parameters or, where a limit flag or `--settings` is
+  given, its kept settings; `remove`, `undo`, `redo`, `log`, `show`,
+  `operations`. Each edit names its log entry (the operation's name,
+  `sequent`, `sequent change`, `parameters change`, `limits change`,
+  `removal`). `apply` and `set` take `WorkspaceArgs` (the limits a node
+  keeps, and the time limit); `run` and `check` take `RunArgs`, only the
+  time limit and `--settings` for `limits.workspace`, since a node runs
+  under the limits it keeps and a flag there would be ignored. A run
+  (`running`) is on the large stack under the deadline and Ctrl-C; a
+  stop keeps the nodes run before it and is exit 3. The exit status is
+  the worst verdict run (`verdict_status`: an outcome's verdict; a
+  refused run or a failed check exit 2). The listing (`shown`) is a line
+  per node, `N  KIND  SUMMARY`, then how it was made and its check
+  (`none` left out), the bound that stopped it, and its state when not
+  current. No command for a work node's steps, `rebound` or a restart
+  (the library has them).
 - `style.rs`: `read`, which makes the library's `export::Styles`, the
   options value of every format (`TextOptions`, `latex::Options`, `typst::Options`,
   `svg::Style`, `png::Options`, `pdf::Options`, `rocq::Options`) under a

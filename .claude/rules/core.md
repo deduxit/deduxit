@@ -32,6 +32,7 @@ it; only what holds for the whole crate goes here.
 | `core-rules.md` | `rules/`, `serialize/rules.rs`, the rules and natural deduction tests | calculi given as data: the rule file and its checks, the generic derivation (terms, nodes, scopes), the checker by matching and its bounds, the built-in rule files (LK, LJ, LM, LL, the tableau, natural deduction) and their cross-checks |
 | `core-ordinary.md` | `ordinary/` | ordinary logic: its syntax and TPTP reader, the translations as one pattern table, the read-back to LK and LJ, its checker, the certificate over `Prop`, the goal state of LK and LJ |
 | `core-protocol.md` | `protocol/` | the suites' protocol: kinds, operations and promises as data, the registry, the runs and checks over JSON, why `reads` is a cache key |
+| `core-workspace.md` | `workspace/` | the workspace: values linked by operations, records as the cache and their key, states computed, the edit log with undo and redo, the bounds as refusals, the JSON form and what reading it checks again, the reference test |
 
 ## Layout
 
@@ -39,8 +40,9 @@ The root holds what every suite shares: `errors`, `limits`, `settings`,
 `wire`, `export`, `serialize` and `hash`, and the suites beside each
 other: `linear` (`core/src/linear/`), `ordinary` and `lambda`, and
 `rules` (behind `serialize`), the calculi given as data, which belongs
-to no suite, and `protocol` (behind its feature), what each suite offers
-as data. The
+to no suite, `protocol` (behind its feature), what each suite offers
+as data, and `workspace` (behind the same feature), values linked by
+those operations. The
 linear suite is `linear` with `sequents`, `parse`, `fragment`,
 `occurrences`, `proofs`, `search`, `nets`, `lltp`, `mist` and
 `families`; `linear/mod.rs` re-exports its public types, the root
@@ -338,7 +340,7 @@ the commit that lands it rewrites that bullet.
   `Fragment::NAMED`) is a slice, never an array, whose length is part of
   its type and would change with a new value.
 - **The marked ones at 0.4.0** (every public enum and every struct with
-  a public field, 160 after step 63a's fourteen, each `#[non_exhaustive]`; 119 at 0.2.0 and 81 at
+  a public field, 169 after step 63g-b's nine, each `#[non_exhaustive]`; 119 at 0.2.0 and 81 at
   0.1.0; the closed are the seventeen above, fifteen at 0.2.0 and
   thirteen at 0.1.0; both lists checked against
   the rustdoc JSON with every feature by a script, see "The break against
@@ -367,7 +369,8 @@ the commit that lands it rewrites that bullet.
   `ordinary::{End, Sign, Signed}` (added at step 56a);
   `protocol::{Call, Check, Class, Cost, Kind, Limit, Operation,
   Parameter, Part, Produced, Promise, Role, Status, Verdict}` (added at
-  step 63a);
+  step 63a); `workspace::{Cause, Computed, End, NodeView, Ran, State,
+  What}` and `limits::{Held, WorkspaceLimits}` (added at step 63g-b);
   `rules::{Associativity, Discipline, Fixity, Node, Term}` (added at
   step 60), `rules::FitchOptions` (added at step 62); `proofs::{ClassicalRule,
   ClassicalSides, Compact, Dyadic, Fault, Invalid, Labels, Layout, OpenGoal,

@@ -110,7 +110,7 @@ per bullet, what a later session must know and cannot see in the code.
 
 | rules file | loads for | holds |
 |---|---|---|
-| `core.md` | `core/**` | the crate's layout and API in brief, its crate-wide rules, and the table of the seventeen module files `core-*.md` (sequents and parsing, the forest, proofs and the checker, derivations and interactive proving, the search's front door, the focused engine, the Horn engine, the inverse method, the parallel runtime, proof nets and the net engine, the exports, the batch, the benchmark inputs, ordinary logic, lambda-terms, calculi given as data, the suites' protocol), each loaded for its own module |
+| `core.md` | `core/**` | the crate's layout and API in brief, its crate-wide rules, and the table of the eighteen module files `core-*.md` (sequents and parsing, the forest, proofs and the checker, derivations and interactive proving, the search's front door, the focused engine, the Horn engine, the inverse method, the parallel runtime, proof nets and the net engine, the exports, the batch, the benchmark inputs, ordinary logic, lambda-terms, calculi given as data, the suites' protocol, the workspace), each loaded for its own module |
 | `cli.md` | `cli/**` | the command's layout, exit statuses, defaults, time limit, outputs, README's and the manual's examples as a test, extension points |
 | `bench.md` | `bench/**` | the harness, the CSV columns as its interface, the baselines, the target set, extension points |
 | `web.md` | `web/**`, `modules/web.nix` | the bindings' layout, why nothing is kept between calls, the tab's settings, the errors, the stack measured, the build and its checks, extension points |

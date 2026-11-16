@@ -83,6 +83,10 @@ Current contents:
   - `rules/core-rules.md` (`rules/`, `serialize/rules.rs`, the rules
     and natural deduction tests): calculi given as data, the generic
     derivation and its checker, the built-in rule files.
+  - `rules/core-protocol.md` (`protocol/`): what each suite offers as
+    data, run and checked over JSON;
+  - `rules/core-workspace.md` (`workspace/`): values linked by the
+    protocol's operations, the records, undo and redo, the bounds.
 - `rules/cli.md` (`cli/**`): the `deduxit` command's layout, exit statuses,
   search thread, stop polling, the interactive session, and where a new
   engine, output format or session command plugs in.
